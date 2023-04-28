@@ -41,9 +41,9 @@ class TestUpsample1D(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_upsample1d(self, mode, size, scale, ie_device, precision, ir_version, use_ts_backend):
+    def test_upsample1d(self, mode, size, scale, ie_device, precision, ir_version):
         self._test(*self.create_model(size, scale, mode), ie_device,
-                   precision, ir_version, trace_model=True, use_ts_backend=use_ts_backend)
+                   precision, ir_version, trace_model=True)
 
 
 class TestUpsample2D(PytorchLayerTest):
@@ -91,9 +91,9 @@ class TestUpsample2D(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_upsample2d(self, mode, size, scale, ie_device, precision, ir_version, use_ts_backend):
+    def test_upsample2d(self, mode, size, scale, ie_device, precision, ir_version):
         self._test(*self.create_model(size, scale, mode), ie_device,
-                   precision, ir_version, trace_model=True, **{"custom_eps": 1e-3}, use_ts_backend=use_ts_backend)
+                   precision, ir_version, trace_model=True, **{"custom_eps": 1e-3})
 
 
 class TestUpsample3D(PytorchLayerTest):
@@ -135,6 +135,6 @@ class TestUpsample3D(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_upsample3d(self, mode, size, scale, ie_device, precision, ir_version, use_ts_backend):
+    def test_upsample3d(self, mode, size, scale, ie_device, precision, ir_version):
         self._test(*self.create_model(size, scale, mode), ie_device,
-                   precision, ir_version, trace_model=True, **{"custom_eps": 1e-3}, use_ts_backend=use_ts_backend)
+                   precision, ir_version, trace_model=True, **{"custom_eps": 1e-3})

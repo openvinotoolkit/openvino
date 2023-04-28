@@ -30,5 +30,5 @@ class TestStrides(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_strides(self, ie_device, precision, ir_version, use_ts_backend):
-        self._test(*self.create_model(), ie_device, precision, ir_version, use_ts_backend=use_ts_backend)
+    def test_strides(self, ie_device, precision, ir_version):
+        self._test(*self.create_model(), ie_device, precision, ir_version)

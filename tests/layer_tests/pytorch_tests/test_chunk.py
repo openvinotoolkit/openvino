@@ -13,7 +13,7 @@ class aten_chunk_2(torch.nn.Module):
         self.dim = dim
 
     def forward(self, input_tensor):
-        a,b = torch.chunk(input_tensor,
+        a,b = torch.chunk(input_tensor, 
             chunks = 2,
             dim = self.dim
         )
@@ -25,7 +25,7 @@ class aten_chunk_3(torch.nn.Module):
         self.dim = dim
 
     def forward(self, input_tensor):
-        a,b,c = torch.chunk(input_tensor,
+        a,b,c = torch.chunk(input_tensor, 
             chunks = 3,
             dim = self.dim
         )
@@ -37,7 +37,7 @@ class aten_chunk_4(torch.nn.Module):
         self.dim = dim
 
     def forward(self, input_tensor):
-        a,b,c,d = torch.chunk(input_tensor,
+        a,b,c,d = torch.chunk(input_tensor, 
             chunks = 4,
             dim = self.dim
         )
@@ -63,16 +63,16 @@ class TestChunk(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_chunk(self, input_tensor, chunks, ie_device, precision, ir_version, use_ts_backend):
+    def test_chunk(self, input_tensor, chunks, ie_device, precision, ir_version):
         self.input_tensor = input_tensor
-
+        
         for dim in range(len(input_tensor.shape)):
             chunk_size = input_tensor.shape[dim] // chunks
             chunk_size += 1 if input_tensor.shape[dim] % chunks > 0 else 0
 
             output_chunks = input_tensor.shape[dim] // chunk_size
             output_chunks += 1 if input_tensor.shape[dim] % chunk_size > 0 else 0
-
+            
             if output_chunks == 2:
                 cls = aten_chunk_2
             elif output_chunks == 3:
@@ -80,5 +80,5 @@ class TestChunk(PytorchLayerTest):
             elif output_chunks == 4:
                 cls = aten_chunk_4
 
-            self._test(cls(dim), None, "aten::chunk",
-                    ie_device, precision, ir_version, use_ts_backend=use_ts_backend)
+            self._test(cls(dim), None, "aten::chunk", 
+                    ie_device, precision, ir_version)

@@ -44,8 +44,8 @@ class TestVar(PytorchLayerTest):
     @pytest.mark.precommit
     @pytest.mark.parametrize("unbiased", [True, False])
     @pytest.mark.parametrize("return_mean", [True, False])
-    def test_var2args(self, unbiased, return_mean, ie_device, precision, ir_version, use_ts_backend):
-        self._test(*self.create_model(unbiased, return_mean), ie_device, precision, ir_version, use_ts_backend=use_ts_backend)
+    def test_var2args(self, unbiased, return_mean, ie_device, precision, ir_version):
+        self._test(*self.create_model(unbiased, return_mean), ie_device, precision, ir_version)
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -53,5 +53,5 @@ class TestVar(PytorchLayerTest):
     @pytest.mark.parametrize("dim", [None, 0, 1, 2, 3, -1, -2, (0, 1), (-1, -2), (0, 1, -1), (0, 1, 2, 3)])
     @pytest.mark.parametrize("keepdim", [True, False])
     @pytest.mark.parametrize("return_mean", [True, False])
-    def test_var(self, unbiased, dim, keepdim, return_mean, ie_device, precision, ir_version, use_ts_backend):
-        self._test(*self.create_model(unbiased, dim, keepdim, two_args_case=False, return_mean=return_mean), ie_device, precision, ir_version, use_ts_backend=use_ts_backend)
+    def test_var(self, unbiased, dim, keepdim, return_mean, ie_device, precision, ir_version):
+        self._test(*self.create_model(unbiased, dim, keepdim, two_args_case=False, return_mean=return_mean), ie_device, precision, ir_version)

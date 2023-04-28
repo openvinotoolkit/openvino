@@ -34,9 +34,9 @@ class TestNorm(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_norm(self, ie_device, precision, ir_version, p, dim, keepdim, use_ts_backend):
+    def test_norm(self, ie_device, precision, ir_version, p, dim, keepdim):
         self._test(*self.create_model(p, dim, keepdim),
-                   ie_device, precision, ir_version, use_ts_backend=use_ts_backend)
+                   ie_device, precision, ir_version)
 
 
 class TestLinalgVectorNorm(PytorchLayerTest):
@@ -103,10 +103,10 @@ class TestLinalgVectorNorm(PytorchLayerTest):
     @pytest.mark.parametrize("dtype", ["float32", "float64", None])
     @pytest.mark.parametrize("out", [True, False])
     @pytest.mark.parametrize("prim_dtype", [True, False])
-    def test_linalg_vector_norm(self, p, dim, keepdim, dtype, out, prim_dtype, ie_device, precision, ir_version, use_ts_backend):
+    def test_linalg_vector_norm(self, p, dim, keepdim, dtype, out, prim_dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(p, dim, keepdim, dtype, out, prim_dtype),
-                   ie_device, precision, ir_version,
-                   kwargs_to_prepare_input={"out": out or prim_dtype, "out_dtype": dtype if prim_dtype else None}, use_ts_backend=use_ts_backend)
+                   ie_device, precision, ir_version, 
+                   kwargs_to_prepare_input={"out": out or prim_dtype, "out_dtype": dtype if prim_dtype else None})
 
 
 class TestLinalgMatrixNorm(PytorchLayerTest):
@@ -173,10 +173,10 @@ class TestLinalgMatrixNorm(PytorchLayerTest):
     @pytest.mark.parametrize("dtype", ["float32", "float64", None])
     @pytest.mark.parametrize("out", [True, False])
     @pytest.mark.parametrize("prim_dtype", [True, False])
-    def test_linalg_matrix_norm(self, p, dim, keepdim, dtype, out, prim_dtype, ie_device, precision, ir_version, use_ts_backend):
+    def test_linalg_matrix_norm(self, p, dim, keepdim, dtype, out, prim_dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(p, dim, keepdim, dtype, out, prim_dtype),
-                   ie_device, precision, ir_version,
-                   kwargs_to_prepare_input={"out": out or prim_dtype, "out_dtype": dtype if prim_dtype else None}, use_ts_backend=use_ts_backend)
+                   ie_device, precision, ir_version, 
+                   kwargs_to_prepare_input={"out": out or prim_dtype, "out_dtype": dtype if prim_dtype else None})
 
 
 class TestLinalgNorm(PytorchLayerTest):
@@ -238,15 +238,15 @@ class TestLinalgNorm(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.parametrize('p,dim', [
-        (-1, [0, 1]), (1, [-1, -2]), (float('inf'), [1, 0]),
-        (float('-inf'), [-2, -1]), (0, 1), (1, -1),
-        (None, None), (2.5, 0), (-1, 1), (2, 0),
+        (-1, [0, 1]), (1, [-1, -2]), (float('inf'), [1, 0]), 
+        (float('-inf'), [-2, -1]), (0, 1), (1, -1), 
+        (None, None), (2.5, 0), (-1, 1), (2, 0), 
         (float('inf'), 1), (float('-inf'), 1), ("fro", (0, 1))])
     @pytest.mark.parametrize('keepdim', [True, False])
     @pytest.mark.parametrize("dtype", ["float32", "float64", None])
     @pytest.mark.parametrize("out", [True, False])
     @pytest.mark.parametrize("prim_dtype", [True, False])
-    def test_linalg_norm(self, p, dim, keepdim, dtype, out, prim_dtype, ie_device, precision, ir_version, use_ts_backend):
+    def test_linalg_norm(self, p, dim, keepdim, dtype, out, prim_dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(p, dim, keepdim, dtype, out, prim_dtype),
-                   ie_device, precision, ir_version,
-                   kwargs_to_prepare_input={"out": out or prim_dtype, "out_dtype": dtype if prim_dtype else None}, use_ts_backend=use_ts_backend)
+                   ie_device, precision, ir_version, 
+                   kwargs_to_prepare_input={"out": out or prim_dtype, "out_dtype": dtype if prim_dtype else None})

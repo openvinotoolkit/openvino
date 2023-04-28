@@ -28,6 +28,6 @@ class TestExp(PytorchLayerTest):
     @pytest.mark.precommit
     @pytest.mark.parametrize("indicies_size", [1, 2, 3, 4])
     @pytest.mark.parametrize("indicies_dtype", ["int", "int32"])
-    def test_exp(self, ie_device, precision, ir_version, indicies_size, indicies_dtype, use_ts_backend):
+    def test_exp(self, ie_device, precision, ir_version, indicies_size, indicies_dtype):
         self._test(*self.create_model(), ie_device, precision, ir_version,
-         kwargs_to_prepare_input={"indicies_size": indicies_size, "indicies_dtype": indicies_dtype}, use_ts_backend=use_ts_backend)
+         kwargs_to_prepare_input={"indicies_size": indicies_size, "indicies_dtype": indicies_dtype})

@@ -56,9 +56,9 @@ class TestIndex(PytorchLayerTest):
         ([4, 5, 6], np.array((1, 2)).astype(int)),
         ([7, 8, 9], np.array((-1,  2, -3)).astype(int)),
         ([2, 2, 3, 4], np.array((1,)).astype(int))])
-    def test_index(self, input_shape, idx, case, ie_device, precision, ir_version, use_ts_backend):
+    def test_index(self, input_shape, idx, case, ie_device, precision, ir_version):
         self._test(*self.create_model(case), ie_device, precision, ir_version,
-                   kwargs_to_prepare_input={"input_shape": input_shape, "idx": idx}, use_ts_backend=use_ts_backend)
+                   kwargs_to_prepare_input={"input_shape": input_shape, "idx": idx})
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -69,9 +69,9 @@ class TestIndex(PytorchLayerTest):
         ((2, 2, 5), np.ones([2, 2, 5]).astype(bool)),
         ((2, 2, 5), np.random.rand(2, 2, 5) > 0)
     ])
-    def test_index_bool(self, input_shape, idx, case, ie_device, precision, ir_version, use_ts_backend):
+    def test_index_bool(self, input_shape, idx, case, ie_device, precision, ir_version):
         self._test(*self.create_model(case), ie_device, precision, ir_version,
-                   kwargs_to_prepare_input={"input_shape": input_shape, "idx": idx}, use_ts_backend=use_ts_backend)
+                   kwargs_to_prepare_input={"input_shape": input_shape, "idx": idx})
 
 
 class TestIndexRange(PytorchLayerTest):
@@ -112,9 +112,9 @@ class TestIndexRange(PytorchLayerTest):
         ([2, 3], [1, 2]),
         ([7, 8, 9], [1]),
         ([2, 2, 3, 4], [0])))
-    def test_index_range(self, input_shape, idx, ie_device, precision, ir_version, use_ts_backend):
+    def test_index_range(self, input_shape, idx, ie_device, precision, ir_version):
         self._test(*self.create_model(), ie_device, precision, ir_version, kwargs_to_prepare_input={
-                   "input_shape": input_shape, "idx": idx}, trace_model=True, dynamic_shapes=False, use_ts_backend=use_ts_backend)
+                   "input_shape": input_shape, "idx": idx}, trace_model=True, dynamic_shapes=False)
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.parametrize(("input_shape", "idx"), (
@@ -122,6 +122,6 @@ class TestIndexRange(PytorchLayerTest):
         ([2, 3], [1, 2]),
         ([7, 8, 9], [1]),
         ([2, 2, 3, 4], [0])))
-    def test_index_range_free_dims(self, input_shape, idx, ie_device, precision, ir_version, use_ts_backend):
+    def test_index_range_free_dims(self, input_shape, idx, ie_device, precision, ir_version):
         self._test(*self.create_model2(), ie_device, precision, ir_version, kwargs_to_prepare_input={
-                   "input_shape": input_shape, "idx": idx}, trace_model=True, dynamic_shapes=False, use_ts_backend=use_ts_backend)
+                   "input_shape": input_shape, "idx": idx}, trace_model=True, dynamic_shapes=False)

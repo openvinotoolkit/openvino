@@ -37,11 +37,11 @@ class TestRepeatInterleaveConstRepeats(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_repeat_interleave_const_repeats(self, ie_device, precision, ir_version, input_data, use_ts_backend):
+    def test_repeat_interleave_const_repeats(self, ie_device, precision, ir_version, input_data):
         repeats = input_data['repeats']
         dim = input_data['dim']
         self._test(*self.create_model_const_repeat(repeats, dim),
-                   ie_device, precision, ir_version, use_ts_backend=use_ts_backend)
+                   ie_device, precision, ir_version)
 
 @pytest.mark.parametrize('input_data', ({'repeats': np.array([1]).astype(np.int32), 'dim': 0},
                                         {'repeats': np.array(1).astype(np.int32), 'dim': 1},
@@ -69,8 +69,8 @@ class TestRepeatInterleaveNonConstRepeats(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_repeat_interleave_non_const_repeats(self, ie_device, precision, ir_version, input_data, use_ts_backend):
+    def test_repeat_interleave_non_const_repeats(self, ie_device, precision, ir_version, input_data):
         self.repeats = input_data['repeats']
         dim = input_data['dim']
         self._test(*self.create_model_non_const_repeat(dim),
-                   ie_device, precision, ir_version, dynamic_shapes=False, use_mo_convert=False, use_ts_backend=use_ts_backend)
+                   ie_device, precision, ir_version, dynamic_shapes=False, use_mo_convert=False)

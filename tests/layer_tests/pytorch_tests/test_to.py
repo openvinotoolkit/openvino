@@ -37,9 +37,9 @@ class TestAtenTo(PytorchLayerTest):
                              [torch.uint8, torch.int8, torch.int16, torch.int32, torch.float32, torch.int64])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_aten_to(self, input_type, output_type, ie_device, precision, ir_version, use_ts_backend):
+    def test_aten_to(self, input_type, output_type, ie_device, precision, ir_version):
         self.input_type = input_type
-        self._test(*self.create_model(output_type), ie_device, precision, ir_version, use_ts_backend=use_ts_backend)
+        self._test(*self.create_model(output_type), ie_device, precision, ir_version)
 
     # Cartesian product of input/output types
     @pytest.mark.parametrize("input_type", [np.int32, np.float32, np.float64])
@@ -54,9 +54,9 @@ class TestAtenTo(PytorchLayerTest):
         [torch.bool, True]
     ])
     @pytest.mark.nightly
-    def test_aten_to_non_blocking_arg(self, input_type, output_type, non_blocking, ie_device, precision, ir_version, use_ts_backend):
+    def test_aten_to_non_blocking_arg(self, input_type, output_type, non_blocking, ie_device, precision, ir_version):
         self.input_type = input_type
-        self._test(*self.create_model(output_type, non_blocking=non_blocking), ie_device, precision, ir_version, use_ts_backend=use_ts_backend)
+        self._test(*self.create_model(output_type, non_blocking=non_blocking), ie_device, precision, ir_version)
 
     # Cartesian product of input/output types
     @pytest.mark.parametrize("input_type", [np.int32, np.float32, np.float64])
@@ -70,9 +70,9 @@ class TestAtenTo(PytorchLayerTest):
         [torch.float64, True],
     ])
     @pytest.mark.nightly
-    def test_aten_to_copy_arg(self, input_type, output_type, copy, ie_device, precision, ir_version, use_ts_backend):
+    def test_aten_to_copy_arg(self, input_type, output_type, copy, ie_device, precision, ir_version):
         self.input_type = input_type
-        self._test(*self.create_model(output_type, copy=copy), ie_device, precision, ir_version, use_ts_backend=use_ts_backend)
+        self._test(*self.create_model(output_type, copy=copy), ie_device, precision, ir_version)
 
     # Cartesian product of input/output types
     @pytest.mark.parametrize("input_type", [np.int32, np.float32, np.float64])
@@ -87,10 +87,10 @@ class TestAtenTo(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     def test_aten_to_raise_memory_format_arg(self, input_type, output_type, memory_format, ie_device, precision,
-                                             ir_version, use_ts_backend):
+                                             ir_version):
         self.input_type = input_type
         with pytest.raises(OpConversionFailure) as e:
-            self._test(*self.create_model(output_type, memory_format=memory_format), ie_device, precision, ir_version, use_ts_backend=use_ts_backend)
+            self._test(*self.create_model(output_type, memory_format=memory_format), ie_device, precision, ir_version)
 
 
 class TestAtenToDevice(PytorchLayerTest):
@@ -112,8 +112,8 @@ class TestAtenToDevice(PytorchLayerTest):
     @pytest.mark.parametrize("use_trace", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_aten_to_device(self, use_trace, ie_device, precision, ir_version, use_ts_backend):
-        self._test(*self.create_model(), ie_device, precision, ir_version, trace_model=use_trace, use_ts_backend=use_ts_backend)
+    def test_aten_to_device(self, use_trace, ie_device, precision, ir_version):
+        self._test(*self.create_model(), ie_device, precision, ir_version, trace_model=use_trace)
 
 class TestAtenToDeviceConst(PytorchLayerTest):
     def _prepare_input(self):
@@ -134,5 +134,5 @@ class TestAtenToDeviceConst(PytorchLayerTest):
     @pytest.mark.parametrize("use_trace", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_aten_to_device_const(self, use_trace, ie_device, precision, ir_version, use_ts_backend):
-        self._test(*self.create_model(), ie_device, precision, ir_version, trace_model=use_trace, use_ts_backend=use_ts_backend)
+    def test_aten_to_device_const(self, use_trace, ie_device, precision, ir_version):
+        self._test(*self.create_model(), ie_device, precision, ir_version, trace_model=use_trace)

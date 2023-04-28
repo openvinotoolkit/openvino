@@ -54,8 +54,8 @@ class TestComp(PytorchLayerTest):
     @pytest.mark.parametrize("op", ["eq", "ne", "lt", "gt", "le", "ge"])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_comp(self, op, ie_device, precision, ir_version, use_ts_backend):
-        self._test(*self.create_model(op), ie_device, precision, ir_version, use_ts_backend=use_ts_backend)
+    def test_comp(self, op, ie_device, precision, ir_version):
+        self._test(*self.create_model(op), ie_device, precision, ir_version)
 
 
 class TestCompMixedTypes(PytorchLayerTest):
@@ -125,10 +125,10 @@ class TestCompMixedTypes(PytorchLayerTest):
     @pytest.mark.parametrize("op", ["eq", "ne", "lt", "gt", "le", "ge"])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_eq_mixed_types(self, ie_device, precision, ir_version, lhs_type, lhs_shape, rhs_type, rhs_shape, op, use_ts_backend):
+    def test_eq_mixed_types(self, ie_device, precision, ir_version, lhs_type, lhs_shape, rhs_type, rhs_shape, op):
         self.lhs_type = lhs_type
         self.lhs_shape = lhs_shape
         self.rhs_type = rhs_type
         self.rhs_shape = rhs_shape
         self._test(*self.create_model(lhs_type, lhs_shape, rhs_type, rhs_shape, op),
-                   ie_device, precision, ir_version, use_ts_backend=use_ts_backend)
+                   ie_device, precision, ir_version)

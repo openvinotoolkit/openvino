@@ -42,24 +42,24 @@ class TestCat(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_cat(self, ie_device, precision, ir_version, use_ts_backend):
+    def test_cat(self, ie_device, precision, ir_version):
         self._test(aten_cat(), None, ["aten::cat", "prim::ListConstruct"],
-                ie_device, precision, ir_version, use_ts_backend=use_ts_backend)
+                   ie_device, precision, ir_version)
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_append_cat(self, ie_device, precision, ir_version, use_ts_backend):
+    def test_append_cat(self, ie_device, precision, ir_version):
         self._test(aten_append_cat(), None, ["aten::cat", "aten::append", "prim::ListConstruct"],
-                ie_device, precision, ir_version, use_ts_backend=use_ts_backend)
+                   ie_device, precision, ir_version)
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_loop_append_cat(self, ie_device, precision, ir_version, use_ts_backend):
+    def test_loop_append_cat(self, ie_device, precision, ir_version):
         self._test(aten_loop_append_cat(), None, ["aten::cat", "aten::append", "prim::ListConstruct", "prim::Loop"],
-                ie_device, precision, ir_version, freeze_model=False, use_ts_backend=use_ts_backend)
+                   ie_device, precision, ir_version, freeze_model=False)
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_add_cat(self, ie_device, precision, ir_version, use_ts_backend):
+    def test_add_cat(self, ie_device, precision, ir_version):
         self._test(aten_add_cat(), None, ["aten::cat", "aten::add", "prim::ListConstruct"],
-                ie_device, precision, ir_version, freeze_model=False, use_ts_backend=use_ts_backend)
+                   ie_device, precision, ir_version, freeze_model=False)

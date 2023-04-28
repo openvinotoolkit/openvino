@@ -47,6 +47,6 @@ class TestSilu(PytorchLayerTest):
     @pytest.mark.precommit
     @pytest.mark.parametrize("input_type", ["zeros", "positive", "negative", "mixed"])
     @pytest.mark.parametrize("out", [True, False])
-    def test_sign(self, input_type, out, ie_device, precision, ir_version, use_ts_backend):
+    def test_sign(self, input_type, out, ie_device, precision, ir_version):
         self._test(*self.create_model(out), ie_device, precision, ir_version,
-                   kwargs_to_prepare_input={"inp_type": input_type, "out": out}, use_ts_backend=use_ts_backend)
+                   kwargs_to_prepare_input={"inp_type": input_type, "out": out})

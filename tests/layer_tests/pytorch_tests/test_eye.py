@@ -53,12 +53,12 @@ class TestEye(PytorchLayerTest):
     @pytest.mark.precommit
     @pytest.mark.parametrize("dtype", ["bool", "int8", "uint8", "int32", "int64", "float32", "float64"])
     @pytest.mark.parametrize("m", [2, 3, 4, 5])
-    def test_eye_square(self, dtype, m, ie_device, precision, ir_version, use_ts_backend):
-        self._test(*self.create_model(1, dtype), ie_device, precision, ir_version, kwargs_to_prepare_input={"m": m}, use_ts_backend=use_ts_backend)
+    def test_eye_square(self, dtype, m, ie_device, precision, ir_version):
+        self._test(*self.create_model(1, dtype), ie_device, precision, ir_version, kwargs_to_prepare_input={"m": m})
 
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.parametrize("dtype", ["bool", "int8", "uint8", "int32", "int64", "float32", "float64"])
     @pytest.mark.parametrize(("m", "n"), [[2, 2], [3, 4], [5, 3]])
-    def test_eye(self, dtype, m, n, ie_device, precision, ir_version, use_ts_backend):
-        self._test(*self.create_model(2, dtype), ie_device, precision, ir_version, kwargs_to_prepare_input={"m": m, "n": n}, use_ts_backend=use_ts_backend)
+    def test_eye(self, dtype, m, n, ie_device, precision, ir_version):
+        self._test(*self.create_model(2, dtype), ie_device, precision, ir_version, kwargs_to_prepare_input={"m": m, "n": n})

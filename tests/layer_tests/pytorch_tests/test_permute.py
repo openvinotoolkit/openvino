@@ -29,8 +29,8 @@ class TestPermute(PytorchLayerTest):
     @pytest.mark.parametrize("order", [[0, 2, 3, 1], [0, 3, 1, 2]])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_permute(self, order, ie_device, precision, ir_version, use_ts_backend):
-        self._test(*self.create_model(order), ie_device, precision, ir_version, use_ts_backend=use_ts_backend)
+    def test_permute(self, order, ie_device, precision, ir_version):
+        self._test(*self.create_model(order), ie_device, precision, ir_version)
 
 class TestPermuteList(PytorchLayerTest):
     def _prepare_input(self, permute_shape):
@@ -53,5 +53,5 @@ class TestPermuteList(PytorchLayerTest):
     @pytest.mark.parametrize("order", [[1, 3, 4, 2], [1, 4, 2, 3]])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_permute(self, order, ie_device, precision, ir_version, use_ts_backend):
-        self._test(*self.create_model(), ie_device, precision, ir_version, kwargs_to_prepare_input={"permute_shape": order}, use_ts_backend=use_ts_backend)
+    def test_permute(self, order, ie_device, precision, ir_version):
+        self._test(*self.create_model(), ie_device, precision, ir_version, kwargs_to_prepare_input={"permute_shape": order})

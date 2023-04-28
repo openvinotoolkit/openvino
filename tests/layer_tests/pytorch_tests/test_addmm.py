@@ -44,9 +44,9 @@ class TestAddMM(PytorchLayerTest):
                               (1, 1)])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_addmm(self, kwargs_to_prepare_input, alpha, beta, ie_device, precision, ir_version, use_ts_backend):
+    def test_addmm(self, kwargs_to_prepare_input, alpha, beta, ie_device, precision, ir_version):
         self._test(*self.create_model(alpha, beta), ie_device, precision, ir_version,
-                    kwargs_to_prepare_input=kwargs_to_prepare_input, use_ts_backend=use_ts_backend)
+                   kwargs_to_prepare_input=kwargs_to_prepare_input)
 
 
 class TestBAddBMM(PytorchLayerTest):
@@ -93,6 +93,6 @@ class TestBAddBMM(PytorchLayerTest):
                              ])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_baddbmm(self, kwargs_to_prepare_input, alpha, beta, ie_device, precision, ir_version, use_ts_backend):
+    def test_baddbmm(self, kwargs_to_prepare_input, alpha, beta, ie_device, precision, ir_version):
         self._test(*self.create_model(alpha, beta), ie_device, precision, ir_version,
-                    kwargs_to_prepare_input=kwargs_to_prepare_input, use_ts_backend=use_ts_backend)
+                   kwargs_to_prepare_input=kwargs_to_prepare_input)

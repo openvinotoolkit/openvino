@@ -53,6 +53,6 @@ class TestGroupNorm(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_group_norm(self, params, ie_device, precision, ir_version, kwargs_to_prepare_input, use_ts_backend):
+    def test_group_norm(self, params, ie_device, precision, ir_version, kwargs_to_prepare_input):
         self._test(*self.create_model(**params),
-                   ie_device, precision, ir_version, kwargs_to_prepare_input=kwargs_to_prepare_input, use_ts_backend=use_ts_backend)
+                   ie_device, precision, ir_version, kwargs_to_prepare_input=kwargs_to_prepare_input)

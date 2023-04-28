@@ -62,9 +62,9 @@ class TestConvTranspose2D(PytorchLayerTest):
     @pytest.mark.parametrize("bias", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_conv_transpose2d(self, params, bias, ie_device, precision, ir_version, use_ts_backend):
+    def test_conv_transpose2d(self, params, bias, ie_device, precision, ir_version):
         self._test(*self.create_model(**params, bias=bias),
-                ie_device, precision, ir_version, dynamic_shapes=params['groups'] == 1, use_ts_backend=use_ts_backend)
+                   ie_device, precision, ir_version, dynamic_shapes=params['groups'] == 1)
 
 
 class TestConvTranspose1D(PytorchLayerTest):
@@ -121,9 +121,9 @@ class TestConvTranspose1D(PytorchLayerTest):
     @pytest.mark.parametrize("bias", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_conv_transpose1d(self, params, bias, ie_device, precision, ir_version, use_ts_backend):
+    def test_conv_transpose1d(self, params, bias, ie_device, precision, ir_version):
         self._test(*self.create_model(**params, bias=bias),
-                ie_device, precision, ir_version, dynamic_shapes=params['groups'] == 1, use_ts_backend=use_ts_backend)
+                   ie_device, precision, ir_version, dynamic_shapes=params['groups'] == 1)
 
 
 class TestConvTranspose3D(PytorchLayerTest):
@@ -191,6 +191,6 @@ class TestConvTranspose3D(PytorchLayerTest):
     @pytest.mark.parametrize("bias", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_conv_transpose3d(self, params, bias, ie_device, precision, ir_version, use_ts_backend):
+    def test_conv_transpose3d(self, params, bias, ie_device, precision, ir_version):
         self._test(*self.create_model(**params, bias=bias),
-                ie_device, precision, ir_version, dynamic_shapes=params['groups'] == 1, use_ts_backend=use_ts_backend)
+                   ie_device, precision, ir_version, dynamic_shapes=params['groups'] == 1)

@@ -27,9 +27,9 @@ class TestViewListConstruct(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_view_list_construct(self, ie_device, precision, ir_version, input_data, use_ts_backend):
+    def test_view_list_construct(self, ie_device, precision, ir_version, input_data):
         self.input_data = input_data
-        self._test(*self.create_model(), ie_device, precision, ir_version, use_ts_backend=use_ts_backend)
+        self._test(*self.create_model(), ie_device, precision, ir_version)
 
 @pytest.mark.parametrize('input_data', [(np.random.randn(4), np.array(2))])
 class TestViewDtype(PytorchLayerTest):
@@ -49,9 +49,9 @@ class TestViewDtype(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_view_dtype(self, ie_device, precision, ir_version, input_data, use_ts_backend):
+    def test_view_dtype(self, ie_device, precision, ir_version, input_data):
         self.input_data = input_data
-        self._test(*self.create_model(), ie_device, precision, ir_version, use_ts_backend=use_ts_backend)
+        self._test(*self.create_model(), ie_device, precision, ir_version)
 
 
 @pytest.mark.parametrize('input_data', [(np.random.randn(4), np.random.randn(2, 2))])
@@ -72,9 +72,9 @@ class TestViewSize(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_view_size(self, ie_device, precision, ir_version, input_data, use_ts_backend):
+    def test_view_size(self, ie_device, precision, ir_version, input_data):
         self.input_data = input_data
-        self._test(*self.create_model(), ie_device, precision, ir_version, use_ts_backend=use_ts_backend)
+        self._test(*self.create_model(), ie_device, precision, ir_version)
 
 @pytest.mark.parametrize('input_data', [(np.random.randn(2, 3, 2), 2, 6),
                                         (np.random.randn(4), 2, 2),
@@ -101,6 +101,6 @@ class TestView(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_view(self, ie_device, precision, ir_version, input_data, use_ts_backend):
+    def test_view(self, ie_device, precision, ir_version, input_data):
         self.input_data = input_data
-        self._test(*self.create_model(), ie_device, precision, ir_version, use_ts_backend=use_ts_backend)
+        self._test(*self.create_model(), ie_device, precision, ir_version)

@@ -37,12 +37,12 @@ class TestLog(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.parametrize(("op", "input_dtype"),
-                             [["log", "float32"],
-                             ["log", "int32"],
-                             ["log_", "float32"],
-                             ["log2", "float32"],
-                             ["log2", "int32"],
+                             [["log", "float32"], 
+                             ["log", "int32"], 
+                             ["log_", "float32"], 
+                             ["log2", "float32"], 
+                             ["log2", "int32"], 
                              ["log2_", "float32"]])
-    def test_log(self, op, input_dtype, ie_device, precision, ir_version, use_ts_backend):
+    def test_log(self, op, input_dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(op), ie_device, precision,
-                   ir_version, kwargs_to_prepare_input={"dtype": input_dtype}, use_ts_backend=use_ts_backend)
+                   ir_version, kwargs_to_prepare_input={"dtype": input_dtype})

@@ -44,8 +44,8 @@ class TestEmptyNumeric(PytorchLayerTest):
     @pytest.mark.parametrize('dtype', ("float32", "float64", "int64", "int32", "uint8", "int8"))
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_empty(self, ie_device, precision, ir_version, dtype, use_ts_backend):
-        self._test(*self.create_model(dtype), ie_device, precision, ir_version, use_ts_backend=use_ts_backend)
+    def test_empty(self, ie_device, precision, ir_version, dtype):
+        self._test(*self.create_model(dtype), ie_device, precision, ir_version)
 
 class TestEmptyBoolean(PytorchLayerTest):
 
@@ -73,8 +73,8 @@ class TestEmptyBoolean(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_empty_bool(self, ie_device, precision, ir_version, use_ts_backend):
-        self._test(*self.create_model(), ie_device, precision, ir_version, use_ts_backend=use_ts_backend)
+    def test_empty_bool(self, ie_device, precision, ir_version, ):
+        self._test(*self.create_model(), ie_device, precision, ir_version)
 
 class TestNewEmpty(PytorchLayerTest):
     def _prepare_input(self, input_dtype=np.float32):
@@ -132,14 +132,14 @@ class TestNewEmpty(PytorchLayerTest):
     @pytest.mark.parametrize("input_dtype", [np.uint8, np.int8, np.int32, np.int64, np.float32, np.float64])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_new_empty(self, shape, input_dtype, ie_device, precision, ir_version, use_ts_backend):
+    def test_new_empty(self, shape, input_dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(shape), ie_device, precision, ir_version,
-                   kwargs_to_prepare_input={'input_dtype': input_dtype}, use_ts_backend=use_ts_backend)
+                   kwargs_to_prepare_input={'input_dtype': input_dtype})
 
     @pytest.mark.parametrize("shape", [[1], [1, 2], [1, 2, 3], [1, 2, 3, 4], [2, 3, 4, 5, 6]])
     @pytest.mark.parametrize("input_dtype", [bool, np.uint8, np.int8, np.int32, np.int64, np.float32, np.float64])
     @pytest.mark.parametrize("dtype", ["bool", "uint8", "int8", "int32", "int64", "float32", "float64"])
     @pytest.mark.nightly
-    def test_new_empty_with_dtype(self, shape, dtype, input_dtype, ie_device, precision, ir_version, use_ts_backend):
+    def test_new_empty_with_dtype(self, shape, dtype, input_dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(shape, dtype=dtype, used_dtype=True), ie_device, precision, ir_version,
-                   kwargs_to_prepare_input={'input_dtype': input_dtype}, use_ts_backend=use_ts_backend)
+                   kwargs_to_prepare_input={'input_dtype': input_dtype})

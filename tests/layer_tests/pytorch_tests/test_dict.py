@@ -15,12 +15,12 @@ class TestDict(PytorchLayerTest):
 
     def create_model(self):
         class aten_dict(torch.nn.Module):
-            def forward(self, x):
+            def forward(self, x):                
                 return {"b": x, "a": x + x, "c": 2 * x}, x / 2
 
         return aten_dict(), None, "prim::DictConstruct"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_dict(self, ie_device, precision, ir_version, use_ts_backend):
-        self._test(*self.create_model(), ie_device, precision, ir_version, use_ts_backend=use_ts_backend)
+    def test_dict(self, ie_device, precision, ir_version):
+        self._test(*self.create_model(), ie_device, precision, ir_version)

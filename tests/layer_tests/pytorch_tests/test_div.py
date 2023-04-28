@@ -41,13 +41,13 @@ class TestDiv(PytorchLayerTest):
     ]))
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_div_pt_spec(self, input_array, other_array, rounding_mode, ie_device, precision, ir_version, use_ts_backend):
+    def test_div_pt_spec(self, input_array, other_array, rounding_mode, ie_device, precision, ir_version):
         self.input_array = input_array
         self.input_type = np.float32
         self.other_array = other_array
         self.other_type = np.float32
         self._test(*self.create_model(rounding_mode),
-                ie_device, precision, ir_version, use_ts_backend=use_ts_backend)
+                   ie_device, precision, ir_version)
 
 
 class TestDivTypes(PytorchLayerTest):
@@ -110,7 +110,7 @@ class TestDivTypes(PytorchLayerTest):
     ]))
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_div_types(self, ie_device, precision, ir_version, lhs_type, lhs_shape, rhs_type, rhs_shape, rounding_mode, use_ts_backend):
+    def test_div_types(self, ie_device, precision, ir_version, lhs_type, lhs_shape, rhs_type, rhs_shape, rounding_mode):
         self.lhs_type = lhs_type
         self.lhs_shape = lhs_shape
         self.rhs_type = rhs_type
@@ -118,4 +118,4 @@ class TestDivTypes(PytorchLayerTest):
         if rounding_mode == "floor" and not lhs_type.is_floating_point and not rhs_type.is_floating_point:
             pytest.skip("Floor rounding mode and int inputs produce wrong results")
         self._test(*self.create_model(lhs_type, lhs_shape, rhs_type, rhs_shape, rounding_mode),
-                ie_device, precision, ir_version, use_ts_backend=use_ts_backend)
+                   ie_device, precision, ir_version)

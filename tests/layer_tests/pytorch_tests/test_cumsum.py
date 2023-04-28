@@ -42,15 +42,15 @@ class TestCumSum(PytorchLayerTest):
                 if out:
                     self.forward =  self.forward_out
                 if self.dtype is not None:
-                    if not dtype_from_input:
+                    if not dtype_from_input: 
                         self.forward = self.forward_dtype if not out else self.forward_out_dtype
 
             def forward(self, x):
                 return torch.cumsum(x, self.axis)
-
+            
             def forward_dtype(self, x):
                 return torch.cumsum(x, self.axis, dtype=self.dtype)
-
+            
             def forward_out(self, x, y):
                 return y, torch.cumsum(x, self.axis, out=y)
 
@@ -69,5 +69,5 @@ class TestCumSum(PytorchLayerTest):
     @pytest.mark.parametrize("out,dtype_from_input", [(False, False), (True, False), (True, True)])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_cumsum(self, axis, dtype, out, dtype_from_input, ie_device, precision, ir_version, use_ts_backend):
-        self._test(*self.create_model(axis, dtype, out, dtype_from_input), ie_device, precision, ir_version, kwargs_to_prepare_input={"out": out, "out_dtype": dtype}, use_ts_backend=use_ts_backend)
+    def test_cumsum(self, axis, dtype, out, dtype_from_input, ie_device, precision, ir_version):
+        self._test(*self.create_model(axis, dtype, out, dtype_from_input), ie_device, precision, ir_version, kwargs_to_prepare_input={"out": out, "out_dtype": dtype})

@@ -32,6 +32,6 @@ class TestAdaptiveAvgPool3D(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_adaptive_avg_pool3d(self, ie_device, precision, ir_version, input_tensor, output_size, use_ts_backend):
+    def test_adaptive_avg_pool3d(self, ie_device, precision, ir_version, input_tensor, output_size):
         self.input_tensor = input_tensor
-        self._test(*self.create_model(output_size), ie_device, precision, ir_version, use_ts_backend=use_ts_backend)
+        self._test(*self.create_model(output_size), ie_device, precision, ir_version)

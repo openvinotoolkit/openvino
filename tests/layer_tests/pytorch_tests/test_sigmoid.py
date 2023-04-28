@@ -30,5 +30,5 @@ class TestSigmoid(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.parametrize("inplace", [True, False])
-    def test_sigmoid(self, inplace, ie_device, precision, ir_version, use_ts_backend):
-        self._test(*self.create_model(inplace), ie_device, precision, ir_version, use_ts_backend=use_ts_backend)
+    def test_sigmoid(self, inplace, ie_device, precision, ir_version):
+        self._test(*self.create_model(inplace), ie_device, precision, ir_version)

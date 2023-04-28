@@ -25,7 +25,7 @@ class TestAnd(PytorchLayerTest):
         ref_net = None
 
         return aten_and_tensor(), ref_net, "aten::__and__"
-
+    
     def create_model_bool_input(self):
         class aten_and_bool(torch.nn.Module):
 
@@ -41,16 +41,16 @@ class TestAnd(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_and_tensor(self, ie_device, precision, ir_version, use_ts_backend):
+    def test_and_tensor(self, ie_device, precision, ir_version):
         self.input_data = (np.array([True, False, False], dtype=np.bool_), np.array(
             [True, True, False], dtype=np.bool_))
         self._test(*self.create_model_tensor_input(),
-                ie_device, precision, ir_version, use_ts_backend=use_ts_backend)
+                   ie_device, precision, ir_version)
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_and_bool(self, ie_device, precision, ir_version, use_ts_backend):
+    def test_and_bool(self, ie_device, precision, ir_version):
         self.input_data = (np.array(True, dtype=np.bool_),
                            np.array(True, dtype=np.bool_))
         self._test(*self.create_model_bool_input(),
-                ie_device, precision, ir_version, use_ts_backend=use_ts_backend)
+                   ie_device, precision, ir_version)

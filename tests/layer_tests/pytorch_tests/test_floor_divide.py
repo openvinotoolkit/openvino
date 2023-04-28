@@ -52,10 +52,10 @@ class TestFloorDivide(PytorchLayerTest):
     ]))
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_floor_divide(self, input_tensor, other_tensor, ie_device, precision, ir_version, use_ts_backend):
+    def test_floor_divide(self, input_tensor, other_tensor, ie_device, precision, ir_version):
         self.input_tensor = input_tensor
         self.other_tensor = other_tensor
-        self._test(*self.create_model(), ie_device, precision, ir_version, trace_model=True, use_ts_backend=use_ts_backend)
+        self._test(*self.create_model(), ie_device, precision, ir_version, trace_model=True)
 
     @pytest.mark.parametrize('input_tensor', ([
         np.random.randint(low=0, high=10, size=5).astype(np.float32),
@@ -70,8 +70,8 @@ class TestFloorDivide(PytorchLayerTest):
     ]))
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_floor_divide_int(self, input_tensor, other_tensor, ie_device, precision, ir_version, use_ts_backend):
+    def test_floor_divide_int(self, input_tensor, other_tensor, ie_device, precision, ir_version):
         self.input_tensor = input_tensor
         self.other_tensor = other_tensor
         self.create_model = self.create_model_int
-        self._test(*self.create_model(), ie_device, precision, ir_version, use_ts_backend=use_ts_backend)
+        self._test(*self.create_model(), ie_device, precision, ir_version)

@@ -43,7 +43,7 @@ class TestGelu(PytorchLayerTest):
     @pytest.mark.parametrize("n", [2, 10, 100])
     @pytest.mark.parametrize("axis", [0, 1])
     @pytest.mark.parametrize("out", [True, False])
-    def test_gather(self, m, n, axis, out, ie_device, precision, ir_version, use_ts_backend):
+    def test_gather(self, m, n, axis, out, ie_device, precision, ir_version):
         self._test(*self.create_model(axis, out), ie_device, precision, ir_version, kwargs_to_prepare_input={
             "m": m, "n": n, "max_val": m if axis == 0 else n, "out": out
-        }, use_ts_backend=use_ts_backend)
+        })

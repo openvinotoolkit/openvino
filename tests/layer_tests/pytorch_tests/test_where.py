@@ -42,18 +42,18 @@ class Testwhere(PytorchLayerTest):
     @pytest.mark.parametrize("mask_dtype", [np.uint8, bool])  # np.float32 incorrectly casted to bool
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_where(self, mask_fill, mask_dtype, ie_device, precision, ir_version, use_ts_backend):
+    def test_where(self, mask_fill, mask_dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(False),
                    ie_device, precision, ir_version,
-                   kwargs_to_prepare_input={'mask_fill': mask_fill, 'mask_dtype': mask_dtype, 'return_x_y': True}, use_ts_backend=use_ts_backend)
+                   kwargs_to_prepare_input={'mask_fill': mask_fill, 'mask_dtype': mask_dtype, 'return_x_y': True})
 
     @pytest.mark.parametrize(
         "mask_fill", ['zeros', 'ones', 'random'])
     @pytest.mark.parametrize("mask_dtype", [np.uint8, bool])  # np.float32 incorrectly casted to bool
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_where_as_nonzero(self, mask_fill, mask_dtype, ie_device, precision, ir_version, use_ts_backend):
+    def test_where_as_nonzero(self, mask_fill, mask_dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(True),
                    ie_device, precision, ir_version,
                    kwargs_to_prepare_input={'mask_fill': mask_fill, 'mask_dtype': mask_dtype, 'return_x_y': False},
-                   trace_model=True, use_ts_backend=use_ts_backend)
+                   trace_model=True)

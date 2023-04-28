@@ -52,7 +52,7 @@ class TestMaskedFill(PytorchLayerTest):
     @pytest.mark.parametrize("inplace", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_masked_fill(self, value, mask_fill, mask_dtype, input_dtype, inplace, ie_device, precision, ir_version, use_ts_backend):
+    def test_masked_fill(self, value, mask_fill, mask_dtype, input_dtype, inplace, ie_device, precision, ir_version):
         self._test(*self.create_model(value, inplace),
                    ie_device, precision, ir_version,
-                   kwargs_to_prepare_input={'mask_fill': mask_fill, 'mask_dtype': mask_dtype, "input_dtype": input_dtype}, use_ts_backend=use_ts_backend)
+                   kwargs_to_prepare_input={'mask_fill': mask_fill, 'mask_dtype': mask_dtype, "input_dtype": input_dtype})

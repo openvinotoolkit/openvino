@@ -31,5 +31,5 @@ class TestSetItem(PytorchLayerTest):
     @pytest.mark.parametrize("idx", [0, 1, pytest.param(-1, marks=pytest.mark.xfail(reason="103748 ov scatter do not support negative indices"))])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_set_item_list(self, idx, ie_device, precision, ir_version, use_ts_backend):
-        self._test(*self.create_model(idx), ie_device, precision, ir_version, use_ts_backend=use_ts_backend)
+    def test_set_item_list(self, idx, ie_device, precision, ir_version):
+        self._test(*self.create_model(idx), ie_device, precision, ir_version)

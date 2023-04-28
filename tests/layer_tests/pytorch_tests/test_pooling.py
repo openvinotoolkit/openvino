@@ -106,53 +106,53 @@ class TestPooling(PytorchLayerTest):
     @pytest.mark.parametrize("count_include_pad", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_avg_pool1d(self, params, ceil_mode, count_include_pad, ie_device, precision, ir_version, use_ts_backend):
+    def test_avg_pool1d(self, params, ceil_mode, count_include_pad, ie_device, precision, ir_version):
         self._test(*self.create_model("avg_pool1d", **params, ceil_mode=ceil_mode, count_include_pad=count_include_pad),
                    ie_device, precision, ir_version, kwargs_to_prepare_input={'ndim': 3}, trace_model=True,
-                   dynamic_shapes=False, use_ts_backend=use_ts_backend)
+                   dynamic_shapes=False)
 
     @pytest.mark.parametrize("params", d2_avg_params)
     @pytest.mark.parametrize("ceil_mode", [True, False])
     @pytest.mark.parametrize("count_include_pad", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_avg_pool2d(self, params, ceil_mode, count_include_pad, ie_device, precision, ir_version, use_ts_backend):
+    def test_avg_pool2d(self, params, ceil_mode, count_include_pad, ie_device, precision, ir_version):
         self._test(*self.create_model("avg_pool2d", **params, ceil_mode=ceil_mode, count_include_pad=count_include_pad),
-                   ie_device, precision, ir_version, trace_model=True, dynamic_shapes=False, use_ts_backend=use_ts_backend)
+                   ie_device, precision, ir_version, trace_model=True, dynamic_shapes=False)
 
     @pytest.mark.parametrize("params", d3_avg_params)
     @pytest.mark.parametrize("ceil_mode", [True, False])
     @pytest.mark.parametrize("count_include_pad", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_avg_pool3d(self, params, ceil_mode, count_include_pad, ie_device, precision, ir_version, use_ts_backend):
+    def test_avg_pool3d(self, params, ceil_mode, count_include_pad, ie_device, precision, ir_version):
         self._test(*self.create_model("avg_pool3d", **params, ceil_mode=ceil_mode, count_include_pad=count_include_pad),
                    ie_device, precision, ir_version, kwargs_to_prepare_input={'ndim': 5}, trace_model=True,
-                   dynamic_shapes=False, use_ts_backend=use_ts_backend)
+                   dynamic_shapes=False)
 
     @pytest.mark.parametrize("params", d1_avg_params)
     @pytest.mark.parametrize("ceil_mode", [True, False])
     @pytest.mark.parametrize("dilation", [1, 2])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_max_pool1d(self, params, ceil_mode, dilation, ie_device, precision, ir_version, use_ts_backend):
+    def test_max_pool1d(self, params, ceil_mode, dilation, ie_device, precision, ir_version):
         self._test(*self.create_model("max_pool1d", **params, ceil_mode=ceil_mode, dilation=dilation),
-                   ie_device, precision, ir_version, kwargs_to_prepare_input={'ndim': 3}, dynamic_shapes=False, use_ts_backend=use_ts_backend)
+                   ie_device, precision, ir_version, kwargs_to_prepare_input={'ndim': 3}, dynamic_shapes=False)
 
     @pytest.mark.parametrize("params", d2_avg_params)
     @pytest.mark.parametrize("ceil_mode", [True, False])
     @pytest.mark.parametrize("dilation", [1, 2])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_max_pool2d(self, params, ceil_mode, dilation, ie_device, precision, ir_version, use_ts_backend):
+    def test_max_pool2d(self, params, ceil_mode, dilation, ie_device, precision, ir_version):
         self._test(*self.create_model("max_pool2d", **params, ceil_mode=ceil_mode, dilation=dilation),
-                   ie_device, precision, ir_version, dynamic_shapes=False, use_ts_backend=use_ts_backend)
+                   ie_device, precision, ir_version, dynamic_shapes=False)
 
     @pytest.mark.parametrize("params", d3_avg_params)
     @pytest.mark.parametrize("ceil_mode", [True, False])
     @pytest.mark.parametrize("dilation", [1, 2])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_max_pool3d(self, params, ceil_mode, dilation, ie_device, precision, ir_version, use_ts_backend):
+    def test_max_pool3d(self, params, ceil_mode, dilation, ie_device, precision, ir_version):
         self._test(*self.create_model("max_pool3d", **params, ceil_mode=ceil_mode, dilation=dilation),
-                   ie_device, precision, ir_version, kwargs_to_prepare_input={'ndim': 5}, dynamic_shapes=False, use_ts_backend=use_ts_backend)
+                   ie_device, precision, ir_version, kwargs_to_prepare_input={'ndim': 5}, dynamic_shapes=False)

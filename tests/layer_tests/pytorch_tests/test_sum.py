@@ -37,6 +37,6 @@ class TestSum(PytorchLayerTest):
                              [(None, None), (None, False), (-1, None), (1, None), ((2, 3), False), ((3, 2), True)])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_sum(self, axes, keep_dim, ie_device, precision, ir_version, use_ts_backend):
+    def test_sum(self, axes, keep_dim, ie_device, precision, ir_version):
         self._test(*self.create_model(axes, keep_dim),
-                   ie_device, precision, ir_version, use_ts_backend=use_ts_backend)
+                   ie_device, precision, ir_version)

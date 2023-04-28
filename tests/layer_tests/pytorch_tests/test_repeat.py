@@ -29,8 +29,8 @@ class TestRepeat(PytorchLayerTest):
     @pytest.mark.parametrize("repeats", [(4, 3), (1, 1), (1, 2, 3), (1, 2, 2, 3)])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_repeat(self, repeats, ie_device, precision, ir_version, use_ts_backend):
-        self._test(*self.create_model(repeats), ie_device, precision, ir_version, use_ts_backend=use_ts_backend)
+    def test_repeat(self, repeats, ie_device, precision, ir_version):
+        self._test(*self.create_model(repeats), ie_device, precision, ir_version)
 
 class TestRepeatList(PytorchLayerTest):
     def _prepare_input(self, repeats_shape):
@@ -53,5 +53,5 @@ class TestRepeatList(PytorchLayerTest):
     @pytest.mark.parametrize("repeats", [(4, 3), (1, 1), (1, 3, 3), (1, 2, 2, 3)])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_repeat(self, repeats, ie_device, precision, ir_version, use_ts_backend):
-        self._test(*self.create_model(), ie_device, precision, ir_version,  kwargs_to_prepare_input={"repeats_shape": repeats}, use_ts_backend=use_ts_backend)
+    def test_repeat(self, repeats, ie_device, precision, ir_version):
+        self._test(*self.create_model(), ie_device, precision, ir_version,  kwargs_to_prepare_input={"repeats_shape": repeats})

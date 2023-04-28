@@ -55,9 +55,9 @@ class TestPad(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_pad4d(self, pads, mode, value, dtype, ie_device, precision, ir_version, use_ts_backend):
+    def test_pad4d(self, pads, mode, value, dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(pads, mode, value), ie_device, precision, ir_version,
-                   kwargs_to_prepare_input={'ndim': 4, "dtype": dtype}, use_ts_backend=use_ts_backend)
+                   kwargs_to_prepare_input={'ndim': 4, "dtype": dtype})
 
     @pytest.mark.parametrize("pads,mode,value,dtype", [
         ((1, 2, 3, 4, 5, 6), "reflect", None, "float32"),
@@ -86,9 +86,9 @@ class TestPad(PytorchLayerTest):
         ((10, 10, 10, 10, 10, 10), "circular", None, "float32"),
     ])
     @pytest.mark.nightly
-    def test_pad5d(self, pads, mode, value, dtype, ie_device, precision, ir_version, use_ts_backend):
+    def test_pad5d(self, pads, mode, value, dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(pads, mode, value), ie_device, precision, ir_version,
-                   kwargs_to_prepare_input={'ndim': 5, "dtype": dtype}, trace_model=True, use_ts_backend=use_ts_backend)
+                   kwargs_to_prepare_input={'ndim': 5, "dtype": dtype}, trace_model=True)
 
     @pytest.mark.parametrize("pads,mode,value,dtype", [
         ((1, 2), "reflect", None, 'float32'),
@@ -105,9 +105,9 @@ class TestPad(PytorchLayerTest):
         ((1, 2, 3, 4), "constant", -0.57, "float32"),
     ])
     @pytest.mark.nightly
-    def test_pad2d(self, pads, mode, value, dtype, ie_device, precision, ir_version, use_ts_backend):
+    def test_pad2d(self, pads, mode, value, dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(pads, mode, value), ie_device, precision, ir_version,
-                   kwargs_to_prepare_input={'ndim': 2, "dtype": dtype}, trace_model=True, use_ts_backend=use_ts_backend)
+                   kwargs_to_prepare_input={'ndim': 2, "dtype": dtype}, trace_model=True)
 
 
 class TestPadListPaddingings(PytorchLayerTest):
@@ -152,9 +152,9 @@ class TestPadListPaddingings(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_pad4d(self, pad_w, pad_h, mode, value, dtype, ie_device, precision, ir_version, use_ts_backend):
+    def test_pad4d(self, pad_w, pad_h, mode, value, dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(mode, value), ie_device, precision, ir_version,
-                   kwargs_to_prepare_input={'ndim': 4, "pad_w": pad_w, "pad_h": pad_h, "dtype": dtype}, use_ts_backend=use_ts_backend)
+                   kwargs_to_prepare_input={'ndim': 4, "pad_w": pad_w, "pad_h": pad_h, "dtype": dtype})
 
     @pytest.mark.parametrize("pad_w,pad_h,mode,value", [
         (2, 0, "reflect", None),
@@ -174,9 +174,9 @@ class TestPadListPaddingings(PytorchLayerTest):
         (0, 0, "constant", -0.57)
     ])
     @pytest.mark.nightly
-    def test_pad5d(self, pad_w, pad_h, mode, value, ie_device, precision, ir_version, use_ts_backend):
+    def test_pad5d(self, pad_w, pad_h, mode, value, ie_device, precision, ir_version):
         self._test(*self.create_model(mode, value), ie_device, precision, ir_version,
-                   kwargs_to_prepare_input={'ndim': 5, "pad_w": pad_w, "pad_h": pad_h}, use_ts_backend=use_ts_backend)
+                   kwargs_to_prepare_input={'ndim': 5, "pad_w": pad_w, "pad_h": pad_h})
 
     @pytest.mark.parametrize("pad_w,pad_h,mode,value,dtype", [
         (2, 0, "reflect", None, "float32"),
@@ -197,6 +197,6 @@ class TestPadListPaddingings(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_pad2d(self, pad_w, pad_h, mode, value, dtype, ie_device, precision, ir_version, use_ts_backend):
+    def test_pad2d(self, pad_w, pad_h, mode, value, dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(mode, value), ie_device, precision, ir_version,
-                   kwargs_to_prepare_input={'ndim': 2, "pad_w": pad_w, "pad_h": pad_h, "dtype": dtype}, use_ts_backend=use_ts_backend)
+                   kwargs_to_prepare_input={'ndim': 2, "pad_w": pad_w, "pad_h": pad_h, "dtype": dtype})

@@ -53,5 +53,5 @@ class TestTupleConstruct(PytorchLayerTest):
 
     @pytest.mark.parametrize("case", ["single", "multiple", "none", "list", "list_and_tuple"])
     @pytest.mark.nightly
-    def test_tuple_construct(self, case, ie_device, precision, ir_version, use_ts_backend):
-        self._test(*self.create_model(case), ie_device, precision, ir_version, use_ts_backend=use_ts_backend)
+    def test_tuple_construct(self, case, ie_device, precision, ir_version):
+        self._test(*self.create_model(case), ie_device, precision, ir_version)

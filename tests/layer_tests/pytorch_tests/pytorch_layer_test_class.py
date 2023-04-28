@@ -4,6 +4,7 @@
 import itertools
 import warnings
 from copy import deepcopy
+import os
 
 import numpy as np
 from common.constants import test_device, test_precision
@@ -57,7 +58,10 @@ class PytorchLayerTest:
         else:
             custom_eps = 1e-4
 
-        if use_ts_backend:
+        def use_ts_backend():
+            return(os.environ.get('USE_TS_BACKEND', False))
+
+        if use_ts_backend():
             self.ts_backend_test(model, torch_inputs, custom_eps)
         else:
             with torch.no_grad():

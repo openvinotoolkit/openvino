@@ -61,19 +61,19 @@ class TestSplit(PytorchLayerTest):
     @pytest.mark.parametrize("getitem", [-5, -2, -1, 0, 1, 4])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_split_getitem(self, params, getitem, ie_device, precision, ir_version, use_ts_backend):
+    def test_split_getitem(self, params, getitem, ie_device, precision, ir_version):
         (self.split_param, self.axis) = params
         self.getitem = getitem
         self._test(*self.create_model_split_getitem(),
-                   ie_device, precision, ir_version, use_ts_backend=use_ts_backend)
+                   ie_device, precision, ir_version)
 
     @pytest.mark.parametrize("params", test_cases)
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_split_listunpack(self, params, ie_device, precision, ir_version, use_ts_backend):
+    def test_split_listunpack(self, params, ie_device, precision, ir_version):
         (self.split_param, self.axis) = params
         self._test(
-            *self.create_model_split_listunpack(), ie_device, precision, ir_version, use_ts_backend=use_ts_backend
+            *self.create_model_split_listunpack(), ie_device, precision, ir_version
         )
 
 
@@ -87,7 +87,7 @@ class TestSplitWithSizes(PytorchLayerTest):
 
         class aten_split_with_sizes(torch.nn.Module):
             def __init__(self):
-                super(aten_split_with_sizes, self).__init__()
+                super(aten_split_with_sizes, self).__init__()                
                 #self.sizes = 20
 
             def forward(self, x, y):
@@ -99,6 +99,6 @@ class TestSplitWithSizes(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_relu(self, ie_device, precision, ir_version, use_ts_backend):
+    def test_relu(self, ie_device, precision, ir_version):
         self._test(*self.create_model(),
-                   ie_device, precision, ir_version, trace_model=True, use_ts_backend=use_ts_backend)
+                   ie_device, precision, ir_version, trace_model=True)

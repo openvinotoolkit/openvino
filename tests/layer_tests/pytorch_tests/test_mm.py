@@ -41,9 +41,9 @@ class TestMatMul(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_mm(self, kwargs_to_prepare_input, ie_device, precision, ir_version, use_ts_backend):
+    def test_mm(self, kwargs_to_prepare_input, ie_device, precision, ir_version):
         self._test(*self.create_model('aten::mm'), ie_device, precision, ir_version,
-                   kwargs_to_prepare_input=kwargs_to_prepare_input, use_ts_backend=use_ts_backend)
+                   kwargs_to_prepare_input=kwargs_to_prepare_input)
 
     @pytest.mark.parametrize("kwargs_to_prepare_input", [
         {'matrix1_shape': (10, 3, 3), 'matrix2_shape': (10, 3, 3)},
@@ -55,9 +55,9 @@ class TestMatMul(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_bmm(self, kwargs_to_prepare_input, ie_device, precision, ir_version, use_ts_backend):
+    def test_bmm(self, kwargs_to_prepare_input, ie_device, precision, ir_version):
         self._test(*self.create_model('aten::bmm'), ie_device, precision, ir_version,
-                   kwargs_to_prepare_input=kwargs_to_prepare_input, use_ts_backend=use_ts_backend)
+                   kwargs_to_prepare_input=kwargs_to_prepare_input)
 
     @pytest.mark.parametrize("kwargs_to_prepare_input", [
         {'matrix1_shape': (10, 3, 3), 'matrix2_shape': (10, 3, 3)},
@@ -81,6 +81,6 @@ class TestMatMul(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_matmul(self, kwargs_to_prepare_input, ie_device, precision, ir_version, use_ts_backend):
+    def test_matmul(self, kwargs_to_prepare_input, ie_device, precision, ir_version):
         self._test(*self.create_model('aten::matmul'), ie_device, precision, ir_version,
-                   kwargs_to_prepare_input=kwargs_to_prepare_input, use_ts_backend=use_ts_backend)
+                   kwargs_to_prepare_input=kwargs_to_prepare_input)

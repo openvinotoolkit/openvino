@@ -30,5 +30,5 @@ class TestGelu(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.parametrize("approximate", ["none", "tanh"])
-    def test_glu(self, approximate, ie_device, precision, ir_version, use_ts_backend):
-        self._test(*self.create_model(approximate), ie_device, precision, ir_version, use_ts_backend=use_ts_backend)
+    def test_glu(self, approximate, ie_device, precision, ir_version):
+        self._test(*self.create_model(approximate), ie_device, precision, ir_version)

@@ -61,5 +61,5 @@ class TestTrigonom(PytorchLayerTest):
         "tan", "tan_", "tanh", "tanh_"])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_mm(self, op, ie_device, precision, ir_version, use_ts_backend):
-        self._test(*self.create_model(op), ie_device, precision, ir_version, use_ts_backend=use_ts_backend)
+    def test_mm(self, op, ie_device, precision, ir_version):
+        self._test(*self.create_model(op), ie_device, precision, ir_version)

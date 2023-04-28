@@ -31,5 +31,5 @@ class TestSqueeze(PytorchLayerTest):
     @pytest.mark.parametrize("dim,dynamic_shapes", [(-2, True), (0, True), (None, False)])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_squeeze(self, dim, ie_device, precision, ir_version, dynamic_shapes, use_ts_backend):
-        self._test(*self.create_model(dim), ie_device, precision, ir_version, dynamic_shapes=dynamic_shapes, use_ts_backend=use_ts_backend)
+    def test_squeeze(self, dim, ie_device, precision, ir_version, dynamic_shapes):
+        self._test(*self.create_model(dim), ie_device, precision, ir_version, dynamic_shapes=dynamic_shapes)

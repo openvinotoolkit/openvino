@@ -17,7 +17,7 @@ class TestStack2D(PytorchLayerTest):
         class aten_stack(torch.nn.Module):
             def __init__(self, dim):
                 super(aten_stack, self).__init__()
-                self.dim = dim
+                self.dim = dim 
 
             def forward(self, x, y):
                 inputs = [x, y]
@@ -37,9 +37,9 @@ class TestStack2D(PytorchLayerTest):
     ]))
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_stack2D(self, input_tensor, dim, ie_device, precision, ir_version, use_ts_backend):
+    def test_stack2D(self, input_tensor, dim, ie_device, precision, ir_version):
         self.input_tensors = input_tensor
-        self._test(*self.create_model(dim), ie_device, precision, ir_version, use_ts_backend=use_ts_backend)
+        self._test(*self.create_model(dim), ie_device, precision, ir_version)
 
 
 class TestStack3D(PytorchLayerTest):
@@ -52,7 +52,7 @@ class TestStack3D(PytorchLayerTest):
         class aten_stack(torch.nn.Module):
             def __init__(self, dim):
                 super(aten_stack, self).__init__()
-                self.dim = dim
+                self.dim = dim 
 
             def forward(self, x, y, z):
                 inputs = [x, y, z]
@@ -72,6 +72,6 @@ class TestStack3D(PytorchLayerTest):
     ]))
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_stack3D(self, input_tensor, dim, ie_device, precision, ir_version, use_ts_backend):
+    def test_stack3D(self, input_tensor, dim, ie_device, precision, ir_version):
         self.input_tensors = input_tensor
-        self._test(*self.create_model(dim), ie_device, precision, ir_version, use_ts_backend=use_ts_backend)
+        self._test(*self.create_model(dim), ie_device, precision, ir_version)

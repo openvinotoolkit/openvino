@@ -41,5 +41,5 @@ class TestTriuTril(PytorchLayerTest):
     @pytest.mark.parametrize("op", ["triu", "tril"])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_trilu(self, input_shape, dtype, diagonal, op, ie_device, precision, ir_version, use_ts_backend):
-        self._test(*self.create_model(op, diagonal), ie_device, precision, ir_version, kwargs_to_prepare_input={"shape": input_shape, "dtype": dtype}, use_ts_backend=use_ts_backend)
+    def test_trilu(self, input_shape, dtype, diagonal, op, ie_device, precision, ir_version):
+        self._test(*self.create_model(op, diagonal), ie_device, precision, ir_version, kwargs_to_prepare_input={"shape": input_shape, "dtype": dtype})

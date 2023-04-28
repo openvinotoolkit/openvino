@@ -28,6 +28,7 @@ def ts_openvino(subgraph, example_inputs):
         fe_manager = FrontEndManager()
         fe = fe_manager.load_by_framework('pytorch')
         dtype_mapping = {
+            torch.float64: Type.f64,
             torch.float32: Type.f32,
             torch.float16: Type.f16,
             torch.int64: Type.i64,

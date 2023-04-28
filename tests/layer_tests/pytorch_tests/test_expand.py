@@ -29,8 +29,8 @@ class TestExpand(PytorchLayerTest):
     @pytest.mark.parametrize("dims", [(4, 3), (-1, -1), (1, 2, 3), (1, 2, 2, 3)])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_expand(self, dims, ie_device, precision, ir_version, use_ts_backend):
-        self._test(*self.create_model(dims), ie_device, precision, ir_version, use_ts_backend=use_ts_backend)
+    def test_expand(self, dims, ie_device, precision, ir_version):
+        self._test(*self.create_model(dims), ie_device, precision, ir_version)
 
 class TestExpandList(PytorchLayerTest):
     def _prepare_input(self, broadcast_shape):
@@ -53,8 +53,8 @@ class TestExpandList(PytorchLayerTest):
     @pytest.mark.parametrize("dims", [(3, 3), (2, 3), (1, 3), [4, 3]])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_expand(self, dims, ie_device, precision, ir_version, use_ts_backend):
-        self._test(*self.create_model(), ie_device, precision, ir_version, kwargs_to_prepare_input={"broadcast_shape": dims}, use_ts_backend=use_ts_backend)
+    def test_expand(self, dims, ie_device, precision, ir_version):
+        self._test(*self.create_model(), ie_device, precision, ir_version, kwargs_to_prepare_input={"broadcast_shape": dims})
 
 
 class TestExpandAs(PytorchLayerTest):
@@ -89,6 +89,6 @@ class TestExpandAs(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_expand(self, ie_device, precision, ir_version, kwargs_to_prepare_input, use_ts_backend):
+    def test_expand(self, ie_device, precision, ir_version, kwargs_to_prepare_input):
         self._test(*self.create_model(), ie_device, precision,
-                   ir_version, kwargs_to_prepare_input=kwargs_to_prepare_input, use_ts_backend=use_ts_backend)
+                   ir_version, kwargs_to_prepare_input=kwargs_to_prepare_input)

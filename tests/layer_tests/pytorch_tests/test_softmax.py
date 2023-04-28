@@ -49,17 +49,17 @@ class TestSoftmax(PytorchLayerTest):
     @pytest.mark.parametrize("dim", [-1, 3])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_softmax(self, dim, ie_device, precision, ir_version, use_ts_backend):
-        self._test(*self.create_model(dim), ie_device, precision, ir_version, use_ts_backend=use_ts_backend)
+    def test_softmax(self, dim, ie_device, precision, ir_version):
+        self._test(*self.create_model(dim), ie_device, precision, ir_version)
 
     @pytest.mark.parametrize("dim", [-1, 3])
     @pytest.mark.parametrize("dtype", ["float32", "float64"])
     @pytest.mark.parametrize("use_prim_dtype", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_softmax(self, dim, dtype, use_prim_dtype, ie_device, precision, ir_version, use_ts_backend):
+    def test_softmax(self, dim, dtype, use_prim_dtype, ie_device, precision, ir_version):
         input_kwargs = {}
         if use_prim_dtype:
             input_kwargs["second_input_dtype"] = dtype
         self._test(*self.create_model(dim, dtype, use_prim_dtype), ie_device,
-                   precision, ir_version, kwargs_to_prepare_input=input_kwargs, use_ts_backend=use_ts_backend)
+                   precision, ir_version, kwargs_to_prepare_input=input_kwargs)

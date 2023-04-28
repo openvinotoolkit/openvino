@@ -207,25 +207,28 @@ class TestConvolution(PytorchLayerTest):
     @pytest.mark.parametrize("underscore", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_convolution1d(self, params, bias, underscore, ie_device, precision, ir_version, use_ts_backend):
+    @pytest.mark.precommit_ts_backend
+    def test_convolution1d(self, params, bias, underscore, ie_device, precision, ir_version):
         self._test(*self.create_model(**params, bias=bias, underscore=underscore),
-                ie_device, precision, ir_version, dynamic_shapes=params['groups'] == 1,
-                kwargs_to_prepare_input={'ndim': 3}, use_ts_backend=use_ts_backend)
+                   ie_device, precision, ir_version, dynamic_shapes=params['groups'] == 1,
+                   kwargs_to_prepare_input={'ndim': 3})
 
     @pytest.mark.parametrize("params", d2_params)
     @pytest.mark.parametrize("bias", [True, False])
     @pytest.mark.parametrize("underscore", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_convolution2d(self, params, bias, underscore, ie_device, precision, ir_version, use_ts_backend):
+    @pytest.mark.precommit_ts_backend
+    def test_convolution2d(self, params, bias, underscore, ie_device, precision, ir_version):
         self._test(*self.create_model(**params, bias=bias, underscore=underscore),
-                ie_device, precision, ir_version, dynamic_shapes=params['groups'] == 1, use_ts_backend=use_ts_backend)
+                   ie_device, precision, ir_version, dynamic_shapes=params['groups'] == 1)
 
     @pytest.mark.parametrize("params", d3_params)
     @pytest.mark.parametrize("bias", [True, False])
     @pytest.mark.parametrize("underscore", [True, False])
     @pytest.mark.nightly
-    def test_convolution3d(self, params, bias, underscore, ie_device, precision, ir_version, use_ts_backend):
+    @pytest.mark.precommit_ts_backend
+    def test_convolution3d(self, params, bias, underscore, ie_device, precision, ir_version):
         self._test(*self.create_model(**params, bias=bias, underscore=underscore),
-                ie_device, precision, ir_version, dynamic_shapes=params['groups'] == 1,
-                kwargs_to_prepare_input={'ndim': 5}, use_ts_backend=use_ts_backend)
+                   ie_device, precision, ir_version, dynamic_shapes=params['groups'] == 1,
+                   kwargs_to_prepare_input={'ndim': 5})

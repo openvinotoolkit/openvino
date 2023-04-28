@@ -76,9 +76,9 @@ class TestGetItem(PytorchLayerTest):
         ([1, 2, 3, 4, 5], -4),
         ([1, 2, 3, 4, 5], -5)])
     @pytest.mark.parametrize("case", ["getitem", "getitem_with_if"])
-    def test_getitem(self, input_shape, idx, case, ie_device, precision, ir_version, use_ts_backend):
+    def test_getitem(self, input_shape, idx, case, ie_device, precision, ir_version):
         self._test(*self.create_model(idx, case), ie_device, precision,
-                   ir_version, kwargs_to_prepare_input={"input_shape": input_shape}, use_ts_backend=use_ts_backend)
+                   ir_version, kwargs_to_prepare_input={"input_shape": input_shape})
 
 
 class aten_add_getitem(torch.nn.Module):
@@ -100,6 +100,6 @@ class TestAddGetItem(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.parametrize("idx", [-4, -3, -2, -1, 0, 1, 2, 3])
-    def test_add_cat(self, ie_device, precision, ir_version, idx, use_ts_backend):
+    def test_add_cat(self, ie_device, precision, ir_version, idx):
         self._test(aten_add_getitem(idx), None, ["aten::__getitem__", "aten::add", "prim::ListConstruct"],
-                   ie_device, precision, ir_version, freeze_model=False, use_ts_backend=use_ts_backend)
+                   ie_device, precision, ir_version, freeze_model=False)

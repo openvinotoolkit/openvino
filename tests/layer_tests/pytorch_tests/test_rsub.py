@@ -37,22 +37,22 @@ class TestRsub(PytorchLayerTest):
     @pytest.mark.parametrize('input_data', [(np.random.randn(2, 3, 4).astype(np.float32),
                                              np.array(5).astype(np.float32),
                                              np.random.randn(1)),])
-
+    
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_rsub(self, ie_device, precision, ir_version, input_data, use_ts_backend):
+    def test_rsub(self, ie_device, precision, ir_version, input_data):
         self.input_data = input_data
-        self._test(*self.create_model(second_type="float"), ie_device, precision, ir_version, use_ts_backend=use_ts_backend)
+        self._test(*self.create_model(second_type="float"), ie_device, precision, ir_version)
 
     @pytest.mark.parametrize('input_data', [(np.random.randn(2, 3, 4).astype(np.float32),
                                              np.array(5).astype(int),
                                              np.random.randn(1)),])
-
+    
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_rsub(self, ie_device, precision, ir_version, input_data, use_ts_backend):
+    def test_rsub(self, ie_device, precision, ir_version, input_data):
         self.input_data = input_data
-        self._test(*self.create_model(second_type="int"), ie_device, precision, ir_version, use_ts_backend=use_ts_backend)
+        self._test(*self.create_model(second_type="int"), ie_device, precision, ir_version)
 
 
 class TestRsubTypes(PytorchLayerTest):
@@ -93,9 +93,9 @@ class TestRsubTypes(PytorchLayerTest):
     @pytest.mark.parametrize(("lhs_shape"), [[2, 3], [3], [2, 3, 4]])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_rsub_types(self, ie_device, precision, ir_version, lhs_type, lhs_shape, rhs_type, use_ts_backend):
+    def test_rsub_types(self, ie_device, precision, ir_version, lhs_type, lhs_shape, rhs_type):
         self.lhs_type = lhs_type
         self.lhs_shape = lhs_shape
         self.rhs_type = rhs_type
         self._test(*self.create_model(lhs_type, rhs_type),
-                   ie_device, precision, ir_version, use_ts_backend=use_ts_backend)
+                   ie_device, precision, ir_version)
