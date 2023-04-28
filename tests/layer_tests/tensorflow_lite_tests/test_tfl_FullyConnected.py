@@ -23,7 +23,7 @@ for i, (parameters, shapes) in enumerate(test_data):
     test_data[i] = parameters.copy()
 
 
-class TestTFLiteFUllyConnectedLayerTest(TFLiteLayerTest):
+class TestTFLiteFullyConnectedLayerTest(TFLiteLayerTest):
     inputs = ["Input_x", "Input_y"]
     outputs = ["FullyConnected"]
 
