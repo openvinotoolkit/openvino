@@ -2,7 +2,7 @@
 
 @sphinxdirective
 
-Regardless of IR precision, devices will run in high performance mode by default. For GPU this means ``fp16`` inference and for CPU - ``bf16`` inference (if available). Previously, you had to convert the IR to ``fp16`` for the GPU to run in ``fp16``, and for the CPU, it was high precision by default. Now the devices have been aligned and this selection has been disconnected from IR precision. If high performance is causing the accuracy issue (only seen a few times in history), you can use the inference_precision hint and set it to accuracy.
+Regardless of IR precision, devices will run in high performance mode by default. For GPU this means ``fp16`` inference and for CPU - ``bf16`` inference (if available). Previously, you had to convert the IR to ``fp16`` for the GPU to run in ``fp16``, and for the CPU, it was high precision by default. Now the devices have been aligned and this selection has been disconnected from IR precision. If high performance is causing the accuracy issue (only seen a few times in history), you can use the ``inference_precision`` hint and set it to accuracy.
 
 Separately, you can control the IR precision. Essentially the IR precision becomes a way to compress your model by reducing the precision of the weights, and it doesn't affect how devices execute the model.
 
