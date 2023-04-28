@@ -146,11 +146,13 @@ add_custom_command(OUTPUT ${openvino_wheel_path}
     COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}"
     COMMAND ${CMAKE_COMMAND} -E copy_directory "${OpenVINO_SOURCE_DIR}/licensing" "${CMAKE_BINARY_DIR}/licensing"
     COMMAND ${wheel_env}
-        ${PYTHON_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/setup.py" bdist_wheel
+        ${PYTHON_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/setup.py"
+            --quiet
+            --no-user-cfg
+            bdist_wheel
             --dist-dir ${openvino_wheels_output_dir}
             --build-number=${WHEEL_BUILD}
             --plat-name=${PLATFORM_TAG}
-            --quiet
     COMMAND ${CMAKE_COMMAND} -E remove_directory "${CMAKE_CURRENT_BINARY_DIR}/site-packages"
     COMMAND ${wheel_env}
         ${PYTHON_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/setup.py" clean
@@ -177,7 +179,7 @@ add_custom_target(ie_wheel ALL DEPENDS ${openvino_wheel_path} ${fdupes_report})
 
 # install
 
-ie_cpack_add_component(${OV_CPACK_COMP_PYTHON_WHEELS} HIDDEN)
+ov_cpack_add_component(${OV_CPACK_COMP_PYTHON_WHEELS} HIDDEN)
 
 install(FILES ${openvino_wheel_path}
         DESTINATION ${OV_CPACK_WHEELSDIR}

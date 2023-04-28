@@ -10,6 +10,7 @@
 #include <intel_gpu/primitives/quantize.hpp>
 #include <intel_gpu/primitives/data.hpp>
 
+#include "compilation_context.hpp"
 #include "fully_connected_inst.h"
 
 #include <cmath>
@@ -727,6 +728,8 @@ TEST(fully_connected_gpu, b_fs_yx_fsv4)
     const int W_Y = in_Y;
     const int W_X = in_X;
 
+    const int O_F = W_B;
+
     // Input data
     std::vector<char> Data(in_F * in_B); // in_X = in_Y = 1
     int i = 0;
@@ -756,10 +759,10 @@ TEST(fully_connected_gpu, b_fs_yx_fsv4)
     set_values(weights_imad, std::move(Weights));
     topology.add(data("weights_gold", weights_gold), data("weights_imad", weights_imad));
 
-    auto bias_gold = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, in_F, 1, 1 } });
-    auto bias_imad = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, in_F, 1, 1 } });
+    auto bias_gold = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, O_F, 1, 1 } });
+    auto bias_imad = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, O_F, 1, 1 } });
 
-    std::vector<float> bias_data(in_F, 0);
+    std::vector<float> bias_data(O_F, 0);
     set_values(bias_gold, bias_data);
     set_values(bias_imad, bias_data);
 
@@ -1590,10 +1593,10 @@ INSTANTIATE_TEST_SUITE_P(
     fully_connected_i8_u8_test,
     testing::Combine(
         testing::Values(1, 2),
-        testing::Values(3, 64),
+        testing::Values(16, 64),
         testing::Values(1),
         testing::Values(1),
-        testing::Values(3, 32),
+        testing::Values(16, 32),
         testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv16, format::b_fs_yx_fsv32)
     ),
     fully_connected_i8_u8_test::PrintToStringParamName
@@ -1656,6 +1659,73 @@ INSTANTIATE_TEST_SUITE_P(
 );
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
+TEST(fully_connected_onednn, impl_replacement_with_cldnn) {
+    auto& engine = get_test_engine();
+
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    const int32_t input_f = 3, input_b = 1, weight_b = 4;
+
+    auto input_dyn_layout = layout{ ov::PartialShape{ ov::Dimension(1, 10), input_f }, data_types::f32,format::bfyx };
+    auto input_data = engine.allocate_memory(layout{ ov::PartialShape{ input_b, input_f }, data_types::f32,format::bfyx });
+    auto weights_data = engine.allocate_memory({ ov::PartialShape{ weight_b, input_f }, data_types::f32,format::bfyx });
+
+    set_values(input_data, { -0.5f, 2.0f, 0.5f });
+    set_values(weights_data, { 1.5f, 1.0f, 0.5f, -1.0f, 0.0f, 0.5f, 0.5f, -0.5f, -2.0f, -0.5f, 1.0f, 1.5f });
+
+    cldnn::topology topology{
+        input_layout("input", input_dyn_layout),
+        data("weights", weights_data),
+        fully_connected("fc", input_info("input"), "weights")
+    };
+
+    ov::intel_gpu::ImplementationDesc fc_impl = { format::bfyx, "", impl_types::onednn };
+    ExecutionConfig cfg{ ov::intel_gpu::queue_type(QueueTypes::in_order),
+                         ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"fc_prim", fc_impl} }),
+                         ov::intel_gpu::optimize_data(true),
+                         ov::intel_gpu::allow_new_shape_infer(true) };
+
+    network network(engine, topology, cfg);
+    network.set_input_data("input", input_data);
+
+    // Check if shape agnostic kernel is used as default impl or not
+    auto inst = network.get_primitive("fc");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "fc");
+
+    auto output_prim_mem = outputs.begin()->second.get_memory();
+
+    auto out_l = network.get_output_layout(outputs.begin()->first);
+    ASSERT_EQ(output_prim_mem->get_layout().batch(), align_to(input_b, 8)); // fake_alignment
+    ASSERT_EQ(out_l.batch(), input_b);
+    ASSERT_EQ(out_l.feature(), weight_b);
+    ASSERT_EQ(out_l.spatial(0), 1);
+    ASSERT_EQ(out_l.spatial(1), 1);
+
+    cldnn::mem_lock<float> output_ptr (output_prim_mem, get_test_stream());
+
+    ASSERT_EQ(1.5f, output_ptr[0]);
+    ASSERT_EQ(0.75f, output_ptr[1]);
+    ASSERT_EQ(-2.25f, output_ptr[2]);
+    ASSERT_EQ(3.0f, output_ptr[3]);
+
+    // WA: Call cancel() to wait for all queued kernels compilation finish
+    network.get_program()->get_compilation_context().cancel();
+
+    // Check if OneDNN's impl is used for the next execute() call
+    network.execute();
+    inst = network.get_primitive("fc");
+    impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_FALSE(impl->is_dynamic());
+}
+
 TEST(fully_connected_onednn_gpu, no_biases_int8) {
     //  Input  : 3x1
     //  Output : 4x1

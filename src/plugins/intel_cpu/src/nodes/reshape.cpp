@@ -47,7 +47,6 @@ public:
         const size_t inputShapeSize = inputShape.size();
         const auto memPtr = data_dependency.at(RESHAPE_PATTERN);
         const auto data = memPtr->GetPtr();
-        // const auto outputPatternSize = shape_size(ov::Shape(memPtr->getStaticDims()));
         const auto& dims = memPtr->getStaticDims();
         const auto outputPatternSize = std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<Dim>());
         std::vector<int64_t> outPattern = ov::get_raw_data_as<int64_t>(
@@ -56,13 +55,12 @@ public:
                                               outputPatternSize,
                                               ov::util::Cast<int64_t>());
         VectorDims outputShape(outputPatternSize);
-        size_t outputProduct(1);
+        size_t outputProduct = 1;
         int32_t minusOneIdx = -1;
         int32_t minusOneCount = 0;
         for (size_t i = 0; i < outputPatternSize; ++i) {
             if (outPattern[i] == 0 && m_specialZero && i < inputShapeSize) {
                 outputShape[i] = inputShape[i];
-                outputProduct *= outputShape[i];
             } else if (outPattern[i] == -1) {
                 minusOneIdx = i;
                 minusOneCount++;
@@ -71,13 +69,19 @@ public:
                 outputProduct *= outputShape[i];
             }
         }
-        size_t inputProduct(1);
+        size_t inputProduct = 1;
         for (size_t i = 0; i < inputShapeSize; ++i) {
+            if (i < outputPatternSize && outPattern[i] == 0)
+                continue;
             inputProduct *= inputShape[i];
         }
-        if (outputProduct != 0 && minusOneIdx >= 0) {
-            outputShape[minusOneIdx] = inputProduct / outputProduct;
-            outputProduct *= outputShape[minusOneIdx];
+        if (minusOneIdx >= 0) {
+            if (outputProduct != 0) {
+                outputShape[minusOneIdx] = inputProduct / outputProduct;
+                outputProduct *= outputShape[minusOneIdx];
+            } else {
+                outputShape[minusOneIdx] = 0;
+            }
         }
         if (minusOneCount > 1  || inputProduct != outputProduct) {
             IE_THROW(Unexpected) << "[cpu]reshape: the shape of input data conflicts with the reshape pattern";
@@ -102,6 +106,7 @@ public:
         const size_t inputShapeSize = inputShape.size();
         auto itr = data_dependency.find(SQUEEZE_PATTERN);
         VectorDims outputShape;
+        outputShape.reserve(inputShapeSize);
         if (itr != data_dependency.end()) {
             const auto memPtr = data_dependency.at(SQUEEZE_PATTERN);
             const auto data = memPtr->GetPtr();
@@ -298,7 +303,6 @@ void Reshape::initSupportedPrimitiveDescriptors() {
         canBeInPlace = false;
 
     NodeConfig config;
-    config.dynBatchSupport = true;
     config.inConfs.resize(getParentEdges().size());
     auto& creatorsMap = BlockedDescCreator::getCommonCreators();
     for (size_t i = 0; i < getParentEdges().size(); i++) {

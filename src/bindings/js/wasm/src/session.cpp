@@ -2,20 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <iostream>
+#include "../include/session.h"
+
 #include <limits.h>
 
-#include "openvino/openvino.hpp"
-#include "../include/session.h"
+#include <iostream>
+
 #include "../include/shape_lite.h"
+#include "openvino/openvino.hpp"
 
 std::shared_ptr<ov::Model> loadModel(std::string xml_path, std::string bin_path) {
     ov::Core core;
 
     try {
         return core.read_model(xml_path, bin_path);
-    } 
-    catch(const std::exception& e) {
+    } catch (const std::exception& e) {
         std::cout << "== Error in load_model: " << e.what() << std::endl;
         throw e;
     }
@@ -38,7 +39,7 @@ ov::CompiledModel compileModel(std::shared_ptr<ov::Model> model, ov::Shape shape
     const std::string backend = "TEMPLATE";
     try {
         compiled_model = core.compile_model(model, backend);
-    } catch(const std::exception& e) {
+    } catch (const std::exception& e) {
         std::cout << "== Error in compile_model: " << e.what() << std::endl;
         throw e;
     }
@@ -58,7 +59,7 @@ Session::Session(std::string xml_path, std::string bin_path, ShapeLite* shape, s
     auto model = loadModel(xml_path, bin_path);
     try {
         this->model = compileModel(model, shape->get_original(), layout);
-    } catch(const std::exception& e) {
+    } catch (const std::exception& e) {
         std::cout << "== Error in Session constructor: " << e.what() << std::endl;
         throw e;
     }
@@ -70,7 +71,7 @@ TensorLite Session::infer(TensorLite* tensor_lite) {
 
     try {
         output_tensor = performInference(this->model, *tensor_lite->get_tensor());
-    } catch(const std::exception& e) {
+    } catch (const std::exception& e) {
         std::cout << "== Error in run: " << e.what() << std::endl;
         throw e;
     }

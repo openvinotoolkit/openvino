@@ -186,7 +186,7 @@ Attribute get(const T& port) {
     if (res != attrs.end()) {
         return res->second.template as<Attribute>();
     }
-    throw Exception("reverse_input_channel_index is missing in given port");
+    OPENVINO_THROW("reverse_input_channel_index is missing in given port");
 }
 
 template <typename T, typename = is_port<T>>
@@ -279,7 +279,9 @@ public:
             const auto& pattern_map = m.get_pattern_value_map();
             const auto& output = pattern_map.at(pattern_root);
 
+            OPENVINO_SUPPRESS_DEPRECATED_START
             auto axis = ov::get_constant_from_source(pattern_map.at(axis_p));
+            OPENVINO_SUPPRESS_DEPRECATED_END
             if (!axis)
                 return false;
 
@@ -291,7 +293,9 @@ public:
                 return true;
             }
 
+            OPENVINO_SUPPRESS_DEPRECATED_START
             auto order = ov::get_constant_from_source(pattern_map.at(indices_p));
+            OPENVINO_SUPPRESS_DEPRECATED_END
             if (!order)
                 return false;
 

@@ -151,6 +151,7 @@ public:
     nodes_ordering& get_processing_order();
     uint32_t get_prog_id() { return prog_id; }
     stream& get_stream() { return *_stream; }
+    stream::ptr get_stream_ptr() const { return _stream; }
     const stream& get_stream() const { return *_stream; }
     const std::list<primitive_id>& get_optimized_out() const { return optimized_out; }
     const std::list<optimized_info>& get_optimized() const { return optimized; }

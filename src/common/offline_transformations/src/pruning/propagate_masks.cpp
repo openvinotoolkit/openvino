@@ -397,7 +397,9 @@ public:
                 return false;
             }
 
+            OPENVINO_SUPPRESS_DEPRECATED_START
             const auto constant = get_constant_from_source(m_shape.get_node_shared_ptr());
+            OPENVINO_SUPPRESS_DEPRECATED_END
             if (!constant) {
                 NGRAPH_DEBUG << "Can't get constant from source node " << m_shape.get_node()->get_friendly_name();
                 return false;
@@ -495,7 +497,8 @@ public:
                 // Compute brodcasted dims
                 input_shape = m_input.get_shape();
                 weights_shape = m_weights.get_shape();
-                const int64_t input_shape_size_diff = input_shape.size() - weights_shape.size();
+                const int64_t input_shape_size_diff =
+                    static_cast<int64_t>(input_shape.size()) - static_cast<int64_t>(weights_shape.size());
                 const int64_t weights_shape_size_diff = -input_shape_size_diff;
                 for (size_t i = 0; i < input_shape.size(); ++i) {
                     const int64_t shifted_elem = i + weights_shape_size_diff;
@@ -713,7 +716,7 @@ public:
                 for (auto node : fq_params_nodes) {
                     auto const_node = std::dynamic_pointer_cast<op::Constant>(node);
                     if (!const_node)
-                        throw ngraph_error("Unexpected operation type.");
+                        OPENVINO_THROW("Unexpected operation type.");
                     auto new_shape = broadcast_shape_to_rank(const_node->get_shape(),
                                                              m_input.get_partial_shape().rank().get_length());
                     auto new_const = std::make_shared<op::Constant>(*const_node, new_shape);
@@ -911,6 +914,7 @@ public:
             if (auto input_mask = getMask(m_input)) {
                 auto output_mask = std::make_shared<Mask>(m_output.get_partial_shape().rank().get_length());
                 const auto constant = std::dynamic_pointer_cast<opset10::Constant>(m_weights.get_node_shared_ptr());
+                OPENVINO_ASSERT(!!constant, "Dynamic cast returned a nullptr");
                 const auto reduce_dims = constant->cast_vector<int64_t>();
 
                 auto input_mask_row = input_mask.get();
@@ -1130,7 +1134,9 @@ public:
 
             auto constant = std::dynamic_pointer_cast<opset10::Constant>(m_weights.get_node_shared_ptr());
             if (!constant) {
+                OPENVINO_SUPPRESS_DEPRECATED_START
                 constant = get_constant_from_source(m_weights.get_node_shared_ptr());
+                OPENVINO_SUPPRESS_DEPRECATED_END
                 if (!constant) {
                     NGRAPH_DEBUG << "Can't process reshape node " << m_output.get_node()->get_friendly_name()
                                  << " with no constant node " << m_weights.get_node()->get_friendly_name()
@@ -1375,7 +1381,9 @@ public:
             const auto& m_weights = pattern_map.at(weights);
             const auto& m_output = pattern_map.at(transpose);
 
+            OPENVINO_SUPPRESS_DEPRECATED_START
             const auto input_order_node = get_constant_from_source(m_weights.get_node_shared_ptr());
+            OPENVINO_SUPPRESS_DEPRECATED_END
             if (!input_order_node) {
                 NGRAPH_DEBUG << "Can't process transpose node " << m_output.get_node()->get_friendly_name()
                              << " with no constant node " << m_weights.get_node()->get_friendly_name()

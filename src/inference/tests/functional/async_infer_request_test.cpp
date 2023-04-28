@@ -55,7 +55,9 @@ TEST(InferRequestCPPTests, throwsOnUninitializedSetOutput) {
 
 TEST(InferRequestCPPTests, throwsOnUninitializedSetBatch) {
     InferRequest req;
+    IE_SUPPRESS_DEPRECATED_START
     ASSERT_THROW(req.SetBatch({}), InferenceEngine::NotAllocated);
+    IE_SUPPRESS_DEPRECATED_END
 }
 
 TEST(InferRequestCPPTests, throwsOnUninitializedStartAsync) {

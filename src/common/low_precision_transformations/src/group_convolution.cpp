@@ -40,7 +40,7 @@ bool GroupConvolutionTransformation::isQuantized(const std::shared_ptr<const Nod
 bool GroupConvolutionTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) {
     auto convolution = m.get_match_root();
 
-    if (!GroupConvolutionTransformation::canBeTransformed(context, convolution)) {
+    if (!WeightableLayerTransformation::canBeTransformed(context, convolution)) {
         return false;
     }
 

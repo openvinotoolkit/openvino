@@ -160,6 +160,7 @@ public:
     const variables_state_info_map& GetVariablesStatesInfo() const { return m_variablesStateInfo; }
 
     bool use_new_shape_infer() const { return allow_new_shape_infer; }
+    bool requires_new_shape_infer(const ngraph::Node& op) const;
 
 private:
     static factories_map_t factories_map;

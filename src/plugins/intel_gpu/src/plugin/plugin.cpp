@@ -132,7 +132,7 @@ InferenceEngine::CNNNetwork Plugin::clone_and_transform_model(const InferenceEng
         GPU_DEBUG_IF(!debug_config->dump_graphs.empty()) {
             auto path_base = debug_config->dump_graphs + "/" + network.getName() + "_" +  "transformed_func";
             ov::pass::Serialize(path_base + ".xml", path_base + ".bin").run_on_model(nGraphFunc);
-    }
+        }
     }
     return clonedNetwork;
 }
@@ -319,7 +319,7 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork& network,
                     return false;
 
                 auto pshape = node->get_output_partial_shape(0);
-                if (pshape.rank().is_dynamic())
+                if (pshape.rank().is_dynamic() || pshape.size() > cldnn::layout::max_rank())
                     return false;
 
                 int dynCount = 0;

@@ -2,43 +2,44 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "../include/tensor_lite.h"
+
 #include <stdio.h>
+
 #include <iostream>
 
-#include "openvino/openvino.hpp"
-
-#include "../include/tensor_lite.h"
 #include "../include/shape_lite.h"
+#include "openvino/openvino.hpp"
 
 using supported_type_t = std::unordered_map<std::string, ov::element::Type>;
 ov::element::Type getType(std::string value, const supported_type_t& supported_precisions) {
-        const auto precision = supported_precisions.find(value);
-        if (precision == supported_precisions.end()) {
-                throw std::logic_error("\"" + value + "\"" + " is not a valid precision");
-        }
+    const auto precision = supported_precisions.find(value);
+    if (precision == supported_precisions.end()) {
+        throw std::logic_error("\"" + value + "\"" + " is not a valid precision");
+    }
 
-        return precision->second;
+    return precision->second;
 }
 ov::element::Type get_type(const std::string& value) {
-        static const supported_type_t supported_types = {
-                {"int8", ov::element::i8}, 
-                {"uint8", ov::element::u8}, 
-                {"uint8c", ov::element::u8}, 
-                
-                {"int16", ov::element::i16}, 
-                {"uint16", ov::element::u16}, 
-                
-                {"int32", ov::element::i32}, 
-                {"uint32", ov::element::u32}, 
+    static const supported_type_t supported_types = {
+        {"int8", ov::element::i8},
+        {"uint8", ov::element::u8},
+        {"uint8c", ov::element::u8},
 
-                {"float32", ov::element::f32}, 
-                {"float64", ov::element::f64}, 
+        {"int16", ov::element::i16},
+        {"uint16", ov::element::u16},
 
-                {"int64", ov::element::i64}, 
-                {"uint64", ov::element::u64}, 
-        };
+        {"int32", ov::element::i32},
+        {"uint32", ov::element::u32},
 
-        return getType(value, supported_types);
+        {"float32", ov::element::f32},
+        {"float64", ov::element::f64},
+
+        {"int64", ov::element::i64},
+        {"uint64", ov::element::u64},
+    };
+
+    return getType(value, supported_types);
 }
 
 template <typename T>
@@ -47,7 +48,7 @@ uintptr_t get_data_by_tensor(ov::Tensor tensor) {
     T* arr = reinterpret_cast<T*>(tensor.data(type));
 
     return uintptr_t(&arr[0]);
-} 
+}
 
 TensorLite::TensorLite(ov::element::Type type, uintptr_t data_buffer, ShapeLite* shape) {
     this->tensor = ov::Tensor(type, shape->get_original(), &data_buffer);

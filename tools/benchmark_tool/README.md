@@ -50,6 +50,7 @@ If not specified, throughput is used as the default. To set the hint explicitly,
 .. note::
 
    It is up to the user to ensure the environment on which the benchmark is running is optimized for maximum performance. Otherwise, different results may occur when using the application in different environment settings (such as power optimization settings, processor overclocking, thermal throttling).
+   Stating flags that take only single option like `-m` multiple times, for example `benchmark_app -m model.xml -m model2.xml`, results in only the last value being used.
 
 
 Latency
@@ -306,26 +307,17 @@ Running the application with the ``-h`` or ``--help`` option yields the followin
                               Optional. Path to JSON file to load custom OpenVINO parameters.
                               Please note, command line parameters have higher priority then parameters from configuration file.
                               Example 1: a simple JSON file for HW device with primary properties.
-                                           {
-                                              "CPU": {"NUM_STREAMS": "3", "PERF_COUNT": "NO"}
-                                           }
+                                     {
+                                        "CPU": {"NUM_STREAMS": "3", "PERF_COUNT": "NO"}
+                                     }
                               Example 2: a simple JSON file for meta device(AUTO/MULTI) with HW device properties.
-                                           {
-                                              "AUTO": {
-                                                   "PERFORMANCE_HINT": "",
-                                                   "PERF_COUNT": "NO",
-                                                   "DEVICE_PROPERTIES": {
-                                                        "CPU": {
-                                                             "INFERENCE_PRECISION_HINT": "f32",
-                                                             "NUM_STREAMS": "3"
-                                                        },
-                                                        "GPU": {
-                                                             "INFERENCE_PRECISION_HINT": "f32",
-                                                             "NUM_STREAMS": "5"
-                                                        }
-                                                   }
-                                              }
-                                           }
+                                     {
+                                       "AUTO": {
+                                          "PERFORMANCE_HINT": "THROUGHPUT",
+                                          "PERF_COUNT": "NO",
+                                          "DEVICE_PROPERTIES": "{CPU:{INFERENCE_PRECISION_HINT:f32,NUM_STREAMS:3},GPU:{INFERENCE_PRECISION_HINT:f32,NUM_STREAMS:5}}"
+                                       }
+                                     }
 
 
 Running the application with the empty list of options yields the usage message given above and an error message.

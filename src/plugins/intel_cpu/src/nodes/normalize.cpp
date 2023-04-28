@@ -11,7 +11,7 @@
 #include "utils/bfloat16.hpp"
 #include "utils/general_utils.h"
 #include <dnnl_extension_utils.h>
-#include "emitters/jit_bf16_emitters.hpp"
+#include "emitters/x64/jit_bf16_emitters.hpp"
 #include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
 #include <cpu/x64/injectors/jit_uni_depthwise_injector.hpp>
 #include <cpu/x64/injectors/jit_uni_quantization_injector.hpp>
@@ -32,8 +32,9 @@ using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::utils;
 using namespace Xbyak;
 
+#if defined(OPENVINO_ARCH_X86_64)
 #define GET_OFF(field) offsetof(jit_normalize_call_args, field)
-
+#endif
 #define THROW_ERROR IE_THROW() << "NormalizeL2 layer with name '" << getName() << "' "
 
 namespace ov {
@@ -77,6 +78,8 @@ bool NormalizeKey::operator==(const NormalizeKey& rhs) const {
 }
 
 }  // namespace
+
+#if defined(OPENVINO_ARCH_X86_64)
 
 static inline bool isFloatCompatible(memory::data_type type) {
     return memory::data_type::f32 == type || memory::data_type::bf16 == type;
@@ -693,7 +696,7 @@ private:
         }
     }
 };
-
+#endif
 bool NormalizeL2::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         auto norm = ov::as_type_ptr<const ngraph::op::v0::NormalizeL2>(op);
@@ -810,7 +813,6 @@ void NormalizeL2::initSupportedPrimitiveDescriptors() {
                         getParentEdgeAt(DATA)->getParent()->getChildEdges().size() == 1;
 
     NodeConfig config;
-    config.dynBatchSupport = false;
     config.inConfs.resize(2);
     config.outConfs.resize(1);
     config.outConfs[0].inPlace(canBeInplace ? 0 : -1);
@@ -965,7 +967,7 @@ private:
 // *=================* *======* *=================*
 
 // *=================* JIT case *=================*
-
+#if defined(OPENVINO_ARCH_X86_64)
 template <typename in_data_t, typename out_data_t>
 class NormalizeL2::NormalizeL2JitExecutor : public NormalizeL2::NormalizeL2Executor {
 public:
@@ -1295,7 +1297,7 @@ private:
     std::shared_ptr<jit_uni_normalize_modulo_kernel> normalize_modulo_kernel;
     std::shared_ptr<jit_uni_normalize_kernel> normalize_kernel;
 };
-
+#endif
 // *=================* *======* *=================*
 
 // *=============* Reference case *===============*
@@ -1491,8 +1493,10 @@ std::shared_ptr<NormalizeL2::NormalizeL2Executor> NormalizeL2::NormalizeL2Execut
         const NormalizeL2Attrs& attrs, const dnnl::primitive_attr& kernel_attrs, const VectorDims& dims) {
     if (attrs.cornerCase)
         return std::make_shared<NormalizeL2CornerCaseExecutor<in_data_t, out_data_t>>(dims);
+#if defined(OPENVINO_ARCH_X86_64)
     else if (mayiuse(cpu::x64::sse41))
         return std::make_shared<NormalizeL2JitExecutor<in_data_t, out_data_t>>(attrs, kernel_attrs, dims);
+#endif
     else if (attrs.layout == LayoutType::ncsp)
         return std::make_shared<NormalizeL2ReferenceExecutor<in_data_t, out_data_t>>(attrs, kernel_attrs, dims);
     else

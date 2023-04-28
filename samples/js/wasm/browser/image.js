@@ -15,7 +15,7 @@ const WAITING_INPUT_STATUS_TXT = 'OpenVINO initialized. Model loaded. Select ima
 run();
 
 async function run() {
-  const { Shape, loadModel } = await openvino.init();
+  const { Shape, loadModel } = openvino;
 
   statusElement.innerText = 'OpenVINO successfully initialized. Model loading...';
 

@@ -35,7 +35,11 @@ module.exports = {
     filename: '[name].bundle.js',
     path: path.resolve(__dirname, 'dist'),
     clean: true,
-    library: 'openvino',
+    library: { 
+      name: 'openvino',
+      type: 'umd',
+      export: 'default', 
+    },
     libraryTarget: 'window',
   },
 };

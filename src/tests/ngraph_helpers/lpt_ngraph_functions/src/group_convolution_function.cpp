@@ -63,13 +63,23 @@ std::shared_ptr<Node> createWeightsOriginal(
                 weightsValues);
 
         if (!fakeQuantizeOnWeights.empty()) {
+            Shape constantShape;
+            if (ov::shape_size(fakeQuantizeOnWeights.constantShape) != 1) {
+                constantShape = fakeQuantizeOnWeights.constantShape;
+            } else {
+                constantShape = Shape(weights->get_shape().size(), 1);
+                if (addReshape) {
+                    constantShape[0] = outputChannelsCount;
+                } else {
+                    constantShape[0] = groupCount;
+                    constantShape[1] = outputChannelsCount / groupCount;
+                }
+            }
             weights = ngraph::builder::makeFakeQuantize(
                 weights,
                 precision,
                 fakeQuantizeOnWeights.quantizationLevel,
-                rankLength == 3 ?
-                    std::vector<size_t>{ outputChannelsCount, 1, 1 } :
-                    std::vector<size_t>{ outputChannelsCount, 1, 1, 1 },
+                constantShape,
                 fakeQuantizeOnWeights.inputLowValues,
                 fakeQuantizeOnWeights.inputHighValues,
                 fakeQuantizeOnWeights.outputLowValues,
@@ -162,6 +172,7 @@ std::shared_ptr<ngraph::Function> GroupConvolutionFunction::getOriginal(
     const int groupCalculationDimention,
     const FakeQuantizeOnData& fakeQuantizeOnData,
     const FakeQuantizeOnWeights& fakeQuantizeOnWeights,
+    const bool addReshape,
     const bool addPrecisionPreserved) {
     const auto rankLength = inputShape.rank().is_dynamic() ? 4 : inputShape.rank().get_length();
     OPENVINO_ASSERT(rankLength == 3 || rankLength == 4, "not supported input shape rank: ", rankLength);
@@ -217,8 +228,6 @@ std::shared_ptr<ngraph::Function> GroupConvolutionFunction::getOriginal(
         parent = pooling;
     }
 
-    // TODO: pass as argument
-    //const size_t groupCount = 3ul;
     const size_t outputChannelsCount = outputShape[1];
     const size_t kernelSize = 5ul;
     const size_t inputChannelsCount = inputShape[1].get_length();
@@ -234,7 +243,8 @@ std::shared_ptr<ngraph::Function> GroupConvolutionFunction::getOriginal(
         kernelSize,
         weightsValues,
         fakeQuantizeOnWeights,
-        {});
+        {},
+        addReshape);
 
     const auto convolution = std::make_shared<ngraph::opset1::GroupConvolution>(
         parent,
