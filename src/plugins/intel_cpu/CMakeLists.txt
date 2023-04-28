@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if (NOT ENABLE_INTEL_CPU)
+if(NOT ENABLE_INTEL_CPU)
     return()
 endif()
 
@@ -22,26 +22,20 @@ elseif(OV_COMPILER_IS_CLANG)
     ie_add_compiler_flags(-Wno-delete-non-abstract-non-virtual-dtor)
 endif()
 
-if (WIN32)
+add_subdirectory(thirdparty)
+
+if(WIN32)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNOMINMAX")
 endif()
 
-if (ENABLE_CPU_DEBUG_CAPS)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DCPU_DEBUG_CAPS")
+if(ENABLE_CPU_DEBUG_CAPS)
+    add_definitions(-DCPU_DEBUG_CAPS)
 endif()
 
-file(GLOB_RECURSE SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
-file(GLOB_RECURSE HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h
-                          ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
-
-add_subdirectory(thirdparty)
-
-if(ENABLE_TESTS)
-    add_subdirectory(tests)
-endif()
-
-add_definitions(-DOV_CPU_WITH_DNNL)
 set(OV_CPU_WITH_DNNL ON)
+if(OV_CPU_WITH_DNNL)
+    add_definitions(-DOV_CPU_WITH_DNNL)
+endif()
 
 if(DNNL_USE_ACL)
     add_definitions(-DOV_CPU_WITH_ACL)
@@ -52,25 +46,24 @@ if(OV_CPU_WITH_ACL)
     set(CMAKE_CXX_STANDARD 14)
 endif()
 
-# remove target specific files from compilation
+file(GLOB_RECURSE SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
+file(GLOB_RECURSE HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h
+                          ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
 
-if (NOT OV_CPU_WITH_ACL)
-    set(EXCLUDE_PATHS ${EXCLUDE_PATHS}
-                      ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/acl/*)
+if(NOT OV_CPU_WITH_ACL)
+    list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/acl/*)
 endif()
 
-if (NOT X86_64)
-    set(EXCLUDE_PATHS ${EXCLUDE_PATHS}
-                      ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/x64/*
-                      ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/kernels/x64/*
-                      ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/x64/*
-                      ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/cpu_opset/x64/*
-                      ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/snippets/x64/*)
+if(NOT X86_64)
+    list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/x64/*
+                              ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/kernels/x64/*
+                              ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/x64/*
+                              ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/cpu_opset/x64/*
+                              ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/snippets/x64/*)
 endif()
 
-if (NOT (AARCH64 OR ARM))
-    set(EXCLUDE_PATHS ${EXCLUDE_PATHS}
-                      ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/cpu_opset/arm/*)
+if(NOT (AARCH64 OR ARM))
+    list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/cpu_opset/arm/*)
 endif()
 
 file(GLOB_RECURSE FILES_TO_REMOVE ${EXCLUDE_PATHS})
@@ -103,9 +96,7 @@ target_link_libraries(${TARGET_NAME} PRIVATE dnnl
 
 target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_EXTENSION_API)
 target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
-
-target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
-    $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
+target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
 
 # Cross compiled function
 # TODO: The same for proposal, proposalONNX, topk
@@ -120,7 +111,12 @@ cross_compiled_file(${TARGET_NAME}
 # must be called after all target_link_libraries
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
-#  add test object library
+# LTO
+set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+
+#
+# add test object library
+#
 
 if(BUILD_SHARED_LIBS)
     add_library(${TARGET_NAME}_obj OBJECT ${SOURCES} ${HEADERS})
@@ -153,5 +149,6 @@ if(BUILD_SHARED_LIBS)
     set_target_properties(${TARGET_NAME}_obj PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 endif()
 
-# LTO
-set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+if(ENABLE_TESTS)
+    add_subdirectory(tests)
+endif()
