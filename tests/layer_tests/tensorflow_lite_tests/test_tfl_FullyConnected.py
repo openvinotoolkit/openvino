@@ -33,7 +33,8 @@ class TestTFLiteFUllyConnectedLayerTest(TFLiteLayerTest):
         return data_generators[generator](inputs_dict)
 
     def make_model(self, params):
-        assert len(set(params.keys()).intersection({'op_name', 'op_func', 'shape_x', 'shape_y'})) == 4, \
+        assert len(set(params.keys()).intersection({'op_name', 'op_func', 'shape_x', 'shape_y',
+                                                    'transpose_a', 'transpose_b'})) == 6, \
             'Unexpected parameters for test: ' + ','.join(params.keys())
         self.allowed_ops = [params['op_name']]
         tf.compat.v1.reset_default_graph()
