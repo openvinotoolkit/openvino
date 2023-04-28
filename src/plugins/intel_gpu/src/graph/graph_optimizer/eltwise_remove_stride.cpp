@@ -24,7 +24,7 @@ void eltwise_remove_stride::conv_stride_extend(program& p, program_node& node, c
     // make sure this is conv 1x1
     if (filter_size.spatial[0] == 1 && filter_size.spatial[1] == 1) {
         auto deps = node.get_dependencies();
-        for (auto dep : deps) {
+        for (const auto& dep : deps) {
             if (dep.first->is_type<convolution>()) {
                 conv_stride_extend(p, *dep.first, tensor);
                 dep.first->recalc_output_layout(true);
