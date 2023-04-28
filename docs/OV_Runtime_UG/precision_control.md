@@ -15,7 +15,7 @@ This change clears up a lot of confusion where, for example, you couldn't execut
 Execution Mode
 ##############
 
-``ov::hint::execution_mode`` is a high-level hint to control whether the user wants to keep the best accuracy (**ACCURITY mode**) or if the plugin can do some optimizations that may lower the accuracy for performance reasons (**PERFORMANCE mode**)
+``ov::hint::execution_mode`` is a high-level hint to control whether the user wants to keep the best accuracy (**ACCURACY mode**) or if the plugin can do some optimizations that may lower the accuracy for performance reasons (**PERFORMANCE mode**)
 
 Inference Precision
 ###################
