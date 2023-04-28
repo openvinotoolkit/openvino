@@ -109,52 +109,54 @@ Example 5 shows how *Einsum* transposes input tensor:
 
 In addition to an alphabetic label, ellipsis ``...`` can be used as a label in a subscript to cover broadcasted dimensions. Each input subscript can contain at most one ellipsis. For example, the ellipsis in input subscript ``a...bc`` for five rank tensor covers the second and third dimensions. In case input subscripts contain ellipsis for several operands, the dimensions covered by the ellipsis must be broadcastable to satisfy numpy broadcasting (or multidirectional broadcasting) rules available in :doc:`Broadcast Rules For Elementwise Operations <openvino_docs_ops_broadcast_rules>`. If at least one input subscript contains an ellipsis, the output subscript must always contain one ellipsis. For example, *Einsum* operation on two inputs of shapes ``[9, 1, 4, 3]`` and ``[3, 11, 7, 1]`` with ``equation="a...b,b...->a..."`` has ellipsis for both operands covering dimensions with sizes ``[1, 4]`` and ``[11, 7, 1]`` that are broadcasted to ``[11, 7, 4]``. The resulted shape of *Einsum* operation will be ``[9, 11, 7, 4]`` since the dimension labeled with ``a`` is left with broadcasted dimensions.
 
-@endsphinxdirective
-
 Example 6 shows how *Einsum* operates on the single input with an equation containing ellipsis:
 
-```
-A = [[1.0, 2.0, 3.0],
-     [4.0, 5.0, 6.0],
-     [7.0, 8.0, 9.0]]
-equation = "a...->..."
-output = [12.0, 15.0, 18.0]
-```
+.. code-block:: cpp
+   
+   A = [[1.0, 2.0, 3.0],
+        [4.0, 5.0, 6.0],
+        [7.0, 8.0, 9.0]]
+   equation = "a...->..."
+   output = [12.0, 15.0, 18.0]
 
 Example 7 shows how *Einsum* operates with broadcasting two operands:
 
-```
-A = [[1.0, 2.0, 3.0],
-     [4.0, 5.0, 6.0],
-     [7.0, 8.0, 9.0]]
-B = [0.5]
-equation = "a...,...->a..."
-output = [[0.5, 1.0, 1.5],
-          [2.0, 2.5, 3.0],
-          [3.5, 4.0, 4.5]]
-```
+.. code-block:: cpp
+   
+   A = [[1.0, 2.0, 3.0],
+        [4.0, 5.0, 6.0],
+        [7.0, 8.0, 9.0]]
+   B = [0.5]
+   equation = "a...,...->a..."
+   output = [[0.5, 1.0, 1.5],
+             [2.0, 2.5, 3.0],
+             [3.5, 4.0, 4.5]]
 
 In implicit mode (a classical form of Einstein summation), the equation does not have the output subscript and has the following format: 
-`<subscript for input1>, <subscript for input2>, ..., <subscript for inputn>`.
+``<subscript for input1>, <subscript for input2>, ..., <subscript for inputn>``.
 The equation in implicit mode consists of only input subscripts for each operand.
 The output subscript can be recovered as a sequence of alphabetically sorted labels that are not repeated in the left-hand side of the equation.
-For example, `equation = "dbbc,ca"` in implicit mode is equivalent to `equation = "dbbc,ca->ad"` in explicit mode.
-The equation in implicit mode can set up only subset of Einstein summation conventions. For example, `equation = "kii->i"` cannot be represented in implicit mode.
+For example, ``equation = "dbbc,ca"`` in implicit mode is equivalent to ``equation = "dbbc,ca->ad"`` in explicit mode.
+The equation in implicit mode can set up only subset of Einstein summation conventions. For example, ``equation = "kii->i"`` cannot be represented in implicit mode.
 In case ellipsis label is in the left-hand side of the equation in implicit mode, the ellipsis comes first in the output subscript for the recovery.
 
 Example 8 shows how *Einsum* operates with an equation containing both capital and lowercase letters in implicit mode
-`equation = "AbC"` that is the same as `equation = "AbC->ACb"`:
+``equation = "AbC"`` that is the same as ``equation = "AbC->ACb"``:
 
-```
-A = [[[1.0, 2.0, 3.0],
-      [4.0, 5.0, 6.0]]]
-equation = "AbC"
-output = [[[1.0, 4.0],
-           [2.0, 5.0],
-           [3.0, 6.0]]]
-```
+.. code-block:: cpp
+   
+   A = [[[1.0, 2.0, 3.0],
+         [4.0, 5.0, 6.0]]]
+   equation = "AbC"
+   output = [[[1.0, 4.0],
+              [2.0, 5.0],
+              [3.0, 6.0]]]
 
-**NOTE**: The equation in both modes can contain blank space characters (U+0020) at any positions that can be removed without losing equivalence.
+.. note:: 
+   
+   The equation in both modes can contain blank space characters (U+0020) at any positions that can be removed without losing equivalence.
+
+@endsphinxdirective
 
 **Attributes**:
 
