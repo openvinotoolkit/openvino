@@ -283,7 +283,8 @@ void remove_redundant_reorders::run(program& p) {
             i_layout.data_padding.upper_size().spatial[0] == 0 && i_layout.data_padding.lower_size().spatial[0] == 0 &&
             i_layout.data_padding.upper_size().spatial[1] == 0 && i_layout.data_padding.lower_size().spatial[1] == 0 &&
             o_layout.data_padding.upper_size() == (tensor)0 && o_layout.data_padding.lower_size() == (tensor)0 &&
-            i_layout.data_type == o_layout.data_type) {
+            i_layout.data_type == o_layout.data_type &&
+            !layout_optimizer::onednn_check_preferred_impl_type_of_users(r_node)) {
             // If the newly aligned pad is merged into output layout during post_optimize_graph phase
             // and then buffer is reinterpreted, user node cannot handle pad properly for kernel execution
             if (!update_implementations || (i_layout.feature() % 16 == 0 &&
@@ -483,6 +484,26 @@ void remove_redundant_reorders::run(program& p) {
         if (dep.is_type<input_layout>())
             return false;
 
+        // Skip reorder padding fusing when any one of sibling nodes is optimized out or doesn't support padding.
+        if (node->get_output_layout().data_padding) {
+            if (update_implementations)
+                return false;
+
+            for (auto user : dep.get_users()) {
+                if (user != node) {
+                    if (user->can_be_optimized())
+                        return false;
+
+                    auto node_format = node->get_output_layout().format;
+                    for (size_t axis = 0; axis < node->get_dependency(0).get_output_layout().data_padding.lower_size().sizes(node_format).size(); axis++) {
+                        if (!user->is_padding_supported(static_cast<int>(axis),
+                            node->get_dependency(0).get_output_layout().data_padding.lower_size().sizes(node_format)[axis]))
+                            return false;
+                    }
+                }
+            }
+        }
+
         if (usr->as<convolution>().get_primitive()->groups != 1)
             return false;
 
@@ -544,7 +565,7 @@ void remove_redundant_reorders::run(program& p) {
             local_desc.input_layout = input.get_dependency(0).get_output_layout();  // original convolution's output layout
             node->set_input_layout(local_desc.input_layout);
             local_desc.f_param = node->get_fuse_params();
-            local_desc.dep_start_idx = input.get_fused_primitives().size();
+            local_desc.outer_dep_start_idx = -1;
             local_desc.output_layout = output_layout;
             input.add_fused_primitive(local_desc);
 
