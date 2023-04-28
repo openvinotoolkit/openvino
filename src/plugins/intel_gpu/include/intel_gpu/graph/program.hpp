@@ -189,6 +189,8 @@ public:
                           bool connect_int_node_with_old_dep = true,
                           bool move_usrs_of_prev_to_node = false);
 
+    void add_connection(program_node& prev, program_node& next);
+
     // removes a node from the graph and deletes it afterwards,
     // prereq: node cannot be marked as output and has to have exactly one dependency
     // returns if 'node' has been extracted and removed successfully
@@ -331,8 +333,6 @@ private:
     void add_split_outputs();
     // mark if the node is constant assuming that all dependencies are marked properly
     void reverse_connection(program_node& dep_node, program_node& user_node);
-
-    void add_connection(program_node& prev, program_node& next);
 
     void remove_connection(program_node& prev, program_node& next);
 
