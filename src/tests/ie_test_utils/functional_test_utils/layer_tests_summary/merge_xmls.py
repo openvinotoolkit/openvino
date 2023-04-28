@@ -87,7 +87,7 @@ def aggregate_test_results(aggregated_results: SubElement, xml_reports: list,
                     else:
                         aggregated_device_results.append(xml_results_entry)
                     continue
-                if report_type == "OP":
+                if report_type == OP_CONFORMANCE or report_type == OP_CONFORMANCE.lower():
                     update_result_node(xml_results_entry, aggregated_results_entry)
                 else:
                     for xml_real_device_entry in xml_results_entry:

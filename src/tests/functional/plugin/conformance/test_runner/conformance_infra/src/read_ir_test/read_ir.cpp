@@ -112,19 +112,19 @@ void ReadIRTest::query_model() {
         s.setDeviceName(targetDevice);
 
         if (FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
-            s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::SKIPPED);
+            s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::SKIPPED, rel_influence_coef);
             GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
         } else {
-            s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::CRASHED);
+            s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::CRASHED, rel_influence_coef);
         }
         try {
             SubgraphBaseTest::query_model();
-            s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::PASSED);
+            s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::PASSED, rel_influence_coef);
         } catch (...) {
-            s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::FAILED);
+            s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::FAILED, rel_influence_coef);
         }
     } else if (jmpRes == CommonTestUtils::JMP_STATUS::alarmErr) {
-        s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::HANGED);
+        s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::HANGED, rel_influence_coef);
         IE_THROW() << "Crash happens";
     } else if (jmpRes == CommonTestUtils::JMP_STATUS::anyError) {
         IE_THROW() << "Crash happens";
