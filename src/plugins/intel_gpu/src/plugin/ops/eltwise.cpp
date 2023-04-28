@@ -57,9 +57,7 @@ void CreateElementwiseOp(Program& p,
                     auto reorderPrim = cldnn::reorder(reorderName,
                                                     inputs[i],
                                                     targetFormat,
-                                                    targetDatatype,
-                                                    std::vector<float>(),
-                                                    cldnn::reorder_mean_mode::subtract);
+                                                    targetDatatype);
 
                     p.add_primitive(*op, reorderPrim);
                     inputs[i] = cldnn::input_info(reorderName);

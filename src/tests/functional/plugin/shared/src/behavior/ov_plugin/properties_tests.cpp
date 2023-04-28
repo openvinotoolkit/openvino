@@ -20,7 +20,7 @@ void OVEmptyPropertiesTests::SetUp() {
     target_device = this->GetParam();
     APIBaseTest::SetUp();
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    model = ngraph::builder::subgraph::makeConvPoolRelu();
+    model = ngraph::builder::subgraph::makeSplitConcat();
 }
 
 std::string OVPropertiesTests::getTestCaseName(testing::TestParamInfo<PropertiesParams> obj) {
@@ -40,7 +40,7 @@ void OVPropertiesTests::SetUp() {
     std::tie(target_device, properties) = this->GetParam();
     APIBaseTest::SetUp();
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    model = ngraph::builder::subgraph::makeConvPoolRelu();
+    model = ngraph::builder::subgraph::makeSplitConcat();
 }
 
 void OVPropertiesTests::TearDown() {
@@ -70,7 +70,7 @@ std::string OVSetPropComplieModleGetPropTests::getTestCaseName(testing::TestPara
 void OVSetPropComplieModleGetPropTests::SetUp() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     std::tie(target_device, properties, compileModelProperties) = this->GetParam();
-    model = ngraph::builder::subgraph::makeConvPoolRelu();
+    model = ngraph::builder::subgraph::makeSplitConcat();
 }
 
 std::string OVPropertiesTestsWithComplieModelProps::getTestCaseName(testing::TestParamInfo<PropertiesParams> obj) {
@@ -109,7 +109,7 @@ void OVPropertiesTestsWithComplieModelProps::SetUp() {
     } else if (target_device ==  std::string(CommonTestUtils::DEVICE_BATCH)) {
         compileModelProperties = {{ CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) , hw_device}};
     }
-    model = ngraph::builder::subgraph::makeConvPoolRelu();
+    model = ngraph::builder::subgraph::makeSplitConcat();
 }
 
 void OVPropertiesTestsWithComplieModelProps::TearDown() {
@@ -222,7 +222,7 @@ void OVCompileModelGetExecutionDeviceTests::SetUp() {
     std::tie(target_device, userConfig) = GetParam();
     compileModelProperties = userConfig.first;
     expectedDeviceName = userConfig.second;
-    model = ngraph::builder::subgraph::makeConvPoolRelu();
+    model = ngraph::builder::subgraph::makeSplitConcat();
 }
 
 TEST_P(OVCompileModelGetExecutionDeviceTests, CanGetExecutionDeviceInfo) {
