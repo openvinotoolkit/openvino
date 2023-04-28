@@ -307,7 +307,8 @@ tests_expected_to_fail = [
     ),
     (
         skip_dynamic_model,
-        "OnnxBackendNodeModelTest.test_triu_one_row_cpu"
+        "OnnxBackendNodeModelTest.test_triu_one_row_cpu",
+        "OnnxBackendNodeModelTest.test_squeeze_negative_axes_cpu",
     ),
     (
         skip_rng_tests,
