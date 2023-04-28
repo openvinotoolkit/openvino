@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+import sys
 import tempfile
 
 def convert_paddle_to_pdmodel(model, inputs=None, outputs=None):
@@ -21,17 +22,15 @@ def convert_paddle_to_pdmodel(model, inputs=None, outputs=None):
         else:
             if inputs is None:
                 raise RuntimeError(
-                    "Saving inference model needs 'inputs' before saving. Please specify 'inputs'"
+                    "Saving inference model needs 'inputs' before saving. Please specify 'example_input'"
                 )
-            if isinstance(model, paddle.fluid.dygraph.layers.Layer): #paddle.in_dynamic_mode():
+            if isinstance(model, paddle.fluid.dygraph.layers.Layer):
                 with paddle.fluid.framework._dygraph_guard(None):
-                    layer = model
                     paddle.jit.save(model, model_name, input_spec=inputs)
-
             elif isinstance(model, paddle.fluid.executor.Executor):
                 if outputs is None:
                     raise RuntimeError(
-                        "Model is static. Saving inference model needs 'outputs' before saving. Please specify 'outputs'"
+                        "Model is static. Saving inference model needs 'outputs' before saving. Please specify 'example_output' for this model"
                     )
                 paddle.static.save_inference_model(model_name, inputs, outputs, model)
             else:
@@ -39,7 +38,12 @@ def convert_paddle_to_pdmodel(model, inputs=None, outputs=None):
                     "Conversion just support paddle.hapi.model.Model, paddle.fluid.dygraph.layers.Layer and paddle.fluid.executor.Executor"
                 )
 
-        return model_name + ".pdmodel"
+        model_file = "{}.pdmodel".format(model_name)
+        if not os.path.exists(model_file):
+            print("Failed generating paddle inference format model")
+            sys.exit(1)
+
+        return model_file
     finally:
         if isinstance(tmp, tempfile._TemporaryFileWrapper):
             tmp.close()

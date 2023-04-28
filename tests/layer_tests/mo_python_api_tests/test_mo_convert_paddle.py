@@ -5,9 +5,8 @@ import numpy as np
 import pytest
 from common.mo_convert_test_class import CommonMOConvertTest
 
-import openvino
 import openvino.runtime as ov
-from openvino.runtime import PartialShape, Model, Dimension, serialize
+from openvino.runtime import PartialShape, Model
 
 def make_pd_dynamic_graph_model():
     import paddle
@@ -25,7 +24,6 @@ def make_pd_dynamic_graph_model():
 def make_pd_static_graph_model(shape):
     import paddle
     import paddle.nn
-    import paddle.static as static
 
     paddle.enable_static()
 

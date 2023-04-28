@@ -881,7 +881,7 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args, python_api_us
 
                 decoder = get_pytorch_decoder(args['input_model'], parse_input_shapes(args), example_inputs, args.get("input"))
                 args['input_model'] = decoder
-                args["framework"] = "pytorch"
+                args['framework'] = model_framework
             if model_framework == "paddle":
                 example_inputs = None
                 if 'example_input' in args and args['example_input'] is not None:
@@ -892,7 +892,7 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args, python_api_us
                     example_outputs = args['example_output']
                 pdmodel = convert_paddle_to_pdmodel(args['input_model'], example_inputs, example_outputs)
                 args['input_model'] = pdmodel
-                args['framework'] = "paddle"
+                args['framework'] = model_framework
 
         update_args_for_saved_model_dir(args)
 

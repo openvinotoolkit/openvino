@@ -43,6 +43,10 @@ def convert_model(
         progress: bool = False,
         stream_output: bool = False,
 
+        # PaddlePaddle-specific parameters:
+        # example_input: Any = None, which can be shared with PyTorch-specific parameters
+        example_output: Any = None,
+
         # PyTorch-specific parameters:
         example_input: Any = None,
 
@@ -96,7 +100,7 @@ def convert_model(
 
             Supported formats of input model:
 
-            Paddle
+            PaddlePaddle
             paddle.hapi.model.Model
             paddle.fluid.dygraph.layers.Layer
             paddle.fluid.executor.Executor

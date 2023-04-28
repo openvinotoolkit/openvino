@@ -2065,7 +2065,7 @@ class TestConvertModelParamsParsing(unittest.TestCase):
         for group_name, params in ref_params.items():
             for param_name in params:
                 param_name = '--' + param_name
-                if group_name == 'PyTorch-specific parameters:':
+                if group_name == 'PyTorch-specific parameters:' or group_name == 'PaddlePaddle-specific parameters:':
                     assert param_name not in cli_parser._option_string_actions
                 else:
                     assert param_name in cli_parser._option_string_actions
