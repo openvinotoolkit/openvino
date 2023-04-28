@@ -67,7 +67,7 @@ void prepare_primitive_fusing::remove_redundant_reshape(program &p) {
     while (node_itr != p.get_processing_order().end()) {
         auto node = (*node_itr++);
         program_helpers::do_for_types<reshape>(*node, [&p](reshape_node& node) {
-            for (auto prev : node.get_dependencies()) {
+            for (const auto& prev : node.get_dependencies()) {
                 if (!prev.first->is_type<reshape>())
                     return;
                 if (prev.first->get_users().size() > 1 || prev.first->get_dependencies().size() > 1)
@@ -594,8 +594,10 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         };
 
         auto mvn_supports_fusings = [](mvn_node& node) -> bool {
-            auto in_dt = node.get_dependency(0).get_output_layout().data_type;
-            return data_type_traits::is_i8_u8(in_dt);
+            auto in_layout = node.get_dependency(0).get_output_layout();
+            if (node.get_primitive()->requires_alignment(in_layout.get_partial_shape()))
+                return false;
+            return data_type_traits::is_i8_u8(in_layout.data_type);
         };
 
         auto dts_supports_fusings = [](depth_to_space_node& node) -> bool {
@@ -690,7 +692,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         };
 
         auto fuse_activation_f = [&](activation_node& activation_node) {
-            if (supports_immad && activation_node.get_primitive()->activation_function == cldnn::activation_func::hyperbolic_tan) {
+            auto activation_func = activation_node.get_primitive()->activation_function;
+            if (supports_immad && activation_func == cldnn::activation_func::hyperbolic_tan) {
                 return;
             }
 
@@ -704,12 +707,17 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             if (_lo.get_optimization_attributes().use_onednn_impls) {
                 if (input.is_type<reshape>() || input.is_type<concatenation>())
                     return;
-
+                auto additional_params_input = activation_node.get_primitive()->additional_params_input;
+                if (activation_func == cldnn::activation_func::relu_negative_slope && !additional_params_input.empty() &&
+                    (input.is_type<fully_connected>() || input.is_type<gemm>())) {
+                    // prelu fusion is not implemented in oneDNN3.1 (CVS-108233)
+                    return;
+                }
                 // Activation should not be fused if oneDNN does NOT support it
                 if (_lo.is_primitive_implemented_for_onednn(input))  {
                     #ifdef ENABLE_ONEDNN_FOR_GPU
                     try {
-                        onednn::convert_activation_func(activation_node.get_primitive()->activation_function);
+                        onednn::convert_activation_func(activation_func);
                     } catch (...) {
                         return;
                     }

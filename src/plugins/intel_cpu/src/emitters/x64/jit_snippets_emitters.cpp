@@ -985,7 +985,6 @@ void BrgemmEmitter::emit_brgemm_kernel_call(const brgemm_kernel_t *brg_kernel, c
     for (size_t i = 0; i < get_max_vecs_count(); ++i)
         h->uni_vmovups(h->ptr[h->rsp + i * get_vec_length()], Zmm(i));
 
-    size_t num_args_passed_on_stack = 0;
     // save function address in gpr to pass in call instruction
     const auto& brgemm_kernel_overload = static_cast<void (*)(const brgemm_kernel_t*,
                                                               const void*,
@@ -1016,7 +1015,7 @@ void BrgemmEmitter::emit_brgemm_kernel_call(const brgemm_kernel_t *brg_kernel, c
     // Before function call we should allocate stack area for
     //  - register parameters - ABI parameters (shadow space)
     //  - stack parameters - remaining parameters
-    num_args_passed_on_stack = 6;  // count of function brgemm_kernel_overload() parameters
+    const size_t num_args_passed_on_stack = 6;  // count of function brgemm_kernel_overload() parameters
     size_t abi_param_count = sizeof(abi_param_regs) / sizeof(abi_param_regs[0]);
     h->sub(h->rsp, num_args_passed_on_stack * gpr_size);
 
@@ -1047,8 +1046,10 @@ void BrgemmEmitter::emit_brgemm_kernel_call(const brgemm_kernel_t *brg_kernel, c
     h->call(h->rbp);
 
     h->add(h->rsp, h->rbx);
-    if (num_args_passed_on_stack > 0)
-        h->add(h->rsp, num_args_passed_on_stack * gpr_size);
+
+#ifdef _WIN32
+    h->add(h->rsp, num_args_passed_on_stack * gpr_size);
+#endif
     // restore vector registers
     for (int i = static_cast<int>(get_max_vecs_count()) - 1; i >= 0; --i) {
         h->uni_vmovups(Zmm(i), h->ptr[h->rsp + i * get_vec_length()]);
@@ -1250,7 +1251,6 @@ void BrgemmCopyBEmitter::emit_kernel_call(const matmul::jit_brgemm_matmul_copy_b
     };
 #endif
 
-    size_t num_args_passed_on_stack = 0;
     // save function address in gpr to pass in call instruction
     const auto &kernel_overload = static_cast<void (*)(matmul::jit_brgemm_matmul_copy_b_t*,
                                                        const void*,
@@ -1281,7 +1281,7 @@ void BrgemmCopyBEmitter::emit_kernel_call(const matmul::jit_brgemm_matmul_copy_b
     // Before function call we should allocate stack area for
     //  - register parameters - ABI parameters (shadow space)
     //  - stack parameters - remaining parameters
-    num_args_passed_on_stack = 6;  // count of function kernel_overload() parameters
+    const size_t num_args_passed_on_stack = 6;  // count of function kernel_overload() parameters
     size_t abi_param_count = sizeof(abi_param_regs) / sizeof(abi_param_regs[0]);
 
     h->sub(h->rsp, num_args_passed_on_stack * gpr_size);
@@ -1300,8 +1300,10 @@ void BrgemmCopyBEmitter::emit_kernel_call(const matmul::jit_brgemm_matmul_copy_b
     h->call(h->rbp);
 
     h->add(h->rsp, h->rbx);
-    if (num_args_passed_on_stack > 0)
+
+#ifdef _WIN32
         h->add(h->rsp, gpr_size * num_args_passed_on_stack);
+#endif
     // restore vector registers
     for (int i = static_cast<int>(get_max_vecs_count()) - 1; i >= 0; --i) {
         h->uni_vmovups(Zmm(i), h->ptr[h->rsp + i * get_vec_length()]);
