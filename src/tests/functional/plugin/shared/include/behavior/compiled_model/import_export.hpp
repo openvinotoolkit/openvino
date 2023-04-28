@@ -22,12 +22,12 @@ typedef std::tuple<
         ov::element::Type_t,                // Element type
         std::string,                        // Device name
         ov::AnyMap                          // Config
-> OVExecGraphImportExportTestParams;
+> OVCompiledGraphImportExportTestParams;
 
-class OVExecGraphImportExportTest : public testing::WithParamInterface<OVExecGraphImportExportTestParams>,
+class OVCompiledGraphImportExportTest : public testing::WithParamInterface<OVCompiledGraphImportExportTestParams>,
                                     public OVCompiledNetworkTestBase {
     public:
-    static std::string getTestCaseName(testing::TestParamInfo<OVExecGraphImportExportTestParams> obj) {
+    static std::string getTestCaseName(testing::TestParamInfo<OVCompiledGraphImportExportTestParams> obj) {
         ov::element::Type_t elementType;
         std::string targetDevice;
         ov::AnyMap configuration;
@@ -69,14 +69,31 @@ class OVExecGraphImportExportTest : public testing::WithParamInterface<OVExecGra
     std::shared_ptr<ov::Model> function;
 };
 
-TEST_P(OVExecGraphImportExportTest, importExportedFunction) {
-    if (target_device == CommonTestUtils::DEVICE_MULTI || target_device == CommonTestUtils::DEVICE_AUTO) {
-        GTEST_SKIP() << "MULTI / AUTO does not support import / export" << std::endl;
-    }
-
+TEST_P(OVCompiledGraphImportExportTest, importExportedFunction) {
     ov::CompiledModel execNet;
+
     // Create simple function
-    function = ngraph::builder::subgraph::makeMultipleInputOutputDoubleConcat({1, 2, 24, 24}, elementType);
+    {
+        auto param1 = std::make_shared<ov::opset8::Parameter>(elementType, ngraph::Shape({1, 3, 24, 24}));
+        param1->set_friendly_name("param1");
+        param1->output(0).get_tensor().set_names({"data1"});
+        auto param2 = std::make_shared<ov::opset8::Parameter>(elementType, ngraph::Shape({1, 3, 24, 24}));
+        param2->set_friendly_name("param2");
+        param2->output(0).get_tensor().set_names({"data2"});
+        auto relu = std::make_shared<ov::opset8::Relu>(param1);
+        relu->set_friendly_name("relu_op");
+        relu->output(0).get_tensor().set_names({"relu"});
+        auto result1 = std::make_shared<ov::opset8::Result>(relu);
+        result1->set_friendly_name("result1");
+        auto concat = std::make_shared<ov::opset8::Concat>(OutputVector{relu, param2}, 1);
+        concat->set_friendly_name("concat_op");
+        concat->output(0).get_tensor().set_names({"concat"});
+        auto result2 = std::make_shared<ov::opset8::Result>(concat);
+        result2->set_friendly_name("result2");
+        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result1, result2},
+                                                      ngraph::ParameterVector{param1, param2});
+        function->set_friendly_name("SingleRuLU");
+    }
     execNet = core->compile_model(function, target_device, configuration);
 
     std::stringstream strm;
@@ -121,21 +138,17 @@ TEST_P(OVExecGraphImportExportTest, importExportedFunction) {
               importedExecNet.output(1).get_tensor().get_element_type());
     EXPECT_EQ(function->output(1).get_element_type(),
               importedExecNet.output(1).get_tensor().get_element_type());
-    EXPECT_EQ(importedExecNet.output(0).get_node(), importedExecNet.output("concat1").get_node());
-    EXPECT_NE(importedExecNet.output(1).get_node(), importedExecNet.output("concat1").get_node());
-    EXPECT_EQ(importedExecNet.output(1).get_node(), importedExecNet.output("concat2").get_node());
-    EXPECT_NE(importedExecNet.output(0).get_node(), importedExecNet.output("concat2").get_node());
+    EXPECT_EQ(importedExecNet.output(0).get_node(), importedExecNet.output("relu").get_node());
+    EXPECT_NE(importedExecNet.output(1).get_node(), importedExecNet.output("relu").get_node());
+    EXPECT_EQ(importedExecNet.output(1).get_node(), importedExecNet.output("concat").get_node());
+    EXPECT_NE(importedExecNet.output(0).get_node(), importedExecNet.output("concat").get_node());
     EXPECT_THROW(importedExecNet.input("param1"), ov::Exception);
     EXPECT_THROW(importedExecNet.input("param2"), ov::Exception);
-    EXPECT_THROW(importedExecNet.output("result1"), ov::Exception);
-    EXPECT_THROW(importedExecNet.output("result2"), ov::Exception);
+    EXPECT_THROW(importedExecNet.output("concat_op"), ov::Exception);
+    EXPECT_THROW(importedExecNet.output("relu_op"), ov::Exception);
 }
 
-TEST_P(OVExecGraphImportExportTest, importExportedFunctionParameterResultOnly) {
-    if (target_device == CommonTestUtils::DEVICE_MULTI || target_device == CommonTestUtils::DEVICE_AUTO) {
-        GTEST_SKIP() << "MULTI / AUTO does not support import / export" << std::endl;
-    }
-
+TEST_P(OVCompiledGraphImportExportTest, importExportedFunctionParameterResultOnly) {
     // Create a simple function
     {
         auto param = std::make_shared<ov::opset8::Parameter>(elementType, ngraph::Shape({1, 3, 24, 24}));
@@ -171,11 +184,7 @@ TEST_P(OVExecGraphImportExportTest, importExportedFunctionParameterResultOnly) {
     EXPECT_EQ(ov::element::Type(elementType), importedCompiledModel.output("data").get_element_type());
 }
 
-TEST_P(OVExecGraphImportExportTest, importExportedFunctionConstantResultOnly) {
-    if (target_device == CommonTestUtils::DEVICE_MULTI || target_device == CommonTestUtils::DEVICE_AUTO) {
-        GTEST_SKIP() << "MULTI / AUTO does not support import / export" << std::endl;
-    }
-
+TEST_P(OVCompiledGraphImportExportTest, importExportedFunctionConstantResultOnly) {
     // Create a simple function
     {
         auto constant = std::make_shared<ov::opset8::Constant>(elementType, ngraph::Shape({1, 3, 24, 24}));
@@ -210,104 +219,79 @@ TEST_P(OVExecGraphImportExportTest, importExportedFunctionConstantResultOnly) {
     EXPECT_EQ(ov::element::Type(elementType), importedCompiledModel.output("data").get_element_type());
 }
 
-TEST_P(OVExecGraphImportExportTest, readFromV10IR) {
+TEST_P(OVCompiledGraphImportExportTest, readFromV10IR) {
     std::string model = R"V0G0N(
-        <net name="Network" version="10">
-            <layers>
-                <layer name="in1" type="Parameter" id="0" version="opset8">
-                    <data element_type="f16" shape="1,3,22,22"/>
-                    <output>
-                        <port id="0" precision="FP16" names="data1">
-                            <dim>1</dim>
-                            <dim>3</dim>
-                            <dim>22</dim>
-                            <dim>22</dim>
-                        </port>
-                    </output>
-                </layer>
-                <layer name="in2" type="Parameter" id="1" version="opset8">
-                    <data element_type="f16" shape="1,3,22,22"/>
-                    <output>
-                        <port id="0" precision="FP16" names="data2">
-                            <dim>1</dim>
-                            <dim>3</dim>
-                            <dim>22</dim>
-                            <dim>22</dim>
-                        </port>
-                    </output>
-                </layer>
-                <layer name="concat" id="2" type="Concat" version="opset8">
-                    <input>
-                        <port id="0" precision="FP16">
-                            <dim>1</dim>
-                            <dim>3</dim>
-                            <dim>22</dim>
-                            <dim>22</dim>
-                        </port>
-                        <port id="1"  precision="FP16">
-                            <dim>1</dim>
-                            <dim>3</dim>
-                            <dim>22</dim>
-                            <dim>22</dim>
-                        </port>
-                    </input>
-                    <output>
-                        <port id="2" precision="FP16" names="r">
-                            <dim>1</dim>
-                            <dim>6</dim>
-                            <dim>22</dim>
-                            <dim>22</dim>
-                        </port>
-                    </output>
-                </layer>
-                <layer name="output" type="Result" id="3" version="opset8">
-                    <input>
-                        <port id="0" precision="FP16">
-                            <dim>1</dim>
-                            <dim>6</dim>
-                            <dim>22</dim>
-                            <dim>22</dim>
-                        </port>
-                    </input>
-                </layer>
-            </layers>
-            <edges>
-                <edge from-layer="0" from-port="0" to-layer="2" to-port="0"/>
-                <edge from-layer="1" from-port="0" to-layer="2" to-port="1"/>
-                <edge from-layer="2" from-port="2" to-layer="3" to-port="0"/>
-            </edges>
-        </net>
-        )V0G0N";
+<net name="Network" version="10">
+    <layers>
+        <layer name="in1" type="Parameter" id="0" version="opset8">
+            <data element_type="f16" shape="1,3,22,22"/>
+            <output>
+                <port id="0" precision="FP16" names="data">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="round" id="1" type="Round" version="opset8">
+            <data mode="half_to_even"/>
+            <input>
+                <port id="1" precision="FP16">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </input>
+            <output>
+                <port id="2" precision="FP16" names="r">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="output" type="Result" id="2" version="opset8">
+            <input>
+                <port id="0" precision="FP16">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="1"/>
+        <edge from-layer="1" from-port="2" to-layer="2" to-port="0"/>
+    </edges>
+</net>
+)V0G0N";
     function = core->read_model(model, ov::Tensor());
-    EXPECT_EQ(function->inputs().size(), 2);
+    EXPECT_EQ(function->inputs().size(), 1);
     EXPECT_EQ(function->outputs().size(), 1);
     EXPECT_NO_THROW(function->input("in1"));     // remove if read_model does not change function names
-    EXPECT_NO_THROW(function->input("in2"));     // remove if read_model does not change function names
-    EXPECT_NO_THROW(function->output("concat"));  // remove if read_model does not change function names
+    EXPECT_NO_THROW(function->output("round"));  // remove if read_model does not change function names
 
     ov::CompiledModel execNet = core->compile_model(function, target_device, configuration);
-    EXPECT_EQ(execNet.inputs().size(), 2);
+    EXPECT_EQ(execNet.inputs().size(), 1);
     EXPECT_EQ(execNet.outputs().size(), 1);
     EXPECT_NO_THROW(execNet.input("in1"));
-    EXPECT_NO_THROW(execNet.input("in2"));
-    EXPECT_NO_THROW(execNet.output("concat"));
-
-    if (target_device == CommonTestUtils::DEVICE_MULTI || target_device == CommonTestUtils::DEVICE_AUTO) {
-        GTEST_SKIP() << "MULTI / AUTO does not support import / export" << std::endl;
-    }
+    EXPECT_NO_THROW(execNet.output("round"));
 
     std::stringstream strm;
     execNet.export_model(strm);
 
     ov::CompiledModel importedExecNet = core->import_model(strm, target_device, configuration);
-    EXPECT_EQ(importedExecNet.inputs().size(), 2);
+    EXPECT_EQ(importedExecNet.inputs().size(), 1);
     EXPECT_EQ(importedExecNet.outputs().size(), 1);
     EXPECT_NO_THROW(importedExecNet.input("in1"));
-    EXPECT_NO_THROW(importedExecNet.input("in2"));
-    EXPECT_NO_THROW(importedExecNet.output("concat"));
+    EXPECT_NO_THROW(importedExecNet.output("round"));
 
-    EXPECT_EQ(importedExecNet.input("in1").get_element_type(), ov::element::f32);
-    EXPECT_EQ(importedExecNet.input("in2").get_element_type(), ov::element::f32);
+    EXPECT_EQ(importedExecNet.input().get_element_type(), ov::element::f32);
     EXPECT_EQ(importedExecNet.output().get_element_type(), ov::element::f32);
 }
 
@@ -328,17 +312,32 @@ static std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
     return result;
 }
 
-TEST_P(OVExecGraphImportExportTest, importExportedIENetwork) {
-    if (target_device == CommonTestUtils::DEVICE_MULTI || target_device == CommonTestUtils::DEVICE_AUTO) {
-        GTEST_SKIP() << "MULTI / AUTO does not support import / export" << std::endl;
-    }
-
+TEST_P(OVCompiledGraphImportExportTest, importExportedIENetwork) {
     std::shared_ptr<InferenceEngine::Core> ie = ::PluginCache::get().ie();
     InferenceEngine::ExecutableNetwork execNet;
 
     // Create simple function
-    function = ngraph::builder::subgraph::makeMultipleInputOutputDoubleConcat({1, 2, 24, 24}, elementType);
-
+    {
+        auto param1 = std::make_shared<ov::opset8::Parameter>(elementType, ngraph::Shape({1, 3, 24, 24}));
+        param1->set_friendly_name("param1");
+        param1->output(0).get_tensor().set_names({"data1"});
+        auto param2 = std::make_shared<ov::opset8::Parameter>(elementType, ngraph::Shape({1, 3, 24, 24}));
+        param2->set_friendly_name("param2");
+        param2->output(0).get_tensor().set_names({"data2"});
+        auto relu = std::make_shared<ov::opset8::Relu>(param1);
+        relu->set_friendly_name("relu_op");
+        relu->output(0).get_tensor().set_names({"relu"});
+        auto result1 = std::make_shared<ov::opset8::Result>(relu);
+        result1->set_friendly_name("result1");
+        auto concat = std::make_shared<ov::opset8::Concat>(OutputVector{relu, param2}, 1);
+        concat->set_friendly_name("concat_op");
+        concat->output(0).get_tensor().set_names({"concat"});
+        auto result2 = std::make_shared<ov::opset8::Result>(concat);
+        result2->set_friendly_name("result2");
+        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result1, result2},
+                                                      ngraph::ParameterVector{param1, param2});
+        function->set_friendly_name("SingleReLU");
+    }
     execNet = ie->LoadNetwork(InferenceEngine::CNNNetwork(function), target_device, any_copy(configuration));
 
     std::stringstream strm;
@@ -357,10 +356,10 @@ TEST_P(OVExecGraphImportExportTest, importExportedIENetwork) {
     EXPECT_THROW(importedExecNet.output(), ov::Exception);
     EXPECT_NE(function->output(0).get_tensor().get_names(),
               importedExecNet.output(0).get_tensor().get_names());
-    EXPECT_NO_THROW(importedExecNet.output("concat_op1").get_node());
-    EXPECT_NO_THROW(importedExecNet.output("concat_op2").get_node());
-    EXPECT_NO_THROW(importedExecNet.output("concat1").get_node());
-    EXPECT_NO_THROW(importedExecNet.output("concat2").get_node());
+    EXPECT_NO_THROW(importedExecNet.output("relu").get_node());
+    EXPECT_NO_THROW(importedExecNet.output("concat").get_node());
+    EXPECT_NO_THROW(importedExecNet.output("relu_op").get_node());
+    EXPECT_NO_THROW(importedExecNet.output("concat_op").get_node());
 
     const auto outputType = elementType == ngraph::element::i32 ||
                             elementType == ngraph::element::u32 ||
@@ -370,15 +369,11 @@ TEST_P(OVExecGraphImportExportTest, importExportedIENetwork) {
 
     EXPECT_EQ(inputType, importedExecNet.input("param1").get_element_type());
     EXPECT_EQ(inputType, importedExecNet.input("param2").get_element_type());
-    EXPECT_EQ(outputType, importedExecNet.output("concat2").get_element_type());
-    EXPECT_EQ(outputType, importedExecNet.output("concat1").get_element_type());
+    EXPECT_EQ(outputType, importedExecNet.output("concat_op").get_element_type());
+    EXPECT_EQ(outputType, importedExecNet.output("relu_op").get_element_type());
 }
 
-TEST_P(OVExecGraphImportExportTest, importExportedIENetworkParameterResultOnly) {
-    if (target_device == CommonTestUtils::DEVICE_MULTI || target_device == CommonTestUtils::DEVICE_AUTO) {
-        GTEST_SKIP() << "MULTI / AUTO does not support import / export" << std::endl;
-    }
-
+TEST_P(OVCompiledGraphImportExportTest, importExportedIENetworkParameterResultOnly) {
     // New plugin API wraps CNNNetwork conversions into model, it is why parameter->result graphs won't work in legacy API with new plugin
     std::shared_ptr<ov::Core> core = ov::test::utils::PluginCache::get().core();
     ov::CompiledModel compiled_model;
@@ -417,11 +412,7 @@ TEST_P(OVExecGraphImportExportTest, importExportedIENetworkParameterResultOnly) 
     EXPECT_EQ(outputPrecision, importedCompiledModel.output("data").get_element_type());
 }
 
-TEST_P(OVExecGraphImportExportTest, importExportedIENetworkConstantResultOnly) {
-    if (target_device == CommonTestUtils::DEVICE_MULTI || target_device == CommonTestUtils::DEVICE_AUTO) {
-        GTEST_SKIP() << "MULTI / AUTO does not support import / export" << std::endl;
-    }
-
+TEST_P(OVCompiledGraphImportExportTest, importExportedIENetworkConstantResultOnly) {
     std::shared_ptr<InferenceEngine::Core> ie = ::PluginCache::get().ie();
     InferenceEngine::ExecutableNetwork execNet;
 
@@ -462,16 +453,32 @@ TEST_P(OVExecGraphImportExportTest, importExportedIENetworkConstantResultOnly) {
     EXPECT_EQ(outputPrecision, importedCompiledModel.output("constant").get_element_type());
 }
 
-TEST_P(OVExecGraphImportExportTest, ieImportExportedFunction) {
-    if (target_device == CommonTestUtils::DEVICE_MULTI || target_device == CommonTestUtils::DEVICE_AUTO) {
-        GTEST_SKIP() << "MULTI / AUTO does not support import / export" << std::endl;
-    }
-
+TEST_P(OVCompiledGraphImportExportTest, ovImportExportedFunction) {
     std::shared_ptr<InferenceEngine::Core> ie = ::PluginCache::get().ie();
     ov::CompiledModel execNet;
 
     // Create simple function
-    function = ngraph::builder::subgraph::makeMultipleInputOutputDoubleConcat({1, 2, 24, 24}, elementType);
+    {
+        auto param1 = std::make_shared<ov::opset8::Parameter>(elementType, ngraph::Shape({1, 3, 24, 24}));
+        param1->set_friendly_name("param1");
+        param1->output(0).get_tensor().set_names({"data1"});
+        auto param2 = std::make_shared<ov::opset8::Parameter>(elementType, ngraph::Shape({1, 3, 24, 24}));
+        param2->set_friendly_name("param2");
+        param2->output(0).get_tensor().set_names({"data2"});
+        auto relu = std::make_shared<ov::opset8::Relu>(param1);
+        relu->set_friendly_name("relu_op");
+        relu->output(0).get_tensor().set_names({"relu"});
+        auto result1 = std::make_shared<ov::opset8::Result>(relu);
+        result1->set_friendly_name("result1");
+        auto concat = std::make_shared<ov::opset8::Concat>(OutputVector{relu, param2}, 1);
+        concat->set_friendly_name("concat_op");
+        concat->output(0).get_tensor().set_names({"concat"});
+        auto result2 = std::make_shared<ov::opset8::Result>(concat);
+        result2->set_friendly_name("result2");
+        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result1, result2},
+                                                      ngraph::ParameterVector{param1, param2});
+        function->set_friendly_name("SingleReLU");
+    }
     execNet = core->compile_model(function, target_device, configuration);
 
     std::stringstream strm;
@@ -484,15 +491,15 @@ TEST_P(OVExecGraphImportExportTest, ieImportExportedFunction) {
     EXPECT_NO_THROW(importedExecNet.GetInputsInfo()["param2"]);
     EXPECT_EQ(function->outputs().size(), 2);
     EXPECT_EQ(function->outputs().size(), importedExecNet.GetOutputsInfo().size());
-    EXPECT_NO_THROW(importedExecNet.GetOutputsInfo()["concat_op1"]);
-    EXPECT_NO_THROW(importedExecNet.GetOutputsInfo()["concat_op2"]);
+    EXPECT_NO_THROW(importedExecNet.GetOutputsInfo()["relu_op"]);
+    EXPECT_NO_THROW(importedExecNet.GetOutputsInfo()["concat_op"]);
 
     const auto prc = InferenceEngine::details::convertPrecision(elementType);
 
     EXPECT_EQ(prc, importedExecNet.GetInputsInfo()["param1"]->getPrecision());
     EXPECT_EQ(prc, importedExecNet.GetInputsInfo()["param2"]->getPrecision());
-    EXPECT_EQ(prc, importedExecNet.GetOutputsInfo()["concat_op2"]->getPrecision());
-    EXPECT_EQ(prc, importedExecNet.GetOutputsInfo()["concat_op1"]->getPrecision());
+    EXPECT_EQ(prc, importedExecNet.GetOutputsInfo()["concat_op"]->getPrecision());
+    EXPECT_EQ(prc, importedExecNet.GetOutputsInfo()["relu_op"]->getPrecision());
 }
 
 }  // namespace behavior
