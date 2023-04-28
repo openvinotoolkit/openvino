@@ -1683,7 +1683,7 @@ cdef class IENetwork:
     
             ie = IECore()
             net = ie.read_network(model=path_to_xml_file, weights=path_to_bin_file)
-            net.add_outputs(["conv5_1', conv2_1', (split_2, 1)])]
+            net.add_outputs(['conv5_1', 'conv2_1', ('split_2', 1)])
         """
         if not isinstance(outputs, list):
             outputs = [outputs]
