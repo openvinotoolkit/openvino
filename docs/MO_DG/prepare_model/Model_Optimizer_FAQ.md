@@ -234,15 +234,7 @@ Q16. What does the message "Input shape is required to convert MXNet model. Plea
 
 .. _question-17:
 
-#####################################################################################################################################################
-
-This MO argument/option was deprecated and removed, question is not actual anymore.
-
 .. _question-18:
-
-#####################################################################################################################################################
-
-This MO argument/option was deprecated and removed, question is not actual anymore.
 
 .. _question-19:
 
