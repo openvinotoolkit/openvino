@@ -30,7 +30,7 @@ void basic_memory_dependencies::run(program& p) {
             continue;
 
         // add my dependencies to restriction list (can't share input.output buffers)
-        for (auto it : node->get_dependencies()) {
+        for (const auto& it : node->get_dependencies()) {
             add_memory_dependency(node, it.first);
             add_memory_dependency(it.first, node);
         }
