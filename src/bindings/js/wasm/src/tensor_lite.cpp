@@ -22,21 +22,21 @@ ov::element::Type getType(std::string value, const supported_type_t& supported_p
 }
 ov::element::Type get_type(const std::string& value) {
     static const supported_type_t supported_types = {
-        {"int8", ov::element::i8},
-        {"uint8", ov::element::u8},
-        {"uint8c", ov::element::u8},
+        {"i8", ov::element::i8},
+        {"u8", ov::element::u8},
+        // {"u8c", ov::element::u8},
 
-        {"int16", ov::element::i16},
-        {"uint16", ov::element::u16},
+        {"i16", ov::element::i16},
+        {"u16", ov::element::u16},
 
-        {"int32", ov::element::i32},
-        {"uint32", ov::element::u32},
+        {"i32", ov::element::i32},
+        {"u32", ov::element::u32},
 
-        {"float32", ov::element::f32},
-        {"float64", ov::element::f64},
+        {"f32", ov::element::f32},
+        {"f64", ov::element::f64},
 
-        {"int64", ov::element::i64},
-        {"uint64", ov::element::u64},
+        {"i64", ov::element::i64},
+        {"u64", ov::element::u64},
     };
 
     return getType(value, supported_types);
@@ -124,7 +124,7 @@ uintptr_t TensorLite::get_data() {
 std::string TensorLite::get_precision() {
     ov::element::Type type = this->tensor.get_element_type();
 
-    return type.c_type_string();
+    return type.get_type_name();
 }
 
 ov::Tensor* TensorLite::get_tensor() {

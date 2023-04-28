@@ -6,7 +6,7 @@ import {
   jsTypeByPrecisionMap,
 } from 'openvinojs-common';
 
-import { heapLabelByArrayTypeMap, ovTypesMap } from './maps';
+import { heapLabelByArrayTypeMap } from './maps';
 
 import type { TypedArray } from 'openvinojs-common';
 import type {
@@ -33,7 +33,7 @@ export async function getFileDataAsArray(path: string): Promise<Uint8Array> {
 }
 
 async function getFileDataNode(path: string): Promise<Buffer>  {
-  const { readFileSync } = require('fs');
+  const { readFileSync } = await import('fs');
 
   return readFileSync(path);
 }
@@ -98,7 +98,9 @@ export function parseOriginalTensor(
   ov: OpenvinoWASMModule,
   originalTensor: OriginalTensor
 ): Tensor {
-  const precision = ovTypesMap[originalTensor.getPrecision()];
+  console.log();
+
+  const precision = originalTensor.getPrecision();
   const shape = parseOriginalShape(ov, originalTensor.getShape());
 
   const dataType = jsTypeByPrecisionMap[precision];
@@ -110,7 +112,6 @@ export function parseOriginalTensor(
   const data: TypedArray = new dataType(elementsCount);
 
   for (let i = 0; i < elementsCount; i++)
-    // @ts-ignore: FIXME: Fix OpenvinoModule type
     data[i] =
       ov[heapTypeLabel][originalDataPointer/dataType.BYTES_PER_ELEMENT + i];
 
@@ -131,7 +132,6 @@ export function convertTensor(
   const offset = Math.log2(elementSizeInBytes);
   const waPrecision = heapLabelByArrayTypeMap[dataType.name];
 
-  // @ts-ignore: FIXME: Fix OpenvinoModule type
   ov[waPrecision].set(originalData, heapSpace>>offset);
 
   return {

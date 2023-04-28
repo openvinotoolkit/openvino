@@ -7,7 +7,7 @@ import type { JSArrayType, IShape,
 export default class Shape implements IShape {
   #dimensions: Uint32Array;
 
-  static TYPE: JSArrayType = jsTypeByPrecisionMap[PrecisionSupportedTypes.uint32];
+  static TYPE: JSArrayType = jsTypeByPrecisionMap[PrecisionSupportedTypes.u32];
 
   constructor(dimensionsArray: number[]);
   constructor(...dimensionsArray: number[]);

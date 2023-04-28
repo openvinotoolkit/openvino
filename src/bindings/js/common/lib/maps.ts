@@ -1,13 +1,13 @@
 import type { JSArrayType, PrecisionSupportedType } from './types';
 
 export const jsTypeByPrecisionMap: { [Precision in PrecisionSupportedType]: JSArrayType } = {
-  int8: Int8Array,
-  uint8: Uint8Array,
-  // uint8c: Uint8ClampedArray,
-  int16: Int16Array,
-  uint16: Uint16Array,
-  int32: Int32Array,
-  uint32: Uint32Array,
-  float32: Float32Array,
-  float64: Float64Array,
+  i8: Int8Array,
+  u8: Uint8Array,
+  // u8c: Uint8ClampedArray,
+  i16: Int16Array,
+  u16: Uint16Array,
+  i32: Int32Array,
+  u32: Uint32Array,
+  f32: Float32Array,
+  f64: Float64Array,
 };
