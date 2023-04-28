@@ -25,7 +25,7 @@ void OVHoldersTest::SetUp() {
     if (deathTestStyle == "fast") {
         ::testing::GTEST_FLAG(death_test_style) = "threadsafe";
     }
-    function = ngraph::builder::subgraph::makeConvPoolRelu();
+    function = ngraph::builder::subgraph::makeSplitConcat();
 }
 
 void OVHoldersTest::TearDown() {
@@ -140,7 +140,7 @@ void OVHoldersTestOnImportedNetwork::SetUp() {
     if (deathTestStyle == "fast") {
         ::testing::GTEST_FLAG(death_test_style) = "threadsafe";
     }
-    function = ngraph::builder::subgraph::makeConvPoolRelu();
+    function = ngraph::builder::subgraph::makeSplitConcat();
 }
 
 void OVHoldersTestOnImportedNetwork::TearDown() {

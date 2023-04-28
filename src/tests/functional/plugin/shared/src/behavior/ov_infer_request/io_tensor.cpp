@@ -166,7 +166,7 @@ TEST_P(OVInferRequestIOTensorTest, canInferAfterIOBlobReallocation) {
     OV_ASSERT_NO_THROW(input_tensor.set_shape(in_shape));
 
     OV_ASSERT_NO_THROW(output_tensor = req.get_tensor(output));
-    OV_ASSERT_NO_THROW(output_tensor.set_shape({20, 20}));
+    OV_ASSERT_NO_THROW(output_tensor.set_shape({20, 20, 20, 20}));
     OV_ASSERT_NO_THROW(output_tensor.set_shape(out_shape));
 
     OV_ASSERT_NO_THROW(req.infer());
@@ -176,8 +176,8 @@ TEST_P(OVInferRequestIOTensorTest, canInferAfterIOBlobReallocation) {
 }
 
 TEST_P(OVInferRequestIOTensorTest, InferStaticNetworkSetChangedInputTensorThrow) {
-    const ov::Shape shape1 = {1, 1, 32, 32};
-    const ov::Shape shape2 = {1, 1, 40, 40};
+    const ov::Shape shape1 = {1, 2, 32, 32};
+    const ov::Shape shape2 = {1, 2, 40, 40};
     std::map<std::string, ov::PartialShape> shapes;
     shapes[function->inputs().back().get_any_name()] = shape1;
     OV_ASSERT_NO_THROW(function->reshape(shapes));
@@ -197,12 +197,9 @@ TEST_P(OVInferRequestIOTensorTest, InferStaticNetworkSetChangedInputTensorThrow)
 }
 
 TEST_P(OVInferRequestIOTensorTest, InferStaticNetworkSetChangedOutputTensorThrow) {
-    const ov::Shape shape1 = {1, 1, 32, 32};
+    const ov::Shape shape1 = {1, 2, 32, 32};
     ov::Shape shape2;
-    if (target_device.find(CommonTestUtils::DEVICE_BATCH) == std::string::npos)
-        shape2 = ov::Shape{1, 20};
-    else
-        shape2 = ov::Shape{1, 4, 20, 20};
+    shape2 = ov::Shape{1, 4, 20, 20};
 
     std::map<std::string, ov::PartialShape> shapes;
     shapes[function->inputs().back().get_any_name()] = shape1;
@@ -246,7 +243,7 @@ void OVInferRequestIOTensorSetPrecisionTest::SetUp() {
     std::tie(element_type, target_device, config) = this->GetParam();
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     APIBaseTest::SetUp();
-    function = ngraph::builder::subgraph::makeConvPoolRelu();
+    function = ngraph::builder::subgraph::makeSplitConcat();
     execNet = core->compile_model(function, target_device, config);
     req = execNet.create_infer_request();
 }
@@ -385,7 +382,7 @@ TEST_P(OVInferRequestCheckTensorPrecision, getOutputFromFunctionWithSingleInput)
 }
 
 TEST_P(OVInferRequestCheckTensorPrecision, getInputsFromFunctionWithSeveralInputs) {
-    model = ngraph::builder::subgraph::makeMultipleInputOutputSplitConcat({1, 1, 32, 32}, element_type);
+    model = ngraph::builder::subgraph::makeMultipleInputOutputDoubleConcat({1, 1, 32, 32}, element_type);
     createInferRequest();
 
     ov::Tensor tensor1, tensor2;
@@ -416,7 +413,7 @@ TEST_P(OVInferRequestCheckTensorPrecision, getInputsFromFunctionWithSeveralInput
 }
 
 TEST_P(OVInferRequestCheckTensorPrecision, getOutputsFromFunctionWithSeveralOutputs) {
-    model = ngraph::builder::subgraph::makeMultipleInputOutputSplitConcat({1, 1, 32, 32}, element_type);
+    model = ngraph::builder::subgraph::makeMultipleInputOutputDoubleConcat({1, 1, 32, 32}, element_type);
     createInferRequest();
 
     ov::Tensor tensor1, tensor2;

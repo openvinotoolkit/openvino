@@ -26,7 +26,7 @@ public:
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         APIBaseTest::SetUp();
         // Create CNNNetwork from ngrpah::Function
-        function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(target_device);
+        function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice();
         cnnNet = InferenceEngine::CNNNetwork(function);
     }
 

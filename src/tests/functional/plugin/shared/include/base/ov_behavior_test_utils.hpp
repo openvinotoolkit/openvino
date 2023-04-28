@@ -32,14 +32,9 @@ namespace ov {
 namespace test {
 namespace behavior {
 
-inline std::shared_ptr<ngraph::Function> getDefaultNGraphFunctionForTheDevice(std::string targetDevice,
-                                                                              std::vector<size_t> inputShape = {1, 1, 32, 32},
+inline std::shared_ptr<ngraph::Function> getDefaultNGraphFunctionForTheDevice(std::vector<size_t> inputShape = {1, 2, 32, 32},
                                                                               ngraph::element::Type_t ngPrc = ngraph::element::Type_t::f32) {
-    // auto-batching (which now relies on the dim tracking) needs a ngraph function without reshapes in that
-    if (targetDevice.find(CommonTestUtils::DEVICE_BATCH) != std::string::npos)
-        return ngraph::builder::subgraph::makeConvPoolReluNoReshapes(inputShape, ngPrc);
-    else  // for compatibility with the GNA that fails on any other ngraph function
-        return ngraph::builder::subgraph::makeConvPoolRelu(inputShape, ngPrc);
+    return ngraph::builder::subgraph::makeSplitConcat(inputShape, ngPrc);
 }
 
 class APIBaseTest : public CommonTestUtils::TestsCommon {
@@ -133,7 +128,7 @@ public:
         // Skip test according to plugin specific disabledTestPatterns() (if any)
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         APIBaseTest::SetUp();
-        function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(target_device);
+        function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice();
         ov::AnyMap params;
         for (auto&& v : configuration) {
             params.emplace(v.first, v.second);
@@ -175,11 +170,11 @@ public:
     void SetUp() {
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         // Generic network
-        actualNetwork = ngraph::builder::subgraph::makeSplitConvConcat();
+        actualNetwork = ngraph::builder::subgraph::makeSplitConcat();
         // Quite simple network
-        simpleNetwork = ngraph::builder::subgraph::makeSingleConv();
+        simpleNetwork = ngraph::builder::subgraph::makeSingleConcatWithConstant();
         // Multinput to substruct network
-        multinputNetwork = ngraph::builder::subgraph::make2InputSubtract();
+        multinputNetwork = ngraph::builder::subgraph::makeConcatWithParams();
         // Network with KSO
         ksoNetwork = ngraph::builder::subgraph::makeKSOFunction();
     }

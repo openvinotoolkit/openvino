@@ -41,7 +41,7 @@ public:
                             };
             }
         config.insert({ov::hint::inference_precision.name(), "f32"});
-        fn_ptr = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(with_auto_batching ? CommonTestUtils::DEVICE_BATCH : deviceName);
+        fn_ptr = ov::test::behavior::getDefaultNGraphFunctionForTheDevice();
     }
     static std::string getTestCaseName(const testing::TestParamInfo<bool>& obj) {
         auto with_auto_batch = obj.param;

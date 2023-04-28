@@ -92,7 +92,7 @@ class MultiDeviceMultipleGPU_Test : public CommonTestUtils::TestsCommon, public 
     void SetUp() override {
         device_names = getDeviceStringWithMulti(this->GetParam());
         device_lists = this->GetParam();
-        fn_ptr = ov::test::behavior::getDefaultNGraphFunctionForTheDevice("");
+        fn_ptr = ov::test::behavior::getDefaultNGraphFunctionForTheDevice();
     }
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<DevicesNames> &obj) {
