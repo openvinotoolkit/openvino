@@ -156,15 +156,13 @@ Example 8 shows how *Einsum* operates with an equation containing both capital a
    
    The equation in both modes can contain blank space characters (U+0020) at any positions that can be removed without losing equivalence.
 
-@endsphinxdirective
-
 **Attributes**:
 
 * *equation*
 
   * **Description**: it defines Einstein summation convention on input operands. The equation must be in either explicit or implicit mode.
   * **Range of values**: the equation format is described above
-  * **Type**: string
+  * **Type**: ``string``
   * **Required**: *yes*
 
 **Inputs**:
@@ -173,7 +171,7 @@ Example 8 shows how *Einsum* operates with an equation containing both capital a
 
 **Output**:
 
-*   **1**: Tensor of type *T* and shape is computed based on the output subscript of the equation.
+* **1**: Tensor of type *T* and shape is computed based on the output subscript of the equation.
 
 **Types**
 
@@ -181,53 +179,56 @@ Example 8 shows how *Einsum* operates with an equation containing both capital a
 
 **Examples**
 
-```xml
-<layer ... type="Einsum" version="opset7">
-    <data equation="ij,ij->i"/>
-    <input>
-        <port id="0">
-            <dim>2</dim>
-            <dim>64</dim>
-        </port>
-        <port id="0">
-            <dim>2</dim>
-            <dim>64</dim>
-        </port>
-    </input>
-    <output>
-        <port id="2">
-            <dim>2</dim>
-        </port>
-    </output>
-</layer>
-```
+.. code-block:: cpp
+   
+   <layer ... type="Einsum" version="opset7">
+       <data equation="ij,ij->i"/>
+       <input>
+           <port id="0">
+               <dim>2</dim>
+               <dim>64</dim>
+           </port>
+           <port id="0">
+               <dim>2</dim>
+               <dim>64</dim>
+           </port>
+       </input>
+       <output>
+           <port id="2">
+               <dim>2</dim>
+           </port>
+       </output>
+   </layer>
 
-```xml
-<layer ... type="Einsum" version="opset7">
-    <data equation="ab...,ac...,ade->...bc"/>
-    <input>
-        <port id="0">
-            <dim>2</dim>
-            <dim>3</dim>
-            <dim>4</dim>
-        </port>
-        <port id="1">
-            <dim>2</dim>
-            <dim>7</dim>
-            <dim>1</dim>
-        </port>
-        <port id="3">
-            <dim>2</dim>
-            <dim>4</dim>
-            <dim>7</dim>
-        </port>
-    </input>
-    <output>
-        <port id="4">
-            <dim>4</dim>
-            <dim>3</dim>
-            <dim>7</dim>
-        </port>
-    </output>
-</layer>
-```
+.. code-block:: cpp
+   
+   <layer ... type="Einsum" version="opset7">
+       <data equation="ab...,ac...,ade->...bc"/>
+       <input>
+           <port id="0">
+               <dim>2</dim>
+               <dim>3</dim>
+               <dim>4</dim>
+           </port>
+           <port id="1">
+               <dim>2</dim>
+               <dim>7</dim>
+               <dim>1</dim>
+           </port>
+           <port id="3">
+               <dim>2</dim>
+               <dim>4</dim>
+               <dim>7</dim>
+           </port>
+       </input>
+       <output>
+           <port id="4">
+               <dim>4</dim>
+               <dim>3</dim>
+               <dim>7</dim>
+           </port>
+       </output>
+   </layer>
+
+@endsphinxdirective
+
