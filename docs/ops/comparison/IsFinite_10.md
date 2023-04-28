@@ -33,7 +33,7 @@
 
 **Examples**
 
-.. code-block::
+.. code-block:: cpp
 
    <layer ... type="IsFinite">
        <input>
@@ -51,7 +51,7 @@
    </layer>
 
 
-.. code-block::
+.. code-block:: cpp
 
    <layer ... type="IsFinite">
        <input>

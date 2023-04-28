@@ -34,7 +34,7 @@ The HSigmoid operation is introduced in the following `article <https://arxiv.or
 
 **Examples**
 
-.. code-block::
+.. code-block:: cpp
 
    <layer ... type="HSigmoid">
        <input>

@@ -46,7 +46,7 @@
 
 **Example**
 
-.. code-block::
+.. code-block:: cpp
 
    <layer ... type="IsInf" ...>
        <data detect_negative="true" detect_positive="true"/>
