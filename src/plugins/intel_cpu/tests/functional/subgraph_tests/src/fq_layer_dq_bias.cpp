@@ -23,6 +23,8 @@ using namespace InferenceEngine;
  *     \     /
  *   Target layer
  *        |
+ *      Multiply
+ *        |
  *       Bias
  *        |
  *      Result
