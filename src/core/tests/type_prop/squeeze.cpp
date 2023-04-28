@@ -41,6 +41,60 @@ TEST(type_prop, squeeze_incorrect_negative_axes) {
                     HasSubstr("Parameter axis -10 out of the tensor rank range"));
 }
 
+TEST(type_prop, data_static_param_axes_static_shape_squeezable_dims_equal) {
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, PartialShape{1, 2, 1, 4});
+    const auto axes_node = std::make_shared<op::Parameter>(element::u64, PartialShape{2});
+    const auto squeeze = std::make_shared<op::v0::Squeeze>(param, axes_node);
+
+    EXPECT_EQ(squeeze->get_element_type(), element::f32);
+    EXPECT_EQ(squeeze->get_output_partial_shape(0), (PartialShape{2, 4}));
+}
+
+TEST(type_prop, data_dynamic_param_axes_static_shape_squeezable_dims_equal) {
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, PartialShape{-1, {2, 8}, {1, 3}, {4, -1}});
+    const auto axes_node = std::make_shared<op::Parameter>(element::u64, PartialShape{2});
+    const auto squeeze = std::make_shared<op::v0::Squeeze>(param, axes_node);
+
+    EXPECT_EQ(squeeze->get_element_type(), element::f32);
+    EXPECT_EQ(squeeze->get_output_partial_shape(0), (PartialShape{{2, 8}, {4, -1}}));
+}
+
+TEST(type_prop, data_static_param_axes_static_shape_squeezable_dims_more) {
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, PartialShape{1, 2, 1, 3, 1});
+    const auto axes_node = std::make_shared<op::Parameter>(element::u64, PartialShape{2});
+    const auto squeeze = std::make_shared<op::v0::Squeeze>(param, axes_node);
+
+    EXPECT_EQ(squeeze->get_element_type(), element::f32);
+    EXPECT_EQ(squeeze->get_output_partial_shape(0), PartialShape::dynamic(3));
+}
+
+TEST(type_prop, data_dynamic_param_axes_static_shape_squeezable_dims_more) {
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, PartialShape{-1, {2, 8}, {1, 3}, {4, -1}});
+    const auto axes_node = std::make_shared<op::Parameter>(element::u64, PartialShape{2});
+    const auto squeeze = std::make_shared<op::v0::Squeeze>(param, axes_node);
+
+    EXPECT_EQ(squeeze->get_element_type(), element::f32);
+    EXPECT_EQ(squeeze->get_output_partial_shape(0), (PartialShape{{2, 8}, {4, -1}}));
+}
+
+TEST(type_prop, data_static_param_axes_static_shape_squeezable_dims_less) {
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, PartialShape{1, 2, 4});
+    const auto axes_node = std::make_shared<op::Parameter>(element::u64, PartialShape{2});
+    const auto squeeze = std::make_shared<op::v0::Squeeze>(param, axes_node);
+
+    EXPECT_EQ(squeeze->get_element_type(), element::f32);
+    EXPECT_EQ(squeeze->get_output_partial_shape(0), (PartialShape{2, 4}));
+}
+
+TEST(type_prop, data_dynamic_param_axes_static_shape_squeezable_dims_less) {
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, PartialShape{-1, {2, 8}, {1, 3}, {4, -1}});
+    const auto axes_node = std::make_shared<op::Parameter>(element::u64, PartialShape{3});
+    const auto squeeze = std::make_shared<op::v0::Squeeze>(param, axes_node);
+
+    EXPECT_EQ(squeeze->get_element_type(), element::f32);
+    EXPECT_EQ(squeeze->get_output_partial_shape(0), (PartialShape{{2, 8}, {4, -1}}));
+}
+
 using SqueezeTypePropTestParam = std::tuple<PartialShape,          // Input shape
                                             std::vector<int64_t>,  // Squeeze axis
                                             PartialShape           // Expected shape
@@ -145,7 +199,12 @@ TEST_P(SqueezeTest, partial_shape_dimension_propagation_parameter_axes_no_data) 
     const auto squeeze = std::make_shared<op::v0::Squeeze>(param, axes_node);
 
     EXPECT_EQ(squeeze->get_element_type(), element::f32);
-    EXPECT_EQ(squeeze->get_output_partial_shape(0), PartialShape::dynamic());
+
+    if (axes.size() == 0 || param->get_output_partial_shape(0).rank().is_dynamic()) {
+        EXPECT_EQ(squeeze->get_output_partial_shape(0), PartialShape::dynamic());
+    } else {
+        EXPECT_TRUE(squeeze->get_output_partial_shape(0).compatible(exp_shape));
+    }
 }
 
 TEST_P(SqueezeTest, partial_shape_dimension_propagation_dynamic_axes) {
