@@ -463,7 +463,7 @@ bool RemoveTransposeConsumers(const NodePtr& node) {
 
     if (transpose_connected_to_result) {
         node->set_friendly_name(transpose_connected_to_result->get_friendly_name());
-    } else if (out_idx_to_redundant_transposes.count(0) && !out_idx_to_redundant_transposes[0].empty()){
+    } else if (out_idx_to_redundant_transposes.count(0) && !out_idx_to_redundant_transposes[0].empty()) {
         // if no transpose connected to result op found
         // we save any friendly name
         node->set_friendly_name((*out_idx_to_redundant_transposes[0].begin())->get_friendly_name());

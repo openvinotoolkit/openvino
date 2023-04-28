@@ -116,11 +116,10 @@ TSGatherBackward::TSGatherBackward() {
 
     auto gather_label = wrap_type<ov::op::v8::Gather>({any_input(), any_input(), wrap_type<ov::op::v0::Constant>()},
                                                       HasSameOutputTransposeNodes);
-    auto transpose_label =
-        wrap_type<ov::op::v1::Transpose>({gather_label, wrap_type<ov::op::v0::Constant>()},
-                                         [](const Output<Node>& output) -> bool {
-                                             return has_static_rank()(output);
-                                         });
+    auto transpose_label = wrap_type<ov::op::v1::Transpose>({gather_label, wrap_type<ov::op::v0::Constant>()},
+                                                            [](const Output<Node>& output) -> bool {
+                                                                return has_static_rank()(output);
+                                                            });
 
     ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_map();
