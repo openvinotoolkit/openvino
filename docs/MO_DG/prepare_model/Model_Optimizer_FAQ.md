@@ -71,27 +71,6 @@ Q3. What does the message "[ ERROR ]: Unable to create ports for node with id" m
 To lessen the scope, compile the list of layers that are custom for Model Optimizer: present in the topology,
 absent in the :doc:`list of supported layers <openvino_docs_MO_DG_prepare_model_Supported_Frameworks_Layers>` for the target framework. Then, refer to available options in the corresponding section in the  :doc:`Custom Layers in Model Optimizer <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>` page.
 
-.. _question-4:
-
-Q4. What does the message "Input image of shape is larger than mean image from file" mean?
-#####################################################################################################################################################
-
-**A:** Your model input shapes must be smaller than or equal to the shapes of the mean image file you provide. The idea behind the mean file is to subtract its values from the input image in an element-wise manner. When the mean file is smaller than the input image, there are not enough values to perform element-wise subtraction. Also, make sure you use the mean file that was used during the network training phase. Note that the mean file is dependent on dataset.
-
-.. _question-5:
-
-Q5. What does the message "Mean file is empty" mean?
-#####################################################################################################################################################
-
-**A:** Most likely, the mean file specified with the ``--mean_file`` flag is empty while Model Optimizer is launched. Make sure that this is exactly the required mean file and try to regenerate it from the given dataset if possible.
-
-.. _question-6:
-
-Q6. What does the message "Probably mean file has incorrect format" mean?
-#####################################################################################################################################################
-
-**A:** The mean file that you provide for Model Optimizer must be in the ``.binaryproto`` format. You can try to check the content, using recommendations from the BVLC Caffe (`#290 <https://github.com/BVLC/caffe/issues/290>`__).
-
 .. _question-7:
 
 Q7. What does the message "Invalid proto file: there is neither 'layer' nor 'layers' top-level messages" mean?
@@ -211,14 +190,6 @@ Q9. What does the message "Mean file for topologies with multiple inputs is not 
 
 **A:** Model Optimizer does not support mean file processing for topologies with more than one input. In this case, you need to perform preprocessing of the inputs for a generated Intermediate Representation in OpenVINO Runtime to perform subtraction for every input of your multi-input model. See the :doc:`Overview of Preprocessing <openvino_docs_OV_UG_Preprocessing_Overview>` for details.
 
-.. _question-10:
-
-Q10. What does the message "Cannot load or process mean file: value error" mean?
-#####################################################################################################################################################
-
-**A:** There are multiple reasons why Model Optimizer does not accept the mean file.
-See FAQs :ref:`#4 <question-4>`, :ref:`#5 <question-5>`, and :ref:`#6 <question-6>`.
-
 .. _question-11:
 
 Q11. What does the message "Invalid prototxt file: value error" mean?
@@ -263,17 +234,7 @@ Q16. What does the message "Input shape is required to convert MXNet model. Plea
 
 .. _question-17:
 
-Q17. What does the message "Both --mean_file and mean_values are specified. Specify either mean file or mean values" mean?
-#####################################################################################################################################################
-
-**A:** The ``--mean_file`` and ``--mean_values`` options are two ways of specifying preprocessing for the input. However, they cannot be used together, as it would mean double subtraction and lead to ambiguity. Choose one of these options and pass it with the corresponding CLI option.
-
 .. _question-18:
-
-Q18. What does the message "Negative value specified for --mean_file_offsets option. Please specify positive integer values in format '(x,y)'" mean?
-#####################################################################################################################################################
-
-**A:** You might have specified negative values with ``--mean_file_offsets``. Only positive integer values in format '(x,y)' must be used.
 
 .. _question-19:
 
@@ -696,14 +657,14 @@ Q74. What does the message "Sub-graph contains network input node .." mean?
 Q75. What does the message "... elements of ... were clipped to infinity while converting a blob for node [...] to ..." mean?
 #####################################################################################################################################################
 
-**A:** This message may appear when the ``--compress_to_fp16`` (or deprecated ``--data_type``) command-line option is used. This option implies compression of all the model weights, biases, and other constant values to FP16. If a value of a constant is out of the range of valid FP16 values, the value is converted to positive or negative infinity. It may lead to incorrect results of inference or may not be a problem, depending on the model. The number of such elements and the total number of elements in the constant value is printed out together with the name of the node, where this value is used.
+**A:** This message may appear when the ``--compress_to_fp16`` command-line option is used. This option implies compression of all the model weights, biases, and other constant values to FP16. If a value of a constant is out of the range of valid FP16 values, the value is converted to positive or negative infinity. It may lead to incorrect results of inference or may not be a problem, depending on the model. The number of such elements and the total number of elements in the constant value is printed out together with the name of the node, where this value is used.
 
 .. _question-76:
 
 Q76. What does the message "... elements of ... were clipped to zero while converting a blob for node [...] to ..." mean?
 #####################################################################################################################################################
 
-**A:** This message may appear when the ``--compress_to_fp16`` (or deprecated ``--data_type``) command-line option is used. This option implies conversion of all blobs in the mode to FP16. If a value in the blob is so close to zero that it cannot be represented as a valid FP16 value, it is converted to a true zero FP16 value. Depending on the model, it may lead to incorrect results of inference or may not be a problem. The number of such elements and the total number of elements in the blob are printed out together with a name of the node, where this blob is used.
+**A:** This message may appear when the ``--compress_to_fp16`` command-line option is used. This option implies conversion of all blobs in the mode to FP16. If a value in the blob is so close to zero that it cannot be represented as a valid FP16 value, it is converted to a true zero FP16 value. Depending on the model, it may lead to incorrect results of inference or may not be a problem. The number of such elements and the total number of elements in the blob are printed out together with a name of the node, where this blob is used.
 
 .. _question-77:
 
