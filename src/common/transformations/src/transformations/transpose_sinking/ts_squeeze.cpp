@@ -315,8 +315,7 @@ TSSqueezeBackward::TSSqueezeBackward() {
             register_new_node(new_node);
         }
         main_node->validate_and_infer_types();
-        RemoveSingleOutputConsumers(main_node);
-        SwapNames(transpose, main_node);
+        RemoveTransposeConsumers(main_node);
 
         return true;
     };

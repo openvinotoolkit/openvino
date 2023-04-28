@@ -223,8 +223,7 @@ TSGatherBackward::TSGatherBackward() {
                 }
             }
         }
-        RemoveSingleOutputConsumers(main_node);
-        SwapNames(main_node, transpose);
+        RemoveTransposeConsumers(main_node);
         if (success) {
             auto target_inputs = main_node->get_output_target_inputs(0);
             auto unsqueeze_axes = ov::op::v0::Constant::create(element::i32, {axes_val.size()}, axes_val);

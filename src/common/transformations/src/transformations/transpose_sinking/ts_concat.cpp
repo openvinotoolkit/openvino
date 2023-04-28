@@ -108,8 +108,7 @@ TSConcatBackward::TSConcatBackward() {
         }
         concat_node->validate_and_infer_types();
 
-        RemoveSingleOutputConsumers(main_node);
-        SwapNames(transpose, main_node);
+        RemoveTransposeConsumers(main_node);
         return true;
     };
 

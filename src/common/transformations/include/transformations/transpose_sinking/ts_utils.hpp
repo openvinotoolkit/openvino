@@ -54,11 +54,6 @@ void SwapOutputNames(ov::Output<ov::Node>, ov::Output<ov::Node>);
  */
 void SwapFriendlyNames(const std::shared_ptr<ov::Node>&, const std::shared_ptr<ov::Node>&);
 
-/**
- * @brief Swaps @args output tensor names and friendly names
- */
-void SwapNames(const std::shared_ptr<ov::Node>&, const std::shared_ptr<ov::Node>&);
-
 namespace sink_forward {
 /**
  * @brief Inserts reversed transposed on @args main_node inputs. Removes input transpose specified in @arg
@@ -100,9 +95,9 @@ void UpdateForwardSinkingAbility(const std::shared_ptr<ov::Node>&);
 bool HasSameOutputTransposeNodes(const ov::Output<ov::Node>&);
 
 /**
- * @brief Removes all direct node consumers that have one output
+ * @brief Removes all Transpose consumers for given node
  */
-void RemoveSingleOutputConsumers(const std::shared_ptr<ov::Node>&);
+bool RemoveTransposeConsumers(const std::shared_ptr<ov::Node>& node);
 
 /**
  * @brief Inserts Gather operation which changes the order of values in @arg input

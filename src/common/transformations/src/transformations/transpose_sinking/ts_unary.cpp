@@ -135,9 +135,7 @@ TSUnaryBackward::TSUnaryBackward() {
             register_new_node(new_node);
         }
         unary->validate_and_infer_types();
-        // remove output transposes
-        RemoveSingleOutputConsumers(unary);
-        SwapNames(transpose, unary);
+        RemoveTransposeConsumers(unary);
         return true;
     };
 

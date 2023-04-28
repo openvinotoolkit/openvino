@@ -184,7 +184,7 @@ TSSplitBackward::TSSplitBackward() {
 
         // remove split output transposes
         split->validate_and_infer_types();
-        RemoveSingleOutputConsumers(split);
+        RemoveTransposeConsumers(split);
         return true;
     };
 

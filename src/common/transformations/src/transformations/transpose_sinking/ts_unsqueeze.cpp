@@ -255,8 +255,7 @@ TSUnsqueezeBackward::TSUnsqueezeBackward() {
         main_node->input(1).replace_source_output(new_const);
 
         main_node->validate_and_infer_types();
-        RemoveSingleOutputConsumers(main_node);
-        SwapNames(transpose, main_node);
+        RemoveTransposeConsumers(main_node);
         copy_runtime_info(unsqueeze_axes, new_const);
         return true;
     };

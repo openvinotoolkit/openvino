@@ -158,8 +158,7 @@ TSReductionBackward::TSReductionBackward() {
             register_new_node(new_node);
         }
         main_node->validate_and_infer_types();
-        RemoveSingleOutputConsumers(main_node);
-        SwapNames(transpose, main_node);
+        RemoveTransposeConsumers(main_node);
         copy_runtime_info(reduction_axes, new_const);
         return true;
     };
