@@ -11,6 +11,7 @@
 #include "utils.hpp"
 
 using namespace ov::frontend;
+using namespace ov::frontend::tensorflow::tests;
 using namespace std;
 using namespace std::placeholders;
 

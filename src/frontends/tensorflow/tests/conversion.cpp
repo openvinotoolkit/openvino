@@ -9,6 +9,7 @@
 #include "tf_utils.hpp"
 
 using namespace ov::frontend;
+using namespace ov::frontend::tensorflow::tests;
 
 using TFConversionExtensionTest = FrontEndConversionExtensionTest;
 
