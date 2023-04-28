@@ -830,6 +830,35 @@ INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_AutoPadding_FP32, DeconvolutionLayerCPU
         ::testing::Values(cpuEmptyPluginConfig)),
     DeconvolutionLayerCPUTest::getTestCaseName);
 
+const std::vector<DeconvInputData> inputs_3D_AutoPadding = {
+    DeconvInputData{
+        InputShape{{-1, 2, 4, {32, 64}, {32, 64}}, {{1, 2, 4, 32, 32}, {1, 2, 4, 40, 40}}},
+        ngraph::helpers::InputLayerType::PARAMETER,
+        {{8, 64, 64}, {8, 80, 80}}
+    }
+};
+
+const auto deconvParams_AutoPadding_3D = ::testing::Combine(
+    ::testing::Values(kernels3d[0]),
+    ::testing::Values(strides3d[1]),
+    ::testing::ValuesIn(padBegins3d),
+    ::testing::ValuesIn(padEnds3d),
+    ::testing::ValuesIn(dilations3d),
+    ::testing::Values(1),
+    ::testing::Values(ngraph::op::PadType::SAME_UPPER, ngraph::op::PadType::SAME_LOWER),
+    ::testing::ValuesIn(emptyOutputPadding)
+);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Deconv_3D_AutoPadding_FP32, DeconvolutionLayerCPUTest,
+    ::testing::Combine(
+        deconvParams_AutoPadding_3D,
+        ::testing::ValuesIn(inputs_3D_AutoPadding),
+        ::testing::Values(ElementType::f32),
+        ::testing::Values(emptyFusingSpec),
+        ::testing::ValuesIn(filterCPUInfoForDevice({conv_gemm_3D, conv_avx512_3D})),
+        ::testing::Values(cpuEmptyPluginConfig)),
+    DeconvolutionLayerCPUTest::getTestCaseName);
+
 } // namespace
 
 } // namespace CPULayerTestsDefinitions
