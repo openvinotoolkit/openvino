@@ -196,7 +196,7 @@ TEST_P(OVClassExecutableNetworkSupportedConfigTest, SupportedConfigWorks) {
 
 TEST_P(OVClassExecutableNetworkGetMetricTestForSpecificConfig, canSetConfigToCompiledModel) {
     ov::Core ie = createCoreWithTemplate();
-    std::shared_ptr<ov::Model> function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(target_device);
+    std::shared_ptr<ov::Model> function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice();
     auto execNet = ie.compile_model(function, target_device);
     std::map<std::string, ov::Any> config;
     config.emplace(configKey, configValue);
@@ -205,7 +205,7 @@ TEST_P(OVClassExecutableNetworkGetMetricTestForSpecificConfig, canSetConfigToCom
 
 TEST_P(OVClassExecutableNetworkGetMetricTestForSpecificConfig, canSetConfigToCompiledModelGetConfigAndCheck) {
     ov::Core ie = createCoreWithTemplate();
-    std::shared_ptr<ov::Model> function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(target_device);
+    std::shared_ptr<ov::Model> function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice();
     auto execNet = ie.compile_model(simpleNetwork, target_device);
     std::map<std::string, ov::Any> config;
     config.emplace(configKey, configValue);
