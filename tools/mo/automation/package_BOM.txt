@@ -171,6 +171,7 @@ openvino/tools/mo/front/div.py
 openvino/tools/mo/front/eltwise_n.py
 openvino/tools/mo/front/ExpandDimsToUnsqueeze.py
 openvino/tools/mo/front/extractor.py
+openvino/tools/mo/front/FakeQuantWithMinMaxVars.py
 openvino/tools/mo/front/FillToBroadcast.py
 openvino/tools/mo/front/flatten_to_reshape.py
 openvino/tools/mo/front/freeze_placeholder_value.py
@@ -538,7 +539,6 @@ openvino/tools/mo/front/tf/extractors/utils.py
 openvino/tools/mo/front/tf/eye_ext.py
 openvino/tools/mo/front/tf/eye_tf_to_eye.py
 openvino/tools/mo/front/tf/fake_const_ext.py
-openvino/tools/mo/front/tf/FakeQuantWithMinMaxVars.py
 openvino/tools/mo/front/tf/FakeQuantWithMinMaxVars_ext.py
 openvino/tools/mo/front/tf/faster_rcnn_support.json
 openvino/tools/mo/front/tf/faster_rcnn_support_api_v1.10.json
@@ -1081,6 +1081,7 @@ openvino/tools/mo/utils/ir_reader/extenders/strided_slice_extender.py
 openvino/tools/mo/utils/ir_reader/extenders/tensoriterator_extender.py
 openvino/tools/mo/utils/ir_reader/extenders/topk_extender.py
 openvino/tools/mo/utils/ir_reader/extenders/variadic_split_extender.py
+openvino/tools/mo/utils/ir_reader/internal_ops/scatter.py
 openvino/tools/mo/utils/ir_reader/internal_ops/squeeze.py
 openvino/tools/mo/utils/ir_reader/internal_ops/unique.py
 openvino/tools/mo/utils/ir_reader/internal_ops/unsqueeze.py

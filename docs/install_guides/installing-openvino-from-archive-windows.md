@@ -32,7 +32,7 @@ System Requirements
 
    * `Microsoft Visual Studio 2019 with MSBuild <https://visualstudio.microsoft.com/vs/older-downloads/>`_ or `Microsoft Visual Studio 2022 <http://visualstudio.microsoft.com/  downloads/>`_
    * `CMake 3.14 or higher, 64-bit <https://cmake.org/download/>`_ (optional, only required for building sample applications)
-   * `Python 3.7 - 3.10, 64-bit <https://www.python.org/downloads/windows/>`_
+   * `Python 3.7 - 3.11, 64-bit <https://www.python.org/downloads/windows/>`_
 
    .. note::
 
@@ -218,6 +218,7 @@ Additional Resources
    To learn more about converting models from specific frameworks, go to: 
    * :ref:`Convert Your Caffe Model <convert model caffe>`
    * :ref:`Convert Your TensorFlow Model <convert model tf>`
+   * :ref:`Convert Your TensorFlow Lite Model <convert model tfl>`
    * :ref:`Convert Your Apache MXNet Model <convert model mxnet>`
    * :ref:`Convert Your Kaldi Model <convert model kaldi>`
    * :ref:`Convert Your ONNX Model <convert model onnx>`

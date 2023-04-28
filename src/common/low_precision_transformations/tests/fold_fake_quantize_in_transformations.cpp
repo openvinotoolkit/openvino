@@ -133,7 +133,7 @@ const std::vector<FoldFakeQuantizeInTransformationsTestValues> testValues = {
             {255ul, {}, {0.f}, {254.f}, {-127.f}, {127.f}},
             ngraph::element::i8,
         },
-        {{-126, -127, -50, -2, 127, -27, -127, 0, -127, -63, -126, 127, -120, -127, -118, -127}, ngraph::element::f32},
+        {{-126, -127, -50, -2, 127, -27, -127, 0, -127, -63, -126, 127, -120, -127, -118, -127}, ngraph::element::i8},
     },
     {
         Shape{2, 2, 2, 2},

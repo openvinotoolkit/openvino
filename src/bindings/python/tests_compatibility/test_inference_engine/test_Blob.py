@@ -100,9 +100,6 @@ def test_incompatible_input_precision():
 def test_buffer_values_after_add_outputs(device):
     test_net_xml_fp16, test_net_bin_fp16 = model_path(is_fp16=True)
     ie_core = IECore()
-    if device == "CPU":
-        if ie_core.get_metric(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
-            pytest.skip("Can't run on ARM plugin due-to ngraph")
     net = ie_core.read_network(model=test_net_xml_fp16, weights=test_net_bin_fp16)
     output_layer = "22"
     net.add_outputs(output_layer)

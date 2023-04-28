@@ -206,10 +206,8 @@ static void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v
 
         std::vector<cldnn::tensor::value_type> offset_tensor{ 0, 0, 0, 0 };
         for (size_t i = 0; i < axes.size(); i++) {
-            if (axes[i] < 0 || axes[i] > 3) {
-                IE_THROW() << "Invalid crop axis: " << std::to_string(axes[i]) << " in op " + op->get_friendly_name();
-            }
-            offset_tensor[axes[i]] = static_cast<uint32_t>(offset[i]);
+            OPENVINO_ASSERT(axes[i] < 4, "[GPU] Invalid crop axis: ", axes[i], " in op ", op->get_friendly_name());
+            offset_tensor[axes[i]] = static_cast<cldnn::tensor::value_type>(offset[i]);
         }
 
         ngraph::Shape crop_shape(reshape_pattern);
@@ -217,10 +215,8 @@ static void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v
             crop_shape[axes[i]] = dim[i];
         }
 
-
         cldnn::tensor refSize = tensor_from_dims(crop_shape);
         cldnn::tensor offSize = tensor_from_dims(offset, 0);
-
 
         auto cropPrim = cldnn::crop(layerName, inPrimitive, refSize, offSize);
         p.add_primitive(*op, cropPrim);

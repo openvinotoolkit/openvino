@@ -54,7 +54,8 @@ namespace cldnn {
 struct loop : public primitive_base<loop> {
     CLDNN_DECLARE_PRIMITIVE(loop)
 
-    loop() : primitive_base("", {}) {}
+    loop() : primitive_base("", {}),
+             max_iteration(0) {}
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -67,16 +68,15 @@ struct loop : public primitive_base<loop> {
         /// @param start Index where the iteration starts from. Applies only when axis >=0.
         /// @param end Index where iteration ends. Negative value means counting indexes from the end. Applies only when axis >=0.
         /// @param stride Step of iteration. Negative value means backward iteration. Applies only when axis >=0.
-        io_primitive_map(primitive_id external_id, primitive_id internal_id,
+        io_primitive_map(primitive_id external_id = "", primitive_id internal_id = "",
             int64_t axis = -1, int64_t start = 0, int64_t end = -1, int64_t stride = 1) :
             external_id(external_id),
             internal_id(internal_id),
             axis(axis),
             start(start),
             end(end),
-            stride(stride)
-            {}
-        io_primitive_map() {}
+            stride(stride) {}
+
         primitive_id external_id;
         primitive_id internal_id;
         int64_t axis;

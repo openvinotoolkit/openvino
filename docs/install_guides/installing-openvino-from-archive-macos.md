@@ -21,7 +21,7 @@ See the `Release Notes <https://software.intel.com/en-us/articles/OpenVINO-RelNo
 .. tab:: Software Requirements
 
   * `CMake 3.13 or higher <https://cmake.org/download/>`__ (choose "macOS 10.13 or later"). Add ``/Applications/CMake.app/Contents/bin`` to path (for default install).
-  * `Python 3.7 - 3.10 <https://www.python.org/downloads/mac-osx/>`__ (choose 3.7 - 3.10). Install and add to path.
+  * `Python 3.7 - 3.11 <https://www.python.org/downloads/mac-osx/>`__ (choose 3.7 - 3.11). Install and add to path.
   * Apple Xcode Command Line Tools. In the terminal, run ``xcode-select --install`` from any directory
   * (Optional) Apple Xcode IDE (not required for OpenVINO™, but useful for development)
 
@@ -163,6 +163,7 @@ Additional Resources
    To learn more about converting models from specific frameworks, go to:
    * :ref:`Convert Your Caffe Model <convert model caffe>`
    * :ref:`Convert Your TensorFlow Model <convert model tf>`
+   * :ref:`Convert Your TensorFlow Lite Model <convert model tfl>`
    * :ref:`Convert Your Apache MXNet Model <convert model mxnet>`
    * :ref:`Convert Your Kaldi Model <convert model kaldi>`
    * :ref:`Convert Your ONNX Model <convert model onnx>`
