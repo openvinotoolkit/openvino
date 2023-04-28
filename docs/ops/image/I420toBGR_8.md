@@ -19,6 +19,7 @@ Same as specified for :doc:`I420toRGB <openvino_docs_ops_image_I420toRGB_8>` ope
 **Outputs:**
 
 * **1**: A tensor of type *T* representing an image converted in BGR format. Dimensions:
+
   * ``N`` - batch dimension
   * ``H`` - height dimension is the same as the image height
   * ``W`` - width dimension is the same as the image width

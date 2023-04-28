@@ -58,16 +58,30 @@ For simplicity, assume that an input tensor ``A`` has the shape ``[B_0, ..., B_{
 Let ``D`` be a value of the input tensor ``A``.
 
 Next, put
-:math:`X[j_0,\dots,j_{k-1},j_k,\dots,j_{k+q-1}]=D[j_0,\dots,j_{k-1},j_k,\dots,j_{k+q-1},0]+iD[j_0,\dots,j_{k-1},j_k,\dots,j_{k+q-1},1]`
+
+.. math::
+
+   X[j_0,\dots,j_{k-1},j_k,\dots,j_{k+q-1}]=D[j_0,\dots,j_{k-1},j_k,\dots,j_{k+q-1},0]+iD[j_0,\dots,j_{k-1},j_k,\dots,j_{k+q-1},1]
+
+
 for all indices ``j_0,...,j_{k+q-1}``, where ``i`` is an imaginary unit, that is ``X`` is a complex tensor.
 
 Define the complex tensor ``F`` with the shape ``[B_0, ..., B_{k-1}, 2 * (M_0 - 1), ..., 2 * (M_{q-1} - 1)]`` using the formula
-:math:`F[j_0,\dots,j_{k-1},j_k,\dots,j_p,\dots,j_{k+q-1}] = \begin{cases}X[j_0,\dots,j_{k-1},j_k,\dots,j_p,\dots,j_{k+q-1}],\text{ when }j_p=0,\dots,M_p-1;\\ \overline{X[j_0,\dots,j_{k-1},j_k,\dots,2(M_{p-1} - 1) - j_p,\dots,j_{k+q-1}]},\text{ otherwise.}\end{cases}`
+
+.. math::
+
+   F[j_0,\dots,j_{k-1},j_k,\dots,j_p,\dots,j_{k+q-1}] = \begin{cases}X[j_0,\dots,j_{k-1},j_k,\dots,j_p,\dots,j_{k+q-1}],\text{ when }j_p=0,\dots,M_p-1;\\ \overline{X[j_0,\dots,j_{k-1},j_k,\dots,2(M_{p-1} - 1) - j_p,\dots,j_{k+q-1}]},\text{ otherwise.}\end{cases}
+
 
 Construct the complex tensor ``G`` with the shape ``[B_0, ..., B_{k-1}, S_0, ..., S_{q-1}]`` by the following way. If ``S_a > 2 * (M_a - 1)``, then the axis ``k + a`` of ``F`` will be padded by zeros; if ``S_a < 2 * (M_a - 1)``, then the axis ``k + a`` of ``F`` will be trimmed, that is, we will consider only the slice ``0: S_a`` of this axis; finally, if ``S_a = 2 * (M_a - 1)``, then we consider the full axis ``k + a`` of ``F``.
 
 Let ``Y`` be a complex tensor with the shape ``[B_0, ..., B_{k-1}, S_0, ..., S_{q-1}]`` such that
-:math:`Y[n_0,\dots,n_{k-1},m_0,\dots,m_{q-1}]=\frac{1}{\prod\limits_{b=0}^{q-1}S_b}\sum\limits_{j_0=0}^{S_0-1}\cdots\sum\limits_{j_{q-1}=0}^{S_{q-1}-1}X[n_0,\dots,n_{k-1},j_0,\dots,j_{q-1}]\exp\left(2\pi i\sum\limits_{b=0}^{q-1}\frac{m_bj_b}{S_b}\right)`
+
+.. math::
+
+   Y[n_0,\dots,n_{k-1},m_0,\dots,m_{q-1}]=\frac{1}{\prod\limits_{b=0}^{q-1}S_b}\sum\limits_{j_0=0}^{S_0-1}\cdots\sum\limits_{j_{q-1}=0}^{S_{q-1}-1}X[n_0,\dots,n_{k-1},j_0,\dots,j_{q-1}]\exp\left(2\pi i\sum\limits_{b=0}^{q-1}\frac{m_bj_b}{S_b}\right)
+
+
 for all indices ``n_0,...,n_{k-1}``, ``m_0,...,m_{q-1}``.
 
 Finally, the result of the inverse discrete complex-to-real Fourier transform is a real part of the tensor `Y`.

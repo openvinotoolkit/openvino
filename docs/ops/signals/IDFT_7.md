@@ -10,7 +10,7 @@
 
 **Attributes**:
 
-    No attributes available.
+No attributes available.
 
 **Inputs**
 
@@ -46,14 +46,29 @@ For simplicity, assume that an input tensor ``A`` has the shape ``[B_0, ..., B_{
 
 Let ``D`` be an input tensor ``A``, taking into account the ``signal_size``, and, hence, ``D`` has the shape ``[B_0, ..., B_{k-1}, S_0, ..., S_{r-1}, 2]``.
 
-Next, put :math:`X[j_0,\dots,j_{k-1},j_k,\dots,j_{k+r-1}]=D[j_0,\dots,j_{k-1},j_k,\dots,j_{k+r-1},0]+iD[j_0,\dots,j_{k-1},j_k,\dots,j_{k+r-1},1]`
+Next, put 
+
+.. math::
+
+   X[j_0,\dots,j_{k-1},j_k,\dots,j_{k+r-1}]=D[j_0,\dots,j_{k-1},j_k,\dots,j_{k+r-1},0]+iD[j_0,\dots,j_{k-1},j_k,\dots,j_{k+r-1},1]
+
+
 for all indices ``j_0,...,j_{k+r-1}``, where ``i`` is an imaginary unit, that is ``X`` is a complex tensor.
 
 Then the inverse discrete Fourier transform is the tensor ``Y`` of the same shape as the tensors ``X``, such that
-:math:`Y[n_0,\dots,n_{k-1},m_0,\dots,m_{r-1}]=\frac{1}{\prod\limits_{q=0}^{r-1}S_q}\sum\limits_{j_0=0}^{S_0-1}\cdots\sum\limits_{j_{r-1}=0}^{S_{r-1}-1}X[n_0,\dots,n_{k-1},j_0,\dots,j_{r-1}]\exp\left(2\pi i\sum\limits_{q=0}^{r-1}\frac{m_qj_q}{S_q}\right)`
+
+.. math::
+
+   Y[n_0,\dots,n_{k-1},m_0,\dots,m_{r-1}]=\frac{1}{\prod\limits_{q=0}^{r-1}S_q}\sum\limits_{j_0=0}^{S_0-1}\cdots\sum\limits_{j_{r-1}=0}^{S_{r-1}-1}X[n_0,\dots,n_{k-1},j_0,\dots,j_{r-1}]\exp\left(2\pi i\sum\limits_{q=0}^{r-1}\frac{m_qj_q}{S_q}\right)
+
+
 for all indices ``n_0,...,n_{k-1}``, ``m_0,...,m_{r-1}``, and the result of the operation is the real tensor ``Z`` with the shape ``[B_0, ..., B_{k-1}, S_0, ..., S_{r-1}, 2]`` and such that
-\f[Z[n_0,\dots,n_{k-1},m_0,\dots,m_{r-1}, 0]=Re Y[n_0,\dots,n_{k-1},m_0,\dots,m_{r-1}],\f]
-\f[Z[n_0,\dots,n_{k-1},m_0,\dots,m_{r-1}, 1]=Im Y[n_0,\dots,n_{k-1},m_0,\dots,m_{r-1}].\f]
+
+.. math::
+
+   Z[n_0,\dots,n_{k-1},m_0,\dots,m_{r-1}, 0]=Re Y[n_0,\dots,n_{k-1},m_0,\dots,m_{r-1}],
+   Z[n_0,\dots,n_{k-1},m_0,\dots,m_{r-1}, 1]=Im Y[n_0,\dots,n_{k-1},m_0,\dots,m_{r-1}].
+
 
 Calculations for the generic case of axes and signal sizes are similar.
 

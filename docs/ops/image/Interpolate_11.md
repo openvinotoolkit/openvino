@@ -102,6 +102,7 @@
 *   **1**: Resulting interpolated tensor with elements of the same type as input ``image`` tensor. The shape of the output matches input ``image`` shape except spatial dimensions mentioned in ``axes`` attribute. For other dimensions shape matches sizes from ``sizes`` in order specified in ``axes``.
 
 **Types**
+
 * *T*: any supported numeric type.
 * *T_SIZES*: any supported integer type.
 * *T_SCALES*: any supported floating-point type.
