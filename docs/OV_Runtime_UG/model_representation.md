@@ -113,57 +113,57 @@ To build an ``:ref:`ov::Model <doxid-classov_1_1_model>``` instance from ``opset
 
 .. tab-set::
 
-.. tab-item:: C++
-   :sync: cpp
+   .. tab-item:: C++
+      :sync: cpp
 
-   .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
-      :language: cpp
-      :fragment: [ov:include]
+      .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
+         :language: cpp
+         :fragment: [ov:include]
 
-.. tab-item:: Python
-   :sync: python
+   .. tab-item:: Python
+      :sync: python
 
-   .. doxygensnippet:: docs/snippets/ov_model_snippets.py
-      :language: cpp
-      :fragment: [import]
+      .. doxygensnippet:: docs/snippets/ov_model_snippets.py
+         :language: cpp
+         :fragment: [import]
 
 
 The following code demonstrates how to create a simple model:
 
 .. tab-set::
 
-.. tab-item:: C++
-   :sync: cpp
+   .. tab-item:: C++
+      :sync: cpp
 
-   .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
-      :language: cpp
-      :fragment: [ov:create_simple_model]
+      .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
+         :language: cpp
+         :fragment: [ov:create_simple_model]
 
-.. tab-item:: Python
-   :sync: python
+   .. tab-item:: Python
+      :sync: python
 
-   .. doxygensnippet:: docs/snippets/ov_model_snippets.py
-      :language: cpp
-      :fragment: [ov:create_simple_model]
+      .. doxygensnippet:: docs/snippets/ov_model_snippets.py
+         :language: cpp
+         :fragment: [ov:create_simple_model]
 
 
 The following code creates a model with several outputs:
 
 .. tab-set::
 
-.. tab-item:: C++
-   :sync: cpp
+   .. tab-item:: C++
+      :sync: cpp
 
-   .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
-      :language: cpp
-      :fragment: [ov:create_advanced_model]
+      .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
+         :language: cpp
+         :fragment: [ov:create_advanced_model]
 
-.. tab-item:: Python
-   :sync: python
+   .. tab-item:: Python
+      :sync: python
 
-   .. doxygensnippet:: docs/snippets/ov_model_snippets.py
-      :language: cpp
-      :fragment: [ov:create_advanced_model]
+      .. doxygensnippet:: docs/snippets/ov_model_snippets.py
+         :language: cpp
+         :fragment: [ov:create_advanced_model]
 
 
 Model Debugging Capabilities
@@ -174,7 +174,7 @@ OpenVINO™ provides several debug capabilities:
    * To receive additional messages about applied model modifications, rebuild the OpenVINO™ Runtime library with the ``-DENABLE_OPENVINO_DEBUG=ON`` option.
    * Model can be visualized to image from the xDot format:
 
-   .. tab-set::
+.. tab-set::
 
    .. tab-item:: C++
       :sync: cpp
@@ -210,19 +210,19 @@ OpenVINO™ provides several debug capabilities:
 
    .. tab-set::
 
-   .. tab-item:: C++
-      :sync: cpp
+      .. tab-item:: C++
+         :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
-         :language: cpp
-         :fragment: [ov:serialize]
+         .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
+            :language: cpp
+            :fragment: [ov:serialize]
 
-   .. tab-item:: Python
-      :sync: python
+      .. tab-item:: Python
+         :sync: python
 
-      .. doxygensnippet:: docs/snippets/ov_model_snippets.py
-         :language: cpp
-         :fragment: [ov:serialize]
+         .. doxygensnippet:: docs/snippets/ov_model_snippets.py
+            :language: cpp
+            :fragment: [ov:serialize]
 
 
 Additional Resources
