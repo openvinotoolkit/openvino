@@ -12,15 +12,15 @@
 
 **Mathematical Formulation**
 
-For each element from the input tensor calculates corresponding
- element in the output tensor with the following formula:
+For each element from the input tensor calculates corresponding 
+element in the output tensor with the following formula:
 
 .. math::
 
    y = max(0,\ min(1,\ \alpha x + \beta))
 
 
- where α corresponds to ``alpha`` scalar input and β corresponds to ``beta`` scalar input.
+where α corresponds to ``alpha`` scalar input and β corresponds to ``beta`` scalar input.
 
 **Inputs**
 

@@ -26,24 +26,34 @@ Then ``R``, ``G``, ``B`` values are clipped to range ``(0, 255)``.
 **Inputs:**
 
 Input I420 image tensor shall have ``NHWC (also known as NYXC)`` layout and can be represented in two ways:
+
 * *Single plane*:
+
   * **1**: Tensor of type *T*. **Required.** Dimensions:
+
     * ``N`` - batch dimension
     * ``H`` - height dimension is 1.5x bigger than the image height
     * ``W`` - width dimension is the same as the image width
     * ``C`` - channels dimension is equal to 1 (one plane)
+
 * *Three separate planes - Y, U and V*:
+
   * **1**: Tensor of type *T* representing Y plane. **Required.** Dimensions:
+
     * ``N`` - batch dimension
     * ``H`` - height dimension is the same as the image height
     * ``W`` - width dimension is the same as the image width
     * ``C`` - channels dimension is equal to 1 (only Y channel)
+
   * **2**: Tensor of type *T* representing U plane. **Required.** Dimensions:
+
     * ``N`` - batch dimension. Shall be the same as the batch dimension for Y plane
     * ``H`` - height dimension shall be half of the image height (for example, ``image_height / 2``)
     * ``W`` - width dimension shall be half of the image width (for example, ``image_width / 2``)
     * ``C`` - channels dimension shall be equal to 1 (U channel)
+
   * **3**: Tensor of type *T* representing V plane. **Required.** Dimensions:
+
     * ``N`` - batch dimension. Shall be the same as the batch dimension for Y plane
     * ``H`` - height dimension shall be half of the image height (for example, ``image_height / 2``)
     * ``W`` - width dimension shall be half of the image width (for example, ``image_width / 2``)
@@ -52,6 +62,7 @@ Input I420 image tensor shall have ``NHWC (also known as NYXC)`` layout and can 
 **Outputs:**
 
 * **1**: A tensor of type *T* representing an image converted in RGB format. Dimensions:
+
   * ``N`` - batch dimension
   * ``H`` - height dimension is the same as the image height
   * ``W`` - width dimension is the same as the image width

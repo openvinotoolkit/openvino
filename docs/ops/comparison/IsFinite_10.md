@@ -17,7 +17,7 @@
 
 **Attributes**
 
-    *IsFinite* operation has no attributes.
+*IsFinite* operation has no attributes.
 
 **Inputs**
 
