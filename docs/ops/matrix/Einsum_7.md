@@ -67,47 +67,46 @@ Example 2 shows how *Einsum* computes matrix-vector multiplication:
    equation = "ij,j->i"
    output = [32.0, 32.0]
 
-
-@endsphinxdirective
-
 Example 3 shows how *Einsum* computes a trace for each batch object:
 
-```
-A = [[[1.0, 2.0, 3.0],
-      [4.0, 5.0, 6.0],
-      [7.0, 8.0, 9.0]],
-     [[2.0, 4.0, 6.0],
-      [8.0, 10.0, 12.0],
-      [14.0, 16.0, 18.0]]]
-equation = "kii->k"
-output = [15.0, 30.0]
-```
+.. code-block:: cpp
+   
+   A = [[[1.0, 2.0, 3.0],
+         [4.0, 5.0, 6.0],
+         [7.0, 8.0, 9.0]],
+        [[2.0, 4.0, 6.0],
+         [8.0, 10.0, 12.0],
+         [14.0, 16.0, 18.0]]]
+   equation = "kii->k"
+   output = [15.0, 30.0]
 
 Example 4 shows how *Einsum* extracts a diagonal for each batch object:
 
-```
-A = [[[1.0, 2.0, 3.0],
-      [4.0, 5.0, 6.0],
-      [7.0, 8.0, 9.0]],
-     [[2.0, 4.0, 6.0],
-      [8.0, 10.0, 12.0],
-      [14.0, 16.0, 18.0]]]
-equation = "kii->ki"
-output = [[1.0, 5.0, 9.0],
-          [2.0, 10.0, 18.0]]
-```
+.. code-block:: cpp
+   
+   A = [[[1.0, 2.0, 3.0],
+         [4.0, 5.0, 6.0],
+         [7.0, 8.0, 9.0]],
+        [[2.0, 4.0, 6.0],
+         [8.0, 10.0, 12.0],
+         [14.0, 16.0, 18.0]]]
+   equation = "kii->ki"
+   output = [[1.0, 5.0, 9.0],
+             [2.0, 10.0, 18.0]]
 
 Example 5 shows how *Einsum* transposes input tensor:
 
-```
-A = [[[1.0, 2.0, 3.0],
-      [4.0, 5.0, 6.0],
-      [7.0, 8.0, 9.0]]]
-equation = "ijk->kij"
-output = [[[1.0, 4.0, 7.0]],
-          [[2.0, 5.0, 8.0]],
-          [[3.0, 6.0, 9.0]]]
-```
+.. code-block:: cpp
+   
+   A = [[[1.0, 2.0, 3.0],
+         [4.0, 5.0, 6.0],
+         [7.0, 8.0, 9.0]]]
+   equation = "ijk->kij"
+   output = [[[1.0, 4.0, 7.0]],
+             [[2.0, 5.0, 8.0]],
+             [[3.0, 6.0, 9.0]]]
+
+@endsphinxdirective
 
 In addition to an alphabetic label, ellipsis `...` can be used as a label in a subscript to cover broadcasted dimensions.
 Each input subscript can contain at most one ellipsis. For example, the ellipsis in input subscript `a...bc` for five rank tensor covers 
