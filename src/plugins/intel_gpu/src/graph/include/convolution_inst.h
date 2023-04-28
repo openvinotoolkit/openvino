@@ -144,7 +144,6 @@ public:
         return res;
     }
 
-public:
     typed_primitive_inst(network& network, convolution_node const& node);
 
     memory::ptr weights_memory() const {

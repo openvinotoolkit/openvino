@@ -545,11 +545,88 @@ TEST_F(TransformationTestsF, MetaGraphVariables) {
         // create a reference graph
         auto x = make_shared<Constant>(element::f32, Shape{2, 3}, vector<float>{1, 2, 3, 3, 2, 1});
         auto y = make_shared<Parameter>(element::f32, Shape{1});
+        auto z = make_shared<Constant>(element::f32, Shape{2, 3}, vector<float>{2, 2, 1, 1, 1, 2});
         auto add = make_shared<Add>(x, y);
+        auto sub = make_shared<Subtract>(add, z);
 
-        model_ref = make_shared<Model>(OutputVector{add}, ParameterVector{y});
+        model_ref = make_shared<Model>(OutputVector{sub}, ParameterVector{y});
     }
 }
+
+TEST_F(TransformationTestsF, MetaGraphCut) {
+    {
+        model = convert_model("metagraph_variables/graph.meta", nullptr, {"y"});
+        model->validate_nodes_and_infer_types();
+    }
+    {
+        // create a reference graph
+        auto x = make_shared<Constant>(element::f32, Shape{2, 3}, vector<float>{1, 2, 3, 3, 2, 1});
+        auto y = make_shared<Parameter>(element::f32, Shape{1});
+        auto z = make_shared<Constant>(element::f32, Shape{2, 3}, vector<float>{2, 2, 1, 1, 1, 2});
+        auto add = make_shared<Add>(x, y);
+        auto sub = make_shared<Subtract>(add, z);
+
+        model_ref = make_shared<Model>(OutputVector{sub}, ParameterVector{y});
+    }
+}
+
+TEST_F(TransformationTestsF, MetaGraphCutInputTensor) {
+    {
+        model = convert_model("metagraph_variables/graph.meta",
+                              nullptr,
+                              {"0:SubOperation"},
+                              {ov::element::f32},
+                              {Shape{2, 3}});
+        model->validate_nodes_and_infer_types();
+    }
+    {
+        // create a reference graph
+        auto x = make_shared<Parameter>(element::f32, Shape{2, 3});
+        auto z = make_shared<Constant>(element::f32, Shape{2, 3}, vector<float>{2, 2, 1, 1, 1, 2});
+        auto sub = make_shared<Subtract>(x, z);
+
+        model_ref = make_shared<Model>(OutputVector{sub}, ParameterVector{x});
+    }
+}
+
+TEST_F(TransformationTestsF, MetaGraphCutOutputTensor) {
+    {
+        model = convert_model("metagraph_variables/graph.meta",
+                              nullptr,
+                              {"AddOperation:0"},
+                              {ov::element::f32},
+                              {Shape{2, 3}});
+        model->validate_nodes_and_infer_types();
+    }
+    {
+        // create a reference graph
+        auto x = make_shared<Parameter>(element::f32, Shape{2, 3});
+        auto z = make_shared<Constant>(element::f32, Shape{2, 3}, vector<float>{2, 2, 1, 1, 1, 2});
+        auto sub = make_shared<Subtract>(x, z);
+
+        model_ref = make_shared<Model>(OutputVector{sub}, ParameterVector{x});
+    }
+}
+
+TEST_F(TransformationTestsF, MetaGraphCutIdentity) {
+    {
+        model = convert_model("metagraph_variables/graph.meta",
+                              nullptr,
+                              {"AddIdentity"},
+                              {ov::element::f32},
+                              {Shape{2, 3}});
+        model->validate_nodes_and_infer_types();
+    }
+    {
+        // create a reference graph
+        auto x = make_shared<Parameter>(element::f32, Shape{2, 3});
+        auto z = make_shared<Constant>(element::f32, Shape{2, 3}, vector<float>{2, 2, 1, 1, 1, 2});
+        auto sub = make_shared<Subtract>(x, z);
+
+        model_ref = make_shared<Model>(OutputVector{sub}, ParameterVector{x});
+    }
+}
+
 TEST_F(TransformationTestsF, SplitInFunction) {
     {
         // create FAKE conversion extension for Split using named ports, this is not required for Split, but it tests
