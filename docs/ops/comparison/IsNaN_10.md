@@ -31,7 +31,7 @@ For example, for the given input tensor ``[NaN, 2.1, 3.7, NaN, Inf]`` the output
 
 **Example**
 
-.. code-block::
+.. code-block:: cpp
 
    <layer ... type="IsNaN">
        <input>

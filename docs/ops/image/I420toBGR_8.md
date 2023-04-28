@@ -34,7 +34,7 @@ Same as specified for :doc:`I420toRGB <openvino_docs_ops_image_I420toRGB_8>` ope
 
 *Example 1*
 
-.. code-block::
+.. code-block:: cpp
 
    <layer ... type="I420toBGR">
        <input>
@@ -58,7 +58,7 @@ Same as specified for :doc:`I420toRGB <openvino_docs_ops_image_I420toRGB_8>` ope
 
 *Example 2*
 
-.. code-block::
+.. code-block:: cpp
 
    <layer ... type="I420toBGR">
        <input>

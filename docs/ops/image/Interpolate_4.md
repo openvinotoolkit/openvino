@@ -597,7 +597,7 @@ Calculations are performed according to the following rules.
 
 **Example**
 
-.. code-block::
+.. code-block:: cpp
 
    <layer ... type="Interpolate" ...>
        <data shape_calculation_mode="scales" pads_begin="0" pads_end="0" mode="linear"/>

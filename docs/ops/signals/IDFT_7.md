@@ -76,7 +76,7 @@ Calculations for the generic case of axes and signal sizes are similar.
 
 There is no ``signal_size`` input (4D input tensor):
 
-.. code-block::
+.. code-block:: cpp
 
    <layer ... type="IDFT" ... >
        <input>
@@ -102,7 +102,7 @@ There is no ``signal_size`` input (4D input tensor):
 
 There is no ``signal_size`` input (3D input tensor):
 
-.. code-block::
+.. code-block:: cpp
 
    <layer ... type="IDFT" ... >
        <input>
@@ -127,7 +127,7 @@ There is no ``signal_size`` input (3D input tensor):
 
 There is ``signal_size`` input (4D input tensor):
 
-.. code-block::
+.. code-block:: cpp
 
    <layer ... type="IDFT" ... >
        <input>
@@ -157,7 +157,7 @@ There is ``signal_size`` input (4D input tensor):
 
 There is ``signal_size`` input (3D input tensor):
 
-.. code-block::
+.. code-block:: cpp
 
    <layer ... type="IDFT" ... >
        <input>
@@ -185,7 +185,7 @@ There is ``signal_size`` input (3D input tensor):
 There is ``signal_size`` input (5D input tensor, ``-1`` in ``signal_size``, unsorted axes):
 
 
-.. code-block::
+.. code-block:: cpp
 
    <layer ... type="IDFT" ... >
        <input>
@@ -217,7 +217,7 @@ There is ``signal_size`` input (5D input tensor, ``-1`` in ``signal_size``, unso
 
 There is ``signal_size`` input (5D input tensor, ``-1`` in ``signal_size``, unsorted axes, the second example):
 
-.. code-block::
+.. code-block:: cpp
 
    <layer ... type="IDFT" ... >
        <input>
