@@ -79,7 +79,7 @@ public:
                      ov::auto_batch_timeout(0)
                     };
         }
-        fn_ptr = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(with_auto_batching ? CommonTestUtils::DEVICE_BATCH : deviceName);
+        fn_ptr = ov::test::behavior::getDefaultNGraphFunctionForTheDevice();
     }
     static std::string getTestCaseName(const testing::TestParamInfo<RemoteTensorSharingTestOptionsParams>& obj) {
         RemoteTensorSharingType sharing_type;
@@ -358,7 +358,7 @@ public:
                      ov::auto_batch_timeout(0)
                     };
         }
-        fn_ptr = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(with_auto_batching ? CommonTestUtils::DEVICE_BATCH : deviceName);
+        fn_ptr = ov::test::behavior::getDefaultNGraphFunctionForTheDevice();
     }
     static std::string getTestCaseName(const testing::TestParamInfo<bool>& obj) {
         auto with_auto_batch = obj.param;
