@@ -50,14 +50,15 @@ The output shape is computed by concatenation of dimension sizes to which labels
 
 Example 1 shows how *Einsum* computes inner product of two 1D tensors:
 
-@endsphinxdirective
+.. code-block:: cpp
+   
+   a1 = [1.0, 2.0, 3.0]
+   a2 = [4.0, 5.0, 6.0]
+   equation = "i,i->"
+   output = 32.0
 
-```
-a1 = [1.0, 2.0, 3.0]
-a2 = [4.0, 5.0, 6.0]
-equation = "i,i->"
-output = 32.0
-```
+
+@endsphinxdirective
 
 Example 2 shows how *Einsum* computes matrix-vector multiplication:
 
