@@ -57,18 +57,18 @@ Example 1 shows how *Einsum* computes inner product of two 1D tensors:
    equation = "i,i->"
    output = 32.0
 
-
-@endsphinxdirective
-
 Example 2 shows how *Einsum* computes matrix-vector multiplication:
 
-```
-A = [[1.0, 2.0, 3.0],
-     [1.0, 2.0, 3.0]]
-b = [4.0, 5.0, 6.0]
-equation = "ij,j->i"
-output = [32.0, 32.0]
-```
+.. code-block:: cpp
+   
+   A = [[1.0, 2.0, 3.0],
+        [1.0, 2.0, 3.0]]
+   b = [4.0, 5.0, 6.0]
+   equation = "ij,j->i"
+   output = [32.0, 32.0]
+
+
+@endsphinxdirective
 
 Example 3 shows how *Einsum* computes a trace for each batch object:
 
