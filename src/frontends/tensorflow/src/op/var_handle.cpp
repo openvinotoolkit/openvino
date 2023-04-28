@@ -155,10 +155,19 @@ OutputVector translate_restorev2_op(const NodeContext& node) {
     TENSORFLOW_OP_VALIDATION(node,
                              translate_session,
                              "[TensorFlow Frontend] Internal error: Translate session is nullptr.");
-    auto model = reinterpret_cast<ov::frontend::tensorflow::InputModel*>(translate_session->get_input_model().get());
+    auto model = static_cast<ov::frontend::tensorflow::InputModel*>(translate_session->get_input_model().get());
     auto var_index = model->get_variables_index();
-    auto tensor_names =
-        reinterpret_cast<StringConstant*>(node.get_input(1).get_node())->get_data().as<std::vector<std::string>>();
+    std::vector<std::string> tensor_names;
+
+    if(auto string_constant = dynamic_cast<StringConstant*>(node.get_input(1).get_node())) {
+        // TODO: Remove this branch in case when string tensors are natively supported
+        tensor_names = string_constant->get_data().as<std::vector<std::string>>();
+    } else if (auto string_constant = std::dynamic_pointer_cast<Constant>(node.get_input(1).get_node_shared_ptr())) {
+        tensor_names = string_constant->get_vector<std::string>();
+    } else {
+        TENSORFLOW_OP_VALIDATION(node, false,
+            "[TensorFlow Frontend] Internal error: Unexpected node type as an input 1 to RestoreV2 operation, expected string tensor.");
+    }
     auto tensor_types = node.get_attribute<std::vector<ov::element::Type>>("dtypes");
 
     OutputVector outs = {};

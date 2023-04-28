@@ -161,22 +161,29 @@ std::shared_ptr<ITensor> make_tensor(const element::Type element_type,
  * @brief Tensor with allocated memory
  * Tensor owns the memory
  */
-class AllocatedTensor : public ViewTensor {
+class q : public ViewTensor {
 public:
     AllocatedTensor(const element::Type element_type, const Shape& shape, const Allocator& allocator)
         : ViewTensor{element_type,
                      shape,
                      [&] {
-                         OPENVINO_ASSERT(allocator, "Allocator was not initialized");
-                         return const_cast<Allocator&>(allocator).allocate(element_type.size() * shape_size(shape));
+                            OPENVINO_ASSERT(allocator, "Allocator was not initialized");
+                            auto num_elements = shape_size(shape);
+                            auto data = const_cast<Allocator&>(allocator).allocate(element_type.size() * num_elements);
+                            init(data, element_type, shape, allocator);
+                            return data;
                      }()},
           m_allocator{allocator} {}
 
     ~AllocatedTensor() {
+        destroy();
         m_allocator.deallocate(m_ptr, get_byte_size());
     }
 
     void set_shape(ov::Shape new_shape) override {
+        // TODO: Make it more accurately by handling the area that is begin changed during the reshape only
+        destroy();
+
         auto old_byte_size = get_byte_size();
         m_shape = std::move(new_shape);
         if (get_byte_size() > old_byte_size) {
@@ -184,9 +191,29 @@ public:
             m_ptr = m_allocator.allocate(get_byte_size());
         }
         update_strides();
+
+        // TODO: Make it more accurately by handling the area that is begin changed during the reshape only
+        init(m_ptr, get_element_type(), get_shape(), m_allocator);
     }
 
 private:
+
+    void destroy () {
+        if(get_element_type() == element::Type_t::string) {
+            auto num_elements = get_byte_size() / sizeof(std::string);  // TODO: a more native way?
+            auto data = reinterpret_cast<std::string*>(m_ptr);
+            std::for_each(data, data + num_elements, [](std::string& x){ using std::string; x.~string(); });
+        }
+    }
+
+    void init (void* data, const element::Type element_type, const Shape& shape, const Allocator& allocator) {
+        if(element_type == element::Type_t::string) {
+            auto num_elements = shape_size(shape);
+            auto sdata = reinterpret_cast<std::string*>(data);
+            std::uninitialized_fill_n(sdata, num_elements, std::string());
+        }
+    }
+
     Allocator m_allocator;
 };
 
