@@ -56,13 +56,12 @@ void shape_infer(const Squeeze* op,
                 normalize_axes(op, arg_rank.get_length(), axes);
                 OPENVINO_SUPPRESS_DEPRECATED_END
                 unique_axes.reset(new std::set<int64_t>(axes.cbegin(), axes.cend()));
-            } else if (axes_shape.size() == 1) {  // The `axes` input is a Parameter
+            } else if (axes_shape.size() == 1 && axes_shape[0].get_min_length() > 0) {
+                // The `axes` input is a Parameter
                 output_shape.resize(0);
-                size_t ax_index = 0;
                 int64_t squeezable_dims_count =
                     std::count_if(arg_shape.begin(), arg_shape.end(), [&](const DimType& dim) {
                         if (dim.compatible(1)) {
-                            axes.push_back(ax_index);
                             return true;
                         } else {
                             // Copy not squeezable dimensions to the output shape
@@ -70,7 +69,7 @@ void shape_infer(const Squeeze* op,
                             return false;
                         }
                     });
-                if (squeezable_dims_count > axes_shape[0].get_max_length()) {
+                if (squeezable_dims_count > axes_shape[0].get_min_length()) {
                     // If the number of squeezable (1 or with 1 in range) dimensions is bigger than the number of axes,
                     // only rank can be deduced (assuming uniqueness of axes)
                     output_shape = PartialShape::dynamic(arg_shape.size() - shape_size(axes_shape.to_shape()));
