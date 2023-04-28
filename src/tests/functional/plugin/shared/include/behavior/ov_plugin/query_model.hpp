@@ -29,7 +29,7 @@ TEST_P(OVClassModelTestP, QueryModelWithKSO) {
     }
 }
 
-TEST_P(OVClassModelTestP, SetAffinityWithConstantBranches) {
+TEST_P(OVClassModelTestP, QueryModelWithMatMul) {
     ov::Core ie = createCoreWithTemplate();
 
     std::shared_ptr<ngraph::Function> func;
