@@ -14,7 +14,8 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::
                                                                InferenceEngine::Precision::I16,
                                                                InferenceEngine::Precision::U8};
 
-const std::vector<std::map<std::string, std::string>> configs = {{{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}}};
+const std::vector<std::map<std::string, std::string>> configs = {{{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}},
+                                                                 {{"GNA_DEVICE_MODE", "GNA_SW_FP32"}}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConcatQuantization,
                          ConcatQuantization,
