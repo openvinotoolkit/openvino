@@ -337,6 +337,7 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::topologicall
                 if (m_tensor_places.find(output_port_name) != m_tensor_places.end()) {
                     const auto& tensor_place = m_tensor_places[output_port_name];
                     is_input |= tensor_place->is_input();
+                    m_found_inputs.insert(output_port_name);
                 }
 
                 // 3. check if the current node is an input
@@ -346,6 +347,7 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::topologicall
                 if (m_tensor_places.find(producer_name) != m_tensor_places.end()) {
                     const auto& tensor_place = m_tensor_places[producer_name];
                     is_input |= tensor_place->is_input();
+                    m_found_inputs.insert(producer_name);
                 }
 
                 // in case presence of NextIteration in the graph (or cycle created by other operation),
