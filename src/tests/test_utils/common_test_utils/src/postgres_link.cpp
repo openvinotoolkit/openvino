@@ -137,7 +137,7 @@ char* PGPrefix(const char* text, ::testing::internal::GTestColor color) {
 #define PG_INF PGPrefix("[ PG INFO  ] ", ::testing::internal::COLOR_GREEN)
 
 /// \brief Count of tries when serialization error is detected after query
-const uint8_t serializationTryiesCount = 30;  // Pause between each attempt is not less than 50ms
+const uint8_t serializationTriesCount = 30;  // Pause between each attempt is not less than 50ms
 
 namespace CommonTestUtils {
 
@@ -253,13 +253,18 @@ public:
     /// result pointer isn't a nullptr.
     /// \param[in] query SQL query to a server
     /// \param[in] expectedStatus Query result will be checked for passed status, if it isn't equal - result pointer
+    /// \param[in] smartRetry Useful for transactional queries, allows to call non-transactional part in case
+    /// of transactional errors
     /// will be nullptr. \returns Object which keep pointer on received PGresult. It contains nullptr in case of any
     /// error.
-    PGresultHolder Query(const char* query, const ExecStatusType expectedStatus = PGRES_TUPLES_OK) {
+    PGresultHolder Query(const char* query,
+                         const ExecStatusType expectedStatus = PGRES_TUPLES_OK,
+                         const bool smartRetry = false) {
         PGresultHolder result = CommonQuery(query);
         uint8_t queryCounter = 1;
+        size_t selectPos = smartRetry ? std::string::npos : std::string(query).find("SELECT");
 
-        while (result.get() != nullptr && queryCounter < serializationTryiesCount) {
+        while (result.get() != nullptr && queryCounter < serializationTriesCount) {
             ExecStatusType execStatus = PQresultStatus(result.get());
             if (execStatus == expectedStatus) {
                 break;
@@ -276,18 +281,24 @@ public:
                 std::cerr << PG_WRN
                           << "Serialization error, trying again, try attempt: " << static_cast<uint32_t>(queryCounter++)
                           << std::endl;
+                uint32_t waitTime = 50 + static_cast<uint32_t>(std::rand()) % 150;
 #ifdef _WIN32
-                Sleep(50);  // Wait some time for the next attempt
+                Sleep(waitTime);  // Wait some time for the next attempt
 #else
-                usleep(50000);
+                usleep(waitTime * 1000);
 #endif
+                // Each fifth step it tries to call non-transactional part of query
+                if (smartRetry && selectPos != std::string::npos && (queryCounter % 5) == 0) {
+                    result = CommonQuery(query + selectPos);
+                    continue;
+                }
                 result = CommonQuery(query);
             } else {
                 std::cerr << PG_ERR << "Error message: " << errStr << std::endl;
                 result.reset(nullptr);
             }
         }
-        if (queryCounter >= serializationTryiesCount) {
+        if (queryCounter >= serializationTriesCount) {
             std::cerr << PG_ERR << "Cannot execute query due to serialization error, failing" << std::endl;
             result.reset(nullptr);
         }
@@ -864,7 +875,7 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
 
         bool isNull = PQgetisnull(pgresult.get(), 0, 0) != 0;
         if (isNull && isTransactionalQuery) {
-            pgresult = connectionKeeper->Query(query_start);
+            pgresult = connectionKeeper->Query(query_start, PGRES_TUPLES_OK, true);
             CHECK_PGRESULT(pgresult, "Cannot retrieve a correct transactional " << fieldName, return false);
             isNull = PQgetisnull(pgresult.get(), 0, 0) != 0;
         }
