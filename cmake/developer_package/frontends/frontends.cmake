@@ -262,6 +262,10 @@ macro(ov_add_frontend)
     # must be called after all target_link_libraries
     ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
+    # since frontends are user-facing component which can be linked against,
+    # then we need to mark it to be CXX ABI free
+    ov_abi_free_target(${TARGET_NAME})
+
     # installation
 
     if(NOT OV_FRONTEND_SKIP_INSTALL)
