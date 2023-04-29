@@ -291,6 +291,9 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
                     } else {
                         compiled_kernels[params] = { std::make_pair(kernel, kernel_part_idx) };
                     }
+                    if (_kernel_batch_hash.find(params) == _kernel_batch_hash.end()) {
+                       _kernel_batch_hash[params] = batch.hash_value;
+                    }
                 } else {
                     throw std::runtime_error("Could not find entry point");
                 }
@@ -447,6 +450,7 @@ void kernels_cache::build_all() {
 void kernels_cache::reset() {
     _kernels.clear();
     _kernels_code.clear();
+    _kernel_batch_hash.clear();
     _pending_compilation = false;
 }
 
