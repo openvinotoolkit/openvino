@@ -36,12 +36,18 @@ function(ov_check_python_build_conditions)
     # Try to find python3 and its libs
     find_host_package(PythonInterp 3 ${find_package_mode})
     if(PYTHONINTERP_FOUND)
+        if(PYTHON_VERSION_MINOR GREATER_EQUAL 11)
+            set(pybind11_min_version 2.9.2)
+        else()
+            set(pybind11_min_version 2.8.0)
+        endif()
+
         function(_ov_find_python_libs_new)
             set(pybind11_tools_dir "${OpenVINOPython_SOURCE_DIR}/thirdparty/pybind11/tools")
             if(EXISTS ${pybind11_tools_dir})
                 list(APPEND CMAKE_MODULE_PATH ${pybind11_tools_dir})
             else()
-                find_package(pybind11 2.8.0 QUIET)
+                find_package(pybind11 ${pybind11_min_version} QUIET)
                 list(APPEND CMAKE_MODULE_PATH "${pybind11_DIR}")
             endif()
             # use libraries with the same version as python itself
@@ -106,6 +112,8 @@ function(ov_check_python_build_conditions)
 
     # to disable API 1.0
     set(ie_python_req_FOUND ${ie_python_req_FOUND} PARENT_SCOPE)
+    # set pybind11 minimal version
+    set(pybind11_min_version ${pybind11_min_version} PARENT_SCOPE)
 endfunction()
 
 ov_check_python_build_conditions()
@@ -161,7 +169,7 @@ endif()
 # Build the code
 #
 
-find_package(pybind11 2.8.0 QUIET)
+find_package(pybind11 ${pybind11_min_version} QUIET)
 
 if(NOT pybind11_FOUND)
     add_subdirectory(thirdparty/pybind11 EXCLUDE_FROM_ALL)

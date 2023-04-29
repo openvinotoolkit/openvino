@@ -62,6 +62,7 @@ if [ -f /etc/lsb-release ] || [ -f /etc/debian_version ] ; then
         python3-venv \
         python3-setuptools \
         libpython3-dev \
+        pybind11-dev \
         libffi-dev \
         `# spell checking for MO sources` \
         python3-enchant \
