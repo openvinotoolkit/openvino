@@ -593,7 +593,6 @@ void Pooling::initSupportedPrimitiveDescriptors() {
         auto& creatorsMap = BlockedDescCreator::getCommonCreators();
         auto pushDesc = [&](LayoutType format) {
             NodeConfig config;
-            config.dynBatchSupport = false;
             config.inConfs.resize(getParentEdges().size());
             config.outConfs.resize(getOriginalOutputsNumber());
 
@@ -625,7 +624,6 @@ void Pooling::initSupportedPrimitiveDescriptors() {
 
             while (static_cast<bool>(itpd)) {
                 NodeConfig config;
-                config.dynBatchSupport = true;
                 for (size_t i = 0; i < descInputNumbers(); i++) {
                     PortConfig dataConfig;
                     dataConfig.inPlace(-1);

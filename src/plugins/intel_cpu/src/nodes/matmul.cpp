@@ -510,7 +510,6 @@ void MatMul::initSupportedPrimitiveDescriptors() {
         auto itpd = desc;
         while (itpd) {
             NodeConfig config;
-            config.dynBatchSupport = true;
             for (size_t i = 0; i < descInputNumbers(); i++) {
                 PortConfig portConfig;
                 portConfig.inPlace(-1);
@@ -551,12 +550,6 @@ MemoryDescPtr MatMul::getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_des
 
 bool MatMul::created() const {
     return getType() == Type::MatMul;
-}
-
-size_t MatMul::getMaxBatch() const {
-    if (!outputShapes.empty())
-        return outputShapes[0].getStaticDims()[0];
-    return 0;
 }
 
 InferenceEngine::Precision MatMul::getRuntimePrecision() const {

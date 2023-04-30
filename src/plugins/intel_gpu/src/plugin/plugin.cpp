@@ -132,7 +132,7 @@ InferenceEngine::CNNNetwork Plugin::clone_and_transform_model(const InferenceEng
         GPU_DEBUG_IF(!debug_config->dump_graphs.empty()) {
             auto path_base = debug_config->dump_graphs + "/" + network.getName() + "_" +  "transformed_func";
             ov::pass::Serialize(path_base + ".xml", path_base + ".bin").run_on_model(nGraphFunc);
-    }
+        }
     }
     return clonedNetwork;
 }
@@ -156,7 +156,7 @@ Plugin::Plugin() : m_default_contexts({}) {
 }
 
 auto check_inputs = [](InferenceEngine::InputsDataMap _networkInputs) {
-    for (auto ii : _networkInputs) {
+    for (const auto& ii : _networkInputs) {
         auto input_precision = ii.second->getTensorDesc().getPrecision();
         if (input_precision != InferenceEngine::Precision::FP16 &&
             input_precision != InferenceEngine::Precision::FP32 &&

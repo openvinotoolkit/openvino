@@ -23,8 +23,9 @@ struct TensorInfo {
 
 class GraphIteratorFlatBuffer {
     size_t node_index = 0;
+    std::vector<uint8_t> m_data;
     std::vector<const tflite::Operator*> m_nodes;
-    std::shared_ptr<tflite::Model> m_model;
+    const tflite::Model* m_model;
 
 public:
     explicit GraphIteratorFlatBuffer(const std::string& path);

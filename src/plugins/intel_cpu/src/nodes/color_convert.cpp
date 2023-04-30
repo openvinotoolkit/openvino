@@ -1064,8 +1064,7 @@ void ColorConvert::initSupportedPrimitiveDescriptors() {
                 const auto & inPortConfigs = std::get<0>(desc);
                 const auto & outPortConfigs = std::get<1>(desc);
                 const auto implType = std::get<2>(desc);
-                const auto dynBatchSupport = std::get<3>(desc);
-                addSupportedPrimDesc(inPortConfigs, outPortConfigs, implType, dynBatchSupport);
+                addSupportedPrimDesc(inPortConfigs, outPortConfigs, implType);
             }
             initSupportedNV12Impls();
             break;
@@ -1076,8 +1075,7 @@ void ColorConvert::initSupportedPrimitiveDescriptors() {
                 const auto & inPortConfigs = std::get<0>(desc);
                 const auto & outPortConfigs = std::get<1>(desc);
                 const auto implType = std::get<2>(desc);
-                const auto dynBatchSupport = std::get<3>(desc);
-                addSupportedPrimDesc(inPortConfigs, outPortConfigs, implType, dynBatchSupport);
+                addSupportedPrimDesc(inPortConfigs, outPortConfigs, implType);
             }
             initSupportedI420Impls();
             break;

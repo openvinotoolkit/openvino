@@ -30,7 +30,7 @@ add_library(${TARGET_NAME}
 add_library(openvino::runtime ALIAS ${TARGET_NAME})
 set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME runtime)
 
-ie_add_vs_version_file(NAME ${TARGET_NAME} FILEDESCRIPTION "OpenVINO runtime library")
+ov_add_vs_version_file(NAME ${TARGET_NAME} FILEDESCRIPTION "OpenVINO runtime library")
 
 target_include_directories(${TARGET_NAME} PUBLIC
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/core/include>
@@ -72,7 +72,7 @@ ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME} EXTRA ${TBB_IMPORTED_
 # LTO
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
-ie_register_plugins(MAIN_TARGET ${TARGET_NAME})
+ov_register_plugins(MAIN_TARGET ${TARGET_NAME})
 
 # Export for build tree
 
@@ -126,10 +126,10 @@ if(ENABLE_INTEL_GNA)
     list(APPEND PATH_VARS "GNA_PATH")
 endif()
 
-ie_cpack_add_component(${OV_CPACK_COMP_CORE}
+ov_cpack_add_component(${OV_CPACK_COMP_CORE}
                        HIDDEN
                        DEPENDS ${core_components})
-ie_cpack_add_component(${OV_CPACK_COMP_CORE_DEV}
+ov_cpack_add_component(${OV_CPACK_COMP_CORE_DEV}
                        HIDDEN
                        DEPENDS ${OV_CPACK_COMP_CORE} ${core_dev_components})
 

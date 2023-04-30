@@ -56,7 +56,7 @@ def parse_arguments():
     parser.add_argument("-d", "--device", help= device_help, type=str, required=False, default="CPU")
     parser.add_argument("-ov", "--ov_path", help=ov_help, type=str, required=False, default=file_utils.get_ov_path(SCRIPT_DIR_PATH))
     parser.add_argument("-w", "--working_dir", help=working_dir_help, type=str, required=False, default=get_default_working_dir())
-    parser.add_argument("-t", "--type", help=type_help, type=str, required=False, default="OP")
+    parser.add_argument("-t", "--type", help=type_help, type=str, required=False, default=constants.OP_CONFORMANCE)
     parser.add_argument("-j", "--workers", help=workers_help, type=int, required=False, default=os.cpu_count()-1)
     parser.add_argument("--gtest_filter", help=gtest_filter_helper, type=str, required=False, default="*")
     parser.add_argument("-c", "--ov_config_path", help=ov_config_path_helper, type=str, required=False, default="")
@@ -79,7 +79,7 @@ class Conformance:
             logger.info(f"Working dir {self._working_dir} is cleaned up")
             rmtree(self._working_dir)
         os.mkdir(self._working_dir)
-        if not (type == "OP" or type == "API"):
+        if not (type == constants.OP_CONFORMANCE or type == constants.API_CONFORMANCE):
             logger.error(f"Incorrect conformance type: {type}. Please use 'OP' or 'API'")
             exit(-1)
         self._type = type
@@ -180,8 +180,8 @@ class Conformance:
         # API Conformance contains both report type
         merge_xml([parallel_report_dir], report_dir, final_report_name, self._type, True)
         if self._type == constants.API_CONFORMANCE:
-            final_op_report_name = f'report_{constants.OP_CONFORMANCE.lower()}'
-            merge_xml([parallel_report_dir], report_dir, final_op_report_name, constants.OP_CONFORMANCE.lower())
+            final_report_name = f'report_{constants.OP_CONFORMANCE.lower()}'
+            merge_xml([parallel_report_dir], report_dir, final_report_name, constants.OP_CONFORMANCE.lower(), True)
         logger.info(f"Conformance is successful. XML reportwas saved to {report_dir}")
         return (os.path.join(report_dir, final_report_name + ".xml"), report_dir)
 
@@ -197,8 +197,9 @@ class Conformance:
         process = Popen(command, shell=True)
         out, err = process.communicate()
         if err is None:
-            for line in str(out).split('\n'):
-                logger.info(line)
+            if not out is None:
+                for line in str(out).split('\n'):
+                    logger.info(line)
         else:
             logger.error(err)
             logger.error("Impossible to install requirements!")
@@ -213,6 +214,7 @@ class Conformance:
         logger.info(f"[ARGUMENTS] --ov_config_path = {self._ov_config_path}")
         logger.info(f"[ARGUMENTS] --dump_conformance = {dump_models}")
         logger.info(f"[ARGUMENTS] --shape_mode = {self._shape_mode}")
+        logger.info(f"[ARGUMENTS] --parallel_devices = {self._is_parallel_over_devices}")
 
         if file_utils.is_url(self._model_path):
             self._model_path = self.__download_models(self._model_path, self._working_dir)
@@ -233,8 +235,7 @@ class Conformance:
             logger.error(f"Directory {self._model_path} does not exist")
             exit(-1)
         xml_report, report_dir = self.__run_conformance()
-        if self._type == "OP":
-            self.__summarize(xml_report, report_dir)
+        self.__summarize(xml_report, report_dir)
 
 if __name__ == "__main__":
     args = parse_arguments()

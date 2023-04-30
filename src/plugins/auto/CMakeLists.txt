@@ -12,24 +12,24 @@ set (TARGET_NAME "openvino_auto_plugin")
 file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/utils/*.cpp)
 
 if(ENABLE_AUTO AND ENABLE_MULTI)
-    ie_add_plugin(NAME ${TARGET_NAME}
+    ov_add_plugin(NAME ${TARGET_NAME}
                   DEVICE_NAME "MULTI"
                   PSEUDO_DEVICE
                   SOURCES ${SOURCES}
                   VERSION_DEFINES_FOR src/plugin.cpp)
 
-    ie_add_plugin(NAME ${TARGET_NAME}
+    ov_add_plugin(NAME ${TARGET_NAME}
                   DEVICE_NAME "AUTO"
                   PSEUDO_DEVICE
                   PSEUDO_PLUGIN_FOR "MULTI")
 elseif(ENABLE_AUTO)
-    ie_add_plugin(NAME ${TARGET_NAME}
+    ov_add_plugin(NAME ${TARGET_NAME}
                   DEVICE_NAME "AUTO"
                   PSEUDO_DEVICE
                   SOURCES ${SOURCES}
                   VERSION_DEFINES_FOR src/plugin.cpp)
 elseif(ENABLE_MULTI)
-    ie_add_plugin(NAME ${TARGET_NAME}
+    ov_add_plugin(NAME ${TARGET_NAME}
                   DEVICE_NAME "MULTI"
                   PSEUDO_DEVICE
                   SOURCES ${SOURCES}

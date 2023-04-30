@@ -73,11 +73,12 @@ void IStreamsExecutor::Config::set_property(const ov::AnyMap& property) {
             }
         } else if (key == CONFIG_KEY(CPU_THROUGHPUT_STREAMS)) {
             if (value.as<std::string>() == CONFIG_VALUE(CPU_THROUGHPUT_NUMA)) {
-                _set_streams = true;
                 _streams = static_cast<int>(get_available_numa_nodes().size());
+                _streams_changed = true;
             } else if (value.as<std::string>() == CONFIG_VALUE(CPU_THROUGHPUT_AUTO)) {
                 // bare minimum of streams (that evenly divides available number of cores)
                 _streams = get_default_num_streams();
+                _streams_changed = true;
             } else {
                 int val_i;
                 try {
@@ -91,22 +92,22 @@ void IStreamsExecutor::Config::set_property(const ov::AnyMap& property) {
                     IE_THROW() << "Wrong value for property key " << CONFIG_KEY(CPU_THROUGHPUT_STREAMS)
                                << ". Expected only positive numbers (#streams)";
                 }
-                _set_streams = true;
                 _streams = val_i;
+                _streams_changed = true;
             }
         } else if (key == ov::num_streams) {
             auto streams = value.as<ov::streams::Num>();
             if (streams == ov::streams::NUMA) {
-                _set_streams = true;
                 _streams = static_cast<int32_t>(get_available_numa_nodes().size());
+                _streams_changed = true;
             } else if (streams == ov::streams::AUTO) {
                 // bare minimum of streams (that evenly divides available number of cores)
                 if (!is_cpu_map_available()) {
                     _streams = get_default_num_streams();
                 }
             } else if (streams.num >= 0) {
-                _set_streams = true;
                 _streams = streams.num;
+                _streams_changed = true;
             } else {
                 OPENVINO_THROW("Wrong value for property key ",
                                ov::num_streams.name(),
@@ -153,19 +154,6 @@ void IStreamsExecutor::Config::set_property(const ov::AnyMap& property) {
                            << ". Expected only non negative numbers (#streams)";
             }
             _big_core_streams = val_i;
-        } else if (key == CONFIG_KEY_INTERNAL(BIG_CORE_LOGIC_STREAMS)) {
-            int val_i;
-            try {
-                val_i = value.as<int>();
-            } catch (const std::exception&) {
-                IE_THROW() << "Wrong value for HYBRID_AWARE key " << CONFIG_KEY_INTERNAL(BIG_CORE_LOGIC_STREAMS)
-                           << ". Expected only non negative numbers (#streams)";
-            }
-            if (val_i < 0) {
-                IE_THROW() << "Wrong value for HYBRID_AWARE key " << CONFIG_KEY_INTERNAL(BIG_CORE_LOGIC_STREAMS)
-                           << ". Expected only non negative numbers (#streams)";
-            }
-            _big_core_logic_streams = val_i;
         } else if (key == CONFIG_KEY_INTERNAL(SMALL_CORE_STREAMS)) {
             int val_i;
             try {
@@ -240,7 +228,6 @@ ov::Any IStreamsExecutor::Config::get_property(const std::string& key) const {
             CONFIG_KEY(CPU_THREADS_NUM),
             CONFIG_KEY_INTERNAL(CPU_THREADS_PER_STREAM),
             CONFIG_KEY_INTERNAL(BIG_CORE_STREAMS),
-            CONFIG_KEY_INTERNAL(BIG_CORE_LOGIC_STREAMS),
             CONFIG_KEY_INTERNAL(SMALL_CORE_STREAMS),
             CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_BIG),
             CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_SMALL),
@@ -285,8 +272,6 @@ ov::Any IStreamsExecutor::Config::get_property(const std::string& key) const {
         return {std::to_string(_threadsPerStream)};
     } else if (key == CONFIG_KEY_INTERNAL(BIG_CORE_STREAMS)) {
         return {std::to_string(_big_core_streams)};
-    } else if (key == CONFIG_KEY_INTERNAL(BIG_CORE_LOGIC_STREAMS)) {
-        return {std::to_string(_big_core_logic_streams)};
     } else if (key == CONFIG_KEY_INTERNAL(SMALL_CORE_STREAMS)) {
         return {std::to_string(_small_core_streams)};
     } else if (key == CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_BIG)) {

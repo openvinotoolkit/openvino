@@ -506,6 +506,127 @@ TEST_F(TransformationTestsF, RaggedTensorToSparse) {
     }
 }
 
+TEST_F(TransformationTestsF, SavedModelProgramOnly) {
+    {
+        model = convert_model("saved_model_program-only");
+        model->validate_nodes_and_infer_types();
+    }
+    {
+        // create a reference graph
+        auto x = make_shared<Constant>(element::f32, Shape{2, 3}, vector<float>{1, 2, 3, 3, 2, 1});
+        auto y = make_shared<Parameter>(element::f32, Shape{1});
+        auto add = make_shared<Add>(x, y);
+
+        model_ref = make_shared<Model>(OutputVector{add}, ParameterVector{y});
+    }
+}
+
+TEST_F(TransformationTestsF, SavedModelVariables) {
+    {
+        model = convert_model("saved_model_variables");
+        model->validate_nodes_and_infer_types();
+    }
+    {
+        // create a reference graph
+        auto x = make_shared<Parameter>(element::f32, Shape{1});
+        auto y = make_shared<Constant>(element::f32, Shape{}, vector<float>{123});
+        auto multiply = make_shared<Multiply>(x, y);
+
+        model_ref = make_shared<Model>(OutputVector{multiply}, ParameterVector{x});
+    }
+}
+
+TEST_F(TransformationTestsF, MetaGraphVariables) {
+    {
+        model = convert_model("metagraph_variables/graph.meta");
+        model->validate_nodes_and_infer_types();
+    }
+    {
+        // create a reference graph
+        auto x = make_shared<Constant>(element::f32, Shape{2, 3}, vector<float>{1, 2, 3, 3, 2, 1});
+        auto y = make_shared<Parameter>(element::f32, Shape{1});
+        auto z = make_shared<Constant>(element::f32, Shape{2, 3}, vector<float>{2, 2, 1, 1, 1, 2});
+        auto add = make_shared<Add>(x, y);
+        auto sub = make_shared<Subtract>(add, z);
+
+        model_ref = make_shared<Model>(OutputVector{sub}, ParameterVector{y});
+    }
+}
+
+TEST_F(TransformationTestsF, MetaGraphCut) {
+    {
+        model = convert_model("metagraph_variables/graph.meta", nullptr, {"y"});
+        model->validate_nodes_and_infer_types();
+    }
+    {
+        // create a reference graph
+        auto x = make_shared<Constant>(element::f32, Shape{2, 3}, vector<float>{1, 2, 3, 3, 2, 1});
+        auto y = make_shared<Parameter>(element::f32, Shape{1});
+        auto z = make_shared<Constant>(element::f32, Shape{2, 3}, vector<float>{2, 2, 1, 1, 1, 2});
+        auto add = make_shared<Add>(x, y);
+        auto sub = make_shared<Subtract>(add, z);
+
+        model_ref = make_shared<Model>(OutputVector{sub}, ParameterVector{y});
+    }
+}
+
+TEST_F(TransformationTestsF, MetaGraphCutInputTensor) {
+    {
+        model = convert_model("metagraph_variables/graph.meta",
+                              nullptr,
+                              {"0:SubOperation"},
+                              {ov::element::f32},
+                              {Shape{2, 3}});
+        model->validate_nodes_and_infer_types();
+    }
+    {
+        // create a reference graph
+        auto x = make_shared<Parameter>(element::f32, Shape{2, 3});
+        auto z = make_shared<Constant>(element::f32, Shape{2, 3}, vector<float>{2, 2, 1, 1, 1, 2});
+        auto sub = make_shared<Subtract>(x, z);
+
+        model_ref = make_shared<Model>(OutputVector{sub}, ParameterVector{x});
+    }
+}
+
+TEST_F(TransformationTestsF, MetaGraphCutOutputTensor) {
+    {
+        model = convert_model("metagraph_variables/graph.meta",
+                              nullptr,
+                              {"AddOperation:0"},
+                              {ov::element::f32},
+                              {Shape{2, 3}});
+        model->validate_nodes_and_infer_types();
+    }
+    {
+        // create a reference graph
+        auto x = make_shared<Parameter>(element::f32, Shape{2, 3});
+        auto z = make_shared<Constant>(element::f32, Shape{2, 3}, vector<float>{2, 2, 1, 1, 1, 2});
+        auto sub = make_shared<Subtract>(x, z);
+
+        model_ref = make_shared<Model>(OutputVector{sub}, ParameterVector{x});
+    }
+}
+
+TEST_F(TransformationTestsF, MetaGraphCutIdentity) {
+    {
+        model = convert_model("metagraph_variables/graph.meta",
+                              nullptr,
+                              {"AddIdentity"},
+                              {ov::element::f32},
+                              {Shape{2, 3}});
+        model->validate_nodes_and_infer_types();
+    }
+    {
+        // create a reference graph
+        auto x = make_shared<Parameter>(element::f32, Shape{2, 3});
+        auto z = make_shared<Constant>(element::f32, Shape{2, 3}, vector<float>{2, 2, 1, 1, 1, 2});
+        auto sub = make_shared<Subtract>(x, z);
+
+        model_ref = make_shared<Model>(OutputVector{sub}, ParameterVector{x});
+    }
+}
+
 TEST_F(TransformationTestsF, SplitInFunction) {
     {
         // create FAKE conversion extension for Split using named ports, this is not required for Split, but it tests
@@ -629,5 +750,30 @@ TEST_F(TransformationTestsF, NonMaxSuppressionWithNamedOutputs) {
         auto concat = make_shared<Concat>(OutputVector{selected_indices, selected_scores, valid_outputs}, 0);
 
         model_ref = make_shared<Model>(OutputVector{concat}, ParameterVector{boxes, scores});
+    }
+}
+
+TEST_F(TransformationTestsF, PartitionedCallsWithConvInBodyGraphs) {
+    // The test aims to check that the conversion for the body graphs is performed with set input shapes
+    // that allows to get more optimized ov::Model for the body graphs.
+    // In particular, we check that the resulted graph contains Convolution operations instead of GroupConvolution
+    { model = convert_model("partitioned_call_with_conv/partitioned_call_with_conv.pb"); }
+    {
+        auto input1 = make_shared<Parameter>(f32, Shape{1, 1, 10, 10});
+        auto filter = make_shared<Parameter>(f32, Shape{3, 3, 1, 1});
+
+        auto transpose_order = make_shared<Constant>(i64, Shape{4}, vector<int64_t>{3, 2, 0, 1});
+
+        auto tr_filter = make_shared<Transpose>(filter, transpose_order);
+
+        auto conv = make_shared<Convolution>(input1,
+                                             tr_filter,
+                                             Strides{1, 1},
+                                             CoordinateDiff{0, 0},
+                                             CoordinateDiff{0, 0},
+                                             Strides{1, 1},
+                                             op::PadType::SAME_UPPER);
+
+        model_ref = make_shared<Model>(OutputVector{conv}, ParameterVector{input1, filter});
     }
 }

@@ -748,7 +748,6 @@ void Convolution::initSupportedPrimitiveDescriptors() {
         auto itpd = desc;
         while (itpd) {
             NodeConfig config;
-            config.dynBatchSupport = true;
 
             for (size_t i = 0; i < descInputNumbers(); i++) {
                 PortConfig dataConfig;
@@ -1177,16 +1176,6 @@ dnnl::memory Convolution::getWeights() const {
     return getParentEdgeAt(1)->getMemory().GetPrimitive();
 }
 
-void Convolution::setDynamicBatchLim(int lim) {
-    if (!execPtr) {
-        IE_THROW() << "Can't set dynamic batch for Convolution node with name: " << getName() << ", because executor is not compiled";
-    }
-    if (execPtr->needReordering()) {
-        IE_THROW() << "Can't execute Convolution node with dynamic batch via executor with reorders";
-    }
-    Node::setDynamicBatchLim(lim);
-}
-
 dnnl::memory Convolution::getBias() const {
     return getParentEdgeAt(2)->getMemory().GetPrimitive();
 }
@@ -1501,7 +1490,7 @@ void Convolution::prepareParams() {
             auto it = primArgs.find(DNNL_ARG_WEIGHTS);
             if (it == primArgs.end() || !prevExecPtr ||
                 !execPtr->getWeightDesc()->isCompatible(*(prevExecPtr->getWeightDesc()))) {
-                pendingConstWeightReorder = true;
+                primArgs[DNNL_ARG_WEIGHTS] = prepareWeightMemory(execPtr->getWeightDesc())->GetPrimitive();
             }
         } else {
             // non-const weight will be reordered by executor on every exec
@@ -1556,11 +1545,6 @@ Convolution::ConvolutionExecutor::ConvolutionExecutor(const dnnl::convolution_fo
 void Convolution::execute(dnnl::stream strm) {
     if (!execPtr) {
         IE_THROW() << "Can't execute Convolution node with name: " << getName() << ", because executor is not compiled";
-    }
-
-    if (pendingConstWeightReorder) {
-        primArgs[DNNL_ARG_WEIGHTS] = prepareWeightMemory(execPtr->getWeightDesc())->GetPrimitive();
-        pendingConstWeightReorder = false;
     }
 
     execPtr->exec(primArgs, strm);
