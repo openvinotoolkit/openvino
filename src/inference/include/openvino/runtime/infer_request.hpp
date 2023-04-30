@@ -32,6 +32,11 @@ class OPENVINO_RUNTIME_API InferRequest {
     std::shared_ptr<ov::IAsyncInferRequest> _impl;
     std::shared_ptr<void> _so;
 
+    // TODO: Should be moved deeply into plugins depending on their capabilities to handle arbitrary objects
+    // Map from name of a tensor to its value exposed to the user side
+    std::shared_ptr<std::map<std::string, Any>> _wrapped_objects =
+        std::make_shared<std::map<std::string, Any>>();
+
     /**
      * @brief Constructs InferRequest from the initialized std::shared_ptr.
      * @param impl Initialized shared pointer.

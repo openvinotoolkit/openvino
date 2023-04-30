@@ -161,7 +161,7 @@ std::shared_ptr<ITensor> make_tensor(const element::Type element_type,
  * @brief Tensor with allocated memory
  * Tensor owns the memory
  */
-class q : public ViewTensor {
+class AllocatedTensor : public ViewTensor {
 public:
     AllocatedTensor(const element::Type element_type, const Shape& shape, const Allocator& allocator)
         : ViewTensor{element_type,
