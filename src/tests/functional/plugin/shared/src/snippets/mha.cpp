@@ -68,7 +68,7 @@ void MHA::generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticSha
     for (int i = 0; i < model_inputs.size(); ++i) {
         const auto& model_input = model_inputs[i];
         ov::Tensor tensor;
-        tensor = ov::test::utils::create_and_fill_tensor(model_input.get_element_type(), model_input.get_shape(), 11, 0, 10);
+        tensor = ov::test::utils::create_and_fill_tensor(model_input.get_element_type(), targetInputStaticShapes[i], 11, 0, 10);
         inputs.insert({model_input.get_node_shared_ptr(), tensor});
     }
 }
