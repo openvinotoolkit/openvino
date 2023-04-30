@@ -455,6 +455,7 @@ std::string get_ov_library_path_a() {
 #elif defined(__APPLE__) || defined(__linux__) || defined(__EMSCRIPTEN__)
     Dl_info info;
     dladdr(reinterpret_cast<void*>(ov::util::get_ov_lib_path), &info);
+    printf("the result of dladdr() call: %s \n", get_path_name(ov::util::get_absolute_file_path(info.dli_fname)).c_str());
     return get_path_name(ov::util::get_absolute_file_path(info.dli_fname)).c_str();
 #else
 #    error "Unsupported OS"
