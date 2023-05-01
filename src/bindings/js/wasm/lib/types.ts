@@ -1,15 +1,5 @@
 import type { TypedArray, PrecisionSupportedType } from 'openvinojs-common';
 
-export type OVType =
-  | 'uint8_t'
-  | 'int8_t'
-  | 'uint16_t'
-  | 'int16_t'
-  | 'uint32_t'
-  | 'int32_t'
-  | 'float'
-  | 'double';
-
   export type HEAPType =
   | 'HEAP8'
   | 'HEAPU8'
@@ -51,15 +41,15 @@ export interface OpenvinoWASMModule {
     layout: string) => OriginalModel,
   getVersionString(): string,
   getDescriptionString(): string,
-};
+}
 
 export interface OriginalShape {
   getDim(): number;
   getData(): number;
-};
+}
 
 export interface OriginalTensor {
-  getPrecision(): OVType;
+  getPrecision(): PrecisionSupportedType;
   getShape(): OriginalShape;
   getData(): number;
 }

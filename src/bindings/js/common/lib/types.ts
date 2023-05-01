@@ -1,5 +1,5 @@
 import Shape from './shape';
-import Tensor from './tensor'; 
+import Tensor from './tensor';
 
 export type TypedArray =
   | Int8Array
@@ -12,44 +12,44 @@ export type TypedArray =
   | Float32Array
   | Float64Array;
 
-export type JSArrayType = 
-  | Int8ArrayConstructor 
-  | Uint8ArrayConstructor 
+export type JSArrayType =
+  | Int8ArrayConstructor
+  | Uint8ArrayConstructor
   // | Uint8ClampedArrayConstructor
-  | Int16ArrayConstructor 
+  | Int16ArrayConstructor
   | Uint16ArrayConstructor
-  | Int32ArrayConstructor 
-  | Uint32ArrayConstructor 
-  | Float32ArrayConstructor 
+  | Int32ArrayConstructor
+  | Uint32ArrayConstructor
+  | Float32ArrayConstructor
   | Float64ArrayConstructor;
 
 export enum PrecisionSupportedTypes {
-  uint8 = 'uint8',
-  int8 = 'int8',
-  uint16 = 'uint16',
-  int16 = 'int16',
-  uint32 = 'uint32',
-  int32 = 'int32',
+  u8 = 'u8',
+  i8 = 'int8',
+  u16 = 'u16',
+  i16 = 'i16',
+  u32 = 'u32',
+  i32 = 'i32',
 
-  float32 = 'float32',
-  float64 = 'float64',
-};
+  f32 = 'f32',
+  f64 = 'f64',
+}
 export type PrecisionSupportedType = keyof typeof PrecisionSupportedTypes;
 
 export interface IShape {
   dim: number,
   data: Uint32Array,
-};
+}
 
 export interface ITensor {
   precision: PrecisionSupportedType,
   data: TypedArray,
   shape: IShape,
-};
+}
 
 export interface IModel {
   infer(tensorOrDataArray: ITensor | number[], shape: IShape): Promise<ITensor>,
-};
+}
 
 export type LoadModelType = (xmlPath: string, binPath: string, shapeData: Shape | number[], layout: string) => Promise<IModel>;
 

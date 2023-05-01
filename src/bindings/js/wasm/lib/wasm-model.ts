@@ -16,7 +16,7 @@ import type {
   OriginalTensorWrapper
 } from './types';
 
-const DEFAULT_PRECISION = 'uint8';
+const DEFAULT_PRECISION = 'u8';
 
 class WASMModel implements IModel {
   #ov: OpenvinoWASMModule;
