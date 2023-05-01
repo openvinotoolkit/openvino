@@ -48,6 +48,7 @@ public:
     FunctionsComparator comparator;
 
 private:
+    ngraph::pass::Manager private_manager;
     std::shared_ptr<ngraph::pass::UniqueNamesHolder> m_unh;
     bool m_disable_rt_info_check{false};
     bool m_soft_names_comparison{true};
