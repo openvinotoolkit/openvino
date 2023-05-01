@@ -9,10 +9,10 @@ namespace pass {
 
 class CopyTensorNamesToRefModel : public ov::pass::ModelPass {
 public:
-    CopyTensorNamesToRefModel(const std::shared_ptr<ov::Model>* ref_model) : m_ref_model(ref_model) {}
+    CopyTensorNamesToRefModel(const std::shared_ptr<ov::Model>& ref_model) : m_ref_model(ref_model) {}
     bool run_on_model(const std::shared_ptr<ov::Model>& f) override {
         const auto& orig_results = f->get_results();
-        const auto& ref_results = (*m_ref_model)->get_results();
+        const auto& ref_results = m_ref_model->get_results();
         for (size_t idx = 0; idx < orig_results.size(); ++idx) {
             auto ref_res_tensor = ref_results[idx]->input_value(0).get_tensor_ptr();
             auto ref_res_tensor_names = ref_res_tensor->get_names();
@@ -24,8 +24,8 @@ public:
         return false;
     }
 private:
-    // we store a pointer to shared_ptr because it will be initialized later in the test body
-    const std::shared_ptr<ov::Model>* m_ref_model;
+    // we store a reference to shared_ptr because it will be initialized later in the test body
+    const std::shared_ptr<ov::Model>& m_ref_model;
 };
 
 } // namespace pass
@@ -49,7 +49,7 @@ TransformationTestsF::TransformationTestsF()
 void TransformationTestsF::SetUp() {
     manager.register_pass<ngraph::pass::InitUniqueNames>(m_unh);
     manager.register_pass<ov::pass::InitNodeInfo>();
-    manager.register_pass<ov::pass::CopyTensorNamesToRefModel>(&function_ref);
+    manager.register_pass<ov::pass::CopyTensorNamesToRefModel>(function_ref);
 }
 
 void TransformationTestsF::TearDown() {
