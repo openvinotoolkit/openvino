@@ -231,7 +231,6 @@ Dynamic Shapes
 +++++++++++++++++++++++++++++++++++++++
 
 GPU plugin supports dynamic shape and the general description can be found in :doc:`dynamic shapes guide<openvino_docs_OV_UG_DynamicShapes>`.
-Currently, the plugin mainly supports NLP models (Natural Language Processing). Also, dynamic rank is not supported.
 
 To support dynamic shape execution, the following basic infrastructures are implemented:
 
@@ -240,24 +239,12 @@ To support dynamic shape execution, the following basic infrastructures are impl
 - Asynchronous kernel compilation : Even when a shape agnostic kernel is available, the GPU plugin compiles an optimal kernerl for the given shape and preserve it in the in-memory cache for future use.
 - In-memory cache : Preserves kernels compiled in runtime and weights reordered for the specific kernels
 
-The code snippet below demonstrates how to use dynamic shape in GPU plugin:
+.. note::
 
-.. tab-set::
-
-   .. tab-item:: C++
-      :sync: cpp
-
-      .. doxygensnippet:: docs/snippets/gpu/dynamic_shape.cpp
-         :language: cpp
-         :fragment: dynamic_shape
-
-   .. tab-item:: Python
-      :sync: py
-
-      .. doxygensnippet:: docs/snippets/gpu/dynamic_shape.py
-         :language: Python
-         :fragment: dynamic_shape
-
+   Currently, dynamic shape support in GPU plugin is a preview feature and has following limitations:
+   - It mainly supports NLP models (Natural Language Processing). Not all operations and optimization passes supports dynamic shape. As a result, an arbitrary model may crash or experience significant performance drops.   
+   - Due to the dominant runtime overhead on the host device, dynamic shapes may perform worse than static shapes on a discrete GPU.
+   - Dynamic rank is not supported.
 
 Bounded dynamic batch
 -----------------------------------------------------------
@@ -307,7 +294,7 @@ Recommendations for performance improvement
 
 - Use static shape whenever possible
 
-   - Static models can benefit from more agressive optimizations such as constant propagation, fusing, reorder optimizatio.
+   - Static models can benefit from more agressive optimizations such as constant propagation, fusing, reorder optimization.
    If the same shape is used for dynamic model, the performance is worse than running that shape with static model.
    It is therefore recommended to reshape the dynamic model to a static model, if the scenario allows.
 
@@ -322,16 +309,12 @@ Recommendations for performance improvement
    - GPU plugin deploys in-memory cache to store compiled kernels for previously used shapes, but the size of such in-memory cache is limited.
    Therefore, it is recommended to use either of the following permanent caches too:
 
-      - OpenVino model_cache: See the :doc:`Model caching overview<openvino_docs_OV_UG_Model_caching_overview>`
+      - OpenVino model_cache: See the :doc:`Model caching overview<openvino_docs_OV_UG_Model_caching_overview>`. Note that this option is preferable for discrete GPUs, as it provides caching for OneDNN primitives not only for OpenCL primitives. 
       - OpenCL cache : See the page : https://github.com/intel/compute-runtime/blob/master/opencl/doc/FAQ.md#feature-cl_cache
 
 - The longer the inference sequence, the better throughput can be obtained, because it can leverage the runtime compilation time.
 
-   - If the primitive has a shape-agnostic kernel, it uses that kernel for the first inference.
-   However, as mentioned above, it also asynchronously compiles optimal kernels in parallel for future use.
-   If the application process is quickly stopped and the GPU plugin is destroyed, the compilation may not be finished.
-   If the application process allows enough time for asynchronous compilation, the more optimal kernels become available, enabling better throughput.
-   For example, running 200 inputs of {[1, 1], ..., [1, 50], [1, 1], ... , [1, 50], [1, 1], ..., [1, 50], [1, 1], ..., [1, 50]} may achieve better throughput than running 100 inputs of {[1, 1], ..., [1, 50], [1, 1], ... , [1,50]}.
+   - If the primitive has a shape-agnostic kernel and the static shape kernel for the current shape does not exist in the in-memory cache, the shape-agnostic kernel is used. Then, as mentioned above, optimal kernels for the current shapes are also asynchronously compiled in parallel for future use. If the application process removes the CompiledModel object and the GPU plugin is destroyed, any not-yet-started compilation tasks for optimal kernels will be canceled. However, if the application process allows enough time for the enqueued asynchronous compilation tasks, the more optimal kernels become available, enabling better throughput. For example, running 200 inputs of {[1, 1], ..., [1, 50], [1, 1], ... , [1, 50], [1, 1], ..., [1, 50], [1, 1], ..., [1, 50]} may achieve better throughput than running 100 inputs of {[1, 1], ..., [1, 50], [1, 1], ... , [1,50]}.
 
 
 Preprocessing Acceleration
