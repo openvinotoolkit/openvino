@@ -8,7 +8,6 @@
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/activation.hpp>
 #include <intel_gpu/primitives/data.hpp>
-#include <intel_gpu/runtime/device_query.hpp>
 
 static size_t img_size = 800;
 static std::string kernel_code =

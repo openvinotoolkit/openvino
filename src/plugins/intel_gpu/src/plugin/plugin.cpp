@@ -496,6 +496,8 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Plugin::ImportNetwork(std::istr
 
 Parameter Plugin::GetConfig(const std::string& name, const std::map<std::string, Parameter>& options) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::GetConfig");
+    OPENVINO_ASSERT(!device_map.empty(), "[GPU] Can't get ", name, " property as no supported devices found or an error happened during devices query.\n"
+                                         "[GPU] Please check OpenVINO documentation for GPU drivers setup guide.\n");
     Parameter result;
 
     std::string device_id;
@@ -569,17 +571,9 @@ auto StringRightTrim = [](std::string string, std::string substring, bool case_s
 Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string, Parameter>& options) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::GetMetric");
     GPU_DEBUG_GET_INSTANCE(debug_config);
-    std::string device_id = GetConfig(ov::device::id.name(), options);
 
-    auto iter = device_map.find(std::to_string(cldnn::device_query::device_id));
-    if (iter == device_map.end())
-        iter = device_map.find(device_id);
-    if (iter == device_map.end())
-        iter = device_map.begin();
-    auto device = iter->second;
-    auto device_info = device->get_info();
-    bool is_new_api = IsNewAPI();
-
+    // The metrics below don't depend on the device ID, so we should handle those
+    // earler than querying actual ID to avoid exceptions when no devices are found
     if (name == ov::supported_properties) {
         return decltype(ov::supported_properties)::value_type {
             // Metrics
@@ -636,12 +630,44 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         metrics.push_back(GPU_METRIC_KEY(EXECUTION_UNITS_COUNT));
         metrics.push_back(GPU_METRIC_KEY(MEMORY_STATISTICS));
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, metrics);
+    } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
+        std::vector<std::string> configKeys;
+        Configs dummy_cfg;
+        dummy_cfg.CreateConfig("0");
+        for (auto opt : dummy_cfg.GetConfig("0").key_config_map) {
+            // Exclude new API properties
+            if (!Config::isNewApiProperty(opt.first))
+                configKeys.push_back(opt.first);
+        }
+        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
     } else if (name == METRIC_KEY(AVAILABLE_DEVICES)) {
         std::vector<std::string> availableDevices = { };
         for (auto const& dev : device_map)
             availableDevices.push_back(dev.first);
         return decltype(ov::available_devices)::value_type {availableDevices};
-    } else if (name == ov::intel_gpu::device_total_mem_size) {
+    } else if (name == ov::caching_properties) {
+        std::vector<ov::PropertyName> cachingProperties;
+        cachingProperties.push_back(ov::PropertyName(ov::device::architecture.name(), PropertyMutability::RO));
+        cachingProperties.push_back(ov::PropertyName(ov::intel_gpu::execution_units_count.name(), PropertyMutability::RO));
+        cachingProperties.push_back(ov::PropertyName(ov::intel_gpu::driver_version.name(), PropertyMutability::RO));
+        cachingProperties.push_back(ov::PropertyName(ov::hint::inference_precision.name(), PropertyMutability::RW));
+        return decltype(ov::caching_properties)::value_type(cachingProperties);
+    } else if (name == METRIC_KEY(IMPORT_EXPORT_SUPPORT)) {
+        IE_SET_METRIC_RETURN(IMPORT_EXPORT_SUPPORT, true);
+    }
+
+    std::string device_id = GetConfig(ov::device::id.name(), options);
+
+    auto iter = device_map.find(std::to_string(cldnn::device_query::device_id));
+    if (iter == device_map.end())
+        iter = device_map.find(device_id);
+    if (iter == device_map.end())
+        iter = device_map.begin();
+    auto device = iter->second;
+    auto device_info = device->get_info();
+    bool is_new_api = IsNewAPI();
+
+    if (name == ov::intel_gpu::device_total_mem_size) {
         return decltype(ov::intel_gpu::device_total_mem_size)::value_type {device_info.max_global_mem_size};
     } else if (name == ov::device::type) {
         if (is_new_api) {
@@ -759,14 +785,6 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         auto deviceName = StringRightTrim(device_info.dev_name, "NEO", false);
         deviceName += std::string(" (") + (device_info.dev_type == cldnn::device_type::discrete_gpu ? "dGPU" : "iGPU") + ")";
         return decltype(ov::device::full_name)::value_type {deviceName};
-    } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
-        std::vector<std::string> configKeys;
-        for (auto opt : _impl->m_configs.GetConfig(device_id).key_config_map) {
-            // Exclude new API properties
-            if (!Config::isNewApiProperty(opt.first))
-                configKeys.push_back(opt.first);
-        }
-        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
     } else if (name == ov::device::capabilities) {
         std::vector<std::string> capabilities;
 

@@ -75,6 +75,8 @@ template <typename T>
 void start_cl_mem_check_2_inputs(bool is_caching_test) {
     device_query query(engine_types::ocl, runtime_types::ocl);
     auto devices = query.get_available_devices();
+    ASSERT_TRUE(!devices.empty());
+
     auto iter = devices.find(std::to_string(device_query::device_id));
     auto& device = iter != devices.end() ? iter->second : devices.begin()->second;
     auto engine = engine::create(engine_types::ocl, runtime_types::ocl, device);
@@ -170,6 +172,7 @@ TEST(export_import_cl_mem_check, check_2_inputs) {
 TEST(cl_mem_check, check_input) {
     device_query query(engine_types::ocl, runtime_types::ocl);
     auto devices = query.get_available_devices();
+    ASSERT_TRUE(!devices.empty());
     auto iter = devices.find(std::to_string(device_query::device_id));
     auto& device = iter != devices.end() ? iter->second : devices.begin()->second;
     auto engine = engine::create(engine_types::ocl, runtime_types::ocl, device);
@@ -278,6 +281,7 @@ TEST(cl_mem_check, check_input) {
 TEST(cl_mem_check, check_write_access_type) {
     device_query query(engine_types::ocl, runtime_types::ocl);
     auto devices = query.get_available_devices();
+    ASSERT_TRUE(!devices.empty());
     cldnn::device::ptr device = devices.begin()->second;
     for (auto& dev : devices) {
         if (dev.second->get_info().dev_type == device_type::discrete_gpu)
@@ -312,6 +316,7 @@ TEST(cl_mem_check, check_write_access_type) {
 TEST(cl_mem_check, check_read_access_type) {
     device_query query(engine_types::ocl, runtime_types::ocl);
     auto devices = query.get_available_devices();
+    ASSERT_TRUE(!devices.empty());
     cldnn::device::ptr device = devices.begin()->second;
     for (auto& dev : devices) {
         if (dev.second->get_info().dev_type == device_type::discrete_gpu)

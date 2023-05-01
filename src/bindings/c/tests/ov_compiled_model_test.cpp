@@ -117,7 +117,10 @@ TEST_P(ov_compiled_model, set_and_get_property) {
 
     char* info = nullptr;
     const char* key_0 = ov_property_key_available_devices;
-    if (ov_core_get_property(core, "GPU", key_0, &info) != ov_status_e::OK) {
+    EXPECT_EQ(ov_core_get_property(core, "GPU", key_0, &info), ov_status_e::OK);
+    EXPECT_STRNE(info, nullptr);
+    if (strlen(info) == 0) {
+        ov_free(info);
         ov_core_free(core);
         GTEST_SKIP();
     }
