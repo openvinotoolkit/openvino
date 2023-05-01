@@ -98,7 +98,7 @@ TSUnaryBackward::TSUnaryBackward() {
     MATCHER_SCOPE(TSUnaryBackwardMultiConsumers);
 
     auto unary_restrictions = [](const Output<Node>& output) -> bool {
-        return HasSameOutputTransposeNodes(output);
+        return CheckTransposeConsumers(output);
     };
 
     auto unary_label = wrap_type<UnaryElementwiseArithmetic,

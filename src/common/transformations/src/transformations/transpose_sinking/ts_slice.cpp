@@ -78,7 +78,7 @@ TSSliceBackward::TSSliceBackward() {
     MATCHER_SCOPE(TSSliceBackward);
 
     auto main_node_label = wrap_type<ov::op::v8::Slice>([](const Output<Node>& output) -> bool {
-        return has_static_rank()(output) && HasSameOutputTransposeNodes(output);
+        return has_static_rank()(output) && CheckTransposeConsumers(output);
     });
 
     auto transpose_const_label = wrap_type<ov::op::v0::Constant>();

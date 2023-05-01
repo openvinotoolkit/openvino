@@ -388,7 +388,7 @@ Node* FindFirstConsumer(const NodePtr& node) {
     return nullptr;
 }
 
-bool HasSameOutputTransposeNodes(const NodePtr& main_node) {
+bool CheckTransposeConsumers(const NodePtr& main_node) {
     AxisVector first_transpose_axis_order;
     {
         Node* first_consumer = FindFirstConsumer(main_node);
@@ -424,12 +424,12 @@ bool HasSameOutputTransposeNodes(const NodePtr& main_node) {
 
 }  // namespace
 
-bool HasSameOutputTransposeNodes(const Output<Node>& output) {
-    return HasSameOutputTransposeNodes(output.get_node_shared_ptr());
+bool CheckTransposeConsumers(const Output<Node>& output) {
+    return CheckTransposeConsumers(output.get_node_shared_ptr());
 }
 
 bool RemoveTransposeConsumers(const NodePtr& node) {
-    std::map<size_t, std::vector<ov::op::v1::Transpose*>> out_idx_to_redundant_transposes;
+    std::unordered_map<size_t, std::vector<ov::op::v1::Transpose*>> out_idx_to_redundant_transposes;
 
     // in case of multiple Transposes connected directly to Result ops,
     // we can't guarantee that friendly names are copied correctly,

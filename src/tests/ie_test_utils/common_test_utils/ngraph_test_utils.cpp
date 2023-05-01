@@ -4,6 +4,32 @@
 
 #include "ngraph_test_utils.hpp"
 
+namespace ov {
+namespace pass {
+
+class CopyTensorNamesToRefModel : public ov::pass::ModelPass {
+public:
+    CopyTensorNamesToRefModel(const std::shared_ptr<ov::Model>* ref_model) : m_ref_model(ref_model) {}
+    bool run_on_model(const std::shared_ptr<ov::Model>& f) override {
+        const auto& orig_results = f->get_results();
+        const auto& ref_results = (*m_ref_model)->get_results();
+        for (size_t idx = 0; idx < orig_results.size(); ++idx) {
+            auto ref_res_tensor = ref_results[idx]->input_value(0).get_tensor_ptr();
+            auto ref_res_tensor_names = ref_res_tensor->get_names();
+            if (ref_res_tensor_names.empty()) {
+                auto orig_names = orig_results[idx]->input_value(0).get_tensor_ptr()->get_names();
+                ref_res_tensor->add_names(orig_names);
+            }
+        }
+        return false;
+    }
+private:
+    const std::shared_ptr<ov::Model>* m_ref_model;
+};
+
+} // namespace pass
+} // namespace ov
+
 TransformationTestsF::TransformationTestsF()
     : model(function),
       model_ref(function_ref),
@@ -22,22 +48,40 @@ TransformationTestsF::TransformationTestsF()
 void TransformationTestsF::SetUp() {
     manager.register_pass<ngraph::pass::InitUniqueNames>(m_unh);
     manager.register_pass<ov::pass::InitNodeInfo>();
+    manager.register_pass<ov::pass::CopyTensorNamesToRefModel>(&function_ref);
+    manager.register_pass<ov::pass::Serialize>("/home/itikhonov/OpenVINO/tmp/serialized/multi_out_orig_tr.xml",
+                                               "/home/itikhonov/OpenVINO/tmp/serialized/multi_out_orig_tr.bin");
 }
 
 void TransformationTestsF::TearDown() {
     OPENVINO_ASSERT(function != nullptr, "Test Model is not initialized.");
-    auto cloned_function = ngraph::clone_function(*function);
+
+    std::shared_ptr<ov::Model> cloned_function;
+    auto acc_enabled = comparator.should_compare(FunctionsComparator::ACCURACY);
     if (!function_ref) {
+        cloned_function = ngraph::clone_function(*function);
         function_ref = cloned_function;
+    } else if (acc_enabled) {
+        cloned_function = ngraph::clone_function(*function);
     }
 
+
+
     manager.register_pass<ngraph::pass::CheckUniqueNames>(m_unh, m_soft_names_comparison, m_result_friendly_names_check);
+    manager.register_pass<ov::pass::Serialize>("/home/itikhonov/OpenVINO/tmp/serialized/multi_out_after_tr.xml",
+                                           "/home/itikhonov/OpenVINO/tmp/serialized/multi_out_after_tr.bin");
+
     manager.run_passes(function);
+    ov::pass::Manager _manager;
+    _manager.register_pass<ov::pass::Serialize>("/home/itikhonov/OpenVINO/tmp/serialized/multi_out_after_tr_ref.xml",
+                                                "/home/itikhonov/OpenVINO/tmp/serialized/multi_out_after_tr_ref.xml");
+    _manager.run_passes(function_ref);
     if (!m_disable_rt_info_check) {
     ASSERT_NO_THROW(check_rt_info(function));
     }
 
-    if (comparator.should_compare(FunctionsComparator::ACCURACY)) {
+    if (acc_enabled) {
+        OPENVINO_ASSERT(cloned_function != nullptr, "Accuracy cannot be checked. Cloned Model is not initialized.");
         auto acc_comparator = FunctionsComparator::no_default();
         acc_comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
         auto res = acc_comparator.compare(function, cloned_function);

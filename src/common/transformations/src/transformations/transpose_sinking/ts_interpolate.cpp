@@ -89,7 +89,7 @@ TSInterpolateBackward::TSInterpolateBackward() {
     MATCHER_SCOPE(TSInterpolateBackward);
 
     auto main_node_label = wrap_type<ov::op::v4::Interpolate>([](const Output<Node>& output) -> bool {
-        return has_static_rank()(output) && HasSameOutputTransposeNodes(output);
+        return has_static_rank()(output) && CheckTransposeConsumers(output);
     });
 
     auto transpose_const_label = wrap_type<ov::op::v0::Constant>();

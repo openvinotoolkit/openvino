@@ -70,7 +70,7 @@ bool HasInputSplitAndTransposeSiblings(const Output<Node>& output) {
         return false;
     }
 
-    return HasSameOutputTransposeNodes(main_node);
+    return CheckTransposeConsumers(main_node);
 }
 
 bool IsSplitSinked(const Output<Node>& output) {

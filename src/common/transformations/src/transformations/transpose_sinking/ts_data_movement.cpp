@@ -99,7 +99,7 @@ TSDataMovementBackward::TSDataMovementBackward() {
     auto main_node_label =
         wrap_type<ov::op::v1::Pad, ov::op::v1::BatchToSpace, ov::op::v1::SpaceToBatch, ov::op::v0::ReverseSequence>(
             [](const Output<Node>& output) -> bool {
-                return has_static_rank()(output) && HasSameOutputTransposeNodes(output);
+                return has_static_rank()(output) && CheckTransposeConsumers(output);
             });
 
     auto transpose_const_label = wrap_type<ov::op::v0::Constant>();

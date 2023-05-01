@@ -115,7 +115,7 @@ TSGatherBackward::TSGatherBackward() {
     MATCHER_SCOPE(TSGatherBackward);
 
     auto gather_label = wrap_type<ov::op::v8::Gather>({any_input(), any_input(), wrap_type<ov::op::v0::Constant>()},
-                                                      HasSameOutputTransposeNodes);
+                                                      CheckTransposeConsumers);
     auto transpose_label = wrap_type<ov::op::v1::Transpose>({gather_label, wrap_type<ov::op::v0::Constant>()},
                                                             [](const Output<Node>& output) -> bool {
                                                                 return has_static_rank()(output);

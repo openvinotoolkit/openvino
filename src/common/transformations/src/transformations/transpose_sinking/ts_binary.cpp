@@ -66,7 +66,7 @@ TSBinaryBackward::TSBinaryBackward() {
                                      op::util::BinaryElementwiseLogical,
                                      ov::op::v0::PRelu,
                                      ov::op::v0::FakeQuantize>([](const Output<Node>& output) -> bool {
-        return has_static_rank()(output) && HasSameOutputTransposeNodes(output);
+        return has_static_rank()(output) && CheckTransposeConsumers(output);
     });
 
     auto transpose_const_label = wrap_type<ov::op::v0::Constant>();

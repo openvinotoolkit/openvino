@@ -181,7 +181,7 @@ TSUnsqueezeBackward::TSUnsqueezeBackward() {
 
     auto unsqueeze_label =
         wrap_type<ov::op::v0::Unsqueeze, ov::op::v1::Reshape>({any_input(), wrap_type<ov::op::v0::Constant>()},
-                                                              HasSameOutputTransposeNodes);
+                                                              CheckTransposeConsumers);
     auto transpose_label = wrap_type<ov::op::v1::Transpose>({unsqueeze_label, wrap_type<ov::op::v0::Constant>()},
                                                             [](const Output<Node>& output) -> bool {
                                                                 return has_static_rank()(output);
