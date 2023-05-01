@@ -5,6 +5,7 @@
 #include "common_op_table.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/op/str_ops.hpp"
+#include "openvino/op/util/struct_pack.hpp"
 
 using namespace std;
 using namespace ov::opset8;
@@ -46,7 +47,7 @@ OutputVector translate_placeholder_op(const NodeContext& node) {
 
     if(!is_element_type) {
         // There is not representable type information in tf_dtype, save it to RT info
-        res->get_rt_info()["structural_type"] = StructuralTypeAttribute(structural_type);
+        res->get_rt_info()["structural_type"] = ov::op::util::StructuralTypeAttribute(structural_type);
     }
 
     set_node_name(node.get_name(), res);

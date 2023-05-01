@@ -49,7 +49,7 @@ public:
 
 private:
     ov::Any m_data;
-    ov::Shape m_shape;
+    ov::Shape m_shape;  // FIXME: Is not used
 };
 
 }  // namespace tensorflow

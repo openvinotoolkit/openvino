@@ -3,6 +3,7 @@
 //
 
 #pragma once
+#if 0
 
 #include <openvino/pass/graph_rewrite.hpp>
 #include <openvino/pass/pass.hpp>
@@ -92,3 +93,5 @@ public:
 }  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov
+
+#endif

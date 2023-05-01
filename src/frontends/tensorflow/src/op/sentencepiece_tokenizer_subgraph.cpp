@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#if 0
 #include "op_table.hpp"
 #include "openvino/op/sentencepiece_tokenizer.hpp"
 #include "tf_framework_node.hpp"
@@ -55,3 +56,5 @@ OutputVector translate_sentencepiece_tokenizer_subgraph(const NodeContext& node)
 }  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov
+
+#endif

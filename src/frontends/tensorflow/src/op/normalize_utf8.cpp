@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#if 0
 #include "op_table.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/op/str_ops.hpp"
@@ -23,3 +24,4 @@ OutputVector translate_normalize_utf8_op(const NodeContext& node) {
 }  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov
+#endif

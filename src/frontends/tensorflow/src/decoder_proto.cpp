@@ -265,8 +265,9 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
         }
         FRONT_END_GENERAL_CHECK(pshape.is_static(), "Dynamic shapes are not supported for Tensor attribute.");
         const auto& tf_type = tensor_proto.dtype();
+        #if 0
         std::cerr << "[ BEFORE ]\n";
-        if (true) {
+        if (false) {
             // true -- don't use element::string, represent string as u8 or i32/i32/u8 tensors depending on rank
             // false -- use native ov::Tensor with element::string element type
 
@@ -292,6 +293,7 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
                 std::cerr << "[ FAILED TO PROCESS STR CONSTANT ]\n";
             }
         }
+        #endif
         auto ov_type = get_ov_type(tf_type);
         FRONT_END_GENERAL_CHECK(
             ov_type.is_static(),

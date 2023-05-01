@@ -4,6 +4,7 @@
 
 #include "op_table.hpp"
 #include "openvino/op/str_ops.hpp"
+#include "openvino/op/util/struct_pack.hpp"
 
 #include "common_op_table.hpp"
 #include "openvino/opsets/opset10.hpp"
@@ -293,7 +294,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"SparseFillEmptyRows", CreatorFunction(translate_sparse_fill_empty_rows_op)},
         {"SparseSegmentSum", CreatorFunction(translate_sparse_segment_sum_op)},
         {"Unique", CreatorFunction(translate_unique_op)},
-
+#if 0
                 // Experimental translator for String/Tokenization/Structural Types
         {"CaseFoldUTF8", CreatorFunction(translate_case_fold_utf8_op)},
         {"NormalizeUTF8",  CreatorFunction(translate_normalize_utf8_op)},
@@ -321,13 +322,15 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
             return std::make_shared<RegexSplitWithOffsets>(
                 OutputVector{node.get_input(0), node.get_input(1), node.get_input(2)}
             )->outputs(); })},
-
+#endif
         {"TensorListReserve",  CreatorFunction([](const NodeContext& node) -> OutputVector {
             // Limitation: known rank of elements
             // Representation consists of 4 tensors: concatenated shapes, element begin indices, element end indices, elements
 
             auto element_shape = node.get_input(0);
-            auto num_elements = std::make_shared<opset10::Reshape>(node.get_input(1), const_value(1, 1), false);
+            auto num_elements = std::make_shared<opset10::Reshape>(
+                node.get_input(1),
+                ov::op::const_value(1, 1), false);
 
             // known rank of elements implies element_shape has static shape
             TENSORFLOW_OP_VALIDATION(node, element_shape.get_partial_shape().is_static(), "element_shape is not static");
@@ -343,10 +346,10 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
             auto shape_shape = std::make_shared<opset10::Concat>(
                 OutputVector{num_elements, std::make_shared<opset10::ShapeOf>(element_shape, shape_type)}, 0);
 
-            auto shapes = std::make_shared<opset10::Tile>(const_value(0, 2, shape_type), shape_shape);
+            auto shapes = std::make_shared<opset10::Tile>(ov::op::const_value(0, 2, shape_type), shape_shape);
 
             // Use one tensor with zeros for both begins and ends as there are no real element in tensors
-            auto indices = std::make_shared<opset10::Tile>(const_value(0, 1, shape_type), num_elements);
+            auto indices = std::make_shared<opset10::Tile>(ov::op::const_value(0, 1, shape_type), num_elements);
 
             // An empty tensor
             // FIXME: This should be an empty tensor but it breaks transformation flow which improperly over-optimize loop bodies
@@ -355,7 +358,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
             // FIXME: there will be an extra StridedSlice to cut off this padding.
             auto elements = opset10::Constant::create(element_type, {1}, {0});
 
-            return make_shared<StructPack>(
+            return make_shared<ov::op::util::StructPack>(
                 OutputVector{shapes, indices, indices, elements},
                 element::StructuralType::TensorListWithRank(element_type, element_rank),
                 PartialShape::dynamic())->outputs();
@@ -376,21 +379,21 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
             auto shape_type = node.get_attribute<element::Type>("shape_type");
 
             auto tensor_shape = make_shared<ShapeOf>(tensor, shape_type);
-            //zero_1d = const_value(0, 1, shape_type);
-            auto one_1d = const_value(1, 1, shape_type);
+            //zero_1d = ov::op::const_value(0, 1, shape_type);
+            auto one_1d = ov::op::const_value(1, 1, shape_type);
             typedef std::vector<int64_t> V;
             auto num_elements = make_shared<StridedSlice>(tensor_shape, one_1d, one_1d, V{1}, V{0});
             auto real_element_shape = make_shared<StridedSlice>(tensor_shape, one_1d, one_1d, V{0}, V{1});
 
             auto shapes = make_shared<opset10::Tile>(
                 real_element_shape, make_shared<Concat>(
-                    OutputVector{num_elements, const_value(1, 1, shape_type)}, 0));
+                    OutputVector{num_elements, ov::op::const_value(1, 1, shape_type)}, 0));
 
-            auto total_element_size = make_shared<ReduceProd>(real_element_shape, const_value(0));
+            auto total_element_size = make_shared<ReduceProd>(real_element_shape, ov::op::const_value(0));
             auto num_elements_scalar = make_shared<Squeeze>(num_elements);
 
             // auto begins = make_shared<SpyOp>(OutputVector{make_shared<Range>(
-            //     const_value(0),
+            //     ov::op::const_value(0),
             //     make_shared<Multiply>(num_elements_scalar, total_element_size),
             //     total_element_size,
             //     shape_type)});
@@ -398,13 +401,13 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
             // auto ends = make_shared<SpyOp>(OutputVector{make_shared<Range>(
             //     total_element_size,
             //     make_shared<Multiply>(
-            //         make_shared<Add>(num_elements_scalar, const_value(1, 0, shape_type)),
+            //         make_shared<Add>(num_elements_scalar, ov::op::const_value(1, 0, shape_type)),
             //         total_element_size),
             //     total_element_size,
             //     shape_type)});
 
             auto begins = make_shared<Range>(
-                const_value(0),
+                ov::op::const_value(0),
                 make_shared<Multiply>(num_elements_scalar, total_element_size),
                 total_element_size,
                 shape_type);
@@ -412,14 +415,14 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
             auto ends = make_shared<Range>(
                 total_element_size,
                 make_shared<Multiply>(
-                    make_shared<Add>(num_elements_scalar, const_value(1, 0, shape_type)),
+                    make_shared<Add>(num_elements_scalar, ov::op::const_value(1, 0, shape_type)),
                     total_element_size),
                 total_element_size,
                 shape_type);
 
-            auto elements = make_shared<Reshape>(tensor, const_value(-1, 1), true);
+            auto elements = make_shared<Reshape>(tensor, ov::op::const_value(-1, 1), true);
 
-            return make_shared<StructPack>(
+            return make_shared<ov::op::util::StructPack>(
                 OutputVector{shapes, begins, ends, elements},
                 element::StructuralType::TensorListWithRank(element_type, element_rank),
                 PartialShape::dynamic())->outputs();

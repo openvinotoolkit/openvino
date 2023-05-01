@@ -21,6 +21,7 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_const_op(const NodeContext& node) {
+#if 0
     try {
         auto ov_type = node.get_attribute_as_any("dtype");
         if(!ov_type.is<element::Type>()) {
@@ -59,7 +60,7 @@ OutputVector translate_const_op(const NodeContext& node) {
     } catch(...) {
         std::cerr << "[ ERROR ] Cannot decode ov::Tensor from node with name " << node.get_name() << "\n";
         throw;
-#if 0  // TODO: Adopt this part in string tensors
+#endif
     auto ov_type = node.get_attribute_as_any("dtype");
     std::shared_ptr<Node> const_node;
     if (!ov_type.is<ov::element::Type>() || ov_type.as<ov::element::Type>() == ov::element::dynamic ||
@@ -72,8 +73,9 @@ OutputVector translate_const_op(const NodeContext& node) {
     } else {
         auto tensor = node.get_attribute<Tensor>("value");
         const_node = std::make_shared<Constant>(tensor.get_element_type(), tensor.get_shape(), tensor.data());
-#endif
     }
+    set_node_name(node.get_name(), const_node);
+    return {const_node};
 
 }
 }  // namespace op

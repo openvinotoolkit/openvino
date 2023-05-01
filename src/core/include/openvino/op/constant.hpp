@@ -786,5 +786,11 @@ private:
     bool m_alloc_buffer_on_visit_attributes = true;
 };
 }  // namespace v0
+
+template <typename T>
+std::shared_ptr<v0::Constant> const_value (const T& value, size_t rank = 0, element::Type et = element::i32) {
+    return std::make_shared<v0::Constant>(et, Shape(rank, 1), value);
+}
+
 }  // namespace op
 }  // namespace ov

@@ -6,6 +6,7 @@
 
 #include "input_model.hpp"
 #include "openvino/op/util/framework_node.hpp"
+#include "openvino/op/util/struct_pack.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "tf_framework_node.hpp"
@@ -192,7 +193,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
         if(!input_structural_type.empty()) {
             // There is not representable type information in input_type, save it to RT info
             std::cerr << "[ INFO TF FE ] Setting structural_type into RT info for Parameter\n";
-            param->get_rt_info()["structural_type"] = StructuralTypeAttribute(input_structural_type);
+            param->get_rt_info()["structural_type"] = ov::op::util::StructuralTypeAttribute(input_structural_type);
         } else {
             if (false) {
                 // in case of cutting graph, types of custom inputs can be dynamic,

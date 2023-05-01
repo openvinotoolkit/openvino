@@ -354,6 +354,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<pass::GRUBlockCellReplacer>();
     manager.register_pass<pass::ConstToResultRemover>();
 
+#if 0
     if (true) {
         // true -- follow FE-level support for string/structural data types
         // false -- rely on per-op support for string/structural data types
@@ -375,6 +376,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
 
         manager.set_per_pass_validation(false);
     }
+#endif
 
     manager.register_pass<ov::pass::TransposeSinkingGeneral>();
     manager.register_pass<ov::pass::ReverseShapeAndTypeInfer>();
