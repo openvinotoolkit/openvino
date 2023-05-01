@@ -5,13 +5,24 @@ from torch._dynamo.backends.common import fake_tensor_unsupported
 from torch._dynamo.backends.registry import register_backend
 from torch._inductor.compile_fx import compile_fx
 
-from openvino.runtime import Core, Type, PartialShape
 from openvino.frontend import FrontEndManager
+from openvino.runtime import Core, Type, PartialShape
 from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
 
 log = logging.getLogger(__name__)
 
+'''
+    This is a preview feature in OpenVINO. Torchscript backend
+    enables users to compile PyTorch models using torch.compile
+    with OpenVINO as a target backend.
 
+    Sample usage:
+    This sample code loads resnet50 torchvision model and compiles it using torch dynamo.
+    We can then use this model for inference
+
+    model = torchvision.models.resnet50()
+    model = torch.compile(model, backend="openvino")
+'''
 @register_backend
 @fake_tensor_unsupported
 def openvino(subgraph, example_inputs):
@@ -60,7 +71,7 @@ def ts_openvino(subgraph, example_inputs):
             try:
                 res = compiled_model(ov_inputs)
             except Exception as e:
-                return subgraph.model.forward(*args)
+                return compile_fx(subgraph, example_inputs)
             result = [torch.from_numpy(res[out]) for out in compiled_model.outputs]
             return result
         return _call
