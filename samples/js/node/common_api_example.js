@@ -21,7 +21,7 @@ async function onRuntimeInitialized()
     //create tensor
     const tensor_data = new Float32Array(src.data);
     const shape = new Shape([1, 224, 224, 3]);
-    const tensor = new Tensor("float32", tensor_data, shape);
+    const tensor = new Tensor("f32", tensor_data, shape);
 
     /*   ---Perform inference---   */
     const output =  await model.infer(tensor, shape);

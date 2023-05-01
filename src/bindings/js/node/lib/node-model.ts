@@ -25,7 +25,7 @@ class CommonModel implements IModel {
         const tensor_data = tensorOrDataArray instanceof Array
             ? Float32Array.from(tensorOrDataArray) : tensorOrDataArray.data;
         const precision = tensorOrDataArray instanceof Tensor
-            ? tensorOrDataArray.precision : "float32";
+            ? tensorOrDataArray.precision : "f32";
 
         const nodeTensor = new this.#ovNode.Tensor(precision, shape.data, tensor_data);
         const output = this.#nodeModel.infer(nodeTensor);
