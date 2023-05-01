@@ -69,11 +69,14 @@ std::vector<size_t> js_to_cpp<std::vector<size_t>>(const Napi::CallbackInfo& inf
         return nativeArray;
 
     } else {  //( elem.IsTypedArray()){
-
-        if ((elem.As<Napi::TypedArray>().TypedArrayType() != 5)) {
+        Napi::TypedArray buf;
+        napi_typedarray_type type = elem.As<Napi::TypedArray>().TypedArrayType();
+        if ((type != napi_int32_array) && (type != napi_uint32_array)) {
             throw std::invalid_argument(std::string("Passed argument must be a Int32Array."));
-        }
-        auto buf = elem.As<Napi::Int32Array>();
+        } else if ((type == napi_uint32_array))
+            buf = elem.As<Napi::Uint32Array>();
+        else
+            buf = elem.As<Napi::Int32Array>();
         auto data_ptr = static_cast<int*>(buf.ArrayBuffer().Data());
         std::vector<size_t> vector(data_ptr, data_ptr + 4);
         return vector;
@@ -111,7 +114,8 @@ ov::Shape js_to_cpp<ov::Shape>(const Napi::CallbackInfo& info,
 }
 
 template <>
-Napi::String cpp_to_js<ov::element::Type_t, Napi::String>(const Napi::CallbackInfo& info, const ov::element::Type_t type) {
+Napi::String cpp_to_js<ov::element::Type_t, Napi::String>(const Napi::CallbackInfo& info,
+                                                          const ov::element::Type_t type) {
     auto str = Napi::String::New(info.Env(), "");
     for (auto& it : element_type_map)
         if (it.second == type) {

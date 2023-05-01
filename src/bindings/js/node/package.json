@@ -6,22 +6,24 @@
     "private": true,
     "license": "Intel® OpenVINO™ Distribution License",
     "dependencies": {
-      "bindings": "~1.2.1",
-      "jimp": "^0.16.1",
-      "node-addon-api": "^3.0.0",
-      "node-gyp": "^9.3.0"
+        "node-addon-api": "^3.0.0",
+        "node-gyp": "^9.3.0"
     },
     "devDependencies": {
-      "jest": "^28.1.3"
+        "@types/node": "^18.15.0",
+        "jest": "^28.1.3",
+        "openvinojs-common": "file:../common",
+        "typescript": "^5.0.4"
     },
     "scripts": {
-      "preinstall": "echo ${INTEL_OPENVINO_DIR?\\$INTEL_OPENVINO_DIR should set before installation. Please execute 'source ~/intel/openvino/setupvars.sh' and run 'npm i' again.}",
-      "postinstall": "npm run build",
-      "install": "node-gyp configure",
-      "build": "node-gyp build",
-      "rebuild": "node-gyp rebuild",
-      "start": "node index.js",
-      "test": "jest"
+        "preinstall": "echo ${INTEL_OPENVINO_DIR?\\$INTEL_OPENVINO_DIR should set before installation. Please execute 'source ~/intel/openvino/setupvars.sh' and run 'npm i' again.}",
+        "postinstall": "npm run build",
+        "install": "node-gyp configure",
+        "build": "node-gyp build",
+        "rebuild": "node-gyp rebuild",
+        "start": "node index.js",
+        "test": "jest",
+        "tsc": "tsc"
     },
     "gypfile": true
-  }
+}

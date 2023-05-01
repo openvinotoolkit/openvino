@@ -8,6 +8,9 @@
         "jimp": "^0.16.13",
         "opencv.js": "^1.2.1"
     },
+    "devDependencies": {
+        "openvinojs-node": "file:../../../src/bindings/js/node/dist/index.js"
+    },
 
     "scripts": {
         "preinstall": "echo ${INTEL_OPENVINO_DIR?\\$INTEL_OPENVINO_DIR should set before installation. Please execute 'source ~/intel/openvino/setupvars.sh' and run 'npm i' again.}"

@@ -12,7 +12,7 @@ TensorWrap::TensorWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<Tensor
         }
         try {
             auto arr = info[2].As<Napi::Float32Array>();
-            auto shape_vec = js_to_cpp<std::vector<size_t>>(info, 1, {napi_int32_array, js_array});
+            auto shape_vec = js_to_cpp<std::vector<size_t>>(info, 1, {napi_int32_array, napi_uint32_array, js_array});
             auto type = js_to_cpp<ov::element::Type_t>(info, 0, {napi_string});
             ov::Shape shape = ov::Shape(shape_vec);
             ov::Tensor tensor = ov::Tensor(type, shape);
@@ -34,7 +34,7 @@ Napi::Function TensorWrap::GetClassConstructor(Napi::Env env) {
     return DefineClass(env,
                        "TensorWrap",
                        {InstanceAccessor<&TensorWrap::get_data>("data"),
-                       InstanceMethod("getData", &TensorWrap::get_shape),
+                        InstanceMethod("getData", &TensorWrap::get_data),
                         InstanceMethod("getShape", &TensorWrap::get_shape),
                         InstanceMethod("getPrecision", &TensorWrap::get_precision)});
 }

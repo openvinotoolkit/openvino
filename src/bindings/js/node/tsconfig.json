@@ -1,0 +1,9 @@
+{
+    "extends": "../tsconfig.json",
+    "include": ["lib"],
+    "compilerOptions": {
+      "allowJs": true,
+      "outDir": "dist",
+      "declarationDir": "./types"
+    }
+}
