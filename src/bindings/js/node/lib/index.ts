@@ -1,5 +1,5 @@
-const ov = require('../build/Release/ov_node_addon.node');
-import loadModel from './node-model';
+const ov: ovNodeModule = require('../build/Release/ov_node_addon.node');
+import loadModel, { ovNodeModule } from './node-model';
 import createModule from 'openvinojs-common'
 
 
