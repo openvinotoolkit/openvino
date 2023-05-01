@@ -73,10 +73,6 @@ bool compare_rt_keys(const T& node1, const T& node2, std::ostream& err_log) {
     return true;
 }
 
-bool has_tensor_names(const std::shared_ptr<ngraph::Node> &node) {
-    return !node->input_value(0).get_tensor_ptr()->get_names().empty();
-}
-
 bool has_more_than_1_tensor_names(const std::shared_ptr<ngraph::Node> &node) {
     return node->input_value(0).get_tensor_ptr()->get_names().size() > 1;
 }

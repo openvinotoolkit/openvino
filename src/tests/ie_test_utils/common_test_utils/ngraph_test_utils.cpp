@@ -49,8 +49,6 @@ void TransformationTestsF::SetUp() {
     manager.register_pass<ngraph::pass::InitUniqueNames>(m_unh);
     manager.register_pass<ov::pass::InitNodeInfo>();
     manager.register_pass<ov::pass::CopyTensorNamesToRefModel>(&function_ref);
-    manager.register_pass<ov::pass::Serialize>("/home/itikhonov/OpenVINO/tmp/serialized/multi_out_orig_tr.xml",
-                                               "/home/itikhonov/OpenVINO/tmp/serialized/multi_out_orig_tr.bin");
 }
 
 void TransformationTestsF::TearDown() {
@@ -65,17 +63,9 @@ void TransformationTestsF::TearDown() {
         cloned_function = ngraph::clone_function(*function);
     }
 
-
-
     manager.register_pass<ngraph::pass::CheckUniqueNames>(m_unh, m_soft_names_comparison, m_result_friendly_names_check);
-    manager.register_pass<ov::pass::Serialize>("/home/itikhonov/OpenVINO/tmp/serialized/multi_out_after_tr.xml",
-                                           "/home/itikhonov/OpenVINO/tmp/serialized/multi_out_after_tr.bin");
-
     manager.run_passes(function);
-    ov::pass::Manager _manager;
-    _manager.register_pass<ov::pass::Serialize>("/home/itikhonov/OpenVINO/tmp/serialized/multi_out_after_tr_ref.xml",
-                                                "/home/itikhonov/OpenVINO/tmp/serialized/multi_out_after_tr_ref.xml");
-    _manager.run_passes(function_ref);
+
     if (!m_disable_rt_info_check) {
     ASSERT_NO_THROW(check_rt_info(function));
     }
