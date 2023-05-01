@@ -30,7 +30,7 @@
 #include <cstdio>
 #include <string>
 
-#include "../../intel_gpu/include/intel_gpu/runtime/device_query.hpp"
+#include "intel_gpu/runtime/device_query.hpp"
 #include "gtest/gtest.h"
 #include "test_utils/test_utils.h"
 #include "gflags/gflags.h"

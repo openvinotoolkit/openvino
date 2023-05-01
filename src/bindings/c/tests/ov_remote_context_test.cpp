@@ -26,7 +26,11 @@ protected:
 
         char* info = nullptr;
         const char* key = ov_property_key_available_devices;
-        if (ov_core_get_property(core, "GPU", key, &info) != ov_status_e::OK) {
+        EXPECT_EQ(ov_core_get_property(core, "GPU", key, &info), ov_status_e::OK);
+        EXPECT_STRNE(info, nullptr);
+
+        if (strlen(info) == 0) {
+            ov_free(info);
             GTEST_SKIP();
         }
         ov_free(info);

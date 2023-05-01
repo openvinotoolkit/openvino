@@ -8,7 +8,6 @@
 #include "intel_gpu/plugin/remote_allocators.hpp"
 #include "intel_gpu/plugin/plugin.hpp"
 #include "intel_gpu/runtime/itt.hpp"
-#include "intel_gpu/runtime/device_query.hpp"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::gpu;
