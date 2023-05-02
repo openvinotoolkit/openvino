@@ -58,7 +58,7 @@ Convert this model and put the results in a writable output directory:
    .. tab-item:: MO Python API
       :sync: mo-python-api
 
-      .. code-block:: sh
+      .. code-block:: python
 
          from openvino.tools.mo import convert_model
          ov_model = convert_model("inception_v1.pb", batch=1)
@@ -123,7 +123,7 @@ Due to automatic identification of inputs and outputs, providing the ``--input``
    .. tab-item:: MO Python API
       :sync: mo-python-api
 
-      .. code-block:: sh
+      .. code-block:: python
 
          from openvino.tools.mo import convert_model
          ov_model = convert_model("inception_v1.pb", batch=1)
@@ -160,7 +160,7 @@ If you want to cut your model at the end, you have the following options:
       .. tab-item:: MO Python API
          :sync: mo-python-api
    
-         .. code-block:: sh
+         .. code-block:: python
    
             from openvino.tools.mo import convert_model
             ov_model = convert_model("inception_v1.pb", batch=1, output="InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu")
@@ -223,7 +223,7 @@ If you want to cut your model at the end, you have the following options:
       .. tab-item:: MO Python API
          :sync: mo-python-api
    
-         .. code-block:: sh
+         .. code-block:: python
    
             from openvino.tools.mo import convert_model
             ov_model = convert_model("inception_v1.pb", batch=1, output="InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu:0")
@@ -286,7 +286,7 @@ If you want to cut your model at the end, you have the following options:
       .. tab-item:: MO Python API
          :sync: mo-python-api
    
-         .. code-block:: sh
+         .. code-block:: python
    
             from openvino.tools.mo import convert_model
             ov_model = convert_model("inception_v1.pb", batch=1, output="0:InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu")
@@ -343,7 +343,7 @@ If you want to go further and cut the beginning of the model, leaving only the `
       .. tab-item:: MO Python API
          :sync: mo-python-api
    
-         .. code-block:: sh
+         .. code-block:: python
    
             from openvino.tools.mo import convert_model
             ov_model = convert_model("inception_v1.pb", batch=1, output="InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu", input="InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu")
@@ -394,7 +394,7 @@ If you want to go further and cut the beginning of the model, leaving only the `
       .. tab-item:: MO Python API
          :sync: mo-python-api
    
-         .. code-block:: sh
+         .. code-block:: python
    
             from openvino.tools.mo import convert_model
             ov_model = convert_model("inception_v1.pb", batch=1, input="0:InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu", output="InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu")
@@ -445,7 +445,7 @@ If you want to go further and cut the beginning of the model, leaving only the `
       .. tab-item:: MO Python API
          :sync: mo-python-api
    
-         .. code-block:: sh
+         .. code-block:: python
    
             from openvino.tools.mo import convert_model
             ov_model = convert_model("inception_v1.pb", batch=1, input="InceptionV1/InceptionV1/Conv2d_1a_7x7/BatchNorm/batchnorm/add_1:0", output="InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu")
@@ -495,7 +495,7 @@ The input shape can be overridden with ``--input_shape``. In this case, the shap
    .. tab-item:: MO Python API
       :sync: mo-python-api
 
-      .. code-block:: sh
+      .. code-block:: python
 
          from openvino.tools.mo import convert_model
          ov_model = convert_model("inception_v1.pb", input_shape=[1,5,10,20], output="InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu", input="InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu")
@@ -561,7 +561,7 @@ Following this behavior, Model Optimizer creates an ``Input`` layer for port 0 o
    .. tab-item:: MO Python API
       :sync: mo-python-api
 
-      .. code-block:: sh
+      .. code-block:: python
 
          from openvino.tools.mo import convert_model
          ov_model = convert_model("inception_v1.pb", batch=1, input="InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution")
@@ -583,7 +583,7 @@ Different behavior occurs when ``--input_shape`` is also used as an attempt to o
    .. tab-item:: MO Python API
       :sync: mo-python-api
 
-      .. code-block:: sh
+      .. code-block:: python
 
          from openvino.tools.mo import convert_model
          ov_model = convert_model("inception_v1.pb", input="InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution", input_shape=[1,224,224,3])
@@ -613,7 +613,7 @@ The correct command line is:
    .. tab-item:: MO Python API
       :sync: mo-python-api
 
-      .. code-block:: sh
+      .. code-block:: python
 
          from openvino.tools.mo import convert_model
          ov_model = convert_model("inception_v1.pb", input="0:InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution", input_shape=[1,224,224,3])

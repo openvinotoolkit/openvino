@@ -40,7 +40,7 @@ and specify the input shape of ``[2,300,300,3]``:
    .. tab-item:: MO Python API
       :sync: mo-python-api
 
-      .. code-block:: sh
+      .. code-block:: python
 
          from openvino.tools.mo import convert_model
          ov_model = convert_model("MobileNet.pb", input_shape=[2,300,300,3])
@@ -63,7 +63,7 @@ and specify shapes ``[3,150,200,1]`` and ``[3]`` for them:
    .. tab-item:: MO Python API
       :sync: mo-python-api
 
-      .. code-block:: sh
+      .. code-block:: python
 
          from openvino.tools.mo import convert_model
          ov_model = convert_model("ocr.onnx", input=["data","seq_len"], input_shape=[[3,150,200,1],[3]])
@@ -83,7 +83,7 @@ Alternatively, specify input shapes, using the ``--input`` parameter as follows:
    .. tab-item:: MO Python API
       :sync: mo-python-api
 
-      .. code-block:: sh
+      .. code-block:: python
 
          from openvino.tools.mo import convert_model
          ov_model = convert_model("ocr.onnx", input=[("data",[3,150,200,1]),("seq_len",[3])])
@@ -106,7 +106,7 @@ For example, launch Model Optimizer for the ONNX OCR model and specify dynamic b
    .. tab-item:: MO Python API
       :sync: mo-python-api
 
-      .. code-block:: sh
+      .. code-block:: python
 
          from openvino.tools.mo import convert_model
          ov_model = convert_model("ocr.onnx", input=["data","seq_len"], input_shape=[[-1,150,200,1],[-1]]
@@ -128,7 +128,7 @@ For example, launch Model Optimizer for the ONNX OCR model and specify a boundar
    .. tab-item:: MO Python API
       :sync: mo-python-api
 
-      .. code-block:: sh
+      .. code-block:: python
 
          from openvino.tools.mo import convert_model
          from openvino.runtime import Dimension
@@ -162,7 +162,7 @@ For example, launch Model Optimizer for the ONNX OCR model using ``--static_shap
    .. tab-item:: MO Python API
       :sync: mo-python-api
 
-      .. code-block:: sh
+      .. code-block:: python
 
          from openvino.tools.mo import convert_model
          ov_model = convert_model("ocr.onnx", input=[("data",[3,150,200,1]),("seq_len",[3])], static_shape=True)
