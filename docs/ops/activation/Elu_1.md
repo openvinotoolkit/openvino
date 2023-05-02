@@ -34,11 +34,11 @@ where α corresponds to *alpha* attribute.
   * **Type**: ``float``
   * **Required**: *yes*
 
-@endsphinxdirective
-
 **Inputs**:
 
-*   **1**: A tensor of type *T* and arbitrary shape. **Required.**
+* **1**: A tensor of type *T* and arbitrary shape. **Required.**
+
+@endsphinxdirective
 
 **Outputs**:
 
