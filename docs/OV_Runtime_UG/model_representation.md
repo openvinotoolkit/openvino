@@ -181,7 +181,7 @@ OpenVINO™ provides several debug capabilities:
 
 .. code-block:: sh
    
-   ``ov::pass::VisualizeTree`` can be parametrized via environment variables:
+   `ov::pass::VisualizeTree` can be parametrized via environment variables:
 
    OV_VISUALIZE_TREE_OUTPUT_SHAPES=1       - visualize shapes
 
