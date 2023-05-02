@@ -490,7 +490,11 @@ TEST(TransformationTests, TSGeneralBackwardCheckFriendlyAndTensorNamesForMultipl
     manager.run_passes(model);
 
     EXPECT_EQ(count_ops_of_type<Transpose>(model), 1);
-    EXPECT_EQ(relu->get_friendly_name(), "transpose_2");
+    // both options are possible, it depends on consumers order (set<Input<Node>)
+    // the order in the set can be different, it depends on Node*
+    std::vector<std::string> possible_relu_names = {"transpose_1", "transpose_2"};
+    EXPECT_NE(std::find(possible_relu_names.begin(), possible_relu_names.end(), relu->get_friendly_name()),
+              possible_relu_names.end());
     std::vector<std::string> expected_tensor_names = {"relu:0", "transpose_1:0", "transpose_2:0"};
     auto actual_names = relu->output(0).get_names();
     for (const auto& name : expected_tensor_names) {
