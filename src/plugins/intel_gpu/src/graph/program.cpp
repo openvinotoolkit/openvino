@@ -628,6 +628,11 @@ void program::post_optimize_graph(bool is_internal) {
 
     // update loop input/output primitive mappings
     apply_opt_pass<update_loop_primitive_map>();
+
+    // Recalculate processing order after all graph transformation to keep optimal primitives ordering
+    // for OOO queue
+    if (_config.get_property(ov::intel_gpu::queue_type) == QueueTypes::out_of_order)
+        get_processing_order().calculate_BFS_processing_order();
 }
 
 // mark if the node is constant assuming that all dependencies are marked properly
