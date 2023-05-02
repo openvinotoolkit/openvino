@@ -13,6 +13,7 @@
   },
   "scripts": {
     "build": "tsc",
+    "lint": "eslint .",
     "postinstall": "npm run build"
   },
   "main": "./dist/index.js",
