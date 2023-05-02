@@ -227,7 +227,6 @@ class TestConvolution(PytorchLayerTest):
     @pytest.mark.parametrize("bias", [True, False])
     @pytest.mark.parametrize("underscore", [True, False])
     @pytest.mark.nightly
-    @pytest.mark.precommit_ts_backend
     def test_convolution3d(self, params, bias, underscore, ie_device, precision, ir_version):
         self._test(*self.create_model(**params, bias=bias, underscore=underscore),
                    ie_device, precision, ir_version, dynamic_shapes=params['groups'] == 1,
