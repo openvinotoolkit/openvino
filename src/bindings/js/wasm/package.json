@@ -21,6 +21,7 @@
   "main": "./dist/openvino-wasm.bundle.js",
   "types": "./types/index.d.ts",
   "scripts": {
+    "lint": "eslint .",
     "build": "webpack",
     "create_links": "mkdir -p bin && ln -sf ../../../../../bin/ia32/Release/openvino_wasm.js ./bin/ ln -sf ../../../../../bin/ia32/Release/openvino_wasm.wasm ./bin/",
     "postinstall": "npm run create_links && npm run build"

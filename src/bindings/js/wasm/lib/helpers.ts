@@ -32,7 +32,7 @@ export async function getFileDataAsArray(path: string): Promise<Uint8Array> {
   return new Uint8Array(fileData);
 }
 
-async function getFileDataNode(path: string): Promise<Buffer>  {
+async function getFileDataNode(path: string): Promise<Buffer> {
   const { readFileSync } = await import('fs');
 
   return readFileSync(path);
@@ -70,7 +70,7 @@ export function parseOriginalShape(
 
   for (let i = 0; i < originalDim; i++) {
     const dimension =
-      ov[SHAPE_HEAP][originalDataPointer/Shape.TYPE.BYTES_PER_ELEMENT + i];
+      ov[SHAPE_HEAP][originalDataPointer / Shape.TYPE.BYTES_PER_ELEMENT + i];
 
     dimensions[i] = dimension;
   }
