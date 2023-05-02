@@ -25,7 +25,7 @@ for i, (parameters, shapes) in enumerate(test_data):
     test_data[i] = parameters.copy()
 
 
-class TestTFLiteMatrixDiagLayerTest(TFLiteLayerTest):
+class TestTFLitePackLayerTest(TFLiteLayerTest):
     inputs = []
     outputs = ["Pack"]
 
