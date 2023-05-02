@@ -1,5 +1,7 @@
 # Elu {#openvino_docs_ops_activation_Elu_1}
 
+@sphinxdirective
+
 **Versioned name**: *Elu-1*
 
 **Category**: *Activation function*
@@ -8,19 +10,22 @@
 
 **Detailed Description**
 
-*Elu* operation is introduced in this [article](https://arxiv.org/abs/1511.07289v3).
+*Elu* operation is introduced in this `article <https://arxiv.org/abs/1511.07289v3>`__.
 It performs element-wise activation function on a given input tensor, based on the following mathematical formula:
 
-\f[
-Elu(x) = \left\{\begin{array}{r}
-    x \qquad \mbox{if } x >  0 \\
-    \alpha(e^{x} - 1) \quad \mbox{if } x \leq 0
-\end{array}\right.
-\f]
+.. math::
+   
+   Elu(x) = \left\begin{array}{r}
+       x \qquad \mbox{if } x >  0 \\
+       \alpha(e^{x} - 1) \quad \mbox{if } x \leq 0
+   \end{array}\right.
+
 
 where α corresponds to *alpha* attribute.
 
 *Elu* is equivalent to *ReLU* operation when *alpha* is equal to zero.
+
+@endsphinxdirective
 
 **Attributes**
 
