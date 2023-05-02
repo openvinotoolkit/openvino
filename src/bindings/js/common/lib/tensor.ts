@@ -14,7 +14,11 @@ export default class Tensor implements ITensor {
   #data: TypedArray;
   #shape: IShape;
 
-  constructor(precision: PrecisionSupportedType, data: number[] | TypedArray, shapeData: IShape | number[]) {
+  constructor(
+    precision: PrecisionSupportedType,
+    data: number[] | TypedArray,
+    shapeData: IShape | number[],
+  ) {
     this.#precision = precision;
     this.#data = new jsTypeByPrecisionMap[this.#precision](data);
 

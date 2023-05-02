@@ -1,4 +1,3 @@
-
 import { JSArrayType } from 'openvinojs-common';
 import { HEAPType } from './types';
 
