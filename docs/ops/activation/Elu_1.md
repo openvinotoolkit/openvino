@@ -48,22 +48,22 @@ where α corresponds to *alpha* attribute.
 
 **Example**
 
-@endsphinxdirective
+.. code-block:: cpp
+   
+   <layer ... type="Elu">
+       <data alpha="1.0"/>
+       <input>
+           <port id="0">
+               <dim>1</dim>
+               <dim>128</dim>
+           </port>
+       </input>
+       <output>
+           <port id="1">
+               <dim>1</dim>
+               <dim>128</dim>
+           </port>
+       </output>
+   </layer>
 
-```xml
-<layer ... type="Elu">
-    <data alpha="1.0"/>
-    <input>
-        <port id="0">
-            <dim>1</dim>
-            <dim>128</dim>
-        </port>
-    </input>
-    <output>
-        <port id="1">
-            <dim>1</dim>
-            <dim>128</dim>
-        </port>
-    </output>
-</layer>
-```
+@endsphinxdirective
