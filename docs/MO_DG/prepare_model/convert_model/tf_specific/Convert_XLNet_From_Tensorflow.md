@@ -189,22 +189,9 @@ Converting a frozen TensorFlow XLNet Model to IR
 
 To generate the XLNet Intermediate Representation (IR) of the model, run Model Optimizer with the following parameters:
 
-.. tab-set::
+.. code-block:: sh
 
-    .. tab-item:: CLI tool
-       :sync: cli-tool
-
-       .. code-block:: sh
-
-          mo --input_model path-to-model/model_frozen.pb \
-             --input "input_mask[50,1],input_ids[50,1],seg_ids[50,1]"
-
-    .. tab-item:: MO Python API
-       :sync: mo-python-api
-
-       .. code-block:: sh
-
-          ov_model = convert_model("path-to-model/model_frozen.pb", input=[("input_mask", [50,1]), ("input_ids", [50,1]), ("seg_ids", [50,1])])
-
+   mo --input_model path-to-model/model_frozen.pb \
+      --input "input_mask[50,1],input_ids[50,1],seg_ids[50,1]"
 
 @endsphinxdirective

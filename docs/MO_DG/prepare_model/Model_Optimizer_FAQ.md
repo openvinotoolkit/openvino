@@ -546,60 +546,21 @@ Q56. What does the message "Input shape .. cannot be parsed" mean?
 
 *
 
+  .. code-block:: shell
 
-  .. tab-set::
-  
-     .. tab-item:: CLI tool
-        :sync: cli-tool
-  
-        .. code-block:: sh
-  
-           mo --input_model <INPUT_MODEL>.caffemodel --input_shape (1,3,227,227)
-  
-     .. tab-item:: MO Python API
-        :sync: mo-python-api
-  
-        .. code-block:: sh
-  
-           ov_model = convert_model("<INPUT_MODEL>.caffemodel", input_shape=[1,3,227,227])
-
+     mo --input_model <INPUT_MODEL>.caffemodel --input_shape (1,3,227,227)
 
 *
 
-  .. tab-set::
-  
-     .. tab-item:: CLI tool
-        :sync: cli-tool
-  
-        .. code-block:: sh
-  
-           mo --input_model <INPUT_MODEL>.caffemodel --input_shape [1,3,227,227]
-  
-     .. tab-item:: MO Python API
-        :sync: mo-python-api
-  
-        .. code-block:: sh
-  
-           ov_model = convert_model("<INPUT_MODEL>.caffemodel", input_shape=[1,3,227,227])
+  .. code-block:: shell
 
+     mo --input_model <INPUT_MODEL>.caffemodel --input_shape [1,3,227,227]
 
 * In case of multi input topology you should also specify inputs:
 
-  .. tab-set::
-  
-     .. tab-item:: CLI tool
-        :sync: cli-tool
-  
-        .. code-block:: sh
-  
-           mo --input_model /path-to/your-model.caffemodel --input data,rois --input_shape (1,3,227,227),(1,6,1,1)
-  
-     .. tab-item:: MO Python API
-        :sync: mo-python-api
-  
-        .. code-block:: sh
-  
-           ov_model = convert_model("/path-to/your-model.caffemodel", input=["data","rois"], input_shape=[[1,3,227,227],[1,6,1,1])
+  .. code-block:: shell
+
+     mo --input_model /path-to/your-model.caffemodel --input data,rois --input_shape (1,3,227,227),(1,6,1,1)
 
 
 Keep in mind that there is no space between and inside the brackets for input shapes.

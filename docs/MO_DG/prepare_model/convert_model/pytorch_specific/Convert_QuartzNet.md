@@ -34,44 +34,16 @@ Converting an ONNX QuartzNet model to IR
 
 If using a combined model:
 
-.. tab-set::
+.. code-block:: sh
 
-   .. tab-item:: CLI tool
-      :sync: cli-tool
-
-      .. code-block:: sh
-
-         mo --input_model <MODEL_DIR>/qt.onnx --input_shape [B,64,X]
-
-   .. tab-item:: MO Python API
-      :sync: mo-python-api
-
-      .. code-block:: sh
-
-         ov_model = convert_model("<MODEL_DIR>/qt.onnx", input_shape=[B,64,X])
-
+   mo --input_model <MODEL_DIR>/qt.onnx --input_shape [B,64,X]
 
 If using separate models:
 
-.. tab-set::
+.. code-block:: sh
 
-   .. tab-item:: CLI tool
-      :sync: cli-tool
-
-      .. code-block:: sh
-
-         mo --input_model <MODEL_DIR>/encoder_qt.onnx --input_shape [B,64,X]
-
-         mo --input_model <MODEL_DIR>/decoder_qt.onnx --input_shape [B,1024,Y]
-
-   .. tab-item:: MO Python API
-      :sync: mo-python-api
-
-      .. code-block:: sh
-
-         ov_model = convert_model("<MODEL_DIR>/encoder_qt.onnx", input_shape=[B,64,X])
-
-         ov_model = convert_model("<MODEL_DIR>/decoder_qt.onnx", input_shape=[B,1024,Y])
+   mo --input_model <MODEL_DIR>/encoder_qt.onnx --input_shape [B,64,X]
+   mo --input_model <MODEL_DIR>/decoder_qt.onnx --input_shape [B,1024,Y]
 
 
 Where shape is determined by the audio file Mel-Spectrogram length: ``B`` - batch dimension, ``X`` - dimension based on the input length, ``Y`` - determined by encoder output, usually ``X / 2``.

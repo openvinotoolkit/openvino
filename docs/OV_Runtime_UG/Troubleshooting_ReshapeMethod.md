@@ -27,22 +27,9 @@ To fix some operators which prevent normal shape propagation:
 
 * see if the issue can be fixed via changing the values of some operators' input. For example, the most common problem of non-reshape-able models is a ``Reshape`` operator with a hard-coded output shape. You can cut-off the hard-coded second input of ``Reshape`` and fill it in with relaxed values. For the following example in the diagram below, the Model Optimizer CLI should read:
 
+  .. code-block:: sh
 
-  .. tab-set::
-  
-      .. tab-item:: CLI tool
-         :sync: cli-tool
-  
-         .. code-block:: sh
-  
-            mo --input_model path/to/model --input data[8,3,224,224],1:reshaped[2]->[0,-1]`
-  
-      .. tab-item:: MO Python API
-         :sync: mo-python-api
-  
-         .. code-block:: sh
-  
-            ov_model = convert_model("path/to/model", input=["data[8,3,224,224]", "1:reshaped[2]->[0,-1]"])
+     mo --input_model path/to/model --input data[8,3,224,224],1:reshaped[2]->[0,-1]`
 
 
   With ``1:reshaped[2]``, it is required to cut the second input (counting from zero, so ``1:`` means the second input) of the operation named ``reshaped`` and replace it with a ``Parameter`` with shape ``[2]``.

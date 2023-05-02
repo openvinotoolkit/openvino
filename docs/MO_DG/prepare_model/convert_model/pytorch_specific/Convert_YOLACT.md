@@ -179,21 +179,9 @@ Converting a YOLACT Model to the OpenVINO IR format
 
 **Step 4**. Convert the model to the IR:
 
-.. tab-set::
+.. code-block:: sh
 
-   .. tab-item:: CLI tool
-      :sync: cli-tool
-
-      .. code-block:: sh
-
-         mo --input_model /path/to/yolact.onnx
-
-   .. tab-item:: MO Python API
-      :sync: mo-python-api
-
-      .. code-block:: sh
-
-         ov_model = convert_model("/path/to/yolact.onnx")
+   mo --input_model /path/to/yolact.onnx
 
 
 **Step 4**. Embed input preprocessing into the IR:
@@ -202,47 +190,23 @@ To get performance gain by offloading to the OpenVINO application of mean/scale 
 
 * If the backbone of the model is Resnet50-FPN or Resnet101-FPN, use the following MO command line:
 
-  .. tab-set::
-  
-     .. tab-item:: CLI tool
-        :sync: cli-tool
-  
-        .. code-block:: sh
-  
-           mo \
-               --input_model /path/to/yolact.onnx \
-               --reverse_input_channels \
-               --mean_values "[123.68, 116.78, 103.94]" \
-               --scale_values "[58.40, 57.12, 57.38]"
-  
-     .. tab-item:: MO Python API
-        :sync: mo-python-api
-  
-        .. code-block:: sh
-  
-           ov_model = convert_model("/path/to/yolact.onnx", reverse_input_channels=True, mean_values=[123.68, 116.78, 103.94], scale_values=[58.40, 57.12, 57.38])
+  .. code-block:: sh
+
+     mo \
+         --input_model /path/to/yolact.onnx \
+         --reverse_input_channels \
+         --mean_values "[123.68, 116.78, 103.94]" \
+         --scale_values "[58.40, 57.12, 57.38]"
 
 
 * If the backbone of the model is Darknet53-FPN, use the following MO command line:
 
-  .. tab-set::
-  
-     .. tab-item:: CLI tool
-        :sync: cli-tool
-  
-        .. code-block:: sh
-  
-           mo \
-               --input_model /path/to/yolact.onnx \
-               --reverse_input_channels \
-               --scale 255
-  
-     .. tab-item:: MO Python API
-        :sync: mo-python-api
-  
-        .. code-block:: sh
-  
-           ov_model = convert_model("/path/to/yolact.onnx", reverse_input_channels=True, scale=255)
+  .. code-block:: sh
+
+     mo \
+         --input_model /path/to/yolact.onnx \
+         --reverse_input_channels \
+         --scale 255
 
 
 @endsphinxdirective

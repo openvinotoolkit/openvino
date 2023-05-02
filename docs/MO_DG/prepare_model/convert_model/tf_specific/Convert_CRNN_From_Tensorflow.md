@@ -65,26 +65,13 @@ If you have another implementation of CRNN model, it can be converted to OpenVIN
 
 
 If you want to use your checkpoint, replace the path in the ``--weights_path`` parameter with a path to your checkpoint.
-
+   
 4. In the ``CRNN_Tensorflow`` directory, you will find the inference CRNN graph ``frozen_graph.pb``. You can use this graph with OpenVINO to convert the model to IR and then run inference.
 
-   **Step 4.** Convert the model to IR:
+**Step 4.** Convert the model to IR:
 
-   .. tab-set::
-   
-       .. tab-item:: CLI tool
-          :sync: cli-tool
-   
-          .. code-block:: sh
-   
-             mo --input_model path/to/your/CRNN_Tensorflow/frozen_graph.pb
-   
-       .. tab-item:: MO Python API
-          :sync: mo-python-api
-   
-          .. code-block:: sh
-   
-             ov_model = convert_model("path/to/your/CRNN_Tensorflow/frozen_graph.pb")
+.. code-block:: sh
 
+   mo --input_model path/to/your/CRNN_Tensorflow/frozen_graph.pb
 
 @endsphinxdirective

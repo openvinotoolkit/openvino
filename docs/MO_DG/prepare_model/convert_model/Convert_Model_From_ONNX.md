@@ -16,22 +16,9 @@ The Model Optimizer process assumes you have an ONNX model that was directly dow
 
 To convert an ONNX model, run Model Optimizer with the path to the input model ``.onnx`` file:
 
-.. tab-set::
+.. code-block:: sh
 
-   .. tab-item:: CLI tool
-      :sync: cli-tool
-
-      .. code-block:: sh
-
-          mo --input_model <INPUT_MODEL>.onnx
-
-   .. tab-item:: MO Python API
-      :sync: mo-python-api
-
-      .. code-block:: sh
-
-         ov_model = convert_model("<INPUT_MODEL>.onnx")
-
+   mo --input_model <INPUT_MODEL>.onnx
 
 There are no ONNX specific parameters, so only framework-agnostic parameters are available to convert your model. For details, see the *General Conversion Parameters* section in the :doc:`Converting a Model to Intermediate Representation (IR) <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>` guide.
 

@@ -19,61 +19,23 @@ This article provides the instructions and examples on how to use Model Optimize
 
 * **For GluonCV SSD topologies:**
 
-  .. tab-set::
-  
-     .. tab-item:: CLI tool
-        :sync: cli-tool
-  
-        .. code-block:: sh
-  
-           mo --input_model <model_directory>/ssd_512_mobilenet1.0.params --enable_ssd_gluoncv --input_shape [1,512,512,3] --input data --output_dir <OUTPUT_MODEL_DIR>
-  
-     .. tab-item:: MO Python API
-        :sync: mo-python-api
-  
-        .. code-block:: sh
-  
-           ov_model = convert_model("<model_directory>/ssd_512_mobilenet1.0.params", enable_ssd_gluoncv=True, input_shape=[1,512,512,3], input="data")
+  .. code-block:: sh
 
+     mo --input_model <model_directory>/ssd_512_mobilenet1.0.params --enable_ssd_gluoncv --input_shape [1,512,512,3] --input data --output_dir <OUTPUT_MODEL_DIR>
 
 * **For YOLO-v3 topology:**
 
   * To convert the model:
 
-    .. tab-set::
-    
-       .. tab-item:: CLI tool
-          :sync: cli-tool
-    
-          .. code-block:: sh
-    
-             mo --input_model <model_directory>/yolo3_mobilenet1.0_voc-0000.params --input_shape [1,255,255,3] --output_dir <OUTPUT_MODEL_DIR>
-    
-       .. tab-item:: MO Python API
-          :sync: mo-python-api
-    
-          .. code-block:: sh
-    
-             ov_model = convert_model("<model_directory>/yolo3_mobilenet1.0_voc-0000.params", input_shape=[1,255,255,3])
+    .. code-block:: sh
 
+       mo --input_model <model_directory>/yolo3_mobilenet1.0_voc-0000.params  --input_shape [1,255,255,3] --output_dir <OUTPUT_MODEL_DIR>
 
   * To convert the model with replacing the subgraph with RegionYolo layers:
 
-    .. tab-set::
-    
-       .. tab-item:: CLI tool
-          :sync: cli-tool
-    
-          .. code-block:: sh
-    
-             mo --input_model <model_directory>/models/yolo3_mobilenet1.0_voc-0000.params --input_shape [1,255,255,3] --transformations_config "front/mxnet/yolo_v3_mobilenet1_voc.json" --output_dir <OUTPUT_MODEL_DIR>
-    
-       .. tab-item:: MO Python API
-          :sync: mo-python-api
-    
-          .. code-block:: sh
-    
-             ov_model = convert_model("<model_directory>/models/yolo3_mobilenet1.0_voc-0000.params", input_shape=[1,255,255,3], transformations_config="front/mxnet/yolo_v3_mobilenet1_voc.json")
+    .. code-block:: sh
+
+       mo --input_model <model_directory>/models/yolo3_mobilenet1.0_voc-0000.params  --input_shape [1,255,255,3] --transformations_config "front/mxnet/yolo_v3_mobilenet1_voc.  json" --output_dir <OUTPUT_MODEL_DIR>
 
 
 @endsphinxdirective

@@ -112,29 +112,11 @@ After completing this step, the files ``rnnt_encoder.onnx``, ``rnnt_prediction.o
 
 **Step 6**. Run the conversion commands:
 
-.. tab-set::
+.. code-block:: sh
 
-   .. tab-item:: CLI tool
-      :sync: cli-tool
-
-      .. code-block:: sh
-
-         mo --input_model rnnt_encoder.onnx --input "input[157,1,240],feature_length->157"
-
-         mo --input_model rnnt_prediction.onnx --input "symbol[1,1],hidden_in_1[2,1,320],hidden_in_2[2,1,320]"
-
-         mo --input_model rnnt_joint.onnx --input "0[1,1,1024],1[1,1,320]"
-
-   .. tab-item:: MO Python API
-      :sync: mo-python-api
-
-      .. code-block:: sh
-
-         ov_model = convert_model("rnnt_encoder.onnx", input=[("input", [157,1,240]), "feature_length->157"]
-
-         ov_model = convert_model("rnnt_prediction.onnx", input=[("symbol", [1,1]), ("hidden_in_1", [2,1,320]), ("hidden_in_2", [2,1,320])]
-
-         ov_model = convert_model("rnnt_joint.onnx", input=[("0", [1,1,1024]), ("1", [1,1,320])]
+   mo --input_model rnnt_encoder.onnx --input "input[157,1,240],feature_length->157"
+   mo --input_model rnnt_prediction.onnx --input "symbol[1,1],hidden_in_1[2,1,320],hidden_in_2[2,1,320]"
+   mo --input_model rnnt_joint.onnx --input "0[1,1,1024],1[1,1,320]"
 
 
 .. note::

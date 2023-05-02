@@ -8,26 +8,14 @@ The instructions below are applicable **only** to the Faster R-CNN model convert
 
 2. Generate the Intermediate Representation of the model, by changing your current working directory to the Model Optimizer installation directory, and running Model Optimizer with the following parameters:
 
-   .. tab-set::
-   
-      .. tab-item:: CLI tool
-         :sync: cli-tool
-   
-         .. code-block:: sh
-   
-             mo \
-            --input_model FasterRCNN-10.onnx \
-            --input_shape [1,3,800,800] \
-            --input 0:2 \
-            --mean_values [102.9801,115.9465,122.7717] \
-            --transformations_config front/onnx/faster_rcnn.json
-   
-      .. tab-item:: MO Python API
-         :sync: mo-python-api
-   
-         .. code-block:: sh
-   
-            ov_model = convert_model("FasterRCNN-10.onnx", input_shape=[1,3,800,800], input="0:2", mean_values=[102.9801,115.9465,122.7717], transformations_config="front/onnx/faster_rcnn.json")
+.. code-block:: sh
+
+   mo \
+   --input_model FasterRCNN-10.onnx \
+   --input_shape [1,3,800,800] \
+   --input 0:2 \
+   --mean_values [102.9801,115.9465,122.7717] \
+   --transformations_config front/onnx/faster_rcnn.json
 
 
 Be aware that the height and width specified with the ``input_shape`` command line parameter could be different. For more information about supported input image dimensions and required pre- and post-processing steps, refer to the `Faster R-CNN article <https://github.com/onnx/models/tree/master/vision/object_detection_segmentation/faster-rcnn>`__.

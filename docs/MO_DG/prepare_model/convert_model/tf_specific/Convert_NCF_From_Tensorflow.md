@@ -35,51 +35,24 @@ it has one input that is split into four ``ResourceGather`` layers. (Click image
 However, as the Model Optimizer does not support such data feeding, you should skip it. Cut
 the edges incoming in ``ResourceGather`` port 1:
 
+.. code-block:: shell
 
-.. tab-set::
-
-   .. tab-item:: CLI tool
-      :sync: cli-tool
-
-      .. code-block:: sh
-
-          mo --input_model inference_graph.pb                    \
-          --input 1:embedding/embedding_lookup,1:embedding_1/embedding_lookup, \
-          1:embedding_2/embedding_lookup,1:embedding_3/embedding_lookup        \
-          --input_shape [256],[256],[256],[256]                                \
-          --output_dir <OUTPUT_MODEL_DIR>
-
-   .. tab-item:: MO Python API
-      :sync: mo-python-api
-
-      .. code-block:: sh
-
-         ov_model = convert_model("inference_graph.pb", input=["1:embedding/embedding_lookup", "1:embedding_1/embedding_lookup", "1:embedding_2/embedding_lookup", "1:embedding_3/ embedding_lookup"], input_shape=[[256],[256],[256],[256]])
-
+    mo --input_model inference_graph.pb                    \
+    --input 1:embedding/embedding_lookup,1:embedding_1/embedding_lookup, \
+    1:embedding_2/embedding_lookup,1:embedding_3/embedding_lookup        \
+    --input_shape [256],[256],[256],[256]                                \
+    --output_dir <OUTPUT_MODEL_DIR>
 
 In the ``input_shape`` parameter, 256 specifies the ``batch_size`` for your model.
 
 Alternatively, you can do steps 2 and 3 in one command line:
 
-.. tab-set::
+.. code-block:: shell
 
-   .. tab-item:: CLI tool
-      :sync: cli-tool
-
-      .. code-block:: sh
-
-          mo --input_meta_graph /path/to/model/model.meta        \
-          --input 1:embedding/embedding_lookup,1:embedding_1/embedding_lookup, \
-          1:embedding_2/embedding_lookup,1:embedding_3/embedding_lookup        \
-          --input_shape [256],[256],[256],[256] --output rating/BiasAdd        \
-          --output_dir <OUTPUT_MODEL_DIR>
-
-   .. tab-item:: MO Python API
-      :sync: mo-python-api
-
-      .. code-block:: sh
-
-         ov_model = convert_model(input_meta_graph="/path/to/model/model.meta", input=["1:embedding/embedding_lookup", "1:embedding_1/embedding_lookup", "1:embedding_2/   embedding_lookup", "1:embedding_3/embedding_lookup"], input_shape=[[256],[256],[256],[256]], output="rating/BiasAdd")
-
+    mo --input_meta_graph /path/to/model/model.meta        \
+    --input 1:embedding/embedding_lookup,1:embedding_1/embedding_lookup, \
+    1:embedding_2/embedding_lookup,1:embedding_3/embedding_lookup        \
+    --input_shape [256],[256],[256],[256] --output rating/BiasAdd        \
+    --output_dir <OUTPUT_MODEL_DIR>
 
 @endsphinxdirective

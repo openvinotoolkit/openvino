@@ -31,25 +31,13 @@ The original AOCR model includes the preprocessing data, which contains:
 
 The resized image is sent to the convolution neural network (CNN). Because Model Optimizer does not support image decoding, the preprocessing part of the model should be cut off, using the ``--input`` command-line parameter.
 
-.. tab-set::
+.. code-block:: sh
 
-    .. tab-item:: CLI tool
-       :sync: cli-tool
-
-       .. code-block:: sh
-
-          mo \
-          --input_model=model/path/frozen_graph.pb \
-          --input="map/TensorArrayStack/TensorArrayGatherV3:0[1,32,86,1]" \
-          --output "transpose_1,transpose_2" \
-          --output_dir path/to/ir/
-
-    .. tab-item:: MO Python API
-       :sync: mo-python-api
-
-       .. code-block:: sh
-
-          ov_model = convert_model("model/path/frozen_graph.pb", input=("map/TensorArrayStack/TensorArrayGatherV3:0", [1,32,86,1]), output=["transpose_1", "transpose_2"])
+   mo \
+   --input_model=model/path/frozen_graph.pb \
+   --input="map/TensorArrayStack/TensorArrayGatherV3:0[1,32,86,1]" \
+   --output "transpose_1,transpose_2" \
+   --output_dir path/to/ir/
 
 
 Where:
