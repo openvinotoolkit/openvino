@@ -9,7 +9,7 @@
         "opencv.js": "^1.2.1"
     },
     "devDependencies": {
-        "openvinojs-node": "file:../../../src/bindings/js/node/dist/index.js"
+        "openvinojs-node": "file:../../../src/bindings/js/node/"
     },
 
     "scripts": {

@@ -1,10 +1,11 @@
-const ov: ovNodeModule = require('../build/Release/ov_node_addon.node');
+const addon: ovNodeModule = require('../build/Release/ov_node_addon.node');
 import loadModel, { ovNodeModule } from './node-model';
 import createModule from 'openvinojs-common'
 
 
 export default
   createModule('node', loadModel, getVersionString, getDescriptionString);
+export { addon };
 
 
 async function getVersionString(): Promise<string> {
@@ -13,7 +14,7 @@ async function getVersionString(): Promise<string> {
 };
 
 async function getDescriptionString(): Promise<string> {
-    return ov.getDescriptionString();
+    return addon.getDescriptionString();
 };
 
 

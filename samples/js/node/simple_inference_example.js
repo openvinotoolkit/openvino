@@ -1,4 +1,4 @@
-var ov = require('./lib/ov_node_addon.node');;
+var { addon } = require('openvinojs-node');
 
 
 const math = require('./lib/math_func.js');
@@ -10,7 +10,7 @@ const fs = require('fs');
 
 async function onRuntimeInitialized()
 {
-    
+
     /*   ---Load an image---   */
     //read image from a file
     const img_path = process.argv[2] || '../assets/images/shih_tzu.jpg';
@@ -20,12 +20,12 @@ async function onRuntimeInitialized()
     cv.resize(src, src, new cv.Size(224, 224));
     //create tensor
     const tensor_data = new Float32Array(src.data);
-    const tensor = new ov.Tensor(ov.element.f32, Int32Array.from([1, 224, 224, 3]), tensor_data);
+    const tensor = new addon.Tensor(addon.element.f32, Int32Array.from([1, 224, 224, 3]), tensor_data);
 
-    
+
     /*   ---Load and compile the model---   */
     const model_path = '../assets/models/v3-small_224_1.0_float.xml';
-    model = new ov.Model().read_model(model_path).compile("CPU");
+    model = new addon.Model().read_model(model_path).compile("CPU");
 
     /*   ---Perform inference---   */
     const output = model.infer(tensor);
@@ -37,7 +37,7 @@ async function onRuntimeInitialized()
 
 
 Module = {
-    
+
     onRuntimeInitialized
 };
 cv = require('./lib/opencv.js');

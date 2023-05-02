@@ -2,7 +2,7 @@
     "name": "openvinojs-node",
     "version": "0.0.0",
     "description": "Node.js Addons POC",
-    "main": "index.js",
+    "main": "dist/index.js",
     "private": true,
     "license": "Intel® OpenVINO™ Distribution License",
     "dependencies": {
@@ -17,7 +17,7 @@
     },
     "scripts": {
         "preinstall": "echo ${INTEL_OPENVINO_DIR?\\$INTEL_OPENVINO_DIR should set before installation. Please execute 'source ~/intel/openvino/setupvars.sh' and run 'npm i' again.}",
-        "postinstall": "npm run build",
+        "postinstall": "npm run build & npm run tsc",
         "install": "node-gyp configure",
         "build": "node-gyp build",
         "rebuild": "node-gyp rebuild",
