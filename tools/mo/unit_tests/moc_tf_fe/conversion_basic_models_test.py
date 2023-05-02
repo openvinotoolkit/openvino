@@ -313,3 +313,42 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
     def test_conversion_pbtxt_model_with_inference(self, inputs, expected, dtype):
         self.basic("model_with_if.pbtxt", None, inputs, dtype, expected, only_conversion=False,
                    input_model_is_text=False, use_new_frontend=True, use_legacy_frontend=False)
+
+    @generate(
+        *[
+            # legacy frontend
+            (
+                    "model_add_with_undefined_constant.pbtxt",
+                    "x[2,3]",
+                    {"x": np.array([[2, 3, 0], [1, 4, 6]], dtype=np.float32)},
+                    np.array([[2, 3, 0], [1, 4, 6]], dtype=np.float32),
+                    np.float32, False, True,
+            ),
+            (
+                    "model_mul_with_undefined_constant.pbtxt",
+                    "x[2]",
+                    {"x": np.array([-1, 2], dtype=np.int32)},
+                    np.array([0, 0], dtype=np.int32),
+                    np.int32, False, True,
+            ),
+            # new frontend
+            (
+                    "model_add_with_undefined_constant.pbtxt",
+                    "x[2,3]",
+                    {"x": np.array([[12, 13, 10], [11, 14, 16]], dtype=np.float32)},
+                    np.array([[12, 13, 10], [11, 14, 16]], dtype=np.float32),
+                    np.float32, True, False,
+            ),
+            (
+                    "model_mul_with_undefined_constant.pbtxt",
+                    "x[2]",
+                    {"x": np.array([11, -12], dtype=np.int32)},
+                    np.array([0, 0], dtype=np.int32),
+                    np.int32, True, False,
+            ),
+        ],
+    )
+    def test_conversion_model_with_undefined_constant(self, model_name, argv_input, inputs, expected, dtype,
+                                                      use_new_frontend, use_legacy_frontend):
+        self.basic(model_name, argv_input, inputs, dtype, expected, only_conversion=False,
+                   input_model_is_text=True, use_new_frontend=use_new_frontend, use_legacy_frontend=use_legacy_frontend)
