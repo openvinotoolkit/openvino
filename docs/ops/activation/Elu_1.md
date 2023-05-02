@@ -25,16 +25,16 @@ where α corresponds to *alpha* attribute.
 
 *Elu* is equivalent to *ReLU* operation when *alpha* is equal to zero.
 
-@endsphinxdirective
-
 **Attributes**
 
 * *alpha*
 
   * **Description**: scale for the negative factor
   * **Range of values**: non-negative arbitrary floating-point number
-  * **Type**: `float`
+  * **Type**: ``float``
   * **Required**: *yes*
+
+@endsphinxdirective
 
 **Inputs**:
 
