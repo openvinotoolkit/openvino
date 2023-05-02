@@ -206,8 +206,10 @@ macro(ie_add_sample)
     find_package(OpenVINO REQUIRED COMPONENTS Runtime)
     if(c_sample)
         set(ov_link_libraries openvino::runtime::c)
+        set_property(TARGET openvino::runtime::c PROPERTY "MAP_IMPORTED_CONFIG_RELWITHDEBINFO" "RELEASE")
     else()
         set(ov_link_libraries openvino::runtime)
+        set_property(TARGET openvino::runtime PROPERTY "MAP_IMPORTED_CONFIG_RELWITHDEBINFO" "RELEASE")
     endif()
 
     set_target_properties(${IE_SAMPLE_NAME} PROPERTIES FOLDER ${folder_name}
