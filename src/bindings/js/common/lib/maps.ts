@@ -1,6 +1,7 @@
 import type { JSArrayType, PrecisionSupportedType } from './types';
 
-export const jsTypeByPrecisionMap: { [Precision in PrecisionSupportedType]: JSArrayType } = {
+export const jsTypeByPrecisionMap
+: { [Precision in PrecisionSupportedType]: JSArrayType } = {
   i8: Int8Array,
   u8: Uint8Array,
   // u8c: Uint8ClampedArray,
