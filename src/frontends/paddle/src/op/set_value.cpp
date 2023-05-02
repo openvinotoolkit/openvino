@@ -37,10 +37,13 @@ Output<Node> handle_maximum_index(Output<Node>& node, const Output<Node>& update
 NamedOutputs set_value(const NodeContext& node) {
     auto input_node = node.get_input("Input");
     auto value_node = node.get_input("ValueTensor");
+
     PADDLE_OP_CHECK(node, (input_node.get_partial_shape().rank().is_static()), "rank must be static");
     const auto dims = static_cast<int64_t>(input_node.get_partial_shape().rank().get_length());
     const auto axes = node.get_attribute<std::vector<int64_t>>("axes");
 
+    // const auto input_shape_ = input_node.get_partial_shape().get_shape();
+    // auto input_shape = default_opset::Constant::create(element::i64, {input_shape_.size()}, input_shape_);
     auto input_shape = std::make_shared<default_opset::ShapeOf>(input_node);
 
     Output<Node> starts_node, ends_node, steps_node, starts, ends, steps;
@@ -101,8 +104,8 @@ NamedOutputs set_value(const NodeContext& node) {
     } else
         PADDLE_OP_CHECK(node, (false), "Invalid arguments!");
 
-    // for those cases: x[::2], end will be 2147483647
-    ends = handle_maximum_index(ends, spec_dim_node);
+    // for unsepcified end: x[::2], end will be 2147483647
+    // ends = handle_maximum_index(ends, spec_dim_node);
 
     // 3.1 get starts node
     starts_node =
@@ -120,11 +123,12 @@ NamedOutputs set_value(const NodeContext& node) {
     // 4.get target value shape
     // 4.1 end - start
     Output<Node> value_shape_update_node = std::make_shared<default_opset::Subtract>(ends, starts);
-    // 4.2 ( end - start ) / abs(step)
-    Output<Node> abs_steps = std::make_shared<default_opset::Abs>(steps);
+    // 4.2 ( end - start ) / step
     value_shape_update_node = std::make_shared<default_opset::Convert>(value_shape_update_node, element::f32);
-    abs_steps = std::make_shared<default_opset::Convert>(abs_steps, element::f32);
-    value_shape_update_node = std::make_shared<default_opset::Divide>(value_shape_update_node, abs_steps);
+    // We don't need to process the the minus number in steps
+    // if step < 0, end - start < 0, (end - start) / step > 0
+    steps = std::make_shared<default_opset::Convert>(steps, element::f32);
+    value_shape_update_node = std::make_shared<default_opset::Divide>(value_shape_update_node, steps);
     // 4.3 ceil(( end - start ) / step)
     value_shape_update_node = std::make_shared<default_opset::Ceiling>(value_shape_update_node);
     value_shape_update_node = std::make_shared<default_opset::Convert>(value_shape_update_node, element::i64);
