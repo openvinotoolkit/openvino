@@ -90,7 +90,7 @@ export function convertShape(
 
   return {
     obj: new ov.Shape(heapSpace, shape.dim),
-    free: () => ov._free(heapSpace)
+    free: () => ov._free(heapSpace),
   };
 }
 
@@ -98,8 +98,6 @@ export function parseOriginalTensor(
   ov: OpenvinoWASMModule,
   originalTensor: OriginalTensor
 ): Tensor {
-  console.log();
-
   const precision = originalTensor.getPrecision();
   const shape = parseOriginalShape(ov, originalTensor.getShape());
 
@@ -139,6 +137,6 @@ export function convertTensor(
     free: () => {
       originalShape.free();
       ov._free(heapSpace);
-    }
-   };
+    },
+  };
 }

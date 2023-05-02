@@ -12,11 +12,15 @@ export default class Shape implements IShape {
   constructor(dimensionsArray: number[]);
   constructor(...dimensionsArray: number[]);
   constructor(...dimensionsArray: number[] | [number[]]) {
-    const dimensions: number[] = Array.isArray(dimensionsArray[0]) ? dimensionsArray[0] : dimensionsArray as number[];
+    const dimensions: number[] = Array.isArray(dimensionsArray[0])
+      ? dimensionsArray[0]
+      : dimensionsArray as number[];
 
     this.#dimensions = new Uint32Array(dimensions.length);
 
-    dimensions.map((dimension, index): void => { this.#dimensions[index] = dimension });
+    dimensions.map((dimension, index): void => {
+      this.#dimensions[index] = dimension;
+    });
   }
 
   get dim(): number {

@@ -13,7 +13,7 @@ import type {
   OpenvinoWASMModule,
   OriginalModel,
   OriginalTensor,
-  OriginalTensorWrapper
+  OriginalTensorWrapper,
 } from './types';
 
 const DEFAULT_PRECISION = 'u8';
