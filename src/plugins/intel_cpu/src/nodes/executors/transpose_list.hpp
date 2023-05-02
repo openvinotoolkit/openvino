@@ -46,15 +46,10 @@ virtual TransposeExecutorPtr makeExecutor(const TransposeParams& transposeParams
                                           const std::vector<MemoryDescPtr>& dstDescs,
                                           const dnnl::primitive_attr &attr) {
     auto build = [&](const TransposeExecutorDesc* desc) {
-        switch (desc->executorType) {
-            default: {
-                auto executor = desc->builder->makeExecutor(context);
-                if (executor->init(transposeParams, srcDescs, dstDescs, attr)) {
-                    return executor;
-                }
-            } break;
+        auto executor = desc->builder->makeExecutor(context);
+        if (executor->init(transposeParams, srcDescs, dstDescs, attr)) {
+            return executor;
         }
-
         TransposeExecutorPtr ptr = nullptr;
         return ptr;
     };
