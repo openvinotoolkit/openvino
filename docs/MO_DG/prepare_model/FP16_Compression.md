@@ -11,7 +11,7 @@ To compress the model, use the `--compress_to_fp16` or `--compress_to_fp16=True`
 
 .. tab-set::
 
-    .. tab-item:: CLI tool
+    .. tab-item:: MO command line tool
        :sync: cli-tool
 
        .. code-block:: sh

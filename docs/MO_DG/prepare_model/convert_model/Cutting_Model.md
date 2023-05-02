@@ -48,7 +48,7 @@ Convert this model and put the results in a writable output directory:
 
 .. tab-set::
 
-   .. tab-item:: CLI tool
+   .. tab-item:: MO command line tool
       :sync: cli-tool
 
       .. code-block:: sh
@@ -110,7 +110,7 @@ Due to automatic identification of inputs and outputs, providing the ``--input``
 
 .. tab-set::
 
-   .. tab-item:: CLI tool
+   .. tab-item:: MO command line tool
       :sync: cli-tool
 
       .. code-block:: sh
@@ -148,7 +148,7 @@ If you want to cut your model at the end, you have the following options:
 
    .. tab-set::
    
-      .. tab-item:: CLI tool
+      .. tab-item:: MO command line tool
          :sync: cli-tool
    
          .. code-block:: sh
@@ -210,7 +210,7 @@ If you want to cut your model at the end, you have the following options:
 
    .. tab-set::
    
-      .. tab-item:: CLI tool
+      .. tab-item:: MO command line tool
          :sync: cli-tool
    
          .. code-block:: sh
@@ -272,7 +272,7 @@ If you want to cut your model at the end, you have the following options:
 
    .. tab-set::
    
-      .. tab-item:: CLI tool
+      .. tab-item:: MO command line tool
          :sync: cli-tool
    
          .. code-block:: sh
@@ -328,7 +328,7 @@ If you want to go further and cut the beginning of the model, leaving only the `
 
    .. tab-set::
    
-      .. tab-item:: CLI tool
+      .. tab-item:: MO command line tool
          :sync: cli-tool
    
          .. code-block:: sh
@@ -378,7 +378,7 @@ If you want to go further and cut the beginning of the model, leaving only the `
 
    .. tab-set::
    
-      .. tab-item:: CLI tool
+      .. tab-item:: MO command line tool
          :sync: cli-tool
    
          .. code-block:: sh
@@ -428,7 +428,7 @@ If you want to go further and cut the beginning of the model, leaving only the `
 
    .. tab-set::
    
-      .. tab-item:: CLI tool
+      .. tab-item:: MO command line tool
          :sync: cli-tool
    
          .. code-block:: sh
@@ -477,7 +477,7 @@ The input shape can be overridden with ``--input_shape``. In this case, the shap
 
 .. tab-set::
 
-   .. tab-item:: CLI tool
+   .. tab-item:: MO command line tool
       :sync: cli-tool
 
       .. code-block:: sh
@@ -542,7 +542,7 @@ Following this behavior, Model Optimizer creates an ``Input`` layer for port 0 o
 
 .. tab-set::
 
-   .. tab-item:: CLI tool
+   .. tab-item:: MO command line tool
       :sync: cli-tool
 
       .. code-block:: sh
@@ -563,7 +563,7 @@ Different behavior occurs when ``--input_shape`` is also used as an attempt to o
 
 .. tab-set::
 
-   .. tab-item:: CLI tool
+   .. tab-item:: MO command line tool
       :sync: cli-tool
 
       .. code-block:: sh
@@ -592,7 +592,7 @@ The correct command line is:
 
 .. tab-set::
 
-   .. tab-item:: CLI tool
+   .. tab-item:: MO command line tool
       :sync: cli-tool
 
       .. code-block:: sh

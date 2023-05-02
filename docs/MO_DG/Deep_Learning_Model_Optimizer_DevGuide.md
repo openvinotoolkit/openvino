@@ -42,7 +42,7 @@ To convert a model to IR, you can run Model Optimizer by using the following com
 
 .. tab-set::
 
-    .. tab-item:: CLI tool
+    .. tab-item:: MO command line tool
        :sync: cli-tool
 
        .. code-block:: sh
@@ -76,7 +76,7 @@ To get the full list of conversion parameters available in Model Optimizer, run 
 
 .. tab-set::
 
-    .. tab-item:: CLI tool
+    .. tab-item:: MO command line tool
        :sync: cli-tool
 
        .. code-block:: sh
@@ -100,7 +100,7 @@ Below is a list of separate examples for different frameworks and Model Optimize
 
    .. tab-set::
    
-       .. tab-item:: CLI tool
+       .. tab-item:: MO command line tool
           :sync: cli-tool
    
           .. code-block:: sh
@@ -119,7 +119,7 @@ Below is a list of separate examples for different frameworks and Model Optimize
 
    .. tab-set::
    
-       .. tab-item:: CLI tool
+       .. tab-item:: MO command line tool
           :sync: cli-tool
    
           .. code-block:: sh
@@ -140,7 +140,7 @@ Below is a list of separate examples for different frameworks and Model Optimize
 
    .. tab-set::
    
-       .. tab-item:: CLI tool
+       .. tab-item:: MO command line tool
           :sync: cli-tool
    
           .. code-block:: sh
@@ -165,7 +165,7 @@ Below is a list of separate examples for different frameworks and Model Optimize
 
    .. tab-set::
    
-       .. tab-item:: CLI tool
+       .. tab-item:: MO command line tool
           :sync: cli-tool
    
           .. code-block:: sh
@@ -186,7 +186,7 @@ Below is a list of separate examples for different frameworks and Model Optimize
 
    .. tab-set::
    
-       .. tab-item:: CLI tool
+       .. tab-item:: MO command line tool
           :sync: cli-tool
    
           .. code-block:: sh
@@ -207,7 +207,7 @@ Below is a list of separate examples for different frameworks and Model Optimize
 
    .. tab-set::
    
-       .. tab-item:: CLI tool
+       .. tab-item:: MO command line tool
           :sync: cli-tool
    
           .. code-block:: sh
@@ -228,7 +228,7 @@ Below is a list of separate examples for different frameworks and Model Optimize
 
    .. tab-set::
    
-       .. tab-item:: CLI tool
+       .. tab-item:: MO command line tool
           :sync: cli-tool
    
           .. code-block:: sh

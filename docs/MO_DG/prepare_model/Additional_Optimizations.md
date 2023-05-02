@@ -33,7 +33,7 @@ For example, the following command specifies the ``NHWC`` layout for a Tensorflo
 
 .. tab-set::
 
-    .. tab-item:: CLI tool
+    .. tab-item:: MO command line tool
        :sync: cli-tool
 
        .. code-block:: sh
@@ -57,7 +57,7 @@ having two dimensions: batch and size of the image expressed as the ``N?`` layou
 
 .. tab-set::
 
-    .. tab-item:: CLI tool
+    .. tab-item:: MO command line tool
        :sync: cli-tool
 
        .. code-block:: sh
@@ -84,7 +84,7 @@ the following commands to provide data in the ``NCHW`` layout:
 
 .. tab-set::
 
-    .. tab-item:: CLI tool
+    .. tab-item:: MO command line tool
        :sync: cli-tool
 
        .. code-block:: sh
@@ -111,7 +111,7 @@ mentioned earlier, use the following commands:
 
 .. tab-set::
 
-    .. tab-item:: CLI tool
+    .. tab-item:: MO command line tool
        :sync: cli-tool
 
        .. code-block:: sh
@@ -162,7 +162,7 @@ model and applies mean-scale normalization to the input data:
 
 .. tab-set::
 
-    .. tab-item:: CLI tool
+    .. tab-item:: MO command line tool
        :sync: cli-tool
 
        .. code-block:: sh
@@ -204,7 +204,7 @@ model and embeds the ``reverse_input_channel`` preprocessing block into OpenVINO
 
 .. tab-set::
 
-    .. tab-item:: CLI tool
+    .. tab-item:: MO command line tool
        :sync: cli-tool
 
        .. code-block:: sh

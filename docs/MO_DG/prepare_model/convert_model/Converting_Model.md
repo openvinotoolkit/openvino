@@ -30,7 +30,7 @@ and specify the input shape of ``[2,300,300,3]``:
 
 .. tab-set::
 
-   .. tab-item:: CLI tool
+   .. tab-item:: MO command line tool
       :sync: cli-tool
 
       .. code-block:: sh
@@ -52,7 +52,7 @@ and specify shapes ``[3,150,200,1]`` and ``[3]`` for them:
 
 .. tab-set::
 
-   .. tab-item:: CLI tool
+   .. tab-item:: MO command line tool
       :sync: cli-tool
 
       .. code-block:: sh
@@ -71,7 +71,7 @@ Alternatively, specify input shapes, using the ``--input`` parameter as follows:
 
 .. tab-set::
 
-   .. tab-item:: CLI tool
+   .. tab-item:: MO command line tool
       :sync: cli-tool
 
       .. code-block:: sh
@@ -93,7 +93,7 @@ For example, launch Model Optimizer for the ONNX OCR model and specify dynamic b
 
 .. tab-set::
 
-   .. tab-item:: CLI tool
+   .. tab-item:: MO command line tool
       :sync: cli-tool
 
       .. code-block:: sh
@@ -114,7 +114,7 @@ For example, launch Model Optimizer for the ONNX OCR model and specify a boundar
 
 .. tab-set::
 
-   .. tab-item:: CLI tool
+   .. tab-item:: MO command line tool
       :sync: cli-tool
 
       .. code-block:: sh
@@ -147,7 +147,7 @@ For example, launch Model Optimizer for the ONNX OCR model using ``--static_shap
 
 .. tab-set::
 
-   .. tab-item:: CLI tool
+   .. tab-item:: MO command line tool
       :sync: cli-tool
 
       .. code-block:: sh

@@ -12,7 +12,7 @@ Check the versions of OpenVINO Runtime and Developement Tools
 
   .. tab-set::
   
-      .. tab-item:: CLI tool
+      .. tab-item:: MO command line tool
           :sync: cli-tool
   
           .. code-block:: sh
