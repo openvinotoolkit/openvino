@@ -42,13 +42,13 @@ where α corresponds to *alpha* attribute.
 
 * **1**: The result of element-wise *Elu* function applied to the input tensor. A tensor of type *T* and the same shape as input tensor.
 
-@endsphinxdirective
-
 **Types**
 
 * *T*: arbitrary supported floating-point type.
 
 **Example**
+
+@endsphinxdirective
 
 ```xml
 <layer ... type="Elu">
