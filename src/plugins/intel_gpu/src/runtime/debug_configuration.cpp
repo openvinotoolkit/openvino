@@ -4,12 +4,12 @@
 
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include <algorithm>
-#include <iostream>
 #include <iomanip>
+#include <iostream>
 #include <memory>
-#include <vector>
+#include <regex>
 #include <sstream>
-#include <cstring>
+#include <vector>
 
 namespace cldnn {
 const char *debug_configuration::prefix = "GPU_Debug: ";
@@ -105,6 +105,7 @@ static void print_help_messages() {
     std::vector<std::pair<std::string, std::string>> message_list;
     message_list.emplace_back("OV_GPU_Help", "Print help messages");
     message_list.emplace_back("OV_GPU_Verbose", "Verbose execution");
+    message_list.emplace_back("OV_GPU_VerboseColor", "Print verbose color");
     message_list.emplace_back("OV_GPU_ListLayers", "Print layers names");
     message_list.emplace_back("OV_GPU_PrintMultiKernelPerf", "Print execution time of each kernel in multi-kernel primitimive");
     message_list.emplace_back("OV_GPU_DisableUsm", "Disable usm usage");
@@ -115,7 +116,8 @@ static void print_help_messages() {
     message_list.emplace_back("OV_GPU_DumpGraphs", "Dump optimized graph");
     message_list.emplace_back("OV_GPU_DumpSources", "Dump opencl sources");
     message_list.emplace_back("OV_GPU_DumpLayersPath", "Enable dumping intermediate buffers and set the dest path");
-    message_list.emplace_back("OV_GPU_DumpLayers", "Dump intermediate buffers of specified layers only, separated by space");
+    message_list.emplace_back("OV_GPU_DumpLayers", "Dump intermediate buffers of specified layers only, separated by space."
+                               " Support case-insensitive and regular expression. For example .*conv.*");
     message_list.emplace_back("OV_GPU_DumpLayersResult", "Dump output buffers of result layers only");
     message_list.emplace_back("OV_GPU_DumpLayersDstOnly", "Dump only output of layers");
     message_list.emplace_back("OV_GPU_DumpLayersLimitBatch", "Limit the size of batch to dump");
@@ -274,35 +276,16 @@ bool debug_configuration::is_dumped_layer(const std::string& layer_name, bool is
         // Check pattern from exec_graph
         size_t pos = layer_name.find(':');
         auto exec_graph_name = layer_name.substr(pos + 1, layer_name.size());
-        if (strcasecmp(exec_graph_name.c_str(), pattern.c_str()) == 0) {
+        auto upper_exec_graph_name = std::string(exec_graph_name.length(), '\0');
+        std::transform(exec_graph_name.begin(), exec_graph_name.end(), upper_exec_graph_name.begin(), ::toupper);
+        auto upper_pattern = std::string(pattern.length(), '\0');
+        std::transform(pattern.begin(), pattern.end(), upper_pattern.begin(), ::toupper);
+        if (upper_exec_graph_name.compare(upper_pattern) == 0) {
             return true;
         }
-        // Check pattern for wildcard letter
-        size_t n = layer_name.size();
-        size_t m = pattern.size();
-        std::vector<std::vector<bool>> lookup_tbl(n + 1, std::vector<bool>(m + 1, false));
-        lookup_tbl[0][0] = true;
-        auto to_upper = [](char elem) -> char {
-            if (elem >= 'a' && elem <= 'z') {
-                return elem - ('a'-'A');
-            }
-            return elem;
-        };
-        for (size_t j = 1; j <= m; ++j)
-            if (pattern[j - 1] == '*')
-                lookup_tbl[0][j] = lookup_tbl[0][j - 1];
-        for (size_t i = 1; i <= n; ++i) {
-            for (size_t j = 1; j <= m; ++j) {
-                if (pattern[j - 1] == '*') {
-                    lookup_tbl[i][j] = lookup_tbl[i][j - 1] || lookup_tbl[i - 1][j];
-                } else if (pattern[j - 1] == '?' || to_upper(layer_name[i - 1]) == to_upper(pattern[j - 1])) {
-                    lookup_tbl[i][j] = lookup_tbl[i - 1][j - 1];
-                } else {
-                    lookup_tbl[i][j] = false;
-                }
-            }
-        }
-        return lookup_tbl[n][m];
+        // Check pattern with regular expression
+        std::regex re(pattern, std::regex::icase);
+        return std::regex_match(layer_name, re);
     };
     auto iter = std::find_if(dump_layers.begin(), dump_layers.end(), [&](const std::string& dl){
         return is_match(layer_name, dl);

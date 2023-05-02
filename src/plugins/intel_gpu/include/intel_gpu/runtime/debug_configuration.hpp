@@ -42,7 +42,12 @@ enum class LogLevel : int8_t {
 }  // namespace ov
 
 #ifdef GPU_DEBUG_CONFIG
-#define __FILENAME__ (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
+#if defined(_WIN32) || defined(_WIN64)
+#define SEPARATE '\\'
+#else
+#define SEPARATE '/'
+#endif
+#define __FILENAME__ (strrchr(__FILE__, SEPARATE) ? strrchr(__FILE__, SEPARATE) + 1 : __FILE__)
 #define GPU_DEBUG_IF(cond) if (cond)
 #define GPU_DEBUG_CODE(...) __VA_ARGS__
 #define GPU_DEBUG_DEFINE_MEM_LOGGER(stage) \
@@ -91,7 +96,7 @@ public:
     static const char *prefix;
     int help;                                   // Print help messages
     int verbose;                                // Verbose execution
-    int verbose_color;
+    int verbose_color;                          // Print verbose color
     int list_layers;                            // Print list layers
     int print_multi_kernel_perf;                // Print execution time of each kernel in multi-kernel primitimive
     int disable_usm;                            // Disable usm usage
