@@ -54,6 +54,7 @@ To convert a model to IR, you can run Model Optimizer by using the following com
 
        .. code-block:: sh
 
+          from openvino.tools.mo import convert_model
           ov_model = convert_model(INPUT_MODEL)
 
 
@@ -88,6 +89,7 @@ To get the full list of conversion parameters available in Model Optimizer, run 
 
        .. code-block:: sh
 
+          from openvino.tools.mo import convert_model
           ov_model = convert_model(help=True)
 
 
@@ -112,6 +114,7 @@ Below is a list of separate examples for different frameworks and Model Optimize
    
           .. code-block:: sh
    
+             from openvino.tools.mo import convert_model
              ov_model = convert_model("MobileNet.pb")
 
 
@@ -131,6 +134,7 @@ Below is a list of separate examples for different frameworks and Model Optimize
    
           .. code-block:: sh
    
+             from openvino.tools.mo import convert_model
              ov_model = convert_model(saved_model_dir="BERT", input=["mask", "word_ids", "type_ids"], input_shape=[[2,30],[2,30],[2,30]])
 
 
@@ -152,6 +156,7 @@ Below is a list of separate examples for different frameworks and Model Optimize
    
           .. code-block:: sh
    
+             from openvino.tools.mo import convert_model
              ov_model = convert_model("ocr.onnx", output="probabilities")
 
 
@@ -177,6 +182,7 @@ Below is a list of separate examples for different frameworks and Model Optimize
    
           .. code-block:: sh
    
+             from openvino.tools.mo import convert_model
              ov_model = convert_model("unet.pdmodel", mean_values=[123,117,104], scale=255)
 
 
@@ -198,6 +204,7 @@ Below is a list of separate examples for different frameworks and Model Optimize
    
           .. code-block:: sh
    
+             from openvino.tools.mo import convert_model
              ov_model = convert_model("ssd_inception_v3-0000.params", layout="NCHW")
 
 
@@ -219,6 +226,7 @@ Below is a list of separate examples for different frameworks and Model Optimize
    
           .. code-block:: sh
    
+             from openvino.tools.mo import convert_model
              ov_model = convert_model("alexnet.caffemodel", reverse_input_channels=True)
 
 
@@ -240,6 +248,7 @@ Below is a list of separate examples for different frameworks and Model Optimize
    
           .. code-block:: sh
    
+             from openvino.tools.mo import convert_model
              ov_model = convert_model("librispeech_nnet2.mdl", input_shape=[1,140])
 
 

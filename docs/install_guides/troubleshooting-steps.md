@@ -24,6 +24,7 @@ Check the versions of OpenVINO Runtime and Developement Tools
   
           .. code-block:: sh
   
+             from openvino.tools.mo import convert_model
              ov_model = convert_model(version=True)
 
 

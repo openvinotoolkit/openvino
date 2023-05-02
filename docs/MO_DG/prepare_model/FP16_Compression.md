@@ -23,6 +23,7 @@ To compress the model, use the `--compress_to_fp16` or `--compress_to_fp16=True`
 
        .. code-block:: sh
 
+          from openvino.tools.mo import convert_model
           ov_model = convert_model(INPUT_MODEL, compress_to_fp16=False)
 
 
