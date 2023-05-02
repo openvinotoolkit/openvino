@@ -105,7 +105,7 @@ jobs:
   steps:
   - task: UsePythonVersion@0
     inputs:
-      versionSpec: '$(OV_PYTHON_VERSION)' # Setting only major & minor version will download latest release from GH repo example 3.10 will be 3.10.10. 
+      versionSpec: '$(OV_PYTHON_VERSION)' # Setting only major & minor version will download latest release from GH repo example 3.10 will be 3.10.10.
       addToPath: true
       disableDownloadFromRegistry: false
       architecture: 'x64'
@@ -366,7 +366,7 @@ jobs:
     displayName: 'Build cpp samples - gcc'
 
   - script: $(SAMPLES_INSTALL_DIR)/cpp/build_samples.sh -b $(BUILD_DIR)/cpp_samples_clang
-    env: 
+    env:
       CC: clang
       CXX: clang++
     displayName: 'Build cpp samples - clang'
@@ -487,6 +487,14 @@ jobs:
       export TEST_DEVICE=CPU
       $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/pytorch_tests/ -m precommit --junitxml=$(INSTALL_TEST_DIR)/TEST-pytorch.xmlTEST
     displayName: 'PyTorch Layer Tests'
+
+  - script: |
+      python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
+      export PYTHONPATH=$(REPO_DIR)/tools/mo/:$(LAYER_TESTS_DIR):$PYTHONPATH
+      export USE_TS_BACKEND=1
+      export TEST_DEVICE=CPU
+      $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/pytorch_tests/ -m precommit_ts_backend --junitxml=$(INSTALL_TEST_DIR)/TEST-pytorch_ts_backend.xmlTEST
+    displayName: 'PyTorch TorchScript Backend Layer Tests'
 
   - script: |
       python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
