@@ -38,11 +38,11 @@ where α corresponds to *alpha* attribute.
 
 * **1**: A tensor of type *T* and arbitrary shape. **Required.**
 
-@endsphinxdirective
-
 **Outputs**:
 
-*   **1**: The result of element-wise *Elu* function applied to the input tensor. A tensor of type *T* and the same shape as input tensor.
+* **1**: The result of element-wise *Elu* function applied to the input tensor. A tensor of type *T* and the same shape as input tensor.
+
+@endsphinxdirective
 
 **Types**
 
