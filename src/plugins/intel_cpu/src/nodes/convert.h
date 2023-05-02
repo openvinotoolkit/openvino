@@ -8,6 +8,7 @@
 #include <node.h>
 #include <string>
 #include <vector>
+#include "executors/convert_list.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -49,7 +50,9 @@ public:
 private:
     MemoryDescPtr input;
     MemoryDescPtr output;
-    InferenceEngine::Precision origPrc;
+    ConvertParams convertParams;
+    std::shared_ptr<ConvertExecutor> execPtr = nullptr;
+    NodeConfig config;
 
     std::string errorPrefix;
 };

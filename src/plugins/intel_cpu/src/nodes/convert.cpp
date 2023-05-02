@@ -4,7 +4,6 @@
 
 #include <dnnl_extension_utils.h>
 #include "convert.h"
-#include "common/cpu_convert.h"
 #include "common/blocked_desc_creator.h"
 #include <ngraph/opsets/opset1.hpp>
 #include <ie_ngraph_utils.hpp>
@@ -41,13 +40,13 @@ Convert::Convert(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CP
     }
 
     auto convert = ov::as_type_ptr<const ngraph::opset1::Convert>(op);
-    origPrc = details::convertPrecision(convert->get_destination_type());
+    convertParams.origPrc = details::convertPrecision(convert->get_destination_type());
 }
 
 Convert::Convert(const Shape &shape, const InferenceEngine::Precision &inPrc, const InferenceEngine::Precision &outPrc,
                  const std::string &nodeName, const GraphContext::CPtr context)
-        : Node("Convert", nodeName, context)
-        , origPrc(outPrc) {
+        : Node("Convert", nodeName, context) {
+    convertParams.origPrc = outPrc;
     inputShapes.push_back(shape);
     addOriginalInputPrecision(inPrc);
     outputShapes.push_back(shape);
@@ -96,6 +95,13 @@ void Convert::initSupportedPrimitiveDescriptors() {
         canInitExternalDesc &= isSupportedDesc(*output);
     }
 
+    auto supportedPrimitiveDescriptorsBuilder = [this](NodeConfig config) {
+        std::vector<MemoryDescPtr> srcMemoryDescs = {config.inConfs[0].getMemDesc()}, dstMemoryDescs = {config.outConfs[0].getMemDesc()};
+        auto factory = std::make_shared<ConvertExecutorFactory>(convertParams, srcMemoryDescs, dstMemoryDescs,
+                                                                std::make_shared<ExecutorContext>(context, getPrimitivesPriority()));
+        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, factory);
+    };
+
     // if input and output pointers are not null and not contain extra data, then the inp/output tensor descriptors were set using setDescs method, so
     // they should be used as the actual descriptors.
     if (canInitExternalDesc) {
@@ -106,7 +112,7 @@ void Convert::initSupportedPrimitiveDescriptors() {
         dataConfigOut.setMemDesc(config.inConfs[0].getMemDesc());
         dataConfigOut.setMemDesc(dataConfigOut.getMemDesc()->cloneWithNewPrecision(output->getPrecision()));
         config.outConfs.push_back(dataConfigOut);
-        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
+        supportedPrimitiveDescriptorsBuilder(config);
     } else if (inputShapes.size() == 1 && outputShapes.size() == 1) {
         const Shape& insShape = getInputShapeAtPort(0);
         auto insPrecision = getOriginalInputPrecisionAtPort(0);
@@ -123,7 +129,7 @@ void Convert::initSupportedPrimitiveDescriptors() {
             config.inConfs[0].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(itr->second->createDesc(insPrecision, insShape)));
             config.outConfs[0].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(itr->second->createDesc(outPrecision, outputShape)));
 
-            supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
+            supportedPrimitiveDescriptorsBuilder(config);
         }
     } else {
         IE_THROW() << errorPrefix << " has incorrect number of input/output edges";
@@ -144,15 +150,29 @@ void Convert::execute(dnnl::stream strm) {
     if (parentPaddElemCount != childPaddElemCount)
         IE_THROW() << errorPrefix << " has different elements number in input and output buffers";
 
-    void* srcPtr = parentMem.GetPtr();
-    void* dstPtr = childMem.GetPtr();
+    convertParams.srcPrc = parentMem.getDesc().getPrecision();
+    convertParams.dstPrc = childMem.getDesc().getPrecision();
+    convertParams.size = parentPaddElemCount;
 
-    cpu_convert(srcPtr,
-                dstPtr,
-                parentMem.getDesc().getPrecision(),
-                origPrc,
-                childMem.getDesc().getPrecision(),
-                parentPaddElemCount);
+    std::vector<MemoryCPtr> srcMemory;
+    for (int i = 0; i < getOriginalInputsNumber(); i++) {
+        srcMemory.push_back(getParentEdgeAt(i)->getMemoryPtr());
+    }
+    std::vector<MemoryPtr> dstMemory;
+    for (int i = 0; i < getOriginalOutputsNumber(); i++) {
+        dstMemory.push_back(getChildEdgeAt(i)->getMemoryPtr());
+    }
+
+    dnnl::primitive_attr attr;
+    auto selectedPD = getSelectedPrimitiveDescriptor();
+    std::vector<MemoryDescPtr> srcDescs = {parentMem.getDescPtr()};
+    std::vector<MemoryDescPtr> dstDescs = {childMem.getDescPtr()};
+    execPtr = selectedPD->getExecutorFactoryAs<ConvertExecutorFactory>()->makeExecutor(convertParams,
+                                                                                       srcDescs,
+                                                                                       dstDescs,
+                                                                                       attr);
+    selectedPD->setImplementationType(execPtr->getImplType());
+    execPtr->exec(srcMemory, dstMemory);
 }
 
 bool Convert::created() const {
