@@ -11,9 +11,9 @@ export default createModule;
 export { Shape, Tensor, jsTypeByPrecisionMap };
 
 function createModule(
-  label: string, 
-  loadModel: LoadModelType, 
-  getVersionString: () => Promise<string>, 
+  label: string,
+  loadModel: LoadModelType,
+  getVersionString: () => Promise<string>,
   getDescriptionString: () => Promise<string>
 ): IOpenVINOJSLibrary {
   const module = {

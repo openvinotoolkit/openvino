@@ -15,7 +15,7 @@ export default createModule(
 export { addon };
 
 async function getVersionString(): Promise<string> {
-  const str= 'Version';
+  const str = 'Version';
 
   return str;
 }
