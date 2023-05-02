@@ -4,19 +4,9 @@
 
 In OpenVINO™ Runtime, a model is represented by the ``:ref:`ov::Model <doxid-classov_1_1_model>```  class.
 
-The ``:ref:`ov::Model <doxid-classov_1_1_model>``` object stores shared pointers 
-to ``:ref:`ov::op::v0::Parameter <doxid-classov_1_1op_1_1v0_1_1_parameter>```, 
-``:ref:`ov::op::v0::Result <doxid-classov_1_1op_1_1v0_1_1_result>```, and 
-``:ref:`ov::op::Sink <doxid-classov_1_1op_1_1_sink>``` operations, which are 
-inputs, outputs, and sinks of the graph. Sinks of the graph have no consumers 
-and are not included in the results vector. All other operations hold each 
-other via shared pointers, in which a child operation holds its parent via a 
-hard link. If an operation has no consumers and is neither the ``Result`` nor 
-the ``Sink`` operation whose shared pointer counter is zero, the operation will 
-be destructed and not be accessible anymore.
+The ``:ref:`ov::Model <doxid-classov_1_1_model>``` object stores shared pointers to ``:ref:`ov::op::v0::Parameter <doxid-classov_1_1op_1_1v0_1_1_parameter>```, ``:ref:`ov::op::v0::Result <doxid-classov_1_1op_1_1v0_1_1_result>```, and ``:ref:`ov::op::Sink <doxid-classov_1_1op_1_1_sink>``` operations, which are inputs, outputs, and sinks of the graph. Sinks of the graph have no consumers and are not included in the results vector. All other operations hold each other via shared pointers, in which a child operation holds its parent via a hard link. If an operation has no consumers and is neither the ``Result`` nor the ``Sink`` operation whose shared pointer counter is zero, the operation will be destructed and not be accesible anymore.
 
-Each operation in ``:ref:`ov::Model <doxid-classov_1_1_model>``` has the 
-``std::shared_ptr<:ref:`ov::Node <doxid-classov_1_1_node>`>`` type.
+Each operation in ``:ref:`ov::Model <doxid-classov_1_1_model>``` has the ``std::shared_ptr<:ref:`ov::Node <doxid-classov_1_1_node>`>`` type.
 
 How OpenVINO Runtime Works with Models
 #########################################
@@ -189,21 +179,21 @@ OpenVINO™ provides several debug capabilities:
          :fragment: [ov:visualize]
 
 
-   .. code-block:: sh
+.. code-block:: sh
    
-      ``ov::pass::VisualizeTree`` can be parametrized via environment variables:
+   ``ov::pass::VisualizeTree`` can be parametrized via environment variables:
 
-      OV_VISUALIZE_TREE_OUTPUT_SHAPES=1       - visualize shapes
+   OV_VISUALIZE_TREE_OUTPUT_SHAPES=1       - visualize shapes
 
-      OV_VISUALIZE_TREE_OUTPUT_TYPES=1        - visualize types
+   OV_VISUALIZE_TREE_OUTPUT_TYPES=1        - visualize types
 
-      OV_VISUALIZE_TREE_MIN_MAX_DENORMAL=1    - pretty denormal values
+   OV_VISUALIZE_TREE_MIN_MAX_DENORMAL=1    - pretty denormal values
 
-      OV_VISUALIZE_TREE_RUNTIME_INFO=1        - print runtime information
+   OV_VISUALIZE_TREE_RUNTIME_INFO=1        - print runtime information
 
-      OV_VISUALIZE_TREE_IO=1                  - print I/O ports
+   OV_VISUALIZE_TREE_IO=1                  - print I/O ports
 
-      OV_VISUALIZE_TREE_MEMBERS_NAME=1        - print member names
+   OV_VISUALIZE_TREE_MEMBERS_NAME=1        - print member names
 
 
 * Also model can be serialized to IR:
