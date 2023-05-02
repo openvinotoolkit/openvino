@@ -1,4 +1,4 @@
-import { Tensor, Shape } from 'openvinojs-common';
+import { Tensor, Shape, jsTypeByPrecisionMap } from 'openvinojs-common';
 
 import type { ovNodeModule, NodeModel, NodeTensor } from './types';
 import type {
@@ -35,7 +35,7 @@ class CommonModel implements IModel {
   async infer(tensorOrDataArray: ITensor | number[], shape: IShape)
   : Promise<ITensor> {
     const tensorData = tensorOrDataArray instanceof Array
-      ? Float32Array.from(tensorOrDataArray)
+      ? jsTypeByPrecisionMap[DEFAULT_TENSOR_PRECISION].from(tensorOrDataArray)
       : tensorOrDataArray.data;
     const precision = tensorOrDataArray instanceof Tensor
       ? tensorOrDataArray.precision
