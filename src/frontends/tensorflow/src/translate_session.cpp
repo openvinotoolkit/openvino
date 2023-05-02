@@ -145,6 +145,7 @@ void TranslateSession::inject_body_model(std::shared_ptr<ov::Model> body_model,
             // with setting its own type
             if (orig_type != element::dynamic) {
                 ext_parameter->set_element_type(orig_type);
+                ext_parameter->validate_and_infer_types();
             }
         }
     }
