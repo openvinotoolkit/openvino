@@ -33,5 +33,4 @@ Once you have a model that meets both OpenVINO™ and your requirements, you can
 @endsphinxdirective
 
 
-
-Apart from the default deployment options, you may also [deploy your application for the TensorFlow framework with OpenVINO Integration](./openvino_ecosystem_ovtf.md).
+OpenVINO 2023.0 provides more options, providing inference of  TensorFlow models with no additional conversion.
