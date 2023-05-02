@@ -8,6 +8,7 @@ module.exports = {
     'eol-last': ['error'],
     'indent': ['error', 2],
     'camelcase': ['error'],
+    'newline-before-return': ['error'],
     'comma-dangle': ['error', 'always-multiline'],
     'no-multiple-empty-lines': ['error', { max: 1, maxBOF: 0, maxEOF: 0 }],
   }
