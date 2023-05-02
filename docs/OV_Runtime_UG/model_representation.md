@@ -4,7 +4,7 @@
 
 In OpenVINO™ Runtime, a model is represented by the ``:ref:`ov::Model <doxid-classov_1_1_model>```  class.
 
-The ``:ref:`ov::Model <doxid-classov_1_1_model>``` object stores shared pointers to ``:ref:`ov::op::v0::Parameter <doxid-classov_1_1op_1_1v0_1_1_parameter>```, ``:ref:`ov::op::v0::Result <doxid-classov_1_1op_1_1v0_1_1_result>```, and ``:ref:`ov::op::Sink <doxid-classov_1_1op_1_1_sink>``` operations, which are inputs, outputs, and sinks of the graph. Sinks of the graph have no consumers and are not included in the results vector. All other operations hold each other via shared pointers, in which a child operation holds its parent via a hard link. If an operation has no consumers and is neither the ``Result`` nor the ``Sink`` operation whose shared pointer counter is zero, the operation will be destructed and not be accesible anymore.
+The ``:ref:`ov::Model <doxid-classov_1_1_model>``` object stores shared pointers to ``:ref:`ov::op::v0::Parameter <doxid-classov_1_1op_1_1v0_1_1_parameter>```, ``:ref:`ov::op::v0::Result <doxid-classov_1_1op_1_1v0_1_1_result>```, and ``:ref:`ov::op::Sink <doxid-classov_1_1op_1_1_sink>``` operations, which are inputs, outputs, and sinks of the graph. Sinks of the graph have no consumers and are not included in the results vector. All other operations hold each other via shared pointers, in which a child operation holds its parent via a hard link. If an operation has no consumers and is neither the ``Result`` nor the ``Sink`` operation whose shared pointer counter is zero, the operation will be destructed and not be accessible anymore.
 
 Each operation in ``:ref:`ov::Model <doxid-classov_1_1_model>``` has the ``std::shared_ptr<:ref:`ov::Node <doxid-classov_1_1_node>`>`` type.
 
@@ -21,7 +21,7 @@ OpenVINO™ Runtime enables you to use different approaches to work with model i
 
 * You can use the tensor name of input or output from the original framework model together with the ``:ref:`ov::Model::input() <doxid-classov_1_1_model_1a5deeced6688795bc6cdad9ce74d972e7>``` or ``:ref:`ov::Model::output() <doxid-classov_1_1_model_1a54c76c98bc7dd8fb04e866d06134efc7>``` methods to get specific ports. It means that you do not need to have any additional mapping of names from framework to OpenVINO as it was before. OpenVINO Runtime allows the usage of native framework tensor names, for example:
 
-   .. tab-set::
+.. tab-set::
 
    .. tab-item:: C++
       :sync: cpp
@@ -55,19 +55,19 @@ OpenVINO™ Runtime provides two types for shape representation:
 
 .. tab-set::
 
-.. tab-item:: C++
-   :sync: cpp
+   .. tab-item:: C++
+      :sync: cpp
 
-   .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
-      :language: cpp
-      :fragment: [ov:partial_shape]
+      .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
+         :language: cpp
+         :fragment: [ov:partial_shape]
 
-.. tab-item:: Python
-   :sync: python
+   .. tab-item:: Python
+      :sync: python
 
-   .. doxygensnippet:: snippets/ov_model_snippets.py
-      :language: cpp
-      :fragment: [ov:partial_shape]
+      .. doxygensnippet:: docs/snippets/ov_model_snippets.py
+         :language: cpp
+         :fragment: [ov:partial_shape]
 
 
 However, in most cases, before getting static shape using the ``get_shape()`` method, you need to check if that shape is static.
@@ -129,7 +129,7 @@ The following code demonstrates how to create a simple model:
    .. tab-item:: Python
       :sync: python
 
-      .. doxygensnippet:: snippets/ov_model_snippets.py
+      .. doxygensnippet:: docs/snippets/ov_model_snippets.py
          :language: cpp
          :fragment: [ov:create_simple_model]
 
@@ -148,7 +148,7 @@ The following code creates a model with several outputs:
    .. tab-item:: Python
       :sync: python
 
-      .. doxygensnippet:: snippets/ov_model_snippets.py
+      .. doxygensnippet:: docs/snippets/ov_model_snippets.py
          :language: cpp
          :fragment: [ov:create_advanced_model]
 
@@ -174,7 +174,7 @@ OpenVINO™ provides several debug capabilities:
    .. tab-item:: Python
       :sync: python
 
-      .. doxygensnippet:: snippets/ov_model_snippets.py
+      .. doxygensnippet:: docs/snippets/ov_model_snippets.py
          :language: cpp
          :fragment: [ov:visualize]
 
@@ -198,21 +198,21 @@ OpenVINO™ provides several debug capabilities:
 
 * Also model can be serialized to IR:
 
-   .. tab-set::
+.. tab-set::
 
-      .. tab-item:: C++
-         :sync: cpp
+   .. tab-item:: C++
+      :sync: cpp
 
-         .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
-            :language: cpp
-            :fragment: [ov:serialize]
+      .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
+         :language: cpp
+         :fragment: [ov:serialize]
 
-      .. tab-item:: Python
-         :sync: python
+   .. tab-item:: Python
+      :sync: python
 
-         .. doxygensnippet:: docs/snippets/ov_model_snippets.py
-            :language: cpp
-            :fragment: [ov:serialize]
+      .. doxygensnippet:: docs/snippets/ov_model_snippets.py
+         :language: cpp
+         :fragment: [ov:serialize]
 
 
 Additional Resources
