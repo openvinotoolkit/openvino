@@ -1314,7 +1314,10 @@ void set_default_params(const kernel_impl_params& param_info, kernel_selector::b
     }
 }
 
-void set_weights_bias_default_params(const kernel_impl_params& param_info, kernel_selector::weight_bias_params& params, bool has_group_dimension, bool is_shape_agnostic) {
+void set_weights_bias_default_params(const kernel_impl_params& param_info,
+                                     kernel_selector::weight_bias_params& params,
+                                     bool has_group_dimension,
+                                     bool is_shape_agnostic) {
     set_default_params(param_info, params, is_shape_agnostic);
     params.weights = convert_weights_tensor(*param_info.weights_layout, has_group_dimension);
 
@@ -1324,7 +1327,10 @@ void set_weights_bias_default_params(const kernel_impl_params& param_info, kerne
     }
 }
 
-void set_weight_bias_zero_point_default_params(const kernel_impl_params& param_info, kernel_selector::weight_bias_zero_point_params& params, bool has_group_dimension, bool is_shape_agnostic) {
+void set_weight_bias_zero_point_default_params(const kernel_impl_params& param_info,
+                                               kernel_selector::weight_bias_zero_point_params& params,
+                                               bool has_group_dimension,
+                                               bool is_shape_agnostic) {
     set_weights_bias_default_params(param_info, params, has_group_dimension, is_shape_agnostic);
 
     if (param_info.weights_zero_points_layout) {

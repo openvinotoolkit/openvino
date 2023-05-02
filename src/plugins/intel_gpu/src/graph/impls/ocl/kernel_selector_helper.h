@@ -120,8 +120,14 @@ bool use_legacy_fused_ops(const kernel_impl_params& param_info);
 
 void set_params(const kernel_impl_params& param_info, kernel_selector::params& params);
 void set_default_params(const kernel_impl_params& param_info, kernel_selector::base_params& params, bool is_shape_agnostic);
-void set_weights_bias_default_params(const kernel_impl_params& param_info, kernel_selector::weight_bias_params& params, bool has_group_dimension, bool is_shape_agnostic);
-void set_weight_bias_zero_point_default_params(const kernel_impl_params& param_info, kernel_selector::weight_bias_zero_point_params& params, bool has_group_dimension, bool is_shape_agnostic);
+void set_weights_bias_default_params(const kernel_impl_params& param_info,
+                                     kernel_selector::weight_bias_params& params,
+                                     bool has_group_dimension,
+                                     bool is_shape_agnostic);
+void set_weight_bias_zero_point_default_params(const kernel_impl_params& param_info,
+                                               kernel_selector::weight_bias_zero_point_params& params,
+                                               bool has_group_dimension,
+                                               bool is_shape_agnostic);
 
 template <typename params_t>
 inline params_t get_default_params(const kernel_impl_params& param_info, bool is_shape_agnostic = false) {
