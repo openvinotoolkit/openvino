@@ -16,7 +16,11 @@ target_include_directories(${TARGET_NAME}
 find_package(OpenVINO REQUIRED COMPONENTS Runtime)
 
 target_link_libraries(${TARGET_NAME} PUBLIC openvino::runtime PRIVATE ${GFLAGS_TARGET})
-set_property(TARGET openvino::runtime PROPERTY "MAP_IMPORTED_CONFIG_RELWITHDEBINFO" "RELEASE")
+get_target_property(ORIGINAL_NAME openvino::runtime ALIASED_TARGET)
+if (ORIGINAL_NAME MATCHES "ORIGINAL_NAME-NOTFOUND")
+    set (ORIGINAL_NAME "openvino::runtime")
+endif()
+set_property(TARGET ${ORIGINAL_NAME} PROPERTY "MAP_IMPORTED_CONFIG_RELWITHDEBINFO" "RELEASE")
 
 if(COMMAND add_clang_format_target)
     add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
