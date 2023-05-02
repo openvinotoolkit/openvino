@@ -6,6 +6,7 @@
 
 #include "itt.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/prelu.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/util/op_types.hpp"
@@ -25,7 +26,8 @@ TSBinaryForward::TSBinaryForward() {
     auto main_node_label = wrap_type<op::util::BinaryElementwiseArithmetic,
                                      op::util::BinaryElementwiseComparison,
                                      op::util::BinaryElementwiseLogical,
-                                     ov::op::v0::PRelu>([](const Output<Node>& output) -> bool {
+                                     ov::op::v0::PRelu,
+                                     ov::op::v0::FakeQuantize>([](const Output<Node>& output) -> bool {
         return has_static_rank()(output) && IfNodeHasTransposeInputs(output);
     });
 
@@ -62,7 +64,8 @@ TSBinaryBackward::TSBinaryBackward() {
     auto main_node_label = wrap_type<op::util::BinaryElementwiseArithmetic,
                                      op::util::BinaryElementwiseComparison,
                                      op::util::BinaryElementwiseLogical,
-                                     ov::op::v0::PRelu>([](const Output<Node>& output) -> bool {
+                                     ov::op::v0::PRelu,
+                                     ov::op::v0::FakeQuantize>([](const Output<Node>& output) -> bool {
         return has_static_rank()(output) && HasSameOutputTransposeNodes(output);
     });
 
