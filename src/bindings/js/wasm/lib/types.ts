@@ -1,6 +1,6 @@
 import type { TypedArray, PrecisionSupportedType } from 'openvinojs-common';
 
-  export type HEAPType =
+export type HEAPType =
   | 'HEAP8'
   | 'HEAPU8'
   | 'HEAP16'
