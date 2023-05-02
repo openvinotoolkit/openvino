@@ -5,11 +5,6 @@
 #include "acl_transpose.hpp"
 #include "acl_utils.hpp"
 
-std::size_t AxisCast(const std::size_t axis, const std::size_t shapeSize) {
-    return shapeSize - axis - 1;
-}
-
-
 ov::intel_cpu::ACLTransposeExecutor::ACLTransposeExecutor(const ExecutorContext::CPtr context) : TransposeExecutor(context) {}
 
 bool ov::intel_cpu::ACLTransposeExecutor::init(const ov::intel_cpu::TransposeParams &transposeParams,
@@ -31,7 +26,7 @@ bool ov::intel_cpu::ACLTransposeExecutor::init(const ov::intel_cpu::TransposePar
         order.set(i, i);
     }
     for (size_t i = 0; i < inputOrder.size(); ++i) {
-        order.set(i, AxisCast(inputOrder[AxisCast(i, inputOrder.size())], inputOrder.size()));
+        order.set(i, axisCast(inputOrder[axisCast(i, inputOrder.size())], inputOrder.size()));
     }
     auto srcDims = srcDescs[0]->getShape().getStaticDims();
     auto dstDims = dstDescs[0]->getShape().getStaticDims();
