@@ -57,20 +57,7 @@ TEST_P(OVClassSeveralDevicesTestCompileModel, CompileModelActualSeveralDevicesNo
     OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork, multitarget_device));
 }
 
-TEST_P(OVClassModelTestP, CompileModelMultiWithoutSettingDevicePrioritiesThrows) {
-    ov::Core ie = createCoreWithTemplate();
-    try {
-        ie.compile_model(actualNetwork, CommonTestUtils::DEVICE_MULTI);
-    } catch (ov::Exception& error) {
-        EXPECT_PRED_FORMAT2(testing::IsSubstring,
-                            std::string("KEY_MULTI_DEVICE_PRIORITIES key is not set for"),
-                            error.what());
-    } catch (...) {
-        FAIL() << "compile_model is failed for unexpected reason.";
-    }
-}
-
-TEST_P(OVClassModelTestP, CompileModelActualHeteroDeviceUsingDevicePropertiesNoThrow) {
+TEST_P(OVClassModelOptionalTestP, CompileModelActualHeteroDeviceUsingDevicePropertiesNoThrow) {
     ov::Core ie = createCoreWithTemplate();
     OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork,
                                         CommonTestUtils::DEVICE_HETERO,
@@ -78,7 +65,46 @@ TEST_P(OVClassModelTestP, CompileModelActualHeteroDeviceUsingDevicePropertiesNoT
                                         ov::device::properties(target_device, ov::enable_profiling(true))));
 }
 
-TEST_P(OVClassSeveralDevicesTestQueryModel, QueryNetworkActualSeveralDevicesNoThrow) {
+TEST_P(OVClassModelOptionalTestP, CompileModelActualHeteroDeviceNoThrow) {
+    ov::Core ie = createCoreWithTemplate();
+    OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork, CommonTestUtils::DEVICE_HETERO + std::string(":") + target_device));
+}
+
+TEST_P(OVClassModelOptionalTestP, CompileModelActualHeteroDevice2NoThrow) {
+    ov::Core ie = createCoreWithTemplate();
+    OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork, CommonTestUtils::DEVICE_HETERO, ov::device::priorities(target_device)));
+}
+
+TEST_P(OVClassModelOptionalTestP, CompileModelCreateDefaultExecGraphResult) {
+    auto ie = createCoreWithTemplate();
+    auto net = ie.compile_model(actualNetwork, target_device);
+    auto runtime_function = net.get_runtime_model();
+    ASSERT_NE(nullptr, runtime_function);
+    auto actual_parameters = runtime_function->get_parameters();
+    auto actual_results = runtime_function->get_results();
+    auto expected_parameters = actualNetwork->get_parameters();
+    auto expected_results = actualNetwork->get_results();
+    ASSERT_EQ(expected_parameters.size(), actual_parameters.size());
+    for (std::size_t i = 0; i < expected_parameters.size(); ++i) {
+        auto expected_element_type = expected_parameters[i]->get_output_element_type(0);
+        auto actual_element_type = actual_parameters[i]->get_output_element_type(0);
+        ASSERT_EQ(expected_element_type, actual_element_type) << "For index: " << i;
+        auto expected_shape = expected_parameters[i]->get_output_shape(0);
+        auto actual_shape = actual_parameters[i]->get_output_shape(0);
+        ASSERT_EQ(expected_shape, actual_shape) << "For index: " << i;
+    }
+    ASSERT_EQ(expected_results.size(), actual_results.size());
+    for (std::size_t i = 0; i < expected_results.size(); ++i) {
+        auto expected_element_type = expected_results[i]->get_input_element_type(0);
+        auto actual_element_type = actual_results[i]->get_input_element_type(0);
+        ASSERT_EQ(expected_element_type, actual_element_type) << "For index: " << i;
+        auto expected_shape = expected_results[i]->get_input_shape(0);
+        auto actual_shape = actual_results[i]->get_input_shape(0);
+        ASSERT_EQ(expected_shape, actual_shape) << "For index: " << i;
+    }
+}
+
+TEST_P(OVClassSeveralDevicesTestQueryModel, QueryModelActualSeveralDevicesNoThrow) {
     ov::Core ie = createCoreWithTemplate();
 
     std::string clear_target_device;
