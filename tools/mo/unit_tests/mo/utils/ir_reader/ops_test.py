@@ -8,7 +8,7 @@ from pathlib import Path
 
 import openvino.runtime.opset11 as opset11
 import openvino.runtime.opset10 as opset10
-from openvino.runtime import Model, serialize, Core
+from openvino.runtime import Model, serialize, Core, PartialShape, Dimension
 
 from openvino.tools.mo.utils.ir_reader.restore_graph import restore_graph_from_ir, save_restored_graph
 from openvino.tools.mo.utils.logger import init_logger
@@ -182,3 +182,28 @@ class TestOps(unittest.TestCase):
         _, callable_attribute = layer_info[0]
         self.assertTrue(callable(callable_attribute))
         self.assertEqual(callable_attribute(if_node), "If_opset8")
+
+    def test_strided_slice_no_begin_end_mask(self):
+        data_shape = [6, 12, 10, 24]
+        data_parameter = opset11.parameter(
+            data_shape, name="Data", dtype=np.float32)
+        strided_slice = opset11.strided_slice(data_parameter, np.int32([1, 2, 3, 4]), np.int32(
+            [3, 6, 9, 12]), np.int32([1, 1, 1, 1]), begin_mask=[], end_mask=[], name="StridedSlice_10")
+        model = Model(strided_slice, [data_parameter])
+        graph = TestOps.check_graph_can_save(model, 'strided_slice_model')
+        strided_slice_node = graph.get_op_nodes(op="StridedSlice")[0]
+        self.assertEqual(strided_slice_node["version"], "opset1")
+
+    def test_scatter_dynamic_shape(self):
+        data_parameter = opset11.parameter(
+            PartialShape.dynamic(Dimension(2)), name="Data", dtype=np.float32)
+        shape_of = opset11.shape_of(data_parameter)
+        gather = opset11.gather(shape_of, np.int32(1), 0)
+        unsqueeze = opset11.unsqueeze(gather, 0)
+        scatter = opset11.scatter_update(np.int64([0, 0]), np.int64([1]), unsqueeze, axis=0)
+        mul = opset11.multiply(scatter, np.int64([1, 2]))
+        reshape = opset11.reshape(data_parameter, mul, True)
+        model = Model(reshape, [data_parameter])
+        graph = TestOps.check_graph_can_save(model, 'scatter_dynamic_model')
+        scatter_update_node = graph.get_op_nodes(op="ScatterUpdate")[0]
+        self.assertListEqual(scatter_update_node.out_port(0).data.get_value().tolist(), [0, None])

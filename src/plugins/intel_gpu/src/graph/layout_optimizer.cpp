@@ -106,6 +106,22 @@ bool layout_optimizer::onednn_check_data_types_for_convolution(data_types in_dt,
     return false;
 }
 
+// almost same with onednn_check_data_types_for_convolution.
+// removed case
+// - in_dt(f16) wei_dt(f16) out_dt(f32)
+bool layout_optimizer::onednn_check_data_types_for_deconvolution(data_types in_dt, data_types wei_dt, data_types out_dt) {
+    if ((in_dt == data_types::f16 && wei_dt == data_types::f16) &&
+        (out_dt == data_types::f16 || out_dt == data_types::i8 || out_dt == data_types::u8))
+        return true;
+    if ((in_dt == data_types::i8 || in_dt == data_types::u8) && wei_dt == data_types::i8 &&
+        (out_dt == data_types::f32 || out_dt == data_types::i32 || out_dt == data_types::f16 || out_dt == data_types::i8 || out_dt == data_types::u8))
+        return true;
+    if ((in_dt == data_types::f32 && wei_dt == data_types::f32) &&
+        (out_dt == data_types::i8 || out_dt == data_types::u8))
+        return true;
+    return false;
+}
+
 bool layout_optimizer::onednn_check_data_types_for_fc_gemm(data_types in_dt, data_types wei_dt, data_types out_dt) {
     if ((in_dt == data_types::f16 && wei_dt == data_types::f16) &&
         (out_dt == data_types::f16 || out_dt == data_types::f32 || out_dt == data_types::i8))
@@ -405,7 +421,7 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
             for (auto& p : next.get_fused_primitives()) {
                 // find eltwise sum primitive which has dependency nodes, and gather dependency indices of it.
                 if (p.is_type<eltwise>() && p.typed_desc<eltwise>()->mode == eltwise_mode::sum) {
-                    for (size_t i = p.dep_start_idx; i < p.dep_start_idx + p.total_num_deps; i++) {
+                    for (size_t i = p.outer_dep_start_idx; i < p.outer_dep_start_idx + p.total_num_deps; i++) {
                         dep_idx_set.insert(i);
                     }
                 }
@@ -1231,18 +1247,31 @@ bool layout_optimizer::are_data_types_suitable_for_onednn(program_node& node) {
 
     if (node.is_type<pooling>()) {
         return onednn_check_data_types_for_pooling(in_dt, out_dt);
-    } else if (node.is_type<convolution>() || node.is_type<deconvolution>()) {
-        bool is_conv = node.is_type<convolution>();
-        auto wei_dt = is_conv ? node.as<convolution>().weights().get_output_layout().data_type :
-                                node.as<deconvolution>().weights().get_output_layout().data_type;
+    } else if (node.is_type<convolution>()) {
+        auto wei_dt = node.as<convolution>().weights().get_output_layout().data_type;
         return onednn_check_data_types_for_convolution(in_dt, wei_dt, out_dt);
+    } else if (node.is_type<deconvolution>()) {
+        auto wei_dt = node.as<deconvolution>().weights().get_output_layout().data_type;
+        return onednn_check_data_types_for_deconvolution(in_dt, wei_dt, out_dt);
     } else if (node.is_type<fully_connected>() || node.is_type<gemm>()) {
         bool is_fc = node.is_type<fully_connected>();
         auto wei_dt = is_fc ? node.as<fully_connected>().weights().get_output_layout().data_type :
                               node.as<gemm>().get_dependency(1).get_output_layout().data_type;
         return onednn_check_data_types_for_fc_gemm(in_dt, wei_dt, out_dt);
-    }
+    } else if (node.is_type<reorder>()) {
+        auto input_fmt = node.get_dependency(0).get_output_layout().format;
+        auto output_fmt = node.get_output_layout().format;
 
+        // For mixed precision case, oneDNN is slower than clDNN
+        if (input_fmt == format::b_fs_yx_fsv16 && data_type_traits::is_i8_u8(in_dt))
+            return false;
+        if (output_fmt == format::b_fs_yx_fsv16 && data_type_traits::is_i8_u8(in_dt))
+            return false;
+        if (output_fmt == format::bfyx && out_dt == data_types::f32)
+            return false;
+
+        return true;
+    }
     return false;
 }
 
@@ -1287,6 +1316,18 @@ bool layout_optimizer::is_primitive_implemented_for_onednn(program_node& node) {
         node.is_type<convolution>() || node.is_type<deconvolution>() ||
         node.is_type<reduce>() || node.is_type<reorder>() || node.is_type<concatenation>()) {
         return true;
+    }
+
+    return false;
+}
+
+bool layout_optimizer::onednn_check_preferred_impl_type_of_users(program_node& node) {
+    if (node.get_users().size() == 0)
+        return false;
+
+    for (auto& user : node.get_users()) {
+        if (user->get_preferred_impl_type() == impl_types::onednn)
+            return true;
     }
 
     return false;

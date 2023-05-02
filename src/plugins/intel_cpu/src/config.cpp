@@ -28,24 +28,28 @@ using namespace dnnl::impl::cpu::x64;
 
 Config::Config() {
     // this is default mode
+#if defined(__APPLE__) || defined(_WIN32)
+    streamExecutorConfig._threadBindingType = InferenceEngine::IStreamsExecutor::NONE;
+#else
     streamExecutorConfig._threadBindingType = InferenceEngine::IStreamsExecutor::CORES;
+#endif
 
-    // for the TBB code-path, additional configuration depending on the OS and CPU types
-    #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
-        #if defined(__APPLE__) || defined(_WIN32)
-        // 'CORES' is not implemented for Win/MacOS; so the 'NONE' or 'NUMA' is default
-        auto numaNodes = getAvailableNUMANodes();
-        if (numaNodes.size() > 1) {
-            streamExecutorConfig._threadBindingType = InferenceEngine::IStreamsExecutor::NUMA;
-        } else {
-            streamExecutorConfig._threadBindingType = InferenceEngine::IStreamsExecutor::NONE;
-        }
-        #endif
+// for the TBB code-path, additional configuration depending on the OS and CPU types
+#if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
+#    if defined(__APPLE__) || defined(_WIN32)
+    // 'CORES' is not implemented for Win/MacOS; so the 'NONE' or 'NUMA' is default
+    auto numaNodes = getAvailableNUMANodes();
+    if (numaNodes.size() > 1) {
+        streamExecutorConfig._threadBindingType = InferenceEngine::IStreamsExecutor::NUMA;
+    } else {
+        streamExecutorConfig._threadBindingType = InferenceEngine::IStreamsExecutor::NONE;
+    }
+#    endif
 
-        if (getAvailableCoresTypes().size() > 1 /*Hybrid CPU*/) {
-            streamExecutorConfig._threadBindingType = InferenceEngine::IStreamsExecutor::HYBRID_AWARE;
-        }
-    #endif
+    if (getAvailableCoresTypes().size() > 1 /*Hybrid CPU*/) {
+        streamExecutorConfig._threadBindingType = InferenceEngine::IStreamsExecutor::HYBRID_AWARE;
+    }
+#endif
 
     if (!mayiuse(avx512_core_bf16))
         enforceBF16 = false;
@@ -262,8 +266,10 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
     if (!prop.empty())
         _config.clear();
 
-    if (exclusiveAsyncRequests)  // Exclusive request feature disables the streams
+    if (exclusiveAsyncRequests) { // Exclusive request feature disables the streams
         streamExecutorConfig._streams = 1;
+        streamExecutorConfig._streams_changed = true;
+    }
 
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
     // TODO: multi-stream execution has functional issues on ARM target

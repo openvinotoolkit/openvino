@@ -36,7 +36,7 @@ The key advantage of the Async approach is that when a device is busy with the i
 In the example below, inference is applied to the results of the video decoding. It is possible to keep two parallel infer requests, and while the current one is processed, the input frame for the next one is being captured. This essentially hides the latency of capturing, so that the overall frame rate is rather determined only by the slowest part of the pipeline (decoding vs inference) and not by the sum of the stages.
 
 .. image:: _static/images/synch-vs-asynch.svg
-   :alt: Intel&reg; VTune&trade; screenshot
+   :alt: Intel® VTune™ screenshot
 
 Below are example-codes for the regular and async-based approaches to compare:
 

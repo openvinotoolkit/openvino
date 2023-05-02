@@ -166,12 +166,12 @@ jobs:
 
   - script: |
       set PATH=$(WORK_DIR)\ninja-win;%PATH%
-      call "$(MSVS_VARS_PATH)" && $(CMAKE_CMD) -G "Ninja Multi-Config" ^
+      call "$(MSVS_VARS_PATH)" && $(CMAKE_CMD) ^
+        -G "Ninja Multi-Config" ^
         -DENABLE_CPPLINT=OFF ^
         -DENABLE_ONEDNN_FOR_GPU=$(CMAKE_BUILD_SHARED_LIBS) ^
         -DBUILD_SHARED_LIBS=$(CMAKE_BUILD_SHARED_LIBS) ^
         -DENABLE_FASTER_BUILD=ON ^
-        -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) ^
         -DENABLE_TESTS=ON ^
         -DCMAKE_COMPILE_WARNING_AS_ERROR=ON ^
         -DENABLE_STRICT_DEPENDENCIES=OFF ^

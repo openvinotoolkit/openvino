@@ -18,6 +18,7 @@
 
 // Common transformations
 #include "transformations/common_optimizations/add_fake_quantize_fusion.hpp"
+#include "transformations/common_optimizations/broadcast_transition.hpp"
 #include "transformations/common_optimizations/convert_compression_only_to_legacy.hpp"
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include "transformations/common_optimizations/fq_mul_fusion.hpp"
@@ -225,6 +226,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     type_to_fuse_map type_to_fuse = {{ov::opset10::Convert::get_type_info_static(), fuse_type_to_convert}};
 
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::AUGRUCellFusion);
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::BroadcastTransition);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::CommonOptimizations);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::WrapInterpolateIntoTransposes);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::TransposeSinking);
@@ -467,6 +469,7 @@ void Transformations::Lpt(const bool hasINT16orINT32Levels, const std::vector<ov
     } else {
         input0LowPrecisionList = {ov::element::u8};
     }
+
     auto supportedPrecisions = std::vector<PrecisionsRestriction>({
             PrecisionsRestriction::create<ov::opset1::Convolution>({
                     {{0}, input0LowPrecisionList},
@@ -476,9 +479,19 @@ void Transformations::Lpt(const bool hasINT16orINT32Levels, const std::vector<ov
                     {{0}, {ov::element::u8, ov::element::i8}},
                     {{1}, {ov::element::i8}}
                 }),
-            PrecisionsRestriction::create<ov::opset1::GroupConvolution>({
+            PrecisionsRestriction::create<ov::opset1::GroupConvolution>([input0LowPrecisionList](const std::shared_ptr<ov::Node>& node){
+                const auto& input_partial_shape = node->get_input_partial_shape(0);
+                const auto& rank = input_partial_shape.rank();
+                if (rank.is_static() && (rank.get_length() == 5)) {
+                    return PrecisionsRestriction::PrecisionsByPorts{
+                        {{0}, {ov::element::u8, ov::element::i8}},
+                        {{1}, {ov::element::i8}}};
+                }
+
+                return PrecisionsRestriction::PrecisionsByPorts{
                     {{0}, input0LowPrecisionList},
                     {{1}, {ov::element::i8}}
+                };
                 }),
             PrecisionsRestriction::create<ov::opset1::Multiply>({
                     {{0}, {ov::element::u8}},

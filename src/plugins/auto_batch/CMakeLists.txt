@@ -12,7 +12,7 @@ file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 
 file(GLOB HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
 
-ie_add_plugin(NAME ${TARGET_NAME}
+ov_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "BATCH"
               PSEUDO_DEVICE
               SOURCES ${SOURCES} ${HEADERS}

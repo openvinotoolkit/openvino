@@ -123,7 +123,8 @@ jobs:
 
   - script: |
       export PATH="/usr/local/opt/cython/bin:$PATH"
-      cmake -GNinja \
+      cmake \
+        -G Ninja \
         -DENABLE_CPPLINT=OFF \
         -DCMAKE_VERBOSE_MAKEFILE=ON \
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) \
