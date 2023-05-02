@@ -1,7 +1,9 @@
-import { Tensor, TypedArray, Shape } from 'openvinojs-common';
-import type { ITensor, IShape, IModel, PrecisionSupportedType } from 'openvinojs-common';
-const ovNode : ovNodeModule = require('../build/Release/ov_node_addon.node');
+import { Tensor, Shape } from 'openvinojs-common';
 
+import type { ovNodeModule, NodeModel, NodeTensor } from './types';
+import type { ITensor, IShape, IModel, PrecisionSupportedType } from 'openvinojs-common';
+
+const ovNode: ovNodeModule = require('../build/Release/ov_node_addon.node');
 
 export default async function loadModel(xmlPath: string, binPath: string): Promise<IModel> {
     if (typeof xmlPath !== 'string' || typeof binPath !== 'string')
@@ -10,7 +12,6 @@ export default async function loadModel(xmlPath: string, binPath: string): Promi
     const model = new ovNode.Model().read_model(xmlPath).compile("CPU");
     return new CommonModel(ovNode, model);
 }
-
 
 class CommonModel implements IModel {
     #ovNode: ovNodeModule;
@@ -40,31 +41,4 @@ function parseNodeTensor(nodeTensor: NodeTensor): Tensor {
     const data = nodeTensor.data;
     const shape = new Shape(nodeTensor.getShape().getData());
     return new Tensor(precision, data, shape);
-}
-
-
-export interface ovNodeModule {
-    Tensor: new (precision: string, shape: number[] | Uint32Array | Int32Array, tensor_data: TypedArray) => NodeTensor,
-    Model: new () => NodeModel,
-    Shape: new (dimension: number, data: Uint32Array) => ShapeLite,
-    getDescriptionString(): string
-};
-
-export interface NodeTensor {
-    data: TypedArray;
-    getData(): TypedArray;
-    getPrecision(): string;
-    getShape(): ShapeLite;
-};
-
-export interface ShapeLite {
-    getDim(): number;
-    getData(): number;
-    shapeSize(): number;
-};
-
-export interface NodeModel {
-    read_model(path: string): NodeModel;
-    compile(device: string): NodeModel;
-    infer(tensor: NodeTensor): NodeTensor;
 }
