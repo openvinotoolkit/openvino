@@ -100,7 +100,7 @@ A framework and CLI tool to build, transform, and analyze datasets.
 
 More resources:
 
-* `Documentation on GitHub <https://openvinotoolkit.github.io/datumaro/docs/>`__  
+* `Documentation on GitHub <https://openvinotoolkit.github.io/datumaro/stable/docs/get-started/introduction.html>`__  
 * `PyPI <https://pypi.org/project/datumaro/>`__  
 * `GitHub <https://github.com/openvinotoolkit/datumaro>`__  
 
