@@ -283,6 +283,18 @@ if(NOT TARGET openvino)
     set(_ov_as_external_package ON)
     include("${CMAKE_CURRENT_LIST_DIR}/OpenVINOTargets.cmake")
 
+    foreach(target openvino::runtime openvino::runtime::c
+               openvino::frontend::onnx openvino::frontend::paddle openvino::frontend::tensorflow
+               openvino::frontend::pytorch openvino::frontend::tensorflow_lite)
+        if(TARGET ${target})
+            get_target_property(ORIGINAL_NAME ${target} ALIASED_TARGET)
+            if (ORIGINAL_NAME MATCHES "ORIGINAL_NAME-NOTFOUND")
+                set (ORIGINAL_NAME ${target})
+            endif()
+            set_property(TARGET ${ORIGINAL_NAME} PROPERTY "MAP_IMPORTED_CONFIG_RELWITHDEBINFO" "RELEASE")
+        endif()
+    endforeach()
+
     # WA for cmake version < 3.16 which does not export
     # IMPORTED_LINK_DEPENDENT_LIBRARIES_** properties if no PUBLIC dependencies for the library
     if((THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO") AND TBB_FOUND)
@@ -331,7 +343,6 @@ foreach(target openvino::runtime openvino::runtime::c
     if(TARGET ${target} AND _ov_as_external_package)
         _ov_target_no_deprecation_error(${target})
     endif()
-    set_property(TARGET ${target} PROPERTY "MAP_IMPORTED_CONFIG_RELWITHDEBINFO" "RELEASE")
 endforeach()
 unset(_ov_as_external_package)
 
