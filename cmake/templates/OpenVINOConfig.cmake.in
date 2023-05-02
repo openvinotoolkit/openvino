@@ -331,6 +331,7 @@ foreach(target openvino::runtime openvino::runtime::c
     if(TARGET ${target} AND _ov_as_external_package)
         _ov_target_no_deprecation_error(${target})
     endif()
+    set_property(TARGET ${target} PROPERTY "MAP_IMPORTED_CONFIG_RELWITHDEBINFO" "RELEASE")
 endforeach()
 unset(_ov_as_external_package)
 
