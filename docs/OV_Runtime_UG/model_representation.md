@@ -18,21 +18,18 @@ be destructed and not be accessible anymore.
 Each operation in ``:ref:`ov::Model <doxid-classov_1_1_model>``` has the 
 ``std::shared_ptr<:ref:`ov::Node <doxid-classov_1_1_node>`>`` type.
 
-
-
 How OpenVINO Runtime Works with Models
 #########################################
 
 OpenVINO™ Runtime enables you to use different approaches to work with model inputs/outputs:
 
-   * The ``:ref:`ov::Model::inputs() <doxid-classov_1_1_model_1ac28a4c66071e165c4f98906ab489e5d5>``` 
-  / ``:ref:`ov::Model::outputs() <doxid-classov_1_1_model_1af6e381008712ce22d6f4b93b87303dd8>```  methods are used to get vectors of all input/output ports.
-   * For a model that has only one input or output, you can use the ``:ref:`ov::Model::input() <doxid-classov_1_1_model_1a5deeced6688795bc6cdad9ce74d972e7>``` 
-  or ``:ref:`ov::Model::output() <doxid-classov_1_1_model_1a54c76c98bc7dd8fb04e866d06134efc7>```  methods without any arguments to get input or output port respectively.
-   * The ``:ref:`ov::Model::input() <doxid-classov_1_1_model_1a5deeced6688795bc6cdad9ce74d972e7>``` 
-  and ``:ref:`ov::Model::output() <doxid-classov_1_1_model_1a54c76c98bc7dd8fb04e866d06134efc7>```  methods can be used with the index of inputs or outputs from the framework model to get specific ports by index.
-   * You can use the tensor name of input or output from the original framework model together with the ``:ref:`ov::Model::input() <doxid-classov_1_1_model_1a5deeced6688795bc6cdad9ce74d972e7>``` 
-  or ``:ref:`ov::Model::output() <doxid-classov_1_1_model_1a54c76c98bc7dd8fb04e866d06134efc7>``` methods to get specific ports. It means that you do not need to have any additional mapping of names from framework to OpenVINO as it was before. OpenVINO™ Runtime allows the usage of native framework tensor names, for example:
+* The ``:ref:`ov::Model::inputs() <doxid-classov_1_1_model_1ac28a4c66071e165c4f98906ab489e5d5>``` / ``:ref:`ov::Model::outputs() <doxid-classov_1_1_model_1af6e381008712ce22d6f4b93b87303dd8>```  methods are used to get vectors of all input/output ports.
+
+* For a model that has only one input or output, you can use the ``:ref:`ov::Model::input() <doxid-classov_1_1_model_1a5deeced6688795bc6cdad9ce74d972e7>``` or ``:ref:`ov::Model::output() <doxid-classov_1_1_model_1a54c76c98bc7dd8fb04e866d06134efc7>```  methods without any arguments to get input or output port respectively.
+
+* The ``:ref:`ov::Model::input() <doxid-classov_1_1_model_1a5deeced6688795bc6cdad9ce74d972e7>``` and ``:ref:`ov::Model::output() <doxid-classov_1_1_model_1a54c76c98bc7dd8fb04e866d06134efc7>```  methods can be used with the index of inputs or outputs from the framework model to get specific ports by index.
+
+* You can use the tensor name of input or output from the original framework model together with the ``:ref:`ov::Model::input() <doxid-classov_1_1_model_1a5deeced6688795bc6cdad9ce74d972e7>``` or ``:ref:`ov::Model::output() <doxid-classov_1_1_model_1a54c76c98bc7dd8fb04e866d06134efc7>``` methods to get specific ports. It means that you do not need to have any additional mapping of names from framework to OpenVINO as it was before. OpenVINO Runtime allows the usage of native framework tensor names, for example:
 
    .. tab-set::
 
@@ -78,7 +75,7 @@ OpenVINO™ Runtime provides two types for shape representation:
 .. tab-item:: Python
    :sync: python
 
-   .. doxygensnippet:: docs/snippets/ov_model_snippets.py
+   .. doxygensnippet:: snippets/ov_model_snippets.py
       :language: cpp
       :fragment: [ov:partial_shape]
 
@@ -142,7 +139,7 @@ The following code demonstrates how to create a simple model:
    .. tab-item:: Python
       :sync: python
 
-      .. doxygensnippet:: docs/snippets/ov_model_snippets.py
+      .. doxygensnippet:: snippets/ov_model_snippets.py
          :language: cpp
          :fragment: [ov:create_simple_model]
 
@@ -161,7 +158,7 @@ The following code creates a model with several outputs:
    .. tab-item:: Python
       :sync: python
 
-      .. doxygensnippet:: docs/snippets/ov_model_snippets.py
+      .. doxygensnippet:: snippets/ov_model_snippets.py
          :language: cpp
          :fragment: [ov:create_advanced_model]
 
@@ -171,8 +168,9 @@ Model Debugging Capabilities
 
 OpenVINO™ provides several debug capabilities:
 
-   * To receive additional messages about applied model modifications, rebuild the OpenVINO™ Runtime library with the ``-DENABLE_OPENVINO_DEBUG=ON`` option.
-   * Model can be visualized to image from the xDot format:
+* To receive additional messages about applied model modifications, rebuild the OpenVINO™ Runtime library with the ``-DENABLE_OPENVINO_DEBUG=ON`` option.
+
+* Model can be visualized to image from the xDot format:
 
 .. tab-set::
 
@@ -182,13 +180,16 @@ OpenVINO™ provides several debug capabilities:
       .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
          :language: cpp
          :fragment: [ov:visualize]
-
+      
    .. tab-item:: Python
       :sync: python
 
-      .. doxygensnippet:: docs/snippets/ov_model_snippets.py
+      .. doxygensnippet:: snippets/ov_model_snippets.py
          :language: cpp
          :fragment: [ov:visualize]
+
+
+   .. code-block:: sh
    
       ``ov::pass::VisualizeTree`` can be parametrized via environment variables:
 
@@ -205,8 +206,7 @@ OpenVINO™ provides several debug capabilities:
       OV_VISUALIZE_TREE_MEMBERS_NAME=1        - print member names
 
 
-
-   * Also model can be serialized to IR:
+* Also model can be serialized to IR:
 
    .. tab-set::
 
