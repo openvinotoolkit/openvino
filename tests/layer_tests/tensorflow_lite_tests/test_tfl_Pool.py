@@ -8,6 +8,7 @@ from common.utils.tflite_utils import data_generators, additional_test_params
 
 test_ops = [
     {'op_name': 'AVERAGE_POOL_2D', 'op_func': tf.nn.avg_pool2d},
+    {'op_name': 'MAX_POOL_2D', 'op_func': tf.nn.max_pool2d},
 ]
 
 test_params = [
@@ -25,9 +26,9 @@ for i, (parameters, shapes) in enumerate(test_data):
     test_data[i] = parameters.copy()
 
 
-class TestTFLiteAvgPoolLayerTest(TFLiteLayerTest):
+class TestTFLitePoolLayerTest(TFLiteLayerTest):
     inputs = ["Input"]
-    outputs = ["AvgPool"]
+    outputs = ["Pool"]
 
     def _prepare_input(self, inputs_dict, generator=None):
         if generator is None:
@@ -42,13 +43,13 @@ class TestTFLiteAvgPoolLayerTest(TFLiteLayerTest):
         tf.compat.v1.reset_default_graph()
         with tf.compat.v1.Session() as sess:
             place_holder = tf.compat.v1.placeholder(params.get('dtype', tf.float32), params['shape'],
-                                                    name=TestTFLiteAvgPoolLayerTest.inputs[0])
+                                                    name=self.inputs[0])
             params['op_func'](place_holder, params['ksize'], params['strides'],
-                              params['padding'], params['data_format'], name=TestTFLiteAvgPoolLayerTest.outputs[0])
+                              params['padding'], params['data_format'], name=self.outputs[0])
             net = sess.graph_def
         return net
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_avg_pool(self, params, ie_device, precision, temp_dir):
+    def test_pool(self, params, ie_device, precision, temp_dir):
         self._test(ie_device, precision, temp_dir, params)
