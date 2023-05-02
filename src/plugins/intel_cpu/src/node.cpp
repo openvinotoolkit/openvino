@@ -1600,7 +1600,7 @@ void Node::addSupportedPrimDesc(const std::vector<PortConfigurator>& inPortConfi
                          InferenceEngine::Precision prc, std::vector<PortConfig>& port) -> bool {
         // In order to simplify particular node initialization logic we just don't add config in case target shape is not supported by blockedDescCreator.
         // This should be suitable for major of scenarios since almost all nodes add `ncsp` blockedDescCreator which supports any shape rank.
-        std::cerr << __FILE__ << ":" << __LINE__ << ", precision: " << prc << "\n";
+        //std::cerr << __FILE__ << ":" << __LINE__ << ", precision: " << prc << "\n";
         if (shape.getRank() < portConfigurator.blockedDescCreator->getMinimalRank())
             return false;
 

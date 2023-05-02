@@ -18,7 +18,7 @@ public:
     CpuBlockedMemoryDesc createDesc(const InferenceEngine::Precision& precision, const Shape& srcShape) const override {
         SizeVector order(srcShape.getRank());
         std::iota(order.begin(), order.end(), 0);
-        std::cerr << __FILE__ << ":" << __LINE__ << ", precision: " << precision << "\n";
+        //std::cerr << __FILE__ << ":" << __LINE__ << ", precision: " << precision << "\n";
         return CpuBlockedMemoryDesc(precision, srcShape, srcShape.getDims(), order);
     }
     size_t getMinimalRank() const override { return 0lu; }

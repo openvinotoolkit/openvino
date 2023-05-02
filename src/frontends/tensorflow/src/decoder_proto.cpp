@@ -105,35 +105,35 @@ template <
 void extract_compressed_tensor_content(const ::tensorflow::TensorProto& tensor_proto,
                                        int64_t val_size,
                                        ov::Tensor* values) {
-    std::cerr << "[ TF FE STR ] 2 Trying to decode tensor proto to string tensor\n";
+    //std::cerr << "[ TF FE STR ] 2 Trying to decode tensor proto to string tensor\n";
     auto val_lastsaved = std::string();
-    std::cerr << ">>>> 1\n";
+    //std::cerr << ">>>> 1\n";
     auto values_data = values->data<T>();
-    std::cerr << ">>>> 2\n";
+    //std::cerr << ">>>> 2\n";
     for (auto i = 0; i < values->get_size(); i++) {
-        std::cerr << ">>>> 3\n";
+        //std::cerr << ">>>> 3\n";
         if (val_size == 0) {
             values_data[i] = std::string();
         } else if (i < val_size) {
             auto val_i = std::string();
             switch (values->get_element_type()) {
             case ov::element::string:
-                std::cerr << "[ TF FE STR ] Trying to decode this '" << tensor_proto.string_val()[i] <<  "' as one of string element values to initialize a tensor\n";
+                //std::cerr << "[ TF FE STR ] Trying to decode this '" << tensor_proto.string_val()[i] <<  "' as one of string element values to initialize a tensor\n";
                 val_i = tensor_proto.string_val()[i];
                 break;
             default:
                 FRONT_END_THROW("Encountered unknown element type " + values->get_element_type().get_type_name());
             }
-            std::cerr << ">>>> 4\n";
+            //std::cerr << ">>>> 4\n";
             values_data[i] = val_i;
-            std::cerr << ">>>> 5\n";
+            //std::cerr << ">>>> 5\n";
 
             val_lastsaved = val_i;
-            std::cerr << ">>>> 6\n";
+            //std::cerr << ">>>> 6\n";
         } else {
-            std::cerr << ">>>> 7\n";
+            //std::cerr << ">>>> 7\n";
             values_data[i] = val_lastsaved;
-            std::cerr << ">>>> 8\n";
+            //std::cerr << ">>>> 8\n";
         }
     }
 }
