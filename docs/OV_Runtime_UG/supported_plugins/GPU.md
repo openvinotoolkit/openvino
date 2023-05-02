@@ -276,7 +276,7 @@ The code snippet below demonstrates examples of bounded dynamic batch:
 
 
 Notes for performance and memory consumption in dynamic shape
------------------------------------------------------------
+--------------------------------------------------------------
 
 - Extra CPU utilization during inference :
 
