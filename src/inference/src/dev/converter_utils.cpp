@@ -151,7 +151,9 @@ InferenceEngine::CNNNetwork ov::legacy_convert::convert_model(const std::shared_
             auto parameter = cloned->get_parameters()[i];
             if(parameter->get_element_type() == element::string) {
                 std::cerr << "Detected parameter with name " << parameter->output(0).get_any_name() << " with string type\n";
-                parameter->get_rt_info()["original_partial_shape"] = parameter->get_partial_shape();
+                // Store shape as a RT attribute, otherwise the validation of next nodes cannot deduce shape from a new parameter
+                PartialShape original_shape = parameter->get_partial_shape();
+                //parameter->get_rt_info()["original_partial_shape"] = original_shape;  // Not universal in case if the wrapping happens not for Parameter
                 parameter->set_element_type(element::u8);
                 parameter->set_partial_shape(PartialShape{sizeof(void*)});
                 parameter->validate_and_infer_types();
@@ -161,6 +163,7 @@ InferenceEngine::CNNNetwork ov::legacy_convert::convert_model(const std::shared_
                 std::string name = tensor.get_any_name();
                 name = "__overriden_string_port_prefix__" + name;
                 tensor.add_names({name});
+                tensor.get_rt_info()["__original_partial_shape"] = original_shape;
 
                 std::cerr << "Patched a parameter of type element::string with new name " << name << "\n";
             }
