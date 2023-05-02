@@ -55,7 +55,6 @@ public:
                                                                                   testValues.actual.fakeQuantizeOnData1,
                                                                                   testValues.actual.fakeQuantizeOnData2,
                                                                                   {});
-
         SimpleLowPrecisionTransformer transformer;
         transformer
             .add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ngraph::opset1::FakeQuantize>(
@@ -82,7 +81,8 @@ public:
         result << testValues.inputShape << "_" << testValues.params.updatePrecisions << "_"
                << testValues.actual.precisionBefore << "_" << testValues.actual.fakeQuantizeOnData1 << "_"
                << testValues.actual.fakeQuantizeOnData2 << "_" << testValues.expected.precisionBefore << "_"
-               << testValues.expected.fakeQuantizeOnData1 << "_" << testValues.expected.fakeQuantizeOnData2 << "_";
+               << testValues.expected.fakeQuantizeOnData1 << "_" << testValues.expected.fakeQuantizeOnData2 << "_"
+               << testValues.expected.dequantizationOperations2;
         return result.str();
     }
 };
@@ -110,6 +110,36 @@ const std::vector<TransformationTestValues> testValues = {
             {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, element::u8},
             {},
             { ov::element::f32, {}, {{0.01f}, ov::element::f32, {}} }
+        }
+    },
+    {
+        {1, 3, 16, 16},
+        TestTransformationParams(true, {ngraph::element::u8}, {ngraph::element::i8}),
+        {
+            element::f32,
+            {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}},
+            {256ul, {}, {0.f}, {2.549f}, {0.f}, {2.55f}}
+        },
+        {
+            element::f32,
+            {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, element::u8},
+            {},
+            { ov::element::f32, {}, {{0.01f}, ov::element::f32, {}} }
+        }
+    },
+    {
+        {1, 3, 16, 16},
+        TestTransformationParams(true, {ngraph::element::u8}, {ngraph::element::i8}),
+        {
+            element::f32,
+            {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}},
+            {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f / 2.f}}
+        },
+        {
+            element::f32,
+            {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, element::u8},
+            {},
+            { ov::element::f32, {}, {{0.005f}, ov::element::f32, {}} }
         }
     },
     {

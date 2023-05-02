@@ -303,7 +303,6 @@ void Reshape::initSupportedPrimitiveDescriptors() {
         canBeInPlace = false;
 
     NodeConfig config;
-    config.dynBatchSupport = true;
     config.inConfs.resize(getParentEdges().size());
     auto& creatorsMap = BlockedDescCreator::getCommonCreators();
     for (size_t i = 0; i < getParentEdges().size(); i++) {

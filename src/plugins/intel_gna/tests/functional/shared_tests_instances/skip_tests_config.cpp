@@ -75,7 +75,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*LoadNetworkTest.*QueryNetwork(MULTIWithHETERO|HETEROWithMULTI)NoThrow_V10.*)",
         R"(.*Behavior.*OVCompiledModelBaseTest.*get(Inputs|Outputs)FromFunctionWithSeveral(Inputs|Outputs).*)",
         // TODO: temporary disabled. Need to be enabled when PR 9282 is merged
-        R"(.*OVExecGraphImportExportTest.*readFromV10IR.*)",
+        R"(.*OVCompiledGraphImportExportTest.*readFromV10IR.*)",
         // Issue connected with OV2.0
         R"(.*EltwiseLayerTest.*NetType=f16.*)",
         // TODO: Issue: 69639
