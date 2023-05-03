@@ -144,6 +144,10 @@ PreStepsList InputInfo::InputInfoImpl::create_implicit_steps(const Preprocessing
     if (type != context.target_element_type()) {
         implicit_steps.add_convert_impl(context.target_element_type());
     }
+    if (!ov::layout::has_batch(context.layout()) && ov::layout::has_batch(context.target_layout())) {
+        implicit_steps.add_batch_dim_impl(ov::layout::batch_idx(context.target_layout()));
+    }
+    // TODO ??? Check why implicit convert layout was added
     if (!context.target_layout().empty() && context.target_layout() != context.layout()) {
         implicit_steps.add_convert_layout_impl(context.target_layout());
     }

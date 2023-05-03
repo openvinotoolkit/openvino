@@ -317,6 +317,44 @@ void PreStepsList::add_convert_layout_impl(const std::vector<uint64_t>& dims) {
         "convert layout " + vector_to_string(dims));
 }
 
+void PreStepsList::add_batch_dim_impl(const int& dim) {
+    // TODO:
+    // m_layout_converts.emplace_front(dims);
+    // m_forward_layout_converts.emplace_back(dims);
+    m_actions.emplace_back(
+        [dim](const std::vector<Output<Node>>& nodes,
+               const std::shared_ptr<Model>& function,
+               PreprocessingContext& context) {
+            OPENVINO_ASSERT(!nodes.empty(), "TODO Internal error: Can't convert layout for empty input.");
+            OPENVINO_ASSERT(nodes.size() == 1,
+                            "TODO: Can't convert layout for multi-plane input. Suggesting to convert current image to "
+                            "RGB/BGR color format using 'convert_color'");
+            
+            // TODO: WHAT IF MODEL BATCH > 1 ???
+
+            auto axes = op::v0::Constant::create<int64_t>(element::i64, std::vector<size_t>{1}, std::vector<int64_t>{dim});
+            auto node = nodes[0];
+            node = std::make_shared<opset8::Unsqueeze>(nodes[0], axes);
+            
+            auto old_layout_s = context.layout().to_string();
+            std::string new_layout_s = "";
+            if (old_layout_s.size() > 2) {
+                for (size_t i = 1; i < old_layout_s.size(); i+=2) {
+                    new_layout_s += old_layout_s[i];
+                }
+            }
+            new_layout_s.insert(dim, "N");
+            auto new_layout = Layout(new_layout_s);
+
+            context.layout() = new_layout;
+            context.model_shape() = node.get_tensor().get_partial_shape(); // TODO ?????
+            // return false to avoid excess function revalidations as layout conversion
+            // doesn't require shape or type propagation.
+            return std::make_tuple(std::vector<Output<Node>>{node}, false);
+        },
+        "add batch dimension with " + std::to_string(dim) + " index");
+}
+
 std::tuple<PartialShape, Layout> PreStepsList::calculate_param_shape(const PartialShape& model_shape,
                                                                      const Layout& model_layout) const {
     if (model_shape.rank().is_dynamic()) {

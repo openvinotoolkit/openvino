@@ -165,6 +165,7 @@ public:
     void add_convert_layout_impl(const Layout& layout);
     void add_convert_layout_impl(const std::vector<uint64_t>& dims);
     void add_convert_color_impl(const ColorFormat& dst_format);
+    void add_batch_dim_impl(const int& dim);
     void add_reverse_channels();
     std::tuple<PartialShape, Layout> calculate_param_shape(const PartialShape& model_shape,
                                                            const Layout& model_layout) const;
