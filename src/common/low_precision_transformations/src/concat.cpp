@@ -237,6 +237,21 @@ bool ConcatTransformation::canBeTransformed(const TransformationContext& context
     };
 
     element::Type precision;
+    element::Type const_precision;
+
+    const auto check_const_precision = [&const_precision](
+        const FakeQuantizeDequantization& dequantization,
+        const std::shared_ptr<Node>& constant) {
+        if (constant != nullptr) {
+            if (const_precision == element::undefined) {
+                const_precision = dequantization.multiplyConstant->get_element_type();
+            } else if (const_precision != dequantization.multiplyConstant->get_element_type()) {
+                return false;
+            }
+        }
+        return true;
+    };
+
     for (size_t i = 0ul; i < concat->get_input_size(); i++) {
         const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(concat, defaultPrecisions, i);
         if (dequantization.empty() || (updatePrecisions && !dequantization.isLowPrecision())) {
@@ -251,6 +266,12 @@ bool ConcatTransformation::canBeTransformed(const TransformationContext& context
         if (precision == element::undefined) {
             precision = dequantization.data.get_element_type();
         } else if (precision != dequantization.data.get_element_type()) {
+            return false;
+        }
+
+        if (!check_const_precision(dequantization, dequantization.subtractConvert) ||
+            ((dequantization.subtractConvert == nullptr) && !check_const_precision(dequantization, dequantization.subtractConstant)) ||
+            !check_const_precision(dequantization, dequantization.multiplyConstant)) {
             return false;
         }
     }
