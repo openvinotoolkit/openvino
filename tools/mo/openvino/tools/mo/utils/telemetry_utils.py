@@ -99,7 +99,7 @@ def send_framework_info(framework: str):
     t.send_event('mo', 'framework', framework)
 
 
-def remove_path_lines(message):
+def remove_path_lines(message: str) -> str:
     """
     Removes any lines from message which contain os.sep.
     For example in Linux, where os.sep is "/" the line "a/b/c\nline2" will be transformed to "\nline2".
