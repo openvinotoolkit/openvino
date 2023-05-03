@@ -180,8 +180,11 @@ class Conformance:
         # API Conformance contains both report type
         merge_xml([parallel_report_dir], report_dir, final_report_name, self._type, True)
         if self._type == constants.API_CONFORMANCE:
-            final_report_name = f'report_{constants.OP_CONFORMANCE.lower()}'
-            merge_xml([parallel_report_dir], report_dir, final_report_name, constants.OP_CONFORMANCE.lower(), True)
+            try:
+                final_report_name = f'report_{constants.OP_CONFORMANCE.lower()}'
+                merge_xml([parallel_report_dir], report_dir, final_report_name, constants.OP_CONFORMANCE.lower(), True)
+            except:
+                logger.warning("Something is wrong to create report_op for API conformance!")
         logger.info(f"Conformance is successful. XML reportwas saved to {report_dir}")
         return (os.path.join(report_dir, final_report_name + ".xml"), report_dir)
 
