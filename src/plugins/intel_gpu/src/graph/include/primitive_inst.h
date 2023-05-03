@@ -69,6 +69,10 @@ struct primitive_impl {
     virtual std::vector<kernel::ptr> get_kernels() const { return {}; }
     virtual void save(cldnn::BinaryOutputBuffer& ob) const {}
     virtual void load(cldnn::BinaryInputBuffer& ib) {}
+    // returns a pair of batch program hash and kernel entry of each ocl impl. Returns "" for other impl types.
+    virtual std::pair<std::string, std::string> get_kernels_dump_info() const {
+        return std::make_pair("", "");
+    }
 
     // If this flag is set as false, the memory allocated for this primitive is not allowed to be reused
     bool can_reuse_memory = true;
