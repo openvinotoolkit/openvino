@@ -146,8 +146,8 @@ TEST(prepare_buffer_fusing, propagate_data_padding) {
     cldnn::mem_lock<int64_t> output_ptr(out_mem, get_test_stream());
     cldnn::mem_lock<int64_t> input_ptr(in_mem, get_test_stream());
 
-    ASSERT_EQ(in_mem->size(), out_mem->size());
-    for (size_t i = 0; i < in_mem->size(); ++i)
+    ASSERT_EQ(input_ptr.size(), output_ptr.size());
+    for (size_t i = 0; i < input_ptr.size(); ++i)
     {
         ASSERT_EQ(output_ptr[i], input_ptr[i]);
     }
