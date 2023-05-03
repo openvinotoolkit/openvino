@@ -25,22 +25,6 @@ def refer_to_faq_msg(question_num: int):
         # Telemetry can be not initialized if it is used in MO IR Reader
         pass
 
-    # TODO: workaround for moved FAQ numbering. But we sent to Telemetry the old wrong numbers,
-    # because telemetry relies on a error messages not on a FAQ text. Changing Telemetry numbers will cause
-    # significant confusion.
-
-    map_to_correct_faq_numbers = {
-        94: 95,  # but actual info in FAQ should be updated
-        97: 93,
-        100: 96,
-        101: 97,
-    }
-
-    if 22 >= question_num <= 93:  # From 22 to 93 they are shifted by one
-        question_num -= 1
-    elif question_num in map_to_correct_faq_numbers:
-        question_num = map_to_correct_faq_numbers[question_num]
-
     return '\n For more information please refer to Model Optimizer FAQ, question #{0}. ' \
            '(https://docs.openvino.ai/latest/openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ.html' \
            '?question={0}#question-{0})'.format(question_num)
