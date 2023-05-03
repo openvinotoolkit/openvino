@@ -75,7 +75,6 @@ def aggregate_test_results(aggregated_results: SubElement, xml_reports: list,
                 new_data = ET.tostring(xml_device_entry).decode('utf8').replace(xml_device_entry.tag, device_name)
                 xml_device_entry = ET.fromstring(new_data)
             device_name = xml_device_entry.tag
-            print(f"DEBUG_1: {device_name}")
             aggregated_device_results = aggregated_results.find(device_name)
             for xml_results_entry in xml_device_entry:
                 aggregated_results_entry = None
@@ -152,7 +151,6 @@ def merge_xml(input_folder_paths: list, output_folder_paths: str, output_filenam
             stat_update_utils.update_passrates(results)
         else:
             for sub_result in results:
-                print(f"DEBUG: {sub_result.tag}")
                 stat_update_utils.update_passrates(sub_result)
         summary.set("timestamp", timestamp)
         logger.info(f" Processing is finished")
