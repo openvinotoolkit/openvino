@@ -16,18 +16,15 @@ $ node <example-name> [path-to-image]
 ```
 
 To run ppp_example.js you have to additionally specify a path to the `resnet50-v1-7.onnx` model.
+FIXME: model `resnet50-v1-7.onnx` doesn't exist in repository
 ```sh
 $ npm install
 $ node <example-name> <path-to-model> [path-to-image]
 ```
 
-## Common API example 
+## Common API example
 1. Install OpenVINO™ Runtime on your system and export its path.
-2. From *openvino/src/bindings/js/common* run: `npm i` to compiled common package files
-3. From *openvino/src/bindings/js/node* run: `npm i` to build Node addon package
-4. Then from *openvino/src/bindings/js/node* run `npx tsc` to compile common node api package
-5. Install dependencies of the sample by running `npm i` from *openvino/samples/js/node/*
-6. Run example: `node common_api_example.js`
-
-    
-
+1. From *openvino/src/bindings/js/common* run: `npm i` to compile openvinojs-common package files
+1. From *openvino/src/bindings/js/node* run: `npm i` to build openvinojs-node package
+1. Install dependencies of the sample by running `npm i` from *openvino/samples/js/node/*
+1. Run example: `node common_api_example.js`
