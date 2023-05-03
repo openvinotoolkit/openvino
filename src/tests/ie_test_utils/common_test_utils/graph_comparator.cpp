@@ -73,13 +73,41 @@ bool compare_rt_keys(const T& node1, const T& node2, std::ostream& err_log) {
     return true;
 }
 
-bool less_by_name(const std::shared_ptr<ngraph::op::v0::Result>& l, const std::shared_ptr<ngraph::op::v0::Result>& r) {
+bool has_more_than_1_tensor_names(const std::shared_ptr<ngraph::Node> &node) {
+    return node->input_value(0).get_tensor_ptr()->get_names().size() > 1;
+}
+
+ov::ResultVector intersect_results(const ov::ResultVector& results_1, const ov::ResultVector& results_2) {
+    ov::ResultVector out_results(results_2.size());
+    for (size_t idx_1 = 0; idx_1 < results_1.size(); ++idx_1) {
+        const auto &names_mp_1 = results_1[idx_1]->input(0).get_tensor().get_names();
+
+        for (const auto & res_2 : results_2) {
+            const auto &names_mp_2 = res_2->input(0).get_tensor().get_names();
+
+            for (const auto &element : names_mp_1) {
+                if (names_mp_2.count(element) > 0) {
+                    out_results[idx_1] = res_2;
+                    break;
+                }
+            }
+        }
+
+        if (!out_results[idx_1]) {
+            // no intersecting names
+            return {};
+        }
+    }
+    return out_results;
+}
+
+bool less_by_friendly_name(const std::shared_ptr<ngraph::op::v0::Result>& l, const std::shared_ptr<ngraph::op::v0::Result>& r) {
     const auto& l_name = l->get_friendly_name();
     const auto& r_name = r->get_friendly_name();
     return l_name.size() < r_name.size() || (l_name.size() == r_name.size() && l_name < r_name);
 }
 
-bool less_by_parent_name(const std::shared_ptr<ngraph::op::v0::Result>& l,
+bool less_by_parent_friendly_name(const std::shared_ptr<ngraph::op::v0::Result>& l,
                          const std::shared_ptr<ngraph::op::v0::Result>& r) {
     const auto& l_name = l->get_input_node_shared_ptr(0)->get_friendly_name();
     const auto& r_name = r->get_input_node_shared_ptr(0)->get_friendly_name();
@@ -581,28 +609,29 @@ Comparator::Result Comparator::compare(const std::shared_ptr<ngraph::Function>& 
         auto f_results = f->get_results();
         auto f_ref_results = f_ref->get_results();
 
-        auto cmp = less_by_name;
-        // In case if Result source output has more than one name so the Result may have any of this names as a friendly
-        // name An in case of multiple names we sort Result operation using their parent node names
-        if (std::any_of(f_results.begin(),
-                        f_results.end(),
-                        [](const std::shared_ptr<ngraph::Node> &node) {
-                            const auto &t = node->input_value(0).get_tensor_ptr();
-                            return t->get_names().size() > 1;
-                        }) ||
-            std::any_of(f_ref_results.begin(), f_ref_results.end(), [](const std::shared_ptr<ngraph::Node> &node) {
-                const auto &t = node->input_value(0).get_tensor_ptr();
-                return t->get_names().size() > 1;
-            })) {
-            cmp = less_by_parent_name;
-        }
-
-        std::sort(f_results.begin(), f_results.end(), cmp);
-        std::sort(f_ref_results.begin(), f_ref_results.end(), cmp);
-
         if (f_results.size() != f_ref_results.size()) {
             return Result::error("Number of results is different: " + to_str(f_results.size()) + " and " +
                                  to_str(f_ref_results.size()));
+        }
+
+        // by default, we should use tensor_name for comparison
+        // if not all Result ops have tensor_names or for some reason we can't find intersecting results,
+        // then we use old logic with friendly_names
+        auto new_ref_results = intersect_results(f_results, f_ref_results);
+
+        if (new_ref_results.empty()) {
+            auto cmp = less_by_friendly_name;
+            // In case if Result source output has more than one name so the Result may have any of this names as a friendly
+            // name An in case of multiple names we sort Result operation using their parent node names
+
+            if (std::any_of(f_results.begin(), f_results.end(), has_more_than_1_tensor_names) ||
+                std::any_of(f_ref_results.begin(), f_ref_results.end(), has_more_than_1_tensor_names)) {
+                cmp = less_by_parent_friendly_name;
+            }
+            std::sort(f_results.begin(), f_results.end(), cmp);
+            std::sort(f_ref_results.begin(), f_ref_results.end(), cmp);
+        } else {
+            f_ref_results = new_ref_results;
         }
 
         const auto &f_sinks = f->get_sinks();

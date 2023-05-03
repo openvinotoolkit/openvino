@@ -66,16 +66,15 @@ TSBinaryBackward::TSBinaryBackward() {
                                      op::util::BinaryElementwiseLogical,
                                      ov::op::v0::PRelu,
                                      ov::op::v0::FakeQuantize>([](const Output<Node>& output) -> bool {
-        return has_static_rank()(output) && HasSameOutputTransposeNodes(output);
+        return has_static_rank()(output) && CheckTransposeConsumers(output);
     });
 
     auto transpose_const_label = wrap_type<ov::op::v0::Constant>();
 
-    auto transpose_label =
-        wrap_type<ov::op::v1::Transpose>({main_node_label, transpose_const_label},
-                                         [](const Output<Node>& output) -> bool {
-                                             return has_static_rank()(output) && is_sinking_node(output);
-                                         });
+    auto transpose_label = wrap_type<ov::op::v1::Transpose>({main_node_label, transpose_const_label},
+                                                            [](const Output<Node>& output) -> bool {
+                                                                return has_static_rank()(output);
+                                                            });
 
     matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
@@ -91,10 +90,7 @@ TSBinaryBackward::TSBinaryBackward() {
             register_new_node(new_node);
         }
         main_node->validate_and_infer_types();
-        // remove output transposes
-        RemoveSingleOutputConsumers(main_node);
-
-        SwapNames(transpose, main_node);
+        RemoveTransposeConsumers(main_node);
         return true;
     };
 

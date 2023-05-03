@@ -70,11 +70,11 @@ bool HasInputSplitAndTransposeSiblings(const Output<Node>& output) {
         return false;
     }
 
-    return HasSameOutputTransposeNodes(main_node);
+    return CheckTransposeConsumers(main_node);
 }
 
 bool IsSplitSinked(const Output<Node>& output) {
-    return HasInputSplitAndTransposeSiblings(output) && is_sinking_node(output);
+    return HasInputSplitAndTransposeSiblings(output);
 }
 
 bool GetSplitAxis(const std::shared_ptr<ov::op::v0::Constant>& split_axis, const ov::Rank& rank, int64_t& axis) {
@@ -184,7 +184,7 @@ TSSplitBackward::TSSplitBackward() {
 
         // remove split output transposes
         split->validate_and_infer_types();
-        RemoveSingleOutputConsumers(split);
+        RemoveTransposeConsumers(split);
         return true;
     };
 

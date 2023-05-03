@@ -23,7 +23,7 @@ TSFuse::TSFuse() {
     MATCHER_SCOPE(TransposeFuse);
     auto transpose_1_label =
         pattern::wrap_type<ov::op::v1::Transpose>({pattern::any_input(), pattern::wrap_type<ov::op::v0::Constant>()},
-                                                  HasSameOutputTransposeNodes);
+                                                  CheckTransposeConsumers);
     auto transpose_2_label =
         pattern::wrap_type<ov::op::v1::Transpose>({transpose_1_label, pattern::wrap_type<ov::op::v0::Constant>()});
     ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
@@ -68,7 +68,7 @@ TSFuse::TSFuse() {
             auto new_transpose = register_new_node<ov::op::v1::Transpose>(input, new_order);
 
             new_transpose->set_friendly_name(m.get_match_root()->get_friendly_name());
-            RemoveSingleOutputConsumers(transpose1);
+            RemoveTransposeConsumers(transpose1);
             copy_runtime_info(transpose1, new_transpose);
             ov::replace_node(transpose1, new_transpose);
 

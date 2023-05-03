@@ -109,12 +109,11 @@ TSReductionBackward::TSReductionBackward() {
 
     auto reduce_label = wrap_type<op::util::ArithmeticReductionKeepDims, op::util::LogicalReductionKeepDims>(
         {any_input(), wrap_type<ov::op::v0::Constant>()},
-        HasSameOutputTransposeNodes);
-    auto transpose_label =
-        wrap_type<ov::op::v1::Transpose>({reduce_label, wrap_type<ov::op::v0::Constant>()},
-                                         [](const Output<Node>& output) -> bool {
-                                             return has_static_rank()(output) && is_sinking_node(output);
-                                         });
+        CheckTransposeConsumers);
+    auto transpose_label = wrap_type<ov::op::v1::Transpose>({reduce_label, wrap_type<ov::op::v0::Constant>()},
+                                                            [](const Output<Node>& output) -> bool {
+                                                                return has_static_rank()(output);
+                                                            });
 
     ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_map();
@@ -158,8 +157,7 @@ TSReductionBackward::TSReductionBackward() {
             register_new_node(new_node);
         }
         main_node->validate_and_infer_types();
-        RemoveSingleOutputConsumers(main_node);
-        SwapNames(transpose, main_node);
+        RemoveTransposeConsumers(main_node);
         copy_runtime_info(reduction_axes, new_const);
         return true;
     };
