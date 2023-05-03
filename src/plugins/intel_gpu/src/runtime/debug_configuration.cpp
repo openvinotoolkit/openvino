@@ -273,19 +273,19 @@ bool debug_configuration::is_dumped_layer(const std::string& layer_name, bool is
         return true;
 
     auto is_match = [](const std::string& layer_name, const std::string& pattern) -> bool {
-        // Check pattern from exec_graph
-        size_t pos = layer_name.find(':');
-        auto exec_graph_name = layer_name.substr(pos + 1, layer_name.size());
-        auto upper_exec_graph_name = std::string(exec_graph_name.length(), '\0');
-        std::transform(exec_graph_name.begin(), exec_graph_name.end(), upper_exec_graph_name.begin(), ::toupper);
+        auto upper_layer_name = std::string(layer_name.length(), '\0');
+        std::transform(layer_name.begin(), layer_name.end(), upper_layer_name.begin(), ::toupper);
         auto upper_pattern = std::string(pattern.length(), '\0');
         std::transform(pattern.begin(), pattern.end(), upper_pattern.begin(), ::toupper);
+        // Check pattern from exec_graph
+        size_t pos = upper_layer_name.find(':');
+        auto upper_exec_graph_name = upper_layer_name.substr(pos + 1, upper_layer_name.size());
         if (upper_exec_graph_name.compare(upper_pattern) == 0) {
             return true;
         }
         // Check pattern with regular expression
-        std::regex re(pattern, std::regex::icase);
-        return std::regex_match(layer_name, re);
+        std::regex re(upper_pattern);
+        return std::regex_match(upper_layer_name, re);
     };
     auto iter = std::find_if(dump_layers.begin(), dump_layers.end(), [&](const std::string& dl){
         return is_match(layer_name, dl);
