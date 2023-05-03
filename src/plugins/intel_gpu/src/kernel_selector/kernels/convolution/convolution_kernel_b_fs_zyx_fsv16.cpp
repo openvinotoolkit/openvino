@@ -223,6 +223,17 @@ bool ConvolutionKernel_b_fs_zyx_fsv16::Validate(const Params& p, const optional_
         return false;
     }
 
+    // Check if operation fusion is supported
+    if (!params.fused_ops.empty()) {
+        const bool is_1stconv = input.Feature().v == 3 && input.GetLayout() == DataLayout::bfzyx;
+        const bool ver_16mb16c = !is_1stconv && ((output.GetDType() == Datatype::F16 && output.Batch().v % 32 == 0) ||
+                                                (output.GetDType() == Datatype::F32 && output.Batch().v % 16 == 0));
+
+        if (!ver_16mb16c && is_1stconv && output.GetDType() == Datatype::F16) {
+            return false;
+        }
+    }
+
     return true;
 }
 
