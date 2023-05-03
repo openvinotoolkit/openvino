@@ -51,7 +51,40 @@ export interface IModel {
   infer(tensorOrDataArray: ITensor | number[], shape: IShape): Promise<ITensor>,
 }
 
-export type LoadModelType = (
+export interface ModelFiles {
+  xml: string;
+  bin: string;
+}
+
+export interface ModelNameAndPath {
+  path: string;
+  modelName: string;
+}
+
+export type LoadModelExternalType = {
+  (
+    path: string,
+    shapeData: Shape | number[],
+    layout: string
+  ): Promise<IModel>,
+  (
+    filesPaths: ModelFiles,
+    shapeData: Shape | number[],
+    layout: string
+  ): Promise<IModel>,
+  (
+    searchData: ModelNameAndPath,
+    shapeData: Shape | number[],
+    layout: string
+  ): Promise<IModel>,
+  (
+    arg: ModelFiles | ModelNameAndPath | string,
+    shapeData: Shape | number[],
+    layout: string
+  ): Promise<IModel>,
+};
+
+export type LoadModelInternalType = (
   xmlPath: string,
   binPath: string,
   shapeData: Shape | number[],
@@ -59,7 +92,7 @@ export type LoadModelType = (
 ) => Promise<IModel>;
 
 export interface IOpenVINOJSLibrary {
-  loadModel: LoadModelType,
+  loadModel: LoadModelExternalType,
   getVersionString: () => Promise<string>,
   getDescriptionString: () => Promise<string>,
   Shape: new (...dimensionsArray: number[] | [number[]]) => Shape,
