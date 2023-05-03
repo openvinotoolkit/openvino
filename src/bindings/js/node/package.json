@@ -26,7 +26,8 @@
     "rebuild": "node-gyp rebuild",
     "start": "node index.js",
     "test": "jest",
-    "tsc": "tsc"
+    "tsc": "tsc",
+    "lint": "eslint ."
   },
   "gypfile": true
 }
