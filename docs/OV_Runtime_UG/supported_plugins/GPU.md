@@ -232,13 +232,6 @@ Dynamic Shapes
 
 GPU plugin supports dynamic shape and the general description can be found in :doc:`dynamic shapes guide<openvino_docs_OV_UG_DynamicShapes>`.
 
-To support dynamic shape execution, the following basic infrastructures are implemented:
-
-- Runtime shape inference : Infers the output shapes of each primitive for a new input shape at runtime
-- Shape agnostic kernels : New kernels that can run arbitrary shapes. If shape agnostic kernel is not available, the required kernel is compiled at runtime for each shape.
-- Asynchronous kernel compilation : Even when a shape agnostic kernel is available, the GPU plugin compiles an optimal kernerl for the given shape and preserve it in the in-memory cache for future use.
-- In-memory cache : Preserves kernels compiled in runtime and weights reordered for the specific kernels
-
 .. note::
 
    Currently, dynamic shape support in GPU plugin is a preview feature and has following limitations:
@@ -246,10 +239,18 @@ To support dynamic shape execution, the following basic infrastructures are impl
    - Due to the dominant runtime overhead on the host device, dynamic shapes may perform worse than static shapes on a discrete GPU.
    - Dynamic rank is not supported.
 
+
+To support dynamic shape execution, the following basic infrastructures are implemented:
+
+- Runtime shape inference : Infers the output shapes of each primitive for a new input shape at runtime
+- Shape agnostic kernels : New kernels that can run arbitrary shapes. If shape agnostic kernel is not available, the required kernel is compiled at runtime for each shape.
+- Asynchronous kernel compilation : Even when a shape agnostic kernel is available, the GPU plugin compiles an optimal kernel for the given shape and preserve it in the in-memory cache for future use.
+- In-memory cache : Preserves kernels compiled in runtime and weights reordered for the specific kernels
+
 Bounded dynamic batch
 -----------------------------------------------------------
 
-It is worth noting that the internal behavior differs from general cases in cases where only the batch dimension is dynamic and has a fixed upper bound, a.k.a bounded batch dynamic shape.
+It is worth noting that the internal behavior differs from general cases if only the batch dimension is dynamic and has a fixed upper bound, a.k.a bounded batch dynamic shape.
 While general dynamic shape can run on one compiled model, the GPU plugin creates ``log2(N)`` (``N`` - is an upper bound for batch dimension here) low-level
 execution graphs for batch sizes equal to powers of 2 to emulate dynamic behavior in the bounded dynamic batch.
 As a result, an incoming infer request with a specific batch size is executed via a minimal combination of internal networks.
@@ -294,7 +295,7 @@ Recommendations for performance improvement
 
 - Use static shape whenever possible
 
-   - Static models can benefit from more agressive optimizations such as constant propagation, fusing, reorder optimization.
+   - Static models can benefit from more aggressive optimizations such as constant propagation, fusing and reorder optimization.
    If the same shape is used for dynamic model, the performance is worse than running that shape with static model.
    It is therefore recommended to reshape the dynamic model to a static model, if the scenario allows.
 
@@ -304,15 +305,11 @@ Recommendations for performance improvement
    - Using bounded dynamic shape will help reduce such overhead. For example, use {ov::Dimension(1, 10), ov::Dimension(1, 384)} instead of {ov::Dimension(-1), ov::Dimension(-1)}.
    - Note that bounded dynamic *batch* is handled differently as mentioned above.
 
-- Use permanent cache, i.e., either OpenCL cache or OpenVino model_cache, to reduce runtime re-compilation overhead
+- Use permanent cache, e.g, OpenVino model_cache, to reduce runtime re-compilation overhead
 
-   - GPU plugin deploys in-memory cache to store compiled kernels for previously used shapes, but the size of such in-memory cache is limited.
-   Therefore, it is recommended to use either of the following permanent caches too:
+   - GPU plugin deploys in-memory cache to store compiled kernels for previously used shapes, but the size of such in-memory cache is limited. Therefore, it is recommended to use a permanant cache such as OpenVino model_cache. For more details, See :doc:`Model caching overview<openvino_docs_OV_UG_Model_caching_overview>`.
 
-      - OpenVino model_cache: See the :doc:`Model caching overview<openvino_docs_OV_UG_Model_caching_overview>`. Note that this option is preferable for discrete GPUs, as it provides caching for OneDNN primitives not only for OpenCL primitives. 
-      - OpenCL cache : See the page : https://github.com/intel/compute-runtime/blob/master/opencl/doc/FAQ.md#feature-cl_cache
-
-- The longer the inference sequence, the better throughput can be obtained, because it can leverage the runtime compilation time.
+- The longer the inference sequence, the better throughput can be obtained, because it can leverage more compilation time during the inference.
 
    - If the primitive has a shape-agnostic kernel and the static shape kernel for the current shape does not exist in the in-memory cache, the shape-agnostic kernel is used. Then, as mentioned above, optimal kernels for the current shapes are also asynchronously compiled in parallel for future use. If the application process removes the CompiledModel object and the GPU plugin is destroyed, any not-yet-started compilation tasks for optimal kernels will be canceled. However, if the application process allows enough time for the enqueued asynchronous compilation tasks, the more optimal kernels become available, enabling better throughput. For example, running 200 inputs of {[1, 1], ..., [1, 50], [1, 1], ... , [1, 50], [1, 1], ..., [1, 50], [1, 1], ..., [1, 50]} may achieve better throughput than running 100 inputs of {[1, 1], ..., [1, 50], [1, 1], ... , [1,50]}.
 
