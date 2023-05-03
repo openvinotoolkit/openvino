@@ -70,12 +70,13 @@ def aggregate_test_results(aggregated_results: SubElement, xml_reports: list,
         if aggregated_timestamp is None or xml_timestamp < aggregated_timestamp:
             aggregated_timestamp = xml_timestamp
         for xml_device_entry in xml_results:
-            device_name = xml_device_entry.tag
             if merge_device_suffix and "." in xml_device_entry.tag:
                 device_name = xml_device_entry.tag[:xml_device_entry.tag.find("."):]
                 new_data = ET.tostring(xml_device_entry).decode('utf8').replace(xml_device_entry.tag, device_name)
                 xml_device_entry = ET.fromstring(new_data)
-            aggregated_device_results = aggregated_results.find(xml_device_entry.tag)
+            device_name = xml_device_entry.tag
+            print(f"DEBUG_1: {device_name}")
+            aggregated_device_results = aggregated_results.find(device_name)
             for xml_results_entry in xml_device_entry:
                 aggregated_results_entry = None
                 if not aggregated_device_results is None:
@@ -84,6 +85,7 @@ def aggregate_test_results(aggregated_results: SubElement, xml_reports: list,
                     stat_update_utils.update_rel_values(xml_results_entry)
                     if aggregated_device_results is None:
                         aggregated_results.append(xml_device_entry)
+                        aggregated_device_results = aggregated_results.find(device_name)
                     else:
                         aggregated_device_results.append(xml_results_entry)
                     continue
@@ -150,6 +152,7 @@ def merge_xml(input_folder_paths: list, output_folder_paths: str, output_filenam
             stat_update_utils.update_passrates(results)
         else:
             for sub_result in results:
+                print(f"DEBUG: {sub_result.tag}")
                 stat_update_utils.update_passrates(sub_result)
         summary.set("timestamp", timestamp)
         logger.info(f" Processing is finished")
