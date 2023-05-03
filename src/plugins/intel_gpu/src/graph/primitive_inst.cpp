@@ -95,6 +95,19 @@ bool is_any_user_cpu(const std::list<const program_node*>& users) {
     return false;
 }
 
+std::shared_ptr<kernel_impl_params> primitive_impl::get_weights_reorder_kernel_params() const {
+    if (!need_weights_reorder())
+        return nullptr;
+
+    auto reorder_kernel_params = std::make_shared<kernel_impl_params>();
+    auto prim = std::make_shared<generic_layer>("", "", _weights_reorder_params);
+    reorder_kernel_params->desc = prim;
+    reorder_kernel_params->unique_id = _weights_reorder_params->hash();
+    reorder_kernel_params->input_layouts.push_back(_weights_reorder_params->get_input_layout());
+    reorder_kernel_params->output_layouts.push_back(_weights_reorder_params->get_output_layout());
+    return reorder_kernel_params;
+}
+
 kernel_impl_params primitive_impl::static_canonicalize_shapes(const kernel_impl_params& impl_params) {
     auto updated_impl_params = canonicalize_fused_shapes(impl_params);
 
