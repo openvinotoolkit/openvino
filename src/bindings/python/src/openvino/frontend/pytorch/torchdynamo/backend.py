@@ -1,3 +1,8 @@
+# Copyright (C) 2018-2023 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+# flake8: noqa
+
 import logging
 import os
 import torch
@@ -11,7 +16,7 @@ from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
 
 log = logging.getLogger(__name__)
 
-'''
+"""
     This is a preview feature in OpenVINO. Torchscript backend
     enables users to compile PyTorch models using torch.compile
     with OpenVINO as a target backend in PyTorch applications
@@ -24,7 +29,9 @@ log = logging.getLogger(__name__)
     1) import openvino.frontend.pytorch.torchdynamo.backend
     model = torchvision.models.resnet50()
     2) model = torch.compile(model, backend="openvino")
-'''
+"""
+
+
 @register_backend
 @fake_tensor_unsupported
 def openvino(subgraph, example_inputs):
@@ -48,7 +55,7 @@ def ts_openvino(subgraph, example_inputs):
             torch.int32: Type.i32,
             torch.uint8: Type.u8,
             torch.int8: Type.i8,
-            torch.bool: Type.boolean
+            torch.bool: Type.boolean,
         }
         decoder = TorchScriptPythonDecoder(fr_model)
 
@@ -61,7 +68,7 @@ def ts_openvino(subgraph, example_inputs):
             om.inputs[idx].get_node().set_partial_shape(PartialShape(list(input_data.shape)))
         om.validate_nodes_and_infer_types()
 
-        device = 'CPU'
+        device = "CPU"
         if (os.getenv("OPENVINO_TS_BACKEND_DEVICE") is not None):
             device = os.getenv("OPENVINO_TS_BACKEND_DEVICE")
             assert device in core.available_devices, "Specified device " + device + " is not in the list of OpenVINO Available Devices"
@@ -73,9 +80,11 @@ def ts_openvino(subgraph, example_inputs):
             try:
                 res = compiled_model(ov_inputs)
             except Exception as e:
+                log.debug(f"Failed in OpenVINO execution: {e}")
                 return compile_fx(subgraph, *args)
             result = [torch.from_numpy(res[out]) for out in compiled_model.outputs]
             return result
         return _call
     except Exception as e:
+        log.debug(f"Failed in compilation: {e}")
         return compile_fx(subgraph, example_inputs)
