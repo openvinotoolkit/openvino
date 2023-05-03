@@ -609,10 +609,10 @@ void MatMul::prepareParams() {
     auto engine = getEngine();
 
     auto builder = [&engine](const MatMulKey& key) -> executorPtr {
-        dnnl::matmul::primitive_desc matmul_desc;
+        dnnl::matmul::primitive_desc prim_desc;
 
         if (key.bias) {
-            matmul_desc = matmul::primitive_desc(
+            prim_desc = matmul::primitive_desc(
                 engine,
                 key.inp0->getDnnlDesc(),
                 key.inp1->getDnnlDesc(),
@@ -620,7 +620,7 @@ void MatMul::prepareParams() {
                 key.out->getDnnlDesc(),
                 key.attr);
         } else {
-            matmul_desc = matmul::primitive_desc(
+            prim_desc = matmul::primitive_desc(
                 engine,
                 key.inp0->getDnnlDesc(),
                 key.inp1->getDnnlDesc(),
@@ -628,27 +628,17 @@ void MatMul::prepareParams() {
                 key.attr);
         }
 
-        primitive_desc_iterator itpd = matmul_desc;
-        matmul::primitive_desc prim_desc;
+        auto first_desc = dnnl::matmul::primitive_desc(prim_desc.get());
+        const bool found = DnnlExtensionUtils::find_implementation(prim_desc, key.implType);
 
-        auto itpd_first = itpd;
-        while (static_cast<bool>(itpd))  {
-            impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
+        if (found)
+            return std::make_shared<DnnlExecutor>(prim_desc);
 
-            if (impl_type == key.implType) {
-                prim_desc = itpd.get();
-                break;
-            }
-            if (!itpd.next_impl()) {
-                // In case of dynamic shapes an implementation type chosen as optimal for a primitive_desc with
-                // undefined input shapes, is not necessarily available for the primitive_desc with defined shape.
-                // Example: brgemm_avx512_amx (Intel Sapphire Rapids Platform) is available for a primitive with
-                // undefined input shapes but not available for primitive_desc with input batch 1.
-                prim_desc = itpd_first.get();
-                break;
-            }
-        }
-        return std::make_shared<DnnlExecutor>(prim_desc);
+        // In case of dynamic shapes an implementation type chosen as optimal for a primitive_desc with
+        // undefined input shapes, is not necessarily available for the primitive_desc with defined shape.
+        // Example: brgemm_avx512_amx (Intel Sapphire Rapids Platform) is available for a primitive with
+        // undefined input shapes but not available for primitive_desc with input batch 1.
+        return std::make_shared<DnnlExecutor>(first_desc);
     };
 
     auto cache = context->getParamsCache();

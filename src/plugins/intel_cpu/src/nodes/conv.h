@@ -89,7 +89,7 @@ private:
 
     class ConvolutionExecutor : public DnnlExecutor {
         public:
-            ConvolutionExecutor(const dnnl::convolution_forward::primitive_desc& pd,
+            ConvolutionExecutor(const dnnl::primitive_desc& pd,
                                 const dnnl::memory::desc& inMemDesc,
                                 const dnnl::memory::desc& weightMemDesc,
                                 const dnnl::memory::desc& outMemDesc,
