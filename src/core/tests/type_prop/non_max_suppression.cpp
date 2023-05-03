@@ -595,6 +595,27 @@ TEST(type_prop, nms_v5_output_shape_3) {
     EXPECT_EQ(nms->get_output_shape(2), (Shape{1}));
 }
 
+TEST(type_prop, nms_v5_output_shape_4) {
+    const auto boxes = make_shared<op::Parameter>(element::f32, PartialShape{{0, 2}, {0, 7}, 4});
+    const auto scores = make_shared<op::Parameter>(element::f32, PartialShape{{0, 2}, {0, 5}, {0, 7}});
+    const auto max_output_boxes_per_class = op::Constant::create(element::i16, Shape{}, {1000});
+    const auto iou_threshold = make_shared<op::Parameter>(element::f32, Shape{});
+    const auto score_threshold = make_shared<op::Parameter>(element::f32, Shape{});
+
+    const auto nms = make_shared<op::v5::NonMaxSuppression>(boxes,
+                                                            scores,
+                                                            max_output_boxes_per_class,
+                                                            iou_threshold,
+                                                            score_threshold);
+
+    ASSERT_EQ(nms->get_output_element_type(0), element::i64);
+    ASSERT_EQ(nms->get_output_element_type(1), element::f32);
+    ASSERT_EQ(nms->get_output_element_type(2), element::i64);
+    EXPECT_EQ(nms->get_output_partial_shape(0), PartialShape({Dimension(0, 70), Dimension(3)}));
+    EXPECT_EQ(nms->get_output_partial_shape(1), PartialShape({Dimension(0, 70), Dimension(3)}));
+    EXPECT_EQ(nms->get_output_shape(2), (Shape{1}));
+}
+
 TEST(type_prop, nms_v5_output_shape_i32) {
     const auto boxes = make_shared<op::Parameter>(element::f32, Shape{2, 7, 4});
     const auto scores = make_shared<op::Parameter>(element::f32, Shape{2, 5, 7});

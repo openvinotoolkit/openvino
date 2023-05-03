@@ -423,7 +423,7 @@ void collect_dynamism_signature(const std::shared_ptr<ov::Model>& ov_model,
                                 std::map<std::string, std::map<std::string, size_t>>& signatures,
                                 bool obfuscate) {
     for (const auto& op : ov_model->get_ordered_ops()) {
-        const auto& type_name = string(op->get_type_info().name) + "_" + to_string(op->get_type_info().version);
+        const auto& type_name = string(op->get_type_info().name) + "_" + op->get_type_info().version_id;
 
         std::stringstream shape_representation;
         for (const auto& input : op->input_values()) {
