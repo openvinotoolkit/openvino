@@ -774,10 +774,11 @@ void program::add_intermediate(program_node& node,
         throw std::invalid_argument(
             "Node which is about to be added in between two other nodes should not have any existing dependencies");
 
+    const auto& prev_out_idx = next.get_dependency_with_port(prev_idx).second;
     auto& prev = next.get_dependency(prev_idx);
     // firstly add connection, later replace dependency, so 'prev' won't become dangling and therefore removed
     if (connect_int_node_with_old_dep) {
-        add_connection(prev, node);
+        add_connection(prev, node, prev_out_idx);
         if (processing_order.size() != 0) {
             processing_order.insert_next(&prev, &node);
         }
@@ -832,9 +833,9 @@ void program::add_intermediate(program_node& node,
     add_intermediate(node, next, idx, connect_int_node_with_old_dep, move_usrs_of_prev_to_node);
 }
 
-void program::add_connection(program_node& prev, program_node& next) {
+void program::add_connection(program_node& prev, program_node& next, size_t dep_idx) {
     prev.users.push_back(&next);
-    next.dependencies.push_back({&prev, 0});
+    next.dependencies.push_back({&prev, dep_idx});
 }
 
 void program::remove_connection(program_node& prev, program_node& next) {

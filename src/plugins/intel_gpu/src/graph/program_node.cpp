@@ -45,7 +45,7 @@ program_node::program_node(std::shared_ptr<primitive> prim, program& prog)
     }
 }
 
-void program_node::replace_dependency(size_t idx, program_node& new_dep, bool remove_if_dangling) {
+void program_node::replace_dependency(size_t idx, program_node& new_dep, bool remove_if_dangling, size_t new_dep_idx) {
     if (idx >= dependencies.size())
         return;
     if (dependencies[idx].first == &new_dep)
@@ -59,6 +59,7 @@ void program_node::replace_dependency(size_t idx, program_node& new_dep, bool re
     auto it = std::find(dependencies[idx].first->users.begin(), dependencies[idx].first->users.end(), this);
     if (it != dependencies[idx].first->users.end()) {
         dependencies[idx].first->users.erase(it);
+        dependencies[idx].second = new_dep_idx;
     }
 
     if (remove_if_dangling)
