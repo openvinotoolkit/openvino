@@ -4,6 +4,7 @@ module.exports = {
   root: true,
   rules: {
     'semi': ['error'],
+    'no-var': ['error'],
     'max-len': ['error'],
     'eol-last': ['error'],
     'indent': ['error', 2],
