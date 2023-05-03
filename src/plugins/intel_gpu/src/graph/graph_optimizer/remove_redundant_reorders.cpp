@@ -637,7 +637,7 @@ void remove_redundant_reorders::run(program& p) {
                           !reshape_input_node.has_fused_primitives();
         bool remove_current = remove_dep && !reshape_input_node.get_dependencies().empty() &&
                               reshape_input_node.get_dependency(0).get_output_layout() == reshape_node.get_output_layout() &&
-                              reshape_node.has_fused_primitives();
+                              !reshape_node.has_fused_primitives();
 
         if (remove_dep) {
             LOG_NODE_REMOVAL(reshape_input_node.id());

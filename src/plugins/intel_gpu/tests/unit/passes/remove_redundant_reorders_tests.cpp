@@ -16,7 +16,7 @@
 #include "fully_connected_inst.h"
 #include "convolution_inst.h"
 #include "permute_inst.h"
-
+#include "reshape_inst.h"
 #include "pass_manager.h"
 #include "to_string_utils.h"
 
@@ -136,4 +136,45 @@ TEST(remove_redundant_reorders, skip_reorder_fusing_when_sibling_not_support_pad
     ASSERT_NE(prog, nullptr);
 
     ASSERT_EQ(prog->get_node("convolution").get_output_layout().data_padding, padding());
+}
+
+TEST(remove_redundant_reorders, not_to_fuse_reshape_with_fused_prims) {
+    auto& engine = get_test_engine();
+    auto data0_layout = engine.allocate_memory({ ov::PartialShape{1, 32, 2, 2}, data_types::f16, format::bfyx });
+    auto in_layout = layout{ ov::PartialShape{1, 32, 2, 2}, data_types::f16, format::bfyx };
+
+    topology topology;
+    topology.add(input_layout("input", in_layout));
+    topology.add(data("data0", data0_layout));
+    topology.add(eltwise("elt", input_info("input"), input_info("data0"), eltwise_mode::sum));
+    topology.add(reorder("reorder", input_info("elt"), { data_types::f16, format::bfzyx, {1, 1, 32, 2, 2}}));
+    topology.add(reshape("reshape1", input_info("reorder"), {1, 4, 16, 2}));
+    topology.add(reorder("reorder2", input_info("reshape1"), { data_types::f16, format::bfzyx, {1, 1, 32, 2, 2}}));
+    topology.add(reshape("reshape2", input_info("reorder2"), {1, 32, 2, 2, 1}));
+    topology.add(activation("activation", input_info("reshape2"), activation_func::relu));
+    topology.add(reorder("reorder4", input_info("activation"), { data_types::f32, format::bfyx, {1, 4, 32, 1}}));
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    auto prog = program::build_program(engine, topology, config, false, true);
+
+    layout_optimizer lo(true);
+
+    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog, lo);
+    bool optimize_data = config.get_property(ov::intel_gpu::optimize_data);
+    program_wrapper::apply_opt_pass<remove_redundant_reorders>(*prog, lo, optimize_data);
+
+    ASSERT_NE(prog, nullptr);
+    ASSERT_TRUE(has_node_with_type<reshape>(*prog));
+    network network(engine, topology, config);
+
+    auto input = engine.allocate_memory(in_layout);
+    VVVVF<float> input_all_neg = generate_random_4d<float>(1, 32, 2, 2, -10.f, 0.f);
+    set_values(input, input_all_neg);
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+    auto output_prim = outputs.begin()->second.get_memory();
+    cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
+    for (size_t i = 0; i < output_ptr.size(); ++i) {
+        ASSERT_GE(output_ptr[i], 0);
+    }
 }

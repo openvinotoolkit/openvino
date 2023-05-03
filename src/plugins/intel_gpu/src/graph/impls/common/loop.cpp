@@ -124,7 +124,7 @@ struct loop_impl : typed_primitive_impl<loop> {
 
             // Set sliced output memory
             for (const auto& concat_output_mem_mapping : concatenated_output_mem_mappings) {
-                concat_output_mem_mapping.setup_concatenated_output_memory(current_iteration_idx);
+                concat_output_mem_mapping.setup_sliced_output_memory(current_iteration_idx);
             }
 
             // execute body network
