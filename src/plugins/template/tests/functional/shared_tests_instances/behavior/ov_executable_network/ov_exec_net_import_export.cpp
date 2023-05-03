@@ -52,4 +52,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests,
                            ::testing::ValuesIn(heteroConfigs)),
         OVCompiledGraphImportExportTest::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_OVClassImportExportTestP,
+                         OVClassCompiledModelImportExportTestP,
+                         ::testing::Values("HETERO:TEMPLATE"));   
+
 }  // namespace
