@@ -57,12 +57,19 @@ def pytest_addoption(parser):
         "--niter",
         type=check_positive_int,
         help="Number of iterations to run executable and aggregate results",
-        default=3
+        default=10
     )
     test_args_parser.addoption(
         "--model_cache",
         action='store_true',
         help="Enable model cache usage",
+    )
+    test_args_parser.addoption(
+        "--hint",
+        default="warm",
+        choices=["warm", "cold"],
+        type=str,
+        help="Configure environment to perform measurements",
     )
     db_args_parser = parser.getgroup("timetest database use")
     db_args_parser.addoption(
@@ -129,6 +136,11 @@ def niter(request):
 def model_cache(request):
     """Fixture function for command-line option."""
     return request.config.getoption('model_cache')
+
+@pytest.fixture(scope="session")
+def hint(request):
+    """Fixture function for command-line option."""
+    return request.config.getoption('hint')
 
 
 # -------------------- CLI options --------------------

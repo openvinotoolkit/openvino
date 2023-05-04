@@ -34,7 +34,7 @@ from scripts.run_timetest import run_timetest
 REFS_FACTOR = 1.2      # 120%
 
 
-def test_timetest(instance, executable, niter, cl_cache_dir, model_cache, model_cache_dir,
+def test_timetest(instance, executable, niter, cl_cache_dir, model_cache, model_cache_dir, hint,
                   test_info, temp_dir, validate_test_case, prepare_db_info):
     """Parameterized test.
 
@@ -64,7 +64,7 @@ def test_timetest(instance, executable, niter, cl_cache_dir, model_cache, model_
 
     # Copy model to a local temporary directory
     model_dir = temp_dir / "model"
-    shutil.copytree(model_path.parent, model_dir)
+    #shutil.copytree(model_path.parent, model_dir)
     model_path = model_dir / model_path.name
 
     # Run executable
@@ -76,6 +76,7 @@ def test_timetest(instance, executable, niter, cl_cache_dir, model_cache, model_
         "input_precision": input_precision,
         "output_precision": output_precision,
         "model_cache": model_cache,
+        "hint": hint,
     }
     logging.info("Run timetest once to generate any cache")
     retcode, msg, _, _, _ = run_timetest({**exe_args, "niter": 1}, log=logging)
