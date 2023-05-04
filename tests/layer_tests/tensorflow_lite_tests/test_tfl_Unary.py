@@ -27,6 +27,7 @@ test_ops = [
     {'op_name': 'LOGISTIC', 'op_func': tf.math.sigmoid},
     {'op_name': 'NEG', 'op_func': tf.math.negative},
     {'op_name': 'RELU6', 'op_func': tf.nn.relu6},
+    {'op_name': 'RELU', 'op_func': tf.nn.relu},
     {'op_name': 'ROUND', 'op_func': tf.math.round},
     {'op_name': 'RSQRT', 'op_func': tf.math.rsqrt, 'kwargs_to_prepare_input': 'positive'},
     {'op_name': 'SIN', 'op_func': tf.math.sin},
