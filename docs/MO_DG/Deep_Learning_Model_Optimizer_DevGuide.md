@@ -127,7 +127,7 @@ Below is a list of separate examples for different frameworks and Model Optimize
    
           .. code-block:: sh
    
-             mo --saved_model_dir BERT --input mask,word_ids,type_ids --input_shape [2,30],[2,30],[2,30]
+             mo --saved_model_dir BERT --input_shape [2,30],[2,30],[2,30]
    
        .. tab-item:: MO Python API
           :sync: mo-python-api
