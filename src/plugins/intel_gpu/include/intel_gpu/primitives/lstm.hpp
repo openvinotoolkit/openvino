@@ -191,7 +191,8 @@ protected:
 struct lstm_gemm : public primitive_base<lstm_gemm> {
     CLDNN_DECLARE_PRIMITIVE(lstm_gemm)
 
-    lstm_gemm() : primitive_base("", {}) {}
+    lstm_gemm() : primitive_base("", {}),
+                  direction(0) {}
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 

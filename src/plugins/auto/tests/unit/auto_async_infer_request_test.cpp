@@ -16,6 +16,14 @@ std::string AsyncInferenceTest::getTestCaseName(testing::TestParamInfo<AsyncInfe
 void AsyncInferenceTest::SetUp() {
         std::tie(isCpuFaster, isSingleDevice) = GetParam();
         ON_CALL(*core.get(), isNewAPI()).WillByDefault(Return(true));
+        ON_CALL(*core, GetMetric(HasSubstr("GPU"),
+                   StrEq(METRIC_KEY(DEVICE_ARCHITECTURE)), _)).WillByDefault(Return("GPU: vendor=0x8086 arch=0"));
+        ON_CALL(*core, GetMetric(StrEq("GPU"),
+                        StrEq(METRIC_KEY(DEVICE_TYPE)), _)).WillByDefault(Return(ov::device::Type::INTEGRATED));
+        ON_CALL(*core, GetMetric(StrEq("GPU.0"),
+                        StrEq(METRIC_KEY(DEVICE_TYPE)), _)).WillByDefault(Return(ov::device::Type::INTEGRATED));
+        ON_CALL(*core, GetMetric(StrEq("GPU.1"),
+                        StrEq(METRIC_KEY(DEVICE_TYPE)), _)).WillByDefault(Return(ov::device::Type::DISCRETE));
         if (isSingleDevice) {
             std::vector<std::string>  testDevs = {CommonTestUtils::DEVICE_GPU};
             ON_CALL(*core, GetAvailableDevices()).WillByDefault(Return(testDevs));

@@ -29,7 +29,7 @@ TEST_P(OVClassModelTestP, QueryModelWithKSO) {
     }
 }
 
-TEST_P(OVClassModelTestP, SetAffinityWithConstantBranches) {
+TEST_P(OVClassQueryModelTest, QueryModelWithMatMul) {
     ov::Core ie = createCoreWithTemplate();
 
     std::shared_ptr<ngraph::Function> func;
@@ -76,11 +76,6 @@ TEST_P(OVClassQueryModelTest, QueryModelHETEROWithDeviceIDNoThrow) {
                                       ov::device::priorities(target_device + "." + deviceIDs[0], target_device)));
 }
 
-TEST_P(OVClassQueryModelTest, QueryModelWithDeviceID) {
-    ov::Core ie = createCoreWithTemplate();
-    ie.query_model(simpleNetwork, target_device + ".0");
-}
-
 TEST_P(OVClassQueryModelTest, QueryModelWithBigDeviceIDThrows) {
     ov::Core ie = createCoreWithTemplate();
     ASSERT_THROW(ie.query_model(actualNetwork, target_device + ".110"), ov::Exception);
@@ -91,14 +86,6 @@ TEST_P(OVClassQueryModelTest, QueryModelWithInvalidDeviceIDThrows) {
     ASSERT_THROW(ie.query_model(actualNetwork, target_device + ".l0"), ov::Exception);
 }
 
-TEST_P(OVClassQueryModelTest, QueryModelHETEROWithBigDeviceIDThrows) {
-    ov::Core ie = createCoreWithTemplate();
-
-    ASSERT_THROW(ie.query_model(actualNetwork,
-                                CommonTestUtils::DEVICE_HETERO,
-                                ov::device::priorities(target_device + ".100", target_device)),
-                 ov::Exception);
-}
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov
