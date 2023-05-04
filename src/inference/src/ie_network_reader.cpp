@@ -443,6 +443,10 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
     std::string model_path = modelPath;
 #endif
 
+    std::ifstream model_file(model_path);
+    if (model_file.peek() == std::ifstream::traits_type::eof())
+        IE_THROW(NetworkNotRead) << "Unable to read the model: " << modelPath << " File is empty";
+
     // Try to load with FrontEndManager
     ov::frontend::FrontEndManager manager;
     ov::frontend::FrontEnd::Ptr FE;

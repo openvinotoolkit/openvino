@@ -97,6 +97,11 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
 
     if (variants[0].is<std::string>()) {
         std::string model_path = variants[0].as<std::string>();
+
+        std::ifstream model_file(model_path);
+        if (model_file.peek() == std::ifstream::traits_type::eof()) // file is empty
+            return false;
+
         if (ov::util::ends_with(model_path, ".pb") && GraphIteratorProto::is_supported(model_path)) {
             // handle binary protobuf format
             // for automatic deduction of the frontend to convert the model
@@ -148,6 +153,11 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
 
     if (variants[0].is<std::string>()) {
         auto model_path = variants[0].as<std::string>();
+
+        std::ifstream model_file(model_path);
+        FRONT_END_GENERAL_CHECK(model_file.peek() != std::ifstream::traits_type::eof(),
+                                "[TensorFlow Frontend] Model ", model_path, " is empty");
+
         if (GraphIteratorProto::is_supported(model_path)) {
             // handle binary protobuf format
             return std::make_shared<InputModel>(std::make_shared<GraphIteratorProto>(model_path), m_telemetry);
