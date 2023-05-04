@@ -29,7 +29,7 @@ def import_caffe_pb2(caffe_parser_path: str):
 def load_caffe_proto_model(caffe_pb2, proto_path: str, model_path: [str, None] = None):
     # 1. python protobuf is used
     if api_implementation._implementation_type == 'python':
-        message = 'Please expect that Model Optimizer conversion might be slow. ' \
+        message = 'Please expect that model conversion might be slow. ' \
                   'You are currently using Python protobuf library implementation. \n'
         try:
             from google.protobuf.pyext import cpp_message
@@ -56,14 +56,14 @@ def load_caffe_proto_model(caffe_pb2, proto_path: str, model_path: [str, None] =
                   '      2. {} does not have a valid structure, for example, it was downloaded as html\n'.format(
                       proto_path) +
                   '      3. {} contains custom layers or attributes that are not supported\n'.format(proto_path) +
-                  '         in Model Optimizer by default.\n\n' +
+                  '         in Model Conversion API by default.\n\n' +
                   '    After you made sure that {} has a valid structure and still see this issue, then\n'.format(
                       proto_path) +
                   '    you need to generate a python parser for caffe.proto that was used when the model\n' +
                   '    was created.\n' +
                   '    Run "python3 generate_caffe_pb2.py --input_proto ${PATH_TO_CAFFE}/src/caffe/proto/caffe.proto"' +
                   refer_to_faq_msg(1) + '\n\n', extra={'framework_error': True})
-        raise FrameworkError('Model Optimizer is not able to parse {}'.format(proto_path)) from e
+        raise FrameworkError('Model Conversion API is not able to parse {}'.format(proto_path)) from e
 
     # Read model layer if exists
     model = None
@@ -84,7 +84,7 @@ def load_caffe_proto_model(caffe_pb2, proto_path: str, model_path: [str, None] =
                   '      1. {} does not exist\n'.format(model_path) +
                   '      2. {} does not have a valid structure\n'.format(model_path) + third_point,
                   extra={'framework_error': True})
-        raise FrameworkError('Model Optimizer is not able to parse {}'.format(model_path)) from e
+        raise FrameworkError('Model Conversion API is not able to parse {}'.format(model_path)) from e
 
     return proto, model
 

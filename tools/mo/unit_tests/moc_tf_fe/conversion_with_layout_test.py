@@ -92,6 +92,6 @@ class TestConversionWithBatchAndLayout(unittest.TestCase):
     def test_model_expected_failure(self, model_name: str, batch: int, layout: str, refs_shapes: dict):
         # try to override batch size by default index (without specifying layout)
         with self.assertRaisesRegex(Error,
-                                    "When you use -b \(--batch\) option, Model Optimizer applies its value to the first "
+                                    "When you use -b \(\"batch\"\) option, Model Conversion API applies its value to the first "
                                     "element of the shape if it is equal to -1, 0 or 1\."):
             self.basic_check(model_name, batch, layout, refs_shapes)

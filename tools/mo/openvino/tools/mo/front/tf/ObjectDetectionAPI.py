@@ -4,14 +4,14 @@
 """
 The file contains necessary transformations to convert models created with a TensorFlow Object Detection framework from
 the https://github.com/tensorflow/models/blob/master/research/object_detection/ repository. There is a dedicated
-OpenVINO document describing overall procedure of conversion these models with the Model Optimizer:
+OpenVINO document describing overall procedure of conversion these models with the Model Conversion API:
 https://docs.openvino.ai/latest/openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_Object_Detection_API_Models.html
 
 Conversion of most of the TF OD API models requires execution of several transformations defined in this file. The list
 of transformations to be executed for a particular model type (meta-architecture) is defined in the transformation
 configuration JSON file located in the "openvino/tools/mo/front/tf/" directory. A file should be specified using the
-"--transformations_config" command line parameter. An additional parameter
-"--tensorflow_object_detection_api_pipeline_config" should be specified with the path to the pipeline.config used for
+"transformations_config" parameter. An additional parameter
+"tensorflow_object_detection_api_pipeline_config" should be specified with the path to the pipeline.config used for
 the model training.
 
 Refer to the code comments of a particular transformation for the explanation of its purpose and low-level
@@ -74,11 +74,11 @@ from openvino.tools.mo.utils.pipeline_config import PipelineConfig
 from openvino.tools.mo.utils.shape import node_to_get_shape_value_of_indices
 
 missing_param_error = 'To convert the model specify path to the pipeline configuration file which was used to ' \
-                      'generate the model. Please use "--tensorflow_object_detection_api_pipeline_config" option:\n' \
-                      '--tensorflow_object_detection_api_pipeline_config "<path_to_pipeline.config>"\nIf you have ' \
+                      'generate the model. Please use "tensorflow_object_detection_api_pipeline_config" option:\n' \
+                      '"tensorflow_object_detection_api_pipeline_config"="<path_to_pipeline.config>"\nIf you have ' \
                       'downloaded the model file from the Object Detection Model zoo repository then this file is ' \
                       'located in the archive with frozen model and called "pipeline.config".\nIf you did not use ' \
-                      'this command line parameter before that means that you are using currently deprecated ' \
+                      'this parameter before that means that you are using currently deprecated ' \
                       'TensorFlow* Object Detection API models conversion mechanism.'
 
 
@@ -96,9 +96,9 @@ def _value_or_raise(match: SubgraphMatch, pipeline_config: PipelineConfig, key: 
     value = pipeline_config.get_param(key)
     if value is None:
         raise Error('The sub-graph replacer "[REPLACEMENT_ID]" was not able to find the value for key "{}" in the '
-                    'pipeline configuration file specified with the --tensorflow_object_detection_api_pipeline_config '
-                    'command line parameter. Update the sub-graph replacement configuration file specified with the '
-                    '--transformations_config command line parameter by adding key "{}" with required '
+                    'pipeline configuration file specified with the "tensorflow_object_detection_api_pipeline_config" '
+                    'parameter. Update the sub-graph replacement configuration file specified with the '
+                    '"transformations_config" parameter by adding key "{}" with required '
                     'value to the "custom_attributes" dictionary of the "[REPLACEMENT_ID]" replacer.'.format(key, key))
     return value
 
@@ -392,12 +392,12 @@ def calculate_placeholder_spatial_shape(graph: Graph, match: SubgraphMatch, pipe
     """
     The function calculates the preprocessed shape of the input image for a TensorFlow Object Detection API model.
     It uses various sources to calculate it:
-    1. The shape passed using the '--input_shape' command line parameter.
+    1. The shape passed using the 'input_shape' parameter.
     2. The values from the pipeline configuration file describing Preprocessor block of the topology:
-        a. If the fixed size resizer is used then size passed via '--input_shape' can override them, but Model Optimizer
-           prints warning. If the '--input_shape' is not defined then use values from the pipeline configuration file.
-        b. If the keep aspect ratio resizer is used then scale the size passed via '--input_shape' using the provided
-           limits. If the '--input_shape' is not defined then use shape as (min_dimension_size, min_dimension_size)
+        a. If the fixed size resizer is used then size passed via 'input_shape' can override them, but convert_model()
+           prints warning. If the 'input_shape' is not defined then use values from the pipeline configuration file.
+        b. If the keep aspect ratio resizer is used then scale the size passed via 'input_shape' using the provided
+           limits. If the 'input_shape' is not defined then use shape as (min_dimension_size, min_dimension_size)
            defined in the pipeline configuration file. If the "pad_to_max_dimension" attribute is set to true then the
            output shape will always be (max_dimension_size, max_dimension_size).
 
@@ -414,7 +414,7 @@ def calculate_placeholder_spatial_shape(graph: Graph, match: SubgraphMatch, pipe
                   'preprocessed_image_width' in match.custom_replacement_desc.custom_attributes):
         log.error('The "preprocessed_image_height" or "preprocessed_image_width" is specified in the sub-graph '
                   'replacement configuration file but they are ignored. Please, specify desired input shape using the '
-                  '"--input_shape" command line parameter.', extra={'is_warning': True})
+                  '"input_shape" parameter.', extra={'is_warning': True})
 
     user_defined_height = None
     user_defined_width = None
@@ -433,7 +433,7 @@ def calculate_placeholder_spatial_shape(graph: Graph, match: SubgraphMatch, pipe
         if user_defined_height and user_defined_width:
             if user_defined_width != resizer_width or user_defined_width != resizer_width:
                 log.error('The model expects that the input image is resized to a fixed shape ({}, {}), but the shape '
-                          'provided with the "--input_shape" command line parameter is different ({}, {}).'.format(
+                          'provided with the "input_shape" parameter is different ({}, {}).'.format(
                     resizer_height, resizer_width, user_defined_height, user_defined_width), extra={'is_warning': True})
             height = user_defined_height
             width = user_defined_width
@@ -473,7 +473,7 @@ def calculate_placeholder_spatial_shape(graph: Graph, match: SubgraphMatch, pipe
                 width = scaled_width
             else:
                 height = width = resizer_min_dimension
-                log.error('Specify the "--input_shape" command line parameter to override the default shape which is '
+                log.error('Specify the "input_shape" parameter to override the default shape which is '
                           'equal to ({}, {}).'.format(height, width), extra={'is_warning': True})
 
     if height is None or width is None:
@@ -501,7 +501,7 @@ def update_parameter_shape(graph: Graph, match: [SubgraphMatch, None]):
     initial_input_node_name = 'input_tensor' if 'input_tensor' in graph.nodes else 'image_tensor'
     if initial_input_node_name not in graph.nodes():
         raise Error('Input node "{}" of the graph is not found. Do not run the Model Optimizer with '
-                    '"--input" command line parameter.'.format(initial_input_node_name))
+                    '"input" parameter.'.format(initial_input_node_name))
     parameter_node = Node(graph, initial_input_node_name)
 
     # set default value of the batch size to 1 if user didn't specify batch size and input shape
@@ -749,7 +749,7 @@ class ObjectDetectionAPIPreprocessorReplacement(FrontReplacementFromConfigFileSu
             log.info('There is image scaling node in the Preprocessor block.')
             mul_node = sub_node.in_port(0).get_source().node
 
-        # update the model Parameter node shape based on MO command line parameters and values in the pipeline.config
+        # update the model Parameter node shape based on MO parameters and values in the pipeline.config
         initial_input_node_name, placeholder_node = update_parameter_shape(graph, match)
 
         to_float_node = placeholder_node.out_port(0).get_destination().node
@@ -823,7 +823,7 @@ class ObjectDetectionAPIPreprocessor2Replacement(FrontReplacementFromConfigFileG
         pipeline_config = PipelineConfig(argv.tensorflow_object_detection_api_pipeline_config)
         pad_to_max_dimension = pipeline_config.get_param('pad_to_max_dimension')
 
-        # update the model Parameter node shape based on MO command line parameters and values in the pipeline.config
+        # update the model Parameter node shape based on MO parameters and values in the pipeline.config
         update_parameter_shape(graph, None)
 
         # NOTE: this transformation can be implemented as a "scope" or "points" transformation since we need to match
@@ -1412,7 +1412,7 @@ class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGra
         initial_input_node_name = 'input_tensor' if 'input_tensor' in graph.nodes else 'image_tensor'
         if initial_input_node_name not in graph.nodes():
             raise Error('Input node "{}" of the graph is not found. Do not run the Model Optimizer with '
-                        '"--input" command line parameter.'.format(initial_input_node_name))
+                        '"input" parameter.'.format(initial_input_node_name))
         parameter_node = Node(graph, initial_input_node_name)
 
         input_shape = Shape(graph, {'name': parameter_node.name}).create_node([parameter_node])

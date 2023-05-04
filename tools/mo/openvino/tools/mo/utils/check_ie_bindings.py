@@ -67,7 +67,7 @@ def import_core_modules(silent: bool, path_to_module: str):
 
         print("{}: \t{}".format("OpenVINO runtime found in", os.path.dirname(openvino.__file__)))
         print("{}: \t{}".format("OpenVINO runtime version", ie_version))
-        print("{}: \t{}".format("Model Optimizer version", mo_version))
+        print("{}: \t{}".format("Model Conversion API version", mo_version))
 
         versions_mismatch = False
 
@@ -84,11 +84,11 @@ def import_core_modules(silent: bool, path_to_module: str):
             extracted_mo_release_version = v.extract_release_version(mo_version)
             mo_is_custom = extracted_mo_release_version == (None, None)
 
-            print("[ WARNING ] Model Optimizer and OpenVINO runtime versions do not match.")
+            print("[ WARNING ] Model Conversion API and OpenVINO runtime versions do not match.")
             print("[ WARNING ] Consider building the OpenVINO Python API from sources or reinstall OpenVINO "
                   "(TM) toolkit using", end=" ")
             if mo_is_custom:
-                print("\"pip install openvino\" (may be incompatible with the current Model Optimizer version)")
+                print("\"pip install openvino\" (may be incompatible with the current Model Conversion API version)")
             else:
                 print("\"pip install openvino=={}.{}\"".format(*extracted_mo_release_version))
 

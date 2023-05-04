@@ -1190,7 +1190,7 @@ class MXNetCustomFrontExtractorOp(object):
     
     It is needed to keep the list of extractors for particularly custom layers.
 
-    When actual extraction happens, Model Optimizer first finds the match by type, which is CustomFrontExtractorOp.
+    When actual extraction happens, convert_model() first finds the match by type, which is CustomFrontExtractorOp.
     It in turns looks up the MXNetCustomFrontExtractorOp for the needed layer extractor not by type, but by op_type.
 
     
@@ -1218,7 +1218,7 @@ class CaffePythonFrontExtractorOp:
 
     It is needed to keep the list of extractors for particularly Python layers.
 
-    When actual extraction happens, Model Optimizer first finds the match by type, which is PythonFrontExtractorOp.
+    When actual extraction happens, convert_model() first finds the match by type, which is PythonFrontExtractorOp.
     It in turns looks up the CaffePythonFrontExtractorOp for the needed layer extractor not by type, but by
     the compilation of the layer name and the module name.
 

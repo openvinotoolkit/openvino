@@ -126,9 +126,9 @@ def read_file_to_graph_def(graph_def: [tf_v1.GraphDef, tf_v1.MetaGraphDef], grap
             'TensorFlow cannot read the model file: "{}" is incorrect TensorFlow model file. '
             '\nThe file should contain one of the following TensorFlow graphs:'
             '\n1. frozen graph in text or binary format'
-            '\n2. inference graph for freezing with checkpoint (--input_checkpoint) in text or binary format'
+            '\n2. inference graph for freezing with checkpoint (input_checkpoint) in text or binary format'
             '\n3. meta graph'
-            '\n\nMake sure that --input_model_is_text is provided for a model in text format. '
+            '\n\nMake sure that input_model_is_text=True is provided for a model in text format. '
             'By default, a model is interpreted in binary format. Framework error details: {}. ' +
             refer_to_faq_msg(43),
             graph_file_name,
@@ -167,7 +167,7 @@ def deducing_metagraph_path(meta_graph_file: str):
                     '\n3. model_name.data-00000-of-00001 (digit part may vary)'
                     '\n4. checkpoint (optional)'
                     '\n\nTo load this model, simply run:'
-                    '\npython3 mo_tf.py --input_meta_graph model_name.meta'
+                    '\nconvert_model(input_meta_graph="model_name.meta")'
                     ''.format(meta_graph_file))
     return meta_graph_file
 
@@ -253,18 +253,17 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
     # As a provisional solution, use a native TF methods to load a model protobuf
     graph_def = tf_v1.GraphDef()
     if isinstance(graph_file_name, str) and (re.match(r'.*\.(ckpt|meta)$', graph_file_name)):
-        print('[ WARNING ] The value for the --input_model command line parameter ends with ".ckpt" or ".meta" '
+        print('[ WARNING ] The value for the "input_model" parameter ends with ".ckpt" or ".meta" '
               'extension.\n'
               'It means that the model is not frozen.\n'
-              'To load non frozen model to Model Optimizer run:'
+              'To convert non frozen model run:'
               '\n\n1. For "*.ckpt" file:'
               '\n- if inference graph is in binary format'
-              '\npython3 mo_tf.py --input_model "path/to/inference_graph.pb" --input_checkpoint "path/to/*.ckpt"'
+              '\nconvert_model("path/to/inference_graph.pb", input_checkpoint="path/to/*.ckpt")'
               '\n- if inference graph is in text format'
-              '\npython3 mo_tf.py --input_model "path/to/inference_graph.pbtxt" --input_model_is_text '
-              '--input_checkpoint "path/to/*.ckpt"'
+              '\nconvert_model("path/to/inference_graph.pbtxt", input_model_is_text=True, input_checkpoint="path/to/*.ckpt")'
               '\n\n2. For "*.meta" file:'
-              '\npython3 mo_tf.py --input_meta_graph "path/to/*.meta"')
+              '\nconvert_model(input_meta_graph="path/to/*.meta")')
     variables_values = {}
     try:
         if graph_file_name and not meta_graph_file and not checkpoint:

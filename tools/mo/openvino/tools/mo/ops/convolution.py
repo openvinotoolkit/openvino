@@ -133,8 +133,8 @@ class Convolution(Op):
             if not is_fully_defined(kernel_shape):
                 num_undefined = np.count_nonzero(kernel_shape.mask is True)  # pylint: disable=no-member
                 if num_undefined > 1:
-                    raise Error('Too many undefined dimensions of the kernel shape for node {}. Use --input_shape '
-                                'command line parameter to specify model input shapes'.format(node.soft_get('name',
+                    raise Error('Too many undefined dimensions of the kernel shape for node {}. Use input_shape '
+                                'parameter to specify model input shapes'.format(node.soft_get('name',
                                                                                                             node.id)))
                 kernel_size = np.prod(node.in_node(weights_index).value.shape)
                 # calculate undefined dimension using fully defined shape of the weights input and known kernel_shape

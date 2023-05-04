@@ -49,7 +49,7 @@ class Memory(Op):
                 out_node.shape = shape_array([batch, *node.shape[:]])
             return
         else:
-            raise Error('Model Optimizer is unable to calculate output shape of Memory node {}. ' +
+            raise Error('Model Conversion API is unable to calculate output shape of Memory node {}. ' +
                         refer_to_faq_msg(88),
                         node.id)
 

@@ -48,7 +48,7 @@ def mxnet_op_extractor(node: Node):
     result_attr = mxnet_op_extractors[op](node)
 
     if result_attr is None:
-        raise Error('Model Optimizer does not support layer "{}". Please, implement extension. '.format(node.name) +
+        raise Error('Model Conversion API does not support layer "{}". Please, implement extension. '.format(node.name) +
                     refer_to_faq_msg(45))
 
     result.update(result_attr)

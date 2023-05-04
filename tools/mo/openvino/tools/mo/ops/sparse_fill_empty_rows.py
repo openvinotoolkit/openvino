@@ -17,7 +17,7 @@ class SparseFillEmptyRows(Op):
     4 inputs:
         - [0, required] input indices of the sparse tensor (2D),
         - [1, required] input values of the sparse tensor (1D),
-        - [2, required] shape of the sparse tensor. Value of this input is required for the Model Optimizer (1D),
+        - [2, required] shape of the sparse tensor. Value of this input is required for model conversion (1D),
         - [3, required] default value to insert at rows missing from the input sparse tensor (0D),
 
     3 outputs:

@@ -25,6 +25,7 @@ def refer_to_faq_msg(question_num: int):
         # Telemetry can be not initialized if it is used in MO IR Reader
         pass
 
+# TODO: Update this link when MO dodumentation is updated
     return '\n For more information please refer to Model Optimizer FAQ, question #{0}. ' \
            '(https://docs.openvino.ai/latest/openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ.html' \
            '?question={0}#question-{0})'.format(question_num)
@@ -103,7 +104,7 @@ def files_by_pattern(dir: str, pattern: str, files_only=True, add_prefix=False):
 
 def get_mo_root_dir():
     """
-    Return the absolute path to the Model Optimizer root directory (where mo folder is located)
+    Return the absolute path to the MO command line tool root directory (where mo folder is located)
     :return: path to the MO root directory
     """
     return os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(os.path.realpath(__file__))), os.pardir,

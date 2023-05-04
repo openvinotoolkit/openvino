@@ -5,7 +5,7 @@ import re
 
 
 class BasicError(Exception):
-    """ Base class for all exceptions in Model Optimizer
+    """ Base class for all exceptions in Model Conversion API
 
         It operates like Exception but when it is converted to str,
         it formats string as args[0].format(*args[1:]), where

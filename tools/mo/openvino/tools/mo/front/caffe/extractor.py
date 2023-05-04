@@ -62,7 +62,7 @@ def caffe_extractor(node: Node, lowered_keys_map: dict) -> (bool, dict):
             supported = True
 
     if not supported:
-        raise Error('Found custom layer "{}". Model Optimizer does not support this layer. '.format(node.id) +
+        raise Error('Found custom layer "{}". Model Conversion API does not support this layer. '.format(node.id) +
                     'Please, implement extension. ' +
                     refer_to_faq_msg(45))
 

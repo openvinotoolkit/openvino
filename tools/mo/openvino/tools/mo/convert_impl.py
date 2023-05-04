@@ -93,7 +93,7 @@ def replace_ext(name: str, old: str, new: str):
 
 def print_argv(argv: argparse.Namespace, is_caffe: bool, is_tf: bool, is_mxnet: bool, is_kaldi: bool, is_onnx: bool,
                model_name: str):
-    print('Model Optimizer arguments:')
+    print('Model Conversion API arguments:')
     props = OrderedDict()
     props['common_args'] = get_common_cli_options(model_name)
     props['advanced_args'] = get_advanced_cli_options()
@@ -142,23 +142,23 @@ def arguments_post_parsing(argv: argparse.Namespace):
         argv.extensions = [import_extensions.default_path()]
 
     if use_new_frontend and use_legacy_frontend:
-        raise Error('Options --use_new_frontend and --use_legacy_frontend must not be used simultaneously '
-                    'in the Model Optimizer command-line')
+        raise Error('Options "use_new_frontend" and "use_legacy_frontend" must not be used simultaneously '
+                    'in convert_model().')
 
     moc_front_end, available_moc_front_ends = get_moc_frontends(argv)
 
     if not moc_front_end and use_new_frontend:
-        raise Error('Option --use_new_frontend is specified but the Model Optimizer is unable to find new frontend. '
+        raise Error('Option "use_new_frontend" is specified but new frontend is not found. '
                     'Please ensure that your environment contains new frontend for the input model format or '
-                    'try to convert the model without specifying --use_new_frontend option.')
+                    'try to convert the model without specifying "use_new_frontend" option.')
 
     is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx = \
         deduce_legacy_frontend_by_namespace(argv) if not moc_front_end else [False, False, False, False, False]
 
     is_legacy_frontend = any([is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx])
     if not is_legacy_frontend and use_legacy_frontend:
-        raise Error('Option --use_legacy_frontend is specified but Model Optimizer does not have legacy frontend '
-                    'for the input model format. Please try to convert the model without specifying --use_legacy_frontend option.')
+        raise Error('Option "use_legacy_frontend" is specified but legacy frontend is not found '
+                    'for the input model format. Please try to convert the model without specifying "use_legacy_frontend" option.')
 
     # handle a default case, i.e. use_new_frontend and use_legacy_frontend are not specified, when no frontend is found
     if not is_legacy_frontend and not moc_front_end:
@@ -166,13 +166,13 @@ def arguments_post_parsing(argv: argparse.Namespace):
         frameworks = list(set(legacy_frameworks + available_moc_front_ends))
         if not argv.framework:
             raise Error('Framework name can not be deduced from the given options: {}={}. '
-                        'Please use --framework with one from the list: {}.',
-                        '--input_model', argv.input_model, frameworks)
+                        'Please use "framework" with one from the list: {}.',
+                        'input_model', argv.input_model, frameworks)
         elif argv.framework not in frameworks:
             if argv.framework == 'ir':
                 raise Error('OpenVINO IR is passed as input_model in convert_model/mo, the IR doesn\'t need '
                             'conversion, please use it in runtime for inference with read_model/compile_model.')
-            raise Error('Framework {} is not a valid target. Please use --framework with one from the list: {}. ' +
+            raise Error('Framework {} is not a valid target. Please use "framework" with one from the list: {}. ' +
                         refer_to_faq_msg(15), argv.framework, frameworks)
 
     if is_legacy_frontend:
@@ -180,28 +180,28 @@ def arguments_post_parsing(argv: argparse.Namespace):
             raise Error('New kind of extensions used on legacy path')
 
     if is_tf and not argv.input_model and not argv.saved_model_dir and not argv.input_meta_graph:
-        raise Error('Path to input model or saved model dir is required: use --input_model, --saved_model_dir or '
-                    '--input_meta_graph')
+        raise Error('Path to input model or saved model dir is required: use "input_model", "saved_model_dir" or '
+                    '"input_meta_graph"')
     elif is_mxnet and not argv.input_model and not argv.input_symbol and not argv.pretrained_model_name:
-        raise Error('Path to input model or input symbol or pretrained_model_name is required: use --input_model or '
-                    '--input_symbol or --pretrained_model_name')
+        raise Error('Path to input model or input symbol or pretrained_model_name is required: use "input_model" or '
+                    '"input_symbol" or "pretrained_model_name"')
     elif is_caffe and not argv.input_model and not argv.input_proto:
-        raise Error('Path to input model or input proto is required: use --input_model or --input_proto')
+        raise Error('Path to input model or input proto is required: use "input_model" or "input_proto"')
     elif (is_kaldi or is_onnx) and not argv.input_model:
-        raise Error('Path to input model is required: use --input_model.')
+        raise Error('Path to input model is required: use "input_model".')
 
-    log.debug("Model Optimizer started")
+    log.debug("Conversion started")
 
     log.debug('Output model name would be {}{{.xml, .bin}}'.format(argv.model_name))
 
-    # if --input_proto is not provided, try to retrieve another one
+    # if input_proto is not provided, try to retrieve another one
     # by suffix substitution from model file name
     if is_caffe and not argv.input_proto:
         argv.input_proto = replace_ext(argv.input_model, '.caffemodel', '.prototxt')
 
         if not argv.input_proto:
-            raise Error("Cannot find prototxt file: for Caffe please specify --input_proto - a " +
-                        "protobuf file that stores topology and --input_model that stores " +
+            raise Error("Cannot find prototxt file: for Caffe please specify \"input_proto\" - a " +
+                        "protobuf file that stores topology and \"input_model\" that stores " +
                         "pretrained weights. " +
                         refer_to_faq_msg(20))
         log.info('Deduced name for prototxt: {}'.format(argv.input_proto))
@@ -226,7 +226,7 @@ def arguments_post_parsing(argv: argparse.Namespace):
 
     if argv.scale and argv.scale_values:
         raise Error(
-            'Both --scale and --scale_values are defined. Specify either scale factor or scale values per input ' +
+            'Both "scale" and "scale_values" are defined. Specify either scale factor or scale values per input ' +
             'channels. ' + refer_to_faq_msg(19))
 
     if argv.scale and argv.scale < 1.0:
@@ -234,12 +234,12 @@ def arguments_post_parsing(argv: argparse.Namespace):
                   "floating point value which all input values will be *divided*.", extra={'is_warning': True})
 
     if argv.input_model and (is_tf and argv.saved_model_dir):
-        raise Error('Both --input_model and --saved_model_dir are defined. '
+        raise Error('Both "input_model" and "saved_model_dir" are defined. '
                     'Specify either input model or saved model directory.')
     if is_tf:
         if argv.saved_model_tags is not None:
             if ' ' in argv.saved_model_tags:
-                raise Error('Incorrect saved model tag was provided. Specify --saved_model_tags with no spaces in it')
+                raise Error('Incorrect saved model tag was provided. Specify "saved_model_tags" with no spaces in it')
             argv.saved_model_tags = argv.saved_model_tags.split(',')
 
     if hasattr(argv, 'is_python_api_used') and argv.is_python_api_used:
@@ -434,7 +434,7 @@ def prepare_ir(argv: argparse.Namespace):
         log.warning("The IR preparation was executed by the legacy MO path. "
                     "This is a fallback scenario applicable only for some specific cases. "
                     f"The detailed reason why fallback was executed: not supported {reasons_message} were used. "
-                    "You can specify --use_new_frontend flag to force using the Frontend MO path to avoid additional checks. " +
+                    "You can specify \"use_new_frontend\" flag to force using the Frontend MO path to avoid additional checks. " +
                     refer_to_faq_msg(105))
         assert not hasattr(argv, 'is_fallback'), '`is_fallback` argument must not exist.'
         argv.is_fallback = True
@@ -703,13 +703,13 @@ def show_mo_convert_help():
             param_data = group[param_name]
             text = param_data.description.replace("    ", '')
             text = add_line_breaks(text, 56, "\n\t\t\t")
-            print("  --{} {}".format(param_name, text))
+            print("  {}: {}".format(param_name, text))
         print()
 
 
 def input_model_is_object(argv):
-    # Input model can be set as object only for --input_model parameter.
-    # --saved_model_dir or meta specific options are only used to store paths to the input model.
+    # Input model can be set as object only for input_model parameter.
+    # saved_model_dir or meta specific options are only used to store paths to the input model.
     if 'input_model' not in argv:
         return False
     if isinstance(argv['input_model'], (str, Path)):
@@ -748,7 +748,7 @@ def python_api_params_parsing(argv: argparse.Namespace):
         if inp.name is not None:
             input_names_list.append(inp.name)
     if len(input_names_list) > 0:
-        assert len(input_names_list) == len(inputs), "--input parameter has unnamed inputs and named inputs. " \
+        assert len(input_names_list) == len(inputs), "\"input\" parameter has unnamed inputs and named inputs. " \
                                                      "Please either set names for all inputs, " \
                                                      "or do not set names for all inputs."
     argv.inputs_list = input_names_list
@@ -836,7 +836,7 @@ def update_args_for_saved_model_dir(args: dict):
     """
     if 'saved_model_dir' in args and args['saved_model_dir'] is not None and \
             'input_model' in args and args['input_model'] is not None:
-        raise Error("Both --input_model and --saved_model_dir are defined. "
+        raise Error("Both \"input_model\" and \"saved_model_dir\" are defined. "
                     "Please specify either input_model or saved_model_dir directory.")
     
     if 'input_model' in args and isinstance(args['input_model'], (str, Path)) and os.path.isdir(args['input_model']):
@@ -862,7 +862,7 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args, python_api_us
         show_mo_convert_help()
         return None, None
     simplified_mo_version = VersionChecker().get_mo_simplified_version()
-    telemetry = tm.Telemetry(tid=get_tid(), app_name='Model Optimizer', app_version=simplified_mo_version)
+    telemetry = tm.Telemetry(tid=get_tid(), app_name='Model Conversion API', app_version=simplified_mo_version)
     telemetry.start_session('mo')
     telemetry.send_event('mo', 'version', simplified_mo_version)
     # Initialize logger with 'ERROR' as default level to be able to form nice messages
@@ -901,7 +901,7 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args, python_api_us
                                                                            if argv.feManager else [])))
         framework = argv.framework if hasattr(argv, 'framework') and argv.framework is not None else framework
         if framework is not None:
-            assert framework in frameworks, "error: argument --framework: invalid choice: '{}'. " \
+            assert framework in frameworks, "error: argument \"framework\": invalid choice: '{}'. " \
                                             "Expected one of {}.".format(framework, frameworks)
             setattr(argv, 'framework', framework)
 
@@ -972,7 +972,7 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args, python_api_us
                 log.error("-------------------------------------------------")
                 log.error("----------------- INTERNAL ERROR ----------------")
                 log.error("Unexpected exception happened.")
-                log.error("Please contact Model Optimizer developers and forward the following information:")
+                log.error("Please contact Model Conversion API developers and forward the following information:")
                 log.error(str(e))
                 log.error(traceback.format_exc())
                 log.error("---------------- END OF BUG REPORT --------------")
@@ -983,6 +983,6 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args, python_api_us
 
         send_conversion_result('fail')
         if python_api_used:
-            raise e.with_traceback(None)
+            raise e#.with_traceback(None)
         else:
             return None, argv

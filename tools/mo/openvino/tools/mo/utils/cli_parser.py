@@ -261,15 +261,15 @@ def input_shape_to_input_cut_info(input_shape: [str, Shape, PartialShape, list, 
             input_shape = [input_shape]
 
         if len(inputs) > 0 and len(input_shape) > 0:
-            assert len(inputs) == len(input_shape), "Different numbers of inputs were specified in --input parameter " \
-                    "and --input_shapes. --input has {} items, --input_shape has {} item.".format(len(inputs), len(input_shape))
+            assert len(inputs) == len(input_shape), "Different numbers of inputs were specified in \"input\" parameter " \
+                    "and \"input_shapes\". \"input\" has {} items, \"input_shape\" has {} item.".format(len(inputs), len(input_shape))
 
         # Update inputs with information from 'input_shape'
         if len(inputs) > 0:
             for idx, shape in enumerate(input_shape):
                 shape = PartialShape(shape)
-                assert inputs[idx].shape is None, "Shape was set in both --input and in --input_shape parameter." \
-                                                  "Please use either --input or --input_shape for shape setting."
+                assert inputs[idx].shape is None, "Shape was set in both \"input\" and in \"input_shape\" parameter." \
+                                                  "Please use either \"input\" or \"input_shape\" for shape setting."
                 inputs[idx] = openvino.tools.mo.InputCutInfo(inputs[idx].name, shape, inputs[idx].type, inputs[idx].value)
 
         else:
@@ -418,7 +418,7 @@ def batch_to_int(value):
     if isinstance(value, Dimension):
         if not value.is_static:
             # TODO: Ticket 88676
-            raise Exception("Dynamic batch for --batch parameter is not supported.")
+            raise Exception("Dynamic batch for \"batch\" parameter is not supported.")
         else:
             return value.get_length()
     raise Exception("Incorrect batch value. Expected int, got {}.".format(type(value)))
@@ -550,18 +550,6 @@ def get_mo_convert_params():
     return mo_convert_params
 
 
-class DeprecatedStoreTrue(argparse.Action):
-    def __init__(self, nargs=0, **kw):
-        super().__init__(nargs=nargs, **kw)
-
-    def __call__(self, parser, namespace, values, option_string=None):
-        dep_msg = "Use of deprecated cli option {} detected. Option use in the following releases will be fatal. ".format(option_string)
-        if 'fusing' in option_string:
-            dep_msg += 'Please use --finegrain_fusing cli option instead'
-        log.error(dep_msg, extra={'is_warning': True})
-        setattr(namespace, self.dest, True)
-
-
 class DeprecatedOptionCommon(argparse.Action):
     def __call__(self, parser, args, values, option_string):
         dep_msg = "Use of deprecated cli option {} detected. Option use in the following releases will be fatal. ".format(option_string)
@@ -589,7 +577,7 @@ def canonicalize_and_check_paths(values: Union[str, List[str]], param_name,
         elif isinstance(values, list):
             list_of_values = values
         else:
-            raise Error('Unsupported type of command line parameter "{}" value'.format(param_name))
+            raise Error('Unsupported type of parameter "{}" value'.format(param_name))
 
         if not check_existance:
             return [get_absolute_path(path) for path in list_of_values]
@@ -597,7 +585,7 @@ def canonicalize_and_check_paths(values: Union[str, List[str]], param_name,
         for idx, val in enumerate(list_of_values):
             list_of_values[idx] = val
 
-            error_msg = 'The value for command line parameter "{}" must be existing file/directory, ' \
+            error_msg = 'The value for parameter "{}" must be existing file/directory, ' \
                         'but "{}" does not exist.'.format(param_name, val)
             if os.path.exists(val):
                 continue
@@ -854,7 +842,7 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'a network in a generated IR and output .xml/.bin files.')
     common_group.add_argument('--output_dir', '-o',
                               help='Directory that stores the generated IR. ' +
-                                   'By default, it is the directory from where the Model Optimizer is launched.',
+                                   'By default, it is the directory from where the MO Command line tool is launched.',
                               default=get_absolute_path('.'),
                               action=CanonicalizePathAction,
                               type=writable_dir)
@@ -872,13 +860,13 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'the OpenVINO Runtime API in runtime may fail for such an IR.',
                               action='store_true', default=False)
     common_group.add_argument("--use_new_frontend",
-                              help='Force the usage of new Frontend of Model Optimizer for model conversion into IR. '
+                              help='Force the usage of new Frontend for model conversion into IR. '
                                    'The new Frontend is C++ based and is available for ONNX* and PaddlePaddle* models. '
-                                   'Model optimizer uses new Frontend for ONNX* and PaddlePaddle* by default that means '
+                                   'Model Conversion API uses new Frontend for ONNX* and PaddlePaddle* by default that means '
                                    '`--use_new_frontend` and `--use_legacy_frontend` options are not specified.',
                               action='store_true', default=False)
     common_group.add_argument("--use_legacy_frontend",
-                              help='Force the usage of legacy Frontend of Model Optimizer for model conversion into IR. '
+                              help='Force the usage of legacy Frontend for model conversion into IR. '
                                    'The legacy Frontend is Python based and is available for TensorFlow*, ONNX*, MXNet*, '
                                    'Caffe*, and Kaldi* models.',
                               action='store_true', default=False)
@@ -911,8 +899,8 @@ def get_common_cli_options(model_name):
 
 def get_advanced_cli_options():
     d = OrderedDict()
-    d['use_legacy_frontend'] = '- Force the usage of legacy Frontend of Model Optimizer for model conversion into IR'
-    d['use_new_frontend'] = '- Force the usage of new Frontend of Model Optimizer for model conversion into IR'
+    d['use_legacy_frontend'] = '- Force the usage of legacy Frontend for model conversion into IR'
+    d['use_new_frontend'] = '- Force the usage of new Frontend for model conversion into IR'
     return d
 
 
@@ -979,7 +967,7 @@ def get_params_with_paths_list():
 
 def get_caffe_cli_parser(parser: argparse.ArgumentParser = None):
     """
-    Specifies cli arguments for Model Optimizer for Caffe*
+    Specifies cli arguments for MO command line tool for Caffe*
 
     Returns
     -------
@@ -997,7 +985,7 @@ def get_caffe_cli_parser(parser: argparse.ArgumentParser = None):
 
 def get_tf_cli_parser(parser: argparse.ArgumentParser = None):
     """
-    Specifies cli arguments for Model Optimizer for TF
+    Specifies cli arguments for MO command line tool for TF
 
     Returns
     -------
@@ -1015,7 +1003,7 @@ def get_tf_cli_parser(parser: argparse.ArgumentParser = None):
 
 def get_mxnet_cli_parser(parser: argparse.ArgumentParser = None):
     """
-    Specifies cli arguments for Model Optimizer for MXNet*
+    Specifies cli arguments for MO command line tool for MXNet*
 
     Returns
     -------
@@ -1034,7 +1022,7 @@ def get_mxnet_cli_parser(parser: argparse.ArgumentParser = None):
 
 def get_kaldi_cli_parser(parser: argparse.ArgumentParser = None):
     """
-    Specifies cli arguments for Model Optimizer for MXNet*
+    Specifies cli arguments for MO command line tool for MXNet*
 
     Returns
     -------
@@ -1052,7 +1040,7 @@ def get_kaldi_cli_parser(parser: argparse.ArgumentParser = None):
 
 def get_onnx_cli_parser(parser: argparse.ArgumentParser = None):
     """
-    Specifies cli arguments for Model Optimizer for ONNX
+    Specifies cli arguments for MO command line tool for ONNX
 
     Returns
     -------
@@ -1067,7 +1055,7 @@ def get_onnx_cli_parser(parser: argparse.ArgumentParser = None):
 
 def get_all_cli_parser():
     """
-    Specifies cli arguments for Model Optimizer
+    Specifies cli arguments for MO command line tool
 
     Returns
     -------
@@ -1090,7 +1078,7 @@ def get_all_cli_parser():
 def remove_data_type_from_input_value(input_value: str):
     """
     Removes the type specification from the input string. The type specification is a string enclosed with curly braces.
-    :param input_value: string passed as input to the --input command line parameter
+    :param input_value: string passed as input to the "input" parameter
     :return: string without type specification
     """
     return re.sub(r'\{.*\}', '', input_value)
@@ -1099,7 +1087,7 @@ def remove_data_type_from_input_value(input_value: str):
 def get_data_type_from_input_value(input_value: str):
     """
     Returns the numpy data type corresponding to the data type specified in the input value string
-    :param input_value: string passed as input to the --input command line parameter
+    :param input_value: string passed as input to the "input" parameter
     :return: the corresponding numpy data type and None if the data type is not specified in the input value
     """
     data_type_match = re.match(r'.*\{(.*)\}.*', input_value)
@@ -1110,7 +1098,7 @@ def remove_shape_from_input_value(input_value: str):
     """
     Removes the shape specification from the input string. The shape specification is a string enclosed with square
     brackets.
-    :param input_value: string passed as input to the --input command line parameter
+    :param input_value: string passed as input to the "input" parameter
     :return: string without shape specification
     """
     assert '->' not in input_value, 'The function should not be called for input_value with constant value specified'
@@ -1120,7 +1108,7 @@ def remove_shape_from_input_value(input_value: str):
 def get_shape_from_input_value(input_value: str):
     """
     Returns PartialShape corresponding to the shape specified in the input value string
-    :param input_value: string passed as input to the --input command line parameter
+    :param input_value: string passed as input to the "input" parameter
     :return: the corresponding shape and None if the shape is not specified in the input value
     """
     # remove the tensor value from the input_value first
@@ -1138,7 +1126,7 @@ def get_shape_from_input_value(input_value: str):
         dims = list(filter(None, dims))
         shape = PartialShape([Dimension(dim) for dim in dims])
     else:
-        raise Error("Wrong syntax to specify shape. Use --input "
+        raise Error("Wrong syntax to specify shape. Use \"input\"="
                     "\"node_name[shape]->value\"")
     return shape
 
@@ -1146,7 +1134,7 @@ def get_shape_from_input_value(input_value: str):
 def get_node_name_with_port_from_input_value(input_value: str):
     """
     Returns the node name (optionally with input/output port) from the input value
-    :param input_value: string passed as input to the --input command line parameter
+    :param input_value: string passed as input to the "input" parameter
     :return: the corresponding node name with input/output port
     """
     return remove_shape_from_input_value(remove_data_type_from_input_value(input_value.split('->')[0]))
@@ -1155,7 +1143,7 @@ def get_node_name_with_port_from_input_value(input_value: str):
 def get_value_from_input_value(input_value: str):
     """
     Returns the value from the input value string
-    :param input_value: string passed as input to the --input command line parameter
+    :param input_value: string passed as input to the "input" parameter
     :return: the corresponding value or None if it is not specified
     """
     parts = input_value.split('->')
@@ -1163,7 +1151,7 @@ def get_value_from_input_value(input_value: str):
     if len(parts) == 2:
         value = parts[1]
         if value[0] == '[' and value[-1] != ']' or value[0] != '[' and value[-1] == ']':
-            raise Error("Wrong syntax to specify value. Use --input \"node_name[shape]->value\"")
+            raise Error("Wrong syntax to specify value. Use \"input\"=\"node_name[shape]->value\"")
         if '[' in value.strip(' '):
             value = value.replace('[', '').replace(']', '')
             if ',' in value:
@@ -1174,7 +1162,7 @@ def get_value_from_input_value(input_value: str):
         if not isinstance(value, list):
             value = ast.literal_eval(value)
     elif len(parts) > 2:
-        raise Error("Wrong syntax to specify value. Use --input \"node_name[shape]->value\"")
+        raise Error("Wrong syntax to specify value. Use \"input\"=\"node_name[shape]->value\"")
     return value
 
 
@@ -1190,7 +1178,7 @@ def partial_shape_prod(shape: [PartialShape, tuple]):
 
 def parse_input_value(input_value: str):
     """
-    Parses a value of the --input command line parameter and gets a node name, shape and value.
+    Parses a value of the "input" parameter and gets a node name, shape and value.
     The node name includes a port if it is specified.
     Shape and value is equal to None if they are not specified.
     Parameters
@@ -1285,10 +1273,10 @@ def write_found_layout(name: str, found_layout: str, parsed: dict, dest: str = N
     :param name: name of the node to add layout
     :param found_layout: string containing layout for the node
     :param parsed: dict where result will be stored
-    :param dest: type of the command line:
-      * 'source' is --source_layout
-      * 'target' is --target_layout
-      * None is --layout
+    :param dest: type of the parameter:
+      * 'source' is "source_layout" parameter
+      * 'target' is "target_layout" parameter
+      * None is "layout"  parameter
     """
     s_layout = None
     t_layout = None
@@ -1312,10 +1300,10 @@ def write_found_layout_list(idx: int, found_layout: str, parsed: list, dest: str
     :param idx: idx of of the node to add layout
     :param found_layout: string containing layout for the node
     :param parsed: list where result will be stored
-    :param dest: type of the command line:
-      * 'source' is --source_layout
-      * 'target' is --target_layout
-      * None is --layout
+    :param dest: type of the parameter:
+      * 'source' is "source_layout" parameter
+      * 'target' is "target_layout" parameter
+      * None is "layout" parameter
     """
     s_layout = None
     t_layout = None
@@ -1339,13 +1327,13 @@ def write_found_layout_list(idx: int, found_layout: str, parsed: list, dest: str
 
 def parse_layouts_by_destination(s: str, parsed: dict, parsed_list: list, dest: str = None) -> None:
     """
-    Parses layout command line to get all names and layouts from it. Adds all found data in the 'parsed' dict.
+    Parses layout parameter to get all names and layouts from it. Adds all found data in the 'parsed' dict.
     :param s: string to parse
     :param parsed: dict where result will be stored
-    :param dest: type of the command line:
-      * 'source' is --source_layout
-      * 'target' is --target_layout
-      * None is --layout
+    :param dest: type of the parameter:
+      * 'source' is "source_layout" parameter
+      * 'target' is "target_layout" parameter
+      * None is "layout" parameter
     """
     list_s = split_str_avoiding_square_brackets(s)
     if len(list_s) == 1 and (list_s[0][-1] not in ')]' or (list_s[0][0] == '[' and list_s[0][-1] == ']')):
@@ -1376,13 +1364,13 @@ def parse_layouts_by_destination(s: str, parsed: dict, parsed_list: list, dest: 
 def get_layout_values(argv_layout: str = '', argv_source_layout: str = '', argv_target_layout: str = ''):
     """
     Parses layout string.
-    :param argv_layout: string with a list of layouts passed as a --layout.
-    :param argv_source_layout: string with a list of layouts passed as a --source_layout.
-    :param argv_target_layout: string with a list of layouts passed as a --target_layout.
+    :param argv_layout: string with a list of layouts passed as a "layout".
+    :param argv_source_layout: string with a list of layouts passed as a "source_layout".
+    :param argv_target_layout: string with a list of layouts passed as a "target_layout".
     :return: dict with names and layouts associated
     """
     if argv_layout and (argv_source_layout or argv_target_layout):
-        raise Error("--layout is used as well as --source_layout and/or --target_layout which is not allowed, please "
+        raise Error("\"layout\" is used as well as \"source_layout\" and/or \"target_layout\" which is not allowed, please "
                     "use one of them.")
     res = {}
     res_list = []
@@ -1412,7 +1400,7 @@ def parse_freeze_placeholder_values(argv_freeze_placeholder_with_value: str):
         for plh_with_value in argv_freeze_placeholder_with_value.split(','):
             plh_with_value = plh_with_value.split('->')
             if len(plh_with_value) != 2:
-                raise Error("Wrong replacement syntax. Use --freeze_placeholder_with_value "
+                raise Error("Wrong replacement syntax. Use \"freeze_placeholder_with_value\" "
                             "\"node1_name->value1,node2_name->value2\"")
             node_name = plh_with_value[0]
             value = plh_with_value[1]
@@ -1502,8 +1490,8 @@ def split_shapes(argv_input_shape: str):
 
 def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=None):
     """
-    Parses input layers names and input shapes from the cli and returns the parsed object.
-    All shapes are specified only through one command line option either --input or --input_shape.
+    Parses input layers names and input shapes from the cli or convert_model() and returns the parsed object.
+    All shapes are specified only through one parameter either "input" or "input_shape".
 
     Parameters
     ----------
@@ -1527,10 +1515,10 @@ def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=No
         None if neither shape nor input were provided
     """
     if argv_input_shape and argv_batch:
-        raise Error("Both --input_shape and --batch were provided. Please provide only one of them. " +
+        raise Error("Both \"input_shape\" and \"batch\" were provided. Please provide only one of them. " +
                     refer_to_faq_msg(56))
 
-    # attempt to extract shapes from --input parameters
+    # attempt to extract shapes from "input" parameters
     placeholder_shapes = dict()
     placeholder_data_types = dict()
     are_shapes_specified_through_input = False
@@ -1546,11 +1534,11 @@ def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=No
                 are_shapes_specified_through_input = True
 
     if argv_input_shape and are_shapes_specified_through_input:
-        raise Error("Shapes are specified using both --input and --input_shape command-line parameters, but only one "
+        raise Error("Shapes are specified using both \"input\" and \"input_shape\" parameters, but only one "
                     "parameter is allowed.")
 
     if argv_batch and are_shapes_specified_through_input:
-        raise Error("Shapes are specified using both --input and --batch command-line parameters, but only one "
+        raise Error("Shapes are specified using both \"input\" and \"batch\" parameters, but only one "
                     "parameter is allowed.")
 
     if are_shapes_specified_through_input:

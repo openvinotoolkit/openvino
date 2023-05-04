@@ -19,7 +19,7 @@ except ImportError:
 
 
 def init_mo_telemetry():
-    _ = tm.Telemetry(tid=get_tid(), app_name='Model Optimizer', app_version=VersionChecker().get_mo_simplified_version())
+    _ = tm.Telemetry(tid=get_tid(), app_name='Model Conversion API', app_version=VersionChecker().get_mo_simplified_version())
 
 
 def send_op_names_info(framework: str, graph: Graph):

@@ -56,11 +56,11 @@ class TensorFlowRetinaNet(AnalyzeAction):
                                                   'openvino/tools/mo/front/tf/retinanet.json'}
 
             message = "Your model looks like TensorFlow RetinaNet Model.\n" \
-                      "To generate the IR, provide model to the Model Optimizer with the following parameters:\n" \
-                      "\t--input_model <path_to_model>/<model>.pb\n" \
-                      "\t--input_shape [1,600,600,3]\n" \
-                      "\t--transformations_config <OPENVINO_INSTALL_DIR>/tools/model_optimizer/openvino/tools/mo/front/tf/retinanet.json\n" \
-                      "\t--reverse_input_channels"
+                      "To generate the IR, run convert_model() with the following parameters:\n" \
+                      "\tinput_model=\"<path_to_model>/<model>.pb\"\n" \
+                      "\tinput_shape=[1,600,600,3]\n" \
+                      "\ttransformations_config=\"<OPENVINO_INSTALL_DIR>/tools/model_optimizer/openvino/tools/mo/front/tf/retinanet.json\"\n" \
+                      "\treverse_input_channels=True"
 
             return {'model_type': {'TF_RetinaNet': result}}, message
 

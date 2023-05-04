@@ -126,7 +126,7 @@ class ApplyCountsFilePattern(FrontReplacementSubgraph):
             try:
                 counts = read_counts_file(graph.graph['cmd_params'].counts)
             except Exception as e:
-                raise Error('Model Optimizer is not able to read counts file {}'.format(graph.graph['cmd_params'].counts) +
+                raise Error('Model Conversion API is not able to read counts file {}'.format(graph.graph['cmd_params'].counts) +
                             refer_to_faq_msg(92)) from e
 
         # calculate normalized counts as follows:

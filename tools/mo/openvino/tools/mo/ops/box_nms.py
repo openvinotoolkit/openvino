@@ -43,5 +43,5 @@ class BoxNms(Op):
     def infer(node: Node):
         raise Error(
             "Operation _contrib_box_nms not not supported. " +
-            "For gluoncv ssd topologies use cmd parameter: '--enable_ssd_gluoncv' " +
+            "For gluoncv ssd topologies use cmd parameter: 'enable_ssd_gluoncv' " +
             refer_to_faq_msg(102))

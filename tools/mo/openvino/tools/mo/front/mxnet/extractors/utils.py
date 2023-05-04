@@ -170,7 +170,7 @@ def load_params(input_model, data_names=('data',)):
                 arg_params[key] = loaded_weight[key]
     else:
         raise Error(
-            'Unsupported Input model file type {}. Model Optimizer support only .params and .nd files format. ' +
+            'Unsupported Input model file type {}. Model Conversion API support only .params and .nd files format. ' +
             refer_to_faq_msg(85), file_format)
 
     data = mx.sym.Variable(data_names[0])

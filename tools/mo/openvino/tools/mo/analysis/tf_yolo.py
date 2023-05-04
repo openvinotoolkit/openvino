@@ -69,10 +69,10 @@ class TensorFlowYOLOV1V2Analysis(AnalyzeAction):
                 flavor = 'YOLOV2Tiny'
         if flavor is not None:
             message = "Your model looks like YOLOv1 or YOLOv2 Model.\n" \
-                      "To generate the IR, provide TensorFlow YOLOv1 or YOLOv2 Model to the Model Optimizer with the following parameters:\n" \
-                      "\t--input_model <path_to_model>/<model_name>.pb\n" \
-                      "\t--batch 1\n" \
-                      "\t--transformations_config <PYTHON_SITE_PACKAGES>/openvino/tools/mo/front/tf/<yolo_config>.json\n" \
+                      "To generate the IR, provide TensorFlow YOLOv1 or YOLOv2 Model to convert_model() with the following parameters:\n" \
+                      "\tinput_model=\"<path_to_model>/<model_name>.pb\"\n" \
+                      "\tbatch=1\n" \
+                      "\ttransformations_config=\"<PYTHON_SITE_PACKAGES>/openvino/tools/mo/front/tf/<yolo_config>.json\"\n" \
                       "All detailed information about conversion of this model can be found at\n" \
                       "https://docs.openvino.ai/latest/_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_YOLO_From_Tensorflow.html"
             return {'model_type': {'YOLO': get_YOLO_params_by_flavor(flavor)}}, message
@@ -96,7 +96,7 @@ class TensorFlowYOLOV3Analysis(AnalyzeAction):
 
         if flavor is not None:
             message = "Your model looks like YOLOv3 Model.\n" \
-                      "To generate the IR, provide TensorFlow YOLOv3 Model to the Model Optimizer with the following parameters:\n" \
+                      "To generate the IR, provide TensorFlow YOLOv3 Model to convert_model() with the following parameters:\n" \
                       "\t--input_model <path_to_model>/yolo_v3.pb\n" \
                       "\t--batch 1\n" \
                       "\t--transformations_config <PYTHON_SITE_PACKAGES>/openvino/tools/mo/front/tf/yolo_v3.json\n" \

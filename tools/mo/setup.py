@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """
-Use this script to create a wheel with Model Optimizer code:
+Use this script to create a wheel with Model Conversion API code:
 
 $ python setup.py sdist bdist_wheel
 """

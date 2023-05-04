@@ -42,7 +42,7 @@ def mxnet_slice_axis_infer(node):
     if node.dim > in_shape[slice_axis]:
         raise Error(
             '{0} node dimension value is bigger than the corresponding value in the input shape {1}. ' +
-            '\nIn particular {2} is bigger than {3}. The Model Optimizer does not support this case. ' +
+            '\nIn particular {2} is bigger than {3}. The Model Conversion API does not support this case. ' +
             '\nTo overcome, try to edit the original model "end" property of the {0} layer.',
             node.name, ','.join(str(i) for i in in_shape), str(node.dim), str(in_shape[slice_axis])
         )

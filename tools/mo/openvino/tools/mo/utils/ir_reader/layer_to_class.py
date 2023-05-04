@@ -67,7 +67,7 @@ custom_ops = {
 def collect_ops(path: str):
     """
     A function to registrate all MO ops
-    :param path: Path to Model Optimizer folder
+    :param path: Path to Model Conversion API folder
     :return:
     """
     import_by_path(os.path.join(path, 'mo', 'ops'), ['mo', 'ops'], 'openvino.tools.')
@@ -79,7 +79,7 @@ def collect_ops(path: str):
 def collect_extenders(path: str):
     """
     A function to registrate all MO IR Reader extenders
-    :param path: Path to Model Optimizer folder
+    :param path: Path to Model Conversion API folder
     :return:
     """
     import_by_path(os.path.join(path, 'mo', 'utils', 'ir_reader', 'extenders'),

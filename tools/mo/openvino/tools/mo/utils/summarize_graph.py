@@ -54,7 +54,7 @@ def main():
     parser.add_argument("--input_model", type=str, help="Path to tensorflow model", default="")
     parser.add_argument('--input_model_is_text', dest='text',
                         help='TensorFlow*: treat the input model file as a text protobuf format. If not specified, '
-                             'the Model Optimizer treats it as a binary file by default.', action='store_true',
+                             'the model is treated as a binary file by default.', action='store_true',
                         default=False)
     parser.add_argument('--input_meta', action='store_true',
                         help='TensorFlow*: treat the input model file as a meta graph def format', default=False)

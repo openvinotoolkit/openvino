@@ -28,7 +28,7 @@ class BatchDotExt(FrontExtractorOp):
 
         if forward_stype is not None:
             log.error("Node {} has non default value {} of attribute forward_stype."
-                      "Model Optimizer conversion assumes default value = None".format(node.soft_get('name', node.id),
+                      "Model conversion assumes default value = None".format(node.soft_get('name', node.id),
                                                                                        forward_stype),
                       extra={'is_warning': True})
 

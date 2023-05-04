@@ -154,14 +154,14 @@ def convert_model(
             operation of the graph. Boundaries of undefined dimension can be specified
             with ellipsis, for example [1,1..10,128,128]. One boundary can be
             undefined, for example [1,..100] or [1,3,1..,1..]. If there are multiple
-            inputs in the model, --input_shape should contain definition of shape
+            inputs in the model, "input_shape" should contain definition of shape
             for each input separated by a comma, for example: [1,3,227,227],[2,4]
             for a model with two inputs with 4D and 2D shapes. Alternatively, specify
-            shapes with the --input option.
+            shapes with the "input" option.
         :param batch:
             Set batch size. It applies to 1D or higher dimension inputs.
             The default dimension index for the batch is zero.
-            Use a label 'n' in --layout or --source_layout option to set the batch dimension.
+            Use a label 'n' in "layout" or "source_layout" option to set the batch dimension.
             For example, "x(hwnc)" defines the third dimension to be the batch.
         :param mean_values:
             Mean values to be used for the input image per channel. Mean values can
@@ -169,33 +169,33 @@ def convert_model(
             value. For example mean_values={'data':[255,255,255],'info':[255,255,255]}.
             Or mean values can be set by a string of the following format. Values to
             be provided in the (R,G,B) or [R,G,B] format. Can be defined for desired
-            input of the model, for example: "--mean_values data[255,255,255],info[255,255,255]".
+            input of the model, for example: "mean_values={"data": [255,255,255], "info": [255,255,255]}".
             The exact meaning and order of channels depend on how the original model
             was trained.
         :param scale_values:
             Scale values to be used for the input image per channel. Scale values
             can be set by passing a dictionary, where key is input name and value is
-            scale value. For example scale_values={'data':[255,255,255],'info':[255,255,255]}.
+            scale value. For example scale_values={'data': [255,255,255], 'info': [255,255,255]}.
             Or scale values can be set by a string of the following format. Values
             are provided in the (R,G,B) or [R,G,B] format. Can be defined for desired
-            input of the model, for example: "--scale_values data[255,255,255],info[255,255,255]".
+            input of the model, for example: "scale_values={'data': [255,255,255], 'info': [255,255,255]}".
             The exact meaning and order of channels depend on how the original model
-            was trained. If both --mean_values and --scale_values are specified,
+            was trained. If both 'mean_values' and 'scale_values' are specified,
             the mean is subtracted first and then scale is applied regardless of
             the order of options in command line.
         :param scale:
             All input values coming from original network inputs will be divided
-            by this value. When a list of inputs is overridden by the --input parameter,
+            by this value. When a list of inputs is overridden by the 'input' parameter,
             this scale is not applied for any input that does not match with the original
-            input of the model. If both --mean_values and --scale  are specified,
+            input of the model. If both 'mean_values' and 'scale'  are specified,
             the mean is subtracted first and then scale is applied regardless of
             the order of options in command line.
         :param reverse_input_channels:
             Switch the input channels order from RGB to BGR (or vice versa). Applied
             to original inputs of the model if and only if a number of channels equals
-            3. When --mean_values/--scale_values are also specified, reversing
+            3. When 'mean_values'/'scale_values' are also specified, reversing
             of channels will be applied to user's input data first, so that numbers
-            in --mean_values and --scale_values go in the order of channels used
+            in 'mean_values' and 'scale_values' go in the order of channels used
             in the original model. In other words, if both options are specified,
             then the data flow in the model looks as following: Parameter -> ReverseInputChannels
             -> Mean apply-> Scale apply -> the original body of the model.
@@ -209,39 +209,41 @@ def convert_model(
             layout for one dimension, "..." can be used to specify undefined layout
             for multiple dimensions, for example "?c??", "nc...", "n...c", etc.
         :param target_layout:
-            Same as --source_layout, but specifies target layout that will be in
+            Same as 'source_layout', but specifies target layout that will be in
             the model after processing by ModelOptimizer.
         :param layout:
-            Combination of --source_layout and --target_layout. Can't be used
+            Combination of "source_layout" and "target_layout". Can't be used
             with either of them. If model has one input it is sufficient to specify
-            layout of this input, for example --layout nhwc. To specify layouts
-            of many tensors, names must be provided, for example: --layout "name1(nchw),name2(nc)".
+            layout of this input, for example layout nhwc. To specify layouts
+            of many tensors, names must be provided, for example: layout="name1(nchw),name2(nc)".
             It is possible to instruct ModelOptimizer to change layout, for example:
-                --layout "name1(nhwc->nchw),name2(cn->nc)".
+                layout="name1(nhwc->nchw),name2(cn->nc)".
             Also "*" in long layout form can be used to fuse dimensions, for example "[n,c,...]->[n*c,...]".
         :param compress_to_fp16:
             If the original model has FP32 weights or biases, they are compressed
-            to FP16. All intermediate data is kept in original precision. Option
-            can be specified alone as "--compress_to_fp16", or explicit True/False
-            values can be set, for example: "--compress_to_fp16=False", or "--compress_to_fp16=True"
+            to FP16. All intermediate data is kept in original precision.
+            Example of usage: compress_to_fp16=True
         :param extensions:
             Paths to libraries (.so or .dll) with extensions, comma-separated
             list of paths, objects derived from BaseExtension class or lists of
-            objects. For the legacy MO path (if `--use_legacy_frontend` is used),
+            objects. For the legacy MO path (if "use_legacy_frontend" is used),
             a directory or a comma-separated list of directories with extensions
             are supported. To disable all extensions including those that are placed
             at the default location, pass an empty string.
         :param transform:
-            Apply additional transformations. 'transform' can be set by a list
+            Apply additional transformations. "transform" can be set by a list
             of tuples, where the first element is transform name and the second element
-            is transform parameters. For example: [('LowLatency2', {{'use_const_initializer':
-            False}}), ...]"--transform transformation_name1[args],transformation_name2..."
-            where [args] is key=value pairs separated by semicolon. Examples:
-                     "--transform LowLatency2" or
-                     "--transform Pruning" or
-                     "--transform LowLatency2[use_const_initializer=False]" or
-                     "--transform "MakeStateful[param_res_names=
-            {'input_name_1':'output_name_1','input_name_2':'output_name_2'}]""
+            is transform parameters.
+            Example:
+            transform=[('LowLatency2', {'use_const_initializer': False}), ...]
+            Alternatively "transform" can be set by a string with following format.
+            transform="transformation_name1[args],transformation_name2..."
+            where [args] is key=value pairs separated by semicolon.
+            Examples:
+            transform="LowLatency2"
+            transform="Pruning"
+            transform="LowLatency2[use_const_initializer=False]"
+            transform="MakeStateful[param_res_names={'input_name_1':'output_name_1','input_name_2':'output_name_2'}]""
             Available transformations: "LowLatency2", "MakeStateful", "Pruning"
         :param transformations_config:
             Use the configuration file with transformations description or pass
@@ -250,13 +252,13 @@ def convert_model(
             path or as relative path from the mo root directory.
         :param silent:
             Prevent any output messages except those that correspond to log level
-            equals ERROR, that can be set with the following option: --log_level.
+            equals ERROR, that can be set with the following option: log_level.
             By default, log level is already ERROR.
         :param log_level:
             Logger level of logging massages from MO.
             Expected one of ['CRITICAL', 'ERROR', 'WARN', 'WARNING', 'INFO', 'DEBUG', 'NOTSET'].
         :param version:
-            Version of Model Optimizer
+            Version of Model Conversion API
         :param progress:
             Enable model conversion progress display.
         :param stream_output:
@@ -271,7 +273,7 @@ def convert_model(
     TensorFlow*-specific parameters:
         :param input_model_is_text:
             TensorFlow*: treat the input model file as a text protobuf format. If
-            not specified, the Model Optimizer treats it as a binary file by default.
+            not specified, the model is treated as a binary file by default.
         :param input_checkpoint:
             TensorFlow*: variables file to load.
         :param input_meta_graph:

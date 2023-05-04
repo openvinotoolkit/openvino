@@ -29,7 +29,7 @@ def load_symbol_nodes(model_name, input_symbol: str = None, legacy_mxnet_model: 
         input_symbol = json_name
 
     if legacy_mxnet_model and (input_symbol == json_name):
-        log.warning('For legacy MXNet models Model Optimizer does not support conversion of old MXNet models' +
+        log.warning('For legacy MXNet models Model Conversion API does not support conversion of old MXNet models' +
                     '(trained with 1.0.0 version of MXNet and lower) with custom layers. ' +
                     refer_to_faq_msg(93))
         sym = mx.symbol.load(json_name)

@@ -25,7 +25,7 @@ class TrainingPhaseAnalysis(AnalyzeAction):
 
         message = message + 'If this input node is as switch between the training and an inference mode, ' \
                             'then you need to freeze this input with value True or False.\n' \
-                            'In order to do this run the Model Optimizer with the command line parameter:\n' \
+                            'In order to do this run convert_model() with the command line parameter:\n' \
                   + params
 
         message = message + 'to switch graph to inference mode.'

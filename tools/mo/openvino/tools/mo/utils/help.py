@@ -95,6 +95,12 @@ def get_convert_model_help_specifics():
                  'undefined layout for one dimension, \"...\" can be used '
                  'to specify undefined layout for multiple dimensions, '
                  'for example \"?c??\", \"nc...\", \"n...c\", etc.'},
+        'compress_to_fp16':
+            {'description':
+                 'If the original model has FP32 weights or biases, they are compressed '
+                 'to FP16. All intermediate data is kept in original precision. Option '
+                 'can be specified alone as "--compress_to_fp16", or explicit True/False '
+                 'values can be set, for example: "--compress_to_fp16=False", or "--compress_to_fp16=True"'},
         'transform':
             {'description':
                  'Apply additional transformations. Usage: \"--transform '
@@ -127,7 +133,7 @@ def get_convert_model_help_specifics():
             {'action': CanonicalizePathCheckExistenceIfNeededAction},
         'version':
             {'action': 'version',
-             'version': 'Version of Model Optimizer is: {}'.format(VersionChecker().get_mo_version())},
+             'version': 'Version of Model Conversion API is: {}'.format(VersionChecker().get_mo_version())},
         'scale':
             {'type': float,
              'aliases': {'-s'}},
