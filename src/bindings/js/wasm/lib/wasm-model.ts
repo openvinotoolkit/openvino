@@ -1,4 +1,4 @@
-import openvinoWASM from '../bin/openvino_wasm';
+import getOVWASM from './ov-wasm-module';
 import { Tensor, Shape } from 'openvinojs-common';
 import {
   getFileDataAsArray,
@@ -49,7 +49,7 @@ export default async function loadModel(xmlPath: string, binPath: string,
   if (typeof xmlPath !== 'string' || typeof binPath !== 'string')
     throw new Error('Parameters \'xmlPath\' and \'binPath\' should be string');
 
-  const ov: OpenvinoWASMModule = await openvinoWASM();
+  const ov: OpenvinoWASMModule = await getOVWASM();
 
   const xmlData = await getFileDataAsArray(xmlPath);
   const binData = await getFileDataAsArray(binPath);
@@ -75,13 +75,13 @@ export default async function loadModel(xmlPath: string, binPath: string,
 }
 
 export async function getVersionString(): Promise<string> {
-  const ov = await openvinoWASM();
+  const ov = await getOVWASM();
 
   return ov.getVersionString();
 }
 
 export async function getDescriptionString(): Promise<string> {
-  const ov = await openvinoWASM();
+  const ov = await getOVWASM();
 
   return ov.getDescriptionString();
 }
