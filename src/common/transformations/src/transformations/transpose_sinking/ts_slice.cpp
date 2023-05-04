@@ -78,16 +78,15 @@ TSSliceBackward::TSSliceBackward() {
     MATCHER_SCOPE(TSSliceBackward);
 
     auto main_node_label = wrap_type<ov::op::v8::Slice>([](const Output<Node>& output) -> bool {
-        return has_static_rank()(output) && HasSameOutputTransposeNodes(output);
+        return has_static_rank()(output) && CheckTransposeConsumers(output);
     });
 
     auto transpose_const_label = wrap_type<ov::op::v0::Constant>();
 
-    auto transpose_label =
-        wrap_type<ov::op::v1::Transpose>({main_node_label, transpose_const_label},
-                                         [](const Output<Node>& output) -> bool {
-                                             return has_static_rank()(output) && is_sinking_node(output);
-                                         });
+    auto transpose_label = wrap_type<ov::op::v1::Transpose>({main_node_label, transpose_const_label},
+                                                            [](const Output<Node>& output) -> bool {
+                                                                return has_static_rank()(output);
+                                                            });
 
     matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
@@ -109,9 +108,7 @@ TSSliceBackward::TSSliceBackward() {
             register_new_node(new_node);
         }
 
-        // remove output transposes
-        RemoveSingleOutputConsumers(main_node);
-        SwapNames(main_node, transpose);
+        RemoveTransposeConsumers(main_node);
         const auto transpose_axis_order = transpose_const->get_axis_vector_val();
         const auto reversed_transpose_order = ReverseTransposeOrder(transpose_axis_order);
         auto axis = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{}, std::vector<int32_t>{0});
