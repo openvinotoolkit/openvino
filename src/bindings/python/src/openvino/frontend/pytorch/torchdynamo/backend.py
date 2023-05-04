@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # flake8: noqa
+# mypy: ignore-errors
 
 import logging
 import os
@@ -76,14 +77,21 @@ def ts_openvino(subgraph, example_inputs):
         compiled_model = core.compile_model(om, device)
 
         def _call(*args):
-            ov_inputs = [a.detach().cpu().numpy() for a in args]
-            try:
-                res = compiled_model(ov_inputs)
-            except Exception as e:
-                log.debug(f"Failed in OpenVINO execution: {e}")
-                return compile_fx(subgraph, *args)
-            result = [torch.from_numpy(res[out]) for out in compiled_model.outputs]
-            return result
+            if not hasattr(_call, "execute_on_ov"):
+                _call.execute_on_ov = True
+            execute_on_ov = getattr(_call, "execute_on_ov")
+            if execute_on_ov:
+                ov_inputs = [a.detach().cpu().numpy() for a in args]
+                try:
+                    res = compiled_model(ov_inputs)
+                except Exception as e:
+                    log.debug(f"Failed in OpenVINO execution: {e}")
+                    _call.execute_on_ov = False
+                    return subgraph.forward(*args)
+                result = [torch.from_numpy(res[out]) for out in compiled_model.outputs]
+                return result
+            else:
+                return subgraph.forward(*args)
         return _call
     except Exception as e:
         log.debug(f"Failed in compilation: {e}")
