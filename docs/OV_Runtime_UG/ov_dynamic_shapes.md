@@ -132,7 +132,7 @@ To check if a model already has dynamic dimensions, first load it with the ``rea
            :fragment: check_inputs
 
 
-If the input model already has dynamic dimensions, that will not change during inference. If the inputs will not be used dynamically, it is recommended to set them to static values using the ``reshape`` method to save application memory. The OpenVINO API supports any combination of static and dynamic dimensions.
+If the input model already has dynamic dimensions, that will not change during inference. If the inputs will not be used dynamically, it is recommended to set them to static values using the ``reshape`` method to save application memory and potentially improve inference speed. The OpenVINO API supports any combination of static and dynamic dimensions.
 
 Static and dynamic dimensions can also be set when converting the model with Model Optimizer. It has identical capabilities to the ``reshape`` method, so you can save time by converting the model with dynamic shapes beforehand rather than in the application code. To get information about setting input shapes using Model Optimizer,  refer to :doc:`Setting Input Shapes <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>`.
 
