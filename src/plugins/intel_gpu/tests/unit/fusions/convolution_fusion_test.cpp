@@ -4147,10 +4147,6 @@ public:
         return layout{ p.in_shape, p.data_type, p.input_format, padding{ pad_ } };
     }
 
-    layout get_output_layout(convolution_eltw_sum_test_params& p) {
-        return layout{ p.out_shape, p.data_type, p.input_format };
-    }
-
     layout get_per_channel_layout(convolution_eltw_sum_test_params& p) {
         ov::PartialShape shape(std::vector<ov::Dimension>(p.out_shape.size(), 1));
         shape[1] = p.out_shape[1];
@@ -4282,10 +4278,6 @@ public:
         return layout{ p.in_shape, p.data_type, p.input_format, padding{ pad_ } };
     }
 
-    layout get_output_layout(implicit_crop_concat_convolution_test_params& p) {
-        return layout{ p.out_shape, p.data_type, p.input_format };
-    }
-
     layout get_per_channel_layout(implicit_crop_concat_convolution_test_params& p) {
         ov::PartialShape shape(std::vector<ov::Dimension>(p.out_shape.size(), 1));
         shape[1] = p.out_shape[1];
@@ -4401,30 +4393,14 @@ public:
         return layout{ p.in_shape, p.data_type, p.input_format, padding{ pad_ } };
     }
 
-    layout get_output_layout(convolution_test_params& p) {
-        return layout{ p.out_shape, p.data_type, p.input_format };
-    }
-
     layout get_per_channel_layout(convolution_test_params& p) {
         ov::PartialShape shape(std::vector<ov::Dimension>(p.out_shape.size(), 1));
         shape[1] = p.out_shape[1];
         return layout{ shape, p.default_type, p.default_format };
     }
 
-    layout get_prelu_slope_layout(convolution_test_params& p) {
-        auto r = p.out_shape.size();
-        ov::PartialShape shape(std::vector<ov::Dimension>(r, 1));
-        shape[1] = p.out_shape[1];
-        shape[r-1] = p.out_shape[r-1];
-        return layout{ shape, p.default_type, p.default_format };
-    }
-
     layout get_weights_layout(convolution_test_params& p) {
         return layout{ p.weights_shape, p.weights_type, p.weights_format };
-    }
-
-    layout get_weights_layout(convolution_test_params& p, cldnn::format f) {
-        return layout{ p.weights_shape, p.weights_type, f };
     }
 };
 
@@ -4544,16 +4520,6 @@ public:
         auto pad = p.pad;
         std::vector<int> pad_ = { 0, 0, static_cast<int>(pad[0]), static_cast<int>(pad[1]) };
         return layout{ p.in_shape, p.data_type, p.input_format, padding{ pad_ } };
-    }
-
-    layout get_output_layout(convolution_eltw_sum_test_params& p) {
-        return layout{ p.out_shape, p.data_type, p.input_format };
-    }
-
-    layout get_per_channel_layout(convolution_eltw_sum_test_params& p) {
-        ov::PartialShape shape(std::vector<ov::Dimension>(p.out_shape.size(), 1));
-        shape[1] = p.out_shape[1];
-        return layout{ shape, p.default_type, p.default_format };
     }
 
     layout get_weights_layout(convolution_eltw_sum_test_params& p) {

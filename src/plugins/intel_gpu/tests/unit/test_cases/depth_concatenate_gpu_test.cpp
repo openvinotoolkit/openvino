@@ -251,7 +251,7 @@ TEST(concatenate_f32_gpu, test_concatenation_of_pool_and_unpool) {
     topology.add(resample("unpool1", input_info("input1"), tensor(1, 1, 2, 2), 0, resample::InterpolateOp::InterpolateMode::NEAREST));
     topology.add(concatenation("concat1", { input_info("pool1"), input_info("unpool1") }, 3));
     topology.add(data("weights", weights));
-    topology.add(convolution("conv", input_info("concat1"), {"weights"}, {}, 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
+    topology.add(convolution("conv", input_info("concat1"), "weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
 
     ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));

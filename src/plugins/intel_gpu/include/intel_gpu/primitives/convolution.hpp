@@ -13,7 +13,7 @@ namespace cldnn {
 struct convolution : public primitive_base<convolution> {
     CLDNN_DECLARE_PRIMITIVE(convolution)
 
-    /// @brief Constructs convolution primitive (computes input paddings to match output size).
+    /// @brief Constructs convolution primitive
     /// @param id This primitive id.
     /// @param input Input primitive id.
     /// @param weights Primitive id containing weights data.
@@ -29,8 +29,8 @@ struct convolution : public primitive_base<convolution> {
     /// As an example in one dimension, a filter w of size 3 would compute over input x the following:
     /// w[0]*x[0] + w[1]*x[1] + w[2]*x[2] for dilation of 1.
     /// For dilation 2 the filter would instead compute w[0]*x[0] + w[1]*x[2] + w[2]*x[4].
-    /// @param padding_above Defines a padding added to input image on left (x axis) and top (y axis).
-    /// @param padding_below Defines a padding added to input image on right (x axis) and bottom (y axis).
+    /// @param padding_begin Defines a padding added to input image on left (x axis) and top (y axis).
+    /// @param padding_end Defines a padding added to input image on right (x axis) and bottom (y axis).
     /// @param grouped_weights_shape True if weights shape is [G, O, I, ...], and false if it's [O, I, ...] or [G*O, I, ...]
     /// @param audo_pad The pad type for automatically computing padding sizes
     convolution(const primitive_id& id,
@@ -43,8 +43,8 @@ struct convolution : public primitive_base<convolution> {
                 uint32_t groups,
                 ov::Strides stride,
                 ov::Strides dilation,
-                ov::CoordinateDiff padding_above,
-                ov::CoordinateDiff padding_below,
+                ov::CoordinateDiff padding_begin,
+                ov::CoordinateDiff padding_end,
                 bool grouped_weights_shape,
                 data_types output_data_type,
                 const ov::op::PadType& auto_pad = ov::op::PadType::EXPLICIT,
@@ -53,8 +53,8 @@ struct convolution : public primitive_base<convolution> {
               groups(groups),
               stride(stride),
               dilation(dilation),
-              padding_above(padding_above),
-              padding_below(padding_below),
+              padding_begin(padding_begin),
+              padding_end(padding_end),
               auto_pad(auto_pad),
               grouped_weights_shape(grouped_weights_shape),
               weights(weights),
@@ -76,8 +76,8 @@ struct convolution : public primitive_base<convolution> {
     /// As an example in one dimension, a filter w of size 3 would compute over input x the following:
     /// w[0]*x[0] + w[1]*x[1] + w[2]*x[2] for dilation of 1.
     /// For dilation 2 the filter would instead compute w[0]*x[0] + w[1]*x[2] + w[2]*x[4].
-    /// @param padding_above Defines a padding added to input image on left (x axis) and top (y axis).
-    /// @param padding_below Defines a padding added to input image on right (x axis) and bottom (y axis).
+    /// @param padding_begin Defines a padding added to input image on left (x axis) and top (y axis).
+    /// @param padding_end Defines a padding added to input image on right (x axis) and bottom (y axis).
     /// @param grouped_weights_shape True if weights shape is [G, O, I, ...], and false if it's [O, I, ...] or [G*O, I, ...]
     /// @param audo_pad The pad type for automatically computing padding sizes
     convolution(const primitive_id& id,
@@ -87,8 +87,8 @@ struct convolution : public primitive_base<convolution> {
                 uint32_t groups,
                 ov::Strides stride,
                 ov::Strides dilation,
-                ov::CoordinateDiff padding_above,
-                ov::CoordinateDiff padding_below,
+                ov::CoordinateDiff padding_begin,
+                ov::CoordinateDiff padding_end,
                 bool grouped_weights_shape,
                 const ov::op::PadType& auto_pad = ov::op::PadType::EXPLICIT,
                 const padding& output_padding = padding())
@@ -96,8 +96,8 @@ struct convolution : public primitive_base<convolution> {
           groups(groups),
           stride(stride),
           dilation(dilation),
-          padding_above(padding_above),
-          padding_below(padding_below),
+          padding_begin(padding_begin),
+          padding_end(padding_end),
           auto_pad(auto_pad),
           grouped_weights_shape(grouped_weights_shape),
           weights(weights),
@@ -122,8 +122,8 @@ struct convolution : public primitive_base<convolution> {
     /// As an example in one dimension, a filter w of size 3 would compute over input x the following:
     /// w[0]*x[0] + w[1]*x[1] + w[2]*x[2] for dilation of 1.
     /// For dilation 2 the filter would instead compute w[0]*x[0] + w[1]*x[2] + w[2]*x[4].
-    /// @param padding_above Defines a padding added to input image on left (x axis) and top (y axis).
-    /// @param padding_below Defines a padding added to input image on right (x axis) and bottom (y axis).
+    /// @param padding_begin Defines a padding added to input image on left (x axis) and top (y axis).
+    /// @param padding_end Defines a padding added to input image on right (x axis) and bottom (y axis).
     /// @param bilinear_interpolation_pad If bilinear_interpolation_pad is true and the sampling location is within
     /// one pixel outside of the feature map boundary, then bilinear interpolation is performed on the zero padded feature map.
     convolution(const primitive_id& id,
@@ -135,16 +135,16 @@ struct convolution : public primitive_base<convolution> {
                 uint32_t deformable_groups,
                 ov::Strides stride,
                 ov::Strides dilation,
-                ov::CoordinateDiff padding_above,
-                ov::CoordinateDiff padding_below,
+                ov::CoordinateDiff padding_begin,
+                ov::CoordinateDiff padding_end,
                 bool bilinear_interpolation_pad = false,
                 const padding& output_padding = padding())
     : primitive_base(id, inputs, {output_padding}),
       groups(groups),
       stride(stride),
       dilation(dilation),
-      padding_above(padding_above),
-      padding_below(padding_below),
+      padding_begin(padding_begin),
+      padding_end(padding_end),
       auto_pad(ov::op::PadType::EXPLICIT),
       deformable_mode(deformable_mode),
       deformable_groups(deformable_groups),
@@ -165,10 +165,10 @@ struct convolution : public primitive_base<convolution> {
     /// As an example in one dimension, a filter w of size 3 would compute over input x the following: w[0]*x[0] + w[1]*x[1] + w[2]*x[2] for dilation of 1.
     /// For dilation 2 the filter would instead compute w[0]*x[0] + w[1]*x[2] + w[2]*x[4].
     ov::Strides dilation;
-    /// @param padding_above Defines a padding added to input image on left (x axis) and top (y axis).
-    ov::CoordinateDiff padding_above;
-    /// @param padding_below Defines a padding added to input image on right (x axis) and bottom (y axis).
-    ov::CoordinateDiff padding_below;
+    /// @param padding_begin Defines a padding added to input image on left (x axis) and top (y axis).
+    ov::CoordinateDiff padding_begin;
+    /// @param padding_end Defines a padding added to input image on right (x axis) and bottom (y axis).
+    ov::CoordinateDiff padding_end;
     /// @param audo_pad The pad type for automatically computing padding sizes
     ov::op::PadType auto_pad;
 
@@ -200,8 +200,8 @@ struct convolution : public primitive_base<convolution> {
 
     size_t hash() const override {
         size_t seed = primitive::hash();
-        seed = hash_range(seed, padding_below.begin(), padding_below.end());
-        seed = hash_range(seed, padding_above.begin(), padding_above.end());
+        seed = hash_range(seed, padding_end.begin(), padding_end.end());
+        seed = hash_range(seed, padding_begin.begin(), padding_begin.end());
         seed = hash_range(seed, stride.begin(), stride.end());
         seed = hash_range(seed, dilation.begin(), dilation.end());
         seed = hash_combine(seed, auto_pad);
@@ -230,8 +230,8 @@ struct convolution : public primitive_base<convolution> {
                cmp_fields(dilation) &&
                cmp_fields(groups) &&
                cmp_fields(deformable_groups) &&
-               cmp_fields(padding_above) &&
-               cmp_fields(padding_below) &&
+               cmp_fields(padding_begin) &&
+               cmp_fields(padding_end) &&
                cmp_fields(auto_pad) &&
                cmp_fields(deformable_mode) &&
                cmp_fields(bilinear_interpolation_pad) &&
@@ -286,8 +286,8 @@ struct deformable_interp : public primitive_base<deformable_interp> {
       kernel_size(kernel_size),
       groups(groups),
       deformable_groups(deformable_groups),
-      padding_above(stride.size(), 0),
-      padding_below(stride.size(), 0),
+      padding_begin(stride.size(), 0),
+      padding_end(stride.size(), 0),
       bilinear_interpolation_pad {bilinear_interpolation_pad} {}
 
     /// @brief Defines logical pad value added to input tensor.
@@ -307,10 +307,10 @@ struct deformable_interp : public primitive_base<deformable_interp> {
     /// @param deformable_groups Defines a number of deformable groups that splits trans input into several parts
     /// by channel dimension.
     uint32_t deformable_groups;
-    /// @param padding_above Defines a padding added to input image on left (x axis) and top (y axis).
-    ov::CoordinateDiff padding_above;
-    /// @param padding_below Defines a padding added to input image on right (x axis) and bottom (y axis).
-    ov::CoordinateDiff padding_below;
+    /// @param padding_begin Defines a padding added to input image on left (x axis) and top (y axis).
+    ov::CoordinateDiff padding_begin;
+    /// @param padding_end Defines a padding added to input image on right (x axis) and bottom (y axis).
+    ov::CoordinateDiff padding_end;
     /// @brief if bilinear_interpolation_pad is true and the sampling location is within one pixel outside
     /// of the feature map boundary, then bilinear interpolation is performed on the zero padded feature map.
     bool bilinear_interpolation_pad {false};
@@ -323,8 +323,8 @@ struct deformable_interp : public primitive_base<deformable_interp> {
         seed = cldnn::hash_combine(seed, kernel_size.hash());
         seed = cldnn::hash_combine(seed, groups);
         seed = cldnn::hash_combine(seed, deformable_groups);
-        seed = cldnn::hash_range(seed, padding_above.begin(), padding_above.end());
-        seed = cldnn::hash_range(seed, padding_below.begin(), padding_below.end());
+        seed = cldnn::hash_range(seed, padding_begin.begin(), padding_begin.end());
+        seed = cldnn::hash_range(seed, padding_end.begin(), padding_end.end());
         seed = cldnn::hash_combine(seed, bilinear_interpolation_pad);
         return seed;
     }
@@ -342,8 +342,8 @@ struct deformable_interp : public primitive_base<deformable_interp> {
                cmp_fields(kernel_size) &&
                cmp_fields(groups) &&
                cmp_fields(deformable_groups) &&
-               cmp_fields(padding_above) &&
-               cmp_fields(padding_below) &&
+               cmp_fields(padding_begin) &&
+               cmp_fields(padding_end) &&
                cmp_fields(bilinear_interpolation_pad);
         #undef cmp_fields
     }

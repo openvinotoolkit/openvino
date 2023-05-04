@@ -105,8 +105,8 @@ layout convolution_inst::calc_output_layout(convolution_node const& node, kernel
     auto spatial_rank = input_layout.get_spatial_rank();
     auto dilation = align_to_spatial_rank(desc->dilation, spatial_rank, static_cast<size_t>(1));
     auto strides = align_to_spatial_rank(desc->stride, spatial_rank, static_cast<size_t>(1));
-    auto pads_begin = align_to_spatial_rank(desc->padding_above, spatial_rank, static_cast<std::ptrdiff_t>(0));
-    auto pads_end = align_to_spatial_rank(desc->padding_below, spatial_rank, static_cast<std::ptrdiff_t>(0));
+    auto pads_begin = align_to_spatial_rank(desc->padding_begin, spatial_rank, static_cast<std::ptrdiff_t>(0));
+    auto pads_end = align_to_spatial_rank(desc->padding_end, spatial_rank, static_cast<std::ptrdiff_t>(0));
 
     if (desc->deformable_mode) {
         ov::op::v8::DeformableConvolution op;
@@ -213,8 +213,8 @@ std::vector<layout> convolution_inst::calc_output_layouts(convolution_node const
         weights_layout.get<ShapeType>()
     };
     std::vector<ShapeType> output_shapes;
-    auto pads_begin = desc->padding_above;
-    auto pads_end = desc->padding_below;
+    auto pads_begin = desc->padding_begin;
+    auto pads_end = desc->padding_end;
     auto dilation = desc->dilation;
     auto strides = desc->stride;
 
@@ -259,8 +259,9 @@ std::string convolution_inst::to_string(convolution_node const& node) {
 
     json_composite conv_info;
     conv_info.add("stride", cldnn::to_string(strd));
-    conv_info.add("padding above", cldnn::to_string(desc->padding_above));
-    conv_info.add("padding below", cldnn::to_string(desc->padding_below));
+    conv_info.add("padding above", cldnn::to_string(desc->padding_begin));
+    conv_info.add("padding below", cldnn::to_string(desc->padding_end));
+    conv_info.add("auto pad", cldnn::to_string(desc->auto_pad));
     conv_info.add("groups", groups);
     conv_info.add("dilation", cldnn::to_string(dilation));
     conv_info.add("deformable_groups", desc->deformable_groups);
@@ -278,7 +279,8 @@ convolution_inst::typed_primitive_inst(network& network, convolution_node const&
     _deform_conv_dep_offset(node.get_deform_conv_dep_offset()) {
     if (node.is_dynamic())
         return;
-    auto stride = argument->stride;
+    OPENVINO_ASSERT(all_not_zeroes(argument->stride), "[GPU] Convolution strides must be positive numbers");
+    OPENVINO_ASSERT(all_not_zeroes(argument->dilation), "[GPU] Convolution dilations must be positive numbers");
 
     auto input_layout = node.input().get_output_layout();
     auto output_layout = node.get_output_layout();

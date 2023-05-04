@@ -399,8 +399,8 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
                                                                      desc->groups,
                                                                      desc->stride,
                                                                      desc->dilation,
-                                                                     desc->padding_above,
-                                                                     desc->padding_below,
+                                                                     desc->padding_begin,
+                                                                     desc->padding_end,
                                                                      desc->grouped_weights_shape,
                                                                      conv.get_output_layout().data_type);
 

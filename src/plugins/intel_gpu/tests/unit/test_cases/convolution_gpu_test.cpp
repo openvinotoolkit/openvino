@@ -2678,8 +2678,8 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x2_nopad_split2) {
         convolution(
             "conv",
             input_info("input"),
-            { "weights1" },
-            { "biases1" },
+            "weights1",
+            "biases1",
             2,
             { 2, 2 },
             { 1, 1 },
@@ -2961,7 +2961,7 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x2_nopad_split2_depthw
                 "conv",
                 input_info("input"),
                 weights_id,
-                { bias_id },
+                bias_id,
                 16,  // number of groups
                 { 2, 2 },
                 { 1, 1 },
@@ -3052,7 +3052,7 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x2_nopad_split2_depthw
             "conv",
             input_info("input"),
             weights_id,
-            { bias_id },
+            bias_id,
             16,  // number of groups
             { 2, 2 },
             { 1, 1 },
@@ -3153,7 +3153,7 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x2_nopad_group16) {
             "conv",
             input_info("input"),
             "weights",
-            { "bias" },
+            "bias",
             16,
             { 2, 2 },
             { 1, 1 },
@@ -3250,7 +3250,7 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x2_nopad_group16_bfyx)
             "conv",
             input_info("input"),
             "weights",
-            { "bias" },
+            "bias",
             16,
             { 2, 2 },
             { 1, 1 },
@@ -3432,8 +3432,8 @@ TEST(convolution_gpu, DISABLED_two_1x1_kernels_after_each_other) {
     set_random_values<float>(weights_conv_2);
 
     auto inp_lay = input_layout("input", input->get_layout());
-    auto conv_1 = convolution("conv_1", input_info("input"), { "weights_conv_1" }, no_bias, 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false);
-    auto conv_2 = convolution("conv_2", input_info("conv_1"), { "weights_conv_2" }, no_bias, 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false);
+    auto conv_1 = convolution("conv_1", input_info("input"), "weights_conv_1", no_bias, 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false);
+    auto conv_2 = convolution("conv_2", input_info("conv_1"), "weights_conv_2", no_bias, 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false);
 
     topology topology(
         inp_lay,
@@ -3856,7 +3856,7 @@ TEST(convolution_int8_fw_gpu, quantized_convolution_u8s8f32_asymmetric_weight_an
         data("biases", biases),
         data("a_zp", a_zp),
         data("w_zp", w_zp),
-        convolution("conv", input_info("input"), "weights", "biases", { "w_zp" }, { "a_zp" }, {}, 1,
+        convolution("conv", input_info("input"), "weights", "biases", "w_zp", "a_zp", "", 1,
                     { 2, 2 }, { 1, 1 }, { 0, 0 }, { 1, 2 }, false, data_types::f32),
         reorder("out", input_info("conv"), format::bfyx, data_types::f32));
 
@@ -3927,7 +3927,7 @@ TEST(convolution_int8_fw_gpu, quantized_convolution_u8s8f32_asymmetric_activatio
         data("weights", weights),
         data("biases", biases),
         data("a_zp", a_zp),
-        convolution("conv", input_info("input"), "weights", "biases", { }, { "a_zp" }, {}, 1,
+        convolution("conv", input_info("input"), "weights", "biases", "", { "a_zp" }, "", 1,
                     { 2, 2 }, { 1, 1 }, { 0, 0 }, { 1, 2 }, false, data_types::f32),
         reorder("out", input_info("conv"), format::bfyx, data_types::f32));
 
@@ -4024,7 +4024,7 @@ TEST(convolution_int8_fw_gpu, quantized_convolution_u8s8f32_asymmetric_activatio
         data("weights", weights),
         data("biases", biases),
         data("a_zp", a_zp),
-        convolution("conv", input_info("input"), "weights", "biases", { }, { "a_zp" }, {}, 1,
+        convolution("conv", input_info("input"), "weights", "biases", "", { "a_zp" }, "", 1,
                     { 2, 2 }, { 1, 1 }, { 0, 0 }, { 1, 2 }, false, data_types::f32),
         reorder("out", input_info("conv"), format::bfyx, data_types::f32));
 
@@ -4195,7 +4195,7 @@ TEST(convolution_int8_fw_gpu, quantized_convolution_u8s8f32_asymmetric_weights_p
         data("weights", weights),
         data("biases", biases),
         data("w_zp", w_zp),
-        convolution("conv", input_info("input"), "weights", "biases", { "w_zp" }, {}, {}, 1, { 2, 2 }, { 1, 1 }, { 0, 0 }, { 1, 2 }, false, data_types::f32),
+        convolution("conv", input_info("input"), "weights", "biases", "w_zp", "", "", 1, { 2, 2 }, { 1, 1 }, { 0, 0 }, { 1, 2 }, false, data_types::f32),
         reorder("out", input_info("conv"), format::bfyx, data_types::f32));
 
     ExecutionConfig config = get_test_default_config(engine);
@@ -4387,7 +4387,7 @@ TEST(convolution_gpu, basic_yxfb_4_4_yxfb_2_2_b16_if2_of16_st2_2_p0_sp1_fp16)
         reorder("cvt_weights", input_info("weights"), { data_types::f16, weights_format, weights_size }),
         data("biases", biases),
         reorder("cvt_biases", input_info("biases"), { data_types::f16, biases_format, biases_size }),
-        convolution("conv", input_info("cvt_input"), { "cvt_weights" }, { "cvt_biases" }, 1, { stride_y, stride_x }, {1, 1}, {0, 0}, {0, 0}, false),
+        convolution("conv", input_info("cvt_input"), "cvt_weights", "cvt_biases", 1, { stride_y, stride_x }, {1, 1}, {0, 0}, {0, 0}, false),
         reorder("output", input_info("conv"), { data_types::f32, output_format, output_size })
     );
 
@@ -4715,8 +4715,8 @@ TEST_P(convolution_gpu_fs_byx_fsv32, fs_byx_fsv32)
 
         auto conv_fsv = convolution("conv_fsv",
                                     input_info("input_fsv"),
-                                     { "weights_fsv" },
-                                     { "biases_fsv" },
+                                     "weights_fsv",
+                                     "biases_fsv",
                                      1,
                                      { stride, stride },
                                      {1, 1},
@@ -4746,7 +4746,7 @@ TEST_P(convolution_gpu_fs_byx_fsv32, fs_byx_fsv32)
 
         auto conv_fsv = convolution("conv_fsv",
                                     input_info("input_fsv"),
-                                    { "weights_fsv" },
+                                    "weights_fsv",
                                     no_bias,
                                     1,
                                     { stride, stride },
@@ -4858,8 +4858,8 @@ TEST(convolution_f16_fsv_gpu, convolution_f16_fsv_gpu_padding) {
 
     auto conv_fsv = convolution("conv_fsv",
                                 input_info("input_fsv"),
-                                { "weights_fsv" },
-                                { "biases_fsv" },
+                                "weights_fsv",
+                                "biases_fsv",
                                 1,
                                 { stride, stride },
                                 {1, 1},
@@ -5030,8 +5030,8 @@ TEST_P(convolution_gpu_fs_byx_fsv32_crop, fs_byx_fsv32_crop)
 
         auto conv_fsv = convolution("conv_fsv",
                                     input_info("right_crop"),
-                                    { "weights_fsv" },
-                                    { "biases_fsv" },
+                                    "weights_fsv",
+                                    "biases_fsv",
                                     1,
                                     { stride, stride },
                                     {1, 1},
@@ -5060,7 +5060,7 @@ TEST_P(convolution_gpu_fs_byx_fsv32_crop, fs_byx_fsv32_crop)
 
         auto conv_fsv = convolution("conv_fsv",
                                     input_info("right_crop"),
-                                    { "weights_fsv" },
+                                    "weights_fsv",
                                     no_bias,
                                     1,
                                     { stride, stride },
@@ -5302,7 +5302,7 @@ TEST(convolution_gpu, bfyx_iyxo_5x5_fp16)
 
         topology.add(data("biases_fsv", biases_mem));
 
-        auto conv_fsv = convolution("conv_fsv", input_info("input"), { "weights_fsv" }, { "biases_fsv" },
+        auto conv_fsv = convolution("conv_fsv", input_info("input"), "weights_fsv", "biases_fsv",
                                     1, { stride, stride }, {1, 1}, { pad, pad }, { pad, pad }, false);
         conv_fsv.output_paddings = {padding({ 0, 0, output_padding, output_padding }, 0.f)};
 
@@ -5327,7 +5327,7 @@ TEST(convolution_gpu, bfyx_iyxo_5x5_fp16)
         }
 
 
-        auto conv_fsv = convolution("conv_fsv", input_info("input"), { "weights_fsv" }, no_bias,
+        auto conv_fsv = convolution("conv_fsv", input_info("input"), "weights_fsv", no_bias,
             1, { stride, stride }, {1, 1}, { pad, pad }, { pad, pad }, false);
         conv_fsv.output_paddings = {padding({ 0, 0, output_padding, output_padding }, 0.f)};
 
@@ -6408,7 +6408,7 @@ TEST_P(convolution_depthwise_gpu, depthwise_conv_fs_b_yx_fsv32)
         }
     }
 
-    auto conv_fsv = convolution("conv_fsv", input_info("input_fsv"), { "weights_fsv" }, no_bias, groups,
+    auto conv_fsv = convolution("conv_fsv", input_info("input_fsv"), "weights_fsv", no_bias, groups,
                                 { stride, stride }, { 1, 1 }, {pad_y, pad_x}, {pad_y, pad_x}, true);
     conv_fsv.output_paddings = {padding({ 0, 0, output_padding, output_padding }, 0.f)};
 
@@ -6551,7 +6551,7 @@ TEST_P(convolution_depthwise_gpu_fsv16, depthwise_conv_b_fs_yx_fsv16)
         }
     }
 
-    auto conv_fsv = convolution("conv_fsv", input_info("input_fsv"), { "weights_fsv" }, no_bias, groups,
+    auto conv_fsv = convolution("conv_fsv", input_info("input_fsv"), "weights_fsv", no_bias, groups,
                                 { stride, stride }, {1, 1}, { pad_y, pad_x }, { pad_y, pad_x }, true);
     conv_fsv.output_paddings = {padding({ 0, 0, output_padding, output_padding }, 0.f)};
 
@@ -6682,7 +6682,7 @@ TEST_P(convolution_depthwise_gpu_fsv16_xy, depthwise_conv_b_fs_yx_fsv16)
         }
     }
 
-    auto conv_fsv = convolution("conv_fsv", input_info("input_fsv"), { "weights_fsv" }, no_bias, groups,
+    auto conv_fsv = convolution("conv_fsv", input_info("input_fsv"), "weights_fsv", no_bias, groups,
                                 { stride, stride }, {1, 1}, { pad_y, pad_x }, { pad_y, pad_x }, true);
     conv_fsv.output_paddings = {padding({ 0, 0, output_padding, output_padding }, 0.f)};
 
@@ -6784,7 +6784,7 @@ TEST(convolution_depthwise_gpu_fsv16, depthwise_conv_b_fs_yx_fsv16_in_feature_pa
         reorder("input_reordered", input_info("input"), reordered_input_layout),
         data("weights", weights),
         data("bias", bias),
-        convolution("conv", input_info("input_reordered"), "weights", { "bias" }, num_groups, stride, dilation, pad, pad, true),
+        convolution("conv", input_info("input_reordered"), "weights", "bias", num_groups, stride, dilation, pad, pad, true),
         reorder("out", input_info("conv"), format::bfyx, data_types::f32));
 
     ExecutionConfig config = get_test_default_config(engine);
@@ -7348,8 +7348,8 @@ TEST_P(convolution_general_gpu, conv_fp16_cases) {
 
         auto conv_fsv = convolution("conv_fsv",
                                     input_info("input_fsv"),
-                                    { "weights_fsv" },
-                                    { "bias" },
+                                    "weights_fsv",
+                                    "bias",
                                     groups,
                                     { stride, stride },
                                     {1, 1},
@@ -7378,7 +7378,7 @@ TEST_P(convolution_general_gpu, conv_fp16_cases) {
 
         auto conv_fsv = convolution("conv_fsv",
                                     input_info("input_fsv"),
-                                    { "weights_fsv" },
+                                    "weights_fsv",
                                     no_bias,
                                     groups,
                                     { stride, stride },
@@ -7487,7 +7487,7 @@ TEST_P(convolution_gpu_fsv16_to_bfyx, conv_b_fs_yx_fsv16_to_bfyx_padding)
     ov::CoordinateDiff input_padding_before = { pad_y, pad_x };
     ov::CoordinateDiff input_padding_after = { pad_y, pad_x };
 
-    auto conv_fsv = convolution("conv_fsv", input_info("input_fsv16"), { "weights_fsv" }, no_bias, 1, {stride, stride}, {1, 1}, input_padding_before, input_padding_after, false);
+    auto conv_fsv = convolution("conv_fsv", input_info("input_fsv16"), "weights_fsv", no_bias, 1, {stride, stride}, {1, 1}, input_padding_before, input_padding_after, false);
     conv_fsv.output_paddings = {padding({ 0, 32, 2, 2 }, 0.f)};
     topology.add(conv_fsv);                                                                                 // format 8 to 8 -> after fusing, format 8 to 3
 
@@ -7581,7 +7581,7 @@ TEST_P(convolution_gpu_fsv16_to_bfyx, conv_b_fs_yx_fsv16_to_bfyx_different_type)
         input_layout("input_origin", input_mem->get_layout()),
         data("weights_fsv", weights_mem),
         reorder("input_fsv16", input_info("input_origin"), { data_types::f16, format::b_fs_yx_fsv16, input_size }));    // format 3 to 8
-    auto conv_fsv = convolution("conv_fsv", input_info("input_fsv16"), { "weights_fsv" }, no_bias, 1, {stride, stride}, {1, 1}, {pad_y, pad_x}, {pad_y, pad_x}, true);
+    auto conv_fsv = convolution("conv_fsv", input_info("input_fsv16"), "weights_fsv", no_bias, 1, {stride, stride}, {1, 1}, {pad_y, pad_x}, {pad_y, pad_x}, true);
     topology.add(conv_fsv);                                                                                 // format 8 to 8 -> after fusing, format 8 to 3
 
     // Add reorder to bfyx
@@ -7689,7 +7689,7 @@ public:
                 "conv",
                 input_info(input_id),
                 weights_id,
-                { "bias" },
+                "bias",
                 static_cast<uint32_t>(groups()),
                 {static_cast<uint64_t>(_stride_y), static_cast<uint64_t>(_stride_x)},
                 {static_cast<uint64_t>(_dilation_y), static_cast<uint64_t>(_dilation_x)},
@@ -8088,7 +8088,7 @@ public:
                 "conv",
                 input_info(input_id),
                 weights_id,
-                { "bias" },
+                "bias",
                 static_cast<uint32_t>(this->groups()),
                 {static_cast<uint64_t>(this->_stride_y), static_cast<uint64_t>(this->_stride_x)},
                 {static_cast<uint64_t>(this->_dilation_y), static_cast<uint64_t>(this->_dilation_x)},
@@ -8542,7 +8542,7 @@ public:
         tensor input_size = generic_params->input_layouts[0].get_tensor();
         auto dilation = convolution->dilation;
         auto stride = convolution->stride;
-        auto pad = convolution->padding_above;
+        auto pad = convolution->padding_begin;
         tensor weights_size = generic_params->input_layouts[1].get_tensor();
 
         auto kernel_extent_y = dilation[dilation.size() - 2] * (weights_size.spatial[1] - 1) + 1;
@@ -8603,7 +8603,7 @@ public:
         tensor input_size = inputs[0]->get_layout().get_tensor();
         ov::Strides dilation = convolution->dilation;
         ov::Strides stride = convolution->stride;
-        ov::CoordinateDiff pad = convolution->padding_above;
+        ov::CoordinateDiff pad = convolution->padding_begin;
         tensor weights_size = inputs[1]->get_layout().get_tensor();
         padding output_padding = convolution->output_paddings[0];
 
@@ -8844,8 +8844,8 @@ TEST_P(convolution_gpu_onednn, conv_onednn_cases) {
 
         auto conv_fsv = convolution("conv_fsv",
                                     input_info("input_fsv"),
-                                    { "weights_fsv" },
-                                    { "bias" },
+                                    "weights_fsv",
+                                    "bias",
                                     groups,
                                     { stride, stride },
                                     { 1, 1 },
@@ -8874,7 +8874,7 @@ TEST_P(convolution_gpu_onednn, conv_onednn_cases) {
 
         auto conv_fsv = convolution("conv_fsv",
                                     input_info("input_fsv"),
-                                    { "weights_fsv" },
+                                    "weights_fsv",
                                     no_bias,
                                     groups,
                                     { stride, stride },
@@ -9117,7 +9117,7 @@ TEST(convolution_gpu_onednn, quantized_onednn_convolution_u8s8f32_asymmetric_act
         data("weights", weights),
         data("biases", biases),
         data("a_zp", a_zp),
-        convolution("conv", input_info("input"), "weights", "biases", { }, { "a_zp" }, {}, 1,
+        convolution("conv", input_info("input"), "weights", "biases", "", "a_zp", "", 1,
                     { 2, 2 }, { 1, 1 }, { 0, 0 }, { 1, 2 }, false, data_types::f32),
         reorder("out", input_info("conv"), format::bfyx, data_types::f32));
 
@@ -9219,7 +9219,7 @@ TEST(convolution_gpu_onednn, quantized_onednn_convolution_u8s8f32_asymmetric_act
         data("weights", weights),
         data("biases", biases),
         data("a_zp", a_zp),
-        convolution("conv", input_info("input"), "weights", "biases", { }, { "a_zp" }, {}, 1,
+        convolution("conv", input_info("input"), "weights", "biases", "", "a_zp", "", 1,
                     { 2, 2 }, { 1, 1 }, { 0, 0 }, { 1, 2 }, false, data_types::f32),
         reorder("out", input_info("conv"), format::bfyx, data_types::f32));
 
@@ -9323,7 +9323,7 @@ void test_convolution_f32_gpu_convolution_gpu_bfyx_f16_depthwise_x_block_size_1(
         }
     }
 
-    auto conv_fsv = convolution("conv_fsv", input_info("input_fsv"), { "weights_fsv" }, no_bias, groups,
+    auto conv_fsv = convolution("conv_fsv", input_info("input_fsv"), "weights_fsv", no_bias, groups,
                                 { stride, stride }, {1, 1}, { pad_y, pad_x }, { pad_y, pad_x }, true);
     conv_fsv.output_paddings = {padding({ 0, 0, output_padding, output_padding }, 0.f)};
 

@@ -42,7 +42,7 @@ public:
 
         auto stride = primitive->stride;
         const auto& dilation = primitive->dilation;
-        const auto& pad = primitive->padding_above;
+        const auto& pad = primitive->padding_begin;
         const auto& groups = primitive->groups;
         const auto& deformable_groups = primitive->deformable_groups;
         const auto transposed = primitive->transposed;

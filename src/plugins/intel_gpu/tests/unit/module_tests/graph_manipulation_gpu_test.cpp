@@ -88,9 +88,9 @@ TEST(add_intermediate_gpu, test1)
     topology.add(input_layout("input", input->get_layout()));
     topology.add(data("weights", weights));
     topology.add(data("weights2", weights2));
-    topology.add(cldnn::convolution("conv1a", { input_info("input") }, { "weights" }, {}, 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
-    topology.add(cldnn::convolution("conv1b", { input_info("input") }, { "weights" }, {}, 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
-    topology.add(cldnn::convolution("conv2a", { input_info("conv1a") }, { "weights2" }, {}, 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
+    topology.add(cldnn::convolution("conv1a", input_info("input"), "weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
+    topology.add(cldnn::convolution("conv1b", input_info("input"), "weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
+    topology.add(cldnn::convolution("conv2a", input_info("conv1a"), "weights2", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
     auto new_reorder = std::make_shared<reorder>("reorder", input_info("nothing"), input->get_layout());
     program::ptr prog = program::build_program(engine, topology, config, false, true);
     prog->add_intermediate(new_reorder, prog->get_node("conv1a"), 0);
@@ -146,8 +146,8 @@ TEST(add_intermediate_gpu, test2)
     topology.add(input_layout("input", input->get_layout()));
     topology.add(data("weights2", weights2));
 
-    topology.add(cldnn::convolution("conv2a", { input_info("input") }, { "weights2" }, {}, 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
-    topology.add(cldnn::convolution("conv2b", { input_info("input") }, { "weights2" }, {}, 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
+    topology.add(cldnn::convolution("conv2a", input_info("input"), "weights2", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
+    topology.add(cldnn::convolution("conv2b", input_info("input"), "weights2", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
 
     auto new_conv = std::make_shared<convolution>("conv1a", input_info("input"), "weights", "", 1, ov::Strides{1, 1}, ov::Strides{1, 1}, ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0}, false);
     auto weights_node = std::make_shared<data>("weights", weights);
