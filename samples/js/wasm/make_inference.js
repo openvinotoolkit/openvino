@@ -12,7 +12,7 @@ async function makeInference({ modelPath, imgPath, shape, layout }, events = {})
   console.log(`== Description string: ${await openvino.getDescriptionString()}`);
 
   events.onModelLoaging(openvino);
-  const model = await openvino.loadModel(modelPath.xml, modelPath.bin, shape, layout);
+  const model = await openvino.loadModel(modelPath, shape, layout);
 
   events.onInferenceRunning(model);
   const inputTensor = await getArrayByImgPath(imgPath);
@@ -58,7 +58,7 @@ async function getArrayByImgPath(path) {
 
   ctx.drawImage(image, 0, 0);
   const rgbaData = ctx.getImageData(0, 0, width, height).data;
-  
+
   return rgbaData.filter((_, index) => (index + 1)%4);
 }
 

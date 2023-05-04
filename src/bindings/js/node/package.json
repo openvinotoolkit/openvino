@@ -29,5 +29,8 @@
     "tsc": "tsc",
     "lint": "eslint ."
   },
-  "gypfile": true
+  "gypfile": true,
+  "engines": {
+    "node": ">=18.16.0"
+  }
 }

@@ -27,6 +27,6 @@
     "postinstall": "npm run create_links && npm run build"
   },
   "engines": {
-    "node": ">=18.14.2"
+    "node": ">=18.16.0"
   }
 }

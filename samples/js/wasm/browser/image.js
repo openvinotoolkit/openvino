@@ -20,7 +20,7 @@ async function run() {
   statusElement.innerText = 'OpenVINO successfully initialized. Model loading...';
 
   const shape = new Shape(1, WIDTH, HEIGHT, 3);
-  const model = await loadModel(`${MODEL_PATH}${MODEL_NAME}.xml`, `${MODEL_PATH}${MODEL_NAME}.bin`, shape, 'NHWC');
+  const model = await loadModel({ path: MODEL_PATH, modelName: MODEL_NAME }, shape, 'NHWC');
 
   statusElement.innerText = WAITING_INPUT_STATUS_TXT;
   panelElement.classList.remove('hide');
@@ -31,7 +31,7 @@ async function run() {
     containerElement.innerHTML = '';
 
     const selectedFile = e.srcElement.files[0];
-    
+
     const fileData = await imgWasSelected(selectedFile);
     const img = new Image();
     const canvas = createCanvas(WIDTH, HEIGHT);
@@ -72,7 +72,7 @@ async function run() {
 
   function getImgTensor(canvasCtx) {
     const rgbaData = canvasCtx.getImageData(0, 0, WIDTH, HEIGHT).data;
-  
+
     return rgbaData.filter((_, index) => (index + 1)%4);
   }
 }
