@@ -21,7 +21,6 @@
 #include "ie_algorithm.hpp"
 #include "layers/gna_crop_layer.hpp"
 #include "ops/pwl.hpp"
-#include "transformations/rt_info/gna_transpose_fusable.hpp"
 
 namespace ov {
 namespace intel_gna {
@@ -305,10 +304,6 @@ public:
     bool isPermute() const noexcept {
         return isOfType("permute");
     }
-    bool isPermuteFusable() const noexcept {
-        return isPermute() &&
-               (layer->params.count(ov::intel_gna::rt_info::GNATransposeFusable::get_type_info_static()) > 0);
-    }
     bool isPermuteViaReshape() const {
         if (!isOfType("reshape"))
             return false;
@@ -334,10 +329,11 @@ public:
         if (!isPermute())
             return false;
 
-        if (isPermuteFusable())
-            return true;
-
         auto layerOrder = layer->GetParamAsInts("order");
+
+        if (layerOrder == std::vector<int>({0, 3, 2, 1})) {
+            return true;  // supported case
+        }
         if (layer->insData.empty()) {
             return false;  // unsupported case
         }

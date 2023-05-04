@@ -2,6 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+if(WIN32)
+    message(STATUS "Appending /DEBUG flag")
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /DEBUG")
+    set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} /DEBUG")
+endif()
+
 if(DEFINED BUILD_SHARED_LIBS AND NOT BUILD_SHARED_LIBS)
     # 'target_link_libraries' does not work correctly when called from
     # different directory where 'add_library' is called: CMake generates

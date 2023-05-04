@@ -745,7 +745,7 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
     }
 
     if (MustBeConvertedFromNCHWToNHWC(CNNNetSortTopologically(network))) {
-        FillInputsAndOutputsTranspositionInfo(network);
+        // FillInputsAndOutputsTranspositionInfo(network);
     }
 
     InferenceEngine::CNNNetwork newNet;

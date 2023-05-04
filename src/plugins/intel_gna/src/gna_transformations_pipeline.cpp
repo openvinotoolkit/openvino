@@ -27,6 +27,7 @@
 #include "transformations/convert_precision.hpp"
 #include "transformations/decompose_2d_convolution.hpp"
 #include "transformations/decompose_mvn.hpp"
+#include "transformations/decompose_transpose_before_convolution.hpp"
 #include "transformations/disable_decompression_convert_constant_folding.hpp"
 #include "transformations/handle_transposes_around_matmul.hpp"
 #include "transformations/init_node_info.hpp"
@@ -111,10 +112,12 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     manager.register_pass<ov::intel_gna::pass::RemoveSingleInputConcat>();
     manager.register_pass<ov::intel_gna::pass::SubstituteSoftsign>();
     manager.register_pass<ov::intel_gna::pass::InsertCopyBeforeLayerToBeEliminated>();
+    manager.register_pass<ov::intel_gna::pass::DecomposeTranspose>();
+    manager.register_pass<ov::intel_gna::pass::DecomposeTranspose2>();
+    manager.register_pass<ov::intel_gna::pass::DecomposeTranspose2FQ>();
     manager.register_pass<ov::pass::ConvertOpSet3ToOpSet2>();
     manager.register_pass<ov::pass::ConvertOpSet2ToOpSet1>();
     manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
-    manager.register_pass<ov::intel_gna::pass::MarkupFusableTranspose>();
     manager.register_pass<ov::intel_gna::pass::RemoveExtraReshapes>();
     /*
         Put BroadcastAddMultiplyConst here after ConvertOpSet..() transformations since there are conficts with them.
@@ -198,7 +201,7 @@ void TransformationsPipeline::apply_legacy(const InferenceEngine::CNNNetwork& ne
     passes->registerPass<FuseFQIntoWeightsPass>();
     passes->registerPass<MoveFakeQuantizeLayerIntoQuantParamsPass>();
 
-    passes->registerPass<TransposeWeightsFromNCHWToNHWCPass>();
+    // passes->registerPass<TransposeWeightsFromNCHWToNHWCPass>();
 
     passes->registerPass<SubstitutePReluPass>();
 

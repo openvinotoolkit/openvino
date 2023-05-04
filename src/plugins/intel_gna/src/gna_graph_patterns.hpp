@@ -230,7 +230,8 @@ inline InferenceEngine::CNNLayerPtr FindPermutationAfterConvolutionInKaldiModel(
     }
 
     // Check if the found layer is NCHW to NWHC permute
-    if (!LayerInfo(next).isPermuteFusable() || next->input()->getLayout() != InferenceEngine::Layout::NCHW) {
+    if (!LayerInfo(next).isPermute() || next->input()->getLayout() != InferenceEngine::Layout::NCHW ||
+        next->GetParamAsInts("order") != std::vector<int>{0, 3, 2, 1}) {
         return nullptr;
     }
 
@@ -254,7 +255,14 @@ inline bool MustBeConvertedFromNCHWToNHWC(const std::vector<InferenceEngine::CNN
         auto in_dims = l->insData.begin()->lock()->getDims();
         auto out_dims = l->outData.front()->getDims();
 
-        if (ov::intel_gna::ngraph_util::is_one_dim_shapes(in_dims, out_dims)) {
+        if (std::count_if(std::begin(in_dims),
+                          std::end(in_dims),
+                          [](size_t dim) {
+                              return dim != 1;
+                          }) <= 1 &&
+            std::count_if(std::begin(out_dims), std::end(out_dims), [](size_t dim) {
+                return dim != 1;
+            }) <= 1) {
             continue;
         }
 

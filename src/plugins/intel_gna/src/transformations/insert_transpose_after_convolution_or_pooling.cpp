@@ -14,12 +14,123 @@
 
 using namespace ov::intel_gna::pass;
 
+/**
+ * Convolution -> Add -> Relu -> Add
+ *                        |
+ *                        --> Secondary subgraph
+ *
+ * Transform to
+ *
+ * Convolution -> Add -> Relu -> Reshape -> Transpose -> Reshape Back -> Add
+ *                        |
+ *                        --> Secondary subgraph
+ */
+static bool CheckIfConvFollowedByAddWithNonCompatLayoutAndModify(std::shared_ptr<ov::Node> convOrPoolingNode) {
+    // Convolution output must be NCHW, where N == 1
+    constexpr auto nchwSize = 4u;
+    constexpr auto expectedConvolutionN = 1u;
+
+    const auto& outShape = convOrPoolingNode->get_output_shape(0);
+    if (outShape.size() != nchwSize || outShape[0] != expectedConvolutionN) {
+        return false;
+    }
+    const auto outCDim = outShape[1];
+    const auto outHWDim = outShape[2] * outShape[3];
+
+    auto addNode = convOrPoolingNode->output(0).get_target_inputs().begin()->get_node()->shared_from_this();
+    if (std::dynamic_pointer_cast<ngraph::opset7::Add>(addNode) == nullptr) {
+        return false;
+    }
+
+    auto actNode = addNode->output(0).get_target_inputs().begin()->get_node()->shared_from_this();
+    if (std::dynamic_pointer_cast<ngraph::opset7::FakeQuantize>(actNode) != nullptr) {
+        actNode = actNode->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
+    }
+    if (std::dynamic_pointer_cast<ngraph::opset7::Relu>(actNode) == nullptr) {
+        return false;
+    }
+    auto actConsumers = actNode->output(0).get_target_inputs();
+    auto node_to_append = actNode;
+    if (actConsumers.size() == 1) {
+        auto fq = actConsumers.begin()->get_node()->shared_from_this();
+        if (std::dynamic_pointer_cast<ngraph::opset7::FakeQuantize>(fq) != nullptr) {
+            actConsumers = fq->output(0).get_target_inputs();
+            node_to_append = fq;
+        }
+    }
+    if (actConsumers.size() != 2) {
+        return false;
+    }
+    bool nonAddDetected = false;
+    const ov::Input<ov::Node>* addNodeInput = nullptr;
+    const ov::Input<ov::Node>* nonAddInput = nullptr;
+    for (auto&& consumer : actConsumers) {
+        const auto consumerNode = consumer.get_node()->shared_from_this();
+        if (std::dynamic_pointer_cast<ngraph::opset7::Add>(consumerNode) != nullptr) {
+            addNodeInput = &consumer;
+        } else {
+            nonAddInput = &consumer;
+            nonAddDetected = true;
+        }
+
+        // If concat is detected as the second consumer (in the front of Secondary subgraph)
+        // don't insert the Reshape->Transpose->Reshape pattern
+        // this is simple workaround for model_epoch_077_mo_factorized.xml, but could be changed
+        // to detect that final Add consumes two convolutional NHWC inputs like:
+        //      Convolution -> [Opt/activation/add bias] -|
+        //                                                v
+        // Convolution -> Add -> Relu                 -> Add
+        //                        |
+        //                        --> Secondary subgraph
+        if (std::dynamic_pointer_cast<ngraph::opset7::Concat>(consumerNode) != nullptr) {
+            return false;
+        }
+    }
+    if (nonAddDetected == false || addNodeInput == nullptr) {
+        return false;
+    }
+
+    const ngraph::Shape reshapeToHW_C = {outHWDim, outCDim};
+    auto reshapeConst = std::make_shared<ngraph::opset7::Constant>(ngraph::element::Type_t::i64,
+                                                                   ngraph::Shape{reshapeToHW_C.size()},
+                                                                   reshapeToHW_C);
+    auto reshapeBefore = std::make_shared<ngraph::opset7::Reshape>(node_to_append, reshapeConst, false);
+    const auto newNodeFriendlyNameBase = convOrPoolingNode->get_friendly_name();
+
+    reshapeBefore->set_friendly_name(newNodeFriendlyNameBase + "/reshape_to_HW_C_out");
+
+    const auto transposeHW_C_to_C_HW = ngraph::Shape{1, 0};
+    auto transpose = std::make_shared<ngraph::opset7::Transpose>(
+        reshapeBefore,
+        ngraph::opset7::Constant::create(ngraph::element::i64,
+                                         ngraph::Shape{transposeHW_C_to_C_HW.size()},
+                                         transposeHW_C_to_C_HW));
+    transpose->set_friendly_name(newNodeFriendlyNameBase + "/transpose_to_C_HW_out");
+
+    auto reshapeBackToNCHW = std::make_shared<ngraph::opset7::Constant>(ngraph::element::Type_t::i64,
+                                                                        ngraph::Shape{outShape.size()},
+                                                                        outShape);
+    auto reshapeAfter = std::make_shared<ngraph::opset7::Reshape>(transpose, reshapeBackToNCHW, false);
+
+    reshapeAfter->set_friendly_name(newNodeFriendlyNameBase + "/reshape_back_to_NCHW_out");
+
+    addNodeInput->replace_source_output(reshapeAfter);
+    nonAddInput->replace_source_output(reshapeAfter);
+
+    return true;
+}
+
 bool InsertTransposeAfterConvOrPool::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     RUN_ON_FUNCTION_SCOPE(InsertTransposeAfterConvOrPool);
     bool is_graph_modfied = false;
     for (auto& node : f->get_ordered_ops()) {
         if (std::dynamic_pointer_cast<ngraph::opset7::Convolution>(node) == nullptr &&
             std::dynamic_pointer_cast<ngraph::opset7::MaxPool>(node) == nullptr) {
+            continue;
+        }
+
+        if (CheckIfConvFollowedByAddWithNonCompatLayoutAndModify(node)) {
+            is_graph_modfied = true;
             continue;
         }
 

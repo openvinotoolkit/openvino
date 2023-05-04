@@ -19,10 +19,10 @@ std::vector<InferenceEngine::Precision> netPrecisions = {
 std::map<std::string, std::string> config = {{"GNA_COMPACT_MODE", "NO"}};
 
 std::vector<std::vector<size_t>> inputSizes = {
-    {1, 128, 1, 8},
-    {1, 4, 1, 128},
-    {1, 16, 1, 128},
-    {1, 128, 1, 2},
+    {4, 2, 64, 6},
+    {4, 16, 4, 128},
+    {2, 10, 16, 64},
+    {2, 32, 64, 2},
 };
 
 std::vector<size_t> split_axes = {1};   // only channels split is currently supported by gna for 4d inputs

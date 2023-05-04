@@ -13,7 +13,18 @@
 #include "gna2-device-api.h"
 #include "gna2-model-export-api.h"
 #include "gna2-model-suecreek-header.h"
+
+#if defined(_MSC_VER)
+// Temporarly disable narrowing conversion warning
+#    pragma warning(push)
+#    pragma warning(disable : 4838)
+#endif
 #include "gna2-tlv-writer.h"
+#if defined(_MSC_VER)
+// Restore narrowing conversion warning
+#    pragma warning(pop)
+#endif
+
 #include "gna2_model_helper.hpp"
 #include "gna_device.hpp"
 #include "log/log.hpp"
