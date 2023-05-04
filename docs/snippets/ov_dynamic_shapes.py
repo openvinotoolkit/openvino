@@ -107,8 +107,9 @@ for input_layer in model.inputs:
 
 #! [reshape_multiple_inputs]
 # Assign dynamic shapes to second dimension in every input layer
+shapes = {}
 for input_layer in model.inputs:
-    input_shape = input_layer.partial_shape
-    input_shape[1] = -1
-    model.reshape({input_layer: input_shape})
+    shapes[input_layer] = input_layer.partial_shape
+    shapes[input_layer][1] = -1
+model.reshape(shapes)
 #! [reshape_multiple_inputs]
