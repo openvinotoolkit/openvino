@@ -31,7 +31,19 @@ sys.path.insert(0, str(UTILS_DIR))
 
 from proc_utils import cmd_exec
 from path_utils import check_positive_int
+from platform_utils import os_type_is_windows
 
+
+def page_cache_cleanup():
+    retcode = 0
+    if os_type_is_windows():
+        raise Exception("Page cache clean is not implemented on Win")
+    else:
+        cmd = ["sudo", "sh", "-c", "echo 1 > /proc/sys/vm/drop_caches"]
+        retcode, _ = cmd_exec(cmd)
+    if (retcode):
+        raise Exception("Page cache clean failed")
+    
 
 def parse_stats(stats: list, res: dict):
     """Parse raw statistics from nested list to flatten dict"""
@@ -71,6 +83,9 @@ def run_timetest(args: dict, log=None):
     """Run provided executable several times and aggregate collected statistics"""
     if log is None:
         log = logging.getLogger("run_timetest")
+
+    if args["hint"] == "cold":
+        page_cache_cleanup()
 
     cmd_common = prepare_executable_cmd(args)
     ov_env = os.environ
@@ -156,6 +171,12 @@ def cli_parser():
                         dest="output_precision",
                         type=str,
                         help="Change output model precision")
+    parser.add_argument("-hint",
+                        default="warm",
+                        choices=["warm", "cold"],
+                        dest="hint",
+                        type=str,
+                        help="Configure environment to perform measurements")
 
     args = parser.parse_args()
 
