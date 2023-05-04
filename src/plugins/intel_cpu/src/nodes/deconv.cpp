@@ -816,24 +816,17 @@ void Deconvolution::createPrimitive() {
             // WA to align IR bias representation (3 to 5 rank tensors) to oneDNN representation (1 rank tensor)
             dnnlBiasDesc = biasDesc->getDnnlDesc().reshape({DnnlExtensionUtils::convertToDnnlDim(biasesDims[0])});
 
-        AttrPtr pAttr = makePrimitiveAttr(outDims);
-        auto desc = createInt8MkldnnDeconvDesc(inDesc->getDnnlDesc(), wgh_candidate, dnnlBiasDesc, outDesc->getDnnlDesc(), withBiases,
+        const AttrPtr pAttr = makePrimitiveAttr(outDims);
+        auto prim_desc = createInt8MkldnnDeconvDesc(inDesc->getDnnlDesc(), wgh_candidate, dnnlBiasDesc, outDesc->getDnnlDesc(), withBiases,
                                                stride, dilation, paddingL, paddingR, *pAttr, getEngine());
-        primitive_desc_iterator itpd = desc;
 
-        while (itpd) {
-            impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
+        const bool found = DnnlExtensionUtils::find_implementation(prim_desc, selectedImpl);
 
-            if (impl_type == selectedImpl) {
-                prepareMemory({DnnlExtensionUtils::makeDescriptor(itpd.weights_desc(0))});
-                break;
-            }
-
-            if (!itpd.next_impl()) {
-                prepareMemory({std::make_shared<DnnlBlockedMemoryDesc>(
-                    MemoryDescUtils::convertToDnnlBlockedMemoryDesc(internalBlobs.front()->getTensorDesc()))});
-                break;
-            }
+        if (found) {
+            prepareMemory({DnnlExtensionUtils::makeDescriptor(prim_desc.weights_desc(0))});
+        } else {
+            prepareMemory({std::make_shared<DnnlBlockedMemoryDesc>(
+                        MemoryDescUtils::convertToDnnlBlockedMemoryDesc(internalBlobs.front()->getTensorDesc()))});
         }
     }
 

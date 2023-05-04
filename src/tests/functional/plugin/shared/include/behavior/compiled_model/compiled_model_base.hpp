@@ -166,12 +166,12 @@ TEST(OVCompiledModelBaseTest, canCompileModelToDefaultDevice) {
     EXPECT_NO_THROW(auto execNet = core->compile_model(function));
 }
 
-TEST_P(OVCompiledModelBaseTestOptional, canCompileModelAndCreateInferRequest) {
+TEST_P(OVCompiledModelBaseTest, canCompileModelAndCreateInferRequest) {
     auto execNet = core->compile_model(function, target_device, configuration);
     EXPECT_NO_THROW(auto req = execNet.create_infer_request());
 }
 
-TEST_P(OVCompiledModelBaseTest, checkGetExecGraphInfoIsNotNullptr) {
+TEST_P(OVCompiledModelBaseTestOptional, checkGetExecGraphInfoIsNotNullptr) {
     auto execNet = core->compile_model(function, target_device, configuration);
     auto execGraph = execNet.get_runtime_model();
     EXPECT_NE(execGraph, nullptr);
