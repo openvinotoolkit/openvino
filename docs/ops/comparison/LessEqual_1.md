@@ -1,5 +1,7 @@
 # LessEqual {#openvino_docs_ops_comparison_LessEqual_1}
 
+@sphinxdirective
+
 **Versioned name**: *LessEqual-1*
 
 **Category**: *Comparison binary*
@@ -7,13 +9,14 @@
 **Short description**: *LessEqual* performs element-wise comparison operation with two given tensors applying broadcast rules specified in the *auto_broadcast* attribute.
 
 **Detailed description**
-Before performing arithmetic operation, input tensors *a* and *b* are broadcasted if their shapes are different and `auto_broadcast` attributes is not `none`. Broadcasting is performed according to `auto_broadcast` value.
+Before performing arithmetic operation, input tensors *a* and *b* are broadcasted if their shapes are different and ``auto_broadcast`` attributes is not ``none``. Broadcasting is performed according to ``auto_broadcast`` value.
 
 After broadcasting *LessEqual* does the following with the input tensors *a* and *b*:
 
-\f[
-o_{i} = a_{i} \leq b_{i}
-\f]
+.. math::
+
+   o_{i} = a_{i} \leq b_{i}
+
 
 **Attributes**:
 
@@ -21,9 +24,11 @@ o_{i} = a_{i} \leq b_{i}
 
   * **Description**: specifies rules used for auto-broadcasting of input tensors.
   * **Range of values**:
+
     * *none* - no auto-broadcasting is allowed, all input shapes should match,
-    * *numpy* -  numpy broadcasting rules, description is available in [Broadcast Rules For Elementwise Operations](../broadcast_rules.md),
-    * *pdpd* - PaddlePaddle-style implicit broadcasting, description is available in [Broadcast Rules For Elementwise Operations](../broadcast_rules.md).
+    * *numpy* -  numpy broadcasting rules, description is available in :doc:`Broadcast Rules For Elementwise Operations <openvino_docs_ops_broadcast_rules>`,
+    * *pdpd* - PaddlePaddle-style implicit broadcasting, description is available in :doc:`Broadcast Rules For Elementwise Operations <openvino_docs_ops_broadcast_rules>`.
+
   * **Type**: string
   * **Default value**: "numpy"
   * **Required**: *no*
@@ -45,52 +50,57 @@ o_{i} = a_{i} \leq b_{i}
 
 *Example 1: no broadcast*
 
-```xml
-<layer ... type="LessEqual">
-    <data auto_broadcast="none"/>
-    <input>
-        <port id="0">
-            <dim>256</dim>
-            <dim>56</dim>
-        </port>
-        <port id="1">
-            <dim>256</dim>
-            <dim>56</dim>
-        </port>
-    </input>
-    <output>
-        <port id="2">
-            <dim>256</dim>
-            <dim>56</dim>
-        </port>
-    </output>
-</layer>
-```
+.. code-block:: cpp
+
+   <layer ... type="LessEqual">
+       <data auto_broadcast="none"/>
+       <input>
+           <port id="0">
+               <dim>256</dim>
+               <dim>56</dim>
+           </port>
+           <port id="1">
+               <dim>256</dim>
+               <dim>56</dim>
+           </port>
+       </input>
+       <output>
+           <port id="2">
+               <dim>256</dim>
+               <dim>56</dim>
+           </port>
+       </output>
+   </layer>
+
 
 *Example 2: numpy broadcast*
-```xml
-<layer ... type="LessEqual">
-    <data auto_broadcast="numpy"/>
-    <input>
-        <port id="0">
-            <dim>8</dim>
-            <dim>1</dim>
-            <dim>6</dim>
-            <dim>1</dim>
-        </port>
-        <port id="1">
-            <dim>7</dim>
-            <dim>1</dim>
-            <dim>5</dim>
-        </port>
-    </input>
-    <output>
-        <port id="2">
-            <dim>8</dim>
-            <dim>7</dim>
-            <dim>6</dim>
-            <dim>5</dim>
-        </port>
-    </output>
-</layer>
-```
+
+.. code-block:: cpp
+
+   <layer ... type="LessEqual">
+       <data auto_broadcast="numpy"/>
+       <input>
+           <port id="0">
+               <dim>8</dim>
+               <dim>1</dim>
+               <dim>6</dim>
+               <dim>1</dim>
+           </port>
+           <port id="1">
+               <dim>7</dim>
+               <dim>1</dim>
+               <dim>5</dim>
+           </port>
+       </input>
+       <output>
+           <port id="2">
+               <dim>8</dim>
+               <dim>7</dim>
+               <dim>6</dim>
+               <dim>5</dim>
+           </port>
+       </output>
+   </layer>
+
+
+@endsphinxdirective
