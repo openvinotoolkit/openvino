@@ -50,7 +50,7 @@ private:
     memory::ptr _result;
     stream::ptr _stream;
     layout _layout;
-    network_output(event::ptr evt, memory::ptr mem, stream::ptr stream, layout layout) : _event(evt), _result(mem), _stream(stream), _layout(layout) {}
+    network_output(event::ptr evt, memory::ptr mem, stream::ptr stream, const layout& layout) : _event(evt), _result(mem), _stream(stream), _layout(layout) {}
     friend struct network;
 };
 

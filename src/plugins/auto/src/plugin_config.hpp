@@ -183,7 +183,7 @@ public:
         return pluginName == "AUTO" ? supported_metrics : multi_supported_metrics;
     }
 
-    bool isSupportedDevice(const std::string& deviceName) const {
+    bool isSupportedDevice(const std::string& deviceName, const std::string& option) const {
         if (deviceName.empty())
             return false;
         auto realDevName = deviceName[0] != '-' ? deviceName : deviceName.substr(1);
@@ -191,6 +191,12 @@ public:
             return false;
         }
         realDevName = ov::DeviceIDParser(realDevName).get_device_name();
+        if (realDevName.find("GPU") != std::string::npos) {
+            // Check if the device is an Intel device
+            if (option.find("vendor=0x8086") == std::string::npos) {
+                realDevName = "notIntelGPU";
+            }
+        }
         std::string::size_type realEndPos = 0;
         if ((realEndPos = realDevName.find('(')) != std::string::npos) {
             realDevName = realDevName.substr(0, realEndPos);

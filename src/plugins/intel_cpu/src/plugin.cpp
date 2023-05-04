@@ -19,6 +19,7 @@
 #include "ie_system_conf.h"
 #include "threading/ie_cpu_streams_info.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
+#include "openvino/runtime/intel_cpu/properties.hpp"
 
 #include <transformations/utils/utils.hpp>
 #include <ie_ngraph_utils.hpp>
@@ -46,7 +47,7 @@ namespace intel_cpu {
 
 static std::string getDeviceFullName() {
     std::string brand_string;
-#if defined(__EMSCRIPTEN___)
+#if defined(__EMSCRIPTEN__)
     brand_string = "WebAssembly CPU";
 #elif defined(OPENVINO_ARCH_RISCV64)
     // TODO: extract actual device name
@@ -382,15 +383,18 @@ StreamCfg Engine::GetNumStreams(InferenceEngine::IStreamsExecutor::ThreadBinding
 }
 
 static bool shouldEnforceBF16(const std::map<std::string, std::string>& modelConfig, const Config& engineConfig) {
-    const auto& enforceBF16 = modelConfig.find(InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16);
-    if (enforceBF16 == modelConfig.end()) { // not set for the model
-        return engineConfig.enforceBF16 && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core); // use value from engine
-    }
-
-    if (enforceBF16->second == PluginConfigParams::YES) {
-        return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core);
-    } else {
+    // For BF16 execution, the machine should have AVX512 at least
+    if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core))
         return false;
+
+    const auto& enforceBF16 = modelConfig.find(InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16);
+    const auto& inferPrec = modelConfig.find(ov::hint::inference_precision.name());
+    if (enforceBF16 != modelConfig.end()) {
+        return enforceBF16->second == PluginConfigParams::YES;
+    } else if (inferPrec != modelConfig.end()) {
+        return inferPrec->second == "bf16";
+    } else {
+        return engineConfig.enforceBF16;
     }
 }
 
@@ -667,6 +671,8 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
                                                     RW_property(ov::hint::scheduling_core_type.name()),
                                                     RW_property(ov::hint::enable_hyper_threading.name()),
                                                     RW_property(ov::device::id.name()),
+                                                    RW_property(ov::intel_cpu::denormals_optimization.name()),
+                                                    RW_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
         };
 
         std::vector<ov::PropertyName> supportedProperties;
@@ -701,6 +707,10 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
     } else if (name == ov::caching_properties) {
         std::vector<ov::PropertyName> cachingProperties = { ov::device::full_name };
         return decltype(ov::caching_properties)::value_type(cachingProperties);
+    } else if (name == ov::intel_cpu::denormals_optimization) {
+        return decltype(ov::intel_cpu::denormals_optimization)::value_type(engConfig.denormalsOptMode == Config::DenormalsOptMode::DO_On);
+    } else if (name == ov::intel_cpu::sparse_weights_decompression_rate) {
+        return decltype(ov::intel_cpu::sparse_weights_decompression_rate)::value_type(engConfig.fcSparseWeiDecompressionRate);
     }
     /* Internally legacy parameters are used with new API as part of migration procedure.
      * This fallback can be removed as soon as migration completed */
