@@ -253,9 +253,19 @@ void Graph::Replicate(const CNNNetwork &network) {
                 }
             }
 
+            // To support the old API.
             const auto name = ov::op::util::get_ie_output_name(input);
             if (outputsInfo.count(name) != 0 && outputNodesMap.count(name) == 0) {
-                outputNodesMap[name] = node;
+                bool found = false;
+                for (auto it : outputNodesMap) {
+                    if (it.second == node) {
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    outputNodesMap[name] = node;
+                }
             }
         }
 
