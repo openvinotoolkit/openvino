@@ -279,9 +279,29 @@ _ov_find_dependency(Threads)
 
 unset(_OV_ENABLE_OPENVINO_BUILD_SHARED)
 
+set (RUNTIME_AND_FRONTEND_TARGETS openvino::runtime openvino::runtime::c
+   openvino::frontend::onnx openvino::frontend::paddle openvino::frontend::tensorflow
+   openvino::frontend::pytorch openvino::frontend::tensorflow_lite)
+
 if(NOT TARGET openvino)
     set(_ov_as_external_package ON)
     include("${CMAKE_CURRENT_LIST_DIR}/OpenVINOTargets.cmake")
+
+    foreach(target ${RUNTIME_AND_FRONTEND_TARGETS})
+        if(TARGET ${target})
+            get_target_property(ORIGINAL_NAME ${target} ALIASED_TARGET)
+            if (ORIGINAL_NAME MATCHES "ORIGINAL_NAME-NOTFOUND")
+                set (ORIGINAL_NAME ${target})
+            endif()
+            get_target_property(imported_configs ${target} IMPORTED_CONFIGURATIONS)
+            if(RELWITHDEBINFO IN_LIST imported_configs)
+                set (MAP_CONFIG RELWITHDEBINFO)
+            else()
+                set (MAP_CONFIG RELEASE)
+            endif()
+            set_property(TARGET ${ORIGINAL_NAME} PROPERTY MAP_IMPORTED_CONFIG_RELWITHDEBINFO ${MAP_CONFIG})
+        endif()
+    endforeach()
 
     # WA for cmake version < 3.16 which does not export
     # IMPORTED_LINK_DEPENDENT_LIBRARIES_** properties if no PUBLIC dependencies for the library
@@ -326,8 +346,7 @@ endif()
 # Apply common functions
 #
 
-foreach(target openvino::runtime openvino::runtime::c
-               openvino::frontend::onnx openvino::frontend::paddle openvino::frontend::tensorflow)
+foreach(target ${RUNTIME_AND_FRONTEND_TARGETS})
     if(TARGET ${target} AND _ov_as_external_package)
         _ov_target_no_deprecation_error(${target})
     endif()
@@ -345,6 +364,7 @@ if(_need_package_name_reset)
     unset(_need_package_name_reset)
 endif()
 
+unset(RUNTIME_AND_FRONTEND_TARGETS)
 unset(${CMAKE_FIND_PACKAGE_NAME}_IR_FOUND)
 unset(${CMAKE_FIND_PACKAGE_NAME}_Paddle_FOUND)
 unset(${CMAKE_FIND_PACKAGE_NAME}_ONNX_FOUND)
