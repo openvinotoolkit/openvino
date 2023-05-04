@@ -91,9 +91,9 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
 
     bool is_onednn_impl = false;
 
-    for (auto& input : node.get_dependencies()) {
+    for (const auto& input : node.get_dependencies()) {
         if (input.first->get_preferred_impl_type() == impl_types::onednn) {
-            for (auto& fused_op : input.first->get_fused_primitives()) {
+            for (const auto& fused_op : input.first->get_fused_primitives()) {
                 auto add_type = onednn_add_fusing_helpers::get_add_fusing_type(*input.first, fused_op);
                 if (add_type == add_fusing_type::sum)
                     return false;
@@ -141,7 +141,7 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
     auto def_fmt = format::get_default_format(node.get_output_layout().get_rank());
 
     size_t idx = 0;
-    for (auto& input : node.get_dependencies()) {
+    for (const auto& input : node.get_dependencies()) {
         if (input.first->is_type<reshape>())
             // reshapes should be optimized out.
             return false;
@@ -178,7 +178,7 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
 
     // check if concatenation in place can be applied for inputs set
     idx = 0;
-    for (auto input : node.get_dependencies()) {
+    for (const auto& input : node.get_dependencies()) {
         // reverted condition - if any of this node's inputs is used by more than one primitive
         // and is not optimized concatenation then do not fuse buffers
         // todo: we need add padding support for all optimized kernels to remove this condition
@@ -279,7 +279,7 @@ void concat_in_place_optimization::optimize_cascade(concatenation_node& node, st
     upper_padd[concat_axis_legacy] += out_layout.get_dims()[concat_axis];
 
     // apply concatenation in place optimization
-    for (auto input : node.get_dependencies()) {
+    for (const auto& input : node.get_dependencies()) {
         auto input_length = input.first->get_output_layout().get_dims()[concat_axis];
 
         if (input.first->is_type<concatenation>() && input.first->can_be_optimized())
@@ -311,6 +311,18 @@ void concat_in_place_optimization::optimize_cascade(concatenation_node& node, st
 
 static bool can_reshape_be_optimized(const reshape_node& node) {
     return node.is_in_place() && !node.has_fused_primitives();
+}
+
+static void propagate_padding_to_opt_out_users(program_node& node, cldnn::padding padding_data) {
+    if (padding_data == cldnn::padding())
+        return;
+
+    for (auto user : node.get_users()) {
+        if (user->can_be_optimized()) {
+            user->merge_output_padding(padding_data);
+            propagate_padding_to_opt_out_users(*user, padding_data);
+        }
+    }
 }
 
 // ToDo remove friendship relation from  program_node
@@ -448,6 +460,7 @@ void prepare_buffer_fusing::run(program& p) {
                                  out_padd.upper_size().spatial[0],
                                  out_padd.upper_size().spatial[1]}));
                     node.can_be_optimized(true);
+                    propagate_padding_to_opt_out_users(node, node.get_output_layout().data_padding);
                 }
             }
         });

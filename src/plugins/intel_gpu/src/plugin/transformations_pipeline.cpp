@@ -472,8 +472,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 {{0}, {ngraph::element::u8, ngraph::element::i8}},
                 {{1}, {ngraph::element::i8}}
             }),
-            PrecisionsRestriction::create<ngraph::opset5::LSTMSequence>({}),
-            PrecisionsRestriction::create<ngraph::opset6::GRUSequence>({})
+            PrecisionsRestriction::create<ngraph::opset5::LSTMSequence>(PrecisionsRestriction::PrecisionsByPorts{}),
+            PrecisionsRestriction::create<ngraph::opset6::GRUSequence>(PrecisionsRestriction::PrecisionsByPorts{})
         });
 
         auto perTensorQuantization = std::vector<QuantizationGranularityRestriction>({
