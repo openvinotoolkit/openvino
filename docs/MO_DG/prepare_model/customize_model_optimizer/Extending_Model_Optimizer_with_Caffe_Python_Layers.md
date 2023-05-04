@@ -2,9 +2,11 @@
 
 @sphinxdirective
 
-.. warning::
-   
-   OpenVINO will move TensorFlow conversion from legacy python-based frontend to new C++ based frontend, therefore this extension guide won't be a recommended way for TensorFlow extension in Model Optimizer and will be marked as a deprecated solution. For details on the new frontend, see the :doc:`Frontend Extensions <openvino_docs_Extensibility_UG_Frontend_Extensions>` article.
+.. danger::
+
+   The code described here has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
+
+   This guide describes a deprecated TensorFlow conversion method. The guide on the new and recommended method, using a new frontend, can be found in the  :doc:`Frontend Extensions <openvino_docs_Extensibility_UG_Frontend_Extensions>` article. 
 
 This article provides instructions on how to support a custom Caffe operation written only in Python. For example, the
 `Faster-R-CNN model <https://dl.dropboxusercontent.com/s/o6ii098bu51d139/faster_rcnn_models.tgz?dl=0>`__ implemented in
