@@ -1,4 +1,4 @@
-async function makeInference({ modelPath, imgPath, shape, layout }, events = {}) {
+async function makeInference(openvinojs, { modelPath, imgPath, shape, layout }, events = {}) {
   events.onLibInitializing = events.onLibInitializing || (() => {});
   events.onModelLoaging = events.onModelLoaging || (() => {});
   events.onInferenceRunning = events.onInferenceRunning || (() => {});

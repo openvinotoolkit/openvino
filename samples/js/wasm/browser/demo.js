@@ -1,3 +1,5 @@
+const MODELS_PATH = './assets/models/';
+
 const statusElement = document.getElementById('status');
 
 const events = {
@@ -11,32 +13,22 @@ const events = {
   },
 };
 
-const inferenceParametersMobilenetV3 = { 
-  modelPath: getModelPaths('v3-small_224_1.0_float'),
+const inferenceParametersMobilenetV3 = {
+  modelPath: `${MODELS_PATH}v3-small_224_1.0_float.xml`,
   imgPath: './assets/images/coco224x224.jpg',
   shape: [1, 224, 224, 3],
   layout: 'NHWC',
 };
 
-const inferenceParametersFaceDetection = { 
-  modelPath: getModelPaths('face-detection-0200/face-detection-0200'),
+const inferenceParametersFaceDetection = {
+  modelPath: `${MODELS_PATH}face-detection-0200/face-detection-0200.xml`,
   imgPath: './assets/images/peopleAndCake256x256.jpg',
   shape: [1, 3, 256, 256],
   layout: 'NCHW',
 };
 
-makeInference(inferenceParametersMobilenetV3, events);
+makeInference(openvino, inferenceParametersMobilenetV3, events);
 
 function setStatus(txt) {
   return () => statusElement.innerText = txt;
-}
-
-function getModelPaths(name) {
-  const MODEL_PATH = './assets/models/';
-  const pathAndName = `${MODEL_PATH}${name}`;
-
-  return {
-    xml: `${pathAndName}.xml`,
-    bin: `${pathAndName}.bin`,
-  };
 }
