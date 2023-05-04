@@ -87,7 +87,7 @@ The examples below show how to set dynamic dimensions with a model that has a st
 
 
 
-The examples above assume that the model has a single input layer. To change models with multiple input layers (such as NLP models), iterate over all the input layers and apply the model.reshape method to each individual layer. For example, the following code sets the second dimension as dynamic in every input layer:
+The examples above assume that the model has a single input layer. To change models with multiple input layers (such as NLP models), iterate over all the input layers, update the shape per layer, and apply the model.reshape method. For example, the following code sets the second dimension as dynamic in every input layer:
 
 .. tab-set::
 
