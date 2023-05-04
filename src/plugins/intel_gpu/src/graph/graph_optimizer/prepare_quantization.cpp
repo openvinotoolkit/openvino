@@ -697,6 +697,7 @@ void prepare_quantization::prepare_asymmetric_quantization(program &p, convoluti
                 old_conv_prim->padding_below,
                 old_conv_prim->grouped_weights_shape,
                 !old_conv_prim->output_data_types.empty() ? old_conv_prim->output_data_types[0].value_or(data_types::f32) : data_types::f32,
+                old_conv_prim->auto_pad,
                 old_conv_prim->output_paddings[0]);
 
     auto& new_conv_node = p.get_or_create(new_conv_prim);

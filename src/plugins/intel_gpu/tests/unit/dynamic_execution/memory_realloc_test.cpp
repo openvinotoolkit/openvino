@@ -90,6 +90,7 @@ TEST(memory_reuse_realloc_reset_test, basic_conv_with_padding) {
                                   {2, 2},  /*pad_above*/
                                   {2, 2},  /*pad_below*/
                                   false,
+                                  ov::op::PadType::EXPLICIT,
                                   padding{{0, 0, 0, 0}, 0}),
                       reorder("output", input_info("conv"), format::bfyx, data_types::f32)); /*output padding*/
 

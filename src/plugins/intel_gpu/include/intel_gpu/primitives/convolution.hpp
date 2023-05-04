@@ -32,6 +32,7 @@ struct convolution : public primitive_base<convolution> {
     /// @param padding_above Defines a padding added to input image on left (x axis) and top (y axis).
     /// @param padding_below Defines a padding added to input image on right (x axis) and bottom (y axis).
     /// @param grouped_weights_shape True if weights shape is [G, O, I, ...], and false if it's [O, I, ...] or [G*O, I, ...]
+    /// @param audo_pad The pad type for automatically computing padding sizes
     convolution(const primitive_id& id,
                 const input_info& input,
                 const primitive_id& weights,
@@ -46,6 +47,7 @@ struct convolution : public primitive_base<convolution> {
                 ov::CoordinateDiff padding_below,
                 bool grouped_weights_shape,
                 data_types output_data_type,
+                const ov::op::PadType& auto_pad = ov::op::PadType::EXPLICIT,
                 const padding& output_padding = padding())
             : primitive_base(id, {input}, {output_padding}, {optional_data_type{output_data_type}}),
               groups(groups),
@@ -53,6 +55,7 @@ struct convolution : public primitive_base<convolution> {
               dilation(dilation),
               padding_above(padding_above),
               padding_below(padding_below),
+              auto_pad(auto_pad),
               grouped_weights_shape(grouped_weights_shape),
               weights(weights),
               bias(bias),
@@ -76,6 +79,7 @@ struct convolution : public primitive_base<convolution> {
     /// @param padding_above Defines a padding added to input image on left (x axis) and top (y axis).
     /// @param padding_below Defines a padding added to input image on right (x axis) and bottom (y axis).
     /// @param grouped_weights_shape True if weights shape is [G, O, I, ...], and false if it's [O, I, ...] or [G*O, I, ...]
+    /// @param audo_pad The pad type for automatically computing padding sizes
     convolution(const primitive_id& id,
                 const input_info& input,
                 const primitive_id& weights,
@@ -85,7 +89,8 @@ struct convolution : public primitive_base<convolution> {
                 ov::Strides dilation,
                 ov::CoordinateDiff padding_above,
                 ov::CoordinateDiff padding_below,
-                bool grouped_weights_shape = false,
+                bool grouped_weights_shape,
+                const ov::op::PadType& auto_pad = ov::op::PadType::EXPLICIT,
                 const padding& output_padding = padding())
         : primitive_base(id, {input}, {output_padding}),
           groups(groups),
@@ -93,6 +98,7 @@ struct convolution : public primitive_base<convolution> {
           dilation(dilation),
           padding_above(padding_above),
           padding_below(padding_below),
+          auto_pad(auto_pad),
           grouped_weights_shape(grouped_weights_shape),
           weights(weights),
           bias(bias),
@@ -139,6 +145,7 @@ struct convolution : public primitive_base<convolution> {
       dilation(dilation),
       padding_above(padding_above),
       padding_below(padding_below),
+      auto_pad(ov::op::PadType::EXPLICIT),
       deformable_mode(deformable_mode),
       deformable_groups(deformable_groups),
       bilinear_interpolation_pad(bilinear_interpolation_pad),
@@ -162,6 +169,9 @@ struct convolution : public primitive_base<convolution> {
     ov::CoordinateDiff padding_above;
     /// @param padding_below Defines a padding added to input image on right (x axis) and bottom (y axis).
     ov::CoordinateDiff padding_below;
+    /// @param audo_pad The pad type for automatically computing padding sizes
+    ov::op::PadType auto_pad;
+
     /// @param deformable_mode.
     bool deformable_mode {false};
     /// @param deformable_groups Defines a number of deformable groups that splits trans input into several parts
@@ -194,6 +204,7 @@ struct convolution : public primitive_base<convolution> {
         seed = hash_range(seed, padding_above.begin(), padding_above.end());
         seed = hash_range(seed, stride.begin(), stride.end());
         seed = hash_range(seed, dilation.begin(), dilation.end());
+        seed = hash_combine(seed, auto_pad);
         seed = hash_combine(seed, groups);
         seed = hash_combine(seed, deformable_groups);
         seed = hash_combine(seed, deformable_mode);
@@ -221,6 +232,7 @@ struct convolution : public primitive_base<convolution> {
                cmp_fields(deformable_groups) &&
                cmp_fields(padding_above) &&
                cmp_fields(padding_below) &&
+               cmp_fields(auto_pad) &&
                cmp_fields(deformable_mode) &&
                cmp_fields(bilinear_interpolation_pad) &&
                cmp_fields(transposed) &&

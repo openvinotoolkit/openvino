@@ -49,7 +49,8 @@ TEST_P(convolution_si_test, shape_infer) {
                                                                            p.stride,
                                                                            p.dilation,
                                                                            p.pad_above,
-                                                                           p.pad_below);
+                                                                           p.pad_below,
+                                                                           p.weights_have_group_dim);
 
     cldnn::program prog(engine);
 
@@ -104,7 +105,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_wo_out_size, convolution_si_test,
         {
             ov::PartialShape{1, 12, 224, 224}, ov::PartialShape{4, 1, 3, 5, 5},       /* input, weight shape */
             4, {1, 1}, {1, 1},                                                        /* groups, stride, dilation */
-            ov::CoordinateDiff{2, 2}, ov::CoordinateDiff{2, 2},                      /* pad_above, pad_below */
+            ov::CoordinateDiff{2, 2}, ov::CoordinateDiff{2, 2},                       /* pad_above, pad_below */
             layout{ov::PartialShape{1, 4, 224, 224}, data_types::f32, format::bfyx},  /* expected_layout */
             true                                                                      /* weight_has_groups */
         },

@@ -128,6 +128,7 @@ void pre_replace_deconv::run(program& p) {
                                                                pad_begin,
                                                                pad_end,
                                                                grouped_weights_shape,
+                                                               ov::op::PadType::EXPLICIT,
                                                                output_padding);
                 conv_prim->transposed = true;
                 program_node& new_node = p.get_or_create(conv_prim);
@@ -266,6 +267,7 @@ void pre_replace_deconv::run(program& p) {
                                                                pad,
                                                                pad,
                                                                grouped_weights_shape,
+                                                               ov::op::PadType::EXPLICIT,
                                                                output_padding);
                 program_node& created_node = p.get_or_create(conv_prim);
 

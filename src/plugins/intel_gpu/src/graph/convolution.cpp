@@ -11,14 +11,13 @@
 #include "json_object.h"
 #include "pass_manager.h"
 #include "primitive_type_base.h"
-#include "sliding_window_utils.hpp"
 
 using namespace ov::intel_gpu;
 
 namespace {
 template<typename T, typename V>
 T align_to_spatial_rank(const T param, size_t rank, V fill_value) {
-    OPENVINO_ASSERT(param.size() <= rank, "[GPU] Can't convolution parameters align to smaller rank");
+    OPENVINO_ASSERT(param.size() <= rank, "[GPU] Can't align convolution parameters to smaller rank");
     std::vector<V> res(rank, fill_value);
     std::copy_n(param.begin(), param.size(), res.begin());
     return T(res);
@@ -31,21 +30,15 @@ GPU_DEFINE_PRIMITIVE_TYPE_ID(convolution)
 layout convolution_inst::calc_output_layout(convolution_node const& node, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<convolution>();
 
-    auto input_layout = impl_param.get_input_layout();
-    auto weights_layout = *impl_param.weights_layout;
-    weights_layout = weights_layout.convert_to_weights_layout(desc->grouped_weights_shape);
-
+    auto input_layout = impl_param.get_input_layout(0);
     auto input_type = input_layout.data_type;
-
-    auto output_type = input_type;
+    auto output_type = (input_type == data_types::u8 || input_type == data_types::i8) ? data_types::f32 : input_type;
     if (impl_param.has_fused_primitives()) {
         output_type = impl_param.get_fused_output_layout().data_type;
     }
 
-    if ((input_type == data_types::u8 || input_type == data_types::i8) &&
-         !impl_param.has_fused_primitives()) {
-        output_type = data_types::f32;
-    }
+    auto weights_layout = *impl_param.weights_layout;
+    weights_layout = weights_layout.convert_to_weights_layout(desc->grouped_weights_shape);
 
     if (input_layout.format == format::winograd_2x3_s1_weights ||
         input_layout.format == format::winograd_2x3_s1_fused_weights ||
@@ -121,14 +114,14 @@ layout convolution_inst::calc_output_layout(convolution_node const& node, kernel
         op.set_deformable_group(desc->deformable_groups);
         op.set_dilations(dilation);
         op.set_strides(strides);
-        op.set_auto_pad(ov::op::PadType::EXPLICIT);
+        op.set_auto_pad(desc->auto_pad);
         input_shapes.insert(std::next(input_shapes.begin()), impl_param.get_input_layout(1).get_partial_shape());
         output_shapes = ov::op::v8::shape_infer(&op, input_shapes, pads_begin, pads_end);
     } else if (desc->grouped_weights_shape || desc->groups > 1) {
         ov::op::v1::GroupConvolution op;
         op.set_dilations(dilation);
         op.set_strides(strides);
-        op.set_auto_pad(ov::op::PadType::EXPLICIT);
+        op.set_auto_pad(desc->auto_pad);
         auto& weights_shape = input_shapes[1];
         if (input_shapes[1].size() == 4 && input_shapes[0].size() == 4) {
             weights_shape.insert(weights_shape.begin(), desc->groups);
@@ -139,7 +132,7 @@ layout convolution_inst::calc_output_layout(convolution_node const& node, kernel
         ov::op::v1::Convolution op;
         op.set_dilations(dilation);
         op.set_strides(strides);
-        op.set_auto_pad(ov::op::PadType::EXPLICIT);
+        op.set_auto_pad(desc->auto_pad);
         output_shapes = ov::op::v1::shape_infer(&op, input_shapes, pads_begin, pads_end);
     }
 
@@ -151,23 +144,17 @@ std::vector<layout> convolution_inst::calc_output_layouts(convolution_node const
     auto desc = impl_param.typed_desc<convolution>();
 
     auto input_layout = impl_param.get_input_layout(0);
-    auto weights_layout = *impl_param.weights_layout;
-    weights_layout = weights_layout.convert_to_weights_layout(desc->grouped_weights_shape);
-
-    if (input_layout.is_dynamic())
-        return {layout{ShapeType::dynamic(input_layout.get<ShapeType>().rank()), input_layout.data_type, input_layout.format}};
-
     auto input_type = input_layout.data_type;
-
-    auto output_type = input_type;
+    auto output_type = (input_type == data_types::u8 || input_type == data_types::i8) ? data_types::f32 : input_type;
     if (impl_param.has_fused_primitives()) {
         output_type = impl_param.get_fused_output_layout().data_type;
     }
 
-    if ((input_type == data_types::u8 || input_type == data_types::i8) &&
-         !impl_param.has_fused_primitives()) {
-        output_type = data_types::f32;
-    }
+    if (input_layout.is_dynamic())
+        return {layout{ShapeType::dynamic(input_layout.get<ShapeType>().rank()), input_layout.data_type, input_layout.format}};
+
+    auto weights_layout = *impl_param.weights_layout;
+    weights_layout = weights_layout.convert_to_weights_layout(desc->grouped_weights_shape);
 
     if (input_layout.format == format::winograd_2x3_s1_weights ||
         input_layout.format == format::winograd_2x3_s1_fused_weights ||
@@ -237,20 +224,20 @@ std::vector<layout> convolution_inst::calc_output_layouts(convolution_node const
         op.set_deformable_group(desc->deformable_groups);
         op.set_dilations(dilation);
         op.set_strides(strides);
-        op.set_auto_pad(ov::op::PadType::EXPLICIT);
+        op.set_auto_pad(desc->auto_pad);
         input_shapes.insert(std::next(input_shapes.begin()), impl_param.get_input_layout(1).get_partial_shape());
         output_shapes = ov::op::v8::shape_infer(&op, input_shapes, pads_begin, pads_end);
     } else if (desc->grouped_weights_shape || desc->groups > 1) {
         ov::op::v1::GroupConvolution op;
         op.set_dilations(dilation);
         op.set_strides(strides);
-        op.set_auto_pad(ov::op::PadType::EXPLICIT);
+        op.set_auto_pad(desc->auto_pad);
         output_shapes = ov::op::v1::shape_infer(&op, input_shapes, pads_begin, pads_end);
     } else {
         ov::op::v1::Convolution op;
         op.set_dilations(dilation);
         op.set_strides(strides);
-        op.set_auto_pad(ov::op::PadType::EXPLICIT);
+        op.set_auto_pad(desc->auto_pad);
         output_shapes = ov::op::v1::shape_infer(&op, input_shapes, pads_begin, pads_end);
     }
 
