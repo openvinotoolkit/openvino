@@ -47,8 +47,7 @@ from openvino.tools.mo.utils.logger import init_logger, progress_printer
 from openvino.tools.mo.utils.utils import refer_to_faq_msg
 from openvino.tools.mo.utils.telemetry_utils import send_params_info, send_framework_info, send_conversion_result, \
     get_tid
-from openvino.tools.mo.utils.versions_checker import check_requirements, log_not_satisfied_dependencies, \
-    get_environment_setup  # pylint: disable=no-name-in-module
+from openvino.tools.mo.utils.versions_checker import get_environment_setup  # pylint: disable=no-name-in-module
 from openvino.tools.mo.moc_frontend.check_config import legacy_extensions_used
 from openvino.tools.mo.moc_frontend.pytorch_frontend_utils import get_pytorch_decoder, convert_pytorch_via_onnx
 from openvino.tools.mo.moc_frontend.shape_utils import parse_input_shapes, get_static_shape
@@ -216,14 +215,6 @@ def arguments_post_parsing(argv: argparse.Namespace):
 
     # This is just to check that transform key is valid and transformations are available
     check_available_transforms(parse_transform(argv.transform))
-
-    # For C++ frontends there are no specific Python installation requirements, check only generic ones
-    if moc_front_end:
-        ret_code, argv.unsatisfied_requirements = check_requirements(silent=argv.silent)
-    else:
-        ret_code, argv.unsatisfied_requirements = check_requirements(framework=argv.framework, silent=argv.silent)
-    if ret_code:
-        raise Error('check_requirements exited with return code {}'.format(ret_code))
 
     if argv.scale and argv.scale_values:
         raise Error(
@@ -974,11 +965,6 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args, python_api_us
                     print(get_try_legacy_fe_message())
 
         send_conversion_result('fail')
-
-        # Log unsatisfied requirements only if error occurred and 'silent' is turned off
-        if argv is not None and hasattr(argv, "unsatisfied_requirements"):
-            if len(argv.unsatisfied_requirements) > 0 and not argv.silent:
-                log_not_satisfied_dependencies(framework, argv.unsatisfied_requirements, {'is_warning': True})
 
         if python_api_used:
             raise e.with_traceback(None)
