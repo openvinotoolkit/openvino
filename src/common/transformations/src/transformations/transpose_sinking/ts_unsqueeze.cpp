@@ -181,12 +181,11 @@ TSUnsqueezeBackward::TSUnsqueezeBackward() {
 
     auto unsqueeze_label =
         wrap_type<ov::op::v0::Unsqueeze, ov::op::v1::Reshape>({any_input(), wrap_type<ov::op::v0::Constant>()},
-                                                              HasSameOutputTransposeNodes);
-    auto transpose_label =
-        wrap_type<ov::op::v1::Transpose>({unsqueeze_label, wrap_type<ov::op::v0::Constant>()},
-                                         [](const Output<Node>& output) -> bool {
-                                             return has_static_rank()(output) && is_sinking_node(output);
-                                         });
+                                                              CheckTransposeConsumers);
+    auto transpose_label = wrap_type<ov::op::v1::Transpose>({unsqueeze_label, wrap_type<ov::op::v0::Constant>()},
+                                                            [](const Output<Node>& output) -> bool {
+                                                                return has_static_rank()(output);
+                                                            });
 
     ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_map();
@@ -255,8 +254,7 @@ TSUnsqueezeBackward::TSUnsqueezeBackward() {
         main_node->input(1).replace_source_output(new_const);
 
         main_node->validate_and_infer_types();
-        RemoveSingleOutputConsumers(main_node);
-        SwapNames(transpose, main_node);
+        RemoveTransposeConsumers(main_node);
         copy_runtime_info(unsqueeze_axes, new_const);
         return true;
     };
