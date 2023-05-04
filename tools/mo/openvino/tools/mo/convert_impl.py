@@ -878,7 +878,9 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args, python_api_us
                 example_inputs = None
                 if 'example_input' in args and args['example_input'] is not None:
                     example_inputs = args['example_input']
-                   
+                elif 'example_inputs' in args:
+                    raise AssertionError("'example_inputs' argument is not recognized, maybe you meant to provide 'example_input'?")
+
                 if 'use_legacy_frontend' in args and args['use_legacy_frontend']:
                     # TO DO: remove this path, when pytorch frontend productization is finished, CVS-103726
                     # prevent invoking legacy mo python onnx frontend for models converted on the fly
