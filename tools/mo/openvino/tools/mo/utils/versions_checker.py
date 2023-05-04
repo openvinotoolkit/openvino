@@ -8,14 +8,11 @@ import sys
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 
-def get_imported_module_version(imported_module, name=None):
+def get_imported_module_version(imported_module):
     """
     Get imported module version
     :return: version(str) or raise AttributeError exception
     """
-    if name == "importlib.metadata":
-        import importlib.metadata
-        return importlib.metadata.version("importlib-metadata")
     version_attrs = ("__version__", "VERSION", "version")
     installed_version = None
     for attr in version_attrs:

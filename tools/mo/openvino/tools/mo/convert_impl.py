@@ -965,7 +965,6 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args, python_api_us
                     print(get_try_legacy_fe_message())
 
         send_conversion_result('fail')
-
         if python_api_used:
             raise e.with_traceback(None)
         else:
