@@ -26,7 +26,7 @@ bool SavedModelUnusedRemover::run_on_model(const std::shared_ptr<ov::Model>& m) 
         bool isUsed = false;
         for (size_t i = 0; i < result->get_input_size(); ++i) {
             const auto& node_names = result->get_input_tensor(i).get_names();
-            isUsed = std::find(node_names.begin(), node_names.end(), "saved_model_unused") == node_names.end();
+            isUsed |= std::find(node_names.begin(), node_names.end(), "saved_model_unused") == node_names.end();
         }
         if (!isUsed) {
             results_to_remove.push_back(result);
@@ -35,9 +35,10 @@ bool SavedModelUnusedRemover::run_on_model(const std::shared_ptr<ov::Model>& m) 
 
         auto param = as_type_ptr<Parameter>(result->get_input_node_shared_ptr(0));
         if (param) {
+            isUsed = false;
             for (size_t i = 0; i < param->get_output_size(); ++i) {
                 const auto& node_names = param->get_output_tensor(i).get_names();
-                isUsed = std::find(node_names.begin(), node_names.end(), "saved_model_unused") == node_names.end();
+                isUsed |= std::find(node_names.begin(), node_names.end(), "saved_model_unused") == node_names.end();
             }
             if (!isUsed) {
                 results_to_remove.push_back(result);
@@ -50,7 +51,7 @@ bool SavedModelUnusedRemover::run_on_model(const std::shared_ptr<ov::Model>& m) 
         bool isUsed = false;
         for (size_t i = 0; i < param->get_output_size(); ++i) {
             const auto& node_names = param->get_output_tensor(i).get_names();
-            isUsed = std::find(node_names.begin(), node_names.end(), "saved_model_unused") == node_names.end();
+            isUsed |= std::find(node_names.begin(), node_names.end(), "saved_model_unused") == node_names.end();
         }
         if (!isUsed && std::find(params_to_remove.begin(), params_to_remove.end(), param) == params_to_remove.end()) {
             params_to_remove.push_back(param);

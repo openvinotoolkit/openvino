@@ -53,8 +53,7 @@ class ConvertToPBTests(unittest.TestCase):
             self.argv.input_meta_graph = os.path.join(tmp_dir, 'model.meta')
             self.argv.output_dir = tmp_dir
             path_to_pb = convert_to_pb(self.argv)
-            self.assertTrue(os.path.exists(path_to_pb), "The auxiliary .pb is not generated")
-            self.assertTrue(os.path.getsize(path_to_pb) != 0, "The auxiliary .pb is empty")
+            self.assertTrue(path_to_pb is None, "Auxiliary .pb must not be generated for .meta")
 
     def test_text_frozen_format(self):
         try:
@@ -155,12 +154,10 @@ class ConvertToPBTests(unittest.TestCase):
             self.argv.input_meta_graph = os.path.join(tmp_dir, 'model1.meta')
             self.argv.output_dir = tmp_dir
             path_to_pb = convert_to_pb(self.argv)
-            self.assertTrue(os.path.exists(path_to_pb), "The auxiliary .pb is not generated")
-            self.assertTrue(os.path.getsize(path_to_pb) != 0, "The auxiliary .pb is empty")
+            self.assertTrue(path_to_pb is None, "Auxiliary .pb must not be generated for .meta")
 
             self.argv.input_meta_graph = os.path.join(tmp_dir, 'model2.meta')
             self.argv.output_dir = tmp_dir
             self.argv.input_model = None
             path_to_pb = convert_to_pb(self.argv)
-            self.assertTrue(os.path.exists(path_to_pb), "The auxiliary .pb is not generated")
-            self.assertTrue(os.path.getsize(path_to_pb) != 0, "The auxiliary .pb is empty")
+            self.assertTrue(path_to_pb is None, "Auxiliary .pb must not be generated for .meta")

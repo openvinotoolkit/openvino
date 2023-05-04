@@ -29,13 +29,6 @@ public:
     AnyMap properties;
 };
 
-class OVEmptyPropertiesTests : public testing::WithParamInterface<std::string>, public OVPropertiesBase {
-public:
-    static std::string getTestCaseName(testing::TestParamInfo<std::string> obj);
-
-    void SetUp() override;
-};
-
 using PropertiesParams = std::tuple<std::string, AnyMap>;
 
 class OVPropertiesTests : public testing::WithParamInterface<PropertiesParams>, public OVPropertiesBase {
@@ -49,7 +42,7 @@ public:
 
 using OVPropertiesIncorrectTests = OVPropertiesTests;
 using OVPropertiesDefaultTests = OVPropertiesTests;
-using OVSetSupportPropCompileModelWithoutConfigTests = OVPropertiesTests;
+using OVPropertiesDefaultSupportedTests = OVClassBaseTestP;
 using OVSetUnsupportPropCompileModelWithoutConfigTests = OVPropertiesTests;
 
 using CompileModelPropertiesParams = std::tuple<std::string, AnyMap, AnyMap>;
@@ -63,8 +56,6 @@ public:
     AnyMap compileModelProperties;
 };
 
-using OVSetPropCompileModelWithIncorrectPropTests = OVSetPropComplieModleGetPropTests;
-
 class OVPropertiesTestsWithComplieModelProps : public testing::WithParamInterface<PropertiesParams>,
                                                public OVPropertiesBase {
 public:
@@ -76,31 +67,20 @@ public:
 
     AnyMap compileModelProperties;
 
-    static std::vector<ov::AnyMap> getPropertiesValues();
+    static std::vector<ov::AnyMap> getROMandatoryProperties();
+    static std::vector<ov::AnyMap> getROOptionalProperties();
+    static std::vector<ov::AnyMap> configureProperties(std::vector<std::string> props);
+
+    static std::vector<ov::AnyMap> getRWMandatoryPropertiesValues(std::vector<std::string> props = {});
+    static std::vector<ov::AnyMap> getRWOptionalPropertiesValues(std::vector<std::string> props = {});
+
     static std::vector<ov::AnyMap> getModelDependcePropertiesValues();
 };
 
-using OVCheckChangePropComplieModleGetPropTests = OVPropertiesTestsWithComplieModelProps;
+using OVCheckSetSupportedRWMetricsPropsTests = OVPropertiesTestsWithComplieModelProps;
+using OVCheckGetSupportedROMetricsPropsTests = OVPropertiesTestsWithComplieModelProps;
 using OVCheckChangePropComplieModleGetPropTests_DEVICE_ID = OVPropertiesTestsWithComplieModelProps;
-using OVCheckChangePropComplieModleGetPropTests_ModelDependceProps = OVPropertiesTestsWithComplieModelProps;
-
-using OvPropertiesParams =
-    std::tuple<std::string,                        // device name
-               std::pair<ov::AnyMap, std::string>  // device and expect execution device configuration
-               >;
-class OVCompileModelGetExecutionDeviceTests : public testing::WithParamInterface<OvPropertiesParams>,
-                                              public OVPropertiesBase {
-public:
-    static std::string getTestCaseName(testing::TestParamInfo<OvPropertiesParams> obj);
-
-    void SetUp() override;
-
-    AnyMap compileModelProperties;
-
-    std::string expectedDeviceName;
-};
-
-using OVClassExecutableNetworkGetMetricTest_EXEC_DEVICES = OVCompileModelGetExecutionDeviceTests;
+using OVCheckMetricsPropsTests_ModelDependceProps = OVPropertiesTestsWithComplieModelProps;
 
 class OVClassSetDefaultDeviceIDPropTest : public OVPluginTestBase,
                                           public ::testing::WithParamInterface<std::pair<std::string, std::string>> {
@@ -116,7 +96,7 @@ public:
     }
 };
 
-using OVClassCompileModelWithCorrectPropertiesTest = OVClassSetDevicePriorityConfigPropsTest;
+
 using OVClassCompileModelWithCondidateDeviceListContainedMetaPluginTest = OVClassSetDevicePriorityConfigPropsTest;
 using OVClassCompileModelReturnDefaultHintTest = OVClassSetDevicePriorityConfigPropsTest;
 using OVClassCompileModelDoNotReturnDefaultHintTest = OVClassSetDevicePriorityConfigPropsTest;
@@ -124,24 +104,18 @@ using OVClassCompileModelAndCheckSecondaryPropertiesTest = OVClassSetDevicePrior
 
 using OVGetConfigTest = OVClassBaseTestP;
 using OVSpecificDeviceGetConfigTest = OVClassBaseTestP;
-using OVGetConfigTest_ThrowUnsupported = OVClassBaseTestP;
 using OVGetAvailableDevicesPropsTest = OVClassBaseTestP;
 using OVGetMetricPropsTest = OVClassBaseTestP;
-using OVSetEnableCpuPinningHintConfigTest = OVClassBaseTestP;
-using OVSetSchedulingCoreTypeHintConfigTest = OVClassBaseTestP;
+using OVGetMetricPropsOptionalTest = OVClassBaseTestP;
 using OVSetEnableHyperThreadingHintConfigTest = OVClassBaseTestP;
 
-using OVSetModelPriorityConfigTest = OVClassBaseTestP;
-using OVSetExecutionModeHintConfigTest = OVClassBaseTestP;
-using OVSetLogLevelConfigTest = OVClassBaseTestP;
 using OVSpecificDeviceTestSetConfig = OVClassBaseTestP;
 
-class OVClassBasicPropsTestP : public OVPluginTestBase,
+class OVBasicPropertiesTestsP : public OVPluginTestBase,
                                public ::testing::WithParamInterface<std::pair<std::string, std::string>> {
 protected:
     std::string deviceName;
     std::string pluginName;
-
 public:
     void SetUp() override {
         std::tie(pluginName, target_device) = GetParam();

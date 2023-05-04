@@ -337,6 +337,10 @@ def convert_to_pb(argv: argparse.Namespace):
             isinstance(argv.input_model, str):
         return None
 
+    # Saved Model format and MetaGraph format is supported without freezing
+    if argv.saved_model_dir or argv.input_meta_graph:
+        return None
+
     user_output_node_names_list = argv.output if argv.output else None
     if user_output_node_names_list is not None and not isinstance(user_output_node_names_list, list):
         user_output_node_names_list = user_output_node_names_list.split(',')
