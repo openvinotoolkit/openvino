@@ -67,7 +67,7 @@ elseif(ENABLE_ARM_COMPUTE_CMAKE)
     endforeach()
 
     # required by oneDNN to attempt to parse ACL version
-    set(ENV{ACL_ROOT_DIR} "${ARM_COMPUTE_BINARY_DIR}")
+    set(ENV{ACL_ROOT_DIR} "${ARM_COMPUTE_SOURCE_DIR}")
 else()
     set(ARM_COMPUTE_SOURCE_DIR "${intel_cpu_thirdparty_SOURCE_DIR}/ComputeLibrary")
     set(ARM_COMPUTE_BINARY_DIR "${intel_cpu_thirdparty_BINARY_DIR}/ComputeLibrary")
@@ -90,7 +90,7 @@ else()
     if(MSVC64)
         # clang-cl does not recognize /MP option
         string(REPLACE "/MP " "" extra_cxx_flags "${extra_cxx_flags}")
-    else()
+    elseif(CMAKE_POSITION_INDEPENDENT_CODE)
         # -fPIC is not applicable for clang-cl
         set(extra_cxx_flags "${extra_cxx_flags} -fPIC")
     endif()
@@ -134,9 +134,15 @@ else()
     # https://cmake.org/cmake/help/latest/command/add_custom_command.html#examples-generating-files
     if(OV_GENERATOR_MULTI_CONFIG AND CMAKE_VERSION VERSION_GREATER_EQUAL 3.20)
         foreach(option IN LISTS ARM_COMPUTE_DEBUG_OPTIONS)
-            list(APPEND ARM_COMPUTE_OPTIONS $<$<CONFIG:Debug>:${option}>)
+            list(APPEND ARM_COMPUTE_OPTIONS $<$<CONFIG:Debug>:${option}>
+                                            $<$<CONFIG:RelWithDebInfo>:${option}>)
         endforeach()
-    elseif(CMAKE_BUILD_TYPE STREQUAL "Debug")
+        foreach(config IN LISTS CMAKE_CONFIGURATION_TYPES)
+            string(TOUPPER "${config}" config_upper)
+            set(flags ${CMAKE_CXX_FLAGS_${config_upper}})
+            set(extra_cxx_flags "${extra_cxx_flags} $<$<CONFIG:${config}>:${flags}>")
+        endforeach()
+    elseif(CMAKE_BUILD_TYPE MATCHES "^(Debug|RelWithDebInfo)$")
         list(APPEND ARM_COMPUTE_OPTIONS ${ARM_COMPUTE_DEBUG_OPTIONS})
     endif()
 
@@ -239,6 +245,7 @@ else()
             endforeach()
         endif()
     elseif(MSVC64)
+        # required for clang-cl compiler
         if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.20)
             set(extra_cxx_flags "${extra_cxx_flags} $<IF:$<CONFIG:Release>,/MD,/MDd>")
         else()
@@ -324,23 +331,5 @@ else()
     endforeach()
 
     # required by oneDNN to attempt to parse ACL version
-
-    find_package(Git)
-
-    if(GIT_FOUND)
-        execute_process(
-            COMMAND ${GIT_EXECUTABLE} describe --tags
-            WORKING_DIRECTORY "${ARM_COMPUTE_SOURCE_DIR}"
-            RESULT_VARIABLE RESULT
-            OUTPUT_VARIABLE ACL_VERSION_SHA
-            OUTPUT_STRIP_TRAILING_WHITESPACE)
-    endif()
-
-    if(NOT GIT_FOUND OR RESULT)
-        set(ACL_VERSION_HASH "Unknown")
-    endif()
-
-    file(WRITE "${ARM_COMPUTE_BINARY_DIR}/version/arm_compute_version.embed" "\"${ACL_VERSION_SHA}\"")
-
-    set(ENV{ACL_ROOT_DIR} "${ARM_COMPUTE_BINARY_DIR}")
+    set(ENV{ACL_ROOT_DIR} "${ARM_COMPUTE_SOURCE_DIR}")
 endif()

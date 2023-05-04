@@ -16,7 +16,7 @@
    openvino_docs_OV_UG_model_state_intro
 
 
-OpenVINO Runtime is a set of C++ libraries with C and Python bindings providing a common API to deliver inference solutions on the platform of your choice. Use the OpenVINO Runtime API to read an Intermediate Representation (IR), TensorFlow, ONNX, or PaddlePaddle model and execute it on preferred devices.
+OpenVINO Runtime is a set of C++ libraries with C and Python bindings providing a common API to deliver inference solutions on the platform of your choice. Use the OpenVINO Runtime API to read an Intermediate Representation (IR), TensorFlow, TensorFlow Lite, ONNX, or PaddlePaddle model and execute it on preferred devices.
 
 OpenVINO Runtime uses a plugin architecture. Its plugins are software components that contain complete implementation for inference on a particular Intel® hardware device: CPU, GPU, GNA, etc. Each plugin implements the unified API and provides additional hardware-specific APIs for configuring devices or API interoperability between OpenVINO Runtime and underlying plugin backend.
 

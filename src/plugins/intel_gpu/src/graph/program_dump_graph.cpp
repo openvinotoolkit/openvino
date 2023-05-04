@@ -207,8 +207,16 @@ void dump_graph_init(std::ofstream& graph,
         if (!node->is_type<data>()) {
             graph << "\\n Selected kernel: "
                   << (node->get_selected_impl() == nullptr ? "none"
-                                                           : node->get_selected_impl()->get_kernel_name()) + " / "
+                        : (node->get_preferred_impl_type() == impl_types::ocl && node->get_selected_impl()->get_kernels_dump_info().second.size())
+                        ?  node->get_selected_impl()->get_kernels_dump_info().second
+                        : node->get_selected_impl()->get_kernel_name()) + " / "
                   << node->get_preferred_impl_type();
+            if (node->get_selected_impl()) {
+                auto dump_info = node->get_selected_impl()->get_kernels_dump_info();
+                if (dump_info.first.size()) {
+                    graph << "\\n batch_hash : " << dump_info.first;
+                }
+            }
         }
         graph << "\n" + dump_mem_info(node);
         graph << "\"";

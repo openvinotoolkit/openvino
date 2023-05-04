@@ -104,3 +104,22 @@ class TestPowMixedTypes(PytorchLayerTest):
         self.rhs_shape = rhs_shape
         self._test(*self.create_model(lhs_type, lhs_shape, rhs_type, rhs_shape),
                    ie_device, precision, ir_version)
+
+class TestPowMixedTypesScalars(PytorchLayerTest):
+    def _prepare_input(self):
+        return (torch.randn([1,2,3,4]).numpy(),)
+
+    def create_model(self):
+
+        class aten_pow(torch.nn.Module):
+            def forward(self, x):
+                return torch.pow(x.size(2), -0.5)
+
+        ref_net = None
+
+        return aten_pow(), ref_net, "aten::pow"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_pow_mixed_types(self, ie_device, precision, ir_version):
+        self._test(*self.create_model(), ie_device, precision, ir_version)

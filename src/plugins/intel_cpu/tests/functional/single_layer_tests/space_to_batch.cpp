@@ -9,14 +9,13 @@
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
-using namespace ngraph::opset3;
 using namespace ov::test;
 
 namespace CPULayerTestsDefinitions  {
 
 namespace {
     std::vector<int64_t> blockShape, padsBegin, padsEnd;
-    ngraph::Shape paramShape;
+    ov::Shape paramShape;
 }  // namespace
 
 using SpaceToBatchLayerTestCPUParams = std::tuple<
@@ -65,7 +64,7 @@ public:
             const auto& funcInput = funcInputs[i];
             ov::Tensor tensor;
             if (i == 0) {
-                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], 2560, 0, 256);
+                tensor = utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], 2560, 0, 256);
             } else if (i == 1) {
                 tensor = ov::Tensor(funcInput.get_element_type(), paramShape);
                 auto *dataPtr = tensor.data<int64_t>();
@@ -108,21 +107,21 @@ protected:
             selectedType = std::string("ref_any_") + netPrecision.name();
 
         auto params = ngraph::builder::makeDynamicParams(ngPrec, {inputDynamicShapes.front()});
-        auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+        auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(params));
         paramShape = {paramOuts[0].get_partial_shape().size()};
 
         std::shared_ptr<ov::Node> in2, in3, in4;
-        auto blockShapeParam = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::i64, paramShape);
+        auto blockShapeParam = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, paramShape);
         in2 = blockShapeParam;
         params.push_back(blockShapeParam);
-        auto padsBeginParam = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::i64, paramShape);
+        auto padsBeginParam = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, paramShape);
         in3 = padsBeginParam;
         params.push_back(padsBeginParam);
-        auto padsEndParam = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::i64, paramShape);
+        auto padsEndParam = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, paramShape);
         in4 = padsEndParam;
         params.push_back(padsEndParam);
 
-        auto s2b = std::make_shared<ngraph::opset2::SpaceToBatch>(paramOuts[0], in2, in3, in4);
+        auto s2b = std::make_shared<ov::op::v1::SpaceToBatch>(paramOuts[0], in2, in3, in4);
         function = makeNgraphFunction(inType, params, s2b, "SpaceToBatchCPU");
     }
 };
@@ -286,6 +285,19 @@ INSTANTIATE_TEST_SUITE_P(smoke_DynamicSpaceToBatchCPULayerTestCase2_4D, SpaceToB
 
 INSTANTIATE_TEST_SUITE_P(smoke_DynamicSpaceToBatchCPULayerTestCaseWithBlocked2_4D, SpaceToBatchCPULayerTest,
                          dynamicSpaceToBatchParamsWithBlockedSet4D2, SpaceToBatchCPULayerTest::getTestCaseName);
+
+std::vector<std::vector<ov::Shape>> staticInputShapes4DPE = {
+    {{1, 2, 9, 1}, {4}, {4}, {4}}
+};
+INSTANTIATE_TEST_SUITE_P(smoke_StaticSpaceToBatch_4D_parallel_block_edge, SpaceToBatchCPULayerTest,
+        ::testing::Combine(
+                ::testing::ValuesIn(static_shapes_to_test_representation(staticInputShapes4DPE)),
+                ::testing::Values(std::vector<int64_t>{1, 4, 3, 1}),
+                ::testing::Values(std::vector<int64_t>{0, 1, 2, 0}),
+                ::testing::Values(std::vector<int64_t>{0, 1, 4, 0}),
+                ::testing::Values(Precision::FP32),
+                ::testing::Values(CPUSpecificParams{})),
+        SpaceToBatchCPULayerTest::getTestCaseName);
 
 const std::vector<std::vector<int64_t>> blockShape5D = {{1, 1, 2, 2, 1}, {1, 2, 4, 1, 3}};
 const std::vector<std::vector<int64_t>> padsBegin5D = {{0, 0, 0, 0, 0}, {0, 0, 4, 0, 0}, {0, 0, 0, 2, 3}};
