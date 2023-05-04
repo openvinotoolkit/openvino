@@ -23,15 +23,13 @@ using namespace InferenceEngine;
  *     \     /
  *   Target layer
  *        |
- *      Multiply
- *        |
  *       Bias
  *        |
  *      Result
  */
 
 namespace SubgraphTestsDefinitions {
-using FQLayerDQBiasParams = std::tuple<InputShape, std::string>;
+using FQLayerDQBiasParams = std::tuple<InputShape, std::string, bool>;
 
 class FQLayerDQBias : virtual public SubgraphBaseTest,
                       public CpuTestWithFusing,
@@ -40,7 +38,8 @@ public:
     static std::string getTestCaseName(testing::TestParamInfo<FQLayerDQBiasParams> obj) {
         InputShape input_shape;
         std::string layer_type;
-        std::tie(input_shape, layer_type) = obj.param;
+        bool extra_multiply;
+        std::tie(input_shape, layer_type, extra_multiply) = obj.param;
 
         std::ostringstream result;
         result << "IS=(" << CommonTestUtils::partialShape2str({input_shape.first}) << ")_TS=(";
@@ -48,6 +47,7 @@ public:
             result << CommonTestUtils::vec2str(item) << "_";
         }
         result << ")_layer_type=" << layer_type;
+        result << ")_extra_multiply=" << extra_multiply;
         return result.str();
     }
 
@@ -55,7 +55,8 @@ protected:
     void SetUp() override {
         InputShape input_shape;
         std::string layer_type;
-        std::tie(input_shape, layer_type) = GetParam();
+        bool extra_multiply;
+        std::tie(input_shape, layer_type, extra_multiply) = GetParam();
 
         targetDevice = CommonTestUtils::DEVICE_CPU;
         std::tie(inFmts, outFmts, priority, selectedType) = CPUSpecificParams{{}, {}, {}, CPUTestsBase::any_type};
@@ -76,7 +77,7 @@ protected:
         const auto shapes = layer_type == "MatMul" ? std::vector<InputShape>{input_shape, input_shape}
                                                    : std::vector<InputShape>{input_shape};
         init_input_shapes(shapes);
-        function = ngraph::builder::subgraph::MarkupBiasFunction::get(ov::element::f32, inputDynamicShapes[0], {}, layer_type);
+        function = ngraph::builder::subgraph::MarkupBiasFunction::get(ov::element::f32, inputDynamicShapes[0], {}, layer_type, extra_multiply);
     }
 
     std::string node_type;
@@ -102,7 +103,8 @@ const std::vector<std::string> layer_types_4D_static = {
 
 INSTANTIATE_TEST_SUITE_P(smoke_FQLayerDQBias_4D_static, FQLayerDQBias,
                          ::testing::Combine(::testing::ValuesIn(input_shapes_4D_static),
-                                            ::testing::ValuesIn(layer_types_4D_static)),
+                                            ::testing::ValuesIn(layer_types_4D_static),
+                                            ::testing::ValuesIn({false})),
                          FQLayerDQBias::getTestCaseName);
 
 const std::vector<InputShape> input_shapes_4D_dynamic = {
@@ -117,7 +119,8 @@ const std::vector<std::string> layer_types_4D_dynamic = {
 
 INSTANTIATE_TEST_SUITE_P(smoke_FQLayerDQBias_4D_dynamic, FQLayerDQBias,
                          ::testing::Combine(::testing::ValuesIn(input_shapes_4D_dynamic),
-                                            ::testing::ValuesIn(layer_types_4D_dynamic)),
+                                            ::testing::ValuesIn(layer_types_4D_dynamic),
+                                            ::testing::ValuesIn({false})),
                          FQLayerDQBias::getTestCaseName);
 const std::vector<InputShape> input_shapes_2D = {
     {{-1, 768}, {{1, 768}}}
@@ -129,7 +132,14 @@ const std::vector<std::string> layer_types_2D = {
 
 INSTANTIATE_TEST_SUITE_P(smoke_FQLayerDQBias_2D, FQLayerDQBias,
                          ::testing::Combine(::testing::ValuesIn(input_shapes_2D),
-                                            ::testing::ValuesIn(layer_types_2D)),
+                                            ::testing::ValuesIn(layer_types_2D),
+                                            ::testing::ValuesIn({false})),
+                         FQLayerDQBias::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_FQLayerDQExtraMultiplyAdd_2D, FQLayerDQBias,
+                         ::testing::Combine(::testing::ValuesIn(input_shapes_2D),
+                                            ::testing::ValuesIn(layer_types_2D),
+                                            ::testing::ValuesIn({true})),
                          FQLayerDQBias::getTestCaseName);
 
 } // namespace
