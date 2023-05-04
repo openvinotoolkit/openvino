@@ -1,5 +1,7 @@
 # LogicalNot {#openvino_docs_ops_logical_LogicalNot_1}
 
+@sphinxdirective
+
 **Versioned name**: *LogicalNot-1*
 
 **Category**: *Logical unary*
@@ -8,9 +10,10 @@
 
 **Detailed description**: *LogicalNot* performs element-wise logical negation operation with given tensor, based on the following mathematical formula:
 
-\f[
-a_{i} = \lnot a_{i}
-\f]
+.. math::
+
+   a_{i} = \lnot a_{i}
+
 
 **Attributes**: *LogicalNot* operation has no attributes.
 
@@ -24,28 +27,31 @@ a_{i} = \lnot a_{i}
 
 **Types**
 
-* *T_BOOL*: `boolean`.
+* *T_BOOL*: ``boolean``.
 
-\f[
-a_{i} = \lnot a_{i}
-\f]
+.. math::
+
+   a_{i} = \lnot a_{i}
 
 
 **Example**
 
-```xml
-<layer ... type="LogicalNot">
-    <input>
-        <port id="0">
-            <dim>256</dim>
-            <dim>56</dim>
-        </port>
-    </input>
-    <output>
-        <port id="1">
-            <dim>256</dim>
-            <dim>56</dim>
-        </port>
-    </output>
-</layer>
-```
+.. code-block:: cpp
+
+   <layer ... type="LogicalNot">
+       <input>
+           <port id="0">
+               <dim>256</dim>
+               <dim>56</dim>
+           </port>
+       </input>
+       <output>
+           <port id="1">
+               <dim>256</dim>
+               <dim>56</dim>
+           </port>
+       </output>
+   </layer>
+
+
+@endsphinxdirective

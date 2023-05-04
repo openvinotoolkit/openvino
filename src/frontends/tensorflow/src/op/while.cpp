@@ -21,18 +21,23 @@ OutputVector translate_while_op(const NodeContext& node) {
     auto input_size_t = node.get_input_size();
     auto input_size = static_cast<int>(input_size_t);
 
+    ov::OutputVector ov_inputs;
+    for (int input_ind = 0; input_ind < input_size; ++input_ind) {
+        ov_inputs.push_back(node.get_input(input_ind));
+    }
+
     TENSORFLOW_OP_VALIDATION(node,
                              translate_session,
                              "[TensorFlow Frontend] Internal error: Translate session is nullptr.");
     // retrieve condition and body graphs
     auto cond_type = node.get_attribute<std::string>("cond");
     auto body_type = node.get_attribute<std::string>("body");
-    auto cond_model = translate_session->get_body_ov_model(cond_type);
+    auto cond_model = translate_session->get_body_ov_model(cond_type, ov_inputs);
     TENSORFLOW_OP_VALIDATION(
         node,
         cond_model,
         "[TensorFlow Frontend] Internal error or incorrect input model. Cannot find body graph with name " + cond_type);
-    auto body_model = translate_session->get_body_ov_model(body_type);
+    auto body_model = translate_session->get_body_ov_model(body_type, ov_inputs);
     TENSORFLOW_OP_VALIDATION(
         node,
         body_model,
@@ -40,11 +45,6 @@ OutputVector translate_while_op(const NodeContext& node) {
 
     // inject condition body graph prior to Loop node
     // to check condition before to start iterations
-    ov::OutputVector ov_inputs;
-    for (int input_ind = 0; input_ind < input_size; ++input_ind) {
-        ov_inputs.push_back(node.get_input(input_ind));
-    }
-
     auto cond_params = cond_model->get_parameters();
     // type setting for body graph parameters is needed for TensorList support since DT_VARIANT type is present
     // also for more accurate execution_condition variable shape deducing we need shape inference for condition graph

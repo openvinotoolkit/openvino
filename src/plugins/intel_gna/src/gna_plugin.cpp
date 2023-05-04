@@ -351,7 +351,7 @@ void GNAPlugin::PrePostProcess(InferenceEngine::Blob::Ptr input_blob,
     const ov::Shape& input_shape = input_blob->getTensorDesc().getDims();
     const ov::Shape& output_shape = output_blob->getTensorDesc().getDims();
 
-    for (auto param : model->get_parameters()) {
+    for (const auto& param : model->get_parameters()) {
         param->set_element_type(input_type);
     }
     model->validate_nodes_and_infer_types();
