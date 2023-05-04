@@ -444,7 +444,6 @@ Currently, the ``sparse weights decompression feature`` is supported with the fo
 2. Feature is only supported for Matrix Multiplication operations.
 3. HW target must have Intel AMX extension support (e.g., Intel® 4th Generation Xeon® processors (code name Sapphire Rapids)).
 4. The number of input and output channels of the weights must be a multiple of 64.
-5. Current feature implementation supports only sparse rate higher than 0.5.
 
 Additional Resources
 ###########################################################
