@@ -671,6 +671,14 @@ TEST(TransformationTests, ConvertPrecision_LogicalNot) {
 
     ASSERT_FALSE(has_type<element::Type_t::boolean>(f));
     ASSERT_TRUE(has_type<element::Type_t::u8>(f));
+
+    std::shared_ptr<ov::op::TypeRelaxedBase> tr;
+    for (const auto& node : f->get_ordered_ops())
+        if (auto op = std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(node))
+            tr = op;
+    ASSERT_TRUE(tr != nullptr);
+    ASSERT_EQ(tr->get_origin_input_type(0), element::boolean);
+    ASSERT_EQ(tr->get_origin_input_type(1), element::undefined);
 }
 
 TEST(TransformationTests, ConvertPrecision_Select) {

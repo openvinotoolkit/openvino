@@ -1,6 +1,6 @@
 -c ../constraints.txt
 numpy>=1.16.6
+importlib-metadata; python_version < "3.8" and sys_platform == "win32"
 networkx
 defusedxml
-importlib-metadata
 openvino-telemetry
