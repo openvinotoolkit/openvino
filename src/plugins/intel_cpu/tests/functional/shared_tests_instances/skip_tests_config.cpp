@@ -169,8 +169,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*GridSampleLayerTestCPU.*(BILINEAR|BICUBIC).*(i32|i8).*)",
         // 98151. Not valid sorting for slices in reference.
         R"(.*UniqueLayerTestCPU.*axis.*True.*)",
-        // 109482. Sporadic failure.
-        R"(.*smoke_StaticSpaceToBatch_4D_parallel_block_edge.*)",
         // AUTO does not support import / export
         R"(.*smoke_Auto_BehaviorTests/OVCompiledGraphImportExportTest.*(mportExport|readFromV10IR).*/targetDevice=(AUTO).*)"
     };
