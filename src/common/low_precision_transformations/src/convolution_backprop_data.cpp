@@ -87,10 +87,7 @@ bool ConvolutionBackpropDataTransformation::transform(TransformationContext &con
                 return false;
             }
 
-            std::shared_ptr<ngraph::Node> resultConstant = NetworkHelper::fold_fake_quantize(
-                fqOnWeights,
-                false,
-                (constantShape.rank().get_length() < 2) || constantShape[1] != 1ul ? 1ul : 0ul);
+            auto resultConstant = NetworkHelper::fold_fake_quantize(fqOnWeights, false);
             if (reshapeFromWeights != nullptr) {
                 resultConstant = fold_reshape<opset1::Reshape>(
                         resultConstant,
@@ -147,16 +144,14 @@ bool ConvolutionBackpropDataTransformation::transform(TransformationContext &con
         decomposeFakeQuantizeForWeightsPath(convolutionBackpropData, 1ul);
         dequantization = NetworkHelper::getDequantization(convolutionBackpropData, defaultPrecisions, 1ul);
 
-        if (ov::is_type<opset1::FakeQuantize>(dequantization.data.get_node())) {
-            const std::shared_ptr<opset1::FakeQuantize> fq = ov::as_type_ptr<opset1::FakeQuantize>(dequantization.data.get_node_shared_ptr());
-            std::shared_ptr<ngraph::Node> newFQ = NetworkHelper::fold_fake_quantize(fq, true, 1);
+        if (const auto fq = ov::as_type_ptr<opset1::FakeQuantize>(dequantization.data.get_node_shared_ptr())) {
+            const auto newFQ = NetworkHelper::fold_fake_quantize(fq, true);
             NetworkHelper::copyInfo(fq, newFQ);
             replace_node(fq, newFQ);
         }
 
-        std::shared_ptr<opset1::Multiply> multiplyFromWeights = ov::as_type_ptr<opset1::Multiply>(
-                convolutionBackpropData->input_value(1).get_node_shared_ptr());
-        std::shared_ptr<opset1::Subtract> subtractFromWeights = ov::as_type_ptr<opset1::Subtract>(multiplyFromWeights->get_input_node_shared_ptr(0));
+        const auto multiplyFromWeights = convolutionBackpropData->get_input_node_shared_ptr(1);
+        auto subtractFromWeights = ov::as_type_ptr<opset1::Subtract>(multiplyFromWeights->get_input_node_shared_ptr(0));
 
         {
             const auto newScalePShape = multiplyFromWeights->get_input_partial_shape(1);

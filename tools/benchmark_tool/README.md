@@ -50,6 +50,7 @@ If not specified, throughput is used as the default. To set the hint explicitly,
 .. note::
 
    It is up to the user to ensure the environment on which the benchmark is running is optimized for maximum performance. Otherwise, different results may occur when using the application in different environment settings (such as power optimization settings, processor overclocking, thermal throttling).
+   Stating flags that take only single option like `-m` multiple times, for example `benchmark_app -m model.xml -m model2.xml`, results in only the last value being used.
 
 
 Latency
