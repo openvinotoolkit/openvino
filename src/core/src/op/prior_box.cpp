@@ -4,16 +4,45 @@
 
 #include "ngraph/op/prior_box.hpp"
 
-#include <ngraph/validation_util.hpp>
+#include <array>
 
+#include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/prior_box.hpp"
 #include "openvino/runtime/tensor.hpp"
+#include "prior_box_shape_inference.hpp"
 
 using namespace std;
 using namespace ngraph;
+
+namespace ov {
+namespace op {
+namespace prior_box {
+static constexpr auto input_names = std::array<const char*, 2>{"output size", "image"};
+
+namespace validate {
+std::vector<PartialShape> inputs_et(const Node* const op) {
+    const auto inputs_size = op->get_input_size();
+    auto input_shapes = std::vector<PartialShape>();
+    input_shapes.reserve(inputs_size);
+
+    for (size_t i = 0; i < inputs_size; ++i) {
+        const auto& et = op->get_input_element_type(i);
+        NODE_VALIDATION_CHECK(op,
+                              et.is_integral_number(),
+                              prior_box::input_names[i],
+                              " input must be an integral number, but is: ",
+                              et);
+        input_shapes.push_back(op->get_input_partial_shape(i));
+    }
+    return input_shapes;
+}
+}  // namespace validate
+}  // namespace prior_box
+}  // namespace op
+}  // namespace ov
 
 op::v0::PriorBox::PriorBox(const Output<Node>& layer_shape,
                            const Output<Node>& image_shape,
@@ -25,45 +54,12 @@ op::v0::PriorBox::PriorBox(const Output<Node>& layer_shape,
 
 void op::v0::PriorBox::validate_and_infer_types() {
     OV_OP_SCOPE(v0_PriorBox_validate_and_infer_types);
-    // shape node should have integer data type. For now we only allow i64
-    auto layer_shape_et = get_input_element_type(0);
-    NODE_VALIDATION_CHECK(this,
-                          layer_shape_et.is_integral_number(),
-                          "layer shape input must be an integral number, but is: ",
-                          layer_shape_et);
 
-    auto image_shape_et = get_input_element_type(1);
-    NODE_VALIDATION_CHECK(this,
-                          image_shape_et.is_integral_number(),
-                          "image shape input must be an integral number, but is: ",
-                          image_shape_et);
+    const auto input_shapes = prior_box::validate::inputs_et(this);
+    const auto output_shapes = shape_infer(this, input_shapes);
 
-    auto layer_shape_rank = get_input_partial_shape(0).rank();
-    auto image_shape_rank = get_input_partial_shape(1).rank();
-    NODE_VALIDATION_CHECK(this,
-                          layer_shape_rank.compatible(image_shape_rank),
-                          "layer shape input rank ",
-                          layer_shape_rank,
-                          " must match image shape input rank ",
-                          image_shape_rank);
-
+    set_output_type(0, element::f32, output_shapes.front());
     set_input_is_relevant_to_shape(0);
-
-    PartialShape spatials;
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    if (evaluate_as_partial_shape(input_value(0), spatials)) {
-        OPENVINO_SUPPRESS_DEPRECATED_END
-        NODE_VALIDATION_CHECK(this,
-                              spatials.rank().is_static() && spatials.size() == 2,
-                              "Layer shape must have rank 2",
-                              spatials);
-
-        set_output_type(0,
-                        element::f32,
-                        ov::PartialShape{2, spatials[0] * spatials[1] * Dimension(4 * number_of_priors(m_attrs))});
-    } else {
-        set_output_type(0, element::f32, ov::PartialShape{2, Dimension::dynamic()});
-    }
 }
 
 shared_ptr<Node> op::v0::PriorBox::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -129,6 +125,8 @@ bool op::v0::PriorBox::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
+namespace ov {
+namespace op {
 namespace prior_box {
 namespace {
 template <element::Type_t ET>
@@ -149,11 +147,11 @@ bool evaluate(const HostTensorPtr& arg0,
     attrs_v8.offset = attrs.offset;
     attrs_v8.variance = attrs.variance;
     attrs_v8.scale_all_sizes = attrs.scale_all_sizes;
-    runtime::reference::prior_box(arg0->get_data_ptr<ET>(),
-                                  arg1->get_data_ptr<ET>(),
-                                  out->get_data_ptr<float>(),
-                                  out->get_shape(),
-                                  attrs_v8);
+    ngraph::runtime::reference::prior_box(arg0->get_data_ptr<ET>(),
+                                          arg1->get_data_ptr<ET>(),
+                                          out->get_data_ptr<float>(),
+                                          out->get_shape(),
+                                          attrs_v8);
     return true;
 }
 
@@ -179,6 +177,21 @@ bool evaluate_prior_box(const HostTensorPtr& arg0,
 }
 }  // namespace
 }  // namespace prior_box
+
+namespace v0 {
+
+void PriorBox::set_attrs(Attributes attrs) {
+    m_attrs = std::move(attrs);
+}
+}  // namespace v0
+
+namespace v8 {
+void PriorBox::set_attrs(Attributes attrs) {
+    m_attrs = std::move(attrs);
+}
+}  // namespace v8
+}  // namespace op
+}  // namespace ov
 
 bool op::v0::PriorBox::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v0_PriorBox_evaluate);
@@ -214,45 +227,12 @@ op::v8::PriorBox::PriorBox(const Output<Node>& layer_shape,
 
 void op::v8::PriorBox::validate_and_infer_types() {
     OV_OP_SCOPE(v8_PriorBox_validate_and_infer_types);
-    // shape node should have integer data type. For now we only allow i64
-    auto layer_shape_et = get_input_element_type(0);
-    NODE_VALIDATION_CHECK(this,
-                          layer_shape_et.is_integral_number(),
-                          "layer shape input must be an integral number, but is: ",
-                          layer_shape_et);
 
-    auto image_shape_et = get_input_element_type(1);
-    NODE_VALIDATION_CHECK(this,
-                          image_shape_et.is_integral_number(),
-                          "image shape input must be an integral number, but is: ",
-                          image_shape_et);
+    const auto input_shapes = prior_box::validate::inputs_et(this);
+    const auto output_shapes = shape_infer(this, input_shapes);
 
-    auto layer_shape_rank = get_input_partial_shape(0).rank();
-    auto image_shape_rank = get_input_partial_shape(1).rank();
-    NODE_VALIDATION_CHECK(this,
-                          layer_shape_rank.compatible(image_shape_rank),
-                          "layer shape input rank ",
-                          layer_shape_rank,
-                          " must match image shape input rank ",
-                          image_shape_rank);
-
+    set_output_type(0, element::f32, output_shapes.front());
     set_input_is_relevant_to_shape(0);
-
-    PartialShape spatials;
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    if (evaluate_as_partial_shape(input_value(0), spatials)) {
-        OPENVINO_SUPPRESS_DEPRECATED_END
-        NODE_VALIDATION_CHECK(this,
-                              spatials.rank().is_static() && spatials.size() == 2,
-                              "Layer shape must have rank 2",
-                              spatials);
-
-        set_output_type(0,
-                        element::f32,
-                        ov::PartialShape{2, spatials[0] * spatials[1] * Dimension(4 * number_of_priors(m_attrs))});
-    } else {
-        set_output_type(0, element::f32, ov::PartialShape{2, Dimension::dynamic()});
-    }
 }
 
 shared_ptr<Node> op::v8::PriorBox::clone_with_new_inputs(const OutputVector& new_args) const {
