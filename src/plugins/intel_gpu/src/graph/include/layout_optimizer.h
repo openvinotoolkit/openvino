@@ -44,7 +44,8 @@ public:
     // (no need to add it to 'ouputs' etc.) for pair.first == nullptr, pair.second == true
     std::pair<std::shared_ptr<reorder>, bool> get_reorder(primitive_id src_id,
                                                           const layout& in_layout,
-                                                          const layout& out_layout);
+                                                          const layout& out_layout,
+                                                          const int32_t out_idx = 0);
 
     std::pair<std::shared_ptr<primitive>, bool> get_weights_reorder(primitive_id input_id,
                                                                     std::shared_ptr<WeightsReorderParams> reorder_params);
@@ -54,10 +55,17 @@ private:
         primitive_id data_source;
         layout expected_layout;
         bool needs_split_reorder;
+        int32_t out_idx = 0;
+
+        cache_key(primitive_id source_id, layout el, bool needs_split_reorder = false, int32_t out_idx = 0)
+            : data_source(source_id),
+              expected_layout(el),
+              needs_split_reorder(needs_split_reorder),
+              out_idx(out_idx) {}
 
         friend bool operator==(cache_key const& lhs, cache_key const& rhs) {
             return lhs.data_source == rhs.data_source && lhs.expected_layout == rhs.expected_layout &&
-                   lhs.needs_split_reorder == rhs.needs_split_reorder;
+                   lhs.needs_split_reorder == rhs.needs_split_reorder && lhs.out_idx == rhs.out_idx;
         }
 
         friend bool operator!=(cache_key const& lhs, cache_key const& rhs) { return !(lhs == rhs); }
@@ -67,7 +75,10 @@ private:
                 return (lhs.data_source < rhs.data_source);
             else if (lhs.expected_layout != rhs.expected_layout)
                 return (lhs.expected_layout < rhs.expected_layout);
-            return lhs.needs_split_reorder < rhs.needs_split_reorder;
+            else if (lhs.needs_split_reorder != rhs.needs_split_reorder)
+                return lhs.needs_split_reorder < rhs.needs_split_reorder;
+            else
+                return lhs.out_idx < rhs.out_idx;
         }
     };
 

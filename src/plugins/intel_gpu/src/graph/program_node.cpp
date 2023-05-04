@@ -45,7 +45,7 @@ program_node::program_node(std::shared_ptr<primitive> prim, program& prog)
     }
 }
 
-void program_node::replace_dependency(size_t idx, program_node& new_dep, bool remove_if_dangling, size_t new_dep_idx) {
+void program_node::replace_dependency(size_t idx, program_node& new_dep, bool remove_if_dangling, int32_t old_dep_idx) {
     if (idx >= dependencies.size())
         return;
     if (dependencies[idx].first == &new_dep)
@@ -59,20 +59,22 @@ void program_node::replace_dependency(size_t idx, program_node& new_dep, bool re
     auto it = std::find(dependencies[idx].first->users.begin(), dependencies[idx].first->users.end(), this);
     if (it != dependencies[idx].first->users.end()) {
         dependencies[idx].first->users.erase(it);
-        dependencies[idx].second = new_dep_idx;
+        dependencies[idx].second = old_dep_idx;
     }
 
     if (remove_if_dangling)
         myprog.remove_if_dangling(*dependencies[idx].first);
 
     dependencies[idx].first = &new_dep;
+    // TODO : merge users and users_with_port
     new_dep.users.push_back(this);
+    new_dep.users_with_port.push_back(std::make_pair(this, old_dep_idx));
 }
 
-void program_node::replace_dependency(program_node const& old_dep, program_node& new_dep, bool remove_if_dangling) {
+void program_node::replace_dependency(program_node const& old_dep, program_node& new_dep, bool remove_if_dangling, int32_t old_dep_idx) {
     for (size_t i = 0; i < dependencies.size(); ++i)
         if (dependencies[i].first == &old_dep)
-            return replace_dependency(i, new_dep, remove_if_dangling);
+            return replace_dependency(i, new_dep, remove_if_dangling, old_dep_idx);
 }
 
 std::vector<primitive_id> program_node::get_dependencies_ids() const {
@@ -218,6 +220,11 @@ void program_node::remove_dependency(program_node& node) {
     for (size_t i = 0; i < dependencies.size(); ++i)
         if (dependencies[i].first == &node)
             remove_dependency(i);
+}
+
+void program_node::remove_user(program_node* node, int32_t dep_idx) {
+    users.remove(node);
+    users_with_port.remove(std::pair<program_node*, int32_t>(node, dep_idx));
 }
 
 size_t program_node::get_user_index(program_node& node) const {

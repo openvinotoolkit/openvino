@@ -340,7 +340,7 @@ private:
 
     void rename(program_node& node, primitive_id const& new_id);
     void swap_names(program_node& node1, program_node& node2);
-    void replace_all_usages(program_node& old_node, program_node& new_node, bool remove_if_dangling = true);
+    void replace_all_usages(program_node& old_node, program_node& new_node, bool remove_if_dangling = true, int32_t old_dep_idx = 0);
 
     // old_node - node which will be replaced
     // new_node - node which will replace the old one

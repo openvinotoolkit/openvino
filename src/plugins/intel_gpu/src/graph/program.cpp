@@ -418,7 +418,9 @@ void program::add_node_dependencies(program_node* node) {
         try {
             auto dep_node = nodes_map.at(dep.pid);
             node->dependencies.push_back({dep_node.get(), dep.idx});
+            // TODO : merge these two
             dep_node->users.push_back(node);
+            dep_node->users_with_port.push_back({node, dep.idx});
         } catch (...) {
             throw std::runtime_error("Program doesn't contain primitive: " + dep.pid +
                                      " that is input to: " + node->get_primitive()->id);
@@ -444,7 +446,9 @@ void program::copy_node_dependencies(program_node* dest_node, program_node* src_
         try {
             auto dest_dep = nodes_map.at(src_dep.first->get_primitive()->id);
             dest_node->dependencies.push_back({dest_dep.get(), src_dep.second});
+            // TODO : merge these two
             dest_dep->users.push_back(dest_node);
+            dest_node->users_with_port.push_back({dest_node, src_dep.second});
         } catch (...) {
             throw std::runtime_error("Program doesn't contain primitive: " + src_dep.first->get_primitive()->id +
                                      " that is input to: " + src_node->get_primitive()->id);
@@ -835,11 +839,12 @@ void program::add_intermediate(program_node& node,
 
 void program::add_connection(program_node& prev, program_node& next, size_t dep_idx) {
     prev.users.push_back(&next);
+    prev.users_with_port.push_back({&next, dep_idx});
     next.dependencies.push_back({&prev, dep_idx});
 }
 
 void program::remove_connection(program_node& prev, program_node& next) {
-    prev.users.remove(&next);
+    prev.remove_user(&next);
     next.dependencies.erase(std::remove_if(next.dependencies.begin(), next.dependencies.end(),
     [&](const std::pair<program_node*, int32_t>& dep) {
         return &prev == dep.first;
@@ -855,10 +860,11 @@ void program::remove_all_connections(program_node& node) {
         }), e->dependencies.end());
     }
     for (auto& e : node.dependencies) {
-        e.first->users.remove(&node);
+        e.first->remove_user(&node, e.second);
     }
     node.dependencies.clear();
     node.users.clear();
+    node.users_with_port.clear();
 }
 
 void program::rename(program_node& node, primitive_id const& new_id) {
@@ -887,13 +893,13 @@ void program::swap_names(program_node& node1, program_node& node2) {
     std::swap(_extract_id(node1), _extract_id(node2));
 }
 
-void program::replace_all_usages(program_node& old_node, program_node& new_node, bool remove_if_dangling) {
+void program::replace_all_usages(program_node& old_node, program_node& new_node, bool remove_if_dangling, int32_t old_dep_idx) {
     // We need a copy of users of old_node because old_node may be removed when doing replace_dependency()
     const std::list<program_node*> users(old_node.users);
     auto itr = users.begin();
     while (itr != users.end()) {
         auto user = *(itr++);
-        user->replace_dependency(old_node, new_node, remove_if_dangling);
+        user->replace_dependency(old_node, new_node, remove_if_dangling, old_dep_idx);
     }
 }
 
@@ -932,6 +938,7 @@ void program::replace(program_node& old_node, program_node& new_node) {
     }
 
     old_node.users.clear();
+    old_node.users_with_port.clear();
 
     bool old_was_output = false;
     // copy node's state
@@ -1001,6 +1008,7 @@ bool program::extract(program_node& node) {
     }
 
     auto& input = node.get_dependency(0);
+    auto orig_dep_idx = node.get_dependency_with_port(0).second;
 
     // update primitive_map of loop primitive,
     // if extracted node is input of loop
@@ -1017,11 +1025,11 @@ bool program::extract(program_node& node) {
             }
         }
     }
-    input.users.remove(&node);
+    input.remove_user(&node, orig_dep_idx);
     node.dependencies.clear();
 
     if (!node.is_endpoint())
-        replace_all_usages(node, input, false);
+        replace_all_usages(node, input, false, orig_dep_idx);
 
     if (std::find(processing_order.begin(), processing_order.end(), &node) != processing_order.end())
         processing_order.erase(&node);
@@ -1107,7 +1115,9 @@ void program::fuse_nodes(program_node &fused_node,
         }
         fused_node.dependencies.push_back({&dep, 0});
         local_desc.deps.emplace_back(dep.id(), deps_idx++);
+        // TODO : merge these
         dep.users.push_back(&fused_node);
+        dep.users_with_port.push_back({&fused_node, 0});
     }
     if (local_desc.deps.size()) {
         local_desc.outer_dep_start_idx = orig_fused_node_num_deps;
@@ -1151,7 +1161,7 @@ void program::remove_nodes(std::vector<program_node*>& to_remove) {
             get_inputs().remove(node);
         } else {
             for (auto& dep : node->dependencies) {
-                dep.first->users.remove(node);
+                dep.first->remove_user(node, dep.second);
             }
         }
         for (auto& user : node->users) {

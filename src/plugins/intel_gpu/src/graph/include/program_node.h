@@ -175,15 +175,17 @@ public:
     }
 
     // replaces idx-th dependency of 'this' with 'new_dep', calls program::remove_if_dangling(old_dep)
-    void replace_dependency(size_t idx, program_node& new_dep, bool remove_if_dangling = true, size_t new_dep_idx = 0);
+    void replace_dependency(size_t idx, program_node& new_dep, bool remove_if_dangling = true, int32_t old_dep_idx = 0);
     // searches for 'old_dep' in dependencies list of 'this' and replaces it with 'new_dep', calls
     // program::remove_if_dangling(old_dep)
-    void replace_dependency(program_node const& old_dep, program_node& new_dep, bool remove_if_dangling = true);
+    void replace_dependency(program_node const& old_dep, program_node& new_dep, bool remove_if_dangling = true, int32_t old_dep_idx = 0);
 
     std::vector<primitive_id> get_dependencies_ids() const;
 
     void remove_dependency(size_t idx);
     void remove_dependency(program_node& node);
+
+    void remove_user(program_node* node, int32_t dep_idx = 0);
 
     size_t get_dependency_index(program_node& node) const;
     size_t get_user_index(program_node& node) const;
@@ -203,10 +205,15 @@ public:
 
     bool is_detached(bool whole_branch = false);
 
+    // TODO: merge users & users_with_ports
     std::list<program_node*> const& get_users() { return users; }
     // for const method, add const to stored successors/predecessors
     std::list<const program_node*> const& get_users() const {
         return reinterpret_cast<const std::list<const program_node*>&>(users);
+    }
+
+    std::list<std::pair<program_node* /*user*/, int32_t/*out_idx of the dep node*/>> const& get_users_with_port() {
+        return users_with_port;
     }
 
     std::unique_ptr<json_composite> desc_to_json() const;
@@ -434,6 +441,7 @@ protected:
 
     std::vector<std::pair<program_node*, int32_t>> dependencies;
     std::list<program_node*> users;
+    std::list<std::pair<program_node*, int32_t>> users_with_port;
 
     // list of primitives that can reuse same memory buffers due to execution order conflicts
     std::set<primitive_id> memory_dependencies;
