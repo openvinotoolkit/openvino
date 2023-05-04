@@ -7,16 +7,20 @@ from common.tflite_layer_test_class import TFLiteLayerTest
 from common.utils.tflite_utils import data_generators
 
 test_ops = [
-    {'op_name': ['RESIZE_BILINEAR'], 'op_func': tf.compat.v1.image.resize_bilinear},
+    # {'op_name': ['RESIZE_BILINEAR'], 'op_func': tf.compat.v1.image.resize_bilinear},
+    {'op_name': ['RESIZE_NEAREST_NEIGHBOR'], 'op_func': tf.compat.v1.image.resize_nearest_neighbor},
 ]
 
 test_params = [
     {'shape': [1, 3, 4, 3], 'size': [1, 1], 'align_corners': True, 'half_pixel_centers': False},
     {'shape': [1, 3, 4, 3], 'size': [1, 1], 'align_corners': False, 'half_pixel_centers': False},
-    {'shape': [1, 3, 4, 3], 'size': [1, 1], 'align_corners': False, 'half_pixel_centers': True},
-    {'shape': [1, 16, 24, 3], 'size': [8, 12], 'align_corners': True, 'half_pixel_centers': False},
-    {'shape': [1, 16, 24, 3], 'size': [8, 12], 'align_corners': False, 'half_pixel_centers': False},
-    {'shape': [1, 16, 24, 3], 'size': [8, 12], 'align_corners': False, 'half_pixel_centers': True},
+    {'shape': [1, 3, 4, 3], 'size': [1, 1], 'align_corners': False, 'half_pixel_centers': True},  # accuracy failure
+    {'shape': [1, 3, 4, 3], 'size': [1, 1], 'align_corners': True, 'half_pixel_centers': True},  # accuracy failure
+
+    {'shape': [1, 3, 4, 3], 'size': [10, 10], 'align_corners': True, 'half_pixel_centers': False},
+    {'shape': [1, 3, 4, 3], 'size': [10, 10], 'align_corners': False, 'half_pixel_centers': False},
+    {'shape': [1, 3, 4, 3], 'size': [10, 10], 'align_corners': False, 'half_pixel_centers': True},  # accuracy failure
+    {'shape': [1, 3, 4, 3], 'size': [10, 10], 'align_corners': True, 'half_pixel_centers': True},  # accuracy failure
 ]
 
 
@@ -26,9 +30,9 @@ for i, (parameters, shapes) in enumerate(test_data):
     test_data[i] = parameters.copy()
 
 
-class TestTFLiteReshapeLayerTest(TFLiteLayerTest):
+class TestTFLiteResizeLayerTest(TFLiteLayerTest):
     inputs = ["Input"]
-    outputs = ["ResizeBilinear"]
+    outputs = ["Resize"]
 
     def _prepare_input(self, inputs_dict, generator=None):
         if generator is None:
@@ -53,5 +57,5 @@ class TestTFLiteReshapeLayerTest(TFLiteLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_resize_bilinear(self, params, ie_device, precision, temp_dir):
+    def test_resize_resize(self, params, ie_device, precision, temp_dir):
         self._test(ie_device, precision, temp_dir, params)

@@ -33,7 +33,7 @@ data_generators = {
     'positive': make_positive_array,
     'short_range': short_range,
     'boolean': make_boolean_array,
-    'int32_positive': make_int32_positive_array
+    'int32_positive': make_int32_positive_array,
 }
 
 
