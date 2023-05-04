@@ -58,5 +58,19 @@ std::shared_ptr<ov::Node> makeSlice(const ov::Output<Node> &in,
     }
 }
 
+std::shared_ptr<ov::Node> makeSlice(const ov::Output<Node> &in,
+                                    const ov::Output<Node>  &begin,
+                                    const ov::Output<Node>  &end,
+                                    const ov::Output<Node>  &stride,
+                                    const ov::Output<Node>  &axes) {
+    return std::make_shared<ov::op::v8::Slice>(in, begin, end, stride, axes);
+}
+
+std::shared_ptr<ov::Node> makeSlice(const ov::Output<Node> &in,
+                                    const ov::Output<Node>  &begin,
+                                    const ov::Output<Node>  &end,
+                                    const ov::Output<Node>  &stride) {
+    return std::make_shared<ov::op::v8::Slice>(in, begin, end, stride);
+}
 }  // namespace builder
 }  // namespace ngraph

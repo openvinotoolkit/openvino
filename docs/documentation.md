@@ -13,12 +13,8 @@
    Media Processing and CV Libraries <media_processing_cv_libraries>
    OpenVINO™ Security <openvino_docs_security_guide_introduction>
 
-@endsphinxdirective
-
 
 This section provides reference documents that guide you through the OpenVINO toolkit workflow, from preparing models, optimizing them, to deploying them in your own deep learning applications.
-
-@sphinxdirective
 
 | :doc:`API Reference doc path <api/api_reference>`
 | A collection of reference articles for OpenVINO C++, C, and Python APIs. 
@@ -27,7 +23,7 @@ This section provides reference documents that guide you through the OpenVINO to
 | Apart from the core components, OpenVINO offers tools, plugins, and expansions revolving around it, even if not constituting necessary parts of its workflow. This section gives you an overview of what makes up the OpenVINO toolkit.
 
 | :doc:`OpenVINO Extensibility Mechanism <openvino_docs_Extensibility_UG_Intro>`
-| The Intel® Distribution of OpenVINO™ toolkit supports neural network models trained with various frameworks, including TensorFlow, PyTorch, ONNX, PaddlePaddle, Apache MXNet, Caffe, and Kaldi. Learn how to extend OpenVINO functionality with custom settings. 
+| The Intel® Distribution of OpenVINO™ toolkit supports neural network models trained with various frameworks, including TensorFlow, PyTorch, ONNX, TensorFlow Lite, PaddlePaddle, Apache MXNet, Caffe, and Kaldi. Learn how to extend OpenVINO functionality with custom settings. 
 
 | :doc:`Media Processing and Computer Vision Libraries <media_processing_cv_libraries>`
 | The OpenVINO™ toolkit also works with the following media processing frameworks and libraries:

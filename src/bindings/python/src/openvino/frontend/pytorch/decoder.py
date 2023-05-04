@@ -96,9 +96,7 @@ class TorchScriptPythonDecoder (Decoder):
         # We store every decoder created by this decoder so that all them are not deleted until the first decoder is deleted
         self.m_decoders = []
         self._input_signature = None
-        converted_model = False
         if graph_element is None:
-            converted_model = True
             pt_module = self._get_scripted_model(pt_module, example_input, freeze)
             self.graph_element = pt_module.inlined_graph
         else:
@@ -106,7 +104,7 @@ class TorchScriptPythonDecoder (Decoder):
         self.pt_module = pt_module
         self.raw_inputs = list(self.graph_element.inputs())
         self.raw_outputs = list(self.graph_element.outputs())
-        if self._input_signature is not None and self.raw_inputs[0].debugName() == "self":
+        if self._input_signature is not None and "self" in self.raw_inputs[0].debugName():
             self._input_signature.insert(0, "self")
 
         if isinstance(self.graph_element, torch.Graph):
@@ -137,21 +135,22 @@ class TorchScriptPythonDecoder (Decoder):
                     inputs = [inputs]
             return inputs, input_signature
 
-        pt_module.eval()
+        if isinstance(pt_module, torch.nn.Module):
+            pt_module.eval()
         input_signature = None
         if isinstance(pt_module, torch.nn.Module) and not isinstance(pt_module, (torch.jit._trace.TopLevelTracedModule, torch.jit._script.RecursiveScriptModule)):
             input_signature = list(inspect.signature(pt_module.forward).parameters.keys())
-            try:
+            if example_inputs is None:
                 scripted = torch.jit.script(pt_module)
-            except Exception as scripting_err:
-                if example_inputs is not None:
-                    inputs, input_signature = prepare_example_inputs(example_inputs, input_signature)
+            else:
+                inputs, input_signature = prepare_example_inputs(example_inputs, input_signature)
+                try:
+                    scripted = torch.jit.trace(pt_module, inputs)
+                except Exception:
                     try:
-                        scripted = torch.jit.trace(pt_module, inputs)
-                    except Exception as tracing_e:
-                        raise tracing_e
-                else:
-                    raise scripting_err
+                        scripted = torch.jit.script(pt_module)
+                    except Exception:
+                        scripted = torch.jit.trace(pt_module, inputs, strict=False)
         else:
             scripted = pt_module
         if freeze:
@@ -253,7 +252,7 @@ class TorchScriptPythonDecoder (Decoder):
 
     def get_subgraph_size(self) -> int:
         if isinstance(self.graph_element, torch.Node):
-            return len(self.get_subgraphs()) 
+            return len(self.get_subgraphs())
         else:
             return 1
 

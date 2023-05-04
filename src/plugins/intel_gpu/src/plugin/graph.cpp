@@ -535,7 +535,7 @@ void Graph::Export(cldnn::BinaryOutputBuffer &ob) {
     ob << outputDims;
 
     ob << m_networks.size();
-    for (auto net : m_networks) {
+    for (const auto& net : m_networks) {
         net->save(ob);
     }
 }

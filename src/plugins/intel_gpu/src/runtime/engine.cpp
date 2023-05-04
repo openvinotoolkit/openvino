@@ -265,6 +265,9 @@ std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type, runtime_
     device_query query(engine_type, runtime_type);
     auto devices = query.get_available_devices();
 
+    OPENVINO_ASSERT(!devices.empty(), "[GPU] Can't create ", engine_type, " engine for ", runtime_type, " runtime as no suitable devices are found\n"
+                                      "[GPU] Please check OpenVINO documentation for GPU drivers setup guide.\n");
+
     auto iter = devices.find(std::to_string(device_query::device_id));
     auto& device = iter != devices.end() ? iter->second : devices.begin()->second;
 
