@@ -4,7 +4,7 @@
   "description": "OpenVINO™ utils for using from JavaScript environment",
   "license": "Apache-2.0",
   "author": "vishniakov-nikolai",
-  "main": "./dist/openvino-wasm.bundle.js",
+  "main": "./dist/openvino-wasm.node.bundle.js",
   "types": "./types/index.d.ts",
   "scripts": {
     "build": "webpack",

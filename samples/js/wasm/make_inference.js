@@ -1,3 +1,7 @@
+const isNodeJS = typeof window === 'undefined';
+
+if (isNodeJS) module.exports = makeInference;
+
 async function makeInference(openvinojs, { modelPath, imgPath, shape, layout }, events = {}) {
   events.onLibInitializing = events.onLibInitializing || (() => {});
   events.onModelLoaging = events.onModelLoaging || (() => {});
@@ -8,11 +12,11 @@ async function makeInference(openvinojs, { modelPath, imgPath, shape, layout }, 
 
   events.onLibInitializing();
 
-  console.log(`== OpenVINO v${await openvino.getVersionString()}`);
-  console.log(`== Description string: ${await openvino.getDescriptionString()}`);
+  console.log(`== OpenVINO v${await openvinojs.getVersionString()}`);
+  console.log(`== Description string: ${await openvinojs.getDescriptionString()}`);
 
-  events.onModelLoaging(openvino);
-  const model = await openvino.loadModel(modelPath, shape, layout);
+  events.onModelLoaging(openvinojs);
+  const model = await openvinojs.loadModel(modelPath, shape, layout);
 
   events.onInferenceRunning(model);
   const inputTensor = await getArrayByImgPath(imgPath);
@@ -23,8 +27,7 @@ async function makeInference(openvinojs, { modelPath, imgPath, shape, layout }, 
   const max = getMaxElement(outputTensor.data);
   console.log(`== Max index: ${max.index}, value: ${max.value}`);
 
-  const imagenetClassesMap = await fetch('./assets/imagenet_classes_map.json')
-    .then((response) => response.json());
+  const imagenetClassesMap = await getClasses();
 
   console.log(`== Result class: ${imagenetClassesMap[max.index]}`);
 
@@ -63,6 +66,8 @@ async function getArrayByImgPath(path) {
 }
 
 function loadImage(path) {
+  if (isNodeJS) return require('canvas').loadImage(path);
+
   return new Promise((resolve) => {
     const img = new Image();
 
@@ -74,10 +79,19 @@ function loadImage(path) {
 }
 
 function createCanvas(width, height) {
+  if (isNodeJS) return require('canvas').createCanvas(width, height);
+
   const canvasElement = document.createElement('canvas');
 
   canvasElement.width = width;
   canvasElement.height = height;
 
   return canvasElement;
+}
+
+async function getClasses() {
+  if (isNodeJS) return require('../assets/imagenet_classes_map.json');
+
+  return fetch('./assets/imagenet_classes_map.json')
+    .then((response) => response.json());
 }

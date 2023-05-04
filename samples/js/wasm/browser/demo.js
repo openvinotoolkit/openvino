@@ -27,7 +27,7 @@ const inferenceParametersFaceDetection = {
   layout: 'NCHW',
 };
 
-makeInference(openvino, inferenceParametersMobilenetV3, events);
+makeInference(openvinojs, inferenceParametersMobilenetV3, events);
 
 function setStatus(txt) {
   return () => statusElement.innerText = txt;
