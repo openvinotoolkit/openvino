@@ -135,7 +135,7 @@ Below is a list of separate examples for different frameworks and Model Optimize
           .. code-block:: python
    
              from openvino.tools.mo import convert_model
-             ov_model = convert_model(saved_model_dir="BERT", input=["mask", "word_ids", "type_ids"], input_shape=[[2,30],[2,30],[2,30]])
+             ov_model = convert_model("BERT", input_shape=[[2,30],[2,30],[2,30]])
 
 
    For more information, refer to the :doc:`Converting a TensorFlow Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow>` guide.
