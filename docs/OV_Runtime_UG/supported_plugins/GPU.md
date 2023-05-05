@@ -234,17 +234,16 @@ Dynamic Shapes
 .. note::
 
    Currently, dynamic shape support for GPU is a preview feature and has the following limitations:
-   - It mainly supports NLP models (Natural Language Processing). Not all operations and optimization passes supports dynamic shape. As a result, an arbitrary model may crash or experience significant performance drops.   
+   - It mainly supports NLP models (Natural Language Processing). Not all operations and optimization passes support dynamic shapes. As a result, a given model may crash or experience significant performance drops.   
    - Due to the dominant runtime overhead on the host device, dynamic shapes may perform worse than static shapes on a discrete GPU.
    - Dynamic rank is not supported.
 
-
 To support dynamic shape execution, the following basic infrastructures are implemented:
 
-- Runtime shape inference : Infers the output shapes of each primitive for a new input shape at runtime
-- Shape agnostic kernels : New kernels that can run arbitrary shapes. If shape agnostic kernel is not available, the required kernel is compiled at runtime for each shape.
-- Asynchronous kernel compilation : Even when a shape agnostic kernel is available, the GPU plugin compiles an optimal kernel for the given shape and preserve it in the in-memory cache for future use.
-- In-memory cache : Preserves kernels compiled in runtime and weights reordered for the specific kernels
+- Runtime shape inference: infers output shapes of each primitive for a new input shape at runtime.
+- Shape agnostic kernels: new kernels that can run arbitrary shapes. If a shape-agnostic kernel is not available, the required kernel is compiled at runtime for each shape.
+- Asynchronous kernel compilation: even when a shape-agnostic kernel is available, the GPU plugin compiles an optimal kernel for the given shape and preserves it in the in-memory cache for future use.
+- In-memory cache: preserves kernels compiled at runtime and weights reordered for the specific kernels.
 
 Bounded dynamic batch
 -----------------------------------------------------------
