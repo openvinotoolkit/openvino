@@ -249,14 +249,16 @@ To support dynamic shape execution, the following basic infrastructures are impl
 Bounded dynamic batch
 -----------------------------------------------------------
 
-It is worth noting that the internal behavior differs from general cases if only the batch dimension is dynamic and has a fixed upper bound, a.k.a bounded batch dynamic shape.
-While general dynamic shape can run on one compiled model, the GPU plugin creates ``log2(N)`` (``N`` - is an upper bound for batch dimension here) low-level
-execution graphs for batch sizes equal to powers of 2 to emulate dynamic behavior in the bounded dynamic batch.
-As a result, an incoming infer request with a specific batch size is executed via a minimal combination of internal networks.
+It is worth noting that the internal behavior differs in the case of bounded-batch dynamic shapes, 
+which means that only the batch dimension is dynamic and it has a fixed upper bound.
+
+While general dynamic shapes can run on one compiled model, for the bounded dynamic batch the GPU plugin creates ``log2(N)`` 
+low-level execution graphs in batch sizes equal to the powers of 2, to emulate the dynamic behavior (``N`` - is the upper bound for the batch dimension here).
+As a result, the incoming infer request with a specific batch size is executed via the minimal combination of internal networks.
 For example, a batch size of 33 may be executed via two internal networks with batch sizes of 32 and 1.
 This approach is adopted for performance reasons, but it requires more memory and increased compilation time for multiple copies of internal networks.
 
-The code snippet below demonstrates examples of bounded dynamic batch:
+The code snippet below demonstrates examples of a bounded dynamic batch:
 
 .. tab-set::
 
