@@ -239,6 +239,8 @@ Dynamic Shapes
    - Due to the dominant runtime overhead on the host device, dynamic shapes may perform worse than static shapes on a discrete GPU.
    - Dynamic rank is not supported.
 
+The general description of what dynamic shapes are and how they are used can be found in
+:doc:`dynamic shapes guide <openvino_docs_OV_UG_DynamicShapes>`. 
 To support dynamic shape execution, the following basic infrastructures are implemented:
 
 - Runtime shape inference: infers output shapes of each primitive for a new input shape at runtime.
