@@ -324,7 +324,7 @@ void FullyConnected::prepareParams() {
                 return std::make_shared<DnnlExecutor>(prim_desc);
         }
 
-        // fallback to normal convolution primitive
+        // fallback to normal inner product primitive
         auto inDesc = key.inp0->getDnnlDesc();
         const auto& inDims = inDesc.get_dims(); // @TODO query + copy might be slow
         if (inDims.size() == 3) {
@@ -339,14 +339,15 @@ void FullyConnected::prepareParams() {
             auto normalizedOutDims = { outDims[0] * outDims[1], outDims[2] };
             outDesc = outDesc.reshape(normalizedOutDims);
         }
-
+        auto wghDescAny = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(key.inp1->getShape().getStaticDims()),
+                        key.inp1->getDataType(), memory::format_tag::any);
         dnnl::inner_product_forward::primitive_desc prim_desc;
         if (key.bias) {
             prim_desc = dnnl::inner_product_forward::primitive_desc(
                 engine,
                 dnnl::prop_kind::forward_inference,
                 inDesc,
-                key.inp1->getDnnlDesc(),
+                wghDescAny,
                 key.bias->getDnnlDesc(),
                 outDesc,
                 key.attr);
@@ -355,17 +356,20 @@ void FullyConnected::prepareParams() {
                 engine,
                 dnnl::prop_kind::forward_inference,
                 inDesc,
-                key.inp1->getDnnlDesc(),
+                wghDescAny,
                 outDesc,
                 key.attr);
         }
-
+        auto first_desc = dnnl::inner_product_forward::primitive_desc(prim_desc.get());
         const bool found = DnnlExtensionUtils::find_implementation(prim_desc, key.implType);
 
-        if (!found)
-            return nullptr;
+        if (found)
+            return std::make_shared<DnnlExecutor>(prim_desc);
 
-        return std::make_shared<DnnlExecutor>(prim_desc);;
+        // For dynamic shape, the expected implement type kernel can support with dummy shape but
+        // not support with run time inference shape. With this case, the implement type would be
+        // ignored and first available primitive descriptor would be chosen.
+        return std::make_shared<DnnlExecutor>(first_desc);
     };
 
     auto cache = context->getParamsCache();
