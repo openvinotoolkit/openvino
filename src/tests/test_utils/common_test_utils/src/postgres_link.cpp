@@ -280,9 +280,8 @@ public:
             // More about serialization: https://www.postgresql.org/docs/9.5/transaction-iso.html
             if (errStr.find("could not serialize access") != std::string::npos ||
                 errStr.find("current transaction is aborted") != std::string::npos) {
-                std::cerr << PG_WRN
-                          << "Serialization error, trying again, try attempt: " << static_cast<uint32_t>(queryCounter++)
-                          << std::endl;
+                std::cerr << PG_WRN << "Serialization error: " << errStr
+                          << "\nTrying again, try attempt: " << static_cast<uint32_t>(queryCounter++) << std::endl;
                 uint32_t waitTime = 50 + static_cast<uint32_t>(std::rand()) % 150;
 #ifdef _WIN32
                 Sleep(waitTime);  // Wait some time for the next attempt
@@ -292,8 +291,13 @@ public:
                     std::cerr << PG_WRN << "nanosleep returned value != 0\n";
                 }
 #endif
+                // We may have some connection issues, each tenth step try to reconnect
+                if (smartRetry && (queryCounter % 10) == 0) {
+                    TryReconnect();
+                }
                 // Each fifth step it tries to call non-transactional part of query
                 if (smartRetry && selectPos != std::string::npos && (queryCounter % 5) == 0) {
+                    std::cerr << PG_WRN << "Sending a request with no transactional part\n";
                     result = CommonQuery(query + selectPos);
                     continue;
                 }
