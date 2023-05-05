@@ -1,4 +1,4 @@
-# Demo of OpenVINO™ JS API usage
+# Demo of WASM OpenVINO™ JS API usage
 
 ## Preparation
 
@@ -6,7 +6,7 @@
    - From repository root: `mkdir build`
    - Run emscripten compiler `docker run -it --rm -v $(pwd):/openvino emscripten/emsdk`
    - From docker `cd /openvino/build`
-   - Run cmake 
+   - Run cmake
    ```
    emcmake cmake \
       -DCMAKE_BUILD_TYPE=Release \
@@ -17,7 +17,7 @@
       -DENABLE_OV_PADDLE_FRONTEND=OFF \
       ..
    ```
-   - Run compilation by run **openvino_wasm** job 
+   - Run compilation by run **openvino_wasm** job
    ```
    emmake make -j4 openvino_wasm
    ```
@@ -29,7 +29,7 @@
 
 ## Run demo
 
-### Node.js (FIXME: temporary doesn't work)
+### Node.js
 
 - Run `npm run nodejs` from *./samples/js/wasm/*
 - Console will contain execution results
