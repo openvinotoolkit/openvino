@@ -451,6 +451,51 @@ class TorchScriptPythonDecoder (Decoder):
     def inlined_inputs(self, index):
         return []
 
+    @staticmethod
+    def _transform_tensor_list_constants_to_listconstruct(graph: torch.Graph):
+        # Function replaces prim::Constant containing List of Tensors with
+        # prim::ListConstruct containing prim::Constant Tensors.
+        assert isinstance(graph, torch.Graph), "Function can be called only with parameters of type torch.Graph."
+        for node in graph.nodes():
+            if node.kind() != "prim::Constant":
+                continue
+            output_type = node.output().type()
+            allowed_types = [
+                output_type.isSubtypeOf(torch.ListType.ofTensors()),
+                output_type.isSubtypeOf(torch.ListType(torch.OptionalType.ofTensor())),
+            ]
+            if not any(allowed_types):
+                continue
+            const_inputs = []
+            for val in node.output().toIValue():
+                const_input = graph.insertConstant(val)
+                const_input.node().moveBefore(node)
+                const_input.node().copyMetadata(node)
+                const_inputs.append(const_input)
+
+            replacement = graph.create("prim::ListConstruct", const_inputs)
+            replacement.insertBefore(node)
+            replacement.output().setType(torch.ListType.ofTensors())
+            replacement.copyMetadata(node)
+            node.output().replaceAllUsesWith(replacement.output())
+
+    @staticmethod
+    def _transform_optional_constants(graph: torch.Graph):
+        # Function replaces prim::Constant containing torch.OptionalType with
+        # prim::Constant containing torch.NoneType or type of IValue.
+        assert isinstance(graph, torch.Graph), "Function can be called only with parameters of type torch.Graph."
+        for node in graph.nodes():
+            if node.kind() != "prim::Constant":
+                continue
+            output_type = node.output().type()
+            if not isinstance(output_type, torch.OptionalType):
+                continue
+            value = node.output().toIValue()
+            const_input = graph.insertConstant(value)
+            const_input.node().moveBefore(node)
+            const_input.node().copyMetadata(node)
+            node.output().replaceAllUsesWith(const_input)
+
 class TorchFXPythonDecoder (Decoder):
 
     def __init__(self, pt_module, fx_gm, nodes=None, mark_node_callback=None, input_shapes=[], input_types=[]):
@@ -901,47 +946,3 @@ class TorchFXPythonDecoder (Decoder):
                     self._inputs[i] = index
                     index += 1
         return result
-    @staticmethod
-    def _transform_tensor_list_constants_to_listconstruct(graph: torch.Graph):
-        # Function replaces prim::Constant containing List of Tensors with
-        # prim::ListConstruct containing prim::Constant Tensors.
-        assert isinstance(graph, torch.Graph), "Function can be called only with parameters of type torch.Graph."
-        for node in graph.nodes():
-            if node.kind() != "prim::Constant":
-                continue
-            output_type = node.output().type()
-            allowed_types = [
-                output_type.isSubtypeOf(torch.ListType.ofTensors()),
-                output_type.isSubtypeOf(torch.ListType(torch.OptionalType.ofTensor())),
-            ]
-            if not any(allowed_types):
-                continue
-            const_inputs = []
-            for val in node.output().toIValue():
-                const_input = graph.insertConstant(val)
-                const_input.node().moveBefore(node)
-                const_input.node().copyMetadata(node)
-                const_inputs.append(const_input)
-
-            replacement = graph.create("prim::ListConstruct", const_inputs)
-            replacement.insertBefore(node)
-            replacement.output().setType(torch.ListType.ofTensors())
-            replacement.copyMetadata(node)
-            node.output().replaceAllUsesWith(replacement.output())
-
-    @staticmethod
-    def _transform_optional_constants(graph: torch.Graph):
-        # Function replaces prim::Constant containing torch.OptionalType with
-        # prim::Constant containing torch.NoneType or type of IValue.
-        assert isinstance(graph, torch.Graph), "Function can be called only with parameters of type torch.Graph."
-        for node in graph.nodes():
-            if node.kind() != "prim::Constant":
-                continue
-            output_type = node.output().type()
-            if not isinstance(output_type, torch.OptionalType):
-                continue
-            value = node.output().toIValue()
-            const_input = graph.insertConstant(value)
-            const_input.node().moveBefore(node)
-            const_input.node().copyMetadata(node)
-            node.output().replaceAllUsesWith(const_input)

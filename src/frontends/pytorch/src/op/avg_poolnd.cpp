@@ -23,7 +23,6 @@ OutputVector translate_avg_poolnd(const NodeContext& context) {
     auto input = context.get_input(0);
     auto kernel = context.const_input<Shape>(1);
     Strides strides;
-    bool count_include_pad = true;
     if (!context.input_is_none(2)) {
         strides = context.const_input<Strides>(2);
     }
@@ -32,6 +31,7 @@ OutputVector translate_avg_poolnd(const NodeContext& context) {
         strides = kernel;
     }
     Shape pads;
+    bool count_include_pad = true;
     if (context.input_is_none(3)) {
         count_include_pad = false;
         pads = Shape(kernel.size(), 0);
