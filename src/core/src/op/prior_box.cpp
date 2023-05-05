@@ -14,29 +14,6 @@
 
 namespace ov {
 namespace op {
-namespace prior_box {
-static constexpr auto input_names = std::array<const char*, 2>{"output size", "image"};
-
-namespace validate {
-std::vector<PartialShape> inputs_et(const Node* const op) {
-    const auto inputs_size = op->get_input_size();
-    auto input_shapes = std::vector<PartialShape>();
-    input_shapes.reserve(inputs_size);
-
-    for (size_t i = 0; i < inputs_size; ++i) {
-        const auto& et = op->get_input_element_type(i);
-        NODE_VALIDATION_CHECK(op,
-                              et.is_integral_number(),
-                              prior_box::input_names[i],
-                              " input must be an integral number, but is: ",
-                              et);
-        input_shapes.push_back(op->get_input_partial_shape(i));
-    }
-    return input_shapes;
-}
-}  // namespace validate
-}  // namespace prior_box
-
 // ------------------------------ V0 ------------------------------
 namespace v0 {
 namespace {

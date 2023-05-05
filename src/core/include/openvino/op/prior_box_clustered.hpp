@@ -48,6 +48,8 @@ public:
     const Attributes& get_attrs() const {
         return m_attrs;
     }
+    void set_attrs(Attributes attrs);
+
     bool visit_attributes(AttributeVisitor& visitor) override;
     OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;

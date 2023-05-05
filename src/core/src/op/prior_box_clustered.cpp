@@ -10,6 +10,7 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/prior_box_clustered.hpp"
+#include "prior_box_clustered_shape_inference.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -24,27 +25,8 @@ ov::op::v0::PriorBoxClustered::PriorBoxClustered(const Output<Node>& layer_shape
 
 void ov::op::v0::PriorBoxClustered::validate_and_infer_types() {
     OV_OP_SCOPE(v0_PriorBoxClustered_validate_and_infer_types);
-    // shape node should have integer data type. For now we only allow i64
-    auto layer_shape_et = get_input_element_type(0);
-    NODE_VALIDATION_CHECK(this,
-                          layer_shape_et.is_integral_number(),
-                          "layer shape input must be an integral number, but is: ",
-                          layer_shape_et);
 
-    auto image_shape_et = get_input_element_type(1);
-    NODE_VALIDATION_CHECK(this,
-                          image_shape_et.is_integral_number(),
-                          "image shape input must be an integral number, but is: ",
-                          image_shape_et);
-
-    auto layer_shape_rank = get_input_partial_shape(0).rank();
-    auto image_shape_rank = get_input_partial_shape(1).rank();
-    NODE_VALIDATION_CHECK(this,
-                          layer_shape_rank.compatible(image_shape_rank),
-                          "layer shape input rank ",
-                          layer_shape_rank,
-                          " must match image shape input rank ",
-                          image_shape_rank);
+    const auto input_shapes = prior_box::validate::inputs_et(this);
 
     NODE_VALIDATION_CHECK(this,
                           m_attrs.widths.size() == m_attrs.heights.size(),
@@ -53,23 +35,10 @@ void ov::op::v0::PriorBoxClustered::validate_and_infer_types() {
                           " doesn't match size of widths vector: ",
                           m_attrs.widths.size());
 
+    const auto output_shapes = shape_infer(this, input_shapes);
+
+    set_output_type(0, element::f32, output_shapes.front());
     set_input_is_relevant_to_shape(0);
-
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    if (auto const_shape = get_constant_from_source(input_value(0).get_node_shared_ptr())) {
-        OPENVINO_SUPPRESS_DEPRECATED_END
-        NODE_VALIDATION_CHECK(this,
-                              shape_size(const_shape->get_shape()) == 2,
-                              "Layer shape must have rank 2",
-                              const_shape->get_shape());
-
-        auto layer_shape = const_shape->get_shape_val();
-        // {Prior boxes, variances-adjusted prior boxes}
-        const auto num_priors = m_attrs.widths.size();
-        set_output_type(0, element::f32, ov::Shape{2, 4 * layer_shape[0] * layer_shape[1] * num_priors});
-    } else {
-        set_output_type(0, element::f32, ov::PartialShape{2, Dimension::dynamic()});
-    }
 }
 
 shared_ptr<Node> ov::op::v0::PriorBoxClustered::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -151,4 +120,8 @@ bool op::v0::PriorBoxClustered::has_evaluate() const {
         break;
     }
     return false;
+}
+
+void op::v0::PriorBoxClustered::set_attrs(Attributes attrs) {
+    m_attrs = std::move(attrs);
 }
