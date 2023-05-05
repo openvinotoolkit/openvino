@@ -758,7 +758,7 @@ void Node::initDescriptor(const NodeConfig& config) {
     createDescriptor(inDescs, outDescs);
 
     for (auto& desc : descs) {
-        if (DnnlExtensionUtils::hasProperImplementationType(desc, selectedPD->getImplementationType())) {
+        if (DnnlExtensionUtils::find_implementation(desc, selectedPD->getImplementationType())) {
             selectedPD->setConfig(config);
             return;
         }
