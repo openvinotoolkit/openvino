@@ -2,7 +2,11 @@ const isNodeJS = typeof window === 'undefined';
 
 if (isNodeJS) module.exports = makeInference;
 
-async function makeInference(openvinojs, { modelPath, imgPath, shape, layout }, events = {}) {
+async function makeInference(
+  openvinojs,
+  { modelPath, imgPath, shape, layout },
+  events = {},
+) {
   events.onLibInitializing = events.onLibInitializing || (() => {});
   events.onModelLoaging = events.onModelLoaging || (() => {});
   events.onInferenceRunning = events.onInferenceRunning || (() => {});
@@ -13,7 +17,9 @@ async function makeInference(openvinojs, { modelPath, imgPath, shape, layout }, 
   events.onLibInitializing();
 
   console.log(`== OpenVINO v${await openvinojs.getVersionString()}`);
-  console.log(`== Description string: ${await openvinojs.getDescriptionString()}`);
+  console.log(`== Description string: ${
+    await openvinojs.getDescriptionString()
+  }`);
 
   events.onModelLoaging(openvinojs);
   const model = await openvinojs.loadModel(modelPath, shape, layout);
@@ -40,12 +46,11 @@ function getMaxElement(arr) {
   let max = arr[0];
   let maxIndex = 0;
 
-  for (let i = 1; i < arr.length; ++i) {
+  for (let i = 1; i < arr.length; ++i)
     if (arr[i] > max) {
       maxIndex = i;
       max = arr[i];
     }
-  }
 
   return { value: max, index: maxIndex };
 }
