@@ -274,7 +274,7 @@ The code snippet below demonstrates examples of bounded dynamic batch:
          :fragment: dynamic_batch
 
 
-Notes for performance and memory consumption in dynamic shape
+Notes for performance and memory consumption in dynamic shapes
 --------------------------------------------------------------
 
 - Extra CPU utilization during inference :
