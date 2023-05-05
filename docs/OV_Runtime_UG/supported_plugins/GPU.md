@@ -281,7 +281,7 @@ Notes for performance and memory consumption in dynamic shapes
 
    - Shape inference for new input shapes
    - Kernel compilation in runtime for optimal kernel
-   - Unfusion of the fused subgraph when the fusing is illegal for runtime shape
+   - Unfusion of the fused subgraph when fusing is not allowed for a runtime shape
 
 -  Higher memory consumption for in-memory cache
 
