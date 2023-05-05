@@ -9,7 +9,9 @@
 
    Model Preparation <openvino_docs_model_processing_introduction>
    Model Optimization and Compression <openvino_docs_model_optimization_guide>
-   Running and Deploying Inference <openvino_docs_deployment_guide_introduction>
+   Running Inference <openvino_docs_OV_UG_OV_Runtime_User_Guide>
+   Deploy on a Local Machine  <openvino_docs_deployment_guide_introduction>
+   Delpoy on a Model Server <ovms_what_is_openvino_model_server>
    
 
 | :doc:`Model Preparation <openvino_docs_model_processing_introduction>`
