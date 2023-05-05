@@ -11,7 +11,7 @@
 #include <openvino/core/type.hpp>
 #include <ie/ie_parallel.hpp>
 #include "kernels/x64/jit_kernel.hpp"
-#include "utils/custom_shape_inference/shape_inference_cpu.hpp"
+#include "utils/custom_shape_inference/color_convert.hpp"
 
 using namespace InferenceEngine;
 using namespace dnnl::impl;

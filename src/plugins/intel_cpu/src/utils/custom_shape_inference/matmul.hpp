@@ -18,7 +18,7 @@ public:
     }
     Result infer(
         const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {};
+        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override;
 
     port_mask_t get_port_mask() const override {
         return EMPTY_PORT_MASK;
@@ -34,7 +34,7 @@ private:
 class MMShapeInferFactory : public ShapeInferFactory {
 public:
     MMShapeInferFactory(const std::shared_ptr<ngraph::Node>& op) : m_op(op) {}
-    ShapeInferPtr makeShapeInfer() const override {};
+    ShapeInferPtr makeShapeInfer() const override;
 private:
     std::shared_ptr<ngraph::Node> m_op;
 };

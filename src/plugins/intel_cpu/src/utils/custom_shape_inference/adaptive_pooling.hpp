@@ -21,7 +21,7 @@ public:
     explicit AdaptivePoolingShapeInfer(size_t outputs_count) : m_outputs_count(outputs_count) {}
     Result infer(
         const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {};
+        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override;
 
     port_mask_t get_port_mask() const override {
         return PortMask(1);
@@ -34,7 +34,7 @@ private:
 class AdaptivePoolingShapeInferFactory : public ShapeInferFactory {
 public:
     AdaptivePoolingShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(op) {}
-    ShapeInferPtr makeShapeInfer() const override {};
+    ShapeInferPtr makeShapeInfer() const override;
 
 private:
     std::shared_ptr<ov::Node> m_op;

@@ -16,7 +16,7 @@ using namespace InferenceEngine;
  * the [D_out, H_out, W_out] dimensions, which are placed in the second input parameter.
  *
  */
-Result daptivePoolingShapeInfer::infer(
+Result AdaptivePoolingShapeInfer::infer(
         const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
         const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
     const auto& inputDims = input_shapes[0].get();

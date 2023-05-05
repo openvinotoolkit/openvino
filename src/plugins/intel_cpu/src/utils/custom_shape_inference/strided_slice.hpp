@@ -19,11 +19,11 @@ public:
                            std::unordered_set<int64_t> begin_mask,
                            std::unordered_set<int64_t> end_mask,
                            std::unordered_set<int64_t> new_axis_mask,
-                           std::unordered_set<int64_t> shrink_axis_mask) {};
+                           std::unordered_set<int64_t> shrink_axis_mask);
 
     Result infer(
         const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {};
+        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override;
 
     port_mask_t get_port_mask() const override {
         return port_mask;
@@ -41,7 +41,7 @@ class StridedSliceShapeInferFactory : public ShapeInferFactory {
 public:
     StridedSliceShapeInferFactory(const std::shared_ptr<ov::Node>& op)
     : m_op(op) {}
-    ShapeInferPtr makeShapeInfer() const override {};
+    ShapeInferPtr makeShapeInfer() const override;
 
 private:
     const std::shared_ptr<ov::Node> m_op;

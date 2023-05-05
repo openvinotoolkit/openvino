@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "stride.hpp"
+#include "strided_slice.hpp"
 #include "utils.hpp"
 #include "ie_ngraph_utils.hpp"
+#include "slice_shape_inference.hpp"
+#include <utils/shape_inference/shape_inference_ngraph.hpp>
 
 namespace ov {
 namespace intel_cpu {

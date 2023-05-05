@@ -5,6 +5,7 @@
 #include "matmul.hpp"
 #include "utils.hpp"
 #include "ie_ngraph_utils.hpp"
+#include <ngraph/opsets/opset1.hpp>
 
 namespace ov {
 namespace intel_cpu {

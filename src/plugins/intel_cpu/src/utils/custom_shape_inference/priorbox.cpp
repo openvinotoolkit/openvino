@@ -5,6 +5,7 @@
 #include "priorbox.hpp"
 #include "utils.hpp"
 #include "ie_ngraph_utils.hpp"
+#include <ngraph/opsets/opset1.hpp>
 
 namespace ov {
 namespace intel_cpu {
@@ -17,7 +18,7 @@ using namespace InferenceEngine;
  */
 Result PriorBoxShapeInfer::infer(
         const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
+        const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
     const int* in_data = reinterpret_cast<const int*>(data_dependency.at(0)->GetPtr());
     const int H = in_data[0];
     const int W = in_data[1];
@@ -26,7 +27,7 @@ Result PriorBoxShapeInfer::infer(
 }
 
 
-ShapeInferPtr  PriorBoxShapeInferFactory::makeShapeInfer() const override {
+ShapeInferPtr  PriorBoxShapeInferFactory::makeShapeInfer() const {
     auto priorBox = ov::as_type_ptr<const ngraph::opset1::PriorBox>(m_op);
     if (!priorBox) {
         IE_THROW() << "Unexpected op type in PriorBox shape inference factory: " << m_op->get_type_name();

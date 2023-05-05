@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/cpu_opset/common/op/ngram.hpp"
 #include "ngram.hpp"
 #include "utils.hpp"
 #include "ie_ngraph_utils.hpp"

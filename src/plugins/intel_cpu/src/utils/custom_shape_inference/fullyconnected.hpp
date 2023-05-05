@@ -16,7 +16,7 @@ public:
     FCShapeInfer(size_t outPut_rank) : out_rank(outPut_rank) {}
     Result infer(
         const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {};
+        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override;
 
     port_mask_t get_port_mask() const override {
         return EMPTY_PORT_MASK;
