@@ -46,10 +46,12 @@ typedef enum {
 #    endif
 #    include <limits.h>
 #    include <sys/utsname.h>
+#    include <time.h>
 #    include <unistd.h>
 #elif defined(__APPLE__)
 #    include <sys/param.h>
 #    include <sys/utsname.h>
+#    include <time.h>
 #    include <unistd.h>
 #    ifndef HOST_NAME_MAX
 #        define HOST_NAME_MAX MAXHOSTNAMELEN
@@ -285,7 +287,10 @@ public:
 #ifdef _WIN32
                 Sleep(waitTime);  // Wait some time for the next attempt
 #else
-                usleep(waitTime * 1000);
+                struct timespec waitTimeTS = {0, waitTime * 1000};
+                if (nanosleep(&waitTimeTS, &waitTimeTS) != 0) {
+                    std::cerr << PG_WRN << "nanosleep returned value != 0\n";
+                }
 #endif
                 // Each fifth step it tries to call non-transactional part of query
                 if (smartRetry && selectPos != std::string::npos && (queryCounter % 5) == 0) {
