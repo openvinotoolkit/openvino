@@ -472,7 +472,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
         for (const auto& param : params) {
             ov_tensors.insert(param->output(0));
         }
-        for (const auto result : results) {
+        for (const auto& result : results) {
             ov_tensors.insert(result->input_value(0));
         }
 
