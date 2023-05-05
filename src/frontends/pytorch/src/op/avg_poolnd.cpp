@@ -22,20 +22,27 @@ OutputVector translate_avg_poolnd(const NodeContext& context) {
     num_inputs_check(context, 3, 7);
     auto input = context.get_input(0);
     auto kernel = context.const_input<Shape>(1);
-    auto strides = context.const_input<Strides>(2);
+    Strides strides;
     bool count_include_pad = true;
+    if (!context.input_is_none(2)) {
+        strides = context.const_input<Strides>(2);
+    }
+    if (context.input_is_none(2) || strides.size() == 0) {
+        // In case strides are not provided default is kernel
+        strides = kernel;
+    }
     Shape pads;
     if (context.input_is_none(3)) {
         count_include_pad = false;
-        pads = Shape(kernel.size(),0);
+        pads = Shape(kernel.size(), 0);
     } else {
-        pads = context.const_input<Shape>(3);  // pytorch supports only symmetric paddings
+        pads = context.const_input<Shape>(3); //pytorch supports only symmetric padding
     }
     ov::op::RoundingType rounding_type = ov::op::RoundingType::FLOOR;
     if (!(context.input_is_none(4))) {
         rounding_type = context.const_input<bool>(4) ? ov::op::RoundingType::CEIL : ov::op::RoundingType::FLOOR;
     }
-    if (!(context.input_is_none(5))) {
+    if (!(context.input_is_none(5))){
         count_include_pad = context.const_input<bool>(5);
     }
     FRONT_END_OP_CONVERSION_CHECK(context.input_is_none(6),

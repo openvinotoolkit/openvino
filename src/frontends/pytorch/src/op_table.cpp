@@ -21,6 +21,7 @@ OP_CONVERTER(translate_adaptive_max_pool2d);
 OP_CONVERTER(translate_add);
 OP_CONVERTER(translate_addcmul);
 OP_CONVERTER(translate_addmm);
+OP_CONVERTER(translate_all);
 OP_CONVERTER(translate_arange);
 OP_CONVERTER(translate_argsort);
 OP_CONVERTER(translate_as_tensor);
@@ -52,6 +53,7 @@ OP_CONVERTER(translate_floor_divide);
 OP_CONVERTER(translate_floordiv);
 OP_CONVERTER(translate_full);
 OP_CONVERTER(translate_full_like);
+OP_CONVERTER(translate_gather);
 OP_CONVERTER(translate_gelu);
 OP_CONVERTER(translate_get_attr);
 OP_CONVERTER(translate_getitem);
@@ -62,6 +64,7 @@ OP_CONVERTER(translate_hardtanh);
 OP_CONVERTER(translate_if);
 OP_CONVERTER(translate_im2col);
 OP_CONVERTER(translate_index_put_);
+OP_CONVERTER(translate_index_select);
 OP_CONVERTER(translate_instance_norm);
 OP_CONVERTER(translate_int);
 OP_CONVERTER(translate_layer_norm);
@@ -105,9 +108,11 @@ OP_CONVERTER(translate_roi_align);
 OP_CONVERTER(translate_roll);
 OP_CONVERTER(translate_rsqrt);
 OP_CONVERTER(translate_rsub);
+OP_CONVERTER(translate_scaled_dot_product_attention);
 OP_CONVERTER(translate_select);
 OP_CONVERTER(translate_set_item);
 OP_CONVERTER(translate_selu);
+OP_CONVERTER(translate_sign);
 OP_CONVERTER(translate_size);
 OP_CONVERTER(translate_slice);
 OP_CONVERTER(translate_slice_fx);
@@ -164,6 +169,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::add_", op::inplace_op<op::translate_add>},
         {"aten::addcmul", op::translate_addcmul},
         {"aten::addmm", op::translate_addmm},
+        {"aten::all", op::translate_all},
         {"aten::argsort", op::translate_argsort},
         {"aten::arange", op::translate_arange},
         {"aten::as_tensor", op::translate_as_tensor},
@@ -205,6 +211,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::cosh", op::translate_1to1_match_1_inputs<opset10::Cosh>},
         {"aten::cosh_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Cosh>>},
         {"aten::cumsum", op::translate_cumsum},
+        {"aten::detach", op::skip_node},
         {"aten::dim", op::translate_dim},
         {"aten::div", op::translate_div},
         {"aten::div_", op::inplace_op<op::translate_div>},
@@ -226,6 +233,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::floordiv", op::translate_floordiv},
         {"aten::full", op::translate_full},
         {"aten::full_like", op::translate_full_like},
+        {"aten::gather", op::translate_gather},
         {"aten::ge", op::translate_1to1_match_2_inputs_align_types<opset10::GreaterEqual>},
         {"aten::gelu", op::translate_gelu},
         {"aten::glu", op::translate_glu},
@@ -239,6 +247,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::hardtanh_", op::inplace_op<op::translate_hardtanh>},
         {"aten::im2col", op::translate_im2col},
         {"aten::index_put_", op::inplace_op<op::translate_index_put_>},
+        {"aten::index_select", op::translate_index_select},
         {"aten::instance_norm", op::translate_instance_norm},
         {"aten::Int", op::translate_int},
         {"aten::IntImplicit", op::translate_int},
@@ -299,11 +308,13 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::rsqrt", op::translate_rsqrt},
         {"aten::rsub", op::translate_rsub},
         {"aten::ScalarImplicit", op::skip_node},
+        {"aten::scaled_dot_product_attention", op::translate_scaled_dot_product_attention},
         {"aten::select", op::translate_select},
         {"aten::selu", op::translate_selu},
         {"aten::selu_", op::inplace_op<op::translate_selu>},
         {"aten::sigmoid", op::translate_1to1_match_1_inputs<opset10::Sigmoid>},
         {"aten::sigmoid_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Sigmoid>>},
+        {"aten::sign", op::translate_sign},
         {"aten::silu", op::translate_1to1_match_1_inputs<opset10::Swish>},
         {"aten::silu_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Swish>>},
         {"aten::sin", op::translate_1to1_match_1_inputs<opset10::Sin>},

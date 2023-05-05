@@ -50,7 +50,7 @@ private:
     memory::ptr _result;
     stream::ptr _stream;
     layout _layout;
-    network_output(event::ptr evt, memory::ptr mem, stream::ptr stream, layout layout) : _event(evt), _result(mem), _stream(stream), _layout(layout) {}
+    network_output(event::ptr evt, memory::ptr mem, stream::ptr stream, const layout& layout) : _event(evt), _result(mem), _stream(stream), _layout(layout) {}
     friend struct network;
 };
 
@@ -87,8 +87,8 @@ public:
 
     network(program::ptr program, stream::ptr stream, uint16_t stream_id);
 
-    network(cldnn::BinaryInputBuffer& ifs, stream::ptr stream, engine& engine, uint16_t stream_id = 0);
-    network(cldnn::BinaryInputBuffer& ifs, const ExecutionConfig& config, stream::ptr stream, engine& engine, uint16_t stream_id = 0);
+    network(cldnn::BinaryInputBuffer& ifs, stream::ptr stream, engine& engine, bool is_primary_stream = true);
+    network(cldnn::BinaryInputBuffer& ifs, const ExecutionConfig& config, stream::ptr stream, engine& engine, bool is_primary_stream = true);
 
     ~network();
 

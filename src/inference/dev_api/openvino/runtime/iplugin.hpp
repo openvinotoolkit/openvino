@@ -42,6 +42,9 @@ namespace ov {
  * @defgroup ov_dev_api_compiled_model_api Compiled Model base classes
  * @brief A set of base and helper classes to implement an compiled model class
  *
+ * @defgroup ov_dev_api_infer_request_api Inference Request common classes
+ * @brief A set of base and helper classes to implement a common inference request functionality.
+ *
  * @defgroup ov_dev_api_sync_infer_request_api Inference Request base classes
  * @brief A set of base and helper classes to implement a syncrhonous inference request class.
  *

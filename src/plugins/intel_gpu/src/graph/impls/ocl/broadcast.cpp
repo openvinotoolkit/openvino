@@ -62,7 +62,12 @@ struct broadcast_impl : typed_primitive_impl_ocl<broadcast> {
         auto output_rank = output_pshape.size();
 
         if (primitive->axes_mapping.empty()) {
-            input_pshape = extend_shape_to_rank_from_begin(input_pshape, output_rank);
+            bool use_new_shape_infer = impl_params.prog->get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
+            if (!broadcastable(input_pshape, output_pshape, use_new_shape_infer)) {
+                input_pshape = extend_shape_to_rank_from_begin(input_pshape, output_pshape.size());
+            } else {
+                input_pshape = extend_shape_to_rank_from_end(input_pshape, output_pshape.size());
+            }
         } else {
             if (i_layout.is_static() && o_layout.is_static()) {
                 // If axis_mapping is specified, then ones are inserted according to it.

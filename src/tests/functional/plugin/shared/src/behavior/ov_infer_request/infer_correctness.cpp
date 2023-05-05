@@ -183,10 +183,12 @@ void OVInferConsistencyTest::FillInput(InferContext& inferContext, int index) {
 }
 
 TEST_P(OVInferConsistencyTest, Infer) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     InferCheck(true);
 }
 
 TEST_P(OVInferConsistencyTest, AsyncInfer) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     InferCheck(false);
 }
 

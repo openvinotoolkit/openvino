@@ -517,6 +517,28 @@ JitConstants EltwiseKernelBase::MakeIndexJitConstants(const eltwise_params& para
                     } else {
                         jit.AddConstant(MakeJitConstant(idx_order, "d6,d5,d4,d3,d2,d1"));
                     }
+                } else if (out_c == 7) {
+                    if (in_c < 5) {
+                        jit.AddConstant(MakeJitConstant(idx_order, "d7,d6,d2,d1"));
+                    } else if (in_c == 5) {
+                        jit.AddConstant(MakeJitConstant(idx_order, "d7,d6,d3,d2,d1"));
+                    } else if (in_c == 6) {
+                        jit.AddConstant(MakeJitConstant(idx_order, "d7,d6,d4,d3,d2,d1"));
+                    } else {
+                        jit.AddConstant(MakeJitConstant(idx_order, "d7,d6,d5,d4,d3,d2,d1"));
+                    }
+                } else if (out_c == 8) {
+                    if (in_c < 5) {
+                        jit.AddConstant(MakeJitConstant(idx_order, "d8,d7,d2,d1"));
+                    } else if (in_c == 5) {
+                        jit.AddConstant(MakeJitConstant(idx_order, "d8,d7,d3,d2,d1"));
+                    } else if (in_c == 6) {
+                        jit.AddConstant(MakeJitConstant(idx_order, "d8,d7,d4,d3,d2,d1"));
+                    } else if (in_c == 7) {
+                        jit.AddConstant(MakeJitConstant(idx_order, "d8,d7,d5,d4,d3,d2,d1"));
+                    } else {
+                        jit.AddConstant(MakeJitConstant(idx_order, "d8,d7,d6,d5,d4,d3,d2,d1"));
+                    }
                 } else {
                     assert(0);
                 }
@@ -601,7 +623,13 @@ EltwiseKernelBase::DispatchData EltwiseKernelBase::SetDefault(const eltwise_para
         }
 
         dispatchData.gws[0] = gws[0];
-        if (n_dims == 6) {
+        if (n_dims == 8) {
+            dispatchData.gws[1] = gws[1] * gws[2] * gws[3] * gws[4] * gws[5];  // y*z*w*u*v
+            dispatchData.gws[2] = gws[6] * gws[7];
+        } else if (n_dims == 7) {
+            dispatchData.gws[1] = gws[1] * gws[2] * gws[3] * gws[4];  // y*z*w*u
+            dispatchData.gws[2] = gws[5] * gws[6];
+        } else if (n_dims == 6) {
             dispatchData.gws[1] = gws[1] * gws[2] * gws[3];  // y*z*w
             dispatchData.gws[2] = gws[4] * gws[5];
         } else if (n_dims == 5) {

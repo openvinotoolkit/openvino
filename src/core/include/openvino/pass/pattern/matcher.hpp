@@ -105,7 +105,7 @@ public:
         for (const auto& arg : node->input_values()) {
             if (auto t_casted = ov::as_type_ptr<T>(arg.get_node_shared_ptr())) {
                 if (matched) {
-                    throw Exception("There's more than two arguments of the same type");
+                    OPENVINO_THROW("There's more than two arguments of the same type");
                 } else {
                     matched = t_casted;
                 }
@@ -231,7 +231,7 @@ public:
     /// describing an individual cell
     NodeVector get_bound_nodes_for_pattern(const std::shared_ptr<Node>& pattern) const {
         if (m_matches.count(pattern) == 0) {
-            throw Exception("No bound nodes for a given label");
+            OPENVINO_THROW("No bound nodes for a given label");
         }
 
         return as_node_vector(m_matches.at(pattern));

@@ -12,7 +12,7 @@ namespace subgraph {
 FakeQuantizeOnWeights::FakeQuantizeOnWeights() {}
 
 FakeQuantizeOnWeights::FakeQuantizeOnWeights(
-    const size_t quantizationLevel,
+    const uint64_t quantizationLevel,
     const ngraph::Shape& constantShape,
     const std::vector<float>& inputLowValues,
     const std::vector<float>& inputHighValues,

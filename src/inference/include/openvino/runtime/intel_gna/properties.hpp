@@ -37,7 +37,7 @@ static constexpr Property<std::string, PropertyMutability::RO> library_full_vers
  * This option should be used with floating point value serialized to string with . (dot) as a decimal separator
  * @ingroup ov_runtime_gna_prop_cpp_api
  * @details In the case of multiple inputs, individual scale factors can be provided using the
- *  map where key is layer name and value is scale factor
+ *  map where key is layer name and value is scale factor. The input name shall not contain symbol ":".
  * Example:
  * \code{.cpp}
  * ov::Core core;

@@ -170,7 +170,7 @@ if(ENABLE_GAPI_PREPROCESSING)
     # must be called after all target_link_libraries
     ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
-    ie_add_vs_version_file(NAME ${TARGET_NAME}
+    ov_add_vs_version_file(NAME ${TARGET_NAME}
                            FILEDESCRIPTION "OpenVINO Preprocessing plugin")
 endif()
 

@@ -44,7 +44,7 @@ static const char hint_message[] =
     "                               'cumulative_throughput' or 'ctput': device performance mode will be set to "
     "CUMULATIVE_THROUGHPUT.\n"
     "                               'latency': device performance mode will be set to LATENCY.\n"
-    "                               'none': device performance mode will be set to UNDEFINED.\n"
+    "                               'none': no device performance mode will be set.\n"
     "                              Using explicit 'nstreams' or other device-specific options, please set hint to "
     "'none'";
 
@@ -245,18 +245,10 @@ static const char load_config_message[] =
     "properties.\n"
     "                                       {\n"
     "                                               \"AUTO\": {\n"
-    "                                                       \"PERFORMANCE_HINT\": \"\",\n"
+    "                                                       \"PERFORMANCE_HINT\": \"THROUGHPUT\",\n"
     "                                                       \"PERF_COUNT\": \"NO\",\n"
-    "                                                       \"DEVICE_PROPERTIES\": {\n"
-    "                                                       \"CPU\": {\n"
-    "                                                           \"INFERENCE_PRECISION_HINT\": \"f32\",\n"
-    "                                                           \"NUM_STREAMS\": \"3\"\n"
-    "                                                       },\n"
-    "                                                       \"GPU\": {\n"
-    "                                                           \"INFERENCE_PRECISION_HINT\": \"f32\",\n"
-    "                                                           \"NUM_STREAMS\": \"5\"\n"
-    "                                                       }\n"
-    "                                                   }\n"
+    "                                                       \"DEVICE_PROPERTIES\": "
+    "\"{CPU:{INFERENCE_PRECISION_HINT:f32,NUM_STREAMS:3},GPU:{INFERENCE_PRECISION_HINT:f32,NUM_STREAMS:5}}\"\n"
     "                                               }\n"
     "                                       }";
 

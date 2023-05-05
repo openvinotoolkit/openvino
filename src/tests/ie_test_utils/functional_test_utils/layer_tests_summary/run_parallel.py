@@ -9,7 +9,9 @@ from subprocess import Popen, STDOUT, TimeoutExpired, run, call
 from hashlib import sha256
 from pathlib import Path
 from shutil import rmtree
-from signal import SIGKILL
+
+if not constants.IS_WIN:
+    from signal import SIGKILL
 
 import os
 import sys
@@ -64,10 +66,10 @@ def get_test_command_line_args():
     return command_line_args
 
 def get_device_by_args(args: list):
-    device = None
+    device = constants.NOT_EXIST_DEVICE
     is_device = False
     for argument in args:
-        if "--device" in argument:
+        if "--device" in argument or "-d" == argument[0:2]:
             is_device = True
             if argument.find("=") == -1:
                 continue
@@ -90,7 +92,7 @@ class TestStructure:
 class TaskManager:
     process_timeout = -1
 
-    def __init__(self, command_list:list, working_dir: os.path, prev_run_cmd_length=0, device=None, available_devices=list()):
+    def __init__(self, command_list:list, working_dir: os.path, prev_run_cmd_length=0, device=constants.NOT_EXIST_DEVICE, available_devices=list()):
         self._command_list = command_list
         self._process_list = list()
         self._workers = list()
@@ -99,12 +101,9 @@ class TaskManager:
         self._prev_run_cmd_length = prev_run_cmd_length
         self._idx = 0
         self._device = device
-        if self._device is None:
-            self._device = "NOT_AFFECTED_BY_DEVICE"
+        self._available_devices = [self._device]
         if len(available_devices) > 0:
             self._available_devices = available_devices
-        else:
-            self._available_devices = [self._device]
         self._device_cnt = len(self._available_devices)
 
     def __create_thread(self, func):
@@ -157,7 +156,10 @@ class TaskManager:
                         self._process_list[pid].kill()
                         self._process_list[pid].wait(timeout=1)
                     self._process_list[pid].wait(timeout=0)
-                    device = get_device_by_args(self._process_list[pid].args)
+                    args = self._process_list[pid].args
+                    if constants.IS_WIN:
+                        args = args.split()
+                    device = get_device_by_args(args)
                     # logger.info(f"{self._idx}/{len(self._command_list)} is started")
                     return pid, device
                 except TimeoutExpired:
@@ -200,7 +202,7 @@ class TaskManager:
         return self._idx
 
 class TestParallelRunner:
-    def __init__(self, exec_file_path: os.path, test_command_line: list, worker_num: int, working_dir: os.path, cache_path: os.path, is_parallel_devices: False):
+    def __init__(self, exec_file_path: os.path, test_command_line: list, worker_num: int, working_dir: os.path, cache_path: os.path, is_parallel_devices=False):
         self._exec_file_path = exec_file_path
         self._working_dir = working_dir
         self._command = self.__init_basic_command_line_for_exec_file(test_command_line)
@@ -216,12 +218,11 @@ class TestParallelRunner:
         self._is_save_cache = True
         self._disabled_tests = list()
         self._total_test_cnt = 0
-        self._available_devices = None
         self._device = get_device_by_args(self._command.split())
+        self._available_devices = [self._device] if not self._device is None else []
         if has_python_api and is_parallel_devices:
             self._available_devices = get_available_devices(self._device)
-        else:
-            self._available_devices = [self._device] if not self._device is None else []
+            
 
     def __init_basic_command_line_for_exec_file(self, test_command_line: list):
         command = f'{self._exec_file_path}'
@@ -433,9 +434,11 @@ class TestParallelRunner:
 
     def __find_not_runned_tests(self):
         test_names = set()
+        interapted_tests = list()
         for log in Path(os.path.join(self._working_dir, "temp")).rglob("log_*.log"):
             log_filename = os.path.join(self._working_dir, log)
             with open(log_filename, "r") as log_file:
+                has_status = False
                 test_name = None
                 try:
                     lines = log_file.readlines()
@@ -445,11 +448,21 @@ class TestParallelRunner:
                 for line in lines:
                     if constants.RUN in line:
                         test_name = line[line.find(constants.RUN) + len(constants.RUN) + 1:-1:]
+                        has_status = False
                         if test_name is not None:
                             test_names.add(f'"{test_name}":')
+                    for _, status_messages in constants.TEST_STATUS.items():
+                        for status_msg in status_messages:
+                            if status_msg in line:
+                                has_status = True
+                                break
+                            if has_status:
+                                break
+                if not has_status:
+                    interapted_tests.append(f'"{test_name}":')
                 log_file.close()
         test_list_runtime = set(self.__get_test_list_by_runtime())
-        return list(test_list_runtime.difference(test_names))
+        return list(test_list_runtime.difference(test_names)), interapted_tests
 
     def run(self):
         if TaskManager.process_timeout == -1:
@@ -464,17 +477,20 @@ class TestParallelRunner:
         worker_cnt = 0
         if len(filters_cache):
             logger.info(f"Execute jobs taken from cache")
-            worker_cnt = self.__execute_tests(filters_cache, worker_cnt)
+            worker_cnt += self.__execute_tests(filters_cache, worker_cnt)
         # 15m for one test in one process
         if TaskManager.process_timeout == -1 or TaskManager.process_timeout == DEFAULT_PROCESS_TIMEOUT:
             TaskManager.process_timeout = DEFAULT_TEST_TIMEOUT
         if len(filters_runtime):
             logger.info(f"Execute jobs taken from runtime")
-            worker_cnt = self.__execute_tests(filters_runtime, worker_cnt)
-        not_runned_test_filter = self.__find_not_runned_tests()
+            worker_cnt += self.__execute_tests(filters_runtime, worker_cnt)
+        not_runned_test_filter, interapted_tests = self.__find_not_runned_tests()
         if len(not_runned_test_filter) > 0:
             logger.info(f"Execute not runned {len(not_runned_test_filter)} tests")
-            worker_cnt = self.__execute_tests(not_runned_test_filter, worker_cnt)
+            worker_cnt += self.__execute_tests(not_runned_test_filter, worker_cnt)
+        if len(interapted_tests) > 0:
+            logger.info(f"Execute interapted {len(interapted_tests)} tests")
+            worker_cnt += self.__execute_tests(interapted_tests, worker_cnt)
 
         t_end = datetime.datetime.now()
         total_seconds = (t_end - t_start).total_seconds()
@@ -487,13 +503,27 @@ class TestParallelRunner:
         test_results = dict()
         logger.info(f"Log analize is started")
         saved_tests = list()
+        interapted_tests = set()
+        INTERAPTED_DIR = "interapted"
         def __save_log(logs_dir, dir, test_name):
             test_log_filename = os.path.join(logs_dir, dir, f"{test_name}.txt".replace('/', '_'))
             hash_str = str(sha256(test_name.encode('utf-8')).hexdigest())
             if hash_str in hash_map.keys():
-                # logger.warning(f"Test {test_name} was executed before!")
-                return False
+                (dir_hash, _) = hash_map[hash_str]
+                if dir_hash != INTERAPTED_DIR:
+                    # logger.warning(f"Test {test_name} was executed before!")
+                    return False
             else:
+                hash_map.update({hash_str: (dir, test_name)})
+            if test_name in interapted_tests:
+                if dir == INTERAPTED_DIR:
+                    return False
+                interapted_log_path = os.path.join(logs_dir, INTERAPTED_DIR, f'{hash_str}.log')
+                if os.path.isfile(interapted_log_path):
+                    os.remove(interapted_log_path)
+                    logger.info(f"LOGS: Interapted {interapted_log_path} will be replaced")
+                interapted_tests.remove(test_name)
+                hash_map.pop(hash_str)
                 hash_map.update({hash_str: (dir, test_name)})
             test_log_filename = os.path.join(logs_dir, dir, f'{hash_str}.log')
             if os.path.isfile(test_log_filename):
@@ -572,21 +602,26 @@ class TestParallelRunner:
                                 dir = None
                 log_file.close()
                 if test_name != None:
-                    dir = 'interapted'
+                    dir = INTERAPTED_DIR
                     if __save_log(logs_dir, dir, test_name):
-                        # update test_cache with tests. If tests is crashed use -1 as unknown time
-                        time = -1
-                        test_times.append((int(time), test_name))
-                        if dir in test_results.keys():
-                            test_results[dir] += 1
-                        else:
-                            test_results[dir] = 1
-                        test_cnt_real_saved_now += 1
+                        interapted_tests.add(test_name)
                 test_cnt_real = test_cnt_real_saved_now
                 if test_cnt_real < test_cnt_expected:
                     logger.error(f"Number of tests in {log}: {test_cnt_real}. Expected is {test_cnt_expected} tests")
                 else:
                     os.remove(log_filename)
+        for test_name in interapted_tests:
+            # update test_cache with tests. If tests is crashed use -1 as unknown time
+            time = -1
+            test_times.append((int(time), test_name))
+            if INTERAPTED_DIR in test_results.keys():
+                test_results[INTERAPTED_DIR] += 1
+            else:
+                test_results[INTERAPTED_DIR] = 1
+            hash_str = str(sha256(test_name.encode('utf-8')).hexdigest())
+            interapted_log_path = os.path.join(logs_dir, INTERAPTED_DIR, f'{hash_str}.log')
+            if os.path.isfile(interapted_log_path):
+                test_cnt_real_saved_now += 1
         if self._is_save_cache:
             test_times.sort(reverse=True)
             with open(self._cache_path, "w") as cache_file:

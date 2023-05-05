@@ -47,7 +47,7 @@ TEST_F(TransformationTestsF, GatherNegativeIndicesNormalize) {
         auto const_add = ngraph::get_constant_from_source(add);
         OPENVINO_SUPPRESS_DEPRECATED_END
         if (const_add == nullptr)
-            throw ngraph::ngraph_error("indices should've been constant folded");
+            OPENVINO_THROW("indices should've been constant folded");
         auto gather = std::make_shared<ngraph::opset7::Gather>(data, const_add, axis);
 
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{data});
@@ -84,7 +84,7 @@ TEST_F(TransformationTestsF, GatherNegativeIndicesNormalize_neg_axis) {
         auto const_add = ngraph::get_constant_from_source(add);
         OPENVINO_SUPPRESS_DEPRECATED_END
         if (const_add == nullptr)
-            throw ngraph::ngraph_error("indices should've been constant folded");
+            OPENVINO_THROW("indices should've been constant folded");
         auto gather = std::make_shared<ngraph::opset7::Gather>(data, const_add, axis);
 
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{data});
@@ -121,7 +121,7 @@ TEST_F(TransformationTestsF, GatherNegativeIndicesNormalize_dif_input_types) {
         auto const_add = ngraph::get_constant_from_source(add);
         OPENVINO_SUPPRESS_DEPRECATED_END
         if (const_add == nullptr)
-            throw ngraph::ngraph_error("indices should've been constant folded");
+            OPENVINO_THROW("indices should've been constant folded");
         auto gather = std::make_shared<ngraph::opset7::Gather>(data, const_add, axis);
 
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{data});

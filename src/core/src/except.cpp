@@ -4,9 +4,17 @@
 
 #include "openvino/core/except.hpp"
 
-std::string ov::AssertFailure::make_what(const CheckLocInfo& check_loc_info,
-                                         const std::string& context_info,
-                                         const std::string& explanation) {
+void ov::Exception::create(const CheckLocInfo& check_loc_info,
+                           const std::string& context_info,
+                           const std::string& explanation) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    throw ov::Exception(make_what(check_loc_info, context_info, explanation));
+    OPENVINO_SUPPRESS_DEPRECATED_END
+}
+
+std::string ov::Exception::make_what(const CheckLocInfo& check_loc_info,
+                                     const std::string& context_info,
+                                     const std::string& explanation) {
     // Use relative path only for internal code
     auto getRelativePath = [](const std::string& path) -> std::string {
         // Path to local OpenVINO repository
@@ -31,5 +39,17 @@ std::string ov::AssertFailure::make_what(const CheckLocInfo& check_loc_info,
 }
 
 ov::Exception::~Exception() = default;
+
+void ov::AssertFailure::create(const CheckLocInfo& check_loc_info,
+                               const std::string& context_info,
+                               const std::string& explanation) {
+    throw ov::AssertFailure(make_what(check_loc_info, context_info, explanation));
+}
 ov::AssertFailure::~AssertFailure() = default;
+
+void ov::NotImplemented::create(const CheckLocInfo& check_loc_info,
+                                const std::string& context_info,
+                                const std::string& explanation) {
+    throw ov::NotImplemented(make_what(check_loc_info, context_info, explanation));
+}
 ov::NotImplemented::~NotImplemented() = default;

@@ -5,6 +5,7 @@
 #include "ngraph/pattern/op/wrap_type.hpp"
 
 #include "ngraph/pattern/matcher.hpp"
+#include "openvino/core/except.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -30,7 +31,7 @@ bool pattern::op::WrapType::match_value(Matcher* matcher,
 
 NodeTypeInfo pattern::op::WrapType::get_wrapped_type() const {
     if (m_wrapped_types.size() > 1) {
-        throw ngraph::ngraph_error("get_wrapped_type() called on WrapType with more than one type");
+        OPENVINO_THROW("get_wrapped_type() called on WrapType with more than one type");
     }
     return m_wrapped_types.at(0);
 }

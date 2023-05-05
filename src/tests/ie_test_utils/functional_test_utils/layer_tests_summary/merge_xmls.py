@@ -70,12 +70,12 @@ def aggregate_test_results(aggregated_results: SubElement, xml_reports: list,
         if aggregated_timestamp is None or xml_timestamp < aggregated_timestamp:
             aggregated_timestamp = xml_timestamp
         for xml_device_entry in xml_results:
-            device_name = xml_device_entry.tag
             if merge_device_suffix and "." in xml_device_entry.tag:
                 device_name = xml_device_entry.tag[:xml_device_entry.tag.find("."):]
                 new_data = ET.tostring(xml_device_entry).decode('utf8').replace(xml_device_entry.tag, device_name)
                 xml_device_entry = ET.fromstring(new_data)
-            aggregated_device_results = aggregated_results.find(xml_device_entry.tag)
+            device_name = xml_device_entry.tag
+            aggregated_device_results = aggregated_results.find(device_name)
             for xml_results_entry in xml_device_entry:
                 aggregated_results_entry = None
                 if not aggregated_device_results is None:
@@ -84,10 +84,11 @@ def aggregate_test_results(aggregated_results: SubElement, xml_reports: list,
                     stat_update_utils.update_rel_values(xml_results_entry)
                     if aggregated_device_results is None:
                         aggregated_results.append(xml_device_entry)
+                        aggregated_device_results = aggregated_results.find(device_name)
                     else:
                         aggregated_device_results.append(xml_results_entry)
                     continue
-                if report_type == "OP":
+                if report_type == OP_CONFORMANCE or report_type == OP_CONFORMANCE.lower():
                     update_result_node(xml_results_entry, aggregated_results_entry)
                 else:
                     for xml_real_device_entry in xml_results_entry:
@@ -142,7 +143,9 @@ def merge_xml(input_folder_paths: list, output_folder_paths: str, output_filenam
             logger.error(f'{folder_path} does not contain the correct xml files')
         for entity in xml_root.find(entity_name):
             if entity_list.find(entity.tag) is None:
-                SubElement(entity_list, entity.tag)
+                entity_node = SubElement(entity_list, entity.tag)
+                for op_attrib in entity.attrib:
+                    entity_node.set(op_attrib, entity.get(op_attrib))
         timestamp = aggregate_test_results(results, xml_reports, report_type, merge_device_suffix)
         if report_type == "OP":
             stat_update_utils.update_passrates(results)

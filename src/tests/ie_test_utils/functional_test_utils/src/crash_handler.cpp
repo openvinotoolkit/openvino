@@ -3,24 +3,34 @@
 //
 
 #include "functional_test_utils/summary/op_summary.hpp"
+#include "functional_test_utils/summary/api_summary.hpp"
 
 #include "functional_test_utils/crash_handler.hpp"
+#include <signal.h>
 #include <limits.h>
 
 namespace CommonTestUtils {
+
+#if defined(__APPLE__)
+    typedef sig_t sighandler;
+#elif defined(_WIN32)
+    typedef _crt_signal_t sighandler;
+#else
+    typedef sighandler_t sighandler;
+#endif
 
 // enviroment to restore in case of crash
 jmp_buf env;
 unsigned int CrashHandler::MAX_TEST_WORK_TIME = UINT_MAX;
 bool CrashHandler::IGNORE_CRASH = false;
 
-CrashHandler::CrashHandler() {
+CrashHandler::CrashHandler(CONFORMANCE_TYPE type) {
     // setup default value for timeout in 15 minutes
     if (MAX_TEST_WORK_TIME == UINT_MAX) {
         MAX_TEST_WORK_TIME = 900;
     }
 
-    auto crashHandler = [](int errCode) {
+    sighandler crashHandler = [](int errCode) {
         std::cerr << "Unexpected application crash with code: " << errCode << std::endl;
 
         // reset custom signal handler to avoid infinit loop
@@ -43,7 +53,7 @@ CrashHandler::CrashHandler() {
 #ifdef _WIN32
         longjmp(env, JMP_STATUS::anyError);
 #else
-// reset timeout
+        // reset timeout
         alarm(0);
 
         if (errCode == SIGALRM) {
@@ -54,6 +64,26 @@ CrashHandler::CrashHandler() {
         }
 #endif
     };
+
+    if (type == CONFORMANCE_TYPE::api) {
+        crashHandler = [](int errCode) {
+            std::cerr << "Unexpected application crash with code: " << errCode << ". Program will aborted." << std::endl;
+
+            // reset custom signal handler to avoid infinit loop
+            // if for some reasons sigsetjmp will not be available
+            signal(SIGABRT, SIG_DFL);
+            signal(SIGSEGV, SIG_DFL);
+            signal(SIGILL, SIG_DFL);
+#ifndef _WIN32
+            signal(SIGBUS, SIG_DFL);
+            signal(SIGFPE, SIG_DFL);
+            signal(SIGALRM, SIG_DFL);
+#endif
+            auto &s = ov::test::utils::ApiSummary::getInstance();
+            s.saveReport();
+            std::abort();
+        };
+    }
 
     // setup custom handler for signals
     signal(SIGABRT, crashHandler);

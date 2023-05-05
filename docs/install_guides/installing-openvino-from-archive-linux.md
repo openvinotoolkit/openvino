@@ -14,7 +14,7 @@ page for instructions on how to install OpenVINO Runtime for Python using PyPI.
    Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, 
    Accuracy Checker, and Annotation Converter.
 
-See the `Release Notes <https://software.intel.com/en-us/articles/OpenVINO-RelNotes>` for more information on updates in the latest release.
+See the `Release Notes <https://software.intel.com/en-us/articles/OpenVINO-RelNotes>`__ for more information on updates in the latest release.
 
 
 .. tab:: System Requirements
@@ -30,7 +30,7 @@ See the `Release Notes <https://software.intel.com/en-us/articles/OpenVINO-RelNo
 .. tab:: Software
 
   * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`__
-  * `Python 3.7 - 3.10, 64-bit <https://www.python.org/downloads/>`__
+  * `Python 3.7 - 3.11, 64-bit <https://www.python.org/downloads/>`__
   * GCC:
 
   .. tab:: Ubuntu 18.04

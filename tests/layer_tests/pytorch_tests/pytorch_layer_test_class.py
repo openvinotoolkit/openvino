@@ -81,7 +81,11 @@ class PytorchLayerTest:
 
         flatten_fw_res = []
 
-        def flattenize_list_outputs(res):
+        def flattenize_dict_outputs(res):
+            if isinstance(res, dict):
+                return flattenize_outputs(res.values())
+            
+        def flattenize_outputs(res):
             results = []
             for res_item in res:
                 # if None is at output we skip it
@@ -89,27 +93,29 @@ class PytorchLayerTest:
                     continue
                 # If input is list or tuple flattenize it
                 if isinstance(res_item, (list, tuple)):
-                    decomposed_res = flattenize_list_outputs(res_item)
+                    decomposed_res = flattenize_outputs(res_item)
+                    results.extend(decomposed_res)
+                    continue
+                if isinstance(res_item, dict):
+                    decomposed_res = flattenize_dict_outputs(res_item)
                     results.extend(decomposed_res)
                     continue
                 results.append(res_item)
             return results
 
-        flatten_fw_res = flattenize_list_outputs(fw_res)
+        flatten_fw_res = flattenize_outputs(fw_res)
 
         assert len(flatten_fw_res) == len(
             output_list), f'number of outputs not equal, {len(flatten_fw_res)} != {len(output_list)}'
         # check if results dtypes match
         for fw_tensor, ov_tensor in zip(flatten_fw_res, output_list):
             if not isinstance(fw_tensor, torch.Tensor):
-                if np.isscalar(fw_tensor):
-                    assert fw_tensor == np.array(ov_tensor).item(
-                    ), f"{fw_tensor} != {np.array(ov_tensor).item()}"
-                else:
-                    if isinstance(fw_tensor, list):
-                        ov_tensor = ov_tensor.tolist()
-                        assert ov_tensor == fw_tensor
-                    assert type(fw_tensor) == type(ov_tensor)
+                fw_type = torch.tensor(fw_tensor).numpy().dtype
+                ov_type = ov_tensor.dtype
+                if fw_type in [np.int32, np.int64] and ov_type in [np.int32, np.int64]:
+                    # do not differentiate between int32 and int64
+                    continue
+                assert ov_type == fw_type, f"dtype validation failed: {ov_type} != {fw_type}"
                 continue
             assert torch.tensor(np.array(
                 ov_tensor)).dtype == fw_tensor.dtype, f"dtype validation failed: {torch.tensor(np.array(ov_tensor)).dtype} != {fw_tensor.dtype}"
@@ -191,7 +197,8 @@ class PytorchLayerTest:
                     ov_inputs[i] = ov_inputs[i].astype(np.int32)
                 inp = ov_inputs[i]
             assert inp.dtype.name in self._type_map, f"Unknown type {inp.dtype}."
-            params[i].get_node().set_element_type(self._type_map[inp.dtype.name])
+            if params[i].get_node().get_element_type().is_dynamic():
+                params[i].get_node().set_element_type(self._type_map[inp.dtype.name])
             shape = [-1] * len(inp.shape) if dynamic_shapes else inp.shape
             params[i].get_node().set_partial_shape(PartialShape(shape))
         om.validate_nodes_and_infer_types()

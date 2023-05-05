@@ -1,11 +1,11 @@
 # used in multiple components
 onnx==1.13.1  # Python bindings, ONNX Frontend
+numpy>=1.16.6,<1.25  # Python bindings, frontends
+protobuf>=3.18.1,<4.0.0  # Python bindings, frontends
 
 # pytest
-pytest==7.2.0; python_version >= '3.10'
-pytest>=5.0,<=7.0.1; python_version < '3.10'
+pytest>=5.0,<7.4
 pytest-dependency==0.5.1
-pytest-forked; platform_system != "Windows"
 pytest-html==1.19.0
 pytest-timeout==2.0.1
 

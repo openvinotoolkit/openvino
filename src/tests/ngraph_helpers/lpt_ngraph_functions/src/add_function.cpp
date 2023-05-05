@@ -18,6 +18,28 @@ namespace ngraph {
 namespace builder {
 namespace subgraph {
 
+namespace {
+std::shared_ptr<Node> configure_postops(const std::shared_ptr<Node>& parent,
+                                        const ov::element::Type& precision,
+                                        const std::string& postops_configuration) {
+    std::shared_ptr<Node> res = parent;
+    if (postops_configuration.empty() || postops_configuration == "bias") {
+        auto bias = opset1::Constant::create(precision, { 1, 1, 1, 1 }, {1.f});
+        res = std::make_shared<opset1::Add>(res, bias);
+    } else if (postops_configuration == "bias_on_zero_input") {
+        auto bias = opset1::Constant::create(precision, { 1, 1, 1, 1 }, {1.f});
+        res = std::make_shared<opset1::Add>(bias, res);
+    } else {
+        return parent;
+    }
+
+    return ngraph::builder::subgraph::makeFakeQuantizeTypeRelaxed(
+           res,
+           precision,
+           {256, Shape{}, { 0 }, { 255 }, { 0 }, { 255 }, element::u8});
+}
+}  // namespace
+
 std::shared_ptr<ngraph::Function> AddFunction::getOriginal(
     const ngraph::element::Type precision,
     const ngraph::PartialShape& inputShape1,
@@ -30,7 +52,8 @@ std::shared_ptr<ngraph::Function> AddFunction::getOriginal(
     const ngraph::builder::subgraph::DequantizationOperations& dequantization2,
     const int constInput,
     const std::vector<float>& constValues,
-    const std::string& additionalLayer) {
+    const std::string& additionalLayer,
+    const std::string& postops_configuration) {
     std::shared_ptr<ngraph::Node> input1;
     std::shared_ptr<ngraph::Node> parent1;
     if (constInput == 0) {
@@ -113,13 +136,7 @@ std::shared_ptr<ngraph::Function> AddFunction::getOriginal(
             ngraph::Strides{ 1, 1 });
     }
     if (additionalLayer != "") {
-        parent = std::make_shared<ngraph::opset1::Add>(
-            parent,
-            std::make_shared<ngraph::opset1::Constant>(precision, Shape{ 1, 1, 1, 1 }, std::vector<float>{1.f}));
-        parent = ngraph::builder::subgraph::makeFakeQuantizeTypeRelaxed(
-            parent,
-            precision,
-            {256, Shape{}, { 0 }, { 255 }, { 0 }, { 255 }, element::u8});
+        parent = configure_postops(parent, precision, postops_configuration);
     }
 
     auto dequantizationStructure2 = dequantization2;
@@ -203,7 +220,8 @@ std::shared_ptr<ngraph::Function> AddFunction::getReference(
     const int constInputIndex,
     const std::vector<float>& constValues,
     const std::string& additionalLayer,
-    const std::string& operationType) {
+    const std::string& operationType,
+    const std::string& postops_configuration) {
     std::shared_ptr<ngraph::Node> input1;
     std::shared_ptr<ngraph::Node> parent1;
     if (constInputIndex == 0) {
@@ -282,13 +300,7 @@ std::shared_ptr<ngraph::Function> AddFunction::getReference(
             ngraph::Strides{ 1, 1 });
     }
     if (additionalLayer != "") {
-        parent = std::make_shared<ngraph::opset1::Add>(
-            parent,
-            std::make_shared<ngraph::opset1::Constant>(precision, Shape{ 1, 1, 1, 1 }, std::vector<float>{1.f}));
-        parent = ngraph::builder::subgraph::makeFakeQuantizeTypeRelaxed(
-            parent,
-            precision,
-            {256, Shape{}, { 0 }, { 255 }, { 0 }, { 255 }, element::u8});
+        parent = configure_postops(parent, precision, postops_configuration);
     }
 
     auto dequantizationStructure2 = dequantization2;

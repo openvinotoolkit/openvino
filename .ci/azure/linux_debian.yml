@@ -248,6 +248,7 @@ jobs:
     displayName: 'Python API 2.0 Tests'
 
   - script: |
+      export PYTHONPATH=$(INSTALL_DIR)/lib/python3/dist-packages:$PYTHONPATH
       python3 -m pytest -s $(INSTALL_TEST_DIR)/mo/unit_tests --junitxml=$(INSTALL_TEST_DIR)/TEST-ModelOptimizer.xml
     displayName: 'Model Optimizer UT'
 

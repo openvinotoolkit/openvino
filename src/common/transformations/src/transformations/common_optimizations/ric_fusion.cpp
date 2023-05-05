@@ -186,7 +186,7 @@ Attribute get(const T& port) {
     if (res != attrs.end()) {
         return res->second.template as<Attribute>();
     }
-    throw Exception("reverse_input_channel_index is missing in given port");
+    OPENVINO_THROW("reverse_input_channel_index is missing in given port");
 }
 
 template <typename T, typename = is_port<T>>

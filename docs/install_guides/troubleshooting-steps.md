@@ -4,7 +4,7 @@
 
 If you run into issues while installing or configuring OpenVINO™, you can try the following methods to do some quick checks first. 
 
-Check the versions of OpenVINO Runtime and Developement Tools
+Check the versions of OpenVINO Runtime and Development Tools
 #############################################################
 
 * To check the version of OpenVINO Development Tools, use the following command:
@@ -23,7 +23,7 @@ Check the versions of OpenVINO Runtime and Developement Tools
 Check the versions of Python and PIP
 ####################################
 
-To check your Python version, run ``python -VV`` or ``python --version``. The supported Python versions should be 64-bit and between 3.7 and 3.10. If you are using Python 3.6, you are recommended to upgrade the version to 3.7 or higher.
+To check your Python version, run ``python -VV`` or ``python --version``. The supported Python versions should be 64-bit and between 3.7 and 3.11. If you are using Python 3.6, you are recommended to upgrade the version to 3.7 or higher.
 
 If your Python version does not meet the requirements, update Python:
 
@@ -79,7 +79,7 @@ Verify that OpenVINO is correctly installed
 
 * If you installed OpenVINO Runtime from YUM, use the ``yum list installed 'openvino*'`` command to list the installed OpenVINO packages.
 
-Check if GPU drvier is installed
+Check if GPU driver is installed
 ################################
 
 :doc:`Additional configurations <openvino_docs_install_guides_configurations_header>` may be required in order to use OpenVINO with different hardware such as Intel® GPUs.

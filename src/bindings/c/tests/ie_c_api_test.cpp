@@ -1224,8 +1224,6 @@ TEST_P(ie_c_api_test, ie_infer_request_infer_async_wait_time) {
     ie_core_free(&core);
 }
 
-// For ARM plugin, no "Batch" related operations support for now, so skip related APIs
-#ifndef __aarch64__
 TEST_P(ie_c_api_test, ie_infer_request_set_batch) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
@@ -1312,7 +1310,6 @@ TEST_P(ie_c_api_test, ie_infer_request_set_negative_batch) {
     ie_network_free(&network);
     ie_core_free(&core);
 }
-#endif
 
 TEST_P(ie_c_api_test, ie_blob_make_memory) {
 
