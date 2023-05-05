@@ -233,7 +233,7 @@ Dynamic Shapes
 
 .. note::
 
-   Currently, dynamic shape support in GPU plugin is a preview feature and has following limitations:
+   Currently, dynamic shape support for GPU is a preview feature and has the following limitations:
    - It mainly supports NLP models (Natural Language Processing). Not all operations and optimization passes supports dynamic shape. As a result, an arbitrary model may crash or experience significant performance drops.   
    - Due to the dominant runtime overhead on the host device, dynamic shapes may perform worse than static shapes on a discrete GPU.
    - Dynamic rank is not supported.
