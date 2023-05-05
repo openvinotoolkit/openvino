@@ -30,7 +30,7 @@
 
 **Examples**
 
-.. code-block:: console
+.. code-block:: cpp
    
    <layer ... type="Atan">
        <input>
