@@ -421,7 +421,7 @@ void ScatterUpdate::scatterNDUpdate(uint8_t *indices, uint8_t *update, uint8_t *
             int64_t idxValue = getIndicesValue(indices, indicesOffset + i);
             if (idxValue < 0) {
                 // Negative value for indices means counting backwards from the end.
-                idxValue += srcDataDim[0];
+                idxValue += srcDataDim[i];
             }
             dstOffset += idxValue * srcBlockND[i + 1];
         }
