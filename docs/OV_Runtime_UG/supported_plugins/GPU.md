@@ -301,7 +301,7 @@ Recommendations for performance improvement
 
   - The GPU plugin needs to reallocate memory if the current shape is larger than the maximum of the previous shapes, which causes additional overhead.
   - Using a bounded dynamic shape will help to reduce such overhead. For example, use ``{ov::Dimension(1, 10), ov::Dimension(1, 384)}`` 
-    instead of ``{ov::Dimension(-1), ov::Dimension(-1)}.
+    instead of ``{ov::Dimension(-1), ov::Dimension(-1)}``.
   - Note that a bounded dynamic *batch* is handled differently as mentioned above.
 
 - Use permanent cache, e.g., OpenVino model_cache, to reduce the runtime re-compilation overhead
