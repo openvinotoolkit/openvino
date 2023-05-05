@@ -4,7 +4,7 @@
 
 If you run into issues while installing or configuring OpenVINO™, you can try the following methods to do some quick checks first. 
 
-Check the versions of OpenVINO Runtime and Developement Tools
+Check the versions of OpenVINO Runtime and Development Tools
 #############################################################
 
 * To check the version of OpenVINO Development Tools, use the following command:
