@@ -39,8 +39,11 @@ std::vector<T> reorder_ops_by_names(const std::vector<std::string>& names, const
     return resulted_ops;
 };
 
-// Adjust names of the tensor by mapping internal names to user specific ones using the model signature
-// and mark unused tensor names that must be removed
+/// \brief Adjusts names of the tensor by mapping internal names to user specific ones using the model signature
+/// and mark unused tensor names that must be removed
+/// \param[in] ov_output ov::Output<ov::Node> for which names set should be corrected
+/// \param[in] saved_model_input_names Map of for input names
+/// \param[in] saved_model_output_names Map of for output names
 void adjust_saved_model_names(ov::Output<ov::Node>& ov_output,
                               const std::shared_ptr<std::map<std::string, std::string>>& saved_model_input_names,
                               const std::shared_ptr<std::map<std::string, std::string>>& saved_model_output_names) {
