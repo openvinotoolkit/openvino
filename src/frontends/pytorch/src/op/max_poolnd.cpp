@@ -16,7 +16,14 @@ using namespace ov::op;
 OutputVector translate_max_poolnd(const NodeContext& context) {
     num_inputs_check(context, 6, 6);
     auto kernel = context.const_input<Shape>(1);
-    auto strides = context.const_input<Strides>(2);
+    Strides strides;
+    if (!context.input_is_none(2)) {
+        strides = context.const_input<Strides>(2);
+    }
+    if (context.input_is_none(2) || strides.size() == 0) {
+        // In case strides are not provided default is kernel
+        strides = kernel;
+    }
     auto pads = context.const_input<Shape>(3);  // pytorch supports only symmetric paddings
     auto dilations = context.const_input<Strides>(4);
     auto rounding_type = context.const_input<bool>(5) ? RoundingType::CEIL : RoundingType::FLOOR;
