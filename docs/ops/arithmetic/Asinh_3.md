@@ -30,7 +30,7 @@
 
 **Example**
 
-.. code-block:: console
+.. code-block:: cpp
    
    <layer ... type="Asinh">
        <input>

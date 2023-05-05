@@ -33,7 +33,7 @@ declared in ``variable_id`` and returns an error otherwise.
 
 **Example**
 
-.. code-block:: console
+.. code-block:: cpp
    
    <layer ... type="Assign" ...>
        <data variable_id="lstm_state_1"/>

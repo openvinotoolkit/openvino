@@ -35,7 +35,7 @@ No attributes available.
 
 *Example 1*
 
-.. code-block:: console
+.. code-block:: cpp
     
     <layer ... type="Abs">
         <input>

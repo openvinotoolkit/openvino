@@ -1,4 +1,4 @@
-## AdaptiveMaxPool {#openvino_docs_ops_pooling_AdaptiveMaxPool_8}
+# AdaptiveMaxPool {#openvino_docs_ops_pooling_AdaptiveMaxPool_8}
 
 @sphinxdirective
 
@@ -55,7 +55,7 @@ The output is calculated following this formula:
 
 **Examples**
 
-.. code-block:: console
+.. code-block:: cpp
    
    <layer ... type="AdaptiveMaxPool" ... >
        <data output_type="i64"/>

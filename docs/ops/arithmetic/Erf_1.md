@@ -1,5 +1,7 @@
 # Erf {#openvino_docs_ops_arithmetic_Erf_1}
 
+@sphinxdirective
+
 **Versioned name**: *Erf-1*
 
 **Category**: *Arithmetic unary*
@@ -10,9 +12,9 @@
 
 *Erf* performs element-wise erf operation on a given input tensor, based on the following mathematical formula:
 
-\f[
-erf(x) = \pi^{-1} \int_{-x}^{x} e^{-t^2} dt
-\f]
+.. math::
+   
+   erf(x) = \pi^{-1} \int_{-x}^{x} e^{-t^2} dt
 
 **Attributes**: *Erf* operation has no attributes.
 
@@ -28,22 +30,24 @@ erf(x) = \pi^{-1} \int_{-x}^{x} e^{-t^2} dt
 
 * *T*: any supported numeric type.
 
-
 **Example**
 
-```xml
-<layer ... type="Erf">
-    <input>
-        <port id="0">
-            <dim>256</dim>
-            <dim>56</dim>
-        </port>
-    </input>
-    <output>
-        <port id="1">
-            <dim>256</dim>
-            <dim>56</dim>
-        </port>
-    </output>
-</layer>
-```
+.. code-block:: cpp
+   
+   <layer ... type="Erf">
+       <input>
+           <port id="0">
+               <dim>256</dim>
+               <dim>56</dim>
+           </port>
+       </input>
+       <output>
+           <port id="1">
+               <dim>256</dim>
+               <dim>56</dim>
+           </port>
+       </output>
+   </layer>
+
+@endsphinxdirective
+
