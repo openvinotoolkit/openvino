@@ -230,7 +230,6 @@ For more details, see the :doc:`optimization guide<openvino_docs_deployment_opti
 Dynamic Shapes
 +++++++++++++++++++++++++++++++++++++++
 
-GPU plugin supports dynamic shape and the general description can be found in :doc:`dynamic shapes guide<openvino_docs_OV_UG_DynamicShapes>`.
 
 .. note::
 
