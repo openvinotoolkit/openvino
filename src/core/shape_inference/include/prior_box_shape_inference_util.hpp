@@ -4,16 +4,18 @@
 
 #pragma once
 
+#include <array>
+
 #include "dimension_util.hpp"
 #include "utils.hpp"
 
 namespace ov {
 namespace op {
 namespace prior_box {
-namespace validate {
-std::vector<PartialShape> inputs_et(const Node* const op) {
-    static constexpr auto input_names = std::array<const char*, 2>{"output size", "image"};
+constexpr std::array<char const*, 2> input_names{"output size", "image"};
 
+namespace validate {
+inline std::vector<PartialShape> inputs_et(const Node* const op) {
     const auto inputs_size = op->get_input_size();
     auto input_shapes = std::vector<PartialShape>();
     input_shapes.reserve(inputs_size);
@@ -22,7 +24,7 @@ std::vector<PartialShape> inputs_et(const Node* const op) {
         const auto& et = op->get_input_element_type(i);
         NODE_VALIDATION_CHECK(op,
                               et.is_integral_number(),
-                              input_names[i],
+                              prior_box::input_names[i],
                               " input must be an integral number, but is: ",
                               et);
         input_shapes.push_back(op->get_input_partial_shape(i));
