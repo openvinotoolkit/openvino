@@ -22,7 +22,14 @@ OutputVector translate_avg_poolnd(const NodeContext& context) {
     num_inputs_check(context, 6, 7);
     auto input = context.get_input(0);
     auto kernel = context.const_input<Shape>(1);
-    auto strides = context.const_input<Strides>(2);
+    Strides strides;
+    if (!context.input_is_none(2)) {
+        strides = context.const_input<Strides>(2);
+    }
+    if (context.input_is_none(2) || strides.size() == 0) {
+        // In case strides are not provided default is kernel
+        strides = kernel;
+    }
     auto pads = context.const_input<Shape>(3);  // pytorch supports only symmetric padding
     auto rounding_type = context.const_input<bool>(4) ? ov::op::RoundingType::CEIL : ov::op::RoundingType::FLOOR;
     auto count_include_pad = context.const_input<bool>(5);
