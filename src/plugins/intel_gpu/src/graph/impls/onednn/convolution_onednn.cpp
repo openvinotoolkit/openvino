@@ -163,8 +163,6 @@ protected:
         return weights_reorder_params;
     }
 
-
-
 public:
     void save(BinaryOutputBuffer& ob) const override {
 #ifdef ONEDNN_PRIMITIVE_SERIALIZATION

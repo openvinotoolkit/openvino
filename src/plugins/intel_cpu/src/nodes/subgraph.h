@@ -78,7 +78,7 @@ private:
 
     // Holds ISA version used is codeGeneration target
     dnnl::impl::cpu::x64::cpu_isa_t host_isa;
-    size_t isa_num_lanes; // number of elements that fit in vector size
+    size_t isa_num_lanes = 0; // number of elements that fit in vector size
 
     // Holds index of output used as in execution domain
     // it should be compatible with a schedule's work size

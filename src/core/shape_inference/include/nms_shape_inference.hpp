@@ -69,9 +69,7 @@ void shape_infer(const NonMaxSuppression* op,
     ov::PartialShape out_shape = {Dimension::dynamic(), 3};
     if (boxes_ps.rank().is_static() && scores_ps.rank().is_static()) {
         const auto num_boxes_boxes = boxes_ps[1];
-        bool gpu_wa =
-            static_output && (!num_boxes_boxes.is_static() || !scores_ps[0].is_static() || !scores_ps[1].is_static());
-        if (!gpu_wa && num_boxes_boxes.get_max_length() != -1 && scores_ps[0].get_max_length() != -1 &&
+        if (num_boxes_boxes.get_max_length() != -1 && scores_ps[0].get_max_length() != -1 &&
             scores_ps[1].get_max_length() != -1) {
             const auto num_boxes = num_boxes_boxes.get_max_length();
             const auto num_classes = scores_ps[1].get_max_length();

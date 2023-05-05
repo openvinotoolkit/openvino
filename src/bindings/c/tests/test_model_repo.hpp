@@ -9,6 +9,7 @@
 
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
+#include "openvino/core/visibility.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/util/file_util.hpp"
 
@@ -53,21 +54,16 @@ inline void fill_random_input_nv12_data(uint8_t* data, const size_t w, const siz
 }
 
 inline std::string generate_test_xml_file() {
-#ifdef _WIN32
-#    ifdef __MINGW32__
-    std::string tmp_libraryname = "libopenvino_intel_cpu_plugin";
-#    else
-    std::string tmp_libraryname = "openvino_intel_cpu_plugin";
-#    endif
-#elif defined __APPLE__
-#    ifdef __aarch64__
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
     std::string tmp_libraryname = "openvino_arm_cpu_plugin";
-#    else
+#elif defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
     std::string tmp_libraryname = "openvino_intel_cpu_plugin";
-#    endif
+#elif defined(OPENVINO_ARCH_RISCV64)
+    std::string tmp_libraryname = "openvino_riscv_cpu_plugin";
 #else
-    std::string tmp_libraryname = "openvino_intel_cpu_plugin";
+#    error "Undefined system processor"
 #endif
+
     tmp_libraryname += IE_BUILD_POSTFIX;
     std::string libraryname = ov::util::make_plugin_library_name({}, tmp_libraryname);
 

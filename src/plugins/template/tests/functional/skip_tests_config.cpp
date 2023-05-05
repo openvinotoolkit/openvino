@@ -19,7 +19,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_(Multi|Auto|Hetero)_BehaviorTests.*OVPropertiesTests.*canSetPropertyAndCheckGetProperty.*)",
         //
         // unsupported metrics
-        R"(.*smoke_OVGetMetricPropsTest.*OVGetMetricPropsTest.*(DEVICE_UUID|FULL_DEVICE_NAME_with_DEVICE_ID|RANGE_FOR_STREAMS|DEVICE_GOPS|DEVICE_TYPE|MAX_BATCH_SIZE).*)",
+        R"(.*smoke_OVGetMetricPropsTest.*OVGetMetricPropsTest.*(DEVICE_ID|RANGE_FOR_STREAMS|MAX_BATCH_SIZE).*)",
 
         // CVS-55937
         R"(.*SplitLayerTest.*numSplits=30.*)",
@@ -112,6 +112,8 @@ std::vector<std::string> disabledTestPatterns() {
         // Why query state should throw an exception
         R"(.*InferRequestQueryStateExceptionTest.*inferreq_smoke_QueryState_ExceptionTest.*)",
         R"(.*OVInferRequestCheckTensorPrecision.*get(Input|Output|Inputs|Outputs)From.*FunctionWith(Single|Several).*type=(u4|u1|i4|boolean).*)",
+        // AUTO does not support import / export
+        R"(.*smoke_Auto_BehaviorTests/OVCompiledGraphImportExportTest.*(mportExport|readFromV10IR).*/targetDevice=(AUTO).*)",
     };
 
 #ifdef _WIN32

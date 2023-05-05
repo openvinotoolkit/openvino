@@ -1,5 +1,7 @@
 # Asinh {#openvino_docs_ops_arithmetic_Asinh_3}
 
+@sphinxdirective
+
 **Versioned name**: *Asinh-3*
 
 **Category**: *Arithmetic unary*
@@ -8,9 +10,9 @@
 
 **Detailed description**: *Asinh* performs element-wise inverse hyperbolic sine operation on a given input tensor, based on the following mathematical formula:
 
-\f[
-a_{i} = asinh(a_{i})
-\f]
+.. math::
+   
+   a_{i} = asinh(a_{i})
 
 **Attributes**: *Asinh* operation has no attributes.
 
@@ -28,19 +30,22 @@ a_{i} = asinh(a_{i})
 
 **Example**
 
-```xml
-<layer ... type="Asinh">
-    <input>
-        <port id="0">
-            <dim>256</dim>
-            <dim>56</dim>
-        </port>
-    </input>
-    <output>
-        <port id="1">
-            <dim>256</dim>
-            <dim>56</dim>
-        </port>
-    </output>
-</layer>
-```
+.. code-block:: cpp
+   
+   <layer ... type="Asinh">
+       <input>
+           <port id="0">
+               <dim>256</dim>
+               <dim>56</dim>
+           </port>
+       </input>
+       <output>
+           <port id="1">
+               <dim>256</dim>
+               <dim>56</dim>
+           </port>
+       </output>
+   </layer>
+
+@endsphinxdirective
+

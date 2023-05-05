@@ -149,9 +149,6 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& config) {
             set_target(StringToDevice(value));
         } else if (key == GNA_CONFIG_KEY(COMPILE_TARGET)) {
             const auto target = StringToDevice(value);
-            if (!embedded_export_path.empty() && !IsEmbeddedDevice(target)) {
-                THROW_GNA_EXCEPTION << "Target device for embedded export should be one of embedded devices";
-            }
             check_compatibility(ov::intel_gna::compile_target.name());
             set_target(target);
         } else if (key == GNA_CONFIG_KEY(COMPACT_MODE) || key == ov::intel_gna::memory_reuse) {
@@ -312,6 +309,9 @@ void Config::AdjustKeyMapValues() {
     }
     IE_ASSERT(!device_mode.empty());
     keyConfigMap[ov::intel_gna::execution_mode.name()] = device_mode;
+    if (!embedded_export_path.empty() && !IsEmbeddedDevice(target->get_user_set_execution_target())) {
+        THROW_GNA_EXCEPTION << "Target device for embedded export should be one of embedded devices";
+    }
     keyConfigMap[GNA_CONFIG_KEY(EXEC_TARGET)] = DeviceToString(target->get_user_set_execution_target());
     keyConfigMap[GNA_CONFIG_KEY(COMPILE_TARGET)] = DeviceToString(target->get_user_set_compile_target());
     keyConfigMap[ov::intel_gna::memory_reuse.name()] =

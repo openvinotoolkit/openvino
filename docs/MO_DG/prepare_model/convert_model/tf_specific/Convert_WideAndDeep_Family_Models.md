@@ -41,7 +41,7 @@ The Wide and Deep model is no longer in the master branch of the repository but 
 
 **Step 2**. Train the model
 
-As the OpenVINO&trade; toolkit does not support the categorical with hash and crossed features, such feature types must be switched off in the model
+As the OpenVINO™ toolkit does not support the categorical with hash and crossed features, such feature types must be switched off in the model
 by changing the ``build_model_columns()`` function in `census_dataset.py` as follows:
 
 .. code-block:: python
@@ -146,7 +146,7 @@ Use the following command line to convert the saved model file with the checkpoi
     --output head/predictions/probabilities
 
 
-The model contains operations unsupported by the OpenVINO&trade; toolkit such as ``IteratorGetNext`` and ``LookupTableFindV2``, so the Model Optimizer must prune these nodes.
+The model contains operations unsupported by the OpenVINO™ toolkit such as ``IteratorGetNext`` and ``LookupTableFindV2``, so the Model Optimizer must prune these nodes.
 The pruning is specified through `--input` option. The prunings for ``IteratorGetNext:*`` nodes correspond to numeric features.
 The pruning for each categorical feature consists of three prunings for the following nodes: ``*/to_sparse_input/indices:0``, ``*/hash_table_Lookup/LookupTableFindV2:0``, and ``*/to_sparse_input/dense_shape:0``.
 
