@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior/ov_plugin/core_integration.hpp"
-
 #include <gna/gna_config.hpp>
 
+#include "behavior/compiled_model/properties.hpp"
 #include "behavior/ov_plugin/core_integration_sw.hpp"
 #include "behavior/ov_plugin/properties_tests.hpp"
 #include "behavior/ov_plugin/query_model.hpp"
@@ -19,12 +18,13 @@ namespace {
 // IE Class Common tests with <pluginName, deviceName params>
 //
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassBasicPropsTestP,
-                         OVClassBasicPropsTestP,
+INSTANTIATE_TEST_SUITE_P(nightly_OVBasicPropertiesTestsP,
+                         OVBasicPropertiesTestsP,
                          ::testing::Values(std::make_pair("openvino_intel_gna_plugin", "GNA")));
 
 // TODO
 INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_OVClassModelTestP, OVClassModelTestP, ::testing::Values("GNA"));
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_OVClassModelOptionalTestP, OVClassModelOptionalTestP, ::testing::Values("GNA"));
 
 //
 // IE Class GetMetric
@@ -36,17 +36,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_MultiHeteroOVGetMetricPropsTest,
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVGetMetricPropsTest, OVGetMetricPropsTest, ::testing::Values("GNA"));
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVGetConfigTest,
-                         OVGetConfigTest_ThrowUnsupported,
-                         ::testing::Values("GNA", "MULTI", "HETERO"));
-
 const std::vector<std::tuple<std::string, std::pair<ov::AnyMap, std::string>>> GetMetricTest_ExecutionDevice_GNA = {
     {"GNA", std::make_pair(ov::AnyMap{}, "GNA")}};
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVGetMetricPropsTest,
-                         OVClassExecutableNetworkGetMetricTest_EXEC_DEVICES,
-                         ::testing::ValuesIn(GetMetricTest_ExecutionDevice_GNA),
-                         OVCompileModelGetExecutionDeviceTests::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassCompiledModelGetPropertyTest,
+                         OVClassCompiledModelGetPropertyTest_EXEC_DEVICES,
+                         ::testing::ValuesIn(GetMetricTest_ExecutionDevice_GNA));
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVGetAvailableDevicesPropsTest,
                          OVGetAvailableDevicesPropsTest,
@@ -56,7 +51,9 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVGetAvailableDevicesPropsTest,
 // IE Class GetConfig
 //
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVGetConfigTest, OVGetConfigTest, ::testing::Values("GNA"));
+INSTANTIATE_TEST_SUITE_P(nightly_OVPropertiesDefaultSupportedTests,
+                         OVPropertiesDefaultSupportedTests,
+                         ::testing::Values("GNA"));
 
 TEST(OVClassBasicPropsTest, smoke_SetConfigAfterCreatedScaleFactors) {
     ov::Core core;

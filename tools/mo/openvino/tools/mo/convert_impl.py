@@ -571,8 +571,15 @@ def check_model_object(argv):
             return "tf"
     if 'torch' in sys.modules:
         import torch
-        if isinstance(model, torch.nn.Module) or isinstance(model, torch.jit.ScriptFunction):
+        if isinstance(model, (torch.nn.Module, torch.jit.ScriptFunction)):
             return "pytorch"
+        try:
+            from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+            
+            if isinstance(model, TorchScriptPythonDecoder):
+                return "pytorch"
+        except Exception as e:
+            pass
 
     import io
     if isinstance(model, io.BytesIO):
@@ -871,7 +878,9 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args, python_api_us
                 example_inputs = None
                 if 'example_input' in args and args['example_input'] is not None:
                     example_inputs = args['example_input']
-                   
+                elif 'example_inputs' in args:
+                    raise AssertionError("'example_inputs' argument is not recognized, maybe you meant to provide 'example_input'?")
+
                 if 'use_legacy_frontend' in args and args['use_legacy_frontend']:
                     # TO DO: remove this path, when pytorch frontend productization is finished, CVS-103726
                     # prevent invoking legacy mo python onnx frontend for models converted on the fly
