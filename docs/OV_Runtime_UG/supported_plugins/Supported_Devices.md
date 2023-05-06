@@ -17,21 +17,21 @@ The OpenVINO Runtime provides unique capabilities to infer deep learning models 
 +--------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------+
 | OpenVINO Device                                                          | Supported Hardware                                                                                            |
 +==========================================================================+===============================================================================================================+
-|| :doc:`GPU <openvino_docs_OV_UG_supported_plugins_GPU>`                  | Intel&reg; Processor Graphics, including Intel&reg; HD Graphics and Intel&reg; Iris&reg; Graphics             |
+|| :doc:`GPU <openvino_docs_OV_UG_supported_plugins_GPU>`                  | Intel® Processor Graphics, including Intel® HD Graphics and Intel® Iris® Graphics                             |
 +--------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------+
-|| :doc:`CPU <openvino_docs_OV_UG_supported_plugins_CPU>`                  | Intel&reg; Xeon&reg; with Intel® Advanced Vector Extensions 2 (Intel® AVX2), Intel® Advanced Vector           |
-||                                                                         | Extensions 512 (Intel® AVX-512), and AVX512_BF16, Intel&reg; Core&trade; Processors with Intel&reg;           |
-||                                                                         | AVX2, Intel&reg; Atom&reg; Processors with Intel® Streaming SIMD Extensions (Intel® SSE)                      |
+|| :doc:`CPU <openvino_docs_OV_UG_supported_plugins_CPU>`                  | Intel® Xeon® with Intel® Advanced Vector Extensions 2 (Intel® AVX2), Intel® Advanced Vector                   |
+||                                                                         | Extensions 512 (Intel® AVX-512), and AVX512_BF16, Intel® Core™ Processors with Intel®                         |
+||                                                                         | AVX2, Intel® Atom® Processors with Intel® Streaming SIMD Extensions (Intel® SSE)                              |
 +--------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------+
-|| :doc:`GNA plugin <openvino_docs_OV_UG_supported_plugins_GNA>`           | Intel&reg; Speech Enabling Developer Kit, Amazon Alexa* Premium Far-Field Developer Kit, Intel&reg;           |
-|| (available in the Intel® Distribution of OpenVINO™ toolkit)             | Pentium&reg; Silver J5005 Processor, Intel&reg; Pentium&reg; Silver N5000 Processor, Intel&reg;               |
-||                                                                         | Celeron&reg; J4005 Processor, Intel&reg; Celeron&reg; J4105 Processor, Intel&reg; Celeron&reg;                |
-||                                                                         | Processor N4100, Intel&reg; Celeron&reg; Processor N4000, Intel&reg; Core&trade; i3-8121U Processor,          |
-||                                                                         | Intel&reg; Core&trade; i7-1065G7 Processor, Intel&reg; Core&trade; i7-1060G7 Processor, Intel&reg;            |
-||                                                                         | Core&trade; i5-1035G4 Processor, Intel&reg; Core&trade; i5-1035G7 Processor, Intel&reg; Core&trade;           |
-||                                                                         | i5-1035G1 Processor, Intel&reg; Core&trade; i5-1030G7 Processor, Intel&reg; Core&trade; i5-1030G4 Processor,  |
-||                                                                         | Intel&reg; Core&trade; i3-1005G1 Processor, Intel&reg; Core&trade; i3-1000G1 Processor,                       |
-||                                                                         | Intel&reg; Core&trade; i3-1000G4 Processor                                                                    |
+|| :doc:`GNA plugin <openvino_docs_OV_UG_supported_plugins_GNA>`           | Intel® Speech Enabling Developer Kit, Amazon Alexa* Premium Far-Field Developer Kit, Intel®                   |
+|| (available in the Intel® Distribution of OpenVINO™ toolkit)             | Pentium® Silver J5005 Processor, Intel® Pentium® Silver N5000 Processor, Intel®                               |
+||                                                                         | Celeron® J4005 Processor, Intel® Celeron® J4105 Processor, Intel® Celeron®                                    |
+||                                                                         | Processor N4100, Intel® Celeron® Processor N4000, Intel® Core™ i3-8121U Processor,                            |
+||                                                                         | Intel® Core™ i7-1065G7 Processor, Intel® Core™ i7-1060G7 Processor, Intel®                                    |
+||                                                                         | Core™ i5-1035G4 Processor, Intel® Core™ i5-1035G7 Processor, Intel® Core™                                     |
+||                                                                         | i5-1035G1 Processor, Intel® Core™ i5-1030G7 Processor, Intel® Core™ i5-1030G4 Processor,                      |
+||                                                                         | Intel® Core™ i3-1005G1 Processor, Intel® Core™ i3-1000G1 Processor,                                           |
+||                                                                         | Intel® Core™ i3-1000G4 Processor                                                                              |
 +--------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------+
 || :doc:`Arm® CPU <openvino_docs_OV_UG_supported_plugins_ARM_CPU>`         | Raspberry Pi™ 4 Model B, Apple® Mac mini with M1 chip, NVIDIA® Jetson Nano™, Android™ devices                 |
 || (unavailable in the Intel® Distribution of OpenVINO™ toolkit)           |                                                                                                               |

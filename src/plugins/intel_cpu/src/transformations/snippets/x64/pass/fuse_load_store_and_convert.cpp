@@ -46,7 +46,7 @@ ov::intel_cpu::pass::FuseLoadConvert::FuseLoadConvert() {
                                                                                   convert_truncation->get_destination_type(),
                                                                                   load->get_count(), load->get_offset());
         } else {
-            throw ngraph::ngraph_error(
+            OPENVINO_THROW(
                 "Type of Convert op is undefined. Supports only fusing Load and ConvertTruncation or ConvertSaturation ops");
         }
 
@@ -95,7 +95,7 @@ ov::intel_cpu::pass::FuseStoreConvert::FuseStoreConvert() {
                                                                                     convert_truncation->get_destination_type(),
                                                                                     store->get_count(), store->get_offset());
         } else {
-            throw ngraph::ngraph_error(
+            OPENVINO_THROW(
                 "Type of Convert op is undefined. Supports only fusing Store and ConvertTruncation or ConvertSaturation ops");
         }
 

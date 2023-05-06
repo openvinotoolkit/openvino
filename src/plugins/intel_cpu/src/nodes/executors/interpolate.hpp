@@ -27,7 +27,9 @@ enum InterpolateMode {
     nearest,
     linear,
     linear_onnx,
-    cubic
+    cubic,
+    bilinear_pillow,
+    bicubic_pillow
 };
 
 enum InterpolateCoordTransMode {

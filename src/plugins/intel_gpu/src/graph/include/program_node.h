@@ -94,7 +94,7 @@ public:
                 if (u->is_fused_dep(dep_idx)) {
                     continue;
                 }
-                if (u->get_dependency(dep_idx).get_unique_id() == unique_id) {
+                if (u->get_dependencies().at(dep_idx).first == this) {
                     return true;
                 }
             }
@@ -103,6 +103,24 @@ public:
     }
 
     bool is_fused_dep(size_t dep_idx) const;
+
+    bool has_fused_dep() const {
+        for (auto fused : get_fused_primitives()) {
+            if (fused.has_outer_dep())
+                return true;
+        }
+        return false;
+    }
+
+    int32_t get_first_fused_dep_idx() const {
+        if (!has_fused_dep())
+            return -1;
+        for (auto fused : get_fused_primitives()) {
+            if (fused.has_outer_dep())
+                return fused.outer_dep_start_idx;
+        }
+        return -1;
+    }
 
     std::map<size_t, memory::ptr> get_const_memory_deps() const;
 

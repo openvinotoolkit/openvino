@@ -30,9 +30,24 @@ JitConstants ReduceKernelBase::GetJitConstants(const reduce_params& params) cons
 
     const auto& output = params.outputs[0];
     if (output.is_dynamic()) {
-        size_t output_tensor_offset = 1 + GetFusedPrimitiveInputsCount(params);
+        size_t output_tensor_offset = params.inputs[0].is_dynamic() ? 1 : 0;
+        for (size_t i = 0; i < params.fused_ops.size(); i++) {
+            auto& fused_op_inputs = params.fused_ops[i].tensors;
+
+            for (auto& t : fused_op_inputs) {
+                if (t.is_dynamic())
+                    output_tensor_offset++;
+            }
+        }
         DimensionAccessHelper dims(output, output_tensor_offset);
-        jit.AddConstant(MakeJitConstant("COMPUTATIONAL_OPERATIONS_NUMBER", toVectorMulString({dims.x, dims.y, dims.z, dims.w, dims.f, dims.b})));
+        jit.AddConstant(MakeJitConstant("COMPUTATIONAL_OPERATIONS_NUMBER", toVectorMulString({dims.x,
+                                                                                              dims.y,
+                                                                                              dims.z,
+                                                                                              dims.w,
+                                                                                              dims.u,
+                                                                                              dims.v,
+                                                                                              dims.f,
+                                                                                              dims.b})));
     } else {
         jit.AddConstant(MakeJitConstant("COMPUTATIONAL_OPERATIONS_NUMBER", params.outputs[0].LogicalSize()));
     }
@@ -59,44 +74,50 @@ JitConstants ReduceKernelBase::GetJitConstants(const reduce_params& params) cons
     };
 
     auto getDimSizeNameByNum = [&](size_t dim) -> std::string {
-        if (params.inputs[0].Dimentions() == 6) {
+        if (params.inputs[0].Dimentions() == 8) {
             switch (dim) {
-                case 0:
-                    return "BATCH_NUM";
-                case 1:
-                    return "FEATURE_NUM";
-                case 2:
-                    return "SIZE_W";
-                case 3:
-                    return "SIZE_Z";
-                case 4:
-                    return "SIZE_Y";
-                case 5:
-                    return "SIZE_X";
+                case 0: return "BATCH_NUM";
+                case 1: return "FEATURE_NUM";
+                case 2: return "SIZE_V";
+                case 3: return "SIZE_U";
+                case 4: return "SIZE_W";
+                case 5: return "SIZE_Z";
+                case 6: return "SIZE_Y";
+                case 7: return "SIZE_X";
+            }
+        } else if (params.inputs[0].Dimentions() == 7) {
+            switch (dim) {
+                case 0: return "BATCH_NUM";
+                case 1: return "FEATURE_NUM";
+                case 2: return "SIZE_U";
+                case 3: return "SIZE_W";
+                case 4: return "SIZE_Z";
+                case 5: return "SIZE_Y";
+                case 6: return "SIZE_X";
+            }
+        } else  if (params.inputs[0].Dimentions() == 6) {
+            switch (dim) {
+                case 0: return "BATCH_NUM";
+                case 1: return "FEATURE_NUM";
+                case 2: return "SIZE_W";
+                case 3: return "SIZE_Z";
+                case 4: return "SIZE_Y";
+                case 5: return "SIZE_X";
             }
         } else if (params.inputs[0].Dimentions() == 5) {
             switch (dim) {
-                case 0:
-                    return "BATCH_NUM";
-                case 1:
-                    return "FEATURE_NUM";
-                case 2:
-                    return "SIZE_Z";
-                case 3:
-                    return "SIZE_Y";
-                case 4:
-                    return "SIZE_X";
+                case 0: return "BATCH_NUM";
+                case 1: return "FEATURE_NUM";
+                case 2: return "SIZE_Z";
+                case 3: return "SIZE_Y";
+                case 4: return "SIZE_X";
             }
         } else if (params.inputs[0].Dimentions() == 4) {
             switch (dim) {
-                case 0:
-                    return "BATCH_NUM";
-                case 1:
-                    return "FEATURE_NUM";
-                case 2:
-                    return "SIZE_Y";
-                case 3:
-                    return "SIZE_X";
+                case 0: return "BATCH_NUM";
+                case 1: return "FEATURE_NUM";
+                case 2: return "SIZE_Y";
+                case 3: return "SIZE_X";
             }
         }
         return "";
@@ -168,6 +189,12 @@ JitConstants ReduceKernelBase::GetJitConstants(const reduce_params& params) cons
                 break;
             case 5:
                 jit.AddConstant(MakeJitConstant("REDUCE_W", 1));
+                break;
+            case 6:
+                jit.AddConstant(MakeJitConstant("REDUCE_U", 1));
+                break;
+            case 7:
+                jit.AddConstant(MakeJitConstant("REDUCE_V", 1));
                 break;
         }
     }

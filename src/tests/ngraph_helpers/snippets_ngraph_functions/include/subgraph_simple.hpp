@@ -243,6 +243,21 @@ protected:
 
     PartialShape m_target_shape;
 };
+
+/// graph use case to cover duplicated subgraphs edge elimination in such as in yolo-v3
+//              subgraph/node
+//                /     |
+//           subgraph  subgraph
+//                \     /
+//              eltwise node
+class EdgeReplaceFunction : public SnippetsFunctionBase {
+public:
+    explicit EdgeReplaceFunction(const std::vector<PartialShape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
+        NGRAPH_CHECK(input_shapes.size() == 1, "Got invalid number of input shapes");
+    }
+protected:
+    std::shared_ptr<ov::Model> initOriginal() const override;
+};
 }  // namespace snippets
 }  // namespace test
 }  // namespace ov

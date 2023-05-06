@@ -134,14 +134,16 @@ CommonDispatchData PermuteKernelRef::SetDefault(const permute_params& params) co
         std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{Tensor::DataChannelName::FEATURE},
                                                                         {Tensor::DataChannelName::X, Tensor::DataChannelName::Y},
                                                                         {Tensor::DataChannelName::Z, Tensor::DataChannelName::W,
+                                                                         Tensor::DataChannelName::U, Tensor::DataChannelName::V,
                                                                          Tensor::DataChannelName::BATCH}};
-        dispatchData.gws = {in.Feature().v, in.X().v * in.Y().v, in.Z().v * in.W().v * in.Batch().v};
+        dispatchData.gws = {in.Feature().v, in.X().v * in.Y().v, in.Z().v * in.W().v  * in.U().v  * in.V().v * in.Batch().v};
         dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
     } else {
         std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{Tensor::DataChannelName::X},
-                                                                        {Tensor::DataChannelName::Y, Tensor::DataChannelName::Z, Tensor::DataChannelName::W},
+                                                                        {Tensor::DataChannelName::Y, Tensor::DataChannelName::Z, Tensor::DataChannelName::W,
+                                                                         Tensor::DataChannelName::U, Tensor::DataChannelName::V},
                                                                         {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
-        dispatchData.gws = {in.X().v, in.Y().v * in.Z().v * in.W().v, in.Feature().v * in.Batch().v};
+        dispatchData.gws = {in.X().v, in.Y().v * in.Z().v * in.W().v * in.U().v  * in.V().v , in.Feature().v * in.Batch().v};
         dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
     }
 
@@ -151,6 +153,13 @@ CommonDispatchData PermuteKernelRef::SetDefault(const permute_params& params) co
 bool PermuteKernelRef::Validate(const Params& p, const optional_params& o) const {
     if (!Parent::Validate(p, o)) return false;
 
+    const permute_params& params = static_cast<const permute_params&>(p);
+
+    auto in_rank = params.inputs[0].GetDims().size();
+    auto out_rank = params.outputs[0].GetDims().size();
+    if (in_rank != out_rank && (in_rank > 6 || out_rank > 6))
+       return false;
+
     return true;
 }
 
@@ -158,15 +167,6 @@ JitConstants PermuteKernelRef::GetJitConstants(const permute_params& params, con
     auto jit = Parent::GetJitConstants(params, dispatchData);
     std::vector<std::string> in_idx;
     std::vector<std::string> permute_out_idx;
-
-    std::map<std::string, std::string> size_str_map = {
-        {"b", "INPUT0_BATCH_NUM"},
-        {"f", "INPUT0_FEATURE_NUM"},
-        {"w", "INPUT0_SIZE_W"},
-        {"z", "INPUT0_SIZE_Z"},
-        {"y", "INPUT0_SIZE_Y"},
-        {"x", "INPUT0_SIZE_X"}
-    };
 
     std::pair<size_t, size_t> dim_change;
     bool reorder_to_different_dim = false;
@@ -178,6 +178,8 @@ JitConstants PermuteKernelRef::GetJitConstants(const permute_params& params, con
     }
 
     switch (DataTensor::ChannelsCount(params.inputs[0].GetLayout())) {
+        case 8: in_idx = {"b", "f", "x", "y", "z", "w", "u", "v" }; break;
+        case 7: in_idx = {"b", "f", "x", "y", "z", "w", "u" }; break;
         case 6: in_idx = {"b", "f", "x", "y", "z", "w" }; break;
         case 5: in_idx = {"b", "f", "x", "y", "z" }; break;
         default: in_idx = {"b", "f", "x", "y" }; break;

@@ -75,7 +75,7 @@ dnnl::memory::dims convert_gemm_tensor(cldnn::tensor t, size_t dims, bool batche
         res.erase(res.begin(), res.begin() + dims - 4);
     }
     if (res.size() == 4 && batched_dims_can_be_removed) {
-        res.erase(res.begin());
+        res.erase(res.begin(), res.begin() + 2);
     }
     return res;
 }

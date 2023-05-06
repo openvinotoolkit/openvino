@@ -54,6 +54,7 @@ If not specified, throughput is used as the default. To set the hint explicitly,
 .. note::
 
    It is up to the user to ensure the environment on which the benchmark is running is optimized for maximum performance. Otherwise, different results may occur when using the application in different environment settings (such as power optimization settings, processor overclocking, thermal throttling).
+   Stating flags that take only single option like `-m` multiple times, for example `./benchmark_app -m model.xml -m model2.xml`, results in only the first value being used.
 
 Latency
 --------------------
@@ -166,7 +167,7 @@ Running the application with the ``-h`` or ``--help`` option yields the followin
                                      'throughput' or 'tput': device performance mode will be set to THROUGHPUT.
                                      'cumulative_throughput' or 'ctput': device performance mode will be set to CUMULATIVE_THROUGHPUT.
                                      'latency': device performance mode will be set to LATENCY.
-                                     'none': device performance mode will be set to UNDEFINED.
+                                     'none': no device performance mode will be set.
                                     Using explicit 'nstreams' or other device-specific options, please set hint to 'none'
           -niter  <integer>             Optional. Number of iterations. If not specified, the number of iterations is calculated depending on a device.
           -t                            Optional. Time in seconds to execute topology.

@@ -50,7 +50,7 @@ public:
     std::function<std::shared_ptr<Emitter>(std::shared_ptr<ngraph::Node>)> get(const ngraph::DiscreteTypeInfo type) const {
         auto jitter = jitters.find(type);
         if (jitter == jitters.end()) {
-            throw ngraph_error(std::string("Target code emitter is not available for ") + type.name + " operation.");
+            OPENVINO_THROW(std::string("Target code emitter is not available for ") + type.name + " operation.");
         }
         return jitter->second.first;
     }
@@ -59,7 +59,7 @@ public:
         get_supported_precisions(const ngraph::DiscreteTypeInfo type) const {
         auto jitter = jitters.find(type);
         if (jitter == jitters.end()) {
-            throw ngraph_error(std::string("Target code emitter is not available for ") + type.name + " operation.");
+            OPENVINO_THROW(std::string("Target code emitter is not available for ") + type.name + " operation.");
         }
         return jitter->second.second;
     }

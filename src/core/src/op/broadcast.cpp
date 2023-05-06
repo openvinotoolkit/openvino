@@ -183,7 +183,7 @@ shared_ptr<Node> op::v3::Broadcast::clone_with_new_inputs(const OutputVector& ne
     } else if (new_args.size() == 3) {
         return make_shared<v3::Broadcast>(new_args.at(0), new_args.at(1), new_args.at(2), m_mode);
     } else {
-        throw ngraph_error("Not supported number of Broadcast:v3 args");
+        OPENVINO_THROW("Not supported number of Broadcast:v3 args");
     }
 }
 

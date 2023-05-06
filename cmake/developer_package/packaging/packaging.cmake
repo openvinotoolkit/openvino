@@ -66,11 +66,11 @@ endmacro()
 ov_cpack_set_dirs()
 
 #
-# ie_cpack_add_component(NAME ...)
+# ov_cpack_add_component(NAME ...)
 #
 # Wraps original `cpack_add_component` and adds component to internal IE list
 #
-function(ie_cpack_add_component name)
+function(ov_cpack_add_component name)
     if(NOT ${name} IN_LIST IE_CPACK_COMPONENTS_ALL)
         cpack_add_component(${name} ${ARGN})
 

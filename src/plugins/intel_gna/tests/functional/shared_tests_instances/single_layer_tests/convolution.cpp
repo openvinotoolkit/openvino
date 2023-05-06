@@ -2,14 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "single_layer_tests/convolution.hpp"
-
+#include <memory>
+#include <string>
+#include <tuple>
 #include <vector>
 
 #include "../skip_tests_check.hpp"
 #include "common_test_utils/test_constants.hpp"
+#include "ngraph_functions/builders.hpp"
+#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "openvino/opsets/opset11.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 
-using namespace LayerTestsDefinitions;
+using namespace ov;
+using namespace ov::op;
+using namespace ov::opset11;
 
 namespace {
 
@@ -20,7 +27,7 @@ typedef std::tuple<InferenceEngine::SizeVector,  // Kernel size
                    std::vector<ptrdiff_t>,       // Pad end
                    InferenceEngine::SizeVector,  // Dilation
                    size_t,                       // Num out channels
-                   ngraph::op::PadType           // Padding type
+                   PadType                       // Padding type
                    >
     convSpecificParams;
 
@@ -34,18 +41,19 @@ typedef std::tuple<convSpecificParams,
                    LayerTestsUtils::TargetDevice,      // Device name
                    std::map<std::string, std::string>  // GNA Config params
                    >
-    ConvLayer2DTestParamsSet;
+    ConvLayerTestFixtureParamsSet;
 
-class Convolution2DLayerTest : public testing::WithParamInterface<ConvLayer2DTestParamsSet>,
-                               virtual public LayerTestsUtils::LayerTestsCommon {
+class ConvolutionLayerTestFixture : public testing::WithParamInterface<ConvLayerTestFixtureParamsSet>,
+                                    virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<ConvLayer2DTestParamsSet>& obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ConvLayerTestFixtureParamsSet>& obj);
 
 protected:
     void SetUp() override;
 };
 
-std::string Convolution2DLayerTest::getTestCaseName(const testing::TestParamInfo<ConvLayer2DTestParamsSet>& obj) {
+std::string ConvolutionLayerTestFixture::getTestCaseName(
+    const testing::TestParamInfo<ConvLayerTestFixtureParamsSet>& obj) {
     convSpecificParams convParams;
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;
@@ -55,7 +63,7 @@ std::string Convolution2DLayerTest::getTestCaseName(const testing::TestParamInfo
     std::map<std::string, std::string> config;
     std::tie(convParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShapes, targetDevice, config) =
         obj.param;
-    ngraph::op::PadType padType;
+    PadType padType;
     InferenceEngine::SizeVector kernel, stride, dilation;
     std::vector<ptrdiff_t> padBegin, padEnd;
     size_t convOutChannels;
@@ -82,44 +90,42 @@ std::string Convolution2DLayerTest::getTestCaseName(const testing::TestParamInfo
     return result.str();
 }
 
-void Convolution2DLayerTest::SetUp() {
+void ConvolutionLayerTestFixture::SetUp() {
     convSpecificParams convParams;
     std::vector<size_t> inputShape;
     auto netPrecision = InferenceEngine::Precision::UNSPECIFIED;
     std::tie(convParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetDevice, configuration) =
         this->GetParam();
-    ngraph::op::PadType padType;
+    PadType padType;
     InferenceEngine::SizeVector kernel, stride, dilation;
     std::vector<ptrdiff_t> padBegin, padEnd;
     size_t convOutChannels;
     std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType) = convParams;
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
-    auto paramOuts =
-        ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+    auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<Parameter>(params));
     std::vector<float> filter_weights;
 
     auto filter_size = std::accumulate(std::begin(kernel), std::end(kernel), 1, std::multiplies<size_t>());
     filter_weights =
         CommonTestUtils::generate_float_numbers(convOutChannels * inputShape[1] * filter_size, -0.5f, 0.5f);
 
-    auto conv =
-        std::dynamic_pointer_cast<ngraph::opset1::Convolution>(ngraph::builder::makeConvolution(paramOuts[0],
-                                                                                                ngPrc,
-                                                                                                kernel,
-                                                                                                stride,
-                                                                                                padBegin,
-                                                                                                padEnd,
-                                                                                                dilation,
-                                                                                                padType,
-                                                                                                convOutChannels,
-                                                                                                false,
-                                                                                                filter_weights));
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(conv)};
-    function = std::make_shared<ngraph::Function>(results, params, "convolution");
+    auto conv = std::dynamic_pointer_cast<Convolution>(ngraph::builder::makeConvolution(paramOuts[0],
+                                                                                        ngPrc,
+                                                                                        kernel,
+                                                                                        stride,
+                                                                                        padBegin,
+                                                                                        padEnd,
+                                                                                        dilation,
+                                                                                        padType,
+                                                                                        convOutChannels,
+                                                                                        false,
+                                                                                        filter_weights));
+    ResultVector results{std::make_shared<Result>(conv)};
+    function = std::make_shared<Model>(results, params, "convolution");
 }
 
-TEST_P(Convolution2DLayerTest, CompareWithRefs) {
+TEST_P(ConvolutionLayerTestFixture, CompareWithRefs) {
     Run();
 }
 const std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32,
@@ -199,14 +205,14 @@ const auto conv2DParams_Kernels2D = ::testing::Combine(::testing::ValuesIn(kerne
                                                        ::testing::ValuesIn(padEnds2D),
                                                        ::testing::ValuesIn(dilations2D),
                                                        ::testing::ValuesIn(numOutCannels2D),
-                                                       ::testing::Values(ngraph::op::PadType::EXPLICIT));
+                                                       ::testing::Values(PadType::EXPLICIT));
 const auto conv2DParams_Kernels2D_big = ::testing::Combine(::testing::ValuesIn(kernels2D_big),
                                                            ::testing::ValuesIn(strides2D),
                                                            ::testing::ValuesIn(padBegins2D),
                                                            ::testing::ValuesIn(padEnds2D),
                                                            ::testing::ValuesIn(dilations2D),
                                                            ::testing::ValuesIn(numOutCannels2D),
-                                                           ::testing::Values(ngraph::op::PadType::EXPLICIT));
+                                                           ::testing::Values(PadType::EXPLICIT));
 
 const auto conv2DParams_Kernels2D_3x3 = ::testing::Combine(::testing::ValuesIn(kernels2D_3x3),
                                                            ::testing::ValuesIn(strides2D),
@@ -214,7 +220,7 @@ const auto conv2DParams_Kernels2D_3x3 = ::testing::Combine(::testing::ValuesIn(k
                                                            ::testing::ValuesIn(padEnds2D),
                                                            ::testing::ValuesIn(dilations2D),
                                                            ::testing::ValuesIn(num_out_channels_for_mapped_2d),
-                                                           ::testing::Values(ngraph::op::PadType::EXPLICIT));
+                                                           ::testing::Values(PadType::EXPLICIT));
 
 const auto conv2DParams_Kernels2D_5x6 = ::testing::Combine(::testing::ValuesIn(kernels2D_5x6),
                                                            ::testing::ValuesIn(strides2D),
@@ -222,7 +228,7 @@ const auto conv2DParams_Kernels2D_5x6 = ::testing::Combine(::testing::ValuesIn(k
                                                            ::testing::ValuesIn(padEnds2D),
                                                            ::testing::ValuesIn(dilations2D),
                                                            ::testing::ValuesIn(num_out_channels_for_mapped_2d),
-                                                           ::testing::Values(ngraph::op::PadType::EXPLICIT));
+                                                           ::testing::Values(PadType::EXPLICIT));
 
 const auto conv2DParams_ExplicitPadding_Height1 = ::testing::Combine(::testing::ValuesIn(kernelsH1),
                                                                      ::testing::ValuesIn(stridesH1),
@@ -230,21 +236,21 @@ const auto conv2DParams_ExplicitPadding_Height1 = ::testing::Combine(::testing::
                                                                      ::testing::ValuesIn(padEndsH1),
                                                                      ::testing::ValuesIn(dilationsH1),
                                                                      ::testing::ValuesIn(numOutCannels),
-                                                                     ::testing::Values(ngraph::op::PadType::EXPLICIT));
+                                                                     ::testing::Values(PadType::EXPLICIT));
 const auto conv2DParams_ExplicitPadding_Width1 = ::testing::Combine(::testing::ValuesIn(kernelsW1),
                                                                     ::testing::ValuesIn(stridesW1),
                                                                     ::testing::ValuesIn(padBeginsW1),
                                                                     ::testing::ValuesIn(padEndsW1),
                                                                     ::testing::ValuesIn(dilationsW1),
                                                                     ::testing::ValuesIn(numOutCannels),
-                                                                    ::testing::Values(ngraph::op::PadType::EXPLICIT));
+                                                                    ::testing::Values(PadType::EXPLICIT));
 const auto conv2DParams_AutoPadValid_Height1 = ::testing::Combine(::testing::ValuesIn(kernelsH1),
                                                                   ::testing::ValuesIn(stridesH1),
                                                                   ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
                                                                   ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
                                                                   ::testing::ValuesIn(dilationsH1),
                                                                   ::testing::ValuesIn(numOutCannels),
-                                                                  ::testing::Values(ngraph::op::PadType::VALID));
+                                                                  ::testing::Values(PadType::VALID));
 const auto conv2DParams_AutoPadValid_Height1_BigStride =
     ::testing::Combine(::testing::ValuesIn(kernelsH1),
                        ::testing::ValuesIn(stridesH1Big),
@@ -252,25 +258,25 @@ const auto conv2DParams_AutoPadValid_Height1_BigStride =
                        ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
                        ::testing::ValuesIn(dilationsH1),
                        ::testing::ValuesIn(numOutCannels),
-                       ::testing::Values(ngraph::op::PadType::VALID));
+                       ::testing::Values(PadType::VALID));
 const auto conv2DParams_AutoPadValid_Width1 = ::testing::Combine(::testing::ValuesIn(kernelsW1),
                                                                  ::testing::ValuesIn(stridesW1),
                                                                  ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
                                                                  ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
                                                                  ::testing::ValuesIn(dilationsW1),
                                                                  ::testing::ValuesIn(numOutCannels),
-                                                                 ::testing::Values(ngraph::op::PadType::VALID));
+                                                                 ::testing::Values(PadType::VALID));
 const auto conv2DParams_AutoPadValid_MapTo1d = ::testing::Combine(::testing::Values(std::vector<size_t>{3, 5}),
                                                                   ::testing::ValuesIn(stridesW1),
                                                                   ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
                                                                   ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
                                                                   ::testing::Values(std::vector<size_t>{1, 1}),
                                                                   ::testing::ValuesIn(numOutCannels),
-                                                                  ::testing::Values(ngraph::op::PadType::VALID));
+                                                                  ::testing::Values(PadType::VALID));
 
 // TODO: padding isn't currently supported in GNA
 INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_Convolution2D_ExplicitPadding_Height1,
-                         Convolution2DLayerTest,
+                         ConvolutionLayerTestFixture,
                          ::testing::Combine(conv2DParams_ExplicitPadding_Height1,
                                             ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -280,10 +286,10 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_Convolution2D_ExplicitPadding_Height1,
                                             ::testing::ValuesIn(inputShapesH1),
                                             ::testing::Values(CommonTestUtils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs)),
-                         Convolution2DLayerTest::getTestCaseName);
+                         ConvolutionLayerTestFixture::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_Convolution2D_ExplicitPadding_Width1,
-                         Convolution2DLayerTest,
+                         ConvolutionLayerTestFixture,
                          ::testing::Combine(conv2DParams_ExplicitPadding_Width1,
                                             ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -293,10 +299,10 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_Convolution2D_ExplicitPadding_Width1,
                                             ::testing::ValuesIn(inputShapesW1),
                                             ::testing::Values(CommonTestUtils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs)),
-                         Convolution2DLayerTest::getTestCaseName);
+                         ConvolutionLayerTestFixture::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_AutoPadValid_Height1,
-                         Convolution2DLayerTest,
+                         ConvolutionLayerTestFixture,
                          ::testing::Combine(conv2DParams_AutoPadValid_Height1,
                                             ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -306,10 +312,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_AutoPadValid_Height1,
                                             ::testing::ValuesIn(inputShapesH1),
                                             ::testing::Values(CommonTestUtils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs)),
-                         Convolution2DLayerTest::getTestCaseName);
+                         ConvolutionLayerTestFixture::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_AutoPadValid_Height1_BigStride,
-                         Convolution2DLayerTest,
+                         ConvolutionLayerTestFixture,
                          ::testing::Combine(conv2DParams_AutoPadValid_Height1_BigStride,
                                             ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -319,10 +325,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_AutoPadValid_Height1_BigStride,
                                             ::testing::ValuesIn(inputShapesH1),
                                             ::testing::Values(CommonTestUtils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs)),
-                         Convolution2DLayerTest::getTestCaseName);
+                         ConvolutionLayerTestFixture::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_AutoPadValid_Width1,
-                         Convolution2DLayerTest,
+                         ConvolutionLayerTestFixture,
                          ::testing::Combine(conv2DParams_AutoPadValid_Width1,
                                             ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -332,10 +338,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_AutoPadValid_Width1,
                                             ::testing::ValuesIn(inputShapesW1),
                                             ::testing::Values(CommonTestUtils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs)),
-                         Convolution2DLayerTest::getTestCaseName);
+                         ConvolutionLayerTestFixture::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_AutoPadValid_MapTo1d,
-                         Convolution2DLayerTest,
+                         ConvolutionLayerTestFixture,
                          ::testing::Combine(conv2DParams_AutoPadValid_MapTo1d,
                                             ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -345,10 +351,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_AutoPadValid_MapTo1d,
                                             ::testing::ValuesIn(inputShapesMapTo1d),
                                             ::testing::Values(CommonTestUtils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs)),
-                         Convolution2DLayerTest::getTestCaseName);
+                         ConvolutionLayerTestFixture::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_Kernels2D,
-                         Convolution2DLayerTest,
+                         ConvolutionLayerTestFixture,
                          ::testing::Combine(conv2DParams_Kernels2D,
                                             ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -358,10 +364,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_Kernels2D,
                                             ::testing::Values(input2DNCHW),
                                             ::testing::Values(CommonTestUtils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs)),
-                         Convolution2DLayerTest::getTestCaseName);
+                         ConvolutionLayerTestFixture::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_Kernels2D_big,
-                         Convolution2DLayerTest,
+                         ConvolutionLayerTestFixture,
                          ::testing::Combine(conv2DParams_Kernels2D_big,
                                             ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -371,10 +377,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_Kernels2D_big,
                                             ::testing::Values(input2DNCHW),
                                             ::testing::Values(CommonTestUtils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs)),
-                         Convolution2DLayerTest::getTestCaseName);
+                         ConvolutionLayerTestFixture::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_Map2D_Not_Transpose_h_w_3_3,
-                         Convolution2DLayerTest,
+                         ConvolutionLayerTestFixture,
                          ::testing::Combine(conv2DParams_Kernels2D_3x3,
                                             ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -384,10 +390,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_Map2D_Not_Transpose_h_w_3_3,
                                             ::testing::Values(input2DNCHW_3x3),
                                             ::testing::Values(CommonTestUtils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs)),
-                         Convolution2DLayerTest::getTestCaseName);
+                         ConvolutionLayerTestFixture::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_Map2D_Not_Transpose_h_w_5_6,
-                         Convolution2DLayerTest,
+                         ConvolutionLayerTestFixture,
                          ::testing::Combine(conv2DParams_Kernels2D_5x6,
                                             ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -397,5 +403,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_Map2D_Not_Transpose_h_w_5_6,
                                             ::testing::Values(input2DNCHW_5x6),
                                             ::testing::Values(CommonTestUtils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs)),
-                         Convolution2DLayerTest::getTestCaseName);
+                         ConvolutionLayerTestFixture::getTestCaseName);
 }  // namespace

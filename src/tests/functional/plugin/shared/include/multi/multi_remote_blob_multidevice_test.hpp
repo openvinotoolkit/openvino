@@ -55,18 +55,18 @@ TEST_P(MultiDeviceMultipleGPU_Test, canCreateRemoteTensorThenInferWithAffinity) 
             continue;
         }
     }
-    for (int i = 0; i < cldnn_tensor.size(); i++) {
+    for (size_t i = 0; i < cldnn_tensor.size(); i++) {
         auto temprequest =  exec_net.create_infer_request();
         temprequest.set_input_tensor(cldnn_tensor.at(i));
         inf_req_shared.emplace_back(temprequest);
     }
-    for (int i = 0; i < inf_req_shared.size(); i++)
+    for (size_t i = 0; i < inf_req_shared.size(); i++)
         inf_req_shared.at(i).start_async();
-    for (int i = 0; i < inf_req_shared.size(); i++)
+    for (size_t i = 0; i < inf_req_shared.size(); i++)
         inf_req_shared.at(i).wait();
 
     // compare results
-    for (int i = 0; i < inf_req_shared.size(); i++) {
+    for (size_t i = 0; i < inf_req_shared.size(); i++) {
         auto output_tensor_shared = inf_req_shared.at(i).get_tensor(output);
 
         {

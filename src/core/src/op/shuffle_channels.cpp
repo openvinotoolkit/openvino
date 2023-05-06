@@ -41,7 +41,7 @@ size_t op::ShuffleChannels::get_zero_based_axis() const {
         return ov::normalize_axis(this, m_axis, input_rank);
         OPENVINO_SUPPRESS_DEPRECATED_END
     } else {
-        throw ngraph_error("Cannot request zero-based axis with a input of unknown rank");
+        OPENVINO_THROW("Cannot request zero-based axis with a input of unknown rank");
     }
 }
 

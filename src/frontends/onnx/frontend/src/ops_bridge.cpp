@@ -181,6 +181,9 @@ using namespace ov::frontend::onnx;
 
 namespace ngraph {
 namespace onnx_import {
+
+const char* OPENVINO_ONNX_DOMAIN = "org.openvinotoolkit";
+
 namespace {
 template <typename Container = std::map<int64_t, Operator>>
 typename Container::const_iterator find(int64_t version, const Container& map) {
@@ -206,8 +209,10 @@ void OperatorsBridge::register_operator_in_custom_domain(std::string name,
     for (int version = range.m_since; version <= range.m_until; ++version) {
         register_operator(name, version, domain, fn);
     }
-    NGRAPH_WARN << "Operator: " << name << " since version: " << range.m_since << " until version: " << range.m_until
-                << " registered with warning: " << warning_mes;
+    if (!warning_mes.empty()) {
+        NGRAPH_WARN << "Operator: " << name << " since version: " << range.m_since
+                    << " until version: " << range.m_until << " registered with warning: " << warning_mes;
+    }
 }
 
 void OperatorsBridge::register_operator(std::string name, VersionRange range, Operator fn, std::string warning_mes) {

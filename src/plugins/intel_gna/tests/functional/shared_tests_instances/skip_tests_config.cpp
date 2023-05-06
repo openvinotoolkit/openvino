@@ -34,8 +34,8 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue: 46416
         R"(.*InferRequestVariableStateTest.inferreq_smoke_VariableState_2infers*.*)",
         // TODO: Issue 24839
-        R"(.*Convolution2DLayerTest.CompareWithRefs.*D=\(1.3\).*)",
-        R"(.*Convolution2DLayerTest.CompareWithRefs.*D=\(3.1\).*)",
+        R"(.*ConvolutionLayerTestFixture.CompareWithRefs.*D=\(1.3\).*)",
+        R"(.*ConvolutionLayerTestFixture.CompareWithRefs.*D=\(3.1\).*)",
         R"(.*ConstantResultSubgraphTest.*IS=\(2\.3\.4\.5\).*)",
         R"(.*ConstantResultSubgraphTest.*inPrc=(U8|I8|I32|U64|I64|BOOL).*)",
         R"(.*importExportedFunctionParameterResultOnly.*)",
@@ -71,10 +71,11 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*(OVClass|IEClass)HeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK.*GetMetricNoThrow.*)",
         R"(.*LoadNetwork*.*LoadNetwork(HETEROWithDeviceIDNoThrow|WithBigDeviceID|WithInvalidDeviceID)*.*)",
         R"(.*QueryNetwork*.*QueryNetwork(HETEROWithDeviceIDNoThrow|WithBigDeviceID|WithInvalidDeviceID)*.*)",
+        R"(.*QueryModel*.*QueryModel(HETEROWithDeviceIDNoThrow|WithBigDeviceID|WithInvalidDeviceID)*.*)",
         R"(.*LoadNetworkTest.*QueryNetwork(MULTIWithHETERO|HETEROWithMULTI)NoThrow_V10.*)",
         R"(.*Behavior.*OVCompiledModelBaseTest.*get(Inputs|Outputs)FromFunctionWithSeveral(Inputs|Outputs).*)",
         // TODO: temporary disabled. Need to be enabled when PR 9282 is merged
-        R"(.*OVExecGraphImportExportTest.*readFromV10IR.*)",
+        R"(.*OVCompiledGraphImportExportTest.*readFromV10IR.*)",
         // Issue connected with OV2.0
         R"(.*EltwiseLayerTest.*NetType=f16.*)",
         // TODO: Issue: 69639
@@ -95,5 +96,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*CachingSupportCase.*LoadNet.*(Bias|Split|Concat|KSO|SingleConv).*)",
         R"(.*CachingSupportCase.*LoadNet.*(ConvPoolRelu|TIwithLSTMcell1)_f32_batch2.*)",
         R"(.*smoke_Multi_BehaviorTests.*)",
+        // unsupported metrics
+        R"(.*OVGetMetricPropsTest.*OVGetMetricPropsTest.*DEVICE_ID.*)",
+        R"(.*smoke_MultiHeteroOVGetMetricPropsTest.*OVGetMetricPropsTest.*(AVAILABLE_DEVICES|OPTIMIZATION_CAPABILITIES|RANGE_FOR_ASYNC_INFER_REQUESTS|RANGE_FOR_STREAMS).*)",
     };
 }
