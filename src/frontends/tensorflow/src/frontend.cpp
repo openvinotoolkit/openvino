@@ -256,6 +256,9 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr
             exception_message << unsupported_operation;
             ++counter;
         }
+        exception_message
+            << "\nTo facilitate the conversion of unsupported operations, refer to Frontend Extension documentation: "
+               "https://docs.openvino.ai/latest/openvino_docs_Extensibility_UG_Frontend_Extensions.html \n";
     }
 
     bool is_conversion_successful = ((unsupported_operations.size() == 0) && (failures.size() == 0));
