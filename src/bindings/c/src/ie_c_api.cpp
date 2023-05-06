@@ -1465,7 +1465,7 @@ IEStatusCode ie_blob_make_memory(const tensor_desc_t* tensorDesc, ie_blob_t** bl
     }
 
     IE::Layout l = IE::Layout::NCHW;
-    for (auto it : layout_map) {
+    for (auto const& it : layout_map) {
         if (it.second == tensorDesc->layout) {
             l = it.first;
             break;
@@ -1532,7 +1532,7 @@ IEStatusCode ie_blob_make_memory_from_preallocated(const tensor_desc_t* tensorDe
     }
 
     IE::Layout l = IE::Layout::NCHW;
-    for (auto it : layout_map) {
+    for (auto const& it : layout_map) {
         if (it.second == tensorDesc->layout) {
             l = it.first;
             break;
