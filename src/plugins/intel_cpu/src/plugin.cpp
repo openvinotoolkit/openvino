@@ -600,7 +600,7 @@ Parameter Engine::GetMetricLegacy(const std::string& name, const std::map<std::s
             METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS),
             METRIC_KEY(RANGE_FOR_STREAMS),
             METRIC_KEY(IMPORT_EXPORT_SUPPORT),
-            METRIC_KEY(DEVICE_GOPS)
+            METRIC_KEY(DEVICE_GOPS),
             ov::caching_properties.name(),
         };
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, metrics);
@@ -666,9 +666,8 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
                                                     RO_property(ov::range_for_streams.name()),
                                                     RO_property(ov::device::full_name.name()),
                                                     RO_property(ov::device::capabilities.name()),
-                                                    RO_property(ov::device::gops.name()),
-                                                    RO_property(ov::cache_dir.name())   // WA Can be removed after implementing snippet serialization.
                                                     RO_property(ov::caching_properties.name()),
+                                                    RO_property(ov::device::gops.name()),
         };
         // the whole config is RW before model is loaded.
         std::vector<ov::PropertyName> rwProperties {RW_property(ov::num_streams.name()),

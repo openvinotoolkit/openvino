@@ -33,6 +33,7 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginAllSupportedPropertiesAreAvailable) {
         RO_property(ov::device::full_name.name()),
         RO_property(ov::device::capabilities.name()),
         RO_property(ov::caching_properties.name()),
+        RO_property(ov::device::gops.name()),
         // read write
         RW_property(ov::num_streams.name()),
         RW_property(ov::affinity.name()),
