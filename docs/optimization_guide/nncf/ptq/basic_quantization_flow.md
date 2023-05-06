@@ -5,10 +5,10 @@
 Introduction
 ####################
 
-The basic quantization flow is the simplest way to apply 8-bit quantization to the model. It is available for models in the following frameworks: PyTorch, TensorFlow 2.x, ONNX, and OpenVINO. The basic quantization flow is based on the following steps:
+The basic quantization flow is the simplest way to apply 8-bit quantization to the model. It is available for models in the following frameworks: OpenVINO, PyTorch, TensorFlow 2.x, and ONNX. The basic quantization flow is based on the following steps:
 
 * Set up an environment and install dependencies.
-* Prepare the **calibration dataset** that is used to estimate quantization parameters of the activations within the model.
+* Prepare the representative **calibration dataset** that is used to estimate quantization parameters of the activations within the model.
 * Call the quantization API to apply 8-bit quantization to the model.
 
 Set up an Environment
@@ -29,9 +29,15 @@ Install all the packages required to instantiate the model object, for example, 
 Prepare a Calibration Dataset
 #############################
 
-At this step, create an instance of the ``nncf.Dataset`` class that represents the calibration dataset. The ``nncf.Dataset`` class can be a wrapper over the framework dataset object that is used for model training or validation. The class constructor receives the dataset object and the transformation function. For example, if you use PyTorch, you can pass an instance of the ``torch.utils.data.DataLoader`` object.
+At this step, create an instance of the ``nncf.Dataset`` class that represents the calibration dataset. The ``nncf.Dataset`` class can be a wrapper over the framework dataset object that is used for model training or validation. The class constructor receives the dataset object and the transformation function.
 
 The transformation function is a function that takes a sample from the dataset and returns data that can be passed to the model for inference. For example, this function can take a tuple of a data tensor and labels tensor, and return the former while ignoring the latter. The transformation function is used to avoid modifying the dataset code to make it compatible with the quantization API. The function is applied to each sample from the dataset before passing it to the model for inference. The following code snippet shows how to create an instance of the ``nncf.Dataset`` class:
+
+.. tab:: OpenVINO
+
+    .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_openvino.py
+       :language: python
+       :fragment: [dataset]
 
 .. tab:: PyTorch
 
@@ -45,23 +51,16 @@ The transformation function is a function that takes a sample from the dataset a
        :language: python
        :fragment: [dataset]
 
-.. tab:: OpenVINO
-
-    .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_openvino.py
-       :language: python
-       :fragment: [dataset]
-
 .. tab:: TensorFlow
 
     .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_tensorflow.py
        :language: python
        :fragment: [dataset]
 
+If there is no framework dataset object, you can create your own entity that implements the ``Iterable`` interface in Python, for example the list of images, and returns data samples feasible for inference. In this case, a transformation function is not required.
 
-If there is no framework dataset object, you can create your own entity that implements the ``Iterable`` interface in Python and returns data samples feasible for inference. In this case, a transformation function is not required.
 
-
-Run a Quantized Model
+Quantize a Model
 #####################
 
 Once the dataset is ready and the model object is instantiated, you can apply 8-bit quantization to it:
