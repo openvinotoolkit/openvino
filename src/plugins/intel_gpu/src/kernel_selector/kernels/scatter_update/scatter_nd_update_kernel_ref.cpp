@@ -117,7 +117,7 @@ bool ScatterNDUpdateKernelRef::Validate(const Params& p, const optional_params& 
     return true;
 }
 
-static std::string GetInputBlockND(const scatter_nd_update_params& params, size_t num, size_t dyn_offset, size_t rank) {
+static std::string GetInputBlockND(const scatter_nd_update_params& params, size_t num, size_t shape_info_offset, size_t rank) {
     const auto& input = params.inputs[num];
 
     auto input_dims = input.LogicalDims();
@@ -130,7 +130,7 @@ static std::string GetInputBlockND(const scatter_nd_update_params& params, size_
 
     std::vector<std::string> block_nd_s(rank + 1);
     block_nd_s[rank] = "1";
-    size_t input_offset = dyn_offset * DataTensor::max_rank();
+    size_t input_offset = shape_info_offset;
 
     for (int32_t idx = static_cast<int32_t>(rank) - 1; idx >= 0; --idx) {
         block_nd[idx] = input_dims[idx] * block_nd[idx + 1];
@@ -184,12 +184,27 @@ KernelsData ScatterNDUpdateKernelRef::GetKernelsData(const Params& params, const
             size_t input2_rank = newParams.inputs[2].LogicalDims().size();
             cldnn_jit.AddConstant(MakeJitConstant("IS_SECOND_ITER", "true"));
             size_t shape_info_offset = 0;
-            cldnn_jit.AddConstant(MakeJitConstant("INPUT0_BLOCK_ND", GetInputBlockND(newParams, 0, shape_info_offset, input0_rank)));
-            if (newParams.inputs[0].is_dynamic())
-                shape_info_offset++;
-            cldnn_jit.AddConstant(MakeJitConstant("INPUT1_BLOCK_ND", GetInputBlockND(newParams, 1, shape_info_offset, newParams.indices_rank - 1)));
-            if (newParams.inputs[1].is_dynamic())
-                shape_info_offset++;
+            cldnn_jit.AddConstant(
+                MakeJitConstant("INPUT0_BLOCK_ND", GetInputBlockND(newParams, 0, shape_info_offset, input0_rank)));
+            if (newParams.inputs[0].is_dynamic()) {
+                shape_info_offset += num_shape_info_dim;
+                for (auto j : newParams.inputs[0].GetDims()) {
+                    if (j.pad.is_dynamic) {
+                        shape_info_offset += num_shape_info_dim_for_pad;
+                    }
+                }
+            }
+            cldnn_jit.AddConstant(
+                MakeJitConstant("INPUT1_BLOCK_ND",
+                                GetInputBlockND(newParams, 1, shape_info_offset, newParams.indices_rank - 1)));
+            if (newParams.inputs[1].is_dynamic()) {
+                shape_info_offset += num_shape_info_dim;
+                for (auto j : newParams.inputs[1].GetDims()) {
+                    if (j.pad.is_dynamic) {
+                        shape_info_offset += num_shape_info_dim_for_pad;
+                    }
+                }
+            }
             cldnn_jit.AddConstant(MakeJitConstant("INPUT2_BLOCK_ND", GetInputBlockND(newParams, 2, shape_info_offset, input2_rank)));
             cldnn_jit.AddConstant(MakeJitConstant("INDICES_RANK", newParams.indices_rank));
 

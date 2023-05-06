@@ -63,12 +63,22 @@ JitConstants ConcatenationKernelBase::GetJitConstants(const concatenation_params
         size_t in_offset = 0;
         for (size_t i = 0; i < params.kernel_split_id; i++) {
             if (params.original_input_layouts[i].is_dynamic() || params.original_input_layouts[i].LogicalSize() == 0)
-                in_offset++;
+                in_offset += num_shape_info_dim;
+            for (auto j : params.original_input_layouts[i].GetDims()) {
+                if (j.pad.is_dynamic) {
+                    in_offset += num_shape_info_dim_for_pad;
+                }
+            }
         }
         size_t out_offset = 0;
         for (size_t i = 0; i < params.original_input_layouts.size(); i++) {
             if (params.original_input_layouts[i].is_dynamic() || params.original_input_layouts[i].LogicalSize() == 0)
-                out_offset++;
+                out_offset += num_shape_info_dim;
+            for (auto j : params.original_input_layouts[i].GetDims()) {
+                if (j.pad.is_dynamic) {
+                    out_offset += num_shape_info_dim_for_pad;
+                }
+            }
         }
 
         jit.AddConstant(MakeJitConstant("INPUT0", params.inputs[0], in_offset));

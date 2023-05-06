@@ -187,15 +187,20 @@ std::string toCodeString(size_t val) {
     return buf;
 }
 
-std::string toCodeString(const Tensor::Dim& dim, size_t offset, bool padded) {
-    if (dim.is_dynamic) {
-        if (padded && dim.pad.Total() > 0) {
-            snprintf(buf, sizeof(buf), "(shape_info[%zu] + %zu)", offset, dim.pad.Total());
+std::string toCodeString(const Tensor::Dim& dim, size_t offset, bool padded, bool pad_is_dynamic, size_t pad_offset) {
+    std::string pad_str = "";
+    if (padded) {
+        if (dim.pad.is_dynamic) {
+            pad_str = " + (shape_info[" + std::to_string(pad_offset) + "] + shape_info[" +
+                      std::to_string(pad_offset + 1) + "])";
         } else {
-            snprintf(buf, sizeof(buf), "shape_info[%zu]", offset);
+            pad_str = " + " + std::to_string(dim.pad.Total());
         }
+    }
+    if (dim.is_dynamic) {
+            snprintf(buf, sizeof(buf), "(shape_info[%zu] %s)", offset, pad_str.c_str());
     } else {
-        snprintf(buf, sizeof(buf), "%zu", dim.v + (padded ? dim.pad.Total() : 0));
+            snprintf(buf, sizeof(buf), "%zu", dim.v + (padded ? dim.pad.Total() : 0));
     }
     return buf;
 }
@@ -305,70 +310,94 @@ public:
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 class DataTensorJitConstant : public TensorBaseTJitConstant<Datatype, DataLayout> {
     const DataTensor _tensor;
-    const size_t _dyn_array_index;
+    const size_t shape_info_offset;
 
 public:
-    DataTensorJitConstant(const std::string& name, const DataTensor& t, size_t dyn_array_index = 0)
+    DataTensorJitConstant(const std::string& name, const DataTensor& t, size_t si_offset = 0)
     : TensorBaseTJitConstant(name)
     , _tensor(t)
-    , _dyn_array_index(dyn_array_index) {}
+    , shape_info_offset(si_offset) {}
 
     JitDefinitions GetDefinitions() const override;
 };
 
 JitDefinitions DataTensorJitConstant::GetDefinitions() const {
     JitDefinitions baseDefinitions = TensorBaseTJitConstant::GetDefinitions(_tensor);
+
+    size_t shape_info_offset_itr = shape_info_offset;  // max (8d)
+    size_t pad_idx_offset = shape_info_offset + num_shape_info_dim;
     JitDefinitions definitions{};
+    std::vector<std::pair<std::string, Tensor::Dim>> dims = {{"BATCH", _tensor.Batch()},
+                                                             {"FEATURE", _tensor.Feature()},
+                                                             {"U", _tensor.U()},
+                                                             {"V", _tensor.V()},
+                                                             {"W", _tensor.W()},
+                                                             {"Z", _tensor.Z()},
+                                                             {"Y", _tensor.Y()},
+                                                             {"X", _tensor.X()}};
+    std::map<std::string, std::pair<std::string /*not padded size str*/, std::string /*padded_size_str*/>> dim_to_sizes;
 
-    DimensionAccessHelper dims(_tensor, _dyn_array_index);
-    DimensionAccessHelper dims_padded(_tensor, _dyn_array_index, true);
-
-    definitions = {
-        {_name + "_SIZE_X", dims.x},
-        {_name + "_SIZE_Y", dims.y},
-        {_name + "_SIZE_Z", dims.z},
-        {_name + "_SIZE_W", dims.w},
-        {_name + "_SIZE_U", dims.u},
-        {_name + "_SIZE_V", dims.v},
-        {_name + "_FEATURE_NUM", dims.f},
-        {_name + "_BATCH_NUM", dims.b},
-        {_name + "_PAD_BEFORE_SIZE_X", toCodeString(_tensor.X().pad.before)},
-        {_name + "_PAD_BEFORE_SIZE_Y", toCodeString(_tensor.Y().pad.before)},
-        {_name + "_PAD_BEFORE_SIZE_Z", toCodeString(_tensor.Z().pad.before)},
-        {_name + "_PAD_BEFORE_SIZE_W", toCodeString(_tensor.W().pad.before)},
-        {_name + "_PAD_BEFORE_SIZE_U", toCodeString(_tensor.U().pad.before)},
-        {_name + "_PAD_BEFORE_SIZE_V", toCodeString(_tensor.V().pad.before)},
-        {_name + "_PAD_BEFORE_FEATURE_NUM", toCodeString(_tensor.Feature().pad.before)},
-        {_name + "_PAD_BEFORE_BATCH_NUM", toCodeString(_tensor.Batch().pad.before)},
-        {_name + "_PAD_AFTER_SIZE_X", toCodeString(_tensor.X().pad.after)},
-        {_name + "_PAD_AFTER_SIZE_Y", toCodeString(_tensor.Y().pad.after)},
-        {_name + "_PAD_AFTER_SIZE_Z", toCodeString(_tensor.Z().pad.after)},
-        {_name + "_PAD_AFTER_SIZE_W", toCodeString(_tensor.W().pad.after)},
-        {_name + "_PAD_AFTER_SIZE_U", toCodeString(_tensor.U().pad.after)},
-        {_name + "_PAD_AFTER_SIZE_V", toCodeString(_tensor.V().pad.after)},
-        {_name + "_PAD_AFTER_FEATURE_NUM", toCodeString(_tensor.Feature().pad.after)},
-        {_name + "_PAD_AFTER_BATCH_NUM", toCodeString(_tensor.Batch().pad.after)},
-    };
+    for (auto d : dims) {
+        std::string pure_data_size = (_tensor.is_dynamic()) ? toCodeString(d.second, shape_info_offset_itr) : toCodeString(d.second.v);
+        std::string data_size_with_pad =
+            toCodeString(d.second, shape_info_offset_itr++, true, d.second.is_dynamic, pad_idx_offset);
+        dim_to_sizes[d.first] = {pure_data_size, data_size_with_pad};
+        if (d.second.pad.is_dynamic)
+            pad_idx_offset += 2;
+    }
+    for (size_t i = 0; i < dims.size(); ++i) {
+        auto dim_name = dims[i].first;
+        auto dim_size_str = dim_to_sizes[dim_name].first;
+        if (dim_name == "FEATURE" || dim_name == "BATCH") {
+            definitions.push_back({_name + "_" + dim_name + "_NUM", dim_size_str});
+        } else {
+            definitions.push_back({_name + "_SIZE_" + dim_name, dim_size_str});
+        }
+    }
 
     if (_tensor.is_dynamic()) {
-        if (_tensor.GetLayout() == DataLayout::bf ||
-            _tensor.GetLayout() == DataLayout::bfyx ||
-            _tensor.GetLayout() == DataLayout::bfzyx ||
-            _tensor.GetLayout() == DataLayout::bfwzyx) {
-            definitions.push_back({_name + "_X_PITCH", "1"});
-            definitions.push_back({_name + "_Y_PITCH", dims_padded.x});
-            definitions.push_back({_name + "_Z_PITCH", toVectorMulString({dims_padded.x, dims_padded.y})});
-            definitions.push_back({_name + "_W_PITCH", toVectorMulString({dims_padded.x, dims_padded.y, dims_padded.z})});
-            definitions.push_back({_name + "_U_PITCH", toVectorMulString({dims_padded.x, dims_padded.y, dims_padded.z, dims_padded.w})});
-            definitions.push_back({_name + "_V_PITCH", toVectorMulString({dims_padded.x, dims_padded.y, dims_padded.z, dims_padded.w, dims_padded.u})});
-            definitions.push_back({_name + "_FEATURE_PITCH",
-                toVectorMulString({dims_padded.x, dims_padded.y, dims_padded.z, dims_padded.w, dims_padded.u, dims_padded.v})});
-            definitions.push_back({_name + "_BATCH_PITCH",
-                toVectorMulString({dims_padded.x, dims_padded.y, dims_padded.z, dims_padded.w, dims_padded.u, dims_padded.v, dims_padded.f})});
+        // shape_info layout
+        // if only y has dynamic padding:
+        // [dim_b, dim_f, dim_w, dim_z, dim_y, dim_x, pad_before_y, pad_after_y]
+        // if only x has dynamic padding:
+        // [dim_b, dim_f, dim_w, dim_z, dim_y, dim_x, pad_before_x, pad_after_x]
+       if (_tensor.GetLayout() == DataLayout::bf || _tensor.GetLayout() == DataLayout::bfyx ||
+            _tensor.GetLayout() == DataLayout::bfzyx || _tensor.GetLayout() == DataLayout::bfwzyx) {
+            size_t pad_idx_offset = shape_info_offset + 6;
+            for (auto d : dims) {
+                auto dim_size_name = d.first;
+                if (dim_size_name == "FEATURE" || dim_size_name == "BATCH") {
+                    dim_size_name = dim_size_name + "_NUM";
+                } else {
+                    dim_size_name = "SIZE_" + dim_size_name;
+                }
+                std::string pad_before_str;
+                std::string pad_after_str;
+                if (d.second.is_dynamic && d.second.pad.is_dynamic) {
+                    // Currently dynamic pad is only supported for dynamic dim
+                    pad_before_str = "(shape_info[" + std::to_string(pad_idx_offset++) + "])";
+                    pad_after_str = "(shape_info[" + std::to_string(pad_idx_offset++) + "])";
+                } else {
+                    pad_before_str = toCodeString(d.second.pad.before);
+                    pad_after_str = toCodeString(d.second.pad.after);
+                }
+                definitions.push_back({_name + "_PAD_BEFORE_" + dim_size_name, pad_before_str});
+                definitions.push_back({_name + "_PAD_AFTER_" + dim_size_name, pad_after_str});
+            }
+            for (size_t i = 0; i < dims.size(); ++i)  {
+                auto dim_name = dims[i].first;
+                std::vector<std::string> padded_sizes;
+                for (size_t j = i + 1; j < dims.size(); ++j) {
+                    auto lower_dim_name = dims[j].first;
+                    padded_sizes.push_back(dim_to_sizes[lower_dim_name].second);
+                }
+                definitions.push_back({_name + "_" + dim_name + "_PITCH", padded_sizes.size() > 0 ? toVectorMulString(padded_sizes) : "1"});
+            }
         } else {
             OPENVINO_ASSERT(false, "[GPU] Jitter couldn't generate dynamic pitches for given layout");
         }
     } else {
+        // static dim
         definitions.push_back({_name + "_X_PITCH", toCodeString(_tensor.X().pitch)});
         definitions.push_back({_name + "_Y_PITCH", toCodeString(_tensor.Y().pitch)});
         definitions.push_back({_name + "_Z_PITCH", toCodeString(_tensor.Z().pitch)});
@@ -622,8 +651,8 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
     return definitions;
 }
 
-std::shared_ptr<JitConstant> MakeJitConstant(const std::string& name, const DataTensor& value, size_t dyn_tensor_index) {
-    return std::static_pointer_cast<JitConstant>(std::make_shared<DataTensorJitConstant>(name, value, dyn_tensor_index));
+std::shared_ptr<JitConstant> MakeJitConstant(const std::string& name, const DataTensor& value, size_t shape_info_offset) {
+    return std::static_pointer_cast<JitConstant>(std::make_shared<DataTensorJitConstant>(name, value, shape_info_offset));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1623,17 +1652,18 @@ std::string FusedOpsCodeGenerator::GetTypeStr() const {
     }
 }
 
-JitConstants FusedOpsCodeGenerator::MakeFusedTensorJitConstants(const FusedOpsConfiguration& /*conf*/, size_t dynamic_in_tensors_count) const {
+JitConstants FusedOpsCodeGenerator::MakeFusedTensorJitConstants(const FusedOpsConfiguration& /*conf*/, size_t shape_info_offset) const {
     JitConstants jit{};
-    size_t dyn_tensor_idx = dynamic_in_tensors_count;
+    size_t shape_info_offset_iter = shape_info_offset;
     for (size_t op_input_id = 0; op_input_id < desc.tensors.size(); op_input_id++) {
         std::string name = GetInputTensorName(op_input_id);
-        jit.AddConstant(MakeJitConstant(name, desc.tensors[op_input_id], dyn_tensor_idx));
-        if (desc.tensors[op_input_id].is_dynamic())
-            dyn_tensor_idx++;
+        jit.AddConstant(MakeJitConstant(name, desc.tensors[op_input_id], shape_info_offset_iter));
+        if (desc.tensors[op_input_id].is_dynamic()) {
+            shape_info_offset_iter += num_shape_info_dim;
+        }
     }
     // Use shape_ids from output tensor as won't support fused ops which changes out shape for now
-    jit.AddConstant(MakeJitConstant(GetOutputTensorName(), desc.output_tensor, dyn_tensor_idx));
+    jit.AddConstant(MakeJitConstant(GetOutputTensorName(), desc.output_tensor, shape_info_offset_iter));
     return jit;
 }
 

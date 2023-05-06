@@ -15,6 +15,10 @@
 namespace kernel_selector {
 using primitive_db = kernel_selector::gpu::cache::primitive_db;
 
+// TODO: set this from layout
+constexpr int32_t num_shape_info_dim = 8; // bfuvzwyx
+constexpr int32_t num_shape_info_dim_for_pad = 2; // pad_before + pad_after
+
 struct CommonDispatchData {
     std::vector<size_t> gws;
     std::vector<size_t> lws;

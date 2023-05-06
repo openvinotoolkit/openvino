@@ -90,12 +90,16 @@ JitConstants KernelBase::MakeBaseParamsJitConstants(const base_params& params, b
     jit.Merge(MakeActivationJitConstants(params.activations, unitType));
 
     if (add_tensor_definitions) {
-        size_t dyn_tensor_idx = 0;
-
+        size_t shape_info_offset = 0;
         for (size_t i = 0; i < params.inputs.size(); i++) {
-            jit.AddConstant(MakeJitConstant("INPUT" + toCodeString(i), params.inputs[i], dyn_tensor_idx));
+            jit.AddConstant(MakeJitConstant("INPUT" + toCodeString(i), params.inputs[i], shape_info_offset));
             if (params.inputs[i].is_dynamic())
-                dyn_tensor_idx++;
+                shape_info_offset += num_shape_info_dim;
+            for (auto j : params.inputs[i].GetDims()) {
+                if (j.pad.is_dynamic) {
+                    shape_info_offset += num_shape_info_dim_for_pad;
+                }
+            }
         }
 
         for (size_t i = 0; i < params.fused_ops.size(); i++) {
@@ -103,21 +107,35 @@ JitConstants KernelBase::MakeBaseParamsJitConstants(const base_params& params, b
 
             for (auto& t : fused_op_inputs) {
                 if (t.is_dynamic())
-                    dyn_tensor_idx++;
+                    shape_info_offset += num_shape_info_dim;
+                for (auto j : t.GetDims()) {
+                    if (j.pad.is_dynamic)
+                        shape_info_offset += num_shape_info_dim_for_pad;
+                }
             }
         }
 
         // NOTE : until all cl kernels legacy is resolved, the outputs are to be OUTPUT, OUTPUT1, OUTPUT2, ...
-        jit.AddConstant(MakeJitConstant("OUTPUT", params.outputs[0], dyn_tensor_idx));
-        if (params.outputs[0].is_dynamic())
-                dyn_tensor_idx++;
+        jit.AddConstant(MakeJitConstant("OUTPUT", params.outputs[0], shape_info_offset));
+        if (params.outputs[0].is_dynamic()) {
+                shape_info_offset += num_shape_info_dim;
+        }
+        for (auto j : params.outputs[0].GetDims()) {
+            if (j.pad.is_dynamic) {
+                shape_info_offset += num_shape_info_dim_for_pad;
+            }
+        }
         for (size_t i = 1; i < params.outputs.size(); i++) {
-            jit.AddConstant(MakeJitConstant("OUTPUT" + toCodeString(i), params.outputs[i], dyn_tensor_idx));
+            for (auto j : params.outputs[i].GetDims()) {
+                if (j.pad.is_dynamic)
+                    shape_info_offset += num_shape_info_dim_for_pad;
+            }
+            jit.AddConstant(MakeJitConstant("OUTPUT" + toCodeString(i), params.outputs[i], shape_info_offset));
             if (params.outputs[0].is_dynamic())
-                dyn_tensor_idx++;
+                shape_info_offset += num_shape_info_dim;
         }
 
-        if (dyn_tensor_idx > 0) {
+        if (params.is_shape_agnostic) {
             jit.AddConstant(MakeJitConstant("IS_DYNAMIC", 1));
             jit.AddConstant(MakeJitConstant("OPTIONAL_SHAPE_INFO_ARG", "__global const int* shape_info,"));
             jit.AddConstant(MakeJitConstant("OPTIONAL_SHAPE_INFO_TENSOR", "shape_info,"));
@@ -216,17 +234,22 @@ JitConstants KernelBase::MakeFusedOpsDeclsJitConstants(const kernel_selector::ba
 
     std::string input_decls = "";
 
-    size_t dynamic_in_tensors_count = 0;
+    size_t shape_info_offset = 0;
     for (size_t i = 0; i < params.inputs.size(); i++) {
+        for (auto j : params.inputs[i].GetDims()) {
+            if (j.pad.is_dynamic) {
+                shape_info_offset += num_shape_info_dim_for_pad;
+            }
+        }
         if (params.inputs[i].is_dynamic())
-            dynamic_in_tensors_count++;
+            shape_info_offset += num_shape_info_dim;
     }
 
     for (size_t i = 0; i < params.fused_ops.size(); i++) {
         auto fused_dep_codegen = FusedOpsCodeGenerator(params.fused_ops[i]);
         std::string op_type = fused_dep_codegen.GetTypeStr();
 
-        jit.Merge(fused_dep_codegen.MakeFusedTensorJitConstants(conf[0], dynamic_in_tensors_count));
+        jit.Merge(fused_dep_codegen.MakeFusedTensorJitConstants(conf[0], shape_info_offset));
         jit.Merge(fused_dep_codegen.MakeInputDeclsJitConstants(conf[0]));
         if (!params.fused_ops[i].tensors.empty()) {
             std::string optional_comma = (!input_decls.empty() ? "," : "");
