@@ -400,7 +400,7 @@ StreamsCalculationTestCase _1sockets_14cores_latency_3 = {
     0,
     6,
     {{20, 6, 8, 6}},
-    {{1, MAIN_CORE_PROC, 6}},
+    {{1, MAIN_CORE_PROC, 12}},
 };
 
 StreamsCalculationTestCase _1sockets_14cores_latency_4 = {
@@ -590,7 +590,7 @@ StreamsCalculationTestCase _1sockets_10cores_latency_3 = {
     0,
     2,
     {{12, 2, 8, 2}},
-    {{1, MAIN_CORE_PROC, 2}},
+    {{1, MAIN_CORE_PROC, 4}},
 };
 
 StreamsCalculationTestCase _1sockets_10cores_latency_4 = {
@@ -680,7 +680,7 @@ StreamsCalculationTestCase _1sockets_8cores_latency_3 = {
     0,
     4,
     {{12, 4, 4, 4}},
-    {{1, MAIN_CORE_PROC, 4}},
+    {{1, MAIN_CORE_PROC, 8}},
 };
 
 StreamsCalculationTestCase _1sockets_8cores_latency_4 = {
