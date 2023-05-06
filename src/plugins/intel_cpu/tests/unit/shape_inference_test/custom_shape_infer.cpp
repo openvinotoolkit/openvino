@@ -4,6 +4,7 @@
 
 #include "utils/custom_shape_inference/reshape.hpp"
 #include "utils/custom_shape_inference/gather.hpp"
+#include "utils/custom_shape_inference/transpose.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "custom_shape_infer.hpp"
 #include <gtest/gtest.h>
@@ -41,7 +42,7 @@ CustomShapeInferFF::CustomShapeInferFF():Factory("CpuCustomShapeInferTestFactory
     // INTEL_CPU_CUSTOM_SHAPE_INFER(GatherTree, Type::GatherTree);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(FullyConnected, Type::FullyConnected);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(CTCGreedyDecoder, Type::CTCGreedyDecoder);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(Transpose, Type::Transpose);
+    INTEL_CPU_CUSTOM_SHAPE_INFER(node::TransposeShapeInferFactory, Type::Transpose);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(ReorgYolo, Type::ReorgYolo);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(EmbeddingSegmentsSum, Type::EmbeddingSegmentsSum);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(ShapeOf, Type::ShapeOf);
@@ -124,6 +125,7 @@ ShapeInferFactory* CustomShapeInferFF::create(const std::shared_ptr<ov::Node>& o
 }
 
 static void compare_result(std::vector<StaticShape> ref, std::vector<VectorDims> cus) {
+    std::cout << "=====custom_shape_infer compile result======" << std::endl;
     ASSERT_TRUE(ref.size() == cus.size());
     for (size_t i = 0; i < ref.size(); i++) {
         ASSERT_TRUE(ref[i].size() == cus[i].size());
@@ -138,8 +140,9 @@ void custom_shape_inference(ov::Node* op,
                      std::vector<StaticShape>& output_shapes,
                      const std::map<size_t, HostTensorPtr>& constant_data) {
     static std::shared_ptr<CustomShapeInferFF> cusFactory = std::make_shared<CustomShapeInferFF>();
+    std::cout << "=====custom_shape_infer test======" << "op" << op->get_type_name() << std::endl;
     if (auto shapeInferFactory = cusFactory->create(op->shared_from_this())) {
-        std::cout << "===========" << "op" << op->get_type_name() << std::endl;
+        std::cout << "=====custom_shape_infer test factory======" << "op" << op->get_type_name() << std::endl;
         auto cusShapeInfer =  shapeInferFactory->makeShapeInfer();
         std::vector<std::reference_wrapper<const VectorDims>> cusInputShapes;
         std::vector<VectorDims> tmpInputShapes;

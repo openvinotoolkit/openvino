@@ -7,6 +7,7 @@
 #include "openvino/op/transpose.hpp"
 #include "transpose_shape_inference.hpp"
 #include "utils/shape_inference/static_shape.hpp"
+#include "utils.hpp"
 
 using namespace ov;
 using namespace ov::intel_cpu;
@@ -70,6 +71,7 @@ TEST_P(StaticShapeInferenceTest, transpose_static) {
     auto output_shapes = std::vector<StaticShape>{StaticShape{}};
 
     shape_infer(transpose.get(), {input_shape, transpose_order}, output_shapes);
+    unit_test::custom_shape_inference(transpose.get(), {input_shape, transpose_order}, output_shapes);
 
     ASSERT_EQ(output_shapes[op::v1::Transpose::ARG_T], exp_shape);
 }
@@ -84,6 +86,8 @@ TEST(StaticShapeInferenceTest, transpose_input_shape_dim_dynamic) {
 
     shape_infer(transpose.get(), {StaticShape{2, 6, 3}, order}, output_shapes);
     ASSERT_EQ(output_shapes[op::v1::Transpose::ARG_T], StaticShape({6, 3, 2}));
+    // function make_transpose will create constant op as input of transpose op, so it will not throw exception
+    unit_test::custom_shape_inference(transpose.get(), {StaticShape{2, 6, 3}, order}, output_shapes);
 }
 
 /** \brief Shape inference when transpose order stored in constant map. */
@@ -103,4 +107,8 @@ TEST(StaticShapeInferenceTest, transpose_order_in_constant_map) {
     shape_infer(transpose.get(), {StaticShape({2, 4, 6, 8}), StaticShape()}, output_shapes, const_map);
 
     ASSERT_EQ(output_shapes[op::v1::Transpose::ARG_T], StaticShape({4, 6, 2, 8}));
+    // order is paramter as the input of transpose, will throw NotImplemented exception.
+    ASSERT_THROW(unit_test::custom_shape_inference(transpose.get(),
+                    {StaticShape({2, 4, 6, 8}), StaticShape()}, output_shapes, const_map),
+                InferenceEngine::NotImplemented);
 }
