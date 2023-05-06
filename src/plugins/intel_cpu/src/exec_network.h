@@ -47,6 +47,10 @@ public:
 
     void Export(std::ostream& modelStream) override;
 
+    void SetNetworkSharedBuffer(std::shared_ptr<ngraph::runtime::AlignedBuffer> network_buffer) {
+        _network_shared_buffer = network_buffer;
+    }
+
 protected:
     friend class InferRequestBase;
     ExtensionManager::Ptr extensionManager;
@@ -83,6 +87,9 @@ protected:
     InferenceEngine::Parameter GetConfigLegacy(const std::string &name) const;
 
     InferenceEngine::Parameter GetMetricLegacy(const std::string &name, const GraphGuard& graph) const;
+
+    // Reference to mmap buffer in case of import network by mmap
+    std::shared_ptr<void> _network_shared_buffer;
 };
 
 }   // namespace intel_cpu

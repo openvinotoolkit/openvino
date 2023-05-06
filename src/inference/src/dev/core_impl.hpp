@@ -160,6 +160,7 @@ private:
         ov::Plugin& plugin,
         const ov::AnyMap& config,
         const ov::RemoteContext& context,
+        const bool enable_mmap,
         std::function<ov::SoPtr<ov::ICompiledModel>()> compile_model_lambda);
 
     bool device_supports_model_caching(const ov::Plugin& plugin) const;
@@ -368,6 +369,10 @@ public:
                                                 const ov::AnyMap& config) const override;
 
     ov::SoPtr<ov::ICompiledModel> import_model(std::istream& model,
+                                               const std::string& device_name = {},
+                                               const ov::AnyMap& config = {}) const override;
+
+    ov::SoPtr<ov::ICompiledModel> import_model(const std::string& model_path,
                                                const std::string& device_name = {},
                                                const ov::AnyMap& config = {}) const override;
 

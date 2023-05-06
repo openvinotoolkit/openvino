@@ -551,9 +551,15 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
         CacheContent cacheContent{cacheManager};
         cacheContent.blobId = ov::ModelCache::compute_hash(model, create_compile_config(plugin, parsed._config));
         auto lock = cacheGuard.get_hash_lock(cacheContent.blobId);
-        res = load_model_from_cache(cacheContent, plugin, parsed._config, ov::RemoteContext{}, [&]() {
-            return compile_model_and_cache(model, plugin, parsed._config, ov::RemoteContext{}, cacheContent);
-        });
+        res = load_model_from_cache(
+            cacheContent,
+            plugin,
+            parsed._config,
+            ov::RemoteContext{},
+            coreConfig.get_enable_mmap(),
+            [&]() {
+                return compile_model_and_cache(model, plugin, parsed._config, ov::RemoteContext{}, cacheContent);
+            });
     } else {
         res = compile_model_with_preprocess(plugin, model, ov::RemoteContext{}, parsed._config);
     }
@@ -580,7 +586,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
         CacheContent cacheContent{cacheManager};
         cacheContent.blobId = ov::ModelCache::compute_hash(model, create_compile_config(plugin, parsed._config));
         auto lock = cacheGuard.get_hash_lock(cacheContent.blobId);
-        res = load_model_from_cache(cacheContent, plugin, parsed._config, context, [&]() {
+        res = load_model_from_cache(cacheContent, plugin, parsed._config, context, coreConfig.get_enable_mmap(), [&]() {
             return compile_model_and_cache(model, plugin, parsed._config, context, cacheContent);
         });
     } else {
@@ -622,10 +628,16 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
         CacheContent cacheContent{cacheManager, model_path};
         cacheContent.blobId = ov::ModelCache::compute_hash(model_path, create_compile_config(plugin, parsed._config));
         auto lock = cacheGuard.get_hash_lock(cacheContent.blobId);
-        compiled_model = load_model_from_cache(cacheContent, plugin, parsed._config, ov::RemoteContext{}, [&]() {
-            auto cnnNetwork = ReadNetwork(model_path, std::string());
-            return compile_model_and_cache(cnnNetwork.getFunction(), plugin, parsed._config, {}, cacheContent);
-        });
+        compiled_model = load_model_from_cache(
+            cacheContent,
+            plugin,
+            parsed._config,
+            ov::RemoteContext{},
+            coreConfig.get_enable_mmap(),
+            [&]() {
+                auto cnnNetwork = ReadNetwork(model_path, std::string());
+                return compile_model_and_cache(cnnNetwork.getFunction(), plugin, parsed._config, {}, cacheContent);
+            });
     } else if (cacheManager) {
         // this code path is enabled for AUTO / MULTI / BATCH devices which don't support
         // import / export explicitly, but can redirect this functionality to actual HW plugin
@@ -654,10 +666,16 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
         cacheContent.blobId =
             ov::ModelCache::compute_hash(model_str, weights, create_compile_config(plugin, parsed._config));
         auto lock = cacheGuard.get_hash_lock(cacheContent.blobId);
-        compiled_model = load_model_from_cache(cacheContent, plugin, parsed._config, ov::RemoteContext{}, [&]() {
-            auto cnnNetwork = read_model(model_str, weights);
-            return compile_model_and_cache(cnnNetwork, plugin, parsed._config, ov::RemoteContext{}, cacheContent);
-        });
+        compiled_model = load_model_from_cache(
+            cacheContent,
+            plugin,
+            parsed._config,
+            ov::RemoteContext{},
+            coreConfig.get_enable_mmap(),
+            [&]() {
+                auto cnnNetwork = read_model(model_str, weights);
+                return compile_model_and_cache(cnnNetwork, plugin, parsed._config, ov::RemoteContext{}, cacheContent);
+            });
     } else {
         auto model = read_model(model_str, weights);
         compiled_model = compile_model_with_preprocess(plugin, model, ov::RemoteContext{}, parsed._config);
@@ -671,6 +689,20 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::import_model(std::istream& model,
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::import_model");
     auto parsed = parseDeviceNameIntoConfig(device_name, config);
     auto compiled_model = get_plugin(parsed._deviceName).import_model(model, parsed._config);
+    if (auto wrapper = std::dynamic_pointer_cast<InferenceEngine::ICompiledModelWrapper>(compiled_model._ptr)) {
+        wrapper->get_executable_network()->loadedFromCache();
+    }
+
+    return compiled_model;
+}
+
+ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::import_model(const std::string& model_path,
+                                                         const std::string& device_name,
+                                                         const ov::AnyMap& config) const {
+    OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::import_model");
+    auto parsed = parseDeviceNameIntoConfig(device_name, config);
+    auto model_buffer = ov::util::load_mmap_object(model_path);
+    auto compiled_model = get_plugin(parsed._deviceName).import_model(model_buffer, parsed._config);
     if (auto wrapper = std::dynamic_pointer_cast<InferenceEngine::ICompiledModelWrapper>(compiled_model._ptr)) {
         wrapper->get_executable_network()->loadedFromCache();
     }
@@ -1159,37 +1191,70 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
     ov::Plugin& plugin,
     const ov::AnyMap& config,
     const ov::RemoteContext& context,
+    const bool enable_mmap,
     std::function<ov::SoPtr<ov::ICompiledModel>()> compile_model_lambda) {
     ov::SoPtr<ov::ICompiledModel> compiled_model;
     struct HeaderException {};
 
     OPENVINO_ASSERT(cacheContent.cacheManager != nullptr);
     try {
-        cacheContent.cacheManager->read_cache_entry(cacheContent.blobId, [&](std::istream& networkStream) {
-            OV_ITT_SCOPE(FIRST_INFERENCE,
-                         InferenceEngine::itt::domains::IE_LT,
-                         "Core::load_model_from_cache::ReadStreamAndImport");
-            try {
-                ov::CompiledBlobHeader header;
-                networkStream >> header;
-                if (header.getIeVersion() != InferenceEngine::GetInferenceEngineVersion()->buildNumber) {
-                    // Build number mismatch, don't use this cache
-                    throw InferenceEngine::NetworkNotRead("Version does not match");
+        if (!enable_mmap) {
+            cacheContent.cacheManager->read_cache_entry(cacheContent.blobId, [&](std::istream& networkStream) {
+                OV_ITT_SCOPE(FIRST_INFERENCE,
+                             InferenceEngine::itt::domains::IE_LT,
+                             "Core::load_model_from_cache::ReadStreamAndImport");
+                try {
+                    ov::CompiledBlobHeader header;
+                    networkStream >> header;
+                    if (header.getIeVersion() != InferenceEngine::GetInferenceEngineVersion()->buildNumber) {
+                        // Build number mismatch, don't use this cache
+                        throw InferenceEngine::NetworkNotRead("Version does not match");
+                    }
+                    if (header.getFileInfo() != ov::ModelCache::calculate_file_info(cacheContent.modelPath)) {
+                        // Original file is changed, don't use cache
+                        throw InferenceEngine::NetworkNotRead("Original model file is changed");
+                    }
+                } catch (...) {
+                    throw HeaderException();
                 }
-                if (header.getFileInfo() != ov::ModelCache::calculate_file_info(cacheContent.modelPath)) {
-                    // Original file is changed, don't use cache
-                    throw InferenceEngine::NetworkNotRead("Original model file is changed");
-                }
-            } catch (...) {
-                throw HeaderException();
-            }
 
-            compiled_model = context._impl ? plugin.import_model(networkStream, context, config)
-                                           : plugin.import_model(networkStream, config);
-            if (auto wrapper = std::dynamic_pointer_cast<InferenceEngine::ICompiledModelWrapper>(compiled_model._ptr)) {
-                wrapper->get_executable_network()->loadedFromCache();
-            }
-        });
+                compiled_model = context._impl ? plugin.import_model(networkStream, context, config)
+                                               : plugin.import_model(networkStream, config);
+                if (auto wrapper =
+                        std::dynamic_pointer_cast<InferenceEngine::ICompiledModelWrapper>(compiled_model._ptr)) {
+                    wrapper->get_executable_network()->loadedFromCache();
+                }
+            });
+        } else {
+            cacheContent.cacheManager->read_cache_entry(cacheContent.blobId, [&](std::shared_ptr<ngraph::runtime::AlignedBuffer>& shared_buffer) {
+                OV_ITT_SCOPE(FIRST_INFERENCE,
+                             InferenceEngine::itt::domains::IE_LT,
+                             "Core::load_model_from_cache::ReadStreamAndImport");
+                try {
+                    ov::CompiledBlobHeader header;
+                    std::string xmlStr = std::string(reinterpret_cast<char*>(shared_buffer->get_ptr()));
+                    xmlStr >> header;
+                    shared_buffer->set_pos(xmlStr.size());
+                    if (header.getIeVersion() != InferenceEngine::GetInferenceEngineVersion()->buildNumber) {
+                        // Build number mismatch, don't use this cache
+                        throw InferenceEngine::NetworkNotRead("Version does not match");
+                    }
+                    if (header.getFileInfo() != ov::ModelCache::calculate_file_info(cacheContent.modelPath)) {
+                        // Original file is changed, don't use cache
+                        throw InferenceEngine::NetworkNotRead("Original model file is changed");
+                    }
+                } catch (...) {
+                    throw HeaderException();
+                }
+
+                compiled_model = context._impl ? plugin.import_model(shared_buffer, context, config)
+                                               : plugin.import_model(shared_buffer, config);
+                if (auto wrapper =
+                        std::dynamic_pointer_cast<InferenceEngine::ICompiledModelWrapper>(compiled_model._ptr)) {
+                    wrapper->get_executable_network()->loadedFromCache();
+                }
+            });
+        }
     } catch (const HeaderException&) {
         // For these exceptions just remove old cache and set that import didn't work
         cacheContent.cacheManager->remove_cache_entry(cacheContent.blobId);

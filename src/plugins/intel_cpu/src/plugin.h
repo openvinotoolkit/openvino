@@ -35,8 +35,12 @@ public:
     InferenceEngine::QueryNetworkResult QueryNetwork(const InferenceEngine::CNNNetwork& network,
                                                      const std::map<std::string, std::string>& config) const override;
 
-    InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(std::istream& networkModel,
-                                                     const std::map<std::string, std::string>& config) override;
+    InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(
+        std::istream& networkModel,
+        const std::map<std::string, std::string>& config) override;
+    InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(
+        std::shared_ptr<ngraph::runtime::AlignedBuffer>& model_buffer,
+        const std::map<std::string, std::string>& config) override;
 
 private:
     bool isLegacyAPI() const;
@@ -52,6 +56,11 @@ private:
     StreamCfg GetNumStreams(InferenceEngine::IStreamsExecutor::ThreadBindingType thread_binding_type,
                             int stream_mode,
                             const bool enable_hyper_thread = true) const;
+
+    InferenceEngine::IExecutableNetworkInternal::Ptr HandleImportedNework(
+        InferenceEngine::CNNNetwork& cnnnetwork,
+        const std::map<std::string, std::string>& config,
+        const std::shared_ptr<ngraph::runtime::AlignedBuffer>& model_buffer = nullptr);
 
     Config engConfig;
     ExtensionManager::Ptr extensionManager = std::make_shared<ExtensionManager>();

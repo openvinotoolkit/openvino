@@ -256,6 +256,19 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::ImportNetwork(
     IE_THROW(NotImplemented);
 }
 
+std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::ImportNetwork(
+    std::shared_ptr<ngraph::runtime::AlignedBuffer>& buffer,
+    const std::map<std::string, std::string>& config) {
+    IE_THROW(NotImplemented);
+}
+
+std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::ImportNetwork(
+    std::shared_ptr<ngraph::runtime::AlignedBuffer>& buffer,
+    const std::shared_ptr<RemoteContext>& context,
+    const std::map<std::string, std::string>& config) {
+    IE_THROW(NotImplemented);
+}
+
 void IInferencePlugin::SetCore(std::weak_ptr<ICore> core) {
     IE_ASSERT(!core.expired());
     _core = core;

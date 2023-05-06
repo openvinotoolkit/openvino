@@ -9,6 +9,7 @@
 #include "any_copy.hpp"
 #include "dev/converter_utils.hpp"
 #include "ie_icore.hpp"
+#include "ngraph/runtime/aligned_buffer.hpp"
 #include "threading/ie_executor_manager.hpp"
 
 namespace InferenceEngine {
@@ -83,6 +84,21 @@ std::shared_ptr<ov::ICompiledModel> IPluginWrapper::import_model(std::istream& m
                                                                  const ov::AnyMap& properties) const {
     return ov::legacy_convert::convert_compiled_model(
         update_exec_network(m_old_plugin->ImportNetwork(model,
+                                                        ov::legacy_convert::convert_remote_context(context._impl),
+                                                        any_copy(properties))));
+}
+
+std::shared_ptr<ov::ICompiledModel> IPluginWrapper::import_model(std::shared_ptr<ngraph::runtime::AlignedBuffer>& model_buffer,
+                                                                 const ov::AnyMap& properties) const {
+    return ov::legacy_convert::convert_compiled_model(
+        update_exec_network(m_old_plugin->ImportNetwork(model_buffer, any_copy(properties))));
+}
+
+std::shared_ptr<ov::ICompiledModel> IPluginWrapper::import_model(std::shared_ptr<ngraph::runtime::AlignedBuffer>& model_buffer,
+                                                                 const ov::RemoteContext& context,
+                                                                 const ov::AnyMap& properties) const {
+    return ov::legacy_convert::convert_compiled_model(
+        update_exec_network(m_old_plugin->ImportNetwork(model_buffer,
                                                         ov::legacy_convert::convert_remote_context(context._impl),
                                                         any_copy(properties))));
 }

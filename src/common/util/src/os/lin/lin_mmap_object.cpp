@@ -11,12 +11,12 @@
 #include <iostream>
 #include <sstream>
 
-#include "mmap_object.hpp"
+#include "openvino/util/mmap_object.hpp"
 #include "ngraph/runtime/shared_buffer.hpp"
 #include "openvino/util/file_util.hpp"
 
 namespace ov {
-
+namespace util {
 class HandleHolder {
     int m_handle = -1;
     void reset() noexcept {
@@ -105,4 +105,13 @@ std::shared_ptr<ngraph::runtime::AlignedBuffer> load_mmap_object(const std::stri
                                                                                        holder);
 }
 
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+
+std::shared_ptr<ngraph::runtime::AlignedBuffer> load_mmap_object(const std::wstring& path) {
+    auto _path = ov::util::wstring_to_string(path);
+    return load_mmap_object(_path);
+}
+
+#endif
+}  // namespace util
 }  // namespace ov

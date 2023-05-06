@@ -14,7 +14,7 @@
 #include "ngraph/runtime/aligned_buffer.hpp"
 
 namespace ov {
-
+namespace util {
 std::shared_ptr<ngraph::runtime::AlignedBuffer> load_mmap_object(const std::string& path);
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
@@ -22,5 +22,5 @@ std::shared_ptr<ngraph::runtime::AlignedBuffer> load_mmap_object(const std::stri
 std::shared_ptr<ngraph::runtime::AlignedBuffer> load_mmap_object(const std::wstring& path);
 
 #endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-
+}  // namespace util
 }  // namespace ov

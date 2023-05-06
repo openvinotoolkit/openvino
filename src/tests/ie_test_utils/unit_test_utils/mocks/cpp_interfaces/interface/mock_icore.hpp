@@ -76,6 +76,10 @@ public:
                                            const ov::AnyMap&));
     MOCK_CONST_METHOD3(import_model,
                        ov::SoPtr<ov::ICompiledModel>(std::istream&, const std::string&, const ov::AnyMap&));
+    MOCK_CONST_METHOD3(import_model,
+                       ov::SoPtr<ov::ICompiledModel>(const std::string& model_path,
+                                                     const std::string&,
+                                                     const ov::AnyMap&));
     MOCK_CONST_METHOD3(compile_model,
                        ov::SoPtr<ov::ICompiledModel>(const std::shared_ptr<const ov::Model>&,
                                                      const std::string&,

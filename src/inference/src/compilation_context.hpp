@@ -50,6 +50,8 @@ public:
         return m_fileInfo;
     }
 
+    friend void operator>>(std::string& xmlStr, CompiledBlobHeader& header);
+
     friend std::istream& operator>>(std::istream& stream, CompiledBlobHeader& header);
 
     friend std::ostream& operator<<(std::ostream& stream, const CompiledBlobHeader& header);

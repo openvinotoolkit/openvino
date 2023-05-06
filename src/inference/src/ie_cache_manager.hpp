@@ -16,6 +16,7 @@
 
 #include "file_utils.h"
 #include "ie_api.h"
+#include "openvino/util/mmap_object.hpp"
 
 namespace ov {
 
@@ -61,6 +62,22 @@ public:
      * @param reader Lambda function to be called when input stream is created
      */
     virtual void read_cache_entry(const std::string& id, StreamReader reader) = 0;
+
+    /**
+     * @brief Function passing created input buffer
+     *
+     */
+    using BufferReader = std::function<void(std::shared_ptr<ngraph::runtime::AlignedBuffer>&)>;
+    /**
+     * @brief Callback when Inference Engine intends to read network from cache
+     *
+     * Client needs to call create ngraph::runtime::AlignedBuffer object and call reader(AlignedBuffer)
+     * Otherwise, network will not be read from cache and will be loaded as usual
+     *
+     * @param id Id of cache (hash of the network)
+     * @param reader Lambda function to be called when input AlignedBuffer is created
+     */
+    virtual void read_cache_entry(const std::string& id, BufferReader reader) = 0;
 
     /**
      * @brief Callback when Inference Engine intends to remove cache entry
@@ -109,6 +126,14 @@ private:
         if (FileUtils::fileExist(blobFileName)) {
             std::ifstream stream(blobFileName, std::ios_base::binary);
             reader(stream);
+        }
+    }
+
+    void read_cache_entry(const std::string& id, BufferReader reader) override {
+        auto blobFileName = getBlobFile(id);
+        if (FileUtils::fileExist(blobFileName)) {
+            auto buffer = ov::util::load_mmap_object(blobFileName);
+            reader(buffer);
         }
     }
 

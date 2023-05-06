@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "mmap_object.hpp"
+#include "openvino/util/mmap_object.hpp"
 #include "ngraph/runtime/shared_buffer.hpp"
 #include "openvino/util/file_util.hpp"
 
@@ -11,7 +11,7 @@
 // clang-format-on
 
 namespace ov {
-
+namespace util {
 class HandleHolder {
     HANDLE m_handle = INVALID_HANDLE_VALUE;
     void reset() {
@@ -139,5 +139,5 @@ std::shared_ptr<ngraph::runtime::AlignedBuffer> load_mmap_object(const std::wstr
 }
 
 #endif
-
+}  // namespace util
 }  // namespace ov

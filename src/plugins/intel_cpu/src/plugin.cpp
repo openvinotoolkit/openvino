@@ -768,18 +768,10 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
     return res;
 }
 
-InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istream& networkModel,
-                                            const std::map<std::string, std::string>& config) {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "ImportNetwork");
-
-    CNNNetworkDeserializer deserializer(networkModel,
-        [this](const std::string& model, const Blob::CPtr& weights) {
-            return GetCore()->ReadNetwork(model, weights, true);
-        });
-
-    CNNNetwork cnnnetwork;
-    deserializer >> cnnnetwork;
-
+InferenceEngine::IExecutableNetworkInternal::Ptr Engine::HandleImportedNework(
+    CNNNetwork& cnnnetwork,
+    const std::map<std::string, std::string>& config,
+    const std::shared_ptr<ngraph::runtime::AlignedBuffer>& model_buffer) {
     Config conf = engConfig;
     conf.readProperties(config);
 
@@ -812,8 +804,41 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istr
     execNetwork->setNetworkOutputs(cnnnetwork.getOutputsInfo());
     SetExeNetworkInfo(execNetwork, cnnnetwork.getFunction());
 
+    execNetwork->SetNetworkSharedBuffer(model_buffer);
     return execNetwork;
 }
+
+InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(
+    std::istream& networkModel,
+    const std::map<std::string, std::string>& config) {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "ImportNetwork");
+
+    CNNNetworkDeserializer deserializer(networkModel, [this](const std::string& model, const Blob::CPtr& weights) {
+        return GetCore()->ReadNetwork(model, weights, true);
+    });
+
+    CNNNetwork cnnnetwork;
+    deserializer >> cnnnetwork;
+    return HandleImportedNework(cnnnetwork, config);
+}
+
+InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(
+    std::shared_ptr<ngraph::runtime::AlignedBuffer>& network_buffer,
+    const std::map<std::string, std::string>& config) {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "ImportNetwork");
+    if (network_buffer->size() == 0) {
+        IE_THROW() << "ImportNetwork model file size is 0, file name";
+    }
+
+    CNNNetworkDeserializer deserializer(network_buffer, [this](const std::string& model, const Blob::CPtr& weights) {
+        return GetCore()->ReadNetwork(model, weights, true);
+    });
+
+    CNNNetwork cnnnetwork;
+    deserializer >> cnnnetwork;
+    return HandleImportedNework(cnnnetwork, config, network_buffer);
+}
+
 }   // namespace intel_cpu
 }   // namespace ov
 

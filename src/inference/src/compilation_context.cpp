@@ -215,6 +215,19 @@ std::istream& operator>>(std::istream& stream, CompiledBlobHeader& header) {
     return stream;
 }
 
+void operator>>(std::string& xmlStr, CompiledBlobHeader& header) {
+    pugi::xml_document document;
+    pugi::xml_parse_result res = document.load_string(xmlStr.c_str());
+
+    if (res.status != pugi::status_ok) {
+        IE_THROW(NetworkNotRead) << "Error reading compiled blob header";
+    }
+
+    pugi::xml_node compiledBlobNode = document.document_element();
+    header.m_ieVersion = pugixml::utils::GetStrAttr(compiledBlobNode, "ie_version");
+    header.m_fileInfo = pugixml::utils::GetStrAttr(compiledBlobNode, "file_info");
+}
+
 std::ostream& operator<<(std::ostream& stream, const CompiledBlobHeader& header) {
     pugi::xml_document document;
     auto compiledBlobNode = document.append_child("compiled_blob");

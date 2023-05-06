@@ -119,24 +119,37 @@ void CNNNetworkSerializer::operator << (const CNNNetwork & network) {
     serializer.run_on_model(std::const_pointer_cast<ngraph::Function>(network.getFunction()));
 }
 
-CNNNetworkDeserializer::CNNNetworkDeserializer(std::istream & istream, cnn_network_builder fn)
-    : _istream(istream)
-    , _cnn_network_builder(fn) {
+CNNNetworkDeserializer::CNNNetworkDeserializer(std::istream& istream, cnn_network_builder fn)
+    : _istream(&istream),
+      _network_buffer(nullptr),
+      _cnn_network_builder(fn) {}
+
+CNNNetworkDeserializer::CNNNetworkDeserializer(std::shared_ptr<ngraph::runtime::AlignedBuffer>& _buffer,
+                                               cnn_network_builder fn)
+    : _istream(nullptr),
+      _network_buffer(_buffer),
+      _cnn_network_builder(fn) {}
+
+void CNNNetworkDeserializer::operator>>(InferenceEngine::CNNNetwork& network) {
+    if (_network_buffer)
+            parse_buffer(network);
+    else
+            parse_stream(network);
 }
 
-void CNNNetworkDeserializer::operator >> (InferenceEngine::CNNNetwork & network) {
+void CNNNetworkDeserializer::parse_stream(InferenceEngine::CNNNetwork & network) {
     using namespace ov::pass;
 
     std::string xmlString, xmlInOutString;
     InferenceEngine::Blob::Ptr dataBlob;
 
     StreamSerialize::DataHeader hdr = {};
-    _istream.read(reinterpret_cast<char*>(&hdr), sizeof hdr);
+    _istream->read(reinterpret_cast<char*>(&hdr), sizeof hdr);
 
     // read CNNNetwork input/output precisions
-    _istream.seekg(hdr.custom_data_offset);
+    _istream->seekg(hdr.custom_data_offset);
     xmlInOutString.resize(hdr.custom_data_size);
-    _istream.read(const_cast<char*>(xmlInOutString.c_str()), hdr.custom_data_size);
+    _istream->read(const_cast<char*>(xmlInOutString.c_str()), hdr.custom_data_size);
     pugi::xml_document xmlInOutDoc;
     auto res = xmlInOutDoc.load_string(xmlInOutString.c_str());
     if (res.status != pugi::status_ok) {
@@ -144,18 +157,65 @@ void CNNNetworkDeserializer::operator >> (InferenceEngine::CNNNetwork & network)
     }
 
     // read blob content
-    _istream.seekg(hdr.consts_offset);
+    _istream->seekg(hdr.consts_offset);
     if (hdr.consts_size) {
         dataBlob = InferenceEngine::make_shared_blob<std::uint8_t>(
             InferenceEngine::TensorDesc(InferenceEngine::Precision::U8, {hdr.consts_size}, InferenceEngine::Layout::C));
         dataBlob->allocate();
-        _istream.read(dataBlob->buffer(), hdr.consts_size);
+        _istream->read(dataBlob->buffer(), hdr.consts_size);
     }
 
     // read XML content
-    _istream.seekg(hdr.model_offset);
+    _istream->seekg(hdr.model_offset);
     xmlString.resize(hdr.model_size);
-    _istream.read(const_cast<char*>(xmlString.c_str()), hdr.model_size);
+    _istream->read(const_cast<char*>(xmlString.c_str()), hdr.model_size);
+
+    network = _cnn_network_builder(xmlString, std::move(dataBlob));
+
+    // Set input and output precisions
+    pugi::xml_node root = xmlInOutDoc.child("cnndata");
+    pugi::xml_node inputs = root.child("inputs");
+    pugi::xml_node outputs = root.child("outputs");
+
+    setInfo(inputs.children("in"), network.getInputsInfo());
+    setInfo(outputs.children("out"), network.getOutputsInfo());
+}
+
+void CNNNetworkDeserializer::parse_buffer(InferenceEngine::CNNNetwork & network) {
+    using namespace ov::pass;
+
+    auto start_pos = _network_buffer->get_pos();
+    BufferParser parser(_network_buffer->get_ptr(start_pos), _network_buffer->size() - start_pos);
+    std::string xmlString, xmlInOutString;
+    InferenceEngine::Blob::Ptr dataBlob;
+
+    StreamSerialize::DataHeader hdr = {};
+    parser.read(reinterpret_cast<char *>(&hdr), sizeof hdr);
+
+    // read CNNNetwork input/output precisions
+    parser.seekg(hdr.custom_data_offset);
+    xmlInOutString.resize(hdr.custom_data_size);
+    parser.read(const_cast<char *>(xmlInOutString.c_str()), hdr.custom_data_size);
+    pugi::xml_document xmlInOutDoc;
+    auto res = xmlInOutDoc.load_string(xmlInOutString.c_str());
+    if (res.status != pugi::status_ok) {
+        IE_THROW(NetworkNotRead) << "The inputs and outputs information is invalid.";
+    }
+
+    // read blob content
+    parser.seekg(hdr.consts_offset);
+    if (hdr.consts_size) {
+        dataBlob = InferenceEngine::make_shared_blob<std::uint8_t>(
+            InferenceEngine::TensorDesc(InferenceEngine::Precision::U8, {hdr.consts_size}, InferenceEngine::Layout::C),
+            reinterpret_cast<std::uint8_t *>(parser.get_ptr()), hdr.consts_size);
+
+        parser.skip(hdr.consts_size);
+    }
+
+    // read XML content
+    parser.seekg(hdr.model_offset);
+    xmlString.resize(hdr.model_size);
+    parser.read(const_cast<char *>(xmlString.c_str()), hdr.model_size);
 
     network = _cnn_network_builder(xmlString, std::move(dataBlob));
 

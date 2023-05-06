@@ -120,6 +120,30 @@ public:
                                                      const ov::AnyMap& properties) const override;
 
     /**
+     * @brief Import model to the plugin
+     *
+     * @param model_buffer model buffer from mmap
+     * @param properties configuration properties
+     *
+     * @return shared pointer to compiled model interface
+     */
+    std::shared_ptr<ov::ICompiledModel> import_model(std::shared_ptr<ngraph::runtime::AlignedBuffer>& model_buffer,
+                                                     const ov::AnyMap& properties) const override;
+
+    /**
+     * @brief Import model to the plugin
+     *
+     * @param model_path model buffer from mmap
+     * @param context remote context
+     * @param properties configuration properties
+     *
+     * @return shared pointer to compiled model interface
+     */
+    std::shared_ptr<ov::ICompiledModel> import_model(std::shared_ptr<ngraph::runtime::AlignedBuffer>& model_buffer,
+                                                     const ov::RemoteContext& context,
+                                                     const ov::AnyMap& properties) const override;
+
+    /**
      * @brief query model
      *
      * @param model OpenVINO Model

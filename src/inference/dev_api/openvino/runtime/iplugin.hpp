@@ -11,6 +11,7 @@
 
 #include <memory>
 
+#include "ngraph/runtime/aligned_buffer.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/core/model.hpp"
@@ -187,6 +188,28 @@ public:
      * @return An Compiled model
      */
     virtual std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
+                                                             const ov::RemoteContext& context,
+                                                             const ov::AnyMap& properties) const = 0;
+    /**
+     * @brief Creates an compiled model from an previously exported model file using plugin implementation
+     *        and removes OpenVINO Runtime magic and plugin name
+     * @param model_path Reference to model path
+     * @param properties A ov::AnyMap of properties
+     * @return An Compiled model
+     */
+    virtual std::shared_ptr<ov::ICompiledModel> import_model(std::shared_ptr<ngraph::runtime::AlignedBuffer>& model_buffer,
+                                                             const ov::AnyMap& properties) const = 0;
+
+    /**
+     * @brief Creates an compiled model from an previously exported model using plugin implementation
+     *        and removes OpenVINO Runtime magic and plugin name
+     * @param model_path Reference to model path
+     * @param context A pointer to plugin context derived from RemoteContext class used to
+     *        execute the network
+     * @param properties A ov::AnyMap of properties
+     * @return An Compiled model
+     */
+    virtual std::shared_ptr<ov::ICompiledModel> import_model(std::shared_ptr<ngraph::runtime::AlignedBuffer>& model_buffer,
                                                              const ov::RemoteContext& context,
                                                              const ov::AnyMap& properties) const = 0;
 
