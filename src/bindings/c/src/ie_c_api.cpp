@@ -1524,7 +1524,7 @@ IEStatusCode ie_blob_make_memory_from_preallocated(const tensor_desc_t* tensorDe
     }
 
     IE::Precision prec;
-    for (auto const &it : precision_map) {
+    for (auto const& it : precision_map) {
         if (it.second == tensorDesc->precision) {
             prec = it.first;
             break;
