@@ -20,6 +20,7 @@ namespace ov {
 
 CPU::CPU() {
     std::vector<std::vector<std::string>> system_info_table;
+
     _num_threads = parallel_get_max_threads();
     auto GetCatchInfoLinux = [&]() {
         _processors = sysconf(_SC_NPROCESSORS_ONLN);
