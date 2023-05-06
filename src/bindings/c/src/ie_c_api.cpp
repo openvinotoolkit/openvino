@@ -871,7 +871,7 @@ IEStatusCode ie_network_set_input_precision(ie_network_t* network, const char* i
             status = IEStatusCode::NOT_FOUND;
         } else {
             IE::Precision precision;
-            for (auto const &it : precision_map) {
+            for (auto const& it : precision_map) {
                 if (it.second == p) {
                     precision = it.first;
                     break;
@@ -921,7 +921,7 @@ IEStatusCode ie_network_set_input_layout(ie_network_t* network, const char* inpu
             status = IEStatusCode::NOT_FOUND;
         } else {
             IE::Layout layout = IE::Layout::NCHW;
-            for (auto const &it : layout_map) {
+            for (auto const& it : layout_map) {
                 if (it.second == l) {
                     layout = it.first;
                     break;
@@ -1000,7 +1000,7 @@ IEStatusCode ie_network_set_input_resize_algorithm(ie_network_t* network,
             status = IEStatusCode::NOT_FOUND;
         } else {
             IE::ResizeAlgorithm resize = IE::ResizeAlgorithm::NO_RESIZE;
-            for (auto const &it : resize_alg_map) {
+            for (auto const& it : resize_alg_map) {
                 if (it.second == resize_algo) {
                     resize = it.first;
                     break;
@@ -1054,7 +1054,7 @@ IEStatusCode ie_network_set_color_format(ie_network_t* network,
             status = IEStatusCode::NOT_FOUND;
         } else {
             IE::ColorFormat color = IE::ColorFormat::RGB;
-            for (auto const &it : colorformat_map) {
+            for (auto const& it : colorformat_map) {
                 if (it.second == color_format) {
                     color = it.first;
                     break;
@@ -1214,7 +1214,7 @@ IEStatusCode ie_network_set_output_precision(ie_network_t* network, const char* 
             status = IEStatusCode::NOT_FOUND;
         } else {
             IE::Precision precision;
-            for (auto const &it : precision_map) {
+            for (auto const& it : precision_map) {
                 if (it.second == p) {
                     precision = it.first;
                     break;
@@ -1266,7 +1266,7 @@ IEStatusCode ie_network_set_output_layout(ie_network_t* network, const char* out
             status = IEStatusCode::NOT_FOUND;
         } else {
             IE::Layout layout = IE::Layout::NCHW;
-            for (auto const &it : layout_map) {
+            for (auto const& it : layout_map) {
                 if (it.second == l) {
                     layout = it.first;
                     break;
@@ -1457,7 +1457,7 @@ IEStatusCode ie_blob_make_memory(const tensor_desc_t* tensorDesc, ie_blob_t** bl
     }
 
     IE::Precision prec;
-    for (auto const &it : precision_map) {
+    for (auto const& it : precision_map) {
         if (it.second == tensorDesc->precision) {
             prec = it.first;
             break;
