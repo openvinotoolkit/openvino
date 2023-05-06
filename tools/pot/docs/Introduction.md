@@ -16,6 +16,8 @@
 
 
 
+.. note:: Post-training Optimization Tool is deprecated since OpenVINO 2023.0. Neural Network Compression Framework (NNCF)  is recommended for the model optimization instead.
+
 For the needs of post-training optimization, OpenVINO&trade; provides a **Post-training Optimization Tool (POT)** 
 which supports the **uniform integer quantization** method. This method allows moving from floating-point precision 
 to integer precision (for example, 8-bit) for weights and activations during the inference time. It helps to reduce 
