@@ -63,6 +63,15 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
                     }
                 }
             }
+        } else if ((proc_type_table[0][EFFICIENT_CORE_PROC] > 0) &&
+                   (limit_threads = proc_type_table[0][MAIN_CORE_PROC])) {
+            stream_info[PROC_TYPE] = MAIN_CORE_PROC;
+            stream_info[THREADS_PER_STREAM] =
+                (input_threads == 0)
+                    ? proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][HYPER_THREADING_PROC]
+                    : std::min(proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][HYPER_THREADING_PROC],
+                               input_threads);
+            streams_info_table.push_back(stream_info);
         } else {
             stream_info[PROC_TYPE] = MAIN_CORE_PROC;
             stream_info[THREADS_PER_STREAM] = (limit_threads == 0)
