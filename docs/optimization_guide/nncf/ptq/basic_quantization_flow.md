@@ -92,7 +92,7 @@ Once the dataset is ready and the model object is instantiated, you can apply 8-
 
 .. note:: The ``model`` is an instance of the ``torch.nn.Module`` class for PyTorch, ``onnx.ModelProto`` for ONNX, and ``openvino.runtime.Model`` for OpenVINO.
 
-After that the model can be exported into th OpenVINO Intermediate Representation if needed and run faster with OpenVINO.
+After that the model can be exported into the OpenVINO Intermediate Representation if needed and run faster with OpenVINO.
 
 Tune quantization parameters
 ############################
