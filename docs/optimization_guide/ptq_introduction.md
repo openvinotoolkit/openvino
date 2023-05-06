@@ -6,9 +6,9 @@
    :maxdepth: 1
    :hidden:
 
-   pot_introduction
    nncf_ptq_introduction
-
+   (Deprecated) pot_introduction
+   
 
 Post-training model optimization is the process of applying special methods that transform the model into a more hardware-friendly representation without retraining or fine-tuning. The most popular and widely-spread method here is 8-bit post-training quantization because it is:
 
@@ -29,7 +29,7 @@ To apply post-training methods in OpenVINO, you need:
 
 Currently, OpenVINO provides two workflows with post-training quantization capabilities:
 
-* :doc:`Post-training Quantization with POT <pot_introduction>` - works with models in OpenVINO Intermediate Representation (IR) only.
-* :doc:`Post-training Quantization with NNCF <nncf_ptq_introduction>` - cross-framework solution for model optimization that provides a new simple API for post-training quantization.
+* :doc:`Post-training Quantization with NNCF <nncf_ptq_introduction>` - cross-framework solution for model optimization that provides a simple API for post-training quantization.
+* :doc:`(Deprecated) Post-training Quantization with POT <pot_introduction>` - works with models in OpenVINO Intermediate Representation (IR) only.
 
 @endsphinxdirective
