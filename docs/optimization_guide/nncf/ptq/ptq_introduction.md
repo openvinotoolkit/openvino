@@ -14,13 +14,13 @@ Neural Network Compression Framework (NNCF) provides a post-training quantizatio
 
 This API has two main capabilities to apply 8-bit post-training quantization:
 
-* :doc:`Basic quantization <basic_quantization_flow>` - the simplest quantization flow that allows to apply 8-bit integer quantization to the model.
-* :doc:`Quantization with accuracy control <quantization_w_accuracy_control>` - the most advanced quantization flow that allows to apply 8-bit quantization to the model with accuracy control.
+* :doc:`Basic quantization <basic_quantization_flow>` - the simplest quantization flow that allows applying 8-bit integer quantization to the model.
+* :doc:`Quantization with accuracy control <quantization_w_accuracy_control>` - the most advanced quantization flow that allows applying 8-bit quantization to the model with accuracy control.
 
 Additional Resources
 ####################
 
-* `NNCF GitHub <https://github.com/openvinotoolkit/nncf>`__
 * :doc:`Optimizing Models at Training Time <tmo_introduction>`
+* `NNCF GitHub <https://github.com/openvinotoolkit/nncf>`__
 
 @endsphinxdirective
