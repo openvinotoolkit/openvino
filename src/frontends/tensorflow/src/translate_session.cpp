@@ -39,37 +39,69 @@ std::vector<T> reorder_ops_by_names(const std::vector<std::string>& names, const
     return resulted_ops;
 };
 
-/// \brief Adds known input names from Saved Model file format
-/// \param[in] node Node which should be updated
-/// \param[in] saved_model_names Map of names from saved model
-/// \returns True if node was updated, false otherwise
-static bool apply_saved_model_names(std::shared_ptr<ov::Node> node,
-                                    const std::shared_ptr<std::map<std::string, std::string>>& saved_model_names) {
-    if (std::dynamic_pointer_cast<ov::opset8::Parameter>(node)) {
-        for (size_t i = 0; i < node->get_output_size(); ++i) {
-            const auto& node_names = node->get_output_tensor(i).get_names();
-            for (const auto& name : node_names) {
-                const auto& saved_model_name = saved_model_names->find(name);
-                if (saved_model_name != saved_model_names->end()) {
-                    set_node_name(saved_model_name->second, node);
-                    return true;
-                }
-            }
+/// \brief Adjusts names of the tensor by mapping internal names to user specific ones using the model signature
+/// and mark unused tensor names that must be removed
+/// \param[in] ov_output ov::Output<ov::Node> for which names set should be corrected
+/// \param[in] saved_model_input_names Map of for input names
+/// \param[in] saved_model_output_names Map of for output names
+void adjust_saved_model_names(ov::Output<ov::Node>& ov_output,
+                              const std::shared_ptr<std::map<std::string, std::string>>& saved_model_input_names,
+                              const std::shared_ptr<std::map<std::string, std::string>>& saved_model_output_names) {
+    // 1. check if it is the input or output tensor of the model
+    // perform the adjustment only for the input and output tensors of the model
+    auto param_node = ov::as_type_ptr<ov::opset8::Parameter>(ov_output.get_node_shared_ptr());
+    bool is_input_tensor = (param_node ? true : false);
+    ov::ResultVector results;
+    for (const auto& consumer : ov_output.get_target_inputs()) {
+        if (const auto& result = ov::as_type_ptr<ov::opset10::Result>(consumer.get_node()->shared_from_this())) {
+            results.push_back(result);
         }
-    } else if (std::dynamic_pointer_cast<ov::opset10::Result>(node)) {
-        for (size_t i = 0; i < node->get_input_size(); ++i) {
-            const auto& node_names = node->get_input_tensor(i).get_names();
-            for (const auto& name : node_names) {
-                const auto& saved_model_name = saved_model_names->find(name);
-                if (saved_model_name != saved_model_names->end()) {
-                    node->set_friendly_name(saved_model_name->second);
-                    node->get_input_tensor(i).add_names({saved_model_name->second});
-                    return true;
-                }
+    }
+    bool is_output_tensor = (results.size() > 0 ? true : false);
+    if (!is_input_tensor && !is_output_tensor) {
+        return;
+    }
+
+    // 2. find a set of clean-up names and aligned with the model signature
+    const auto& tensor_names = ov_output.get_names();
+    std::unordered_set<std::string> cleanup_names;
+    if (is_input_tensor) {
+        for (const auto& tensor_name : tensor_names) {
+            if (saved_model_input_names->count(tensor_name) > 0) {
+                cleanup_names.insert(saved_model_input_names->at(tensor_name));
+                param_node->set_friendly_name(saved_model_input_names->at(tensor_name));
             }
         }
     }
-    return false;
+
+    if (is_output_tensor) {
+        std::vector<std::string> result_names;
+        for (const auto& tensor_name : tensor_names) {
+            if (saved_model_output_names->count(tensor_name) > 0) {
+                cleanup_names.insert(saved_model_output_names->at(tensor_name));
+                result_names.push_back(saved_model_output_names->at(tensor_name));
+            }
+        }
+        // align the Result node names as many as possible
+        // it is not bad if we remain it as is because OV API 2.0 relies only on tensor names
+        size_t result_names_size = result_names.size();
+        if (result_names_size > 0) {
+            for (size_t ind = 0; ind < results.size(); ++ind) {
+                auto new_result_name = result_names[ind % result_names_size];
+                results[ind]->set_friendly_name(new_result_name);
+            }
+        }
+    }
+
+    // 3. set cleanup names to the tensor only if it is found in the signature
+    // otherwise, the tensor corresponds to unused Parameter or Result nodes
+    if (cleanup_names.size() > 0) {
+        ov_output.set_names(cleanup_names);
+    } else {
+        // this is unused tensor that should be removed
+        // because it not present in the signature
+        ov_output.add_names({"saved_model_unused"});
+    }
 }
 
 // it creates framework node and saves exception message in the node attribute
@@ -433,23 +465,24 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
         }
     }
 
-    if (saved_model_inputs.get() && saved_model_inputs->size() > 0) {
-        for (auto param : params) {
-            // If parameter isn't found in a map of known inputs - mark them as unused
-            // and try to remove it in the normalize step later
-            if (!apply_saved_model_names(param, saved_model_inputs)) {
-                param->get_output_tensor(0).add_names({"saved_model_unused"});
-            }
-        }
-    }
+    if (saved_model_inputs || saved_model_outputs) {
+        // only SavedModel and MetaGraph models have mapping from internal tensor names to user specific ones
+        // for example, serving_default_input_name:0 maps to input_name
+        // we need to re-write input and output internal tensor names to user specific
 
-    if (saved_model_outputs.get() && saved_model_outputs->size() > 0) {
-        for (auto result : results) {
-            // If parameter isn't found in a map of known outputs - mark them as unused
-            // and try to remove it in the normalize step later
-            if (!apply_saved_model_names(result, saved_model_outputs)) {
-                result->get_input_tensor(0).add_names({"saved_model_unused"});
-            }
+        // it makes sense to use set because Parameter and Results nodes may have the common tensor
+        std::set<ov::Output<ov::Node>> ov_tensors;
+        for (const auto& param : params) {
+            ov_tensors.insert(param->output(0));
+        }
+        for (const auto& result : results) {
+            ov_tensors.insert(result->input_value(0));
+        }
+
+        // it iterates through these tensors and adjusts their names
+        // by remaining only user specific names or mark as unused tensor (produced by TensorFlow)
+        for (auto ov_tensor : ov_tensors) {
+            adjust_saved_model_names(ov_tensor, saved_model_inputs, saved_model_outputs);
         }
     }
 

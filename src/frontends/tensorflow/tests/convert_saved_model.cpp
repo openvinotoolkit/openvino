@@ -15,7 +15,21 @@ using namespace ov::opset10;
 using namespace ov::frontend::tensorflow::tests;
 
 TEST_F(TransformationTestsF, SavedModelProgramOnly) {
-    { model = convert_model("saved_model_program-only"); }
+    {
+        model = convert_model("saved_model_program-only");
+
+        // check tensor names in the resulted model
+        unordered_set<string> input_tensor_names = {"y"};
+        unordered_set<string> output_tensor_names = {"z"};
+        ASSERT_EQ(model->get_results().size(), 1);
+        ASSERT_TRUE(model->get_results()[0]->input_value(0).get_names() == output_tensor_names);
+        ASSERT_EQ(model->get_parameters().size(), 1);
+        ASSERT_TRUE(model->get_parameters()[0]->output(0).get_names() == input_tensor_names);
+
+        // check Parameter and Result node names
+        ASSERT_TRUE(model->get_parameters()[0]->get_friendly_name() == "y");
+        ASSERT_TRUE(model->get_results()[0]->get_friendly_name() == "z");
+    }
     {
         // create a reference graph
         auto x = make_shared<Constant>(element::f32, Shape{2, 3}, vector<float>{1, 2, 3, 3, 2, 1});
@@ -45,6 +59,21 @@ TEST_F(TransformationTestsF, SavedModelWithInputIntegerType) {
                               {"params", "indices"},
                               {},
                               {PartialShape{10, 5}, PartialShape{3}});
+
+        // check tensor names in the resulted model
+        unordered_set<string> input_tensor_name1 = {"params"};
+        unordered_set<string> input_tensor_name2 = {"indices"};
+        unordered_set<string> output_tensor_names = {"test_output_name"};
+        ASSERT_EQ(model->get_results().size(), 1);
+        ASSERT_TRUE(model->get_results()[0]->input_value(0).get_names() == output_tensor_names);
+        ASSERT_EQ(model->get_parameters().size(), 2);
+        ASSERT_TRUE(model->get_parameters()[0]->output(0).get_names() == input_tensor_name1);
+        ASSERT_TRUE(model->get_parameters()[1]->output(0).get_names() == input_tensor_name2);
+
+        // check Parameter and Result node names
+        ASSERT_TRUE(model->get_parameters()[0]->get_friendly_name() == "params");
+        ASSERT_TRUE(model->get_parameters()[1]->get_friendly_name() == "indices");
+        ASSERT_TRUE(model->get_results()[0]->get_friendly_name() == "test_output_name");
     }
     {
         // create a reference graph
@@ -57,5 +86,31 @@ TEST_F(TransformationTestsF, SavedModelWithInputIntegerType) {
         auto mul = make_shared<Multiply>(gather, const_mul);
 
         model_ref = make_shared<Model>(OutputVector{mul}, ParameterVector{params, indices});
+    }
+}
+
+TEST_F(TransformationTestsF, SavedModelMultipleTensorNames) {
+    // The test aims to check tensor names of input and output tensors
+    // it checks that TF FE preserved user specific names for input and output tensor
+    // and exclude internal names
+    {
+        model = convert_model("saved_model_parameter_result");
+
+        // check tensor names in the resulted model
+        unordered_set<string> tensor_names = {"params", "test_output_name"};
+        ASSERT_EQ(model->get_results().size(), 1);
+        ASSERT_TRUE(model->get_results()[0]->input_value(0).get_names() == tensor_names);
+        ASSERT_EQ(model->get_parameters().size(), 1);
+        ASSERT_TRUE(model->get_parameters()[0]->output(0).get_names() == tensor_names);
+
+        // check Parameter and Result node names
+        ASSERT_TRUE(model->get_parameters()[0]->get_friendly_name() == "params");
+        ASSERT_TRUE(model->get_results()[0]->get_friendly_name() == "test_output_name");
+    }
+    {
+        // create a reference graph
+        auto x = make_shared<Parameter>(element::f32, Shape{20, 5});
+        auto result = make_shared<Result>(x);
+        model_ref = make_shared<Model>(OutputVector{result}, ParameterVector{x});
     }
 }
