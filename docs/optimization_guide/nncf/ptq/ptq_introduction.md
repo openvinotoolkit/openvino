@@ -1,4 +1,4 @@
-# Post-training Quantization with NNCF (new) {#nncf_ptq_introduction}
+# Post-training Quantization with NNCF {#nncf_ptq_introduction}
 
 @sphinxdirective
 
@@ -10,7 +10,7 @@
    quantization_w_accuracy_control
 
 
-Neural Network Compression Framework (NNCF) provides a new post-training quantization API available in Python that is aimed at reusing the code for model training or validation that is usually available with the model in the source framework, for example, PyTorch or TensroFlow. The API is cross-framework and currently supports models representing in the following frameworks: PyTorch, TensorFlow 2.x, ONNX, and OpenVINO.
+Neural Network Compression Framework (NNCF) provides a post-training quantization API available in Python that is aimed at reusing the code for model training or validation that is usually available with the model in the source framework, for example, PyTorch or TensroFlow. The NNCF API is cross-framework and currently supports models in the following frameworks: OpenVINO, PyTorch, TensorFlow 2.x, and ONNX. Currently, post-training quantization for models in OpenVINO Intermediate Representation is the most mature in terms of supported methods and models coverage. 
 
 This API has two main capabilities to apply 8-bit post-training quantization:
 
