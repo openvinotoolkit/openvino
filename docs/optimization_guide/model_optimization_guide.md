@@ -11,7 +11,7 @@
    (Experimental) Protecting Model <pot_ranger_README>
 
 
-Model optimization is an optional offline step of improving the final model performance and reducing model size by applying special optimization methods, such as quantization, pruning, etc. OpenVINO provides two model optimization flows:
+Model optimization is an optional offline step of improving the final model performance and reducing model size by applying special optimization methods, such as quantization, pruning, etc. OpenVINO supports two optimization paths:
 
 - :doc:`Post-training Quantization <ptq_introduction>` is designed to optimize the inference of deep learning models by applying the post-training 8-bit integer quantization that does not require model retraining or fine-tuning. Usually, it is the fastest way to optimize a model and should be used first.
 
