@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,10 +39,12 @@ void scatterNdUpdate(const dataType* const inputData,
     for (size_t i = 0; i != num_of_updates; ++i) {
         const auto indices_coord = indices + i * indicesShape.back();
         const auto coord = span(indices_coord, indicesShape.back());
-        const auto out_index = std::inner_product(begin(coord), end(coord), begin(input_data_dim_pading), 0);
+        const auto out_index = std::inner_product(begin(coord), end(coord), begin(input_data_dim_pading), uint64_t(0));
 
         const auto update_data = updates + i * update_el_number;
         const auto update_mem_size = update_el_number * sizeof(dataType);
+        OPENVINO_ASSERT(out_index >= 0 && out_index + update_el_number <= shape_size(dataShape),
+                        "Index is out of bounds");
         std::memcpy(outBuf + out_index, update_data, update_mem_size);
     }
 }

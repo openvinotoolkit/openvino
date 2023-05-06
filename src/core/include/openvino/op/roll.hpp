@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,8 +13,7 @@ namespace v7 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Roll : public Op {
 public:
-    OPENVINO_OP("Roll", "opset7", op::Op, 7);
-    BWDCMP_RTTI_DECLARATION;
+    OPENVINO_OP("Roll", "opset7", op::Op);
 
     Roll() = default;
 

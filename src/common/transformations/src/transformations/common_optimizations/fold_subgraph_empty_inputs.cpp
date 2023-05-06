@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,9 +17,13 @@
 ov::pass::FoldSubgraphEmptyInputs::FoldSubgraphEmptyInputs() {
     MATCHER_SCOPE(FoldSubgraphEmptyInputs);
     auto multi_subgraph_op_pattern = pattern::wrap_type<op::util::MultiSubGraphOp>();
-    ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto multi_subgraph_op = std::dynamic_pointer_cast<op::util::MultiSubGraphOp>(m.get_match_root());
         if (multi_subgraph_op == nullptr) {
+            return false;
+        }
+        const auto& rt_info = multi_subgraph_op->get_rt_info();
+        if (rt_info.count(DisableFoldSubgraphEmptyInputs::get_type_info_static())) {
             return false;
         }
         auto multi_subgraph_op_inputs = multi_subgraph_op->input_values();
@@ -51,12 +55,26 @@ ov::pass::FoldSubgraphEmptyInputs::FoldSubgraphEmptyInputs() {
                              std::end(multi_subgraph_op_inputs),
                              input,
                              const_empty_replacement);
+                copy_runtime_info(input.get_node_shared_ptr(), const_empty_replacement.get_node_shared_ptr());
             }
             multi_subgraph_op->set_arguments(multi_subgraph_op_inputs);
             return true;
         }
         return false;
     };
-    auto m = std::make_shared<ngraph::pattern::Matcher>(multi_subgraph_op_pattern, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(multi_subgraph_op_pattern, matcher_name);
     this->register_matcher(m, callback);
+}
+
+void ov::pass::disable_fold_subgraph_empty_inputs(const std::shared_ptr<ov::Node>& node) {
+    node->get_rt_info().emplace(DisableFoldSubgraphEmptyInputs::get_type_info_static(),
+                                DisableFoldSubgraphEmptyInputs{});
+}
+
+void ov::pass::enable_fold_subgraph_empty_inputs(const std::shared_ptr<ov::Node>& node) {
+    node->get_rt_info().erase(DisableFoldSubgraphEmptyInputs::get_type_info_static());
+}
+
+bool ov::pass::fold_subgraph_empty_inputs_is_disabled(const std::shared_ptr<ov::Node>& node) {
+    return node->get_rt_info().count(DisableFoldSubgraphEmptyInputs::get_type_info_static());
 }

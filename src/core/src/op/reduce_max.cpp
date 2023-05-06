@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,6 +33,8 @@ bool evaluate_max(const HostTensorPtr& arg, const HostTensorPtr& out, const Axis
         NGRAPH_TYPE_CASE(evaluate_max, u64, arg, out, axes, keep_dims);
         NGRAPH_TYPE_CASE(evaluate_max, f16, arg, out, axes, keep_dims);
         NGRAPH_TYPE_CASE(evaluate_max, f32, arg, out, axes, keep_dims);
+        NGRAPH_TYPE_CASE(evaluate_max, u8, arg, out, axes, keep_dims);
+        NGRAPH_TYPE_CASE(evaluate_max, i8, arg, out, axes, keep_dims);
     default:
         rc = false;
         break;
@@ -42,23 +44,23 @@ bool evaluate_max(const HostTensorPtr& arg, const HostTensorPtr& out, const Axis
 }  // namespace
 }  // namespace maxop
 
-BWDCMP_RTTI_DEFINITION(op::v1::ReduceMax);
-
 op::v1::ReduceMax::ReduceMax(const Output<Node>& arg, const Output<Node>& reduction_axes, bool keep_dims)
     : ArithmeticReductionKeepDims(arg, reduction_axes, keep_dims) {
     constructor_validate_and_infer_types();
 }
 
 shared_ptr<Node> op::v1::ReduceMax::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v1_ReduceMax_clone_with_new_inputs);
+    OV_OP_SCOPE(v1_ReduceMax_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<op::v1::ReduceMax>(new_args.at(0), new_args.at(1), get_keep_dims());
 }
 
 bool op::v1::ReduceMax::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v1_ReduceMax_evaluate);
+    OV_OP_SCOPE(v1_ReduceMax_evaluate);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     NGRAPH_CHECK(validate_host_tensor_vector(inputs, 2));
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     const auto reduction_axes =
         get_normalized_axes_from_tensor(inputs[1], inputs[0]->get_partial_shape().rank(), get_friendly_name());
@@ -67,7 +69,7 @@ bool op::v1::ReduceMax::evaluate(const HostTensorVector& outputs, const HostTens
 }
 
 bool op::v1::ReduceMax::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v1_ReduceMax_has_evaluate);
+    OV_OP_SCOPE(v1_ReduceMax_has_evaluate);
     switch (get_input_element_type(0)) {
     case ngraph::element::i32:
     case ngraph::element::i64:
@@ -75,6 +77,8 @@ bool op::v1::ReduceMax::has_evaluate() const {
     case ngraph::element::u64:
     case ngraph::element::f16:
     case ngraph::element::f32:
+    case ngraph::element::i8:
+    case ngraph::element::u8:
         return true;
     default:
         break;

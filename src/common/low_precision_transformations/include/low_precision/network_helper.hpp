@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@
 #include <ngraph/ngraph.hpp>
 #include <ngraph/pattern/matcher.hpp>
 #include <ngraph/opsets/opset1.hpp>
-#include "ngraph_ops/type_relaxed.hpp"
+#include "ov_ops/type_relaxed.hpp"
 #include <ngraph/rt_info.hpp>
 
 #include "rt_info/shared_value_attribute.hpp"
@@ -128,14 +128,9 @@ public:
         const element::Type deqPrecision = element::f32,
         std::shared_ptr<ngraph::Node> input = nullptr);
 
-    static FakeQuantizeDequantization createDequantizationFromFakeQuantize(
-        std::shared_ptr<opset1::FakeQuantize> fq,
-        element::Type precision,
-        float min,
-        float max,
-        const bool hasZeroPoint,
-        const bool updatePrecision,
-        const element::Type deqPrecision = element::f32);
+    static std::shared_ptr<ngraph::Node> makeDequantizationSubtract(
+        const ngraph::Output<ngraph::Node>& parent,
+        const ngraph::Output<ngraph::Node>& subtract_constant);
 
     static bool areQuantizeAndDequantizeSupportedForSubtract(const std::shared_ptr<const ngraph::Node>& node,
         const std::vector<ngraph::element::Type>& defaultPrecisions = precision_set::int8_support);
@@ -156,7 +151,7 @@ public:
 
     static std::shared_ptr<opset1::Constant> normalizeDequantizationShape(
             const std::shared_ptr<Node>& eltwise,
-            const bool convertIsExpected = false);
+            const bool convertIsExpected = true);
 
     // 1. remove Convert if possible
     // 2. optimize Constant if possible
@@ -204,7 +199,7 @@ public:
     static std::shared_ptr<Node> toScalarIfPossible(std::shared_ptr<Node> node);
 
     static std::shared_ptr<Node> fold_fake_quantize(const std::shared_ptr<opset1::FakeQuantize>& fq);
-    static std::shared_ptr<Node> fold_fake_quantize(const std::shared_ptr<opset1::FakeQuantize>& fq, const bool roundValues, int outChannelsShapeIndex = 0);
+    static std::shared_ptr<Node> fold_fake_quantize(const std::shared_ptr<opset1::FakeQuantize>& fq, const bool roundValues);
 
     static FakeQuantizeDequantization foldDequantization(const std::shared_ptr<Node>& node,
         const size_t branchIndex,
@@ -253,12 +248,15 @@ public:
         float& updatedOutputLowValue,
         float& updatedOutputHighValue);
 
+    static ov::Output<ov::Node> getSingleConsumerConstant(const ov::Output<ov::Node>& output);
+
+    static bool checkConstantNotInf(const std::shared_ptr<Node> constant_node);
+
 private:
     static std::shared_ptr<Node> foldFakeQuantize(
             const std::shared_ptr<opset1::FakeQuantize>& fq,
             const bool roundValues,
-            const bool roundValuesWasSet,
-            int outChannelsShapeIndex = 0);
+            const bool roundValuesWasSet);
 
     // 1  - on weights
     // 0  - weightable layer was not found
@@ -269,7 +267,7 @@ private:
 template <typename OperationType>
 std::shared_ptr<Node> NetworkHelper::setOutDataPrecisionForTypeRelaxed(std::shared_ptr<OperationType> layer, const element::Type& precision) {
     // check if it already exteded operation node
-    if (auto relaxed_layer = std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(layer)) {
+    if (auto relaxed_layer = std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(layer)) {
         relaxed_layer->set_overridden_output_type(precision);
         std::dynamic_pointer_cast<ngraph::Node>(layer)->validate_and_infer_types();
         return layer;
@@ -281,7 +279,7 @@ std::shared_ptr<Node> NetworkHelper::setOutDataPrecisionForTypeRelaxed(std::shar
 template <typename OperationType>
 std::shared_ptr<Node> NetworkHelper::setOutDataPrecision(std::shared_ptr<OperationType> layer, const element::Type& precision) {
     // check if it already exteded operation node
-    if (auto relaxed_layer = std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(layer)) {
+    if (auto relaxed_layer = std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(layer)) {
         relaxed_layer->set_overridden_output_type(precision);
         std::dynamic_pointer_cast<ngraph::Node>(layer)->validate_and_infer_types();
         return layer;
@@ -289,7 +287,7 @@ std::shared_ptr<Node> NetworkHelper::setOutDataPrecision(std::shared_ptr<Operati
         // Make such replacements in advance for all supported polymorphic layer types
         // extend a node with new semantics: overriden output data_type
         // OperationType should be a real type of an object, otherwise it will lead to undefined behavior
-        auto replacement = std::make_shared<ngraph::op::TypeRelaxed<OperationType>>(*layer, precision);
+        auto replacement = std::make_shared<ov::op::TypeRelaxed<OperationType>>(*layer, precision);
         copy_runtime_info(layer, replacement);
         replace_node(layer, replacement);
         return replacement;
@@ -319,19 +317,14 @@ template <typename T, typename... Args>
 std::shared_ptr<Node> fold_reshape(Args&&... args) {
     std::shared_ptr<Node> node = std::make_shared<T>(args...);
     if (node->get_output_size() == 1) {
-        // issue #57985: remove fold_reshape & reuse nGraph implementation
-        const auto values = ov::as_type_ptr<opset1::Constant>(node->input_value(1).get_node_shared_ptr())->template cast_vector<int64_t>();
-        if (std::any_of(values.begin(), values.end(), [](const int64_t value) { return (value == 0) || (value == -1); })) {
-            return fold<opset1::Reshape>(std::forward<Args>(args)...);
+        const auto data_const = ov::as_type_ptr<opset1::Constant>(node->get_input_node_shared_ptr(0));
+        const auto target_shape = ov::as_type_ptr<opset1::Constant>(node->get_input_node_shared_ptr(1));
+        if (data_const && target_shape) {
+            return std::make_shared<opset1::Constant>(node->get_input_element_type(0),
+                                                      node->get_output_shape(0),
+                                                      data_const->get_data_ptr());
         }
-
-        if (ov::is_type<opset1::Constant>(node->input_value(0).get_node_shared_ptr()) &&
-            ov::is_type<opset1::Constant>(node->input_value(1).get_node_shared_ptr())) {
-            return std::make_shared<opset1::Constant>(
-                    node->get_input_element_type(0),
-                    Shape(ov::as_type_ptr<opset1::Constant>(node->input_value(1).get_node_shared_ptr())->template cast_vector<size_t>()),
-                    ov::as_type_ptr<opset1::Constant>(node->input_value(0).get_node_shared_ptr())->get_data_ptr());
-        }
+        return fold<opset1::Reshape>(std::forward<Args>(args)...);
     }
     return node;
 }

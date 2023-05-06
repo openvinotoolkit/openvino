@@ -1,22 +1,26 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
+import io
 import logging as log
-from typing import List
 import sys
-from os import environ
-
-from openvino.tools.mo.moc_frontend.analysis import json_model_analysis_dump
-from openvino.tools.mo.moc_frontend.extractor import fe_user_data_repack
-from openvino.tools.mo.middle.passes.infer import validate_batch_in_shape
-from openvino.tools.mo.utils.class_registration import get_enabled_and_disabled_transforms
-
-from openvino.runtime import Dimension, PartialShape        # pylint: disable=no-name-in-module,import-error
-from openvino.frontend import FrontEnd, InputModel, NotImplementedFailure, Place # pylint: disable=no-name-in-module,import-error
-from openvino.runtime.utils.types import get_element_type   # pylint: disable=no-name-in-module,import-error
+from copy import copy
+from typing import List
 
 import numpy as np
+
+from openvino.frontend import FrontEnd, InputModel, NotImplementedFailure, \
+    Place  # pylint: disable=no-name-in-module,import-error
+from openvino.runtime import PartialShape, Type  # pylint: disable=no-name-in-module,import-error
+from openvino.runtime.utils.types import get_element_type, \
+    get_numpy_ctype  # pylint: disable=no-name-in-module,import-error
+from openvino.tools.mo.middle.passes.infer import validate_batch_in_shape
+from openvino.tools.mo.moc_frontend.analysis import json_model_analysis_dump
+from openvino.tools.mo.moc_frontend.extractor import fe_user_data_repack, convert_params_lists_to_dicts, fe_output_user_data_repack
+from openvino.tools.mo.moc_frontend.layout_utils import update_layout_to_dict, get_dimension_index_by_label
+from openvino.tools.mo.utils.class_registration import get_enabled_and_disabled_transforms
+from openvino.tools.mo.utils.error import Error
 
 
 def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
@@ -26,7 +30,26 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
     :param: moc_front_end: Loaded Frontend for converting input model
     :return: converted nGraph function ready for serialization
     """
-    input_model = moc_front_end.load(argv.input_model)
+    if isinstance(argv.input_model, io.BytesIO):
+        raise Exception("ONNX frontend does not support input model as BytesIO object. "
+                        "Please use use_legacy_frontend=True to convert the model.")
+    else:
+        if argv.input_model:
+            input_model = moc_front_end.load(argv.input_model)
+        elif argv.saved_model_dir:
+            input_model = moc_front_end.load(argv.saved_model_dir)
+        elif argv.input_meta_graph:
+            input_model = moc_front_end.load(argv.input_meta_graph)
+            if argv.output:
+                # Simulate original behavior with freezing model
+                # While freezing we do a cutting of model, to keep similar behavior we
+                # need to simulate similar behavior with natively supported model
+                outputs = fe_output_user_data_repack(input_model, argv.output, moc_front_end.get_name())
+                input_model.override_all_outputs([x['node'] for x in outputs])
+
+    argv.placeholder_shapes, argv.placeholder_data_types, argv.freeze_placeholder_with_value = convert_params_lists_to_dicts(
+        input_model, argv.placeholder_shapes, argv.placeholder_data_types,
+        argv.freeze_placeholder_with_value, argv.unnamed_freeze_placeholder_with_value)
 
     user_shapes, outputs, freeze_placeholder = fe_user_data_repack(
         input_model, argv.placeholder_shapes, argv.placeholder_data_types,
@@ -68,15 +91,24 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
         # a model is not processed further in json analysis mode
         sys.exit(0)
 
+    model_inputs = input_model.get_inputs()
     inputs_equal = True
     if user_shapes:
-        inputs_equal = check_places_are_same(input_model.get_inputs(), user_shapes)
+        inputs_equal = check_places_are_same(model_inputs, user_shapes)
 
     outputs_equal = True
     if outputs:
         outputs_equal = check_places_are_same(input_model.get_outputs(), outputs)
     log.debug('Inputs are same: {}, outputs are same: {}'.format(
         inputs_equal, outputs_equal))
+
+    def create_target_input_shapes(new_input_places):
+        if isinstance(new_input_places, list) and len(new_input_places) > 1 \
+                and isinstance(new_input_places[0], tuple):
+            return new_input_places
+        new_input_place_names = [x.get_names()[0] for x in new_input_places]
+        shapes = [shape for shape in argv.placeholder_shapes.values()]
+        return dict(zip(new_input_place_names, shapes))
 
     if not inputs_equal and not outputs_equal:
         log.debug('Using extract subgraph')
@@ -86,11 +118,11 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
         input_model.extract_subgraph(new_input_places, new_output_places)
         # invalidation of existing Place objects could have happened in the operation above
         if user_shapes:
-            new_input_places_name = [x.get_names()[0] for x in new_input_places]
+            placeholder_shapes = create_target_input_shapes(new_input_places)
             new_output_places_name = [x.get_names()[0] for x in new_output_places]
 
             user_shapes, outputs, _ = fe_user_data_repack(
-                input_model, new_input_places_name, argv.placeholder_data_types,
+                input_model, placeholder_shapes, argv.placeholder_data_types,
                 new_output_places_name, argv.freeze_placeholder_with_value, moc_front_end.get_name())
     elif not inputs_equal:
         log.debug('Using override_all_inputs')
@@ -99,61 +131,171 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
         input_model.override_all_inputs(new_input_places)
         # invalidation of existing Place objects could have happened in the operation above
         if user_shapes:
-            new_input_places_name = [x.get_names()[0] for x in new_input_places]
+            placeholder_shapes = create_target_input_shapes(new_input_places)
+
             user_shapes, outputs, _ = fe_user_data_repack(
-                input_model, new_input_places_name, argv.placeholder_data_types,
+                input_model, placeholder_shapes, argv.placeholder_data_types,
                 argv.output, argv.freeze_placeholder_with_value, moc_front_end.get_name())
     elif not outputs_equal:
         log.debug('Using override_all_outputs')
         add_names_to_tensors(input_model, user_shapes)
         new_output_places = [x['node'] for x in outputs]
         input_model.override_all_outputs(new_output_places)
+        # invalidation of existing Place objects could have happened in the operation above
+        if user_shapes:
+            model_inputs = input_model.get_inputs()
 
     if user_shapes:
         for user_shape in user_shapes:
             if user_shape.get('shape') is not None:
                 input_model.set_partial_shape(
-                    user_shape['node'], partial_shape_from_tuple(user_shape['shape']))
+                    user_shape['node'], user_shape['shape'])
             if user_shape.get('data_type') is not None:
                 data_type = get_element_type(user_shape['data_type'])
                 log.debug('Set data type: {}'.format(data_type))
                 input_model.set_element_type(user_shape['node'], data_type)
 
+    if freeze_placeholder:
+        for name, value in freeze_placeholder.items():
+            node = None
+            # look for the certain place in user_shapes
+            for node_cur in user_shapes:
+                if node_cur.get('input_name') == name:
+                    node = node_cur
+                    break
+            if node is None:
+                raise Error("Please check correctness of the command-line. "
+                            "Place (operation or tensor) with name {} is not found.".format(name))
+            place = node.get('node')
+
+            if node.get('data_type'):
+                dtype = node['data_type']
+                ov_type = Type(dtype)
+            else:
+                # we need to detect type of Placeholder
+                try:
+                    ov_type = input_model.get_element_type(place)
+                except NotImplementedFailure:
+                    raise Error("Please specify type for value freezing {} node explicitly "
+                                "because the frontend does not support automatic type detection.".format(name))
+                # in case of cutting graph (or using custom inputs) and unspecified or dynamic type,
+                # the default type is fp32
+                if ov_type == Type.undefined or ov_type == Type.dynamic:
+                    ov_type = Type.f32
+                dtype = get_numpy_ctype(ov_type)
+
+            input_model.set_element_type(place, ov_type)
+            # prepare and cast value to dtype
+            from openvino.tools.mo.utils.type_utils import np_map_cast
+            from openvino.tools.mo.front.common.partial_infer.utils import mo_array
+            if isinstance(value, list):
+                casted_list = list()
+                for v in mo_array(value):
+                    casted_list.append(np_map_cast[dtype](v))
+                value = mo_array(casted_list, dtype=dtype)
+            else:
+                value = np_map_cast[dtype](value)
+            value = np.array(value, dtype=dtype)
+
+            ov_shape = input_model.get_partial_shape(place)
+            if node.get('shape'):
+                # set user defined shape
+                ov_shape = PartialShape(node['shape'])
+                input_model.set_partial_shape(place, ov_shape)
+            elif ov_shape.is_dynamic:
+                # in case of dynamic shape (dynamic rank or dynamic dimension)
+                # deduce it based on the value shape and set it
+                ov_shape = PartialShape(value.shape)
+                input_model.set_partial_shape(place, ov_shape)
+
+            input_model.set_tensor_value(place, value)
+
     def shape_to_array(shape: PartialShape):
         return [shape.get_dimension(i) for i in range(shape.rank.get_length())]
 
-    # Set batch size
+    # obtain layout for all inputs
+    layout_values = {}
+    if 'layout_values' in argv and argv.layout_values:
+        layout_values = update_layout_to_dict(model_inputs, argv.layout_values,
+                                              lambda input_place: input_place.get_names())
+
+    deferred_batch_names = []
+    # set batch size for inputs with a static rank
+    # for all other inputs, set it after shape deduction is performed during model conversion
     if argv.batch is not None and argv.batch > 0:
         log.debug('Setting batch size to {}'.format(argv.batch))
-        for place in input_model.get_inputs():
-            old_partial_shape = input_model.get_partial_shape(place)
-            old_shape_array = shape_to_array(old_partial_shape) if old_partial_shape.rank.is_static else []
+        frozen_input_names = list(freeze_placeholder.keys()) if freeze_placeholder else []
+        for place in model_inputs:
+            input_partial_shape = input_model.get_partial_shape(place)
+            input_names = place.get_names()
             joined_name = ' '.join(place.get_names())
-            validate_batch_in_shape(old_shape_array, joined_name)
+            assert len(input_names) > 0, "One input place has no names"
 
-            # Assume batch size is always 1-st dimension in shape
-            # Keep other dimensions unchanged
-            new_shape = [old_partial_shape.get_dimension(i)
-                         for i in range(old_partial_shape.rank.get_length())]
-            new_shape[0] = Dimension(argv.batch)
+            # if this input is frozen, there is no need to set the batch
+            is_frozen_input = len([name for name in input_names if name in frozen_input_names]) > 0
+            if is_frozen_input:
+                # skip the frozen input
+                continue
 
-            new_partial_shape = PartialShape(new_shape)
+            if not input_partial_shape.rank.is_static:
+                # found input with dynamic rank, so have to repeat the batch setting after the model conversion
+                deferred_batch_names += input_names
+                continue
+
+            batch_dim, is_default_index = get_dimension_index_by_label(input_partial_shape,
+                                                                       place.get_names(), layout_values, 'N', 0)
+            if batch_dim is None:
+                # skip because no batch dimension exists in the input
+                continue
+
+            if is_default_index:
+                # if the batch index is chosen by default, we need to ensure that its size equals -1, 0 or 1
+                validate_batch_in_shape(shape_to_array(input_partial_shape), joined_name)
+
+            assert batch_dim < input_partial_shape.rank.get_length(), \
+                "Incorrect layout is specified for {}:" \
+                " index of the batch dimension is out of range.".format(input_names[0])
+
+            new_partial_shape = copy(input_partial_shape)
+            new_partial_shape[batch_dim] = argv.batch
+
             log.debug('Input: {}, Old shape: {}, New shape: {}'.format(
-                joined_name, old_shape_array, new_shape))
+                joined_name, input_partial_shape, new_partial_shape))
             input_model.set_partial_shape(place, new_partial_shape)
 
-    ngraph_function = moc_front_end.convert(input_model)
-    return ngraph_function
+    ov_model = moc_front_end.convert(input_model)
 
+    if argv.batch is not None and argv.batch > 0 and len(deferred_batch_names) > 0:
+        # Frontend convert method can include reverse infer functionality that can deduce undefined input shapes
+        # so try to repeat batch setting again
+        reshape_dict = {}
+        log.debug('Deferred batch setting to size {}'.format(argv.batch))
+        is_batch_clarified = False
+        for model_input in ov_model.inputs:
+            input_name = model_input.any_name
+            input_partial_shape = model_input.get_partial_shape()
+            if input_name in deferred_batch_names and input_partial_shape.rank.is_static:
+                # update input shape with the specified batch for input that originally has dynamic rank
+                batch_dim, is_default_index = get_dimension_index_by_label(input_partial_shape,
+                                                                           model_input.get_names(),
+                                                                           layout_values, 'N', 0)
+                if batch_dim is None:
+                    continue
 
-def partial_shape_from_tuple(shape: tuple):
-    new_shape = []
-    for dim in shape:
-        if isinstance(dim, tuple):
-            assert len(dim) == 2, "Incorrect boundaries of dimension {} in shape {}".format(dim, shape)
-            assert dim[0] >= 0, "Incorrect min value of dimension {} in shape".format(dim, shape)
-            new_shape.append(Dimension(dim[0], dim[1]))
-        else:
-            assert isinstance(dim, np.int64), "Incorrect type of dimension {} in shape".format(dim, shape)
-            new_shape.append(Dimension(dim))
-    return PartialShape(new_shape)
+                if is_default_index:
+                    # if the batch index is chosen by default, we need to ensure that its size equals -1, 0 or 1
+                    validate_batch_in_shape(shape_to_array(input_partial_shape), input_name)
+
+                assert batch_dim < input_partial_shape.rank.get_length(), \
+                    "Incorrect layout is specified for {}: " \
+                    "index of the batch dimension is out of range.".format(input_name)
+                input_partial_shape[batch_dim] = argv.batch
+                is_batch_clarified = True
+
+            reshape_dict.update({input_name: input_partial_shape})
+
+        if is_batch_clarified:
+            # call reshape only if batch dimension for one of the input is clarified
+            ov_model.reshape(reshape_dict)
+
+    return ov_model

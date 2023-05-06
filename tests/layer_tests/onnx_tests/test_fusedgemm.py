@@ -1,12 +1,8 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-
-import os
 
 import numpy as np
 import pytest
-import torch
-from common.layer_test_class import CommonLayerTest
 from common.onnx_layer_test_class import OnnxRuntimeLayerTest
 
 
@@ -134,15 +130,15 @@ class TestFusedGemm(OnnxRuntimeLayerTest):
     ]
 
     @pytest.mark.parametrize("params", test_data)
-    @pytest.mark.parametrize("alpha", [0.1,2.0])
-    @pytest.mark.parametrize("beta", [0.1,2.0])
+    @pytest.mark.parametrize("alpha", [0.1, 2.0])
+    @pytest.mark.parametrize("beta", [0.1, 2.0])
     @pytest.mark.parametrize("trans_a", [None])
     @pytest.mark.parametrize("trans_b", [None, 1])
     @pytest.mark.parametrize("opset", [None])
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_fusedgemm(self, params, alpha, beta, trans_a, trans_b,
-                  ie_device, precision, opset, ir_version, temp_dir, api_2):
+                       ie_device, precision, opset, ir_version, temp_dir, use_old_api):
         self._test(
             *self.create_net(params['shapeA'], params['shapeB'], params['shapeC'], alpha, beta,
                              trans_a, trans_b,
@@ -150,4 +146,4 @@ class TestFusedGemm(OnnxRuntimeLayerTest):
                              params['activation_beta'], params['activation_gamma'],
                              opset, ir_version), ie_device, precision,
             ir_version,
-            temp_dir=temp_dir, api_2=api_2, custom_eps=1e-2)
+            temp_dir=temp_dir, use_old_api=use_old_api, custom_eps=1e-2)

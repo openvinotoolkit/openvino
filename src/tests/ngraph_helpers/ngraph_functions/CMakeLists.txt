@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -20,6 +20,7 @@ addIeTarget(
                 openvino::runtime
                 ngraph_reference
                 interpreter_backend
+                openvino::runtime::dev
         ADD_CPPLINT
         DEVELOPER_PACKAGE
             tests

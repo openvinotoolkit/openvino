@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 #include "ocl_common.hpp"
 #include "ocl_memory.hpp"
 #include "ocl_stream.hpp"
+#include "ocl_engine_factory.hpp"
 #include <string>
 #include <vector>
 #include <memory>
@@ -31,51 +32,87 @@ cl::PFN_clCreateFromD3D11Buffer cl::BufferDX::pfn_clCreateFromD3D11Buffer = NULL
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include <oneapi/dnnl/dnnl_ocl.hpp>
+#include "openvino/util/file_util.hpp"
 #endif
 
 namespace cldnn {
 namespace ocl {
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 ocl_error::ocl_error(cl::Error const& err)
     : ov::Exception("[GPU] " + std::string(err.what()) + std::string(", error code: ") + std::to_string(err.err())) {}
+OPENVINO_SUPPRESS_DEPRECATED_END
 
-ocl_engine::ocl_engine(const device::ptr dev, runtime_types runtime_type,
-            const engine_configuration& conf, const InferenceEngine::ITaskExecutor::Ptr task_executor)
-    : engine(dev, conf, task_executor) {
+ocl_engine::ocl_engine(const device::ptr dev, runtime_types runtime_type)
+    : engine(dev) {
     OPENVINO_ASSERT(runtime_type == runtime_types::ocl, "[GPU] Invalid runtime type specified for OCL engine. Only OCL runtime is supported");
 
     auto casted = dynamic_cast<ocl_device*>(dev.get());
-    if (!casted)
-        throw ov::Exception("[GPU] Invalid device type passed to ocl engine");
+    OPENVINO_ASSERT(casted, "[GPU] Invalid device type passed to ocl engine");
     casted->get_device().getInfo(CL_DEVICE_EXTENSIONS, &_extensions);
 
     _usm_helper.reset(new cl::UsmHelper(get_cl_context(), get_cl_device(), use_unified_shared_memory()));
-
-#ifdef ENABLE_ONEDNN_FOR_GPU
-    _onednn_engine = std::make_shared<dnnl::engine>(dnnl::ocl_interop::make_engine(casted->get_device().get(), casted->get_context().get()));
-#endif
-    _program_stream.reset(new ocl_stream(*this));
+    _service_stream.reset(new ocl_stream(*this, ExecutionConfig()));
 }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
+void ocl_engine::create_onednn_engine(const ExecutionConfig& config) {
+    const std::lock_guard<std::mutex> lock(onednn_mutex);
+    OPENVINO_ASSERT(_device->get_info().vendor_id == INTEL_VENDOR_ID, "[GPU] OneDNN engine can be used for Intel GPUs only");
+    if (!_onednn_engine) {
+        auto casted = std::dynamic_pointer_cast<ocl_device>(_device);
+        OPENVINO_ASSERT(casted, "[GPU] Invalid device type stored in ocl_engine");
+
+        std::string cache_dir = config.get_property(ov::cache_dir);
+        if (cache_dir.empty()) {
+            _onednn_engine = std::make_shared<dnnl::engine>(dnnl::ocl_interop::make_engine(casted->get_device().get(), casted->get_context().get()));
+        } else {
+            // Use cached blob
+            auto path = cache_dir;
+            if (path.back() != '/' && path.back() != '\\') {
+                path += "/";
+            }
+
+            auto blob_id = dnnl::ocl_interop::get_engine_cache_blob_id(casted->get_device().get());
+            if (blob_id.empty()) {
+                // Create engine without cache_blob
+                _onednn_engine = std::make_shared<dnnl::engine>(dnnl::ocl_interop::make_engine(casted->get_device().get(), casted->get_context().get()));
+                return;
+            }
+
+            std::string id_str(blob_id.begin(), blob_id.end());
+            size_t hash = std::hash<std::string>()(id_str);
+            path = path + std::to_string(hash) + ".onednn.cl_cache";
+
+            auto onednn_cache_blob = ov::util::load_binary(path);
+            if (onednn_cache_blob.empty()) {
+                _onednn_engine = std::make_shared<dnnl::engine>(dnnl::ocl_interop::make_engine(casted->get_device().get(), casted->get_context().get()));
+
+                onednn_cache_blob = dnnl::ocl_interop::get_engine_cache_blob(*_onednn_engine);
+                ov::util::save_binary(path, onednn_cache_blob);
+            } else {
+                _onednn_engine = std::make_shared<dnnl::engine>(dnnl::ocl_interop::make_engine(casted->get_device().get(), casted->get_context().get(),
+                                                                                onednn_cache_blob));
+            }
+        }
+    }
+}
+
 dnnl::engine& ocl_engine::get_onednn_engine() const {
-    if (!_onednn_engine)
-        throw ov::Exception("[GPU] onednn engine is nullptr");
+    OPENVINO_ASSERT(_onednn_engine, "[GPU] Can't get onednn engine handle as it was not initialized. Please check that create_onednn_engine() was called");
     return *_onednn_engine;
 }
 #endif
 
 const cl::Context& ocl_engine::get_cl_context() const {
     auto cl_device = std::dynamic_pointer_cast<ocl_device>(_device);
-    if (!cl_device)
-        throw ov::Exception("[GPU] Invalid device type for ocl_engine");
+    OPENVINO_ASSERT(cl_device, "[GPU] Invalid device type for ocl_engine");
     return cl_device->get_context();
 }
 
 const cl::Device& ocl_engine::get_cl_device() const {
     auto cl_device = std::dynamic_pointer_cast<ocl_device>(_device);
-    if (!cl_device)
-        throw ov::Exception("[GPU] Invalid device type for ocl_engine");
+    OPENVINO_ASSERT("cl_device, [GPU] Invalid device type for ocl_engine");
     return cl_device->get_device();
 }
 
@@ -83,8 +120,13 @@ const cl::UsmHelper& ocl_engine::get_usm_helper() const {
     return *_usm_helper;
 }
 
+allocation_type ocl_engine::detect_usm_allocation_type(const void* memory) const {
+    return use_unified_shared_memory() ? ocl::gpu_usm::detect_allocation_type(this, memory)
+                                       : allocation_type::unknown;
+}
+
 memory::ptr ocl_engine::allocate_memory(const layout& layout, allocation_type type, bool reset) {
-    OPENVINO_ASSERT(!layout.is_dynamic(), "[GPU] Can't allocate memory for dynamic layout");
+    OPENVINO_ASSERT(!layout.is_dynamic() || layout.has_upper_bound(), "[GPU] Can't allocate memory for dynamic layout");
 
     OPENVINO_ASSERT(layout.bytes_count() <= get_device_info().max_alloc_mem_size,
                     "[GPU] Exceeded max size of memory object allocation: ",
@@ -111,7 +153,7 @@ memory::ptr ocl_engine::allocate_memory(const layout& layout, allocation_type ty
         }
 
         if (reset || res->is_memory_reset_needed(layout)) {
-            res->fill(get_program_stream());
+            get_service_stream().wait_for_events({res->fill(get_service_stream())});
         }
 
         return res;
@@ -121,9 +163,9 @@ memory::ptr ocl_engine::allocate_memory(const layout& layout, allocation_type ty
             case CL_OUT_OF_RESOURCES:
             case CL_OUT_OF_HOST_MEMORY:
             case CL_INVALID_BUFFER_SIZE:
-                throw ov::Exception("[GPU] out of GPU resources");
+                OPENVINO_THROW("[GPU] out of GPU resources");
             default:
-                throw ov::Exception("[GPU] buffer allocation failed");
+                OPENVINO_THROW("[GPU] buffer allocation failed");
         }
     }
 }
@@ -182,7 +224,7 @@ memory::ptr ocl_engine::reinterpret_handle(const layout& new_layout, shared_mem_
                             ") than specified layout (", requested_mem_size, ")");
             return std::make_shared<ocl::gpu_usm>(this, new_layout, usm_buffer);
         } else {
-            throw ov::Exception("[GPU] unknown shared object fromat or type");
+            OPENVINO_THROW("[GPU] unknown shared object fromat or type");
         }
     }
     catch (const cl::Error& clErr) {
@@ -191,9 +233,9 @@ memory::ptr ocl_engine::reinterpret_handle(const layout& new_layout, shared_mem_
         case CL_OUT_OF_RESOURCES:
         case CL_OUT_OF_HOST_MEMORY:
         case CL_INVALID_BUFFER_SIZE:
-            throw ov::Exception("[GPU] out of GPU resources");
+            OPENVINO_THROW("[GPU] out of GPU resources");
         default:
-            throw ov::Exception("[GPU] buffer allocation failed");
+            OPENVINO_THROW("[GPU] buffer allocation failed");
         }
     }
 }
@@ -223,26 +265,24 @@ bool ocl_engine::extension_supported(std::string extension) const {
     return _extensions.find(extension) != std::string::npos;
 }
 
-stream::ptr ocl_engine::create_stream() const {
-    return std::make_shared<ocl_stream>(*this);
+stream::ptr ocl_engine::create_stream(const ExecutionConfig& config) const {
+    return std::make_shared<ocl_stream>(*this, config);
 }
 
-stream::ptr ocl_engine::create_stream(void* handle) const {
-    return std::make_shared<ocl_stream>(*this, handle);
+stream::ptr ocl_engine::create_stream(const ExecutionConfig& config, void* handle) const {
+    return std::make_shared<ocl_stream>(*this, config, handle);
 }
 
-stream& ocl_engine::get_program_stream() const {
-    return *_program_stream;
+stream& ocl_engine::get_service_stream() const {
+    return *_service_stream;
 }
 
-std::shared_ptr<cldnn::engine> ocl_engine::create(const device::ptr device, runtime_types runtime_type,
-                                                  const engine_configuration& configuration, const InferenceEngine::ITaskExecutor::Ptr task_executor) {
-    return std::make_shared<ocl::ocl_engine>(device, runtime_type, configuration, task_executor);
+std::shared_ptr<cldnn::engine> ocl_engine::create(const device::ptr device, runtime_types runtime_type) {
+    return std::make_shared<ocl::ocl_engine>(device, runtime_type);
 }
 
-std::shared_ptr<cldnn::engine> create_ocl_engine(const device::ptr device, runtime_types runtime_type,
-                                                 const engine_configuration& configuration, const InferenceEngine::ITaskExecutor::Ptr task_executor) {
-    return ocl_engine::create(device, runtime_type, configuration, task_executor);
+std::shared_ptr<cldnn::engine> create_ocl_engine(const device::ptr device, runtime_types runtime_type) {
+    return ocl_engine::create(device, runtime_type);
 }
 
 }  // namespace ocl

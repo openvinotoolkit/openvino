@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 
+#include "legacy_conversion_extension.hpp"
 #include "ngraph/function.hpp"
 #include "openvino/frontend/extension/holder.hpp"
 
@@ -53,6 +54,11 @@ std::shared_ptr<Function> decode_to_framework_nodes(std::shared_ptr<ONNX_NAMESPA
 ///
 /// \return    A nGraph function.
 void convert_decoded_function(std::shared_ptr<Function> function);
+
+/// \brief Get the legacy conversion extension.
+///
+/// \return const LegacyConversionExtension::Ptr
+const LegacyConversionExtension::Ptr get_legacy_conversion_extension();
 }  // namespace detail
 }  // namespace onnx_import
 }  // namespace ngraph

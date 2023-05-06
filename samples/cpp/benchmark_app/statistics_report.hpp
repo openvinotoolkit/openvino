@@ -1,19 +1,25 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <map>
-#include <nlohmann/json.hpp>
 #include <string>
 #include <utility>
 #include <vector>
+
+#ifdef JSON_HEADER
+#    include <json.hpp>
+#else
+#    include <nlohmann/json.hpp>
+#endif
 
 // clang-format off
 #include "samples/common.hpp"
 #include "samples/csv_dumper.hpp"
 #include "samples/slog.hpp"
+#include "samples/latency_metrics.hpp"
 
 #include "utils.hpp"
 // clang-format on
@@ -22,35 +28,7 @@
 static constexpr char noCntReport[] = "no_counters";
 static constexpr char averageCntReport[] = "average_counters";
 static constexpr char detailedCntReport[] = "detailed_counters";
-
-/// @brief Responsible for calculating different latency metrics
-class LatencyMetrics {
-public:
-    LatencyMetrics() {}
-
-    LatencyMetrics(const std::vector<double>& latencies,
-                   const std::string& data_shape = "",
-                   size_t percentile_boundary = 50)
-        : data_shape(data_shape),
-          percentile_boundary(percentile_boundary) {
-        fill_data(latencies, percentile_boundary);
-    }
-
-    void write_to_stream(std::ostream& stream) const;
-    void write_to_slog() const;
-    const nlohmann::json to_json() const;
-
-public:
-    double median_or_percentile = 0;
-    double avg = 0;
-    double min = 0;
-    double max = 0;
-    std::string data_shape;
-
-private:
-    void fill_data(std::vector<double> latencies, size_t percentile_boundary);
-    size_t percentile_boundary = 50;
-};
+static constexpr char sortDetailedCntReport[] = "sort_detailed_counters";
 
 class StatisticsVariant {
 public:
@@ -120,6 +98,8 @@ public:
 
     enum class Category { COMMAND_LINE_PARAMETERS, RUNTIME_CONFIG, EXECUTION_RESULTS, EXECUTION_RESULTS_GROUPPED };
 
+    virtual ~StatisticsReport() = default;
+
     explicit StatisticsReport(Config config) : _config(std::move(config)) {
         _separator =
 #if defined _WIN32 || defined __CYGWIN__
@@ -143,6 +123,10 @@ public:
 
 private:
     void dump_performance_counters_request(CsvDumper& dumper, const PerformanceCounters& perfCounts);
+    void dump_sort_performance_counters_request(CsvDumper& dumper, const PerformanceCounters& perfCounts);
+    static bool sort_profiling_descend(const ov::ProfilingInfo& profiling1, const ov::ProfilingInfo& profiling2) {
+        return profiling1.real_time > profiling2.real_time;
+    }
 
 protected:
     // configuration of current benchmark execution
@@ -168,4 +152,8 @@ public:
 private:
     void dump_parameters(nlohmann::json& js, const StatisticsReport::Parameters& parameters);
     const nlohmann::json perf_counters_to_json(const StatisticsReport::PerformanceCounters& perfCounts);
+    const nlohmann::json sort_perf_counters_to_json(const StatisticsReport::PerformanceCounters& perfCounts);
+    static bool sort_profiling_descend(const ov::ProfilingInfo& profiling1, const ov::ProfilingInfo& profiling2) {
+        return profiling1.real_time > profiling2.real_time;
+    }
 };

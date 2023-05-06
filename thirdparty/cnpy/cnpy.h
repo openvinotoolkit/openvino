@@ -19,21 +19,49 @@
 #include<stdint.h>
 #include<numeric>
 
+#if defined(_WIN32)
+#define NOMINMAX
+#include <windows.h>
+#else
+#include <unistd.h>
+#endif
+
 namespace cnpy {
 
     struct NpyArray {
+        unsigned long long GetFreeMemorySize() {
+#if defined(_WIN32)
+            MEMORYSTATUSEX status;
+            status.dwLength = sizeof(status);
+            GlobalMemoryStatusEx(&status);
+            return status.ullAvailPhys;
+#elif defined(__APPLE__)
+            return std::numeric_limits<unsigned long long>::max();
+#else
+            long pages = sysconf(_SC_AVPHYS_PAGES);
+            long page_size = sysconf(_SC_PAGE_SIZE);
+            return pages * page_size;
+#endif
+        }
+
         NpyArray(const std::vector<size_t>& _shape, size_t _word_size, bool _fortran_order) :
             shape(_shape), word_size(_word_size), fortran_order(_fortran_order)
         {
             num_vals = 1;
             for(size_t i = 0;i < shape.size();i++) num_vals *= shape[i];
             if (word_size &&
-                num_vals > std::vector<char>().max_size() / word_size)
+                num_vals > (GetFreeMemorySize() / word_size))
                 throw std::length_error("NpyArray of " + std::to_string(num_vals) +
                                         "*" + std::to_string(word_size) +
                                         " elements is too big.");
-            data_holder = std::shared_ptr<std::vector<char>>(
-                new std::vector<char>(num_vals * word_size));
+            try {
+                data_holder = std::shared_ptr<std::vector<char>>(
+                    new std::vector<char>(num_vals * word_size));
+            } catch (std::bad_alloc const &) {
+                throw std::length_error("NpyArray of " + std::to_string(num_vals) +
+                                        "*" + std::to_string(word_size) +
+                                        " elements is too big.");
+            }
         }
 
         NpyArray() : shape(0), word_size(0), fortran_order(0), num_vals(0) { }
@@ -221,11 +249,26 @@ namespace cnpy {
 
         //write everything
         if (fp) {
-            fwrite(&local_header[0], sizeof(char), local_header.size(), fp);
-            fwrite(&npy_header[0], sizeof(char), npy_header.size(), fp);
-            fwrite(data, sizeof(T), nels, fp);
-            fwrite(&global_header[0], sizeof(char), global_header.size(), fp);
-            fwrite(&footer[0], sizeof(char), footer.size(), fp);
+            if (fwrite(&local_header[0], sizeof(char), local_header.size(), fp) != local_header.size()) {
+                fclose(fp);
+                throw std::runtime_error("npz_save: failed fwrite");
+            }
+            if (fwrite(&npy_header[0], sizeof(char), npy_header.size(), fp) != npy_header.size()) {
+                fclose(fp);
+                throw std::runtime_error("npz_save: failed fwrite");
+            }
+            if (fwrite(data, sizeof(T), nels, fp) != nels) {
+                fclose(fp);
+                throw std::runtime_error("npz_save: failed fwrite");
+            }
+            if (fwrite(&global_header[0], sizeof(char), global_header.size(), fp) != global_header.size()) {
+                fclose(fp);
+                throw std::runtime_error("npz_save: failed fwrite");
+            }
+            if (fwrite(&footer[0], sizeof(char), footer.size(), fp) != footer.size()) {
+                fclose(fp);
+                throw std::runtime_error("npz_save: failed fwrite");
+            }
             fclose(fp);
         }
     }

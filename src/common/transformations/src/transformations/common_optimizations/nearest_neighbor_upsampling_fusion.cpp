@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,11 +6,11 @@
 
 #include <algorithm>
 #include <memory>
-#include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pattern/matcher.hpp>
 #include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset8.hpp>
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -19,7 +19,7 @@
 #include "transformations/utils/utils.hpp"
 
 namespace {
-using namespace ngraph;
+using namespace ov;
 
 // In the transformation, a constant for Multiply must have the following shape:
 //      [1, 1, S_1, 1, S_2, ..., 1, S_i, ..., 1, S_{r - 2}, 1], (1)
@@ -138,7 +138,7 @@ std::vector<int64_t> get_new_spatial_shape_from_concat_2(const std::shared_ptr<o
 }
 }  // namespace
 
-ngraph::pass::NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion() {
+ov::pass::NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion() {
     MATCHER_SCOPE(NearestNeighborUpsamplingFusion);
     // This transformation looks for Interpolate layer implemented using simple operations, namely ShapeOf,
     // StridedSlice, Concat, Reshape, Mul, and replaces found pattern with a sequence of Shape, StridedSlice, Const,
@@ -266,7 +266,7 @@ ngraph::pass::NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion()
     //      4) 'axes' input as a constant with the value [1, 2, ..., r - 2].
     //
     // Of course, the replacement shouldn't be done, if all S_i are equal to 1.
-    auto input = ngraph::pattern::any_input(pattern::has_static_shape());
+    auto input = pass::pattern::any_input(pattern::has_static_shape());
     auto concat_1 = pattern::wrap_type<opset8::Concat>();
     auto concat_2 = pattern::wrap_type<opset8::Concat>();
     auto reshape_1 = pattern::wrap_type<opset8::Reshape>({input, concat_1});
@@ -274,7 +274,7 @@ ngraph::pass::NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion()
     auto mul = pattern::wrap_type<opset8::Multiply>({reshape_1, mul_const});
     auto reshape_2 = pattern::wrap_type<opset8::Reshape>({mul, concat_2});
 
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
 
         const auto reshape_2_node =

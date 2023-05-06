@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,7 @@
 #pragma once
 
 #include "ie_plugin_config.hpp"
-#include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 
 namespace InferenceEngine {
 
@@ -47,6 +47,41 @@ DECLARE_CONFIG_KEY(LP_TRANSFORMS_MODE);
 DECLARE_CONFIG_KEY(CPU_THREADS_PER_STREAM);
 
 /**
+ * @brief Number of streams in Performance-core(big core)
+ * @ingroup ie_dev_api_plugin_api
+ * @brief Shortcut for defining internal configuration values
+ */
+DECLARE_CONFIG_KEY(BIG_CORE_STREAMS);
+
+/**
+ * @brief Number of streams in Efficient-core(small core) on hybrid cores machine
+ * @ingroup ie_dev_api_plugin_api
+ * @brief Shortcut for defining internal configuration values
+ */
+DECLARE_CONFIG_KEY(SMALL_CORE_STREAMS);
+
+/**
+ * @brief Number of threads per stream in big cores
+ * @ingroup ie_dev_api_plugin_api
+ * @brief Shortcut for defining internal configuration values
+ */
+DECLARE_CONFIG_KEY(THREADS_PER_STREAM_BIG);
+
+/**
+ * @brief Number of threads per stream in small cores on hybrid cores machine
+ * @ingroup ie_dev_api_plugin_api
+ * @brief Shortcut for defining internal configuration values
+ */
+DECLARE_CONFIG_KEY(THREADS_PER_STREAM_SMALL);
+
+/**
+ * @brief Small core start offset when binding cpu cores
+ * @ingroup ie_dev_api_plugin_api
+ * @brief Shortcut for defining internal configuration values
+ */
+DECLARE_CONFIG_KEY(SMALL_CORE_OFFSET);
+
+/**
  * @brief Defines how many records can be stored in the CPU runtime parameters cache per CPU runtime parameter type per
  * stream
  * @ingroup ie_dev_api_plugin_api
@@ -54,16 +89,26 @@ DECLARE_CONFIG_KEY(CPU_THREADS_PER_STREAM);
 DECLARE_CONFIG_KEY(CPU_RUNTIME_CACHE_CAPACITY);
 
 /**
- * @brief This key should be used to force disable export while loading network even if global cache dir is defined
- *        Used by HETERO plugin to disable automatic caching of subnetworks (set value to YES)
- * @ingroup ie_dev_api_plugin_api
- */
-DECLARE_CONFIG_KEY(FORCE_DISABLE_CACHE);
-
-/**
  * @brief Internal device id for particular device (like GPU.0, GPU.1 etc)
  */
 DECLARE_CONFIG_KEY(CONFIG_DEVICE_ID);
+
+/**
+ * @brief enable hyper thread
+ */
+DECLARE_CONFIG_KEY(ENABLE_HYPER_THREAD);
+
+/**
+ * @brief Defines Snippets tokenization mode
+ *      @param ENABLE - default pipeline
+ *      @param IGNORE_CALLBACK - disable the Snippets markup transformation and tokenization callback
+ *      @param DISABLE - turn off the Snippets
+ * @ingroup ie_dev_api_plugin_api
+ */
+DECLARE_CONFIG_KEY(SNIPPETS_MODE);
+DECLARE_CONFIG_VALUE(ENABLE);
+DECLARE_CONFIG_VALUE(IGNORE_CALLBACK);
+DECLARE_CONFIG_VALUE(DISABLE);
 
 }  // namespace PluginConfigInternalParams
 

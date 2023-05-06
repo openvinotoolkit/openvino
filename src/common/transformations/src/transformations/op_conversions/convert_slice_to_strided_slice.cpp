@@ -1,13 +1,13 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/op_conversions/convert_slice_to_strided_slice.hpp"
 
 #include <memory>
-#include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset8.hpp>
 #include <vector>
 
 #include "itt.hpp"
@@ -17,7 +17,7 @@
 #include "ngraph/validation_util.hpp"
 #include "transformations/utils/utils.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 namespace {
 Output<ngraph::Node> align_indices(const Output<ngraph::Node>& indices,
@@ -37,12 +37,12 @@ Output<ngraph::Node> align_indices(const Output<ngraph::Node>& indices,
     // expected_output_shape: {3, 3, 1, 1}
 
     const auto default_indices =
-        ngraph::opset8::Constant::create(indices.get_element_type(), Shape{slice_indices_length}, {fill_in_value});
+        ov::opset8::Constant::create(indices.get_element_type(), Shape{slice_indices_length}, {fill_in_value});
     std::shared_ptr<ngraph::Node> adjusted_indices =
-        ngraph::op::util::make_try_fold<ngraph::opset8::ScatterUpdate>(default_indices,
-                                                                       slice_axes,
-                                                                       indices,  // updates
-                                                                       scatter_axis);
+        ov::op::util::make_try_fold<ov::opset8::ScatterUpdate>(default_indices,
+                                                               slice_axes,
+                                                               indices,  // updates
+                                                               scatter_axis);
 
     if (!ngraph::op::is_constant(adjusted_indices)) {
         new_ops.push_back(default_indices);
@@ -60,10 +60,10 @@ std::vector<int64_t> axes_to_mask(const std::vector<int64_t>& axes, size_t slice
 
 }  // namespace
 
-ngraph::pass::SliceToStridedSlice::SliceToStridedSlice(bool use_shapes) {
+ov::pass::SliceToStridedSlice::SliceToStridedSlice(bool use_shapes) {
     MATCHER_SCOPE(SliceToStridedSlice);
     auto slice = pattern::wrap_type<opset8::Slice>();
-    ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto slice_node = std::dynamic_pointer_cast<opset8::Slice>(m.get_match_root());
         if (!slice_node)
             return false;
@@ -78,9 +78,11 @@ ngraph::pass::SliceToStridedSlice::SliceToStridedSlice(bool use_shapes) {
         std::shared_ptr<opset8::Constant> step_const;
 
         if (use_shapes) {
+            OPENVINO_SUPPRESS_DEPRECATED_START
             start_const = get_constant_from_source(slice_node->input_value(1));
             stop_const = get_constant_from_source(slice_node->input_value(2));
             step_const = get_constant_from_source(slice_node->input_value(3));
+            OPENVINO_SUPPRESS_DEPRECATED_END
         } else {
             start_const = std::dynamic_pointer_cast<opset8::Constant>(slice_node->input_value(1).get_node_shared_ptr());
             stop_const = std::dynamic_pointer_cast<opset8::Constant>(slice_node->input_value(2).get_node_shared_ptr());
@@ -93,10 +95,12 @@ ngraph::pass::SliceToStridedSlice::SliceToStridedSlice(bool use_shapes) {
 
         std::shared_ptr<opset8::Constant> axes_const;
         if (slice_node->get_input_size() > 4) {
+            OPENVINO_SUPPRESS_DEPRECATED_START
             axes_const =
                 use_shapes
                     ? get_constant_from_source(slice_node->input_value(4))
                     : std::dynamic_pointer_cast<opset8::Constant>(slice_node->input_value(4).get_node_shared_ptr());
+            OPENVINO_SUPPRESS_DEPRECATED_END
         } else {
             axes_const = slice_node->get_default_const_axes(start_input);
         }
@@ -106,7 +110,9 @@ ngraph::pass::SliceToStridedSlice::SliceToStridedSlice(bool use_shapes) {
         const auto& data_shape = slice_node->get_input_partial_shape(0);
         auto axes_vec = axes_const->cast_vector<int64_t>();
         if (data_shape.rank().is_static()) {
+            OPENVINO_SUPPRESS_DEPRECATED_START
             auto norm_axes_vec = normalize_axes(slice_node->get_friendly_name(), axes_vec, data_shape.rank());
+            OPENVINO_SUPPRESS_DEPRECATED_END
             axes_vec = std::vector<int64_t>(norm_axes_vec.begin(), norm_axes_vec.end());
         } else {
             const bool need_normalization = std::any_of(axes_vec.begin(), axes_vec.end(), [](int64_t axis) {

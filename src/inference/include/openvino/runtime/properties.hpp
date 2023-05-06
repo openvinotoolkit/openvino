@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,8 +18,8 @@
 #include <unordered_map>
 #include <vector>
 
-#include "ie_precision.hpp"
 #include "openvino/core/any.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/common.hpp"
 
@@ -36,33 +36,6 @@ namespace ov {
 enum class PropertyMutability {
     RO,  //!< Read-only property values can not be passed as input parameter
     RW,  //!< Read/Write property key may change readability in runtime
-};
-
-/**
- * @brief This class is used to return property name and its mutability attribute
- */
-struct PropertyName : public std::string {
-    using std::string::string;
-
-    /**
-     * @brief Constructs property name object
-     * @param str property name
-     * @param mutability property mutability
-     */
-    PropertyName(const std::string& str, PropertyMutability mutability = PropertyMutability::RW)
-        : std::string{str},
-          _mutability{mutability} {}
-
-    /**
-     * @brief check property mutability
-     * @return true if property is mutable
-     */
-    bool is_mutable() const {
-        return _mutability == PropertyMutability::RW;
-    }
-
-private:
-    PropertyMutability _mutability = PropertyMutability::RW;
 };
 
 /** @cond INTERNAL */
@@ -194,6 +167,37 @@ public:
 };
 
 /**
+ * @brief This class is used to return property name and its mutability attribute
+ */
+struct PropertyName : public std::string {
+    using std::string::string;
+
+    /**
+     * @brief Constructs property name object
+     * @param str property name
+     * @param mutability property mutability
+     */
+    PropertyName(const std::string& str, PropertyMutability mutability = PropertyMutability::RW)
+        : std::string{str},
+          _mutability{mutability} {}
+
+    template <class T, typename std::enable_if<std::is_base_of<ov::util::PropertyTag, T>::value, bool>::type = true>
+    PropertyName(const T& property) : std::string{property.name()},
+                                      _mutability{property.mutability} {}
+
+    /**
+     * @brief check property mutability
+     * @return true if property is mutable
+     */
+    bool is_mutable() const {
+        return _mutability == PropertyMutability::RW;
+    }
+
+private:
+    PropertyMutability _mutability = PropertyMutability::RW;
+};
+
+/**
  * @brief This class is used to bind read-only property name with value type
  * @tparam T type of value used to pass or get property
  */
@@ -261,7 +265,7 @@ inline std::ostream& operator<<(std::ostream& os, const Priority& priority) {
     case Priority::HIGH:
         return os << "HIGH";
     default:
-        throw ov::Exception{"Unsupported performance measure hint"};
+        OPENVINO_THROW("Unsupported model priority value");
     }
 }
 
@@ -274,8 +278,10 @@ inline std::istream& operator>>(std::istream& is, Priority& priority) {
         priority = Priority::MEDIUM;
     } else if (str == "HIGH") {
         priority = Priority::HIGH;
+    } else if (str == "DEFAULT") {
+        priority = Priority::DEFAULT;
     } else {
-        throw ov::Exception{"Unsupported model priority: " + str};
+        OPENVINO_THROW("Unsupported model priority: ", str);
     }
     return is;
 }
@@ -293,17 +299,20 @@ static constexpr Property<Priority> model_priority{"MODEL_PRIORITY"};
  * @ingroup ov_runtime_cpp_prop_api
  */
 enum class PerformanceMode {
-    UNDEFINED = -1,             //!<  Undefined value, performance setting may vary from device to device
+    UNDEFINED OPENVINO_ENUM_DEPRECATED("Please use actual value instead. Will be removed in 2024.0") =
+        -1,                     //!<  Undefined value, performance setting may vary from device to device
     LATENCY = 1,                //!<  Optimize for latency
     THROUGHPUT = 2,             //!<  Optimize for throughput
-    CUMULATIVE_THROUGHPUT = 3,  //!< Optimize for cumulative throughput
+    CUMULATIVE_THROUGHPUT = 3,  //!<  Optimize for cumulative throughput
 };
 
 /** @cond INTERNAL */
 inline std::ostream& operator<<(std::ostream& os, const PerformanceMode& performance_mode) {
     switch (performance_mode) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
     case PerformanceMode::UNDEFINED:
-        return os << "";
+        return os << "UNDEFINED";
+        OPENVINO_SUPPRESS_DEPRECATED_END
     case PerformanceMode::LATENCY:
         return os << "LATENCY";
     case PerformanceMode::THROUGHPUT:
@@ -311,7 +320,7 @@ inline std::ostream& operator<<(std::ostream& os, const PerformanceMode& perform
     case PerformanceMode::CUMULATIVE_THROUGHPUT:
         return os << "CUMULATIVE_THROUGHPUT";
     default:
-        throw ov::Exception{"Unsupported performance mode hint"};
+        OPENVINO_THROW("Unsupported performance mode hint");
     }
 }
 
@@ -324,10 +333,12 @@ inline std::istream& operator>>(std::istream& is, PerformanceMode& performance_m
         performance_mode = PerformanceMode::THROUGHPUT;
     } else if (str == "CUMULATIVE_THROUGHPUT") {
         performance_mode = PerformanceMode::CUMULATIVE_THROUGHPUT;
-    } else if (str == "") {
+    } else if (str == "UNDEFINED") {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         performance_mode = PerformanceMode::UNDEFINED;
+        OPENVINO_SUPPRESS_DEPRECATED_END
     } else {
-        throw ov::Exception{"Unsupported performance mode: " + str};
+        OPENVINO_THROW("Unsupported performance mode: ", str);
     }
     return is;
 }
@@ -340,6 +351,94 @@ inline std::istream& operator>>(std::istream& is, PerformanceMode& performance_m
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<PerformanceMode> performance_mode{"PERFORMANCE_HINT"};
+
+/**
+ * @enum       SchedulingCoreType
+ * @brief      This enum contains definition of core type can be used for CPU tasks on different devices.
+ */
+enum class SchedulingCoreType {
+    ANY_CORE = 0,    //!<  Any processors can be used.
+    PCORE_ONLY = 1,  //!<  Only processors of performance-cores can be used.
+    ECORE_ONLY = 2,  //!<  Only processors of efficient-cores can be used.
+};
+
+/** @cond INTERNAL */
+inline std::ostream& operator<<(std::ostream& os, const SchedulingCoreType& core_type) {
+    switch (core_type) {
+    case SchedulingCoreType::ANY_CORE:
+        return os << "ANY_CORE";
+    case SchedulingCoreType::PCORE_ONLY:
+        return os << "PCORE_ONLY";
+    case SchedulingCoreType::ECORE_ONLY:
+        return os << "ECORE_ONLY";
+    default:
+        OPENVINO_THROW("Unsupported core type!");
+    }
+}
+
+inline std::istream& operator>>(std::istream& is, SchedulingCoreType& core_type) {
+    std::string str;
+    is >> str;
+    if (str == "ANY_CORE") {
+        core_type = SchedulingCoreType::ANY_CORE;
+    } else if (str == "PCORE_ONLY") {
+        core_type = SchedulingCoreType::PCORE_ONLY;
+    } else if (str == "ECORE_ONLY") {
+        core_type = SchedulingCoreType::ECORE_ONLY;
+    } else {
+        OPENVINO_THROW("Unsupported core type: ", str);
+    }
+    return is;
+}
+/** @endcond */
+
+/**
+ * @brief This property defines CPU core type which can be used during inference.
+ * @ingroup ov_runtime_cpp_prop_api
+ *
+ * Developer can use this property to select specific CPU cores for inference. Please refer SchedulingCoreType for
+ * all definition of core type.
+ *
+ * The following code is an example to only use efficient-cores for inference on hybrid CPU. If user sets this
+ * configuration on a platform with only performance-cores, CPU inference will still run on the performance-cores.
+ *
+ * @code
+ * ie.set_property(ov::hint::scheduling_core_type(ov::hint::SchedulingCoreType::ECORE_ONLY));
+ * @endcode
+ */
+static constexpr Property<SchedulingCoreType> scheduling_core_type{"SCHEDULING_CORE_TYPE"};
+
+/**
+ * @brief This property allows CPU threads pinning during inference.
+ * @ingroup ov_runtime_cpp_prop_api
+ *
+ * Developer can use this property to use or not use CPU threads pinning during inference. If user does not explicitly
+ * set value for this property, OpenVINO may choose any desired value based on internal logic.
+ *
+ * The following code is example to use this property.
+ *
+ * @code
+ * ie.set_property(ov::hint::enable_cpu_pinning(true));
+ * ie.set_property(ov::hint::enable_cpu_pinning(false));
+ * @endcode
+ */
+static constexpr Property<bool> enable_cpu_pinning{"ENABLE_CPU_PINNING"};
+
+/**
+ * @brief This property define if using hyper threading during inference.
+ * @ingroup ov_runtime_cpp_prop_api
+ *
+ * Developer can use this property to use or not use CPU pinning during inference. If user does not explicitly set
+ * value for this property, OpenVINO may choose any desired value based on internal logic.
+ *
+ * The following code is example to use this property.
+ *
+ * @code
+ * ie.set_property(ov::hint::enable_hyper_threading(true));
+ * ie.set_property(ov::hint::enable_hyper_threading(false));
+ * @endcode
+ */
+static constexpr Property<bool> enable_hyper_threading{"ENABLE_HYPER_THREADING"};
 
 /**
  * @brief (Optional) property that backs the (above) Performance Hints
@@ -361,6 +460,51 @@ static constexpr Property<std::shared_ptr<ov::Model>> model{"MODEL_PTR"};
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<bool, PropertyMutability::RW> allow_auto_batching{"ALLOW_AUTO_BATCHING"};
+
+/**
+ * @brief Enum to define possible execution mode hints
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+enum class ExecutionMode {
+    PERFORMANCE = 1,  //!<  Optimize for max performance, may apply properties which slightly affect accuracy
+    ACCURACY = 2,     //!<  Optimize for max accuracy
+};
+
+/** @cond INTERNAL */
+inline std::ostream& operator<<(std::ostream& os, const ExecutionMode& mode) {
+    switch (mode) {
+    case ExecutionMode::PERFORMANCE:
+        return os << "PERFORMANCE";
+    case ExecutionMode::ACCURACY:
+        return os << "ACCURACY";
+    default:
+        OPENVINO_THROW("Unsupported execution mode hint");
+    }
+}
+
+inline std::istream& operator>>(std::istream& is, ExecutionMode& mode) {
+    std::string str;
+    is >> str;
+    if (str == "PERFORMANCE") {
+        mode = ExecutionMode::PERFORMANCE;
+    } else if (str == "ACCURACY") {
+        mode = ExecutionMode::ACCURACY;
+    } else {
+        OPENVINO_THROW("Unsupported execution mode: ", str);
+    }
+    return is;
+}
+/** @endcond */
+
+/**
+ * @brief High-level OpenVINO Execution hint
+ * unlike low-level properties that are individual (per-device), the hints are something that every device accepts
+ * and turns into device-specific settings
+ * Execution mode hint controls preferred optimization targets (performance or accuracy) for given model
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<ExecutionMode> execution_mode{"EXECUTION_MODE_HINT"};
+
 }  // namespace hint
 
 /**
@@ -373,6 +517,11 @@ static constexpr Property<bool> enable_profiling{"PERF_COUNT"};
  * @brief Namespace with log level property and its possible values
  */
 namespace log {
+
+#ifdef DEBUG
+#    define _OV_WAS_DEBUG DEBUG
+#    undef DEBUG
+#endif
 
 /**
  * @brief Enum to define possible log levels
@@ -403,7 +552,7 @@ inline std::ostream& operator<<(std::ostream& os, const Level& level) {
     case Level::TRACE:
         return os << "LOG_TRACE";
     default:
-        throw ov::Exception{"Unsupported log level"};
+        OPENVINO_THROW("Unsupported log level");
     }
 }
 
@@ -423,7 +572,7 @@ inline std::istream& operator>>(std::istream& is, Level& level) {
     } else if (str == "LOG_TRACE") {
         level = Level::TRACE;
     } else {
-        throw ov::Exception{"Unsupported log level: " + str};
+        OPENVINO_THROW("Unsupported log level: ", str);
     }
     return is;
 }
@@ -434,6 +583,11 @@ inline std::istream& operator>>(std::istream& is, Level& level) {
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<Level> level{"LOG_LEVEL"};
+
+#ifdef _OV_WAS_DEBUG
+#    define DEBUG _OV_WAS_DEBUG
+#    undef _OV_WAS_DEBUG
+#endif
 }  // namespace log
 
 /**
@@ -456,6 +610,12 @@ static constexpr Property<Level> level{"LOG_LEVEL"};
  * @endcode
  */
 static constexpr Property<std::string> cache_dir{"CACHE_DIR"};
+
+/**
+ * @brief Read-only property to notify user that compiled model was loaded from the cache
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<bool, PropertyMutability::RO> loaded_from_cache{"LOADED_FROM_CACHE"};
 
 /**
  * @brief Read-only property to provide information about a range for streams on platforms where streams are supported.
@@ -519,6 +679,17 @@ static constexpr Property<std::tuple<unsigned int, unsigned int, unsigned int>, 
 static constexpr Property<bool, PropertyMutability::RW> force_tbb_terminate{"FORCE_TBB_TERMINATE"};
 
 /**
+ * @brief Read-write property to configure `mmap()` use for model read. Enabled by default.
+ * For the moment only IR Frontend supports the property.
+ *
+ * value type: boolean
+ *   - True enable `mmap()` use and map model
+ *   - False disable `mmap()` use and read model
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<bool, PropertyMutability::RW> enable_mmap{"ENABLE_MMAP"};
+
+/**
  * @brief Namespace with device properties
  */
 namespace device {
@@ -571,7 +742,19 @@ static constexpr Priorities priorities{"MULTI_DEVICE_PRIORITIES"};
  * @brief Type for property to pass set of properties to specified device
  * @ingroup ov_runtime_cpp_prop_api
  */
-struct Properties {
+
+struct Properties : public Property<std::map<std::string, std::map<std::string, Any>>> {
+    using Property<std::map<std::string, std::map<std::string, Any>>>::Property;
+
+    /**
+     * @brief Constructs property
+     * @param configs set of property values with names
+     * @return Pair of string key representation and type erased property value.
+     */
+    inline std::pair<std::string, Any> operator()(const AnyMap& config) const {
+        return {name(), config};
+    }
+
     /**
      * @brief Constructs property
      * @param device_name device plugin alias
@@ -579,7 +762,7 @@ struct Properties {
      * @return Pair of string key representation and type erased property value.
      */
     inline std::pair<std::string, Any> operator()(const std::string& device_name, const AnyMap& config) const {
-        return {device_name, config};
+        return {name() + std::string("_") + device_name, config};
     }
 
     /**
@@ -593,7 +776,7 @@ struct Properties {
     inline util::EnableIfAllStringAny<std::pair<std::string, Any>, Properties...> operator()(
         const std::string& device_name,
         Properties&&... configs) const {
-        return {device_name, AnyMap{std::pair<std::string, Any>{configs}...}};
+        return {name() + std::string("_") + device_name, AnyMap{std::pair<std::string, Any>{configs}...}};
     }
 };
 
@@ -608,7 +791,7 @@ struct Properties {
  *     ov::device::properties("GPU", ov::enable_profiling(false)));
  * @endcode
  */
-static constexpr Properties properties;
+static constexpr Properties properties{"DEVICE_PROPERTIES"};
 
 /**
  * @brief Read-only property to get a std::string value representing a full device name.
@@ -678,7 +861,7 @@ inline std::ostream& operator<<(std::ostream& os, const Type& device_type) {
     case Type::INTEGRATED:
         return os << "integrated";
     default:
-        throw ov::Exception{"Unsupported device type"};
+        OPENVINO_THROW("Unsupported device type");
     }
 }
 
@@ -690,7 +873,7 @@ inline std::istream& operator>>(std::istream& is, Type& device_type) {
     } else if (str == "integrated") {
         device_type = Type::INTEGRATED;
     } else {
-        throw ov::Exception{"Unsupported device type: " + str};
+        OPENVINO_THROW("Unsupported device type: ", str);
     }
     return is;
 }
@@ -805,7 +988,7 @@ inline std::istream& operator>>(std::istream& is, Num& num_val) {
         try {
             num_val = {std::stoi(str)};
         } catch (const std::exception& e) {
-            throw ov::Exception{std::string{"Could not read number of streams from str: "} + str + "; " + e.what()};
+            OPENVINO_THROW("Could not read number of streams from str: ", str, "; ", e.what());
         }
     }
     return is;
@@ -856,7 +1039,7 @@ inline std::ostream& operator<<(std::ostream& os, const Affinity& affinity) {
     case Affinity::HYBRID_AWARE:
         return os << "HYBRID_AWARE";
     default:
-        throw ov::Exception{"Unsupported affinity pattern"};
+        OPENVINO_THROW("Unsupported affinity pattern");
     }
 }
 
@@ -872,7 +1055,7 @@ inline std::istream& operator>>(std::istream& is, Affinity& affinity) {
     } else if (str == "HYBRID_AWARE") {
         affinity = Affinity::HYBRID_AWARE;
     } else {
-        throw ov::Exception{"Unsupported affinity pattern: " + str};
+        OPENVINO_THROW("Unsupported affinity pattern: ", str);
     }
     return is;
 }
@@ -885,4 +1068,10 @@ inline std::istream& operator>>(std::istream& is, Affinity& affinity) {
  * environment variable is set (as affinity is configured explicitly)
  */
 static constexpr Property<Affinity> affinity{"AFFINITY"};
+
+/**
+ * @brief The devices that the inference task been executed.
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<std::vector<std::string>, PropertyMutability::RO> execution_devices{"EXECUTION_DEVICES"};
 }  // namespace ov

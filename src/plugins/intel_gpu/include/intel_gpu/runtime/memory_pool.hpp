@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -90,7 +90,7 @@ struct padded_pool_comparer {
 class memory_pool {
     memory_pool();
 
-    memory_ptr alloc_memory(const layout& layout, allocation_type type);
+    memory_ptr alloc_memory(const layout& layout, allocation_type type, bool reset = true);
     static bool has_conflict(const memory_set&, const std::set<primitive_id>&, uint32_t network_id);
 
     std::multimap<uint64_t, memory_record> _non_padded_pool;
@@ -106,13 +106,15 @@ public:
                           uint32_t network_id,
                           const std::set<primitive_id>& restrictions,
                           allocation_type type,
-                          bool reusable = true);  // get from pool or create memory allocation
-    memory_ptr get_memory(const layout& layout, allocation_type type);
+                          bool reusable = true,
+                          bool reset = true);  // get from pool or create memory allocation
+    memory_ptr get_memory(const layout& layout, allocation_type type, bool reset = true);
     memory_ptr get_from_non_padded_pool(const layout& layout,
                                         const primitive_id& id,
                                         uint32_t network_id,
                                         const std::set<primitive_id>&,
-                                        allocation_type type);
+                                        allocation_type type,
+                                        bool reset = true);
     memory_ptr get_from_padded_pool(const layout& layout,
                                     const primitive_id& id,
                                     uint32_t network_id,

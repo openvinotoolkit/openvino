@@ -1,19 +1,15 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "scatter_update_inst.h"
 
 #include "primitive_type_base.h"
-#include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
 
 namespace cldnn {
-primitive_type_id scatter_update::type_id() {
-    static primitive_type_base<scatter_update> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(scatter_update)
 
 layout scatter_update_inst::calc_output_layout(scatter_update_node const& node, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<scatter_update>();

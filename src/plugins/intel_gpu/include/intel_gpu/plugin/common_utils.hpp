@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -57,35 +57,6 @@ inline cldnn::data_types DataTypeFromPrecision(InferenceEngine::Precision p) {
     }
 }
 
-inline cldnn::data_types DataTypeFromPrecision(ngraph::element::Type t) {
-    switch (t) {
-    case ngraph::element::Type_t::i16:
-    case ngraph::element::Type_t::u16:
-    case ngraph::element::Type_t::f32:
-    case ngraph::element::Type_t::f64:
-        return cldnn::data_types::f32;
-    case ngraph::element::Type_t::f16:
-        return cldnn::data_types::f16;
-    case ngraph::element::Type_t::u8:
-        return cldnn::data_types::u8;
-    case ngraph::element::Type_t::i8:
-        return cldnn::data_types::i8;
-    case ngraph::element::Type_t::i32:
-    case ngraph::element::Type_t::u32:
-    case ngraph::element::Type_t::u64:
-        return cldnn::data_types::i32;
-    case ngraph::element::Type_t::i64:
-        return cldnn::data_types::i64;
-    case ngraph::element::Type_t::boolean:
-        return cldnn::data_types::i8;
-    case ngraph::element::Type_t::u1:
-        return cldnn::data_types::bin;
-    default:
-        IE_THROW(ParameterMismatch)
-            << "The plugin does not support " << t.get_type_name()<< " precision";
-    }
-}
-
 inline InferenceEngine::Precision PrecisionFromDataType(cldnn::data_types dt) {
     switch (dt) {
     case cldnn::data_types::bin:
@@ -118,8 +89,8 @@ inline cldnn::format FormatFromLayout(InferenceEngine::Layout l) {
     case InferenceEngine::Layout::NC:
     case InferenceEngine::Layout::CHW:
     case InferenceEngine::Layout::C:
-        return cldnn::format::bfyx;
     case InferenceEngine::Layout::SCALAR:
+        return cldnn::format::bfyx;
     case InferenceEngine::Layout::NHWC:
         return cldnn::format::byxf;
     default:
@@ -143,8 +114,8 @@ inline cldnn::format FormatFromTensorDesc(InferenceEngine::TensorDesc desc) {
     case InferenceEngine::Layout::NC:
     case InferenceEngine::Layout::CHW:
     case InferenceEngine::Layout::C:
-        return cldnn::format::bfyx;
     case InferenceEngine::Layout::SCALAR:
+        return cldnn::format::bfyx;
     case InferenceEngine::Layout::NHWC:
         return cldnn::format::byxf;
     default:
@@ -170,25 +141,6 @@ inline cldnn::format ImageFormatFromLayout(InferenceEngine::Layout l) {
     }
 }
 
-inline cldnn::format DefaultFormatForDims(size_t dimensions) {
-    switch (dimensions) {
-    case 0:
-    case 1:
-    case 2:
-    case 3:
-    case 4:
-        return cldnn::format::bfyx;
-    case 5:
-        return cldnn::format::bfzyx;
-    case 6:
-        return cldnn::format::bfwzyx;
-    default:
-        IE_THROW() << "Unsupported number of dimensions: " << dimensions;
-    }
-
-    return cldnn::format::bfyx;  // Should not get here
-}
-
 inline InferenceEngine::Layout InferenceEngineLayoutFromOVLayout(ov::Layout l) {
     if (l == ov::Layout("C")) return InferenceEngine::Layout::C;
     if (l == ov::Layout("CN")) return InferenceEngine::Layout::CN;
@@ -202,6 +154,17 @@ inline InferenceEngine::Layout InferenceEngineLayoutFromOVLayout(ov::Layout l) {
     if (l == ov::Layout("NCDHW")) return InferenceEngine::Layout::NCDHW;
     if (l == ov::Layout("NDHWC")) return InferenceEngine::Layout::NDHWC;
     IE_THROW() << "The plugin does not support " << l.to_string() << " layout";
+}
+
+/// WA: Force exit. Any opencl api call can be hang after CL_OUT_OF_RESOURCES.
+inline void ForceExit() {
+    std::cerr << "[GPU] force exit.\n"
+              << "\tDue to the driver bug any subsequent OpenCL API call will cause application hang, "
+              << "so GPU plugin can't finish correctly.\n"
+              << "\tPlease try to update the driver or reduce memory consumption "
+              << "(use smaller batch size, less streams, lower precision, etc)"
+              << "to avoid CL_OUT_OF_RESOURCES exception" << std::endl;
+    std::_Exit(-1);
 }
 
 }  // namespace intel_gpu

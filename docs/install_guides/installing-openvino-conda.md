@@ -1,74 +1,96 @@
-# Install Intel® Distribution of OpenVINO™ toolkit from Anaconda Cloud {#openvino_docs_install_guides_installing_openvino_conda}
+# Install OpenVINO™ Runtime from Conda Forge {#openvino_docs_install_guides_installing_openvino_conda}
 
-This guide provides installation steps for Intel® Distribution of OpenVINO™ toolkit for Linux distributed through the Anaconda Cloud.
+@sphinxdirective
 
-> **NOTE**: From the 2022.1 release, the OpenVINO™ Development Tools can only be installed via PyPI. If you want to develop or optimize your models with OpenVINO, see [Install OpenVINO Development Tools](installing-model-dev-tools.md) for detailed steps.
+.. note::
 
-## System Requirements
+   Installing OpenVINO Runtime from Conda Forge is recommended for C++ developers, as it provides only the C++ Runtime API.
+   If you work with Python, consider :doc:`installing OpenVINO from PyPI <openvino_docs_install_guides_installing_openvino_pip>`
 
-**Software**
+   The current Anaconda package does not provide support for GPU inference.
 
- - [Anaconda distribution](https://www.anaconda.com/products/individual/)
+.. tab:: System Requirements
 
-**Operating Systems**
+  | Full requirement listing is available in:
+  | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
 
-| Supported Operating System                                   | [Python Version (64-bit)](https://www.python.org/) |
-| :------------------------------------------------------------| :---------------------------------------------------|
-|   Ubuntu 18.04 long-term support (LTS), 64-bit              | 3.6, 3.7, 3.8, 3.9                                  |
-|   Ubuntu 20.04 long-term support (LTS), 64-bit              | 3.6, 3.7, 3.8, 3.9                                  |
-|   Red Hat Enterprise Linux 8, 64-bit                         | 3.6, 3.7, 3.8, 3.9                                  |
-|   macOS 10.15                                             | 3.6, 3.7, 3.8, 3.9                                  |
-|   Windows 10, 64-bit                                        | 3.6, 3.7, 3.8, 3.9                                  |
+.. comment to publish in the future, when gpu support comes back:
 
-## Install OpenVINO Runtime Using the Anaconda Package Manager
+   .. tab:: Processor Notes
+   
+        | Not all Intel CPUs include integrated graphics processors.  
+        | See `Product Specifications <https://ark.intel.com/>`__ for information about your hardware.
 
-1. Set up the Anaconda environment (taking Python 3.7 for example): 
-   ```sh
-   conda create --name py37 python=3.7
-   conda activate py37
-   ```
-2. Update Anaconda environment to the latest version:
-   ```sh
-   conda update --all
-   ```
-3. Install the Intel® Distribution of OpenVINO™ toolkit:
- - Ubuntu* 20.04 
-   ```sh
-   conda install openvino-ie4py-ubuntu20 -c intel
-   ```
- - Ubuntu* 18.04
-   ```sh
-   conda install openvino-ie4py-ubuntu18 -c intel
-   ```
- - Red Hat Enterprise Linux 8, 64-bit 
-   ```sh
-   conda install openvino-ie4py-rhel8 -c intel
-   ```
- - Windows 10 and macOS
-   ```sh
-   conda install openvino-ie4py -c intel
-   ```
-4. Verify the package is installed:
-   ```sh
-   python -c "from openvino.runtime import Core"
-   ```
-   If installation was successful, you will not see any error messages (no console output).
+.. tab:: Software
 
-Now you can start developing your application.
+   There are many ways to work with Conda. Before you proceed, learn more about it on the
+   `Anaconda distribution page <https://www.anaconda.com/products/individual/>`__
 
 
-## What's Next?
+Installing OpenVINO Runtime with Anaconda Package Manager
+############################################################
 
-Now you may continue with the following tasks:
+1. Set up the Anaconda environment (Python 3.10 used as an example):
+   
+   .. code-block:: sh
 
-* To convert models for use with OpenVINO, see [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
-* See pre-trained deep learning models in our [Open Model Zoo](../model_zoo.md).
-* Try out OpenVINO via [OpenVINO Notebooks](https://docs.openvino.ai/latest/notebooks/notebooks.html).
-* To write your own OpenVINO™ applications, see [OpenVINO Runtime User Guide](../OV_Runtime_UG/openvino_intro.md).
-* See sample applications in [OpenVINO™ Toolkit Samples Overview](../OV_Runtime_UG/Samples_Overview.md).
+      conda create --name py310 python=3.10
 
-## Additional Resources
+   .. code-block:: sh
 
-- Intel® Distribution of OpenVINO™ toolkit home page: <https://software.intel.com/en-us/openvino-toolkit>.
-- For IoT Libraries & Code Samples see the [Intel® IoT Developer Kit](https://github.com/intel-iot-devkit).
-- Intel® Distribution of OpenVINO™ toolkit Anaconda home page: [https://anaconda.org/intel/openvino-ie4py](https://anaconda.org/intel/openvino-ie4py)
+      conda activate py310
+
+2. Update it to the latest version:
+   
+   .. code-block:: sh
+
+      conda update --all
+
+3. Install the OpenVINO Runtime package:
+
+   .. code-block:: sh
+
+      conda install -c conda-forge openvino=2022.3.0
+
+   Congratulations! You have finished installing OpenVINO Runtime.
+
+
+Uninstalling OpenVINO™ Runtime
+###########################################################
+
+Once OpenVINO Runtime is installed via Conda, you can remove it using the following command, 
+with the proper OpenVINO version number:
+
+.. code-block:: sh
+   
+   conda remove openvino=2022.3.0
+
+
+What's Next?
+############################################################
+
+Now that you've installed OpenVINO Runtime, you are ready to run your own machine learning applications! 
+To learn more about how to integrate a model in OpenVINO applications, try out some tutorials and sample applications.
+
+Try the :doc:`C++ Quick Start Example <openvino_docs_get_started_get_started_demos>` for step-by-step instructions 
+on building and running a basic image classification C++ application.
+
+.. image:: https://user-images.githubusercontent.com/36741649/127170593-86976dc3-e5e4-40be-b0a6-206379cd7df5.jpg
+   :width: 400
+   
+Visit the :doc:`Samples <openvino_docs_OV_UG_Samples_Overview>` page for other C++ example applications to get you started with OpenVINO, such as:
+
+* `Basic object detection with the Hello Reshape SSD C++ sample <openvino_inference_engine_samples_hello_reshape_ssd_README.html>`__
+* `Automatic speech recognition C++ sample <openvino_inference_engine_samples_speech_sample_README.html>`__
+
+
+Additional Resources
+###########################################################
+
+* `OpenVINO Runtime Conda Forge <https://anaconda.org/conda-forge/openvino>`__
+* :doc:`OpenVINO™ Toolkit Samples Overview <openvino_docs_OV_UG_Samples_Overview>`
+* `OpenVINO Installation Selector Tool <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html>`__
+
+
+@endsphinxdirective
+

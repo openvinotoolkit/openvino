@@ -1,19 +1,16 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "gather_nd_inst.h"
+#include "gather_nd_shape_inference.hpp"
 
 #include "primitive_type_base.h"
-#include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
 
 namespace cldnn {
-primitive_type_id gather_nd::type_id() {
-    static primitive_type_base<gather_nd> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(gather_nd)
 
 layout gather_nd_inst::calc_output_layout(gather_nd_node const& node, kernel_impl_params const& impl_param) {
     auto op = impl_param.typed_desc<gather_nd>();
@@ -63,17 +60,9 @@ layout gather_nd_inst::calc_output_layout(gather_nd_node const& node, kernel_imp
         }
     }
 
-    auto output_format = cldnn::format::any;
-    if (final_output_sizes.size() <= 4) {
-        output_format = cldnn::format::bfyx;
-    } else if (final_output_sizes.size() == 5) {
-        output_format = cldnn::format::bfzyx;
-    } else {
-        output_format = cldnn::format::bfwzyx;
-    }
-
+    auto output_format = format::get_default_format(final_output_sizes.size());
     auto output_sizes_tensor = tensor(tensor(final_output_sizes).sizes(output_format));
-    auto padding = op->output_padding;
+    auto padding = op->output_paddings[0];
 
     if (impl_param.has_fused_primitives()) {
         input_layout_origin.data_type = impl_param.get_fused_output_layout().data_type;
@@ -81,6 +70,42 @@ layout gather_nd_inst::calc_output_layout(gather_nd_node const& node, kernel_imp
 
     return layout(input_layout_origin.data_type, output_format, output_sizes_tensor, padding);
 }
+
+
+template<typename ShapeType>
+std::vector<layout> gather_nd_inst::calc_output_layouts(gather_nd_node const& /*node*/, const kernel_impl_params& impl_param) {
+    auto desc = impl_param.typed_desc<gather_nd>();
+
+    auto input_layout = impl_param.get_input_layout(0);
+    auto indices_layout = impl_param.get_input_layout(1);
+
+    auto output_type = input_layout.data_type;
+    if (impl_param.has_fused_primitives()) {
+        output_type = impl_param.get_fused_output_layout().data_type;
+    }
+
+    std::vector<ShapeType> output_shapes = {ShapeType()};
+    std::vector<ShapeType> input_shapes = {
+        input_layout.get<ShapeType>(),
+        indices_layout.get<ShapeType>()
+    };
+
+    if (desc->batch_merged_output) {
+        ov::op::v5::GatherND op;
+        op.set_batch_dims(desc->batch_dims);
+        ov::op::v5::shape_infer(&op, input_shapes, output_shapes);
+    } else {
+        ov::op::v8::GatherND op;
+        op.set_batch_dims(desc->batch_dims);
+        ov::op::v8::shape_infer(&op, input_shapes, output_shapes);
+    }
+
+    format output_format = format::adjust_to_rank(input_layout.format, output_shapes[0].size());
+
+    return { layout{output_shapes[0], output_type, output_format} };
+}
+
+template std::vector<layout> gather_nd_inst::calc_output_layouts<ov::PartialShape>(gather_nd_node const& node, const kernel_impl_params& impl_param);
 
 std::string gather_nd_inst::to_string(gather_nd_node const& node) {
     auto desc = node.get_primitive();

@@ -1,9 +1,13 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "subgraph_extraction.hpp"
-
+#if defined(_MSC_VER)
+#    pragma warning(push)
+// Protobuf: conversion from 'XXX' to 'YYY', possible loss of data
+#    pragma warning(disable : 4244)
+#endif
 #include <onnx/onnx_pb.h>
 
 #include <functional>
@@ -91,8 +95,8 @@ int find_source_node_idx(const ONNX_NAMESPACE::GraphProto& graph,
         }
     }
 
-    throw ngraph::ngraph_error{"Source node not found in the graph for node: " + std::to_string(current_node_idx) +
-                               " and input name: " + input_name};
+    OPENVINO_THROW("Source node not found in the graph for node: " + std::to_string(current_node_idx) +
+                   " and input name: " + input_name);
 }
 
 /// \brief Looks up a descriptor for a given tensor name. This descriptor contains inferred
@@ -218,9 +222,6 @@ std::pair<bool, std::string> append_new_graph_input(ONNX_NAMESPACE::GraphProto& 
 /// original model.
 void append_new_graph_output(ONNX_NAMESPACE::GraphProto& graph, const OutputEdge& edge) {
     const auto tensor_name = get_output_tensor_name(graph, edge);
-    if (already_exists(graph.output(), tensor_name)) {
-        return;
-    }
     auto& new_output = *(graph.add_output());
     // copy the intermediate tensor's properties to the newly created
     new_output.MergeFrom(find_tensor_descriptor(graph, tensor_name));
@@ -264,6 +265,7 @@ void discard_nodes(Container& all_nodes, const std::set<int>& nodes_to_keep) {
     using std::end;
 
     const auto new_end = std::remove_if(begin(all_nodes), end(all_nodes), discard_node);
+
     all_nodes.erase(new_end, end(all_nodes));
 }
 }  // namespace
@@ -287,7 +289,7 @@ void SubgraphExtractor::add_new_inputs(const std::vector<InputEdge>& new_inputs,
     if (merge_inputs && new_inputs.size() > 1) {
         std::map<std::string, int> new_inputs_consumers;
         int index = 0;
-        int input_consumers = new_inputs.size();
+        int input_consumers = static_cast<int>(new_inputs.size());
 
         // count all input edges
         for (const auto& input_edge : new_inputs) {
@@ -305,7 +307,7 @@ void SubgraphExtractor::add_new_inputs(const std::vector<InputEdge>& new_inputs,
                 auto it = std::find_if(new_inputs.begin(), new_inputs.begin(), [&](const InputEdge& input_edge) {
                     return get_input_tensor_name(m_onnx_graph, input_edge) == input.first;
                 });
-                index = std::distance(new_inputs.begin(), it);
+                index = static_cast<int>(std::distance(new_inputs.begin(), it));
             }
         }
 
@@ -447,3 +449,6 @@ std::vector<OutputEdge> SubgraphExtractor::all_output_edges() const {
 
     return all_outputs;
 }
+#if defined(_MSC_VER)
+#    pragma warning(pop)
+#endif

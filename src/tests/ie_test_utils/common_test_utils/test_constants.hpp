@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,20 +6,21 @@
 
 namespace CommonTestUtils {
 
-const char DEVICE_AUTO[] = "AUTO";
-const char DEVICE_CPU[] = "CPU";
-const char DEVICE_GNA[] = "GNA";
-const char DEVICE_GPU[] = "GPU";
-const char DEVICE_BATCH[] = "BATCH";
-const char DEVICE_HDDL[] = "HDDL";
-const char DEVICE_MYRIAD[] = "MYRIAD";
-const char DEVICE_KEEMBAY[] = "VPUX";
-const char DEVICE_MULTI[] = "MULTI";
-const char DEVICE_TEMPLATE[] = "TEMPLATE";
-const char DEVICE_HETERO[] = "HETERO";
+extern const char* DEVICE_AUTO;
+extern const char* DEVICE_CPU;
+extern const char* DEVICE_GNA;
+extern const char* DEVICE_GPU;
+extern const char* DEVICE_BATCH;
+extern const char* DEVICE_KEEMBAY;
+extern const char* DEVICE_MULTI;
+extern const char* DEVICE_TEMPLATE;
+extern const char* DEVICE_HETERO;
 
-const char REPORT_FILENAME[] = "report";
+const char OP_REPORT_FILENAME[] = "report_op";
+const char API_REPORT_FILENAME[] = "report_api";
 const char REPORT_EXTENSION[] = ".xml";
+
+const char DEVICE_SUFFIX_SEPARATOR = '.';
 
 const unsigned int maxFileNameLength = 140;
 

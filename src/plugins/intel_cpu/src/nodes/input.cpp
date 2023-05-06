@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,6 +21,7 @@
 #include "utils/cpu_utils.hpp"
 #include <cpu/x64/jit_generator.hpp>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "utils/shape_inference/shape_inference_pass_through.hpp"
 
 using namespace dnnl;
 using namespace InferenceEngine;
@@ -32,8 +33,9 @@ using namespace Xbyak;
 namespace ov {
 namespace intel_cpu {
 namespace node {
-namespace {
 
+#if defined(OPENVINO_ARCH_X86_64)
+namespace {
 struct jit_has_subnormals_base : public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_has_subnormals_base)
 
@@ -45,7 +47,7 @@ struct jit_has_subnormals_base : public jit_generator {
 
     typedef void (*fn_t)(const args_t*);
 
-    jit_has_subnormals_base() : jit_generator() {
+    jit_has_subnormals_base() : jit_generator(jit_name()) {
         jit_ker_ = nullptr;
     }
 
@@ -228,9 +230,10 @@ jit_has_subnormals_base::fn_t jit_has_subnormals_function() {
 }
 
 }   // namespace
+#endif
 
-Input::Input(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
-        : Node(op, eng, cache) {
+Input::Input(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+        : Node(op, context, PassThroughShapeInferFactory()) {
     if (!one_of(op->get_type_info(),
             v0::Parameter::get_type_info_static(),
             v0::Constant::get_type_info_static(),
@@ -254,6 +257,14 @@ void Input::cloneBlobIfRequired() {
     const size_t size = shape.getElementsCount();
     DnnlBlockedMemoryDesc memDesc(prec, shape);
 
+    bool needFlushDenormalsToZero = true;
+    if (context->getConfig().DAZOn) {
+        // DAZ has been set, processor automatically converts all denormal source operands
+        // to a zero with the sign of the original operand before performing any
+        // computations on them, thus no need to flush them to zero manually
+        needFlushDenormalsToZero = false;
+    }
+
     auto cloneBlob = [&, this] () {
         Memory memory{ getEngine() };
 
@@ -270,7 +281,7 @@ void Input::cloneBlobIfRequired() {
 
         MemoryPtr ptr = MemoryPtr(new Memory(getEngine()));
         ptr->Create(memDesc);
-        ptr->SetData(memory);
+        ptr->SetData(memory, needFlushDenormalsToZero);
 
         return ptr;
     };
@@ -288,6 +299,7 @@ void Input::cloneBlobIfRequired() {
             if (!size)
                 return false;
 
+#if defined(OPENVINO_ARCH_X86_64)
             if (auto fn = jit_has_subnormals_function()) {
                 static const size_t batch_size = 2048;
                 const size_t iterations_num = size / batch_size + 1;
@@ -309,11 +321,12 @@ void Input::cloneBlobIfRequired() {
                 });
 
                 return has_subnormals;
-            } else {
-                for (size_t i = 0; i < size; ++i) {
-                    if (u32data[i] && (u32data[i] & (0xFF << 23)) == 0) {
-                        return true;
-                    }
+            }
+#endif
+
+            for (size_t i = 0; i < size; ++i) {
+                if (u32data[i] && (u32data[i] & (0xFF << 23)) == 0) {
+                    return true;
                 }
             }
         }
@@ -323,7 +336,7 @@ void Input::cloneBlobIfRequired() {
     // WA for CVS-46304
     auto isWA = [&, this] () {
         auto outputs = constOp->outputs();
-        for (auto const output : outputs) {
+        for (const auto& output : outputs) {
             auto node = output.get_node();
             if (!node
                 || TypeFromName(node->get_type_name()) != Type::FullyConnected)
@@ -350,10 +363,13 @@ void Input::cloneBlobIfRequired() {
                 + "_" + ptr;
     };
 
+    auto weightCache = context->getWeightsCache();
     if (weightCache) {
         MemoryPtr ptr = *weightCache->findOrCreate(blobKey(), cloneBlob);
         memoryPtr = std::const_pointer_cast<const Memory>(ptr);
-    } else if (isBlobAligned() && !hasSubnormals() && !isWA()) {
+    // IRs already have all subnormals flushed to zero, but in
+    // read_model scenario with directly loaded original model still can have subnormals
+    } else if (isBlobAligned() && (!needFlushDenormalsToZero || !hasSubnormals()) && !isWA()) {
         auto ptr = new Memory(getEngine());
         ptr->Create(memDesc, constOp->get_data_ptr());
         memoryPtr = MemoryCPtr(ptr);
@@ -362,9 +378,12 @@ void Input::cloneBlobIfRequired() {
     }
 }
 
-Input::Input(const Shape& shape, const InferenceEngine::Precision &prc, const std::string &name,
-                                 const std::string &type, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
-        : Node(type, name, eng, cache) {
+Input::Input(const Shape& shape,
+             const InferenceEngine::Precision& prc,
+             const std::string& name,
+             const std::string& type,
+             const GraphContext::CPtr context)
+    : Node(type, name, context) {
     constant = ConstantType::NoConst;
     if (getType() == Type::Input) {
         outputShapes.emplace_back(shape);
@@ -375,9 +394,8 @@ Input::Input(const Shape& shape, const InferenceEngine::Precision &prc, const st
     }
 }
 
-Input::Input(MemoryDescPtr memDesc, const std::string &name, const std::string &type,
-                                 const dnnl::engine &eng, WeightsSharing::Ptr &cache) :
-    Input(memDesc->getShape(), memDesc->getPrecision(), name, type, eng, cache) {
+Input::Input(MemoryDescPtr memDesc, const std::string& name, const std::string& type, const GraphContext::CPtr context)
+    : Input(memDesc->getShape(), memDesc->getPrecision(), name, type, context) {
     extMemDesc = memDesc;
 }
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 #include <vector>
 #include <array>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "common/dnnl_executor.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -17,7 +18,7 @@ namespace node {
 
 class MatMul : public Node {
 public:
-    MatMul(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    MatMul(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override;
     void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
@@ -26,10 +27,9 @@ public:
     MemoryDescPtr getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
     bool canFuse(const NodePtr& node) const override;
     bool created() const override;
-    size_t getMaxBatch() const override;
 
     InferenceEngine::Precision getRuntimePrecision() const override;
-    size_t descInputNumbers(DnnlDesriptor desc) override {
+    size_t descInputNumbers() override {
         return getOriginalInputsNumber();
     }
 
@@ -38,6 +38,7 @@ public:
     }
 
     void prepareParams() override;
+    void execute(dnnl::stream strm) override;
     void executeDynamicImpl(dnnl::stream strm) override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
@@ -48,6 +49,8 @@ protected:
     AttrPtr initPrimitiveAttr(const VectorDims& dims);
 
 private:
+    using executorPtr = std::shared_ptr<DnnlExecutor>;
+    executorPtr execPtr = nullptr;
     dnnl::memory::desc getBiasDescFrom(const DnnlMemoryDescCPtr outMemDesc);
     std::pair<Shape, Shape> makeDummyInputShapes(const Shape& in0, const Shape& in1) const;
 

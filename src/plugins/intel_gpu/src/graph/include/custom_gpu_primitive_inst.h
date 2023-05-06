@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "intel_gpu/primitives/custom_gpu_primitive.hpp"
 #include "primitive_inst.h"
@@ -11,25 +10,16 @@
 
 namespace cldnn {
 
-template <>
-struct typed_program_node<custom_gpu_primitive> : public typed_program_node_base<custom_gpu_primitive> {
-    using parent = typed_program_node_base<custom_gpu_primitive>;
-
-public:
-    using parent::parent;
-
-    program_node& input(size_t idx = 0) const { return get_dependency(idx); }
-};
-
 using custom_gpu_primitive_node = typed_program_node<custom_gpu_primitive>;
 
 template <>
 class typed_primitive_inst<custom_gpu_primitive> : public typed_primitive_inst_base<custom_gpu_primitive> {
     using parent = typed_primitive_inst_base<custom_gpu_primitive>;
+    using parent::parent;
 
 public:
     static layout calc_output_layout(custom_gpu_primitive_node const& node, kernel_impl_params const& impl_param) {
-        assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&
+        assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
                "Output data type forcing is not supported for "
                "custom_gpu_primitive_node!");
         layout output_layout = impl_param.typed_desc<custom_gpu_primitive>()->output_layout;

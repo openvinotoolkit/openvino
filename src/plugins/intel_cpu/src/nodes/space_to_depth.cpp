@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -72,10 +72,8 @@ bool SpaceToDepth::isSupportedOperation(const std::shared_ptr<const ngraph::Node
     return true;
 }
 
-SpaceToDepth::SpaceToDepth(const std::shared_ptr<ngraph::Node>& op,
-                                               const dnnl::engine& eng,
-                                               WeightsSharing::Ptr& cache)
-    : Node(op, eng, cache) {
+SpaceToDepth::SpaceToDepth(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+    : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -130,7 +128,6 @@ void SpaceToDepth::initSupportedPrimitiveDescriptors() {
     }
 
     NodeConfig config;
-    config.dynBatchSupport = true;
     config.inConfs.resize(1);
     config.outConfs.resize(1);
     config.inConfs[0].inPlace(-1);
@@ -200,7 +197,7 @@ void SpaceToDepth::prepareParams() {
         return std::make_shared<SpaceToDepthExecutor>(key);
     };
 
-    auto cache = getRuntimeCache();
+    auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(attrs, builder);
     if (!result.first) {
         IE_THROW() << "SpaceToDepthExecutor was not found for node " << getName() << ".";
@@ -318,7 +315,7 @@ void SpaceToDepth::execute(dnnl::stream strm) {
     }
     const uint8_t* srcData = reinterpret_cast<const uint8_t *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     uint8_t* dstData = reinterpret_cast<uint8_t *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
-    const int MB = isDynamicNode() ? getParentEdgeAt(0)->getMemoryPtr()->getStaticDims()[0] : batchToProcess();
+    const int MB = getParentEdgeAt(0)->getMemoryPtr()->getStaticDims()[0];
     execPtr->exec(srcData, dstData, MB);
 }
 

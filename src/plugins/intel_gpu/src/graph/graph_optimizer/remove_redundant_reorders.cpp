@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "pass_manager.h"
 #include "program_helpers.h"
@@ -12,17 +10,18 @@
 #include <utility>
 
 #include "reshape_inst.h"
+#include "convert_color_inst.h"
 #include "one_hot_inst.h"
 #include "permute_inst.h"
 #include "depth_to_space_inst.h"
+#include "concatenation_inst.h"
 #include "region_yolo_inst.h"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 
 using namespace cldnn;
 
-#define LOG_NODE_REMOVAL(id) GPU_DEBUG_IF(debug_config->verbose >= 2) {                                                         \
-                GPU_DEBUG_COUT << "[remove_redundant_reorders:" << __LINE__ << "] " << "Remove node: " << (id) << std::endl; }
-
+#define LOG_NODE_REMOVAL(id)      GPU_DEBUG_LOG_PASS << __func__ << ":" << __LINE__  << ": remove node: " << (id) << std::endl;
+#define LOG_NODE_REPLACEMENT(id)  GPU_DEBUG_LOG_PASS << __func__ << ":" << __LINE__  << ": replace node: " << (id) << std::endl;
 
 remove_redundant_reorders::remove_redundant_reorders(layout_optimizer& lo_ref, bool enable_reorder_fusing, bool update_implementations,
     bool remove_output_reorders)
@@ -30,14 +29,16 @@ remove_redundant_reorders::remove_redundant_reorders(layout_optimizer& lo_ref, b
     remove_output_reorders(remove_output_reorders) {}
 
 void remove_redundant_reorders::run(program& p) {
-    GPU_DEBUG_GET_INSTANCE(debug_config);
     auto update_implementation = [&](program_node& node) {
         if (!update_implementations)
             return;
 
         node.set_unique_id();
-        auto new_impl = node.type()->choose_impl(node);
-        node.set_selected_impl(std::move(new_impl));
+        node.set_selected_impl(node.type()->choose_impl(node));
+        if (auto impl = node.get_selected_impl()) {
+            auto params = node.get_kernel_impl_params();
+            p.get_kernels_cache().add_kernels_source(*params, impl->get_kernels_source());
+        }
     };
 
     // Fuse reorders into primitives
@@ -59,7 +60,7 @@ void remove_redundant_reorders::run(program& p) {
             if (node.has_mean() || !node.get_primitive()->subtract_per_feature.empty())
                 continue;
 
-            if (!node.get_fused_activations_funcs().empty())
+            if (node.has_fused_primitives())
                 continue;
 
             std::function<bool(program_node&)> has_quantize_user;
@@ -84,7 +85,7 @@ void remove_redundant_reorders::run(program& p) {
                 continue;
 
             // Avoid optimization of nv12 reorder
-            if (node.get_dependencies().size() != 1)
+            if (node.get_dependencies().size() != 1 || node.get_primitive()->has_surface_input())
                 continue;
 
             bool all_users_fuse = true;
@@ -147,7 +148,8 @@ void remove_redundant_reorders::run(program& p) {
             !r_dep_node.has_mean() &&
             r_dep_node.get_primitive()->subtract_per_feature.empty() &&
             !r_dep_node.is_output() &&
-            r_dep_node.get_fused_activations_funcs().empty();
+            !r_dep_node.has_fused_primitives() &&
+            !r_dep_node.get_primitive()->has_surface_input();
 
         // for chains like
         // fp32 -> reorder -> u8 -> reorder -> fp32
@@ -162,9 +164,22 @@ void remove_redundant_reorders::run(program& p) {
             !r_dep_node.is_output() &&
             !r_node.has_mean() &&
             r_node.get_primitive()->subtract_per_feature.empty() &&
-            r_node.get_fused_activations_funcs().empty();
+            !r_node.has_fused_primitives() &&
+            !r_node.get_primitive()->has_surface_input();
 
         if (remove_dep) {
+            // for chains like
+            // b_fs_yx_fsv16 -> reorder(ofmt:bfyx) -> bfyx -> reorder(ofmt:any) -> bfyx
+            // if output_format of current node is format::any, input format of the dependency node is propagated as it is
+            // b_fs_yx_fsv16 -> reorder(ofmt:any) -> b_fs_yx_fsv16
+            // so output format of dependency node must be stored in output_format of current node
+            // b_fs_yx_fsv16 -> reorder(ofmt:bfyx) -> bfyx
+            auto output_layout = r_dep_node.get_output_layout();
+            auto prim = std::const_pointer_cast<reorder>(r_node.get_primitive());
+            if (prim->output_format == format::any)
+                prim->output_format = output_layout.format;
+
+            LOG_NODE_REMOVAL(r_dep_node.id());
             r_dep_node.can_be_optimized(true);
             p.add_optimized_primitive_info(r_dep_node.id());
             p.extract_and_remove(r_dep_node);
@@ -173,7 +188,7 @@ void remove_redundant_reorders::run(program& p) {
             auto output_layout = r_node.get_output_layout();
             auto dep_prim = std::const_pointer_cast<reorder>(r_dep_node.get_primitive());
             dep_prim->output_format = output_layout.format;
-            dep_prim->output_data_type = output_layout.data_type;
+            dep_prim->output_data_types = {output_layout.data_type};
 
             LOG_NODE_REMOVAL(r_node.id());
             r_node.can_be_optimized(true);
@@ -185,11 +200,64 @@ void remove_redundant_reorders::run(program& p) {
         }
     }
 
+    // Fuse reorder through concat in case of batched nv12 inputs to handle chains like:
+    // Reorder (nv12_uint8 -> bfyx_uint8) \|
+    // Reorder (nv12_uint8 -> bfyx_uint8)  -> Concat (uint8) -> Reorder (uint8 -> fp32)
+    // Reorder (nv12_uint8 -> bfyx_uint8) /|
+    itr = p.get_processing_order().begin();
+    while (itr != p.get_processing_order().end()) {
+        auto node = *itr++;
+        if (!node->is_type<reorder>())
+            continue;
+
+        auto& r_node = node->as<reorder>();
+        if (!r_node.get_primitive()->has_surface_input() ||
+            r_node.is_output() ||
+            r_node.has_mean() ||
+            r_node.get_users().size() > 1 ||
+            r_node.get_primitive()->subtract_per_feature.size() ||
+            r_node.has_fused_primitives())
+            continue;
+
+        if (!r_node.get_users().front()->is_type<concatenation>())
+            continue;
+
+        auto& concat_node = r_node.get_users().front()->as<concatenation>();
+        if (concat_node.get_output_layout().batch() == 1)
+            continue;
+
+        if (!concat_node.get_users().front()->is_type<reorder>())
+            continue;
+
+        auto& r_node_next = concat_node.get_users().front()->as<reorder>();
+
+        if (r_node.get_output_layout().data_type == r_node_next.get_output_layout().data_type)
+            continue;
+
+        auto new_layout = r_node.get_output_layout();
+        new_layout.data_type = r_node_next.get_output_layout().data_type;
+
+        auto orig_reorder_prim = r_node.get_primitive();
+        auto new_reorder_prim = std::make_shared<reorder>(r_node.id() + "_fused",
+            orig_reorder_prim->input[0],
+            new_layout);
+        new_reorder_prim->input_mem_type = orig_reorder_prim->input_mem_type;
+
+        auto& new_reorder_node = p.get_or_create(new_reorder_prim);
+
+        LOG_NODE_REPLACEMENT(r_node.id());
+        p.replace(r_node, new_reorder_node);
+        new_reorder_node.recalc_output_layout();
+    }
+
     // Optimize reorders not changing memory layout
     itr = p.get_processing_order().begin();
     while (itr != p.get_processing_order().end()) {
         auto node = *itr++;
         if (!node->is_type<reorder>())  // only care for reorders
+            continue;
+
+        if (node->is_dynamic())
             continue;
 
         auto& r_node = node->as<reorder>();
@@ -201,7 +269,8 @@ void remove_redundant_reorders::run(program& p) {
         if (r_node.has_mean() ||
             !r_node.get_primitive()->subtract_per_feature.empty() ||
             no_output_optimization ||
-            !r_node.get_fused_activations_funcs().empty())
+            r_node.has_fused_primitives() ||
+            r_node.get_primitive()->has_surface_input())
             continue;
 
         auto o_layout = r_node.get_output_layout();
@@ -214,30 +283,34 @@ void remove_redundant_reorders::run(program& p) {
             i_layout.data_padding.upper_size().spatial[0] == 0 && i_layout.data_padding.lower_size().spatial[0] == 0 &&
             i_layout.data_padding.upper_size().spatial[1] == 0 && i_layout.data_padding.lower_size().spatial[1] == 0 &&
             o_layout.data_padding.upper_size() == (tensor)0 && o_layout.data_padding.lower_size() == (tensor)0 &&
-            i_layout.data_type == o_layout.data_type) {
-            r_node.can_be_optimized(true);
-            r_node.requires_reinterpret(true);
+            i_layout.data_type == o_layout.data_type &&
+            !layout_optimizer::onednn_check_preferred_impl_type_of_users(r_node)) {
+            // If the newly aligned pad is merged into output layout during post_optimize_graph phase
+            // and then buffer is reinterpreted, user node cannot handle pad properly for kernel execution
+            if (!update_implementations || (i_layout.feature() % 16 == 0 &&
+                i_layout.data_padding == padding() && o_layout.data_padding == padding()) || i_layout.batch() == 1) {
+                r_node.can_be_optimized(true);
+                r_node.requires_reinterpret(true);
 
-            auto pad_lo = o_layout.data_padding.lower_size();
-            auto pad_hi = o_layout.data_padding.upper_size();
+                auto pad_lo = o_layout.data_padding.lower_size();
+                auto pad_hi = o_layout.data_padding.upper_size();
 
-            pad_lo.batch[0] = i_layout.data_padding.lower_size().batch[0];
-            pad_hi.batch[0] = i_layout.data_padding.upper_size().batch[0];
+                pad_lo.batch[0] = i_layout.data_padding.lower_size().batch[0];
+                pad_hi.batch[0] = i_layout.data_padding.upper_size().batch[0];
 
-            pad_lo.feature[0] = i_layout.data_padding.lower_size().feature[0];
-            pad_hi.feature[0] = i_layout.data_padding.upper_size().feature[0];
+                pad_lo.feature[0] = i_layout.data_padding.lower_size().feature[0];
+                pad_hi.feature[0] = i_layout.data_padding.upper_size().feature[0];
 
-            if (i_layout.feature() % 16 != 0) {
-                pad_hi.feature[0] += 16 - i_layout.feature() % 16;
+                if (i_layout.feature() % 16 != 0) {
+                    pad_hi.feature[0] += 16 - i_layout.feature() % 16;
+                }
+
+                r_node.merge_output_padding(padding{pad_lo.sizes(), pad_hi.sizes()});
+                continue;
             }
-
-            r_node.merge_output_padding(padding{pad_lo.sizes(), pad_hi.sizes()});
-            continue;
         }
 
-        auto ident = program_helpers::are_layouts_identical(o_layout, i_layout);
-
-        if (!ident.second)
+        if (!o_layout.compatible(i_layout))
             continue;
 
         if (r_node.is_output() && i_layout.get_linear_size() != o_layout.get_linear_size())
@@ -245,8 +318,8 @@ void remove_redundant_reorders::run(program& p) {
 
         // mark as optimized
         r_node.can_be_optimized(true);
-        r_node.requires_reinterpret(!ident.first);
-        if (ident.first) {  // no need of reshape
+        r_node.requires_reinterpret(!o_layout.identical(i_layout));
+        if (o_layout.identical(i_layout)) {  // no need of reshape
             if (r_node.is_output()) {
                 // if removed reorder is output, we need to add it's dependency id to the optimized primitives list,
                 // because it's name will be changed after extract_and_remove call
@@ -279,12 +352,11 @@ void remove_redundant_reorders::run(program& p) {
             if (user->is_type<reorder>() &&
                 user != node &&
                 !user->is_output() &&
-                user->get_fused_activations_funcs().empty()) {
+                !user->has_fused_primitives()) {
                 auto l1 = node->get_output_layout();
                 auto l2 = user->get_output_layout();
 
-                auto ident = program_helpers::are_layouts_identical(l1, l2);
-                if (ident.first)
+                if (l1.identical(l2))
                     r_nodes_to_remove.push_back(user);
             }
         }
@@ -327,7 +399,7 @@ void remove_redundant_reorders::run(program& p) {
             if (node.has_mean() || !node.get_primitive()->subtract_per_feature.empty())
                 continue;
 
-            if (!node.get_fused_activations_funcs().empty())
+            if (node.has_fused_primitives())
                 continue;
 
             if (input.get_users().size() != 1)
@@ -335,12 +407,11 @@ void remove_redundant_reorders::run(program& p) {
 
             bool same_data_type = input.get_output_layout().data_type == output_layout.data_type;
             bool allowed_dt_conversion_fuse = (input.is_type<one_hot>() || input.is_type<permute>() ||
-                                               input.is_type<depth_to_space>() || input.is_type<region_yolo>());
+                                               input.is_type<depth_to_space>() || input.is_type<region_yolo>() || input.is_type<detection_output>());
             if (!same_data_type && !allowed_dt_conversion_fuse)
                 continue;
 
-            auto next_node = node.get_users().empty() ? nullptr : node.get_users().front();
-            if (!lo.can_fuse_reorder_to_prev(input, next_node, input.get_output_layout().format, output_layout.format))
+            if (!lo.can_fuse_reorder_to_prev(input, node, input.get_output_layout().format, output_layout.format))
                 continue;
 
             auto old_output_layout_of_input = input.get_output_layout();
@@ -363,17 +434,24 @@ void remove_redundant_reorders::run(program& p) {
         if (!node_ptr->is_type<reorder>() || !node_ptr->is_in_data_flow() || node_ptr->get_users().size() != 1 || node_ptr->get_dependencies().size() != 1)
             continue;
 
+        auto& node = node_ptr->as<reorder>();
+        auto prim_desc = node.get_primitive();
+
         auto& usr = node_ptr->get_users().front();
         auto& dep = node_ptr->get_dependency(0);
-        if (!usr->is_type<quantize>() ||
-            (dep.get_output_layout().format != format::b_fs_yx_fsv16 &&
-             (lo.get_optimization_attributes().use_onednn_impls || dep.get_output_layout().format != format::fs_b_yx_fsv32) &&
-             dep.get_output_layout().format != format::bfyx))
+
+        auto quantize_opt = usr->is_type<quantize>() &&
+                            (dep.get_output_layout().format == format::b_fs_yx_fsv16 ||
+                             dep.get_output_layout().format == format::bfyx ||
+                             (dep.get_output_layout().format == format::fs_b_yx_fsv32 && !lo.get_optimization_attributes().use_onednn_impls));
+
+        auto convert_color_opt = usr->is_type<convert_color>() && prim_desc->has_surface_input();
+
+        if (!quantize_opt && !convert_color_opt)
             continue;
 
-        auto& node = node_ptr->as<reorder>();
         auto same_data_type = node.input().get_output_layout().data_type == node.get_output_layout().data_type;
-        if (!same_data_type)
+        if (!same_data_type && !convert_color_opt)
             continue;
 
         dep.merge_output_padding(node.get_output_layout().data_padding);
@@ -383,29 +461,6 @@ void remove_redundant_reorders::run(program& p) {
         p.add_optimized_primitive_info(node.id());
         p.remove_all_connections(node);
         p.remove_if_dangling(node);
-    }
-
-    // This pass removed reorder if it is between quantize and convolution.
-    itr = p.get_processing_order().begin();
-    while (itr != p.get_processing_order().end()) {
-        auto& node_ptr = *itr++;
-        if (!node_ptr->is_type<reorder>() || !node_ptr->is_in_data_flow() || node_ptr->get_users().size() != 1 || node_ptr->get_dependencies().size() != 1 ||
-            node_ptr->get_output_layout().get_spatial_rank() != 3)
-            continue;
-
-        auto& usr = node_ptr->get_users().front();
-        auto& dep = node_ptr->get_dependency(0);
-        auto& node = node_ptr->as<reorder>();
-
-        if (lo.get_optimization_attributes().use_onednn_impls && dep.is_type<quantize>() && usr->is_type<convolution>()) {
-            dep.merge_output_padding(node.get_output_layout().data_padding);
-
-            LOG_NODE_REMOVAL(node.id());
-            p.replace_all_usages(node, dep);
-            p.add_optimized_primitive_info(node.id());
-            p.remove_all_connections(node);
-            p.remove_if_dangling(node);
-        }
     }
 
     // Remove reorder for cldnn convolution bfyx -> fs_b_yx_fsv32. (no case for onednn)
@@ -429,6 +484,26 @@ void remove_redundant_reorders::run(program& p) {
         if (dep.is_type<input_layout>())
             return false;
 
+        // Skip reorder padding fusing when any one of sibling nodes is optimized out or doesn't support padding.
+        if (node->get_output_layout().data_padding) {
+            if (update_implementations)
+                return false;
+
+            for (auto user : dep.get_users()) {
+                if (user != node) {
+                    if (user->can_be_optimized())
+                        return false;
+
+                    auto node_format = node->get_output_layout().format;
+                    for (size_t axis = 0; axis < node->get_dependency(0).get_output_layout().data_padding.lower_size().sizes(node_format).size(); axis++) {
+                        if (!user->is_padding_supported(static_cast<int>(axis),
+                            node->get_dependency(0).get_output_layout().data_padding.lower_size().sizes(node_format)[axis]))
+                            return false;
+                    }
+                }
+            }
+        }
+
         if (usr->as<convolution>().get_primitive()->groups != 1)
             return false;
 
@@ -447,6 +522,7 @@ void remove_redundant_reorders::run(program& p) {
         auto& input = node->input();
 
         if (!(input.is_type<convolution>()) ||
+            (input.is_dynamic()) ||
             !(input.get_output_layout().format == format::b_fs_yx_fsv16) ||
             !(node->get_output_layout().format == format::bfyx))
             return false;
@@ -489,9 +565,8 @@ void remove_redundant_reorders::run(program& p) {
             local_desc.input_layout = input.get_dependency(0).get_output_layout();  // original convolution's output layout
             node->set_input_layout(local_desc.input_layout);
             local_desc.f_param = node->get_fuse_params();
-            local_desc.dep_start_idx = input.get_fused_primitives().size();
+            local_desc.outer_dep_start_idx = -1;
             local_desc.output_layout = output_layout;
-            local_desc.activation = activation_func::none;
             input.add_fused_primitive(local_desc);
 
             // remove reorder node
@@ -522,8 +597,7 @@ void remove_redundant_reorders::run(program& p) {
                 !r_node.get_primitive()->subtract_per_feature.empty())
                 continue;
 
-            if (!r_node.get_fused_activations_funcs().empty() ||
-                !r_node.get_fused_primitives().empty())
+            if (r_node.has_fused_primitives())
                 continue;
 
             // Remove reorder for Convolution bfyx -> fs_b_yx_fsv32
@@ -556,11 +630,14 @@ void remove_redundant_reorders::run(program& p) {
 
         auto& reshape_input_node = dep_node.as<reshape>();
 
+        if (reshape_node.is_dynamic())
+            continue;
+
         bool remove_dep = reshape_input_node.get_users().size() == 1 && !reshape_input_node.is_output() &&
-                          reshape_input_node.get_fused_activations_funcs().empty() && reshape_input_node.get_fused_primitives().empty();
+                          !reshape_input_node.has_fused_primitives();
         bool remove_current = remove_dep && !reshape_input_node.get_dependencies().empty() &&
-                              reshape_input_node.get_dependency(0).get_output_layout().get_tensor() == reshape_node.get_output_layout().get_tensor() &&
-                              reshape_node.get_fused_activations_funcs().empty() && reshape_node.get_fused_primitives().empty();
+                              reshape_input_node.get_dependency(0).get_output_layout() == reshape_node.get_output_layout() &&
+                              !reshape_node.has_fused_primitives();
 
         if (remove_dep) {
             LOG_NODE_REMOVAL(reshape_input_node.id());
@@ -587,5 +664,18 @@ void remove_redundant_reorders::run(program& p) {
         if (!enable_reorder_fusing && n->get_preferred_impl_type() == impl_types::onednn && !lo.are_layouts_suitable_for_onednn(*n)) {
             throw std::runtime_error("Onednn doesnot support padded input or output");
         }
+    }
+
+    // Recalculate processing order if it is not correct
+    bool is_correct = true;
+    for (auto node : p.get_processing_order()) {
+        if (!p.get_processing_order().is_correct(node)) {
+            is_correct = false;
+            break;
+        }
+    }
+
+    if (!is_correct) {
+        p.get_processing_order().calc_processing_order(p);
     }
 }

@@ -1,32 +1,34 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "primitive_base.hpp"
+
 #include "generic_layer_inst.h"
-#include "intel_gpu/runtime/engine.hpp"
-#include "impls/implementation_map.hpp"
-#include "kernel_selector_helper.h"
-#include "register.hpp"
-#include <vector>
 
 namespace cldnn {
 namespace ocl {
 
 struct generic_layer_impl : typed_primitive_impl<generic_layer> {
-    const generic_layer_node& outer;
-    const kernel_selector::cl_kernel_data& _cl_kernel_data;
+    using parent = typed_primitive_impl<generic_layer>;
+    using parent::parent;
+
+    kernel_selector::cl_kernel_data _cl_kernel_data;
     std::vector<kernel::ptr> _kernels;
-    kernel_id _kernel_id;
+    std::string _cached_kernel_id;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<generic_layer_impl>(*this);
     }
 
+    generic_layer_impl() : parent() {}
+
     generic_layer_impl(const generic_layer_impl& other)
-    : outer(other.outer)
-    , _cl_kernel_data(other._cl_kernel_data)
+    : _cl_kernel_data(other._cl_kernel_data)
     , _kernels({})
-    , _kernel_id(other._kernel_id) {
+    , _cached_kernel_id(other._cached_kernel_id) {
         if (other._kernels.empty()) {
             throw std::runtime_error("Can't copy generic_layer_impl node: kernels vector is empty");
         }
@@ -34,14 +36,42 @@ struct generic_layer_impl : typed_primitive_impl<generic_layer> {
     }
 
     generic_layer_impl(const generic_layer_node& arg)
-        : outer(arg)
-        , _cl_kernel_data(*outer.get_primitive()->generic_params.clKernel.get())
-        , _kernels() {
-        _kernel_id = outer.get_program().add_kernel(outer.get_primitive()->generic_params.clKernel->code.kernelString);
+        : _cl_kernel_data(*arg.get_primitive()->generic_params.clKernel.get())
+        , _kernels()
+        , _cached_kernel_id() { }
+
+    std::vector<std::shared_ptr<cldnn::kernel_string>> get_kernels_source() override {
+        std::vector<std::shared_ptr<cldnn::kernel_string>> kernel_strings;
+        kernel_strings.push_back(_cl_kernel_data.code.kernelString);
+        return kernel_strings;
     }
 
-    void init_kernels() override {
-        _kernels.push_back(outer.get_program().get_kernel(_kernel_id));
+    std::vector<kernel::ptr> get_kernels() const override {
+        return _kernels;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        ob <<_cl_kernel_data;
+        ob << _cached_kernel_id;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        ib >> _cl_kernel_data;
+        ib >> _cached_kernel_id;
+    }
+
+    void init_kernels(const kernels_cache& kernels_cache, const kernel_impl_params& params) override {
+        _kernels.clear();
+        auto compiled_kernels = kernels_cache.get_kernels(params);
+        _kernels.insert(_kernels.begin(), compiled_kernels.begin(), compiled_kernels.end());
+    }
+
+    void init_by_cached_kernels(const kernels_cache& kernels_cache) override {
+        _kernels.emplace_back(kernels_cache.get_kernel_from_cached_kernels(_cached_kernel_id));
+    }
+
+    void set_cached_kernel_ids(const kernels_cache& kernels_cache) override {
+        _cached_kernel_id = kernels_cache.get_cached_kernel_id(_kernels[0]);
     }
 
     void set_arguments_impl(generic_layer_inst& instance) override {
@@ -72,6 +102,7 @@ struct generic_layer_impl : typed_primitive_impl<generic_layer> {
 // TODO: move this file to cpu folder and add a new traget to 'cldnn::engine_types'
 struct generic_layer_cpu : typed_primitive_impl<generic_layer> {
     const generic_layer_node& outer;
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<generic_layer_cpu>(*this);
@@ -102,14 +133,14 @@ struct generic_layer_cpu : typed_primitive_impl<generic_layer> {
         return ev;
     }
 
-    void init_kernels() override {}
+    void init_kernels(const kernels_cache&, const kernel_impl_params&) override {}
 };
 
-static primitive_impl* create(const generic_layer_node& arg, std::shared_ptr<kernel_impl_params>) {
+static std::unique_ptr<primitive_impl> create(const generic_layer_node& arg, const kernel_impl_params&) {
     if (arg.get_primitive()->generic_params.engine == kernel_selector::generic_kernel_params::Engine::GPU) {
-        return new generic_layer_impl(arg);
+        return make_unique<generic_layer_impl>(arg);
     } else {
-        return new generic_layer_cpu(arg);
+        return make_unique<generic_layer_cpu>(arg);
     }
 }
 
@@ -121,3 +152,6 @@ attach_generic_layer_impl::attach_generic_layer_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::generic_layer_impl)
+ASSIGN_TYPE_NAME(cldnn::ocl::generic_layer_cpu)

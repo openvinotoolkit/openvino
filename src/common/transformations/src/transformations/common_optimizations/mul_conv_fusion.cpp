@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,22 +6,22 @@
 
 #include <memory>
 #include <ngraph/ngraph.hpp>
-#include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pattern/matcher.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset8.hpp>
 #include <transformations/utils/utils.hpp>
 #include <vector>
 
 #include "itt.hpp"
 
-ngraph::pass::MultiplyConvolutionFusion::MultiplyConvolutionFusion() {
+ov::pass::MultiplyConvolutionFusion::MultiplyConvolutionFusion() {
     MATCHER_SCOPE(MultiplyConvolutionFusion);
     auto input_pattern = pattern::any_input();
     auto mul_const_pattern = ngraph::pattern::wrap_type<opset8::Constant>();
     auto mul_pattern =
         ngraph::pattern::wrap_type<opset8::Multiply>({input_pattern, mul_const_pattern}, pattern::consumers_count(1));
-    auto weights_pattern = ngraph::pattern::any_input(pattern::has_static_shape());
+    auto weights_pattern = pass::pattern::any_input(pattern::has_static_shape());
     auto conv_pattern = ngraph::pattern::wrap_type<opset8::Convolution>({mul_pattern, weights_pattern});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) -> bool {
@@ -47,7 +47,9 @@ ngraph::pass::MultiplyConvolutionFusion::MultiplyConvolutionFusion() {
         }
 
         auto weights_multiply = std::make_shared<opset8::Multiply>(weights, mul_const);
+        OPENVINO_SUPPRESS_DEPRECATED_START
         std::shared_ptr<Node> new_weights = get_constant_from_source(weights_multiply);
+        OPENVINO_SUPPRESS_DEPRECATED_END
         if (!new_weights)
             new_weights = weights_multiply;
 
@@ -66,13 +68,13 @@ ngraph::pass::MultiplyConvolutionFusion::MultiplyConvolutionFusion() {
     register_matcher(m, callback);
 }
 
-ngraph::pass::MultiplyGroupConvolutionFusion::MultiplyGroupConvolutionFusion() {
+ov::pass::MultiplyGroupConvolutionFusion::MultiplyGroupConvolutionFusion() {
     MATCHER_SCOPE(MultiplyGroupConvolutionFusion);
     auto input_pattern = pattern::any_input();
     auto mul_const_pattern = ngraph::pattern::wrap_type<opset8::Constant>();
     auto mul_pattern =
         ngraph::pattern::wrap_type<opset8::Multiply>({input_pattern, mul_const_pattern}, pattern::consumers_count(1));
-    auto weights_pattern = ngraph::pattern::any_input(pattern::has_static_shape());
+    auto weights_pattern = pass::pattern::any_input(pattern::has_static_shape());
     auto conv_pattern = ngraph::pattern::wrap_type<opset8::GroupConvolution>({mul_pattern, weights_pattern});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) -> bool {
@@ -107,12 +109,14 @@ ngraph::pass::MultiplyGroupConvolutionFusion::MultiplyGroupConvolutionFusion() {
             }
             mul_const = std::make_shared<opset8::Reshape>(
                 mul_const,
-                op::Constant::create(element::u64, Shape{new_shape.size()}, new_shape),
+                opset8::Constant::create(element::u64, Shape{new_shape.size()}, new_shape),
                 false);
         }
 
         auto weights_multiply = std::make_shared<opset8::Multiply>(weights, mul_const);
+        OPENVINO_SUPPRESS_DEPRECATED_START
         std::shared_ptr<Node> new_weights = get_constant_from_source(weights_multiply);
+        OPENVINO_SUPPRESS_DEPRECATED_END
         if (!new_weights)
             new_weights = weights_multiply;
 
@@ -131,13 +135,13 @@ ngraph::pass::MultiplyGroupConvolutionFusion::MultiplyGroupConvolutionFusion() {
     register_matcher(m, callback);
 }
 
-ngraph::pass::MultiplyConvolutionBackpropDataFusion::MultiplyConvolutionBackpropDataFusion() {
+ov::pass::MultiplyConvolutionBackpropDataFusion::MultiplyConvolutionBackpropDataFusion() {
     MATCHER_SCOPE(MultiplyConvolutionBackpropDataFusion);
     auto input_pattern = pattern::any_input();
     auto mul_const_pattern = ngraph::pattern::wrap_type<opset8::Constant>();
     auto mul_pattern =
         ngraph::pattern::wrap_type<opset8::Multiply>({input_pattern, mul_const_pattern}, pattern::consumers_count(1));
-    auto weights_pattern = ngraph::pattern::any_input(pattern::has_static_shape());
+    auto weights_pattern = pass::pattern::any_input(pattern::has_static_shape());
     auto conv_pattern = ngraph::pattern::wrap_type<opset8::ConvolutionBackpropData>({mul_pattern, weights_pattern});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) -> bool {
@@ -174,12 +178,14 @@ ngraph::pass::MultiplyConvolutionBackpropDataFusion::MultiplyConvolutionBackprop
             }
             mul_const = std::make_shared<opset8::Reshape>(
                 mul_const,
-                op::Constant::create(element::u64, Shape{new_shape.size()}, new_shape),
+                opset8::Constant::create(element::u64, Shape{new_shape.size()}, new_shape),
                 false);
         }
 
         auto weights_multiply = std::make_shared<opset8::Multiply>(weights, mul_const);
+        OPENVINO_SUPPRESS_DEPRECATED_START
         std::shared_ptr<Node> new_weights = get_constant_from_source(weights_multiply);
+        OPENVINO_SUPPRESS_DEPRECATED_END
         if (!new_weights)
             new_weights = weights_multiply;
 
@@ -198,13 +204,13 @@ ngraph::pass::MultiplyConvolutionBackpropDataFusion::MultiplyConvolutionBackprop
     register_matcher(m, callback);
 }
 
-ngraph::pass::MultiplyGroupConvolutionBackpropDataFusion::MultiplyGroupConvolutionBackpropDataFusion() {
+ov::pass::MultiplyGroupConvolutionBackpropDataFusion::MultiplyGroupConvolutionBackpropDataFusion() {
     MATCHER_SCOPE(MultiplyGroupConvolutionBackpropDataFusion);
     auto input_pattern = pattern::any_input();
     auto mul_const_pattern = ngraph::pattern::wrap_type<opset8::Constant>();
     auto mul_pattern =
         ngraph::pattern::wrap_type<opset8::Multiply>({input_pattern, mul_const_pattern}, pattern::consumers_count(1));
-    auto weights_pattern = ngraph::pattern::any_input(pattern::has_static_shape());
+    auto weights_pattern = pass::pattern::any_input(pattern::has_static_shape());
     auto conv_pattern =
         ngraph::pattern::wrap_type<opset8::GroupConvolutionBackpropData>({mul_pattern, weights_pattern});
 
@@ -244,12 +250,14 @@ ngraph::pass::MultiplyGroupConvolutionBackpropDataFusion::MultiplyGroupConvoluti
             }
             mul_const = std::make_shared<opset8::Reshape>(
                 mul_const,
-                op::Constant::create(element::u64, Shape{new_shape.size()}, new_shape),
+                opset8::Constant::create(element::u64, Shape{new_shape.size()}, new_shape),
                 false);
         }
 
         auto weights_multiply = std::make_shared<opset8::Multiply>(weights, mul_const);
+        OPENVINO_SUPPRESS_DEPRECATED_START
         std::shared_ptr<Node> new_weights = get_constant_from_source(weights_multiply);
+        OPENVINO_SUPPRESS_DEPRECATED_END
         if (!new_weights)
             new_weights = weights_multiply;
 

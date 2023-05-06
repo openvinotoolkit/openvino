@@ -10,7 +10,7 @@ and run on CPU with the OpenVINO&trade;.
 * A representative calibration dataset representing a use case scenario, for example, 300 samples.
 
 Figure below shows the optimization workflow:
-![](docs/images/workflow_simple.png)
+![](docs/images/workflow_simple.svg)
 
 To get started with POT tool refer to the corresponding OpenVINO&trade; [documentation](https://docs.openvino.ai/latest/openvino_docs_model_optimization_guide.html).
 
@@ -55,5 +55,5 @@ OpenVINO provides several examples to demonstrate the POT optimization workflow:
 
 ## See Also
 
-* [Performance Benchmarks](https://docs.openvino.ai/latest/openvino_docs_performance_benchmarks_openvino.html)
+* [Performance Benchmarks](https://docs.openvino.ai/latest/openvino_docs_performance_benchmarks.html)
 * [INT8 Quantization by Using Web-Based Interface of the DL Workbench](https://docs.openvino.ai/latest/workbench_docs_Workbench_DG_Int_8_Quantization.html)

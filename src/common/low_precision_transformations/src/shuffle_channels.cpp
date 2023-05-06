@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,16 +42,18 @@ bool ShuffleChannelsTransformation::transform(TransformationContext& context, ng
     auto dequantization = NetworkHelper::getDequantization(shuffleChannels, defaultPrecisions);
 
     const auto shuffleDequantizationConstant = [&](const std::shared_ptr<Node>& eltwise) {
-        const auto normalizedConst = NetworkHelper::normalizeDequantizationShape(eltwise);
+        const auto normalizedConst = NetworkHelper::normalizeDequantizationShape(eltwise, true);
         const auto constShape = normalizedConst->get_shape();
 
         if (shape_size(constShape) == 1ul) {
             return NetworkHelper::toScalar(normalizedConst);
         } else {
+            OPENVINO_SUPPRESS_DEPRECATED_START
             const size_t normalizedAxis = ngraph::normalize_axis(
                 shuffleChannels->get_friendly_name(),
                 shuffleChannels->get_axis(),
                 shuffleChannels->get_input_partial_shape(0).rank());
+            OPENVINO_SUPPRESS_DEPRECATED_END
 
             if (constShape[normalizedAxis] == 1ul) {
                 return normalizedConst;

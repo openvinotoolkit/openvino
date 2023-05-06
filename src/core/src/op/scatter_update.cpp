@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ngraph/op/scatter_update.hpp"
 
+#include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/runtime/reference/scatter_update.hpp"
 #include "ngraph/shape.hpp"
@@ -14,8 +15,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v3::ScatterUpdate);
-
 op::v3::ScatterUpdate::ScatterUpdate(const Output<Node>& data,
                                      const Output<Node>& indices,
                                      const Output<Node>& updates,
@@ -23,7 +22,7 @@ op::v3::ScatterUpdate::ScatterUpdate(const Output<Node>& data,
     : util::ScatterBase(data, indices, updates, axis) {}
 
 shared_ptr<Node> op::v3::ScatterUpdate::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v3_ScatterUpdate_clone_with_new_inputs);
+    OV_OP_SCOPE(v3_ScatterUpdate_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v3::ScatterUpdate>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3));
 }
@@ -40,7 +39,7 @@ std::vector<int64_t> get_indices(const HostTensorPtr& in) {
 
 #define GET_INDICES(a, ...)                                                                   \
     case element::Type_t::a: {                                                                \
-        NGRAPH_OP_SCOPE(OV_PP_CAT3(get_scatter_update_indices, _, a));                        \
+        OV_OP_SCOPE(OV_PP_CAT3(get_scatter_update_indices, _, a));                            \
         indices_casted_vector = scatter_update::get_indices<element::Type_t::a>(__VA_ARGS__); \
     } break;
 
@@ -59,7 +58,9 @@ bool op::v3::ScatterUpdate::evaluate_scatter_update(const HostTensorVector& outp
 
     int64_t axis_val = host_tensor_2_vector<int64_t>(axis)[0];
     if (axis_val < 0) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         axis_val = ngraph::normalize_axis(this, axis_val, static_cast<int64_t>(data->get_shape().size()));
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 
     std::vector<int64_t> indices_casted_vector;
@@ -90,12 +91,24 @@ bool op::v3::ScatterUpdate::evaluate_scatter_update(const HostTensorVector& outp
 }
 
 bool op::v3::ScatterUpdate::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v3_ScatterUpdate_evaluate);
+    OV_OP_SCOPE(v3_ScatterUpdate_evaluate);
     return evaluate_scatter_update(outputs, inputs);
 }
 
+bool op::v3::ScatterUpdate::evaluate_lower(ov::TensorVector& outputs) const {
+    OV_OP_SCOPE(v3_ScatterUpdate_evaluate_lower);
+    return get_input_tensor(1).has_and_set_bound() && get_input_tensor(3).has_and_set_bound() &&
+           default_lower_bound_evaluator(this, outputs);
+}
+
+bool op::v3::ScatterUpdate::evaluate_upper(ov::TensorVector& outputs) const {
+    OV_OP_SCOPE(v3_ScatterUpdate_evaluate_upper);
+    return get_input_tensor(1).has_and_set_bound() && get_input_tensor(3).has_and_set_bound() &&
+           default_upper_bound_evaluator(this, outputs);
+}
+
 bool op::v3::ScatterUpdate::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v3_ScatterUpdate_has_evaluate);
+    OV_OP_SCOPE(v3_ScatterUpdate_has_evaluate);
 
     switch (get_input_element_type(1)) {
     case ngraph::element::i8:
@@ -111,4 +124,11 @@ bool op::v3::ScatterUpdate::has_evaluate() const {
         break;
     }
     return false;
+}
+
+bool op::v3::ScatterUpdate::evaluate_label(TensorLabelVector& output_labels) const {
+    OV_OP_SCOPE(v3_ScatterUpdate_evaluate_label);
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    return ov::default_label_evaluator(this, {0, 2}, output_labels);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }

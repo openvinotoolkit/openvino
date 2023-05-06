@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "intel_gpu/primitives/input_layout.hpp"
 #include "primitive_inst.h"
@@ -11,7 +10,6 @@
 #include <memory>
 
 namespace cldnn {
-struct memory;
 
 template <>
 struct typed_program_node<input_layout> : public typed_program_node_base<input_layout> {
@@ -26,6 +24,7 @@ using input_layout_node = typed_program_node<input_layout>;
 template <>
 class typed_primitive_inst<input_layout> : public typed_primitive_inst_base<input_layout> {
     using parent = typed_primitive_inst_base<input_layout>;
+    using parent::parent;
 
 public:
     static layout calc_output_layout(input_layout_node const& node, kernel_impl_params const& impl_param) {
@@ -33,7 +32,7 @@ public:
     }
     static std::string to_string(input_layout_node const& node);
 
-public:
+    void update_shape() override;
     typed_primitive_inst(network& network, input_layout_node const& node);
 
     void set_data(memory::ptr mem);

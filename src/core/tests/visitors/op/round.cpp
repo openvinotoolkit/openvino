@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +20,7 @@ void static test_mode(opset5::Round::RoundMode mode) {
     NodeBuilder::get_ops().register_factory<opset5::Round>();
     auto data = make_shared<op::Parameter>(element::f32, Shape{200});
     auto round = make_shared<opset5::Round>(data, mode);
-    NodeBuilder builder(round);
+    NodeBuilder builder(round, {data});
     auto g_round = ov::as_type_ptr<opset5::Round>(builder.create());
 
     EXPECT_EQ(g_round->get_mode(), round->get_mode());

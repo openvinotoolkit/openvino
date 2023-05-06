@@ -1,30 +1,36 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "cpu_convert.h"
 #include "cpu_memcpy.h"
+#include <ie_parallel.hpp>
 #include <utils/bfloat16.hpp>
 #include <utils/general_utils.h>
-#include <utils/jit_kernel.hpp>
 #include <selective_build.h>
-#include <ie_parallel.hpp>
 #include <openvino/core/type/float16.hpp>
-#include <cpu/x64/jit_generator.hpp>
 #include <algorithm>
 #include <type_traits>
 #include <tuple>
 #include <cmath>
 #include <onednn/dnnl.h>
+#if defined(OPENVINO_ARCH_X86_64)
+#include "nodes/kernels/x64/jit_kernel.hpp"
+#include <cpu/x64/jit_generator.hpp>
+#endif
 
 using namespace InferenceEngine;
-using namespace dnnl::impl::utils;
-using namespace dnnl::impl::cpu::x64;
-using namespace Xbyak;
+
 
 namespace ov {
 namespace intel_cpu {
 namespace {
+
+#if defined(OPENVINO_ARCH_X86_64)
+
+using namespace dnnl::impl::utils;
+using namespace dnnl::impl::cpu::x64;
+using namespace Xbyak;
 
 template <typename src_t, typename dst_t>
 void convert_vec(jit_generator & gen,
@@ -118,7 +124,8 @@ public:
     jit_convert_array(convert_vec_t convert_vec,
                       size_t src_size,
                       size_t dst_size)
-        : _convert_vec(convert_vec)
+        : jit_kernel(jit_name())
+        , _convert_vec(convert_vec)
         , _src_size(src_size)
         , _dst_size(dst_size) {}
 
@@ -154,6 +161,8 @@ void jit_convert(const TI* arg, TO* out, size_t count) {
         }
     }
 }
+
+#endif
 
 template <Precision::ePrecision p>
 struct PrecisionInfo {
@@ -355,6 +364,7 @@ struct ConvertPrecision<std::tuple<ov::intel_cpu::bfloat16_t, float>> {
     }
 };
 
+#if defined(OPENVINO_ARCH_X86_64)
 template<typename src_t>
 struct ConvertPrecision<std::tuple<src_t, ov::float16>> {
     void operator()(ConvertContext & ctx) {
@@ -461,13 +471,7 @@ struct ConvertPrecision<std::tuple<ov::float16, ov::float16>> {
         ctx.converted = true;
     }
 };
-
-bool isConversionTruncatesRange(const Precision & from, const Precision & to) {
-    return to.bitsSize() < from.bitsSize()
-            || (from.is_float() && !to.is_float())      // float -> integral
-            || (from.isSigned() != to.isSigned())       // signed <-> unsigned
-            || (to == Precision::BOOL && from != to);   // T -> bool
-}
+#endif
 
 }   // namespace
 
@@ -518,6 +522,40 @@ bool isConversionTruncatesRange(const Precision & from, const Precision & to) {
     INTEL_CPU_CVT(FP32, FP32), INTEL_CPU_CVT(FP16, FP16), INTEL_CPU_CVT(BF16, BF16), INTEL_CPU_CVT(FP64, FP64), \
     INTEL_CPU_CVT(BOOL, BOOL)
 
+#define INTEL_CPU_CVT_FROM_BIN(DT) OV_CASE(Precision::DT, PrecisionInfo<Precision::DT>::value_type)
+
+#define INTEL_CPU_CVT_FROM_BIN_LIST                                                                 \
+    INTEL_CPU_CVT_FROM_BIN(FP32), INTEL_CPU_CVT_FROM_BIN(FP16), INTEL_CPU_CVT_FROM_BIN(BF16),       \
+    INTEL_CPU_CVT_FROM_BIN(FP64), INTEL_CPU_CVT_FROM_BIN(I16), INTEL_CPU_CVT_FROM_BIN(U8),          \
+    INTEL_CPU_CVT_FROM_BIN(I8), INTEL_CPU_CVT_FROM_BIN(U16), INTEL_CPU_CVT_FROM_BIN(I32),           \
+    INTEL_CPU_CVT_FROM_BIN(U32), INTEL_CPU_CVT_FROM_BIN(I64), INTEL_CPU_CVT_FROM_BIN(U64),          \
+    INTEL_CPU_CVT_FROM_BIN(BOOL)
+
+struct ConvertFromBinContext {
+    const void *srcPtr;
+    void *dstPtr;
+    size_t size;
+    bool converted;
+};
+
+template<typename T>
+struct ConvertFromBinPrecision {
+    void operator()(ConvertFromBinContext &ctx) {
+        auto src = static_cast<const uint8_t *>(ctx.srcPtr);
+        auto dst = static_cast<T *>(ctx.dstPtr);
+        const size_t nBits = 8;
+        const size_t nBytes = rnd_up(ctx.size, nBits);
+        parallel_for(nBytes, [&](size_t byteIndex) {
+            auto currentBitNum = std::min(nBits, ctx.size - byteIndex * nBits);
+            for (size_t bitIndex = 0; bitIndex < currentBitNum; ++bitIndex) {
+                dst[byteIndex * nBits + bitIndex] = static_cast<T>((src[byteIndex] & (1 << bitIndex)) >> bitIndex);
+            }
+        });
+        ctx.converted = true;
+    }
+};
+
+
 void cpu_convert(const void *srcPtr, void *dstPtr, Precision srcPrc, Precision dstPrc, const size_t size) {
     cpu_convert(srcPtr, dstPtr, srcPrc, dstPrc, dstPrc, size);
 }
@@ -545,8 +583,22 @@ void cpu_convert(const void *srcPtr,
         } else {
             cpu_memcpy(dstPtr, srcPtr, size * dstPrc.size());
         }
+    } else if (srcPrc == Precision::BIN) {
+        if (srcPrc.bitsSize() != 1)
+            IE_THROW() << "cpu_convert can't convert from: " << srcPrc << " <bitsSize == " << srcPrc.bitsSize()
+                << "> precision to: " << dstPrc << ". Not implemented.";
+        ConvertFromBinContext ctx {
+                srcPtr,
+                dstPtr,
+                size,
+                false
+        };
+        OV_SWITCH(intel_cpu, ConvertFromBinPrecision, ctx, dstPrc, INTEL_CPU_CVT_FROM_BIN_LIST);
+        if (!ctx.converted)
+            IE_THROW() << "cpu_convert can't convert from: " << srcPrc << " <bitsSize == " << srcPrc.bitsSize()
+                                                             << "> precision to: " << dstPrc;
     } else {
-        ConvertContext ctx = {
+        ConvertContext ctx {
             srcPtr,
             dstPtr,
             size,

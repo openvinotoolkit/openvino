@@ -1,17 +1,16 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ngraph/op/detection_output.hpp"
 
-#include <detection_output_shape_inference.hpp>
-
+#include "detection_output_shape_inference.hpp"
 #include "itt.hpp"
+#include "openvino/core/validation_util.hpp"
 
 using namespace std;
 
 // ------------------------------ V0 ------------------------------
-BWDCMP_RTTI_DEFINITION(ov::op::v0::DetectionOutput);
 ov::op::v0::DetectionOutput::DetectionOutput(const Output<Node>& box_logits,
                                              const Output<Node>& class_preds,
                                              const Output<Node>& proposals,
@@ -33,22 +32,20 @@ ov::op::v0::DetectionOutput::DetectionOutput(const Output<Node>& box_logits,
 }
 
 void ov::op::v0::DetectionOutput::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v0_DetectionOutput_validate_and_infer_types);
+    OV_OP_SCOPE(v0_DetectionOutput_validate_and_infer_types);
     NODE_VALIDATION_CHECK(this, m_attrs.num_classes > 0, "Number of classes must be greater than zero");
     validate_base(m_attrs);
-    std::vector<ov::PartialShape> input_shapes;
-    for (auto input_idx = 0; input_idx < get_input_size(); input_idx++)
-        input_shapes.push_back(get_input_partial_shape(input_idx));
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    const auto input_shapes = get_node_input_partial_shapes(*this);
+    OPENVINO_SUPPRESS_DEPRECATED_END
+    auto output_shapes = std::vector<ov::PartialShape>(1);
     shape_infer(this, input_shapes, output_shapes);
-
-    set_output_size(1);
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }
 
 shared_ptr<ov::Node> ov::op::v0::DetectionOutput::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_DetectionOutput_clone_with_new_inputs);
+    OV_OP_SCOPE(v0_DetectionOutput_clone_with_new_inputs);
     check_new_args_count(this, new_args);
 
     auto num_args = new_args.size();
@@ -68,14 +65,13 @@ shared_ptr<ov::Node> ov::op::v0::DetectionOutput::clone_with_new_inputs(const Ou
 }
 
 bool ov::op::v0::DetectionOutput::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v0_DetectionOutput_visit_attributes);
+    OV_OP_SCOPE(v0_DetectionOutput_visit_attributes);
     visitor.on_attribute("num_classes", m_attrs.num_classes);
     visit_attributes_base(visitor, m_attrs);
     return true;
 }
 
 // ------------------------------ V8 ------------------------------
-BWDCMP_RTTI_DEFINITION(ov::op::v8::DetectionOutput);
 ov::op::v8::DetectionOutput::DetectionOutput(const Output<Node>& box_logits,
                                              const Output<Node>& class_preds,
                                              const Output<Node>& proposals,
@@ -97,21 +93,19 @@ ov::op::v8::DetectionOutput::DetectionOutput(const Output<Node>& box_logits,
 }
 
 void ov::op::v8::DetectionOutput::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v8_DetectionOutput_validate_and_infer_types);
+    OV_OP_SCOPE(v8_DetectionOutput_validate_and_infer_types);
     validate_base(m_attrs);
-    std::vector<ov::PartialShape> input_shapes;
-    for (auto input_idx = 0; input_idx < get_input_size(); input_idx++)
-        input_shapes.push_back(get_input_partial_shape(input_idx));
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    const auto input_shapes = get_node_input_partial_shapes(*this);
+    OPENVINO_SUPPRESS_DEPRECATED_END
+    auto output_shapes = std::vector<ov::PartialShape>(1);
     shape_infer(this, input_shapes, output_shapes);
-
-    set_output_size(1);
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }
 
 shared_ptr<ov::Node> ov::op::v8::DetectionOutput::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_DetectionOutput_clone_with_new_inputs);
+    OV_OP_SCOPE(v0_DetectionOutput_clone_with_new_inputs);
     check_new_args_count(this, new_args);
 
     auto num_args = new_args.size();
@@ -131,7 +125,7 @@ shared_ptr<ov::Node> ov::op::v8::DetectionOutput::clone_with_new_inputs(const Ou
 }
 
 bool ov::op::v8::DetectionOutput::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v0_DetectionOutput_visit_attributes);
+    OV_OP_SCOPE(v0_DetectionOutput_visit_attributes);
     visit_attributes_base(visitor, m_attrs);
     return true;
 }

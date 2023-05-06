@@ -1,6 +1,8 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
+#include <google/protobuf/stubs/logging.h>
 
 #include <fstream>
 #include <input_model.hpp>
@@ -14,6 +16,7 @@
 #include <sstream>
 #include <utils/onnx_internal.hpp>
 
+#include "legacy_op_extension.hpp"
 #include "onnx_common/onnx_model_validator.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
 #include "ops_bridge.hpp"
@@ -22,16 +25,20 @@
 using namespace ov;
 using namespace ov::frontend::onnx;
 
-ONNX_FRONTEND_C_API ov::frontend::FrontEndVersion GetAPIVersion() {
+ONNX_FRONTEND_C_API ov::frontend::FrontEndVersion get_api_version() {
     return OV_FRONTEND_API_VERSION;
 }
 
-ONNX_FRONTEND_C_API void* GetFrontEndData() {
+ONNX_FRONTEND_C_API void* get_front_end_data() {
     ov::frontend::FrontEndPluginInfo* res = new ov::frontend::FrontEndPluginInfo();
     res->m_name = "onnx";
     res->m_creator = []() {
         return std::make_shared<FrontEnd>();
     };
+#ifndef OPENVINO_DEBUG_ENABLE
+    // disable protobuf logging
+    google::protobuf::SetLogHandler(nullptr);
+#endif
     return res;
 }
 
@@ -52,7 +59,7 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
     if (variants[0].is<std::istream*>()) {
         const auto stream = variants[0].as<std::istream*>();
         if (variants.size() > 1 && variants[1].is<std::string>()) {
-            const auto path = variants[0].as<std::string>();
+            const auto path = variants[1].as<std::string>();
             return std::make_shared<InputModel>(*stream, path, m_extensions);
         }
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
@@ -165,5 +172,10 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
         m_extensions.conversions.push_back(onnx_conv_ext);
     } else if (auto progress_reporter = std::dynamic_pointer_cast<ProgressReporterExtension>(extension)) {
         m_extensions.progress_reporter = progress_reporter;
+    } else if (const auto& legacy_ext = std::dynamic_pointer_cast<ov::LegacyOpExtension>(extension)) {
+        m_other_extensions.push_back(legacy_ext);
+        std::call_once(has_legacy_extension, [this] {
+            m_extensions.conversions.push_back(ngraph::onnx_import::detail::get_legacy_conversion_extension());
+        });
     }
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -46,7 +46,7 @@ OutputVector batch_norm(const Node& node) {
                 saved_var};
     }
 
-    throw ngraph_error("Cannot create OpenVINO batch norm with unsupported number of inputs");
+    OPENVINO_THROW("Cannot create OpenVINO batch norm with unsupported number of inputs");
 }
 }  // namespace set_1
 

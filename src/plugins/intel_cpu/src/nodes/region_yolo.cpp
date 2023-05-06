@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,7 @@
 #include <ngraph/opsets/opset1.hpp>
 #include "common/cpu_convert.h"
 #include <cpu/x64/jit_generator.hpp>
-#include <emitters/jit_bf16_emitters.hpp>
+#include "emitters/x64/jit_bf16_emitters.hpp"
 #include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
 #include "utils/bfloat16.hpp"
 
@@ -21,17 +21,19 @@ using namespace dnnl::impl::cpu;
 using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::utils;
 
+#if defined(OPENVINO_ARCH_X86_64)
 #define GET_OFF(field) offsetof(jit_args_logistic, field)
+#endif
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
-
+#if defined(OPENVINO_ARCH_X86_64)
 template <cpu_isa_t isa>
 struct jit_uni_logistic_kernel_f32 : public jit_uni_logistic_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_logistic_kernel_f32)
 
-    jit_uni_logistic_kernel_f32(jit_logistic_config_params jcp) : jcp_(jcp), jit_uni_logistic_kernel(), jit_generator() {}
+    jit_uni_logistic_kernel_f32(jit_logistic_config_params jcp) : jit_uni_logistic_kernel(), jit_generator(jit_name()), jcp_(jcp) {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -41,8 +43,8 @@ struct jit_uni_logistic_kernel_f32 : public jit_uni_logistic_kernel, public jit_
     void generate() override {
         exp_injector.reset(new jit_uni_eltwise_injector_f32<isa>(this, dnnl::impl::alg_kind::eltwise_exp, 0.f, 0.f, 1.f));
 
-        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
-            emu_vcvtneps2bf16.reset(new jit_emu_vcvtneps2bf16(this, isa));
+        if (mayiuse(avx512_core))
+            uni_vcvtneps2bf16.reset(new jit_uni_vcvtneps2bf16(this, isa));
 
         this->preamble();
 
@@ -91,8 +93,8 @@ struct jit_uni_logistic_kernel_f32 : public jit_uni_logistic_kernel, public jit_
 
         this->postamble();
 
-        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
-            emu_vcvtneps2bf16->emit_data();
+        if (uni_vcvtneps2bf16)
+            uni_vcvtneps2bf16->emit_data();
 
         exp_injector->prepare_table();
 
@@ -119,7 +121,7 @@ private:
 
     const Xbyak::Opmask k_mask = Xbyak::Opmask(1);
 
-    std::unique_ptr<jit_emu_vcvtneps2bf16> emu_vcvtneps2bf16;
+    std::unique_ptr<jit_uni_vcvtneps2bf16> uni_vcvtneps2bf16;
 
     Xbyak::Label l_table;
 
@@ -192,10 +194,7 @@ private:
                 uni_vmovups(op, vmm_dst);
                 break;
             case InferenceEngine::Precision::BF16:
-                if (mayiuse(avx512_core_bf16))
-                    vcvtneps2bf16(ymm_dst, vmm_dst);
-                else
-                    emu_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(ymm_dst.getIdx())});
+                uni_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(ymm_dst.getIdx())});
                 vmovdqu16(op, ymm_dst);
                 break;
             default:
@@ -229,6 +228,7 @@ private:
         }
     }
 };
+#endif
 
 bool RegionYolo::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -247,8 +247,8 @@ bool RegionYolo::needPrepareParams() const {
     return false;
 }
 
-RegionYolo::RegionYolo(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
-        WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
+RegionYolo::RegionYolo(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+    : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -309,6 +309,7 @@ void RegionYolo::createPrimitive() {
         updateLastInputDims();
     }
 
+#if defined(OPENVINO_ARCH_X86_64)
     jit_logistic_config_params jcp;
     jcp.src_dt = jcp.dst_dt = output_prec;
     jcp.src_data_size = jcp.dst_data_size = output_prec.size();
@@ -325,10 +326,10 @@ void RegionYolo::createPrimitive() {
         block_size = 4;
     }
 
-    softmax_kernel = std::make_shared<SoftmaxGeneric>(input_prec, output_prec);
-
     if (logistic_kernel)
         logistic_kernel->create_ker();
+#endif
+    softmax_kernel = std::make_shared<SoftmaxGeneric>(input_prec, output_prec);
 }
 
 inline float RegionYolo::logistic_scalar(float src) {

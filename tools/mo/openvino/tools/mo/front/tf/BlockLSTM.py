@@ -1,14 +1,14 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
 
-from openvino.tools.mo.front.common.replacement import FrontReplacementOp
-from openvino.tools.mo.graph.graph import Node, Graph
+from openvino.tools.mo.front.common.replacement import FrontReplacementPattern
+from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.utils.error import Error
 
 
-class BlockLSTM(FrontReplacementOp):
+class BlockLSTM(FrontReplacementPattern):
     """
     We prepare TensorFlow BlockLSTM op to be replaced with LSTMSequence op that will be repacked to TensorIterator later
 
@@ -43,85 +43,80 @@ class BlockLSTM(FrontReplacementOp):
     - peephole connection, so we check `use_peephole`!=True and cut `wci`, `wco`, `wcf` off
     - cell_clip parameter, so we check `cell_clip==-1`, which means we do not clip
     """
-    op = "BlockLSTM"
     enabled = True
 
-    def nodes_to_remove(self, graph: Graph, match: dict):
-        # do not remove matched node
-        return []
+    def find_and_replace_pattern(self, graph: Graph):
+        for node in graph.get_op_nodes(op='BlockLSTM'):
+            if node.use_peephole:
+                raise Error("BlockLSTM operation is not supported with `use_peephole`==True. Node: {}"
+                            "".format(node.soft_get('name')))
 
-    @staticmethod
-    def find_key_by_input_port(u: Node, v: Node, p: int):
-        key = None
-        for k, edge_info in u.graph.get_edge_data(u.id, v.id).items():
-            if p == edge_info['in']:
-                return k
-        return key
+            if node.cell_clip != -1:
+                raise Error("Clipping is not supported for BlockLSTM operation. `cell_clip`={!s} for node: {}"
+                            "".format(node.cell_clip, node.soft_get('name')))
 
-    def replace_op(self, graph: Graph, node: Node):
-        if node.use_peephole:
-            raise Error("BlockLSTM operation is not supported with `use_peephole`==True. Node: {}"
-                        "".format(node.soft_get('name')))
+            log.debug("Start BlockLSTM->LSTMSequence translation for node: {} with parameters:\n"
+                      "`cell_clip`={!s}, `use_peephole`=={!s}, `forget_bias`={!s}\n"
+                      "inputs: {},\noutputs:{}".format(node.soft_get('name'), node.cell_clip, node.use_peephole,
+                                                       node.forget_bias, {p: i.id for p, i in node.in_nodes().items()},
+                                                       {p: o.id for p, o in node.out_nodes().items()}))
 
-        if node.cell_clip != -1:
-            raise Error("Clipping is not supported for BlockLSTM operation. `cell_clip`={!s} for node: {}"
-                        "".format(node.cell_clip, node.soft_get('name')))
+            log.debug("Cutting all inputs for peephole connection (5, 6, 7 input ports) off, as `use_peephole`=False")
+            log.debug("Cutting seq_len_max input off")
 
-        log.debug("Start BlockLSTM->LSTMSequence translation for node: {} with parameters:\n"
-                  "`cell_clip`={!s}, `use_peephole`=={!s}, `forget_bias`={!s}\n"
-                  "inputs: {},\noutputs:{}".format(node.soft_get('name'), node.cell_clip, node.use_peephole,
-                                                   node.forget_bias, {p: i.id for p, i in node.in_nodes().items()},
-                                                   {p: o.id for p, o in node.out_nodes().items()}))
+            # disconnect all peephole releated inputs and seq_len_max
+            for port_idx in [0, 5, 6, 7]:
+                if node.is_in_port_connected(port_idx):
+                    node.in_port(port_idx).disconnect()
 
-        log.debug("Cutting all inputs for peephole connection (5, 6, 7 input ports) off, as `use_peephole`=False")
+            assert node.is_in_port_connected(1), "Sequence input to the BlockLSTM is required (1 port). Node {}".format(
+                node.id)
+            assert node.is_in_port_connected(2), "Value of the initial cell state is required (2 port). Node {}".format(
+                node.id)
+            assert node.is_in_port_connected(
+                3), "Initial output of cell is required input to BlockLSTM (3 port). Node {}".format(node.id)
+            assert node.is_in_port_connected(
+                4), "The weight matrix is required input to BlockLSTM (4 port) . Node {}".format(node.id)
+            assert node.is_in_port_connected(
+                8), "The bias vector is required input to BlockLSTM (8 port). Node {}".format(node.id)
 
-        for p, input_data in node.in_nodes().items():
-            if p in [5, 6, 7]:
-                key = self.find_key_by_input_port(node.in_node(p), node, p)
-                assert key is not None
-                graph.remove_edge(node.in_node(p).id, node.id, key=key)
+            # reconnect inputs since OpenVINO LSTMSequence requires different order
+            # Reconnecting input edges of LSTMSequence:
+            # TF input edges:             Description:                 MO input edges:
+            #       1                          input                        0
+            #       4                         weights                       1
+            #       8                         biases                        2
+            #       3               h_prev: initial output of cell          3
+            #       2               cs_prev: initial cell state             4
 
-        log.debug("Cutting seq_len_max input off")
-        graph.remove_edge(node.in_node(0).id, node.id)
+            input_source = node.in_port(1).get_source()
+            weights_source = node.in_port(4).get_source()
+            biases_source = node.in_port(8).get_source()
+            h_prev_source = node.in_port(3).get_source()
+            cs_prev_source = node.in_port(2).get_source()
 
-        """
-        Reconnecting input edges of LSTMSequence:
-        TF input edges:             Description:                 MO input edges:
-              1                          input                        0
-              4                         weights                       1
-              8                         biases                        2
-              3               h_prev: initial output of cell          3
-              2               cs_prev: initial cell state             4
-        """
-        inputs = node.in_edges()
-        assert 1 in inputs, "Sequence input to the BlockLSTM is required (1 port). Node {}".format(node.id)
-        assert 2 in inputs, "Value of the initial cell state is required (2 port). Node {}".format(node.id)
-        assert 3 in inputs, "Initial output of cell is required input to BlockLSTM (3 port). Node {}".format(node.id)
-        assert 4 in inputs, "The weight matrix is required input to BlockLSTM (4 port) . Node {}".format(node.id)
-        assert 8 in inputs, "The bias vector is required input to BlockLSTM (8 port). Node {}".format(node.id)
+            node.in_port(0).get_connection().set_source(input_source)
+            node.in_port(1).get_connection().set_source(weights_source)
+            node.in_port(2).get_connection().set_source(biases_source)
+            node.in_port(3).get_connection().set_source(h_prev_source)
+            node.in_port(4).get_connection().set_source(cs_prev_source)
+            # disconnect original bias input that is no longer needed
+            if node.is_in_port_connected(8):
+                node.in_port(8).disconnect()
 
-        inputs[3]['in'] = 3
-        inputs[1]['in'] = 0
-        inputs[4]['in'] = 1
-        inputs[2]['in'] = 4
-        inputs[8]['in'] = 2
+            # check that all outputs unsupported by OpenVINO LSTMSequence are absent
+            for output_port_idx in [0, 2, 3, 4, 5]:
+                if node.is_out_port_connected(output_port_idx):
+                    raise Error("Output port {} of BlockLSTM node {} is not supported".format(node.id, output_port_idx))
 
-        log.debug("Checking for unsupported outputs usage (output ports: 0, 2, 3, 4, 5)")
-        for port, input_data in node.out_nodes().items():
-            if port in [0, 2, 3, 4, 5]:
-                raise Error("Output port {} of BlockLSTM node {} is not supported".format(node.id, port))
+            # Reconnecting output edges of LSTMSequence:
+            # TF output edges:             Description:                 MO output edges:
+            #       6                     output h vector                     0
+            #       1                   cell state before the tanh            1
 
-        """
-        Reconnecting output edges of LSTMSequence:
-        TF output edges:             Description:                 MO output edges:
-              6                     output h vector                     0
-              1                   cell state before the tanh            1
-        """
-
-        outputs = node.out_edges()
-        if 6 in outputs:
-            outputs[6]['out'] = 0
-            node.add_output_port(0, skip_if_exist=True)
-
-        # do not replace any output edge
-        return []
+            # we need to move only 6-th output port to 0-th port
+            if node.is_out_port_connected(6):
+                node.add_output_port(0, skip_if_exist=True)
+                node.out_port(6).get_connection().set_source(node.out_port(0))
+                node.out_port(6).disconnect()
+                node.delete_output_port(6, skip_if_absent=True)

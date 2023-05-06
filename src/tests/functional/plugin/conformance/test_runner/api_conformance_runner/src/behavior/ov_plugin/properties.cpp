@@ -1,12 +1,14 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "behavior/ov_plugin/properties_tests.hpp"
+#include "base/ov_behavior_test_utils.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "ov_api_conformance_helpers.hpp"
 
 using namespace ov::test::behavior;
+using namespace ov::test::conformance;
 
 namespace {
 
@@ -15,32 +17,13 @@ const std::vector<ov::AnyMap> inproperties = {
 };
 
 const std::vector<ov::AnyMap> auto_batch_inproperties = {
-        {{ov::device::id("UNSUPPORTED_DEVICE_ID_STRING")}},
         {{ov::auto_batch_timeout(-1)}},
 };
 
-INSTANTIATE_TEST_SUITE_P(ov_plugin, OVPropertiesIncorrectTests,
+INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVPropertiesIncorrectTests,
                         ::testing::Combine(
-                                ::testing::Values(ov::test::conformance::targetDevice),
+                                ::testing::ValuesIn(return_all_possible_device_combination()),
                                 ::testing::ValuesIn(inproperties)),
-                        OVPropertiesIncorrectTests::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(ov_plugin_Hetero, OVPropertiesIncorrectTests,
-                        ::testing::Combine(
-                                ::testing::Values(CommonTestUtils::DEVICE_HETERO),
-                                ::testing::ValuesIn(ov::test::conformance::generate_ov_configs(CommonTestUtils::DEVICE_HETERO, inproperties))),
-                        OVPropertiesIncorrectTests::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(ov_plugin_Multi, OVPropertiesIncorrectTests,
-                        ::testing::Combine(
-                                ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-                                 ::testing::ValuesIn(ov::test::conformance::generate_ov_configs(CommonTestUtils::DEVICE_MULTI, inproperties))),
-OVPropertiesIncorrectTests::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(ov_plugin_Auto, OVPropertiesIncorrectTests,
-                        ::testing::Combine(
-                                ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                ::testing::ValuesIn(ov::test::conformance::generate_ov_configs(CommonTestUtils::DEVICE_AUTO, inproperties))),
                         OVPropertiesIncorrectTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(ov_plugin_AutoBatch, OVPropertiesIncorrectTests,
@@ -50,6 +33,7 @@ INSTANTIATE_TEST_SUITE_P(ov_plugin_AutoBatch, OVPropertiesIncorrectTests,
                         OVPropertiesIncorrectTests::getTestCaseName);
 
 const std::vector<ov::AnyMap> default_properties = {
+        {},
         {ov::enable_profiling(true)},
         {ov::device::id("0")},
 };
@@ -60,33 +44,83 @@ const std::vector<ov::AnyMap> auto_batch_properties = {
         {{ov::auto_batch_timeout(10)}},
 };
 
-INSTANTIATE_TEST_SUITE_P(ov_plugin, OVPropertiesTests,
+INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVPropertiesTests,
         ::testing::Combine(
-                ::testing::Values(ov::test::conformance::targetDevice),
+                ::testing::ValuesIn(return_all_possible_device_combination(false)),
                 ::testing::ValuesIn(default_properties)),
         OVPropertiesTests::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(ov_plugin_Hetero, OVPropertiesTests,
-        ::testing::Combine(
-                ::testing::Values(CommonTestUtils::DEVICE_HETERO),
-                ::testing::ValuesIn(ov::test::conformance::generate_ov_configs(CommonTestUtils::DEVICE_HETERO, default_properties))),
-        OVPropertiesTests::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(ov_plugin_Multi, OVPropertiesTests,
-        ::testing::Combine(
-                ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-                ::testing::ValuesIn(ov::test::conformance::generate_ov_configs(CommonTestUtils::DEVICE_MULTI, default_properties))),
-        OVPropertiesTests::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(ov_plugin_Auto, OVPropertiesTests,
-                         ::testing::Combine(
-                                 ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                 ::testing::ValuesIn(ov::test::conformance::generate_ov_configs(CommonTestUtils::DEVICE_AUTO, default_properties))),
-                         OVPropertiesTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(ov_plugin_AutoBatch, OVPropertiesTests,
         ::testing::Combine(
                 ::testing::Values(CommonTestUtils::DEVICE_BATCH),
                 ::testing::ValuesIn(ov::test::conformance::generate_ov_configs(CommonTestUtils::DEVICE_BATCH, auto_batch_properties))),
         OVPropertiesTests::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVCheckGetSupportedROMetricsPropsTests,
+        ::testing::Combine(
+                        ::testing::ValuesIn(return_all_possible_device_combination()),
+                        ::testing::ValuesIn(OVCheckGetSupportedROMetricsPropsTests::getROMandatoryProperties())),
+        OVCheckGetSupportedROMetricsPropsTests::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(ov_plugin, OVCheckGetSupportedROMetricsPropsTests,
+        ::testing::Combine(
+                        ::testing::ValuesIn(return_all_possible_device_combination()),
+                        ::testing::ValuesIn(OVCheckGetSupportedROMetricsPropsTests::getROOptionalProperties())),
+        OVCheckGetSupportedROMetricsPropsTests::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVCheckSetSupportedRWMetricsPropsTests,
+        ::testing::Combine(
+                        ::testing::ValuesIn(return_all_possible_device_combination()),
+                        ::testing::ValuesIn(OVCheckSetSupportedRWMetricsPropsTests::getRWMandatoryPropertiesValues())),
+        OVCheckSetSupportedRWMetricsPropsTests::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(ov_plugin, OVCheckSetSupportedRWMetricsPropsTests,
+        ::testing::Combine(
+                        ::testing::ValuesIn(return_all_possible_device_combination()),
+                        ::testing::ValuesIn(OVCheckSetSupportedRWMetricsPropsTests::getRWOptionalPropertiesValues())),
+        OVCheckSetSupportedRWMetricsPropsTests::getTestCaseName);
+
+const std::vector<ov::AnyMap> device_properties = {
+        {ov::device::id("0")},
+};
+
+INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVCheckChangePropComplieModleGetPropTests_DEVICE_ID,
+        ::testing::Combine(
+                ::testing::ValuesIn(return_all_possible_device_combination()),
+                ::testing::ValuesIn(device_properties)),
+        OVCheckChangePropComplieModleGetPropTests_DEVICE_ID::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(ov_plugin, OVCheckMetricsPropsTests_ModelDependceProps,
+        ::testing::Combine(
+                ::testing::ValuesIn(return_all_possible_device_combination()),
+                ::testing::ValuesIn(OVCheckMetricsPropsTests_ModelDependceProps::getModelDependcePropertiesValues())),
+        OVCheckMetricsPropsTests_ModelDependceProps::getTestCaseName);
+
+//
+// IE Class GetMetric
+//
+
+INSTANTIATE_TEST_SUITE_P(
+        ov_plugin_mandatory, OVGetMetricPropsTest,
+        ::testing::ValuesIn(return_all_possible_device_combination(false)));
+
+INSTANTIATE_TEST_SUITE_P(
+        ov_plugin, OVGetMetricPropsOptionalTest,
+        ::testing::ValuesIn(return_all_possible_device_combination(false)));
+
+INSTANTIATE_TEST_SUITE_P(
+        ov_plugin_mandatory, OVGetAvailableDevicesPropsTest,
+        ::testing::ValuesIn(return_all_possible_device_combination(false)));
+
+//
+// IE Class GetConfig
+//
+
+INSTANTIATE_TEST_SUITE_P(
+        ov_plugin, OVPropertiesDefaultSupportedTests,
+        ::testing::ValuesIn(return_all_possible_device_combination(false)));
+
+INSTANTIATE_TEST_SUITE_P(
+        ov_plugin_remove_mandatory, OVBasicPropertiesTestsP,
+        ::testing::ValuesIn(generate_pairs_plugin_name_by_device()));
 } // namespace

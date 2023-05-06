@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,7 @@ TEST(attributes, adaptive_avg_pool_op) {
     const auto out_shape = op::Constant::create<int64_t>(element::i64, Shape{2}, {4, 3});
 
     const auto adaptive_pool = make_shared<opset8::AdaptiveAvgPool>(A, out_shape);
-    NodeBuilder builder(adaptive_pool);
+    NodeBuilder builder(adaptive_pool, {A, out_shape});
 
     const auto expected_attr_count = 0;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);

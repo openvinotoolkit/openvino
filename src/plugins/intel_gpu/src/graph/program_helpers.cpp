@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "program_helpers.h"
 #include "intel_gpu/graph/program.hpp"
@@ -14,28 +12,6 @@
 #include <sstream>
 
 namespace cldnn {
-// helper function for merging the weights/biases buffers on cpu side for depthwise separable convolution optimization
-void program_helpers::merge_buffers(engine& engine,
-                                    program_node& node,
-                                    const layout& target_layout,
-                                    size_t begin_offset,
-                                    size_t end_offset) {
-    memory::ptr data_to_allocate = engine.allocate_memory(target_layout, false);
-    auto& stream = node.get_program().get_stream();
-
-    for (size_t i = begin_offset; i < end_offset; i++) {
-        auto& weights = node.get_dependency(i).as<data>();
-        mem_lock<char, mem_lock_type::read> src{weights.get_attached_memory_ptr(), stream};
-        mem_lock<char, mem_lock_type::write> dst{data_to_allocate, stream};
-        std::copy(src.begin(), src.end(), dst.begin() + (i - begin_offset) * src.size());
-    }
-
-    for (size_t i = 0; i < end_offset - begin_offset - 1; i++) node.remove_dependency(begin_offset + 1);
-
-    auto& data_node = node.get_dependency(begin_offset).as<data>();
-    data_node.attach_memory(data_to_allocate, false);
-}
-
 void program_helpers::reshape_deconvolution_weights(const std::vector<float> &deconv_weights,
     const int channels,
     const int kernel_width,
@@ -97,102 +73,6 @@ void program_helpers::reshape_deconvolution_weights(const std::vector<float> &de
     }
 }
 
-// helper function for getting target layout used in depthwise sep optimization
-layout program_helpers::get_weights_layout(typed_program_node<cldnn::data>& data_node, int32_t split) {
-    auto mem_layout = data_node.get_output_layout();
-
-    return layout(mem_layout.data_type,
-                  mem_layout.format,
-                  {split * mem_layout.batch(),
-                   mem_layout.feature(),
-                   mem_layout.spatial(0),
-                   mem_layout.spatial(1)});
-}
-
-// pair.first tells whether l1 and l2 are absolutely identical
-// pair.second tells whether l1 and l2 can be reinterpreted to each other without need of reordering
-// note: layouts can only be considered identical if data size described by both layouts match (so no data are genereted
-// nor dropped) note: if layouts describe two buffers with different size, consider them not to be identical even if
-// smaller buffer can be considered to hold subsequence of larger buffer,
-//       this behavior is required to force buffer allocation for smaller buffer which, currently, should always be
-//       performed
-std::pair<bool, bool> program_helpers::are_layouts_identical(layout const& l1, layout const& l2) {
-    const auto& l1_pad = l1.data_padding;
-    const auto& l2_pad = l2.data_padding;
-    auto l1_size = l1.get_tensor();
-    auto l2_size = l2.get_tensor();
-    int64_t offset_last_element_l1 = l1.get_linear_offset(l1_size - tensor{1});
-    int64_t offset_last_element_l2 = l2.get_linear_offset(l2_size - tensor{1});
-    if (l1 == l2)
-        return {true, true};
-    if (l1.data_type != l2.data_type)
-        return {false, false};
-    // Reorders between bfyx, bfzyx, bfwzyx can pe reinterpeted as reshape when
-    // there is no padding and both hold same number of elements.
-    if ((l1.format == format::bfyx || l1.format == format::bfzyx || l1.format == format::bfwzyx) &&
-        (l2.format == format::bfyx || l2.format == format::bfzyx || l2.format == format::bfwzyx) && !l1_pad &&
-        !l2_pad && l1.get_linear_size() == l2.get_linear_size())
-        return {false, true};
-    if (l1_size != l2_size)
-        return {false, false};
-    if (l1.get_linear_size() != l2.get_linear_size())
-        return {false, false};
-
-    auto check_format = [&l1, &l2](cldnn::format format) {
-        return (l1.format == format && l2.format != format) ||
-               (l2.format == format && l1.format != format);
-    };
-
-    if (check_format(format::b_fs_yx_fsv2) ||
-        check_format(format::b_fs_yx_fsv4) ||
-        check_format(format::fs_b_yx_fsv32) ||
-        check_format(format::b_fs_yx_fsv16) ||
-        check_format(format::b_fs_yx_fsv32) ||
-        check_format(format::b_fs_zyx_fsv2) ||
-        check_format(format::b_fs_zyx_fsv4) ||
-        check_format(format::b_fs_zyx_fsv32) ||
-        check_format(format::b_fs_zyx_fsv16) ||
-        check_format(format::bs_fs_yx_bsv4_fsv4) ||
-        check_format(format::bs_fs_yx_bsv8_fsv4) ||
-        check_format(format::bs_fs_zyx_bsv8_fsv4) ||
-        check_format(format::bs_fs_yx_bsv8_fsv2) ||
-        check_format(format::bs_fs_zyx_bsv8_fsv2) ||
-        check_format(format::bs_fs_yx_bsv4_fsv2) ||
-        check_format(format::bs_fs_yx_bsv32_fsv16) ||
-        check_format(format::bs_fs_yx_bsv32_fsv32) ||
-        check_format(format::bs_fs_yx_bsv16_fsv16) ||
-        check_format(format::bs_fs_zyx_bsv16_fsv32) ||
-        check_format(format::bs_fs_zyx_bsv16_fsv16) ||
-        check_format(format::bs_fs_zyx_bsv32_fsv16) ||
-        check_format(format::bs_fs_zyx_bsv32_fsv32))
-        return {false, false};
-
-    // If data is actually 1d along f and dense, the layouts are identical
-    if (l1.data_type == l2.data_type && l1_size == l2_size && !l1_pad && !l2_pad && l1_size.batch[0] == 1 &&
-        ((l1.format.spatial_num() == 2 && l1_size.spatial[0] == 1 && l1_size.spatial[1] == 1) ||
-        ((l1.format.spatial_num() == 3 && l1_size.spatial[0] == 1 && l1_size.spatial[1] == 1 && l1_size.spatial[2] == 1))) &&
-        (offset_last_element_l1 + 1 == l1_size.feature[0] && offset_last_element_l2 + 1 == l2_size.feature[0]))
-        return {false, true};
-
-    auto l1_pitch = l1.get_pitches();
-    auto l2_pitch = l2.get_pitches();
-
-    // ignore pitches which will never be used (for dims with size == 1)
-    for (size_t i = 0; i < tensor_dim_max; ++i)
-        if (l1_size.raw[i] == 1)
-            l1_pitch.raw[i] = 0;
-    for (size_t i = 0; i < tensor_dim_max; ++i)
-        if (l2_size.raw[i] == 1)
-            l2_pitch.raw[i] = 0;
-
-    auto l1_offset = l1.get_linear_offset();
-    auto l2_offset = l2.get_linear_offset();
-    if (l1_pitch == l2_pitch && l1_offset == l2_offset)
-        return {false, true};
-
-    return {false, false};
-}
-
 bool onednn_add_fusing_helpers::is_full_tensor(const layout& l) {
     if (l.spatial(0) > 1 || l.spatial(1) > 1 || (l.get_spatial_rank() == 3 && l.spatial(2) > 1)
         || l.batch() > 1) {
@@ -217,19 +97,26 @@ add_fusing_type onednn_add_fusing_helpers::get_add_fusing_type(
     if (!desc.is_type<eltwise>()) {
         return add_fusing_type::not_supported;
     }
-     if (desc.typed_desc<eltwise>()->mode != eltwise_mode::sum) {
-         return add_fusing_type::not_supported;
-     }
-
-    auto& dep_node = p_node.get_dependency(desc.dep_start_idx);
+    if (desc.typed_desc<eltwise>()->mode != eltwise_mode::sum) {
+        return add_fusing_type::not_supported;
+    }
+    if (!desc.has_outer_dep()) {
+        return add_fusing_type::not_supported;
+    }
+    auto& dep_node = p_node.get_dependency(desc.outer_dep_start_idx);
     auto p_layout = p_node.get_output_layout();
     auto d_layout = dep_node.get_output_layout();
+
+    if (p_node.is_dynamic() || dep_node.is_dynamic()) {
+        return add_fusing_type::not_supported;
+    }
 
     if (is_full_tensor(p_layout) && is_full_tensor(d_layout)) {
         if (data_type_traits::size_of(p_layout.data_type) == data_type_traits::size_of(d_layout.data_type)
             && p_layout.format == d_layout.format && p_layout.get_tensor() == d_layout.get_tensor()
             && p_layout.data_padding == d_layout.data_padding
             && dep_node.get_users().size() == 1
+            && !dep_node.is_constant()
             && !p_node.is_type<pooling>()) {
             return add_fusing_type::sum;
         } else if (p_layout.get_tensor() == d_layout.get_tensor()) {

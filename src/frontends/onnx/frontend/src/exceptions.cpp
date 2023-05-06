@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +16,12 @@ std::string get_error_msg_prefix(const Node& node) {
     return ss.str();
 }
 }  // namespace detail
+
+void OnnxNodeValidationFailure::create(const CheckLocInfo& check_loc_info,
+                                       const Node& node,
+                                       const std::string& explanation) {
+    throw OnnxNodeValidationFailure(make_what(check_loc_info, detail::get_error_msg_prefix(node), explanation));
+}
 }  // namespace error
 }  // namespace onnx_import
 }  // namespace ngraph

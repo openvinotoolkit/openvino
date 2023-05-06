@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,8 +24,16 @@ namespace {
     #else
     auto defaultBindThreadParameter = InferenceEngine::Parameter{std::string{CONFIG_VALUE(YES)}};
     #endif
+    INSTANTIATE_TEST_SUITE_P(
+            ie_plugin,
+            DefaultConfigurationTest,
+            ::testing::Combine(
+                    ::testing::ValuesIn(return_all_possible_device_combination(false)),
+                    ::testing::Values(DefaultParameter{CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(NO)})),
+            DefaultConfigurationTest::getTestCaseName);
+
     const std::vector<std::map<std::string, std::string>> pluginConfigs = {
-            {},
+            {{}},
             {{InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, InferenceEngine::PluginConfigParams::THROUGHPUT}},
             {{InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, InferenceEngine::PluginConfigParams::LATENCY}},
             {{InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, InferenceEngine::PluginConfigParams::LATENCY},
@@ -88,8 +96,7 @@ INSTANTIATE_TEST_SUITE_P(ie_plugin_Hetero, CorrectConfigTests,
             {{InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, InferenceEngine::PluginConfigParams::LATENCY},
                     {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS, "-1"}},
             {{InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, InferenceEngine::PluginConfigParams::THROUGHPUT},
-                    {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS, "should be int"}},
-            {{InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_LIMIT, "NAN"}}
+                    {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS, "should be int"}}
     };
 
     INSTANTIATE_TEST_SUITE_P(ie_plugin, IncorrectConfigTests,
@@ -161,7 +168,7 @@ INSTANTIATE_TEST_SUITE_P(ie_plugin_Hetero, CorrectConfigTests,
             {{InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_LIMIT, "10"}}
     };
 
-    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, CorrectConfigCheck,
+    INSTANTIATE_TEST_SUITE_P(ie_plugin, CorrectConfigCheck,
                              ::testing::Combine(
                                      ::testing::ValuesIn(return_all_possible_device_combination()),
                                      ::testing::ValuesIn(pluginConfigsCheck)),

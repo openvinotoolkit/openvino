@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,6 @@ void shape_infer(const VariadicSplit* op,
                  const std::vector<T>& input_shapes,
                  std::vector<T>& output_shapes,
                  const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
-    using DimType = typename std::iterator_traits<typename T::iterator>::value_type;
     constexpr bool is_dynamic_shape = std::is_base_of<ov::PartialShape, T>::value;
 
     NODE_VALIDATION_CHECK(op, (input_shapes.size() == 3));
@@ -53,7 +52,9 @@ void shape_infer(const VariadicSplit* op,
                                   " axes");
             const auto axis_val = axis_values[0];
             // Adjust split axis in case of negatives
+            OPENVINO_SUPPRESS_DEPRECATED_START
             const int64_t axis = ov::normalize_axis(op, axis_val, data_shape.rank());
+            OPENVINO_SUPPRESS_DEPRECATED_END
 
             if (get_data_as_int64<T>(2, op, split_lengths, constant_data)) {
                 // Adjust split lengths in case of negatives
@@ -93,7 +94,7 @@ void shape_infer(const VariadicSplit* op,
                                           data_shape[axis]);
                 }
 
-                for (int64_t output = 0; output < num_outputs; ++output) {
+                for (auto output = 0; output < num_outputs; ++output) {
                     if (split_lengths.at(output) == -1) {
                         auto out_shape = data_shape;
                         out_shape[axis] = Dimension::dynamic();
@@ -111,14 +112,12 @@ void shape_infer(const VariadicSplit* op,
 
                 auto out_shape = data_shape;
                 out_shape[axis] = Dimension::dynamic();
-                for (int64_t output = 0; output < num_outputs; ++output)
-                    output_shapes.push_back(out_shape);
+                output_shapes.resize(num_outputs, out_shape);
             }
         } else {
             // we only know num_outputs, only predict the rank
             auto out_shape = ov::PartialShape::dynamic(data_shape.rank());
-            for (int64_t output = 0; output < num_outputs; ++output)
-                output_shapes.push_back(out_shape);
+            output_shapes.resize(num_outputs, out_shape);
         }
     } else {
         // we don't even known the number of outputs in this case.

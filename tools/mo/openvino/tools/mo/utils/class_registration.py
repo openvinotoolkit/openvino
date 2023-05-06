@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
@@ -7,6 +7,7 @@ from enum import Enum
 
 import networkx as nx
 
+from openvino.tools.mo.front.common.custom_replacement_registry import CustomReplacementRegistry
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.middle.passes.eliminate import shape_inference
 from openvino.tools.mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
@@ -63,12 +64,14 @@ class ClassType(Enum):
 
 
 def _update(cls, registered_list: list, registered_dict: dict, key: str, enabled_transforms: list,
-            disabled_transforms: list):
+            disabled_transforms: list, exclude_modules: set):
     new_keys = {}  # maps a custom name to class
     new_keys_lower = {}  # translates lowered custom name to its original form
     # print('Registering new subclasses for', cls)
 
     for c in cls.__subclasses__():
+        if need_exclude_class(c, exclude_modules):
+            continue
         # Force enabling operations
         if hasattr(c, 'id') and c.id in enabled_transforms or \
                 ".".join([c.__module__, c.__name__]) in enabled_transforms:
@@ -87,10 +90,9 @@ def _update(cls, registered_list: list, registered_dict: dict, key: str, enabled
             if hasattr(c, key) and getattr(c, key) is not None:
                 k = getattr(c, key)
                 if k.lower() in new_keys_lower:
-                    raise Error(
-                        'Attempt to register of custom name {} for the second time as class {}. ' \
-                        'Note that custom names are case-insensitive. ' +
-                        refer_to_faq_msg(55), k, c)
+                    log.warning('Attempt to register of custom name {} for the second time as class {}. '
+                                'Note that custom names are case-insensitive. ' + refer_to_faq_msg(55), k, c)
+                    continue
                 else:
                     new_keys_lower[k.lower()] = k
                     new_keys[k] = c
@@ -100,9 +102,9 @@ def _update(cls, registered_list: list, registered_dict: dict, key: str, enabled
     registered_dict.update(new_keys)
 
 
-def update_registration(classes: list, enabled_transforms: list, disabled_transforms: list):
+def update_registration(classes: list, enabled_transforms: list, disabled_transforms: list, exclude_modules: set):
     for cls in classes:
-        _update(cls, cls.registered_cls, cls.registered_ops, 'op', enabled_transforms, disabled_transforms)
+        _update(cls, cls.registered_cls, cls.registered_ops, 'op', enabled_transforms, disabled_transforms, exclude_modules)
         _registered_classes_dict.setdefault(cls.class_type(), set()).add(cls)
 
 
@@ -214,6 +216,13 @@ class DependencyGraph(Graph):
         return order
 
 
+def need_exclude_class(class_type, excluded_frameworks):
+    for framework in excluded_frameworks:
+        if "." + framework + "." in str(class_type):
+            return True
+    return False
+
+
 def get_replacers_order(transform_types: list):
     """
     Gets all transforms that do not have 'op'.
@@ -236,9 +245,11 @@ def get_replacers_order(transform_types: list):
 
     for i, replacer_cls in enumerate(replacers):
         for cls_after in replacer_cls().run_before():
-            dependency_graph.add_edge(replacer_cls, cls_after)
+            if cls_after in replacers:
+                dependency_graph.add_edge(replacer_cls, cls_after)
         for cls_before in replacer_cls().run_after():
-            dependency_graph.add_edge(cls_before, replacer_cls)
+            if cls_before in replacers:
+                dependency_graph.add_edge(cls_before, replacer_cls)
 
     replacers_order = dependency_graph.determined_sort()
 
@@ -326,3 +337,8 @@ def apply_replacements(graph: Graph, replacements_type: list):
     """
     replacers_order = get_replacers_order(replacements_type)
     apply_replacements_list(graph, replacers_order)
+
+
+def clear_registered_classes_dict():
+    CustomReplacementRegistry.registry = {}
+    _registered_classes_dict.clear()

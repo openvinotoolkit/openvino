@@ -42,7 +42,7 @@
 #
 # See also FindCython.cmake
 
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -90,7 +90,6 @@ find_package( Cython REQUIRED
               NO_DEFAULT_PATH )
 
 find_package(PythonInterp 3 REQUIRED)
-find_package(PythonLibs ${PYTHON_VERSION_STRING} EXACT REQUIRED)
 
 set( CYTHON_CXX_EXTENSION "cxx" )
 set( CYTHON_C_EXTENSION "c" )
@@ -285,9 +284,13 @@ function( cython_add_module _name )
     endif()
   endforeach()
   compile_pyx( ${_name} generated_file ${pyx_module_sources} )
-  include_directories( ${PYTHON_INCLUDE_DIRS} )
   python_add_module ( ${_name} ${generated_file} ${other_module_sources} )
-  # set_target_properties(${_name} PROPERTIES PREFIX "" SUFFIX "${PYTHON_MODULE_EXTENSION}")
+  target_include_directories( ${_name} PRIVATE ${PYTHON_INCLUDE_DIRS} )
+  if(PYTHON_MODULE_EXTENSION)
+    set_target_properties(${_name} PROPERTIES PREFIX "" SUFFIX "${PYTHON_MODULE_EXTENSION}")
+  else()
+    message(FATAL_ERROR "Internal error: PYTHON_MODULE_EXTENSION is not defined")
+  endif()
   if( APPLE )
     set_target_properties( ${_name} PROPERTIES LINK_FLAGS "-undefined dynamic_lookup" )
   else()

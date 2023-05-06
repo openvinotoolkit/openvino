@@ -6,18 +6,17 @@
    :maxdepth: 2
    :hidden:
    
-   Troubleshooting Steps <openvino_docs_get_started_guide_troubleshooting_steps>
    Issues & Solutions <openvino_docs_get_started_guide_troubleshooting_issues>
+   Troubleshooting Steps <openvino_docs_get_started_guide_troubleshooting_steps>
 
-@endsphinxdirective
-
-@sphinxdirective
 
 .. _troubleshooting guide for install:
 
+This guide provides general troubleshooting steps and solutions to possible issues that can be encountered while installing and configuring OpenVINO™.
+
+The :doc:`Issues & Solutions <openvino_docs_get_started_guide_troubleshooting_issues>` page lists common installation and configuration errors, and their possible solutions. If you encountered a specific error while installing or configuring OpenVINO, check this page to see if there is a solution.
+
+The :doc:`Troubleshooting Steps <openvino_docs_get_started_guide_troubleshooting_steps>` page provides a set of instructions for diagnosing and resolving installation and configuration issues. If you had problems during installation and configuration, walk through these steps to try and resolve your issue.
+
 @endsphinxdirective
-
-This guide will provide general troubleshooting steps and possible issues related to the installation and configuration of OpenVINO™. 
-
-If you met any issues, you are encouraged to run some [Troubleshooting Steps](./troubleshooting-steps.md) first, or look for information on the [Issues & Solutions](./troubleshooting-issues.md) page.
 

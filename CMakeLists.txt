@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -8,14 +8,20 @@ if(DEFINED BUILD_SHARED_LIBS AND NOT BUILD_SHARED_LIBS)
     # incorrect OpenVINOConfig.cmake in this case
     cmake_minimum_required(VERSION 3.17)
 else()
-    cmake_minimum_required(VERSION 3.13)
+    if(CPACK_GENERATOR STREQUAL "DEB")
+        # we have to use CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS variable
+        cmake_minimum_required(VERSION 3.20)
+    else()
+        # default choice
+        cmake_minimum_required(VERSION 3.13)
+    endif()
+endif()
+
+if(POLICY CMP0091)
+    cmake_policy(SET CMP0091 NEW) # Enables use of MSVC_RUNTIME_LIBRARY
 endif()
 
 project(OpenVINO DESCRIPTION "OpenVINO toolkit")
-
-if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "CMake build type" FORCE)
-endif()
 
 find_package(IEDevScripts REQUIRED
              PATHS "${OpenVINO_SOURCE_DIR}/cmake/developer_package"
@@ -33,7 +39,6 @@ if(ENABLE_COVERAGE)
 endif()
 
 # resolving dependencies for the project
-message (STATUS "PROJECT ............................... " ${PROJECT_NAME})
 message (STATUS "CMAKE_VERSION ......................... " ${CMAKE_VERSION})
 message (STATUS "CMAKE_BINARY_DIR ...................... " ${CMAKE_BINARY_DIR})
 message (STATUS "CMAKE_SOURCE_DIR ...................... " ${CMAKE_SOURCE_DIR})
@@ -42,8 +47,28 @@ message (STATUS "OpenVINO_BINARY_DIR ................... " ${OpenVINO_BINARY_DIR
 message (STATUS "CMAKE_GENERATOR ....................... " ${CMAKE_GENERATOR})
 message (STATUS "CMAKE_C_COMPILER_ID ................... " ${CMAKE_C_COMPILER_ID})
 message (STATUS "CMAKE_CXX_COMPILER_ID ................. " ${CMAKE_CXX_COMPILER_ID})
-message (STATUS "CMAKE_BUILD_TYPE ...................... " ${CMAKE_BUILD_TYPE})
-message (STATUS "CMAKE_TOOLCHAIN_FILE .................. " ${CMAKE_TOOLCHAIN_FILE})
+if(OV_GENERATOR_MULTI_CONFIG)
+    string(REPLACE ";" " " config_types "${CMAKE_CONFIGURATION_TYPES}")
+    message (STATUS "CMAKE_CONFIGURATION_TYPES ............. " ${config_types})
+    unset(config_types)
+    if(CMAKE_GENERATOR MATCHES "^Ninja Multi-Config$")
+        message (STATUS "CMAKE_DEFAULT_BUILD_TYPE .............. " ${CMAKE_DEFAULT_BUILD_TYPE})
+    endif()
+else()
+    message (STATUS "CMAKE_BUILD_TYPE ...................... " ${CMAKE_BUILD_TYPE})
+endif()
+if(CMAKE_GENERATOR_PLATFORM)
+    message (STATUS "CMAKE_GENERATOR_PLATFORM .............. " ${CMAKE_GENERATOR_PLATFORM})
+endif()
+if(CMAKE_GENERATOR_TOOLSET)
+    message (STATUS "CMAKE_GENERATOR_TOOLSET ............... " ${CMAKE_GENERATOR_TOOLSET})
+endif()
+if(CMAKE_TOOLCHAIN_FILE)
+    message (STATUS "CMAKE_TOOLCHAIN_FILE .................. " ${CMAKE_TOOLCHAIN_FILE})
+endif()
+if(OV_GLIBC_VERSION)
+    message (STATUS "GLIBC_VERSION ......................... " ${OV_GLIBC_VERSION})
+endif()
 
 # remove file with exported developer targets to force its regeneration
 file(REMOVE "${CMAKE_BINARY_DIR}/ngraphTargets.cmake")
@@ -75,7 +100,7 @@ function(openvino_developer_export_targets)
             get_target_property(original_name ${target_name} ALIASED_TARGET)
             if(TARGET "${original_name}")
                 message(STATUS "The name ${target_name} is an ALIAS for ${original_name}. "
-                        "It will be exported to the InferenceEngineDeveloperPackage with the original name.")
+                        "It will be exported to the OpenVINODeveloperPackage with the original name.")
                 list(REMOVE_ITEM ${EXPORT_COMPONENT} ${target_name})
                 list(APPEND ${EXPORT_COMPONENT} ${original_name})
             endif()
@@ -93,15 +118,20 @@ function(openvino_developer_export_targets)
 endfunction()
 
 # add target with processed tests model zoo
-include(cmake/test_model_zoo.cmake)
+if (ENABLE_TESTS)
+    include(cmake/test_model_zoo.cmake)
+endif()
 
 add_subdirectory(thirdparty)
 add_subdirectory(src)
-add_subdirectory(samples)
 
-# Enable interpreter backend
+if(ENABLE_SAMPLES OR ENABLE_TESTS OR ENABLE_COMPILE_TOOL)
+    add_subdirectory(samples)
+endif()
+
+# Enable interpreter backend for tests
 if (ENABLE_TESTS OR ENABLE_TEMPLATE)
-    add_subdirectory(docs/template_plugin/backend)
+    add_subdirectory(src/plugins/template/backend)
 endif()
 include(cmake/extra_modules.cmake)
 add_subdirectory(docs)

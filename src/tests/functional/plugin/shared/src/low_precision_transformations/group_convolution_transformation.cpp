@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,6 @@
 #include "lpt_ngraph_functions/group_convolution_function.hpp"
 
 namespace LayerTestsDefinitions {
-
 std::string GroupConvolutionTransformation::getTestCaseName(const testing::TestParamInfo<GroupConvolutionTransformationParams>& obj) {
     ngraph::element::Type netPrecision;
     std::string targetDevice;
@@ -38,6 +37,7 @@ std::string GroupConvolutionTransformation::getTestCaseName(const testing::TestP
         param.group << "_" <<
         param.groupCalculationDimention << "_" <<
         param.fakeQuantizeOnData << "_" <<
+        (param.addReshape ? "reshape_on_weights_" : "wo_reshape_") <<
         (addPrecisionPreserved ? "max_pool_" : "") <<
         param.fakeQuantizeOnWeights;
     return result.str();
@@ -64,6 +64,7 @@ void GroupConvolutionTransformation::SetUp() {
         param.groupCalculationDimention,
         param.fakeQuantizeOnData,
         param.fakeQuantizeOnWeights,
+        param.addReshape,
         addPrecisionPreserved);
 }
 
@@ -82,6 +83,7 @@ void GroupConvolutionTransformation::Run() {
 }
 
 TEST_P(GroupConvolutionTransformation, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     Run();
 };
 

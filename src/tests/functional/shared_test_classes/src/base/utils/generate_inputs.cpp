@@ -4,6 +4,8 @@
 
 #include <shared_test_classes/base/ov_subgraph.hpp>
 #include "ngraph/ops.hpp"
+#include "ov_ops/augru_cell.hpp"
+#include "ov_ops/augru_sequence.hpp"
 
 #include <common_test_utils/ov_tensor_utils.hpp>
 
@@ -41,9 +43,14 @@ ov::runtime::Tensor generate(const std::shared_ptr<ov::Node>& node,
 }
 
 namespace Activation {
+// todo: this is a bug fixed! Merge it separately.
+//  Default parameters InputGenerateData(10, 20, 32768, 1) lead to input generation according to 10 + x/32768,
+//  where x {0, 20}, so all generated values are in the range [10, 10 + 6.1e-4].
+//  Thus all the interval more-or-less fall within the uncertainty validation interval
+//  Fix let the range be at least 20x of resolution
 ov::runtime::Tensor generate(const ov::element::Type& elemType,
                              const ov::Shape& targetShape,
-                             InputGenerateData inGenData = InputGenerateData(10, 20, 32768, 1)) {
+                             InputGenerateData inGenData = InputGenerateData(-1, 2*32768, 32768, 1)) {
     if (!elemType.is_signed()) {
         inGenData.range = 15;
         inGenData.start_from = 0;
@@ -147,7 +154,7 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::Exp>& node,
                              size_t port,
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
-    return Activation::generate(elemType, targetShape);
+    return Activation::generate(elemType, targetShape, InputGenerateData(-10, 20, 32768, 1));
 }
 
 ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::Floor>& node,
@@ -332,7 +339,7 @@ ov::runtime::Tensor generate(const std::shared_ptr<ov::op::v0::ROIPooling>& node
         CASE(ov::element::Type_t::u1)
         CASE(ov::element::Type_t::i4)
         CASE(ov::element::Type_t::u4)
-        default: OPENVINO_UNREACHABLE("Unsupported element type: ", elemType);
+        default: OPENVINO_THROW("Unsupported element type: ", elemType);
     }
 #undef CASE
         return tensor;
@@ -548,6 +555,16 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v4::Proposal>& no
                              const ov::Shape& targetShape) {
     if (port == 1) {
         return ov::test::utils::create_and_fill_tensor_normal_distribution(elemType, targetShape, 0.0f, 0.2f, 7235346);
+    } else if (port == 2) {
+        ov::Tensor tensor = ov::Tensor(elemType, targetShape);
+
+        auto *dataPtr = tensor.data<float>();
+        dataPtr[0] = dataPtr[1] = 225.0f;
+        dataPtr[2] = 1.0f;
+        if (tensor.get_size() == 4)
+            dataPtr[3] = 1.0f;
+
+        return tensor;
     }
     return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
 }
@@ -656,6 +673,92 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v9::NonMaxSuppres
     }
 }
 
+ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v3::EmbeddingSegmentsSum>& node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    if (port == 2) {
+        ov::runtime::Tensor tensor = ov::runtime::Tensor(elemType, targetShape);
+
+        const auto &outputShape = node->get_output_shape(0);
+        const size_t range = outputShape[0] - 1; // values in segmentsIds should be less than num_segments
+        const size_t startFrom = 0;
+        const int seed = 1;
+        std::default_random_engine random(seed);
+        switch (elemType) {
+            case element::Type_t::i32: {
+                std::uniform_int_distribution<int32_t> distribution(startFrom, (startFrom + range));
+
+                auto *dataPtr = tensor.data<int32_t>();
+                for (size_t i = 0; i < tensor.get_size(); i++) {
+                    dataPtr[i] = distribution(random);
+                }
+                return tensor;
+            }
+            case element::Type_t::i64: {
+                std::uniform_int_distribution<int64_t> distribution(startFrom, (startFrom + range));
+
+                auto *dataPtr = tensor.data<int64_t>();
+                for (size_t i = 0; i < tensor.get_size(); i++) {
+                    dataPtr[i] = distribution(random);
+                }
+                return tensor;
+            }
+            default:
+                OPENVINO_THROW("Unsupported element type for segment_ids: ", elemType);
+        }
+    }
+    return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
+}
+
+ov::runtime::Tensor generate(const std::shared_ptr<ov::op::internal::AUGRUSequence>& node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    if (port == 6) {
+        ov::runtime::Tensor tensor = ov::runtime::Tensor(elemType, targetShape);
+
+        const size_t range = 1;
+        const size_t startFrom = 0;
+        const size_t k = 1000;
+        const int seed = 1;
+        std::default_random_engine random(seed);
+        std::uniform_int_distribution<int32_t> distribution(k * startFrom, k * (startFrom + range));
+
+        auto *dataPtr = tensor.data<float>();
+        for (size_t i = 0; i < tensor.get_size(); i++) {
+            auto value = static_cast<float>(distribution(random));
+            dataPtr[i] = value / static_cast<float>(k);
+        }
+        return tensor;
+    }
+    return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
+}
+
+ov::runtime::Tensor generate(const std::shared_ptr<ov::op::internal::AUGRUCell>& node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    if (port == 5) {
+        ov::runtime::Tensor tensor = ov::runtime::Tensor(elemType, targetShape);
+
+        const size_t range = 1;
+        const size_t startFrom = 0;
+        const size_t k = 1000;
+        const int seed = 1;
+        std::default_random_engine random(seed);
+        std::uniform_int_distribution<int32_t> distribution(k * startFrom, k * (startFrom + range));
+
+        auto *dataPtr = tensor.data<float>();
+        for (size_t i = 0; i < tensor.get_size(); i++) {
+            auto value = static_cast<float>(distribution(random));
+            dataPtr[i] = value / static_cast<float>(k);
+        }
+        return tensor;
+    }
+    return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
+}
+
 template<ov::element::Type_t elemType>
 ov::runtime::Tensor generate_unique_possibilities(const ov::Shape &targetShape) {
     using value_type = typename element_type_traits<elemType>::value_type;
@@ -685,12 +788,11 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v6::ExperimentalD
             case element::Type_t::f32:
                 return generate_unique_possibilities<element::Type_t::f32>(targetShape);
             default:
-                OPENVINO_UNREACHABLE("Unsupported element type: ", elemType);
+                OPENVINO_THROW("Unsupported element type: ", elemType);
         }
     }
     return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
 }
-
 
 ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v5::RNNSequence>& node,
                              size_t port,
@@ -710,6 +812,106 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v5::Round>& node,
     return Activation::generate(elemType, targetShape, InputGenerateData(-10, 20, 4));
 }
 
+ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v8::Softmax>& node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    auto axis = node->get_axis();
+    axis = axis < 0 ? targetShape.size() + axis : axis;
+    unsigned datasetSize = std::accumulate(targetShape.begin() + axis, targetShape.end(), 1,
+        [](std::size_t a, size_t b) { return a * b; });
+    // Generate small negative values for datasets which exceed 2048 size
+    // to avoid NaN values in Softmax results for fp16 precision
+    if (datasetSize >= 2048 && static_cast<ov::element::Type_t>(elemType) == ov::element::Type_t::f16)
+        return ov::test::utils::create_and_fill_tensor_normal_distribution(elemType, targetShape, -5.f, 0.5f, 7235346);
+    return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
+}
+
+ov::runtime::Tensor generate(const
+                             std::shared_ptr<ngraph::op::v3::ScatterNDUpdate>& node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    // when fill indices
+    if (port == 1) {
+        auto srcShape = node->get_input_shape(0);
+        // the data in indices must be unique.
+        // so need to select part data from total collection
+        // Calculate the collection size
+        int k = targetShape[targetShape.size() - 1];
+        int totalSize = 1;
+        for (int i = 0; i < k; i++) {
+            totalSize *= srcShape[i];
+        }
+        size_t indShapeSize = ngraph::shape_size(targetShape);
+        // Calculate the size of part data
+        int selectNums = indShapeSize / k;
+        // create total collection
+        std::vector<int> collection(totalSize);
+        for (int i = 0; i < totalSize; i++) {
+            collection[i] = i;
+        }
+        // select part data from collection
+        // the last selectNums data in collection are what want to be filled into tensor
+        testing::internal::Random random(1);
+        int r = 0;
+        int tmp = 0;
+        for (int i = 0, y = totalSize; i < selectNums; i++, y--) {
+            r = random.Generate(y);
+            // switch y and r
+            tmp = collection[y - 1];
+            collection[y - 1] = collection[r];
+            collection[r] = tmp;
+        }
+        // if the shape of source data is (a ,b ,c)
+        // the strides is (bc, c, 1)
+        std::vector<int> strides;
+        int stride = 1;
+        strides.push_back(stride);
+        for (int i = k - 1; i > 0; i--) {
+            stride *= srcShape[i];
+            strides.push_back(stride);
+        }
+        std::reverse(strides.begin(), strides.end());
+        // create tensor and fill function
+        auto tensor = ov::Tensor{elemType, targetShape};
+        auto fill_data = [&elemType, &tensor](int offset, int value) {
+            switch (elemType) {
+                case ov::element::Type_t::i32: {
+                    auto data =
+                        tensor.data<element_type_traits<ov::element::Type_t::i32>::value_type>();
+                    data[offset] = value;
+                    break;
+                }
+                case ov::element::Type_t::i64: {
+                    auto data =
+                        tensor.data<element_type_traits<ov::element::Type_t::i64>::value_type>();
+                    data[offset] = value;
+                    break;
+                }
+                default:
+                    throw std::runtime_error("indices type should be int32 or int64");
+            }
+        };
+        // start to fill data
+        int index = 0;
+        int tmpNum = 0;
+        for (int i = totalSize - selectNums, y = 0; i < totalSize; i++, y = y + k) {
+            tmpNum = collection[i];
+            for (int z = 0; z < k; z++) {
+                //Calculate index of dims
+                index = tmpNum / strides[z];
+                tmpNum = tmpNum % strides[z];
+                fill_data(y + z, index);
+            }
+        }
+        return tensor;
+    } else {
+        return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType,
+                        targetShape);
+    }
+}
+
 template<typename T>
 ov::runtime::Tensor generateInput(const std::shared_ptr<ov::Node>& node,
                                   size_t port,
@@ -721,19 +923,22 @@ ov::runtime::Tensor generateInput(const std::shared_ptr<ov::Node>& node,
 
 InputsMap getInputMap() {
     static InputsMap inputsMap{
-#define NGRAPH_OP(NAME, NAMESPACE) {NAMESPACE::NAME::get_type_info_static(), generateInput<NAMESPACE::NAME>},
+#define _OPENVINO_OP_REG(NAME, NAMESPACE) {NAMESPACE::NAME::get_type_info_static(), generateInput<NAMESPACE::NAME>},
 
-#include "ngraph/opsets/opset1_tbl.hpp"
-#include "ngraph/opsets/opset2_tbl.hpp"
-#include "ngraph/opsets/opset3_tbl.hpp"
-#include "ngraph/opsets/opset4_tbl.hpp"
-#include "ngraph/opsets/opset5_tbl.hpp"
-#include "ngraph/opsets/opset6_tbl.hpp"
-#include "ngraph/opsets/opset7_tbl.hpp"
-#include "ngraph/opsets/opset8_tbl.hpp"
-#include "ngraph/opsets/opset9_tbl.hpp"
+#include "openvino/opsets/opset1_tbl.hpp"
+#include "openvino/opsets/opset2_tbl.hpp"
+#include "openvino/opsets/opset3_tbl.hpp"
+#include "openvino/opsets/opset4_tbl.hpp"
+#include "openvino/opsets/opset5_tbl.hpp"
+#include "openvino/opsets/opset6_tbl.hpp"
+#include "openvino/opsets/opset7_tbl.hpp"
+#include "openvino/opsets/opset8_tbl.hpp"
+#include "openvino/opsets/opset9_tbl.hpp"
+#include "openvino/opsets/opset10_tbl.hpp"
+#include "openvino/opsets/opset11_tbl.hpp"
 
-#undef NGRAPH_OP
+#include "ov_ops/opset_private_tbl.hpp"
+#undef _OPENVINO_OP_REG
     };
     return inputsMap;
 }

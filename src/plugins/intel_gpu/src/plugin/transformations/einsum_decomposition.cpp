@@ -893,6 +893,10 @@ EinsumDecomposition::EinsumDecomposition() {
             return false;
         }
 
+        if (einsum_node->is_dynamic()) {
+            return false;
+        }
+
         auto equation = einsum_node->get_equation();
         std::vector<std::string> input_subscripts;
         std::string output_subscript;

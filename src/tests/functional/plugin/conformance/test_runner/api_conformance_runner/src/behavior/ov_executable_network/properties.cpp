@@ -1,8 +1,8 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior/ov_executable_network/properties.hpp"
+#include "behavior/compiled_model/properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "ov_api_conformance_helpers.hpp"
 
@@ -16,85 +16,60 @@ const std::vector<ov::AnyMap> inproperties = {
 };
 
 const std::vector<ov::AnyMap> auto_batch_inproperties = {
-        {{ov::device::id("UNSUPPORTED_DEVICE_ID_STRING")}},
         {{ov::auto_batch_timeout(-1)}},
 };
 
-INSTANTIATE_TEST_SUITE_P(ov_compiled_model, OVCompiledModelPropertiesIncorrectTests,
+INSTANTIATE_TEST_SUITE_P(ov_compiled_model_mandatory, OVClassCompiledModelPropertiesIncorrectTests,
                         ::testing::Combine(
-                                ::testing::Values(ov::test::conformance::targetDevice),
+                                ::testing::ValuesIn(ov::test::conformance::return_all_possible_device_combination()),
                                 ::testing::ValuesIn(inproperties)),
-                        OVCompiledModelPropertiesIncorrectTests::getTestCaseName);
+                        OVClassCompiledModelPropertiesIncorrectTests::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(ov_compiled_model_Hetero, OVCompiledModelPropertiesIncorrectTests,
-                        ::testing::Combine(
-                                ::testing::Values(CommonTestUtils::DEVICE_HETERO),
-                                ::testing::ValuesIn(generate_ov_configs(CommonTestUtils::DEVICE_HETERO, inproperties))),
-                        OVCompiledModelPropertiesIncorrectTests::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(ov_compiled_model_Multi, OVCompiledModelPropertiesIncorrectTests,
-                         ::testing::Combine(
-                                 ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-                                 ::testing::ValuesIn(generate_ov_configs(CommonTestUtils::DEVICE_MULTI, inproperties))),
-                         OVCompiledModelPropertiesIncorrectTests::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(ov_compiled_model_Auto, OVCompiledModelPropertiesIncorrectTests,
-                         ::testing::Combine(
-                                 ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                 ::testing::ValuesIn(generate_ov_configs(CommonTestUtils::DEVICE_AUTO, inproperties))),
-                         OVCompiledModelPropertiesIncorrectTests::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(ov_compiled_model_AutoBatch, OVCompiledModelPropertiesIncorrectTests,
+INSTANTIATE_TEST_SUITE_P(ov_compiled_model_AutoBatch, OVClassCompiledModelPropertiesIncorrectTests,
                          ::testing::Combine(
                                  ::testing::Values(CommonTestUtils::DEVICE_BATCH),
                                  ::testing::ValuesIn(generate_ov_configs(CommonTestUtils::DEVICE_BATCH, auto_batch_inproperties))),
-                         OVCompiledModelPropertiesIncorrectTests::getTestCaseName);
+                         OVClassCompiledModelPropertiesIncorrectTests::getTestCaseName);
 
 
 const std::vector<ov::AnyMap> default_properties = {
-        {ov::enable_profiling(true)},
-        {ov::device::id("0")},
+        {ov::enable_profiling(false)}
 };
 
-INSTANTIATE_TEST_SUITE_P(ov_compiled_model, OVCompiledModelPropertiesDefaultTests,
+INSTANTIATE_TEST_SUITE_P(ov_compiled_model_mandatory, OVClassCompiledModelPropertiesDefaultTests,
         ::testing::Combine(
                 ::testing::ValuesIn(return_all_possible_device_combination()),
                 ::testing::ValuesIn(default_properties)),
-        OVCompiledModelPropertiesDefaultTests::getTestCaseName);
+        OVClassCompiledModelPropertiesDefaultTests::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(ov_compiled_model_mandatory, OVCompiledModelPropertiesDefaultSupportedTests,
+                         ::testing::ValuesIn(return_all_possible_device_combination()),
+                         OVCompiledModelPropertiesDefaultSupportedTests::getTestCaseName);
 
 const std::vector<ov::AnyMap> auto_batch_properties = {
-        {},
         {{CONFIG_KEY(AUTO_BATCH_TIMEOUT) , "1"}},
         {{ov::auto_batch_timeout(10)}},
 };
 
-INSTANTIATE_TEST_SUITE_P(ov_compiled_model, OVCompiledModelPropertiesTests,
+INSTANTIATE_TEST_SUITE_P(ov_compiled_model_mandatory, OVClassCompiledModelPropertiesTests,
         ::testing::Combine(
-                ::testing::Values(ov::test::conformance::targetDevice),
+                ::testing::ValuesIn(ov::test::conformance::return_all_possible_device_combination()),
                 ::testing::ValuesIn(default_properties)),
-        OVCompiledModelPropertiesTests::getTestCaseName);
+        OVClassCompiledModelPropertiesTests::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(ov_compiled_model_Hetero, OVCompiledModelPropertiesTests,
-        ::testing::Combine(
-                ::testing::Values(CommonTestUtils::DEVICE_HETERO),
-                ::testing::ValuesIn(ov::test::conformance::generate_ov_configs(CommonTestUtils::DEVICE_HETERO, default_properties))),
-        OVCompiledModelPropertiesTests::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(ov_compiled_model_Multi, OVCompiledModelPropertiesTests,
-        ::testing::Combine(
-                ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-                ::testing::ValuesIn(ov::test::conformance::generate_ov_configs(CommonTestUtils::DEVICE_MULTI, default_properties))),
-        OVCompiledModelPropertiesTests::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(ov_compiled_model_Auto, OVCompiledModelPropertiesTests,
-                         ::testing::Combine(
-                                 ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                 ::testing::ValuesIn(ov::test::conformance::generate_ov_configs(CommonTestUtils::DEVICE_AUTO, default_properties))),
-                         OVCompiledModelPropertiesTests::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(ov_compiled_model_AutoBatch, OVCompiledModelPropertiesTests,
+INSTANTIATE_TEST_SUITE_P(ov_compiled_model_AutoBatch, OVClassCompiledModelPropertiesTests,
         ::testing::Combine(
                 ::testing::Values(CommonTestUtils::DEVICE_BATCH),
                 ::testing::ValuesIn(ov::test::conformance::generate_ov_configs(CommonTestUtils::DEVICE_BATCH, auto_batch_properties))),
-        OVCompiledModelPropertiesTests::getTestCaseName);
+        OVClassCompiledModelPropertiesTests::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(
+        ov_compiled_model, OVClassCompiledModelEmptyPropertiesTests,
+        ::testing::ValuesIn(ov::test::conformance::return_all_possible_device_combination()));
+
+// IE Class Load network
+
+INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVCompiledModelIncorrectDevice,
+        ::testing::Values(targetDevice));
+
 } // namespace

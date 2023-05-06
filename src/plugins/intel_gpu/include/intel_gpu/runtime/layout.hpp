@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,6 +15,9 @@
 #include <string>
 #include <functional>
 #include <set>
+
+#include <openvino/core/partial_shape.hpp>
+#include <openvino/core/type/element_type.hpp>
 
 namespace cldnn {
 /// @addtogroup cpp_api C++ API
@@ -114,6 +117,8 @@ struct data_type_traits {
 
     static std::string name(data_types data_type) {
         switch (data_type) {
+            case data_types::bin:
+                return "bin";
             case data_types::i8:
                 return "i8";
             case data_types::u8:
@@ -128,7 +133,7 @@ struct data_type_traits {
                 return "f32";
             default:
                 assert(0);
-                return std::string("invalid data type: " + std::to_string(static_cast<int>(data_type)));
+                return "unknown (" + std::to_string(typename std::underlying_type<data_types>::type(data_type)) + ")";
         }
     }
 
@@ -207,6 +212,55 @@ bool data_type_match(data_types data_type) {
     return data_type == type_to_data_type<T>::value;
 }
 
+inline data_types element_type_to_data_type(ov::element::Type t) {
+    switch (t) {
+    case ov::element::Type_t::i16:
+    case ov::element::Type_t::u16:
+    case ov::element::Type_t::f32:
+    case ov::element::Type_t::f64:
+        return cldnn::data_types::f32;
+    case ov::element::Type_t::f16:
+        return cldnn::data_types::f16;
+    case ov::element::Type_t::u8:
+        return cldnn::data_types::u8;
+    case ov::element::Type_t::i8:
+        return cldnn::data_types::i8;
+    case ov::element::Type_t::i32:
+    case ov::element::Type_t::u32:
+    case ov::element::Type_t::u64:
+        return cldnn::data_types::i32;
+    case ov::element::Type_t::i64:
+        return cldnn::data_types::i64;
+    case ov::element::Type_t::boolean:
+        return cldnn::data_types::i8;
+    case ov::element::Type_t::u1:
+        return cldnn::data_types::bin;
+    default:
+        throw std::runtime_error("Can't convert " + t.get_type_name() + " element type");
+    }
+}
+
+inline ov::element::Type data_type_to_element_type(data_types t) {
+    switch (t) {
+    case cldnn::data_types::f32:
+        return ov::element::Type_t::f32;
+    case cldnn::data_types::f16:
+        return ov::element::Type_t::f16;
+    case cldnn::data_types::u8:
+        return ov::element::Type_t::u8;
+    case cldnn::data_types::i8:
+        return ov::element::Type_t::i8;
+    case cldnn::data_types::i32:
+        return ov::element::Type_t::i32;
+    case cldnn::data_types::i64:
+        return ov::element::Type_t::i64;
+    case cldnn::data_types::bin:
+        return ov::element::Type_t::u1;
+    default:
+        throw std::runtime_error("Can't convert " + data_type_traits::name(t) + " precision");
+    }
+}
+
 /// Helper function to get both data_types and format::type in a single, unique value. Useable in 'case' statement.
 constexpr auto fuse(data_types dt, cldnn::format::type fmt) -> decltype(static_cast<std::underlying_type<data_types>::type>(dt) |
                                                                         static_cast<std::underlying_type<format::type>::type>(fmt)) {
@@ -278,6 +332,14 @@ struct padding {
         return padding{lower.sizes(), upper.sizes(), filling_value};
     }
 
+    size_t hash() const {
+        size_t seed = 0;
+        seed = cldnn::hash_combine(seed, _filling_value);
+        seed = cldnn::hash_combine(seed, _lower_size.hash());
+        seed = cldnn::hash_combine(seed, _upper_size.hash());
+        return seed;
+    }
+
 private:
     tensor _lower_size;  ///< Lower padding sizes. For spatials, it means size of left (X) and top (Y) padding.
     tensor _upper_size;  ///< Upper padding sizes. For spatials, it means size of right (X) and bottom (Y) padding.
@@ -297,11 +359,37 @@ private:
 /// @brief Describes memory layout.
 /// @details Contains information about data stored in @ref memory.
 struct layout {
+    struct Hasher {
+        size_t operator()(const layout &l) const {
+            return l.hash();
+        }
+    };
+
     /// Constructs layout based on @p data_type and @p size information described by @ref tensor
     layout(data_types data_type, cldnn::format fmt, tensor size, padding apadding = padding())
-        : data_type(data_type), format(fmt), data_padding(apadding), size(size) {}
+        : data_type(data_type)
+        , format(fmt)
+        , data_padding(apadding) {
+            auto sizes = fmt == format::any ? size.sizes() : size.sizes(format::get_default_format(fmt.dimension(),
+                                                                                                   format::is_weights_format(fmt),
+                                                                                                   format::is_grouped(fmt)));
+            ov::Shape shape(sizes.begin(), sizes.end());
+            this->size = ov::PartialShape(shape);
+        }
+
+    layout(ov::PartialShape size, data_types data_type, cldnn::format fmt, padding apadding = padding())
+        : data_type(data_type)
+        , format(fmt)
+        , data_padding(apadding)
+        , size(size) { }
 
     layout(const layout& other) = default;
+
+    layout()
+        : data_type(cldnn::data_types::bin)
+        , format(cldnn::format::any)
+        , data_padding(padding())
+        , size(ov::PartialShape()) { }
 
     layout& operator=(const layout& other) {
         if (this == &other)
@@ -314,7 +402,19 @@ struct layout {
     }
 
     friend bool operator==(const layout& lhs, const layout& rhs) {
-        return lhs.data_type == rhs.data_type && lhs.format == rhs.format && lhs.size == rhs.size && lhs.data_padding == rhs.data_padding;
+        auto get_pshape = [&](const layout& l){
+            if (l.format != cldnn::format::any && l.size.size() < l.format.dimension()) {
+                auto dims = l.get_dims();
+                return ov::PartialShape(ov::Shape(dims.begin(), dims.end()));
+            }
+            return l.size;
+        };
+
+        if (lhs.get_partial_shape().rank() != rhs.get_partial_shape().rank())
+            return false;
+
+        auto check_pshape = (lhs.is_dynamic() || rhs.is_dynamic()) ? (lhs.size == rhs.size) : (get_pshape(lhs) == get_pshape(rhs));
+        return lhs.data_type == rhs.data_type && lhs.format == rhs.format && check_pshape && lhs.data_padding == rhs.data_padding;
     }
 
     friend bool operator!=(const layout& lhs, const layout& rhs) {
@@ -326,8 +426,8 @@ struct layout {
             return (lhs.data_type < rhs.data_type);
         if (lhs.format != rhs.format)
             return (lhs.format < rhs.format);
-        if (lhs.size < rhs.size)
-            return (lhs.size < rhs.size);
+        if (lhs.count() < rhs.count())
+            return (lhs.count() < rhs.count());
         return (lhs.data_padding < rhs.data_padding);
     }
 
@@ -390,18 +490,63 @@ struct layout {
     layout convert_to_weights_layout(bool is_grouped) const;
 
     std::string to_string() const;
+    std::string to_short_string() const;
 
     bool is_dynamic() const;
 
+    bool has_upper_bound() const {
+        for (const auto& dim : size) {
+            if (dim.get_max_length() == -1)
+                return false;
+        }
+        return true;
+    }
+
     bool is_static() const;
+
+    ov::PartialShape get_partial_shape() const;
+
+    ov::Shape get_shape() const;
 
     tensor get_tensor() const;
 
+    template<typename T>
+    T get() const;
+
     void set_tensor(const tensor& size);
+
+    void set_partial_shape(const ov::PartialShape& size);
+
+    // Returns true if other layout can be reinterpreted without need of reordering
+    bool compatible(const layout& other) const;
+
+    // Returns true if other layout is identical to this.
+    // Note: layouts can only be considered identical if data size described by both layouts match (so no data are genereted
+    // nor dropped). If layouts describe two buffers with different size, consider them not to be identical even if
+    // smaller buffer can be considered to hold subsequence of larger buffer,  this behavior is required to force buffer allocation
+    // for smaller buffer which, currently, should always be performed
+    bool identical(const layout& other) const;
+
+    static size_t max_rank() { return 8; }
+    static ov::PartialShape transform(const ov::PartialShape& pshape, cldnn::format old_fmt, cldnn::format new_fmt);
+
+    size_t hash() const {
+        size_t seed = 0;
+        seed = hash_combine(seed, data_padding.hash());
+        seed = hash_combine(seed, format.value);
+        seed = hash_combine(seed, data_type);
+
+        auto pshape = get_partial_shape();
+        for (size_t idx = 0; idx < pshape.size(); idx++) {
+            auto v = pshape[idx].is_dynamic() ? -1 : pshape[idx].get_length();
+            seed = hash_combine(seed, v);
+        }
+        return seed;
+    }
 
 private:
     /// The size of the @ref memory (excluding padding)
-    tensor size;
+    ov::PartialShape size;
 };
 
 inline ::std::ostream& operator<<(::std::ostream& os, const layout& p) {

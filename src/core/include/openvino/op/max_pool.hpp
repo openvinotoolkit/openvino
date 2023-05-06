@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,8 +15,7 @@ namespace v1 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API MaxPool : public op::util::MaxPoolBase {
 public:
-    OPENVINO_OP("MaxPool", "opset1", op::util::MaxPoolBase, 1);
-    BWDCMP_RTTI_DECLARATION;
+    OPENVINO_OP("MaxPool", "opset1", op::util::MaxPoolBase);
 
     /// \brief Constructs a batched max pooling operation.
     MaxPool() = default;
@@ -44,11 +43,6 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    /// \return The default value for MaxPool.
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    std::shared_ptr<Node> get_default_value() const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
-
     OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
     OPENVINO_SUPPRESS_DEPRECATED_END
@@ -65,7 +59,6 @@ namespace v8 {
 class OPENVINO_API MaxPool : public op::util::MaxPoolBase {
 public:
     OPENVINO_OP("MaxPool", "opset8", op::util::MaxPoolBase);
-    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs an empty MaxPool operation.
     MaxPool() = default;

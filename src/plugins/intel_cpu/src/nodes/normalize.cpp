@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,7 @@
 #include "utils/bfloat16.hpp"
 #include "utils/general_utils.h"
 #include <dnnl_extension_utils.h>
-#include "emitters/jit_bf16_emitters.hpp"
+#include "emitters/x64/jit_bf16_emitters.hpp"
 #include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
 #include <cpu/x64/injectors/jit_uni_depthwise_injector.hpp>
 #include <cpu/x64/injectors/jit_uni_quantization_injector.hpp>
@@ -23,6 +23,7 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "utils/cpu_utils.hpp"
 #include <common/primitive_hashing_utils.hpp>
+#include <utils/shape_inference/shape_inference_pass_through.hpp>
 
 using namespace dnnl;
 using namespace InferenceEngine;
@@ -31,8 +32,9 @@ using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::utils;
 using namespace Xbyak;
 
+#if defined(OPENVINO_ARCH_X86_64)
 #define GET_OFF(field) offsetof(jit_normalize_call_args, field)
-
+#endif
 #define THROW_ERROR IE_THROW() << "NormalizeL2 layer with name '" << getName() << "' "
 
 namespace ov {
@@ -77,6 +79,8 @@ bool NormalizeKey::operator==(const NormalizeKey& rhs) const {
 
 }  // namespace
 
+#if defined(OPENVINO_ARCH_X86_64)
+
 static inline bool isFloatCompatible(memory::data_type type) {
     return memory::data_type::f32 == type || memory::data_type::bf16 == type;
 }
@@ -85,7 +89,7 @@ template <cpu_isa_t isa>
 struct jit_uni_normalize_modulo_kernel_f32 : public jit_uni_normalize_modulo_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_normalize_modulo_kernel_f32)
 
-    jit_uni_normalize_modulo_kernel_f32(jit_normalize_config_params jcp) : jit_uni_normalize_modulo_kernel(jcp), jit_generator() {}
+    jit_uni_normalize_modulo_kernel_f32(jit_normalize_config_params jcp) : jit_uni_normalize_modulo_kernel(jcp), jit_generator(jit_name()) {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -206,7 +210,7 @@ struct jit_uni_normalize_kernel_f32 : public jit_uni_normalize_kernel, public ji
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_normalize_kernel_f32)
 
     explicit jit_uni_normalize_kernel_f32(jit_normalize_config_params jcp, const dnnl_primitive_attr &attr)
-    : jit_uni_normalize_kernel(jcp, attr), jit_generator() {}
+    : jit_uni_normalize_kernel(jcp, attr), jit_generator(jit_name()) {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -229,8 +233,8 @@ struct jit_uni_normalize_kernel_f32 : public jit_uni_normalize_kernel, public ji
             }
         }
 
-        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
-            emu_vcvtneps2bf16.reset(new jit_emu_vcvtneps2bf16(this, isa));
+        if (mayiuse(avx512_core))
+            uni_vcvtneps2bf16.reset(new jit_uni_vcvtneps2bf16(this, isa));
 
         this->preamble();
 
@@ -255,8 +259,8 @@ struct jit_uni_normalize_kernel_f32 : public jit_uni_normalize_kernel, public ji
 
         this->postamble();
 
-        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core) && emu_vcvtneps2bf16 != nullptr)
-            emu_vcvtneps2bf16->emit_data();
+        if (uni_vcvtneps2bf16)
+            uni_vcvtneps2bf16->emit_data();
         for (auto& inj : eltwise_injectors)
             inj->prepare_table();
     }
@@ -296,7 +300,7 @@ private:
     Vmm vmm_d_bias = Vmm(6);
     Vmm vmm_zero = Vmm(7);
 
-    std::unique_ptr<jit_emu_vcvtneps2bf16> emu_vcvtneps2bf16 = nullptr;
+    std::unique_ptr<jit_uni_vcvtneps2bf16> uni_vcvtneps2bf16 = nullptr;
 
     std::vector<std::shared_ptr<jit_uni_eltwise_injector_f32<isa>>> eltwise_injectors;
     std::vector<std::shared_ptr<jit_uni_depthwise_injector_f32<isa>>> depthwise_injectors;
@@ -571,10 +575,7 @@ private:
         if (dst_dt == memory::data_type::f32) {
             uni_vmovups(op, vmm_dst);
         } else if (dst_dt == memory::data_type::bf16) {
-            if (mayiuse(avx512_core_bf16))
-                vcvtneps2bf16(ymm_dst, vmm_dst);
-            else
-                emu_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(ymm_dst.getIdx())});
+            uni_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(ymm_dst.getIdx())});
             vmovdqu16(op, ymm_dst);
         } else if (dst_dt == memory::data_type::u8) {
             uni_vcvtps2dq(vmm_dst, vmm_dst);
@@ -695,7 +696,7 @@ private:
         }
     }
 };
-
+#endif
 bool NormalizeL2::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         auto norm = ov::as_type_ptr<const ngraph::op::v0::NormalizeL2>(op);
@@ -754,8 +755,8 @@ bool NormalizeL2::isSupportedOperation(const std::shared_ptr<const ngraph::Node>
     return true;
 }
 
-NormalizeL2::NormalizeL2(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
-        Node(op, eng, cache) {
+NormalizeL2::NormalizeL2(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context) :
+        Node(op, context, PassThroughShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -812,7 +813,6 @@ void NormalizeL2::initSupportedPrimitiveDescriptors() {
                         getParentEdgeAt(DATA)->getParent()->getChildEdges().size() == 1;
 
     NodeConfig config;
-    config.dynBatchSupport = false;
     config.inConfs.resize(2);
     config.outConfs.resize(1);
     config.outConfs[0].inPlace(canBeInplace ? 0 : -1);
@@ -915,12 +915,11 @@ void NormalizeL2::prepareParams() {
 
     NormalizeKey key = {attrs, kernel_attrs, dims};
 
-    auto engine = getEngine();
-    auto builder = [&engine](const NormalizeKey& key) -> std::shared_ptr<NormalizeL2::NormalizeL2Executor> {
+    auto builder = [](const NormalizeKey& key) -> std::shared_ptr<NormalizeL2::NormalizeL2Executor> {
         return NormalizeL2Executor::getNormalizeL2Executor(key.attrs, key.kernel_attrs, key.dims);
     };
 
-    auto cache = getRuntimeCache();
+    auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, builder);
 
     if (!result.first) {
@@ -941,10 +940,6 @@ void NormalizeL2::execute(dnnl::stream strm) {
     const uint8_t *src_ptr = reinterpret_cast<const uint8_t *>(getParentEdgeAt(DATA)->getMemoryPtr()->GetPtr());
     uint8_t *dst_ptr = reinterpret_cast<uint8_t *>(getChildEdgeAt(DATA)->getMemoryPtr()->GetPtr());
     execPtr->exec(src_ptr, dst_ptr, postOpsDataPtrs.data());
-}
-
-std::vector<VectorDims> NormalizeL2::shapeInfer() const {
-    return std::vector<VectorDims>{getParentEdgesAtPort(DATA)[0]->getMemory().getStaticDims()};
 }
 
 // *====================* CornerCase *===================*
@@ -972,7 +967,7 @@ private:
 // *=================* *======* *=================*
 
 // *=================* JIT case *=================*
-
+#if defined(OPENVINO_ARCH_X86_64)
 template <typename in_data_t, typename out_data_t>
 class NormalizeL2::NormalizeL2JitExecutor : public NormalizeL2::NormalizeL2Executor {
 public:
@@ -1069,8 +1064,7 @@ private:
                     return modulo_kernel + modulo_tail;
                 });
 
-                modulo = std::sqrt(modulo);
-                float modulo_inv = 1.0f / (epsApply(modulo, attrs.epsMode, attrs.eps));
+                float modulo_inv = 1.0f / (std::sqrt(epsApply(modulo, attrs.epsMode, attrs.eps)));
 
                 // normalize
                 parallel_for(jcp.c, [&](size_t ic) {
@@ -1161,8 +1155,8 @@ private:
                     }
                     return modulo_kernel + modulo_tail;
                 });
-                modulo = std::sqrt(modulo);
-                float modulo_inv = 1.0f / (epsApply(modulo, attrs.epsMode, attrs.eps));
+
+                float modulo_inv = 1.0f / (std::sqrt(epsApply(modulo, attrs.epsMode, attrs.eps)));
 
                 // normalize
                 parallel_for2d(jcp.h, jcp.w, [&](int ih, int iw) {
@@ -1197,8 +1191,7 @@ private:
                         modulo += src_data_bhw[c] * src_data_bhw[c];
                     }
 
-                    modulo = std::sqrt(modulo);
-                    float modulo_inv = 1.0f / (epsApply(modulo, attrs.epsMode, attrs.eps));
+                    float modulo_inv = 1.0f / (std::sqrt(epsApply(modulo, attrs.epsMode, attrs.eps)));
 
                     // normalize
                     arg.dst = dst_data_bhw;
@@ -1246,8 +1239,7 @@ private:
                     return modulo_w_blk;
                 });
 
-                modulo = std::sqrt(modulo);
-                float modulo_inv = 1.0f / (epsApply(modulo, attrs.epsMode, attrs.eps));
+                float modulo_inv = 1.0f / (std::sqrt(epsApply(modulo, attrs.epsMode, attrs.eps)));
 
                 // normalize
                 parallel_for2d(CB, jcp.h, [&](size_t cb, size_t h) {
@@ -1284,8 +1276,7 @@ private:
                         }
                     }
 
-                    modulo = std::sqrt(modulo);
-                    float modulo_inv = 1.0f / (epsApply(modulo, attrs.epsMode, attrs.eps));
+                    float modulo_inv = 1.0f / (std::sqrt(epsApply(modulo, attrs.epsMode, attrs.eps)));
 
                     // normalize
                     arg.dst = dst_data_bhw;
@@ -1306,7 +1297,7 @@ private:
     std::shared_ptr<jit_uni_normalize_modulo_kernel> normalize_modulo_kernel;
     std::shared_ptr<jit_uni_normalize_kernel> normalize_kernel;
 };
-
+#endif
 // *=================* *======* *=================*
 
 // *=============* Reference case *===============*
@@ -1315,7 +1306,7 @@ template <typename in_data_t, typename out_data_t>
 class NormalizeL2::NormalizeL2ReferenceExecutor : public NormalizeL2::NormalizeL2Executor {
 public:
     NormalizeL2ReferenceExecutor(const NormalizeL2Attrs& attrs, const dnnl::primitive_attr& kernel_attrs, const VectorDims& dims) :
-        attrs(attrs), kernel_attrs(kernel_attrs), dims(dims) {
+        dims(dims), kernel_attrs(kernel_attrs), attrs(attrs) {
         if (attrs.layout != LayoutType::ncsp) {
             IE_THROW() << "Reference Executor of 'NormalizeL2' supports only ncsp layout!";
         }
@@ -1360,8 +1351,7 @@ private:
                     return modulo_c;
                 });
 
-                modulo = std::sqrt(modulo);
-                float modulo_inv = 1.0f / (epsApply(modulo, attrs.epsMode, attrs.eps));
+                float modulo_inv = 1.0f / (std::sqrt(epsApply(modulo, attrs.epsMode, attrs.eps)));
 
                 // normalize
                 parallel_for(C, [&](size_t ic) {
@@ -1503,8 +1493,10 @@ std::shared_ptr<NormalizeL2::NormalizeL2Executor> NormalizeL2::NormalizeL2Execut
         const NormalizeL2Attrs& attrs, const dnnl::primitive_attr& kernel_attrs, const VectorDims& dims) {
     if (attrs.cornerCase)
         return std::make_shared<NormalizeL2CornerCaseExecutor<in_data_t, out_data_t>>(dims);
+#if defined(OPENVINO_ARCH_X86_64)
     else if (mayiuse(cpu::x64::sse41))
         return std::make_shared<NormalizeL2JitExecutor<in_data_t, out_data_t>>(attrs, kernel_attrs, dims);
+#endif
     else if (attrs.layout == LayoutType::ncsp)
         return std::make_shared<NormalizeL2ReferenceExecutor<in_data_t, out_data_t>>(attrs, kernel_attrs, dims);
     else

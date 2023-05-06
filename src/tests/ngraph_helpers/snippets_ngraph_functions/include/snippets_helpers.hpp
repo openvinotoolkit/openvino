@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -17,9 +17,10 @@ using ov::Model;
 class SnippetsFunctionBase {
 public:
     SnippetsFunctionBase() = delete;
+    virtual ~SnippetsFunctionBase() = default;
 
-    explicit SnippetsFunctionBase(const std::vector<Shape>& inputShapes, ov::element::Type_t precision = element::f32)
-                : input_shapes{inputShapes}, precision{precision} {};
+    explicit SnippetsFunctionBase(const std::vector<PartialShape>& inputShapes, ov::element::Type_t precision = element::f32)
+                : precision{precision}, input_shapes{inputShapes} {}
 
     std::shared_ptr<Model> getReference() const {
         std::shared_ptr<Model> function_ref = initReference();
@@ -53,7 +54,7 @@ protected:
     }
 
     const ov::element::Type_t precision;
-    const std::vector<Shape> input_shapes;
+    const std::vector<PartialShape> input_shapes;
 
     virtual void validate_function(const std::shared_ptr<Model> &f) const;
 };
@@ -67,7 +68,7 @@ protected:
 class SnippetsFunctionCustomizable : public SnippetsFunctionBase {
 public:
     SnippetsFunctionCustomizable() = delete;
-    SnippetsFunctionCustomizable(const std::vector<Shape>& inputShapes,
+    SnippetsFunctionCustomizable(const std::vector<PartialShape>& inputShapes,
                                  const std::vector<std::shared_ptr<Node>>& customOps,
                                  const std::vector<size_t>&& customOpsNumInputs);
 

@@ -1,18 +1,15 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ngraph/op/util/binary_elementwise_arithmetic.hpp"
 
-#include <ngraph/validation_util.hpp>
-
+#include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/util/elementwise_args.hpp"
 
 using namespace std;
-
-BWDCMP_RTTI_DEFINITION(ov::op::util::BinaryElementwiseArithmetic);
 
 ov::op::util::BinaryElementwiseArithmetic::BinaryElementwiseArithmetic(const AutoBroadcastSpec& autob)
     : m_autob(autob) {}
@@ -23,9 +20,8 @@ ov::op::util::BinaryElementwiseArithmetic::BinaryElementwiseArithmetic(const Out
     : Op({arg0, arg1}),
       m_autob(autob) {}
 
-void ov::op::util::BinaryElementwiseArithmetic::validate_and_infer_elementwise_arithmetic(
-    const op::AutoBroadcastSpec& autob) {
-    auto args_et_pshape = op::util::validate_and_infer_elementwise_args(this, autob);
+void ov::op::util::BinaryElementwiseArithmetic::validate_and_infer_elementwise_arithmetic() {
+    auto args_et_pshape = op::util::validate_and_infer_elementwise_args(this);
     element::Type& args_et = std::get<0>(args_et_pshape);
     PartialShape& args_pshape = std::get<1>(args_et_pshape);
 
@@ -39,34 +35,34 @@ void ov::op::util::BinaryElementwiseArithmetic::validate_and_infer_elementwise_a
 }
 
 void ov::op::util::BinaryElementwiseArithmetic::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v0_util_BinaryElementwiseArithmetic_validate_and_infer_types);
-    validate_and_infer_elementwise_arithmetic(m_autob);
+    OV_OP_SCOPE(v0_util_BinaryElementwiseArithmetic_validate_and_infer_types);
+    validate_and_infer_elementwise_arithmetic();
 }
 
 bool ov::op::util::BinaryElementwiseArithmetic::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v0_util_BinaryElementwiseArithmetic_visit_attributes);
+    OV_OP_SCOPE(v0_util_BinaryElementwiseArithmetic_visit_attributes);
     visitor.on_attribute("auto_broadcast", m_autob);
     return true;
 }
 
-bool ov::op::util::BinaryElementwiseArithmetic::evaluate_upper(const HostTensorVector& output_values) const {
-    NGRAPH_CHECK(ngraph::validate_host_tensor_vector(output_values, 1));
-    HostTensorVector lower_output_tensors;
+bool ov::op::util::BinaryElementwiseArithmetic::evaluate_upper(ov::TensorVector& output_values) const {
+    OPENVINO_ASSERT(output_values.size() == 1);
+    TensorVector lower_output_tensors;
     for (const auto& output : output_values)
-        lower_output_tensors.push_back(
-            std::make_shared<HostTensor>(output->get_element_type(), output->get_partial_shape()));
-    if (!ngraph::interval_bound_evaluator(this, lower_output_tensors, output_values))
+        lower_output_tensors.emplace_back(output.get_element_type(), output.get_shape());
+
+    if (!interval_bound_evaluator(this, lower_output_tensors, output_values))
         return false;
     return true;
 }
 
-bool ov::op::util::BinaryElementwiseArithmetic::evaluate_lower(const HostTensorVector& output_values) const {
-    NGRAPH_CHECK(ngraph::validate_host_tensor_vector(output_values, 1));
-    HostTensorVector upper_output_tensors;
+bool ov::op::util::BinaryElementwiseArithmetic::evaluate_lower(ov::TensorVector& output_values) const {
+    OPENVINO_ASSERT(output_values.size() == 1);
+    TensorVector upper_output_tensors;
     for (const auto& output : output_values)
-        upper_output_tensors.push_back(
-            std::make_shared<HostTensor>(output->get_element_type(), output->get_partial_shape()));
-    if (!ngraph::interval_bound_evaluator(this, output_values, upper_output_tensors))
+        upper_output_tensors.emplace_back(output.get_element_type(), output.get_shape());
+
+    if (!interval_bound_evaluator(this, output_values, upper_output_tensors))
         return false;
     return true;
 }

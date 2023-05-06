@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,18 +13,18 @@ namespace ov {
 namespace intel_gpu {
 
 static void CreateFakeQuantizeOp(Program& p, const std::shared_ptr<ngraph::op::v0::FakeQuantize>& op) {
-    p.ValidateInputs(op, {5});
+    validate_inputs_count(op, {5});
     std::string layerName = layer_type_name_ID(op);
-    auto inputPrimitives = p.GetInputPrimitiveIDs(op);
+    auto inputs = p.GetInputInfo(op);
 
-    auto input_id       = inputPrimitives[0];
-    auto input_low_id   = inputPrimitives[1];
-    auto input_high_id  = inputPrimitives[2];
-    auto output_low_id  = inputPrimitives[3];
-    auto output_high_id = inputPrimitives[4];
+    auto input_id       = inputs[0];
+    auto input_low_id   = inputs[1];
+    auto input_high_id  = inputs[2];
+    auto output_low_id  = inputs[3];
+    auto output_high_id = inputs[4];
 
     int levels = static_cast<int>(op->get_levels());
-    auto dt = DataTypeFromPrecision(op->get_output_element_type(0));
+    auto dt = cldnn::element_type_to_data_type(op->get_output_element_type(0));
     auto quantizationPrim = cldnn::quantize(layerName,
                                             input_id,
                                             input_low_id,
@@ -32,11 +32,9 @@ static void CreateFakeQuantizeOp(Program& p, const std::shared_ptr<ngraph::op::v
                                             output_low_id,
                                             output_high_id,
                                             levels,
-                                            dt,
-                                            op->get_friendly_name());
+                                            dt);
 
-    p.AddPrimitive(quantizationPrim);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, quantizationPrim);
 }
 
 REGISTER_FACTORY_IMPL(v0, FakeQuantize);

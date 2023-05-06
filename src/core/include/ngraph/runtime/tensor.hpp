@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,11 +41,6 @@ public:
     /// \brief Get the size in bytes of the tensor
     /// \return number of bytes in tensor's allocation
     virtual size_t get_size_in_bytes() const;
-
-    /// \brief Get tensor's unique name
-    /// \return tensor's name
-    NGRAPH_DEPRECATED("Only output ports have names")
-    const std::string& get_name() const;
 
     /// \brief Write bytes directly into the tensor
     /// \param p Pointer to source of data

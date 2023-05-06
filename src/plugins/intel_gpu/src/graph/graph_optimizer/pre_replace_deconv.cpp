@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "program_helpers.h"
 #include "pass_manager.h"
@@ -10,13 +8,13 @@
 #include "convolution_inst.h"
 #include "deconvolution_inst.h"
 #include "depth_to_space_inst.h"
-#include "kernel_selector_utils.h"
 #include <vector>
 #include <list>
 #include <memory>
 #include <string>
 #include <utility>
-#include "intel_gpu/runtime/error_handler.hpp"
+
+using namespace cldnn;
 
 void pre_replace_deconv::run(program& p) {
     bool update_processing_order = false;
@@ -29,7 +27,9 @@ void pre_replace_deconv::run(program& p) {
         auto& node = (*node_itr).second;
         // find deconvolution primitives with stride 1 and change them to convolution with trasposed weights
         if (node->is_type<deconvolution>()) {
-            if (!p.get_options().get<build_option_type::optimize_data>()->enabled())
+            if (node->is_dynamic())
+                continue;
+            if (!p.get_config().get_property(ov::intel_gpu::optimize_data))
                 continue;
 
             auto& deconv_node = node->as<deconvolution>();
@@ -66,7 +66,7 @@ void pre_replace_deconv::run(program& p) {
                 auto stride = deconv_prim->stride;
                 auto pad = deconv_prim->pad;
                 ov::Strides dilation(spatial_rank, 1);
-                auto output_padding = deconv_prim->output_padding;
+                auto output_padding = deconv_prim->output_paddings[0];
                 auto grouped_weights_shape = deconv_prim->grouped_weights_shape;
 
                 // remove deconvolution node and its connections to weights and biases, rename it and move to the optimized
@@ -118,7 +118,6 @@ void pre_replace_deconv::run(program& p) {
                                                               pad,
                                                               dilation,
                                                               grouped_weights_shape,
-                                                              "",
                                                               output_padding);
                 } else {
                     tensor output_size(0);
@@ -133,7 +132,6 @@ void pre_replace_deconv::run(program& p) {
                                                                   dilation,
                                                                   output_size,
                                                                   grouped_weights_shape,
-                                                                  "",
                                                                   output_padding);
                     } else {
                         conv_prim = std::make_shared<convolution>(deconv_node_id,
@@ -145,14 +143,14 @@ void pre_replace_deconv::run(program& p) {
                                                                   dilation,
                                                                   output_size,
                                                                   grouped_weights_shape,
-                                                                  "",
                                                                   output_padding);
                     }
                 }
+
+                conv_prim->transposed = true;
                 program_node& new_node = p.get_or_create(conv_prim);
 
                 auto& conv_node = new_node.as<convolution>();
-                conv_node.set_transposed(true);
 
                 // add connections input->convolution, weights->convolution and bias->convolution
                 p.add_connection(input_node, conv_node);
@@ -213,7 +211,7 @@ void pre_replace_deconv::run(program& p) {
                 ov::Strides stride(spatial_rank, 1);
                 ov::CoordinateDiff pad(spatial_rank, scale_factor);
                 ov::Strides dilation(spatial_rank, 1);
-                auto output_padding = deconv_prim->output_padding;
+                auto output_padding = deconv_prim->output_paddings[0];
                 auto grouped_weights_shape = deconv_prim->grouped_weights_shape;
 
                 // remove deconvolution node and its connections to weights and biases,
@@ -227,7 +225,7 @@ void pre_replace_deconv::run(program& p) {
                 p.rename(deconv_node, rename_id);
 
                 // reshape weights
-                int pixel_shuffle_size = scale_factor * scale_factor;
+                auto pixel_shuffle_size = static_cast<tensor::value_type>(scale_factor * scale_factor);
                 int kernel_size = 5;
                 tensor target_weights_size = { pixel_shuffle_size, filter_layout.feature(), kernel_size, kernel_size };
                 auto target_weights_layout = layout{ weights_layout.data_type, weights_layout.format, target_weights_size };
@@ -254,7 +252,7 @@ void pre_replace_deconv::run(program& p) {
                          static_cast<int>(filter_layout.feature()),
                          static_cast<int>(filter_layout.spatial(0)),
                          static_cast<int>(filter_layout.spatial(1)),
-                         scale_factor,
+                         static_cast<int>(scale_factor),
                          subpixel_weights);
 
                      if (weights_data_type == data_types::f16) {
@@ -283,7 +281,6 @@ void pre_replace_deconv::run(program& p) {
                                                                pad,
                                                                dilation,
                                                                grouped_weights_shape,
-                                                               "",
                                                                output_padding);
                 program_node& created_node = p.get_or_create(conv_prim);
 
@@ -310,14 +307,20 @@ void pre_replace_deconv::run(program& p) {
                 auto pixel_shuffle_prim = std::make_shared<depth_to_space>(deconv_node_id, deconv_id_conv, 2, depth_to_space_mode::blocks_first);
 
                 program_node& pixel_shuffle_node = p.get_or_create(pixel_shuffle_prim);
-                pixel_shuffle_node.add_fused_activation(activation_func::linear, { 1, bias });
+                auto bias_id = deconv_node_id + "_bias";
+                auto bias_prim = std::make_shared<activation>(bias_id,
+                                                              input_info(deconv_node_id),
+                                                              activation_func::linear,
+                                                              activation_additional_params{ 1, bias });
+                program_node& bias_node = p.get_or_create(bias_prim);
 
-                // add connections input->convolution, weights->convolution
+                // add connections input->depth_to_space, depth_to_space->bias
                 p.add_connection(conv_node, pixel_shuffle_node);
+                p.add_connection(pixel_shuffle_node, bias_node);
 
                 auto deconv_node_ptr = p.nodes_map.find(rename_id);
                 if (deconv_node_ptr != p.nodes_map.end()) {
-                    p.replace_all_usages(*deconv_node_ptr->second, pixel_shuffle_node);
+                    p.replace_all_usages(*deconv_node_ptr->second, bias_node);
                     p.optimized_out.push_back(rename_id);
                     p.nodes_map.erase(rename_id);
                 }

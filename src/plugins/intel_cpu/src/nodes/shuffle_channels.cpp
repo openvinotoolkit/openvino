@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -65,8 +65,8 @@ bool ShuffleChannels::isSupportedOperation(const std::shared_ptr<const ngraph::N
     return true;
 }
 
-ShuffleChannels::ShuffleChannels(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
-        : Node(op, eng, cache) {
+ShuffleChannels::ShuffleChannels(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+        : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -81,8 +81,6 @@ ShuffleChannels::ShuffleChannels(const std::shared_ptr<ngraph::Node>& op, const 
     attrs.dataRank = getInputShapeAtPort(0).getRank();
     if (attrs.axis < 0)
         attrs.axis += attrs.dataRank;
-
-    supportDynamicBatch = (attrs.axis != 0);
 }
 
 void ShuffleChannels::initSupportedPrimitiveDescriptors() {
@@ -106,23 +104,23 @@ void ShuffleChannels::initSupportedPrimitiveDescriptors() {
     }
 
     // use ncsp as default for non-quantized networks and nspc for quantized
-    auto firstCreatorType = isInQuantizedGraph ? LayoutType::nspc : LayoutType::ncsp;
-    auto secondCreatorType = isInQuantizedGraph ? LayoutType::ncsp : LayoutType::nspc;
+    auto firstCreatorType = context->isGraphQuantized() ? LayoutType::nspc : LayoutType::ncsp;
+    auto secondCreatorType = context->isGraphQuantized() ? LayoutType::ncsp : LayoutType::nspc;
 
     addSupportedPrimDesc({{firstCreatorType, precision}},
                          {{firstCreatorType, precision}},
-                         impl_type, supportDynamicBatch);
+                         impl_type);
     addSupportedPrimDesc({{secondCreatorType, precision}},
                          {{secondCreatorType, precision}},
-                         impl_type, supportDynamicBatch);
+                         impl_type);
     // canUseBlocked
     if (attrs.axis != 1) {
         addSupportedPrimDesc({{LayoutType::nCsp8c, precision}},
                              {{LayoutType::nCsp8c, precision}},
-                             impl_type, supportDynamicBatch);
+                             impl_type);
         addSupportedPrimDesc({{LayoutType::nCsp16c, precision}},
                              {{LayoutType::nCsp16c, precision}},
-                             impl_type, supportDynamicBatch);
+                             impl_type);
     }
 }
 
@@ -158,7 +156,7 @@ void ShuffleChannels::prepareParams() {
     attrs.srcDims = srcMemPtr->getStaticDims();
     attrs.srcBlockedDims = srcMemPtr->GetDescWithType<BlockedMemoryDesc>()->getBlockDims();
 
-    auto cache = getRuntimeCache();
+    auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(attrs, builder);
     if (!result.first) {
         IE_THROW() << "ShuffleChannelsExecutor was not found for node " << getName() << ".";
@@ -294,9 +292,7 @@ void ShuffleChannels::execute(dnnl::stream strm) {
     if (!execPtr)
         THROW_SHCH_ERROR << "doesn't have a compiled executor.";
 
-    int MB = -1;
-    if (supportDynamicBatch)
-        MB = isDynamicNode() ? getParentEdgeAt(0)->getMemoryPtr()->getStaticDims()[0] : batchToProcess();
+    int MB = (attrs.axis != 0) ? getParentEdgeAt(0)->getMemoryPtr()->getStaticDims()[0] : -1;
 
     const uint8_t* srcData = reinterpret_cast<const uint8_t*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     uint8_t* dstData = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());

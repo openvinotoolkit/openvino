@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,7 @@
 
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/factory.hpp"
+#include "ngraph/op/util/framework_node.hpp"
 #include "ngraph/ops.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 
@@ -120,6 +121,9 @@ public:
     virtual operator std::shared_ptr<Variable>&() {
         NGRAPH_CHECK(false, "Invalid type access");
     }
+    virtual operator ov::op::util::FrameworkNodeAttrs&() {
+        NGRAPH_CHECK(false, "Invalid type access");
+    }
     uint64_t get_index() {
         return m_index;
     }
@@ -224,6 +228,8 @@ public:
             a->set(m_values.get<ov::Dimension>(name));
         } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<Variable>>>(&adapter)) {
             a->set(m_values.get<std::shared_ptr<Variable>>(name));
+        } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ov::op::util::FrameworkNodeAttrs>>(&adapter)) {
+            a->set(m_values.get<ov::op::util::FrameworkNodeAttrs>(name));
         } else {
             NGRAPH_CHECK(false, "Attribute \"", name, "\" cannot be unmarshalled");
         }
@@ -310,6 +316,8 @@ public:
             m_values.insert(name, a->get());
         } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<Variable>>>(&adapter)) {
             m_values.insert(name, a->get());
+        } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ov::op::util::FrameworkNodeAttrs>>(&adapter)) {
+            m_values.insert(name, a->get());
         } else {
             NGRAPH_CHECK(false, "Attribute \"", name, "\" cannot be marshalled");
         }
@@ -373,11 +381,12 @@ protected:
 
 class NodeBuilder : public ValueMap, public DeserializeAttributeVisitor {
 public:
-    NodeBuilder() : DeserializeAttributeVisitor(static_cast<ValueMap&>(*this)), m_serializer(*this) {}
+    NodeBuilder() : DeserializeAttributeVisitor(static_cast<ValueMap&>(*this)), m_serializer(*this), m_inputs{} {}
 
-    NodeBuilder(const std::shared_ptr<Node>& node)
+    NodeBuilder(const std::shared_ptr<Node>& node, ov::OutputVector inputs = {})
         : DeserializeAttributeVisitor(static_cast<ValueMap&>(*this)),
-          m_serializer(*this) {
+          m_serializer(*this),
+          m_inputs(inputs) {
         save_node(node);
     }
 
@@ -386,12 +395,17 @@ public:
         node->visit_attributes(m_serializer);
     }
 
-    // Does not validate, since inputs aren't set
     std::shared_ptr<Node> create() {
         std::shared_ptr<Node> node(get_ops().create(m_node_type_info));
         node->visit_attributes(*this);
-        return node;
+
+        if (m_inputs.size()) {
+            node->set_arguments(m_inputs);
+            return node->clone_with_new_inputs(m_inputs);
+        } else
+            return node;
     }
+
     AttributeVisitor& get_node_saver() {
         return m_serializer;
     }
@@ -401,9 +415,9 @@ public:
     static FactoryRegistry<Node>& get_ops() {
         static FactoryRegistry<Node> registry = [] {
             FactoryRegistry<Node> registry;
-#define NGRAPH_OP(NAME, NAMESPACE, VERSION) registry.register_factory<NAMESPACE::NAME>();
+#define _OPENVINO_OP_REG(NAME, NAMESPACE) registry.register_factory<NAMESPACE::NAME>();
 #include "op_version_tbl.hpp"
-#undef NGRAPH_OP
+#undef _OPENVINO_OP_REG
             return registry;
         }();
         return registry;
@@ -412,6 +426,7 @@ public:
 protected:
     Node::type_info_t m_node_type_info;
     SerializeAttributeVisitor m_serializer;
+    ov::OutputVector m_inputs;
 };
 }  // namespace test
 }  // namespace ngraph

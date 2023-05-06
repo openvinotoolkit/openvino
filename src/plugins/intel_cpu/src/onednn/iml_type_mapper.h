@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,13 +28,16 @@ enum impl_desc_type {
     blas   = 1<<17,
     any    = 1<<18,
     uni    = 1<<19,
+    acl    = 1<<20,
     // Other specificator
-    _1x1    = 1<<20,
-    _dw     = 1<<21,
+    _1x1    = 1<<21,
+    _dw     = 1<<22,
     // Other info
-    reorder = 1<<22,
+    reorder = 1<<23,
     // winograd
-    winograd = 1<<23,
+    winograd = 1<<24,
+    // sparse
+    sparse = 1<<25,
 
     // real types
     ref_any             = ref  | any,
@@ -45,7 +48,6 @@ enum impl_desc_type {
     gemm_avx2           = gemm | avx2,
     gemm_avx            = gemm | avx,
     gemm_sse42          = gemm | sse42,
-
     jit_gemm            = jit | gemm,
 
     jit_avx512_winograd = jit  | avx512 | winograd,
@@ -90,6 +92,11 @@ enum impl_desc_type {
     brgemm_sse42       = brgemm  | sse42,
     brgemm_uni         = brgemm  | uni,
     brgemm_avx512_amx  = brgemm  | avx512 | amx,
+    brgemm_sparse_avx512_amx = brgemm | sparse | avx512 | amx,
+
+    dw_acl             = _dw | acl,
+    gemm_acl           = gemm | acl,
+    winograd_acl       = winograd | acl,
 };
 
 const char * impl_type_to_string(impl_desc_type type);

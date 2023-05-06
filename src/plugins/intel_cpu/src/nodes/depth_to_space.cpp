@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -67,8 +67,8 @@ bool DepthToSpace::isSupportedOperation(const std::shared_ptr<const ngraph::Node
     return true;
 }
 
-DepthToSpace::DepthToSpace(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
-        : Node(op, eng, cache) {
+DepthToSpace::DepthToSpace(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+        : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -125,7 +125,6 @@ void DepthToSpace::initSupportedPrimitiveDescriptors() {
     }
 
     NodeConfig config;
-    config.dynBatchSupport = true;
     config.inConfs.resize(1);
     config.outConfs.resize(1);
     config.inConfs[0].inPlace(-1);
@@ -191,7 +190,7 @@ void DepthToSpace::prepareParams() {
         return std::make_shared<DepthToSpaceExecutor>(key);
     };
 
-    auto cache = getRuntimeCache();
+    auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(attrs, builder);
     if (!result.first) {
         IE_THROW() << "DepthToSpaceExecutor was not found for node " << getName() << ".";
@@ -304,7 +303,7 @@ void DepthToSpace::execute(dnnl::stream strm) {
         THROW_ERROR << "doesn't have a compiled executor.";
     }
 
-    int MB = isDynamicNode() ? getParentEdgeAt(0)->getMemoryPtr()->getStaticDims()[0] : batchToProcess();
+    int MB = getParentEdgeAt(0)->getMemoryPtr()->getStaticDims()[0];
     execPtr->exec(getParentEdgeAt(0)->getMemoryPtr(), getChildEdgeAt(0)->getMemoryPtr(), MB);
 }
 

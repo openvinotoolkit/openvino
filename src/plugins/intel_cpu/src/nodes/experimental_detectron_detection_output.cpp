@@ -1,14 +1,13 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "experimental_detectron_detection_output.h"
-
-#include <ngraph/op/experimental_detectron_detection_output.hpp>
 #include <string>
 #include <vector>
 
+#include <ngraph/op/experimental_detectron_detection_output.hpp>
 #include "ie_parallel.hpp"
+#include "experimental_detectron_detection_output.h"
 
 using namespace InferenceEngine;
 
@@ -39,19 +38,13 @@ struct Indexer {
     }
 };
 
-static void refine_boxes(const float* boxes,
-                         const float* deltas,
-                         const float* weights,
-                         const float* scores,
-                         float* refined_boxes,
-                         float* refined_boxes_areas,
-                         float* refined_scores,
-                         const int rois_num,
-                         const int classes_num,
-                         const float img_H,
-                         const float img_W,
-                         const float max_delta_log_wh,
-                         float coordinates_offset) {
+static
+void refine_boxes(const float* boxes, const float* deltas, const float* weights, const float* scores,
+                  float* refined_boxes, float* refined_boxes_areas, float* refined_scores,
+                  const int rois_num, const int classes_num,
+                  const float img_H, const float img_W,
+                  const float max_delta_log_wh,
+                  float coordinates_offset) {
     Indexer box_idx({rois_num, 4});
     Indexer delta_idx({rois_num, classes_num, 4});
     Indexer score_idx({rois_num, classes_num});
@@ -76,7 +69,7 @@ static void refine_boxes(const float* boxes,
         const float ctr_x = x0 + 0.5f * ww;
         const float ctr_y = y0 + 0.5f * hh;
 
-        for (int class_idx = 0; class_idx < classes_num; ++class_idx) {
+        for (int class_idx = 1; class_idx < classes_num; ++class_idx) {
             const float dx = deltas[delta_idx({roi_idx, class_idx, 0})] / weights[0];
             const float dy = deltas[delta_idx({roi_idx, class_idx, 1})] / weights[1];
             const float d_log_w = deltas[delta_idx({roi_idx, class_idx, 2})] / weights[2];
@@ -97,10 +90,10 @@ static void refine_boxes(const float* boxes,
             float y1_new = pred_ctr_y + 0.5f * pred_h - coordinates_offset;
 
             // adjust new corner locations to be within the image region,
-            x0_new = std::min(std::max(0.0f, x0_new), img_W);
-            y0_new = std::min(std::max(0.0f, y0_new), img_H);
-            x1_new = std::min(std::max(0.0f, x1_new), img_W);
-            y1_new = std::min(std::max(0.0f, y1_new), img_H);
+            x0_new = std::max<float>(0.0f, x0_new);
+            y0_new = std::max<float>(0.0f, y0_new);
+            x1_new = std::max<float>(0.0f, x1_new);
+            y1_new = std::max<float>(0.0f, y1_new);
 
             // recompute new width & height
             const float box_w = x1_new - x0_new + coordinates_offset;
@@ -123,22 +116,21 @@ static bool SortScorePairDescend(const std::pair<float, std::pair<int, int>>& pa
     return (pair1.first > pair2.first) || ((pair1.first == pair2.first) && (pair1.second.second < pair2.second.second));
 }
 
+
 struct ConfidenceComparator {
     explicit ConfidenceComparator(const float* conf_data) : _conf_data(conf_data) {}
 
     bool operator()(int idx1, int idx2) {
-        if (_conf_data[idx1] > _conf_data[idx2])
-            return true;
-        if (_conf_data[idx1] < _conf_data[idx2])
-            return false;
+        if (_conf_data[idx1] > _conf_data[idx2]) return true;
+        if (_conf_data[idx1] < _conf_data[idx2]) return false;
         return idx1 < idx2;
     }
 
     const float* _conf_data;
 };
 
-static inline float JaccardOverlap(const float* decoded_bbox,
-                                   const float* bbox_sizes,
+static inline float JaccardOverlap(const float *decoded_bbox,
+                                   const float *bbox_sizes,
                                    const int idx1,
                                    const int idx2,
                                    const float coordinates_offset = 1) {
@@ -161,7 +153,7 @@ static inline float JaccardOverlap(const float* decoded_bbox,
     float intersect_xmax = (std::min)(xmax1, xmax2);
     float intersect_ymax = (std::min)(ymax1, ymax2);
 
-    float intersect_width = intersect_xmax - intersect_xmin + coordinates_offset;
+    float intersect_width  = intersect_xmax - intersect_xmin + coordinates_offset;
     float intersect_height = intersect_ymax - intersect_ymin + coordinates_offset;
 
     if (intersect_width <= 0 || intersect_height <= 0) {
@@ -174,6 +166,7 @@ static inline float JaccardOverlap(const float* decoded_bbox,
 
     return intersect_size / (bbox1_size + bbox2_size - intersect_size);
 }
+
 
 static void nms_cf(const float* conf_data,
                    const float* bboxes,
@@ -196,10 +189,8 @@ static void nms_cf(const float* conf_data,
 
     int num_output_scores = (pre_nms_topn == -1 ? count : (std::min)(pre_nms_topn, count));
 
-    std::partial_sort_copy(indices,
-                           indices + count,
-                           buffer,
-                           buffer + num_output_scores,
+    std::partial_sort_copy(indices, indices + count,
+                           buffer, buffer + num_output_scores,
                            ConfidenceComparator(conf_data));
 
     detections = 0;
@@ -232,13 +223,11 @@ bool ExperimentalDetectronDetectionOutput::needPrepareParams() const {
     return false;
 }
 
-bool ExperimentalDetectronDetectionOutput::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
-                                                                std::string& errorMessage) noexcept {
+bool ExperimentalDetectronDetectionOutput::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         const auto doOp = ngraph::as_type_ptr<const ngraph::op::v6::ExperimentalDetectronDetectionOutput>(op);
         if (!doOp) {
-            errorMessage =
-                "Node is not an instance of the ExperimentalDetectronDetectionOutput from the operations set v6.";
+            errorMessage = "Node is not an instance of the ExperimentalDetectronDetectionOutput from the operations set v6.";
             return false;
         }
     } catch (...) {
@@ -248,9 +237,8 @@ bool ExperimentalDetectronDetectionOutput::isSupportedOperation(const std::share
 }
 
 ExperimentalDetectronDetectionOutput::ExperimentalDetectronDetectionOutput(const std::shared_ptr<ngraph::Node>& op,
-                                                                           const dnnl::engine& eng,
-                                                                           WeightsSharing::Ptr& cache)
-    : Node(op, eng, cache) {
+                                                                           const GraphContext::CPtr context)
+    : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -277,10 +265,11 @@ void ExperimentalDetectronDetectionOutput::initSupportedPrimitiveDescriptors() {
     for (int i = 0; i < inputShapes.size(); ++i)
         inDataConf.emplace_back(LayoutType::ncsp, Precision::FP32);
 
-    addSupportedPrimDesc(
-        inDataConf,
-        {{LayoutType::ncsp, Precision::FP32}, {LayoutType::ncsp, Precision::I32}, {LayoutType::ncsp, Precision::FP32}},
-        impl_desc_type::ref_any);
+    addSupportedPrimDesc(inDataConf,
+                         {{LayoutType::ncsp, Precision::FP32},
+                          {LayoutType::ncsp, Precision::I32},
+                          {LayoutType::ncsp, Precision::FP32}},
+                         impl_desc_type::ref_any);
 }
 
 void ExperimentalDetectronDetectionOutput::execute(dnnl::stream strm) {
@@ -288,14 +277,14 @@ void ExperimentalDetectronDetectionOutput::execute(dnnl::stream strm) {
     assert(classes_num_ == static_cast<int>(getParentEdgeAt(INPUT_SCORES)->getMemory().getStaticDims()[1]));
     assert(4 * classes_num_ == static_cast<int>(getParentEdgeAt(INPUT_DELTAS)->getMemory().getStaticDims()[1]));
 
-    const auto* boxes = reinterpret_cast<const float*>(getParentEdgeAt(INPUT_ROIS)->getMemoryPtr()->GetPtr());
-    const auto* deltas = reinterpret_cast<const float*>(getParentEdgeAt(INPUT_DELTAS)->getMemoryPtr()->GetPtr());
-    const auto* scores = reinterpret_cast<const float*>(getParentEdgeAt(INPUT_SCORES)->getMemoryPtr()->GetPtr());
-    const auto* im_info = reinterpret_cast<const float*>(getParentEdgeAt(INPUT_IM_INFO)->getMemoryPtr()->GetPtr());
+    const auto* boxes = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_ROIS)->getMemoryPtr()->GetPtr());
+    const auto* deltas = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_DELTAS)->getMemoryPtr()->GetPtr());
+    const auto* scores = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_SCORES)->getMemoryPtr()->GetPtr());
+    const auto* im_info = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_IM_INFO)->getMemoryPtr()->GetPtr());
 
-    auto* output_boxes = reinterpret_cast<float*>(getChildEdgesAtPort(OUTPUT_BOXES)[0]->getMemoryPtr()->GetPtr());
-    auto* output_scores = reinterpret_cast<float*>(getChildEdgesAtPort(OUTPUT_SCORES)[0]->getMemoryPtr()->GetPtr());
-    auto* output_classes = reinterpret_cast<int32_t*>(getChildEdgesAtPort(OUTPUT_CLASSES)[0]->getMemoryPtr()->GetPtr());
+    auto* output_boxes = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_BOXES)[0]->getMemoryPtr()->GetPtr());
+    auto* output_scores = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_SCORES)[0]->getMemoryPtr()->GetPtr());
+    auto* output_classes = reinterpret_cast<int32_t *>(getChildEdgesAtPort(OUTPUT_CLASSES)[0]->getMemoryPtr()->GetPtr());
 
     const float img_H = im_info[0];
     const float img_W = im_info[1];
@@ -307,17 +296,10 @@ void ExperimentalDetectronDetectionOutput::execute(dnnl::stream strm) {
     Indexer refined_box_idx({classes_num_, rois_num, 4});
     Indexer refined_score_idx({classes_num_, rois_num});
 
-    refine_boxes(boxes,
-                 deltas,
-                 &deltas_weights_[0],
-                 scores,
-                 &refined_boxes[0],
-                 &refined_boxes_areas[0],
-                 &refined_scores[0],
-                 rois_num,
-                 classes_num_,
-                 img_H,
-                 img_W,
+    refine_boxes(boxes, deltas, &deltas_weights_[0], scores,
+                 &refined_boxes[0], &refined_boxes_areas[0], &refined_scores[0],
+                 rois_num, classes_num_,
+                 img_H, img_W,
                  max_delta_log_wh_,
                  1.0f);
 
@@ -327,7 +309,7 @@ void ExperimentalDetectronDetectionOutput::execute(dnnl::stream strm) {
     std::vector<int> detections_per_class(classes_num_, 0);
     int total_detections_num = 0;
 
-    for (int class_idx = 0; class_idx < classes_num_; ++class_idx) {
+    for (int class_idx = 1; class_idx < classes_num_; ++class_idx) {
         nms_cf(&refined_scores[refined_score_idx({class_idx, 0})],
                &refined_boxes[refined_box_idx({class_idx, 0, 0})],
                &refined_boxes_areas[refined_score_idx({class_idx, 0})],
@@ -373,7 +355,7 @@ void ExperimentalDetectronDetectionOutput::execute(dnnl::stream strm) {
     memset(output_classes, 0, max_detections_per_image_ * sizeof(output_classes[0]));
 
     int i = 0;
-    for (const auto& detection : conf_index_class_map) {
+    for (const auto & detection : conf_index_class_map) {
         float score = detection.first;
         int cls = detection.second.first;
         int idx = detection.second.second;
@@ -391,6 +373,6 @@ bool ExperimentalDetectronDetectionOutput::created() const {
     return getType() == Type::ExperimentalDetectronDetectionOutput;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

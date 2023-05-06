@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,7 @@
 
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/test_constants.hpp"
 #include "execution_graph_tests/normalize_l2_decomposition.hpp"
 
 namespace ExecutionGraphTests {
@@ -33,7 +34,10 @@ TEST_P(ExecGrapDecomposeNormalizeL2, CheckIfDecomposeAppliedForNonContiguousAxes
       const auto model = std::make_shared<ov::Model>(ov::NodeVector{normalize_l2}, ov::ParameterVector{input});
 
       auto core = ov::Core();
-      const auto compiled_model = core.compile_model(model, device_name);
+      ov::AnyMap config;
+      if (device_name == CommonTestUtils::DEVICE_GPU)
+        config.insert(ov::hint::inference_precision(ov::element::f32));
+      const auto compiled_model = core.compile_model(model, device_name, config);
 
       ASSERT_TRUE(model->get_ops().size() < compiled_model.get_runtime_model()->get_ops().size()); // decomposition applied
 }
@@ -50,7 +54,10 @@ TEST_P(ExecGrapDecomposeNormalizeL2, CheckIfDecomposeAppliedForNormalizeOverAllA
       const auto model = std::make_shared<ov::Model>(ov::NodeVector{normalize_l2}, ov::ParameterVector{input});
 
       auto core = ov::Core();
-      const auto compiled_model = core.compile_model(model, device_name);
+      ov::AnyMap config;
+      if (device_name == CommonTestUtils::DEVICE_GPU)
+        config.insert(ov::hint::inference_precision(ov::element::f32));
+      const auto compiled_model = core.compile_model(model, device_name, config);
 
       ASSERT_TRUE(model->get_ops().size() < compiled_model.get_runtime_model()->get_ops().size()); // decomposition applied
 }
@@ -67,7 +74,10 @@ TEST_P(ExecGrapDecomposeNormalizeL2, CheckIfDecomposeNotAppliedForNotSorted) {
       const auto model = std::make_shared<ov::Model>(ov::NodeVector{normalize_l2}, ov::ParameterVector{input});
 
       auto core = ov::Core();
-      const auto compiled_model = core.compile_model(model, device_name);
+      ov::AnyMap config;
+      if (device_name == CommonTestUtils::DEVICE_GPU)
+        config.insert(ov::hint::inference_precision(ov::element::f32));
+      const auto compiled_model = core.compile_model(model, device_name, config);
 
       ASSERT_TRUE(model->get_ops().size() >= compiled_model.get_runtime_model()->get_ops().size()); // decomposition not applied
 }
@@ -84,7 +94,10 @@ TEST_P(ExecGrapDecomposeNormalizeL2, CheckIfDecomposeNotAppliedForSingleAxis) {
       const auto model = std::make_shared<ov::Model>(ov::NodeVector{normalize_l2}, ov::ParameterVector{input});
 
       auto core = ov::Core();
-      const auto compiled_model = core.compile_model(model, device_name);
+      ov::AnyMap config;
+      if (device_name == CommonTestUtils::DEVICE_GPU)
+        config.insert(ov::hint::inference_precision(ov::element::f32));
+      const auto compiled_model = core.compile_model(model, device_name, config);
 
       ASSERT_TRUE(model->get_ops().size() >= compiled_model.get_runtime_model()->get_ops().size()); // decomposition not applied
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,24 +7,24 @@
 #include <memory>
 #include <vector>
 
-#include "ngraph/pass/graph_rewrite.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
 #include "transformations_visibility.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API TransposeReshapeEliminationForMatmul;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
  * @brief TransposeReshapeEliminationForMatmul transformation eliminates Transpose and Reshape which were created to
  * align input and output dimension ranks before second MatMul input and after MatMul output
- * (for example, after Einsum Decomposition inside TensorFlow 1 and nGraph EinsumDecomposition transformation)
+ * (for example, after Einsum Decomposition inside TensorFlow 1 and OpenVINO EinsumDecomposition transformation)
  */
-class ngraph::pass::TransposeReshapeEliminationForMatmul : public ngraph::pass::MatcherPass {
+class ov::pass::TransposeReshapeEliminationForMatmul : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("TransposeReshapeEliminationForMatmul", "0");
     TransposeReshapeEliminationForMatmul();

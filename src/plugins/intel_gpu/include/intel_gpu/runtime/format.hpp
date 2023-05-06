@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -57,6 +57,9 @@ struct format_traits {
     static bool is_spatial_char(char c) { return std::string(spatial_chars()).find_first_of(c) != std::string::npos; }
     /// @brief Checks if @p c represents group dimensions.
     static bool is_group_char(char c) { return std::string(group_chars()).find_first_of(c) != std::string::npos; }
+
+    /// @brief Checks if order has @p c dimension.
+    bool has_dimension(char c) const { return order.find_first_of(c) != std::string::npos; }
 };
 
 /// @brief Represents memory formats (orders).
@@ -73,9 +76,12 @@ struct format {
         bfyx,                                   ///< the most common format for activations in clDNN.
         bfzyx,                                  ///< format for 5d data tensors
         bfwzyx,                                 ///< batch, feature, 4D spatial
+        bfuwzyx,                                ///< 7d tensor
+        bfvuwzyx,                               ///< 8d tensor
         yxfb,                                   ///< batch first, feature and than spatials
         byxf,                                   ///< used in bitmaps, input from user i.e b images of RGB format
         fyxb,                                   ///< format not used inside clDNN, but supported in reorder as extension
+        bzyxf,
                                                 ///< for user provided formats.
         b_fs_yx_fsv2,
         b_fs_zyx_fsv2,
@@ -85,14 +91,19 @@ struct format {
         b_fs_yx_fsv32,                          ///< format used for blocked int8 convolution
         b_fs_zyx_fsv16,                         ///< format used for 3D blocked convolution (features blocked by 16)
         b_fs_zyx_fsv32,                         ///< format used for blocked int8 3d convolution
+        bs_fs_yx_bsv16_fsv32,                   ///< format used for 2D blocked convolution (batch and features blocked by 16 and 32)
         bs_fs_zyx_bsv16_fsv32,                  ///< format used for 3D blocked convolution (batch and features blocked by 16 and 32)
         bs_fs_zyx_bsv16_fsv16,                  ///< format used for 3D blocked convolution (batch and features blocked by 16)
         bs_fs_yx_bsv16_fsv16,                   ///< format used for 2D blocked convolution (batch and features blocked by 16)
         bs_fs_yx_bsv4_fsv4,                     ///< format used for 2D blocked convolution (batch and features blocked by 4)
         bs_fs_yx_bsv8_fsv4,                     ///< format used for 2D blocked convolution (batch and features blocked by 8 and 4)
         bs_fs_zyx_bsv8_fsv4,                    ///< format used for 3D blocked convolution (batch and features blocked by 8 and 4)
+        bs_fs_yx_bsv16_fsv4,                    ///< format used for 2D blocked convolution (batch and features blocked by 16 and 4)
+        bs_fs_zyx_bsv16_fsv4,                   ///< format used for 3D blocked convolution (batch and features blocked by 16 and 4)
         bs_fs_yx_bsv8_fsv2,                     ///< format used for 2D blocked convolution (batch and features blocked by 8 and 2)
         bs_fs_zyx_bsv8_fsv2,                    ///< format used for 3D blocked convolution (batch and features blocked by 8 and 2)
+        bs_fs_yx_bsv16_fsv2,                    ///< format used for 2D blocked convolution (batch and features blocked by 16 and 2)
+        bs_fs_zyx_bsv16_fsv2,                   ///< format used for 3D blocked convolution (batch and features blocked by 16 and 2)
         bs_fs_yx_bsv4_fsv2,                     ///< format used for 2D blocked convolution (batch blocked by 4, features blocked by 2)
         bs_fs_zyx_bsv4_fsv4,                    ///< format used for 3D blocked convolution (batch and features blocked by 4)
         bs_fs_zyx_bsv4_fsv2,                    ///< format used for 3D blocked convolution (batch blocked by 4, features blocked by 2)
@@ -101,10 +112,10 @@ struct format {
         bs_fs_zyx_bsv32_fsv32,                  ///< format used for big batches (batch and features blocked by 32)
         bs_fs_zyx_bsv32_fsv16,                  ///< format used for big batches (batch blocked by 32, features blocked by 16)
         fs_b_yx_fsv32,                          ///< format for input for fp16 primitives
-        bs_xs_xsv8_bsv8,                        ///< format used only for fully connected
-        bs_xs_xsv8_bsv16,                       ///< format used only for fully connected
-        bs_x_bsv16,                             ///< format used only for fully connected weights fp16 batch=1 : bs - batch slice
-                                                ///< (responses slice), bsv16 - 16 values of single batch slice, x - flattened plane of (fyx)
+        bs_fs_fsv8_bsv8,                        ///< format used only for fully connected
+        bs_fs_fsv8_bsv16,                       ///< format used only for fully connected
+        bs_f_bsv16,                             ///< format used only for fully connected weights fp16 batch=1 : bs - batch slice
+                                                ///< (responses slice), bsv16 - 16 values of single batch slice, f - flattened plane of (fyx)
         b_fs_yx_32fp,                           ///< format for data for binary convolutions
         winograd_2x3_s1_data,                   ///< format used for input for winograd convolution, F(2,3) -- filter 3x3 with stride 1
         nv12,                                   ///< format for media nv12 input
@@ -129,6 +140,7 @@ struct format {
         os_is_zyx_isv16_osv16,                        ///< format used for weights for blocked 3D convolution
         is_os_zyx_isv16_osv16,                        ///< format used for weights for blocked 3D deconvolution
         is_os_yx_isv16_osv16,                         ///< format used for weights for blocked deconvolution
+        is_os_yx_isv16_osv8,                          ///< format used for weights for blocked deconvolution
         os_is_yx_isv8_osv16_isv2,                     ///< format used for weights for blocked 2D convolution
         os_is_zyx_isv8_osv16_isv2,                    ///< format used for weights for blocked 3D convolution
                                                       ///< os - output feature maps slice, i - input feature maps,
@@ -170,8 +182,10 @@ struct format {
         os_is_yx_osa2_isa8_osv16_isv4,
         os_is_yx_isa8_osv8_isv2,
         is_os_yx_isa8_osv8_isv2,
+        is_os_yx_isa8_osv8_isv4,
         os_is_zyx_isa8_osv8_isv2,
         is_os_zyx_isa8_osv8_isv2,
+        is_os_zyx_isa8_osv8_isv4,
         is_os_yx_isa2_osa8_isv8_osv2,
         is_os_yx_isa4_osa8_isv8_osv4,
         is_os_yx_osa4_isa8_osv8_isv4,
@@ -192,6 +206,7 @@ struct format {
         lstm_weights_dio,                             ///< dynamic_lstm, direction,
                                                       ///< than IO (I - input size, O - 4 * hidden_size)
         os_is_osv32_isv32_swizzled_by_4,              ///< format for weights for 1x1 IMAD convolution
+        os_iyx_osv8,
         os_iyx_osv32__ai32,
         iy_xs_os_xsv2_osv8__ao32,
         iy_xs_os_xsv2_osv16__ao32,
@@ -199,12 +214,21 @@ struct format {
         os_i_yxs_osv4_yxsv4,
         os_i_osv16__ai8,                              ///< format used only for fully connected weights
         os_i_osv8__ai8,                               ///< format used only for fully connected weights
+        os_y_is_x_osv8_isv2,
+        os_y_is_x_osv8_isv4,
+        os_yx_is_osv8_isv2,
+        os_yx_is_osv8_isv4,
+        os_zyx_is_osv8_isv2,
+        os_zyx_is_osv8_isv4,
+        os_zy_is_x_osv8_isv2,
+        os_zy_is_x_osv8_isv4,
 
         goiyx,                                        ///< format used for weights for 2D convolution
         gioyx,                                        ///< format used for weights for 2D deconvolution
         gyxio,                                        ///< format used for weights for 2D convolution
         goizyx,                                       ///< format used for weights for 3D convolution
         giozyx,                                       ///< format used for weights for 3D deconvolution
+        g_os_iyx_osv8,                                ///< format used for weights for 2D convolution
         g_os_iyx_osv16,                               ///< format used for weights for 2D convolution
         g_os_iyx_osv32,                               ///< format used for weights for 2D convolution
         gs_oiyx_gsv16,                                ///< format used for weights for 2D convolution
@@ -216,9 +240,14 @@ struct format {
         g_os_is_zyx_osv16_isv16,
         g_is_os_yx_isv16_osv16,
         g_os_is_yx_isa8_osv8_isv2,
+        g_os_is_yx_isa8_osv8_isv4,
         g_os_is_zyx_isv8_osv16_isv2,
         g_os_is_yx_isv8_osv16_isv2,
         g_os_is_zyx_isv16_osv16,
+        g_os_zy_is_x_osv8_isv2,
+        g_os_zy_is_x_osv8_isv4,
+        g_os_zyx_is_osv8_isv2,
+        g_os_zyx_is_osv8_isv4,
         g_os_zyx_is_osv16_isv4,                       ///< format for imad deconvolution
         g_os_zyx_is_osv16_isv16,                      ///< format for imad deconvolution
         g_os_zyx_is_osv16_isv32,                      ///< format for imad deconvolution
@@ -241,6 +270,12 @@ struct format {
         g_os_is_yx_osa2_isa8_osv16_isv4,
         g_os_is_zyx_osa4_isa8_osv8_isv2,
         g_os_is_zyx_osa4_isa8_osv8_isv4,
+        g_os_is_zyx_isa8_osv8_isv2,
+        g_os_is_zyx_isa8_osv8_isv4,
+        g_os_yx_is_osv8_isv2,
+        g_os_yx_is_osv8_isv4,
+        g_os_y_is_x_osv8_isv2,
+        g_os_y_is_x_osv8_isv4,
 
         format_num,  ///< number of format types
         any        = -1
@@ -296,34 +331,16 @@ struct format {
     static bool is_simple_data_format(type fmt) {
         return (fmt == yxfb || fmt == byxf ||
                 fmt == bfyx || fmt == fyxb ||
-                fmt == bfzyx || fmt == bfwzyx);
+                fmt == bfzyx || fmt == bfwzyx ||
+                fmt == bfuwzyx || fmt == bfvuwzyx);
     }
 
-    static format get_default_format(size_t rank, bool is_weights = false, bool is_grouped = false) {
-        auto default_fmt = cldnn::format::bfyx;
-        if (is_weights) {
-            if (is_grouped) {
-                if (rank == 5) {
-                    default_fmt = cldnn::format::goiyx;
-                } else if (rank == 6) {
-                    default_fmt = cldnn::format::goizyx;
-                }
-            } else {
-                if (rank == 4) {
-                    default_fmt = cldnn::format::oiyx;
-                } else if (rank == 5) {
-                    default_fmt = cldnn::format::oizyx;
-                }
-            }
-        } else {
-            if (rank == 5) {
-                default_fmt = cldnn::format::bfzyx;
-            } else if (rank == 6) {
-                default_fmt = cldnn::format::bfwzyx;
-            }
-        }
-       return default_fmt;
-    }
+    static format get_default_format(size_t rank, bool is_weights = false, bool is_grouped = false);
+    static bool is_default_format(type fmt);
+
+    static format adjust_to_rank(format fmt, size_t new_rank);
+
+    static const std::vector<std::pair<size_t, int>> per_axis_block_size(format fmt);
 
     /// @brief Checks if @p format is of grouped type
     static bool is_grouped(type fmt) { return group_num(fmt) != 0; }
@@ -331,6 +348,10 @@ struct format {
     static bool is_image(type fmt) { return (is_image_2d(fmt)); }
     /// @brief Checks if @p format is blocked format
     static bool is_blocked(type fmt) { return !(block_sizes(fmt).empty()); }
+    /// @brief Checks if @p format is blocked format which has single inner block
+    static bool is_single_blocked(type fmt) { return (block_sizes(fmt).size() == 1); }
+    /// @brief Checks if @p format is blocked format which has multiple inner blocks
+    static bool is_multi_blocked(type fmt) { return (block_sizes(fmt).size() > 1); }
     /// @brief Checks if @p format is nv12 format
     static bool is_nv12(type fmt) { return (fmt == nv12); }
 
@@ -377,6 +398,10 @@ struct format {
 
     std::string to_string() const;
 };
+
+inline std::ostream& operator<<(std::ostream& os, const format& fmt) {
+    return os << fmt.to_string();
+}
 
 /// @}
 /// @}

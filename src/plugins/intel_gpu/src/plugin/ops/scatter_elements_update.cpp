@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,30 +14,25 @@ namespace ov {
 namespace intel_gpu {
 
 static void CreateScatterElementsUpdateOp(Program& p, const std::shared_ptr<ngraph::op::v3::ScatterElementsUpdate>& op) {
-    p.ValidateInputs(op, {4});
-    auto inputPrimitives = p.GetInputPrimitiveIDs(op);
+    validate_inputs_count(op, {4});
+    auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
-    size_t rank = op->get_input_shape(0).size();
     auto axes_constant = std::dynamic_pointer_cast<ngraph::op::Constant>(op->get_input_node_shared_ptr(3));
     if (!axes_constant) {
         OPENVINO_ASSERT("Unsupported parameter nodes type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
     }
-    int64_t axis = axes_constant->cast_vector<int64_t>()[0];
-    if (axis < 0)
-        axis += rank;
-    if (axis < 0 || axis >= static_cast<int64_t>(rank))
-        OPENVINO_ASSERT("ScatterElementsUpdate axis is not correspond to number of dimensions");
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    int64_t axis = ov::normalize_axis(op.get(), axes_constant->cast_vector<int64_t>()[0], op->get_input_partial_shape(0).rank());
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     auto primitive = cldnn::scatter_elements_update(layerName,
-                                                    inputPrimitives[0],
-                                                    inputPrimitives[1],
-                                                    inputPrimitives[2],
-                                                    axis,
-                                                    op->get_friendly_name());
+                                                    inputs[0],
+                                                    inputs[1],
+                                                    inputs[2],
+                                                    axis);
 
-    p.AddPrimitive(primitive);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, primitive);
 }
 
 REGISTER_FACTORY_IMPL(v3, ScatterElementsUpdate);

@@ -29,7 +29,7 @@ is recommended to use clang compiler.
 ```bash
 (\
 mkdir -p build && cd build && \
-CC=clang CXX=clang++ cmake .. -DENABLE_FUZZING=ON -DENABLE_SANITIZER=ON -DTREAT_WARNING_AS_ERROR=OFF && \
+CC=clang CXX=clang++ cmake .. -DENABLE_FUZZING=ON -DENABLE_SANITIZER=ON && \
 cmake --build . \
 )
 ```
@@ -42,7 +42,7 @@ You should use the same compiler as was used for the openvino build.
 ```bash
 (\
 mkdir -p tests/fuzz/build && cd tests/fuzz/build && \
-CC=clang CXX=clang++ cmake .. -DENABLE_FUZZING=ON -DENABLE_SANITIZER=ON -DTREAT_WARNING_AS_ERROR=OFF -DOpenVINO_DIR=$(pwd)/../../../build && \
+CC=clang CXX=clang++ cmake .. -DENABLE_FUZZING=ON -DENABLE_SANITIZER=ON -DOpenVINO_DIR=$(pwd)/../../../build && \
 cmake --build . \
 )
 ```

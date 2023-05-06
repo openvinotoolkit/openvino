@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -72,9 +72,9 @@ enum class Type {
     Gather,
     GatherElements,
     GatherND,
+    GridSample,
     OneHot,
     RegionYolo,
-    Select,
     Roll,
     Reference,
     ShuffleChannels,
@@ -108,6 +108,10 @@ enum class Type {
     Subgraph,
     PriorBox,
     PriorBoxClustered,
+    Interaction,
+    MHA,
+    Unique,
+    Ngram
 };
 
 enum class Algorithm {
@@ -131,6 +135,9 @@ enum class Algorithm {
 
     // Elementwise algorithms
     EltwiseAdd,
+    EltwiseIsFinite,
+    EltwiseIsInf,
+    EltwiseIsNaN,
     EltwiseMultiply,
     EltwiseSubtract,
     EltwiseDivide,
@@ -153,11 +160,13 @@ enum class Algorithm {
     EltwiseLogicalXor,
     EltwiseLogicalNot,
     EltwiseRelu,
-    EltwiseGelu,
+    EltwiseGeluErf,
+    EltwiseGeluTanh,
     EltwiseElu,
     EltwiseTanh,
     EltwiseSigmoid,
     EltwiseAbs,
+    EltwiseSelect,
     EltwiseSqrt,
     EltwiseSoftRelu,
     EltwiseExp,
@@ -171,12 +180,12 @@ enum class Algorithm {
     EltwiseRoundHalfAwayFromZero,
     EltwiseErf,
     EltwiseSoftSign,
+    EltwiseLog,
 
     // FakeQuantize algorithms
     FQCommon,
     FQQuantization,
     FQBinarization,
-    FQRequantization,
 
     // ROIPooling algorithms
     ROIPoolingMax,
@@ -219,7 +228,6 @@ enum class Algorithm {
     MathErf,
     MathFloor,
     MathHardSigmoid,
-    MathLog,
     MathNegative,
     MathReciprocal,
     MathSelu,

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -279,6 +279,16 @@ public:
     bool operator==(const void* pointer) const {
         // special case with nullptr
         return base::isEqualTo(pointer);
+    }
+
+    /**
+     * @brief Compares stored object with the given one
+     * @param pointer A LockedMemory to compare with
+     * @return `true` if objects are equal, `false` otherwise
+     */
+    bool operator==(const LockedMemory<void>& lm) const {
+        // special case with nullptr
+        return base::isEqualTo(lm.as<void*>());
     }
 
     /**

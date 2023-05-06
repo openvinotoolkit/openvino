@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,6 @@
 #include <string>
 #include <vector>
 #include <ngraph/node.hpp>
-#include <ngraph/variant.hpp>
 #include "low_precision/lpt_visibility.hpp"
 #include "low_precision/rt_info/precision_preserved_attribute.hpp"
 
@@ -24,9 +23,9 @@ namespace ngraph {
  */
 class LP_TRANSFORMATIONS_API AvgPoolPrecisionPreservedAttribute : public PrecisionPreservedAttribute {
 public:
-    OPENVINO_RTTI("LowPrecision::AvgPoolPrecisionPreserved", "", ov::RuntimeAttribute, 0);
+    OPENVINO_RTTI("LowPrecision::AvgPoolPrecisionPreserved", "", ov::RuntimeAttribute);
     using PrecisionPreservedAttribute::PrecisionPreservedAttribute;
-    void merge(std::vector<ov::Any>& attributes);
+    void merge_attributes(std::vector<ov::Any>& attributes);
     bool is_skipped() const;
     std::string to_string() const override;
 };

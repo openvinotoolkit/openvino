@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,13 +38,31 @@ class ngraph::pass::low_precision::MarkupPrecisions : public ngraph::pass::Funct
 public:
     class Restriction {
     public:
+        class RestrictionByVersion {
+        public:
+            RestrictionByVersion() = default;
+            RestrictionByVersion(
+                const std::function<PrecisionsRestriction::PrecisionsByPorts(const std::shared_ptr<Node>&)>& precisionsFunction,
+                const PrecisionsRestriction::PrecisionsByPorts& precisions) :
+                precisionsFunction(precisionsFunction),
+                precisions(precisions) {}
+
+            PrecisionsRestriction::PrecisionsByPorts get(const std::shared_ptr<Node>& node) const {
+                return (precisionsFunction != nullptr) ? precisionsFunction(node) : precisions;
+            }
+
+        private:
+            std::function<PrecisionsRestriction::PrecisionsByPorts(const std::shared_ptr<Node>&)> precisionsFunction;
+            PrecisionsRestriction::PrecisionsByPorts precisions;
+        };
+
         explicit Restriction(const bool versionIsRequired) : versionIsRequired(versionIsRequired) {}
-        void add(const uint64_t version, const std::vector<std::pair<size_t, std::vector<ngraph::element::Type>>>& precisions) {
-            precisionsByVersion.emplace(version, precisions);
+        void add(const std::string version_id, const RestrictionByVersion& precisions) {
+            precisionsByVersion.emplace(version_id, precisions);
         }
 
         bool versionIsRequired;
-        std::unordered_map<uint64_t, std::vector<std::pair<size_t, std::vector<ngraph::element::Type>>>> precisionsByVersion;
+        std::unordered_map<std::string, RestrictionByVersion> precisionsByVersion;
     };
 
     OPENVINO_RTTI("MarkupPrecisions", "0");

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -87,10 +87,7 @@ bool ConvolutionBackpropDataTransformation::transform(TransformationContext &con
                 return false;
             }
 
-            std::shared_ptr<ngraph::Node> resultConstant = NetworkHelper::fold_fake_quantize(
-                fqOnWeights,
-                false,
-                (constantShape.rank().get_length() < 2) || constantShape[1] != 1ul ? 1ul : 0ul);
+            auto resultConstant = NetworkHelper::fold_fake_quantize(fqOnWeights, false);
             if (reshapeFromWeights != nullptr) {
                 resultConstant = fold_reshape<opset1::Reshape>(
                         resultConstant,
@@ -122,16 +119,16 @@ bool ConvolutionBackpropDataTransformation::transform(TransformationContext &con
         inputs[0] = dequantization.multiply->input_value(0);
         const auto copyNode = convolutionBackpropData->clone_with_new_inputs(inputs);
 
-        const auto relaxedConvolutionBackpropData = std::make_shared<op::TypeRelaxed<opset1::ConvolutionBackpropData>>(
+        const auto relaxedConvolutionBackpropData = std::make_shared<ov::op::TypeRelaxed<opset1::ConvolutionBackpropData>>(
             *ov::as_type_ptr<opset1::ConvolutionBackpropData>(copyNode),
             std::vector<element::Type>{deqPrecision, deqPrecision},
             std::vector<element::Type>{deqPrecision});
 
-        newMultiplyAfter = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(
+        newMultiplyAfter = std::make_shared<ov::op::TypeRelaxed<opset1::Multiply>>(
             std::vector<element::Type>{ deqPrecision, deqPrecision },
             std::vector<element::Type>{ dequantization.multiply->get_output_element_type(0) },
-            ngraph::op::TemporaryReplaceOutputType(relaxedConvolutionBackpropData, deqPrecision).get(),
-            ngraph::op::TemporaryReplaceOutputType(newMultiplyAfterConst, deqPrecision).get());
+            ov::op::TemporaryReplaceOutputType(relaxedConvolutionBackpropData, deqPrecision).get(),
+            ov::op::TemporaryReplaceOutputType(newMultiplyAfterConst, deqPrecision).get());
         NetworkHelper::insertDequantizationAfter(convolutionBackpropData, newMultiplyAfter, relaxedConvolutionBackpropData);
 
         convolutionBackpropData = newMultiplyAfter->get_input_node_shared_ptr(0);
@@ -147,16 +144,14 @@ bool ConvolutionBackpropDataTransformation::transform(TransformationContext &con
         decomposeFakeQuantizeForWeightsPath(convolutionBackpropData, 1ul);
         dequantization = NetworkHelper::getDequantization(convolutionBackpropData, defaultPrecisions, 1ul);
 
-        if (ov::is_type<opset1::FakeQuantize>(dequantization.data.get_node())) {
-            const std::shared_ptr<opset1::FakeQuantize> fq = ov::as_type_ptr<opset1::FakeQuantize>(dequantization.data.get_node_shared_ptr());
-            std::shared_ptr<ngraph::Node> newFQ = NetworkHelper::fold_fake_quantize(fq, true);
+        if (const auto fq = ov::as_type_ptr<opset1::FakeQuantize>(dequantization.data.get_node_shared_ptr())) {
+            const auto newFQ = NetworkHelper::fold_fake_quantize(fq, true);
             NetworkHelper::copyInfo(fq, newFQ);
             replace_node(fq, newFQ);
         }
 
-        std::shared_ptr<opset1::Multiply> multiplyFromWeights = ov::as_type_ptr<opset1::Multiply>(
-                convolutionBackpropData->input_value(1).get_node_shared_ptr());
-        std::shared_ptr<opset1::Subtract> subtractFromWeights = ov::as_type_ptr<opset1::Subtract>(multiplyFromWeights->get_input_node_shared_ptr(0));
+        const auto multiplyFromWeights = convolutionBackpropData->get_input_node_shared_ptr(1);
+        auto subtractFromWeights = ov::as_type_ptr<opset1::Subtract>(multiplyFromWeights->get_input_node_shared_ptr(0));
 
         {
             const auto newScalePShape = multiplyFromWeights->get_input_partial_shape(1);

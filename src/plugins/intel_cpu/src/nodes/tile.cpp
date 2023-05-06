@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,8 +32,8 @@ bool Tile::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::
     return true;
 }
 
-Tile::Tile(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
-        Node(op, eng, cache) {
+Tile::Tile(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) :
+        Node(op, context, NgraphShapeInferFactory(op, PortMask(TILE_REPEATS))) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -51,6 +51,15 @@ Tile::Tile(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng, Weights
 }
 
 void Tile::getSupportedDescriptors() {
+    const auto& vec_to_string = [](const std::vector<size_t>& vec) -> std::string {
+        std::string result = "[";
+        for (size_t i = 0; i < vec.size(); i++) {
+            if (i)
+                result += ", ";
+            result += std::to_string(vec[i]);
+        }
+        return result;
+    };
     if (getParentEdges().size() != 2)
         IE_THROW() << errorPrefix << " has incorrect number of input edges. "
                 "Expected: 2, Actual: " << getParentEdges().size();
@@ -63,8 +72,8 @@ void Tile::getSupportedDescriptors() {
             IE_THROW() << errorPrefix << " has output edges 0 and " << i << " with different ranks: " << dstDims0.size() << " and " << dstDims.size();
         for (size_t j = 0; j < dstDims0.size(); j++) {
             if (dstDims0[j] != dstDims[j]) {
-                IE_THROW() << errorPrefix << " has output edges 0 and " << i << " with different dims: "
-                        << std::string(dstDims0.begin(), dstDims0.end()) << " and " << std::string(dstDims.begin(), dstDims.end());
+                IE_THROW() << errorPrefix << " has output edges 0 and " << i << " with different dims: " << vec_to_string(dstDims0) << " and "
+                           << vec_to_string(dstDims);
             }
         }
     }
@@ -125,10 +134,6 @@ bool Tile::needShapeInfer() const {
     return false;
 }
 
-std::vector<VectorDims> Tile::shapeInfer() const {
-    return Node::shapeInferGeneric(PortMask(TILE_REPEATS));
-}
-
 void Tile::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
@@ -159,12 +164,7 @@ void Tile::plainExecute(dnnl::stream strm) {
     for (int i = axis; i < inDims.size(); i++ )
         m_inner_dim *= inDims[i];
 
-    int MB = 0;
-    if (isDynamicNode()) {
-        MB = srcMemory.getStaticDims()[0];
-    } else {
-        MB = batchToProcess();
-    }
+    int MB = srcMemory.getStaticDims()[0];
     if (axis > 0) {
         m_outer_dim /= inDims[0];
         m_outer_dim *= MB;

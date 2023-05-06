@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,8 +49,8 @@ void extract_image_patches(const std::shared_ptr<op::ExtractImagePatches> extImg
     int64_t PL = 0, PT = 0;
 
     if (auto_pad != op::PadType::VALID) {
-        int64_t PW = (std::ceil(1.f * IW / SW) - 1) * SW + iwStep - IW;
-        int64_t PH = (std::ceil(1.f * IH / SH) - 1) * SH + ihStep - IH;
+        int64_t PW = static_cast<int64_t>(std::ceil(1.f * IW / SW) - 1) * SW + iwStep - IW;
+        int64_t PH = static_cast<int64_t>(std::ceil(1.f * IH / SH) - 1) * SH + ihStep - IH;
 
         if ((PW > 0) && (PW < iwStep)) {
             if (PW % 2 == 1) {
@@ -95,15 +95,15 @@ void extract_image_patches(const std::shared_ptr<op::ExtractImagePatches> extImg
                             int64_t iwKW = iw0 + kw * RW;
                             int64_t dst_idx = ob_OCOHOW_ohOW_ow + oc * OH_OW;
                             if (dst_idx >= OB_OC_OH_OW)
-                                throw ngraph_error("ExtractImagePatches. Destination index is out of "
-                                                   "bounds.");
+                                OPENVINO_THROW("ExtractImagePatches. Destination index is out of "
+                                               "bounds.");
                             if (ihKH < 0 || ihKH >= IH || iwKW < 0 || iwKW >= IW) {
                                 out[dst_idx] = T(0);
                             } else {
                                 int64_t src_idx = ib_ICIHIW_ihKH_IW + ic * IH_IW + iwKW;
                                 if (src_idx >= IB_IC_IH_IW)
-                                    throw ngraph_error("ExtractImagePatches. Source index is out of "
-                                                       "bounds.");
+                                    OPENVINO_THROW("ExtractImagePatches. Source index is out of "
+                                                   "bounds.");
                                 out[dst_idx] = input[src_idx];
                             }
                         }

@@ -131,7 +131,7 @@ def compute_stats_layouts(config, model, qscheme=None):
     fake_quantize_config = {}
     for fq in fq_nodes:
         is_weights = fq['fq_group'] == 'weights'
-        fq_config = copy(fq_configuration[fq.name][fq['fq_group']])
+        fq_config = copy(fq_configuration[fq.fullname][fq['fq_group']])
         fake_quantize_config[fq.fullname] = fq_config
         if fq.fullname in config.layerwise_configs[0]:
             fq_config = Dict(merge_nested_dicts(fq_config, config.layerwise_configs[0][fq.fullname]))
@@ -178,7 +178,7 @@ def insert_fake_quantize_nodes(config, model, qscheme=None):
         ignored_params.update(deepcopy(config['ignored']))
 
     if config['model_type']:
-        ignored_params['operations'] += get_ignored_operations(config['model_type'])
+        ignored_params['operations'] += get_ignored_operations(config['model_type'], config['target_device'])
 
     if qscheme:
         for key in qscheme:

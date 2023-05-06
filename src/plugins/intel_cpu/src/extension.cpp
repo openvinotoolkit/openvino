@@ -1,18 +1,29 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "extension.h"
-#include "ngraph_transformations/op/fully_connected.hpp"
-#include "ngraph_transformations/op/leaky_relu.hpp"
-#include "ngraph_transformations/op/power_static.hpp"
-#include "ngraph_transformations/op/swish_cpu.hpp"
+#include "transformations/cpu_opset/common/op/fully_connected.hpp"
+#include "transformations/cpu_opset/common/op/leaky_relu.hpp"
+#include "transformations/cpu_opset/common/op/power_static.hpp"
+#include "transformations/cpu_opset/common/op/swish_cpu.hpp"
+#include "transformations/cpu_opset/common/op/ngram.hpp"
+#include "transformations/cpu_opset/x64/op/mha.hpp"
+#include "transformations/cpu_opset/x64/op/interaction.hpp"
+#include "transformations/snippets/x64/op/load_convert.hpp"
+#include "transformations/snippets/x64/op/store_convert.hpp"
+#include "transformations/snippets/x64/op/brgemm_cpu.hpp"
+#include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 
 #include <ngraph/ngraph.hpp>
-#include <ngraph_ops/type_relaxed.hpp>
-#include <ngraph_ops/nms_ie_internal.hpp>
-#include <ngraph_ops/nms_static_shape_ie.hpp>
-#include <ngraph_ops/multiclass_nms_ie_internal.hpp>
+#include <ov_ops/augru_cell.hpp>
+#include <ov_ops/augru_sequence.hpp>
+#include <ov_ops/type_relaxed.hpp>
+#include <ov_ops/nms_ie_internal.hpp>
+#include <ov_ops/nms_static_shape_ie.hpp>
+#include <ov_ops/multiclass_nms_ie_internal.hpp>
+
+#include <snippets/op/subgraph.hpp>
 
 #include <mutex>
 
@@ -35,11 +46,20 @@ std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
     auto cpu_plugin_opset = []() {
         ngraph::OpSet opset;
 
+#if defined(OPENVINO_ARCH_X86_64)
+#define NGRAPH_OP_X64(NAME, NAMESPACE) NGRAPH_OP(NAME, NAMESPACE)
+#else
+#define NGRAPH_OP_X64(NAME, NAMESPACE)
+#endif
+
 #define NGRAPH_OP(NAME, NAMESPACE) opset.insert<NAMESPACE::NAME>();
         NGRAPH_OP(FullyConnectedNode, ov::intel_cpu)
         NGRAPH_OP(LeakyReluNode, ov::intel_cpu)
         NGRAPH_OP(PowerStaticNode, ov::intel_cpu)
         NGRAPH_OP(SwishNode, ov::intel_cpu)
+        NGRAPH_OP(NgramNode, ov::intel_cpu)
+        NGRAPH_OP_X64(MHANode, ov::intel_cpu)
+        NGRAPH_OP_X64(InteractionNode, ov::intel_cpu)
 #undef NGRAPH_OP
 
         return opset;
@@ -48,7 +68,7 @@ std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
     auto type_relaxed_opset = []() {
         ngraph::OpSet opset;
 
-#define NGRAPH_OP(NAME, NAMESPACE) opset.insert<ngraph::op::TypeRelaxed<NAMESPACE::NAME>>();
+#define NGRAPH_OP(NAME, NAMESPACE) opset.insert<ov::op::TypeRelaxed<NAMESPACE::NAME>>();
         NGRAPH_OP(Add, ngraph::op::v1)
         NGRAPH_OP(AvgPool, ngraph::op::v1)
         NGRAPH_OP(Clamp, ngraph::op::v0)
@@ -103,9 +123,46 @@ std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
         ngraph::OpSet opset;
 
 #define NGRAPH_OP(NAME, NAMESPACE) opset.insert<NAMESPACE::NAME>();
-        NGRAPH_OP(NonMaxSuppressionIEInternal, ngraph::op::internal)
-        NGRAPH_OP(MulticlassNmsIEInternal, ngraph::op::internal)
-        NGRAPH_OP(NmsStaticShapeIE<ov::op::v8::MatrixNms>, ngraph::op::internal)
+        NGRAPH_OP(NonMaxSuppressionIEInternal, ov::op::internal)
+        NGRAPH_OP(MulticlassNmsIEInternal, ov::op::internal)
+        NGRAPH_OP(AUGRUCell, ov::op::internal)
+        NGRAPH_OP(AUGRUSequence, ov::op::internal)
+        NGRAPH_OP(NmsStaticShapeIE<ov::op::v8::MatrixNms>, ov::op::internal)
+#undef NGRAPH_OP
+
+        return opset;
+    };
+
+    auto snippets_opset = []() {
+        ngraph::OpSet opset;
+
+#define NGRAPH_OP(NAME, NAMESPACE) opset.insert<NAMESPACE::NAME>();
+        NGRAPH_OP(Brgemm, ngraph::snippets::op)
+        NGRAPH_OP(Buffer, ngraph::snippets::op)
+        NGRAPH_OP(BroadcastLoad, ngraph::snippets::op)
+        NGRAPH_OP(BroadcastMove, ngraph::snippets::op)
+        NGRAPH_OP(ConvertSaturation, ngraph::snippets::op)
+        NGRAPH_OP(ConvertTruncation, ngraph::snippets::op)
+        NGRAPH_OP(Fill, ngraph::snippets::op)
+        NGRAPH_OP(HorizonMax, ngraph::snippets::op)
+        NGRAPH_OP(HorizonSum, ngraph::snippets::op)
+        NGRAPH_OP(Kernel, ngraph::snippets::op)
+        NGRAPH_OP(Load, ngraph::snippets::op)
+        NGRAPH_OP(LoadReshape, ngraph::snippets::op)
+        NGRAPH_OP(LoopBegin, ngraph::snippets::op)
+        NGRAPH_OP(LoopEnd, ngraph::snippets::op)
+        NGRAPH_OP(Nop, ngraph::snippets::op)
+        NGRAPH_OP(PowerStatic, ngraph::snippets::op)
+        NGRAPH_OP(Scalar, ngraph::snippets::op)
+        NGRAPH_OP(Store, ngraph::snippets::op)
+        NGRAPH_OP(Subgraph, ngraph::snippets::op)
+        NGRAPH_OP(VectorBuffer, ngraph::snippets::op)
+        NGRAPH_OP_X64(LoadConvertSaturation, ov::intel_cpu)
+        NGRAPH_OP_X64(LoadConvertTruncation, ov::intel_cpu)
+        NGRAPH_OP_X64(StoreConvertSaturation, ov::intel_cpu)
+        NGRAPH_OP_X64(StoreConvertTruncation, ov::intel_cpu)
+        NGRAPH_OP_X64(BrgemmCPU, ov::intel_cpu)
+        NGRAPH_OP_X64(BrgemmCopyB, ov::intel_cpu)
 #undef NGRAPH_OP
 
         return opset;
@@ -115,6 +172,7 @@ std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
         { "cpu_plugin_opset", cpu_plugin_opset() },
         { "type_relaxed_opset", type_relaxed_opset() },
         { "ie_internal_opset", ie_internal_opset() },
+        { "SnippetsOpset", snippets_opset() },
     };
 
     return opsets;

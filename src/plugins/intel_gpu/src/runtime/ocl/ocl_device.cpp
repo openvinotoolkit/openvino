@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,6 +32,7 @@
 #include <link.h>
 #include <dlfcn.h>
 #endif
+
 
 namespace cldnn {
 namespace ocl {
@@ -147,54 +148,6 @@ bool get_imad_support(const cl::Device& device) {
     return false;
 }
 
-bool is_local_block_io_supported(const cl::Device& device) {
-    try {
-        cl_int status = CL_SUCCESS;
-        cl::Context ctx(device);
-        std::string kernel_code =
-            "__attribute__((intel_reqd_sub_group_size(8)))"
-            "__attribute__((reqd_work_group_size(8, 1, 1)))"
-            "void kernel is_local_block_io_supported(global uchar* dst) {"
-            "    uint lid = get_sub_group_local_id();"
-            "    uchar val = (uchar)lid * 2;"
-            "    __local uchar tmp_slm[8];"
-            "    intel_sub_group_block_write_uc2(tmp_slm, (uchar2)(val));"
-            "    barrier(CLK_LOCAL_MEM_FENCE);"
-            "    uchar2 read = intel_sub_group_block_read_uc2(tmp_slm);"
-            "    dst[lid] = read.s0 + 1;"
-            "}";
-        cl::Program program(ctx, kernel_code);
-        if (program.build(device, "-Dcl_intel_subgroup_local_block_io") != CL_SUCCESS)
-            return false;
-        cl::Buffer buffer(ctx, CL_MEM_READ_WRITE, sizeof(uint8_t) * 8);
-        cl::Kernel kernel(program, "is_local_block_io_supported");
-        status = kernel.setArg(0, buffer);
-
-        if (status != CL_SUCCESS)
-            return false;
-
-        cl::Event ev;
-        cl::CommandQueue queue(ctx, device);
-        status = queue.enqueueNDRangeKernel(kernel, cl::NDRange(), cl::NDRange(8), cl::NDRange(8), nullptr, &ev);
-        if (status != CL_SUCCESS)
-            return false;
-        ev.wait();
-
-        uint8_t result[8];
-        uint8_t expected[8] = { 1, 3, 5, 7, 9, 11, 13, 15 };
-        status = queue.enqueueReadBuffer(buffer, CL_TRUE, 0, sizeof(uint8_t) * 8, &result);
-        if (status != CL_SUCCESS)
-            return false;
-        for (int i = 0; i < 8; ++i) {
-            if (result[i] != expected[i])
-                return false;
-        }
-        return true;
-    } catch (...) {
-        return false;
-    }
-}
-
 device_info init_device_info(const cl::Device& device) {
     device_info info = {};
     info.vendor_id = static_cast<uint32_t>(device.getInfo<CL_DEVICE_VENDOR_ID>());
@@ -220,33 +173,35 @@ device_info init_device_info(const cl::Device& device) {
     auto extensions = device.getInfo<CL_DEVICE_EXTENSIONS>();
     extensions.push_back(' ');  // Add trailing space to ease searching (search with keyword with trailing space).
 
+    info.supports_intel_planar_yuv = extensions.find("cl_intel_planar_yuv ") != std::string::npos;
     info.supports_fp16 = extensions.find("cl_khr_fp16 ") != std::string::npos;
     info.supports_fp64 = extensions.find("cl_khr_fp64 ") != std::string::npos;
     info.supports_fp16_denorms = info.supports_fp16 && (device.getInfo<CL_DEVICE_HALF_FP_CONFIG>() & CL_FP_DENORM) != 0;
 
-    info.supports_subgroups = extensions.find("cl_intel_subgroups") != std::string::npos;
-    info.supports_subgroups_short = extensions.find("cl_intel_subgroups_short") != std::string::npos;
-    info.supports_subgroups_char = extensions.find("cl_intel_subgroups_char") != std::string::npos;
+    info.supports_khr_subgroups = extensions.find("cl_khr_subgroups ") != std::string::npos;
+    info.supports_intel_subgroups = extensions.find("cl_intel_subgroups ") != std::string::npos;
+    info.supports_intel_subgroups_short = extensions.find("cl_intel_subgroups_short ") != std::string::npos;
+    info.supports_intel_subgroups_char = extensions.find("cl_intel_subgroups_char ") != std::string::npos;
+    info.supports_intel_required_subgroup_size = extensions.find("cl_intel_required_subgroup_size ") != std::string::npos;
 
     info.supports_imad = get_imad_support(device);
     info.supports_immad = false;
 
-    info.supports_usm = extensions.find("cl_intel_unified_shared_memory") != std::string::npos;
+    info.supports_usm = extensions.find("cl_intel_unified_shared_memory ") != std::string::npos ||
+                        extensions.find("cl_intel_unified_shared_memory_preview ") != std::string::npos;
 
-    info.supports_local_block_io = extensions.find("cl_intel_subgroup_local_block_io") != std::string::npos &&
-                                   is_local_block_io_supported(device);
+    info.supports_local_block_io = extensions.find("cl_intel_subgroup_local_block_io ") != std::string::npos;
 
-    info.supports_queue_families = extensions.find("cl_intel_command_queue_families") != std::string::npos;
+    info.supports_queue_families = extensions.find("cl_intel_command_queue_families ") != std::string::npos;
 
-    bool sub_group_sizes_supported = extensions.find("cl_intel_required_subgroup_size") != std::string::npos;
-    if (sub_group_sizes_supported) {
+    if (info.supports_intel_required_subgroup_size) {
         info.supported_simd_sizes = device.getInfo<CL_DEVICE_SUB_GROUP_SIZES_INTEL>();
     } else {
         // Set these values as reasonable default for most of the supported platforms
         info.supported_simd_sizes = {8, 16, 32};
     }
 
-    bool device_uuid_supported = extensions.find("cl_khr_device_uuid") != std::string::npos;
+    bool device_uuid_supported = extensions.find("cl_khr_device_uuid ") != std::string::npos;
     if (device_uuid_supported) {
         static_assert(CL_UUID_SIZE_KHR == device_uuid::max_uuid_size, "");
         info.uuid.val = device.getInfo<CL_DEVICE_UUID_KHR>();
@@ -255,6 +210,7 @@ device_info init_device_info(const cl::Device& device) {
     }
 
     bool device_attr_supported = extensions.find("cl_intel_device_attribute_query") != std::string::npos;
+    bool nv_device_attr_supported = extensions.find("cl_nv_device_attribute_query") != std::string::npos;
     if (device_attr_supported) {
         info.gfx_ver = parse_version(device.getInfo<CL_DEVICE_IP_VERSION_INTEL>());
         info.device_id = device.getInfo<CL_DEVICE_ID_INTEL>();
@@ -269,6 +225,10 @@ device_info init_device_info(const cl::Device& device) {
         GPU_DEBUG_GET_INSTANCE(debug_config);
         GPU_DEBUG_IF(debug_config->disable_onednn)
             info.supports_immad = false;
+    } else if (nv_device_attr_supported) {
+        info.gfx_ver = {static_cast<uint16_t>(device.getInfo<CL_DEVICE_COMPUTE_CAPABILITY_MAJOR_NV>()),
+                        static_cast<uint8_t>(device.getInfo<CL_DEVICE_COMPUTE_CAPABILITY_MINOR_NV>()),
+                        0};
     } else {
         info.gfx_ver = {0, 0, 0};
         info.device_id = driver_dev_id();
@@ -276,6 +236,19 @@ device_info init_device_info(const cl::Device& device) {
         info.num_sub_slices_per_slice = 0;
         info.num_eus_per_sub_slice = 0;
         info.num_threads_per_eu = 0;
+    }
+
+    info.num_ccs = 1;
+    if (info.supports_queue_families) {
+        cl_uint num_queues = 0;
+
+        std::vector<cl_queue_family_properties_intel> qfprops = device.getInfo<CL_DEVICE_QUEUE_FAMILY_PROPERTIES_INTEL>();
+        for (cl_uint q = 0; q < qfprops.size(); q++) {
+            if (qfprops[q].capabilities == CL_QUEUE_DEFAULT_CAPABILITIES_INTEL && qfprops[q].count > num_queues) {
+                num_queues = qfprops[q].count;
+            }
+        }
+        info.num_ccs = std::max<uint32_t>(num_queues, info.num_ccs);
     }
 
     return info;
@@ -320,7 +293,7 @@ bool ocl_device::is_same(const device::ptr other) {
     if (!casted)
         return false;
 
-    return _context == casted->get_context() && _device == casted->get_device() && _platform == casted->get_platform();
+    return _device == casted->get_device() && _platform == casted->get_platform();
 }
 
 }  // namespace ocl

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,6 +29,8 @@ typedef std::tuple<
 > gatherParamsTuple;
 
 class GatherLayerTestBase : virtual public LayerTestsUtils::LayerTestsCommon {
+public:
+    using ::testing::Test::SetUp;
 protected:
     void SetUp(const gatherParamsTuple& params);
 };
@@ -64,6 +66,15 @@ protected:
 };
 
 class Gather8LayerTest : public testing::WithParamInterface<gather7ParamsTuple>,
+                         virtual public LayerTestsUtils::LayerTestsCommon {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<gather7ParamsTuple>& obj);
+
+protected:
+    void SetUp() override;
+};
+
+class Gather8IndiceScalarLayerTest : public testing::WithParamInterface<gather7ParamsTuple>,
                          virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<gather7ParamsTuple>& obj);

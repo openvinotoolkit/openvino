@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "lstm_inst.h"
 #include "primitive_type_base.h"
 #include "intel_gpu/runtime/error_handler.hpp"
@@ -10,13 +8,10 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id lstm::type_id() {
-    static primitive_type_base<lstm> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(lstm)
 
 layout lstm_inst::calc_output_layout(lstm_node const& node, kernel_impl_params const& impl_param) {
-    assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&
+    assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
            "Output data type forcing is not supported for lstm_node!");
     auto input_layout = impl_param.get_input_layout();
     auto hidden_layout = node.inital_hidden().get_output_layout();

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,8 +11,6 @@
 
 using namespace std;
 
-BWDCMP_RTTI_DEFINITION(ov::op::util::ArithmeticReductionKeepDims);
-
 ov::op::util::ArithmeticReductionKeepDims::ArithmeticReductionKeepDims(
     const ngraph::Output<ngraph::Node>& arg,
     const ngraph::Output<ngraph::Node>& reduction_axes,
@@ -21,13 +19,13 @@ ov::op::util::ArithmeticReductionKeepDims::ArithmeticReductionKeepDims(
       m_keep_dims{keep_dims} {}
 
 bool ov::op::util::ArithmeticReductionKeepDims::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v0_util_ArithmeticReductionKeepDims_visit_attributes);
+    OV_OP_SCOPE(v0_util_ArithmeticReductionKeepDims_visit_attributes);
     visitor.on_attribute("keep_dims", m_keep_dims);
     return true;
 }
 
 void ov::op::util::ArithmeticReductionKeepDims::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v0_util_ArithmeticReductionKeepDims_validate_and_infer_types);
+    OV_OP_SCOPE(v0_util_ArithmeticReductionKeepDims_validate_and_infer_types);
 
     const element::Type& data_et = get_input_element_type(0);
     const PartialShape& axes_shape = get_input_partial_shape(1);

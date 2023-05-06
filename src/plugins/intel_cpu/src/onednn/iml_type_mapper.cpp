@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,7 +36,10 @@ impl_desc_type parse_impl_name(std::string impl_desc_name) {
     SEARCH_WORD(any);
     SEARCH_WORD(_1x1);
     SEARCH_WORD(_dw);
+    SEARCH_WORD_2(dw, _dw);
     SEARCH_WORD(reorder);
+    SEARCH_WORD(sparse);
+    SEARCH_WORD(acl);
     if ((res & impl_desc_type::avx2) != impl_desc_type::avx2 &&
         (res & impl_desc_type::avx512) != impl_desc_type::avx512)
         SEARCH_WORD(avx);
@@ -62,6 +65,7 @@ const char* impl_type_to_string(impl_desc_type type) {
 } while (0)
     CASE(unknown);
     CASE(undef);
+    CASE(ref);
     CASE(ref_any);
     CASE(reorder);
     CASE(gemm_any);
@@ -108,6 +112,11 @@ const char* impl_type_to_string(impl_desc_type type) {
     CASE(brgemm_sse42);
     CASE(brgemm_uni);
     CASE(brgemm_avx512_amx);
+    CASE(brgemm_sparse_avx512_amx);
+    CASE(acl);
+    CASE(dw_acl);
+    CASE(gemm_acl);
+    CASE(winograd_acl);
 
 #undef CASE
     return "unknown";

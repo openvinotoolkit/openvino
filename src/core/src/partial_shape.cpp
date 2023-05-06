@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 
 #include "dimension_tracker.hpp"
 #include "ngraph/check.hpp"
+#include "ngraph/util.hpp"
 
 ov::PartialShape::PartialShape() : PartialShape(std::initializer_list<Dimension>{}) {}
 
@@ -23,6 +24,27 @@ ov::PartialShape::PartialShape(const Shape& shape)
     : m_rank_is_static(true),
       m_shape_type(ShapeType::SHAPE_IS_STATIC),
       m_dimensions(shape.begin(), shape.end()) {}
+
+ov::PartialShape::PartialShape(const std::string& value) {
+    auto val = ngraph::trim(value);
+    if (val[0] == '[' && val[val.size() - 1] == ']')
+        val = val.substr(1, val.size() - 2);
+    val = ngraph::trim(val);
+    if (val == "...") {
+        m_rank_is_static = false;
+        m_dimensions = std::vector<Dimension>();
+        return;
+    }
+    m_rank_is_static = true;
+    Dimensions dims;
+    std::stringstream ss(val);
+    std::string field;
+    while (getline(ss, field, ',')) {
+        OPENVINO_ASSERT(!field.empty(), "Cannot get vector of dimensions! \"" + value + "\" is incorrect");
+        dims.insert(dims.end(), Dimension(field));
+    }
+    m_dimensions = dims;
+}
 
 ov::PartialShape::PartialShape(bool rank_is_static, std::vector<Dimension> dimensions)
     : m_rank_is_static(rank_is_static),
@@ -75,6 +97,7 @@ ov::Shape ov::PartialShape::get_max_shape() const {
         return Shape();
     } else {
         Shape shape;
+        shape.reserve(rank().get_length());
         for (auto dimension : m_dimensions) {
             shape.push_back(dimension.get_interval().get_max_val());
         }
@@ -87,6 +110,7 @@ ov::Shape ov::PartialShape::get_min_shape() const {
         return Shape();
     } else {
         Shape shape;
+        shape.reserve(rank().get_length());
         for (auto dimension : m_dimensions) {
             shape.push_back(dimension.get_interval().get_min_val());
         }
@@ -97,6 +121,7 @@ ov::Shape ov::PartialShape::get_min_shape() const {
 ov::Shape ov::PartialShape::get_shape() const {
     NGRAPH_CHECK(rank().is_static(), "get_shape() must be called on a static shape");
     Shape shape;
+    shape.reserve(rank().get_length());
     for (auto dimension : m_dimensions) {
         auto min_val = dimension.get_interval().get_min_val();
         auto max_val = dimension.get_interval().get_max_val();
@@ -115,8 +140,9 @@ ov::PartialShape ov::operator+(const PartialShape& s1, const PartialShape& s2) {
         throw std::invalid_argument("rank mismatch");
     }
 
-    PartialShape result{};
+    PartialShape result;
     result.m_rank_is_static = true;
+    result.m_dimensions.reserve(s1.m_dimensions.size());
     for (size_t i = 0; i < s1.m_dimensions.size(); i++) {
         result.m_dimensions.push_back(s1.m_dimensions[i] + s2.m_dimensions[i]);
     }
@@ -125,7 +151,7 @@ ov::PartialShape ov::operator+(const PartialShape& s1, const PartialShape& s2) {
 
 std::ostream& ov::operator<<(std::ostream& str, const PartialShape& shape) {
     if (shape.m_rank_is_static) {
-        str << "{";
+        str << "[";
         bool first = true;
         for (auto& d : shape.m_dimensions) {
             if (!first) {
@@ -136,10 +162,16 @@ std::ostream& ov::operator<<(std::ostream& str, const PartialShape& shape) {
             str << d;
             first = false;
         }
-        return (str << "}");
+        return (str << "]");
     } else {
-        return (str << "...");
+        return (str << "[...]");
     }
+}
+
+std::string ov::PartialShape::to_string() const {
+    std::stringstream shape_str_stream;
+    shape_str_stream << *this;
+    return shape_str_stream.str();
 }
 
 ov::PartialShape ov::PartialShape::dynamic(Rank r) {
@@ -178,13 +210,12 @@ bool ov::PartialShape::same_scheme(const PartialShape& s) const {
             return false;
         }
 
-        bool success = true;
-
         for (int64_t i = 0; i < rank().get_length(); i++) {
-            success &= (*this)[i].same_scheme(s[i]);
+            if (!m_dimensions[i].same_scheme(s.m_dimensions[i]))
+                return false;
         }
 
-        return success;
+        return true;
     } else {
         return false;
     }
@@ -194,13 +225,12 @@ bool ov::PartialShape::relaxes(const PartialShape& s) const {
     if (rank().is_dynamic()) {
         return true;
     } else if (s.rank().is_static() && rank().get_length() == s.rank().get_length()) {
-        bool all_relax = true;
-
         for (int64_t i = 0; i < rank().get_length(); i++) {
-            all_relax &= ((*this)[i].relaxes(s[i]));
+            if (!m_dimensions[i].relaxes(s.m_dimensions[i]))
+                return false;
         }
 
-        return all_relax;
+        return true;
     } else {
         return false;
     }
@@ -210,19 +240,18 @@ bool ov::PartialShape::refines(const PartialShape& s) const {
     if (s.rank().is_dynamic()) {
         return true;
     } else if (rank().is_static() && rank().get_length() == s.rank().get_length()) {
-        bool all_refine = true;
-
         for (int64_t i = 0; i < rank().get_length(); i++) {
-            all_refine &= ((*this)[i].refines(s[i]));
+            if (!m_dimensions[i].refines(s.m_dimensions[i]))
+                return false;
         }
 
-        return all_refine;
+        return true;
     } else {
         return false;
     }
 }
 
-bool ov::PartialShape::merge_rank(Rank r) {
+bool ov::PartialShape::merge_rank(const Rank& r) {
     if (r.is_dynamic()) {
         return true;
     } else if (!m_rank_is_static) {
@@ -360,5 +389,3 @@ ov::Dimension& ov::PartialShape::operator[](size_t i) {
     m_shape_type = ShapeType::SHAPE_IS_UPDATED;  // We can't guarantee that the shape remains static or dynamic.
     return m_dimensions[i];
 }
-
-BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<ov::PartialShape>);

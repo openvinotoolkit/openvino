@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,6 @@ namespace test {
 namespace behavior {
 
 struct OVInferRequestIOTensorTest : public OVInferRequestTests {
-    static std::string getTestCaseName(const testing::TestParamInfo<InferRequestParams>& obj);
     void SetUp() override;
     void TearDown() override;
     ov::InferRequest req;
@@ -29,7 +28,7 @@ using OVInferRequestSetPrecisionParams = std::tuple<
         ov::AnyMap                                              // Config
 >;
 struct OVInferRequestIOTensorSetPrecisionTest : public testing::WithParamInterface<OVInferRequestSetPrecisionParams>,
-                                                public CommonTestUtils::TestsCommon {
+                                                public OVInferRequestTestBase {
     static std::string getTestCaseName(const testing::TestParamInfo<OVInferRequestSetPrecisionParams>& obj);
     void SetUp() override;
     void TearDown() override;
@@ -37,7 +36,6 @@ struct OVInferRequestIOTensorSetPrecisionTest : public testing::WithParamInterfa
     std::shared_ptr<ov::Model> function;
     ov::CompiledModel execNet;
     ov::InferRequest req;
-    std::string         target_device;
     ov::AnyMap          config;
     element::Type       element_type;
 };
@@ -45,19 +43,39 @@ struct OVInferRequestIOTensorSetPrecisionTest : public testing::WithParamInterfa
 using OVInferRequestCheckTensorPrecisionParams = OVInferRequestSetPrecisionParams;
 
 struct OVInferRequestCheckTensorPrecision : public testing::WithParamInterface<OVInferRequestCheckTensorPrecisionParams>,
-                                            public CommonTestUtils::TestsCommon {
+                                            public OVInferRequestTestBase {
     static std::string getTestCaseName(const testing::TestParamInfo<OVInferRequestCheckTensorPrecisionParams>& obj);
     void SetUp() override;
     void TearDown() override;
-    void Run();
+    bool compareTensors(const ov::Tensor& t1, const ov::Tensor& t2);
+    void createInferRequest();
 
     std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
     std::shared_ptr<ov::Model> model;
     CompiledModel compModel;
-    InferRequest req;
+    InferRequest request;
     AnyMap  config;
-    std::string         target_device;
-    element::Type       element_type;
+    element::Type  element_type;
+
+    std::vector<ov::element::Type> precisions = {
+        ov::element::boolean,
+        ov::element::bf16,
+        ov::element::f16,
+        ov::element::f32,
+        ov::element::f64,
+        ov::element::i4,
+        ov::element::i8,
+        ov::element::i16,
+        ov::element::i32,
+        ov::element::i64,
+        ov::element::u1,
+        ov::element::u4,
+        ov::element::u8,
+        ov::element::u16,
+        ov::element::u32,
+        ov::element::u64,
+    };
+    std::string exp_error_str_ = "The plugin does not support input precision";
 };
 
 } // namespace behavior

@@ -21,7 +21,8 @@
 #include <openvino/op/irdft.hpp>
 #include <openvino/op/constant.hpp>
 
-using namespace dnnl;
+using namespace dnnl::impl;
+using namespace dnnl::impl::cpu::x64;
 using namespace InferenceEngine;
 
 namespace ov {
@@ -37,10 +38,6 @@ static constexpr double PI = 3.14159265358979323846;
 
 bool RDFT::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (isDynamicNgraphNode(op)) {
-            errorMessage = "Doesn't support op with dynamic shapes";
-            return false;
-        }
         const bool isRDFT = is_type<const ov::op::v9::RDFT>(op);
         const bool isIRDFT = is_type<const ov::op::v9::IRDFT>(op);
 
@@ -67,6 +64,9 @@ static std::vector<int> getDefaultSignalSizes(const VectorDims& inputShape, cons
     signalSizes.reserve(axes.size());
 
     for (auto axis : axes) {
+        if (inputShape[axis] == Shape::UNDEFINED_DIM) {
+            return {};
+        }
         signalSizes.push_back(inputShape[axis]);
     }
     if (inverse) {
@@ -76,8 +76,8 @@ static std::vector<int> getDefaultSignalSizes(const VectorDims& inputShape, cons
     return signalSizes;
 }
 
-RDFT::RDFT(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
-               Node(op, eng, cache) {
+RDFT::RDFT(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context) :
+               Node(op, context, NgraphShapeInferFactory(op, PortMask(1, 2))) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -96,7 +96,14 @@ RDFT::RDFT(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, Wei
 
     inverse = ov::is_type<ov::op::v9::IRDFT>(op);
 
-    std::shared_ptr<ov::op::v0::Constant> signalSizesNode;
+    auto axesNode = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(1));
+    if (axesNode) {
+        axes = axesNode->cast_vector<int>();
+        isAxesConstant = true;
+        auto rank = inputShapes[DATA_INDEX].getRank() - inverse;
+        normalizeAxes(axes, rank);
+    }
+
     if (numInputs > 2) {
         const auto signalSizeRank = inputShapes[SIGNAL_SIZE_INDEX].getRank();
         if (signalSizeRank != 1) {
@@ -105,19 +112,10 @@ RDFT::RDFT(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, Wei
         auto signalSizesNode = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(2));
         if (!signalSizesNode)
             return;
+        isSignalSizesConstant = true;
         signalSizes = signalSizesNode->cast_vector<int>();
-    }
-
-    auto axesNode = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(1));
-    if (!axesNode)
-        return;
-
-    axes = axesNode->cast_vector<int>();
-    auto rank = inputShapes[DATA_INDEX].getRank() - inverse;
-    normalizeAxes(axes, rank);
-
-    if (numInputs < 3) {
-        const auto& inputShape = inputShapes[DATA_INDEX].getStaticDims();
+    } else if (isAxesConstant) {
+        const auto& inputShape = inputShapes[DATA_INDEX].getDims();
         signalSizes = getDefaultSignalSizes(inputShape, axes, inverse);
     }
 }
@@ -164,29 +162,8 @@ void RDFT::execute(dnnl::stream strm) {
 
     auto rank = inputShape.size() - inverse;
 
-    if (axes.size() == 0) {
-        const auto& axesMem = getParentEdgeAt(AXES_INDEX)->getMemoryPtr();
-        auto axesPtr = reinterpret_cast<const int32_t*>(axesMem->GetPtr());
-        axes = std::vector<int>(axesPtr, axesPtr + axesMem->getStaticDims()[0]);
-        normalizeAxes(axes, rank);
-    }
-
-    if (signalSizes.size() == 0) {
-        if (SIGNAL_SIZE_INDEX < getOriginalInputsNumber()) {
-            const auto& signalSizeMem = getParentEdgeAt(SIGNAL_SIZE_INDEX)->getMemoryPtr();
-            auto signalPtr = reinterpret_cast<const int32_t*>(signalSizeMem->GetPtr());
-            signalSizes = std::vector<int>(signalPtr, signalPtr + signalSizeMem->getStaticDims()[0]);
-        } else {
-            signalSizes = getDefaultSignalSizes(inputShape, axes, inverse);
-        }
-    }
-
     const auto& inputStrides = inputMem.GetDescWithType<BlockedMemoryDesc>()->getStrides();
     const auto& outputStrides = outputMem.GetDescWithType<BlockedMemoryDesc>()->getStrides();
-
-    if (twiddles.size() == 0) {
-        twiddles = executor->generateTwiddles(signalSizes, outputShape, axes);
-    }
 
     executor->execute(inputPtr, outputPtr,
                       twiddles, rank,
@@ -195,8 +172,116 @@ void RDFT::execute(dnnl::stream strm) {
                       inputStrides, outputStrides);
 }
 
+void RDFT::executeDynamicImpl(dnnl::stream strm) {
+    execute(strm);
+}
+
 bool RDFT::created() const {
     return getType() == Type::RDFT;
+}
+
+void RDFT::prepareParams() {
+    if (axesChanged()) {
+        const auto& axesMem = getParentEdgeAt(AXES_INDEX)->getMemoryPtr();
+        auto newAxesSize = axesMem->getStaticDims()[0];
+        if (axes.size() != newAxesSize) {
+            axes.resize(newAxesSize);
+        }
+        auto axesPtr = reinterpret_cast<const int*>(axesMem->GetPtr());
+        auto inputRank = inputShapes[DATA_INDEX].getRank() - inverse;
+        for (size_t i = 0; i < axes.size(); i++) {
+            axes[i] = axesPtr[i] < 0 ? axesPtr[i] + inputRank : axesPtr[i];
+        }
+    }
+    if (signalSizesChanged()) {
+        if (getOriginalInputsNumber() <= SIGNAL_SIZE_INDEX) {
+            if (signalSizes.size() != axes.size()) {
+                signalSizes.resize(axes.size());
+            }
+            const auto& inputShape = getParentEdgeAt(DATA_INDEX)->getMemory().getStaticDims();
+            for (size_t i = 0; i < axes.size() - 1; i++) {
+                signalSizes[i] = inputShape[axes[i]];
+            }
+            if (inverse) {
+                signalSizes.back() = 2 * (inputShape[axes.back()] - 1);
+            } else {
+                signalSizes.back() = inputShape[axes.back()];
+            }
+        } else {
+            const auto& signalSizesMem = getParentEdgeAt(SIGNAL_SIZE_INDEX)->getMemoryPtr();
+            auto newSize = signalSizesMem->getStaticDims()[0];
+            if (signalSizes.size() != newSize) {
+                signalSizes.resize(newSize);
+            }
+            const auto& signalSizesPtr = reinterpret_cast<const int*>(signalSizesMem->GetPtr());
+            for (size_t i = 0; i < newSize; i++) {
+                signalSizes[i] = signalSizesPtr[i];
+            }
+        }
+    }
+
+    const auto& outputShape = getChildEdgeAt(0)->getMemory().getStaticDims();
+    twiddles = executor->generateTwiddles(signalSizes, outputShape, axes);
+}
+
+bool RDFT::axesChanged() const {
+    if (isAxesConstant) {
+        return false;
+    }
+    const auto& axesMem = getParentEdgeAt(AXES_INDEX)->getMemoryPtr();
+    if (axes.size() != axesMem->getStaticDims()[0]) {
+        return true;
+    }
+    auto axesPtr = reinterpret_cast<const int*>(axesMem->GetPtr());
+    auto inputRank = inputShapes[DATA_INDEX].getRank() - inverse;
+    for (size_t i = 0; i < axes.size(); i++) {
+        auto newAxis = axesPtr[i] < 0 ? axesPtr[i] + inputRank : axesPtr[i];
+        if (axes[i] != newAxis) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool RDFT::signalSizesChanged() const {
+    if (isSignalSizesConstant) {
+        return false;
+    }
+    // signal sizes must have been changed if axes rank changed
+    if (signalSizes.size() != axes.size()) {
+        return true;
+    }
+
+    if (getOriginalInputsNumber() <= SIGNAL_SIZE_INDEX) {
+        const auto& inputShape = getParentEdgeAt(DATA_INDEX)->getMemory().getStaticDims();
+        for (size_t i = 0; i < axes.size() - 1; i++) {
+            if (signalSizes[i] != inputShape[axes[i]]) {
+                return true;
+            }
+        }
+        return inverse ? signalSizes.back() != 2 * (inputShape[axes.back()] - 1) : signalSizes.back() != inputShape[axes.back()];
+    } else {
+        const auto& signalSizesMem = getParentEdgeAt(SIGNAL_SIZE_INDEX)->getMemoryPtr();
+        auto newSize = signalSizesMem->getStaticDims()[0];
+        if (signalSizes.size() != newSize || signalSizes.size() != axes.size()) {
+            return true;
+        }
+        const auto& signalSizesPtr = reinterpret_cast<const int*>(signalSizesMem->GetPtr());
+        for (size_t i = 0; i < newSize; i++) {
+            if (signalSizesPtr[i] != signalSizes[i]) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+bool RDFT::needShapeInfer() const {
+    return Node::needShapeInfer() || axesChanged() || signalSizesChanged();
+}
+
+bool RDFT::needPrepareParams() const {
+    return axesChanged() || signalSizesChanged() || twiddles.size() == 0;
 }
 
 static void adjustInputSize(VectorDims& inputShape,
@@ -308,10 +393,6 @@ static void scatterComplex(float* output, const float* input, size_t axis,
 
 static bool isPowerOfTwo(size_t n) {
     return (n != 0) && (n & (n - 1)) == 0;
-}
-
-static size_t dftSimdSize(int vlen) {
-    return vlen / (2 * sizeof(float));
 }
 
 bool RDFTExecutor::canUseFFT(size_t dim) {
@@ -652,7 +733,7 @@ std::vector<std::vector<float>> RDFTExecutor::generateTwiddles(const std::vector
     }
     return twiddles;
 }
-
+#if defined(OPENVINO_ARCH_X86_64)
 struct RDFTJitExecutor : public RDFTExecutor {
     RDFTJitExecutor(bool inverse, NodeDesc* primDesc) : RDFTExecutor(inverse) {
         enum dft_type rdftType = isInverse ? complex_to_real : real_to_complex;
@@ -684,7 +765,7 @@ struct RDFTJitExecutor : public RDFTExecutor {
     std::vector<float> generateTwiddlesDFT(size_t inputSize, size_t outputSize, enum dft_type type) override {
         std::vector<float> twiddles(inputSize * outputSize * 2);
         int simdSize = vlen / sizeof(float);
-        if (type == real_to_complex || type == complex_to_complex) {
+        if (type == real_to_complex) {
             simdSize /= 2; // there are two floats per one complex element in the output
         }
 
@@ -702,7 +783,7 @@ struct RDFTJitExecutor : public RDFTExecutor {
                 }
                 for (size_t k = 0; k < simdSize; k++) {
                     double angle = 2 * PI * (K * simdSize + k) * n / inputSize;
-                    twiddles[((K * inputSize + n) * 2 + 1) * simdSize + k] = -std::sin(angle);
+                    twiddles[((K * inputSize + n) * 2 + 1) * simdSize + k] = isInverse ? std::sin(angle) : -std::sin(angle);
                 }
             }
         });
@@ -712,7 +793,7 @@ struct RDFTJitExecutor : public RDFTExecutor {
                 k += start;
                 double angle = 2 * PI * k * n / inputSize;
                 twiddles[2 * (k * inputSize + n)] = std::cos(angle);
-                twiddles[2 * (k * inputSize + n) + 1] = -std::sin(angle);
+                twiddles[2 * (k * inputSize + n) + 1] = isInverse ? std::sin(angle) : -std::sin(angle);
             });
         }
         return twiddles;
@@ -760,7 +841,7 @@ struct RDFTJitExecutor : public RDFTExecutor {
 
     int vlen;
 };
-
+#endif
 
 struct RDFTRefExecutor : public RDFTExecutor {
     RDFTRefExecutor(bool inverse) : RDFTExecutor(inverse) {}
@@ -899,28 +980,29 @@ struct RDFTKey {
     }
 };
 
-void RDFT::prepareParams() {
+void RDFT::createPrimitive() {
     RDFTKey key{};
     key.isInverse = inverse;
 
     auto buildExecutor = [&] (const RDFTKey& key) -> std::shared_ptr<RDFTExecutor> {
         std::shared_ptr<RDFTExecutor> executor;
         NodeDesc* primDesc = getSelectedPrimitiveDescriptor();
+#if defined(OPENVINO_ARCH_X86_64)
         if (mayiuse(cpu::x64::sse41)) {
             executor = std::make_shared<RDFTJitExecutor>(key.isInverse, primDesc);
-        } else {
-            executor = std::make_shared<RDFTRefExecutor>(key.isInverse);
-            primDesc->setImplementationType(ref_any);
+            return executor;
         }
+#endif
+        executor = std::make_shared<RDFTRefExecutor>(key.isInverse);
+        primDesc->setImplementationType(ref_any);
         return executor;
     };
 
-    auto cache = getRuntimeCache();
+    auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, buildExecutor);
     executor = result.first;
-    if (axes.size() > 0 && signalSizes.size() > 0 && outputShapes[0].isStatic()) {
-        twiddles = executor->generateTwiddles(signalSizes, outputShapes[0].getStaticDims(), axes);
-    }
+
+    Node::createPrimitive();
 }
 }   // namespace node
 }   // namespace intel_cpu

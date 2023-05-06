@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -55,9 +55,9 @@ public:
     Anchor() : GraphRewrite() {}
 };
 
-NGRAPH_RTTI_DEFINITION(TestPass, "TestPass", 0);
-NGRAPH_RTTI_DEFINITION(Anchor, "Anchor", 0);
-NGRAPH_RTTI_DEFINITION(GatherNodesPass, "GatherNodesPass", 0);
+NGRAPH_RTTI_DEFINITION(TestPass, "TestPass");
+NGRAPH_RTTI_DEFINITION(Anchor, "Anchor");
+NGRAPH_RTTI_DEFINITION(GatherNodesPass, "GatherNodesPass");
 
 std::shared_ptr<Function> get_function() {
     auto data = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
@@ -107,7 +107,7 @@ TEST(GraphRewriteTest, MatcherPassCallback) {
 
     Anchor anchor;
     anchor.add_matcher<TestPass>()->set_callback(get_callback());
-    anchor.run_on_function(f);
+    anchor.run_on_model(f);
 
     ASSERT_EQ(count_ops_of_type<opset3::Relu>(f), 1);
 }
@@ -118,7 +118,7 @@ TEST(GraphRewriteTest, GraphRewriteCallback) {
     Anchor anchor;
     anchor.add_matcher<TestPass>();
     anchor.set_callback(get_callback());
-    anchor.run_on_function(f);
+    anchor.run_on_model(f);
 
     ASSERT_EQ(count_ops_of_type<opset3::Relu>(f), 1);
 }
@@ -129,7 +129,7 @@ TEST(GraphRewriteTest, ManagerCallbackDeprecated) {
     pass::Manager manager;
     auto anchor = manager.register_pass<Anchor>();
     anchor->add_matcher<TestPass>();
-    manager.set_callback(get_callback());
+    manager.get_pass_config()->set_callback(get_callback());
     manager.run_passes(f);
 
     ASSERT_EQ(count_ops_of_type<opset3::Relu>(f), 1);
@@ -153,7 +153,7 @@ TEST(GraphRewriteTest, ManagerCallback2) {
 
     pass::Manager manager;
     auto anchor = manager.register_pass<TestPass>();
-    manager.set_callback(get_callback());
+    manager.get_pass_config()->set_callback(get_callback());
     manager.run_passes(f);
 
     ASSERT_EQ(count_ops_of_type<opset3::Relu>(f), 1);
@@ -165,7 +165,7 @@ public:
     using ngraph::opset3::Divide::Divide;
 };
 
-NGRAPH_RTTI_DEFINITION(PrivateDivide, "PrivateDivide", 0, ngraph::opset3::Divide);
+NGRAPH_RTTI_DEFINITION(PrivateDivide, "PrivateDivide", ngraph::opset3::Divide);
 
 std::shared_ptr<Function> get_derived_function() {
     auto data = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
@@ -179,7 +179,7 @@ TEST(GraphRewriteTest, MatcherPassCallbackDerived) {
 
     Anchor anchor;
     anchor.add_matcher<TestPass>()->set_callback(get_callback());
-    anchor.run_on_function(f);
+    anchor.run_on_model(f);
 
     ASSERT_EQ(count_ops_of_type<opset3::Relu>(f), 1);
 }
@@ -228,7 +228,7 @@ TEST(GraphRewriteTest, TypeBasedMatcherPassCallback) {
 
     Anchor anchor;
     anchor.add_matcher<TypeBasedTestPass>()->set_callback(get_callback());
-    anchor.run_on_function(f);
+    anchor.run_on_model(f);
 
     ASSERT_EQ(count_ops_of_type<opset3::Relu>(f), 1);
 }
@@ -238,7 +238,7 @@ TEST(GraphRewriteTest, TypeBasedMatcherPassCallbackDerived) {
 
     Anchor anchor;
     anchor.add_matcher<TypeBasedTestPass>()->set_callback(get_callback());
-    anchor.run_on_function(f);
+    anchor.run_on_model(f);
 
     ASSERT_EQ(count_ops_of_type<opset3::Relu>(f), 1);
 }
@@ -249,7 +249,7 @@ TEST(GraphRewriteTest, TypeBasedMatcherPassOrder1) {
     Anchor anchor;
     anchor.add_matcher<TypeBasedTestPass>()->set_callback(get_callback());
     anchor.add_matcher<TypeBasedTestPassDerived>()->set_callback(get_callback());
-    anchor.run_on_function(f);
+    anchor.run_on_model(f);
 
     ASSERT_EQ(count_ops_of_type<opset3::Relu>(f), 1);
 }
@@ -260,7 +260,7 @@ TEST(GraphRewriteTest, TypeBasedMatcherPassOrder2) {
     Anchor anchor;
     anchor.add_matcher<TypeBasedTestPassDerived>()->set_callback(get_callback());
     anchor.add_matcher<TypeBasedTestPass>()->set_callback(get_callback());
-    anchor.run_on_function(f);
+    anchor.run_on_model(f);
 
     ASSERT_EQ(count_ops_of_type<opset3::Tanh>(f), 1);
 }
@@ -409,7 +409,7 @@ public:
              */
             auto cnt = consumers(node.get());
             if (node.use_count() != cnt + 7) {
-                throw ngraph::ngraph_error("Wrong number of consumers");
+                OPENVINO_THROW("Wrong number of consumers");
             }
 
             NodeVector nodes;
@@ -423,7 +423,7 @@ public:
              */
             for (const auto& input_node : nodes) {
                 if (input_node.use_count() != consumers(input_node.get()) + 1) {
-                    throw ngraph::ngraph_error("Wrong number of consumers");
+                    OPENVINO_THROW("Wrong number of consumers");
                 }
             }
             return false;
@@ -434,7 +434,7 @@ public:
     }
 };
 
-NGRAPH_RTTI_DEFINITION(CheckConsumers, "CheckConsumers", 0);
+NGRAPH_RTTI_DEFINITION(CheckConsumers, "CheckConsumers");
 
 TEST(GraphRewriteTest, nodes_use_count) {
     auto f = get_function();

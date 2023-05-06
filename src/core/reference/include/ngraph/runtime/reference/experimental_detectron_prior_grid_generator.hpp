@@ -48,10 +48,10 @@ void experimental_detectron_prior_grid_generator(const T* priors,
     for (int64_t h = 0; h < layer_height; ++h) {
         for (int64_t w = 0; w < layer_width; ++w) {
             for (int64_t s = 0; s < num_priors; ++s) {
-                output_rois[0] = priors[4 * s + 0] + step_w * (w + 0.5f);
-                output_rois[1] = priors[4 * s + 1] + step_h * (h + 0.5f);
-                output_rois[2] = priors[4 * s + 2] + step_w * (w + 0.5f);
-                output_rois[3] = priors[4 * s + 3] + step_h * (h + 0.5f);
+                output_rois[0] = static_cast<T>(priors[4 * s + 0] + step_w * (w + 0.5f));
+                output_rois[1] = static_cast<T>(priors[4 * s + 1] + step_h * (h + 0.5f));
+                output_rois[2] = static_cast<T>(priors[4 * s + 2] + step_w * (w + 0.5f));
+                output_rois[3] = static_cast<T>(priors[4 * s + 3] + step_h * (h + 0.5f));
                 output_rois += 4;
             }
         }

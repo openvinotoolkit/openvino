@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,14 @@ namespace ov {
  * @ingroup ov_runtime_cpp_api
  */
 class OPENVINO_RUNTIME_API Cancelled : public Exception {
-    using Exception::Exception;
+public:
+    [[noreturn]] static void create(const std::string& explanation);
+    ~Cancelled() override;
+
+protected:
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    explicit Cancelled(const std::string& what_arg) : ov::Exception(what_arg) {}
+    OPENVINO_SUPPRESS_DEPRECATED_END
 };
 
 /**
@@ -23,7 +30,14 @@ class OPENVINO_RUNTIME_API Cancelled : public Exception {
  * @ingroup ov_runtime_cpp_api
  */
 class OPENVINO_RUNTIME_API Busy : public Exception {
-    using Exception::Exception;
+public:
+    [[noreturn]] static void create(const std::string& explanation);
+    ~Busy() override;
+
+protected:
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    explicit Busy(const std::string& what_arg) : ov::Exception(what_arg) {}
+    OPENVINO_SUPPRESS_DEPRECATED_END
 };
 
 }  // namespace ov

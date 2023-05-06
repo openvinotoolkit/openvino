@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,7 @@
 
 #include "common_test_utils/test_common.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
-#include "functional_test_utils/layer_test_utils/summary.hpp"
+#include "functional_test_utils/summary/op_summary.hpp"
 
 namespace ov {
 namespace test {
@@ -39,6 +39,13 @@ protected:
 
     void init_input_shapes(const std::vector<InputShape>& shapes);
 
+    void TearDown() override {
+        if (this->HasFailure() && !is_reported) {
+            summary.setDeviceName(targetDevice);
+            summary.updateOPsStats(function, ov::test::utils::PassRate::Statuses::FAILED, rel_influence_coef);
+        }
+    }
+
     std::shared_ptr<ov::Core> core = ov::test::utils::PluginCache::get().core();
     std::string targetDevice;
     ov::AnyMap configuration;
@@ -55,11 +62,24 @@ protected:
     constexpr static const double disable_threshold = std::numeric_limits<double>::max();
     double abs_threshold = disable_threshold, rel_threshold = disable_threshold;
 
-    LayerTestsUtils::Summary& summary = LayerTestsUtils::Summary::getInstance();
+    ov::test::utils::OpSummary& summary = ov::test::utils::OpSummary::getInstance();
+    bool is_report_stages = false;
+    bool is_reported = false;
+    double rel_influence_coef = 1.f;
 
     virtual std::vector<ov::Tensor> calculate_refs();
     virtual std::vector<ov::Tensor> get_plugin_outputs();
 };
+
+inline std::vector<InputShape> static_partial_shapes_to_test_representation(const std::vector<ov::PartialShape>& shapes) {
+    std::vector<InputShape> result;
+    for (const auto& staticShape : shapes) {
+        if (staticShape.is_dynamic())
+            throw std::runtime_error("static_partial_shapes_to_test_representation can process only static partial shapes");
+        result.push_back({{staticShape}, {staticShape.get_shape()}});
+    }
+    return result;
+}
 
 inline std::vector<std::vector<InputShape>> static_shapes_to_test_representation(const std::vector<std::vector<ov::Shape>>& shapes) {
     std::vector<std::vector<InputShape>> result;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,6 +17,10 @@ TEST_P(Gather7LayerTest, CompareWithRefs) {
 };
 
 TEST_P(Gather8LayerTest, CompareWithRefs) {
+    Run();
+};
+
+TEST_P(Gather8IndiceScalarLayerTest, CompareWithRefs) {
     Run();
 };
 

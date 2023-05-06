@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 #include "ie_parallel.hpp"
 #include "mathematics.h"
 #include "utils/general_utils.h"
+#include <utils/shape_inference/shape_inference_pass_through.hpp>
 
 using namespace InferenceEngine;
 
@@ -38,8 +39,11 @@ bool Math::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, s
     return true;
 }
 
-Math::Math(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
-        WeightsSharing::Ptr &cache) : Node(op, eng, cache), alpha(0.f), beta(0.f), gamma(0.f) {
+Math::Math(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+    : Node(op, context, PassThroughShapeInferFactory()),
+      alpha(0.f),
+      beta(0.f),
+      gamma(0.f) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -60,10 +64,6 @@ void Math::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc(inDataConf,
                          {{LayoutType::ncsp, Precision::FP32}},
                          impl_desc_type::ref_any);
-}
-
-std::vector<VectorDims> Math::shapeInfer() const {
-    return std::vector<VectorDims>{getParentEdgesAtPort(0)[0]->getMemory().getStaticDims()};
 }
 
 void Math::executeDynamicImpl(dnnl::stream strm) {
@@ -136,11 +136,6 @@ void Math::execute(dnnl::stream strm) {
             beta = (beta == 0.0f) ? 0.5f : beta;
             parallel_for(dataSize, [&](size_t i) {
                 dst_data[i] = (std::max)(0.f, (std::min)(1.f, alpha * src_data[i] + beta));
-            });
-            break;
-        case Algorithm::MathLog:
-            parallel_for(dataSize, [&](size_t i) {
-                dst_data[i] = logf(src_data[i]);
             });
             break;
         case Algorithm::MathNegative:
@@ -241,9 +236,6 @@ std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_pt
             node.algorithm = Algorithm::MathHardSigmoid;
             node.alpha = ngraph::as_type_ptr<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(1))->cast_vector<float>()[0];
             node.beta = ngraph::as_type_ptr<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(2))->cast_vector<float>()[0];
-        }},
-        {ngraph::op::v0::Log::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
-            node.algorithm = Algorithm::MathLog;
         }},
         {ngraph::op::v0::Negative::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
             node.algorithm = Algorithm::MathNegative;

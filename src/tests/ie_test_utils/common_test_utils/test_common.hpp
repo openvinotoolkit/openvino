@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,6 +18,7 @@ protected:
 
     static std::string GetTimestamp();
     std::string GetTestName() const;
+    std::string GetFullTestName() const;
 };
 
 }  // namespace CommonTestUtils

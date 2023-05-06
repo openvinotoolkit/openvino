@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,14 +24,16 @@ void shape_infer(const RegionYolo* op, const std::vector<T>& input_shapes, std::
     NODE_VALIDATION_CHECK(op, input_rank.compatible(4), "Input must be a tensor of rank 4, but got ", input_rank);
 
     if (input_rank.is_static()) {
-        int end_axis = op->m_end_axis;
+        int64_t end_axis = op->m_end_axis;
         if (end_axis < 0) {
-            end_axis += input_shape.size();
+            end_axis += static_cast<int>(input_shape.size());
         }
 
         if (op->m_do_softmax) {
             output_shape.resize(0);
+            OPENVINO_SUPPRESS_DEPRECATED_START
             auto axis = ov::normalize_axis(op, op->m_axis, input_rank);
+            OPENVINO_SUPPRESS_DEPRECATED_END
             DimType flat_dim = 1;
             for (int64_t i = 0; i < axis; i++) {
                 output_shape.push_back(input_shape[i]);

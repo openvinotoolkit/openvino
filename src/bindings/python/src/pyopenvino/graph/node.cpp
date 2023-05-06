@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -129,7 +129,7 @@ void regclass_graph_Node(py::module m) {
                 :param index: Index of Input.
                 :type index: int
                 :return: Tensor of the input i
-                :rtype: openvino.pyopenvino.DescriptorTensor
+                :rtype: openvino._pyopenvino.DescriptorTensor
              )");
     node.def("get_element_type",
              &ov::Node::get_element_type,
@@ -217,7 +217,7 @@ void regclass_graph_Node(py::module m) {
                 :param index: Index of the output.
                 :type index: int
                 :return: Tensor of the output i
-                :rtype: openvino.pyopenvino.DescriptorTensor
+                :rtype: openvino._pyopenvino.DescriptorTensor
              )");
     node.def("get_type_name",
              &ov::Node::get_type_name,
@@ -304,14 +304,6 @@ void regclass_graph_Node(py::module m) {
                 :return: A dictionary of user defined data.
                 :rtype: openvino.runtime.RTMap
              )");
-    node.def("get_version",
-             &ov::Node::get_version,
-             R"(
-                Returns operation's version of the node.
-
-                :return: Operation version.
-                :rtype: int
-             )");
 
     node.def("set_argument", &ov::Node::set_argument);
     node.def("set_arguments", [](const std::shared_ptr<ov::Node>& self, const ov::NodeVector& args) {
@@ -326,7 +318,6 @@ void regclass_graph_Node(py::module m) {
     node.def_property_readonly("rt_info",
                                (PyRTMap & (ov::Node::*)()) & ov::Node::get_rt_info,
                                py::return_value_policy::reference_internal);
-    node.def_property_readonly("version", &ov::Node::get_version);
     node.def_property_readonly("type_info", &ov::Node::get_type_info);
     node.def_property("friendly_name", &ov::Node::get_friendly_name, &ov::Node::set_friendly_name);
 

@@ -1,15 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "arg_max_min_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
-#include "kernel_selector_helper.h"
+
+#include "arg_max_min_inst.h"
 #include "arg_max_min/arg_max_min_kernel_selector.h"
 #include "arg_max_min/arg_max_min_kernel_base.h"
-#include "kernel_runner.h"
 
 namespace cldnn {
 namespace ocl {
@@ -39,39 +36,55 @@ static inline kernel_selector::argm_axis GetArgMaxMinAxis(int64_t axis, size_t r
 struct arg_max_min_impl : typed_primitive_impl_ocl<arg_max_min> {
     using parent = typed_primitive_impl_ocl<arg_max_min>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::arg_max_min_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::arg_max_min_params, kernel_selector::arg_max_min_optional_params>;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<arg_max_min_impl>(*this);
     }
 
 protected:
-    kernel_arguments_data get_arguments(typed_primitive_inst<arg_max_min>& instance, int32_t) const override {
-        kernel_arguments_data args = parent::get_arguments(instance, 0);
+    kernel_arguments_data get_arguments(const typed_primitive_inst<arg_max_min>& instance) const override {
+        kernel_arguments_data args = parent::get_arguments(instance);
 
-        if (args.inputs.size() == 3) {
-            args.inputs.erase(args.inputs.begin() + 1);  // erase constant input in case of TOP_K
+        if (instance.get_typed_desc<arg_max_min>()->has_second_output()) {
+            if (args.inputs.size() > 1) {
+                args.inputs.erase(args.inputs.begin() + 1);  // erase constant input in case of TOP_K
+            }
         }
 
         return args;
     }
 
 public:
-    static primitive_impl* create(const arg_max_min_node& arg, std::shared_ptr<kernel_impl_params> impl_param) {
-        const auto& primitive = arg.get_primitive();
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
+        const auto& primitive = impl_param.typed_desc<arg_max_min>();
         const auto& axis = primitive->axis;
         const auto& top_k = primitive->top_k;
         const auto& mode = primitive->mode;
         const auto& sort_type = primitive->sort;
         const auto& values_first = primitive->values_first;
-        const auto& outputs_num = primitive->input.size() == 3 ? 2 : 1;  // second output passed as input for TOP_K layer
+        const auto& outputs_num = primitive->input_size() == 3 ? 2 : static_cast<uint32_t>(primitive->output_size());
 
-        auto argm_params = get_default_params<kernel_selector::arg_max_min_params>(*impl_param);
+        auto argm_params = get_default_params<kernel_selector::arg_max_min_params>(impl_param, is_shape_agnostic);
         auto argm_optional_params =
-            get_default_optional_params<kernel_selector::arg_max_min_optional_params>(arg.get_program());
+            get_default_optional_params<kernel_selector::arg_max_min_optional_params>(impl_param.get_program());
 
         argm_params.outputs_num = outputs_num;
-        argm_params.topK = top_k;
-        argm_params.argMaxMinAxis = GetArgMaxMinAxis(axis, arg.get_output_layout().get_rank());
+        argm_params.argMaxMinAxis = GetArgMaxMinAxis(axis, impl_param.get_output_layout().get_rank());
+
+        auto& constant_mem = impl_param.memory_deps;
+        if (constant_mem.count(1) && !argm_params.has_dynamic_outputs()) {
+            // The topK could be got by reading impl_param.memory_deps.at(1).
+            // However, here we utilize output_layout and axis information to minimize mem_lock.
+            auto output_layout = impl_param.get_output_layout(0);
+            auto out_dims = output_layout.get_dims();
+            argm_params.topK = out_dims[axis];
+        } else {
+            argm_params.topK = top_k;
+        }
 
         if (mode == ov::op::TopKMode::MAX)
             argm_params.argMaxMinOut = kernel_selector::argm_output::MAX;
@@ -83,42 +96,62 @@ public:
         else
             argm_params.argMaxMinSortType = kernel_selector::argm_sort::INDEX;
 
-        if (outputs_num == 2) {
-            argm_params.inputs.push_back(convert_data_tensor(impl_param->input_layouts[2]));
+        if (outputs_num == 2) {  // for backward compatibility
+            argm_params.has_second_output = true;
+            if (primitive->input_size() != 3) {
+                argm_params.use_multiple_outputs = true;
+                argm_params.outputs.push_back(convert_data_tensor(impl_param.get_output_layout(1)));
+            } else {
+                argm_params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(2)));
+            }
         }
 
         argm_params.values_first = values_first;
 
-        auto& kernel_selector = kernel_selector::arg_max_min_kernel_selector::Instance();
+        return {argm_params, argm_optional_params};
+    }
 
-        kernel_selector::KernelsData best_kernels = kernel_selector.GetBestKernels(argm_params, argm_optional_params);
-
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
-
-        auto conv = new arg_max_min_impl(arg, best_kernels[0]);
-
-        return conv;
+    void update_dispatch_data(const kernel_impl_params& impl_param) override {
+        auto kernel_params = get_kernel_params(impl_param, true);
+        (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
     }
 };
 
 namespace detail {
 attach_arg_max_min_impl::attach_arg_max_min_impl() {
-    implementation_map<arg_max_min>::add(impl_types::ocl, arg_max_min_impl::create,  {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::i32, format::bfyx),
-        std::make_tuple(data_types::i8, format::bfyx),
-        std::make_tuple(data_types::f32, format::bfzyx),
-        std::make_tuple(data_types::f16, format::bfzyx),
-        std::make_tuple(data_types::i8, format::bfzyx),
-        std::make_tuple(data_types::f32, format::yxfb),
-        std::make_tuple(data_types::f16, format::yxfb),
-        std::make_tuple(data_types::i8, format::yxfb),
-    });
+    auto types = {data_types::f16, data_types::f32, data_types::i8, data_types::i32};
+
+    auto formats = {
+        format::bfyx,
+        format::yxfb,
+        format::b_fs_yx_fsv16,
+        format::b_fs_yx_fsv32,
+        format::bs_fs_yx_bsv16_fsv16,
+        format::bs_fs_yx_bsv32_fsv16,
+        format::bs_fs_yx_bsv32_fsv32,
+        format::bfzyx
+    };
+
+    implementation_map<arg_max_min>::add(impl_types::ocl,
+                                         shape_types::static_shape,
+                                         typed_primitive_impl_ocl<arg_max_min>::create<arg_max_min_impl>,
+                                         types,
+                                         formats);
+
+    auto dyn_formats = {
+        format::bfyx,
+        format::bfzyx
+    };
+
+    implementation_map<arg_max_min>::add(impl_types::ocl,
+                                         shape_types::dynamic_shape,
+                                         typed_primitive_impl_ocl<arg_max_min>::create<arg_max_min_impl>,
+                                         types,
+                                         dyn_formats);
 }
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::arg_max_min_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::arg_max_min)

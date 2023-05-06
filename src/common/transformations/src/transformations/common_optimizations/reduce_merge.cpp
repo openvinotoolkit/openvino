@@ -1,19 +1,20 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/common_optimizations/reduce_merge.hpp"
 
 #include <memory>
-#include <ngraph/opsets/opset9.hpp>
 #include <ngraph/pattern/op/or.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/validation_util.hpp>
+#include <openvino/opsets/opset9.hpp>
+#include <openvino/pass/pattern/op/wrap_type.hpp>
 
 #include "itt.hpp"
 
-using namespace ngraph;
+using namespace ov;
+using namespace ov::pass;
 
 template <typename T>
 std::shared_ptr<Node> create_pattern() {
@@ -57,7 +58,9 @@ bool fuse_reduce_operations(const std::shared_ptr<Node>& node) {
     std::shared_ptr<Node> axes =
         std::make_shared<opset9::Concat>(OutputVector{top_reduce->input_value(1), bottom_reduce->input_value(1)},
                                          int64_t(0));
+    OPENVINO_SUPPRESS_DEPRECATED_START
     if (auto constant = ov::get_constant_from_source(axes)) {
+        OPENVINO_SUPPRESS_DEPRECATED_END
         axes = constant;
     }
     axes->set_friendly_name(bottom_reduce->get_friendly_name() + "/Axes");
@@ -92,7 +95,7 @@ pass::ReduceMerge::ReduceMerge() {
                                                                   reduce_prod_pattern,
                                                                   reduce_sum_pattern});
 
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         const auto node = m.get_match_root();
         if (ov::is_type<op::util::ArithmeticReductionKeepDims>(node)) {
             return fuse_reduce_operations<op::util::ArithmeticReductionKeepDims>(node);

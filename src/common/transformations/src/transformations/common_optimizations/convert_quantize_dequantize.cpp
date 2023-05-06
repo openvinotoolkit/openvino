@@ -1,14 +1,14 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 
 #include <memory>
-#include <ngraph/opsets/opset4.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/validation_util.hpp>
+#include <openvino/opsets/opset4.hpp>
 #include <vector>
 
 #include "itt.hpp"
@@ -56,11 +56,11 @@
 //                                        v
 //
 
-ngraph::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
+ov::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
     MATCHER_SCOPE(ConvertQuantizeDequantize);
-    auto data_pattern = ngraph::pattern::any_input();
-    auto input_low_pattern = ngraph::pattern::any_input();
-    auto input_high_pattern = ngraph::pattern::any_input();
+    auto data_pattern = pass::pattern::any_input();
+    auto input_low_pattern = pass::pattern::any_input();
+    auto input_high_pattern = pass::pattern::any_input();
     auto output_low_pattern = ngraph::pattern::wrap_type<opset4::Constant>();
     auto output_high_pattern = ngraph::pattern::wrap_type<opset4::Constant>();
     auto fq_pattern = ngraph::pattern::wrap_type<opset4::FakeQuantize>(
@@ -70,13 +70,13 @@ ngraph::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
                                                     pattern::type_matches_any({element::i8, element::u8}));
     auto convert2_pattern =
         ngraph::pattern::wrap_type<opset4::Convert>({convert1_pattern}, pattern::type_matches(element::f32));
-    auto zero_point_pattern = ngraph::pattern::any_input();
+    auto zero_point_pattern = pass::pattern::any_input();
     auto sub_pattern = ngraph::pattern::wrap_type<opset4::Subtract>({convert2_pattern, zero_point_pattern},
                                                                     pattern::consumers_count(1));
-    auto scale_pattern = ngraph::pattern::any_input();
+    auto scale_pattern = pass::pattern::any_input();
     auto mul_pattern = ngraph::pattern::wrap_type<opset4::Multiply>({sub_pattern, scale_pattern});
 
-    ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto pattern_map = m.get_pattern_value_map();
 
         if (transformation_callback(m.get_match_root())) {
@@ -135,12 +135,10 @@ ngraph::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
             return false;
         }
 
-        std::shared_ptr<Node> new_out_low = std::make_shared<ngraph::opset4::Multiply>(
-            std::make_shared<ngraph::opset4::Subtract>(output_low, zero_point),
-            scale);
-        std::shared_ptr<Node> new_out_high = std::make_shared<ngraph::opset4::Multiply>(
-            std::make_shared<ngraph::opset4::Subtract>(output_high, zero_point),
-            scale);
+        std::shared_ptr<Node> new_out_low =
+            std::make_shared<opset4::Multiply>(std::make_shared<opset4::Subtract>(output_low, zero_point), scale);
+        std::shared_ptr<Node> new_out_high =
+            std::make_shared<opset4::Multiply>(std::make_shared<opset4::Subtract>(output_high, zero_point), scale);
 
         // check if new_out_low/high shapes are broadcastable to FQ's input
         auto data_shape = data.get_partial_shape();
@@ -153,19 +151,19 @@ ngraph::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
         if (out_high_shape.rank().is_dynamic() || out_high_shape.rank().get_length() > data_shape.rank().get_length())
             return false;
 
+        OPENVINO_SUPPRESS_DEPRECATED_START
         std::shared_ptr<Node> const_out_low = get_constant_from_source(new_out_low);
+        OPENVINO_SUPPRESS_DEPRECATED_END
         if (const_out_low)
             new_out_low = const_out_low;
+        OPENVINO_SUPPRESS_DEPRECATED_START
         std::shared_ptr<Node> const_out_high = get_constant_from_source(new_out_high);
+        OPENVINO_SUPPRESS_DEPRECATED_END
         if (const_out_high)
             new_out_high = const_out_high;
 
-        auto new_fq = std::make_shared<ngraph::opset4::FakeQuantize>(data,
-                                                                     input_low,
-                                                                     input_high,
-                                                                     new_out_low,
-                                                                     new_out_high,
-                                                                     levels);
+        auto new_fq =
+            std::make_shared<opset4::FakeQuantize>(data, input_low, input_high, new_out_low, new_out_high, levels);
         new_fq->set_friendly_name(mul->get_friendly_name());
 
         copy_runtime_info({fq, convert1.get_node_shared_ptr(), convert2.get_node_shared_ptr()}, new_fq);

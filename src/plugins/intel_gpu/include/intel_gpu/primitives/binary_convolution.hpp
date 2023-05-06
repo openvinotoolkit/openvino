@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 #include "openvino/core/coordinate_diff.hpp"
@@ -10,12 +9,6 @@
 #include <vector>
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Performs forward spatial binary_convolution with weight sharing.
 struct binary_convolution : public primitive_base<binary_convolution> {
@@ -36,7 +29,7 @@ struct binary_convolution : public primitive_base<binary_convolution> {
     /// @param pad_value Logical value of padding. Can be one of 3 values: 1 - pad bits equal to 1; -1 -> pad bits equal to 0; 0 -> pad is not counted
     /// @param calc_precision Precision of intermediate accumulators
     binary_convolution(const primitive_id& id,
-                       const primitive_id& input,
+                       const input_info& input,
                        const std::vector<primitive_id>& weights,
                        ov::Strides stride = {1, 1},
                        ov::CoordinateDiff pad = {0, 0},
@@ -45,9 +38,8 @@ struct binary_convolution : public primitive_base<binary_convolution> {
                        int groups = 1,
                        float pad_value = 0.0f,
                        data_types calc_precision = data_types::f32,
-                       const primitive_id& ext_prim_id = "",
                        const padding& output_padding = padding())
-        : primitive_base(id, {input}, ext_prim_id, output_padding, optional_data_type {calc_precision}),
+        : primitive_base(id, {input}, {output_padding}, {optional_data_type {calc_precision}}),
           pad(pad),
           stride(stride),
           dilation(dilation),
@@ -73,7 +65,30 @@ struct binary_convolution : public primitive_base<binary_convolution> {
     /// @brief List of primitive ids containing weights data.
     const primitive_id_arr weights;
 
-    int32_t split() const { return static_cast<int32_t>(weights.size()); }
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_range(seed, pad.begin(), pad.end());
+        seed = hash_range(seed, stride.begin(), stride.end());
+        seed = hash_range(seed, dilation.begin(), dilation.end());
+        seed = hash_combine(seed, groups);
+        seed = hash_combine(seed, pad_value);
+        seed = hash_combine(seed, weights.size());
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const binary_convolution>(rhs);
+
+        return pad == rhs_casted.pad &&
+               stride == rhs_casted.stride &&
+               dilation == rhs_casted.dilation &&
+               groups == rhs_casted.groups &&
+               pad_value == rhs_casted.pad_value &&
+               weights.size() == rhs_casted.weights.size();
+    }
 
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;
@@ -82,7 +97,4 @@ struct binary_convolution : public primitive_base<binary_convolution> {
         return ret;
     }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

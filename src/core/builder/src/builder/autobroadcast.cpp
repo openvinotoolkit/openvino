@@ -20,11 +20,13 @@ using namespace std;
 
 namespace ngraph {
 namespace builder {
+OPENVINO_SUPPRESS_DEPRECATED_START
 numpy_autobroadcast_incompatible_shapes::numpy_autobroadcast_incompatible_shapes(const Shape& shape1,
                                                                                  const Shape& shape2)
     : ngraph_error(error_str(shape1, shape2)),
       m_shape1(shape1),
       m_shape2(shape2) {}
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 string numpy_autobroadcast_incompatible_shapes::error_str(const Shape& shape1, const Shape& shape2) {
     ostringstream os;
@@ -78,7 +80,7 @@ pair<Shape, vector<Shape>> get_numpy_broadcast_shapes(const vector<Shape>& input
     for (const Shape& input : input_shapes) {
         Shape padded_shape{input};
         padded_shape.insert(begin(padded_shape), target_shape.size() - padded_shape.size(), 1);
-        full_shapes.push_back(move(padded_shape));
+        full_shapes.push_back(std::move(padded_shape));
     }
 
     return {target_shape, full_shapes};
@@ -194,7 +196,7 @@ static shared_ptr<Node> broadcast_value_pdpd_style(const Output<Node>& value, co
     auto value_bcast =
         make_shared<op::v1::Broadcast>(trimmed_value, shape_const, opset1::get_axes_mapping_output(output_shape, axes));
 
-    return move(value_bcast);
+    return std::move(value_bcast);
 }
 
 pair<shared_ptr<Node>, shared_ptr<Node>> numpy_broadcast(const pair<Output<Node>, Output<Node>>& args) {
@@ -301,7 +303,7 @@ Output<Node> legacy_broadcast_for_binary_operation(const Output<Node>& left,
     // Prepare new shape of right operand for broadcasting
     // Remove dimensions with length=1 from back
     auto new_right_shape = right_shape;
-    for (int dimension = new_right_shape.size() - 1; dimension >= 0; --dimension) {
+    for (int dimension = static_cast<int>(new_right_shape.size()) - 1; dimension >= 0; --dimension) {
         if (new_right_shape.at(dimension) == 1) {
             new_right_shape.pop_back();
         } else {

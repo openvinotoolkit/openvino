@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,7 @@ namespace subgraph {
 FakeQuantizeOnWeights::FakeQuantizeOnWeights() {}
 
 FakeQuantizeOnWeights::FakeQuantizeOnWeights(
-    const size_t quantizationLevel,
+    const uint64_t quantizationLevel,
     const ngraph::Shape& constantShape,
     const std::vector<float>& inputLowValues,
     const std::vector<float>& inputHighValues,

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -77,6 +77,7 @@ public:
     virtual StatusCode GetBlob(const char* name, Blob::Ptr& data, ResponseDesc* resp) noexcept = 0;
 
     /**
+     * @deprecated This method will be removed in 2023.1 release
      * @brief Sets pre-process for input data
      * @param name Name of input blob.
      * @param data Reference to input or output blob. The type of Blob must match the network input precision and size.
@@ -84,6 +85,7 @@ public:
      * @param resp Optional: pointer to an already allocated object to contain information in case of failure
      * @return Status code of the operation: OK (0) for success
      */
+    INFERENCE_ENGINE_DEPRECATED("This method is deprecated and will be removed in 2023.1 release")
     virtual StatusCode SetBlob(const char* name,
                                const Blob::Ptr& data,
                                const PreProcessInfo& info,
@@ -192,15 +194,17 @@ public:
     /**
      * @brief Sets new batch size when dynamic batching is enabled in executable network that created this request.
      *
+     * @deprecated
      * @param batch_size new batch size to be used by all the following inference calls for this request.
      * @param resp Optional: a pointer to an already allocated object to contain extra information of a failure (if
      * occurred)
      * @return Enumeration of the resulted action: InferenceEngine::OK (0) for success
      */
+    INFERENCE_ENGINE_DEPRECATED("This method is deprecated and will be removed in 2023.1 release")
     virtual InferenceEngine::StatusCode SetBatch(int batch_size, ResponseDesc* resp) noexcept = 0;
 
 protected:
-    ~IInferRequest() = default;
+    virtual ~IInferRequest() = default;
 };
 
 _IE_SUPPRESS_DEPRECATED_END_GCC

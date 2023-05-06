@@ -1,10 +1,9 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(ENABLE_LTO)
-    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
-endif()
+# enable LTO globally for all libraries below
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 add_definitions(-DIN_OV_CORE_LIBRARY)
 
@@ -24,6 +23,7 @@ add_subdirectory(shape_inference)
 
 set(MIXED_SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/src/runtime/allocator.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/runtime/itensor.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/runtime/ov_tensor.cpp")
 
 set_property(SOURCE ${MIXED_SRC}
@@ -44,7 +44,13 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 add_library(ov_core_dev INTERFACE)
 add_library(openvino::core::dev ALIAS ov_core_dev)
 
-target_include_directories(ov_core_dev INTERFACE $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/core/dev_api>)
+target_include_directories(ov_core_dev INTERFACE
+    $<BUILD_INTERFACE:${OV_CORE_INCLUDE_PATH}>
+    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/core/dev_api>
+    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/frontends/common/include>
+    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/common/transformations/include>)
+
+target_link_libraries(ov_core_dev INTERFACE openvino::itt openvino::util)
 
 set_target_properties(ov_core_dev PROPERTIES EXPORT_NAME core::dev)
 openvino_developer_export_targets(COMPONENT core TARGETS openvino::core::dev)
@@ -70,15 +76,18 @@ ie_faster_build(ngraph_obj
     UNITY
     PCH PRIVATE "src/precomp.hpp")
 
-addVersionDefines(src/version.cpp CI_BUILD_NUMBER)
+ov_add_version_defines(src/version.cpp ngraph_obj)
 
 target_link_libraries(ngraph_obj PRIVATE ngraph::builder ngraph::reference openvino::util
-                                         pugixml::static ov_shape_inference openvino::core::dev)
+                                         openvino::pugixml ov_shape_inference openvino::core::dev)
 
 ie_mark_target_as_cc(ngraph_obj)
 
+# ngraph is public API => need to mark this library as important for ABI free
+ov_abi_free_target(ngraph_obj)
+
 ov_ncc_naming_style(FOR_TARGET ngraph_obj
-                    SOURCE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include")
+                    SOURCE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 add_clang_format_target(ngraph_clang FOR_TARGETS ngraph_obj)
 

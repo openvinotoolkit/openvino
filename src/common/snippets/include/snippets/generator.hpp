@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,9 +16,11 @@ namespace snippets {
 
 auto getRegisters(std::shared_ptr<ngraph::Node>& n) -> ngraph::snippets::RegInfo;
 
+typedef std::pair<std::function<std::shared_ptr<Emitter>(const std::shared_ptr<ngraph::Node>&)>,
+                  std::function<std::set<std::vector<element::Type>>(const std::shared_ptr<ngraph::Node>&)>> jitters_value;
 /**
  * @interface TargetMachine
- * @brief Base class Target machine representation. Target derives from this class to provide generator information about supported emittors
+ * @brief Base class Target machine representation. Target derives from this class to provide generator information about supported emitters
  * @ingroup snippets
  */
 class TargetMachine {
@@ -42,15 +44,24 @@ public:
     virtual size_t get_lanes() const = 0;
 
     /**
-     * @brief called by generator to all the emittor for a target machine
-     * @return a map by node's type info with callbacks to create an instance of emmitter for corresponding operation type
+     * @brief called by generator to all the emitter for a target machine
+     * @return a map by node's type info with callbacks to create an instance of emitter for corresponding operation type
      */
     std::function<std::shared_ptr<Emitter>(std::shared_ptr<ngraph::Node>)> get(const ngraph::DiscreteTypeInfo type) const {
         auto jitter = jitters.find(type);
         if (jitter == jitters.end()) {
-            throw ngraph_error(std::string("Target code emitter is not available for ") + type.name + " operation.");
+            OPENVINO_THROW(std::string("Target code emitter is not available for ") + type.name + " operation.");
         }
-        return jitter->second;
+        return jitter->second.first;
+    }
+
+    std::function<std::set<std::vector<element::Type>>(const std::shared_ptr<ngraph::Node>&)>
+        get_supported_precisions(const ngraph::DiscreteTypeInfo type) const {
+        auto jitter = jitters.find(type);
+        if (jitter == jitters.end()) {
+            OPENVINO_THROW(std::string("Target code emitter is not available for ") + type.name + " operation.");
+        }
+        return jitter->second.second;
     }
 
     /**
@@ -63,7 +74,7 @@ public:
     virtual ~TargetMachine() = default;
 
 protected:
-    std::map<const ngraph::DiscreteTypeInfo, std::function<std::shared_ptr<Emitter>(std::shared_ptr<ngraph::Node>)>> jitters;
+    std::map<const ngraph::DiscreteTypeInfo, jitters_value> jitters;
 };
 
 /**
@@ -83,7 +94,7 @@ public:
      * @param f can this kernel be linearided to 1D range
      * @param p pointer to generated code
      */
-    Schedule(const Shape& ws, bool f, code p) : work_size(ws), is_flat(f), ptr(p) {}
+    Schedule(const ov::PartialShape& ws, bool f, code p) : work_size(ws), is_flat(f), ptr(p) {}
     /**
      * @brief Returns callable instanse of code pointer
      */
@@ -91,7 +102,7 @@ public:
         return reinterpret_cast<K>(const_cast<unsigned char*>(ptr));
     }
 
-    Shape work_size {};
+    ov::PartialShape work_size {};
     bool is_flat {false};
     code ptr {nullptr};
 };
@@ -112,14 +123,64 @@ public:
      */
     virtual ~Generator() = default;
     /**
+    * @interface GeneratorConfig
+    * @brief Allows to tweak the lowering process.
+    */
+    class GeneratorConfig {
+    public:
+        // True if the lowered Emitters need to be accessed during runtime. Normally they're destroyed after code emission.
+        bool m_save_lowered_code = false;
+        // True if we can optimize tails for single evaluation during code generation
+        // More details with optimization examples you can see in generate() method
+        // For example, tails with Buffer ops doesn't support single evaluation optimizations
+        //              because of that we should always reset memory pointer using finalization offsets
+        //              after data storing to Buffer
+        bool m_optimize_single_evaluation = true;
+        // True if we should check runtime info for nodes to call specific needed transformations
+        bool m_need_fill_tail_register = false;
+    };
+    /**
      * @brief virtual method any specific implementation should implement
      * @param m model in canonical for for table-based code generation
+     * @param config config with transformation and optimization parameters
+     * @param compile_params parameters for generated code
      * @return pointer to generated code
      */
-    code generate(std::shared_ptr<ov::Model>& m, const void* compile_params = nullptr) const;
+    code generate(std::shared_ptr<ov::Model>& m, const GeneratorConfig& config, const void* compile_params = nullptr);
+
+    /**
+     * @brief gets target machine
+     * @return pointer to constant target machine
+     */
+    std::shared_ptr<const TargetMachine> get_target_machine() const;
+
+    /**
+    * @interface opRegType
+    * @brief Register type of operations
+    *        Note that currently there are 4 types of ops:
+    *        gpr->gpr: (Parameter, Result, LoopBegin, LoopEnd etc)
+    *        gpr->vec: or vec->gpr Load/LoadConvert, Store/StoreConvert, BroadcastLoad etc.
+    *        vec->vec: all other "normal" operations that perform calculations on vector registers: Add, BroadcastMove, Power, etc.
+    */
+    enum opRegType {gpr2gpr, gpr2vec, vec2gpr, vec2vec};
+    /**
+     * @brief gets register type by op type
+     *        TODO: Should be static attribute of emitters
+     * @return register type
+     */
+    opRegType get_op_reg_type(const std::shared_ptr<Node>& op) const;
 
 protected:
+    /**
+    * @brief gets register type by specific plugin op type
+    * @return register type
+    */
+    virtual opRegType get_specific_op_reg_type(const std::shared_ptr<ov::Node>& op) const;
+
     std::shared_ptr<TargetMachine> target;
+    // todo: we need to save lowered code to access compiled brgemm kernels on execution time (normally lowered is destructed by then).
+    //  This is temporary solution, remove this when kernel caching is implemented. Don't forget to make generate const method.
+    std::vector<AllocatedEmitter> lowered_saved;
 };
 
 } // namespace snippets

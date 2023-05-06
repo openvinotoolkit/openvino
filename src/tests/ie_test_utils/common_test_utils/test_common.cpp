@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "test_common.hpp"
 #include "common_utils.hpp"
+#include "test_constants.hpp"
 
 #include <threading/ie_executor_manager.hpp>
 
@@ -80,6 +81,17 @@ std::string TestsCommon::GetTestName() const {
     std::replace_if(test_name.begin(), test_name.end(),
         [](char c) { return !std::isalnum(c); }, '_');
     return test_name;
+}
+
+std::string TestsCommon::GetFullTestName() const {
+    std::string suite_name =
+        ::testing::UnitTest::GetInstance()->current_test_info()->test_suite_name();
+    std::replace_if(suite_name.begin(), suite_name.end(),
+        [](char c) { return !std::isalnum(c); }, '_');
+
+    std::string test_name = GetTestName();
+
+    return suite_name + "_" + test_name;
 }
 
 }  // namespace CommonTestUtils

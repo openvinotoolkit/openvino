@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -17,7 +17,8 @@ source_group("include" FILES ${PUBLIC_HEADERS} ${PUBLIC_HEADERS})
 
 add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 
-# TODO Add handling ie_faster_build
+set_target_properties(${TARGET_NAME} PROPERTIES
+    INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 set(ONNX_COMMON_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 set(ONNX_COMMON_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)

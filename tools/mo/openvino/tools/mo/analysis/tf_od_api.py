@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
@@ -70,7 +70,7 @@ class TensorFlowObjectDetectionAPIAnalysis(AnalyzeAction):
                 if all([graph_contains_scope(graph, scope) for scope in scopes]):
                     result = dict()
                     result['flavor'] = flavor
-                    result['mandatory_parameters'] = {'tensorflow_use_custom_operations_config':
+                    result['mandatory_parameters'] = {'transformations_config':
                                                           files_by_pattern(get_mo_root_dir() + '/openvino/tools/mo/front/tf',
                                                                            __class__.file_patterns[flavor],
                                                                            add_prefix=True),

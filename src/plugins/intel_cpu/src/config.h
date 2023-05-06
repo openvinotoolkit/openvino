@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,10 +6,16 @@
 
 #include <threading/ie_istreams_executor.hpp>
 #include <ie_performance_hints.hpp>
-#include "utils/debug_capabilities.h"
+#include <ie/ie_common.h>
+#include <openvino/runtime/properties.hpp>
+#include <openvino/util/common_util.hpp>
+#include "utils/debug_caps_config.h"
+#include "openvino/runtime/properties.hpp"
 
+#include <bitset>
 #include <string>
 #include <map>
+#include <mutex>
 
 namespace ov {
 namespace intel_cpu {
@@ -28,57 +34,62 @@ struct Config {
         DO_On,
     };
 
+    enum SnippetsMode {
+        Enable,
+        IgnoreCallback,
+        Disable,
+    };
+
     bool collectPerfCounters = false;
     bool exclusiveAsyncRequests = false;
     bool enableDynamicBatch = false;
-    std::string dumpToDot = "";
+    SnippetsMode snippetsMode = SnippetsMode::Enable;
+    std::string dumpToDot = {};
+    std::string device_id = {};
     int batchLimit = 0;
+    float fcSparseWeiDecompressionRate = 1.0f;
+#if defined(OPENVINO_ARCH_X86_64)
     size_t rtCacheCapacity = 5000ul;
+#else
+    // TODO: Executor cache may leads to incorrect behavior on oneDNN ACL primitives
+    size_t rtCacheCapacity = 0ul;
+#endif
     InferenceEngine::IStreamsExecutor::Config streamExecutorConfig;
     InferenceEngine::PerfHintsConfig  perfHintsConfig;
-#if defined(__arm__) || defined(__aarch64__)
-    // Currently INT8 mode is not optimized on ARM, fallback to FP32 mode.
-    LPTransformsMode lpTransformsMode = LPTransformsMode::Off;
-    bool enforceBF16 = false;
-#else
+    bool enableCpuPinning = true;
+    bool changedCpuPinning = false;
+    ov::hint::SchedulingCoreType schedulingCoreType = ov::hint::SchedulingCoreType::ANY_CORE;
+    bool enableHyperThreading = true;
+    bool changedHyperThreading = false;
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
     LPTransformsMode lpTransformsMode = LPTransformsMode::On;
     bool enforceBF16 = true;
-    bool manualEnforceBF16 = false;
+#else
+    // Currently INT8 mode is not optimized on ARM / RISCV or other non-x86 platforms, fallback to FP32 mode.
+    LPTransformsMode lpTransformsMode = LPTransformsMode::Off;
+    bool enforceBF16 = false;
 #endif
-
-    std::string cache_dir{};
+    bool inferencePrecisionSetExplicitly = false;
+    ov::hint::ExecutionMode executionMode = ov::hint::ExecutionMode::PERFORMANCE;
 
     DenormalsOptMode denormalsOptMode = DenormalsOptMode::DO_Keep;
 
+    // The denormals-are-zeros flag was introduced in the Pentium 4 and Intel Xeon processor
+    // In earlier IA-32 processors and in some models of the Pentium 4 processor, this flag (bit 6)
+    // is reserved.
+    bool DAZOn = false;
+
     void readProperties(const std::map<std::string, std::string> &config);
     void updateProperties();
+
     std::map<std::string, std::string> _config;
 
-#ifdef CPU_DEBUG_CAPS
-    enum FILTER {
-        BY_PORTS,
-        BY_EXEC_ID,
-        BY_TYPE,
-        BY_NAME,
-    };
-
-    enum class FORMAT {
-        BIN,
-        TEXT,
-    };
-
-    std::string execGraphPath;
-    std::string verbose;
-    std::string blobDumpDir = "cpu_dump";
-    FORMAT blobDumpFormat = FORMAT::TEXT;
-    // std::hash<int> is necessary for Ubuntu-16.04 (gcc-5.4 and defect in C++11 standart)
-    std::unordered_map<FILTER, std::string, std::hash<int>> blobDumpFilters;
-    std::string summaryPerf = "";
-
-    void readDebugCapsProperties();
-#endif
-
     bool isNewApi = true;
+
+#ifdef CPU_DEBUG_CAPS
+    DebugCapsConfig debugCaps;
+    void applyDebugCapsProperties();
+#endif
 };
 
 }   // namespace intel_cpu

@@ -1,19 +1,15 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "cum_sum_inst.h"
 
 #include "primitive_type_base.h"
-#include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
 
 namespace cldnn {
-primitive_type_id cum_sum::type_id() {
-    static primitive_type_base<cum_sum> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(cum_sum)
 
 layout cum_sum_inst::calc_output_layout(cum_sum_node const& node, kernel_impl_params const& impl_param) {
     return impl_param.get_input_layout();

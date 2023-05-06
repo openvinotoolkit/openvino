@@ -1,89 +1,103 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gather_elements_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "kernel_selector_helper.h"
+
+#include "gather_elements_inst.h"
 #include "gather/gather_elements_kernel_selector.h"
 #include "gather/gather_elements_kernel_ref.h"
-#include "intel_gpu/runtime/error_handler.hpp"
-
-using namespace cldnn;
 
 namespace cldnn {
 namespace ocl {
-kernel_selector::gather_elements_axis convert_axis(gather_elements::gather_elements_axis axis) {
+
+static inline kernel_selector::gather_elements_axis convert_axis(int64_t axis, size_t rank) {
+    if (axis < 0) {
+        axis += rank;
+    }
     switch (axis) {
-        case gather_elements::along_x:
-            return kernel_selector::gather_elements_axis::X;
-        case gather_elements::along_y:
-            return kernel_selector::gather_elements_axis::Y;
-        case gather_elements::along_z:
-            return kernel_selector::gather_elements_axis::Z;
-        case gather_elements::along_w:
-            return kernel_selector::gather_elements_axis::W;
-        case gather_elements::along_f:
-            return kernel_selector::gather_elements_axis::FEATURE;
-        case gather_elements::along_b:
-            return kernel_selector::gather_elements_axis::BATCH;
-        default:
-            return kernel_selector::gather_elements_axis::BATCH;
+        case 0: return kernel_selector::gather_elements_axis::BATCH;
+        case 1: return kernel_selector::gather_elements_axis::FEATURE;
+        case 2:
+            if (rank == 6)
+                return kernel_selector::gather_elements_axis::W;
+            else if (rank == 5)
+                return kernel_selector::gather_elements_axis::Z;
+            else
+                return kernel_selector::gather_elements_axis::Y;
+        case 3:
+            if (rank == 6)
+                return kernel_selector::gather_elements_axis::Z;
+            else if (rank == 5)
+                return kernel_selector::gather_elements_axis::Y;
+            else
+                return kernel_selector::gather_elements_axis::X;
+        case 4:
+            if (rank == 6)
+                return kernel_selector::gather_elements_axis::Y;
+            else
+                return kernel_selector::gather_elements_axis::X;
+        case 5: return kernel_selector::gather_elements_axis::X;
+        default: IE_THROW() << "Incorrect gather_elements axis.";
     }
 }
 
 struct gather_elements_impl : typed_primitive_impl_ocl<gather_elements> {
     using parent = typed_primitive_impl_ocl<gather_elements>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::gather_elements_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::gather_elements_params, kernel_selector::gather_elements_optional_params>;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<gather_elements_impl>(*this);
     }
 
-public:
-    static primitive_impl* create(const gather_elements_node& arg, std::shared_ptr<kernel_impl_params> impl_param) {
-        const auto& prim = arg.get_primitive();
-        auto gather_elements_params = get_default_params<kernel_selector::gather_elements_params>(*impl_param);
-        auto gather_elements_optional_params =
-            get_default_optional_params<kernel_selector::gather_elements_optional_params>(arg.get_program());
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
+        const auto& primitive = impl_param.typed_desc<gather_elements>();
+        auto params = get_default_params<kernel_selector::gather_elements_params>(impl_param, is_shape_agnostic);
+        auto optional_params = get_default_optional_params<kernel_selector::gather_elements_optional_params>(impl_param.get_program());
 
-        gather_elements_params.axis = convert_axis(prim->axis);
+        size_t rank = impl_param.get_output_layout().get_rank();
+        params.axis = convert_axis(primitive->axis, rank);
 
-        gather_elements_params.inputs.push_back(convert_data_tensor(impl_param->input_layouts[1]));
+        params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
+        return {params, optional_params};
+    }
 
-        auto& kernel_selector = kernel_selector::gather_elements_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(gather_elements_params, gather_elements_optional_params);
-
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
-
-        auto gather_elements = new gather_elements_impl(arg, best_kernels[0]);
-
-        return gather_elements;
+    void update_dispatch_data(const kernel_impl_params& impl_param) override {
+       auto kernel_params = get_kernel_params(impl_param, true);
+       (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
     }
 };
 
 namespace detail {
 
 attach_gather_elements_impl::attach_gather_elements_impl() {
-    implementation_map<gather_elements>::add(impl_types::ocl, gather_elements_impl::create, {
-        std::make_tuple(data_types::i8, format::bfyx),
-        std::make_tuple(data_types::u8, format::bfyx),
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::i32, format::bfyx),
-        std::make_tuple(data_types::f32, format::bfzyx),
-        std::make_tuple(data_types::f16, format::bfzyx),
-        std::make_tuple(data_types::i32, format::bfzyx),
-        std::make_tuple(data_types::f32, format::bfwzyx),
-        std::make_tuple(data_types::f16, format::bfwzyx),
-        std::make_tuple(data_types::i32, format::bfwzyx),
-    });
+    auto types = {
+        data_types::f32,
+        data_types::f16,
+        data_types::i32,
+        data_types::i8,
+        data_types::u8
+    };
+
+    auto formats = {
+        format::bfyx,
+        format::bfzyx,
+        format::bfwzyx
+    };
+
+    implementation_map<gather_elements>::add(impl_types::ocl,
+                                             shape_types::any,
+                                             typed_primitive_impl_ocl<gather_elements>::create<gather_elements_impl>,
+                                             types,
+                                             formats);
 }
 
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::gather_elements_impl)

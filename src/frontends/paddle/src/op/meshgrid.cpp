@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,7 @@ NamedOutputs meshgrid(const NodeContext& node) {
     }
     const auto out_shape = std::make_shared<default_opset::Concat>(dims, 0);
     OutputVector outs;
-    for (auto i = 0; i < inputs.size(); i++) {
+    for (size_t i = 0; i < inputs.size(); i++) {
         const auto& input = inputs[i];
         const auto out =
             std::make_shared<default_opset::Broadcast>(input,

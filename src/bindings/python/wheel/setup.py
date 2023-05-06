@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os.path
@@ -8,19 +8,20 @@ import errno
 import subprocess  # nosec
 import typing
 import platform
+import re
 import multiprocessing
 from fnmatch import fnmatchcase
 from pathlib import Path
 from shutil import copyfile, rmtree
+from setuptools import setup, find_namespace_packages, Extension
+from setuptools.command.build_ext import build_ext
+from setuptools.command.build_clib import build_clib
+from setuptools.command.install import install
 from distutils.command.build import build
 from distutils.command.clean import clean
 from distutils.errors import DistutilsSetupError
 from distutils.file_util import copy_file
 from distutils import log
-from setuptools import setup, find_namespace_packages, Extension
-from setuptools.command.build_ext import build_ext
-from setuptools.command.build_clib import build_clib
-from setuptools.command.install import install
 
 WHEEL_LIBS_INSTALL_DIR = os.path.join("openvino", "libs")
 WHEEL_LIBS_PACKAGE = "openvino.libs"
@@ -32,18 +33,21 @@ CONFIG = "Release" if platform.system() in {"Windows", "Darwin"} else ""
 machine = platform.machine()
 if machine == "x86_64" or machine == "AMD64":
     ARCH = "intel64"
-elif machine == "X86":
+elif machine == "X86" or machine == "i686":
     ARCH = "ia32"
-elif machine == "arm":
+elif machine == "arm" or machine == "armv7l":
     ARCH = "arm"
-elif machine == "aarch64":
+elif machine == "aarch64" or machine == "arm64" or machine == "ARM64":
     ARCH = "arm64"
 
 # The following variables can be defined in environment or .env file
 SCRIPT_DIR = Path(__file__).resolve().parents[0]
 CMAKE_BUILD_DIR = os.getenv("CMAKE_BUILD_DIR", ".")
+OPENVINO_BUILD_DIR = os.getenv("OPENVINO_BUILD_DIR", CMAKE_BUILD_DIR)
+OPENVINO_PYTHON_BUILD_DIR = os.getenv("OPENVINO_PYTHON_BUILD_DIR", CMAKE_BUILD_DIR)
 OV_RUNTIME_LIBS_DIR = os.getenv("OV_RUNTIME_LIBS_DIR", f"runtime/{LIBS_DIR}/{ARCH}/{CONFIG}")
 TBB_LIBS_DIR = os.getenv("TBB_LIBS_DIR", f"runtime/3rdparty/tbb/{LIBS_DIR}")
+PUGIXML_LIBS_DIR = os.getenv("PUGIXML_LIBS_DIR", f"runtime/3rdparty/pugixml/{LIBS_DIR}")
 PY_PACKAGES_DIR = os.getenv("PY_PACKAGES_DIR", f"python/{PYTHON_VERSION}")
 LIBS_RPATH = "$ORIGIN" if sys.platform == "linux" else "@loader_path"
 
@@ -53,59 +57,118 @@ LIB_INSTALL_CFG = {
         "prefix": "libs.core",
         "install_dir": OV_RUNTIME_LIBS_DIR,
         "rpath": LIBS_RPATH,
+        "binary_dir": OPENVINO_BUILD_DIR,
     },
     "hetero_plugin": {
         "name": "hetero",
-        "prefix": "libs.core",
+        "prefix": "libs.hetero",
         "install_dir": OV_RUNTIME_LIBS_DIR,
         "rpath": LIBS_RPATH,
+        "binary_dir": OPENVINO_BUILD_DIR,
     },
     "gpu_plugin": {
         "name": "gpu",
-        "prefix": "libs.core",
+        "prefix": "libs.gpu",
         "install_dir": OV_RUNTIME_LIBS_DIR,
         "rpath": LIBS_RPATH,
+        "binary_dir": OPENVINO_BUILD_DIR,
     },
     "cpu_plugin": {
         "name": "cpu",
-        "prefix": "libs.core",
+        "prefix": "libs.cpu",
         "install_dir": OV_RUNTIME_LIBS_DIR,
         "rpath": LIBS_RPATH,
+        "binary_dir": OPENVINO_BUILD_DIR,
     },
     "multi_plugin": {
         "name": "multi",
-        "prefix": "libs.core",
+        "prefix": "libs.multi",
         "install_dir": OV_RUNTIME_LIBS_DIR,
         "rpath": LIBS_RPATH,
+        "binary_dir": OPENVINO_BUILD_DIR,
     },
     "batch_plugin": {
         "name": "batch",
-        "prefix": "libs.core",
+        "prefix": "libs.batch",
         "install_dir": OV_RUNTIME_LIBS_DIR,
+        "rpath": LIBS_RPATH,
+        "binary_dir": OPENVINO_BUILD_DIR,
     },
     "tbb_libs": {
         "name": "tbb",
         "prefix": "libs.tbb",
         "install_dir": TBB_LIBS_DIR,
         "rpath": LIBS_RPATH,
+        "binary_dir": OPENVINO_BUILD_DIR,
+    },
+    "pugixml_libs": {
+        "name": "pugixml",
+        "prefix": "libs.pugixml",
+        "install_dir": PUGIXML_LIBS_DIR,
+        "binary_dir": OPENVINO_BUILD_DIR,
+    },
+    "ir_libs": {
+        "name": "ir",
+        "prefix": "libs.ir",
+        "install_dir": OV_RUNTIME_LIBS_DIR,
+        "rpath": LIBS_RPATH,
+        "binary_dir": OPENVINO_BUILD_DIR,
+    },
+    "paddle_libs": {
+        "name": "paddle",
+        "prefix": "libs.paddle",
+        "install_dir": OV_RUNTIME_LIBS_DIR,
+        "rpath": LIBS_RPATH,
+        "binary_dir": OPENVINO_BUILD_DIR,
+    },
+    "pytorch_libs": {
+        "name": "pytorch",
+        "prefix": "libs.pytorch",
+        "install_dir": OV_RUNTIME_LIBS_DIR,
+        "rpath": LIBS_RPATH,
+        "binary_dir": OPENVINO_BUILD_DIR,
+    },
+    "onnx_libs": {
+        "name": "onnx",
+        "prefix": "libs.onnx",
+        "install_dir": OV_RUNTIME_LIBS_DIR,
+        "rpath": LIBS_RPATH,
+        "binary_dir": OPENVINO_BUILD_DIR,
+    },
+    "tensorflow_libs": {
+        "name": "tensorflow",
+        "prefix": "libs.tensorflow",
+        "install_dir": OV_RUNTIME_LIBS_DIR,
+        "rpath": LIBS_RPATH,
+        "binary_dir": OPENVINO_BUILD_DIR,
+    },
+    "tensorflow_lite_libs": {
+        "name": "tensorflow_lite",
+        "prefix": "libs.tensorflow_lite",
+        "install_dir": OV_RUNTIME_LIBS_DIR,
+        "rpath": LIBS_RPATH,
+        "binary_dir": OPENVINO_BUILD_DIR,
     },
 }
 
 PY_INSTALL_CFG = {
     "ie_py": {
-        "name": PYTHON_VERSION,
+        "name": f"pyie_{PYTHON_VERSION}",
         "prefix": "site-packages",
         "install_dir": PY_PACKAGES_DIR,
+        "binary_dir": OPENVINO_PYTHON_BUILD_DIR,
     },
     "ngraph_py": {
         "name": f"pyngraph_{PYTHON_VERSION}",
         "prefix": "site-packages",
         "install_dir": PY_PACKAGES_DIR,
+        "binary_dir": OPENVINO_PYTHON_BUILD_DIR,
     },
     "pyopenvino": {
         "name": f"pyopenvino_{PYTHON_VERSION}",
         "prefix": "site-packages",
         "install_dir": PY_PACKAGES_DIR,
+        "binary_dir": OPENVINO_PYTHON_BUILD_DIR,
     },
 }
 
@@ -163,25 +226,31 @@ class CustomBuild(build):
         self.jobs = multiprocessing.cpu_count() if self.jobs is None else int(self.jobs)
 
     def run(self):
-        global CMAKE_BUILD_DIR
+        global OPENVINO_BUILD_DIR
         self.jobs = multiprocessing.cpu_count()
         plat_specifier = ".{0}-{1}.{2}".format(self.plat_name, *sys.version_info[:2])
         self.build_temp = os.path.join(self.build_base, "temp" + plat_specifier, self.config)
+        self.announce(f"Create build directory: {self.build_temp}", level=3)
 
         # if setup.py is directly called use CMake to build product
-        if CMAKE_BUILD_DIR == ".":
+        if OPENVINO_BUILD_DIR == ".":
             # set path to the root of OpenVINO CMakeList file
             openvino_root_dir = Path(__file__).resolve().parents[4]
             self.announce(f"Configuring cmake project: {openvino_root_dir}", level=3)
-            self.spawn(["cmake", "-H" + str(openvino_root_dir), "-B" + self.build_temp,
-                        "-DCMAKE_BUILD_TYPE={type}".format(type=self.config),
-                        "-DENABLE_PYTHON=ON",
-                        "-DENABLE_OV_ONNX_FRONTEND=ON"])
+            self.spawn(["cmake", "-S" + str(openvino_root_dir),
+                                 "-B" + self.build_temp,
+                                 "-DCMAKE_BUILD_TYPE={type}".format(type=self.config),
+                                 "-DENABLE_PYTHON=ON",
+                                 "-DENABLE_NCC_STYLE=OFF",
+                                 "-DENABLE_CPPLINT=OFF",
+                                 "-DENABLE_TEMPLATE=OFF",
+                                 "-DENABLE_SAMPLES=OFF"])
 
             self.announce("Building binaries", level=3)
             self.spawn(["cmake", "--build", self.build_temp,
-                        "--config", self.config, "-j", str(self.jobs)])
-            CMAKE_BUILD_DIR = self.build_temp
+                                 "--config", self.config,
+                                 "-j", str(self.jobs)])
+            OPENVINO_BUILD_DIR = self.build_temp
         self.run_command("build_clib")
 
         build.run(self)
@@ -203,38 +272,105 @@ class PrepareLibs(build_clib):
     def run(self):
         self.configure(LIB_INSTALL_CFG)
         self.configure(PY_INSTALL_CFG)
-        self.generate_package(get_dir_list(LIB_INSTALL_CFG))
+        self.generate_package(get_install_dirs_list(LIB_INSTALL_CFG))
 
     def configure(self, install_cfg):
         """Collect prebuilt libraries. Install them to the temp directories, set rpath."""
         for comp, comp_data in install_cfg.items():
             install_prefix = comp_data.get("prefix")
             install_dir = comp_data.get("install_dir")
+            binary_dir = comp_data.get("binary_dir")
             if install_dir and not os.path.isabs(install_dir):
-                install_dir = os.path.join(install_prefix, install_dir)
                 self.announce(f"Installing {comp}", level=3)
-                self.spawn(["cmake", "--install", CMAKE_BUILD_DIR, "--prefix", install_prefix, "--component", comp_data.get("name")])
+                self.spawn(["cmake", "--install", binary_dir,
+                                     "--prefix", install_prefix,
+                                     "--config", "Release",
+                                     "--strip",
+                                     "--component", comp_data.get("name")])
+                install_dir = os.path.join(install_prefix, install_dir)
             # set rpath if applicable
             if sys.platform != "win32" and comp_data.get("rpath"):
+                # after tbb libraries on mac arm64 are signed, setting rpath for them will report error:
+                # LC_SEGMENT_64 command 3 fileoff field plus filesize field extends past the end of the file
+                if comp == "tbb_libs" and ARCH == "arm64" and sys.platform == "darwin":
+                    continue
+
                 for path in filter(
-                    lambda x: any(item in ([".so"] if sys.platform == "linux" else [".dylib", ".so"]) for item in x.suffixes), Path(install_dir).glob("*"),
+                    lambda x: any(item in ([".so"] if sys.platform == "linux" else [".dylib", ".so"])
+                                  for item in x.suffixes), Path(install_dir).glob("*"),
                 ):
                     set_rpath(comp_data["rpath"], os.path.realpath(path))
+
+    def get_reallink(self, link_file):
+        real_name = link_file
+        while True:
+            real_name = os.readlink(real_name)
+            if not os.path.isabs(real_name):
+                real_name = os.path.join(os.path.dirname(link_file), real_name)
+            if not Path(real_name).is_symlink():
+                break
+        return real_name
 
     def generate_package(self, src_dirs):
         """Collect package data files from preinstalled dirs and put all runtime libraries to the subpackage."""
         # additional blacklist filter, just to fix cmake install issues
-        blacklist = [".lib", ".pdb", "_debug.dll", "_debug.dylib"]
+        blacklist_patterns = ["^.*\\.lib$", "^.*\\.pdb$", "^.*_debug\\.dll$", "^.*_debug\\.\\d*\\.dylib$", "^.*_debug\\.so\\.\\d*$", "^.*\\.la$"]
         package_dir = os.path.join(get_package_dir(PY_INSTALL_CFG), WHEEL_LIBS_INSTALL_DIR)
 
         for src_dir in src_dirs:
             local_base_dir = Path(src_dir)
+            # Wheel package content must not contain symlinks
+            # the block handles two kinds of soft links, take the library on linux as an example
+            #   the first case: there are two soft links pointing to the real file,
+            #     input is libX.so->libX.so.Y and libX.so.Y->libX.so.Y.Z (e.g. hwloc library in oneTBB package)
+            #     input is libX.so->libX.so.Y.Z and libX.so.Y->libX.so.Y.Z (e.g. oneTBB library)
+            #   the second case: there is one soft link pointing to the real file
+            # process results of the above two cases: remove soft links(libX.so and libX.so.Y), rename libX.so.Y.Z to libX.so.Y
+            file_dict = {}
+            # step 1:
+            # record real files and its symlinks {real file: soft link}
+            # if there are two soft links pointing to the same file, like libX.so and libX.so.Y(including the above two cases),
+            # only record the libX.so.Y and remove libX.so
+            for symlink in local_base_dir.rglob("*"):
+                if symlink.is_symlink():
+                    real_name = self.get_reallink(symlink)
+                    if real_name in file_dict:
+                        link_file_name_old = os.path.basename(file_dict[real_name])
+                        link_file_name_new = os.path.basename(symlink)
+                        if len(link_file_name_new) > len(link_file_name_old):
+                            # replace libX.so/libX.dylib with libX.so.Y/libX.Y.dylib
+                            self.announce(f"Unlink symlink {file_dict[real_name]}, use {symlink} instead", level=3)
+                            os.unlink(file_dict[real_name])
+                            file_dict[real_name] = symlink
+                        else:
+                            self.announce(f"Unlink symlink {symlink}, use {file_dict[real_name]} instead", level=3)
+                            os.unlink(symlink)
+                    else:
+                        file_dict[real_name] = symlink
+
+            # step 2:
+            # according to the corresponding relationship (file_dict),
+            # remove the reserved soft link and rename the real file to the name of its soft link
+            for real_name, symlink in file_dict.items():
+                os.unlink(symlink)
+                os.rename(real_name, symlink)
+                self.announce(f"Resolved symlink {symlink} as {real_name}", level=3)
+
+            # copy so / dylib files to WHEEL_LIBS_INSTALL_DIR
             for file_path in local_base_dir.rglob("*"):
                 file_name = os.path.basename(file_path)
-                if file_path.is_file() and not any(file_name.endswith(ext) for ext in blacklist):
+                if file_path.is_symlink():
+                    sys.exit(f"Wheel package content must not contain symlinks {file_path}")
+                blacklisted = False
+                for pattern in blacklist_patterns:
+                    if re.match(pattern, file_name) is not None:
+                        blacklisted = True
+                        break
+                if file_path.is_file() and not blacklisted:
                     dst_file = os.path.join(package_dir, os.path.relpath(file_path, local_base_dir))
                     os.makedirs(os.path.dirname(dst_file), exist_ok=True)
                     copyfile(file_path, dst_file)
+                    self.announce(f"Copy {file_path} to {dst_file}", level=3)
 
         if Path(package_dir).exists():
             self.announce(f"Adding {WHEEL_LIBS_PACKAGE} package", level=3)
@@ -249,7 +385,7 @@ class CopyExt(build_ext):
         if len(self.extensions) == 1:
             self.run_command("build_clib")
             self.extensions = []
-            self.extensions = find_prebuilt_extensions(get_dir_list(PY_INSTALL_CFG))
+            self.extensions = find_prebuilt_extensions(get_install_dirs_list(PY_INSTALL_CFG))
         for extension in self.extensions:
             if not isinstance(extension, PrebuiltExtension):
                 raise DistutilsSetupError(f"copy_ext can accept PrebuiltExtension only, but got {extension.name}")
@@ -259,11 +395,9 @@ class CopyExt(build_ext):
             # setting relative path to find dlls
             if sys.platform != "win32":
                 rpath = os.path.relpath(get_package_dir(PY_INSTALL_CFG), os.path.dirname(src))
-                if sys.platform == "linux":
-                    rpath = os.path.join("$ORIGIN", rpath, WHEEL_LIBS_INSTALL_DIR)
-                elif sys.platform == "darwin":
-                    rpath = os.path.join("@loader_path", rpath, WHEEL_LIBS_INSTALL_DIR)
+                rpath = os.path.join(LIBS_RPATH, rpath, WHEEL_LIBS_INSTALL_DIR)
                 set_rpath(rpath, os.path.realpath(src))
+
             copy_file(src, dst, verbose=self.verbose, dry_run=self.dry_run)
 
 
@@ -329,7 +463,7 @@ def remove_rpath(file_path):
 
 def set_rpath(rpath, executable):
     """Setting rpath for linux and macOS libraries."""
-    print(f"Setting rpath {rpath} for {executable}")  # noqa: T001
+    print(f"Setting rpath {rpath} for {executable}")  # noqa: T001, T201
     cmd = []
     rpath_tool = ""
 
@@ -368,7 +502,7 @@ def find_prebuilt_extensions(search_dirs):
         ext_pattern = "**/*.so"
     for base_dir in search_dirs:
         for path in Path(base_dir).glob(ext_pattern):
-            if path.match("openvino/libs/*"):
+            if path.match("openvino/libs/*") or path.match(f"openvino/libs/openvino-{OPENVINO_VERSION}/*"):
                 continue
             relpath = path.relative_to(base_dir)
             if relpath.parent != ".":
@@ -397,7 +531,7 @@ def get_dependencies(requirements_file_path):
     return dependencies
 
 
-def get_dir_list(install_cfg):
+def get_install_dirs_list(install_cfg):
     """Collect all available directories with libs or python packages."""
     dirs = []
     for comp_info in install_cfg.values():
@@ -414,7 +548,7 @@ def get_dir_list(install_cfg):
 def get_package_dir(install_cfg):
     """Get python package path based on config. All the packages should be located in one directory."""
     py_package_path = ""
-    dirs = get_dir_list(install_cfg)
+    dirs = get_install_dirs_list(install_cfg)
     if len(dirs) != 0:
         # setup.py support only one package directory, all modules should be located there
         py_package_path = dirs[0]
@@ -422,6 +556,7 @@ def get_package_dir(install_cfg):
 
 
 def concat_files(output_file, input_files):
+    """Concatenates multuple input files to a single output file."""
     with open(output_file, "w", encoding="utf-8") as outfile:
         for filename in input_files:
             with open(filename, "r", encoding="utf-8") as infile:
@@ -434,6 +569,7 @@ platforms = ["linux", "win32", "darwin"]
 if not any(pl in sys.platform for pl in platforms):
     sys.exit(f"Unsupported platform: {sys.platform}, expected: linux, win32, darwin")
 
+OPENVINO_VERSION = WHEEL_VERSION = os.getenv("WHEEL_VERSION", "0.0.0")
 # copy license file into the build directory
 package_license = os.getenv("WHEEL_LICENSE", SCRIPT_DIR.parents[3] / "LICENSE")
 if os.path.exists(package_license):
@@ -442,21 +578,21 @@ if os.path.exists(package_license):
 packages = find_namespace_packages(get_package_dir(PY_INSTALL_CFG))
 package_data: typing.Dict[str, list] = {}
 pkg_name = os.getenv("WHEEL_PACKAGE_NAME", "openvino")
-ext_modules = find_prebuilt_extensions(get_dir_list(PY_INSTALL_CFG)) if pkg_name == "openvino" else []
+ext_modules = find_prebuilt_extensions(get_install_dirs_list(PY_INSTALL_CFG)) if pkg_name == "openvino" else []
 
 description_md = SCRIPT_DIR.parents[3] / "docs" / "install_guides" / "pypi-openvino-rt.md"
 md_files = [description_md, SCRIPT_DIR.parents[3] / "docs" / "install_guides" / "pre-release-note.md"]
 docs_url = "https://docs.openvino.ai/latest/index.html"
 
-if(os.getenv("CI_BUILD_DEV_TAG")):
+if (os.getenv("CI_BUILD_DEV_TAG")):
     output = Path.cwd() / "build" / "pypi-openvino-rt.md"
     output.parent.mkdir(exist_ok=True)
     description_md = concat_files(output, md_files)
     docs_url = "https://docs.openvino.ai/nightly/index.html"
-
+    OPENVINO_VERSION = WHEEL_VERSION[0:8]
 
 setup(
-    version=os.getenv("WHEEL_VERSION", "0.0.0"),
+    version=WHEEL_VERSION,
     build=os.getenv("WHEEL_BUILD", "000"),
     author_email=os.getenv("WHEEL_AUTHOR_EMAIL", "openvino_pushbot@intel.com"),
     name=pkg_name,
