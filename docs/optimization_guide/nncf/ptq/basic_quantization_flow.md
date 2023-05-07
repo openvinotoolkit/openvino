@@ -97,9 +97,9 @@ After that the model can be exported into the OpenVINO Intermediate Representati
 Tune quantization parameters
 ############################
 
-``nncf.quantize()`` function has several parameters that allow to tune quantization process to get more accurate model. Below is the list of parameters and their description:
+``nncf.quantize()`` function has several optional parameters that allow tuning the quantization process to get more accurate model. Below is the list of parameters and their description:
 
-* ``model_type`` - used to specify quantization scheme required for specific type of the model. For example, **Transformer** models (BERT, distillBERT, etc.) require a special quantization scheme to preserve accuracy after quantization.
+* ``model_type`` - used to specify quantization scheme required for specific type of the model. ``Transformer`` is only supported special quantization scheme to preserve accuracy after quantization of **Transformer** models (BERT, distillBERT, etc.). ``None`` is default, i.e. no specific scheme is defined.
 
   .. code-block:: sh
 
@@ -114,7 +114,7 @@ Tune quantization parameters
 
        nncf.quantize(model, dataset, preset=nncf.Preset.MIXED)
 
-* ``fast_bias_correction`` - when ``False`` enables more accurate bias (error) correction algorithm that can be used to improve accuracy of the model, but it increases quantization time. This parameter is available only for OpenVINO and ONNX representations. ``True`` is used by default.
+* ``fast_bias_correction`` - when ``False`` enables more accurate bias (error) correction algorithm that can be used to improve accuracy of the model. This parameter is available only for OpenVINO and ONNX representations. ``True`` is used by default to minimize quantization time.
 
   .. code-block:: sh
 
@@ -126,7 +126,7 @@ Tune quantization parameters
 
      nncf.quantize(model, dataset, subset_size=1000)
 
-* ``ignored_scope`` - this parameter can be used to exclude some layers from quantization process to preserve the model accuracy. For example, if you want to exclude the last layer of the model from quantization. Below are some examples of how to use this parameter:
+* ``ignored_scope`` - this parameter can be used to exclude some layers from the quantization process to preserve the model accuracy. For example, when you want to exclude the last layer of the model from quantization. Below are some examples of how to use this parameter:
 
   * Exclude by layer name:
 
@@ -149,6 +149,9 @@ Tune quantization parameters
        regex = '.*layer_.*'
        nncf.quantize(model, dataset, ignored_scope=nncf.IgnoredScope(patterns=regex))
 
+* ``target_device`` - TODO!
+
+* ``advanced_params`` - TODO!
 
 If the accuracy of the quantized model is not satisfactory, you can try to use the :doc:`Quantization with accuracy control <quantization_w_accuracy_control>` flow.
 
