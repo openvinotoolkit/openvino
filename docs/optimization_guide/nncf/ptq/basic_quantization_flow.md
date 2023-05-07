@@ -114,7 +114,7 @@ Tune quantization parameters
 
        nncf.quantize(model, dataset, preset=nncf.Preset.MIXED)
 
-* ``fast_bias_correction`` - enables more accurate bias (error) correction algorithm that can be used to improve accuracy of the model. This parameter is available only for OpenVINO representation. ``True`` is used by default.
+* ``fast_bias_correction`` - when ``False`` enables more accurate bias (error) correction algorithm that can be used to improve accuracy of the model, but it increases quantization time. This parameter is available only for OpenVINO and ONNX representations. ``True`` is used by default.
 
   .. code-block:: sh
 
@@ -126,7 +126,7 @@ Tune quantization parameters
 
      nncf.quantize(model, dataset, subset_size=1000)
 
-* ``ignored_scope`` - this parameter can be used to exclude some layers from quantization process. For example, if you want to exclude the last layer of the model from quantization. Below are some examples of how to use this parameter:
+* ``ignored_scope`` - this parameter can be used to exclude some layers from quantization process to preserve the model accuracy. For example, if you want to exclude the last layer of the model from quantization. Below are some examples of how to use this parameter:
 
   * Exclude by layer name:
 
