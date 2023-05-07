@@ -155,6 +155,11 @@ If the accuracy of the quantized model is not satisfactory, you can try to use t
 See also
 ####################
 
-* `Example of basic quantization flow in PyTorch <https://github.com/openvinotoolkit/nncf/tree/develop/examples/post_training_quantization/torch/mobilenet_v2>`__
+* `NNCF Example: Post-Training Quantization of MobileNet v2 OpenVINO Model <https://github.com/openvinotoolkit/nncf/blob/develop/examples/post_training_quantization/openvino/mobilenet_v2/README.md>`__
+* `NNCF Example: Post-Training Quantization of YOLOv8 OpenVINO Model <https://github.com/openvinotoolkit/nncf/blob/develop/examples/post_training_quantization/openvino/yolov8/README.md>`__
+* `NNCF Example: Post-Training Quantization of MobileNet v2 PyTorch Model <https://github.com/openvinotoolkit/nncf/blob/develop/examples/post_training_quantization/torch/mobilenet_v2/README.md>`__
+* `NNCF Example: Post-Training Quantization of SSD PyTorch Model <https://github.com/openvinotoolkit/nncf/blob/develop/examples/post_training_quantization/torch/ssd300_vgg16/README.md>`__
+* `Post-Training Quantization of MobileNet v2 ONNX Model <https://github.com/openvinotoolkit/nncf/blob/develop/examples/post_training_quantization/onnx/mobilenet_v2/README.md>`__
+* `Post-Training Quantization of MobileNet v2 TensorFlow Model <https://github.com/openvinotoolkit/nncf/blob/develop/examples/post_training_quantization/tensorflow/mobilenet_v2/README.md>`__
 
 @endsphinxdirective
