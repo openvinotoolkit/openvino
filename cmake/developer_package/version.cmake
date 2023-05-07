@@ -49,7 +49,7 @@ endfunction()
 macro(ov_parse_ci_build_number)
     set(OpenVINO_VERSION_BUILD 000)
 
-    set(CI_BUILD_NUMBER "2023.1.0")
+    set(CI_BUILD_NUMBER "2023.0.0")
 
     if(CI_BUILD_NUMBER MATCHES "^([0-9]+)\.([0-9]+)\.([0-9]+)\-([0-9]+)\-.*")
         set(OpenVINO_VERSION_MAJOR ${CMAKE_MATCH_1})
