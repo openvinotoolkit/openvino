@@ -56,7 +56,7 @@ Run quantization with accuracy control
 
 * ``drop_type`` defines how the accuracy drop will be calculated: ``ABSOLUTE`` (used by default) or ``RELATIVE``.
 
-``nncf.quantize_with_accuracy_control()`` API supports all the parameters of ``nncf.quantize()`` API and you can also quantize a model with accuracy control and a custom configuration.
+``nncf.quantize_with_accuracy_control()`` API supports all the parameters from :doc:nncf.quantize() <basic_quantization_flow> API and you can also use them to quantize a model with accuracy control and a custom configuration.
 
 If the accuracy or performance of the quantized model is not satisfactory, you can try :doc:Training-time Optimization <tmo_introduction> as the next step.
 
@@ -64,6 +64,7 @@ See also
 ####################
 
 * :doc:`Optimizing Models at Training Time <tmo_introduction>`
+* 
 
 @endsphinxdirective
 
