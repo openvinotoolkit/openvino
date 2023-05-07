@@ -52,7 +52,7 @@ Run quantization with accuracy control
       :fragment: [quantization]
 
 
-* ``max_drop`` defines the accuracy drop threshold. The quantization process stops when the degradation of accuracy metric on the validation dataset is less than the ``max_drop``.
+* ``max_drop`` defines the accuracy drop threshold. The quantization process stops when the degradation of accuracy metric on the validation dataset is less than the ``max_drop``. The default value is 0.01.
 
 * ``drop_type`` defines how the accuracy drop will be calculated: ``ABSOLUTE`` (used by default) or ``RELATIVE``.
 
