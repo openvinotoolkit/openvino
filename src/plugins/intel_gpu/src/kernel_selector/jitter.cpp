@@ -310,13 +310,11 @@ public:
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 class DataTensorJitConstant : public TensorBaseTJitConstant<Datatype, DataLayout> {
     const DataTensor _tensor;
-    const size_t shape_info_offset;
 
 public:
-    DataTensorJitConstant(const std::string& name, const DataTensor& t, size_t si_offset = 0)
+    DataTensorJitConstant(const std::string& name, const DataTensor& t)
     : TensorBaseTJitConstant(name)
-    , _tensor(t)
-    , shape_info_offset(si_offset) {}
+    , _tensor(t) {}
 
     JitDefinitions GetDefinitions() const override;
 };
@@ -641,8 +639,8 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
     return definitions;
 }
 
-std::shared_ptr<JitConstant> MakeJitConstant(const std::string& name, const DataTensor& value, size_t shape_info_offset) {
-    return std::static_pointer_cast<JitConstant>(std::make_shared<DataTensorJitConstant>(name, value, shape_info_offset));
+std::shared_ptr<JitConstant> MakeJitConstant(const std::string& name, const DataTensor& value) {
+    return std::static_pointer_cast<JitConstant>(std::make_shared<DataTensorJitConstant>(name, value));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1642,18 +1640,14 @@ std::string FusedOpsCodeGenerator::GetTypeStr() const {
     }
 }
 
-JitConstants FusedOpsCodeGenerator::MakeFusedTensorJitConstants(const FusedOpsConfiguration& /*conf*/, size_t shape_info_offset) const {
+JitConstants FusedOpsCodeGenerator::MakeFusedTensorJitConstants(const FusedOpsConfiguration& /*conf*/) const {
     JitConstants jit{};
-    size_t shape_info_offset_iter = shape_info_offset;
     for (size_t op_input_id = 0; op_input_id < desc.tensors.size(); op_input_id++) {
         std::string name = GetInputTensorName(op_input_id);
-        jit.AddConstant(MakeJitConstant(name, desc.tensors[op_input_id], shape_info_offset_iter));
-        if (desc.tensors[op_input_id].is_dynamic()) {
-            shape_info_offset_iter += DataTensor::max_rank();
-        }
+        jit.AddConstant(MakeJitConstant(name, desc.tensors[op_input_id]));
     }
     // Use shape_ids from output tensor as won't support fused ops which changes out shape for now
-    jit.AddConstant(MakeJitConstant(GetOutputTensorName(), desc.output_tensor, shape_info_offset_iter));
+    jit.AddConstant(MakeJitConstant(GetOutputTensorName(), desc.output_tensor));
     return jit;
 }
 

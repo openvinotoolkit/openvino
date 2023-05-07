@@ -658,7 +658,7 @@ struct base_params : public Params {
 
     void set_dynamic_shape_offsets() override {
         size_t offset = 0;
-        for (auto in : inputs) {
+        for (auto& in : inputs) {
             in.SetDynamicShapeOffset(offset);
             if (in.is_dynamic()) {
                 offset += DataTensor::max_rank();
@@ -668,7 +668,7 @@ struct base_params : public Params {
                 }
             }
         }
-        for (auto out : outputs) {
+        for (auto& out : outputs) {
             out.SetDynamicShapeOffset(offset);
             if (out.is_dynamic()) {
                 offset += DataTensor::max_rank();
