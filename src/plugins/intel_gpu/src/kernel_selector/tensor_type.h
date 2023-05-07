@@ -646,6 +646,13 @@ struct DataTensor : public TensorBaseT<Datatype, DataLayout> {
     DataTensor FlattenFeatureAndSpatials() const;
     DataTensor FlattenEverything() const;
     void SwapXY();
+    void SetDynamicShapeOffset(size_t offset) {
+        dynamic_shape_offset = offset;
+    }
+
+    size_t GetDynamicShapeOffset() const {
+        return dynamic_shape_offset;
+    }
 
     static inline Dim Extract(DataLayout l, DataChannelName channel, const NDims& d) {
         return TensorBaseT::Extract(dataChannelArray, l, channel, d);
@@ -664,6 +671,7 @@ private:
     using DataChannelArray = std::array<DataChannelDesc, DataLayout::DataLayoutCount>;
     static DataChannelArray dataChannelArray;
     static NDims GetSimpleDims(const std::vector<size_t>& d, DataLayout l);
+    size_t dynamic_shape_offset = 0;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

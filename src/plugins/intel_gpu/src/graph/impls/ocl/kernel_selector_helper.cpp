@@ -1249,6 +1249,10 @@ void set_params(const kernel_impl_params& param_info, kernel_selector::params& p
     }
 }
 
+void set_dynamic_shape_offsets(kernel_selector::params& params) {
+    params.set_dynamic_shape_offsets();
+}
+
 void set_default_params(const kernel_impl_params& param_info, kernel_selector::base_params& params, bool is_shape_agnostic) {
     set_params(param_info, params);
 
