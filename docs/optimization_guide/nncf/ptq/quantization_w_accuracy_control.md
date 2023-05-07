@@ -58,6 +58,8 @@ Run quantization with accuracy control
 
 ``nncf.quantize_with_accuracy_control()`` API supports all the parameters of ``nncf.quantize()`` API and you can also quantize a model with accuracy control and a custom configuration.
 
+If the accuracy or performance of the quantized model is not satisfactory, you can try :doc:Training-time Optimization <tmo_introduction> as the next step.
+
 See also
 ####################
 
