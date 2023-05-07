@@ -54,7 +54,9 @@ Run quantization with accuracy control
 
 ``max_drop`` defines the accuracy drop threshold. The quantization process stops when the degradation of accuracy metric on the validation dataset is less than the ``max_drop``.
 
-``nncf.quantize_with_accuracy_control()`` API supports all the parameters of ``nncf.quantize()`` API. For example, you can use ``nncf.quantize_with_accuracy_control()`` to quantize a model with a custom configuration.
+``drop_type`` defines how the accuracy drop will be calculated: ABSOLUTE (used by defaulr) or RELATIVE.
+
+``nncf.quantize_with_accuracy_control()`` API supports all the parameters of ``nncf.quantize()`` API and you can use ``nncf.quantize_with_accuracy_control()`` to quantize a model with a custom configuration.
 
 See also
 ####################
