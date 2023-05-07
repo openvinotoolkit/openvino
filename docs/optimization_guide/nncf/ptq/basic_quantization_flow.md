@@ -151,7 +151,7 @@ Tune quantization parameters
 
 * ``target_device`` - defines the target device, the specificity of which will be taken into account during optimization. The following values are supported: ``ANY`` (default), ``CPU``, ``CPU_SPR``, ``GPU``, and ``VPU``.
 
-* ``advanced_params`` - TODO!
+* ``advanced_parameters`` - used to specify advanced quantization parameters for fine-tuning the quantization algorithm. Defined by ``nncf.AdvancedQuantizationParameters`` class. ``None`` is default.
 
 If the accuracy of the quantized model is not satisfactory, you can try to use the :doc:`Quantization with accuracy control <quantization_w_accuracy_control>` flow.
 
