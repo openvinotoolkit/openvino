@@ -54,6 +54,9 @@ OutputVector base_translate_upsample(const NodeContext& context,
         scales = context.mark_node(std::make_shared<v1::Multiply>(spatial_scales, scales));
     } else {
         auto out_sizes = context.get_input(1);
+        if (context.get_input_type(1).is<type::List>()) {
+            out_sizes = concat_list_construct(out_sizes.get_node_shared_ptr());
+        }
         output_sizes = context.mark_node(std::make_shared<v1::Multiply>(out_sizes, output_sizes));
     }
     auto attrs = v4::Interpolate::InterpolateAttrs(interpolate_mode, size_mode, pad, pad);
