@@ -63,20 +63,20 @@ JitConstants ConcatenationKernelBase::GetJitConstants(const concatenation_params
         size_t in_offset = 0;
         for (size_t i = 0; i < params.kernel_split_id; i++) {
             if (params.original_input_layouts[i].is_dynamic() || params.original_input_layouts[i].LogicalSize() == 0)
-                in_offset += num_shape_info_dim;
+                in_offset += DataTensor::max_rank();
             for (auto j : params.original_input_layouts[i].GetDims()) {
                 if (j.pad.is_dynamic) {
-                    in_offset += num_shape_info_dim_for_pad;
+                    in_offset += Tensor::Pad::NumPadOffsetsPerDim();
                 }
             }
         }
         size_t out_offset = 0;
         for (size_t i = 0; i < params.original_input_layouts.size(); i++) {
             if (params.original_input_layouts[i].is_dynamic() || params.original_input_layouts[i].LogicalSize() == 0)
-                out_offset += num_shape_info_dim;
+                out_offset += DataTensor::max_rank();
             for (auto j : params.original_input_layouts[i].GetDims()) {
                 if (j.pad.is_dynamic) {
-                    out_offset += num_shape_info_dim_for_pad;
+                    out_offset += Tensor::Pad::NumPadOffsetsPerDim();
                 }
             }
         }

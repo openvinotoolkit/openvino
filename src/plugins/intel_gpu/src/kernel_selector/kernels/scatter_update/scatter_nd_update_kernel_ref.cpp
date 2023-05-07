@@ -187,10 +187,10 @@ KernelsData ScatterNDUpdateKernelRef::GetKernelsData(const Params& params, const
             cldnn_jit.AddConstant(
                 MakeJitConstant("INPUT0_BLOCK_ND", GetInputBlockND(newParams, 0, shape_info_offset, input0_rank)));
             if (newParams.inputs[0].is_dynamic()) {
-                shape_info_offset += num_shape_info_dim;
+                shape_info_offset += DataTensor::max_rank();
                 for (auto j : newParams.inputs[0].GetDims()) {
                     if (j.pad.is_dynamic) {
-                        shape_info_offset += num_shape_info_dim_for_pad;
+                        shape_info_offset += Tensor::Pad::NumPadOffsetsPerDim();
                     }
                 }
             }
@@ -198,10 +198,10 @@ KernelsData ScatterNDUpdateKernelRef::GetKernelsData(const Params& params, const
                 MakeJitConstant("INPUT1_BLOCK_ND",
                                 GetInputBlockND(newParams, 1, shape_info_offset, newParams.indices_rank - 1)));
             if (newParams.inputs[1].is_dynamic()) {
-                shape_info_offset += num_shape_info_dim;
+                shape_info_offset += DataTensor::max_rank();
                 for (auto j : newParams.inputs[1].GetDims()) {
                     if (j.pad.is_dynamic) {
-                        shape_info_offset += num_shape_info_dim_for_pad;
+                        shape_info_offset += Tensor::Pad::NumPadOffsetsPerDim();
                     }
                 }
             }

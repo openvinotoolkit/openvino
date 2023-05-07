@@ -94,10 +94,10 @@ JitConstants KernelBase::MakeBaseParamsJitConstants(const base_params& params, b
         for (size_t i = 0; i < params.inputs.size(); i++) {
             jit.AddConstant(MakeJitConstant("INPUT" + toCodeString(i), params.inputs[i], shape_info_offset));
             if (params.inputs[i].is_dynamic())
-                shape_info_offset += num_shape_info_dim;
+                shape_info_offset += DataTensor::max_rank();
             for (auto j : params.inputs[i].GetDims()) {
                 if (j.pad.is_dynamic) {
-                    shape_info_offset += num_shape_info_dim_for_pad;
+                    shape_info_offset += Tensor::Pad::NumPadOffsetsPerDim();
                 }
             }
         }
@@ -107,10 +107,10 @@ JitConstants KernelBase::MakeBaseParamsJitConstants(const base_params& params, b
 
             for (auto& t : fused_op_inputs) {
                 if (t.is_dynamic())
-                    shape_info_offset += num_shape_info_dim;
+                    shape_info_offset += DataTensor::max_rank();
                 for (auto j : t.GetDims()) {
                     if (j.pad.is_dynamic)
-                        shape_info_offset += num_shape_info_dim_for_pad;
+                        shape_info_offset += Tensor::Pad::NumPadOffsetsPerDim();
                 }
             }
         }
@@ -118,21 +118,21 @@ JitConstants KernelBase::MakeBaseParamsJitConstants(const base_params& params, b
         // NOTE : until all cl kernels legacy is resolved, the outputs are to be OUTPUT, OUTPUT1, OUTPUT2, ...
         jit.AddConstant(MakeJitConstant("OUTPUT", params.outputs[0], shape_info_offset));
         if (params.outputs[0].is_dynamic()) {
-                shape_info_offset += num_shape_info_dim;
+                shape_info_offset += DataTensor::max_rank();
         }
         for (auto j : params.outputs[0].GetDims()) {
             if (j.pad.is_dynamic) {
-                shape_info_offset += num_shape_info_dim_for_pad;
+                shape_info_offset += Tensor::Pad::NumPadOffsetsPerDim();
             }
         }
         for (size_t i = 1; i < params.outputs.size(); i++) {
             for (auto j : params.outputs[i].GetDims()) {
                 if (j.pad.is_dynamic)
-                    shape_info_offset += num_shape_info_dim_for_pad;
+                    shape_info_offset += Tensor::Pad::NumPadOffsetsPerDim();
             }
             jit.AddConstant(MakeJitConstant("OUTPUT" + toCodeString(i), params.outputs[i], shape_info_offset));
             if (params.outputs[0].is_dynamic())
-                shape_info_offset += num_shape_info_dim;
+                shape_info_offset += DataTensor::max_rank();
         }
 
         if (params.is_shape_agnostic) {
@@ -238,11 +238,11 @@ JitConstants KernelBase::MakeFusedOpsDeclsJitConstants(const kernel_selector::ba
     for (size_t i = 0; i < params.inputs.size(); i++) {
         for (auto j : params.inputs[i].GetDims()) {
             if (j.pad.is_dynamic) {
-                shape_info_offset += num_shape_info_dim_for_pad;
+                shape_info_offset += Tensor::Pad::NumPadOffsetsPerDim();
             }
         }
         if (params.inputs[i].is_dynamic())
-            shape_info_offset += num_shape_info_dim;
+            shape_info_offset += DataTensor::max_rank();
     }
 
     for (size_t i = 0; i < params.fused_ops.size(); i++) {

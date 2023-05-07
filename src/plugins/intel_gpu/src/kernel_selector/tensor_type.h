@@ -240,10 +240,11 @@ enum WeightsLayout {
 struct Pad {
     size_t before;
     size_t after;
-    bool is_dynamic = false;
+    bool is_dynamic = false; // Currently cannot set pad_before and pad_after as dynamic separately
 
     Pad(size_t before, size_t after, bool is_dynamic = false) : before(before), after(after), is_dynamic(is_dynamic) {}
 
+    static size_t NumPadOffsetsPerDim() { return 2; /*pad_before/pad_after*/}
     size_t Total() const {
         if (is_dynamic) {
             OPENVINO_ASSERT("Total() is called for dynamic pad!");
@@ -587,7 +588,8 @@ public:
         if (same) {
             for (size_t i = 0; i < dims.size(); i++) {
                 same &= dims[i].v == t.dims[i].v && dims[i].pad.before == t.dims[i].pad.before &&
-                        dims[i].pad.after == t.dims[i].pad.after && dims[i].pitch == t.dims[i].pitch;
+                        dims[i].pad.after == t.dims[i].pad.after && dims[i].pitch == t.dims[i].pitch &&
+                        dims[i].pad.is_dynamic == t.dims[i].pad.is_dynamic;
             }
         }
 

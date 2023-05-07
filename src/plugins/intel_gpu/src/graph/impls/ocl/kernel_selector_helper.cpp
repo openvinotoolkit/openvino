@@ -955,8 +955,8 @@ kernel_selector::data_tensor convert_data_tensor(const layout& l, const tensor v
         auto& elm = vec[i];
         elm.v = d.is_dynamic() ? 0 : static_cast<size_t>(d.get_length() - add_offsets[tensor_index]);
         elm.pitch = pitch;
-        elm.pad.before = lp;
-        elm.pad.after = up;
+        elm.pad.before = dynamic_pad_dims[tensor_index] ? 0 : lp;
+        elm.pad.after = dynamic_pad_dims[tensor_index] ? 0 : up;
         elm.pad.is_dynamic = dynamic_pad_dims[tensor_index];
         elm.is_dynamic = d.is_dynamic();
 

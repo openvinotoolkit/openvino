@@ -335,17 +335,21 @@ bool primitive_inst::update_impl() {
                     GPU_DEBUG_TRACE_DETAIL << " shape_info[" << offset << "] = " << input_shape_max_rank[j] << std::endl;
                     lock[offset++] = static_cast<int32_t>(input_shape_max_rank[j]);
                 }
-                auto is_dynamic_pad = node_in_lay.data_padding.get_dynamic_pad_dims();
+                auto is_dynamic_pad = node_in_lay.data_padding.get_dynamic_pad_dims().sizes(format::get_default_format(layout::max_rank()));
                 auto data_padding = params.input_layouts[i].data_padding;
                 for (size_t j = 0; j < input_shape_max_rank.size(); ++j) {
-                    auto pad_idx = (j < 2) ? j : ((layout::max_rank() - 1) - (j - 2));
-                    if (is_dynamic_pad.sizes()[pad_idx] == 1) {
-                        GPU_DEBUG_TRACE_DETAIL << " shape_info[" << offset << "] = " << data_padding.lower_size().sizes()[pad_idx]
-                                  << "(pad_before for input[" << i << "] " << pad_idx << "-th dim)" << std::endl;
-                        lock[offset++] = data_padding.lower_size().sizes()[pad_idx]; // pad_before
-                        GPU_DEBUG_TRACE_DETAIL << " shape_info[" << offset << "] = " << data_padding.lower_size().sizes()[pad_idx]
-                                  << "(pad_after for input[" << i << "] " << pad_idx << "-th dim)" << std::endl;
-                        lock[offset++] = data_padding.upper_size().sizes()[pad_idx]; // pad_after
+                    if (is_dynamic_pad[j] == 1) {
+                        auto lower_pads =
+                            data_padding.lower_size().sizes(format::get_default_format(layout::max_rank()));
+                        GPU_DEBUG_TRACE_DETAIL << " shape_info[" << offset << "] = " << lower_pads[j]
+                                               << "(pad_before for input[" << i << "] " << j << "-th dim)" << std::endl;
+                        std::cout << lower_pads.size() << std::endl;
+                        lock[offset++] = lower_pads[j];  // pad_before
+                        auto upper_pads =
+                            data_padding.upper_size().sizes(format::get_default_format(layout::max_rank()));
+                        GPU_DEBUG_TRACE_DETAIL << " shape_info[" << offset << "] = " << upper_pads[j]
+                                               << "(pad_after for input[" << i << "] " << j << "-th dim)" << std::endl;
+                        lock[offset++] = upper_pads[j];  // pad_after
                     }
                 }
             }
@@ -363,19 +367,18 @@ bool primitive_inst::update_impl() {
                     GPU_DEBUG_TRACE_DETAIL << " shape_info[" << offset << "] = " << output_shape_max_rank[j] << std::endl;
                     lock[offset++] = static_cast<int32_t>(output_shape_max_rank[j]);
                 }
-                auto is_dynamic_pad = node_out_lay.data_padding.get_dynamic_pad_dims();
+                auto is_dynamic_pad = node_out_lay.data_padding.get_dynamic_pad_dims().sizes(format::get_default_format(layout::max_rank()));
                 auto data_padding = params.output_layouts[i].data_padding;
                 for (size_t j = 0; j < output_shape_max_rank.size(); j++) {
-                    auto pad_idx = (j < 2) ? j : ((layout::max_rank() - 1) - (j - 2));
-                    if (is_dynamic_pad.sizes()[pad_idx] == 1) {
+                    if (is_dynamic_pad[j] == 1) {
                         GPU_DEBUG_TRACE_DETAIL
-                            << " shape_info[" << offset << "] = " << data_padding.lower_size().sizes()[pad_idx]
-                            << "(pad_before for output[" << i << "] " << pad_idx << "-th dim)" << std::endl;
-                        lock[offset++] = data_padding.lower_size().sizes()[pad_idx];  // pad_before
+                            << " shape_info[" << offset << "] = " << data_padding.lower_size().sizes()[j]
+                            << "(pad_before for output[" << i << "] " << j << "-th dim)" << std::endl;
+                        lock[offset++] = data_padding.lower_size().sizes()[j];  // pad_before
                         GPU_DEBUG_TRACE_DETAIL << " shape_info[" << offset
                                                << "] = " << data_padding.lower_size().sizes()[j]
-                                               << "(pad_after for output[" << i << "] " << pad_idx << "-th dim)" << std::endl;
-                        lock[offset++] = data_padding.upper_size().sizes()[pad_idx];  // pad_after
+                                               << "(pad_after for output[" << i << "] " << j << "-th dim)" << std::endl;
+                        lock[offset++] = data_padding.upper_size().sizes()[j];  // pad_after
                     }
                 }
             }

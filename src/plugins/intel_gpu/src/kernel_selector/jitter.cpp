@@ -325,7 +325,7 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
     JitDefinitions baseDefinitions = TensorBaseTJitConstant::GetDefinitions(_tensor);
 
     size_t shape_info_offset_itr = shape_info_offset;  // max (8d)
-    size_t pad_idx_offset = shape_info_offset + num_shape_info_dim;
+    size_t pad_idx_offset = shape_info_offset + DataTensor::max_rank();
     JitDefinitions definitions{};
     std::vector<std::pair<std::string, Tensor::Dim>> dims = {{"BATCH", _tensor.Batch()},
                                                              {"FEATURE", _tensor.Feature()},
@@ -343,7 +343,7 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
             toCodeString(d.second, shape_info_offset_itr++, true, d.second.is_dynamic, pad_idx_offset);
         dim_to_sizes[d.first] = {pure_data_size, data_size_with_pad};
         if (d.second.pad.is_dynamic)
-            pad_idx_offset += 2;
+            pad_idx_offset += Tensor::Pad::NumPadOffsetsPerDim();
     }
     for (size_t i = 0; i < dims.size(); ++i) {
         auto dim_name = dims[i].first;
@@ -363,7 +363,7 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
         // [dim_b, dim_f, dim_w, dim_z, dim_y, dim_x, pad_before_x, pad_after_x]
        if (_tensor.GetLayout() == DataLayout::bf || _tensor.GetLayout() == DataLayout::bfyx ||
             _tensor.GetLayout() == DataLayout::bfzyx || _tensor.GetLayout() == DataLayout::bfwzyx) {
-            size_t pad_idx_offset = shape_info_offset + 6;
+            size_t pad_idx_offset = shape_info_offset + DataTensor::max_rank();
             for (auto d : dims) {
                 auto dim_size_name = d.first;
                 if (dim_size_name == "FEATURE" || dim_size_name == "BATCH") {
@@ -1659,7 +1659,7 @@ JitConstants FusedOpsCodeGenerator::MakeFusedTensorJitConstants(const FusedOpsCo
         std::string name = GetInputTensorName(op_input_id);
         jit.AddConstant(MakeJitConstant(name, desc.tensors[op_input_id], shape_info_offset_iter));
         if (desc.tensors[op_input_id].is_dynamic()) {
-            shape_info_offset_iter += num_shape_info_dim;
+            shape_info_offset_iter += DataTensor::max_rank();
         }
     }
     // Use shape_ids from output tensor as won't support fused ops which changes out shape for now
