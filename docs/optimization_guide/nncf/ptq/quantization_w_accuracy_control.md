@@ -63,8 +63,9 @@ If the accuracy or performance of the quantized model is not satisfactory, you c
 See also
 ####################
 
-* :doc:`Optimizing Models at Training Time <tmo_introduction>`
-* 
+* `NNCF Example: Post-Training Quantization of Anomaly Classification OpenVINO model with control of accuracy metric <https://github.com/openvinotoolkit/nncf/blob/develop/examples/post_training_quantization/openvino/quantize_with_accuracy_control/README.md>`__
+* `NNCF Example: Post-Training Quantization of YOLOv8 OpenVINO Model with control of accuracy metric <https://github.com/openvinotoolkit/nncf/blob/develop/examples/post_training_quantization/openvino/yolov8_quantize_with_accuracy_control/README.md>`__
+* :doc:`Optimizing Models at Training Time <tmo_introduction>`* 
 
 @endsphinxdirective
 
