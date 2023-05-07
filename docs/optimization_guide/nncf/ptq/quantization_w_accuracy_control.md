@@ -40,9 +40,10 @@ Validation funtion receives ``openvino.runtime.CompiledModel`` object and valida
       :fragment: [validation]
 
 
-Run quantization with accuracy control
+Run quantization with accuracy control 
+####################
 
-Now, you can run quantization with accuracy control. The following code snippet shows an example of quantization with accuracy control for OpenVINO model:
+``nncf.quantize_with_accuracy_control()`` function is used to run the quantization with accuracy control. The following code snippet shows an example of quantization with accuracy control for OpenVINO model:
 
 .. tab:: OpenVINO
 
