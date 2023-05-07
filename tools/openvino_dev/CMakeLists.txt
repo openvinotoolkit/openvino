@@ -62,7 +62,8 @@ endif()
 
 set(SETUP_PY "${CMAKE_CURRENT_SOURCE_DIR}/setup.py")
 
-set(openvino_wheel_name "openvino_dev-${WHEEL_VERSION}-${WHEEL_BUILD}-py3-none-any.whl")
+#set(openvino_wheel_name "openvino_dev-${WHEEL_VERSION}-${WHEEL_BUILD}-py3-none-any.whl")
+set(openvino_wheel_name "openvino_dev-${WHEEL_VERSION}-py3-none-any.whl")
 set(openvino_wheels_output_dir "${CMAKE_BINARY_DIR}/wheels")
 set(openvino_wheel_path "${openvino_wheels_output_dir}/${openvino_wheel_name}")
 
@@ -78,7 +79,7 @@ add_custom_command(OUTPUT ${openvino_wheel_path}
             --no-user-cfg
              bdist_wheel
             --dist-dir ${openvino_wheels_output_dir}
-            --build=${WHEEL_BUILD}
+#            --build=${WHEEL_BUILD}
     COMMAND ${CMAKE_COMMAND} -E env OPENVINO_VERSION=${WHEEL_VERSION}
         ${PYTHON_EXECUTABLE} ${SETUP_PY} clean
     WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"

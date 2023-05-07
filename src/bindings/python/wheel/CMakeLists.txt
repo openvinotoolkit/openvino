@@ -124,7 +124,8 @@ elseif(LINUX)
     endif()
 endif()
 
-set(openvino_wheel_name "openvino-${WHEEL_VERSION}-${WHEEL_BUILD}-${PYTHON_TAG}-${ABI_TAG}-${PLATFORM_TAG}.whl")
+#set(openvino_wheel_name "openvino-${WHEEL_VERSION}-${WHEEL_BUILD}-${PYTHON_TAG}-${ABI_TAG}-${PLATFORM_TAG}.whl")
+set(openvino_wheel_name "openvino-${WHEEL_VERSION}-${PYTHON_TAG}-${ABI_TAG}-${PLATFORM_TAG}.whl")
 set(openvino_wheels_output_dir "${CMAKE_BINARY_DIR}/wheels")
 set(openvino_wheel_path "${openvino_wheels_output_dir}/${openvino_wheel_name}")
 
@@ -134,7 +135,7 @@ set(openvino_wheel_path "${openvino_wheels_output_dir}/${openvino_wheel_name}")
 
 set(wheel_env ${CMAKE_COMMAND} -E env
     WHEEL_VERSION=${WHEEL_VERSION}
-    WHEEL_BUILD=${WHEEL_BUILD}
+#    WHEEL_BUILD=${WHEEL_BUILD}
     OPENVINO_BUILD_DIR=${OpenVINO_BINARY_DIR}
     OPENVINO_PYTHON_BUILD_DIR=${OpenVINOPython_BINARY_DIR}
     OV_RUNTIME_LIBS_DIR=${OV_WHEEL_RUNTIMEDIR}
@@ -151,7 +152,7 @@ add_custom_command(OUTPUT ${openvino_wheel_path}
             --no-user-cfg
             bdist_wheel
             --dist-dir ${openvino_wheels_output_dir}
-            --build-number=${WHEEL_BUILD}
+#            --build-number=${WHEEL_BUILD}
             --plat-name=${PLATFORM_TAG}
     COMMAND ${CMAKE_COMMAND} -E remove_directory "${CMAKE_CURRENT_BINARY_DIR}/site-packages"
     COMMAND ${wheel_env}

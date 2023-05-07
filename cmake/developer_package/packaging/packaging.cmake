@@ -204,7 +204,11 @@ macro(ie_cpack)
     set(CPACK_PACKAGE_VERSION "${OpenVINO_VERSION}")
     # build version can be empty in case we are running cmake out of git repository
     if(NOT OpenVINO_VERSION_BUILD STREQUAL "000")
-        set(CPACK_PACKAGE_VERSION "${CPACK_PACKAGE_VERSION}.${OpenVINO_VERSION_BUILD}")
+        if(OpenVINO_VERSION_BUILD STREQUAL "")
+            set(CPACK_PACKAGE_VERSION "${CPACK_PACKAGE_VERSION}")
+        elseif()
+            set(CPACK_PACKAGE_VERSION "${CPACK_PACKAGE_VERSION}.${OpenVINO_VERSION_BUILD}")
+        endif()
     endif()
 
     foreach(ver MAJOR MINOR PATCH)
