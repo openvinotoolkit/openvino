@@ -47,7 +47,7 @@ from openvino.tools.mo.utils.logger import init_logger, progress_printer
 from openvino.tools.mo.utils.utils import refer_to_faq_msg
 from openvino.tools.mo.utils.telemetry_utils import send_params_info, send_framework_info, send_conversion_result, \
     get_tid
-from openvino.tools.mo.utils.versions_checker import check_requirements, get_environment_setup  # pylint: disable=no-name-in-module
+from openvino.tools.mo.utils.versions_checker import get_environment_setup  # pylint: disable=no-name-in-module
 from openvino.tools.mo.moc_frontend.check_config import legacy_extensions_used
 from openvino.tools.mo.moc_frontend.pytorch_frontend_utils import get_pytorch_decoder, convert_pytorch_via_onnx
 from openvino.tools.mo.moc_frontend.shape_utils import parse_input_shapes, get_static_shape
@@ -215,14 +215,6 @@ def arguments_post_parsing(argv: argparse.Namespace):
 
     # This is just to check that transform key is valid and transformations are available
     check_available_transforms(parse_transform(argv.transform))
-
-    # For C++ frontends there are no specific Python installation requirements, check only generic ones
-    if moc_front_end:
-        ret_code = check_requirements(silent=argv.silent)
-    else:
-        ret_code = check_requirements(framework=argv.framework, silent=argv.silent)
-    if ret_code:
-        raise Error('check_requirements exited with return code {}'.format(ret_code))
 
     if argv.scale and argv.scale_values:
         raise Error(
