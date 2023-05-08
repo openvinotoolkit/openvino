@@ -75,14 +75,16 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
         }
 
         if (auto chunk = cast_fw_node(input_node, "aten::chunk")) {
+            if (list_unpack->get_output_size() == 1) {
+                list_unpack->output(0).replace(input_node->input_value(0));
+                return true;
+            }
             auto input_tensor = chunk->get_input_source_output(0);
             auto chunks = chunk->get_input_source_output(1);
             auto dim = chunk->get_input_source_output(2);
 
             auto tensor_0 = opset10::Constant::create(element::i32, Shape{1}, {0});
             auto tensor_neg_1 = opset10::Constant::create(element::i32, Shape{1}, {-1});
-            auto split_lengths_even_size =
-                opset10::Constant::create(element::i32, Shape{1}, {list_unpack->get_output_size() - 1});
 
             auto input_shape = std::make_shared<opset10::ShapeOf>(input_tensor, element::i32);
             auto input_dimension = std::make_shared<opset10::Gather>(input_shape, dim, tensor_0);
@@ -96,6 +98,8 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
 
             auto chunk_size = std::make_shared<opset10::Add>(init_chunk_size, is_last_nonzero_int);
 
+            auto split_lengths_even_size =
+                opset10::Constant::create(element::i32, Shape{1}, {list_unpack->get_output_size() - 1});
             auto split_lengths_even = std::make_shared<opset10::Broadcast>(chunk_size, split_lengths_even_size);
 
             auto split_lengths = std::make_shared<opset10::Concat>(OutputVector{split_lengths_even, tensor_neg_1}, 0);
