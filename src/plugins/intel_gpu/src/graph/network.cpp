@@ -1153,6 +1153,13 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     GPU_DEBUG_IF(debug_config->list_layers == 1) {
         for (auto& inst : _exec_order) {
             GPU_DEBUG_COUT << inst->id() << std::endl;
+            if (inst->get_node().is_type<loop>()) {
+                auto& loop_node = inst->get_node().as<loop>();
+                auto loop_body_primitives = loop_node.get_body_topology().get_primitives_ids();
+                for (auto& primitive_id : loop_body_primitives) {
+                    GPU_DEBUG_COUT << "\t" << primitive_id << std::endl;
+                }
+            }
         }
         if (!is_internal()) exit(0);
     }
