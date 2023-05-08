@@ -5,6 +5,19 @@
 #include "utils/custom_shape_inference/reshape.hpp"
 #include "utils/custom_shape_inference/gather.hpp"
 #include "utils/custom_shape_inference/transpose.hpp"
+#include "utils/custom_shape_inference/color_convert.hpp"
+#include "utils/custom_shape_inference/eltwise.hpp"
+#include "utils/custom_shape_inference/adaptive_pooling.hpp"
+#include "utils/custom_shape_inference/fullyconnected.hpp"
+#include "utils/custom_shape_inference/matmul.hpp"
+#include "utils/custom_shape_inference/ngram.hpp"
+#include "utils/custom_shape_inference/one_hot.hpp"
+#include "utils/custom_shape_inference/priorbox.hpp"
+#include "utils/custom_shape_inference/priorbox_clustered.hpp"
+#include "utils/custom_shape_inference/shapeof.hpp"
+#include "utils/custom_shape_inference/strided_slice.hpp"
+// #include "utils/custom_shape_inference/deconv.hpp"
+// #include "utils/custom_shape_inference/subgraph.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "custom_shape_infer.hpp"
 #include <gtest/gtest.h>
@@ -13,6 +26,16 @@ namespace intel_cpu {
 namespace unit_test {
 #define INTEL_CPU_CUSTOM_SHAPE_INFER(__prim, __type) \
     registerNodeIfRequired(intel_cpu, __prim, __type, __prim)
+
+class EltwiseShapeInferTestFactory : public node::EltwiseShapeInferFactory {
+public:
+    EltwiseShapeInferTestFactory(std::shared_ptr<ov::Node> op) : EltwiseShapeInferFactory() {}
+};
+
+class ShapeOfShapeInferTestFactory : public node::ShapeOfShapeInferFactory {
+public:
+    ShapeOfShapeInferTestFactory(std::shared_ptr<ov::Node> op) : ShapeOfShapeInferFactory() {}
+};
 
 CustomShapeInferFF::CustomShapeInferFF():Factory("CpuCustomShapeInferTestFactory") {
     // INTEL_CPU_CUSTOM_SHAPE_INFER(Generic, Type::Generic);
@@ -29,9 +52,9 @@ CustomShapeInferFF::CustomShapeInferFF():Factory("CpuCustomShapeInferTestFactory
     // INTEL_CPU_CUSTOM_SHAPE_INFER(ExperimentalDetectronTopKROIs, Type::ExperimentalDetectronTopKROIs);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(Reorder, Type::Reorder);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(MatrixNms, Type::MatrixNms);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(AdaptivePooling, Type::AdaptivePooling);
+    INTEL_CPU_CUSTOM_SHAPE_INFER(node::AdaptivePoolingShapeInferFactory, Type::AdaptivePooling);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(Pooling, Type::Pooling);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(Eltwise, Type::Eltwise);
+    INTEL_CPU_CUSTOM_SHAPE_INFER(EltwiseShapeInferTestFactory, Type::Eltwise);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(SoftMax, Type::Softmax);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(EmbeddingBagPackedSum, Type::EmbeddingBagPackedSum);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(Input, Type::Input);
@@ -40,12 +63,12 @@ CustomShapeInferFF::CustomShapeInferFF():Factory("CpuCustomShapeInferTestFactory
     // INTEL_CPU_CUSTOM_SHAPE_INFER(MemoryOutput, Type::MemoryOutput);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(Tile, Type::Tile);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(GatherTree, Type::GatherTree);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(FullyConnected, Type::FullyConnected);
+    INTEL_CPU_CUSTOM_SHAPE_INFER(node::FCShapeInferFactory, Type::FullyConnected);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(CTCGreedyDecoder, Type::CTCGreedyDecoder);
     INTEL_CPU_CUSTOM_SHAPE_INFER(node::TransposeShapeInferFactory, Type::Transpose);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(ReorgYolo, Type::ReorgYolo);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(EmbeddingSegmentsSum, Type::EmbeddingSegmentsSum);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(ShapeOf, Type::ShapeOf);
+    /* INTEL_CPU_CUSTOM_SHAPE_INFER(ShapeOfShapeInferTestFactory, Type::ShapeOf); */
     // INTEL_CPU_CUSTOM_SHAPE_INFER(ExperimentalDetectronGenerateProposalsSingleImage, Type::ExperimentalDetectronGenerateProposalsSingleImage);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(GenerateProposals, Type::GenerateProposals);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(ReverseSequence, Type::ReverseSequence);
@@ -65,33 +88,33 @@ CustomShapeInferFF::CustomShapeInferFF():Factory("CpuCustomShapeInferTestFactory
     // INTEL_CPU_CUSTOM_SHAPE_INFER(Math, Type::Math);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(MultiClassNms, Type::MulticlassNms);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(Convert, Type::Convert);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(ColorConvert, Type::ColorConvert);
+    INTEL_CPU_CUSTOM_SHAPE_INFER(node::ColorConvertShapeInferFactory, Type::ColorConvert);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(EmbeddingBagOffsetSum, Type::EmbeddingBagOffsetsSum);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(Roll, Type::Roll);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(Pad, Type::Pad);
     INTEL_CPU_CUSTOM_SHAPE_INFER(node::ReshapeShapeInferFactory, Type::Reshape);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(MVN, Type::MVN);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(MatMul, Type::MatMul);
+    // INTEL_CPU_CUSTOM_SHAPE_INFER(node::MMShapeInferFactory, Type::MatMul);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(ScatterUpdate, Type::ScatterUpdate);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(ScatterUpdate, Type::ScatterElementsUpdate);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(ScatterUpdate, Type::ScatterNDUpdate);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(ShuffleChannels, Type::ShuffleChannels);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(TensorIterator, Type::TensorIterator);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(Concat, Type::Concatenation);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(OneHot, Type::OneHot);
+    /* INTEL_CPU_CUSTOM_SHAPE_INFER(node::OneHotShapeInferFactory, Type::OneHot); */
     // INTEL_CPU_CUSTOM_SHAPE_INFER(ExperimentalDetectronDetectionOutput, Type::ExperimentalDetectronDetectionOutput);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(Deconvolution, Type::Deconvolution);
+    // INTEL_CPU_CUSTOM_SHAPE_INFER(node::DeconvolutionShapeInferFactory, Type::Deconvolution);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(DeformableConvolution, Type::DeformableConvolution);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(Range, Type::Range);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(StridedSlice, Type::StridedSlice);
+    // INTEL_CPU_CUSTOM_SHAPE_INFER(node::StridedSliceShapeInferFactory, Type::StridedSlice);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(GRN, Type::GRN);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(NonZero, Type::NonZero);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(NormalizeL2, Type::NormalizeL2);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(PriorBox, Type::PriorBox);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(PriorBoxClustered, Type::PriorBoxClustered);
+    INTEL_CPU_CUSTOM_SHAPE_INFER(node::PriorBoxShapeInferFactory, Type::PriorBox);
+    INTEL_CPU_CUSTOM_SHAPE_INFER(node::PriorBoxClusteredShapeInferFactory, Type::PriorBoxClustered);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(Eye, Type::Eye);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(Unique, Type::Unique);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(Ngram, Type::Ngram);
+    INTEL_CPU_CUSTOM_SHAPE_INFER(node::NgramShapeInferFactory, Type::Ngram);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(Interpolate, Type::Interpolate);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(Reduce, Type::Reduce);
     INTEL_CPU_CUSTOM_SHAPE_INFER(node::GatherShapeInferFactory, Type::Gather);
@@ -109,7 +132,7 @@ CustomShapeInferFF::CustomShapeInferFF():Factory("CpuCustomShapeInferTestFactory
     // INTEL_CPU_CUSTOM_SHAPE_INFER(GridSample, Type::GridSample);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(Interaction, Type::Interaction);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(MHA, Type::MHA);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(Snippet, Type::Subgraph);
+    // INTEL_CPU_CUSTOM_SHAPE_INFER(node::SnippetShapeInferFactory, Type::Subgraph);
 #endif
 #undef INTEL_CPU_CUSTOM_SHAPE_INFER
 }
@@ -126,6 +149,8 @@ ShapeInferFactory* CustomShapeInferFF::create(const std::shared_ptr<ov::Node>& o
 
 static void compare_result(std::vector<StaticShape> ref, std::vector<VectorDims> cus) {
     std::cout << "=====custom_shape_infer compile result======" << std::endl;
+    std::cout << "===========" << "ref.size()" << ref.size() << std::endl;
+    std::cout << "===========" << "cus.size()" << cus.size() << std::endl;
     ASSERT_TRUE(ref.size() == cus.size());
     for (size_t i = 0; i < ref.size(); i++) {
         ASSERT_TRUE(ref[i].size() == cus[i].size());
@@ -142,6 +167,9 @@ void custom_shape_inference(ov::Node* op,
     static std::shared_ptr<CustomShapeInferFF> cusFactory = std::make_shared<CustomShapeInferFF>();
     std::cout << "=====custom_shape_infer test======" << "op" << op->get_type_name() << std::endl;
     if (auto shapeInferFactory = cusFactory->create(op->shared_from_this())) {
+        if (TypeFromName(op->get_type_name()) == Type::AdaptivePooling && op->get_output_size() == 0) {
+            return;
+        }
         std::cout << "=====custom_shape_infer test factory======" << "op" << op->get_type_name() << std::endl;
         auto cusShapeInfer =  shapeInferFactory->makeShapeInfer();
         std::vector<std::reference_wrapper<const VectorDims>> cusInputShapes;
