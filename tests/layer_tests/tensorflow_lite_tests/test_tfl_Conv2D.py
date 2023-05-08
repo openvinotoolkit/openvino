@@ -2,16 +2,17 @@ import itertools
 
 import pytest
 import tensorflow as tf
+import numpy as np
 
 from common.tflite_layer_test_class import TFLiteLayerTest
 from common.utils.tflite_utils import data_generators
 
 test_ops = [
-    {'op_name': ['CONV_2D', 'TRANSPOSE'], 'op_func': tf.nn.conv2d},
+    {'op_name': ['CONV_2D'], 'op_func': tf.nn.conv2d},
 ]
 
 test_params = [
-    {'shape': [1, 8, 22, 22], 'ksize': [32, 3, 4, 4], 'strides': 2, 'padding': 'SAME', 'data_format': 'NCHW',
+    {'shape': [1, 22, 22, 8], 'ksize': [32, 3, 4, 4], 'strides': 2, 'padding': 'SAME', 'data_format': 'NHWC',
      'dilations': [1, 1, 1, 1]},
     {'shape': [1, 22, 22, 9], 'ksize': [32, 3, 3, 3], 'strides': (2, 1), 'padding': 'SAME', 'data_format': 'NHWC',
      'dilations': [1, 2, 2, 1]},
@@ -29,7 +30,7 @@ for i, (parameters, shapes) in enumerate(test_data):
 
 
 class TestTFLiteConv2DLayerTest(TFLiteLayerTest):
-    inputs = ["Input", "Conv2D_weights"]
+    inputs = ["Input"]
     outputs = ["Conv2D"]
 
     def _prepare_input(self, inputs_dict, generator=None):
@@ -44,11 +45,10 @@ class TestTFLiteConv2DLayerTest(TFLiteLayerTest):
         self.allowed_ops = params['op_name']
         tf.compat.v1.reset_default_graph()
         with tf.compat.v1.Session() as sess:
-            weights_holder = tf.compat.v1.placeholder(params.get('dtype', tf.float32), params['ksize'],
-                                                      name=self.inputs[1])
+            weights = tf.constant(np.random.randint(-1, 1, params['ksize']), dtype=tf.float32)
             place_holder = tf.compat.v1.placeholder(params.get('dtype', tf.float32), params['shape'],
                                                     name=self.inputs[0])
-            params['op_func'](place_holder, weights_holder, params['strides'], params['padding'], params['data_format'],
+            params['op_func'](place_holder, weights, params['strides'], params['padding'], params['data_format'],
                               params['dilations'], name=self.outputs[0])
             net = sess.graph_def
         return net

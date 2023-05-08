@@ -2,12 +2,13 @@ import itertools
 
 import pytest
 import tensorflow as tf
+import numpy as np
 
 from common.tflite_layer_test_class import TFLiteLayerTest
 from common.utils.tflite_utils import data_generators
 
 test_ops = [
-    {'op_name': ['DEPTHWISE_CONV_2D', 'RESHAPE'], 'op_func': tf.nn.depthwise_conv2d},
+    {'op_name': ['DEPTHWISE_CONV_2D'], 'op_func': tf.nn.depthwise_conv2d},
 ]
 
 test_params = [
@@ -25,7 +26,7 @@ for i, (parameters, shapes) in enumerate(test_data):
 
 
 class TestTFLiteDepthwiseConv2DLayerTest(TFLiteLayerTest):
-    inputs = ["Input", "Conv2D_weights"]
+    inputs = ["Input"]
     outputs = ["DepthwiseConv2D"]
 
     def _prepare_input(self, inputs_dict, generator=None):
@@ -40,11 +41,10 @@ class TestTFLiteDepthwiseConv2DLayerTest(TFLiteLayerTest):
         self.allowed_ops = params['op_name']
         tf.compat.v1.reset_default_graph()
         with tf.compat.v1.Session() as sess:
-            weights_holder = tf.compat.v1.placeholder(params.get('dtype', tf.float32), params['ksize'],
-                                                      name=self.inputs[1])
+            weights = tf.constant(np.random.randint(-1, 1, params['ksize']), dtype=tf.float32)
             place_holder = tf.compat.v1.placeholder(params.get('dtype', tf.float32), params['shape'],
                                                     name=self.inputs[0])
-            params['op_func'](place_holder, weights_holder, params['strides'], params['padding'], params['data_format'],
+            params['op_func'](place_holder, weights, params['strides'], params['padding'], params['data_format'],
                               params['dilations'], name=self.outputs[0])
             net = sess.graph_def
         return net
