@@ -11,6 +11,8 @@
 #include <vector>
 #include <dnnl_extension_utils.h>
 
+#include "executors/roi_align_list.hpp"
+
 namespace ov {
 namespace intel_cpu {
 namespace node {
@@ -19,12 +21,6 @@ enum ROIAlignLayoutType {
     ncsp,
     blk,
     nspc
-};
-
-enum ROIAlignedMode {
-    ra_asymmetric,
-    ra_half_pixel_for_nn,
-    ra_half_pixel
 };
 
 struct jit_roi_align_params {
@@ -81,11 +77,10 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    int pooledH = 7;
-    int pooledW = 7;
-    int samplingRatio = 2;
-    float spatialScale = 1.0f;
-    ROIAlignedMode alignedMode;
+    ROIAlignAttrs roialignedAttrs;
+    std::shared_ptr<ROIAlignExecutor> execPtr = nullptr;
+    bool useACL = false;
+
     template <typename inputType, typename outputType>
     void executeSpecified();
     template<typename T>

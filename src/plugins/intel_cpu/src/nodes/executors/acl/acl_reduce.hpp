@@ -4,8 +4,7 @@
 
 #pragma once
 
-// TODO: remove relative path
-#include "../reduce.hpp"
+#include "nodes/executors/reduce.hpp"
 #include "acl_utils.hpp"
 #include "arm_compute/runtime/NEON/NEFunctions.h"
 #include "utils/debug_capabilities.h"

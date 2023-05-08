@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "../interpolate.hpp"
+#include "nodes/executors/interpolate.hpp"
 
 namespace ov {
 namespace intel_cpu {

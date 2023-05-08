@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "../eltwise.hpp"
+#include "nodes/executors/eltwise.hpp"
 #include "arm_compute/runtime/NEON/NEFunctions.h"
 #include "acl_utils.hpp"
 
