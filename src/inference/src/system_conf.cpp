@@ -237,6 +237,7 @@ std::vector<std::vector<int>> get_proc_type_table() {
 
 bool is_cpu_map_available() {
     CPU& cpu = cpu_info();
+    std::lock_guard<std::mutex> lock{cpu._cpu_mutex};
     return cpu._proc_type_table.size() > 0 && cpu._num_threads == cpu._proc_type_table[0][ALL_PROC];
 }
 
@@ -296,7 +297,7 @@ void set_cpu_used(const std::vector<int>& cpu_ids, const int used) {
     if (used == NOT_USED || used >= PLUGIN_USED_START) {
         std::vector<int> all_table;
         int start = cpu._numa_nodes > 1 ? 1 : 0;
-        if (is_cpu_map_available()) {
+        if (cpu._proc_type_table.size() > 0 && cpu._num_threads == cpu._proc_type_table[0][ALL_PROC]) {
             cpu._proc_type_table.assign(cpu._proc_type_table.size(), std::vector<int>(PROC_TYPE_TABLE_SIZE, 0));
             all_table.resize(PROC_TYPE_TABLE_SIZE, 0);
             for (int i = 0; i < cpu._processors; i++) {
