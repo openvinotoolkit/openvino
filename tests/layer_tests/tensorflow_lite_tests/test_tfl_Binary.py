@@ -50,10 +50,10 @@ class TestTFLiteBinaryLayerTest(TFLiteLayerTest):
         tf.compat.v1.reset_default_graph()
         with tf.compat.v1.Session() as sess:
             place_holder0 = tf.compat.v1.placeholder(params.get('dtype', tf.float32), params['shape'],
-                                                     name=TestTFLiteBinaryLayerTest.inputs[0])
+                                                     name=self.inputs[0])
             place_holder1 = tf.compat.v1.placeholder(params.get('dtype', tf.float32), params['shape'],
-                                                     name=TestTFLiteBinaryLayerTest.inputs[1])
-            params['op_func'](place_holder0, place_holder1, name=TestTFLiteBinaryLayerTest.outputs[0])
+                                                     name=self.inputs[1])
+            params['op_func'](place_holder0, place_holder1, name=self.outputs[0])
             net = sess.graph_def
         return net
 

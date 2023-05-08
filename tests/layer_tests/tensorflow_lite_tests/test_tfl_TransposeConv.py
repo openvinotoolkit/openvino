@@ -23,7 +23,6 @@ test_params = [
      'padding': 'VALID', 'data_format': 'NHWC', 'dilations': [1, 1, 1, 1]},
 ]
 
-
 test_data = list(itertools.product(test_ops, test_params))
 for i, (parameters, shapes) in enumerate(test_data):
     parameters.update(shapes)
@@ -49,15 +48,8 @@ class TestTFLiteTransposeConvLayerTest(TFLiteLayerTest):
             placeholder = tf.compat.v1.placeholder(params.get('dtype', tf.float32), params['shape'],
                                                    name=self.inputs[0])
             filter_input = tf.constant(np.random.randint(-1, 1, size=(params['ksize'])), dtype=tf.float32)
-            params['op_func'](
-                placeholder,
-                filter_input,
-                params['output_shape'],
-                params["strides"],
-                params["padding"],
-                params["data_format"],
-                name=self.outputs[0]
-            )
+            params['op_func'](placeholder, filter_input, params['output_shape'], params["strides"], params["padding"],
+                              params["data_format"], name=self.outputs[0])
             net = sess.graph_def
         return net
 

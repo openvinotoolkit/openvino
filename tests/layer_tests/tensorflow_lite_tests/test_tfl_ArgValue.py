@@ -45,8 +45,8 @@ class TestTFLiteArgValueLayerTest(TFLiteLayerTest):
         tf.compat.v1.reset_default_graph()
         with tf.compat.v1.Session() as sess:
             place_holder = tf.compat.v1.placeholder(params.get('dtype', tf.float32), params['shape'],
-                                                    name=TestTFLiteArgValueLayerTest.inputs[0])
-            params['op_func'](place_holder, axis=params['axis'], name=TestTFLiteArgValueLayerTest.outputs[0])
+                                                    name=self.inputs[0])
+            params['op_func'](place_holder, axis=params['axis'], name=self.outputs[0])
             net = sess.graph_def
         return net
 

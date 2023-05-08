@@ -47,7 +47,7 @@ class TestTFLiteConcatTest(TFLiteLayerTest):
                 self.inputs.append(concat_input)
                 placeholders.append(tf.compat.v1.placeholder(params.get('dtype', tf.float32), placeholder_shape,
                                                              name=concat_input))
-            params['op_func'](placeholders, params['axis'], name=TestTFLiteConcatTest.outputs[0])
+            params['op_func'](placeholders, params['axis'], name=self.outputs[0])
             net = sess.graph_def
         return net
 

@@ -74,8 +74,8 @@ class TestTFLiteUnaryLayerTest(TFLiteLayerTest):
         tf.compat.v1.reset_default_graph()
         with tf.compat.v1.Session() as sess:
             place_holder = tf.compat.v1.placeholder(params.get('dtype', tf.float32), params['shape'],
-                                                    name=TestTFLiteUnaryLayerTest.inputs[0])
-            params['op_func'](place_holder, name=TestTFLiteUnaryLayerTest.outputs[0])
+                                                    name=self.inputs[0])
+            params['op_func'](place_holder, name=self.outputs[0])
             net = sess.graph_def
         return net
 
