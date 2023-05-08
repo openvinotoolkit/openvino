@@ -2,17 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/experimental_detectron_detection_output.hpp"
+#include "openvino/op/experimental_detectron_detection_output.hpp"
 
 #include <memory>
 
 #include "experimental_detectron_detection_output_shape_inference.hpp"
 #include "itt.hpp"
-#include "ngraph/attribute_visitor.hpp"
+#include "openvino/core/attribute_visitor.hpp"
 
 using namespace std;
-using namespace ngraph;
 
+namespace ov {
 op::v6::ExperimentalDetectronDetectionOutput::ExperimentalDetectronDetectionOutput(const Output<Node>& input_rois,
                                                                                    const Output<Node>& input_deltas,
                                                                                    const Output<Node>& input_scores,
@@ -78,3 +78,4 @@ shared_ptr<Node> op::v6::ExperimentalDetectronDetectionOutput::clone_with_new_in
 void op::v6::ExperimentalDetectronDetectionOutput::set_attrs(Attributes attrs) {
     m_attrs = std::move(attrs);
 }
+}  // namespace ov
