@@ -42,6 +42,11 @@ bool AclPoolingExecutor::isSupported(const TensorInfo& srcTensorInfo,
         DEBUG_LOG("Unknown pooling algorithm: ", static_cast<int>(poolingAttrs.algorithm));
         return false;
     }
+
+    // The combination of parameters: NCHW + CEIL gives an accuracy problem in AvgPool.
+    // One workaround is to disable the ACL executor for these parameters.
+    // Then OneDNN will run this case in ACL backend as reorder -> NHWC -> reorder
+    if (dataLayout == arm_compute::DataLayout::NCHW && poolingAttrs.rounding == op::RoundingType::CEIL) return false;
     DimensionRoundingType round = (poolingAttrs.rounding == op::RoundingType::CEIL) ?
                                    DimensionRoundingType::CEIL : DimensionRoundingType::FLOOR;
 

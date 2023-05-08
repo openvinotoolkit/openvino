@@ -175,7 +175,15 @@ void InputModel::InputModelTFImpl::load_places() {
             }
             std::vector<std::string> names = {op_name};
             auto tensor_place = std::make_shared<TensorPlace>(m_input_model, pshape, type, names);
+
+            // In Model Optimizer user can refer to model inputs by a name of Placeholder
+            // and its output port, for example, using `input_name` and `input_name:0`
+            // Also, SavedModel format contains a signature that maps external input names to internal ones with port
+            // index like `input_name` maps to `serving_default_input_name:0`.
+            // So we have to store with `:0` as well to get its tensor by `get_place_by_tensor_name` method
             m_tensor_places[op_name] = tensor_place;
+            m_tensor_places[op_name + ":0"] = tensor_place;
+
             if (op_type == "Placeholder") {
                 // by default, PlaceholderWithDefault is NOT used as input
                 m_inputs.push_back(tensor_place);
@@ -337,6 +345,7 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::topologicall
                 if (m_tensor_places.find(output_port_name) != m_tensor_places.end()) {
                     const auto& tensor_place = m_tensor_places[output_port_name];
                     is_input |= tensor_place->is_input();
+                    m_found_inputs.insert(output_port_name);
                 }
 
                 // 3. check if the current node is an input
@@ -346,6 +355,7 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::topologicall
                 if (m_tensor_places.find(producer_name) != m_tensor_places.end()) {
                     const auto& tensor_place = m_tensor_places[producer_name];
                     is_input |= tensor_place->is_input();
+                    m_found_inputs.insert(producer_name);
                 }
 
                 // in case presence of NextIteration in the graph (or cycle created by other operation),
@@ -460,12 +470,16 @@ std::vector<ov::frontend::Place::Ptr> InputModel::InputModelTFImpl::get_outputs(
 }
 
 ov::frontend::Place::Ptr InputModel::InputModelTFImpl::get_place_by_tensor_name(const std::string& tensorName) const {
-    std::string internalTensorName = tensorName;
+    std::string internal_tensor_name = tensorName;
 
-    if (m_saved_model_input_names.get()) {
+    // For SavedModel format, an user can work with external input names, namely, without `serving_default_` prefix
+    // so we have to map it into the internal name to find the tensor in the tensor pool m_tensor_places.
+    // m_saved_model_input_names contains a map from external name to the internal name with port ':0'
+    // for example, `input_mask` maps to `serving_default_input_mask:0`
+    if (m_saved_model_input_names) {
         for (const auto& alt_name : *m_saved_model_input_names) {
             if (alt_name.second == tensorName) {
-                internalTensorName = alt_name.first;
+                internal_tensor_name = alt_name.first;
                 break;
             }
         }
@@ -474,28 +488,28 @@ ov::frontend::Place::Ptr InputModel::InputModelTFImpl::get_place_by_tensor_name(
     if (m_saved_model_output_names.get()) {
         for (const auto& alt_name : *m_saved_model_output_names) {
             if (alt_name.second == tensorName) {
-                internalTensorName = alt_name.first;
+                internal_tensor_name = alt_name.first;
                 break;
             }
         }
     }
 
-    if (m_tensor_places.find(internalTensorName) != m_tensor_places.end()) {
-        return m_tensor_places.at(internalTensorName);
+    if (m_tensor_places.find(internal_tensor_name) != m_tensor_places.end()) {
+        return m_tensor_places.at(internal_tensor_name);
     }
 
     // check that operation node exists for which this place is specified
     std::string operation_name;
     size_t port_idx;
     std::string port_type;
-    tensorflow::extract_operation_name_and_port(internalTensorName, operation_name, port_idx, port_type);
+    tensorflow::extract_operation_name_and_port(internal_tensor_name, operation_name, port_idx, port_type);
 
     if (m_op_places_map.find(operation_name) != m_op_places_map.end()) {
         // new Tensor places must be constructed of dynamic rank and type
-        std::vector<std::string> names = {internalTensorName};
+        std::vector<std::string> names = {internal_tensor_name};
         auto m_var_place =
             std::make_shared<TensorPlace>(m_input_model, ov::PartialShape::dynamic(), ov::element::dynamic, names);
-        m_tensor_places[internalTensorName] = m_var_place;
+        m_tensor_places[internal_tensor_name] = m_var_place;
         return m_var_place;
     }
 

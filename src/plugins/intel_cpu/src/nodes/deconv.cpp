@@ -349,16 +349,43 @@ std::pair<VectorDims, VectorDims> Deconvolution::makeDummyInOutShape() {
                                                                                               std::max(minDims[i + 2], static_cast<Dim>(64))) : dims[i + 2];
                 }
             }
-            ov::CoordinateDiff pb = autoPad ? ov::CoordinateDiff(paddingL.size(), 0) : paddingL;
-            ov::CoordinateDiff pe = autoPad ? ov::CoordinateDiff(paddingR.size(), 0) : paddingR;
 
             const auto& origInDims = getInputShapeAtPort(0).getDims();
+            const auto& origInMinDims = getInputShapeAtPort(0).getMinDims();
+            const auto& origInMaxDims = getInputShapeAtPort(0).getMaxDims();
             const auto& weightDims = getWeightDims();
             const size_t wghOffset = getAlgorithm() == Algorithm::DeconvolutionGrouped ? 1 : 0;
+
+            VectorDims paddings(paddingL.size());
+            if (!autoPad) {
+                for (size_t i = 0; i < paddings.size(); ++i) {
+                    paddings[i] = paddingL[i] + paddingR[i];
+                }
+            } else {
+                for (size_t i = 0; i < origInDims.size() - 2; i++) {
+                    if (origInDims[i + 2] == Shape::UNDEFINED_DIM &&
+                        (origInMinDims[i + 2] != 0 || origInMaxDims[i + 2] != Shape::UNDEFINED_DIM)) {
+                        // if input shape is dynamic and bounded, paddings should be computed basing on the following limitations:
+                        // 1. paddings must not be negative
+                        // 2. the result padding must have such a value to keep the dummy dimensions inside the predefined interval
+                        auto c1 = lastOutputSpatialDims[i] - outputPadding[i] - 1 -
+                                    (dilation[i] + 1) * static_cast<int32_t>(weightDims[wghOffset + 2 + i] - 1);
+                        auto upper_bound = stride[i] * static_cast<int32_t>(origInMaxDims[i + 2] - 1) - c1;
+                        if (upper_bound < 0) {
+                            IE_THROW() << errorPrefix << ": paddings for dummy shapes can't be computed";
+                        }
+                        auto lower_bound = stride[i] * static_cast<int32_t>(origInMinDims[i + 2] - 1) - c1;
+                        if (lower_bound > 0) {
+                            paddings[i] = lower_bound;
+                        }
+                    }
+                }
+            }
+
             for (size_t i = 0; i < inputDims.size() - 2; i++) {
                 if (origInDims[2 + i] == Shape::UNDEFINED_DIM) {
-                    inputDims[2 + i] = ((lastOutputSpatialDims[i] - (dilation[i] + 1) *
-                                        (weightDims[wghOffset + 2 + i] - 1) - 1 + pb[i] + pe[i] - outputPadding[i])) /
+                    inputDims[2 + i] = (lastOutputSpatialDims[i] - (dilation[i] + 1) *
+                                        (weightDims[wghOffset + 2 + i] - 1) - 1 + paddings[i] - outputPadding[i]) /
                                         stride[i] + 1;
                 }
             }
@@ -789,24 +816,17 @@ void Deconvolution::createPrimitive() {
             // WA to align IR bias representation (3 to 5 rank tensors) to oneDNN representation (1 rank tensor)
             dnnlBiasDesc = biasDesc->getDnnlDesc().reshape({DnnlExtensionUtils::convertToDnnlDim(biasesDims[0])});
 
-        AttrPtr pAttr = makePrimitiveAttr(outDims);
-        auto desc = createInt8MkldnnDeconvDesc(inDesc->getDnnlDesc(), wgh_candidate, dnnlBiasDesc, outDesc->getDnnlDesc(), withBiases,
+        const AttrPtr pAttr = makePrimitiveAttr(outDims);
+        auto prim_desc = createInt8MkldnnDeconvDesc(inDesc->getDnnlDesc(), wgh_candidate, dnnlBiasDesc, outDesc->getDnnlDesc(), withBiases,
                                                stride, dilation, paddingL, paddingR, *pAttr, getEngine());
-        primitive_desc_iterator itpd = desc;
 
-        while (itpd) {
-            impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
+        const bool found = DnnlExtensionUtils::find_implementation(prim_desc, selectedImpl);
 
-            if (impl_type == selectedImpl) {
-                prepareMemory({DnnlExtensionUtils::makeDescriptor(itpd.weights_desc(0))});
-                break;
-            }
-
-            if (!itpd.next_impl()) {
-                prepareMemory({std::make_shared<DnnlBlockedMemoryDesc>(
-                    MemoryDescUtils::convertToDnnlBlockedMemoryDesc(internalBlobs.front()->getTensorDesc()))});
-                break;
-            }
+        if (found) {
+            prepareMemory({DnnlExtensionUtils::makeDescriptor(prim_desc.weights_desc(0))});
+        } else {
+            prepareMemory({std::make_shared<DnnlBlockedMemoryDesc>(
+                        MemoryDescUtils::convertToDnnlBlockedMemoryDesc(internalBlobs.front()->getTensorDesc()))});
         }
     }
 
