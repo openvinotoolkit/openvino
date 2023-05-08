@@ -22,7 +22,6 @@ Post-training Quantization is the fastest way to optimize a model and should be 
 Once the model is optimized using the aforementioned methods, it can be used for inference using the regular OpenVINO inference workflow. No changes to the inference code are required.
 
 TODO: UPDATE THE DIAGRAMS!
-####################
 
 .. image:: _static/images/DEVELOPMENT_FLOW_V3_crunch.svg
 
