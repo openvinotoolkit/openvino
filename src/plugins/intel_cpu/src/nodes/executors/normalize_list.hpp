@@ -46,13 +46,9 @@ public:
                                         const dnnl::primitive_attr &attr) {
         auto build = [&](const NormalizeL2ExecutorDesc* desc) {
             //TODO: enable exeuctor cache for JIT executor
-            switch (desc->executorType) {
-                default: {
-                    auto executor = desc->builder->makeExecutor(context);
-                    if (executor->init(normalizeL2Attrs, srcDescs, dstDescs, attr)) {
-                        return executor;
-                    }
-                } break;
+            auto executor = desc->builder->makeExecutor(context);
+            if (executor->init(normalizeL2Attrs, srcDescs, dstDescs, attr)) {
+                return executor;
             }
 
             NormalizeL2ExecutorPtr ptr = nullptr;
