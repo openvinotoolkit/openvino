@@ -197,8 +197,9 @@ public:
      * @param properties A ov::AnyMap of properties
      * @return An Compiled model
      */
-    virtual std::shared_ptr<ov::ICompiledModel> import_model(std::shared_ptr<ngraph::runtime::AlignedBuffer>& model_buffer,
-                                                             const ov::AnyMap& properties) const = 0;
+    virtual std::shared_ptr<ov::ICompiledModel> import_model(
+        std::shared_ptr<ngraph::runtime::AlignedBuffer>& model_buffer,
+        const ov::AnyMap& properties) const = 0;
 
     /**
      * @brief Creates an compiled model from an previously exported model using plugin implementation
@@ -209,9 +210,10 @@ public:
      * @param properties A ov::AnyMap of properties
      * @return An Compiled model
      */
-    virtual std::shared_ptr<ov::ICompiledModel> import_model(std::shared_ptr<ngraph::runtime::AlignedBuffer>& model_buffer,
-                                                             const ov::RemoteContext& context,
-                                                             const ov::AnyMap& properties) const = 0;
+    virtual std::shared_ptr<ov::ICompiledModel> import_model(
+        std::shared_ptr<ngraph::runtime::AlignedBuffer>& model_buffer,
+        const ov::RemoteContext& context,
+        const ov::AnyMap& properties) const = 0;
 
     /**
      * @brief Queries a plugin about supported layers in model

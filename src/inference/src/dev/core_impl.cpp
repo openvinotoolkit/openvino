@@ -1198,7 +1198,39 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
 
     OPENVINO_ASSERT(cacheContent.cacheManager != nullptr);
     try {
-        if (!enable_mmap) {
+        // TODO: implement import model by mmap for other plugins
+        if (enable_mmap && plugin.get_name() == "CPU") {
+            cacheContent.cacheManager->read_cache_entry(
+                cacheContent.blobId,
+                [&](std::shared_ptr<ngraph::runtime::AlignedBuffer>& shared_buffer) {
+                    OV_ITT_SCOPE(FIRST_INFERENCE,
+                                 InferenceEngine::itt::domains::IE_LT,
+                                 "Core::load_model_from_cache::ReadStreamAndImport");
+                    try {
+                        ov::CompiledBlobHeader header;
+                        std::string xmlStr = std::string(reinterpret_cast<char*>(shared_buffer->get_ptr()));
+                        xmlStr >> header;
+                        shared_buffer->set_pos(xmlStr.size());
+                        if (header.getIeVersion() != InferenceEngine::GetInferenceEngineVersion()->buildNumber) {
+                            // Build number mismatch, don't use this cache
+                            throw InferenceEngine::NetworkNotRead("Version does not match");
+                        }
+                        if (header.getFileInfo() != ov::ModelCache::calculate_file_info(cacheContent.modelPath)) {
+                            // Original file is changed, don't use cache
+                            throw InferenceEngine::NetworkNotRead("Original model file is changed");
+                        }
+                    } catch (...) {
+                        throw HeaderException();
+                    }
+
+                    compiled_model = context._impl ? plugin.import_model(shared_buffer, context, config)
+                                                   : plugin.import_model(shared_buffer, config);
+                    if (auto wrapper =
+                            std::dynamic_pointer_cast<InferenceEngine::ICompiledModelWrapper>(compiled_model._ptr)) {
+                        wrapper->get_executable_network()->loadedFromCache();
+                    }
+                });
+        } else {
             cacheContent.cacheManager->read_cache_entry(cacheContent.blobId, [&](std::istream& networkStream) {
                 OV_ITT_SCOPE(FIRST_INFERENCE,
                              InferenceEngine::itt::domains::IE_LT,
@@ -1220,35 +1252,6 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
 
                 compiled_model = context._impl ? plugin.import_model(networkStream, context, config)
                                                : plugin.import_model(networkStream, config);
-                if (auto wrapper =
-                        std::dynamic_pointer_cast<InferenceEngine::ICompiledModelWrapper>(compiled_model._ptr)) {
-                    wrapper->get_executable_network()->loadedFromCache();
-                }
-            });
-        } else {
-            cacheContent.cacheManager->read_cache_entry(cacheContent.blobId, [&](std::shared_ptr<ngraph::runtime::AlignedBuffer>& shared_buffer) {
-                OV_ITT_SCOPE(FIRST_INFERENCE,
-                             InferenceEngine::itt::domains::IE_LT,
-                             "Core::load_model_from_cache::ReadStreamAndImport");
-                try {
-                    ov::CompiledBlobHeader header;
-                    std::string xmlStr = std::string(reinterpret_cast<char*>(shared_buffer->get_ptr()));
-                    xmlStr >> header;
-                    shared_buffer->set_pos(xmlStr.size());
-                    if (header.getIeVersion() != InferenceEngine::GetInferenceEngineVersion()->buildNumber) {
-                        // Build number mismatch, don't use this cache
-                        throw InferenceEngine::NetworkNotRead("Version does not match");
-                    }
-                    if (header.getFileInfo() != ov::ModelCache::calculate_file_info(cacheContent.modelPath)) {
-                        // Original file is changed, don't use cache
-                        throw InferenceEngine::NetworkNotRead("Original model file is changed");
-                    }
-                } catch (...) {
-                    throw HeaderException();
-                }
-
-                compiled_model = context._impl ? plugin.import_model(shared_buffer, context, config)
-                                               : plugin.import_model(shared_buffer, config);
                 if (auto wrapper =
                         std::dynamic_pointer_cast<InferenceEngine::ICompiledModelWrapper>(compiled_model._ptr)) {
                     wrapper->get_executable_network()->loadedFromCache();

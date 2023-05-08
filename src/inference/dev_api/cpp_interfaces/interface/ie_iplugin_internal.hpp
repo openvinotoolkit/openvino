@@ -19,10 +19,10 @@
 #include "ie_iextension.h"
 #include "ie_input_info.hpp"
 #include "ie_parameter.hpp"
+#include "ngraph/runtime/aligned_buffer.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/util/pp.hpp"
 #include "so_ptr.hpp"
-#include "ngraph/runtime/aligned_buffer.hpp"
 
 namespace InferenceEngine {
 
@@ -289,8 +289,9 @@ public:
      * @param config A string -> string map of parameters
      * @return An Executable network
      */
-    virtual std::shared_ptr<IExecutableNetworkInternal> ImportNetwork(std::shared_ptr<ngraph::runtime::AlignedBuffer>& networkBuffer,
-                                                                      const std::map<std::string, std::string>& config);
+    virtual std::shared_ptr<IExecutableNetworkInternal> ImportNetwork(
+        std::shared_ptr<ngraph::runtime::AlignedBuffer>& networkBuffer,
+        const std::map<std::string, std::string>& config);
 
     /**
      * @brief Creates an executable network from an previously exported network using plugin implementation
@@ -301,9 +302,10 @@ public:
      * @param config A string -> string map of parameters
      * @return An Executable network
      */
-    virtual std::shared_ptr<IExecutableNetworkInternal> ImportNetwork(std::shared_ptr<ngraph::runtime::AlignedBuffer>& networkBuffer,
-                                                                      const std::shared_ptr<RemoteContext>& context,
-                                                                      const std::map<std::string, std::string>& config);
+    virtual std::shared_ptr<IExecutableNetworkInternal> ImportNetwork(
+        std::shared_ptr<ngraph::runtime::AlignedBuffer>& networkBuffer,
+        const std::shared_ptr<RemoteContext>& context,
+        const std::map<std::string, std::string>& config);
 
     /**
      * @brief Sets pointer to ICore interface

@@ -11,9 +11,9 @@
 #include <iostream>
 #include <sstream>
 
-#include "openvino/util/mmap_object.hpp"
 #include "ngraph/runtime/shared_buffer.hpp"
 #include "openvino/util/file_util.hpp"
+#include "openvino/util/mmap_object.hpp"
 
 namespace ov {
 namespace util {
