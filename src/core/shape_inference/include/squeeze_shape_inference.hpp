@@ -59,7 +59,7 @@ void shape_infer(const Squeeze* op,
                 unique_axes.reset(new std::set<int64_t>(axes.cbegin(), axes.cend()));
             } else if (arg_rank.get_length() > 0 && shape_size(axes_shape.to_shape()) == 1) {
                 // The `axes` input must be a Parameter with single element to ensure uniqueness of axes
-                // only rank can be deduced
+                // only rank is deduced
                 output_shape = PartialShape::dynamic(arg_rank.get_length() - 1);
                 return;
             }
