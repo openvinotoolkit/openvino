@@ -27,7 +27,6 @@ This step is similar to the :doc:`Basic 8-bit quantization <basic_quantization_f
       :language: python
       :fragment: [dataset]
 
-
 Prepare validation function
 ####################
 
@@ -40,7 +39,7 @@ Validation funtion receives ``openvino.runtime.CompiledModel`` object and valida
       :fragment: [validation]
 
 
-Run quantization with accuracy control 
+Run quantization with accuracy control
 ####################
 
 ``nncf.quantize_with_accuracy_control()`` function is used to run the quantization with accuracy control. The following code snippet shows an example of quantization with accuracy control for OpenVINO model:
