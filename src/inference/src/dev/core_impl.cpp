@@ -953,7 +953,9 @@ void ov::CoreImpl::unload_plugin(const std::string& deviceName) {
     plugins.erase(deviceName);
 }
 
-void ov::CoreImpl::register_plugin(const std::string& plugin, const std::string& device_name) {
+void ov::CoreImpl::register_plugin(const std::string& plugin,
+                                   const std::string& device_name,
+                                   const ov::AnyMap& properties) {
     std::lock_guard<std::mutex> lock(get_mutex());
 
     auto it = pluginRegistry.find(device_name);

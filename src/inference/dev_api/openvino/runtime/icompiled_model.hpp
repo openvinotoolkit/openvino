@@ -136,6 +136,8 @@ public:
      */
     std::shared_ptr<ov::IRemoteContext> get_context() const;
 
+    virtual ~ICompiledModel() = default;
+
 private:
     std::shared_ptr<const ov::IPlugin> m_plugin;
     std::vector<ov::Output<const ov::Node>> m_inputs;

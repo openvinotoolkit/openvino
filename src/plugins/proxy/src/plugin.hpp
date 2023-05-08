@@ -1,0 +1,60 @@
+// Copyright (C) 2018-2023 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#pragma once
+
+#include <mutex>
+
+#include "openvino/runtime/iplugin.hpp"
+
+namespace ov {
+namespace proxy {
+
+class Plugin : public ov::IPlugin {
+public:
+    Plugin();
+    ~Plugin();
+
+    void set_property(const ov::AnyMap& properties) override;
+
+    ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const override;
+
+    ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
+                                    const ov::AnyMap& properties) const override;
+
+    std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                      const ov::AnyMap& properties) const override;
+
+    std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                      const ov::AnyMap& properties,
+                                                      const ov::RemoteContext& context) const override;
+
+    std::shared_ptr<ov::IRemoteContext> create_context(const ov::AnyMap& remote_properties) const override;
+
+    std::shared_ptr<ov::IRemoteContext> get_default_context(const ov::AnyMap& remote_properties) const override;
+
+    std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model, const ov::AnyMap& properties) const override;
+
+    std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
+                                                     const ov::RemoteContext& context,
+                                                     const ov::AnyMap& properties) const override;
+
+private:
+    std::vector<std::vector<std::string>> get_hidden_devices() const;
+    std::string get_fallback_device(size_t idx) const;
+    std::vector<std::string> get_primary_devices() const;
+    std::string get_primary_device(size_t idx) const;
+
+    bool has_property(const std::string& property_name, const std::string& conf_name = "") const;
+    ov::Any get_property(const std::string& property_name, const std::string& conf_name = "") const;
+
+    std::vector<std::string> device_order;
+    std::unordered_set<std::string> alias_for;
+    // Update per device config in get_hidden_devices
+    mutable std::unordered_map<std::string, ov::AnyMap> configs;
+    mutable std::mutex plugin_mutex;
+};
+
+}  // namespace proxy
+}  // namespace ov
