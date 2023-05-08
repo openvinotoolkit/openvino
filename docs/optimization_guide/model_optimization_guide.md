@@ -11,7 +11,7 @@
    (Experimental) Protecting Model <pot_ranger_README>
 
 
-Model optimization is an optional offline step of improving the final model performance and reducing the model size by applying special optimization methods, such as quantization, pruning, etc. OpenVINO offers two optimization paths implemented in `Neural Network Compression Framework (NNCF) <https://github.com/openvinotoolkit/nncf>`:
+Model optimization is an optional offline step of improving the final model performance and reducing the model size by applying special optimization methods, such as 8-bit quantization, pruning, etc. OpenVINO offers two optimization paths implemented in `Neural Network Compression Framework (NNCF) <https://github.com/openvinotoolkit/nncf>`:
 
 - :doc:`Post-training Quantization <ptq_introduction>` is designed to optimize the inference of deep learning models by applying the post-training 8-bit integer quantization that does not require model retraining or fine-tuning. 
 
