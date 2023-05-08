@@ -57,31 +57,6 @@ void shape_infer(const Squeeze* op,
                 normalize_axes(op, arg_rank.get_length(), axes);
                 OPENVINO_SUPPRESS_DEPRECATED_END
                 unique_axes.reset(new std::set<int64_t>(axes.cbegin(), axes.cend()));
-            } else {
-                // The `axes` input must be a Parameter
-                output_shape.resize(0);
-                int64_t squeezable_dims_count =
-                    std::count_if(arg_shape.begin(), arg_shape.end(), [&](const DimType& dim) {
-                        if (dim.compatible(1)) {
-                            return true;
-                        } else {
-                            // Copy not squeezable dimensions to the output shape
-                            output_shape.push_back(dim);
-                            return false;
-                        }
-                    });
-                if (squeezable_dims_count <= 1) {
-                    // There is only one or no possible dimension to squeeze,
-                    // output shape has been already aligned
-                } else if (shape_size(axes_shape.to_shape()) == 1) {
-                    // The `axes` input must be a Parameter with single element to ensure uniqueness of axes
-                    // If the number of squeezable (1 or with 1 in range) dimensions is bigger than 1,
-                    // only rank can be deduced (single element axes gives guarantee for axes uniqueness)
-                    output_shape = PartialShape::dynamic(arg_shape.size() - 1);
-                } else {
-                    output_shape = PartialShape::dynamic();
-                }
-                return;
             }
         }
     } else {
@@ -89,46 +64,74 @@ void shape_infer(const Squeeze* op,
         NODE_VALIDATION_CHECK(op, false);
     }
 
-    if (arg_rank.is_static() && (unique_axes != nullptr)) {
+    if (arg_rank.is_static()) {
         output_shape.resize(0);
+        if (unique_axes != nullptr) {
+            if (unique_axes->empty()) {
+                // According to specification, if only first input provided` or axes are empty
+                // remove all dimensions equal to 1.
+                std::copy_if(arg_shape.cbegin(),
+                             arg_shape.cend(),
+                             std::back_inserter(output_shape),
+                             [](const DimType& dim) {
+                                 return !dim.compatible(1);
+                             });
+            } else {
+                int64_t idx = 0;
+                auto rm_axis_iter = unique_axes->cbegin();
+                auto rm_axis_end = unique_axes->cend();
 
-        if (unique_axes->empty()) {
-            // According to specification, if only first input provided` or axes are empty
-            // remove all dimensions equal to 1.
-            std::copy_if(arg_shape.cbegin(),
-                         arg_shape.cend(),
-                         std::back_inserter(output_shape),
-                         [](const DimType& dim) {
-                             return !dim.compatible(1);
-                         });
-        } else {
-            int64_t idx = 0;
-            auto rm_axis_iter = unique_axes->cbegin();
-            auto rm_axis_end = unique_axes->cend();
+                // Returns true if dimension not squeezable on axis from input axes.
+                const auto not_squeezable_at_axis = [&op, &rm_axis_iter, &rm_axis_end, &idx](const DimType& dim) {
+                    if ((rm_axis_iter != rm_axis_end) && (*rm_axis_iter == idx++)) {
+                        NODE_VALIDATION_CHECK(op,
+                                              dim.compatible(1),
+                                              "provided axis value is invalid. Only axes of size 1 may be removed.");
+                        ++rm_axis_iter;
+                        return false;
+                    } else {
+                        return true;
+                    }
+                };
 
-            // Returns true if dimension not squeezable on axis from input axes.
-            const auto not_squeezable_at_axis = [&op, &rm_axis_iter, &rm_axis_end, &idx](const DimType& dim) {
-                if ((rm_axis_iter != rm_axis_end) && (*rm_axis_iter == idx++)) {
-                    NODE_VALIDATION_CHECK(op,
-                                          dim.compatible(1),
-                                          "provided axis value is invalid. Only axes of size 1 may be removed.");
-                    ++rm_axis_iter;
-                    return false;
-                } else {
+                std::copy_if(arg_shape.cbegin(),
+                             arg_shape.cend(),
+                             std::back_inserter(output_shape),
+                             not_squeezable_at_axis);
+            }
+            // When arg shape has got static rank but shape is dynamic and output shape dimensions is empty (scalar)
+            // make dynamic output except the case when arg_shape is 1-D shape with 0 or 1 element then should be
+            // scalar.
+            if (arg_shape.is_dynamic() && (output_shape.size() == 0) &&
+                !(arg_rank.get_length() == 1 && arg_shape[0].get_max_length() <= 1)) {
+                output_shape = PartialShape::dynamic();
+            }
+
+        } else if (number_of_inputs == 2) {
+            // The `axes` input must be a Parameter
+            output_shape.resize(0);
+            int64_t squeezable_dims_count = std::count_if(arg_shape.begin(), arg_shape.end(), [&](const DimType& dim) {
+                if (dim.compatible(1)) {
                     return true;
+                } else {
+                    // Copy not squeezable dimensions to the output shape
+                    output_shape.push_back(dim);
+                    return false;
                 }
-            };
-
-            std::copy_if(arg_shape.cbegin(),
-                         arg_shape.cend(),
-                         std::back_inserter(output_shape),
-                         not_squeezable_at_axis);
-        }
-        // When arg shape has got static rank but shape is dynamic and output shape dimensions is empty (scalar)
-        // make dynamic output except the case when arg_shape is 1-D shape with 0 or 1 element then should be scalar.
-        if (arg_shape.is_dynamic() && (output_shape.size() == 0) &&
-            !(arg_rank.get_length() == 1 && arg_shape[0].get_max_length() <= 1)) {
-            output_shape = PartialShape::dynamic();
+            });
+            const auto& axes_shape = input_shapes[1];
+            if (squeezable_dims_count <= 1) {
+                // There is only one or no possible dimension to squeeze,
+                // output shape has been already aligned
+                return;
+            } else if (axes_shape.is_static() && shape_size(axes_shape.to_shape()) == 1) {
+                // The `axes` input must be a Parameter with single element to ensure uniqueness of axes
+                // If the number of squeezable (1 or with 1 in range) dimensions is bigger than 1,
+                // only rank can be deduced (single element axes gives guarantee for axes uniqueness)
+                output_shape = PartialShape::dynamic(arg_shape.size() - 1);
+            } else {
+                output_shape = PartialShape::dynamic();
+            }
         }
     } else {
         output_shape = PartialShape::dynamic();
