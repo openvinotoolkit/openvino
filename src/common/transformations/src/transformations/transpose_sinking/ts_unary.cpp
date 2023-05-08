@@ -94,17 +94,11 @@ TSUnaryForward::TSUnaryForward() {
     register_matcher(m, matcher_pass_callback);
 }
 
-namespace {
-bool IfSinkingEnabled(const Output<Node>& output) {
-    return is_sinking_node(output.get_node_shared_ptr());
-}
-}  // namespace
-
 TSUnaryBackward::TSUnaryBackward() {
     MATCHER_SCOPE(TSUnaryBackwardMultiConsumers);
 
     auto unary_restrictions = [](const Output<Node>& output) -> bool {
-        return HasSameOutputTransposeNodes(output);
+        return CheckTransposeConsumers(output);
     };
 
     auto unary_label = wrap_type<UnaryElementwiseArithmetic,
@@ -119,7 +113,7 @@ TSUnaryBackward::TSUnaryBackward() {
 
     auto transpose_const_label = wrap_type<ov::op::v0::Constant>();
 
-    auto transpose_label = wrap_type<ov::op::v1::Transpose>({unary_label, transpose_const_label}, IfSinkingEnabled);
+    auto transpose_label = wrap_type<ov::op::v1::Transpose>({unary_label, transpose_const_label});
 
     ov::matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
@@ -135,9 +129,7 @@ TSUnaryBackward::TSUnaryBackward() {
             register_new_node(new_node);
         }
         unary->validate_and_infer_types();
-        // remove output transposes
-        RemoveSingleOutputConsumers(unary);
-        SwapNames(transpose, unary);
+        RemoveTransposeConsumers(unary);
         return true;
     };
 

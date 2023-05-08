@@ -97,7 +97,21 @@ class TorchScriptPythonDecoder (Decoder):
         self.m_decoders = []
         self._input_signature = None
         if graph_element is None:
-            pt_module = self._get_scripted_model(pt_module, example_input, freeze)
+            try:
+                pt_module = self._get_scripted_model(pt_module, example_input, freeze)
+            except Exception as e:
+                if example_input is not None:
+                    msg = "tracing or scripting"
+                    help_msg = ""
+                else:
+                    msg = "scripting"
+                    help_msg = "Tracing sometimes provide better results, "
+                    "please provide valid 'example_input' argument. "
+                raise RuntimeError(
+                    f"Couldn't get TorchScript module by {msg}. {help_msg}"
+                    "You can also provide TorchScript module that you obtained"
+                    " yourself, please refer to PyTorch documentation: "
+                    "https://pytorch.org/tutorials/beginner/Intro_to_TorchScript_tutorial.html.")
             self.graph_element = pt_module.inlined_graph
         else:
             self.graph_element = graph_element
