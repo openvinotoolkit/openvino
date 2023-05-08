@@ -17,7 +17,7 @@ This is the advanced quantization flow that allows to apply 8-bit quantization t
 The steps for the quantization with accuracy control are described below.
 
 Prepare calibration and validation datasets
-####################
+############################################
 
 This step is similar to the :doc:`Basic 8-bit quantization <basic_quantization_flow>` flow. The only difference is that two datasets, calibration and validation, are required.
 
@@ -28,7 +28,7 @@ This step is similar to the :doc:`Basic 8-bit quantization <basic_quantization_f
       :fragment: [dataset]
 
 Prepare validation function
-####################
+############################
 
 Validation funtion receives ``openvino.runtime.CompiledModel`` object and validation dataset and returns accuracy metric value. The following code snippet shows an example of validation function for OpenVINO model:
 
@@ -40,7 +40,7 @@ Validation funtion receives ``openvino.runtime.CompiledModel`` object and valida
 
 
 Run quantization with accuracy control
-####################
+#######################################
 
 ``nncf.quantize_with_accuracy_control()`` function is used to run the quantization with accuracy control. The following code snippet shows an example of quantization with accuracy control for OpenVINO model:
 
