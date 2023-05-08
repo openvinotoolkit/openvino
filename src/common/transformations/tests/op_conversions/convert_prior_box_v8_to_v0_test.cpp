@@ -20,8 +20,8 @@ using namespace ngraph;
 
 TEST_F(TransformationTestsF, ConvertPriorBox8To0) {
     {
-        const Shape input_shape{2, 2};
-        const Shape image_Shape{10, 10};
+        const Shape input_shape{2};
+        const Shape image_Shape{2};
         op::v8::PriorBox::Attributes attrs;
         attrs.min_size = {2.0f};
         attrs.max_size = {5.0f};
@@ -38,8 +38,8 @@ TEST_F(TransformationTestsF, ConvertPriorBox8To0) {
     }
 
     {
-        const Shape input_shape{2, 2};
-        const Shape image_Shape{10, 10};
+        const Shape input_shape{2};
+        const Shape image_Shape{2};
         op::v0::PriorBox::Attributes attrs;
         attrs.min_size = {2.0f};
         attrs.max_size = {5.0f};
@@ -57,8 +57,8 @@ TEST_F(TransformationTestsF, ConvertPriorBox8To0) {
 
 TEST_F(TransformationTestsF, ConvertPriorBox8To0_min_max_aspect_ratios_order) {
     {
-        const Shape input_shape{2, 2};
-        const Shape image_Shape{10, 10};
+        const Shape input_shape{2};
+        const Shape image_Shape{2};
         op::v8::PriorBox::Attributes attrs;
         attrs.min_size = {2.0f};
         attrs.max_size = {5.0f};

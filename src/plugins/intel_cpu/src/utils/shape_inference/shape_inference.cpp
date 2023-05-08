@@ -57,6 +57,8 @@
 #include "max_pool_shape_inference.hpp"
 #include "one_hot_shape_inference.hpp"
 #include "pad_shape_inference.hpp"
+#include "prior_box_clustered_shape_inference.hpp"
+#include "prior_box_shape_inference.hpp"
 #include "proposal_shape_inference.hpp"
 #include "psroi_pooling_shape_inference.hpp"
 #include "range_shape_inference.hpp"
@@ -501,6 +503,8 @@ const IShapeInferCommonFactory::TRegistry IShapeInferCommonFactory::registry{
     _OV_OP_SHAPE_INFER_REG(ov::op::internal::AUGRUCell, entryIO),
     _OV_OP_SHAPE_INFER_REG(ov::op::internal::AUGRUSequence, entryIO),
     _OV_OP_SHAPE_INFER_REG(Pad, entryIOC),
+    _OV_OP_SHAPE_INFER_REG(PriorBox, entryIOC),
+    _OV_OP_SHAPE_INFER_REG(PriorBoxClustered, entryIOC),
     _OV_OP_SHAPE_INFER_REG(Proposal, entryIO),
     _OV_OP_SHAPE_INFER_REG(PSROIPooling, entryIO),
     _OV_OP_SHAPE_INFER_REG(Range, entryIOC),
