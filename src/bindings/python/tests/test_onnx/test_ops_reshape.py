@@ -16,7 +16,8 @@ from tests.test_onnx.utils import (
     run_node,
 )
 from tests import (xfail_issue_35927,
-                   xfail_issue_44858)
+                   xfail_issue_44858,
+                   xfail_dynamic_rank)
 
 
 def test_reshape():
@@ -217,12 +218,17 @@ def test_concat():
             graph_results = run_node(node, np.array(values, dtype=np.int32))
             assert np.array_equal(graph_results, [expected_output])
 
-
 def test_squeeze():
-    data = np.arange(6, dtype=np.int32).reshape([1, 2, 3, 1])
-    expected_output = data.reshape([2, 3])
+    data = np.arange(6, dtype=np.int32).reshape([1, 2, 1, 3, 1])
+    expected_output = data.reshape([1, 2, 3, 1])
+    axes = np.array([2]).astype(np.int64)
+    node = onnx.helper.make_node("Squeeze", inputs=["x", "axes"], outputs=["y"])
+    graph_results = run_node(node, [data, axes])
+    assert np.array_equal(graph_results, [expected_output])
 
-    axes = np.array([0, 3]).astype(np.int64)
+    data = np.arange(6, dtype=np.int32).reshape([2, 3, 1])
+    expected_output = data.reshape([2, 3])
+    axes = np.array([-1]).astype(np.int64)
     node = onnx.helper.make_node("Squeeze", inputs=["x", "axes"], outputs=["y"])
     graph_results = run_node(node, [data, axes])
     assert np.array_equal(graph_results, [expected_output])
@@ -237,6 +243,38 @@ def test_squeeze():
     data = np.arange(6, dtype=np.int32).reshape([1, 2, 1, 3, 1])
     expected_output = data.reshape([1, 2, 3, 1])
     axes = np.array([2]).astype(np.int64)
+    node = onnx.helper.make_node("Squeeze", inputs=["x", "axes"], outputs=["y"])
+    graph_results = run_node(node, [data, axes])
+    assert np.array_equal(graph_results, [expected_output])
+
+    data = np.arange(6, dtype=np.int32).reshape([2, 1, 3])
+    expected_output = data.reshape([2, 3])
+    axes = np.array([1, 1]).astype(np.int64)
+    node = onnx.helper.make_node("Squeeze", inputs=["x", "axes"], outputs=["y"])
+    graph_results = run_node(node, [data, axes])
+    assert np.array_equal(graph_results, [expected_output])
+
+    data = np.arange(6, dtype=np.int32).reshape([1, 2, 3])
+    expected_output = data.reshape([2, 3])
+    # Axes is Parameter, but there is only one squezaable dimension, runtime values are ingored
+    axes = np.array([1, 3]).astype(np.int64)
+    node = onnx.helper.make_node("Squeeze", inputs=["x", "axes"], outputs=["y"])
+    graph_results = run_node(node, [data, axes])
+    assert np.array_equal(graph_results, [expected_output])
+
+
+@xfail_dynamic_rank
+def test_squeeze_dyn_rank():
+    data = np.arange(6, dtype=np.int32).reshape([1, 2, 3, 1])
+    expected_output = data.reshape([2, 3])
+    axes = np.array([0, 3]).astype(np.int64)
+    node = onnx.helper.make_node("Squeeze", inputs=["x", "axes"], outputs=["y"])
+    graph_results = run_node(node, [data, axes])
+    assert np.array_equal(graph_results, [expected_output])
+
+    data = np.arange(6, dtype=np.int32).reshape([1, 2, 3, 1])
+    expected_output = data.reshape([2, 3])
+    axes = np.array([0, 0]).astype(np.int64)
     node = onnx.helper.make_node("Squeeze", inputs=["x", "axes"], outputs=["y"])
     graph_results = run_node(node, [data, axes])
     assert np.array_equal(graph_results, [expected_output])
