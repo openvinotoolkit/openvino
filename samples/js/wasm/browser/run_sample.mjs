@@ -1,4 +1,5 @@
-const DEFAULT_SAMPLE = 'classification';
+import { printOVInfo } from './common/index.mjs';
+
 const form = document.forms['form'];
 const fieldset = document.querySelector('fieldset');
 
@@ -15,7 +16,8 @@ form.addEventListener('change', async () => {
 async function run(sampleName) {
   const { default: sample } = await import(`./samples/${sampleName}.mjs`);
 
+  await printOVInfo(openvinojs);
   console.log(`= Run sample: ${sampleName}`);
   await sample(openvinojs);
-  console.log('= End');
+  console.log('= End\n');
 }

@@ -38,4 +38,4 @@
 
 - Run `npm run browser` from *./samples/js/wasm/*
 - Open [http://127.0.0.1:8081/](http://127.0.0.1:8081/) in your browser and follow instructions
-- Open [http://127.0.0.1:8081/demo.html](http://127.0.0.1:8081/demo.html) in your browser if you don't want to select image manually
+- Open samples [http://127.0.0.1:8081/samples.html](http://127.0.0.1:8081/samples.html) in your browser if you don't want to select image manually

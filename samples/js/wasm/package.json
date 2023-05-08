@@ -9,7 +9,7 @@
     "browser": "http-server -p8081 -c-1 ./browser/",
     "postinstall": "./create_symlinks.sh",
     "lint": "eslint .",
-    "nodejs": "cd nodejs && node index.js"
+    "nodejs": "cd nodejs && node run_sample.js"
   },
   "devDependencies": {
     "canvas": "^2.11.2",

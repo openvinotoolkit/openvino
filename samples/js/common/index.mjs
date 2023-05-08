@@ -57,6 +57,13 @@ export function printShape(shape) {
   console.log(`Tensor shape: ${shape.toString()}`);
 }
 
+export async function printOVInfo(openvinojs) {
+  console.log(`== OpenVINO v${await openvinojs.getVersionString()}`);
+  console.log(`== Description string: ${
+    await openvinojs.getDescriptionString()
+  }`);
+}
+
 async function getClasses() {
   if (isNodeJS)
     return (await import('../assets/imagenet_classes_map.json', {
