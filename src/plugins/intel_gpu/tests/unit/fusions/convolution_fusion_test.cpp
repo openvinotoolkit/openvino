@@ -361,6 +361,7 @@ public:
 #define CASE_CONV_FP32_13 { 1, 16, 18, 5, 4 }, { 1, 16, 16, 3, 2 }, { 1, 1, 3, 3, 3 }, { 1, 1, 1 }, { 0, 0, 0 }, { 1, 1, 1 }, 2, data_types::f32, format::b_fs_zyx_fsv16, data_types::f32, format::g_os_is_zyx_isv16_osv16, data_types::f32, format::bfzyx
 #define CASE_CONV_FP32_14 { 1, 3, 4, 5 }, { 1, 30, 2, 3 }, { 1, 1, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::f32, format::bfyx, data_types::f32, format::bfyx, data_types::f32, format::bfyx
 #define CASE_CONV_FP32_15 { 1, 6, 4, 4 }, { 1, 16, 4, 4 }, { 1, 1, 3, 3 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, 1, data_types::f32, format::bfyx, data_types::f32, format::bfyx, data_types::f32, format::bfyx
+#define CASE_CONV_FP32_16 { 1, 3, 112, 112, 8 }, { 1, 16, 56, 56, 8 }, { 1, 1, 3, 3, 1 }, { 2, 2, 1 }, { 1, 1, 0 }, { 1, 1, 1 }, 1, data_types::f32, format::bfzyx, data_types::f32, format::bfzyx, data_types::f32, format::bfzyx
 
 
 #define CASE_CONV_FP16_1 { 1, 15, 4, 5 }, { 1, 30, 2, 3 }, { 1, 1, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::f16, format::bfyx, data_types::f16, format::bfyx, data_types::f16, format::bfyx
@@ -378,6 +379,7 @@ public:
 #define CASE_CONV_FP16_13 { 16, 32, 4, 5 }, { 16, 64, 2, 3 }, { 1, 1, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::f16, format::fs_b_yx_fsv32, data_types::f16, format::bfyx, data_types::f16, format::bfyx
 #define CASE_CONV_FP16_14 { 1, 32, 55, 1 }, { 1, 32, 55, 1 }, { 1, 1, 3, 1 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, 32, data_types::f16, format::b_fs_yx_fsv16, data_types::f16,  format::gs_oiyx_gsv16, data_types::f16, format::bfyx
 #define CASE_CONV_FP16_15 { 1, 39, 55, 1 }, { 1, 39, 55, 1 }, { 1, 1, 3, 1 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, 39, data_types::f16, format::b_fs_yx_fsv16, data_types::f16,  format::gs_oiyx_gsv16, data_types::f16, format::bfyx
+#define CASE_CONV_FP16_16 { 1, 3, 112, 112, 8 }, { 1, 32, 56, 56, 8 }, { 1, 1, 3, 3, 1 }, { 2, 2, 1 }, { 1, 1, 0 }, { 1, 1, 1 }, 1, data_types::f16, format::bfzyx, data_types::f16, format::bfzyx, data_types::f16, format::bfzyx
 
 #define CASE_CONV_U8S8_1 { 1, 15, 4, 5 }, { 1, 30, 2, 3 }, { 1, 1, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::u8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
 #define CASE_CONV_U8S8_2 { 1, 15, 5, 5 }, { 1, 30, 3, 3 }, { 1, 1, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::u8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
@@ -3246,6 +3248,27 @@ TEST_P(conv_fp32_reorder_bfyx_to_fsv32_conv_data_padding, have_data_padding) {
 }
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_reorder_bfyx_to_fsv32_conv_data_padding, ::testing::ValuesIn(std::vector<convolution_test_params>{
     convolution_test_params{ FSV32_CASE_CONV_FP32_1, 5, 5, 5 }
+}));
+
+class conv_gen9_common_conv_fwd_data_1stconv : public ConvFusingTest {};
+TEST_P(conv_gen9_common_conv_fwd_data_1stconv, basic) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("bias", get_mem(get_bias_layout(p))),
+        convolution("conv_prim", input_info("input"), { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
+        activation("activation", input_info("conv_prim"), activation_func::hswish),
+        reorder("reorder_bfyx", input_info("activation"), p.default_format, data_types::f32)
+    );
+
+    tolerance = default_tolerance(p.default_type);
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_gen9_common_conv_fwd_data_1stconv, ::testing::ValuesIn(std::vector<convolution_test_params>{
+    convolution_test_params{ CASE_CONV_FP32_16, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP16_16, 2, 2, 3 },
 }));
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
