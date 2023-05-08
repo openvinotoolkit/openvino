@@ -65,6 +65,12 @@ Quantize a Model
 
 Once the dataset is ready and the model object is instantiated, you can apply 8-bit quantization to it:
 
+.. tab:: OpenVINO
+
+    .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_openvino.py
+       :language: python
+       :fragment: [quantization]
+
 .. tab:: PyTorch
 
     .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_torch.py
@@ -74,12 +80,6 @@ Once the dataset is ready and the model object is instantiated, you can apply 8-
 .. tab:: ONNX
 
     .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_onnx.py
-       :language: python
-       :fragment: [quantization]
-
-.. tab:: OpenVINO
-
-    .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_openvino.py
        :language: python
        :fragment: [quantization]
 
