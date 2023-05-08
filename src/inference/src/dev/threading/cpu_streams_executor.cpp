@@ -136,7 +136,7 @@ struct CPUStreamsExecutor::Impl {
                     ? _impl->_config._streams_info_table[_impl->_config._stream_ids[stream_id]][THREADS_PER_STREAM]
                     : 0;
             const auto cpu_core_type =
-                _impl->_config._streams_info_table.size() > 0
+                (_impl->_config._streams_info_table.size() > 0 && _impl->_config._stream_ids.size() > 0)
                     ? static_cast<ColumnOfProcessorTypeTable>(
                           _impl->_config._streams_info_table[_impl->_config._stream_ids[stream_id]][PROC_TYPE])
                     : static_cast<ColumnOfProcessorTypeTable>(0);
@@ -157,9 +157,13 @@ struct CPUStreamsExecutor::Impl {
                     _taskArena.reset(new custom::task_arena{concurrency});
 #    endif
                 } else {
-                    _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
-                                                                .set_core_type(selected_core_type)
-                                                                .set_max_concurrency(concurrency)});
+                    if (cpu_core_type == ALL_PROC) {
+                        _taskArena.reset(new custom::task_arena{concurrency});
+                    } else {
+                        _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
+                                                                    .set_core_type(selected_core_type)
+                                                                    .set_max_concurrency(concurrency)});
+                    }
                 }
             } else if (_impl->_config._proc_type_table.size() > 1 && !_impl->_config._cpu_pinning) {
                 _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{_numaNodeId, concurrency}});

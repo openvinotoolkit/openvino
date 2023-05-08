@@ -33,6 +33,15 @@ layout dft_inst::calc_output_layout(const dft_node& node, const kernel_impl_para
 std::string dft_inst::to_string(const dft_node& node) {
     auto desc = node.get_primitive();
     auto node_info = node.desc_to_json();
+    json_composite dft_info;
+    dft_info.add("axes", desc->axes);
+    dft_info.add("signal_size", desc->signal_size);
+    dft_info.add("output_shape", desc->output_shape);
+    dft_info.add("direction", desc->direction == dft_direction::forward ? "forward" : "inverse");
+    dft_info.add("mode", desc->mode == dft_mode::real ? "real" : "complex");
+
+    node_info->add("dft info", dft_info);
+
     std::ostringstream os;
     node_info->dump(os);
     return os.str();

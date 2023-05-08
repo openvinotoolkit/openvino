@@ -35,6 +35,9 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
     std::vector<std::string> _cached_kernel_ids;
     std::vector<kernel::ptr> _kernels;
 
+    // a pair of batch program hash and kernel entry hash of each ocl impl.
+    std::pair<std::string, std::string> kernel_dump_info;
+
     typed_primitive_impl_ocl() :  _kernel_data({}), _cached_kernel_ids({}), _kernels({}) {
         _kernel_data.weightsReorderParams.engine = kernel_selector::generic_kernel_params::Engine::NONE;
         _kernel_data.weightsReorderParams.cpuKernel = nullptr;
@@ -142,8 +145,11 @@ protected:
         if (!_kernel_data.kernels.empty()) {
             auto compiled_kernels = kernels_cache.get_kernels(params);
             _kernels.insert(_kernels.begin(), compiled_kernels.begin(), compiled_kernels.end());
+            // batch program hash and kernel entry point to find corresponding cl source code
+            kernel_dump_info = std::make_pair(std::to_string(kernels_cache.get_kernel_batch_hash(params)),
+                                          _kernel_data.kernels[0].code.kernelString->entry_point);
         }
-    }
+   }
 
     void init_by_cached_kernels(const kernels_cache& kernels_cache) override {
         if (is_cpu()) {
@@ -305,6 +311,10 @@ protected:
 
     std::vector<kernel::ptr> get_kernels() override {
         return _kernels;
+    }
+
+    std::pair<std::string, std::string> get_kernels_dump_info() const override {
+        return kernel_dump_info;
     }
 };
 

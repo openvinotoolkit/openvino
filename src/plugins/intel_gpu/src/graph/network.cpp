@@ -431,7 +431,7 @@ network::network(cldnn::BinaryInputBuffer& ib, const ExecutionConfig& config, st
         }
     }
 
-    for (auto p_inst : _exec_order) {
+    for (const auto& p_inst : _exec_order) {
         p_inst->rebuild_deps(_primitives);
         p_inst->rebuild_exec_deps(_primitives);
 
@@ -442,7 +442,7 @@ network::network(cldnn::BinaryInputBuffer& ib, const ExecutionConfig& config, st
                 auto nodes_list = stack.front();
                 stack.pop_front();
 
-                for (auto processed_nodes : *nodes_list) {
+                for (const auto& processed_nodes : *nodes_list) {
                     auto processed_node = processed_nodes.first;
                     auto dep_node = _primitives[processed_node->id()];
                     dep_node->set_output_memory(p_inst->output_memory_ptr(), false);
@@ -458,7 +458,7 @@ network::network(cldnn::BinaryInputBuffer& ib, const ExecutionConfig& config, st
     std::map<std::string, std::string> reuse_map;
     ib >> reuse_map;
 
-    for (auto reuse_pair : reuse_map) {
+    for (const auto& reuse_pair : reuse_map) {
         auto& eltw_inst = _primitives.at(reuse_pair.second);
         auto& prim_inst = _primitives.at(reuse_pair.first);
         auto& eltw_mem = eltw_inst->output_memory();
@@ -1150,6 +1150,18 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
 
     set_arguments();
     GPU_DEBUG_GET_INSTANCE(debug_config);
+    int64_t curr_iter = -1;
+#ifdef GPU_DEBUG_CONFIG
+    GPU_DEBUG_IF(!debug_config->dump_iteration.empty()) {
+        curr_iter = iteration++;
+    }
+#endif
+    auto get_iteration_prefix = [](int64_t iter) {
+        if (iter < 0)
+            return std::string("");
+        return std::to_string(iter) + "_";
+    };
+
     for (auto& inst : _exec_order) {
         GPU_DEBUG_IF(debug_config->dump_layers_path.length() > 0) {
             const std::string layer_name = inst->id();
@@ -1157,14 +1169,16 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
                 std::cerr << inst->id() << std::endl;
             }
 
-            GPU_DEBUG_IF(debug_config->dump_layers_dst_only == 0 && debug_config->is_dumped_layer(layer_name)) {
+            GPU_DEBUG_IF(debug_config->is_target_iteration(curr_iter) &&
+                        debug_config->dump_layers_dst_only == 0 && debug_config->is_dumped_layer(layer_name)) {
                 for (size_t i = 0; i < get_primitive(inst->id())->dependencies().size(); i++) {
                     log_memory_to_file(get_primitive(inst->id())->dep_memory_ptr(i),
-                                       get_stream(),
-                                       "program" + std::to_string((get_program() != nullptr) ? get_program()->get_id() : 1) +
-                                       "_network" + std::to_string(get_id()) +
-                                       "_" + layer_name + "_src" + std::to_string(i),
-                                       debug_config->dump_layers_raw);
+                                    get_stream(),
+                                    "program" + std::to_string((get_program() != nullptr) ? get_program()->get_id() : 0) +
+                                    "_network" + std::to_string(get_id()) +
+                                    "_" + get_iteration_prefix(curr_iter) +
+                                    layer_name + "_src" + std::to_string(i),
+                                    debug_config->dump_layers_raw);
                 }
             }
         }
@@ -1174,14 +1188,18 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
         GPU_DEBUG_IF(debug_config->dump_layers_path.length() > 0) {
             get_stream().finish();
             const std::string layer_name = inst->id();
-            GPU_DEBUG_IF(debug_config->is_dumped_layer(layer_name, inst->is_output())) {
+            auto prog_id = ((get_program() != nullptr) ? get_program()->get_id() : 0);
+            auto net_id = get_id();
+            GPU_DEBUG_IF(debug_config->is_target_iteration(curr_iter) &&
+                        debug_config->is_dumped_layer(layer_name, inst->is_output())) {
                 for (size_t i = 0; i < get_primitive(inst->id())->outputs_memory_count(); i++) {
                     log_memory_to_file(get_primitive(inst->id())->output_memory_ptr(i),
-                                       get_stream(),
-                                       "program" + std::to_string((get_program() != nullptr) ? get_program()->get_id() : 1) +
-                                       "_network" + std::to_string(get_id()) +
-                                       "_" + layer_name + "_dst" + std::to_string(i),
-                                       debug_config->dump_layers_raw);
+                                    get_stream(),
+                                    "program" + std::to_string(prog_id) +
+                                    "_network" + std::to_string(net_id) +
+                                    "_" + get_iteration_prefix(curr_iter) +
+                                    layer_name + "_dst" + std::to_string(i),
+                                    debug_config->dump_layers_raw);
                 }
             }
         }
