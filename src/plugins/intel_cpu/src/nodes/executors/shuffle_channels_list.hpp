@@ -45,13 +45,9 @@ public:
                                                  const std::vector<MemoryDescPtr>& dstDescs,
                                                  const dnnl::primitive_attr &attr) {
         auto build = [&](const ShuffleChannelsExecutorDesc* desc) {
-            switch (desc->executorType) {
-                default: {
-                    auto executor = desc->builder->makeExecutor(context);
-                    if (executor->init(shuffleChannelsAttributes, srcDescs, dstDescs, attr)) {
-                        return executor;
-                    }
-                } break;
+            auto executor = desc->builder->makeExecutor(context);
+            if (executor->init(shuffleChannelsAttributes, srcDescs, dstDescs, attr)) {
+                return executor;
             }
 
             ShuffleChannelsExecutorPtr ptr = nullptr;
