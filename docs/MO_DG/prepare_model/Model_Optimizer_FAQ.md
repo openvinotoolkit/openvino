@@ -45,7 +45,7 @@ For example, to add the description of the ``CustomReshape`` layer, which is an 
 
 3. Now, Model Optimizer is able to load the model into memory and start working with your extensions if there are any.
 
-   However, since your model has custom layers, you must register them as custom. To learn more about it, refer to :doc:`Custom Layers in Model Optimizer    <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>`.
+   However, since your model has custom layers, you must register them as custom. To learn more about it, refer to the :doc:`[Legacy] Custom Layers in Model Optimizer <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>`.
 
 .. _question-2:
 
@@ -69,7 +69,7 @@ Q3. What does the message "[ ERROR ]: Unable to create ports for node with id" m
 
 **A:** Most likely, Model Optimizer does not know how to infer output shapes of some layers in the given topology.
 To lessen the scope, compile the list of layers that are custom for Model Optimizer: present in the topology,
-absent in the :doc:`list of supported layers <openvino_docs_MO_DG_prepare_model_Supported_Frameworks_Layers>` for the target framework. Then, refer to available options in the corresponding section in the  :doc:`Custom Layers in Model Optimizer <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>` page.
+absent in the :doc:`list of supported layers <openvino_docs_MO_DG_prepare_model_Supported_Frameworks_Layers>` for the target framework. Then, refer to available options in the corresponding section in the :doc:`[Legacy] Custom Layers in Model Optimizer <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>` page.
 
 .. _question-7:
 
@@ -209,7 +209,7 @@ Q12. What does the message "Error happened while constructing caffe.Net in the C
 Q13. What does the message "Cannot infer shapes due to exception in Caffe" mean?
 #####################################################################################################################################################
 
-**A:** Model Optimizer tried to infer a custom layer via the Caffe framework, but the model could not be inferred using Caffe. This might happen if you try to convert the model with some noise weights and biases, which conflict with layers that have dynamic shapes. You should write your own extension for every custom layer your topology might have. For more details, refer to the :doc:`Model Optimizer Extensibility <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>` page.
+**A:** Model Optimizer tried to infer a custom layer via the Caffe framework, but the model could not be inferred using Caffe. This might happen if you try to convert the model with some noise weights and biases, which conflict with layers that have dynamic shapes. You should write your own extension for every custom layer your topology might have. For more details, refer to the :doc:`[Legacy] Model Optimizer Extensibility <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>` page.
 
 .. _question-14:
 
@@ -335,7 +335,7 @@ Q31. What does the message "No or multiple placeholders in the model, but only o
 Q32. What does the message "The amount of input nodes for port is not equal to 1" mean?
 #####################################################################################################################################################
 
-**A:** This error occurs when the ``SubgraphMatch.single_input_node`` function is used for an input port that supplies more than one node in a sub-graph. The ``single_input_node`` function can be used only for ports that has a single consumer inside the matching sub-graph. When multiple nodes are connected to the port, use the ``input_nodes`` function or ``node_by_pattern`` function instead of ``single_input_node``. For more details, refer to the **Graph Transformation Extensions** section in the :doc:`Model Optimizer Extensibility <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>` guide.
+**A:** This error occurs when the ``SubgraphMatch.single_input_node`` function is used for an input port that supplies more than one node in a sub-graph. The ``single_input_node`` function can be used only for ports that has a single consumer inside the matching sub-graph. When multiple nodes are connected to the port, use the ``input_nodes`` function or ``node_by_pattern`` function instead of ``single_input_node``. For more details, refer to the **Graph Transformation Extensions** section in the :doc:`[Legacy] Model Optimizer Extensibility <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Model_Optimizer_Extensions_Model_Optimizer_Transformation_Extensions>` guide.
 
 .. _question-33:
 
@@ -349,7 +349,7 @@ Q33. What does the message "Output node for port has already been specified" mea
 Q34. What does the message "Unsupported match kind.... Match kinds "points" or "scope" are supported only" mean?
 #####################################################################################################################################################
 
-**A:** While using configuration file to implement a TensorFlow front replacement extension, an incorrect match kind was used. Only ``points`` or ``scope`` match kinds are supported.  For more details, refer to the :doc:`Model Optimizer Extensibility <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>` guide.
+**A:** While using configuration file to implement a TensorFlow front replacement extension, an incorrect match kind was used. Only ``points`` or ``scope`` match kinds are supported.  For more details, refer to the :doc:`[Legacy] Model Optimizer Extensibility <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>` guide.
 
 .. _question-35:
 
@@ -587,14 +587,14 @@ Q64. What does the message "No class registered for match kind ... Supported mat
 Q65. What does the message "No instance(s) is(are) defined for the custom replacement" mean?
 #####################################################################################################################################################
 
-**A:** A replacement defined in the configuration file for sub-graph replacement, using node names patterns or start/end nodes, has the ``instances`` attribute. This attribute is mandatory. This error will occur if the attribute is missing. For more details, refer to the **Graph Transformation Extensions** section in the :doc:`Model Optimizer Extensibility <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>` guide.
+**A:** A replacement defined in the configuration file for sub-graph replacement, using node names patterns or start/end nodes, has the ``instances`` attribute. This attribute is mandatory. This error will occur if the attribute is missing. For more details, refer to the **Graph Transformation Extensions** section in the :doc:`[Legacy] Model Optimizer Extensibility <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>` guide.
 
 .. _question-66:
 
 Q66. What does the message "The instance must be a single dictionary for the custom replacement with id .." mean?
 #####################################################################################################################################################
 
-**A:** A replacement defined in the configuration file for sub-graph replacement, using start/end nodes, has the ``instances`` attribute. For this type of replacement, the instance must be defined with a dictionary with two keys ``start_points`` and ``end_points``. Values for these keys are lists with the start and end node names, respectively. For more details, refer to the **Graph Transformation Extensions** section in the :doc:`Model Optimizer Extensibility <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>` guide.
+**A:** A replacement defined in the configuration file for sub-graph replacement, using start/end nodes, has the ``instances`` attribute. For this type of replacement, the instance must be defined with a dictionary with two keys ``start_points`` and ``end_points``. Values for these keys are lists with the start and end node names, respectively. For more details, refer to the **Graph Transformation Extensions** section in the :doc:`[Legacy] Model Optimizer Extensibility <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Model_Optimizer_Extensions_Model_Optimizer_Transformation_Extensions>` guide.
 
 .. _question-67:
 
@@ -650,7 +650,7 @@ Q73. What does the message "End node .. is not reachable from start nodes: .." m
 Q74. What does the message "Sub-graph contains network input node .." mean?
 #####################################################################################################################################################
 
-**A:** The start or end node for the sub-graph replacement using start/end nodes is specified incorrectly. Model Optimizer finds internal nodes of the sub-graph strictly "between" the start and end nodes, and then adds all input nodes to the sub-graph (and the inputs of their inputs, etc.) for these "internal" nodes. This error reports that Model Optimizer reached input node during this phase. This means that the start/end points are specified incorrectly in the configuration file. For more details, refer to the **Graph Transformation Extensions** section in the :doc:`Model Optimizer Extensibility <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>` guide.
+**A:** The start or end node for the sub-graph replacement using start/end nodes is specified incorrectly. Model Optimizer finds internal nodes of the sub-graph strictly "between" the start and end nodes, and then adds all input nodes to the sub-graph (and the inputs of their inputs, etc.) for these "internal" nodes. This error reports that Model Optimizer reached input node during this phase. This means that the start/end points are specified incorrectly in the configuration file. For more details, refer to the **Graph Transformation Extensions** section in the :doc:`[Legacy] Model Optimizer Extensibility <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Model_Optimizer_Extensions_Model_Optimizer_Transformation_Extensions>` guide.
 
 .. _question-75:
 
@@ -671,7 +671,7 @@ Q76. What does the message "... elements of ... were clipped to zero while conve
 Q77. What does the message "The amount of nodes matched pattern ... is not equal to 1" mean?
 #####################################################################################################################################################
 
-**A:** This error occurs when the ``SubgraphMatch.node_by_pattern`` function is used with a pattern that does not uniquely identify a single node in a sub-graph. Try to extend the pattern string to make unambiguous match to a single sub-graph node. For more details, refer to the **Graph Transformation Extensions** section in the :doc:`Model Optimizer Extensibility <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>` guide.
+**A:** This error occurs when the ``SubgraphMatch.node_by_pattern`` function is used with a pattern that does not uniquely identify a single node in a sub-graph. Try to extend the pattern string to make unambiguous match to a single sub-graph node. For more details, refer to the **Graph Transformation Extensions** section in the :doc:`[Legacy] Model Optimizer Extensibility <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Model_Optimizer_Extensions_Model_Optimizer_Transformation_Extensions>` guide.
 
 .. _question-78:
 
@@ -867,10 +867,11 @@ For Tensorflow:
 
 For all frameworks:
 
-1. :doc:`Replace cycle containing Sub-graph in Model Optimizer <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>`
+1. :doc:`Replace cycle containing Sub-graph in Model Optimizer [Legacy Solution] <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>`
 2. See :doc:`OpenVINO Extensibility Mechanism <openvino_docs_Extensibility_UG_Intro>`
 
 or
+
 * Edit the model in its original framework to exclude cycle.
 
 .. _question-94:
