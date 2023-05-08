@@ -2,18 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/roi_align.hpp"
-
-#include <roi_align_shape_inference.hpp>
+#include "ngraph/runtime/reference/roi_align.hpp"
 
 #include "itt.hpp"
-#include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/roi_align.hpp"
-#include "ngraph/util.hpp"  // for host_tensor_2_vector
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/roi_align.hpp"
+#include "roi_align_shape_inference.hpp"
 
 using namespace std;
-using namespace ngraph;
 
+namespace ov {
 op::v3::ROIAlign::ROIAlign(const Output<Node>& input,
                            const Output<Node>& rois,
                            const Output<Node>& batch_indices,
@@ -50,35 +48,18 @@ op::v3::ROIAlign::ROIAlign(const Output<Node>& input,
 
 void op::v3::ROIAlign::validate_and_infer_types() {
     OV_OP_SCOPE(v3_ROIAlign_validate_and_infer_types);
-    NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(0).is_real() && get_input_element_type(1).is_real(),
-                          "The data type for input and ROIs is expected to be a floating point type. Got: ",
-                          get_input_element_type(0),
-                          " and: ",
-                          get_input_element_type(1));
 
-    NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(0) == get_input_element_type(1),
-                          "Type of feature maps (inputs) and rois is expected to be the same. Got: ",
-                          get_input_element_type(0),
-                          " and: ",
-                          get_input_element_type(1));
+    const auto out_et = roi_align::validate::data_and_roi_et(this);
+    roi_align::validate::batch_indicies_et(this);
 
-    NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(2).is_integral_number(),
-                          "The data type for batch indices is expected to be an integer. Got: ",
-                          get_input_element_type(2));
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    const auto input_shapes = get_node_input_partial_shapes(*this);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
-    const std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0),
-                                                        get_input_partial_shape(1),
-                                                        get_input_partial_shape(2)};
+    auto output_shape = shape_infer(this, input_shapes).front();
+    set_output_type(0, out_et, output_shape);
 
-    shape_infer(this, input_shapes, output_shapes);
-    set_output_size(1);
-    set_output_type(0, get_input_element_type(0), output_shapes[0]);
-
-    const auto& input_ps = get_input_partial_shape(0);
+    const auto& input_ps = input_shapes.front();
 
     // if the channels dimension is not known
     // the first input should be used during the function specialization
@@ -87,7 +68,7 @@ void op::v3::ROIAlign::validate_and_infer_types() {
     }
     // if the 'NUM_ROIS' value is not known
     // the last 2 inputs should be used during the function specialization
-    if ((output_shapes[0])[0].is_dynamic()) {
+    if (output_shape[0].is_dynamic()) {
         set_input_is_relevant_to_shape(1);
         set_input_is_relevant_to_shape(2);
     }
@@ -140,35 +121,18 @@ op::v9::ROIAlign::ROIAlign(const Output<Node>& input,
 
 void op::v9::ROIAlign::validate_and_infer_types() {
     OV_OP_SCOPE(v9_ROIAlign_validate_and_infer_types);
-    NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(0).is_real() && get_input_element_type(1).is_real(),
-                          "The data type for input and ROIs is expected to be a floating point type. Got: ",
-                          get_input_element_type(0),
-                          " and: ",
-                          get_input_element_type(1));
 
-    NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(0) == get_input_element_type(1),
-                          "Type of feature maps (inputs) and rois is expected to be the same. Got: ",
-                          get_input_element_type(0),
-                          " and: ",
-                          get_input_element_type(1));
+    const auto out_et = roi_align::validate::data_and_roi_et(this);
+    roi_align::validate::batch_indicies_et(this);
 
-    NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(2).is_integral_number(),
-                          "The data type for batch indices is expected to be an integer. Got: ",
-                          get_input_element_type(2));
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    const auto input_shapes = get_node_input_partial_shapes(*this);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
-    const std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0),
-                                                        get_input_partial_shape(1),
-                                                        get_input_partial_shape(2)};
+    auto output_shape = shape_infer(this, input_shapes).front();
+    set_output_type(0, out_et, output_shape);
 
-    shape_infer(this, input_shapes, output_shapes);
-    set_output_size(1);
-    set_output_type(0, get_input_element_type(0), output_shapes[0]);
-
-    const auto& input_ps = get_input_partial_shape(0);
+    const auto& input_ps = input_shapes.front();
 
     // if the channels dimension is not known
     // the first input should be used during the function specialization
@@ -177,7 +141,7 @@ void op::v9::ROIAlign::validate_and_infer_types() {
     }
     // if the 'NUM_ROIS' value is not known
     // the last 2 inputs should be used during the function specialization
-    if ((output_shapes[0])[0].is_dynamic()) {
+    if (output_shape[0].is_dynamic()) {
         set_input_is_relevant_to_shape(1);
         set_input_is_relevant_to_shape(2);
     }
@@ -209,94 +173,93 @@ shared_ptr<Node> op::v9::ROIAlign::clone_with_new_inputs(const OutputVector& new
                                  m_aligned_mode);
 }
 
-namespace ov {
 template <>
-NGRAPH_API EnumNames<ngraph::op::v3::ROIAlign::PoolingMode>& EnumNames<ngraph::op::v3::ROIAlign::PoolingMode>::get() {
-    static auto enum_names = EnumNames<ngraph::op::v3::ROIAlign::PoolingMode>(
+OPENVINO_API EnumNames<op::v3::ROIAlign::PoolingMode>& EnumNames<op::v3::ROIAlign::PoolingMode>::get() {
+    static auto enum_names = EnumNames<op::v3::ROIAlign::PoolingMode>(
         "op::v3::ROIAlign::PoolingMode",
-        {{"avg", ngraph::op::v3::ROIAlign::PoolingMode::AVG}, {"max", ngraph::op::v3::ROIAlign::PoolingMode::MAX}});
+        {{"avg", op::v3::ROIAlign::PoolingMode::AVG}, {"max", op::v3::ROIAlign::PoolingMode::MAX}});
     return enum_names;
 }
 
 template <>
-NGRAPH_API EnumNames<ngraph::op::v9::ROIAlign::PoolingMode>& EnumNames<ngraph::op::v9::ROIAlign::PoolingMode>::get() {
-    static auto enum_names = EnumNames<ngraph::op::v9::ROIAlign::PoolingMode>(
+OPENVINO_API EnumNames<op::v9::ROIAlign::PoolingMode>& EnumNames<op::v9::ROIAlign::PoolingMode>::get() {
+    static auto enum_names = EnumNames<op::v9::ROIAlign::PoolingMode>(
         "op::v9::ROIAlign::PoolingMode",
-        {{"avg", ngraph::op::v9::ROIAlign::PoolingMode::AVG}, {"max", ngraph::op::v9::ROIAlign::PoolingMode::MAX}});
+        {{"avg", op::v9::ROIAlign::PoolingMode::AVG}, {"max", op::v9::ROIAlign::PoolingMode::MAX}});
     return enum_names;
 }
 
 template <>
-NGRAPH_API EnumNames<ngraph::op::v9::ROIAlign::AlignedMode>& EnumNames<ngraph::op::v9::ROIAlign::AlignedMode>::get() {
-    static auto enum_names = EnumNames<ngraph::op::v9::ROIAlign::AlignedMode>(
+OPENVINO_API EnumNames<op::v9::ROIAlign::AlignedMode>& EnumNames<op::v9::ROIAlign::AlignedMode>::get() {
+    static auto enum_names = EnumNames<op::v9::ROIAlign::AlignedMode>(
         "op::v9::ROIAlign::AlignedMode",
-        {{"asymmetric", ngraph::op::v9::ROIAlign::AlignedMode::ASYMMETRIC},
-         {"half_pixel_for_nn", ngraph::op::v9::ROIAlign::AlignedMode::HALF_PIXEL_FOR_NN},
-         {"half_pixel", ngraph::op::v9::ROIAlign::AlignedMode::HALF_PIXEL}});
+        {{"asymmetric", op::v9::ROIAlign::AlignedMode::ASYMMETRIC},
+         {"half_pixel_for_nn", op::v9::ROIAlign::AlignedMode::HALF_PIXEL_FOR_NN},
+         {"half_pixel", op::v9::ROIAlign::AlignedMode::HALF_PIXEL}});
     return enum_names;
 }
 
-}  // namespace ov
-
-std::ostream& ov::operator<<(std::ostream& s, const op::v3::ROIAlign::PoolingMode& type) {
+std::ostream& operator<<(std::ostream& s, const op::v3::ROIAlign::PoolingMode& type) {
     return s << as_string(type);
 }
 
-std::ostream& ov::operator<<(std::ostream& s, const op::v9::ROIAlign::PoolingMode& type) {
+std::ostream& operator<<(std::ostream& s, const op::v9::ROIAlign::PoolingMode& type) {
     return s << as_string(type);
 }
 
-std::ostream& ov::operator<<(std::ostream& s, const op::v9::ROIAlign::AlignedMode& type) {
+std::ostream& operator<<(std::ostream& s, const op::v9::ROIAlign::AlignedMode& type) {
     return s << as_string(type);
 }
 
-namespace roi_alinop {
+namespace op {
+namespace roi_align {
 namespace {
+
 template <element::Type_t ET>
-bool evaluate(const HostTensorPtr& feature_maps,
-              const HostTensorPtr& rois,
+bool evaluate(const Tensor& feature_maps,
+              const Tensor& rois,
               const std::vector<int64_t>& batch_indices_vec_scaled_up,
-              const HostTensorPtr& out,
+              const Tensor& out,
               const int pooled_height,
               const int pooled_width,
               const int sampling_ratio,
               const float spatial_scale,
-              const op::v3::ROIAlign::PoolingMode& pooling_mode,
-              const ov::Shape& batch_indices_shape,
-              const op::v9::ROIAlign::AlignedMode& aligned_mode = op::v9::ROIAlign::AlignedMode::ASYMMETRIC) {
+              const v3::ROIAlign::PoolingMode& pooling_mode,
+              const Shape& batch_indices_shape,
+              const v9::ROIAlign::AlignedMode& aligned_mode = v9::ROIAlign::AlignedMode::ASYMMETRIC) {
     using T = typename element_type_traits<ET>::value_type;
-    runtime::reference::roi_align<T>(feature_maps->get_data_ptr<ET>(),
-                                     rois->get_data_ptr<ET>(),
-                                     batch_indices_vec_scaled_up.data(),
-                                     out->get_data_ptr<ET>(),
-                                     feature_maps->get_shape(),
-                                     rois->get_shape(),
-                                     batch_indices_shape,
-                                     out->get_shape(),
-                                     pooled_height,
-                                     pooled_width,
-                                     sampling_ratio,
-                                     spatial_scale,
-                                     pooling_mode,
-                                     aligned_mode);
+    ngraph::runtime::reference::roi_align<T>(feature_maps.data<T>(),
+                                             rois.data<T>(),
+                                             batch_indices_vec_scaled_up.data(),
+                                             out.data<T>(),
+                                             feature_maps.get_shape(),
+                                             rois.get_shape(),
+                                             batch_indices_shape,
+                                             out.get_shape(),
+                                             pooled_height,
+                                             pooled_width,
+                                             sampling_ratio,
+                                             spatial_scale,
+                                             pooling_mode,
+                                             aligned_mode);
     return true;
 }
 
-bool evaluate_roi_align(const HostTensorVector& args,
-                        const HostTensorPtr& out,
-                        const int pooled_height,
-                        const int pooled_width,
-                        const int sampling_ratio,
-                        const float spatial_scale,
-                        const op::v3::ROIAlign::PoolingMode& pooling_mode,
-                        const op::v9::ROIAlign::AlignedMode& aligned_mode = op::v9::ROIAlign::AlignedMode::ASYMMETRIC) {
-    auto feature_maps = args[0];
-    auto rois = args[1];
-    auto batch_indices = args[2];
-    std::vector<int64_t> batch_indices_vec_scaled_up = host_tensor_2_vector<int64_t>(batch_indices);
+bool evaluate(const TensorVector& args,
+              const Tensor& out,
+              const int pooled_height,
+              const int pooled_width,
+              const int sampling_ratio,
+              const float spatial_scale,
+              const v3::ROIAlign::PoolingMode& pooling_mode,
+              const v9::ROIAlign::AlignedMode& aligned_mode = v9::ROIAlign::AlignedMode::ASYMMETRIC) {
+    const auto& feature_maps = args[0];
+    const auto& rois = args[1];
+    const auto& batch_indices = args[2];
+    const auto batch_indices_vec_scaled_up = get_tensor_data_as<int64_t>(batch_indices, ov::util::Cast<int64_t>());
 
-    bool rc = true;
-    switch (feature_maps->get_element_type()) {
+    bool rc;
+    switch (feature_maps.get_element_type()) {
         NGRAPH_TYPE_CASE(evaluate_roi_align,
                          bf16,
                          feature_maps,
@@ -308,7 +271,7 @@ bool evaluate_roi_align(const HostTensorVector& args,
                          sampling_ratio,
                          spatial_scale,
                          pooling_mode,
-                         batch_indices->get_shape(),
+                         batch_indices.get_shape(),
                          aligned_mode);
         NGRAPH_TYPE_CASE(evaluate_roi_align,
                          f16,
@@ -321,7 +284,7 @@ bool evaluate_roi_align(const HostTensorVector& args,
                          sampling_ratio,
                          spatial_scale,
                          pooling_mode,
-                         batch_indices->get_shape(),
+                         batch_indices.get_shape(),
                          aligned_mode);
         NGRAPH_TYPE_CASE(evaluate_roi_align,
                          f32,
@@ -334,7 +297,7 @@ bool evaluate_roi_align(const HostTensorVector& args,
                          sampling_ratio,
                          spatial_scale,
                          pooling_mode,
-                         batch_indices->get_shape(),
+                         batch_indices.get_shape(),
                          aligned_mode);
     default:
         rc = false;
@@ -344,28 +307,24 @@ bool evaluate_roi_align(const HostTensorVector& args,
     return rc;
 }
 }  // namespace
-}  // namespace roi_alinop
+}  // namespace roi_align
 
-bool op::v3::ROIAlign::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+bool v3::ROIAlign::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v3_ROIAlign_evaluate);
-    return roi_alinop::evaluate_roi_align(inputs,
-                                          outputs[0],
-                                          m_pooled_h,
-                                          m_pooled_w,
-                                          m_sampling_ratio,
-                                          m_spatial_scale,
-                                          m_mode);
+    return roi_align::evaluate(inputs, outputs[0], m_pooled_h, m_pooled_w, m_sampling_ratio, m_spatial_scale, m_mode);
 }
 
-bool op::v3::ROIAlign::has_evaluate() const {
+bool v3::ROIAlign::has_evaluate() const {
     OV_OP_SCOPE(v3_ROIAlign_has_evaluate);
     switch (get_input_element_type(0)) {
-    case ngraph::element::bf16:
-    case ngraph::element::f16:
-    case ngraph::element::f32:
+    case element::bf16:
+    case element::f16:
+    case element::f32:
         return true;
     default:
         break;
     }
     return false;
 }
+}  // namespace op
+}  // namespace ov
