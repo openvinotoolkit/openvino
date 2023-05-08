@@ -46,7 +46,7 @@ Output<Node> apply_dtype(const NodeContext& context, size_t dtype_port, const Ou
 
 op::PadType convert_pad(const std::string& pt_pad);
 
-std::shared_ptr<Node> concat_list_construct(std::shared_ptr<Node> input);
+Output<Node> concat_list_construct(const Output<Node>& input);
 
 OutputVector make_framework_node(const NodeContext& context);
 
