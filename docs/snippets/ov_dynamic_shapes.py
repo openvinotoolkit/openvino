@@ -7,40 +7,22 @@ import openvino.runtime as ov
 #! [import]
 
 #! [reshape_undefined]
-core = ov.Core()
-model = core.read_model("model.xml")
+Core = ov.Core()
+model = core.read_model(“model.xml”)
 
-# Set one static dimension (= 1) and another dynamic dimension (= Dimension())
-model.reshape([1, ov.Dimension()])
+# Set first dimension to be dynamic while keeping others static
+model.reshape([-1, 3, 224, 224])
 
-# The same as above
-model.reshape([1, -1])
-
-# The same as above
-model.reshape("1, ?")
-
-# Or set both dimensions as dynamic if both are going to be changed dynamically
-model.reshape([ov.Dimension(), ov.Dimension()])
-
-# The same as above
-model.reshape([-1, -1])
-
-# The same as above
-model.reshape("?, ?")
+# Or, set third and fourth dimensions as dynamic
+model.reshape([1, 3, -1, -1])
 #! [reshape_undefined]
 
 #! [reshape_bounds]
-# Both dimensions are dynamic, first has a size within 1..10 and the second has a size within 8..512
-model.reshape([ov.Dimension(1, 10), ov.Dimension(8, 512)])
+# Example 1 - set first dimension as dynamic (no bounds) and third and fourth dimensions to range of 112..448
+model.reshape([-1, 3, (112, 448), (112, 448)])
 
-# The same as above
-model.reshape([(1, 10), (8, 512)])
-
-# The same as above
-model.reshape("1..10, 8..512")
-
-# Both dimensions are dynamic, first doesn't have bounds, the second is in the range of 8..512
-model.reshape([-1, (8, 512)])
+# Example 2 - Set first dimension to a range of 1..8 and third and fourth dimensions to range of 112..448
+model.reshape([(1, 8), 3, (112, 448), (112, 448)])
 #! [reshape_bounds]
 
 model = core.read_model("model.xml")
@@ -73,45 +55,21 @@ executable = core.compile_model(model)
 infer_request = executable.create_infer_request()
 
 #! [set_input_tensor]
-# The first inference call
+# For first inference call, prepare an input tensor with 1x128 shape and run inference request
+Input_data1 = np.ones(shape=[1,128])
+infer_request.infer([input_data1])
 
-# Create tensor compatible to the model input
-# Shape {1, 128} is compatible with any reshape statements made in previous examples
-input_tensor1 = ov.Tensor(model.input().element_type, [1, 128])
-# ... write values to input_tensor_1
+# Get resulting outputs
+Output_tensor1 = infer_request.get_output_tensor()
+Output_data1 = output_tensor.data[:]
 
-# Set the tensor as an input for the infer request
-infer_request.set_input_tensor(input_tensor1)
+# For second inference call, prepare a 1x200 input tensor and run inference request
+Input_data2 = np.ones(shape=[1,200])
+infer_request.infer([input_data2])
 
-# Do the inference
-infer_request.infer()
-
-# Or pass a tensor in infer to set the tensor as a model input and make the inference
-infer_request.infer([input_tensor1])
-
-# Or pass the numpy array to set inputs of the infer request
-input_data = np.ones(shape=[1, 128])
-infer_request.infer([input_data])
-
-# Retrieve a tensor representing the output data
-output_tensor = infer_request.get_output_tensor()
-
-# Copy data from tensor to numpy array
-data1 = output_tensor.data[:]
-
-# The second inference call, repeat steps:
-
-# Create another tensor (if the previous one cannot be utilized)
-# Notice, the shape is different from input_tensor_1
-input_tensor2 = ov.Tensor(model.input().element_type, [1, 200])
-# ... write values to input_tensor_2
-
-infer_request.infer([input_tensor2])
-
-# No need to call infer_request.get_output_tensor() again
-# output_tensor queried after the first inference call above is valid here.
-# But it may not be true for the memory underneath as shape changed, so re-take an output data:
-data2 = output_tensor.data[:]
+# Get resulting outputs
+Output_tensor2 = infer_request.get_output_tensor()
+Output_data2 = output_tensor.data[:]
 #! [set_input_tensor]
 
 infer_request = executable.create_infer_request()
@@ -137,3 +95,21 @@ input_tensor.shape = [1, 200]
 infer_request.infer()
 data2 = output_tensor.data[:]
 #! [get_input_tensor]
+
+#! [check_inputs]
+core = ov.Core()
+model = core.read_model("model.xml")
+
+# Print model input layer info
+for input_layer in model.inputs:
+    print(input_layer.names, input_layer.partial_shape)
+#! [check_inputs]
+
+#! [reshape_multiple_inputs]
+# Assign dynamic shapes to second dimension in every input layer
+shapes = {}
+for input_layer in model.inputs:
+    shapes[input_layer] = input_layer.partial_shape
+    shapes[input_layer][1] = -1
+model.reshape(shapes)
+#! [reshape_multiple_inputs]
