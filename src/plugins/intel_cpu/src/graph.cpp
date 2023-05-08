@@ -961,7 +961,7 @@ void Graph::PullOutputData(BlobMap &out) {
         auto srcPrec = actualDesc.getPrecision();
         auto dstPrec = expectedDesc.getPrecision();
 
-        if (getConfig().isLegacyApi && srcPrec == dstPrec && ext_blob->byteSize() != intr_blob.GetSize())
+        if (!getConfig().isLegacyApi && srcPrec == dstPrec && ext_blob->byteSize() != intr_blob.GetSize())
             IE_THROW() << "Output blob byte size is not equal network output byte size (" << ext_blob->byteSize()
                        << "!=" << intr_blob.GetSize() << ").";
 
@@ -985,7 +985,7 @@ void Graph::PullOutputData(BlobMap &out) {
             size_t size_to_copy = intr_blob.GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
             // used only for backward compatibility with the legacy API
             if (getConfig().batchLimit && dynBatch > 0) {
-                if (node->isDynamicNode() && !getConfig().isLegacyApi) {
+                if (node->isDynamicNode() && getConfig().isLegacyApi) {
                     IE_THROW(NotImplemented) << "[DS] not implemented dynamic batch for node with dynamic shape";
                 }
 

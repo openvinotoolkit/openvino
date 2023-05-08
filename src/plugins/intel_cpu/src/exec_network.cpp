@@ -83,7 +83,7 @@ ExecNetwork::ExecNetwork(const InferenceEngine::CNNNetwork &network,
     const auto& core = _plugin->GetCore();
     if (!core)
         IE_THROW() << "Unable to get API version. Core is unavailable";
-    _cfg.isLegacyApi = core->isNewAPI();
+    _cfg.isLegacyApi = !core->isNewAPI();
 
 
     if (_cfg.batchLimit > 1) {
@@ -282,7 +282,7 @@ InferenceEngine::Parameter ExecNetwork::GetMetric(const std::string &name) const
     const auto& graph = graphLock._graph;
     const auto& config = graph.getConfig();
 
-    if (!_cfg.isLegacyApi) {
+    if (_cfg.isLegacyApi) {
         return GetMetricLegacy(name, graph);
     }
 
