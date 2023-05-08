@@ -59,24 +59,8 @@ void shape_infer(const Squeeze* op,
                 unique_axes.reset(new std::set<int64_t>(axes.cbegin(), axes.cend()));
             } else if (shape_size(axes_shape.to_shape()) == 1) {
                 // The `axes` input must be a Parameter with single element to ensure uniqueness of axes
-                output_shape.resize(0);
-                int64_t squeezable_dims_count =
-                    std::count_if(arg_shape.begin(), arg_shape.end(), [&](const DimType& dim) {
-                        if (dim.compatible(1)) {
-                            return true;
-                        } else {
-                            // Copy not squeezable dimensions to the output shape
-                            output_shape.push_back(dim);
-                            return false;
-                        }
-                    });
-                if (squeezable_dims_count > 1) {
-                    // If the number of squeezable (1 or with 1 in range) dimensions is bigger than 1,
-                    // only rank can be deduced (single element axes gives guarantee for axes uniqueness)
-                    output_shape = PartialShape::dynamic(arg_shape.size() - 1);
-                }
-                // Otherwise there is only one or no possible dimension to squeeze,
-                // output shape has been already aligned
+                // only rank can be deduced
+                output_shape = PartialShape::dynamic(arg_shape.size() - 1);
                 return;
             }
         }

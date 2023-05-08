@@ -228,7 +228,7 @@ def test_squeeze():
 
     data = np.arange(6, dtype=np.int32).reshape([2, 3, 1])
     expected_output = data.reshape([2, 3])
-    axes = np.array([0]).astype(np.int64)
+    axes = np.array([-1]).astype(np.int64)
     node = onnx.helper.make_node("Squeeze", inputs=["x", "axes"], outputs=["y"])
     graph_results = run_node(node, [data, axes])
     assert np.array_equal(graph_results, [expected_output])

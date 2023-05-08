@@ -65,7 +65,7 @@ TEST(type_prop, squeeze_data_static_param_axes_1D_single_elem_static_shape_squee
     const auto squeeze = std::make_shared<op::v0::Squeeze>(param, axes_node);
 
     EXPECT_EQ(squeeze->get_element_type(), element::f32);
-    EXPECT_EQ(squeeze->get_output_partial_shape(0), (PartialShape{2, 4}));
+    EXPECT_EQ(squeeze->get_output_partial_shape(0), PartialShape::dynamic(2));
 }
 
 TEST(type_prop, squeeze_data_static_param_axes_scalar_static_shape_squeezable_dims_one) {
@@ -74,7 +74,7 @@ TEST(type_prop, squeeze_data_static_param_axes_scalar_static_shape_squeezable_di
     const auto squeeze = std::make_shared<op::v0::Squeeze>(param, axes_node);
 
     EXPECT_EQ(squeeze->get_element_type(), element::f32);
-    EXPECT_EQ(squeeze->get_output_partial_shape(0), (PartialShape{2, 4}));
+    EXPECT_EQ(squeeze->get_output_partial_shape(0), PartialShape::dynamic(2));
 }
 
 TEST(type_prop, squeeze_data_dynamic_param_axes_1D_two_elem_static_shape_squeezable_dims_equal) {
