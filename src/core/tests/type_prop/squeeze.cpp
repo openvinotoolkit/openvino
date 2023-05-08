@@ -77,6 +77,15 @@ TEST(type_prop, squeeze_data_static_param_axes_scalar_static_shape_squeezable_di
     EXPECT_EQ(squeeze->get_output_partial_shape(0), PartialShape::dynamic(2));
 }
 
+TEST(type_prop, squeeze_data_scalar_param_axes_1D_single_elem_static_shape) {
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, PartialShape{});
+    const auto axes_node = std::make_shared<op::Parameter>(element::u64, PartialShape{1});
+    const auto squeeze = std::make_shared<op::v0::Squeeze>(param, axes_node);
+
+    EXPECT_EQ(squeeze->get_element_type(), element::f32);
+    EXPECT_EQ(squeeze->get_output_partial_shape(0), PartialShape::dynamic());
+}
+
 TEST(type_prop, squeeze_data_dynamic_param_axes_1D_two_elem_static_shape_squeezable_dims_equal) {
     auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, PartialShape{-1, {2, 8}, {1, 3}, {4, -1}});
     const auto axes_node = std::make_shared<op::Parameter>(element::u64, PartialShape{2});

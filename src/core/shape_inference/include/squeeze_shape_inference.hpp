@@ -57,10 +57,10 @@ void shape_infer(const Squeeze* op,
                 normalize_axes(op, arg_rank.get_length(), axes);
                 OPENVINO_SUPPRESS_DEPRECATED_END
                 unique_axes.reset(new std::set<int64_t>(axes.cbegin(), axes.cend()));
-            } else if (shape_size(axes_shape.to_shape()) == 1) {
+            } else if (arg_rank.get_length() > 0 && shape_size(axes_shape.to_shape()) == 1) {
                 // The `axes` input must be a Parameter with single element to ensure uniqueness of axes
                 // only rank can be deduced
-                output_shape = PartialShape::dynamic(arg_shape.size() - 1);
+                output_shape = PartialShape::dynamic(arg_rank.get_length() - 1);
                 return;
             }
         }
