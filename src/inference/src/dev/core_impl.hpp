@@ -176,6 +176,8 @@ private:
 
     ov::AnyMap create_compile_config(const ov::Plugin& plugin, const ov::AnyMap& origConfig) const;
 
+    void register_plugin_in_registry_unsafe(const std::string& device_name, PluginDescriptor& desc);
+
     // Legacy API
     void AddExtensionUnsafe(const InferenceEngine::IExtensionPtr& extension) const;
     template <typename C, typename = FileUtils::enableIfSupportedChar<C>>

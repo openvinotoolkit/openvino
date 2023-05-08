@@ -43,17 +43,14 @@ public:
 private:
     std::vector<std::vector<std::string>> get_hidden_devices() const;
     std::string get_fallback_device(size_t idx) const;
-    std::vector<std::string> get_primary_devices() const;
-    std::string get_primary_device(size_t idx) const;
 
-    bool has_property(const std::string& property_name, const std::string& conf_name = "") const;
-    ov::Any get_property(const std::string& property_name, const std::string& conf_name = "") const;
+    ov::Any get_internal_property(const std::string& property_name, const std::string& conf_name = "") const;
 
-    std::vector<std::string> device_order;
-    std::unordered_set<std::string> alias_for;
+    std::vector<std::string> m_device_order;
+    std::unordered_set<std::string> m_alias_for;
     // Update per device config in get_hidden_devices
-    mutable std::unordered_map<std::string, ov::AnyMap> configs;
-    mutable std::mutex plugin_mutex;
+    mutable std::unordered_map<std::string, ov::AnyMap> m_configs;
+    mutable std::mutex m_plugin_mutex;
 };
 
 }  // namespace proxy

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME openvino_proxy_plugin_tests)
+set(TARGET_NAME ov_proxy_plugin_tests)
 
 # add_subdirectory(mock_plugins)
 
