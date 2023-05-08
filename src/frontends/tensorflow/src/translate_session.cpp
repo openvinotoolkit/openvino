@@ -39,23 +39,69 @@ std::vector<T> reorder_ops_by_names(const std::vector<std::string>& names, const
     return resulted_ops;
 };
 
-/// \brief Adds known input names from Saved Model file format
-/// \param[in] node Node which should be updated
-/// \param[in] saved_model_names Map of names from saved model
-/// \returns True if node was updated, false otherwise
-static bool apply_saved_model_names(std::shared_ptr<ov::Node> node,
-                                    const std::shared_ptr<std::map<std::string, std::string>>& saved_model_names) {
-    for (size_t i = 0; i < node->get_output_size(); ++i) {
-        const auto& node_names = node->get_output_tensor(i).get_names();
-        for (const auto& name : node_names) {
-            const auto& saved_model_name = saved_model_names->find(name);
-            if (saved_model_name != saved_model_names->end()) {
-                node->set_friendly_name(saved_model_name->second);
-                return true;
+/// \brief Adjusts names of the tensor by mapping internal names to user specific ones using the model signature
+/// and mark unused tensor names that must be removed
+/// \param[in] ov_output ov::Output<ov::Node> for which names set should be corrected
+/// \param[in] saved_model_input_names Map of for input names
+/// \param[in] saved_model_output_names Map of for output names
+void adjust_saved_model_names(ov::Output<ov::Node>& ov_output,
+                              const std::shared_ptr<std::map<std::string, std::string>>& saved_model_input_names,
+                              const std::shared_ptr<std::map<std::string, std::string>>& saved_model_output_names) {
+    // 1. check if it is the input or output tensor of the model
+    // perform the adjustment only for the input and output tensors of the model
+    auto param_node = ov::as_type_ptr<ov::opset8::Parameter>(ov_output.get_node_shared_ptr());
+    bool is_input_tensor = (param_node ? true : false);
+    ov::ResultVector results;
+    for (const auto& consumer : ov_output.get_target_inputs()) {
+        if (const auto& result = ov::as_type_ptr<ov::opset10::Result>(consumer.get_node()->shared_from_this())) {
+            results.push_back(result);
+        }
+    }
+    bool is_output_tensor = (results.size() > 0 ? true : false);
+    if (!is_input_tensor && !is_output_tensor) {
+        return;
+    }
+
+    // 2. find a set of clean-up names and aligned with the model signature
+    const auto& tensor_names = ov_output.get_names();
+    std::unordered_set<std::string> cleanup_names;
+    if (is_input_tensor) {
+        for (const auto& tensor_name : tensor_names) {
+            if (saved_model_input_names->count(tensor_name) > 0) {
+                cleanup_names.insert(saved_model_input_names->at(tensor_name));
+                param_node->set_friendly_name(saved_model_input_names->at(tensor_name));
             }
         }
     }
-    return false;
+
+    if (is_output_tensor) {
+        std::vector<std::string> result_names;
+        for (const auto& tensor_name : tensor_names) {
+            if (saved_model_output_names->count(tensor_name) > 0) {
+                cleanup_names.insert(saved_model_output_names->at(tensor_name));
+                result_names.push_back(saved_model_output_names->at(tensor_name));
+            }
+        }
+        // align the Result node names as many as possible
+        // it is not bad if we remain it as is because OV API 2.0 relies only on tensor names
+        size_t result_names_size = result_names.size();
+        if (result_names_size > 0) {
+            for (size_t ind = 0; ind < results.size(); ++ind) {
+                auto new_result_name = result_names[ind % result_names_size];
+                results[ind]->set_friendly_name(new_result_name);
+            }
+        }
+    }
+
+    // 3. set cleanup names to the tensor only if it is found in the signature
+    // otherwise, the tensor corresponds to unused Parameter or Result nodes
+    if (cleanup_names.size() > 0) {
+        ov_output.set_names(cleanup_names);
+    } else {
+        // this is unused tensor that should be removed
+        // because it not present in the signature
+        ov_output.add_names({"saved_model_unused"});
+    }
 }
 
 // it creates framework node and saves exception message in the node attribute
@@ -179,11 +225,6 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
 
         auto param = std::make_shared<ov::opset8::Parameter>(input_type, input_shape);
         set_node_name(input_name, param);
-        if (saved_model_inputs.get() && saved_model_inputs->size() > 0) {
-            if (!apply_saved_model_names(param, saved_model_inputs)) {
-                param->get_output_tensor(0).add_names({"saved_model_unused"});
-            }
-        }
         params.push_back(param);
         ng_op_map[input_name] = {NamedOutput(param)};
     }
@@ -297,7 +338,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                                                                    "Unknown exception type");
                 ov_outputs = named_from_indexed(fw_outs);
             }
-        } else if (auto body_ov_model = get_body_ov_model(operation_type)) {
+        } else if (auto body_ov_model = get_body_ov_model(operation_type, ov_inputs)) {
             OutputVector indexed_ov_outputs;
             inject_body_model(body_ov_model, operation_type, ov_inputs, indexed_ov_outputs);
 
@@ -348,30 +389,10 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
             if (port_type == "none") {
                 for (const auto& node_output : indexed_from_named(ng_op_map[operation_name])) {
                     auto result_node = std::make_shared<ov::opset8::Result>(node_output);
-                    // Customize output name in case we have mapping from Saved Model format
-                    if (saved_model_outputs.get() && saved_model_outputs->size() > 0) {
-                        bool isUsed = true;
-                        for (const auto& name : model_output_tensor_place->get_names()) {
-                            auto saved_model_name = saved_model_outputs->find(name);
-                            if (saved_model_name == saved_model_outputs->end()) {
-                                saved_model_name = saved_model_outputs->find(name + ":0");
-                            }
-                            if (saved_model_name != saved_model_outputs->end()) {
-                                result_node->set_friendly_name(saved_model_name->second);
-                                results.push_back(result_node);
-                                isUsed = false;
-                                break;
-                            }
-                            if (!isUsed) {
-                                result_node->get_input_tensor(0).add_names({"saved_model_unused"});
-                            }
-                        }
-                    } else {
-                        // to be aligned with Legacy Frontend we set a name along with output port index
-                        // though, the Result name is not used in the OV API 2.0 but it is checked in MO args tests
-                        result_node->set_friendly_name(model_output_name + ":0");
-                        results.push_back(result_node);
-                    }
+                    // to be aligned with Legacy Frontend we set a name along with output port index
+                    // though, the Result name is not used in the OV API 2.0 but it is checked in MO args tests
+                    result_node->set_friendly_name(model_output_name + ":0");
+                    results.push_back(result_node);
                 }
             } else if (port_type == "out") {
                 const auto& node_outputs = indexed_from_named(ng_op_map[operation_name]);
@@ -444,6 +465,27 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
         }
     }
 
+    if (saved_model_inputs || saved_model_outputs) {
+        // only SavedModel and MetaGraph models have mapping from internal tensor names to user specific ones
+        // for example, serving_default_input_name:0 maps to input_name
+        // we need to re-write input and output internal tensor names to user specific
+
+        // it makes sense to use set because Parameter and Results nodes may have the common tensor
+        std::set<ov::Output<ov::Node>> ov_tensors;
+        for (const auto& param : params) {
+            ov_tensors.insert(param->output(0));
+        }
+        for (const auto& result : results) {
+            ov_tensors.insert(result->input_value(0));
+        }
+
+        // it iterates through these tensors and adjusts their names
+        // by remaining only user specific names or mark as unused tensor (produced by TensorFlow)
+        for (auto ov_tensor : ov_tensors) {
+            adjust_saved_model_names(ov_tensor, saved_model_inputs, saved_model_outputs);
+        }
+    }
+
     // reorder Parameter and Result nodes according to the requested order
     // of input and output names from the original model
     // during translation and topologically sorting this order could be lost
@@ -455,18 +497,48 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
     ov_model = std::make_shared<ov::Model>(ordered_results, ordered_params, m_model_name);
 }
 
-std::shared_ptr<ov::Model> TranslateSession::get_body_ov_model(const std::string& body_graph_name) {
+std::shared_ptr<ov::Model> TranslateSession::get_body_ov_model(const std::string& body_graph_name,
+                                                               const ov::OutputVector& ov_inputs,
+                                                               bool clear_names) {
     std::shared_ptr<ov::Model> body_model = nullptr;
     auto input_model = std::dynamic_pointer_cast<InputModel>(m_input_model);
-    if (m_cached_body_models->count(body_graph_name)) {
+    std::vector<ov::PartialShape> input_shapes;
+    input_shapes.reserve(ov_inputs.size());
+    std::vector<ov::element::Type> input_types;
+    input_types.reserve(ov_inputs.size());
+    for (const auto& ov_input : ov_inputs) {
+        input_shapes.push_back(ov_input.get_partial_shape());
+        input_types.push_back(ov_input.get_element_type());
+    }
+    CachedBodyModelSignature body_model_signature{body_graph_name, input_shapes, input_types};
+
+    if (m_cached_body_models->count(body_model_signature)) {
         // check if such body graph has been converted before
         // re-use it from the cache for further injection
 
         // create new instance of the required body model
         // since it will be modified by injection
-        auto cached_body_model = m_cached_body_models->at(body_graph_name);
+        auto cached_body_model = m_cached_body_models->at(body_model_signature);
         body_model = cached_body_model->clone();
     } else if (auto body_input_model = input_model->get_body_input_model(body_graph_name)) {
+        // set input shapes and types for InputModel of the body graph
+        // it allows to get more optimized model after the conversion,
+        // for example, to get less sub-graphs with ShapeOf and Convert operations
+        auto inputs = body_input_model->get_inputs();
+        size_t num_inputs = inputs.size();
+        FRONT_END_GENERAL_CHECK(num_inputs == ov_inputs.size(),
+                                "[TensorFlow Frontend] internal error: a number of external  and internal inputs for a "
+                                "body graph mismatch");
+        for (size_t input_ind = 0; input_ind < num_inputs; ++input_ind) {
+            auto input_place = inputs[input_ind];
+            if (input_types[input_ind].is_static()) {
+                body_input_model->set_element_type(input_place, input_types[input_ind]);
+            }
+            if (input_shapes[input_ind].rank().is_static()) {
+                body_input_model->set_partial_shape(input_place, input_shapes[input_ind]);
+            }
+        }
+
         // try to find a function by name in the model library
         translate_graph(body_input_model, body_model);
         // save new instance of body_model in the cache of body models
@@ -474,14 +546,16 @@ std::shared_ptr<ov::Model> TranslateSession::get_body_ov_model(const std::string
 
         // before caching, erase tensor names from the body graph
         // otherwise, it can lead tensor names conflicts
-        for (const auto& op : body_model->get_ordered_ops()) {
-            for (size_t ind = 0; ind < op->get_output_size(); ++ind) {
-                op->get_output_tensor(ind).set_names({});
+        if (clear_names) {
+            for (const auto& op : body_model->get_ordered_ops()) {
+                for (size_t ind = 0; ind < op->get_output_size(); ++ind) {
+                    op->get_output_tensor(ind).set_names({});
+                }
             }
         }
 
         auto cached_body_model = body_model->clone();
-        update_cached_body_models(body_graph_name, cached_body_model);
+        update_cached_body_models(body_model_signature, cached_body_model);
     }
     return body_model;
 }

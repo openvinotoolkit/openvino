@@ -135,11 +135,10 @@ target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE
     $<TARGET_PROPERTY:frontend_common::static,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:xbyak,INTERFACE_INCLUDE_DIRECTORIES>)
 
-
 target_include_directories(${TARGET_NAME}_obj PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
-    # for static ov_plugins.hpp
-    "${CMAKE_CURRENT_BINARY_DIR}"
+    # for ov_plugins.hpp
+    $<IF:$<AND:$<BOOL:${OV_GENERATOR_MULTI_CONFIG}>,$<VERSION_GREATER_EQUAL:${CMAKE_VERSION},3.20>>,${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>,${CMAKE_CURRENT_BINARY_DIR}>
     # for ie_ir_version.hpp
     $<$<TARGET_EXISTS:inference_engine_ir_v7_reader>:$<TARGET_PROPERTY:inference_engine_ir_v7_reader,SOURCE_DIR>>
     "${OpenVINO_SOURCE_DIR}/src/plugins/intel_gna/legacy/include"
@@ -148,6 +147,9 @@ target_include_directories(${TARGET_NAME}_obj PRIVATE
 
 target_link_libraries(${TARGET_NAME}_obj PRIVATE openvino::itt openvino::util openvino::core::dev)
 ie_mark_target_as_cc(${TARGET_NAME}_obj)
+
+# IE is public API => need to mark this library as important for ABI free
+ov_abi_free_target(${TARGET_NAME}_obj)
 
 set_ie_threading_interface_for(${TARGET_NAME}_obj)
 if (TBBBIND_2_5_FOUND)

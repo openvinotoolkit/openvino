@@ -320,10 +320,10 @@ public:
     void clear_control_dependents();
 
     /// This node absorbs the control dependencies of source_node
-    void add_node_control_dependencies(std::shared_ptr<Node> source_node);
+    void add_node_control_dependencies(const std::shared_ptr<const Node>& source_node);
 
     /// This node becomes a dependent of every node dependent on source_node
-    void add_node_control_dependents(std::shared_ptr<Node> source_node);
+    void add_node_control_dependents(const std::shared_ptr<const Node>& source_node);
 
     /// This node's control dependencies are replaced by replacement
     void transfer_control_dependents(std::shared_ptr<Node> replacement);

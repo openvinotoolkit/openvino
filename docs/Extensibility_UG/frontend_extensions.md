@@ -7,7 +7,7 @@ mapping of custom operations from framework model representation to OpenVINO rep
 Refer to :doc:`Introduction to OpenVINO Extension <openvino_docs_Extensibility_UG_Intro>` to 
 understand the entire flow.
 
-This API is applicable to new frontends only, which exist for ONNX, PaddlePaddle, and TensorFlow. 
+This API is applicable to new frontends only, which exist for ONNX, TensorFlow Lite, PaddlePaddle, and TensorFlow. 
 If a different model format is used, follow legacy 
 :doc:`Model Optimizer Extensions <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>` 
 guide.

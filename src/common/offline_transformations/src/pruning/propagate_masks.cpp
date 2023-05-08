@@ -497,7 +497,8 @@ public:
                 // Compute brodcasted dims
                 input_shape = m_input.get_shape();
                 weights_shape = m_weights.get_shape();
-                const int64_t input_shape_size_diff = input_shape.size() - weights_shape.size();
+                const int64_t input_shape_size_diff =
+                    static_cast<int64_t>(input_shape.size()) - static_cast<int64_t>(weights_shape.size());
                 const int64_t weights_shape_size_diff = -input_shape_size_diff;
                 for (size_t i = 0; i < input_shape.size(); ++i) {
                     const int64_t shifted_elem = i + weights_shape_size_diff;
@@ -913,6 +914,7 @@ public:
             if (auto input_mask = getMask(m_input)) {
                 auto output_mask = std::make_shared<Mask>(m_output.get_partial_shape().rank().get_length());
                 const auto constant = std::dynamic_pointer_cast<opset10::Constant>(m_weights.get_node_shared_ptr());
+                OPENVINO_ASSERT(!!constant, "Dynamic cast returned a nullptr");
                 const auto reduce_dims = constant->cast_vector<int64_t>();
 
                 auto input_mask_row = input_mask.get();
