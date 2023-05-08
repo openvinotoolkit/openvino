@@ -89,8 +89,8 @@ private:
     bool autoPad = false;
     bool externOutShape = false;
     size_t groupNum = 1;
-    size_t IC;
-    size_t OC;
+    size_t IC = 0;
+    size_t OC = 0;
     std::vector<ptrdiff_t> kernel;
     std::vector<ptrdiff_t> stride;
     std::vector<ptrdiff_t> dilation;
@@ -105,7 +105,7 @@ private:
 
     AttrPtr pAttr;
 
-    dnnl::memory::data_type outputDataType;
+    dnnl::memory::data_type outputDataType = dnnl::memory::data_type::undef;
 
     std::shared_ptr<dnnl::primitive_attr> attr;
     void setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims);

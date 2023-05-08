@@ -11,6 +11,7 @@
 #include "infer_request.h"
 #include "memory_state.h"
 #include "itt.h"
+#include "openvino/runtime/intel_cpu/properties.hpp"
 #include "serialize.h"
 #include "ngraph/type/element_type.hpp"
 #include "nodes/memory.hpp"
@@ -310,6 +311,8 @@ InferenceEngine::Parameter ExecNetwork::GetMetric(const std::string &name) const
             RO_property(ov::hint::scheduling_core_type.name()),
             RO_property(ov::hint::enable_hyper_threading.name()),
             RO_property(ov::execution_devices.name()),
+            RO_property(ov::intel_cpu::denormals_optimization.name()),
+            RO_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
         };
     }
 
@@ -365,6 +368,10 @@ InferenceEngine::Parameter ExecNetwork::GetMetric(const std::string &name) const
         return decltype(ov::hint::num_requests)::value_type(perfHintNumRequests);
     } else if (name == ov::execution_devices) {
         return decltype(ov::execution_devices)::value_type{_plugin->GetName()};
+    } else if (name == ov::intel_cpu::denormals_optimization) {
+        return decltype(ov::intel_cpu::denormals_optimization)::value_type(config.denormalsOptMode == Config::DenormalsOptMode::DO_On);
+    } else if (name == ov::intel_cpu::sparse_weights_decompression_rate) {
+        return decltype(ov::intel_cpu::sparse_weights_decompression_rate)::value_type(config.fcSparseWeiDecompressionRate);
     }
     /* Internally legacy parameters are used with new API as part of migration procedure.
      * This fallback can be removed as soon as migration completed */

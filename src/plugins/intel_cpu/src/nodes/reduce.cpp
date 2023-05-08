@@ -1819,9 +1819,10 @@ void Reduce::initSupportedPrimitiveDescriptors() {
         }
     }
 
+    precision_change = input_prec != output_prec;
     support_split = algorithm != Algorithm::ReduceL2 && algorithm != Algorithm::ReduceLogSumExp &&
-                    algorithm != Algorithm::ReduceSumSquare;
-    precision_change = input_prec == Precision::BF16 && output_prec == Precision::FP32;
+                    algorithm != Algorithm::ReduceSumSquare &&
+                    (!precision_change || (input_prec == Precision::BF16 && output_prec == Precision::FP32));
 
     src_data_size = input_prec.size();
     dst_data_size = output_prec.size();

@@ -89,7 +89,7 @@ private:
 
     class ConvolutionExecutor : public DnnlExecutor {
         public:
-            ConvolutionExecutor(const dnnl::convolution_forward::primitive_desc& pd,
+            ConvolutionExecutor(const dnnl::primitive_desc& pd,
                                 const dnnl::memory::desc& inMemDesc,
                                 const dnnl::memory::desc& weightMemDesc,
                                 const dnnl::memory::desc& outMemDesc,
@@ -167,7 +167,7 @@ private:
     MemoryPtr legacyWeightsZeroPointsMemPtr;
     MemoryPtr legacyOutputCompensationMemPtr;
     MemoryPtr stockInputZeroPointsMemPtr;
-    dnnl::memory::data_type outputDataType;
+    dnnl::memory::data_type outputDataType = dnnl::memory::data_type::undef;
     InferenceEngine::Precision sumPrc = InferenceEngine::Precision::UNSPECIFIED;
 
     // TODO: migrate on convolution_auto algorithm for x64
