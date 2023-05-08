@@ -9,10 +9,10 @@ This is the advanced quantization flow that allows to apply 8-bit quantization t
 
 * Besides the calibration dataset, a **validation dataset** is required to compute accuracy metric. Both datasets can refer to the same data in the simplest case.
 * **Validation function**, used to compute accuracy metric is required. It can be a function that is already available in the source framework or a custom function.
-* Since accuracy validation is run several times during the quantization process, quantization with accuracy control can take more time than the [Basic 8-bit quantization](@ref basic_quantization_flow) flow.
+* Since accuracy validation is run several times during the quantization process, quantization with accuracy control can take more time than the :doc:`Basic 8-bit quantization <basic_quantization_flow>` flow.
 * The resulted model can provide smaller performance improvement than the :doc:`Basic 8-bit quantization <basic_quantization_flow>` flow because some of the operations are kept in the original precision.
 
-.. note:: Currently, this flow is available only for models in OpenVINO representation.
+.. note:: Currently, 8-bit quantization with accuracy control is available only for models in OpenVINO representation.
 
 The steps for the quantization with accuracy control are described below.
 
@@ -55,16 +55,16 @@ Run quantization with accuracy control
 
 * ``drop_type`` defines how the accuracy drop will be calculated: ``ABSOLUTE`` (used by default) or ``RELATIVE``.
 
-``nncf.quantize_with_accuracy_control()`` API supports all the parameters from :doc:nncf.quantize() <basic_quantization_flow> API and you can also use them to quantize a model with accuracy control and a custom configuration.
+``nncf.quantize_with_accuracy_control()`` API supports all the parameters from :doc:`Basic 8-bit quantization <basic_quantization_flow>` API and you can also use them to quantize a model with accuracy control and a custom configuration.
 
-If the accuracy or performance of the quantized model is not satisfactory, you can try :doc:Training-time Optimization <tmo_introduction> as the next step.
+If the accuracy or performance of the quantized model is not satisfactory, you can try :doc:`Training-time Optimization <tmo_introduction>` as the next step.
 
 See also
 ####################
 
 * `NNCF Example: Post-Training Quantization of Anomaly Classification OpenVINO model with control of accuracy metric <https://github.com/openvinotoolkit/nncf/blob/develop/examples/post_training_quantization/openvino/quantize_with_accuracy_control/README.md>`__
 * `NNCF Example: Post-Training Quantization of YOLOv8 OpenVINO Model with control of accuracy metric <https://github.com/openvinotoolkit/nncf/blob/develop/examples/post_training_quantization/openvino/yolov8_quantize_with_accuracy_control/README.md>`__
-* :doc:`Optimizing Models at Training Time <tmo_introduction>`* 
+* :doc:`Optimizing Models at Training Time <tmo_introduction>` 
 
 @endsphinxdirective
 
