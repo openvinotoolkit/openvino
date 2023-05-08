@@ -183,7 +183,7 @@ float CPUInfo::calcComputeBlockIPC(InferenceEngine::Precision precision) {
     const int NUM_INSN = 36;
     const int NUM_ITER = 100;
 
-    Xbyak::CodeGenerator* g = nullptr;
+    Xbyak::CodeGenerator* g = NULL;
     if (haveAVX512()) {
         auto gen = [](Xbyak::CodeGenerator* g, int dst_reg, int src_reg) {
             g->vfmadd132ps(Zmm(dst_reg), Zmm(src_reg), Zmm(src_reg));
@@ -392,7 +392,7 @@ void CPUInfo::init() {
     const int size = si.dwNumberOfProcessors * sizeof(PROCESSOR_POWER_INFORMATION);
     std::vector<BYTE> buf(size);
 
-    NTSTATUS status = ::CallNtPowerInformation(ProcessorInformation, nullptr, 0, buf.data(), size);
+    auto status = ::CallNtPowerInformation(ProcessorInformation, nullptr, 0, buf.data(), size);
     if (0 == status) {
         // get processor frequency (only the first core for now)
         PPROCESSOR_POWER_INFORMATION ppi = (PPROCESSOR_POWER_INFORMATION)buf.data();
