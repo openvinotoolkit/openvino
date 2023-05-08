@@ -7,7 +7,7 @@
    :hidden:
 
    nncf_ptq_introduction
-   (Deprecated) pot_introduction
+   pot_introduction
    
 
 Post-training model optimization is the process of applying special methods that transform the model into a more hardware-friendly representation without retraining or fine-tuning. The most popular and widely-spread method here is 8-bit post-training quantization because it is:
