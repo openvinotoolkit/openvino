@@ -56,7 +56,7 @@ ov::element::Type Brgemm::get_output_type() const {
     } else if (is_int8) {
         return element::i32;
     } else {
-        throw ngraph_error("BrgemmCPU node has incompatible input element types: " +
+        OPENVINO_THROW("BrgemmCPU node has incompatible input element types: " +
                             element_type_a.get_type_name() +
                             " and " +
                             element_type_b.get_type_name());

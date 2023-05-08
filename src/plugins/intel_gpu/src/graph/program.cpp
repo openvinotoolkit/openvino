@@ -23,6 +23,7 @@
 #include "roi_pooling_inst.h"
 #include "reorg_yolo_inst.h"
 #include "eltwise_inst.h"
+#include "non_zero_inst.h"
 #include "softmax_inst.h"
 #include "permute_inst.h"
 #include "custom_gpu_primitive_inst.h"
@@ -606,6 +607,7 @@ void program::post_optimize_graph(bool is_internal) {
 
     reorder_factory rf;
     layout_optimizer lo;
+    set_layout_optimizer_attributes(lo);
     apply_opt_pass<post_optimize_weights>(rf);
 
     apply_opt_pass<remove_redundant_reorders>(lo, false, true);  // TODO: do we need it at this place also?
@@ -626,12 +628,17 @@ void program::post_optimize_graph(bool is_internal) {
 
     // update loop input/output primitive mappings
     apply_opt_pass<update_loop_primitive_map>();
+
+    // Recalculate processing order after all graph transformation to keep optimal primitives ordering
+    // for OOO queue
+    if (_config.get_property(ov::intel_gpu::queue_type) == QueueTypes::out_of_order)
+        get_processing_order().calculate_BFS_processing_order();
 }
 
 // mark if the node is constant assuming that all dependencies are marked properly
 void program::mark_if_constant(program_node& node) {
     if (node.get_dependencies().empty() || node.is_type<prior_box>() ||
-        node.is_type<assign>() || node.is_type<read_value>()) {
+        node.is_type<assign>() || node.is_type<read_value>() || node.is_type<gather_nonzero>()) {
         return;
     }
     node.constant = true;
@@ -1075,11 +1082,11 @@ void program::fuse_nodes(program_node &fused_node,
     auto peer_layout = peer_node.get_output_layout();
     fused_primitive_desc local_desc(peer_node.get_primitive());
     local_desc.f_param = get_node_ptr(peer_node.id())->get_fuse_params();
-    local_desc.dep_start_idx = fused_node.get_dependencies().size();
     local_desc.total_num_deps = peer_node.get_dependencies().size();
     local_desc.input_layout = peer_node.get_dependency(0).get_output_layout();
     local_desc.output_layout = peer_layout;
 
+    int32_t orig_fused_node_num_deps = static_cast<int32_t>(fused_node.get_dependencies().size());
     auto fusedPadding = fused_node.get_output_layout().data_padding;
     cldnn::padding needed_padding = padding::max(peer_layout.data_padding,
                                                  fusedPadding);
@@ -1090,7 +1097,6 @@ void program::fuse_nodes(program_node &fused_node,
             local_desc.fused_deps.emplace(id.first, id.second);
         }
     }
-
     // Add new dependencies to the fused_node
     size_t deps_idx = 0;
     for (size_t i = 0; i < peer_node.get_dependencies().size(); i++) {
@@ -1127,6 +1133,10 @@ void program::fuse_nodes(program_node &fused_node,
         local_desc.deps.emplace_back(dep.id(), deps_idx++);
         dep.users.push_back(&fused_node);
     }
+    if (local_desc.deps.size()) {
+        local_desc.outer_dep_start_idx = orig_fused_node_num_deps;
+    }
+
     local_desc.total_num_deps = std::min(local_desc.total_num_deps, deps_idx);
 
     fused_node.add_fused_primitive(local_desc);
@@ -1422,7 +1432,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             (prim.type() != cldnn::mvn::type_id()
              || (prim.as<mvn>().input().get_output_layout().data_type != data_types::u8 &&
                  prim.as<mvn>().input().get_output_layout().data_type != data_types::i8)
-             || prim.as<mvn>().get_primitive()->across_channels) &&
+             || prim.as<mvn>().get_primitive()->across_channels()) &&
             prim.type() != cldnn::arg_max_min::type_id() &&
             prim.type() != cldnn::dft::type_id() &&
             prim.type() != cldnn::grid_sample::type_id() &&

@@ -23,7 +23,7 @@
 #include <ie_icore.hpp>
 #include <ie_ngraph_utils.hpp>
 #include "bind_multi_schedule.hpp"
-#include "multi_executable_network.hpp"
+#include "auto_executable_network.hpp"
 #include "auto_schedule.hpp"
 #include "auto_executable_network.hpp"
 
@@ -549,11 +549,18 @@ std::list<DeviceInformation> MultiDeviceInferencePlugin::GetValidDevice(
             continue;
         }
         if (item.deviceName.find("GPU") == 0) {
-            auto& gpuUniqueName = item.uniqueName;
-            if (gpuUniqueName.find("iGPU") != std::string::npos) {
+            std::string deviceType;
+            try {
+                deviceType = GetCore()->GetMetric(item.deviceName, METRIC_KEY(DEVICE_TYPE)).as<std::string>();
+            } catch (const IE::Exception&) {
+                LOG_DEBUG_TAG("GetMetric:%s for %s failed ", "DEVICE_TYPE", item.deviceName.c_str());
+            }
+            if (deviceType == "integrated") {
                 iGPU.push_back(item);
-            } else if (gpuUniqueName.find("dGPU") != std::string::npos) {
+            } else if (deviceType == "discrete") {
                 dGPU.push_back(item);
+            } else {
+                LOG_DEBUG_TAG("Unknown device type for %s", item.deviceName.c_str());
             }
             continue;
         }
@@ -674,11 +681,24 @@ void MultiDeviceInferencePlugin::RegisterPriority(const unsigned int& priority,
 
 std::string MultiDeviceInferencePlugin::GetDeviceList(const std::map<std::string, std::string>& config) const {
     std::string allDevices;
+    std::string deviceArchitecture;
     auto deviceList = GetCore()->GetAvailableDevices();
     auto deviceListConfig = config.find(ov::device::priorities.name());
+    auto getGpuArchitecture = [&](const std::string& name) -> std::string {
+        try {
+            auto architectureInfo = GetCore()->GetMetric(name, METRIC_KEY(DEVICE_ARCHITECTURE)).as<std::string>();
+            return architectureInfo;
+        } catch (const IE::Exception&) {
+            LOG_DEBUG_TAG("GetMetric:%s for %s failed ", "DEVICE_ARCHITECTURE", name.c_str());
+        }
+        return "";
+    };
     for (auto&& device : deviceList) {
         // filter out the supported devices
-        if (!_pluginConfig.isSupportedDevice(device))
+        if (device.find("GPU") != std::string::npos) {
+            deviceArchitecture = getGpuArchitecture(device);
+        }
+        if (!_pluginConfig.isSupportedDevice(device, deviceArchitecture))
             continue;
         allDevices += device + ",";
     }
@@ -708,13 +728,27 @@ std::string MultiDeviceInferencePlugin::GetDeviceList(const std::map<std::string
             });
             return iter != devices.end();
         };
+        auto isAnyDevWithEmptyMerged = [](std::string& device, const std::vector<std::string>& devices) {
+            auto iter = std::find_if(devices.begin(), devices.end(), [device](const std::string& devItem) {
+                std::string deviceName = device;
+                std::string::size_type realEndPos = 0;
+                if ((realEndPos = deviceName.find('.')) != std::string::npos && devItem.find('.') == std::string::npos) {
+                    deviceName = deviceName.substr(0, realEndPos);
+                }
+                return devItem.find(deviceName) != std::string::npos;
+            });
+            return iter != devices.end();
+        };
         auto deviceWithDefaultID = [](std::string& device) {
             // AUTO assume the default device ID will be "0" for the single device.
             return device.find(".") == std::string::npos ? device + ".0" : device;
         };
         if (devicesToBeMerged.empty()) {
             for (auto&& device : deviceList) {
-                if (isAnyDev(device, devicesToBeDeleted) || !_pluginConfig.isSupportedDevice(device))
+                if (device.find("GPU") != std::string::npos) {
+                    deviceArchitecture = getGpuArchitecture(device);
+                }
+                if (isAnyDevWithEmptyMerged(device, devicesToBeDeleted) || !_pluginConfig.isSupportedDevice(device, deviceArchitecture))
                     continue;
                 devicesMerged.push_back(device);
             }
@@ -749,8 +783,6 @@ std::string MultiDeviceInferencePlugin::GetDeviceList(const std::map<std::string
                 }
             }
         }
-    }
-    if (devicesMerged.size()) {
         allDevices.clear();
         std::for_each(devicesMerged.begin(), devicesMerged.end(), [&allDevices](const std::string& device) {
             allDevices += device + ",";
@@ -821,23 +853,6 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::FilterDeviceByNetwork
         return false;
     };
 
-    auto isOutputDynamic = [&]() {
-        for (size_t i = 0; i < model->inputs().size() ; i++) {
-            if (model->input(i).get_partial_shape().is_dynamic()) {
-            // any input is dynamic
-                return false;
-            }
-        }
-        for (size_t i = 0; i < model->outputs().size() ; i++) {
-            if (model->output(i).get_partial_shape().is_dynamic()) {
-            // any output is dynamic
-                LOG_INFO_TAG("dynamic output model");
-                return true;
-            }
-        }
-        return false;
-    };
-
     // Check if CPU is in candidate list
     auto cpuiter = std::find_if(metaDevices.begin(), metaDevices.end(), [](const DeviceInformation& deviceInfo) {
         return deviceInfo.deviceName.find("CPU") != std::string::npos;
@@ -846,7 +861,7 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::FilterDeviceByNetwork
     // If CPU is in candidate list, load dynamic network to CPU first
     // For MULTI do not only load stateful network to CPU
     // For AUTO CTPUT only load stateful network to CPU
-    if (((model->is_dynamic() && !isOutputDynamic()) || (isStateful() && _LogTag != "MULTI")) && cpuiter != metaDevices.end()) {
+    if (((model->is_dynamic()) || (isStateful() && _LogTag != "MULTI")) && cpuiter != metaDevices.end()) {
         filterDevice.push_back(*cpuiter);
         return filterDevice;
     }

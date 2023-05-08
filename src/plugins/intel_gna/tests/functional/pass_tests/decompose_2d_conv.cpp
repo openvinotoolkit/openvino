@@ -216,17 +216,7 @@ protected:
     }
 };
 
-using Gna35Decompose2DConvTest = Decompose2DConvTest;
-
 TEST_P(Decompose2DConvTest, CompareWithRefs) {
-    Run();
-}
-
-TEST_P(Gna35Decompose2DConvTest, CompareWithRefs) {
-    if (gnaVersionCheck.gnaLibVersionLessThan("3.5")) {
-        GTEST_SKIP() << gnaVersionCheck.getLastCmpResultMsg() << std::endl;
-        return;
-    }
     Run();
 }
 
@@ -236,10 +226,14 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::
 const std::vector<std::map<std::string, std::string>> configs = {
     {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_SCALE_FACTOR_0", "1"}, {"GNA_EXEC_TARGET", "GNA_TARGET_2_0"}}};
 
-const std::vector<std::map<std::string, std::string>> configsExec30Compile20 = {
+const std::vector<std::map<std::string, std::string>> configsExec3XCompile20 = {
     {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
      {"GNA_SCALE_FACTOR_0", "1"},
      {"GNA_EXEC_TARGET", "GNA_TARGET_3_0"},
+     {"GNA_COMPILE_TARGET", "GNA_TARGET_2_0"}},
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
+     {"GNA_SCALE_FACTOR_0", "1"},
+     {"GNA_EXEC_TARGET", "GNA_TARGET_3_5"},
      {"GNA_COMPILE_TARGET", "GNA_TARGET_2_0"}}};
 
 const std::vector<op::PadType> padTypes = {op::PadType::VALID,
@@ -298,13 +292,13 @@ INSTANTIATE_TEST_SUITE_P(smoke_Decompose2DConv,
 // These tests flow compile the model for GNA 2.0
 // and load by GNA Library for GNA 3.0 execution target
 // They assure that the W/A for pooling output differences btw GNA 2.0 / 3.0 is properly working
-INSTANTIATE_TEST_CASE_P(smoke_Decompose2DConv_Exec30Compile20,
+INSTANTIATE_TEST_CASE_P(smoke_Decompose2DConv_Exec3XCompile20,
                         Decompose2DConvTest,
                         ::testing::Combine(conv2DParams,
                                            miscParams,
                                            ::testing::ValuesIn(netPrecisions),
                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
-                                           ::testing::ValuesIn(configsExec30Compile20),
+                                           ::testing::ValuesIn(configsExec3XCompile20),
                                            ::testing::ValuesIn(input2DNHWC),
                                            ::testing::ValuesIn(modelsWithPool)),
                         Decompose2DConvTest::getTestCaseName);
@@ -349,63 +343,50 @@ INSTANTIATE_TEST_SUITE_P(smoke_Decompose2DConvStridesDilations,
 
 /* ============= GNA 3.0 Supported Convolutions Combination ============= */
 
-const std::vector<std::map<std::string, std::string>> configsGNA30 = {
-    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_SCALE_FACTOR_0", "1"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_0"}}};
-
-const std::vector<std::map<std::string, std::string>> configsGNA35 = {
+const std::vector<std::map<std::string, std::string>> configsGNA3X = {
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_SCALE_FACTOR_0", "1"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_0"}},
     {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_SCALE_FACTOR_0", "1"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_5"}}};
 
-const std::vector<op::PadType> padTypesGNA30 = {
+const std::vector<op::PadType> padTypesGNA3X = {
     op::PadType::VALID,
 };
 
-const std::vector<modelType> modelsGNA30 = {
+const std::vector<modelType> modelsGNA3X = {
     modelType::TranspConvBcastAddMaxPoolTransp,
 };
 
-const std::vector<std::vector<size_t>> input2DNHWCGNA30 = {{1, 16, 16, 32}};
-const std::vector<std::vector<size_t>> kernels2DGNA30 = {{1, 2}, {1, 4}};
-const std::vector<std::vector<size_t>> strides2DGNA30 = {{1, 1}};
-const std::vector<std::vector<size_t>> dilations2DGNA30 = {{1, 1}, {1, 2}};
-const std::vector<size_t> numOutChannels2DGNA30 = {8};
-const std::vector<std::vector<size_t>> biases2DGNA30 = {{1, 8, 1, 1}};
-const std::vector<std::vector<size_t>> transpBiases2DGNA30 = {{1, 1, 1, 8}};
-const std::vector<std::vector<size_t>> maxpool2DPoolsGNA30 = {{1, 1}, {1, 2}};
-const std::vector<std::vector<size_t>> maxpoo2DStridesGNA30 = {{1, 1}};
+const std::vector<std::vector<size_t>> input2DNHWCGNA3X = {{1, 16, 16, 32}};
+const std::vector<std::vector<size_t>> kernels2DGNA3X = {{1, 2}, {1, 4}};
+const std::vector<std::vector<size_t>> strides2DGNA3X = {{1, 1}};
+const std::vector<std::vector<size_t>> dilations2DGNA3X = {{1, 1}, {1, 2}};
+const std::vector<size_t> numOutChannels2DGNA3X = {8};
+const std::vector<std::vector<size_t>> biases2DGNA3X = {{1, 8, 1, 1}};
+const std::vector<std::vector<size_t>> transpBiases2DGNA3X = {{1, 1, 1, 8}};
+const std::vector<std::vector<size_t>> maxpool2DPoolsGNA3X = {{1, 1}, {1, 2}};
+const std::vector<std::vector<size_t>> maxpoo2DStridesGNA3X = {{1, 1}};
 
-const auto conv2DParamsGNA30 = ::testing::Combine(::testing::ValuesIn(kernels2DGNA30),
-                                                  ::testing::ValuesIn(strides2DGNA30),
+const auto conv2DParamsGNA3X = ::testing::Combine(::testing::ValuesIn(kernels2DGNA3X),
+                                                  ::testing::ValuesIn(strides2DGNA3X),
                                                   ::testing::ValuesIn(padBegins2D),
                                                   ::testing::ValuesIn(padEnds2D),
-                                                  ::testing::ValuesIn(dilations2DGNA30),
-                                                  ::testing::ValuesIn(numOutChannels2DGNA30),
-                                                  ::testing::ValuesIn(padTypesGNA30));
+                                                  ::testing::ValuesIn(dilations2DGNA3X),
+                                                  ::testing::ValuesIn(numOutChannels2DGNA3X),
+                                                  ::testing::ValuesIn(padTypesGNA3X));
 
-const auto miscParamsGNA30 = ::testing::Combine(::testing::ValuesIn(biases2DGNA30),
-                                                ::testing::ValuesIn(transpBiases2DGNA30),
-                                                ::testing::ValuesIn(maxpool2DPoolsGNA30),
-                                                ::testing::ValuesIn(maxpoo2DStridesGNA30));
+const auto miscParamsGNA3X = ::testing::Combine(::testing::ValuesIn(biases2DGNA3X),
+                                                ::testing::ValuesIn(transpBiases2DGNA3X),
+                                                ::testing::ValuesIn(maxpool2DPoolsGNA3X),
+                                                ::testing::ValuesIn(maxpoo2DStridesGNA3X));
 
-INSTANTIATE_TEST_SUITE_P(smoke_Decompose2DConvGNA30,
+INSTANTIATE_TEST_SUITE_P(smoke_Decompose2DConvGNA3X,
                          Decompose2DConvTest,
-                         ::testing::Combine(conv2DParamsGNA30,
-                                            miscParamsGNA30,
+                         ::testing::Combine(conv2DParamsGNA3X,
+                                            miscParamsGNA3X,
                                             ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(CommonTestUtils::DEVICE_GNA),
-                                            ::testing::ValuesIn(configsGNA30),
-                                            ::testing::ValuesIn(input2DNHWCGNA30),
-                                            ::testing::ValuesIn(modelsGNA30)),
+                                            ::testing::ValuesIn(configsGNA3X),
+                                            ::testing::ValuesIn(input2DNHWCGNA3X),
+                                            ::testing::ValuesIn(modelsGNA3X)),
                          Decompose2DConvTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Decompose2DConvGNA35,
-                         Gna35Decompose2DConvTest,
-                         ::testing::Combine(conv2DParamsGNA30,
-                                            miscParamsGNA30,
-                                            ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
-                                            ::testing::ValuesIn(configsGNA35),
-                                            ::testing::ValuesIn(input2DNHWCGNA30),
-                                            ::testing::ValuesIn(modelsGNA30)),
-                         Gna35Decompose2DConvTest::getTestCaseName);
 
 }  // namespace LayerTestsDefinitions

@@ -9,6 +9,7 @@
 namespace SubgraphTestsDefinitions {
 
 TEST_P(QuantizedConvolutionBatchNorm, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     Run();
 }
 

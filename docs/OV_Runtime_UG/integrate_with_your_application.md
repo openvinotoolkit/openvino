@@ -8,6 +8,7 @@
 
    openvino_docs_OV_UG_Model_Representation
    openvino_docs_OV_UG_Infer_request
+   openvino_docs_OV_UG_Python_API_inference
    openvino_docs_OV_UG_Python_API_exclusives
    openvino_docs_MO_DG_TensorFlow_Frontend
 

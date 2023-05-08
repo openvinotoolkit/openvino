@@ -606,6 +606,12 @@ std::string Validator_35::ValidatePooling(const CnnLimits& limits,
     auto error = limits.kPoolingWindowHWLimit.GetErrorOrEmpty(windowH, windowW);
     error += limits.kPoolingStrideHWLimit.GetErrorOrEmpty(strideH, strideW);
 
+    const RangeLimit poolingStrideHLimit{1, windowH, "pooling stride height (must be up to pooling window height)"};
+    const RangeLimit poolingStrideWLimit{1, windowW, "pooling stride width (must be up to pooling window width)"};
+
+    error += poolingStrideHLimit.GetErrorOrEmpty(strideH);
+    error += poolingStrideWLimit.GetErrorOrEmpty(strideW);
+
     return error;
 }
 

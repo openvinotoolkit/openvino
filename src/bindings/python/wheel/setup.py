@@ -290,6 +290,11 @@ class PrepareLibs(build_clib):
                 install_dir = os.path.join(install_prefix, install_dir)
             # set rpath if applicable
             if sys.platform != "win32" and comp_data.get("rpath"):
+                # after tbb libraries on mac arm64 are signed, setting rpath for them will report error:
+                # LC_SEGMENT_64 command 3 fileoff field plus filesize field extends past the end of the file
+                if comp == "tbb_libs" and ARCH == "arm64" and sys.platform == "darwin":
+                    continue
+
                 for path in filter(
                     lambda x: any(item in ([".so"] if sys.platform == "linux" else [".dylib", ".so"])
                                   for item in x.suffixes), Path(install_dir).glob("*"),

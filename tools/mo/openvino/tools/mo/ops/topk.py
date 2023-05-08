@@ -76,7 +76,7 @@ class TopK(Op):
     @staticmethod
     def type_infer(node):
         node.out_port(0).set_data_type(node.in_port(0).get_data_type())
-        if node.get_opset() == 'opset3':
+        if node.get_opset() in ['opset3', 'opset11']:
             node.out_port(1).set_data_type(node.index_element_type)
         else:
             node.out_port(1).set_data_type(np.int32)

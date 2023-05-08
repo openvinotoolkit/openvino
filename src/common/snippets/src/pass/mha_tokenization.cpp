@@ -358,7 +358,7 @@ ngraph::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets() {
         }
 
         if (body_results.size() != subgraph_result_inputs.size()) {
-            throw ngraph_error("body results and node results size mismatch during subgraph collapse");
+            OPENVINO_THROW("body results and node results size mismatch during subgraph collapse");
         }
 
         // todo: move this plugin-specific constraint to the plugin callback

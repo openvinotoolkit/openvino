@@ -77,7 +77,7 @@ private:
 
         auto it = s_opsets.find(opset_ver);
         if (it == s_opsets.end()) {
-            throw ngraph::ngraph_error("Unsupported opset version requested.");
+            OPENVINO_THROW("Unsupported opset version requested.");
         }
         return it->second();
     }

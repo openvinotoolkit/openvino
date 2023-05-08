@@ -73,7 +73,7 @@ static void ApplyScaleFactorsPerInput(const std::map<std::string, float>& per_in
             return sf.first == input_desc.name || input_desc.tensor_names.count(sf.first);
         });
 
-        if (input_it == inputs.end()) {
+        if (input_it == inputs.Get().end()) {
             IE_THROW() << "Given scale factor for invalid input: " << sf.first;
         }
         ::log::warning() << "Using input scale factor: " << sf.second

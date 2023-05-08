@@ -155,7 +155,7 @@ public:
         auto parentItr = itr;
         while (++itr != opList.end()) {
             auto parentNode = *parentItr;
-            auto currentNode = *itr;
+            const auto& currentNode = *itr;
             if (Type::FakeQuantize == currentNode->getType()) {
                 parentNode->addFusedNode(currentNode);
             } else {
@@ -616,8 +616,9 @@ void Convolution::setPostOps(dnnl::primitive_attr& attr,
     dnnl::post_ops ops;
     auto& args = convPostOpsArgs[useLegacyPostOps];
     bool isINT8 = canBeExecutedInInt8();
-
-    DnnlPostOpsComposer dnnlpoc(getEngine(), attr, ops, args, dims, 1, isINT8);
+    // Weight dims in NON-Group CONV: [OC, IC, KH, KW], perchannel weight scale applied on OC DIM, weiScaleMaskPerChannel =  1 << 0
+    // Weight dims in Group CONV:[Group, OC, IC, KH, KW], perchannel weight scale applied on GROUP and OC DIM, weiScaleMaskPerChannel = ( 1 << 0 | 1<< 1) = 0x03
+    DnnlPostOpsComposer dnnlpoc(getEngine(), attr, ops, args, dims, 1, isINT8, isGrouped ? 3 : 1 << 0, getDQScales(), withBiases);
 
     DEBUG_LOG(getName(), " useLegacyPostOps=", useLegacyPostOps, " initWeights=", initWeights);
 
@@ -637,11 +638,8 @@ void Convolution::setPostOps(dnnl::primitive_attr& attr,
                 ops.append_sum(1.0, 0, DnnlExtensionUtils::IEPrecisionToDataType(eltwisePrecision));
             } else {
                 if (useLegacyPostOps) {
-                    bool forceBinary = false;
-                    // Temporary debug functionality to be able to force binary postops for any model
-                    CPU_DEBUG_CAP_ENABLE(if (std::getenv("OV_CPU_FORCE_ELTWISE_AS_BINARY")) {forceBinary = true;})
                     // try mapping with optimization w/o using binary postOps
-                    if (eltwiseNode->appendAttrPostOps(dnnlpoc, isLastPostOp, outputDataType, forceBinary)) {
+                    if (eltwiseNode->appendAttrPostOps(dnnlpoc, isLastPostOp, outputDataType, false)) {
                         DEBUG_LOG(getName(), ": Append ", node->getName(), " as original post op without binary");
                         continue;
                     }
@@ -681,11 +679,8 @@ void Convolution::setPostOps(dnnl::primitive_attr& attr,
             }
 
             if (useLegacyPostOps) {
-                bool forceBinary = false;
-                // Temporary debug functionality to be able to force binary postops for any model
-                CPU_DEBUG_CAP_ENABLE(if (std::getenv("OV_CPU_FORCE_FQ_AS_BINARY")) {forceBinary = true;})
                 // can we implement it without binary postOps?
-                if (fakeQuantizeNode->appendAttrPostOps(dnnlpoc, isLastPostOp, outputDataType, forceBinary, do_rounding)) {
+                if (fakeQuantizeNode->appendAttrPostOps(dnnlpoc, isLastPostOp, outputDataType, false, do_rounding)) {
                     DEBUG_LOG(getName(), ": Append ", node->getName(), " as original post op without binary");
                     continue;
                 }
@@ -753,7 +748,6 @@ void Convolution::initSupportedPrimitiveDescriptors() {
         auto itpd = desc;
         while (itpd) {
             NodeConfig config;
-            config.dynBatchSupport = true;
 
             for (size_t i = 0; i < descInputNumbers(); i++) {
                 PortConfig dataConfig;
@@ -930,7 +924,7 @@ void Convolution::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
 void Convolution::addZeroPoints(dnnl::primitive_attr& attr) {
     if (inputZeroPoints.empty())
         return;
-    DEBUG_LOG("Set original input zeropoints");
+    DEBUG_LOG(getName(), ": Set original input zeropoints");
     attr.set_zero_points_mask(DNNL_ARG_SRC, 0);
 
     if (!stockInputZeroPointsMemPtr) {
@@ -942,7 +936,7 @@ void Convolution::addZeroPoints(dnnl::primitive_attr& attr) {
 
 void Convolution::addLegacyZeroPoints(dnnl::primitive_attr& attr) {
     if (!legacyInputZeroPoints.empty()) {
-        DEBUG_LOG("Set legacy input zero points");
+        DEBUG_LOG(getName(), ": Set legacy input zero points");
         attr.set_input_zero_points(legacyInputZeroPoints.size(), 1 << 1 /*through C dim*/);
         if (!legacyInputZeroPointsMemPtr) {
             legacyInputZeroPointsMemPtr.reset(new Memory(getEngine()));
@@ -952,7 +946,7 @@ void Convolution::addLegacyZeroPoints(dnnl::primitive_attr& attr) {
     }
 
     if (!legacyWeightsZeroPoints.empty()) {
-        DEBUG_LOG("Set legacy weights zero points");
+        DEBUG_LOG(getName(), ": Set legacy weights zero points");
         attr.set_weights_zero_points(legacyWeightsZeroPoints.size(), 1 << 1 /*through C dim*/);
 
         if (!legacyWeightsZeroPointsMemPtr) {
@@ -963,7 +957,7 @@ void Convolution::addLegacyZeroPoints(dnnl::primitive_attr& attr) {
     }
 
     if (!legacyOutputCompensation.empty()) {
-        DEBUG_LOG("Set legacy output compensationss");
+        DEBUG_LOG(getName(), ": Set legacy output compensationss");
         attr.set_output_compensations(legacyOutputCompensation.size(), 1 << 1 /*through C dim*/);
 
         if (!legacyOutputCompensationMemPtr) {
@@ -1077,7 +1071,7 @@ void Convolution::initDescriptor(const NodeConfig& config) {
         createDescriptor({config.inConfs[0].getMemDesc()}, {config.outConfs[0].getMemDesc()});
 
         for (auto& desc : descs) {
-            if (DnnlExtensionUtils::hasProperImplementationType(desc, selectedPD->getImplementationType())) {
+            if (DnnlExtensionUtils::find_implementation(desc, selectedPD->getImplementationType())) {
                 selectedPD->setConfig(config);
                 return;
             }
@@ -1180,16 +1174,6 @@ bool Convolution::canFuse(const NodePtr& node) const {
 
 dnnl::memory Convolution::getWeights() const {
     return getParentEdgeAt(1)->getMemory().GetPrimitive();
-}
-
-void Convolution::setDynamicBatchLim(int lim) {
-    if (!execPtr) {
-        IE_THROW() << "Can't set dynamic batch for Convolution node with name: " << getName() << ", because executor is not compiled";
-    }
-    if (execPtr->needReordering()) {
-        IE_THROW() << "Can't execute Convolution node with dynamic batch via executor with reorders";
-    }
-    Node::setDynamicBatchLim(lim);
 }
 
 dnnl::memory Convolution::getBias() const {
@@ -1405,87 +1389,78 @@ void Convolution::prepareParams() {
                 dnnlBiasDesc = biasDescPtr->getDnnlDesc().reshape({dstDesc.get_dims()[1]});
             }
 
-            return createDescriptorInternal(engine,
-                                            srcDesc,
-                                            wghDesc,
-                                            dnnlBiasDesc,
-                                            dstDesc,
-                                            (biasDescPtr != nullptr),
-                                            stride,
-                                            dilation,
-                                            paddingL,
-                                            paddingR,
-                                            alg,
-                                            attr);
+            return createDescriptorInternal(
+                engine,
+                srcDesc,
+                wghDesc,
+                dnnlBiasDesc,
+                dstDesc,
+                (biasDescPtr != nullptr),
+                stride,
+                dilation,
+                paddingL,
+                paddingR,
+                alg,
+                attr);
         };
 
         const auto alg = (key.implType & impl_desc_type::winograd) ? dnnl::algorithm::convolution_winograd : convAlg;
-        dnnl::primitive_desc desc = createDnnlConvDesc(engine,
-                                                       key.inp0->getDnnlDesc(),
-                                                       wghDescAny,
-                                                       key.out->getDnnlDesc(),
-                                                       key.bias,
-                                                       key.stride,
-                                                       key.dilation,
-                                                       key.paddingL,
-                                                       key.paddingR,
-                                                       alg,
-                                                       key.attr);
+        dnnl::primitive_desc prim_desc = createDnnlConvDesc(
+            engine,
+            key.inp0->getDnnlDesc(),
+            wghDescAny,
+            key.out->getDnnlDesc(),
+            key.bias,
+            key.stride,
+            key.dilation,
+            key.paddingL,
+            key.paddingR,
+            alg,
+            key.attr);
 
-        auto itpd = desc;
-
-        executorPtr execPtr = nullptr;
-        while (static_cast<bool>(itpd)) {
-            impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
-
-            if (impl_type == key.implType) {
-                auto prim_desc = convolution_forward::primitive_desc(itpd.get());
-                execPtr = std::make_shared<ConvolutionExecutor>(prim_desc,
-                                                                key.inp0->getDnnlDesc(),
-                                                                key.inp1->getDnnlDesc(),
-                                                                key.out->getDnnlDesc(),
-                                                                engine,
-                                                                key.constWeight);
-                break;
-            }
-
-            if (!itpd.next_impl()) {
-                break;
-            }
+        const bool found = DnnlExtensionUtils::find_implementation(prim_desc, key.implType);
+        if (found) {
+            return std::make_shared<ConvolutionExecutor>(
+                prim_desc,
+                key.inp0->getDnnlDesc(),
+                key.inp1->getDnnlDesc(),
+                key.out->getDnnlDesc(),
+                engine,
+                key.constWeight);
         }
 
-        if (!execPtr) {
-            auto inDesc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(key.inp0->getShape().getStaticDims()),
-                                                                                           key.inp0->getDataType(),
-                                                                                           memory::format_tag::any);
-            auto outDesc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(key.out->getShape().getStaticDims()),
-                                                                                        key.out->getDataType(),
-                                                                                        memory::format_tag::any);
+        // primitive desc with proper implementation type not found, use the first available
+        auto inDesc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(key.inp0->getShape().getStaticDims()),
+                                         key.inp0->getDataType(),
+                                         memory::format_tag::any);
+        auto outDesc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(key.out->getShape().getStaticDims()),
+                                          key.out->getDataType(),
+                                          memory::format_tag::any);
 
-            auto reorderConvDesc = createDnnlConvDesc(engine,
-                                                      inDesc,
-                                                      wghDescAny,
-                                                      outDesc,
-                                                      key.bias,
-                                                      key.stride,
-                                                      key.dilation,
-                                                      key.paddingL,
-                                                      key.paddingR,
-                                                      convAlg,
-                                                      key.attr);
+        auto reorderConvDesc = createDnnlConvDesc(
+            engine,
+            inDesc,
+            wghDescAny,
+            outDesc,
+            key.bias,
+            key.stride,
+            key.dilation,
+            key.paddingL,
+            key.paddingR,
+            convAlg,
+            key.attr);
 
-            if (reorderConvDesc) {
-                auto prim_desc = convolution_forward::primitive_desc(reorderConvDesc.get());
-                execPtr = std::make_shared<ConvolutionExecutor>(prim_desc,
-                                                                key.inp0->getDnnlDesc(),
-                                                                key.inp1->getDnnlDesc(),
-                                                                key.out->getDnnlDesc(),
-                                                                engine,
-                                                                key.constWeight);
-            }
-        }
+        // unable to create a primitive desc
+        if (!reorderConvDesc)
+            return nullptr;
 
-        return execPtr;
+        return std::make_shared<ConvolutionExecutor>(
+            reorderConvDesc,
+            key.inp0->getDnnlDesc(),
+            key.inp1->getDnnlDesc(),
+            key.out->getDnnlDesc(),
+            engine,
+            key.constWeight);
     };
 
     auto prevExecPtr = execPtr;
@@ -1495,55 +1470,54 @@ void Convolution::prepareParams() {
 
     execPtr = result.first;
 
-    if (execPtr) {
-        primArgs[DNNL_ARG_SRC] = srcMemPtr->GetPrimitive();
-        primArgs[DNNL_ARG_DST] = dstMemPtr->GetPrimitive();
+    if (!execPtr)
+        IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
 
-        if (key.constWeight) {
-            // const weight preparation/reordering needs to be done once at next execution
-            // when the input weight data is guaranteed to be ready (considering possible const-folding
-            // subgraphs inserted between constant weight node and conv)
-            auto it = primArgs.find(DNNL_ARG_WEIGHTS);
-            if (it == primArgs.end() || !prevExecPtr ||
-                !execPtr->getWeightDesc()->isCompatible(*(prevExecPtr->getWeightDesc()))) {
-                pendingConstWeightReorder = true;
-            }
-        } else {
-            // non-const weight will be reordered by executor on every exec
-            primArgs[DNNL_ARG_WEIGHTS] = wghMemPtr->GetPrimitive();
+    primArgs[DNNL_ARG_SRC] = srcMemPtr->GetPrimitive();
+    primArgs[DNNL_ARG_DST] = dstMemPtr->GetPrimitive();
+
+    if (key.constWeight) {
+        // const weight preparation/reordering needs to be done once at next execution
+        // when the input weight data is guaranteed to be ready (considering possible const-folding
+        // subgraphs inserted between constant weight node and conv)
+        auto it = primArgs.find(DNNL_ARG_WEIGHTS);
+        if (it == primArgs.end() || !prevExecPtr ||
+            !execPtr->getWeightDesc()->isCompatible(*(prevExecPtr->getWeightDesc()))) {
+            primArgs[DNNL_ARG_WEIGHTS] = prepareWeightMemory(execPtr->getWeightDesc())->GetPrimitive();
         }
+    } else {
+        // non-const weight will be reordered by executor on every exec
+        primArgs[DNNL_ARG_WEIGHTS] = wghMemPtr->GetPrimitive();
+    }
 
-        if (withBiases) {
-            primArgs[DNNL_ARG_BIAS] = biasMemPtr->GetPrimitive();
-        }
+    if (withBiases) {
+        primArgs[DNNL_ARG_BIAS] = biasMemPtr->GetPrimitive();
+    }
 
-        if (preferLegacyZeroPoint)
-            appendLegacyZeroPointsArgs();
-        else
-            appendZeroPointsArgs();
+    if (preferLegacyZeroPoint)
+        appendLegacyZeroPointsArgs();
+    else
+        appendZeroPointsArgs();
 
-        Node::appendPostOpArgs(*pAttrLocal, primArgs, convPostOpsArgs[preferLegacyPostOps]);
+    Node::appendPostOpArgs(*pAttrLocal, primArgs, convPostOpsArgs[preferLegacyPostOps]);
 
-        auto scratchpadMem = getScratchPadMem(execPtr->getScratchPadDesc());
-        primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->GetPrimitive();
+    auto scratchpadMem = getScratchPadMem(execPtr->getScratchPadDesc());
+    primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->GetPrimitive();
 
 #ifdef CPU_DEBUG_CAPS
-        if (result.second == CacheEntryBase::LookUpStatus::Miss) {
-            auto pd = execPtr->getPrimitiveDesc();
-            DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
-        }
-#endif
-    } else {
-        IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
+    if (result.second == CacheEntryBase::LookUpStatus::Miss) {
+        auto pd = execPtr->getPrimitiveDesc();
+        DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
     }
+#endif
 }
 
-Convolution::ConvolutionExecutor::ConvolutionExecutor(const dnnl::convolution_forward::primitive_desc& pd,
-                                                                const dnnl::memory::desc& inMemDesc,
-                                                                const dnnl::memory::desc& weightMemDesc,
-                                                                const dnnl::memory::desc& outMemDesc,
-                                                                const dnnl::engine& engine,
-                                                                bool constWeight) : DnnlExecutor(pd) {
+Convolution::ConvolutionExecutor::ConvolutionExecutor(const dnnl::primitive_desc& pd,
+                                                      const dnnl::memory::desc& inMemDesc,
+                                                      const dnnl::memory::desc& weightMemDesc,
+                                                      const dnnl::memory::desc& outMemDesc,
+                                                      const dnnl::engine& engine,
+                                                      bool constWeight) : DnnlExecutor(pd) {
     if (inMemDesc != getDnnlSrcDesc()) {
         inputReorders.insert({DNNL_ARG_SRC, IntermReorder(inMemDesc, getDnnlSrcDesc(), engine)});
     }
@@ -1561,11 +1535,6 @@ Convolution::ConvolutionExecutor::ConvolutionExecutor(const dnnl::convolution_fo
 void Convolution::execute(dnnl::stream strm) {
     if (!execPtr) {
         IE_THROW() << "Can't execute Convolution node with name: " << getName() << ", because executor is not compiled";
-    }
-
-    if (pendingConstWeightReorder) {
-        primArgs[DNNL_ARG_WEIGHTS] = prepareWeightMemory(execPtr->getWeightDesc())->GetPrimitive();
-        pendingConstWeightReorder = false;
     }
 
     execPtr->exec(primArgs, strm);
@@ -1688,10 +1657,7 @@ void Convolution::initTryBrgconvFlag() {
         shouldTryBrgconv = true;
     }
 
-    // Temporary debug functionality to be able to force brgconv for any model
-    CPU_DEBUG_CAP_ENABLE(if (std::getenv("OV_CPU_FORCE_BRGCONV")) {shouldTryBrgconv = true;})
-
-    DEBUG_LOG("shouldTryBrgconv = ", shouldTryBrgconv);
+    DEBUG_LOG(getName(), ": shouldTryBrgconv = ", shouldTryBrgconv);
 }
 
 void Convolution::initializeInputZeroPoints(const uint8_t* inputZpData, const size_t inputZpSize) {

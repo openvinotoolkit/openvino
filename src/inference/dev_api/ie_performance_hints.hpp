@@ -13,7 +13,7 @@
 
 namespace InferenceEngine {
 struct PerfHintsConfig {
-    std::string ovPerfHint = "UNDEFINED";
+    std::string ovPerfHint = "LATENCY";
     int ovPerfHintNumRequests = 0;
 
     /**

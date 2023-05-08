@@ -112,6 +112,7 @@ OpenVINO Runtime uses frontend libraries dynamically to read models in different
 
 - ``openvino_ir_frontend`` is used to read OpenVINO IR.
 - ``openvino_tensorflow_frontend`` is used to read TensorFlow file format.
+- ``openvino_tensorflow_lite_frontend`` is used to read TensorFlow Lite file format.
 - ``openvino_onnx_frontend`` is used to read ONNX file format.
 - ``openvino_paddle_frontend`` is used to read Paddle file format.
 
@@ -119,7 +120,7 @@ Depending on the model format types that are used in the application in `ov::Cor
 
 .. note::
 
-   To optimize the size of final distribution package, you are recommended to convert models to OpenVINO IR by using :doc:`Model Optimizer <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`. This way you don't have to keep TensorFlow, ONNX, PaddlePaddle, and other frontend libraries in the distribution package.
+   To optimize the size of final distribution package, you are recommended to convert models to OpenVINO IR by using :doc:`Model Optimizer <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`. This way you don't have to keep TensorFlow, TensorFlow Lite, ONNX, PaddlePaddle, and other frontend libraries in the distribution package.
 
 (Legacy) Preprocessing via G-API
 ++++++++++++++++++++++++++++++++

@@ -43,7 +43,7 @@ NMS9Attributes get_nms9_attrs_from_nms5(const std::shared_ptr<ov::opset5::NonMax
         attrs.box_encoding = ::ov::opset9::NonMaxSuppression::BoxEncodingType::CORNER;
         break;
     default:
-        throw Exception("NonMaxSuppression layer " + nms5->get_friendly_name() + " has unsupported box encoding");
+        OPENVINO_THROW("NonMaxSuppression layer " + nms5->get_friendly_name() + " has unsupported box encoding");
     }
 
     attrs.sort_result_descending = nms5->get_sort_result_descending();
@@ -68,7 +68,7 @@ NMS9Attributes get_nms9_attrs_from_nms4(const std::shared_ptr<ov::opset4::NonMax
         attrs.box_encoding = ::ov::opset9::NonMaxSuppression::BoxEncodingType::CORNER;
         break;
     default:
-        throw Exception("NonMaxSuppression layer " + nms4->get_friendly_name() + " has unsupported box encoding");
+        OPENVINO_THROW("NonMaxSuppression layer " + nms4->get_friendly_name() + " has unsupported box encoding");
     }
 
     attrs.sort_result_descending = nms4->get_sort_result_descending();
@@ -93,7 +93,7 @@ NMS9Attributes get_nms9_attrs_from_nms3(const std::shared_ptr<ov::opset3::NonMax
         attrs.box_encoding = ::ov::opset9::NonMaxSuppression::BoxEncodingType::CORNER;
         break;
     default:
-        throw Exception("NonMaxSuppression layer " + nms3->get_friendly_name() + " has unsupported box encoding");
+        OPENVINO_THROW("NonMaxSuppression layer " + nms3->get_friendly_name() + " has unsupported box encoding");
     }
 
     attrs.sort_result_descending = nms3->get_sort_result_descending();
@@ -118,7 +118,7 @@ NMS9Attributes get_nms9_attrs_from_nms1(const std::shared_ptr<ov::opset1::NonMax
         attrs.box_encoding = ::ov::opset9::NonMaxSuppression::BoxEncodingType::CORNER;
         break;
     default:
-        throw Exception("NonMaxSuppression layer " + nms1->get_friendly_name() + " has unsupported box encoding");
+        OPENVINO_THROW("NonMaxSuppression layer " + nms1->get_friendly_name() + " has unsupported box encoding");
     }
 
     attrs.sort_result_descending = nms1->get_sort_result_descending();

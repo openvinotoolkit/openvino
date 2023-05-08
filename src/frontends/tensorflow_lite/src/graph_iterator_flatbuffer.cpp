@@ -18,18 +18,13 @@ GraphIteratorFlatBuffer::GraphIteratorFlatBuffer(const std::wstring& path)
 #endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 GraphIteratorFlatBuffer::GraphIteratorFlatBuffer(const std::string& path) {
-    std::ifstream model_file;
-    model_file.open(path, std::ios::binary | std::ios::in);
+    std::ifstream model_file(path, std::ios::binary | std::ios::in);
     FRONT_END_GENERAL_CHECK(model_file && model_file.is_open(), "Model file does not exist: ", path);
 
-    model_file.seekg(0, std::ios::end);
-    auto length = model_file.tellg();
-    model_file.seekg(0, std::ios::beg);
-    char* data = new char[length];
-    model_file.read(data, length);
+    m_data = {(std::istreambuf_iterator<char>(model_file)), std::istreambuf_iterator<char>()};
     model_file.close();
 
-    m_model = std::shared_ptr<tflite::Model>(tflite::GetMutableModel(data), [](tflite::Model* p) {});
+    m_model = tflite::GetModel(m_data.data());
     const auto subgraphs = m_model->subgraphs();
     FRONT_END_GENERAL_CHECK(subgraphs->size() == 1,
                             "Number of sub-graphs in the model is ",

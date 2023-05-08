@@ -1954,15 +1954,6 @@ bool TopK::needPrepareParams() const {
 }
 
 void TopK::preset_params() {
-    auto &srcMemPtr = getParentEdgeAt(TOPK_DATA)->getMemoryPtr();
-    if (srcMemPtr->getDesc().hasLayoutType(LayoutType::ncsp)) {
-        layout = TopKLayoutType::topk_ncsp;
-    } else if (srcMemPtr->getDesc().hasLayoutType(LayoutType::nspc)) {
-        layout = TopKLayoutType::topk_nspc;
-    } else {
-        layout = TopKLayoutType::topk_blocked;
-    }
-
     auto selectedPD = getSelectedPrimitiveDescriptor();
     auto data_type = DnnlExtensionUtils::IEPrecisionToDataType(selectedPD->getConfig().inConfs[TOPK_DATA].getMemDesc()->getPrecision());
     data_size = DnnlExtensionUtils::sizeOfDataType(data_type);
@@ -2073,6 +2064,15 @@ void TopK::prepareParams() {
 }
 
 void TopK::createPrimitive() {
+    auto &srcMemPtr = getParentEdgeAt(TOPK_DATA)->getMemoryPtr();
+    if (srcMemPtr->getDesc().hasLayoutType(LayoutType::ncsp)) {
+        layout = TopKLayoutType::topk_ncsp;
+    } else if (srcMemPtr->getDesc().hasLayoutType(LayoutType::nspc)) {
+        layout = TopKLayoutType::topk_nspc;
+    } else {
+        layout = TopKLayoutType::topk_blocked;
+    }
+
     if (inputShapesDefined() && isExecutable()) {
         if (needPrepareParams())
             prepareParams();
@@ -2108,7 +2108,6 @@ void TopK::createPrimitive() {
         jcp.bitonic_k_idx_cnt = 0;
 
         if (algorithm == TopKAlgorithm::topk_bitonic_sort) {
-            auto &srcMemPtr = getParentEdgeAt(TOPK_DATA)->getMemoryPtr();
             size_t src_count = srcMemPtr->GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
             vec_process_ptr.resize(src_count * data_size);
             vec_process_idx_ptr.resize(src_count * sizeof(int32_t));

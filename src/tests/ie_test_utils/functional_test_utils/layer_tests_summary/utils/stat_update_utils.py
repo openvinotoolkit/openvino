@@ -15,7 +15,7 @@ def update_rel_values(xml_node: ET.SubElement):
     if not "relative_passed" in xml_node.attrib:
         xml_node.set("relative_passed", xml_node.attrib.get("passed"))
 
-def update_passrates(results: ET.SubElement):
+def update_passrates(results: ET.SubElement, rel_weights={}):
     for device in results:
         for op in device:
             passed_tests = 0
@@ -33,7 +33,10 @@ def update_passrates(results: ET.SubElement):
                     rel_passed_tests = float(op.attrib.get(attrib))
                     continue
                 elif attrib == "relative_all":
-                    rel_all_tests = float(op.attrib.get(attrib))
+                    if op.tag in rel_weights.keys():
+                        rel_all_tests = rel_weights[op.tag]
+                    else:
+                        rel_all_tests = float(op.attrib.get(attrib))
                     continue
                 total_tests += int(float(op.attrib.get(attrib)))
             passrate = float(passed_tests * 100 / total_tests) if total_tests != 0 else 0
@@ -77,6 +80,6 @@ def update_conformance_test_counters(results: ET.SubElement):
                     op.set("skipped", str(int(op.attrib["skipped"]) + diff))
                     conformance_utils.UTILS_LOGGER.warning(f'{device.tag}: added {diff} skipped tests for {op.tag}')
             update_rel_values(op)
-    update_passrates(results)
+    update_passrates(results.find("results"))
 
 

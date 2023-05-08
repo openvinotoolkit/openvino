@@ -12,10 +12,11 @@ compiled_model = ov.compile_model("model.xml")
 #! [properties_example]
 core = ov.Core()
 
-input_a = ov.opset8.parameter([8])
-res = ov.opset8.absolute(input_a)
+input_a = ov.opset11.parameter([8], name="input_a")
+res = ov.opset11.absolute(input_a)
 model = ov.Model(res, [input_a])
 compiled = core.compile_model(model, "CPU")
+model.outputs[0].tensor.set_names({"result_0"})  # Add name for Output
 
 print(model.inputs)
 print(model.outputs)
@@ -77,6 +78,21 @@ results = infer_request.infer(inputs={0: data})
 # Extra feature: calling CompiledModel directly
 results = compiled_model(inputs={0: data})
 #! [sync_infer]
+
+#! [ov_dict]
+results = compiled_model(inputs={0: data})
+
+# Access via string
+_ = results["result_0"]
+# Access via index
+_ = results[0]
+# Access via output port
+_ = results[compiled_model.outputs[0]]
+# Use iterator over keys
+_ = results[next(iter(results))]
+# Iterate over values
+_ = next(iter(results.values()))
+#! [ov_dict]
 
 #! [asyncinferqueue]
 core = ov.Core()

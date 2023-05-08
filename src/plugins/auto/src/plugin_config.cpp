@@ -7,13 +7,10 @@ namespace MultiDevicePlugin {
 // AUTO will enable the blocklist if
 // 1.No device priority passed to AUTO/MULTI.(eg. core.compile_model(model, "AUTO", configs);)
 // 2.No valid device parsed out from device priority (eg. core.compile_model(model, "AUTO:-CPU,-GPU", configs);).
-const std::set<std::string> PluginConfig::_deviceBlocklist = {"VPUX", "GNA"};
+const std::set<std::string> PluginConfig::_deviceBlocklist = {"VPUX", "GNA", "notIntelGPU"};
 
 PluginConfig::PluginConfig() {
     set_default();
-    device_property_validator = std::dynamic_pointer_cast<BaseValidator>(std::make_shared<FuncValidator>([](const ov::Any& target) -> bool {
-        return (target.as<std::string>().find(ov::device::properties.name()) != std::string::npos);
-    }));
 }
 
 void PluginConfig::set_default() {
@@ -28,8 +25,6 @@ void PluginConfig::set_default() {
         std::make_tuple(ov::hint::num_requests, 0, UnsignedTypeValidator()),
         std::make_tuple(ov::intel_auto::enable_startup_fallback, true),
         std::make_tuple(ov::intel_auto::enable_runtime_fallback, true),
-        // Legacy API properties
-        std::make_tuple(exclusive_asyc_requests, false),
         // RO for register only
         std::make_tuple(ov::device::full_name),
         std::make_tuple(ov::device::capabilities),

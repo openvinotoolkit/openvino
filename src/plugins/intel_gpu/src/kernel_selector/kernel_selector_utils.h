@@ -14,7 +14,7 @@ struct WeightsReorderParams;
 
 struct DimensionAccessHelper {
     static size_t dynamic_dimension_offset(Tensor::DataChannelName c, size_t tensor_id = 0) {
-        const auto shape_info_layout = DataLayout::bfwzyx;
+        const auto shape_info_layout = DataLayout::bfvuwzyx;
         auto idx = DataTensor::max_rank() - DataTensor::Channelndex(shape_info_layout, c) - 1;
         return DataTensor::max_rank() * tensor_id + idx;
     }
@@ -24,10 +24,12 @@ struct DimensionAccessHelper {
     , y(toCodeString(t.Y(),       dynamic_dimension_offset(Tensor::DataChannelName::Y, dyn_tensor_id), padded))
     , z(toCodeString(t.Z(),       dynamic_dimension_offset(Tensor::DataChannelName::Z, dyn_tensor_id), padded))
     , w(toCodeString(t.W(),       dynamic_dimension_offset(Tensor::DataChannelName::W, dyn_tensor_id), padded))
+    , u(toCodeString(t.U(),       dynamic_dimension_offset(Tensor::DataChannelName::U, dyn_tensor_id), padded))
+    , v(toCodeString(t.V(),       dynamic_dimension_offset(Tensor::DataChannelName::V, dyn_tensor_id), padded))
     , f(toCodeString(t.Feature(), dynamic_dimension_offset(Tensor::DataChannelName::FEATURE, dyn_tensor_id), padded))
     , b(toCodeString(t.Batch(),   dynamic_dimension_offset(Tensor::DataChannelName::BATCH, dyn_tensor_id), padded)) { }
 
-    std::string x, y, z, w, f, b;
+    std::string x, y, z, w, u, v, f, b;
 };
 
 std::vector<size_t> GetImageSizes(const kernel_selector::WeightsTensor& dimensions, const WeightsLayout layout);

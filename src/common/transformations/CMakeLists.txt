@@ -48,6 +48,12 @@ target_include_directories(${TARGET_NAME} INTERFACE
 
 target_link_libraries(${TARGET_NAME} INTERFACE openvino::runtime)
 
+# even the Transformations library is supposed to be Plugin API
+# we still have some code compiled as transformations, but headers are
+# part of ngraph core API
+# so, we need to mark this library as important for ABI free
+ov_abi_free_target(${TARGET_NAME}_obj)
+
 # LTO
 
 set_target_properties(${TARGET_NAME}_obj PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})

@@ -41,7 +41,7 @@ public:
     bool compatible(const StaticShape& s) const;
     bool same_scheme(const StaticShape& s) const;
     bool refines(const StaticShape& s) const;
-    bool merge_rank(Rank r);
+    bool merge_rank(const Rank& r);
 
     ov::Shape to_shape() const;
     PartialShape to_partial_shape() const;

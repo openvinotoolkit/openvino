@@ -49,7 +49,9 @@ attach_reshape_impl::attach_reshape_impl() {
     auto dyn_formats = {
         format::bfyx,
         format::bfzyx,
-        format::bfwzyx
+        format::bfwzyx,
+        format::bfuwzyx,
+        format::bfvuwzyx
     };
 
     implementation_map<reshape>::add(impl_types::ocl,
