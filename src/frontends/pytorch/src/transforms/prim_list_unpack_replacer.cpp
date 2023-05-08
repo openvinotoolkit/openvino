@@ -80,21 +80,27 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
             auto dim = chunk->get_input_source_output(2);
 
             auto tensor_0 = opset10::Constant::create(element::i32, Shape{1}, {0});
+            auto tensor_neg_1 = opset10::Constant::create(element::i32, Shape{1}, {-1});
             auto split_lengths_even_size =
                 opset10::Constant::create(element::i32, Shape{1}, {list_unpack->get_output_size() - 1});
 
             auto input_shape = std::make_shared<opset10::ShapeOf>(input_tensor, element::i32);
             auto input_dimension = std::make_shared<opset10::Gather>(input_shape, dim, tensor_0);
 
-            auto chunk_size = std::make_shared<opset10::Divide>(input_dimension, chunks, true);
+            auto init_chunk_size = std::make_shared<opset10::Divide>(input_dimension, chunks, true);
+            
+            // Add 1 if input is not evenly divisible by chunks
+            auto last_chunk_size = std::make_shared<opset10::Mod>(input_dimension, chunks);
+            auto is_last_nonzero = std::make_shared<opset10::Greater>(last_chunk_size, tensor_0);
+            auto is_last_nonzero_int = std::make_shared<opset10::Convert>(is_last_nonzero, element::i32);
+
+            auto chunk_size = std::make_shared<opset10::Add>(init_chunk_size, is_last_nonzero_int);
+
+
             auto split_lengths_even = std::make_shared<opset10::Broadcast>(chunk_size, split_lengths_even_size);
 
-            // Last split is calculated as input_dimension - split_lengths_even_size * chunk_size
-            auto sum_even_chunk_size = std::make_shared<opset10::Multiply>(chunk_size, split_lengths_even_size);
-            auto last_split_length = std::make_shared<opset10::Subtract>(input_dimension, sum_even_chunk_size);
-
             auto split_lengths =
-                std::make_shared<opset10::Concat>(OutputVector{split_lengths_even, last_split_length}, 0);
+                std::make_shared<opset10::Concat>(OutputVector{split_lengths_even, tensor_neg_1}, 0);
             auto sliced_chunks = std::make_shared<opset10::VariadicSplit>(input_tensor, dim, split_lengths);
 
             copy_runtime_info({list_unpack, input_node}, sliced_chunks);
