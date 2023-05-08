@@ -27,31 +27,6 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-size_t ShuffleChannels::ShuffleChannelsAttributes::hash() const {
-    using namespace dnnl::impl;
-    using namespace dnnl::impl::primitive_hashing;
-
-    size_t seed = 0;
-    seed = hash_combine(seed, layoutType);
-    seed = hash_combine(seed, dataRank);
-    seed = hash_combine(seed, axis);
-    seed = hash_combine(seed, spatialRank);
-    seed = hash_combine(seed, group);
-    seed = hash_combine(seed, dataSize);
-    seed = get_vector_hash(seed, srcDims);
-    seed = get_vector_hash(seed, srcBlockedDims);
-
-    return seed;
-}
-
-bool ShuffleChannels::ShuffleChannelsAttributes::operator==(const ShuffleChannelsAttributes& rhs) const {
-    bool result = layoutType == rhs.layoutType && dataRank == rhs.dataRank &&
-                  axis == rhs.axis && spatialRank == rhs.spatialRank &&
-                  group == rhs.group && dataSize == rhs.dataSize && srcDims == rhs.srcDims &&
-                  srcBlockedDims == rhs.srcBlockedDims;
-    return result;
-}
-
 bool ShuffleChannels::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         auto shuffleChannels = ov::as_type_ptr<const ngraph::op::v0::ShuffleChannels>(op);
@@ -92,35 +67,34 @@ void ShuffleChannels::initSupportedPrimitiveDescriptors() {
     if (supported_precision_sizes.find(precision.size()) == supported_precision_sizes.end())
         THROW_SHCH_ERROR << "has unsupported precision: " << precision.name();
 
-    impl_desc_type impl_type;
     if (mayiuse(cpu::x64::avx512_core)) {
-        impl_type = impl_desc_type::jit_avx512;
+        attrs.implDescType = impl_desc_type::jit_avx512;
     } else if (mayiuse(cpu::x64::avx2)) {
-        impl_type = impl_desc_type::jit_avx2;
+        attrs.implDescType = impl_desc_type::jit_avx2;
     } else if (mayiuse(cpu::x64::sse41)) {
-        impl_type = impl_desc_type::jit_sse42;
+        attrs.implDescType = impl_desc_type::jit_sse42;
     } else {
-        impl_type = impl_desc_type::ref;
+        attrs.implDescType = impl_desc_type::ref;
     }
 
     // use ncsp as default for non-quantized networks and nspc for quantized
     auto firstCreatorType = context->isGraphQuantized() ? LayoutType::nspc : LayoutType::ncsp;
     auto secondCreatorType = context->isGraphQuantized() ? LayoutType::ncsp : LayoutType::nspc;
 
-    addSupportedPrimDesc({{firstCreatorType, precision}},
+    addSupportedPrimDescFactory({{firstCreatorType, precision}},
                          {{firstCreatorType, precision}},
-                         impl_type);
-    addSupportedPrimDesc({{secondCreatorType, precision}},
+                         attrs.implDescType);
+    addSupportedPrimDescFactory({{secondCreatorType, precision}},
                          {{secondCreatorType, precision}},
-                         impl_type);
+                         attrs.implDescType);
     // canUseBlocked
     if (attrs.axis != 1) {
-        addSupportedPrimDesc({{LayoutType::nCsp8c, precision}},
+        addSupportedPrimDescFactory({{LayoutType::nCsp8c, precision}},
                              {{LayoutType::nCsp8c, precision}},
-                             impl_type);
-        addSupportedPrimDesc({{LayoutType::nCsp16c, precision}},
+                             attrs.implDescType);
+        addSupportedPrimDescFactory({{LayoutType::nCsp16c, precision}},
                              {{LayoutType::nCsp16c, precision}},
-                             impl_type);
+                             attrs.implDescType);
     }
 }
 
@@ -150,8 +124,14 @@ void ShuffleChannels::createPrimitive() {
 
 void ShuffleChannels::prepareParams() {
     auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
-    auto builder = [](const ShuffleChannelsAttributes& key) -> std::shared_ptr<ShuffleChannelsExecutor> {
-        return std::make_shared<ShuffleChannelsExecutor>(key);
+    auto builder = [this, &srcMemPtr](const ShuffleChannelsAttributes& key) -> std::shared_ptr<ShuffleChannelsExecutor> {
+        dnnl::primitive_attr attr;
+        auto selectedPD = getSelectedPrimitiveDescriptor();
+        std::vector<MemoryDescPtr> srcDescs = {srcMemPtr->getDescPtr()};
+        std::vector<MemoryDescPtr> dstDescs = {getChildEdgeAt(0)->getMemoryPtr()->getDescPtr()};
+        auto shuffleChannelsExecutor = selectedPD->getExecutorFactoryAs<ShuffleChannelsExecutorFactory>()->makeExecutor(attrs, srcDescs, dstDescs, attr);
+        selectedPD->setImplementationType(shuffleChannelsExecutor->getImplType());
+        return shuffleChannelsExecutor;
     };
     attrs.srcDims = srcMemPtr->getStaticDims();
     attrs.srcBlockedDims = srcMemPtr->GetDescWithType<BlockedMemoryDesc>()->getBlockDims();
@@ -165,125 +145,6 @@ void ShuffleChannels::prepareParams() {
     execPtr = result.first;
 }
 
-ShuffleChannels::ShuffleChannelsExecutor::ShuffleChannelsExecutor(const ShuffleChannelsAttributes& attrs) {
-    if (!one_of(attrs.layoutType, LayoutType::nCsp16c, LayoutType::nCsp8c, LayoutType::nspc, LayoutType::ncsp))
-        IE_THROW() << "ShuffleChannels executor supports only 'nCsp16c', 'nCsp8c', 'nspc' or 'ncsp' layouts.";
-
-    const bool isBlocked = one_of(attrs.layoutType, LayoutType::nCsp16c, LayoutType::nCsp8c);
-    const bool isChannelsLast = attrs.layoutType == LayoutType::nspc;
-    const auto& srcDims = attrs.srcDims;
-    const auto& srcBlockedDims = attrs.srcBlockedDims;
-
-    // 2 for decomposed axis dim, 1 for composed spatial dim
-    const int batchRank = attrs.axis;
-    const int reshapedRank = batchRank + 2 + static_cast<int>(attrs.spatialRank != 0) + static_cast<int>(isBlocked && (attrs.spatialRank == 0));
-    PermuteParams params;
-    params.data_size = attrs.dataSize;
-    params.order.resize(reshapedRank, 0);
-    params.src_block_order.resize(reshapedRank);
-    params.dst_block_order.resize(reshapedRank);
-    params.dst_block_dims.resize(reshapedRank);
-    params.src_block_dims.resize(reshapedRank);
-
-    const size_t groupSize = srcDims[attrs.axis] / attrs.group;
-    size_t spatialShapeSize = 1;
-    if (attrs.spatialRank != 0) {
-        for (int i = batchRank + 1; i < attrs.dataRank; i++) {
-            spatialShapeSize *= srcDims[i];
-        }
-    }
-
-    auto decomposeAndTranpose = [&](int axis) {
-        params.src_block_dims[axis] = attrs.group;
-        params.src_block_dims[axis + 1] = groupSize;
-        params.order[axis] = axis + 1;
-        params.order[axis + 1] = axis;
-    };
-
-    const int channelDim = 1;
-    if (isBlocked) {
-        size_t blkSize = srcBlockedDims.back();
-        size_t CB = srcBlockedDims[1];
-        if (attrs.axis > channelDim) {  // axis on spatial
-            for (int i = 0; i < batchRank; i++) {
-                params.order[i] = i;
-                params.src_block_dims[i] = srcBlockedDims[i];
-            }
-            decomposeAndTranpose(batchRank);
-
-            params.order[batchRank + 2] = batchRank + 2;
-            params.src_block_dims[batchRank + 2] = spatialShapeSize * blkSize;
-        } else { // axis on batch
-            decomposeAndTranpose(0);
-            spatialShapeSize = CB * blkSize;
-            for (int i = 2; i < attrs.dataRank; i++) {
-                spatialShapeSize *= srcDims[i];
-            }
-            params.order[2] = 2;
-            params.src_block_dims[2] = spatialShapeSize;
-        }
-    } else if (isChannelsLast) {
-        if (attrs.axis == channelDim) {  // axis on channel
-            params.order[0] = 0;
-            params.src_block_dims[0] = srcDims[0];
-            params.order[1] = 1;
-            params.src_block_dims[1] = spatialShapeSize;
-            decomposeAndTranpose(2);
-        } else if (attrs.axis > channelDim) {  // axis on spatial
-            for (int i = 0; i < batchRank; i++) {
-                if (i == 0) {
-                    params.order[i] = i;
-                    params.src_block_dims[i] = srcDims[i];
-                } else if (i == 1) {
-                    params.order[reshapedRank - 1] = reshapedRank - 1;
-                    params.src_block_dims[params.order[reshapedRank - 1]] = srcDims[i];
-                } else if (i > 1) {
-                    params.order[i - 1] = i - 1;
-                    params.src_block_dims[i - 1] = srcDims[i];
-                }
-            }
-            decomposeAndTranpose(batchRank - 1);
-
-            if (attrs.spatialRank != 0) {
-                params.order[batchRank + 1] = batchRank + 1;
-                params.src_block_dims[batchRank + 1] = spatialShapeSize;
-            }
-        } else { // axis on batch
-            decomposeAndTranpose(0);
-            params.order[2] = 2;
-            params.src_block_dims[2] = spatialShapeSize;
-        }
-    } else {
-        for (int i = 0; i < batchRank; i++) {
-            params.src_block_dims[i] = srcDims[i];
-            params.order[i] = i;
-        }
-
-        decomposeAndTranpose(batchRank);
-        if (attrs.spatialRank != 0) {
-            params.order[batchRank + 2] = batchRank + 2;
-            params.src_block_dims[batchRank + 2] = spatialShapeSize;
-        }
-    }
-
-    std::iota(params.src_block_order.begin(), params.src_block_order.end(), 0);
-    std::iota(params.dst_block_order.begin(), params.dst_block_order.end(), 0);
-    for (size_t i = 0; i < reshapedRank; i++)
-        params.dst_block_dims[i] = params.src_block_dims[params.order[i]];
-
-    permuteKernel = std::unique_ptr<PermuteKernel>(new PermuteKernel(params));
-}
-
-void ShuffleChannels::ShuffleChannelsExecutor::exec(const uint8_t* srcData, uint8_t* dstData, const int MB) {
-    if (!permuteKernel)
-        IE_THROW() << "Could not execute. Kernel for Transpose node was not compiled.";
-
-    if (MB > 0)
-        permuteKernel->execute(srcData, dstData, MB);
-    else
-        permuteKernel->execute(srcData, dstData);
-}
-
 void ShuffleChannels::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
@@ -294,14 +155,56 @@ void ShuffleChannels::execute(dnnl::stream strm) {
 
     int MB = (attrs.axis != 0) ? getParentEdgeAt(0)->getMemoryPtr()->getStaticDims()[0] : -1;
 
-    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
-    uint8_t* dstData = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
-    execPtr->exec(srcData, dstData, MB);
+    execPtr->exec({getParentEdgeAt(0)->getMemoryPtr()}, {getChildEdgeAt(0)->getMemoryPtr()}, MB);
 }
 
 bool ShuffleChannels::created() const {
     return getType() == Type::ShuffleChannels;
 }
+
+void ShuffleChannels::addSupportedPrimDescFactory(const std::vector<PortConfigurator>& inPortConfigs,
+                                                  const std::vector<PortConfigurator>& outPortConfigs,
+                                                  impl_desc_type implType,
+                                                  bool dynBatchSupport) {
+    auto fill_port = [] (const PortConfigurator& portConfigurator, const Shape& shape,
+                         InferenceEngine::Precision prc, std::vector<PortConfig>& port) -> bool {
+        // In order to simplify particular node initialization logic we just don't add config in case target shape is not supported by blockedDescCreator.
+        // This should be suitable for major of scenarios since almost all nodes add `ncsp` blockedDescCreator which supports any shape rank.
+        if (shape.getRank() < portConfigurator.blockedDescCreator->getMinimalRank())
+            return false;
+
+        PortConfig portConfig;
+        portConfig.inPlace(portConfigurator.inPlace);
+        portConfig.constant(portConfigurator.constant);
+        portConfig.setMemDesc(portConfigurator.blockedDescCreator->createSharedDesc(prc, shape));
+
+        port.push_back(std::move(portConfig));
+
+        return true;
+    };
+
+    NodeConfig config;
+    for (size_t i = 0; i < inPortConfigs.size(); i++) {
+        auto shape = inPortConfigs[i].shape.getRank() == 0 ? getInputShapeAtPort(i) : inPortConfigs[i].shape;
+        auto prc = inPortConfigs[i].prc == InferenceEngine::Precision::UNSPECIFIED ? getOriginalInputPrecisionAtPort(i) : inPortConfigs[i].prc;
+        if (!fill_port(inPortConfigs[i], shape, prc, config.inConfs))
+            return;
+    }
+
+    for (size_t i = 0; i < outPortConfigs.size(); i++) {
+        auto dims = outPortConfigs[i].shape.getRank() == 0 ? getOutputShapeAtPort(i) : outPortConfigs[i].shape;
+        auto prc = outPortConfigs[i].prc == InferenceEngine::Precision::UNSPECIFIED ? getOriginalOutputPrecisionAtPort(i) : outPortConfigs[i].prc;
+        if (!fill_port(outPortConfigs[i], dims, prc, config.outConfs))
+            return;
+    }
+
+    std::vector<MemoryDescPtr> srcDescs = {config.inConfs[0].getMemDesc()};
+    std::vector<MemoryDescPtr> dstDescs = {config.outConfs[0].getMemDesc()};
+    auto factory = std::make_shared<ShuffleChannelsExecutorFactory>(attrs, srcDescs, dstDescs,
+                                                                    std::make_shared<ExecutorContext>(context, getPrimitivesPriority()));
+    supportedPrimitiveDescriptors.push_back({config, implType, factory});
+}
+
 
 }   // namespace node
 }   // namespace intel_cpu
