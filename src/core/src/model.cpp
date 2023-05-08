@@ -199,6 +199,7 @@ void ov::Model::prerequirements(bool detect_variables, bool detect_parameters) {
         OPENVINO_ASSERT(param != nullptr, "Model is incorrect! Some Parameter operation equals to nullptr.");
     }
 
+    OPENVINO_ASSERT(m_results.size() != 0, "Model is incorrect! No Result operations found.");
     for (const auto& result : m_results) {
         OPENVINO_ASSERT(result != nullptr, "Model is incorrect! Some Result operation equals to nullptr.");
     }
