@@ -9,6 +9,7 @@
 #include <memory>
 #include <vector>
 #include <sstream>
+#include <string>
 
 namespace cldnn {
 const char *debug_configuration::prefix = "GPU_Debug: ";
@@ -127,6 +128,7 @@ static void print_help_messages() {
                               " For example fc:onednn gemm:onednn reduce:ocl do:cpu"
                               " For primitives fc, gemm, do, reduce, concat are supported. Separated by space.");
     message_list.emplace_back("OV_GPU_MaxKernelsPerBatch", "Maximum number of kernels in a batch during compiling kernels");
+    message_list.emplace_back("OV_GPU_DumpIteration", "Dump n-th execution of network, separated by space.");
 
     auto max_name_length_item = std::max_element(message_list.begin(), message_list.end(),
         [](std::pair<std::string, std::string>& a, std::pair<std::string, std::string>& b){
@@ -186,6 +188,8 @@ debug_configuration::debug_configuration()
     std::string forced_impl_types_str;
     get_gpu_debug_env_var("ForceImplTypes", forced_impl_types_str);
     get_gpu_debug_env_var("MaxKernelsPerBatch", max_kernels_per_batch);
+    std::string dump_iteration_str;
+    get_gpu_debug_env_var("DumpIteration", dump_iteration_str);
 
     if (help > 0) {
         print_help_messages();
@@ -207,6 +211,21 @@ debug_configuration::debug_configuration()
         std::string type;
         while (ss >> type) {
             forced_impl_types.push_back(type);
+        }
+    }
+
+    if (dump_iteration_str.size() > 0) {
+        dump_iteration_str = " " + dump_iteration_str + " ";
+        std::istringstream ss(dump_iteration_str);
+        std::string token;
+        while (ss >> token) {
+            try {
+                dump_iteration.insert(static_cast<int64_t>(std::stol(token)));
+            } catch(const std::exception& ex) {
+                dump_iteration.clear();
+                GPU_DEBUG_COUT << "OV_GPU_DumpIteration was ignored. It cannot be parsed to integer array." << std::endl;
+                break;
+            }
         }
     }
 
@@ -250,6 +269,23 @@ bool debug_configuration::is_dumped_layer(const std::string& layerName, bool is_
         return (layerName.compare(dl) == 0);
     });
     return (iter != dump_layers.end());
+#else
+    return false;
+#endif
+}
+
+bool debug_configuration::is_target_iteration(int64_t iteration) const {
+#ifdef GPU_DEBUG_CONFIG
+    if (iteration < 0)
+        return true;
+
+    if (dump_iteration.empty())
+        return true;
+
+    if (dump_iteration.find(iteration) == std::end(dump_iteration))
+        return false;
+
+    return true;
 #else
     return false;
 #endif
