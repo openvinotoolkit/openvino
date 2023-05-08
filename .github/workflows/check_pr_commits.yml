@@ -15,3 +15,8 @@ jobs:
         run: python3 ./.github/github_org_control/check_pr.py --pr=${{ github.event.number }} --check-commits DRY_RUN
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Label commit by PR author
+        run: python3 ./.github/github_org_control/check_pr.py --pr=${{ github.event.number }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

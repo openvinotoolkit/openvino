@@ -24,7 +24,7 @@ class PrType(Enum):
 
     EXTERNAL = "ExternalPR"
     INTEL = "ExternalIntelPR"
-    ORG = "OpenvinoPR"
+    ORG = "SecurePR"
     BAD = "BadPR"
 
 
@@ -116,6 +116,9 @@ def update_labels(gh_api, pull, non_org_intel_pr_users, non_org_pr_users):
     # Checks PR source type
     if gh_api.is_org_user(pull.user):
         print(" - Org user")
+        if pr_type_by_labels is not PrType.ORG:
+            github_api.print_users(pull.user)
+            add_labels.append(PrType.ORG.value)
     elif github_api.is_intel_email(pull.user.email) or github_api.is_intel_company(
         pull.user.company
     ):
@@ -134,6 +137,10 @@ def update_labels(gh_api, pull, non_org_intel_pr_users, non_org_pr_users):
             print(f'NO "{PrType.EXTERNAL.value}" label: ', end="")
             github_api.print_users(pull.user)
             add_labels.append(PrType.EXTERNAL.value)
+
+    if not gh_api.is_org_user(pull.user) and PrType.ORG.value in get_pr_labels(pull):
+        print(f'Cleanup {PrType.ORG.value} label for non-org user')
+        pull.remove_from_labels(PrType.ORG.value)
 
     add_labels += get_category_labels(pull)
     add_pr_labels(pull, add_labels)
