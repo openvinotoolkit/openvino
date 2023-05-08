@@ -1,4 +1,4 @@
-# Model Optimizer Frequently Asked Questions  {#openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ}
+# Model Conversion Frequently Asked Questions  {#openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ}
 
 @sphinxdirective
 
