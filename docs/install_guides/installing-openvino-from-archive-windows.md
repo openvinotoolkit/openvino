@@ -1,7 +1,7 @@
 # Install OpenVINO™ Runtime on Windows from an Archive File {#openvino_docs_install_guides_installing_openvino_from_archive_windows}
 
 @sphinxdirective
-
+ 
 With the OpenVINO™ 2022.3 release, you can download and use archive files to install OpenVINO Runtime. The archive files contain pre-built binaries and library files needed for OpenVINO Runtime, as well as code samples.
 
 Installing OpenVINO Runtime from archive files is recommended for C++ developers. If you are working with Python, the PyPI package has everything needed for Python development and deployment on CPU and GPUs. See the :doc:`Install OpenVINO from PyPI <openvino_docs_install_guides_installing_openvino_pip>` page for instructions on how to install OpenVINO Runtime for Python using PyPI.
@@ -106,7 +106,7 @@ Step 1: Download and Install OpenVINO Core Components
 
    .. note::
 
-      If you have already installed a previous release of OpenVINO 2022, a symbolic link to the ``openvino_2022`` folder may already exist. If you want to override it, nagivate to the ``C:\Program Files (x86)\Intel`` folder and delete the existing linked folder before running the ``mklink`` command.
+      If you have already installed a previous release of OpenVINO 2022, a symbolic link to the ``openvino_2022`` folder may already exist. If you want to override it, navigate to the ``C:\Program Files (x86)\Intel`` folder and delete the existing linked folder before running the ``mklink`` command.
 
 
 Congratulations, you finished the installation! The ``C:\Program Files (x86)\Intel\openvino_2022`` folder now contains the core components for OpenVINO. If you used a different path in Step 1, you will find the ``openvino_2022`` folder there. The path to the ``openvino_2022`` directory is also referred as ``<INSTALL_DIR>`` throughout the OpenVINO documentation.
