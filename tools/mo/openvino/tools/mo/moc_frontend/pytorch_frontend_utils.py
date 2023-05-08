@@ -16,8 +16,7 @@ def get_pytorch_decoder(model, input_shape, example_inputs, input_info):
     except Exception as e:
         log.error("PyTorch frontend loading failed")
         raise e
-    inputs = prepare_torch_inputs(
-        example_inputs, input_shape, input_info, allow_none=True)
+    inputs = prepare_torch_inputs(example_inputs, input_shape, input_info, allow_none=True)
     decoder = TorchScriptPythonDecoder(model, example_input=inputs)
 
     return decoder
@@ -64,8 +63,7 @@ def get_torch_dtype(dtype):
         if str_dtype is None:
             raise Error(f"Unexpected data type '{dtype}' for input")
         return str_dtype
-    raise Error(
-        f"Unexpected data type for input. Supported torch.dtype, numpy.dtype, ov.Type and str. Got {type(dtype)}")
+    raise Error(f"Unexpected data type for input. Supported torch.dtype, numpy.dtype, ov.Type and str. Got {type(dtype)}")
 
 
 def prepare_torch_inputs(example_inputs, input_shape, input_info=None, allow_none=False):
@@ -85,8 +83,7 @@ def prepare_torch_inputs(example_inputs, input_shape, input_info=None, allow_non
         elif isinstance(inputs, dict):
             for name, tensor in inputs.items():
                 assert isinstance(name, str), "Expected dictionary where keys are input names of string type and" \
-                                              " values are tensors. Got key of type {}".format(
-                                                  type(name))
+                                              " values are tensors. Got key of type {}".format(type(name))
                 inputs[name] = to_torch_tensor(tensor)
         else:
             inputs = to_torch_tensor(inputs)
@@ -98,8 +95,7 @@ def prepare_torch_inputs(example_inputs, input_shape, input_info=None, allow_non
             shape = inp.shape
             if shape is None:
                 if not allow_none:
-                    raise Error(
-                        "Please provide input_shape or example_input for all inputs converting PyTorch model.")
+                    raise Error("Please provide input_shape or example_input for all inputs converting PyTorch model.")
                 inputs = None
                 break
             dtype = get_torch_dtype(inp.type)
@@ -109,6 +105,5 @@ def prepare_torch_inputs(example_inputs, input_shape, input_info=None, allow_non
             inputs = tuple(inputs)
     else:
         if not allow_none:
-            raise Error(
-                "Please provide input_shape or example_input for converting PyTorch model.")
+            raise Error("Please provide input_shape or example_input for converting PyTorch model.")
     return inputs
