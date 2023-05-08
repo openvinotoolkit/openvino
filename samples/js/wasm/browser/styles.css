@@ -31,13 +31,13 @@ h1 a:hover {
 }
 
 .row img {
-  border: 1px solid black; 
+  border: 1px solid black;
   max-width: 300px;
   max-height: 300px;
 }
 
-canvas { 
-  border: 1px solid black; 
+canvas {
+  border: 1px solid black;
   margin-left: 10px;
 }
 
@@ -54,7 +54,7 @@ pre {
   padding: 5px 10px;
   margin-bottom: 10px;
   cursor: pointer;
-  font-weight: bold; 
+  font-weight: bold;
   background-color: #fff;
 }
 
@@ -69,4 +69,10 @@ pre {
 
 .hide {
   display: none;
+}
+
+fieldset {
+  border: none;
+  margin: 0;
+  padding: 0;
 }

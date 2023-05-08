@@ -1,12 +1,12 @@
 const openvinojs = require('openvinojs-wasm');
 
 const DEFAULT_SAMPLE = 'classification';
-const sample = process.env['sample'] || DEFAULT_SAMPLE;
+const sample = process.argv[2] || DEFAULT_SAMPLE;
 
 run(sample);
 
 async function run(sample) {
-  const sampleFilename = `./samples/${sample}.mjs`;
+  const sampleFilename = `../../samples/${sample}.mjs`;
 
   console.log(`= Run sample: ${sampleFilename}`);
 
