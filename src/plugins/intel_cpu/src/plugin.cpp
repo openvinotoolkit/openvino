@@ -6,6 +6,7 @@
 
 #include "openvino/runtime/properties.hpp"
 #include "plugin.h"
+#include "cpu_info.h"
 
 #include "transformations/transformation_pipeline.h"
 #include "itt.h"
@@ -586,8 +587,11 @@ Parameter Engine::GetConfig(const std::string& name, const std::map<std::string,
      * This fallback can be removed as soon as migration completed */
     return GetConfigLegacy(name, options);
 }
-static float GetGOPS(intel_cpu::CPUInfo& device_info, InferenceEngine::Precision dt) {
-    return device_info.getPeakGOPSImpl(dt);
+static float GetGOPS(intel_cpu::CPUInfo& cpu_info, InferenceEngine::Precision dt) {
+    std::cout << "[WangYang] Get GFLOPS for precision...\n";
+    auto ret = cpu_info.getPeakGOPSImpl(dt);
+    std::cout << "[WangYang] Get GFLOPS for precision: " << ret << std::endl;
+    return ret;
 }
 Parameter Engine::GetMetricLegacy(const std::string& name, const std::map<std::string, Parameter>& options) const {
     if (name == METRIC_KEY(SUPPORTED_METRICS)) {
@@ -634,11 +638,16 @@ Parameter Engine::GetMetricLegacy(const std::string& name, const std::map<std::s
     } else if (name == METRIC_KEY(IMPORT_EXPORT_SUPPORT)) {
         IE_SET_METRIC_RETURN(IMPORT_EXPORT_SUPPORT, true);
     } else if (name == METRIC_KEY(DEVICE_GOPS)) {
-        intel_cpu::CPUInfo device_info;
+        std::cout << "[WangYang] Ready to create cpu_info obj....\n";
+        CPUInfo cpu_info;
+        std::cout << "[WangYang] Calculate DEVICE_GOPS....\n";
         std::map<InferenceEngine::Precision, float> gops;
-        gops[InferenceEngine::Precision::I8] = GetGOPS(device_info, InferenceEngine::Precision::I8);
-        gops[InferenceEngine::Precision::BIN] = GetGOPS(device_info, InferenceEngine::Precision::BIN);
-        gops[InferenceEngine::Precision::FP32] = GetGOPS(device_info, InferenceEngine::Precision::FP32);
+        gops[InferenceEngine::Precision::I8] = GetGOPS(cpu_info, InferenceEngine::Precision::I8);
+        gops[InferenceEngine::Precision::BIN] = GetGOPS(cpu_info, InferenceEngine::Precision::BIN);
+        gops[InferenceEngine::Precision::FP32] = GetGOPS(cpu_info, InferenceEngine::Precision::FP32);
+        std::cout << "[WangYang] Ready to return GFLOPS: " << gops[InferenceEngine::Precision::I8] << "-"
+                  << gops[InferenceEngine::Precision::BIN] << "-" << gops[InferenceEngine::Precision::FP32]
+                  << std::endl;
         IE_SET_METRIC_RETURN(DEVICE_GOPS, gops);
     } else if (name == ov::caching_properties) {
         std::vector<ov::PropertyName> cachingProperties = { METRIC_KEY(FULL_DEVICE_NAME) };
@@ -716,12 +725,16 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
         const std::tuple<unsigned int, unsigned int> range = std::make_tuple(1, parallel_get_max_threads());
         return decltype(ov::range_for_streams)::value_type(range);
     } else if (name == ov::device::gops) {
+        std::cout << "[WangYang] Ready to create cpu_info obj....\n";
+        CPUInfo cpu_info;
+        std::cout << "[WangYang] Calculate DEVICE_GOPS....\n";
         std::map<element::Type, float> gops;
-        intel_cpu::CPUInfo device_info;
-        gops[element::i8] = GetGOPS(device_info, InferenceEngine::Precision::I8);
-        gops[element::u1] = GetGOPS(device_info, InferenceEngine::Precision::BIN);
-        gops[element::f32] = GetGOPS(device_info, InferenceEngine::Precision::FP32);
-        return decltype(ov::device::gops)::value_type {gops};
+        gops[element::i8] = GetGOPS(cpu_info, InferenceEngine::Precision::I8);
+        gops[element::u1] = GetGOPS(cpu_info, InferenceEngine::Precision::BIN);
+        gops[element::f32] = GetGOPS(cpu_info, InferenceEngine::Precision::FP32);
+        std::cout << "[WangYang] Ready to return GFLOPS: " << gops[element::i8] << "-" << gops[element::u1] << "-"
+                  << gops[element::f32] << std::endl;
+        return decltype(ov::device::gops)::value_type (gops);
     } else if (name == ov::caching_properties) {
         std::vector<ov::PropertyName> cachingProperties = { ov::device::full_name };
         return decltype(ov::caching_properties)::value_type(cachingProperties);

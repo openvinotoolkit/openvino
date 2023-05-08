@@ -11,7 +11,6 @@
 #include <map>
 #include <memory>
 #include <functional>
-#include "cpu_info.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -62,7 +61,6 @@ private:
     const std::string deviceFullName;
 
     std::shared_ptr<void> specialSetup;
-    CPUInfo cpu_info;
 };
 
 }   // namespace intel_cpu

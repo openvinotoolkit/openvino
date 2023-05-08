@@ -229,6 +229,9 @@ float CPUInfo::calcComputeBlockIPC(InferenceEngine::Precision precision) {
         g = new Generator<Xmm, decltype(gen)>(gen, NUM_LOOP, NUM_INSN);
     }
     typedef void (*func_t)(void);
+    std::cout << "[WangYang] Ready to run getCode() at File:line: " << __FILE__ << ":" << __LINE__ << " ...\n";
+    if (!g)
+        std::cout << "[WangYang] Invalid g pointer!\n";
     func_t exec = (func_t)g->getCode();
 
     using clock_type = std::chrono::high_resolution_clock;
@@ -258,6 +261,8 @@ float CPUInfo::getFrequency(const std::string path) {
     catch (std::ios_base::failure& e) {
         throw std::runtime_error("CPUInfo: unable to open " + path + " file: " + std::string(e.what()) + "\n");
     }
+    if (freq.empty())
+        return freqGHz;
     return std::stof(freq) / Hz_IN_GHz;
 #else
     return freqGHz;
@@ -424,11 +429,13 @@ CPUInfo::CPUInfo() {
         init();
         freqGHz = getMaxCPUFreq(0);
         if (!isFrequencyFixed()) {
-            std::cout << "WARNING: CPU frequency is not fixed. Result may be incorrect. "
+            std::cout << "WARNING: CPU frequency is not fixed. Result may be incorrect. \n"
                       << "Max frequency (" << freqGHz << "GHz) will be used." << std::endl;
         }
-    } catch (std::exception&) {
-        throw;
+        std::cout << "Initialize CPU info for calculating GOPS successfully!" << std::endl;
+    } catch (std::exception& e) {
+        std::string msg{e.what()};
+        IE_THROW() << "Failed to initialize CPU info for calculating GOPS: " << msg;
     }
 }
 
@@ -459,7 +466,7 @@ float CPUInfo::getPeakGOPSImpl(InferenceEngine::Precision precision) {
         simd_size = 1;
 
     operations_per_compute_block = 2 * simd_size;
-
+    std::cout << "[WangYang] Ready to calculate IPC....\n";
     instructions_per_cycle = calcComputeBlockIPC(precision);
 
     return std::round(instructions_per_cycle * operations_per_compute_block) * freqGHz * cores_per_socket *
