@@ -79,56 +79,69 @@ TEST_P(OVExecGraphImportExportTest, importExportedFunction) {
     function = ngraph::builder::subgraph::makeMultipleInputOutputDoubleConcat({1, 2, 24, 24}, elementType);
     execNet = core->compile_model(function, target_device, configuration);
 
-    std::stringstream strm;
-    execNet.export_model(strm);
+    ov::CompiledModel importedExecNet;
+    for (auto i = 0; i < 2; i++) {
+        std::string file_name = "importExportedFunction_" + target_device + "_mmap.blob";
+        if (i == 0) {
+            std::stringstream strm;
+            execNet.export_model(strm);
+            importedExecNet = core->import_model(strm, target_device, configuration);
+        } else if (target_device == CommonTestUtils::DEVICE_CPU) {
+            // Test mmap path of import_model
+            std::ofstream fstrm(file_name.c_str(), std::ios::binary);
+            execNet.export_model(fstrm);
+            fstrm.flush();
+            importedExecNet = core->import_model(file_name.c_str(), target_device, configuration);
+        } else {
+            break;
+        }
 
-    ov::CompiledModel importedExecNet = core->import_model(strm, target_device, configuration);
-    EXPECT_EQ(function->inputs().size(), 2);
-    EXPECT_EQ(function->inputs().size(), importedExecNet.inputs().size());
-    EXPECT_THROW(importedExecNet.input(), ov::Exception);
-    EXPECT_EQ(function->input(0).get_tensor().get_names(), importedExecNet.input(0).get_tensor().get_names());
-    EXPECT_EQ(function->input(0).get_tensor().get_partial_shape(),
-              importedExecNet.input(0).get_tensor().get_partial_shape());
-    EXPECT_EQ(function->input(0).get_tensor().get_element_type(),
-              importedExecNet.input(0).get_tensor().get_element_type());
-    EXPECT_EQ(function->input(0).get_element_type(),
-              importedExecNet.input(0).get_tensor().get_element_type());
-    EXPECT_EQ(function->input(1).get_tensor().get_names(), importedExecNet.input(1).get_tensor().get_names());
-    EXPECT_EQ(function->input(1).get_tensor().get_partial_shape(),
-              importedExecNet.input(1).get_tensor().get_partial_shape());
-    EXPECT_EQ(function->input(1).get_tensor().get_element_type(),
-              importedExecNet.input(1).get_tensor().get_element_type());
-    EXPECT_EQ(function->input(1).get_element_type(),
-              importedExecNet.input(1).get_tensor().get_element_type());
-    EXPECT_EQ(importedExecNet.input(0).get_node(), importedExecNet.input("data1").get_node());
-    EXPECT_NE(importedExecNet.input(1).get_node(), importedExecNet.input("data1").get_node());
-    EXPECT_EQ(importedExecNet.input(1).get_node(), importedExecNet.input("data2").get_node());
-    EXPECT_NE(importedExecNet.input(0).get_node(), importedExecNet.input("data2").get_node());
-    EXPECT_EQ(function->outputs().size(), 2);
-    EXPECT_EQ(function->outputs().size(), importedExecNet.outputs().size());
-    EXPECT_THROW(importedExecNet.output(), ov::Exception);
-    EXPECT_EQ(function->output(0).get_tensor().get_names(), importedExecNet.output(0).get_tensor().get_names());
-    EXPECT_EQ(function->output(0).get_tensor().get_partial_shape(),
-              importedExecNet.output(0).get_tensor().get_partial_shape());
-    EXPECT_EQ(function->output(0).get_tensor().get_element_type(),
-              importedExecNet.output(0).get_tensor().get_element_type());
-    EXPECT_EQ(function->output(0).get_element_type(),
-              importedExecNet.output(0).get_tensor().get_element_type());
-    EXPECT_EQ(function->output(1).get_tensor().get_names(), importedExecNet.output(1).get_tensor().get_names());
-    EXPECT_EQ(function->output(1).get_tensor().get_partial_shape(),
-              importedExecNet.output(1).get_tensor().get_partial_shape());
-    EXPECT_EQ(function->output(1).get_tensor().get_element_type(),
-              importedExecNet.output(1).get_tensor().get_element_type());
-    EXPECT_EQ(function->output(1).get_element_type(),
-              importedExecNet.output(1).get_tensor().get_element_type());
-    EXPECT_EQ(importedExecNet.output(0).get_node(), importedExecNet.output("concat1").get_node());
-    EXPECT_NE(importedExecNet.output(1).get_node(), importedExecNet.output("concat1").get_node());
-    EXPECT_EQ(importedExecNet.output(1).get_node(), importedExecNet.output("concat2").get_node());
-    EXPECT_NE(importedExecNet.output(0).get_node(), importedExecNet.output("concat2").get_node());
-    EXPECT_THROW(importedExecNet.input("param1"), ov::Exception);
-    EXPECT_THROW(importedExecNet.input("param2"), ov::Exception);
-    EXPECT_THROW(importedExecNet.output("result1"), ov::Exception);
-    EXPECT_THROW(importedExecNet.output("result2"), ov::Exception);
+        EXPECT_EQ(function->inputs().size(), 2);
+        EXPECT_EQ(function->inputs().size(), importedExecNet.inputs().size());
+        EXPECT_THROW(importedExecNet.input(), ov::Exception);
+        EXPECT_EQ(function->input(0).get_tensor().get_names(), importedExecNet.input(0).get_tensor().get_names());
+        EXPECT_EQ(function->input(0).get_tensor().get_partial_shape(),
+                  importedExecNet.input(0).get_tensor().get_partial_shape());
+        EXPECT_EQ(function->input(0).get_tensor().get_element_type(),
+                  importedExecNet.input(0).get_tensor().get_element_type());
+        EXPECT_EQ(function->input(0).get_element_type(), importedExecNet.input(0).get_tensor().get_element_type());
+        EXPECT_EQ(function->input(1).get_tensor().get_names(), importedExecNet.input(1).get_tensor().get_names());
+        EXPECT_EQ(function->input(1).get_tensor().get_partial_shape(),
+                  importedExecNet.input(1).get_tensor().get_partial_shape());
+        EXPECT_EQ(function->input(1).get_tensor().get_element_type(),
+                  importedExecNet.input(1).get_tensor().get_element_type());
+        EXPECT_EQ(function->input(1).get_element_type(), importedExecNet.input(1).get_tensor().get_element_type());
+        EXPECT_EQ(importedExecNet.input(0).get_node(), importedExecNet.input("data1").get_node());
+        EXPECT_NE(importedExecNet.input(1).get_node(), importedExecNet.input("data1").get_node());
+        EXPECT_EQ(importedExecNet.input(1).get_node(), importedExecNet.input("data2").get_node());
+        EXPECT_NE(importedExecNet.input(0).get_node(), importedExecNet.input("data2").get_node());
+        EXPECT_EQ(function->outputs().size(), 2);
+        EXPECT_EQ(function->outputs().size(), importedExecNet.outputs().size());
+        EXPECT_THROW(importedExecNet.output(), ov::Exception);
+        EXPECT_EQ(function->output(0).get_tensor().get_names(), importedExecNet.output(0).get_tensor().get_names());
+        EXPECT_EQ(function->output(0).get_tensor().get_partial_shape(),
+                  importedExecNet.output(0).get_tensor().get_partial_shape());
+        EXPECT_EQ(function->output(0).get_tensor().get_element_type(),
+                  importedExecNet.output(0).get_tensor().get_element_type());
+        EXPECT_EQ(function->output(0).get_element_type(), importedExecNet.output(0).get_tensor().get_element_type());
+        EXPECT_EQ(function->output(1).get_tensor().get_names(), importedExecNet.output(1).get_tensor().get_names());
+        EXPECT_EQ(function->output(1).get_tensor().get_partial_shape(),
+                  importedExecNet.output(1).get_tensor().get_partial_shape());
+        EXPECT_EQ(function->output(1).get_tensor().get_element_type(),
+                  importedExecNet.output(1).get_tensor().get_element_type());
+        EXPECT_EQ(function->output(1).get_element_type(), importedExecNet.output(1).get_tensor().get_element_type());
+        EXPECT_EQ(importedExecNet.output(0).get_node(), importedExecNet.output("concat1").get_node());
+        EXPECT_NE(importedExecNet.output(1).get_node(), importedExecNet.output("concat1").get_node());
+        EXPECT_EQ(importedExecNet.output(1).get_node(), importedExecNet.output("concat2").get_node());
+        EXPECT_NE(importedExecNet.output(0).get_node(), importedExecNet.output("concat2").get_node());
+        EXPECT_THROW(importedExecNet.input("param1"), ov::Exception);
+        EXPECT_THROW(importedExecNet.input("param2"), ov::Exception);
+        EXPECT_THROW(importedExecNet.output("result1"), ov::Exception);
+        EXPECT_THROW(importedExecNet.output("result2"), ov::Exception);
+
+        if (i > 0)
+            std::remove(file_name.c_str());
+    }
 }
 
 TEST_P(OVExecGraphImportExportTest, importExportedFunctionParameterResultOnly) {
@@ -143,32 +156,46 @@ TEST_P(OVExecGraphImportExportTest, importExportedFunctionParameterResultOnly) {
         param->output(0).get_tensor().set_names({"data"});
         auto result = std::make_shared<ov::opset8::Result>(param);
         result->set_friendly_name("result");
-        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                      ngraph::ParameterVector{param});
+        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param});
         function->set_friendly_name("ParamResult");
     }
-
     auto execNet = core->compile_model(function, target_device, configuration);
-    std::stringstream strm;
-    execNet.export_model(strm);
+    ov::CompiledModel importedCompiledModel;
+    for (auto i = 0; i < 2; i++) {
+        std::string file_name = "importExportedFunctionParameterResultOnly_" + target_device + "_mmap.blob";
+        if (i == 0) {
+            std::stringstream strm;
+            execNet.export_model(strm);
+            importedCompiledModel = core->import_model(strm, target_device, configuration);
+        } else if (target_device == CommonTestUtils::DEVICE_CPU) {
+            // Test mmap path of import_model
+            std::ofstream fstrm(file_name.c_str(), std::ios::binary);
+            execNet.export_model(fstrm);
+            fstrm.flush();
+            importedCompiledModel = core->import_model(file_name.c_str(), target_device, configuration);
+        } else {
+            break;
+        }
+        EXPECT_EQ(function->inputs().size(), 1);
+        EXPECT_EQ(function->inputs().size(), importedCompiledModel.inputs().size());
+        EXPECT_NO_THROW(importedCompiledModel.input());
+        EXPECT_NO_THROW(importedCompiledModel.input("data").get_node());
+        EXPECT_THROW(importedCompiledModel.input("param"), ov::Exception);
 
-    ov::CompiledModel importedCompiledModel = core->import_model(strm, target_device, configuration);
-    EXPECT_EQ(function->inputs().size(), 1);
-    EXPECT_EQ(function->inputs().size(), importedCompiledModel.inputs().size());
-    EXPECT_NO_THROW(importedCompiledModel.input());
-    EXPECT_NO_THROW(importedCompiledModel.input("data").get_node());
-    EXPECT_THROW(importedCompiledModel.input("param"), ov::Exception);
+        EXPECT_EQ(function->outputs().size(), 1);
+        EXPECT_EQ(function->outputs().size(), importedCompiledModel.outputs().size());
+        EXPECT_NO_THROW(importedCompiledModel.output());
+        EXPECT_EQ(function->output(0).get_tensor().get_names(),
+                  importedCompiledModel.output(0).get_tensor().get_names());
+        EXPECT_NO_THROW(importedCompiledModel.output("data").get_node());
+        EXPECT_THROW(importedCompiledModel.output("param"), ov::Exception);
 
-    EXPECT_EQ(function->outputs().size(), 1);
-    EXPECT_EQ(function->outputs().size(), importedCompiledModel.outputs().size());
-    EXPECT_NO_THROW(importedCompiledModel.output());
-    EXPECT_EQ(function->output(0).get_tensor().get_names(),
-              importedCompiledModel.output(0).get_tensor().get_names());
-    EXPECT_NO_THROW(importedCompiledModel.output("data").get_node());
-    EXPECT_THROW(importedCompiledModel.output("param"), ov::Exception);
+        EXPECT_EQ(ov::element::Type(elementType), importedCompiledModel.input("data").get_element_type());
+        EXPECT_EQ(ov::element::Type(elementType), importedCompiledModel.output("data").get_element_type());
 
-    EXPECT_EQ(ov::element::Type(elementType), importedCompiledModel.input("data").get_element_type());
-    EXPECT_EQ(ov::element::Type(elementType), importedCompiledModel.output("data").get_element_type());
+        if (i > 0)
+            std::remove(file_name.c_str());
+    }
 }
 
 TEST_P(OVExecGraphImportExportTest, importExportedFunctionConstantResultOnly) {
@@ -183,31 +210,47 @@ TEST_P(OVExecGraphImportExportTest, importExportedFunctionConstantResultOnly) {
         constant->output(0).get_tensor().set_names({"data"});
         auto result = std::make_shared<ov::opset8::Result>(constant);
         result->set_friendly_name("result");
-        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                      ngraph::ParameterVector{});
+        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{});
         function->set_friendly_name("ConstResult");
     }
 
     auto execNet = core->compile_model(function, target_device, configuration);
-    std::stringstream strm;
-    execNet.export_model(strm);
 
-    ov::CompiledModel importedCompiledModel = core->import_model(strm, target_device, configuration);
-    EXPECT_EQ(function->inputs().size(), 0);
-    EXPECT_EQ(function->inputs().size(), importedCompiledModel.inputs().size());
-    EXPECT_THROW(importedCompiledModel.input(), ov::Exception);
-    EXPECT_THROW(importedCompiledModel.input("data"), ov::Exception);
-    EXPECT_THROW(importedCompiledModel.input("constant"), ov::Exception);
+    ov::CompiledModel importedCompiledModel;
+    for (auto i = 0; i < 2; i++) {
+        std::string file_name = "importExportedFunctionConstantResultOnly_" + target_device + "_mmap.blob";
+        if (i == 0) {
+            std::stringstream strm;
+            execNet.export_model(strm);
+            importedCompiledModel = core->import_model(strm, target_device, configuration);
+        } else if (target_device == CommonTestUtils::DEVICE_CPU) {
+            // Test mmap path of import_model
+            std::ofstream fstrm(file_name.c_str(), std::ios::binary);
+            execNet.export_model(fstrm);
+            fstrm.flush();
+            importedCompiledModel = core->import_model(file_name.c_str(), target_device, configuration);
+        } else {
+            break;
+        }
+        EXPECT_EQ(function->inputs().size(), 0);
+        EXPECT_EQ(function->inputs().size(), importedCompiledModel.inputs().size());
+        EXPECT_THROW(importedCompiledModel.input(), ov::Exception);
+        EXPECT_THROW(importedCompiledModel.input("data"), ov::Exception);
+        EXPECT_THROW(importedCompiledModel.input("constant"), ov::Exception);
 
-    EXPECT_EQ(function->outputs().size(), 1);
-    EXPECT_EQ(function->outputs().size(), importedCompiledModel.outputs().size());
-    EXPECT_NO_THROW(importedCompiledModel.output());
-    EXPECT_EQ(function->output(0).get_tensor().get_names(),
-              importedCompiledModel.output(0).get_tensor().get_names());
-    EXPECT_NO_THROW(importedCompiledModel.output("data").get_node());
-    EXPECT_THROW(importedCompiledModel.output("constant"), ov::Exception);
+        EXPECT_EQ(function->outputs().size(), 1);
+        EXPECT_EQ(function->outputs().size(), importedCompiledModel.outputs().size());
+        EXPECT_NO_THROW(importedCompiledModel.output());
+        EXPECT_EQ(function->output(0).get_tensor().get_names(),
+                  importedCompiledModel.output(0).get_tensor().get_names());
+        EXPECT_NO_THROW(importedCompiledModel.output("data").get_node());
+        EXPECT_THROW(importedCompiledModel.output("constant"), ov::Exception);
 
-    EXPECT_EQ(ov::element::Type(elementType), importedCompiledModel.output("data").get_element_type());
+        EXPECT_EQ(ov::element::Type(elementType), importedCompiledModel.output("data").get_element_type());
+
+        if (i > 0)
+            std::remove(file_name.c_str());
+    }
 }
 
 TEST_P(OVExecGraphImportExportTest, readFromV10IR) {
@@ -281,8 +324,8 @@ TEST_P(OVExecGraphImportExportTest, readFromV10IR) {
     function = core->read_model(model, ov::Tensor());
     EXPECT_EQ(function->inputs().size(), 2);
     EXPECT_EQ(function->outputs().size(), 1);
-    EXPECT_NO_THROW(function->input("in1"));     // remove if read_model does not change function names
-    EXPECT_NO_THROW(function->input("in2"));     // remove if read_model does not change function names
+    EXPECT_NO_THROW(function->input("in1"));      // remove if read_model does not change function names
+    EXPECT_NO_THROW(function->input("in2"));      // remove if read_model does not change function names
     EXPECT_NO_THROW(function->output("concat"));  // remove if read_model does not change function names
 
     ov::CompiledModel execNet = core->compile_model(function, target_device, configuration);
@@ -296,19 +339,35 @@ TEST_P(OVExecGraphImportExportTest, readFromV10IR) {
         GTEST_SKIP() << "MULTI / AUTO does not support import / export" << std::endl;
     }
 
-    std::stringstream strm;
-    execNet.export_model(strm);
+    ov::CompiledModel importedExecNet;
+    for (auto i = 0; i < 2; i++) {
+        std::string file_name = "readFromV10IR_" + target_device + "_mmap.blob";
+        if (i == 0) {
+            std::stringstream strm;
+            execNet.export_model(strm);
+            importedExecNet = core->import_model(strm, target_device, configuration);
+        } else if (target_device == CommonTestUtils::DEVICE_CPU) {
+            // Test mmap path of import_model
+            std::ofstream fstrm(file_name.c_str(), std::ios::binary);
+            execNet.export_model(fstrm);
+            fstrm.flush();
+            importedExecNet = core->import_model(file_name.c_str(), target_device, configuration);
+        } else {
+            break;
+        }
+        EXPECT_EQ(importedExecNet.inputs().size(), 2);
+        EXPECT_EQ(importedExecNet.outputs().size(), 1);
+        EXPECT_NO_THROW(importedExecNet.input("in1"));
+        EXPECT_NO_THROW(importedExecNet.input("in2"));
+        EXPECT_NO_THROW(importedExecNet.output("concat"));
 
-    ov::CompiledModel importedExecNet = core->import_model(strm, target_device, configuration);
-    EXPECT_EQ(importedExecNet.inputs().size(), 2);
-    EXPECT_EQ(importedExecNet.outputs().size(), 1);
-    EXPECT_NO_THROW(importedExecNet.input("in1"));
-    EXPECT_NO_THROW(importedExecNet.input("in2"));
-    EXPECT_NO_THROW(importedExecNet.output("concat"));
+        EXPECT_EQ(importedExecNet.input("in1").get_element_type(), ov::element::f32);
+        EXPECT_EQ(importedExecNet.input("in2").get_element_type(), ov::element::f32);
+        EXPECT_EQ(importedExecNet.output().get_element_type(), ov::element::f32);
 
-    EXPECT_EQ(importedExecNet.input("in1").get_element_type(), ov::element::f32);
-    EXPECT_EQ(importedExecNet.input("in2").get_element_type(), ov::element::f32);
-    EXPECT_EQ(importedExecNet.output().get_element_type(), ov::element::f32);
+        if (i > 0)
+            std::remove(file_name.c_str());
+    }
 }
 
 static std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
@@ -341,37 +400,53 @@ TEST_P(OVExecGraphImportExportTest, importExportedIENetwork) {
 
     execNet = ie->LoadNetwork(InferenceEngine::CNNNetwork(function), target_device, any_copy(configuration));
 
-    std::stringstream strm;
-    execNet.Export(strm);
+    ov::CompiledModel importedExecNet;
+    for (auto i = 0; i < 2; i++) {
+        std::string file_name = "importExportedIENetwork_" + target_device + "_mmap.blob";
+        if (i == 0) {
+            std::stringstream strm;
+            execNet.Export(strm);
+            importedExecNet = core->import_model(strm, target_device, configuration);
+        } else if (target_device == CommonTestUtils::DEVICE_CPU) {
+            // Test mmap path of import_model
+            std::ofstream fstrm(file_name.c_str(), std::ios::binary);
+            execNet.Export(fstrm);
+            fstrm.flush();
+            importedExecNet = core->import_model(file_name.c_str(), target_device, configuration);
+        } else {
+            break;
+        }
 
-    ov::CompiledModel importedExecNet = core->import_model(strm, target_device, configuration);
-    EXPECT_EQ(function->inputs().size(), 2);
-    EXPECT_EQ(function->inputs().size(), importedExecNet.inputs().size());
-    EXPECT_THROW(importedExecNet.input(), ov::Exception);
-    EXPECT_NO_THROW(importedExecNet.input("data1").get_node());
-    EXPECT_NO_THROW(importedExecNet.input("data2").get_node());
-    EXPECT_NO_THROW(importedExecNet.input("param1").get_node());
-    EXPECT_NO_THROW(importedExecNet.input("param2").get_node());
-    EXPECT_EQ(function->outputs().size(), 2);
-    EXPECT_EQ(function->outputs().size(), importedExecNet.outputs().size());
-    EXPECT_THROW(importedExecNet.output(), ov::Exception);
-    EXPECT_NE(function->output(0).get_tensor().get_names(),
-              importedExecNet.output(0).get_tensor().get_names());
-    EXPECT_NO_THROW(importedExecNet.output("concat_op1").get_node());
-    EXPECT_NO_THROW(importedExecNet.output("concat_op2").get_node());
-    EXPECT_NO_THROW(importedExecNet.output("concat1").get_node());
-    EXPECT_NO_THROW(importedExecNet.output("concat2").get_node());
+        EXPECT_EQ(function->inputs().size(), 2);
+        EXPECT_EQ(function->inputs().size(), importedExecNet.inputs().size());
+        EXPECT_THROW(importedExecNet.input(), ov::Exception);
+        EXPECT_NO_THROW(importedExecNet.input("data1").get_node());
+        EXPECT_NO_THROW(importedExecNet.input("data2").get_node());
+        EXPECT_NO_THROW(importedExecNet.input("param1").get_node());
+        EXPECT_NO_THROW(importedExecNet.input("param2").get_node());
+        EXPECT_EQ(function->outputs().size(), 2);
+        EXPECT_EQ(function->outputs().size(), importedExecNet.outputs().size());
+        EXPECT_THROW(importedExecNet.output(), ov::Exception);
+        EXPECT_NE(function->output(0).get_tensor().get_names(), importedExecNet.output(0).get_tensor().get_names());
+        EXPECT_NO_THROW(importedExecNet.output("concat_op1").get_node());
+        EXPECT_NO_THROW(importedExecNet.output("concat_op2").get_node());
+        EXPECT_NO_THROW(importedExecNet.output("concat1").get_node());
+        EXPECT_NO_THROW(importedExecNet.output("concat2").get_node());
 
-    const auto outputType = elementType == ngraph::element::i32 ||
-                            elementType == ngraph::element::u32 ||
-                            elementType == ngraph::element::i64 ||
-                            elementType == ngraph::element::u64 ? ngraph::element::i32 : ngraph::element::f32;
-    const auto inputType = elementType == ngraph::element::f16 ? ngraph::element::Type_t::f32 : elementType;
+        const auto outputType = elementType == ngraph::element::i32 || elementType == ngraph::element::u32 ||
+                                        elementType == ngraph::element::i64 || elementType == ngraph::element::u64
+                                    ? ngraph::element::i32
+                                    : ngraph::element::f32;
+        const auto inputType = elementType == ngraph::element::f16 ? ngraph::element::Type_t::f32 : elementType;
 
-    EXPECT_EQ(inputType, importedExecNet.input("param1").get_element_type());
-    EXPECT_EQ(inputType, importedExecNet.input("param2").get_element_type());
-    EXPECT_EQ(outputType, importedExecNet.output("concat2").get_element_type());
-    EXPECT_EQ(outputType, importedExecNet.output("concat1").get_element_type());
+        EXPECT_EQ(inputType, importedExecNet.input("param1").get_element_type());
+        EXPECT_EQ(inputType, importedExecNet.input("param2").get_element_type());
+        EXPECT_EQ(outputType, importedExecNet.output("concat2").get_element_type());
+        EXPECT_EQ(outputType, importedExecNet.output("concat1").get_element_type());
+
+        if (i > 0)
+            std::remove(file_name.c_str());
+    }
 }
 
 TEST_P(OVExecGraphImportExportTest, importExportedIENetworkParameterResultOnly) {
@@ -379,7 +454,8 @@ TEST_P(OVExecGraphImportExportTest, importExportedIENetworkParameterResultOnly) 
         GTEST_SKIP() << "MULTI / AUTO does not support import / export" << std::endl;
     }
 
-    // New plugin API wraps CNNNetwork conversions into model, it is why parameter->result graphs won't work in legacy API with new plugin
+    // New plugin API wraps CNNNetwork conversions into model, it is why parameter->result graphs won't work in legacy
+    // API with new plugin
     std::shared_ptr<ov::Core> core = ov::test::utils::PluginCache::get().core();
     ov::CompiledModel compiled_model;
 
@@ -398,23 +474,41 @@ TEST_P(OVExecGraphImportExportTest, importExportedIENetworkParameterResultOnly) 
     auto inputPrecision = compiled_model.input().get_element_type();
     auto outputPrecision = compiled_model.output().get_element_type();
 
-    std::stringstream strm;
-    compiled_model.export_model(strm);
+    ov::CompiledModel importedCompiledModel;
+    for (auto i = 0; i < 2; i++) {
+        std::string file_name = "readFromV10IR_" + target_device + "_mmap.blob";
+        if (i == 0) {
+            std::stringstream strm;
+            compiled_model.export_model(strm);
+            importedCompiledModel = core->import_model(strm, target_device, configuration);
+        } else if (target_device == CommonTestUtils::DEVICE_CPU) {
+            // Test mmap path of import_model
+            std::ofstream fstrm(file_name.c_str(), std::ios::binary);
+            compiled_model.export_model(fstrm);
+            fstrm.flush();
+            importedCompiledModel = core->import_model(file_name.c_str(), target_device, configuration);
+        } else {
+            break;
+        }
 
-    ov::CompiledModel importedCompiledModel = core->import_model(strm, target_device, configuration);
-    EXPECT_EQ(function->inputs().size(), 1);
-    EXPECT_EQ(function->inputs().size(), importedCompiledModel.inputs().size());
-    EXPECT_NO_THROW(importedCompiledModel.input());
-    EXPECT_NO_THROW(importedCompiledModel.input("data").get_node());
+        EXPECT_EQ(function->inputs().size(), 1);
+        EXPECT_EQ(function->inputs().size(), importedCompiledModel.inputs().size());
+        EXPECT_NO_THROW(importedCompiledModel.input());
+        EXPECT_NO_THROW(importedCompiledModel.input("data").get_node());
 
-    EXPECT_EQ(function->outputs().size(), 1);
-    EXPECT_EQ(function->outputs().size(), importedCompiledModel.outputs().size());
-    EXPECT_NO_THROW(importedCompiledModel.output());
-    EXPECT_EQ(function->output(0).get_tensor().get_names(), importedCompiledModel.output(0).get_tensor().get_names());
-    EXPECT_NO_THROW(importedCompiledModel.output("data").get_node());
+        EXPECT_EQ(function->outputs().size(), 1);
+        EXPECT_EQ(function->outputs().size(), importedCompiledModel.outputs().size());
+        EXPECT_NO_THROW(importedCompiledModel.output());
+        EXPECT_EQ(function->output(0).get_tensor().get_names(),
+                  importedCompiledModel.output(0).get_tensor().get_names());
+        EXPECT_NO_THROW(importedCompiledModel.output("data").get_node());
 
-    EXPECT_EQ(inputPrecision, importedCompiledModel.input("data").get_element_type());
-    EXPECT_EQ(outputPrecision, importedCompiledModel.output("data").get_element_type());
+        EXPECT_EQ(inputPrecision, importedCompiledModel.input("data").get_element_type());
+        EXPECT_EQ(outputPrecision, importedCompiledModel.output("data").get_element_type());
+
+        if (i > 0)
+            std::remove(file_name.c_str());
+    }
 }
 
 TEST_P(OVExecGraphImportExportTest, importExportedIENetworkConstantResultOnly) {
@@ -432,34 +526,50 @@ TEST_P(OVExecGraphImportExportTest, importExportedIENetworkConstantResultOnly) {
         constant->output(0).get_tensor().set_names({"data"});
         auto result = std::make_shared<ov::opset8::Result>(constant);
         result->set_friendly_name("result");
-        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                      ngraph::ParameterVector{});
+        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{});
         function->set_friendly_name("ConstResult");
     }
     execNet = ie->LoadNetwork(InferenceEngine::CNNNetwork(function), target_device, any_copy(configuration));
 
-    auto outputPrecision = InferenceEngine::details::convertPrecision(execNet.GetOutputsInfo().at("constant")->getPrecision());
+    auto outputPrecision =
+        InferenceEngine::details::convertPrecision(execNet.GetOutputsInfo().at("constant")->getPrecision());
 
-    std::stringstream strm;
-    execNet.Export(strm);
+    ov::CompiledModel importedCompiledModel;
+    for (auto i = 0; i < 2; i++) {
+        std::string file_name = "readFromV10IR_" + target_device + "_mmap.blob";
+        if (i == 0) {
+            std::stringstream strm;
+            execNet.Export(strm);
+            importedCompiledModel = core->import_model(strm, target_device, configuration);
+        } else if (target_device == CommonTestUtils::DEVICE_CPU) {
+            // Test mmap path of import_model
+            std::ofstream fstrm(file_name.c_str(), std::ios::binary);
+            execNet.Export(fstrm);
+            fstrm.flush();
+            importedCompiledModel = core->import_model(file_name.c_str(), target_device, configuration);
+        } else {
+            break;
+        }
 
-    ov::CompiledModel importedCompiledModel = core->import_model(strm, target_device, configuration);
-    EXPECT_EQ(function->inputs().size(), 0);
-    EXPECT_EQ(function->inputs().size(), importedCompiledModel.inputs().size());
-    EXPECT_THROW(importedCompiledModel.input(), ov::Exception);
-    EXPECT_THROW(importedCompiledModel.input("data"), ov::Exception);
-    EXPECT_THROW(importedCompiledModel.input("constant"), ov::Exception);
+        EXPECT_EQ(function->inputs().size(), 0);
+        EXPECT_EQ(function->inputs().size(), importedCompiledModel.inputs().size());
+        EXPECT_THROW(importedCompiledModel.input(), ov::Exception);
+        EXPECT_THROW(importedCompiledModel.input("data"), ov::Exception);
+        EXPECT_THROW(importedCompiledModel.input("constant"), ov::Exception);
 
-    EXPECT_EQ(function->outputs().size(), 1);
-    EXPECT_EQ(function->outputs().size(), importedCompiledModel.outputs().size());
-    EXPECT_NO_THROW(importedCompiledModel.output());
-    EXPECT_NE(function->output(0).get_tensor().get_names(),
-              importedCompiledModel.output(0).get_tensor().get_names());
+        EXPECT_EQ(function->outputs().size(), 1);
+        EXPECT_EQ(function->outputs().size(), importedCompiledModel.outputs().size());
+        EXPECT_NO_THROW(importedCompiledModel.output());
+        EXPECT_NE(function->output(0).get_tensor().get_names(),
+                  importedCompiledModel.output(0).get_tensor().get_names());
 
-    EXPECT_NO_THROW(importedCompiledModel.output("data").get_node());
-    EXPECT_NO_THROW(importedCompiledModel.output("constant").get_node());
-    EXPECT_EQ(outputPrecision, importedCompiledModel.output("data").get_element_type());
-    EXPECT_EQ(outputPrecision, importedCompiledModel.output("constant").get_element_type());
+        EXPECT_NO_THROW(importedCompiledModel.output("data").get_node());
+        EXPECT_NO_THROW(importedCompiledModel.output("constant").get_node());
+        EXPECT_EQ(outputPrecision, importedCompiledModel.output("data").get_element_type());
+        EXPECT_EQ(outputPrecision, importedCompiledModel.output("constant").get_element_type());
+        if (i > 0)
+            std::remove(file_name.c_str());
+    }
 }
 
 TEST_P(OVExecGraphImportExportTest, ieImportExportedFunction) {

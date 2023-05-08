@@ -60,7 +60,7 @@ public:
     void parse_stream(InferenceEngine::CNNNetwork & network);
 
 private:
-    std::shared_ptr<std::istream> _istream;
+    std::istream* _istream;
     std::shared_ptr<ngraph::runtime::AlignedBuffer> _network_buffer;
     cnn_network_builder _cnn_network_builder;
 };
