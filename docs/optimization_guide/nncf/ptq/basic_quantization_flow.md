@@ -99,7 +99,7 @@ Tune quantization parameters
 
 ``nncf.quantize()`` function has several optional parameters that allow tuning the quantization process to get more accurate model. Below is the list of parameters and their description:
 
-* ``model_type`` - used to specify quantization scheme required for specific type of the model. ``Transformer`` is only supported special quantization scheme to preserve accuracy after quantization of **Transformer** models (BERT, distillBERT, etc.). ``None`` is default, i.e. no specific scheme is defined.
+* ``model_type`` - used to specify quantization scheme required for specific type of the model. ``Transformer`` is only supported special quantization scheme to preserve accuracy after quantization of Transformer models (BERT, distillBERT, etc.). ``None`` is default, i.e. no specific scheme is defined.
 
   .. code-block:: sh
 
@@ -162,7 +162,7 @@ See also
 * `NNCF Example: Post-Training Quantization of YOLOv8 OpenVINO Model <https://github.com/openvinotoolkit/nncf/blob/develop/examples/post_training_quantization/openvino/yolov8/README.md>`__
 * `NNCF Example: Post-Training Quantization of MobileNet v2 PyTorch Model <https://github.com/openvinotoolkit/nncf/blob/develop/examples/post_training_quantization/torch/mobilenet_v2/README.md>`__
 * `NNCF Example: Post-Training Quantization of SSD PyTorch Model <https://github.com/openvinotoolkit/nncf/blob/develop/examples/post_training_quantization/torch/ssd300_vgg16/README.md>`__
-* `Post-Training Quantization of MobileNet v2 ONNX Model <https://github.com/openvinotoolkit/nncf/blob/develop/examples/post_training_quantization/onnx/mobilenet_v2/README.md>`__
-* `Post-Training Quantization of MobileNet v2 TensorFlow Model <https://github.com/openvinotoolkit/nncf/blob/develop/examples/post_training_quantization/tensorflow/mobilenet_v2/README.md>`__
+* `NNCF Example: Post-Training Quantization of MobileNet v2 ONNX Model <https://github.com/openvinotoolkit/nncf/blob/develop/examples/post_training_quantization/onnx/mobilenet_v2/README.md>`__
+* `NNCF Example: Post-Training Quantization of MobileNet v2 TensorFlow Model <https://github.com/openvinotoolkit/nncf/blob/develop/examples/post_training_quantization/tensorflow/mobilenet_v2/README.md>`__
 
 @endsphinxdirective
