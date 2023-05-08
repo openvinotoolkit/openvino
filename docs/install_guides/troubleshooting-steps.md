@@ -79,7 +79,7 @@ Verify that OpenVINO is correctly installed
 
 * If you installed OpenVINO Runtime from YUM, use the ``yum list installed 'openvino*'`` command to list the installed OpenVINO packages.
 
-Check if GPU drvier is installed
+Check if GPU driver is installed
 ################################
 
 :doc:`Additional configurations <openvino_docs_install_guides_configurations_header>` may be required in order to use OpenVINO with different hardware such as Intel® GPUs.
