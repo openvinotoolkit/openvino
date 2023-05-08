@@ -34,7 +34,7 @@ This document provides description and default values for CMake options that can
 * Frontends to work with models from frameworks:
     * `ENABLE_OV_ONNX_FRONTEND` enables [ONNX] frontend plugin for OpenVINO Runtime:
         * `ON` is default.
-    * `ENABLE_OV_PDPD_FRONTEND` enables [PDPD] frontend plugin for OpenVINO Runtime:
+    * `ENABLE_OV_PADDLE_FRONTEND` enables [PDPD] frontend plugin for OpenVINO Runtime:
         * `ON` is default.
     * `ENABLE_OV_TF_FRONTEND` enables [TensorFlow] frontend plugin for OpenVINO Runtime:
         * `ON` is default.

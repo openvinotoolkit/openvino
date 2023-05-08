@@ -45,7 +45,7 @@ Unsigned Intragral type put:
 
 **Examples**
 
-.. code-block:: console
+.. code-block:: cpp
    
    <layer ... type="Atanh">
        <input>
