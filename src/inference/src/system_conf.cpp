@@ -151,6 +151,11 @@ bool check_open_mp_env_vars(bool include_omp_num_threads) {
     return false;
 }
 
+CPU& cpu_info() {
+    static CPU cpu;
+    return cpu;
+}
+
 #if defined(__APPLE__) || defined(__EMSCRIPTEN__)
 // for Linux and Windows the getNumberOfCPUCores (that accounts only for physical cores) implementation is OS-specific
 // (see cpp files in corresponding folders), for __APPLE__ it is default :
@@ -180,11 +185,6 @@ std::vector<std::vector<int>> reserve_available_cpus(const std::vector<std::vect
 void set_cpu_used(const std::vector<int>& cpu_ids, const int used) {}
 
 #else
-
-CPU& cpu_info() {
-    static CPU cpu;
-    return cpu;
-}
 
 #    ifndef _WIN32
 int get_number_of_cpu_cores(bool bigCoresOnly) {
@@ -221,6 +221,7 @@ int get_number_of_cpu_cores(bool bigCoresOnly) {
 
 #        if !((OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO))
 std::vector<int> get_available_numa_nodes() {
+    CPU& cpu = cpu_info();
     std::vector<int> nodes((0 == cpu._numa_nodes) ? 1 : cpu._numa_nodes);
     std::iota(std::begin(nodes), std::end(nodes), 0);
     return nodes;
