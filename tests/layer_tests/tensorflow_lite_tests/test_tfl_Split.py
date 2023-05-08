@@ -1,10 +1,8 @@
-import itertools
-
 import pytest
 import tensorflow as tf
 
 from common.tflite_layer_test_class import TFLiteLayerTest
-from common.utils.tflite_utils import data_generators
+from common.utils.tflite_utils import parametrize_tests
 
 test_ops = [
     {'op_name': ['SPLIT'], 'op_func': tf.split},
@@ -16,21 +14,12 @@ test_params = [
     {'shape': [4, 3, 2, 7], 'num_or_size_splits': 4, 'axis': -4},
 ]
 
-
-test_data = list(itertools.product(test_ops, test_params))
-for i, (parameters, shapes) in enumerate(test_data):
-    parameters.update(shapes)
-    test_data[i] = parameters.copy()
+test_data = parametrize_tests(test_ops, test_params)
 
 
 class TestTFLiteSplitLayerTest(TFLiteLayerTest):
     inputs = ["Input"]
     outputs = ["Split"]
-
-    def _prepare_input(self, inputs_dict, generator=None):
-        if generator is None:
-            return super()._prepare_input(inputs_dict)
-        return data_generators[generator](inputs_dict)
 
     def make_model(self, params):
         assert len(set(params.keys()).intersection({'op_name', 'op_func', 'shape', 'num_or_size_splits',

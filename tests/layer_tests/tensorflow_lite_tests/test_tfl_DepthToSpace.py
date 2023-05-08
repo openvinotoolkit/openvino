@@ -1,10 +1,8 @@
-import itertools
-
 import pytest
 import tensorflow as tf
 
 from common.tflite_layer_test_class import TFLiteLayerTest
-from common.utils.tflite_utils import data_generators
+from common.utils.tflite_utils import parametrize_tests
 
 test_ops = [
     {'op_name': 'DEPTH_TO_SPACE', 'op_func': tf.nn.depth_to_space},
@@ -15,21 +13,12 @@ test_params = [
     {'shape': [24, 10, 10, 50], 'block_size': 5, 'data_format': 'NHWC'},
 ]
 
-
-test_data = list(itertools.product(test_ops, test_params))
-for i, (parameters, shapes) in enumerate(test_data):
-    parameters.update(shapes)
-    test_data[i] = parameters.copy()
+test_data = parametrize_tests(test_ops, test_params)
 
 
 class TestTFLiteDepthToSpaceLayerTest(TFLiteLayerTest):
     inputs = ["Input"]
     outputs = ["DepthToSpace"]
-
-    def _prepare_input(self, inputs_dict, generator=None):
-        if generator is None:
-            return super()._prepare_input(inputs_dict)
-        return data_generators[generator](inputs_dict)
 
     def make_model(self, params):
         assert len(set(params.keys()).intersection({'op_name', 'op_func', 'shape', 'block_size', 'data_format'})) == 5, \

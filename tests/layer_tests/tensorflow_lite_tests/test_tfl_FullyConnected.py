@@ -1,10 +1,8 @@
-import itertools
-
 import pytest
 import tensorflow as tf
 
 from common.tflite_layer_test_class import TFLiteLayerTest
-from common.utils.tflite_utils import data_generators
+from common.utils.tflite_utils import parametrize_tests
 
 test_ops = [
     {'op_name': 'FULLY_CONNECTED', 'op_func': tf.matmul}
@@ -16,21 +14,12 @@ test_params = [
     {'shape_x': [1, 5, 5], 'shape_y': [4, 5], 'transpose_a': False, 'transpose_b': True},
 ]
 
-
-test_data = list(itertools.product(test_ops, test_params))
-for i, (parameters, shapes) in enumerate(test_data):
-    parameters.update(shapes)
-    test_data[i] = parameters.copy()
+test_data = parametrize_tests(test_ops, test_params)
 
 
 class TestTFLiteFullyConnectedLayerTest(TFLiteLayerTest):
     inputs = ["Input_x", "Input_y"]
     outputs = ["FullyConnected"]
-
-    def _prepare_input(self, inputs_dict, generator=None):
-        if generator is None:
-            return super()._prepare_input(inputs_dict)
-        return data_generators[generator](inputs_dict)
 
     def make_model(self, params):
         assert len(set(params.keys()).intersection({'op_name', 'op_func', 'shape_x', 'shape_y',

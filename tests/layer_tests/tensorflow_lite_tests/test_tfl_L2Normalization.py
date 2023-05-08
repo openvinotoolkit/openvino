@@ -4,7 +4,8 @@ import pytest
 import tensorflow as tf
 
 from common.tflite_layer_test_class import TFLiteLayerTest
-from common.utils.tflite_utils import data_generators, additional_test_params
+from common.utils.tflite_utils import additional_test_params
+from common.utils.tflite_utils import parametrize_tests
 
 test_ops = [
     {'op_name': ['L2_NORMALIZATION'], 'op_func': tf.math.l2_normalize},
@@ -17,26 +18,17 @@ test_params = [
     {'shape': [1, 22, 22, 8]},
 ]
 
-
-test_data = list(itertools.product(test_ops, test_params))
-for i, (parameters, shapes) in enumerate(test_data):
-    parameters.update(shapes)
-    test_data[i] = parameters.copy()
+test_data = parametrize_tests(test_ops, test_params)
 
 test_data = list(itertools.product(test_data, additional_test_params[0]))
-for i, (parameters, additional_test_params[0]) in enumerate(test_data):
-    parameters.update(additional_test_params[0])
+for i, (parameters, axis) in enumerate(test_data):
+    parameters.update(axis)
     test_data[i] = parameters.copy()
 
 
 class TestTFLiteExpandDimsLayerTest(TFLiteLayerTest):
     inputs = ["Input"]
     outputs = ["L2_Normalization"]
-
-    def _prepare_input(self, inputs_dict, generator=None):
-        if generator is None:
-            return super()._prepare_input(inputs_dict)
-        return data_generators[generator](inputs_dict)
 
     def make_model(self, params):
         assert len(set(params.keys()).intersection({'op_name', 'op_func', 'shape'})) == 3, \

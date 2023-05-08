@@ -1,11 +1,11 @@
-import itertools
-
+import numpy as np
 import pytest
 import tensorflow as tf
-import numpy as np
 
 from common.tflite_layer_test_class import TFLiteLayerTest
-from common.utils.tflite_utils import data_generators
+from common.utils.tflite_utils import parametrize_tests
+
+np.random.seed(42)
 
 test_ops = [
     {'op_name': ['TRANSPOSE_CONV'], 'op_func': tf.nn.conv2d_transpose},
@@ -23,20 +23,12 @@ test_params = [
      'padding': 'VALID', 'data_format': 'NHWC', 'dilations': [1, 1, 1, 1]},
 ]
 
-test_data = list(itertools.product(test_ops, test_params))
-for i, (parameters, shapes) in enumerate(test_data):
-    parameters.update(shapes)
-    test_data[i] = parameters.copy()
+test_data = parametrize_tests(test_ops, test_params)
 
 
 class TestTFLiteTransposeConvLayerTest(TFLiteLayerTest):
     inputs = ["Input"]
     outputs = ["TransposeConv"]
-
-    def _prepare_input(self, inputs_dict, generator=None):
-        if generator is None:
-            return super()._prepare_input(inputs_dict)
-        return data_generators[generator](inputs_dict)
 
     def make_model(self, params):
         assert len(set(params.keys()).intersection({'op_name', 'op_func', 'shape', 'ksize', 'strides',

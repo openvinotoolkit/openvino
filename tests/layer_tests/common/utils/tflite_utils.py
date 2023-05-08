@@ -1,7 +1,9 @@
+import itertools
 import os
 
-import tensorflow as tf
 import numpy as np
+import tensorflow as tf
+
 from common.utils.tf_utils import summarize_graph, transpose_nhwc_to_nchw
 
 
@@ -48,7 +50,7 @@ additional_test_params = [
     [
         {'axis': None},
         {'axis': -1}
-        ],
+    ],
     [
         {'activation': None},
         {'activation': tf.nn.relu},
@@ -58,7 +60,7 @@ additional_test_params = [
         # {'activation': tf.math.tanh},
         # {'activation': lambda x, name: tf.identity(tf.experimental.numpy.signbit(x), name=name)},
         {'activation': lambda x, name: tf.math.minimum(tf.math.maximum(-1., x), 1., name=name)}
-        ]
+    ]
 ]
 
 
@@ -126,3 +128,10 @@ def get_tensors_from_graph(graph, ops: list):
 
     return tensors
 
+
+def parametrize_tests(lhs, rhs):
+    test_data = list(itertools.product(lhs, rhs))
+    for i, (parameters, shapes) in enumerate(test_data):
+        parameters.update(shapes)
+        test_data[i] = parameters.copy()
+    return test_data

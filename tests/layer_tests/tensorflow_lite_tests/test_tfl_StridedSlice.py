@@ -1,10 +1,9 @@
-import itertools
-
+import numpy as np
 import pytest
 import tensorflow as tf
-import numpy as np
 
 from common.tflite_layer_test_class import TFLiteLayerTest
+from common.utils.tflite_utils import parametrize_tests
 
 test_ops = [
     {'op_name': ['STRIDED_SLICE'], 'op_func': tf.strided_slice},
@@ -23,11 +22,7 @@ test_params = [
      'begin_mask': 8, 'end_mask': 3, 'shrink_axis_mask': None},
 ]
 
-
-test_data = list(itertools.product(test_ops, test_params))
-for i, (parameters, shapes) in enumerate(test_data):
-    parameters.update(shapes)
-    test_data[i] = parameters.copy()
+test_data = parametrize_tests(test_ops, test_params)
 
 
 class TestTFLiteStridedSliceLayerTest(TFLiteLayerTest):

@@ -1,10 +1,8 @@
-import itertools
-
 import pytest
 import tensorflow as tf
 
 from common.tflite_layer_test_class import TFLiteLayerTest
-from common.utils.tflite_utils import data_generators
+from common.utils.tflite_utils import parametrize_tests
 
 test_ops = [
     {'op_name': ['TOPK_V2'], 'op_func': tf.raw_ops.TopKV2},
@@ -17,21 +15,12 @@ test_params = [
     {'shape': [2, 3, 5, 10], 'k': 9, 'sorted': False},
 ]
 
-
-test_data = list(itertools.product(test_ops, test_params))
-for i, (parameters, shapes) in enumerate(test_data):
-    parameters.update(shapes)
-    test_data[i] = parameters.copy()
+test_data = parametrize_tests(test_ops, test_params)
 
 
 class TestTFLiteTopKV2LayerTest(TFLiteLayerTest):
     inputs = ["Input"]
     outputs = ["TopKV2"]
-
-    def _prepare_input(self, inputs_dict, generator=None):
-        if generator is None:
-            return super()._prepare_input(inputs_dict)
-        return data_generators[generator](inputs_dict)
 
     def make_model(self, params):
         assert len(set(params.keys()).intersection({'op_name', 'op_func', 'shape', 'k', 'sorted'})) == 5, \

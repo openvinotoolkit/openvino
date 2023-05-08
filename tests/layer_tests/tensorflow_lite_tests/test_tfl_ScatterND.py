@@ -1,10 +1,11 @@
-import itertools
-
+import numpy as np
 import pytest
 import tensorflow as tf
-import numpy as np
 
 from common.tflite_layer_test_class import TFLiteLayerTest
+from common.utils.tflite_utils import parametrize_tests
+
+np.random.seed(42)
 
 test_ops = [
     {'op_name': ['SCATTER_ND'], 'op_func': tf.scatter_nd},
@@ -30,11 +31,7 @@ test_params = [
      'updates_shape': [4, 5], 'shape_shape': [3], 'shape_value': [2, 3, 5]},
 ]
 
-
-test_data = list(itertools.product(test_ops, test_params))
-for i, (parameters, shapes) in enumerate(test_data):
-    parameters.update(shapes)
-    test_data[i] = parameters.copy()
+test_data = parametrize_tests(test_ops, test_params)
 
 
 class TestTFLiteScatterNDLayerTest(TFLiteLayerTest):
@@ -72,7 +69,7 @@ class TestTFLiteScatterNDLayerTest(TFLiteLayerTest):
         with tf.compat.v1.Session() as sess:
             indices = tf.compat.v1.placeholder(tf.int32, self.indices_shape, name=self.inputs[0])
             updates = tf.compat.v1.placeholder(self.updates_dtype, self.updates_shape, name=self.inputs[1])
-            shape = tf.compat.v1.placeholder(tf.int32, params['shape_shape'],  name=self.inputs[2])
+            shape = tf.compat.v1.placeholder(tf.int32, params['shape_shape'], name=self.inputs[2])
 
             params['op_func'](indices, updates, shape, name=self.outputs[0])
             net = sess.graph_def
