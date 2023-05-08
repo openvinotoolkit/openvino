@@ -88,18 +88,14 @@ private:
         std::map<std::string, const ::tensorflow::SignatureDef*> validSignatures = {};
         for (const auto& sit : m_metagraph_def->signature_def()) {
             const std::string& key = sit.first;
-            std::cout << "key = " << key << std::endl;
             const ::tensorflow::SignatureDef& val = sit.second;
             if (is_valid_signature(val)) {
-                std::cout << "valid key = " << key << std::endl;
                 validSignatures[key] = &val;
             }
         }
 
         auto serving_default = validSignatures.find("serving_default");
-        std::cout << "TRACE 1 graph_iterator_meta" << std::endl;
         if (serving_default != validSignatures.end()) {
-            std::cout << "TRACE 2 graph_iterator_meta" << std::endl;
             /*
                 "serving_default" signature contains map of input/output names.
                 Here we are storing two maps for inputs and outputs.
