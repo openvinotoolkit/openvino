@@ -40,8 +40,8 @@ If your dataset is not annotated, you can use :doc:`Default Quantization <pot_de
 Can a model in any framework be quantized by the POT?
 +++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-The POT accepts models in the OpenVINO&trade; Intermediate Representation (IR) format only. For that, you need to convert your model to the IR format using
-:doc:`Model Optimizer <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`.
+The POT accepts models in the OpenVINO&trade; Intermediate Representation (IR) format only. For that you need to convert your model to the IR format using
+:doc:`Model Conversion API <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`.
 
 .. _noac-pot-faq:
 
@@ -49,7 +49,7 @@ I'd like to quantize a model and I've converted it to IR but I don't have the Ac
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 1. Try quantization using Python API of the Post-training Optimization Tool. For more details see :doc:`Default Quantization <pot_default_quantization_usage>`.
-2. If you consider command-line usage only refer to :doc:`Accuracy Checker documentation <omz_tools_accuracy_checker>` to create the Accuracy Checker configuration file, and try to find the configuration file for your model among the ones available in the Accuracy Checker examples. 
+2. If you consider command-line usage only refer to :doc:`Accuracy Checker documentation <omz_tools_accuracy_checker>` to create the Accuracy Checker configuration file, and try to find the configuration file for your model among the ones available in the Accuracy Checker examples.
 3. An alternative way is to quantize the model in the :doc:`Simplified mode <pot_docs_simplified_mode>` but you will not be able to measure the accuracy.
 
 .. _tradeoff-pot-faq:

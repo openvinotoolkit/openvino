@@ -16,8 +16,8 @@ The following instructions are for cases where you need to change the model inpu
 .. note::
 
    If you need to do this only once, prepare a model with updated shapes via 
-   :doc:`Model Optimizer <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`. 
-   For more information, refer to the :ref:`Specifying --input_shape Command-line Parameter <when_to_specify_input_shapes>` article.
+   :doc:`Model Conversion API <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`. 
+   For more information, refer to the :ref:`Specifying input_shape Parameter <when_to_specify_input_shapes>` article.
 
 
 The reshape method

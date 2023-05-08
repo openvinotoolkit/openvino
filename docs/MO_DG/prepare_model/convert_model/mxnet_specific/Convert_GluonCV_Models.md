@@ -6,8 +6,7 @@
 
    Note that OpenVINO support for Apache MXNet is currently being deprecated and will be removed entirely in the future.
 
-
-This article provides the instructions and examples on how to use Model Optimizer to convert `GluonCV SSD and YOLO-v3 models <https://gluon-cv.mxnet.io/model_zoo/detection.html>`__ to IR.
+This article provides the instructions and examples on how to convert `GluonCV SSD and YOLO-v3 models <https://gluon-cv.mxnet.io/model_zoo/detection.html>`__ to IR.
 
 1. Choose the topology available from the `GluonCV Model Zoo <https://gluon-cv.mxnet.io/model_zoo/detection.html>`__ and export to the MXNet format using the GluonCV API. For example, for the ``ssd_512_mobilenet1.0`` topology:
 
@@ -20,7 +19,7 @@ This article provides the instructions and examples on how to use Model Optimize
 
    As a result, you will get an MXNet model representation in ``ssd_512_mobilenet1.0.params`` and ``ssd_512_mobilenet1.0.json`` files generated in the current directory.
 
-2. Run the Model Optimizer tool, specifying the ``--enable_ssd_gluoncv`` option. Make sure the ``--input_shape`` parameter is set to the input shape layout of your model (NHWC or NCHW). The examples below illustrate running the Model Optimizer for the SSD and YOLO-v3 models trained with the NHWC layout and located in the ``<model_directory>``:
+2. Run Model Conversion API, specifying the ``enable_ssd_gluoncv`` option. Make sure the ``input_shape`` parameter is set to the input shape layout of your model (NHWC or NCHW). The examples below illustrate running model conversion for the SSD and YOLO-v3 models trained with the NHWC layout and located in the ``<model_directory>``:
 
 * **For GluonCV SSD topologies:**
 

@@ -32,7 +32,7 @@ Acronyms and Abbreviations
  LRN                 Local Response Normalization                     
  mAP                 Mean Average Precision                           
  Intel® OneDNN       Intel® OneAPI Deep Neural Network Library        
- MO                  Model Optimizer                                  
+ `mo`                  Command-line tool for model conversion, CLI for `tools.mo.convert_model`                             
  MVN                 Mean Variance Normalization                      
  NCDHW               Number of images, Channels, Depth, Height, Width 
  NCHW                Number of images, Channels, Height, Width        
@@ -71,7 +71,7 @@ Glossary of terms used in OpenVINO™
 |   A preferred hardware device to run inference (CPU, GPU, GNA, etc.).
 
 | *Extensibility mechanism, Custom layers* 
-|   The mechanism that provides you with capabilities to extend the OpenVINO™ Runtime and Model Optimizer so that they can work with models containing operations that are not yet supported.
+|   The mechanism that provides you with capabilities to extend the OpenVINO™ Runtime and Model Conversion API so that they can work with models containing operations that are not yet supported.
 
 | *layer / operation*
 |   In OpenVINO, both terms are treated synonymously. To avoid confusion, "layer" is being pushed out and "operation" is the currently accepted term. 

@@ -120,7 +120,7 @@ Depending on the model format types that are used in the application in `ov::Cor
 
 .. note::
 
-   To optimize the size of final distribution package, you are recommended to convert models to OpenVINO IR by using :doc:`Model Optimizer <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`. This way you don't have to keep TensorFlow, TensorFlow Lite, ONNX, PaddlePaddle, and other frontend libraries in the distribution package.
+   To optimize the size of final distribution package, you are recommended to convert models to OpenVINO IR by using :doc:`Model Conversion API <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`. This way you don't have to keep TensorFlow, TensorFlow Lite, ONNX, PaddlePaddle, and other frontend libraries in the distribution package.
 
 (Legacy) Preprocessing via G-API
 ++++++++++++++++++++++++++++++++
