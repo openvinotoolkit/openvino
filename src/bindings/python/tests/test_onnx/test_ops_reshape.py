@@ -218,6 +218,7 @@ def test_concat():
             graph_results = run_node(node, np.array(values, dtype=np.int32))
             assert np.array_equal(graph_results, [expected_output])
 
+
 def test_squeeze():
     data = np.arange(6, dtype=np.int32).reshape([1, 2, 1, 3, 1])
     expected_output = data.reshape([1, 2, 3, 1])
