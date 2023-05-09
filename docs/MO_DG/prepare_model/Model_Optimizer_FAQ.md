@@ -1,6 +1,11 @@
-# Model Conversion Frequently Asked Questions  {#openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ}
+# Model Optimizer Frequently Asked Questions  {#openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ}
 
 @sphinxdirective
+
+.. important::
+
+   This article refers to legacy functionality only.
+
 
 If your question is not covered by the topics below, use the `OpenVINO Support page <https://software.intel.com/en-us/openvino-toolkit/documentation/get-started>`__, where you can participate on a free forum.
 
