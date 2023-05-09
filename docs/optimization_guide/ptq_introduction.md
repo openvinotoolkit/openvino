@@ -32,4 +32,9 @@ Currently, OpenVINO provides two workflows with post-training quantization capab
 * :doc:`Post-training Quantization with NNCF <nncf_ptq_introduction>` - cross-framework solution for model optimization that provides a simple API for post-training quantization.
 * :doc:`(Deprecated) Post-training Quantization with POT <pot_introduction>` - works with models in OpenVINO Intermediate Representation (IR) only.
 
+Additional Resources
+####################
+
+* `Tutorial: Migrate quantization from POT API to NNCF API <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/111-yolov5-quantization-migration>`__
+
 @endsphinxdirective
