@@ -533,6 +533,7 @@ bool should_use_winograd_2x3_s1(std::shared_ptr<const convolution> const& prim,
         || weights_layout.batch() % 64 != 0  // current algorithm is effective for ofm to be multiply of 64
         || any_not_one(prim->stride)               // stride has to be 1x1 by definition
         || any_not_one(prim->dilation)             // no support for dilation
+        || output_size_handling_enabled            // This condition is weird. Need to revise it and replace with something meaningful
         || (input_layout.count() > 3000000)        // limit max input size as winograd consumes more memory
         || (input_layout.count() < 50000)          // limit min input size as winograd is not effective for small input
         || (input_layout.spatial(0) < 8 &&
@@ -1146,7 +1147,7 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
                     current_layout.format == format::os_is_yx_osv16_isv4) {
             // imad case
             // nothing to do, just go out from here.
-        } else if (layout_optimizer::convolution_bfyx_opt(current_layout, weights_layout, prim) || node.get_transposed()) {
+        } else if (layout_optimizer::convolution_bfyx_opt(current_layout, weights_layout, prim) || _output_size_handling_enabled || node.get_transposed()) {
             expected_tensor = current_layout.get_tensor();
             if (current_layout.format == format::b_fs_zyx_fsv16 || current_layout.format == format::bs_fs_zyx_bsv16_fsv16)
                 expected_format = cldnn::format::bfzyx;
