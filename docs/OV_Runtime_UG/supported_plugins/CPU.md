@@ -6,7 +6,7 @@
 @sphinxdirective
 
 
-The CPU plugin is a part of the Intel® Distribution of OpenVINO™ toolkit. It is developed to achieve high performance inference of neural networks on Intel® x86-64 CPUs.
+The CPU plugin is a part of the Intel® Distribution of OpenVINO™ toolkit. It is developed to achieve high performance inference of neural networks on Intel® x86-64 CPUs.The newer 11th generation and later Intel® CPUs provide even further performance boost, especially with INT8 models.
 For an in-depth description of CPU plugin, see:
 
 - `CPU plugin developers documentation <https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/cmake_options_for_custom_comiplation.md>`__.
@@ -444,7 +444,6 @@ Currently, the ``sparse weights decompression feature`` is supported with the fo
 2. Feature is only supported for Matrix Multiplication operations.
 3. HW target must have Intel AMX extension support (e.g., Intel® 4th Generation Xeon® processors (code name Sapphire Rapids)).
 4. The number of input and output channels of the weights must be a multiple of 64.
-5. Current feature implementation supports only sparse rate higher than 0.5.
 
 Additional Resources
 ###########################################################
