@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "proxy_properties.hpp"
 #include "proxy_tests.hpp"
 
 using namespace ov::proxy::tests;
@@ -31,7 +32,7 @@ TEST_F(ProxyTests, get_available_devices) {
 
 TEST_F(ProxyTests, get_available_devices_with_low_level_plugin) {
     ov::AnyMap config;
-    config["ALIAS_FOR"] = "BDE";
+    config[ov::proxy::alias_for.name()] = "BDE";
     // Change device priority
     core.set_property("MOCK", config);
     auto available_devices = core.get_available_devices();

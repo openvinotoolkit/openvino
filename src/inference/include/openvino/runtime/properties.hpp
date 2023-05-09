@@ -923,6 +923,26 @@ constexpr static const auto EXPORT_IMPORT = "EXPORT_IMPORT";  //!< Device suppor
 /** @}*/
 }  // namespace capability
 
+/**
+ * @brief Read-write property to set alias for hardware plugin
+ * value type: string Alias name for the set of plugins
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<std::string, PropertyMutability::RW> alias{"DEVICE_ALIAS"};
+
+/**
+ * @brief Read-write property to set device priority in alias
+ * value type: int32_t lower value means the higher priority
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<int32_t, PropertyMutability::RW> priority{"DEVICE_PRIORITY"};
+
+/**
+ * @brief Read-write property to set the fallback to other HW plugin
+ * value type: string the name of hardware plugin for fallback
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<std::string, PropertyMutability::RW> fallback{"DEVICE_FALLBACK"};
 }  // namespace device
 
 /**

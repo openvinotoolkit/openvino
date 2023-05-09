@@ -4,8 +4,6 @@
 
 set(TARGET_NAME ov_proxy_plugin_tests)
 
-# add_subdirectory(mock_plugins)
-
 ov_add_test_target(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
@@ -24,6 +22,8 @@ ov_add_test_target(
         LABELS
         PROXY_PLUGIN
 )
+
+target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../include)
 
 if(ENABLE_HETERO)
     add_dependencies(${TARGET_NAME} openvino_hetero_plugin)
