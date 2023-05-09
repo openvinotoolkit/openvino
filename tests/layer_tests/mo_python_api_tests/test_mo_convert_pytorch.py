@@ -292,7 +292,7 @@ def create_pytorch_nn_module_mean_list_default_no_compression(tmp_dir):
     return pt_model, ref_model, {'input_shape': [shape, shape], 'mean_values': [[0, 0, 0], [0, 0, 0]], 'input': [np.float32, np.float32]}
 
 
-def create_pytorch_nn_module_mean_list_compressin_enabled(tmp_dir):
+def create_pytorch_nn_module_mean_list_compression_enabled(tmp_dir):
     pt_model = make_pt_model_two_inputs()
     shape = [1, 10, 10, 3]
 
@@ -580,12 +580,12 @@ class TestMoConvertPyTorch(CommonMOConvertTest):
         create_pytorch_nn_module_sample_input_int32,
         create_pytorch_nn_module_sample_input_int32_two_inputs,
         create_pytorch_jit_script_module,
-        #create_pytorch_jit_script_function, # todo: fix function import
+        create_pytorch_jit_script_function,
         create_pytorch_nn_module_layout_list,
         create_pytorch_nn_module_layout_list_case2,
         create_pytorch_nn_module_mean_list,
         create_pytorch_nn_module_mean_list_default_no_compression,
-        create_pytorch_nn_module_mean_list_compressin_enabled,
+        create_pytorch_nn_module_mean_list_compression_enabled,
         create_pytorch_nn_module_scale_list,
         create_pytorch_nn_module_scale_list_default_no_compression,
         create_pytorch_nn_module_scale_list_compression_enabled,
