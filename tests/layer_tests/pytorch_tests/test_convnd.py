@@ -159,3 +159,40 @@ class TestConv3D(PytorchLayerTest):
     def test_conv3d(self, params, bias, ie_device, precision, ir_version):
         self._test(*self.create_model(**params, bias=bias),
                    ie_device, precision, ir_version)
+
+class TestConv2DInSubgraph(PytorchLayerTest):
+    def _prepare_input(self):
+        import numpy as np
+        return (np.random.randn(2, 3, 25, 25).astype(np.float32), np.array([1], dtype=np.int32))
+
+    def create_model(self):
+        import torch
+        from torchvision.ops import Conv2dNormActivation
+
+        class aten_conv2d(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                convs = []
+                conv_depth=2
+                for _ in range(conv_depth):
+                    convs.append(Conv2dNormActivation(3, 3, 3, norm_layer=None))
+                self.convs = torch.nn.Sequential(*convs)
+                for layer in self.modules():
+                    if isinstance(layer, torch.nn.Conv2d):
+                        torch.nn.init.normal_(layer.weight)  # type: ignore[arg-type]
+                        torch.nn.init.constant_(layer.bias, 0)  # type: ignore[arg-type]
+
+            def forward(self, x, y):
+                acc = self.convs(x)
+                if y:
+                    acc += self.convs(x)
+                return acc
+        ref_net = None
+
+        return aten_conv2d(), ref_net, "aten::conv2d"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_conv2d(self, ie_device, precision, ir_version):
+        self._test(*self.create_model(),
+                   ie_device, precision, ir_version, freeze_model=True, trace_model=False, dynamic_shapes=False)
