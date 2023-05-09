@@ -13,6 +13,7 @@
 #include "primitive_type_base.h"
 
 using namespace ov::intel_gpu;
+using namespace cldnn;
 
 namespace {
 template<typename T, typename V>
@@ -22,12 +23,8 @@ T align_to_spatial_rank(const T param, size_t rank, V fill_value) {
     std::copy_n(param.begin(), param.size(), res.begin());
     return T(res);
 }
-}  // namespace
 
-namespace cldnn {
-GPU_DEFINE_PRIMITIVE_TYPE_ID(convolution)
-
-layout convolution_inst::calc_output_layout(convolution_node const& node, kernel_impl_params const& impl_param) {
+std::vector<layout> calc_output_layout_impl(convolution_node const& node, kernel_impl_params const& impl_param, bool legacy_flow) {
     auto desc = impl_param.typed_desc<convolution>();
 
     auto input_layout = impl_param.get_input_layout(0);
@@ -36,122 +33,6 @@ layout convolution_inst::calc_output_layout(convolution_node const& node, kernel
     if (impl_param.has_fused_primitives()) {
         output_type = impl_param.get_fused_output_layout().data_type;
     }
-
-    auto weights_layout = *impl_param.weights_layout;
-    weights_layout = weights_layout.convert_to_weights_layout(desc->grouped_weights_shape);
-
-    if (input_layout.format == format::winograd_2x3_s1_weights ||
-        input_layout.format == format::winograd_2x3_s1_fused_weights ||
-        input_layout.format == format::winograd_6x3_s1_fused_weights ||
-        input_layout.format == format::image_2d_weights_winograd_6x3_s1_fbxyb ||
-        input_layout.format == format::image_2d_weights_winograd_6x3_s1_xfbyb)
-        CLDNN_ERROR_MESSAGE(
-            desc->id,
-            "Input for convolution should not be in winograd weights format - it is reserved for weights only");
-
-    if (input_layout.format == format::winograd_2x3_s1_data) {
-        if (input_layout.feature() % 32 != 0)
-            CLDNN_ERROR_MESSAGE(desc->id,
-                                "Input for winograd 2x3 convolution should have features count divisable by 32");
-        if (weights_layout.ofm() % 32 != 0)
-            CLDNN_ERROR_MESSAGE(desc->id,
-                                "Number of filters (OFM) for winograd 2x3 convolution should be divisable by 32");
-
-        CLDNN_ERROR_LESS_THAN(desc->id,
-                              "input width",
-                              input_layout.spatial(0),
-                              "filter width",
-                              3,
-                              "Convolution input is smaller than weights");
-        CLDNN_ERROR_LESS_THAN(desc->id,
-                              "input height",
-                              input_layout.spatial(1),
-                              "filter height",
-                              3,
-                              "Convolution input is smaller than weights");
-
-        constexpr tensor::value_type filter_height =
-            3;  // by definition of format::winograd_2x3_s1_data (our assumption)
-        constexpr tensor::value_type winograd_filter_height =
-            filter_height;  // for this format, winograd filter is considered to be a set of 1d filters so its height
-                            // should remain the same as original filter's
-
-        return layout{output_type,
-                      input_layout.format,
-                      tensor{input_layout.batch(),
-                             weights_layout.ofm() * weights_layout.group(),
-                             input_layout.spatial(0),
-                             input_layout.spatial(1) - winograd_filter_height + 1},
-                      input_layout.data_padding};
-    }
-
-    // Adjust output format for shallow conv and mixed precision cases in onednn
-    auto out_fmt = input_layout.format;
-    if (node.get_preferred_impl_type() == impl_types::onednn && node.get_preferred_output_fmt() != format::any) {
-        out_fmt = node.get_preferred_output_fmt();
-    }
-
-    if (output_type == data_types::bin) {
-        out_fmt = format::b_fs_yx_32fp;
-    }
-
-    // dynamic case
-    std::vector<ov::PartialShape> input_shapes = {
-        input_layout.get<ov::PartialShape>(),
-        weights_layout.get<ov::PartialShape>()
-    };
-    std::vector<ov::PartialShape> output_shapes;
-
-    auto spatial_rank = input_layout.get_spatial_rank();
-    auto dilation = align_to_spatial_rank(desc->dilation, spatial_rank, static_cast<size_t>(1));
-    auto strides = align_to_spatial_rank(desc->stride, spatial_rank, static_cast<size_t>(1));
-    auto pads_begin = align_to_spatial_rank(desc->padding_begin, spatial_rank, static_cast<std::ptrdiff_t>(0));
-    auto pads_end = align_to_spatial_rank(desc->padding_end, spatial_rank, static_cast<std::ptrdiff_t>(0));
-
-    if (desc->deformable_mode) {
-        ov::op::v8::DeformableConvolution op;
-        op.set_group(desc->groups);
-        op.set_deformable_group(desc->deformable_groups);
-        op.set_dilations(dilation);
-        op.set_strides(strides);
-        op.set_auto_pad(desc->auto_pad);
-        input_shapes.insert(std::next(input_shapes.begin()), impl_param.get_input_layout(1).get_partial_shape());
-        output_shapes = ov::op::v8::shape_infer(&op, input_shapes, pads_begin, pads_end);
-    } else if (desc->grouped_weights_shape || desc->groups > 1) {
-        ov::op::v1::GroupConvolution op;
-        op.set_dilations(dilation);
-        op.set_strides(strides);
-        op.set_auto_pad(desc->auto_pad);
-        auto& weights_shape = input_shapes[1];
-        if (input_shapes[1].size() == 4 && input_shapes[0].size() == 4) {
-            weights_shape.insert(weights_shape.begin(), desc->groups);
-            weights_shape[1] /= desc->groups;
-        }
-        output_shapes = ov::op::v1::shape_infer(&op, input_shapes, pads_begin, pads_end);
-    } else {
-        ov::op::v1::Convolution op;
-        op.set_dilations(dilation);
-        op.set_strides(strides);
-        op.set_auto_pad(desc->auto_pad);
-        output_shapes = ov::op::v1::shape_infer(&op, input_shapes, pads_begin, pads_end);
-    }
-
-    return {output_shapes[0], output_type, out_fmt};
-}
-
-template<typename ShapeType>
-std::vector<layout> convolution_inst::calc_output_layouts(convolution_node const& node, kernel_impl_params const& impl_param) {
-    auto desc = impl_param.typed_desc<convolution>();
-
-    auto input_layout = impl_param.get_input_layout(0);
-    auto input_type = input_layout.data_type;
-    auto output_type = (input_type == data_types::u8 || input_type == data_types::i8) ? data_types::f32 : input_type;
-    if (impl_param.has_fused_primitives()) {
-        output_type = impl_param.get_fused_output_layout().data_type;
-    }
-
-    if (input_layout.is_dynamic())
-        return {layout{ShapeType::dynamic(input_layout.get<ShapeType>().rank()), input_layout.data_type, input_layout.format}};
 
     auto weights_layout = *impl_param.weights_layout;
     weights_layout = weights_layout.convert_to_weights_layout(desc->grouped_weights_shape);
@@ -208,15 +89,25 @@ std::vector<layout> convolution_inst::calc_output_layouts(convolution_node const
     }
 
     // dynamic case
-    std::vector<ShapeType> input_shapes = {
-        input_layout.get<ShapeType>(),
-        weights_layout.get<ShapeType>()
+    std::vector<ov::PartialShape> input_shapes = {
+        input_layout.get_partial_shape(),
+        weights_layout.get_partial_shape()
     };
-    std::vector<ShapeType> output_shapes;
+
+    std::vector<ov::PartialShape> output_shapes;
+
     auto pads_begin = desc->padding_begin;
     auto pads_end = desc->padding_end;
     auto dilation = desc->dilation;
     auto strides = desc->stride;
+
+    if (legacy_flow) {
+        auto spatial_rank = impl_param.get_input_layout(0).get_spatial_rank();
+        dilation = align_to_spatial_rank(dilation, spatial_rank, static_cast<size_t>(1));
+        strides = align_to_spatial_rank(strides, spatial_rank, static_cast<size_t>(1));
+        pads_begin = align_to_spatial_rank(pads_begin, spatial_rank, static_cast<std::ptrdiff_t>(0));
+        pads_end = align_to_spatial_rank(pads_end, spatial_rank, static_cast<std::ptrdiff_t>(0));
+    }
 
     if (desc->deformable_mode) {
         ov::op::v8::DeformableConvolution op;
@@ -232,6 +123,12 @@ std::vector<layout> convolution_inst::calc_output_layouts(convolution_node const
         op.set_dilations(dilation);
         op.set_strides(strides);
         op.set_auto_pad(desc->auto_pad);
+        auto& weights_shape = input_shapes[1];
+        // WA for legacy flow, mostly for unit tests as sometimes grouped conv has non-grouped weights
+        if (legacy_flow && input_shapes[1].size() == 4 && input_shapes[0].size() == 4) {
+            weights_shape.insert(weights_shape.begin(), desc->groups);
+            weights_shape[1] /= desc->groups;
+        }
         output_shapes = ov::op::v1::shape_infer(&op, input_shapes, pads_begin, pads_end);
     } else {
         ov::op::v1::Convolution op;
@@ -244,6 +141,22 @@ std::vector<layout> convolution_inst::calc_output_layouts(convolution_node const
     format::type output_format = input_layout.format.value;
     return {layout{output_shapes[0], output_type, output_format}};
 }
+
+}  // namespace
+
+namespace cldnn {
+GPU_DEFINE_PRIMITIVE_TYPE_ID(convolution)
+
+layout convolution_inst::calc_output_layout(convolution_node const& node, kernel_impl_params const& impl_param) {
+    return calc_output_layout_impl(node, impl_param, true)[0];
+}
+
+template<typename ShapeType>
+std::vector<layout> convolution_inst::calc_output_layouts(convolution_node const& node, kernel_impl_params const& impl_param) {
+    return calc_output_layout_impl(node, impl_param, false);
+}
+
+template std::vector<layout> convolution_inst::calc_output_layouts<ov::PartialShape>(convolution_node const& node, const kernel_impl_params& impl_param);
 
 std::string convolution_inst::to_string(convolution_node const& node) {
     auto desc = node.get_primitive();
