@@ -28,9 +28,13 @@ concurrency:
 jobs:
   Coverage:
     runs-on:
-      group: ubuntu-runners
+      group: org/openvino_runners
+      labels: [self-hosted, coverage]
     strategy:
       fail-fast: false
+      matrix:
+        config:
+          - { name: "Code coverage", cc: "gcc", cxx: "g++" }
 
     steps:
       - name: Setup python
