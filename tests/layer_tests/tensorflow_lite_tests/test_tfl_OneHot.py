@@ -5,9 +5,9 @@ from common.tflite_layer_test_class import TFLiteLayerTest
 
 test_params = [
     {'shape': [3], 'axis': 0, 'kwargs_to_prepare_input': 'int32_positive'},
-    {'shape': [4, 4], 'axis': 1},
-    {'shape': [1, 5, 3], 'axis': 0},
-    {'shape': [5, 1, 2, 4], 'axis': 1},
+    {'shape': [4, 4], 'axis': 1, 'kwargs_to_prepare_input': 'int32_positive'},
+    {'shape': [1, 5, 3], 'axis': 0, 'kwargs_to_prepare_input': 'int32_positive'},
+    {'shape': [5, 1, 2, 4], 'axis': 1, 'kwargs_to_prepare_input': 'int32_positive'},
 ]
 
 

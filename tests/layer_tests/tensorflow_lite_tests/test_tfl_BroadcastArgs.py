@@ -23,7 +23,6 @@ class TestTFLiteBroadcastArgsLayerTest(TFLiteLayerTest):
     def make_model(self, params):
         assert len(set(params.keys()).intersection({'shape', 'broadcast_shape'})) == 2, \
             'Unexpected parameters for test: ' + ','.join(params.keys())
-        self.allowed_ops = [params['op_name']]
         tf.compat.v1.reset_default_graph()
         self.shape = params['shape']
         self.broadcast_shape = params['broadcast_shape']

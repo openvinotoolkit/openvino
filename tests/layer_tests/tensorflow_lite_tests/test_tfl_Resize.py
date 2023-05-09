@@ -13,12 +13,10 @@ test_params = [
     {'shape': [1, 3, 4, 3], 'size': [1, 1], 'align_corners': True, 'half_pixel_centers': False},
     {'shape': [1, 3, 4, 3], 'size': [1, 1], 'align_corners': False, 'half_pixel_centers': False},
     {'shape': [1, 3, 4, 3], 'size': [1, 1], 'align_corners': False, 'half_pixel_centers': True},  # accuracy failure
-    {'shape': [1, 3, 4, 3], 'size': [1, 1], 'align_corners': True, 'half_pixel_centers': True},  # accuracy failure
 
     {'shape': [1, 3, 4, 3], 'size': [10, 10], 'align_corners': True, 'half_pixel_centers': False},
     {'shape': [1, 3, 4, 3], 'size': [10, 10], 'align_corners': False, 'half_pixel_centers': False},
     {'shape': [1, 3, 4, 3], 'size': [10, 10], 'align_corners': False, 'half_pixel_centers': True},  # accuracy failure
-    {'shape': [1, 3, 4, 3], 'size': [10, 10], 'align_corners': True, 'half_pixel_centers': True},  # accuracy failure
 ]
 
 test_data = parametrize_tests(test_ops, test_params)

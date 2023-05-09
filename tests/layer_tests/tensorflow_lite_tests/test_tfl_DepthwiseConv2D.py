@@ -21,7 +21,7 @@ class TestTFLiteDepthwiseConv2DLayerTest(TFLiteLayerTest):
 
     def make_model(self, params):
         assert len(set(params.keys()).intersection({'shape', 'ksize', 'strides',
-                                                    'padding', 'data_format', 'dilations'})) == 8, \
+                                                    'padding', 'data_format', 'dilations'})) == 6, \
             'Unexpected parameters for test: ' + ','.join(params.keys())
         tf.compat.v1.reset_default_graph()
         with tf.compat.v1.Session() as sess:
