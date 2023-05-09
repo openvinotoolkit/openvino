@@ -230,7 +230,7 @@ void GNAGraphCompiler::fillSplitConnections(InferenceEngine::CNNLayerPtr layer) 
 }
 
 void GNAGraphCompiler::initTargetValidator() {
-    cnn2dValidator = Limitations::GetInstance().GetCnnValidator();
+    cnn2dValidator = Limitations::GetInstance()->GetCnnValidator();
 }
 
 bool GNAGraphCompiler::ShouldUseOnlyConv2DGnaIface() const {

@@ -93,7 +93,7 @@ inline bool is_aligned_split(const std::shared_ptr<ngraph::Node> input_op, size_
 inline bool is_crop_affined(std::shared_ptr<ngraph::Node> node) {
     auto crop = std::dynamic_pointer_cast<ngraph::op::CropIE>(node);
     if (crop != nullptr && !crop->offset.empty()) {
-        return limitations::Limitations::GetInstance().IsCropAffinedOffset(crop->offset.back());
+        return limitations::Limitations::GetInstance()->IsCropAffinedOffset(crop->offset.back());
     }
     return false;
 }

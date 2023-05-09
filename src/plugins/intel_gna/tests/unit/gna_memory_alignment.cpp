@@ -45,7 +45,7 @@ public:
     GNAPluginForMemoryAlignmentTest(const std::map<std::string, std::string>& configMap) : GNAPlugin(configMap) {
         if (gnadevice) {
             gnamem.reset(new gna_memory_float(memory::GNAFloatAllocator{},
-                                              Limitations::GetInstance().GetMemoryAlignment(),
+                                              Limitations::GetInstance()->GetMemoryAlignment(),
                                               Limitations::kMemoryPageSize));
             graphCompiler.setGNAMemoryPtr(gnamem);
             gnadevice.reset();
@@ -150,13 +150,15 @@ INSTANTIATE_TEST_SUITE_P(MemoryAlignment_GNA_4_0,
 class MemoryAlignmentTest : public ::testing::Test {};
 
 TEST(MemoryAlignmentTest, getMemoryAlignmentBytes_Expect64ByteAlignmentWhenTargetIsGNA3_0) {
-    Limitations::GetInstance().Init(DeviceVersion::GNA3_5);
-    EXPECT_EQ(Limitations::GetInstance().GetMemoryAlignment(), 64);
+    Limitations::Init(DeviceVersion::GNA3_5);
+    EXPECT_EQ(Limitations::GetInstance()->GetMemoryAlignment(), 64);
+    Limitations::Reset();
 }
 
 TEST(MemoryAlignmentTest, getMemoryAlignmentBytes_Expect16ByteAlignmentWhenTargetIsGNA3_6) {
-    Limitations::GetInstance().Init(DeviceVersion::GNA3_6);
-    EXPECT_EQ(Limitations::GetInstance().GetMemoryAlignment(), 16);
+    Limitations::Init(DeviceVersion::GNA3_6);
+    EXPECT_EQ(Limitations::GetInstance()->GetMemoryAlignment(), 16);
+    Limitations::Reset();
 }
 
 }  // namespace testing

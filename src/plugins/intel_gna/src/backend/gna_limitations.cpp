@@ -673,10 +673,16 @@ constexpr uint32_t Limitations::kBytesPerSplitElement;
 constexpr uint32_t Limitations::kBytesPerCropElement;
 constexpr uint32_t Limitations::kMemoryPageSize;
 
+thread_local std::shared_ptr<Limitations> Limitations::m_instance{nullptr};
+
 void Limitations::Init(const target::DeviceVersion& compile_target) {
-    m_compile_target = compile_target;
-    m_mem_alignment = GetMemoryAlignmentBytes(GetCompileTarget());
-    m_cnn_validator = cnn2d::AbstractValidator::Create(GetCompileTarget());
+    if (m_instance) {
+        if (GetInstance()->GetCompileTarget() != compile_target) {
+            THROW_GNA_EXCEPTION << "Limitations instance already initialized with a different configuration.\n";
+        }
+    } else {
+        m_instance = std::shared_ptr<Limitations>(new Limitations(compile_target));
+    }
 }
 
 bool Limitations::IsTranspose2d(const std::vector<size_t>& shape) {
@@ -781,21 +787,21 @@ bool Limitations::IsConvSupported(const std::shared_ptr<ngraph::op::ConvolutionI
                                                         conv_data.filter_stride_width)) {
             return check_dilation(conv_data.filter_dilation_height, conv_data.filter_dilation_width);
         }
-        const auto cnn2dValidatorPtr = cnn2d::AbstractValidator::Create(GetCompileTarget());
-        if (cnn2dValidatorPtr) {
-            return cnn2dValidatorPtr->ValidateCnn2D(conv_ie->get_friendly_name(),
-                                                    conv_data.input_height,
-                                                    conv_data.input_width,
-                                                    conv_data.input_channel_count,
-                                                    conv_data.filter_height,
-                                                    conv_data.filter_width,
-                                                    conv_data.filter_channel_count,
-                                                    conv_data.filter_stride_height,
-                                                    conv_data.filter_stride_width,
-                                                    conv_data.filter_dilation_height,
-                                                    conv_data.filter_dilation_width,
-                                                    OvGnaTypeIntFromBytes(gna_precision.size()),
-                                                    is_exception_allowed);
+
+        if (m_cnn_validator) {
+            return m_cnn_validator->ValidateCnn2D(conv_ie->get_friendly_name(),
+                                                  conv_data.input_height,
+                                                  conv_data.input_width,
+                                                  conv_data.input_channel_count,
+                                                  conv_data.filter_height,
+                                                  conv_data.filter_width,
+                                                  conv_data.filter_channel_count,
+                                                  conv_data.filter_stride_height,
+                                                  conv_data.filter_stride_width,
+                                                  conv_data.filter_dilation_height,
+                                                  conv_data.filter_dilation_width,
+                                                  OvGnaTypeIntFromBytes(gna_precision.size()),
+                                                  is_exception_allowed);
         }
     }
     return check_dilation(conv_ie->get_dilations()[0], conv_ie->get_dilations()[1]);
@@ -806,15 +812,14 @@ bool Limitations::IsPoolingSupported(const std::shared_ptr<ngraph::opset7::MaxPo
     OPENVINO_ASSERT(max_pool, "MaxPool node is empty!");
     auto kernels = max_pool->get_kernel();
     if (2 == kernels.size() && kernels[0] > 1 && kernels[1] > 1) {
-        const auto cnn2dValidatorPtr = cnn2d::AbstractValidator::Create(GetCompileTarget());
-        if (cnn2dValidatorPtr) {
+        if (m_cnn_validator) {
             auto strides = max_pool->get_strides();
-            return cnn2dValidatorPtr->ValidatePooling2D(max_pool->get_friendly_name(),
-                                                        kernels[0],
-                                                        kernels[1],
-                                                        strides[0],
-                                                        strides[1],
-                                                        is_exception_allowed);
+            return m_cnn_validator->ValidatePooling2D(max_pool->get_friendly_name(),
+                                                      kernels[0],
+                                                      kernels[1],
+                                                      strides[0],
+                                                      strides[1],
+                                                      is_exception_allowed);
         }
     }
     return true;

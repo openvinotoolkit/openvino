@@ -296,6 +296,10 @@ class Decompose2DConvTestInvalidFixture : public CommonTestUtils::TestsCommon,
 public:
     void SetUp() override;
 
+    void TearDown() override {
+        Limitations::Reset();
+    }
+
 public:
     std::shared_ptr<ngraph::Function> function, reference_function;
     modelType model;
@@ -313,7 +317,7 @@ void Decompose2DConvTestInvalidFixture::SetUp() {
     std::tie(model, input_shape, filters_shape, conv_stride, conv_dilation, bias_shape, maxpool_stride, maxpool_shape) =
         params;
 
-    Limitations::GetInstance().Init(ov::intel_gna::target::DeviceVersion::Default);
+    Limitations::Init(ov::intel_gna::target::DeviceVersion::Default);
 
     function = get_initial_function(fq,
                                     model,
@@ -345,6 +349,11 @@ class Decompose2DConvTestFixture : public CommonTestUtils::TestsCommon,
                                    public ::testing::WithParamInterface<fqDecompose2DConvParams> {
 public:
     void SetUp() override;
+
+    void TearDown() override {
+        Limitations::Reset();
+    }
+
     std::shared_ptr<ngraph::Function> get_reference(const bool& fq,
                                                     const modelType& model,
                                                     const ngraph::PartialShape& input_shape,
@@ -368,7 +377,7 @@ void Decompose2DConvTestFixture::SetUp() {
     std::tie(model, input_shape, filters_shape, conv_stride, conv_dilation, bias_shape, maxpool_stride, maxpool_shape) =
         params;
 
-    Limitations::GetInstance().Init(ov::intel_gna::target::DeviceVersion::Default);
+    Limitations::Init(ov::intel_gna::target::DeviceVersion::Default);
 
     function = get_initial_function(fq,
                                     model,

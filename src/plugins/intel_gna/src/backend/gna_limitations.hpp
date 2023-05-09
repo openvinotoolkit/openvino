@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <ie_algorithm.hpp>
 #include <memory>
+#include <thread>
 
 #include "common/gna_target.hpp"
 #include "common/misc_utils.hpp"
@@ -191,12 +192,18 @@ public:
     constexpr static uint32_t kBytesPerCropElement = 2;
     constexpr static uint32_t kMemoryPageSize = 4096;
 
-    static inline Limitations& GetInstance() {
-        static Limitations instance;
-        return instance;
+    static inline std::shared_ptr<Limitations> GetInstance() {
+        if (!m_instance) {
+            THROW_GNA_EXCEPTION << "Limitations instance is not initialized.\n";
+        }
+        return m_instance;
     }
 
-    void Init(const target::DeviceVersion& compile_target);
+    static void Init(const target::DeviceVersion& compile_target);
+
+    static void Reset() {
+        m_instance.reset();
+    }
 
     static bool IsTranspose2d(const std::vector<size_t>& shape);
     static bool IsTransposeSupported(const std::vector<size_t>& shape);
@@ -273,7 +280,6 @@ public:
     }
 
     inline size_t GetMemoryAlignment() const {
-        OPENVINO_ASSERT(GetCompileTarget() != target::DeviceVersion::NotSet);
         return m_mem_alignment;
     }
 
@@ -282,26 +288,29 @@ public:
     }
 
 private:
-    Limitations() {}
+    Limitations(const target::DeviceVersion& target) {
+        m_compile_target = target;
+        m_mem_alignment = GetMemoryAlignmentBytes(target);
+        m_cnn_validator = cnn2d::AbstractValidator::Create(target);
+    }
+
     Limitations(const Limitations&) = delete;
     Limitations& operator=(const Limitations&) = delete;
 
-    inline const target::DeviceVersion& GetCompileTarget() const {
-        if (m_compile_target == target::DeviceVersion::NotSet) {
-            THROW_GNA_EXCEPTION << "Limitation is not initialized with compile target\n";
-        }
+    size_t GetMemoryAlignmentBytes(const target::DeviceVersion& target) const;
+
+    target::DeviceVersion GetCompileTarget() const {
         return m_compile_target;
     }
-
-    size_t GetMemoryAlignmentBytes(const target::DeviceVersion& target) const;
 
     IE_SUPPRESS_DEPRECATED_START
     static bool ValidateConcatAxis(const InferenceEngine::CNNLayerPtr layer, std::string& errMessage);
     IE_SUPPRESS_DEPRECATED_END
 
-    target::DeviceVersion m_compile_target = target::DeviceVersion::NotSet;
+    target::DeviceVersion m_compile_target;
     size_t m_mem_alignment = 0;
     std::shared_ptr<cnn2d::AbstractValidator> m_cnn_validator;
+    static thread_local std::shared_ptr<Limitations> m_instance;
 };
 
 }  // namespace limitations

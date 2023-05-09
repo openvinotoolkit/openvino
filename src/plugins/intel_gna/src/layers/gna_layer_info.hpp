@@ -385,7 +385,7 @@ public:
         auto cropLayer = dynamic_cast<InferenceEngine::CropLayer*>(layer);
         if (cropLayer != nullptr && !cropLayer->offset.empty()) {
             const auto crop_params = GetCropParams(cropLayer);
-            return limitations::Limitations::GetInstance().IsCropAffinedOffset(crop_params.start_offset);
+            return limitations::Limitations::GetInstance()->IsCropAffinedOffset(crop_params.start_offset);
         }
         return false;
     }

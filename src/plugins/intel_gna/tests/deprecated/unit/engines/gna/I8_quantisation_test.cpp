@@ -9,8 +9,10 @@
 #include "frontend/layer_quantizer.hpp"
 #include "gna_matcher.hpp"
 #include <ie_core.hpp>
+#include <backend/gna_limitations.hpp>
 
 using namespace InferenceEngine;
+using namespace ov::intel_gna::limitations;
 using namespace ov::intel_gna::frontend;
 using namespace GNATestIRs;
 
@@ -46,7 +48,13 @@ class I8QuantisationTest : public GNATest<> {
             inputs);
     }
 
-    void SetUp() override {}
+    void SetUp() override {
+        Limitations::Init(target::DeviceVersion::Default);
+    }
+
+    void TearDown() override {
+        Limitations::Reset();
+    }
 };
 
 // TODO: add test for FC weights after quantization

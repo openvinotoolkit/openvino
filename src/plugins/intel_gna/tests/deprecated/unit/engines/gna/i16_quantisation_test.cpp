@@ -11,8 +11,10 @@
 #include "gna_matcher.hpp"
 #include <ie_core.hpp>
 #include "ngraph_functions/builders.hpp"
+#include <backend/gna_limitations.hpp>
 
 using namespace InferenceEngine;
+using namespace ov::intel_gna::limitations;
 using namespace ov::intel_gna::frontend;
 using namespace GNATestIRs;
 
@@ -48,7 +50,12 @@ class I16QuantisationTest : public GNATest<> {
             inputs);
     }
 
-    void SetUp() override  {
+    void SetUp() override {
+        Limitations::Init(target::DeviceVersion::Default);
+    }
+
+    void TearDown() override {
+        Limitations::Reset();
     }
 
 };
