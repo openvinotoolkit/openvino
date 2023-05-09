@@ -28,7 +28,7 @@ concurrency:
 jobs:
   Coverage:
     runs-on:
-      group: openvino_runners
+      group: org/openvino_runners
     strategy:
       fail-fast: false
       matrix:
