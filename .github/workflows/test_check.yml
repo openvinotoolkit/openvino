@@ -1,8 +1,0 @@
-name: Test by comment trigger
-on: workflow_dispatch
-jobs:
-  Job1:
-    runs-on: ubuntu-20.04
-    steps:
-      - name: Test if trigger works
-        run: echo DZIALA
