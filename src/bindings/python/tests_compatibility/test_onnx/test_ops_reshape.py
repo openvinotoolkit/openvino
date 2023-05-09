@@ -15,7 +15,8 @@ from tests_compatibility.test_onnx.utils import (
     run_node,
 )
 from tests_compatibility import (xfail_issue_35927,
-                                 xfail_issue_44858)
+                                 xfail_issue_44858,
+                                 skip_dynamic_model)
 
 
 def test_reshape():
@@ -217,6 +218,7 @@ def test_concat():
             assert np.array_equal(ng_results, [expected_output])
 
 
+@skip_dynamic_model
 def test_squeeze():
     data = np.arange(6, dtype=np.int32).reshape([1, 2, 3, 1])
     expected_output = data.reshape([2, 3])
