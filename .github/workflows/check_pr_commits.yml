@@ -20,4 +20,4 @@ jobs:
       - name: Label commit by PR author
         run: python3 ./.github/github_org_control/check_pr.py --pr=${{ github.event.number }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.ORG_TOKEN }}
