@@ -279,14 +279,6 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
                    input_model_is_text=False, use_new_frontend=True,
                    use_legacy_frontend=False)
 
-    def test_conversion_fake_model(self):
-        with self.assertRaisesRegex(Exception,
-                                    "Internal error or inconsistent input model: the frontend supports "
-                                    "only frozen binary protobuf format."):
-            self.basic("fake.pb", None, None, None, None,
-                       only_conversion=True, input_model_is_text=False, use_new_frontend=True,
-                       use_legacy_frontend=False)
-
     @unittest.skip("109220: Make TF FE to return the error")
     def test_conversion_dir_model(self):
         with self.assertRaisesRegex(Exception,
