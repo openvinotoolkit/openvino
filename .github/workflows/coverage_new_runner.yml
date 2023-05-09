@@ -33,13 +33,18 @@ jobs:
       fail-fast: false
       matrix:
         config:
-          - { name: "Code coverage", cc: "gcc", cxx: "g++" }
+          - { name: "Code coverage", cc: "gcc", cxx: "g++", py_ver: "3.10.10" }
 
     steps:
+      - name: Clone OpenVINO
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
       - name: Setup python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.10.10'
+          python-version: ${{ matrix.config.py_ver }}
           architecture: 'x64'
 
 
@@ -47,11 +52,6 @@ jobs:
         uses: hendrikmuhs/ccache-action@v1.2
         with:
           max-size: 50G
-
-      - name: Clone OpenVINO
-        uses: actions/checkout@v3
-        with:
-          submodules: recursive
 
       - name: Install dependencies
         run: |
