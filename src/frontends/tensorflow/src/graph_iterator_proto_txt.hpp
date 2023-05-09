@@ -34,18 +34,23 @@ public:
     /// \brief Check if the input file is supported
     template <typename T>
     static bool is_supported(const std::basic_string<T>& path) {
-        std::ifstream pbtxt_stream(path, std::ios::in);
-        bool model_exists = (pbtxt_stream && pbtxt_stream.is_open());
-        if (!model_exists) {
+        try {
+            std::ifstream pbtxt_stream(path, std::ios::in);
+            bool model_exists = (pbtxt_stream && pbtxt_stream.is_open());
+            if (!model_exists) {
+                return false;
+            }
+            auto input_stream = std::make_shared<::google::protobuf::io::IstreamInputStream>(&pbtxt_stream);
+            if (!input_stream) {
+                return false;
+            }
+            auto graph_def = std::make_shared<::tensorflow::GraphDef>();
+            auto is_parsed = ::google::protobuf::TextFormat::Parse(input_stream.get(), graph_def.get()) && graph_def &&
+                             graph_def->node_size() > 0;
+            return is_parsed;
+        } catch (...) {
             return false;
         }
-        auto input_stream = std::make_shared<::google::protobuf::io::IstreamInputStream>(&pbtxt_stream);
-        if (!input_stream) {
-            return false;
-        }
-        auto graph_def = std::make_shared<::tensorflow::GraphDef>();
-        auto is_parsed = ::google::protobuf::TextFormat::Parse(input_stream.get(), graph_def.get());
-        return is_parsed;
     }
 };
 }  // namespace tensorflow
