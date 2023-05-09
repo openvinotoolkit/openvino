@@ -343,7 +343,6 @@ bool primitive_inst::update_impl() {
                             data_padding.lower_size().sizes(format::get_default_format(layout::max_rank()));
                         GPU_DEBUG_TRACE_DETAIL << " shape_info[" << offset << "] = " << lower_pads[j]
                                                << "(pad_before for input[" << i << "] " << j << "-th dim)" << std::endl;
-                        std::cout << lower_pads.size() << std::endl;
                         lock[offset++] = lower_pads[j];  // pad_before
                         auto upper_pads =
                             data_padding.upper_size().sizes(format::get_default_format(layout::max_rank()));

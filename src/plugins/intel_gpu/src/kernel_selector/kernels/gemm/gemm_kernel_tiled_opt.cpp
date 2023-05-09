@@ -104,7 +104,8 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
     if (params.has_dynamic_tensors()) {
         DimensionAccessHelper dims0(params.inputs[0]);
         DimensionAccessHelper dims1(params.inputs[1]);
-
+        // Note: Actually currently this kernel is not being selected if it is shape agnostic impl && transposed inputs
+        // Because we cannot get the original rank
         auto m_size = params.transpose_input0 ? dims0.x() : dims0.y();
         auto n_size = params.transpose_input1 ? dims1.y() : dims1.x();
         auto k_size = params.transpose_input0 ? dims0.y() : dims0.x();
