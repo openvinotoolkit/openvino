@@ -12,6 +12,10 @@
 #include <memory>
 #include <functional>
 
+#if defined(OV_CPU_WITH_ACL)
+#include "arm_compute/runtime/IScheduler.h"
+#endif
+
 namespace ov {
 namespace intel_cpu {
 
@@ -61,6 +65,18 @@ private:
     const std::string deviceFullName;
 
     std::shared_ptr<void> specialSetup;
+
+#if defined(OV_CPU_WITH_ACL)
+    struct SchedulerGuard {
+        SchedulerGuard();
+        ~SchedulerGuard();
+        static std::shared_ptr<SchedulerGuard> instance();
+        static std::mutex mutex;
+        static std::weak_ptr<SchedulerGuard> ptr;
+    };
+
+    std::shared_ptr<SchedulerGuard> scheduler_guard;
+#endif
 };
 
 }   // namespace intel_cpu
