@@ -63,6 +63,8 @@ namespace intel_cpu {
 GraphOptimizer::GraphOptimizer() {}
 
 void GraphOptimizer::ApplyCommonGraphOptimizations(Graph &graph) {
+    // For conv with input zp, canBeExecutedInInt8() check has dependency on input zero point check.
+    // FuseConvolutionAndZeroPoints() should be invoked before canBeExecutedInInt8() check.
     OV_ITT_SCOPE_CHAIN(FIRST_INFERENCE, taskChain, itt::domains::intel_cpu_LT, "ApplyCommonGraphOptimizations", "FuseConvolutionAndZeroPoints");
     FuseConvolutionAndZeroPoints(graph);
     graph.RemoveDroppedNodes();
