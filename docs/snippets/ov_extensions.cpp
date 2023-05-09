@@ -78,16 +78,28 @@ private:
 public:
     OPENVINO_OP("CustomElu");
 
+    CustomElu() = default;
+
+    CustomElu(const ov::Output<ov::Node>& input, float alpha, float beta) : Op({input}), m_alpha(alpha), m_beta(beta) {
+        constructor_validate_and_infer_types();
+    }
+
+    void validate_and_infer_types() override {
+        set_output_size(1);
+        set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+    }
+
     bool visit_attributes(ov::AttributeVisitor& visitor) override {
         visitor.on_attribute("alpha", m_alpha);
         visitor.on_attribute("beta", m_beta);
         return true;
     }
 
-    // ... implement other required methods
-//! [frontend_extension_framework_map_CustomElu]
-    std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& inputs) const override { return nullptr; }
+    std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& inputs) const override {
+        return std::make_shared<CustomElu>(inputs[0], m_alpha, m_beta);
+    }
 };
+//! [frontend_extension_framework_map_CustomElu]
 
 
 int main() {
