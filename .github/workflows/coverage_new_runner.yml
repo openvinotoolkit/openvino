@@ -28,7 +28,7 @@ concurrency:
 jobs:
   Coverage:
     runs-on:
-      group: org/openvino_runners
+      group: openvino_runners
       labels: [self-hosted, coverage]
     strategy:
       fail-fast: false
