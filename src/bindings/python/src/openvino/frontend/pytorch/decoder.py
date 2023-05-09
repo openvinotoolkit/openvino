@@ -96,17 +96,29 @@ class TorchScriptPythonDecoder (Decoder):
         # We store every decoder created by this decoder so that all them are not deleted until the first decoder is deleted
         self.m_decoders = []
         self._input_signature = None
-        converted_model = False
         if graph_element is None:
-            converted_model = True
-            pt_module = self._get_scripted_model(pt_module, example_input, freeze)
+            try:
+                pt_module = self._get_scripted_model(pt_module, example_input, freeze)
+            except Exception as e:
+                if example_input is not None:
+                    msg = "tracing or scripting"
+                    help_msg = ""
+                else:
+                    msg = "scripting"
+                    help_msg = "Tracing sometimes provide better results, "
+                    "please provide valid 'example_input' argument. "
+                raise RuntimeError(
+                    f"Couldn't get TorchScript module by {msg}. {help_msg}"
+                    "You can also provide TorchScript module that you obtained"
+                    " yourself, please refer to PyTorch documentation: "
+                    "https://pytorch.org/tutorials/beginner/Intro_to_TorchScript_tutorial.html.")
             self.graph_element = pt_module.inlined_graph
         else:
             self.graph_element = graph_element
         self.pt_module = pt_module
         self.raw_inputs = list(self.graph_element.inputs())
         self.raw_outputs = list(self.graph_element.outputs())
-        if self._input_signature is not None and self.raw_inputs[0].debugName() == "self":
+        if self._input_signature is not None and "self" in self.raw_inputs[0].debugName():
             self._input_signature.insert(0, "self")
 
         if isinstance(self.graph_element, torch.Graph):
@@ -137,7 +149,8 @@ class TorchScriptPythonDecoder (Decoder):
                     inputs = [inputs]
             return inputs, input_signature
 
-        pt_module.eval()
+        if isinstance(pt_module, torch.nn.Module):
+            pt_module.eval()
         input_signature = None
         if isinstance(pt_module, torch.nn.Module) and not isinstance(pt_module, (torch.jit._trace.TopLevelTracedModule, torch.jit._script.RecursiveScriptModule)):
             input_signature = list(inspect.signature(pt_module.forward).parameters.keys())

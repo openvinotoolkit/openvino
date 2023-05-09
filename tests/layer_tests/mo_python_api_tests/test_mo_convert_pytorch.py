@@ -780,9 +780,8 @@ class TestMoConvertPyTorch(CommonMOConvertTest):
         create_pytorch_nn_module_sample_list_of_tensors,
         create_pytorch_jit_script_module,
         create_pytorch_jit_script_function,
-        # Disabled due to Ticket-109430
-        #create_pytorch_nn_module_layout_list,
-        #create_pytorch_nn_module_layout_list_case2,
+        create_pytorch_nn_module_layout_list,
+        create_pytorch_nn_module_layout_list_case2,
         create_pytorch_nn_module_mean_list,
         create_pytorch_nn_module_mean_list_default_no_compression,
         create_pytorch_nn_module_mean_list_compressin_enabled,
@@ -845,3 +844,13 @@ class ConvertONNXFallthroughTest(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, ".*OpenVINO does not support the following ONNX operations: MyTorchOp.*"):
             convert_model(pytorch_model, input_shape=[
                           1, 2, 3], use_legacy_frontend=True)
+
+
+class ConvertRaisesExampleInputs(unittest.TestCase):
+    def test_example_inputs(self):
+        from openvino.tools.mo import convert_model
+        pytorch_model = create_pt_model_with_custom_op()
+
+        # Check that mo raises error message of wrong argument.
+        with self.assertRaisesRegex(AssertionError, ".*argument is not recognized.*"):
+            convert_model(pytorch_model, example_inputs=(torch.tensor(1),))

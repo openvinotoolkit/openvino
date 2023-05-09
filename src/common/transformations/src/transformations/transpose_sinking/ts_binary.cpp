@@ -6,6 +6,7 @@
 
 #include "itt.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/prelu.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/util/op_types.hpp"
@@ -25,7 +26,8 @@ TSBinaryForward::TSBinaryForward() {
     auto main_node_label = wrap_type<op::util::BinaryElementwiseArithmetic,
                                      op::util::BinaryElementwiseComparison,
                                      op::util::BinaryElementwiseLogical,
-                                     ov::op::v0::PRelu>([](const Output<Node>& output) -> bool {
+                                     ov::op::v0::PRelu,
+                                     ov::op::v0::FakeQuantize>([](const Output<Node>& output) -> bool {
         return has_static_rank()(output) && IfNodeHasTransposeInputs(output);
     });
 
@@ -62,17 +64,17 @@ TSBinaryBackward::TSBinaryBackward() {
     auto main_node_label = wrap_type<op::util::BinaryElementwiseArithmetic,
                                      op::util::BinaryElementwiseComparison,
                                      op::util::BinaryElementwiseLogical,
-                                     ov::op::v0::PRelu>([](const Output<Node>& output) -> bool {
-        return has_static_rank()(output) && HasSameOutputTransposeNodes(output);
+                                     ov::op::v0::PRelu,
+                                     ov::op::v0::FakeQuantize>([](const Output<Node>& output) -> bool {
+        return has_static_rank()(output) && CheckTransposeConsumers(output);
     });
 
     auto transpose_const_label = wrap_type<ov::op::v0::Constant>();
 
-    auto transpose_label =
-        wrap_type<ov::op::v1::Transpose>({main_node_label, transpose_const_label},
-                                         [](const Output<Node>& output) -> bool {
-                                             return has_static_rank()(output) && is_sinking_node(output);
-                                         });
+    auto transpose_label = wrap_type<ov::op::v1::Transpose>({main_node_label, transpose_const_label},
+                                                            [](const Output<Node>& output) -> bool {
+                                                                return has_static_rank()(output);
+                                                            });
 
     matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
@@ -88,10 +90,7 @@ TSBinaryBackward::TSBinaryBackward() {
             register_new_node(new_node);
         }
         main_node->validate_and_infer_types();
-        // remove output transposes
-        RemoveSingleOutputConsumers(main_node);
-
-        SwapNames(transpose, main_node);
+        RemoveTransposeConsumers(main_node);
         return true;
     };
 
