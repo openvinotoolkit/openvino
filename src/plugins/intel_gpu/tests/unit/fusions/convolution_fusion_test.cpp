@@ -3322,8 +3322,8 @@ TEST_P(conv_gen9_common_conv_fwd_data_1stconv, basic) {
     create_topologies(
         input_layout("input", get_input_layout(p)),
         data("weights", get_mem(get_weights_layout(p))),
-        data("bias", get_mem(get_bias_layout(p))),
-        convolution("conv_prim", input_info("input"), { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
+        data("bias", get_mem(get_per_channel_layout(p))),
+        convolution("conv_prim", input_info("input"), { "weights" }, { "bias" }, p.groups, p.stride, p.dilation, p.pad, p.pad, false ),
         activation("activation", input_info("conv_prim"), activation_func::hswish),
         reorder("reorder_bfyx", input_info("activation"), p.default_format, data_types::f32)
     );
