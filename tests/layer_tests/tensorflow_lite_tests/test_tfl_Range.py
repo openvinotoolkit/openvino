@@ -3,25 +3,19 @@ import pytest
 import tensorflow as tf
 
 from common.tflite_layer_test_class import TFLiteLayerTest
-from common.utils.tflite_utils import parametrize_tests
 
 np.random.seed(42)
-
-test_ops = [
-    {'op_name': ['RANGE'], 'op_func': tf.range},
-]
 
 test_params = [
     {'dtype': np.float32, 'negative_delta': False},
     {'dtype': np.int32, 'negative_delta': True},
 ]
 
-test_data = parametrize_tests(test_ops, test_params)
-
 
 class TestTFLiteRangeLayerTest(TFLiteLayerTest):
     inputs = ['Start', 'Limit', 'Delta']
     outputs = ["Range"]
+    allowed_ops = ['RANGE']
 
     def _prepare_input(self, inputs_dict, generator=None):
         inputs_data = {}
@@ -37,9 +31,8 @@ class TestTFLiteRangeLayerTest(TFLiteLayerTest):
         return inputs_data
 
     def make_model(self, params):
-        assert len(set(params.keys()).intersection({'op_name', 'op_func', 'dtype', 'negative_delta'})) == 4, \
+        assert len(set(params.keys()).intersection({'dtype', 'negative_delta'})) == 2, \
             'Unexpected parameters for test: ' + ','.join(params.keys())
-        self.allowed_ops = params['op_name']
         tf.compat.v1.reset_default_graph()
         with tf.compat.v1.Session() as sess:
             self.dtype = params['dtype']
@@ -49,11 +42,11 @@ class TestTFLiteRangeLayerTest(TFLiteLayerTest):
             limit = tf.compat.v1.placeholder(self.dtype, [], self.inputs[1])
             delta = tf.compat.v1.placeholder(self.dtype, [], self.inputs[2])
 
-            params['op_func'](start, limit, delta, name=self.outputs[0])
+            tf.range(start, limit, delta, name=self.outputs[0])
             net = sess.graph_def
         return net
 
-    @pytest.mark.parametrize("params", test_data)
+    @pytest.mark.parametrize("params", test_params)
     @pytest.mark.nightly
     def test_range(self, params, ie_device, precision, temp_dir):
         self._test(ie_device, precision, temp_dir, params)

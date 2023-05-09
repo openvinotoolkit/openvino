@@ -5,7 +5,7 @@ from common.tflite_layer_test_class import TFLiteLayerTest
 from common.utils.tflite_utils import parametrize_tests
 
 test_ops = [
-    # {'op_name': ['RESIZE_BILINEAR'], 'op_func': tf.compat.v1.image.resize_bilinear},
+    {'op_name': ['RESIZE_BILINEAR'], 'op_func': tf.compat.v1.image.resize_bilinear},
     {'op_name': ['RESIZE_NEAREST_NEIGHBOR'], 'op_func': tf.compat.v1.image.resize_nearest_neighbor},
 ]
 

@@ -3,13 +3,8 @@ import pytest
 import tensorflow as tf
 
 from common.tflite_layer_test_class import TFLiteLayerTest
-from common.utils.tflite_utils import parametrize_tests
 
 np.random.seed(42)
-
-test_ops = [
-    {'op_name': ['SCATTER_ND'], 'op_func': tf.scatter_nd},
-]
 
 test_params = [
     {'indices_shape': [4, 1], 'indices_value': [4, 3, 1, 7], 'updates_dtype': np.int32, 'updates_shape': [4],
@@ -31,12 +26,11 @@ test_params = [
      'updates_shape': [4, 5], 'shape_shape': [3], 'shape_value': [2, 3, 5]},
 ]
 
-test_data = parametrize_tests(test_ops, test_params)
-
 
 class TestTFLiteScatterNDLayerTest(TFLiteLayerTest):
     inputs = ["Indices", "Updates", "Shape"]
     outputs = ["ScatterND"]
+    allowed_ops = ['SCATTER_ND']
 
     def _prepare_input(self, inputs_dict, generator=None):
         inputs_dict['Indices'] = np.array(self.indices_value, dtype=np.int32).reshape(self.indices_shape)
@@ -54,11 +48,10 @@ class TestTFLiteScatterNDLayerTest(TFLiteLayerTest):
         return inputs_dict
 
     def make_model(self, params):
-        assert len(set(params.keys()).intersection({'op_name', 'op_func', 'indices_shape', 'indices_value',
+        assert len(set(params.keys()).intersection({'indices_shape', 'indices_value',
                                                     'updates_dtype', 'updates_shape', 'shape_shape',
-                                                    'shape_value'})) == 8, \
+                                                    'shape_value'})) == 6, \
             'Unexpected parameters for test: ' + ','.join(params.keys())
-        self.allowed_ops = params['op_name']
         self.indices_value = params['indices_value']
         self.indices_shape = params['indices_shape']
         self.updates_dtype = params['updates_dtype']
@@ -71,11 +64,11 @@ class TestTFLiteScatterNDLayerTest(TFLiteLayerTest):
             updates = tf.compat.v1.placeholder(self.updates_dtype, self.updates_shape, name=self.inputs[1])
             shape = tf.compat.v1.placeholder(tf.int32, params['shape_shape'], name=self.inputs[2])
 
-            params['op_func'](indices, updates, shape, name=self.outputs[0])
+            tf.scatter_nd(indices, updates, shape, name=self.outputs[0])
             net = sess.graph_def
         return net
 
-    @pytest.mark.parametrize("params", test_data)
+    @pytest.mark.parametrize("params", test_params)
     @pytest.mark.nightly
     def test_scatter_nd(self, params, ie_device, precision, temp_dir):
         self._test(ie_device, precision, temp_dir, params)

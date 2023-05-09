@@ -1,5 +1,3 @@
-import itertools
-
 import pytest
 import tensorflow as tf
 
@@ -20,11 +18,7 @@ test_params = [
 ]
 
 test_data = parametrize_tests(test_ops, test_params)
-
-test_data = list(itertools.product(test_data, additional_test_params[1]))
-for i, (parameters, additional_test_params[1]) in enumerate(test_data):
-    parameters.update(additional_test_params[1])
-    test_data[i] = parameters.copy()
+test_data = parametrize_tests(test_data, additional_test_params[1])
 
 
 class TestTFLiteBinaryWithActivationLayerTest(TFLiteLayerTest):

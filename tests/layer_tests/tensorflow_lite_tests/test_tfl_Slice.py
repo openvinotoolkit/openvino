@@ -5,11 +5,6 @@ import pytest
 import tensorflow as tf
 
 from common.tflite_layer_test_class import TFLiteLayerTest
-from common.utils.tflite_utils import parametrize_tests
-
-test_ops = [
-    {'op_name': ['SLICE'], 'op_func': tf.slice},
-]
 
 test_params = [
     # OV doesn't support string format
@@ -20,12 +15,11 @@ test_params = [
     {'shape': [2, 3], 'begin': [1, 0], 'size': [-1, -1], 'dtype': np.int64},
 ]
 
-test_data = parametrize_tests(test_ops, test_params)
-
 
 class TestTFLiteSliceLayerTest(TFLiteLayerTest):
     inputs = ["Input", "Begin", "Size"]
     outputs = ["Slice"]
+    allowed_ops = ['SLICE']
 
     def _prepare_input(self, inputs_dict, generator=None):
         if self.input_dtype == tf.string:
@@ -40,9 +34,8 @@ class TestTFLiteSliceLayerTest(TFLiteLayerTest):
         return inputs_dict
 
     def make_model(self, params):
-        assert len(set(params.keys()).intersection({'op_name', 'op_func', 'shape', 'begin', 'size', 'dtype'})) == 6, \
+        assert len(set(params.keys()).intersection({'shape', 'begin', 'size', 'dtype'})) == 4, \
             'Unexpected parameters for test: ' + ','.join(params.keys())
-        self.allowed_ops = params['op_name']
         self.input_dtype = params['dtype']
         self.shape = params['shape']
         self.begin = params['begin']
@@ -54,11 +47,11 @@ class TestTFLiteSliceLayerTest(TFLiteLayerTest):
             begin = tf.compat.v1.placeholder(tf.int32, len(params['shape']), name=self.inputs[1])
             size = tf.compat.v1.placeholder(tf.int32, len(params['shape']), name=self.inputs[2])
 
-            params['op_func'](placeholder, begin, size, name=self.outputs[0])
+            tf.slice(placeholder, begin, size, name=self.outputs[0])
             net = sess.graph_def
         return net
 
-    @pytest.mark.parametrize("params", test_data)
+    @pytest.mark.parametrize("params", test_params)
     @pytest.mark.nightly
     def test_slice(self, params, ie_device, precision, temp_dir):
         self._test(ie_device, precision, temp_dir, params)

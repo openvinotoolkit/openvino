@@ -3,11 +3,6 @@ import pytest
 import tensorflow as tf
 
 from common.tflite_layer_test_class import TFLiteLayerTest
-from common.utils.tflite_utils import parametrize_tests
-
-test_ops = [
-    {'op_name': ['STRIDED_SLICE'], 'op_func': tf.strided_slice},
-]
 
 test_params = [
     {'shape': [12, 2, 2, 5], 'dtype': np.int32, 'strides': [2, 1, 3, 1], 'begin': [0, 0, 0, 0], 'end': [12, 2, 2, 5],
@@ -22,12 +17,11 @@ test_params = [
      'begin_mask': 8, 'end_mask': 3, 'shrink_axis_mask': None},
 ]
 
-test_data = parametrize_tests(test_ops, test_params)
-
 
 class TestTFLiteStridedSliceLayerTest(TFLiteLayerTest):
     inputs = ["Input", "Begin", "End"]
     outputs = ["StridedSlice"]
+    allowed_ops = ['STRIDED_SLICE']
 
     def _prepare_input(self, inputs_dict, generator=None):
         if self.input_dtype == np.bool:
@@ -42,10 +36,9 @@ class TestTFLiteStridedSliceLayerTest(TFLiteLayerTest):
         return inputs_dict
 
     def make_model(self, params):
-        assert len(set(params.keys()).intersection({'op_name', 'op_func', 'shape', 'dtype', 'strides', 'begin',
-                                                    'end', 'begin_mask', 'end_mask', 'shrink_axis_mask'})) == 10, \
+        assert len(set(params.keys()).intersection({'shape', 'dtype', 'strides', 'begin',
+                                                    'end', 'begin_mask', 'end_mask', 'shrink_axis_mask'})) == 8, \
             'Unexpected parameters for test: ' + ','.join(params.keys())
-        self.allowed_ops = params['op_name']
         self.input_dtype = params['dtype']
         self.begin = params['begin']
         self.end = params['end']
@@ -64,13 +57,13 @@ class TestTFLiteStridedSliceLayerTest(TFLiteLayerTest):
                 self.inputs.append(name)
                 strides = tf.compat.v1.placeholder(tf.int32, [len(params['end'])], name)
 
-            params['op_func'](placeholder, begin, end, strides,
-                              begin_mask=params['begin_mask'], end_mask=params['end_mask'],
-                              shrink_axis_mask=params['shrink_axis_mask'], name=self.outputs[0])
+            tf.strided_slice(placeholder, begin, end, strides,
+                             begin_mask=params['begin_mask'], end_mask=params['end_mask'],
+                             shrink_axis_mask=params['shrink_axis_mask'], name=self.outputs[0])
             net = sess.graph_def
         return net
 
-    @pytest.mark.parametrize("params", test_data)
+    @pytest.mark.parametrize("params", test_params)
     @pytest.mark.nightly
     def test_strided_slice(self, params, ie_device, precision, temp_dir):
         self._test(ie_device, precision, temp_dir, params)
