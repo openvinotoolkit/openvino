@@ -36,7 +36,12 @@ OutputVector translate_interpolate_op(const NodeContext& node) {
         interpolate_attrs.mode = Interpolate::InterpolateMode::NEAREST;
         interpolate_attrs.nearest_mode = Interpolate::NearestMode::FLOOR;
     } else if (op_type == "ResizeBilinear") {
-        interpolate_attrs.mode = Interpolate::InterpolateMode::LINEAR;
+        auto input_rank = images.get_partial_shape().rank();
+        if (input_rank.is_static() && input_rank.get_length() == 4) {
+            interpolate_attrs.mode = Interpolate::InterpolateMode::LINEAR_ONNX;
+        } else {
+            interpolate_attrs.mode = Interpolate::InterpolateMode::LINEAR;
+        }
         interpolate_attrs.nearest_mode = Interpolate::NearestMode::ROUND_PREFER_FLOOR;
     }
 
