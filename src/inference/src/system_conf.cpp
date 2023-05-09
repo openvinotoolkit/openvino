@@ -182,7 +182,7 @@ void set_cpu_used(const std::vector<int>& cpu_ids, const int used) {}
 int parse_processor_info_macos(int& _processors,
                                int& _numa_nodes,
                                int& _cores,
-                               std::vector<std::vector<int> >& _proc_type_table) {
+                               std::vector<std::vector<int>>& _proc_type_table) {
     uint64_t output = 0;
     size_t size = sizeof(output);
 
