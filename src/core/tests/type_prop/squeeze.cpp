@@ -289,12 +289,7 @@ TEST_P(SqueezeTest, partial_shape_dimension_propagation_parameter_axes_no_data) 
     const auto squeeze = std::make_shared<op::v0::Squeeze>(param, axes_node);
 
     EXPECT_EQ(squeeze->get_element_type(), element::f32);
-
-    if (axes.size() == 0 || param->get_output_partial_shape(0).rank().is_dynamic()) {
-        EXPECT_EQ(squeeze->get_output_partial_shape(0), PartialShape::dynamic());
-    } else {
-        EXPECT_TRUE(squeeze->get_output_partial_shape(0).compatible(exp_shape));
-    }
+    EXPECT_TRUE(squeeze->get_output_partial_shape(0).compatible(exp_shape));
 }
 
 TEST_P(SqueezeTest, partial_shape_dimension_propagation_dynamic_axes) {
