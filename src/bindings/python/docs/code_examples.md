@@ -23,7 +23,7 @@ How does OpenVINO™ packaging work? It is strictly connected to the layout of t
 For further reading, please refer to: https://packaging.python.org/en/latest/guides/packaging-namespace-packages/
 
 ### Creating new package that extends OpenVINO™ project namespace
-Let's go over the example available in `openvino/src/bindings/python/docs/examples/openvino`:
+Let's go over the example available in [examples folder](./examples/openvino):
 
 ```
 openvino/               <-- Main package/namespace
@@ -49,7 +49,7 @@ obj.say_hello()
 ```
 
 ### Extending of existing API (sub)modules
-But how to extend existing API? Let's navigate to `openvino/src/bindings/python/src/openvino` and add something to project helpers. Create new directory and fill it's contents:
+But how to extend existing API? Let's navigate to [main bindings folder](./../src/openvino/) and add something to project helpers. Create new directory and fill it's contents:
 
 ```
 openvino/
@@ -67,18 +67,20 @@ openvino/
 └── utils.py
 ```
 
-Let's add in `custom_module/custom_helpers.py`:
+Let's add in [`custom_helpers.py`](./examples/custom_module/custom_helpers.py):
+<!-- TODO: Link with code -->
 ```python
 def top1_index(results: list) -> int:
     return results.index(max(results))
 ```
 
-Import it to a new module in `custom_module/__init__.py`:
+Import it to a new module in [`custom_module/__init__.py`](./examples/custom_module/__init__.py):
+<!-- TODO: Link with code -->
 ```python
 from openvino.helpers.custom_module.custom_helpers import top1_index
 ```
 
-Follow it with correct import in `helpers/__init__.py`:
+Follow it with correct import in [`helpers/__init__.py`](./../src/openvino/helpers/__init__.py):
 ```python
 from openvino.helpers.custom_module import top1_index
 ```
@@ -111,9 +113,7 @@ Link to project repository: https://github.com/pybind/pybind11
 ### Adding new (sub)module
 Adding a new module could be done only by using *pybind11* built-in capabilities.
 
-Navigate to the main project file responsible for creation of the whole package, let's call it "registering-point":
-
-    openvino/src/bindings/python/src/pyopenvino/pyopenvino.cpp
+Navigate to the main project file responsible for creation of the whole package [`pyopenvino.cpp`](./../src/pyopenvino/pyopenvino.cpp), let's call it "registering-point".
 
 Add a new submodule by writing:
 ```cpp
@@ -121,7 +121,7 @@ py::module mymodule = m.def_submodule("mymodule", "My first feature - openvino.r
 ```
 This is a shorthand way of adding new submodules which can later be used to extend the package. The mysterious `m` is actaully the main OpenVINO™ module called `pyopenvino` -- it is registered with `PYBIND11_MODULE(pyopenvino, m)` at the top of the "registering-point" file. Later imports from it are done by calling upon the `openvino._pyopenvino` package.
 
-Keep in mind that in most real-life scenarios, modules and classes are registered in different files. The general idea is to create a helper function that will hold all of the registered modules, classes, and functions. This function needs to be exposed within a separate header file and included in "registering-point". The project's common guideline suggests to use names in the following convention: `regmodule_[domain]_[name_of_the_module]` or `regclass_[domain]_[name_of_the_class]`. Where optional `[domain]` generally points to parts of the API such as graph or frontend, or stay empty in the case of core runtime. Examples can be found in the "registering-point" file, `openvino/src/bindings/python/src/pyopenvino/pyopenvino.cpp`.
+Keep in mind that in most real-life scenarios, modules and classes are registered in different files. The general idea is to create a helper function that will hold all of the registered modules, classes, and functions. This function needs to be exposed within a separate header file and included in "registering-point". The project's common guideline suggests to use names in the following convention: `regmodule_[domain]_[name_of_the_module]` or `regclass_[domain]_[name_of_the_class]`. Where optional `[domain]` generally points to parts of the API such as graph or frontend, or stay empty in the case of core runtime. Examples can be found in the "registering-point" file [`pyopenvino.cpp`](../src/pyopenvino/pyopenvino.cpp).
 
 *Note: Submodules can be "chained" as well. Refer to the official documentation for more details: https://pybind11.readthedocs.io/en/stable/reference.html#_CPPv4N7module_13def_submoduleEPKcPKc*
 
@@ -245,7 +245,7 @@ Note: **bindings** that are created for classes are sometimes called **wrappers*
 
     MyTensor wraps (around) Tensor class.
 
-However, in OpenVINO™ there is an unwritten distinction between "everyday" wrappers and more complex ones (with this article published... it is now a written one ;) ). An example may be found in `openvino/src/bindings/python/src/pyopenvino/core/infer_request.hpp`, where `InferRequest` is actually wrapped inside `InferRequestWrapper`, similarly to the `Tensor` and `MyTensor` scenario. It helps to extend original object capabilities with members and functions that do not necessarily belong to the C++ API. Thus, explicitly calling something a **wrapper** in the project indicates that binding is probably inheriting or using the composition technique to include the original class, later extending it in some way.
+However, in OpenVINO™ there is an unwritten distinction between "everyday" wrappers and more complex ones (with this article published... it is now a written one ;) ). An example may be found in [`core/infer_request.hpp`](./../src/pyopenvino/core/infer_request.hpp), where `InferRequest` is actually wrapped inside `InferRequestWrapper`, similarly to the `Tensor` and `MyTensor` scenario. It helps to extend original object capabilities with members and functions that do not necessarily belong to the C++ API. Thus, explicitly calling something a **wrapper** in the project indicates that binding is probably inheriting or using the composition technique to include the original class, later extending it in some way.
 
 ### Overloads of functions
 One of the main advantages of *pybind11* is the ability to resolve overloaded functions. Let's assume that a previously created function is extended to print any message passed by the user.
@@ -303,7 +303,7 @@ Notice that only functions with correct arguments are **not** throwing exception
 Although *pybind11* is a powerful tool, it is sometimes required (or simply easier and more efficent) to combine both approaches and utilize both languages to achive best results.
 
 ### Making pybind11-based module/class visible in OpenVINO™ package
-Let's move a new class from `openvino._pyopenvino.mymodule` to the actual package. Simply introduce a new import statement in the desired file. Let it be `openvino/src/bindings/python/src/openvino/runtime/__init__.py`: 
+Let's move a new class from `openvino._pyopenvino.mymodule` to the actual package. Simply introduce a new import statement in the desired file. Let it be [`openvino/runtime/__init__.py`](./../src/openvino/runtime/__init__.py): 
 ```python
 from openvino._pyopenvino.mymodule import MyTensor
 ```
@@ -320,7 +320,7 @@ Same rule applies to whole modules and free functions. **This is a required step
 ### Yet another Python layer
 As mentioned earlier, it may be helpful to utilize Python in-between to achieve hard C++ feats in a more efficient way. Let's extend the previously created `say_hello` function a little bit.
 
-First, create a new file in the `openvino/src/bindings/python/src/openvino/runtime` directory and call it `mymodule_ext.py`. There are no strict rules for naming, just make sure the names are in good taste. Import the class here:
+First, create a new file in the [runtime directory](./../src/openvino/runtime/) and call it `mymodule_ext.py`. There are no strict rules for naming, just make sure the names are in good taste. Import the class here:
 ```python
 from openvino._pyopenvino.mymodule import MyTensor as MyTensorBase
 ```
