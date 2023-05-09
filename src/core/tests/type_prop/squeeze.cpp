@@ -41,6 +41,15 @@ TEST(type_prop, squeeze_incorrect_negative_axes) {
                     HasSubstr("Parameter axis -10 out of the tensor rank range"));
 }
 
+TEST(type_prop, squeeze_data_static_param_axes_1D_single_elem_static_shape_no_squeezable_dims) {
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, PartialShape{2, 2, 4});
+    const auto axes_node = std::make_shared<op::Parameter>(element::u64, PartialShape{1});
+
+    OV_EXPECT_THROW(auto s = make_shared<op::Squeeze>(param, axes_node),
+                    NodeValidationFailure,
+                    HasSubstr("doesn't contain squeezable dimension"));
+}
+
 TEST(type_prop, squeeze_data_static_param_axes_1D_two_elem_static_shape_squeezable_dims_two) {
     auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, PartialShape{1, 2, 1, 4});
     const auto axes_node = std::make_shared<op::Parameter>(element::u64, PartialShape{2});

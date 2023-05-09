@@ -60,6 +60,16 @@ void shape_infer(const Squeeze* op,
             } else if (arg_rank.get_length() > 0 && shape_size(axes_shape.to_shape()) == 1) {
                 // The `axes` input must be a Parameter with single element to ensure uniqueness of axes
                 // only rank is deduced
+                int64_t squeezable_dims_count =
+                    std::count_if(arg_shape.begin(), arg_shape.end(), [&](const DimType& dim) {
+                        return dim.compatible(1);
+                    });
+                NODE_VALIDATION_CHECK(op,
+                                      squeezable_dims_count >= 1,
+                                      "Data input shape ",
+                                      arg_shape,
+                                      " doesn't contain squeezable dimension,"
+                                      " but axes input is expected to have one element.");
                 output_shape = PartialShape::dynamic(arg_rank.get_length() - 1);
                 return;
             }
