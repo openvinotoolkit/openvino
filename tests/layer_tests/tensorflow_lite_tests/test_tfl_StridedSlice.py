@@ -6,11 +6,11 @@ from common.tflite_layer_test_class import TFLiteLayerTest
 
 test_params = [
     {'shape': [12, 2, 2, 5], 'dtype': np.int32, 'strides': [2, 1, 3, 1], 'begin': [0, 0, 0, 0], 'end': [12, 2, 2, 5],
-     'begin_mask': None, 'end_mask': None, 'shrink_axis_mask': None},
+     'begin_mask': None, 'end_mask': None, 'shrink_axis_mask': 4},
     {'shape': [12, 2, 2, 5], 'dtype': np.float32, 'strides': None, 'begin': [0, 0, 0, 0], 'end': [12, 2, 2, 5],
      'begin_mask': None, 'end_mask': None, 'shrink_axis_mask': None},
     {'shape': [12, 2, 2, 5], 'dtype': np.float32, 'strides': None, 'begin': [1, 0, 1, 0], 'end': [8, 2, 2, 3],
-     'begin_mask': 8, 'end_mask': 3, 'shrink_axis_mask': -1},
+     'begin_mask': 8, 'end_mask': 3, 'shrink_axis_mask': 4},
     {'shape': [12, 2, 2, 5], 'dtype': np.int64, 'strides': [1], 'begin': [0], 'end': [1],
      'begin_mask': 8, 'end_mask': 3, 'shrink_axis_mask': None},
     {'shape': [12, 2, 2, 5], 'dtype': np.bool, 'strides': [1], 'begin': [0], 'end': [1],

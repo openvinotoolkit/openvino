@@ -5,9 +5,9 @@ from common.tflite_layer_test_class import TFLiteLayerTest
 
 test_params = [
     {'shape': [2, 3, 1, 2, 2], 'segment_ids': [0, 1, 2, 3, 4]},
-    {'shape': [2, 3, 1, 2], 'segment_ids': [-1, -2, -3, -4]},
+    {'shape': [2, 3, 1, 2], 'segment_ids': [0, 1, 2, 3]},
     {'shape': [2, 3], 'segment_ids': [0, 1]},
-    {'shape': [2], 'segment_ids': [-1]},
+    {'shape': [2], 'segment_ids': [0]},
 ]
 
 
