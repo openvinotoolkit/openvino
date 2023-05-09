@@ -8,6 +8,7 @@
 
 using namespace ngraph;
 using namespace ov::frontend;
+using namespace ov::frontend::tensorflow::tests;
 
 using TFConvertModelTest = FrontEndConvertModelTest;
 

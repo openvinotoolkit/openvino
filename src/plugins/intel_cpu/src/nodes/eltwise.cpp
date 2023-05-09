@@ -136,30 +136,22 @@ InferenceEngine::Precision eltwise_precision_helper::get_precision(const size_t 
     std::set<std::vector<element::Type>> supported_precision_intersection = get_supported_precisions(eltwise_data.front().algo);
 
     // for element-wise operations all inputs must to have the same precisions
-    assert(std::all_of(
-        supported_precision_intersection.begin(),
-        supported_precision_intersection.end(),
-        [&supported_precision_intersection](const std::vector<element::Type>& precisions) {
-            return std::all_of(
-                precisions.begin(),
-                precisions.end(),
-                [&precisions](const element::Type precision) { return precision == precisions[0]; });
-        }));
+    auto has_same_precision = [](const std::vector<element::Type>& precisions) {
+        return std::all_of(precisions.begin(), precisions.end(), [&precisions](const element::Type precision) {
+            return precision == precisions[0];
+        });
+    };
+
+    assert(std::all_of(supported_precision_intersection.begin(),
+                       supported_precision_intersection.end(),
+                       has_same_precision));
 
     for (size_t i = 1; i < eltwise_data.size(); ++i) {
         std::set<std::vector<element::Type>> prcs = get_supported_precisions(eltwise_data[i].algo);
         std::set<std::vector<element::Type>> prcs_intersect = {};
 
-        OPENVINO_ASSERT(std::all_of(
-            prcs.begin(),
-            prcs.end(),
-            [](const std::vector<element::Type>& precisions) {
-                return std::all_of(
-                    precisions.begin(),
-                    precisions.end(),
-                    [&precisions](const element::Type& precision) { return precision == precisions[0]; });
-            }),
-            "for element-wise nodes all precisions have to be equal");
+        OPENVINO_ASSERT(std::all_of(prcs.begin(), prcs.end(), has_same_precision),
+                        "for element-wise nodes all precisions have to be equal");
 
         set_intersection(supported_precision_intersection, prcs, prcs_intersect);
 
@@ -1220,7 +1212,6 @@ struct EltwiseKey {
     std::vector<InferenceEngine::Precision> inpPrc;
     InferenceEngine::Precision outPrc;
     dnnl::post_ops postOps;
-    bool useDynBatch;
     EltwiseImplType implType;
 
     size_t hash() const {
@@ -1256,7 +1247,6 @@ struct EltwiseKey {
         });
         seed = hash_combine(seed, outPrc.getPrecVal());
         seed = get_post_op_hash(seed, *postOps.get());
-        seed = hash_combine(seed, useDynBatch);
         seed = hash_combine(seed, implType);
         return seed;
     }
@@ -1271,7 +1261,6 @@ struct EltwiseKey {
                       inpPrc == rhs.inpPrc &&
                       outPrc == rhs.outPrc &&
                       *postOps.get() == *rhs.postOps.get() &&
-                      useDynBatch == rhs.useDynBatch &&
                       implType == rhs.implType;
 
         if (result) {
@@ -1322,7 +1311,6 @@ public:
                        const std::vector<InferenceEngine::Precision>& inpPrc,
                        const InferenceEngine::Precision& outPrc,
                        const dnnl::post_ops& post_ops,
-                       bool useDynBatch,
                        bool useRuntimePtrs) {
         auto collapseLastDims = [](std::vector<size_t>& dims, int dimsToCollapse) {
             for (int i = dims.size() - 2; i > dims.size() - dimsToCollapse - 2; i--) {
@@ -1428,9 +1416,7 @@ public:
         int collapsedDims = 0;
 
         bool hasDifferentDims = false;
-        while (!useRuntimePtrs && currentJitWorkAmount < minimalJitWorkAmount && currentJitWorkAmount < fullWorkAmount &&
-               // we shouldn't collapse batch dimension in case dynamic batch is enabled
-               (!useDynBatch || (outBlkDims.size() - collapsedDims > 2))) {
+        while (!useRuntimePtrs && currentJitWorkAmount < minimalJitWorkAmount && currentJitWorkAmount < fullWorkAmount) {
             if (collapsedDims >= maxCollapsedDims)
                 break;
 
@@ -1786,7 +1772,6 @@ static Eltwise::executorPtr buildExecutor(const EltwiseKey& key) {
                                                        key.inpPrc,
                                                        key.outPrc,
                                                        key.postOps,
-                                                       key.useDynBatch,
                                                        key.implType == EltwiseImplType::optimizedShapeAgnostic);
     } else {
         execPtr = std::make_shared<EltwiseRefExecutor>(key.eltwise_data.front(),
@@ -2062,10 +2047,6 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
         // TODO [DS]: inplace
         size_t offset = 0;
         NodeConfig config;
-        if (!isDynamicNode()) {
-            config.dynBatchSupport = getOutputShapeAtPort(0).getRank() > 1 && getOutputShapeAtPort(0) ==
-                                                                                    getInputShapeAtPort(0);
-        }
 
         for (size_t i = 0; i < getParentEdges().size(); i++) {
             BlockedMemoryDesc::CmpMask inputMask = BLOCKED_DESC_SKIP_OFFSET_MASK;
@@ -2182,8 +2163,6 @@ void Eltwise::createPrimitive() {
         memPtrs.push_back(getChildEdgeAt(0)->getMemoryPtr());
     }
 
-    isDynBatchEnabled = getSelectedPrimitiveDescriptor()->getConfig().dynBatchSupport;
-
     start_offset_in.resize(inputNum);
     for (size_t i = 0; i < inputNum; i++) {
         const auto desc = getParentEdgeAt(i)->getMemory().GetDescWithType<BlockedMemoryDesc>();
@@ -2276,7 +2255,7 @@ void Eltwise::prepareParams() {
 
     if (!canSkipSearchInCache) {
         EltwiseData thisOp{getAlgorithm(), getOneDnnAlgorithm(), getAlpha(), getBeta(), getGamma()};
-        EltwiseKey key = {{thisOp}, {getType()}, currentOutBlkDims, outOrder, dims_in, inpPrc, outPrc, dnnl::post_ops(), isDynBatchEnabled, implType};
+        EltwiseKey key = {{thisOp}, {getType()}, currentOutBlkDims, outOrder, dims_in, inpPrc, outPrc, dnnl::post_ops(), implType};
         fqDataPtrs.clear();
         for (const auto &node : fusedWith) {
             key.ops_list.push_back(node->getType());
@@ -2364,14 +2343,6 @@ void Eltwise::execute(dnnl::stream strm) {
             args_ptrs.src_ptr[i] = reinterpret_cast<const uint8_t*>(memPtrs[i]->GetData()) + start_offset_in[i];
         args_ptrs.dst_ptr = reinterpret_cast<uint8_t*>(memPtrs.back()->GetData()) + start_offset_out;
 
-        // In general case we need to recompute offsets as well but currently all supported layout assumes batch to be outermost dimension
-        if (isDynBatchEnabled) {
-            auto batchDimIdx = execPtr->getBatchDimIdx();
-            if (dims_out.size() <= batchDimIdx)
-                IE_THROW() << "Can't set batch dims for eltwise node with rank: " << dims_out.size() << " and batch idx: " << batchDimIdx;
-            dims_out[batchDimIdx] = static_cast<size_t>(batchToProcess());
-        }
-
         args_ptrs.post_op_data = fqDataPtrs.data();
 
         // shape agnostic kernel: offsets and work amount initialization
@@ -2400,24 +2371,6 @@ void Eltwise::execute(dnnl::stream strm) {
 
 void Eltwise::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
-}
-
-void Eltwise::setDynamicBatchLim(int lim) {
-    Node::setDynamicBatchLim(lim);
-
-    ov::PartialShape outShape = getParentEdgesAtPort(0)[0]->getMemory().GetShape().toPartialShape();
-    if (!getParentEdgesAtPort(0)[0]->getParent()->isConstant()) {
-        outShape[0] = batchToProcess();
-    }
-    for (size_t i = 1; i < getParentEdges().size(); i++) {
-        auto currentShape = getParentEdgesAtPort(i)[0]->getMemory().GetShape().toPartialShape();
-        if (!getParentEdgesAtPort(i)[0]->getParent()->isConstant()) {
-            currentShape[0] = batchToProcess();
-        }
-        if (!ov::PartialShape::broadcast_merge_into(outShape, currentShape, ov::op::AutoBroadcastType::NUMPY)) {
-            IE_THROW() << "Can't execute eltwise node with dynamic batch. Input shapes are incompatible";
-        }
-    }
 }
 
 bool Eltwise::created() const {

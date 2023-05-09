@@ -434,30 +434,27 @@ void Pooling::prepareParams() {
                           selected_pd->getImplementationType()};
         auto engine = getEngine();
         auto builder = [&engine](const PoolingKey& key) -> executorPtr {
-            primitive_desc_iterator itpd = createDescriptorHelper(engine,
-                                                                  key.inp->getDnnlDesc(),
-                                                                  key.out->getDnnlDesc(),
-                                                                  key.alg,
-                                                                  key.stride,
-                                                                  key.kernel,
-                                                                  key.effective_pad_begin,
-                                                                  key.effective_pad_end,
-                                                                  key.effective_dilation,
-                                                                  key.data_pad_end,
-                                                                  key.attr);
-            dnnl::pooling_forward::primitive_desc prim_desc = itpd.get();
-            while (static_cast<bool>(itpd)) {
-                impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
+            auto prim_desc = createDescriptorHelper(
+                engine,
+                key.inp->getDnnlDesc(),
+                key.out->getDnnlDesc(),
+                key.alg,
+                key.stride,
+                key.kernel,
+                key.effective_pad_begin,
+                key.effective_pad_end,
+                key.effective_dilation,
+                key.data_pad_end,
+                key.attr);
 
-                if (impl_type == key.implType) {
-                    prim_desc = itpd.get();
-                    break;
-                }
-                if (!itpd.next_impl())
-                    break;
-            }
+            auto first_desc = dnnl::pooling_forward::primitive_desc(prim_desc.get());
+            const bool found = DnnlExtensionUtils::find_implementation(prim_desc, key.implType);
 
-            return std::make_shared<DnnlExecutor>(prim_desc);
+            if (found)
+                return std::make_shared<DnnlExecutor>(prim_desc);
+
+            // use the first available
+            return std::make_shared<DnnlExecutor>(first_desc);
         };
 
         auto cache = context->getParamsCache();
@@ -593,7 +590,6 @@ void Pooling::initSupportedPrimitiveDescriptors() {
         auto& creatorsMap = BlockedDescCreator::getCommonCreators();
         auto pushDesc = [&](LayoutType format) {
             NodeConfig config;
-            config.dynBatchSupport = false;
             config.inConfs.resize(getParentEdges().size());
             config.outConfs.resize(getOriginalOutputsNumber());
 
@@ -625,7 +621,6 @@ void Pooling::initSupportedPrimitiveDescriptors() {
 
             while (static_cast<bool>(itpd)) {
                 NodeConfig config;
-                config.dynBatchSupport = true;
                 for (size_t i = 0; i < descInputNumbers(); i++) {
                     PortConfig dataConfig;
                     dataConfig.inPlace(-1);

@@ -22,7 +22,7 @@ When some preprocessing steps cannot be integrated into the execution graph usin
 Model Optimizer command-line options (for example, ``YUV``->``RGB`` color space conversion, 
 ``Resize``, etc.), it is possible to write a simple code which:
 
-* Reads the original model (OpenVINO IR, TensorFlow, ONNX, PaddlePaddle).
+* Reads the original model (OpenVINO IR, TensorFlow, TensorFlow Lite, ONNX, PaddlePaddle).
 * Adds the preprocessing/postprocessing steps.
 * Saves resulting model as IR (``.xml`` and ``.bin``).
 
