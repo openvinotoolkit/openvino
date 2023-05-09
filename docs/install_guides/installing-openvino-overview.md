@@ -73,9 +73,9 @@ Next Steps
 ##########
 
 Still unsure if you want to install OpenVINO toolkit? Check out the :doc:`OpenVINO tutorials <tutorials>` to run example applications directly in your web browser without installing it locally. Here are some exciting demos you can explore:
-- `Monodepth Estimation with OpenVINO <https://docs.openvino.ai/latest/notebooks/201-vision-monodepth-with-output.html>`__
-- `Style Transfer on ONNX Models with OpenVINO <https://docs.openvino.ai/latest/notebooks/212-onnx-style-transfer-with-output.html>`__
-- `OpenVINO API Tutorial <https://docs.openvino.ai/latest/notebooks/002-openvino-api-with-output.html>`__
+- `Monodepth Estimation with OpenVINO <https://docs.openvino.ai/2023.0/notebooks/201-vision-monodepth-with-output.html>`__
+- `Style Transfer on ONNX Models with OpenVINO <https://docs.openvino.ai/2023.0/notebooks/212-onnx-style-transfer-with-output.html>`__
+- `OpenVINO API Tutorial <https://docs.openvino.ai/2023.0/notebooks/002-openvino-api-with-output.html>`__
 
 Follow these links to install OpenVINO:
 - :doc:`Install OpenVINO Development Tools <openvino_docs_install_guides_install_dev_tools>`
