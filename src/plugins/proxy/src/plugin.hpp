@@ -43,8 +43,10 @@ public:
 private:
     std::vector<std::vector<std::string>> get_hidden_devices() const;
     std::string get_fallback_device(size_t idx) const;
+    std::string get_primary_device(size_t idx) const;
 
     ov::Any get_internal_property(const std::string& property_name, const std::string& conf_name = "") const;
+    bool has_internal_property(const std::string& property_name, const std::string& conf_name = "") const;
 
     std::vector<std::string> m_device_order;
     std::unordered_set<std::string> m_alias_for;

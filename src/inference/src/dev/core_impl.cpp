@@ -544,6 +544,25 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
 
         // configuring
         {
+            if (desc.defaultConfig.find("ALIAS_FOR") != desc.defaultConfig.end() ||
+                desc.defaultConfig.find("DEVICES_PRIORITY") != desc.defaultConfig.end() ||
+                desc.defaultConfig.find("FALLBACK_PRIORITY") != desc.defaultConfig.end()) {
+                ov::AnyMap initial_config;
+                auto it = desc.defaultConfig.find("ALIAS_FOR");
+                if (it != desc.defaultConfig.end()) {
+                    initial_config[it->first] = it->second;
+                }
+                it = desc.defaultConfig.find("DEVICES_PRIORITY");
+                if (it != desc.defaultConfig.end()) {
+                    initial_config[it->first] = it->second;
+                }
+                it = desc.defaultConfig.find("FALLBACK_PRIORITY");
+                if (it != desc.defaultConfig.end()) {
+                    initial_config[ov::device::priorities.name()] =
+                        ov::proxy::restore_order(it->second.as<std::string>());
+                }
+                plugin.set_property(initial_config);
+            }
             // TODO: remove this block of code once GPU removes support of ov::cache_dir
             // also, remove device_supports_cache_dir at all
             {
@@ -1050,7 +1069,7 @@ void ov::CoreImpl::register_plugin(const std::string& plugin,
         IE_THROW() << "Device name must not contain dot '.' symbol";
     }
 
-    PluginDescriptor desc{ov::util::get_plugin_path(plugin)};
+    PluginDescriptor desc{ov::util::get_plugin_path(plugin), properties};
     register_plugin_in_registry_unsafe(device_name, desc);
 }
 

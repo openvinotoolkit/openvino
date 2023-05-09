@@ -200,23 +200,6 @@ std::function<T> make_std_function(const std::shared_ptr<void> so, const std::st
     return ptr;
 }
 
-std::shared_ptr<ov::IPlugin> reg_plugin(ov::Core& core,
-                                        std::shared_ptr<ov::IPlugin>& plugin,
-                                        const std::string& device_name,
-                                        const ov::AnyMap& properties) {
-    std::string libraryPath = get_mock_engine_path();
-    std::shared_ptr<void> sharedObjectLoader = ov::util::load_shared_object(libraryPath.c_str());
-    std::function<void(ov::IPlugin*)> injectProxyEngine =
-        make_std_function<void(ov::IPlugin*)>(sharedObjectLoader, "InjectPlugin");
-
-    injectProxyEngine(plugin.get());
-    core.register_plugin(ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
-                                                            std::string("mock_engine") + IE_BUILD_POSTFIX),
-                         device_name,
-                         properties);
-    return plugin;
-}
-
 bool support_model(const std::shared_ptr<const ov::Model>& model, const ov::SupportedOpsMap& supported_ops) {
     for (const auto& op : model->get_ops()) {
         if (supported_ops.find(op->get_friendly_name()) == supported_ops.end())
@@ -225,6 +208,23 @@ bool support_model(const std::shared_ptr<const ov::Model>& model, const ov::Supp
     return true;
 }
 }  // namespace
+
+void ov::proxy::tests::ProxyTests::reg_plugin(ov::Core& core,
+                                              std::shared_ptr<ov::IPlugin>& plugin,
+                                              const std::string& device_name,
+                                              const ov::AnyMap& properties) {
+    std::string libraryPath = get_mock_engine_path();
+    if (!m_so)
+        m_so = ov::util::load_shared_object(libraryPath.c_str());
+    std::function<void(ov::IPlugin*)> injectProxyEngine = make_std_function<void(ov::IPlugin*)>(m_so, "InjectPlugin");
+
+    injectProxyEngine(plugin.get());
+    core.register_plugin(ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
+                                                            std::string("mock_engine") + IE_BUILD_POSTFIX),
+                         device_name,
+                         properties);
+    m_mock_plugins.emplace_back(plugin);
+}
 
 // test
 void ov::proxy::tests::ProxyTests::register_plugin_support_reshape(ov::Core& core,
@@ -258,9 +258,66 @@ void ov::proxy::tests::ProxyTests::register_plugin_support_reshape(ov::Core& cor
 
             return std::make_shared<MockCompiledModel>(model, plugin, properties);
         }));
+
+    ON_CALL(*plugin, get_property(_, _))
+        .WillByDefault(Invoke([&](const std::string& name, const ov::AnyMap& options) -> ov::Any {
+            auto RO_property = [](const std::string& propertyName) {
+                return ov::PropertyName(propertyName, ov::PropertyMutability::RO);
+            };
+            auto RW_property = [](const std::string& propertyName) {
+                return ov::PropertyName(propertyName, ov::PropertyMutability::RW);
+            };
+            std::string device_id;
+            if (options.find(ov::device::id.name()) != options.end()) {
+                device_id = options.find(ov::device::id.name())->second.as<std::string>();
+            }
+            if (name == ov::supported_properties) {
+                std::vector<ov::PropertyName> roProperties{
+                    RO_property(ov::supported_properties.name()),
+                    RO_property(ov::available_devices.name()),
+                    RO_property(ov::device::uuid.name()),
+                };
+                // the whole config is RW before network is loaded.
+                std::vector<ov::PropertyName> rwProperties{
+                    RW_property(ov::num_streams.name()),
+                    RW_property(ov::enable_profiling.name()),
+                };
+
+                std::vector<ov::PropertyName> supportedProperties;
+                supportedProperties.reserve(roProperties.size() + rwProperties.size());
+                supportedProperties.insert(supportedProperties.end(), roProperties.begin(), roProperties.end());
+                supportedProperties.insert(supportedProperties.end(), rwProperties.begin(), rwProperties.end());
+
+                return decltype(ov::supported_properties)::value_type(supportedProperties);
+            } else if (name == ov::device::uuid) {
+                ov::device::UUID uuid;
+                for (size_t i = 0; i < uuid.MAX_UUID_SIZE; i++) {
+                    if (device_id == "abc_a")
+                        uuid.uuid[i] = i;
+                    else if (device_id == "abc_b")
+                        uuid.uuid[i] = i * 2;
+                    else if (device_id == "abc_c")
+                        uuid.uuid[i] = i * 3;
+                }
+                return decltype(ov::device::uuid)::value_type{uuid};
+            } else if (name == ov::available_devices) {
+                const std::vector<std::string> availableDevices = {"abc_a", "abc_b", "abc_c"};
+                return decltype(ov::available_devices)::value_type(availableDevices);
+            } else if (name == ov::device::capabilities) {
+                std::vector<std::string> capabilities;
+                capabilities.push_back(ov::device::capability::EXPORT_IMPORT);
+                return decltype(ov::device::capabilities)::value_type(capabilities);
+            } else if (name == "SUPPORTED_CONFIG_KEYS") {  // TODO: Remove this key
+                std::vector<std::string> configs;
+                configs.push_back("NUM_STREAMS");
+                configs.push_back("PERF_COUNT");
+                return configs;
+            }
+            OPENVINO_THROW("Unsupported property: ", name);
+        }));
     std::shared_ptr<ov::IPlugin> base_plugin = plugin;
 
-    m_mock_plugins.emplace_back(reg_plugin(core, base_plugin, device_name, properties));
+    reg_plugin(core, base_plugin, device_name, properties);
 }
 
 void ov::proxy::tests::ProxyTests::register_plugin_support_subtract(ov::Core& core,
@@ -294,7 +351,62 @@ void ov::proxy::tests::ProxyTests::register_plugin_support_subtract(ov::Core& co
 
             return std::make_shared<MockCompiledModel>(model, plugin, properties);
         }));
+
+    ON_CALL(*plugin, get_property(_, _))
+        .WillByDefault(Invoke([&](const std::string& name, const ov::AnyMap& options) -> ov::Any {
+            auto RO_property = [](const std::string& propertyName) {
+                return ov::PropertyName(propertyName, ov::PropertyMutability::RO);
+            };
+            auto RW_property = [](const std::string& propertyName) {
+                return ov::PropertyName(propertyName, ov::PropertyMutability::RW);
+            };
+            std::string device_id;
+            if (options.find(ov::device::id.name()) != options.end()) {
+                device_id = options.find(ov::device::id.name())->second.as<std::string>();
+            }
+            if (name == ov::supported_properties) {
+                std::vector<ov::PropertyName> roProperties{
+                    RO_property(ov::supported_properties.name()),
+                    RO_property(ov::available_devices.name()),
+                    RO_property(ov::device::uuid.name()),
+                };
+                // the whole config is RW before network is loaded.
+                std::vector<ov::PropertyName> rwProperties{
+                    RW_property(ov::enable_profiling.name()),
+                };
+
+                std::vector<ov::PropertyName> supportedProperties;
+                supportedProperties.reserve(roProperties.size() + rwProperties.size());
+                supportedProperties.insert(supportedProperties.end(), roProperties.begin(), roProperties.end());
+                supportedProperties.insert(supportedProperties.end(), rwProperties.begin(), rwProperties.end());
+
+                return decltype(ov::supported_properties)::value_type(supportedProperties);
+            } else if (name == ov::device::uuid) {
+                ov::device::UUID uuid;
+                for (size_t i = 0; i < uuid.MAX_UUID_SIZE; i++) {
+                    if (device_id == "bde_b")
+                        uuid.uuid[i] = i * 2;
+                    else if (device_id == "bde_d")
+                        uuid.uuid[i] = i * 4;
+                    else if (device_id == "bde_e")
+                        uuid.uuid[i] = i * 5;
+                }
+                return decltype(ov::device::uuid)::value_type{uuid};
+            } else if (name == ov::available_devices) {
+                const std::vector<std::string> availableDevices = {"bde_b", "bde_d", "bde_e"};
+                return decltype(ov::available_devices)::value_type(availableDevices);
+            } else if (name == ov::device::capabilities) {
+                std::vector<std::string> capabilities;
+                capabilities.push_back(ov::device::capability::EXPORT_IMPORT);
+                return decltype(ov::device::capabilities)::value_type(capabilities);
+            } else if (name == "SUPPORTED_CONFIG_KEYS") {  // TODO: Remove this key
+                std::vector<std::string> configs;
+                configs.push_back("PERF_COUNT");
+                return configs;
+            }
+            OPENVINO_THROW("Unsupported property: ", name);
+        }));
     std::shared_ptr<ov::IPlugin> base_plugin = plugin;
 
-    m_mock_plugins.emplace_back(reg_plugin(core, base_plugin, device_name, properties));
+    reg_plugin(core, base_plugin, device_name, properties);
 }

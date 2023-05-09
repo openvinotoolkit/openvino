@@ -5,6 +5,8 @@
 
 #include <gtest/gtest.h>
 
+#include <memory>
+
 #include "openvino/runtime/core.hpp"
 
 namespace ov {
@@ -46,7 +48,12 @@ private:
         return tensor;
     }
     std::vector<std::shared_ptr<ov::IPlugin>> m_mock_plugins;
+    std::shared_ptr<void> m_so;
 
+    void reg_plugin(ov::Core& core,
+                    std::shared_ptr<ov::IPlugin>& plugin,
+                    const std::string& device_name,
+                    const ov::AnyMap& properties);
     void register_plugin_support_reshape(ov::Core& core, const std::string& device_name, const ov::AnyMap& properties);
     void register_plugin_support_subtract(ov::Core& core, const std::string& device_name, const ov::AnyMap& properties);
 };
