@@ -3,7 +3,6 @@
 //
 
 #include <ngraph/pass/constant_folding.hpp>
-#include "common/pass/fc_bias_flatten.hpp"
 #include "ngraph/op/fake_quantize.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "common/pass/reshape_fc_fusion.hpp"
@@ -35,7 +34,6 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ngraph::Function> &nGraphF
     CPU_REGISTER_PASS_COMMON(manager, ConvertMatMulToFC);
     CPU_REGISTER_PASS_COMMON(manager, AlignMatMulInputRanks);
     CPU_REGISTER_PASS_COMMON(manager, ConvertTileToSeqTiles);
-    CPU_REGISTER_PASS_COMMON(manager, FullyConnectedBiasFlatten);
     CPU_REGISTER_PASS_X64(manager, ConvertToPowerStatic);
     CPU_REGISTER_PASS_COMMON(manager, ConvertToLeakyRelu);
     CPU_REGISTER_PASS_COMMON(manager, ConvertToSwishCPU);

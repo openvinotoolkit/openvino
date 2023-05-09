@@ -13,7 +13,6 @@
 #include <ngraph/opsets/opset7.hpp>
 #include <transformations/cpu_opset/common/op/fully_connected.hpp>
 #include <transformations/cpu_opset/common/pass/convert_matmul_to_fc.hpp>
-#include <transformations/cpu_opset/common/pass/fc_bias_flatten.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 #include <ngraph/pass/manager.hpp>
@@ -245,162 +244,6 @@ TEST_F(TransformationTestsF, ConvertMatMulToFCTest14) {
     }
 }
 
-TEST_F(TransformationTestsF, FullyConnectedBiasFlattenTest1) {
-    {
-        auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 128, 3072});
-        auto weights = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{786, 3072}, {1});
-        auto fc = std::make_shared<FullyConnectedNode>(input1, weights, ngraph::Rank(3));
-
-        auto const_bias = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{1, 1, 786}, {1});
-        auto add = std::make_shared<ngraph::opset1::Add>(fc, const_bias);
-
-        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{add}, ngraph::ParameterVector{input1});
-        manager.register_pass<FullyConnectedBiasFlatten>();
-    }
-    {
-        auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 128, 3072});
-        auto weights = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{786, 3072}, {1});
-        auto fc = std::make_shared<FullyConnectedNode>(input1, weights, ngraph::Rank(3));
-
-        auto const_bias = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{786}, {1});
-        auto add = std::make_shared<ngraph::opset1::Add>(fc, const_bias);
-
-        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{add}, ngraph::ParameterVector{input1});
-    }
-}
-
-TEST_F(TransformationTestsF, FullyConnectedBiasFlattenTest2) {
-    {
-        auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::PartialShape{-1, -1, 3072});
-        auto weights = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{786, 3072}, {1});
-        auto fc = std::make_shared<FullyConnectedNode>(input1, weights, ngraph::Rank(3));
-
-        auto const_bias = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{1, 1, 786}, {1});
-        auto add = std::make_shared<ngraph::opset1::Add>(fc, const_bias);
-
-        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{add}, ngraph::ParameterVector{input1});
-        manager.register_pass<FullyConnectedBiasFlatten>();
-    }
-    {
-        auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::PartialShape{-1, -1, 3072});
-        auto weights = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{786, 3072}, {1});
-        auto fc = std::make_shared<FullyConnectedNode>(input1, weights, ngraph::Rank(3));
-
-        auto const_bias = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{786}, {1});
-        auto add = std::make_shared<ngraph::opset1::Add>(fc, const_bias);
-
-        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{add}, ngraph::ParameterVector{input1});
-    }
-}
-
-TEST_F(TransformationTestsF, FullyConnectedBiasFlattenTest3) {
-    {
-        auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 128});
-        auto weights = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{786, 128}, {1});
-        auto fc = std::make_shared<FullyConnectedNode>(input1, weights, ngraph::Rank(2));
-
-        auto const_bias = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{1, 786}, {1});
-        auto add = std::make_shared<ngraph::opset1::Add>(fc, const_bias);
-
-        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{add}, ngraph::ParameterVector{input1});
-        manager.register_pass<FullyConnectedBiasFlatten>();
-    }
-    {
-        auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 128});
-        auto weights = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{786, 128}, {1});
-        auto fc = std::make_shared<FullyConnectedNode>(input1, weights, ngraph::Rank(2));
-
-        auto const_bias = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{786}, {1});
-        auto add = std::make_shared<ngraph::opset1::Add>(fc, const_bias);
-
-        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{add}, ngraph::ParameterVector{input1});
-    }
-}
-
-TEST_F(TransformationTestsF, FullyConnectedBiasFlattenTest4) {
-    {
-        auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::PartialShape{-1, 128});
-        auto weights = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{786, 128}, {1});
-        auto fc = std::make_shared<FullyConnectedNode>(input1, weights, ngraph::Rank(2));
-
-        auto const_bias = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{1, 786}, {1});
-        auto add = std::make_shared<ngraph::opset1::Add>(fc, const_bias);
-
-        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{add}, ngraph::ParameterVector{input1});
-        manager.register_pass<FullyConnectedBiasFlatten>();
-    }
-    {
-        auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::PartialShape{-1, 128});
-        auto weights = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{786, 128}, {1});
-        auto fc = std::make_shared<FullyConnectedNode>(input1, weights, ngraph::Rank(2));
-        auto const_bias = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{786}, {1});
-        auto add = std::make_shared<ngraph::opset1::Add>(fc, const_bias);
-        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{add}, ngraph::ParameterVector{input1});
-    }
-}
-
-TEST_F(TransformationTestsF, FullyConnectedBiasFlattenTest5) {
-    auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic());
-    auto weights = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{ 786, 128 }, { 1 });
-    auto fc = std::make_shared<FullyConnectedNode>(input1, weights, ngraph::Rank(2));
-
-    auto const_bias = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{ 1, 786 }, { 1 });
-    auto add = std::make_shared<ngraph::opset1::Add>(fc, const_bias);
-
-    function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ add }, ngraph::ParameterVector{ input1 });
-    manager.register_pass<FullyConnectedBiasFlatten>();
-}
-
-TEST_F(TransformationTestsF, FullyConnectedBiasFlattenTest6) {
-    {
-        auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::u8, ngraph::PartialShape{ -1, -1 });
-        auto weights = ngraph::opset1::Constant::create(ngraph::element::i8, ngraph::Shape{ 786, 128 }, { 1 });
-        auto fc = std::make_shared<FullyConnectedNode>(input1, weights, ngraph::Rank(2), ngraph::element::f32);
-
-        auto const_bias = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{ 1, 786 }, { 1 });
-        auto add = std::make_shared<ngraph::opset1::Add>(fc, const_bias);
-
-        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ add }, ngraph::ParameterVector{ input1 });
-        manager.register_pass<FullyConnectedBiasFlatten>();
-    }
-    {
-        auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::u8, ngraph::PartialShape{ -1, -1 });
-        auto weights = ngraph::opset1::Constant::create(ngraph::element::i8, ngraph::Shape{ 786, 128 }, { 1 });
-        auto fc = std::make_shared<FullyConnectedNode>(input1, weights, ngraph::Rank(2), ngraph::element::f32);
-
-        auto const_bias = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{ 786 }, { 1 });
-        auto add = std::make_shared<ngraph::opset1::Add>(fc, const_bias);
-
-        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ add }, ngraph::ParameterVector{ input1 });
-    }
-}
-
-TEST_F(TransformationTestsF, FullyConnectedBiasFlattenTest7) {
-    {
-        auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::u8, ngraph::PartialShape{ -1, -1 });
-        auto weights = ngraph::opset1::Constant::create(ngraph::element::i8, ngraph::Shape{ 786, 128 }, { 1 });
-        auto fc = std::make_shared<FullyConnectedNode>(input1, weights, ngraph::Rank(2), ngraph::element::f32);
-        auto const_scale = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{ 1, 786 }, { 2.0 });
-        auto mul = std::make_shared<ngraph::opset1::Multiply>(fc, const_scale);
-        auto const_bias = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{ 1, 786 }, { 1 });
-        auto add = std::make_shared<ngraph::opset1::Add>(mul, const_bias);
-        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ add }, ngraph::ParameterVector{ input1 });
-        manager.register_pass<FullyConnectedBiasFlatten>();
-    }
-    {
-        auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::u8, ngraph::PartialShape{ -1, -1 });
-        auto weights = ngraph::opset1::Constant::create(ngraph::element::i8, ngraph::Shape{ 786, 128 }, { 1 });
-        auto fc = std::make_shared<FullyConnectedNode>(input1, weights, ngraph::Rank(2), ngraph::element::f32);
-        auto const_scale = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{1, 786 }, { 2.0 });
-        auto mul = std::make_shared<ngraph::opset1::Multiply>(fc, const_scale);
-        auto const_bias = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{ 786 }, { 1 });
-        auto add = std::make_shared<ngraph::opset1::Add>(mul, const_bias);
-
-        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ add }, ngraph::ParameterVector{ input1 });
-        manager.register_pass<FullyConnectedBiasFlatten>();
-    }
-}
-
 TEST_F(TransformationTestsF, ConvertMatMulToFCTest_second_input_rank_adj_1) {
     {
         auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{5, 2, 3});
@@ -446,14 +289,13 @@ TEST_F(TransformationTestsF, ConvertMatMulToFCTest_second_input_rank_adj_3) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ add }, ngraph::ParameterVector{ input1 });
         manager.register_pass<ConvertMatMulToFC>();
-        manager.register_pass<FullyConnectedBiasFlatten>();
     }
     {
         auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{ 5, 2, 3 });
 
         auto weights = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{ 2, 3 }, { 1 });
         auto matmul = std::make_shared<FullyConnectedNode>(input1, weights,  ngraph::Rank(2));
-        auto biases = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{ 2 }, { 1 });
+        auto biases = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{  1, 1, 2 }, { 1 });
         auto add = std::make_shared<ngraph::opset1::Add>(matmul, biases);
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ add }, ngraph::ParameterVector{ input1 });
     }
