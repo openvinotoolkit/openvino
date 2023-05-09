@@ -181,41 +181,34 @@ void CNNNetworkDeserializer::parse_stream(InferenceEngine::CNNNetwork & network)
     setInfo(outputs.children("out"), network.getOutputsInfo());
 }
 
-void CNNNetworkDeserializer::parse_buffer(InferenceEngine::CNNNetwork & network) {
+void CNNNetworkDeserializer::parse_buffer(InferenceEngine::CNNNetwork& network) {
     using namespace ov::pass;
 
-    auto start_pos = _network_buffer->get_pos();
-    BufferParser parser(_network_buffer->get_ptr(start_pos), _network_buffer->size() - start_pos);
-    std::string xmlString, xmlInOutString;
     InferenceEngine::Blob::Ptr dataBlob;
+    auto buffer_base = static_cast<char*>(_network_buffer->get_ptr());
+    auto hdr_pos = _network_buffer->get_pos();
 
     StreamSerialize::DataHeader hdr = {};
-    parser.read(reinterpret_cast<char *>(&hdr), sizeof hdr);
+    std::memcpy(reinterpret_cast<char*>(&hdr), buffer_base + hdr_pos, sizeof hdr);
 
     // read CNNNetwork input/output precisions
-    parser.seekg(hdr.custom_data_offset);
-    xmlInOutString.resize(hdr.custom_data_size);
-    parser.read(const_cast<char *>(xmlInOutString.c_str()), hdr.custom_data_size);
+    std::string xmlInOutString(buffer_base + hdr.custom_data_offset, hdr.custom_data_size);
     pugi::xml_document xmlInOutDoc;
     auto res = xmlInOutDoc.load_string(xmlInOutString.c_str());
     if (res.status != pugi::status_ok) {
         IE_THROW(NetworkNotRead) << "The inputs and outputs information is invalid.";
     }
 
-    // read blob content
-    parser.seekg(hdr.consts_offset);
+    // map blob content
     if (hdr.consts_size) {
         dataBlob = InferenceEngine::make_shared_blob<std::uint8_t>(
             InferenceEngine::TensorDesc(InferenceEngine::Precision::U8, {hdr.consts_size}, InferenceEngine::Layout::C),
-            reinterpret_cast<std::uint8_t *>(parser.get_ptr()), hdr.consts_size);
-
-        parser.skip(hdr.consts_size);
+            reinterpret_cast<std::uint8_t*>(buffer_base) + hdr.consts_offset,
+            hdr.consts_size);
     }
 
-    // read XML content
-    parser.seekg(hdr.model_offset);
-    xmlString.resize(hdr.model_size);
-    parser.read(const_cast<char *>(xmlString.c_str()), hdr.model_size);
+    // XML content
+    std::string xmlString(buffer_base + hdr.model_offset, hdr.model_size);
 
     network = _cnn_network_builder(xmlString, std::move(dataBlob));
 
