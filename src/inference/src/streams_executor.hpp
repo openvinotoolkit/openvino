@@ -31,11 +31,11 @@ public:
     int _num_threads = 0;
 };
 
-void get_cpu_mapping(const int _processors,
-                     const int _sockets,
-                     const int _cores,
-                     std::vector<std::vector<int>>& _proc_type_table,
-                     std::vector<std::vector<int>>& _cpu_mapping_table);
+void get_cpu_mapping_from_cores(const int _processors,
+                                const int _sockets,
+                                const int _cores,
+                                std::vector<std::vector<int>>& _proc_type_table,
+                                std::vector<std::vector<int>>& _cpu_mapping_table);
 
 #ifdef __linux__
 /**

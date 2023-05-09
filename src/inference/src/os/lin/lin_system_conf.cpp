@@ -82,8 +82,8 @@ CPU::CPU() {
         if (_cores == 0) {
             _cores = _processors;
         }
-        if (_processors > 0 && _numa_nodes > 0 && _cores > 0){
-            get_cpu_mapping(_processors, _numa_nodes, _cores, _proc_type_table, _cpu_mapping_table);
+        if (_processors > 0 && _numa_nodes > 0 && _cores > 0) {
+            get_cpu_mapping_from_cores(_processors, _numa_nodes, _cores, _proc_type_table, _cpu_mapping_table);
         }
     }
     std::vector<std::vector<std::string>>().swap(system_info_table);
@@ -234,11 +234,11 @@ void parse_processor_info_linux(const int _processors,
     }
 };
 
-void get_cpu_mapping(const int _processors,
-                     const int _sockets,
-                     const int _cores,
-                     std::vector<std::vector<int>>& _proc_type_table,
-                     std::vector<std::vector<int>>& _cpu_mapping_table) {
+void get_cpu_mapping_from_cores(const int _processors,
+                                const int _sockets,
+                                const int _cores,
+                                std::vector<std::vector<int>>& _proc_type_table,
+                                std::vector<std::vector<int>>& _cpu_mapping_table) {
     const auto hyper_thread = _processors > _cores ? true : false;
     const auto num_big_cores_phys = get_number_of_cpu_cores(true, _processors, _cores);
     const auto num_big_cores = hyper_thread ? num_big_cores_phys * 2 : num_big_cores_phys;
