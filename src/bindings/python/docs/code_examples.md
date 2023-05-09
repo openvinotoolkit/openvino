@@ -1,34 +1,34 @@
 # Examples of OpenVINO™ Python API code
 
-#### Building and environment
+### Building and environment
 Instructions can be found in ["Building the OpenVINO™ Python API"](./build.md).
 
-### Different ways of extending OpenVINO™ Python API
+## Different ways of extending OpenVINO™ Python API
 
-###### Before start: Project's naming conventions
+### Before start: Project's naming conventions
 General guide:
 * Snake case (also known as the *lower_case_with_underscores* style) is used across the codebase. That includes modules (`runtime`, `offline_transformations`), function names, and arguments/variables (`async_infer`, `wait`, `path_to_xml`).
 * Naming of classes is an exception to the above rule. The *CamelCase* style is used in this case, for example: `Core`, `InferRequest` or `AsyncInferQueue`.
 * If bindings (explained later in the [Pure pybind11 solution](#pure-pybind11-solution) section) are created to expose existing C++ code, make them similar to their C++ counterparts, regarding both names and placement, for example, C++'s `ov::InferRequest` and Python's `openvino.runtime.InferRequest`. If alignment is not possible, try to describe your class/function/module as well as possible, such as the pair of `openvino.runtime.ConstOutput/openvino.runtime.Output` which relates to `ov::Output<const ov::Node>/ov::Output<ov::Node>`. This naming points out the functional difference between both classes - one is an immutable and the other a mutable version.
 
 <!-- Pure Python solution describes Python based approach -->
-#### Pure Python solution
+## Pure Python solution
 One of the simplest ways to extend the existing codebase is by writing it in pure Python.
 
-###### Before start: Layout of the project
+### Layout of the project
 How does OpenVINO™ packaging work? It is strictly connected to the layout of the Python API itself and reused in different supporting packages like tools and extensions. The main namespace of `openvino` provides a unified place that connects all packages together during import, **which is the required part**. However, it is up to the developer how to organize the rest of the package. There are also other common namespaces which follow the same rules:
 * `openvino.tools`
 * ...
 
 For further reading, please refer to: https://packaging.python.org/en/latest/guides/packaging-namespace-packages/
 
-##### Creating new package that extends OpenVINO™ project namespace
+### Creating new package that extends OpenVINO™ project namespace
 Let's go over the example available in `openvino/src/bindings/python/docs/examples/openvino`:
 
 ```
 openvino/               <-- Main package/namespace
 ├── __init__.py         <-- Unified file between all packages
-└── mymodule/           <-- This is your new module and it's contents:)
+└── mymodule/           <-- This is your new module and it's contents
     ├── __init__.py
     ├── ...
     └── myclass.py
@@ -48,7 +48,7 @@ obj.say_hello()
 >>> "Hello! Let's work on OV together!"
 ```
 
-##### Extending of existing API (sub)modules
+### Extending of existing API (sub)modules
 But how to extend existing API? Let's navigate to `openvino/src/bindings/python/src/openvino` and add something to project helpers. Create new directory and fill it's contents:
 
 ```
@@ -97,18 +97,18 @@ Following this method, developers can add new modules and adjust existing ones, 
 
 <!-- Pure pybind11 solution describes C++ based approach -->
 
-#### Pure pybind11 solution
+## Pure pybind11 solution
 The second approach to extend OpenVINO™ codebase is utilizing the *pybind11* library. It allows to write C++ based code, thus creating so-called Python bindings.
 
 **The example in this section covers the scenario of adding new features to a newly created submodule. Extending existing codebase can be done in a similar fashion by working on already implemented classes and modules.**
 
-###### Before start: What is pybind11?
+### Before start: What is pybind11?
 It is a thridparty project that allows to expose C++ code as a Python library.
 
 Link to offical documentation: https://pybind11.readthedocs.io/en/stable/
 Link to project repository: https://github.com/pybind/pybind11
 
-##### Adding new (sub)module
+### Adding new (sub)module
 Adding a new module could be done only by using *pybind11* built-in capabilities.
 
 Navigate to the main project file responsible for creation of the whole package, let's call it "registering-point":
@@ -125,7 +125,7 @@ Keep in mind that in most real-life scenarios, modules and classes are registere
 
 *Note: Submodules can be "chained" as well. Refer to the official documentation for more details: https://pybind11.readthedocs.io/en/stable/reference.html#_CPPv4N7module_13def_submoduleEPKcPKc*
 
-##### Binding of classes and functions
+### Binding of classes and functions
 When the module is created, classes can be added to it. Let's assume a class called `MyTensor` needs to be added in a new module. Here is a list of required features:
 
 * Handle construction from the `ov::Tensor` class and 1-D initialization from Python built-in list.
@@ -247,7 +247,7 @@ Note: **bindings** that are created for classes are sometimes called **wrappers*
 
 However, in OpenVINO™ there is an unwritten distinction between "everyday" wrappers and more complex ones (with this article published... it is now a written one ;) ). An example may be found in `openvino/src/bindings/python/src/pyopenvino/core/infer_request.hpp`, where `InferRequest` is actually wrapped inside `InferRequestWrapper`, similarly to the `Tensor` and `MyTensor` scenario. It helps to extend original object capabilities with members and functions that do not necessarily belong to the C++ API. Thus, explicitly calling something a **wrapper** in the project indicates that binding is probably inheriting or using the composition technique to include the original class, later extending it in some way.
 
-##### Overloads of functions
+### Overloads of functions
 One of the main advantages of *pybind11* is the ability to resolve overloaded functions. Let's assume that a previously created function is extended to print any message passed by the user.
 
 ```cpp
@@ -299,10 +299,10 @@ Notice that only functions with correct arguments are **not** throwing exception
 
 <!-- Mixed solution describes both approaches combined -->
 
-#### Mix between Python and pybind11
+## Mix between Python and pybind11
 Although *pybind11* is a powerful tool, it is sometimes required (or simply easier and more efficent) to combine both approaches and utilize both languages to achive best results.
 
-##### Making pybind11-based module/class visible in OpenVINO™ package
+### Making pybind11-based module/class visible in OpenVINO™ package
 Let's move a new class from `openvino._pyopenvino.mymodule` to the actual package. Simply introduce a new import statement in the desired file. Let it be `openvino/src/bindings/python/src/openvino/runtime/__init__.py`: 
 ```python
 from openvino._pyopenvino.mymodule import MyTensor
@@ -317,7 +317,7 @@ ov.MyTensor
 
 Same rule applies to whole modules and free functions. **This is a required step when adding something to the public API**. Without exposing it, all of the work is hidden in the depths of the `pyopenvino` namespace, rendering it hard to access for the user.
 
-##### Yet another Python layer
+### Yet another Python layer
 As mentioned earlier, it may be helpful to utilize Python in-between to achieve hard C++ feats in a more efficient way. Let's extend the previously created `say_hello` function a little bit.
 
 First, create a new file in the `openvino/src/bindings/python/src/openvino/runtime` directory and call it `mymodule_ext.py`. There are no strict rules for naming, just make sure the names are in good taste. Import the class here:
@@ -402,8 +402,13 @@ Great! Now the class has reached its destination, from C++, to Python, to Python
 
 This concludes developer work on OpenVINO™ Python API. Don't forget to recompile your builds and have a good time while writing your code!:)
 
-### Testing the new code
+## Testing the new code
 
 Coding is now finished. Let's move on to testing.
 
 To learn how to test your code, refer to the guide on [how to test OpenVINO™ Python API?](./test_examples.md#Running_OpenVINO™_Python_API_tests)
+
+## See also
+ * [OpenVINO™ README](../../../../README.md)
+ * [OpenVINO™ bindings README](../../README.md)
+ * [Developer documentation](../../../../docs/dev/index.md)
