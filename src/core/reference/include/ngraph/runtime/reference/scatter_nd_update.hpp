@@ -47,8 +47,8 @@ void scatterNdUpdate(const dataType* const inputData,
         for (auto& c : coord) {
             if (c < 0) {
                 c += static_cast<indicesType>(dataShape[j]);
-                j++;
             }
+            j++;
         }
 
         const auto out_index = std::inner_product(begin(coord), end(coord), begin(input_data_dim_pading), uint64_t(0));
