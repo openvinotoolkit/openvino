@@ -10,26 +10,7 @@
 #include "tf_utils.hpp"
 #include "utils.hpp"
 
-namespace {
-std::shared_ptr<ov::Model> convert_model(const std::string& model_path) {
-    ov::frontend::FrontEndManager fem;
-    auto front_end = fem.load_by_framework(TF_FE);
-    if (!front_end) {
-        throw "TensorFlow Frontend is not initialized";
-    }
-    auto model_filename = FrontEndTestUtils::make_model_path(std::string(TEST_TENSORFLOW_MODELS_DIRNAME) + model_path);
-    auto input_model = front_end->load(model_filename);
-    if (!input_model) {
-        throw "Input model is not read";
-    }
-    auto model = front_end->convert(input_model);
-    if (!model) {
-        throw "Model is not converted";
-    }
-
-    return model;
-}
-}  // namespace
+using namespace ov::frontend::tensorflow::tests;
 
 class CompileModelsTests : public ::testing::Test {};
 

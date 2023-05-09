@@ -112,11 +112,6 @@ void SwapFriendlyNames(const NodePtr& node1, const NodePtr& node2) {
     node1->set_friendly_name(node2_name);
 }
 
-void SwapNames(const NodePtr& node1, const NodePtr& node2) {
-    SwapFriendlyNames(node1, node2);
-    SwapOutputNames(node1->output(0), node2->output(0));
-}
-
 namespace {
 
 bool HasDynamicRankInput(const NodePtr& node) {
@@ -346,6 +341,7 @@ bool CanPropagateForwardThrough(Node* node) {
     CHECK_TRANSPOSE_SINKING_SUPPORTED(ov::op::v1::Reshape, node)
     CHECK_TRANSPOSE_SINKING_SUPPORTED(ov::op::v0::Unsqueeze, node)
     CHECK_TRANSPOSE_SINKING_SUPPORTED(ov::op::v1::Transpose, node)
+    CHECK_TRANSPOSE_SINKING_SUPPORTED(ov::op::v0::FakeQuantize, node)
 
     return false;
 }
@@ -392,7 +388,7 @@ Node* FindFirstConsumer(const NodePtr& node) {
     return nullptr;
 }
 
-bool HasSameOutputTransposeNodes(const NodePtr& main_node) {
+bool CheckTransposeConsumers(const NodePtr& main_node) {
     AxisVector first_transpose_axis_order;
     {
         Node* first_consumer = FindFirstConsumer(main_node);
@@ -417,6 +413,9 @@ bool HasSameOutputTransposeNodes(const NodePtr& main_node) {
                             transpose_axis_order.end(),
                             first_transpose_axis_order.begin()))
                 return false;
+            if (!is_sinking_node(input.get_node())) {
+                return false;
+            }
         }
     }
 
@@ -425,19 +424,52 @@ bool HasSameOutputTransposeNodes(const NodePtr& main_node) {
 
 }  // namespace
 
-bool HasSameOutputTransposeNodes(const Output<Node>& output) {
-    return HasSameOutputTransposeNodes(output.get_node_shared_ptr());
+bool CheckTransposeConsumers(const Output<Node>& output) {
+    return CheckTransposeConsumers(output.get_node_shared_ptr());
 }
 
-void RemoveSingleOutputConsumers(const NodePtr& node) {
+bool RemoveTransposeConsumers(const NodePtr& node) {
+    std::unordered_map<size_t, std::vector<ov::op::v1::Transpose*>> out_idx_to_redundant_transposes;
+
+    // in case of multiple Transposes connected directly to Result ops,
+    // we can't guarantee that friendly names are copied correctly,
+    // we preserve only one of possible variants.
+    // This note related to friendly names only, not to tensor names.
+    ov::op::v1::Transpose* transpose_connected_to_result = nullptr;
     for (size_t output_idx = 0; output_idx < node->get_output_size(); ++output_idx) {
-        for (auto& input : node->get_output_target_inputs(output_idx)) {
-            Node* consumer = input.get_node();
-            if (consumer->get_output_size() != 1)
-                continue;
-            consumer->output(0).replace(node->output(output_idx));
+        for (auto& consumer_input : node->get_output_target_inputs(output_idx)) {
+            auto transpose = dynamic_cast<ov::op::v1::Transpose*>(consumer_input.get_node());
+            if (!transpose) {
+                // should never happen
+                // the check that all consumers of the main node are Transposes is added
+                // to the pattern of the transformations
+                OPENVINO_ASSERT(false, "TransposeSinking error: attempted to remove not Transpose consumer.");
+            }
+            out_idx_to_redundant_transposes[output_idx].push_back(transpose);
+
+            for (const auto& transpose_consumer_input : transpose->output(0).get_target_inputs()) {
+                if (dynamic_cast<ov::op::v0::Result*>(transpose_consumer_input.get_node())) {
+                    transpose_connected_to_result = transpose;
+                }
+            }
         }
     }
+
+    if (transpose_connected_to_result) {
+        node->set_friendly_name(transpose_connected_to_result->get_friendly_name());
+    } else if (out_idx_to_redundant_transposes.count(0) && !out_idx_to_redundant_transposes[0].empty()) {
+        // if no transpose connected to result op found
+        // we save any friendly name
+        node->set_friendly_name((*out_idx_to_redundant_transposes[0].begin())->get_friendly_name());
+    }
+
+    for (const auto& key_value : out_idx_to_redundant_transposes) {
+        for (const auto& transpose : key_value.second) {
+            transpose->output(0).replace(node->output(key_value.first));
+        }
+    }
+
+    return true;
 }
 
 std::vector<size_t> GetOrderAfterReduction(const std::vector<size_t>& axes_values,
