@@ -654,7 +654,7 @@ static void addPair(std::map<std::string, std::string>& keyValues, const std::st
     // Parse Function for opName and opSet
     if (key == "Function" && (dPos = value.find('_')) != std::string::npos) {
         keyValues["opName"] = value.substr(0, dPos);
-        keyValues["opSet"] = value.substr(dPos + 1);
+        keyValues["opSet"] = value.substr(dPos + 6); // Skipping "opset"
         return;
     }
     // Normalize target devices

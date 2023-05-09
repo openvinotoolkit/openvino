@@ -24,9 +24,9 @@ void RegisterTestCustomQueries(void) {
 
     std::string testName("checkPluginImplementation");
     extTestQueries[testName + "_ON_START"] =
-        "OpImplCheck_CheckPluginImpl($__test_id, '$opName', '$opSet', '$targetDevice', '$config')";
+        "OpImplCheck_CheckPluginImpl($__test_id, '$opName', '$opSet', '$targetDevice', '$config', $__is_temp)";
     extTestQueries[testName + "_ON_END"] = "OpImplCheck_CheckPluginImpl($__test_ext_id, $__test_id)";
-    extTestQueries[testName + "_ON_REFSUE"] =
+    extTestQueries[testName + "_ON_REFUSE"] =
         "OpImplCheck_CheckPluginImpl($__test_id)";  // Query expected in case of a waste results
     extTestNames[testName] = "$opName";
 
