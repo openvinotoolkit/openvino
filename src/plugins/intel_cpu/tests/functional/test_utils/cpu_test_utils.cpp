@@ -267,7 +267,11 @@ std::string CPUTestsBase::getPrimitiveType() const {
     } else if (InferenceEngine::with_cpu_x86_sse42()) {
         isaType = "jit_sse42";
     } else {
+#if defined(OV_CPU_WITH_ACL)
+        isaType = "acl";
+#elif
         isaType = "ref";
+#endif
     }
     return isaType;
 }

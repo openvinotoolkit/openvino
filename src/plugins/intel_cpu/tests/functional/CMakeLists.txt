@@ -21,7 +21,6 @@ endif()
 
 if(NOT X86_64)
     list(APPEND EXCLUDED_SOURCE_PATHS
-        ${CMAKE_CURRENT_SOURCE_DIR}/single_layer_tests
         ${CMAKE_CURRENT_SOURCE_DIR}/subgraph_tests
         )
 endif()
