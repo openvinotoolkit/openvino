@@ -57,6 +57,9 @@ protected:
     }
 };
 
+// Disable the following tests, caused by unsupported "readlink()" func call in WASM
+#ifndef __EMSCRIPTEN__
+
 class SerializationDeterministicityTest : public ov::test::TestsCommon, public DeterministicityCommon {
 protected:
     void SetUp() override {
@@ -143,6 +146,8 @@ TEST_F(SerializationDeterministicityTest, ModelWithConstants) {
     ASSERT_TRUE(files_equal(xml_1, xml_2));
     ASSERT_TRUE(files_equal(bin_1, bin_2));
 }
+
+#endif
 
 class SerializationDeterministicityInputOutputTest : public testing::TestWithParam<ov::pass::Serialize::Version>,
                                                      public DeterministicityCommon {
