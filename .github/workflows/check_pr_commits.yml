@@ -3,7 +3,6 @@ on: [pull_request]
 
 jobs:
   Checks:
-    permissions: write-all
     runs-on: ubuntu-22.04
     steps:
       - name: Clone OpenVINO
