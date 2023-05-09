@@ -17,6 +17,6 @@ pylint>=2.7.0
 pyenchant>=3.0.0
 test-generator==0.1.1
 py>=1.9.0
-urllib3>=1.26.4
+urllib3==1.26.5
 openvino-telemetry>=2022.1.0
 opencv-python>=4.5
