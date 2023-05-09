@@ -90,6 +90,7 @@ Have more questions about post-training quantization or encountering errors usin
 Additional Resources
 #######################################
 
+* `Tutorial: Migrate quantization from POT API to NNCF API <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/111-yolov5-quantization-migration>`__
 * :doc:`Post-training Quantization Examples <pot_examples_description>`
 * :doc:`Quantization Best Practices <pot_docs_BestPractices>`
 * :doc:`Post-training Optimization Tool FAQ <pot_docs_FrequentlyAskedQuestions>`
