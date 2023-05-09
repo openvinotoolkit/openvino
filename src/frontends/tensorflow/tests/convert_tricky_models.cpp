@@ -19,30 +19,9 @@ using namespace ov;
 using namespace ov::element;
 using namespace ov::opset10;
 using namespace ov::frontend;
+using namespace ov::frontend::tensorflow::tests;
 
 namespace {
-shared_ptr<Model> convert_model(const string& model_path, const ConversionExtension::Ptr& conv_ext = nullptr) {
-    FrontEndManager fem;
-    auto front_end = fem.load_by_framework(TF_FE);
-    if (!front_end) {
-        throw "TensorFlow Frontend is not initialized";
-    }
-    if (conv_ext) {
-        front_end->add_extension(conv_ext);
-    }
-    auto model_filename = FrontEndTestUtils::make_model_path(string(TEST_TENSORFLOW_MODELS_DIRNAME) + model_path);
-    auto input_model = front_end->load(model_filename);
-    if (!input_model) {
-        throw "Input model is not read";
-    }
-    auto model = front_end->convert(input_model);
-    if (!model) {
-        throw "Model is not converted";
-    }
-
-    return model;
-}
-
 NamedOutputVector fake_translator_ragged_tensor_to_sparse(const NodeContext& node) {
     // NOTE: pay attention that this is a fake translator for RaggedTensorToSparse
     // only serves for testing purposes
@@ -472,6 +451,97 @@ TEST_F(TransformationTestsF, RaggedTensorToSparse) {
     }
 }
 
+TEST_F(TransformationTestsF, MetaGraphVariables) {
+    {
+        model = convert_model("metagraph_variables/graph.meta");
+        model->validate_nodes_and_infer_types();
+    }
+    {
+        // create a reference graph
+        auto x = make_shared<Constant>(element::f32, Shape{2, 3}, vector<float>{1, 2, 3, 3, 2, 1});
+        auto y = make_shared<Parameter>(element::f32, Shape{1});
+        auto z = make_shared<Constant>(element::f32, Shape{2, 3}, vector<float>{2, 2, 1, 1, 1, 2});
+        auto add = make_shared<Add>(x, y);
+        auto sub = make_shared<Subtract>(add, z);
+
+        model_ref = make_shared<Model>(OutputVector{sub}, ParameterVector{y});
+    }
+}
+
+TEST_F(TransformationTestsF, MetaGraphCut) {
+    {
+        model = convert_model("metagraph_variables/graph.meta", nullptr, {"y"});
+        model->validate_nodes_and_infer_types();
+    }
+    {
+        // create a reference graph
+        auto x = make_shared<Constant>(element::f32, Shape{2, 3}, vector<float>{1, 2, 3, 3, 2, 1});
+        auto y = make_shared<Parameter>(element::f32, Shape{1});
+        auto z = make_shared<Constant>(element::f32, Shape{2, 3}, vector<float>{2, 2, 1, 1, 1, 2});
+        auto add = make_shared<Add>(x, y);
+        auto sub = make_shared<Subtract>(add, z);
+
+        model_ref = make_shared<Model>(OutputVector{sub}, ParameterVector{y});
+    }
+}
+
+TEST_F(TransformationTestsF, MetaGraphCutInputTensor) {
+    {
+        model = convert_model("metagraph_variables/graph.meta",
+                              nullptr,
+                              {"0:SubOperation"},
+                              {ov::element::f32},
+                              {Shape{2, 3}});
+        model->validate_nodes_and_infer_types();
+    }
+    {
+        // create a reference graph
+        auto x = make_shared<Parameter>(element::f32, Shape{2, 3});
+        auto z = make_shared<Constant>(element::f32, Shape{2, 3}, vector<float>{2, 2, 1, 1, 1, 2});
+        auto sub = make_shared<Subtract>(x, z);
+
+        model_ref = make_shared<Model>(OutputVector{sub}, ParameterVector{x});
+    }
+}
+
+TEST_F(TransformationTestsF, MetaGraphCutOutputTensor) {
+    {
+        model = convert_model("metagraph_variables/graph.meta",
+                              nullptr,
+                              {"AddOperation:0"},
+                              {ov::element::f32},
+                              {Shape{2, 3}});
+        model->validate_nodes_and_infer_types();
+    }
+    {
+        // create a reference graph
+        auto x = make_shared<Parameter>(element::f32, Shape{2, 3});
+        auto z = make_shared<Constant>(element::f32, Shape{2, 3}, vector<float>{2, 2, 1, 1, 1, 2});
+        auto sub = make_shared<Subtract>(x, z);
+
+        model_ref = make_shared<Model>(OutputVector{sub}, ParameterVector{x});
+    }
+}
+
+TEST_F(TransformationTestsF, MetaGraphCutIdentity) {
+    {
+        model = convert_model("metagraph_variables/graph.meta",
+                              nullptr,
+                              {"AddIdentity"},
+                              {ov::element::f32},
+                              {Shape{2, 3}});
+        model->validate_nodes_and_infer_types();
+    }
+    {
+        // create a reference graph
+        auto x = make_shared<Parameter>(element::f32, Shape{2, 3});
+        auto z = make_shared<Constant>(element::f32, Shape{2, 3}, vector<float>{2, 2, 1, 1, 1, 2});
+        auto sub = make_shared<Subtract>(x, z);
+
+        model_ref = make_shared<Model>(OutputVector{sub}, ParameterVector{x});
+    }
+}
+
 TEST_F(TransformationTestsF, SplitInFunction) {
     {
         // create FAKE conversion extension for Split using named ports, this is not required for Split, but it tests
@@ -499,5 +569,126 @@ TEST_F(TransformationTestsF, SplitInFunction) {
         auto add2 = make_shared<Add>(add1, split->output(2));
 
         model_ref = make_shared<Model>(OutputVector{add2}, ParameterVector{x});
+    }
+}
+
+TEST_F(TransformationTestsF, ResourceGatherModel) {
+    // This test aims to check basic support of ResourceGather operation
+    // and cutting an input model with specified shapes and types
+    {
+        model = convert_model("resource_gather_model/resource_gather_model.pbtxt",
+                              nullptr,
+                              {"1:embedding_lookup1", "1:embedding_lookup2"},
+                              {element::i32, element::i32},
+                              {Shape{7, 2}, Shape{3}});
+    }
+    {
+        auto ind1 = make_shared<Parameter>(i32, Shape{7, 2});
+        auto table1 = make_shared<Constant>(f32, Shape{2, 3}, vector<float>{1, 2, 3, 4, 5, 6});
+        auto axis1 = make_shared<Constant>(i64, Shape{}, 0);
+
+        auto ind2 = make_shared<Parameter>(i32, Shape{3});
+        auto table2 = make_shared<Constant>(f32, Shape{5}, vector<float>{10, 11, 12, 13, 14});
+        auto axis2 = make_shared<Constant>(i64, Shape{}, 0);
+
+        auto gather1 = make_shared<Gather>(table1, ind1, axis1);
+        auto gather2 = make_shared<Gather>(table2, ind2, axis2);
+
+        auto mul = make_shared<Multiply>(gather1, gather2);
+
+        model_ref = make_shared<Model>(OutputVector{mul}, ParameterVector{ind1, ind2});
+    }
+}
+
+TEST_F(TransformationTestsF, NonMaxSuppressionWithNamedOutputs) {
+    // The purpose of this test is to check that named output ports of TensorFlow NMS operation are connected correctly
+    // to its consumers
+    { model = convert_model("nms_named_outputs/nms_named_outputs.pb"); }
+    {
+        // prepare the first input for NMS
+        auto boxes = make_shared<Parameter>(f32, PartialShape{2, 4});
+        auto const_zero = make_shared<Constant>(i32, Shape{1}, 0);
+        auto unsqueeze = make_shared<Unsqueeze>(boxes, const_zero);
+
+        // prepare the second input for NMS
+        auto scores = make_shared<Parameter>(f32, PartialShape{2});
+        auto const_one_zero = make_shared<Constant>(i32, Shape{2}, vector<int32_t>{0, 1});
+        auto unsqueeze_2 = make_shared<Unsqueeze>(scores, const_one_zero);
+
+        // create NMS node
+        auto max_output_size = make_shared<Constant>(i32, Shape{}, 50);
+        auto iou_threshold = make_shared<Constant>(f32, Shape{}, 0.4f);
+        auto score_threshold = make_shared<Constant>(f32, Shape{}, 0.3f);
+        auto soft_nms_sigma = make_shared<Constant>(f32, Shape{}, 0.1f);
+        auto nms = make_shared<NonMaxSuppression>(unsqueeze,
+                                                  unsqueeze_2,
+                                                  max_output_size,
+                                                  iou_threshold,
+                                                  score_threshold,
+                                                  soft_nms_sigma,
+                                                  NonMaxSuppression::BoxEncodingType::CORNER,
+                                                  false,
+                                                  i32);
+
+        // compute the first output - selected_indices
+        auto slice_const_one = make_shared<Constant>(i32, Shape{1}, 1);
+        auto slice_const_one_2 = make_shared<Constant>(i32, Shape{1}, 1);
+        auto slice_const_two = make_shared<Constant>(i32, Shape{1}, 2);
+        auto slice_const_three = make_shared<Constant>(i32, Shape{1}, 3);
+        auto slice =
+            make_shared<Slice>(nms->output(0), slice_const_two, slice_const_three, slice_const_one, slice_const_one_2);
+        Output<Node> selected_indices = make_shared<Squeeze>(slice, slice_const_one_2);
+
+        // compute the second output - selected_scores
+        auto slice2_const_one = make_shared<Constant>(i32, Shape{1}, 1);
+        auto slice2_const_one_2 = make_shared<Constant>(i32, Shape{1}, 1);
+        auto slice2_const_two = make_shared<Constant>(i32, Shape{1}, 2);
+        auto slice2_const_three = make_shared<Constant>(i32, Shape{1}, 3);
+        auto slice2 =
+            make_shared<Slice>(nms->output(1), slice_const_two, slice_const_three, slice_const_one, slice_const_one_2);
+        Output<Node> selected_scores = make_shared<Squeeze>(slice2, slice_const_one_2);
+        selected_scores = make_shared<ConvertLike>(selected_scores, boxes);
+        selected_scores = make_shared<Convert>(selected_scores, i32);
+
+        // compute the third output - valid_outputs
+        Output<Node> valid_outputs = make_shared<Squeeze>(nms->output(2));
+
+        // make post-processing before the concatenation
+        auto const_minus_one = make_shared<Constant>(i32, Shape{1}, -1);
+        selected_indices = make_shared<Reshape>(selected_indices, const_minus_one, false);
+        auto const_minus_one_2 = make_shared<Constant>(i32, Shape{1}, -1);
+        selected_scores = make_shared<Reshape>(selected_scores, const_minus_one_2, false);
+        auto const_minus_one_3 = make_shared<Constant>(i32, Shape{1}, -1);
+        valid_outputs = make_shared<Reshape>(valid_outputs, const_minus_one_3, false);
+
+        // concatenate all outputs in order to have the single output
+        auto concat = make_shared<Concat>(OutputVector{selected_indices, selected_scores, valid_outputs}, 0);
+
+        model_ref = make_shared<Model>(OutputVector{concat}, ParameterVector{boxes, scores});
+    }
+}
+
+TEST_F(TransformationTestsF, PartitionedCallsWithConvInBodyGraphs) {
+    // The test aims to check that the conversion for the body graphs is performed with set input shapes
+    // that allows to get more optimized ov::Model for the body graphs.
+    // In particular, we check that the resulted graph contains Convolution operations instead of GroupConvolution
+    { model = convert_model("partitioned_call_with_conv/partitioned_call_with_conv.pb"); }
+    {
+        auto input1 = make_shared<Parameter>(f32, Shape{1, 1, 10, 10});
+        auto filter = make_shared<Parameter>(f32, Shape{3, 3, 1, 1});
+
+        auto transpose_order = make_shared<Constant>(i64, Shape{4}, vector<int64_t>{3, 2, 0, 1});
+
+        auto tr_filter = make_shared<Transpose>(filter, transpose_order);
+
+        auto conv = make_shared<Convolution>(input1,
+                                             tr_filter,
+                                             Strides{1, 1},
+                                             CoordinateDiff{0, 0},
+                                             CoordinateDiff{0, 0},
+                                             Strides{1, 1},
+                                             op::PadType::SAME_UPPER);
+
+        model_ref = make_shared<Model>(OutputVector{conv}, ParameterVector{input1, filter});
     }
 }

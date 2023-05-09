@@ -7,13 +7,10 @@ namespace MultiDevicePlugin {
 // AUTO will enable the blocklist if
 // 1.No device priority passed to AUTO/MULTI.(eg. core.compile_model(model, "AUTO", configs);)
 // 2.No valid device parsed out from device priority (eg. core.compile_model(model, "AUTO:-CPU,-GPU", configs);).
-const std::set<std::string> PluginConfig::_deviceBlocklist = {"VPUX", "GNA"};
+const std::set<std::string> PluginConfig::_deviceBlocklist = {"VPUX", "GNA", "notIntelGPU"};
 
 PluginConfig::PluginConfig() {
     set_default();
-    device_property_validator = std::dynamic_pointer_cast<BaseValidator>(std::make_shared<FuncValidator>([](const ov::Any& target) -> bool {
-        return (target.as<std::string>().find(ov::device::properties.name()) != std::string::npos);
-    }));
 }
 
 void PluginConfig::set_default() {
@@ -28,11 +25,6 @@ void PluginConfig::set_default() {
         std::make_tuple(ov::hint::num_requests, 0, UnsignedTypeValidator()),
         std::make_tuple(ov::intel_auto::enable_startup_fallback, true),
         std::make_tuple(ov::intel_auto::enable_runtime_fallback, true),
-        // TODO 1) allow_auto_batch 2) auto_batch_timeout
-        std::make_tuple(ov::hint::allow_auto_batching, true),
-        std::make_tuple(ov::auto_batch_timeout, 1000),
-        // Legacy API properties
-        std::make_tuple(exclusive_asyc_requests, false),
         // RO for register only
         std::make_tuple(ov::device::full_name),
         std::make_tuple(ov::device::capabilities),
@@ -70,6 +62,13 @@ ov::Any PluginConfig::get_property(const std::string& name) const {
     return internal_properties.at(name);
 }
 
+bool PluginConfig::is_batching_disabled() const {
+    if (user_properties.find(ov::hint::allow_auto_batching.name()) != user_properties.end()) {
+        return !user_properties.at(ov::hint::allow_auto_batching.name()).as<bool>();
+    }
+    return false;
+}
+
 bool PluginConfig::is_supported(const std::string& name) const {
     bool supported = internal_properties.find(name) != internal_properties.end();
     bool has_validator = property_validators.find(name) != property_validators.end();
@@ -81,7 +80,7 @@ bool PluginConfig::is_set_by_user(const std::string& name) const {
     return user_properties.find(name) != user_properties.end();
 }
 
-void PluginConfig::set_user_property(const ov::AnyMap& config, bool checkfirstlevel) {
+void PluginConfig::set_user_property(const ov::AnyMap& config) {
     // user property, accept either internal property, or secondary property for hardware plugin
     // TODO: for multi, other first level property are also accepted
     for (auto& kv : config) {

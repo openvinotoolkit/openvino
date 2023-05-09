@@ -4,7 +4,6 @@
 
 #include "helper_transforms/const_to_result_remover.hpp"
 
-#include "helper_ops/string_constant.hpp"
 #include "helper_ops/unsupported_constant.hpp"
 #include "openvino/opsets/opset10.hpp"
 
@@ -23,8 +22,7 @@ bool ConstToResultRemover::run_on_model(const std::shared_ptr<ov::Model>& m) {
     for (const auto& result : m->get_results()) {
         auto unsupported_const = as_type_ptr<UnsupportedConstant>(result->get_input_node_shared_ptr(0));
         auto const_node = as_type_ptr<Constant>(result->get_input_node_shared_ptr(0));
-        auto string_const = as_type_ptr<StringConstant>(result->get_input_node_shared_ptr(0));
-        if (unsupported_const || const_node || string_const) {
+        if (unsupported_const || const_node) {
             results_to_remove.push_back(result);
         }
     }

@@ -184,9 +184,9 @@ KERNEL (reorder_data_fast_b1)(
     const uint input_idx  = data_idx;
     const uint output_idx = data_idx;
 #else
-    uint8 ov = RESHAPE_DIMS(OUTPUT, INPUT0, b, f, w, z, y, x);
-    const uint input_idx = FUNC_CALL(get_input_index)(ov.s1, ov.s2, ov.s3, ov.s4, ov.s5, ov.s6);
-    const uint output_idx  = FUNC_CALL(get_output_index)(b, f, w, z, y, x);
+    uint8 ov = RESHAPE_DIMS(OUTPUT, INPUT0, b, f, 0, 0, w, z, y, x);
+    const uint input_idx = FUNC_CALL(get_input_index)(ov.s0, ov.s1, ov.s2, ov.s3, ov.s4, ov.s5, ov.s6, ov.s7);
+    const uint output_idx  = FUNC_CALL(get_output_index)(b, f, 0, 0, w, z, y, x);
 #endif
 
 #if   defined MEAN_SUBTRACT_INSIDE_PARAMS
@@ -194,8 +194,8 @@ KERNEL (reorder_data_fast_b1)(
     res -= VALUE_TO_SUBTRACT[f % VALUE_TO_SUBTRACT_SIZE];
 #elif defined MEAN_SUBTRACT_IN_BUFFER
     MEAN_SUBTRACT_TYPE res = TO_MEAN_TYPE(input[input_idx]);
-    uint8 msv = RESHAPE_DIMS(INPUT0, MEAN_SUBTRACT, b, f, w, z, y, x);
-    res -= mean_subtract[GET_DATA_INDEX_SAFE(MEAN_SUBTRACT, msv.s1, msv.s2, msv.s5, msv.s6)];
+    uint8 msv = RESHAPE_DIMS(INPUT0, MEAN_SUBTRACT, b, f, 0, 0, w, z, y, x);
+    res -= mean_subtract[GET_DATA_INDEX_SAFE(MEAN_SUBTRACT, msv.s0, msv.s1, msv.s6, msv.s7)];
 #else
     CALC_TYPE res = TO_CALC_TYPE(input[input_idx]);
 #endif

@@ -445,6 +445,10 @@ void onnx_editor::ONNXModelEditor::extract_subgraph(const std::vector<InputEdge>
         return;
     }
 
+    if (!outputs.empty()) {
+        m_pimpl->m_model_proto->mutable_graph()->mutable_output()->Clear();
+    }
+
     InferShapesAutoRelease onnx_shapes(m_pimpl->m_model_proto);
     onnx_shapes.infer_shapes();
 

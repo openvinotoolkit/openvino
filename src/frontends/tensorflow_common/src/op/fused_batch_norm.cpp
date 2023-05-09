@@ -258,10 +258,10 @@ NamedOutputVector translate_fused_batch_norm_op(const NodeContext& node) {
 
     // set node names and tensor names
     set_node_name(node.get_name(), fused_batch_norm.get_node_shared_ptr());
-    set_node_name(node.get_name() + ":1", batch_mean.get_node_shared_ptr());
-    set_node_name(node.get_name() + ":2", batch_variance.get_node_shared_ptr());
-    set_node_name(node.get_name() + ":3", zero_const.get_node_shared_ptr());
-    set_node_name(node.get_name() + ":4", zero_const2.get_node_shared_ptr());
+    set_out_name(node.get_name() + ":1", batch_mean.get_node_shared_ptr());
+    set_out_name(node.get_name() + ":2", batch_variance.get_node_shared_ptr());
+    set_out_name(node.get_name() + ":3", zero_const.get_node_shared_ptr());
+    set_out_name(node.get_name() + ":4", zero_const2.get_node_shared_ptr());
 
     auto results = NamedOutputVector{{"y", fused_batch_norm},
                                      {"batch_mean", batch_mean},
@@ -270,7 +270,7 @@ NamedOutputVector translate_fused_batch_norm_op(const NodeContext& node) {
                                      {"reserve_space_2", zero_const2}};
     if (is_v3) {
         auto zero_const3 = create_same_type_const_scalar<float>(scale, 0);
-        set_node_name(node.get_name() + ":5", zero_const3.get_node_shared_ptr());
+        set_out_name(node.get_name() + ":5", zero_const3.get_node_shared_ptr());
         results.push_back({"reserve_space_3", zero_const3});
     }
 

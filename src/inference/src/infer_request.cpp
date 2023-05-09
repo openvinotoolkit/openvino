@@ -21,7 +21,7 @@
     try {                                                                   \
         __VA_ARGS__;                                                        \
     } catch (const ::InferenceEngine::RequestBusy& ex) {                    \
-        throw ov::Busy(ex.what());                                          \
+        ov::Busy::create(ex.what());                                        \
     } catch (const std::exception& ex) {                                    \
         OPENVINO_THROW(ex.what());                                          \
     } catch (...) {                                                         \
@@ -234,7 +234,7 @@ void InferRequest::wait() {
     } catch (const ov::Cancelled&) {
         throw;
     } catch (const ie::InferCancelled& e) {
-        throw Cancelled{e.what()};
+        Cancelled::create(e.what());
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
     } catch (...) {
@@ -247,7 +247,7 @@ bool InferRequest::wait_for(const std::chrono::milliseconds timeout) {
     try {
         return _impl->wait_for(timeout);
     } catch (const ie::InferCancelled& e) {
-        throw Cancelled{e.what()};
+        Cancelled::create(e.what());
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
     } catch (...) {

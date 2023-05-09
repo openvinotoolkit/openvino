@@ -55,24 +55,6 @@ public:
     }
 };
 
-class PrecisionPropagationAddFunctionParams {
-public:
-    class Actual {
-    public:
-        std::pair<element::Type, element::Type> convertion_before_op1;
-        element::Type convertion_before_op2_1;
-        std::pair<element::Type, element::Type> convertion_before_op2_2;
-    };
-
-    class Expected {
-    public:
-        std::pair<element::Type, element::Type> convertion_before_op1;
-        element::Type convertion_before_op2_1;
-        std::pair<element::Type, element::Type> convertion_before_op2_2;
-        element::Type convertion_after_op2;
-    };
-};
-
 /**
  * @class PrecisionPropagationAddFunction
  * @brief PrecisionPropagationAddFunction instance returns reference and original functions.
@@ -83,13 +65,30 @@ public:
  */
 class PrecisionPropagationAddFunction : public SnippetsFunctionBase {
 public:
+    class Actual {
+    public:
+        std::pair<element::Type, element::Type> convertion_before_op1;
+        element::Type convertion_before_op2_1;
+        std::pair<element::Type, element::Type> convertion_before_op2_2;
+        element::Type convertion_after_op2;
+    };
+
+    class Expected {
+    public:
+        std::pair<element::Type, element::Type> convertion_before_op1;
+        element::Type convertion_before_op2_1;
+        std::pair<element::Type, element::Type> convertion_before_op2_2;
+        element::Type convertion_after_op2;
+        element::Type convertion_before_result;
+    };
+
     explicit PrecisionPropagationAddFunction(
         const std::vector<PartialShape> input_shapes,
         const ngraph::element::Type precision1,
         const ngraph::element::Type precision2,
         const ngraph::element::Type constant_precision,
-        PrecisionPropagationAddFunctionParams::Actual actual,
-        PrecisionPropagationAddFunctionParams::Expected expected) :
+        Actual actual,
+        Expected expected) :
         SnippetsFunctionBase(input_shapes),
         precision1(precision1),
         precision2(precision2),
@@ -99,22 +98,6 @@ public:
         OPENVINO_ASSERT(input_shapes.size() == 2ull, "input_shapes size has to be equal to 2");
     }
 
-    /*
-     * Don't call this method explicity. You should create the instance of PrecisionPropagationAddFunction before.
-     * After the method will be called implicitly in getOriginal or getReference methods.
-     * Note, please, getLowered method is not implemented and throws exception.
-     */
-    static std::shared_ptr<ngraph::Function> get(
-        const ngraph::element::Type precision1,
-        const ngraph::PartialShape& inputShape1,
-        const ngraph::element::Type precision2,
-        const ngraph::PartialShape& inputShape2,
-        const ngraph::element::Type constant_precision,
-        const std::pair<element::Type, element::Type>& convertion_before_op1 = std::pair<element::Type, element::Type>(),
-        const element::Type convertion_before_op2_1 = element::undefined,
-        const std::pair<element::Type, element::Type>& convertion_before_op2_2 = std::pair<element::Type, element::Type>(),
-        const element::Type convertion_after_op2 = {});
-
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
     std::shared_ptr<ov::Model> initReference() const override;
@@ -122,8 +105,24 @@ protected:
     const ngraph::element::Type precision1;
     const ngraph::element::Type precision2;
     const ngraph::element::Type constant_precision;
-    const PrecisionPropagationAddFunctionParams::Actual actual;
-    const PrecisionPropagationAddFunctionParams::Expected expected;
+    const Actual actual;
+    const Expected expected;
+
+private:
+    /*
+     * Returns model implicitly via getOriginal call in initOriginal.
+     */
+    static std::shared_ptr<ngraph::Function> get(
+        const ngraph::element::Type& precision1,
+        const ngraph::PartialShape& inputShape1,
+        const ngraph::element::Type& precision2,
+        const ngraph::PartialShape& inputShape2,
+        const ngraph::element::Type& constant_precision,
+        const std::pair<element::Type, element::Type>& convertion_before_op1,
+        const element::Type& convertion_before_op2_1,
+        const std::pair<element::Type, element::Type>& convertion_before_op2_2,
+        const element::Type& convertion_after_op2,
+        const element::Type& convertion_before_result = {});
 };
 
 }  // namespace snippets

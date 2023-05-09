@@ -21,6 +21,7 @@
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include <dnnl_extension_utils.h>
 #include <common/primitive_hashing_utils.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
 
 using namespace dnnl;
 using namespace InferenceEngine;
@@ -204,6 +205,27 @@ MatMul::MatMul(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr
 }
 
 bool MatMul::canFuse(const NodePtr& node) const {
+    // WA for CVS-84056: oneDNN brgemm impl has problem with per-OC binary-postOps for MatMul with 6D inputs
+    if (impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core)) {
+        if (auto* eltwiseNode = dynamic_cast<Eltwise*>(node.get())) {
+            if (eltwiseNode->getBroadcastingPolicy() == Eltwise::BroadcastingPolicy::PerChannel) {
+                auto rank = getInputShapeAtPort(0).getRank();
+                if (rank > 4) {
+                    DEBUG_LOG("skip fusing non-perTensor Eltwise:", eltwiseNode->getName(), " into 6D MatMul:", getName());
+                    return false;
+                }
+            }
+        }
+    }
+
+    //  Consider the case when Matmul doesn't support execution in int8, but is getting fused with FQ with int8 output.
+    //  Then the Matmul will change its output precision to fp32. If fusing FQ into matmul, there would be reorder inserted
+    //  after matmul. In some bert model, this reorder causes great perf degradation.
+    //  Todo: Remove this if onednn primitive support U8 output with floating input.
+    if (node->getType() == Type::FakeQuantize && one_of(node->getOriginalOutputPrecisionAtPort(0), Precision::I8, Precision::U8) &&
+        !canBeExecutedInInt8(getOriginalInputPrecisionAtPort(0), getOriginalInputPrecisionAtPort(1)) &&
+        getOriginalInputPrecisionAtPort(0) == InferenceEngine::Precision::FP32 )
+        return false;
     return canFuseSimpleOperation(node);
 }
 
@@ -217,7 +239,7 @@ void MatMul::setPostOps(dnnl::primitive_attr& attr, const VectorDims& dims, bool
 
     bool isINT8 = canBeExecutedInInt8(getOriginalInputPrecisionAtPort(0), getOriginalInputPrecisionAtPort(1));
 
-    DnnlPostOpsComposer dnnlpoc(getEngine(), attr, ops, postOpsArgs, dims, dims.size() - 1, isINT8);
+    DnnlPostOpsComposer dnnlpoc(getEngine(), attr, ops, postOpsArgs, dims, dims.size() - 1, isINT8, 1 << (dims.size() - 1), getDQScales(), withBiases);
 
     for (int i = 0; i < fusedWith.size(); ++i) {
         auto& node = fusedWith[i];
@@ -488,7 +510,6 @@ void MatMul::initSupportedPrimitiveDescriptors() {
         auto itpd = desc;
         while (itpd) {
             NodeConfig config;
-            config.dynBatchSupport = true;
             for (size_t i = 0; i < descInputNumbers(); i++) {
                 PortConfig portConfig;
                 portConfig.inPlace(-1);
@@ -529,12 +550,6 @@ MemoryDescPtr MatMul::getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_des
 
 bool MatMul::created() const {
     return getType() == Type::MatMul;
-}
-
-size_t MatMul::getMaxBatch() const {
-    if (!outputShapes.empty())
-        return outputShapes[0].getStaticDims()[0];
-    return 0;
 }
 
 InferenceEngine::Precision MatMul::getRuntimePrecision() const {
@@ -594,10 +609,10 @@ void MatMul::prepareParams() {
     auto engine = getEngine();
 
     auto builder = [&engine](const MatMulKey& key) -> executorPtr {
-        dnnl::matmul::primitive_desc matmul_desc;
+        dnnl::matmul::primitive_desc prim_desc;
 
         if (key.bias) {
-            matmul_desc = matmul::primitive_desc(
+            prim_desc = matmul::primitive_desc(
                 engine,
                 key.inp0->getDnnlDesc(),
                 key.inp1->getDnnlDesc(),
@@ -605,7 +620,7 @@ void MatMul::prepareParams() {
                 key.out->getDnnlDesc(),
                 key.attr);
         } else {
-            matmul_desc = matmul::primitive_desc(
+            prim_desc = matmul::primitive_desc(
                 engine,
                 key.inp0->getDnnlDesc(),
                 key.inp1->getDnnlDesc(),
@@ -613,27 +628,17 @@ void MatMul::prepareParams() {
                 key.attr);
         }
 
-        primitive_desc_iterator itpd = matmul_desc;
-        matmul::primitive_desc prim_desc;
+        auto first_desc = dnnl::matmul::primitive_desc(prim_desc.get());
+        const bool found = DnnlExtensionUtils::find_implementation(prim_desc, key.implType);
 
-        auto itpd_first = itpd;
-        while (static_cast<bool>(itpd))  {
-            impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
+        if (found)
+            return std::make_shared<DnnlExecutor>(prim_desc);
 
-            if (impl_type == key.implType) {
-                prim_desc = itpd.get();
-                break;
-            }
-            if (!itpd.next_impl()) {
-                // In case of dynamic shapes an implementation type chosen as optimal for a primitive_desc with
-                // undefined input shapes, is not necessarily available for the primitive_desc with defined shape.
-                // Example: brgemm_avx512_amx (Intel Sapphire Rapids Platform) is available for a primitive with
-                // undefined input shapes but not available for primitive_desc with input batch 1.
-                prim_desc = itpd_first.get();
-                break;
-            }
-        }
-        return std::make_shared<DnnlExecutor>(prim_desc);
+        // In case of dynamic shapes an implementation type chosen as optimal for a primitive_desc with
+        // undefined input shapes, is not necessarily available for the primitive_desc with defined shape.
+        // Example: brgemm_avx512_amx (Intel Sapphire Rapids Platform) is available for a primitive with
+        // undefined input shapes but not available for primitive_desc with input batch 1.
+        return std::make_shared<DnnlExecutor>(first_desc);
     };
 
     auto cache = context->getParamsCache();
@@ -679,6 +684,7 @@ const std::vector<impl_desc_type>& MatMul::getPrimitivesPriority() {
             impl_desc_type::unknown,
             impl_desc_type::brgemm_avx512_amx,
             impl_desc_type::brgemm_avx512,
+            impl_desc_type::gemm_acl,
             impl_desc_type::gemm_blas,
             impl_desc_type::gemm_avx512,
             impl_desc_type::gemm_avx2,

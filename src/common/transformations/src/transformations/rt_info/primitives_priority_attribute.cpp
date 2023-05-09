@@ -52,7 +52,7 @@ Any PrimitivesPriority::merge(const ngraph::NodeVector& nodes) const {
     }
 
     if (unique_pp.size() > 1) {
-        throw ngraph_error("PrimitivesPriority no rule defined for multiple values.");
+        OPENVINO_THROW("PrimitivesPriority no rule defined for multiple values.");
     }
 
     std::string final_primitives_priority;

@@ -69,7 +69,7 @@ bool StaticShape::same_scheme(const StaticShape& s) const {
     return true;
 }
 
-bool StaticShape::merge_rank(Rank r) {
+bool StaticShape::merge_rank(const Rank& r) {
     if (r.is_dynamic()) {
         return true;
     } else {

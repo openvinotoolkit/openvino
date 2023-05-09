@@ -73,7 +73,7 @@ jobs:
     INSTALL_DIR: $(WORK_DIR)\install_pkg
     INSTALL_TEST_DIR: $(INSTALL_DIR)\tests
     SETUPVARS: $(INSTALL_DIR)\setupvars.bat
-    PYTHON_DIR: C:\hostedtoolcache\windows\Python\3.10.7\x64
+    PYTHON_DIR: C:\hostedtoolcache\windows\Python\3.11.2\x64
     CMAKE_VERSION: 3.24.0
     CMAKE_CMD: $(WORK_DIR)\cmake-$(CMAKE_VERSION)-windows-x86_64\cmake-$(CMAKE_VERSION)-windows-x86_64\bin\cmake.exe
     OV_CMAKE_TOOLCHAIN_FILE: $(REPO_DIR)\cmake\toolchains\mt.runtime.win32.toolchain.cmake
@@ -84,26 +84,26 @@ jobs:
   - script: |
       rd /Q /S $(WORK_DIR) & mkdir $(WORK_DIR)
       rd /Q /S $(BUILD_DIR) & mkdir $(BUILD_DIR)
-      rd /Q /S $(WORK_DIR) & mkdir C:\hostedtoolcache\windows\Python\3.10.7
-      rd /Q /S $(BUILD_DIR) & mkdir C:\hostedtoolcache\windows\Python\3.10.7\x64
+      rd /Q /S $(WORK_DIR) & mkdir C:\hostedtoolcache\windows\Python\3.11.2
+      rd /Q /S $(BUILD_DIR) & mkdir C:\hostedtoolcache\windows\Python\3.11.2\x64
       rd /Q /S $(BUILD_SAMPLES_DIR) & mkdir $(BUILD_SAMPLES_DIR)
       rd /Q /S $(BUILD_SAMPLES_TESTS_DIR) & mkdir $(BUILD_SAMPLES_TESTS_DIR)
     displayName: 'Make dir'
 
-  - script: curl -O https://www.python.org/ftp/python/3.10.7/python-3.10.7-amd64.exe
+  - script: curl -O https://www.python.org/ftp/python/3.11.2/python-3.11.2-amd64.exe
     displayName: 'Download Python'
     workingDirectory: $(WORK_DIR)
 
   - script: |
-      python-3.10.7-amd64.exe /passive InstallAllUsers=0 Include_launcher=0 TargetDir=C:\hostedtoolcache\windows\Python\3.10.7\x64
-      cp C:\hostedtoolcache\windows\Python\3.8.2\x64.complete C:\hostedtoolcache\windows\Python\3.10.7\x64.complete
+      python-3.11.2-amd64.exe /passive InstallAllUsers=0 Include_launcher=0 TargetDir=C:\hostedtoolcache\windows\Python\3.11.2\x64
+      cp C:\hostedtoolcache\windows\Python\3.8.2\x64.complete C:\hostedtoolcache\windows\Python\3.11.2\x64.complete
     displayName: 'Install Python'
     workingDirectory: $(WORK_DIR)
 
   - task: UsePythonVersion@0
     displayName: 'Use Python'
     inputs:
-      versionSpec: '3.10'
+      versionSpec: '3.11.2'
       disableDownloadFromRegistry: true
 
   - script: |
@@ -142,7 +142,8 @@ jobs:
       python -m pip install -r $(REPO_DIR)\src\bindings\python\wheel\requirements-dev.txt
       python -m pip install -r $(REPO_DIR)\src\bindings\python\requirements.txt
       rem For running Paddle frontend unit tests
-      python -m pip install -r $(REPO_DIR)\src\frontends\paddle\tests\requirements.txt
+      # TODO Reenable PDPD after paddlepaddle==2.5.0 with compliant protobuf is released (ticket 95904)
+      #python -m pip install -r $(REPO_DIR)\src\frontends\paddle\tests\requirements.txt
       rem For running ONNX frontend unit tests
       python -m pip install -r $(REPO_DIR)\src\frontends\onnx\tests\requirements.txt
       rem For running TensorFlow frontend unit tests
@@ -165,21 +166,21 @@ jobs:
 
   - script: |
       set PATH=$(WORK_DIR)\ninja-win;%PATH%
-      call "$(MSVS_VARS_PATH)" && $(CMAKE_CMD) -G "Ninja Multi-Config" ^
+      call "$(MSVS_VARS_PATH)" && $(CMAKE_CMD) ^
+        -G "Ninja Multi-Config" ^
         -DENABLE_CPPLINT=OFF ^
         -DENABLE_ONEDNN_FOR_GPU=$(CMAKE_BUILD_SHARED_LIBS) ^
         -DBUILD_SHARED_LIBS=$(CMAKE_BUILD_SHARED_LIBS) ^
         -DENABLE_FASTER_BUILD=ON ^
-        -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) ^
         -DENABLE_TESTS=ON ^
         -DCMAKE_COMPILE_WARNING_AS_ERROR=ON ^
         -DENABLE_STRICT_DEPENDENCIES=OFF ^
         -DENABLE_PYTHON=ON ^
         -DBUILD_nvidia_plugin=OFF ^
         -DCUSTOM_OPERATIONS="calculate_grid;complex_mul;fft;grid_sample;sparse_conv;sparse_conv_transpose" ^
-        -DPYTHON_EXECUTABLE="C:\hostedtoolcache\windows\Python\3.10.7\x64\python.exe" ^
-        -DPYTHON_INCLUDE_DIR="C:\hostedtoolcache\windows\Python\3.10.7\x64\include" ^
-        -DPYTHON_LIBRARY="C:\hostedtoolcache\windows\Python\3.10.7\x64\libs\python310.lib" ^
+        -DPYTHON_EXECUTABLE="C:\hostedtoolcache\windows\Python\3.11.2\x64\python.exe" ^
+        -DPYTHON_INCLUDE_DIR="C:\hostedtoolcache\windows\Python\3.11.2\x64\include" ^
+        -DPYTHON_LIBRARY="C:\hostedtoolcache\windows\Python\3.11.2\x64\libs\python311.lib" ^
         -DOPENVINO_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)\modules ^
         -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
         -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
