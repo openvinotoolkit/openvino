@@ -41,6 +41,7 @@ OP_CONVERTER(translate_div);
 OP_CONVERTER(translate_elu);
 OP_CONVERTER(translate_embedding);
 OP_CONVERTER(translate_empty);
+OP_CONVERTER(translate_exp);
 OP_CONVERTER(translate_expand);
 OP_CONVERTER(translate_expand_as);
 OP_CONVERTER(translate_eye);
@@ -114,6 +115,7 @@ OP_CONVERTER(translate_size);
 OP_CONVERTER(translate_slice);
 OP_CONVERTER(translate_softmax);
 OP_CONVERTER(translate_sort);
+OP_CONVERTER(translate_sqrt);
 OP_CONVERTER(translate_square);
 OP_CONVERTER(translate_squeeze);
 OP_CONVERTER(translate_sub);
@@ -212,7 +214,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::embedding", op::translate_embedding},
         {"aten::empty", op::translate_empty},
         {"aten::eq", op::translate_1to1_match_2_inputs_align_types<opset10::Equal>},
-        {"aten::exp", op::translate_1to1_match_1_inputs<opset10::Exp>},
+        {"aten::exp", op::translate_exp},
         {"aten::expand", op::translate_expand},
         {"aten::expand_as", op::translate_expand_as},
         {"aten::eye", op::translate_eye},
@@ -316,7 +318,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::slice", op::translate_slice},
         {"aten::softmax", op::translate_softmax},
         {"aten::sort", op::translate_sort},
-        {"aten::sqrt", op::translate_1to1_match_1_inputs<opset10::Sqrt>},
+        {"aten::sqrt", op::translate_sqrt},
         {"aten::square", op::translate_square},
         {"aten::squeeze", op::translate_squeeze},
         {"aten::sub", op::translate_sub},
