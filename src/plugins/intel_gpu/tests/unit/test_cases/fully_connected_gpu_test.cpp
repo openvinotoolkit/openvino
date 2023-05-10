@@ -1589,6 +1589,20 @@ INSTANTIATE_TEST_SUITE_P(
 );
 
 INSTANTIATE_TEST_SUITE_P(
+    mmad,
+    fully_connected_i8_i8_test,
+    testing::Combine(
+        testing::Values(1),
+        testing::Values(16, 43, 64),
+        testing::Values(1),
+        testing::Values(1),
+        testing::Values(16, 32, 64),
+        testing::Values(format::bfyx, format::b_fs_yx_fsv32)
+    ),
+    fully_connected_i8_i8_test::PrintToStringParamName
+);
+
+INSTANTIATE_TEST_SUITE_P(
     basic,
     fully_connected_i8_u8_test,
     testing::Combine(
