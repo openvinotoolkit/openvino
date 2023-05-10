@@ -26,6 +26,12 @@ class ICompiledModelWrapper;
 
 namespace ov {
 
+namespace proxy {
+
+class CompiledModel;
+
+}
+
 class CoreImpl;
 class IPlugin;
 class IExecutableNetworkWrapper;
@@ -148,6 +154,7 @@ private:
     std::shared_ptr<ov::threading::ITaskExecutor> m_callback_executor = nullptr;  //!< Holds a callback executor
 
     friend ov::CoreImpl;
+    friend ov::proxy::CompiledModel;
     friend ov::IExecutableNetworkWrapper;
     friend InferenceEngine::ICompiledModelWrapper;
 

@@ -60,7 +60,7 @@ TEST_F(ProxyTests, get_available_devices_with_low_level_plugin) {
 
 TEST_F(ProxyTests, get_available_devices_with_disabled_plugin) {
     ov::AnyMap config;
-    config["FALLBACK_PRIORITY"] = "BDE";
+    config["PROXY_FALLBACK_PRIORITIES"] = "BDE";
     // Change device priority
     core.set_property("MOCK", config);
     auto available_devices = core.get_available_devices();

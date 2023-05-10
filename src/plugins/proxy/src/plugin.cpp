@@ -4,8 +4,13 @@
 
 #include "plugin.hpp"
 
+#include <memory>
+
+#include "compiled_model.hpp"
 #include "openvino/core/any.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
+#include "openvino/runtime/iinfer_request.hpp"
 #include "proxy_plugin.hpp"
 #include "proxy_properties.hpp"
 
@@ -280,7 +285,37 @@ ov::Any ov::proxy::Plugin::get_property(const std::string& name, const ov::AnyMa
 }
 std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
                                                                      const ov::AnyMap& properties) const {
-    OPENVINO_NOT_IMPLEMENTED;
+    auto dev_name = get_fallback_device(get_device_from_config(properties));
+    // Initial device config should be equal to default global config
+    auto device_config = m_configs[""];
+    bool is_device = is_device_in_config(properties);
+    if (is_device) {
+        // Adds device specific options
+        for (const auto& it : m_configs[dev_name]) {
+            device_config[it.first] = it.second;
+        }
+    }
+    // TODO: What if user wants to change fallback_priority for the network
+    for (const auto& it : properties) {
+        device_config[it.first] = it.second;
+    }
+    // Remove proxy properties
+    auto it = device_config.find(ov::device::id.name());
+    if (it != device_config.end())
+        device_config.erase(it);
+    it = device_config.find(ov::device::priorities.name());
+    if (it != device_config.end())
+        device_config.erase(it);
+
+    ov::AnyMap result_config;
+    for (auto&& value : device_config) {
+        result_config.emplace(value.first, value.second.as<std::string>());
+    }
+    remove_proxy_properties(result_config);
+    std::shared_ptr<const ov::IPlugin> plugin = shared_from_this();
+    auto compiled_model =
+        std::make_shared<ov::proxy::CompiledModel>(get_core()->compile_model(model, dev_name, result_config), plugin);
+    return std::dynamic_pointer_cast<ov::ICompiledModel>(compiled_model);
 }
 
 std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,

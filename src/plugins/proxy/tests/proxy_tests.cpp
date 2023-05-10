@@ -9,6 +9,7 @@
 #include "common_test_utils/file_utils.hpp"
 #include "openvino/opsets/opset11.hpp"
 #include "openvino/runtime/iplugin.hpp"
+#include "openvino/runtime/properties.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
 
@@ -16,8 +17,10 @@ void ov::proxy::tests::ProxyTests::SetUp() {
     if (m_mock_plugins.empty()) {
         register_plugin_support_reshape(core,
                                         "ABC",
-                                        {{"ALIAS", "MOCK"}, {"FALLBACK", "BDE"}, {"DEVICE_PRIORITY", "0"}});
-        register_plugin_support_subtract(core, "BDE", {{"ALIAS", "MOCK"}});
+                                        {{ov::device::alias.name(), "MOCK"},
+                                         {ov::device::fallback.name(), "BDE"},
+                                         {ov::device::priority.name(), 0}});
+        register_plugin_support_subtract(core, "BDE", {{ov::device::alias.name(), "MOCK"}});
     }
 }
 
@@ -105,35 +108,48 @@ using namespace ::testing;
 
 class MockPluginBase : public ov::IPlugin {
 public:
-    MOCK_CONST_METHOD2(compile_model,
-                       std::shared_ptr<ov::ICompiledModel>(const std::shared_ptr<const ov::Model>& model,
-                                                           const ov::AnyMap& properties));
-    MOCK_CONST_METHOD3(compile_model,
-                       std::shared_ptr<ov::ICompiledModel>(const std::shared_ptr<const ov::Model>& model,
-                                                           const ov::AnyMap& properties,
-                                                           const ov::RemoteContext& context));
-    MOCK_CONST_METHOD2(compile_model,
-                       std::shared_ptr<ov::ICompiledModel>(const std::string& model_path,
-                                                           const ov::AnyMap& properties));
+    MOCK_METHOD(std::shared_ptr<ov::ICompiledModel>,
+                compile_model,
+                (const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& properties),
+                (const override));
+    MOCK_METHOD(std::shared_ptr<ov::ICompiledModel>,
+                compile_model,
+                (const std::shared_ptr<const ov::Model>& model,
+                 const ov::AnyMap& properties,
+                 const ov::RemoteContext& context),
+                (const override));
+    MOCK_METHOD(std::shared_ptr<ov::ICompiledModel>,
+                compile_model,
+                (const std::string& model_path, const ov::AnyMap& properties),
+                (const override));
 
-    MOCK_METHOD1(set_property, void(const ov::AnyMap& properties));
+    MOCK_METHOD(void, set_property, (const ov::AnyMap& properties), (override));
 
-    MOCK_CONST_METHOD2(get_property, ov::Any(const std::string& name, const ov::AnyMap& arguments));
+    MOCK_METHOD(ov::Any, get_property, (const std::string& name, const ov::AnyMap& arguments), (const override));
 
-    MOCK_CONST_METHOD1(create_context, std::shared_ptr<ov::IRemoteContext>(const ov::AnyMap& remote_properties));
+    MOCK_METHOD(std::shared_ptr<ov::IRemoteContext>,
+                create_context,
+                (const ov::AnyMap& remote_properties),
+                (const override));
 
-    MOCK_CONST_METHOD1(get_default_context, std::shared_ptr<ov::IRemoteContext>(const ov::AnyMap& remote_properties));
+    MOCK_METHOD(std::shared_ptr<ov::IRemoteContext>,
+                get_default_context,
+                (const ov::AnyMap& remote_properties),
+                (const override));
 
-    MOCK_CONST_METHOD2(import_model,
-                       std::shared_ptr<ov::ICompiledModel>(std::istream& model, const ov::AnyMap& properties));
-    MOCK_CONST_METHOD3(import_model,
-                       std::shared_ptr<ov::ICompiledModel>(std::istream& model,
-                                                           const ov::RemoteContext& context,
-                                                           const ov::AnyMap& properties));
+    MOCK_METHOD(std::shared_ptr<ov::ICompiledModel>,
+                import_model,
+                (std::istream & model, const ov::AnyMap& properties),
+                (const override));
+    MOCK_METHOD(std::shared_ptr<ov::ICompiledModel>,
+                import_model,
+                (std::istream & model, const ov::RemoteContext& context, const ov::AnyMap& properties),
+                (const override));
 
-    MOCK_CONST_METHOD2(query_model,
-                       ov::SupportedOpsMap(const std::shared_ptr<const ov::Model>& model,
-                                           const ov::AnyMap& properties));
+    MOCK_METHOD(ov::SupportedOpsMap,
+                query_model,
+                (const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& properties),
+                (const override));
 };
 
 class MockInferRequest : public ov::ISyncInferRequest {
@@ -230,10 +246,11 @@ void ov::proxy::tests::ProxyTests::reg_plugin(ov::Core& core,
 void ov::proxy::tests::ProxyTests::register_plugin_support_reshape(ov::Core& core,
                                                                    const std::string& device_name,
                                                                    const ov::AnyMap& properties) {
-    auto plugin = std::make_shared<MockPluginBase>();
+    auto plugin_ptr = std::make_shared<MockPluginBase>();
+    auto plugin = plugin_ptr.get();
 
-    const auto& query_ov_model = [&](const std::shared_ptr<const ov::Model>& model,
-                                     const ov::AnyMap& properties) -> ov::SupportedOpsMap {
+    const auto& query_ov_model = [plugin](const std::shared_ptr<const ov::Model>& model,
+                                          const ov::AnyMap& properties) -> ov::SupportedOpsMap {
         OPENVINO_ASSERT(model);
 
         std::unordered_set<std::string> supported_ops = {"Parameter", "Result", "Add", "Constant", "Reshape"};
@@ -250,14 +267,15 @@ void ov::proxy::tests::ProxyTests::register_plugin_support_reshape(ov::Core& cor
     ON_CALL(*plugin, query_model(_, _)).WillByDefault(Invoke(query_ov_model));
 
     ON_CALL(*plugin, compile_model(Matcher<const std::shared_ptr<const ov::Model>&>(_), _))
-        .WillByDefault(Invoke([&](const std::shared_ptr<const ov::Model>& model,
-                                  const ov::AnyMap& properties) -> std::shared_ptr<ov::ICompiledModel> {
-            OPENVINO_ASSERT(model);
-            if (!support_model(model, query_ov_model(model, properties)))
-                OPENVINO_THROW("Unsupported model");
+        .WillByDefault(
+            Invoke([plugin, &query_ov_model](const std::shared_ptr<const ov::Model>& model,
+                                             const ov::AnyMap& properties) -> std::shared_ptr<ov::ICompiledModel> {
+                OPENVINO_ASSERT(model);
+                if (!support_model(model, query_ov_model(model, properties)))
+                    OPENVINO_THROW("Unsupported model");
 
-            return std::make_shared<MockCompiledModel>(model, plugin, properties);
-        }));
+                return std::make_shared<MockCompiledModel>(model, plugin->shared_from_this(), properties);
+            }));
 
     ON_CALL(*plugin, get_property(_, _))
         .WillByDefault(Invoke([&](const std::string& name, const ov::AnyMap& options) -> ov::Any {
@@ -315,7 +333,7 @@ void ov::proxy::tests::ProxyTests::register_plugin_support_reshape(ov::Core& cor
             }
             OPENVINO_THROW("Unsupported property: ", name);
         }));
-    std::shared_ptr<ov::IPlugin> base_plugin = plugin;
+    std::shared_ptr<ov::IPlugin> base_plugin = plugin_ptr;
 
     reg_plugin(core, base_plugin, device_name, properties);
 }
@@ -323,10 +341,11 @@ void ov::proxy::tests::ProxyTests::register_plugin_support_reshape(ov::Core& cor
 void ov::proxy::tests::ProxyTests::register_plugin_support_subtract(ov::Core& core,
                                                                     const std::string& device_name,
                                                                     const ov::AnyMap& properties) {
-    auto plugin = std::make_shared<MockPluginBase>();
+    auto plugin_ptr = std::make_shared<MockPluginBase>();
+    auto plugin = plugin_ptr.get();
 
-    const auto& query_ov_model = [&](const std::shared_ptr<const ov::Model>& model,
-                                     const ov::AnyMap& properties) -> ov::SupportedOpsMap {
+    const auto& query_ov_model = [plugin](const std::shared_ptr<const ov::Model>& model,
+                                          const ov::AnyMap& properties) -> ov::SupportedOpsMap {
         OPENVINO_ASSERT(model);
 
         std::unordered_set<std::string> supported_ops = {"Parameter", "Result", "Add", "Constant", "Subtract"};
@@ -335,7 +354,7 @@ void ov::proxy::tests::ProxyTests::register_plugin_support_subtract(ov::Core& co
         for (const auto& op : model->get_ordered_ops()) {
             if (supported_ops.find(op->get_type_info().name) == supported_ops.end())
                 continue;
-            res.emplace(op->get_friendly_name(), plugin->get_device_name());
+            res[op->get_friendly_name()] = plugin->get_device_name();
         }
         return res;
     };
@@ -343,17 +362,18 @@ void ov::proxy::tests::ProxyTests::register_plugin_support_subtract(ov::Core& co
     ON_CALL(*plugin, query_model(_, _)).WillByDefault(Invoke(query_ov_model));
 
     ON_CALL(*plugin, compile_model(Matcher<const std::shared_ptr<const ov::Model>&>(_), _))
-        .WillByDefault(Invoke([&](const std::shared_ptr<const ov::Model>& model,
-                                  const ov::AnyMap& properties) -> std::shared_ptr<ov::ICompiledModel> {
-            OPENVINO_ASSERT(model);
-            if (!support_model(model, query_ov_model(model, properties)))
-                OPENVINO_THROW("Unsupported model");
+        .WillByDefault(
+            Invoke([plugin, &query_ov_model](const std::shared_ptr<const ov::Model>& model,
+                                             const ov::AnyMap& properties) -> std::shared_ptr<ov::ICompiledModel> {
+                OPENVINO_ASSERT(model);
+                if (!support_model(model, query_ov_model(model, properties)))
+                    OPENVINO_THROW("Unsupported model");
 
-            return std::make_shared<MockCompiledModel>(model, plugin, properties);
-        }));
+                return std::make_shared<MockCompiledModel>(model, plugin->shared_from_this(), properties);
+            }));
 
     ON_CALL(*plugin, get_property(_, _))
-        .WillByDefault(Invoke([&](const std::string& name, const ov::AnyMap& options) -> ov::Any {
+        .WillByDefault(Invoke([](const std::string& name, const ov::AnyMap& options) -> ov::Any {
             auto RO_property = [](const std::string& propertyName) {
                 return ov::PropertyName(propertyName, ov::PropertyMutability::RO);
             };
@@ -406,7 +426,7 @@ void ov::proxy::tests::ProxyTests::register_plugin_support_subtract(ov::Core& co
             }
             OPENVINO_THROW("Unsupported property: ", name);
         }));
-    std::shared_ptr<ov::IPlugin> base_plugin = plugin;
+    std::shared_ptr<ov::IPlugin> base_plugin = plugin_ptr;
 
     reg_plugin(core, base_plugin, device_name, properties);
 }
