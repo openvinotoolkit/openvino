@@ -446,7 +446,7 @@ GPU Performance Checklist: Summary
 
 Since OpenVINO relies on the OpenCL kernels for the GPU implementation, many general OpenCL tips apply:
 
--	Prefer ``FP16`` inference precision over ``FP32``, as Model Optimizer can generate both variants, and the ``FP32`` is the default. To learn about optimization options, see :doc:`Optimization Guide<openvino_docs_model_optimization_guide>`.
+-	Prefer ``FP16`` inference precision over ``FP32``, as Model Conversion API can generate both variants, and the ``FP32`` is the default. To learn about optimization options, see :doc:`Optimization Guide<openvino_docs_model_optimization_guide>`.
 - Try to group individual infer jobs by using :doc:`automatic batching <openvino_docs_OV_UG_Automatic_Batching>`.
 -	Consider :doc:`caching <openvino_docs_OV_UG_Model_caching_overview>` to minimize model load time.
 -	If your application performs inference on the CPU alongside the GPU, or otherwise loads the host heavily, make sure that the OpenCL driver threads do not starve. :doc:`CPU configuration options <openvino_docs_OV_UG_supported_plugins_CPU>` can be used to limit the number of inference threads for the CPU plugin.

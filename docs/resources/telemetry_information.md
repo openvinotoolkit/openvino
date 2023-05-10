@@ -63,7 +63,7 @@ Telemetry Data Collection Details
 
 .. tab:: Tools Collecting Data
 
-   * Model Optimizer 
+   * Model Conversion API 
    * Model Downloader 
    * Accuracy Checker 
    * Post-Training Optimization Toolkit 

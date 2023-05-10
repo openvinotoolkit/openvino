@@ -32,7 +32,7 @@ it has one input that is split into four ``ResourceGather`` layers. (Click image
 
 .. image::  ./_static/images/NCF_start.svg
 
-However, as the Model Optimizer does not support such data feeding, you should skip it. Cut
+However, as the Model Conversion API does not support such data feeding, you should skip it. Cut
 the edges incoming in ``ResourceGather`` port 1:
 
 .. code-block:: shell

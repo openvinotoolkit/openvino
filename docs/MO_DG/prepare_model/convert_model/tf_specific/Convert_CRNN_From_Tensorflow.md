@@ -6,7 +6,7 @@ This tutorial explains how to convert a CRNN model to OpenVINO™ Intermediate R
 
 There are several public versions of TensorFlow CRNN model implementation available on GitHub. This tutorial explains how to convert the model from
 the `CRNN Tensorflow <https://github.com/MaybeShewill-CV/CRNN_Tensorflow>`__ repository to IR, and is validated with Python 3.7, TensorFlow 1.15.0, and protobuf 3.19.0.
-If you have another implementation of CRNN model, it can be converted to OpenVINO IR in a similar way. You need to get inference graph and run Model Optimizer on it.
+If you have another implementation of CRNN model, it can be converted to OpenVINO IR in a similar way. You need to get inference graph and run model conversion of it.
 
 **To convert the model to IR:**
 

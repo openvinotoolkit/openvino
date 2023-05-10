@@ -55,7 +55,7 @@ Model input dimensions can be specified as dynamic using the model.reshape metho
 
 .. note::
    
-   Some models may already have dynamic shapes out of the box and do not require additional configuration. This can either be because it was generated with dynamic shapes from the source framework, or because it was converted with Model Optimizer to use dynamic shapes. For more information, see the Dynamic Dimensions “Out of the Box” section.
+   Some models may already have dynamic shapes out of the box and do not require additional configuration. This can either be because it was generated with dynamic shapes from the source framework, or because it was converted with Model Conversion API to use dynamic shapes. For more information, see the Dynamic Dimensions “Out of the Box” section.
 
 The examples below show how to set dynamic dimensions with a model that has a static ``[1, 3, 224, 224]`` input shape (such as `mobilenet-v2 <https://docs.openvino.ai/latest/omz_models_model_mobilenet_v2.html>`__). The first example shows how to change the first dimension (batch size) to be dynamic. In the second example, the third and fourth dimensions (height and width) are set as dynamic.
 
@@ -111,7 +111,7 @@ For more examples of how to change multiple input layers, see :doc:`Changing Inp
 Undefined Dimensions "Out Of the Box"
 -------------------------------------
 
-Many DL frameworks support generating models with dynamic (or undefined) dimensions. If such a model is converted with Model Optimizer or read directly by ``Core::read_model``, its dynamic dimensions are preserved. These models do not need any additional configuration to use them with dynamic shapes.
+Many DL frameworks support generating models with dynamic (or undefined) dimensions. If such a model is converted with ``convert_model()`` or read directly by ``Core::read_model``, its dynamic dimensions are preserved. These models do not need any additional configuration to use them with dynamic shapes.
 
 To check if a model already has dynamic dimensions, first load it with the ``read_model()`` method, then check the ``partial_shape`` property of each layer. If the model has any dynamic dimensions, they will be reported as ``?``. For example, the following code will print the name and dimensions of each input layer:
 
@@ -134,7 +134,7 @@ To check if a model already has dynamic dimensions, first load it with the ``rea
 
 If the input model already has dynamic dimensions, that will not change during inference. If the inputs will not be used dynamically, it is recommended to set them to static values using the ``reshape`` method to save application memory and potentially improve inference speed. The OpenVINO API supports any combination of static and dynamic dimensions.
 
-Static and dynamic dimensions can also be set when converting the model with Model Optimizer. It has identical capabilities to the ``reshape`` method, so you can save time by converting the model with dynamic shapes beforehand rather than in the application code. To get information about setting input shapes using Model Optimizer,  refer to :doc:`Setting Input Shapes <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>`.
+Static and dynamic dimensions can also be set when converting the model with ``convert_model()``. It has identical capabilities to the ``reshape`` method, so you can save time by converting the model with dynamic shapes beforehand rather than in the application code. To get information about setting input shapes using ``convert_model()``,  refer to :doc:`Setting Input Shapes <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>`.
 
 Dimension Bounds
 ----------------

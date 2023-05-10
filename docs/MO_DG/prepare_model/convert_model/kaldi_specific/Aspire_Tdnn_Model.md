@@ -8,7 +8,7 @@ for the ASpIRE Chain Time Delay Neural Network (TDNN) from the Kaldi project off
 Converting an ASpIRE Chain TDNN Model to IR
 ###########################################
 
-Generate the Intermediate Representation of the model by running Model Optimizer with the following parameters:
+Generate the Intermediate Representation of the model by running model conversion with the following parameters:
 
 .. code-block:: sh
 

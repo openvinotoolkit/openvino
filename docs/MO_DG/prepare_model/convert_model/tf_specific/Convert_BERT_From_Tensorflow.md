@@ -38,7 +38,7 @@ Pretrained model meta-graph files are ``bert_model.ckpt.*``.
 Converting a TensorFlow BERT Model to IR
 #########################################
 
-To generate the BERT Intermediate Representation (IR) of the model, run Model Optimizer with the following parameters:
+To generate the BERT Intermediate Representation (IR) of the model, run model conversion with the following parameters:
 
 .. code-block:: sh
 
@@ -142,7 +142,7 @@ Lines before the inserted code should look like this:
        --init_checkpoint=$BERT_BASE_DIR/bert_model.ckpt \
        --output_dir=./
 
-Run Model Optimizer with the following command line parameters to generate reshape-able BERT Intermediate Representation (IR):
+Run model conversion with the following command line parameters to generate reshape-able BERT Intermediate Representation (IR):
 
 .. code-block:: sh
 
