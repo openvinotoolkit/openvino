@@ -67,7 +67,7 @@ TEST_P(convolution_si_test, shape_infer) {
     ASSERT_EQ(res[0], p.expected_layout);
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_wo_out_size, convolution_si_test,
+INSTANTIATE_TEST_SUITE_P(smoke, convolution_si_test,
     testing::ValuesIn(std::vector<convolution_test_params>{
         // conv, symmetric pad
         {
@@ -95,11 +95,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_wo_out_size, convolution_si_test,
         },
         // conv, dynamic shape
         {
-            ov::PartialShape::dynamic(4), ov::PartialShape{4, 3, 3, 3},           /* input, weight shape */
-            1, {1, 1}, {1, 1},                                                    /* groups, stride, dilation */
-            ov::CoordinateDiff{1, 2}, ov::CoordinateDiff{2, 1},                   /* pad_above, pad_below */
-            layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx},  /* expected_layout */
-            false                                                                 /* weight_has_groups */
+            ov::PartialShape::dynamic(4), ov::PartialShape{4, 3, 3, 3},                                  /* input, weight shape */
+            1, {1, 1}, {1, 1},                                                                           /* groups, stride, dilation */
+            ov::CoordinateDiff{1, 2}, ov::CoordinateDiff{2, 1},                                          /* pad_above, pad_below */
+            layout{{-1, 4, ov::Dimension(1, -1), ov::Dimension(1, -1)}, data_types::f32, format::bfyx},  /* expected_layout */
+            false                                                                                        /* weight_has_groups */
         },
         // groupconv, symmetric pad
         {
