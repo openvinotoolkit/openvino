@@ -44,7 +44,7 @@ OutputVector non_max_suppression(const Node& node) {
     if (ng_inputs.size() > 4 && !is_null(ng_inputs.at(4))) {
         score_threshold = ngraph::onnx_import::reshape::interpret_as_scalar(ng_inputs.at(4));
     } else {
-        score_threshold = default_opset::Constant::create(element::f32, Shape{}, {.0f});
+        score_threshold = default_opset::Constant::create(element::f32, Shape{}, {-std::numeric_limits<float>::max()});
     }
 
     const auto center_point_box = node.get_attribute_value<std::int64_t>("center_point_box", 0);
