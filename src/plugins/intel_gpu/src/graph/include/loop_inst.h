@@ -470,9 +470,9 @@ private:
             }
         }
 
-        void setup_concatenated_output_memory(uint64_t iteration) const {
+        void setup_sliced_output_memory(uint64_t iteration) const {
             const auto& sliced_output_mem = sliced_mems.at(iteration);
-            concat_data_prim->set_output_memory(sliced_output_mem);
+            sliced_data_prim->set_output_memory(sliced_output_mem);
         }
 
         memory::ptr get_sliced_mem(int64_t iteration) const {

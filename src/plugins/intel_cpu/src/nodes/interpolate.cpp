@@ -1779,7 +1779,7 @@ public:
             port_mask = PortMask(Interpolate::SIZE_OR_SCALE_ID_V11, Interpolate::AXES_ID_V11);
         } else {
             IE_THROW() << "Shape infer factory cannot be created for " << m_op->get_type_name() << " node with name: " << m_op->get_friendly_name()
-                <<", only version 4 and 11 is supported.";
+                <<", only versions 4 and 11 are supported.";
         }
         return std::make_shared<NgraphShapeInfer>(make_shape_inference(m_op), port_mask);
     }
@@ -2107,9 +2107,7 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
     if (is_version11) {
 #if defined (OV_CPU_WITH_ACL)
         interpAttrs.hasPad = hasPad;
-        //TODO: Fix NHWC case in ACL executor
-        //Interpolate ACL executor produces incorrect result in NHWC case
-        //pushDesc(LayoutType::nspc, undef, true, true);
+        pushDesc(LayoutType::nspc, undef, true, true);
         pushDesc(LayoutType::ncsp, undef, true, true);
         canUseAclExecutor = !supportedPrimitiveDescriptors.empty();
         if (canUseAclExecutor)
@@ -2141,9 +2139,7 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
 
 #if defined (OV_CPU_WITH_ACL)
         interpAttrs.hasPad = hasPad;
-        //TODO: Fix NHWC case in ACL executor
-        //Interpolate ACL executor produces incorrect result in NHWC case
-        //pushDesc(LayoutType::nspc, undef, false, true);
+        pushDesc(LayoutType::nspc, undef, false, true);
         pushDesc(LayoutType::ncsp, undef, false, true);
         canUseAclExecutor = !supportedPrimitiveDescriptors.empty();
         if (canUseAclExecutor)
