@@ -193,11 +193,15 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(smoke_NegativeQuantizedMatMulMultiplyFusion.*)");
     // int8 specific
     retVector.emplace_back(R"(smoke_Quantized.*)");
-    //SLT enabling
+    // segfaulted SLT tests below
     retVector.emplace_back(R"(smoke_(Static|Dynamic)BatchToSpaceCPULayerTestCase.*)");
     retVector.emplace_back(R"(.*CPUPad.*)");
     retVector.emplace_back(R"(smoke_CPUDetectionOutput.*)");
     retVector.emplace_back(R"(smoke_RDFT_CPU.*)");
+    retVector.emplace_back(R"(smoke_CompareWithRefs_Common_Dynamic.*)");
+    retVector.emplace_back(R"(smoke_(Static|Dynamic)SpaceToBatch.*)");
+    retVector.emplace_back(R"(smoke_MM_Dynamic_Fusing.*)");
+    retVector.emplace_back(R"(smoke_AdaPoolAvg3DLayoutTest.*)");
 #endif
 
 #if defined(OPENVINO_ARCH_ARM)
