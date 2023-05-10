@@ -4,6 +4,8 @@
 
 #include "proxy_tests.hpp"
 
+#include <memory>
+
 #include "common_test_utils/file_utils.hpp"
 #include "openvino/opsets/opset11.hpp"
 #include "openvino/runtime/iplugin.hpp"
@@ -177,6 +179,8 @@ private:
 
 class MockPluginBase : public ov::IPlugin {
 public:
+    virtual const ov::Version& get_const_version() = 0;
+
     std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
                                                       const ov::AnyMap& properties) const override {
         OPENVINO_ASSERT(model);
@@ -236,6 +240,9 @@ void ov::proxy::tests::ProxyTests::reg_plugin(ov::Core& core,
     std::string libraryPath = get_mock_engine_path();
     if (!m_so)
         m_so = ov::util::load_shared_object(libraryPath.c_str());
+    if (auto mock_plugin = std::dynamic_pointer_cast<MockPluginBase>(plugin))
+        mock_plugin->set_version(mock_plugin->get_const_version());
+    plugin->set_device_name(device_name);
     std::function<void(ov::IPlugin*)> injectProxyEngine = make_std_function<void(ov::IPlugin*)>(m_so, "InjectPlugin");
 
     injectProxyEngine(plugin.get());
@@ -252,6 +259,10 @@ void ov::proxy::tests::ProxyTests::register_plugin_support_reshape(ov::Core& cor
                                                                    const ov::AnyMap& properties) {
     class MockPluginReshape : public MockPluginBase {
     public:
+        const ov::Version& get_const_version() override {
+            static const ov::Version version = {CI_BUILD_NUMBER, "openvino_mock_reshape_plugin"};
+            return version;
+        }
         ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
                                         const ov::AnyMap& properties) const override {
             OPENVINO_ASSERT(model);
@@ -336,6 +347,10 @@ void ov::proxy::tests::ProxyTests::register_plugin_support_subtract(ov::Core& co
                                                                     const ov::AnyMap& properties) {
     class MockPluginSubtract : public MockPluginBase {
     public:
+        const ov::Version& get_const_version() override {
+            static const ov::Version version = {CI_BUILD_NUMBER, "openvino_mock_subtract_plugin"};
+            return version;
+        }
         ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
                                         const ov::AnyMap& properties) const override {
             OPENVINO_ASSERT(model);
