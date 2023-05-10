@@ -260,7 +260,10 @@ def get_numpy_tensors(numpy_paths: List[str], info: AppInputInfo, batch_sizes: L
                     tensors.append(Tensor(numpy_arr))
                 else:
                     try:
-                        numpy_arrays[b] = numpy_arr
+                        if info.layout.has_name("N"):
+                            numpy_arrays[[None] * info.layout.get_index_by_name("N") + [b]] = numpy_arr
+                        else:
+                            numpy_arrays = numpy_arr
                     except ValueError:
                         raise Exception(f"Numpy array shape {numpy_arr.shape} is not compatible with input shape {shape}! "
                                         f"Make sure -i parameter is valid.")
@@ -286,8 +289,6 @@ def get_binary_tensors(binary_paths: List[str], info: AppInputInfo, batch_sizes:
         dtype = get_dtype(info.element_type)
         shape = list(info.shapes[shape_id])
         binaries = np.ndarray(shape=shape, dtype=dtype)
-        if info.layout.has_name('N'):
-            shape[info.layout.get_index_by_name('N')] = 1
         binary_index = processed_frames
         current_batch_size = batch_sizes[shape_id]
         for b in range(current_batch_size):
@@ -300,7 +301,11 @@ def get_binary_tensors(binary_paths: List[str], info: AppInputInfo, batch_sizes:
                 if blob_size != binary_file_size:
                     raise Exception(
                         f"File {binary_filename} contains {binary_file_size} bytes but model expects {blob_size}")
-                binaries[b] = np.reshape(np.fromfile(binary_filename, dtype), shape)
+                from_file = np.reshape(np.fromfile(binary_filename, dtype), shape)
+                if info.layout.has_name("N"):
+                    binaries[[None] * info.layout.get_index_by_name("N") + [b]] = from_file
+                else:
+                    binaries = from_file
             else:
                 raise Exception(
                     f"Unsupported binary file type: {extension}")

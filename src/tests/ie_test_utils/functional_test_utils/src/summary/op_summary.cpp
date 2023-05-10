@@ -309,7 +309,6 @@ void OpSummary::saveReport() {
     pugi::xml_node opsNode = root.append_child("ops_list");
     for (const auto &op : opsInfo) {
         std::string name = std::string(op.first.name) + "-" + getOpVersion(op.first.version_id);
-        std::cout << name << " " << op.second << std::endl;
         opsNode.append_child(name.c_str()).append_attribute("opsets").set_value(op.second.c_str());
     }
 
