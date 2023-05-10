@@ -230,6 +230,7 @@ public:
  * @param nv12_image_plane_uv cl::Image2D object containing UV plane data.
  * @return A shared remote blob instance
  */
+OPENVINO_DEPRECATED("This function is deprecated and will be removed in 2023.1 release")
 static inline Blob::Ptr make_shared_blob_nv12(RemoteContext::Ptr ctx,
                                               cl::Image2D& nv12_image_plane_y,
                                               cl::Image2D& nv12_image_plane_uv) {

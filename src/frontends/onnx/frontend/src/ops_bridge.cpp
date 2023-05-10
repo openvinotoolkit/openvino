@@ -161,6 +161,7 @@
 #include "op/split.hpp"
 #include "op/sqrt.hpp"
 #include "op/squeeze.hpp"
+#include "op/stft.hpp"
 #include "op/sub.hpp"
 #include "op/sum.hpp"
 #include "op/tan.hpp"
@@ -176,8 +177,13 @@
 #include "op/where.hpp"
 #include "op/xor.hpp"
 
+using namespace ov::frontend::onnx;
+
 namespace ngraph {
 namespace onnx_import {
+
+const char* OPENVINO_ONNX_DOMAIN = "org.openvinotoolkit";
+
 namespace {
 template <typename Container = std::map<int64_t, Operator>>
 typename Container::const_iterator find(int64_t version, const Container& map) {
@@ -194,6 +200,24 @@ typename Container::const_iterator find(int64_t version, const Container& map) {
     return std::end(map);
 }
 }  // namespace
+
+void OperatorsBridge::register_operator_in_custom_domain(std::string name,
+                                                         VersionRange range,
+                                                         Operator fn,
+                                                         std::string domain,
+                                                         std::string warning_mes) {
+    for (int version = range.m_since; version <= range.m_until; ++version) {
+        register_operator(name, version, domain, fn);
+    }
+    if (!warning_mes.empty()) {
+        NGRAPH_WARN << "Operator: " << name << " since version: " << range.m_since
+                    << " until version: " << range.m_until << " registered with warning: " << warning_mes;
+    }
+}
+
+void OperatorsBridge::register_operator(std::string name, VersionRange range, Operator fn, std::string warning_mes) {
+    register_operator_in_custom_domain(name, range, std::move(fn), "", warning_mes);
+}
 
 void OperatorsBridge::register_operator(const std::string& name,
                                         int64_t version,
@@ -243,9 +267,9 @@ OperatorSet OperatorsBridge::get_operator_set(const std::string& domain, int64_t
         NGRAPH_DEBUG << "Domain '" << domain << "' not recognized by nGraph";
         return result;
     }
-    if (domain == "" && version > OperatorsBridge::LATEST_SUPPORTED_ONNX_OPSET_VERSION) {
+    if (domain == "" && version > LATEST_SUPPORTED_ONNX_OPSET_VERSION) {
         NGRAPH_WARN << "Currently ONNX operator set version: " << version
-                    << " is unsupported. Falling back to: " << OperatorsBridge::LATEST_SUPPORTED_ONNX_OPSET_VERSION;
+                    << " is unsupported. Falling back to: " << LATEST_SUPPORTED_ONNX_OPSET_VERSION;
     }
     for (const auto& op : dm->second) {
         const auto& it = find(version, op.second);
@@ -293,12 +317,18 @@ static const char* const PYTORCH_ATEN_DOMAIN = "org.pytorch.aten";
     m_map[domain_][name_].emplace(ver_, std::bind(op::set_##ver_::fn_, std::placeholders::_1));
 
 OperatorsBridge::OperatorsBridge() {
-    REGISTER_OPERATOR("Abs", 1, abs);
-    REGISTER_OPERATOR("Acos", 1, acos);
-    REGISTER_OPERATOR("Acosh", 1, acosh);
-    REGISTER_OPERATOR("Add", 1, add);
-    REGISTER_OPERATOR("Add", 7, add);
-    REGISTER_OPERATOR("And", 1, logical_and);
+    register_operator("Abs", VersionRange{1, 5}, op::set_1::abs, "Legacy consumed_inputs is not supported");
+    register_operator("Abs", VersionRange::since(6), op::set_6::abs);
+    register_operator("Acos", VersionRange::single_version_for_all_opsets(), op::set_7::acos);
+    register_operator("Acosh", VersionRange::single_version_for_all_opsets(), op::set_9::acosh);
+    register_operator("Add", VersionRange{1, 5}, op::set_1::add, "Legacy consumed_inputs is not supported");
+    register_operator("Add", VersionRange::in(6), op::set_6::add);
+    register_operator("Add", VersionRange{7, 12}, op::set_7::add);
+    register_operator("Add", VersionRange::in(13), op::set_13::add);
+    register_operator("Add", VersionRange::since(14), op::set_14::add);
+    register_operator("And", VersionRange{1, 6}, op::set_1::logical_and);
+    register_operator("And", VersionRange::since(6), op::set_7::logical_and);
+    // 101468 - Use the VersionRange-based approach for all operators
     REGISTER_OPERATOR("ArgMin", 1, argmin);
     REGISTER_OPERATOR("ArgMin", 12, argmin);
     REGISTER_OPERATOR("ArgMax", 1, argmax);
@@ -455,6 +485,10 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("SpaceToDepth", 1, space_to_depth);
     REGISTER_OPERATOR("Split", 1, split);
     REGISTER_OPERATOR("Split", 13, split);
+    register_operator("STFT",
+                      VersionRange::single_version_for_all_opsets(),
+                      op::set_17::stft,
+                      "frame_step and frame_length inputs must be constants; signal shape must be static;");
     REGISTER_OPERATOR("Sqrt", 1, sqrt);
     REGISTER_OPERATOR("Squeeze", 1, squeeze);
     REGISTER_OPERATOR("Squeeze", 13, squeeze);

@@ -25,12 +25,11 @@ struct crop_impl : typed_primitive_impl_ocl<crop> {
 
 public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
-        const auto& primitive = impl_param.typed_desc<crop>();
         auto params = get_default_params<kernel_selector::eltwise_params>(impl_param, is_shape_agnostic);
         auto optional_params = get_default_optional_params<kernel_selector::eltwise_optional_params>(impl_param.get_program());
 
         params.operations.push_back({{kernel_selector::eltwise_params::InputType::Buffer(0)}, kernel_selector::eltwise_mode::ASSIGN});
-        if (impl_param.get_program().get_node(primitive->id).is_dynamic()) {
+        if (impl_param.is_dynamic() || is_shape_agnostic) {
             // WA to always match compiled dynamic kernel with dispatch data
             // W/O enforcing this option we may generate kernel for "broadcast" scneario due to umatched tensor dimensions
             // but in runtime dispatch data will be generated for non-broadcast case as shapes are actually same.
@@ -45,12 +44,11 @@ public:
             auto runtime_offset = convert_data_tensor(impl_param.get_input_layout(), impl_param.input_offsets[0]).GetFirstElementOffset();
             kernel_selector::ScalarDescriptor s;
             s.t = kernel_selector::ScalarDescriptor::Types::UINT32;
-            s.v.u32 = runtime_offset;
+            s.v.u32 = static_cast<uint32_t>(runtime_offset);
             OPENVINO_ASSERT(_kernel_data.kernels[0].params.scalars.size() == 1,
                     "[GPU] Scalar field for runtime offset is not added for crop shape agnostic impl");
             _kernel_data.kernels[0].params.scalars[0] = s;
             (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
-            update_kernels_list_to_skip();
     }
 };
 

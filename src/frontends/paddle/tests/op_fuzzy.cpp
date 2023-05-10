@@ -4,8 +4,6 @@
 
 #include "op_fuzzy.hpp"
 
-#include <cnpy.h>
-
 #include <fstream>
 
 #include "engines_util/test_engines.hpp"
@@ -459,6 +457,8 @@ static const std::vector<std::string> models{
     std::string("softmax"),
     std::string("softmax_minus"),
     std::string("softplus_default_params"),
+    std::string("softshrink_default_params"),
+    std::string("softshrink_threshold_0.6"),
     std::string("split_test1"),
     std::string("split_test2"),
     std::string("split_test3"),

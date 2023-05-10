@@ -65,7 +65,6 @@ void GetLSTMActivationParams(const std::shared_ptr<T>& op,
 static void CreateLSTMCellOp(Program& p, const std::shared_ptr<ngraph::op::v4::LSTMCell>& op) {
     validate_inputs_count(op, {6});
     int lstm_batch_size, lstm_input_size, lstm_hidden_size;
-    bool hasBias = true;
     auto inputs = p.GetInputInfo(op);
 
     std::string layerName = layer_type_name_ID(op);
@@ -83,9 +82,9 @@ static void CreateLSTMCellOp(Program& p, const std::shared_ptr<ngraph::op::v4::L
             op->get_input_shape(2).size() != 2)
             IE_THROW() << "Wrong input shapes for LSTMCell op " << op->get_friendly_name();
 
-        lstm_input_size = in_dims0.back();
-        lstm_batch_size = in_dims0.at(in_dims0.size()-2);
-        lstm_hidden_size = out_dims0.back();
+        lstm_input_size = static_cast<int>(in_dims0.back());
+        lstm_batch_size = static_cast<int>(in_dims0.at(in_dims0.size()-2));
+        lstm_hidden_size = static_cast<int>(out_dims0.back());
     }
 
     std::vector<cldnn::activation_func> activations;
@@ -131,7 +130,6 @@ static void CreateLSTMCellOp(Program& p, const std::shared_ptr<ngraph::op::v4::L
 
     std::string lstm_fc_id = layerName + "_fully_connected";
     std::string lstm_elt_id = layerName + "_lstm_elt";
-    std::string crop_id = layerName + "_crop";
 
     cldnn::primitive_id WRconcatID = layerName + "_WRconcat";
     p.add_primitive(*op, cldnn::concatenation(WRconcatID, { weight, recurrent }, 1));
@@ -140,7 +138,7 @@ static void CreateLSTMCellOp(Program& p, const std::shared_ptr<ngraph::op::v4::L
     cldnn::tensor FCInputReshapeSz = { lstm_batch_size, inputShape.spatial[0] + inStateShape.spatial[0], 1, 1 };
     p.add_primitive(*op, cldnn::reshape(FCInputReshapeID, cldnn::input_info(input_concatID), FCInputReshapeSz));
 
-    p.add_primitive(*op, cldnn::fully_connected(lstm_fc_id, cldnn::input_info(FCInputReshapeID), WRconcatID, hasBias ? bias.pid : ""));
+    p.add_primitive(*op, cldnn::fully_connected(lstm_fc_id, cldnn::input_info(FCInputReshapeID), WRconcatID, bias.pid));
     p.add_primitive(*op, cldnn::reshape(gemmReshapeID, cldnn::input_info(lstm_fc_id), gemmSz));
     p.add_primitive(*op, cldnn::reorder(gemmReorderID, cldnn::input_info(gemmReshapeID), gemmLayout));
     p.add_primitive(*op, cldnn::lstm_elt(lstm_elt_id, cldnn::input_info(gemmReorderID), cellInStr, clip, 0, activations,
@@ -179,10 +177,10 @@ static void CreateLSTMSequenceOp(Program& p, const std::shared_ptr<ngraph::op::v
             op->get_input_shape(2).size() != 3)
             IE_THROW() << "Wrong input shapes for LSTMSequence op " << op->get_friendly_name();
 
-        lstm_input_size = in_dims0.back();
-        lstm_sequence_len = in_dims0.at(in_dims0.size() - 2);
-        lstm_batch_size = in_dims0.at(in_dims0.size() - 3);
-        lstm_hidden_size = out_dims0.back();
+        lstm_input_size = static_cast<int>(in_dims0.back());
+        lstm_sequence_len = static_cast<int>(in_dims0.at(in_dims0.size() - 2));
+        lstm_batch_size = static_cast<int>(in_dims0.at(in_dims0.size() - 3));
+        lstm_hidden_size = static_cast<int>(out_dims0.back());
     }
 
     std::vector<cldnn::activation_func> activations;

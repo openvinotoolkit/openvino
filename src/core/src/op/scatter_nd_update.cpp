@@ -48,8 +48,9 @@ bool evaluate(const HostTensorPtr& arg0,
                                                         arg1->get_shape(),
                                                         arg2->get_shape());
     } else {
-        throw ov::Exception(std::string("Unexpected type ") + arg1->get_element_type().c_type_string() +
-                            " for ScatterNDUpdate evaluate method.");
+        OPENVINO_THROW("Unexpected type ",
+                       arg1->get_element_type().c_type_string(),
+                       " for ScatterNDUpdate evaluate method.");
     }
 
     return true;
@@ -81,8 +82,10 @@ bool evaluate_scatter(const HostTensorPtr& arg0,
 bool op::v3::ScatterNDUpdate::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v3_ScatterNDUpdate_evaluate);
     NGRAPH_CHECK(!inputs.empty());
+    OPENVINO_SUPPRESS_DEPRECATED_START
     NGRAPH_CHECK(validate_host_tensor_vector(inputs, 3));
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     return scatter::evaluate_scatter(inputs[0], inputs[1], inputs[2], outputs[0]);
 }
@@ -125,5 +128,7 @@ bool op::v3::ScatterNDUpdate::evaluate_upper(ov::TensorVector& output_values) co
 bool op::v3::ScatterNDUpdate::evaluate_label(TensorLabelVector& output_labels) const {
     OV_OP_SCOPE(v3_ScatterNDUpdate_evaluate_label);
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     return ov::default_label_evaluator(this, {0, 2}, output_labels);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }

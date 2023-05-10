@@ -53,7 +53,8 @@
 #    define OPENVINO_ARCH_ARM64
 #    define OPENVINO_ARCH_64_BIT
 #elif defined(i386) || defined(__i386) || defined(__i386__) || defined(__IA32__) || defined(_M_I86) || \
-    defined(_M_IX86) || defined(__X86__) || defined(_X86_) || defined(__I86__) || defined(__386)
+    defined(_M_IX86) || defined(__X86__) || defined(_X86_) || defined(__I86__) || defined(__386) ||    \
+    defined(__ILP32__) || defined(_ILP32) || defined(__wasm32__) || defined(__wasm32)
 #    define OPENVINO_ARCH_X86
 #    define OPENVINO_ARCH_32_BIT
 #elif defined(__amd64__) || defined(__amd64) || defined(__x86_64__) || defined(__x86_64) || defined(_M_X64) || \

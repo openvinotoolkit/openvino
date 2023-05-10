@@ -5,7 +5,7 @@
 #pragma once
 
 #include "intel_gpu/primitives/implementation_desc.hpp"
-#include "kernel_impl_params.hpp"
+#include "intel_gpu/graph/kernel_impl_params.hpp"
 
 #include <functional>
 #include <map>
@@ -120,7 +120,6 @@ public:
         map_type::instance().insert({{impl_type, shape_type}, {keys, factory}});
     }
 
-private:
     static std::set<key_type> combine(const std::vector<data_types>& types, const std::vector<format::type>& formats) {
         std::set<key_type> keys;
         for (const auto& type : types) {

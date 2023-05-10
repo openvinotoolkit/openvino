@@ -33,33 +33,15 @@ ParamsKey CountNonzeroKernelRef::GetSupportedKey() const {
     return k;
 }
 
-CommonDispatchData CountNonzeroKernelRef::SetDefault(const count_nonzero_params& params) const {
-    CommonDispatchData dispatchData;
+CountNonzeroKernelRef::DispatchData CountNonzeroKernelRef::SetDefault(const count_nonzero_params& params) const {
+    DispatchData dispatchData;
     const auto& input = params.inputs[0];
-    auto in_layout = params.inputs[0].GetLayout();
-    auto out_layout = params.outputs[0].GetLayout();
-    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws;
 
-    int rank = input.Dimentions();
-    if (rank == 4) {
-        dispatchData.gws = {input.X().v, input.Y().v, input.Feature().v * input.Batch().v};
-        dims_by_gws = {{Tensor::DataChannelName::X},
-                       {Tensor::DataChannelName::Y},
-                       {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
-    } else if (rank == 5) {
-        dispatchData.gws = {input.X().v, input.Y().v * input.Z().v, input.Feature().v * input.Batch().v};
-        dims_by_gws = {{Tensor::DataChannelName::X},
-                       {Tensor::DataChannelName::Y, Tensor::DataChannelName::Z},
-                       {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
-    } else {
-        dispatchData.gws = {input.X().v * input.Y().v, input.Z().v * input.W().v, input.Feature().v * input.Batch().v};
-        dims_by_gws = {{Tensor::DataChannelName::X, Tensor::DataChannelName::Y},
-                       {Tensor::DataChannelName::Z, Tensor::DataChannelName::W},
-                       {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
-    }
-
-    dispatchData.lws =
-        GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
+    // Set 1 work group to avoid synchornization issue for summation of nonzero counting.
+    dispatchData.dataSize = input.LogicalSize();
+    size_t max_dim_size = (dispatchData.dataSize > params.engineInfo.maxWorkGroupSize) ?
+                                    params.engineInfo.maxWorkGroupSize : dispatchData.dataSize;
+    dispatchData.lws = dispatchData.gws = { max_dim_size, 1, 1};
 
     return dispatchData;
 }
@@ -81,6 +63,14 @@ KernelsData CountNonzeroKernelRef::GetKernelsData(const Params& params, const op
     auto dispatchData = SetDefault(newParams);
     auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
     auto cldnn_jit = MakeBaseParamsJitConstants(newParams);
+    if (newParams.has_dynamic_tensors()) {
+        const auto& input = newParams.inputs[0];
+        DimensionAccessHelper dims(input, 0);
+        const std::string total_data_size = toVectorMulString({dims.x, dims.y, dims.z, dims.w, dims.f, dims.b});
+        cldnn_jit.AddConstants({MakeJitConstant("DATA_SIZE", total_data_size)});
+    } else {
+        cldnn_jit.AddConstants({MakeJitConstant("DATA_SIZE", dispatchData.dataSize)});
+    }
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
@@ -91,6 +81,7 @@ KernelsData CountNonzeroKernelRef::GetKernelsData(const Params& params, const op
         OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
         kd.kernels[0].params.workGroups.global = dispatchData.gws;
         kd.kernels[0].params.workGroups.local = dispatchData.lws;
+        kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
     };
 
     // In case of count-nonzero, the output shape is static unconditionally,

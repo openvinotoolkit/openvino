@@ -99,9 +99,11 @@ bool ConcatTransformation::transform(TransformationContext& context, ngraph::pat
         [](const FakeQuantizeDequantization& value) { return !value.isLowPrecision(); });
 
     bool DqWithDifferentPrecision = someDqInLowPrecision && someDqInFpPrecision;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto axis = ngraph::normalize_axis(concat->get_friendly_name(),
         concat->get_axis(),
         concat->get_output_partial_shape(0).rank());
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     OutputVector dataNodes;
     NodeVector convertNodes;
@@ -214,7 +216,9 @@ bool ConcatTransformation::canBeTransformed(const TransformationContext& context
         return false;
     }
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const size_t normalizedAxis = ngraph::normalize_axis(concat->get_friendly_name(), axis, outRank);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     if (outPShape[normalizedAxis].is_dynamic()) {
         return false;
     }
@@ -232,7 +236,23 @@ bool ConcatTransformation::canBeTransformed(const TransformationContext& context
         return dqOnlyByConcatAxis;
     };
 
+    const auto check_const_precision = [](
+        const FakeQuantizeDequantization& dequantization,
+        const std::shared_ptr<Node>& constant,
+        ov::element::Type& const_precision) {
+        if (constant == nullptr) {
+            return true;
+        }
+        if (const_precision == element::undefined) {
+            const_precision = constant->get_element_type();
+            return true;
+        }
+        return const_precision == constant->get_element_type();
+    };
+
     element::Type precision;
+    element::Type const_precision;
+
     for (size_t i = 0ul; i < concat->get_input_size(); i++) {
         const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(concat, defaultPrecisions, i);
         if (dequantization.empty() || (updatePrecisions && !dequantization.isLowPrecision())) {
@@ -247,6 +267,12 @@ bool ConcatTransformation::canBeTransformed(const TransformationContext& context
         if (precision == element::undefined) {
             precision = dequantization.data.get_element_type();
         } else if (precision != dequantization.data.get_element_type()) {
+            return false;
+        }
+
+        if (!check_const_precision(dequantization, dequantization.subtractConvert, const_precision) ||
+            ((dequantization.subtractConvert == nullptr) && !check_const_precision(dequantization, dequantization.subtractConstant, const_precision)) ||
+            !check_const_precision(dequantization, dequantization.multiplyConstant, const_precision)) {
             return false;
         }
     }

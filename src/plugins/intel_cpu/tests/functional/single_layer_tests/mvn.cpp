@@ -277,40 +277,62 @@ const std::vector<double> epsilon = {
 
 const std::vector<ngraph::AxisSet> emptyReductionAxes = {{}};
 
-std::vector<ElementType> inpPrc = {ElementType::i8, ElementType::bf16, ElementType::f32};
-std::vector<ElementType> outPrc = {ElementType::bf16, ElementType::f32};
+std::vector<ElementType> inpPrc = {
+        ElementType::i8,
+        ElementType::f32,
+    #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+        ElementType::bf16
+    #endif
+};
+std::vector<ElementType> outPrc = {
+        ElementType::f32,
+    #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+        ElementType::bf16
+    #endif
+};
 
 std::vector<CPUSpecificParams> cpuParams_4D = {
-       CPUSpecificParams({nhwc}, {nhwc}, {}, {}),
-       CPUSpecificParams({nChw16c}, {nChw16c}, {}, {}),
-       CPUSpecificParams({nchw}, {nchw}, {}, {})
+        CPUSpecificParams({nchw}, {nchw}, {}, {}),
+    #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+        // TODO: enable nspc test cases for ARM
+        CPUSpecificParams({nhwc}, {nhwc}, {}, {}),
+        CPUSpecificParams({nChw16c}, {nChw16c}, {}, {})
+    #endif
 };
 
 std::vector<CPUSpecificParams> cpuParams_5D = {
-       CPUSpecificParams({ndhwc}, {ndhwc}, {}, {}),
-       CPUSpecificParams({nCdhw16c}, {nCdhw16c}, {}, {}),
-       CPUSpecificParams({ncdhw}, {ncdhw}, {}, {})
+        CPUSpecificParams({ncdhw}, {ncdhw}, {}, {}),
+    #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+        // TODO: enable nspc test cases for ARM
+        CPUSpecificParams({ndhwc}, {ndhwc}, {}, {}),
+        CPUSpecificParams({nCdhw16c}, {nCdhw16c}, {}, {})
+    #endif
 };
 
 std::vector<fusingSpecificParams> fusingParamsSet {
-       emptyFusingSpec,
-       /* activations */
-       fusingRelu,
-       fusingElu,
-       fusingTanh,
-       fusingSwish,
-       /* FQ */
-       fusingFakeQuantizePerTensorRelu,
-       /* another patterns */
-       fusingAddPerTensor
+        emptyFusingSpec,
+    #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+        /* activations */
+        fusingRelu,
+        fusingElu,
+        fusingTanh,
+        fusingSwish,
+        /* FQ */
+        fusingFakeQuantizePerTensorRelu,
+        /* another patterns */
+        fusingAddPerTensor
+    #endif
 };
 
 std::vector<fusingSpecificParams> fusingParamsSetStaticShape {
+        emptyFusingSpec,
+    #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
        /* FQ */
        fusingFakeQuantizePerChannel,
        fusingFakeQuantizePerChannelRelu,
        /* another patterns */
        fusingScaleShift,
+    #endif
 };
 
 const auto Mvn3D = ::testing::Combine(
@@ -360,11 +382,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn5D, MvnLayerCPUTest, Mvn5D, Mv
 
 // 1D 2D case
 std::vector<fusingSpecificParams> fusingUnaryEltwiseParamsSet {
+    emptyFusingSpec,
+    #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
        /* activations */
        fusingRelu,
        fusingElu,
        fusingTanh,
        fusingSwish,
+    #endif
 };
 
 const auto Mvn1D = ::testing::Combine(
@@ -413,6 +438,29 @@ const auto Mvn2DTrans = ::testing::Combine(
        ::testing::ValuesIn(outPrc));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn2DTrans, MvnLayerCPUTest, Mvn2DTrans, MvnLayerCPUTest::getTestCaseName);
+
+// no transformed with small spatial dim and i8 data and no fusion to cover model use case
+const std::vector<InputShape> inputShapesSmallSpatial = {
+       { {}, {{4, 1}}},
+       { {}, {{2, 2}}},
+       { {}, {{1, 2, 1}}},
+       { {}, {{3, 1, 1, 1}}},
+};
+
+const auto MvnSmallSpatial = ::testing::Combine(
+       ::testing::Combine(
+               ::testing::ValuesIn(inputShapesSmallSpatial),
+               ::testing::Values(ElementType::i8),
+               ::testing::ValuesIn(emptyReductionAxes),
+               ::testing::Values(false),
+               ::testing::Values(false),
+               ::testing::ValuesIn(epsilon)),
+       ::testing::Values(emptyCPUSpec),
+       ::testing::Values(emptyFusingSpec),
+       ::testing::Values(ElementType::i8),
+       ::testing::Values(ElementType::f32));
+
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_MvnSmallSpatial, MvnLayerCPUTest, MvnSmallSpatial, MvnLayerCPUTest::getTestCaseName);
 
 // Static shape test for some specific fusing parameters in fusingParamsSetStaticShape
 

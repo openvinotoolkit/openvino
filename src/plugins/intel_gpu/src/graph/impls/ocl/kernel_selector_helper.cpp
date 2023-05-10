@@ -43,6 +43,9 @@
 #include "kernel_selector/kernels/quantize/quantize_kernel_params.h"
 #include "kernel_selector/kernels/reorder/reorder_kernel_base.h"
 
+#include "runtime/kernels_cache.hpp"
+#include "kernel_base.h"
+
 #include <string>
 #include <vector>
 
@@ -59,6 +62,59 @@ kernel_selector::dev_type get_device_type(cldnn::device_type type) {
             return kernel_selector::dev_type::integrated_gpu;
     }
 }
+
+bool query_local_block_io_supported(engine& e, const ExecutionConfig& config) {
+    auto device = e.get_device().get();
+    auto device_info = device->get_info();
+    if (!device_info.supports_local_block_io)
+        return false;
+
+    // We assume that new uarch which don't have simd8 support are not affected by driver bug and we can safely return flag value
+    auto simd_sizes = device_info.supported_simd_sizes;
+    if (std::find(simd_sizes.begin(), simd_sizes.end(), 8) == simd_sizes.end())
+        return device_info.supports_local_block_io;
+
+    static std::mutex m;
+    std::lock_guard<std::mutex> lock(m);
+    static std::map<cldnn::device*, bool> cache;
+    if (cache.find(device) != cache.end()) {
+        return cache.at(device);
+    }
+
+    std::shared_ptr<kernel_selector::KernelString> kernel_string = std::make_shared<kernel_selector::KernelString>();
+    std::string kernel_code =
+        "__attribute__((intel_reqd_sub_group_size(8)))"
+        "__attribute__((reqd_work_group_size(8, 1, 1)))"
+        "void kernel is_local_block_io_supported(global uchar* dst) {"
+        "    uint lid = get_sub_group_local_id();"
+        "    uchar val = (uchar)lid * 2;"
+        "    __local uchar tmp_slm[8];"
+        "    intel_sub_group_block_write_uc2(tmp_slm, (uchar2)(val));"
+        "    barrier(CLK_LOCAL_MEM_FENCE);"
+        "    uchar2 read = intel_sub_group_block_read_uc2(tmp_slm);"
+        "    dst[lid] = read.s0 + 1;"
+        "}";
+
+    kernel_string->str = kernel_code;
+    kernel_string->options = "-Dcl_intel_subgroup_local_block_io -DLOCAL_BLOCK_IO_SUPPORTED=1";
+    kernel_string->entry_point = "is_local_block_io_supported";
+    kernel_string->batch_compilation = true;
+
+    try {
+        kernel_impl_params dummy_params;
+        auto _kernels_cache_device_query = std::unique_ptr<kernels_cache>(new kernels_cache(e, config, 0));
+        _kernels_cache_device_query->add_kernels_source(dummy_params, {kernel_string}, false);
+        _kernels_cache_device_query->build_all();
+
+        auto _kernels = _kernels_cache_device_query->get_kernels(dummy_params);
+        cache[device] = _kernels_cache_device_query->validate_simple_kernel_execution(_kernels[0]);
+    } catch (std::exception& /*ex*/) {
+        cache[device] = false;
+    }
+
+    return cache.at(device);
+}
+
 }  // namespace
 
 namespace cldnn {
@@ -167,9 +223,9 @@ kernel_selector::data_layout to_data_layout(format f) {
             return kernel_selector::data_layout::b_fs_zyx_fsv4;
         case format::b_fs_zyx_fsv32:
             return kernel_selector::data_layout::b_fs_zyx_fsv32;
-        case format::bs_x_bsv16:
+        case format::bs_f_bsv16:
             return kernel_selector::data_layout::bs_f_bsv16__af8;
-        case format::bs_xs_xsv8_bsv8:
+        case format::bs_fs_fsv8_bsv8:
             return kernel_selector::data_layout::bs_f_bsv8__af8;
         case format::winograd_2x3_s1_data:
             return kernel_selector::data_layout::winograd_2x3_s1_data;
@@ -183,6 +239,10 @@ kernel_selector::data_layout to_data_layout(format f) {
             return kernel_selector::data_layout::fs_b_yx_fsv32;
         case format::bfwzyx:
             return kernel_selector::data_layout::bfwzyx;
+        case format::bfuwzyx:
+            return kernel_selector::data_layout::bfuwzyx;
+        case format::bfvuwzyx:
+            return kernel_selector::data_layout::bfvuwzyx;
         case format::b_fs_zyx_fsv16:
             return kernel_selector::data_layout::b_fs_zyx_fsv16;
         case format::bs_fs_yx_bsv16_fsv32:
@@ -226,7 +286,7 @@ kernel_selector::data_layout to_data_layout(format f) {
         case format::image_2d_rgba:
             return kernel_selector::data_layout::image_2d_rgba;
         default:
-            throw std::invalid_argument("Format f (" +  std::to_string((int32_t)f.value) + ") is not a proper data layout");
+            OPENVINO_THROW("[GPU] Can't convert tensor format to kernel selector format as f=", f, " is not handled");
     }
 }
 
@@ -255,9 +315,9 @@ cldnn::format from_data_layout(kernel_selector::data_layout l) {
         case kernel_selector::data_layout::b_fs_zyx_fsv32:
             return cldnn::format::b_fs_zyx_fsv32;
         case kernel_selector::data_layout::bs_f_bsv8__af8:
-            return cldnn::format::bs_xs_xsv8_bsv8;
+            return cldnn::format::bs_fs_fsv8_bsv8;
         case kernel_selector::data_layout::bs_f_bsv16__af8:
-            return cldnn::format::bs_x_bsv16;
+            return cldnn::format::bs_f_bsv16;
         case kernel_selector::data_layout::winograd_2x3_s1_data:
             return cldnn::format::winograd_2x3_s1_data;
         case kernel_selector::data_layout::b_fs_yx_32fp:
@@ -268,6 +328,10 @@ cldnn::format from_data_layout(kernel_selector::data_layout l) {
             return cldnn::format::fs_b_yx_fsv32;
         case kernel_selector::data_layout::bfwzyx:
             return cldnn::format::bfwzyx;
+        case kernel_selector::data_layout::bfuwzyx:
+            return cldnn::format::bfuwzyx;
+        case kernel_selector::data_layout::bfvuwzyx:
+            return cldnn::format::bfvuwzyx;
         case kernel_selector::data_layout::bs_fs_yx_bsv16_fsv16:
             return cldnn::format::bs_fs_yx_bsv16_fsv16;
         case kernel_selector::data_layout::bs_fs_zyx_bsv32_fsv16:
@@ -408,6 +472,7 @@ kernel_selector::weights_layout to_weights_layout(format f, bool is_grouped) {
             return kernel_selector::weights_layout::os_is_yx_osv32_isv4;
         case format::os_is_zyx_osv32_isv4:
             return kernel_selector::weights_layout::os_is_zyx_osv32_isv4;
+        case format::b_fs_yx_32fp:
         case format::os_is_yx_osv32_isv32p:
             return kernel_selector::weights_layout::os_is_yx_osv32_isv32p;
         case format::os_is_yx_isv16_osv16:
@@ -425,12 +490,12 @@ kernel_selector::weights_layout to_weights_layout(format f, bool is_grouped) {
             return kernel_selector::weights_layout::oizyx;
         case format::iozyx:
             return kernel_selector::weights_layout::iozyx;
-        case format::bs_xs_xsv8_bsv8:
+        case format::bs_fs_fsv8_bsv8:
         case format::os_i_osv8__ai8:
             return kernel_selector::weights_layout::os_i_osv8__ai8;
         case format::os_i_osv16__ai8:
             return kernel_selector::weights_layout::os_i_osv16__ai8;
-        case format::bs_x_bsv16:
+        case format::bs_f_bsv16:
             return kernel_selector::weights_layout::os_i_osv16;
         case format::os_is_zyx_isv16_osv16:
             return kernel_selector::weights_layout::os_is_zyx_isv16_osv16;
@@ -599,7 +664,7 @@ cldnn::format::type from_weights_layout(kernel_selector::weights_layout l) {
         case kernel_selector::weights_layout::os_iyx_osv64:
             return cldnn::format::os_iyx_osv64;
         case kernel_selector::weights_layout::os_i_osv16:
-            return cldnn::format::bs_x_bsv16;
+            return cldnn::format::bs_f_bsv16;
         case kernel_selector::weights_layout::os_i_osv8__ai8:
             return cldnn::format::os_i_osv8__ai8;
         case kernel_selector::weights_layout::os_i_osv16__ai8:
@@ -1142,9 +1207,11 @@ bool use_legacy_fused_ops(const kernel_impl_params& param_info) {
 
 void set_params(const kernel_impl_params& param_info, kernel_selector::params& params) {
     const auto& program = param_info.prog;
-    const auto& device_info = program->get_engine().get_device_info();
+    auto& engine = program->get_engine();
+    const auto& config = program->get_config();
+    const auto& device_info = engine.get_device_info();
 
-    params.uniqueID = std::to_string(param_info.unique_id);
+    params.uniqueID = std::to_string(param_info.hash());
     params.engineInfo.supports_fp16 = device_info.supports_fp16;
     params.engineInfo.supports_fp64 = device_info.supports_fp64;
     params.engineInfo.supports_fp16_denorms = device_info.supports_fp16_denorms;
@@ -1160,7 +1227,7 @@ void set_params(const kernel_impl_params& param_info, kernel_selector::params& p
     params.engineInfo.enable_sub_groups_emulation = true;
     params.engineInfo.bOptHintsSupport = false;
 
-    params.engineInfo.bLocalBlockIOSupport = device_info.supports_local_block_io && program->is_local_block_io_supported();
+    params.engineInfo.bLocalBlockIOSupport = query_local_block_io_supported(engine, config);
     params.engineInfo.deviceType = get_device_type(device_info.dev_type);
     params.engineInfo.maxWorkGroupSize = device_info.max_work_group_size;
     params.engineInfo.maxLocalMemSize = device_info.max_local_mem_size;
@@ -1173,10 +1240,114 @@ void set_params(const kernel_impl_params& param_info, kernel_selector::params& p
     params.engineInfo.supportedSimdSizes = device_info.supported_simd_sizes;
     params.engineInfo.vendor_id = device_info.vendor_id;
 
-    auto impl_forcing = program->get_config().get_property(ov::intel_gpu::force_implementations);
+    auto impl_forcing = config.get_property(ov::intel_gpu::force_implementations);
 
     if (impl_forcing.count(param_info.desc->id) != 0) {
         params.forceImplementation = impl_forcing.at(param_info.desc->id).kernel_name;
+    }
+}
+
+void set_default_params(const kernel_impl_params& param_info, kernel_selector::base_params& params, bool is_shape_agnostic) {
+    set_params(param_info, params);
+
+    const auto& input_layout = param_info.get_input_layout(0);
+    const auto& output_layout = param_info.get_output_layout(0);
+
+    params.is_shape_agnostic = is_shape_agnostic;
+    params.inputs[0] = convert_data_tensor(input_layout);
+    params.outputs[0] = convert_data_tensor(output_layout);
+    params.layerID = param_info.desc->id;
+
+    if (use_legacy_fused_ops(param_info)) {
+        // Single activation is converted to legacy fused ops format to keep good performance
+        // TODO: Remove it once all kernels supports new fused ops mechanism
+        convert_fused_ops_to_legacy_activations(param_info, params.activations);
+    } else {
+        std::map<primitive_id, std::pair<size_t, kernel_selector::Datatype>> prim_id_type_map;
+        size_t op_id = 0;
+        for (auto& fused_prim : param_info.fused_desc) {
+            kernel_selector::fused_operation_desc desc;
+            desc.op_params = convert_fuse_params(fused_prim.f_param);
+
+            OPENVINO_ASSERT(desc.op_params != nullptr, "[GPU] Invalid fused operation (", param_info.desc->id , ") of type ", param_info.desc->type_string());
+
+
+            desc.dep_idx_start = fused_prim.outer_dep_start_idx;
+            desc.dep_size = fused_prim.deps.size();
+            desc.op_id = op_id++;
+            desc.output_tensor = convert_data_tensor(fused_prim.output_layout);
+            prim_id_type_map[fused_prim.desc->id] = std::make_pair(desc.op_id, desc.output_tensor.GetDType());
+            if (fused_prim.has_outer_dep()) {
+                for (size_t i = desc.dep_idx_start; i < desc.dep_idx_start + desc.dep_size; i++) {
+                    desc.tensors.push_back(convert_data_tensor(param_info.get_input_layout(i)));
+                }
+            }
+
+            if (fused_prim.total_num_deps > 0) {
+                desc.dep_data.resize(fused_prim.total_num_deps);
+                for (auto& dep : fused_prim.fused_deps) {
+                    auto iter = prim_id_type_map.find(dep.first);
+                    if (iter != prim_id_type_map.end()) {
+                        auto& op_data = iter->second;
+                        desc.dep_data[dep.second].dep_type  = kernel_selector::DepType::INTERNAL;
+                        desc.dep_data[dep.second].op_id     = op_data.first;
+                        desc.dep_data[dep.second].data_type = op_data.second;
+                    }
+                }
+
+                int idx = 0;
+                for (auto& dep : fused_prim.deps) {
+                    desc.dep_data[dep.second].dep_type  = kernel_selector::DepType::EXTERNAL;
+                    desc.dep_data[dep.second].op_id     = idx;
+                    desc.dep_data[dep.second].data_type = desc.tensors[idx++].GetDType();
+                }
+
+                for (auto& dep : desc.dep_data) {
+                    if (dep.dep_type == kernel_selector::DepType::UNDEFINED) {
+                        dep.dep_type    = kernel_selector::DepType::ORIGINAL;
+                        break;
+                    }
+                }
+            }
+            params.fused_ops.push_back(desc);
+        }
+    }
+}
+
+void set_weights_bias_default_params(const kernel_impl_params& param_info,
+                                     kernel_selector::weight_bias_params& params,
+                                     bool has_group_dimension,
+                                     bool is_shape_agnostic) {
+    set_default_params(param_info, params, is_shape_agnostic);
+    params.weights = convert_weights_tensor(*param_info.weights_layout, has_group_dimension);
+
+    if (param_info.bias_layout) {
+        auto bias_layout = *param_info.bias_layout;
+        params.bias.push_back(convert_data_tensor(bias_layout).FlattenFeatureAndSpatials());
+    }
+}
+
+void set_weight_bias_zero_point_default_params(const kernel_impl_params& param_info,
+                                               kernel_selector::weight_bias_zero_point_params& params,
+                                               bool has_group_dimension,
+                                               bool is_shape_agnostic) {
+    set_weights_bias_default_params(param_info, params, has_group_dimension, is_shape_agnostic);
+
+    if (param_info.weights_zero_points_layout) {
+        params.weights_zero_points.push_back(
+            convert_data_tensor(*param_info.weights_zero_points_layout)
+            .FlattenFeatureAndSpatials());
+    }
+
+    if (param_info.activations_zero_points_layout) {
+        params.activations_zero_points.push_back(
+            convert_data_tensor(*param_info.activations_zero_points_layout)
+            .FlattenFeatureAndSpatials());
+    }
+
+    if (param_info.compensation_layout) {
+        params.compensation.push_back(
+            convert_data_tensor(*param_info.compensation_layout).FlattenFeatureAndSpatials());
     }
 }
 
@@ -1186,132 +1357,6 @@ void set_optional_params(const program& program, kernel_selector::optional_param
                                         program.get_config().get_property(ov::intel_gpu::allow_static_input_reorder);
     params.allowInputReordering = false;
     params.allowOutputReordering = false;
-}
-
-void kernel_impl_params::save(BinaryOutputBuffer& ob) const {
-    ob << desc;
-    ob << has_runtime_layouts;
-    ob << unique_id;
-    ob << input_layouts;
-    ob << output_layouts;
-    ob << input_offsets.size();
-    for (size_t i = 0; i < input_offsets.size(); i++) {
-        ob << input_offsets[i].sizes();
-    }
-
-    if (weights_layout.has_value()) {
-        ob << true;
-        ob << weights_layout.value();
-    } else {
-        ob << false;
-    }
-
-    if (bias_layout.has_value()) {
-        ob << true;
-        ob << bias_layout.value();
-    } else {
-        ob << false;
-    }
-
-    if (weights_zero_points_layout.has_value()) {
-        ob << true;
-        ob << weights_zero_points_layout.value();
-    } else {
-        ob << false;
-    }
-
-    if (activations_zero_points_layout.has_value()) {
-        ob << true;
-        ob << activations_zero_points_layout.value();
-    } else {
-        ob << false;
-    }
-
-    if (compensation_layout.has_value()) {
-        ob << true;
-        ob << compensation_layout.value();
-    } else {
-        ob << false;
-    }
-
-    ob << fused_desc.size();
-#ifdef ENABLE_ONEDNN_FOR_GPU
-    size_t num_fused_prims = fused_desc_onednn.size();
-    ob << num_fused_prims;
-    for (auto fused_prim : fused_desc_onednn) {
-        ob << make_data(&fused_prim, sizeof(fused_primitive_desc_onednn));
-    }
-#endif // ENABLE_ONEDNN_FOR_GPU
-    ob << primary_input_idx;
-}
-
-void kernel_impl_params::load(BinaryInputBuffer& ib) {
-    prog = nullptr;
-    ib >> desc;
-    ib >> has_runtime_layouts;
-    ib >> unique_id;
-    ib >> input_layouts;
-    ib >> output_layouts;
-    {
-        size_t num_input_offsets;
-        ib >> num_input_offsets;
-        input_offsets.resize(num_input_offsets);
-        for (size_t i = 0; i < num_input_offsets; i++) {
-            std::vector<cldnn::tensor::value_type> sizes;
-            ib >> sizes;
-            input_offsets[i] = cldnn::tensor(sizes);
-        }
-    }
-    bool has_value = false;
-    layout layout_buf;
-
-    ib >> has_value;
-    if (has_value) {
-        ib >> layout_buf;
-        weights_layout = layout_buf;
-    }
-
-    ib >> has_value;
-    if (has_value) {
-        ib >> layout_buf;
-        bias_layout = layout_buf;
-    }
-
-    ib >> has_value;
-    if (has_value) {
-        ib >> layout_buf;
-        weights_zero_points_layout = layout_buf;
-    }
-
-    ib >> has_value;
-    if (has_value) {
-        ib >> layout_buf;
-        activations_zero_points_layout = layout_buf;
-    }
-
-    ib >> has_value;
-    if (has_value) {
-        ib >> layout_buf;
-        compensation_layout = layout_buf;
-    }
-
-    {
-        // Fake fused_desc just for has_fused_primitives()
-        size_t num_fused_desc;
-        ib >> num_fused_desc;
-        if (num_fused_desc > 0) {
-            fused_desc.emplace_back(cldnn::fused_primitive_desc(nullptr));
-        }
-    }
-#ifdef ENABLE_ONEDNN_FOR_GPU
-    size_t num_fused_prims;
-    ib >> num_fused_prims;
-    fused_desc_onednn.resize(num_fused_prims);
-    for (size_t idx = 0; idx < num_fused_prims; ++idx) {
-        ib >> make_data(&fused_desc_onednn[idx], sizeof(fused_primitive_desc_onednn));
-    }
-#endif // ENABLE_ONEDNN_FOR_GPU
-    ib >> primary_input_idx;
 }
 
 }  // namespace cldnn

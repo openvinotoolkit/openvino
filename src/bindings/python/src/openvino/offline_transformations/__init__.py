@@ -13,9 +13,9 @@ warnings.warn(
     category=FutureWarning,
 )
 
-from openvino.utils import add_openvino_libs_to_path, deprecated
+from openvino.utils import _add_openvino_libs_to_search_path, deprecated
 
-add_openvino_libs_to_path()
+_add_openvino_libs_to_search_path()
 
 from openvino._pyopenvino import get_version
 from openvino._pyopenvino import serialize as _base_serialize
@@ -62,11 +62,6 @@ def apply_low_latency_transformation(model, use_const_initializer):
 @deprecated(version="2023.1", message="The module is private and following namespace " "`offline_transformations` will be removed in " "the future.")
 def apply_pruning_transformation(model):
     _base.apply_pruning_transformation(model)
-
-
-@deprecated(version="2023.1", message="The module is private and following namespace " "`offline_transformations` will be removed in " "the future.")
-def generate_mapping_file(model, path, extract_names):
-    _base.generate_mapping_file(model, path, extract_names)
 
 
 @deprecated(version="2023.1", message="The module is private and following namespace " "`offline_transformations` will be removed in " "the future.")

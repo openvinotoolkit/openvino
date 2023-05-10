@@ -29,7 +29,9 @@ static void CreateSoftmaxOp(Program& p, const std::shared_ptr<ngraph::op::v8::So
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     int64_t axis = ov::normalize_axis(op.get(), op->get_axis(), op->get_input_partial_shape(0).rank());
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     auto softmaxPrim = cldnn::softmax(layerName,
                                       inputs[0],
@@ -43,7 +45,9 @@ static void CreateLogSoftmaxOp(Program& p, const std::shared_ptr<ngraph::op::v5:
     std::string layerName = layer_type_name_ID(op);
     std::string layerNameSoftmax = layer_type_name_ID(op) + "_softmax";
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     int64_t axis = ov::normalize_axis(op.get(), op->get_axis(), op->get_input_partial_shape(0).rank());
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     auto softmaxPrim = cldnn::softmax(layerNameSoftmax,
                                       inputs[0],

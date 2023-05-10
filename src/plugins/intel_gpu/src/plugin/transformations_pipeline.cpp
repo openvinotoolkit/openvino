@@ -29,6 +29,7 @@
 #include "transformations/einsum_decomposition.hpp"
 #include "transformations/convert_pooling_to_reduce.hpp"
 #include "transformations/decompose_reduce_for_false_keepdims.hpp"
+#include "transformations/convert_shapeof.hpp"
 
 #include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
 #include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
@@ -43,6 +44,8 @@
 #include "transformations/common_optimizations/convert_compression_only_to_legacy.hpp"
 #include <transformations/common_optimizations/wrap_interpolate_into_transposes.hpp>
 #include <transformations/common_optimizations/transpose_sinking.hpp>
+#include <transformations/common_optimizations/softmax_fusion.hpp>
+#include <transformations/common_optimizations/broadcast_transition.hpp>
 
 #include <transformations/op_conversions/convert_depth_to_space.hpp>
 #include <transformations/op_conversions/convert_space_to_depth.hpp>
@@ -87,6 +90,7 @@
 #include <transformations/convert_precision.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
+#include <transformations/op_conversions/convert_shapeof3.hpp>
 
 #include <transformations/low_precision/mark_dequantization_subgraph.hpp>
 #include <low_precision/pull_reshape_through_dequantization.hpp>
@@ -140,7 +144,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<EinsumDecomposition>();
 
-        precisions_array fp_convert_precision_list = {
+        precisions_map fp_convert_precision_map = {
                 {ov::element::f64, ov::element::f32}
         };
 
@@ -171,7 +175,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
             for (auto& et : fp_element_types) {
                 if (et != infer_precision) {
-                    fp_convert_precision_list.push_back({et, infer_precision});
+                    fp_convert_precision_map.insert({et, infer_precision});
                 }
             }
         }
@@ -179,22 +183,24 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // Add conversion from unsupported FP data types to f32 if we don't have a conversion to something valid already in the list
         for (auto& et : fp_element_types) {
             if (!fp_precision_supported(et)) {
-                auto et_pair = std::make_pair(et, fallback_precision);
-                bool has_valid_conversion = std::find_if(fp_convert_precision_list.begin(), fp_convert_precision_list.end(),
-                    [&](std::pair<ov::element::Type, ov::element::Type> v) -> bool {
-                        return v.first == et_pair.first && fp_precision_supported(v.second);
-                }) != fp_convert_precision_list.end();
-
+                bool has_valid_conversion = fp_convert_precision_map.count(et) && fp_precision_supported(fp_convert_precision_map[et]);
                 if (!has_valid_conversion) {
-                    fp_convert_precision_list.push_back(et_pair);
+                    fp_convert_precision_map.insert(std::make_pair(et, fallback_precision));
                 }
             }
         }
 
         type_to_fuse_map empty_fuse_map = {};
         manager.register_pass<ov::pass::Validate>();
+
+        // fuse softmax patterns so that they will not be marked as precision sensitive in ConvertPrecision
+        manager.register_pass<ov::pass::SoftmaxFusion>();
+        // decompose MVNs that sre not supported in GPU, so the they will be marked as precision sensitive in ConvertPrecision
+        manager.register_pass<ov::pass::MVN6Decomposition>();
+        manager.register_pass<ov::pass::BroadcastTransition>();
+
         //  call ConvertPrecision with keep_precision_sensitive_in_fp32 = true
-        manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_list, empty_fuse_map, true);
+        manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_map, empty_fuse_map, true);
 
         manager.register_pass<ov::pass::CommonOptimizations>();
 
@@ -221,6 +227,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             manager.register_pass<ov::pass::BidirectionalRNNSequenceDecomposition>();
         }
 
+        manager.register_pass<ConvertShapeOf1To3>();
         manager.register_pass<ov::pass::ConvertNMS1ToNMS9>();
         manager.register_pass<ov::pass::ConvertNMS3ToNMS9>();
         manager.register_pass<ov::pass::ConvertNMS4ToNMS9>();
@@ -232,7 +239,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::ConvertPriorBox8To0, false>();
         manager.register_pass<ov::pass::ConvertMulticlassNmsToMulticlassNmsIE>();
 
-        precisions_array int_convert_precision_list {
+        precisions_map int_convert_precision_map {
                 {ngraph::element::i64, ngraph::element::i32},
                 {ngraph::element::u64, ngraph::element::i32},
                 {ngraph::element::u16, ngraph::element::i32},
@@ -243,7 +250,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         };
 
         manager.register_pass<ngraph::pass::Validate>();
-        manager.register_pass<ov::pass::ConvertPrecision>(int_convert_precision_list);
+        manager.register_pass<ov::pass::ConvertPrecision>(int_convert_precision_map);
 
         auto pass_config = manager.get_pass_config();
         pass_config->disable<ov::pass::EyeDecomposition>();
@@ -348,24 +355,34 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     });
         }
 
+
         pass_config->set_callback<ov::pass::MVN6Decomposition>(
             [](const_node_ptr &node) -> bool {
                 const auto mvn = std::dynamic_pointer_cast<const ngraph::op::v6::MVN>(node);
                 if (mvn != nullptr && node->get_input_size() == 2) {
-                    if (auto axesNode = dynamic_cast<ngraph::op::v0::Constant*>(mvn->get_input_node_ptr(1))) {
-                        auto axesVal = axesNode->cast_vector<int>();
-                        auto& mvnShape = mvn->get_output_partial_shape(0);
-                        for (int32_t& axis : axesVal)
-                            axis = axis < 0 ? axis + mvnShape.size() : axis;
-                        std::sort(axesVal.begin(), axesVal.end());
-                        if (mvnShape.size() == 1)
+                    if (auto axes_node = dynamic_cast<ngraph::op::v0::Constant*>(mvn->get_input_node_ptr(1))) {
+                        auto mvn_axes = axes_node->cast_vector<int64_t>();
+                        auto out_rank = mvn->get_output_partial_shape(0).size();
+
+                        ov::normalize_axes(mvn.get(), out_rank, mvn_axes);
+                        std::sort(mvn_axes.begin(), mvn_axes.end());
+
+                        // Supported cases:
+                        // 2 <= out_rank <= 5
+                        // axes set: [out_rank - 1, out_rank - 2, ... r] where r > 1
+                        // basically impl supports cases when tensor can be reshaped to [d1, d2]
+                        // so that d2 is set of dimensions for normalization
+
+                        // Skip unsupported ranks
+                        if (out_rank == 1 || out_rank > 5)
                             return false;
-                        if (mvnShape.size() > 5 || (mvnShape.size() != axesVal.size() + 1 && mvnShape.size() != axesVal.size() + 2))
-                            return false;
-                        int value = mvnShape.size() - 1;
-                        for (int i = axesVal.size() - 1; i >= 0; i--, value--) {
-                            if (axesVal[i] != value)
-                                return false;
+
+                        // check axes set
+                        for (size_t i = 0; i < mvn_axes.size(); i++) {
+                            auto axis = mvn_axes[mvn_axes.size() - i - 1];
+                            if (axis != static_cast<int64_t>(out_rank - i - 1) || axis == 0) {
+                                  return false;
+                            }
                         }
                         return true;
                     }
@@ -423,7 +440,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         pass_config->disable<ov::pass::WeightsDequantizeToFakeQuantize>();
         pass_config->disable<ov::pass::SimplifyCTCGreedyDecoderSeqLen>();
         pass_config->disable<ov::pass::ConvertSoftMax8ToSoftMax1>();
-        pass_config->enable<ov::pass::ConvertGather8ToGather7>();
+        pass_config->disable<ov::pass::ConvertShapeOf3>();
+        pass_config->disable<ov::pass::ConvertGather8ToGather7>();
+        pass_config->disable<ov::pass::ConvertGather7ToGather1>();
 
         pass_config->enable<ov::pass::ConvertInterpolate1ToInterpolate4>();
 
@@ -453,8 +472,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 {{0}, {ngraph::element::u8, ngraph::element::i8}},
                 {{1}, {ngraph::element::i8}}
             }),
-            PrecisionsRestriction::create<ngraph::opset5::LSTMSequence>({}),
-            PrecisionsRestriction::create<ngraph::opset6::GRUSequence>({})
+            PrecisionsRestriction::create<ngraph::opset5::LSTMSequence>(PrecisionsRestriction::PrecisionsByPorts{}),
+            PrecisionsRestriction::create<ngraph::opset6::GRUSequence>(PrecisionsRestriction::PrecisionsByPorts{})
         });
 
         auto perTensorQuantization = std::vector<QuantizationGranularityRestriction>({

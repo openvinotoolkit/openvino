@@ -375,7 +375,7 @@ public:
             if (node->id() == dep->id()) {
                 return;
             }
-            for (auto subdep : dep->get_dependencies()) {
+            for (const auto& subdep : dep->get_dependencies()) {
                 add_memory_dependency(node, subdep.first);
                 add_memory_dependency(subdep.first, node);
             }
@@ -412,6 +412,12 @@ private:
 class add_onednn_optimization_attributes : public base_pass {
 public:
     add_onednn_optimization_attributes() : base_pass("add_onednn_optimization_attributes") {}
+    void run(program& p) override;
+};
+
+class build_implementations : public base_pass {
+public:
+    build_implementations() : base_pass("build_implementations") {}
     void run(program& p) override;
 };
 

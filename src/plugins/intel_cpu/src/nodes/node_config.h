@@ -147,7 +147,6 @@ private:
 };
 
 struct NodeConfig {
-    bool dynBatchSupport = false;
     std::vector<PortConfig> inConfs;
     std::vector<PortConfig> outConfs;
 };

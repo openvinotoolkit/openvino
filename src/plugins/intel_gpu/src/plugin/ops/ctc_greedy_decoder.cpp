@@ -35,9 +35,7 @@ static void CreateCommonCTCGreedyDecoderOp(Program& p, const std::shared_ptr<ngr
             auto preprocessPrim = cldnn::reorder(reorderPrimName,
                                                  inputs[portIndex],
                                                  targetFormat,
-                                                 cldnn::data_types::i32,
-                                                 std::vector<float>(),
-                                                 cldnn::reorder_mean_mode::subtract);
+                                                 cldnn::data_types::i32);
             p.add_primitive(*op, preprocessPrim);
             reordered_inputs[portIndex] = cldnn::input_info(reorderPrimName);
         } else {
@@ -45,7 +43,7 @@ static void CreateCommonCTCGreedyDecoderOp(Program& p, const std::shared_ptr<ngr
         }
     }
 
-    uint32_t blank_index = op->get_input_shape(0).back() - 1;
+    uint32_t blank_index = static_cast<uint32_t>(op->get_input_shape(0).back() - 1);
     if (reordered_inputs.size() == 3) {
         auto blank_index_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(2));
         if (!blank_index_node) {

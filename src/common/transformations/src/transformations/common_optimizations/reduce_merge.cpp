@@ -58,7 +58,9 @@ bool fuse_reduce_operations(const std::shared_ptr<Node>& node) {
     std::shared_ptr<Node> axes =
         std::make_shared<opset9::Concat>(OutputVector{top_reduce->input_value(1), bottom_reduce->input_value(1)},
                                          int64_t(0));
+    OPENVINO_SUPPRESS_DEPRECATED_START
     if (auto constant = ov::get_constant_from_source(axes)) {
+        OPENVINO_SUPPRESS_DEPRECATED_END
         axes = constant;
     }
     axes->set_friendly_name(bottom_reduce->get_friendly_name() + "/Axes");

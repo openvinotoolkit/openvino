@@ -71,7 +71,9 @@ void ov::op::v9::Eye::validate_and_infer_types() {
                               input_et);
     }
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto output_shape = shape_infer(this, get_node_input_partial_shapes(*this)).front();
+    OPENVINO_SUPPRESS_DEPRECATED_END
     set_output_type(0, get_out_type(), output_shape);
 }
 
@@ -89,7 +91,7 @@ std::shared_ptr<ov::Node> ov::op::v9::Eye::clone_with_new_inputs(const ov::Outpu
     } else if (new_args.size() == 4) {
         return std::make_shared<v9::Eye>(new_args[0], new_args[1], new_args[2], new_args[3], m_output_type);
     } else {
-        throw ov::Exception("Eye has incorrect input number: " + std::to_string(new_args.size()));
+        OPENVINO_THROW("Eye has incorrect input number: ", new_args.size());
     }
 }
 
@@ -112,8 +114,10 @@ bool ov::op::v9::Eye::has_evaluate() const {
 
 bool ov::op::v9::Eye::evaluate(const ov::HostTensorVector& outputs, const ov::HostTensorVector& inputs) const {
     OV_OP_SCOPE(v9_Eye_evaluate);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     OPENVINO_ASSERT(ngraph::validate_host_tensor_vector(inputs, get_input_size()), "Invalid Eye input TensorVector.");
     OPENVINO_ASSERT(ngraph::validate_host_tensor_vector(outputs, 1), "Invalid Eye output TensorVector.");
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     int64_t diagonal_index;
 
@@ -128,8 +132,8 @@ bool ov::op::v9::Eye::evaluate(const ov::HostTensorVector& outputs, const ov::Ho
             diagonal_index = diagonal_index_data->get_data_ptr<const int64_t>()[0];
             break;
         default:
-            throw ov::Exception("Unsupported type of input `diagonal_index` in Eye operation: " +
-                                diagonal_index_data->get_element_type().get_type_name());
+            OPENVINO_THROW("Unsupported type of input `diagonal_index` in Eye operation: ",
+                           diagonal_index_data->get_element_type().get_type_name());
         }
     } else {
         diagonal_index = 0;

@@ -23,7 +23,7 @@
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 
 #include "common_test_utils/file_utils.hpp"
-#include "common_test_utils/crash_handler.hpp"
+#include "functional_test_utils/crash_handler.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 
@@ -41,6 +41,7 @@ std::ostream& operator <<(std::ostream& os, const InputShape& inputShape) {
 }
 
 void SubgraphBaseTest::run() {
+    is_reported = true;
     bool isCurrentTestDisabled = FuncTestUtils::SkipTestsConfig::currentTestIsDisabled();
 
     ov::test::utils::PassRate::Statuses status = isCurrentTestDisabled ?
@@ -226,7 +227,7 @@ void SubgraphBaseTest::compile_model() {
                 break;
             }
         }
-        configuration.insert({ov::inference_precision.name(), hint});
+        configuration.insert({ov::hint::inference_precision.name(), hint});
     }
 
     compiledModel = core->compile_model(function, targetDevice, configuration);
@@ -283,7 +284,7 @@ std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
 
     auto functionToProcess = functionRefs->clone();
     //TODO: remove this conversions as soon as function interpreter fully support bf16 and f16
-    precisions_array precisions = {
+    precisions_map precisions = {
             { ngraph::element::bf16, ngraph::element::f32 }
     };
     auto convert_added = false;
@@ -299,7 +300,7 @@ std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
         }
     }
     if (!convert_added) {
-        precisions.push_back({ ngraph::element::f16, ngraph::element::f32});
+        precisions.insert({ ngraph::element::f16, ngraph::element::f32});
     }
     pass::Manager manager;
     manager.register_pass<ov::pass::ConvertPrecision>(precisions);

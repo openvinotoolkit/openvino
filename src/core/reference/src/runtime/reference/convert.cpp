@@ -44,6 +44,16 @@ void jit_convert_vec<float16, float>(jit::Generator& gen, const Xbyak::RegExp& s
 }
 
 template <>
+void jit_convert_vec<float, float16>(jit::Generator& gen, const Xbyak::RegExp& src, const Xbyak::RegExp& dst) {
+    auto f16vec = gen.xmm3;
+    auto f32vec = gen.ymm4;
+
+    gen.vmovups(f32vec, gen.yword[src]);
+    gen.vcvtps2ph(f16vec, f32vec, 0);
+    gen.vmovdqu(gen.xword[dst], f16vec);
+}
+
+template <>
 void jit_convert_vec_prepare<float, int8_t>(jit::Generator& gen) {
     auto order = gen.ymm1;
     auto addr = gen.r15;
@@ -203,6 +213,11 @@ void convert<uint8_t, float16>(const uint8_t* arg, float16* out, size_t count) {
 
 template <>
 void convert<float16, float>(const float16* arg, float* out, size_t count) {
+    convert_impl(arg, out, count);
+}
+
+template <>
+void convert<float, float16>(const float* arg, float16* out, size_t count) {
     convert_impl(arg, out, count);
 }
 

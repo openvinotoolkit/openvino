@@ -33,8 +33,8 @@ std::shared_ptr<Function> import_onnx_model(const std::string& file_path) {
     std::ifstream model_stream{file_path, std::ios::in | std::ios::binary};
 
     if (!model_stream.is_open()) {
-        throw ngraph_error("Error during import of ONNX model expected to be in file: " + file_path +
-                           ". Could not open the file.");
+        OPENVINO_THROW("Error during import of ONNX model expected to be in file: " + file_path +
+                       ". Could not open the file.");
     };
 
     return import_onnx_model(model_stream, file_path);
