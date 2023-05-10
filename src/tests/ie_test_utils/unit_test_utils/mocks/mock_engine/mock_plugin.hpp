@@ -15,7 +15,9 @@ class IInferencePlugin;
 
 class MockPlugin : public ov::IPlugin {
     ov::IPlugin* m_plugin = nullptr;
+    InferenceEngine::IInferencePlugin* m_old_plugin = nullptr;
     std::shared_ptr<ov::IPlugin> m_converted_plugin;
+    void set_parameters_if_need() const;
 
 public:
     explicit MockPlugin(InferenceEngine::IInferencePlugin* target);
