@@ -83,9 +83,9 @@ std::vector<layout> calc_output_layout_impl(convolution_node const& node, kernel
     }
 
     // Adjust output format for shallow conv and mixed precision cases in onednn
-    auto out_fmt = input_layout.format;
+    auto output_format = input_layout.format;
     if (node.get_preferred_impl_type() == impl_types::onednn && node.get_preferred_output_fmt() != format::any) {
-        out_fmt = node.get_preferred_output_fmt();
+        output_format = node.get_preferred_output_fmt();
     }
 
     // dynamic case
@@ -138,7 +138,6 @@ std::vector<layout> calc_output_layout_impl(convolution_node const& node, kernel
         output_shapes = ov::op::v1::shape_infer(&op, input_shapes, pads_begin, pads_end);
     }
 
-    format::type output_format = input_layout.format.value;
     return {layout{output_shapes[0], output_type, output_format}};
 }
 
