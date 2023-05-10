@@ -4,9 +4,20 @@ import tensorflow as tf
 from common.tflite_layer_test_class import TFLiteLayerTest
 
 test_params = [
-    {'shape': [2, 3, 1, 2, 2], 'segment_ids': [0, 1, 2, 3, 4]},
-    {'shape': [2, 3, 1, 2], 'segment_ids': [0, 1, 2, 3]},
-    {'shape': [2, 3], 'segment_ids': [0, 1]},
+    {'shape': [4], 'segment_ids': [0, 0, 1, 1]},
+    {'shape': [4], 'segment_ids': [0, 1, 2, 2]},
+    {'shape': [4], 'segment_ids': [0, 1, 2, 3]},
+    {'shape': [4], 'segment_ids': [0, 0, 0, 0]},
+
+    {'shape': [4, 4], 'segment_ids': [0, 0, 1, 1]},
+    {'shape': [4, 4], 'segment_ids': [0, 1, 2, 2]},
+    {'shape': [4, 4], 'segment_ids': [0, 1, 2, 3]},
+    {'shape': [4, 4], 'segment_ids': [0, 0, 0, 0]},
+
+    {'shape': [4, 3, 2], 'segment_ids': [0, 0, 0, 0]},
+    {'shape': [4, 3, 2], 'segment_ids': [0, 0, 1, 1]},
+    {'shape': [4, 3, 2], 'segment_ids': [0, 1, 2, 2]},
+    {'shape': [4, 3, 2], 'segment_ids': [0, 1, 2, 3]},
 ]
 
 
@@ -30,6 +41,4 @@ class TestTFLiteSegmentSumLayerTest(TFLiteLayerTest):
     @pytest.mark.parametrize("params", test_params)
     @pytest.mark.nightly
     def test_segment_sum(self, params, ie_device, precision, temp_dir):
-        if params['shape'] == [2, 3, 1, 2, 2] or [2, 3, 1, 2]:
-            pytest.xfail('CVS-110478')
         self._test(ie_device, precision, temp_dir, params)
