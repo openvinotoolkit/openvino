@@ -678,18 +678,16 @@ TEST_P(LinuxCpuMapFreqParserTests, LinuxCpuMapFreq) {}
 
 INSTANTIATE_TEST_SUITE_P(CPUMap,
                          LinuxCpuMapFreqParserTests,
-                         testing::Values(freq_2sockets_20cores_hyperthreading,
-                                         freq_1sockets_4cores));
+                         testing::Values(freq_2sockets_20cores_hyperthreading, freq_1sockets_4cores));
 
 #endif
 
 #if (defined(_WIN32) || defined(_WIN64))
 
 int Hex2Int(char c) {
-    return (c >= '0' && c <= '9')   ? (c) - '0'
-           : (c >= 'A' && c <= 'F') ? (c) - 'A' + 10
-           : (c >= 'a' && c <= 'f') ? (c) - 'a' + 10
-                                    : 0;
+    return (c >= '0' && c <= '9')
+               ? (c) - '0'
+               : (c >= 'A' && c <= 'F') ? (c) - 'A' + 10 : (c >= 'a' && c <= 'f') ? (c) - 'a' + 10 : 0;
 }
 
 void Hex2Bin(const char* hex, std::size_t sz, char* out) {

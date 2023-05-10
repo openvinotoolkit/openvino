@@ -60,11 +60,11 @@ void parse_cache_info_linux(const std::vector<std::vector<std::string>> _system_
  * @return
  */
 void parse_freq_info_linux(const std::vector<std::vector<std::string>> _system_info_table,
-                            int& _processors,
-                            int& _sockets,
-                            int& _cores,
-                            std::vector<std::vector<int>>& _proc_type_table,
-                            std::vector<std::vector<int>>& _cpu_mapping_table);                            
+                           int& _processors,
+                           int& _sockets,
+                           int& _cores,
+                           std::vector<std::vector<int>>& _proc_type_table,
+                           std::vector<std::vector<int>>& _cpu_mapping_table);
 #endif
 
 #if (defined(_WIN32) || defined(_WIN64))
