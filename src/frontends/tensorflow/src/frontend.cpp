@@ -91,7 +91,8 @@ FrontEnd::FrontEnd() : m_op_translators(tensorflow::op::get_supported_ops()) {}
 bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
     // Last boolean flag in `variants` (if presented) is reserved for FE configuration
     size_t extra_variants_num = variants.size() > 0 && variants[variants.size() - 1].is<bool>() ? 1 : 0;
-    // TODO: Support other TensorFlow formats: SavedModel, .meta, checkpoint, pbtxt
+
+    // TODO: support checkpoint format
     if (variants.size() != 1 + extra_variants_num)
         return false;
 
@@ -138,13 +139,13 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
 }
 
 ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const {
-    // TODO: Support other TensorFlow formats: SavedModel, .meta, checkpoint
+    // TODO: support checkpoint format
 
     // Last boolean flag in `variants` (if presented) is reserved for FE configuration
     size_t extra_variants_num = variants.size() > 0 && variants[variants.size() - 1].is<bool>() ? 1 : 0;
     FRONT_END_GENERAL_CHECK(variants.size() == 1 + extra_variants_num,
                             "[TensorFlow Frontend] Internal error or inconsistent input model: the frontend supports "
-                            "only frozen binary protobuf format.");
+                            "frozen formats (.pb and .pbtxt), SavedModel and MetaGraph (.meta) formats.");
 
     if (variants[0].is<std::string>()) {
         auto model_path = variants[0].as<std::string>();
@@ -220,7 +221,7 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
 
     FRONT_END_GENERAL_CHECK(false,
                             "[TensorFlow Frontend] Internal error or inconsistent input model: the frontend supports "
-                            "only frozen binary protobuf format.");
+                            "frozen formats (.pb and .pbtxt), SavedModel and MetaGraph (.meta) formats.");
 
     return nullptr;
 }
@@ -256,6 +257,9 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr
             exception_message << unsupported_operation;
             ++counter;
         }
+        exception_message
+            << "\nTo facilitate the conversion of unsupported operations, refer to Frontend Extension documentation: "
+               "https://docs.openvino.ai/latest/openvino_docs_Extensibility_UG_Frontend_Extensions.html \n";
     }
 
     bool is_conversion_successful = ((unsupported_operations.size() == 0) && (failures.size() == 0));
