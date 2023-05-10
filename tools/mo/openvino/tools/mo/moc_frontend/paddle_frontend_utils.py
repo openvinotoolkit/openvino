@@ -5,45 +5,72 @@ import os
 import sys
 import tempfile
 
-def convert_paddle_to_pdmodel(model, inputs=None, outputs=None):
-    '''
-        There are three paddle model categories:
-        - High Level API: is a wrapper for dynamic or static model, use `self.save` to serialize
-        - Dynamic Model: use `paddle.jit.save` to serialize
-        - Static Model: use `paddle.static.save_inference_model` to serialize
-    '''
-    model_name = None
-    tmp = tempfile.NamedTemporaryFile(delete=True)
-    model_name = tmp.name
-    try:
-        import paddle
-        if isinstance(model, paddle.hapi.model.Model):
-            model.save(model_name, False)
-        else:
-            if inputs is None:
-                raise RuntimeError(
-                    "Saving inference model needs 'inputs' before saving. Please specify 'example_input'"
-                )
-            if isinstance(model, paddle.fluid.dygraph.layers.Layer):
-                with paddle.fluid.framework._dygraph_guard(None):
-                    paddle.jit.save(model, model_name, input_spec=inputs)
-            elif isinstance(model, paddle.fluid.executor.Executor):
-                if outputs is None:
-                    raise RuntimeError(
-                        "Model is static. Saving inference model needs 'outputs' before saving. Please specify 'example_output' for this model"
-                    )
-                paddle.static.save_inference_model(model_name, inputs, outputs, model)
+class paddle_frontend_converter:
+    def __init__(self, model, inputs=None, outputs=None):
+        self.model = model
+        self.inputs = inputs
+        self.outputs = outputs
+        self.tmp = None
+        self.model_name = None
+        self.pdmodel = None
+        self.pdiparams = None
+        self.is_generated = False
+
+    def destroy(self):
+        # close tmp file
+        if isinstance(self.tmp, tempfile._TemporaryFileWrapper):
+            self.tmp.close()
+
+        # remove the *.pdmodel
+        if os.path.exists(self.pdmodel):
+            os.remove(self.pdmodel)
+
+        # remove the *.pdiparams
+        if os.path.exists(self.pdiparams):
+            os.remove(self.pdiparams)
+        
+    def convert_paddle_to_pdmodel(self):
+        '''
+            There are three paddle model categories:
+            - High Level API: is a wrapper for dynamic or static model, use `self.save` to serialize
+            - Dynamic Model: use `paddle.jit.save` to serialize
+            - Static Model: use `paddle.static.save_inference_model` to serialize
+        '''
+        try:
+            self.tmp = tempfile.NamedTemporaryFile(delete=True)
+            self.model_name = self.tmp.name
+            self.pdmodel = "{}.pdmodel".format(self.model_name)
+            self.pdiparams = "{}.pdiparams".format(self.model_name)
+
+            import paddle
+            if isinstance(self.model, paddle.hapi.model.Model):
+                self.model.save(self.model_name, False)
             else:
-                raise RuntimeError(
-                    "Conversion just support paddle.hapi.model.Model, paddle.fluid.dygraph.layers.Layer and paddle.fluid.executor.Executor"
-                )
+                if self.inputs is None:
+                    raise RuntimeError(
+                        "Saving inference model needs 'inputs' before saving. Please specify 'example_input'"
+                    )
+                if isinstance(self.model, paddle.fluid.dygraph.layers.Layer):
+                    with paddle.fluid.framework._dygraph_guard(None):
+                        paddle.jit.save(self.model, self.model_name, input_spec=self.inputs)
+                elif isinstance(self.model, paddle.fluid.executor.Executor):
+                    if self.outputs is None:
+                        raise RuntimeError(
+                            "Model is static. Saving inference model needs 'outputs' before saving. Please specify 'example_output' for this model"
+                        )
+                    paddle.static.save_inference_model(self.model_name, self.inputs, self.outputs, self.model)
+                else:
+                    raise RuntimeError(
+                        "Conversion just support paddle.hapi.model.Model, paddle.fluid.dygraph.layers.Layer and paddle.fluid.executor.Executor"
+                    )
 
-        model_file = "{}.pdmodel".format(model_name)
-        if not os.path.exists(model_file):
-            print("Failed generating paddle inference format model")
-            sys.exit(1)
+            if not os.path.exists(self.pdmodel):
+                print("Failed generating paddle inference format model")
+                sys.exit(1)
 
-        return model_file
-    finally:
-        if isinstance(tmp, tempfile._TemporaryFileWrapper):
-            tmp.close()
+            self.is_generated = True
+            return self.pdmodel
+        finally:
+            # close tmp file
+            if isinstance(self.tmp, tempfile._TemporaryFileWrapper):
+                self.tmp.close()

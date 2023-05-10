@@ -866,6 +866,7 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args, python_api_us
     # Initialize logger with 'ERROR' as default level to be able to form nice messages
     # before arg parser deliver log_level requested by user
     init_logger('ERROR', False)
+    paddle_runtime_converter = None
     argv = None
     try:
         model_framework = None
@@ -890,7 +891,8 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args, python_api_us
                 example_outputs = None
                 if 'example_output' in args and args['example_output'] is not None:
                     example_outputs = args['example_output']
-                pdmodel = convert_paddle_to_pdmodel(args['input_model'], example_inputs, example_outputs)
+                paddle_runtime_converter = paddle_frontend_converter(args['input_model'], example_inputs, example_outputs)
+                pdmodel = paddle_runtime_converter.convert_paddle_to_pdmodel()
                 args['input_model'] = pdmodel
                 args['framework'] = model_framework
 
@@ -989,3 +991,6 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args, python_api_us
             raise e.with_traceback(None)
         else:
             return None, argv
+    finally:
+        if paddle_runtime_converter:
+            paddle_runtime_converter.destroy()
