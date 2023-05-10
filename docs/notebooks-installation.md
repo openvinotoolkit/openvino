@@ -612,7 +612,7 @@ or create an
 -------------------------
 
 * `OpenVINO™ Notebooks - Github Repository <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/README.md>`_
-* `Install OpenVINO™ Development Tools <https://docs.openvino.ai/nightly/openvino_docs_install_guides_install_dev_tools.html>`_
+* `Install OpenVINO™ Development Tools <https://docs.openvino.ai/2023.0/openvino_docs_install_guides_install_dev_tools.html>`_
 
 
 .. |br| raw:: html
