@@ -198,9 +198,9 @@ std::string toCodeString(const Tensor::Dim& dim, size_t offset, bool padded, boo
         }
     }
     if (dim.is_dynamic) {
-            snprintf(buf, sizeof(buf), "(shape_info[%zu] %s)", offset, pad_str.c_str());
+        snprintf(buf, sizeof(buf), "(shape_info[%zu] %s)", offset, pad_str.c_str());
     } else {
-            snprintf(buf, sizeof(buf), "%zu", dim.v + (padded ? dim.pad.Total() : 0));
+        snprintf(buf, sizeof(buf), "%zu", dim.v + (padded ? dim.pad.Total() : 0));
     }
     return buf;
 }
@@ -327,9 +327,9 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
     DimensionAccessHelper dims_padded(_tensor, true);
     // shape_info layout
     // if only y has dynamic padding:
-    // [dim_b, dim_f, dim_w, dim_z, dim_y, dim_x, pad_before_y, pad_after_y]
+    // [dim_b, dim_f, dim_u, dim_v, dim_w, dim_z, dim_y, dim_x, pad_before_y, pad_after_y]
     // if only x has dynamic padding:
-    // [dim_b, dim_f, dim_w, dim_z, dim_y, dim_x, pad_before_x, pad_after_x]
+    // [dim_b, dim_f, dim_u, dim_v, dim_w, dim_z, dim_y, dim_x, pad_before_x, pad_after_x]
 
     definitions = {
         {_name + "_SIZE_X", dims.x()},
