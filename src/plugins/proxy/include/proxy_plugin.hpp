@@ -18,14 +18,5 @@ namespace proxy {
  */
 void create_plugin(std::shared_ptr<ov::IPlugin>& plugin);
 
-/**
- * @brief Restore one fallback order from orders of different plugins
- *
- * @param generated_order the orders from different plugins in format "A->B C->B D->B->E"
- *
- * @return the common fallback order (for example: A C D B E)
- */
-std::string restore_order(const std::vector<std::string>& generated_order);
-
 }  // namespace proxy
 }  // namespace ov

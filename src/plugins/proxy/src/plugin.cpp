@@ -23,7 +23,7 @@ size_t string_to_size_t(const std::string& s) {
     return idx;
 }
 
-std::vector<std::string> split(const std::string& str, const std::string& delim = ",") {
+std::vector<std::string> split(const std::string& str, const std::string& delim = " ") {
     std::vector<std::string> result;
     std::string::size_type start(0);
     std::string::size_type end = str.find(delim);
@@ -70,7 +70,7 @@ ov::AnyMap remove_device_properties(ov::AnyMap& config, const std::vector<std::s
 }
 
 ov::AnyMap remove_device_properties(ov::AnyMap& config, const std::string& devices) {
-    return remove_device_properties(config, split(devices, " "));
+    return remove_device_properties(config, split(devices));
 }
 
 ov::AnyMap remove_device_properties(ov::AnyMap& config, const ov::Any& devices) {
@@ -94,36 +94,13 @@ ov::AnyMap remove_proxy_properties(ov::AnyMap& config, bool rem_device_propertie
     it = config.find(ov::proxy::alias_for.name());
     if (it != config.end())
         config.erase(it);
-    it = config.find(ov::proxy::priorities.name());
+    it = config.find(ov::proxy::device_priorities.name());
     if (it != config.end())
         config.erase(it);
     return dev_properties;
 }
 
 }  // namespace
-
-std::string ov::proxy::restore_order(const std::vector<std::string>& original_order) {
-    std::string result;
-    std::vector<std::string> dev_order;
-    if (original_order.size() == 1) {
-        // Simple case I shouldn't restore the right order
-        dev_order = split(original_order.at(0), "->");
-    } else {
-        std::string order;
-        for (const auto& el : original_order) {
-            if (!order.empty())
-                order += " ";
-            order += el;
-        }
-        OPENVINO_THROW("Cannot restore fallback devices priority from the next config: ", order);
-    }
-    for (const auto& dev : dev_order) {
-        if (!result.empty())
-            result += " ";
-        result += dev;
-    }
-    return result;
-}
 
 ov::proxy::Plugin::Plugin() {
     // Create global config
@@ -154,7 +131,8 @@ void ov::proxy::Plugin::set_property(const ov::AnyMap& properties) {
 
     // Parse alias config
     auto it = properties.find(ov::proxy::alias_for.name());
-    bool fill_order = properties.find(ov::proxy::priorities.name()) == properties.end() && m_device_order.empty();
+    bool fill_order =
+        properties.find(ov::proxy::device_priorities.name()) == properties.end() && m_device_order.empty();
     if (it != properties.end()) {
         for (auto&& dev : it->second.as<std::vector<std::string>>()) {
             m_alias_for.emplace(dev);
@@ -164,7 +142,7 @@ void ov::proxy::Plugin::set_property(const ov::AnyMap& properties) {
     }
 
     // Restore device order
-    it = properties.find(ov::proxy::priorities.name());
+    it = properties.find(ov::proxy::device_priorities.name());
     if (it != properties.end()) {
         m_device_order.clear();
         std::vector<std::pair<std::string, size_t>> priority_order;
@@ -249,7 +227,7 @@ void ov::proxy::Plugin::set_property(const ov::AnyMap& properties) {
         for (const auto& it : properties) {
             // Skip proxy properties
             if (ov::device::id.name() == it.first || it.first == ov::device::priorities.name() ||
-                it.first == ov::proxy::priorities.name() || it.first == ov::proxy::alias_for.name() ||
+                it.first == ov::proxy::device_priorities.name() || it.first == ov::proxy::alias_for.name() ||
                 // Skip options from config for primaty device
                 hw_config.find(it.first) != hw_config.end() || (!dev_prop_name.empty() && it.first == dev_prop_name))
                 continue;
@@ -390,7 +368,7 @@ std::vector<std::vector<std::string>> ov::proxy::Plugin::get_hidden_devices() co
             // Add fallback devices use device_id for individual fallback property
             auto fallback = get_internal_property(ov::device::priorities.name(), device_id).as<std::string>();
             if (!fallback.empty()) {
-                for (const auto& fallback_dev : split(fallback, " ")) {
+                for (const auto& fallback_dev : split(fallback)) {
                     devices.emplace_back(fallback_dev);
                 }
             }
@@ -450,7 +428,7 @@ std::vector<std::vector<std::string>> ov::proxy::Plugin::get_hidden_devices() co
             auto device = all_highlevel_devices[i];
             // In case of aliases use the proxy system of enumeration devices
             const auto fallback_order =
-                split(get_internal_property(ov::device::priorities.name(), std::to_string(i)).as<std::string>(), " ");
+                split(get_internal_property(ov::device::priorities.name(), std::to_string(i)).as<std::string>());
 
             bool found_primary_device = false;
             bool use_hetero_mode = device.no_uuid ? true : false;

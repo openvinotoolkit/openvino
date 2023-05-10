@@ -43,13 +43,7 @@
 #include "xml_parse_utils.h"
 
 ov::ICore::~ICore() = default;
-namespace ov {
-namespace proxy {
 
-static constexpr Property<std::vector<std::string>, PropertyMutability::RW> fallback{"PROXY_FALLBACK_PRIORITIES"};
-
-}
-}  // namespace ov
 namespace {
 
 template <typename F>
@@ -313,6 +307,7 @@ ov::CoreImpl::CoreImpl(bool _newAPI) : m_new_api(_newAPI) {
 }
 
 void ov::CoreImpl::register_plugin_in_registry_unsafe(const std::string& device_name, PluginDescriptor& desc) {
+    // Update proxy plugin config
     const auto& fill_config = [](ov::AnyMap& defaultConfig, const ov::AnyMap& config, const std::string& dev_name) {
         // Configure aliases for proxy plugin
         auto it = config.find(ov::device::alias.name());
@@ -328,37 +323,49 @@ void ov::CoreImpl::register_plugin_in_registry_unsafe(const std::string& device_
         // Configure device order for proxy_plugin
         it = config.find(ov::device::priority.name());
         if (it != config.end()) {
-            if (defaultConfig.find(ov::proxy::priorities.name()) == defaultConfig.end()) {
-                defaultConfig[ov::proxy::priorities.name()] = dev_name + ":" + it->second.as<std::string>();
+            if (defaultConfig.find(ov::proxy::device_priorities.name()) == defaultConfig.end()) {
+                defaultConfig[ov::proxy::device_priorities.name()] = dev_name + ":" + it->second.as<std::string>();
             } else {
-                defaultConfig[ov::proxy::priorities.name()] =
-                    defaultConfig[ov::proxy::priorities.name()].as<std::string>() + " " + dev_name + ":" +
+                defaultConfig[ov::proxy::device_priorities.name()] =
+                    defaultConfig[ov::proxy::device_priorities.name()].as<std::string>() + " " + dev_name + ":" +
                     it->second.as<std::string>();
             }
         }
 
         // Configure devices fallback order for proxy_plugin
         // Can use substring to configure the order
-        // CUDA->iGPU : CUDA,iGPU   // just create a new elememnt
-        // AMD->iGPU : CUDA,AMD,iGPU // use substring to find the right place
-        // What else?
-        // CUDA->iGPU : CUDA,iGPU
-        // AMD->CPU ???  CUDA,iGPU,AMD,CPU
-        // CPU->iGPU
-        // CUDA->iGPU,AMD->CPU,CUP->iGPU
+        // CUDA iGPU : CUDA iGPU      // just create a new elememnt
+        // CPU iGPU : CUDA CPU iGPU   // use substring to find the right place
         it = config.find(ov::device::fallback.name());
         if (it != config.end()) {
-            if (defaultConfig.find(ov::device::fallback.name()) == defaultConfig.end()) {
-                defaultConfig[ov::proxy::fallback.name()] = dev_name + "->" + it->second.as<std::string>();
+            auto fallback = it->second.as<std::string>();
+            if (defaultConfig.find(ov::device::properties.name()) == defaultConfig.end()) {
+                defaultConfig[ov::device::priorities.name()] = std::vector<std::string>{dev_name, fallback};
             } else {
-                defaultConfig[ov::proxy::fallback.name()] =
-                    defaultConfig[ov::proxy::fallback.name()].as<std::string>() + " " + dev_name + "->" +
-                    it->second.as<std::string>();
+                auto dev_order = defaultConfig[ov::device::priorities.name()].as<std::vector<std::string>>();
+                auto begin_it = std::find(dev_order.begin(), dev_order.end(), dev_name);
+                auto end_it = std::find(dev_order.begin(), dev_order.end(), fallback);
+                OPENVINO_ASSERT(begin_it == dev_order.end() && end_it == dev_order.end(),
+                                "Cannot restore the fallback order for proxy plugin.");
+                if (begin_it != dev_order.end() && end_it != dev_order.end()) {
+                    // Nothing to do. Just check that devices have the right order
+                    OPENVINO_ASSERT(std::distance(begin_it, end_it) > 0,
+                                    "Incorrect order of proxy plugin fallback priority.");
+                } else if (begin_it != dev_order.end()) {
+                    // Insert fallback device after the primary device
+                    dev_order.insert(begin_it + 1, fallback);
+                } else if (end_it != dev_order.end()) {
+                    // Insert primary device before the fallback device
+                    dev_order.insert(end_it, dev_name);
+                }
+                defaultConfig[ov::device::priorities.name()] = dev_order;
             }
         }
     };
+
     auto&& config = desc.defaultConfig;
     std::string dev_name = device_name;
+    // Register proxy plugin
     if (config.find(ov::device::alias.name()) != config.end()) {
         // Create proxy plugin for alias
         auto alias = config.at(ov::device::alias.name()).as<std::string>();
@@ -366,14 +373,19 @@ void ov::CoreImpl::register_plugin_in_registry_unsafe(const std::string& device_
             dev_name += "_ov_internal";
         // Alias can be registered by several plugins
         if (pluginRegistry.find(alias) == pluginRegistry.end()) {
+            // Register new plugin
             PluginDescriptor desc = PluginDescriptor(ov::proxy::create_plugin);
             fill_config(desc.defaultConfig, config, dev_name);
             pluginRegistry[alias] = desc;
             add_mutex(alias);
         } else {
+            // Update registered plugin
             auto& plugin = pluginRegistry.at(alias);
             // Error if we have an alias for HW plugin
-            OPENVINO_ASSERT(plugin.pluginCreateFunc == ov::proxy::create_plugin);
+            OPENVINO_ASSERT(plugin.pluginCreateFunc == ov::proxy::create_plugin,
+                            "Cannot register plugin for ",
+                            dev_name,
+                            " plugin with the same name already registered!");
             fill_config(plugin.defaultConfig, config, dev_name);
         }
     } else if (config.find(ov::device::fallback.name()) != config.end()) {
@@ -384,6 +396,8 @@ void ov::CoreImpl::register_plugin_in_registry_unsafe(const std::string& device_
         pluginRegistry[device_name] = desc;
         add_mutex(device_name);
     }
+
+    // Register real plugin
     auto it = desc.defaultConfig.find(ov::device::alias.name());
     if (it != desc.defaultConfig.end()) {
         desc.defaultConfig.erase(it);
@@ -525,7 +539,7 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
     try {
         ov::Plugin plugin;
 
-        if (desc.pluginCreateFunc) {  // static OpenVINO case
+        if (desc.pluginCreateFunc) {  // static OpenVINO case or proxy plugin
             std::shared_ptr<ov::IPlugin> plugin_impl;
             desc.pluginCreateFunc(plugin_impl);
             plugin = Plugin{plugin_impl, {}};
@@ -554,27 +568,22 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
 
         // configuring
         {
-            if (desc.defaultConfig.find(ov::proxy::alias_for.name()) != desc.defaultConfig.end() ||
-                desc.defaultConfig.find(ov::proxy::priorities.name()) != desc.defaultConfig.end() ||
-                desc.defaultConfig.find(ov::proxy::fallback.name()) != desc.defaultConfig.end()) {
+            // Initial setup for proxy plugin.
+            // It is needed for future initialization to initialize low level plugin
+            if (desc.pluginCreateFunc == ov::proxy::create_plugin) {
                 ov::AnyMap initial_config;
                 auto it = desc.defaultConfig.find(ov::proxy::alias_for.name());
                 if (it != desc.defaultConfig.end()) {
                     initial_config[it->first] = it->second;
                 }
-                it = desc.defaultConfig.find(ov::proxy::priorities.name());
+                it = desc.defaultConfig.find(ov::proxy::device_priorities.name());
                 if (it != desc.defaultConfig.end()) {
                     initial_config[it->first] = it->second;
                 }
-                it = desc.defaultConfig.find(ov::proxy::fallback.name());
+                it = desc.defaultConfig.find(ov::device::priorities.name());
                 if (it != desc.defaultConfig.end()) {
-                    initial_config[ov::device::priorities.name()] =
-                        ov::proxy::restore_order(it->second.as<std::vector<std::string>>());
+                    initial_config[ov::device::priorities.name()] = it->second;
                 }
-                // Remove internal property
-                it = initial_config.find(ov::proxy::fallback.name());
-                if (it != initial_config.end())
-                    initial_config.erase(it);
                 plugin.set_property(initial_config);
             }
             // TODO: remove this block of code once GPU removes support of ov::cache_dir

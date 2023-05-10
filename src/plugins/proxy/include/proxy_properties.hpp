@@ -21,7 +21,8 @@ namespace proxy {
  * @brief Property allows to configure the low level device priorities.
  * Vector of string. String has the next format: <device_name>:<device_priority>
  */
-static constexpr Property<std::vector<std::string>, PropertyMutability::RW> priorities{"PROXY_DEVICE_PRIORITIES"};
+static constexpr Property<std::vector<std::string>, PropertyMutability::RW> device_priorities{
+    "PROXY_DEVICE_PRIORITIES"};
 
 /**
  * @brief Property allows to configure the list of low level devices under the alias
