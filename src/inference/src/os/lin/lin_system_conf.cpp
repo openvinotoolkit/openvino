@@ -279,9 +279,9 @@ void get_cpu_mapping_from_cores(const int _processors,
             _cpu_mapping_table[cur_id][CPU_MAP_GROUP_ID] = num_big_cores_phys + j / 4;
             _cpu_mapping_table[cur_id][CPU_MAP_SOCKET_ID] = 0;
 
-            _proc_type_table[0][_cpu_mapping_table[j][CPU_MAP_CORE_TYPE]]++;
+            _proc_type_table[0][_cpu_mapping_table[cur_id][CPU_MAP_CORE_TYPE]]++;
             _proc_type_table[0][ALL_PROC]++;
-            pro_all_table[_cpu_mapping_table[j][CPU_MAP_CORE_TYPE]]++;
+            pro_all_table[_cpu_mapping_table[cur_id][CPU_MAP_CORE_TYPE]]++;
             pro_all_table[ALL_PROC]++;
         }
     }
