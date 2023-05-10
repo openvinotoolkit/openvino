@@ -116,6 +116,23 @@ def compare_graphs(graph: Graph, graph_ref: Graph, last_node: str, last_node_ref
                                       ''.format(node.id, cur_node_type, attr))
                         continue
 
+                    def align_strided_slice_masks(curr_node: Node, rank: int):
+                        for mask_name in StridedSlice.get_mask_names():
+                            if type(curr_node[mask_name]) == int:
+                                curr_node[mask_name] = [curr_node[mask_name]]
+                            elif type(curr_node[mask_name]) == str:  # if mask is an empty string ''
+                                assert len(curr_node[mask_name]) == 0
+                                curr_node[mask_name] = []
+
+                            num_insertions = rank - len(curr_node[mask_name])
+                            curr_node[mask_name] = np.append(curr_node[mask_name], [0] * num_insertions).astype(int)
+
+                    if cur_node_type == 'StridedSlice':
+                        from openvino.tools.mo.ops.strided_slice import StridedSlice
+                        slice_rank = node.in_node(1).shape.item()
+                        align_strided_slice_masks(node, slice_rank)
+                        align_strided_slice_masks(node_ref, slice_rank)
+
                     if attr == 'value':
                         if not values_are_equal(node.value, node_ref.value):
                             stderr.append('Current node "{}" with type {} and reference node "{}" with type "{}" have '
