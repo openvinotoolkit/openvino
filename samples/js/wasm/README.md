@@ -25,6 +25,7 @@
    - Directory *./bin/ia32/Release/* should contain `openvino_wasm.js` and `openvino_wasm.wasm` files
 1. Run `npm i` from *./src/bindings/js/common/*
 1. Run `npm i` from *./src/bindings/js/wasm/*
+1. Install common dependencies of the samples `npm i` from *./samples/js/common*
 1. Install dependencies of the sample by run `npm i` from *./samples/js/wasm/*
 
 ## Run demo

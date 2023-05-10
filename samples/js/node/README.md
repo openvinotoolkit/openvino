@@ -26,5 +26,6 @@ $ node <example-name> <path-to-model> [path-to-image]
 1. Install OpenVINO™ Runtime on your system and export its path.
 1. From *openvino/src/bindings/js/common* run: `npm i` to compile openvinojs-common package files
 1. From *openvino/src/bindings/js/node* run: `npm i` to build openvinojs-node package
+1. Install common dependencies of the samples `npm i` from *./samples/js/common*
 1. Install dependencies of the sample by running `npm i` from *openvino/samples/js/node/*
 1. Run example: `node common_api_example.js`
