@@ -1,6 +1,6 @@
 # Python version upgrade
 
-#### Notes
+### Notes
 Upgrade described in this documentation file can be useful when using a system such as Ubuntu18, which default Python is no longer supported (in this case Python 3.6). The recommended action is to use a newer system instead of upgrading Python. 
 
 *Warning: You make all changes at your own risk.*
@@ -35,3 +35,8 @@ Verify your installation:
 python3.8 --version
 > Python 3.8.13
 ```
+
+## See also
+ * [OpenVINO™ README](../../../../README.md)
+ * [OpenVINO™ bindings README](../../README.md)
+ * [Developer documentation](../../../../docs/dev/index.md)
