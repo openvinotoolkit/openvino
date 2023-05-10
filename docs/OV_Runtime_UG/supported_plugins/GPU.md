@@ -235,7 +235,8 @@ Dynamic Shapes
 
    Currently, dynamic shape support for GPU is a preview feature and has the following limitations:
    
-   - It mainly supports NLP models (Natural Language Processing). Not all operations and optimization passes support dynamic shapes. As a result, a given model may crash or experience significant performance drops.   
+   - It mainly supports NLP models (Natural Language Processing). Not all operations and optimization passes support dynamic shapes.
+     As a result, a given model may crash or experience significant performance drops.   
    - Due to the dominant runtime overhead on the host device, dynamic shapes may perform worse than static shapes on a discrete GPU.
    - Dynamic rank is not supported.
 
@@ -244,8 +245,10 @@ The general description of what dynamic shapes are and how they are used can be 
 To support dynamic shape execution, the following basic infrastructures are implemented:
 
 - Runtime shape inference: infers output shapes of each primitive for a new input shape at runtime.
-- Shape agnostic kernels: new kernels that can run arbitrary shapes. If a shape-agnostic kernel is not available, the required kernel is compiled at runtime for each shape.
-- Asynchronous kernel compilation: even when a shape-agnostic kernel is available, the GPU plugin compiles an optimal kernel for the given shape and preserves it in the in-memory cache for future use.
+- Shape agnostic kernels: new kernels that can run arbitrary shapes. If a shape-agnostic kernel is not available, 
+  the required kernel is compiled at runtime for each shape.
+- Asynchronous kernel compilation: even when a shape-agnostic kernel is available, 
+  the GPU plugin compiles an optimal kernel for the given shape and preserves it in the in-memory cache for future use.
 - In-memory cache: preserves kernels compiled at runtime and weights reordered for the specific kernels.
 
 Bounded dynamic batch
@@ -282,15 +285,15 @@ The code snippet below demonstrates examples of a bounded dynamic batch:
 Notes for performance and memory consumption in dynamic shapes
 --------------------------------------------------------------
 
-- Extra CPU utilization during inference :
+- Extra CPU utilization during inference:
 
-   - Shape inference for new input shapes
-   - Kernel compilation in runtime for optimal kernel
-   - Unfusion of the fused subgraph when fusing is not allowed for a runtime shape
+  - Shape inference for new input shapes
+  - Kernel compilation in runtime for optimal kernel
+  - Unfusion of the fused subgraph when fusing is not allowed for a runtime shape
 
--  Higher memory consumption for in-memory cache
+- Higher memory consumption for in-memory cache
 
-   - Optimal kernels and weights from the previously used shapes are preserved in in-memory cache for future use
+  - Optimal kernels and weights from the previously used shapes are preserved in in-memory cache for future use
 
 
 Recommendations for performance improvement
@@ -335,7 +338,9 @@ Preprocessing Acceleration
 +++++++++++++++++++++++++++++++++++++++
 
 The GPU plugin has the following additional preprocessing options:
-- The ``ov::intel_gpu::memory_type::surface`` and ``ov::intel_gpu::memory_type::buffer`` values for the ``ov::preprocess::InputTensorInfo::set_memory_type()`` preprocessing method. These values are intended to be used to provide a hint for the plugin on the type of input Tensors that will be set in runtime to generate proper kernels.
+- The ``ov::intel_gpu::memory_type::surface`` and ``ov::intel_gpu::memory_type::buffer`` values for the 
+  ``ov::preprocess::InputTensorInfo::set_memory_type()`` preprocessing method. These values are intended 
+  to be used to provide a hint for the plugin on the type of input Tensors that will be set in runtime to generate proper kernels.
 
 .. tab-set::
 
