@@ -72,7 +72,7 @@ inline TypeInfo get_type_info(ov::element::Type_t type) {
     case ov::element::Type_t::u64:
         return {64, false, false, false, "uint64_t", "u64"};
     default:
-        OPENVINO_THROW("ov::element::Type_t not supported: ", type);
+        OPENVINO_THROW_NORETURN("ov::element::Type_t not supported: ", type);
     }
 };
 
