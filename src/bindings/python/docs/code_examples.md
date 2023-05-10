@@ -28,7 +28,7 @@ Let's go over the example available in [examples folder](./examples/openvino):
 ```
 openvino/               <-- Main package/namespace
 ├── __init__.py         <-- Unified file between all packages
-└── mymodule/           <-- This is your new module and it's contents
+└── mymodule/           <-- This is your new module and its contents
     ├── __init__.py
     ├── ...
     └── myclass.py
