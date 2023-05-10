@@ -25,24 +25,26 @@ struct LinuxCpuMapTestCase {
     std::vector<std::vector<std::string>> system_info_table;
 };
 
-class LinuxCpuMapParserTests : public CommonTestUtils::TestsCommon,
-                               public testing::WithParamInterface<std::tuple<LinuxCpuMapTestCase>> {
+class LinuxCpuMapCacheParserTests : public CommonTestUtils::TestsCommon,
+                                    public testing::WithParamInterface<std::tuple<LinuxCpuMapTestCase>> {
 public:
     void SetUp() override {
         const auto& test_data = std::get<0>(GetParam());
 
+        int test_processors = 0;
         int test_sockets = 0;
         int test_cores = 0;
         std::vector<std::vector<int>> test_proc_type_table;
         std::vector<std::vector<int>> test_cpu_mapping_table;
 
-        ov::parse_processor_info_linux(test_data._processors,
-                                       test_data.system_info_table,
-                                       test_sockets,
-                                       test_cores,
-                                       test_proc_type_table,
-                                       test_cpu_mapping_table);
+        ov::parse_cache_info_linux(test_data.system_info_table,
+                                   test_processors,
+                                   test_sockets,
+                                   test_cores,
+                                   test_proc_type_table,
+                                   test_cpu_mapping_table);
 
+        ASSERT_EQ(test_data._processors, test_processors);
         ASSERT_EQ(test_data._sockets, test_sockets);
         ASSERT_EQ(test_data._cores, test_cores);
         ASSERT_EQ(test_data._proc_type_table, test_proc_type_table);
@@ -50,7 +52,7 @@ public:
     }
 };
 
-LinuxCpuMapTestCase _2sockets_104cores_hyperthreading = {
+LinuxCpuMapTestCase cache_2sockets_104cores_hyperthreading = {
     208,
     2,
     104,
@@ -268,7 +270,7 @@ LinuxCpuMapTestCase _2sockets_104cores_hyperthreading = {
         {{"102,206"}, {"102,206"}, {"52-103,156-207"}}, {{"103,207"}, {"103,207"}, {"52-103,156-207"}},
     },
 };
-LinuxCpuMapTestCase _2sockets_24cores_hyperthreading = {
+LinuxCpuMapTestCase cache_2sockets_24cores_hyperthreading = {
     48,
     2,
     24,
@@ -350,7 +352,7 @@ LinuxCpuMapTestCase _2sockets_24cores_hyperthreading = {
         {{"23,47"}, {"23,47"}, {"1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,45,47"}},
     },
 };
-LinuxCpuMapTestCase _2sockets_48cores = {
+LinuxCpuMapTestCase cache_2sockets_48cores = {
     48,
     2,
     48,
@@ -392,7 +394,7 @@ LinuxCpuMapTestCase _2sockets_48cores = {
         {{"45"}, {"45"}, {"24-47"}}, {{"46"}, {"46"}, {"24-47"}}, {{"47"}, {"47"}, {"24-47"}},
     },
 };
-LinuxCpuMapTestCase _2sockets_20cores_hyperthreading = {
+LinuxCpuMapTestCase cache_2sockets_20cores_hyperthreading = {
     40,
     2,
     20,
@@ -442,7 +444,7 @@ LinuxCpuMapTestCase _2sockets_20cores_hyperthreading = {
         {{"18,38"}, {"18,38"}, {"10-19,30-39"}}, {{"19,39"}, {"19,39"}, {"10-19,30-39"}},
     },
 };
-LinuxCpuMapTestCase _1sockets_14cores_hyperthreading = {
+LinuxCpuMapTestCase cache_1sockets_14cores_hyperthreading = {
     20,
     1,
     14,
@@ -469,7 +471,7 @@ LinuxCpuMapTestCase _1sockets_14cores_hyperthreading = {
         {{"18"}, {"16-19"}, {"0-19"}}, {{"19"}, {"16-19"}, {"0-19"}},
     },
 };
-LinuxCpuMapTestCase _1sockets_10cores_hyperthreading{
+LinuxCpuMapTestCase cache_1sockets_10cores_hyperthreading{
     12,
     1,
     10,
@@ -503,7 +505,7 @@ LinuxCpuMapTestCase _1sockets_10cores_hyperthreading{
         {{"11"}, {"8-11"}, {"0-11"}},
     },
 };
-LinuxCpuMapTestCase _1sockets_8cores_hyperthreading = {
+LinuxCpuMapTestCase cache_1sockets_8cores_hyperthreading = {
     12,
     1,
     8,
@@ -537,7 +539,7 @@ LinuxCpuMapTestCase _1sockets_8cores_hyperthreading = {
         {{"11"}, {"8-11"}, {"0-11"}},
     },
 };
-LinuxCpuMapTestCase _1sockets_6cores_hyperthreading = {
+LinuxCpuMapTestCase cache_1sockets_6cores_hyperthreading = {
     12,
     1,
     6,
@@ -572,26 +574,122 @@ LinuxCpuMapTestCase _1sockets_6cores_hyperthreading = {
     },
 };
 
-TEST_P(LinuxCpuMapParserTests, LinuxCpuMap) {}
+TEST_P(LinuxCpuMapCacheParserTests, LinuxCpuMapCache) {}
 
 INSTANTIATE_TEST_SUITE_P(CPUMap,
-                         LinuxCpuMapParserTests,
-                         testing::Values(_2sockets_104cores_hyperthreading,
-                                         _2sockets_24cores_hyperthreading,
-                                         _2sockets_48cores,
-                                         _2sockets_20cores_hyperthreading,
-                                         _1sockets_14cores_hyperthreading,
-                                         _1sockets_10cores_hyperthreading,
-                                         _1sockets_8cores_hyperthreading,
-                                         _1sockets_6cores_hyperthreading));
+                         LinuxCpuMapCacheParserTests,
+                         testing::Values(cache_2sockets_104cores_hyperthreading,
+                                         cache_2sockets_24cores_hyperthreading,
+                                         cache_2sockets_48cores,
+                                         cache_2sockets_20cores_hyperthreading,
+                                         cache_1sockets_14cores_hyperthreading,
+                                         cache_1sockets_10cores_hyperthreading,
+                                         cache_1sockets_8cores_hyperthreading,
+                                         cache_1sockets_6cores_hyperthreading));
+
+class LinuxCpuMapFreqParserTests : public CommonTestUtils::TestsCommon,
+                                   public testing::WithParamInterface<std::tuple<LinuxCpuMapTestCase>> {
+public:
+    void SetUp() override {
+        const auto& test_data = std::get<0>(GetParam());
+
+        int test_processors = 0;
+        int test_sockets = 0;
+        int test_cores = 0;
+        std::vector<std::vector<int>> test_proc_type_table;
+        std::vector<std::vector<int>> test_cpu_mapping_table;
+
+        ov::parse_freq_info_linux(test_data.system_info_table,
+                                  test_processors,
+                                  test_sockets,
+                                  test_cores,
+                                  test_proc_type_table,
+                                  test_cpu_mapping_table);
+
+        ASSERT_EQ(test_data._processors, test_processors);
+        ASSERT_EQ(test_data._sockets, test_sockets);
+        ASSERT_EQ(test_data._cores, test_cores);
+        ASSERT_EQ(test_data._proc_type_table, test_proc_type_table);
+        ASSERT_EQ(test_data._cpu_mapping_table, test_cpu_mapping_table);
+    }
+};
+
+LinuxCpuMapTestCase freq_2sockets_20cores_hyperthreading = {
+    40,
+    2,
+    20,
+    {{40, 20, 0, 20}, {20, 10, 0, 10}, {20, 10, 0, 10}},
+    {
+        {0, 0, 0, MAIN_CORE_PROC, 0, -1},          {1, 0, 1, MAIN_CORE_PROC, 1, -1},
+        {2, 0, 2, MAIN_CORE_PROC, 2, -1},          {3, 0, 3, MAIN_CORE_PROC, 3, -1},
+        {4, 0, 4, MAIN_CORE_PROC, 4, -1},          {5, 0, 5, MAIN_CORE_PROC, 5, -1},
+        {6, 0, 6, MAIN_CORE_PROC, 6, -1},          {7, 0, 7, MAIN_CORE_PROC, 7, -1},
+        {8, 0, 8, MAIN_CORE_PROC, 8, -1},          {9, 0, 9, MAIN_CORE_PROC, 9, -1},
+        {10, 1, 10, MAIN_CORE_PROC, 10, -1},       {11, 1, 11, MAIN_CORE_PROC, 11, -1},
+        {12, 1, 12, MAIN_CORE_PROC, 12, -1},       {13, 1, 13, MAIN_CORE_PROC, 13, -1},
+        {14, 1, 14, MAIN_CORE_PROC, 14, -1},       {15, 1, 15, MAIN_CORE_PROC, 15, -1},
+        {16, 1, 16, MAIN_CORE_PROC, 16, -1},       {17, 1, 17, MAIN_CORE_PROC, 17, -1},
+        {18, 1, 18, MAIN_CORE_PROC, 18, -1},       {19, 1, 19, MAIN_CORE_PROC, 19, -1},
+        {20, 0, 0, HYPER_THREADING_PROC, 0, -1},   {21, 0, 1, HYPER_THREADING_PROC, 1, -1},
+        {22, 0, 2, HYPER_THREADING_PROC, 2, -1},   {23, 0, 3, HYPER_THREADING_PROC, 3, -1},
+        {24, 0, 4, HYPER_THREADING_PROC, 4, -1},   {25, 0, 5, HYPER_THREADING_PROC, 5, -1},
+        {26, 0, 6, HYPER_THREADING_PROC, 6, -1},   {27, 0, 7, HYPER_THREADING_PROC, 7, -1},
+        {28, 0, 8, HYPER_THREADING_PROC, 8, -1},   {29, 0, 9, HYPER_THREADING_PROC, 9, -1},
+        {30, 1, 10, HYPER_THREADING_PROC, 10, -1}, {31, 1, 11, HYPER_THREADING_PROC, 11, -1},
+        {32, 1, 12, HYPER_THREADING_PROC, 12, -1}, {33, 1, 13, HYPER_THREADING_PROC, 13, -1},
+        {34, 1, 14, HYPER_THREADING_PROC, 14, -1}, {35, 1, 15, HYPER_THREADING_PROC, 15, -1},
+        {36, 1, 16, HYPER_THREADING_PROC, 16, -1}, {37, 1, 17, HYPER_THREADING_PROC, 17, -1},
+        {38, 1, 18, HYPER_THREADING_PROC, 18, -1}, {39, 1, 19, HYPER_THREADING_PROC, 19, -1},
+    },
+    {
+        {"0,20", "0", "3000000"},  {"1,21", "0", "3000000"},  {"2,22", "0", "3000000"},  {"3,23", "0", "3000000"},
+        {"4,24", "0", "3000000"},  {"5,25", "0", "3000000"},  {"6,26", "0", "3000000"},  {"7,27", "0", "3000000"},
+        {"8,28", "0", "3000000"},  {"9,29", "0", "3000000"},  {"10,30", "1", "3000000"}, {"11,31", "1", "3000000"},
+        {"12,32", "1", "3000000"}, {"13,33", "1", "3000000"}, {"14,34", "1", "3000000"}, {"15,35", "1", "3000000"},
+        {"16,36", "1", "3000000"}, {"17,37", "1", "3000000"}, {"18,38", "1", "3000000"}, {"19,39", "1", "3000000"},
+        {"0,20", "0", "3000000"},  {"1,21", "0", "3000000"},  {"2,22", "0", "3000000"},  {"3,23", "0", "3000000"},
+        {"4,24", "0", "3000000"},  {"5,25", "0", "3000000"},  {"6,26", "0", "3000000"},  {"7,27", "0", "3000000"},
+        {"8,28", "0", "3000000"},  {"9,29", "0", "3000000"},  {"10,30", "1", "3000000"}, {"11,31", "1", "3000000"},
+        {"12,32", "1", "3000000"}, {"13,33", "1", "3000000"}, {"14,34", "1", "3000000"}, {"15,35", "1", "3000000"},
+        {"16,36", "1", "3000000"}, {"17,37", "1", "3000000"}, {"18,38", "1", "3000000"}, {"19,39", "1", "3000000"},
+    },
+};
+
+LinuxCpuMapTestCase freq_1sockets_4cores = {
+    4,
+    1,
+    4,
+    {{4, 4, 0, 0}},
+    {
+        {0, 0, 0, MAIN_CORE_PROC, 0, -1},
+        {1, 0, 1, MAIN_CORE_PROC, 1, -1},
+        {2, 0, 2, MAIN_CORE_PROC, 2, -1},
+        {3, 0, 3, MAIN_CORE_PROC, 3, -1},
+    },
+    {
+        {"0", "0", "1800000"},
+        {"1", "0", "1800000"},
+        {"2", "0", "1800000"},
+        {"3", "0", "1800000"},
+    },
+};
+
+TEST_P(LinuxCpuMapFreqParserTests, LinuxCpuMapFreq) {}
+
+INSTANTIATE_TEST_SUITE_P(CPUMap,
+                         LinuxCpuMapFreqParserTests,
+                         testing::Values(freq_2sockets_20cores_hyperthreading,
+                                         freq_1sockets_4cores));
+
 #endif
 
 #if (defined(_WIN32) || defined(_WIN64))
 
 int Hex2Int(char c) {
-    return (c >= '0' && c <= '9')
-               ? (c) - '0'
-               : (c >= 'A' && c <= 'F') ? (c) - 'A' + 10 : (c >= 'a' && c <= 'f') ? (c) - 'a' + 10 : 0;
+    return (c >= '0' && c <= '9')   ? (c) - '0'
+           : (c >= 'A' && c <= 'F') ? (c) - 'A' + 10
+           : (c >= 'a' && c <= 'f') ? (c) - 'a' + 10
+                                    : 0;
 }
 
 void Hex2Bin(const char* hex, std::size_t sz, char* out) {
