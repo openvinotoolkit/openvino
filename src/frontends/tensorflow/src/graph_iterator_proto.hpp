@@ -106,9 +106,14 @@ public:
     /// \brief Check if the input file is supported
     template <typename T>
     static bool is_supported(const std::basic_string<T>& path) {
-        std::ifstream pb_stream(path, std::ios::in | std::ifstream::binary);
-        auto graph_def = std::make_shared<::tensorflow::GraphDef>();
-        return pb_stream && pb_stream.is_open() && graph_def->ParsePartialFromIstream(&pb_stream);
+        try {
+            std::ifstream pb_stream(path, std::ios::in | std::ifstream::binary);
+            auto graph_def = std::make_shared<::tensorflow::GraphDef>();
+            return pb_stream && pb_stream.is_open() && graph_def->ParsePartialFromIstream(&pb_stream) &&
+                   graph_def->node_size() > 0;
+        } catch (...) {
+            return false;
+        }
     }
 
     /// \brief Set iterator to the start position
