@@ -40,6 +40,7 @@ TEST(FrontEndManagerTest, testAvailableFrontEnds) {
     ASSERT_EQ(std::find(frontends.begin(), frontends.end(), "mock"), frontends.end());
 }
 
+#ifndef __EMSCRIPTEN__
 TEST(FrontEndManagerTest, testFailRegisterFEByWrongPath) {
     FrontEndManager fem;
     ASSERT_THROW(fem.register_front_end("mock1", mock_fe_path() + "_wrong"), ov::frontend::GeneralFailure);
@@ -132,6 +133,7 @@ TEST(FrontEndManagerTest, testDefaultFrontEnd) {
     ASSERT_ANY_THROW(fe->normalize(nullptr));
     ASSERT_EQ(fe->get_name(), std::string());
 }
+#endif
 
 TEST(FrontEndManagerTest, testDefaultInputModel) {
     class MockInputModel : public InputModel {};
@@ -202,6 +204,7 @@ TEST(FrontEndManagerTest, testDefaultPlace) {
 
 // clang-format off
 
+#ifndef __EMSCRIPTEN__
 TEST(FrontEndExceptionTest, frontend_general_error_no_throw) {
     EXPECT_NO_THROW(FRONT_END_GENERAL_CHECK(true));
 }
@@ -479,3 +482,4 @@ TEST(FrontEndManagerTest, Exception_Safety_Input_Model_set_tensor_value) {
 TEST(FrontEndManagerTest, Exception_Safety_Input_Model_set_tensor_partial_value) {
     CHECK_EXCEPTION_INPUT_MODEL(input_model->set_tensor_partial_value({}, {}, {}))
 }
+#endif

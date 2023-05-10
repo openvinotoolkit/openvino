@@ -19,6 +19,7 @@
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
 #include "functional_test_utils/test_model/test_model.hpp"
 #include "ie_core.hpp"
 #include "ie_metric_helpers.hpp"
@@ -31,7 +32,6 @@
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iinference_plugin.hpp"
 #include "unit_test_utils/mocks/mock_iexecutable_network.hpp"
 #include "unit_test_utils/mocks/mock_iinfer_request.hpp"
-#include "functional_test_utils/skip_tests_config.hpp"
 
 #ifdef __EMSCRIPTEN__
 #    include "unit_test_utils/mocks/mock_engine/mock_plugin.hpp"

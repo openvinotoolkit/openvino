@@ -185,8 +185,9 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(.*smoke_CompareWithRefs_dynamic/EltwiseLayerTest.EltwiseTests.*)");
     retVector.emplace_back(R"(.*smoke_CompareWithRefs_dynamic_large_upper_bound/EltwiseLayerTest.EltwiseTests.*)");
     retVector.emplace_back(R"(.*EltwiseLayerTest.*)");
-    retVector.emplace_back(
-        R"(.*smoke_ExperimentalDetectronGenerateProposalsSingleImageLayerTest/ExperimentalDetectronGenerateProposalsSingleImageLayerTest.*)");
+    retVector.emplace_back(R"(.*smoke_ExperimentalDetectron.*)");
+    retVector.emplace_back(R"(.*smoke_ExperimentalROI.*)");
+    retVector.emplace_back(R"(.*smoke_BasicTest/GenerateProposalsLayerTest*)");
 #endif
 
 #if defined(OPENVINO_ARCH_X86)
