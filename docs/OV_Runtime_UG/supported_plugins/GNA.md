@@ -203,7 +203,7 @@ Import model:
          :fragment: [ov_gna_import]
 
 
-To compile a model, use either :ref:`compile Tool <compile_tool>` or 
+To compile a model, use either :ref:`compile Tool <openvino_ecosystem>` or 
 :doc:`Speech C++ Sample <openvino_inference_engine_samples_speech_sample_README>`.
 
 Stateful Models
