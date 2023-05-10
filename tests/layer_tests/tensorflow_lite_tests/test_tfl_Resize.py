@@ -45,4 +45,6 @@ class TestTFLiteResizeLayerTest(TFLiteLayerTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     def test_resize_resize(self, params, ie_device, precision, temp_dir):
+        if not params['align_corners'] and params['half_pixel_centers'] and params['op_name'] == ['RESIZE_NEAREST_NEIGHBOR']:
+            pytest.xfail("CVS-110473")
         self._test(ie_device, precision, temp_dir, params)
