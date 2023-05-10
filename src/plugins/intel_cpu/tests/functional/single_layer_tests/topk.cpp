@@ -250,7 +250,9 @@ const std::vector<ElementType> netPrecisions = {
 
 std::vector<std::map<std::string, std::string>> additionalConfig = {
     {{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO}},
+#if defined(OPENVINO_ARCH_X86_64)
     {{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES}}
+#endif
 };
 
 const std::vector<int64_t> axes = {0, 1, 2, 3};
@@ -276,9 +278,11 @@ std::vector<ov::test::InputShape> inputShapesDynamic = {
 };
 
 std::vector<CPUSpecificParams> cpuParams = {
+#if defined(OPENVINO_ARCH_X86_64)
     CPUSpecificParams({nChw16c, x}, {nChw16c, nChw16c}, {}, {}),
-    CPUSpecificParams({nchw, x}, {nchw, nchw}, {}, {}),
     CPUSpecificParams({nhwc, x}, {nhwc, nhwc}, {}, {})
+#endif
+    CPUSpecificParams({nchw, x}, {nchw, nchw}, {}, {})
 };
 
 INSTANTIATE_TEST_CASE_P(smoke_TopK, TopKLayerCPUTest,
@@ -310,7 +314,7 @@ INSTANTIATE_TEST_CASE_P(smoke_TopK_dynamic, TopKLayerCPUTest,
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams)),
         ::testing::ValuesIn(additionalConfig)),
     TopKLayerCPUTest::getTestCaseName);
-
+#if defined(OPENVINO_ARCH_X86_64)
 const std::vector<int64_t> k_int32 = {1, 5, 7, 9};
 
 std::vector<ov::test::InputShape> inputShapes_int32 = {
@@ -388,7 +392,7 @@ INSTANTIATE_TEST_CASE_P(smoke_TopK_bubble_BLK_on_channel_horiz_dynamic, TopKLaye
         ::testing::Values(CPUSpecificParams({nChw16c, x}, {nChw16c, nChw16c}, {}, {})),
         ::testing::ValuesIn(additionalConfig)),
     TopKLayerCPUTest::getTestCaseName);
-
+#endif
 std::vector<ov::test::InputShape> inputShapes_top1 = {
     {{}, {{1, 1, 2, 1}}},
 };
