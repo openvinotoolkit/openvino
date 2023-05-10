@@ -38,10 +38,9 @@ jobs:
     steps:
       - name: Print info
         run: |
-          ls -laR
           printenv
-
           sudo mkdir /home/devuser/actions-runner/_work/_tool/Python/${{ matrix.config.py_ver }}
+      
       - name: Setup python
         uses: actions/setup-python@v4
         with:
