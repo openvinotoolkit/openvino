@@ -32,4 +32,3 @@ static constexpr Property<std::vector<std::string>, PropertyMutability::RW> alia
 
 }  // namespace proxy
 }  // namespace ov
-
