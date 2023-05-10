@@ -395,7 +395,7 @@ public:
      *
      * @param properties Map of pairs: (property name, property value).
      */
-    void set_property(const std::string& device_name, const AnyMap& properties);
+    void set_property(const std::string& device_name, const AnyMap& properties) override;
 
     /**
      * @brief Sets properties for a device, acceptable keys can be found in openvino/runtime/properties.hpp.

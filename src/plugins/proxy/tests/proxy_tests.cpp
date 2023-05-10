@@ -323,6 +323,19 @@ void ov::proxy::tests::ProxyTests::register_plugin_support_reshape(ov::Core& cor
             return res;
         }
 
+        void set_property(const ov::AnyMap& properties) override {
+            for (const auto& it : properties) {
+                if (it.first == ov::num_streams.name())
+                    num_streams = it.second.as<int32_t>();
+                else if (it.first == ov::enable_profiling.name())
+                    m_profiling = it.second.as<bool>();
+                else if (it.first == ov::device::id.name())
+                    continue;
+                else
+                    OPENVINO_THROW(get_device_name(), " set config: " + it.first);
+            }
+        }
+
         ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const override {
             auto RO_property = [](const std::string& propertyName) {
                 return ov::PropertyName(propertyName, ov::PropertyMutability::RO);
@@ -338,6 +351,7 @@ void ov::proxy::tests::ProxyTests::register_plugin_support_reshape(ov::Core& cor
                 std::vector<ov::PropertyName> roProperties{
                     RO_property(ov::supported_properties.name()),
                     RO_property(ov::available_devices.name()),
+                    RO_property(ov::loaded_from_cache.name()),
                     RO_property(ov::device::uuid.name()),
                 };
                 // the whole config is RW before network is loaded.
@@ -372,12 +386,23 @@ void ov::proxy::tests::ProxyTests::register_plugin_support_reshape(ov::Core& cor
                 return decltype(ov::device::capabilities)::value_type(capabilities);
             } else if (name == "SUPPORTED_CONFIG_KEYS") {  // TODO: Remove this key
                 std::vector<std::string> configs;
-                configs.push_back("NUM_STREAMS");
-                configs.push_back("PERF_COUNT");
+                configs.push_back(ov::streams::num.name());
+                configs.push_back(ov::enable_profiling.name());
                 return configs;
+            } else if (name == ov::loaded_from_cache.name()) {
+                return m_loaded_from_cache;
+            } else if (name == ov::enable_profiling.name()) {
+                return decltype(ov::enable_profiling)::value_type{m_profiling};
+            } else if (name == ov::streams::num.name()) {
+                return decltype(ov::streams::num)::value_type{num_streams};
             }
             OPENVINO_THROW("Unsupported property: ", name);
         }
+
+    private:
+        int32_t num_streams{0};
+        bool m_profiling = false;
+        bool m_loaded_from_cache{false};
     };
 
     auto plugin = std::make_shared<MockPluginReshape>();
@@ -411,6 +436,17 @@ void ov::proxy::tests::ProxyTests::register_plugin_support_subtract(ov::Core& co
             return res;
         }
 
+        void set_property(const ov::AnyMap& properties) override {
+            for (const auto& it : properties) {
+                if (it.first == ov::enable_profiling.name())
+                    m_profiling = it.second.as<bool>();
+                else if (it.first == ov::device::id.name())
+                    continue;
+                else
+                    OPENVINO_THROW(get_device_name(), " set config: " + it.first);
+            }
+        }
+
         ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const override {
             auto RO_property = [](const std::string& propertyName) {
                 return ov::PropertyName(propertyName, ov::PropertyMutability::RO);
@@ -426,6 +462,7 @@ void ov::proxy::tests::ProxyTests::register_plugin_support_subtract(ov::Core& co
                 std::vector<ov::PropertyName> roProperties{
                     RO_property(ov::supported_properties.name()),
                     RO_property(ov::available_devices.name()),
+                    RO_property(ov::loaded_from_cache.name()),
                     RO_property(ov::device::uuid.name()),
                 };
                 // the whole config is RW before network is loaded.
@@ -457,13 +494,21 @@ void ov::proxy::tests::ProxyTests::register_plugin_support_subtract(ov::Core& co
                 std::vector<std::string> capabilities;
                 capabilities.push_back(ov::device::capability::EXPORT_IMPORT);
                 return decltype(ov::device::capabilities)::value_type(capabilities);
+            } else if (name == ov::loaded_from_cache.name()) {
+                return m_loaded_from_cache;
+            } else if (name == ov::enable_profiling.name()) {
+                return decltype(ov::enable_profiling)::value_type{m_profiling};
             } else if (name == "SUPPORTED_CONFIG_KEYS") {  // TODO: Remove this key
                 std::vector<std::string> configs;
-                configs.push_back("PERF_COUNT");
+                configs.push_back(ov::enable_profiling.name());
                 return configs;
             }
             OPENVINO_THROW("Unsupported property: ", name);
         }
+
+    private:
+        bool m_profiling{false};
+        bool m_loaded_from_cache{false};
     };
     auto plugin = std::make_shared<MockPluginSubtract>();
 

@@ -53,16 +53,21 @@ ov::AnyMap remove_device_properties(ov::AnyMap& config, const std::vector<std::s
         devs.insert(dev);
 
     for (const auto& it : config) {
-        ov::DeviceIDParser parser(it.first);
-        if (devs.find(it.first) != devs.end() || devs.find(parser.get_device_name()) != devs.end()) {
+        auto subprop_device_name_pos = it.first.find(ov::device::properties.name() + std::string("_"));
+        if (subprop_device_name_pos == std::string::npos)
+            continue;
+        auto subprop_device_name =
+            it.first.substr(subprop_device_name_pos + std::strlen(ov::device::properties.name()) + 1);
+        ov::DeviceIDParser parser(subprop_device_name);
+        if (devs.find(subprop_device_name) != devs.end() || devs.find(parser.get_device_name()) != devs.end()) {
             // It is a device property
-            result[it.first] = it.second;
+            result[subprop_device_name] = it.second;
         }
     }
 
     // Remove device properties from config
     for (const auto& it : result) {
-        auto c_it = config.find(it.first);
+        auto c_it = config.find(ov::device::properties.name() + std::string("_") + it.first);
         if (c_it != config.end())
             config.erase(c_it);
     }
@@ -200,7 +205,7 @@ void ov::proxy::Plugin::set_property(const ov::AnyMap& properties) {
     }
     const std::string primary_dev = get_primary_device(get_device_from_config(properties));
     auto hw_config = properties;
-    // Add fallback priority to detect supported devices
+    // Add fallback priority to detect supported devices in case of HETERO fallback
     hw_config[ov::device::priorities.name()] = get_internal_property(ov::device::priorities.name(), config_name);
     auto dev_properties = remove_proxy_properties(hw_config, true);
     std::string dev_prop_name;
@@ -235,8 +240,7 @@ void ov::proxy::Plugin::set_property(const ov::AnyMap& properties) {
             m_configs[config_name][it.first] = it.second;
         }
     }
-    // TODO: Set property for primary plugin
-    // GetCore()->set_property(primary_dev, hw_config);
+    get_core()->set_property(primary_dev, hw_config);
 }
 
 ov::Any ov::proxy::Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {

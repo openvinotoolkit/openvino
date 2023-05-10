@@ -339,7 +339,7 @@ void ov::CoreImpl::register_plugin_in_registry_unsafe(const std::string& device_
         it = config.find(ov::device::fallback.name());
         if (it != config.end()) {
             auto fallback = it->second.as<std::string>();
-            if (defaultConfig.find(ov::device::properties.name()) == defaultConfig.end()) {
+            if (defaultConfig.find(ov::device::priorities.name()) == defaultConfig.end()) {
                 defaultConfig[ov::device::priorities.name()] = std::vector<std::string>{dev_name, fallback};
             } else {
                 auto dev_order = defaultConfig[ov::device::priorities.name()].as<std::vector<std::string>>();
@@ -1019,7 +1019,10 @@ void ov::CoreImpl::set_property(const std::string& device_name, const AnyMap& pr
     auto devices = get_registered_devices();
     for (auto&& config : properties) {
         const auto is_secondary_property = config.first.find(ov::device::properties.name()) != std::string::npos;
-        OPENVINO_ASSERT(!is_secondary_property,
+        // It is valid change for proxy plugin
+        const auto is_proxy = pluginRegistry[ov::parseDeviceNameIntoConfig(device_name)._deviceName].pluginCreateFunc ==
+                              ov::proxy::create_plugin;
+        OPENVINO_ASSERT(!is_secondary_property || is_proxy,
                         "set_property do not support ov::device::propreties. "
                         "You can configure the devices through the compile_model()/query_model() API.");
     }
