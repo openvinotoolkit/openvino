@@ -20,12 +20,6 @@ op::v1::ReduceProd::ReduceProd(const Output<Node>& arg, const Output<Node>& redu
     constructor_validate_and_infer_types();
 }
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-shared_ptr<Node> op::v1::ReduceProd::get_default_value() const {
-    return ngraph::make_constant_from_string("1", get_element_type(), get_shape());
-}
-NGRAPH_SUPPRESS_DEPRECATED_END
-
 shared_ptr<Node> op::v1::ReduceProd::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v1_ReduceProd_clone_with_new_inputs);
     check_new_args_count(this, new_args);
@@ -61,8 +55,10 @@ bool evaluate_product(const HostTensorPtr& arg, const HostTensorPtr& out, const 
 
 bool op::v1::ReduceProd::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v1_ReduceProd_evaluate);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     NGRAPH_CHECK(validate_host_tensor_vector(inputs, 2));
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     const auto reduction_axes =
         get_normalized_axes_from_tensor(inputs[1], inputs[0]->get_partial_shape().rank(), get_friendly_name());

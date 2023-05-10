@@ -12,6 +12,8 @@
 #include <vector>
 
 #include "Python.h"
+#include "meta_data.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/frontend/decoder.hpp"
 #include "openvino/frontend/graph_iterator.hpp"
 
@@ -20,12 +22,57 @@ using Version = ov::pass::Serialize::Version;
 namespace Common {
 namespace utils {
 
+// For complex structure if an element isn't map, then just cast it to OVAny
+py::object from_ov_any_no_leaves(const ov::Any& any) {
+    if (any.is<std::shared_ptr<ov::Meta>>() || any.is<ov::AnyMap>()) {
+        return Common::utils::from_ov_any_map_no_leaves(any);
+    } else {
+        return py::cast(any);
+    }
+}
+
+// Recursively go through dict to unwrap nested dicts and keep leaves as OVAny.
+py::object from_ov_any_map_no_leaves(const ov::Any& any) {
+    const auto traverse_map = [](const ov::AnyMap& map) {
+        const auto unwrap_only_maps = [](const ov::Any& any) {
+            if (any.is<std::shared_ptr<ov::Meta>>()) {
+                const ov::AnyMap& as_map = *any.as<std::shared_ptr<ov::Meta>>();
+                return from_ov_any_map_no_leaves(as_map);
+            } else if (any.is<ov::AnyMap>()) {
+                return from_ov_any_map_no_leaves(any.as<ov::AnyMap>());
+            }
+            return py::cast(any);
+        };
+
+        std::map<std::string, py::object> result;
+        for (const auto& entry : map) {
+            result[entry.first] = unwrap_only_maps(entry.second);
+        }
+        return py::cast(result);
+    };
+
+    if (any.is<std::shared_ptr<ov::Meta>>()) {
+        const ov::AnyMap& as_map = *any.as<std::shared_ptr<ov::Meta>>();
+        return traverse_map(as_map);
+    } else if (any.is<ov::AnyMap>()) {
+        return traverse_map(any.as<ov::AnyMap>());
+    }
+    OPENVINO_THROW("Only ov::AnyMap or ov::Meta are expected here.");
+}
+
+py::object from_ov_any_map(const ov::AnyMap& map) {
+    std::map<std::string, py::object> result;
+    for (const auto& entry : map) {
+        result[entry.first] = from_ov_any(entry.second);
+    }
+    return py::cast(result);
+}
+
 py::object from_ov_any(const ov::Any& any) {
     // Check for py::object
     if (any.is<py::object>()) {
         return any.as<py::object>();
-    }
-    // Check for std::string
+    }  // Check for std::string
     else if (any.is<std::string>()) {
         return py::cast(any.as<std::string>().c_str());
     }
@@ -98,6 +145,13 @@ py::object from_ov_any(const ov::Any& any) {
     // Check for std::map<element::Type, float>
     else if (any.is<std::map<ov::element::Type, float>>()) {
         return py::cast(any.as<std::map<ov::element::Type, float>>());
+    }  // Check for ov::AnyMap (std::map<std::string, ov::Any>)
+    else if (any.is<ov::AnyMap>()) {
+        return from_ov_any_map(any.as<ov::AnyMap>());
+    }
+    // Check for std::map<std::string, Any> {
+    else if (any.is<std::map<std::string, ov::Any>>()) {
+        return py::cast(any.as<std::map<std::string, ov::Any>>());
     }
     // Check for std::vector<ov::PropertyName>
     else if (any.is<std::vector<ov::PropertyName>>()) {
@@ -109,12 +163,17 @@ py::object from_ov_any(const ov::Any& any) {
             PyDict_SetItemString(dict, property_name.c_str(), PyUnicode_FromString(mutability.c_str()));
         }
         return py::cast<py::object>(dict);
+    } else if (any.is<std::shared_ptr<ov::Meta>>()) {
+        const ov::AnyMap& as_map = *any.as<std::shared_ptr<ov::Meta>>();
+        return from_ov_any_map(as_map);
     } else if (any.is<ov::element::Type>()) {
         return py::cast(any.as<ov::element::Type>());
     } else if (any.is<ov::hint::Priority>()) {
         return py::cast(any.as<ov::hint::Priority>());
     } else if (any.is<ov::hint::PerformanceMode>()) {
         return py::cast(any.as<ov::hint::PerformanceMode>());
+    } else if (any.is<ov::hint::SchedulingCoreType>()) {
+        return py::cast(any.as<ov::hint::SchedulingCoreType>());
     } else if (any.is<ov::hint::ExecutionMode>()) {
         return py::cast(any.as<ov::hint::ExecutionMode>());
     } else if (any.is<ov::log::Level>()) {
@@ -157,7 +216,7 @@ std::string convert_path_to_string(const py::object& path) {
     py::object Path = py::module_::import("pathlib").attr("Path");
     // check if model path is either a string or pathlib.Path
     if (py::isinstance(path, Path) || py::isinstance<py::str>(path)) {
-        return path.str();
+        return py::str(path);
     }
     // Convert bytes to string
     if (py::isinstance<py::bytes>(path)) {
@@ -167,7 +226,7 @@ std::string convert_path_to_string(const py::object& path) {
     str << "Path: '" << path << "'"
         << " does not exist. Please provide valid model's path either as a string, bytes or pathlib.Path. "
            "Examples:\n(1) '/home/user/models/model.onnx'\n(2) Path('/home/user/models/model/model.onnx')";
-    throw ov::Exception(str.str());
+    OPENVINO_THROW(str.str());
 }
 
 Version convert_to_version(const std::string& version) {
@@ -177,11 +236,15 @@ Version convert_to_version(const std::string& version) {
         return Version::IR_V10;
     if (version == "IR_V11")
         return Version::IR_V11;
-    throw ov::Exception("Invoked with wrong version argument: '" + version +
-                        "'! The supported versions are: 'UNSPECIFIED'(default), 'IR_V10', 'IR_V11'.");
+    OPENVINO_THROW("Invoked with wrong version argument: '",
+                   version,
+                   "'! The supported versions are: 'UNSPECIFIED'(default), 'IR_V10', 'IR_V11'.");
 }
 
-void deprecation_warning(const std::string& function_name, const std::string& version, const std::string& message) {
+void deprecation_warning(const std::string& function_name,
+                         const std::string& version,
+                         const std::string& message,
+                         int stacklevel) {
     std::stringstream ss;
     ss << function_name << " is deprecated";
     if (!version.empty()) {
@@ -190,7 +253,34 @@ void deprecation_warning(const std::string& function_name, const std::string& ve
     if (!message.empty()) {
         ss << ". " << message;
     }
-    PyErr_WarnEx(PyExc_DeprecationWarning, ss.str().data(), 2);
+    PyErr_WarnEx(PyExc_DeprecationWarning, ss.str().data(), stacklevel);
+}
+
+bool py_object_is_any_map(const py::object& py_obj) {
+    if (!py::isinstance<py::dict>(py_obj)) {
+        return false;
+    }
+    auto dict = py::cast<py::dict>(py_obj);
+    return std::all_of(dict.begin(), dict.end(), [&](const std::pair<py::object::handle, py::object::handle>& elem) {
+        return py::isinstance<py::str>(elem.first);
+    });
+}
+
+ov::AnyMap py_object_to_any_map(const py::object& py_obj) {
+    OPENVINO_ASSERT(py_object_is_any_map(py_obj), "Unsupported attribute type.");
+    ov::AnyMap return_value = {};
+    for (auto& item : py::cast<py::dict>(py_obj)) {
+        std::string key = py::cast<std::string>(item.first);
+        py::object value = py::cast<py::object>(item.second);
+        if (py::isinstance<ov::Affinity>(value)) {
+            return_value[key] = py::cast<ov::Affinity>(value);
+        } else if (py_object_is_any_map(value)) {
+            return_value[key] = Common::utils::py_object_to_any_map(value);
+        } else {
+            return_value[key] = Common::utils::py_object_to_any(value);
+        }
+    }
+    return return_value;
 }
 
 ov::Any py_object_to_any(const py::object& py_obj) {
@@ -230,9 +320,8 @@ ov::Any py_object_to_any(const py::object& py_obj) {
             }
         }
 
-        // In case of empty vector works like with vector of strings
         if (_list.empty())
-            return _list.cast<std::vector<std::string>>();
+            return ov::Any(EmptyList());
 
         switch (detected_type) {
         case PY_TYPE::STR:
@@ -249,6 +338,8 @@ ov::Any py_object_to_any(const py::object& py_obj) {
             OPENVINO_ASSERT(false, "Unsupported attribute type.");
         }
         // OV types
+    } else if (py_object_is_any_map(py_obj)) {
+        return py_object_to_any_map(py_obj);
     } else if (py::isinstance<ov::Any>(py_obj)) {
         return py::cast<ov::Any>(py_obj);
     } else if (py::isinstance<ov::element::Type>(py_obj)) {
@@ -257,6 +348,8 @@ ov::Any py_object_to_any(const py::object& py_obj) {
         return py::cast<ov::hint::Priority>(py_obj);
     } else if (py::isinstance<ov::hint::PerformanceMode>(py_obj)) {
         return py::cast<ov::hint::PerformanceMode>(py_obj);
+    } else if (py::isinstance<ov::hint::SchedulingCoreType>(py_obj)) {
+        return py::cast<ov::hint::SchedulingCoreType>(py_obj);
     } else if (py::isinstance<ov::log::Level>(py_obj)) {
         return py::cast<ov::log::Level>(py_obj);
     } else if (py::isinstance<ov::device::Type>(py_obj)) {

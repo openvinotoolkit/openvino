@@ -22,6 +22,7 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/op/variadic_split.hpp"
+#include "openvino/opsets/opset10.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "pt_framework_node.hpp"
@@ -49,10 +50,10 @@ AtenGetItemReplacer::AtenGetItemReplacer() {
             if (rank.get_length() == 0) {
                 // Based on slice_size and output index select size.
                 // Constants required by transformation.
-                auto const_1 = ov::op::v0::Constant::create(element::i64, Shape{1}, {1});
-                auto const_1_0d = ov::op::v0::Constant::create(element::i64, Shape{}, {1});
-                auto const_0 = ov::op::v0::Constant::create(element::i64, Shape{1}, {0});
-                auto const_0_0d = ov::op::v0::Constant::create(element::i64, Shape{}, {0});
+                auto const_1 = ov::op::v0::Constant::create(element::i32, Shape{1}, {1});
+                auto const_1_0d = ov::op::v0::Constant::create(element::i32, Shape{}, {1});
+                auto const_0 = ov::op::v0::Constant::create(element::i32, Shape{1}, {0});
+                auto const_0_0d = ov::op::v0::Constant::create(element::i32, Shape{}, {0});
 
                 // Load and convert op inputs.
                 auto input = torch_split->get_input_source_output(0);
@@ -63,7 +64,7 @@ AtenGetItemReplacer::AtenGetItemReplacer() {
                 auto getitem_idx = getitem->input(1).get_source_output();
 
                 // Calculate number of splits based on input shape and split_size.
-                auto shape = std::make_shared<ov::op::v0::ShapeOf>(input);
+                auto shape = std::make_shared<ov::op::v3::ShapeOf>(input, element::i32);
                 auto len_to_split = std::make_shared<ov::op::v8::Gather>(shape, axis, const_0);
                 // Convert to f64 from int to calculate reminder - last chunk can be smaller if Shape in given axis is
                 // not equally divisible.
@@ -93,15 +94,16 @@ AtenGetItemReplacer::AtenGetItemReplacer() {
             } else {
                 auto getitem_index_ptr = getitem->input_value(1).get_node_shared_ptr();
                 auto getitem_index_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(getitem_index_ptr);
-                auto index_val = getitem_index_const->cast_vector<int64_t>();
                 auto split = std::make_shared<ov::op::v1::VariadicSplit>(torch_split->get_input_source_output(0),
                                                                          torch_split->get_input_source_output(2),
                                                                          torch_split->get_input_source_output(1));
-                auto index = 0;
-                if (index_val[0] >= 0) {
-                    index = index_val[0];
-                } else {
-                    index = split->outputs().size() + index_val[0];
+                auto index_val = getitem_index_const->cast_vector<int64_t>();
+                if (index_val.size() != 1) {
+                    return false;
+                }
+                auto index = index_val[0];
+                if (index < 0) {
+                    index = split->outputs().size() + index;
                 }
                 OutputVector res{split->outputs()[index]};
                 copy_runtime_info({getitem, input_node}, split);
@@ -124,6 +126,57 @@ AtenGetItemReplacer::AtenGetItemReplacer() {
             auto gather = std::make_shared<ov::op::v8::Gather>(input_concat, getitem_idx, zero);
             copy_runtime_info({getitem, input_node}, gather);
             replace_node(getitem, gather);
+            return true;
+        }
+        if (auto chunk = cast_fw_node(input_node, "aten::chunk")) {
+            auto input_tensor = chunk->get_input_source_output(0);
+            auto chunks_i32 = chunk->get_input_source_output(1);
+            auto dim_i32 = chunk->get_input_source_output(2);
+
+            auto const_0 = opset10::Constant::create(element::i64, Shape{1}, {0});
+            auto const_1 = opset10::Constant::create(element::i64, Shape{1}, {1});
+            auto const_0_nodim = opset10::Constant::create(element::i64, Shape{}, {0});
+
+            auto getitem_index_i32 = getitem->get_input_source_output(1);
+            auto getitem_index_i64 = std::make_shared<opset10::Convert>(getitem_index_i32, element::i64);
+            auto getitem_index = std::make_shared<opset10::Unsqueeze>(getitem_index_i64, const_0);
+            auto dim_i64 = std::make_shared<opset10::Convert>(dim_i32, element::i64);
+            auto dim = std::make_shared<opset10::Unsqueeze>(dim_i64, const_0);
+            auto chunks = std::make_shared<opset10::Convert>(chunks_i32, element::i64);
+
+            auto input_shape = std::make_shared<opset10::ShapeOf>(input_tensor);
+            auto input_dimension = std::make_shared<opset10::Gather>(input_shape, dim, const_0);
+            auto input_size = std::make_shared<opset10::Squeeze>(input_dimension);
+
+            auto chunk_size = std::make_shared<opset10::Divide>(input_size, chunks, true);
+            auto last_chunk_size = std::make_shared<opset10::Mod>(input_size, chunks);
+            auto is_last_nonzero = std::make_shared<opset10::Greater>(last_chunk_size, const_0_nodim);
+            auto is_last_nonzero_int = std::make_shared<opset10::Convert>(is_last_nonzero, element::i64);
+
+            auto computed_chunk_size = std::make_shared<opset10::Add>(chunk_size, is_last_nonzero_int);
+            auto computed_last_chunk_size = std::make_shared<opset10::Mod>(input_size, computed_chunk_size);
+            auto computed_is_last_nonzero = std::make_shared<opset10::Greater>(computed_last_chunk_size, const_0_nodim);
+            auto computed_chunks = std::make_shared<opset10::Divide>(input_size, computed_chunk_size, true);
+
+            auto is_slice_normal_size = std::make_shared<opset10::Less>(getitem_index, computed_chunks);
+            auto is_slice_not_normal_size = std::make_shared<opset10::GreaterEqual>(getitem_index, computed_chunks);
+            auto is_slice_normal_size_int = std::make_shared<opset10::Convert>(is_slice_normal_size, element::i64);
+            auto is_slice_not_normal_size_int =
+                std::make_shared<opset10::Convert>(is_slice_not_normal_size, element::i64);
+
+            auto slice_size_lhs = std::make_shared<opset10::Multiply>(is_slice_normal_size_int, computed_chunk_size);
+            auto slice_size_rhs =
+                std::make_shared<opset10::Multiply>(is_slice_not_normal_size_int, computed_last_chunk_size);
+            auto slice_size = std::make_shared<opset10::Add>(slice_size_lhs, slice_size_rhs);
+
+            auto slice_begin = std::make_shared<opset10::Multiply>(getitem_index, computed_chunk_size);
+            auto slice_end = std::make_shared<opset10::Add>(slice_begin, slice_size);
+
+            auto sliced_chunk = std::make_shared<opset10::Slice>(input_tensor, slice_begin, slice_end, const_1, dim);
+
+            copy_runtime_info({getitem, input_node}, sliced_chunk);
+            replace_node(getitem, sliced_chunk);
+
             return true;
         }
 

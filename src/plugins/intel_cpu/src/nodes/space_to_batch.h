@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include <ie_common.h>
 #include <node.h>
-#include <string>
+
 #include <memory>
+#include <string>
 #include <vector>
 
 namespace ov {
@@ -16,7 +16,7 @@ namespace node {
 
 class SpaceToBatch : public Node {
 public:
-    SpaceToBatch(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    SpaceToBatch(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
@@ -24,9 +24,10 @@ public:
     bool created() const override;
 
     bool needPrepareParams() const override { return false; };
+    bool needShapeInfer() const override {return true;};
     void executeDynamicImpl(dnnl::stream strm) override;
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
     std::vector<size_t> blockShapeIn;

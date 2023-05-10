@@ -2,15 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "quantize_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "kernel_selector_helper.h"
+
+#include "quantize_inst.h"
 #include "quantize/quantize_kernel_selector.h"
 #include "quantize/quantize_kernel_ref.h"
-#include "intel_gpu/runtime/error_handler.hpp"
-
-using namespace cldnn;
 
 namespace cldnn {
 namespace ocl {
@@ -34,8 +30,8 @@ protected:
         for (size_t i = 0; i < instance.inputs_memory_count(); i++) {
             args.inputs.push_back(instance.input_memory_ptr(i));
         }
-        if (instance.node->get_scale_shift_opt()) {
-            if (instance.node->get_dependencies().size() == 9) {
+        if (instance.get_typed_desc<quantize>()->scale_shift_opt) {
+            if (instance.dependencies().size() == 9) {
                 args.inputs.push_back(instance.dep_memory_ptr(5));
                 args.inputs.push_back(instance.dep_memory_ptr(6));
                 args.inputs.push_back(instance.dep_memory_ptr(7));
@@ -84,6 +80,7 @@ public:
             quantize_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[i]));
         }
 
+        quantize_params.is_shape_agnostic = impl_param.is_dynamic();
         auto& kernel_selector = kernel_selector::quantize_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(quantize_params, quantize_optional_params);
 
@@ -101,8 +98,6 @@ public:
 namespace detail {
 
 attach_quantize_impl::attach_quantize_impl() {
-    std::set<implementation_map<quantize>::key_type> keys;
-
     auto types = {
         data_types::f16,
         data_types::f32,
@@ -130,21 +125,20 @@ attach_quantize_impl::attach_quantize_impl() {
         format::bs_fs_zyx_bsv32_fsv16,
         format::bs_fs_zyx_bsv32_fsv32,
 
-        format::bfwzyx
+        format::bfwzyx,
+        format::bfuwzyx,
+        format::bfvuwzyx,
     };
 
     auto dyn_formats = {
         format::bfyx,
         format::bfzyx,
-        format::bfwzyx
+        format::bfwzyx,
+        format::bfuwzyx,
+        format::bfvuwzyx,
     };
 
-    for (const auto type : types) {
-        for (const auto format : formats) {
-            keys.emplace(type, format);
-        }
-    }
-
+    auto keys = implementation_map<quantize>::combine(types, formats);
     keys.emplace(data_types::f16, format::yxfb);
     keys.emplace(data_types::f32, format::yxfb);
 
@@ -158,3 +152,4 @@ attach_quantize_impl::attach_quantize_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::quantize_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::quantize)

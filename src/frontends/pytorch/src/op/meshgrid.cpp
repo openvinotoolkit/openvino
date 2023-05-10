@@ -10,13 +10,12 @@ namespace frontend {
 namespace pytorch {
 namespace op {
 
-OutputVector translate_meshgrid(NodeContext& context) {
-    OutputVector inputs{context.get_input(0)};
+OutputVector translate_meshgrid(const NodeContext& context) {
     std::string indexing = "ij";
     if (!context.input_is_none(1)) {
         indexing = context.const_input<std::string>(1);
     }
-    auto node = std::make_shared<PtFrameworkNode>(context.get_decoder(), inputs);
+    auto node = std::make_shared<PtFrameworkNode>(context.get_decoder(), context.inputs());
     auto attrs = node->get_attrs();
     attrs["indexing"] = indexing;
     node->set_attrs(attrs);

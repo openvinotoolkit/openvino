@@ -8,7 +8,7 @@
 
 #include <onednn/dnnl.h>
 #include <cpu/x64/jit_generator.hpp>
-#include "emitters/jit_snippets_emitters.hpp"
+#include "emitters/x64/jit_snippets_emitters.hpp"
 
 #include <node.h>
 #include "snippets/op/subgraph.hpp"
@@ -39,7 +39,7 @@ public:
     // Here we convert to canonical for & jit everything
     void createPrimitive() override;
     void prepareParams() override;
-    std::vector<VectorDims> shapeInfer() const override;
+    std::vector<VectorDims> shapeInfer();
     bool needPrepareParams() const override;
 
     bool canBeInPlace() const override;
@@ -78,7 +78,7 @@ private:
 
     // Holds ISA version used is codeGeneration target
     dnnl::impl::cpu::x64::cpu_isa_t host_isa;
-    size_t isa_num_lanes; // number of elements that fit in vector size
+    size_t isa_num_lanes = 0; // number of elements that fit in vector size
 
     // Holds index of output used as in execution domain
     // it should be compatible with a schedule's work size
@@ -100,10 +100,9 @@ private:
     std::vector<bool> outputShapeIsBlocked = {}; // we need this info to shape-infer mixed layouts
     bool masterShapeIsBlocked = false;
 
-    // master shape is mutable since we need to modify it inside const shapeInfer method
-    mutable VectorDims masterShape = {};
-    mutable std::vector<VectorDims> normInputShapes = {};
-    mutable std::vector<VectorDims> normOutputShapes = {};
+    VectorDims masterShape = {};
+    std::vector<VectorDims> normInputShapes = {};
+    std::vector<VectorDims> normOutputShapes = {};
 
     std::vector<ptrdiff_t> start_offset_in = {};
     std::vector<ptrdiff_t> start_offset_out = {};

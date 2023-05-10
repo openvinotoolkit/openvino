@@ -169,9 +169,9 @@ ov_generate_dev_package_config()
 # with all imported developer targets
 register_extra_modules()
 
-# for static libraries case we need to generate final ie_plugins.hpp
+# for static libraries case we need to generate final ov_plugins.hpp
 # with all the information about plugins
-ie_generate_plugins_hpp()
+ov_generate_plugins_hpp()
 
 # used for static build
 ov_generate_frontends_hpp()

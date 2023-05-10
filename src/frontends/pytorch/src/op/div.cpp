@@ -7,6 +7,7 @@
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/floor.hpp"
+#include "transformations/rt_info/nonconvertible_divide.hpp"
 #include "utils.hpp"
 
 using namespace ov::op;
@@ -16,7 +17,8 @@ namespace frontend {
 namespace pytorch {
 namespace op {
 
-OutputVector translate_div(NodeContext& context) {
+OutputVector translate_div(const NodeContext& context) {
+    num_inputs_check(context, 2, 3);
     auto x = context.get_input(0);
     auto y = context.get_input(1);
     std::string rounding_mode = "";
@@ -34,10 +36,12 @@ OutputVector translate_div(NodeContext& context) {
     }
     align_eltwise_input_types(context, x, y, true);
     auto res = context.mark_node(std::make_shared<v1::Divide>(x, y, true));
+    // TODO: ticket 103296; Temporarily disable ConvertDivide transformation
+    disable_divide_conversion(res);
     if (rounding_mode == "floor") {
         res = context.mark_node(std::make_shared<v0::Floor>(res));
     } else if (rounding_mode == "trunc") {
-        const auto convert = context.mark_node(std::make_shared<v0::Convert>(res, element::i64));
+        const auto convert = context.mark_node(std::make_shared<v0::Convert>(res, element::i32));
         res = context.mark_node(std::make_shared<v1::ConvertLike>(convert, x));
     }
     return {res};

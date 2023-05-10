@@ -33,23 +33,24 @@ static bool is_static_reshape_op(std::shared_ptr<ov::Node> node) {
 
     const auto input = reshape_node->input_value(0);
     const auto shape = reshape_node->input_value(1);
+
     if (input.get_partial_shape().is_dynamic() || shape.get_partial_shape().is_dynamic())
         return false;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto output_shape_const_op = get_constant_from_source(shape);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     if (!output_shape_const_op)
         return false;
 
     const auto& input_shape = input.get_shape();
-    const auto output_shape = output_shape_const_op->cast_vector<int64_t>();
+    const auto& output_shape = output_shape_const_op->cast_vector<int64_t>();
     // below casts are needed due to VC warning C4244, literals are not enough in this case
     const int64_t input_elems =
         std::accumulate(input_shape.begin(), input_shape.end(), static_cast<int64_t>(1), std::multiplies<int64_t>());
     const auto output_elems =
         std::accumulate(output_shape.begin(), output_shape.end(), static_cast<int64_t>(1), std::multiplies<int64_t>());
-    if (output_elems <= 0 || input_elems == output_elems)
-        return false;
-    return true;
+    return input_elems != output_elems;
 }
 
 static bool maybe_adopt_reshape_node(std::shared_ptr<ov::Node> reshape, ngraph::Mask::Ptr mask) {
@@ -60,13 +61,32 @@ static bool maybe_adopt_reshape_node(std::shared_ptr<ov::Node> reshape, ngraph::
         return false;
     }
 
-    auto sub_const_vector = std::vector<int64_t>();
-    for (auto& dim : *mask.get())
-        sub_const_vector.push_back(dim.size());
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    const auto constant = get_constant_from_source(shape);
+    OPENVINO_SUPPRESS_DEPRECATED_END
+    if (!constant) {
+        return false;
+    }
+    const auto new_shape = constant->cast_vector<int64_t>();
+    std::vector<int64_t> sub_const_vector;
+    sub_const_vector.reserve(mask->size());
+    bool all_zeros = true;
+    for (size_t i = 0; i < mask->size(); i++) {
+        if (new_shape[i] <= 0) {
+            sub_const_vector.push_back(0);
+        } else {
+            all_zeros = all_zeros && mask->at(i).size() == 0;
+            sub_const_vector.push_back(mask->at(i).size());
+        }
+    }
+
+    if (all_zeros)
+        return true;
 
     const auto sub_const = ngraph::opset6::Constant::create(shape.get_element_type(), {mask->size()}, sub_const_vector);
     const auto sub = std::make_shared<ngraph::opset6::Subtract>(shape, sub_const);
     consumers.begin()->replace_source_output(sub);
+    copy_runtime_info(shape.get_node_shared_ptr(), {sub_const, sub});
 
     NGRAPH_DEBUG << "Adopting values in (" << shape.get_node()->get_friendly_name() << ")"
                  << " by substracting " << vec_to_str(sub_const_vector);
@@ -182,7 +202,8 @@ bool ngraph::pass::ShrinkWeights::run_on_model(const std::shared_ptr<ngraph::Fun
         if (!mask && init_mask)
             NGRAPH_DEBUG << "Mask was ruined for node:" << node->get_friendly_name() << "\nInit mask: " << *init_mask;
 #endif
-        if (is_static_reshape_op(node) && not_empty_mask(mask))
+        if (is_static_reshape_op(node) && not_empty_mask(mask) &&
+            !ov::op::util::is_constant(node->get_input_node_ptr(1)))
             if (!maybe_adopt_reshape_node(node, mask))
                 continue;
 
@@ -252,8 +273,8 @@ bool ngraph::pass::ShrinkWeights::run_on_model(const std::shared_ptr<ngraph::Fun
             // TODO: think about it
             auto res = const_node->get_shape_val();
             if (res.size() != mask->size()) {
-                throw ngraph_error("Mask size (" + std::to_string(mask->size()) + ") is not equal to (" +
-                                   std::to_string(res.size()) + ")");
+                OPENVINO_THROW("Mask size (" + std::to_string(mask->size()) + ") is not equal to (" +
+                               std::to_string(res.size()) + ")");
             }
             for (size_t dim = 0; dim < mask->size(); ++dim) {
                 res[dim] -= mask->at(dim).size();
@@ -297,7 +318,9 @@ bool ngraph::pass::ShrinkWeights::run_on_model(const std::shared_ptr<ngraph::Fun
                 }
             }
             // Trying to fold sequence of Gather ops to avoid additional constant folding.
+            OPENVINO_SUPPRESS_DEPRECATED_START
             if (auto folded_const = ngraph::get_constant_from_source(last_output)) {
+                OPENVINO_SUPPRESS_DEPRECATED_END
                 last_output = folded_const;
             }
             // as we insert Gather operations after Constant we need to reconnect all

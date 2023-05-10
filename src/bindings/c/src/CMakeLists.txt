@@ -5,7 +5,7 @@
 set(TARGET_NAME openvino_c)
 
 file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
-file(GLOB HEADERS ${OpenVINO_C_API_SOURCE_DIR}/include/*)
+file(GLOB_RECURSE HEADERS ${OpenVINO_C_API_SOURCE_DIR}/include/*.h)
 
 # create library
 add_library(${TARGET_NAME} ${HEADERS} ${SOURCES})
@@ -24,7 +24,7 @@ add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
-ie_add_vs_version_file(NAME ${TARGET_NAME}
+ov_add_vs_version_file(NAME ${TARGET_NAME}
     FILEDESCRIPTION "OpenVINO C API Core Runtime library")
 
 # export
@@ -37,8 +37,8 @@ export(TARGETS ${TARGET_NAME} NAMESPACE openvino::
     APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
 
 # install
-ie_cpack_add_component(${OV_CPACK_COMP_CORE_C} HIDDEN)
-ie_cpack_add_component(${OV_CPACK_COMP_CORE_C_DEV} HIDDEN)
+ov_cpack_add_component(${OV_CPACK_COMP_CORE_C} HIDDEN)
+ov_cpack_add_component(${OV_CPACK_COMP_CORE_C_DEV} HIDDEN)
 
 install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
     RUNTIME DESTINATION ${OV_CPACK_RUNTIMEDIR} COMPONENT ${OV_CPACK_COMP_CORE_C}

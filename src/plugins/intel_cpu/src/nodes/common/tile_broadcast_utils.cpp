@@ -4,6 +4,7 @@
 
 #include "tile_broadcast_utils.h"
 
+#include "cpu_convert.h"
 #include "cpu_memcpy.h"
 #include "ie_parallel.hpp"
 #include <memory_desc/cpu_memory_desc_utils.h>
@@ -103,7 +104,6 @@ std::vector<NodeDesc> TileBroadcastCommon::getSupportedConfigs(const Node *node)
         IE_THROW() << node->getTypeStr() << " node with name " << node->getName() << " has incorrect Repeats vector."
                 "Repeats rank must be equal to output shape rank. Repeats rank: " << repeats.size() << ", output shape rank: " << outDataShapeRank;
 
-    config.dynBatchSupport = false;
     config.inConfs.resize(node->getParentEdges().size());
     config.inConfs[0].inPlace(-1);
     config.inConfs[0].constant(constMap[0]);
@@ -250,7 +250,13 @@ void TileBroadcastCommon::optimizedExecute(const MemoryPtr& srcMemory, const Mem
     auto srcData = reinterpret_cast<const char *>(srcMemory->GetPtr());
     auto dstData = reinterpret_cast<char *>(dstMemory->GetPtr());
 
-    if (optimizedParams.srcStrides[5] == 0) {
+    if (srcMemory->getStaticDims() == dstMemory->getStaticDims()) {
+        const auto prc = dstMemory->getDesc().getPrecision();
+        // TODO: 109204
+        // cpu_convert have to be used here because its implementation faster than cpu_memcpy
+        // in the case when copySize exceeds L2 cache size
+        cpu_convert(srcData, dstData, prc, prc, optimizedParams.copySize / prc.size());
+    } else if (optimizedParams.srcStrides[5] == 0) {
         if (optimizedParams.dstStrides[0] == optimizedParams.dims[5] * optimizedParams.dstStrides[5]) {
             size_t data_size = optimizedParams.dstStrides[5];
             size_t elt_cnt = optimizedParams.dims[5];

@@ -13,6 +13,22 @@ namespace cldnn {
 struct roi_pooling : public primitive_base<roi_pooling> {
     CLDNN_DECLARE_PRIMITIVE(roi_pooling)
 
+    roi_pooling() : primitive_base("", {}),
+                    mode(pooling_mode::max),
+                    position_sensitive(false),
+                    pooled_width(0),
+                    pooled_height(0),
+                    spatial_scale(0.0f),
+                    trans_std(0.0f),
+                    no_trans(false),
+                    output_dim(0),
+                    part_size(0),
+                    group_size(0),
+                    spatial_bins_x(1),
+                    spatial_bins_y(1) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     roi_pooling(const primitive_id& id,
                 const input_info& input_data,
                 const input_info& input_rois,
@@ -95,6 +111,58 @@ struct roi_pooling : public primitive_base<roi_pooling> {
         seed = hash_combine(seed, spatial_bins_x);
         seed = hash_combine(seed, spatial_bins_y);
         return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const roi_pooling>(rhs);
+
+        #define cmp_fields(name) name == rhs_casted.name
+        return cmp_fields(mode) &&
+               cmp_fields(position_sensitive) &&
+               cmp_fields(pooled_width) &&
+               cmp_fields(pooled_height) &&
+               cmp_fields(spatial_scale) &&
+               cmp_fields(trans_std) &&
+               cmp_fields(no_trans) &&
+               cmp_fields(output_dim) &&
+               cmp_fields(part_size) &&
+               cmp_fields(group_size) &&
+               cmp_fields(spatial_bins_x) &&
+               cmp_fields(spatial_bins_y);
+        #undef cmp_fields
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        ob << make_data(&mode, sizeof(pooling_mode));
+        ob << position_sensitive;
+        ob << pooled_width;
+        ob << pooled_height;
+        ob << spatial_scale;
+        ob << trans_std;
+        ob << no_trans;
+        ob << output_dim;
+        ob << part_size;
+        ob << group_size;
+        ob << spatial_bins_x;
+        ob << spatial_bins_y;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        ib >> make_data(&mode, sizeof(pooling_mode));
+        ib >> position_sensitive;
+        ib >> pooled_width;
+        ib >> pooled_height;
+        ib >> spatial_scale;
+        ib >> trans_std;
+        ib >> no_trans;
+        ib >> output_dim;
+        ib >> part_size;
+        ib >> group_size;
+        ib >> spatial_bins_x;
+        ib >> spatial_bins_y;
     }
 };
 

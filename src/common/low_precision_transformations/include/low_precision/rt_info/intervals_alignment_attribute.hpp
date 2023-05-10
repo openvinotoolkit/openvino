@@ -8,7 +8,6 @@
 #include <string>
 
 #include <ngraph/node.hpp>
-#include <ngraph/variant.hpp>
 
 #include "low_precision/rt_info/shared_value_attribute.hpp"
 #include "low_precision/rt_info/attribute_parameters.hpp"
@@ -59,7 +58,7 @@ public:
  */
 class LP_TRANSFORMATIONS_API IntervalsAlignmentAttribute : public SharedAttribute<IntervalsAlignmentSharedValue> {
 public:
-    OPENVINO_RTTI("LowPrecision::IntervalsAlignment", "", ov::RuntimeAttribute, 0);
+    OPENVINO_RTTI("LowPrecision::IntervalsAlignment", "", ov::RuntimeAttribute);
     IntervalsAlignmentAttribute() = default;
     IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval combinedInterval, size_t levels);
     IntervalsAlignmentAttribute(

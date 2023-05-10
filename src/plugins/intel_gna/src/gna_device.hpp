@@ -16,7 +16,7 @@
 #include <thread>
 #include <vector>
 
-#include "gna2-common-api.h"
+#include "common/gna_target.hpp"
 #include "gna2-inference-api.h"
 #include "gna2-instrumentation-api.h"
 #include "gna2-memory-api.h"
@@ -28,29 +28,30 @@
 #include "gna_device_interface.hpp"
 #include "memory/gna_mem_requests.hpp"
 
+namespace ov {
+namespace intel_gna {
+
 /**
  * holds gna - style handle in RAII way
  */
-class GNADeviceHelper : public ov::intel_gna::GNADevice {
+class GNADeviceHelper : public GNADevice {
     using UnwaitedRequestIds = std::set<uint32_t>;
     static std::mutex acrossPluginsSync;
     static std::string decoratedGnaLibVersion() {
         static std::string gnaLibraryVersion{", GNA library version: " + GNADeviceHelper::GetGnaLibraryVersion()};
         return gnaLibraryVersion;
     }
+    std::shared_ptr<target::Target> target;
     std::string modeOfOperation = "default";
     GnaAllocations allAllocations;
     uint32_t nGnaDeviceIndex = 0;
-    Gna2DeviceVersion detectedGnaDevVersion = Gna2DeviceVersionSoftwareEmulation;
-    std::string executionTarget;
-    std::string compileTarget;
     bool useDeviceEmbeddedExport = false;
     uint32_t maxLayersCount_ = 0;
 
     static const uint32_t TotalGna2InstrumentationPoints = 2;
     Gna2InstrumentationPoint gna2InstrumentationPoints[TotalGna2InstrumentationPoints] = {
-        Gna2InstrumentationPointHwTotalCycles,
-        Gna2InstrumentationPointHwStallCycles};
+        Gna2InstrumentationPointHwTotal,
+        Gna2InstrumentationPointHwStall};
 
     uint64_t instrumentationResults[TotalGna2InstrumentationPoints] = {};
     uint64_t instrumentationTotal[TotalGna2InstrumentationPoints] = {};
@@ -66,11 +67,10 @@ class GNADeviceHelper : public ov::intel_gna::GNADevice {
     uint64_t debugLogIndexRequestWait = 0;
     static constexpr const char* kDumpExt = ".bin";
     static constexpr const char* kDumpDelimiter = ".";
+    const size_t m_mem_alignment;
 
 public:
-    explicit GNADeviceHelper(std::string executionTargetIn = "",
-                             std::string compileTargetIn = "",
-                             bool swExactModeIn = false,
+    explicit GNADeviceHelper(std::shared_ptr<target::Target> target = std::make_shared<target::Target>(),
                              bool isPerformanceMeasuring = false,
                              bool deviceEmbedded = false);
 
@@ -93,14 +93,11 @@ public:
     void releaseModel(const uint32_t model_id);
     static uint32_t getNumberOfGnaDevices();
     static uint32_t selectGnaDevice();
-    static bool isGnaHw(const Gna2DeviceVersion dev) {
-        return Gna2DeviceVersionSoftwareEmulation != dev;
+    static bool is_hw_target(const target::DeviceVersion device_version) {
+        return target::DeviceVersion::SoftwareEmulation != device_version;
     }
-    bool hasGnaHw() const {
-        return isGnaHw(detectedGnaDevVersion);
-    }
-    static bool isUpTo20HwGnaDevice(const Gna2DeviceVersion dev) {
-        return dev <= Gna2DeviceVersion2_0 && isGnaHw(dev);
+    bool is_hw_detected() const {
+        return is_hw_target(target->get_detected_device_version());
     }
     bool enforceLegacyCnnNeeded() const;
     static std::string checkGna2Status(Gna2Status status, const std::string& from, bool returnInsteadThrow = false);
@@ -126,10 +123,13 @@ public:
     void updateGnaPerfCounters();
     void getGnaPerfCounters(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& retPerfCounters);
     static std::string GetGnaLibraryVersion();
-    std::string GetCompileTarget() const;
 
     const GnaAllocations& getAllAllocations() const {
         return allAllocations;
+    }
+
+    size_t getMemAlignment() const {
+        return m_mem_alignment;
     }
 
     /**
@@ -175,11 +175,10 @@ private:
 
     static void enforceLegacyCnns(Gna2Model& gnaModel);
     static void enforceLegacyCnnsWhenNeeded(Gna2Model& gnaModel);
-    static Gna2DeviceVersion parseTarget(const std::string& target);
-    Gna2DeviceVersion getDefaultTarget() const;
-    Gna2DeviceVersion getTargetDevice(bool execTarget) const;
-
-    void createVirtualDevice(Gna2DeviceVersion devVersion);
+    static bool is_up_to_20_hw(const target::DeviceVersion device_version) {
+        return device_version <= target::DeviceVersion::GNA2_0 && is_hw_target(device_version);
+    }
+    void createVirtualDevice(const target::DeviceVersion& devVersion);
     void updateGnaDeviceVersion();
 
     void initGnaPerfCounters() {
@@ -191,3 +190,6 @@ private:
         checkGna2Status(status, "Gna2InstrumentationConfigCreate");
     }
 };  // NOLINT
+
+}  // namespace intel_gna
+}  // namespace ov

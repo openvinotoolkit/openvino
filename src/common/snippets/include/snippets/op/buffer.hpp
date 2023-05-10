@@ -12,10 +12,9 @@ namespace op {
 
 /**
  * @interface Buffer
- * @brief The operation is for intermediate data storage
- *        - m_allocation_rank - rank of shape for memory allocation: shape[shape_rank - normalize(m_allocation_rank) : shape_rank].
- *                 It's needed to allocate needed memory size that depends on Tile rank, for example.
- *                 Default value is -1 (full shape)
+ * @brief This is a base class for memory storage.
+ *        If Buffer has a parent, the operation is for intermediate data storage - IntermediateMemory type.
+ *        Otherwise, the operation is for allocation of new empty memory with shape `m_shape` - NewMemory type
  *        Notes:
  *               - All buffers in a graph have the same memory pointer. So if we have a few buffers,
  *                 each the corresponding MemoryAccess op for Buffer should have offset for common memory pointer of this Buffer
@@ -25,21 +24,30 @@ namespace op {
 class Buffer : public ngraph::op::Op {
 public:
     OPENVINO_OP("Buffer", "SnippetsOpset");
-
-    Buffer(const Output<Node>& x, const int32_t allocation_rank = -1);
     Buffer() = default;
-
-    int32_t get_allocation_rank() const { return m_allocation_rank; }
-    void set_allocation_rank(int32_t rank) { m_allocation_rank = rank; }
-
-    size_t get_byte_size() const;
+    Buffer(const ov::Shape& shape);
+    Buffer(const ov::Output<ov::Node>& arg, const ov::Shape& shape);
+    Buffer(const ov::Output<ov::Node>& arg, int32_t allocation_rank = -1);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
-    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
     void validate_and_infer_types() override;
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+
+    enum Type {
+        NewMemory,
+        IntermediateMemory
+    };
+
+    Type get_type() const { return m_type; }
+    ov::Shape get_allocation_shape() const { return m_shape; }
+    size_t get_byte_size() const;
+
+    bool is_intermediate_memory() const { return m_type == Type::IntermediateMemory; }
+    bool is_new_memory() const { return m_type == Type::NewMemory; }
 
 private:
-    int32_t m_allocation_rank = -1;
+    Type m_type = Type::IntermediateMemory;
+    ov::Shape m_shape = {};
 };
 
 } // namespace op

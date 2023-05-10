@@ -80,20 +80,30 @@ void data_inst::load(BinaryInputBuffer& ib) {
     layout output_layout = layout();
     ib >> output_layout;
 
-    allocation_type _allocation_type;
+    allocation_type _allocation_type = allocation_type::unknown;
     ib >> make_data(&_allocation_type, sizeof(_allocation_type));
 
-    size_t data_size;
+    size_t data_size = 0;
     ib >> make_data(&data_size, sizeof(size_t));
-    _outputs[0] = get_network().get_memory_pool().get_memory(output_layout, _allocation_type, false);
 
-    if (_allocation_type == allocation_type::usm_host || _allocation_type == allocation_type::usm_shared) {
-        ib >> make_data(_outputs[0]->buffer_ptr(), data_size);
+    if (!get_network().is_primary_stream()) {
+        _outputs[0] = ib.getConstData(id());
+        auto pos = ib.tellg();
+        pos += data_size;
+        ib.seekg(pos);
     } else {
-        std::vector<uint8_t> _buf;
-        _buf.resize(data_size);
-        ib >> make_data(_buf.data(), data_size);
-        _outputs[0]->copy_from(get_network().get_stream(), _buf.data());
+        _outputs[0] = get_network().get_engine().allocate_memory(output_layout, _allocation_type, false);
+
+        if (_allocation_type == allocation_type::usm_host || _allocation_type == allocation_type::usm_shared) {
+            ib >> make_data(_outputs[0]->buffer_ptr(), data_size);
+        } else {
+            std::vector<uint8_t> _buf;
+            _buf.resize(data_size);
+            ib >> make_data(_buf.data(), data_size);
+            _outputs[0]->copy_from(get_network().get_stream(), _buf.data());
+        }
+
+        ib.addConstData(id(), _outputs[0]);
     }
 }
 

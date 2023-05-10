@@ -21,12 +21,6 @@ op::v4::ReduceL1::ReduceL1(const Output<Node>& arg, const Output<Node>& reductio
     constructor_validate_and_infer_types();
 }
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-shared_ptr<Node> op::v4::ReduceL1::get_default_value() const {
-    return ngraph::make_constant_from_string("0", get_element_type(), get_shape());
-}
-NGRAPH_SUPPRESS_DEPRECATED_END
-
 shared_ptr<Node> op::v4::ReduceL1::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v4_ReduceL1_clone_with_new_inputs);
     check_new_args_count(this, new_args);
@@ -61,8 +55,10 @@ bool evaluate_sum(const HostTensorPtr& arg, const HostTensorPtr& out, const Axis
 
 bool op::v4::ReduceL1::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v4_ReduceL1_evaluate);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     NGRAPH_CHECK(validate_host_tensor_vector(inputs, 2));
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     const auto reduction_axes =
         get_normalized_axes_from_tensor(inputs[1], inputs[0]->get_partial_shape().rank(), get_friendly_name());

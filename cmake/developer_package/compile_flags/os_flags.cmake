@@ -192,7 +192,10 @@ macro(ie_arm_neon_optimization_flags flags)
         endif()
     else()
         if(AARCH64)
-            set(${flags} -O2 -ftree-vectorize)
+            set(${flags} -O2)
+            if(NOT CMAKE_CL_64)
+                list(APPEND ${flags} -ftree-vectorize)
+            endif()
         elseif(ARM)
             set(${flags} -mfpu=neon -Wno-unused-command-line-argument)
         endif()
@@ -217,7 +220,9 @@ function(ov_disable_all_warnings)
             if(target_type STREQUAL "SHARED_LIBRARY" OR target_type STREQUAL "EXECUTABLE")
                 set(link_interface LINK_OPTIONS)
             endif()
-            set_target_properties(${target} PROPERTIES ${link_interface} "-Wno-error=maybe-uninitialized;-Wno-maybe-uninitialized")
+            if(CMAKE_COMPILER_IS_GNUCXX)
+                set_target_properties(${target} PROPERTIES ${link_interface} "-Wno-error=maybe-uninitialized;-Wno-maybe-uninitialized")
+            endif()
         elseif(UNIX AND CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
             # 193: zero used for undefined preprocessing identifier "XXX"
             # 1011: missing return statement at end of non-void function "XXX"
@@ -262,6 +267,20 @@ function(ov_force_include target scope header_file)
         target_compile_options(${target} ${scope} /FI"${header_file}")
     else()
         target_compile_options(${target} ${scope} -include "${header_file}")
+    endif()
+endfunction()
+
+#
+# ov_abi_free_target(<target name>)
+#
+# Marks target to be compiliance in CXX ABI free manner
+#
+function(ov_abi_free_target target)
+    # To guarantee OpenVINO can be used with gcc versions 7 through 12.2
+    # - https://gcc.gnu.org/onlinedocs/gcc/C_002b_002b-Dialect-Options.html
+    # - https://gcc.gnu.org/onlinedocs/libstdc++/manual/abi.html
+    if(CMAKE_COMPILER_IS_GNUCXX)
+        target_compile_options(${target} PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-Wabi=11>)
     endif()
 endfunction()
 
@@ -407,14 +426,11 @@ else()
     # Warn if an undefined identifier is evaluated in an #if directive. Such identifiers are replaced with zero.
     ie_add_compiler_flags(-Wundef)
 
-    # TODO
-    if(OV_COMPILER_IS_CLANG)
-        ie_add_compiler_flags(-Wno-delete-non-abstract-non-virtual-dtor)
-    endif()
-
-    check_cxx_compiler_flag("-Wsuggest-override" SUGGEST_OVERRIDE_SUPPORTED)
-    if(SUGGEST_OVERRIDE_SUPPORTED)
-        set(CMAKE_CXX_FLAGS "-Wsuggest-override ${CMAKE_CXX_FLAGS}")
+    # To guarantee OpenVINO can be used with gcc versions 7 through 12
+    # - https://gcc.gnu.org/onlinedocs/gcc/C_002b_002b-Dialect-Options.html
+    # - https://gcc.gnu.org/onlinedocs/libstdc++/manual/abi.html
+    if(CMAKE_COMPILER_IS_GNUCXX)
+        # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wabi=11")
     endif()
 
     #
@@ -460,9 +476,12 @@ else()
     endif()
 endif()
 
-# if(OV_COMPILER_IS_CLANG)
-#     ie_add_compiler_flags(-Wshorten-64-to-32)
-# endif()
+check_cxx_compiler_flag("-Wsuggest-override" SUGGEST_OVERRIDE_SUPPORTED)
+if(SUGGEST_OVERRIDE_SUPPORTED)
+    set(CMAKE_CXX_FLAGS "-Wsuggest-override ${CMAKE_CXX_FLAGS}")
+endif()
+
+check_cxx_compiler_flag("-Wunused-but-set-variable" UNUSED_BUT_SET_VARIABLE_SUPPORTED)
 
 #
 # link_system_libraries(target <PUBLIC | PRIVATE | INTERFACE> <lib1 [lib2 lib3 ...]>)
@@ -495,6 +514,11 @@ endfunction()
 # Tries to use gold linker in current scope (directory, function)
 #
 function(ov_try_use_gold_linker)
+    # don't use the gold linker, if the mold linker is set
+    if(CMAKE_EXE_LINKER_FLAGS MATCHES "mold" OR CMAKE_MODULE_LINKER_FLAGS MATCHES "mold" OR CMAKE_SHARED_LINKER_FLAGS MATCHES "mold")
+        return()
+    endif()
+
     # gold linker on ubuntu20.04 may fail to link binaries build with sanitizer
     if(CMAKE_COMPILER_IS_GNUCXX AND NOT ENABLE_SANITIZER AND NOT CMAKE_CROSSCOMPILING)
         set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fuse-ld=gold" PARENT_SCOPE)

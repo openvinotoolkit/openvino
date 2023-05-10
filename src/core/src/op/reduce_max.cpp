@@ -33,6 +33,8 @@ bool evaluate_max(const HostTensorPtr& arg, const HostTensorPtr& out, const Axis
         NGRAPH_TYPE_CASE(evaluate_max, u64, arg, out, axes, keep_dims);
         NGRAPH_TYPE_CASE(evaluate_max, f16, arg, out, axes, keep_dims);
         NGRAPH_TYPE_CASE(evaluate_max, f32, arg, out, axes, keep_dims);
+        NGRAPH_TYPE_CASE(evaluate_max, u8, arg, out, axes, keep_dims);
+        NGRAPH_TYPE_CASE(evaluate_max, i8, arg, out, axes, keep_dims);
     default:
         rc = false;
         break;
@@ -55,8 +57,10 @@ shared_ptr<Node> op::v1::ReduceMax::clone_with_new_inputs(const OutputVector& ne
 
 bool op::v1::ReduceMax::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v1_ReduceMax_evaluate);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     NGRAPH_CHECK(validate_host_tensor_vector(inputs, 2));
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     const auto reduction_axes =
         get_normalized_axes_from_tensor(inputs[1], inputs[0]->get_partial_shape().rank(), get_friendly_name());
@@ -73,6 +77,8 @@ bool op::v1::ReduceMax::has_evaluate() const {
     case ngraph::element::u64:
     case ngraph::element::f16:
     case ngraph::element::f32:
+    case ngraph::element::i8:
+    case ngraph::element::u8:
         return true;
     default:
         break;

@@ -54,7 +54,7 @@ void PReluTransformation::SetUp() {
 
     function = ngraph::builder::subgraph::PReluFunction::getOriginal(inputShape, precision, testValues.fakeQuantize);
 
-    ov::pass::InitNodeInfo().run_on_function(function);
+    ov::pass::InitNodeInfo().run_on_model(function);
 }
 
 TEST_P(PReluTransformation, CompareWithRefImpl) {

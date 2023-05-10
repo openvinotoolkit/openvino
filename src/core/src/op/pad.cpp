@@ -6,6 +6,7 @@
 
 #include <ngraph/validation_util.hpp>
 
+#include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/except.hpp"
@@ -44,7 +45,9 @@ op::v1::Pad::Pad(const Output<Node>& arg,
 
 CoordinateDiff op::v1::Pad::get_pads_begin() const {
     CoordinateDiff pads_begin_coord{};
+    OPENVINO_SUPPRESS_DEPRECATED_START
     if (auto pads_begin_const = get_constant_from_source(input_value(1))) {
+        OPENVINO_SUPPRESS_DEPRECATED_END
         pads_begin_coord = pads_begin_const->cast_vector<ptrdiff_t>();
     }
     return pads_begin_coord;
@@ -52,7 +55,9 @@ CoordinateDiff op::v1::Pad::get_pads_begin() const {
 
 CoordinateDiff op::v1::Pad::get_pads_end() const {
     CoordinateDiff pads_end_coord{};
+    OPENVINO_SUPPRESS_DEPRECATED_START
     if (auto pads_end_const = get_constant_from_source(input_value(2))) {
+        OPENVINO_SUPPRESS_DEPRECATED_END
         pads_end_coord = pads_end_const->cast_vector<ptrdiff_t>();
     }
     return pads_end_coord;
@@ -103,11 +108,9 @@ void op::v1::Pad::validate_and_infer_types() {
                           pads_end_element_type,
                           ").");
 
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape::dynamic()};
-    std::vector<ov::PartialShape> input_shapes;
-    for (size_t i = 0; i < get_input_size(); i++)
-        input_shapes.push_back(get_input_partial_shape(i));
-    shape_infer(this, input_shapes, output_shapes);
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    const auto output_shapes = shape_infer(this, get_node_input_partial_shapes(*this));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     set_output_type(0, result_et, output_shapes[0]);
 }
 
@@ -172,4 +175,21 @@ bool op::v1::Pad::evaluate(const HostTensorVector& outputs, const HostTensorVect
 bool op::v1::Pad::has_evaluate() const {
     OV_OP_SCOPE(v1_Pad_has_evaluate);
     return true;
+}
+
+bool op::v1::Pad::evaluate_lower(ov::TensorVector& output_values) const {
+    OV_OP_SCOPE(v1_Pad_evaluate_lower);
+    return ov::have_node_inputs_bounds_set(this, 1, 2) && ov::default_lower_bound_evaluator(this, output_values);
+}
+
+bool op::v1::Pad::evaluate_upper(ov::TensorVector& output_values) const {
+    OV_OP_SCOPE(v1_Pad_evaluate_upper);
+    return ov::have_node_inputs_bounds_set(this, 1, 2) && ov::default_upper_bound_evaluator(this, output_values);
+}
+
+bool op::v1::Pad::evaluate_label(ov::TensorLabelVector& output_labels) const {
+    OV_OP_SCOPE(v1_Pad_evaluate_label);
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    return ov::default_label_evaluator(this, output_labels);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }

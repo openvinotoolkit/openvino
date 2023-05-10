@@ -43,6 +43,8 @@ void scatterNdUpdate(const dataType* const inputData,
 
         const auto update_data = updates + i * update_el_number;
         const auto update_mem_size = update_el_number * sizeof(dataType);
+        OPENVINO_ASSERT(out_index >= 0 && out_index + update_el_number <= shape_size(dataShape),
+                        "Index is out of bounds");
         std::memcpy(outBuf + out_index, update_data, update_mem_size);
     }
 }

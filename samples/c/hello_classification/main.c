@@ -72,6 +72,7 @@ struct infer_result* tensor_to_infer_result(ov_tensor_t* tensor, size_t* result_
         results[i].probability = float_data[i];
     }
 
+    ov_shape_free(&output_shape);
     return results;
 }
 

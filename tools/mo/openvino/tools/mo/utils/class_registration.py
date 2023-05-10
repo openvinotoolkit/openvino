@@ -7,6 +7,7 @@ from enum import Enum
 
 import networkx as nx
 
+from openvino.tools.mo.front.common.custom_replacement_registry import CustomReplacementRegistry
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.middle.passes.eliminate import shape_inference
 from openvino.tools.mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
@@ -69,15 +70,8 @@ def _update(cls, registered_list: list, registered_dict: dict, key: str, enabled
     # print('Registering new subclasses for', cls)
 
     for c in cls.__subclasses__():
-        # skip importing loaders of other frameworks
-        if cls.__name__ == 'Loader':
-            need_exclude = False
-            for framework in exclude_modules:
-                if framework in c.__module__:
-                    need_exclude = True
-                    break
-            if need_exclude:
-                continue
+        if need_exclude_class(c, exclude_modules):
+            continue
         # Force enabling operations
         if hasattr(c, 'id') and c.id in enabled_transforms or \
                 ".".join([c.__module__, c.__name__]) in enabled_transforms:
@@ -222,6 +216,13 @@ class DependencyGraph(Graph):
         return order
 
 
+def need_exclude_class(class_type, excluded_frameworks):
+    for framework in excluded_frameworks:
+        if "." + framework + "." in str(class_type):
+            return True
+    return False
+
+
 def get_replacers_order(transform_types: list):
     """
     Gets all transforms that do not have 'op'.
@@ -244,9 +245,11 @@ def get_replacers_order(transform_types: list):
 
     for i, replacer_cls in enumerate(replacers):
         for cls_after in replacer_cls().run_before():
-            dependency_graph.add_edge(replacer_cls, cls_after)
+            if cls_after in replacers:
+                dependency_graph.add_edge(replacer_cls, cls_after)
         for cls_before in replacer_cls().run_after():
-            dependency_graph.add_edge(cls_before, replacer_cls)
+            if cls_before in replacers:
+                dependency_graph.add_edge(cls_before, replacer_cls)
 
     replacers_order = dependency_graph.determined_sort()
 
@@ -337,4 +340,5 @@ def apply_replacements(graph: Graph, replacements_type: list):
 
 
 def clear_registered_classes_dict():
+    CustomReplacementRegistry.registry = {}
     _registered_classes_dict.clear()

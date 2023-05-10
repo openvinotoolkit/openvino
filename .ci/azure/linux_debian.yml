@@ -65,23 +65,8 @@ jobs:
     TMP_DIR: /mnt/tmp
     SHARE_DIR: /mount/cinfsshare/onnxtestdata
     CCACHE_DIR: $(SHARE_DIR)/ccache/master/linux
-    LD_LIBRARY_PATH: $(Agent.ToolsDirectory)/Python/$(OV_PYTHON_VERSION)/x64/lib
-    OV_PYTHON_VERSION: 3.10.9 # Newest version of Python 3.10. Full version of Python its required for LD_LIBRARY_PATH and required for successful Task setupPython
 
   steps:
-  - task: UsePythonVersion@0
-    inputs:
-      versionSpec: '3.10'
-      addToPath: true
-      disableDownloadFromRegistry: false
-      architecture: 'x64'
-      githubToken: $(auth_token)
-    displayName: Setup Python 3.10
-    name: setupPython
-  - bash: |
-      #!/bin/bash
-      python -V
-
   - script: |
       curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
       whoami
@@ -117,14 +102,13 @@ jobs:
 
   - checkout: self
     clean: 'true'
-    fetchDepth: '1'
     submodules: 'true'
     path: openvino
 
   - script: |
       set -e
       sudo -E $(REPO_DIR)/install_build_dependencies.sh
-      # 'clang' compiler is to check that samples can be built using it
+      # 'clang' is used as a default compiler
       sudo apt --assume-yes install clang
       sudo apt --assume-yes install --no-install-recommends libopencv-imgproc-dev libopencv-imgcodecs-dev
       # For opencv-python: python3-setuptools and pip upgrade
@@ -158,7 +142,6 @@ jobs:
     # Should be after 'Install dependencies' because Git lfs is not installed
   - checkout: testdata
     clean: 'true'
-    fetchDepth: '1'
     lfs: 'true'
     path: testdata
 
@@ -176,6 +159,7 @@ jobs:
         -DENABLE_TESTS=ON
         -DENABLE_FASTER_BUILD=ON
         -DENABLE_STRICT_DEPENDENCIES=OFF
+        -DENABLE_SYSTEM_SNAPPY=ON
         -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
         -DCMAKE_C_COMPILER_LAUNCHER=ccache
         -DCMAKE_CXX_LINKER_LAUNCHER=ccache
@@ -240,13 +224,12 @@ jobs:
 
     # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time
   - script: |
-      # TODO (vurusovs): revert skip of test_core.py::test_register_plugin*,
-      # test should be fixed
-      export LD_LIBRARY_PATH=$(REPO_DIR)/temp/gna_03.00.00.1910/linux/x64:$(LD_LIBRARY_PATH)
       python3 -m pytest -s $(INSTALL_TEST_DIR)/pyngraph \
         --junitxml=$(INSTALL_TEST_DIR)/TEST-Pyngraph.xml \
         --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_zoo_models.py \
         --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_backend.py
+    env:
+      LD_LIBRARY_PATH: $(INSTALL_TEST_DIR)
     displayName: 'nGraph and IE Python Bindings Tests'
 
     # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time
@@ -257,9 +240,6 @@ jobs:
       export LD_LIBRARY_PATH=$(PYTHON_WHEEL_INSTALL_DIR)/openvino/libs:$(INSTALL_TEST_DIR):$LD_LIBRARY_PATH
       # For python imports to import pybind_mock_frontend
       export PYTHONPATH=$(INSTALL_TEST_DIR):$PYTHONPATH
-      # TODO (vurusovs): revert skip of test_core.py::test_register_plugin*,
-      # test should be fixed
-      export LD_LIBRARY_PATH=$(REPO_DIR)/temp/gna_03.00.00.1910/linux/x64:$(LD_LIBRARY_PATH)
       python3 -m pytest -s $(INSTALL_TEST_DIR)/pyopenvino \
         --junitxml=$(INSTALL_TEST_DIR)/TEST-Pyngraph.xml \
         --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_utils/test_utils.py \
@@ -268,7 +248,7 @@ jobs:
     displayName: 'Python API 2.0 Tests'
 
   - script: |
-      export LD_LIBRARY_PATH=$(REPO_DIR)/temp/gna_03.00.00.1910/linux/x64:$(LD_LIBRARY_PATH)
+      export PYTHONPATH=$(INSTALL_DIR)/lib/python3/dist-packages:$PYTHONPATH
       python3 -m pytest -s $(INSTALL_TEST_DIR)/mo/unit_tests --junitxml=$(INSTALL_TEST_DIR)/TEST-ModelOptimizer.xml
     displayName: 'Model Optimizer UT'
 
@@ -303,19 +283,21 @@ jobs:
     displayName: 'Clean build dir'
 
   - script: $(SAMPLES_INSTALL_DIR)/cpp/build_samples.sh -i $(INSTALL_DIR)
-    displayName: 'Build cpp samples'
+    displayName: 'Build cpp samples - gcc'
 
   - script: $(SAMPLES_INSTALL_DIR)/cpp/build_samples.sh -i $(INSTALL_DIR)
+    displayName: 'Build cpp samples - clang'
     env:
       CC: clang
       CXX: clang++
-    displayName: 'Build cpp samples - clang'
 
   - script: $(SAMPLES_INSTALL_DIR)/c/build_samples.sh -i $(INSTALL_DIR)
     displayName: 'Build c samples'
 
   - script: |
       $(INSTALL_TEST_DIR)/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-NGraphUT.xml
+    env:
+      LD_LIBRARY_PATH: $(INSTALL_TEST_DIR)
     displayName: 'OV Core UT'
 
   - script: |
@@ -324,11 +306,12 @@ jobs:
       LD_LIBRARY_PATH: $(INSTALL_TEST_DIR)
     displayName: 'ONNX Frontend Tests'
 
-  - script: |
-      $(INSTALL_TEST_DIR)/paddle_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Paddle.xml
+  # TODO Reenable PDPD after paddlepaddle==2.5.0 with compliant protobuf is released (ticket 95904)
+  - script: $(INSTALL_TEST_DIR)/paddle_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Paddle.xml
     env:
       LD_LIBRARY_PATH: $(INSTALL_TEST_DIR)
     displayName: 'Paddle Frontend UT'
+    enabled: 'false'
 
   - script: $(INSTALL_TEST_DIR)/ov_tensorflow_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Tensorflow.xml
     env:

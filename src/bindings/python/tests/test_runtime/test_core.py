@@ -30,6 +30,7 @@ from tests.test_utils.test_utils import (
     generate_relu_compiled_model,
     get_relu_model,
     plugins_path,
+    compare_models,
 )
 
 
@@ -109,6 +110,13 @@ def test_read_model_from_tensor():
     assert isinstance(model, Model)
 
 
+def test_read_model_with_wrong_input():
+    core = Core()
+    with pytest.raises(RuntimeError) as e:
+        core.read_model(model=3, weights=3)
+    assert "Provided python object type <class 'int'> isn't supported as 'model' argument." in str(e.value)
+
+
 def test_read_model_as_path():
     core = Core()
     model = core.read_model(model=Path(test_net_xml), weights=Path(test_net_bin))
@@ -133,7 +141,7 @@ def test_read_model_from_onnx_as_path():
     assert isinstance(model, Model)
 
 
-def test_read_net_from_buffer():
+def test_read_model_from_buffer():
     core = Core()
     with open(test_net_bin, "rb") as f:
         weights = f.read()
@@ -143,7 +151,7 @@ def test_read_net_from_buffer():
     assert isinstance(model, Model)
 
 
-def test_net_from_buffer_valid():
+def test_model_from_buffer_valid():
     core = Core()
     with open(test_net_bin, "rb") as f:
         weights = f.read()
@@ -151,9 +159,7 @@ def test_net_from_buffer_valid():
         xml = f.read()
     model = core.read_model(model=xml, weights=weights)
     ref_model = core.read_model(model=test_net_xml, weights=test_net_bin)
-    assert model.get_parameters() == ref_model.get_parameters()
-    assert model.get_results() == ref_model.get_results()
-    assert model.get_ordered_ops() == ref_model.get_ordered_ops()
+    assert compare_models(model, ref_model)
 
 
 def test_get_version(device):
@@ -169,11 +175,13 @@ def test_get_version(device):
 
 def test_available_devices(device):
     core = Core()
-    devices = core.available_devices
-    assert device in devices, (
-        f"Current device '{device}' is not listed in "
-        f"available devices '{', '.join(devices)}'"
-    )
+    devices_attr = core.available_devices
+    devices_method = core.get_available_devices()
+    for devices in (devices_attr, devices_method):
+        assert device in devices, (
+            f"Current device '{device}' is not listed in "
+            f"available devices '{', '.join(devices)}'"
+        )
 
 
 def test_get_property(device):

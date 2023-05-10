@@ -11,10 +11,12 @@ namespace ov {
 namespace test {
 namespace snippets {
 
-DummyTargetMachine::DummyTargetMachine() {
-    auto dummy_functor = [](const std::shared_ptr<ngraph::Node>& n) {
-        return std::make_shared<DummyEmitter>();
+DummyTargetMachine::DummyTargetMachine(const std::vector<ov::Node::type_info_t>&custom_opset) {
+    auto dummy_functor = ngraph::snippets::jitters_value {
+        [](const std::shared_ptr<ngraph::Node>& n) { return std::make_shared<DummyEmitter>(); },
+        [](const std::shared_ptr<ngraph::Node>& n) { return std::set<std::vector<element::Type>>{};}
     };
+
     jitters[op::v0::Parameter::get_type_info_static()] = dummy_functor;
     jitters[op::v0::Constant::get_type_info_static()] = dummy_functor;
     jitters[op::v0::Result::get_type_info_static()] = dummy_functor;
@@ -41,6 +43,10 @@ DummyTargetMachine::DummyTargetMachine() {
     jitters[ngraph::snippets::op::Buffer::get_type_info_static()] = dummy_functor;
     jitters[ngraph::snippets::op::VectorBuffer::get_type_info_static()] = dummy_functor;
     jitters[ngraph::snippets::op::Fill::get_type_info_static()] = dummy_functor;
+
+    for (const auto& elem : custom_opset) {
+        jitters[elem] = dummy_functor;
+    }
 }
 
 LoweringTests::LoweringTests() : TransformationTestsF() {
@@ -92,9 +98,13 @@ std::shared_ptr<ngraph::snippets::op::Subgraph> LoweringTests::getSubgraph(const
 }
 
 std::shared_ptr<ngraph::snippets::op::Subgraph> LoweringTests::getLoweredSubgraph(const std::shared_ptr<Model> &f,
-                                                                                  const ov::PartialShape& master_shape) {
+                                                                                  const ov::PartialShape& master_shape,
+                                                                                  ov::pass::Manager pre_dialect,
+                                                                                  ov::pass::Manager post_dialect,
+                                                                                  ov::pass::Manager post_precision,
+                                                                                  const std::shared_ptr<ngraph::snippets::Generator> generator) {
     auto subgraph = getTokenizedSubgraph(f);
-    subgraph->set_generator(std::make_shared<DummyGenerator>());
+    subgraph->set_generator(generator == nullptr ? std::make_shared<DummyGenerator>() : generator);
     subgraph->set_master_shape(master_shape);
     const auto& body = subgraph->body_ptr();
     auto& body_rt_info = body->get_rt_info();
@@ -103,19 +113,17 @@ std::shared_ptr<ngraph::snippets::op::Subgraph> LoweringTests::getLoweredSubgrap
     std::vector<std::vector<size_t>> new_shapes;
     for (const auto& p : body->get_parameters()) {
         const auto pshape = p->get_output_partial_shape(0);
-        if (pshape.is_dynamic())
-            IE_THROW() << "getLoweredSubgraph supports only static shapes";
+        OPENVINO_ASSERT(pshape.is_static(), "getLoweredSubgraph supports only static shapes");
         new_shapes.push_back(pshape.get_shape());
     }
     for (const auto& r : body->get_results()) {
         const auto pshape = r->get_input_partial_shape(0);
-        if (pshape.is_dynamic())
-            IE_THROW() << "getLoweredSubgraph supports only static shapes";
+        OPENVINO_ASSERT(pshape.is_static(), "getLoweredSubgraph supports only static shapes");
         new_shapes.push_back(pshape.get_shape());
     }
     body_rt_info["PluginShapesOverride"] = new_shapes;
     subgraph->set_tile_rank(2);
-    subgraph->generate();
+    subgraph->generate(pre_dialect, post_precision, post_precision);
     return subgraph;
 }
 

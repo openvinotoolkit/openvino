@@ -65,7 +65,7 @@ static size_t GetNonEmptyDimsNumber(const DataTensor& data_tensor) {
         auto shape_raw = data_tensor.LogicalDims();
         auto shape = shape_raw;
         int shape_idx = 0;
-        for (int i = 0; i < static_cast<int>(Tensor::DataChannelName::COUNT); i++) {
+        for (size_t i = 0; i < DataTensor::max_rank(); i++) {
             int shape_raw_idx =
                 data_tensor.Channelndex(data_tensor.GetLayout(), static_cast<Tensor::DataChannelName>(i));
             if (shape_raw_idx >= 0)
@@ -180,7 +180,7 @@ CommonDispatchData GatherKernelRef::SetDefault(const gather_params& params) cons
     auto out_layout = params.outputs[0].GetLayout();
     std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws;
 
-    int rank = params.outputs[0].Dimentions();
+    auto rank = params.outputs[0].Dimentions();
     if (rank == 4) {
         dispatchData.gws = {output.X().v, output.Y().v, output.Feature().v * output.Batch().v};
         dims_by_gws = {{Tensor::DataChannelName::X},
@@ -283,6 +283,7 @@ KernelsData GatherKernelRef::GetKernelsData(const Params& params, const optional
         OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
         kd.kernels[0].params.workGroups.global = dispatchData.gws;
         kd.kernels[0].params.workGroups.local = dispatchData.lws;
+        kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
     };
 
     FillCLKernelData(kernel,
@@ -297,7 +298,7 @@ KernelsData GatherKernelRef::GetKernelsData(const Params& params, const optional
                      2,
                      GetFusedPrimitiveInputsCount(params),
                      1,
-                     newParams.outputs[0].is_dynamic());
+                     newParams.has_dynamic_tensors());
 
     return {kd};
 }

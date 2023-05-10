@@ -27,6 +27,7 @@
 #include "ngraph/util.hpp"
 #include "openvino/op/ops.hpp"
 #include "sequnce_generator.hpp"
+#include "validation_util.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 using namespace std;
@@ -872,7 +873,7 @@ std::string normalize_axis_error_msg(const int64_t& axis, const int64_t& lower, 
 }
 }  // namespace
 
-int64_t ov::normalize(const int64_t& value, const int64_t& max) {
+int64_t ov::util::normalize(const int64_t& value, const int64_t& max) {
     return (value < 0) ? value + max : value;
 };
 
@@ -893,7 +894,6 @@ std::vector<size_t> ov::normalize_axes(const std::string& node_description,
     for (const auto& axis : axes) {
         new_axes.push_back(normalize_axis(node_description, axis, tensor_rank));
     }
-
     return new_axes;
 }
 
@@ -938,8 +938,7 @@ int64_t ov::normalize_axis(const std::string& node_description,
     OPENVINO_ASSERT((axis_range_min <= axis) && (axis <= axis_range_max),
                     node_description,
                     normalize_axis_error_msg(axis, axis_range_min, axis_range_max));
-    normalize_axis_to(tensor_rank)(axis);
-    return axis;
+    return util::normalize(axis, tensor_rank);
 }
 
 void ngraph::opset1::infer_conv_backprop_auto_padding(const Shape& input_data_shape,
@@ -1203,45 +1202,7 @@ bool ov::evaluate_as_partial_shape(const Output<Node>& output, PartialShape& psh
 }
 
 bool ov::default_label_evaluator(const Node* node, TensorLabelVector& output_labels) {
-    const auto& inputs_count = node->get_input_size();
-    if (inputs_count > 0) {
-        const auto& labels = node->get_input_tensor(0).get_value_label();
-        if (!has_no_labels(labels)) {
-            TensorVector inputs;
-            inputs.reserve(inputs_count);
-
-            inputs.emplace_back(element::from<label_t>(), node->get_input_shape(0));
-            std::copy(labels.begin(), labels.end(), inputs.back().data<label_t>());
-
-            for (size_t i = 1; i < inputs_count; ++i) {
-                if (node->get_input_tensor(i).has_and_set_bound()) {
-                    inputs.push_back(node->get_input_tensor(i).get_lower_value());
-                } else {
-                    return false;
-                }
-            }
-
-            const auto& outputs_count = node->get_output_size();
-            TensorVector outputs;
-            outputs.reserve(outputs_count);
-
-            for (size_t i = 0; i < outputs_count; ++i) {
-                const auto& partial_shape = node->get_output_partial_shape(i);
-                // Set shape for static or Shape{0} for dynamic to postpone memory allocation
-                auto shape = partial_shape.is_static() ? partial_shape.to_shape() : Shape{0};
-                outputs.emplace_back(element::from<label_t>(), shape);
-            }
-
-            if (node->evaluate(outputs, inputs)) {
-                std::transform(outputs.cbegin(), outputs.cend(), output_labels.begin(), [](const Tensor& t) {
-                    // Return empty label tensor if input tensor not valid (can have Shape{0})
-                    return t ? TensorLabel(t.data<label_t>(), t.data<label_t>() + t.get_size()) : TensorLabel();
-                });
-                return true;
-            }
-        }
-    }
-    return false;
+    return default_label_evaluator(node, {0}, output_labels);
 }
 
 shared_ptr<op::Constant> ngraph::get_constant_max_of_type(element::Type_t t) {
@@ -1352,7 +1313,7 @@ void ov::generate_transpose_default_order(std::vector<int64_t>& axes_order, cons
 }
 
 bool ov::is_valid_axes_order(const std::vector<int64_t>& axes_order, const size_t size) {
-    return are_unique(axes_order) &&
+    return util::are_unique(axes_order) &&
            std::all_of(axes_order.cbegin(), axes_order.cend(), ov::cmp::Between<int64_t, ov::cmp::LOWER>(0, size));
 }
 
@@ -1371,16 +1332,16 @@ bool ov::is_rank_compatible_any_of(const ov::Rank& rank, const std::vector<Rank>
     });
 }
 
-bool ov::are_unique(const std::vector<int64_t>& data) {
+bool ov::util::are_unique(const std::vector<int64_t>& data) {
     return std::unordered_set<int64_t>(data.begin(), data.cend()).size() == data.size();
 }
 
 // clip value to min, max
-int64_t ov::clip(const int64_t& value, const int64_t& min, const int64_t& max) {
+int64_t ov::util::clip(const int64_t& value, const int64_t& min, const int64_t& max) {
     return std::min(std::max(value, min), max);
 };
 
-std::shared_ptr<op::v0::Constant> ov::constantfold_subgraph(const Output<Node>& subgraph_sink) {
+std::shared_ptr<op::v0::Constant> ov::util::constantfold_subgraph(const Output<Node>& subgraph_sink) {
     if (const auto& c = ov::as_type_ptr<op::v0::Constant>(subgraph_sink.get_node_shared_ptr()))
         return c;
 

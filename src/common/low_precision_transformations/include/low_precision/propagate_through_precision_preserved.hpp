@@ -10,7 +10,6 @@
 #include <ngraph/node.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/variant.hpp>
 
 #include "low_precision/lpt_visibility.hpp"
 #include "low_precision/network_helper.hpp"

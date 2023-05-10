@@ -1,5 +1,7 @@
 # Atan  {#openvino_docs_ops_arithmetic_Atan_1}
 
+@sphinxdirective
+
 **Versioned name**: *Atan-1*
 
 **Category**: *Arithmetic unary*
@@ -8,9 +10,9 @@
 
 **Detailed description**:  Operation takes one input tensor and performs the element-wise inverse tangent function on a given input tensor, based on the following mathematical formula:
 
-\f[
-a_{i} = atan(a_{i})
-\f]
+.. math::
+   
+   a_{i} = atan(a_{i})
 
 **Attributes**: *Atan* operation has no attributes.
 
@@ -28,19 +30,22 @@ a_{i} = atan(a_{i})
 
 **Examples**
 
-```xml
-<layer ... type="Atan">
-    <input>
-        <port id="0">
-            <dim>256</dim>
-            <dim>56</dim>
-        </port>
-    </input>
-    <output>
-        <port id="1">
-            <dim>256</dim>
-            <dim>56</dim>
-        </port>
-    </output>
-</layer>
-```
+.. code-block:: cpp
+   
+   <layer ... type="Atan">
+       <input>
+           <port id="0">
+               <dim>256</dim>
+               <dim>56</dim>
+           </port>
+       </input>
+       <output>
+           <port id="1">
+               <dim>256</dim>
+               <dim>56</dim>
+           </port>
+       </output>
+   </layer>
+
+@endsphinxdirective
+

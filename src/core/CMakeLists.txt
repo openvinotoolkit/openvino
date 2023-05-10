@@ -23,6 +23,7 @@ add_subdirectory(shape_inference)
 
 set(MIXED_SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/src/runtime/allocator.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/runtime/itensor.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/runtime/ov_tensor.cpp")
 
 set_property(SOURCE ${MIXED_SRC}
@@ -30,10 +31,6 @@ set_property(SOURCE ${MIXED_SRC}
         $<TARGET_PROPERTY:inference_engine_obj,SOURCE_DIR>/src
         $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
 
-
-if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    ie_add_compiler_flags(/wd4244)
-endif()
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj
 
@@ -79,15 +76,18 @@ ie_faster_build(ngraph_obj
     UNITY
     PCH PRIVATE "src/precomp.hpp")
 
-addVersionDefines(src/version.cpp CI_BUILD_NUMBER)
+ov_add_version_defines(src/version.cpp ngraph_obj)
 
 target_link_libraries(ngraph_obj PRIVATE ngraph::builder ngraph::reference openvino::util
                                          openvino::pugixml ov_shape_inference openvino::core::dev)
 
 ie_mark_target_as_cc(ngraph_obj)
 
+# ngraph is public API => need to mark this library as important for ABI free
+ov_abi_free_target(ngraph_obj)
+
 ov_ncc_naming_style(FOR_TARGET ngraph_obj
-                    SOURCE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include")
+                    SOURCE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 add_clang_format_target(ngraph_clang FOR_TARGETS ngraph_obj)
 
@@ -111,7 +111,6 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     endif()
 
     target_link_options(ngraph_obj ${link_type} "/IGNORE:4217,4286")
-    ie_add_compiler_flags(/wd4267)
 endif()
 
 # some sources are located in ngraph, while headers are in inference_engine_transformations

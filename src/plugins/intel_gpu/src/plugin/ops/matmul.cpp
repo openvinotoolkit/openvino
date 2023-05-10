@@ -133,7 +133,8 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
                                              "",
                                              cldnn::element_type_to_data_type(op->get_output_element_type(0)),
                                              cldnn::padding(),
-                                             shape_a.size());
+                                             rank_a,
+                                             rank_b);
 
         p.add_primitive(*op, fcPrim);
 

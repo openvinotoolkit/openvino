@@ -4,11 +4,6 @@
 
 #pragma once
 
-#include <thread>
-#include "primitive_inst.h"
-#include "intel_gpu/graph/program.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
-#include "kernel_selector_helper.h"
 #include "intel_gpu/graph/network.hpp"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/graph/serialization/cl_kernel_data_serializer.hpp"
@@ -16,7 +11,13 @@
 #include "intel_gpu/graph/serialization/set_serializer.hpp"
 #include "intel_gpu/graph/serialization/string_serializer.hpp"
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
+#include "intel_gpu/graph/program.hpp"
+
+#include "primitive_inst.h"
+#include "kernel_selector_helper.h"
 #include "register.hpp"
+#include "implementation_map.hpp"
+
 #include <vector>
 #include <list>
 #include <utility>
@@ -31,11 +32,13 @@ For example, all gpu convolution implementations should derive from typed_primit
 template <class PType>
 struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
     kernel_selector::kernel_data _kernel_data;
-    std::vector<kernel_id> _kernel_ids;
+    std::vector<std::string> _cached_kernel_ids;
     std::vector<kernel::ptr> _kernels;
-    kernel_arguments_data_idx _kernel_args;
 
-    typed_primitive_impl_ocl() :  _kernel_data({}), _kernel_ids({}), _kernels({}) {
+    // a pair of batch program hash and kernel entry hash of each ocl impl.
+    std::pair<std::string, std::string> kernel_dump_info;
+
+    typed_primitive_impl_ocl() :  _kernel_data({}), _cached_kernel_ids({}), _kernels({}) {
         _kernel_data.weightsReorderParams.engine = kernel_selector::generic_kernel_params::Engine::NONE;
         _kernel_data.weightsReorderParams.cpuKernel = nullptr;
         _kernel_data.weightsReorderParams.clKernel = nullptr;
@@ -44,7 +47,7 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
     typed_primitive_impl_ocl(const typed_primitive_impl_ocl<PType>& other)
     : typed_primitive_impl<PType>(other._weights_reorder_params, other._kernel_name, other._is_dynamic)
     , _kernel_data(other._kernel_data)
-    , _kernel_ids(other._kernel_ids)
+    , _cached_kernel_ids(other._cached_kernel_ids)
     , _kernels({}) {
         _kernels.reserve(other._kernels.size());
         for (size_t k = 0; k < other._kernels.size(); ++k) {
@@ -68,22 +71,19 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
 
     // Cache blob format:
     //     [ kernel_selector::kernel_data ]
-    //     [ kernel_id ]
-    //     [ kernel_arguments ]
+    //     [ kernel_ids ]
     void save(BinaryOutputBuffer& ob) const override {
         ob << make_data(&_kernel_data.internalBufferDataType, sizeof(kernel_selector::Datatype));
         ob << _kernel_data.internalBufferSizes;
         ob << _kernel_data.kernels;
-        ob << _kernel_ids;
-        ob << _kernel_args;
+        ob << _cached_kernel_ids;
     }
 
     void load(BinaryInputBuffer& ib) override {
         ib >> make_data(&_kernel_data.internalBufferDataType, sizeof(kernel_selector::Datatype));
         ib >> _kernel_data.internalBufferSizes;
         ib >> _kernel_data.kernels;
-        ib >> _kernel_ids;
-        ib >> _kernel_args;
+        ib >> _cached_kernel_ids;
     }
 
     template<typename ImplType>
@@ -91,7 +91,8 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
         if (arg.can_be_optimized()) {
             return make_unique<ImplType>(kernel_selector::kernel_data{});
         }
-        auto kernel_params = ImplType::get_kernel_params(impl_param);
+        auto kernel_params = ImplType::get_kernel_params(ImplType::static_canonicalize_shapes(impl_param));
+        kernel_params.first.is_shape_agnostic = impl_param.is_dynamic();
         auto& kernel_selector = ImplType::kernel_selector_t::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
 
@@ -125,36 +126,6 @@ protected:
         return args;
     }
 
-    kernel_arguments_data get_arguments_by_idx(const typed_primitive_inst<PType>& instance) const {
-        kernel_arguments_data args;
-
-        for (uint32_t i = 0; i < _kernel_args.inputs.size(); i++) {
-            args.inputs.push_back(instance.dep_memory_ptr(_kernel_args.inputs[i]));
-        }
-
-        args.weights = (_kernel_args.weights >= 0) ? instance.dep_memory_ptr(_kernel_args.weights) : args.weights;
-        args.recurrent = (_kernel_args.recurrent >= 0) ? instance.dep_memory_ptr(_kernel_args.recurrent) : args.recurrent;
-        args.hidden = (_kernel_args.hidden >= 0) ? instance.dep_memory_ptr(_kernel_args.hidden) : args.hidden;
-        args.cell = (_kernel_args.cell >= 0) ? instance.dep_memory_ptr(_kernel_args.cell) : args.cell;
-        args.bias = (_kernel_args.bias >= 0) ? instance.dep_memory_ptr(_kernel_args.bias) : args.bias;
-        args.weights_zero_points = (_kernel_args.weights_zero_points >= 0) ?
-                                    instance.dep_memory_ptr(_kernel_args.weights_zero_points) : args.weights_zero_points;
-        args.activations_zero_points = (_kernel_args.activations_zero_points >= 0) ?
-                                        instance.dep_memory_ptr(_kernel_args.activations_zero_points) : args.activations_zero_points;
-        args.compensation = (_kernel_args.compensation >= 0) ? instance.dep_memory_ptr(_kernel_args.compensation) : args.compensation;
-        args.lookup_table = (_kernel_args.lookup_table >= 0) ? instance.dep_memory_ptr(_kernel_args.lookup_table) : args.lookup_table;
-        args.scale_table = (_kernel_args.scale_table >= 0) ? instance.dep_memory_ptr(_kernel_args.scale_table) : args.scale_table;
-        args.slope = (_kernel_args.slope >= 0) ? instance.dep_memory_ptr(_kernel_args.slope) : args.slope;
-
-        for (size_t i = 0; i < _kernel_args.fused_op_inputs.size(); i++) {
-            args.fused_op_inputs.push_back(instance.dep_memory_ptr(_kernel_args.fused_op_inputs[i]));
-        }
-
-        args.outputs.push_back(instance.output_memory_ptr());
-
-        return args;
-    }
-
     event::ptr aggregate_events(const std::vector<event::ptr>& events, stream& stream, bool group = false, bool is_output = false) const {
         if (events.size() == 1 && !is_output)
             return events[0];
@@ -165,20 +136,35 @@ protected:
         return stream.enqueue_marker(events, is_output);
     }
 
-    void init_kernels(const kernels_cache& kernels_cache) override {
+    void init_kernels(const kernels_cache& kernels_cache, const kernel_impl_params& params) override {
+        if (is_cpu()) {
+            return;
+        }
+
+        _kernels.clear();
+        if (!_kernel_data.kernels.empty()) {
+            auto compiled_kernels = kernels_cache.get_kernels(params);
+            _kernels.insert(_kernels.begin(), compiled_kernels.begin(), compiled_kernels.end());
+            // batch program hash and kernel entry point to find corresponding cl source code
+            kernel_dump_info = std::make_pair(std::to_string(kernels_cache.get_kernel_batch_hash(params)),
+                                          _kernel_data.kernels[0].code.kernelString->entry_point);
+        }
+   }
+
+    void init_by_cached_kernels(const kernels_cache& kernels_cache) override {
         if (is_cpu()) {
             return;
         }
         _kernels.clear();
 
-        _kernels.reserve(_kernel_ids.size());
-        for (size_t k = 0; k < _kernel_ids.size(); ++k) {
-            _kernels.emplace_back(kernels_cache.get_kernel(_kernel_ids[k]));
+        _kernels.reserve(_cached_kernel_ids.size());
+        for (size_t k = 0; k < _cached_kernel_ids.size(); ++k) {
+            _kernels.emplace_back(kernels_cache.get_kernel_from_cached_kernels(_cached_kernel_ids[k]));
         }
     }
 
-    std::vector<std::string> get_kernel_ids() const override {
-        return _kernel_ids;
+    void set_cached_kernel_ids(const kernels_cache& kernels_cache) override {
+        _cached_kernel_ids = kernels_cache.get_cached_kernel_ids(_kernels);
     }
 
     std::vector<kernel::ptr> get_kernels() const override {
@@ -205,29 +191,26 @@ protected:
             return;
         }
 
+        OPENVINO_ASSERT(_kernels.size() == _kernel_data.kernels.size(), "[GPU] Mismatch between compiled kernels count and expected kernels data\n",
+                                                                        "[GPU] Compiled kernels count: ", _kernels.size(), "\n",
+                                                                        "[GPU] KernelData count: ", _kernel_data.kernels.size(), "\n",
+                                                                        "[GPU] Likely some issue with empty tensors hanlding happened");
+
         stream& stream = instance.get_network().get_stream();
-
-        for (size_t k = 0; k < _kernels.size(); ++k) {
-            kernel_arguments_data args;
-
-            if (_kernel_args.inputs.size() > 0) {
-                args = get_arguments_by_idx(instance);
-            } else {
-                args = get_arguments(instance);
+        for (size_t kd_idx = 0; kd_idx < _kernel_data.kernels.size(); ++kd_idx) {
+            if (_kernel_data.kernels[kd_idx].skip_execution) {
+                continue;
             }
+
+            auto args = get_arguments(instance);
+            args.scalars = &_kernel_data.kernels[kd_idx].params.scalars;
 
             for (const auto& m : instance.get_intermediates_memories()) {
                 args.intermediates.push_back(m);
             }
 
-            args.scalars = &_kernel_data.kernels[k].params.scalars;
-
-            stream.set_arguments(*_kernels[k], _kernel_data.kernels[k].params, args);
+            stream.set_arguments(*_kernels[kd_idx], _kernel_data.kernels[kd_idx].params, args);
         }
-    }
-
-    void set_arguments_impl(kernel_arguments_data_idx& args_idx) override {
-        this->_kernel_args = args_idx;
     }
 
     kernel_arguments_data get_arguments_impl(const typed_primitive_inst<PType>& instance) const override {
@@ -252,11 +235,15 @@ protected:
         if (instance.can_be_optimized()) {
             return aggregate_events(events, stream, false, instance.is_output());
         }
-
         std::vector<event::ptr> tmp_events(events);
         std::vector<event::ptr> all_events;
-
-        for (size_t k = 0; k < _kernels.size(); ++k) {
+        OPENVINO_ASSERT(_kernels.size() == _kernel_data.kernels.size(), "[GPU] Mismatch between compiled kernels count and expected kernels data\n",
+                                                                        "[GPU] Compiled kernels count: ", _kernels.size(), "\n",
+                                                                        "[GPU] KernelData count: ", _kernel_data.kernels.size(), "\n",
+                                                                        "[GPU] Likely some issue with empty tensors hanlding happened");
+        for (size_t kd_idx = 0; kd_idx < _kernel_data.kernels.size(); ++kd_idx) {
+            if (_kernel_data.kernels[kd_idx].skip_execution)
+                continue;
             std::vector<event::ptr> new_events;
             // is any user of the prim's users is an detecion output, set prim as a output event (event won't be nullptr)
             bool is_output_event;
@@ -267,21 +254,21 @@ protected:
                 is_output_event = instance.is_output_event();
             }
 
-            kernel_arguments_data args;
+            auto& params = _kernel_data.kernels[kd_idx].params;
+            auto args = get_arguments(instance);
+            args.scalars = &params.scalars;
 
-            if (_kernel_args.inputs.size() > 0) {
-                args = get_arguments_by_idx(instance);
-            } else {
-                args = get_arguments(instance);
-
-                for (const auto& m : instance.get_intermediates_memories()) {
-                    args.intermediates.push_back(m);
-                }
+            for (const auto& m : instance.get_intermediates_memories()) {
+                args.intermediates.push_back(m);
             }
 
-            args.scalars = &_kernel_data.kernels[k].params.scalars;
+            const auto& gws = params.workGroups.global;
+            const auto& lws = params.workGroups.local;
 
-            auto ev = stream.enqueue_kernel(*_kernels[k], _kernel_data.kernels[k].params, args, tmp_events, is_output_event);
+            GPU_DEBUG_TRACE_DETAIL << "Enqueue kernel " << kd_idx << ": gws=[" << gws[0] << ", " << gws[1] << ", " << gws[2] << "] "
+                                   << "lws=[" << lws[0] << ", " << lws[1] << ", " << lws[2] << "]" << std::endl;
+
+            auto ev = stream.enqueue_kernel(*_kernels[kd_idx], params, args, tmp_events, is_output_event);
             new_events.push_back(ev);
             all_events.push_back(ev);
 
@@ -293,10 +280,6 @@ protected:
 
         bool group_events = (all_events.size() > 1);
         return aggregate_events(all_events, stream, group_events);
-    }
-
-    void set_kernel_ids(std::vector<kernel_id> kernel_ids) override {
-        _kernel_ids = kernel_ids;
     }
 
     std::vector<std::shared_ptr<cldnn::kernel_string>> get_kernels_source() override {
@@ -311,6 +294,27 @@ protected:
         for (size_t i = 0; i < _kernel_data.kernels.size(); ++i) {
             _kernel_data.kernels[i].code.kernelString.reset();
         }
+    }
+
+    void set_kernels(cldnn::kernels_cache::compiled_kernels kernels) override {
+        if (is_cpu())
+            return;
+        OPENVINO_ASSERT(kernels.size() == 1, "Only the kernels of the single primitive should be allowed.");
+        auto& kernel_vec = kernels.begin()->second;
+        _kernels.clear();
+        _kernels.resize(kernel_vec.size());
+        for (auto& k : kernel_vec) {
+            auto sub_kernel_idx = k.second;
+            _kernels[sub_kernel_idx] = k.first;
+        }
+    }
+
+    std::vector<kernel::ptr> get_kernels() override {
+        return _kernels;
+    }
+
+    std::pair<std::string, std::string> get_kernels_dump_info() const override {
+        return kernel_dump_info;
     }
 };
 

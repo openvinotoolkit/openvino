@@ -8,7 +8,6 @@
 #include "ctc_loss_inst.hpp"
 #include "json_object.h"
 #include "primitive_type_base.h"
-#include "to_string_utils.h"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(ctc_loss)

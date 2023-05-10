@@ -3,7 +3,13 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-SCRIPT_DIR="$( cd "$( dirname "$(realpath "${BASH_SOURCE[0]}")" )" >/dev/null 2>&1 && pwd )"
+abs_path () {
+    script_path=$(eval echo "$1")
+    directory=$(dirname "$script_path")
+    echo "$(cd "$directory" || exit; pwd -P)";
+}
+
+SCRIPT_DIR="$(abs_path "${BASH_SOURCE[0]}")" >/dev/null 2>&1
 INSTALLDIR="${SCRIPT_DIR}"
 export INTEL_OPENVINO_DIR="$INSTALLDIR"
 
@@ -30,15 +36,15 @@ if [ -e "$INSTALLDIR/runtime" ]; then
     export OpenVINO_DIR=$INSTALLDIR/runtime/cmake
 
     system_type=$(ls "$INSTALLDIR/runtime/lib/")
-    IE_PLUGINS_PATH=$INSTALLDIR/runtime/lib/$system_type
+    OV_PLUGINS_PATH=$INSTALLDIR/runtime/lib/$system_type
 
     if [[ "$OSTYPE" == "darwin"* ]]; then
-        export DYLD_LIBRARY_PATH=${IE_PLUGINS_PATH}/Release:${IE_PLUGINS_PATH}/Debug${DYLD_LIBRARY_PATH:+:$DYLD_LIBRARY_PATH}
-        export LD_LIBRARY_PATH=${IE_PLUGINS_PATH}/Release:${IE_PLUGINS_PATH}/Debug${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
-        export PKG_CONFIG_PATH=${IE_PLUGINS_PATH}/Release/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}
+        export DYLD_LIBRARY_PATH=${OV_PLUGINS_PATH}/Release:${OV_PLUGINS_PATH}/Debug${DYLD_LIBRARY_PATH:+:$DYLD_LIBRARY_PATH}
+        export LD_LIBRARY_PATH=${OV_PLUGINS_PATH}/Release:${OV_PLUGINS_PATH}/Debug${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
+        export PKG_CONFIG_PATH=${OV_PLUGINS_PATH}/Release/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}
     else
-        export LD_LIBRARY_PATH=${IE_PLUGINS_PATH}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
-        export PKG_CONFIG_PATH=$IE_PLUGINS_PATH/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}
+        export LD_LIBRARY_PATH=${OV_PLUGINS_PATH}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
+        export PKG_CONFIG_PATH=$OV_PLUGINS_PATH/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}
     fi
 
     if [ -e "$INSTALLDIR/runtime/3rdparty/tbb" ]; then
@@ -79,10 +85,12 @@ fi
 
 # OpenCV environment
 if [ -f "$INSTALLDIR/opencv/setupvars.sh" ]; then
+    # shellcheck source=/dev/null
     source "$INSTALLDIR/opencv/setupvars.sh"
 fi
 
 if [ -f "$INSTALLDIR/extras/opencv/setupvars.sh" ]; then
+    # shellcheck source=/dev/null
     source "$INSTALLDIR/extras/opencv/setupvars.sh"
 fi
 
@@ -93,27 +101,16 @@ fi
 
 PYTHON_VERSION_MAJOR="3"
 MIN_REQUIRED_PYTHON_VERSION_MINOR="7"
-MAX_SUPPORTED_PYTHON_VERSION_MINOR="10"
+MAX_SUPPORTED_PYTHON_VERSION_MINOR="11"
 
 check_python_version () {
     if [ -z "$python_version" ]; then
-        python_version=$(python3 -c 'import sys; print(str(sys.version_info[0])+"."+str(sys.version_info[1]))')
-    fi
-
-    # splitting Python version variable depending on the used shell
-    if [ -n "$ZSH_VERSION" ]; then
-        version_arr=(${(@s:.:)python_version})
-        if [ "${#version_arr[@]}" -ge "2" ]; then
-            # zsh starts indexing from 1
-            python_version_major=${version_arr[1]}
-            python_version_minor=${version_arr[2]}
-        fi
+        python_version_major=$( python3 -c 'import sys; print(str(sys.version_info[0]))' )
+        python_version_minor=$( python3 -c 'import sys; print(str(sys.version_info[1]))' )
+        python_version="$python_version_major.$python_version_minor"
     else
-        version_arr=(${python_version//./ })
-        if [ "${#version_arr[@]}" -ge "2" ]; then
-            python_version_major=${version_arr[0]}
-            python_version_minor=${version_arr[1]}
-        fi
+        python_version_major=$( python3 -c "import sys; print(str(\"${python_version}\".split('.')[0]))" )
+        python_version_minor=$( python3 -c "import sys; print(str(\"${python_version}\".split('.')[1]))" )
     fi
 
     if  [ "$PYTHON_VERSION_MAJOR" != "$python_version_major" ] ||
@@ -124,7 +121,12 @@ check_python_version () {
         "${PYTHON_VERSION_MAJOR}.${MAX_SUPPORTED_PYTHON_VERSION_MINOR} (64-bit) from https://www.python.org/downloads/"
         return 0
     fi
-    python_bitness=$(python"$python_version" -c 'import sys; print(64 if sys.maxsize > 2**32 else 32)')
+    if command -v python"$python_version" > /dev/null 2>&1; then
+        python_interp=python"$python_version"
+    else
+        python_interp=python"$python_version_major"
+    fi
+    python_bitness=$("$python_interp" -c 'import sys; print(64 if sys.maxsize > 2**32 else 32)')
 
     if [ "$python_bitness" != "" ] && [ "$python_bitness" != "64" ] && [ "$OS_NAME" != "Raspbian" ]; then
         echo "[setupvars.sh] WARNING: 64 bitness for Python $python_version is required"
@@ -147,7 +149,7 @@ check_python_version () {
             echo "[setupvars.sh] WARNING: OpenVINO Python environment does not set properly"
         fi
     fi
-} 
+}
 
 python_version_to_check="$python_version"
 if [ -z "$python_version" ]; then

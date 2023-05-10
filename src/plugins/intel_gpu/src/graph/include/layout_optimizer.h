@@ -20,8 +20,8 @@
 #include "non_max_suppression_inst.h"
 #include "region_yolo_inst.h"
 
-#include "kernel_selector_common.h"
-#include "kernel_selector_helper.h"
+// TODO: add generic interface for weights_reorder_params and get rid of this dependency
+#include "impls/ocl/kernel_selector_helper.h"
 
 #include <vector>
 #include <memory>
@@ -189,6 +189,12 @@ public:
     impl_types get_forced_impl_type_by_config(program_node& node);
     static bool are_data_types_suitable_for_onednn(program_node& node);
     bool are_layouts_suitable_for_onednn(program_node& node);
+    static bool onednn_check_data_types_for_pooling(data_types in_dt, data_types out_dt);
+    static bool onednn_check_data_types_for_convolution(data_types in_dt, data_types wei_dt, data_types out_dt);
+    static bool onednn_check_data_types_for_deconvolution(data_types in_dt, data_types wei_dt, data_types out_dt);
+    static bool onednn_check_data_types_for_fc_gemm(data_types in_dt, data_types wei_dt, data_types out_dt);
+    static bool onednn_check_preferred_impl_type_of_users(program_node& node);
+    bool is_primitive_implemented_for_onednn(program_node& node);
     bool is_format_supported(program_node& node, format::type fmt);
 
     // Returns whether reorder between "prev" with format fmt_prev and "next" with format fmt_next
@@ -210,7 +216,7 @@ public:
     bool should_select_b_fs_yx_fsv16_layout(convolution_node const& node, layout const& output_or_weights_layout);
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-    void select_preferred_formats_for_onednn(program_node& node, dnnl::primitive_desc prim_desc);
+    void select_preferred_formats_for_onednn(program_node& node, dnnl::primitive_desc prim_desc = dnnl::primitive_desc());
 #endif
 };
 }  // namespace cldnn

@@ -359,6 +359,12 @@ private:
 /// @brief Describes memory layout.
 /// @details Contains information about data stored in @ref memory.
 struct layout {
+    struct Hasher {
+        size_t operator()(const layout &l) const {
+            return l.hash();
+        }
+    };
+
     /// Constructs layout based on @p data_type and @p size information described by @ref tensor
     layout(data_types data_type, cldnn::format fmt, tensor size, padding apadding = padding())
         : data_type(data_type)
@@ -403,6 +409,10 @@ struct layout {
             }
             return l.size;
         };
+
+        if (lhs.get_partial_shape().rank() != rhs.get_partial_shape().rank())
+            return false;
+
         auto check_pshape = (lhs.is_dynamic() || rhs.is_dynamic()) ? (lhs.size == rhs.size) : (get_pshape(lhs) == get_pshape(rhs));
         return lhs.data_type == rhs.data_type && lhs.format == rhs.format && check_pshape && lhs.data_padding == rhs.data_padding;
     }
@@ -485,8 +495,8 @@ struct layout {
     bool is_dynamic() const;
 
     bool has_upper_bound() const {
-        for (auto i : size) {
-            if (i.get_max_length() == -1)
+        for (const auto& dim : size) {
+            if (dim.get_max_length() == -1)
                 return false;
         }
         return true;
@@ -517,7 +527,8 @@ struct layout {
     // for smaller buffer which, currently, should always be performed
     bool identical(const layout& other) const;
 
-    ov::PartialShape transform(cldnn::format new_fmt) const;
+    static size_t max_rank() { return 8; }
+    static ov::PartialShape transform(const ov::PartialShape& pshape, cldnn::format old_fmt, cldnn::format new_fmt);
 
     size_t hash() const {
         size_t seed = 0;
@@ -527,7 +538,8 @@ struct layout {
 
         auto pshape = get_partial_shape();
         for (size_t idx = 0; idx < pshape.size(); idx++) {
-            seed = hash_combine(seed, pshape[idx].get_length());
+            auto v = pshape[idx].is_dynamic() ? -1 : pshape[idx].get_length();
+            seed = hash_combine(seed, v);
         }
         return seed;
     }
