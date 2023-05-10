@@ -14,7 +14,6 @@ ov_add_test_target(
             funcTestUtils
         LINK_LIBRARIES
             openvino::runtime::dev
-            gmock
             gtest
             gtest_main
             funcTestUtils
