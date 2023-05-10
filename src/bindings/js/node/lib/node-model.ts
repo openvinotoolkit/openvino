@@ -23,6 +23,10 @@ export default async function loadModel(xmlPath: string, binPath: string)
   return new CommonModel(ovNode, model);
 }
 
+function instanceOfITensor(object: any): object is ITensor {
+  return 'data' in object;
+}
+
 class CommonModel implements IModel {
   #ovNode: ovNodeModule;
   #nodeModel: NodeModel;
@@ -34,9 +38,10 @@ class CommonModel implements IModel {
 
   async infer(tensorOrDataArray: ITensor | number[], shape: IShape)
   : Promise<ITensor> {
-    const tensorData = tensorOrDataArray instanceof Array
-      ? jsTypeByPrecisionMap[DEFAULT_TENSOR_PRECISION].from(tensorOrDataArray)
-      : tensorOrDataArray.data;
+    const tensorData = instanceOfITensor(tensorOrDataArray)
+      ? tensorOrDataArray.data
+      : jsTypeByPrecisionMap[DEFAULT_TENSOR_PRECISION].from(tensorOrDataArray);
+
     const precision = tensorOrDataArray instanceof Tensor
       ? tensorOrDataArray.precision
       : DEFAULT_TENSOR_PRECISION;
