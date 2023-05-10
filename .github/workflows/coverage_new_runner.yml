@@ -39,7 +39,7 @@ jobs:
       - name: Print info
         run: |
           printenv
-          sudo mkdir /home/devuser/actions-runner/_work/_tool/Python/${{ matrix.config.py_ver }}
+          # sudo mkdir /home/devuser/actions-runner/_work/_tool/Python/${{ matrix.config.py_ver }}
       
       - name: Setup python
         uses: actions/setup-python@v4
