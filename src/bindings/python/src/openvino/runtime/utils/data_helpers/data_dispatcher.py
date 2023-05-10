@@ -72,6 +72,7 @@ def _(
         return tensor
     # If types are mismatched, convert and always copy.
     if tensor_dtype != value.dtype:
+        print(f'Requested tensor_dtype = {tensor_dtype}.\nRepresented as requested: {value.astype(tensor_dtype)}')
         return Tensor(value.astype(tensor_dtype), shared_memory=False)
     # Otherwise, use mode defined in the call.
     return Tensor(value, shared_memory=is_shared)
@@ -182,8 +183,8 @@ def _(
     inputs: np.ndarray,
     request: _InferRequestWrapper,
 ) -> Tensor:
-    request._inputs_data = normalize_arrays(inputs, is_shared=True)
-    return value_to_tensor(request._inputs_data, request=request, is_shared=True)
+    request._inputs_data = normalize_arrays(inputs, is_shared=(inputs.dtype != np.dtype.str))
+    return value_to_tensor(request._inputs_data, request=request, is_shared=(inputs.dtype != np.dtype.str))
 
 
 @create_shared.register(Tensor)

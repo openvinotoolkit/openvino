@@ -300,9 +300,9 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
 
         // generate OV node output vector for the current operation node
 
-        std::cerr
-            << "[ TF FE INFO ] Trying to convert node with type " << operation_decoder->get_op_type()
-            << " with name " << operation_decoder->get_op_name() << "\n";
+        //std::cerr
+        //    << "[ TF FE INFO ] Trying to convert node with type " << operation_decoder->get_op_type()
+        //    << " with name " << operation_decoder->get_op_name() << "\n";
 
         NamedOutputVector ov_outputs;
         auto operation_type = operation_decoder->get_op_type();

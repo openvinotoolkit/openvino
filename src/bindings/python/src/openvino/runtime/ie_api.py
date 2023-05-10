@@ -168,7 +168,7 @@ class CompiledModel(CompiledModelBase):
         :return: New InferRequest object.
         :rtype: openvino.runtime.InferRequest
         """
-        return InferRequest(super().create_infer_request(), self)
+        return InferRequest(super().create_infer_request())
 
     def infer_new_request(self, inputs: Union[dict, list, tuple, Tensor, np.ndarray, str] = None) -> OVDict:
         """Infers specified input(s) in synchronous mode.

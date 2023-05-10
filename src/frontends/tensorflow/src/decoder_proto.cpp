@@ -160,7 +160,7 @@ ov::element::Type get_ov_type(const ::tensorflow::DataType& type) {
 }
 
 ov::Any DecoderProto::get_attribute(const std::string& name) const {
-    std::cerr << "[ INFO ] Trying to decode attribute " << name << "\n";
+    //std::cerr << "[ INFO ] Trying to decode attribute " << name << "\n";
     auto attrs = decode_attribute_helper(name);
     if (attrs.empty()) {
         return {};
@@ -199,7 +199,7 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
     }
 
     case ::tensorflow::AttrValue::ValueCase::kList: {
-        std::cerr << "kList\n";
+        //std::cerr << "kList\n";
         const auto& list = attrs[0].list();
         if (list.i_size())
             return std::vector<int64_t>(list.i().begin(), list.i().end());
@@ -256,7 +256,7 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
     }
 
     case ::tensorflow::AttrValue::ValueCase::kTensor: {
-        std::cerr << "kTensor\n";
+        //std::cerr << "kTensor\n";
         const auto& tensor_proto = attrs[0].tensor();
         const auto& tf_shape = tensor_proto.tensor_shape();
         ov::PartialShape pshape;
@@ -275,7 +275,7 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
                 std::cerr << "[ PROCESS STR CONSTANT ]\n";
                 auto tensor_content = tensor_proto.tensor_content();
                 if (!tensor_content.empty() && tensor_proto.has_tensor_shape()) {
-                    std::cerr << "[ FIRST IF ]\n";
+                    //std::cerr << "[ FIRST IF ]\n";
                     ov::Tensor res(element::u8, Shape{tensor_content.length()});
                     if(pshape.get_shape().size() == 0) {    // TODO: it works for scalars only
                         extract_tensor_content<uint8_t>(tensor_content, &res);
@@ -319,7 +319,7 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
         auto tensor_content = tensor_proto.tensor_content();
         //if(ov_type == element::string)std::cerr << "XXXXXXXXXXXX\n";
         if (!tensor_content.empty() && tensor_proto.has_tensor_shape()) {
-            std::cerr << "[ FIRST IF ]\n";
+            //std::cerr << "[ FIRST IF ]\n";
             switch (ov_type) {
             case ov::element::u8:
                 extract_tensor_content<uint8_t>(tensor_content, &res);

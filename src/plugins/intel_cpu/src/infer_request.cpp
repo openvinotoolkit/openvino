@@ -659,7 +659,7 @@ InferRequest::InferRequest(const std::vector<std::shared_ptr<const ov::Node>>& i
 }
 
 void InferRequest::initBlobs() {
-    std::cerr << "InferRequest::initBlobs\n";
+    //std::cerr << "InferRequest::initBlobs\n";
     for (const auto& it : modelInputsMap) {
         InferRequest::GetBlob(it.first);
     }
