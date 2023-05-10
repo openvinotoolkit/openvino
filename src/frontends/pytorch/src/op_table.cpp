@@ -40,6 +40,7 @@ OP_CONVERTER(translate_dim);
 OP_CONVERTER(translate_div);
 OP_CONVERTER(translate_elu);
 OP_CONVERTER(translate_embedding);
+OP_CONVERTER(translate_embedding_bag);
 OP_CONVERTER(translate_empty);
 OP_CONVERTER(translate_expand);
 OP_CONVERTER(translate_expand_as);
@@ -210,6 +211,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::dropout_", op::skip_node},
         {"aten::elu", op::translate_elu},
         {"aten::embedding", op::translate_embedding},
+        {"aten::embedding_bag", op::translate_embedding_bag},
         {"aten::empty", op::translate_empty},
         {"aten::eq", op::translate_1to1_match_2_inputs_align_types<opset10::Equal>},
         {"aten::exp", op::translate_1to1_match_1_inputs<opset10::Exp>},
