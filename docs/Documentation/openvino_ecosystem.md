@@ -38,19 +38,6 @@ More resources:
 * `GitHub <https://github.com/openvinotoolkit/training_extensions>`__
 * `Documentation <https://openvinotoolkit.github.io/training_extensions/stable/guide/get_started/introduction.html>`__
 
-Compile Tool 
-#############
-
-Compile tool is deprecated since the 2023.0 OpenVINO release. If you need to compile a model for inference on a specific device, use the following script: 
-
-.. code-block:: python
-
-   ov.Core().compile_model("device", model, properties).export_model("compiled_blob")
-
-To learn which device supports the import / export functionality, see the :doc:`feature support matrix <openvino_docs_OV_UG_Working_with_devices>`.
-
-For more details on preprocessing steps, refer to the :doc:`Optimize Preprocessing <openvino_docs_OV_UG_Preprocessing_Overview>`. To compile the model with advanced preprocessing capabilities, refer to the :doc:`Use Case - Integrate and Save Preprocessing Steps Into OpenVINO IR <openvino_docs_OV_UG_Preprocess_Usecase_save>`, which shows how to have all the preprocessing in the compiled blob. 
-
 
 OpenVINO™ Security Add-on
 #########################
@@ -117,6 +104,19 @@ More resources:
 * `Documentation on GitHub <https://openvinotoolkit.github.io/datumaro/stable/docs/get-started/introduction.html>`__  
 * `PyPI <https://pypi.org/project/datumaro/>`__  
 * `GitHub <https://github.com/openvinotoolkit/datumaro>`__  
+
+Compile Tool 
+#############
+
+Compile tool is deprecated since the 2023.0 OpenVINO release. If you need to compile a model for inference on a specific device, use the following script: 
+
+.. code-block:: python
+
+   ov.Core().compile_model("device", model, properties).export_model("compiled_blob")
+
+To learn which device supports the import / export functionality, see the :doc:`feature support matrix <openvino_docs_OV_UG_Working_with_devices>`.
+
+For more details on preprocessing steps, refer to the :doc:`Optimize Preprocessing <openvino_docs_OV_UG_Preprocessing_Overview>`. To compile the model with advanced preprocessing capabilities, refer to the :doc:`Use Case - Integrate and Save Preprocessing Steps Into OpenVINO IR <openvino_docs_OV_UG_Preprocess_Usecase_save>`, which shows how to have all the preprocessing in the compiled blob. 
 
 @endsphinxdirective
 
