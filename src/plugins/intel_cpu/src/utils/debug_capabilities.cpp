@@ -18,6 +18,13 @@
 #include "snippets/op/subgraph.hpp"
 #include <ie_ngraph_utils.hpp>
 
+namespace dnnl {
+namespace impl {
+std::ostream &operator<<(std::ostream &ss, const primitive_attr_t *attr);
+std::ostream &operator<<(std::ostream &ss, alg_kind_t alg);
+}
+}
+
 namespace ov {
 namespace intel_cpu {
 
@@ -106,6 +113,14 @@ std::ostream & operator<<(std::ostream & os, const MemoryDesc& desc) {
        << " " << desc.getPrecision().name()
        << " " << desc.serializeFormat();
     return os;
+}
+
+std::ostream & operator<<(std::ostream & os, const dnnl::primitive_attr& attr) {
+    return dnnl::impl::operator<<(os, attr.get());
+}
+
+std::ostream & operator<<(std::ostream & os, const dnnl::algorithm& alg) {
+    return dnnl::impl::operator<<(os, convert_to_c(alg));
 }
 
 std::ostream & operator<<(std::ostream & os, const NodeDesc& desc) {
@@ -239,7 +254,7 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
     } else {
         // no SPD yet, use orginal shapes
         comma = "";
-        for (int i = 0; i < num_output_port; i++) {
+        for (int i = 0; i < node.getOriginalOutputPrecisions().size(); i++) {
             auto shape = node.getOutputShapeAtPort(i);
             std::string prec_name = "Undef";
             prec_name = node.getOriginalOutputPrecisionAtPort(i).name();

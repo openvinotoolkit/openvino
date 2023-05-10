@@ -382,22 +382,6 @@ StreamCfg Engine::GetNumStreams(InferenceEngine::IStreamsExecutor::ThreadBinding
     return stream_cfg;
 }
 
-static bool shouldEnforceBF16(const std::map<std::string, std::string>& modelConfig, const Config& engineConfig) {
-    // For BF16 execution, the machine should have AVX512 at least
-    if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core))
-        return false;
-
-    const auto& enforceBF16 = modelConfig.find(InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16);
-    const auto& inferPrec = modelConfig.find(ov::hint::inference_precision.name());
-    if (enforceBF16 != modelConfig.end()) {
-        return enforceBF16->second == PluginConfigParams::YES;
-    } else if (inferPrec != modelConfig.end()) {
-        return inferPrec->second == "bf16";
-    } else {
-        return engineConfig.enforceBF16;
-    }
-}
-
 static Config::SnippetsMode getSnippetsMode(const std::map<std::string, std::string>& modelConfig, const Config& engineConfig) {
     const auto& dynamicBatchProp = modelConfig.find(InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED);
     const bool enableDynamicBatch = (dynamicBatchProp != modelConfig.end() && dynamicBatchProp->second == PluginConfigParams::YES)
@@ -452,14 +436,20 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     const auto& lptProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE);
     const bool enableLPT = (lptProp != config.end() && lptProp->second == PluginConfigParams::YES) /* enabled in the orig_config*/
             || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled for the plugin */;
-    const bool enableBF16 = shouldEnforceBF16(config, engConfig);
+
+    ov::element::Type inferencePrecision;
+    {
+        Config tempConf = engConfig;
+        tempConf.readProperties(config);
+        inferencePrecision = tempConf.inferencePrecision;
+    }
     const Config::SnippetsMode snippetsMode = getSnippetsMode(config, engConfig);
 
     auto nGraphFunc = clonedNetwork.getFunction();
 
     DEBUG_LOG(PrintableModel(*nGraphFunc, "org_"));
 
-    Transformations transformations(nGraphFunc, enableLPT, enableBF16, isLegacyAPI(), snippetsMode, engConfig);
+    Transformations transformations(nGraphFunc, enableLPT, inferencePrecision, isLegacyAPI(), snippetsMode, engConfig);
     transformations.UpToCpuSpecificOpSet();
 
     // need to check that all outputs have static shapes
@@ -561,9 +551,7 @@ Parameter Engine::GetConfig(const std::string& name, const std::map<std::string,
         const bool perfCount = engConfig.collectPerfCounters;
         return decltype(ov::enable_profiling)::value_type(perfCount);
     } else if (name == ov::hint::inference_precision) {
-        const auto enforceBF16 = engConfig.enforceBF16;
-        const auto inference_precision = enforceBF16 ? ov::element::bf16 : ov::element::f32;
-        return decltype(ov::hint::inference_precision)::value_type(inference_precision);
+        return decltype(ov::hint::inference_precision)::value_type(engConfig.inferencePrecision);
     } else if (name == ov::hint::performance_mode) {
         const auto perfHint = ov::util::from_string(engConfig.perfHintsConfig.ovPerfHint, ov::hint::performance_mode);
         return perfHint;
@@ -746,7 +734,7 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
 
     auto supported = GetSupportedNodes(model,
                                        [&](std::shared_ptr<ov::Model>& model) {
-                                           Transformations transformation(model, enableLPT, conf.enforceBF16, isLegacyAPI(), snippetsMode, engConfig);
+                                           Transformations transformation(model, enableLPT, conf.inferencePrecision, isLegacyAPI(), snippetsMode, engConfig);
                                            transformation.UpToCpuSpecificOpSet();
                                            transformation.CpuSpecificOpSet();
                                        },

@@ -346,9 +346,7 @@ InferenceEngine::Parameter ExecNetwork::GetMetric(const std::string &name) const
         const bool perfCount = config.collectPerfCounters;
         return decltype(ov::enable_profiling)::value_type(perfCount);
     } else if (name == ov::hint::inference_precision) {
-        const auto enforceBF16 = config.enforceBF16;
-        const auto inference_precision = enforceBF16 ? ov::element::bf16 : ov::element::f32;
-        return decltype(ov::hint::inference_precision)::value_type(inference_precision);
+        return decltype(ov::hint::inference_precision)::value_type(config.inferencePrecision);
     } else if (name == ov::hint::performance_mode) {
         const auto perfHint = ov::util::from_string(config.perfHintsConfig.ovPerfHint, ov::hint::performance_mode);
         return perfHint;

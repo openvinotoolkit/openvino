@@ -192,8 +192,7 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph) {
         graphNodes.push_back(outNode);
     }
 
-    if (getConfig().enforceBF16)
-        EnforceBF16();
+    EnforceInferencePrecision();
 }
 
 void Graph::Replicate(const CNNNetwork &network) {
@@ -291,8 +290,7 @@ void Graph::Replicate(const CNNNetwork &network) {
         graphNodes.push_back(outNode);
     }
 
-    if (getConfig().enforceBF16)
-        EnforceBF16();
+    EnforceInferencePrecision();
 
     auto hasSubgraphConsumers = [] (const NodePtr& node) -> bool {
         const auto & childEdges = node->getChildEdges();
@@ -1599,23 +1597,56 @@ bool Graph::InsertNode(NodePtr parent, NodePtr child, NodePtr node, int parentPo
 }
 
 // Set all non const data paths precision to BF16
-void Graph::EnforceBF16() {
+void Graph::EnforceInferencePrecision() {
+    CPU_DEBUG_CAP_ENABLE(static std::string F16SET = std::getenv("F16SET") ? std::getenv("F16SET") : "");
+    CPU_DEBUG_CAP_ENABLE(static int F16CNT = atoi(std::getenv("F16CNT") ? std::getenv("F16CNT") : "9999999"));
+    CPU_DEBUG_CAP_ENABLE(static int f16cnt = 0);
+    auto inferPrec = InferenceEngine::Precision::FP32;
+    switch (getConfig().inferencePrecision) {
+    case ov::element::bf16:
+        inferPrec = InferenceEngine::Precision::BF16;
+        break;
+    case ov::element::f16:
+        inferPrec = InferenceEngine::Precision::FP16;
+        break;
+    default:
+        break;
+    }
+
+    if (inferPrec == InferenceEngine::Precision::FP32)
+        return;
+
     std::function<void(const NodePtr&, std::unordered_set<NodePtr>& skipNodes)> searchForNodesToSkip;
     searchForNodesToSkip = [&](const NodePtr& node, std::unordered_set<NodePtr>& skipNodes) -> void {
         for (size_t i = 0; i < node->getParentEdges().size(); i++) {
             const auto& parent = node->getParentEdgeAt(i)->getParent();
 
-            /* list of node types that must be forced to be executed in BF16 precision
-             * because of performance gains */
-            if (one_of(parent->getType(),
-                    Type::Convolution,    // conv nets
-                    Type::FullyConnected, // conv / bert nets
-                    Type::RNNCell,        // recurent nets
-                    Type::RNNSeq,         // recurent nets
-                    Type::MatMul,         // bert nets
-                    Type::ROIPooling,     // object detection nets
-                    Type::Interpolate))    // super resolution nets
-                continue;   // stop at significant nodes
+            if (inferPrec == InferenceEngine::Precision::BF16) {
+                /* list of node types that must be forced to be executed in BF16 precision
+                * because of performance gains */
+                if (one_of(parent->getType(),
+                        Type::Convolution,    // conv nets
+                        Type::FullyConnected, // conv / bert nets
+                        Type::RNNCell,        // recurent nets
+                        Type::RNNSeq,         // recurent nets
+                        Type::MatMul,         // bert nets
+                        Type::ROIPooling,     // object detection nets
+                        Type::Interpolate))    // super resolution nets
+                    continue;   // stop at significant nodes
+            }
+
+            if (inferPrec == InferenceEngine::Precision::FP16) {
+                /* list of node types that must be forced to be executed in FP16 precision
+                * because of performance gains */
+                if (one_of(parent->getType(),
+                        Type::Convolution,    // conv nets
+                        Type::Deconvolution,  // deconv
+                        Type::FullyConnected, // conv / bert nets
+                        Type::MatMul,         // bert nets
+                        Type::Pooling,
+                        Type::MVN))
+                    continue;   // stop at significant nodes
+            }
 
             const auto res = skipNodes.insert(parent);
             if (res.second) // node not visited yet
@@ -1630,7 +1661,7 @@ void Graph::EnforceBF16() {
     // starting from output nodes
     for (const auto& entry : outputNodesMap) {
         const auto& node = entry.second;
-        if (node->getOriginalInputPrecisionAtPort(0) == Precision::BF16)
+        if (node->getOriginalInputPrecisionAtPort(0) == inferPrec)
             continue;
         searchForNodesToSkip(node, nodesToSkip);
     }
@@ -1640,26 +1671,59 @@ void Graph::EnforceBF16() {
             continue;
 
         if (node->getType() != Type::Input && node->getType() != Type::Output) {
+            // FP16 is only implemented on limited types of node.
+            // TODO:
+            //     Eltwise : fused is supported, need to support standalone
+#ifdef CPU_DEBUG_CAPS
+            if (inferPrec == InferenceEngine::Precision::FP16 &&
+                F16SET.find(NameFromType(node->getType()) + ",") != std::string::npos) {
+                if (f16cnt < F16CNT) {
+                    std::cout << " f16cnt [" << f16cnt << "] : " << NameFromType(node->getType()) << " " << node->getName() << std::endl;
+                    f16cnt++;
+                } else {
+                    continue;
+                }
+            }
+#endif
+            if (inferPrec == InferenceEngine::Precision::FP16 && !one_of(node->getType(),
+                                                                         Type::Reorder,
+                                                                         Type::Convolution,
+                                                                         Type::Deconvolution,
+                                                                         Type::FullyConnected,
+                                                                         Type::MatMul,
+                                                                         Type::Pooling,
+                                                                         Type::Pad,
+                                                                         Type::Transpose,
+                                                                         Type::Eltwise,
+                                                                         Type::Subgraph,
+                                                                         Type::MVN,
+                                                                         Type::Softmax,
+                                                                         Type::Reshape,
+                                                                         Type::Gather,
+                                                                         Type::Split))
+                continue;
+
             DEBUG_LOG("#", node->getExecIndex(),
                       " ", node->getName(),
-                      " is enforced to use BF16\n");
+                      " is enforced to use", inferPrec);
+
             for (size_t i = 0; i < node->getOriginalInputsNumber(); i++) {
                 const auto &parent = node->getParentEdgesAtPort(i)[0]->getParent();
                 /* Skip BF16 enforcement for nodes after Constant Inputs for maintaining precision for fusing.
-                 * Precision conversion to BF16 does automatically, if convolution follows up after Constant Inputs
-                 * and if activation is BF16 */
+                * Precision conversion to BF16 does automatically, if convolution follows up after Constant Inputs
+                * and if activation is BF16 */
                 if (!(parent->getType() == Type::Input && parent->isConstant() &&
                     // Concatenation node is exception because it doesn't change an accuracy for BF16 activation
-                      node->getType() != Type::Concatenation) &&
+                    node->getType() != Type::Concatenation) &&
                     // exclude Eltwise after Input since it supports conversion to BF16
                     !(parent->getType() == Type::Input && (node->getType() == Type::Eltwise || node->getType() == Type::Subgraph)) &&
                     node->getOriginalInputPrecisionAtPort(i) == Precision::FP32)
-                    node->setOriginalInputPrecisionAtPort(i, Precision::BF16);
+                    node->setOriginalInputPrecisionAtPort(i, inferPrec);
             }
 
             for (size_t i = 0; i < node->getOriginalOutputsNumber(); i++) {
                 if (node->getOriginalOutputPrecisionAtPort(i) == Precision::FP32)
-                    node->setOriginalOutputPrecisionAtPort(i, Precision::BF16);
+                    node->setOriginalOutputPrecisionAtPort(i, inferPrec);
             }
         }
     }

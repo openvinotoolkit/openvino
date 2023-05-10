@@ -81,7 +81,9 @@ void SoftMax::getSupportedDescriptors() {
         return;
 
     InferenceEngine::Precision precision = getOriginalInputPrecisionAtPort(0);
-    if (precision != InferenceEngine::Precision::FP32 && precision != InferenceEngine::Precision::BF16)
+    if (precision != InferenceEngine::Precision::FP32 &&
+        precision != InferenceEngine::Precision::BF16 &&
+        precision != InferenceEngine::Precision::FP16)
         precision = InferenceEngine::Precision::FP32;
     auto inputDataType = DnnlExtensionUtils::IEPrecisionToDataType(precision);
 

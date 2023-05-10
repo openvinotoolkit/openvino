@@ -434,7 +434,8 @@ void Convolution::getSupportedDescriptors() {
 
     // We need to make sure that convolution output and second input of fused Eltwise operation
     // have equal precision sizes since they use the same physical memory. In case precisions are different we upscale to FP32.
-    if (outputDataType != memory::data_type::f32 && outputDataType != memory::data_type::bf16 && withSum) {
+    if (outputDataType != memory::data_type::f32 && outputDataType != memory::data_type::bf16 &&
+        outputDataType != memory::data_type::f16 && withSum) {
         for (int i = 0; i < fusedWith.size(); i++) {
             if (fusedWith[i]->getAlgorithm() == Algorithm::EltwiseAdd) {
                 auto* eltwiseNode = dynamic_cast<Eltwise *>(fusedWith[i].get());
@@ -508,11 +509,16 @@ void Convolution::getSupportedDescriptors() {
     memory::format_tag nCsp16c = ndims == 3 ? memory::format_tag::nCw16c : (ndims == 4 ? memory::format_tag::nChw16c : memory::format_tag::nCdhw16c);
 
     if (canBeExecutedInInt8()) {
-        DEBUG_LOG(getName(), "Creating I8 descriptor");
+        DEBUG_LOG(getName(), " Creating I8 descriptor");
         // initTryBrgconvFlag depends on outputDataType, should be after outputDataType computed
         if (!enforceBrgconv)
             initTryBrgconvFlag();
         SetPostOpsAndZeroPoints(attrs);
+
+        // so far oneDNN INT8 convolution only support s8,u8,s32,f32,bf16 output types
+        if (outputDataType == memory::data_type::f16) {
+            outputDataType = memory::data_type::f32;
+        }
 
         in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(0), inputDataType, nspc);
         out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(getOutputShapeAtPort(0), outputDataType, nspc);
@@ -520,10 +526,23 @@ void Convolution::getSupportedDescriptors() {
         return;
     }
 
-    inputDataType = (getOriginalInputPrecisionAtPort(0) == Precision::BF16
-                     && !(isDepthWise() && ndims == 5)) ? memory::data_type::bf16 : memory::data_type::f32;
-    outputDataType = (getOriginalOutputPrecisionAtPort(0) == Precision::BF16
-                      && !(isDepthWise() && ndims == 5)) ? memory::data_type::bf16 : memory::data_type::f32;
+    auto getSupportedDataType = [&](InferenceEngine::Precision originalPrec) {
+        auto originalDT = DnnlExtensionUtils::IEPrecisionToDataType(originalPrec);
+        auto dt = memory::data_type::f32;
+
+        // supported lower precisions: bf16, f16
+        if (one_of(originalDT, memory::data_type::bf16, memory::data_type::f16))
+            dt = originalDT;
+
+        // fallback to f32 on special case for performance reasons
+        if (isDepthWise() && ndims == 5)
+            dt = memory::data_type::f32;
+        return dt;
+    };
+
+    inputDataType = getSupportedDataType(getOriginalInputPrecisionAtPort(0));
+    outputDataType = getSupportedDataType(getOriginalOutputPrecisionAtPort(0));
+
     eltwisePrecision = Precision::FP32;
     for (int i = 0; i < fusedWith.size(); i++) {
         if (fusedWith[i]->getAlgorithm() == Algorithm::EltwiseAdd) {
@@ -537,14 +556,15 @@ void Convolution::getSupportedDescriptors() {
                 // for input of inplace tensor precision) to FP32. This will add reorder for that in-place tensor
                 // bofore the fused convolution. This behaviour might be more correct regarding expected markup
                 // of the graph but performance of first and second approaches might be different. Need to verify
-                outputDataType = eltwisePrecision == Precision::BF16 ? memory::data_type::bf16 : memory::data_type::f32;
+                outputDataType = getSupportedDataType(eltwisePrecision);
                 eltwisePrecision = DnnlExtensionUtils::DataTypeToIEPrecision(outputDataType);
             }
         }
     }
     // correction for cases of FP32 input - we do not have FP32 convolution supported BF16 output
-    if (inputDataType == memory::data_type::f32
-        && (outputDataType == memory::data_type::bf16 || eltwisePrecision == Precision::BF16)) {
+    if (inputDataType == memory::data_type::f32 &&
+        (outputDataType == memory::data_type::bf16 || eltwisePrecision == Precision::BF16 ||
+         outputDataType == memory::data_type::f16 || eltwisePrecision == Precision::FP16)) {
         outputDataType = memory::data_type::f32;
         eltwisePrecision = Precision::FP32;
     }
@@ -560,7 +580,7 @@ void Convolution::getSupportedDescriptors() {
     auto outputShape = getOutputShapeAtPort(0);
 
 #if defined(OPENVINO_ARCH_X86_64)
-    bool acceptedFormat = inputDataType == memory::data_type::bf16;
+    bool acceptedFormat = (inputDataType == memory::data_type::bf16 || inputDataType == memory::data_type::f16);
     bool nspcAdded = false;
     acceptedFormat |= (shouldTryBrgconv && inputDataType == memory::data_type::f32);
     if (acceptedFormat && impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core)) {
@@ -593,7 +613,7 @@ void Convolution::getSupportedDescriptors() {
     out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(outputShape, outputDataType, ncsp);
     createDescriptor({ in_candidate }, { out_candidate });
 
-    if (!nspcAdded && (inputDataType != memory::data_type::bf16 && isNspcAvailable())) {
+    if (!nspcAdded && (inputDataType != memory::data_type::bf16 && inputDataType != memory::data_type::f16 && isNspcAvailable())) {
         in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(inputShape, inputDataType, nspc);
         out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(outputShape, outputDataType, nspc);
         createDescriptor({ in_candidate }, { out_candidate });
@@ -915,8 +935,21 @@ void Convolution::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
             const auto desc = createDescriptorInternal(getEngine(),
                                                        inDnnlDesc, weightDnnlDesc, biasDnnlDesc, outDnnlDesc, withBiases,
                                                        stride, dilation, paddingL, paddingR, alg, attr);
-            if (desc.get(true))
+            if (desc.get(true)) {
                 descs.emplace_back(desc);
+            } else {
+                DEBUG_LOG("createDescriptorInternal() failed for node `", getName(), "` ");
+                DEBUG_LOG(" src   :", inDnnlDesc);
+                DEBUG_LOG(" wei   :", weightDnnlDesc);
+                DEBUG_LOG(" bias  :", biasDnnlDesc);
+                DEBUG_LOG(" dst   :", outDnnlDesc);
+                DEBUG_LOG(" stride  :", printable(stride));
+                DEBUG_LOG(" dilation:", printable(dilation));
+                DEBUG_LOG(" paddingL:", printable(paddingL));
+                DEBUG_LOG(" paddingR:", printable(paddingR));
+                DEBUG_LOG(" alg  :", alg);
+                DEBUG_LOG(" attr :", attr);
+            }
         }
     }
 }
@@ -968,6 +1001,19 @@ void Convolution::addLegacyZeroPoints(dnnl::primitive_attr& attr) {
     }
 }
 
+// void Convolution::addOutputScales(dnnl::primitive_attr& attr) {
+//     if (outputScales.empty())
+//         return;
+//     DEBUG_LOG("Set original output scales");
+//     // attr.set_scales_mask(DNNL_ARG_DST, 0);
+
+//     // if (!outScaleMemPtr) {
+//     //     outScaleMemPtr.reset(new Memory(getEngine()));
+//     //     DnnlBlockedMemoryDesc memoryDesc(Precision::FP32, {outputScales.size()});
+//     //     outScaleMemPtr->Create(memoryDesc, outputScales.data());
+//     // }
+// }
+
 static bool attrContainsPostOp(const dnnl::primitive_attr& attr, const dnnl::impl::primitive_kind_t kind) {
     const auto ops = attr.get_post_ops();
     return ops.get()->find(kind) != -1;
@@ -979,6 +1025,7 @@ void Convolution::SetPostOpsAndZeroPoints(std::vector<dnnl::primitive_attr> &att
     auto outputShape = outputStaticShape();
     // attr[0] - Legacy post ops + Legacy zero points.
     DEBUG_LOG(getName(), ": set post ops, attr 0, useLegacyPostOps=true");
+    // addOutputScales(attrs[0]);
     setPostOps(attrs[0], outputShape, true);
     addLegacyZeroPoints(attrs[0]);
 
@@ -1678,6 +1725,19 @@ void Convolution::initializeInputZeroPoints(const uint8_t* inputZpData, const si
         (impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_amx) || impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_vnni)))
         inputZeroPoints.push_back(static_cast<int32_t>(inputZpData[0]));
 }
+
+// void Convolution::initializeOutputScales(const float* outputScalesData, const size_t outputScalesSize) {
+//     if (!outputScales.empty())
+//         IE_THROW() << "Output scales vector is not empty '" << getName() << "'";
+
+//     if (outputScalesSize)
+//         outputScalesType = scalesType::PerTensor;
+//     for (size_t i = 0; i < outputScalesSize; i++) {
+//         outputScales.push_back(outputScalesData[i]);
+//         if (outputScalesData[i] != outputScalesData[0])
+//             outputScalesType = scalesType::PerChannel;
+//     }
+// }
 
 VectorDims Convolution::makeInputDummyShape(const Shape& inpShape) const {
     // There are a bunch of heuristics mostly aimed to guess the most appropriate oneDNN implementation, to reduce the

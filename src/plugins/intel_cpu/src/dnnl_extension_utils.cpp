@@ -26,6 +26,8 @@ uint8_t DnnlExtensionUtils::sizeOfDataType(dnnl::memory::data_type dataType) {
         return 4;
     case dnnl::memory::data_type::bf16:
         return 2;
+    case dnnl::memory::data_type::f16:
+        return 2;
     case dnnl::memory::data_type::s8:
         return 1;
     case dnnl::memory::data_type::u8:
@@ -47,6 +49,8 @@ memory::data_type DnnlExtensionUtils::IEPrecisionToDataType(const InferenceEngin
             return memory::data_type::s32;
         case InferenceEngine::Precision::BF16:
             return memory::data_type::bf16;
+        case InferenceEngine::Precision::FP16:
+            return memory::data_type::f16;
         case InferenceEngine::Precision::I8:
             return memory::data_type::s8;
         case InferenceEngine::Precision::U8:
@@ -70,6 +74,8 @@ InferenceEngine::Precision DnnlExtensionUtils::DataTypeToIEPrecision(memory::dat
             return InferenceEngine::Precision::I32;
         case memory::data_type::bf16:
             return InferenceEngine::Precision::BF16;
+        case memory::data_type::f16:
+            return InferenceEngine::Precision::FP16;
         case memory::data_type::s8:
             return InferenceEngine::Precision::I8;
         case memory::data_type::u8:

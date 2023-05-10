@@ -545,6 +545,10 @@ void Transformations::Lpt(const bool hasINT16orINT32Levels, const std::vector<ov
         [](const_node_ptr& node) -> bool {
             return ov::marked_as_bias(node);
         });
+    lptManager.get_pass_config()->set_callback<ngraph::pass::low_precision::AddTransformation>(
+        [](const_node_ptr& node) -> bool {
+            return ov::marked_as_bias(node);
+        });
 
     CPU_DISABLE_PASS_COMMON(lptManager, ngraph::pass::low_precision::MultiplyToGroupConvolutionTransformation);
 
@@ -591,7 +595,7 @@ void Transformations::PostLpt() {
             // Vector madd BF16 instruction on SPR has reduced performance on HW level, which results in overall perf degradation
             size_t bf16Factor = 2;
             if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) &&
-                (n->get_input_element_type(0) == element::bf16 || (n->get_input_element_type(0) == element::f32 && enableBF16)) &&
+                (n->get_input_element_type(0) == element::bf16 || (n->get_input_element_type(0) == element::f32 && inferencePrecision == ov::element::bf16)) &&
                 (n->get_input_shape(0)[3] % bf16Factor != 0 || n->get_input_shape(1)[1] % bf16Factor != 0 || n->get_input_shape(3)[3] % bf16Factor != 0)) {
                 return true;
             }
@@ -601,7 +605,7 @@ void Transformations::PostLpt() {
         MHAFloatFusion, MHAFloatFusion2, MHAQuantFusion, MHAQuantFusion2);
 
     // Float MHA is supported by snippets now
-    if (!enableBF16) {
+    if (inferencePrecision == ov::element::f32) {
         CPU_DISABLE_PASS_X64(postLPTPassManager, MHAFloatFusion);
         CPU_DISABLE_PASS_X64(postLPTPassManager, MHAFloatFusion2);
     }
@@ -619,11 +623,11 @@ void Transformations::MainSnippets(void) {
     ngraph::pass::Manager snippetsManager;
     snippetsManager.set_per_pass_validation(false);
     if (snippetsMode != Config::SnippetsMode::IgnoreCallback)
-        CPU_REGISTER_PASS_X64(snippetsManager, SnippetsMarkSkipped, enableBF16);
+        CPU_REGISTER_PASS_X64(snippetsManager, SnippetsMarkSkipped, inferencePrecision != ov::element::f32);
     CPU_REGISTER_PASS_X64(snippetsManager, ngraph::snippets::pass::SnippetsTokenization);
 
     const bool isMHASupported =
-            !enableBF16 &&  // TODO: Need to add BF16 support for MHA in Snippets
+            (inferencePrecision == ov::element::f32) &&  // TODO: Need to add non-FP32 support for MHA in Snippets
             dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core);  // MHA has BRGEMM that is supported only on AVX512 platforms
     if (!isMHASupported) {
         CPU_DISABLE_PASS_X64(snippetsManager, ngraph::snippets::pass::TokenizeMHASnippets);

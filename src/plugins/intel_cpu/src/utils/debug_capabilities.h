@@ -62,6 +62,10 @@ public:
     int maxsize;
 };
 
+template<typename T>
+PrintableVector<T> printable(const std::vector<T>& values, int maxsize = 80) {
+    return PrintableVector<T>(values, maxsize);
+}
 struct PrintableDelta {
     uint64_t us_last;
     uint64_t us_all;
@@ -99,6 +103,8 @@ std::ostream & operator<<(std::ostream & os, const dnnl::memory::desc& desc);
 std::ostream & operator<<(std::ostream & os, const impl_desc_type impl_type);
 std::ostream & operator<<(std::ostream & os, const dnnl::memory::data_type dtype);
 std::ostream & operator<<(std::ostream & os, const dnnl::memory::format_tag dtype);
+std::ostream & operator<<(std::ostream & os, const dnnl::primitive_attr& attr);
+std::ostream & operator<<(std::ostream & os, const dnnl::algorithm& alg);
 
 template<typename T>
 std::ostream & operator<<(std::ostream & os, const PrintableVector<T>& vec) {

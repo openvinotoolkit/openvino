@@ -270,7 +270,7 @@ private:
     // with the legacy API dyn batch behaviour
     int dynBatch = -1;
 
-    void EnforceBF16();
+    void EnforceInferencePrecision();
 };
 
 }   // namespace intel_cpu

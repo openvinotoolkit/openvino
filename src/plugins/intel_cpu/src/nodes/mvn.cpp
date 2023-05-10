@@ -91,7 +91,7 @@ bool MVNKey::operator==(const MVNKey& rhs) const {
 
 // some utility functions
 static inline bool isFloatCompatible(Precision prc) {
-    return Precision::FP32 == prc || Precision::BF16 == prc;
+    return Precision::FP32 == prc || Precision::BF16 == prc || Precision::FP16 == prc;
 }
 
 // normalize_variance = false : src->mean

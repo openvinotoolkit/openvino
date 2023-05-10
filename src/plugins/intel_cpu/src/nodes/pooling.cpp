@@ -358,7 +358,7 @@ void Pooling::getSupportedDescriptors() {
                                    memory::format_tag::ncw : (inputRank == 4 ? memory::format_tag::nchw : memory::format_tag::ncdhw));
         createDescriptor({ in_candidate }, { out_candidate });
     } else {
-        if (inputDataType != memory::data_type::bf16) {
+        if (!one_of(inputDataType, memory::data_type::bf16, memory::data_type::f16)) {
             inputDataType = memory::data_type::f32;
             outputDataType = memory::data_type::f32;
         }

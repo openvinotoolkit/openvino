@@ -119,8 +119,8 @@ void Pad::initSupportedPrimitiveDescriptors() {
         return;
 
     std::vector<InferenceEngine::Precision> supportedPrecisions = {InferenceEngine::Precision::FP32, InferenceEngine::Precision::I32,
-                                                                   InferenceEngine::Precision::BF16, InferenceEngine::Precision::I8,
-                                                                   InferenceEngine::Precision::U8};
+                                                                   InferenceEngine::Precision::BF16, InferenceEngine::Precision::FP16,
+                                                                   InferenceEngine::Precision::I8, InferenceEngine::Precision::U8};
     InferenceEngine::Precision precision = getOriginalInputPrecisionAtPort(DATA_ID);
     if (std::find(supportedPrecisions.begin(), supportedPrecisions.end(), precision) == supportedPrecisions.end())
         precision = precision.is_float() ? InferenceEngine::Precision::FP32 : InferenceEngine::Precision::I32;
@@ -432,6 +432,7 @@ void Pad::PadExecutor::padConstant(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr) {
               OV_CASE(InferenceEngine::Precision::FP32, float),
               OV_CASE(InferenceEngine::Precision::I32, int32_t),
               OV_CASE(InferenceEngine::Precision::BF16, bfloat16_t),
+              OV_CASE(InferenceEngine::Precision::FP16, dnnl::impl::float16_t),
               OV_CASE(InferenceEngine::Precision::I8, int8_t),
               OV_CASE(InferenceEngine::Precision::U8, uint8_t));
 }

@@ -131,6 +131,11 @@ public:
     Node & operator = (const Node &) = delete;
 
     using AttrPtr = std::shared_ptr<dnnl::primitive_attr>;
+    enum class scalesType {
+        None,
+        PerTensor,
+        PerChannel
+    };
 
 public:
     template<typename T, int N>

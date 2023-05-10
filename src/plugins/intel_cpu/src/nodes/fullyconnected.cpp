@@ -247,11 +247,20 @@ void FullyConnected::getSupportedDescriptors() {
         if (one_of(outputDataType , memory::data_type::u8, memory::data_type::s8)) {
             outputDataType = memory::data_type::bf16;
         }
+    } else if (inputDataType == memory::data_type::f16) {
+        // f16 input only supports f16/f32 output, even if FQ is fused as post-ops
+        if (!one_of(outputDataType , memory::data_type::f32, memory::data_type::f16)) {
+            outputDataType = memory::data_type::f16;
+        }
     } else if (one_of(inputDataType, memory::data_type::u8, memory::data_type::s8)) {
         if (weightsDataType != memory::data_type::s8) {
             // weight has to be s8 for INT8 mode, otherwise fallback to
             // f32 mode
             inputDataType = outputDataType = memory::data_type::f32;
+        } else if (one_of(outputDataType, memory::data_type::f16)) {
+            // INT8 inner-product only supports u8/s8/s32/f32/bf16,
+            // other precision needs fallback to f32
+            outputDataType = memory::data_type::f32;
         }
     } else {
         // s32/u32/... unsupported input data types, fallback to f32
@@ -568,7 +577,7 @@ void FullyConnected::createDescriptorInternal(const dnnl::memory::desc &inputDes
     dnnl::memory::data_type wdt = indt;
     dnnl::memory::data_type bdt = outdt;
 
-    if (indt == dnnl::memory::data_type::bf16) {
+    if (one_of(indt, dnnl::memory::data_type::bf16, dnnl::memory::data_type::f16)) {
         bdt = dnnl::memory::data_type::f32;
     } else if (indt == dnnl::memory::data_type::u8 || indt == dnnl::memory::data_type::s8) {
         wdt = memory::data_type::s8;

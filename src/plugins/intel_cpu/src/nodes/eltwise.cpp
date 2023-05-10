@@ -535,6 +535,7 @@ private:
     Reg64 reg_indexes = abi_param2;  // reg_d_bias
 
     Reg8 reg_tmp_8 = Reg8(r15.getIdx());
+    Reg16 reg_tmp_16 = Reg16(r15.getIdx());
     Reg32 reg_tmp_32 = Reg32(r15.getIdx());
     Reg64 reg_tmp_64 = Reg64(r15.getIdx());
 
@@ -697,6 +698,10 @@ private:
                     vpmovzxwd(vmm_src, op);
                     uni_vpslld(vmm_src, vmm_src, 16);
                     break;
+                case Precision::FP16:
+                    assert(mayiuse(x64::avx512_core_fp16));
+                    vcvtph2ps(vmm_src, op);
+                    break;
                 case Precision::U16:
                     uni_vpmovzxwd(vmm_src, op);
                     break;
@@ -715,11 +720,11 @@ private:
 
             switch (dst_prc) {
                 case Precision::FP32:
-                    if (src_prc != Precision::FP32 && src_prc != Precision::BF16)
+                    if (src_prc != Precision::FP32 && src_prc != Precision::BF16 && src_prc != Precision::FP16)
                         uni_vcvtdq2ps(vmm_src, vmm_src);
                     break;
                 case Precision::I32:
-                    if (src_prc == Precision::FP32 || src_prc == Precision::BF16)
+                    if (src_prc == Precision::FP32 || src_prc == Precision::BF16 || src_prc == Precision::FP16)
                         uni_vcvtps2dq(vmm_src, vmm_src);
                     break;
                 default:
@@ -737,6 +742,10 @@ private:
             case Precision::BF16:
                 uni_vpinsrw(xmm_src, xmm_src, op, 0);
                 uni_vpslld(xmm_src, xmm_src, 16);
+                break;
+            case Precision::FP16:
+                assert(mayiuse(x64::avx512_core_fp16));
+                vcvtsh2ss(xmm_src, xmm_src, op);
                 break;
             case Precision::I16:
                 uni_vpinsrw(xmm_src, xmm_src, op, 0);
@@ -760,11 +769,11 @@ private:
 
         switch (dst_prc) {
             case Precision::FP32:
-                if (src_prc != Precision::FP32 && src_prc != Precision::BF16)
+                if (src_prc != Precision::FP32 && src_prc != Precision::BF16 && src_prc != Precision::FP16)
                     uni_vcvtdq2ps(xmm_src, xmm_src);
                 break;
             case Precision::I32:
-                if (src_prc == Precision::FP32 || src_prc == Precision::BF16)
+                if (src_prc == Precision::FP32 || src_prc == Precision::BF16 || src_prc == Precision::FP16)
                     uni_vcvtps2dq(xmm_src, xmm_src);
                 break;
             default:
@@ -778,11 +787,11 @@ private:
 
         switch (src_prc) {
             case Precision::FP32:
-                if (dst_prc != Precision::FP32 && dst_prc != Precision::BF16)
+                if (dst_prc != Precision::FP32 && dst_prc != Precision::BF16 && dst_prc != Precision::FP16)
                     uni_vcvtps2dq(vmm_dst, vmm_dst);
                 break;
             case Precision::I32:
-                if (dst_prc == Precision::FP32 || dst_prc == Precision::BF16)
+                if (dst_prc == Precision::FP32 || dst_prc == Precision::BF16 || dst_prc == Precision::FP16)
                     uni_vcvtdq2ps(vmm_dst, vmm_dst);
                 break;
             default:
@@ -797,6 +806,9 @@ private:
             case Precision::BF16:
                 uni_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(ymm_dst.getIdx())});
                 vmovdqu16(op, ymm_dst);
+                break;
+            case Precision::FP16:
+                vcvtps2ph(op, vmm_dst, 0x4);
                 break;
             case Precision::I16:
                 if (isa == x64::avx512_core) {
@@ -862,11 +874,11 @@ private:
     inline void store_scalar(const Xbyak::Address &op, Xmm xmm_dst, Precision src_prc, Precision dst_prc) {
         switch (src_prc) {
             case Precision::FP32:
-                if (dst_prc != Precision::FP32 && dst_prc != Precision::BF16)
+                if (dst_prc != Precision::FP32 && dst_prc != Precision::BF16 && dst_prc != Precision::FP16)
                     uni_vcvtps2dq(xmm_dst, xmm_dst);
                 break;
             case Precision::I32:
-                if (dst_prc == Precision::FP32 || dst_prc == Precision::BF16)
+                if (dst_prc == Precision::FP32 || dst_prc == Precision::BF16 || dst_prc == Precision::FP16)
                     uni_vcvtdq2ps(xmm_dst, xmm_dst);
                 break;
             default:
@@ -882,15 +894,21 @@ private:
                 uni_vpsrld(xmm_dst, xmm_dst, 16);
                 uni_vpextrw(op, xmm_dst, 0x0);
                 break;
+            case Precision::FP16:
+                assert(mayiuse(x64::avx512_core_fp16));
+                vcvtss2sh(xmm_dst, xmm_dst, xmm_dst);
+                movq(reg_tmp_64, xmm_dst);
+                mov(op, reg_tmp_16);
+                break;
             case Precision::I16:
                 uni_vpackssdw(xmm_dst, xmm_dst, xmm_dst);
                 movq(reg_tmp_64, xmm_dst);
-                mov(op, reg_tmp_8);
+                mov(op, reg_tmp_16);
                 break;
             case Precision::U16:
                 uni_vpackusdw(xmm_dst, xmm_dst, xmm_dst);
                 movq(reg_tmp_64, xmm_dst);
-                mov(op, reg_tmp_8);
+                mov(op, reg_tmp_16);
                 break;
             case Precision::I8:
                 uni_vpackssdw(xmm_dst, xmm_dst, xmm_dst);
@@ -1899,6 +1917,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
             Precision::U16,
             Precision::I16,
             Precision::BF16,
+            Precision::FP16,
             Precision::I32
     };
 
