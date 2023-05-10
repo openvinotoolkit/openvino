@@ -56,4 +56,4 @@ Have more questions about post-training quantization or encountering errors usin
 * [Post-training Quantization Examples](@ref pot_examples_description)
 * [Quantization Best Practices](@ref pot_docs_BestPractices)
 * [Post-training Optimization Tool FAQ](@ref pot_docs_FrequentlyAskedQuestions)
-* [Performance Benchmarks](@ref openvino_docs_performance_benchmarks_openvino)
+* [Performance Benchmarks](@ref openvino_docs_performance_benchmarks)
