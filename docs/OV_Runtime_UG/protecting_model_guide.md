@@ -11,7 +11,7 @@ This guide presents how to use OpenVINO securely with protected models.
 Secure Model Deployment
 #######################
 
-After a model is optimized by the OpenVINO Model Optimizer, it's deployed to target devices in the OpenVINO Intermediate Representation (OpenVINO IR) format. An optimized model is stored on edge device and is executed by the OpenVINO Runtime. TensorFlow, TensorFlow Lite, ONNX and PaddlePaddle models can be read natively by OpenVINO Runtime as well.
+After a model is optimized by Model Conversion API, it's deployed to target devices in the OpenVINO Intermediate Representation (OpenVINO IR) format. An optimized model is stored on edge device and is executed by the OpenVINO Runtime. TensorFlow, TensorFlow Lite, ONNX and PaddlePaddle models can be read natively by OpenVINO Runtime as well.
 
 Encrypting and optimizing model before deploying it to the edge device can be used to protect deep-learning models. The edge device should keep the stored model protected all the time and have the model decrypted **in runtime only** for use by the OpenVINO Runtime.
 
@@ -40,7 +40,7 @@ Additional Resources
 ####################
 
 - Intel® Distribution of OpenVINO™ toolkit `home page <https://software.intel.com/en-us/openvino-toolkit>`__.
-- Model Optimizer :doc:`Developer Guide <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`.
+- :doc:`How to Run Model Conversion <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`.
 - :doc:`OpenVINO™ Runtime User Guide <openvino_docs_OV_UG_OV_Runtime_User_Guide>`.
 - For more information on Sample Applications, see the :doc:`OpenVINO Samples Overview <openvino_docs_OV_UG_Samples_Overview>`
 - For information on a set of pre-trained models, see the `Overview of OpenVINO™ Toolkit Pre-Trained Models <https://docs.openvino.ai/latest/omz_models_group_intel.html#doxid-omz-models-group-intel>`__.

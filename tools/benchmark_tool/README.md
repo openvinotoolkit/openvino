@@ -122,7 +122,7 @@ Advanced Usage
 
 .. note::
 
-   By default, OpenVINO samples, tools and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channel order in the sample or demo application or reconvert your model using the Model Optimizer tool with ``--reverse_input_channels`` argument specified. For more information about the argument, refer to When to Reverse Input Channels section of Converting a Model to Intermediate Representation (IR).
+   By default, OpenVINO samples, tools and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channel order in the sample or demo application or reconvert your model using Model Conversion API with ``reverse_input_channels`` argument specified. For more information about the argument, refer to When to Reverse Input Channels section of Converting a Model to Intermediate Representation (IR).
 
 
 Per-layer performance and logging
@@ -488,7 +488,7 @@ See Also
 ####################
 
 * :doc:`Using OpenVINO Samples <openvino_docs_OV_UG_Samples_Overview>`
-* :doc:`Model Optimizer <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`
+* :doc:`How to Run Model Conversion <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`
 * :doc:`Model Downloader <omz_tools_downloader>`
 
 @endsphinxdirective

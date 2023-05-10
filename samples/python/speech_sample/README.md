@@ -180,7 +180,7 @@ Usage message:
 Model Preparation
 #################
 
-You can use the following model optimizer command to convert a Kaldi nnet1 or nnet2 neural model to OpenVINO™ toolkit Intermediate Representation format:
+You can use the following model conversion command to convert a Kaldi nnet1 or nnet2 neural model to OpenVINO™ toolkit Intermediate Representation format:
 
 .. code-block:: sh
    
@@ -206,7 +206,7 @@ You can do inference on Intel® Processors with the GNA co-processor (or emulati
 
 .. note::
 
-   - Before running the sample with a trained model, make sure the model is converted to the intermediate representation (IR) format (\*.xml + \*.bin) using the :doc:`Model Optimizer tool <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`.
+   - Before running the sample with a trained model, make sure the model is converted to the intermediate representation (IR) format (\*.xml + \*.bin) using :doc:`Model Conversion API <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`.
    - The sample supports input and output in numpy file format (.npz)
 
    - Stating flags that take only single option like `-m` multiple times, for example `python classification_sample_async.py -m model.xml -m model2.xml`, results in only the last value being used.
@@ -366,7 +366,7 @@ See Also
 - :doc:`Integrate the OpenVINO™ Runtime with Your Application <openvino_docs_OV_UG_Integrate_OV_with_your_application>`
 - :doc:`Using OpenVINO™ Toolkit Samples <openvino_docs_OV_UG_Samples_Overview>`
 - :doc:`Model Downloader <omz_tools_downloader>`
-- :doc:`Model Optimizer <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`
+- :doc:`How to Run Model Conversion <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`
 
 @endsphinxdirective
 

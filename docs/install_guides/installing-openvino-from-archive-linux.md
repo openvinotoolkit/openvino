@@ -11,7 +11,7 @@ page for instructions on how to install OpenVINO Runtime for Python using PyPI.
 .. note::
 
    The following development tools can be installed via `pypi.org <https://pypi.org/project/openvino-dev/>`__ only: 
-   Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, 
+   Model Conversion API, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, 
    Accuracy Checker, and Annotation Converter.
 
 See the `Release Notes <https://software.intel.com/en-us/articles/OpenVINO-RelNotes>`__ for more information on updates in the latest release.
@@ -175,7 +175,7 @@ Step 3 (Optional): Install Additional Components
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 OpenVINO Development Tools is a set of utilities for working with OpenVINO and OpenVINO models. 
-It provides tools like Model Optimizer, Benchmark Tool, Post-Training Optimization Tool, and Open Model Zoo Downloader. 
+It provides tools like Model Conversion API, Benchmark Tool, Post-Training Optimization Tool, and Open Model Zoo Downloader. 
 If you install OpenVINO Runtime using archive files, OpenVINO Development Tools must be installed separately.
 
 See the :doc:`Install OpenVINO Development Tools <openvino_docs_install_guides_install_dev_tools>` 
@@ -249,7 +249,7 @@ Additional Resources
 ###########################################################
 
 * :doc:`Troubleshooting Guide for OpenVINO Installation & Configuration <openvino_docs_get_started_guide_troubleshooting>`
-* Converting models for use with OpenVINO™: :doc:`Model Optimizer User Guide <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`
+* Converting models for use with OpenVINO™: :doc:`How to Run Model Conversion <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`
 * Writing your own OpenVINO™ applications: :doc:`OpenVINO™ Runtime User Guide <openvino_docs_OV_UG_OV_Runtime_User_Guide>`
 * Sample applications: :doc:`OpenVINO™ Toolkit Samples Overview <openvino_docs_OV_UG_Samples_Overview>`
 * Pre-trained deep learning models: :doc:`Overview of OpenVINO™ Toolkit Pre-Trained Models <model_zoo>`
