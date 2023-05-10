@@ -180,8 +180,11 @@ class Conformance:
         # API Conformance contains both report type
         merge_xml([parallel_report_dir], report_dir, final_report_name, self._type, True)
         if self._type == constants.API_CONFORMANCE:
-            final_op_report_name = f'report_{constants.OP_CONFORMANCE.lower()}'
-            merge_xml([parallel_report_dir], report_dir, final_op_report_name, constants.OP_CONFORMANCE.lower())
+            try:
+                final_report_name = f'report_{constants.OP_CONFORMANCE.lower()}'
+                merge_xml([parallel_report_dir], report_dir, final_report_name, constants.OP_CONFORMANCE.lower(), True)
+            except:
+                logger.warning("Something is wrong to create report_op for API conformance!")
         logger.info(f"Conformance is successful. XML reportwas saved to {report_dir}")
         return (os.path.join(report_dir, final_report_name + ".xml"), report_dir)
 
@@ -235,8 +238,7 @@ class Conformance:
             logger.error(f"Directory {self._model_path} does not exist")
             exit(-1)
         xml_report, report_dir = self.__run_conformance()
-        if self._type == "OP":
-            self.__summarize(xml_report, report_dir)
+        self.__summarize(xml_report, report_dir)
 
 if __name__ == "__main__":
     args = parse_arguments()

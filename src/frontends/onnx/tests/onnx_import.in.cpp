@@ -1501,6 +1501,23 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_empty_constant_as_input) {
     test_case.run();
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, onnx_resize10_down_scales_const_linear) {
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/resize10_down_scales_const_linear.onnx"));
+
+    // Input data shape (1, 1, 2, 4)
+    // Input const scales values {1.0, 1.0, 0.6, 0.6}
+    // mode: linear
+
+    Shape expected_output_shape{1, 1, 1, 2};
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input<float>({1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0});
+    test_case.add_expected_output<float>(expected_output_shape, {1.0f, 2.6666665f});
+    test_case.run();
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_resize10_down_scales_const_nearest) {
     const auto function =
         onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
@@ -1509,7 +1526,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_resize10_down_scales_const_nearest) {
 
     // Input data shape (1, 1, 2, 4)
     // Input const scales values {1.0, 1.0, 0.6, 0.6}
-    // mode: linear
+    // mode: nearest
 
     Shape expected_output_shape{1, 1, 1, 2};
     auto test_case = test::TestCase(function, s_device);
