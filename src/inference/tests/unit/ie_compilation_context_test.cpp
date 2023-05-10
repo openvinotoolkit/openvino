@@ -61,6 +61,9 @@ public:
     }
 };
 
+// Disable the following tests, caused by unsupported "realpath()" func call in WASM
+#ifndef __EMSCRIPTEN__
+
 TEST_F(NetworkContext_CalcFileInfoTests, NoFile) {
     ASSERT_NE(ModelCache::calculate_file_info("notexisting.abc"), ModelCache::calculate_file_info("notexisting2.abc"));
 
@@ -68,6 +71,8 @@ TEST_F(NetworkContext_CalcFileInfoTests, NoFile) {
     std::string fileName2(fileName);
     ASSERT_EQ(ModelCache::calculate_file_info(fileName), ModelCache::calculate_file_info(fileName2));
 }
+
+#endif
 
 TEST_F(NetworkContext_CalcFileInfoTests, ExistingFile) {
     ASSERT_EQ(ModelCache::calculate_file_info(m_fileName), ModelCache::calculate_file_info(m_fileName));
@@ -330,6 +335,9 @@ TEST(NetworkContext, HashOfSameMultiThreading) {
 
 ////////////////////////////////////////////
 
+// Disable the following tests, caused by unsupported "realpath()" func call in WASM
+#ifndef __EMSCRIPTEN__
+
 TEST(NetworkContext_ModelName, HashOfSame) {
     ASSERT_EQ(ModelCache::compute_hash("model1", {}), ModelCache::compute_hash("model1", {}));
 
@@ -340,6 +348,8 @@ TEST(NetworkContext_ModelName, HashOfSame) {
     ASSERT_EQ(ModelCache::compute_hash("model1", {{"key", "value"}}),
               ModelCache::compute_hash("model1", {{"key", "value"}}));
 }
+
+#endif
 
 TEST(NetworkContext_ModelName, HashOfExistingFile) {
     auto file1 = CommonTestUtils::generateTestFilePrefix() + ".xml";
