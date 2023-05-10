@@ -126,30 +126,14 @@ std::shared_ptr<ov::Model> ov::proxy::tests::ProxyTests::create_model_with_resha
 
 // Mock plugins
 
-class MockInferRequest : public ov::ISyncInferRequest {
-public:
-    MockInferRequest(const std::shared_ptr<const ov::ICompiledModel>& compiled_model)
-        : ov::ISyncInferRequest(compiled_model) {}
-    ~MockInferRequest() = default;
-
-    void infer() override {
-        OPENVINO_NOT_IMPLEMENTED;
-    }
-    std::vector<std::shared_ptr<ov::IVariableState>> query_state() const override {
-        OPENVINO_NOT_IMPLEMENTED;
-    }
-    std::vector<ov::ProfilingInfo> get_profiling_info() const override {
-        OPENVINO_NOT_IMPLEMENTED;
-    }
-};
-
 class MockCompiledModel : public ov::ICompiledModel {
 public:
     MockCompiledModel(const std::shared_ptr<const ov::Model>& model,
                       const std::shared_ptr<const ov::IPlugin>& plugin,
                       const ov::AnyMap& config)
         : ov::ICompiledModel(model, plugin),
-          m_config(config) {}
+          m_config(config),
+          m_model(model) {}
 
     // Methods from a base class ov::ICompiledModel
     void export_model(std::ostream& model) const override {
@@ -168,14 +152,75 @@ public:
         OPENVINO_NOT_IMPLEMENTED;
     }
 
-    std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override {
-        return std::make_shared<MockInferRequest>(shared_from_this());
+    std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
+
+    const std::shared_ptr<const ov::Model>& get_model() const {
+        return m_model;
     }
 
 private:
-    friend MockInferRequest;
     ov::AnyMap m_config;
+    std::shared_ptr<const ov::Model> m_model;
 };
+
+class MockInferRequest : public ov::ISyncInferRequest {
+public:
+    MockInferRequest(const std::shared_ptr<const MockCompiledModel>& compiled_model)
+        : ov::ISyncInferRequest(compiled_model) {
+        OPENVINO_ASSERT(compiled_model);
+        m_model = compiled_model->get_model();
+        // Allocate input/output tensors
+        for (const auto& input : get_inputs()) {
+            allocate_tensor(input, [this, input](ov::Tensor& tensor) {
+                // Can add a check to avoid double work in case of shared tensors
+                allocate_tensor_impl(tensor,
+                                     input.get_element_type(),
+                                     input.get_partial_shape().is_dynamic() ? ov::Shape{0} : input.get_shape());
+            });
+        }
+        for (const auto& output : get_outputs()) {
+            allocate_tensor(output, [this, output](ov::Tensor& tensor) {
+                // Can add a check to avoid double work in case of shared tensors
+                allocate_tensor_impl(tensor,
+                                     output.get_element_type(),
+                                     output.get_partial_shape().is_dynamic() ? ov::Shape{0} : output.get_shape());
+            });
+        }
+    }
+    ~MockInferRequest() = default;
+
+    void infer() override {
+        ov::TensorVector input_tensors;
+        for (const auto& input : get_inputs()) {
+            input_tensors.emplace_back(get_tensor(input));
+        }
+        ov::TensorVector output_tensors;
+        for (const auto& output : get_outputs()) {
+            output_tensors.emplace_back(get_tensor(output));
+        }
+        m_model->evaluate(output_tensors, input_tensors);
+    }
+    std::vector<std::shared_ptr<ov::IVariableState>> query_state() const override {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+    std::vector<ov::ProfilingInfo> get_profiling_info() const override {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+private:
+    void allocate_tensor_impl(ov::Tensor& tensor, const ov::element::Type& element_type, const ov::Shape& shape) {
+        if (!tensor || tensor.get_element_type() != element_type) {
+            tensor = ov::Tensor(element_type, shape);
+        } else {
+            tensor.set_shape(shape);
+        }
+    }
+    std::shared_ptr<const ov::Model> m_model;
+};
+
+std::shared_ptr<ov::ISyncInferRequest> MockCompiledModel::create_sync_infer_request() const {
+    return std::make_shared<MockInferRequest>(std::dynamic_pointer_cast<const MockCompiledModel>(shared_from_this()));
+}
 
 class MockPluginBase : public ov::IPlugin {
 public:
