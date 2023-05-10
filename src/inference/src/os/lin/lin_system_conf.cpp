@@ -301,8 +301,6 @@ void parse_freq_info_linux(const std::vector<std::vector<std::string>> system_in
                            int& _cores,
                            std::vector<std::vector<int>>& _proc_type_table,
                            std::vector<std::vector<int>>& _cpu_mapping_table) {
-    int n_group = 0;
-    int max_sockets = 0;
     std::vector<int> freq_list = {0, 0, 0, 0};
 
     _processors = system_info_table.size();
