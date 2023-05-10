@@ -9,7 +9,7 @@
 
 namespace ov {
 /** @brief Interface for data accessor. */
-class OPENVINO_API ITensorAccessor {
+class ITensorAccessor {
 public:
     /**
      * @brief Get tensor at port.
@@ -35,7 +35,7 @@ public:
  * @tparam TContainer Type of tensor container.
  */
 template <class TContainer>
-class OPENVINO_API TensorAccessor : public ITensorAccessor {
+class TensorAccessor : public ITensorAccessor {
 public:
     /**
      * @brief Construct a new Tensor Accessor object for tensors container.
@@ -58,16 +58,16 @@ private:
 };
 
 template <>
-OPENVINO_API Tensor TensorAccessor<TensorVector>::operator()(size_t port) const;
+Tensor TensorAccessor<TensorVector>::operator()(size_t port) const;
 
 template <>
-OPENVINO_API Tensor TensorAccessor<HostTensorVector>::operator()(size_t port) const;
+Tensor TensorAccessor<HostTensorVector>::operator()(size_t port) const;
 
 template <>
-OPENVINO_API Tensor TensorAccessor<std::map<size_t, HostTensorPtr>>::operator()(size_t port) const;
+Tensor TensorAccessor<std::map<size_t, HostTensorPtr>>::operator()(size_t port) const;
 
 template <>
-OPENVINO_API Tensor TensorAccessor<void>::operator()(size_t port) const;
+Tensor TensorAccessor<void>::operator()(size_t port) const;
 
 /**
  * @brief Makes TensorAccessor for specific tensor container.
@@ -88,5 +88,5 @@ auto make_tensor_accessor(const TContainer& c) -> TensorAccessor<TContainer> {
  *
  * @return TensorAccessor to return empty tensor.
  */
-OPENVINO_API auto make_tensor_accessor() -> TensorAccessor<void>;
+auto make_tensor_accessor() -> TensorAccessor<void>;
 }  // namespace ov
