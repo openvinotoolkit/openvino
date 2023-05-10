@@ -628,7 +628,6 @@ void Node::initSupportedPrimitiveDescriptors() {
 
         while (static_cast<bool>(itpd)) {
             NodeConfig config;
-            config.dynBatchSupport = true;
             for (size_t i = 0; i < descInputNumbers(); i++) {
                 PortConfig portConfig;
                 portConfig.inPlace(-1);
@@ -759,7 +758,7 @@ void Node::initDescriptor(const NodeConfig& config) {
     createDescriptor(inDescs, outDescs);
 
     for (auto& desc : descs) {
-        if (DnnlExtensionUtils::hasProperImplementationType(desc, selectedPD->getImplementationType())) {
+        if (DnnlExtensionUtils::find_implementation(desc, selectedPD->getImplementationType())) {
             selectedPD->setConfig(config);
             return;
         }
@@ -1157,53 +1156,6 @@ MemoryDescPtr Node::getDstMemDesc(dnnl::primitive_desc_iterator &primitive_desc_
         return DnnlExtensionUtils::makeUndefinedDesc(primitive_desc_it.dst_desc(idx), getOutputShapeAtPort(idx));
     }
     return DnnlExtensionUtils::makeDescriptor(primitive_desc_it.dst_desc(idx));
-}
-
-int Node::batchToProcess() const {
-    return dynBatchLim == 0 ? getMaxBatch() : std::min<int>(getMaxBatch(), dynBatchLim);
-}
-
-// TODO [DS]: how we should process this for dynamic shape?
-size_t Node::getMaxBatch() const {
-    // FIXME: batch != 0 dims number
-    if (!inputShapes.empty()) {
-        if (inputShapes[0].getRank())
-            return static_cast<int>(inputShapes[0].getStaticDims()[0]);
-        else
-            return 1;
-    }
-    if (!outputShapes.empty()) {
-        if (outputShapes[0].getRank())
-            return static_cast<int>(outputShapes[0].getStaticDims()[0]);
-        else
-            return 1;
-    }
-    return 0;
-}
-
-void Node::setDynamicBatchLim(int lim) {
-    dynBatchLim = lim;
-
-    auto setDynamicBatch = [this](int argType, int newBatch) {
-        auto param = primArgs.find(argType);
-        if (param != primArgs.end()) {
-            auto oldMem = param->second;
-            dnnl::memory::desc newMemDesc(oldMem.get_desc());
-            newMemDesc.get()->dims[0] = newBatch;
-            newMemDesc.get()->padded_dims[0] = newBatch;
-
-            dnnl::memory newMem(newMemDesc, oldMem.get_engine(), oldMem.get_data_handle());
-            primArgs.at(argType) = newMem;
-        }
-    };
-
-    if (!primArgs.empty()) {
-        int newBatch = batchToProcess();
-        setDynamicBatch(DNNL_ARG_SRC, newBatch);
-        setDynamicBatch(DNNL_ARG_DST, newBatch);
-        setDynamicBatch(DNNL_ARG_DIFF_SRC, newBatch);
-        setDynamicBatch(DNNL_ARG_DIFF_DST, newBatch);
-    }
 }
 
 void Node::appendPostOpArgs(const dnnl::primitive_attr& attr,
@@ -1643,8 +1595,7 @@ void Node::addFusedNode(const NodePtr &fusingNode) {
 
 void Node::addSupportedPrimDesc(const std::vector<PortConfigurator>& inPortConfigs,
                                 const std::vector<PortConfigurator>& outPortConfigs,
-                                impl_desc_type implType,
-                                bool dynBatchSupport) {
+                                impl_desc_type implType) {
     auto fill_port = [] (const PortConfigurator& portConfigurator, const Shape& shape,
                          InferenceEngine::Precision prc, std::vector<PortConfig>& port) -> bool {
         // In order to simplify particular node initialization logic we just don't add config in case target shape is not supported by blockedDescCreator.
@@ -1676,8 +1627,6 @@ void Node::addSupportedPrimDesc(const std::vector<PortConfigurator>& inPortConfi
         if (!fill_port(outPortConfigs[i], dims, prc, config.outConfs))
             return;
     }
-
-    config.dynBatchSupport = dynBatchSupport;
     supportedPrimitiveDescriptors.push_back({config, implType});
 }
 

@@ -81,6 +81,9 @@ bool ActivationKernelOpt::Validate(const Params& p, const optional_params& o) co
         return false;
     }
 
+    if (params.outputs[0].GetDims().size() > 5)
+        return false;
+
     if (params.outputs[0].GetLayout() != params.inputs[0].GetLayout())
         return false;
 
