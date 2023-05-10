@@ -271,9 +271,11 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
         streamExecutorConfig._streams_changed = true;
     }
 
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+#ifndef __linux__
+#    if (defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64))
     // TODO: multi-stream execution has functional issues on ARM target
     streamExecutorConfig._streams = 1;
+#    endif
 #endif
 
     CPU_DEBUG_CAP_ENABLE(applyDebugCapsProperties());
