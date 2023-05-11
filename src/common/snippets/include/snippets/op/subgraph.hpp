@@ -136,7 +136,7 @@ public:
     static auto constant_input_should_be_inside_body(const std::shared_ptr<ov::Node>& node) -> bool;
 
     static bool check_broadcast(const std::shared_ptr<const ov::Node>& node) noexcept;
-    // Return estimated unqiue buffer count (rating from above). It's needed for tokenization
+    // Return estimated unique buffer count (upper bound). It's needed for tokenization
     static auto get_estimated_buffer_count(const ov::NodeVector& ops) -> size_t;
     static auto is_domain_sensitive_op(const std::shared_ptr<ov::Node>& op) -> bool;
 

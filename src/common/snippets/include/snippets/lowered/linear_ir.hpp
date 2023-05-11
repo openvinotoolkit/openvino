@@ -18,7 +18,6 @@ public:
     bool m_save_lowered_code = false;
     // True if we should check runtime info for nodes to call specific needed transformations
     bool m_need_fill_tail_register = false;
-    ov::PartialShape m_master_shape{};
     size_t m_loop_depth = 1;
 };
 

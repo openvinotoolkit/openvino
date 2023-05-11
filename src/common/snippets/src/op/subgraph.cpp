@@ -526,7 +526,6 @@ snippets::Schedule snippets::op::Subgraph::generate(
     lowering_config.m_save_lowered_code = config.m_has_domain_sensitive_ops;
     lowering_config.m_need_fill_tail_register = config.m_has_domain_sensitive_ops;
     lowering_config.m_loop_depth = tileRank;
-    lowering_config.m_master_shape = master_shape;
     const auto& lowering_result = m_generator->generate(body_ptr(), lowering_config, compile_params);
     ngraph::snippets::code ptr = lowering_result.binary_code;
     m_buffer_scratchpad = lowering_result.buffer_scratchpad_size;

@@ -66,8 +66,8 @@ int64_t get_dim_stride(const size_t dim, const std::vector<size_t>& layout, cons
 InitLoops::InitLoops() : Transformation() {}
 
 std::vector<int64_t> InitLoops::init_ptr_increments(const std::vector<ExpressionPort>& loop_inputs,
-                                                   const std::vector<ExpressionPort>& loop_outputs,
-                                                   size_t dim_idx) const {
+                                                    const std::vector<ExpressionPort>& loop_outputs,
+                                                    size_t dim_idx) {
      std::vector<int64_t> ptr_increments;
     // Note: Need to find max relevant dim expr to account for broadcasting, collect relevant_dims as well
     size_t max_relevant_dim_size = 1;
@@ -111,7 +111,7 @@ std::vector<int64_t> InitLoops::init_ptr_increments(const std::vector<Expression
     return ptr_increments;
 }
 
-std::vector<int64_t> InitLoops::init_finalization_offsets(const std::vector<int64_t>& ptr_increments, size_t work_amount) const {
+std::vector<int64_t> InitLoops::init_finalization_offsets(const std::vector<int64_t>& ptr_increments, size_t work_amount) {
     std::vector<int64_t> finalization_offsets;
     for (const auto& ptr_incr : ptr_increments) {
         int64_t offset = -1 * ptr_incr * work_amount;
@@ -133,8 +133,8 @@ std::vector<int64_t> InitLoops::init_element_type_sizes(const std::vector<Expres
     return element_types;
 }
 
-bool InitLoops::insertion(LinearIR& linear_ir, const LinearIR::LoopManager::LoopInfoPtr& loop_info,
-                         size_t loop_id, size_t dim_idx, bool has_outer_loop) {
+void InitLoops::insertion(LinearIR& linear_ir, const LinearIR::LoopManager::LoopInfoPtr& loop_info,
+                          size_t loop_id, size_t dim_idx, bool has_outer_loop) {
     auto loop_entries = loop_info->entry_exprs;
     auto loop_exits = loop_info->exit_exprs;
     const auto work_amount = loop_info->work_amount;
@@ -167,7 +167,6 @@ bool InitLoops::insertion(LinearIR& linear_ir, const LinearIR::LoopManager::Loop
 
     const auto& loop_end_expr = linear_ir.create_expression(loop_end, loop_end_inputs);
     linear_ir.insert(loop_end_pos, loop_end_expr);
-    return true;
 }
 
 bool InitLoops::run(LinearIR& linear_ir) {
@@ -198,10 +197,8 @@ bool InitLoops::run(LinearIR& linear_ir) {
             if (need_to_insert) {
                 const auto loop_info = loop_manager->get_loop_info(loop_id);
                 const bool has_outer_loop = i > 0 && inserted_loops.find(expr_loops[i - 1]) != inserted_loops.end();
-                const auto status = insertion(linear_ir, loop_info, loop_id, loop_depth - i - 1, has_outer_loop);
-                if (status)
-                    inserted_loops.insert(loop_id);  // save Loop ID
-                inserted_loops.insert(loop_id);
+                insertion(linear_ir, loop_info, loop_id, loop_depth - i - 1, has_outer_loop);
+                inserted_loops.insert(loop_id);  // save Loop ID
             }
         }
     }

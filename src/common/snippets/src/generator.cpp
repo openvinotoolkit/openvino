@@ -21,7 +21,7 @@
 #include "snippets/lowered/pass/move_scalar_to_consumer.hpp"
 #include "snippets/lowered/pass/move_result_out_of_loop.hpp"
 #include "snippets/lowered/pass/reset_buffers.hpp"
-#include "snippets/lowered/pass/indentify_buffers.hpp"
+#include "snippets/lowered/pass/identify_buffers.hpp"
 
 #include "snippets/op/kernel.hpp"
 
@@ -54,7 +54,6 @@ Generator::LoweringResult Generator::generate(std::shared_ptr<ov::Model>& m, con
     common_pipeline.register_transformation<lowered::pass::InitLoops>();
     common_pipeline.register_transformation<lowered::pass::MoveScalarToConsumer>();
     common_pipeline.register_transformation<lowered::pass::LoadMoveBroadcastToBroadcastLoad>();
-    common_pipeline.register_transformation<lowered::pass::PropagateLayout>();  // or should be in final?
     common_pipeline.run(linear_ir);
 
     lowered::pass::TransformationPipeline target_pipeline = target_specific_transformations();
@@ -72,6 +71,7 @@ Generator::LoweringResult Generator::generate(std::shared_ptr<ov::Model>& m, con
     buffer_pipeline.run(linear_ir);
 
     lowered::pass::TransformationPipeline final_pipeline;
+    final_pipeline.register_transformation<lowered::pass::PropagateLayout>();
     final_pipeline.register_transformation<lowered::pass::CleanupLoopOffsets>();
     final_pipeline.register_transformation<lowered::pass::AssignRegisters>(reg_type_mapper);
     final_pipeline.register_transformation<lowered::pass::InsertTailLoop>();

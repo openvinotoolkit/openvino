@@ -22,9 +22,6 @@ public:
     OPENVINO_OP("LoopBase", "SnippetsOpset");
     LoopBase(const std::vector<Output<Node>>& args);
     LoopBase() = default;
-    virtual size_t get_work_amount() const = 0;
-    virtual size_t get_increment() const = 0;
-    virtual bool get_evaluate_once() const = 0;
 protected:
 };
 class LoopEnd;
@@ -45,9 +42,6 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs)  const override;
     std::shared_ptr<LoopEnd> get_loop_end() const;
     bool visit_attributes(AttributeVisitor& visitor) override;
-    size_t get_work_amount() const override;
-    size_t get_increment() const override;
-    bool get_evaluate_once() const override;
     // begin_address and input_regs are needed to communicate information between LoopBegin and LoopEnd emitters
     const uint8_t* begin_address;
     std::vector<size_t> input_regs;
@@ -102,9 +96,9 @@ public:
     // to skip pointer increments when outer Loop is empty, and work_amount == vector_size (one inner vector Loop)
     // true by default, the optimizations enabled if it's false;
     bool has_outer_loop;
-    size_t get_work_amount() const override;
-    size_t get_increment() const override;
-    bool get_evaluate_once() const override;
+    size_t get_work_amount() const;
+    size_t get_increment() const;
+    bool get_evaluate_once() const;
     bool visit_attributes(AttributeVisitor& visitor) override;
 
 private:

@@ -201,7 +201,6 @@ bool InsertBuffers::run(LinearIR& linear_ir) {
 
     const auto& loop_manager = linear_ir.get_loop_manager();
     const auto loop_data_map = loop_manager->get_map();
-    // C++17: for (auto const& [loop_id, loop_info] : loop_data_map)
     for (const auto& loop_data : loop_data_map) {
         const auto loop_id = loop_data.first;
         const auto loop_info = loop_data.second;
@@ -220,7 +219,6 @@ bool InsertBuffers::run(LinearIR& linear_ir) {
         const auto input_ports = ma->get_memory_access_input_ports();
         const auto output_ports = ma->get_memory_access_output_ports();
         std::vector<ExpressionPort> loop_entries(input_ports.size()), loop_exits(output_ports.size());
-        // C++17: for (auto const& [loop_id, loop_info] : loop_data_map)
         for (const auto& p : input_ports) {
             loop_entries[p.first] = expr->get_input_port(p.first);
         }

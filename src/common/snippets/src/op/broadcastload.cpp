@@ -29,7 +29,7 @@ std::shared_ptr<Node> snippets::op::BroadcastLoad::clone_with_new_inputs(const O
 }
 
 void snippets::op::BroadcastLoad::validate_and_infer_types() {
-    // BroadcastLoad has memory access port only on output
+    // BroadcastLoad has memory access port only on input
     const auto input_ma_ports = get_memory_access_input_ports();
     const auto output_ma_ports = get_memory_access_output_ports();
     OPENVINO_ASSERT(input_ma_ports.size() == 1 && is_memory_access_input_port(0), "BroadcastLoad node must have memory access input port");

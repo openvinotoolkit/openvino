@@ -12,10 +12,6 @@
 using namespace std;
 using namespace ngraph;
 
-auto normalize_rank(int32_t allocation_rank, const size_t shape_rank) -> int32_t {
-    return allocation_rank < 0 ? allocation_rank + static_cast<int32_t>(shape_rank) : allocation_rank;
-}
-
 snippets::op::Buffer::Buffer(const ov::Shape& shape, size_t id)
     : Op(), m_type(Type::NewMemory), m_shape(shape), m_offset(0), m_id(id) {
     constructor_validate_and_infer_types();
@@ -28,7 +24,7 @@ snippets::op::Buffer::Buffer(const ov::Output<ov::Node>& arg, const ov::Shape& s
 
 snippets::op::Buffer::Buffer(const ov::Output<ov::Node>& arg, int32_t allocation_rank, size_t id)
     : Op({arg}), m_type(Type::IntermediateMemory), m_offset(0), m_id(id) {
-    const auto pshape = arg.get_partial_shape();
+    const auto& pshape = arg.get_partial_shape();
     OPENVINO_ASSERT(pshape.is_static(), "Buffer supports only static input shape");
     const auto shape = pshape.get_shape();
     const auto normalize_rank = utils::normalize_rank(static_cast<int32_t>(allocation_rank), shape.size());
@@ -54,7 +50,7 @@ void snippets::op::Buffer::validate_and_infer_types() {
         output_shape = m_shape;
         output_type = ov::element::u8;  // 1Byte
     } else if (m_type == Type::IntermediateMemory) {
-        const auto input_shape = get_input_partial_shape(0);
+        const auto& input_shape = get_input_partial_shape(0);
         OPENVINO_ASSERT(input_shape.is_static(), "Buffer supports only static input shape");
         output_type = get_input_element_type(0);
         output_shape = input_shape.get_shape();

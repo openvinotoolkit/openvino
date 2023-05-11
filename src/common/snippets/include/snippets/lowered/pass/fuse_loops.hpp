@@ -15,7 +15,25 @@ namespace pass {
 
 /**
  * @interface FuseLoops
- * @brief The pass fuses marking Loops.
+ * @brief The pass fuses marking Loops. The transformations support the following fusions of loops:
+ *
+ *        - Upper Loop is fused into the Current Loop
+ *             Loop_0 (Upper)                 |
+ *                |               =>          |
+ *             Loop_1 (Current)     Loop_0 + Loop_1 => new `Loop_1`
+ *           * It's possible only if other consumers of Loop_0 are after Loop_1 in Linear IR.
+ *             Because Upper Loop_0 will be explicitly moved before Current Loop_1 in linear IR,
+ *             and we must save control dependency (to avoid cases when after fusion some consumers of Loop_0 are before this Loop)
+ *
+ *        - Lower Loop is fused into the Current Loop
+ *              Loop_0 (Current)    Loop_0 + Loop_1 => new `Loop_0`
+ *                |               =>           |
+ *              Loop_1 (Lower)                 |
+ *           * It's possible only if other parents of Loop_1 are before Loop_0 in Linear IR.
+ *             Because Lower Loop_1 will be explicitly moved after Current Loop_0 in linear IR,
+ *             and we must save control dependency (to avoid cases when after fusion some parents of Loop_1 are after this Loop)
+ *
+ *        The main conditions of possible fusion is the equal increments and the equal/broadcastable work amounts.
  * @ingroup snippets
  */
 class FuseLoops : public Transformation {

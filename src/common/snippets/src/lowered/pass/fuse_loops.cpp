@@ -24,6 +24,15 @@ bool FuseLoops::can_be_fused(const LoopInfoPtr& loop_current, const LoopInfoPtr&
     auto current_increment = loop_current->increment;
     auto target_work_amount = loop_target->work_amount;
     auto target_increment = loop_target->increment;
+    // Loop fusion is supported only if Loops have equal increments and the equal/broadcastable work amounts.
+    // Note: For example, Broadcastable work amounts are possible in the following case:
+    //     Relu_0 [16x1]     Relu_1 [16x128]
+    //                \           /
+    //                 Add [16x128]
+    // Because of expression order in linear IR and work of MarkLoop algorithm, there are 2 Inner Loops:
+    //  - Relu_0 with work amount `1` and increment `vector size`
+    //  - Relu_1 and Add with work amount `128` and increment `vector size`
+    // We can fuse them into one Loop with work amount `128` and increment `vector size`
     const auto supported_work_amount = current_work_amount == target_work_amount || current_work_amount == 1 || target_work_amount == 1;
     const auto supported_increment = current_increment == target_increment;
     return supported_work_amount && supported_increment;

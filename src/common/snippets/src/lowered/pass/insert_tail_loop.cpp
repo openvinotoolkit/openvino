@@ -52,7 +52,6 @@ void InsertTailLoop::tail_transformations(LinearIR& linear_ir,
                 }
             }
         } else if (const auto memory_access = std::dynamic_pointer_cast<ngraph::snippets::op::MemoryAccess>(op)) {
-            // FIXME: C++17 const auto& [port, desc] : memory_access->get_memory_access_input_ports()
             for (const auto p : memory_access->get_memory_access_input_ports()) {
                 const auto port = p.first;
                 if (memory_access->get_input_count(port) > 1) {
@@ -121,10 +120,16 @@ bool InsertTailLoop::run(LinearIR& linear_ir) {
     };
     for (auto expr_it = linear_ir.begin(); expr_it != linear_ir.end();) {
         const auto& loop_begin = ov::as_type_ptr<ngraph::snippets::op::LoopBegin>((*expr_it)->get_node());
+        if (!loop_begin) {
+            expr_it++;
+            continue;
+        }
+
         // ignore outer loops and possible manual scalar loops
-        if (loop_begin && loop_begin->get_increment() != 1) {
+        const auto& loop_end = loop_begin->get_loop_end();
+        if (loop_end->get_increment() != 1) {
             auto loop_begin_expr_it = expr_it;
-            std::shared_ptr<op::LoopEnd> vector_loop_end = loop_begin->get_loop_end();
+            const auto vector_loop_end = loop_end;
             while ((*expr_it)->get_node() != vector_loop_end)
                 expr_it++;
             // Note that exp_it points to the element AFTER loop_end
@@ -158,10 +163,6 @@ bool InsertTailLoop::run(LinearIR& linear_ir) {
                 LinearIR::constExprIt tail_begin;
                 LinearIR::constExprIt tail_end;
                 if (need_vector_loop) {
-                    // todo: we have to clone nodes here since tail transformations can change the same nodes
-                    //  (e.g. reset Load&Store count). this is a bit costy.
-                    //  an alternative is no pass target machine and create emitters for vector loop here
-                    //  (then we don't care if the nodes are updated)
                     auto vector_loop_deep_copy = LinearIR::deep_copy_range(loop_begin_expr_it, expr_it);
                     auto is_par_or_res = [](const ExpressionPtr& expr) {
                         return is_type<opset1::Parameter>(expr->get_node()) ||

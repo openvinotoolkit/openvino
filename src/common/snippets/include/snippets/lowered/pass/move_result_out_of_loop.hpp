@@ -13,7 +13,10 @@ namespace pass {
 
 /**
  * @interface MoveResultOutOfLoop
- * @brief After passes with Loop work results would be inside Loop. The pass extract them from Loop and insert after.
+ * @brief After passes with Loop work Result expressions might be inside Loop.
+ *        It means that Result can be before his Parent and LoopEnd, this situation breaks control dependency and
+ *        create cycle dependency in AssignRegister algorithm.
+ *        The pass extracts Result expressions from Loop and insert after.
  * @ingroup snippets
  */
 class MoveResultOutOfLoop : public Transformation {

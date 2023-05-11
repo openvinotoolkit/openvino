@@ -33,7 +33,6 @@ private:
                       const ExpressionPort& actual_port, const std::vector<ExpressionPort>& target_ports, bool is_entry = true);
     void update_loop(const LinearIR::LoopManager::LoopInfoPtr& loop_info,
                      const ExpressionPort& actual_port, const std::vector<ExpressionPort>& target_ports, bool is_entry = true);
-    std::vector<size_t> get_loops_for_update(const std::vector<size_t>& loop_ids, size_t loop_id);
 
     size_t m_vector_size;
 };

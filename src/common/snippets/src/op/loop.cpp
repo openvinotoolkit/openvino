@@ -49,18 +49,6 @@ bool LoopBegin::visit_attributes(AttributeVisitor &visitor) {
     return true;
 }
 
-size_t LoopBegin::get_work_amount() const {
-    return get_loop_end()->get_work_amount();
-}
-
-size_t LoopBegin::get_increment() const {
-    return get_loop_end()->get_increment();
-}
-
-bool LoopBegin::get_evaluate_once() const {
-    return get_loop_end()->get_evaluate_once();
-}
-
 LoopEnd::LoopEnd(const Output<Node>& loop_begin, size_t work_amount, size_t work_amount_increment,
                  std::vector<bool> apply_increments, std::vector<int64_t> finalization_offsets,
                  std::vector<int64_t> element_type_sizes, size_t input_num, size_t output_num)

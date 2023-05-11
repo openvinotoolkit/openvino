@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "snippets/lowered/pass/indentify_buffers.hpp"
+#include "snippets/lowered/pass/identify_buffers.hpp"
 
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/snippets_isa.hpp"
@@ -54,7 +54,7 @@ std::vector<bool> IdentifyBuffers::create_adjacency_matrix(const LinearIR& linea
 
     for (size_t buffer_idx = 0; buffer_idx < buffers.size(); ++buffer_idx) {
         // Here intermediate Buffer
-        const auto buffer_expr = buffers[buffer_idx];
+        const auto& buffer_expr = buffers[buffer_idx];
         const auto buffer = ov::as_type_ptr<op::Buffer>(buffer_expr->get_node());
         const auto& buffer_tensor = buffer_expr->get_input_tensor(0);
         const auto buffer_siblings = buffer_tensor->get_consumers();
@@ -64,7 +64,7 @@ std::vector<bool> IdentifyBuffers::create_adjacency_matrix(const LinearIR& linea
             if (sibling_expr == buffer_expr) {
                 continue;
             } else if (const auto loop_end = ov::as_type_ptr<op::LoopEnd>(sibling_expr->get_node())) {
-                const auto& loop_tds = sibling_expr->get_input_tensors();
+                const auto loop_tds = sibling_expr->get_input_tensors();
                 const auto input_count = loop_end->get_input_num();
                 const auto output_count = loop_end->get_output_num();
                 const auto& ptr_increments = loop_end->get_ptr_increments();
@@ -173,7 +173,6 @@ bool IdentifyBuffers::run(LinearIR& linear_ir) {
     // Graph coloring algorithm
     const auto color_groups = coloring(buffer_exprs, adj);
 
-    // FIXME: use const auto& [color, united_buffers] when C++17 is available
     for (const auto& pair : color_groups) {
         const auto color = pair.first;
         const auto& united_buffers = pair.second;
