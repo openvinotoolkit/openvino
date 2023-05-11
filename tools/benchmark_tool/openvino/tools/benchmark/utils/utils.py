@@ -414,8 +414,8 @@ def print_perf_counters_sort(perf_counts_list,sort_flag="sort"):
             total_detail_data = sorted(total_detail_data,key=lambda tmp_data:tmp_data[-4],reverse=True)
             total_detail_data = [tmp_data for tmp_data in total_detail_data if str(tmp_data[1])!="Status.NOT_RUN"]
         print_detail_result(total_detail_data)
-        print(f'Total time:       {total_time / 1000:.3f} milliseconds')
-        print(f'Total CPU time:   {total_time_cpu / 1000:.3f} milliseconds')
+        print(f'Total time:       {total_time} milliseconds')
+        print(f'Total CPU time:   {total_time_cpu} milliseconds')
         print(f'Total proportion: {"%.2f"%(round(total_real_time_proportion)*100)} % \n')
     return total_detail_data
 
@@ -437,8 +437,8 @@ def print_detail_result(result_list):
                 f"{str(layerStatus):<20} "
                 f"layerType: {layerType[:max_print_length - 4] + '...' if (len(layerType) >= max_print_length) else layerType:<20} "
                 f"execType: {execType:<20} "
-                f"realTime (ms): {real_time / 1000:<10.3f} "
-                f"cpuTime (ms): {cpu_time / 1000:<10.3f}"
+                f"realTime (ms): {real_time :<10} "
+                f"cpuTime (ms): {cpu_time :<10}"
                 f"proportion: {str(real_proportion +'%'):<8}")
 
 def print_perf_counters(perf_counts_list):
@@ -453,13 +453,13 @@ def print_perf_counters(perf_counts_list):
                 f"{str(pi.status):<20} "
                 f"layerType: {pi.node_type[:max_print_length - 4] + '...' if (len(pi.node_type) >= max_print_length) else pi.node_type:<20} "
                 f"execType: {pi.exec_type:<20} "
-                f"realTime (ms): {pi.real_time / timedelta(milliseconds=1):<10.3f} "
-                f"cpuTime (ms): {pi.cpu_time / timedelta(milliseconds=1):<10.3f}")
+                f"realTime (ms): {pi.real_time.microseconds:<10} "
+                f"cpuTime (ms): {pi.cpu_time.microseconds:<10}")
 
             total_time += pi.real_time
             total_time_cpu += pi.cpu_time
-        print(f'Total time:     {total_time / timedelta(milliseconds=1)} milliseconds')
-        print(f'Total CPU time: {total_time_cpu / timedelta(milliseconds=1)} milliseconds\n')
+        print(f'Total time:     {total_time.microseconds} milliseconds')
+        print(f'Total CPU time: {total_time_cpu.microseconds} milliseconds\n')
 
 
 def get_command_line_arguments(argv):

@@ -413,15 +413,15 @@ static UNUSED void printPerformanceCounts(std::vector<ov::ProfilingInfo> perform
 
         stream << std::setw(30) << std::left << "execType: " + std::string(it.exec_type) << " ";
         stream << "realTime (ms): " << std::setw(10) << std::left << std::fixed << std::setprecision(3)
-               << it.real_time.count() / 1000.0 << " ";
+               << it.real_time.count() << " ";
         stream << "cpuTime (ms): " << std::setw(10) << std::left << std::fixed << std::setprecision(3)
-               << it.cpu_time.count() / 1000.0 << " ";
+               << it.cpu_time.count() << " ";
         stream << std::endl;
     }
     stream << std::setw(25) << std::left << "Total time: " << std::fixed << std::setprecision(3)
-           << totalTime.count() / 1000.0 << " milliseconds" << std::endl;
+           << totalTime.count() << " milliseconds" << std::endl;
     stream << std::setw(25) << std::left << "Total CPU time: " << std::fixed << std::setprecision(3)
-           << totalTimeCpu.count() / 1000.0 << " milliseconds" << std::endl;
+           << totalTimeCpu.count() << " milliseconds" << std::endl;
     stream << std::endl;
     stream << "Full device name: " << deviceName << std::endl;
     stream << std::endl;
@@ -567,9 +567,9 @@ static UNUSED void printPerformanceCountsSort(std::vector<ov::ProfilingInfo> per
 
                 stream << std::setw(30) << std::left << "execType: " + std::string(it.exec_type) << " ";
                 stream << "realTime (ms): " << std::setw(10) << std::left << std::fixed << std::setprecision(3)
-                       << it.real_time.count() / 1000.0 << " ";
+                       << it.real_time.count() << " ";
                 stream << "cpuTime (ms): " << std::setw(10) << std::left << std::fixed << std::setprecision(3)
-                       << it.cpu_time.count() / 1000.0 << " ";
+                       << it.cpu_time.count()  << " ";
 
                 double opt_proportion = it.real_time.count() * 100.0 / totalTime.count();
                 std::stringstream opt_proportion_ss;
@@ -583,7 +583,7 @@ static UNUSED void printPerformanceCountsSort(std::vector<ov::ProfilingInfo> per
             }
         }
     }
-    stream << std::setw(25) << std::left << "Total time: " + std::to_string(totalTime.count() / 1000.0)
+    stream << std::setw(25) << std::left << "Total time: " + std::to_string(totalTime.count())
            << " milliseconds" << std::endl;
     stream << std::endl;
     stream << "Full device name: " << deviceName << std::endl;

@@ -477,13 +477,14 @@ public:
 
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts() const override {
         auto res = m_request->get_profiling_info();
+        constexpr float ms2us = 1000.0;
         std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> ret;
         for (size_t i = 0; i < res.size(); i++) {
             const auto& info = res[i];
             InferenceEngine::InferenceEngineProfileInfo old_info;
-            old_info.cpu_uSec = info.cpu_time.count();
+            old_info.cpu_uSec = info.cpu_time.count() * ms2us;
             old_info.execution_index = static_cast<unsigned>(i);
-            old_info.realTime_uSec = info.real_time.count();
+            old_info.realTime_uSec = info.real_time.count() * ms2us;
             strncpy(old_info.exec_type, info.exec_type.c_str(), sizeof(old_info.exec_type));
             old_info.exec_type[sizeof(old_info.exec_type) - 1] = 0;
             strncpy(old_info.layer_type, info.node_type.c_str(), sizeof(old_info.layer_type));
@@ -672,6 +673,7 @@ public:
 
     std::vector<ov::ProfilingInfo> get_profiling_info() const override {
         auto ieInfos = m_request->GetPerformanceCounts();
+        constexpr float us2ms = 0.001;
         std::vector<ov::ProfilingInfo> infos;
         infos.reserve(ieInfos.size());
         while (!ieInfos.empty()) {
@@ -696,8 +698,8 @@ public:
                 info.status = ov::ProfilingInfo::Status::EXECUTED;
                 break;
             }
-            info.real_time = std::chrono::microseconds{ieInfo.realTime_uSec};
-            info.cpu_time = std::chrono::microseconds{ieInfo.cpu_uSec};
+            info.real_time = std::chrono::microseconds{static_cast<long long>(us2ms * ieInfo.realTime_uSec)};
+            info.cpu_time = std::chrono::microseconds{static_cast<long long>(us2ms * ieInfo.cpu_uSec)};
             info.node_name = itIeInfo->first;
             info.exec_type = std::string{ieInfo.exec_type};
             info.node_type = std::string{ieInfo.layer_type};

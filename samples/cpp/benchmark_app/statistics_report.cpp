@@ -88,7 +88,7 @@ void StatisticsReport::dump_performance_counters_request(CsvDumper& dumper, cons
                        ? status_names[(int)layer.status]
                        : "INVALID_STATUS");
         dumper << layer.node_type << layer.exec_type;
-        dumper << layer.real_time.count() / 1000.0 << layer.cpu_time.count() / 1000.0;
+        dumper << layer.real_time.count() << layer.cpu_time.count();
         total += layer.real_time;
         total_cpu += layer.cpu_time;
         dumper.endLine();
@@ -98,7 +98,7 @@ void StatisticsReport::dump_performance_counters_request(CsvDumper& dumper, cons
            << ""
            << ""
            << "";
-    dumper << total.count() / 1000.0 << total_cpu.count() / 1000.0;
+    dumper << total.count() << total_cpu.count();
     dumper.endLine();
     dumper.endLine();
 }
@@ -134,7 +134,7 @@ void StatisticsReport::dump_sort_performance_counters_request(CsvDumper& dumper,
                            ? status_names[(int)layer.status]
                            : "INVALID_STATUS");
             dumper << layer.node_type << layer.exec_type;
-            dumper << layer.real_time.count() / 1000.0 << layer.cpu_time.count() / 1000.0;
+            dumper << layer.real_time.count() << layer.cpu_time.count();
             dumper << (layer.real_time * 1.0 / total) * 100;
             dumper.endLine();
         }
@@ -144,7 +144,7 @@ void StatisticsReport::dump_sort_performance_counters_request(CsvDumper& dumper,
            << ""
            << ""
            << "";
-    dumper << total.count() / 1000.0 << total_cpu.count() / 1000.0 << 100.0;
+    dumper << total.count() << total_cpu.count() << 100.0;
     dumper.endLine();
     dumper.endLine();
 }
@@ -286,14 +286,14 @@ const nlohmann::json StatisticsReportJSON::perf_counters_to_json(
                                                                                      : "INVALID_STATUS");
         item["node_type"] = layer.node_type;
         item["exec_type"] = layer.exec_type;
-        item["real_time"] = layer.real_time.count() / 1000.0;
-        item["cpu_time"] = layer.cpu_time.count() / 1000.0;
+        item["real_time"] = layer.real_time.count();
+        item["cpu_time"] = layer.cpu_time.count();
         total += layer.real_time;
         total_cpu += layer.cpu_time;
         js["nodes"].push_back(item);
     }
-    js["total_real_time"] = total.count() / 1000.0;
-    js["total_cpu_time"] = total_cpu.count() / 1000.0;
+    js["total_real_time"] = total.count();
+    js["total_cpu_time"] = total_cpu.count();
     return js;
 }
 
@@ -322,14 +322,14 @@ const nlohmann::json StatisticsReportJSON::sort_perf_counters_to_json(
                                                                                      : "INVALID_STATUS");
         item["node_type"] = layer.node_type;
         item["exec_type"] = layer.exec_type;
-        item["real_time"] = layer.real_time.count() / 1000.0;
-        item["cpu_time"] = layer.cpu_time.count() / 1000.0;
+        item["real_time"] = layer.real_time.count();
+        item["cpu_time"] = layer.cpu_time.count();
         item["%"] = std::round(layer.real_time * 10000.0 / total) / 100;
         js["nodes"].push_back(item);
     }
 
-    js["total_real_time"] = total.count() / 1000.0;
-    js["total_cpu_time"] = total_cpu.count() / 1000.0;
+    js["total_real_time"] = total.count();
+    js["total_cpu_time"] = total_cpu.count();
     return js;
 }
 
