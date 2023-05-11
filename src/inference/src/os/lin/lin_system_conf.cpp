@@ -117,7 +117,7 @@ CPU::CPU() {
     if (!GetCatchInfoLinux()) {
         parse_processor_info_linux(_processors,
                                    system_info_table,
-                                   _sockets,
+                                   _numa_nodes,
                                    _cores,
                                    _proc_type_table,
                                    _cpu_mapping_table);
@@ -147,7 +147,7 @@ CPU::CPU() {
             }
         }
         _processors = processors.size();
-        _sockets = sockets.size();
+        _numa_nodes = sockets.size();
         for (auto&& socket : sockets) {
             _cores += socket.second;
         }
@@ -159,14 +159,13 @@ CPU::CPU() {
 }
 
 void parse_processor_info_linux(const int _processors,
-const std::vector<std::vector<std::string>> system_info_table,
+                                const std::vector<std::vector<std::string>> system_info_table,
                                 int& _sockets,
                                 int& _cores,
                                 std::vector<std::vector<int>>& _proc_type_table,
                                 std::vector<std::vector<int>>& _cpu_mapping_table) {
     int n_group = 0;
 
-    _processors = system_info_table.size();
     _cpu_mapping_table.resize(_processors, std::vector<int>(CPU_MAP_TABLE_SIZE, -1));
 
     auto UpdateProcMapping = [&](const int nproc) {
@@ -302,8 +301,6 @@ const std::vector<std::vector<std::string>> system_info_table,
             }
         }
     }
-
-    return;
 };
 
 }  // namespace ov

@@ -624,7 +624,6 @@ public:
 
         Hex2Bin(test_ptr, test_len, test_info_ptr);
 
-        int test_processors = 0;
         int test_sockets = 0;
         int test_cores = 0;
         unsigned long len = unsigned long(test_len / 2);
@@ -640,7 +639,7 @@ public:
                                      test_cpu_mapping_table);
 
         ASSERT_EQ(test_data._processors, test_processors);
-        ASSERT_EQ(test_data._numa_nodes, test_sockets);
+        ASSERT_EQ(test_data._sockets, test_sockets);
         ASSERT_EQ(test_data._cores, test_cores);
         ASSERT_EQ(test_data._proc_type_table, test_proc_type_table);
         ASSERT_EQ(test_data._cpu_mapping_table, test_cpu_mapping_table);
