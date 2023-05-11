@@ -51,7 +51,7 @@ Note that `astroid` is not required by `requirements_tensorflow.txt`, so it's no
 
 Using `constraints.txt` files brings many benefits, some of which are:
 - Lower project complexity
-    - Significantly less requirements files to maintain
+    - Significantly fewer requirements files to maintain
     - Centralization of project requirements
 - Easier pip conflicts management
     - Upgrading package versions is now easier
