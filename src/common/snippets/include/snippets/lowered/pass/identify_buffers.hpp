@@ -6,6 +6,8 @@
 
 #include "transformation.hpp"
 
+#include "snippets/op/buffer.hpp"
+
 namespace ngraph {
 namespace snippets {
 namespace lowered {
@@ -34,7 +36,7 @@ public:
     bool run(LinearIR& linear_ir) override;
 
 private:
-    using BufferSet = std::vector<ExpressionPtr>;
+    using BufferSet = std::vector<std::shared_ptr<op::Buffer>>;
 
     std::vector<bool> create_adjacency_matrix(const LinearIR& linear_ir, const BufferSet& buffers) const;
     std::map<size_t, BufferSet> coloring(BufferSet& buffers, std::vector<bool>& adj);
