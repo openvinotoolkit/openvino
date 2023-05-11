@@ -44,10 +44,8 @@ std::vector<TShape> shape_infer(const ExperimentalDetectronPriorGridGenerator* o
         NODE_VALIDATION_CHECK(op, im_data_shape.size() == 4, "Im_data rank must be equal to 4.");
 
         if (featmap_rank_static) {
-            const auto num_batches = featmap_shape[0] & im_data_shape[0];
-
             NODE_VALIDATION_CHECK(op,
-                                  num_batches.compatible(1),
+                                  featmap_shape[0].compatible(im_data_shape[0]),
                                   "The first dimension of both 'feature_map' and 'im_data' must match. "
                                   "Feature_map: ",
                                   featmap_shape[0],
