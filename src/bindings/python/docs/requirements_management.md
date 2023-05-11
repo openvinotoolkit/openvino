@@ -9,7 +9,7 @@ Official constraints [documentation](https://pip.pypa.io/en/stable/user_guide/#c
 
 Constraints files have the `.txt` extension and are addons to regular `requirements.txt` files. They are useful when the project has multiple components, each with its own dependencies.
 
-Thanks to constraints files we can specify only the package names for different components and keep their versions in a centralized constraints file, which is significanly easier to maintain. 
+This means we can specify only package names for different components and keep their versions in a centralized constraints file, which is significantly easier to maintain. 
 
 
 ### Example
