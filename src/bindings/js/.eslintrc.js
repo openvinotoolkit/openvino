@@ -1,30 +1,9 @@
 module.exports = {
-  extends: ['eslint:recommended', 'plugin:@typescript-eslint/recommended'],
+  extends: [
+    'eslint:recommended',
+    'plugin:@typescript-eslint/recommended',
+    './.eslintrc-common.js',
+  ],
   ignorePatterns: ['**/*.js', 'node_modules/', 'types/', 'dist/', 'bin/'],
   root: true,
-  rules: {
-    'semi': ['error'],
-    'no-var': ['error'],
-    'max-len': ['error'],
-    'eol-last': ['error'],
-    'indent': ['error', 2],
-    'camelcase': ['error'],
-    'semi-spacing': ['error'],
-    'arrow-spacing': ['error'],
-    'comma-spacing': ['error'],
-    'no-multi-spaces': ['error'],
-    'quotes': ['error', 'single'],
-    'no-trailing-spaces': ['error'],
-    'space-before-blocks': ['error'],
-    'newline-before-return': ['error'],
-    'comma-dangle': ['error', 'always-multiline'],
-    'space-before-function-paren': ['error', {
-      named: 'never',
-      anonymous: 'never',
-      asyncArrow: 'always'
-    }],
-    'key-spacing': ['error', { beforeColon: false }],
-    'no-multiple-empty-lines': ['error', { max: 1, maxBOF: 0, maxEOF: 0 }],
-    'keyword-spacing': ['error', { overrides: { catch: { after: false } } }],
-  }
 };

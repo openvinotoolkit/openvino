@@ -48,6 +48,7 @@ export interface ITensor {
 }
 
 export interface IModel {
+  // FIXME: Allow to accept common array as a shape
   infer(tensorOrDataArray: ITensor | number[], shape: IShape): Promise<ITensor>,
 }
 

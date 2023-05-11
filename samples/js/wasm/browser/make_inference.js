@@ -1,1 +1,0 @@
-../make_inference.js

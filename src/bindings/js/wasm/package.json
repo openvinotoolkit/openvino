@@ -2,8 +2,16 @@
   "name": "openvinojs-wasm",
   "version": "1.0.0",
   "description": "OpenVINO™ utils for using from JavaScript environment",
-  "author": "vishniakov-nikolai",
   "license": "Apache-2.0",
+  "author": "vishniakov-nikolai",
+  "main": "./dist/openvino-wasm.node.bundle.js",
+  "types": "./types/index.d.ts",
+  "scripts": {
+    "build": "webpack",
+    "create_links": "mkdir -p bin && ln -sf ../../../../../bin/ia32/Release/openvino_wasm.js ./bin/ ln -sf ../../../../../bin/ia32/Release/openvino_wasm.wasm ./bin/",
+    "postinstall": "npm run create_links && npm run build",
+    "lint": "eslint ."
+  },
   "devDependencies": {
     "@types/node": "^18.15.0",
     "@typescript-eslint/eslint-plugin": "^5.59.1",
@@ -18,15 +26,7 @@
     "webpack": "^5.79.0",
     "webpack-cli": "^5.0.1"
   },
-  "main": "./dist/openvino-wasm.bundle.js",
-  "types": "./types/index.d.ts",
-  "scripts": {
-    "lint": "eslint .",
-    "build": "webpack",
-    "create_links": "mkdir -p bin && ln -sf ../../../../../bin/ia32/Release/openvino_wasm.js ./bin/ ln -sf ../../../../../bin/ia32/Release/openvino_wasm.wasm ./bin/",
-    "postinstall": "npm run create_links && npm run build"
-  },
   "engines": {
-    "node": ">=18.14.2"
+    "node": ">=18.16.0"
   }
 }

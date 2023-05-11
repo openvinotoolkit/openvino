@@ -121,6 +121,7 @@ export function convertTensor(
   tensor: ITensor
 ): OriginalTensorWrapper {
   const { precision } = tensor;
+  // FIXME: remove extra array conversion
   const dataType = jsTypeByPrecisionMap[precision];
   const originalShape = convertShape(ov, tensor.shape);
 

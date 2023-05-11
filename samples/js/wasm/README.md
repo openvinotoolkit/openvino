@@ -1,4 +1,4 @@
-# Demo of OpenVINO™ JS API usage
+# Demo of WASM OpenVINO™ JS API usage
 
 ## Preparation
 
@@ -6,7 +6,7 @@
    - From repository root: `mkdir build`
    - Run emscripten compiler `docker run -it --rm -v $(pwd):/openvino emscripten/emsdk`
    - From docker `cd /openvino/build`
-   - Run cmake 
+   - Run cmake
    ```
    emcmake cmake \
       -DCMAKE_BUILD_TYPE=Release \
@@ -17,7 +17,7 @@
       -DENABLE_OV_PADDLE_FRONTEND=OFF \
       ..
    ```
-   - Run compilation by run **openvino_wasm** job 
+   - Run compilation by run **openvino_wasm** job
    ```
    emmake make -j4 openvino_wasm
    ```
@@ -25,11 +25,12 @@
    - Directory *./bin/ia32/Release/* should contain `openvino_wasm.js` and `openvino_wasm.wasm` files
 1. Run `npm i` from *./src/bindings/js/common/*
 1. Run `npm i` from *./src/bindings/js/wasm/*
+1. Install common dependencies of the samples `npm i` from *./samples/js/common*
 1. Install dependencies of the sample by run `npm i` from *./samples/js/wasm/*
 
 ## Run demo
 
-### Node.js (FIXME: temporary doesn't work)
+### Node.js
 
 - Run `npm run nodejs` from *./samples/js/wasm/*
 - Console will contain execution results
@@ -38,4 +39,4 @@
 
 - Run `npm run browser` from *./samples/js/wasm/*
 - Open [http://127.0.0.1:8081/](http://127.0.0.1:8081/) in your browser and follow instructions
-- Open [http://127.0.0.1:8081/demo.html](http://127.0.0.1:8081/demo.html) in your browser if you don't want to select image manually
+- Open samples [http://127.0.0.1:8081/samples.html](http://127.0.0.1:8081/samples.html) in your browser if you don't want to select image manually
