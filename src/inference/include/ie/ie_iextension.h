@@ -40,6 +40,7 @@
 #endif
 
 namespace InferenceEngine {
+IE_SUPPRESS_DEPRECATED_START
 
 /**
  * @deprecated This API is deprecated and will be removed in 2024.0 release.
@@ -72,7 +73,6 @@ struct INFERENCE_ENGINE_DEPRECATED("This API is deprecated and will be removed i
      * @brief Supported dynamic batch. If false, dynamic batch is not supported
      */
     bool dynBatchSupport = false;
-    IE_SUPPRESS_DEPRECATED_START
     /**
      * @brief Vector of input data configs
      */
@@ -81,7 +81,6 @@ struct INFERENCE_ENGINE_DEPRECATED("This API is deprecated and will be removed i
      * @brief Vector of output data configs
      */
     std::vector<DataConfig> outConfs;
-    IE_SUPPRESS_DEPRECATED_END
 };
 
 /**
@@ -122,7 +121,6 @@ public:
      */
     virtual ~ILayerExecImpl();
 
-    IE_SUPPRESS_DEPRECATED_START
     /**
      * @brief Gets all supported configurations for the current layer
      *
@@ -140,7 +138,6 @@ public:
      * @return Status code
      */
     virtual StatusCode init(LayerConfig& config, ResponseDesc* resp) noexcept = 0;
-    IE_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief Execute method
@@ -219,9 +216,7 @@ protected:
 /**
  * @brief A shared pointer to a IExtension interface
  */
-IE_SUPPRESS_DEPRECATED_START
 using IExtensionPtr = std::shared_ptr<IExtension>;
-IE_SUPPRESS_DEPRECATED_END
 
 /**
  * @brief Creates the default instance of the extension
@@ -247,6 +242,7 @@ CreateExtension(IExtension*& ext, ResponseDesc* resp) noexcept INFERENCE_ENGINE_
     "Use IE_DEFINE_EXTENSION_CREATE_FUNCTION macro");
 #endif
 
+IE_SUPPRESS_DEPRECATED_END
 }  // namespace InferenceEngine
 
 /**
