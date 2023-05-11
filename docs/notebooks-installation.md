@@ -599,7 +599,7 @@ or create an
 ========
 
 -  `Which devices does OpenVINO
-   support? <https://docs.openvino.ai/2022.1/openvino_docs_OV_UG_supported_plugins_Supported_Devices.html>`__
+   support? <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_supported_plugins_Supported_Devices.html>`__
 -  `What is the first CPU generation that OpenVINO
    supports? <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
 -  `Are there any success stories about deploying real-world solutions
