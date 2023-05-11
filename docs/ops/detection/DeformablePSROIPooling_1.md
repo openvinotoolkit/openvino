@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about DeformablePSROIPooling-1 - an object detection operation, which 
+                can be performed on two or three input tensors in OpenVINO.
+
 **Versioned name**: *DeformablePSROIPooling-1*
 
 **Category**: *Object detection*

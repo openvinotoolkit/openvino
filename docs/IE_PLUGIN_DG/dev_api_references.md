@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn about extra API references required for development of 
+                 plugins in OpenVINO.
+
 .. toctree::
    :maxdepth: 1
    :hidden:

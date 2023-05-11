@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to convert a model from the 
+                 Caffe format to the OpenVINO Intermediate Representation.
+
+
 .. warning::
 
    Note that OpenVINO support for Caffe is currently being deprecated and will be removed entirely in the future.

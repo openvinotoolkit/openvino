@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about Interpolate-4 - an image processing operation, which 
+                can be performed on three required and one optional tensor.
+
 **Versioned name**: *Interpolate-4*
 
 **Category**: *Image processing*
