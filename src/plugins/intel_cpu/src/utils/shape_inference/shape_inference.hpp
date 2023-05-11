@@ -8,8 +8,9 @@
 #include <openvino/core/core.hpp>
 #include <openvino/core/node.hpp>
 
-#include "static_shape.hpp"
 #include "shape_inference_status.hpp"
+#include "static_shape.hpp"
+#include "tensor_data_accessor.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -23,7 +24,7 @@ public:
 
 public:
     virtual Result infer(const std::vector<StaticShape>& input_shapes,
-                                   const std::map<size_t, HostTensorPtr>& constant_data) = 0;
+                         const std::map<size_t, HostTensorPtr>& constant_data) = 0;
 
     // infer may generate padding as by-product, these APIs is designed to retrieve them back
     virtual const ov::CoordinateDiff& get_pads_begin() = 0;
@@ -34,11 +35,19 @@ public:
 
 class IStaticShapeInfer : public IShapeInferCommon {
 public:
+    using port_mask_t = uint32_t;  //!< Operator's port mask to indicate input data dependency
     using IShapeInferCommon::infer;
 
-    virtual Result infer(
-        const std::vector<StaticShape>& input_shapes,
-        const std::map<size_t, std::reference_wrapper<const Tensor>>& constant_data) = 0;
+    virtual Result infer(const std::vector<StaticShape>& input_shapes, const ov::ITensorAccessor& tensor_accessor) = 0;
+
+    /**
+     * @brief Some shape inference implementation may require input data stored inside the input tensors. To define
+     * which inputs data are required, the port mask is used. Each set bit corresponds to the specific input port
+     * number.
+     *
+     * @return port_mask_t a bit mask where each bit corresponds to an input port number.
+     */
+    virtual port_mask_t get_port_mask() const = 0;
 };
 
 template <class TShapeInferIface = IShapeInferCommon>
