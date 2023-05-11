@@ -444,7 +444,7 @@ public:
     std::string getDeviceName() const noexcept override {
         try {
             return tensor->get_device_name();
-        } catch (...) {
+        } catch (const std::exception&) {
             return {};
         }
     }
