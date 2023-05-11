@@ -90,22 +90,47 @@ static int64_t GetGatherBatchDim(const gather_params& params) {
         return params.batch_dim;
 }
 
-static inline std::string GetGatherMaxIndexDim(const gather_params& params) {
+static inline Tensor::Dim GetGatherIndexDim(const gather_params& params) {
     switch (params.axis) {
     case GatherAxis::BATCH:
-        return std::to_string(params.inputs[0].Batch().v);
+        return params.inputs[0].Batch();
     case GatherAxis::FEATURE:
-        return std::to_string(params.inputs[0].Feature().v);
+        return params.inputs[0].Feature();
     case GatherAxis::W:
-        return std::to_string(params.inputs[0].W().v);
+        return params.inputs[0].W();
     case GatherAxis::Z:
-        return std::to_string(params.inputs[0].Z().v);
+        return params.inputs[0].Z();
     case GatherAxis::Y:
-        return std::to_string(params.inputs[0].Y().v);
+        return params.inputs[0].Y();
     case GatherAxis::X:
-        return std::to_string(params.inputs[0].X().v);
+        return params.inputs[0].X();
+    default:
+        IE_THROW() << "Unknown gather axis=" << static_cast<int>(params.axis);
     }
-    throw "Error";
+}
+
+static inline int64_t GetGatherAxisIndexInShapeInfo(const gather_params& params) {
+    switch (params.axis) {
+    case GatherAxis::BATCH:
+        return 0;
+    case GatherAxis::FEATURE:
+        return 1;
+    case GatherAxis::W:
+        return 4;
+    case GatherAxis::Z:
+        return 5;
+    case GatherAxis::Y:
+        return 6;
+    case GatherAxis::X:
+        return 7;
+    default:
+        IE_THROW() << "Unknown gather axis=" << static_cast<int>(params.axis);
+    }
+}
+
+static inline std::string GetGatherMaxIndexDim(const gather_params& params) {
+    auto index_dim = GetGatherIndexDim(params);
+    return std::to_string(index_dim.v);
 }
 
 static inline std::string GetOrderString(const std::vector<std::string>& order) {
@@ -215,6 +240,12 @@ JitConstants GatherKernelRef::GetJitConstants(const gather_params& params) const
     jit.AddConstant(MakeJitConstant("INDICES_INDEX_ORDER", GetIndicesIdxOrder(params, GetGatherChannelIndex(params), GetGatherBatchDim(params))));
     if (params.support_neg_ind)
         jit.AddConstant(MakeJitConstant("INDEX_DIM", GetGatherMaxIndexDim(params)));
+
+    if (!GetGatherIndexDim(params).is_dynamic)
+        jit.AddConstant(MakeJitConstant("AXIS_DIM", GetGatherMaxIndexDim(params)));
+
+    if (params.is_shape_agnostic)
+        jit.AddConstant(MakeJitConstant("GATHER_AXIS_SHAPE_INFO_INDEX", GetGatherAxisIndexInShapeInfo(params)));
 
     if (!params.fused_ops.empty()) {
         std::vector<std::string> idx_order = GetOrder(params.inputs[0].GetDims().size());
