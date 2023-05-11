@@ -96,11 +96,11 @@ bool InsertTailLoop::run(LinearIR& linear_ir) {
         }
     };
     auto is_loop_with_buffers = [&linear_ir](const std::shared_ptr<op::LoopEnd>& loop_end) {
-        auto is_buffer_input = [&linear_ir](const TensorPtr& input) {
+        auto is_buffer_input = [](const TensorPtr& input) {
             const auto& parent_expr = input->get_source().get_expr();
             return ov::is_type<op::Buffer>(parent_expr->get_node());
         };
-        auto is_buffer_output = [&linear_ir](const TensorPtr& output) {
+        auto is_buffer_output = [](const TensorPtr& output) {
             const auto child_exprs_inputs = output->get_consumers();
             return std::any_of(child_exprs_inputs.begin(), child_exprs_inputs.end(),
                                [](const ExpressionPort& lp) {return ov::is_type<op::Buffer>(lp.get_expr()->get_node());});
