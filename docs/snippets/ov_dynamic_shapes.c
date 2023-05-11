@@ -12,21 +12,21 @@ ov_core_create(&core);
 ov_model_t* model = NULL;
 ov_core_read_model(core, "model.xml", NULL, &model);
 
-// Set one static dimension (= 1) and another dynamic dimension (= Dimension())
+// Set first dimension as dynamic ({-1, -1}) and remaining dimensions as static
 {
 ov_partial_shape_t partial_shape;
-ov_dimension_t dims[2] = {{1, 1}, {-1, -1}};
-ov_partial_shape_create(2, dims, &partial_shape);
-ov_model_reshape_single_input(model, partial_shape); // {1,?}
+ov_dimension_t dims[4] = {{-1, -1}, {3, 3}, {224, 224}, {224, 224}};
+ov_partial_shape_create(4, dims, &partial_shape);
+ov_model_reshape_single_input(model, partial_shape); // {?,3,224,224}
 ov_partial_shape_free(&partial_shape);
 }
 
-// Or set both dimensions as dynamic if both are going to be changed dynamically
+// Or, set third and fourth dimensions as dynamic
 {
 ov_partial_shape_t partial_shape;
-ov_dimension_t dims[2] = {{-1, -1}, {-1, -1}};
-ov_partial_shape_create(2, dims, &partial_shape);
-ov_model_reshape_single_input(model, partial_shape); // {?,?}
+ov_dimension_t dims[4] = {{1, 1}, {3, 3}, {-1, -1}, {-1, -1}};
+ov_partial_shape_create(4, dims, &partial_shape);
+ov_model_reshape_single_input(model, partial_shape); // {1,3,?,?}
 ov_partial_shape_free(&partial_shape);
 }
 //! [ov_dynamic_shapes:reshape_undefined]
