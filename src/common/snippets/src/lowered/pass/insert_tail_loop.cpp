@@ -41,25 +41,27 @@ void InsertTailLoop::tail_transformations(LinearIR& linear_ir,
              ov::is_type<ov::op::v1::Add>(op))) {
             for (size_t i = 0; i < op->inputs().size(); ++i) {
                 if (auto fill = insertFill(op->input(i))) {
-                    std::vector<TensorDescriptorPtr> inputs{expr_it->get()->get_inputs()[i]};
+                    const auto& input = expr_it->get()->get_input_tensor(i);
+                    const auto consumers = input->get_consumers();
                     // Note: inputs == outputs, since we want to modify vector reg inplace
-                    auto fill_expr = std::make_shared<Expression>(fill, inputs, inputs);
+                    auto fill_expr = linear_ir.create_expression(fill, {input});
+                    linear_ir.insert(expr_it, fill_expr);
+                    linear_ir.replace_input(consumers, fill_expr->get_output_tensor(0));
                     auto reg = expr_it->get()->get_reg_info().first[i];
                     fill_expr->set_reg_info({{reg}, {reg}});
-                    linear_ir.insert(expr_it, fill_expr);
                 }
             }
         } else if (const auto memory_access = std::dynamic_pointer_cast<ngraph::snippets::op::MemoryAccess>(op)) {
             // FIXME: C++17 const auto& [port, desc] : memory_access->get_memory_access_input_ports()
             for (const auto p : memory_access->get_memory_access_input_ports()) {
                 const auto port = p.first;
-                if (memory_access->is_memory_access_input_port(port) && memory_access->get_input_count(port) > 1) {
+                if (memory_access->get_input_count(port) > 1) {
                     memory_access->set_input_count(tail_size, port);
                 }
             }
             for (const auto p : memory_access->get_memory_access_output_ports()) {
                 const auto port = p.first;
-                if (memory_access->is_memory_access_output_port(port) && memory_access->get_output_count(port) > 1) {
+                if (memory_access->get_output_count(port) > 1) {
                     memory_access->set_output_count(tail_size, port);
                 }
             }
@@ -95,25 +97,25 @@ bool InsertTailLoop::run(LinearIR& linear_ir) {
         }
     };
     auto is_loop_with_buffers = [&linear_ir](const std::shared_ptr<op::LoopEnd>& loop_end) {
-        auto is_buffer_input = [&linear_ir](const TensorDescriptorPtr& input) {
-            const auto parent_expr = linear_ir.get_expr_by_output(input).expr;
+        auto is_buffer_input = [&linear_ir](const TensorPtr& input) {
+            const auto& parent_expr = input->get_source().get_expr();
             return ov::is_type<op::Buffer>(parent_expr->get_node());
         };
-        auto is_buffer_output = [&linear_ir](const TensorDescriptorPtr& output) {
-            const auto& child_exprs_inputs = linear_ir.get_exprs_by_input(output);
+        auto is_buffer_output = [&linear_ir](const TensorPtr& output) {
+            const auto child_exprs_inputs = output->get_consumers();
             return std::any_of(child_exprs_inputs.begin(), child_exprs_inputs.end(),
-                               [](const ExpressionPort& lp) {return ov::is_type<op::Buffer>(lp.expr->get_node());});
+                               [](const ExpressionPort& lp) {return ov::is_type<op::Buffer>(lp.get_expr()->get_node());});
         };
 
-        const auto loop_end_expr = linear_ir.get_expr_by_node(loop_end);
-        const auto inputs = loop_end_expr->get_inputs();
+        const auto& loop_end_expr = linear_ir.get_expr_by_node(loop_end);
+        const auto inputs = loop_end_expr->get_input_tensors();
         const auto in_num = loop_end->get_input_num();
         const auto out_num = loop_end->get_output_num();
         OPENVINO_ASSERT(inputs.size() == (in_num + out_num + 1),
                         std::string("The LoopEnd expression must have the count of inputs is") +
                         std::string("equal to count of input and outputs of Loop plus one for work amount"));
-        const std::vector<TensorDescriptorPtr> loop_ins(inputs.begin(), inputs.begin() + in_num);
-        const std::vector<TensorDescriptorPtr> loop_outs(inputs.begin() + in_num, inputs.begin() + in_num + out_num);
+        const std::vector<TensorPtr> loop_ins(inputs.begin(), inputs.begin() + in_num);
+        const std::vector<TensorPtr> loop_outs(inputs.begin() + in_num, inputs.begin() + in_num + out_num);
         return std::any_of(loop_ins.begin(), loop_ins.end(), is_buffer_input) ||
                std::any_of(loop_outs.begin(), loop_outs.end(), is_buffer_output);
     };

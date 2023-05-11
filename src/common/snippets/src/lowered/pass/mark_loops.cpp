@@ -29,8 +29,15 @@ bool MarkLoops::run(LinearIR& linear_ir) {
     auto is_not_start_point = [](const std::shared_ptr<ov::Node>& node) {
         return ov::is_type<opset1::Result>(node) ||
                ov::is_type<opset1::Constant>(node) ||
-               ov::is_type<opset1::Parameter>(node) ||
-               ov::is_type<opset1::Softmax>(node);  // Softmax is decomposed operation. The marking is in decomposition pass
+               ov::is_type<opset1::Parameter>(node);
+    };
+
+    auto are_conflicted = [](const ExpressionPort& lhs, const ExpressionPort& rhs) {
+        const auto& lhs_desc = lhs.get_descriptor_ptr();
+        const auto& rhs_desc = rhs.get_descriptor_ptr();
+        return lhs_desc->get_subtensor() != rhs_desc->get_subtensor() ||
+               lhs_desc->get_layout() != rhs_desc->get_layout() ||
+               lhs_desc->get_shape() != rhs_desc->get_shape();
     };
 
     for (auto expr_it = linear_ir.cbegin(); expr_it != linear_ir.cend(); expr_it++) {
@@ -42,14 +49,7 @@ bool MarkLoops::run(LinearIR& linear_ir) {
         auto loop_begin_pos = expr_it;
         auto loop_end_pos = loop_begin_pos;
 
-        const auto& outputs = expr->get_outputs();
-        const auto& loop_inner_layout = outputs.front()->get_layout();
-        const auto& loop_inner_subtensor = outputs.front()->get_subtensor();
-        const bool loop_is_outside = expr->is_outside_loop();
-        const bool loop_is_inside = !loop_is_outside;
-
-        bool current_is_outside = loop_is_outside;
-        bool current_is_inside = loop_is_inside;
+        bool collapse = true;
         do {
             const auto& prev_expr = *loop_end_pos;
             loop_end_pos++;
@@ -60,29 +60,33 @@ bool MarkLoops::run(LinearIR& linear_ir) {
             // If iterator is the last, we should finish Loop
             const auto& current_expr = *loop_end_pos;
             const auto& current_node = current_expr->get_node();
-            if (ov::is_type<opset1::Softmax>(current_node) ||  // Softmax is marked in decomposition
-                ov::is_type<opset1::Result>(current_node) ||
+            if (ov::is_type<opset1::Result>(current_node) ||
                 ov::is_type<opset1::Constant>(current_node))
                 break;
 
-            const auto& ins = loop_end_pos->get()->get_inputs();
-            current_is_inside = std::all_of(ins.begin(), ins.end(),
-                                          [&loop_inner_layout, &loop_inner_subtensor](const TensorDescriptorPtr& td) {
-                                              return td->get_layout() == loop_inner_layout &&
-                                                     td->get_subtensor() == loop_inner_subtensor; });
-            // If the next expr isn't real customer of prev expr we should finish Loop
-            auto connected = [&](const TensorDescriptorPtr& td) {return linear_ir.get_expr_by_output(td).expr == prev_expr;};
-            if (current_is_inside && std::none_of(ins.begin(), ins.end(), connected))
-                break;
+            // We finish Loop if
+            //  - the next expr isn't real consumer
+            //  - the is conflict between the corresponding ports
+            bool is_connected = false;
+            bool is_conflicted = false;
+            for (size_t i = 0; i < prev_expr->get_output_count(); ++i) {
+                const auto& loop_tensor = prev_expr->get_output_tensor(i);
+                const auto consumers = loop_tensor->get_consumers();
+                const auto found = std::find_if(consumers.begin(), consumers.end(), [&loop_end_pos](const ExpressionPort& consumer) {
+                    return consumer.get_expr() == *loop_end_pos;
+                });
+                if (found != consumers.end()) {
+                    if (are_conflicted(*found, loop_tensor->get_source())) {
+                        is_conflicted = true;
+                        break;
+                    }
+                   is_connected = true;
+                }
+            }
+            collapse = is_connected && !is_conflicted;
+        } while (collapse);
 
-            current_is_outside = current_expr->is_outside_loop();
-        } while (current_is_inside == loop_is_inside && current_is_outside == loop_is_outside);
-
-        if (loop_is_inside)
-            loop_manager->mark_loop(linear_ir, loop_begin_pos, loop_end_pos, loop_depth, m_vector_size);
-        else if (loop_is_outside)
-            loop_manager->skipped_mark(loop_begin_pos, loop_end_pos, loop_depth);
-
+        loop_manager->mark_loop(loop_begin_pos, loop_end_pos, loop_depth, m_vector_size);
         expr_it = std::prev(loop_end_pos);
     }
 

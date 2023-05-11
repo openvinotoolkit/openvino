@@ -5,7 +5,7 @@
 #include "snippets/lowered/loop_manager.hpp"
 
 #include "snippets/lowered/expression.hpp"
-#include "snippets/tensor_descriptor.hpp"
+#include "snippets/utils.hpp"
 
 #include <openvino/core/graph_util.hpp>
 #include <openvino/core/type.hpp>
@@ -44,8 +44,7 @@ void LinearIR::LoopManager::get_loop_bounds(const LinearIR &linear_ir,
                                             LinearIR::constExprIt &loop_begin_pos,
                                             LinearIR::constExprIt &loop_end_pos) const {
     const auto loop_info = get_loop_info(loop_id);
-    get_loop_bounds(linear_ir, loop_info->entry_exprs, loop_info->exit_exprs, loop_begin_pos, loop_end_pos,
-                    loop_id);
+    get_loop_bounds(linear_ir, loop_info->entry_exprs, loop_info->exit_exprs, loop_begin_pos, loop_end_pos, loop_id);
 }
 
 void LinearIR::LoopManager::get_loop_bounds(const LinearIR &linear_ir,
@@ -56,7 +55,8 @@ void LinearIR::LoopManager::get_loop_bounds(const LinearIR &linear_ir,
                                             size_t loop_id) {
     OPENVINO_ASSERT(!entries.empty(), "Loop must have entry points");
     OPENVINO_ASSERT(!exits.empty(), "Loop must have entry points");
-    loop_begin_pos = std::find(linear_ir.begin(), linear_ir.end(), entries.front().expr);
+    const auto& entry_expr = entries.front().get_expr();
+    loop_begin_pos = std::find(linear_ir.begin(), linear_ir.end(), entry_expr);
     OPENVINO_ASSERT(loop_begin_pos != linear_ir.end(), "Loop begin hasn't been found!");
 
     // Some operations in Loop can be before first entry points: Scalars, VectorBuffer.
@@ -68,12 +68,12 @@ void LinearIR::LoopManager::get_loop_bounds(const LinearIR &linear_ir,
     }
 
     // At the moment all Loops must have exit points
-    loop_end_pos = std::next(std::find(loop_begin_pos, linear_ir.end(), exits.back().expr));
+    const auto& exit_expr = exits.back().get_expr();
+    loop_end_pos = std::next(std::find(loop_begin_pos, linear_ir.end(), exit_expr));
     OPENVINO_ASSERT(loop_end_pos != linear_ir.end(), "Loop end hasn't been found!");
 }
 
-void LinearIR::LoopManager::get_io_loop_ports(LinearIR &linear_ir,
-                                              LinearIR::constExprIt loop_begin_pos,
+void LinearIR::LoopManager::get_io_loop_ports(LinearIR::constExprIt loop_begin_pos,
                                               LinearIR::constExprIt loop_end_pos,
                                               std::vector<ExpressionPort> &entries,
                                               std::vector<ExpressionPort> &exits) {
@@ -81,24 +81,21 @@ void LinearIR::LoopManager::get_io_loop_ports(LinearIR &linear_ir,
     exits.clear();
     for (auto expr_it = loop_begin_pos; expr_it != loop_end_pos; ++expr_it) {
         const auto& expr = *expr_it;
-        const auto inputs = expr->get_inputs();
-        const auto outputs = expr->get_outputs();
-
-        for (size_t in_port = 0; in_port < inputs.size(); ++in_port) {
-            const auto in_td = inputs[in_port];
-            const auto parent_expr = linear_ir.get_expr_by_output(in_td).expr;
+        for (size_t i = 0; i < expr->get_input_count(); ++i) {
+            const auto in_port = expr->get_input_port(i);
+            const auto& parent_expr = in_port.get_connected_ports().begin()->get_expr();
             if (!ov::is_type<ov::op::v0::Constant>(parent_expr->get_node()) &&
                 std::find(loop_begin_pos, expr_it, parent_expr) == expr_it) {
-                entries.push_back(expr->input_port(in_port));
+                entries.push_back(in_port);
             }
         }
-
-        for (size_t out_port = 0; out_port < outputs.size(); ++out_port) {
-            const auto out_td = outputs[out_port];
-            const auto consumer_exprs = linear_ir.get_exprs_by_input(out_td);
-            for (const auto& conumer_expr : consumer_exprs) {
-                if (std::find(expr_it, loop_end_pos, conumer_expr.expr) == loop_end_pos) {
-                    exits.push_back(expr->output_port(out_port));
+        for (size_t i = 0; i < expr->get_output_count(); ++i) {
+            const auto out_port = expr->get_output_port(i);
+            const auto consumer_ports = out_port.get_connected_ports();
+            for (const auto& consumer : consumer_ports) {
+                const auto& consumer_expr = consumer.get_expr();
+                if (std::find(expr_it, loop_end_pos, consumer_expr) == loop_end_pos) {
+                    exits.push_back(out_port);
                     break;
                 }
             }
@@ -106,88 +103,84 @@ void LinearIR::LoopManager::get_io_loop_ports(LinearIR &linear_ir,
     }
 }
 
-void LinearIR::LoopManager::skipped_mark(LinearIR::constExprIt loop_begin_pos,
-                                         LinearIR::constExprIt loop_end_pos,
-                                         size_t loop_depth) {
-    const auto loop_ids = std::vector<size_t>(loop_depth, Expression::LOOP_NULL_ID);
-    for (auto& expr_it = loop_begin_pos; expr_it != loop_end_pos; ++expr_it) {
-        const auto expr = *expr_it;
-        expr->set_loop_ids(loop_ids);
-    }
-}
-
-void LinearIR::LoopManager::mark_loop(LinearIR &linear_ir,
-                                      LinearIR::constExprIt loop_begin_pos,
+void LinearIR::LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
                                       LinearIR::constExprIt loop_end_pos,
                                       size_t loop_depth, size_t vector_size) {
     std::vector<ExpressionPort> loop_entry_points, loop_exit_points;
-    LoopManager::get_io_loop_ports(linear_ir, loop_begin_pos, loop_end_pos, loop_entry_points,
-                                          loop_exit_points);
+    LoopManager::get_io_loop_ports(loop_begin_pos, loop_end_pos, loop_entry_points, loop_exit_points);
 
-    auto broadcast = [](std::vector<size_t> &lhs, const std::vector<size_t> &rhs) -> void {
+    auto broadcast = [](std::vector<size_t>& lhs, const std::vector<size_t>& rhs, size_t index) -> void {
         if (rhs == lhs)
             return;
         const auto lhs_size = lhs.size();
         const auto rhs_size = rhs.size();
         const auto size = std::max(lhs_size, rhs_size);
-        std::vector<size_t> result(size, 1);
         lhs.resize(size, 1);
-        for (size_t i = 0; i < size; ++i) {
-            const auto lhs_value = i < lhs_size ? *(lhs.crbegin() + i) : 1;
-            const auto rhs_value = i < rhs_size ? *(rhs.crbegin() + i) : 1;
-            OPENVINO_ASSERT(lhs_value == rhs_value || lhs_value == 1 || rhs_value == 1,
-                            "Output shapes of Loop must be broadcastable!");
-            *(lhs.rbegin() + i) = std::max(lhs_value, rhs_value);
-        }
+        OPENVINO_ASSERT(index < size, "Incorrect index for broadcasting");
+        const auto lhs_value = index < lhs_size ? *(lhs.crbegin() + index) : 1;
+        const auto rhs_value = index < rhs_size ? *(rhs.crbegin() + index) : 1;
+        OPENVINO_ASSERT(lhs_value == rhs_value || lhs_value == 1 || rhs_value == 1,
+                        "Output shapes of Loop must be broadcastable!");
+        *(lhs.rbegin() + index) = std::max(lhs_value, rhs_value);
+    };
+
+    auto is_outside_loop = [](const std::vector<size_t>& subtensor) {
+        return std::all_of(subtensor.begin(), subtensor.end(), [](size_t lhs) { return lhs == PortDescriptor::ServiceDimensions::FULL_DIM; });
     };
 
     std::vector<size_t> loop_subtensor;
-    std::vector<size_t> loop_layout;
-    std::vector<size_t> loop_tensor(1, 1);  // Scalar
+    std::vector<size_t> loop_tensor(loop_depth, 1);
     for (const auto& exit_point : loop_exit_points) {
-        const auto expr = exit_point.expr;
-        const auto port = exit_point.port;
-        const auto out_td = expr->get_outputs()[port];
-        const auto out_tensor = out_td->get_tensor();
-        const auto out_layout = out_td->get_layout();
-        broadcast(loop_tensor, out_tensor);
-        if (loop_layout.empty())
-            loop_layout = out_layout;
-        OPENVINO_ASSERT(loop_layout == out_layout, "Output layouts of Loop must be the same!");
-    }
+        const auto& desc = exit_point.get_descriptor_ptr();
+        const auto tensor = utils::get_reordered_planar_shape(ov::PartialShape(desc->get_shape()), desc->get_layout()).get_shape();
+        auto subtensor = desc->get_subtensor();
+        if (subtensor.empty()) {
+            subtensor.resize(loop_depth, 1);
+            subtensor[subtensor.size() - 1] = vector_size;
+        }
 
-    for (const auto& entry_point : loop_entry_points) {
-        const auto expr = entry_point.expr;
-        const auto out_td = expr->get_outputs().front();
-        const auto out_subtensor = out_td->get_subtensor();
+        const size_t resizing_value = is_outside_loop(subtensor) ? PortDescriptor::ServiceDimensions::FULL_DIM : 1;
+        while (subtensor.size() < loop_depth)
+            subtensor.insert(subtensor.begin(), resizing_value);
         if (loop_subtensor.empty())
-            loop_subtensor = out_subtensor;
-        OPENVINO_ASSERT(loop_subtensor == out_subtensor, "Subtensors of Loop must be the same!");
+            loop_subtensor = subtensor;
+
+        OPENVINO_ASSERT(std::equal(loop_subtensor.crbegin(), loop_subtensor.crbegin() + loop_depth, subtensor.crbegin()),
+                        "Incorrect scheduling parameters for loop");
+
+        for (size_t dim_idx = 0; dim_idx < loop_depth; ++dim_idx) {
+            if (*(subtensor.rbegin() + dim_idx) != PortDescriptor::ServiceDimensions::FULL_DIM) {
+                broadcast(loop_tensor, tensor, dim_idx);
+            }
+        }
     }
 
     for (size_t dim_idx = 0; dim_idx < loop_depth; ++dim_idx) {
-        OPENVINO_ASSERT(dim_idx < loop_tensor.size(), "Incorrect indexes of Loop for markup");
-        const auto dim = loop_layout.size() >= dim_idx ? *(loop_layout.rbegin() + dim_idx) : 0;
-        const auto work_amount = loop_tensor.size() > dim ? loop_tensor[dim] : 0;
-        const auto work_amount_increment =
-                loop_subtensor.size() > dim_idx ? *(loop_subtensor.rbegin() + dim_idx) :
-                dim_idx == 0 ? vector_size : 1;
+        if (*(loop_subtensor.rbegin() + dim_idx) == PortDescriptor::ServiceDimensions::FULL_DIM) {
+            exprs_marking(loop_begin_pos, loop_end_pos, Expression::LOOP_NULL_ID, loop_depth - dim_idx - 1);
+            continue;
+        }
 
-        mark_loop(linear_ir, loop_begin_pos, loop_end_pos, loop_depth - dim_idx - 1, work_amount,
+        OPENVINO_ASSERT(dim_idx < loop_tensor.size(), "Incorrect indexes of Loop for markup");
+        const auto work_amount =
+                loop_tensor.size() > dim_idx ? *(loop_tensor.rbegin() + dim_idx)
+                                             : 0;
+        const auto work_amount_increment =
+                loop_subtensor.size() > dim_idx ? *(loop_subtensor.rbegin() + dim_idx)
+                                                : (dim_idx == 0 ? vector_size : 1);
+        mark_loop(loop_begin_pos, loop_end_pos, loop_depth - dim_idx - 1, work_amount,
                   work_amount_increment, loop_entry_points, loop_exit_points);
     }
 }
 
-void LinearIR::LoopManager::mark_loop(LinearIR &linear_ir,
-                                      LinearIR::constExprIt loop_begin_pos,
+void LinearIR::LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
                                       LinearIR::constExprIt loop_end_pos,
                                       size_t idx,
                                       size_t work_amount,
                                       size_t work_amount_increment,
                                       const std::vector<ExpressionPort> &entries,
                                       const std::vector<ExpressionPort> &exits) {
-    const auto loop_info = std::make_shared<LoopManager::LoopInfo>(
-            work_amount, work_amount_increment, entries, exits);
+    const auto loop_info = std::make_shared<LoopManager::LoopInfo>(work_amount, work_amount_increment, entries, exits);
     const auto loop_id = this->add_loop_info(loop_info);
     exprs_marking(loop_begin_pos, loop_end_pos, loop_id, idx);
 }

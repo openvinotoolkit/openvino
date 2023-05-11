@@ -78,24 +78,37 @@ std::shared_ptr<ov::Model> Transpose0213MatMulLoweredFunction::initLowered() con
                          std::make_shared<op::v0::Parameter>(precisions[1], input_shapes[1])};
     std::vector<size_t> layout{0, 2, 1, 3};
     // Note: validity of transpose_position values is checked in Transpose0213MatMulSinhFunction constructor
-    if (transpose_position <= 1) {
-        const auto& anchor = data[transpose_position];
-        const auto& td = ngraph::snippets::get_tensor_descriptor_ptr(anchor);
-        const auto& tensor = td->get_tensor();
+    if (transpose_position < 2) {
+        const auto& anchor = data[transpose_position]->output(0);
+        const auto& td = ngraph::snippets::lowered::PortManager::get_port_descriptor_ptr(anchor);
+        const auto& tensor = td->get_shape();
         const auto& subtensor = td->get_subtensor();
-        ngraph::snippets::set_tensor_descriptor_ptr(anchor,
-                                                    std::make_shared<ngraph::snippets::TensorDescriptor>(tensor, subtensor, layout));
     }
-    auto matmul = std::make_shared<ngraph::snippets::op::Brgemm>(data[0], data[1]);
+    auto matmul = std::make_shared<ngraph::snippets::op::Brgemm>(data[0], data[1], 0, 0, 0, transpose_position == 0 ? layout : std::vector<size_t>{},
+                                                                                            transpose_position == 1 ? layout : std::vector<size_t>{},
+                                                                                            transpose_position == 2 ? layout : std::vector<size_t>{});
+    auto result = std::make_shared<ov::op::v0::Result>(matmul);
     if (transpose_position == 2) {
         const auto& anchor = matmul->output(0);
-        const auto& td = ngraph::snippets::get_tensor_descriptor_ptr(anchor);
-        const auto& tensor = td->get_tensor();
+        const auto& td = ngraph::snippets::lowered::PortManager::get_port_descriptor_ptr(anchor);
+        const auto& tensor = td->get_shape();
         const auto& subtensor = td->get_subtensor();
-        ngraph::snippets::set_tensor_descriptor_ptr(anchor,
-                                                    std::make_shared<ngraph::snippets::TensorDescriptor>(tensor, subtensor, layout));
-        matmul->validate_and_infer_types();
+        ngraph::snippets::lowered::PortManager::set_port_descriptor_ptr(anchor,
+                                                                        std::make_shared<ngraph::snippets::lowered::PortDescriptor>(tensor,
+                                                                                                                                    subtensor,
+                                                                                                                                    layout));
     }
+    if (transpose_position < 2) {
+        const auto& anchor = data[transpose_position]->output(0);
+        const auto& td = ngraph::snippets::lowered::PortManager::get_port_descriptor_ptr(anchor);
+        const auto& tensor = td->get_shape();
+        const auto& subtensor = td->get_subtensor();
+        ngraph::snippets::lowered::PortManager::set_port_descriptor_ptr(matmul->input(transpose_position),
+                                                                        std::make_shared<ngraph::snippets::lowered::PortDescriptor>(tensor,
+                                                                                                                                    subtensor,
+                                                                                                                                    layout));
+    }
+    matmul->validate_and_infer_types();
     return std::make_shared<ov::Model>(NodeVector{matmul}, data);
 }
 

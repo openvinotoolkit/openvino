@@ -7,6 +7,10 @@
 #include "ngraph/pass/graph_rewrite.hpp"
 #include "ngraph/pattern/matcher.hpp"
 
+#include "openvino/op/transpose.hpp"
+
+#include "snippets/lowered/port_descriptor.hpp"
+
 namespace ngraph {
 namespace snippets {
 namespace pass {
@@ -23,6 +27,9 @@ public:
     OPENVINO_RTTI("FuseTransposeBrgemm", "0");
     FuseTransposeBrgemm();
     static const std::set<std::vector<int>> supported_cases;
+
+private:
+    static bool is_supported_transpose(const Output<Node>& transpose_port);
 };
 
 }  // namespace pass

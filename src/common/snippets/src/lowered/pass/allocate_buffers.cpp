@@ -21,10 +21,10 @@ void AllocateBuffers::propagate_offset(const LinearIR& linear_ir, const Expressi
     // Propagate to up: in Store. Buffer can have only one Store
     {
         if (buffer->is_intermediate_memory()) {
-            OPENVINO_ASSERT(buffer_expr->get_inputs().size() == 1, "Buffer with intermediate memory must have one parent");
-            const auto& parent_output = linear_ir.get_expr_by_output(buffer_expr->get_inputs()[0]);
-            const auto& parent_expr = parent_output.expr;
-            const auto port = parent_output.port;
+            OPENVINO_ASSERT(buffer_expr->get_input_tensors().size() == 1, "Buffer with intermediate memory must have one parent");
+            const auto& parent_output = buffer_expr->get_input_tensor(0)->get_source();
+            const auto& parent_expr = parent_output.get_expr();
+            const auto port = parent_output.get_index();
             const auto& parent_node = parent_expr->get_node();
             auto memory_access = ov::as_type_ptr<ngraph::snippets::op::MemoryAccess>(parent_node);
             if (memory_access && memory_access->is_memory_access_output_port(port)) {
@@ -36,10 +36,10 @@ void AllocateBuffers::propagate_offset(const LinearIR& linear_ir, const Expressi
         }
     }
     // Propagate to down: in Load. Buffer can have several Load
-    const auto& buffer_out = buffer_expr->get_outputs()[0];
-    for (const auto& child_expr_input : linear_ir.get_exprs_by_input(buffer_out)) {
-        const auto& child_expr = child_expr_input.expr;
-        const auto port = child_expr_input.port;
+    const auto& buffer_out = buffer_expr->get_output_tensor(0);
+    for (const auto& child_expr_input : buffer_out->get_consumers()) {
+        const auto& child_expr = child_expr_input.get_expr();
+        const auto port = child_expr_input.get_index();
         const auto& child_node = child_expr->get_node();
         auto memory_access = ov::as_type_ptr<ngraph::snippets::op::MemoryAccess>(child_node);
         if (memory_access && memory_access->is_memory_access_input_port(port)) {
@@ -61,7 +61,8 @@ bool AllocateBuffers::run(LinearIR& linear_ir) {
     bool modified = false;
     size_t offset = 0;
     for (auto expr_it = linear_ir.begin(); expr_it != linear_ir.end(); expr_it++) {
-        if (auto buffer = as_type_ptr<op::Buffer>(expr_it->get()->get_node())) {
+        const auto& expr = *expr_it;
+        if (auto buffer = as_type_ptr<op::Buffer>(expr->get_node())) {
             const auto buffer_size = buffer->get_byte_size();
             // If it's the first buffer, offsets are zero => nothing to propagate, can continue
             if (m_buffer_scratchpad_size == 0) {
@@ -70,7 +71,7 @@ bool AllocateBuffers::run(LinearIR& linear_ir) {
             }
 
             if (buffer->is_intermediate_memory()) {
-                const auto& parent_expr = linear_ir.get_expr_by_output(expr_it->get()->get_inputs()[0]).expr;
+                const auto& parent_expr = expr->get_input_tensor(0)->get_source().get_expr();
                 const auto& parent_node = parent_expr->get_node();
                 // Full MemoryAccess ops need new memory. Previous logic is to check for parent isn't Loop
                 // TODO: It should be unified in MemoryManager with memory reuse in the near future

@@ -16,43 +16,44 @@ namespace pass {
 
 bool PropagateLayout::run(LinearIR& linear_ir) {
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::PropagateLayout")
-    const auto& io_ops = linear_ir.get_IO_ops();
-    auto io_ops_it = io_ops.begin();
+    if (linear_ir.empty())
+        return false;
+
     for (auto expr_it = linear_ir.begin(); expr_it != linear_ir.end(); expr_it++) {
-        if (*expr_it == *io_ops_it) {
-            const auto& expr = io_ops_it->get();
-            io_ops_it++;
-            const bool is_input = expr->get_type() == IOExpression::io_type::INPUT;
-            const auto& tds = is_input ? expr->get_outputs() : expr->get_inputs();
-            if (tds.size() != 1)
-                OPENVINO_THROW("Parameter/Results should have exactly one output/input");
-            const auto& target_td = tds[0];
-            // If input - we should be looking downstream, if output - upstream
-            if (is_input) {
-                const auto& child_exprs_inputs = linear_ir.get_exprs_by_input(target_td);
-                // Note that here we consider only the first child (which is usually load),
-                // but often there is another child - LoopEnd
-                std::vector<size_t> child_layout{};
-                for (const auto& child_input : child_exprs_inputs) {
-                    const auto child = child_input.expr;
-                    const auto& n = child->get_node();
-                    if (is_type<op::Load>(n) || is_type<op::BroadcastLoad>(n)) {
-                        // Note: this limitation could be relaxed to multiple ops,
-                        // but all of them must have the same shape and layout
-                        if (!child_layout.empty() && child->get_outputs().front()->get_layout() != child_layout)
-                            OPENVINO_THROW("All children of an input expression must have the same layout");
-                        child_layout = child->get_outputs().front()->get_layout();
-                    }
-                }
-                if (!child_layout.empty()) {
-                    auto new_td = TensorDescriptor(target_td.get()->get_tensor(), target_td.get()->get_subtensor(),
-                                                   child_layout);
-                    (*target_td) = new_td;
+        const auto& expr = *expr_it;
+        const auto io_expr = std::dynamic_pointer_cast<IOExpression>(expr);
+        if (!io_expr)
+            continue;
+
+        const bool is_input = io_expr->get_type() == IOExpression::io_type::INPUT;
+        const auto& tds = is_input ? expr->get_output_tensors() : expr->get_input_tensors();
+        if (tds.size() != 1)
+            OPENVINO_THROW("Parameter/Results should have exactly one output/input");
+
+        // If input - we should be looking downstream, if output - upstream
+        const auto& target_tensor = tds.front();
+        if (is_input) {
+            const auto consumer_inputs = target_tensor->get_consumers();
+            // Note that here we consider only the first child (which is usually load),
+            // but often there is another child - LoopEnd
+            std::set<std::vector<size_t>> child_layouts;
+            for (const auto& child_input : consumer_inputs) {
+                const auto& child = child_input.get_expr();
+                const auto port = child_input.get_index();
+                const auto& n = child->get_node();
+                const auto ma = ov::as_type_ptr<op::MemoryAccess>(n);
+                if (ma && ma->is_memory_access_input_port(port)) {
+                    child_layouts.insert(child_input.get_descriptor_ptr()->get_layout());
                 }
             }
+            OPENVINO_ASSERT(child_layouts.size() == 1, "All children of an input expression must have the same layout");
+            io_expr->get_output_port_descriptor(0)->set_layout(*child_layouts.begin());
+        } else {
+            io_expr->get_input_port_descriptor(0)->set_layout(target_tensor->get_source().get_descriptor_ptr()->get_layout());
         }
     }
-return true;
+
+    return true;
 }
 
 } // namespace pass

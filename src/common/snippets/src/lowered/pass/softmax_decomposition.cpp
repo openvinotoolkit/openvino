@@ -35,20 +35,21 @@ bool SoftmaxDecomposition::run(LinearIR& linear_ir) {
             const auto& pm = matcher->get_pattern_map();
             const auto softmax = pm.at(match_softmax);
             const auto softmax_expr = *expr_it;
-            const auto input_tds = softmax_expr->get_inputs();
-            const auto output_tds = softmax_expr->get_outputs();
-            const auto tensor_out = output_tds.front()->get_tensor();
-            const auto subtensor_in = input_tds.front()->get_subtensor();
+            const auto softmax_loop_ids = softmax_expr->get_loop_ids();
+            const auto& input_tensor = softmax_expr->get_input_tensor(0);
+            const auto& output_tensor = softmax_expr->get_output_tensor(0);
+            const auto tensor_out = softmax_expr->get_output_port_descriptor(0)->get_shape();
             const auto inner_work_amount = *(tensor_out.rbegin());
-            const auto outer_work_amount = *(tensor_out.rbegin() + 1);
 
             expr_it = linear_ir.erase(expr_it);   // Remove Softmax
 
             std::vector<ExpressionPtr> outer_exprs;
 
             // We need an iterator to the inserted element
-            auto push_node = [&linear_ir, &expr_it](const std::shared_ptr<Node>& n) {
-                return std::make_pair(linear_ir.insert(expr_it, n), n);
+            auto push_node = [&linear_ir, &expr_it, &softmax_loop_ids](const std::shared_ptr<Node>& n) {
+                const auto expr = linear_ir.insert(expr_it, n);
+                (*expr)->set_loop_ids(softmax_loop_ids);
+                return std::make_pair(expr, n);
             };
 
             // Note: VectorBuffer is a special case, since it should go before the initial Load. So we handle it separately
@@ -61,10 +62,10 @@ bool SoftmaxDecomposition::run(LinearIR& linear_ir) {
             outer_exprs.push_back(*horizon_max.first);
 
             // Markup of ReduceMax Loop
-            loop_manager->mark_loop(linear_ir, max.first, horizon_max.first, 1, inner_work_amount, m_vector_size,
-                                  std::vector<ExpressionPort>{(*max.first)->input_port(0),
-                                                              (*max.first)->input_port(1)},
-                                  std::vector<ExpressionPort>{(*max.first)->output_port(0)});
+            loop_manager->mark_loop(max.first, horizon_max.first, 1, inner_work_amount, m_vector_size,
+                                    std::vector<ExpressionPort>{(*max.first)->get_input_port(0),
+                                                                (*max.first)->get_input_port(1)},
+                                    std::vector<ExpressionPort>{(*max.first)->get_output_port(0)});
 
             const auto broadcast_horizon_max = push_node(
                     std::make_shared<op::BroadcastMove>(horizon_max.second, horizon_max.second->get_input_partial_shape(0)));
@@ -81,12 +82,12 @@ bool SoftmaxDecomposition::run(LinearIR& linear_ir) {
             outer_exprs.push_back(*horizon_sum.first);
 
             // Markup of ReduceMax Loop
-            loop_manager->mark_loop(linear_ir, sub.first, horizon_sum.first, 1, inner_work_amount, m_vector_size,
-                                  std::vector<ExpressionPort>{(*sub.first)->input_port(0),
-                                                              (*sub.first)->input_port(1),
-                                                              (*sum.first)->input_port(1)},
-                                  std::vector<ExpressionPort>{(*exp.first)->output_port(0),
-                                                              (*sum.first)->output_port(0)});
+            loop_manager->mark_loop(sub.first, horizon_sum.first, 1, inner_work_amount, m_vector_size,
+                                    std::vector<ExpressionPort>{(*sub.first)->get_input_port(0),
+                                                                (*sub.first)->get_input_port(1),
+                                                                (*sum.first)->get_input_port(1)},
+                                    std::vector<ExpressionPort>{(*exp.first)->get_output_port(0),
+                                                                (*sum.first)->get_output_port(0)});
 
             // Divide is expensive operation, so we decompose it into 1 / x * y, where 1 / x is executed outside loop
             const auto pow = push_node(std::make_shared<op::PowerStatic>(horizon_sum.second, -1.f));
@@ -97,27 +98,43 @@ bool SoftmaxDecomposition::run(LinearIR& linear_ir) {
             // Mul (pseudo-Divide loop)
             const auto mul = push_node(std::make_shared<ov::op::v1::Multiply>(exp.second, broadcast_pow.second));
 
-            // Transfer original TensorDescriptors
-            linear_ir.replace_input(*max.first, 0, input_tds.front());
-            linear_ir.replace_input(*sub.first, 0, input_tds.front());
-            linear_ir.replace_output(*mul.first, 0, output_tds.front());
+            // Transfer original ExpressionPorts
+            linear_ir.replace_input((*max.first)->get_input_port(0), input_tensor);
+            linear_ir.replace_input((*sub.first)->get_input_port(0), input_tensor);
+            linear_ir.replace_input(output_tensor->get_consumers(), (*mul.first)->get_output_tensor(0));
 
             // Markup of Mul Loop
-            loop_manager->mark_loop(linear_ir, mul.first, expr_it, 1, inner_work_amount, m_vector_size,
-                                  std::vector<ExpressionPort>{(*mul.first)->input_port(0),
-                                                              (*mul.first)->input_port(1)},
-                                  std::vector<ExpressionPort>{(*mul.first)->output_port(0)});
+            loop_manager->mark_loop(mul.first, expr_it, 1, inner_work_amount, m_vector_size,
+                                    std::vector<ExpressionPort>{(*mul.first)->get_input_port(0),
+                                                                (*mul.first)->get_input_port(1)},
+                                    std::vector<ExpressionPort>{(*mul.first)->get_output_port(0)});
 
             // Markup inner loop for outside expression with null loop id
             for (const auto& expr : outer_exprs) {
                 expr->set_loop_id(Expression::LOOP_NULL_ID, 1);
             }
 
-            // Outer Loop
-            loop_manager->mark_loop(linear_ir, vector_buffer_max.first, expr_it, 0, outer_work_amount, 1,
-                                  std::vector<ExpressionPort>{(*max.first)->input_port(0),
-                                                              (*sub.first)->input_port(0)},
-                                  std::vector<ExpressionPort>{(*mul.first)->output_port(0)});
+            auto update_loop_bounds = [&softmax_expr](std::vector<ExpressionPort>& points,
+                                                     const std::vector<ExpressionPort>& new_points,
+                                                     const LinearIR::LoopManager::LoopInfoPtr& loop_info) {
+                auto entry_found = std::find_if(points.begin(), points.end(), [&softmax_expr](const ExpressionPort& desc) {
+                    return desc.get_expr() == softmax_expr;
+                });
+                if (entry_found != points.end()) {
+                    entry_found = points.erase(entry_found);
+                    points.insert(entry_found, new_points.begin(), new_points.end());
+                }
+            };
+
+            // Update Loop info for outer loops
+            for (auto loop_id : softmax_loop_ids) {
+                if (loop_id == Expression::LOOP_NULL_ID)
+                    continue;
+                const auto loop_info = loop_manager->get_loop_info(loop_id);
+                update_loop_bounds(loop_info->entry_exprs, std::vector<ExpressionPort>{(*max.first)->get_input_port(0),
+                                                                                       (*sub.first)->get_input_port(0)}, loop_info);
+                update_loop_bounds(loop_info->exit_exprs, std::vector<ExpressionPort>{(*mul.first)->get_output_port(0)}, loop_info);
+            }
 
             /* =========================================== */
 

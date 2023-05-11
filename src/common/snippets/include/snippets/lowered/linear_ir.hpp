@@ -18,12 +18,12 @@ public:
     bool m_save_lowered_code = false;
     // True if we should check runtime info for nodes to call specific needed transformations
     bool m_need_fill_tail_register = false;
-    bool m_explicit_loop_insertion = false;
     ov::PartialShape m_master_shape{};
     size_t m_loop_depth = 1;
 };
 
 class LinearIR {
+    class ExpressionFactory;
 public:
     using container = std::list<ExpressionPtr>;
     using io_container = std::list<std::shared_ptr<IOExpression>>;
@@ -33,21 +33,18 @@ public:
     LinearIR() = default;
     explicit LinearIR(const std::shared_ptr<ov::Model>& m, Config config = {});
 
-    LinearIR deep_copy() const;
+    ExpressionPtr create_expression(const std::shared_ptr<Node>& n, const std::vector<TensorPtr>& inputs);
+
     static LinearIR::container deep_copy_range(LinearIR::container::const_iterator begin, LinearIR::container::const_iterator end);
 
     const container& get_ops() const {return m_lowered_ops; }
     const io_container& get_IO_ops() const {return m_io_lowered_ops; }
     Config get_config() {return m_config; }
 
-    ExpressionPtr get_expr_by_node(const std::shared_ptr<Node>& n) const;
-    ExpressionPort get_expr_by_output(const TensorDescriptorPtr& n) const;
-    const std::set<ExpressionPort>& get_exprs_by_input(const TensorDescriptorPtr& n) const;
+    const ExpressionPtr& get_expr_by_node(const std::shared_ptr<Node>& n) const;
 
-    void replace_input(const ExpressionPort& expr_port, const TensorDescriptorPtr& to);
-    void replace_input(const ExpressionPtr& expr, size_t port, const TensorDescriptorPtr& to);
-    void replace_output(const ExpressionPort& expr_port, const TensorDescriptorPtr& to);
-    void replace_output(const ExpressionPtr& expr, size_t port, const TensorDescriptorPtr& to);
+    void replace_input(const std::set<ExpressionPort>& consumers, const TensorPtr& to);
+    void replace_input(const ExpressionPort& expr_port, const TensorPtr& to);
 
     /**
     * @brief Move an expression from the position "from" to the position immediately before "to".
@@ -88,26 +85,21 @@ public:
     void init_emitters(const std::shared_ptr<TargetMachine>& target);
     void serialize(const std::string& xml, const std::string& bin);
 
-    static ov::NodeVector get_ordered_ops(const std::shared_ptr<ov::Model>& model);
-
     class LoopManager;
     using LoopManagerPtr = std::shared_ptr<LoopManager>;
 
     const LoopManagerPtr& get_loop_manager() const { return m_loop_manager; }
 
 private:
-    void register_expression(const ExpressionPtr& expr);
-    // Like register_expression, but doesn't allow Parameter or Result registration. You can do it only through ctor
-    void register_regular_expression(const ExpressionPtr& expr);
+    static ov::NodeVector get_ordered_ops(const std::shared_ptr<ov::Model>& model);
+    // Default ctor - can be called only from Linear IR initialization as default way
+    ExpressionPtr create_expression(const std::shared_ptr<Node>& n, const std::shared_ptr<ov::Model>& model = nullptr);
+
+    void register_expression(const ExpressionPtr& expr, bool io_allowed = false);
     void unregister_expression(const ExpressionPtr& expr);
 
     container m_lowered_ops{};
     std::unordered_map<std::shared_ptr<Node>, std::shared_ptr<Expression>> m_node2expression_map;
-    // Expression must be uniquely identified by an output, so there can't be expressions that have the same output
-    std::unordered_map<TensorDescriptorPtr, ExpressionPort> m_output2expression_map;
-    // At the same time, several expressions can have the same input if they are connected to the same parent
-    // E.g. LoopEnd will always have the same input as a Load inside the loop (since it has to increment the same reg)
-    std::unordered_map<TensorDescriptorPtr, std::set<ExpressionPort>> m_input2expression_map;
     io_container m_io_lowered_ops;
     Config m_config{};
     LoopManagerPtr m_loop_manager = nullptr;

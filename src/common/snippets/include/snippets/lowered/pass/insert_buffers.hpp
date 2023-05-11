@@ -5,7 +5,6 @@
 #pragma once
 
 #include "transformation.hpp"
-#include "snippets/tensor_descriptor.hpp"
 
 namespace ngraph {
 namespace snippets {

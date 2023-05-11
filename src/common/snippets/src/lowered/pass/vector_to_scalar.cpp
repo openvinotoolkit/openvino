@@ -19,14 +19,15 @@ bool SetScalarCountForLoadStore::run(LinearIR& linear_ir) {
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::SetScalarCountForLoadStore")
     bool modified = false;
     for (auto expr_it = linear_ir.begin(); expr_it != linear_ir.end(); expr_it++) {
-        const auto& op = expr_it->get()->get_node();
+        const auto& expr = *expr_it;
+        const auto& op = expr->get_node();
         const auto load = ov::as_type_ptr<op::Load>(op);
         const auto store = ov::as_type_ptr<op::Store>(op);
         if (load || store) {
-            const auto td = load ? (*expr_it)->get_inputs().front() :
-                                   (*expr_it)->get_outputs().front();
-            const auto& layout = td->get_layout();
-            const auto& tensor_shape = td->get_tensor();
+            const auto& layout = load ? expr->get_input_port_descriptor(0)->get_layout()
+                                      : expr->get_output_port_descriptor(0)->get_layout();
+            const auto& tensor_shape = load ? expr->get_input_port_descriptor(0)->get_shape()
+                                            : expr->get_output_port_descriptor(0)->get_shape();
             // Find last dimension by layout
             const auto last_dim_idx = std::find(layout.begin(), layout.end(), layout.size() - 1);
             OPENVINO_ASSERT(last_dim_idx != layout.end(), "Load/Store expression have incorrect layout");

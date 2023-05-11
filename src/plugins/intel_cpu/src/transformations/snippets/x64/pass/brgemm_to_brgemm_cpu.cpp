@@ -5,8 +5,9 @@
 #include "snippets/itt.hpp"
 
 #include "brgemm_to_brgemm_cpu.hpp"
-#include "snippets/snippets_isa.hpp"
+
 #include "snippets/utils.hpp"
+#include "snippets/op/brgemm.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 
@@ -21,6 +22,23 @@
 
 namespace ov {
 namespace intel_cpu {
+
+using namespace ngraph::snippets::lowered;
+
+namespace {
+inline std::vector<size_t> make_subtensor(const ov::Shape& tensor) {
+    return std::vector<size_t>(std::min(tensor.size(), 2lu), PortDescriptor::ServiceDimensions::FULL_DIM);
+}
+template<typename T>
+void set_full_port_desc(const T& port) {
+    const auto& shape = port.get_shape();
+    PortManager::set_port_descriptor_ptr(port, std::make_shared<PortDescriptor>(shape, make_subtensor(shape)));
+}
+template<typename T, typename... Args>
+void set_port_desc(const T& port, Args... params) {
+    PortManager::set_port_descriptor_ptr(port, std::make_shared<PortDescriptor>(params...));
+}
+} // namespace
 
 pass::BrgemmToBrgemmCPU::BrgemmToBrgemmCPU() {
     MATCHER_SCOPE(BrgemmToBrgemmCPU);
@@ -39,6 +57,10 @@ pass::BrgemmToBrgemmCPU::BrgemmToBrgemmCPU() {
             return false;
         }
 
+        const auto& brgemm_in0_desc = PortManager::get_port_descriptor_ptr(brgemm->input(0));
+        const auto& brgemm_in1_desc = PortManager::get_port_descriptor_ptr(brgemm->input(1));
+        const auto& brgemm_out_desc = PortManager::get_port_descriptor_ptr(brgemm->output(0));
+
         const auto dimsMatMulIn0 = ngraph::snippets::utils::get_port_planar_shape(brgemm->input_value(0)).get_shape();
         const auto dimsMatMulIn1 = ngraph::snippets::utils::get_port_planar_shape(brgemm->input_value(1)).get_shape();
 
@@ -56,39 +78,63 @@ pass::BrgemmToBrgemmCPU::BrgemmToBrgemmCPU() {
         const auto offset_c = brgemm->get_offset_c();
 
         std::shared_ptr<ov::Node> brgemm_cpu = nullptr;
+        std::shared_ptr<BrgemmCopyB> brgemm_repacking = nullptr;
         if (element_type_a == ov::element::f32) {
             brgemm_cpu = std::make_shared<BrgemmCPU>(brgemm->input_value(0), brgemm->input_value(1), BrgemmCPU::Type::Floating,
-                                                     offset_a, offset_b, offset_c);
+                                                     offset_a, offset_b, offset_c,
+                                                     brgemm_in0_desc->get_layout(), brgemm_in1_desc->get_layout(), brgemm_out_desc->get_layout());
         } else {
             const auto copy_b_type = with_comp ? BrgemmCopyB::WithCompensations : BrgemmCopyB::OnlyRepacking;
-            const auto brgemmRepackIn1 = std::make_shared<BrgemmCopyB>(brgemm->input_value(1), element_type_a, copy_b_type, offset_b);
-            const auto buffer = std::make_shared<ngraph::snippets::op::Buffer>(brgemmRepackIn1->output(0));
-            ngraph::snippets::utils::set_outside_loop_value(brgemmRepackIn1, true);
-            ngraph::snippets::utils::set_outside_loop_value(buffer, true);
+            brgemm_repacking = std::make_shared<BrgemmCopyB>(brgemm->input_value(1), element_type_a, copy_b_type, offset_b, 0, 0,
+                                                             brgemm_in1_desc->get_layout());
+            const auto buffer = std::make_shared<ngraph::snippets::op::Buffer>(brgemm_repacking->output(0));
+            set_port_desc(brgemm_repacking->input(0), brgemm_in1_desc->get_shape(), brgemm_in1_desc->get_subtensor(), brgemm_in1_desc->get_layout());
+            set_full_port_desc(brgemm_repacking->output(0));
+            set_full_port_desc(buffer->input(0));
+            set_full_port_desc(buffer->output(0));
 
             if (with_amx) {
                 const auto scratch = std::make_shared<ngraph::snippets::op::Buffer>(ov::Shape{BrgemmCPU::SCRATCH_BYTE_SIZE});
                 brgemm_cpu = std::make_shared<BrgemmCPU>(brgemm->input_value(0), buffer, scratch, BrgemmCPU::Type::AMX,
-                                                         offset_a, offset_b, offset_c);
-                ngraph::snippets::utils::set_outside_loop_value(scratch, true);
+                                                         offset_a, offset_b, 0, offset_c,
+                                                         brgemm_in0_desc->get_layout(), std::vector<size_t>{}, brgemm_out_desc->get_layout());
+                set_full_port_desc(scratch->output(0));
+                set_full_port_desc(brgemm_cpu->input(2));
             } else if (with_comp) {
-                const auto scratch = std::make_shared<ngraph::snippets::op::Buffer>(brgemmRepackIn1->output(1));
+                const auto scratch = std::make_shared<ngraph::snippets::op::Buffer>(brgemm_repacking->output(1));
                 brgemm_cpu = std::make_shared<BrgemmCPU>(brgemm->input_value(0), buffer, scratch, BrgemmCPU::Type::WithCompensations,
-                                                         offset_a, offset_b, offset_c);
-                ngraph::snippets::utils::set_outside_loop_value(scratch, true);
+                                                         offset_a, offset_b, 0, offset_c,
+                                                         brgemm_in0_desc->get_layout(), std::vector<size_t>{}, brgemm_out_desc->get_layout());
+                set_full_port_desc(brgemm_repacking->output(1));
+                set_full_port_desc(scratch->input(0));
+                set_full_port_desc(scratch->output(0));
+                set_full_port_desc(brgemm_cpu->input(2));
             } else if (one_of(element_type_a, ov::element::u8, ov::element::bf16)) {
                 brgemm_cpu = std::make_shared<BrgemmCPU>(brgemm->input_value(0), buffer, BrgemmCPU::Type::WithDataRepacking,
-                                                         offset_a, offset_b, offset_c);
+                                                         offset_a, offset_b, offset_c,
+                                                         brgemm_in0_desc->get_layout(), std::vector<size_t>{}, brgemm_out_desc->get_layout());
             } else {
                 IE_THROW() << "Invalid configuration for BRGEMM CPU";
             }
         }
 
         brgemm_cpu->set_friendly_name(brgemm->get_friendly_name());
-        ngraph::copy_runtime_info(brgemm, brgemm_cpu); // Copy output layout inside as well
         ngraph::replace_node(brgemm, brgemm_cpu);
-        // TODO: At the moment Brgemm is executed outside Loop. When Blocking is supported, remove it
-        ngraph::snippets::utils::set_outside_loop_value(brgemm_cpu, true);
+
+        // Transfer ports
+        set_port_desc(brgemm_cpu->input(0), brgemm_in0_desc->get_shape(), brgemm_in0_desc->get_subtensor(), brgemm_in0_desc->get_layout());
+        if (brgemm_repacking) {
+            set_full_port_desc(brgemm_cpu->input(1));
+        } else {
+            set_port_desc(brgemm_cpu->input(1), brgemm_in1_desc->get_shape(), brgemm_in1_desc->get_subtensor(), brgemm_in1_desc->get_layout());
+        }
+        set_port_desc(brgemm_cpu->output(0), brgemm_out_desc->get_shape(), brgemm_out_desc->get_subtensor(), brgemm_out_desc->get_layout());
+
+        // need to run validate_and_infer_types manually: either input shapes were updated or
+        // output Layout was updated (out shape will be updated in validate_and_infer_types())
+        if (brgemm_repacking)
+            brgemm_repacking->validate_and_infer_types();
+        brgemm_cpu->validate_and_infer_types();
 
         return true;
     };

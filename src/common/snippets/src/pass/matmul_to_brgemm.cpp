@@ -9,19 +9,31 @@
 #include "snippets/snippets_isa.hpp"
 #include "snippets/utils.hpp"
 
-#include "ngraph/opsets/opset1.hpp"
 #include "ngraph/rt_info.hpp"
-#include <snippets/tensor_descriptor.hpp>
+#include "snippets/lowered/port_descriptor.hpp"
 #include "ngraph/pattern/op/wrap_type.hpp"
 
 namespace ngraph {
 namespace snippets {
 namespace pass {
 
+void MatMulToBrgemm::init_ports(const std::shared_ptr<op::Brgemm>& brgemm) const {
+    auto get_subtensor = [](const ov::Shape& shape) {
+        return std::vector<size_t>{ lowered::PortDescriptor::ServiceDimensions::FULL_DIM, lowered::PortDescriptor::ServiceDimensions::FULL_DIM };
+    };
+    for (const auto& input : brgemm->inputs()) {
+        const auto tensor = input.get_shape();
+        const auto subtensor = get_subtensor(tensor);
+        lowered::PortManager::set_port_descriptor_ptr(input, std::make_shared<lowered::PortDescriptor>(tensor, subtensor));
+    }
+    const auto tensor = brgemm->get_output_shape(0);
+    const auto subtensor = get_subtensor(tensor);
+    lowered::PortManager::set_port_descriptor_ptr(brgemm->output(0), std::make_shared<lowered::PortDescriptor>(tensor, subtensor));
+}
+
 MatMulToBrgemm::MatMulToBrgemm() {
     MATCHER_SCOPE(MatMulToBrgemm);
-    auto matmul_pattern = ngraph::pattern::wrap_type<ngraph::opset1::MatMul>({ngraph::pattern::any_input(),
-                                                                               ngraph::pattern::any_input()});
+    auto matmul_pattern = ngraph::pattern::wrap_type<ngraph::opset1::MatMul>({ngraph::pattern::any_input(), ngraph::pattern::any_input()});
 
     auto callback = [=](ngraph::pattern::Matcher& m) {
         OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::MatMulToBrgemm")
@@ -39,11 +51,7 @@ MatMulToBrgemm::MatMulToBrgemm() {
         brgemm->set_friendly_name(matmul->get_friendly_name());
         ngraph::copy_runtime_info(matmul, nodes);
         ngraph::replace_node(matmul, nodes.back());
-        const std::vector<size_t> tensor = brgemm->get_output_shape(0);
-        const std::vector<size_t> subtensor = {tensor[tensor.size() - 2], tensor[tensor.size() - 1]};
-        ngraph::snippets::set_tensor_descriptor_ptr(brgemm->output(0), std::make_shared<TensorDescriptor>(tensor, subtensor));
-        // TODO: At the moment Brgemm is executed outside Loop. When Blocking is supported, remove it
-        utils::set_outside_loop_value(brgemm, true);
+        init_ports(brgemm);
         return true;
     };
 

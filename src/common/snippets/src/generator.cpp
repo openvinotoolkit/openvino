@@ -24,7 +24,6 @@
 #include "snippets/lowered/pass/indentify_buffers.hpp"
 
 #include "snippets/op/kernel.hpp"
-#include "snippets/tensor_descriptor.hpp"
 
 #include <snippets/itt.hpp>
 

@@ -168,9 +168,6 @@ private:
         // True if body has operations that don't support plugin-side domain optimizations
         // (e.g. Transpose, Softmax, MatMul in general doesn't support dimensions collapsing)
         bool m_has_domain_sensitive_ops = false;
-        // True if we should go through whole body to check for where loops should be explicitly inserted.
-        // Otherwise, we insert Loops on Parameters and Results - for example, it's optimized out for subgraph with only Eltwise ops
-        bool m_explicit_loop_insertion = false;
     } config;
 };
 
@@ -194,7 +191,7 @@ static inline auto build_subgraph(const std::shared_ptr<ngraph::Node>& node, con
     return subgraph;
 };
 
-// Need to update tensor name manually, since intel_cpu::Graph::Replicate() looks at input.get_tensor().get_name();
+// Need to update tensor name manually, since intel_cpu::Graph::Replicate() looks at input.get_shape().get_name();
 // If subgraph->get_output_size() == 1, then the name will be restored correctly from the node name
 auto inline update_out_tensor_name(const std::shared_ptr<ngraph::snippets::op::Subgraph>& subgraph) -> void {
     bool not_set = true;

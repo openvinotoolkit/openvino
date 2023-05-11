@@ -7,6 +7,8 @@
 #include "ngraph/pass/graph_rewrite.hpp"
 #include "ngraph/pattern/matcher.hpp"
 
+#include "snippets/op/brgemm.hpp"
+
 namespace ngraph {
 namespace snippets {
 namespace pass {
@@ -20,6 +22,9 @@ class MatMulToBrgemm: public ngraph::pass::MatcherPass {
 public:
     OPENVINO_RTTI("MatMulToBrgemm", "0");
     MatMulToBrgemm();
+
+private:
+    void init_ports(const std::shared_ptr<op::Brgemm>& brgemm) const;
 };
 
 

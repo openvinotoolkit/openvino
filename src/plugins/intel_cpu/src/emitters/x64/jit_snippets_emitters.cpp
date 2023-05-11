@@ -15,7 +15,7 @@
 #include "transformations/snippets/x64/op//brgemm_cpu.hpp"
 #include "snippets/snippets_isa.hpp"
 #include "snippets/op/subgraph.hpp"
-#include "snippets/tensor_descriptor.hpp"
+#include "snippets/lowered/tensor.hpp"
 
 using namespace InferenceEngine;
 using ngraph::snippets::op::Subgraph;
@@ -26,7 +26,7 @@ using namespace dnnl::impl::cpu::x64;
 using ngraph::snippets::lowered::Expression;
 using ngraph::snippets::lowered::IOExpression;
 using ngraph::snippets::lowered::ExpressionPtr;
-using ngraph::snippets::TensorDescriptorPtr;
+using ngraph::snippets::lowered::TensorPtr;
 
 namespace ov {
 namespace intel_cpu {
@@ -121,26 +121,26 @@ KernelEmitter::KernelEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
     num_inputs = 0;
     num_outputs = 0;
     for (const auto& expr : io_exprs) {
-        TensorDescriptorPtr td {};
+        ngraph::snippets::lowered::PortDescriptorPtr desc = nullptr;
         element::Type etype;
         switch (expr->get_type()) {
             case ngraph::snippets::lowered::IOExpression::io_type::INPUT: {
-                td = expr->get_outputs()[0];
+                desc = expr->get_output_port_descriptor(0);
                 etype = expr->get_node()->get_output_element_type(0);
                 num_inputs++;
                 break;
             }
             case ngraph::snippets::lowered::IOExpression::io_type::OUTPUT: {
                 num_outputs++;
-                td = expr->get_inputs()[0];
+                desc = expr->get_input_port_descriptor(0);
                 etype = expr->get_node()->get_input_element_type(0);
                 break;
             } default : {
                 IE_THROW() << "Kernel detected unsupported io_type";
             }
         }
-        io_shapes.push_back(td->get_tensor());
-        io_data_layouts.push_back(td->get_layout());
+        io_shapes.push_back(desc->get_shape());
+        io_data_layouts.push_back(desc->get_layout());
         io_data_sizes.push_back(etype.size());
     }
 
@@ -222,8 +222,7 @@ void KernelEmitter::init_data_pointers(size_t num_inputs, size_t num_params, siz
     const size_t offset_rank = jcp.master_shape.size() - 1;
     //const size_t tile_rank = jcp.tile_rank;
     std::vector<std::vector<size_t>> data_offsets(num_params, std::vector<size_t>{});
-    auto offset_calculation = [=](const std::vector<size_t>& shape,
-                                            const std::vector<size_t>& layout, const size_t data_size) {
+    auto offset_calculation = [=](const std::vector<size_t>& shape, const std::vector<size_t>& layout, const size_t data_size) {
         // Strides represent distance between consecutive elements of corresponding dimension.
         // If a dim size == 1, then the next dim starts immediately and the stride is 0
         // case 1:
@@ -724,14 +723,11 @@ BrgemmEmitter::BrgemmEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
     if (brgemm_node->is_dynamic())
         IE_THROW() << "Snippets don't support code generation for dynamic Brgemm";
     const auto brgemm_copy = brgemm_node->is_with_data_repacking() ? brgemm_node->get_brgemm_copy() : nullptr;
-    const OutputVector io_values {brgemm_node->input_value(0),
-                                  brgemm_copy ? brgemm_copy->input_value(0) : brgemm_node->input_value(1),
-                                  brgemm_node->output(0)};
+
     std::vector<size_t> leading_dimensions;
     std::vector<std::vector<size_t>> io_layouts;
-    for (const auto& val : io_values) {
-        const auto& layout = ngraph::snippets::get_tensor_descriptor_ptr(val.get_node_shared_ptr())->get_layout();
-        const auto& io_shape = val.get_shape();
+
+    auto init_scheduling_params = [&](const std::vector<size_t>& layout, const ov::Shape& io_shape) {
         if (layout.empty()) {
             // empty value indicates a planar layout
             leading_dimensions.push_back(io_shape.back());
@@ -744,17 +740,25 @@ BrgemmEmitter::BrgemmEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
             // counting from the end since shape could be prepended with ones
             const int64_t num_last_dims = layout.end() - std::find(layout.begin(), layout.end(), layout.size() - 2) - 1;
             if (layout.back() != layout.size() - 1 || num_last_dims < 1)
-                IE_THROW() << "BrgemmEmitter detected invalid layout values: " <<
-                    "check that this shape + layout combination is schedulable";
+                IE_THROW() << "BrgemmEmitter detected invalid layout values: check that this shape + layout combination is schedulable";
             leading_dimensions.emplace_back(
                     std::accumulate(io_shape.end() - num_last_dims, io_shape.end(), 1, std::multiplies<size_t>()));
             io_layouts.push_back(layout);
         }
-    }
+    };
 
-    const auto& A_shape = io_values[0].get_shape();
+    std::vector<ov::Input<ov::Node>> brgemm_inputs = {brgemm_node->input(0),
+                                                      brgemm_copy ? brgemm_copy->input(0) : brgemm_node->input(1)};
+    for (const auto& input : brgemm_inputs) {
+        init_scheduling_params(ngraph::snippets::lowered::PortManager::get_port_descriptor_ptr(input)->get_layout(),
+                               input.get_shape());
+    }
+    init_scheduling_params(ngraph::snippets::lowered::PortManager::get_port_descriptor_ptr(brgemm_node->output(0))->get_layout(),
+                           brgemm_node->output(0).get_shape());
+
+    const auto& A_shape = brgemm_node->get_input_shape(0);
     const auto& A_layout = io_layouts[0];
-    const auto& C_shape = io_values[2].get_shape();
+    const auto& C_shape = brgemm_node->get_output_shape(0);
     const auto& C_layout = io_layouts[2];
 
     // We need find original M,N,K having layouts and ordered shapes
@@ -1106,7 +1110,7 @@ BrgemmCopyBEmitter::BrgemmCopyBEmitter(dnnl::impl::cpu::x64::jit_generator* h, d
     if (m_with_comp)
         m_comp_offset = brgemm_repack->get_offset_compensations();
 
-    const auto& layout = ngraph::snippets::get_tensor_descriptor_ptr(brgemm_repack->get_input_node_shared_ptr(0))->get_layout();
+    const auto& layout = ngraph::snippets::lowered::PortManager::get_port_descriptor_ptr(brgemm_repack->input(0))->get_layout();
     const auto& original_shape = brgemm_repack->get_input_shape(0);
     auto transposed_shape = original_shape;
     size_t leading_dimension = *(original_shape.rbegin());

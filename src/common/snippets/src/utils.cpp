@@ -67,27 +67,6 @@ auto get_non_scalar_constant_count_for_fq(const std::shared_ptr<opset1::FakeQuan
         return 0;
     }
 }
-std::vector<size_t> get_node_output_layout(const std::shared_ptr<Node>& node) {
-    return get_node_output_layout(node.get());
-}
-std::vector<size_t> get_node_output_layout(const Node* node) {
-    if (!node)
-        return {};
-    if (node->is_dynamic())
-        OPENVINO_THROW("It's illegal to call get_node_output_layout for dynamic nodes");
-    auto& rt = node->get_rt_info();
-    const auto rinfo = rt.find("Layout");
-    if (rinfo != rt.end()) {
-        std::vector<size_t> layout(rinfo->second.as<std::vector<size_t>>());
-        // This might be a little costy, but still useful sanity check. Remove if proved to be unacceptably heavy.
-        std::set<size_t> unique_elements(layout.begin(), layout.end());
-        if (unique_elements.size() < layout.size())
-            OPENVINO_THROW("Layout must contain only unique dimension indexes");
-        return layout;
-    } else {
-        return {};
-    }
-}
 
 ov::PartialShape get_reordered_planar_shape(const ov::PartialShape& shape, const std::vector<size_t>& layout) {
     if (layout.empty())
@@ -106,33 +85,14 @@ ov::PartialShape get_reordered_planar_shape(const ov::PartialShape& shape, const
     return reordered_shape;
 }
 
+ov::PartialShape get_port_planar_shape(const Input<Node>& in) {
+    const auto& port = lowered::PortManager::get_port_descriptor_ptr(in);
+    return utils::get_reordered_planar_shape(ov::Shape{port->get_shape()}, port->get_layout());
+}
+
 ov::PartialShape get_port_planar_shape(const Output<Node>& out) {
-    const auto& td = ngraph::snippets::get_tensor_descriptor_ptr(out);
-    return utils::get_reordered_planar_shape(ov::Shape{td->get_tensor()}, td->get_layout());
-}
-
-void set_transpose_output_layout(const ov::Output<Node>& port, const std::shared_ptr<opset1::Transpose>& node) {
-    const auto& const_order = as_type_ptr<opset1::Constant>(node->get_input_node_shared_ptr(1));
-    OPENVINO_ASSERT(const_order != nullptr, "Transpose order must be Constant to set layout!");
-    set_output_layout(port, const_order->cast_vector<size_t>());
-}
-
-void set_output_layout(const ov::Output<Node>& port, const std::vector<size_t>& layout) {
-    auto& rt_info = port.get_node_shared_ptr()->get_rt_info();
-    rt_info["Layout"] = layout;
-}
-
-bool get_outside_loop_value(const std::shared_ptr<Node>& node) {
-    auto& rt_info = node->get_rt_info();
-    const auto& found = rt_info.find("snippets::is_outside_loop");
-    if (found == rt_info.end()) {
-        return false;  // Default value: Expression should be executed inside
-    }
-    return found->second.as<bool>();
-}
-void set_outside_loop_value(const std::shared_ptr<Node>& node, bool is_outside) {
-    auto& rt_info = node->get_rt_info();
-    rt_info["snippets::is_outside_loop"] = is_outside;
+    const auto& port = lowered::PortManager::get_port_descriptor_ptr(out);
+    return utils::get_reordered_planar_shape(ov::Shape{port->get_shape()}, port->get_layout());
 }
 
 } // namespace utils
