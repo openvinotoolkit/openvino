@@ -19,6 +19,7 @@
 
 namespace InferenceEngine {
 
+IE_SUPPRESS_DEPRECATED_START
 /**
  * @deprecated This API is deprecated and will be removed in 2024.0 release.
  * @brief This class is a C++ helper to work with objects created using extensions.
@@ -97,12 +98,9 @@ protected:
     /**
      * @brief A instance to the loaded templated object
      */
-    IE_SUPPRESS_DEPRECATED_START
     std::shared_ptr<InferenceEngine::IExtension> _actual;
-    IE_SUPPRESS_DEPRECATED_END
 };
 
-IE_SUPPRESS_DEPRECATED_START
 /**
  * @deprecated This API is deprecated and will be removed in 2024.0 release.
  * @brief Creates extension using deprecated API
