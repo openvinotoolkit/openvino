@@ -142,9 +142,6 @@ private:
     std::vector<ov::Output<const ov::Node>> m_outputs;
     ov::RemoteContext m_context;
 
-    std::shared_ptr<ov::threading::ITaskExecutor> m_task_executor = nullptr;      //!< Holds a task executor
-    std::shared_ptr<ov::threading::ITaskExecutor> m_callback_executor = nullptr;  //!< Holds a callback executor
-
     friend ov::CoreImpl;
     friend ov::IExecutableNetworkWrapper;
     friend InferenceEngine::ICompiledModelWrapper;
@@ -154,6 +151,8 @@ private:
     std::vector<std::shared_ptr<const ov::Node>> _results;
 
 protected:
+    std::shared_ptr<ov::threading::ITaskExecutor> m_task_executor = nullptr;      //!< Holds a task executor
+    std::shared_ptr<ov::threading::ITaskExecutor> m_callback_executor = nullptr;  //!< Holds a callback executor
     /**
      * @brief Method creates infer request implementation
      *
@@ -183,6 +182,8 @@ protected:
     const std::shared_ptr<const ov::IPlugin>& get_plugin() const;
     const std::shared_ptr<ov::threading::ITaskExecutor> get_task_executor() const;
     const std::shared_ptr<ov::threading::ITaskExecutor> get_callback_executor() const;
+    void set_task_executor(const std::shared_ptr<ov::threading::ITaskExecutor> task_executor);
+    void set_callback_executor(const std::shared_ptr<ov::threading::ITaskExecutor> callback_executor);
 };
 
 }  // namespace ov
