@@ -104,6 +104,7 @@ enum WeightsLayout {
     os_i_osv8__ai8,  // TODO can we drop the alignment form layout name?
     os_i_osv16__ai8,
     os_i_osv16,
+    os_is_yx_osv16_isv2,
     os_is_yx_osv16_isv16,           // wieghts for int8 blocked conv
     os_is_zyx_osv16_isv16,
     os_is_zyx_osv32_isv16,
