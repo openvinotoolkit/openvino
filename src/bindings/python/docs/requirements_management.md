@@ -7,7 +7,7 @@ OpenVINO uses a pip built-in feature called "constraints" in order to reduce the
 Official constraints [documentation](https://pip.pypa.io/en/stable/user_guide/#constraints-files) describes them as:
 > Constraints files are requirements files that only control which version of a requirement is installed, not whether it is installed or not. Their syntax and contents is a subset of Requirements Files, with several kinds of syntax not allowed: constraints must have a name, they cannot be editable, and they cannot specify extras. In terms of semantics, there is one key difference: Including a package in a constraints file does not trigger installation of the package.
 
-Constraints files have `.txt` extension and are an addon to regular `requirements.txt` files. They are useful when the project has multiple components, each with their own dependencies.
+Constraints files have the `.txt` extension and are addons to regular `requirements.txt` files. They are useful when the project has multiple components, each with its own dependencies.
 
 Thanks to constraints files we can specify only the package names for different components and keep their versions in a centralized constraints file, which is significanly easier to maintain. 
 
