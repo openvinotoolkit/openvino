@@ -29,12 +29,17 @@ class PyDecoderBase : public ov::frontend::tensorflow::DecoderBase {
         PYBIND11_OVERRIDE_PURE(size_t, DecoderBase, get_input_node_name_output_port_index, input_port_idx);
     }
 
+    std::string get_input_node_name_output_port_name(size_t input_port_idx) const {
+        PYBIND11_OVERRIDE_PURE(std::string, DecoderBase, get_input_node_name_output_port_name, input_port_idx);
+    }
 
     void get_input_node(size_t input_port_idx,
                                 std::string &producer_name,
+                                std::string &producer_output_port_name,
                                 size_t &producer_output_port_index) const override{
         producer_name = get_input_node_name(input_port_idx);
         producer_output_port_index = get_input_node_name_output_port_index(input_port_idx);
+        producer_output_port_name = get_input_node_name_output_port_name(input_port_idx);
     }
 
     const std::string &get_op_type() const override{

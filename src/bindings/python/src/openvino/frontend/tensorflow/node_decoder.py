@@ -113,4 +113,20 @@ class TFGraphNodeDecoder(DecoderBase):
 
     def get_input_node_name_output_port_index(self, input_port_idx):
         tensor_name = self.m_operation.inputs[input_port_idx].name
-        return int(tensor_name[tensor_name.rfind(':') + 1:len(tensor_name)])
+        if ':' in tensor_name:
+            try:
+                return int(tensor_name[tensor_name.rfind(':') + 1:len(tensor_name)])
+            except:
+                return 0
+        return 0
+
+    def get_input_node_name_output_port_name(self, input_port_idx):
+        tensor_name = self.m_operation.inputs[input_port_idx].name
+        if ':' not in tensor_name:
+            return ""
+        first_col_idx = tensor_name.find(':')
+        last_col_idx = tensor_name.rfind(':')
+        if first_col_idx == last_col_idx:
+            return ""
+
+        return tensor_name[first_col_idx + 1: last_col_idx]
