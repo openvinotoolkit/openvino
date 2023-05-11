@@ -142,7 +142,7 @@ ov::threading::Task ov::IAsyncInferRequest::make_next_stage_task(
                     OPENVINO_ASSERT(nullptr != nextStageExecutor);
                     nextStageExecutor->run(make_next_stage_task(itNextStage, itEndStage, std::move(callbackExecutor)));
                 }
-            } catch (...) {
+            } catch (const ov::Exception&) {
                 currentException = std::current_exception();
             }
 
