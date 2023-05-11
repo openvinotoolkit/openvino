@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/experimental_detectron_prior_grid_generator.hpp"
+
 #include <memory>
 
 #include "experimental_detectoron_shape_infer_utils.hpp"
 #include "experimental_detectron_prior_grid_generator_shape_inference.hpp"
 #include "itt.hpp"
 #include "openvino/core/attribute_visitor.hpp"
-#include "openvino/op/experimental_detectron_prior_grid_generator.hpp"
 
 namespace ov {
 op::v6::ExperimentalDetectronPriorGridGenerator::ExperimentalDetectronPriorGridGenerator(
@@ -45,8 +46,8 @@ void op::v6::ExperimentalDetectronPriorGridGenerator::validate_and_infer_types()
     OV_OP_SCOPE(v6_ExperimentalDetectronPriorGridGenerator_validate_and_infer_types);
 
     const auto shapes_and_type = detectron::validate::all_inputs_same_floating_type(this);
-
     const auto output_shapes = shape_infer(this, shapes_and_type.first);
+
     set_output_type(0, shapes_and_type.second, output_shapes[0]);
 }
 
