@@ -2,7 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
-
+from openvino.frontend import FrontEndManager
+from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
 from pytorch_layer_test_class import PytorchLayerTest
 
 
@@ -164,6 +165,28 @@ class TestConv2DInSubgraph(PytorchLayerTest):
     def _prepare_input(self):
         import numpy as np
         return (np.random.randn(2, 3, 25, 25).astype(np.float32), np.array([1], dtype=np.int32))
+    
+    def convert_directly_via_frontend(self, model, example_input, trace_model, dynamic_shapes, ov_inputs, freeze_model):
+        # Overload function to allow reproduction of issue caused by additional freeze.
+        import torch
+
+        fe_manager = FrontEndManager()
+        fe = fe_manager.load_by_framework('pytorch')
+
+        model.eval()
+        with torch.no_grad():
+            if trace_model:
+                model = torch.jit.trace(model, example_input)
+            else:
+                model = torch.jit.script(model)
+            model = torch.jit.freeze(model)
+        print(model.inlined_graph)
+        decoder = TorchScriptPythonDecoder(model, freeze=freeze_model)
+        im = fe.load(decoder)
+        om = fe.convert(im)
+        self._resolve_input_shape_dtype(om, ov_inputs, dynamic_shapes)
+        return model, om
+
 
     def create_model(self):
         import torch
@@ -195,4 +218,4 @@ class TestConv2DInSubgraph(PytorchLayerTest):
     @pytest.mark.precommit
     def test_conv2d(self, ie_device, precision, ir_version):
         self._test(*self.create_model(),
-                   ie_device, precision, ir_version, freeze_model=True, trace_model=False, dynamic_shapes=False)
+                   ie_device, precision, ir_version, freeze_model=True, dynamic_shapes=False)
