@@ -31,7 +31,6 @@ public:
     void SetUp() override {
         const auto& test_data = std::get<0>(GetParam());
 
-        int test_processors = 0;
         int test_sockets = 0;
         int test_cores = 0;
         std::vector<std::vector<int>> test_proc_type_table;
