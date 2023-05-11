@@ -63,3 +63,8 @@ OpenVINO can be built based on specific virtual environments such as [venv](http
 ## Run tests to verify OpenVINO™ Python API
 
 Follow instructions in [How to test OpenVINO™ Python API?](./test_examples.md#Running_OpenVINO™_Python_API_tests) to verify the build.
+
+## See also
+ * [OpenVINO™ README](../../../../README.md)
+ * [OpenVINO™ bindings README](../../README.md)
+ * [Developer documentation](../../../../docs/dev/index.md)
