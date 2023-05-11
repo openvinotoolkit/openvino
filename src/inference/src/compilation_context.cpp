@@ -149,7 +149,7 @@ std::string ModelCache::compute_hash(const std::string& modelName, const ov::Any
     uint64_t seed = 0;
     try {
         seed = hash_combine(seed, FileUtils::absoluteFilePath(modelName));
-    } catch (...) {
+    } catch (const std::exception&) {
         // can't get absolute path, use modelName for hash calculation
         seed = hash_combine(seed, modelName);
     }
