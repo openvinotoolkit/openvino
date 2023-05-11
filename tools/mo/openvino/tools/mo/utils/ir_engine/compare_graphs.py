@@ -127,7 +127,8 @@ def compare_graphs(graph: Graph, graph_ref: Graph, last_node: str, last_node_ref
                             num_insertions = rank - len(curr_node[mask_name])
                             curr_node[mask_name] = np.append(curr_node[mask_name], [0] * num_insertions).astype(int)
 
-                    if cur_node_type == 'StridedSlice' and node.in_node(1).shape is not None:
+                    if cur_node_type == 'StridedSlice' and node.in_node(1).has('shape') \
+                            and node.in_node(1).shape is not None:
                         from openvino.tools.mo.ops.strided_slice import StridedSlice
                         slice_rank = node.in_node(1).shape.item()
                         align_strided_slice_masks(node, slice_rank)
