@@ -210,7 +210,9 @@ protected:
 /**
  * @brief A shared pointer to a IExtension interface
  */
+IE_SUPPRESS_DEPRECATED_START
 using IExtensionPtr = std::shared_ptr<IExtension>;
+IE_SUPPRESS_DEPRECATED_END
 
 /**
  * @brief Creates the default instance of the extension
@@ -226,12 +228,12 @@ INFERENCE_EXTENSION_API(void) CreateExtensionShared(IExtensionPtr& ext);
  * @return InferenceEngine::OK if extension is constructed and InferenceEngine::GENERAL_ERROR otherwise
  */
 #if defined(_WIN32)
-INFERENCE_ENGINE_DEPRECATED("This API is deprecated and will be removed in 2024.0 release.")
 INFERENCE_EXTENSION_API(StatusCode)
+INFERENCE_ENGINE_DEPRECATED("This API is deprecated and will be removed in 2024.0 release.")
 CreateExtension(IExtension*& ext, ResponseDesc* resp) noexcept;
 #else
-INFERENCE_ENGINE_DEPRECATED("This API is deprecated and will be removed in 2024.0 release.")
 INFERENCE_EXTENSION_API(StatusCode)
+INFERENCE_ENGINE_DEPRECATED("This API is deprecated and will be removed in 2024.0 release.")
 CreateExtension(IExtension*& ext, ResponseDesc* resp) noexcept INFERENCE_ENGINE_DEPRECATED(
     "Use IE_DEFINE_EXTENSION_CREATE_FUNCTION macro");
 #endif
