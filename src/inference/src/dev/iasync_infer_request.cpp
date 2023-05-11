@@ -158,7 +158,7 @@ ov::threading::Task ov::IAsyncInferRequest::make_next_stage_task(
                     if (callback) {
                         try {
                             callback(currentException);
-                        } catch (...) {
+                        } catch (const std::exception&) {
                             currentException = std::current_exception();
                         }
                         std::lock_guard<std::mutex> lock{m_mutex};
