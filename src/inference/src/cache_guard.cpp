@@ -40,7 +40,7 @@ std::unique_ptr<CacheGuardEntry> CacheGuard::get_hash_lock(const std::string& ha
         // TODO: use std::make_unique when migrated to C++14
         res =
             std::unique_ptr<CacheGuardEntry>(new CacheGuardEntry(*this, hash, data.m_mutexPtr, data.m_itemRefCounter));
-    } catch (...) {
+    } catch (std::exception&) {
         // In case of exception, we shall remove hash entry if it is not used
         if (data.m_itemRefCounter == 0) {
             m_table.erase(hash);
