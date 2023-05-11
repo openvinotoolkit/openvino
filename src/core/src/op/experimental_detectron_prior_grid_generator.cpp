@@ -2,19 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/experimental_detectron_prior_grid_generator.hpp"
-
 #include <memory>
 
 #include "experimental_detectoron_shape_infer_utils.hpp"
 #include "experimental_detectron_prior_grid_generator_shape_inference.hpp"
 #include "itt.hpp"
-#include "ngraph/attribute_visitor.hpp"
-#include "ngraph/runtime/host_tensor.hpp"
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/op/experimental_detectron_prior_grid_generator.hpp"
 
-using namespace std;
-using namespace ngraph;
-
+namespace ov {
 op::v6::ExperimentalDetectronPriorGridGenerator::ExperimentalDetectronPriorGridGenerator(
     const Output<Node>& priors,
     const Output<Node>& feature_map,
@@ -35,14 +31,14 @@ bool op::v6::ExperimentalDetectronPriorGridGenerator::visit_attributes(Attribute
     return true;
 }
 
-shared_ptr<Node> op::v6::ExperimentalDetectronPriorGridGenerator::clone_with_new_inputs(
+std::shared_ptr<Node> op::v6::ExperimentalDetectronPriorGridGenerator::clone_with_new_inputs(
     const OutputVector& new_args) const {
     OV_OP_SCOPE(v6_ExperimentalDetectronPriorGridGenerator_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<op::v6::ExperimentalDetectronPriorGridGenerator>(new_args.at(0),
-                                                                        new_args.at(1),
-                                                                        new_args.at(2),
-                                                                        m_attrs);
+    return std::make_shared<ExperimentalDetectronPriorGridGenerator>(new_args.at(0),
+                                                                     new_args.at(1),
+                                                                     new_args.at(2),
+                                                                     m_attrs);
 }
 
 void op::v6::ExperimentalDetectronPriorGridGenerator::validate_and_infer_types() {
@@ -57,3 +53,4 @@ void op::v6::ExperimentalDetectronPriorGridGenerator::validate_and_infer_types()
 void op::v6::ExperimentalDetectronPriorGridGenerator::set_attrs(Attributes attrs) {
     m_attrs = std::move(attrs);
 }
+}  // namespace ov
