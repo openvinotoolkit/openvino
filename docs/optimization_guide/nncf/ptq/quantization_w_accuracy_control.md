@@ -59,7 +59,7 @@ Run quantization with accuracy control
 
 If the accuracy or performance of the quantized model is not satisfactory, you can try :doc:`Training-time Optimization <tmo_introduction>` as the next step.
 
-Examples of NNCF post-training quantization with control of accuracy metric
+Examples of NNCF post-training quantization with control of accuracy metric:
 #############################################################################
 
 * `Post-Training Quantization of Anomaly Classification OpenVINO model with control of accuracy metric <https://github.com/openvinotoolkit/nncf/blob/develop/examples/post_training_quantization/openvino/quantize_with_accuracy_control/README.md>`__
