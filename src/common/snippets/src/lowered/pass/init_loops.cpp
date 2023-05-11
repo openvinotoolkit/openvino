@@ -24,21 +24,16 @@ void filter_ports(LinearIR& linear_ir,
 
     for (const auto& loop_entry_point : loop_entries) {
         const auto& expr = loop_entry_point.get_expr();
-        const auto port = loop_entry_point.get_index();
-        const auto node = expr->get_node();
-        const auto ma = ov::as_type_ptr<op::MemoryAccess>(node);
-        if (ma && ma->is_memory_access_input_port(port)) {
-            const auto& parent_expr = loop_entry_point.get_connected_ports().begin()->get_expr();
-            const auto& parent = parent_expr->get_node();
+        const auto ma = ov::as_type_ptr<op::MemoryAccess>(expr->get_node());
+        if (ma && ma->is_memory_access_input_port(loop_entry_point.get_index())) {
             new_loop_entries.push_back(loop_entry_point);
         }
     }
 
     for (const auto& loop_exit_point : loop_exits) {
         const auto& expr = loop_exit_point.get_expr();
-        const auto port = loop_exit_point.get_index();
         const auto ma = ov::as_type_ptr<op::MemoryAccess>(expr->get_node());
-        if (ma && ma->is_memory_access_output_port(port)) {
+        if (ma && ma->is_memory_access_output_port(loop_exit_point.get_index())) {
             new_loop_exits.push_back(loop_exit_point);
         }
     }

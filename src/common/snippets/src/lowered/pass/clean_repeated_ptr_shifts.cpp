@@ -26,8 +26,8 @@ bool CleanRepeatedDataPointerShifts::reuse_increments(const LinearIR& linear_ir,
     std::set<size_t> buffers_ids;
     // We count expressions only on inputs of Loop because we can only read from the same data but not write to the same data.
     //       Parameter
-    //        /     \
-    //    Load_0   Load_1
+    //        |    |
+    //    Load_0  Load_1
     std::set<ExpressionPtr> read_data_exprs;
     for (size_t i = 0; i < input_count; ++i) {
         const auto& parent_output = loop_tds[i]->get_source().get_expr();
