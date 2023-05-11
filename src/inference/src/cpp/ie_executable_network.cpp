@@ -21,7 +21,7 @@ namespace InferenceEngine {
         IE_THROW(NotAllocated) << "ExecutableNetwork was not initialized."; \
     try {                                                                   \
         __VA_ARGS__;                                                        \
-    } catch (...) {                                                         \
+    } catch (const std::exception&) {                                                         \
         InferenceEngine::details::Rethrow();                                \
     }
 
