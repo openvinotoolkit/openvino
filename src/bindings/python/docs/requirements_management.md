@@ -45,7 +45,7 @@ pyenchant
 test-generator
 ```
 
-Please note that `astroid` is not required by `requirements_tensorflow.txt`, so it's not going to be installed even though its version has been specified in `main/constraints.txt`.
+Note that `astroid` is not required by `requirements_tensorflow.txt`, so it's not going to be installed even though its version has been specified in `main/constraints.txt`.
 
 ## Benefits of this approach
 
