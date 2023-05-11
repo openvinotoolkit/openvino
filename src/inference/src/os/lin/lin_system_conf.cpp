@@ -23,38 +23,23 @@ CPU::CPU() {
 
     _num_threads = parallel_get_max_threads();
     auto GetCatchInfoLinux = [&]() {
-        int cpu_index = 0;
-        int cache_index = 0;
+        _processors = sysconf(_SC_NPROCESSORS_ONLN);
+        system_info_table.resize(_processors, std::vector<std::string>(3));
 
-        std::vector<std::string> one_info(3);
+        for (int n = 0; n < _processors; n++) {
+            for (int m = 0; m < 3; m++) {
+                int Ln = (m == 0) ? m : m + 1;
 
-        while (1) {
-            for (int n = 0; n < 3; n++) {
-                cache_index = (n == 0) ? n : n + 1;
-
-                std::ifstream cache_file("/sys/devices/system/cpu/cpu" + std::to_string(cpu_index) + "/cache/index" +
-                                         std::to_string(cache_index) + "/shared_cpu_list");
+                std::ifstream cache_file("/sys/devices/system/cpu/cpu" + std::to_string(n) + "/cache/index" +
+                                         std::to_string(Ln) + "/shared_cpu_list");
                 if (!cache_file.is_open()) {
-                    cache_index = -1;
-                    break;
+                    return -1;
                 }
                 std::string cache_info;
                 std::getline(cache_file, cache_info);
-                one_info[n] = cache_info;
-            }
-
-            if (cache_index == -1) {
-                if (cpu_index == 0) {
-                    return -1;
-                } else {
-                    return 0;
-                }
-            } else {
-                system_info_table.push_back(one_info);
-                cpu_index++;
+                system_info_table[n][m] += cache_info;
             }
         }
-
         return 0;
     };
 
@@ -130,8 +115,8 @@ CPU::CPU() {
     };
 
     if (!GetCatchInfoLinux()) {
-        parse_processor_info_linux(system_info_table,
-                                   _processors,
+        parse_processor_info_linux(_processors,
+                                   system_info_table,
                                    _numa_nodes,
                                    _cores,
                                    _proc_type_table,
@@ -173,8 +158,8 @@ CPU::CPU() {
     std::vector<std::vector<std::string>>().swap(system_info_table);
 }
 
-void parse_processor_info_linux(const std::vector<std::vector<std::string>> system_info_table,
-                                int& _processors,
+void parse_processor_info_linux(const int _processors,
+                                const std::vector<std::vector<std::string>> system_info_table,
                                 int& _numa_nodes,
                                 int& _cores,
                                 std::vector<std::vector<int>>& _proc_type_table,

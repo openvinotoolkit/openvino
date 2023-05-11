@@ -34,16 +34,16 @@ public:
 #ifdef __linux__
 /**
  * @brief      Parse processors infomation on Linux
+ * @param[in]  _processors total number for processors in system.
  * @param[in]  _system_info_table system information for this platform.
- * @param[out] _processors total number for processors in system.
  * @param[out] _numa_nodes total number for sockets in system
  * @param[out] _cores total number for physical CPU cores in system
  * @param[out] _proc_type_table summary table of number of processors per type
  * @param[out] _cpu_mapping_table CPU mapping table for each processor
  * @return
  */
-void parse_processor_info_linux(const std::vector<std::vector<std::string>> _system_info_table,
-                                int& _processors,
+void parse_processor_info_linux(const int _processors,
+                                const std::vector<std::vector<std::string>> _system_info_table,
                                 int& _numa_nodes,
                                 int& _cores,
                                 std::vector<std::vector<int>>& _proc_type_table,

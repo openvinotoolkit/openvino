@@ -32,20 +32,19 @@ public:
         const auto& test_data = std::get<0>(GetParam());
 
         int test_processors = 0;
-        int test_numa_nodes = 0;
+        int test_sockets = 0;
         int test_cores = 0;
         std::vector<std::vector<int>> test_proc_type_table;
         std::vector<std::vector<int>> test_cpu_mapping_table;
 
-        ov::parse_processor_info_linux(test_data.system_info_table,
-                                       test_processors,
-                                       test_numa_nodes,
+        ov::parse_processor_info_linux(test_data._processors,
+                                       test_data.system_info_table,
+                                       test_sockets,
                                        test_cores,
                                        test_proc_type_table,
                                        test_cpu_mapping_table);
 
-        ASSERT_EQ(test_data._processors, test_processors);
-        ASSERT_EQ(test_data._numa_nodes, test_numa_nodes);
+        ASSERT_EQ(test_data._numa_nodes, test_sockets);
         ASSERT_EQ(test_data._cores, test_cores);
         ASSERT_EQ(test_data._proc_type_table, test_proc_type_table);
         ASSERT_EQ(test_data._cpu_mapping_table, test_cpu_mapping_table);
@@ -626,7 +625,7 @@ public:
         Hex2Bin(test_ptr, test_len, test_info_ptr);
 
         int test_processors = 0;
-        int test_numa_nodes = 0;
+        int test_sockets = 0;
         int test_cores = 0;
         unsigned long len = unsigned long(test_len / 2);
         std::vector<std::vector<int>> test_proc_type_table;
@@ -635,13 +634,13 @@ public:
         ov::parse_processor_info_win(test_info_ptr,
                                      len,
                                      test_processors,
-                                     test_numa_nodes,
+                                     test_sockets,
                                      test_cores,
                                      test_proc_type_table,
                                      test_cpu_mapping_table);
 
         ASSERT_EQ(test_data._processors, test_processors);
-        ASSERT_EQ(test_data._numa_nodes, test_numa_nodes);
+        ASSERT_EQ(test_data._numa_nodes, test_sockets);
         ASSERT_EQ(test_data._cores, test_cores);
         ASSERT_EQ(test_data._proc_type_table, test_proc_type_table);
         ASSERT_EQ(test_data._cpu_mapping_table, test_cpu_mapping_table);
