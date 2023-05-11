@@ -170,8 +170,8 @@ function(addIeTargetTest)
         set(JS_TEST_APP_OUT "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${JS_APP_NAME}")
         configure_file(${JS_TEST_APP_IN} ${JS_TEST_APP_OUT})
 
-        set(JS_COMMAND "node --experimental-wasm-threads --experimental-wasm-bulk-memory ${JS_APP_NAME}")
-        add_test(NAME ${ARG_NAME} COMMAND ${JS_COMMAND})
+        # node version>= 16.8.0, else need add "--experimental-wasm-threads --experimental-wasm-bulk-memory" option
+        add_test(NAME ${ARG_NAME} COMMAND node ${JS_TEST_APP_OUT})
     else()
         add_test(NAME ${ARG_NAME} COMMAND ${ARG_NAME})
     endif()
