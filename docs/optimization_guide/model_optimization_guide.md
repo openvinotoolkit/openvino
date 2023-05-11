@@ -8,7 +8,6 @@
 
    ptq_introduction
    tmo_introduction
-   (Experimental) Protecting Model <pot_ranger_README>
 
 
 Model optimization is an optional offline step of improving the final model performance and reducing the model size by applying special optimization methods, such as 8-bit quantization, pruning, etc. OpenVINO offers two optimization paths implemented in `Neural Network Compression Framework (NNCF) <https://github.com/openvinotoolkit/nncf>`__:
