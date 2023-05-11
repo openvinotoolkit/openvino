@@ -103,13 +103,13 @@ public:
         OPENVINO_NOT_IMPLEMENTED;
     }
 
-    void set_parameters_if_need(const std::shared_ptr<ov::ICore>& core) const {
+    void set_parameters_if_need(const std::shared_ptr<ov::ICore>& core, const std::string& dev_name) const {
         if (m_plugin) {
             if (!m_plugin->get_core() && core) {
                 m_plugin->set_core(core);
             }
             if (m_plugin->get_device_name().empty()) {
-                m_plugin->set_device_name(get_device_name());
+                m_plugin->set_device_name(dev_name);
             }
         }
         if (m_old_plugin) {
@@ -118,7 +118,7 @@ public:
                 m_old_plugin->SetCore(old_core);
             }
             if (m_old_plugin->GetName().empty()) {
-                m_old_plugin->SetName(get_device_name());
+                m_old_plugin->SetName(dev_name);
             }
         }
     }
@@ -127,7 +127,7 @@ public:
 void MockPlugin::set_parameters_if_need() const {
     auto core = get_core();
     if (auto internal_plugin = std::dynamic_pointer_cast<const MockInternalPlugin>(m_plugin)) {
-        internal_plugin->set_parameters_if_need(core);
+        internal_plugin->set_parameters_if_need(core, get_device_name());
     }
 }
 
