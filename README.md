@@ -1,5 +1,6 @@
 <div align="center">
 
+ 
 <img src="docs/img/openvino-logo-purple-black.png" width="400px">
 
 [![Stable release](https://img.shields.io/badge/version-2022.3-green.svg)](https://github.com/openvinotoolkit/openvino/releases/tag/2022.3.0)
