@@ -5,14 +5,14 @@
 #include <gtest/gtest.h>
 
 #include <fstream>
-#include "openvino/runtime/common.hpp"
-#include "dev/preprocessing/preprocessing.hpp"
 #include <memory>
 #include <sstream>
 #include <string>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
+#include "dev/preprocessing/preprocessing.hpp"
+#include "openvino/runtime/common.hpp"
 
 using namespace testing;
 
@@ -24,8 +24,7 @@ TEST_F(AddPreprocessingTests, AddPreprocessingBlocked) {
     auto constant = ov::op::v0::Constant::create(ov::element::f32, shape, {1});
     auto add = std::make_shared<ov::op::v1::Add>(input, constant);
 
-    auto model =
-        std::make_shared<ov::Model>(ov::NodeVector{add}, ov::ParameterVector{input});
+    auto model = std::make_shared<ov::Model>(ov::NodeVector{add}, ov::ParameterVector{input});
 
     ov::pass::Manager manager;
     manager.register_pass<ov::pass::AddPreprocessing>();
