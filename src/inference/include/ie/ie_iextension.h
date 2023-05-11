@@ -45,7 +45,7 @@ namespace InferenceEngine {
  * @struct DataConfig
  * @brief This structure describes data configuration
  */
-struct DataConfig {
+struct INFERENCE_ENGINE_DEPRECATED("This API is deprecated and will be removed in 2024.0 release.") DataConfig {
     /**
      * @brief Format of memory descriptor
      */
@@ -65,7 +65,7 @@ struct DataConfig {
  * @struct LayerConfig
  * @brief This structure describes Layer configuration
  */
-struct LayerConfig {
+struct INFERENCE_ENGINE_DEPRECATED("This API is deprecated and will be removed in 2024.0 release.") LayerConfig {
     /**
      * @brief Supported dynamic batch. If false, dynamic batch is not supported
      */
@@ -84,7 +84,8 @@ struct LayerConfig {
  * @interface ILayerImpl
  * @brief This class provides interface for extension implementations
  */
-class INFERENCE_ENGINE_API_CLASS(ILayerImpl) {
+class INFERENCE_ENGINE_DEPRECATED("This API is deprecated and will be removed in 2024.0 release.")
+    INFERENCE_ENGINE_API_CLASS(ILayerImpl) {
 public:
     /**
      * @brief A shared pointer to the ILayerImpl interface
@@ -101,7 +102,9 @@ public:
  * @interface ILayerExecImpl
  * @brief This class provides interface for the implementation with the custom execution code
  */
-class INFERENCE_ENGINE_API_CLASS(ILayerExecImpl) : public ILayerImpl {
+class INFERENCE_ENGINE_DEPRECATED("This API is deprecated and will be removed in 2024.0 release.")
+    INFERENCE_ENGINE_API_CLASS(ILayerExecImpl)
+    : public ILayerImpl {
 public:
     /**
      * @brief A shared pointer to the ILayerExecImpl interface
@@ -147,7 +150,9 @@ public:
 /**
  * @brief This class is the main extension interface
  */
-class INFERENCE_ENGINE_API_CLASS(IExtension) : public std::enable_shared_from_this<IExtension> {
+class INFERENCE_ENGINE_DEPRECATED("This API is deprecated and will be removed in 2024.0 release.")
+    INFERENCE_ENGINE_API_CLASS(IExtension)
+    : public std::enable_shared_from_this<IExtension> {
 public:
     /**
      * @brief Returns operation sets
@@ -221,10 +226,11 @@ INFERENCE_EXTENSION_API(void) CreateExtensionShared(IExtensionPtr& ext);
  * @return InferenceEngine::OK if extension is constructed and InferenceEngine::GENERAL_ERROR otherwise
  */
 #if defined(_WIN32)
-INFERENCE_ENGINE_DEPRECATED("Use IE_DEFINE_EXTENSION_CREATE_FUNCTION macro")
+INFERENCE_ENGINE_DEPRECATED("This API is deprecated and will be removed in 2024.0 release.")
 INFERENCE_EXTENSION_API(StatusCode)
 CreateExtension(IExtension*& ext, ResponseDesc* resp) noexcept;
 #else
+INFERENCE_ENGINE_DEPRECATED("This API is deprecated and will be removed in 2024.0 release.")
 INFERENCE_EXTENSION_API(StatusCode)
 CreateExtension(IExtension*& ext, ResponseDesc* resp) noexcept INFERENCE_ENGINE_DEPRECATED(
     "Use IE_DEFINE_EXTENSION_CREATE_FUNCTION macro");
@@ -244,9 +250,9 @@ CreateExtension(IExtension*& ext, ResponseDesc* resp) noexcept INFERENCE_ENGINE_
  * @def IE_DEFINE_EXTENSION_CREATE_FUNCTION
  * @brief Generates extension creation function
  */
-#define IE_DEFINE_EXTENSION_CREATE_FUNCTION(ExtensionType)                        \
-    INFERENCE_EXTENSION_API(void)                                                 \
-    IE_CREATE_EXTENSION(std::shared_ptr<InferenceEngine::IExtension>& ext);       \
-    void IE_CREATE_EXTENSION(std::shared_ptr<InferenceEngine::IExtension>& ext) { \
-        ext = std::make_shared<ExtensionType>();                                  \
+#define IE_DEFINE_EXTENSION_CREATE_FUNCTION(ExtensionType)                                                \
+    INFERENCE_ENGINE_DEPRECATED("This API is deprecated and will be removed in 2024.0 release")           \
+    INFERENCE_EXTENSION_API(void) IE_CREATE_EXTENSION(std::shared_ptr<InferenceEngine::IExtension>& ext); \
+    void IE_CREATE_EXTENSION(std::shared_ptr<InferenceEngine::IExtension>& ext) {                         \
+        ext = std::make_shared<ExtensionType>();                                                          \
     }

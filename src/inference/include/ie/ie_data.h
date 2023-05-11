@@ -26,7 +26,8 @@ namespace InferenceEngine {
  *
  * The NN graphs are di-graphs consisting of data nodes and layer nodes.
  */
-class INFERENCE_ENGINE_API_CLASS(Data) {
+class INFERENCE_ENGINE_DEPRECATED("This API is deprecated and will be removed in 2024.0 release.")
+    INFERENCE_ENGINE_API_CLASS(Data) {
     class Impl;
 
 public:
