@@ -77,7 +77,7 @@ A web-based tool for deploying deep learning models. Built on the core of OpenVI
 
 More resources:
 
-* `Documentation <https://docs.openvino.ai/2022.3/workbench_docs_Workbench_DG_Introduction.html>`__  
+* `Documentation <https://docs.openvino.ai/2023.0/workbench_docs_Workbench_DG_Introduction.html>`__  
 * `Docker Hub <https://hub.docker.com/r/openvino/workbench>`__  
 * `PyPI <https://pypi.org/project/openvino-workbench/>`__   
 
