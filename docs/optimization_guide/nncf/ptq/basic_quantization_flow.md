@@ -97,9 +97,9 @@ After that the model can be exported into the OpenVINO Intermediate Representati
 Tune quantization parameters
 ############################
 
-``nncf.quantize()`` function has several optional parameters that allow tuning the quantization process to get more accurate model. Below is the list of parameters and their description:
+``nncf.quantize()`` function has several optional parameters that allow tuning the quantization process to get a more accurate model. Below is the list of parameters and their description:
 
-* ``model_type`` - used to specify quantization scheme required for specific type of the model. ``Transformer`` is only supported special quantization scheme to preserve accuracy after quantization of Transformer models (BERT, distillBERT, etc.). ``None`` is default, i.e. no specific scheme is defined.
+* ``model_type`` - used to specify quantization scheme required for specific type of the model. ``Transformer`` is the only supported special quantization scheme to preserve accuracy after quantization of Transformer models (BERT, DistilBERT, etc.). ``None`` is default, i.e. no specific scheme is defined.
 
   .. code-block:: sh
 
@@ -114,7 +114,7 @@ Tune quantization parameters
 
        nncf.quantize(model, dataset, preset=nncf.Preset.MIXED)
 
-* ``fast_bias_correction`` - when ``False`` enables more accurate bias (error) correction algorithm that can be used to improve accuracy of the model. This parameter is available only for OpenVINO and ONNX representations. ``True`` is used by default to minimize quantization time.
+* ``fast_bias_correction`` - when set to ``False``, enables a more accurate bias (error) correction algorithm that can be used to improve the accuracy of the model. This parameter is available only for OpenVINO and ONNX representations. ``True`` is used by default to minimize quantization time.
 
   .. code-block:: sh
 
@@ -155,14 +155,14 @@ Tune quantization parameters
 
 If the accuracy of the quantized model is not satisfactory, you can try to use the :doc:`Quantization with accuracy control <quantization_w_accuracy_control>` flow.
 
-See also
-####################
+Examples of how to apply NNCF post-training quantization:
+############################################################
 
-* `NNCF Example: Post-Training Quantization of MobileNet v2 OpenVINO Model <https://github.com/openvinotoolkit/nncf/blob/develop/examples/post_training_quantization/openvino/mobilenet_v2/README.md>`__
-* `NNCF Example: Post-Training Quantization of YOLOv8 OpenVINO Model <https://github.com/openvinotoolkit/nncf/blob/develop/examples/post_training_quantization/openvino/yolov8/README.md>`__
-* `NNCF Example: Post-Training Quantization of MobileNet v2 PyTorch Model <https://github.com/openvinotoolkit/nncf/blob/develop/examples/post_training_quantization/torch/mobilenet_v2/README.md>`__
-* `NNCF Example: Post-Training Quantization of SSD PyTorch Model <https://github.com/openvinotoolkit/nncf/blob/develop/examples/post_training_quantization/torch/ssd300_vgg16/README.md>`__
-* `NNCF Example: Post-Training Quantization of MobileNet v2 ONNX Model <https://github.com/openvinotoolkit/nncf/blob/develop/examples/post_training_quantization/onnx/mobilenet_v2/README.md>`__
-* `NNCF Example: Post-Training Quantization of MobileNet v2 TensorFlow Model <https://github.com/openvinotoolkit/nncf/blob/develop/examples/post_training_quantization/tensorflow/mobilenet_v2/README.md>`__
+* `Post-Training Quantization of MobileNet v2 OpenVINO Model <https://github.com/openvinotoolkit/nncf/blob/develop/examples/post_training_quantization/openvino/mobilenet_v2/README.md>`__
+* `Post-Training Quantization of YOLOv8 OpenVINO Model <https://github.com/openvinotoolkit/nncf/blob/develop/examples/post_training_quantization/openvino/yolov8/README.md>`__
+* `Post-Training Quantization of MobileNet v2 PyTorch Model <https://github.com/openvinotoolkit/nncf/blob/develop/examples/post_training_quantization/torch/mobilenet_v2/README.md>`__
+* `Post-Training Quantization of SSD PyTorch Model <https://github.com/openvinotoolkit/nncf/blob/develop/examples/post_training_quantization/torch/ssd300_vgg16/README.md>`__
+* `Post-Training Quantization of MobileNet v2 ONNX Model <https://github.com/openvinotoolkit/nncf/blob/develop/examples/post_training_quantization/onnx/mobilenet_v2/README.md>`__
+* `Post-Training Quantization of MobileNet v2 TensorFlow Model <https://github.com/openvinotoolkit/nncf/blob/develop/examples/post_training_quantization/tensorflow/mobilenet_v2/README.md>`__
 
 @endsphinxdirective
