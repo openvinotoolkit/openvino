@@ -342,6 +342,7 @@ bool CanPropagateForwardThrough(Node* node) {
     CHECK_TRANSPOSE_SINKING_SUPPORTED(ov::op::v0::Unsqueeze, node)
     CHECK_TRANSPOSE_SINKING_SUPPORTED(ov::op::v1::Transpose, node)
     CHECK_TRANSPOSE_SINKING_SUPPORTED(ov::op::v0::FakeQuantize, node)
+    CHECK_TRANSPOSE_SINKING_SUPPORTED(ov::op::v0::Concat, node)
 
     return false;
 }
