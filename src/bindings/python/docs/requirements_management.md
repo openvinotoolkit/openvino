@@ -72,7 +72,7 @@ If a package version differs between `requirements.txt` files, it can't be unifi
 - Exclude this `requirements.txt` file from the constraints system
 
 #### 3. Lack of support in distutils
-`distutils` is a package used for building Python wheels. It does not offer support for constraints files, so custom requirements parsers had to be added. An example parser can be found [here](https://github.com/openvinotoolkit/openvino/blob/master/tools/mo/setup.py) - functions `read_constraints()` and `read_requirements()`.
+`distutils` is a package used for building Python wheels. It does not offer support for constraints files, so custom requirement parsers had to be added. A parser example can be found [here](https://github.com/openvinotoolkit/openvino/blob/master/tools/mo/setup.py) - functions `read_constraints()` and `read_requirements()`.
 
 ## Implementation in OpenVINO
 The implementation in OpenVINO is a subject to change. At the time of writing there are three `constraints.txt` files with the following requirements coverage:
