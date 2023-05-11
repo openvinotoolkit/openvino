@@ -27,11 +27,14 @@ class WASMModel implements IModel {
     this.#originalModel = originalModel;
   }
 
-  // FIXME: Refactor signature, set shape as an optional parameter
   async infer(
     tensorOrDataArray: ITensor | number[],
-    shape: IShape
+    shapeOrDimensionsArray?: IShape | number[],
   ): Promise<ITensor> {
+    const shape = shapeOrDimensionsArray instanceof Shape
+      ? shapeOrDimensionsArray
+      : new Shape(shapeOrDimensionsArray as number[] || []);
+
     const tensor = tensorOrDataArray instanceof Tensor
       ? tensorOrDataArray
       : new Tensor(DEFAULT_PRECISION, tensorOrDataArray as number[], shape);
