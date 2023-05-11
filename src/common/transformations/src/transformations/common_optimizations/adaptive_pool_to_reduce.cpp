@@ -40,23 +40,21 @@ ov::pass::AdaptivePoolToReduce::AdaptivePoolToReduce() {
         std::iota(axes.begin(), axes.end(), 2);
         auto axes_const = v0::Constant::create(element::i64, {spatial_shape.size()}, axes);
         const auto adaptive_pool = pattern_map.at(a_pool);
-        if (const auto adaptive_avg_pool = std::dynamic_pointer_cast<v8::AdaptiveAvgPool>(adaptive_pool)) {
-            auto res_node = std::make_shared<v1::ReduceMean>(adaptive_avg_pool->input_value(0), axes_const, true);
-            replace_node(adaptive_avg_pool, res_node);
-            res_node->set_friendly_name(adaptive_avg_pool->get_friendly_name());
-            copy_runtime_info(adaptive_avg_pool, res_node);
-        } else if (const auto adaptive_max_pool = std::dynamic_pointer_cast<v8::AdaptiveMaxPool>(adaptive_pool)) {
-            if (adaptive_max_pool->output(1).get_target_inputs().size() != 0) {
+        std::shared_ptr<Node> res_node;
+        if (std::dynamic_pointer_cast<v8::AdaptiveAvgPool>(adaptive_pool)) {
+            res_node = std::make_shared<v1::ReduceMean>(adaptive_pool->input_value(0), axes_const, true);
+        } else if (std::dynamic_pointer_cast<v8::AdaptiveMaxPool>(adaptive_pool)) {
+            if (adaptive_pool->outputs().size() > 1 && adaptive_pool->output(1).get_target_inputs().size() != 0) {
                 // If indexes are used we can't replace it
                 return false;
             }
-            auto res_node = std::make_shared<v1::ReduceMax>(adaptive_max_pool->input_value(0), axes_const, true);
-            adaptive_max_pool->output(0).replace(res_node);
-            res_node->set_friendly_name(adaptive_max_pool->get_friendly_name());
-            copy_runtime_info(adaptive_max_pool, res_node);
+            res_node = std::make_shared<v1::ReduceMax>(adaptive_pool->input_value(0), axes_const, true);
         } else {
             return false;
         }
+        adaptive_pool->output(0).replace(res_node);
+        res_node->set_friendly_name(adaptive_pool->get_friendly_name());
+        copy_runtime_info(adaptive_pool, res_node);
         return true;
     };
 
