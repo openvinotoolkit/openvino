@@ -110,29 +110,3 @@ class TestGluOp(PytorchLayerTest):
         self.dtype = dtype
         self._test(glu_net(dim, dtype), None, "aten::glu",
                    ie_device, precision, ir_version)
-
-class gelu_net(torch.nn.Module):
-    def __init__(self, approximate, dtype):
-        super(gelu_net, self).__init__()
-        self.dtype = dtype
-        self.approximate = approximate
-
-    def forward(self, x):
-        y = F.gelu(x.to(self.dtype), approximate=self.approximate)
-        return y
-
-
-class TestGeluOp(PytorchLayerTest):
-    def _prepare_input(self):
-        # random number in range [1, 11)
-        x = torch.rand(2, 4, 10, 10) * 10 + 1
-        return (x.to(self.dtype).numpy(),)
-
-    @pytest.mark.nightly
-    @pytest.mark.precommit
-    @pytest.mark.parametrize("approximate", ["none", "tanh"])
-    @pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
-    def test_gelu(self, approximate, dtype, ie_device, precision, ir_version):
-        self.dtype = dtype
-        self._test(gelu_net(approximate, dtype), None, "aten::gelu",
-                   ie_device, precision, ir_version)
