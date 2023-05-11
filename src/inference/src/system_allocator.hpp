@@ -27,7 +27,7 @@ public:
     bool free(void* handle) noexcept override {
         try {
             delete[] reinterpret_cast<char*>(handle);
-        } catch (...) {
+        } catch (const std::exception&) {
         }
         return true;
     }
