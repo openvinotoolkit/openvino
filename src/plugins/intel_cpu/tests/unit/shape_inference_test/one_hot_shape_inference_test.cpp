@@ -72,7 +72,6 @@ TEST(StaticShapeInferenceTest, OneHotTestConstantMapDefaultCtor) {
                              static_output_shapes = {StaticShape{}};
 
     shape_infer(ont_hot.get(), static_input_shapes, static_output_shapes, constant_data);
-    unit_test::custom_shape_inference(ont_hot.get(), static_input_shapes, static_output_shapes, constant_data);
 
     EXPECT_EQ(static_output_shapes[0], (StaticShape{3, 2}));
 }

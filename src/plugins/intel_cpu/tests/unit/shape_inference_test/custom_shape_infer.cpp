@@ -101,7 +101,7 @@ CustomShapeInferFF::CustomShapeInferFF():Factory("CpuCustomShapeInferTestFactory
     // INTEL_CPU_CUSTOM_SHAPE_INFER(ShuffleChannels, Type::ShuffleChannels);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(TensorIterator, Type::TensorIterator);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(Concat, Type::Concatenation);
-    /* INTEL_CPU_CUSTOM_SHAPE_INFER(node::OneHotShapeInferFactory, Type::OneHot); */
+    INTEL_CPU_CUSTOM_SHAPE_INFER(node::OneHotShapeInferFactory, Type::OneHot);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(ExperimentalDetectronDetectionOutput, Type::ExperimentalDetectronDetectionOutput);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(node::DeconvolutionShapeInferFactory, Type::Deconvolution);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(DeformableConvolution, Type::DeformableConvolution);
