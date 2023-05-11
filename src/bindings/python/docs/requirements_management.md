@@ -69,7 +69,7 @@ Placing [environment markers](https://peps.python.org/pep-0508/) in `constraints
 If a package version differs between `requirements.txt` files, it can't be unified in the common `constraints.txt` file. The workarounds, in order of preference, are:
 - Align the package versions between `requirements.txt` files
 - Exclude this package from `constraints.txt` and keep its version in `requirements.txt`
-- Exclude this `requirements.txt` file from constraints system
+- Exclude this `requirements.txt` file from the constraints system
 
 #### 3. Lack of support in distutils
 `distutils` is a package used for building Python wheels. It does not offer support for constraints files, so custom requirements parsers had to be added. An example parser can be found [here](https://github.com/openvinotoolkit/openvino/blob/master/tools/mo/setup.py) - functions `read_constraints()` and `read_requirements()`.
