@@ -41,7 +41,6 @@ OP_CONVERTER(translate_div);
 OP_CONVERTER(translate_elu);
 OP_CONVERTER(translate_embedding);
 OP_CONVERTER(translate_empty);
-OP_CONVERTER(translate_exp);
 OP_CONVERTER(translate_expand);
 OP_CONVERTER(translate_expand_as);
 OP_CONVERTER(translate_eye);
@@ -115,7 +114,6 @@ OP_CONVERTER(translate_size);
 OP_CONVERTER(translate_slice);
 OP_CONVERTER(translate_softmax);
 OP_CONVERTER(translate_sort);
-OP_CONVERTER(translate_sqrt);
 OP_CONVERTER(translate_square);
 OP_CONVERTER(translate_squeeze);
 OP_CONVERTER(translate_sub);
@@ -151,9 +149,9 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::_convolution_mode", op::translate_convolution_mode},
         {"aten::_set_item", op::translate_set_item},
         {"aten::abs", op::translate_1to1_match_1_inputs<opset10::Abs>},
-        {"aten::acos", op::translate_1to1_match_1_inputs<opset10::Acos>},
+        {"aten::acos", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Acos>},
         {"aten::acos_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Acos>>},
-        {"aten::acosh", op::translate_1to1_match_1_inputs<opset10::Acosh>},
+        {"aten::acosh", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Acosh>},
         {"aten::acosh_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Acosh>>},
         {"aten::adaptive_avg_pool2d", op::translate_1to1_match_2_inputs<opset10::AdaptiveAvgPool>},
         {"aten::adaptive_avg_pool3d", op::translate_adaptive_avg_pool3d},
@@ -166,13 +164,13 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::argsort", op::translate_argsort},
         {"aten::arange", op::translate_arange},
         {"aten::as_tensor", op::translate_as_tensor},
-        {"aten::asin", op::translate_1to1_match_1_inputs<opset10::Asin>},
+        {"aten::asin", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Asin>},
         {"aten::asin_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Asin>>},
-        {"aten::asinh", op::translate_1to1_match_1_inputs<opset10::Asinh>},
+        {"aten::asinh", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Asinh>},
         {"aten::asinh_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Asinh>>},
-        {"aten::atan", op::translate_1to1_match_1_inputs<opset10::Atan>},
+        {"aten::atan", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Atan>},
         {"aten::atan_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Atan>>},
-        {"aten::atanh", op::translate_1to1_match_1_inputs<opset10::Atanh>},
+        {"aten::atanh", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Atanh>},
         {"aten::atanh_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Atanh>>},
         {"aten::avg_pool1d", op::translate_avg_poolnd},
         {"aten::avg_pool2d", op::translate_avg_poolnd},
@@ -199,9 +197,9 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::conv3d", op::translate_convnd},
         {"aten::convolution", op::translate_convolution},
         {"aten::copy", op::skip_node},
-        {"aten::cos", op::translate_1to1_match_1_inputs<opset10::Cos>},
+        {"aten::cos", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Cos>},
         {"aten::cos_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Cos>>},
-        {"aten::cosh", op::translate_1to1_match_1_inputs<opset10::Cosh>},
+        {"aten::cosh", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Cosh>},
         {"aten::cosh_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Cosh>>},
         {"aten::cumsum", op::translate_cumsum},
         {"aten::detach", op::skip_node},
@@ -214,7 +212,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::embedding", op::translate_embedding},
         {"aten::empty", op::translate_empty},
         {"aten::eq", op::translate_1to1_match_2_inputs_align_types<opset10::Equal>},
-        {"aten::exp", op::translate_exp},
+        {"aten::exp", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Exp>},
         {"aten::expand", op::translate_expand},
         {"aten::expand_as", op::translate_expand_as},
         {"aten::eye", op::translate_eye},
@@ -305,27 +303,27 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::select", op::translate_select},
         {"aten::selu", op::translate_selu},
         {"aten::selu_", op::inplace_op<op::translate_selu>},
-        {"aten::sigmoid", op::translate_1to1_match_1_inputs<opset10::Sigmoid>},
+        {"aten::sigmoid", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Sigmoid>},
         {"aten::sigmoid_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Sigmoid>>},
         {"aten::sign", op::translate_sign},
         {"aten::silu", op::translate_1to1_match_1_inputs<opset10::Swish>},
         {"aten::silu_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Swish>>},
-        {"aten::sin", op::translate_1to1_match_1_inputs<opset10::Sin>},
+        {"aten::sin", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Sin>},
         {"aten::sin_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Sin>>},
-        {"aten::sinh", op::translate_1to1_match_1_inputs<opset10::Sinh>},
+        {"aten::sinh", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Sinh>},
         {"aten::sinh_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Sinh>>},
         {"aten::size", op::translate_size},
         {"aten::slice", op::translate_slice},
         {"aten::softmax", op::translate_softmax},
         {"aten::sort", op::translate_sort},
-        {"aten::sqrt", op::translate_sqrt},
+        {"aten::sqrt", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Sqrt>},
         {"aten::square", op::translate_square},
         {"aten::squeeze", op::translate_squeeze},
         {"aten::sub", op::translate_sub},
         {"aten::sum", op::translate_sum},
-        {"aten::tan", op::translate_1to1_match_1_inputs<opset10::Tan>},
+        {"aten::tan", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Tan>},
         {"aten::tan_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Tan>>},
-        {"aten::tanh", op::translate_1to1_match_1_inputs<opset10::Tanh>},
+        {"aten::tanh", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Tanh>},
         {"aten::tanh_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Tanh>>},
         {"aten::tensor", op::translate_as_tensor},
         {"aten::to", op::translate_to},
