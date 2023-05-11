@@ -52,7 +52,7 @@ class paddle_frontend_converter:
                     )
                 if isinstance(self.model, paddle.fluid.dygraph.layers.Layer):
                     with paddle.fluid.framework._dygraph_guard(None):
-                        paddle.jit.save(self.model, self.model_name, input_spec=self.inputs)
+                        paddle.jit.save(self.model, self.model_name, input_spec=self.inputs, output_spec=self.outputs)
                 elif isinstance(self.model, paddle.fluid.executor.Executor):
                     if self.outputs is None:
                         raise RuntimeError(

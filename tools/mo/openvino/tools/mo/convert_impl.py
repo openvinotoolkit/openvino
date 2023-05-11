@@ -866,7 +866,6 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args, python_api_us
     # Initialize logger with 'ERROR' as default level to be able to form nice messages
     # before arg parser deliver log_level requested by user
     init_logger('ERROR', False)
-    paddle_runtime_converter = None
     argv = None
     try:
         model_framework = None
@@ -933,6 +932,10 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args, python_api_us
 
         ov_model, legacy_path = driver(argv, {"conversion_parameters": non_default_params})
 
+        if inp_model_is_object and model_framework == "paddle":
+            if paddle_runtime_converter:
+                paddle_runtime_converter.destroy()
+
         # add MO meta data to model
         ov_model.set_rt_info(VersionChecker().get_mo_version(), "MO_version")
         ov_model.set_rt_info(get_rt_version(), "Runtime_version")
@@ -991,6 +994,3 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args, python_api_us
             raise e.with_traceback(None)
         else:
             return None, argv
-    finally:
-        if paddle_runtime_converter:
-            paddle_runtime_converter.destroy()

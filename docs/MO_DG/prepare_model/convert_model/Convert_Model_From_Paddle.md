@@ -2,18 +2,117 @@
 
 @sphinxdirective
 
+This page provides general instructions on how to convert a model from a PaddlePaddle format to the OpenVINO IR format using Model Optimizer. The instructions are different depending on PaddlePaddle model format.
+
+Converting PaddlePaddle Model Inference Format
+##############################################
+
+PaddlePaddle inference model includes ``.pdmodel``(storing model structure) and ``.pdiparams``(storing model weight). For how to export PaddlePaddle inference model, please refer to the `Exporting PaddlePaddle Inference Model <https://www.paddlepaddle.org.cn/documentation/docs/zh/develop/guides/beginner/model_save_load_cn.html>`__ Chinese guide.
 To convert a PaddlePaddle model, use the ``mo`` script and specify the path to the input ``.pdmodel`` model file:
 
 .. code-block:: sh
 
   mo --input_model <INPUT_MODEL>.pdmodel
 
-**For example,** this command converts a yolo v3 PaddlePaddle network to OpenVINO IR network:
+**For example**, this command converts a yolo v3 PaddlePaddle network to OpenVINO IR network:
 
 .. code-block:: sh
 
   mo --input_model=yolov3.pdmodel --input=image,im_shape,scale_factor --input_shape=[1,3,608,608],[1,2],[1,2] --reverse_input_channels --output=save_infer_model/scale_0.tmp_1,save_infer_model/scale_1.tmp_1
 
+Converting PaddlePaddle Model From Memory Using Python API
+##########################################################
+
+MO Python API supports passing PaddlePaddle models directly from memory.
+
+Following PaddlePaddle model format are supported:
+
+* ``paddle.hapi.model.Model``
+  Example of converting ``paddle.hapi.model.Model`` format model:
+
+  .. code-block:: python
+
+    import paddle
+    from paddle.metirc import Accuracy
+    from openvino.tools.mo import convert_model
+    
+    # create a paddle.hapi.model.Model format model
+    model = paddle.Model(paddle.vision.models.resnet50(pretrained=False, num_classes=10))
+    # prepare dataset
+    train_dataset = paddle.vision.datasets.Cifar10(mode='train')
+    val_dataset = paddle.vision.datasets.Cifar10(mode='test')
+    # define optimizer
+    optimizer = paddle.optimizer.Momentum(learning_rate=0.01,
+                                          momentum=0.9,
+                                          weight_decay=paddle.regularizer.L2Decay(1e-4),
+                                          parameters=model.parameters())
+    model.prepare(optimizer, paddle.nn.CrossEntropy(), paddle.metric.Accuracy(topk=(1, 5)))
+    # start training
+    model.fit(train_dataset,
+              val_dataset,
+              epochs=50,
+              batch_size=64,
+              save_dir="./output",
+              num_workers=8)
+    # convert to OpenVINO IR format
+    ov_model = convert_model(model)
+
+    # optional: serialize OpenVINO IR to *.xml & *.bin
+    from openvino.runtime import serialize
+    serialize(ov_model, "ov_model.xml", "ov_model.bin")
+
+* ``paddle.fluid.dygraph.layers.Layer``
+  ``example_input`` is required while ``example_output`` is optional, which accept the following formats:
+  * ``list`` with tensor(``paddle.Tensor``) or InputSpec(``paddle.static.input.InputSpec``)
+
+  Example of converting ``paddle.fluid.dygraph.layers.Layer`` format model:
+
+  .. code-block:: python
+  
+  	import paddle
+  	from openvino.tools.mo import convert_model
+  
+    # create a paddle.fluid.dygraph.layers.Layer format model
+  	model = paddle.vision.models.resnet50()
+  	x = paddle.rand([1,3,224,224])
+
+    # convert to OpenVINO IR format
+  	ov_model = convert_model(model, example_input=[x])
+
+    # optional: serialize OpenVINO IR to *.xml & *.bin
+    from openvino.runtime import serialize
+    serialize(ov_model, "ov_model.xml", "ov_model.bin")
+  
+* ``paddle.fluid.executor.Executor``
+  ``example_input`` and ``example_output`` are required, which accept the following formats:
+  * ``list`` or ``tuple`` with variable(``paddle.static.data``)
+
+  Example of converting ``paddle.fluid.executor.Executor`` format model:
+
+  .. code-block:: python
+
+    import paddle
+  	from openvino.tools.mo import convert_model
+
+    paddle.enable_static()
+
+    # create a paddle.fluid.executor.Executor format model
+    x = paddle.static.data(name="x", shape=shape)
+    y = paddle.static.data(name="y", shape=shape)
+    relu = paddle.nn.ReLU()
+    sigmoid = paddle.nn.Sigmoid()
+    y = sigmoid(relu(x))
+    
+    exe = paddle.static.Executor(paddle.CPUPlace())
+    exe.run(paddle.static.default_startup_program())
+
+    # convert to OpenVINO IR format
+    ov_model = convert_model(exe, example_input=[x], example_output=[y])
+
+    # optional: serialize OpenVINO IR to *.xml & *.bin
+    from openvino.runtime import serialize
+    serialize(ov_model, "ov_model.xml", "ov_model.bin")
+  
 Supported PaddlePaddle Layers
 #############################
 
