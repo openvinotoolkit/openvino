@@ -105,7 +105,7 @@ CPU::CPU() {
                     _proc_type_table.pop_back();
                 }
             }
-            _numa_nodes = _proc_type_table.size() == 1 ? 1 : _proc_type_table.size() - 1;
+            _sockets = _proc_type_table.size() == 1 ? 1 : _proc_type_table.size() - 1;
             std::sort(cores_list.begin(), cores_list.end());
             auto iter = std::unique(cores_list.begin(), cores_list.end());
             cores_list.erase(iter, cores_list.end());
@@ -117,7 +117,7 @@ CPU::CPU() {
     if (!GetCatchInfoLinux()) {
         parse_processor_info_linux(_processors,
                                    system_info_table,
-                                   _numa_nodes,
+                                   _sockets,
                                    _cores,
                                    _proc_type_table,
                                    _cpu_mapping_table);
@@ -147,7 +147,7 @@ CPU::CPU() {
             }
         }
         _processors = processors.size();
-        _numa_nodes = sockets.size();
+        _sockets = sockets.size();
         for (auto&& socket : sockets) {
             _cores += socket.second;
         }
@@ -159,8 +159,8 @@ CPU::CPU() {
 }
 
 void parse_processor_info_linux(const int _processors,
-                                const std::vector<std::vector<std::string>> system_info_table,
-                                int& _numa_nodes,
+const std::vector<std::vector<std::string>> system_info_table,
+                                int& _sockets,
                                 int& _cores,
                                 std::vector<std::vector<int>>& _proc_type_table,
                                 std::vector<std::vector<int>>& _cpu_mapping_table) {
@@ -256,7 +256,7 @@ void parse_processor_info_linux(const int _processors,
             int core_1;
             int core_2;
 
-            if (0 == _numa_nodes) {
+            if (0 == _sockets) {
                 _proc_type_table.push_back(line_value_0);
             } else {
                 _proc_type_table.push_back(_proc_type_table[0]);
@@ -271,14 +271,14 @@ void parse_processor_info_linux(const int _processors,
                     core_2 = std::stoi(sub_str);
 
                     for (int m = core_1; m <= core_2; m++) {
-                        _cpu_mapping_table[m][CPU_MAP_SOCKET_ID] = _numa_nodes;
+                        _cpu_mapping_table[m][CPU_MAP_SOCKET_ID] = _sockets;
                         UpdateProcMapping(m);
                     }
 
                 } else if (pos != std::string::npos) {
                     sub_str = system_info_table[n][2].substr(pos);
                     core_1 = std::stoi(sub_str);
-                    _cpu_mapping_table[core_1][CPU_MAP_SOCKET_ID] = _numa_nodes;
+                    _cpu_mapping_table[core_1][CPU_MAP_SOCKET_ID] = _sockets;
                     UpdateProcMapping(core_1);
                     endpos = pos;
                 }
@@ -289,14 +289,14 @@ void parse_processor_info_linux(const int _processors,
                     break;
                 }
             }
-            _numa_nodes++;
+            _sockets++;
         }
     }
-    if (_numa_nodes > 1) {
+    if (_sockets > 1) {
         _proc_type_table.push_back(_proc_type_table[0]);
         _proc_type_table[0] = line_value_0;
 
-        for (int m = 1; m <= _numa_nodes; m++) {
+        for (int m = 1; m <= _sockets; m++) {
             for (int n = 0; n < PROC_TYPE_TABLE_SIZE; n++) {
                 _proc_type_table[0][n] += _proc_type_table[m][n];
             }

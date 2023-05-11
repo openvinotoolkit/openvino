@@ -18,7 +18,7 @@ namespace {
 
 struct LinuxCpuMapTestCase {
     int _processors;
-    int _numa_nodes;
+    int _sockets;
     int _cores;
     std::vector<std::vector<int>> _proc_type_table;
     std::vector<std::vector<int>> _cpu_mapping_table;
@@ -44,7 +44,7 @@ public:
                                        test_proc_type_table,
                                        test_cpu_mapping_table);
 
-        ASSERT_EQ(test_data._numa_nodes, test_sockets);
+        ASSERT_EQ(test_data._sockets, test_sockets);
         ASSERT_EQ(test_data._cores, test_cores);
         ASSERT_EQ(test_data._proc_type_table, test_proc_type_table);
         ASSERT_EQ(test_data._cpu_mapping_table, test_cpu_mapping_table);
@@ -603,7 +603,7 @@ void Hex2Bin(const char* hex, std::size_t sz, char* out) {
 
 struct WinCpuMapTestCase {
     int _processors;
-    int _numa_nodes;
+    int _sockets;
     int _cores;
     std::vector<std::vector<int>> _proc_type_table;
     std::vector<std::vector<int>> _cpu_mapping_table;
