@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to convert a model from a 
+                 TensorFlow Lite format to the OpenVINO Intermediate Representation.
+
+
 To convert a TensorFlow Lite model, use the ``mo`` script and specify the path to the input ``.tflite`` model file:
 
 .. code-block:: sh

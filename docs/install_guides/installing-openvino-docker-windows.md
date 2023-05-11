@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to use a prebuilt Docker image or create an image 
+                 manually to install OpenVINO™ Runtime on Windows operating system.
+
+
 This guide provides steps for creating a Docker image with Intel® Distribution of OpenVINO™ toolkit for Windows and using the Docker image on different devices.
 
 .. _system-requirements-docker-windows:

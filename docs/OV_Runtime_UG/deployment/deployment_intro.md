@@ -9,6 +9,10 @@
    Deploy Application with Deployment Manager <openvino_docs_install_guides_deployment_manager_tool>
    Local Distribution Libraries <openvino_docs_deploy_local_distribution>
 
+.. meta::
+   :description: There are several ways of deploying OpenVINO™ application once 
+                 its development has been finished.
+
 
 .. note::
 

@@ -4,6 +4,11 @@ With model conversion API you can increase your model's efficiency by providing 
 
 @sphinxdirective
 
+.. meta:: 
+   :description: When provided an additional shape definition with "input_shape" 
+                 and "static_shape" parameters, MO can increase efficiency of a model.
+
+
 .. _when_to_specify_input_shapes:
 
 

@@ -1,5 +1,10 @@
 # Debugging Auto-Device Plugin {#openvino_docs_OV_UG_supported_plugins_AUTO_debugging}
 
+.. meta::
+   :description: In OpenVINO Runtime, you can enable Instrumentation and Tracing Technology API (ITT API) of Intel® VTune™ 
+                 Profiler to control trace data during execution of AUTO plugin.
+
+
 ## Using Debug Log
 In case of execution problems, just like all other plugins, Auto-Device provides the user with information on exceptions and error values. If the returned data is not enough for debugging purposes, more information may be acquired by means of `ov::log::Level`.
 

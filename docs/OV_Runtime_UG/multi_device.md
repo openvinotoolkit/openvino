@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: The Multi-Device execution mode in OpenVINO Runtime assigns 
+                 multiple available computing devices to particular inference 
+                 requests to execute in parallel.
+
+
 To run inference on multiple devices, you can choose either of the following ways:
 
 - Use the :ref:`CUMULATIVE_THROUGHPUT option <cumulative throughput>` of the Automatic Device Selection mode. This way, you can use all available devices in the system without the need to specify them.

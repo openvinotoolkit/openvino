@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to install OpenVINO™ Runtime on Linux operating system. 
+                 You can use an archive, a PyPi package, APT, YUM, Conda Forge, 
+                 Homebrew or a Docker image.
+
+
 .. toctree::
    :maxdepth: 3
    :hidden:

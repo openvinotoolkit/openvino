@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: OpenVINO™ Deployment Manager assembles the model, OpenVINO IR 
+                 files, your application, dependencies and creates a deployment 
+                 package for a target device.
+
+
 The OpenVINO™ Deployment Manager is a Python command-line tool that creates a deployment package by assembling the model, OpenVINO IR files, your application, and associated dependencies into a runtime package for your target device. This tool is delivered within the Intel® Distribution of OpenVINO™ toolkit for Linux, Windows and macOS release packages. It is available in the ``<INSTALL_DIR>/tools/deployment_manager`` directory after installation.
 
 This article provides instructions on how to create a package with Deployment Manager and then deploy the package to your target systems.

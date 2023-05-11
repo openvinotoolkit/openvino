@@ -2,6 +2,12 @@
 
 
 @sphinxdirective
+
+.. meta::
+   :description: Check the list of officially supported models in Intel® 
+                 Distribution of OpenVINO™ toolkit.
+
+
 The OpenVINO team continues the effort to support as many models out-of-the-box as possible. 
 Based on our research and user feedback, we prioritize the most common models and test them 
 before every release. These models are considered officially supported.

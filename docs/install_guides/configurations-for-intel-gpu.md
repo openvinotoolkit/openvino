@@ -3,6 +3,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to provide additional configuration for Intel® 
+                 Processor Graphics (GPU) to work with Intel® Distribution of 
+                 OpenVINO™ toolkit on your system.
+
+
 .. _gpu guide:
 
 

@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Use the benchmark results for Intel® Distribution of OpenVINO™ 
+                 toolkit, that may help you decide what hardware to use or how 
+                 to plan the workload.
+
 .. toctree::
    :maxdepth: 1
    :hidden:

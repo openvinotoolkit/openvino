@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: A local distribution will have its own copies of OpenVINO 
+                 Runtime binaries along with a set of required libraries 
+                 needed to deploy the application.
+
 With a local distribution, each C or C++ application/installer will have its own copies of OpenVINO Runtime binaries. However, OpenVINO has a scalable plugin-based architecture, which means that some components can be loaded in runtime only when they are really needed. Therefore, it is important to understand which minimal set of libraries is really needed to deploy the application. This guide helps you to achieve that goal.
 
 Local distribution is also appropriate for OpenVINO binaries built from sources using `Build instructions <https://github.com/openvinotoolkit/openvino/wiki#how-to-build>`__, 

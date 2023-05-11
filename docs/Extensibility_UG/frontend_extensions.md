@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to use frontend extension classes to facilitate mapping 
+                 of custom operations from framework model representation to OpenVINO 
+                 representation.
+
+
 The goal of this chapter is to explain how to use Frontend extension classes to facilitate 
 mapping of custom operations from framework model representation to OpenVINO representation. 
 Refer to :doc:`Introduction to OpenVINO Extension <openvino_docs_Extensibility_UG_Intro>` to 
