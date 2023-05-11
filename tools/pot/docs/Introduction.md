@@ -13,6 +13,8 @@
    Command-line Interface <pot_compression_cli_README>
    Examples <pot_examples_description>
    pot_docs_FrequentlyAskedQuestions
+   (Experimental) Protecting Model <pot_ranger_README>
+
 
 
 
