@@ -4,22 +4,23 @@
 
 .. warning::
 
-   Before applying any of recommendations provided here, note that it may significantly impact first inference latency. 
+   Before applying any of the recommendations provided here, note that it may significantly impact first inference latency. 
 
 The most RAM-consuming OpenVINO stage is model compilation. It may cause several issues:
 
 * Not enough memory to compile a model. To decrease memory requirement, the following options may be applied: 
   
-  * Weights mapping - we introduced memory mapping (using ``mmap``) as a default way to work
-    with weights. For the moment feature is supported by IR frontend.
-    Mapping may be switched by specifying ``ov::enable_mmap(BOOL)`` property for the ``ov::Core``.
-    Because of its "memory on demand" nature, there is no need to store weights fully
-    in RAM, so it decreases memory level required for compilation. Also, ``mmap`` provides
-    extensive memory sharing, so the following compilation of the same model will fetch same
-    memory from RAM instead of additional read from storage
+  * Weights mapping - memory mapping (using ``mmap``) has been introduced as the default way to work
+    with weights. Currently, this feature is supported by the IR frontend.
+    Mapping may be switched by specifying the ``ov::enable_mmap(BOOL)`` property for the ``ov::Core``.
+    Because of its "memory-on-demand" nature, there is no need to store all weights
+    in RAM. Storing just the data that is needed at the moment lowers the amount of memory
+    required for compilation. Moreover, ``mmap`` provides extensive memory sharing, so the
+    consecutive compilation of the same model will fetch the information already stored in RAM
+    instead of reading it one more time from storage.
 
   * Decrease the number of threads for compilation - to change the number of threads, specify
-    ``ov::compilation_num_threads(NUMBER)`` property for the ``ov::Core`` or pass as an additional 
+    the ``ov::compilation_num_threads(NUMBER)`` property for the ``ov::Core`` or pass it as an additional 
     argument to ``ov::Core::compile_model()``
 
 * Not enough memory to recompile a model. If model compilation is successful but one of the following recompilations fails due lack of resources, it may be caused by:
@@ -45,6 +46,6 @@ The most RAM-consuming OpenVINO stage is model compilation. It may cause several
       More details on the two may be found in the 
       `GNU Tunables Manual <https://www.gnu.org/software/libc/manual/html_node/Tunables.html>`__
 
-    * Try another allocator. One of the allocators which operates with memory carefully is ``jemalloc``
+    * Try another allocator. One of the allocators that handles memory carefully is ``jemalloc``
 
 @endsphinxdirective
