@@ -19,7 +19,7 @@ public:
         try {
             auto handle = reinterpret_cast<void*>(new char[size]);
             return handle;
-        } catch (...) {
+        } catch (const std::exception&) {
             return nullptr;
         }
     }
