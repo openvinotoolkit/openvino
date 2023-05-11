@@ -60,7 +60,7 @@ Using `constraints.txt` files brings many benefits, some of which are:
 
 ## Known limitations and best practices
 
-There are several known limitations to `constraints.txt` approach. The most notable are:
+There are several known limitations to the `constraints.txt` approach. The most notable are:
 
 #### 1. Environment markers
 Placing [environment markers](https://peps.python.org/pep-0508/) in `constraints.txt` files can be prone to bugs due to how pip resolver interprets them. Markers should be placed only in `requirements.txt` files unless it is certain they will work as intended.
