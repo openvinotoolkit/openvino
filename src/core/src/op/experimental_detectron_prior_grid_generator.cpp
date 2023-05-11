@@ -4,9 +4,10 @@
 
 #include "ngraph/op/experimental_detectron_prior_grid_generator.hpp"
 
-#include <experimental_detectron_prior_grid_generator_shape_inference.hpp>
 #include <memory>
 
+#include "experimental_detectoron_shape_infer_utils.hpp"
+#include "experimental_detectron_prior_grid_generator_shape_inference.hpp"
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
@@ -44,19 +45,15 @@ shared_ptr<Node> op::v6::ExperimentalDetectronPriorGridGenerator::clone_with_new
                                                                         m_attrs);
 }
 
-static constexpr size_t priors_port = 0;
-static constexpr size_t featmap_port = 1;
-static constexpr size_t im_data_port = 2;
-
 void op::v6::ExperimentalDetectronPriorGridGenerator::validate_and_infer_types() {
     OV_OP_SCOPE(v6_ExperimentalDetectronPriorGridGenerator_validate_and_infer_types);
-    const auto& priors_shape = get_input_partial_shape(priors_port);
-    const auto& featmap_shape = get_input_partial_shape(featmap_port);
-    const auto& input_et = get_input_element_type(0);
 
-    set_output_size(1);
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
-    std::vector<ov::PartialShape> input_shapes = {priors_shape, featmap_shape, get_input_partial_shape(im_data_port)};
-    shape_infer(this, input_shapes, output_shapes);
-    set_output_type(0, input_et, output_shapes[0]);
+    const auto shapes_and_type = detectron::validate::all_inputs_same_floating_type(this);
+
+    const auto output_shapes = shape_infer(this, shapes_and_type.first);
+    set_output_type(0, shapes_and_type.second, output_shapes[0]);
+}
+
+void op::v6::ExperimentalDetectronPriorGridGenerator::set_attrs(Attributes attrs) {
+    m_attrs = std::move(attrs);
 }
