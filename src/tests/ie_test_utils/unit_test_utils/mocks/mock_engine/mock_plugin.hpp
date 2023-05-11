@@ -14,14 +14,11 @@ class IInferencePlugin;
 }
 
 class MockPlugin : public ov::IPlugin {
-    ov::IPlugin* m_plugin = nullptr;
-    InferenceEngine::IInferencePlugin* m_old_plugin = nullptr;
-    std::shared_ptr<ov::IPlugin> m_converted_plugin;
+    std::shared_ptr<ov::IPlugin> m_plugin;
     void set_parameters_if_need() const;
 
 public:
-    explicit MockPlugin(InferenceEngine::IInferencePlugin* target);
-    explicit MockPlugin(ov::IPlugin* target);
+    explicit MockPlugin(const std::shared_ptr<ov::IPlugin>& target);
 
     std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
                                                       const ov::AnyMap& properties) const override;
@@ -47,6 +44,4 @@ public:
                                                      const ov::AnyMap& properties) const override;
     ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
                                     const ov::AnyMap& properties) const override;
-
-    ov::AnyMap config;
 };
