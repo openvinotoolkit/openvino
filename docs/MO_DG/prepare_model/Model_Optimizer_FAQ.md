@@ -2,7 +2,15 @@
 
 @sphinxdirective
 
-If your question is not covered by the topics below, use the `OpenVINO Support page <https://software.intel.com/en-us/openvino-toolkit/documentation/get-started>`__, where you can participate on a free forum.
+If your question is not covered by the topics below, use the 
+`OpenVINO Support page <https://community.intel.com/t5/Intel-Distribution-of-OpenVINO/bd-p/distribution-openvino-toolkit>`__, 
+where you can participate in a free forum discussion.
+
+.. warning::
+
+   Note that OpenVINO support for Apache MXNet, Caffe, and Kaldi is currently being deprecated.
+   As legacy formats, they will not be supported as actively as the main front ends and will be removed entirely in the future.
+
 
 .. _question-1:
 
