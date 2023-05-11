@@ -14,6 +14,7 @@ class paddle_frontend_converter:
         self.model_name = None
         self.pdmodel = None
         self.pdiparams = None
+        self.pdiparams_info = None
         self.is_generated = False
 
     def destroy(self):
@@ -28,6 +29,10 @@ class paddle_frontend_converter:
         # remove the *.pdiparams
         if os.path.exists(self.pdiparams):
             os.remove(self.pdiparams)
+
+        # remove the *.pdiparams.info
+        if os.path.exists(self.pdiparams_info):
+            os.remove(self.pdiparams_info)
         
     def convert_paddle_to_pdmodel(self):
         '''
@@ -41,6 +46,7 @@ class paddle_frontend_converter:
             self.model_name = self.tmp.name
             self.pdmodel = "{}.pdmodel".format(self.model_name)
             self.pdiparams = "{}.pdiparams".format(self.model_name)
+            self.pdiparams_info = "{}.pdiparams.info".format(self.model_name)
 
             import paddle
             if isinstance(self.model, paddle.hapi.model.Model):
