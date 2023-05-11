@@ -294,7 +294,7 @@ StatusCode CNNNetworkNGraphImpl::addOutput(const std::string& layerName,
                 // Check that we cannot add Result to layer with non unique friendly name
                 try {
                     validateFunctionNames();
-                } catch (...) {
+                } catch (const InferenceEngine::Exception&) {
                     _ngraph_function->remove_result(result);
                     throw;
                 }
@@ -305,7 +305,7 @@ StatusCode CNNNetworkNGraphImpl::addOutput(const std::string& layerName,
                 return OK;
             }
         }
-    } catch (...) {
+    } catch (const InferenceEngine::Exception&) {
         return GENERAL_ERROR;
     }
     return DescriptionBuffer(NOT_FOUND, resp) << "Cannot add output! Layer " << layerName << " wasn't found!";
