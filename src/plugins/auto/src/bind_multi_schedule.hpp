@@ -24,5 +24,9 @@ public:
     void init(const ScheduleContext::Ptr& sContext) override;
     Pipeline GetPipeline(const IInferPtr& syncRequestImpl, WorkerInferRequest** WorkerInferRequest) override;
     virtual ~BinderMultiSchedule();
+
+private:
+    std::mutex _devInferMutex;
+    std::unordered_map<InferenceEngine::IInferRequestInternal::Ptr, WorkerInferRequest*> _devInfer;
 };
 }  // namespace MultiDevicePlugin

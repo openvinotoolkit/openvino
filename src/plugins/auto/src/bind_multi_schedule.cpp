@@ -17,23 +17,46 @@ void BinderMultiSchedule::init(const ScheduleContext::Ptr& sContext) {
 Pipeline BinderMultiSchedule::GetPipeline(const IInferPtr& syncInferRequest, WorkerInferRequest** workerInferRequest) {
     Pipeline pipeline;
     struct RequestExecutor : ITaskExecutor {
-        explicit RequestExecutor(InferenceEngine::SoIInferRequestInternal& inferRequest) : _inferRequest(inferRequest) {
+        explicit RequestExecutor(InferenceEngine::SoIInferRequestInternal& inferRequest,
+                                 WorkerInferRequest* workInferReq)
+            : _inferRequest(inferRequest),
+              _workInferReq(workInferReq) {
             _inferRequest->SetCallback([this](std::exception_ptr exceptionPtr) mutable {
                 _exceptionPtr = exceptionPtr;
                 auto capturedTask = std::move(_task);
                 capturedTask();
+                INFO_RUN([&]() {
+                    if (_workInferReq) {
+                        _workInferReq->_endTimes.push_back(std::chrono::steady_clock::now());
+                    }
+                });
             });
         }
         void run(InferenceEngine::Task task) override {
             _task = std::move(task);
+            INFO_RUN([&]() {
+                if (_workInferReq) {
+                    _workInferReq->_startTimes.push_back(std::chrono::steady_clock::now());
+                }
+            });
             _inferRequest->StartAsync();
         };
         InferenceEngine::SoIInferRequestInternal& _inferRequest;
         std::exception_ptr _exceptionPtr;
         InferenceEngine::Task _task;
+        WorkerInferRequest* _workInferReq;
     };
-    auto requestExecutor = std::make_shared<RequestExecutor>(
-        std::static_pointer_cast<MultiDeviceInferRequest>(syncInferRequest)->GetSharedRequest());
+    auto &soInferReq =
+        std::static_pointer_cast<MultiDeviceInferRequest>(syncInferRequest)->GetSharedRequest();
+    WorkerInferRequest* workInferReq = nullptr;
+    INFO_RUN([&]() {
+        std::lock_guard<std::mutex> lock(_devInferMutex);
+        auto iter = _devInfer.find(soInferReq._ptr);
+        if (iter != _devInfer.end()) {
+            workInferReq = iter->second;
+        }
+    });
+    auto requestExecutor = std::make_shared<RequestExecutor>(soInferReq, workInferReq);
     pipeline.emplace_back(requestExecutor, [requestExecutor] {
         if (nullptr != requestExecutor->_exceptionPtr) {
             std::rethrow_exception(requestExecutor->_exceptionPtr);
@@ -57,6 +80,10 @@ IInferPtr BinderMultiSchedule::CreateInferRequestImpl(
         auto& dev_requests = _workerRequests[device.deviceName];
         if ((num - sum) < dev_requests.size()) {
             request_to_share_blobs_with = dev_requests.at(num - sum)._inferRequest;
+            INFO_RUN([&]() {
+                std::lock_guard<std::mutex> lock(_devInferMutex);
+                _devInfer.insert(std::make_pair(request_to_share_blobs_with._ptr, &dev_requests.at(num - sum)));
+            });
             break;
         }
         sum += dev_requests.size();
@@ -81,6 +108,10 @@ IInferPtr BinderMultiSchedule::CreateInferRequestImpl(IE::InputsDataMap networkI
         auto& dev_requests = _workerRequests[device.deviceName];
         if ((num - sum) < dev_requests.size()) {
             request_to_share_blobs_with = dev_requests.at(num - sum)._inferRequest;
+            INFO_RUN([&]() {
+                std::lock_guard<std::mutex> lock(_devInferMutex);
+                _devInfer.insert(std::make_pair(request_to_share_blobs_with._ptr, &dev_requests.at(num - sum)));
+            });
             break;
         }
         sum += dev_requests.size();
