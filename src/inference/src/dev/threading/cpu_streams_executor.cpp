@@ -408,7 +408,7 @@ struct CPUStreamsExecutor::Impl {
                     Execute(stream._taskQueue.front(), stream);
                     stream._taskQueue.pop();
                 }
-            } catch (...) {
+            } catch (const std::exception&) {
             }
             stream._execute = false;
         }
