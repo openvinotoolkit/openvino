@@ -1,6 +1,6 @@
 # Python requirements and version constraints management
 
-OpenVINO uses a pip built-in feature called constraints in order to reduce requirements complexity. 
+OpenVINO uses a pip built-in feature called "constraints" in order to reduce the complexity of requirements. 
 
 ## What are constraints files?
 
