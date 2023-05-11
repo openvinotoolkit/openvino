@@ -623,6 +623,7 @@ public:
 
         Hex2Bin(test_ptr, test_len, test_info_ptr);
 
+        int test_processors = 0;
         int test_sockets = 0;
         int test_cores = 0;
         unsigned long len = unsigned long(test_len / 2);
