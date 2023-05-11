@@ -7,7 +7,7 @@ Introduction
 
 This is the advanced quantization flow that allows to apply 8-bit quantization to the model with control of accuracy metric. This is achieved by keeping the most impactful operations within the model in the original precision. The flow is based on the :doc:`Basic 8-bit quantization <basic_quantization_flow>` and has the following differences:
 
-* Besides the calibration dataset, a **validation dataset** is required to compute accuracy metric. Both datasets can refer to the same data in the simplest case.
+* Besides the calibration dataset, a **validation dataset** is required to compute the accuracy metric. Both datasets can refer to the same data in the simplest case.
 * **Validation function**, used to compute accuracy metric is required. It can be a function that is already available in the source framework or a custom function.
 * Since accuracy validation is run several times during the quantization process, quantization with accuracy control can take more time than the :doc:`Basic 8-bit quantization <basic_quantization_flow>` flow.
 * The resulted model can provide smaller performance improvement than the :doc:`Basic 8-bit quantization <basic_quantization_flow>` flow because some of the operations are kept in the original precision.
