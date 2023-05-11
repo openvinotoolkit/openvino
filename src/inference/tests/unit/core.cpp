@@ -43,6 +43,9 @@ TEST(CoreTests, Throw_on_register_plugins_twice) {
                     ::testing::HasSubstr("Device with \"TEST_DEVICE\"  is already registered in the OpenVINO Runtime"));
 }
 
+// Disable the following tests, caused by unsupported "realpath()" func call in WASM
+#ifndef __EMSCRIPTEN__
+
 TEST(CoreTests_get_plugin_path_from_xml, Use_abs_path_as_is) {
     auto xml_path = "path_to_plugins.xml";
     auto lib_path = ov::util::get_absolute_file_path("test_name.ext");  // CWD/test_name.ext
@@ -121,6 +124,8 @@ TEST_F(CoreTests_get_plugin_path_Class, Filename_is_from_workdir_if_exists) {
     EXPECT_TRUE(is_absolute_file_path(abs_path));
     EXPECT_STREQ(abs_path.c_str(), get_absolute_file_path(lib_name).c_str());
 }
+
+#endif
 
 TEST(CoreTests_get_plugin_path, Use_filename_as_is_if_not_exist_in_workdir) {
     auto lib_name = "test_name.ext";
