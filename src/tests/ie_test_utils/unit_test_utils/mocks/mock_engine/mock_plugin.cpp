@@ -35,7 +35,7 @@ void MockPlugin::set_parameters_if_need() const {
     }
     if (m_old_plugin) {
         if (!m_old_plugin->GetCore() && core) {
-            auto old_core = std::reinterpret_pointer_cast<InferenceEngine::ICore>(core);
+            auto old_core = std::static_pointer_cast<InferenceEngine::ICore>(core);
             m_old_plugin->SetCore(old_core);
         }
         if (m_old_plugin->GetName().empty()) {
