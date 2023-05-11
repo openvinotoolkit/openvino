@@ -70,6 +70,7 @@ struct INFERENCE_ENGINE_DEPRECATED("This API is deprecated and will be removed i
      * @brief Supported dynamic batch. If false, dynamic batch is not supported
      */
     bool dynBatchSupport = false;
+    IE_SUPPRESS_DEPRECATED_START
     /**
      * @brief Vector of input data configs
      */
@@ -78,6 +79,7 @@ struct INFERENCE_ENGINE_DEPRECATED("This API is deprecated and will be removed i
      * @brief Vector of output data configs
      */
     std::vector<DataConfig> outConfs;
+    IE_SUPPRESS_DEPRECATED_END
 };
 
 /**
@@ -116,6 +118,7 @@ public:
      */
     virtual ~ILayerExecImpl();
 
+    IE_SUPPRESS_DEPRECATED_START
     /**
      * @brief Gets all supported configurations for the current layer
      *
@@ -133,6 +136,7 @@ public:
      * @return Status code
      */
     virtual StatusCode init(LayerConfig& config, ResponseDesc* resp) noexcept = 0;
+    IE_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief Execute method
@@ -252,9 +256,12 @@ CreateExtension(IExtension*& ext, ResponseDesc* resp) noexcept INFERENCE_ENGINE_
  * @def IE_DEFINE_EXTENSION_CREATE_FUNCTION
  * @brief Generates extension creation function
  */
-#define IE_DEFINE_EXTENSION_CREATE_FUNCTION(ExtensionType)                                                \
-    INFERENCE_ENGINE_DEPRECATED("This API is deprecated and will be removed in 2024.0 release")           \
-    INFERENCE_EXTENSION_API(void) IE_CREATE_EXTENSION(std::shared_ptr<InferenceEngine::IExtension>& ext); \
-    void IE_CREATE_EXTENSION(std::shared_ptr<InferenceEngine::IExtension>& ext) {                         \
-        ext = std::make_shared<ExtensionType>();                                                          \
-    }
+#define IE_DEFINE_EXTENSION_CREATE_FUNCTION(ExtensionType)                                      \
+    IE_SUPPRESS_DEPRECATED_START                                                                \
+    INFERENCE_EXTENSION_API(void)                                                               \
+    INFERENCE_ENGINE_DEPRECATED("This API is deprecated and will be removed in 2024.0 release") \
+    IE_CREATE_EXTENSION(std::shared_ptr<InferenceEngine::IExtension>& ext);                     \
+    void IE_CREATE_EXTENSION(std::shared_ptr<InferenceEngine::IExtension>& ext) {               \
+        ext = std::make_shared<ExtensionType>();                                                \
+    }                                                                                           \
+    IE_SUPPRESS_DEPRECATED_END
