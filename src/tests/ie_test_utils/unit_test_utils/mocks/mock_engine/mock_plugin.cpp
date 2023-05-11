@@ -106,7 +106,7 @@ public:
     void set_parameters_if_need(const std::shared_ptr<ov::ICore>& core) const {
         if (m_plugin) {
             if (!m_plugin->get_core() && core) {
-                m_plugin->set_core(get_core());
+                m_plugin->set_core(core);
             }
             if (m_plugin->get_device_name().empty()) {
                 m_plugin->set_device_name(get_device_name());
