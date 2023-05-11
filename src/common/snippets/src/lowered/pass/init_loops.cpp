@@ -22,7 +22,6 @@ void filter_ports(LinearIR& linear_ir,
     new_loop_entries.reserve(loop_entries.size());
     new_loop_exits.reserve(loop_exits.size());
 
-    std::set<std::shared_ptr<ov::Node>> loop_parents;
     for (const auto& loop_entry_point : loop_entries) {
         const auto& expr = loop_entry_point.get_expr();
         const auto port = loop_entry_point.get_index();
@@ -31,11 +30,7 @@ void filter_ports(LinearIR& linear_ir,
         if (ma && ma->is_memory_access_input_port(port)) {
             const auto& parent_expr = loop_entry_point.get_connected_ports().begin()->get_expr();
             const auto& parent = parent_expr->get_node();
-            // Todo: Sometimes several Load in one Loop read data from the same Node
-            if (loop_parents.find(parent) == loop_parents.end()) {
-                loop_parents.insert(parent);
-                new_loop_entries.push_back(loop_entry_point);
-            }
+            new_loop_entries.push_back(loop_entry_point);
         }
     }
 

@@ -20,7 +20,7 @@
 #include "snippets/lowered/pass/softmax_decomposition.hpp"
 #include "snippets/lowered/pass/move_scalar_to_consumer.hpp"
 #include "snippets/lowered/pass/move_result_out_of_loop.hpp"
-#include "snippets/lowered/pass/reset_buffers.hpp"
+#include "snippets/lowered/pass/clean_repeated_ptr_shifts.hpp"
 #include "snippets/lowered/pass/identify_buffers.hpp"
 
 #include "snippets/op/kernel.hpp"
@@ -66,7 +66,7 @@ Generator::LoweringResult Generator::generate(std::shared_ptr<ov::Model>& m, con
     const auto buffer_allocation_pass = std::make_shared<lowered::pass::AllocateBuffers>();
     lowered::pass::TransformationPipeline buffer_pipeline;
     buffer_pipeline.register_transformation<lowered::pass::IdentifyBuffers>();
-    buffer_pipeline.register_transformation<lowered::pass::ResetBuffers>();
+    buffer_pipeline.register_transformation<lowered::pass::CleanRepeatedDataPointerShifts>();
     buffer_pipeline.register_transformation(buffer_allocation_pass);
     buffer_pipeline.run(linear_ir);
 
