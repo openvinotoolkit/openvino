@@ -22,6 +22,7 @@
 namespace InferenceEngine {
 
 /**
+ * @deprecated This API is deprecated and will be removed in 2024.0 release.
  * @brief This class represents the main Data representation node.
  *
  * The NN graphs are di-graphs consisting of data nodes and layer nodes.

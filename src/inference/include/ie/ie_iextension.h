@@ -42,6 +42,7 @@
 namespace InferenceEngine {
 
 /**
+ * @deprecated This API is deprecated and will be removed in 2024.0 release.
  * @struct DataConfig
  * @brief This structure describes data configuration
  */
@@ -62,6 +63,7 @@ struct INFERENCE_ENGINE_DEPRECATED("This API is deprecated and will be removed i
 };
 
 /**
+ * @deprecated This API is deprecated and will be removed in 2024.0 release.
  * @struct LayerConfig
  * @brief This structure describes Layer configuration
  */
@@ -83,6 +85,7 @@ struct INFERENCE_ENGINE_DEPRECATED("This API is deprecated and will be removed i
 };
 
 /**
+ * @deprecated This API is deprecated and will be removed in 2024.0 release.
  * @interface ILayerImpl
  * @brief This class provides interface for extension implementations
  */
@@ -101,6 +104,7 @@ public:
 };
 
 /**
+ * @deprecated This API is deprecated and will be removed in 2024.0 release.
  * @interface ILayerExecImpl
  * @brief This class provides interface for the implementation with the custom execution code
  */
@@ -152,6 +156,7 @@ public:
 };
 
 /**
+ * @deprecated This API is deprecated and will be removed in 2024.0 release.
  * @brief This class is the main extension interface
  */
 class INFERENCE_ENGINE_DEPRECATED("This API is deprecated and will be removed in 2024.0 release.")
@@ -253,6 +258,7 @@ CreateExtension(IExtension*& ext, ResponseDesc* resp) noexcept INFERENCE_ENGINE_
 #endif
 
 /**
+ * @deprecated This API is deprecated and will be removed in 2024.0 release.
  * @def IE_DEFINE_EXTENSION_CREATE_FUNCTION
  * @brief Generates extension creation function
  */

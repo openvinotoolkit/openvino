@@ -20,6 +20,7 @@
 namespace InferenceEngine {
 
 /**
+ * @deprecated This API is deprecated and will be removed in 2024.0 release.
  * @brief This class is a C++ helper to work with objects created using extensions.
  */
 class INFERENCE_ENGINE_DEPRECATED("This API is deprecated and will be removed in 2024.0 release.")
@@ -96,10 +97,14 @@ protected:
     /**
      * @brief A instance to the loaded templated object
      */
+    IE_SUPPRESS_DEPRECATED_START
     std::shared_ptr<InferenceEngine::IExtension> _actual;
+    IE_SUPPRESS_DEPRECATED_END
 };
 
+IE_SUPPRESS_DEPRECATED_START
 /**
+ * @deprecated This API is deprecated and will be removed in 2024.0 release.
  * @brief Creates extension using deprecated API
  * @tparam T extension type
  * @param name extension library name
@@ -114,6 +119,7 @@ inline std::shared_ptr<T> make_so_pointer(const std::string& name) {
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
 
 /**
+ * @deprecated This API is deprecated and will be removed in 2024.0 release.
  * @brief Creates extension using deprecated API
  * @param name extension library name
  * @return shared pointer to extension
@@ -125,4 +131,5 @@ inline std::shared_ptr<IExtension> make_so_pointer(const std::wstring& name) {
 }
 
 #endif
+IE_SUPPRESS_DEPRECATED_END
 }  // namespace InferenceEngine
