@@ -352,19 +352,38 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork& network,
     return res;
 }
 
+InferenceEngine::IExecutableNetworkInternal::Ptr Plugin::ImportNetwork(const std::string& modelFileName,
+                                                                       const std::map<std::string, std::string>& config) {
+    if (FileUtils::fileExist(modelFileName)) {
+        std::ifstream networkModel(modelFileName, std::ios_base::binary);
+        return ImportNetwork(networkModel, config);
+    } else {
+        return nullptr;
+    }
+}
+
 InferenceEngine::IExecutableNetworkInternal::Ptr Plugin::ImportNetwork(std::istream& networkModel,
+                                                                       const std::map<std::string, std::string>& config) {
+    std::string device_id = get_device_id(config);
+    auto context = get_default_context(device_id);
+    return ImportNetwork(networkModel, context, config);
+}
+
+InferenceEngine::IExecutableNetworkInternal::Ptr Plugin::ImportNetwork(std::istream& networkModel,
+                                                                       const std::shared_ptr<InferenceEngine::RemoteContext>& context,
                                                                        const std::map<std::string, std::string>& orig_config) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::ImportNetwork");
-    std::string device_id = get_device_id(orig_config);
-    auto context = get_default_context(device_id);
+
+    auto context_impl = get_context_impl(context);
+    auto device_id = ov::DeviceIDParser{context_impl->get_device_name()}.get_device_id();
 
     ExecutionConfig config = m_configs_map.at(device_id);
     config.set_user_property(preprocess_config(orig_config));
-    config.apply_user_properties(context->get_impl()->get_engine().get_device_info());
+    config.apply_user_properties(context_impl->get_engine().get_device_info());
 
     {
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::ImportNetwork::CreateExeNetwork");
-        cldnn::BinaryInputBuffer ib(networkModel, context->get_impl()->get_engine());
+        cldnn::BinaryInputBuffer ib(networkModel, context_impl->get_engine());
 
         InputsDataMap inputs;
         OutputsDataMap outputs;
