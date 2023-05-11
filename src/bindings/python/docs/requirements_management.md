@@ -13,7 +13,7 @@ This means we can specify only package names for different components and keep t
 
 
 ### Example
-Two requirements files are linked to a centralized constraints file using `-c` flag.
+Two requirements files are linked to a centralized constraints file using the `-c` flag.
 
 ```text
 # main/constraints.txt
