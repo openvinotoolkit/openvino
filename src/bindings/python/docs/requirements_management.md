@@ -53,7 +53,7 @@ Using `constraints.txt` files brings many benefits, some of which are:
 - Lower project complexity
     - Significantly fewer requirements files to maintain
     - Centralization of project requirements
-- Easier pip conflicts management
+- Easier pip conflict management
     - Upgrading package versions is now easier
     - Package versions are soft-forced to be aligned across the project
 - Groundwork for future package managers and utilities
