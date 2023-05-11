@@ -54,13 +54,13 @@ class CustomOp : public ov::op::Op {
 
 public:
     OPENVINO_OP("CustomOp");
-    OPENVINO_FRAMEWORK_MAP(onnx, "CustomOp", { {"m_mode", "mode"} }, { {"m_axis", -1} });
-    OPENVINO_FRAMEWORK_MAP(tensorflow, "CustomOpV3", { {"m_axis", "axis"} }, { {"m_mode", "linear"} });
-    OPENVINO_FRAMEWORK_MAP(paddle, {"X"}, {"Out"}, "CustomOp", { {"m_mode", "mode"} }, { {"m_axis", -1} });
+    OPENVINO_FRAMEWORK_MAP(onnx, "CustomOp", { {"mode", "mode"} }, { {"axis", -1} });
+    OPENVINO_FRAMEWORK_MAP(tensorflow, "CustomOpV3", { {"axis", "axis"} }, { {"mode", "linear"} });
+    OPENVINO_FRAMEWORK_MAP(paddle, {"X"}, {"Out"}, "CustomOp", { {"mode", "mode"} }, { {"axis", -1} });
 
     bool visit_attributes(ov::AttributeVisitor& visitor) override {
-        visitor.on_attribute("m_mode", m_mode);
-        visitor.on_attribute("m_axis", m_axis);
+        visitor.on_attribute("mode", m_mode);
+        visitor.on_attribute("axis", m_axis);
         return true;
     }
 
