@@ -102,7 +102,7 @@ public:
                 if (stride.x != params.stride[i].x || stride.y != params.stride[i].y)
                     params.layoutBased = true;
             }
-        } else if (!params.inputs[0].SameDimsSizes(params.inputs[1])) {
+        } else if (params.inputs.size() > 1 && (!params.inputs[0].SameDimsSizes(params.inputs[1]))) {
             params.broadcast = true;
         }
 
