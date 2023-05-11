@@ -422,7 +422,7 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
                                                 m_telemetry);
         }
     }
-    FRONT_END_THROW("Model can be loaded either from 1 or 2 files/streams");
+    FRONT_END_THROW_NORETURN("Model can be loaded either from 1 or 2 files/streams");
 }
 
 std::shared_ptr<ov::Model> FrontEnd::convert(const InputModel::Ptr& model) const {

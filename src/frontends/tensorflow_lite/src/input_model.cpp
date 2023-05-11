@@ -194,7 +194,7 @@ std::shared_ptr<TensorPlace> castToTensorPlace(const ov::frontend::Place::Ptr& p
     if (auto var_place = std::dynamic_pointer_cast<TensorPlace>(place)) {
         return var_place;
     }
-    FRONT_END_GENERAL_CHECK(false, "Cannot cast this Place to TensorPlace.");
+    FRONT_END_THROW_NORETURN("Cannot cast this Place to TensorPlace.");
 }
 
 ov::frontend::Place::Ptr InputModel::InputModelTFLiteImpl::get_place_by_tensor_name(
@@ -209,7 +209,7 @@ std::shared_ptr<OpPlace> castToOpPlace(const ov::frontend::Place::Ptr& place) {
     if (auto var_place = std::dynamic_pointer_cast<OpPlace>(place)) {
         return var_place;
     }
-    FRONT_END_GENERAL_CHECK(false, "Cannot cast this Place to TensorPlace.");
+    FRONT_END_THROW_NORETURN("Cannot cast this Place to TensorPlace.");
 }
 
 void InputModel::InputModelTFLiteImpl::set_partial_shape(ov::frontend::Place::Ptr place, const PartialShape& shape) {

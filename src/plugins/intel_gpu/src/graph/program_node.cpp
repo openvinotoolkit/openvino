@@ -220,7 +220,7 @@ size_t program_node::get_user_index(program_node& node) const {
             idx++;
     }
 
-    OPENVINO_ASSERT(false, "Search invalid user node" + node.id() + " node");
+    OPENVINO_THROW_NORETURN("Search invalid user node" + node.id() + " node");
 }
 
 size_t program_node::get_dependency_index(program_node& node) const {
@@ -228,7 +228,7 @@ size_t program_node::get_dependency_index(program_node& node) const {
         if (dependencies[i].first == &node)
             return i;
 
-    OPENVINO_ASSERT(false, "Search invalid dependency node" + node.id() + " node");
+    OPENVINO_THROW_NORETURN("Search invalid dependency node" + node.id() + " node");
 }
 
 bool program_node::is_detached(bool whole_branch) {

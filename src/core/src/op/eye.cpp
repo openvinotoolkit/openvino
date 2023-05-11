@@ -132,8 +132,8 @@ bool ov::op::v9::Eye::evaluate(const ov::HostTensorVector& outputs, const ov::Ho
             diagonal_index = diagonal_index_data->get_data_ptr<const int64_t>()[0];
             break;
         default:
-            OPENVINO_THROW("Unsupported type of input `diagonal_index` in Eye operation: ",
-                           diagonal_index_data->get_element_type().get_type_name());
+            OPENVINO_THROW_NORETURN("Unsupported type of input `diagonal_index` in Eye operation: ",
+                                    diagonal_index_data->get_element_type().get_type_name());
         }
     } else {
         diagonal_index = 0;

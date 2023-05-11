@@ -28,7 +28,7 @@ bool evaluate(const std::shared_ptr<ngraph::op::v5::GatherND>& op,
                                                           outputs[0]->get_shape(),
                                                           static_cast<int>(op->get_batch_dims()));
     } else {
-        OPENVINO_THROW("Unexpected indices type for GatherND operation");
+        OPENVINO_THROW_NORETURN("Unexpected indices type for GatherND operation");
     }
     return true;
 }
@@ -55,7 +55,7 @@ bool evaluate(const std::shared_ptr<ngraph::op::v8::GatherND>& op,
                                                           outputs[0]->get_shape(),
                                                           static_cast<int>(op->get_batch_dims()));
     } else {
-        OPENVINO_THROW("Unexpected indices type for GatherND operation");
+        OPENVINO_THROW_NORETURN("Unexpected indices type for GatherND operation");
     }
     return true;
 }
@@ -106,7 +106,7 @@ bool evaluate_node<ngraph::op::v5::GatherND>(std::shared_ptr<ngraph::Node> node,
     case ngraph::element::Type_t::u64:
         return evaluate<ngraph::element::Type_t::u64>(ov::as_type_ptr<ngraph::op::v5::GatherND>(node), outputs, inputs);
     default:
-        OPENVINO_THROW(std::string("Unhandled data type ") + node->get_element_type().get_type_name() +
+        OPENVINO_THROW_NORETURN(std::string("Unhandled data type ") + node->get_element_type().get_type_name() +
                        std::string("in evaluate_node()"));
     }
 }
@@ -157,7 +157,7 @@ bool evaluate_node<ngraph::op::v8::GatherND>(std::shared_ptr<ngraph::Node> node,
     case ngraph::element::Type_t::u64:
         return evaluate<ngraph::element::Type_t::u64>(ov::as_type_ptr<ngraph::op::v8::GatherND>(node), outputs, inputs);
     default:
-        OPENVINO_THROW(std::string("Unhandled data type ") + node->get_element_type().get_type_name() +
+        OPENVINO_THROW_NORETURN(std::string("Unhandled data type ") + node->get_element_type().get_type_name() +
                        std::string("in evaluate_node()"));
     }
 }

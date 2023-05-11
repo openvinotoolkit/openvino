@@ -345,7 +345,7 @@ ov::Tensor get_image_tensor(const std::vector<std::string>& files,
                                                   inputInfo.first,
                                                   filenames_used);
     } else {
-        OPENVINO_THROW("Input type is not supported for " + inputInfo.first);
+        OPENVINO_THROW_NORETURN("Input type is not supported for " + inputInfo.first);
     }
 }
 
@@ -376,7 +376,7 @@ ov::Tensor get_im_info_tensor(const std::pair<size_t, size_t>& image_size,
     } else if (type == ov::element::u64) {
         return create_tensor_im_info<uint64_t>(image_size, batchSize, inputInfo.second, inputInfo.first);
     } else {
-        OPENVINO_THROW("Input type is not supported for " + inputInfo.first);
+        OPENVINO_THROW_NORETURN("Input type is not supported for " + inputInfo.first);
     }
 }
 
@@ -464,7 +464,7 @@ ov::Tensor get_numpy_tensor(const std::vector<std::string>& files,
                                                   inputInfo.first,
                                                   filenames_used);
     } else {
-        OPENVINO_THROW("Input type is not supported for " + inputInfo.first);
+        OPENVINO_THROW_NORETURN("Input type is not supported for " + inputInfo.first);
     }
 }
 
@@ -552,7 +552,7 @@ ov::Tensor get_binary_tensor(const std::vector<std::string>& files,
                                                    inputInfo.first,
                                                    filenames_used);
     } else {
-        OPENVINO_THROW("Input type is not supported for " + inputInfo.first);
+        OPENVINO_THROW_NORETURN("Input type is not supported for " + inputInfo.first);
     }
 }
 
@@ -585,7 +585,7 @@ ov::Tensor get_random_tensor(const std::pair<std::string, benchmark_app::InputIn
     } else if (type == ov::element::boolean) {
         return create_tensor_random<uint8_t, uint32_t>(inputInfo.second, 0, 1);
     } else {
-        OPENVINO_THROW("Input type is not supported for " + inputInfo.first);
+        OPENVINO_THROW_NORETURN("Input type is not supported for " + inputInfo.first);
     }
 }
 

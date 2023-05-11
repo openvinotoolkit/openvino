@@ -121,7 +121,7 @@ bool evaluate_node<ngraph::op::v1::GroupConvolutionBackpropData>(std::shared_ptr
             outputs,
             inputs);
     default:
-        OPENVINO_THROW(std::string("Unhandled data type ") + node->get_element_type().get_type_name() +
+        OPENVINO_THROW_NORETURN(std::string("Unhandled data type ") + node->get_element_type().get_type_name() +
                        std::string("in evaluate_node()"));
     }
 }

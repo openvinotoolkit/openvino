@@ -647,7 +647,7 @@ void InferRequest::copy_output_data(cldnn::memory::ptr src, Blob::Ptr dst) {
         else if (std::find(convert_not_needed.begin(), convert_not_needed.end(), prc) != convert_not_needed.end())
             return false;
         else
-            OPENVINO_ASSERT(false, "[GPU] Plugin does not support output ", prc, " precision");
+            OPENVINO_THROW_NORETURN("[GPU] Plugin does not support output ", prc, " precision");
     };
 
     const auto convert_needed = is_convert_needed(dst->getTensorDesc().getPrecision());

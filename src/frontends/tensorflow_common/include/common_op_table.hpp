@@ -17,6 +17,11 @@
                            ("While validating node '" + node_context.get_op_type() + "'"), \
                            __VA_ARGS__)
 
+#define TENSORFLOW_OP_VALIDATION_NORETURN(node_context, ...)                                        \
+    OPENVINO_ASSERT_NORETURN_HELPER(::ov::frontend::OpValidationFailure,                            \
+                           ("While validating node '" + node_context.get_op_type() + "'"), \
+                           __VA_ARGS__)
+
 namespace ov {
 namespace frontend {
 namespace tensorflow {

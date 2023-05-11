@@ -170,7 +170,7 @@ shared_ptr<Node> op::ConvolutionIE::clone_with_new_inputs(const ngraph::OutputVe
                                           m_auto_pad);
     }
 
-    OPENVINO_THROW("Unsupported number of arguments for ConvolutionIE operation");
+    OPENVINO_THROW_NORETURN("Unsupported number of arguments for ConvolutionIE operation");
 }
 
 bool op::ConvolutionIE::visit_attributes(AttributeVisitor& visitor) {

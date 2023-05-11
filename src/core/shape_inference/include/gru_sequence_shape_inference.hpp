@@ -90,7 +90,7 @@ void gru_sequence_shape_infer(const OpType* op,
     } else if (m_direction == op::RecurrentSequenceDirection::BIDIRECTIONAL) {
         valid_num_directions = 2;
     } else {
-        NODE_VALIDATION_CHECK(op, false, "Attribute direction must be FORWARD or REVERSE or BIDIRECTIONAL.");
+        NODE_VALIDATION_CHECK_NORETURN(op, false, "Attribute direction must be FORWARD or REVERSE or BIDIRECTIONAL.");
     }
 
     DimType merged_num_directions = DimType(valid_num_directions);

@@ -171,6 +171,7 @@ protected:
         }                                                                                            \
     } while (0)
 
+
 /// \brief Macro to check whether a boolean condition holds.
 /// \param cond Condition to check
 /// \param ... Additional error message info to be added to the error message via the `<<`

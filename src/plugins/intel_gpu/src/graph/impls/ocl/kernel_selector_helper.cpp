@@ -286,7 +286,7 @@ kernel_selector::data_layout to_data_layout(format f) {
         case format::image_2d_rgba:
             return kernel_selector::data_layout::image_2d_rgba;
         default:
-            OPENVINO_THROW("[GPU] Can't convert tensor format to kernel selector format as f=", f, " is not handled");
+            OPENVINO_THROW_NORETURN("[GPU] Can't convert tensor format to kernel selector format as f=", f, " is not handled");
     }
 }
 
@@ -1141,7 +1141,7 @@ std::shared_ptr<kernel_selector::fuse_params> convert_fuse_params(std::shared_pt
                                                                        casted->_out_shift);
     }
 
-    OPENVINO_ASSERT(false, "[GPU] Unhandled fused params type");
+    OPENVINO_THROW_NORETURN("[GPU] Unhandled fused params type");
 }
 
 void convert_fused_ops_to_legacy_activations(const kernel_impl_params& param_info, std::vector<kernel_selector::base_activation_params>& activations) {

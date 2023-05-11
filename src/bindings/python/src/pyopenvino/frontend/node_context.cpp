@@ -98,7 +98,7 @@ void regclass_frontend_NodeContext(py::module m) {
                 return casted;
 
             if (default_value.is_none())
-                FRONT_END_GENERAL_CHECK(false, "Attribute ", name, " can't be converted to defined types.");
+                FRONT_END_GENERAL_CHECK_NORETURN(false, "Attribute ", name, " can't be converted to defined types.");
             else
                 return default_value;
         },
@@ -130,7 +130,7 @@ void regclass_frontend_NodeContext(py::module m) {
                 return casted;
 
             if (default_value.is_none())
-                FRONT_END_GENERAL_CHECK(false, "Const input with index ", idx, " can't be converted to defined types.");
+                FRONT_END_GENERAL_CHECK_NORETURN(false, "Const input with index ", idx, " can't be converted to defined types.");
             else
                 return default_value;
         },

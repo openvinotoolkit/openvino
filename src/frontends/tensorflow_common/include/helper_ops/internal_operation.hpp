@@ -19,21 +19,18 @@ public:
     explicit DecoderFake() {}
 
     ov::Any get_attribute(const std::string& name) const override {
-        FRONT_END_OP_CONVERSION_CHECK(false,
-                                      "Internal error: the get_attribute method of the fake node decoder is invoked.");
+        FRONT_END_OP_CONVERSION_THROW_NORETURN("Internal error: the get_attribute method of the fake node decoder is invoked.");
     }
 
     size_t get_input_size() const override {
-        FRONT_END_OP_CONVERSION_CHECK(false,
-                                      "Internal error: the get_input_size method of the fake node decoder is invoked.");
+        FRONT_END_OP_CONVERSION_THROW_NORETURN("Internal error: the get_input_size method of the fake node decoder is invoked.");
     }
 
     void get_input_node(size_t input_port_idx,
                         std::string& producer_name,
                         std::string& producer_output_port_name,
                         size_t& producer_output_port_index) const override {
-        FRONT_END_OP_CONVERSION_CHECK(false,
-                                      "Internal error: the get_input_node method of the fake node decoder is invoked.");
+        FRONT_END_OP_CONVERSION_THROW_NORETURN("Internal error: the get_input_node method of the fake node decoder is invoked.");
     }
 
     const std::string& get_op_type() const override {
@@ -42,8 +39,7 @@ public:
     }
 
     const std::string& get_op_name() const override {
-        FRONT_END_OP_CONVERSION_CHECK(false,
-                                      "Internal error: the get_op_name method of the fake node decoder is invoked.");
+        FRONT_END_OP_CONVERSION_THROW_NORETURN("Internal error: the get_op_name method of the fake node decoder is invoked.");
     }
 
 private:

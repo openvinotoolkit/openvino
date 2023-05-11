@@ -449,7 +449,7 @@ std::shared_ptr<TensorPlace> castToTensorPlace(const Place::Ptr& place) {
     } else if (auto out_port_place = std::dynamic_pointer_cast<OutPortPlace>(place)) {
         return out_port_place->get_target_tensor_paddle();
     }
-    FRONT_END_GENERAL_CHECK(false, "Cannot cast this Place to TensorPlacepaddle.");
+    FRONT_END_THROW_NORETURN("Cannot cast this Place to TensorPlacepaddle.");
 }
 
 }  // namespace

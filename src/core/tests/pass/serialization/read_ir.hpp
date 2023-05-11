@@ -27,7 +27,7 @@ inline std::shared_ptr<ov::Model> readModel(const std::string& model_path, const
     if (inputModel)
         return FE->convert(inputModel);
 
-    OPENVINO_ASSERT(false, "Failed to read the model");
+    OPENVINO_THROW_NORETURN("Failed to read the model");
 }
 
 inline std::shared_ptr<ov::Model> readModel(const std::string& model) {

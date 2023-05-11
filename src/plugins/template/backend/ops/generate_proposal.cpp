@@ -14,7 +14,7 @@ bool evaluate(const std::shared_ptr<ngraph::op::v9::GenerateProposals>& op,
     const auto& attrs = op->get_attrs();
 
     if (attrs.post_nms_count < 0) {
-        OPENVINO_THROW("The attribute post_nms_count of the operation "
+        OPENVINO_THROW_NORETURN("The attribute post_nms_count of the operation "
                        "GenerateProposals must be a "
                        "nonnegative integer.");
     }
@@ -151,7 +151,7 @@ bool evaluate_node<ngraph::op::v9::GenerateProposals>(std::shared_ptr<ngraph::No
                                                       outputs,
                                                       inputs);
     default:
-        OPENVINO_THROW(std::string("Unhandled data type ") + node->get_element_type().get_type_name() +
+        OPENVINO_THROW_NORETURN(std::string("Unhandled data type ") + node->get_element_type().get_type_name() +
                        std::string("in evaluate_node()"));
     }
 }

@@ -331,7 +331,7 @@ bool evaluate_node<ov::op::internal::AUGRUSequence>(std::shared_ptr<ngraph::Node
                                                       outputs,
                                                       inputs);
     default:
-        OPENVINO_THROW(std::string("Unhandled data type ") + node->get_element_type().get_type_name() +
+        OPENVINO_THROW_NORETURN(std::string("Unhandled data type ") + node->get_element_type().get_type_name() +
                        std::string("in evaluate_node()"));
     }
 }
@@ -410,7 +410,7 @@ bool evaluate_node<ngraph::op::v5::GRUSequence>(std::shared_ptr<ngraph::Node> no
                                                       outputs,
                                                       inputs);
     default:
-        OPENVINO_THROW(std::string("Unhandled data type ") + node->get_element_type().get_type_name() +
+        OPENVINO_THROW_NORETURN(std::string("Unhandled data type ") + node->get_element_type().get_type_name() +
                        std::string("in evaluate_node()"));
     }
 }
@@ -489,7 +489,7 @@ bool evaluate_node<ngraph::op::v5::LSTMSequence>(std::shared_ptr<ngraph::Node> n
                                                       outputs,
                                                       inputs);
     default:
-        OPENVINO_THROW(std::string("Unhandled data type ") + node->get_element_type().get_type_name() +
+        OPENVINO_THROW_NORETURN(std::string("Unhandled data type ") + node->get_element_type().get_type_name() +
                        std::string("in evaluate_node()"));
     }
 }
@@ -568,7 +568,7 @@ bool evaluate_node<ngraph::op::v0::LSTMSequence>(std::shared_ptr<ngraph::Node> n
                                                       outputs,
                                                       inputs);
     default:
-        OPENVINO_THROW(std::string("Unhandled data type ") + node->get_element_type().get_type_name() +
+        OPENVINO_THROW_NORETURN(std::string("Unhandled data type ") + node->get_element_type().get_type_name() +
                        std::string("in evaluate_node()"));
     }
 }
@@ -647,7 +647,7 @@ bool evaluate_node<ngraph::op::v5::RNNSequence>(std::shared_ptr<ngraph::Node> no
                                                       outputs,
                                                       inputs);
     default:
-        OPENVINO_THROW(std::string("Unhandled data type ") + node->get_element_type().get_type_name() +
+        OPENVINO_THROW_NORETURN(std::string("Unhandled data type ") + node->get_element_type().get_type_name() +
                        std::string("in evaluate_node()"));
     }
 }

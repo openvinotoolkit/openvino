@@ -167,7 +167,7 @@ inline std::shared_ptr<RemoteContextImpl> get_context_impl(InferenceEngine::gpu:
     if (auto ptr = context->as<RemoteCLContext>())
         return ptr->get_impl();
 
-    OPENVINO_ASSERT(false, "[GPU] Couldn't get context impl from public context object.");
+    OPENVINO_THROW_NORETURN("[GPU] Couldn't get context impl from public context object.");
 }
 
 inline std::shared_ptr<RemoteContextImpl> get_context_impl(InferenceEngine::RemoteContext::Ptr context) {

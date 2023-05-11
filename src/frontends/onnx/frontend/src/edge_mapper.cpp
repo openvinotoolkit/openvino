@@ -156,7 +156,7 @@ InputEdge onnx_editor::EdgeMapper::find_input_edge(const EditorNode& node, const
                         ". You should use port indexes to distinguish them.");
         return InputEdge{node_index, input_indexes[0], in.m_new_input_name};
     } else {
-        OPENVINO_THROW("Not enough information to determine input edge");
+        OPENVINO_THROW_NORETURN("Not enough information to determine input edge");
     }
 }
 

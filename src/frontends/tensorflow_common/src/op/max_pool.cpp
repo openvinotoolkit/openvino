@@ -112,7 +112,7 @@ OutputVector translate_max_pool_op(const NodeContext& node) {
     } else if (node.get_op_type() == "MaxPool3D") {
         return translate_max_pool(node, 3);
     } else {
-        TENSORFLOW_OP_VALIDATION(node, false, "Only MaxPool2D, MaxPoolV2 and MaxPool3D are supported.");
+        TENSORFLOW_OP_VALIDATION_NORETURN(node, false, "Only MaxPool2D, MaxPoolV2 and MaxPool3D are supported.");
     }
 }
 

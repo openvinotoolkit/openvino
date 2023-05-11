@@ -22,7 +22,7 @@ OutputVector translate_gelu(const NodeContext& context) {
     if (approximate == "tanh") {
         return {context.mark_node(std::make_shared<ov::op::v7::Gelu>(x, ov::op::GeluApproximationMode::TANH))};
     }
-    FRONT_END_OP_CONVERSION_CHECK(false, "Unsupported approximate for Gelu: ", approximate);
+    FRONT_END_OP_CONVERSION_THROW_NORETURN("Unsupported approximate for Gelu: ", approximate);
 };
 
 }  // namespace op

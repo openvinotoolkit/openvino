@@ -45,7 +45,7 @@ size_t get_onnx_data_size(int32_t onnx_type) {
     case ONNX_NAMESPACE::TensorProto_DataType_BFLOAT16:
         return sizeof(uint16_t);
     }
-    OPENVINO_THROW("unsupported element type");
+    OPENVINO_THROW_NORETURN("unsupported element type");
 }
 namespace {
 using namespace ONNX_NAMESPACE;

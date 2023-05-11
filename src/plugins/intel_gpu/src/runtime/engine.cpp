@@ -109,7 +109,7 @@ allocation_type engine::get_lockable_preferred_memory_allocation_type(bool is_im
     if (support_usm_host)
         return allocation_type::usm_host;
 
-    OPENVINO_ASSERT(false, "[GPU] Couldn't find proper allocation type in get_lockable_preferred_memory_allocation_type method");
+    OPENVINO_THROW_NORETURN("[GPU] Couldn't find proper allocation type in get_lockable_preferred_memory_allocation_type method");
 }
 
 allocation_type engine::get_preferred_memory_allocation_type(bool is_image_layout) const {
@@ -123,7 +123,7 @@ allocation_type engine::get_preferred_memory_allocation_type(bool is_image_layou
     if (supports_allocation(allocation_type::usm_host))
         return allocation_type::usm_host;
 
-    OPENVINO_ASSERT(false, "[GPU] Couldn't find proper allocation type in get_preferred_memory_allocation_type method");
+    OPENVINO_THROW_NORETURN("[GPU] Couldn't find proper allocation type in get_preferred_memory_allocation_type method");
 }
 
 memory::ptr engine::attach_memory(const layout& layout, void* ptr) {

@@ -211,7 +211,7 @@ bool evaluate_node<ngraph::op::v3::Bucketize>(std::shared_ptr<ngraph::Node> node
                                                       outputs,
                                                       inputs);
     default:
-        OPENVINO_THROW(std::string("Unhandled data type ") + node->get_element_type().get_type_name() +
-                       std::string("in evaluate_node()"));
+        OPENVINO_THROW_NORETURN(std::string("Unhandled data type ") + node->get_element_type().get_type_name() +
+                                std::string("in evaluate_node()"));
     }
 }

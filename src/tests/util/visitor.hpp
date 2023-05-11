@@ -20,109 +20,109 @@ namespace test {
 class ValueHolder {
     template <typename T>
     T& invalid() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW_NORETURN("Invalid type access");
     }
 
 public:
     virtual ~ValueHolder() {}
     virtual operator bool&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW_NORETURN("Invalid type access");
     }
     virtual operator float&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW_NORETURN("Invalid type access");
     }
     virtual operator double&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW_NORETURN("Invalid type access");
     }
     virtual operator std::string&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW_NORETURN("Invalid type access");
     }
     virtual operator int8_t&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW_NORETURN("Invalid type access");
     }
     virtual operator int16_t&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW_NORETURN("Invalid type access");
     }
     virtual operator int32_t&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW_NORETURN("Invalid type access");
     }
     virtual operator int64_t&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW_NORETURN("Invalid type access");
     }
     virtual operator uint8_t&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW_NORETURN("Invalid type access");
     }
     virtual operator uint16_t&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW_NORETURN("Invalid type access");
     }
     virtual operator uint32_t&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW_NORETURN("Invalid type access");
     }
     virtual operator uint64_t&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW_NORETURN("Invalid type access");
     }
     virtual operator std::vector<std::string>&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW_NORETURN("Invalid type access");
     }
     virtual operator std::vector<float>&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW_NORETURN("Invalid type access");
     }
     virtual operator std::vector<double>&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW_NORETURN("Invalid type access");
     }
     virtual operator std::vector<int8_t>&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW_NORETURN("Invalid type access");
     }
     virtual operator std::vector<int16_t>&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW_NORETURN("Invalid type access");
     }
     virtual operator std::vector<int32_t>&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW_NORETURN("Invalid type access");
     }
     virtual operator std::vector<int64_t>&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW_NORETURN("Invalid type access");
     }
     virtual operator std::vector<uint8_t>&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW_NORETURN("Invalid type access");
     }
     virtual operator std::vector<uint16_t>&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW_NORETURN("Invalid type access");
     }
     virtual operator std::vector<uint32_t>&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW_NORETURN("Invalid type access");
     }
     virtual operator std::vector<uint64_t>&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW_NORETURN("Invalid type access");
     }
     virtual operator HostTensorPtr&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW_NORETURN("Invalid type access");
     }
     virtual operator std::shared_ptr<ov::Model>&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW_NORETURN("Invalid type access");
     }
     virtual operator std::shared_ptr<ngraph::op::util::MultiSubGraphOp::OutputDescription>&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW_NORETURN("Invalid type access");
     }
     virtual operator std::shared_ptr<ngraph::op::util::MultiSubGraphOp::InputDescription>&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW_NORETURN("Invalid type access");
     }
     virtual operator std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::OutputDescription>>&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW_NORETURN("Invalid type access");
     }
     virtual operator std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::InputDescription>>&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW_NORETURN("Invalid type access");
     }
     virtual operator ov::PartialShape&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW_NORETURN("Invalid type access");
     }
     virtual operator ov::Dimension&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW_NORETURN("Invalid type access");
     }
     virtual operator std::shared_ptr<Variable>&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW_NORETURN("Invalid type access");
     }
     virtual operator ov::op::util::FrameworkNodeAttrs&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW_NORETURN("Invalid type access");
     }
     uint64_t get_index() {
         return m_index;
@@ -231,7 +231,7 @@ public:
         } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ov::op::util::FrameworkNodeAttrs>>(&adapter)) {
             a->set(m_values.get<ov::op::util::FrameworkNodeAttrs>(name));
         } else {
-            NGRAPH_CHECK(false, "Attribute \"", name, "\" cannot be unmarshalled");
+            OPENVINO_THROW("Attribute \"", name, "\" cannot be unmarshalled");
         }
     }
     // The remaining adapter methods fall back on the void adapter if not implemented

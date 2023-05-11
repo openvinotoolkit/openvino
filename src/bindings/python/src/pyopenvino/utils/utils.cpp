@@ -56,7 +56,7 @@ py::object from_ov_any_map_no_leaves(const ov::Any& any) {
     } else if (any.is<ov::AnyMap>()) {
         return traverse_map(any.as<ov::AnyMap>());
     }
-    OPENVINO_THROW("Only ov::AnyMap or ov::Meta are expected here.");
+    OPENVINO_THROW_NORETURN("Only ov::AnyMap or ov::Meta are expected here.");
 }
 
 py::object from_ov_any_map(const ov::AnyMap& map) {
@@ -225,7 +225,7 @@ std::string convert_path_to_string(const py::object& path) {
     str << "Path: '" << path << "'"
         << " does not exist. Please provide valid model's path either as a string, bytes or pathlib.Path. "
            "Examples:\n(1) '/home/user/models/model.onnx'\n(2) Path('/home/user/models/model/model.onnx')";
-    OPENVINO_THROW(str.str());
+    OPENVINO_THROW_NORETURN(str.str());
 }
 
 Version convert_to_version(const std::string& version) {
@@ -235,7 +235,7 @@ Version convert_to_version(const std::string& version) {
         return Version::IR_V10;
     if (version == "IR_V11")
         return Version::IR_V11;
-    OPENVINO_THROW("Invoked with wrong version argument: '",
+    OPENVINO_THROW_NORETURN("Invoked with wrong version argument: '",
                    version,
                    "'! The supported versions are: 'UNSPECIFIED'(default), 'IR_V10', 'IR_V11'.");
 }
@@ -367,7 +367,7 @@ ov::Any py_object_to_any(const py::object& py_obj) {
     } else if (py::isinstance<py::object>(py_obj)) {
         return py_obj;
     }
-    OPENVINO_ASSERT(false, "Unsupported attribute type.");
+    OPENVINO_THROW_NORETURN("Unsupported attribute type.");
 }
 };  // namespace utils
 };  // namespace Common

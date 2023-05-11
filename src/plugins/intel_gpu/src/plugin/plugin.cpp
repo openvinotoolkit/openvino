@@ -241,7 +241,7 @@ InferenceEngine::RemoteContext::Ptr Plugin::CreateContext(const AnyMap& params) 
 #endif
     }
 
-    OPENVINO_ASSERT(false, "[GPU] Unsupported context type passed to CreateContext method: ", context_type);
+    OPENVINO_THROW_NORETURN("[GPU] Unsupported context type passed to CreateContext method: ", context_type);
 }
 
 RemoteCLContext::Ptr Plugin::get_default_context(const std::string& device_id) const {

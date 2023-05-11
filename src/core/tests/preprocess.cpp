@@ -531,21 +531,21 @@ TEST(pre_post_process, convert_color_unsupported) {
 
     EXPECT_THROW(auto p = PrePostProcessor(f); p.input().tensor().set_color_format(ColorFormat::NV12_SINGLE_PLANE);
                  p.input().preprocess().convert_color(ColorFormat::UNDEFINED);
-                 f = p.build(), ov::AssertFailure);
+                 f = p.build(), ov::Exception);
 
     EXPECT_THROW(auto p = PrePostProcessor(f); p.input().tensor().set_color_format(ColorFormat::NV12_TWO_PLANES);
                  p.input().preprocess().convert_color(ColorFormat::UNDEFINED);
-                 f = p.build(), ov::AssertFailure);
+                 f = p.build(), ov::Exception);
 
     auto colors = {ColorFormat::NV12_TWO_PLANES, ColorFormat::NV12_SINGLE_PLANE, ColorFormat::RGB, ColorFormat::BGR};
     for (const auto& color : colors) {
         EXPECT_THROW(auto p = PrePostProcessor(f); p.input().tensor().set_color_format(ColorFormat::UNDEFINED);
                      p.input().preprocess().convert_color(color);
-                     f = p.build(), ov::AssertFailure);
+                     f = p.build(), ov::Exception);
 
         EXPECT_THROW(auto p = PrePostProcessor(f); p.input().tensor().set_color_format(color);
                      p.input().preprocess().convert_color(ColorFormat::UNDEFINED);
-                     f = p.build(), ov::AssertFailure);
+                     f = p.build(), ov::Exception);
     }
 }
 
@@ -1977,7 +1977,7 @@ TEST(pre_post_process, exception_safety) {
                      .tensor()
                      .set_color_format(ColorFormat::NV12_TWO_PLANES);
                  p.input().preprocess().custom([](const Output<Node>& node) -> Output<Node> {
-                     OPENVINO_THROW("test error");
+                     OPENVINO_THROW_NORETURN("test error");
                  });
                  p.build(), ov::AssertFailure);
 
@@ -1989,7 +1989,7 @@ TEST(pre_post_process, exception_safety) {
                  p.output(1)  // This one is not
                      .postprocess()
                      .custom([](const Output<Node>& node) -> Output<Node> {
-                         OPENVINO_THROW("test error");
+                         OPENVINO_THROW_NORETURN("test error");
                      });
                  p.build(), ngraph::ngraph_error);
     EXPECT_EQ(f->get_parameters().size(), 2);

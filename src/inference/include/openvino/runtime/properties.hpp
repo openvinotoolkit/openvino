@@ -265,7 +265,7 @@ inline std::ostream& operator<<(std::ostream& os, const Priority& priority) {
     case Priority::HIGH:
         return os << "HIGH";
     default:
-        OPENVINO_THROW("Unsupported model priority value");
+        OPENVINO_THROW_NORETURN("Unsupported model priority value");
     }
 }
 
@@ -320,7 +320,7 @@ inline std::ostream& operator<<(std::ostream& os, const PerformanceMode& perform
     case PerformanceMode::CUMULATIVE_THROUGHPUT:
         return os << "CUMULATIVE_THROUGHPUT";
     default:
-        OPENVINO_THROW("Unsupported performance mode hint");
+        OPENVINO_THROW_NORETURN("Unsupported performance mode hint");
     }
 }
 
@@ -372,7 +372,7 @@ inline std::ostream& operator<<(std::ostream& os, const SchedulingCoreType& core
     case SchedulingCoreType::ECORE_ONLY:
         return os << "ECORE_ONLY";
     default:
-        OPENVINO_THROW("Unsupported core type!");
+        OPENVINO_THROW_NORETURN("Unsupported core type!");
     }
 }
 
@@ -386,7 +386,7 @@ inline std::istream& operator>>(std::istream& is, SchedulingCoreType& core_type)
     } else if (str == "ECORE_ONLY") {
         core_type = SchedulingCoreType::ECORE_ONLY;
     } else {
-        OPENVINO_THROW("Unsupported core type: ", str);
+        OPENVINO_THROW_NORETURN("Unsupported core type: ", str);
     }
     return is;
 }
@@ -478,7 +478,7 @@ inline std::ostream& operator<<(std::ostream& os, const ExecutionMode& mode) {
     case ExecutionMode::ACCURACY:
         return os << "ACCURACY";
     default:
-        OPENVINO_THROW("Unsupported execution mode hint");
+        OPENVINO_THROW_NORETURN("Unsupported execution mode hint");
     }
 }
 
@@ -490,7 +490,7 @@ inline std::istream& operator>>(std::istream& is, ExecutionMode& mode) {
     } else if (str == "ACCURACY") {
         mode = ExecutionMode::ACCURACY;
     } else {
-        OPENVINO_THROW("Unsupported execution mode: ", str);
+        OPENVINO_THROW_NORETURN("Unsupported execution mode: ", str);
     }
     return is;
 }
@@ -552,7 +552,7 @@ inline std::ostream& operator<<(std::ostream& os, const Level& level) {
     case Level::TRACE:
         return os << "LOG_TRACE";
     default:
-        OPENVINO_THROW("Unsupported log level");
+        OPENVINO_THROW_NORETURN("Unsupported log level");
     }
 }
 
@@ -861,7 +861,7 @@ inline std::ostream& operator<<(std::ostream& os, const Type& device_type) {
     case Type::INTEGRATED:
         return os << "integrated";
     default:
-        OPENVINO_THROW("Unsupported device type");
+        OPENVINO_THROW_NORETURN("Unsupported device type");
     }
 }
 
@@ -1039,7 +1039,7 @@ inline std::ostream& operator<<(std::ostream& os, const Affinity& affinity) {
     case Affinity::HYBRID_AWARE:
         return os << "HYBRID_AWARE";
     default:
-        OPENVINO_THROW("Unsupported affinity pattern");
+        OPENVINO_THROW_NORETURN("Unsupported affinity pattern");
     }
 }
 

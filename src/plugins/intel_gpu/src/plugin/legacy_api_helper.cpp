@@ -150,7 +150,7 @@ std::pair<std::string, ov::Any> LegacyAPIHelper::convert_legacy_property(const s
         return { ov::intel_gpu::hint::queue_throttle.name(), converted_val };
     }
 
-    OPENVINO_ASSERT(false, "[GPU] Unhandled legacy property in convert_legacy_property method: ", legacy_property.first);
+    OPENVINO_THROW_NORETURN("[GPU] Unhandled legacy property in convert_legacy_property method: ", legacy_property.first);
 }
 
 std::pair<std::string, ov::Any> LegacyAPIHelper::convert_to_legacy_property(const std::pair<std::string, ov::Any>& property) {
@@ -219,7 +219,7 @@ std::pair<std::string, ov::Any> LegacyAPIHelper::convert_to_legacy_property(cons
         return { InferenceEngine::GPUConfigParams::KEY_GPU_PLUGIN_THROTTLE, legacy_val };
     }
 
-    OPENVINO_ASSERT(false, "[GPU] Unhandled legacy property in convert_to_legacy_property method: ", property.first);
+    OPENVINO_THROW_NORETURN("[GPU] Unhandled legacy property in convert_to_legacy_property method: ", property.first);
 }
 
 std::vector<std::string> LegacyAPIHelper::get_supported_configs() {

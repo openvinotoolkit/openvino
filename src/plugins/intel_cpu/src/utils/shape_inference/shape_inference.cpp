@@ -111,11 +111,11 @@ public:
     }
 
     const ov::CoordinateDiff& get_pads_begin() override {
-        OPENVINO_ASSERT(false, "entryBase do not support get_pads_begin() by default.");
+        OPENVINO_THROW_NORETURN("entryBase do not support get_pads_begin() by default.");
     }
 
     const ov::CoordinateDiff& get_pads_end() override {
-        OPENVINO_ASSERT(false, "entryBase do not support get_pads_end() by default.");
+        OPENVINO_THROW_NORETURN("entryBase do not support get_pads_end() by default.");
     }
 
     const std::vector<int64_t>& get_input_ranks() override {
@@ -343,11 +343,11 @@ public:
     }
 
     const ov::CoordinateDiff& get_pads_begin() override {
-        OPENVINO_ASSERT(false, "ShapeInferBase do not support get_pads_begin() by default.");
+        OPENVINO_THROW_NORETURN("ShapeInferBase do not support get_pads_begin() by default.");
     }
 
     const ov::CoordinateDiff& get_pads_end() override {
-        OPENVINO_ASSERT(false, "ShapeInferBase do not support get_pads_end() by default.");
+        OPENVINO_THROW_NORETURN("ShapeInferBase do not support get_pads_end() by default.");
     }
 
     const std::vector<int64_t>& get_input_ranks() override {

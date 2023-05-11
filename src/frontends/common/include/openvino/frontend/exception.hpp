@@ -99,6 +99,8 @@ protected:
 /// \throws ::ov::frontend::OpConversionFailure if `cond` is false.
 #define FRONT_END_OP_CONVERSION_CHECK(...) OPENVINO_ASSERT_HELPER(::ov::frontend::OpConversionFailure, "", __VA_ARGS__)
 
+#define FRONT_END_OP_CONVERSION_THROW_NORETURN(...) OPENVINO_ASSERT_NORETURN_HELPER(::ov::frontend::OpConversionFailure, "", false, __VA_ARGS__)
+
 /// \brief Assert macro.
 /// \param NAME Name of the function that is not implemented
 /// \throws ::ov::frontend::NotImplementedFailure
@@ -122,6 +124,7 @@ protected:
 /// \param MSG Error message
 /// \throws ::ov::frontend::GeneralFailure
 #define FRONT_END_THROW(MSG) FRONT_END_GENERAL_CHECK(false, MSG)
+#define FRONT_END_THROW_NORETURN(MSG) FRONT_END_GENERAL_CHECK_NORETURN(false, MSG)
 
 }  // namespace frontend
 }  // namespace ov

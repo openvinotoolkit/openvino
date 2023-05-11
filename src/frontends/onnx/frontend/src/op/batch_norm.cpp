@@ -46,7 +46,7 @@ OutputVector batch_norm(const Node& node) {
                 saved_var};
     }
 
-    OPENVINO_THROW("Cannot create OpenVINO batch norm with unsupported number of inputs");
+    OPENVINO_THROW_NORETURN("Cannot create OpenVINO batch norm with unsupported number of inputs");
 }
 }  // namespace set_1
 

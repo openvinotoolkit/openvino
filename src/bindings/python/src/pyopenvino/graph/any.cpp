@@ -83,7 +83,7 @@ void regclass_graph_Any(py::module m) {
             }
             std::stringstream str;
             str << "Unsupported data type : '" << dtype << "' is passed as an argument.";
-            OPENVINO_THROW(str.str());
+            OPENVINO_THROW_NORETURN(str.str());
         },
         R"(
             Returns runtime attribute casted to defined data type.
@@ -121,7 +121,7 @@ void regclass_graph_Any(py::module m) {
             }
             std::stringstream str;
             str << "Unsupported data type : '" << dtype << "' is passed as an argument.";
-            OPENVINO_THROW(str.str());
+            OPENVINO_THROW_NORETURN(str.str());
         },
         py::arg("dtype") = py::none(),
         R"(

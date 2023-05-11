@@ -279,7 +279,7 @@ InferenceEngine::RemoteBlob::Ptr RemoteContextImpl::create_blob(InferenceEngine:
                 check_if_shared();
 #endif
             } else {
-                OPENVINO_ASSERT(false, "[GPU] Unsupported shared object type ", mem_type);
+                OPENVINO_THROW_NORETURN("[GPU] Unsupported shared object type ", mem_type);
             }
 
             return reuse_memory(public_context, desc, mem, blob_type);

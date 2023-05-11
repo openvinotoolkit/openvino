@@ -163,9 +163,9 @@ memory::ptr ocl_engine::allocate_memory(const layout& layout, allocation_type ty
             case CL_OUT_OF_RESOURCES:
             case CL_OUT_OF_HOST_MEMORY:
             case CL_INVALID_BUFFER_SIZE:
-                OPENVINO_THROW("[GPU] out of GPU resources");
+                OPENVINO_THROW_NORETURN("[GPU] out of GPU resources");
             default:
-                OPENVINO_THROW("[GPU] buffer allocation failed");
+                OPENVINO_THROW_NORETURN("[GPU] buffer allocation failed");
         }
     }
 }
@@ -224,7 +224,7 @@ memory::ptr ocl_engine::reinterpret_handle(const layout& new_layout, shared_mem_
                             ") than specified layout (", requested_mem_size, ")");
             return std::make_shared<ocl::gpu_usm>(this, new_layout, usm_buffer);
         } else {
-            OPENVINO_THROW("[GPU] unknown shared object fromat or type");
+            OPENVINO_THROW_NORETURN("[GPU] unknown shared object fromat or type");
         }
     }
     catch (const cl::Error& clErr) {
@@ -233,9 +233,9 @@ memory::ptr ocl_engine::reinterpret_handle(const layout& new_layout, shared_mem_
         case CL_OUT_OF_RESOURCES:
         case CL_OUT_OF_HOST_MEMORY:
         case CL_INVALID_BUFFER_SIZE:
-            OPENVINO_THROW("[GPU] out of GPU resources");
+            OPENVINO_THROW_NORETURN("[GPU] out of GPU resources");
         default:
-            OPENVINO_THROW("[GPU] buffer allocation failed");
+            OPENVINO_THROW_NORETURN("[GPU] buffer allocation failed");
         }
     }
 }

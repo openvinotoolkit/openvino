@@ -71,7 +71,7 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
     case proto::AttrType::BLOCKS:
         return std::vector<std::int32_t>(attrs[0].blocks_idx().begin(), attrs[0].blocks_idx().end());
     default:
-        FRONT_END_GENERAL_CHECK(false, "Conversion from PaddlePaddle to OpenVINO data type is not supported.");
+        FRONT_END_THROW_NORETURN("Conversion from PaddlePaddle to OpenVINO data type is not supported.");
     }
 }
 

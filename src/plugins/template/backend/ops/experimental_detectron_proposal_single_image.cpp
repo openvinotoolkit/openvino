@@ -15,7 +15,7 @@ bool evaluate(const std::shared_ptr<ngraph::op::v6::ExperimentalDetectronGenerat
 
     size_t post_nms_count = 0;
     if (attrs.post_nms_count < 0) {
-        OPENVINO_THROW("The attribute post_nms_count of the operation "
+        OPENVINO_THROW_NORETURN("The attribute post_nms_count of the operation "
                        "ExperimentalDetectronGenerateProposalsSingleImage must be a "
                        "nonnegative integer.");
     } else {
@@ -158,7 +158,7 @@ bool evaluate_node<ngraph::op::v6::ExperimentalDetectronGenerateProposalsSingleI
             outputs,
             inputs);
     default:
-        OPENVINO_THROW(std::string("Unhandled data type ") + node->get_element_type().get_type_name() +
+        OPENVINO_THROW_NORETURN(std::string("Unhandled data type ") + node->get_element_type().get_type_name() +
                        std::string("in evaluate_node()"));
     }
 }

@@ -524,7 +524,7 @@ std::shared_ptr<TensorPlace> castToTensorPlace(const ov::frontend::Place::Ptr& p
     } else if (auto out_port_place = std::dynamic_pointer_cast<OutPortPlace>(place)) {
         return out_port_place->get_target_tensor_tf();
     }
-    FRONT_END_GENERAL_CHECK(false, "Cannot cast this Place to TensorPlaceTF.");
+    FRONT_END_THROW_NORETURN("Cannot cast this Place to TensorPlaceTF.");
 }
 
 void InputModel::InputModelTFImpl::override_all_inputs(const std::vector<ov::frontend::Place::Ptr>& inputs) {

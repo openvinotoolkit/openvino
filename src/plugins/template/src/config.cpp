@@ -70,6 +70,6 @@ ov::Any Configuration::Get(const std::string& name) const {
     } else if (name == ov::hint::performance_mode) {
         return performance_mode;
     } else {
-        OPENVINO_THROW("Property was not found: ", name);
+        OPENVINO_THROW_NORETURN("Property was not found: ", name);
     }
 }

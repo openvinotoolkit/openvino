@@ -61,7 +61,7 @@ OutputVector detection_output(const Node& node) {
                                                               aux_box_preds,
                                                               attrs)};
     } else {
-        NGRAPH_CHECK(false, "Invalid number of inputs");
+        OPENVINO_THROW_NORETURN("Invalid number of inputs");
     }
 }
 

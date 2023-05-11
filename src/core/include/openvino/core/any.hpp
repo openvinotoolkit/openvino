@@ -196,9 +196,9 @@ template <typename T>
 auto from_string(const std::string& val) ->
     typename std::enable_if<!Readable<T>::value && !Istreamable<T>::value && !std::is_same<T, std::string>::value,
                             T>::type {
-    OPENVINO_THROW("Could read type without std::istream& operator>>(std::istream&, T)",
-                   " defined or ov::util::Read<T> class specialization, T: ",
-                   typeid(T).name());
+    OPENVINO_THROW_NORETURN("Could read type without std::istream& operator>>(std::istream&, T)",
+                            " defined or ov::util::Read<T> class specialization, T: ",
+                            typeid(T).name());
 }
 
 template <typename T, typename A>

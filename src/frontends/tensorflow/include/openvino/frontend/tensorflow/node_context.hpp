@@ -84,7 +84,7 @@ public:
         } else if (func_named_and_indexed) {
             return func_named_and_indexed(node);
         } else {
-            FRONT_END_GENERAL_CHECK(false, "No conversion function exist in this CreatorFunction");
+            FRONT_END_THROW_NORETURN("No conversion function exist in this CreatorFunction");
         }
     }
 

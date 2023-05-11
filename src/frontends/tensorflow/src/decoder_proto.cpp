@@ -293,7 +293,7 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
         // and is converted to ov::Model object.
         return attrs[0].func().name();
     default:
-        FRONT_END_GENERAL_CHECK(false, "Conversion from Tensorflow to OpenVINO data type failed.");
+        FRONT_END_THROW_NORETURN("Conversion from Tensorflow to OpenVINO data type failed.");
     }
 }
 

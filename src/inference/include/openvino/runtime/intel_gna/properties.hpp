@@ -87,7 +87,7 @@ inline std::ostream& operator<<(std::ostream& os, const ExecutionMode& execution
     case ExecutionMode::SW_FP32:
         return os << "GNA_SW_FP32";
     default:
-        OPENVINO_THROW("Unsupported execution mode!");
+        OPENVINO_THROW_NORETURN("Unsupported execution mode!");
     }
 }
 
@@ -149,7 +149,7 @@ inline std::ostream& operator<<(std::ostream& os, const HWGeneration& hw_generat
     case HWGeneration::GNA_4_0:
         return os << "GNA_4_0";
     default:
-        OPENVINO_THROW("Unsupported HW generation!");
+        OPENVINO_THROW_NORETURN("Unsupported HW generation!");
     }
 }
 
@@ -232,7 +232,7 @@ inline std::ostream& operator<<(std::ostream& os, const PWLDesignAlgorithm& pwl_
     case PWLDesignAlgorithm::UNIFORM_DISTRIBUTION:
         return os << "UNIFORM_DISTRIBUTION";
     default:
-        OPENVINO_THROW("Unsupported PWL design algorithm!");
+        OPENVINO_THROW_NORETURN("Unsupported PWL design algorithm!");
     }
 }
 

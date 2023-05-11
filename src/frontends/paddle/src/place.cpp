@@ -239,7 +239,7 @@ Place::Ptr TensorPlace::get_producing_port() const {
     if (const auto& producing_port = m_producing_ports[0].lock()) {
         return producing_port;
     }
-    FRONT_END_THROW("Producing Port has expired.");
+    FRONT_END_THROW_NORETURN("Producing Port has expired.");
 }
 
 void TensorPlace::add_producing_port(const std::shared_ptr<OutPortPlace>& out_port) {
@@ -284,14 +284,14 @@ std::shared_ptr<TensorPlace> InPortPlace::get_source_tensor_paddle() const {
     if (const auto& tensor = m_source_tensor.lock()) {
         return tensor;
     }
-    FRONT_END_THROW("Source Tensor has expired.");
+    FRONT_END_THROW_NORETURN("Source Tensor has expired.");
 }
 
 std::shared_ptr<OpPlace> InPortPlace::get_op() {
     if (const auto& op = m_op.lock()) {
         return op;
     }
-    FRONT_END_THROW("Operation has expired.");
+    FRONT_END_THROW_NORETURN("Operation has expired.");
 }
 
 void InPortPlace::set_source_tensor(const std::weak_ptr<TensorPlace>& source_tensor) {
@@ -302,14 +302,14 @@ std::vector<Place::Ptr> InPortPlace::get_consuming_operations() const {
     if (const auto& consuming_op = m_op.lock()) {
         return {consuming_op};
     }
-    FRONT_END_THROW("Operation has expired.");
+    FRONT_END_THROW_NORETURN("Operation has expired.");
 }
 
 Place::Ptr InPortPlace::get_source_tensor() const {
     if (const auto& tensor = m_source_tensor.lock()) {
         return tensor;
     }
-    FRONT_END_THROW("Source Tensor has expired.");
+    FRONT_END_THROW_NORETURN("Source Tensor has expired.");
 }
 
 Place::Ptr InPortPlace::get_producing_port() const {
@@ -328,14 +328,14 @@ std::shared_ptr<TensorPlace> OutPortPlace::get_target_tensor_paddle() const {
     if (const auto& target_tensor = m_target_tensor.lock()) {
         return target_tensor;
     }
-    FRONT_END_THROW("Target Tensor has expired.");
+    FRONT_END_THROW_NORETURN("Target Tensor has expired.");
 }
 
 std::vector<Place::Ptr> OutPortPlace::get_consuming_operations() const {
     if (auto tensor_ptr = m_target_tensor.lock()) {
         return tensor_ptr->get_consuming_operations();
     }
-    FRONT_END_THROW("Tensor has expired.");
+    FRONT_END_THROW_NORETURN("Tensor has expired.");
 }
 
 void OutPortPlace::set_target_tensor(const std::weak_ptr<TensorPlace>& target_tensor) {
@@ -346,7 +346,7 @@ std::vector<Place::Ptr> OutPortPlace::get_consuming_ports() const {
     if (auto tensor_ptr = m_target_tensor.lock()) {
         return tensor_ptr->get_consuming_ports();
     }
-    FRONT_END_THROW("Tensor has expired.");
+    FRONT_END_THROW_NORETURN("Tensor has expired.");
 }
 
 bool OutPortPlace::is_equal_data(const Place::Ptr& another) const {
@@ -357,14 +357,14 @@ Place::Ptr OutPortPlace::get_target_tensor() const {
     if (const auto& target_tensor = m_target_tensor.lock()) {
         return target_tensor;
     }
-    FRONT_END_THROW("Target Tensor has expired.");
+    FRONT_END_THROW_NORETURN("Target Tensor has expired.");
 }
 
 Place::Ptr OutPortPlace::get_producing_operation() const {
     if (auto op = m_op.lock()) {
         return op;
     }
-    FRONT_END_THROW("Operation has expired.");
+    FRONT_END_THROW_NORETURN("Operation has expired.");
 }
 
 }  // namespace paddle
