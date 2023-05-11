@@ -206,7 +206,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Fu
     ADD_MATCHER(common_fusions, DepthToSpaceFusion)
     ADD_MATCHER(common_fusions, ShuffleChannelsFusion, !m_use_shapes)
     ADD_MATCHER(common_fusions, NonZeroHorizontalFusion)
-    // ADD_MATCHER(common_fusions, AdaptivePoolToReduce)
+    ADD_MATCHER(common_fusions, AdaptivePoolToReduce)
     common_fusions->set_name("ov::pass::CommonFusions");
 
     REGISTER_PASS(manager, BinarizeWeights)
