@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: OpenVINO™ is an ecosystem of utilities such as Neural Network Compression Framework and OpenVINO Training Extensions that help develop deep learning solutions.
+
+
 .. toctree::
    :maxdepth: 1
    :hidden:

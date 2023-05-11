@@ -10,6 +10,10 @@
    Local Distribution Libraries <openvino_docs_deploy_local_distribution>
    Optimize Binaries Size <opevino_conditional_compilation_deploying_guide>
 
+.. meta::
+   :description: There are several ways of deploying OpenVINO™ application once 
+                 its development has been finished.
+
 
 .. note::
 

@@ -1,6 +1,13 @@
 # Model Preparation {#openvino_docs_model_processing_introduction}
 
 @sphinxdirective
+
+.. meta::
+   :description: Pre-trained deep learning models can be downloaded, for 
+                 example from Open Model Zoo, and then customized and prepared 
+                 for work with OpenVINO Runtime.
+
+
 .. toctree::
    :maxdepth: 1
    :hidden:

@@ -2,12 +2,18 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to convert a model from the 
+                 PaddlePaddle format to the OpenVINO Intermediate Representation. 
+
+
 This page provides general instructions on how to convert a model from a PaddlePaddle format to the OpenVINO IR format using Model Optimizer. The instructions are different depending on PaddlePaddle model format.
 
 Converting PaddlePaddle Model Inference Format
 ##############################################
 
 PaddlePaddle inference model includes ``.pdmodel`` (storing model structure) and ``.pdiparams`` (storing model weight). For how to export PaddlePaddle inference model, please refer to the `Exporting PaddlePaddle Inference Model <https://www.paddlepaddle.org.cn/documentation/docs/zh/develop/guides/beginner/model_save_load_cn.html>`__ Chinese guide.
+
 
 To convert a PaddlePaddle model, use the ``mo`` script and specify the path to the input ``.pdmodel`` model file:
 

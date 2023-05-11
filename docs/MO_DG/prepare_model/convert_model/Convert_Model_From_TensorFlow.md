@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to convert a model from a 
+                 TensorFlow format to the OpenVINO Intermediate Representation.
+
+
 This page provides general instructions on how to run model conversion from a TensorFlow format to the OpenVINO IR format. The instructions are different depending on whether your model was created with TensorFlow v1.X or TensorFlow v2.X.
 
 To use model conversion API, install OpenVINO Development Tools by following the :doc:`installation instructions <openvino_docs_install_guides_install_dev_tools>`.
