@@ -8,8 +8,7 @@ const layout = 'NHWC';
 export default async function(openvinojs) {
   const model = await openvinojs.loadModel(modelPath, shape, layout);
   const inputTensor = await getArrayByImgPath(imgPath);
-  const shapeObj = new openvinojs.Shape(shape);
-  const outputTensor = await model.infer(inputTensor, shapeObj);
+  const outputTensor = await model.infer(inputTensor, shape);
 
   printShape(outputTensor.shape);
   await printClass(outputTensor);
