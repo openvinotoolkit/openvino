@@ -176,7 +176,7 @@ public:
 class CachingTest : public ::testing::TestWithParam<std::tuple<TestParam, std::string>> {
 public:
     std::shared_ptr<void> sharedObjectLoader;
-    std::function<void(IInferencePlugin*)> injectProxyEngine;
+    std::function<void(std::shared_ptr<IInferencePlugin>)> injectProxyEngine;
     std::string modelName = "Caching_test.xml";
     std::string weightsName = "Caching_test.bin";
     std::string deviceName = "mock";
@@ -283,7 +283,7 @@ public:
         setupMock(*mockPlugin);
         std::string libraryPath = get_mock_engine_path();
         sharedObjectLoader = ov::util::load_shared_object(libraryPath.c_str());
-        injectProxyEngine = make_std_function<void(IInferencePlugin*)>("InjectProxyEngine");
+        injectProxyEngine = make_std_function<void(std::shared_ptr<IInferencePlugin>)>("InjectProxyEngine");
 
         FuncTestUtils::TestModel::generateTestModel(modelName, weightsName);
     }
@@ -300,7 +300,7 @@ public:
 
     void testLoad(const std::function<void(Core& ie)>& func) {
         Core ie;
-        injectProxyEngine(mockPlugin.get());
+        injectProxyEngine(mockPlugin);
         ie.RegisterPlugin(ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
                                                              std::string("mock_engine") + IE_BUILD_POSTFIX),
                           deviceName);

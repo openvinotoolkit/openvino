@@ -22,15 +22,12 @@
 
 class MockInternalPlugin : public ov::IPlugin {
     std::shared_ptr<ov::IPlugin> m_plugin;
-    InferenceEngine::IInferencePlugin* m_old_plugin = nullptr;
+    std::shared_ptr<InferenceEngine::IInferencePlugin> m_old_plugin;
     ov::AnyMap config;
 
 public:
-    explicit MockInternalPlugin(InferenceEngine::IInferencePlugin* target) : m_old_plugin(target) {
-        std::shared_ptr<InferenceEngine::IInferencePlugin> shared_target(target,
-                                                                         [](InferenceEngine::IInferencePlugin*) {});
-        m_old_plugin = target;
-        m_plugin = InferenceEngine::convert_plugin(shared_target);
+    explicit MockInternalPlugin(std::shared_ptr<InferenceEngine::IInferencePlugin>& target) : m_old_plugin(target) {
+        m_plugin = InferenceEngine::convert_plugin(m_old_plugin);
     }
     explicit MockInternalPlugin(std::shared_ptr<ov::IPlugin> target) : m_plugin(target) {}
     explicit MockInternalPlugin() = default;
@@ -205,7 +202,7 @@ OPENVINO_PLUGIN_API void CreatePluginEngine(std::shared_ptr<ov::IPlugin>& plugin
     plugin = std::make_shared<MockPlugin>(internal_plugin);
 }
 
-OPENVINO_PLUGIN_API void InjectProxyEngine(InferenceEngine::IInferencePlugin* target) {
+OPENVINO_PLUGIN_API void InjectProxyEngine(std::shared_ptr<InferenceEngine::IInferencePlugin>& target) {
     std::lock_guard<std::mutex> lock(targets_mutex);
     targets.push(std::make_shared<MockInternalPlugin>(target));
 }
