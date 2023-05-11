@@ -105,7 +105,7 @@ CPU::CPU() {
                     _proc_type_table.pop_back();
                 }
             }
-            _sockets = _proc_type_table.size() == 1 ? 1 : _proc_type_table.size() - 1;
+            _numa_nodes = _proc_type_table.size() == 1 ? 1 : _proc_type_table.size() - 1;
             std::sort(cores_list.begin(), cores_list.end());
             auto iter = std::unique(cores_list.begin(), cores_list.end());
             cores_list.erase(iter, cores_list.end());
