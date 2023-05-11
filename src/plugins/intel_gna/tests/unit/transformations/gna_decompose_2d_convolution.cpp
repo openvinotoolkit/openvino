@@ -297,7 +297,7 @@ public:
     void SetUp() override;
 
     void TearDown() override {
-        Limitations::Reset();
+        Limitations::reset();
     }
 
 public:
@@ -317,7 +317,7 @@ void Decompose2DConvTestInvalidFixture::SetUp() {
     std::tie(model, input_shape, filters_shape, conv_stride, conv_dilation, bias_shape, maxpool_stride, maxpool_shape) =
         params;
 
-    Limitations::Init(ov::intel_gna::target::DeviceVersion::Default);
+    Limitations::init(ov::intel_gna::target::DeviceVersion::Default);
 
     function = get_initial_function(fq,
                                     model,
@@ -351,7 +351,7 @@ public:
     void SetUp() override;
 
     void TearDown() override {
-        Limitations::Reset();
+        Limitations::reset();
     }
 
     std::shared_ptr<ngraph::Function> get_reference(const bool& fq,
@@ -377,7 +377,7 @@ void Decompose2DConvTestFixture::SetUp() {
     std::tie(model, input_shape, filters_shape, conv_stride, conv_dilation, bias_shape, maxpool_stride, maxpool_shape) =
         params;
 
-    Limitations::Init(ov::intel_gna::target::DeviceVersion::Default);
+    Limitations::init(ov::intel_gna::target::DeviceVersion::Default);
 
     function = get_initial_function(fq,
                                     model,

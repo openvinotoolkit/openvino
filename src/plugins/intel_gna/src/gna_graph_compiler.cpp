@@ -230,7 +230,7 @@ void GNAGraphCompiler::fillSplitConnections(InferenceEngine::CNNLayerPtr layer) 
 }
 
 void GNAGraphCompiler::initTargetValidator() {
-    cnn2dValidator = Limitations::GetInstance()->GetCnnValidator();
+    cnn2dValidator = Limitations::get_instance()->get_cnn_validator();
 }
 
 bool GNAGraphCompiler::ShouldUseOnlyConv2DGnaIface() const {
@@ -846,7 +846,7 @@ void GNAGraphCompiler::PowerPrimitive(InferenceEngine::CNNLayerPtr layer) {
     auto input = layer->insData[0].lock();
 
     auto outputs = *layer->outData.begin();
-    auto reshaped_dims = Get2DReshapedData(input, Limitations::GetMinBatchToFitInBuffer(input), 8)->getDims();
+    auto reshaped_dims = Get2DReshapedData(input, Limitations::get_min_batch_to_fit_in_buffer(input), 8)->getDims();
     const uint32_t kNoOfInputsDivisor = gna_config.gnaFlags.input_low_precision ? Limitations::kNoOfInputsLowPrecDivisor
                                                                                 : Limitations::kNoOfInputsDivisor;
     uint32_t num_rows_in = reshaped_dims[1];
@@ -1097,7 +1097,7 @@ void GNAGraphCompiler::CopyPrimitive(InferenceEngine::CNNLayerPtr layer) {
     auto inputs = layer->insData.begin()->lock();
     auto outputs = *layer->outData.begin();
 
-    auto reshaped_dims = Get2DReshapedData(inputs, Limitations::GetMinBatchToFitInBuffer(inputs), 8)->getDims();
+    auto reshaped_dims = Get2DReshapedData(inputs, Limitations::get_min_batch_to_fit_in_buffer(inputs), 8)->getDims();
     uint32_t num_rows_in = reshaped_dims[1];
     uint32_t num_columns_in = reshaped_dims[0];
     uint32_t num_rows_out = num_rows_in;
@@ -1159,7 +1159,7 @@ void GNAGraphCompiler::ConcatPrimitive(InferenceEngine::CNNLayerPtr layer) {
     }
 
     // Concat axis validation
-    if (!Limitations::ValidateConvConcatAxis(concatLayer)) {
+    if (!Limitations::validate_conv_concat_axis(concatLayer)) {
         std::ostringstream in_dims_oss;
         auto in_dims = concatLayer->insData[0].lock()->getDims();
         std::copy(in_dims.begin(), in_dims.end(), std::ostream_iterator<size_t>(in_dims_oss, ","));
@@ -1590,7 +1590,7 @@ void GNAGraphCompiler::AffinePrimitive(InferenceEngine::CNNLayerPtr layer, bool 
     }
 
     auto input_data = HasTo2DReshapeData(layer)
-                          ? Get2DReshapedData(inputs, Limitations::GetMinBatchToFitInBuffer(inputs), 8)
+                          ? Get2DReshapedData(inputs, Limitations::get_min_batch_to_fit_in_buffer(inputs), 8)
                           : inputs;
     auto in_dims = input_data->getDims();
     auto batch_size = (in_dims.size() == 1) ? 1 : in_dims.front();

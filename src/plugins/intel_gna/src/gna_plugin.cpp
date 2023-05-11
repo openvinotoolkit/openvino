@@ -363,7 +363,7 @@ GNAPlugin::GNAPlugin() : graphCompiler(config) {
     Init();
     UpdateFieldsFromConfig();
     InitGNADevice();
-    Limitations::Init(this->config.target->get_effective_compile_target());
+    Limitations::init(config.target->get_effective_compile_target());
     InitGNAMemory();
     InitGraphCompiler();
 }
@@ -373,7 +373,7 @@ GNAPlugin::GNAPlugin(const std::map<std::string, std::string>& configMap) : grap
     SetConfig(configMap);
     log::set_log_level(gnaFlags->log_level);
     InitGNADevice();
-    Limitations::Init(config.target->get_effective_compile_target());
+    Limitations::init(config.target->get_effective_compile_target());
     InitGNAMemory();
     InitGraphCompiler();
 }
@@ -404,7 +404,7 @@ void GNAPlugin::InitGNAMemory() {
         gnamem.reset(new gna_memory_float(memory::GNAFloatAllocator{}));
     } else {
         gnamem = std::make_shared<gna_memory_device>(memory::GNAAllocator(gnadevice),
-                                                     Limitations::GetInstance()->GetMemoryAlignment(),
+                                                     Limitations::get_instance()->get_memory_alignment(),
                                                      Limitations::kMemoryPageSize);
     }
 }
@@ -720,7 +720,7 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
         CNNNetwork clonedNetwork = InferenceEngine::cloneNetwork(_network);
         auto model = clonedNetwork.getFunction();
         transformer.apply(model, &m_input_output_subgraphs);
-        Limitations::GetInstance()->CheckAllOpsSupported(model, config.gnaPrecision);
+        Limitations::get_instance()->check_all_ops_supported(model, config.gnaPrecision);
         convertedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(model, clonedNetwork);
     }
     IE_SUPPRESS_DEPRECATED_START
@@ -732,7 +732,7 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
     //  Check the network
 
     std::string error;
-    if (!Limitations::AreLayersSupported(network, error)) {
+    if (!Limitations::are_layers_supported(network, error)) {
         THROW_GNA_EXCEPTION << error.c_str();
     }
 
@@ -1714,7 +1714,7 @@ InferenceEngine::QueryNetworkResult GNAPlugin::QueryNetwork(
                 TransformationsPipeline(qn_config).apply(model);
             },
             [&](const std::shared_ptr<ngraph::Node>& op) {
-                const auto res = Limitations::GetInstance()->IsOpSupported(op, qn_config.gnaPrecision);
+                const auto res = Limitations::get_instance()->is_op_supported(op, qn_config.gnaPrecision);
                 return res;
             });
         for (auto&& op_name : supported) {
@@ -1753,5 +1753,5 @@ GNAPlugin::~GNAPlugin() {
     if (gnadevice)
         gnadevice->close();
 
-    Limitations::Reset();
+    Limitations::reset();
 }

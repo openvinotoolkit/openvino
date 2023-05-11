@@ -615,7 +615,7 @@ bool Validator_35::ShouldUseOnlyConv2DGnaIface() const {
     return true;
 }
 
-std::shared_ptr<AbstractValidator> AbstractValidator::Create(const target::DeviceVersion& target) {
+std::shared_ptr<AbstractValidator> AbstractValidator::Create(const DeviceVersion& target) {
     switch (target) {
     case DeviceVersion::GNA3_0:
     case DeviceVersion::GNA3_1:
@@ -673,26 +673,36 @@ constexpr uint32_t Limitations::kBytesPerSplitElement;
 constexpr uint32_t Limitations::kBytesPerCropElement;
 constexpr uint32_t Limitations::kMemoryPageSize;
 
-thread_local std::shared_ptr<Limitations> Limitations::m_instance{nullptr};
+thread_local std::shared_ptr<Limitations> Limitations::k_instance{nullptr};
 
-void Limitations::Init(const target::DeviceVersion& compile_target) {
-    if (m_instance) {
-        if (GetInstance()->GetCompileTarget() != compile_target) {
+Limitations::Limitations(const DeviceVersion& target) {
+    m_compile_target = target;
+    m_mem_alignment = get_memory_alignment_bytes(target);
+    m_cnn_validator = cnn2d::AbstractValidator::Create(target);
+}
+
+void Limitations::init(const DeviceVersion& compile_target) {
+    if (k_instance) {
+        if (get_instance()->get_compile_target() != compile_target) {
             THROW_GNA_EXCEPTION << "Limitations instance already initialized with a different configuration.\n";
         }
     } else {
-        m_instance = std::shared_ptr<Limitations>(new Limitations(compile_target));
+        k_instance = std::shared_ptr<Limitations>(new Limitations(compile_target));
     }
 }
 
-bool Limitations::IsTranspose2d(const std::vector<size_t>& shape) {
+void Limitations::reset() {
+    k_instance.reset();
+}
+
+bool Limitations::is_transpose_2d(const std::vector<size_t>& shape) {
     return std::count_if(std::begin(shape), std::end(shape), [](size_t dim) {
                return dim != 1;
            }) == 2;
 }
 
-bool Limitations::IsTransposeSupported(const std::vector<size_t>& shape) {
-    if (!IsTranspose2d(shape))
+bool Limitations::is_transpose_supported(const std::vector<size_t>& shape) {
+    if (!is_transpose_2d(shape))
         return false;
     auto shape_no_1 = shape;
     shape_no_1.erase(std::remove(shape_no_1.begin(), shape_no_1.end(), 1), shape_no_1.end());
@@ -701,23 +711,26 @@ bool Limitations::IsTransposeSupported(const std::vector<size_t>& shape) {
     return min <= 8 && max % 8 == 0 && max >= 8 && max <= kTransposeMaxSize;
 }
 
-size_t Limitations::GetMinBatchToFitInBuffer(InferenceEngine::DataPtr input) {
+size_t Limitations::get_min_batch_to_fit_in_buffer(InferenceEngine::DataPtr input) {
     auto total_size = InferenceEngine::details::product(std::begin(input->getDims()), std::end(input->getDims()));
     return total_size / kBufferMaxSize + 1;
 }
 
-size_t Limitations::GetMemoryAlignmentBytes(const target::DeviceVersion& target) const {
-    static const std::unordered_map<target::DeviceVersion, size_t> mem_alignment_map{
-        {target::DeviceVersion::GNA1_0, 64},
-        {target::DeviceVersion::GNA2_0, 64},
-        {target::DeviceVersion::GNA3_0, 64},
-        {target::DeviceVersion::GNA3_1, 64},
-        {target::DeviceVersion::GNA3_5, 64},
-        {target::DeviceVersion::GNAEmbedded3_5, 64},
-        {target::DeviceVersion::GNA3_6, 16},
-        {target::DeviceVersion::GNA4_0, 16}};
+size_t Limitations::get_memory_alignment_bytes(const DeviceVersion& target) const {
+    static const std::unordered_map<DeviceVersion, size_t> mem_alignment_map{{DeviceVersion::GNA1_0, 64},
+                                                                             {DeviceVersion::GNA2_0, 64},
+                                                                             {DeviceVersion::GNA3_0, 64},
+                                                                             {DeviceVersion::GNA3_1, 64},
+                                                                             {DeviceVersion::GNA3_5, 64},
+                                                                             {DeviceVersion::GNAEmbedded3_5, 64},
+                                                                             {DeviceVersion::GNA3_6, 16},
+                                                                             {DeviceVersion::GNA4_0, 16}};
 
-    return common::GetValueForKey<target::DeviceVersion, size_t>(target, mem_alignment_map);
+    return common::GetValueForKey<DeviceVersion, size_t>(target, mem_alignment_map);
+}
+
+DeviceVersion Limitations::get_compile_target() const {
+    return m_compile_target;
 }
 
 bool SupportedElementTypes::IsParameterTypeSupported(ov::element::Type elem_type, bool is_exception_allowed) {
@@ -750,7 +763,7 @@ bool SupportedElementTypes::IsConstantTypeSupported(ov::element::Type elem_type,
     return true;
 }
 
-bool Limitations::IsConvSupported(const std::shared_ptr<ngraph::op::ConvolutionIE>& conv_ie,
+bool Limitations::is_conv_supported(const std::shared_ptr<ngraph::op::ConvolutionIE>& conv_ie,
                                   const InferenceEngine::Precision gna_precision,
                                   bool is_exception_allowed) {
     OPENVINO_ASSERT(conv_ie, "ConvolutionIE node is empty!");
@@ -807,7 +820,7 @@ bool Limitations::IsConvSupported(const std::shared_ptr<ngraph::op::ConvolutionI
     return check_dilation(conv_ie->get_dilations()[0], conv_ie->get_dilations()[1]);
 }
 
-bool Limitations::IsPoolingSupported(const std::shared_ptr<ngraph::opset7::MaxPool> max_pool,
+bool Limitations::is_pooling_supported(const std::shared_ptr<ngraph::opset7::MaxPool> max_pool,
                                      bool is_exception_allowed) {
     OPENVINO_ASSERT(max_pool, "MaxPool node is empty!");
     auto kernels = max_pool->get_kernel();
@@ -825,7 +838,7 @@ bool Limitations::IsPoolingSupported(const std::shared_ptr<ngraph::opset7::MaxPo
     return true;
 }
 
-bool Limitations::IsFcSupported(const std::shared_ptr<ngraph::op::FullyConnected>& fully_connected,
+bool Limitations::is_fc_supported(const std::shared_ptr<ngraph::op::FullyConnected>& fully_connected,
                                 bool is_exception_allowed) {
     OPENVINO_ASSERT(fully_connected, "FullyConnected node is empty!");
     size_t output_batch_size = fully_connected->get_output_shape(0)[0];
@@ -840,7 +853,7 @@ bool Limitations::IsFcSupported(const std::shared_ptr<ngraph::op::FullyConnected
     return true;
 }
 
-bool Limitations::IsSplitSupported(const std::shared_ptr<ov::Node>& node, bool is_exception_allowed) {
+bool Limitations::is_split_supported(const std::shared_ptr<ov::Node>& node, bool is_exception_allowed) {
     OPENVINO_ASSERT(node, "Split node is empty!");
     bool is_aligned = true;
     for (size_t i = 0; i < node->get_output_size(); i++) {
@@ -849,7 +862,7 @@ bool Limitations::IsSplitSupported(const std::shared_ptr<ov::Node>& node, bool i
     return is_aligned;
 }
 
-bool Limitations::IsOpSupported(const std::shared_ptr<ov::Node>& node,
+bool Limitations::is_op_supported(const std::shared_ptr<ov::Node>& node,
                                 const InferenceEngine::Precision gna_precision,
                                 bool is_exception_allowed) {
     if (ov::op::util::is_parameter(node)) {
@@ -857,11 +870,11 @@ bool Limitations::IsOpSupported(const std::shared_ptr<ov::Node>& node,
     } else if (ov::op::util::is_constant(node)) {
         return SupportedElementTypes::IsConstantTypeSupported(node->get_element_type(), is_exception_allowed);
     } else if (auto conv_ie = std::dynamic_pointer_cast<ngraph::op::ConvolutionIE>(node)) {
-        return IsConvSupported(conv_ie, gna_precision, is_exception_allowed);
+        return is_conv_supported(conv_ie, gna_precision, is_exception_allowed);
     } else if (auto fully_connected = std::dynamic_pointer_cast<ngraph::op::FullyConnected>(node)) {
-        return IsFcSupported(fully_connected, is_exception_allowed);
+        return is_fc_supported(fully_connected, is_exception_allowed);
     } else if (ov::intel_gna::ngraph_util::is_pooling(node)) {
-        return IsPoolingSupported(std::dynamic_pointer_cast<ngraph::opset7::MaxPool>(node), is_exception_allowed);
+        return is_pooling_supported(std::dynamic_pointer_cast<ngraph::opset7::MaxPool>(node), is_exception_allowed);
     } else if (ov::op::util::is_output(node) || ov::op::util::is_sink(node) ||
                ov::intel_gna::ngraph_util::is_eltwise_add(node) || ov::intel_gna::ngraph_util::is_eltwise_mul(node) ||
                ov::intel_gna::ngraph_util::is_crop_affined(node) ||
@@ -876,7 +889,7 @@ bool Limitations::IsOpSupported(const std::shared_ptr<ov::Node>& node,
     } else if (ov::intel_gna::ngraph_util::is_gna_precision_agnostic(node)) {
         if ((std::dynamic_pointer_cast<ngraph::opset9::Split>(node) != nullptr) ||
             (std::dynamic_pointer_cast<ngraph::opset9::VariadicSplit>(node) != nullptr)) {
-            return IsSplitSupported(node, is_exception_allowed);
+            return is_split_supported(node, is_exception_allowed);
         }
         // TODO check concat are aligned when transformation will be moved to ngraph
         return true;
@@ -884,12 +897,12 @@ bool Limitations::IsOpSupported(const std::shared_ptr<ov::Node>& node,
     return false;
 }
 
-void Limitations::CheckAllOpsSupported(const std::shared_ptr<ov::Model>& model,
+void Limitations::check_all_ops_supported(const std::shared_ptr<ov::Model>& model,
                                        const InferenceEngine::Precision gna_precision) {
     std::stringstream error;
     // Walk through the transformed model
     for (auto& op : model->get_ops()) {
-        if (!IsOpSupported(op, gna_precision, true)) {
+        if (!is_op_supported(op, gna_precision, true)) {
             error << "The plugin does not support layer " << op->get_friendly_name() << " (type " << op->get_type_name()
                   << ")!" << std::endl;
         }
@@ -899,13 +912,13 @@ void Limitations::CheckAllOpsSupported(const std::shared_ptr<ov::Model>& model,
     }
 }
 
-bool Limitations::UseOnly16BitConvolutionWeights() const {
+bool Limitations::use_only_16bit_convolution_weights() const {
     return m_compile_target == DeviceVersion::GNA1_0 || m_compile_target == DeviceVersion::GNA2_0 ||
            m_compile_target == DeviceVersion::GNA3_0 || m_compile_target == DeviceVersion::GNA3_1;
 }
 
 IE_SUPPRESS_DEPRECATED_START
-bool Limitations::ValidateConcatAxis(const InferenceEngine::CNNLayerPtr layer, std::string& errMessage) {
+bool Limitations::validate_concat_axis(const InferenceEngine::CNNLayerPtr layer, std::string& errMessage) {
     LayerInfo info(layer);
     auto concat_layer = info.as<InferenceEngine::ConcatLayer*>();
     IE_ASSERT(concat_layer);
@@ -1039,7 +1052,7 @@ bool Limitations::ValidateConcatAxis(const InferenceEngine::CNNLayerPtr layer, s
     return true;
 }
 
-bool Limitations::ValidateConvConcatAxis(const InferenceEngine::ConcatLayer* concat_layer) {
+bool Limitations::validate_conv_concat_axis(const InferenceEngine::ConcatLayer* concat_layer) {
     IE_ASSERT(concat_layer);
     auto dims_size = concat_layer->insData[0].lock()->getDims().size();
 
@@ -1091,7 +1104,7 @@ bool Limitations::ValidateConvConcatAxis(const InferenceEngine::ConcatLayer* con
     return true;
 }
 
-bool Limitations::AreLayersSupported(InferenceEngine::CNNNetwork& network, std::string& errMessage) {
+bool Limitations::are_layers_supported(InferenceEngine::CNNNetwork& network, std::string& errMessage) {
     IE_SUPPRESS_DEPRECATED_START
     InferenceEngine::InputsDataMap inputs = network.getInputsInfo();
     std::unordered_set<InferenceEngine::CNNLayer*> allLayers;
@@ -1137,7 +1150,7 @@ bool Limitations::AreLayersSupported(InferenceEngine::CNNNetwork& network, std::
                     check_result = false;
                 }
             } else if (info.isConcat()) {
-                if (!ValidateConcatAxis(layer, errMessage)) {
+                if (!validate_concat_axis(layer, errMessage)) {
                     THROW_GNA_EXCEPTION << errMessage;
                 }
             }

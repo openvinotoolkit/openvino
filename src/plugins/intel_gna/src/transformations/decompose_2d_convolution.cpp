@@ -88,7 +88,7 @@ static bool VerifyMaxPool(GraphData& graph_data, std::shared_ptr<ngraph::opset7:
 static bool GNA30SupportedConv(const InferenceEngine::Precision& gnaPrecision,
                                const GraphData& graph_data,
                                const ConvData& conv_data) {
-    const auto cnn2dValidatorPtr = Limitations::GetInstance()->GetCnnValidator();
+    const auto cnn2dValidatorPtr = Limitations::get_instance()->get_cnn_validator();
 
     if (!cnn2dValidatorPtr) {
         return false;

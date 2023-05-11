@@ -49,11 +49,11 @@ class I8QuantisationTest : public GNATest<> {
     }
 
     void SetUp() override {
-        Limitations::Init(target::DeviceVersion::Default);
+        Limitations::init(target::DeviceVersion::Default);
     }
 
     void TearDown() override {
-        Limitations::Reset();
+        Limitations::reset();
     }
 };
 

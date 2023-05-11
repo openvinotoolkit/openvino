@@ -161,6 +161,108 @@ public:
 
 class Limitations {
 public:
+    /**
+     * @brief Returns the instance of Limitations object. Requires an Init call before the first usage or once the Reset
+     * function has been called
+     */
+    static inline std::shared_ptr<Limitations> get_instance() {
+        if (!k_instance) {
+            THROW_GNA_EXCEPTION << "Limitations instance is not initialized.\n";
+        }
+        return k_instance;
+    }
+
+    /**
+     * @brief Creates the instance of Limitations object.
+     * @param compile_target GNA compile target
+     */
+    static void init(const target::DeviceVersion& compile_target);
+
+    /**
+     * @brief Releases the instance of the Limitations object.
+     */
+    static void reset();
+
+    static bool is_transpose_2d(const std::vector<size_t>& shape);
+    static bool is_transpose_supported(const std::vector<size_t>& shape);
+    static size_t get_min_batch_to_fit_in_buffer(InferenceEngine::DataPtr input);
+
+    /**
+     * @brief Validates if concat layer axis is supported by GNA
+     * @param layer concat layer
+     * @return true if concat layer axis is valid
+     */
+    IE_SUPPRESS_DEPRECATED_START
+    static bool validate_conv_concat_axis(const InferenceEngine::ConcatLayer* concatLayer);
+    static bool are_layers_supported(InferenceEngine::CNNNetwork& network, std::string& errMessage);
+    IE_SUPPRESS_DEPRECATED_END
+
+    /**
+     * @brief Validates if fully connected is supported by GNA
+     * @param fully_connected fully connected
+     * @param is_exception_allowed flag specifies whether exception is allowed
+     * @return true if supported
+     */
+    static bool is_fc_supported(const std::shared_ptr<ngraph::op::FullyConnected>& fully_connected,
+                              bool is_exception_allowed = false);
+    /**
+     * @brief Validates if split is supported by GNA
+     * @param node split
+     * @param is_exception_allowed flag specifies whether exception is allowed
+     * @return true if supported
+     */
+    static bool is_split_supported(const std::shared_ptr<ov::Node>& node, bool is_exception_allowed = false);
+    /**
+     * @brief Validates if legacy convolution is supported by GNA
+     * @param conv_ie convolution
+     * @param gna_precision GNA inference precision
+     * @param is_exception_allowed flag specifies whether exception is allowed
+     * @return true if supported
+     */
+    bool is_conv_supported(const std::shared_ptr<ngraph::op::ConvolutionIE>& conv_ie,
+                         const InferenceEngine::Precision gna_precision,
+                         bool is_exception_allowed = false);
+    /**
+     * @brief Validates if max pooling is supported by GNA
+     * @param max_pool max pooling
+     * @param is_exception_allowed flag specifies whether exception is allowed
+     * @return true if precision is found in supported
+     */
+    bool is_pooling_supported(const std::shared_ptr<ngraph::opset7::MaxPool> max_pool, bool is_exception_allowed = false);
+
+    /**
+     * @brief Validates if operation is supported by GNA
+     * @param node operation
+     * @param gna_precision GNA inference precision
+     * @param is_exception_allowed flag specifies whether exception is allowed
+     * @return true if supported
+     */
+    bool is_op_supported(const std::shared_ptr<ov::Node>& node,
+                       const InferenceEngine::Precision gna_precision,
+                       bool is_exception_allowed = false);
+
+    /**
+     * @brief Check if all operations are supported by GNA
+     * @param model ngraph model
+     * @param gna_precision GNA inference precision
+     */
+    void check_all_ops_supported(const std::shared_ptr<ov::Model>& model, const InferenceEngine::Precision gna_precision);
+
+    bool use_only_16bit_convolution_weights() const;
+
+    inline bool is_crop_affined_offset(size_t numberOfElements) const {
+        const auto cropOffset = numberOfElements * kBytesPerCropElement;
+        return (ALIGN64(cropOffset) != cropOffset);
+    }
+
+    inline size_t get_memory_alignment() const {
+        return m_mem_alignment;
+    }
+
+    inline std::shared_ptr<cnn2d::AbstractValidator> get_cnn_validator() const {
+        return m_cnn_validator;
+    }
+
     constexpr static uint32_t kBufferMaxSize = 65528;
     constexpr static uint32_t kConvMinFiltersNum = 4;
     constexpr static uint32_t kConvMaxFiltersNum = 65532;
@@ -177,8 +279,6 @@ public:
     constexpr static uint32_t kMaxPoolMaxWindowSize = 6;
     constexpr static uint32_t kCopyMaxGrouping = 8;
     constexpr static uint32_t kTransposeMaxSize = 65528;
-    // TODO In the future there should be created class/struct representing all limitations for specific device
-    // versions.
     constexpr static uint32_t kMaxLayersCountGNA1_0 = 1023;
     constexpr static uint32_t kMaxLayersCountGNA2_0 = 4096;
     constexpr static uint32_t kMaxLayersCountGNA3_X = 8192;
@@ -192,125 +292,23 @@ public:
     constexpr static uint32_t kBytesPerCropElement = 2;
     constexpr static uint32_t kMemoryPageSize = 4096;
 
-    static inline std::shared_ptr<Limitations> GetInstance() {
-        if (!m_instance) {
-            THROW_GNA_EXCEPTION << "Limitations instance is not initialized.\n";
-        }
-        return m_instance;
-    }
-
-    static void Init(const target::DeviceVersion& compile_target);
-
-    static void Reset() {
-        m_instance.reset();
-    }
-
-    static bool IsTranspose2d(const std::vector<size_t>& shape);
-    static bool IsTransposeSupported(const std::vector<size_t>& shape);
-    static size_t GetMinBatchToFitInBuffer(InferenceEngine::DataPtr input);
-
-    /**
-     * @brief Validates if concat layer axis is supported by GNA
-     * @param layer concat layer
-     * @return true if concat layer axis is valid
-     */
-    IE_SUPPRESS_DEPRECATED_START
-    static bool ValidateConvConcatAxis(const InferenceEngine::ConcatLayer* concatLayer);
-    static bool AreLayersSupported(InferenceEngine::CNNNetwork& network, std::string& errMessage);
-    IE_SUPPRESS_DEPRECATED_END
-
-    /**
-     * @brief Validates if fully connected is supported by GNA
-     * @param fully_connected fully connected
-     * @param is_exception_allowed flag specifies whether exception is allowed
-     * @return true if supported
-     */
-    static bool IsFcSupported(const std::shared_ptr<ngraph::op::FullyConnected>& fully_connected,
-                              bool is_exception_allowed = false);
-    /**
-     * @brief Validates if split is supported by GNA
-     * @param node split
-     * @param is_exception_allowed flag specifies whether exception is allowed
-     * @return true if supported
-     */
-    static bool IsSplitSupported(const std::shared_ptr<ov::Node>& node, bool is_exception_allowed = false);
-    /**
-     * @brief Validates if legacy convolution is supported by GNA
-     * @param conv_ie convolution
-     * @param gna_precision GNA inference precision
-     * @param is_exception_allowed flag specifies whether exception is allowed
-     * @return true if supported
-     */
-    bool IsConvSupported(const std::shared_ptr<ngraph::op::ConvolutionIE>& conv_ie,
-                         const InferenceEngine::Precision gna_precision,
-                         bool is_exception_allowed = false);
-    /**
-     * @brief Validates if max pooling is supported by GNA
-     * @param max_pool max pooling
-     * @param supported_types list of supported types
-     * @param is_exception_allowed flag specifies whether exception is allowed
-     * @return true if precision is found in supported
-     */
-    bool IsPoolingSupported(const std::shared_ptr<ngraph::opset7::MaxPool> max_pool, bool is_exception_allowed = false);
-
-    /**
-     * @brief Validates if operation is supported by GNA
-     * @param node operation
-     * @param gna_compile_target GNA compile target
-     * @param gna_precision GNA inference precision
-     * @param is_exception_allowed flag specifies whether exception is allowed
-     * @return true if supported
-     */
-    bool IsOpSupported(const std::shared_ptr<ov::Node>& node,
-                       const InferenceEngine::Precision gna_precision,
-                       bool is_exception_allowed = false);
-
-    /**
-     * @brief Check if all operations are supported by GNA
-     * @param model ngraph model
-     * @param gna_compile_target GNA compile target
-     * @param gna_precision GNA inference precision
-     */
-    void CheckAllOpsSupported(const std::shared_ptr<ov::Model>& model, const InferenceEngine::Precision gna_precision);
-    bool UseOnly16BitConvolutionWeights() const;
-
-    inline bool IsCropAffinedOffset(size_t numberOfElements) const {
-        const auto cropOffset = numberOfElements * kBytesPerCropElement;
-        return (ALIGN64(cropOffset) != cropOffset);
-    }
-
-    inline size_t GetMemoryAlignment() const {
-        return m_mem_alignment;
-    }
-
-    inline std::shared_ptr<cnn2d::AbstractValidator> GetCnnValidator() const {
-        return m_cnn_validator;
-    }
-
 private:
-    Limitations(const target::DeviceVersion& target) {
-        m_compile_target = target;
-        m_mem_alignment = GetMemoryAlignmentBytes(target);
-        m_cnn_validator = cnn2d::AbstractValidator::Create(target);
-    }
-
+    Limitations(const target::DeviceVersion& target);
     Limitations(const Limitations&) = delete;
     Limitations& operator=(const Limitations&) = delete;
 
-    size_t GetMemoryAlignmentBytes(const target::DeviceVersion& target) const;
+    size_t get_memory_alignment_bytes(const target::DeviceVersion& target) const;
 
-    target::DeviceVersion GetCompileTarget() const {
-        return m_compile_target;
-    }
+    target::DeviceVersion get_compile_target() const;
 
     IE_SUPPRESS_DEPRECATED_START
-    static bool ValidateConcatAxis(const InferenceEngine::CNNLayerPtr layer, std::string& errMessage);
+    static bool validate_concat_axis(const InferenceEngine::CNNLayerPtr layer, std::string& errMessage);
     IE_SUPPRESS_DEPRECATED_END
 
     target::DeviceVersion m_compile_target;
     size_t m_mem_alignment = 0;
     std::shared_ptr<cnn2d::AbstractValidator> m_cnn_validator;
-    static thread_local std::shared_ptr<Limitations> m_instance;
+    static thread_local std::shared_ptr<Limitations> k_instance;
 };
 
 }  // namespace limitations

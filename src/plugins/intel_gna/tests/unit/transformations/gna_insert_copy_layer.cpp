@@ -56,11 +56,11 @@ void InsertCopyLayerTest::Validate() {
 
 void InsertCopyLayerTest::SetUp() {
     std::tie(m_axis, m_inputs_num) = this->GetParam();
-    ov::intel_gna::limitations::Limitations::Init(ov::intel_gna::target::DeviceVersion::Default);
+    ov::intel_gna::limitations::Limitations::init(ov::intel_gna::target::DeviceVersion::Default);
 }
 
 void InsertCopyLayerTest::TearDown() {
-    ov::intel_gna::limitations::Limitations::Reset();
+    ov::intel_gna::limitations::Limitations::reset();
 }
 
 void InsertCopyLayerTest::Run() {
@@ -184,9 +184,9 @@ public:
 };
 
 void RunPasses(ngraph::pass::Manager& m, std::shared_ptr<ov::Model> func) {
-    ov::intel_gna::limitations::Limitations::Init(ov::intel_gna::target::DeviceVersion::Default);
+    ov::intel_gna::limitations::Limitations::init(ov::intel_gna::target::DeviceVersion::Default);
     m.run_passes(func);
-    ov::intel_gna::limitations::Limitations::Reset();
+    ov::intel_gna::limitations::Limitations::reset();
 }
 
 //      [Parameter]            [Parameter]

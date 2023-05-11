@@ -353,7 +353,7 @@ InferenceEngine::Precision GetWeightsPrecision(const LayerInfo& layer_info,
                                                const QuantizedLayerParams& quant_layer_params,
                                                const Config& gna_config) {
     if (((layer_info.isConvolution() || layer_info.isConvolutionFilter()) &&
-         Limitations::GetInstance()->UseOnly16BitConvolutionWeights()) ||
+         Limitations::get_instance()->use_only_16bit_convolution_weights()) ||
         layer_info.isScaleShift()) {
         return InferenceEngine::Precision::I16;
     }

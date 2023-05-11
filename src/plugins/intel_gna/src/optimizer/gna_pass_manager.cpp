@@ -153,7 +153,7 @@ static void insertDiagonalLayerBetween(InferenceEngine::CNNLayerPtr prevLayer,
     size_t weightsSize =
         LayerInfo(prevLayer).has32BOutput()
             ? nextLayer->outData[0]->getDims().back()
-            : Get2DReshapedData(nextLayer->outData[0], Limitations::GetMinBatchToFitInBuffer(nextLayer->outData[0]), 8)
+            : Get2DReshapedData(nextLayer->outData[0], Limitations::get_min_batch_to_fit_in_buffer(nextLayer->outData[0]), 8)
                   ->getDims()[1];
     std::vector<float> weightsValues(weightsSize, fillValue);
     IE_ASSERT(diagLayer != nullptr);
@@ -1749,7 +1749,7 @@ void SubstituteScaleShiftBroadCastPass::run() {
             dataDims = reshaped_data[insData->getName()];
         } else {
             dataDims = HasTo2DReshapeData(l)
-                           ? Get2DReshapedData(insData, Limitations::GetMinBatchToFitInBuffer(insData), 8)->getDims()
+                           ? Get2DReshapedData(insData, Limitations::get_min_batch_to_fit_in_buffer(insData), 8)->getDims()
                            : insData->getDims();
         }
 
