@@ -798,6 +798,8 @@ static bool ValidateConcatAxis(const InferenceEngine::CNNLayerPtr layer, std::st
 
                     if (LayerInfo(pre_prev_layer).isConst()) {
                         continue;
+                    } else if (LayerInfo(pre_prev_layer).isPermute()) {
+                        continue;
                     }
 
                     concat_all_const_or_inputs = false;
