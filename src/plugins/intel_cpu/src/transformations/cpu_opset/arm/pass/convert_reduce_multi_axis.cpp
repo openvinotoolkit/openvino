@@ -16,16 +16,26 @@ ngraph::matcher_pass_callback ov::intel_cpu::ConvertReduceMultiAxisBase::convert
         if (!std::dynamic_pointer_cast<T>(reduce)) {
             return false;
         }
-        if (ngraph::shape_size(reduce->input_value(1).get_shape()) <= 1) {
+
+        const auto& input0 = reduce->input_value(0);
+        const auto& input1 = reduce->input_value(1);
+        const auto& data_shape0 = input0.get_partial_shape();
+        const auto& data_shape1 = input1.get_partial_shape();
+        if (data_shape0.is_dynamic() ||
+            data_shape1.is_dynamic()) {
             return false;
         }
-        auto reduction_axes = std::dynamic_pointer_cast<ov::opset8::Constant>(reduce->input_value(1).get_node_shared_ptr());
+
+        if (ngraph::shape_size(input1.get_shape()) <= 1) {
+            return false;
+        }
+        auto reduction_axes = std::dynamic_pointer_cast<ov::opset8::Constant>(input1.get_node_shared_ptr());
         if (!reduction_axes) {
             return false;
         }
         auto axes = reduction_axes->cast_vector<int64_t>();
         ngraph::NodeVector new_ops;
-        std::shared_ptr<ngraph::Node> node = reduce->input_value(0).get_node_shared_ptr();
+        std::shared_ptr<ngraph::Node> node = input0.get_node_shared_ptr();
         for (auto axis : axes) {
             auto reduction_axis = ov::opset8::Constant::create<int64_t>(ngraph::element::i64, ngraph::Shape{}, {axis});
             node = std::make_shared<T>(node, reduction_axis, true);
