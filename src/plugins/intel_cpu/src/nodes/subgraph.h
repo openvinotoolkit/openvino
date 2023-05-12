@@ -72,7 +72,6 @@ private:
 
     // Original subgraph node
     std::shared_ptr<snippets::op::Subgraph> original_snippet;
-    // Local for shape infer
     mutable std::shared_ptr<snippets::op::Subgraph> local_snippet;
 
     // Holds ISA version used is codeGeneration target
@@ -90,7 +89,7 @@ private:
 
     class SnippetExecutor {
         public:
-            SnippetExecutor(const SnippetAttrs& attrs, bool is_canonicalized, bool is_dynamic);
+            SnippetExecutor(const SnippetAttrs& attrs, bool is_canonicalized, bool is_dynamic, bool enforceBF16);
             virtual void exec(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) = 0;
             virtual ~SnippetExecutor() = default;
 
@@ -98,13 +97,14 @@ private:
             SnippetAttrs snippetAttrs;
             bool is_canonicalized = false;
             bool is_dynamic = false;
+            bool enforceBF16 = false;
     };
 
     std::shared_ptr<SnippetExecutor> execPtr = nullptr;
 
     class SnippetJitExecutor : public SnippetExecutor {
         public:
-            SnippetJitExecutor(const SnippetAttrs& attrs, bool is_canonicalized, bool is_dynamic);
+            SnippetJitExecutor(const SnippetAttrs& attrs, bool is_canonicalized, bool is_dynamic, bool enforceBF16);
             void exec(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) override;
 
             bool schedule_created();
