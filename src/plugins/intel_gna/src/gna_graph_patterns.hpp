@@ -238,32 +238,6 @@ inline InferenceEngine::CNNLayerPtr FindPermutationAfterConvolutionInKaldiModel(
 }
 
 /**
- * @brief identifies if a model must be converted to NHWC, it must not be neither NHWC, nor Kaldi
- * @param layers model sorted layers
- */
-inline bool MustBeConvertedFromNCHWToNHWC(const std::vector<InferenceEngine::CNNLayerPtr>& layers) {
-    for (auto& l : layers) {
-        if (!LayerInfo(l).isConvolution())
-            continue;
-
-        InferenceEngine::CNNLayerPtr next;
-        std::tie(std::ignore, next) = FindPermutationsAroundConvolutionInNHWCModel(l);
-        if (next != nullptr)
-            return false;
-        // If a convolution has only 1-dimension input and output we should skip it
-        auto in_dims = l->insData.begin()->lock()->getDims();
-        auto out_dims = l->outData.front()->getDims();
-
-        if (ov::intel_gna::graph_utils::is_one_dim_shapes(in_dims, out_dims)) {
-            continue;
-        }
-
-        return FindPermutationAfterConvolutionInKaldiModel(l) == nullptr;
-    }
-    return false;
-}
-
-/**
  * @brief returns transposition information for a layer based on the previous convolution or pooling dimensions order
  * @param layer layer from which transposition info search must be started
  * @return bool value which identifies if transposition info is found and transposition information

@@ -9,6 +9,7 @@
 #include <utility>
 
 #include "openvino/opsets/opset9.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/gather_sinking_attr.hpp"
 #include "transformations/utils/gather_sinking_utils.hpp"
@@ -136,13 +137,18 @@ GatherSinkingUnaryBackwardSingleConsumer::GatherSinkingUnaryBackwardSingleConsum
     auto unary_label =
         wrap_type<UnaryElementwiseArithmetic, Clamp, Elu, SoftPlus, LogicalNot, Convert>({any_input()},
                                                                                          consumers_count(1));
+    // FakeQuantize pattern
+    auto fq_label =
+        wrap_type<FakeQuantize>({any_input(), any_input(), any_input(), any_input(), any_input()}, consumers_count(1));
 
-    auto gather_label = wrap_type<Gather>({unary_label, any_input(), any_input()}, IfGatherSinkingEnabled);
+    auto pattern_node = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{unary_label, fq_label});
+
+    auto gather_label = wrap_type<Gather>({pattern_node, any_input(), any_input()}, IfGatherSinkingEnabled);
 
     ov::matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto gather = pattern_to_output.at(gather_label).get_node_shared_ptr();
-        auto unary = pattern_to_output.at(unary_label).get_node_shared_ptr();
+        auto unary = gather->get_input_node_shared_ptr(0);
 
         const NodePair new_nodes = Swap(unary, gather);
 
@@ -165,18 +171,23 @@ GatherSinkingUnaryBackwardMultiConsumers::GatherSinkingUnaryBackwardMultiConsume
     auto unary_label =
         wrap_type<UnaryElementwiseArithmetic, Clamp, Elu, SoftPlus, LogicalNot, Convert>({any_input()},
                                                                                          unary_restrictions);
+    // FakeQuantize pattern
+    auto fq_label =
+        wrap_type<FakeQuantize>({any_input(), any_input(), any_input(), any_input(), any_input()}, unary_restrictions);
+
+    auto pattern_node = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{unary_label, fq_label});
 
     auto indices_const_label = wrap_type<Constant>();
     auto axes_const_label = wrap_type<Constant>();
-
-    auto gather_label = wrap_type<Gather>({unary_label, indices_const_label, axes_const_label}, IfGatherSinkingEnabled);
+    auto gather_label =
+        wrap_type<Gather>({pattern_node, indices_const_label, axes_const_label}, IfGatherSinkingEnabled);
 
     ov::matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto indices_const = as_type_ptr<Constant>(pattern_to_output.at(indices_const_label).get_node_shared_ptr());
         auto axes_const = as_type_ptr<Constant>(pattern_to_output.at(axes_const_label).get_node_shared_ptr());
         auto gather = as_type_ptr<Gather>(pattern_to_output.at(gather_label).get_node_shared_ptr());
-        auto unary = pattern_to_output.at(unary_label).get_node_shared_ptr();
+        auto unary = gather->get_input_node_shared_ptr(0);
 
         for (auto& new_node : sink_backward::InsertGatherBeforeNode(unary, indices_const, axes_const, gather)) {
             register_new_node(new_node);
