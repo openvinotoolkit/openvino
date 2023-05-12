@@ -6,8 +6,8 @@
 
 #include <numeric>
 
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/opsets/opset8.hpp>
+#include <openvino/opsets/opset1.hpp>
+#include <openvino/opsets/opset8.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
@@ -31,12 +31,16 @@ ngraph::matcher_pass_callback ov::intel_cpu::ConvertConv1DBase::convert_conv1d_t
 
         auto weights2d_shape = weights.get_shape();
         weights2d_shape.push_back(1);
-        auto w_shape = std::make_shared<ngraph::opset8::Constant>(ngraph::element::i64, ngraph::Shape{weights2d_shape.size()}, weights2d_shape);
+        auto w_shape = std::make_shared<ov::opset8::Constant>(ngraph::element::i64, ngraph::Shape{weights2d_shape.size()}, weights2d_shape);
 
-        auto input2d   = std::make_shared<ngraph::opset8::Unsqueeze>(input,
-                                                                 ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1}));
-        auto weights2d = std::make_shared<ngraph::opset8::Unsqueeze>(weights,
-                                                                 ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1}));
+        auto getUnsqueeze = [&](const ngraph::Output<ngraph::Node>& node) {
+            auto rank = node.get_partial_shape().rank().get_length();
+            return std::make_shared<ov::opset8::Unsqueeze>(node,
+                                                           ov::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {rank}));
+        };
+
+        auto input2d = getUnsqueeze(input);
+        auto weights2d = getUnsqueeze(weights);
 
         auto conv2d = std::make_shared<Conv>(input2d,
                                              weights2d,
@@ -46,8 +50,9 @@ ngraph::matcher_pass_callback ov::intel_cpu::ConvertConv1DBase::convert_conv1d_t
                                              ngraph::Strides{conv->get_dilations()[0], 1},
                                              conv->get_auto_pad());
 
-        auto reshape = std::make_shared<ngraph::opset8::Squeeze>(conv2d,
-                                                             ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1}));
+        auto reshape = std::make_shared<ov::opset8::Squeeze>(
+            conv2d,
+            ov::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {input_shape.rank().get_length()}));
 
         reshape->set_friendly_name(conv->get_friendly_name());
         ngraph::copy_runtime_info(conv, {input2d, weights2d, conv2d, reshape});
@@ -58,16 +63,16 @@ ngraph::matcher_pass_callback ov::intel_cpu::ConvertConv1DBase::convert_conv1d_t
 
 ov::intel_cpu::ConvertConv1D::ConvertConv1D() {
     auto m = std::make_shared<ngraph::pattern::Matcher>(
-        ngraph::pattern::wrap_type<ngraph::opset8::Convolution>({ngraph::pattern::any_input(ngraph::pattern::has_static_shape()),
+        ngraph::pattern::wrap_type<ov::opset8::Convolution>({ngraph::pattern::any_input(ngraph::pattern::has_static_shape()),
                                                              ngraph::pattern::any_input(ngraph::pattern::has_static_shape())},
                                                              ngraph::pattern::has_static_shape()), "ConvertConvolutionToArm");
-    register_matcher(m, convert_conv1d_to_conv2d<ngraph::opset8::Convolution>());
+    register_matcher(m, convert_conv1d_to_conv2d<ov::opset8::Convolution>());
 }
 
 ov::intel_cpu::ConvertGroupConv1D::ConvertGroupConv1D() {
     auto m = std::make_shared<ngraph::pattern::Matcher>(
-            ngraph::pattern::wrap_type<ngraph::opset8::GroupConvolution>({ngraph::pattern::any_input(ngraph::pattern::has_static_shape()),
+            ngraph::pattern::wrap_type<ov::opset8::GroupConvolution>({ngraph::pattern::any_input(ngraph::pattern::has_static_shape()),
                                                                       ngraph::pattern::any_input(ngraph::pattern::has_static_shape())},
                                                                       ngraph::pattern::has_static_shape()), "ConvertGroupConvolutionToArm");
-    register_matcher(m, convert_conv1d_to_conv2d<ngraph::opset8::GroupConvolution>());
+    register_matcher(m, convert_conv1d_to_conv2d<ov::opset8::GroupConvolution>());
 }
