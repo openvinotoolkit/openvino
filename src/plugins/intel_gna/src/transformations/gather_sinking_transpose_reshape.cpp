@@ -14,6 +14,7 @@
 #include "transformations/rt_info/transpose_sinking_attr.hpp"
 #include "transformations/utils/gather_sinking_utils.hpp"
 #include "transformations/utils/transformation_helper.hpp"
+#include "common/graph_utils.hpp"
 
 using namespace ov::intel_gna;
 using namespace ov::intel_gna::pass;
@@ -25,15 +26,6 @@ namespace {
 
 using NodePtr = std::shared_ptr<ov::Node>;
 using NodePair = std::pair<NodePtr, NodePtr>;
-
-inline size_t GetFirstValuableDimId(const ov::Shape& shape) {
-    for (size_t i = 0; i < shape.size(); ++i) {
-        if (shape[i] != 1) {
-            return i;
-        }
-    }
-    return 0;
-}
 
 std::vector<size_t> CreateGatherIndices(const ov::Shape& input_shape, const ov::Shape& order) {
     if (input_shape.size() < 2 || input_shape.size() > 4) {
@@ -47,7 +39,7 @@ std::vector<size_t> CreateGatherIndices(const ov::Shape& input_shape, const ov::
         input_shape_4d.push_back(1);
         order_4d.push_back(order_4d.size());
     }
-    ov::Shape output_shape_4d = pass::helper::TransposeShape(input_shape_4d, order_4d);
+    ov::Shape output_shape_4d = graph_utils::transpose_shape(input_shape_4d, order_4d);
 
     // common case when shape is 4d
     std::vector<size_t> xyz_4d = {input_shape_4d[3] * input_shape_4d[2] * input_shape_4d[1],
@@ -55,7 +47,7 @@ std::vector<size_t> CreateGatherIndices(const ov::Shape& input_shape, const ov::
                                   input_shape_4d[3],
                                   1};
 
-    std::vector<size_t> xyz = pass::helper::TransposeShape(xyz_4d, order_4d);
+    std::vector<size_t> xyz = graph_utils::transpose_shape(xyz_4d, order_4d);
     std::vector<size_t> gather_order;
 
     for (size_t n = 0; n < output_shape_4d[0]; ++n) {
@@ -75,7 +67,7 @@ NodePair SinkForward(NodePtr transpose, std::shared_ptr<Constant> transpose_cons
     const auto gather_indices_value =
         CreateGatherIndices(transpose->get_input_shape(0), transpose_constant->get_axis_vector_val());
 
-    const int64_t gather_axis_value = GetFirstValuableDimId(reshape->get_output_shape(0));
+    const int64_t gather_axis_value = graph_utils::get_first_valuable_dim_id(reshape->get_output_shape(0));
 
     auto reshape_new = reshape->clone_with_new_inputs({transpose->input_value(0), reshape->input_value(1)});
 
@@ -93,7 +85,7 @@ NodePair SinkForward(NodePtr transpose, std::shared_ptr<Constant> transpose_cons
 }
 
 NodePair SinkBackward(NodePtr transpose, std::shared_ptr<Constant> transpose_constant, NodePtr reshape) {
-    const int64_t gather_axis_value = GetFirstValuableDimId(reshape->get_input_shape(0));
+    const int64_t gather_axis_value = graph_utils::get_first_valuable_dim_id(reshape->get_input_shape(0));
     const auto gather_indices_value =
         CreateGatherIndices(transpose->get_input_shape(0), transpose_constant->get_axis_vector_val());
 
@@ -135,8 +127,8 @@ bool IsTailFlatten(const ov::Output<ov::Node>& output) {
     if (reshape_node->get_output_partial_shape(0).rank().is_dynamic() ||
         reshape_node->get_input_partial_shape(0).rank().is_dynamic())
         return false;
-    const ov::Shape input_shape = pass::helper::TrimShape(reshape_node->get_input_shape(0));
-    const ov::Shape output_shape = pass::helper::TrimShape(reshape_node->get_output_shape(0));
+    const ov::Shape input_shape = graph_utils::trim_shape(reshape_node->get_input_shape(0));
+    const ov::Shape output_shape = graph_utils::trim_shape(reshape_node->get_output_shape(0));
     return input_shape.size() > output_shape.size() && AreFlattenShapes(input_shape, output_shape);
 }
 
@@ -145,8 +137,8 @@ bool IsTailUnflatten(const ov::Output<ov::Node>& output) {
     if (reshape_node->get_output_partial_shape(0).rank().is_dynamic() ||
         reshape_node->get_input_partial_shape(0).rank().is_dynamic())
         return false;
-    const ov::Shape input_shape = pass::helper::TrimShape(reshape_node->get_input_shape(0));
-    const ov::Shape output_shape = pass::helper::TrimShape(reshape_node->get_output_shape(0));
+    const ov::Shape input_shape = graph_utils::trim_shape(reshape_node->get_input_shape(0));
+    const ov::Shape output_shape = graph_utils::trim_shape(reshape_node->get_output_shape(0));
     return input_shape.size() < output_shape.size() && AreFlattenShapes(input_shape, output_shape);
 }
 
@@ -176,10 +168,10 @@ GatherSinkingTransposeReshapeForward::GatherSinkingTransposeReshapeForward() {
             ov::as_type_ptr<Constant>(pattern_to_output.at(transpose_const_label).get_node_shared_ptr());
         auto reshape = pattern_to_output.at(reshape_label).get_node_shared_ptr();
 
-        const ov::Shape reshape_shape = pass::helper::TrimShape(reshape->get_shape());
-        const ov::Shape transpose_shape = pass::helper::TrimShape(transpose->get_shape());
+        const ov::Shape reshape_shape = graph_utils::trim_shape(reshape->get_shape());
+        const ov::Shape transpose_shape = graph_utils::trim_shape(transpose->get_shape());
         if (reshape_shape == transpose_shape) {
-            pass::helper::RemoveSingleInputNodeFromFunction(transpose);
+            pass::helper::remove_single_input_node(transpose);
             return true;
         }
 
@@ -209,10 +201,10 @@ GatherSinkingTransposeReshapeBackward::GatherSinkingTransposeReshapeBackward() {
         auto transpose_const = as_type_ptr<Constant>(pattern_to_output.at(transpose_const_label).get_node_shared_ptr());
         auto reshape = pattern_to_output.at(reshape_label).get_node_shared_ptr();
 
-        const ov::Shape reshape_shape = pass::helper::TrimShape(reshape->get_input_shape(0));
-        const ov::Shape transpose_shape = pass::helper::TrimShape(transpose->get_shape());
+        const ov::Shape reshape_shape = graph_utils::trim_shape(reshape->get_input_shape(0));
+        const ov::Shape transpose_shape = graph_utils::trim_shape(transpose->get_shape());
         if (reshape_shape == transpose_shape) {
-            pass::helper::RemoveSingleInputNodeFromFunction(transpose);
+            pass::helper::remove_single_input_node(transpose);
             return true;
         }
 

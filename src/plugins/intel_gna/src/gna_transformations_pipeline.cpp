@@ -78,8 +78,6 @@ using namespace ov::opset8;
 
 namespace {
 
-using NodePtr = std::shared_ptr<Node>;
-
 ov::NodeVector FindInputTransposes(const std::shared_ptr<const ov::Node>& node) {
     ov::NodeVector transposes;
     for (size_t input_idx = 0; input_idx < node->get_input_size(); ++input_idx) {
@@ -108,7 +106,7 @@ struct TransposeInfo {
 
 TransposeInfo GetFirstInputTranspose(const std::shared_ptr<const ov::Node>& node) {
     for (size_t input_idx = 0; input_idx < node->get_input_size(); ++input_idx) {
-        NodePtr input_node = node->get_input_node_shared_ptr(input_idx);
+        std::shared_ptr<Node> input_node = node->get_input_node_shared_ptr(input_idx);
         auto transpose_node = as_type_ptr<Transpose>(input_node);
         if (!transpose_node)
             continue;
@@ -164,7 +162,8 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     const bool has_maxpool = ov::op::util::has_op_with_type<ov::opset8::MaxPool>(model);
     const bool has_slice = ov::op::util::has_op_with_type<ov::opset8::Slice>(model);
     const bool has_matmul = ov::op::util::has_op_with_type<ngraph::opset7::MatMul>(model);
-    const bool has_mvn = ov::op::util::has_op_with_type<ngraph::opset7::MVN>(model) ||
+    const bool has_mvn = ov::op::util::has_op_with_type<ov::opset8::MVN>(model) ||
+                         ov::op::util::has_op_with_type<ov::op::v0::MVN>(model);
     ov::pass::Manager manager;
     manager.register_pass<ov::pass::InitNodeInfo>();
     // In OV API 2.0(IRv10) default convertion to fp32 (inputs, outputs and weights) is disabled
