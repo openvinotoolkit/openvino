@@ -4,8 +4,6 @@
 
 set(TARGET_NAME ov_transformations_tests)
 
-ov_deprecated_no_errors()
-
 ov_add_test_target(
     NAME ${TARGET_NAME}
     ROOT ${CMAKE_CURRENT_SOURCE_DIR}

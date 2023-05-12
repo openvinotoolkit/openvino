@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+ov_deprecated_no_errors()
+
 add_subdirectory(itt)
 add_subdirectory(conditional_compilation)
 add_subdirectory(util)
