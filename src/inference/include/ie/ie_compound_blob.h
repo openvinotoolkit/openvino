@@ -22,7 +22,9 @@ namespace InferenceEngine {
  * Compound blob is a wrapper blob over references to underlying blobs. These blobs should share
  * some properties and can be grouped into a single entity.
  */
-class INFERENCE_ENGINE_API_CLASS(CompoundBlob) : public Blob {
+class INFERENCE_ENGINE_DEPRECATED("This API is deprecated and will be removed in 2024.0 release.")
+    INFERENCE_ENGINE_API_CLASS(CompoundBlob)
+    : public Blob {
 public:
     /**
      * @brief A smart pointer to the CompoundBlob object
@@ -276,7 +278,9 @@ public:
  * @details Plugin which supports BatchedBlob input should report BATCHED_BLOB
  * in the OPTIMIZATION_CAPABILITIES metric.
  */
-class INFERENCE_ENGINE_API_CLASS(BatchedBlob) : public CompoundBlob {
+class INFERENCE_ENGINE_DEPRECATED("This API is deprecated and will be removed in 2024.0 release.")
+    INFERENCE_ENGINE_API_CLASS(BatchedBlob)
+    : public CompoundBlob {
 public:
     /**
      * @brief A smart pointer to the BatchedBlob object

@@ -9,6 +9,8 @@
 
 using namespace InferenceEngine;
 
+IE_SUPPRESS_DEPRECATED_START;
+
 TensorDesc::TensorDesc(const Precision& precision, const SizeVector& dims, Layout layout)
     : precision(precision),
       blockingDesc(dims, layout) {

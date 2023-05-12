@@ -13,10 +13,12 @@
 #include <unordered_map>
 #include <vector>
 
+#include "ie_api.h"
 #include "ie_common.h"
 
 namespace InferenceEngine {
 
+IE_SUPPRESS_DEPRECATED_START
 /**
  * @brief This class holds precision value and provides precision related operations
  */
@@ -515,5 +517,5 @@ inline constexpr uint32_t getPrecisionMask(
 }
 
 /** @endcond */
-
+IE_SUPPRESS_DEPRECATED_END
 }  // namespace InferenceEngine

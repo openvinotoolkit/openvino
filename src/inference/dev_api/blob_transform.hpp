@@ -21,6 +21,8 @@ namespace InferenceEngine {
  * @param[in]  src   The source Blob::Ptr
  * @param[in]  dst   The destination Blob::Ptr
  */
-INFERENCE_ENGINE_API_CPP(void) blob_copy(Blob::Ptr src, Blob::Ptr dst);
+INFERENCE_ENGINE_API_CPP(void)
+INFERENCE_ENGINE_DEPRECATED("This API is deprecated and will be removed in 2024.0 release.")
+blob_copy(Blob::Ptr src, Blob::Ptr dst);
 
 }  // namespace InferenceEngine

@@ -17,6 +17,7 @@
 #include "so_ptr.hpp"
 
 namespace InferenceEngine {
+IE_SUPPRESS_DEPRECATED_START
 
 class IExecutableNetworkInternal;
 class IVariableStateInternal;
@@ -27,7 +28,9 @@ class IVariableStateInternal;
  * which is used in InferRequestBase forwarding mechanism
  * @ingroup ie_dev_api_infer_request_api
  */
-class INFERENCE_ENGINE_API_CLASS(IInferRequestInternal) : public std::enable_shared_from_this<IInferRequestInternal> {
+class INFERENCE_ENGINE_DEPRECATED("This API is deprecated and will be removed in 2024.0 release.")
+    INFERENCE_ENGINE_API_CLASS(IInferRequestInternal)
+    : public std::enable_shared_from_this<IInferRequestInternal> {
 public:
     /**
      * @brief A shared pointer to a IInferRequestInternal interface
@@ -368,4 +371,5 @@ private:
  */
 using SoIInferRequestInternal = ov::SoPtr<IInferRequestInternal>;
 
+IE_SUPPRESS_DEPRECATED_END
 }  // namespace InferenceEngine

@@ -12,12 +12,16 @@
 
 namespace InferenceEngine {
 
+IE_SUPPRESS_DEPRECATED_START
+
 /**
  * @interface IVariableStateInternal
  * @brief Minimal interface for variable state implementation
  * @ingroup ie_dev_api_variable_state_api
  */
-class INFERENCE_ENGINE_API_CLASS(IVariableStateInternal) : public std::enable_shared_from_this<IVariableStateInternal> {
+class INFERENCE_ENGINE_DEPRECATED("This API is deprecated and will be removed in 2024.0 release.")
+    INFERENCE_ENGINE_API_CLASS(IVariableStateInternal)
+    : public std::enable_shared_from_this<IVariableStateInternal> {
 public:
     /**
      * @brief A shared pointer to a IVariableStateInternal interface
@@ -74,5 +78,7 @@ using SoIVariableStateInternal = ov::SoPtr<IVariableStateInternal>;
  * @brief For compatibility reasons.
  */
 using MemoryStateInternal = IVariableStateInternal;
+
+IE_SUPPRESS_DEPRECATED_END
 
 }  // namespace InferenceEngine

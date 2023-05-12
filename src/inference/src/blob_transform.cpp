@@ -14,6 +14,7 @@
 
 //----------------------------------------------------------------------
 
+IE_SUPPRESS_DEPRECATED_START
 namespace InferenceEngine {
 
 template <InferenceEngine::Precision::ePrecision PRC>

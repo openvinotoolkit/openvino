@@ -19,6 +19,7 @@
 
 namespace InferenceEngine {
 
+IE_SUPPRESS_DEPRECATED_START
 /**
  * @brief This class stores pre-process information for exact input
  */
@@ -131,5 +132,6 @@ using PreProcessDataPtr = std::shared_ptr<PreProcessDataPlugin>;
 inline PreProcessDataPtr CreatePreprocDataHelper() {
     return std::make_shared<PreProcessDataPlugin>();
 }
+IE_SUPPRESS_DEPRECATED_END
 
 }  // namespace InferenceEngine

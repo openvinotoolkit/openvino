@@ -22,7 +22,7 @@
  * @private
  */
 template <InferenceEngine::Precision::ePrecision precision>
-class BlobFactory {
+class INFERENCE_ENGINE_DEPRECATED("This API is deprecated and will be removed in 2024.0 release.") BlobFactory {
 public:
     using BlobType = typename InferenceEngine::PrecisionTrait<precision>::value_type;
 
@@ -45,7 +45,8 @@ public:
  * @private
  */
 template <InferenceEngine::Precision::ePrecision precision, class... Args>
-InferenceEngine::Blob::Ptr make_shared_blob2(Args&&... args) {
+InferenceEngine::Blob::Ptr INFERENCE_ENGINE_DEPRECATED("This API is deprecated and will be removed in 2024.0 release.")
+    make_shared_blob2(Args&&... args) {
     return BlobFactory<precision>::make(std::forward<Args>(args)...);
 }
 
@@ -57,6 +58,7 @@ InferenceEngine::Blob::Ptr make_shared_blob2(Args&&... args) {
  * @return     A Blob::Ptr pointer
  */
 INFERENCE_ENGINE_API_CPP(InferenceEngine::Blob::Ptr)
+INFERENCE_ENGINE_DEPRECATED("This API is deprecated and will be removed in 2024.0 release.")
 make_blob_with_precision(const InferenceEngine::TensorDesc& desc);
 
 /**
@@ -68,6 +70,7 @@ make_blob_with_precision(const InferenceEngine::TensorDesc& desc);
  * @return     A Blob::Ptr pointer
  */
 INFERENCE_ENGINE_API_CPP(InferenceEngine::Blob::Ptr)
+INFERENCE_ENGINE_DEPRECATED("This API is deprecated and will be removed in 2024.0 release.")
 make_blob_with_precision(const InferenceEngine::TensorDesc& desc, void* ptr);
 
 /**
@@ -79,6 +82,7 @@ make_blob_with_precision(const InferenceEngine::TensorDesc& desc, void* ptr);
  * @return     A Blob::Ptr pointer
  */
 INFERENCE_ENGINE_API_CPP(InferenceEngine::Blob::Ptr)
+INFERENCE_ENGINE_DEPRECATED("This API is deprecated and will be removed in 2024.0 release.")
 make_blob_with_precision(const InferenceEngine::TensorDesc& desc,
                          const std::shared_ptr<InferenceEngine::IAllocator>& alloc);
 
@@ -91,6 +95,7 @@ make_blob_with_precision(const InferenceEngine::TensorDesc& desc,
  * @return     A Blob::Ptr pointer
  */
 INFERENCE_ENGINE_API_CPP(InferenceEngine::Blob::Ptr)
+INFERENCE_ENGINE_DEPRECATED("This API is deprecated and will be removed in 2024.0 release.")
 make_plain_blob(InferenceEngine::Precision prec, const InferenceEngine::SizeVector dims);
 
 /**
@@ -103,7 +108,8 @@ make_plain_blob(InferenceEngine::Precision prec, const InferenceEngine::SizeVect
  * @return     A Blob::Ptr pointer
  */
 template <class... Args>
-InferenceEngine::Blob::Ptr make_blob_with_precision(InferenceEngine::Precision precision, Args&&... args) {
+InferenceEngine::Blob::Ptr INFERENCE_ENGINE_DEPRECATED("This API is deprecated and will be removed in 2024.0 release.")
+    make_blob_with_precision(InferenceEngine::Precision precision, Args&&... args) {
 #define USE_FACTORY(precision)                  \
     case InferenceEngine::Precision::precision: \
         return make_shared_blob2<InferenceEngine::Precision::precision>(std::forward<Args>(args)...);
@@ -140,7 +146,8 @@ InferenceEngine::Blob::Ptr make_blob_with_precision(InferenceEngine::Precision p
  * @param inputVector An input std::vector to copy from
  */
 template <typename T>
-void CopyVectorToBlob(const InferenceEngine::Blob::Ptr outputBlob, const std::vector<T>& inputVector) {
+void INFERENCE_ENGINE_DEPRECATED("This API is deprecated and will be removed in 2024.0 release.")
+    CopyVectorToBlob(const InferenceEngine::Blob::Ptr outputBlob, const std::vector<T>& inputVector) {
     if (outputBlob->size() != inputVector.size())
         IE_THROW() << "Size mismatch between dims and vector";
     if (outputBlob->element_size() != sizeof(T))

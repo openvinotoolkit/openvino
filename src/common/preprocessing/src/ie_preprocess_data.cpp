@@ -12,6 +12,7 @@
 
 #include <memory>
 
+IE_SUPPRESS_DEPRECATED_START
 namespace InferenceEngine {
 
 /**

@@ -20,7 +20,8 @@ namespace InferenceEngine {
 /**
  * @brief This class describes blocking layouts
  */
-class INFERENCE_ENGINE_API_CLASS(BlockingDesc) {
+class INFERENCE_ENGINE_DEPRECATED("This API is deprecated and will be removed in 2024.0 release.")
+    INFERENCE_ENGINE_API_CLASS(BlockingDesc) {
 public:
     /**
      * @brief The default constructor which creates empty blocking descriptor
@@ -158,7 +159,8 @@ private:
 /**
  * @brief This class defines Tensor description
  */
-class INFERENCE_ENGINE_API_CLASS(TensorDesc) {
+class INFERENCE_ENGINE_DEPRECATED("This API is deprecated and will be removed in 2024.0 release.")
+    INFERENCE_ENGINE_API_CLASS(TensorDesc) {
 public:
     /**
      * @brief The constructor creates the tensor descriptor using blocking descriptor
@@ -337,7 +339,7 @@ private:
 /**
  * @brief This structure describes ROI data for image-like tensors.
  */
-struct ROI {
+struct INFERENCE_ENGINE_DEPRECATED("This API is deprecated and will be removed in 2024.0 release.") ROI {
     size_t id = 0;     //!< ID of a ROI (offset over batch dimension)
     size_t posX = 0;   //!< W upper left coordinate of ROI
     size_t posY = 0;   //!< H upper left coordinate of ROI
@@ -372,7 +374,9 @@ struct ROI {
  *
  * @return A newly created TensorDesc object representing ROI.
  */
-INFERENCE_ENGINE_API_CPP(TensorDesc) make_roi_desc(const TensorDesc& origDesc, const ROI& roi, bool useOrigMemDesc);
+INFERENCE_ENGINE_API_CPP(TensorDesc)
+INFERENCE_ENGINE_DEPRECATED("This API is deprecated and will be removed in 2024.0 release.")
+make_roi_desc(const TensorDesc& origDesc, const ROI& roi, bool useOrigMemDesc);
 
 /**
  * @brief Creates a TensorDesc object for ROI.
@@ -386,6 +390,7 @@ INFERENCE_ENGINE_API_CPP(TensorDesc) make_roi_desc(const TensorDesc& origDesc, c
  * @return A newly created TensorDesc object representing ROI.
  */
 INFERENCE_ENGINE_API_CPP(TensorDesc)
+INFERENCE_ENGINE_DEPRECATED("This API is deprecated and will be removed in 2024.0 release.")
 make_roi_desc(const TensorDesc& origDesc,
               const std::vector<size_t>& begin,
               const std::vector<size_t>& end,

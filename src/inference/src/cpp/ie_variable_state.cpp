@@ -8,6 +8,8 @@
 #include "openvino/runtime/ivariable_state.hpp"
 #include "openvino/runtime/variable_state.hpp"
 
+IE_SUPPRESS_DEPRECATED_START
+
 #define VARIABLE_CALL_STATEMENT(...)                                    \
     if (_impl == nullptr)                                               \
         IE_THROW(NotAllocated) << "VariableState was not initialized."; \
