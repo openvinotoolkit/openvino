@@ -153,7 +153,7 @@ Shape(4, 6)
 
 **Outputs**
 
-* **1**: Output padded tensor of type *T* with dimensions `pads_begin[D] + data.shape[D] + pads_end[D]` for each `D` from `0` to `len(data.shape) - 1`.
+* **1**: Output padded tensor of type *T* with dimensions `max(pads_begin[D] + data.shape[D] + pads_end[D], 0)` for each `D` from `0` to `len(data.shape) - 1`.
 
 **Types**
 
