@@ -939,6 +939,7 @@ kernel_selector::data_tensor convert_data_tensor(const layout& l, const tensor v
     const auto& add_offsets = view_offset.sizes(l.format);
     const auto& lower_pad = pad.lower_size().sizes(l.format);
     const auto& upper_pad = pad.upper_size().sizes(l.format);
+    const auto& dynamic_pad_dims = pad.get_dynamic_pad_dims().sizes(l.format);
     const auto ks_layout = to_data_layout(l.format);
     kernel_selector::n_dims vec(kernel_selector::DataTensor::ChannelsCount(ks_layout));
 
@@ -954,8 +955,9 @@ kernel_selector::data_tensor convert_data_tensor(const layout& l, const tensor v
         auto& elm = vec[i];
         elm.v = d.is_dynamic() ? 0 : static_cast<size_t>(d.get_length() - add_offsets[tensor_index]);
         elm.pitch = pitch;
-        elm.pad.before = lp;
-        elm.pad.after = up;
+        elm.pad.before = dynamic_pad_dims[tensor_index] ? 0 : lp;
+        elm.pad.after = dynamic_pad_dims[tensor_index] ? 0 : up;
+        elm.pad.is_dynamic = dynamic_pad_dims[tensor_index];
         elm.is_dynamic = d.is_dynamic();
 
         pitch *= (reserved_in_mem_count + lp + up);
@@ -1245,6 +1247,10 @@ void set_params(const kernel_impl_params& param_info, kernel_selector::params& p
     if (impl_forcing.count(param_info.desc->id) != 0) {
         params.forceImplementation = impl_forcing.at(param_info.desc->id).kernel_name;
     }
+}
+
+void set_dynamic_shape_offsets(kernel_selector::params& params) {
+    params.set_dynamic_shape_offsets();
 }
 
 void set_default_params(const kernel_impl_params& param_info, kernel_selector::base_params& params, bool is_shape_agnostic) {

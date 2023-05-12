@@ -158,6 +158,7 @@ public:
             format == format::b_fs_zyx_fsv32)
             conv_optional_params.allowInputReordering = true;
 
+        conv_params.set_dynamic_shape_offsets();
         auto& kernel_selector = kernel_selector::convolution_kernel_selector::Instance();
 
         auto best_kernel = kernel_selector.get_best_kernel(conv_params, conv_optional_params);

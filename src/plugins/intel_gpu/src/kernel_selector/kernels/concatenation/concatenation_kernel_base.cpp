@@ -57,22 +57,8 @@ JitConstants ConcatenationKernelBase::GetJitConstants(const concatenation_params
     });
 
     if (is_dynamic) {
-        // shape info is supposed to contain shapes for
-        // in0, in1, ..., inN, out0
-        // So each dynamic kernel requires some custom offsets for shape_info access
-        size_t in_offset = 0;
-        for (size_t i = 0; i < params.kernel_split_id; i++) {
-            if (params.original_input_layouts[i].is_dynamic() || params.original_input_layouts[i].LogicalSize() == 0)
-                in_offset++;
-        }
-        size_t out_offset = 0;
-        for (size_t i = 0; i < params.original_input_layouts.size(); i++) {
-            if (params.original_input_layouts[i].is_dynamic() || params.original_input_layouts[i].LogicalSize() == 0)
-                out_offset++;
-        }
-
-        jit.AddConstant(MakeJitConstant("INPUT0", params.inputs[0], in_offset));
-        jit.AddConstant(MakeJitConstant("OUTPUT", params.outputs[0], out_offset));
+        jit.AddConstant(MakeJitConstant("INPUT0", params.inputs[0]));
+        jit.AddConstant(MakeJitConstant("OUTPUT", params.outputs[0]));
 
         jit.AddConstant(MakeJitConstant("IS_DYNAMIC", 1));
         jit.AddConstant(MakeJitConstant("OPTIONAL_SHAPE_INFO_ARG", "__global const int* shape_info,"));

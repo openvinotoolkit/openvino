@@ -1282,12 +1282,8 @@ TEST(crop_gpu, dynamic_i32_in2x3x2x2_crop_offsets) {
     topology.add(input_layout("input", input_dyn_layout));
     topology.add(crop("crop", input_info("input"), tensor(batch(crop_batch_num), spatial(crop_x_size, crop_y_size), feature(crop_feature_num)), { tensor(feature(0)) }));
 
-    std::vector<int32_t> input_vec = { 1, 0, 5, 15,
-        2, 0, 6, 52,
-        -10, -11, -12, -13,
-        3, 50, 7, 12,
-        4, -5, 8, 8,
-        -14, -15, -16, -17 };
+    std::vector<float> input_vec = {1.f, 0.f,  5.f, 15.f, 2.f, 0.f,  6.f, 52.f, -10.f, -11.f, -12.f, -13.f,
+                                    3.f, 50.f, 7.f, 12.f, 4.f, -5.f, 8.f, 8.f,  -14.f, -15.f, -16.f, -17.f};
     set_values(input, input_vec);
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
@@ -1295,7 +1291,7 @@ TEST(crop_gpu, dynamic_i32_in2x3x2x2_crop_offsets) {
     network1.set_input_data("input", input);
     auto outputs1 = network1.execute();
     auto output1 = outputs1.at("crop").get_memory();
-    cldnn::mem_lock<int32_t> output1_ptr(output1, get_test_stream());
+    cldnn::mem_lock<float> output1_ptr(output1, get_test_stream());
     for (int b = 0; b < crop_batch_num; ++b) { //B
         for (int f = 0; f < crop_feature_num; ++f) { //F
             for (int y = 0; y < crop_y_size; ++y) { //Y
@@ -1312,7 +1308,7 @@ TEST(crop_gpu, dynamic_i32_in2x3x2x2_crop_offsets) {
     network2.set_input_data("input", input);
     auto outputs2 = network2.execute();
     auto output2 = outputs2.at("crop").get_memory();
-    cldnn::mem_lock<int32_t> output2_ptr(output2, get_test_stream());
+    cldnn::mem_lock<float> output2_ptr(output2, get_test_stream());
     for (int b = 0; b < crop_batch_num; ++b) { //B
         for (int f = 0; f < crop_feature_num; ++f) { //F
             for (int y = 0; y < crop_y_size; ++y) { //Y

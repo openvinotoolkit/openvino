@@ -74,7 +74,7 @@ public:
         } else {  // For unidirectional input
             lstm_gemm_params.input_direction = 0;
         }
-
+        lstm_gemm_params.set_dynamic_shape_offsets();
         auto lstm_gemm_optional_params =
             get_default_optional_params<kernel_selector::lstm_gemm_optional_params>(impl_param.get_program());
 

@@ -188,6 +188,7 @@ std::string layout::to_string() const {
       << "\tshape=" << size << ";\n"
       << "\tpad_l=" << data_padding.lower_size().to_string() << ";\n"
       << "\tpad_u=" << data_padding.upper_size().to_string() << ";\n"
+      << "\tdyn_pad_dims" << data_padding.get_dynamic_pad_dims().to_string() << ";\n"
       << "}";
     return s.str();
 }

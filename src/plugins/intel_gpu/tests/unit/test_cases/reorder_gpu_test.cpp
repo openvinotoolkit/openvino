@@ -1277,6 +1277,127 @@ TEST(reorder_gpu_f32, basic_bfyx_to_bfzyx)
         ASSERT_FLOAT_EQ(answers[i], output_ptr[i]);
     }
 }
+TEST(reorder_gpu_f32, dynamic_bfyx_to_bfyx_dynamic_padding_x) {
+    auto& engine = get_test_engine();
+
+    ov::Shape in_shape{1, 1, 4, 2};
+    tensor dyn_pad_dims({0, 0, 1, 0}, 0);
+    layout in_dynamic_layout{ov::PartialShape::dynamic(in_shape.size()),
+                             data_types::f16,
+                             format::bfyx,
+                             padding({0, 0, 0, 0}, {0, 0, 0, 0}, 0.0f, dyn_pad_dims /*dynamic_pad_dim : x*/)};
+
+    std::vector<float> subtract_val = {};
+    topology topology(input_layout("input", in_dynamic_layout),
+                      reorder("reorder",
+                              input_info("input"),
+                              format::bfyx,
+                              data_types::f32,
+                              subtract_val,
+                              cldnn::reorder_mean_mode::subtract,
+                              padding({0, 0, 0, 0}, {0, 0, 0, 0}, 0.0f)));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(false));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+    auto input_mem = engine.allocate_memory({ov::PartialShape(in_shape),
+                                             data_types::f16,
+                                             format::bfyx,
+                                             padding({0, 0, 2, 0}, {0, 0, 1, 0}, 0.0f, dyn_pad_dims)});
+    set_values<FLOAT16>(input_mem, {
+        FLOAT16(0.f), FLOAT16(0.f), // padding
+        FLOAT16(1.f), FLOAT16(2.f), // data
+        FLOAT16(0.f),               // padding
+
+        FLOAT16(0.f), FLOAT16(0.f), // padding
+        FLOAT16(3.f), FLOAT16(4.f), // data
+        FLOAT16(0.f),               // padding
+
+        FLOAT16(0.f), FLOAT16(0.f), // padding
+        FLOAT16(5.f), FLOAT16(6.f), // data
+        FLOAT16(0.f),               // padding
+
+        FLOAT16(0.f), FLOAT16(0.f), // padding
+        FLOAT16(7.f), FLOAT16(8.f), // data
+        FLOAT16(0.f),               // padding
+    });
+
+    network.set_input_data("input", input_mem);
+
+    auto outputs = network.execute();
+    auto output = outputs.begin()->second.get_memory();
+
+    float answer[8] = {
+        1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f
+    };
+
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    for (int i = 0; i < 8; i++) {
+        ASSERT_NEAR(answer[i], output_ptr[i], 1e-2f);
+    }
+
+}
+
+TEST(reorder_gpu_f32, dynamic_bfyx_to_bfyx_dynamic_padding_f) {
+    auto& engine = get_test_engine();
+
+    ov::Shape in_shape{2, 3, 2, 1};
+    tensor dyn_pad_dims({0, 1, 0, 0}, 0);
+    layout in_dynamic_layout{ov::PartialShape::dynamic(in_shape.size()),
+                             data_types::f16,
+                             format::bfyx,
+                             padding({0, 0, 0, 0}, {0, 0, 0, 0}, 0.0f, dyn_pad_dims /*dynamic_pad_dim : x*/)};
+
+    std::vector<float> subtract_val = {};
+    topology topology(input_layout("input", in_dynamic_layout),
+                      reorder("reorder",
+                              input_info("input"),
+                              format::bfyx,
+                              data_types::f32,
+                              subtract_val,
+                              cldnn::reorder_mean_mode::subtract,
+                              padding({0, 0, 0, 0}, {0, 0, 0, 0}, 0.0f)));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(false));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+    auto input_mem = engine.allocate_memory({ov::PartialShape(in_shape),
+                                             data_types::f16,
+                                             format::bfyx,
+                                             padding({0, 2, 0, 0}, {0, 1, 0, 0}, 0.0f, dyn_pad_dims)});
+    set_values<FLOAT16>(input_mem, {
+        FLOAT16(0.f), FLOAT16(0.f), // f before
+        FLOAT16(0.f), FLOAT16(0.f), // f before
+        FLOAT16(1.f), FLOAT16(2.f), // b0 f0
+        FLOAT16(3.f), FLOAT16(4.f), // b0 f1
+        FLOAT16(5.f), FLOAT16(6.f), // b0 f2
+        FLOAT16(0.f), FLOAT16(0.f), // f after
+
+        FLOAT16(0.f), FLOAT16(0.f),   // f before
+        FLOAT16(0.f), FLOAT16(0.f),   // f before
+        FLOAT16(11.f), FLOAT16(22.f), // b1 f0
+        FLOAT16(33.f), FLOAT16(44.f), // b1 f1
+        FLOAT16(55.f), FLOAT16(66.f), // b1 f2
+        FLOAT16(0.f), FLOAT16(0.f),   // f after
+    });
+
+    network.set_input_data("input", input_mem);
+
+    auto outputs = network.execute();
+    auto output = outputs.begin()->second.get_memory();
+
+    float answer[12] = {
+        1.f, 2.f, 3.f, 4.f, 5.f, 6.f,
+        11.f, 22.f, 33.f, 44.f, 55.f, 66.f
+    };
+
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    for (int i = 0; i < 12; i++) {
+        ASSERT_NEAR(answer[i], output_ptr[i], 1e-2f);
+    }
+}
 
 TEST(reorder_gpu_f32, dynamic_bfyx_to_bfzyx) {
     auto& engine = get_test_engine();
