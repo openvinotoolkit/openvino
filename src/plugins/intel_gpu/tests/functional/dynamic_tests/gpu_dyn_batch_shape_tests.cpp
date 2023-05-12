@@ -89,8 +89,12 @@ TEST_P(OVDynamicBatchShape_Tests, InferDynamicBatchBound) {
 
 TEST_P(OVDynamicBatchShape_Tests, InferDynamicBatchBound_cached) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    std::string cacheFolderName = "OVDynamicBatchShape_Tests";
+    std::string cacheFolderName;
     {
+        std::stringstream ss;
+        ss << "InferDynamicBatchBound_cached_" << netPrecision << "_" << targetDevice;
+        cacheFolderName = ss.str();
+
         CommonTestUtils::removeFilesWithExt(cacheFolderName, "blob");
         CommonTestUtils::removeFilesWithExt(cacheFolderName, "cl_cache");
         CommonTestUtils::removeDir(cacheFolderName);
