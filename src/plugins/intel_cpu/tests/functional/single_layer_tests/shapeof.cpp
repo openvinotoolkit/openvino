@@ -87,18 +87,24 @@ namespace {
 std::vector<CPUSpecificParams> getCpuInfoForDimsCount(const size_t dimsCount = 3) {
     std::vector<CPUSpecificParams> resCPUParams;
     if (dimsCount == 5) {
+#if defined(OPENVINO_ARCH_X86_64)
         resCPUParams.push_back(CPUSpecificParams{{nCdhw16c}, {x}, {}, {}});
         resCPUParams.push_back(CPUSpecificParams{{nCdhw8c}, {x}, {}, {}});
+#endif
         resCPUParams.push_back(CPUSpecificParams{{ncdhw}, {x}, {}, {}});
         resCPUParams.push_back(CPUSpecificParams{{ndhwc}, {x}, {}, {}});
     } else if (dimsCount == 4) {
+#if defined(OPENVINO_ARCH_X86_64)
         resCPUParams.push_back(CPUSpecificParams{{nChw16c}, {x}, {}, {}});
         resCPUParams.push_back(CPUSpecificParams{{nChw8c}, {x}, {}, {}});
+#endif
         resCPUParams.push_back(CPUSpecificParams{{nchw}, {x}, {}, {}});
         resCPUParams.push_back(CPUSpecificParams{{nhwc}, {x}, {}, {}});
     } else {
+#if defined(OPENVINO_ARCH_X86_64)
         resCPUParams.push_back(CPUSpecificParams{{nCw16c}, {x}, {}, {}});
         resCPUParams.push_back(CPUSpecificParams{{nCw8c}, {x}, {}, {}});
+#endif
         resCPUParams.push_back(CPUSpecificParams{{abc}, {x}, {}, {}});
         resCPUParams.push_back(CPUSpecificParams{{acb}, {x}, {}, {}});
     }
@@ -108,7 +114,9 @@ std::vector<CPUSpecificParams> getCpuInfoForDimsCount(const size_t dimsCount = 3
 
 const std::vector<ElementType> netPrecisions = {
         ElementType::f32,
+#if defined(OPENVINO_ARCH_X86_64)
         ElementType::bf16,
+#endif
         ElementType::i32,
         ElementType::i8
 };

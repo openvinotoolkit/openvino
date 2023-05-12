@@ -184,7 +184,9 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
 };
 
 std::vector<CPUSpecificParams> cpuParams_3D_blocked = {
+#if defined(OPENVINO_ARCH_X86_64)
         CPUSpecificParams({nCw16c}, {nCw16c}, {}, {}),
+#endif
 };
 
 const auto blockedCases3D = ::testing::Combine(
@@ -201,7 +203,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_Activation3D_Eltwise_CPU_Blocked, ActivationLayer
 
 /* ============= Activation (2D) ============= */
 std::vector<CPUSpecificParams> cpuParams_4D = {
+#if defined(OPENVINO_ARCH_X86_64)
         CPUSpecificParams({nChw16c}, {nChw16c}, {}, {}),
+#endif
         CPUSpecificParams({nhwc}, {nhwc}, {}, {}),
         CPUSpecificParams({nchw}, {nchw}, {}, {})
 };
@@ -226,7 +230,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_Activation4D_Eltwise_CPU, ActivationLayerCPUTest,
 
 /* ============= Activation (3D) ============= */
 std::vector<CPUSpecificParams> cpuParams_5D = {
+#if defined(OPENVINO_ARCH_X86_64)
         CPUSpecificParams({nCdhw16c}, {nCdhw16c}, {}, {}),
+#endif
         CPUSpecificParams({ndhwc}, {ndhwc}, {}, {}),
         CPUSpecificParams({ncdhw}, {ncdhw}, {}, {})
 };

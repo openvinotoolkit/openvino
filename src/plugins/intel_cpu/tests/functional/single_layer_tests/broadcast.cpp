@@ -216,8 +216,10 @@ const std::vector<ov::element::Type_t> inputPrecisions = {
 /* INSTANCES */
 // 4D
 const std::vector<CPUSpecificParams> CPUParams4D = {
+#if defined(OPENVINO_ARCH_X86_64)
         cpuParams_nChw16c,
         cpuParams_nChw8c,
+#endif
         cpuParams_nhwc
 };
 
@@ -382,8 +384,10 @@ std::vector<std::vector<int64_t>> targetShapes5D {
 };
 
 const std::vector<CPUSpecificParams> CPUParams5D = {
+#if defined(OPENVINO_ARCH_X86_64)
         cpuParams_nCdhw16c,
         cpuParams_nCdhw8c,
+#endif
         cpuParams_ndhwc,
 };
 

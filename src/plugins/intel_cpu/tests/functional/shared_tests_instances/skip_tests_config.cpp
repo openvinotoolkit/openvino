@@ -202,6 +202,7 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(smoke_(Static|Dynamic)SpaceToBatch.*)");
     retVector.emplace_back(R"(smoke_MM_Dynamic_Fusing.*)");
     retVector.emplace_back(R"(smoke_AdaPoolAvg3DLayoutTest.*)");
+    retVector.emplace_back(R"(smoke_VariadicSplit.*)");
 #endif
 
 #if defined(OPENVINO_ARCH_ARM)

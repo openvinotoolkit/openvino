@@ -208,13 +208,17 @@ std::vector<ElementType> netType = {
         ElementType::f32};
 
 std::vector<CPUSpecificParams> cpuParams_4D = {
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
         CPUSpecificParams({nChw16c, nChw16c}, {nChw16c}, {}, {}),
+#endif
         CPUSpecificParams({nhwc, nhwc}, {nhwc}, {}, {}),
         CPUSpecificParams({nchw, nchw}, {nchw}, {}, {})
 };
 
 std::vector<CPUSpecificParams> cpuParams_5D = {
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
         CPUSpecificParams({nCdhw16c, nCdhw16c}, {nCdhw16c}, {}, {}),
+#endif
         CPUSpecificParams({ndhwc, ndhwc}, {ndhwc}, {}, {}),
         CPUSpecificParams({ncdhw, ncdhw}, {ncdhw}, {}, {})
 };
@@ -375,7 +379,9 @@ std::vector<std::vector<ov::Shape>> inShapes_4D_Blocked_Planar = {
 };
 
 std::vector<CPUSpecificParams> cpuParams_4D_Blocked_Planar = {
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
         CPUSpecificParams({nChw16c, nchw}, {nChw16c}, {}, {}),
+#endif
 };
 
 const auto params_4D_Blocked_Planar = ::testing::Combine(
@@ -401,7 +407,9 @@ std::vector<std::vector<ov::Shape>> inShapes_4D_Planar_Blocked = {
 };
 
 std::vector<CPUSpecificParams> cpuParams_4D_Planar_Blocked = {
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
         CPUSpecificParams({nchw, nChw16c}, {nChw16c}, {}, {}),
+#endif
 };
 
 const auto params_4D_Planar_Blocked = ::testing::Combine(
@@ -427,7 +435,9 @@ std::vector<std::vector<ov::Shape>> inShapes_5D_Blocked_Planar = {
 };
 
 std::vector<CPUSpecificParams> cpuParams_5D_Blocked_Planar = {
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
         CPUSpecificParams({nCdhw16c, ncdhw}, {nCdhw16c}, {}, {}),
+#endif
 };
 
 const auto params_5D_Blocked_Planar = ::testing::Combine(
@@ -453,7 +463,9 @@ std::vector<std::vector<ngraph::Shape>> inShapes_5D_Planar_Blocked = {
 };
 
 std::vector<CPUSpecificParams> cpuParams_5D_Planar_Blocked = {
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
         CPUSpecificParams({ncdhw, nCdhw16c}, {nCdhw16c}, {}, {}),
+#endif
 };
 
 const auto params_5D_Planar_Blocked = ::testing::Combine(
@@ -479,7 +491,9 @@ std::vector<std::vector<ngraph::Shape>> inShapes_4D_1D = {
 };
 
 std::vector<CPUSpecificParams> cpuParams_4D_1D_Constant_mode = {
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
         CPUSpecificParams({nChw16c, nchw}, {nChw16c}, {}, {}),
+#endif
         CPUSpecificParams({nhwc, nhwc}, {nhwc}, {}, {}),
         CPUSpecificParams({nchw, nchw}, {nchw}, {}, {})
 };
@@ -526,7 +540,9 @@ std::vector<std::vector<ngraph::Shape>> inShapes_5D_1D = {
 };
 
 std::vector<CPUSpecificParams> cpuParams_5D_1D_constant = {
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
         CPUSpecificParams({nCdhw16c, ncdhw}, {nCdhw16c}, {}, {}),
+#endif
         CPUSpecificParams({ndhwc, ndhwc}, {ndhwc}, {}, {}),
         CPUSpecificParams({ncdhw, ncdhw}, {ncdhw}, {}, {})
 };

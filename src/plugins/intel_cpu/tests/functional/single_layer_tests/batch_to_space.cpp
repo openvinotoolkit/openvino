@@ -210,8 +210,10 @@ std::vector<std::vector<InputShape>> dynamicInputShapes4D2Blocked = {
 };
 
 const std::vector<CPUSpecificParams> cpuParamsWithBlock_4D = {
+#if defined(OPENVINO_ARCH_X86_64)
         CPUSpecificParams({nChw16c}, {nChw16c}, {}, {}),
         CPUSpecificParams({nChw8c}, {nChw8c}, {}, {}),
+#endif
         CPUSpecificParams({nhwc}, {nhwc}, {}, {}),
         CPUSpecificParams({nchw}, {nchw}, {}, {})
 };
@@ -365,8 +367,10 @@ std::vector<std::vector<InputShape>> dynamicInputShapes5D2Blocked = {
 };
 
 const std::vector<CPUSpecificParams> cpuParamsWithBlock_5D = {
+#if defined(OPENVINO_ARCH_X86_64)
         CPUSpecificParams({nCdhw16c}, {nCdhw16c}, {}, {}),
         CPUSpecificParams({nCdhw8c}, {nCdhw8c}, {}, {}),
+#endif
         CPUSpecificParams({ndhwc}, {ndhwc}, {}, {}),
         CPUSpecificParams({ncdhw}, {ncdhw}, {}, {})
 };

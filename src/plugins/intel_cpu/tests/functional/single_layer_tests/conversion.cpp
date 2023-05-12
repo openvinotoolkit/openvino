@@ -165,8 +165,10 @@ const std::vector<Precision> precisions_floating_point = {
 std::vector<CPUSpecificParams> memForm4D_dynamic = {
     CPUSpecificParams({nchw}, {nchw}, {}, "unknown"),
     CPUSpecificParams({nhwc}, {nhwc}, {}, "unknown"),
+#if defined(OPENVINO_ARCH_X86_64)
     CPUSpecificParams({nChw8c}, {nChw8c}, {}, "unknown"),
     CPUSpecificParams({nChw16c}, {nChw16c}, {}, "unknown")
+#endif
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest_Dynamic, ConvertCPULayerTest,
@@ -200,7 +202,9 @@ std::vector<InputShape> inShapes_4D_blocked = {
 };
 
 std::vector<CPUSpecificParams> memForm4D_static_blocked = {
+#if defined(OPENVINO_ARCH_X86_64)
     CPUSpecificParams({nChw16c}, {nChw16c}, {}, {})
+#endif
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest_Blocked, ConvertCPULayerTest,

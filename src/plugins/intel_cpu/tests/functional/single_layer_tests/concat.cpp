@@ -119,7 +119,9 @@ const std::vector<ElementType> netPrecisions = {
         ElementType::i8,
         ElementType::i32,
         ElementType::f32,
+#if defined(OPENVINO_ARCH_X86_64)
         ElementType::bf16
+#endif
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Concat4D_CPU_Block8_static, ConcatLayerCPUTest,
