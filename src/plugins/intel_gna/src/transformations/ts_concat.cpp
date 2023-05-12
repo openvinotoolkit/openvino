@@ -13,10 +13,12 @@
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/transformation_helper.hpp"
+#include "common/graph_utils.hpp"
 
 using namespace ov;
 using namespace ov::opset10;
 using namespace ov::pass::pattern;
+using namespace ov::intel_gna::graph_utils;
 using namespace ov::intel_gna::pass;
 using namespace ov::intel_gna::pass::helper;
 using namespace ov::intel_gna::limitations;
@@ -63,7 +65,7 @@ std::vector<size_t> CreateGatherIndices(const ov::Shape& input_shape, const ov::
         input_shape_4d.push_back(1);
         order_4d.push_back(order_4d.size());
     }
-    ov::Shape output_shape_4d = TransposeShape(input_shape_4d, order_4d);
+    ov::Shape output_shape_4d = transpose_shape(input_shape_4d, order_4d);
 
     // common case when shape is 4d
     std::vector<size_t> xyz_4d = {input_shape_4d[3] * input_shape_4d[2] * input_shape_4d[1],
@@ -71,7 +73,7 @@ std::vector<size_t> CreateGatherIndices(const ov::Shape& input_shape, const ov::
                                   input_shape_4d[3],
                                   1};
 
-    std::vector<size_t> xyz = TransposeShape(xyz_4d, order_4d);
+    std::vector<size_t> xyz = transpose_shape(xyz_4d, order_4d);
     std::vector<size_t> gather_order;
 
     for (size_t n = 0; n < output_shape_4d[0]; ++n) {
