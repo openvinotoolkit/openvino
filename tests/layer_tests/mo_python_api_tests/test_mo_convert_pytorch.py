@@ -668,14 +668,13 @@ def create_pytorch_nn_module_convert_pytorch_frontend2(tmp_dir):
     pt_model = make_pt_model_one_input()
     shape = [-1, -1, -1, -1]
     shape = PartialShape(shape)
-    param = ov.opset10.parameter(shape)
+    param = ov.opset10.parameter(shape, Type.i32)
     relu = ov.opset10.relu(param)
-    sigm = ov.opset10.sigmoid(relu)
+    convt = ov.opset10.convert(relu, "f32")
+    sigm = ov.opset10.sigmoid(convt)
 
     parameter_list = [param]
     ref_model = Model([sigm], parameter_list, "test")
-    ref_model.input(0).get_node().set_element_type(Type.i32)
-    ref_model.validate_nodes_and_infer_types()
     return pt_model, ref_model, {
         "example_input": torch.zeros((1, 3, 10, 10), dtype=torch.int32),
         "input": [InputCutInfo(shape=[-1, -1, -1, -1], type="i32")]
