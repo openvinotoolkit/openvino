@@ -135,11 +135,11 @@ void Memory::update() {
     }
 }
 
-void Memory::Create(const MemoryDesc &desc, DnnlMemoryMngrPtr memMgr) {
+void Memory::Create(const MemoryDesc &desc, MemoryMngrPtr memMgr) {
     Create(desc.clone(), memMgr);
 }
 
-void Memory::Create(MemoryDescPtr desc, DnnlMemoryMngrPtr memMgr) {
+void Memory::Create(MemoryDescPtr desc, MemoryMngrPtr memMgr) {
     mgrHandle = DnnlMemMngrHandle(memMgr, this);
     bool memAllocated = mgrHandle->getRawPtr();
 

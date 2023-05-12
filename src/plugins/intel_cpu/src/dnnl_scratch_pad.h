@@ -14,7 +14,7 @@ namespace ov {
 namespace intel_cpu {
 
 class DnnlScratchPad {
-    DnnlMemoryMngrPtr mgrPtr;
+    MemoryMngrPtr mgrPtr;
     dnnl::engine eng;
 
 public:

@@ -5,6 +5,7 @@
 #include "node.h"
 #include "edge.h"
 #include "extension_mngr.h"
+#include "partitioned_mem_mgr.h"
 #include "itt.h"
 
 #include "caseless.hpp"
@@ -374,11 +375,13 @@ void Node::resolveInPlaceEdges() {
         IE_THROW() << "Cannot find selected primitive descriptor for node: " << getName();
     for (size_t i = 0; i < getParentEdges().size() && i < selected_pd->getConfig().inConfs.size(); i++) {
         auto parentEdge = getParentEdgeAt(i);
+        auto inplaceOutIndx = selected_pd->getConfig().inConfs[i].inPlace();
 
-        if (parentEdge->getStatus() != Edge::Status::NotAllocated || selected_pd->getConfig().inConfs[i].inPlace() < 0)
+        if (inplaceOutIndx < 0) //parentEdge->getStatus() != Edge::Status::NotAllocated ||
             continue;
 
-        auto memMgr = parentEdge->getMemory().getDnnlMemoryMngr();
+        auto childEdge = getChildEdgesAtPort(inplaceOutIndx).front();
+        auto memMgr = std::make_shared<PartitionedMemoryMngr>(childEdge);
         parentEdge->getMemoryPtr().reset(new Memory(getEngine()));
         parentEdge->getMemoryPtr()->Create(selected_pd->getConfig().inConfs[i].getMemDesc(), memMgr);
 
@@ -386,11 +389,13 @@ void Node::resolveInPlaceEdges() {
     }
     for (size_t i = 0; i < getChildEdges().size() && i < selected_pd->getConfig().outConfs.size(); i++) {
         auto childEdge = getChildEdgeAt(i);
+        auto inplaceInpIndx = selected_pd->getConfig().outConfs[i].inPlace();
 
-        if (childEdge->getStatus() != Edge::Status::NotAllocated || selected_pd->getConfig().outConfs[i].inPlace() < 0)
+        if (inplaceInpIndx < 0) //childEdge->getStatus() != Edge::Status::NotAllocated ||
             continue;
 
-        auto memMgr = childEdge->getMemory().getDnnlMemoryMngr();
+        auto parentEdge = getParentEdgesAtPort(inplaceInpIndx).front();
+        auto memMgr = std::make_shared<PartitionedMemoryMngr>(parentEdge);
         childEdge->getMemoryPtr().reset(new Memory(getEngine()));
         childEdge->getMemoryPtr()->Create(selected_pd->getConfig().outConfs[i].getMemDesc(), memMgr);
 
@@ -1670,5 +1675,29 @@ void Node::fuseDQScales(const float* scaleData, const size_t scaleSize) {
         DQScales.resize(1);
 }
 
+int Node::inPlaceInputPort(int portIdx) const {
+    const NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
+    if (!selected_pd)
+        IE_THROW() << "Cannot find selected primitive descriptor for node: " << getName();
+
+    const auto& conf = selected_pd->getConfig();
+
+    IE_ASSERT(portIdx >= 0 && portIdx < conf.inConfs.size()) <<
+        "Wrong portIndx: " << portIdx << " acceptable interval: [0, " << conf.inConfs.size() << ")";
+
+    return conf.inConfs[portIdx].inPlace();
+}
+int Node::inPlaceOutPort(int portIdx) const {
+    const NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
+    if (!selected_pd)
+        IE_THROW() << "Cannot find selected primitive descriptor for node: " << getName();
+
+    const auto& conf = selected_pd->getConfig();
+
+    IE_ASSERT(portIdx >= 0 && portIdx < conf.outConfs.size()) <<
+        "Wrong portIndx: " << portIdx << " acceptable interval: [0, " << conf.outConfs.size() << ")";
+
+    return conf.outConfs[portIdx].inPlace();
+}
 }   // namespace intel_cpu
 }   // namespace ov

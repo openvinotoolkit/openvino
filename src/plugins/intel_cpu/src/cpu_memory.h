@@ -89,18 +89,24 @@ private:
     static void destroy(void *ptr);
 };
 
+class IMemoryMngrObserver : public IMemoryMngr {
+public:
+    virtual void registerMemory(Memory* memPtr) = 0;
+    virtual void unregisterMemory(Memory* memPtr) = 0;
+};
+
 /**
  * @brief A proxy object that additionally implements observer pattern
  */
-class DnnlMemoryMngr : public IMemoryMngr {
+class DnnlMemoryMngr : public IMemoryMngrObserver {
 public:
     explicit DnnlMemoryMngr(std::unique_ptr<IMemoryMngr> mngr) : _pMemMngr(std::move(mngr)) {}
     void* getRawPtr() const noexcept override;
     void setExtBuff(void* ptr, size_t size) override;
     bool resize(size_t size) override;
     bool hasExtBuffer() const noexcept override;
-    void registerMemory(Memory* memPtr);
-    void unregisterMemory(Memory* memPtr);
+    void registerMemory(Memory* memPtr) override;
+    void unregisterMemory(Memory* memPtr) override;
 
 private:
     void notifyUpdate();
@@ -110,12 +116,12 @@ private:
     std::unique_ptr<IMemoryMngr> _pMemMngr;
 };
 
-using DnnlMemoryMngrPtr = std::shared_ptr<DnnlMemoryMngr>;
-using DnnlMemoryMngrCPtr = std::shared_ptr<const DnnlMemoryMngr>;
+using MemoryMngrPtr = std::shared_ptr<IMemoryMngrObserver>;
+using MemoryMngrCPtr = std::shared_ptr<const IMemoryMngrObserver>;
 
 class DnnlMemMngrHandle {
 public:
-    DnnlMemMngrHandle(DnnlMemoryMngrPtr pMgr, Memory* pMem) : _pMgr(pMgr), _pMem(pMem) {
+    DnnlMemMngrHandle(MemoryMngrPtr pMgr, Memory* pMem) : _pMgr(pMgr), _pMem(pMem) {
         if (_pMgr) {
             _pMgr->registerMemory(_pMem);
         }
@@ -140,16 +146,16 @@ public:
         }
     }
 
-    DnnlMemoryMngrPtr get() const {
+    MemoryMngrPtr get() const {
         return _pMgr;
     }
 
-    DnnlMemoryMngrPtr::element_type* operator->() const noexcept {
+    MemoryMngrPtr::element_type* operator->() const noexcept {
         return _pMgr.get();
     }
 
 private:
-    DnnlMemoryMngrPtr _pMgr = nullptr;
+    MemoryMngrPtr _pMgr = nullptr;
     Memory* _pMem = nullptr;
 };
 
@@ -233,8 +239,8 @@ public:
     void Create(const MemoryDesc& desc, const void* data = nullptr, bool pads_zeroing = true);
     void Create(MemoryDescPtr desc, const void* data = nullptr, bool pads_zeroing = true);
 
-    void Create(const MemoryDesc& desc, DnnlMemoryMngrPtr memMgr);
-    void Create(MemoryDescPtr desc, DnnlMemoryMngrPtr memMgr);
+    void Create(const MemoryDesc& desc, MemoryMngrPtr memMgr);
+    void Create(MemoryDescPtr desc, MemoryMngrPtr memMgr);
 
     // Redefines descriptor. The memory descriptor will be replaced with the new one.
     // Memory will not be reallocated if the new tensor size is less or equal the upper bound.
@@ -256,7 +262,7 @@ public:
         return mgrHandle->hasExtBuffer();
     }
 
-    DnnlMemoryMngrPtr getDnnlMemoryMngr() const {
+    MemoryMngrPtr getMemoryMngr() const {
         return mgrHandle.get();
     }
 

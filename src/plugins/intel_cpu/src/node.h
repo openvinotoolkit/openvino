@@ -188,6 +188,9 @@ public:
     const std::vector<EdgePtr> getParentEdgesAtPort(size_t idx) const;
     const std::vector<EdgePtr> getChildEdgesAtPort(size_t idx) const;
 
+    int inPlaceInputPort(int portIdx) const;
+    int inPlaceOutPort(int portIdx) const;
+
     bool isDropped() {
         return (isEdgesEmpty(childEdges) && isEdgesEmpty(parentEdges));
     }
@@ -354,7 +357,7 @@ public:
 
     PerfCount &PerfCounter() { return perfCounter; }
 
-    void resolveInPlaceEdges();
+    virtual void resolveInPlaceEdges();
 
     virtual void execute(dnnl::stream strm) = 0;
     void updateShapes();
