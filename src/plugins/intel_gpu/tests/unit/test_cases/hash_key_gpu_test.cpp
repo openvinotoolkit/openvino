@@ -236,7 +236,7 @@ TEST(check_hash_value, conv_basic) {
     const auto params_hash = prog_node.get_kernel_impl_params()->hash();
 
     ASSERT_EQ(primitive_hash, 13549661972131371304UL);
-    ASSERT_EQ(params_hash, 8840309021404704452UL);
+    ASSERT_EQ(params_hash, 4330346452027285061UL);
 }
 
 TEST(check_hash_value, quantize_basic) {
