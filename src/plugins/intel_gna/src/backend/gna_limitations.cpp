@@ -11,8 +11,6 @@
 #include <legacy/graph_tools.hpp>
 #include <unordered_set>
 
-#include "openvino/opsets/opset7.hpp"
-#include "openvino/opsets/opset11.hpp"
 #include "common/gna_target.hpp"
 #include "common/graph_utils.hpp"
 #include "gna/gna_config.hpp"
@@ -20,7 +18,8 @@
 #include "gna_lib_ver_selector.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "log/log.hpp"
-#include "common/graph_utils.hpp"
+#include "openvino/opsets/opset11.hpp"
+#include "openvino/opsets/opset7.hpp"
 
 namespace std {
 inline std::ostream& operator<<(std::ostream& os, const std::set<ov::element::Type>& t) {
@@ -229,7 +228,7 @@ bool is_concat_supported(const std::shared_ptr<const ov::Node>& node) {
     const ov::Shape& output_shape = concat_node->get_output_shape(0);
     auto axis = concat_node->get_axis();
 
-    return  graph_utils::get_first_valuable_dim_id(output_shape) == axis;
+    return graph_utils::get_first_valuable_dim_id(output_shape) == axis;
 }
 
 bool is_forward_transposed_concat_supported(const std::shared_ptr<const ov::Node>& node, const AxisVector& order) {
