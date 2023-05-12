@@ -99,6 +99,10 @@ function(ov_native_compile_external_project)
         list(APPEND ARG_CMAKE_ARGS "-DCMAKE_C_COMPILER_LAUNCHER=${CMAKE_C_COMPILER_LAUNCHER}")
     endif()
 
+    if(DEFINED CMAKE_MAKE_PROGRAM)
+        list(APPEND ARG_CMAKE_ARGS "-DCMAKE_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM}")
+    endif()
+
     ExternalProject_Add(${ARG_TARGET_NAME}
         # Directory Options
         SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}"
