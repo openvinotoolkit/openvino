@@ -220,7 +220,6 @@ void KernelEmitter::init_data_pointers(size_t num_inputs, size_t num_params, siz
                                        const Reg64& reg_indexes, const Reg64& reg_const_params, const std::vector<Reg64>& data_ptr_regs) const {
     // Note that we don't need offset for the last dim, since it's handled directly by Tile emitter
     const size_t offset_rank = jcp.master_shape.size() - 1;
-    //const size_t tile_rank = jcp.tile_rank;
     std::vector<std::vector<size_t>> data_offsets(num_params, std::vector<size_t>{});
     auto offset_calculation = [=](const std::vector<size_t>& shape, const std::vector<size_t>& layout, const size_t data_size) {
         // Strides represent distance between consecutive elements of corresponding dimension.
@@ -346,7 +345,7 @@ void LoopBeginEmitter::emit_code(const std::vector<size_t> &in,
 }
 
 void LoopBeginEmitter::validate_arguments(const std::vector<size_t> &in,
-                                        const std::vector<size_t> &out) const {
+                                          const std::vector<size_t> &out) const {
     if (!in.empty())
         IE_THROW() << "Invalid inputs size: expected 0 got " << in.size();
     if (out.size() != 1)
@@ -366,7 +365,6 @@ void LoopBeginEmitter::emit_impl(const std::vector<size_t>& in,
     // or ready(), but they both set internal flags and that's not a desired way to use them.
     // So the most obvious WA is just to use current address manually
     loop_begin->begin_address = h->getCurr();
-    loop_begin->input_regs = in;
 }
 
 LoopEndEmitter::LoopEndEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
@@ -399,8 +397,6 @@ void LoopEndEmitter::emit_code(const std::vector<size_t> &in,
 
 void LoopEndEmitter::validate_arguments(const std::vector<size_t> &in,
                                        const std::vector<size_t> &out) const {
-    if (!loop_begin->input_regs.empty())
-        IE_THROW() << "Invalid loop_begin->input_regs size: expected " << 0 << " got " << loop_begin->input_regs.size();
     if (out.size() != num_outputs)
         IE_THROW() << "Invalid number of out arguments: expected " << num_outputs << " got " << out.size();
     if (in.size() != num_inputs)

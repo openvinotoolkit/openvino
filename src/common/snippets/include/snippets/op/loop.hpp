@@ -42,9 +42,8 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs)  const override;
     std::shared_ptr<LoopEnd> get_loop_end() const;
     bool visit_attributes(AttributeVisitor& visitor) override;
-    // begin_address and input_regs are needed to communicate information between LoopBegin and LoopEnd emitters
+    // begin_address are needed to communicate information between LoopBegin and LoopEnd emitters
     const uint8_t* begin_address;
-    std::vector<size_t> input_regs;
 
 private:
     void validate_and_infer_types_except_LoopEnd();
@@ -91,11 +90,10 @@ public:
     void set_work_amount(size_t new_work_amount);
     void set_increment(size_t new_increment);
     void set_evaluate_once(bool once);
-    void set_work_with_buffer(bool buffer);
     // Used to propagate information about Loop structure, needed to simplify some optimizations. For example,
     // to skip pointer increments when outer Loop is empty, and work_amount == vector_size (one inner vector Loop)
     // true by default, the optimizations enabled if it's false;
-    bool has_outer_loop;
+    bool has_outer_loop = true;
     size_t get_work_amount() const;
     size_t get_increment() const;
     bool get_evaluate_once() const;

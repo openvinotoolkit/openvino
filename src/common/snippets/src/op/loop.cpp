@@ -13,7 +13,7 @@ namespace op {
 LoopBase::LoopBase(const std::vector<Output<Node>> &args) : Op(args) {
 }
 
-LoopBegin::LoopBegin() : LoopBase(), begin_address(nullptr), input_regs({}) {
+LoopBegin::LoopBegin() : LoopBase(), begin_address(nullptr) {
     validate_and_infer_types_except_LoopEnd();
 }
 
