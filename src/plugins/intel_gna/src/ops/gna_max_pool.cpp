@@ -12,7 +12,7 @@
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/validation_util.hpp"
 
-NGRAPH_RTTI_DEFINITION(ov::intel_gna::op::GNAMaxPool, "GNAMaxPool", 0);
+NGRAPH_RTTI_DEFINITION(ov::intel_gna::op::GNAMaxPool, "GNAMaxPool");
 
 namespace ov {
 namespace intel_gna {

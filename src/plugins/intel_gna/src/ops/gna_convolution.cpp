@@ -11,7 +11,7 @@
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 
-NGRAPH_RTTI_DEFINITION(ov::intel_gna::op::GNAConvolution, "GNAConvolution", 0);
+NGRAPH_RTTI_DEFINITION(ov::intel_gna::op::GNAConvolution, "GNAConvolution");
 
 namespace ov {
 namespace intel_gna {

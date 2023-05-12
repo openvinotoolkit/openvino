@@ -375,6 +375,15 @@ inline std::vector<size_t> make_gather_indices_from_transpose_axes(const Shape& 
     return gather_order;
 }
 
+inline size_t get_first_valuable_dim_id(const ov::Shape& shape) {
+    for (size_t i = 0; i < shape.size(); ++i) {
+        if (shape[i] != 1) {
+            return i;
+        }
+    }
+    return 0;
+}
+
 }  // namespace graph_utils
 }  // namespace intel_gna
 }  // namespace ov
