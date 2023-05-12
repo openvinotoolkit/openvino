@@ -256,6 +256,8 @@ private:
     GraphContext::CPtr context;
 
     void EnforceInferencePrecision();
+    void EnforceBF16();
+    void resolveInPlaceDirection(const NodePtr& node) const;
 };
 
 }   // namespace intel_cpu
