@@ -212,8 +212,9 @@ JitConstants UniqueCountKernelRef::GetJitConstants(const unique_count_params& ke
     }
 
     if (input.is_dynamic()) {
-        const DimensionAccessHelper dims(input);
-        const std::string total_data_size = toVectorMulString({dims.x, dims.y, dims.z, dims.w, dims.f, dims.b});
+        DimensionAccessHelper dims(input);
+        const std::string total_data_size =
+            toVectorMulString({dims.x(), dims.y(), dims.z(), dims.w(), dims.f(), dims.b()});
         jit_constants.AddConstant(MakeJitConstant("TOTAL_DATA_SIZE", total_data_size));
     } else {
         jit_constants.AddConstant(MakeJitConstant("TOTAL_DATA_SIZE", input.LogicalSize()));
@@ -317,8 +318,9 @@ JitConstants UniqueGatherKernelRef::GetJitConstants(const unique_gather_params& 
     }
 
     if (input.is_dynamic()) {
-        const DimensionAccessHelper dims(input);
-        const std::string total_data_size = toVectorMulString({dims.x, dims.y, dims.z, dims.w, dims.f, dims.b});
+        DimensionAccessHelper dims(input);
+        const std::string total_data_size =
+            toVectorMulString({dims.x(), dims.y(), dims.z(), dims.w(), dims.f(), dims.b()});
         jit_constants.AddConstant(MakeJitConstant("TOTAL_DATA_SIZE", total_data_size));
     } else {
         jit_constants.AddConstant(MakeJitConstant("TOTAL_DATA_SIZE", input.LogicalSize()));
