@@ -288,7 +288,7 @@ struct padding {
     /// @return Tensor with padding for bottom/right/upper bounds of data.
     tensor upper_size() const { return _upper_size; }
 
-    void set_dynamic_pad(tensor dynamic_pad_dims) {
+    void set_dynamic_pad(const tensor& dynamic_pad_dims) {
         _dynamic_pad_dims = dynamic_pad_dims;
     }
 
@@ -302,7 +302,7 @@ struct padding {
     padding(const std::vector<tensor::value_type>& lower_sizes,
             const std::vector<tensor::value_type>& upper_sizes,
             float filling_value = 0.0f,
-            tensor dynamic_pad_dims = tensor(0))
+            const tensor& dynamic_pad_dims = tensor(0))
         : _lower_size(to_abs(lower_sizes), 0),
           _upper_size(to_abs(upper_sizes), 0),
           _filling_value(filling_value),
@@ -312,11 +312,11 @@ struct padding {
     /// @param sizes Top-left and bottom-right padding sizes. See @ref tensor::tensor(const std::vector<value_type>&,
     /// value_type) for details.
     /// @param filling_value Filling value for padding area.
-    explicit padding(const std::vector<tensor::value_type>& sizes, float filling_value = 0.0f)
-        : padding(sizes, sizes, filling_value) {}
+    explicit padding(const std::vector<tensor::value_type>& sizes, float filling_value = 0.0f, const tensor& dynamic_pad_dims = tensor(0))
+        : padding(sizes, sizes, filling_value, dynamic_pad_dims) {}
 
     /// @brief Constructs "zero-sized" padding.
-    padding() : padding({0, 0, 0, 0}, 0) {}
+    padding() : padding({0, 0, 0, 0}, 0, tensor(0)) {}
 
     /// @brief Returns true if padding size is not zero.
     explicit operator bool() const {
