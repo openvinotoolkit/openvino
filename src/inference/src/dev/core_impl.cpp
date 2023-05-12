@@ -243,7 +243,7 @@ bool ov::is_config_applicable(const std::string& user_device_name, const std::st
     return false;
 }
 
-ov::Parsed ov::parseDeviceNameIntoConfig(const std::string& deviceName, const AnyMap& config) {
+ov::Parsed ov::parseDeviceNameIntoConfig(const std::string& deviceName, const AnyMap& config, const bool query_from_virtual) {
     auto updated_config = config;
     auto updated_device_name = deviceName;
 
@@ -289,9 +289,11 @@ ov::Parsed ov::parseDeviceNameIntoConfig(const std::string& deviceName, const An
         }
     };
 
-    // clean-up auto-batch related properties
-    clean_batch_properties(updated_device_name, updated_config, ov::hint::allow_auto_batching);
-    clean_batch_properties(updated_device_name, updated_config, ov::auto_batch_timeout);
+    // clean-up auto-batch related properties when api is not called from get_supported_property
+    if (!query_from_virtual) {
+        clean_batch_properties(updated_device_name, updated_config, ov::hint::allow_auto_batching);
+        clean_batch_properties(updated_device_name, updated_config, ov::auto_batch_timeout);
+    }
 
     return {updated_device_name, updated_config};
 }
@@ -756,7 +758,7 @@ ov::AnyMap ov::CoreImpl::get_supported_property(const std::string& full_device_n
         ov::hint::allow_auto_batching.name(),
     };
 
-    const auto flattened = ov::parseDeviceNameIntoConfig(full_device_name, user_properties);
+    const auto flattened = ov::parseDeviceNameIntoConfig(full_device_name, user_properties, true);
     const std::string& device_name = flattened._deviceName;
     const auto& flattened_config = flattened._config;
 
