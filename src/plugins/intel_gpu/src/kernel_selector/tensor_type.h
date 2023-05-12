@@ -448,26 +448,30 @@ public:
                                              [](size_t val, const Dim& d) { return val + d.pitch * d.pad.before; })),
           totalSize(sz),
           paddedVal(pv) {
-        if (totalSize == 0) {
+        if (!std::any_of(dims.begin(), dims.end(), [](const Dim& d) {
+                return d.pad.is_dynamic;
+            })) {
+            if (totalSize == 0) {
+                for (const auto& d : dims) {
+                    totalSize = std::max(totalSize, d.pitch * (d.LogicalDimPadded()));
+                }
+
+                totalSize += viewOffset;
+            }
+
+            size_t minimalPitch = 1;
+
             for (const auto& d : dims) {
-                totalSize = std::max(totalSize, d.pitch * (d.LogicalDimPadded()));
+                if (d.pitch < minimalPitch) {
+                    throw std::runtime_error("Tensor pitches didn't set correctly");
+                }
+
+                minimalPitch *= d.LogicalDimPadded();
             }
 
-            totalSize += viewOffset;
-        }
-
-        size_t minimalPitch = 1;
-
-        for (const auto& d : dims) {
-            if (d.pitch < minimalPitch) {
-                throw std::runtime_error("Tensor pitches didn't set correctly");
+            if (totalSize < (minimalPitch + viewOffset)) {
+                throw std::runtime_error("Tensor total Size didn't set correctly");
             }
-
-            minimalPitch *= d.LogicalDimPadded();
-        }
-
-        if (totalSize < (minimalPitch + viewOffset)) {
-            throw std::runtime_error("Tensor total Size didn't set correctly");
         }
     }
 
