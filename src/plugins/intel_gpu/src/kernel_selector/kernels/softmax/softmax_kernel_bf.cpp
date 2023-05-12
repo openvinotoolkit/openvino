@@ -104,12 +104,12 @@ JitConstants SoftmaxKernel_bf::GetJitConstants(const softmax_params& params, Dis
 
     if (params.has_dynamic_tensors()) {
         const auto& input = params.inputs[0];
-        DimensionAccessHelper dims(input, 0);
+        DimensionAccessHelper dims(input);
         auto softmax_dim_y_bfyx = (params.dim == SoftmaxDim::Y && input.GetLayout() == DataLayout::bfyx);
-        const std::string flatten_bf = "(SOFTMAX_DIM_Y_BFYX&&(" + dims.f + ">1))";
+        const std::string flatten_bf = "(SOFTMAX_DIM_Y_BFYX&&(" + dims.f() + ">1))";
         const std::string lws_0 = "get_local_size(0)";
-        const std::string data_set_count = "(FLATTEN_BF?" + toVectorMulString({dims.f, dims.b}) + ":" + dims.b + ")";
-        const std::string data_set_size = "(FLATTEN_BF?" + dims.y + ":" + toVectorMulString({dims.x, dims.y, dims.z, dims.f}) + ")";
+        const std::string data_set_count = "(FLATTEN_BF?" + toVectorMulString({dims.f(), dims.b()}) + ":" + dims.b() + ")";
+        const std::string data_set_size = "(FLATTEN_BF?" + dims.y() + ":" + toVectorMulString({dims.x(), dims.y(), dims.z(), dims.f()}) + ")";
         // It can be expected that the maximum possible itemsNum will not exceed 32
         // Therefore, in dynamic shape, stack_size including additional buffer is set to 33
         constexpr size_t stack_size = 33; // The size of stack for my_chunk
