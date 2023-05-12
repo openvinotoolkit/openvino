@@ -306,7 +306,7 @@ void Reshape::initSupportedPrimitiveDescriptors() {
     config.inConfs.resize(getParentEdges().size());
     auto& creatorsMap = BlockedDescCreator::getCommonCreators();
     for (size_t i = 0; i < getParentEdges().size(); i++) {
-        config.inConfs[i].inPlace(-1);
+        config.inConfs[i].inPlace(0 == i && canBeInPlace ? 0 : -1);
         config.inConfs[i].constant(false);
         config.inConfs[i].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc((i > 0 ? secondInPrc : inPrec), getInputShapeAtPort(i)));
     }
