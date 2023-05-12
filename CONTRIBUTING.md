@@ -6,7 +6,7 @@ We welcome community contributions to OpenVINO™. Please read the following gui
 ## Before you start contributing you should
 
 -   Make sure you agree to contribute your code under  [OpenVINO™ (Apache 2.0)](https://github.com/openvinotoolkit/openvino/blob/master/LICENSE)  license.
--   Figure out what you’re going to contribute. If you don’t know what you are going to work on, navigate to the   [Github "Issues" tab](https://github.com/openvinotoolkit/openvino/issues). Make sure that there isn't someone working on it. In the latter case you might provide support or suggestion in the issue or in the linked pull request.
+-   Figure out what you’re going to contribute. If you don’t know what you are going to work on, navigate to the   [Contributions Welcome](https://github.com/openvinotoolkit/openvino/issues/17502). Make sure that there isn't someone working on it. In the latter case you might provide support or suggestion in the issue or in the linked pull request.
 -   If you are going to fix a bug, check that it's still exists in the latest release. This can be done by building the latest master branch, and make sure that the error is still reproducible there. We do not fix bugs that only affect older non-LTS releases like 2020.2 for example (more details about  [branching strategy](https://github.com/openvinotoolkit/openvino/wiki/Branches)).
 
 
