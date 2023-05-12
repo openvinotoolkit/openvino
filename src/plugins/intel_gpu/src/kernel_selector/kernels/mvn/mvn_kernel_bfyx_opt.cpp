@@ -79,15 +79,15 @@ JitConstants MVNKernelBfyxOpt::GetJitConstants(const mvn_params& params, MVNKern
 
     if (params.has_dynamic_tensors()) {
         const auto& input = params.inputs[0];
-        DimensionAccessHelper dims(input, 0);
+        DimensionAccessHelper dims(input);
         std::string data_set_size;
         std::string data_set_count;
         if (params.mvnMode == MVNMode::WITHIN_CHANNELS) {
-            data_set_size = toVectorMulString({dims.x, dims.y, dims.z});
-            data_set_count = toVectorMulString({dims.f, dims.b});
+            data_set_size = toVectorMulString({dims.x(), dims.y(), dims.z()});
+            data_set_count = toVectorMulString({dims.f(), dims.b()});
         } else {
-            data_set_size = toVectorMulString({dims.x, dims.y, dims.z, dims.f});
-            data_set_count = dims.b;
+            data_set_size = toVectorMulString({dims.x(), dims.y(), dims.z(), dims.f()});
+            data_set_count = dims.b();
         }
         const std::string lws_0 = "get_local_size(0)";
         jit.AddConstants({
