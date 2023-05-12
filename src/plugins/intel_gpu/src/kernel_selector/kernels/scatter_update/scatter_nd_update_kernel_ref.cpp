@@ -183,29 +183,16 @@ KernelsData ScatterNDUpdateKernelRef::GetKernelsData(const Params& params, const
             size_t input0_rank = newParams.inputs[0].LogicalDims().size();
             size_t input2_rank = newParams.inputs[2].LogicalDims().size();
             cldnn_jit.AddConstant(MakeJitConstant("IS_SECOND_ITER", "true"));
-            size_t shape_info_offset = 0;
-            cldnn_jit.AddConstant(
-                MakeJitConstant("INPUT0_BLOCK_ND", GetInputBlockND(newParams, 0, shape_info_offset, input0_rank)));
-            if (newParams.inputs[0].is_dynamic()) {
-                shape_info_offset += DataTensor::max_rank();
-                for (auto j : newParams.inputs[0].GetDims()) {
-                    if (j.pad.is_dynamic) {
-                        shape_info_offset += Tensor::Pad::NumPadOffsetsPerDim();
-                    }
-                }
-            }
-            cldnn_jit.AddConstant(
-                MakeJitConstant("INPUT1_BLOCK_ND",
-                                GetInputBlockND(newParams, 1, shape_info_offset, newParams.indices_rank - 1)));
-            if (newParams.inputs[1].is_dynamic()) {
-                shape_info_offset += DataTensor::max_rank();
-                for (auto j : newParams.inputs[1].GetDims()) {
-                    if (j.pad.is_dynamic) {
-                        shape_info_offset += Tensor::Pad::NumPadOffsetsPerDim();
-                    }
-                }
-            }
-            cldnn_jit.AddConstant(MakeJitConstant("INPUT2_BLOCK_ND", GetInputBlockND(newParams, 2, shape_info_offset, input2_rank)));
+            cldnn_jit.AddConstant(MakeJitConstant(
+                "INPUT0_BLOCK_ND",
+                GetInputBlockND(newParams, 0, newParams.inputs[0].get_dynamic_shape_offset(), input0_rank)));
+            cldnn_jit.AddConstant(MakeJitConstant(
+                "INPUT1_BLOCK_ND",
+                GetInputBlockND(newParams, 1, newParams.inputs[1].get_dynamic_shape_offset(), newParams.indices_rank - 1)));
+            cldnn_jit.AddConstant(MakeJitConstant(
+                "INPUT2_BLOCK_ND",
+                GetInputBlockND(newParams, 2, newParams.inputs[2].get_dynamic_shape_offset(), input2_rank)));
+
             cldnn_jit.AddConstant(MakeJitConstant("INDICES_RANK", newParams.indices_rank));
 
             const auto& ind_input = newParams.inputs[1];

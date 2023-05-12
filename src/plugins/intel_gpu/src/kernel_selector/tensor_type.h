@@ -246,9 +246,7 @@ struct Pad {
 
     static size_t NumPadOffsetsPerDim() { return 2; /*pad_before/pad_after*/}
     size_t Total() const {
-        if (is_dynamic) {
-            OPENVINO_ASSERT("Total() is called for dynamic pad!");
-        }
+        OPENVINO_ASSERT(!is_dynamic, "Total() is called for dynamic pad!");
         return before + after;
     }
 };
@@ -269,9 +267,7 @@ struct Dim {
           is_dynamic(is_dynamic) {}
 
     size_t LogicalDimPadded() const {
-        if (pad.is_dynamic) {
-            OPENVINO_ASSERT("LogicalDimPadded() is called for dynamic pad");
-        }
+        OPENVINO_ASSERT(!pad.is_dynamic, "LogicalDimPadded() is called for dynamic pad");
         return v + pad.Total();
     }
 };
@@ -650,7 +646,7 @@ struct DataTensor : public TensorBaseT<Datatype, DataLayout> {
         dynamic_shape_offset = offset;
     }
 
-    size_t GetDynamicShapeOffset() const {
+    size_t get_dynamic_shape_offset() const {
         return dynamic_shape_offset;
     }
 

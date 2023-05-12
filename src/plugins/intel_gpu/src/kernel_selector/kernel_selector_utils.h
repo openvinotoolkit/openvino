@@ -24,7 +24,7 @@ struct DimensionAccessHelper {
             t.Y(),
             t.X(),
         };
-        size_t dyn_shape_offset = t.GetDynamicShapeOffset();
+        size_t dyn_shape_offset = t.get_dynamic_shape_offset();
         size_t dyn_pad_offset = dyn_shape_offset + DataTensor::max_rank();
         for (auto d : dims) {
             dims_sizes.push_back(toCodeString(d, dyn_shape_offset, padded, d.pad.is_dynamic, dyn_pad_offset));

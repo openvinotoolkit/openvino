@@ -327,9 +327,9 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
     DimensionAccessHelper dims_padded(_tensor, true);
     // shape_info layout
     // if only y has dynamic padding:
-    // [dim_b, dim_f, dim_u, dim_v, dim_w, dim_z, dim_y, dim_x, pad_before_y, pad_after_y]
+    // [dim_b, dim_f, dim_v, dim_u, dim_w, dim_z, dim_y, dim_x, pad_before_y, pad_after_y]
     // if only x has dynamic padding:
-    // [dim_b, dim_f, dim_u, dim_v, dim_w, dim_z, dim_y, dim_x, pad_before_x, pad_after_x]
+    // [dim_b, dim_f, dim_v, dim_u, dim_w, dim_z, dim_y, dim_x, pad_before_x, pad_after_x]
 
     definitions = {
         {_name + "_SIZE_X", dims.x()},
