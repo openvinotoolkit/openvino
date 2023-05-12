@@ -128,7 +128,7 @@ void test_output_node_optimization(bool is_caching_test) {
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(data("weights", weights));
-    topology.add(convolution("conv", input_info("input"), { "weights" }, { 2, 1 }));
+    topology.add(convolution("conv", input_info("input"), "weights", "", 1, {2, 1}, {1, 1}, {0, 0}, {0, 0}, false));
     topology.add(activation("relu", input_info("conv"), activation_func::relu));
 
     cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);

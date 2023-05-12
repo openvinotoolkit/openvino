@@ -41,9 +41,9 @@ TEST(reorder_inputs, propagation) {
     topology topology;
     topology.add(data("weights", weights));
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(convolution("conv1", input_info("input"), { "weights" }));
+    topology.add(convolution("conv1", input_info("input"), "weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
     topology.add(pooling("pool", input_info("conv1"), pooling_mode::max, { 1, 1 }, { 1, 1 }));
-    topology.add(convolution("conv2", input_info("pool"), { "weights" }));
+    topology.add(convolution("conv2", input_info("pool"), "weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
@@ -121,13 +121,14 @@ TEST(reorder_inputs, mixed_ranks_gather) {
     topology.add(data("data2", data2_mem));
     topology.add(convolution("conv",
                              input_info("input"),
-                             { "weights" },
+                             "weights",
+                             "",
                              1,
                              ov::Strides{1, 1},
-                             ov::CoordinateDiff{0, 0},
                              ov::Strides{1, 1},
                              ov::CoordinateDiff{0, 0},
-                             ov::CoordinateDiff{0, 0}));
+                             ov::CoordinateDiff{0, 0},
+                             false));
     topology.add(border("pad", { input_info("conv") }, 0, ov::CoordinateDiff{0, 0, 1, 1}, ov::CoordinateDiff{0, 0, 1, 1}));
     topology.add(gather("gather1", input_info("pad"), input_info("data1"), 2, { 1, 2, 3, 128, 57 }, 0, false));
     topology.add(gather("gather2", input_info("gather1"), input_info("data2"), 4, { 1, 2, 3, 128, 3, 55 }, 0, false));

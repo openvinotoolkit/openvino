@@ -71,7 +71,7 @@ public:
         topology topology(
                 input_layout("input", input0_layout),
                 data("weights", weights),
-                convolution("conv", input_info("input"), { "weights" }, { 2, 1 }));
+                convolution("conv", input_info("input"), "weights", "", 1, {2, 1}, {1, 1}, {0, 0}, {0, 0}, false));
 
         set_values(weights, { 1.0f, 2.0f, 1.0f, 2.0f, 1.0f, 2.0f });
 
@@ -165,7 +165,7 @@ public:
         topology topology(
                 input_layout("input", input0_layout),
                 mutable_data("weights", weights),
-                convolution("conv", input_info("input"), { "weights" }, { 2, 1 }));
+                convolution("conv", input_info("input"), "weights", "", 1, {2, 1}, {1, 1}, {0, 0}, {0, 0}, false));
 
         set_values(weights, { 1.0f, 2.0f, 1.0f, 2.0f, 1.0f, 2.0f });
 

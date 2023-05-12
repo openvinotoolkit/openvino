@@ -274,32 +274,7 @@ bool program::analyze_output_size_handling_need() {
 
     // Calculate output size and compare with specified.
     for (const auto& node : processing_order) {
-        if (node->is_type<convolution>()) {
-            auto& prim_node = node->as<convolution>();
-            const auto& prim = prim_node.get_primitive();
-
-            if (!prim->with_output_size)
-                continue;
-
-            tensor specified_output_range(
-                {0, 0, prim->output_size.spatial[0], prim->output_size.spatial[1], prim->output_size.spatial[2]},
-                1);
-
-            auto filter_size = prim_node.weights().get_output_layout().get_tensor();
-
-            auto inputSize = prim_node.input().get_output_layout().get_tensor();
-            auto calc_output_range =
-                calc_sliding_window_output_range<swor_mode::all>(inputSize,
-                                                                 filter_size,
-                                                                 prim->pad,
-                                                                 prim->stride,
-                                                                 prim->dilation,
-                                                                 true,
-                                                                 1);
-
-            if (specified_output_range != calc_output_range)
-                handling_needed = true;
-        } else if (node->is_type<binary_convolution>()) {
+        if (node->is_type<binary_convolution>()) {
             auto& prim_node = node->as<binary_convolution>();
             const auto& prim = prim_node.get_primitive();
 
@@ -525,9 +500,6 @@ void program::pre_optimize_graph(bool is_internal) {
 
     // trim to outputs
     apply_opt_pass<trim_to_outputs>();  // ToDo remove hidden dependencies from trimm pass
-
-    // handle symmetric and asymmetric padding for input
-    apply_opt_pass<handle_input_padding>();
 
     processing_order.calculate_BFS_processing_order();  // this method makes sense only for OOOQ (out of order execution queue)
 

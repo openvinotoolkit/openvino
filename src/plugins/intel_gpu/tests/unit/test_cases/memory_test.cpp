@@ -302,7 +302,7 @@ public:
         topology topology(
             input_layout("input", input->get_layout()),
             data("weights", weights),
-            convolution("conv", input_info("input"), { "weights" }, { 1, 1, 1, 2 }),
+            convolution("conv", input_info("input"), "weights", "", 1, {1, 2}, {1, 1}, {0, 0}, {0, 0}, false),
             softmax("softmax", input_info("conv")));
 
         ExecutionConfig config = get_test_default_config(*engine);
@@ -388,7 +388,7 @@ public:
         topology topo(
             input_layout("input", input_8->get_layout()),
             data("weights", weights),
-            convolution("conv", input_info("input"), { "weights" }, { 2, 1 }),
+            convolution("conv", input_info("input"), { "weights" }, {}, 1, { 2, 1 }, {1, 1}, {0, 0}, {0, 0}, false),
             softmax("softmax", input_info("conv")));
 
         ExecutionConfig config = get_test_default_config(*engine);

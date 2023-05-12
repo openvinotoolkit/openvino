@@ -174,11 +174,11 @@ const std::vector<LayerTestsDefinitions::ConvolutionQDqTransformationParam> para
         {},
         {
             { ngraph::element::f32, false },
-            { {128.f}, ngraph::element::f32, {}, false, 1ul, ngraph::element::i8, true },
+            { {128.f}, ngraph::element::f32, {}, false, 1ul, ngraph::element::u8, true },
             { {0.2f}, ngraph::element::f32, {}, false }
         },
         "Convolution",
-        "U8"
+        "FP32"
     },
 
     // Actual:

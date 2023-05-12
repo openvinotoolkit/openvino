@@ -37,7 +37,7 @@ void test_copy_dependecies_from_nodes(bool is_caching_test) {
     topology.add(reorder("reorder2", input_info("input"), layout(data_types::f32, format::byxf, tensor(4))));
     topology.add(reorder("reorder1", input_info("reshape1"), layout(data_types::f32, format::byxf, tensor(4))));
     topology.add(concatenation("concat", { input_info("reorder1"), input_info("weights2") }, 3));
-    topology.add(convolution("conv2", { input_info("reorder2") }, { "concat" }));
+    topology.add(convolution("conv2", input_info("reorder2"), "concat", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
     cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
     network->set_input_data("input", input);
 

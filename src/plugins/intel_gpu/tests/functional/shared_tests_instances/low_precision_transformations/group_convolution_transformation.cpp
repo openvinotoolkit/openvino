@@ -137,7 +137,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> pa
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, GroupConvolutionTransformation,
      ::testing::Combine(
          ::testing::ValuesIn(netPrecisions),
-         ::testing::Values(CommonTestUtils::DEVICE_CPU),
+         ::testing::Values(CommonTestUtils::DEVICE_GPU),
          ::testing::ValuesIn(trasformationParamValues),
          ::testing::ValuesIn(inputShapes),
          ::testing::ValuesIn(params),
@@ -189,7 +189,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> pa
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, GroupConvolutionTransformation,
      ::testing::Combine(
          ::testing::ValuesIn(netPrecisions),
-         ::testing::Values(CommonTestUtils::DEVICE_CPU),
+         ::testing::Values(CommonTestUtils::DEVICE_GPU),
          ::testing::ValuesIn(trasformationParamValues),
          ::testing::ValuesIn(inputShapes),
          ::testing::ValuesIn(params),

@@ -590,7 +590,7 @@ void prepare_quantization::prepare_asymmetric_quantization(program &p, convoluti
     auto old_conv_prim = convolution_node.get_primitive();
 
     primitive_id input = old_conv_prim->input[0].pid;
-    std::vector<primitive_id> a_zero_points = {};
+    primitive_id a_zero_points = "";
 
     cldnn::program_node* new_input = &in0;
     cldnn::program_node* new_a_zp = nullptr;
@@ -598,15 +598,14 @@ void prepare_quantization::prepare_asymmetric_quantization(program &p, convoluti
 
     bool need_compensation = false;
 
-    auto output_size = convolution_node.get_output_layout().get_tensor();
     auto wl = in1.get_output_layout();
     if (!format::is_weights_format(wl.format)) {
         wl = wl.convert_to_weights_layout(convolution_node.typed_desc()->grouped_weights_shape);
     }
     int ofm = wl.group() * wl.ofm();
     int ifm = in0.get_output_layout().feature();
-    int ofm_aligned = ((ofm + 31) / 32) * 32;
-    int ifm_aligned = ((ifm + 31) / 32) * 32;
+    int ofm_aligned = align_to(ofm, 32);
+    int ifm_aligned = align_to(ifm, 32);
 
     if (asymmetric_data) {
         new_input = &in0.get_dependency(0);
@@ -621,15 +620,15 @@ void prepare_quantization::prepare_asymmetric_quantization(program &p, convoluti
         for (int i = 0; i < ifm_aligned; i++) {
             new_data.data()[i] = old_data.data()[i % s];
         }
-        new_a_zp->as<data>().attach_memory(azp_aligned);
+        new_a_zp->as<data>().attach_memory(azp_aligned, false); // don't invalidate users as those will be reconnected to new node
 
         input = new_input->id();
-        a_zero_points.push_back(new_a_zp->id());
+        a_zero_points = new_a_zp->id();
         need_compensation = true;
     }
 
-    std::vector<primitive_id> w_zero_points = {};
-    std::vector<primitive_id> weights = old_conv_prim->weights;
+    primitive_id w_zero_points = "";
+    primitive_id weights = old_conv_prim->weights;
     cldnn::program_node* new_weights = &in1;
     if (asymmetric_weights) {
         new_weights = &in1.get_dependency(0);
@@ -644,17 +643,17 @@ void prepare_quantization::prepare_asymmetric_quantization(program &p, convoluti
         for (int i = 0; i < ofm_aligned; i++) {
             new_data.data()[i] = old_data.data()[i % s];
         }
-        new_w_zp->as<data>().attach_memory(wzp_aligned);
+        new_w_zp->as<data>().attach_memory(wzp_aligned, false);  // don't invalidate users as those will be reconnected to new node
 
-        weights = { new_weights->id() };
-        w_zero_points.push_back(new_w_zp->id());
+        weights = new_weights->id();
+        w_zero_points = new_w_zp->id();
     }
 
     if (!new_weights->is_type<data>()) {
         need_compensation = false;
     }
 
-    std::vector<primitive_id> compensation = {};
+    primitive_id compensation = "";
     cldnn::program_node* new_compenstation = nullptr;
     if (need_compensation) {
         auto l = layout{data_types::f32, format::bfyx, tensor{1, ofm_aligned, 1, 1}};
@@ -668,7 +667,7 @@ void prepare_quantization::prepare_asymmetric_quantization(program &p, convoluti
         auto compensation_prim = std::make_shared<data>(convolution_node.id() + "_compensation", data_to_allocate);
         new_compenstation = &p.get_or_create(compensation_prim);
         p.get_inputs().push_back(new_compenstation);
-        compensation.push_back(new_compenstation->id());
+        compensation = new_compenstation->id();
     }
 
     // Collect dependencies of a new convolution node
@@ -692,12 +691,13 @@ void prepare_quantization::prepare_asymmetric_quantization(program &p, convoluti
                 a_zero_points,
                 compensation,
                 old_conv_prim->groups,
-                *old_conv_prim->output_data_types[0],
                 old_conv_prim->stride,
-                old_conv_prim->pad,
                 old_conv_prim->dilation,
-                output_size,
+                old_conv_prim->padding_begin,
+                old_conv_prim->padding_end,
                 old_conv_prim->grouped_weights_shape,
+                !old_conv_prim->output_data_types.empty() ? old_conv_prim->output_data_types[0].value_or(data_types::f32) : data_types::f32,
+                old_conv_prim->auto_pad,
                 old_conv_prim->output_paddings[0]);
 
     auto& new_conv_node = p.get_or_create(new_conv_prim);

@@ -553,7 +553,7 @@ inline void PrintTupleTo(const std::tuple<std::shared_ptr<test_params>, std::sha
         auto convolution = std::static_pointer_cast<cldnn::convolution>(primitive);
         str << "Stride x: " << convolution->stride[1] << " Stride y: " << convolution->stride[0]
             << " Dilation x: " << convolution->dilation[1] << " Dilation y: " << convolution->dilation[0]
-            << " Pad x: " << convolution->pad[1] << " Pad y: " << convolution->pad[0];
+            << " Pad x: " << convolution->padding_begin[1] << " Pad y: " << convolution->padding_begin[0];
     } else if (primitive->type == cldnn::activation::type_id()) {
         auto activation = std::static_pointer_cast<cldnn::activation>(primitive);
         str << "Negative slope: " << activation->additional_params.a << " Negative slope input id: " << activation->additional_params_input;
