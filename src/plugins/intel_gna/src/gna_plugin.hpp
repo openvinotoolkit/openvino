@@ -37,7 +37,7 @@ class WorkerPool;
 class Worker;
 }  // namespace request
 
-using namespace ov::intel_gna::pre_post_process;
+using namespace ov::intel_gna::pre_post_processing;
 
 class GNAPlugin : public InferenceEngine::IInferencePlugin {
 protected:

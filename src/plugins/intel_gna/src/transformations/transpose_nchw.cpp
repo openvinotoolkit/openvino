@@ -15,9 +15,9 @@
 
 #include "transformations/utils/transformation_helper.hpp"
 
-NGRAPH_RTTI_DEFINITION(ov::intel_gna::pass::TransposeNCHW, "TransposeNCHW", 0);
-NGRAPH_RTTI_DEFINITION(ov::intel_gna::pass::SubstituteGNAConvolution, "SubstituteGNAConvolution", 0);
-NGRAPH_RTTI_DEFINITION(ov::intel_gna::pass::SubstituteGNAMaxPool, "SubstituteGNAMaxPool", 0);
+NGRAPH_RTTI_DEFINITION(ov::intel_gna::pass::TransposeNCHW, "TransposeNCHW");
+NGRAPH_RTTI_DEFINITION(ov::intel_gna::pass::SubstituteGNAConvolution, "SubstituteGNAConvolution");
+NGRAPH_RTTI_DEFINITION(ov::intel_gna::pass::SubstituteGNAMaxPool, "SubstituteGNAMaxPool");
 
 using Node = std::shared_ptr<ngraph::Node>;
 

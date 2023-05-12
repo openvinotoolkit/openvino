@@ -11,6 +11,8 @@
 #include <legacy/graph_tools.hpp>
 #include <unordered_set>
 
+#include "openvino/opsets/opset7.hpp"
+#include "openvino/opsets/opset11.hpp"
 #include "common/gna_target.hpp"
 #include "common/graph_utils.hpp"
 #include "gna/gna_config.hpp"
@@ -18,6 +20,7 @@
 #include "gna_lib_ver_selector.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "log/log.hpp"
+#include "common/graph_utils.hpp"
 
 namespace std {
 inline std::ostream& operator<<(std::ostream& os, const std::set<ov::element::Type>& t) {
@@ -113,7 +116,7 @@ bool is_transpose_supported(const std::shared_ptr<const ov::Node>& node) {
     return false;
 }
 
-bool is_conv_supported(const std::shared_ptr<ngraph::op::ConvolutionIE>& conv_ie,
+bool is_conv_supported(const std::shared_ptr<ov::intel_gna::op::GNAConvolution>& conv_gna,
                        const DeviceVersion& effective_compile_target,
                        const InferenceEngine::Precision gna_precision,
                        bool is_exception_allowed) {
@@ -220,30 +223,13 @@ bool is_split_supported(const std::shared_ptr<ov::Node>& node, bool is_exception
     return is_aligned;
 }
 
-bool is_transpose_supported(const std::shared_ptr<const ov::Node>& node) {
-    OPENVINO_ASSERT(node, "Transpose node is empty!");
-    const ov::Shape squeezed_shape = pass::helper::SqueezeShape(node->get_input_shape(0));
-    const size_t min_input_dim = std::min(squeezed_shape[0], squeezed_shape[1]);
-    const size_t max_input_dim = std::max(squeezed_shape[0], squeezed_shape[1]);
-
-    if (squeezed_shape.size() > 2) {
-        return false;
-    } else if (min_input_dim > 8) {
-        return false;
-    } else if (ALIGN(max_input_dim, limitations::noOfInputsDivisor) != max_input_dim) {
-        return false;
-    }
-
-    return true;
-}
-
 bool is_concat_supported(const std::shared_ptr<const ov::Node>& node) {
     OPENVINO_ASSERT(node, "Concat node is empty!");
     auto concat_node = std::dynamic_pointer_cast<const ngraph::opset9::Concat>(node);
     const ov::Shape& output_shape = concat_node->get_output_shape(0);
     auto axis = concat_node->get_axis();
 
-    return pass::helper::GetFirstValuableDimId(output_shape) == axis;
+    return  graph_utils::get_first_valuable_dim_id(output_shape) == axis;
 }
 
 bool is_forward_transposed_concat_supported(const std::shared_ptr<const ov::Node>& node, const AxisVector& order) {
@@ -257,10 +243,10 @@ bool is_forward_transposed_concat_supported(const std::shared_ptr<const ov::Node
     auto axis = concat_node->get_axis();
 
     const ov::Shape& transposed_shape =
-        pass::helper::TransposeShape(output_shape, pass::helper::ReverseTransposeOrder(order));
+        graph_utils::transpose_shape(output_shape, pass::helper::ReverseTransposeOrder(order));
     const int64_t transposed_concat_axis = order[axis];
 
-    return pass::helper::GetFirstValuableDimId(transposed_shape) == transposed_concat_axis;
+    return graph_utils::get_first_valuable_dim_id(transposed_shape) == transposed_concat_axis;
 }
 
 bool is_backward_transposed_concat_supported(const std::shared_ptr<const ov::Node>& node, const AxisVector& order) {
@@ -273,10 +259,10 @@ bool is_backward_transposed_concat_supported(const std::shared_ptr<const ov::Nod
     const ov::Shape& output_shape = concat_node->get_output_shape(0);
     auto axis = concat_node->get_axis();
 
-    const ov::Shape& transposed_shape = pass::helper::TransposeShape(output_shape, order);
+    const ov::Shape& transposed_shape = graph_utils::transpose_shape(output_shape, order);
     const int64_t transposed_concat_axis = order[axis];
 
-    return pass::helper::GetFirstValuableDimId(transposed_shape) == transposed_concat_axis;
+    return graph_utils::get_first_valuable_dim_id(transposed_shape) == transposed_concat_axis;
 }
 
 bool is_forward_transposed_split_supported(const std::shared_ptr<const ov::Node>& node, const AxisVector& order) {
@@ -297,10 +283,10 @@ bool is_forward_transposed_split_supported(const std::shared_ptr<const ov::Node>
     auto axis = constant_node->get_axis_vector_val()[0];
 
     const ov::Shape& transposed_shape =
-        pass::helper::TransposeShape(output_shape, pass::helper::ReverseTransposeOrder(order));
+        graph_utils::transpose_shape(output_shape, pass::helper::ReverseTransposeOrder(order));
     const int64_t transposed_concat_axis = order[axis];
 
-    return pass::helper::GetFirstValuableDimId(transposed_shape) == transposed_concat_axis;
+    return graph_utils::get_first_valuable_dim_id(transposed_shape) == transposed_concat_axis;
 }
 
 bool is_backward_transposed_split_supported(const std::shared_ptr<const ov::Node>& node, const AxisVector& order) {
@@ -321,10 +307,10 @@ bool is_backward_transposed_split_supported(const std::shared_ptr<const ov::Node
     auto axis = constant_node->get_axis_vector_val()[0];
 
     const ov::Shape& transposed_shape =
-        pass::helper::TransposeShape(output_shape, pass::helper::ReverseTransposeOrder(order));
+        graph_utils::transpose_shape(output_shape, pass::helper::ReverseTransposeOrder(order));
     const int64_t transposed_concat_axis = order[axis];
 
-    return pass::helper::GetFirstValuableDimId(transposed_shape) == transposed_concat_axis;
+    return graph_utils::get_first_valuable_dim_id(transposed_shape) == transposed_concat_axis;
 }
 
 bool is_op_supported(const std::shared_ptr<ov::Node>& node,
@@ -340,7 +326,7 @@ bool is_op_supported(const std::shared_ptr<ov::Node>& node,
     } else if (auto fully_connected = std::dynamic_pointer_cast<ngraph::op::FullyConnected>(node)) {
         return is_fc_supported(fully_connected, is_exception_allowed);
     } else if (ov::intel_gna::graph_utils::is_pooling(node)) {
-        return is_pooling_supported(std::dynamic_pointer_cast<ngraph::opset7::MaxPool>(node),
+        return is_pooling_supported(std::dynamic_pointer_cast<ov::intel_gna::op::GNAMaxPool>(node),
                                     effective_compile_target,
                                     is_exception_allowed);
     } else if (ov::op::util::is_output(node) || ov::op::util::is_sink(node) ||
