@@ -30,6 +30,7 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
         ov::InferRequest inferRequest;
 
         std::vector<ov::Output<ov::Node>> defaultInputs;
+        std::string device_prefix = device.substr(0, device.find(':'));
 
         bool reshape = false;
         if (!reshapeShapes.empty()) {
@@ -51,8 +52,8 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
                 SCOPED_TIMER(time_to_inference);
                 {
                     SCOPED_TIMER(load_plugin);
-                    TimeTest::setPerformanceConfig(ie, device);
-                    ie.get_versions(device);
+                    TimeTest::setPerformanceConfig(ie, device_prefix);
+                    ie.get_versions(device_prefix);
 
                     if (isCacheEnabled)
                         ie.set_property({{CONFIG_KEY(CACHE_DIR), "models_cache"}});
