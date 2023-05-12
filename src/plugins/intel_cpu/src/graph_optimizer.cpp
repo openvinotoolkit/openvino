@@ -2370,9 +2370,10 @@ So Convert is redundant."
 
 void GraphOptimizer::RemoveSameConvert(Graph& graph) {
     auto& graphNodes = graph.GetNodes();
-
+    // The convert inserted by precision conversion must have single output
     auto isSuitableParentNode = [](NodePtr parentNode) {
         return parentNode->getType() == Type::Convert &&
+               parentNode->childEdges.size() == 1 &&
                (parentNode->getOriginalOutputPrecisionAtPort(0) == parentNode->getOriginalInputPrecisionAtPort(0));
     };
 
