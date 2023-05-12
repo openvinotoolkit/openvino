@@ -262,7 +262,6 @@ std::vector<std::vector<int>> reserve_available_cpus(const std::vector<std::vect
             }
         }
     }
-    set_cpu_used(cpu_ids, CPU_USED);
     auto flatten_stream_ids =
         std::accumulate(res_stream_ids.begin(),
                         res_stream_ids.end(),
