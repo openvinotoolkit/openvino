@@ -243,7 +243,9 @@ bool ov::is_config_applicable(const std::string& user_device_name, const std::st
     return false;
 }
 
-ov::Parsed ov::parseDeviceNameIntoConfig(const std::string& deviceName, const AnyMap& config, const bool query_from_virtual) {
+ov::Parsed ov::parseDeviceNameIntoConfig(const std::string& deviceName,
+                                         const AnyMap& config,
+                                         const bool query_from_virtual) {
     auto updated_config = config;
     auto updated_device_name = deviceName;
 
