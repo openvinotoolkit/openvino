@@ -29,7 +29,7 @@
 
 namespace ov {
 namespace intel_gna {
-namespace ngraph_util {
+namespace graph_utils {
 
 template <typename T>
 inline bool get_constant_value(const std::shared_ptr<ngraph::opset8::Constant>& constant, std::vector<double>& values) {
@@ -277,6 +277,103 @@ inline bool has_32bit_output(const std::shared_ptr<ngraph::Node>& node) {
 inline bool has_32bit_input(const std::shared_ptr<ngraph::Node>& node) {
     return is_activation(node) || is_pooling(node);
 }
-}  // namespace ngraph_util
+
+/**
+ * @brief Remove all dimensions equal to 1 from the tensor shape vector
+ * @param shape original tensor shape vector
+ * @return modified shape
+ */
+inline ov::Shape squeeze_shape(const ov::Shape& shape) {
+    ov::Shape squeezed_shape;
+    squeezed_shape.reserve(shape.size());
+
+    auto if_not_eq_1 = [](ov::Shape::value_type value) {
+        return value != 1;
+    };
+    std::copy_if(shape.begin(), shape.end(), std::back_inserter(squeezed_shape), if_not_eq_1);
+
+    return squeezed_shape;
+}
+
+/**
+ * @brief Remove all dimensions equal to 1 from the left and right of the tensor shape vector
+ * @param shape original tensor shape vector
+ * @return modified shape
+ */
+inline ov::Shape trim_shape(const ov::Shape& shape) {
+    auto comp = [](size_t x) {
+        return x != 1;
+    };
+
+    auto start_it = std::find_if(shape.begin(), shape.end(), comp);
+    auto end_it = std::find_if(shape.rbegin(), shape.rend(), comp);
+    if (start_it == shape.end() || end_it == shape.rend()) {
+        return ov::Shape(shape.begin(), shape.end());
+    }
+    return ov::Shape(start_it, end_it.base());
+}
+
+/**
+ * @brief Transpose shape
+ * @param shape the shape to be transposed
+ * @param order the permutation array to apply to the input shape
+ * @return transposed shape
+ */
+inline ov::Shape transpose_shape(const ov::Shape& shape, std::vector<size_t> order) {
+    if (shape.size() != order.size()) {
+        THROW_GNA_EXCEPTION << "Sizes of the shape " << shape.size() << " and transpose axis " << order.size()
+                            << " are different";
+    }
+    ov::Shape transposed(shape.size());
+    for (size_t i = 0; i < shape.size(); ++i) {
+        transposed[i] = shape[order[i]];
+    }
+    return transposed;
+}
+
+/**
+ * @brief Create gather indexes using transpose axes.
+ * @param input_shape the shape to be transposed as gather
+ * @param order the permutation array to apply to the input shape
+ * @return vector with indexes to gather
+ */
+inline std::vector<size_t> make_gather_indices_from_transpose_axes(const Shape& input_shape, const Shape& order) {
+    // Supported shape ranks: 2d, 3d, 4d
+    if (input_shape.size() < 2 || input_shape.size() > 4) {
+        THROW_GNA_EXCEPTION << "Usupported shape size: " << input_shape.size();
+    }
+
+    ov::Shape input_shape_4d = input_shape;
+    ov::Shape order_4d = order;
+    // Just to simplify the code we transform all shapes to 4d by adding dimension(s) equal to 1 at the end
+    while (input_shape_4d.size() < 4) {
+        input_shape_4d.push_back(1);
+        order_4d.push_back(order_4d.size());
+    }
+    ov::Shape output_shape_4d = transpose_shape(input_shape_4d, order_4d);
+
+    // common case when shape is 4d
+    std::vector<size_t> xyz_4d = {input_shape_4d[3] * input_shape_4d[2] * input_shape_4d[1],
+                                  input_shape_4d[3] * input_shape_4d[2],
+                                  input_shape_4d[3],
+                                  1};
+
+    std::vector<size_t> xyz = transpose_shape(xyz_4d, order_4d);
+    std::vector<size_t> gather_order;
+
+    for (size_t n = 0; n < output_shape_4d[0]; ++n) {
+        for (size_t i = 0; i < output_shape_4d[1]; ++i) {
+            for (size_t j = 0; j < output_shape_4d[2]; ++j) {
+                for (size_t k = 0; k < output_shape_4d[3]; ++k) {
+                    gather_order.push_back(n * xyz[0] + i * xyz[1] + j * xyz[2] + k * xyz[3]);
+                }
+            }
+        }
+    }
+
+    return gather_order;
+}
+
+}  // namespace graph_utils
 }  // namespace intel_gna
 }  // namespace ov
