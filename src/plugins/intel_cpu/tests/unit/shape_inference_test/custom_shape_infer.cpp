@@ -68,7 +68,7 @@ CustomShapeInferFF::CustomShapeInferFF():Factory("CpuCustomShapeInferTestFactory
     INTEL_CPU_CUSTOM_SHAPE_INFER(node::TransposeShapeInferFactory, Type::Transpose);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(ReorgYolo, Type::ReorgYolo);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(EmbeddingSegmentsSum, Type::EmbeddingSegmentsSum);
-    /* INTEL_CPU_CUSTOM_SHAPE_INFER(ShapeOfShapeInferTestFactory, Type::ShapeOf); */
+    INTEL_CPU_CUSTOM_SHAPE_INFER(ShapeOfShapeInferTestFactory, Type::ShapeOf);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(ExperimentalDetectronGenerateProposalsSingleImage, Type::ExperimentalDetectronGenerateProposalsSingleImage);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(GenerateProposals, Type::GenerateProposals);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(ReverseSequence, Type::ReverseSequence);
@@ -168,6 +168,10 @@ void custom_shape_inference(ov::Node* op,
     std::cout << "=====custom_shape_infer test======" << "op" << op->get_type_name() << std::endl;
     if (auto shapeInferFactory = cusFactory->create(op->shared_from_this())) {
         if (TypeFromName(op->get_type_name()) == Type::AdaptivePooling && op->get_output_size() == 0) {
+            return;
+        } else if (TypeFromName(op->get_type_name()) == Type::ShapeOf
+                && op->get_input_size() > 0
+                && op->get_input_partial_shape(0).size() == 0) {
             return;
         }
         std::cout << "=====custom_shape_infer test factory======" << "op" << op->get_type_name() << std::endl;
