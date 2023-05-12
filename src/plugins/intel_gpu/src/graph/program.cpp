@@ -628,6 +628,11 @@ void program::post_optimize_graph(bool is_internal) {
 
     // update loop input/output primitive mappings
     apply_opt_pass<update_loop_primitive_map>();
+
+    // Recalculate processing order after all graph transformation to keep optimal primitives ordering
+    // for OOO queue
+    if (_config.get_property(ov::intel_gpu::queue_type) == QueueTypes::out_of_order)
+        get_processing_order().calculate_BFS_processing_order();
 }
 
 // mark if the node is constant assuming that all dependencies are marked properly
@@ -1427,7 +1432,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             (prim.type() != cldnn::mvn::type_id()
              || (prim.as<mvn>().input().get_output_layout().data_type != data_types::u8 &&
                  prim.as<mvn>().input().get_output_layout().data_type != data_types::i8)
-             || prim.as<mvn>().get_primitive()->across_channels) &&
+             || prim.as<mvn>().get_primitive()->across_channels()) &&
             prim.type() != cldnn::arg_max_min::type_id() &&
             prim.type() != cldnn::dft::type_id() &&
             prim.type() != cldnn::grid_sample::type_id() &&

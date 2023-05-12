@@ -125,8 +125,8 @@ Floating-point precision of a GPU primitive is selected based on operation preci
 
 .. note::
 
-   Hardware acceleration for ``i8``/``u8`` precision may be unavailable on some platforms. In such cases, a model is executed in the floating-point precision taken from IR. 
-   Hardware support of ``u8``/``i8`` acceleration can be queried via the `ov::device::capabilities` property.
+   The newer generation Intel Iris Xe and Xe MAX GPUs provide accelerated performance for i8/u8 models. Hardware acceleration for ``i8``/``u8`` precision may be unavailable on older generation platforms. In such cases, a model is executed in the floating-point precision taken from IR. 
+   Hardware support of ``u8``/``i8`` acceleration can be queried via the ``ov::device::capabilities`` property.
 
 :doc:`Hello Query Device C++ Sample<openvino_inference_engine_samples_hello_query_device_README>` can be used to print out the supported data types for all detected devices.
 
@@ -230,16 +230,40 @@ For more details, see the :doc:`optimization guide<openvino_docs_deployment_opti
 Dynamic Shapes
 +++++++++++++++++++++++++++++++++++++++
 
-The GPU plugin supports dynamic shapes for batch dimension only (specified as ``N`` in the :doc:`layouts terms<openvino_docs_OV_UG_Layout_Overview>`) with a fixed upper bound. 
-Any other dynamic dimensions are unsupported. Internally, GPU plugin creates ``log2(N)`` (``N`` - is an upper bound for batch dimension here) 
-low-level execution graphs for batch sizes equal to powers of 2 to emulate dynamic behavior, so that incoming infer request 
-with a specific batch size is executed via a minimal combination of internal networks. For example, batch size 33 may be executed via 2 internal networks with batch size 32 and 1.
 
-.. note:: 
+.. note::
 
-   Such approach requires much more memory and the overall model compilation time is significantly longer, compared to the static batch scenario.
+   Currently, dynamic shape support for GPU is a preview feature and has the following limitations:
+   
+   - It mainly supports NLP models (Natural Language Processing). Not all operations and optimization passes support dynamic shapes.
+     As a result, a given model may crash or experience significant performance drops.   
+   - Due to the dominant runtime overhead on the host device, dynamic shapes may perform worse than static shapes on a discrete GPU.
+   - Dynamic rank is not supported.
 
-The code snippet below demonstrates how to use dynamic batching in simple scenarios:
+The general description of what dynamic shapes are and how they are used can be found in
+:doc:`dynamic shapes guide <openvino_docs_OV_UG_DynamicShapes>`. 
+To support dynamic shape execution, the following basic infrastructures are implemented:
+
+- Runtime shape inference: infers output shapes of each primitive for a new input shape at runtime.
+- Shape agnostic kernels: new kernels that can run arbitrary shapes. If a shape-agnostic kernel is not available, 
+  the required kernel is compiled at runtime for each shape.
+- Asynchronous kernel compilation: even when a shape-agnostic kernel is available, 
+  the GPU plugin compiles an optimal kernel for the given shape and preserves it in the in-memory cache for future use.
+- In-memory cache: preserves kernels compiled at runtime and weights reordered for the specific kernels.
+
+Bounded dynamic batch
+-----------------------------------------------------------
+
+It is worth noting that the internal behavior differs in the case of bounded-batch dynamic shapes, 
+which means that only the batch dimension is dynamic and it has a fixed upper bound.
+
+While general dynamic shapes can run on one compiled model, for the bounded dynamic batch the GPU plugin creates ``log2(N)`` 
+low-level execution graphs in batch sizes equal to the powers of 2, to emulate the dynamic behavior (``N`` - is the upper bound for the batch dimension here).
+As a result, the incoming infer request with a specific batch size is executed via the minimal combination of internal networks.
+For example, a batch size of 33 may be executed via two internal networks with batch sizes of 32 and 1.
+This approach is adopted for performance reasons, but it requires more memory and increased compilation time for multiple copies of internal networks.
+
+The code snippet below demonstrates examples of a bounded dynamic batch:
 
 .. tab-set::
 
@@ -258,13 +282,65 @@ The code snippet below demonstrates how to use dynamic batching in simple scenar
          :fragment: dynamic_batch
 
 
-For more details, see the :doc:`dynamic shapes guide<openvino_docs_OV_UG_DynamicShapes>`.
+Notes for performance and memory consumption in dynamic shapes
+--------------------------------------------------------------
+
+- Extra CPU utilization during inference:
+
+  - Shape inference for new input shapes
+  - Kernel compilation in runtime for optimal kernel
+  - Unfusion of the fused subgraph when fusing is not allowed for a runtime shape
+
+- Higher memory consumption for in-memory cache
+
+  - Optimal kernels and weights from the previously used shapes are preserved in in-memory cache for future use
+
+
+Recommendations for performance improvement
+-----------------------------------------------------------
+
+- Use static shapes whenever possible
+
+  - Static models can benefit from more aggressive optimizations, such as, constant propagation, fusing, and reorder optimization.
+    If the same shape is used for a dynamic and a static model, performance is worse in the dynamic one.
+    It is, therefore, recommended to reshape dynamic models to static ones, if the scenario allows.
+
+- Use bounded dynamic shapes whenever possible
+
+  - The GPU plugin needs to reallocate memory if the current shape is larger than the maximum of the previous shapes, which causes additional overhead.
+  - Using a bounded dynamic shape will help to reduce such overhead. For example, use ``{ov::Dimension(1, 10), ov::Dimension(1, 384)}`` 
+    instead of ``{ov::Dimension(-1), ov::Dimension(-1)}``.
+  - Note that a bounded dynamic *batch* is handled differently as mentioned above.
+
+- Use permanent cache, e.g., OpenVino model_cache, to reduce the runtime re-compilation overhead
+
+  - GPU plugin deploys in-memory cache to store compiled kernels for previously used shapes,
+    but the size of such an in-memory cache is limited. Therefore, it is recommended to use 
+    a permanent cache such as OpenVino model_cache. For more details, See 
+    :doc:`Model caching overview <openvino_docs_OV_UG_Model_caching_overview>`.
+
+- The longer the inference sequence, the better throughput can be obtained, because it can
+  leverage more compilation time during inference.
+
+  - If the primitive has a shape-agnostic kernel and the static shape kernel for the current
+    shape does not exist in the in-memory cache, the shape-agnostic kernel is used. Then, as
+    mentioned above, optimal kernels for the current shapes are also asynchronously compiled
+    in parallel for future use. If the application process removes the CompiledModel object
+    and the GPU plugin is unusable, any not-yet-started compilation tasks for optimal kernels
+    will be canceled. However, if the application process allows enough time for the enqueued
+    asynchronous compilation tasks, the more optimal kernels become available, enabling better
+    throughput. For example, running 200 inputs of 
+    ``{[1, 1], ..., [1, 50], [1, 1], ... , [1, 50], [1, 1], ..., [1, 50], [1, 1], ..., [1, 50]}`` 
+    may achieve better throughput than running 100 inputs of ``{[1, 1], ..., [1, 50], [1, 1], ... , [1,50]}``.
+
 
 Preprocessing Acceleration
 +++++++++++++++++++++++++++++++++++++++
 
 The GPU plugin has the following additional preprocessing options:
-- The ``ov::intel_gpu::memory_type::surface`` and ``ov::intel_gpu::memory_type::buffer`` values for the ``ov::preprocess::InputTensorInfo::set_memory_type()`` preprocessing method. These values are intended to be used to provide a hint for the plugin on the type of input Tensors that will be set in runtime to generate proper kernels.
+- The ``ov::intel_gpu::memory_type::surface`` and ``ov::intel_gpu::memory_type::buffer`` values for the 
+  ``ov::preprocess::InputTensorInfo::set_memory_type()`` preprocessing method. These values are intended 
+  to be used to provide a hint for the plugin on the type of input Tensors that will be set in runtime to generate proper kernels.
 
 .. tab-set::
 
