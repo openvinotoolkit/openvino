@@ -21,7 +21,7 @@
 #include <ie_blob.h>
 #include <ie_input_info.hpp>
 
-#include "test_model_repo.hpp"
+#include "helpers/test_model_repo.hpp"
 #include "test_model_path.hpp"
 #include <tests_file_utils.hpp>
 #include <chrono>
