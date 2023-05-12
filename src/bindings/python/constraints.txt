@@ -1,5 +1,5 @@
 # used in multiple components
-onnx==1.13.1  # Python bindings, ONNX Frontend
+onnx==1.14.0  # Python bindings, ONNX Frontend
 numpy>=1.16.6,<1.25  # Python bindings, frontends
 protobuf>=3.18.1,<4.0.0  # Python bindings, frontends
 
