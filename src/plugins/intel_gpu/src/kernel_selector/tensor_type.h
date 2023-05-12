@@ -240,8 +240,15 @@ enum WeightsLayout {
 struct Pad {
     size_t before;
     size_t after;
+    bool is_dynamic = false; // Currently cannot set pad_before and pad_after as dynamic separately
 
-    size_t Total() const { return before + after; }
+    Pad(size_t before, size_t after, bool is_dynamic = false) : before(before), after(after), is_dynamic(is_dynamic) {}
+
+    static size_t NumPadOffsetsPerDim() { return 2; /*pad_before/pad_after*/}
+    size_t Total() const {
+        OPENVINO_ASSERT(!is_dynamic, "Total() is called for dynamic pad!");
+        return before + after;
+    }
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -253,7 +260,16 @@ struct Dim {
     Pad pad;
     bool is_dynamic;
 
-    size_t LogicalDimPadded() const { return v + pad.Total(); }
+    Dim(size_t v = 0, size_t pitch = 0, Pad pad = {0, 0, false}, bool is_dynamic = false)
+        : v(v),
+          pitch(pitch),
+          pad(pad),
+          is_dynamic(is_dynamic) {}
+
+    size_t LogicalDimPadded() const {
+        OPENVINO_ASSERT(!pad.is_dynamic, "LogicalDimPadded() is called for dynamic pad");
+        return v + pad.Total();
+    }
 };
 
 using NDims = std::vector<Dim>;
@@ -432,26 +448,30 @@ public:
                                              [](size_t val, const Dim& d) { return val + d.pitch * d.pad.before; })),
           totalSize(sz),
           paddedVal(pv) {
-        if (totalSize == 0) {
+        if (!std::any_of(dims.begin(), dims.end(), [](const Dim& d) {
+                return d.pad.is_dynamic;
+            })) {
+            if (totalSize == 0) {
+                for (const auto& d : dims) {
+                    totalSize = std::max(totalSize, d.pitch * (d.LogicalDimPadded()));
+                }
+
+                totalSize += viewOffset;
+            }
+
+            size_t minimalPitch = 1;
+
             for (const auto& d : dims) {
-                totalSize = std::max(totalSize, d.pitch * (d.LogicalDimPadded()));
+                if (d.pitch < minimalPitch) {
+                    throw std::runtime_error("Tensor pitches didn't set correctly");
+                }
+
+                minimalPitch *= d.LogicalDimPadded();
             }
 
-            totalSize += viewOffset;
-        }
-
-        size_t minimalPitch = 1;
-
-        for (const auto& d : dims) {
-            if (d.pitch < minimalPitch) {
-                throw std::runtime_error("Tensor pitches didn't set correctly");
+            if (totalSize < (minimalPitch + viewOffset)) {
+                throw std::runtime_error("Tensor total Size didn't set correctly");
             }
-
-            minimalPitch *= d.LogicalDimPadded();
-        }
-
-        if (totalSize < (minimalPitch + viewOffset)) {
-            throw std::runtime_error("Tensor total Size didn't set correctly");
         }
     }
 
@@ -527,7 +547,7 @@ protected:
     template <typename ArrayT, typename ChannelName>
     static inline Dim Extract(const ArrayT& channelArr, Layout l, ChannelName channelName, const NDims& dims) {
         const int i = ChannelIndex(channelArr, l, channelName);
-        return ((i < 0) || (i >= static_cast<int>(dims.size()))) ? Dim{1, 1, {0, 0}} : dims[i];
+        return ((i < 0) || (i >= static_cast<int>(dims.size()))) ? Dim{1, 1, Pad{0, 0, false}} : dims[i];
     }
 
     template <typename ArrayT>
@@ -568,7 +588,8 @@ public:
         if (same) {
             for (size_t i = 0; i < dims.size(); i++) {
                 same &= dims[i].v == t.dims[i].v && dims[i].pad.before == t.dims[i].pad.before &&
-                        dims[i].pad.after == t.dims[i].pad.after && dims[i].pitch == t.dims[i].pitch;
+                        dims[i].pad.after == t.dims[i].pad.after && dims[i].pitch == t.dims[i].pitch &&
+                        dims[i].pad.is_dynamic == t.dims[i].pad.is_dynamic;
             }
         }
 
@@ -625,6 +646,13 @@ struct DataTensor : public TensorBaseT<Datatype, DataLayout> {
     DataTensor FlattenFeatureAndSpatials() const;
     DataTensor FlattenEverything() const;
     void SwapXY();
+    void SetDynamicShapeOffset(size_t offset) {
+        dynamic_shape_offset = offset;
+    }
+
+    size_t get_dynamic_shape_offset() const {
+        return dynamic_shape_offset;
+    }
 
     static inline Dim Extract(DataLayout l, DataChannelName channel, const NDims& d) {
         return TensorBaseT::Extract(dataChannelArray, l, channel, d);
@@ -643,6 +671,7 @@ private:
     using DataChannelArray = std::array<DataChannelDesc, DataLayout::DataLayoutCount>;
     static DataChannelArray dataChannelArray;
     static NDims GetSimpleDims(const std::vector<size_t>& d, DataLayout l);
+    size_t dynamic_shape_offset = 0;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

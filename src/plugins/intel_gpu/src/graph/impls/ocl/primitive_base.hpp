@@ -93,6 +93,7 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
         }
         auto kernel_params = ImplType::get_kernel_params(ImplType::static_canonicalize_shapes(impl_param));
         kernel_params.first.is_shape_agnostic = impl_param.is_dynamic();
+        kernel_params.first.set_dynamic_shape_offsets();
         auto& kernel_selector = ImplType::kernel_selector_t::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
 
