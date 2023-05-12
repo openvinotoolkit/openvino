@@ -165,6 +165,22 @@ std::vector<int> get_available_numa_nodes() {
 int get_number_of_logical_cpu_cores(bool) {
     return parallel_get_max_threads();
 }
+
+#    ifdef __APPLE__
+static CPU cpu;
+bool is_cpu_map_available() {
+    return cpu._proc_type_table.size() > 0 && cpu._num_threads == cpu._proc_type_table[0][ALL_PROC];
+}
+
+std::vector<std::vector<int>> get_proc_type_table() {
+    std::lock_guard<std::mutex> lock{cpu._cpu_mutex};
+    return cpu._proc_type_table;
+}
+
+int get_num_numa_nodes() {
+    return cpu._numa_nodes;
+}
+#    else
 std::vector<std::vector<int>> get_proc_type_table() {
     return {{-1}};
 }
@@ -174,6 +190,8 @@ bool is_cpu_map_available() {
 int get_num_numa_nodes() {
     return -1;
 }
+#    endif
+
 std::vector<std::vector<int>> reserve_available_cpus(const std::vector<std::vector<int>> streams_info_table) {
     return {{-1}};
 }
