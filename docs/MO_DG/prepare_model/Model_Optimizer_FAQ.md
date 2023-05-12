@@ -9,7 +9,7 @@ where you can participate in a free forum discussion.
 .. warning::
 
    Note that OpenVINO support for Apache MXNet, Caffe, and Kaldi is currently being deprecated.
-   As legacy formats, they will not be supported as actively as the main front ends and will be removed entirely in the future.
+   As legacy formats, they will not be supported as actively as the main frontends and will be removed entirely in the future.
 
 
 .. _question-1:

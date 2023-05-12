@@ -59,11 +59,11 @@ Mapping of custom operation is implemented differently, depending on model forma
 
 1. If a model is represented in the ONNX (including models exported from Pytorch in ONNX), TensorFlow Lite, PaddlePaddle or TensorFlow formats, then one of the classes from :doc:`Frontend Extension API <openvino_docs_Extensibility_UG_Frontend_Extensions>` should be used. It consists of several classes available in C++ which can be used with the ``--extensions`` option in Model Optimizer or when a model is imported directly to OpenVINO runtime using the ``read_model`` method. Python API is also available for runtime model import.
 
-2. If a model is represented in the Caffe, Kaldi or MXNet formats (as legacy front ends), then :doc:`[Legacy] Model Optimizer Extensions <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>` should be used. This approach is available for model conversion in Model Optimizer only.
+2. If a model is represented in the Caffe, Kaldi or MXNet formats (as legacy frontends), then :doc:`[Legacy] Model Optimizer Extensions <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>` should be used. This approach is available for model conversion in Model Optimizer only.
 
-Existing of two approaches simultaneously is explained by two different types of frontends used for model conversion in OpenVINO: new front ends (ONNX, PaddlePaddle, TensorFlow Lite, and TensorFlow) and legacy front ends (Caffe, Kaldi, and Apache MXNet). Model Optimizer can use both front ends in contrast to the direct import of model with ``read_model`` method which can use new front ends only. Follow one of the appropriate guides referenced above to implement mappings depending on framework frontend.
+Existing of two approaches simultaneously is explained by two different types of frontends used for model conversion in OpenVINO: new frontends (ONNX, PaddlePaddle, TensorFlow Lite, and TensorFlow) and legacy frontends (Caffe, Kaldi, and Apache MXNet). Model Optimizer can use both frontends in contrast to the direct import of model with ``read_model`` method which can use new frontends only. Follow one of the appropriate guides referenced above to implement mappings depending on framework frontend.
 
-If you are implementing extensions for new ONNX, PaddlePaddle, TensorFlow Lite or TensorFlow front ends and plan to use the ``--extensions`` option in Model Optimizer for model conversion, then the extensions should be:
+If you are implementing extensions for new ONNX, PaddlePaddle, TensorFlow Lite or TensorFlow frontends and plan to use the ``--extensions`` option in Model Optimizer for model conversion, then the extensions should be:
 
 1. Implemented in C++ only.
 
@@ -71,7 +71,7 @@ If you are implementing extensions for new ONNX, PaddlePaddle, TensorFlow Lite o
 
 Model Optimizer does not support new frontend extensions written in Python API.
 
-Remaining part of this guide describes application of Frontend Extension API for new front ends.
+Remaining part of this guide describes application of Frontend Extension API for new frontends.
 
 Registering Extensions
 ######################
