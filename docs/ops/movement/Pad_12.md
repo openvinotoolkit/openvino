@@ -6,7 +6,7 @@
 
 **Short description**: *Pad* operation extends an input tensor on edges. The amount and value of padded elements are defined by inputs and attributes.
 
-**Detailed Description**: The *pad_mode* attribute specifies a rule by which new element values are generated. For example, whether they are filled with a given constant or generated based on the input tensor content. The number of new elements to be added (positive value) or remove (negative value) is set by the `pads_begin` and `pads_end` inputs.
+**Detailed Description**: The *pad_mode* attribute specifies a rule by which new element values are generated. For example, whether they are filled with a given constant or generated based on the input tensor content. The number of new elements to be added (positive value) or removed (negative value) is set by the `pads_begin` and `pads_end` inputs.
 
 The following examples illustrate how output tensor is generated for the *Pad* layer for a given inputs:
 
@@ -131,11 +131,11 @@ Shape(4, 6)
 
 * *pad_mode*
 
-  * **Description**: *pad_mode* specifies the method used to generate new element values.
+  * **Description**: *pad_mode* specifies the method used to generate the padding values.
   * **Range of values**: Name of the method in string format:
-    * `constant` - padded values are equal to the value of the *pad_value* input, if input not provided zero value is padded.
+    * `constant` - padded values are taken from the *pad_value* input. If the input is not provided, the padding elements are equal to zero.
     * `edge` - padded values are copied from the respective edge of the input `data` tensor.
-    * `reflect` - padded values are a reflection of the input `data` tensor; values on the edges are not duplicated. `pads_begin[D]` and `pads_end[D]` must be not greater than `data.shape[D] – 1` for any valid `D`.
+    * `reflect` - padded values are a reflection of the input `data` tensor. Values on the edges are not duplicated, `pads_begin[D]` and `pads_end[D]` must be not greater than `data.shape[D] – 1` for any valid `D`.
     * `symmetric` - padded values are symmetrically added from the input `data` tensor. This method is similar to the `reflect`, but values on edges are duplicated. Refer to the examples above for more details. `pads_begin[D]` and `pads_end[D]` must be not greater than `data.shape[D]` for any valid `D`.
   * **Type**: `string`
   * **Required**: *yes*
@@ -144,16 +144,16 @@ Shape(4, 6)
 
 * **1**: `data` tensor of arbitrary shape and type *T*. **Required.**
 
-* **2**: `pads_begin` 1D tensor of type *T_INT*. Number of elements matches the shape rank of *data* input. Specifies the number of padding elements to add at the beginning of each axis. Negative value means removal of the corresponding dimensions. **Required.**
+* **2**: `pads_begin` 1D tensor of type *T_INT*. Number of elements matches the shape rank of *data* input. Specifies the number of padding elements to add at the beginning of each axis. Negative value means shrinking of the corresponding dimension's value. **Required.**
 
-* **3**: `pads_end` 1D tensor of type *T_INT*. Number of elements matches the shape rank of *data* input. Specifies the number of padding elements to add at the ending of each axis. Negative value means removal of the corresponding dimensions. **Required.**
+* **3**: `pads_end` 1D tensor of type *T_INT*. Number of elements matches the shape rank of *data* input. Specifies the number of padding elements to add at the end of each axis. Negative value means shrinking of the corresponding dimension's value. **Required.**
 
-* **4**: `pad_value` scalar tensor of type *T*. Used with the `pad_mode = "constant"` only. All new elements are populated with this value or with 0 if input not provided. Shouldn't be set for other `pad_mode` values. **Optional.**
+* **4**: `pad_value` scalar tensor of type *T*. Takes effect only if `pad_mode == "constant"` only. All padding elements are populated with this value or with 0 if the input is not provided. This input should not be set with other values of `pad_mode`. **Optional.**
 
 
 **Outputs**
 
-* **1**: Output padded tensor of type *T* with dimensions `max(pads_begin[D] + data.shape[D] + pads_end[D], 0)` for each `D` from `0` to `len(data.shape) - 1`.
+* **1**: Padded output tensor of type *T* with dimensions `max(pads_begin[D] + data.shape[D] + pads_end[D], 0)` for each `D` from `0` to `len(data.shape) - 1`.
 
 **Types**
 
