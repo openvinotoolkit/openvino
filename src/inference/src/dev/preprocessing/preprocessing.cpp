@@ -33,7 +33,8 @@ bool ov::pass::AddPreprocessing::run_on_model(const std::shared_ptr<ov::Model>& 
         preproc.input(i).tensor().set_element_type(
             InferenceEngine::details::convertPrecision(input_info->getPrecision()));
 
-        if (input_info->getLayout() != InferenceEngine::Layout::BLOCKED) {
+        if (input_info->getLayout() != InferenceEngine::Layout::BLOCKED &&
+            input_info->getLayout() != InferenceEngine::Layout::SCALAR) {
             std::stringstream stream;
             stream << input_info->getLayout();
             preproc.input(i).tensor().set_layout(ov::Layout{stream.str()});
