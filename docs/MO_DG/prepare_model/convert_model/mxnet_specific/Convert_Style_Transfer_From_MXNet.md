@@ -5,7 +5,7 @@
 
 .. warning::
 
-   Note that OpenVINO support for Apache MXNet, is currently being deprecated and will be removed entirely in the future.
+   Note that OpenVINO support for Apache MXNet is currently being deprecated and will be removed entirely in the future.
 
    
 
