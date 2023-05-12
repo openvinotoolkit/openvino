@@ -4,7 +4,7 @@
 
 .. warning::
 
-   Note that OpenVINO support for Apache MXNet, is currently being deprecated and will be removed entirely in the future.
+   Note that OpenVINO support for Apache MXNet is currently being deprecated and will be removed entirely in the future.
 
 
 This article provides the instructions and examples on how to use Model Optimizer to convert `GluonCV SSD and YOLO-v3 models <https://gluon-cv.mxnet.io/model_zoo/detection.html>`__ to IR.
