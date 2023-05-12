@@ -248,7 +248,7 @@ const std::vector<ElementType> netPrecisions = {
 };
 
 const std::vector<std::vector<int>> pooled3DVector = {
-        //{ 1 }, // AdaptivePool will be replace with reduce with AdaptivePoolToReduce transformation
+        { 1 },
         { 3 },
         { 5 }
 };
