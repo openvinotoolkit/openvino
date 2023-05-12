@@ -706,10 +706,8 @@ struct Equal<uint8_t*> {
             return false;
 
         for (size_t bit_idx = 0; bit_idx < lhs_bit_size; bit_idx++) {
-            const auto byte_idx_result(bit_idx / BITS_IN_BYTE_COUNT);
-            OPENVINO_ASSERT(byte_idx_result <= std::numeric_limits<uint8_t>::max(), "(bit_idx / BITS_IN_BYTE_COUNT) bigger than uint8_t::max_value");
+            const size_t byte_idx = bit_idx / BITS_IN_BYTE_COUNT;
 
-            const auto byte_idx(static_cast<uint8_t>(byte_idx_result));
             const uint8_t bit_in_byte_idx = 7 - (bit_idx % BITS_IN_BYTE_COUNT);
 
             if (extract_bit(lhs[byte_idx], bit_in_byte_idx) != extract_bit(rhs[byte_idx], bit_in_byte_idx)) {
