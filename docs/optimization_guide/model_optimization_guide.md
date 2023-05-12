@@ -29,6 +29,8 @@ Once the model is optimized using the aforementioned methods, it can be used for
 Additional Resources
 ####################
 
+- :doc:`Post-training Quantization <ptq_introduction>`
+- :doc:`Training-time Optimization <tmo_introduction>`
 - :doc:`Deployment optimization <openvino_docs_deployment_optimization_guide_dldt_optimization_guide>`
 
 @endsphinxdirective
