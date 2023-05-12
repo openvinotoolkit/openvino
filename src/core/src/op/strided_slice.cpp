@@ -18,6 +18,7 @@
 #include "ngraph/slice_plan.hpp"
 #include "ngraph/type/element_type_traits.hpp"
 #include "ngraph/util.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 #include "strided_slice_shape_inference.hpp"
 
@@ -237,27 +238,54 @@ bool op::v1::StridedSlice::has_evaluate() const {
     return get_input_size() == 4;
 }
 
-namespace {
-bool strided_slice_input_check(const ov::Node* node) {
-    if (!node->get_input_tensor(1).has_and_set_bound() || !node->get_input_tensor(2).has_and_set_bound() ||
-        !node->get_input_tensor(3).has_and_set_bound())
+bool op::v1::StridedSlice::indicies_input_has_and_set_bounds(const size_t port,
+                                                             const std::vector<int64_t>& masks) const {
+    const auto& lb_t = get_input_tensor(port).get_lower_value();
+    const auto& ub_t = get_input_tensor(port).get_upper_value();
+
+    if (lb_t && ub_t) {
+        using TCast = int64_t;
+        constexpr auto i64_cast = ov::util::Cast<TCast>();
+        const auto lb = ov::get_tensor_data_as<TCast>(lb_t, i64_cast);
+        const auto ub = ov::get_tensor_data_as<TCast>(ub_t, i64_cast);
+        const auto mask_set = convert_mask_to_axis_set(masks);
+
+        size_t axis = 0;
+        return std::equal(lb.cbegin(), lb.cend(), ub.cbegin(), [&axis, &mask_set](TCast lhs, TCast rhs) -> bool {
+            return mask_set.count(axis++) || lhs == rhs;
+        });
+    } else {
         return false;
-    return true;
+    }
 }
-}  // namespace
 
 bool op::v1::StridedSlice::evaluate_lower(ov::TensorVector& output_values) const {
-    return strided_slice_input_check(this) && default_lower_bound_evaluator(this, output_values);
+    return indicies_input_has_and_set_bounds(1, get_begin_mask()) &&
+           indicies_input_has_and_set_bounds(2, get_end_mask()) && get_input_tensor(3).has_and_set_bound() &&
+           default_lower_bound_evaluator(this, output_values);
 }
 
 bool op::v1::StridedSlice::evaluate_upper(ov::TensorVector& output_values) const {
-    return strided_slice_input_check(this) && default_upper_bound_evaluator(this, output_values);
+    return indicies_input_has_and_set_bounds(1, get_begin_mask()) &&
+           indicies_input_has_and_set_bounds(2, get_end_mask()) && get_input_tensor(3).has_and_set_bound() &&
+           default_upper_bound_evaluator(this, output_values);
 }
 
 bool op::v1::StridedSlice::evaluate_label(TensorLabelVector& output_labels) const {
-    if (!strided_slice_input_check(this))
-        return false;
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    return default_label_evaluator(this, output_labels);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    return indicies_input_has_and_set_bounds(1, get_begin_mask()) &&
+           indicies_input_has_and_set_bounds(2, get_end_mask()) && get_input_tensor(3).has_and_set_bound() &&
+           default_label_evaluator(this, {0}, output_labels);
+}
+
+bool op::v1::StridedSlice::constant_fold(OutputVector& output_values, const OutputVector& inputs_values) {
+    auto is_folded = Node::constant_fold(output_values, inputs_values);
+    if (!is_folded) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
+        if (const auto c = ov::get_constant_from_source(output(0))) {
+            OPENVINO_SUPPRESS_DEPRECATED_END
+            output_values[0] = c;
+            is_folded = true;
+        }
+    }
+    return is_folded;
 }
