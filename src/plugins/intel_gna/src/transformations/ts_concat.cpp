@@ -8,12 +8,12 @@
 
 #include "../debug_new_pass.hpp"
 #include "backend/gna_limitations.hpp"
+#include "common/graph_utils.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/transformation_helper.hpp"
-#include "common/graph_utils.hpp"
 
 using namespace ov;
 using namespace ov::opset10;

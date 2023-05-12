@@ -8,13 +8,13 @@
 #include <openvino/cc/ngraph/itt.hpp>
 
 #include "backend/gna_limitations.hpp"
+#include "common/graph_utils.hpp"
 #include "log/debug.hpp"
 #include "openvino/opsets/opset9.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/transpose_sinking_attr.hpp"
 #include "transformations/utils/gather_sinking_utils.hpp"
 #include "transformations/utils/transformation_helper.hpp"
-#include "common/graph_utils.hpp"
 
 using namespace ov::intel_gna;
 using namespace ov::intel_gna::pass;
