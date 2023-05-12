@@ -28,12 +28,13 @@
 1. Install common dependencies of the samples `npm i` from *./samples/js/common*
 1. Install dependencies of the sample by run `npm i` from *./samples/js/wasm/*
 
-## Run demo
+## Run sample
 
 ### Node.js
 
 - Run `npm run nodejs` from *./samples/js/wasm/*
 - Console will contain execution results
+- To run specific sample run `npm run nodejs -- *sample_filename_without_ext*`
 
 ### Browser
 

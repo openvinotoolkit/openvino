@@ -120,18 +120,15 @@ export function convertTensor(
   ov: OpenvinoWASMModule,
   tensor: ITensor
 ): OriginalTensorWrapper {
-  const { precision } = tensor;
-  // FIXME: remove extra array conversion
-  const dataType = jsTypeByPrecisionMap[precision];
+  const { precision, data } = tensor;
   const originalShape = convertShape(ov, tensor.shape);
-
-  const originalData = new dataType(tensor.data);
-  const elementSizeInBytes = originalData.BYTES_PER_ELEMENT;
-  const heapSpace = ov._malloc(originalData.length*elementSizeInBytes);
+  const dataType = jsTypeByPrecisionMap[precision];
+  const elementSizeInBytes = data.BYTES_PER_ELEMENT;
+  const heapSpace = ov._malloc(data.length*elementSizeInBytes);
   const offset = Math.log2(elementSizeInBytes);
   const waPrecision = heapLabelByArrayTypeMap[dataType.name];
 
-  ov[waPrecision].set(originalData, heapSpace>>offset);
+  ov[waPrecision].set(data, heapSpace>>offset);
 
   return {
     obj: new ov.Tensor(precision, heapSpace, originalShape.obj),
