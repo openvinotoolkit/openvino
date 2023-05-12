@@ -268,15 +268,16 @@ TEST_F(TypePropExperimentalDetectronPriorGridGeneratorV6Test, priors_2nd_dim_not
                     HasSubstr("The last dimension of the 'priors' input must be equal to 4"));
 }
 
-TEST_F(TypePropExperimentalDetectronPriorGridGeneratorV6Test, not_compatible_channels_dim_of_feature_map_and_im_data) {
+TEST_F(TypePropExperimentalDetectronPriorGridGeneratorV6Test, not_compatible_1st_dim_of_feature_map_and_im_data) {
     const auto priors = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
 
-    OV_EXPECT_THROW(std::ignore = make_op(priors,
-                                          std::make_shared<Parameter>(element::f32, PartialShape{3, {0, 3}, -1, -1}),
-                                          std::make_shared<Parameter>(element::f32, PartialShape{-1, {4, 0}, -1, -1}),
-                                          make_attrs(false)),
-                    NodeValidationFailure,
-                    HasSubstr("The first dimension of both 'feature_map' and 'im_data' must match"));
+    OV_EXPECT_THROW(
+        std::ignore = make_op(priors,
+                              std::make_shared<Parameter>(element::f32, PartialShape{3, {0, 3}, -1, -1}),
+                              std::make_shared<Parameter>(element::f32, PartialShape{{0, 2}, {4, 0}, -1, -1}),
+                              make_attrs(false)),
+        NodeValidationFailure,
+        HasSubstr("The first dimension of both 'feature_map' and 'im_data' must match"));
 
     OV_EXPECT_THROW(
         std::ignore = make_op(priors,
