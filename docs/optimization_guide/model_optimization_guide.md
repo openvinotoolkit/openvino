@@ -18,7 +18,7 @@ Model optimization is an optional offline step of improving the final model perf
 
 .. note:: OpenVINO also supports optimized models (for example, quantized) from source frameworks such as PyTorch, TensorFlow, and ONNX (in Q/DQ format). No special steps are required in this case and optimized models can be converted to the OpenVINO Intermediate Representation format (IR) righ away.
 
-Post-training Quantization is the fastest way to optimize a model and should be applied first, but it is limited in terms of achievable accuracy-performance trade-off. In this case, Training-time Optimization is an option.
+Post-training Quantization is the fastest way to optimize a model and should be applied first, but it is limited in terms of achievable accuracy-performance trade-off. In case of poor accuracy or performance after Post-training Quantization, Training-time Optimization can be used as an option.
 
 Once the model is optimized using the aforementioned methods, it can be used for inference using the regular OpenVINO inference workflow. No changes to the inference code are required.
 
