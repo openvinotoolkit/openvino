@@ -3,19 +3,19 @@
 //
 #include "markup_fusable_transpose.hpp"
 
+#include <common/graph_utils.hpp>
 #include <legacy/ngraph_ops/convolution_ie.hpp>
 #include <legacy/ngraph_ops/fully_connected.hpp>
 #include <legacy/ngraph_ops/scaleshift.hpp>
 #include <ngraph/opsets/opset9.hpp>
 #include <ngraph/rt_info.hpp>
 #include <openvino/cc/ngraph/itt.hpp>
-#include <ops/util/util.hpp>
 #include <transformations/rt_info/gna_transpose_fusable.hpp>
 #include <transformations/utils/transformation_helper.hpp>
 
 using namespace ov::intel_gna::pass;
 using namespace ov::intel_gna::pass::helper;
-using namespace ov::intel_gna::ngraph_util;
+using namespace ov::intel_gna::graph_utils;
 using namespace ov::intel_gna::rt_info;
 
 namespace {

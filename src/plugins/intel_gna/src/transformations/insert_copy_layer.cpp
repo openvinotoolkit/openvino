@@ -14,10 +14,10 @@
 #include <openvino/opsets/opset9.hpp>
 #include <ops/copy.hpp>
 
-#include "ops/util/util.hpp"
+#include "common/graph_utils.hpp"
 
 using namespace ov::intel_gna::pass;
-using namespace ov::intel_gna::ngraph_util;
+using namespace ov::intel_gna::graph_utils;
 using namespace ov::opset9;
 
 NGRAPH_RTTI_DEFINITION(InsertCopyBeforeAssignLayer, "InsertCopyBeforeAssignLayer");

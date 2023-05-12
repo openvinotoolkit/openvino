@@ -92,6 +92,13 @@ private:
 };
 
 /**
+ * @brief Validates if transpose is supported by GNA
+ * @param node transpose
+ * @return true if supported
+ */
+bool is_transpose_supported(const std::shared_ptr<const ov::Node>& node);
+
+/**
  * @brief Validates if legacy convolution is supported by GNA
  * @param conv_ie convolution
  * @param effective_compile_target GNA compile targets

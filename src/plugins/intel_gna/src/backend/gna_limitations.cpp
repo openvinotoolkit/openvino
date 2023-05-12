@@ -12,12 +12,12 @@
 #include <unordered_set>
 
 #include "common/gna_target.hpp"
+#include "common/graph_utils.hpp"
 #include "gna/gna_config.hpp"
 #include "gna_graph_tools.hpp"
 #include "gna_lib_ver_selector.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "log/log.hpp"
-#include "ops/util/util.hpp"
 
 namespace std {
 inline std::ostream& operator<<(std::ostream& os, const std::set<ov::element::Type>& t) {
@@ -83,6 +83,23 @@ bool SupportedElementTypes::is_constant_type_supported(ov::element::Type elem_ty
         return false;
     }
     return true;
+}
+
+bool is_transpose_supported(const std::shared_ptr<const ov::Node>& node) {
+    OPENVINO_ASSERT(node, "Transpose node is empty!");
+    const ov::Shape squeezed_shape = graph_utils::squeeze_shape(node->get_input_shape(0));
+    const size_t min_input_dim = std::min(squeezed_shape[0], squeezed_shape[1]);
+    const size_t max_input_dim = std::max(squeezed_shape[0], squeezed_shape[1]);
+
+    // GNA transpose limitations:
+    // - supports 2d transposes only
+    // - smaller dimension should be less or equal to 8
+    // - bigger dimension should be a multiple of limitations::noOfInputsDivisor
+    if (squeezed_shape.size() == 2 && min_input_dim <= 8 &&
+        ALIGN(max_input_dim, limitations::noOfInputsDivisor) == max_input_dim) {
+        return true;
+    }
+    return false;
 }
 
 bool is_conv_supported(const std::shared_ptr<ngraph::op::ConvolutionIE>& conv_ie,
@@ -181,7 +198,7 @@ bool is_split_supported(const std::shared_ptr<ov::Node>& node, bool is_exception
     OPENVINO_ASSERT(node, "Split node is empty!");
     bool is_aligned = true;
     for (size_t i = 0; i < node->get_output_size(); i++) {
-        is_aligned &= ov::intel_gna::ngraph_util::is_aligned_split(node, i);
+        is_aligned &= ov::intel_gna::graph_utils::is_aligned_split(node, i);
     }
     return is_aligned;
 }
@@ -198,22 +215,22 @@ bool is_op_supported(const std::shared_ptr<ov::Node>& node,
         return is_conv_supported(conv_ie, effective_compile_target, gna_precision, is_exception_allowed);
     } else if (auto fully_connected = std::dynamic_pointer_cast<ngraph::op::FullyConnected>(node)) {
         return is_fc_supported(fully_connected, is_exception_allowed);
-    } else if (ov::intel_gna::ngraph_util::is_pooling(node)) {
+    } else if (ov::intel_gna::graph_utils::is_pooling(node)) {
         return is_pooling_supported(std::dynamic_pointer_cast<ngraph::opset7::MaxPool>(node),
                                     effective_compile_target,
                                     is_exception_allowed);
     } else if (ov::op::util::is_output(node) || ov::op::util::is_sink(node) ||
-               ov::intel_gna::ngraph_util::is_eltwise_add(node) || ov::intel_gna::ngraph_util::is_eltwise_mul(node) ||
-               ov::intel_gna::ngraph_util::is_crop_affined(node) ||
-               ov::intel_gna::ngraph_util::is_activation(node.get()) ||
-               ov::intel_gna::ngraph_util::is_gna_precision_agnostic(
+               ov::intel_gna::graph_utils::is_eltwise_add(node) || ov::intel_gna::graph_utils::is_eltwise_mul(node) ||
+               ov::intel_gna::graph_utils::is_crop_affined(node) ||
+               ov::intel_gna::graph_utils::is_activation(node.get()) ||
+               ov::intel_gna::graph_utils::is_gna_precision_agnostic(
                    node) ||  // check concat/split are aligned when transformations will be moved to ngraph
                (std::dynamic_pointer_cast<ov::op::util::ReadValueBase>(node) != nullptr) ||
                (std::dynamic_pointer_cast<ngraph::op::ScaleShiftIE>(node) != nullptr) ||
                (std::dynamic_pointer_cast<ngraph::op::PowerIE>(node) != nullptr) ||
                (std::dynamic_pointer_cast<ngraph::opset9::MatMul>(node) != nullptr)) {
         return true;
-    } else if (ov::intel_gna::ngraph_util::is_gna_precision_agnostic(node)) {
+    } else if (ov::intel_gna::graph_utils::is_gna_precision_agnostic(node)) {
         if ((std::dynamic_pointer_cast<ngraph::opset9::Split>(node) != nullptr) ||
             (std::dynamic_pointer_cast<ngraph::opset9::VariadicSplit>(node) != nullptr)) {
             return is_split_supported(node, is_exception_allowed);

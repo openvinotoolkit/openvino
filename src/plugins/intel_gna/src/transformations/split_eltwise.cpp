@@ -14,7 +14,6 @@
 #include "layers/gna_split_layer.hpp"
 #include "legacy/ngraph_ops/eltwise.hpp"
 #include "log/log.hpp"
-#include "ops/util/util.hpp"
 
 namespace ov {
 namespace intel_gna {
