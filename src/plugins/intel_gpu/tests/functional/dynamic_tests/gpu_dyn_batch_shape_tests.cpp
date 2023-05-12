@@ -5,6 +5,7 @@
 #include "openvino/runtime/core.hpp"
 #include <common_test_utils/test_common.hpp>
 #include "common_test_utils/common_utils.hpp"
+#include "common_test_utils/file_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
@@ -84,6 +85,29 @@ TEST_P(OVDynamicBatchShape_Tests, InferDynamicBatchBound) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     core = std::make_shared<ov::Core>();
     run();
+}
+
+TEST_P(OVDynamicBatchShape_Tests, InferDynamicBatchBound_cached) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    std::string cacheFolderName = "OVDynamicBatchShape_Tests";
+    {
+        CommonTestUtils::removeFilesWithExt(cacheFolderName, "blob");
+        CommonTestUtils::removeFilesWithExt(cacheFolderName, "cl_cache");
+        CommonTestUtils::removeDir(cacheFolderName);
+
+        core = std::make_shared<ov::Core>();
+        core->set_property(ov::cache_dir(cacheFolderName));
+        run();
+    }
+    {
+        core = std::make_shared<ov::Core>();
+        core->set_property(ov::cache_dir(cacheFolderName));
+        run();
+
+        CommonTestUtils::removeFilesWithExt(cacheFolderName, "blob");
+        CommonTestUtils::removeFilesWithExt(cacheFolderName, "cl_cache");
+        CommonTestUtils::removeDir(cacheFolderName);
+    }
 }
 
 namespace {

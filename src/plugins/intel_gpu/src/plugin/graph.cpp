@@ -57,12 +57,16 @@ Graph::Graph(InferenceEngine::CNNNetwork& network, RemoteContextImpl::Ptr contex
     Build();
 }
 
-Graph::Graph(cldnn::BinaryInputBuffer &ib, RemoteContextImpl::Ptr context, const ExecutionConfig& config, uint16_t stream_id)
+Graph::Graph(cldnn::BinaryInputBuffer &ib, RemoteContextImpl::Ptr context, const ExecutionConfig& config, uint16_t stream_id,
+             InferenceEngine::InputsDataMap* inputs, InferenceEngine::OutputsDataMap* outputs)
     : m_context(context)
     , m_config(config)
     , m_stream_id(stream_id)
     , m_state(0) {
-    m_program = std::make_shared<Program>(get_engine(), config);
+    m_program = std::make_shared<Program>(get_engine(), config, inputs, outputs);
+    size_t max_batch_size;
+    ib >> max_batch_size;
+    m_program->m_max_batch = max_batch_size;
     if (m_program->m_max_batch > 1)
         m_config.set_property(ov::intel_gpu::max_dynamic_batch(m_program->m_max_batch));
 
@@ -507,6 +511,8 @@ std::shared_ptr<ngraph::Function> Graph::GetExecGraphInfoByPrimitivesInfo(std::v
 //     [ ov::intel_gpu::Graph::outputDims ]
 //     [ cldnn::network ]
 void Graph::Export(cldnn::BinaryOutputBuffer &ob) {
+    ob << GetMaxDynamicBatchSize();
+
     bool need_onednn_engine = false;
 #ifdef ENABLE_ONEDNN_FOR_GPU
     try {
