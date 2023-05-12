@@ -122,7 +122,7 @@ void lstm_cell(const T* X,
         } else if (activation == "tanh") {
             reference::tanh(gate.data(), gate.data(), gate.size());
         } else {
-            throw ngraph_error("Activation function " + activation + " is not supported.");
+            OPENVINO_THROW("Activation function " + activation + " is not supported.");
         }
     };
 
@@ -228,7 +228,7 @@ void lstm_cell_v1(const T* X,
     auto all_gates_shape_size = gate_shape_size * 4;
 
     if (weight_format != ov::op::LSTMWeightsFormat::FICO) {
-        throw ngraph_error("Only LSTMWeightFormat = FICO is supported.");
+        OPENVINO_THROW("Only LSTMWeightFormat = FICO is supported.");
     }
     // Xt*(W^T)
     std::vector<T> Xt_W(all_gates_shape_size);
@@ -270,7 +270,7 @@ void lstm_cell_v1(const T* X,
         } else if (activation == "tanh") {
             reference::tanh(gate.data(), gate.data(), gate.size());
         } else {
-            throw ngraph_error("Activation function " + activation + " is not supported.");
+            OPENVINO_THROW("Activation function " + activation + " is not supported.");
         }
     };
 

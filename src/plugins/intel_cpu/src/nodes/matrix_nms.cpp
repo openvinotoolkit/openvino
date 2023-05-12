@@ -3,6 +3,7 @@
 //
 
 #include "matrix_nms.h"
+#include "ov_ops/nms_static_shape_ie.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -56,6 +57,9 @@ MatrixNms::MatrixNms(const std::shared_ptr<ngraph::Node>& op, const GraphContext
     }
 
     m_errorPrefix = "MatrixNMS layer with name '" + getName() + "' ";
+
+    if (one_of(op->get_type_info(), ov::op::internal::NmsStaticShapeIE<ngraph::op::v8::MatrixNms>::get_type_info_static()))
+        m_outStaticShape = true;
 
     if (getOriginalInputsNumber() != 2)
         IE_THROW() << m_errorPrefix << "has incorrect number of input edges: " << getOriginalInputsNumber();
@@ -370,8 +374,9 @@ void MatrixNms::execute(dnnl::stream strm) {
     auto selectedIndicesMemPtr = getChildEdgesAtPort(NMS_SELECTED_INDICES)[0]->getMemoryPtr();
     auto validOutputsMemPtr = getChildEdgesAtPort(NMS_VALID_OUTPUTS)[0]->getMemoryPtr();
 
-    // TODO [DS NMS]: remove when nodes from models where nms is not last node in model supports DS
-    if (isDynamicNode()) {
+    // NMS-alike nodes are always transformed to NMSIEInternal node in case of legacy api, for compatibility.
+    // And on the other hand in case of api 2.0, keep them internal dynamic for better performance and functionality.
+    if (!m_outStaticShape) {
         size_t totalBox = std::accumulate(m_numPerBatch.begin(), m_numPerBatch.end(), size_t(0));
         redefineOutputMemory({{totalBox, 6}, {totalBox, 1}, {m_numBatches}});
     }
@@ -396,8 +401,8 @@ void MatrixNms::execute(dnnl::stream strm) {
             selectedBase[4] = m_filteredBoxes[originalIndex].box.x2;
             selectedBase[5] = m_filteredBoxes[originalIndex].box.y2;
         }
-        // TODO [DS NMS]: remove when nodes from models where nms is not last node in model supports DS
-        if (!isDynamicNode()) {
+
+        if (m_outStaticShape) {
             std::fill_n(selectedOutputs + (outputOffset + real_boxes) * 6, (m_maxBoxesPerBatch - real_boxes) * 6, -1.f);
             std::fill_n(selectedIndices + (outputOffset + real_boxes), m_maxBoxesPerBatch - real_boxes, -1);
             outputOffset += m_maxBoxesPerBatch;

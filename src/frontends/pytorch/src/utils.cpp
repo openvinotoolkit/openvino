@@ -66,7 +66,8 @@ std::tuple<Output<Node>, Output<Node>> get_shape_rank(const NodeContext& context
     auto shape = context.mark_node(std::make_shared<opset10::ShapeOf>(x, output_type));
     Output<Node> rank = context.mark_node(std::make_shared<opset10::ShapeOf>(shape, output_type));
     if (as_scalar) {
-        rank = context.mark_node(std::make_shared<opset10::Squeeze>(rank));
+        auto axis_0 = context.mark_node(opset10::Constant::create(output_type, Shape{}, {0}));
+        rank = context.mark_node(std::make_shared<opset10::Squeeze>(rank, axis_0));
     }
     return std::make_tuple(shape, rank);
 }
@@ -110,9 +111,8 @@ std::shared_ptr<Node> get_axes_range(const NodeContext& context, int input_id) {
     auto x = context.get_input(input_id);
     auto start = std::make_shared<opset10::Constant>(element::i32, Shape{}, 0);
     auto step = std::make_shared<opset10::Constant>(element::i32, Shape{}, 1);
-    auto shape = context.mark_node(std::make_shared<opset10::ShapeOf>(x, element::i32));
-    auto rank = context.mark_node(std::make_shared<opset10::ShapeOf>(shape, element::i32));
-    auto reduced_rank = context.mark_node(std::make_shared<opset10::Squeeze>(rank));
+    Output<Node> reduced_rank;
+    std::tie(std::ignore, reduced_rank) = get_shape_rank(context, x, true);
     return context.mark_node(std::make_shared<opset10::Range>(start, reduced_rank, step, element::i32));
 };
 
@@ -142,6 +142,21 @@ element::Type convert_dtype(int64_t pt_type) {
     return TORCH_TO_OV_TYPE.at(pt_type);
 };
 
+Output<Node> apply_dtype(const NodeContext& context, size_t dtype_port, const Output<Node>& input_tensor) {
+    if (std::dynamic_pointer_cast<opset10::Constant>(
+            context.get_input_from_visible_context(dtype_port).get_node_shared_ptr())) {
+        auto dtype = convert_dtype(context.const_input<int64_t>(dtype_port));
+        return context.mark_node(std::make_shared<opset10::Convert>(input_tensor, dtype));
+    } else if (const auto& fw_node =
+                   cast_fw_node(context.get_input(static_cast<int>(dtype_port)).get_node_shared_ptr(), "prim::dtype")) {
+        auto out_tensor = fw_node->input_value(0);
+        return context.mark_node(std::make_shared<opset10::ConvertLike>(input_tensor, out_tensor));
+    } else {
+        FRONT_END_OP_CONVERSION_CHECK(false, "Couldn't get dtype input");
+    }
+    return input_tensor;
+};
+
 ov::op::PadType convert_pad(const std::string& pt_pad) {
     FRONT_END_OP_CONVERSION_CHECK(TORCH_AUTO_PAD_TO_OV.count(pt_pad), "Unknown pad: ", pt_pad);
     return TORCH_AUTO_PAD_TO_OV.at(pt_pad);
@@ -162,7 +177,7 @@ std::shared_ptr<Node> concat_list_construct(std::shared_ptr<Node> input) {
     return input;
 }
 
-OutputVector make_framework_node(NodeContext& context) {
+OutputVector make_framework_node(const NodeContext& context) {
     auto schema = context.get_schema();
     // TODO: properly process schema to get the actual position of mutable input
     // Hack. Can indicate mutable inputs, but can it be reliable?
@@ -332,33 +347,24 @@ void align_eltwise_input_types(const NodeContext& context, Output<Node>& lhs, Ou
     // consider dynamic rank as non scalar
     const auto is_lhs_scalar = lhs_rank.is_static() && lhs_rank.get_length() == 0;
     const auto is_rhs_scalar = rhs_rank.is_static() && rhs_rank.get_length() == 0;
-    if (is_lhs_scalar && is_rhs_scalar) {
-        // if both scalar, align to lhs
-        rhs = context.mark_node(std::make_shared<opset10::ConvertLike>(rhs, lhs));
-        return;
-    }
     auto lhs_dst_type = lhs_type;
     auto rhs_dst_type = rhs_type;
-    if (is_lhs_scalar) {
-        if (lhs_type.is_real() && !rhs_type.is_real()) {
-            // if div we need to also align float types to highest bitness regardless of scalar
-            if (!align_scalars)
-                lhs_dst_type = element::f32;
-            rhs_dst_type = element::f32;
-        } else {
-            lhs = context.mark_node(std::make_shared<opset10::ConvertLike>(lhs, rhs));
-            return;
-        }
-    } else if (is_rhs_scalar) {
-        if (!lhs_type.is_real() && rhs_type.is_real()) {
+    if (is_lhs_scalar && lhs_type.is_real() && !rhs_type.is_real()) {
+        // if div we need to also align float types to highest bitness regardless of scalar
+        if (!align_scalars)
             lhs_dst_type = element::f32;
-            // if div we need to also align float types to highest bitness regardless of scalar
-            if (!align_scalars)
-                rhs_dst_type = element::f32;
-        } else {
-            rhs = context.mark_node(std::make_shared<opset10::ConvertLike>(rhs, lhs));
-            return;
-        }
+        rhs_dst_type = element::f32;
+    } else if (is_rhs_scalar && !lhs_type.is_real() && rhs_type.is_real()) {
+        lhs_dst_type = element::f32;
+        // if div we need to also align float types to highest bitness regardless of scalar
+        if (!align_scalars)
+            rhs_dst_type = element::f32;
+    } else if (is_lhs_scalar) {
+        lhs = context.mark_node(std::make_shared<opset10::ConvertLike>(lhs, rhs));
+        return;
+    } else if (is_rhs_scalar) {
+        rhs = context.mark_node(std::make_shared<opset10::ConvertLike>(rhs, lhs));
+        return;
     }
 
     if (lhs_dst_type == element::boolean || rhs_dst_type == element::boolean) {
@@ -391,6 +397,37 @@ void align_eltwise_input_types(const NodeContext& context, Output<Node>& lhs, Ou
     if (rhs_dst_type != rhs_type) {
         rhs = context.mark_node(std::make_shared<opset10::Convert>(rhs, rhs_dst_type));
     }
+}
+
+std::deque<Output<Node>> get_list_as_outputs(const Output<Node>& start) {
+    std::deque<Output<Node>> res;
+    auto current_output = start;
+    while (const auto& input_fw_node =
+               std::dynamic_pointer_cast<ov::op::util::FrameworkNode>(current_output.get_node_shared_ptr())) {
+        const auto& attrs = input_fw_node->get_attrs();
+        if (attrs.find("PtTypeName") == attrs.end()) {
+            break;
+        }
+        if (attrs.at("PtTypeName") == "aten::append") {
+            res.push_front(input_fw_node->input(1).get_source_output());
+        } else if (attrs.at("PtTypeName") == "aten::add") {
+            const auto&& lhs_list = get_list_as_outputs(input_fw_node->input(1).get_source_output());
+            res.insert(res.end(), lhs_list.begin(), lhs_list.end());
+        } else {
+            break;
+        }
+        current_output = input_fw_node->input(0).get_source_output();
+    }
+    auto list_construct = cast_fw_node(current_output.get_node_shared_ptr(), "prim::ListConstruct");
+    if (list_construct) {
+        auto inputs = list_construct->inputs();
+        for (auto input_it = inputs.rbegin(); input_it != inputs.rend(); ++input_it) {
+            res.push_front(input_it->get_source_output());
+        }
+    } else {
+        res.push_front(current_output);
+    }
+    return res;
 }
 
 }  // namespace pytorch

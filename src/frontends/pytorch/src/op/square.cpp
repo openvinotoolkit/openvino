@@ -14,7 +14,7 @@ namespace op {
 
 using namespace ov::op;
 
-OutputVector translate_square(NodeContext& context) {
+OutputVector translate_square(const NodeContext& context) {
     num_inputs_check(context, 1, 1);
     auto input_0 = context.get_input(0);
     auto const_2 = context.mark_node(v0::Constant::create(input_0.get_element_type(), Shape{1}, {2}));

@@ -18,7 +18,7 @@
 #include <openvino/util/log.hpp>
 
 NGRAPH_SUPPRESS_DEPRECATED_START
-NGRAPH_RTTI_DEFINITION(ngraph::pass::LowLatency, "LowLatency", 0);
+NGRAPH_RTTI_DEFINITION(ngraph::pass::LowLatency, "LowLatency");
 
 using namespace std;
 

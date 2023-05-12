@@ -419,7 +419,7 @@ struct non_max_suppression_impl : typed_primitive_impl<non_max_suppression> {
     static std::unique_ptr<primitive_impl> create(const non_max_suppression_node&, const kernel_impl_params&) {
         return make_unique<non_max_suppression_impl>();
     }
-    void init_kernels(const kernels_cache&) override {}
+    void init_kernels(const kernels_cache&, const kernel_impl_params&) override {}
 };
 namespace detail {
 

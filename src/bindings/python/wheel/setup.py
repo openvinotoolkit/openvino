@@ -8,6 +8,7 @@ import errno
 import subprocess  # nosec
 import typing
 import platform
+import re
 import multiprocessing
 from fnmatch import fnmatchcase
 from pathlib import Path
@@ -97,6 +98,7 @@ LIB_INSTALL_CFG = {
         "name": "tbb",
         "prefix": "libs.tbb",
         "install_dir": TBB_LIBS_DIR,
+        "rpath": LIBS_RPATH,
         "binary_dir": OPENVINO_BUILD_DIR,
     },
     "pugixml_libs": {
@@ -288,48 +290,83 @@ class PrepareLibs(build_clib):
                 install_dir = os.path.join(install_prefix, install_dir)
             # set rpath if applicable
             if sys.platform != "win32" and comp_data.get("rpath"):
+                # after tbb libraries on mac arm64 are signed, setting rpath for them will report error:
+                # LC_SEGMENT_64 command 3 fileoff field plus filesize field extends past the end of the file
+                if comp == "tbb_libs" and ARCH == "arm64" and sys.platform == "darwin":
+                    continue
+
                 for path in filter(
                     lambda x: any(item in ([".so"] if sys.platform == "linux" else [".dylib", ".so"])
                                   for item in x.suffixes), Path(install_dir).glob("*"),
                 ):
                     set_rpath(comp_data["rpath"], os.path.realpath(path))
 
+    def get_reallink(self, link_file):
+        real_name = link_file
+        while True:
+            real_name = os.readlink(real_name)
+            if not os.path.isabs(real_name):
+                real_name = os.path.join(os.path.dirname(link_file), real_name)
+            if not Path(real_name).is_symlink():
+                break
+        return real_name
+
     def generate_package(self, src_dirs):
         """Collect package data files from preinstalled dirs and put all runtime libraries to the subpackage."""
         # additional blacklist filter, just to fix cmake install issues
-        blacklist = [".lib", ".pdb", "_debug.dll", "_debug.dylib"]
+        blacklist_patterns = ["^.*\\.lib$", "^.*\\.pdb$", "^.*_debug\\.dll$", "^.*_debug\\.\\d*\\.dylib$", "^.*_debug\\.so\\.\\d*$", "^.*\\.la$"]
         package_dir = os.path.join(get_package_dir(PY_INSTALL_CFG), WHEEL_LIBS_INSTALL_DIR)
 
         for src_dir in src_dirs:
             local_base_dir = Path(src_dir)
-
-            # skip symlinks of higher level like libX.so or libX.dylib
+            # Wheel package content must not contain symlinks
+            # the block handles two kinds of soft links, take the library on linux as an example
+            #   the first case: there are two soft links pointing to the real file,
+            #     input is libX.so->libX.so.Y and libX.so.Y->libX.so.Y.Z (e.g. hwloc library in oneTBB package)
+            #     input is libX.so->libX.so.Y.Z and libX.so.Y->libX.so.Y.Z (e.g. oneTBB library)
+            #   the second case: there is one soft link pointing to the real file
+            # process results of the above two cases: remove soft links(libX.so and libX.so.Y), rename libX.so.Y.Z to libX.so.Y
+            file_dict = {}
+            # step 1:
+            # record real files and its symlinks {real file: soft link}
+            # if there are two soft links pointing to the same file, like libX.so and libX.so.Y(including the above two cases),
+            # only record the libX.so.Y and remove libX.so
             for symlink in local_base_dir.rglob("*"):
                 if symlink.is_symlink():
-                    file_name = os.readlink(symlink)
-                    if not os.path.isabs(file_name):
-                        file_name = os.path.join(os.path.dirname(symlink), file_name)
-                    if Path(file_name).is_symlink():
-                        self.announce(f"Unlink symlink {symlink}, use {file_name} instead", level=3)
-                        os.unlink(symlink)
+                    real_name = self.get_reallink(symlink)
+                    if real_name in file_dict:
+                        link_file_name_old = os.path.basename(file_dict[real_name])
+                        link_file_name_new = os.path.basename(symlink)
+                        if len(link_file_name_new) > len(link_file_name_old):
+                            # replace libX.so/libX.dylib with libX.so.Y/libX.Y.dylib
+                            self.announce(f"Unlink symlink {file_dict[real_name]}, use {symlink} instead", level=3)
+                            os.unlink(file_dict[real_name])
+                            file_dict[real_name] = symlink
+                        else:
+                            self.announce(f"Unlink symlink {symlink}, use {file_dict[real_name]} instead", level=3)
+                            os.unlink(symlink)
+                    else:
+                        file_dict[real_name] = symlink
 
-            # transform libX.so.Y / libX.Y.dylib symlinks to real files
-            for symlink in local_base_dir.rglob("*"):
-                if symlink.is_symlink():
-                    file_name = os.readlink(symlink)
-                    if not os.path.isabs(file_name):
-                        file_name = os.path.join(os.path.dirname(symlink), file_name)
-
-                    os.unlink(symlink)
-                    os.rename(file_name, symlink)
-                    self.announce(f"Resolved symlink {symlink} as {file_name}", level=3)
+            # step 2:
+            # according to the corresponding relationship (file_dict),
+            # remove the reserved soft link and rename the real file to the name of its soft link
+            for real_name, symlink in file_dict.items():
+                os.unlink(symlink)
+                os.rename(real_name, symlink)
+                self.announce(f"Resolved symlink {symlink} as {real_name}", level=3)
 
             # copy so / dylib files to WHEEL_LIBS_INSTALL_DIR
             for file_path in local_base_dir.rglob("*"):
                 file_name = os.path.basename(file_path)
                 if file_path.is_symlink():
                     sys.exit(f"Wheel package content must not contain symlinks {file_path}")
-                if file_path.is_file() and not any(file_name.endswith(ext) for ext in blacklist):
+                blacklisted = False
+                for pattern in blacklist_patterns:
+                    if re.match(pattern, file_name) is not None:
+                        blacklisted = True
+                        break
+                if file_path.is_file() and not blacklisted:
                     dst_file = os.path.join(package_dir, os.path.relpath(file_path, local_base_dir))
                     os.makedirs(os.path.dirname(dst_file), exist_ok=True)
                     copyfile(file_path, dst_file)

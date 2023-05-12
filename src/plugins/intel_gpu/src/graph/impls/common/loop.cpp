@@ -23,7 +23,7 @@ struct loop_impl : typed_primitive_impl<loop> {
         return make_unique<loop_impl>(*this);
     }
 
-    void init_kernels(const kernels_cache&) override {}
+    void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}
 
     loop_impl() : parent() {}
 
@@ -124,7 +124,7 @@ struct loop_impl : typed_primitive_impl<loop> {
 
             // Set sliced output memory
             for (const auto& concat_output_mem_mapping : concatenated_output_mem_mappings) {
-                concat_output_mem_mapping.setup_concatenated_output_memory(current_iteration_idx);
+                concat_output_mem_mapping.setup_sliced_output_memory(current_iteration_idx);
             }
 
             // execute body network

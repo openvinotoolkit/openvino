@@ -27,7 +27,7 @@ op::CropIE::CropIE(const Output<Node>& data,
 
 std::shared_ptr<Node> op::CropIE::clone_with_new_inputs(const OutputVector& new_args) const {
     if (new_args.size() != 1) {
-        throw ngraph_error("Incorrect number of new arguments");
+        OPENVINO_THROW("Incorrect number of new arguments");
     }
 
     return make_shared<CropIE>(new_args.at(0), axes, dim, offset);

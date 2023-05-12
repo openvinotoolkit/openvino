@@ -320,10 +320,10 @@ public:
     void clear_control_dependents();
 
     /// This node absorbs the control dependencies of source_node
-    void add_node_control_dependencies(std::shared_ptr<Node> source_node);
+    void add_node_control_dependencies(const std::shared_ptr<const Node>& source_node);
 
     /// This node becomes a dependent of every node dependent on source_node
-    void add_node_control_dependents(std::shared_ptr<Node> source_node);
+    void add_node_control_dependents(const std::shared_ptr<const Node>& source_node);
 
     /// This node's control dependencies are replaced by replacement
     void transfer_control_dependents(std::shared_ptr<Node> replacement);
@@ -408,14 +408,6 @@ public:
 
     /// Get all the nodes that uses the current node
     NodeVector get_users(bool check_is_used = false) const;
-
-    /// \return Version of this node
-    OPENVINO_DEPRECATED("This method is deprecated and will be removed soon.")
-    virtual size_t get_version() const {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        return get_type_info().version;
-        OPENVINO_SUPPRESS_DEPRECATED_END
-    }
 
     /// Use instance ids for comparison instead of memory addresses to improve determinism
     bool operator<(const Node& other) const {
@@ -538,9 +530,14 @@ using RawNodeOutputMap = std::map<RawNodeOutput, Output<Node>>;
 
 class OPENVINO_API NodeValidationFailure : public ov::AssertFailure {
 public:
-    NodeValidationFailure(const ov::CheckLocInfo& check_loc_info, const Node* node, const std::string& explanation)
-        : AssertFailure(check_loc_info, node_validation_failure_loc_string(node), explanation) {}
+    [[noreturn]] static void create(const CheckLocInfo& check_loc_info,
+                                    const Node* node,
+                                    const std::string& explanation);
+
+protected:
+    explicit NodeValidationFailure(const std::string& what_arg) : ov::AssertFailure(what_arg) {}
 };
+
 }  // namespace ov
 #define NODE_VALIDATION_CHECK(node, ...) OPENVINO_ASSERT_HELPER(::ov::NodeValidationFailure, (node), __VA_ARGS__)
 

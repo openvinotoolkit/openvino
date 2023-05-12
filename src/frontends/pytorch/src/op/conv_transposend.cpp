@@ -15,7 +15,7 @@ namespace op {
 
 using namespace ov::op;
 
-OutputVector translate_conv_transposend(NodeContext& context) {
+OutputVector translate_conv_transposend(const NodeContext& context) {
     num_inputs_check(context, 8, 8);
     auto strides = context.const_input<Strides>(3);
     // PyTorch support only symmetric padding, padding sizes are the same for begins and ends for each dimension

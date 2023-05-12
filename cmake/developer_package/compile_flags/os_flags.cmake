@@ -270,6 +270,20 @@ function(ov_force_include target scope header_file)
     endif()
 endfunction()
 
+#
+# ov_abi_free_target(<target name>)
+#
+# Marks target to be compiliance in CXX ABI free manner
+#
+function(ov_abi_free_target target)
+    # To guarantee OpenVINO can be used with gcc versions 7 through 12.2
+    # - https://gcc.gnu.org/onlinedocs/gcc/C_002b_002b-Dialect-Options.html
+    # - https://gcc.gnu.org/onlinedocs/libstdc++/manual/abi.html
+    if(CMAKE_COMPILER_IS_GNUCXX)
+        target_compile_options(${target} PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-Wabi=11>)
+    endif()
+endfunction()
+
 # 
 # ie_python_minimal_api(<target>)
 #
@@ -412,6 +426,13 @@ else()
     # Warn if an undefined identifier is evaluated in an #if directive. Such identifiers are replaced with zero.
     ie_add_compiler_flags(-Wundef)
 
+    # To guarantee OpenVINO can be used with gcc versions 7 through 12
+    # - https://gcc.gnu.org/onlinedocs/gcc/C_002b_002b-Dialect-Options.html
+    # - https://gcc.gnu.org/onlinedocs/libstdc++/manual/abi.html
+    if(CMAKE_COMPILER_IS_GNUCXX)
+        # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wabi=11")
+    endif()
+
     #
     # Warnings as errors
     #
@@ -453,14 +474,6 @@ else()
         endif()
         set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--gc-sections")
     endif()
-endif()
-
-# if(OV_COMPILER_IS_CLANG)
-#     ie_add_compiler_flags(-Wshorten-64-to-32)
-# endif()
-# TODO
-if(OV_COMPILER_IS_CLANG)
-    ie_add_compiler_flags(-Wno-delete-non-abstract-non-virtual-dtor)
 endif()
 
 check_cxx_compiler_flag("-Wsuggest-override" SUGGEST_OVERRIDE_SUPPORTED)

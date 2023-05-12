@@ -9,8 +9,10 @@ ov_add_test_target(
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         DEPENDENCIES
         LINK_LIBRARIES
+            gtest
+            gtest_main
             gmock
-            funcTestUtils
+            openvino::conditional_compilation
         INCLUDES
             "${CMAKE_CURRENT_SOURCE_DIR}/../include"
         ADD_CLANG_FORMAT

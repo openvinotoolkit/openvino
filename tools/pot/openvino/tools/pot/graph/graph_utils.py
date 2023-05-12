@@ -8,7 +8,7 @@ from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
 from openvino.tools.mo.utils.ir_reader.restore_graph import restore_graph_from_ir, save_restored_graph
 from openvino.tools.mo.utils.logger import init_logger
-from openvino.runtime import Core  # pylint: disable=E0401,E0611
+from openvino.runtime import Core, serialize  # pylint: disable=E0401,E0611
 from openvino.runtime.passes import Manager # pylint: disable=E0401,E0611
 from openvino.offline_transformations import apply_pot_transformations # pylint: disable=import-error,no-name-in-module
 
@@ -35,9 +35,7 @@ def load_graph(model_config, target_device='ANY'):
         apply_pot_transformations(model, target_device.encode('utf-8'))
         bin_path = serialized_bin_path
         xml_path = serialized_xml_path
-        # TODO: replace by openvino.runtime.serialize
-        pass_manager.register_pass(pass_name="Serialize", xml_path=xml_path, bin_path=bin_path)
-        pass_manager.run_passes(model)
+        serialize(model, xml_path=xml_path, bin_path=bin_path)
 
     if not os.path.exists(xml_path):
         raise RuntimeError('Input model xml should link to an existing file. Please, provide a correct path.')

@@ -19,7 +19,9 @@
 #include "ie_ngraph_utils.hpp"
 #include "ie_performance_hints.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
+#include "openvino/util/common_util.hpp"
 #include "transformations/common_optimizations/dimension_tracking.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/utils/utils.hpp"
@@ -28,6 +30,7 @@ namespace AutoBatchPlugin {
 using namespace InferenceEngine;
 
 std::vector<std::string> supported_configKeys = {CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG),
+                                                 ov::device::priorities.name(),
                                                  CONFIG_KEY(AUTO_BATCH_TIMEOUT),
                                                  CONFIG_KEY(CACHE_DIR)};
 
@@ -449,7 +452,7 @@ AutoBatchExecutableNetwork::AutoBatchExecutableNetwork(
 
 AutoBatchExecutableNetwork::~AutoBatchExecutableNetwork() {
     _terminate = true;
-    for (auto w : _workerRequests) {
+    for (const auto& w : _workerRequests) {
         w->_thread.join();
     }
     _workerRequests.clear();
@@ -598,9 +601,9 @@ std::shared_ptr<ngraph::Function> AutoBatchExecutableNetwork::GetExecGraphInfo()
                                                     : _networkWithoutBatch->GetExecGraphInfo();
 }
 
-void AutoBatchExecutableNetwork::SetConfig(const std::map<std::string, InferenceEngine::Parameter>& config) {
-    auto timeout = config.find(CONFIG_KEY(AUTO_BATCH_TIMEOUT));
-    if (timeout == config.end() || config.size() > 1) {
+void AutoBatchExecutableNetwork::SetConfig(const std::map<std::string, InferenceEngine::Parameter>& user_config) {
+    auto timeout = user_config.find(CONFIG_KEY(AUTO_BATCH_TIMEOUT));
+    if (timeout == user_config.end() || user_config.size() > 1) {
         IE_THROW() << "The only config that can be changed on the fly for the AutoBatching the is the "
                    << CONFIG_KEY(AUTO_BATCH_TIMEOUT);
     } else {
@@ -662,8 +665,8 @@ InferenceEngine::Parameter AutoBatchExecutableNetwork::GetMetric(const std::stri
 namespace {
 
 std::map<std::string, std::string> mergeConfigs(std::map<std::string, std::string> config,
-                                                const std::map<std::string, std::string>& local) {
-    for (auto&& kvp : local) {
+                                                const std::map<std::string, std::string>& user_config) {
+    for (auto&& kvp : user_config) {
         config[kvp.first] = kvp.second;
     }
     return config;
@@ -688,48 +691,28 @@ DeviceInformation AutoBatchInferencePlugin::ParseBatchDevice(const std::string& 
     return {deviceName, {{}}, batch};
 }
 
-DeviceInformation AutoBatchInferencePlugin::ParseMetaDevice(const std::string& devicesBatchCfg,
-                                                            const std::map<std::string, std::string>& config) const {
-    auto getDeviceConfig = [&](const DeviceName& deviceWithID) {
-        DeviceIDParser deviceParser(deviceWithID);
-        std::string deviceName = deviceParser.getDeviceName();
-        std::map<std::string, std::string> tconfig = mergeConfigs(_config, config);
-
-        // set device ID if any
-        std::string deviceIDLocal = deviceParser.getDeviceID();
-        if (!deviceIDLocal.empty()) {
-            tconfig[PluginConfigParams::KEY_DEVICE_ID] = deviceIDLocal;
-        }
-        // passthrough the cache dir to core->loadnetwork when underlying device does not support cache dir
-        auto deviceConfig = GetCore()->GetSupportedConfig(deviceName, tconfig);
-        if (tconfig.find(CONFIG_KEY(CACHE_DIR)) != tconfig.end() &&
-            deviceConfig.find(CONFIG_KEY(CACHE_DIR)) == deviceConfig.end()) {
-            auto tmpiter = tconfig.find(CONFIG_KEY(CACHE_DIR));
-            if (tmpiter != tconfig.end())
-                deviceConfig.insert({tmpiter->first, tmpiter->second});
-        }
-        return deviceConfig;
-    };
-
+DeviceInformation AutoBatchInferencePlugin::ParseMetaDevice(
+    const std::string& devicesBatchCfg,
+    const std::map<std::string, std::string>& user_config) const {
     auto metaDevice = ParseBatchDevice(devicesBatchCfg);
-    metaDevice.config = getDeviceConfig(metaDevice.deviceName);
+    metaDevice.config = GetCore()->GetSupportedConfig(metaDevice.deviceName, user_config);
 
-    auto cfg = config;
     // check that no irrelevant config-keys left
-    for (auto k : config) {
+    for (const auto& k : user_config) {
         const auto& name = k.first;
-        auto found_in_supported_cfg = std::find(supported_configKeys.begin(), supported_configKeys.end(), k.first);
-        auto found_in_device_cfg = metaDevice.config.find(k.first);
-        if (found_in_device_cfg == metaDevice.config.end() && found_in_supported_cfg == supported_configKeys.end()) {
+        if (metaDevice.config.find(name) == metaDevice.config.end() &&
+            !ov::util::contains(supported_configKeys, name)) {
             IE_THROW() << "Unsupported config key: " << name;
         }
     }
     return metaDevice;
 }
 
-RemoteContext::Ptr AutoBatchInferencePlugin::CreateContext(const InferenceEngine::ParamMap& config) {
-    auto cfg = config;
+RemoteContext::Ptr AutoBatchInferencePlugin::CreateContext(const InferenceEngine::ParamMap& remote_properties) {
+    auto cfg = remote_properties;
     auto it = cfg.find(CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG));
+    if (it == cfg.end())
+        it = cfg.find(ov::device::priorities.name());
     if (it == cfg.end())
         IE_THROW() << "Value for KEY_AUTO_BATCH_DEVICE_CONFIG is not set";
 
@@ -743,7 +726,7 @@ RemoteContext::Ptr AutoBatchInferencePlugin::CreateContext(const InferenceEngine
 }
 
 Parameter AutoBatchInferencePlugin::GetConfig(const std::string& name,
-                                              const std::map<std::string, Parameter>& options) const {
+                                              const std::map<std::string, Parameter>& user_options) const {
     if (supported_configKeys.end() != std::find(supported_configKeys.begin(), supported_configKeys.end(), name)) {
         auto it = _config.find(name);
         if (it == _config.end()) {
@@ -756,13 +739,13 @@ Parameter AutoBatchInferencePlugin::GetConfig(const std::string& name,
     }
 }
 
-void AutoBatchInferencePlugin::CheckConfig(const std::map<std::string, std::string>& config) {
-    for (auto&& kvp : config) {
+void AutoBatchInferencePlugin::CheckConfig(const std::map<std::string, std::string>& user_config) {
+    for (auto&& kvp : user_config) {
         const auto name = kvp.first;
         const auto val = kvp.second;
         if (supported_configKeys.end() == std::find(supported_configKeys.begin(), supported_configKeys.end(), name))
             IE_THROW() << "Unsupported config key: " << name;
-        if (name == CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG)) {
+        if (name == CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) || name == ov::device::priorities.name()) {
             ParseBatchDevice(val);
         } else if (name == CONFIG_KEY(AUTO_BATCH_TIMEOUT)) {
             try {
@@ -777,9 +760,9 @@ void AutoBatchInferencePlugin::CheckConfig(const std::map<std::string, std::stri
     }
 }
 
-void AutoBatchInferencePlugin::SetConfig(const std::map<std::string, std::string>& config) {
-    CheckConfig(config);
-    for (auto&& kvp : config) {
+void AutoBatchInferencePlugin::SetConfig(const std::map<std::string, std::string>& user_config) {
+    CheckConfig(user_config);
+    for (auto&& kvp : user_config) {
         _config[kvp.first] = kvp.second;
     }
 }
@@ -794,7 +777,7 @@ AutoBatchInferencePlugin::AutoBatchInferencePlugin() {
 
 InferenceEngine::Parameter AutoBatchInferencePlugin::GetMetric(
     const std::string& name,
-    const std::map<std::string, InferenceEngine::Parameter>& options) const {
+    const std::map<std::string, InferenceEngine::Parameter>& user_options) const {
     if (name == METRIC_KEY(SUPPORTED_METRICS)) {
         std::vector<std::string> metrics;
         metrics.push_back(METRIC_KEY(SUPPORTED_METRICS));
@@ -812,24 +795,26 @@ InferenceEngine::Parameter AutoBatchInferencePlugin::GetMetric(
 
 IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadExeNetworkImpl(
     const InferenceEngine::CNNNetwork& network,
-    const std::map<std::string, std::string>& config) {
-    return LoadNetworkImpl(network, nullptr, config);
+    const std::map<std::string, std::string>& user_config) {
+    return LoadNetworkImpl(network, nullptr, user_config);
 }
 
 InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadNetworkImpl(
     const InferenceEngine::CNNNetwork& network,
     const std::shared_ptr<InferenceEngine::RemoteContext> ctx,
-    const std::map<std::string, std::string>& config) {
+    const std::map<std::string, std::string>& user_config) {
     auto core = GetCore();
     if (core == nullptr) {
         IE_THROW() << "Please, work with Auto-Batching device via InferencEngine::Core object";
     }
-    auto fullConfig = mergeConfigs(_config, config);
+    auto fullConfig = mergeConfigs(_config, user_config);
     auto device_batch = fullConfig.find(CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG));
+    if (device_batch == fullConfig.end())
+        device_batch = fullConfig.find(ov::device::priorities.name());
     if (device_batch == fullConfig.end()) {
         IE_THROW() << "KEY_AUTO_BATCH key is not set for BATCH device";
     }
-    auto metaDevice = ParseMetaDevice(device_batch->second, fullConfig);
+    auto metaDevice = ParseMetaDevice(device_batch->second, user_config);
     const auto& deviceName = metaDevice.deviceName;
     const auto& deviceConfig = metaDevice.config;
     auto deviceConfigNoAutoBatch = deviceConfig;
@@ -915,8 +900,8 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
         auto optBatchSize = core->GetMetric(deviceName, METRIC_KEY(OPTIMAL_BATCH_SIZE), options).as<unsigned int>();
         auto res = core->GetConfig(deviceName, CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS)).as<std::string>();
         requests = PerfHintsConfig::CheckPerformanceHintRequestValue(res);
-        const auto& reqs = config.find(CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS));
-        if (reqs != config.end())
+        const auto& reqs = user_config.find(CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS));
+        if (reqs != user_config.end())
             requests = static_cast<unsigned int>(PerfHintsConfig::CheckPerformanceHintRequestValue(reqs->second));
         if (requests)
             optBatchSize = std::max(1u, std::min(requests, optBatchSize));
@@ -931,7 +916,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
         // TODO: use the per-network metric (22.2) rather than plugin-level
         auto stats =
             pCore->GetMetric(device, ov::intel_gpu::memory_statistics.name()).as<std::map<std::string, uint64_t>>();
-        for (auto s : stats)
+        for (const auto& s : stats)
             footprint += s.second;
         return footprint;
     };
@@ -954,7 +939,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
     }
     // auto-batch settings
     std::unordered_map<std::string, InferenceEngine::Parameter> networkConfig;
-    for (auto c : fullConfig) {
+    for (const auto& c : fullConfig) {
         if (supported_configKeys.end() != std::find(supported_configKeys.begin(), supported_configKeys.end(), c.first))
             networkConfig.insert(c);
     }
@@ -985,25 +970,25 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
 InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadExeNetworkImpl(
     const InferenceEngine::CNNNetwork& network,
     const std::shared_ptr<InferenceEngine::RemoteContext>& context,
-    const std::map<std::string, std::string>& config) {
-    return LoadNetworkImpl(network, context, config);
+    const std::map<std::string, std::string>& user_config) {
+    return LoadNetworkImpl(network, context, user_config);
 }
 
 InferenceEngine::QueryNetworkResult AutoBatchInferencePlugin::QueryNetwork(
     const InferenceEngine::CNNNetwork& network,
-    const std::map<std::string, std::string>& config) const {
+    const std::map<std::string, std::string>& user_config) const {
     auto core = GetCore();
     if (!core)
         return InferenceEngine::QueryNetworkResult();
-    auto cfg = config;
-    for (auto c : cfg) {
-        if (c.first == CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG)) {
+    auto cfg = user_config;
+    for (const auto& c : cfg) {
+        if (c.first == CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) || c.first == ov::device::priorities.name()) {
             auto val = c.second;
             cfg.erase(c.first);
             auto metaDevice = ParseMetaDevice(val, cfg);
             return core->QueryNetwork(network, metaDevice.deviceName, cfg);
         }
     }
-    IE_THROW() << "Value for KEY_AUTO_BATCH is not set";
+    IE_THROW() << "Value for KEY_AUTO_BATCH_DEVICE_CONFIG is not set";
 }
 }  // namespace AutoBatchPlugin

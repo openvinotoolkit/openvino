@@ -194,15 +194,17 @@ public:
     /**
      * @brief Sets new batch size when dynamic batching is enabled in executable network that created this request.
      *
+     * @deprecated
      * @param batch_size new batch size to be used by all the following inference calls for this request.
      * @param resp Optional: a pointer to an already allocated object to contain extra information of a failure (if
      * occurred)
      * @return Enumeration of the resulted action: InferenceEngine::OK (0) for success
      */
+    INFERENCE_ENGINE_DEPRECATED("This method is deprecated and will be removed in 2023.1 release")
     virtual InferenceEngine::StatusCode SetBatch(int batch_size, ResponseDesc* resp) noexcept = 0;
 
 protected:
-    ~IInferRequest() = default;
+    virtual ~IInferRequest() = default;
 };
 
 _IE_SUPPRESS_DEPRECATED_END_GCC

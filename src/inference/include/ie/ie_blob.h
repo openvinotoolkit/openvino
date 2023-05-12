@@ -192,7 +192,7 @@ public:
      *
      * @param dims new shape
      */
-    void setShape(const SizeVector& dims);
+    virtual void setShape(const SizeVector& dims);
 
     /**
      * @deprecated Cast to MemoryBlob and use new wlock/rwlock API instead.

@@ -42,7 +42,7 @@ bool after_func_expand_name_comp(std::string lhs, std::string rhs) {
             if (is_hex_symbol(name[i])) {
                 ++founded_hex;
                 if (cut_begin == -1) {
-                    cut_begin = i;
+                    cut_begin = static_cast<int>(i);
                 }
                 if (founded_hex >= min_address) {
                     cut_length = founded_hex;

@@ -151,6 +151,7 @@ public:
     nodes_ordering& get_processing_order();
     uint32_t get_prog_id() { return prog_id; }
     stream& get_stream() { return *_stream; }
+    stream::ptr get_stream_ptr() const { return _stream; }
     const stream& get_stream() const { return *_stream; }
     const std::list<primitive_id>& get_optimized_out() const { return optimized_out; }
     const std::list<optimized_info>& get_optimized() const { return optimized; }
@@ -187,6 +188,8 @@ public:
                           program_node& prev,
                           bool connect_int_node_with_old_dep = true,
                           bool move_usrs_of_prev_to_node = false);
+
+    void add_connection(program_node& prev, program_node& next);
 
     // removes a node from the graph and deletes it afterwards,
     // prereq: node cannot be marked as output and has to have exactly one dependency
@@ -225,7 +228,6 @@ public:
 
     void add_optimized_primitive_info(primitive_id optimized_primitive_id, std::vector<primitive_id> replaced_with_ids = {});
 
-    void reset_program();
     uint32_t get_id() const { return prog_id; }
 
     static ptr build_program(engine& engine,
@@ -240,24 +242,13 @@ public:
                              std::shared_ptr<InferenceEngine::CPUStreamsExecutor> task_executor,
                              bool is_internal);
     static void init_primitives();
-    void compile();
-    void init_kernels();
-    kernel_id add_kernel(const std::shared_ptr<kernel_string>& kernel_sring);
-    kernel::ptr get_kernel(kernel_id id);
     kernels_cache& get_kernels_cache() const;
 
     // returns {-1, -1} if it failed to estimate by allocating given batch size
     std::pair<int64_t/*const alloc*/, int64_t/*general alloc*/> get_estimated_device_mem_usage();
 
-    void remove_kernel(kernel_id id);
+    using ImplementationsCache = cldnn::LruCacheThreadSafe<kernel_impl_params, std::shared_ptr<primitive_impl>, kernel_impl_params::Hasher>;
 
-    struct ImplHasher {
-        size_t operator()(const kernel_impl_params &k) const {
-            return k.hash();
-        }
-    };
-
-    using ImplementationsCache = cldnn::LruCacheThreadSafe<kernel_impl_params, std::shared_ptr<primitive_impl>, ImplHasher>;
     ImplementationsCache& get_implementations_cache() const { return *_impls_cache; }
     ICompilationContext& get_compilation_context() const { return *_compilation_context; }
     void cancel_compilation_context();
@@ -314,7 +305,6 @@ private:
     void run_graph_compilation();
     void pre_optimize_graph(bool is_internal);
     void post_optimize_graph(bool is_internal);
-    void cleanup();
     void transfer_memory_to_device();
 
     InferenceEngine::CPUStreamsExecutor::Config make_task_executor_config(const ExecutionConfig& config, std::string tags = "") const;
@@ -343,8 +333,6 @@ private:
     void add_split_outputs();
     // mark if the node is constant assuming that all dependencies are marked properly
     void reverse_connection(program_node& dep_node, program_node& user_node);
-
-    void add_connection(program_node& prev, program_node& next);
 
     void remove_connection(program_node& prev, program_node& next);
 

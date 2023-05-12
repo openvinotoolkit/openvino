@@ -8,8 +8,6 @@
 
 #include <fstream>
 #include <iostream>
-#include <map>
-#include <numeric>
 #include <string>
 #include <vector>
 
@@ -20,82 +18,73 @@
 
 namespace ov {
 
-struct CPU {
-    int _processors = 0;
-    int _sockets = 0;
-    int _cores = 0;
+CPU::CPU() {
+    std::vector<std::vector<std::string>> system_info_table;
 
-    std::vector<std::vector<int>> _proc_type_table;
-    std::vector<std::vector<int>> _cpu_mapping_table;
+    _num_threads = parallel_get_max_threads();
+    auto GetCatchInfoLinux = [&]() {
+        _processors = sysconf(_SC_NPROCESSORS_ONLN);
+        system_info_table.resize(_processors, std::vector<std::string>(3));
 
-    CPU() {
-        std::vector<std::vector<std::string>> system_info_table;
+        for (int n = 0; n < _processors; n++) {
+            for (int m = 0; m < 3; m++) {
+                int Ln = (m == 0) ? m : m + 1;
 
-        auto GetCatchInfoLinux = [&]() {
-            _processors = sysconf(_SC_NPROCESSORS_ONLN);
-            system_info_table.resize(_processors, std::vector<std::string>(3));
-
-            for (int n = 0; n < _processors; n++) {
-                for (int m = 0; m < 3; m++) {
-                    int Ln = (m == 0) ? m : m + 1;
-
-                    std::ifstream cache_file("/sys/devices/system/cpu/cpu" + std::to_string(n) + "/cache/index" +
-                                             std::to_string(Ln) + "/shared_cpu_list");
-                    if (!cache_file.is_open()) {
-                        return -1;
-                    }
-                    std::string cache_info;
-                    std::getline(cache_file, cache_info);
-                    system_info_table[n][m] += cache_info;
+                std::ifstream cache_file("/sys/devices/system/cpu/cpu" + std::to_string(n) + "/cache/index" +
+                                         std::to_string(Ln) + "/shared_cpu_list");
+                if (!cache_file.is_open()) {
+                    return -1;
                 }
-            }
-            return 0;
-        };
-
-        if (!GetCatchInfoLinux()) {
-            parse_processor_info_linux(_processors,
-                                       system_info_table,
-                                       _sockets,
-                                       _cores,
-                                       _proc_type_table,
-                                       _cpu_mapping_table);
-        } else {
-            /*Previous CPU resource based on calculation*/
-            std::ifstream cpuinfo("/proc/cpuinfo");
-            std::vector<int> processors;
-            std::map<int, int> sockets;
-            int socketId = 0;
-            while (!cpuinfo.eof()) {
-                std::string line;
-                std::getline(cpuinfo, line);
-                if (line.empty())
-                    continue;
-                auto delimeter = line.find(':');
-                auto key = line.substr(0, delimeter);
-                auto value = line.substr(delimeter + 1);
-                if (0 == key.find("processor")) {
-                    processors.emplace_back(std::stoi(value));
-                }
-                if (0 == key.find("physical id")) {
-                    socketId = std::stoi(value);
-                }
-                if (0 == key.find("cpu cores")) {
-                    sockets[socketId] = std::stoi(value);
-                }
-            }
-            _processors = processors.size();
-            _sockets = sockets.size();
-            for (auto&& socket : sockets) {
-                _cores += socket.second;
-            }
-            if (_cores == 0) {
-                _cores = _processors;
+                std::string cache_info;
+                std::getline(cache_file, cache_info);
+                system_info_table[n][m] += cache_info;
             }
         }
-        std::vector<std::vector<std::string>>().swap(system_info_table);
+        return 0;
+    };
+
+    if (!GetCatchInfoLinux()) {
+        parse_processor_info_linux(_processors,
+                                   system_info_table,
+                                   _numa_nodes,
+                                   _cores,
+                                   _proc_type_table,
+                                   _cpu_mapping_table);
+    } else {
+        /*Previous CPU resource based on calculation*/
+        std::ifstream cpuinfo("/proc/cpuinfo");
+        std::vector<int> processors;
+        std::map<int, int> sockets;
+        int socketId = 0;
+        while (!cpuinfo.eof()) {
+            std::string line;
+            std::getline(cpuinfo, line);
+            if (line.empty())
+                continue;
+            auto delimeter = line.find(':');
+            auto key = line.substr(0, delimeter);
+            auto value = line.substr(delimeter + 1);
+            if (0 == key.find("processor")) {
+                processors.emplace_back(std::stoi(value));
+            }
+            if (0 == key.find("physical id")) {
+                socketId = std::stoi(value);
+            }
+            if (0 == key.find("cpu cores")) {
+                sockets[socketId] = std::stoi(value);
+            }
+        }
+        _processors = processors.size();
+        _numa_nodes = sockets.size();
+        for (auto&& socket : sockets) {
+            _cores += socket.second;
+        }
+        if (_cores == 0) {
+            _cores = _processors;
+        }
     }
-};
-static CPU cpu;
+    std::vector<std::vector<std::string>>().swap(system_info_table);
+}
 
 void parse_processor_info_linux(const int _processors,
                                 const std::vector<std::vector<std::string>> system_info_table,
@@ -241,43 +230,5 @@ void parse_processor_info_linux(const int _processors,
         }
     }
 };
-
-#if !((OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO))
-std::vector<int> get_available_numa_nodes() {
-    std::vector<int> nodes((0 == cpu._sockets) ? 1 : cpu._sockets);
-    std::iota(std::begin(nodes), std::end(nodes), 0);
-    return nodes;
-}
-#endif
-int get_number_of_cpu_cores(bool bigCoresOnly) {
-    unsigned numberOfProcessors = cpu._processors;
-    unsigned totalNumberOfCpuCores = cpu._cores;
-    OPENVINO_ASSERT(totalNumberOfCpuCores != 0);
-    cpu_set_t usedCoreSet, currentCoreSet, currentCpuSet;
-    CPU_ZERO(&currentCpuSet);
-    CPU_ZERO(&usedCoreSet);
-    CPU_ZERO(&currentCoreSet);
-
-    sched_getaffinity(0, sizeof(currentCpuSet), &currentCpuSet);
-
-    for (unsigned processorId = 0u; processorId < numberOfProcessors; processorId++) {
-        if (CPU_ISSET(processorId, &currentCpuSet)) {
-            unsigned coreId = processorId % totalNumberOfCpuCores;
-            if (!CPU_ISSET(coreId, &usedCoreSet)) {
-                CPU_SET(coreId, &usedCoreSet);
-                CPU_SET(processorId, &currentCoreSet);
-            }
-        }
-    }
-    int phys_cores = CPU_COUNT(&currentCoreSet);
-#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
-    auto core_types = custom::info::core_types();
-    if (bigCoresOnly && core_types.size() > 1) /*Hybrid CPU*/ {
-        phys_cores = custom::info::default_concurrency(
-            custom::task_arena::constraints{}.set_core_type(core_types.back()).set_max_threads_per_core(1));
-    }
-#endif
-    return phys_cores;
-}
 
 }  // namespace ov

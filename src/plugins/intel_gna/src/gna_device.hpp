@@ -50,8 +50,8 @@ class GNADeviceHelper : public GNADevice {
 
     static const uint32_t TotalGna2InstrumentationPoints = 2;
     Gna2InstrumentationPoint gna2InstrumentationPoints[TotalGna2InstrumentationPoints] = {
-        Gna2InstrumentationPointHwTotalCycles,
-        Gna2InstrumentationPointHwStallCycles};
+        Gna2InstrumentationPointHwTotal,
+        Gna2InstrumentationPointHwStall};
 
     uint64_t instrumentationResults[TotalGna2InstrumentationPoints] = {};
     uint64_t instrumentationTotal[TotalGna2InstrumentationPoints] = {};
@@ -67,6 +67,7 @@ class GNADeviceHelper : public GNADevice {
     uint64_t debugLogIndexRequestWait = 0;
     static constexpr const char* kDumpExt = ".bin";
     static constexpr const char* kDumpDelimiter = ".";
+    const size_t m_mem_alignment;
 
 public:
     explicit GNADeviceHelper(std::shared_ptr<target::Target> target = std::make_shared<target::Target>(),
@@ -125,6 +126,10 @@ public:
 
     const GnaAllocations& getAllAllocations() const {
         return allAllocations;
+    }
+
+    size_t getMemAlignment() const {
+        return m_mem_alignment;
     }
 
     /**

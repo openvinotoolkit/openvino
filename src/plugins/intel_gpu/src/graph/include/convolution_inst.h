@@ -127,12 +127,30 @@ public:
     static layout calc_output_layout(convolution_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(convolution_node const& node);
 
-public:
+    bool need_reset_input_memory() const override {
+        auto input_layout = _deps[0].first->_impl_params->get_output_layout(0);
+        if (input_layout.data_padding) {
+            return true;
+        }
+        return false;
+    }
+
+    bool need_reset_output_memory() const override {
+        bool res = parent::need_reset_output_memory();
+        auto output_layout = _impl_params->get_output_layout(0);
+        if (output_layout.data_padding) {
+            return true;
+        }
+        return res;
+    }
+
     typed_primitive_inst(network& network, convolution_node const& node);
 
     memory::ptr weights_memory() const {
-        if (is_dynamic() && _impl_params->reordered_weights != nullptr) {
-            return _impl_params->reordered_weights;
+        if (is_dynamic()) {
+            auto weights_mem = _reordered_weights_cache.get(*_impl_params->weights_layout);
+            OPENVINO_ASSERT(weights_mem != nullptr, "[GPU] Can't find proper weights memory buffer in cache");
+            return weights_mem;
         } else {  // all weights are in one buffer
             return dep_memory_ptr(1 + _deform_conv_dep_offset);
         }

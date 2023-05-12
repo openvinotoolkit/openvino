@@ -23,7 +23,9 @@ OutputVector flatten(const Node& node) {
     if (data_rank.is_static()) {
         const std::int64_t data_rank_value = data_rank.get_length();
         // Accepted range is [-r, r] where r = rank(input).
+        OPENVINO_SUPPRESS_DEPRECATED_START
         axis = ngraph::normalize_axis(node.get_description(), axis, data_rank_value, -data_rank_value, data_rank_value);
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
     return {ngraph::builder::opset1::flatten(data, static_cast<int>(axis))};
 }

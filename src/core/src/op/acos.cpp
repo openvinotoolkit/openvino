@@ -59,7 +59,7 @@ bool evaluate_acos(const ov::HostTensorPtr& arg0, const ov::HostTensorPtr& out, 
 
 bool ov::op::v0::Acos::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v0_Acos_evaluate);
-    return acosop::evaluate_acos(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    return acosop::evaluate_acos(inputs[0], outputs[0], shape_size(inputs[0]->get_shape()));
 }
 
 bool ov::op::v0::Acos::has_evaluate() const {

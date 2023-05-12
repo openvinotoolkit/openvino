@@ -11,10 +11,12 @@ namespace ov {
 namespace test {
 namespace snippets {
 
-DummyTargetMachine::DummyTargetMachine(const std::vector<ov::Node::type_info_t>& custom_opset) {
-    auto dummy_functor = [](const std::shared_ptr<ngraph::Node>& n) {
-        return std::make_shared<DummyEmitter>();
+DummyTargetMachine::DummyTargetMachine(const std::vector<ov::Node::type_info_t>&custom_opset) {
+    auto dummy_functor = ngraph::snippets::jitters_value {
+        [](const std::shared_ptr<ngraph::Node>& n) { return std::make_shared<DummyEmitter>(); },
+        [](const std::shared_ptr<ngraph::Node>& n) { return std::set<std::vector<element::Type>>{};}
     };
+
     jitters[op::v0::Parameter::get_type_info_static()] = dummy_functor;
     jitters[op::v0::Constant::get_type_info_static()] = dummy_functor;
     jitters[op::v0::Result::get_type_info_static()] = dummy_functor;
@@ -97,7 +99,9 @@ std::shared_ptr<ngraph::snippets::op::Subgraph> LoweringTests::getSubgraph(const
 
 std::shared_ptr<ngraph::snippets::op::Subgraph> LoweringTests::getLoweredSubgraph(const std::shared_ptr<Model> &f,
                                                                                   const ov::PartialShape& master_shape,
-                                                                                  ov::pass::Manager target_optimizations,
+                                                                                  ov::pass::Manager pre_dialect,
+                                                                                  ov::pass::Manager post_dialect,
+                                                                                  ov::pass::Manager post_precision,
                                                                                   const std::shared_ptr<ngraph::snippets::Generator> generator) {
     auto subgraph = getTokenizedSubgraph(f);
     subgraph->set_generator(generator == nullptr ? std::make_shared<DummyGenerator>() : generator);
@@ -119,7 +123,7 @@ std::shared_ptr<ngraph::snippets::op::Subgraph> LoweringTests::getLoweredSubgrap
     }
     body_rt_info["PluginShapesOverride"] = new_shapes;
     subgraph->set_tile_rank(2);
-    subgraph->generate(target_optimizations);
+    subgraph->generate(pre_dialect, post_precision, post_precision);
     return subgraph;
 }
 

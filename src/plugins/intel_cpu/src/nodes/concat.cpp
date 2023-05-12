@@ -121,7 +121,7 @@ void Concat::initSupportedPrimitiveDescriptors() {
 
     // check if blocked layouts are available the channels size should be evenly divided by the block size to avoid slow oneDNN ref implementation
     if (dstShape.getRank() > channelAxis) {
-        for (auto item : { std::make_pair(8lu, LayoutType::nCsp8c), std::make_pair(16lu, LayoutType::nCsp16c)}) {
+        for (auto& item : { std::make_pair(8lu, LayoutType::nCsp8c), std::make_pair(16lu, LayoutType::nCsp16c)}) {
             const VectorDims &blkDims = dstShape.getDims();
             if (blkDims[channelAxis] == Shape::UNDEFINED_DIM || blkDims[channelAxis] % item.first != 0)
                 continue;
@@ -148,7 +148,6 @@ void Concat::initSupportedPrimitiveDescriptors() {
     for (auto itr = itrRange.first; itr != itrRange.second; ++itr) {
         NodeConfig config;
 
-        config.dynBatchSupport = true;
         config.outConfs.resize(1);
         config.outConfs[0].inPlace(-1);
         config.outConfs[0].constant(false);
@@ -209,14 +208,17 @@ void Concat::initSupportedPrimitiveDescriptors() {
             }
         }
 
-        config.outConfs[0].setMemDesc(std::dynamic_pointer_cast<CpuBlockedMemoryDesc>(refConfig.outConfs[0].getMemDesc()), mask);
+        const auto outDesc = std::dynamic_pointer_cast<CpuBlockedMemoryDesc>(refConfig.outConfs[0].getMemDesc());
+        config.outConfs[0].setMemDesc(outDesc, mask);
 
         for (size_t i = 0; i < getParentEdges().size(); i++) {
             const auto& srcBlkDims = refConfig.inConfs[i].getMemDesc()->as<CpuBlockedMemoryDesc>()->getBlockDims();
             const auto& shape = refConfig.inConfs[i].getMemDesc()->getShape();
 
+            const auto inDesc = std::make_shared<CpuBlockedMemoryDesc>(inputPrecision, shape, srcBlkDims, order, offset, offsets, strides);
+
             config.inConfs[i].inPlace(0);
-            config.inConfs[i].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(inputPrecision, shape, srcBlkDims, order, offset, offsets, strides), mask);
+            config.inConfs[i].setMemDesc(inDesc, mask);
         }
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
     }
@@ -358,9 +360,9 @@ void Concat::prepareParams() {
         return;
 
     const auto& dstMemPtr = getChildEdgesAtPort(0)[0]->getMemoryPtr();
-    auto dstMemDesc = dstMemPtr->GetDescWithType<BlockedMemoryDesc>();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
         IE_THROW() << "Destination memory didn't allocate.";
+    auto dstMemDesc = dstMemPtr->GetDescWithType<BlockedMemoryDesc>();
     if (getSelectedPrimitiveDescriptor() == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set.";
 
@@ -410,23 +412,32 @@ void Concat::prepareParams() {
                 continue;
             }
             auto desc = srcMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
+
             const auto& dims = srcMemPtr->getStaticDims();
             for (size_t j = 0; j < dims.size(); j++) {
-                desc.data.dims[j] = dims[j];
+                desc.get()->dims[j] = dims[j];
             }
             srcs_d.emplace_back(desc);
         }
     }
+
     if (!canExecRef) {
         auto desc = dstMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
+
         const auto& dims = dstMemPtr->getStaticDims();
         for (size_t i = 0; i < dims.size(); i++) {
-            desc.data.dims[i] = dims[i];
-            desc.data.padded_dims[i] = dims[i];
+            desc.get()->dims[i] = dims[i];
+            desc.get()->padded_dims[i] = dims[i];
         }
 
-        auto primitive_desc = concat::primitive_desc(desc, static_cast<int>(axis), srcs_d, getEngine());
+        auto primitive_desc = concat::primitive_desc(getEngine(), desc, static_cast<int>(axis), srcs_d);
         prim = concat(primitive_desc);
+#ifdef CPU_DEBUG_CAPS
+        if (prim) {
+            auto pd = prim.get_primitive_desc();
+            DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
+        }
+#endif
     }
 }
 
@@ -489,13 +500,16 @@ void Concat::initOptimalPrimitiveDescriptor() {
             auto oldDesc = config.inConfs[i].getMemDesc();
             auto inpBlockingDesc = oldDesc->as<BlockedMemoryDesc>();
 
-            config.inConfs[i].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(inpBlockingDesc->getPrecision(),
-                                                                            inpBlockingDesc->getShape(),
-                                                                            inpBlockingDesc->getBlockDims(),
-                                                                            inpBlockingDesc->getOrder(),
-                                                                            firstOutBlockingDesc->getOffsetPadding() + offset,
-                                                                            firstOutBlockingDesc->getOffsetPaddingToData(),
-                                                                            firstOutBlockingDesc->getStrides()), BLOCKED_DESC_FULL_MASK);
+            config.inConfs[i].setMemDesc(
+                std::make_shared<CpuBlockedMemoryDesc>(
+                    inpBlockingDesc->getPrecision(),
+                    inpBlockingDesc->getShape(),
+                    inpBlockingDesc->getBlockDims(),
+                    inpBlockingDesc->getOrder(),
+                    firstOutBlockingDesc->getOffsetPadding() + offset,
+                    firstOutBlockingDesc->getOffsetPaddingToData(),
+                    firstOutBlockingDesc->getStrides()),
+                BLOCKED_DESC_FULL_MASK);
             size_t axisSize = 1;
 
             auto firstInpBlockingDesc = config.inConfs[0].getMemDesc()->as<BlockedMemoryDesc>();
@@ -618,6 +632,7 @@ void Concat::execRef() {
         const Memory& srcMem = getParentEdgesAtPort(i)[0]->getMemory();
         srcPtrs[i] = reinterpret_cast<const uint8_t*>(srcMem.GetPtr());
     }
+
     size_t outputStrides[MAX_RANK_REF] = {0};
     const auto strides = dstMemBlkDesc->getStrides();
     std::transform(strides.begin(), strides.end(), outputStrides, [&elemSize](const Dim& i) {

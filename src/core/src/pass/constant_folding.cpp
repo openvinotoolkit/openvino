@@ -130,7 +130,7 @@ bool ov::pass::ConstantFolding::pre_calculated_values_folding(const std::shared_
             // propagation because we can't detect borders of shape_of sub-graphs, so we propagate can_be_folded
             // attribute through all nodes including nodes on data path. So to limit the spread of attribute to other
             // shape-of sub-graphs we do not propagate it through ShapeOf nodes.
-            can_be_folded = input_values.begin()->get_partial_shape().is_static();
+            can_be_folded = true;
         } else if (op::util::is_parameter(node) || op::util::is_output(node) || op::util::is_sink(node) ||
                    is_type<op::util::ReadValueBase>(node)) {
             can_be_folded = false;

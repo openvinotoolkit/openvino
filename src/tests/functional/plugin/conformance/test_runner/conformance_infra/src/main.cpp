@@ -17,7 +17,7 @@
 #include "gflag_config.hpp"
 #include "conformance.hpp"
 
-#include "common_test_utils/crash_handler.hpp"
+#include "functional_test_utils/crash_handler.hpp"
 
 using namespace ov::test::conformance;
 
@@ -63,6 +63,7 @@ int main(int argc, char* argv[]) {
     }
 
     CommonTestUtils::CrashHandler::SetUpTimeout(FLAGS_test_timeout);
+    CommonTestUtils::CrashHandler::SetUpPipelineAfterCrash(FLAGS_ignore_crash);
 
     // ---------------------------Initialization of Gtest env -----------------------------------------------
     ov::test::conformance::targetDevice = FLAGS_device.c_str();

@@ -80,7 +80,7 @@ void Unique::initSupportedPrimitiveDescriptors() {
         outPortConfigs.push_back({LayoutType::ncsp, i == 0 ? dataPrecision : axisPrecision});
     }
 
-    addSupportedPrimDesc(inPortConfigs, outPortConfigs, implType, isDynamicNode());
+    addSupportedPrimDesc(inPortConfigs, outPortConfigs, implType);
 }
 
 void Unique::createPrimitive() {

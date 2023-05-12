@@ -1,5 +1,7 @@
 # Result {#openvino_docs_ops_infrastructure_Result_1}
 
+@sphinxdirective
+
 **Versioned name**: *Result-1*
 
 **Category**: *Infrastructure*
@@ -8,7 +10,7 @@
 
 **Attributes**:
 
-    No attributes available.
+No attributes available.
 
 **Inputs**
 
@@ -20,15 +22,19 @@
 
 **Example**
 
-```xml
-<layer ... type="Result" ...>
-    <input>
-        <port id="0">
-            <dim>1</dim>
-            <dim>3</dim>
-            <dim>224</dim>
-            <dim>224</dim>
-        </port>
-    </input>
-</layer>
-```
+.. code-block:: cpp
+
+    <layer ... type="Result" ...>
+        <input>
+            <port id="0">
+                <dim>1</dim>
+                <dim>3</dim>
+                <dim>224</dim>
+                <dim>224</dim>
+            </port>
+        </input>
+    </layer>
+
+
+@endsphinxdirective
+

@@ -407,6 +407,9 @@ struct Params {
     KernelType GetType() const { return kType; }
     virtual ParamsKey GetParamsKey() const;
 
+    virtual void set_dynamic_shape_offsets() {
+        return;
+    }
 protected:
     Params(KernelType kt, const std::string& id) : kType(kt), layerID(id), is_shape_agnostic(false) {}
     KernelType kType;
@@ -522,13 +525,13 @@ struct FusedOpsConfiguration {
     FusedOpsConfiguration& SetShuffleVarName(std::string val) { shuffle_var_name = val; return *this; }
     bool IsPostReorderFused(void) const { return orig_output_layout != DataLayout::DataLayoutCount; }
     int GetDimIndexFromOrder(Tensor::DataChannelName val) const {
-        int dims_num = bfzyx_idx_order.size();
+        size_t dims_num = bfzyx_idx_order.size();
         if (val == Tensor::DataChannelName::BATCH && dims_num >= 1) {
             return 0;
         } else if (val == Tensor::DataChannelName::FEATURE && dims_num >= 2) {
             return 1;
         } else if (dims_num >= 3 && dims_num - static_cast<int>(val) - 1 >= 0) {
-            return bfzyx_idx_order.size() - static_cast<int>(val) - 1;
+            return static_cast<int>(bfzyx_idx_order.size()) - static_cast<int>(val) - 1;
         } else {
             return -1;
         }
@@ -636,6 +639,7 @@ struct base_params : public Params {
     std::vector<fused_operation_desc> fused_ops = {};
     MultiDataTensor inputs;
     MultiDataTensor outputs;
+
     std::string to_string() const override;
     std::string to_cache_string_v2() const override;
     ParamsKey GetParamsKey() const override;
@@ -650,6 +654,30 @@ struct base_params : public Params {
 
     bool has_dynamic_tensors() const {
         return has_dynamic_inputs() || has_dynamic_outputs();
+    }
+
+    void set_dynamic_shape_offsets() override {
+        size_t offset = 0;
+        for (auto& in : inputs) {
+            in.SetDynamicShapeOffset(offset);
+            if (in.is_dynamic()) {
+                offset += DataTensor::max_rank();
+                for (auto dim : in.GetDims()) {
+                    if (dim.pad.is_dynamic)
+                        offset += Tensor::Pad::NumPadOffsetsPerDim();
+                }
+            }
+        }
+        for (auto& out : outputs) {
+            out.SetDynamicShapeOffset(offset);
+            if (out.is_dynamic()) {
+                offset += DataTensor::max_rank();
+                for (auto dim : out.GetDims()) {
+                    if (dim.pad.is_dynamic)
+                        offset += Tensor::Pad::NumPadOffsetsPerDim();
+                }
+            }
+        }
     }
 
 protected:

@@ -72,7 +72,7 @@ INSTANTIATE_TEST_SUITE_P(opset,
 
 class MyOpOld : public ov::op::Op {
 public:
-    static constexpr ov::DiscreteTypeInfo type_info{"MyOpOld", static_cast<uint64_t>(0)};
+    static constexpr ov::DiscreteTypeInfo type_info{"MyOpOld"};
     const ov::DiscreteTypeInfo& get_type_info() const override {
         return type_info;
     }
@@ -121,7 +121,7 @@ TEST(opset, custom_opset) {
     opset.insert<MyOpNewFromOld>();
     opset.insert<MyOpNew>();
     EXPECT_EQ(opset.get_types_info().size(), 3);
-    EXPECT_TRUE(opset.contains_type("MyOpNewFromOld"));
-    EXPECT_TRUE(opset.contains_type("MyOpNew"));
-    EXPECT_TRUE(opset.contains_type("MyOpIncorrect"));
+    EXPECT_TRUE(opset.contains_type(std::string("MyOpNewFromOld")));
+    EXPECT_TRUE(opset.contains_type(std::string("MyOpNew")));
+    EXPECT_TRUE(opset.contains_type(std::string("MyOpIncorrect")));
 }

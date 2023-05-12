@@ -4,9 +4,10 @@
 
 #include "ie_metric_helpers.hpp" // must be included first
 
+#include "openvino/runtime/properties.hpp"
 #include "plugin.h"
 
-#include "transformation_pipeline.h"
+#include "transformations/transformation_pipeline.h"
 #include "itt.h"
 #include "extension_mngr.h"
 #include "extension.h"
@@ -16,12 +17,15 @@
 #include "ie_icore.hpp"
 #include "ie_plugin_config.hpp"
 #include "ie_system_conf.h"
+#include "threading/ie_cpu_streams_info.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
+#include "openvino/runtime/intel_cpu/properties.hpp"
 
+#include <transformations/utils/utils.hpp>
 #include <ie_ngraph_utils.hpp>
 
 #include "performance_heuristics.hpp"
-
+#include "openvino/runtime/properties.hpp"
 #include "weights_cache.hpp"
 #include "utils/denormals.hpp"
 
@@ -43,7 +47,7 @@ namespace intel_cpu {
 
 static std::string getDeviceFullName() {
     std::string brand_string;
-#if defined(__EMSCRIPTEN___)
+#if defined(__EMSCRIPTEN__)
     brand_string = "WebAssembly CPU";
 #elif defined(OPENVINO_ARCH_RISCV64)
     // TODO: extract actual device name
@@ -188,13 +192,13 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
                                                    engConfig.streamExecutorConfig._enable_hyper_thread);
         auto streams_info = default_streams;
         if (networkToleranceForLowCache.max_mem_tolerance == ov::MemBandwidthPressure::UNKNOWN) {
-            if ((networkToleranceForLowCache.ratio_compute_convs == ov::MemBandwidthPressure::ALL)
-                || (networkToleranceForLowCache.ratio_compute_deconvs == ov::MemBandwidthPressure::ALL)) {
+            if ((networkToleranceForLowCache.ratio_compute_convs == ov::MemBandwidthPressure::ALL) ||
+                (networkToleranceForLowCache.ratio_compute_deconvs == ov::MemBandwidthPressure::ALL)) {
                 // all relevant layers (convs, etc) are compute-limited, the most aggressive val for #streams
                 streams_info = GetNumStreams(engConfig.streamExecutorConfig._threadBindingType,
                                              IStreamsExecutor::Config::StreamMode::AGGRESSIVE,
                                              engConfig.streamExecutorConfig._enable_hyper_thread);
-            }   // otherwise (no recognized layers) falling back to the default value
+            }  //  otherwise (no recognized layers) falling back to the default value
         } else if (networkToleranceForLowCache.max_mem_tolerance > memThresholdAssumeLimitedForISA) {
             // network is below the ISA-specific threshold
             streams_info = GetNumStreams(engConfig.streamExecutorConfig._threadBindingType,
@@ -216,7 +220,7 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
             streams_info.num_streams =
                 std::min(streams_info.num_streams, engConfig.perfHintsConfig.ovPerfHintNumRequests);
         }
-        return std::pair<std::string, Engine::StreamCfg>(std::to_string(streams_info.num_streams), streams_info);
+        return std::pair<std::string, StreamCfg>(std::to_string(streams_info.num_streams), streams_info);
     };
 
     auto getPerfHintName = [&]() {
@@ -260,19 +264,48 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
         config[ov::num_streams.name()] = tput_hints.first;
         config[CONFIG_KEY_INTERNAL(BIG_CORE_STREAMS)] = std::to_string(tput_hints.second.big_core_streams);
         config[CONFIG_KEY_INTERNAL(SMALL_CORE_STREAMS)] = std::to_string(tput_hints.second.small_core_streams);
-        config[CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_BIG)] = std::to_string(tput_hints.second.threads_per_stream_big);
+        config[CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_BIG)] =
+            std::to_string(tput_hints.second.threads_per_stream_big);
         config[CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_SMALL)] =
             std::to_string(tput_hints.second.threads_per_stream_small);
         config[CONFIG_KEY_INTERNAL(SMALL_CORE_OFFSET)] = std::to_string(tput_hints.second.small_core_offset);
     }
 }
 
-Engine::StreamCfg Engine::GetNumStreams(InferenceEngine::IStreamsExecutor::ThreadBindingType thread_binding_type,
+void Engine::GetPerformanceStreams(Config& config, const std::shared_ptr<ngraph::Function>& ngraphFunc) {
+    const auto perf_hint_name = config.perfHintsConfig.ovPerfHint;
+    // save hints parameters to model rt_info
+    ov::AnyMap hints_props;
+    std::string hint_name;
+    const int latency_streams = get_num_numa_nodes();
+    int streams;
+    if (config.streamExecutorConfig._streams_changed) {
+        streams = config.streamExecutorConfig._streams;
+    } else if (perf_hint_name == CONFIG_VALUE(LATENCY)) {
+        streams = latency_streams;
+    } else if (perf_hint_name == CONFIG_VALUE(THROUGHPUT)) {
+        streams = 0;
+    } else {
+        streams = config.streamExecutorConfig._streams == 1 ? 0 : config.streamExecutorConfig._streams;
+    }
+
+    const auto latency_name = std::string(CONFIG_VALUE(LATENCY)) + "_" + std::string(ov::num_streams.name());
+    const auto tput_name = std::string(CONFIG_VALUE(THROUGHPUT)) + "_" + std::string(ov::num_streams.name());
+
+    get_num_streams(streams, ngraphFunc, config);
+
+    hints_props.insert({latency_name, std::to_string(latency_streams)});
+    hints_props.insert({tput_name, std::to_string(config.streamExecutorConfig._streams)});
+    ngraphFunc->set_rt_info(hints_props, "intel_cpu_hints_config");
+    config._config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = std::to_string(config.streamExecutorConfig._streams);
+}
+
+StreamCfg Engine::GetNumStreams(InferenceEngine::IStreamsExecutor::ThreadBindingType thread_binding_type,
                                         int stream_mode,
                                         const bool enable_hyper_thread) const {
     const int sockets = static_cast<int>(getAvailableNUMANodes().size());
     const int num_cores =
-        thread_binding_type == InferenceEngine::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE
+        thread_binding_type == IStreamsExecutor::ThreadBindingType::HYBRID_AWARE
             ? parallel_get_max_threads()
             : (sockets == 1 ? (enable_hyper_thread ? parallel_get_max_threads() : getNumberOfCPUCores())
                             : getNumberOfCPUCores());
@@ -282,9 +315,9 @@ Engine::StreamCfg Engine::GetNumStreams(InferenceEngine::IStreamsExecutor::Threa
     const int num_big_cores = num_cores > num_cores_phy ? num_big_cores_phy * 2 : num_big_cores_phy;
     StreamCfg stream_cfg = {0};
 
-    if (stream_mode == DEFAULT) {
+    if (stream_mode == IStreamsExecutor::Config::StreamMode::DEFAULT) {
         // bare minimum of streams (that evenly divides available number of core)
-        if (thread_binding_type == InferenceEngine::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE) {
+        if (thread_binding_type == IStreamsExecutor::ThreadBindingType::HYBRID_AWARE) {
             if (0 == num_big_cores_phy % 4) {
                 stream_cfg.threads_per_stream_big = 4;
             } else if (0 == num_big_cores_phy % 5) {
@@ -319,8 +352,8 @@ Engine::StreamCfg Engine::GetNumStreams(InferenceEngine::IStreamsExecutor::Threa
             else  // if user disables some cores say in BIOS, so we got weird #cores which is not easy to divide
                 stream_cfg.num_streams = 1;
         }
-    } else if (stream_mode == AGGRESSIVE) {
-        if (thread_binding_type == InferenceEngine::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE) {
+    } else if (stream_mode == IStreamsExecutor::Config::StreamMode::AGGRESSIVE) {
+        if (thread_binding_type == IStreamsExecutor::ThreadBindingType::HYBRID_AWARE) {
             stream_cfg.big_core_streams = num_big_cores;
             stream_cfg.small_core_streams = num_small_cores;
             stream_cfg.threads_per_stream_big = num_big_cores / stream_cfg.big_core_streams;
@@ -329,8 +362,8 @@ Engine::StreamCfg Engine::GetNumStreams(InferenceEngine::IStreamsExecutor::Threa
         } else {
             stream_cfg.num_streams = num_cores_phy;
         }
-    } else if (stream_mode == LESSAGGRESSIVE) {
-        if (thread_binding_type == InferenceEngine::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE) {
+    } else if (stream_mode == IStreamsExecutor::Config::StreamMode::LESSAGGRESSIVE) {
+        if (thread_binding_type == IStreamsExecutor::ThreadBindingType::HYBRID_AWARE) {
             stream_cfg.big_core_streams = num_big_cores / 2;
             stream_cfg.small_core_streams = num_small_cores / 2;
             stream_cfg.threads_per_stream_big = num_big_cores / stream_cfg.big_core_streams;
@@ -347,6 +380,43 @@ Engine::StreamCfg Engine::GetNumStreams(InferenceEngine::IStreamsExecutor::Threa
                                  : stream_cfg.big_core_streams + stream_cfg.small_core_streams;
     stream_cfg.small_core_offset = num_small_cores == 0 ? 0 : num_big_cores;
     return stream_cfg;
+}
+
+static bool shouldEnforceBF16(const std::map<std::string, std::string>& modelConfig, const Config& engineConfig) {
+    // For BF16 execution, the machine should have AVX512 at least
+    if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core))
+        return false;
+
+    const auto& enforceBF16 = modelConfig.find(InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16);
+    const auto& inferPrec = modelConfig.find(ov::hint::inference_precision.name());
+    if (enforceBF16 != modelConfig.end()) {
+        return enforceBF16->second == PluginConfigParams::YES;
+    } else if (inferPrec != modelConfig.end()) {
+        return inferPrec->second == "bf16";
+    } else {
+        return engineConfig.enforceBF16;
+    }
+}
+
+static Config::SnippetsMode getSnippetsMode(const std::map<std::string, std::string>& modelConfig, const Config& engineConfig) {
+    const auto& dynamicBatchProp = modelConfig.find(InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED);
+    const bool enableDynamicBatch = (dynamicBatchProp != modelConfig.end() && dynamicBatchProp->second == PluginConfigParams::YES)
+            || engineConfig.enableDynamicBatch;
+
+    if (enableDynamicBatch) // dynamic batch is not supported
+        return Config::SnippetsMode::Disable;
+
+    const auto& snippetsMode = modelConfig.find(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE);
+    if (snippetsMode == modelConfig.end()) // not set explicitly
+        return Config::SnippetsMode::Enable; // enable by default
+
+    const auto& val = snippetsMode->second;
+    if (val == PluginConfigInternalParams::IGNORE_CALLBACK)
+        return Config::SnippetsMode::IgnoreCallback;
+    else if (val == PluginConfigInternalParams::DISABLE)
+        return Config::SnippetsMode::Disable;
+    else
+        IE_THROW() << "Wrong value for property key SNIPPETS_MODE. Expected values: ENABLE/DISABLE/IGNORE_CALLBACK";
 }
 
 InferenceEngine::IExecutableNetworkInternal::Ptr
@@ -382,32 +452,8 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     const auto& lptProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE);
     const bool enableLPT = (lptProp != config.end() && lptProp->second == PluginConfigParams::YES) /* enabled in the orig_config*/
             || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled for the plugin */;
-    const auto& BF16Prop = config.find(InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16);
-    bool enableBF16 = false;
-    if (BF16Prop != config.end()) {
-        if (BF16Prop->second == PluginConfigParams::YES) {
-            enableBF16 = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core);
-        } else {
-            enableBF16 = false;
-        }
-    } else {
-        enableBF16 = engConfig.enforceBF16 && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core);
-    }
-    const auto& dynamicBatchProp = config.find(InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED);
-    const bool enableDynamicBatch = (dynamicBatchProp != config.end() && dynamicBatchProp->second == PluginConfigParams::YES)
-            || engConfig.enableDynamicBatch;
-
-    auto snippetsMode = enableDynamicBatch ? Config::SnippetsMode::Disable : Config::SnippetsMode::Enable;
-    const auto& snippetsModeProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE);
-    if (snippetsMode == Config::SnippetsMode::Enable && snippetsModeProp != config.end()) {
-        const auto& val = snippetsModeProp->second;
-        if (val == PluginConfigInternalParams::IGNORE_CALLBACK)
-            snippetsMode =  Config::SnippetsMode::IgnoreCallback;
-        else if (val == PluginConfigInternalParams::DISABLE)
-            snippetsMode =  Config::SnippetsMode::Disable;
-        else
-            IE_THROW() << "Wrong value for property key SNIPPETS_MODE. Expected values: ENABLE/DISABLE/IGNORE_CALLBACK";
-    }
+    const bool enableBF16 = shouldEnforceBF16(config, engConfig);
+    const Config::SnippetsMode snippetsMode = getSnippetsMode(config, engConfig);
 
     auto nGraphFunc = clonedNetwork.getFunction();
 
@@ -426,7 +472,9 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
         }
     }
 
-    ApplyPerformanceHints(config, nGraphFunc);
+    if (!is_cpu_map_available()) {
+        ApplyPerformanceHints(config, nGraphFunc);
+    }
     transformations.CpuSpecificOpSet();
 
     DEBUG_LOG(PrintableModel(*nGraphFunc, "cpu_"));
@@ -440,12 +488,16 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
         conf.batchLimit = static_cast<int>(network.getBatchSize());
     }
 
+    if (is_cpu_map_available()) {
+        GetPerformanceStreams(conf, nGraphFunc);
+    }
+
     // SSE runtime check is needed for some ATOM machine, which is x86-64 but w/o SSE
     static Xbyak::util::Cpu cpu;
     if (cpu.has(Xbyak::util::Cpu::tSSE)) {
         if (conf.denormalsOptMode == Config::DenormalsOptMode::DO_On) {
             flush_to_zero(true);
-            denormals_as_zero(true);
+            conf.DAZOn = denormals_as_zero(true);
         } else if (conf.denormalsOptMode == Config::DenormalsOptMode::DO_Off) {
             flush_to_zero(false);
             denormals_as_zero(false);
@@ -456,6 +508,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
 }
 
 void Engine::SetConfig(const std::map<std::string, std::string> &config) {
+    // @todo after Legacy configuration is dropped, use some wrapper class to keep both the property and "ifSetExplicitly" flag
     streamsExplicitlySetForEngine = streamsSet(config);
 
     engConfig.readProperties(config);
@@ -499,22 +552,35 @@ Parameter Engine::GetConfig(const std::string& name, const std::map<std::string,
             return ov::Affinity::HYBRID_AWARE;
         }
         return ov::Affinity::NONE;
+    } else if (name == ov::device::id.name()) {
+        return decltype(ov::device::id)::value_type{engConfig.device_id};
     } else if (name == ov::inference_num_threads) {
         const auto num_threads = engConfig.streamExecutorConfig._threads;
         return decltype(ov::inference_num_threads)::value_type(num_threads);
     } else if (name == ov::enable_profiling.name()) {
         const bool perfCount = engConfig.collectPerfCounters;
         return decltype(ov::enable_profiling)::value_type(perfCount);
-    } else if (name == ov::inference_precision) {
+    } else if (name == ov::hint::inference_precision) {
         const auto enforceBF16 = engConfig.enforceBF16;
         const auto inference_precision = enforceBF16 ? ov::element::bf16 : ov::element::f32;
-        return decltype(ov::inference_precision)::value_type(inference_precision);
+        return decltype(ov::hint::inference_precision)::value_type(inference_precision);
     } else if (name == ov::hint::performance_mode) {
         const auto perfHint = ov::util::from_string(engConfig.perfHintsConfig.ovPerfHint, ov::hint::performance_mode);
         return perfHint;
+    } else if (name == ov::hint::enable_cpu_pinning) {
+        const bool pin_value = engConfig.enableCpuPinning;
+        return decltype(ov::hint::enable_cpu_pinning)::value_type(pin_value);
+    } else if (name == ov::hint::scheduling_core_type) {
+        const auto core_type = engConfig.schedulingCoreType;
+        return core_type;
+    } else if (name == ov::hint::enable_hyper_threading) {
+        const bool ht_value = engConfig.enableHyperThreading;
+        return decltype(ov::hint::enable_hyper_threading)::value_type(ht_value);
     } else if (name == ov::hint::num_requests) {
         const auto perfHintNumRequests = engConfig.perfHintsConfig.ovPerfHintNumRequests;
         return decltype(ov::hint::num_requests)::value_type(perfHintNumRequests);
+    } else if (name == ov::hint::execution_mode) {
+        return engConfig.executionMode;
     }
     /* Internally legacy parameters are used with new API as part of migration procedure.
      * This fallback can be removed as soon as migration completed */
@@ -532,6 +598,7 @@ Parameter Engine::GetMetricLegacy(const std::string& name, const std::map<std::s
             METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS),
             METRIC_KEY(RANGE_FOR_STREAMS),
             METRIC_KEY(IMPORT_EXPORT_SUPPORT),
+            ov::caching_properties.name(),
         };
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, metrics);
     } else if (name == METRIC_KEY(FULL_DEVICE_NAME)) {
@@ -563,6 +630,9 @@ Parameter Engine::GetMetricLegacy(const std::string& name, const std::map<std::s
         IE_SET_METRIC_RETURN(RANGE_FOR_STREAMS, range);
     } else if (name == METRIC_KEY(IMPORT_EXPORT_SUPPORT)) {
         IE_SET_METRIC_RETURN(IMPORT_EXPORT_SUPPORT, true);
+    } else if (name == ov::caching_properties) {
+        std::vector<ov::PropertyName> cachingProperties = { METRIC_KEY(FULL_DEVICE_NAME) };
+        return decltype(ov::caching_properties)::value_type(cachingProperties);
     }
 
     IE_CPU_PLUGIN_THROW() << "Unsupported metric key: " << name;
@@ -588,14 +658,21 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
                                                     RO_property(ov::device::capabilities.name()),
                                                     RO_property(ov::caching_properties.name()),
         };
-        // the whole config is RW before network is loaded.
+        // the whole config is RW before model is loaded.
         std::vector<ov::PropertyName> rwProperties {RW_property(ov::num_streams.name()),
                                                     RW_property(ov::affinity.name()),
                                                     RW_property(ov::inference_num_threads.name()),
                                                     RW_property(ov::enable_profiling.name()),
-                                                    RW_property(ov::inference_precision.name()),
+                                                    RW_property(ov::hint::inference_precision.name()),
                                                     RW_property(ov::hint::performance_mode.name()),
+                                                    RW_property(ov::hint::execution_mode.name()),
                                                     RW_property(ov::hint::num_requests.name()),
+                                                    RW_property(ov::hint::enable_cpu_pinning.name()),
+                                                    RW_property(ov::hint::scheduling_core_type.name()),
+                                                    RW_property(ov::hint::enable_hyper_threading.name()),
+                                                    RW_property(ov::device::id.name()),
+                                                    RW_property(ov::intel_cpu::denormals_optimization.name()),
+                                                    RW_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
         };
 
         std::vector<ov::PropertyName> supportedProperties;
@@ -628,8 +705,12 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
         const std::tuple<unsigned int, unsigned int> range = std::make_tuple(1, parallel_get_max_threads());
         return decltype(ov::range_for_streams)::value_type(range);
     } else if (name == ov::caching_properties) {
-        std::vector<ov::PropertyName> cachingProperties;
+        std::vector<ov::PropertyName> cachingProperties = { ov::device::full_name };
         return decltype(ov::caching_properties)::value_type(cachingProperties);
+    } else if (name == ov::intel_cpu::denormals_optimization) {
+        return decltype(ov::intel_cpu::denormals_optimization)::value_type(engConfig.denormalsOptMode == Config::DenormalsOptMode::DO_On);
+    } else if (name == ov::intel_cpu::sparse_weights_decompression_rate) {
+        return decltype(ov::intel_cpu::sparse_weights_decompression_rate)::value_type(engConfig.fcSparseWeiDecompressionRate);
     }
     /* Internally legacy parameters are used with new API as part of migration procedure.
      * This fallback can be removed as soon as migration completed */
@@ -641,11 +722,8 @@ void Engine::AddExtension(const InferenceEngine::IExtensionPtr& extension) {
 }
 
 QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::map<std::string, std::string>& config) const {
-    QueryNetworkResult res;
-
     WeightsSharing::Ptr fake_w_cache;
 
-    // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
     Config conf = engConfig;
     conf.readProperties(config);
 
@@ -656,18 +734,7 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
     const auto& lptProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE);
     const bool enableLPT = (lptProp != config.end() && lptProp->second == PluginConfigParams::YES) /* enabled in the orig_config*/
                         || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled */;
-
-    auto snippetsMode = conf.enableDynamicBatch ? Config::SnippetsMode::Disable : Config::SnippetsMode::Enable;
-    const auto& snippetsModeProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE);
-    if (snippetsMode == Config::SnippetsMode::Enable && snippetsModeProp != config.end()) {
-        const auto& val = snippetsModeProp->second;
-        if (val == PluginConfigInternalParams::IGNORE_CALLBACK)
-            snippetsMode =  Config::SnippetsMode::IgnoreCallback;
-        else if (val == PluginConfigInternalParams::DISABLE)
-            snippetsMode =  Config::SnippetsMode::Disable;
-        else
-            IE_THROW() << "Wrong value for property key SNIPPETS_MODE. Expected values: ENABLE/DISABLE/IGNORE_CALLBACK";
-    }
+    const Config::SnippetsMode snippetsMode = getSnippetsMode(config, conf);
 
     auto model = network.getFunction();
     if (model == nullptr) {
@@ -675,7 +742,7 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
     }
 
     auto context =
-        std::make_shared<GraphContext>(conf, extensionManager, fake_w_cache, std::make_shared<std::mutex>(), false);
+        std::make_shared<GraphContext>(conf, extensionManager, fake_w_cache, false);
 
     auto supported = GetSupportedNodes(model,
                                        [&](std::shared_ptr<ov::Model>& model) {
@@ -693,6 +760,7 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
                                            return true;
                                        });
 
+    QueryNetworkResult res;
     for (auto&& layerName : supported) {
         res.supportedLayersMap.emplace(layerName, GetName());
     }
@@ -734,6 +802,9 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istr
     if (conf.enableDynamicBatch) {
         conf.batchLimit = static_cast<int>(cnnnetwork.getBatchSize());
     }
+    if (is_cpu_map_available()) {
+        get_num_streams(conf.streamExecutorConfig._streams, function, conf);
+    }
 
     auto execNetwork = std::make_shared<ExecNetwork>(cnnnetwork, conf, extensionManager, shared_from_this());
 
@@ -743,10 +814,19 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istr
 
     return execNetwork;
 }
-
 }   // namespace intel_cpu
 }   // namespace ov
 
 using namespace ov::intel_cpu;
+
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+static const Version version = {{2, 1}, CI_BUILD_NUMBER, "openvino_arm_cpu_plugin"};
+#elif defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 static const Version version = {{2, 1}, CI_BUILD_NUMBER, "openvino_intel_cpu_plugin"};
+#elif defined(OPENVINO_ARCH_RISCV64)
+static const Version version = {{2, 1}, CI_BUILD_NUMBER, "openvino_riscv_cpu_plugin"};
+#else
+#error "Undefined system processor"
+#endif
+
 IE_DEFINE_PLUGIN_CREATE_FUNCTION(Engine, version)

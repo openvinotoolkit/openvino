@@ -11,10 +11,14 @@
 #include <utility>
 
 #include "itt.hpp"
-#include "ngraph/runtime/host_tensor.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/op/util/variable_context.hpp"
+#include "openvino/runtime/ivariable_state.hpp"
 #include "openvino/runtime/profiling_info.hpp"
+#include "openvino/runtime/tensor.hpp"
 #include "plugin.hpp"
+#include "template/remote_tensor.hpp"
+#include "variable_state.hpp"
 
 using Time = std::chrono::high_resolution_clock;
 
@@ -35,21 +39,21 @@ ov::template_plugin::InferRequest::InferRequest(const std::shared_ptr<const ov::
     : ov::ISyncInferRequest(model) {
     // TODO: allocate infer request device and host buffers if needed, fill actual list of profiling tasks
 
-    auto requestID = std::to_string(get_template_model()->_requestId.fetch_add(1));
+    auto requestID = std::to_string(get_template_model()->m_request_id.fetch_add(1));
 
     std::string name = get_template_model()->m_model->get_friendly_name() + "_Req" + requestID;
     m_profiling_task = {
-        openvino::itt::handle("Template" + std::to_string(get_template_model()->_cfg.deviceId) + "_" + name +
+        openvino::itt::handle("Template" + std::to_string(get_template_model()->m_cfg.device_id) + "_" + name +
                               "_Preprocess"),
-        openvino::itt::handle("Template" + std::to_string(get_template_model()->_cfg.deviceId) + "_" + name +
+        openvino::itt::handle("Template" + std::to_string(get_template_model()->m_cfg.device_id) + "_" + name +
                               "_Postprocess"),
-        openvino::itt::handle("Template" + std::to_string(get_template_model()->_cfg.deviceId) + "_" + name +
+        openvino::itt::handle("Template" + std::to_string(get_template_model()->m_cfg.device_id) + "_" + name +
                               "_StartPipeline"),
-        openvino::itt::handle("Template" + std::to_string(get_template_model()->_cfg.deviceId) + "_" + name +
+        openvino::itt::handle("Template" + std::to_string(get_template_model()->m_cfg.device_id) + "_" + name +
                               "_WaitPipline"),
     };
 
-    m_executable = get_template_model()->get_template_plugin()->_backend->compile(get_template_model()->m_model);
+    m_executable = get_template_model()->get_template_plugin()->m_backend->compile(get_template_model()->m_model);
 
     // Allocate plugin backend specific memory handles
     m_backend_input_tensors.resize(get_inputs().size());
@@ -72,12 +76,46 @@ ov::template_plugin::InferRequest::InferRequest(const std::shared_ptr<const ov::
                                  output.get_partial_shape().is_dynamic() ? ov::Shape{0} : output.get_shape());
         });
     }
+
+    // Save variable states
+    ov::op::util::VariableContext variable_context;
+    for (const auto& variable : m_executable->get_model()->get_variables()) {
+        if (!variable_context.get_variable_value(variable)) {
+            auto shape = variable->get_info().data_shape.is_dynamic() ? ov::Shape{0}
+                                                                      : variable->get_info().data_shape.to_shape();
+            ov::Tensor tensor = ov::Tensor(variable->get_info().data_type, shape);
+            variable_context.set_variable_value(variable, std::make_shared<ov::op::util::VariableValue>(tensor));
+        }
+        auto state = std::make_shared<VariableState>(variable->get_info().variable_id,
+                                                     variable_context.get_variable_value(variable)->get_state());
+        m_variable_states.emplace_back(state);
+    }
+    m_eval_context.emplace("VariableContext", variable_context);
 }
 // ! [infer_request:ctor]
 
-std::vector<std::shared_ptr<ov::IVariableState>> ov::template_plugin::InferRequest::query_state() const {
-    OPENVINO_NOT_IMPLEMENTED;
+// ! [infer_request:dtor]
+ov::template_plugin::InferRequest::~InferRequest() = default;
+// ! [infer_request:dtor]
+
+// ! [infer_request:set_tensors_impl]
+void ov::template_plugin::InferRequest::set_tensors_impl(const ov::Output<const ov::Node> port,
+                                                         const std::vector<ov::Tensor>& tensors) {
+    for (const auto& input : get_inputs()) {
+        if (input == port) {
+            m_batched_tensors[input.get_tensor_ptr()] = tensors;
+            return;
+        }
+    }
+    OPENVINO_THROW("Cannot find input tensors for port ", port);
 }
+// ! [infer_request:set_tensors_impl]
+
+// ! [infer_request:query_state]
+std::vector<std::shared_ptr<ov::IVariableState>> ov::template_plugin::InferRequest::query_state() const {
+    return m_variable_states;
+}
+// ! [infer_request:query_state]
 
 std::shared_ptr<const ov::template_plugin::CompiledModel> ov::template_plugin::InferRequest::get_template_model()
     const {
@@ -87,11 +125,7 @@ std::shared_ptr<const ov::template_plugin::CompiledModel> ov::template_plugin::I
     return template_model;
 }
 
-// ! [infer_request:dtor]
-ov::template_plugin::InferRequest::~InferRequest() = default;
-// ! [infer_request:dtor]
-
-// ! [infer_request:infer_impl]
+// ! [infer_request:infer]
 void ov::template_plugin::InferRequest::infer() {
     // TODO: fill with actual list of pipeline stages, which are executed synchronously for sync infer requests
     infer_preprocess();
@@ -99,7 +133,7 @@ void ov::template_plugin::InferRequest::infer() {
     wait_pipeline();  // does nothing in current implementation
     infer_postprocess();
 }
-// ! [infer_request:infer_impl]
+// ! [infer_request:infer]
 
 // ! [infer_request:infer_preprocess]
 void ov::template_plugin::InferRequest::infer_preprocess() {
@@ -112,12 +146,24 @@ void ov::template_plugin::InferRequest::infer_preprocess() {
     OPENVINO_ASSERT(get_inputs().size() == m_backend_input_tensors.size());
     for (size_t i = 0; i < get_inputs().size(); i++) {
         auto tensor = get_tensor(get_inputs()[i]);
-        if (tensor.is_continuous()) {
+        if (tensor.is<ov::RemoteTensor>()) {
+            OPENVINO_ASSERT(tensor.is<ov::template_plugin::VectorTensor>(),
+                            "Template plugin supports only VectorTensor with remote context.");
+            auto vector_tensor = tensor.as<ov::template_plugin::VectorTensor>();
+            auto element_type = vector_tensor.get_element_type();
+            void* data = vector_tensor.get_data();
+            OPENVINO_ASSERT(data != nullptr);
+            // Create backend tenor
+            m_backend_input_tensors[i] =
+                get_template_model()->get_template_plugin()->m_backend->create_tensor(element_type,
+                                                                                      vector_tensor.get_shape(),
+                                                                                      data);
+        } else if (tensor.is_continuous()) {
             // No ROI extraction is needed
             m_backend_input_tensors[i] =
-                get_template_model()->get_template_plugin()->_backend->create_tensor(tensor.get_element_type(),
-                                                                                     tensor.get_shape(),
-                                                                                     tensor.data());
+                get_template_model()->get_template_plugin()->m_backend->create_tensor(tensor.get_element_type(),
+                                                                                      tensor.get_shape(),
+                                                                                      tensor.data());
         } else {
             OPENVINO_ASSERT(tensor.get_element_type().bitwidth() % 8 == 0,
                             "Template plugin: Unsupported ROI tensor with element type having ",
@@ -128,9 +174,8 @@ void ov::template_plugin::InferRequest::infer_preprocess() {
             // Basic implementation doesn't take axis order into account `desc.getBlockingDesc().getOrder()`
             // Performance of manual extraction is not optimal, but it is ok for template implementation
             m_backend_input_tensors[i] =
-                get_template_model()->get_template_plugin()->_backend->create_tensor(tensor.get_element_type(),
-                                                                                     tensor.get_shape());
-            auto* src_data = static_cast<uint8_t*>(tensor.data());
+                get_template_model()->get_template_plugin()->m_backend->create_tensor(tensor.get_element_type(),
+                                                                                      tensor.get_shape());
             tensor.copy_to(m_backend_input_tensors[i]);
         }
     }
@@ -139,14 +184,19 @@ void ov::template_plugin::InferRequest::infer_preprocess() {
     for (size_t i = 0; i < get_outputs().size(); i++) {
         const auto& result = get_template_model()->m_model->get_results()[i];
         if (result->get_output_partial_shape(0).is_dynamic()) {
-            m_backend_output_tensors[i] = get_template_model()->get_template_plugin()->_backend->create_tensor();
+            m_backend_output_tensors[i] = get_template_model()->get_template_plugin()->m_backend->create_tensor();
             continue;
         }
         auto tensor = get_tensor(get_outputs()[i]);
-        m_backend_output_tensors[i] =
-            get_template_model()->get_template_plugin()->_backend->create_tensor(tensor.get_element_type(),
-                                                                                 tensor.get_shape(),
-                                                                                 tensor.data());
+        if (tensor.is_continuous() && !tensor.is<ov::RemoteTensor>())
+            m_backend_output_tensors[i] =
+                get_template_model()->get_template_plugin()->m_backend->create_tensor(tensor.get_element_type(),
+                                                                                      tensor.get_shape(),
+                                                                                      tensor.data());
+        else
+            m_backend_output_tensors[i] =
+                get_template_model()->get_template_plugin()->m_backend->create_tensor(tensor.get_element_type(),
+                                                                                      tensor.get_shape());
     }
     m_durations[Preprocess] = Time::now() - start;
 }
@@ -156,11 +206,15 @@ void ov::template_plugin::InferRequest::infer_preprocess() {
 void ov::template_plugin::InferRequest::start_pipeline() {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, m_profiling_task[StartPipeline])
     auto start = Time::now();
-    m_executable->call(m_backend_output_tensors, m_backend_input_tensors);
+    m_executable->call(m_backend_output_tensors,
+                       m_backend_input_tensors,
+                       m_eval_context,
+                       get_template_model()->m_cfg.perf_count);
     m_durations[StartPipeline] = Time::now() - start;
 }
 // ! [infer_request:start_pipeline]
 
+// ! [infer_request:wait_pipeline]
 void ov::template_plugin::InferRequest::wait_pipeline() {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, m_profiling_task[WaitPipeline])
     auto start = Time::now();
@@ -168,6 +222,7 @@ void ov::template_plugin::InferRequest::wait_pipeline() {
     // NOTE: not used in current implementation since `startPipeline` executes pipiline synchronously
     m_durations[WaitPipeline] = Time::now() - start;
 }
+// ! [infer_request:wait_pipeline]
 
 // ! [infer_request:infer_postprocess]
 void ov::template_plugin::InferRequest::infer_postprocess() {
@@ -176,33 +231,30 @@ void ov::template_plugin::InferRequest::infer_postprocess() {
     OPENVINO_ASSERT(get_outputs().size() == m_backend_output_tensors.size());
     for (size_t i = 0; i < get_outputs().size(); i++) {
         const auto& result = get_template_model()->m_model->get_results()[i];
+        auto host_tensor = m_backend_output_tensors[i];
+        auto tensor = get_tensor(get_outputs()[i]);
         if (result->get_output_partial_shape(0).is_dynamic()) {
-            auto host_tensor = m_backend_output_tensors[i];
             ov::Output<const ov::Node> output{result->output(0).get_node(), result->output(0).get_index()};
             allocate_tensor(output, [host_tensor](ov::Tensor& tensor) {
                 allocate_tensor_impl(tensor, host_tensor.get_element_type(), host_tensor.get_shape());
                 host_tensor.copy_to(tensor);
             });
+        } else if (!tensor.is_continuous()) {
+            host_tensor.copy_to(tensor);
+        } else if (tensor.is<ov::RemoteTensor>()) {
+            OPENVINO_ASSERT(tensor.is<ov::template_plugin::VectorTensor>(),
+                            "Template plugin supports only VectorTensor with remote context.");
+            auto vector_tensor = tensor.as<ov::template_plugin::VectorTensor>();
+            void* data = vector_tensor.get_data();
+            // Copy to vector
+            std::memcpy(data, host_tensor.data(), tensor.get_byte_size());
         }
     }
     m_durations[Postprocess] = Time::now() - start;
 }
 // ! [infer_request:infer_postprocess]
 
-// ! [infer_request:set_blobs_impl]
-void ov::template_plugin::InferRequest::set_tensors_impl(const ov::Output<const ov::Node> port,
-                                                         const std::vector<ov::Tensor>& tensors) {
-    for (const auto& input : get_inputs()) {
-        if (input == port) {
-            m_batched_tensors[input.get_tensor_ptr()] = tensors;
-            return;
-        }
-    }
-    OPENVINO_UNREACHABLE("Cannot find input tensors for port ", port);
-}
-// ! [infer_request:set_blobs_impl]
-
-// ! [infer_request:get_performance_counts]
+// ! [infer_request:get_profiling_info]
 std::vector<ov::ProfilingInfo> ov::template_plugin::InferRequest::get_profiling_info() const {
     std::vector<ov::ProfilingInfo> info;
     const auto fill_profiling_info = [](const std::string& name,
@@ -218,4 +270,10 @@ std::vector<ov::ProfilingInfo> ov::template_plugin::InferRequest::get_profiling_
     info.emplace_back(fill_profiling_info("output postprocessing", m_durations[Postprocess]));
     return info;
 }
-// ! [infer_request:get_performance_counts]
+// ! [infer_request:get_profiling_info]
+
+// ! [infer_request:cancel]
+void ov::template_plugin::InferRequest::cancel() {
+    m_executable->cancel();
+}
+// ! [infer_request:cancel]

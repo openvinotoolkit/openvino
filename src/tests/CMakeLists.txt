@@ -25,7 +25,6 @@ else()
 endif()
 
 add_subdirectory(ngraph_helpers)
-add_subdirectory(unit)
 add_subdirectory(ie_test_utils)
 add_subdirectory(util)
 add_subdirectory(engines_util)

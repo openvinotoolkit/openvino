@@ -129,6 +129,7 @@ public:
  * @param nv12_surf A ID3D11Texture2D instance to create NV12 blob from
  * @return NV12 remote blob
  */
+OPENVINO_DEPRECATED("This function is deprecated and will be removed in 2023.1 release")
 static inline Blob::Ptr make_shared_blob_nv12(size_t height,
                                               size_t width,
                                               RemoteContext::Ptr ctx,
