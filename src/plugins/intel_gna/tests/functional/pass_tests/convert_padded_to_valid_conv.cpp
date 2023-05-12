@@ -297,7 +297,7 @@ const auto misc2DParams = ::testing::Combine(::testing::ValuesIn(biases2D),
                                              ::testing::ValuesIn(maxpool2DPools),
                                              ::testing::ValuesIn(maxpool2DStrides));
 
-INSTANTIATE_TEST_SUITE_P(smoke_1DPaddedToValid,
+INSTANTIATE_TEST_SUITE_P(smokeX_1DPaddedToValid,
                          PaddedToValidConvTest,
                          ::testing::Combine(conv1DParams,
                                             misc1DParams,

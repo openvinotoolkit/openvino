@@ -9,11 +9,11 @@ std::string get_model_repo();
 
 namespace TestDataHelpers {
 
-const char *getModelPathNonFatal() noexcept;
+const char* getModelPathNonFatal() noexcept;
 
 std::string get_data_path();
 
-inline const char *getModelPathNonFatalDefault() noexcept {
+inline const char* getModelPathNonFatalDefault() noexcept {
     if (const auto envVar = std::getenv("MODELS_PATH")) {
         return envVar;
     }

@@ -20,10 +20,167 @@
 #include "legacy/ngraph_ops/fully_connected.hpp"
 #include "ngraph/opsets/opset7.hpp"
 #include "ngraph/opsets/opset9.hpp"
+#include "ops/gna_convolution.hpp"
+#include "ops/gna_max_pool.hpp"
 
 namespace ov {
 namespace intel_gna {
 namespace limitations {
+
+constexpr uint32_t bufferMaxSize = 65528;
+
+constexpr uint32_t convMinFiltersNum = 4;
+constexpr uint32_t convMaxFiltersNum = 65532;
+constexpr uint32_t convDilationHeight = 1;
+constexpr uint32_t convDilationWidth = 1;
+constexpr uint32_t convFiltersNumDivider = 4;
+constexpr uint32_t convFilterSizeDivider = 8;
+constexpr uint32_t convFilterMaxSize = 768;
+constexpr uint32_t convEachKernelByteAlignment = 16;
+constexpr uint32_t inputByteAlignment = 64;
+constexpr uint32_t noOfInputsDivisor = 8;
+constexpr uint32_t noOfInputsLowPrecDivisor = 16;
+
+constexpr uint32_t affineMaxBatchSize = 8;
+
+constexpr uint32_t maxPoolMaxWindowSize = 6;
+constexpr uint32_t copyMaxGrouping = 8;
+constexpr uint32_t transposeMaxSize = 65528;
+
+// TODO In the future there should be created class/struct representing all limitations for specific device versions.
+constexpr uint32_t kMaxLayersCountGNA1_0 = 1023;
+constexpr uint32_t kMaxLayersCountGNA2_0 = 4096;
+constexpr uint32_t kMaxLayersCountGNA3_X = 8192;
+
+// Currently split layer only supports 2 bytes in int16 and int8 mode.
+// In fp32 mode this is not necessary but is useful for testing
+constexpr uint32_t bytesPerSplitElement = 2;
+
+// Currently crop layer only supports 2 bytes in int16 and int8 mode.
+// In fp32 mode this is not necessary but is useful for testing
+constexpr uint32_t bytesPerCropElement = 2;
+
+constexpr uint32_t kMemoryPageSize = 4096;
+
+inline bool isCropAffinedOffset(size_t numberOfElements) {
+    const auto cropOffset = numberOfElements * bytesPerCropElement;
+    return (ALIGN64(cropOffset) != cropOffset);
+}
+
+inline bool IsTranspose2d(const std::vector<size_t>& shape) {
+    return std::count_if(std::begin(shape), std::end(shape), [](size_t dim) {
+               return dim != 1;
+           }) == 2;
+}
+
+inline bool IsTransposeSupported(const std::vector<size_t>& shape) {
+    if (!IsTranspose2d(shape))
+        return false;
+    auto shape_no_1 = shape;
+    shape_no_1.erase(std::remove(shape_no_1.begin(), shape_no_1.end(), 1), shape_no_1.end());
+    size_t min, max;
+    std::tie(min, max) = std::minmax(shape_no_1[0], shape_no_1[1]);
+    return min <= 8 && max % 8 == 0 && max >= 8 && max <= transposeMaxSize;
+}
+
+size_t getMemoryAlignmentBytes(target::DeviceVersion target);
+
+class SupportedElementTypes {
+public:
+    static bool is_parameter_type_supported(ov::element::Type type, bool is_exception_allowed = false);
+    static bool is_constant_type_supported(ov::element::Type type, bool is_exception_allowed = false);
+
+private:
+    static const std::set<ov::element::Type> supported_parameter_types;
+    static const std::set<ov::element::Type> supported_constant_types;
+};
+
+/**
+ * @brief Validates if transpose is supported by GNA
+ * @param node transpose
+ * @return true if supported
+ */
+bool is_transpose_supported(const std::shared_ptr<const ov::Node>& node);
+
+/**
+ * @brief Validates if legacy convolution is supported by GNA
+ * @param conv_ie convolution
+ * @param effective_compile_target GNA compile targets
+ * @param gna_precision GNA inference precision
+ * @param is_exception_allowed flag specifies whether exception is allowed
+ * @return true if supported
+ */
+bool is_conv_supported(const std::shared_ptr<ov::intel_gna::op::GNAConvolution>& conv_gna,
+                       const target::DeviceVersion& effective_compile_target,
+                       const InferenceEngine::Precision gna_precision,
+                       bool is_exception_allowed = false);
+/**
+ * @brief Validates if max pooling is supported by GNA
+ * @param max_pool max pooling
+ * @param effective_compile_target GNA compile targets
+ * @param supported_types list of supported types
+ * @param is_exception_allowed flag specifies whether exception is allowed
+ * @return true if precision is found in supported
+ */
+bool is_pooling_supported(const std::shared_ptr<ov::intel_gna::op::GNAMaxPool> max_pool,
+                          const target::DeviceVersion& effective_compile_target,
+                          bool is_exception_allowed = false);
+
+/**
+ * @brief Validates if fully connected is supported by GNA
+ * @param fully_connected fully connected
+ * @param is_exception_allowed flag specifies whether exception is allowed
+ * @return true if supported
+ */
+bool is_fc_supported(const std::shared_ptr<ngraph::op::FullyConnected>& fully_connected,
+                     bool is_exception_allowed = false);
+
+/**
+ * @brief Validates if split is supported by GNA
+ * @param node split
+ * @param is_exception_allowed flag specifies whether exception is allowed
+ * @return true if supported
+ */
+bool is_split_supported(const std::shared_ptr<ov::Node>& node, bool is_exception_allowed = false);
+
+/**
+ * @brief Validates if transpose is supported by GNA
+ * @param node transpose
+ * @param is_exception_allowed flag specifies whether exception is allowed
+ * @return true if supported
+ */
+bool is_transpose_supported(const std::shared_ptr<const ov::Node>& node);
+
+bool is_concat_supported(const std::shared_ptr<const ov::Node>& node);
+
+bool is_forward_transposed_concat_supported(const std::shared_ptr<const ov::Node>& node, const AxisVector& order);
+bool is_backward_transposed_concat_supported(const std::shared_ptr<const ov::Node>& node, const AxisVector& order);
+
+bool is_forward_transposed_split_supported(const std::shared_ptr<const ov::Node>& node, const AxisVector& order);
+bool is_backward_transposed_split_supported(const std::shared_ptr<const ov::Node>& node, const AxisVector& order);
+
+/**
+ * @brief Validates if operation is supported by GNA
+ * @param node operation
+ * @param gna_compile_target GNA compile target
+ * @param gna_precision GNA inference precision
+ * @param is_exception_allowed flag specifies whether exception is allowed
+ * @return true if supported
+ */
+bool is_op_supported(const std::shared_ptr<ov::Node>& node,
+                     const target::DeviceVersion& effective_compile_target,
+                     const InferenceEngine::Precision gna_precision,
+                     bool is_exception_allowed = false);
+
+/**
+ * @brief Check if all operations are supported by GNA
+ * @param model ngraph model
+ * @param gna_compile_target GNA compile target
+ * @param gna_precision GNA inference precision
+ */
+void check_all_ops_supported(const std::shared_ptr<ov::Model>& model,
+                             const target::DeviceVersion& effective_compile_target,
+                             const InferenceEngine::Precision gna_precision);
 
 namespace cnn2d {
 
