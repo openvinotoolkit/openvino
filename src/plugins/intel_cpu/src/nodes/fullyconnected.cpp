@@ -166,13 +166,14 @@ bool FullyConnected::isSupportedOperation(const std::shared_ptr<const ngraph::No
 FullyConnected::FullyConnected(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
         : Node(op, context, FCShapeInferFactory(op)), withBiases(false) {
     std::string errorMessage;
-    if (isSupportedOperation(op, errorMessage)) {
-        errorPrefix = "FullyConnected node with name '" + getName() + "'";
-        if (context->getConfig().fcSparseWeiDecompressionRate < 1.0f)
-            minSparseRate = context->getConfig().fcSparseWeiDecompressionRate;
-    } else {
+    if (!isSupportedOperation(op, errorMessage))
         IE_THROW(NotImplemented) << errorMessage;
-    }
+
+    errorPrefix = "FullyConnected node with name '" + getName() + "'";
+    if (context->getConfig().fcSparseWeiDecompressionRate < 1.0f)
+        minSparseRate = context->getConfig().fcSparseWeiDecompressionRate;
+
+    expectedBiasDims = {getOutputShapeAtPort(0).getDims()[getFusingAxis()]};
 }
 
 std::vector<memory::format_tag> FullyConnected::getAvailableFormatsForDims(const Shape &dims) const {
@@ -335,12 +336,8 @@ void FullyConnected::prepareParams() {
             auto normalizedInDims = {inDims[0] * inDims[1], inDims[2]};
             inDesc = inDesc.reshape(normalizedInDims);
         }
-        dnnl::memory::desc flattenBiasDnnlDesc;
         auto outDesc = key.out->getDnnlDesc();
         const auto& outDims = outDesc.get_dims(); // @TODO query + copy might be slow
-        if (key.bias)
-                // WA to align IR bias representation  to oneDNN representation (1 rank tensor)
-                flattenBiasDnnlDesc = key.bias->getDnnlDesc().reshape({outDims[outDims.size() - 1]});
 
         if (outDims.size() == 3) {
             auto normalizedOutDims = { outDims[0] * outDims[1], outDims[2] };
@@ -354,7 +351,7 @@ void FullyConnected::prepareParams() {
                 dnnl::prop_kind::forward_inference,
                 inDesc,
                 key.inp1->getDnnlDesc(),
-                flattenBiasDnnlDesc,
+                key.bias->getDnnlDesc(),
                 outDesc,
                 key.attr);
         } else {
@@ -595,8 +592,7 @@ void FullyConnected::createDescriptorInternal(const dnnl::memory::desc &inputDes
     const dnnl::primitive_attr attr;
 
     if (withBiases) {
-        VectorDims flattenBiasesDims = {getOutputShapeAtPort(0).getDims()[getFusingAxis()]};
-        dnnl::memory::desc bias_candidate(DnnlExtensionUtils::convertToDnnlDims(flattenBiasesDims), bdt,
+        dnnl::memory::desc bias_candidate(DnnlExtensionUtils::convertToDnnlDims(expectedBiasDims), bdt,
                                             dnnl::memory::format_tag::any);
         auto desc = inner_product_forward::primitive_desc(
             getEngine(),
@@ -759,11 +755,7 @@ FullyConnected::createDescriptorInternalForConv(DnnlMemoryDescCPtr inputDescPtr,
     const dnnl::memory::desc &outputDesc = outputDescPtr->getDnnlDesc();
     const dnnl::memory::desc &weightDesc = weightDescPtr->getDnnlDesc();
 
-    dnnl::memory::desc flattenBiasDnnlDesc;
     const auto& outDims = outputDesc.get_dims();
-    if (biasDescPtr)
-            // WA to align IR bias representation  to oneDNN representation (1 rank tensor)
-            flattenBiasDnnlDesc = biasDescPtr->getDnnlDesc().reshape({outDims[outDims.size() - 1]});
 
     // make a fake shape: N, IC, W
     auto inDims = inputDesc.get_dims();
@@ -797,7 +789,7 @@ FullyConnected::createDescriptorInternalForConv(DnnlMemoryDescCPtr inputDescPtr,
             engine,
             prop_kind::forward_inference,
             dnnl::algorithm::convolution_direct,
-            convInDesc, convWeightDescAny, flattenBiasDnnlDesc, convOutDesc,
+            convInDesc, convWeightDescAny, biasDescPtr->getDnnlDesc(), convOutDesc,
             dnnl::memory::dims{1},   // stride
             dnnl::memory::dims{0},   // dilation
             dnnl::memory::dims{0},   // paddingL

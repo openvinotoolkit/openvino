@@ -99,7 +99,7 @@ private:
     ov::CoordinateDiff outputPadding;
     std::vector<int32_t> lastOutputSpatialDims;
     VectorDims int8WeightDims;
-    VectorDims biasesDims;
+    VectorDims expectedBiasDims {};
 
     Shape inShape;
 

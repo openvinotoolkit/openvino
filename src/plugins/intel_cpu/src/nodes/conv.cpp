@@ -257,7 +257,7 @@ Convolution::Convolution(const std::shared_ptr<ngraph::Node>& op, const GraphCon
         groupIC = IC;
         groupOC = weightDims[0];
 
-        biasesDims = { groupOC };
+        expectedBiasDims = {groupOC};
 
         for (int i = 0; i < convolutionOp->get_strides().size(); i++) {
             stride.push_back(convolutionOp->get_strides()[i]);
@@ -280,7 +280,7 @@ Convolution::Convolution(const std::shared_ptr<ngraph::Node>& op, const GraphCon
         IC = groupIC * groupNum;
         groupOC = weightDims[1];
 
-        biasesDims = {groupOC * groupNum};
+        expectedBiasDims = {groupOC * groupNum};
 
         for (int i = 0; i < groupConvolutionOp->get_strides().size(); i++) {
             stride.push_back(groupConvolutionOp->get_strides()[i]);
@@ -900,7 +900,7 @@ void Convolution::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
 
     if (withBiases) {
         memory::data_type bdt = memory::data_type::f32;
-        biasDnnlDesc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(biasesDims), bdt, memory::format_tag::any);
+        biasDnnlDesc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(expectedBiasDims), bdt, memory::format_tag::any);
     }
 
     std::vector<dnnl::algorithm> algorithms;
@@ -1386,8 +1386,7 @@ void Convolution::prepareParams() {
                                      const dnnl::primitive_attr attr) -> dnnl::primitive_desc {
             dnnl::memory::desc dnnlBiasDesc;
             if (biasDescPtr) {
-                // WA to align IR bias representation (3 to 5 rank tensors) to oneDNN representation (1 rank tensor)
-                dnnlBiasDesc = biasDescPtr->getDnnlDesc().reshape({dstDesc.get_dims()[1]});
+                dnnlBiasDesc = biasDescPtr->getDnnlDesc();
             }
 
             return createDescriptorInternal(

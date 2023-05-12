@@ -263,7 +263,7 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph &graph) {
         if (!scaleDimsCheck(node, scales)) continue;
 
         if (initializeDeQuantizedScales(node, scales)) {
-            DEBUG_LOG("[GraphOptimizer]: multiply Node ##", mul->getName(), " optimized as DQ scales of Node ##", node->getName());
+            DEBUG_LOG("[GraphOptimizer##FusingDQ]: multiply Node ##", mul->getName(), " optimized as DQ scales of Node ##", node->getName());
             node->addOriginalLayer(mul->getOriginalLayers());
             auto p_edge = mul->getParentEdgesAtPort(1)[0];
             graph.RemoveEdge(p_edge);
@@ -321,18 +321,15 @@ void GraphOptimizer::FuseConvolutionMatMulDeconvAndBias(Graph &graph) {
         return true;
     };
 
-    auto parent = graphNodes.begin();
-    while (parent != graphNodes.end()) {
-        auto parentNode = *parent;
+    for (size_t i = 0; i < graphNodes.size(); i++) {
+        auto parentNode = graphNodes[i];
         if (!isSuitableParentNode(parentNode)) {
-            parent++;
             continue;
         }
         CPU_GRAPH_OPTIMIZER_SCOPE(FuseConvolutionMatMulDeconvAndBias_ParentNode);
 
         auto childNode = parentNode->getChildEdgeAt(0)->getChild();
         if (!isSuitableChildNode(parentNode, childNode)) {
-            parent++;
             continue;
         }
 
@@ -380,23 +377,59 @@ void GraphOptimizer::FuseConvolutionMatMulDeconvAndBias(Graph &graph) {
                     graph.RemoveEdge(remEdge);
                 }
 
-                const auto& parentEltwise = parentNode;
-                EdgePtr newEdge(new Edge(parent, parentEltwise, inNum, parentEltwise->getParentEdges().size()));
+                auto& parentEltwise = parentNode;
+                const auto& biasNode = parent;
+                EdgePtr newEdge(new Edge(biasNode, parentEltwise, inNum, parentEltwise->getParentEdges().size()));
                 auto& graphEdges = graph.GetEdges();
                 graphEdges.push_back(newEdge);
-                parent->addEdge(newEdge);
+                biasNode->addEdge(newEdge);
 
-                const auto fusingAxis = parentEltwise->getFusingAxis();
-                const auto& outShape = parentEltwise->getOutputShapeAtPort(0);
+                auto biasOutputShape = biasNode->getOutputShapeAtPort(0);
+                // ONEDNN Conv, Deconv, FC would need the bias to be flatten into 1D tensor.
+                // Usually the bias output shape would be normalized to align rank with Conv/Deconv/FC output.
+                // To avoid duplicate reshape WR code in nodes, here would unify to flatten the shape.
+                // Most bias nodes are const Input and bias memory primitive has been initialized as const memory when constructing CPU Input node.
+                // Const memory is not allowed to be modified after initialized. It means we can't redefine const bias memory primitive.
+                // So insert reshape node to flatten the bias shape into 1D and const folding node would be executed during compiling.
+                bool needReshape = (parentEltwise->getType() != Type::MatMul &&
+                                         biasOutputShape.getRank() != 1);
+                if (needReshape) {
+                    // Bias -> Conv/Deconv/FC would be changed to Bias -> Reshape -> Conv/Deconv/FC
+                    const VectorDims flattenShape = {biasOutputShape.getElementsCount()};
 
-                parent->outputShapes[inNum] = Shape({outShape.getMinDims()[fusingAxis]}, {outShape.getMaxDims()[fusingAxis]});
-                parentEltwise->inputShapes.push_back(parent->getOutputShapeAtPort(0));
+                    auto inputPort = newEdge->getInputNum();
+                    auto outputPort = newEdge->getOutputNum();
+                    // Remove the previsou bias edge between bias and Conv/Deconv/FC
+                    graph.RemoveEdge(newEdge);
+                    // Construct Ngraph Reshape node and CPU Reshape node.
+                    auto reshapeConstInput = std::make_shared<ngraph::opset1::Constant>(ov::element::i32, ngraph::Shape{1}, flattenShape);
+                    auto reshapeDummyInput = std::make_shared<ngraph::opset1::Parameter>(
+                                                details::convertPrecision(biasNode->getOriginalOutputPrecisionAtPort(0)),
+                                                biasOutputShape.toPartialShape());
+                    const auto reshape = std::make_shared<ngraph::opset1::Reshape>(reshapeDummyInput, reshapeConstInput, false);
+                    reshape->set_friendly_name(biasNode->getName() + "_flatten_reshape");
+                    const auto cpuReshapeNode = std::make_shared<ov::intel_cpu::node::Reshape>(reshape, graph.getGraphContext());
+                    // Insert Reshape between bias node and Conv/Deconv/FC
+                    graph.InsertNode(biasNode, parentEltwise, cpuReshapeNode, inputPort, outputPort, false);
+                    // Insert the Reshape const input node and edge into CPU graph.
+                    const auto cpuReshapeConstInput = std::make_shared<node::Input>(reshapeConstInput, graph.getGraphContext());
+                    EdgePtr newReshapeConstEdge(new Edge(cpuReshapeConstInput, cpuReshapeNode, 0, 1));
+                    cpuReshapeNode->addEdge(newReshapeConstEdge);
+                    graphEdges.push_back(newReshapeConstEdge);
+                    graphNodes.push_back(cpuReshapeConstInput);
+                    DEBUG_LOG("[GraphOptimizer##FusingBias]:Flatten Bias node from shape [  ", PartialShape{biasOutputShape.getDims()},
+                                        " ] to [ ", PartialShape{flattenShape}, " ] ");
+                    // Update bias output shape.
+                    biasOutputShape = Shape{flattenShape};
+                }
+                //Add the Bias inputshape into parentEltwise.
+                parentEltwise->inputShapes.push_back(biasOutputShape);
             }
         }
-        DEBUG_LOG("[GraphOptimizer]:Add Node ##: ", childNode->getName(), " initialize as Bias of Node ##", parentNode->getName());
-        graph.DropNode(childNode);
+        DEBUG_LOG("[GraphOptimizer##FusingBias]:Add Node ##: ", childNode->getName(), " initialize as Bias of Node ##", parentNode->getName());
         parentNode->addOriginalLayer(childNode->getOriginalLayers());
         parentNode->addOriginalInputPrecision(childNode->getOriginalInputPrecisionAtPort(1));
+        graph.DropNode(childNode);
     }
 }
 
@@ -821,7 +854,8 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph &graph) {
         auto weightsEltwise = conv->getParentEdgesAtPort(1)[0]->getParent();
         if (initializeInputZeroPoints(conv, dataEltwise, weightsEltwise)) {
             auto p_edge = dataEltwise->getParentEdgesAtPort(1)[0];
-            DEBUG_LOG("[GraphOptimizer]:Eltwise Subtract Node ##", dataEltwise->getName(), " is optimized as zeropoint of Conv ##", conv->getName());
+            DEBUG_LOG("[GraphOptimizer##FusingZeorPoint]:Eltwise Subtract Node ##", dataEltwise->getName(),
+                        " is optimized as zeropoint of Conv ##", conv->getName());
             graph.RemoveEdge(p_edge);
             graph.DropNode(dataEltwise);
             initializeOutputCompensation(conv);

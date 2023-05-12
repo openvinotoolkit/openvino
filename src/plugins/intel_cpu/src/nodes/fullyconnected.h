@@ -99,6 +99,7 @@ private:
     float minSparseRate = 1.f;
     float weiSparseRate = 0.f;
     bool useSparseWeightsDecompression();
+    VectorDims expectedBiasDims {};
 };
 
 }   // namespace node
