@@ -14,7 +14,6 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/transpose_sinking_attr.hpp"
 #include "transformations/utils/transformation_helper.hpp"
-#include "common/graph_utils.hpp"
 
 using namespace ov;
 using namespace ov::opset12;

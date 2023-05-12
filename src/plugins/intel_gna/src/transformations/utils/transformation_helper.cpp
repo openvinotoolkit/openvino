@@ -4,11 +4,10 @@
 
 #include "transformation_helper.hpp"
 
-#include "openvino/core/rt_info.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-
 #include "log/debug.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/opsets/opset7.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ops/gna_convolution.hpp"
 #include "ops/gna_max_pool.hpp"
 

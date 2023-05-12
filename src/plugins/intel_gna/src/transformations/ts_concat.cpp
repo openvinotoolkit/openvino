@@ -13,7 +13,6 @@
 #include "openvino/opsets/opset12.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/transformation_helper.hpp"
-#include "common/graph_utils.hpp"
 
 using namespace ov;
 using namespace ov::opset12;

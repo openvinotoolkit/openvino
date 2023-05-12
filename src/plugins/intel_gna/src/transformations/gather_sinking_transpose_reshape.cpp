@@ -15,7 +15,6 @@
 #include "transformations/rt_info/transpose_sinking_attr.hpp"
 #include "transformations/utils/gather_sinking_utils.hpp"
 #include "transformations/utils/transformation_helper.hpp"
-#include "common/graph_utils.hpp"
 
 using namespace ov::intel_gna;
 using namespace ov::intel_gna::pass;
