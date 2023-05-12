@@ -97,7 +97,7 @@ std::vector<size_t> layer_limits_20{64, 4096, 4160};
 // for GNA >= v3.0 limit is 8192
 std::vector<size_t> layer_limits_3X{64, 8192, 8200};
 
-INSTANTIATE_TEST_SUITE_P(smoke_GNALimits,
+INSTANTIATE_TEST_SUITE_P(nightly_GNALimits,
                          GNALayersLimit20Test,
                          ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_GNA),
                                             ::testing::Values(common_config),

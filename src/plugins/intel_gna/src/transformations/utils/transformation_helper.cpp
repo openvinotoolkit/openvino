@@ -4,19 +4,22 @@
 
 #include "transformation_helper.hpp"
 
-#include "log/debug.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/opsets/opset10.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+
+#include "log/debug.hpp"
+#include "openvino/opsets/opset7.hpp"
+#include "ops/gna_convolution.hpp"
+#include "ops/gna_max_pool.hpp"
+
+using namespace ov::opset7;
 
 namespace ov {
 namespace intel_gna {
 namespace pass {
 namespace helper {
 
-using namespace ov::opset10;
-
-void GetConvData(std::shared_ptr<ngraph::op::ConvolutionIE> conv, ConvData& conv_data) {
+void GetConvData(std::shared_ptr<ngraph::opset7::Convolution> conv, ConvData& conv_data) {
     OPENVINO_ASSERT(conv);
     conv_data.output_height = conv->get_output_shape(0)[2];
     conv_data.output_width = conv->get_output_shape(0)[3];
@@ -40,17 +43,17 @@ void GetConvData(std::shared_ptr<ngraph::op::ConvolutionIE> conv, ConvData& conv
     conv_data.element_type = conv->get_element_type();
 }
 
-void GetConvData(std::shared_ptr<Convolution> conv, ConvData& conv_data) {
+void GetConvData(std::shared_ptr<ov::intel_gna::op::GNAConvolution> conv, ConvData& conv_data) {
     OPENVINO_ASSERT(conv);
     conv_data.output_height = conv->get_output_shape(0)[2];
     conv_data.output_width = conv->get_output_shape(0)[3];
-    conv_data.input_channel_count = conv->input_value(0).get_shape()[1];
-    conv_data.input_height = conv->input_value(0).get_shape()[2];
-    conv_data.input_width = conv->input_value(0).get_shape()[3];
+    conv_data.input_channel_count = conv->input_value(0).get_shape()[3];
+    conv_data.input_height = conv->input_value(0).get_shape()[1];
+    conv_data.input_width = conv->input_value(0).get_shape()[2];
     conv_data.filter_count = conv->input_value(1).get_shape()[0];
-    conv_data.filter_channel_count = conv->input_value(1).get_shape()[1];
-    conv_data.filter_height = conv->input_value(1).get_shape()[2];
-    conv_data.filter_width = conv->input_value(1).get_shape()[3];
+    conv_data.filter_channel_count = conv->input_value(1).get_shape()[3];
+    conv_data.filter_height = conv->input_value(1).get_shape()[1];
+    conv_data.filter_width = conv->input_value(1).get_shape()[2];
     conv_data.filter_dilation_height = conv->get_dilations()[0];
     conv_data.filter_dilation_width = conv->get_dilations()[1];
     conv_data.filter_stride_height = conv->get_strides()[0];
@@ -162,6 +165,13 @@ void remove_single_input_node(std::shared_ptr<ov::Node> node) {
     ov::replace_output_update_name(node->output(0), node_parent->output(0));
 }
 
+ov::AxisVector ReverseTransposeOrder(const ov::AxisVector& axis_order) {
+    ov::AxisVector out(axis_order.size());
+    for (size_t i = 0; i < axis_order.size(); i++) {
+        out.at(axis_order[i]) = i;
+    }
+    return out;
+}
 }  // namespace helper
 }  // namespace pass
 }  // namespace intel_gna

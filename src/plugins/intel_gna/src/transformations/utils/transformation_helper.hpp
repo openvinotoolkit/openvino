@@ -7,6 +7,8 @@
 #include <legacy/ngraph_ops/convolution_ie.hpp>
 #include <ngraph/opsets/opset7.hpp>
 
+#include "ops/gna_convolution.hpp"
+
 namespace ov {
 namespace intel_gna {
 namespace pass {
@@ -44,12 +46,12 @@ struct ConvData {
 void GetConvData(std::shared_ptr<ngraph::opset7::Convolution> conv, ConvData& conv_data);
 
 /**
- * @brief gets all legacy convolution related data into a struct for further processing
- * @param conv legacy convolution node to get data of
+ * @brief gets all convolution related data into a struct for further processing
+ * @param conv GNA custom convolution node to get data of
  * @param conv_data convolution data structure to put data into
  * @return void
  */
-void GetConvData(std::shared_ptr<ngraph::op::ConvolutionIE> conv, ConvData& conv_data);
+void GetConvData(std::shared_ptr<ov::intel_gna::op::GNAConvolution> conv, ConvData& conv_data);
 
 /**
  * @brief ngraph matcher predicate fusing existing predicates for consumers count and rank of a layer
@@ -100,6 +102,8 @@ std::shared_ptr<ngraph::Node> InsertFQLayer(const std::shared_ptr<ngraph::opset7
  * @return void
  */
 void remove_single_input_node(std::shared_ptr<ov::Node> node);
+
+ov::AxisVector ReverseTransposeOrder(const ov::AxisVector& axis_order);
 
 }  // namespace helper
 }  // namespace pass
