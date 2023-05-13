@@ -35,27 +35,15 @@ Following PaddlePaddle model format are supported:
   .. code-block:: python
 
     import paddle
-    from paddle.metirc import Accuracy
     from openvino.tools.mo import convert_model
     
     # create a paddle.hapi.model.Model format model
-    model = paddle.Model(paddle.vision.models.resnet50(pretrained=False, num_classes=10))
-    # prepare dataset
-    train_dataset = paddle.vision.datasets.Cifar10(mode='train')
-    val_dataset = paddle.vision.datasets.Cifar10(mode='test')
-    # define optimizer
-    optimizer = paddle.optimizer.Momentum(learning_rate=0.01,
-                                          momentum=0.9,
-                                          weight_decay=paddle.regularizer.L2Decay(1e-4),
-                                          parameters=model.parameters())
-    model.prepare(optimizer, paddle.nn.CrossEntropy(), paddle.metric.Accuracy(topk=(1, 5)))
-    # start training
-    model.fit(train_dataset,
-              val_dataset,
-              epochs=50,
-              batch_size=64,
-              save_dir="./output",
-              num_workers=8)
+    resnet50 = paddle.vision.models.resnet50()
+    x = paddle.static.InputSpec([1,3,224,224], 'float32', 'x')
+    y = paddle.static.InputSpec([1,1000], 'float32', 'y')
+
+    model = paddle.Model(resnet50, x, y)
+
     # convert to OpenVINO IR format
     ov_model = convert_model(model)
 
@@ -98,17 +86,17 @@ Following PaddlePaddle model format are supported:
   .. code-block:: python
 
     import paddle
-  	from openvino.tools.mo import convert_model
+    from openvino.tools.mo import convert_model
 
     paddle.enable_static()
 
     # create a paddle.fluid.executor.Executor format model
-    x = paddle.static.data(name="x", shape=shape)
-    y = paddle.static.data(name="y", shape=shape)
+    x = paddle.static.data(name="x", shape=[1,3,224])
+    y = paddle.static.data(name="y", shape=[1,3,224])
     relu = paddle.nn.ReLU()
     sigmoid = paddle.nn.Sigmoid()
     y = sigmoid(relu(x))
-    
+
     exe = paddle.static.Executor(paddle.CPUPlace())
     exe.run(paddle.static.default_startup_program())
 
@@ -118,7 +106,7 @@ Following PaddlePaddle model format are supported:
     # optional: serialize OpenVINO IR to *.xml & *.bin
     from openvino.runtime import serialize
     serialize(ov_model, "ov_model.xml", "ov_model.bin")
-  
+
 Supported PaddlePaddle Layers
 #############################
 
