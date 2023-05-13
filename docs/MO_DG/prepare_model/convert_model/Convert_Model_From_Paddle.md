@@ -61,15 +61,15 @@ Following PaddlePaddle model format are supported:
 
   .. code-block:: python
   
-  	import paddle
-  	from openvino.tools.mo import convert_model
+    import paddle
+    from openvino.tools.mo import convert_model
   
     # create a paddle.fluid.dygraph.layers.Layer format model
-  	model = paddle.vision.models.resnet50()
-  	x = paddle.rand([1,3,224,224])
+    model = paddle.vision.models.resnet50()
+    x = paddle.rand([1,3,224,224])
 
     # convert to OpenVINO IR format
-  	ov_model = convert_model(model, example_input=[x])
+    ov_model = convert_model(model, example_input=[x])
 
     # optional: serialize OpenVINO IR to *.xml & *.bin
     from openvino.runtime import serialize
