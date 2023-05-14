@@ -16,7 +16,7 @@ namespace v3 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Acosh : public util::UnaryElementwiseArithmetic {
 public:
-    OPENVINO_OP("Acosh", "opset4", util::UnaryElementwiseArithmetic, 3);
+    OPENVINO_OP("Acosh", "opset4", util::UnaryElementwiseArithmetic);
 
     /// \brief Constructs an Acosh operation.
     Acosh() = default;

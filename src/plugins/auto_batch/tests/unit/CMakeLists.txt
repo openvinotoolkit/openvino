@@ -5,7 +5,6 @@
 set(TARGET_NAME ov_auto_batch_unit_tests)
 
 set(CI_BUILD_NUMBER "unittest")
-addVersionDefines(${OpenVINO_SOURCE_DIR}/src/plugins/auto_batch/src/auto_batch.cpp CI_BUILD_NUMBER)
 add_definitions(-DAUTOBATCH_UNITTEST)
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
@@ -52,5 +51,6 @@ addIeTargetTest(
         LABELS
             Auto_Batch
 )
+ov_add_version_defines(${OpenVINO_SOURCE_DIR}/src/plugins/auto_batch/src/auto_batch.cpp ${TARGET_NAME})
 
 set_ie_threading_interface_for(${TARGET_NAME})

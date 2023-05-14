@@ -214,7 +214,7 @@ public:
 
     std::shared_ptr<ngraph::Node> clone_with_new_inputs(const ngraph::OutputVector& new_args) const override {
         if (new_args.size() != 1) {
-            throw ngraph::ngraph_error("Incorrect number of new arguments");
+            OPENVINO_THROW("Incorrect number of new arguments");
         }
 
         return std::make_shared<CustomOldIdentity>(new_args.at(0));

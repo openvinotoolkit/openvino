@@ -9,7 +9,9 @@
 
 #include "intel_gpu/primitives/gather.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
+#include "intel_gpu/primitives/reshape.hpp"
 
+using namespace InferenceEngine;
 namespace ov {
 namespace intel_gpu {
 
@@ -33,9 +35,7 @@ void CreateGatherOpBase(Program& p, const std::shared_ptr<T>& op, const int64_t 
             auto preprocessPrim = cldnn::reorder(reorderPrimName,
                                                  inputs[portIndex],
                                                  targetFormat,
-                                                 cldnn::data_types::i32,
-                                                 std::vector<float>(),
-                                                 cldnn::reorder_mean_mode::subtract);
+                                                 cldnn::data_types::i32);
             p.add_primitive(*op, preprocessPrim);
             reordered_inputs[portIndex] = cldnn::input_info(reorderPrimName);
         } else {
@@ -46,6 +46,43 @@ void CreateGatherOpBase(Program& p, const std::shared_ptr<T>& op, const int64_t 
     // Dynamic path will do shape infer internally, so no need to pass valid out shape for that case
     ov::Shape out_shape = op->get_output_partial_shape(0).is_static() ? op->get_output_shape(0) : ov::Shape{};
 
+    // Update output_shape in case of scalar indice
+    bool need_reshape = false;
+    auto out_shape_original = out_shape;
+    if (!p.use_new_shape_infer() && op->get_output_partial_shape(0).is_static()) {
+        auto input1_shape = op->get_input_shape(1);
+        if (input1_shape.size() == 0 && batch_dim == 0) {
+            need_reshape = true;
+
+            auto new_axis = axis;
+            if (new_axis < 0) {
+                new_axis += op->get_input_shape(0).size();
+            }
+            out_shape.push_back(1);
+            for (int i = static_cast<int>(out_shape.size()) - 1; i > new_axis ; i--) {
+                out_shape[i] = out_shape[i-1];
+            }
+            out_shape[new_axis] = 1;
+        }
+    }
+
+    // WA for NMS->Gather construction. NMS fills part of the output blob by the -1 if these values
+    // must not be taken into account.
+    // CPU also uses this like of WA.
+    if (support_neg_ind) {
+        const auto& rti = op->get_rt_info();
+        const auto& reverse = rti.find("dontReverseIndices");
+        if (reverse != rti.end()) {
+            support_neg_ind = false;
+        }
+    }
+
+    // gather
+    auto reshapeName = layerName + "";
+    if (need_reshape) {
+        layerName = layerName + "_reshape_output";
+    }
+
     auto gatherPrim = cldnn::gather(layerName,
                                     reordered_inputs[0],
                                     reordered_inputs[1],
@@ -55,6 +92,27 @@ void CreateGatherOpBase(Program& p, const std::shared_ptr<T>& op, const int64_t 
                                     support_neg_ind);
 
     p.add_primitive(*op, gatherPrim);
+
+    // Add reorder and reshape for scalar indice
+    if (need_reshape) {
+        auto input = inputs[0];
+        input.pid = layerName;
+
+        auto targetFormat = cldnn::format::get_default_format(out_shape_original.size());
+        if (targetFormat.value != cldnn::format::get_default_format(out_shape.size()).value) {
+            auto reorderName = layerName + "_cldnn_in_reorder";
+            auto targetDatatype = cldnn::element_type_to_data_type(op->get_input_element_type(0));
+            auto reorderPrim = cldnn::reorder(reorderName,
+                                              input,
+                                              targetFormat,
+                                              targetDatatype);
+            p.add_primitive(*op, reorderPrim);
+            input.pid = reorderName;
+        }
+
+        auto reshapePrim = cldnn::reshape(reshapeName, input, tensor_from_dims(out_shape_original));
+        p.add_primitive(*op, reshapePrim);
+    }
 }
 
 static void CreateGatherOp(Program& p, const std::shared_ptr<ngraph::op::v1::Gather>& op) {

@@ -10,7 +10,6 @@
 #include "op_table.hpp"
 #include "openvino/frontend/tensorflow_lite/extension/op.hpp"
 #include "openvino/util/common_util.hpp"
-#include "pass/transpose_sinking.hpp"
 #include "so_extension.hpp"
 #include "tensor_lite_place.hpp"
 #include "tf_framework_node.hpp"
@@ -48,7 +47,9 @@ FrontEnd::FrontEnd() {
 
 /// \brief Check if FrontEndTensorflowLite can recognize model from given parts
 bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
-    if (variants.size() != 1)
+    // Last boolean flag in `variants` (if presented) is reserved for FE configuration
+    size_t extra_variants_num = variants.size() > 0 && variants[variants.size() - 1].is<bool>() ? 1 : 0;
+    if (variants.size() != 1 + extra_variants_num)
         return false;
 
     if (variants[0].is<std::string>()) {
@@ -71,7 +72,9 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
 }
 
 ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const {
-    if (variants.size() == 1) {
+    // Last boolean flag in `variants` (if presented) is reserved for FE configuration
+    size_t extra_variants_num = variants.size() > 0 && variants[variants.size() - 1].is<bool>() ? 1 : 0;
+    if (variants.size() == 1 + extra_variants_num) {
         if (variants[0].is<std::string>()) {
             std::string suffix = ".tflite";
             std::string model_path = variants[0].as<std::string>();
@@ -268,7 +271,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& function) const {
     manager.register_pass<ov::frontend::tensorflow_lite::pass::TFLQuantizeResolver>();
     manager.register_pass<ov::frontend::tensorflow_lite::pass::Rfft2dSimplifier>();
     manager.register_pass<ov::pass::TransposeSinking>();
-    manager.register_pass<ov::pass::transpose_sinking::TSGeneral>();
+    manager.register_pass<ov::pass::TransposeSinkingGeneral>();
     manager.run_passes(function);
 }
 

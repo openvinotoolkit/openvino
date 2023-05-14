@@ -43,11 +43,13 @@
 #include "layers/gna_layer_info.hpp"
 #include "log/debug.hpp"
 #include "log/log.hpp"
+#include "pre_post_process/transposition_info.hpp"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 using namespace ov::intel_gna::frontend;
 using namespace ov::intel_gna::common;
+using namespace ov::intel_gna::pre_post_processing;
 
 namespace ov {
 namespace intel_gna {
@@ -821,7 +823,7 @@ void RemovePermutationsNHWCToNCHWPass::run() {
             !getInputTo(pattern_start->outData.front()).empty()) {
             auto layer_before_permute = CNNNetPrevLayer(pattern_start);
             DataPtr output = nullptr;
-            for (auto before_output : layer_before_permute->outData) {
+            for (const auto& before_output : layer_before_permute->outData) {
                 if (areEqualDatas(pattern_start->input(), before_output)) {
                     output = before_output;
                     output->setLayout(getTransposedLayout(output));
@@ -1022,7 +1024,7 @@ void InsertCopyLayerPass::run() {
             LayerInfo(l).isSplit()) {
             std::vector<FuncChildrenInfo> copy_insertion_tuples;
             std::vector<FuncChildrenInfo> delayed_copy_insertion_tuples;
-            for (auto output : l->outData) {
+            for (const auto& output : l->outData) {
                 auto& inputTo = getInputTo(output);
                 for (auto& childLayer : inputTo) {
                     std::vector<int> connections = CNNLayerFindInsDataIdxes(output, childLayer.second);

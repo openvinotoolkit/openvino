@@ -159,7 +159,7 @@ public:
 #ifdef ONEDNN_PRIMITIVE_SERIALIZATION
         parent::save(ob);
 
-        const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ob.getKernlImplParams());
+        const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ob.getKernelImplParams());
         auto prim = impl_params->typed_desc<fully_connected>();
         size_t input_size = prim->input_size;
         bool has_bias = !prim->bias.empty();
@@ -181,7 +181,7 @@ public:
         ib >> input_size;
         ib >> has_bias;
 
-        const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernlImplParams());
+        const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernelImplParams());
         auto prim_desc = get_fully_connected_primitive_descriptor(*impl_params, ib.get_engine(), input_size, has_bias, *_attrs);
         _pd = *prim_desc;
 

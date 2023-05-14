@@ -193,7 +193,7 @@ public:
                 std::stringstream ss;
                 ss << "Node: " << node->get_type_info() << " with name " << node->get_friendly_name() << " ";
                 ss << "has non unique friendly name.";
-                throw ngraph_error(ss.str());
+                OPENVINO_THROW(ss.str());
             }
             unique_friendly_names.insert(node->get_friendly_name());
 
@@ -207,7 +207,7 @@ public:
                     std::stringstream ss;
                     ss << "Node: " << node->get_type_info() << " with name " << node->get_friendly_name() << " ";
                     ss << "has non unique tensor name.";
-                    throw ngraph_error(ss.str());
+                    OPENVINO_THROW(ss.str());
                 }
                 unique_tensor_names.insert(tensor_names.begin(), tensor_names.end());
             }
@@ -223,7 +223,7 @@ public:
                     auto node = r->input_value(0).get_node();
                     ss << "Tensor name: " << ref_name << " is missing in " << node->get_type_info() << " ";
                     ss << "output(" << r->input_value(0).get_index() << ")";
-                    throw ngraph_error(ss.str());
+                    OPENVINO_THROW(ss.str());
                 }
             }
 
@@ -237,13 +237,13 @@ public:
                         std::stringstream ss;
                         ss << "Output node names mismatch: " << cur_node_name << " and " << ref_node_name
                            << " (reference)";
-                        throw ngraph_error(ss.str());
+                        OPENVINO_THROW(ss.str());
                     }
                 } else if (cur_node_name != ref_node_name) {
                     std::stringstream ss;
                     ss << "Output node names are different: " << cur_node_name << " and " << ref_node_name
                        << " (reference)";
-                    throw ngraph_error(ss.str());
+                    OPENVINO_THROW(ss.str());
                 }
             }
         }
@@ -706,10 +706,8 @@ struct Equal<uint8_t*> {
             return false;
 
         for (size_t bit_idx = 0; bit_idx < lhs_bit_size; bit_idx++) {
-            const auto byte_idx_result(bit_idx / BITS_IN_BYTE_COUNT);
-            OPENVINO_ASSERT(byte_idx_result <= std::numeric_limits<uint8_t>::max(), "(bit_idx / BITS_IN_BYTE_COUNT) bigger than uint8_t::max_value");
+            const size_t byte_idx = bit_idx / BITS_IN_BYTE_COUNT;
 
-            const auto byte_idx(static_cast<uint8_t>(byte_idx_result));
             const uint8_t bit_in_byte_idx = 7 - (bit_idx % BITS_IN_BYTE_COUNT);
 
             if (extract_bit(lhs[byte_idx], bit_in_byte_idx) != extract_bit(rhs[byte_idx], bit_in_byte_idx)) {

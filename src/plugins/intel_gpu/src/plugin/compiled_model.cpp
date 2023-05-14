@@ -92,9 +92,6 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib, InferenceEngine::Remo
         ib.seekg(pos);
         auto graph = std::make_shared<Graph>(ib, context_impl, m_config, n);
         m_graphs.push_back(graph);
-        if (n == 0) {
-            ib.setNetwork(graph->GetNetwork().get());
-        }
     }
 }
 
@@ -193,7 +190,7 @@ void CompiledModel::Export(std::ostream& networkModel) {
     {
         ob << GetInputsInfo().size();
 
-        for (const auto & in : GetInputsInfo()) {
+        for (const auto& in : GetInputsInfo()) {
             ob << in.first;
             std::string precision(in.second->getPrecision().name());
             ob << precision;
@@ -205,7 +202,7 @@ void CompiledModel::Export(std::ostream& networkModel) {
 
         ob << GetOutputsInfo().size();
 
-        for (const auto & out : GetOutputsInfo()) {
+        for (const auto& out : GetOutputsInfo()) {
             ob << out.first;
             std::string precision(out.second->getPrecision().name());
             ob << precision;
@@ -218,17 +215,17 @@ void CompiledModel::Export(std::ostream& networkModel) {
 
     // Inputs
     {
-        std::vector<std::shared_ptr<const ov::Node>> const_params = getInputs();
+        const std::vector<std::shared_ptr<const ov::Node>>& const_params = getInputs();
         ob << const_params.size();
 
         for (const auto& param : const_params) {
             auto new_param = ov::as_type_ptr<const ov::op::v0::Parameter>(param);
-            std::string param_name = new_param->get_friendly_name();
             ov::element::Type param_element_type = new_param->get_element_type();
-            ov::PartialShape param_shape = new_param->get_partial_shape();
-            ov::Layout param_layout = new_param->get_layout();
-            // ov::RTMap param_rt_info = new_param->output(0).get_rt_info();
-            auto param_names = new_param->output(0).get_tensor().get_names();
+
+            const std::string& param_name = new_param->get_friendly_name();
+            const ov::PartialShape& param_shape = new_param->get_partial_shape();
+            const ov::Layout& param_layout = new_param->get_layout();
+            const auto& param_names = new_param->output(0).get_tensor().get_names();
 
             ob << param_name;
             std::stringstream ss;
@@ -237,7 +234,7 @@ void CompiledModel::Export(std::ostream& networkModel) {
             ob << param_shape;
             ob << param_layout.to_string();
             ob << param_names.size();
-            for (auto name : param_names) {
+            for (const auto& name : param_names) {
                 ob << name;
             }
         }
@@ -250,14 +247,14 @@ void CompiledModel::Export(std::ostream& networkModel) {
 
         for (const auto& param : const_results) {
             auto new_param = ov::as_type_ptr<const ov::op::v0::Result>(param);
-
             ov::element::Type fake_element_type = new_param->get_input_element_type(0);
-            ov::PartialShape fake_shape = new_param->get_input_partial_shape(0);
-            std::string fake_name = new_param->get_input_node_ptr(0)->get_friendly_name();
 
-            std::string param_name = new_param->get_friendly_name();
-            ov::Layout param_layout = new_param->get_layout();
-            auto param_names = new_param->output(0).get_tensor().get_names();
+            const std::string& fake_name = new_param->get_input_node_ptr(0)->get_friendly_name();
+            const std::string& param_name = new_param->get_friendly_name();
+            const ov::PartialShape& fake_shape = new_param->get_input_partial_shape(0);
+            const ov::Layout& param_layout = new_param->get_layout();
+            const auto& param_names = new_param->output(0).get_tensor().get_names();
+
 
             std::stringstream ss;
             ss << fake_element_type;
@@ -267,7 +264,7 @@ void CompiledModel::Export(std::ostream& networkModel) {
             ob << param_name;
             ob << param_layout.to_string();
             ob << param_names.size();
-            for (auto name : param_names) {
+            for (const auto& name : param_names) {
                 ob << name;
             }
         }
@@ -325,7 +322,7 @@ InferenceEngine::Parameter CompiledModel::GetMetric(const std::string &name) con
             ov::PropertyName{ov::compilation_num_threads.name(), PropertyMutability::RO},
             ov::PropertyName{ov::num_streams.name(), PropertyMutability::RO},
             ov::PropertyName{ov::hint::num_requests.name(), PropertyMutability::RO},
-            ov::PropertyName{ov::inference_precision.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::hint::inference_precision.name(), PropertyMutability::RO},
             ov::PropertyName{ov::device::id.name(), PropertyMutability::RO},
             ov::PropertyName{ov::execution_devices.name(), PropertyMutability::RO}
         };

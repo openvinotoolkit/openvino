@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/core/visibility.hpp"
 #include "ov_test.hpp"
 #include "test_model_repo.hpp"
 
@@ -133,14 +134,40 @@ TEST_P(ov_core_test, ov_core_compile_model_with_property) {
 
     ov_compiled_model_t* compiled_model = nullptr;
     const char* key = ov_property_key_num_streams;
-    const char* num = "11";
+    const char* num = "2";
     OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), 2, &compiled_model, key, num));
     EXPECT_NE(nullptr, compiled_model);
 
     char* property_value = nullptr;
     OV_EXPECT_OK(ov_compiled_model_get_property(compiled_model, key, &property_value));
-    EXPECT_STREQ(property_value, "11");
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+    // TODO: fix once ARM plugin supports multi-stream
+    EXPECT_STREQ(property_value, "1");
+#else
+    EXPECT_STREQ(property_value, "2");
+#endif
     ov_free(property_value);
+
+    ov_compiled_model_free(compiled_model);
+    ov_model_free(model);
+    ov_core_free(core);
+}
+
+TEST_P(ov_core_test, ov_core_compile_model_with_excution_mode) {
+    std::string device_name = "AUTO";
+    ov_core_t* core = nullptr;
+    OV_EXPECT_OK(ov_core_create(&core));
+    EXPECT_NE(nullptr, core);
+
+    ov_model_t* model = nullptr;
+    OV_EXPECT_OK(ov_core_read_model(core, xml_file_name.c_str(), nullptr, &model));
+    EXPECT_NE(nullptr, model);
+
+    ov_compiled_model_t* compiled_model = nullptr;
+    const char* key = ov_property_key_hint_execution_mode;
+    const char* value = "PERFORMANCE";
+    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), 2, &compiled_model, key, value));
+    EXPECT_NE(nullptr, compiled_model);
 
     ov_compiled_model_free(compiled_model);
     ov_model_free(model);
@@ -238,6 +265,50 @@ TEST_P(ov_core_test, ov_core_set_property_enum_invalid) {
     OV_EXPECT_OK(ov_core_get_property(core, device_name.c_str(), key, &ret));
     EXPECT_STRNE(invalid_mode, ret);
     ov_free(ret);
+
+    const char* key_pin = ov_property_key_hint_enable_cpu_pinning;
+    const char* val_pin = "YES";
+    OV_EXPECT_OK(ov_core_set_property(core, device_name.c_str(), key_pin, val_pin));
+    ret = nullptr;
+    OV_EXPECT_OK(ov_core_get_property(core, device_name.c_str(), key_pin, &ret));
+    EXPECT_STREQ(val_pin, ret);
+    ov_free(ret);
+
+    const char* invalid_val = "INVALID_VAL";
+    OV_EXPECT_NOT_OK(ov_core_set_property(core, device_name.c_str(), key_pin, invalid_val));
+    ret = nullptr;
+    OV_EXPECT_OK(ov_core_get_property(core, device_name.c_str(), key_pin, &ret));
+    EXPECT_STRNE(invalid_val, ret);
+    ov_free(ret);
+
+    const char* key_type = ov_property_key_hint_scheduling_core_type;
+    const char* val_type = "PCORE_ONLY";
+    OV_EXPECT_OK(ov_core_set_property(core, device_name.c_str(), key_type, val_type));
+    ret = nullptr;
+    OV_EXPECT_OK(ov_core_get_property(core, device_name.c_str(), key_type, &ret));
+    EXPECT_STREQ(val_type, ret);
+    ov_free(ret);
+
+    OV_EXPECT_NOT_OK(ov_core_set_property(core, device_name.c_str(), key_type, invalid_val));
+    ret = nullptr;
+    OV_EXPECT_OK(ov_core_get_property(core, device_name.c_str(), key_type, &ret));
+    EXPECT_STRNE(invalid_val, ret);
+    ov_free(ret);
+
+    const char* key_ht = ov_property_key_hint_enable_hyper_threading;
+    const char* val_ht = "YES";
+    OV_EXPECT_OK(ov_core_set_property(core, device_name.c_str(), key_ht, val_ht));
+    ret = nullptr;
+    OV_EXPECT_OK(ov_core_get_property(core, device_name.c_str(), key_ht, &ret));
+    EXPECT_STREQ(val_ht, ret);
+    ov_free(ret);
+
+    OV_EXPECT_NOT_OK(ov_core_set_property(core, device_name.c_str(), key_ht, invalid_val));
+    ret = nullptr;
+    OV_EXPECT_OK(ov_core_get_property(core, device_name.c_str(), key_ht, &ret));
+    EXPECT_STRNE(invalid_val, ret);
+    ov_free(ret);
+
     ov_core_free(core);
 }
 
@@ -247,31 +318,38 @@ TEST_P(ov_core_test, ov_core_set_and_get_property_enum) {
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
 
-    const char* key = ov_property_key_hint_performance_mode;
-    const char* affinity = "LATENCY";
-    OV_EXPECT_OK(ov_core_set_property(core, device_name.c_str(), key, affinity));
-    char* ret = nullptr;
-    OV_EXPECT_OK(ov_core_get_property(core, device_name.c_str(), key, &ret));
-    EXPECT_STREQ(affinity, ret);
-    ov_free(ret);
+    std::map<const char*, const char*> properties = {{ov_property_key_hint_performance_mode, "LATENCY"},
+                                                     {ov_property_key_hint_scheduling_core_type, "PCORE_ONLY"},
+                                                     {ov_property_key_hint_enable_hyper_threading, "YES"},
+                                                     {ov_property_key_enable_profiling, "YES"}};
+
+    for (const auto& property : properties) {
+        OV_EXPECT_OK(ov_core_set_property(core, device_name.c_str(), property.first, property.second));
+        char* ret = nullptr;
+        OV_EXPECT_OK(ov_core_get_property(core, device_name.c_str(), property.first, &ret));
+        EXPECT_STREQ(property.second, ret);
+        ov_free(ret);
+    }
 
     ov_core_free(core);
 }
 
-TEST_P(ov_core_test, ov_core_set_and_get_property_bool) {
-    auto device_name = GetParam();
+TEST_F(ov_core_test, ov_core_set_and_get_property_no_device) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
 
-    const char* key = ov_property_key_enable_profiling;
-    const char* enable = "YES";
-    OV_EXPECT_OK(ov_core_set_property(core, device_name.c_str(), key, enable));
+    std::map<const char*, const char*> properties = {{ov_property_key_force_tbb_terminate, "YES"},
+                                                     {ov_property_key_enable_mmap, "NO"}};
 
-    char* ret = nullptr;
-    OV_EXPECT_OK(ov_core_get_property(core, device_name.c_str(), key, &ret));
-    EXPECT_STREQ(enable, ret);
-    ov_free(ret);
+    for (const auto& property : properties) {
+        OV_EXPECT_OK(ov_core_set_property(core, "", property.first, property.second));
+        char* ret = nullptr;
+        OV_EXPECT_OK(ov_core_get_property(core, "", property.first, &ret));
+        EXPECT_STREQ(property.second, ret);
+        ov_free(ret);
+    }
+
     ov_core_free(core);
 }
 
@@ -306,10 +384,31 @@ TEST_P(ov_core_test, ov_core_get_property) {
     ov_core_free(core);
 }
 
+TEST_P(ov_core_test, ov_core_set_and_get_property_execution_mode) {
+    std::string device_name = "AUTO";
+    ov_core_t* core = nullptr;
+    OV_EXPECT_OK(ov_core_create(&core));
+    EXPECT_NE(nullptr, core);
+
+    const char* key = ov_property_key_hint_execution_mode;
+    char* property_value = nullptr;
+    OV_EXPECT_OK(ov_core_get_property(core, device_name.c_str(), key, &property_value));
+    ov_free(property_value);
+
+    const char* value1 = "ACCURACY";
+    OV_EXPECT_OK(ov_core_set_property(core, device_name.c_str(), key, value1));
+    OV_EXPECT_OK(ov_core_get_property(core, device_name.c_str(), key, &property_value));
+    EXPECT_STREQ(value1, property_value);
+
+    const char* value2 = "PERFORMANCE";
+    OV_EXPECT_OK(ov_core_set_property(core, device_name.c_str(), key, value2));
+    OV_EXPECT_OK(ov_core_get_property(core, device_name.c_str(), key, &property_value));
+    EXPECT_STREQ(value2, property_value);
+
+    ov_core_free(core);
+}
+
 TEST_P(ov_core_test, ov_core_set_get_property_str) {
-#ifdef __aarch64__
-    GTEST_SKIP() << "Skip this test for ARM CPU for now, cause no string property supported";
-#endif
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
@@ -363,9 +462,6 @@ TEST_P(ov_core_test, ov_core_set_property_int_invalid) {
 }
 
 TEST_P(ov_core_test, ov_core_set_multiple_common_properties) {
-#ifdef __aarch64__
-    GTEST_SKIP() << "Skip this test for ARM CPU for now, cause no string property supported";
-#endif
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));

@@ -75,7 +75,7 @@ protected:
             in_layouts.emplace_back(impl_params.get_input_layout(2));
         }
 
-        in_layouts = gemm_inst::transform_input_layouts(prim, in_layouts, out_l);
+        in_layouts = gemm_inst::transform_input_layouts(prim, in_layouts);
         out_l = gemm_inst::transform_output_layout(prim, in_layouts, out_l);
 
         const auto& in0_l = in_layouts[0];
@@ -178,7 +178,7 @@ public:
 #ifdef ONEDNN_PRIMITIVE_SERIALIZATION
         parent::save(ob);
 
-        const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ob.getKernlImplParams());
+        const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ob.getKernelImplParams());
         auto prim = impl_params->typed_desc<gemm>();
         bool gemm_with_bias = prim->dependencies().size() == 3;
 
@@ -233,20 +233,20 @@ public:
         bool gemm_with_bias;
         ib >> gemm_with_bias;
 
-        dnnl::memory::data_type in0_dt;
-        dnnl::memory::data_type in1_dt;
-        dnnl::memory::data_type out_dt;
-        dnnl::memory::data_type bias_dt;
+        dnnl::memory::data_type in0_dt = dnnl::memory::data_type::undef;
+        dnnl::memory::data_type in1_dt = dnnl::memory::data_type::undef;
+        dnnl::memory::data_type out_dt = dnnl::memory::data_type::undef;
+        dnnl::memory::data_type bias_dt = dnnl::memory::data_type::undef;
 
         dnnl::memory::dims in0_dims;
         dnnl::memory::dims in1_dims;
         dnnl::memory::dims out_dims;
         dnnl::memory::dims bias_dims;
 
-        dnnl::memory::format_tag in0_fmt;
-        dnnl::memory::format_tag in1_fmt;
-        dnnl::memory::format_tag out_fmt;
-        dnnl::memory::format_tag bias_fmt;
+        dnnl::memory::format_tag in0_fmt = dnnl::memory::format_tag::undef;
+        dnnl::memory::format_tag in1_fmt = dnnl::memory::format_tag::undef;
+        dnnl::memory::format_tag out_fmt = dnnl::memory::format_tag::undef;
+        dnnl::memory::format_tag bias_fmt = dnnl::memory::format_tag::undef;
 
         ib >> make_data(&in0_dt, sizeof(dnnl::memory::data_type));
         ib >> make_data(&in1_dt, sizeof(dnnl::memory::data_type));
@@ -301,16 +301,6 @@ public:
     }
 
     static std::unique_ptr<primitive_impl> create(const gemm_node& arg, const kernel_impl_params& impl_params) {
-        bool full_tensor_or_per_tensor = true;
-        for (auto prim : arg.get_fused_primitives()) {
-            if (prim.input_layout.is_static() && prim.output_layout.is_static()) {
-                full_tensor_or_per_tensor &=
-                    prim.input_layout.count() == prim.output_layout.count() || prim.input_layout.count() == 1;
-            }
-        }
-        if (!full_tensor_or_per_tensor) {
-            IE_THROW() << "Unimplemented: per channel binary post-operation is not supported for onednn gemm. Refer PR(#15353) message.";
-        }
         auto& engine = impl_params.prog->get_engine();
         auto& config = impl_params.prog->get_config();
         auto attr = arg.get_onednn_primitive_attributes();

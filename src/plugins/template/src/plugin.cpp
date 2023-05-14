@@ -10,8 +10,10 @@
 #include "ie_plugin_config.hpp"
 #include "itt.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
-#include "template/config.hpp"
+#include "remote_context.hpp"
+#include "template/properties.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
 #include "transformations/common_optimizations/convert_compression_only_to_legacy.hpp"
 #include "transformations/control_flow/unroll_if.hpp"
@@ -21,6 +23,7 @@
 namespace {
 static constexpr const char* wait_executor_name = "TemplateWaitExecutor";
 static constexpr const char* stream_executor_name = "TemplateStreamsExecutor";
+static constexpr const char* template_exclusive_executor = "TemplateExecutor";
 }  // namespace
 
 // ! [plugin:ctor]
@@ -41,20 +44,20 @@ ov::template_plugin::Plugin::~Plugin() {
     // Plugin should remove executors from executor cache to avoid threads number growth in the whole application
     get_executor_manager()->clear(stream_executor_name);
     get_executor_manager()->clear(wait_executor_name);
-    // NOTE: Uncomment this if Inference Engine Executor cache is used to create callback executor
-    // executorManager()->clear("TemplateCallbackExecutor");
 }
 // ! [plugin:dtor]
 
 // ! [plugin:create_context]
-ov::RemoteContext ov::template_plugin::Plugin::create_context(const ov::AnyMap& remote_properties) const {
-    OPENVINO_NOT_IMPLEMENTED;
+std::shared_ptr<ov::IRemoteContext> ov::template_plugin::Plugin::create_context(
+    const ov::AnyMap& remote_properties) const {
+    return std::make_shared<ov::template_plugin::RemoteContext>();
 }
 // ! [plugin:create_context]
 
 // ! [plugin:get_default_context]
-ov::RemoteContext ov::template_plugin::Plugin::get_default_context(const ov::AnyMap& remote_properties) const {
-    OPENVINO_NOT_IMPLEMENTED;
+std::shared_ptr<ov::IRemoteContext> ov::template_plugin::Plugin::get_default_context(
+    const ov::AnyMap& remote_properties) const {
+    return std::make_shared<ov::template_plugin::RemoteContext>();
 }
 // ! [plugin:get_default_context]
 
@@ -87,18 +90,7 @@ void transform_model(const std::shared_ptr<ov::Model>& model) {
 std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::compile_model(
     const std::shared_ptr<const ov::Model>& model,
     const ov::AnyMap& properties) const {
-    OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::compile_model");
-
-    auto fullConfig = Configuration{properties, m_cfg};
-    auto streamsExecutorConfig =
-        ov::threading::IStreamsExecutor::Config::make_default_multi_threaded(fullConfig.streams_executor_config);
-    streamsExecutorConfig._name = stream_executor_name;
-    auto compiled_model =
-        std::make_shared<CompiledModel>(model->clone(),
-                                        shared_from_this(),
-                                        get_executor_manager()->get_idle_cpu_streams_executor(streamsExecutorConfig),
-                                        fullConfig);
-    return compiled_model;
+    return compile_model(model, properties, {});
 }
 // ! [plugin:compile_model]
 
@@ -107,12 +99,34 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::compile_model(
     const std::shared_ptr<const ov::Model>& model,
     const ov::AnyMap& properties,
     const ov::RemoteContext& context) const {
-    OPENVINO_NOT_IMPLEMENTED;
+    OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::compile_model");
+
+    auto fullConfig = Configuration{properties, m_cfg};
+    auto streamsExecutorConfig =
+        ov::threading::IStreamsExecutor::Config::make_default_multi_threaded(fullConfig.streams_executor_config);
+    streamsExecutorConfig._name = stream_executor_name;
+    auto compiled_model = std::make_shared<CompiledModel>(
+        model->clone(),
+        shared_from_this(),
+        context,
+        fullConfig.exclusive_async_requests
+            ? get_executor_manager()->get_executor(template_exclusive_executor)
+            : get_executor_manager()->get_idle_cpu_streams_executor(streamsExecutorConfig),
+        fullConfig);
+    return compiled_model;
 }
 // ! [plugin:compile_model_with_remote]
 
 // ! [plugin:import_model]
 std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(std::istream& model,
+                                                                              const ov::AnyMap& properties) const {
+    return import_model(model, {}, properties);
+}
+// ! [plugin:import_model]
+
+// ! [plugin:import_model_with_remote]
+std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(std::istream& model,
+                                                                              const ov::RemoteContext& context,
                                                                               const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::import_model");
 
@@ -139,25 +153,18 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(st
     auto compiled_model =
         std::make_shared<CompiledModel>(ov_model,
                                         shared_from_this(),
+                                        context,
                                         get_executor_manager()->get_idle_cpu_streams_executor(streamsExecutorConfig),
                                         fullConfig,
                                         true);
     return compiled_model;
-}
-// ! [plugin:import_model]
-
-// ! [plugin:import_model_with_remote]
-std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(std::istream& model,
-                                                                              const ov::RemoteContext& context,
-                                                                              const ov::AnyMap& properties) const {
-    OPENVINO_NOT_IMPLEMENTED;
 }
 // ! [plugin:import_model_with_remote]
 
 // ! [plugin:query_model]
 ov::SupportedOpsMap ov::template_plugin::Plugin::query_model(const std::shared_ptr<const ov::Model>& model,
                                                              const ov::AnyMap& properties) const {
-    OV_ITT_SCOPED_TASK(TemplatePlugin::itt::domains::TemplatePlugin, "Plugin::query_model");
+    OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::query_model");
 
     Configuration fullConfig{properties, m_cfg, false};
 
@@ -166,6 +173,9 @@ ov::SupportedOpsMap ov::template_plugin::Plugin::query_model(const std::shared_p
     auto supported = ov::get_supported_nodes(
         model,
         [&](std::shared_ptr<ov::Model>& model) {
+            // skip transformations in case of user config
+            if (fullConfig.disable_transformations)
+                return;
             // 1. It is needed to apply all transformations as it is done in compile_model
             transform_model(model);
         },
@@ -192,7 +202,7 @@ ov::SupportedOpsMap ov::template_plugin::Plugin::query_model(const std::shared_p
     // 3. Produce the result
     ov::SupportedOpsMap res;
     for (auto&& layerName : supported) {
-        res.emplace(layerName, get_device_name());
+        res.emplace(layerName, get_device_name() + "." + std::to_string(m_cfg.device_id));
     }
 
     return res;
@@ -216,6 +226,7 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
                                                     ov::device::full_name,
                                                     ov::device::architecture,
                                                     ov::device::capabilities,
+                                                    ov::caching_properties,
                                                     ov::range_for_async_infer_requests};
         return ro_properties;
     };
@@ -223,7 +234,8 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
         std::vector<ov::PropertyName> rw_properties{ov::device::id,
                                                     ov::enable_profiling,
                                                     ov::hint::performance_mode,
-                                                    ov::template_plugin::throughput_streams};
+                                                    ov::exclusive_async_requests,
+                                                    ov::template_plugin::disable_transformations};
         return rw_properties;
     };
     const auto& to_string_vector = [](const std::vector<ov::PropertyName>& properties) {
@@ -273,6 +285,9 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
         // TODO: return device architecture for device specified by DEVICE_ID config
         std::string arch = "TEMPLATE";
         return decltype(ov::device::architecture)::value_type(arch);
+    } else if (ov::caching_properties == name) {
+        std::vector<ov::PropertyName> caching_properties = {ov::device::architecture};
+        return decltype(ov::caching_properties)::value_type(caching_properties);
     } else if (ov::device::capabilities == name) {
         // TODO: fill actual list of supported capabilities: e.g. Template device supports only FP32 and EXPORT_IMPORT
         std::vector<std::string> capabilities = {ov::device::capability::FP32, ov::device::capability::EXPORT_IMPORT};

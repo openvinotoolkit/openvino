@@ -47,7 +47,6 @@ class GNADeviceHelper : public GNADevice {
     uint32_t nGnaDeviceIndex = 0;
     bool useDeviceEmbeddedExport = false;
     uint32_t maxLayersCount_ = 0;
-    size_t m_mem_alignment = 0;
 
     static const uint32_t TotalGna2InstrumentationPoints = 2;
     Gna2InstrumentationPoint gna2InstrumentationPoints[TotalGna2InstrumentationPoints] = {
@@ -68,6 +67,7 @@ class GNADeviceHelper : public GNADevice {
     uint64_t debugLogIndexRequestWait = 0;
     static constexpr const char* kDumpExt = ".bin";
     static constexpr const char* kDumpDelimiter = ".";
+    const size_t m_mem_alignment;
 
 public:
     explicit GNADeviceHelper(std::shared_ptr<target::Target> target = std::make_shared<target::Target>(),
@@ -128,7 +128,7 @@ public:
         return allAllocations;
     }
 
-    const size_t getMemAlignment() const {
+    size_t getMemAlignment() const {
         return m_mem_alignment;
     }
 

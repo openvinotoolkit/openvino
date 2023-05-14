@@ -21,6 +21,17 @@
 namespace ov {
 namespace intel_cpu {
 
+namespace {
+    size_t replace_all(std::string & inout, std::string what, std::string with) {
+        std::size_t count{};
+        for (std::string::size_type pos{}; inout.npos != (pos = inout.find(what.data(), pos, what.length()));
+             pos += with.length(), ++count) {
+            inout.replace(pos, what.length(), with.data(), with.length());
+        }
+        return count;
+    }
+}
+
 DebugLogEnabled::DebugLogEnabled(const char* file, const char* func, int line, const char* name) {
     // check ENV
     const char* p_filters = std::getenv("OV_CPU_DEBUG_LOG");
@@ -82,6 +93,8 @@ void DebugLogEnabled::break_at(const std::string & log) {
         std::cout << "[ DEBUG ] " << " Debug log breakpoint hit" << std::endl;
 #if defined(_MSC_VER)
         __debugbreak();
+#elif defined(__APPLE__) || defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+       __builtin_trap();
 #else
         asm("int3");
 #endif
@@ -96,19 +109,27 @@ std::ostream & operator<<(std::ostream & os, const MemoryDesc& desc) {
 }
 
 std::ostream & operator<<(std::ostream & os, const NodeDesc& desc) {
-    os << "    ImplementationType: " << impl_type_to_string(desc.getImplementationType()) << std::endl;
+    std::stringstream ss;
+    ss << "  " << impl_type_to_string(desc.getImplementationType()) << "(";
+    const char * sep = "";
     for (auto & conf : desc.getConfig().inConfs) {
-        os << "    inConfs: " << *conf.getMemDesc();
-        if (conf.inPlace() >= 0) os << " inPlace:" << conf.inPlace();
-        if (conf.constant()) os << " constant";
-        os << std::endl;
+        ss << sep << *conf.getMemDesc();
+        if (conf.inPlace() >= 0) ss << " inPlace:" << conf.inPlace();
+        if (conf.constant()) ss << " constant";
+        sep = ",";
     }
+    ss << ") -> (";
+    sep = "";
     for (auto & conf : desc.getConfig().outConfs) {
-        os << "    outConfs: " << *conf.getMemDesc();
-        if (conf.inPlace() >= 0) os << " inPlace:" << conf.inPlace();
-        if (conf.constant()) os << " constant";
-        os << std::endl;
+        ss << sep << *conf.getMemDesc();
+        if (conf.inPlace() >= 0) ss << " inPlace:" << conf.inPlace();
+        if (conf.constant()) ss << " constant";
+        sep = ",";
     }
+    ss << ")" << std::endl;
+    auto str = ss.str();
+    replace_all(str, "0 - ?", "?");
+    os << str;
     return os;
 }
 
@@ -137,15 +158,7 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
         }
         return true;
     };
-    auto replace_all = [](std::string& inout, std::string what, std::string with) {
-        std::size_t count{};
-        for (std::string::size_type pos{};
-            inout.npos != (pos = inout.find(what.data(), pos, what.length()));
-            pos += with.length(), ++count) {
-            inout.replace(pos, what.length(), with.data(), with.length());
-        }
-        return count;
-    };
+
     auto nodeDesc = node.getSelectedPrimitiveDescriptor();
     std::stringstream leftside;
 
@@ -479,11 +492,6 @@ std::ostream & operator<<(std::ostream & os, const PrintableModel& model) {
         os << std::endl;
 
         // recursively output subgraphs
-        if (auto subgraph = std::dynamic_pointer_cast<ngraph::snippets::op::Subgraph>(op)) {
-            os << "\t\t snippets Subgraph: " << subgraph->get_friendly_name() << " is_quantized:" << subgraph->is_quantized() << std::endl;
-            os << PrintableModel(subgraph->body(), tag, prefix + "\t\t");
-        }
-
         if (auto msubgraph = std::dynamic_pointer_cast<op::util::MultiSubGraphOp>(op)) {
             auto cnt = msubgraph->get_internal_subgraphs_size();
             for (int i = 0; i < cnt; i++) {

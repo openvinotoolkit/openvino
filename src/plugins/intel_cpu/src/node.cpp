@@ -455,6 +455,7 @@ std::string Node::getPrimitiveDescriptorType() {
 
     SEARCH_TYPE(winograd);
     SEARCH_TYPE(sparse);
+    SEARCH_TYPE(acl);
     SEARCH_TYPE(_dw);
     SEARCH_TYPE(_1x1);
 
@@ -550,12 +551,6 @@ std::vector<memory::format_tag> Node::getAvailableFormatsForDims(const Shape &di
     return {memory::format_tag::any};
 }
 
-void Node::execute(dnnl::stream strm) {
-    if (prim) {
-        prim.execute(strm, primArgs);
-    }
-}
-
 void Node::updateShapes() {
     IE_ASSERT(isDynamicNode()) << "Node::updateShapes() is called to a static shape node of type: " << getTypeStr() << " with name: " << getName();
     if (needShapeInfer()) {
@@ -575,13 +570,6 @@ void Node::updateDynamicParams() {
             DEBUG_LOG(" prepareParams() on #", getExecIndex(), " ", getTypeStr(), " ", algToString(getAlgorithm()),
                       " ", getName(), " ", getOriginalLayers());
             prepareParams();
-#ifdef CPU_DEBUG_CAPS
-            if (prim) {
-                auto pd_c = prim.get_primitive_desc();
-                auto* pd = reinterpret_cast<const dnnl_primitive_desc*>(pd_c);
-                DEBUG_LOG("verbose##", getName(), "##", pd->info(), "\n");
-            }
-#endif
         }
     }
 }
@@ -640,7 +628,6 @@ void Node::initSupportedPrimitiveDescriptors() {
 
         while (static_cast<bool>(itpd)) {
             NodeConfig config;
-            config.dynBatchSupport = true;
             for (size_t i = 0; i < descInputNumbers(); i++) {
                 PortConfig portConfig;
                 portConfig.inPlace(-1);
@@ -771,7 +758,7 @@ void Node::initDescriptor(const NodeConfig& config) {
     createDescriptor(inDescs, outDescs);
 
     for (auto& desc : descs) {
-        if (DnnlExtensionUtils::hasProperImplementationType(desc, selectedPD->getImplementationType())) {
+        if (DnnlExtensionUtils::find_implementation(desc, selectedPD->getImplementationType())) {
             selectedPD->setConfig(config);
             return;
         }
@@ -783,20 +770,53 @@ void Node::initDescriptor(const NodeConfig& config) {
     selectedPD->setConfig(updatedConfig);
 }
 
-void Node::prepareMemory(const std::vector<DnnlMemoryDescPtr>& intDescs) {
-    for (size_t i = 0; i < getChildEdges().size(); i++) {
-        auto &dstMemPtr = getChildEdgeAt(i)->getMemoryPtr();
-        if (!dstMemPtr || !dstMemPtr->isAllocated())
-            IE_THROW() << "Destination memory didn't allocate for node " << getName()
-                               << " to node " << getChildEdgeAt(i)->getChild()->getName() << ".";
-    }
-    for (size_t i = 0; i < getParentEdges().size(); i++) {
-        auto &srcMemPtr = getParentEdgeAt(i)->getMemoryPtr();
-        if (!srcMemPtr || !srcMemPtr->isAllocated())
-            IE_THROW() << "Destination memory didn't allocate for node " << getName()
-                               << " from node " << getParentEdgeAt(i)->getParent()->getName() << ".";
+void Node::prepareMemory(const DnnlMemoryDescPtr& intDesc, size_t indx) {
+    size_t minSize = indx + 1;
+    if (internalBlobMemory.size() < minSize) {
+        internalBlobMemory.resize(minSize);
     }
 
+    if (minSize > internalBlobs.size()) {
+        IE_THROW() << "Can't prepare memory for internal blob, requested index: " << indx <<
+            " is out of bounds of the internalBlobs vector of size " << internalBlobs.size();
+    }
+
+    const auto &internalBlob = internalBlobs[indx];
+
+    auto create = [&] () {
+        // TODO [DS]: internal blobs should be removed or rewritten using Memory object
+        auto newDesc = MemoryDescUtils::convertToDnnlBlockedMemoryDesc(internalBlob->getTensorDesc());
+
+        Memory memory{ engine };
+        memory.Create(newDesc, internalBlob->buffer());
+
+        MemoryPtr _ptr = std::make_shared<Memory>(engine);
+        _ptr->Create(intDesc);
+        node::Reorder::reorderData(memory, *_ptr, context->getParamsCache());
+        return _ptr;
+    };
+
+    MemoryPtr ptr;
+    auto weightCache = context->getWeightsCache();
+    if (weightCache != nullptr && memory::format_kind::blocked == intDesc->getDnnlDesc().get_format_kind()) {
+        const auto& format = intDesc->serializeFormat();
+        const uint64_t data_hash = weightCache->GetHashFunc().hash(
+                internalBlob->buffer(), internalBlob->byteSize());
+
+        const std::string string_hash = name + "_" + std::to_string(indx)
+                                        + "_" + format
+                                        + "_" + std::to_string(internalBlob->byteSize())
+                                        + "_" + std::to_string(data_hash);
+
+        ptr = *weightCache->findOrCreate(string_hash, create);
+    } else {
+        ptr = create();
+    }
+
+    internalBlobMemory[indx] = ptr;
+}
+
+void Node::prepareMemory(const std::vector<DnnlMemoryDescPtr>& intDescs) {
     if (internalBlobs.size() != intDescs.size()) {
         IE_THROW() << "Can't prepare memory for internal blob, internal blob and internal descs number do not match "
                    << internalBlobs.size() << " vs " << intDescs.size();
@@ -804,38 +824,7 @@ void Node::prepareMemory(const std::vector<DnnlMemoryDescPtr>& intDescs) {
 
     internalBlobMemory.clear();
     for (size_t i = 0; i < internalBlobs.size(); i++) {
-        const auto &internalBlob = internalBlobs[i];
-
-        auto create = [&] () {
-            // TODO [DS]: internal blobs should be removed or rewritten using Memory object
-            auto newDesc = MemoryDescUtils::convertToDnnlBlockedMemoryDesc(internalBlob->getTensorDesc());
-
-            Memory memory{ engine };
-            memory.Create(newDesc, internalBlob->buffer());
-
-            MemoryPtr _ptr = std::make_shared<Memory>(engine);
-            _ptr->Create(*intDescs[i]);
-            _ptr->SetData(memory);
-
-            return _ptr;
-        };
-
-        MemoryPtr ptr;
-        auto weightCache = context->getWeightsCache();
-        if (weightCache != nullptr) {
-            const uint64_t data_hash = weightCache->GetHashFunc().hash(
-                    internalBlob->buffer(), internalBlob->byteSize());
-
-            const std::string string_hash = name + "_" + std::to_string(i)
-                                            + "_" + std::to_string(internalBlob->byteSize())
-                                            + "_" + std::to_string(data_hash);
-
-            ptr = *weightCache->findOrCreate(string_hash, create);
-        } else {
-            ptr = create();
-        }
-
-        internalBlobMemory.push_back(ptr);
+        prepareMemory(intDescs[i], i);
     }
 }
 
@@ -845,6 +834,51 @@ void Node::prepareMemory(dnnl::primitive_desc_iterator& itpd) {
         intDescs.push_back(it(itpd, 0));
 
     Node::prepareMemory(intDescs);
+}
+
+MemoryPtr Node::prepareWeightMemory(DnnlMemoryDescPtr weightDesc) {
+    if (!getParentEdgeAt(1)->getParent()->isConstant())
+        IE_THROW() << "Weight input is not const for node " << getName() << ".";
+    auto edgeMem = getParentEdgeAt(1)->getMemoryPtr();
+    if (!edgeMem)
+        IE_THROW() << "Cannot get const weights edgeMem for node " << getName() << ".";
+
+    auto constDnnlMemOutDesc = edgeMem->GetDescWithType<DnnlMemoryDesc>();
+    auto weightSrcDesc = constDnnlMemOutDesc->getDnnlDesc();
+    weightSrcDesc = weightSrcDesc.reshape(weightDesc->getDnnlDesc().get_dims());
+    auto create = [&] () {
+        auto newSrcDesc = DnnlExtensionUtils::makeDescriptor(weightSrcDesc);
+
+        Memory srcMemory{ getEngine() };
+        srcMemory.Create(newSrcDesc, edgeMem->GetData());
+
+        MemoryPtr _ptr = std::make_shared<Memory>(getEngine());
+        _ptr->Create(weightDesc);
+        node::Reorder::reorderData(srcMemory, *_ptr, context->getParamsCache());
+
+        return _ptr;
+    };
+
+    MemoryPtr ptr;
+    const auto& format = weightDesc->serializeFormat();
+    auto itr = privateWeightCache.find(format);
+    if (privateWeightCache.end() != itr) {
+        ptr = itr->second;
+    } else {
+        auto weightCache = context->getWeightsCache();
+        if (weightCache != nullptr) {
+            const std::string string_hash = getName() + "_" + format
+                                            + "_" + std::to_string(edgeMem->GetSize())
+                                            + "_" + std::to_string(reinterpret_cast<uint64_t>(edgeMem->GetData()));
+
+            ptr = *weightCache->findOrCreate(string_hash, create);
+        } else {
+            ptr = create();
+        }
+        privateWeightCache[format] = ptr;
+    }
+
+    return ptr;
 }
 
 bool Node::isInPlace() {
@@ -940,6 +974,9 @@ void Node::cleanup() {
 const std::vector<impl_desc_type>& Node::getPrimitivesPriority() {
     std::vector<impl_desc_type> priorities = {
             impl_desc_type::unknown,
+            // Undef impl type is used to express use-cases there real type is unkown during compilation
+            // Undef has higher priority than defined types in order to force primitive selection logic to make decision based on other properties
+            impl_desc_type::undef,
             impl_desc_type::brgconv_avx512_amx_1x1,
             impl_desc_type::brgconv_avx512_amx,
             impl_desc_type::jit_avx512_amx_dw,
@@ -969,6 +1006,7 @@ const std::vector<impl_desc_type>& Node::getPrimitivesPriority() {
             impl_desc_type::gemm_avx2,
             impl_desc_type::gemm_avx,
             impl_desc_type::gemm_sse42,
+            impl_desc_type::acl,
             impl_desc_type::jit_gemm,
             impl_desc_type::ref_any,
             impl_desc_type::ref,
@@ -1069,28 +1107,27 @@ void Node::initOptimalPrimitiveDescriptor() {
         IE_THROW() << "Preferable primitive descriptor is not set.";
 
     auto config = selected_pd->getConfig();
-    if (isDynamicNode()) {
-        // it is assumed that the nodes will define dense tensors on output edges
-        // if it is not the case the implementation must redefine this behaviour
-        for (size_t i = 0; i < config.outConfs.size(); i++) {
-            auto outMemDesc = config.outConfs[i].getMemDesc();
-            if (outMemDesc && (outMemDesc->getType() & Blocked)) {
-                config.outConfs[i].setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(outMemDesc), BLOCKED_DESC_FULL_MASK);
-            }
-        }
-    } else {
-        for (size_t i = 0; i < config.inConfs.size(); i++) {
+    for (size_t i = 0; i < config.inConfs.size(); i++) {
+        if (!isDynamicNode() || config.inConfs[i].getMemDesc()->isDefined()) {
             auto inpPortDesc = getConsistentInputDesc(config, i);
             DEBUG_LOG(getName(), ": input PortDesc before: ", *inpPortDesc->getMemDesc());
             config.inConfs[i].setMemDesc(inpPortDesc->getMemDesc());
             DEBUG_LOG(getName(), ": input PortDesc after: ", *config.inConfs[i].getMemDesc());
         }
+    }
 
-        for (size_t i = 0; i < config.outConfs.size(); i++) {
+    for (size_t i = 0; i < config.outConfs.size(); i++) {
+        auto outMemDesc = config.outConfs[i].getMemDesc();
+        if (!isDynamicNode() || outMemDesc->isDefined()) {
             auto outPortDesc = getConsistentOutputDesc(config, i);
             DEBUG_LOG(getName(), ": output PortDesc before: ", *outPortDesc->getMemDesc());
             config.outConfs[i].setMemDesc(outPortDesc->getMemDesc());
-            DEBUG_LOG(getName(), ": output PortDesc after: ", *config.outConfs[i].getMemDesc());
+        } else {
+            // it is assumed that the nodes will define dense tensors on output edges
+            // if it is not the case the implementation must redefine this behaviour
+            if (outMemDesc->getType() & Blocked) {
+                config.outConfs[i].setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(outMemDesc), BLOCKED_DESC_FULL_MASK);
+            }
         }
     }
 
@@ -1119,53 +1156,6 @@ MemoryDescPtr Node::getDstMemDesc(dnnl::primitive_desc_iterator &primitive_desc_
         return DnnlExtensionUtils::makeUndefinedDesc(primitive_desc_it.dst_desc(idx), getOutputShapeAtPort(idx));
     }
     return DnnlExtensionUtils::makeDescriptor(primitive_desc_it.dst_desc(idx));
-}
-
-int Node::batchToProcess() const {
-    return dynBatchLim == 0 ? getMaxBatch() : std::min<int>(getMaxBatch(), dynBatchLim);
-}
-
-// TODO [DS]: how we should process this for dynamic shape?
-size_t Node::getMaxBatch() const {
-    // FIXME: batch != 0 dims number
-    if (!inputShapes.empty()) {
-        if (inputShapes[0].getRank())
-            return static_cast<int>(inputShapes[0].getStaticDims()[0]);
-        else
-            return 1;
-    }
-    if (!outputShapes.empty()) {
-        if (outputShapes[0].getRank())
-            return static_cast<int>(outputShapes[0].getStaticDims()[0]);
-        else
-            return 1;
-    }
-    return 0;
-}
-
-void Node::setDynamicBatchLim(int lim) {
-    dynBatchLim = lim;
-
-    auto setDynamicBatch = [this](int argType, int newBatch) {
-        auto param = primArgs.find(argType);
-        if (param != primArgs.end()) {
-            auto oldMem = param->second;
-            dnnl::memory::desc newMemDesc(oldMem.get_desc());
-            newMemDesc.get()->dims[0] = newBatch;
-            newMemDesc.get()->padded_dims[0] = newBatch;
-
-            dnnl::memory newMem(newMemDesc, oldMem.get_engine(), oldMem.get_data_handle());
-            primArgs.at(argType) = newMem;
-        }
-    };
-
-    if (!primArgs.empty()) {
-        int newBatch = batchToProcess();
-        setDynamicBatch(DNNL_ARG_SRC, newBatch);
-        setDynamicBatch(DNNL_ARG_DST, newBatch);
-        setDynamicBatch(DNNL_ARG_DIFF_SRC, newBatch);
-        setDynamicBatch(DNNL_ARG_DIFF_DST, newBatch);
-    }
 }
 
 void Node::appendPostOpArgs(const dnnl::primitive_attr& attr,
@@ -1322,6 +1312,7 @@ Node* Node::NodesFactory::create(const std::shared_ptr<ngraph::Node>& op, const 
 }
 
 bool Node::canBePerformedAsScaleShift(const Node *parentNode) const {
+#if defined(OPENVINO_ARCH_X86_64)
     IE_ASSERT(parentNode);
 
     size_t fusingPort = 0;
@@ -1372,6 +1363,10 @@ bool Node::canBePerformedAsScaleShift(const Node *parentNode) const {
                                    Algorithm::EltwisePrelu,
                                    Algorithm::EltwiseMulAdd) && isBroadcastableToDataInput())
             || isConvertablePowerStatic();
+#else
+    // TODO: provide correct list of operations for other backends
+    return false;
+#endif
 }
 
 // @todo shifts for Subtract and scales for Divide are replaced with
@@ -1588,22 +1583,7 @@ bool Node::canFuseSimpleOperation(const NodePtr& node) const {
         }
         return ret;
     } else if (node->getType() == Type::Eltwise) {
-        return one_of(node->getAlgorithm(),
-                      Algorithm::EltwiseRelu,
-                      Algorithm::EltwiseGelu,
-                      Algorithm::EltwiseElu,
-                      Algorithm::EltwiseSigmoid,
-                      Algorithm::EltwiseClamp,
-                      Algorithm::EltwiseTanh,
-                      Algorithm::EltwiseSwish,
-                      Algorithm::EltwiseHswish,
-                      Algorithm::EltwiseMish,
-                      Algorithm::EltwiseHsigmoid,
-                      Algorithm::EltwiseRoundHalfToEven,
-                      Algorithm::EltwiseRoundHalfAwayFromZero,
-                      Algorithm::EltwiseAbs,
-                      Algorithm::EltwiseSqrt,
-                      Algorithm::EltwiseSoftRelu) ||
+        return DnnlExtensionUtils::isUnarySupportedAsPostOp(node->getAlgorithm()) ||
             node->canBePerformedAsScaleShift(this);
     }
     return false;
@@ -1615,8 +1595,7 @@ void Node::addFusedNode(const NodePtr &fusingNode) {
 
 void Node::addSupportedPrimDesc(const std::vector<PortConfigurator>& inPortConfigs,
                                 const std::vector<PortConfigurator>& outPortConfigs,
-                                impl_desc_type implType,
-                                bool dynBatchSupport) {
+                                impl_desc_type implType) {
     auto fill_port = [] (const PortConfigurator& portConfigurator, const Shape& shape,
                          InferenceEngine::Precision prc, std::vector<PortConfig>& port) -> bool {
         // In order to simplify particular node initialization logic we just don't add config in case target shape is not supported by blockedDescCreator.
@@ -1648,9 +1627,22 @@ void Node::addSupportedPrimDesc(const std::vector<PortConfigurator>& inPortConfi
         if (!fill_port(outPortConfigs[i], dims, prc, config.outConfs))
             return;
     }
-
-    config.dynBatchSupport = dynBatchSupport;
     supportedPrimitiveDescriptors.push_back({config, implType});
+}
+
+void Node::initializeDQScales(const float* scaleData, const size_t scaleSize) {
+    bool scalePerTensor;
+    if (!DQScales.empty() || !scaleSize)
+        IE_THROW() << "DQ scales is preset or scale size is 0, ##" << getName();
+    DQScales.reserve(scaleSize);
+    scalePerTensor = true;
+    for (size_t i = 0; i < scaleSize; i++) {
+        DQScales.push_back(scaleData[i]);
+        if (scaleData[i] != scaleData[0])
+            scalePerTensor = false;
+    }
+    if (scalePerTensor)
+        DQScales.resize(1);
 }
 
 }   // namespace intel_cpu

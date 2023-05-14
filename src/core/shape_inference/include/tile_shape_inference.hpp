@@ -12,9 +12,18 @@ namespace op {
 namespace v0 {
 
 template <class T>
+struct NegativeToZero {
+    NegativeToZero() = default;
+    template <class U>
+    T operator()(const U u) const {
+        return static_cast<T>(std::max<U>(0, ov::util::InTypeRange<U>()(u)));
+    }
+};
+
+template <class T>
 std::vector<T> shape_infer(const Tile* op,
                            const std::vector<T>& input_shapes,
-                           const std::map<size_t, std::reference_wrapper<const ov::Tensor>>& constant_data = {}) {
+                           const ITensorAccessor& tensor_accessor = make_tensor_accessor()) {
     using TDim = typename T::value_type;
     using TDimValue = typename TDim::value_type;
 
@@ -28,11 +37,9 @@ std::vector<T> shape_infer(const Tile* op,
     T output_shape;
 
     // Get repeats and pre process values
-    auto negative_repeats_to_zero = [](const TDimValue v) -> TDimValue {
-        return std::max<TDimValue>(0, ov::util::InTypeRange<TDimValue>()(v));
-    };
+    constexpr auto negative_repeats_to_zero = NegativeToZero<TDimValue>();
 
-    auto repeats = get_input_const_data_as_shape<T>(op, 1, constant_data, negative_repeats_to_zero);
+    auto repeats = get_input_const_data_as_shape<T>(op, 1, tensor_accessor, negative_repeats_to_zero);
 
     const auto& arg_rank = arg_shape.rank();
     if (arg_rank.is_static() && repeats) {

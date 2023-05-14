@@ -50,9 +50,6 @@ def create_simple_request_and_inputs(device):
 
 def concat_model_with_data(device, ov_type, numpy_dtype):
     core = Core()
-    # todo: remove as 101726 will be fixed.
-    if ov_type == Type.boolean and device == "CPU" and "Intel" not in core.get_property(device, "FULL_DEVICE_NAME"):
-        pytest.skip("This test runs only on openvino intel cpu plugin")
 
     input_shape = [5]
 
@@ -209,9 +206,6 @@ def test_set_tensors(device):
 
 def test_batched_tensors(device):
     core = Core()
-    if device == "CPU":
-        if "Intel" not in core.get_property(device, "FULL_DEVICE_NAME"):
-            pytest.skip("Can't run on ARM plugin")
 
     batch = 4
     one_shape = [1, 2, 2, 2]
@@ -267,7 +261,7 @@ def test_batched_tensors(device):
             assert np.array_equal(actual[idx], _tmp)
 
 
-def test_inputs_outputs_property(device):
+def test_inputs_outputs_property_and_method(device):
     num_inputs = 10
     input_shape = [1]
     params = [ops.parameter(input_shape, np.uint8) for _ in range(num_inputs)]
@@ -277,10 +271,14 @@ def test_inputs_outputs_property(device):
     request = compiled_model.create_infer_request()
     data = [np.atleast_1d(i) for i in range(num_inputs)]
     results = request.infer(data).values()
-    for result, output_tensor in zip(results, request.outputs):
+    for result, output_tensor in zip(results, request.output_tensors):
         assert np.array_equal(result, output_tensor.data)
-    for input_data, input_tensor in zip(data, request.inputs):
+    for input_data, input_tensor in zip(data, request.input_tensors):
         assert np.array_equal(input_data, input_tensor.data)
+    for input_tensor in request.input_tensors:
+        assert list(input_tensor.get_shape()) == input_shape
+    for output_tensor in request.output_tensors:
+        assert list(output_tensor.get_shape()) == input_shape
 
 
 @pytest.mark.skip(reason="Sporadically failed. Need further investigation. Ticket - 95967")
@@ -395,7 +393,7 @@ def test_infer_mixed_values(device, ov_type, numpy_dtype, shared_flag):
 
     request.infer([tensor1, array1], shared_memory=shared_flag)
 
-    assert np.array_equal(request.outputs[0].data, np.concatenate((tensor1.data, array1)))
+    assert np.array_equal(request.output_tensors[0].data, np.concatenate((tensor1.data, array1)))
 
 
 @pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
@@ -419,8 +417,7 @@ def test_async_mixed_values(device, ov_type, numpy_dtype, shared_flag):
 
     request.start_async([tensor1, array1], shared_memory=shared_flag)
     request.wait()
-
-    assert np.array_equal(request.outputs[0].data, np.concatenate((tensor1.data, array1)))
+    assert np.array_equal(request.output_tensors[0].data, np.concatenate((tensor1.data, array1)))
 
 
 @pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
@@ -512,6 +509,7 @@ def test_infer_queue_iteration(device):
     it = iter(infer_queue)
     infer_request = next(it)
     assert isinstance(infer_request, InferRequest)
+    assert infer_request.userdata is None
     with pytest.raises(StopIteration):
         next(it)
 
@@ -642,9 +640,6 @@ def test_infer_queue_get_idle_handle(device):
 )
 def test_query_state_write_buffer(device, input_shape, data_type, mode):
     core = Core()
-    if device == "CPU":
-        if core.get_property(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
-            pytest.skip("Can't run on ARM plugin")
 
     from openvino.runtime import Tensor
     from openvino.runtime.utils.types import get_dtype
@@ -890,8 +885,6 @@ def test_invalid_inputs(device, shared_flag):
 
 def test_infer_dynamic_model(device):
     core = Core()
-    if device == "CPU" and "Intel" not in core.get_property(device, "FULL_DEVICE_NAME"):
-        pytest.skip("This test fails on ARM plugin because it doesn't support dynamic shapes.")
 
     param = ops.parameter(PartialShape([-1, -1]))
     model = Model(ops.relu(param), [param])

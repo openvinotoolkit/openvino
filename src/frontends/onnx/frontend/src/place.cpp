@@ -317,8 +317,8 @@ ov::frontend::Place::Ptr PlaceOp::get_input_port(const std::string& input_name) 
 
 std::vector<ov::frontend::Place::Ptr> PlaceOp::get_consuming_ports() const {
     std::vector<ov::frontend::Place::Ptr> consuming_ports;
-    const auto out_ports_number = m_editor->get_output_ports(m_node).size();
-    for (size_t out_idx = 0; out_idx < out_ports_number; ++out_idx) {
+    const auto out_ports_number = static_cast<int>(m_editor->get_output_ports(m_node).size());
+    for (int out_idx = 0; out_idx < out_ports_number; ++out_idx) {
         auto consuming_ops_out = get_output_port(out_idx)->get_consuming_ports();
         consuming_ports.insert(consuming_ports.end(), consuming_ops_out.begin(), consuming_ops_out.end());
     }

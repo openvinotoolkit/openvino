@@ -30,7 +30,7 @@ OutputVector base_expand(const NodeContext& context, const Output<Node>& x, cons
 };
 }  // namespace
 
-OutputVector translate_expand(NodeContext& context) {
+OutputVector translate_expand(const NodeContext& context) {
     // aten::expand(Tensor(a) self, SymInt[] size, *, bool implicit=False) -> Tensor(a)
     num_inputs_check(context, 2, 3);
     auto x = context.get_input(0);
@@ -41,7 +41,7 @@ OutputVector translate_expand(NodeContext& context) {
     return base_expand(context, x, sizes);
 };
 
-OutputVector translate_expand_as(NodeContext& context) {
+OutputVector translate_expand_as(const NodeContext& context) {
     num_inputs_check(context, 2, 2);
     auto x = context.get_input(0);
     auto y = context.get_input(1);

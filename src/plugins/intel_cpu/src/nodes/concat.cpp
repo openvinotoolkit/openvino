@@ -121,7 +121,7 @@ void Concat::initSupportedPrimitiveDescriptors() {
 
     // check if blocked layouts are available the channels size should be evenly divided by the block size to avoid slow oneDNN ref implementation
     if (dstShape.getRank() > channelAxis) {
-        for (auto item : { std::make_pair(8lu, LayoutType::nCsp8c), std::make_pair(16lu, LayoutType::nCsp16c)}) {
+        for (auto& item : { std::make_pair(8lu, LayoutType::nCsp8c), std::make_pair(16lu, LayoutType::nCsp16c)}) {
             const VectorDims &blkDims = dstShape.getDims();
             if (blkDims[channelAxis] == Shape::UNDEFINED_DIM || blkDims[channelAxis] % item.first != 0)
                 continue;
@@ -148,7 +148,6 @@ void Concat::initSupportedPrimitiveDescriptors() {
     for (auto itr = itrRange.first; itr != itrRange.second; ++itr) {
         NodeConfig config;
 
-        config.dynBatchSupport = true;
         config.outConfs.resize(1);
         config.outConfs[0].inPlace(-1);
         config.outConfs[0].constant(false);
@@ -361,9 +360,9 @@ void Concat::prepareParams() {
         return;
 
     const auto& dstMemPtr = getChildEdgesAtPort(0)[0]->getMemoryPtr();
-    auto dstMemDesc = dstMemPtr->GetDescWithType<BlockedMemoryDesc>();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
         IE_THROW() << "Destination memory didn't allocate.";
+    auto dstMemDesc = dstMemPtr->GetDescWithType<BlockedMemoryDesc>();
     if (getSelectedPrimitiveDescriptor() == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set.";
 
@@ -433,6 +432,12 @@ void Concat::prepareParams() {
 
         auto primitive_desc = concat::primitive_desc(getEngine(), desc, static_cast<int>(axis), srcs_d);
         prim = concat(primitive_desc);
+#ifdef CPU_DEBUG_CAPS
+        if (prim) {
+            auto pd = prim.get_primitive_desc();
+            DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
+        }
+#endif
     }
 }
 

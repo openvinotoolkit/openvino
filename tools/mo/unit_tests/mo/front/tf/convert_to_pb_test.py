@@ -17,6 +17,7 @@ class ConvertToPBTests(unittest.TestCase):
                                        saved_model_dir=None, input_meta_graph=None, saved_model_tags=None,
                                        model_name='model', output_dir=None)
 
+    @unittest.skip("Ticket: 106651")
     def test_saved_model(self):
         import tensorflow as tf
         with tempfile.TemporaryDirectory(dir=self.test_directory) as tmp_dir:
@@ -52,8 +53,7 @@ class ConvertToPBTests(unittest.TestCase):
             self.argv.input_meta_graph = os.path.join(tmp_dir, 'model.meta')
             self.argv.output_dir = tmp_dir
             path_to_pb = convert_to_pb(self.argv)
-            self.assertTrue(os.path.exists(path_to_pb), "The auxiliary .pb is not generated")
-            self.assertTrue(os.path.getsize(path_to_pb) != 0, "The auxiliary .pb is empty")
+            self.assertTrue(path_to_pb is None, "Auxiliary .pb must not be generated for .meta")
 
     def test_text_frozen_format(self):
         try:
@@ -80,8 +80,7 @@ class ConvertToPBTests(unittest.TestCase):
                             "The test model in frozen text format must exist")
             # test convert_to_pb
             path_to_pb = convert_to_pb(self.argv)
-            self.assertTrue(os.path.exists(path_to_pb), "The auxiliary .pb is not generated")
-            self.assertTrue(os.path.getsize(path_to_pb) != 0, "The auxiliary .pb is empty")
+            self.assertTrue(path_to_pb is None, "Auxiliary .pb must not be generated for .pbtxt")
 
     def test_binary_frozen_format(self):
         try:
@@ -155,12 +154,10 @@ class ConvertToPBTests(unittest.TestCase):
             self.argv.input_meta_graph = os.path.join(tmp_dir, 'model1.meta')
             self.argv.output_dir = tmp_dir
             path_to_pb = convert_to_pb(self.argv)
-            self.assertTrue(os.path.exists(path_to_pb), "The auxiliary .pb is not generated")
-            self.assertTrue(os.path.getsize(path_to_pb) != 0, "The auxiliary .pb is empty")
+            self.assertTrue(path_to_pb is None, "Auxiliary .pb must not be generated for .meta")
 
             self.argv.input_meta_graph = os.path.join(tmp_dir, 'model2.meta')
             self.argv.output_dir = tmp_dir
             self.argv.input_model = None
             path_to_pb = convert_to_pb(self.argv)
-            self.assertTrue(os.path.exists(path_to_pb), "The auxiliary .pb is not generated")
-            self.assertTrue(os.path.getsize(path_to_pb) != 0, "The auxiliary .pb is empty")
+            self.assertTrue(path_to_pb is None, "Auxiliary .pb must not be generated for .meta")

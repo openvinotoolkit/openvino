@@ -15,7 +15,7 @@ namespace v1 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Pad : public Op {
 public:
-    OPENVINO_OP("Pad", "opset1", op::Op, 1);
+    OPENVINO_OP("Pad", "opset1", op::Op);
 
     /// \brief Constructs a generic padding operation.
     ///

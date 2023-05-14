@@ -4,7 +4,7 @@
         <tab type="usergroup" url="index.html" visibile="yes" title="GUIDE">
             <tab type="usergroup" url="index.html" title="Developer Guide for OpenVINO Plugin Library">
                 <tab type="user" url="@ref plugin" visibile="yes" title="Implement Plugin Functionality"/>
-                <tab type="user" url="@ref executable_network" visibile="yes" title="Implement Executable Network Functionality">
+                <tab type="user" url="@ref compiled_model" visibile="yes" title="Implement Executable Network Functionality">
                     <tab type="usergroup" title="Low Precision Transformations" url="@ref openvino_docs_OV_UG_lpt">
                         <tab type="user" title="Attributes" url="@ref openvino_docs_OV_UG_lpt_attributes">
                             <tab type="user" title="AvgPoolPrecisionPreserved" url="@ref openvino_docs_OV_UG_lpt_AvgPoolPrecisionPreserved"/>
@@ -25,6 +25,7 @@
                             <tab type="user" title="CreateAttribute" url="@ref openvino_docs_OV_UG_lpt_CreateAttribute"/>
                             <tab type="user" title="CreatePrecisionsDependentAttribute" url="@ref openvino_docs_OV_UG_lpt_CreatePrecisionsDependentAttribute"/>
                             <tab type="user" title="MarkupAvgPoolPrecisionPreserved" url="@ref openvino_docs_OV_UG_lpt_MarkupAvgPoolPrecisionPreserved"/>
+                            <tab type="user" title="MarkupBias" url="@ref openvino_docs_OV_UG_lpt_MarkupBias"/>
                             <tab type="user" title="MarkupCanBeQuantized" url="@ref openvino_docs_OV_UG_lpt_MarkupCanBeQuantized"/>
                             <tab type="user" title="MarkupPerTensorQuantization" url="@ref openvino_docs_OV_UG_lpt_MarkupPerTensorQuantization"/>
                             <tab type="user" title="MarkupPrecisions" url="@ref openvino_docs_OV_UG_lpt_MarkupPrecisions"/>
@@ -68,6 +69,7 @@
                             <tab type="user" title="VariadicSplitTransformation" url="@ref openvino_docs_OV_UG_lpt_VariadicSplitTransformation"/>
                         </tab>
                         <tab type="user" title="Step 4. Cleanup transformations" url="@ref openvino_docs_OV_UG_lpt_step4_cleanup">
+                            <tab type="user" title="EliminateFakeQuantizeTransformation" url="@ref openvino_docs_OV_UG_lpt_EliminateFakeQuantizeTransformation"/>
                             <tab type="user" title="FoldConvertTransformation" url="@ref openvino_docs_OV_UG_lpt_FoldConvertTransformation"/>
                             <tab type="user" title="FoldFakeQuantizeTransformation" url="@ref openvino_docs_OV_UG_lpt_FoldFakeQuantizeTransformation"/>
                             <tab type="user" title="FuseConvertTransformation" url="@ref openvino_docs_OV_UG_lpt_FuseConvertTransformation"/>
@@ -79,6 +81,9 @@
                 </tab>
                 <tab type="user" url="@ref infer_request" visibile="yes" title="Implement Synchronous Inference Request"/>
                 <tab type="user" url="@ref async_infer_request" visibile="yes" title="Implement Asynchronous Inference Request"/>
+                <tab type="user" url="@ref properties" visibile="yes" title="Provide Plugin Specific Properties"/>
+                <tab type="user" url="@ref remote_context" visibile="yes" title="Implement Remote Context"/>
+                <tab type="user" url="@ref remote_tensor" visibile="yes" title="Implement Remote Tensor"/>
             </tab>
         </tab>
         <!-- Additional resources -->

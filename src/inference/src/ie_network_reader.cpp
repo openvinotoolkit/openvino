@@ -47,7 +47,7 @@ public:
         : m_ext(ext),
           m_opset_name(opset),
           m_type(name),
-          m_ext_type(m_type.c_str(), 0, m_opset_name.c_str()) {}
+          m_ext_type(m_type.c_str(), m_opset_name.c_str()) {}
 
     const ov::DiscreteTypeInfo& get_type_info() const override {
         return m_ext_type;
@@ -418,7 +418,8 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
                                 const std::string& binPath,
                                 const std::vector<IExtensionPtr>& exts,
                                 const std::vector<ov::Extension::Ptr>& ov_exts,
-                                bool newAPI) {
+                                bool newAPI,
+                                bool enable_mmap) {
 #ifdef ENABLE_IR_V7_READER
     // IR v7 obsolete code
     {
@@ -457,6 +458,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
 #endif
         params.emplace_back(weights_path);
     }
+    params.emplace_back(enable_mmap);
 
     FE = manager.load_by_model(params);
     if (FE) {

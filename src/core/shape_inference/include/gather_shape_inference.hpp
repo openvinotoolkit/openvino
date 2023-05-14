@@ -45,7 +45,9 @@ void shape_infer(const GatherBase* op,
         axis = axes_val[0];
 
         if (data_rank.is_static()) {
+            OPENVINO_SUPPRESS_DEPRECATED_START
             axis = ov::normalize_axis(op, axis, data_rank);
+            OPENVINO_SUPPRESS_DEPRECATED_END
         }
         // batch_dims, axis both can be positive by default or after normalization if data_rank &
         // indices_rank are static.

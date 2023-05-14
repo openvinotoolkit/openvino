@@ -68,7 +68,7 @@ ov::pass::ConvertNMS9ToNMSIEInternal::ConvertNMS9ToNMSIEInternal() {
             center_point_box = 0;
             break;
         default:
-            throw Exception("NonMaxSuppression layer " + nms_9->get_friendly_name() + " has unsupported box encoding");
+            OPENVINO_THROW("NonMaxSuppression layer " + nms_9->get_friendly_name() + " has unsupported box encoding");
         }
 
         std::shared_ptr<op::internal::NonMaxSuppressionIEInternal> nms_legacy{nullptr};

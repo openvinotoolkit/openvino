@@ -170,9 +170,8 @@ void SoftMax::prepareParams() {
     SoftmaxKey key = {inpDesc, selected_pd->getImplementationType(), axis, *attr};
     auto engine = getEngine();
 
-    auto builder = [&engine](const SoftmaxKey& key) -> dnnl::primitive {
-        softmax_forward::primitive_desc prim_desc;
-        auto desc = std::make_shared<softmax_forward::primitive_desc>(
+    auto builder = [&engine](const SoftmaxKey& key) -> executorPtr {
+        auto prim_desc = softmax_forward::primitive_desc(
             engine,
             prop_kind::forward_inference,
             algorithm::softmax_accurate,
@@ -182,8 +181,9 @@ void SoftMax::prepareParams() {
             key.attr,
             true);
 
-        primitive_desc_iterator itpd = *desc;
+        primitive_desc_iterator itpd = prim_desc;
 
+        auto itpd_first = itpd;
         while (itpd) {
             impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
             if (impl_type == key.implType ||
@@ -195,27 +195,41 @@ void SoftMax::prepareParams() {
                 prim_desc = itpd.get();
                 break;
             }
-            if (!itpd.next_impl())
-                return softmax_forward();
+            if (!itpd.next_impl()) {
+                prim_desc = itpd_first.get();
+                break;
+            }
         }
-        return softmax_forward(prim_desc);
+        return std::make_shared<DnnlExecutor>(prim_desc);
     };
 
     auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, builder);
 
-    if (!result.first) {
+    execPtr = result.first;
+    if (!execPtr) {
         IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
     }
 
-    prim = result.first;
+    auto scratchpadMem = getScratchPadMem(execPtr->getScratchPadDesc());
 
-    auto pd = prim.get_primitive_desc();
-    auto scratchpadMem = getScratchPadMem(pd);
+    primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->GetPrimitive();
+    primArgs[DNNL_ARG_SRC] = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
+    primArgs[DNNL_ARG_DST] = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
+#ifdef CPU_DEBUG_CAPS
+    if (result.second == CacheEntryBase::LookUpStatus::Miss) {
+        auto pd = execPtr->getPrimitiveDesc();
+        DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
+    }
+#endif
+}
 
-    auto src = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
-    auto dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
-    primArgs = {{DNNL_ARG_SRC, src}, {DNNL_ARG_DST, dst}, {DNNL_ARG_SCRATCHPAD, scratchpadMem->GetPrimitive()}};
+void SoftMax::execute(dnnl::stream strm) {
+    if (execPtr) {
+        execPtr->exec(primArgs, strm);
+    } else {
+        IE_THROW() << "Softmax node with name '" << getName() << "' doesn't have an initialized executor";
+    }
 }
 
 void SoftMax::executeDynamicImpl(dnnl::stream strm) {

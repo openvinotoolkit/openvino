@@ -159,7 +159,7 @@ public:
     virtual StatusCode GetContext(RemoteContext::Ptr& pContext, ResponseDesc* resp) const noexcept = 0;
 
 protected:
-    ~IExecutableNetwork() = default;
+    virtual ~IExecutableNetwork() = default;
 };
 
 _IE_SUPPRESS_DEPRECATED_END_GCC

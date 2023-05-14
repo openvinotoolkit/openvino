@@ -55,6 +55,7 @@ packages = [
     "openvino.runtime.opset8",
     "openvino.runtime.opset9",
     "openvino.runtime.opset10",
+    "openvino.runtime.opset11",
     "openvino.runtime.utils",
     "openvino.runtime.op",
     "openvino.runtime.op.util",

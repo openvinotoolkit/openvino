@@ -129,7 +129,12 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
     }
 
     case ::tensorflow::AttrValue::ValueCase::kType: {
-        return get_ov_type(attrs[0].type());
+        auto atype = attrs[0].type();
+        if (atype != ::tensorflow::DT_STRING) {
+            return get_ov_type(attrs[0].type());
+        } else {
+            return ov::Any("DT_STRING");
+        }
     }
 
     case ::tensorflow::AttrValue::ValueCase::kList: {
@@ -168,7 +173,11 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
         if (list.type_size()) {
             std::vector<ov::element::Type> res;
             for (int idx = 0; idx < list.type_size(); ++idx) {
-                res.emplace_back(get_ov_type(list.type(idx)));
+                if (list.type(idx) != ::tensorflow::DataType::DT_STRING) {
+                    res.emplace_back(get_ov_type(list.type(idx)));
+                } else {
+                    res.emplace_back(ov::element::dynamic);
+                }
             }
             return res;
         }
@@ -194,9 +203,17 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
         FRONT_END_GENERAL_CHECK(pshape.is_static(), "Dynamic shapes are not supported for Tensor attribute.");
         const auto& tf_type = tensor_proto.dtype();
         auto ov_type = get_ov_type(tf_type);
-        FRONT_END_GENERAL_CHECK(
-            ov_type.is_static(),
-            "Encountered unknown element type " + DataType_Name(tf_type) + " on an empty tensor_proto");
+        if (tf_type != ::tensorflow::DataType::DT_STRING) {
+            FRONT_END_GENERAL_CHECK(
+                ov_type.is_static(),
+                "Encountered unknown element type " + DataType_Name(tf_type) + " on an empty tensor_proto");
+        } else {
+            auto data = std::vector<std::string>();
+            for (const auto& item : tensor_proto.string_val()) {
+                data.push_back(item);
+            }
+            return data;
+        }
         ov::Tensor res(ov_type, pshape.get_shape());
         auto tensor_content = tensor_proto.tensor_content();
         if (!tensor_content.empty() && tensor_proto.has_tensor_shape()) {
@@ -286,27 +303,8 @@ size_t DecoderProto::get_input_size() const {
 
 void parse_producer_name(const std::string& producer_port_name,
                          std::string& producer_name,
-                         size_t& producer_output_port_index,
-                         const DecoderBase::OpTypeByName& op_type_by_name) {
-    using OutputPortIdxMax = std::unordered_map<std::string, int>;
-    // create a table of operation type and its output ports
-    // for which we specify output port indices manually
-    // it is mainly affects multiple output operations
-    // extract this information from tensorflow/core/ops/*.cc files
-    const OutputPortIdxMax output_port_idx_map = {
-        {"TopK:indices", 1},
-        {"TopKV2:indices", 1},
-        {"CTCGreedyDecoder:decoded_values", 1},
-        {"CTCGreedyDecoder:decoded_shape", 2},
-        {"CTCGreedyDecoder:log_probability", 3},
-        {"CTCGreedyDecoder:log_probability", 3},
-        {"FusedBatchNorm:batch_mean", 1},
-        {"FusedBatchNorm:batch_variance", 2},
-        {"FusedBatchNormV2:batch_mean", 1},
-        {"FusedBatchNormV2:batch_variance", 2},
-        {"FusedBatchNormV3:batch_mean", 1},
-        {"FusedBatchNormV3:batch_variance", 2},
-    };
+                         std::string& producer_output_port_name,
+                         size_t& producer_output_port_index) {
     // Body graph nodes may have two colons `:` input names, for example,
     // `TopKV2Name:indices:0` means that producer operation name is `TopKV2Name`
     // the middle name is output port name of the producer `indices` that means
@@ -323,11 +321,7 @@ void parse_producer_name(const std::string& producer_port_name,
                                 "Port id is not specified or not a number. Value: ",
                                 port_id);
         producer_output_port_index = std::stoi(port_id);
-        auto producer_op_type =
-            (op_type_by_name.count(producer_name) > 0) ? op_type_by_name.at(producer_name) : "Unknown";
-        auto producer_key = producer_op_type + ":" + port_name;
-        producer_output_port_index = output_port_idx_map.count(producer_key) > 0 ? output_port_idx_map.at(producer_key)
-                                                                                 : producer_output_port_index;
+        producer_output_port_name = port_name;
         return;
     } else if (first_colon != std::string::npos) {
         // just one colon case
@@ -345,17 +339,10 @@ void parse_producer_name(const std::string& producer_port_name,
 
 void DecoderProto::get_input_node(size_t input_port_idx,
                                   std::string& producer_name,
+                                  std::string& producer_output_port_name,
                                   size_t& producer_output_port_index) const {
     const std::string producer_port_name = m_node_def->input(static_cast<int>(input_port_idx));
-    parse_producer_name(producer_port_name, producer_name, producer_output_port_index, {});
-}
-
-void DecoderProto::get_input_node(size_t input_port_idx,
-                                  std::string& producer_name,
-                                  size_t& producer_output_port_index,
-                                  const OpTypeByName& op_type_by_name) const {
-    const std::string producer_port_name = m_node_def->input(static_cast<int>(input_port_idx));
-    parse_producer_name(producer_port_name, producer_name, producer_output_port_index, op_type_by_name);
+    parse_producer_name(producer_port_name, producer_name, producer_output_port_name, producer_output_port_index);
 }
 
 const std::string& DecoderProto::get_op_type() const {

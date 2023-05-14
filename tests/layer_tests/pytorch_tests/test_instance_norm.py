@@ -30,7 +30,7 @@ class TestInstanceNorm(PytorchLayerTest):
                 if mean_var:
                     self.mean = torch.randn(weights_shape)
                     self.var = torch.randn(weights_shape)
-                
+
                 self.eps = eps
 
             def forward(self, x):
@@ -42,15 +42,16 @@ class TestInstanceNorm(PytorchLayerTest):
 
     @pytest.mark.parametrize("params",
                              [
-                              {"eps": 0.0001},
-                              {'weights': True, 'eps': -0.05},
-                              {'weights': True},
-                              {'weights': True, 'bias': True},
-                              {"weights": True, 'bias': False, "mean_var": True},
-                              {"weights": True, 'bias': True, "mean_var": True},
-                              {"weights": False, 'bias': True, "mean_var": True},
-                              {"weights": False, 'bias': False, "mean_var": True},
-                              {"weights": False, 'bias': False, "mean_var": True, "eps": 1.5}
+                                 {"eps": 0.0001},
+                                 {'weights': True, 'eps': -0.05},
+                                 {'weights': True},
+                                 {'weights': True, 'bias': True},
+                                 {"weights": True, 'bias': False, "mean_var": True},
+                                 {"weights": True, 'bias': True, "mean_var": True},
+                                 {"weights": False, 'bias': True, "mean_var": True},
+                                 {"weights": False, 'bias': False, "mean_var": True},
+                                 {"weights": False, 'bias': False,
+                                  "mean_var": True, "eps": 1.5}
                              ])
     @pytest.mark.parametrize("kwargs_to_prepare_input", [
         {"ndim": 3},
@@ -61,4 +62,5 @@ class TestInstanceNorm(PytorchLayerTest):
     @pytest.mark.precommit
     def test_group_norm(self, params, ie_device, precision, ir_version, kwargs_to_prepare_input):
         self._test(*self.create_model(**params),
-                   ie_device, precision, ir_version, kwargs_to_prepare_input=kwargs_to_prepare_input, dynamic_shapes=not params.get("mean_var", False))
+                   ie_device, precision, ir_version, kwargs_to_prepare_input=kwargs_to_prepare_input, 
+                   dynamic_shapes=not params.get("mean_var", False), use_mo_convert=False)

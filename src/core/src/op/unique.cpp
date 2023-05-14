@@ -179,7 +179,9 @@ void op::v10::Unique::validate_and_infer_types() {
                 extract_axis(std::dynamic_pointer_cast<op::v0::Constant>(input_value(1).get_node_shared_ptr()));
 
             if (input_shape.rank().is_static()) {
+                OPENVINO_SUPPRESS_DEPRECATED_START
                 const auto normalized_axis = ngraph::normalize_axis(this, axis, input_shape.rank());
+                OPENVINO_SUPPRESS_DEPRECATED_END
                 const auto dim_at_axis = input_shape[normalized_axis];
 
                 Dimension output_dim_at_axis;

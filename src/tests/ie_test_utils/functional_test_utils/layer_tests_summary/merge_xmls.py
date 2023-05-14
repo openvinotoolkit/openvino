@@ -27,11 +27,13 @@ def parse_arguments():
     output_folders_help = "Path to folder to save report"
     output_filename_help = "Output report filename"
     report_type_help = "Report type: OP or API"
+    merge_device_id_help = "Merge all devices with suffix to one main device. Example: GPU.0 and GPU.1 -> GPU"
 
     parser.add_argument("-i", "--input_folders", help=input_folders_help, nargs="*", required=True)
     parser.add_argument("-o", "--output_folder", help=output_folders_help, default=".")
     parser.add_argument("-f", "--output_filename", help=output_filename_help, default="report")
     parser.add_argument("-t", "--report_type", help=report_type_help, default="OP")
+    parser.add_argument("-m", "--merge_device_id", help=merge_device_id_help, default=False)
 
     return parser.parse_args()
 
@@ -53,7 +55,8 @@ def update_result_node(xml_node: SubElement, aggregated_res: SubElement):
         aggregated_res.set(attr_name, str(xml_value + aggregated_value))
 
 
-def aggregate_test_results(aggregated_results: SubElement, xml_reports: list, report_type: str):
+def aggregate_test_results(aggregated_results: SubElement, xml_reports: list,
+                           report_type: str, merge_device_suffix=False):
     aggregated_timestamp = None
     for xml in xml_reports:
         # logger.info(f" Processing: {xml}")
@@ -67,18 +70,25 @@ def aggregate_test_results(aggregated_results: SubElement, xml_reports: list, re
         if aggregated_timestamp is None or xml_timestamp < aggregated_timestamp:
             aggregated_timestamp = xml_timestamp
         for xml_device_entry in xml_results:
-            aggregated_device_results = aggregated_results.find(xml_device_entry.tag)
-            if aggregated_device_results is None:
-                aggregated_results.append(xml_device_entry)
-                continue
-            # op or api_type
+            if merge_device_suffix and "." in xml_device_entry.tag:
+                device_name = xml_device_entry.tag[:xml_device_entry.tag.find("."):]
+                new_data = ET.tostring(xml_device_entry).decode('utf8').replace(xml_device_entry.tag, device_name)
+                xml_device_entry = ET.fromstring(new_data)
+            device_name = xml_device_entry.tag
+            aggregated_device_results = aggregated_results.find(device_name)
             for xml_results_entry in xml_device_entry:
-                aggregated_results_entry = aggregated_device_results.find(xml_results_entry.tag)
+                aggregated_results_entry = None
+                if not aggregated_device_results is None:
+                    aggregated_results_entry = aggregated_device_results.find(xml_results_entry.tag)
                 if aggregated_results_entry is None:
                     stat_update_utils.update_rel_values(xml_results_entry)
-                    aggregated_device_results.append(xml_results_entry)
+                    if aggregated_device_results is None:
+                        aggregated_results.append(xml_device_entry)
+                        aggregated_device_results = aggregated_results.find(device_name)
+                    else:
+                        aggregated_device_results.append(xml_results_entry)
                     continue
-                if report_type == "OP":
+                if report_type == OP_CONFORMANCE or report_type == OP_CONFORMANCE.lower():
                     update_result_node(xml_results_entry, aggregated_results_entry)
                 else:
                     for xml_real_device_entry in xml_results_entry:
@@ -88,11 +98,11 @@ def aggregate_test_results(aggregated_results: SubElement, xml_reports: list, re
                             aggregated_results_entry.append(xml_real_device_entry)
                             continue
                         update_result_node(xml_real_device_entry, aggregated_real_device_api_report)
-                a = 1
     return aggregated_timestamp
 
 
-def merge_xml(input_folder_paths: list, output_folder_paths: str, output_filename: str, report_type: str):
+def merge_xml(input_folder_paths: list, output_folder_paths: str, output_filename: str,
+              report_type: str, merge_device_suffix=False):
     logger.info(f" Processing is finished")
 
     summary = Element("report")
@@ -133,8 +143,10 @@ def merge_xml(input_folder_paths: list, output_folder_paths: str, output_filenam
             logger.error(f'{folder_path} does not contain the correct xml files')
         for entity in xml_root.find(entity_name):
             if entity_list.find(entity.tag) is None:
-                SubElement(entity_list, entity.tag)
-        timestamp = aggregate_test_results(results, xml_reports, report_type)
+                entity_node = SubElement(entity_list, entity.tag)
+                for op_attrib in entity.attrib:
+                    entity_node.set(op_attrib, entity.get(op_attrib))
+        timestamp = aggregate_test_results(results, xml_reports, report_type, merge_device_suffix)
         if report_type == "OP":
             stat_update_utils.update_passrates(results)
         else:
@@ -155,4 +167,4 @@ def merge_xml(input_folder_paths: list, output_folder_paths: str, output_filenam
 
 if __name__ == "__main__":
     arguments = parse_arguments()
-    merge_xml(arguments.input_folders, arguments.output_folder, arguments.output_filename, arguments.report_type)
+    merge_xml(arguments.input_folders, arguments.output_folder, arguments.output_filename, arguments.report_type, arguments.merge_device_id)

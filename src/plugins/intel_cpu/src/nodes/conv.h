@@ -69,8 +69,6 @@ public:
 
     bool isWinograd() const { return isWino; }
 
-    void setDynamicBatchLim(int lim) override;
-
 protected:
     InferenceEngine::Precision fusedEltwisePrecision(const NodePtr& fusingNode) const;
     void redefineOutputMemory(const std::vector<VectorDims> &newOutputShapes) override;
@@ -83,6 +81,7 @@ private:
         PerTensor,
         PerChannel
     };
+
     class FusedSubgraph;
     using FusedSubgraphPtr = std::shared_ptr<FusedSubgraph>;
     using executorPtr = std::shared_ptr<DnnlExecutor>;
@@ -90,11 +89,12 @@ private:
 
     class ConvolutionExecutor : public DnnlExecutor {
         public:
-            ConvolutionExecutor(const dnnl::convolution_forward::primitive_desc& pd,
+            ConvolutionExecutor(const dnnl::primitive_desc& pd,
                                 const dnnl::memory::desc& inMemDesc,
                                 const dnnl::memory::desc& weightMemDesc,
                                 const dnnl::memory::desc& outMemDesc,
-                                const dnnl::engine& engine);
+                                const dnnl::engine& engine,
+                                bool constWeight);
     };
 
     void prepareParams() override;
@@ -167,8 +167,15 @@ private:
     MemoryPtr legacyWeightsZeroPointsMemPtr;
     MemoryPtr legacyOutputCompensationMemPtr;
     MemoryPtr stockInputZeroPointsMemPtr;
-    dnnl::memory::data_type outputDataType;
+    dnnl::memory::data_type outputDataType = dnnl::memory::data_type::undef;
     InferenceEngine::Precision sumPrc = InferenceEngine::Precision::UNSPECIFIED;
+
+    // TODO: migrate on convolution_auto algorithm for x64
+#if defined(OPENVINO_ARCH_X86_64)
+    const dnnl::algorithm baseConvAlgorithm = dnnl::algorithm::convolution_direct;
+#else
+    const dnnl::algorithm baseConvAlgorithm = dnnl::algorithm::convolution_auto;
+#endif
 };
 
 }   // namespace node

@@ -52,7 +52,6 @@ void Reorder::initSupportedPrimitiveDescriptors() {
     auto child = getChildEdgeAt(0)->getChild();
 
     NodeConfig config;
-    config.dynBatchSupport = true;
     config.inConfs.resize(1);
     config.outConfs.resize(1);
     config.inConfs[0].inPlace(-1);
@@ -245,6 +244,13 @@ void Reorder::createReorderPrimitive(const dnnl::memory::desc& srcDesc,
     auto src = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
     auto dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
     primArgs = {{DNNL_ARG_SRC, src}, {DNNL_ARG_DST, dst}};
+
+#ifdef CPU_DEBUG_CAPS
+    if (prim) {
+        auto pd = prim.get_primitive_desc();
+        DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
+    }
+#endif
 }
 
 const std::vector<impl_desc_type>& Reorder::getPrimitivesPriority() {
@@ -336,33 +342,12 @@ void Reorder::execute(dnnl::stream strm) {
         src_blocked->setDataHandle(getParentEdgeAt(0)->getMemory().GetData());
         dst_blocked->setDataHandle(getChildEdgeAt(0)->getMemory().GetData());
 
-        Node::execute(strm);
+        if (prim) {
+            prim.execute(strm, primArgs);
+        } else {
+            IE_THROW() << "Reorder node with name " << getName() << " doesn't have an initialized primitive";
+        }
     }
-}
-
-void Reorder::setDynamicBatchLim(int lim) {
-    std::cout << getName() << " setDynamicBatchLim" << "\n";
-
-    dynBatchLim = lim;
-
-    if (!prim)
-        return;
-
-    auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    auto &srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
-    memory::desc src_d = srcMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
-    memory::desc dst_d = dstMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
-    void *src_data_hdl = srcMemPtr->GetData();
-    void *dst_data_hdl = dstMemPtr->GetData();
-
-    // @ TODO ONEDNN_3_0 direct access to internal elements should be avoided
-    src_d.get()->dims[0] = batchToProcess();
-    src_d.get()->padded_dims[0] = batchToProcess();
-
-    dst_d.get()->dims[0] = batchToProcess();
-    dst_d.get()->padded_dims[0] = batchToProcess();
-
-    createReorderPrimitive(src_d, src_data_hdl, dst_d, dst_data_hdl);
 }
 
 std::string Reorder::getReorderArgs(const MemoryDesc &parentDesc, const MemoryDesc &childDesc) {

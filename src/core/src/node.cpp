@@ -26,6 +26,12 @@
 
 using namespace std;
 
+void ov::NodeValidationFailure::create(const CheckLocInfo& check_loc_info,
+                                       const Node* node,
+                                       const std::string& explanation) {
+    throw ov::NodeValidationFailure(make_what(check_loc_info, node_validation_failure_loc_string(node), explanation));
+}
+
 atomic<size_t> ov::Node::m_next_instance_id(0);
 
 ov::Node::Node() = default;
@@ -319,13 +325,13 @@ void ov::Node::add_control_dependency(std::shared_ptr<Node> node) {
     });
 }
 
-void ov::Node::add_node_control_dependencies(std::shared_ptr<Node> source_node) {
+void ov::Node::add_node_control_dependencies(const std::shared_ptr<const Node>& source_node) {
     for (auto& node : source_node->get_control_dependencies()) {
         add_control_dependency(node);
     }
 }
 
-void ov::Node::add_node_control_dependents(std::shared_ptr<Node> source_node) {
+void ov::Node::add_node_control_dependents(const std::shared_ptr<const Node>& source_node) {
     for (Node* node : source_node->get_control_dependents()) {
         node->add_control_dependency(shared_from_this());
     }
@@ -385,9 +391,11 @@ std::ostream& ov::Node::write_description(std::ostream& out, uint32_t depth) con
     if (depth == 0) {
         out << get_friendly_name();
     } else {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        out << "v" << get_type_info().version << "::" << get_type_info().name << " " << get_friendly_name() << " (";
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        auto version = get_type_info().version_id;
+        if (version)
+            out << version << "::" << get_type_info().name << " " << get_friendly_name() << " (";
+        else
+            out << get_type_info().name << " " << get_friendly_name() << " (";
         string sep = "";
         for (const auto& arg : input_values()) {
             out << sep << arg;
@@ -415,7 +423,7 @@ const ov::element::Type& ov::Node::get_output_element_type(size_t i) const {
 
 const ov::element::Type& ov::Node::get_element_type() const {
     if (get_output_size() != 1) {
-        throw ngraph::ngraph_error("get_element_type() must be called on a node with exactly one output.");
+        OPENVINO_THROW("get_element_type() must be called on a node with exactly one output.");
     }
     return get_output_element_type(0);
 }

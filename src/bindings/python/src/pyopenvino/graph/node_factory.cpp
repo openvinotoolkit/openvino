@@ -79,7 +79,7 @@ private:
         return it->second();
     }
 
-    const ov::OpSet& m_opset = ov::get_opset10();
+    const ov::OpSet& m_opset = ov::get_opset11();
     std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>> m_variables;
 };
 }  // namespace

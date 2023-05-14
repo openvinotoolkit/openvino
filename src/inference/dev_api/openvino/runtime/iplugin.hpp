@@ -18,8 +18,9 @@
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/icore.hpp"
-#include "openvino/runtime/remote_context.hpp"
+#include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
+#include "openvino/util/pp.hpp"
 
 namespace InferenceEngine {
 
@@ -40,6 +41,9 @@ namespace ov {
  *
  * @defgroup ov_dev_api_compiled_model_api Compiled Model base classes
  * @brief A set of base and helper classes to implement an compiled model class
+ *
+ * @defgroup ov_dev_api_infer_request_api Inference Request common classes
+ * @brief A set of base and helper classes to implement a common inference request functionality.
  *
  * @defgroup ov_dev_api_sync_infer_request_api Inference Request base classes
  * @brief A set of base and helper classes to implement a syncrhonous inference request class.
@@ -153,7 +157,7 @@ public:
      *
      * @return A remote context object
      */
-    virtual ov::RemoteContext create_context(const ov::AnyMap& remote_properties) const = 0;
+    virtual std::shared_ptr<ov::IRemoteContext> create_context(const ov::AnyMap& remote_properties) const = 0;
 
     /**
      * @brief Provides a default remote context instance if supported by a plugin
@@ -161,7 +165,7 @@ public:
      *
      * @return The default context.
      */
-    virtual ov::RemoteContext get_default_context(const ov::AnyMap& remote_properties) const = 0;
+    virtual std::shared_ptr<ov::IRemoteContext> get_default_context(const ov::AnyMap& remote_properties) const = 0;
 
     /**
      * @brief Creates an compiled model from an previously exported model using plugin implementation
@@ -256,7 +260,11 @@ OPENVINO_RUNTIME_API std::unordered_set<std::string> get_supported_nodes(
     std::function<void(std::shared_ptr<ov::Model>&)> transform,
     std::function<bool(const std::shared_ptr<ov::Node>)> is_node_supported);
 
-}  // namespace ov
+/**
+ * @private
+ */
+using CreatePluginFunc = void(std::shared_ptr<::ov::IPlugin>&);
+
 /**
  * @def OV_CREATE_PLUGIN
  * @brief Defines a name of a function creating plugin instance
@@ -265,6 +273,13 @@ OPENVINO_RUNTIME_API std::unordered_set<std::string> get_supported_nodes(
 #ifndef OV_CREATE_PLUGIN
 #    define OV_CREATE_PLUGIN CreatePluginEngine
 #endif
+
+/**
+ * @private
+ */
+constexpr static const auto create_plugin_function = OV_PP_TOSTRING(OV_CREATE_PLUGIN);
+
+}  // namespace ov
 
 /**
  * @def OV_DEFINE_PLUGIN_CREATE_FUNCTION(PluginType, version)

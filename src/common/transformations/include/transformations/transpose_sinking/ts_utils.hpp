@@ -54,17 +54,14 @@ void SwapOutputNames(ov::Output<ov::Node>, ov::Output<ov::Node>);
  */
 void SwapFriendlyNames(const std::shared_ptr<ov::Node>&, const std::shared_ptr<ov::Node>&);
 
-/**
- * @brief Swaps @args output tensor names and friendly names
- */
-void SwapNames(const std::shared_ptr<ov::Node>&, const std::shared_ptr<ov::Node>&);
-
 namespace sink_forward {
 /**
  * @brief Inserts reversed transposed on @args main_node inputs. Removes input transpose specified in @arg
  * transpose_input_info
  */
-bool UpdateInputTransposes(const std::shared_ptr<ov::Node>& main_node, const TransposeInputsInfo& transpose_input_info);
+bool UpdateInputTransposes(const std::shared_ptr<ov::Node>& main_node,
+                           const TransposeInputsInfo& transpose_input_info,
+                           std::vector<size_t> input_indexes = {});
 
 /**
  * @brief Removes @arg input node
@@ -86,28 +83,70 @@ namespace sink_backward {
  */
 ov::NodeVector InsertTransposeBeforeNode(const std::shared_ptr<ov::Node>& main_node,
                                          const std::shared_ptr<ov::opset10::Constant>& transpose_const,
-                                         std::vector<int> input_indexes = {});
+                                         std::vector<size_t> input_indexes = {});
 }  // namespace sink_backward
 
 void UpdateForwardSinkingAbility(const std::shared_ptr<ov::Node>&);
 
 /**
- *  @brief Checks if @arg has consumers that all are the same transpose operation. If no consumers at all
- *  returns false.
+ *  @brief Checks if @arg has consumers that are all the same Transpose operation
+ *  and that sinking is enabled for all these Transpose ops. Otherwise returns false.
+ *  If no consumers at all returns false.
  */
-bool HasSameOutputTransposeNodes(const ov::Output<ov::Node>&);
+bool CheckTransposeConsumers(const ov::Output<ov::Node>&);
 
 /**
- * Removes all direct node consumers that have one output
+ * @brief Removes all Transpose consumers for given node
  */
-void RemoveSingleOutputConsumers(const std::shared_ptr<ov::Node>&);
+bool RemoveTransposeConsumers(const std::shared_ptr<ov::Node>& node);
 
 /**
- * Changes the order of values in @arg input according to @arg transpose_axis_order along @arg axis
+ * @brief Inserts Gather operation which changes the order of values in @arg input
+ * according to @arg transpose_axis_order along @arg axis.
  */
 ov::Output<ov::Node> ChangeValuesOrder(const ov::Output<ov::Node>& input,
                                        const ov::AxisVector& transpose_axis_order,
                                        const std::shared_ptr<ov::opset10::Constant>& axis);
+/**
+ * @brief Inserts Gather operation which changes the order of values in @arg input
+ * according to @arg transpose_axis_order along @arg axis.
+ */
+Output<Node> ChangeAxes(const Output<Node>& input,
+                        const AxisVector& transpose_axis_order,
+                        const std::shared_ptr<ov::opset10::Constant>& axis);
+
+/**
+ * @brief Inserts Gather operation which changes the order of values in @arg input
+ * according to @arg transpose_axis_order along @arg axis.
+ */
+Output<Node> ChangeAxes(const Output<Node>& input,
+                        const std::shared_ptr<ov::opset10::Constant>& transpose_axis_order,
+                        const std::shared_ptr<ov::opset10::Constant>& axis);
+/**
+ * @brief Returns the updated axes order for case when the initial axes order has more elements
+ * than after TransposeSinking, e.g.:
+ *
+ * before: Transpose(the initial axes order) -> ReduceMax
+ * after : ReduceMax -> Transpose (the updated axes order)
+ *
+ * before: Unsqueeze -> Transpose (the initial axes order)
+ * after : Transpose (the updated axes order) -> Unsqueeze
+ */
+std::vector<size_t> GetOrderAfterReduction(const std::vector<size_t>& axes_values,
+                                           const std::vector<size_t>& order_values);
+
+/**
+ * @brief Returns the updated axes order for case when the initial axes order has less elements
+ * than after TransposeSinking, e.g.:
+ *
+ * before : ReduceMax -> Transpose (the updated axes order)
+ * after: Transpose(the initial axes order) -> ReduceMax
+ *
+ * before: Transpose (the updated axes order) -> Unsqueeze
+ * after : Unsqueeze -> Transpose (the initial axes order)
+ */
+std::vector<size_t> GetOrderBeforeReduction(const std::vector<size_t>& axes_values,
+                                            const std::vector<size_t>& order_values);
 
 }  // namespace utils
 }  // namespace transpose_sinking

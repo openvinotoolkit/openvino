@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -157,8 +157,8 @@ def test_ndarray_copied_dispatcher(device, input_shape):
     result, infer_request = _run_dispatcher(device, test_data, False, input_shape)
 
     assert result == {}
-    assert np.array_equal(infer_request.inputs[0].data, test_data)
+    assert np.array_equal(infer_request.input_tensors[0].data, test_data)
 
     test_data[0] = 2.0
 
-    assert not np.array_equal(infer_request.inputs[0].data, test_data)
+    assert not np.array_equal(infer_request.input_tensors[0].data, test_data)

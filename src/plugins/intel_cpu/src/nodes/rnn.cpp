@@ -975,7 +975,6 @@ void RNN::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
 
     // Fill supported config
     NodeConfig config;
-    config.dynBatchSupport = false;
     for (size_t i = 0; i < inputDesc.size(); i++) {
         PortConfig dataConfig;
         dataConfig.inPlace(-1);
@@ -1062,7 +1061,7 @@ void RNN::prepareParams() {
     RNNKey key = { inDataDescs, outDataDescs, wDescs, cell_type, cell_act, direction, *attr };
 
     auto engine = getEngine();
-    auto builder = [&engine](const RNNKey& key) -> dnnl::primitive {
+    auto builder = [&engine](const RNNKey& key) -> executorPtr {
         const auto descPtr = createPrimitiveDescriptor(engine,
                                                        key.cellType,
                                                        key.cellAct,
@@ -1072,41 +1071,38 @@ void RNN::prepareParams() {
                                                        key.wDescs,
                                                        key.attr);
 
-        return dnnl::primitive(descPtr);
+        return descPtr ? std::make_shared<RnnDnnlExecutor>(descPtr) : nullptr;
     };
 
     auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, builder);
+    auto prevExecPtr = execPtr;
+    execPtr = result.first;
 
-    if (!result.first) {
+    if (!execPtr) {
         IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
     }
 
-    prim = result.first;
-
-    auto pd = prim.get_primitive_desc();
-    scratchpadMem = getScratchPadMem(pd);
-
-    if (!wasMemoryPrepared || wFormatWasChanged) {
-        auto pd = prim.get_primitive_desc();
-        auto query_weights_md = [&](int idx = 0) -> dnnl::memory::desc {
-            auto what = dnnl::convert_to_c(dnnl::query::weights_md);
-            const_dnnl_memory_desc_t cdesc = dnnl_primitive_desc_query_md(pd, what, idx);
-            if (!cdesc)
-                IE_THROW() << "query_weights_md failed for node " << getName() << " idx " << idx << ".";
-            dnnl_memory_desc_t cloned_md = nullptr;
-            dnnl_memory_desc_clone(&cloned_md, cdesc);
-
-            return dnnl::memory::desc(cloned_md);
-        };
-        std::vector<DnnlMemoryDescPtr> intDescs {
-            DnnlExtensionUtils::makeDescriptor(query_weights_md(0)),
-            DnnlExtensionUtils::makeDescriptor(query_weights_md(1)),
-            DnnlExtensionUtils::makeDescriptor(query_weights_md(2))
-        };
-        prepareMemory(intDescs);
-        wasMemoryPrepared = true;
+    if (!primArgs.count(DNNL_ARG_WEIGHTS_LAYER) || !prevExecPtr ||
+        !execPtr->getWeightDesc()->isCompatible(*(prevExecPtr->getWeightDesc()))) {
+        prepareMemory(execPtr->getWeightDesc(), 0);
+        primArgs[DNNL_ARG_WEIGHTS_LAYER] = internalBlobMemory[0]->GetPrimitive();
     }
+
+    if (!primArgs.count(DNNL_ARG_WEIGHTS_ITER) || !prevExecPtr ||
+        !execPtr->getWeightIterDesc()->isCompatible(*(prevExecPtr->getWeightIterDesc()))) {
+        prepareMemory(execPtr->getWeightIterDesc(), 1);
+        primArgs[DNNL_ARG_WEIGHTS_ITER] = internalBlobMemory[1]->GetPrimitive();
+    }
+
+    if (!primArgs.count(DNNL_ARG_BIAS) || !prevExecPtr ||
+        !execPtr->getBiasDesc()->isCompatible(*(prevExecPtr->getBiasDesc()))) {
+        prepareMemory(execPtr->getBiasDesc(), 2);
+        primArgs[DNNL_ARG_BIAS] = internalBlobMemory[2]->GetPrimitive();
+    }
+
+    auto scratchpadMem = getScratchPadMem(execPtr->getScratchPadDesc());
+    primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->GetPrimitive();
 }
 
 std::shared_ptr<MemoryDesc> RNN::getSrcMemDesc(dnnl::primitive_desc_iterator& primitive_desc_it, size_t idx) {
@@ -1118,24 +1114,16 @@ std::shared_ptr<MemoryDesc> RNN::getDstMemDesc(dnnl::primitive_desc_iterator& pr
 }
 
 void RNN::execute(dnnl::stream strm) {
-    if (!prim)
+    if (!execPtr)
         THROW_ERROR << "does not have initialized primitive to execute.";
 
     const auto src_data_mem = getParentEdgeAt(0)->getMemoryPtr();
     const auto dst_data_mem = getChildEdgeAt(0)->getMemoryPtr();
 
-    const auto &wgh_data_mem = internalBlobMemory[0];
-    const auto &wgh_stat_mem = internalBlobMemory[1];
-    const auto &wgh_bias_mem = internalBlobMemory[2];
+    auto args = primArgs;
 
-    std::unordered_map<int, memory> args {
-        {DNNL_ARG_SRC_LAYER,     src_data_mem->GetPrimitive()},
-        {DNNL_ARG_WEIGHTS_LAYER, wgh_data_mem->GetPrimitive()},
-        {DNNL_ARG_WEIGHTS_ITER,  wgh_stat_mem->GetPrimitive()},
-        {DNNL_ARG_BIAS,          wgh_bias_mem->GetPrimitive()},
-        {DNNL_ARG_DST_LAYER,     dst_data_mem->GetPrimitive()},
-        {DNNL_ARG_SCRATCHPAD,    scratchpadMem->GetPrimitive()}
-    };
+    args[DNNL_ARG_SRC_LAYER] = src_data_mem->GetPrimitive();
+    args[DNNL_ARG_DST_LAYER] = dst_data_mem->GetPrimitive();
 
     int state_i_tags[] {DNNL_ARG_SRC_ITER, DNNL_ARG_SRC_ITER_C};
     int state_o_tags[] {DNNL_ARG_DST_ITER, DNNL_ARG_DST_ITER_C};
@@ -1160,7 +1148,7 @@ void RNN::execute(dnnl::stream strm) {
         }
     }
 
-    prim.execute(strm, args);
+    execPtr->exec(args, strm);
 }
 
 void RNN::executeDynamicImpl(dnnl::stream strm) {
@@ -1179,6 +1167,11 @@ void RNN::cleanup() {
     for (auto it : mergedWith) {
         it->cleanup();
     }
+}
+
+RNN::RnnDnnlExecutor::RnnDnnlExecutor(const dnnl::primitive_desc& pd) : DnnlExecutor(pd) {
+    wghts_iter_md = DnnlExtensionUtils::makeDescriptor(pd.weights_desc(1));
+    bias_md = DnnlExtensionUtils::makeDescriptor(pd.weights_desc(2));
 }
 
 }   // namespace node

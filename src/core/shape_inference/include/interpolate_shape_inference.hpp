@@ -208,7 +208,7 @@ void shape_infer(const Interpolate* op,
                                           [input_rank](size_t axis) {
                                               return axis < input_rank;
                                           }),
-                              "Axis value should less than input rank.");
+                              "Axis value should be smaller than the input's rank.");
 
         // Get padded input shape
         for (size_t i = 0; i < input_rank; ++i) {
@@ -218,6 +218,10 @@ void shape_infer(const Interpolate* op,
         if (op->get_attrs().shape_calculation_mode == Interpolate::ShapeCalcMode::SCALES) {
             std::vector<float> scales;
             if (get_data_as_float<T>(1, op, scales, constant_data)) {
+                NODE_VALIDATION_CHECK(
+                    op,
+                    axes.size() == scales.size(),
+                    "The number of elements in the 'scales_or_sizes' input does not match the number of axes");
                 util::infer_using_scales(output_shape, axes, scales);
             } else {
                 for (const auto& axis : axes) {
@@ -227,6 +231,10 @@ void shape_infer(const Interpolate* op,
         } else {
             T target_spatial_shape;
             if (get_data_as_shape<T>(1, op, target_spatial_shape, constant_data)) {
+                NODE_VALIDATION_CHECK(
+                    op,
+                    axes.size() == target_spatial_shape.size(),
+                    "The number of elements in the 'scales_or_sizes' input does not match the number of axes");
                 size_t i = 0;
                 for (const auto& axis : axes) {
                     output_shape[axis] = target_spatial_shape[i++];

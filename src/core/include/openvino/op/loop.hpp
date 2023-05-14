@@ -31,7 +31,7 @@ public:
         int64_t body_condition_output_idx = -1;
     };
 
-    OPENVINO_OP("Loop", "opset5", op::util::SubGraphOp, 5);
+    OPENVINO_OP("Loop", "opset5", op::util::SubGraphOp);
 
     /// \brief Constructs a Loop operation.
     Loop() = default;

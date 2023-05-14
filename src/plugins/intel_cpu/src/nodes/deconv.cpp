@@ -349,16 +349,43 @@ std::pair<VectorDims, VectorDims> Deconvolution::makeDummyInOutShape() {
                                                                                               std::max(minDims[i + 2], static_cast<Dim>(64))) : dims[i + 2];
                 }
             }
-            ov::CoordinateDiff pb = autoPad ? ov::CoordinateDiff(paddingL.size(), 0) : paddingL;
-            ov::CoordinateDiff pe = autoPad ? ov::CoordinateDiff(paddingR.size(), 0) : paddingR;
 
             const auto& origInDims = getInputShapeAtPort(0).getDims();
+            const auto& origInMinDims = getInputShapeAtPort(0).getMinDims();
+            const auto& origInMaxDims = getInputShapeAtPort(0).getMaxDims();
             const auto& weightDims = getWeightDims();
             const size_t wghOffset = getAlgorithm() == Algorithm::DeconvolutionGrouped ? 1 : 0;
+
+            VectorDims paddings(paddingL.size());
+            if (!autoPad) {
+                for (size_t i = 0; i < paddings.size(); ++i) {
+                    paddings[i] = paddingL[i] + paddingR[i];
+                }
+            } else {
+                for (size_t i = 0; i < origInDims.size() - 2; i++) {
+                    if (origInDims[i + 2] == Shape::UNDEFINED_DIM &&
+                        (origInMinDims[i + 2] != 0 || origInMaxDims[i + 2] != Shape::UNDEFINED_DIM)) {
+                        // if input shape is dynamic and bounded, paddings should be computed basing on the following limitations:
+                        // 1. paddings must not be negative
+                        // 2. the result padding must have such a value to keep the dummy dimensions inside the predefined interval
+                        auto c1 = lastOutputSpatialDims[i] - outputPadding[i] - 1 -
+                                    (dilation[i] + 1) * static_cast<int32_t>(weightDims[wghOffset + 2 + i] - 1);
+                        auto upper_bound = stride[i] * static_cast<int32_t>(origInMaxDims[i + 2] - 1) - c1;
+                        if (upper_bound < 0) {
+                            IE_THROW() << errorPrefix << ": paddings for dummy shapes can't be computed";
+                        }
+                        auto lower_bound = stride[i] * static_cast<int32_t>(origInMinDims[i + 2] - 1) - c1;
+                        if (lower_bound > 0) {
+                            paddings[i] = lower_bound;
+                        }
+                    }
+                }
+            }
+
             for (size_t i = 0; i < inputDims.size() - 2; i++) {
                 if (origInDims[2 + i] == Shape::UNDEFINED_DIM) {
-                    inputDims[2 + i] = ((lastOutputSpatialDims[i] - (dilation[i] + 1) *
-                                        (weightDims[wghOffset + 2 + i] - 1) - 1 + pb[i] + pe[i] - outputPadding[i])) /
+                    inputDims[2 + i] = (lastOutputSpatialDims[i] - (dilation[i] + 1) *
+                                        (weightDims[wghOffset + 2 + i] - 1) - 1 + paddings[i] - outputPadding[i]) /
                                         stride[i] + 1;
                 }
             }
@@ -470,8 +497,19 @@ void Deconvolution::initPaddingR(const Shape &inShape, const Shape &outShape) {
 
 void Deconvolution::setPostOps(dnnl::primitive_attr& attr, const VectorDims& dims) {
     dnnl::post_ops ops;
-
-    DnnlPostOpsComposer dnnlpoc(getEngine(), attr, ops, postOpsArgs, dims, 1, isInt8);
+    // OC, IC is the convolution forward output channel, input channel.
+    // According to ONEDNN API doc, mask whould be set on the corresponding index on weight.
+    // For [OC, IC, KH, KW] perchannel scale weight mask should set on IC dim( 1 << 1) for none group deconv;
+    // For [Group, OC, IC, KH, KW] IC and group dims ( 1 << 0 |  1<< 2) for group deconv.
+    // Perchannel weight should set on IC dimention not OC dimention.
+    // But we have to set on IC dimesion as following to make weight scale work. It should be ONEDNN bug??
+    // Current perchannel mask setting.
+    // Weight dims in NON-Group deconv: [OC, IC, KH, KW], perchannel weight scale applied on OC DIM
+    //                                  weiScaleMaskPerChannel =  1 << 0
+    // Weight dims in Group deconv:     [Group, OC, IC, KH, KW], perchannel weight scale applied on GROUP and OC DIM,
+    //                                   weiScaleMaskPerChannel = ( 1 << 0 | 1 << 1) = 0x03
+    // @todo: Clarify with ONEDNN about deconvolution channel mask setting.
+    DnnlPostOpsComposer dnnlpoc(getEngine(), attr, ops, postOpsArgs, dims, 1, isInt8, withGroups ? 3 : 1 << 0,  getDQScales(), withBiases);
 
     for (int i = 0; i < fusedWith.size(); ++i) {
         auto& node = fusedWith[i];
@@ -589,16 +627,6 @@ VectorDims Deconvolution::shapeInferInternal(const VectorDims &inDims, std::vect
         IE_THROW(Unexpected) << "Unexpected shape inference result status in node of type " << getTypeStr() << " with name " << getName();
     }
     return std::move(result.dims.back());
-}
-
-void Deconvolution::setDynamicBatchLim(int lim) {
-    if (!execPtr) {
-        IE_THROW() << "Can't set dynamic batch for Deconvolution node with name: " << getName() << ", because executor is not compiled";
-    }
-    if (execPtr->needReordering()) {
-        IE_THROW() << "Can't execute Deconvolution node with dynamic batch via executor with reorders";
-    }
-    Node::setDynamicBatchLim(lim);
 }
 
 void Deconvolution::execute(dnnl::stream strm) {
@@ -788,24 +816,17 @@ void Deconvolution::createPrimitive() {
             // WA to align IR bias representation (3 to 5 rank tensors) to oneDNN representation (1 rank tensor)
             dnnlBiasDesc = biasDesc->getDnnlDesc().reshape({DnnlExtensionUtils::convertToDnnlDim(biasesDims[0])});
 
-        AttrPtr pAttr = makePrimitiveAttr(outDims);
-        auto desc = createInt8MkldnnDeconvDesc(inDesc->getDnnlDesc(), wgh_candidate, dnnlBiasDesc, outDesc->getDnnlDesc(), withBiases,
+        const AttrPtr pAttr = makePrimitiveAttr(outDims);
+        auto prim_desc = createInt8MkldnnDeconvDesc(inDesc->getDnnlDesc(), wgh_candidate, dnnlBiasDesc, outDesc->getDnnlDesc(), withBiases,
                                                stride, dilation, paddingL, paddingR, *pAttr, getEngine());
-        primitive_desc_iterator itpd = desc;
 
-        while (itpd) {
-            impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
+        const bool found = DnnlExtensionUtils::find_implementation(prim_desc, selectedImpl);
 
-            if (impl_type == selectedImpl) {
-                prepareMemory({DnnlExtensionUtils::makeDescriptor(itpd.weights_desc(0))});
-                break;
-            }
-
-            if (!itpd.next_impl()) {
-                prepareMemory({std::make_shared<DnnlBlockedMemoryDesc>(
-                    MemoryDescUtils::convertToDnnlBlockedMemoryDesc(internalBlobs.front()->getTensorDesc()))});
-                break;
-            }
+        if (found) {
+            prepareMemory({DnnlExtensionUtils::makeDescriptor(prim_desc.weights_desc(0))});
+        } else {
+            prepareMemory({std::make_shared<DnnlBlockedMemoryDesc>(
+                        MemoryDescUtils::convertToDnnlBlockedMemoryDesc(internalBlobs.front()->getTensorDesc()))});
         }
     }
 
@@ -991,12 +1012,12 @@ void Deconvolution::prepareParams() {
         }
         Node::appendPostOpArgs(*pAttrLocal, primArgs, postOpsArgs);
 
-        auto pd = execPtr->getPrimitiveDesc();
-        auto scratchpadMem = getScratchPadMem(pd);
+        auto scratchpadMem = getScratchPadMem(execPtr->getScratchPadDesc());
         primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->GetPrimitive();
 #ifdef CPU_DEBUG_CAPS
         if (result.second == CacheEntryBase::LookUpStatus::Miss) {
-            DEBUG_LOG("verbose##", getName(), "##", pd->info(), "\n");
+            auto pd = execPtr->getPrimitiveDesc();
+            DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
         }
 #endif
     } else {
@@ -1094,9 +1115,7 @@ Deconvolution::DeconvExecutorDefault::DeconvExecutorDefault(const dnnl::convolut
                                                                       const dnnl::memory::desc& inMemDesc,
                                                                       const dnnl::memory::desc& weightMemDesc,
                                                                       const dnnl::memory::desc& outMemDesc,
-                                                                      const dnnl::engine& engine) {
-    execPrim = dnnl::convolution_backward_data(pd);
-
+                                                                      const dnnl::engine& engine) : DnnlExecutor(pd) {
     if (inMemDesc != pd.diff_dst_desc()) {
         inputReorders.insert({DNNL_ARG_DIFF_DST, IntermReorder(inMemDesc, pd.diff_dst_desc(), engine)});
     }
@@ -1114,19 +1133,17 @@ Deconvolution::DeconvExecutorInt8::DeconvExecutorInt8(const dnnl::deconvolution_
                                                                 const dnnl::memory::desc& inMemDesc,
                                                                 const dnnl::memory::desc& weightMemDesc,
                                                                 const dnnl::memory::desc& outMemDesc,
-                                                                const dnnl::engine& engine) {
-    execPrim = dnnl::deconvolution_forward(pd);
-
-    if (inMemDesc != pd.src_desc()) {
-        inputReorders.insert({DNNL_ARG_SRC, IntermReorder(inMemDesc, pd.src_desc(), engine)});
+                                                                const dnnl::engine& engine) : DnnlExecutor(pd) {
+    if (inMemDesc != getDnnlSrcDesc()) {
+        inputReorders.insert({DNNL_ARG_SRC, IntermReorder(inMemDesc, getDnnlSrcDesc(), engine)});
     }
 
-    if (weightMemDesc != pd.weights_desc()) {
-        inputReorders.insert({DNNL_ARG_WEIGHTS, IntermReorder(weightMemDesc, pd.weights_desc(), engine)});
+    if (weightMemDesc != getDnnlWeightDesc()) {
+        inputReorders.insert({DNNL_ARG_WEIGHTS, IntermReorder(weightMemDesc, getDnnlWeightDesc(), engine)});
     }
 
-    if (outMemDesc != pd.dst_desc()) {
-        outputReorders.insert({DNNL_ARG_DST, IntermReorder(pd.dst_desc(), outMemDesc, engine)});
+    if (outMemDesc != getDnnlDstDesc()) {
+        outputReorders.insert({DNNL_ARG_DST, IntermReorder(getDnnlDstDesc(), outMemDesc, engine)});
     }
 }
 

@@ -148,12 +148,12 @@ omz_downloader --name googlenet-v1 --output_dir %USERPROFILE%\Documents\models
 Linux and macOS:
 ```sh
 mkdir ~/ir
-mo --input_model ~/models/public/googlenet-v1/googlenet-v1.caffemodel --data_type FP16 --output_dir ~/ir
+mo --input_model ~/models/public/googlenet-v1/googlenet-v1.caffemodel --compress_to_fp16 --output_dir ~/ir
 ```
 Windows:
 ```bat
 mkdir %USERPROFILE%\Documents\ir
-mo --input_model %USERPROFILE%\Documents\models\public\googlenet-v1\googlenet-v1.caffemodel --data_type FP16 --output_dir %USERPROFILE%\Documents\ir
+mo --input_model %USERPROFILE%\Documents\models\public\googlenet-v1\googlenet-v1.caffemodel --compress_to_fp16 --output_dir %USERPROFILE%\Documents\ir
 ```
 
 5. Run Inference on the Sample
@@ -175,16 +175,18 @@ The following commands run the Image Classification Code Sample using the [`dog.
 Linux and macOS:
 
 ```sh
-cd ~/inference_engine_cpp_samples_build/intel64/Release
+cd ~/openvino_cpp_samples_build/<architecture>/Release
 ./classification_sample_async -i ~/Downloads/dog.bmp -m ~/ir/googlenet-v1.xml -d CPU
 ```
+where the <architecture> is the output of ``uname -m``, for example, ``intel64``, ``armhf``, or ``aarch64``.
 
 Windows:
 
 ```bat
-cd  %USERPROFILE%\Documents\Intel\OpenVINO\inference_engine_samples_build\intel64\Release
+cd  %USERPROFILE%\Documents\Intel\OpenVINO\openvino_cpp_samples_build\<architecture>\Release
 .\classification_sample_async.exe -i %USERPROFILE%\Downloads\dog.bmp -m %USERPROFILE%\Documents\ir\googlenet-v1.xml -d CPU
 ```
+where the <architecture> is either ``intel64`` or ``aarch64`` depending on the platform architecture.
 
 When the sample application is complete, you see the label and confidence data for the top 10 categories on the display:
 

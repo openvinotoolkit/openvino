@@ -37,6 +37,9 @@ struct GnaDesc {
     uint32_t allocated_size = 0;
     std::vector<void*> ptrs = {};  // ptr per each infer request
 
+    // pre/post processing model
+    std::shared_ptr<ov::Model> pre_post_process_model = nullptr;
+
     // help methods
     uint32_t get_required_size() const {
         return num_elements * tensor_precision.size();

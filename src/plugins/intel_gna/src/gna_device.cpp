@@ -38,7 +38,8 @@ GNADeviceHelper::GNADeviceHelper(std::shared_ptr<Target> targetIn, bool isPerfor
     : target(targetIn),
       nGnaDeviceIndex{selectGnaDevice()},
       useDeviceEmbeddedExport(deviceEmbedded),
-      isPerformanceMeasuring(isPerformanceMeasuring) {
+      isPerformanceMeasuring(isPerformanceMeasuring),
+      m_mem_alignment(limitations::getMemoryAlignmentBytes(targetIn->get_effective_compile_target())) {
     per_request_diagnostics = log::get_log_level() >= ov::log::Level::TRACE;
     per_model_diagnostics = log::get_log_level() >= ov::log::Level::DEBUG;
     open();
@@ -48,8 +49,6 @@ GNADeviceHelper::GNADeviceHelper(std::shared_ptr<Target> targetIn, bool isPerfor
     GetGnaLibraryVersion();
 
     maxLayersCount_ = retrieveMaxLayersCount();
-
-    m_mem_alignment = limitations::kMemoryAlignmentBytes;
 }
 
 GNADeviceHelper::~GNADeviceHelper() {

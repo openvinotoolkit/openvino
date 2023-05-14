@@ -11,6 +11,8 @@
 #include <memory>
 #include <vector>
 
+#include "common/dnnl_executor.h"
+
 namespace ov {
 namespace intel_cpu {
 namespace node {
@@ -65,6 +67,26 @@ private:
     void fillBiases(const int* gate_map);
 
     void copyWeightsData();
+
+    class RnnDnnlExecutor : public DnnlExecutor {
+        public:
+            RnnDnnlExecutor(const dnnl::primitive_desc& pd);
+
+            DnnlMemoryDescPtr getWeightIterDesc() const {
+                return wghts_iter_md;
+            }
+
+            DnnlMemoryDescPtr getBiasDesc() const {
+                return bias_md;
+            }
+
+        private:
+            DnnlMemoryDescPtr wghts_iter_md;
+            DnnlMemoryDescPtr bias_md;
+    };
+
+    using executorPtr = std::shared_ptr<RnnDnnlExecutor>;
+    executorPtr execPtr = nullptr;
 
     /** Specify mode Cell or Seq. true - Cell, false - Seq */
     bool is_cell = false;
@@ -137,9 +159,6 @@ private:
 
     static constexpr size_t optimalBatchSize = 16lu;
     static constexpr size_t batchDimDummyValue = 64lu;
-
-    bool wasMemoryPrepared = false;
-    MemoryPtr scratchpadMem;
 
     float inputScale    = 0.f;
     float inputShift    = 0.f;
