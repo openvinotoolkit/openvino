@@ -120,6 +120,7 @@ bool use_legacy_fused_ops(const kernel_impl_params& param_info);
 
 void set_params(const kernel_impl_params& param_info, kernel_selector::params& params);
 void set_default_params(const kernel_impl_params& param_info, kernel_selector::base_params& params, bool is_shape_agnostic);
+void set_dynamic_shape_offsets(kernel_selector::params& params);
 void set_weights_bias_default_params(const kernel_impl_params& param_info,
                                      kernel_selector::weight_bias_params& params,
                                      bool has_group_dimension,
@@ -254,7 +255,7 @@ inline kernel_impl_params canonicalize_fused_shapes(const kernel_impl_params& im
     bool use_new_shape_infer = impl_params.prog->get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
 
     for (auto& fd : updated_impl_params.fused_desc) {
-        if (fd.is_type<eltwise>() && fd.total_num_deps == 2) {
+        if (fd.is_type<eltwise>() && fd.total_num_deps == 2 && fd.has_outer_dep()) {
             auto out_pshape = updated_impl_params.output_layouts[0].get_partial_shape();
 
             auto& dep_layout = updated_impl_params.input_layouts[fd.outer_dep_start_idx];
