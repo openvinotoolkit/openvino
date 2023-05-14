@@ -20,62 +20,87 @@ namespace {
 std::shared_ptr<ov::opset1::Constant> stridedSliceDeqConstant(
     const std::shared_ptr<ngraph::Node> strSlice,
     const std::shared_ptr<ngraph::Node> dequantizaitonConstant) {
-    auto constant = ov::as_type_ptr<ov::opset1::Constant>(dequantizaitonConstant);
-    auto constantShape = constant->get_shape();
-    if (shape_size(constantShape) == 1ul) {
+    const auto constant = ov::as_type_ptr<ov::opset1::Constant>(dequantizaitonConstant);
+    const auto& original_constant_shape = constant->get_shape();
+    if (shape_size(original_constant_shape) == 1ul) {
         return NetworkHelper::toScalar(constant);
     }
 
-    const auto stridedSlicePShape = strSlice->get_input_partial_shape(0);
-    const size_t rank = stridedSlicePShape.rank().get_length();
-    if (rank != constantShape.size()) {
-        ngraph::Shape newConstantShape;
-        if (ngraph::shape_size(constantShape) == 1) {
+    // step #1: align shapes
+    std::shared_ptr<ov::opset1::Constant> new_constant = constant;
+    const size_t rank = strSlice->get_input_partial_shape(0).rank().get_length();
+    ngraph::Shape newConstantShape = original_constant_shape;
+    if (rank != newConstantShape.size()) {
+        if (ngraph::shape_size(original_constant_shape) == 1) {
             newConstantShape = ngraph::Shape(rank, 1);
         } else {
-            newConstantShape = constantShape;
+            newConstantShape = original_constant_shape;
 
             // case when constShape without batch
-            if ((constantShape.size() > 1) &&
-                (constantShape.size() < rank)) {
+            if ((original_constant_shape.size() > 1) &&
+                (original_constant_shape.size() < rank)) {
                 newConstantShape.insert(newConstantShape.begin(), 1);
             }
         }
-        constantShape = newConstantShape;
 
-        const auto newConstant = fold<ov::opset1::Broadcast>(
-            constant,
-            ov::opset1::Constant::create(ngraph::element::i32, { newConstantShape.size() }, newConstantShape));
-        constant = ov::as_type_ptr<ov::opset1::Constant>(newConstant);
+        if (original_constant_shape != newConstantShape) {
+            const auto newConstant = fold<ov::opset1::Broadcast>(
+                constant,
+                ov::opset1::Constant::create(ngraph::element::i32, { newConstantShape.size() }, newConstantShape));
+            new_constant = ov::as_type_ptr<ov::opset1::Constant>(newConstant);
+        }
     }
 
-    const auto stridedSlice = ov::as_type_ptr<ov::opset1::StridedSlice>(strSlice);
-
-    auto beginMask = stridedSlice->get_begin_mask();
-    auto endMask = stridedSlice->get_end_mask();
-    for (size_t i = 0; i < constantShape.size(); ++i) {
-        if ((beginMask.size() <= i) && (endMask.size() <= i)) {
-            break;
-        }
+    // step #2: update original begin & end & strides
+    const auto strided_slice = ov::as_type_ptr<ov::opset1::StridedSlice>(strSlice);
+    auto begin = ov::as_type_ptr<ov::opset1::Constant>(strided_slice->get_input_node_shared_ptr(1))->cast_vector<int64_t>();
+    auto end = ov::as_type_ptr<ov::opset1::Constant>(strided_slice->get_input_node_shared_ptr(2))->cast_vector<int64_t>();
+    auto strides = ov::as_type_ptr<ov::opset1::Constant>(strided_slice->get_input_node_shared_ptr(3))->cast_vector<int64_t>();
+    auto begin_mask = strided_slice->get_begin_mask();
+    auto end_mask = strided_slice->get_end_mask();
+    for (auto i = 0ull; i < newConstantShape.size(); ++i) {
         // don't slice constant if current dimension is 1
-        if (constantShape[i] == 1ul) {
-            beginMask[i] = 1ul;
-            endMask[i] = 1ul;
+        if (newConstantShape[i] == 1ull) {
+            if (i < begin.size()) {
+                begin[i] = 0;
+            }
+            if (i < end.size()) {
+                end[i] = 1;
+            }
+
+            if (i < strides.size()) {
+                strides[i] = 1;
+            }
+
+            if (i < begin_mask.size()) {
+                begin_mask[i] = 1;
+            }
+
+            if (i < end_mask.size()) {
+                end_mask[i] = 1;
+            }
         }
     }
 
+    // step #3: final step: dequantizatin constant folding
     const auto result = fold<ov::opset1::StridedSlice>(
-        constant,
-        stridedSlice->input_value(1),
-        stridedSlice->input_value(2),
-        stridedSlice->input_value(3),
-        beginMask,
-        endMask,
-        stridedSlice->get_new_axis_mask(),
-        stridedSlice->get_shrink_axis_mask(),
-        stridedSlice->get_ellipsis_mask());
+        new_constant,
+        std::make_shared<ov::opset1::Constant>(element::i64, Shape{ begin.size() }, begin),
+        std::make_shared<ov::opset1::Constant>(element::i64, Shape{ end.size() }, end),
+        std::make_shared<ov::opset1::Constant>(element::i64, Shape{ strides.size() }, strides),
+        begin_mask,
+        end_mask,
+        strided_slice->get_new_axis_mask(),
+        strided_slice->get_shrink_axis_mask(),
+        strided_slice->get_ellipsis_mask());
 
-    return ov::as_type_ptr<ov::opset1::Constant>(NetworkHelper::toScalarIfPossible(result));
+    new_constant = ov::as_type_ptr<ov::opset1::Constant>(NetworkHelper::toScalarIfPossible(result));
+
+    if (shape_size(new_constant->get_shape()) == 1ul) {
+        return NetworkHelper::toScalar(new_constant);
+    }
+
+    return new_constant;
 }
 
 } // namespace
