@@ -26,10 +26,7 @@ if(DEFINED ENABLE_CPU_SUBSET_TESTS_PATH)
   # exclude every other test file
   set(EXCLUDED_SOURCE_PATHS_FOR_SUBSET_TEST
     ${CMAKE_CURRENT_SOURCE_DIR}/behavior
-    ${CMAKE_CURRENT_SOURCE_DIR}/bfloat16
-    ${CMAKE_CURRENT_SOURCE_DIR}/blob
     ${CMAKE_CURRENT_SOURCE_DIR}/extension
-    ${CMAKE_CURRENT_SOURCE_DIR}/onnx
     ${CMAKE_CURRENT_SOURCE_DIR}/single_layer_tests
     ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances
     ${CMAKE_CURRENT_SOURCE_DIR}/subgraph_tests/src)

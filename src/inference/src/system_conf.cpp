@@ -17,10 +17,13 @@
 #include "ie_common.h"
 #include "openvino/core/visibility.hpp"
 #include "streams_executor.hpp"
+#include "threading/ie_cpu_streams_info.hpp"
 
 #define XBYAK_NO_OP_NAMES
 #define XBYAK_UNDEF_JNL
 #include <xbyak/xbyak_util.h>
+
+using namespace InferenceEngine;
 
 namespace ov {
 
@@ -171,15 +174,8 @@ bool is_cpu_map_available() {
 int get_num_numa_nodes() {
     return -1;
 }
-std::vector<int> reserve_available_cpus(const ColumnOfProcessorTypeTable core_type,
-                                        const int num_cpus,
-                                        const int seek_status,
-                                        const int reset_status,
-                                        const bool reserve_logic_core) {
-    return {};
-}
-std::vector<int> get_logical_cores(const std::vector<int> cpu_ids) {
-    return {};
+std::vector<std::vector<int>> reserve_available_cpus(const std::vector<std::vector<int>> streams_info_table) {
+    return {{-1}};
 }
 void set_cpu_used(const std::vector<int>& cpu_ids, const int used) {}
 
@@ -229,6 +225,7 @@ std::vector<int> get_available_numa_nodes() {
 #    endif
 
 std::vector<std::vector<int>> get_proc_type_table() {
+    std::lock_guard<std::mutex> lock{cpu._cpu_mutex};
     return cpu._proc_type_table;
 }
 
@@ -240,62 +237,45 @@ int get_num_numa_nodes() {
     return cpu._numa_nodes;
 }
 
-std::vector<int> reserve_available_cpus(const ColumnOfProcessorTypeTable core_type,
-                                        const int num_cpus,
-                                        const int seek_status,
-                                        const int reset_status,
-                                        const bool reserve_logic_core) {
-    std::lock_guard<std::mutex> lock{cpu._cpu_mutex};
+std::vector<std::vector<int>> reserve_available_cpus(const std::vector<std::vector<int>> streams_info_table) {
     std::vector<int> cpu_ids;
-    int socket = -1;
-    if (reset_status >= PLUGIN_USED_START && cpu._numa_nodes > 1) {
-        socket = cpu._socket_idx;
-        cpu._socket_idx = (cpu._socket_idx + 1) % cpu._numa_nodes;
-    }
-    if (core_type < PROC_TYPE_TABLE_SIZE && core_type >= ALL_PROC) {
-        for (int i = 0; i < cpu._processors; i++) {
-            if (cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE] == core_type &&
-                cpu._cpu_mapping_table[i][CPU_MAP_USED_FLAG] == seek_status &&
-                (socket < 0 || (socket >= 0 && cpu._cpu_mapping_table[i][CPU_MAP_SOCKET_ID] == socket))) {
-                cpu_ids.push_back(cpu._cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID]);
-            }
-            if (static_cast<int>(cpu_ids.size()) == num_cpus) {
-                break;
-            }
-        }
-        if (reserve_logic_core) {
-            auto logic_ids = get_logical_cores(cpu_ids);
-            cpu_ids.insert(cpu_ids.end(), logic_ids.begin(), logic_ids.end());
-        }
-        set_cpu_used(cpu_ids, reset_status);
-    } else {
-        IE_THROW() << "Wrong value for core_type " << core_type;
-    }
-    return cpu_ids;
-}
+    int info_table_size = static_cast<int>(streams_info_table.size());
+    std::vector<std::vector<int>> stream_ids;
+    std::vector<std::vector<std::vector<int>>> res_stream_ids;
+    stream_ids.assign(info_table_size, std::vector<int>());
+    res_stream_ids.assign(info_table_size, std::vector<std::vector<int>>());
 
-std::vector<int> get_logical_cores(const std::vector<int> cpu_ids) {
-    std::vector<int> logic_cores;
-    if (cpu._proc_type_table[0][HYPER_THREADING_PROC] > 0) {
-        int cpu_size = static_cast<int>(cpu_ids.size());
-        for (int i = 0; i < cpu._processors; i++) {
-            for (int j = 0; j < cpu_size; j++) {
-                if (cpu_ids[j] >= 0 &&
-                    cpu._cpu_mapping_table[i][CPU_MAP_CORE_ID] == cpu._cpu_mapping_table[cpu_ids[j]][CPU_MAP_CORE_ID] &&
-                    cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE] == HYPER_THREADING_PROC) {
-                    logic_cores.push_back(cpu._cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID]);
+    for (int i = 0; i < cpu._processors; i++) {
+        for (int j = 0; j < info_table_size; j++) {
+            if (static_cast<int>(res_stream_ids[j].size()) < streams_info_table[j][NUMBER_OF_STREAMS]) {
+                std::lock_guard<std::mutex> lock{cpu._cpu_mutex};
+                if (cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE] == streams_info_table[j][PROC_TYPE] &&
+                    cpu._cpu_mapping_table[i][CPU_MAP_USED_FLAG] == NOT_USED) {
+                    stream_ids[j].push_back(cpu._cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID]);
+                    cpu_ids.push_back(cpu._cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID]);
+                }
+                if (static_cast<int>(stream_ids[j].size()) == streams_info_table[j][THREADS_PER_STREAM]) {
+                    std::vector<int> stream_group(stream_ids[j].begin(), stream_ids[j].end());
+                    res_stream_ids[j].push_back(stream_group);
+                    stream_ids[j].clear();
                 }
             }
-            if (cpu_ids.size() == logic_cores.size()) {
-                break;
-            }
         }
     }
+    auto flatten_stream_ids =
+        std::accumulate(res_stream_ids.begin(),
+                        res_stream_ids.end(),
+                        decltype(res_stream_ids)::value_type{},
+                        [](std::vector<std::vector<int>>& pre, std::vector<std::vector<int>>& cur) {
+                            pre.insert(pre.end(), cur.begin(), cur.end());
+                            return pre;
+                        });
 
-    return logic_cores;
+    return flatten_stream_ids;
 }
 
 void set_cpu_used(const std::vector<int>& cpu_ids, const int used) {
+    std::lock_guard<std::mutex> lock{cpu._cpu_mutex};
     const auto cpu_size = static_cast<int>(cpu_ids.size());
     for (int i = 0; i < cpu_size; i++) {
         if (cpu_ids[i] < cpu._processors) {

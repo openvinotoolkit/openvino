@@ -70,6 +70,9 @@ For example, to compile a blob for inference on an Intel® Neural Compute Stick 
    
    ./compile_tool -m <path_to_model>/model_name.xml -d CPU
 
+
+Stating flags that take only single option like `-m` multiple times, for example `./compile_tool -m model.xml -m model2.xml`, results in only the first value being used.
+
 Import a Compiled Blob File to Your Application
 +++++++++++++++++++++++++++++++++++++++++++++++
 

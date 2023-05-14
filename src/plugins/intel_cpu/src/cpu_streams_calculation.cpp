@@ -283,6 +283,7 @@ void get_num_streams(const int streams,
                                                                  config.numRequests,
                                                                  model_prefer,
                                                                  proc_type_table);
+    executor_config._stream_core_ids = reserve_available_cpus(executor_config._streams_info_table);
     executor_config._threadsPerStream = executor_config._streams_info_table[0][THREADS_PER_STREAM];
     executor_config._streams = 0;
     executor_config._threads = 0;

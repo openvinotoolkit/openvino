@@ -106,6 +106,22 @@ bool layout_optimizer::onednn_check_data_types_for_convolution(data_types in_dt,
     return false;
 }
 
+// almost same with onednn_check_data_types_for_convolution.
+// removed case
+// - in_dt(f16) wei_dt(f16) out_dt(f32)
+bool layout_optimizer::onednn_check_data_types_for_deconvolution(data_types in_dt, data_types wei_dt, data_types out_dt) {
+    if ((in_dt == data_types::f16 && wei_dt == data_types::f16) &&
+        (out_dt == data_types::f16 || out_dt == data_types::i8 || out_dt == data_types::u8))
+        return true;
+    if ((in_dt == data_types::i8 || in_dt == data_types::u8) && wei_dt == data_types::i8 &&
+        (out_dt == data_types::f32 || out_dt == data_types::i32 || out_dt == data_types::f16 || out_dt == data_types::i8 || out_dt == data_types::u8))
+        return true;
+    if ((in_dt == data_types::f32 && wei_dt == data_types::f32) &&
+        (out_dt == data_types::i8 || out_dt == data_types::u8))
+        return true;
+    return false;
+}
+
 bool layout_optimizer::onednn_check_data_types_for_fc_gemm(data_types in_dt, data_types wei_dt, data_types out_dt) {
     if ((in_dt == data_types::f16 && wei_dt == data_types::f16) &&
         (out_dt == data_types::f16 || out_dt == data_types::f32 || out_dt == data_types::i8))
@@ -405,7 +421,7 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
             for (auto& p : next.get_fused_primitives()) {
                 // find eltwise sum primitive which has dependency nodes, and gather dependency indices of it.
                 if (p.is_type<eltwise>() && p.typed_desc<eltwise>()->mode == eltwise_mode::sum) {
-                    for (size_t i = p.dep_start_idx; i < p.dep_start_idx + p.total_num_deps; i++) {
+                    for (size_t i = p.outer_dep_start_idx; i < p.outer_dep_start_idx + p.total_num_deps; i++) {
                         dep_idx_set.insert(i);
                     }
                 }
@@ -517,8 +533,7 @@ bool should_use_winograd_2x3_s1(std::shared_ptr<const convolution> const& prim,
         || weights_layout.batch() % 64 != 0  // current algorithm is effective for ofm to be multiply of 64
         || any_not_one(prim->stride)               // stride has to be 1x1 by definition
         || any_not_one(prim->dilation)             // no support for dilation
-        || (output_size_handling_enabled &&
-            prim->with_output_size)                // no support for convolutions with user-specified output size
+        || output_size_handling_enabled            // This condition is weird. Need to revise it and replace with something meaningful
         || (input_layout.count() > 3000000)        // limit max input size as winograd consumes more memory
         || (input_layout.count() < 50000)          // limit min input size as winograd is not effective for small input
         || (input_layout.spatial(0) < 8 &&
@@ -596,7 +611,8 @@ bool layout_optimizer::convolution_byxf_opt(const layout& input_layout,
          weights_layout.spatial(1) == 1 && output_layout.feature() % 64 == 0 &&
          weights_layout.batch() % 64 == 0 &&
          all_ones(conv->stride) &&
-         all_zeroes(conv->pad)) ||
+         all_zeroes(conv->padding_begin) &&
+         all_zeroes(conv->padding_end)) ||
         // Winograd
         should_use_winograd_2x3_s1(conv, input_layout, weights_layout, _output_size_handling_enabled))
         return true;
@@ -723,7 +739,7 @@ bool layout_optimizer::convolution_bs_fs_yx_bsv16_fsv16_opt(const layout& input_
                                                             std::shared_ptr<const convolution> conv) {
     // A set of rules that define when bs_fs_yx_bsv16_fsv16 mem format can be used
     bool correct_batch = input_layout.batch() > 16;
-    bool correct_feature = (input_layout.feature() % 16 == 0 || input_layout.feature() == 3) && conv->output_size.feature[0] % 16 == 0;
+    bool correct_feature = (input_layout.feature() % 16 == 0 || input_layout.feature() == 3) && output_layout.feature() % 16 == 0;
     bool fp16_ver = input_layout.data_type == data_types::f16 && input_layout.batch() % 32 == 0;
     bool fp32_ver = input_layout.data_type == data_types::f32 && input_layout.batch() % 16 == 0;
     bool single_group = conv->groups == 1;
@@ -1131,16 +1147,12 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
                     current_layout.format == format::os_is_yx_osv16_isv4) {
             // imad case
             // nothing to do, just go out from here.
-        } else if (layout_optimizer::convolution_bfyx_opt(current_layout, weights_layout, prim) ||
-                    (_output_size_handling_enabled && prim->with_output_size) || node.get_transposed()) {
-            {
-                expected_tensor = current_layout.get_tensor();
-                if (current_layout.format == format::b_fs_zyx_fsv16 || current_layout.format == format::bs_fs_zyx_bsv16_fsv16)
-                    expected_format = cldnn::format::bfzyx;
-                else
-                    expected_format = cldnn::format::bfyx;
-            }
-
+        } else if (layout_optimizer::convolution_bfyx_opt(current_layout, weights_layout, prim) || _output_size_handling_enabled || node.get_transposed()) {
+            expected_tensor = current_layout.get_tensor();
+            if (current_layout.format == format::b_fs_zyx_fsv16 || current_layout.format == format::bs_fs_zyx_bsv16_fsv16)
+                expected_format = cldnn::format::bfzyx;
+            else
+                expected_format = cldnn::format::bfyx;
         } else {
             expected_tensor = current_layout.get_tensor();
             expected_format = cldnn::format::yxfb;
@@ -1231,11 +1243,12 @@ bool layout_optimizer::are_data_types_suitable_for_onednn(program_node& node) {
 
     if (node.is_type<pooling>()) {
         return onednn_check_data_types_for_pooling(in_dt, out_dt);
-    } else if (node.is_type<convolution>() || node.is_type<deconvolution>()) {
-        bool is_conv = node.is_type<convolution>();
-        auto wei_dt = is_conv ? node.as<convolution>().weights().get_output_layout().data_type :
-                                node.as<deconvolution>().weights().get_output_layout().data_type;
+    } else if (node.is_type<convolution>()) {
+        auto wei_dt = node.as<convolution>().weights().get_output_layout().data_type;
         return onednn_check_data_types_for_convolution(in_dt, wei_dt, out_dt);
+    } else if (node.is_type<deconvolution>()) {
+        auto wei_dt = node.as<deconvolution>().weights().get_output_layout().data_type;
+        return onednn_check_data_types_for_deconvolution(in_dt, wei_dt, out_dt);
     } else if (node.is_type<fully_connected>() || node.is_type<gemm>()) {
         bool is_fc = node.is_type<fully_connected>();
         auto wei_dt = is_fc ? node.as<fully_connected>().weights().get_output_layout().data_type :
@@ -1299,6 +1312,18 @@ bool layout_optimizer::is_primitive_implemented_for_onednn(program_node& node) {
         node.is_type<convolution>() || node.is_type<deconvolution>() ||
         node.is_type<reduce>() || node.is_type<reorder>() || node.is_type<concatenation>()) {
         return true;
+    }
+
+    return false;
+}
+
+bool layout_optimizer::onednn_check_preferred_impl_type_of_users(program_node& node) {
+    if (node.get_users().size() == 0)
+        return false;
+
+    for (auto& user : node.get_users()) {
+        if (user->get_preferred_impl_type() == impl_types::onednn)
+            return true;
     }
 
     return false;

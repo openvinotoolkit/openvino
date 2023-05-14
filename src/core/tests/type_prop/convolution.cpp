@@ -117,7 +117,7 @@ TEST(type_prop, convolution_v1_partial_auto_padding_same_spatial_dims_dynamic) {
         make_shared<op::v1::Convolution>(data_batch, filters, strides, pads_begin, pads_end, dilations, auto_pad);
 
     EXPECT_EQ(conv->get_output_partial_shape(0), PartialShape({1, 1, Dimension::dynamic(), {2, 3}}));
-    EXPECT_THAT(get_shape_labels(conv->get_output_partial_shape(0)), ElementsAre(10, 20, 12, ov::no_label));
+    EXPECT_THAT(get_shape_labels(conv->get_output_partial_shape(0)), ElementsAre(10, 20, ov::no_label, ov::no_label));
     EXPECT_EQ(conv->get_pads_begin(), (CoordinateDiff{0, 0}));
     EXPECT_EQ(conv->get_pads_end(), (CoordinateDiff{0, 0}));
 }

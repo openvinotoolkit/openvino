@@ -829,7 +829,7 @@ TEST_P(OVClassNetworkTestP, SetAffinityWithConstantBranches) {
         std::string affinity = rl_map[op->get_friendly_name()];
         op->get_rt_info()["affinity"] = affinity;
     }
-    auto exeNetwork = ie.compile_model(ksoNetwork, target_device);
+    auto exeNetwork = ie.compile_model(func, target_device);
 }
 
 TEST_P(OVClassNetworkTestP, SetAffinityWithKSO) {

@@ -50,7 +50,7 @@ private:
     memory::ptr _result;
     stream::ptr _stream;
     layout _layout;
-    network_output(event::ptr evt, memory::ptr mem, stream::ptr stream, layout layout) : _event(evt), _result(mem), _stream(stream), _layout(layout) {}
+    network_output(event::ptr evt, memory::ptr mem, stream::ptr stream, const layout& layout) : _event(evt), _result(mem), _stream(stream), _layout(layout) {}
     friend struct network;
 };
 
@@ -276,5 +276,9 @@ private:
     // Move from cldnn::program to cldnn::network for multi-threads issue.
     std::unique_ptr<KernelsCache> _in_mem_kernels_cache;
     const size_t _in_mem_kernels_cache_capacity = 10000;
+
+#ifdef GPU_DEBUG_CONFIG
+    int64_t iteration = 0;
+#endif
 };
 }  // namespace cldnn

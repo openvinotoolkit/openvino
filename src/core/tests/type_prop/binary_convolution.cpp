@@ -130,7 +130,7 @@ TEST(type_prop, bin_convolution_auto_padding_same_data_batch_spatial_dims_dynami
                                                        pad_value,
                                                        auto_pad);
 
-    EXPECT_THAT(get_shape_labels(conv->get_output_partial_shape(0)), ElementsAre(10, 20, 12, ov::no_label));
+    EXPECT_THAT(get_shape_labels(conv->get_output_partial_shape(0)), ElementsAre(10, 20, ov::no_label, ov::no_label));
     EXPECT_EQ(conv->get_output_partial_shape(0), (PartialShape{1, Dimension::dynamic(), Dimension::dynamic(), 5}));
     EXPECT_EQ(conv->get_pads_begin(), (CoordinateDiff{0, 1}));
     EXPECT_EQ(conv->get_pads_end(), (CoordinateDiff{0, 1}));
