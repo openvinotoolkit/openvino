@@ -280,24 +280,6 @@ void Engine::GetPerformanceStreams(Config& config, const std::shared_ptr<ngraph:
     const int latency_streams = get_num_numa_nodes();
     int streams;
 
-    auto getPerfHintName = [&]() {
-        if (!config.changedPerformanceHint) {
-            const std::vector<std::vector<int>> proc_type_table = get_proc_type_table();
-            if (proc_type_table.size() == 1) {
-                config.performanceHint = ov::hint::PerformanceMode::LATENCY;
-            } else {
-                config.performanceHint = ov::hint::PerformanceMode::THROUGHPUT;
-            }
-        }
-        OPENVINO_SUPPRESS_DEPRECATED_END
-
-        if (config.performanceHint == ov::hint::PerformanceMode::LATENCY) {
-            return static_cast<int>(getAvailableNUMANodes().size());
-        } else {
-            return 0;
-        }
-    };
-
     if (config.streamExecutorConfig._streams_changed) {
         streams = config.streamExecutorConfig._streams;
         if (streams <= getAvailableNUMANodes().size()) {
@@ -310,7 +292,7 @@ void Engine::GetPerformanceStreams(Config& config, const std::shared_ptr<ngraph:
     } else if (config.performanceHint == ov::hint::PerformanceMode::THROUGHPUT) {
         streams = 0;
     } else {
-        streams = getPerfHintName();
+        streams = config.streamExecutorConfig._streams == 1 ? 0 : config.streamExecutorConfig._streams;
     }
 
     const auto latency_name = std::string(CONFIG_VALUE(LATENCY)) + "_" + std::string(ov::num_streams.name());
@@ -809,9 +791,9 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istr
 
     // import config props from caching model
     auto function = cnnnetwork.getFunction();
-    if (function->has_rt_info("intel_cpu_hints_config") && conf.changedPerformanceHint) {
+    if (function->has_rt_info("intel_cpu_hints_config")) {
         std::stringstream perfstr;
-        perfstr << engConfig.performanceHint;
+        perfstr << conf.performanceHint;
         const auto mode_name = perfstr.str();
         if (mode_name == CONFIG_VALUE(LATENCY) || mode_name == CONFIG_VALUE(THROUGHPUT)) {
             const auto& hints_config = function->get_rt_info<ov::AnyMap>("intel_cpu_hints_config");
