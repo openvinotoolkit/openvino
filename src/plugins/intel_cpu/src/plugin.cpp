@@ -274,7 +274,6 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
 }
 
 void Engine::GetPerformanceStreams(Config& config, const std::shared_ptr<ngraph::Function>& ngraphFunc) {
-    const auto perf_hint_name = config.perfHintsConfig.ovPerfHint;
     // save hints parameters to model rt_info
     ov::AnyMap hints_props;
     std::string hint_name;
