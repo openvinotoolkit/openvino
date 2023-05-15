@@ -226,7 +226,7 @@ public:
 
 #define CASE_DECONV_ELTW_i8_1 { 1, 16, 3, 5 }, { 1, 32, 5, 7 }, { 1, 32, 5, 1 }, { 1, 1, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::i8, format::b_fs_yx_fsv16, data_types::i8, format::os_is_yx_osv16_isv16, data_types::f32, format::bfyx
 #define CASE_DECONV_ELTW_i8_2 { 1, 32, 4, 5, 3 }, { 1, 32, 6, 7, 5 }, { 1, 32, 1, 1, 1 }, { 1, 1, 3, 3, 3 }, { 2, 2, 2 }, { 1, 1, 1 }, { 1, 1, 1 }, 32, data_types::u8, format::b_fs_zyx_fsv16, data_types::i8,  format::goizyx, data_types::f32, format::bfzyx
-#define CASE_DECONV_ELTW_i8_3 { 1, 5, 5, 5, 5 }, { 1, 5, 5, 5, 5 }, { 1, 1, 1, 1, 1 }, { 1, 1, 1, 1, 1 }, { 1, 1, 1 }, { 0, 0, 0 }, { 1, 1, 1 }, 1, data_types::i8, format::bfzyx, data_types::i8, format::oiyx, data_types::f32, format::bfzyx
+#define CASE_DECONV_ELTW_i8_3 { 1, 5, 5, 5, 5 }, { 1, 5, 5, 5, 5 }, { 1, 1, 1, 1, 1 }, { 1, 1, 1, 1, 1 }, { 1, 1, 1 }, { 0, 0, 0 }, { 1, 1, 1 }, 1, data_types::i8, format::bfzyx, data_types::i8, format::oizyx, data_types::f32, format::bfzyx
 #define CASE_DECONV_ELTW_i8_4 { 1, 16, 1, 4 }, { 1, 16, 1, 6 }, { 1, 16, 1, 1 }, { 1, 1, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::i8, format::b_fs_yx_fsv16, data_types::i8, format::os_is_yx_osv16_isv16, data_types::f32, format::bfyx
 #define CASE_DECONV_ELTW_i8_5 { 1, 16, 2, 4 }, { 1, 16, 4, 6 }, { 1, 16, 4, 1 }, { 1, 1, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::i8, format::b_fs_yx_fsv16, data_types::i8, format::os_is_yx_osv16_isv16, data_types::f32, format::bfyx
 

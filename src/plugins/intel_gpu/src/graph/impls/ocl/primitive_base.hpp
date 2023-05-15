@@ -40,7 +40,6 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
 
     typed_primitive_impl_ocl() :  _kernel_data({}), _cached_kernel_ids({}), _kernels({}) {
         _kernel_data.weightsReorderParams.engine = kernel_selector::generic_kernel_params::Engine::NONE;
-        _kernel_data.weightsReorderParams.cpuKernel = nullptr;
         _kernel_data.weightsReorderParams.clKernel = nullptr;
     }
 
@@ -57,11 +56,10 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
     }
 
     typed_primitive_impl_ocl(const kernel_selector::kernel_data& kd)
-        : typed_primitive_impl<PType>(kd.weightsReorderParams, kd.kernelName),
+        : typed_primitive_impl<PType>(create_weights_reorder_params(kd.weightsReorderParams), kd.kernelName),
           _kernel_data(kd) {
         // weights reorder params got copied to parent, clear in _kernel_data to release shared ptr
         _kernel_data.weightsReorderParams.engine = kernel_selector::generic_kernel_params::Engine::NONE;
-        _kernel_data.weightsReorderParams.cpuKernel = nullptr;
         _kernel_data.weightsReorderParams.clKernel = nullptr;
 
         this->can_reuse_memory = _kernel_data.can_reuse_memory;
@@ -93,6 +91,7 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
         }
         auto kernel_params = ImplType::get_kernel_params(ImplType::static_canonicalize_shapes(impl_param));
         kernel_params.first.is_shape_agnostic = impl_param.is_dynamic();
+        kernel_params.first.set_dynamic_shape_offsets();
         auto& kernel_selector = ImplType::kernel_selector_t::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
 
@@ -210,6 +209,21 @@ protected:
             }
 
             stream.set_arguments(*_kernels[kd_idx], _kernel_data.kernels[kd_idx].params, args);
+        }
+    }
+
+    void set_arguments_impl(typed_primitive_inst<PType>& instance, kernel_arguments_data& args) override {
+        if (instance.can_be_optimized()) {
+            return;
+        }
+
+        stream& stream = instance.get_network().get_stream();
+
+        for (size_t k = 0; k < _kernels.size(); ++k) {
+            if (_kernel_data.kernels[k].skip_execution)
+                continue;
+
+            stream.set_arguments(*_kernels[k], _kernel_data.kernels[k].params, args);
         }
     }
 
