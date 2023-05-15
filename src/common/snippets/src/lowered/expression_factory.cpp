@@ -98,8 +98,10 @@ ExpressionPtr LinearIR::ExpressionFactory::create(const std::shared_ptr<op::Loop
 
 ExpressionPtr LinearIR::ExpressionFactory::create(const std::shared_ptr<op::LoopEnd>& n, const std::vector<TensorPtr>& inputs) {
     auto expr = std::make_shared<Expression>(Expression(n));
-    // LoopEnd doesn't have port descriptors on inputs (except input from LoopBegin)
     expr->m_input_port_descriptors.resize(inputs.size(), nullptr);
+    for (size_t i = 0; i < inputs.size() - 1; ++i) {
+        expr->m_input_port_descriptors[i] = std::make_shared<PortDescriptor>();
+    }
     const auto& last_input = inputs.back()->get_source();
     OPENVINO_ASSERT(ov::is_type<op::LoopBegin>(last_input.get_expr()->get_node()), "LoopEnd expression expects LoopBegin on last input");
     expr->m_input_port_descriptors[inputs.size() - 1] = last_input.get_descriptor_ptr()->clone();

@@ -40,10 +40,12 @@ public:
     std::vector<size_t> get_shape() const {return m_tensor_shape;}
     std::vector<size_t> get_subtensor() const {return m_subtensor_shape;}
     std::vector<size_t> get_layout() const {return m_layout;}
+    size_t get_reg() const { return m_reg; }
 
     void set_shape(const std::vector<size_t>& tensor) { m_tensor_shape = tensor; }
     void set_layout(const std::vector<size_t>& layout) { m_layout = layout; }
     void set_subtensor(const std::vector<size_t>& subtensor) { m_subtensor_shape = subtensor; }
+    void set_reg(size_t reg) { m_reg = reg; }
 
     std::string serialize() const;
     bool empty() const { return m_layout.empty() && m_subtensor_shape.empty();}
@@ -60,6 +62,8 @@ private:
     std::vector<size_t> m_layout{};
     /// \brief Minimal tensor size that could be processed in one call
     std::vector<size_t> m_subtensor_shape{};
+    /// \brief The corresponding abstract register
+    size_t m_reg = 0;
 };
 
 class PortManager {

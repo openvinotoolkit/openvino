@@ -83,6 +83,9 @@ void LinearIR::serialize(const std::string& xml, const std::string& bin) {
 }
 
 LinearIR::container LinearIR::deep_copy_range(LinearIR::container::const_iterator begin, LinearIR::container::const_iterator end) {
+    auto deep_clone_ports = [](std::vector<PortDescriptorPtr>& ports) {
+        for (auto& port : ports) { port = port->clone(); }
+    };
     LinearIR::container result;
     NodeVector original_nodes;
     for (auto it = begin; it != end; it++)
@@ -93,6 +96,8 @@ LinearIR::container LinearIR::deep_copy_range(LinearIR::container::const_iterato
         // copy by value, so result shared_pointer point to new objects
         Expression new_expr = **it;
         new_expr.m_source_node = node_map[(*it)->get_node().get()];
+        deep_clone_ports(new_expr.m_input_port_descriptors);
+        deep_clone_ports(new_expr.m_output_port_descriptors);
         result.emplace_back(std::make_shared<Expression>(new_expr));
     }
     return result;

@@ -16,8 +16,7 @@ namespace lowered {
 
 size_t Expression::LOOP_NULL_ID = SIZE_MAX;
 
-Expression::Expression(const std::shared_ptr<Node>& n)
-    : m_source_node{n}, m_emitter{nullptr}, m_input_tensors{}, m_output_tensors{}, m_reg_info{{}, {}} {
+Expression::Expression(const std::shared_ptr<Node>& n) : m_source_node{n}, m_emitter{nullptr}, m_input_tensors{}, m_output_tensors{} {
     m_input_port_descriptors.reserve(n->get_input_size());
     m_output_port_descriptors.reserve(n->get_output_size());
     for (const auto& input : n->inputs()) {
@@ -54,6 +53,30 @@ std::shared_ptr<Node> Expression::get_node() const {
 
 std::shared_ptr<Emitter> Expression::get_emitter() const {
     return m_emitter;
+}
+
+RegInfo Expression::get_reg_info() const {
+    RegInfo reg_info;
+    reg_info.first.reserve(m_input_port_descriptors.size());
+    reg_info.second.reserve(m_output_port_descriptors.size());
+    for (const auto& port : m_input_port_descriptors)
+        reg_info.first.push_back(port->get_reg());
+    for (const auto& port : m_output_port_descriptors)
+        reg_info.second.push_back(port->get_reg());
+    return reg_info;
+}
+
+void Expression::set_reg_info(RegInfo rinfo) {
+    const auto& in = rinfo.first;
+    const auto& out = rinfo.second;
+    OPENVINO_ASSERT(m_input_port_descriptors.size() == in.size(), "Incorrect count of input physical registers");
+    OPENVINO_ASSERT(m_output_port_descriptors.size() == out.size(), "Incorrect count of output physical registers");
+    for (size_t i = 0; i < m_input_port_descriptors.size(); ++i) {
+        m_input_port_descriptors[i]->set_reg(in[i]);
+    }
+    for (size_t i = 0; i < m_output_port_descriptors.size(); ++i) {
+        m_output_port_descriptors[i]->set_reg(out[i]);
+    }
 }
 
 void Expression::init_emitter(const std::shared_ptr<const TargetMachine>& target) {

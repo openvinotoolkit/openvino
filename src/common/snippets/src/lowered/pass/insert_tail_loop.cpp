@@ -43,12 +43,13 @@ void InsertTailLoop::tail_transformations(LinearIR& linear_ir,
                 if (auto fill = insertFill(op->input(i))) {
                     const auto& input = expr_it->get()->get_input_tensor(i);
                     const auto consumers = input->get_consumers();
-                    // Note: inputs == outputs, since we want to modify vector reg inplace
                     auto fill_expr = linear_ir.create_expression(fill, {input});
                     linear_ir.insert(expr_it, fill_expr);
                     linear_ir.replace_input(consumers, fill_expr->get_output_tensor(0));
-                    auto reg = expr_it->get()->get_reg_info().first[i];
-                    fill_expr->set_reg_info({{reg}, {reg}});
+                    // in_reg == out_reg since we want to modify vector reg inplace
+                    const auto reg = expr_it->get()->get_input_port_descriptor(0)->get_reg();
+                    fill_expr->get_input_port_descriptor(0)->set_reg(reg);
+                    fill_expr->get_output_port_descriptor(0)->set_reg(reg);
                 }
             }
         } else if (const auto memory_access = std::dynamic_pointer_cast<ngraph::snippets::op::MemoryAccess>(op)) {

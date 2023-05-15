@@ -36,7 +36,9 @@ void PortDescriptor::validate_arguments() {
 }
 
 PortDescriptorPtr PortDescriptor::clone() const {
-    return std::make_shared<PortDescriptor>(m_tensor_shape, m_subtensor_shape, m_layout);
+    const auto desc = std::make_shared<PortDescriptor>(m_tensor_shape, m_subtensor_shape, m_layout);
+    desc->set_reg(m_reg);
+    return desc;
 }
 
 std::string  PortDescriptor::serialize() const {

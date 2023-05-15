@@ -32,8 +32,8 @@ public:
     std::shared_ptr<Node> get_node() const;
     std::shared_ptr<Emitter> get_emitter() const;
 
-    RegInfo get_reg_info() const { return  m_reg_info; }
-    void set_reg_info(RegInfo rinfo) { m_reg_info = std::move(rinfo); }
+    RegInfo get_reg_info() const;
+    void set_reg_info(RegInfo rinfo);
 
     const TensorPtr& get_input_tensor(size_t i) const;
     const TensorPtr& get_output_tensor(size_t i) const;
@@ -72,7 +72,6 @@ protected:
     std::vector<TensorPtr> m_output_tensors{};
     std::vector<PortDescriptorPtr> m_input_port_descriptors{};
     std::vector<PortDescriptorPtr> m_output_port_descriptors{};
-    RegInfo m_reg_info{{}, {}};
     // The order Loops identifies: Outer ---> Inner
     std::vector<size_t> m_loop_ids;
 };
