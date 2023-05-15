@@ -6,16 +6,9 @@
 #pragma once
 
 #include "common.hpp"
-
-#ifdef  MULTIUNITTEST
-#define MOCKTESTMACRO virtual
-#define MultiDevicePlugin MockMultiDevicePlugin
-#else
-#define MOCKTESTMACRO
-#endif
-
-namespace MultiDevicePlugin {
-using Stage = std::pair<IE::ITaskExecutor::Ptr, IE::Task>;
+namespace ov {
+namespace auto_plugin {
+using Stage = std::pair<std::shared_ptr<ov::threading::ITaskExecutor>, ov::threading::Task>;
 using Pipeline = std::vector<Stage>;
 class Schedule : public std::enable_shared_from_this<Schedule>  {
 public:
@@ -30,4 +23,5 @@ public:
     virtual ~Schedule() = default;
 };
 
-}  // namespace MultiDevicePlugin
+}  // namespace auto_plugin
+}  // namespace ov

@@ -14,8 +14,8 @@
 #include <string>
 #include <map>
 #include <vector>
-namespace MultiDevicePlugin {
-using namespace InferenceEngine;
+namespace ov {
+namespace auto_plugin {
 
 class BaseValidator {
 public:
@@ -140,7 +140,7 @@ public:
     void apply_user_properties();
     ov::AnyMap get_full_properties();
 
-    std::vector<std::string> supportedConfigKeys(const std::string& pluginName = "AUTO") const {
+    std::vector<std::string> supported_config_keys(const std::string& plugin_name = "AUTO") const {
         std::vector<std::string> supported_configKeys;
         for (const auto& iter : property_mutabilities) {
             if (iter.second.as<ov::PropertyMutability>() == ov::PropertyMutability::RW)
@@ -153,10 +153,10 @@ public:
         multi_supported_configKeys.erase(std::remove(
                                 multi_supported_configKeys.begin(), multi_supported_configKeys.end(), ov::intel_auto::enable_runtime_fallback.name()),
                                 multi_supported_configKeys.end());
-        return pluginName == "AUTO" ? supported_configKeys : multi_supported_configKeys;
+        return plugin_name == "AUTO" ? supported_configKeys : multi_supported_configKeys;
     }
 
-    std::vector<ov::PropertyName> supportedProperties(const std::string& pluginName = "AUTO") const {
+    std::vector<ov::PropertyName> supported_properties(const std::string& plugin_name = "AUTO") const {
         std::vector<ov::PropertyName> supported_properties;
         for (const auto& iter : property_mutabilities)
             supported_properties.push_back(ov::PropertyName(iter.first, iter.second.as<ov::PropertyMutability>()));
@@ -168,10 +168,10 @@ public:
         multi_supported_properties.erase(std::remove(
                                 multi_supported_properties.begin(), multi_supported_properties.end(), ov::intel_auto::enable_runtime_fallback),
                                 multi_supported_properties.end());
-        return pluginName == "AUTO" ? supported_properties : multi_supported_properties;
+        return plugin_name == "AUTO" ? supported_properties : multi_supported_properties;
     }
 
-    std::vector<std::string> supportedMetrics(const std::string& pluginName = "AUTO") const {
+    std::vector<std::string> supported_metrics(const std::string& plugin_name = "AUTO") const {
         std::vector<std::string> supported_metrics;
         for (const auto& iter : property_mutabilities) {
             if (iter.second.as<ov::PropertyMutability>() == ov::PropertyMutability::RO)
@@ -180,46 +180,46 @@ public:
         supported_metrics.push_back(METRIC_KEY(SUPPORTED_METRICS));
         supported_metrics.push_back(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
         auto multi_supported_metrics = supported_metrics;
-        return pluginName == "AUTO" ? supported_metrics : multi_supported_metrics;
+        return plugin_name == "AUTO" ? supported_metrics : multi_supported_metrics;
     }
 
-    bool isSupportedDevice(const std::string& deviceName, const std::string& option) const {
-        if (deviceName.empty())
+    bool is_supported_device(const std::string& device_name, const std::string& option) const {
+        if (device_name.empty())
             return false;
-        auto realDevName = deviceName[0] != '-' ? deviceName : deviceName.substr(1);
-        if (realDevName.empty()) {
+        auto real_dev_name = device_name[0] != '-' ? device_name : device_name.substr(1);
+        if (real_dev_name.empty()) {
             return false;
         }
-        realDevName = ov::DeviceIDParser(realDevName).get_device_name();
-        if (realDevName.find("GPU") != std::string::npos) {
+        real_dev_name = ov::DeviceIDParser(real_dev_name).get_device_name();
+        if (real_dev_name.find("GPU") != std::string::npos) {
             // Check if the device is an Intel device
             if (option.find("vendor=0x8086") == std::string::npos) {
-                realDevName = "notIntelGPU";
+                real_dev_name = "notIntelGPU";
             }
         }
-        std::string::size_type realEndPos = 0;
-        if ((realEndPos = realDevName.find('(')) != std::string::npos) {
-            realDevName = realDevName.substr(0, realEndPos);
+        std::string::size_type real_end_pos = 0;
+        if ((real_end_pos = real_dev_name.find('(')) != std::string::npos) {
+            real_dev_name = real_dev_name.substr(0, real_end_pos);
         }
-        if (_deviceBlocklist.end() != std::find(_deviceBlocklist.begin(), _deviceBlocklist.end(), realDevName)) {
+        if (device_block_list.end() != std::find(device_block_list.begin(), device_block_list.end(), real_dev_name)) {
             return false;
         }
         return true;
     }
 
-    std::vector<std::string> ParsePrioritiesDevices(const std::string& priorities, const char separator = ',') const {
+    std::vector<std::string> parse_priorities_devices(const std::string& priorities, const char separator = ',') const {
         std::vector<std::string> devices;
         std::string::size_type pos = 0;
         std::string::size_type endpos = 0;
         while ((endpos = priorities.find(separator, pos)) != std::string::npos) {
-            auto subStr = priorities.substr(pos, endpos - pos);
-            if (!subStr.empty())
-                devices.push_back(subStr);
+            auto substr = priorities.substr(pos, endpos - pos);
+            if (!substr.empty())
+                devices.push_back(substr);
             pos = endpos + 1;
         }
-        auto subStr = priorities.substr(pos, priorities.length() - pos);
-        if (!subStr.empty())
-            devices.push_back(subStr);
+        auto substr = priorities.substr(pos, priorities.length() - pos);
+        if (!substr.empty())
+            devices.push_back(substr);
         return devices;
     }
 
@@ -229,6 +229,7 @@ private:
     ov::AnyMap full_properties;       // combined with user set properties, including secondary properties
     ov::AnyMap property_mutabilities; // mutability for supported configs/metrics installation
     std::map<std::string, BaseValidator::Ptr> property_validators;
-    static const std::set<std::string> _deviceBlocklist;
+    static const std::set<std::string> device_block_list;
 };
-} // namespace MultiDevicePlugin
+} // namespace auto_plugin
+} // namespace ov

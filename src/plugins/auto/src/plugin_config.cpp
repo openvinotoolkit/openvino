@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "plugin_config.hpp"
-
-namespace MultiDevicePlugin {
+namespace ov {
+namespace auto_plugin {
 // AUTO will enable the blocklist if
 // 1.No device priority passed to AUTO/MULTI.(eg. core.compile_model(model, "AUTO", configs);)
 // 2.No valid device parsed out from device priority (eg. core.compile_model(model, "AUTO:-CPU,-GPU", configs);).
-const std::set<std::string> PluginConfig::_deviceBlocklist = {"VPUX", "GNA", "notIntelGPU"};
+const std::set<std::string> PluginConfig::device_block_list = {"VPUX", "GNA", "notIntelGPU"};
 
 PluginConfig::PluginConfig() {
     set_default();
@@ -107,4 +107,5 @@ ov::AnyMap PluginConfig::get_full_properties() {
     return full_properties;
 }
 
-} // namespace MultiDevicePlugin
+} // namespace auto_plugin
+} // namespace ov

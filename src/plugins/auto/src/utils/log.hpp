@@ -3,8 +3,8 @@
 //
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#ifndef MULTIDEVICEPLUGIN_LOG_H
-#define MULTIDEVICEPLUGIN_LOG_H
+#ifndef AUTOPLUGIN_LOG_H
+#define AUTOPLUGIN_LOG_H
 
 #include <fstream>
 #include <iostream>
@@ -21,7 +21,7 @@
 
 #ifdef  MULTIUNITTEST
 #define MOCKTESTMACRO virtual
-#define MultiDevicePlugin MockMultiDevicePlugin
+#define auto_plugin mock_auto_plugin
 #else
 #define MOCKTESTMACRO
 #endif
@@ -46,8 +46,8 @@
 #ifdef ERROR
 #undef ERROR
 #endif
-
-namespace MultiDevicePlugin {
+namespace ov {
+namespace auto_plugin {
 inline int parseInteger(const char* str) {
     std::string var(str ? str : "");
     try {
@@ -267,7 +267,7 @@ inline void Log::doRun(LogLevel level, const LogTask& task) {
     task();
 }
 
-inline std::string Log::colorBegin(MultiDevicePlugin::LogLevel logLevel) {
+inline std::string Log::colorBegin(auto_plugin::LogLevel logLevel) {
     if (logLevel == LogLevel::WARN) {
         return std::string(CYAN);
     }
@@ -277,12 +277,13 @@ inline std::string Log::colorBegin(MultiDevicePlugin::LogLevel logLevel) {
     return std::string(DEFAULT_COLOR);
 }
 
-inline std::string Log::colorEnd(MultiDevicePlugin::LogLevel logLevel) {
+inline std::string Log::colorEnd(auto_plugin::LogLevel logLevel) {
     if (logLevel == LogLevel::WARN || logLevel == LogLevel::ERROR || logLevel == LogLevel::FATAL) {
         return std::string(COL_END);
     }
     return {};
 }
-} // namespace MultiDevicePlugin
+} // namespace auto_plugin
+} // namespace ov
 
-#endif //MULTIDEVICEPLUGIN_LOG_H
+#endif //AUTOPLUGIN_LOG_H

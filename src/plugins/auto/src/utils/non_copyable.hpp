@@ -4,17 +4,18 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#ifndef MULTIDEVICEPLUGIN_NONCOPYABLE_H
-#define MULTIDEVICEPLUGIN_NONCOPYABLE_H
+#ifndef AUTOPLUGIN_NONCOPYABLE_H
+#define AUTOPLUGIN_NONCOPYABLE_H
 
 #ifdef  MULTIUNITTEST
 #define MOCKTESTMACRO virtual
-#define MultiDevicePlugin MockMultiDevicePlugin
+#define auto_plugin mock_auto_plugin
 #else
 #define MOCKTESTMACRO
 #endif
 
-namespace MultiDevicePlugin {
+namespace ov {
+namespace auto_plugin {
 class NonCopyable {
 public:
     NonCopyable(const NonCopyable&) = delete;
@@ -27,6 +28,7 @@ protected:
     NonCopyable() = default;
     virtual ~NonCopyable() = default;
 };
-} // namespace MultiDevicePlugin
+} // namespace auto_plugin
+} // namespace ov
 
-#endif //MULTIDEVICEPLUGIN_NONCOPYABLE_H
+#endif //AUTOPLUGIN_NONCOPYABLE_H
