@@ -49,7 +49,7 @@ bool are_same_tensor(const ov::Tensor& lhs, const ov::Tensor& rhs) {
            (lhs.data() == rhs.data());
 }
 
-bool are_equal(const ov::Tensor& lhs, const ov::Tensor& rhs, size_t element_limit = 10) {
+bool are_equal(const ov::Tensor& lhs, const ov::Tensor& rhs) {
     if (!lhs || !rhs) {
         return false;
     }
@@ -59,7 +59,7 @@ bool are_equal(const ov::Tensor& lhs, const ov::Tensor& rhs, size_t element_limi
     const auto& lhs_et = lhs.get_element_type();
     const auto& rhs_et = rhs.get_element_type();
 
-    auto are_eq = (lhs_et == rhs_et) && (lhs_shape == rhs_shape) && shape_size(lhs_shape) <= element_limit;
+    auto are_eq = (lhs_et == rhs_et) && (lhs_shape == rhs_shape);
 
     if (are_eq) {
         are_eq = memcmp(lhs.data(), rhs.data(), lhs.get_byte_size()) == 0;
@@ -317,10 +317,14 @@ std::pair<ov::Tensor, ov::Tensor> ov::evaluate_both_bounds(const Output<Node>& o
             bool labels_evaluated = node->evaluate_label(output_labels);
             for (size_t i = 0; i < node->get_output_size(); ++i) {
                 auto& out_tensor = node->get_output_tensor(i);
+
                 out_tensor.set_lower_value(outputs_lower[i]);
-                out_tensor.set_upper_value(outputs_upper[i]);
-                if (same_inputs || are_equal(outputs_lower[i], outputs_upper[i]))
+                if (same_inputs || are_equal(outputs_lower[i], outputs_upper[i])) {
                     out_tensor.set_upper_value(outputs_lower[i]);
+                } else {
+                    out_tensor.set_upper_value(outputs_upper[i]);
+                }
+
                 if (labels_evaluated)
                     node->get_output_tensor(i).set_value_label(output_labels[i]);
             }

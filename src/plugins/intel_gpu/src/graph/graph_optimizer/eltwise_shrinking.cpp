@@ -102,8 +102,6 @@ void eltwise_shrinking::run(program& p) {
                         auto c = const_cast<convolution*>(&(*conv));
                         c->stride[0] = 1;
                         c->stride[1] = 1;
-                        // TODO: remove forcing "false" with_output_size if not needed
-                        c->with_output_size = false;
                         convs_to_shrink[i]->recalc_output_layout();
                     }
                 }
