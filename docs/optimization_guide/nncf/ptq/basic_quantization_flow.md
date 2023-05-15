@@ -29,7 +29,7 @@ Install all the packages required to instantiate the model object, for example, 
 Prepare a Calibration Dataset
 #############################
 
-At this step, create an instance of the ``nncf.Dataset`` class that represents the calibration dataset. The ``nncf.Dataset`` class can be a wrapper over the framework dataset object that is used for model training or validation. The class constructor receives the dataset object and the transformation function.
+At this step, create an instance of the ``nncf.Dataset`` class that represents the calibration dataset. The ``nncf.Dataset`` class can be a wrapper over the framework dataset object that is used for model training or validation. The class constructor receives the dataset object and an optional transformation function.
 
 The transformation function is a function that takes a sample from the dataset and returns data that can be passed to the model for inference. For example, this function can take a tuple of a data tensor and labels tensor, and return the former while ignoring the latter. The transformation function is used to avoid modifying the dataset code to make it compatible with the quantization API. The function is applied to each sample from the dataset before passing it to the model for inference. The following code snippet shows how to create an instance of the ``nncf.Dataset`` class:
 
