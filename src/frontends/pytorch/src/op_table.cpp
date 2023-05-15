@@ -274,6 +274,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::mul", op::translate_1to1_match_2_inputs_align_types<opset10::Multiply>},
         {"aten::mul_", op::inplace_op<op::translate_1to1_match_2_inputs_align_types<opset10::Multiply>>},
         {"aten::narrow", op::translate_narrow},
+        {"aten::native_multi_head_attention", op::translate_native_multi_head_attention},
         {"aten::ne", op::translate_1to1_match_2_inputs_align_types<opset10::NotEqual>},
         {"aten::neg", op::translate_neg},
         {"aten::new_empty", op::translate_new_zeros},
