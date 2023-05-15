@@ -37,28 +37,28 @@ You can also insert additional input pre-processing sub-graphs into the converte
 the ``mean_values``, ``scales_values``, ``layout``, and other parameters described
 in the :doc:`Embedding Preprocessing Computation <openvino_docs_MO_DG_Additional_Optimization_Use_Cases>` article.
 
-The ``compress_to_fp16`` compression parameter in model conversion API allows generating IR with constants (for example, weights for convolutions and matrix multiplications) compressed to ``FP16`` data type. For more details, refer to the :doc:`Compression of a Model to FP16 <openvino_docs_MO_DG_FP16_Compression>` guide.
+The ``compress_to_fp16`` compression parameter in MO command-line tool allows generating IR with constants (for example, weights for convolutions and matrix multiplications) compressed to ``FP16`` data type. For more details, refer to the :doc:`Compression of a Model to FP16 <openvino_docs_MO_DG_FP16_Compression>` guide.
 
-To get the full list of conversion parameters available in model conversion API, run the following command:
+To get the full list of conversion parameters available in MO command-line tool, run the following command:
 
 .. code-block:: sh
 
    mo --help
 
 
-Examples of Conversion API parameters
+Examples of MO command-line parameters
 #####################################
 
-Below is a list of separate examples for different frameworks and model conversion API parameters:
+Below is a list of separate examples for different frameworks and MO command-line parameters:
 
-1. Launch model conversion API for a TensorFlow MobileNet model in the binary protobuf format:
+1. Launch MO for a TensorFlow MobileNet model in the binary protobuf format:
 
    .. code-block:: sh
 
       mo --input_model MobileNet.pb
 
 
-   Launch model conversion API for a TensorFlow BERT model in the SavedModel format with three inputs. Specify input shapes explicitly where the batch size and the sequence length equal 2 and 30 respectively:
+   Launch MO for a TensorFlow BERT model in the SavedModel format with three inputs. Specify input shapes explicitly where the batch size and the sequence length equal 2 and 30 respectively:
 
    .. code-block:: sh
 
@@ -66,7 +66,7 @@ Below is a list of separate examples for different frameworks and model conversi
 
       For more information, refer to the :doc:`Converting a TensorFlow Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow>` guide.
 
-2. Launch model conversion API for an ONNX OCR model and specify new output explicitly:
+2. Launch MO for an ONNX OCR model and specify new output explicitly:
 
    .. code-block:: sh
 
@@ -79,7 +79,7 @@ Below is a list of separate examples for different frameworks and model conversi
 
       PyTorch models must be exported to the ONNX format before conversion into IR. More information can be found in :doc:`Converting a PyTorch Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch>`.
 
-3. Launch model conversion API for a PaddlePaddle UNet model and apply mean-scale normalization to the input:
+3. Launch MO for a PaddlePaddle UNet model and apply mean-scale normalization to the input:
 
    .. code-block:: sh
 
@@ -88,7 +88,7 @@ Below is a list of separate examples for different frameworks and model conversi
 
    For more information, refer to the :doc:`Converting a PaddlePaddle Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Paddle>` guide.
 
-4. Launch model conversion API for an Apache MXNet SSD Inception V3 model and specify first-channel layout for the input:
+4. Launch MO for an Apache MXNet SSD Inception V3 model and specify first-channel layout for the input:
 
    .. code-block:: sh
 
@@ -97,7 +97,7 @@ Below is a list of separate examples for different frameworks and model conversi
 
    For more information, refer to the :doc:`Converting an Apache MXNet Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_MxNet>` guide.
 
-5. Launch model conversion API for a Caffe AlexNet model with input channels in the RGB format which needs to be reversed:
+5. Launch MO for a Caffe AlexNet model with input channels in the RGB format which needs to be reversed:
 
    .. code-block:: sh
 
@@ -106,7 +106,7 @@ Below is a list of separate examples for different frameworks and model conversi
 
    For more information, refer to the :doc:`Converting a Caffe Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Caffe>` guide.
 
-6. Launch model conversion API for a Kaldi LibriSpeech nnet2 model:
+6. Launch MO for a Kaldi LibriSpeech nnet2 model:
 
    .. code-block:: sh
 
