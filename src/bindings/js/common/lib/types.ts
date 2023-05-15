@@ -49,7 +49,8 @@ export interface ITensor {
 
 export interface IModel {
   infer(tensor: ITensor): Promise<ITensor>;
-  infer(dataArray: number[] | TypedArray, shape: IShape | number[]): Promise<ITensor>;
+  infer(dataArray: number[] | TypedArray, shape: IShape | number[])
+    : Promise<ITensor>;
 }
 
 export interface ModelFiles {

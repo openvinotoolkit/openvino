@@ -32,7 +32,9 @@ class CommonModel implements IModel {
     this.#nodeModel = nodeModel;
   }
 
-  async infer(tensorOrDataArray: ITensor | number[] | TypedArray, shapeOrDimensionsArray?: IShape | number[],
+  async infer(
+    tensorOrDataArray: ITensor | number[] | TypedArray,
+    shapeOrDimensionsArray?: IShape | number[],
   )
   : Promise<ITensor> {
     const shape = shapeOrDimensionsArray instanceof Shape
