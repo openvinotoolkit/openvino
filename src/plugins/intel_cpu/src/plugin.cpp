@@ -282,7 +282,7 @@ void Engine::GetPerformanceStreams(Config& config, const std::shared_ptr<ngraph:
 
     if (config.streamExecutorConfig._streams_changed) {
         streams = config.streamExecutorConfig._streams;
-        if (streams <= getAvailableNUMANodes().size()) {
+        if (streams <= latency_streams) {
             config.performanceHint = ov::hint::PerformanceMode::LATENCY;
         } else {
             config.performanceHint = ov::hint::PerformanceMode::THROUGHPUT;
