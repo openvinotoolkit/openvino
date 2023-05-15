@@ -32,7 +32,7 @@ async function onRuntimeInitialized()
 
     //create tensor
     const tensor_data = new Float32Array(src.data);
-    math.prepare_resnet_tensor(tensor_data); //Preprocessing needed by resnet network
+    math.prepareResnetTensor(tensor_data); //Preprocessing needed by resnet network
 
     const tensor = new addon.Tensor(addon.element.f32, [1, 224, 224, 3], tensor_data);
 
@@ -49,4 +49,4 @@ async function onRuntimeInitialized()
 Module = {
     onRuntimeInitialized
 };
-cv = require('./lib/opencv.js');
+cv = require('opencv.js');

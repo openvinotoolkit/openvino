@@ -40,5 +40,5 @@ Module = {
 
     onRuntimeInitialized
 };
-cv = require('./lib/opencv.js');
+cv = require('opencv.js');
 
