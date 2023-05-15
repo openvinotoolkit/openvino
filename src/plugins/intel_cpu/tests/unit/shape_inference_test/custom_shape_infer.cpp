@@ -1,7 +1,9 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
+#include "openvino/core/type.hpp"
+#include <ngraph/opsets/opset1.hpp>
+#include "openvino/op/parameter.hpp"
 #include "utils/custom_shape_inference/reshape.hpp"
 #include "utils/custom_shape_inference/gather.hpp"
 #include "utils/custom_shape_inference/transpose.hpp"
@@ -106,7 +108,7 @@ CustomShapeInferFF::CustomShapeInferFF():Factory("CpuCustomShapeInferTestFactory
     // INTEL_CPU_CUSTOM_SHAPE_INFER(node::DeconvolutionShapeInferFactory, Type::Deconvolution);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(DeformableConvolution, Type::DeformableConvolution);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(Range, Type::Range);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(node::StridedSliceShapeInferFactory, Type::StridedSlice);
+    INTEL_CPU_CUSTOM_SHAPE_INFER(node::StridedSliceShapeInferFactory, Type::StridedSlice);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(GRN, Type::GRN);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(NonZero, Type::NonZero);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(NormalizeL2, Type::NormalizeL2);
@@ -160,6 +162,17 @@ static void compare_result(std::vector<StaticShape> ref, std::vector<VectorDims>
     }
 }
 
+void op_reshape(ov::Node* op, const std::vector<StaticShape>& input_shapes) {
+         for (size_t port = 0; port < input_shapes.size(); ++port) {
+            const auto input_op = op->input_value(port).get_node_shared_ptr();
+            const auto const_op = ov::as_type_ptr<const ov::op::v0::Parameter>(input_op);
+            ASSERT_TRUE(const_op != nullptr);
+            const_op->set_partial_shape(input_shapes[i]);
+
+         }
+         op->revalidate_and_infer_types();
+}
+
 void custom_shape_inference(ov::Node* op,
                      const std::vector<StaticShape>& input_shapes,
                      std::vector<StaticShape>& output_shapes,
@@ -168,11 +181,24 @@ void custom_shape_inference(ov::Node* op,
     std::cout << "=====custom_shape_infer test======" << "op" << op->get_type_name() << std::endl;
     if (auto shapeInferFactory = cusFactory->create(op->shared_from_this())) {
         if (TypeFromName(op->get_type_name()) == Type::AdaptivePooling && op->get_output_size() == 0) {
-            return;
+            // custom shape infer depend on the output of op, need to reshape the op
+            op_reshape(op, input_shapes);
         } else if (TypeFromName(op->get_type_name()) == Type::ShapeOf
                 && op->get_input_size() > 0
                 && op->get_input_partial_shape(0).size() == 0) {
             return;
+        } else if (TypeFromName(op->get_type_name()) == Type::StridedSlice) {
+            const auto StridedSlice_op = dynamic_cast<const ov::op::v1::StridedSlice*>(op);
+            if (StridedSlice_op == nullptr)
+                return;
+            const auto& ellipsis_mask = StridedSlice_op->get_ellipsis_mask();
+            if (std::any_of(ellipsis_mask.begin(), ellipsis_mask.end(), [](int64_t x){ return x == 1; })) {
+                return;
+            }
+            if (op->get_output_size() == 0) {
+                // custom shape infer depend on the output of op, need to reshape the op
+                op_reshape(op, input_shapes);
+            }
         }
         std::cout << "=====custom_shape_infer test factory======" << "op" << op->get_type_name() << std::endl;
         auto cusShapeInfer =  shapeInferFactory->makeShapeInfer();
