@@ -92,7 +92,32 @@ Once the dataset is ready and the model object is instantiated, you can apply 8-
 
 .. note:: The ``model`` is an instance of the ``torch.nn.Module`` class for PyTorch, ``onnx.ModelProto`` for ONNX, and ``openvino.runtime.Model`` for OpenVINO.
 
-After that the model can be exported into the OpenVINO Intermediate Representation if needed and run faster with OpenVINO.
+After that the model can be converted into the OpenVINO Intermediate Representation if needed and run faster with OpenVINO:
+
+.. tab:: OpenVINO
+
+    .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_openvino.py
+       :language: python
+       :fragment: [inference]
+
+.. tab:: PyTorch
+
+    .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_torch.py
+       :language: python
+       :fragment: [inference]
+
+.. tab:: ONNX
+
+    .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_onnx.py
+       :language: python
+       :fragment: [inference]
+
+.. tab:: TensorFlow
+
+    .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_tensorflow.py
+       :language: python
+       :fragment: [inference]
+
 
 Tune quantization parameters
 ############################
@@ -150,6 +175,9 @@ Tune quantization parameters
        nncf.quantize(model, dataset, ignored_scope=nncf.IgnoredScope(patterns=regex))
 
 * ``target_device`` - defines the target device, the specificity of which will be taken into account during optimization. The following values are supported: ``ANY`` (default), ``CPU``, ``CPU_SPR``, ``GPU``, and ``VPU``.
+    .. code-block:: sh
+
+     nncf.quantize(model, dataset, target_device=nncf.TargetDevice.CPU)
 
 * ``advanced_parameters`` - used to specify advanced quantization parameters for fine-tuning the quantization algorithm. Defined by ``nncf.AdvancedQuantizationParameters`` class. ``None`` is default.
 
