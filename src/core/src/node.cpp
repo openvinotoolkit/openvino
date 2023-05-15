@@ -571,7 +571,7 @@ bool ov::Node::is_dynamic() const {
 
 ov::Input<ov::Node> ov::Node::input(size_t input_index) {
     if (input_index >= m_inputs.size()) {
-        throw out_of_range("node input index is out of range");
+        throw out_of_range("node input index is out of range: input_index = " + std::to_string(input_index) + " out of [0.." + std::to_string(m_inputs.size()) + ")");
     }
 
     return {this, input_index};
@@ -583,7 +583,7 @@ ov::Output<ov::Node> ov::Node::input_value(size_t input_index) const {
 
 ov::Input<const ov::Node> ov::Node::input(size_t input_index) const {
     if (input_index >= m_inputs.size()) {
-        throw out_of_range("node input index is out of range");
+        throw out_of_range("node input index is out of range: input_index = " + std::to_string(input_index) + " out of [0.." + std::to_string(m_inputs.size()) + ")");
     }
 
     return {this, input_index};
