@@ -1,4 +1,4 @@
-# Model Conversion Python API {#openvino_docs_MO_DG_Python_API}
+# Convert Models Represented as Python Objects {#openvino_docs_MO_DG_Python_API}
 
 @sphinxdirective
 
