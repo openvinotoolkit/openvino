@@ -407,6 +407,9 @@ struct Params {
     KernelType GetType() const { return kType; }
     virtual ParamsKey GetParamsKey() const;
 
+    virtual void set_dynamic_shape_offsets() {
+        return;
+    }
 protected:
     Params(KernelType kt, const std::string& id) : kType(kt), layerID(id), is_shape_agnostic(false) {}
     KernelType kType;
@@ -636,6 +639,7 @@ struct base_params : public Params {
     std::vector<fused_operation_desc> fused_ops = {};
     MultiDataTensor inputs;
     MultiDataTensor outputs;
+
     std::string to_string() const override;
     std::string to_cache_string_v2() const override;
     ParamsKey GetParamsKey() const override;
@@ -650,6 +654,30 @@ struct base_params : public Params {
 
     bool has_dynamic_tensors() const {
         return has_dynamic_inputs() || has_dynamic_outputs();
+    }
+
+    void set_dynamic_shape_offsets() override {
+        size_t offset = 0;
+        for (auto& in : inputs) {
+            in.SetDynamicShapeOffset(offset);
+            if (in.is_dynamic()) {
+                offset += DataTensor::max_rank();
+                for (auto dim : in.GetDims()) {
+                    if (dim.pad.is_dynamic)
+                        offset += Tensor::Pad::NumPadOffsetsPerDim();
+                }
+            }
+        }
+        for (auto& out : outputs) {
+            out.SetDynamicShapeOffset(offset);
+            if (out.is_dynamic()) {
+                offset += DataTensor::max_rank();
+                for (auto dim : out.GetDims()) {
+                    if (dim.pad.is_dynamic)
+                        offset += Tensor::Pad::NumPadOffsetsPerDim();
+                }
+            }
+        }
     }
 
 protected:
