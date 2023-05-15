@@ -55,7 +55,7 @@ Run quantization with accuracy control
 
 * ``drop_type`` defines how the accuracy drop will be calculated: ``ABSOLUTE`` (used by default) or ``RELATIVE``.
 
-After that the model can be compiled and run faster with OpenVINO:
+After that the model can be compiled and run with OpenVINO:
 
 .. tab:: OpenVINO
 
