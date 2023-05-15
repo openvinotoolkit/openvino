@@ -7,12 +7,12 @@
 #include <fstream>
 #include <random>
 
+#include "common_test_utils/file_utils.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "openvino/core/visibility.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/util/file_util.hpp"
-#include "common_test_utils/file_utils.hpp"
 
 namespace TestDataHelpers {
 

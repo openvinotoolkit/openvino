@@ -3,6 +3,8 @@
 #
 
 # OpenVINO Legacy C API test sample
+set(DEPENDENCIES mock_engine)
+
 set(TARGET_NAME "InferenceEngineCAPITests")
 
 add_executable(${TARGET_NAME} ie_c_api_test.cpp test_model_repo.hpp)
