@@ -297,23 +297,8 @@ void GraphOptimizer::FuseConvolutionMatMulDeconvAndBias(Graph &graph) {
             || childNode->getParentEdges().size() != 2)
             return false;
 
-        auto getConstPort = [](const NodePtr& node) {
-            std::vector<int> constPorts;
-            for (size_t i = 0; i < node->getParentEdges().size(); i++) {
-                const auto& parent = node->getParentEdgeAt(i)->getParent();
-                if (parent->getType() == Type::Input && parent->isConstant())
-                    constPorts.push_back(i);
-            }
-            // there are more than 1 nonconst port or missed
-            if (constPorts.size() != 1)
-                return -1;
-
-            return constPorts[0];
-        };
-        auto constPort = getConstPort(childNode);
-        if (constPort == -1)
-            return false;
-        const auto biasNode = childNode->getParentEdgesAtPort(constPort)[0]->getParent();
+        auto biasPort = childNode->getParentEdgesAtPort(0)[0]->getParent() == parentNode ? 1 : 0;
+        const auto biasNode = childNode->getParentEdgesAtPort(biasPort)[0]->getParent();
         if (biasNode->getType() != Type::Input || !biasNode->isConstant() || biasNode->getChildEdges().size() != 1)
             return false;
 
@@ -353,6 +338,7 @@ void GraphOptimizer::FuseConvolutionMatMulDeconvAndBias(Graph &graph) {
 
         auto childs = childNode->childEdges;
         auto parents = childNode->parentEdges;
+        const auto biasPort = childNode->getParentEdgesAtPort(0)[0]->getParent() == parentNode ? 1 : 0;
 
         for (size_t i = 0; i < parents.size(); i++) {
             auto p_edge = parents[i].lock();
@@ -441,7 +427,7 @@ void GraphOptimizer::FuseConvolutionMatMulDeconvAndBias(Graph &graph) {
         }
         DEBUG_LOG("GraphOptimizer##FusingBias:Node ##: ", childNode->getName(), " initialize as Bias of Node ##", parentNode->getName());
         parentNode->addOriginalLayer(childNode->getOriginalLayers());
-        parentNode->addOriginalInputPrecision(childNode->getOriginalInputPrecisionAtPort(1));
+        parentNode->addOriginalInputPrecision(childNode->getOriginalInputPrecisionAtPort(biasPort));
         graph.DropNode(childNode);
     }
 }
