@@ -19,7 +19,7 @@ export default class Tensor implements ITensor {
     data: number[] | TypedArray,
     shapeData: IShape | number[],
   ) {
-    const dataType = jsTypeByPrecisionMap[this.#precision];
+    const dataType = jsTypeByPrecisionMap[precision];
 
     this.#precision = precision;
     this.#data = data instanceof dataType
