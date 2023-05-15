@@ -2,8 +2,8 @@
 
 The TensorFlow Frontend (TF FE) is a C++ based OpenVINO Frontend component that is responsible for reading and converting a TensorFlow model to an `ov::Model` object
 that further can be serialized into the Intermediate Representation (IR) format.
-This is an internal API for OpenVINO that is used to implement user facing API such as MO tool, MO Python API and OpenVINO Runtime `read_model` function
-for reading TensorFlow models of the original format in run-time. Also, OpenVINO Model Server uses the frontend for serving the models.
+This is an internal API for OpenVINO that is used to implement user-facing API such as MO tool, MO Python API, and OpenVINO Runtime `read_model` function
+for reading TensorFlow models of the original format in run-time. Also, OpenVINO Model Server uses the frontend for serving models.
 Regular users should not use the frontend directly.
 
 ```mermaid
@@ -30,7 +30,7 @@ flowchart BT
     click ovms "https://github.com/openvinotoolkit/model_server"
 ```
 
-The MO tool and MO Python API now uses the TensorFlow Frontend as the default path for conversion to IR.
+The MO tool and MO Python API now use the TensorFlow Frontend as the default path for conversion to IR.
 Known limitations of TF FE are described [here](https://docs.openvino.ai/latest/openvino_docs_MO_DG_TensorFlow_Frontend.html).
 
 ## Key contacts
@@ -57,7 +57,7 @@ The whole workflow can be split into two steps: model loading and conversion.
 During loading, the `FrontEnd::load()` method creates `InputModel` that encapsulates the `GraphIterator` object.
 `GraphIterator` is a reader that iterates through the graph nodes in the topological order.
 `GraphIterator::get_decoder()` provides a decoder for the current graph node to read its attributes.
-Each TensorFlow model format has its implementation of `GraphIterator`. Currently, the frontend supports SavedModel, MetaGraph (`.meta`) and frozen protobuf (`.pb` and `.pbtxt`) formats.
+Each TensorFlow model format has its implementation of `GraphIterator`. Currently, the frontend supports SavedModel, MetaGraph (`.meta`), and frozen protobuf (`.pb` and `.pbtxt`) formats.
 The base class `GraphIteratorProto` is used for reading and parsing these formats. The architecture of the loading step is shown in the picture below:
 
 ```mermaid
