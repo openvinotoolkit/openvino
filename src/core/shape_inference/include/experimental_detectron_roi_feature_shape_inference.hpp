@@ -21,6 +21,7 @@ std::vector<TShape> shape_infer(const ExperimentalDetectronROIFeatureExtractor* 
                                 const std::vector<TShape>& input_shapes,
                                 const ITensorAccessor& tensor_accessor = make_tensor_accessor()) {
     using TDim = typename TShape::value_type;
+    using namespace ov::util;
     NODE_VALIDATION_CHECK(op, input_shapes.size() >= 2);
 
     auto output_shapes = std::vector<TShape>();
@@ -31,7 +32,7 @@ std::vector<TShape> shape_infer(const ExperimentalDetectronROIFeatureExtractor* 
     NODE_VALIDATION_CHECK(op, rois_shape_rank.compatible(2), "Input rois rank must be equal to 2.");
 
     if (rois_shape_rank.is_static()) {
-        output_shapes.emplace_back(std::initializer_list<TDim>{rois_shape[0], ov::util::dim::inf_bound});
+        output_shapes.emplace_back(std::initializer_list<TDim>{rois_shape[0], TDim(dim::inf_bound)});
         output_shapes.emplace_back(std::initializer_list<TDim>{rois_shape[0], 4});
         auto& out_rois_shape = output_shapes[1];
 
@@ -41,8 +42,8 @@ std::vector<TShape> shape_infer(const ExperimentalDetectronROIFeatureExtractor* 
                               "Got: ",
                               rois_shape[1]);
     } else {
-        output_shapes.emplace_back(std::initializer_list<TDim>{ov::util::dim::inf_bound, ov::util::dim::inf_bound});
-        output_shapes.emplace_back(std::initializer_list<TDim>{ov::util::dim::inf_bound, 4});
+        output_shapes.emplace_back(std::initializer_list<TDim>{TDim(dim::inf_bound), TDim(dim::inf_bound)});
+        output_shapes.emplace_back(std::initializer_list<TDim>{TDim(dim::inf_bound), 4});
     }
 
     auto& out_rois_feat_shape = output_shapes[0];
