@@ -11,32 +11,27 @@ namespace CPUTestUtils {
 const char* CPUTestsBase::any_type = "any_type";
 
 const char *CPUTestsBase::cpu_fmt2str(cpu_memory_format_t v) {
-#define CASE(_fmt) do { \
-    if (v == _fmt) return #_fmt; \
-} while (0)
-    CASE(undef);
-    CASE(ncw);
-    CASE(nCw8c);
-    CASE(nCw16c);
-    CASE(nwc);
-    CASE(nchw);
-    CASE(nChw8c);
-    CASE(nChw16c);
-    CASE(nhwc);
-    CASE(ncdhw);
-    CASE(nCdhw8c);
-    CASE(nCdhw16c);
-    CASE(ndhwc);
-    CASE(nc);
-    CASE(x);
-    CASE(tnc);
-    CASE(ntc);
-    CASE(ldnc);
-    CASE(ldigo);
-    CASE(ldgoi);
-    CASE(ldio);
-    CASE(ldoi);
-    CASE(ldgo);
+#define CASE(_fmt) case (cpu_memory_format_t::_fmt): return #_fmt;
+    switch (v) {
+        CASE(undef);
+        CASE(ncw);
+        CASE(nCw8c);
+        CASE(nCw16c);
+        CASE(nwc);
+        CASE(nchw);
+        CASE(nChw8c);
+        CASE(nChw16c);
+        CASE(nhwc);
+        CASE(ncdhw);
+        CASE(nCdhw8c);
+        CASE(nCdhw16c);
+        CASE(ndhwc);
+        CASE(nc);
+        CASE(x);
+        CASE(ntc);
+        CASE(ldgoi);
+        CASE(ldoi);
+    }
 #undef CASE
     assert(!"unknown fmt");
     return "undef";
