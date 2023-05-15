@@ -11,8 +11,10 @@
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/iinfer_request.hpp"
+#include "openvino/runtime/iremote_context.hpp"
 #include "proxy_plugin.hpp"
 #include "proxy_properties.hpp"
+#include "remote_context.hpp"
 
 namespace {
 
@@ -281,48 +283,76 @@ std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::compile_model(const std::
     for (const auto& it : properties) {
         device_config[it.first] = it.second;
     }
-    // Remove proxy properties
-    auto it = device_config.find(ov::device::id.name());
-    if (it != device_config.end())
-        device_config.erase(it);
-    it = device_config.find(ov::device::priorities.name());
-    if (it != device_config.end())
-        device_config.erase(it);
 
-    ov::AnyMap result_config;
-    for (auto&& value : device_config) {
-        result_config.emplace(value.first, value.second.as<std::string>());
-    }
-    remove_proxy_properties(result_config);
+    remove_proxy_properties(device_config);
     std::shared_ptr<const ov::IPlugin> plugin = shared_from_this();
     auto compiled_model =
-        std::make_shared<ov::proxy::CompiledModel>(get_core()->compile_model(model, dev_name, result_config), plugin);
+        std::make_shared<ov::proxy::CompiledModel>(get_core()->compile_model(model, dev_name, device_config), plugin);
     return std::dynamic_pointer_cast<ov::ICompiledModel>(compiled_model);
 }
 
 std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
                                                                      const ov::AnyMap& properties,
                                                                      const ov::RemoteContext& context) const {
-    OPENVINO_NOT_IMPLEMENTED;
+    auto dev_name = context.get_device_name();
+
+    // Initial device config should be equal to default global config
+    auto device_config = m_configs[""];
+    bool is_device = is_device_in_config(properties);
+    if (is_device) {
+        // Adds device specific options
+        for (const auto& it : m_configs[dev_name]) {
+            device_config[it.first] = it.second;
+        }
+    }
+    // TODO: What if user wants to change fallback_priority for the network
+    for (const auto& it : properties) {
+        device_config[it.first] = it.second;
+    }
+
+    remove_proxy_properties(device_config);
+    std::shared_ptr<const ov::IPlugin> plugin = shared_from_this();
+    auto compiled_model =
+        std::make_shared<ov::proxy::CompiledModel>(get_core()->compile_model(model, context, device_config), plugin);
+    return std::dynamic_pointer_cast<ov::ICompiledModel>(compiled_model);
 }
 
 std::shared_ptr<ov::IRemoteContext> ov::proxy::Plugin::create_context(const ov::AnyMap& remote_properties) const {
-    OPENVINO_NOT_IMPLEMENTED;
+    auto device_config = remote_properties;
+    remove_proxy_properties(device_config);
+
+    auto remote_context = std::make_shared<ov::proxy::RemoteContext>(
+        get_core()->create_context(get_fallback_device(get_device_from_config(remote_properties)), device_config));
+    return std::dynamic_pointer_cast<ov::IRemoteContext>(remote_context);
 }
 
 std::shared_ptr<ov::IRemoteContext> ov::proxy::Plugin::get_default_context(const ov::AnyMap& remote_properties) const {
-    OPENVINO_NOT_IMPLEMENTED;
+    auto device_config = remote_properties;
+    remove_proxy_properties(device_config);
+
+    auto remote_context = std::make_shared<ov::proxy::RemoteContext>(
+        get_core()->get_default_context(get_fallback_device(get_device_from_config(remote_properties))));
+    return std::dynamic_pointer_cast<ov::IRemoteContext>(remote_context);
 }
 
 std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::import_model(std::istream& model,
                                                                     const ov::AnyMap& properties) const {
-    OPENVINO_NOT_IMPLEMENTED;
+    auto device_config = properties;
+    remove_proxy_properties(device_config);
+
+    return std::make_shared<ov::proxy::CompiledModel>(
+        get_core()->import_model(model, get_fallback_device(get_device_from_config(properties)), device_config),
+        shared_from_this());
 }
 
 std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::import_model(std::istream& model,
                                                                     const ov::RemoteContext& context,
                                                                     const ov::AnyMap& properties) const {
-    OPENVINO_NOT_IMPLEMENTED;
+    const auto hidden_devices = get_hidden_devices();
+    auto device_config = properties;
+    remove_proxy_properties(device_config);
+    return std::make_shared<ov::proxy::CompiledModel>(get_core()->import_model(model, context, device_config),
+                                                      shared_from_this());
 }
 
 std::string ov::proxy::Plugin::get_primary_device(size_t idx) const {
