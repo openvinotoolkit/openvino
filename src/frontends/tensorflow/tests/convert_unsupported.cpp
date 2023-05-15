@@ -238,6 +238,6 @@ TEST(FrontEndConvertModelTest, test_unsupported_operation_conversion_with_reason
         ASSERT_TRUE(error_message.find(ref_message) != string::npos);
         ASSERT_EQ(model, nullptr);
     } catch (...) {
-        FAIL() << "Conversion of the model with ResourceGather failed by wrong reason.";
+        FAIL() << "Conversion of the model with Const of string type failed by wrong reason.";
     }
 }
