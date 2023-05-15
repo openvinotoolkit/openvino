@@ -11,7 +11,7 @@
     * SELECTIVE_BUILD_ANALYZER  This macro enables analysis mode for annotated code regions.
     *                           When the process completes, a new C++ header file is created
     *                           that contains macros for enabling active regions. This file
-    *                           should be included in all analysed C++ files.
+    *                           should be included in all analyzed C++ files.
     *
     * SELECTIVE_BUILD           This mode disables inactive areas of the code using the result
     *                           of the analysis step.
