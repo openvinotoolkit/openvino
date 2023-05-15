@@ -2,7 +2,7 @@
 
 @sphinxdirective
 
-Model Conversion API can convert all floating-point weights to the ``FP16`` data type. 
+MO can convert all floating-point weights to the ``FP16`` data type. 
 It results in creating a "compressed ``FP16`` model", which occupies about half of 
 the original space in the file system. The compression may introduce a drop in accuracy.
 but it is negligible for most models.
