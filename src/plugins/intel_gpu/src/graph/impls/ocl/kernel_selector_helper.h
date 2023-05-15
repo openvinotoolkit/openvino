@@ -14,6 +14,7 @@
 #include "intel_gpu/primitives/eltwise.hpp"
 #include "intel_gpu/primitives/quantize.hpp"
 #include "intel_gpu/primitives/activation.hpp"
+#include "intel_gpu/primitives/generic_layer.hpp"
 #include "intel_gpu/primitives/primitive.hpp"
 
 #include "kernel_selector_params.h"
@@ -120,6 +121,7 @@ bool use_legacy_fused_ops(const kernel_impl_params& param_info);
 
 void set_params(const kernel_impl_params& param_info, kernel_selector::params& params);
 void set_default_params(const kernel_impl_params& param_info, kernel_selector::base_params& params, bool is_shape_agnostic);
+void set_dynamic_shape_offsets(kernel_selector::params& params);
 void set_weights_bias_default_params(const kernel_impl_params& param_info,
                                      kernel_selector::weight_bias_params& params,
                                      bool has_group_dimension,
@@ -165,7 +167,7 @@ inline optional_params_t get_default_weights_bias_optional_params(const program&
 }
 
 inline kernel_selector::eltwise_mode convert_to_eltwise_mode(eltwise_mode mode) {
-switch (mode) {
+    switch (mode) {
         case eltwise_mode::sum:
             return kernel_selector::eltwise_mode::ADD;
         case eltwise_mode::sub:
@@ -254,7 +256,7 @@ inline kernel_impl_params canonicalize_fused_shapes(const kernel_impl_params& im
     bool use_new_shape_infer = impl_params.prog->get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
 
     for (auto& fd : updated_impl_params.fused_desc) {
-        if (fd.is_type<eltwise>() && fd.total_num_deps == 2) {
+        if (fd.is_type<eltwise>() && fd.total_num_deps == 2 && fd.has_outer_dep()) {
             auto out_pshape = updated_impl_params.output_layouts[0].get_partial_shape();
 
             auto& dep_layout = updated_impl_params.input_layouts[fd.outer_dep_start_idx];
@@ -266,6 +268,108 @@ inline kernel_impl_params canonicalize_fused_shapes(const kernel_impl_params& im
         }
     }
     return updated_impl_params;
+}
+
+class WeightsReorderParamsOCL : public WeightsReorderParams {
+public:
+    explicit WeightsReorderParamsOCL(const kernel_selector::WeightsReorderParams& params)
+    : WeightsReorderParams(from_weights_tensor(params.src), from_weights_tensor(params.dest)) {
+        cl_kernel = params.clKernel;
+    }
+
+    size_t hash() const override {
+        size_t seed = WeightsReorderParams::hash();
+
+        if (cl_kernel == nullptr)
+            return seed;
+
+        seed = hash_combine(seed, cl_kernel->skip_execution);
+
+        auto& gws = cl_kernel->params.workGroups.global;
+        seed = hash_range(seed, gws.begin(), gws.end());
+
+        auto& lws = cl_kernel->params.workGroups.local;
+        seed = hash_range(seed, lws.begin(), lws.end());
+
+        auto& arguments = cl_kernel->params.arguments;
+        for (auto& args : arguments) {
+            seed = hash_combine(seed, args.index);
+            seed = hash_combine(seed, args.t);
+        }
+
+        auto& scalars = cl_kernel->params.scalars;
+        for (auto& s : scalars) {
+            seed = hash_combine(seed, s.t);
+        }
+
+        return seed;
+    }
+
+    bool operator==(const WeightsReorderParams& rhs) const override {
+        if (typeid(*this) != typeid(rhs))
+            return false;
+
+        if (!WeightsReorderParams::operator==(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const WeightsReorderParamsOCL>(rhs);
+
+        if (cl_kernel != nullptr && rhs_casted.cl_kernel != nullptr) {
+            auto& clKernel_rhs = rhs_casted.cl_kernel;
+            if (cl_kernel->skip_execution != clKernel_rhs->skip_execution)
+                return false;
+
+            auto& gws       = cl_kernel->params.workGroups.global;
+            auto& gws_rhs   = clKernel_rhs->params.workGroups.global;
+            if (gws != gws_rhs)
+                return false;
+
+            auto& lws       = cl_kernel->params.workGroups.local;
+            auto& lws_rhs   = clKernel_rhs->params.workGroups.local;
+            if (lws != lws_rhs)
+                return false;
+
+            auto& arguments     = cl_kernel->params.arguments;
+            auto& arguments_rhs = clKernel_rhs->params.arguments;
+            if (arguments.size() != arguments_rhs.size())
+                return false;
+
+            for (size_t idx = 0; idx < arguments.size(); idx++) {
+                if (arguments[idx].index != arguments_rhs[idx].index)
+                    return false;
+
+                if (arguments[idx].t != arguments_rhs[idx].t)
+                    return false;
+            }
+
+            auto& scalars     = cl_kernel->params.scalars;
+            auto& scalars_rhs = clKernel_rhs->params.scalars;
+            if (scalars.size() != scalars_rhs.size())
+                return false;
+
+            for (size_t idx = 0; idx < scalars.size(); idx++) {
+                if (scalars[idx].t != scalars_rhs[idx].t)
+                    return false;
+            }
+        }
+
+        return true;
+    }
+
+    std::shared_ptr<kernel_selector::clKernelData> get_cl_kernel() {
+        return cl_kernel;
+    }
+
+private:
+    std::shared_ptr<kernel_selector::clKernelData> cl_kernel;
+};
+
+inline std::shared_ptr<WeightsReorderParams> create_weights_reorder_params(const kernel_selector::WeightsReorderParams& params) {
+    if (params.engine == kernel_selector::generic_kernel_params::Engine::NONE) {
+        return nullptr;
+    }
+
+    return std::make_shared<WeightsReorderParamsOCL>(params);
 }
 
 }  // namespace cldnn
