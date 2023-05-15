@@ -32,7 +32,7 @@ Acronyms and Abbreviations
  LRN                 Local Response Normalization                     
  mAP                 Mean Average Precision                           
  Intel® OneDNN       Intel® OneAPI Deep Neural Network Library        
- MO                  Model Conversion API                             
+ `mo`                  Command-line tool for model conversion, CLI for `tools.mo.convert_model`                             
  MVN                 Mean Variance Normalization                      
  NCDHW               Number of images, Channels, Depth, Height, Width 
  NCHW                Number of images, Channels, Height, Width        
