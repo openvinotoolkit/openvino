@@ -1,6 +1,9 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import os
+import sys
+
 import tensorflow as tf
 
 tf.compat.v1.reset_default_graph()
@@ -11,4 +14,5 @@ with tf.compat.v1.Session() as sess:
     axes = tf.constant([0], dtype=tf.int32)
     gather = tf.raw_ops.GatherV2(params=params, indices=indices, axis=0)
     tf.compat.v1.global_variables_initializer()
-    tf.io.write_graph(sess.graph, '.', 'gather_with_string_table.pb', as_text=False)
+    tf.io.write_graph(sess.graph, os.path.join(sys.argv[1], "gather_with_string_table"),
+                      "gather_with_string_table.pb", False)
