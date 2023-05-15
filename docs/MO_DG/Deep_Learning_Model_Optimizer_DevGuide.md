@@ -1,4 +1,4 @@
-# How to Run Model Conversion {#openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide}
+# How to Convert a Model {#openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide}
 
 @sphinxdirective
 
