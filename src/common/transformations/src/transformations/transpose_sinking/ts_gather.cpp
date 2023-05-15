@@ -175,6 +175,7 @@ TSGatherBackward::TSGatherBackward() {
         // We can get around this case by wrapping Transpose op with Squeeze+Unsqueeze pair.
         if (optimization) {
             squeeze = std::make_shared<ov::op::v0::Squeeze>(main_node->input_value(1));
+            copy_runtime_info(main_node, squeeze);
             main_node->input(1).replace_source_output(squeeze);
             main_node->validate_and_infer_types();
             auto new_out_pshape = main_node->get_output_partial_shape(0);
@@ -239,6 +240,11 @@ TSGatherBackward::TSGatherBackward() {
             for (const auto& input : target_inputs) {
                 input.replace_source_output(unsqueeze);
             }
+            unsqueeze->output(0).get_tensor_ptr()->add_names(main_node->output(0).get_names());
+            main_node->output(0).set_names({});
+            unsqueeze->set_friendly_name(main_node->get_friendly_name());
+            main_node->set_friendly_name("");
+            copy_runtime_info(main_node, {unsqueeze, unsqueeze_axes});
         }
         const auto reversed_transpose_order = ReverseTransposeOrder(order_val);
         const auto& transpose_const = ov::op::v0::Constant::create(transpose_order->get_element_type(),
