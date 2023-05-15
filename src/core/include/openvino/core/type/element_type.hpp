@@ -54,6 +54,21 @@ enum class Type_t {
     string      //!< string element type
 };
 
+#define OPENVINO_ELEMENT_STRING_SUPPORTED 1
+
+#if OPENVINO_ELEMENT_STRING_SUPPORTED
+
+// A plugin can support a string tensor on inputs and outputs via the hack which wraps such tensor to
+// a u8 tensor holding a pointer to the original string tensor. The hack lets us avoid more deep
+// plugin modifications by pre-transform a model where string tensor parameters and results are replaced
+// by the described wrapping tensors. Such a hack requires some pre/post processing in operations
+// that handle such wrapping tensors on the edge of a model.
+#define OPENVINO_USE_INPUT_OUTPUT_STRING_TENSOR_HACK 1
+#else
+#define OPENVINO_USE_INPUT_OUTPUT_STRING_TENSOR_HACK 0
+#endif
+
+
 /// \brief Base class to define element type
 /// \ingroup ov_element_cpp_api
 class OPENVINO_API Type {
