@@ -66,12 +66,12 @@ Note that if you choose to exclude CPU from the priority list or disable the ini
 This mechanism can be easily observed in the :ref:`Using AUTO with Benchmark app sample <using-auto-with-openvino-samples-and-benchmark-app>` section, showing how the first-inference latency (the time it takes to compile the model and perform the first inference) is reduced when using AUTO. For example:
 
 
-.. code-block: sh
+.. code-block:: sh
 
    benchmark_app -m ../public/alexnet/FP32/alexnet.xml -d GPU -niter 128
 
 
-.. code-block: sh
+.. code-block:: sh
 
    benchmark_app -m ../public/alexnet/FP32/alexnet.xml -d AUTO -niter 128
 
@@ -231,7 +231,7 @@ The THROUGHPUT and CUMULATIVE_THROUGHPUT hints below only improve performance in
 * `Notebook - Automatic Device Selection with OpenVINO <https://docs.openvino.ai/2022.3/notebooks/106-auto-device-with-output.html>`__
 
 LATENCY
-^^^^^^^
+----------
 
 This option prioritizes low latency, providing short response time for each inference job. It performs best for tasks where inference is required for a single input image, e.g. a medical analysis of an ultrasound scan image. It also fits the tasks of real-time or nearly real-time applications, such as an industrial robot's response to actions in its environment or obstacle avoidance for autonomous vehicles.
 
@@ -372,7 +372,7 @@ To query the runtime target devices on which the inferences are being executed u
 Configuring Individual Devices and Creating the Auto-Device plugin on Top
 #########################################################################
 
-Although the methods described above are currently the preferred way to execute inference with AUTO, the following steps can be also used as an alternative. It is currently available as a legacy feature and used if the device candidate list includes Myriad devices, incapable of utilizing the Performance Hints option.
+Although the methods described above are currently the preferred way to execute inference with AUTO, the following steps can be also used as an alternative. It is currently available as a legacy feature and used if AUTO is incapable of utilizing the Performance Hints option.
 
 .. tab-set::
 
