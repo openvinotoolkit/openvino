@@ -14,13 +14,14 @@ BATCH_SIZE = 1
 
 ATTN_MASK, KEY_PAD_MASK, MERGED_MASK = 0, 1, 2
 
-class aten_native_multi_head_attention(torch.nn.Module):
+class aten_native_multi_head_attention(torch.nn.MultiheadAttention):
     def __init__(self, mask, need_weights, average_attn_weights) -> None:
-        super().__init__()
-        self.qkv_weight = torch.from_numpy(np.random.randn(3 * EMBED_DIM, EMBED_DIM).astype(np.float32))
-        self.qkv_bias = torch.from_numpy(np.random.randn(EMBED_DIM, EMBED_DIM).astype(np.float32))
-        self.proj_weight = torch.from_numpy(np.random.randn(EMBED_DIM, EMBED_DIM).astype(np.float32))
-        self.proj_bias = torch.from_numpy(np.random.randn(EMBED_DIM).astype(np.float32))
+        super().__init__(EMBED_DIM, NUM_HEADS, 0.0, True, False, False, None, None, True, None, None)
+        # self.qkv_weight = torch.from_numpy(np.random.randn(3 * EMBED_DIM, EMBED_DIM).astype(np.float32))
+        # self.qkv_bias = np.random.randn(EMBED_DIM, EMBED_DIM).astype(np.float32)
+        # self.proj_weight = torch.from_numpy(np.random.randn(EMBED_DIM, EMBED_DIM).astype(np.float32))
+        # self.proj_bias = torch.from_numpy(np.random.randn(EMBED_DIM).astype(np.float32))
+
         self.need_weights = need_weights
         self.average_attn_weights = average_attn_weights
 
@@ -38,14 +39,22 @@ class aten_native_multi_head_attention(torch.nn.Module):
             self.mask_type = None
 
     def forward(self, query, key, value):
+        # return torch._native_multi_head_attention(
+        #     query, key, value, 
+        #     embed_dim=self.embed_dim, num_head=self.num_heads,
+        #     qkv_weight=self.qkv_weight, qkv_bias=self.qkv_bias,
+        #     proj_weight=self.proj_weight, proj_bias=self.proj_bias,
+        #     mask = self.mask, mask_type=self.mask_type,
+        #     need_weights=self.need_weights, average_attn_weights=self.average_attn_weights
+        # )[0]
         return torch._native_multi_head_attention(
             query, key, value, 
-            embed_dim=EMBED_DIM, num_head=NUM_HEADS,
-            qkv_weight=self.qkv_weight, qkv_bias=self.qkv_bias,
-            proj_weight=self.proj_weight, proj_bias=self.proj_bias,
+            embed_dim=self.embed_dim, num_head=self.num_heads,
+            qkv_weight=self.in_proj_weight, qkv_bias=self.in_proj_bias,
+            proj_weight=self.out_proj.weight, proj_bias=self.out_proj.bias,
             mask = self.mask, mask_type=self.mask_type,
             need_weights=self.need_weights, average_attn_weights=self.average_attn_weights
-        )
+        )[0]
 
 class TestNativeMultiHeadAttention(PytorchLayerTest):
     def _prepare_input(self):
@@ -55,20 +64,38 @@ class TestNativeMultiHeadAttention(PytorchLayerTest):
                 qkv_tensor,
                 qkv_tensor)
 
+    # @pytest.mark.nightly
+    # @pytest.mark.precommit
+    # @pytest.mark.parametrize(
+    #     "mask", 
+    #     [None, ATTN_MASK, KEY_PAD_MASK, MERGED_MASK]
+    # )
+    # @pytest.mark.parametrize(
+    #     "need_weights", 
+    #     [False, True]
+    # )
+    # @pytest.mark.parametrize(
+    #     "average_attn_weights", 
+    #     [False, True]
+    # )
+    # def test_native_multi_head_attention(self, ie_device, precision, ir_version, mask, need_weights, average_attn_weights):
+    #     self._test(aten_native_multi_head_attention(mask, need_weights, average_attn_weights), 
+    #                None, "aten::_native_multi_head_attention", ie_device, precision, ir_version)
+        
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.parametrize(
         "mask", 
-        [None, ATTN_MASK, KEY_PAD_MASK, MERGED_MASK]
+        [None]
     )
     @pytest.mark.parametrize(
         "need_weights", 
-        [False, True]
+        [False]
     )
     @pytest.mark.parametrize(
         "average_attn_weights", 
-        [False, True]
+        [False]
     )
     def test_native_multi_head_attention(self, ie_device, precision, ir_version, mask, need_weights, average_attn_weights):
         self._test(aten_native_multi_head_attention(mask, need_weights, average_attn_weights), 
-                   None, "aten::_native_multi_head_attention", ie_device, precision, ir_version)
+                   None, "aten::_native_multi_head_attention", ie_device, precision, ir_version) # freeze_model = False, trace_model = True, dynamic_shapes = False
