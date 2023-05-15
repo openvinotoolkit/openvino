@@ -13,6 +13,7 @@
    openvino_docs_deployment_optimization_guide_tput_advanced
    openvino_docs_OV_UG_Preprocessing_Overview
    openvino_docs_deployment_optimization_guide_internals
+   openvino_docs_memory_optimization_guide
 
 @endsphinxdirective
 
