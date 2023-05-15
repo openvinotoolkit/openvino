@@ -352,16 +352,6 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork& network,
     return res;
 }
 
-InferenceEngine::IExecutableNetworkInternal::Ptr Plugin::ImportNetwork(const std::string& modelFileName,
-                                                                       const std::map<std::string, std::string>& config) {
-    if (FileUtils::fileExist(modelFileName)) {
-        std::ifstream networkModel(modelFileName, std::ios_base::binary);
-        return ImportNetwork(networkModel, config);
-    } else {
-        return nullptr;
-    }
-}
-
 InferenceEngine::IExecutableNetworkInternal::Ptr Plugin::ImportNetwork(std::istream& networkModel,
                                                                        const std::map<std::string, std::string>& config) {
     std::string device_id = get_device_id(config);
