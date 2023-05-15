@@ -4,7 +4,7 @@
 
 #include <vector>
 
-#include "low_precision_transformations/output_layers_handling_in_transformations_for_concat_multi_channel.hpp"
+#include "low_precision_transformations/output_layers_concat.hpp"
 #include "common_test_utils/test_constants.hpp"
 
 using namespace LayerTestsDefinitions;
@@ -22,12 +22,11 @@ const std::vector<LayerTransformation::Params> trasformationParamValues = {
     // LayerTestsUtils::LayerTransformationParamsFactory::createParamsU8I8()
 };
 
-// TODO: issue #41231: enable previous LPT version tests
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_LPT, OutputLayersHandlingInTransformationsForConcatMultiChannel,
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_LPT, OutputLayersConcat,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::SizeVector({ 1, 3, 16, 16 })),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues)),
-    OutputLayersHandlingInTransformationsForConcatMultiChannel::getTestCaseName);
+    OutputLayersConcat::getTestCaseName);
 }  // namespace

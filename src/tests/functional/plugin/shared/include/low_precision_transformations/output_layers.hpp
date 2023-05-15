@@ -11,14 +11,7 @@
 
 namespace LayerTestsDefinitions {
 
-typedef std::tuple<
-    InferenceEngine::Precision,
-    InferenceEngine::SizeVector,
-    std::string,
-    ngraph::pass::low_precision::LayerTransformation::Params,
-    bool> OutputLayersHandlingInTransformationsParams;
-
-class OutputLayersHandlingInTransformationsForConcatMultiChannel :
+class OutputLayers :
     public testing::WithParamInterface<LayerTestsUtils::LayerTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:

@@ -11,7 +11,14 @@
 
 namespace LayerTestsDefinitions {
 
-class OutputLayersHandlingInTransformationsForConcat :
+typedef std::tuple<
+    InferenceEngine::Precision,
+    InferenceEngine::SizeVector,
+    std::string,
+    ngraph::pass::low_precision::LayerTransformation::Params,
+    bool> OutputLayersHandlingInTransformationsParams;
+
+class OutputLayersConcatMultiChannel :
     public testing::WithParamInterface<LayerTestsUtils::LayerTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
