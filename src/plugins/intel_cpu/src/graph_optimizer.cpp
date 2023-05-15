@@ -395,12 +395,9 @@ void GraphOptimizer::FuseConvolutionMatMulDeconvAndBias(Graph &graph) {
 
                 auto& parentEltwise = parentNode;
                 const auto& biasNode = parent;
-                EdgePtr newEdge(new Edge(biasNode, parentEltwise, inNum, parentEltwise->getParentEdges().size()));
                 auto& graphEdges = graph.GetEdges();
-                graphEdges.push_back(newEdge);
-                biasNode->addEdge(newEdge);
-
                 auto biasOutputShape = biasNode->getOutputShapeAtPort(0);
+                int outNum = parentEltwise->getParentEdges().size();
                 // ONEDNN Conv, Deconv, FC would need the bias to be flatten into 1D tensor.
                 // Usually the bias output shape would be normalized to align rank with Conv/Deconv/FC output.
                 // To avoid duplicate reshape WR code in nodes, here would unify to flatten the shape.
@@ -410,13 +407,8 @@ void GraphOptimizer::FuseConvolutionMatMulDeconvAndBias(Graph &graph) {
                 bool needReshape = (parentEltwise->getType() != Type::MatMul &&
                                          biasOutputShape.getRank() != 1);
                 if (needReshape) {
-                    // Bias -> Conv/Deconv/FC would be changed to Bias -> Reshape -> Conv/Deconv/FC
+                    // Bias -> Reshape -> Conv/Deconv/FC
                     const VectorDims flattenShape = {biasOutputShape.getElementsCount()};
-
-                    auto inputPort = newEdge->getInputNum();
-                    auto outputPort = newEdge->getOutputNum();
-                    // Remove the previsou bias edge between bias and Conv/Deconv/FC
-                    graph.RemoveEdge(newEdge);
                     // Construct Ngraph Reshape node and CPU Reshape node.
                     auto reshapeConstInput = std::make_shared<ngraph::opset1::Constant>(ov::element::i32, ngraph::Shape{1}, flattenShape);
                     auto reshapeDummyInput = std::make_shared<ngraph::opset1::Parameter>(
@@ -426,7 +418,7 @@ void GraphOptimizer::FuseConvolutionMatMulDeconvAndBias(Graph &graph) {
                     reshape->set_friendly_name(biasNode->getName() + "_flatten_reshape");
                     const auto cpuReshapeNode = std::make_shared<ov::intel_cpu::node::Reshape>(reshape, graph.getGraphContext());
                     // Insert Reshape between bias node and Conv/Deconv/FC
-                    graph.InsertNode(biasNode, parentEltwise, cpuReshapeNode, inputPort, outputPort, false);
+                    graph.InsertNode(biasNode, parentEltwise, cpuReshapeNode, inNum, outNum, false);
                     // Insert the Reshape const input node and edge into CPU graph.
                     const auto cpuReshapeConstInput = std::make_shared<node::Input>(reshapeConstInput, graph.getGraphContext());
                     EdgePtr newReshapeConstEdge(new Edge(cpuReshapeConstInput, cpuReshapeNode, 0, 1));
@@ -435,8 +427,13 @@ void GraphOptimizer::FuseConvolutionMatMulDeconvAndBias(Graph &graph) {
                     graphNodes.push_back(cpuReshapeConstInput);
                     DEBUG_LOG("GraphOptimizer##FusingBias:Flatten Bias node from shape ", PartialShape{biasOutputShape.getDims()},
                                         "  to  ", PartialShape{flattenShape});
-                    // Update bias output shape.
+                    // Update bias output shape to be flatten shape.
                     biasOutputShape = Shape{flattenShape};
+                } else {
+                    // Bias is connected as input edge.
+                    EdgePtr newEdge(new Edge(biasNode, parentEltwise, inNum, outNum));
+                    graphEdges.push_back(newEdge);
+                    biasNode->addEdge(newEdge);
                 }
                 //Add the Bias inputshape into parentEltwise.
                 parentEltwise->inputShapes.push_back(biasOutputShape);
