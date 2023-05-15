@@ -22,7 +22,10 @@ public:
                      const Output<Node>& indices,
                      const Output<Node>& segment_ids,
                      const std::shared_ptr<DecoderBase>& decoder = nullptr)
-        : ov::frontend::tensorflow::InternalOperation(decoder, OutputVector{data, indices, segment_ids}, 1) {
+        : ov::frontend::tensorflow::InternalOperation(decoder,
+                                                      OutputVector{data, indices, segment_ids},
+                                                      1,
+                                                      "SparseSegmentSum") {
         validate_and_infer_types();
     }
 
@@ -33,7 +36,8 @@ public:
                      const std::shared_ptr<DecoderBase>& decoder = nullptr)
         : ov::frontend::tensorflow::InternalOperation(decoder,
                                                       OutputVector{data, indices, segment_ids, num_segments},
-                                                      1) {
+                                                      1,
+                                                      "SparseSegmentSum") {
         validate_and_infer_types();
     }
 

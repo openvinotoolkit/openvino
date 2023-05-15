@@ -24,7 +24,7 @@ public:
                  const Output<Node>& b_ru,
                  const Output<Node>& b_c,
                  const std::shared_ptr<DecoderBase>& decoder = std::make_shared<DecoderFake>())
-        : InternalOperation(decoder, OutputVector{x, h_prev, w_ru, w_c, b_ru, b_c}, 4),
+        : InternalOperation(decoder, OutputVector{x, h_prev, w_ru, w_c, b_ru, b_c}, 4, "GRUBlockCell"),
           m_hidden_size(ov::Dimension::dynamic()) {
         validate_and_infer_types();
     }

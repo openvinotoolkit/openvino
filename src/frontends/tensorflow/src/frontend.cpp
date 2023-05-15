@@ -8,6 +8,7 @@
 #include "graph_iterator_proto.hpp"
 #include "graph_iterator_proto_txt.hpp"
 #include "graph_iterator_saved_model.hpp"
+#include "helper_ops/internal_operation.hpp"
 #include "helper_transforms/block_lstm_replacer.hpp"
 #include "helper_transforms/const_to_result_remover.hpp"
 #include "helper_transforms/embedding_segments_feature_fusing.hpp"
@@ -37,7 +38,16 @@ void get_unsupported_operations_and_failures(const std::shared_ptr<Model>& model
                                              std::set<std::string>& unsupported_operations,
                                              std::unordered_map<std::string, std::string>& failures) {
     for (const auto& node : model->get_ordered_ops()) {
-        if (const auto& fw_node = ov::as_type_ptr<FrameworkNode>(node)) {
+        if (const auto& internal_op = std::dynamic_pointer_cast<InternalOperation>(node)) {
+            // handle internal operations separately
+            // which can have elaborated reason of unconverted operation
+            // like Const of string type
+            auto op_type = internal_op->get_no_conversion_reason();
+            if (unsupported_operations.count(op_type) > 0) {
+                continue;
+            }
+            unsupported_operations.insert(op_type);
+        } else if (const auto& fw_node = ov::as_type_ptr<FrameworkNode>(node)) {
             auto op_type = fw_node->get_decoder()->get_op_type();
             // if this operation is encountered among unsupported operations
             // or conversion failures, skip it
