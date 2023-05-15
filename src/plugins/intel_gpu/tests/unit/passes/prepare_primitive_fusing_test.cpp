@@ -12,6 +12,7 @@
 #include "eltwise_inst.h"
 #include "reduce_inst.h"
 #include "reshape_inst.h"
+#include "fully_connected_inst.h"
 #include "gemm_inst.h"
 #include "convolution_inst.h"
 #include "pass_manager.h"

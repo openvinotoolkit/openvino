@@ -133,6 +133,7 @@ bool UpdateWeightsParams(weight_bias_params& newParams,
 
             weightsReorderParams.engine = WeightsReorderParams::Engine::GPU;
             weightsReorderParams.clKernel = std::make_shared<clKernelData>(kernels_data[0].kernels[0]);
+            weightsReorderParams.src = r_params.input;
             weightsReorderParams.dest = r_params.output;
 
             newParams.weights = newParams.weights.TransformIgnorePadding(reqLayout, dtype, groups);

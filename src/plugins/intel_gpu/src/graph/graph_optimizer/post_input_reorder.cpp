@@ -4,6 +4,7 @@
 
 #include "pass_manager.h"
 #include "impls/ocl/primitive_base.hpp"
+#include "fully_connected_inst.h"
 #include "fully_connected/fully_connected_params.h"
 #include <memory>
 #include <stdexcept>

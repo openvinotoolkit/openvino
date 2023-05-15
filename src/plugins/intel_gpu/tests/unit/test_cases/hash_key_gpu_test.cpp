@@ -14,10 +14,10 @@
 #include <intel_gpu/primitives/mvn.hpp>
 #include <intel_gpu/primitives/permute.hpp>
 #include <intel_gpu/primitives/reshape.hpp>
+#include <intel_gpu/primitives/quantize.hpp>
 
 
-#include "eltwise_inst.h"
-// #include "fully_connected_inst.h"
+#include "primitive_inst.h"
 
 using namespace cldnn;
 using namespace tests;

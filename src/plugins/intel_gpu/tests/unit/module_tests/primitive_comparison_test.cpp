@@ -10,6 +10,7 @@
 #include <intel_gpu/primitives/fully_connected.hpp>
 #include <intel_gpu/primitives/gather.hpp>
 #include <intel_gpu/primitives/permute.hpp>
+#include <intel_gpu/primitives/generic_layer.hpp>
 
 using namespace cldnn;
 using namespace ::tests;
@@ -108,4 +109,20 @@ TEST(primitive_comparison, permute) {
 
     ASSERT_EQ(permute_prim, permute_prim_eq);
     ASSERT_NE(permute_prim, permute_prim_order);
+}
+
+TEST(primitive_comparison, generic_layer) {
+    auto shape = ov::PartialShape{1, 2, 3, 4};
+    auto data_type = data_types::f32;
+    auto format_in = format::bfyx;
+    auto format_out = format::os_iyx_osv16;
+
+    auto input_layout = layout{shape, data_type, format_in};
+    auto output_layout = layout{shape, data_type, format_out};
+    auto generic_layer_prim = generic_layer("generic_layer", "", std::make_shared<WeightsReorderParams>(input_layout, output_layout));
+    auto generic_layer_eq_prim = generic_layer("generic_layer_eq", "", std::make_shared<WeightsReorderParams>(input_layout, output_layout));
+    auto generic_layer_different_prim = generic_layer("generic_layer", "", std::make_shared<WeightsReorderParams>(output_layout, input_layout));
+
+    ASSERT_EQ(generic_layer_prim, generic_layer_eq_prim);
+    ASSERT_NE(generic_layer_prim, generic_layer_different_prim);
 }

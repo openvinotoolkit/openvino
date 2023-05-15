@@ -25,6 +25,7 @@
 #include "softmax_inst.h"
 #include "resample_inst.h"
 #include "depth_to_space_inst.h"
+#include "fully_connected_inst.h"
 #include "space_to_depth_inst.h"
 #include "gather_inst.h"
 #include "gather_nd_inst.h"

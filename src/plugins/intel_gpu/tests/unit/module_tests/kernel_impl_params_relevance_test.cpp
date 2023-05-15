@@ -8,6 +8,7 @@
 #include <intel_gpu/primitives/fully_connected.hpp>
 #include <intel_gpu/primitives/data.hpp>
 
+#include "fully_connected_inst.h"
 #include "compilation_context.hpp"
 
 #include "program_wrapper.h"
