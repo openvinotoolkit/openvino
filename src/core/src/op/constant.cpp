@@ -225,6 +225,8 @@ void ov::op::v0::Constant::allocate_buffer(bool memset_allocation) {
 ov::op::v0::Constant::Constant(const element::Type& type, const ov::Shape& shape, const void* data)
     : Constant(false, type, shape) {
     size_t size = (shape_size(m_shape) * m_element_type.bitwidth() + 7) >> 3;
+    // FIXME: Obviously doesn't work with element::string
+    OPENVINO_ASSERT(type != element::string, "Constant cannot be created on raw std::string object in this ctor: not implemented");
     std::memcpy(get_data_ptr_nc(), data, size);
 }
 
