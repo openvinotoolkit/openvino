@@ -64,7 +64,7 @@ After that the model can be compiled and run with OpenVINO:
       :fragment: [inference]
 
 
-``nncf.quantize_with_accuracy_control()`` API supports all the parameters from :doc:`Basic 8-bit quantization <basic_quantization_flow>` API and you can also use them to quantize a model with accuracy control and a custom configuration.
+``nncf.quantize_with_accuracy_control()`` API supports all the parameters from :doc:`Basic 8-bit quantization <basic_quantization_flow>` API, to quantize a model with accuracy control and a custom configuration.
 
 If the accuracy or performance of the quantized model is not satisfactory, you can try :doc:`Training-time Optimization <tmo_introduction>` as the next step.
 
