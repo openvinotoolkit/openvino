@@ -23,6 +23,7 @@ QueryNetwork(query_model) is recommanded since it is important for AUTO to make 
 | ov::supported_properties             |  Yes      | Check if a property is supported by HW plugin.|
 | ov::device::capabilities             |  Yes      | Automatic device selection.                   |
 | ov::device::gops                     |  No       | Improve automatic device selection.           |
+| ov::compilation_num_threads          |  No       | Limit the comilation threads for single device when compiling model to multiple devices. |
 
 ## AUTO Plugin tests
 Please refer to [Testing the AUTO Plugin](./tests.md)
