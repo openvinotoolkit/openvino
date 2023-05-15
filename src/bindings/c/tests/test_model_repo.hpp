@@ -55,19 +55,6 @@ inline void fill_random_input_nv12_data(uint8_t* data, const size_t w, const siz
 }
 
 inline std::string generate_test_xml_file() {
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-    std::string tmp_libraryname = "openvino_arm_cpu_plugin";
-#elif defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-    std::string tmp_libraryname = "openvino_intel_cpu_plugin";
-#elif defined(OPENVINO_ARCH_RISCV64)
-    std::string tmp_libraryname = "openvino_riscv_cpu_plugin";
-#else
-#    error "Undefined system processor"
-#endif
-
-    tmp_libraryname += IE_BUILD_POSTFIX;
-    std::string libraryname = ov::util::make_plugin_library_name({}, tmp_libraryname);
-
     // Create the file
     std::string plugin_xml = "plugin_test.xml";
     std::ofstream plugin_xml_file(plugin_xml);
