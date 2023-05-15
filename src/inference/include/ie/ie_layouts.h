@@ -16,6 +16,7 @@
 #include "ie_precision.hpp"
 
 namespace InferenceEngine {
+IE_SUPPRESS_DEPRECATED_START
 
 /**
  * @brief This class describes blocking layouts
@@ -396,4 +397,5 @@ make_roi_desc(const TensorDesc& origDesc,
               const std::vector<size_t>& end,
               bool useOrigMemDesc);
 
+IE_SUPPRESS_DEPRECATED_END
 }  // namespace InferenceEngine

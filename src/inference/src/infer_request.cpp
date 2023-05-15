@@ -20,8 +20,10 @@
     OPENVINO_ASSERT(_impl != nullptr, "InferRequest was not initialized."); \
     try {                                                                   \
         __VA_ARGS__;                                                        \
+        OPENVINO_SUPPRESS_DEPRECATED_START                                  \
     } catch (const ::InferenceEngine::RequestBusy& ex) {                    \
         ov::Busy::create(ex.what());                                        \
+        OPENVINO_SUPPRESS_DEPRECATED_END                                    \
     } catch (const std::exception& ex) {                                    \
         OPENVINO_THROW(ex.what());                                          \
     } catch (...) {                                                         \
@@ -233,8 +235,10 @@ void InferRequest::wait() {
         _impl->wait();
     } catch (const ov::Cancelled&) {
         throw;
+        OPENVINO_SUPPRESS_DEPRECATED_START
     } catch (const ie::InferCancelled& e) {
         Cancelled::create(e.what());
+        OPENVINO_SUPPRESS_DEPRECATED_END
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
     } catch (...) {
@@ -246,8 +250,10 @@ bool InferRequest::wait_for(const std::chrono::milliseconds timeout) {
     OPENVINO_ASSERT(_impl != nullptr, "InferRequest was not initialized.");
     try {
         return _impl->wait_for(timeout);
+        OPENVINO_SUPPRESS_DEPRECATED_START
     } catch (const ie::InferCancelled& e) {
         Cancelled::create(e.what());
+        OPENVINO_SUPPRESS_DEPRECATED_END
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
     } catch (...) {

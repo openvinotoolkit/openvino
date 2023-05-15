@@ -43,6 +43,7 @@ std::shared_ptr<ITensor> make_tensor(const std::shared_ptr<ITensor>& other,
                                      const Coordinate& begin,
                                      const Coordinate& end);
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 /** @cond INTERNAL */
 std::shared_ptr<ITensor> INFERENCE_ENGINE_DEPRECATED("This API is deprecated and will be removed in 2024.0 release.")
     make_tensor(const std::shared_ptr<InferenceEngine::Blob>& tensor);
@@ -52,4 +53,5 @@ std::shared_ptr<InferenceEngine::Blob> INFERENCE_ENGINE_DEPRECATED(
     tensor_to_blob(const std::shared_ptr<ITensor>& tensor);
 /** @endcond */
 
+OPENVINO_SUPPRESS_DEPRECATED_END
 }  // namespace ov
