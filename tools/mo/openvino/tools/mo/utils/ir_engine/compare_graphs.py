@@ -127,12 +127,15 @@ def compare_graphs(graph: Graph, graph_ref: Graph, last_node: str, last_node_ref
                             num_insertions = rank - len(curr_node[mask_name])
                             curr_node[mask_name] = np.append(curr_node[mask_name], [0] * num_insertions).astype(int)
 
+                    # Need to align StridedSlice masks since such masks as [] and [0]; [] and [0,0]; [] and [0,0,0]
+                    # or [1] and [1,0]; [1] and [1,0,0] and so on for the input with rank 4 do exactly the same slicing and
+                    # should be treated as equal. Therefore, before attr comparison we align all masks to the input rank
                     if cur_node_type == 'StridedSlice' and node.in_node(1).has('shape') \
                             and node.in_node(1).shape is not None:
                         from openvino.tools.mo.ops.strided_slice import StridedSlice
-                        slice_rank = node.in_node(1).shape.item()
-                        align_strided_slice_masks(node, slice_rank)
-                        align_strided_slice_masks(node_ref, slice_rank)
+                        input_rank = node.in_node(1).shape.item()
+                        align_strided_slice_masks(node, input_rank)
+                        align_strided_slice_masks(node_ref, input_rank)
 
                     if attr == 'value':
                         if not values_are_equal(node.value, node_ref.value):
