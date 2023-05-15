@@ -169,30 +169,36 @@ TSGatherBackward::TSGatherBackward() {
         bool optimization = out_pshape.is_static() && main_node->input_value(1).get_partial_shape().is_static();
         bool success = false;
         std::vector<size_t> axes_val;
+        std::shared_ptr<ov::op::v0::Squeeze> squeeze;
+        // In some cases shape of 2nd input to Gather op (indices) has `1` dims which can
+        // prevent TransposeSinking in backward direction.
+        // We can get around this case by wrapping Transpose op with Squeeze+Unsqueeze pair.
         if (optimization) {
-            auto squeeze = std::make_shared<ov::op::v0::Squeeze>(main_node->input_value(1));
+            squeeze = std::make_shared<ov::op::v0::Squeeze>(main_node->input_value(1));
             main_node->input(1).replace_source_output(squeeze);
             main_node->validate_and_infer_types();
             auto new_out_pshape = main_node->get_output_partial_shape(0);
-            auto shape = out_pshape.get_shape();
-            auto new_shape = new_out_pshape.get_shape();
-            success = !(new_out_pshape.is_dynamic() || shape == new_shape);
-            if (success) {
-                size_t j = 0;
-                for (size_t i = 0; i < shape.size(); ++i) {
-                    if (shape[i] != new_shape[j] && shape[i] == 1) {
-                        axes_val.push_back(i);
-                        continue;
-                    } else if (shape[i] != new_shape[j]) {
+            if (new_out_pshape.is_static()) {
+                auto shape = out_pshape.get_shape();
+                auto new_shape = new_out_pshape.get_shape();
+                success = shape != new_shape;
+                if (success) {
+                    size_t j = 0;
+                    for (size_t i = 0; i < shape.size(); ++i) {
+                        if (shape[i] != new_shape[j] && shape[i] == 1) {
+                            axes_val.push_back(i);
+                            continue;
+                        } else if (shape[i] != new_shape[j]) {
+                            success = false;
+                        }
+                        j++;
+                    }
+                    if (j != new_shape.size()) {
                         success = false;
                     }
-                    j++;
-                }
-                if (j != new_shape.size()) {
-                    success = false;
                 }
             }
-            if (!success) {
+            if (!success && squeeze) {
                 main_node->input(1).replace_source_output(squeeze->input_value(0));
             }
         }
@@ -216,6 +222,9 @@ TSGatherBackward::TSGatherBackward() {
                 size_t prev_idx = i;
                 for (size_t k = 0; i < order_val.size() && k < indices_rank_val; ++i, ++k) {
                     if (order_val[i] != order_val[prev_idx]) {
+                        if (success && squeeze) {
+                            main_node->input(1).replace_source_output(squeeze->input_value(0));
+                        }
                         return false;
                     }
                     prev_idx = i;
