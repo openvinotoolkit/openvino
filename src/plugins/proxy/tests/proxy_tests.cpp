@@ -33,6 +33,12 @@ bool support_model(const std::shared_ptr<const ov::Model>& model, const ov::Supp
     }
     return true;
 }
+ov::PropertyName RO_property(const std::string& propertyName) {
+    return ov::PropertyName(propertyName, ov::PropertyMutability::RO);
+};
+ov::PropertyName RW_property(const std::string& propertyName) {
+    return ov::PropertyName(propertyName, ov::PropertyMutability::RW);
+};
 }  // namespace
 
 void ov::proxy::tests::ProxyTests::SetUp() {
@@ -337,29 +343,23 @@ void ov::proxy::tests::ProxyTests::register_plugin_support_reshape(ov::Core& cor
         }
 
         ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const override {
-            auto RO_property = [](const std::string& propertyName) {
-                return ov::PropertyName(propertyName, ov::PropertyMutability::RO);
+            const static std::vector<ov::PropertyName> roProperties{
+                RO_property(ov::supported_properties.name()),
+                RO_property(ov::available_devices.name()),
+                RO_property(ov::loaded_from_cache.name()),
+                RO_property(ov::device::uuid.name()),
             };
-            auto RW_property = [](const std::string& propertyName) {
-                return ov::PropertyName(propertyName, ov::PropertyMutability::RW);
+            // the whole config is RW before network is loaded.
+            const static std::vector<ov::PropertyName> rwProperties{
+                RW_property(ov::num_streams.name()),
+                RW_property(ov::enable_profiling.name()),
             };
+
             std::string device_id;
             if (arguments.find(ov::device::id.name()) != arguments.end()) {
                 device_id = arguments.find(ov::device::id.name())->second.as<std::string>();
             }
             if (name == ov::supported_properties) {
-                std::vector<ov::PropertyName> roProperties{
-                    RO_property(ov::supported_properties.name()),
-                    RO_property(ov::available_devices.name()),
-                    RO_property(ov::loaded_from_cache.name()),
-                    RO_property(ov::device::uuid.name()),
-                };
-                // the whole config is RW before network is loaded.
-                std::vector<ov::PropertyName> rwProperties{
-                    RW_property(ov::num_streams.name()),
-                    RW_property(ov::enable_profiling.name()),
-                };
-
                 std::vector<ov::PropertyName> supportedProperties;
                 supportedProperties.reserve(roProperties.size() + rwProperties.size());
                 supportedProperties.insert(supportedProperties.end(), roProperties.begin(), roProperties.end());
@@ -386,8 +386,15 @@ void ov::proxy::tests::ProxyTests::register_plugin_support_reshape(ov::Core& cor
                 return decltype(ov::device::capabilities)::value_type(capabilities);
             } else if (name == "SUPPORTED_CONFIG_KEYS") {  // TODO: Remove this key
                 std::vector<std::string> configs;
-                configs.push_back(ov::streams::num.name());
-                configs.push_back(ov::enable_profiling.name());
+                for (const auto& property : rwProperties) {
+                    configs.emplace_back(property);
+                }
+                return configs;
+            } else if (name == "SUPPORTED_METRICS") {  // TODO: Remove this key
+                std::vector<std::string> configs;
+                for (const auto& property : roProperties) {
+                    configs.emplace_back(property);
+                }
                 return configs;
             } else if (name == ov::loaded_from_cache.name()) {
                 return m_loaded_from_cache;
@@ -448,28 +455,21 @@ void ov::proxy::tests::ProxyTests::register_plugin_support_subtract(ov::Core& co
         }
 
         ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const override {
-            auto RO_property = [](const std::string& propertyName) {
-                return ov::PropertyName(propertyName, ov::PropertyMutability::RO);
+            const static std::vector<ov::PropertyName> roProperties{
+                RO_property(ov::supported_properties.name()),
+                RO_property(ov::available_devices.name()),
+                RO_property(ov::loaded_from_cache.name()),
+                RO_property(ov::device::uuid.name()),
             };
-            auto RW_property = [](const std::string& propertyName) {
-                return ov::PropertyName(propertyName, ov::PropertyMutability::RW);
+            // the whole config is RW before network is loaded.
+            const static std::vector<ov::PropertyName> rwProperties{
+                RW_property(ov::enable_profiling.name()),
             };
             std::string device_id;
             if (arguments.find(ov::device::id.name()) != arguments.end()) {
                 device_id = arguments.find(ov::device::id.name())->second.as<std::string>();
             }
             if (name == ov::supported_properties) {
-                std::vector<ov::PropertyName> roProperties{
-                    RO_property(ov::supported_properties.name()),
-                    RO_property(ov::available_devices.name()),
-                    RO_property(ov::loaded_from_cache.name()),
-                    RO_property(ov::device::uuid.name()),
-                };
-                // the whole config is RW before network is loaded.
-                std::vector<ov::PropertyName> rwProperties{
-                    RW_property(ov::enable_profiling.name()),
-                };
-
                 std::vector<ov::PropertyName> supportedProperties;
                 supportedProperties.reserve(roProperties.size() + rwProperties.size());
                 supportedProperties.insert(supportedProperties.end(), roProperties.begin(), roProperties.end());
@@ -500,7 +500,15 @@ void ov::proxy::tests::ProxyTests::register_plugin_support_subtract(ov::Core& co
                 return decltype(ov::enable_profiling)::value_type{m_profiling};
             } else if (name == "SUPPORTED_CONFIG_KEYS") {  // TODO: Remove this key
                 std::vector<std::string> configs;
-                configs.push_back(ov::enable_profiling.name());
+                for (const auto& property : rwProperties) {
+                    configs.emplace_back(property);
+                }
+                return configs;
+            } else if (name == "SUPPORTED_METRICS") {  // TODO: Remove this key
+                std::vector<std::string> configs;
+                for (const auto& property : roProperties) {
+                    configs.emplace_back(property);
+                }
                 return configs;
             }
             OPENVINO_THROW("Unsupported property: ", name);
