@@ -245,6 +245,8 @@ void CustomLayer::LoadFromFile(const std::string configFile, CustomLayerMap& cus
 #elif __linux__
     char path[PATH_MAX];
     char* abs_path_ptr = realpath(configFile.c_str(), path);
+#else
+#error "Intel CPU plugin: Unknown target system"
 #endif
     if (abs_path_ptr == nullptr) {
         IE_THROW() << "Error loading custom layer configuration file: " << configFile << ", "

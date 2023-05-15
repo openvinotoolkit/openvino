@@ -20,15 +20,15 @@ namespace ov {
 CPU::CPU() {
     DWORD len = 0;
     _num_threads = parallel_get_max_threads();
-    if (GetLogicalProcessorInformationEx(RelationAll, nullptr, &len) || GetLastError() != ERROR_INSUFFICIENT_BUFFER) {
-        return;
-    }
+    // if (GetLogicalProcessorInformationEx(RelationAll, nullptr, &len) || GetLastError() != ERROR_INSUFFICIENT_BUFFER) {
+    //     return;
+    // }
 
     std::unique_ptr<char[]> base_shared_ptr(new char[len]);
     char* base_ptr = base_shared_ptr.get();
-    if (!GetLogicalProcessorInformationEx(RelationAll, (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX)base_ptr, &len)) {
-        return;
-    }
+    // if (!GetLogicalProcessorInformationEx(RelationAll, (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX)base_ptr, &len)) {
+    //     return;
+    // }
 
     parse_processor_info_win(base_ptr,
                              len,
@@ -196,15 +196,15 @@ int get_number_of_cpu_cores(bool bigCoresOnly) {
     const int fallback_val = parallel_get_max_threads();
     DWORD sz = 0;
     // querying the size of the resulting structure, passing the nullptr for the buffer
-    if (GetLogicalProcessorInformationEx(RelationProcessorCore, nullptr, &sz) ||
-        GetLastError() != ERROR_INSUFFICIENT_BUFFER)
-        return fallback_val;
+    // if (GetLogicalProcessorInformationEx(RelationProcessorCore, nullptr, &sz) ||
+    //     GetLastError() != ERROR_INSUFFICIENT_BUFFER)
+    //     return fallback_val;
 
     std::unique_ptr<uint8_t[]> ptr(new uint8_t[sz]);
-    if (!GetLogicalProcessorInformationEx(RelationProcessorCore,
-                                          reinterpret_cast<PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX>(ptr.get()),
-                                          &sz))
-        return fallback_val;
+    // if (!GetLogicalProcessorInformationEx(RelationProcessorCore,
+    //                                       reinterpret_cast<PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX>(ptr.get()),
+    //                                       &sz))
+    //     return fallback_val;
 
     int phys_cores = 0;
     size_t offset = 0;

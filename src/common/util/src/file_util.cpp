@@ -18,7 +18,9 @@
 #    ifndef NOMINMAX
 #        define NOMINMAX
 #    endif
-#    include <Shlwapi.h>
+#    ifndef __GNUC__
+#        include <Shlwapi.h>
+#    endif
 #    include <direct.h>
 #    include <windows.h>
 /// @brief Max length of absolute file path
@@ -371,7 +373,7 @@ std::string ov::util::get_absolute_file_path(const std::string& path) {
 bool ov::util::is_absolute_file_path(const std::string& path) {
     if (path.empty())
         throw std::runtime_error("Provided path is empty");
-#ifdef _WIN32
+#if defined(_WIN32) && !(defined(__MINGW32__) || defined(__MINGW64__))
     return !PathIsRelativeA(path.c_str());
 #else
     return path[0] == '/';
