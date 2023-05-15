@@ -11,7 +11,7 @@
     "openvinojs-node": "file:../../../src/bindings/js/node/"
   },
   "scripts": {
-    "sample": "run_sample.js",
+    "sample": "node run_sample.js",
     "lint": "eslint ."
   },
   "engines": {
