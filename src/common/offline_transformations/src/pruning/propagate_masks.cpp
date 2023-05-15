@@ -914,6 +914,7 @@ public:
             if (auto input_mask = getMask(m_input)) {
                 auto output_mask = std::make_shared<Mask>(m_output.get_partial_shape().rank().get_length());
                 const auto constant = std::dynamic_pointer_cast<opset10::Constant>(m_weights.get_node_shared_ptr());
+                OPENVINO_ASSERT(!!constant, "Dynamic cast returned a nullptr");
                 const auto reduce_dims = constant->cast_vector<int64_t>();
 
                 auto input_mask_row = input_mask.get();

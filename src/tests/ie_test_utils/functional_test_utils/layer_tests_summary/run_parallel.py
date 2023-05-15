@@ -66,10 +66,10 @@ def get_test_command_line_args():
     return command_line_args
 
 def get_device_by_args(args: list):
-    device = None
+    device = constants.NOT_EXIST_DEVICE
     is_device = False
     for argument in args:
-        if "--device" in argument:
+        if "--device" in argument or "-d" == argument[0:2]:
             is_device = True
             if argument.find("=") == -1:
                 continue
@@ -92,7 +92,7 @@ class TestStructure:
 class TaskManager:
     process_timeout = -1
 
-    def __init__(self, command_list:list, working_dir: os.path, prev_run_cmd_length=0, device=None, available_devices=list()):
+    def __init__(self, command_list:list, working_dir: os.path, prev_run_cmd_length=0, device=constants.NOT_EXIST_DEVICE, available_devices=list()):
         self._command_list = command_list
         self._process_list = list()
         self._workers = list()
@@ -101,12 +101,9 @@ class TaskManager:
         self._prev_run_cmd_length = prev_run_cmd_length
         self._idx = 0
         self._device = device
-        if self._device is None:
-            self._device = "NOT_AFFECTED_BY_DEVICE"
+        self._available_devices = [self._device]
         if len(available_devices) > 0:
             self._available_devices = available_devices
-        else:
-            self._available_devices = [self._device]
         self._device_cnt = len(self._available_devices)
 
     def __create_thread(self, func):
@@ -159,7 +156,10 @@ class TaskManager:
                         self._process_list[pid].kill()
                         self._process_list[pid].wait(timeout=1)
                     self._process_list[pid].wait(timeout=0)
-                    device = get_device_by_args(self._process_list[pid].args)
+                    args = self._process_list[pid].args
+                    if constants.IS_WIN:
+                        args = args.split()
+                    device = get_device_by_args(args)
                     # logger.info(f"{self._idx}/{len(self._command_list)} is started")
                     return pid, device
                 except TimeoutExpired:
@@ -218,12 +218,11 @@ class TestParallelRunner:
         self._is_save_cache = True
         self._disabled_tests = list()
         self._total_test_cnt = 0
-        self._available_devices = None
         self._device = get_device_by_args(self._command.split())
+        self._available_devices = [self._device] if not self._device is None else []
         if has_python_api and is_parallel_devices:
             self._available_devices = get_available_devices(self._device)
-        else:
-            self._available_devices = [self._device] if not self._device is None else []
+            
 
     def __init_basic_command_line_for_exec_file(self, test_command_line: list):
         command = f'{self._exec_file_path}'

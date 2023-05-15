@@ -69,6 +69,10 @@ struct primitive_impl {
     virtual std::vector<kernel::ptr> get_kernels() const { return {}; }
     virtual void save(cldnn::BinaryOutputBuffer& ob) const {}
     virtual void load(cldnn::BinaryInputBuffer& ib) {}
+    // returns a pair of batch program hash and kernel entry of each ocl impl. Returns "" for other impl types.
+    virtual std::pair<std::string, std::string> get_kernels_dump_info() const {
+        return std::make_pair("", "");
+    }
 
     // If this flag is set as false, the memory allocated for this primitive is not allowed to be reused
     bool can_reuse_memory = true;
@@ -224,6 +228,9 @@ public:
     layout get_input_layout(size_t idx = 0) const { return _impl_params->get_input_layout(idx); }
     layout get_output_layout(size_t idx = 0) const { return _impl_params->get_output_layout(idx); }
     layout get_node_output_layout() const { return _node_output_layout; }
+    void set_output_layout(const layout& new_out_lay, size_t idx = 0) {
+        _impl_params->output_layouts[idx] = new_out_lay;
+    }
 #ifdef ENABLE_ONEDNN_FOR_GPU
     std::vector<cldnn::fused_primitive_desc_onednn>& get_fused_primitives_onednn() const { return _impl_params->fused_desc_onednn; }
 #endif // ENABLE_ONEDNN_FOR_GPU
@@ -356,7 +363,7 @@ protected:
         for (auto u : _node->get_users())
             users.push_back(u->id());
 
-        for (auto u : _network.get_primitives(users)) {
+        for (const auto& u : _network.get_primitives(users)) {
             if (u->need_reset_input_memory())
                 return true;
         }
