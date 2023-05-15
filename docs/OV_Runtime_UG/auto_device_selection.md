@@ -224,6 +224,11 @@ Performance Hints for AUTO
 
 The ``ov::hint::performance_mode`` property enables you to specify a performance option for AUTO to be more efficient for particular use cases. The default hint for AUTO is ``LATENCY``.
 
+The THROUGHPUT and CUMULATIVE_THROUGHPUT hints below only improve performance in an asynchronous inference pipeline. For information on asynchronous inference, see the `Async API documentation <https://docs.openvino.ai/2022.3/openvino_docs_OV_UG_Infer_request.html#doxid-openvino-docs-o-v-u-g-infer-request>`__ . The following notebooks provide examples of how to set up an asynchronous pipeline:
+
+* :doc:`Image Classification Async Sample <openvino_inference_engine_samples_classification_sample_async_README>`
+* `Notebook - Asynchronous Inference with OpenVINO™ <https://docs.openvino.ai/2022.3/notebooks/115-async-api-with-output.html>`__
+* `Notebook - Automatic Device Selection with OpenVINO <https://docs.openvino.ai/2022.3/notebooks/106-auto-device-with-output.html>`__
 
 LATENCY
 ^^^^^^^
@@ -251,15 +256,43 @@ While ``LATENCY`` and ``THROUGHPUT`` can select one target device with your pref
 
 CUMULATIVE_THROUGHPUT has similar behavior as :doc:`the Multi-Device execution mode (MULTI) <openvino_docs_OV_UG_Running_on_multiple_devices>`. The only difference is that CUMULATIVE_THROUGHPUT uses the devices specified by AUTO, which means that it's not mandatory to add devices manually, while with MULTI, you need to specify the devices before inference.
 
-With the CUMULATIVE_THROUGHPUT option:
+If device priority is specified when using CUMULATIVE_THROUGHPUT, AUTO will run inference requests on devices based on the priority. In the following example, AUTO will always try to use GPU first, and then use CPU if GPU is busy:
 
-* If ``AUTO`` without any device names is specified, and the system has more than two GPU devices, AUTO will remove CPU from the device candidate list to keep GPU running at full capacity.
-* If device priority is specified, AUTO will run inference requests on devices based on the priority. In the following example, AUTO will always try to use GPU first, and then use CPU if GPU is busy:
+.. tab-set::
 
-  .. code-block: sh
+    .. tab-item:: C++
+        :sync: cpp
 
-     ov::CompiledModel compiled_model = core.compile_model(model, "AUTO:GPU,CPU", ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT));
+        .. code-block:: sh
 
+           ov::CompiledModel compiled_model = core.compile_model(model, "AUTO:GPU,CPU", ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT));
+
+    .. tab-item:: Python
+        :sync: py
+
+        .. code-block:: sh
+
+           compiled_model = core.compile_model(model, "AUTO:GPU,CPU", {"PERFORMANCE_HINT" : {"CUMULATIVE_THROUGHPUT"}})
+
+
+If AUTO is used without specifying any device names, and if there are multiple GPUs in the system, CUMULATIVE_THROUGHPUT mode will use all of the GPUs by default. If the system has more than two GPU devices, AUTO will remove CPU from the device candidate list to keep the GPUs running at full capacity. A full list of system devices and their unique identifiers can be queried using ov::Core::get_available_devices (for more information, see :doc:`Query Device Properties <openvino_docs_OV_UG_query_api>`). To explicitly specify which GPUs to use, set their priority when compiling with AUTO:
+
+.. tab-set::
+
+    .. tab-item:: C++
+        :sync: cpp
+
+        .. code-block:: sh
+
+           ov::CompiledModel compiled_model = core.compile_model(model, "AUTO:GPU.1,GPU.0", ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT));
+
+
+    .. tab-item:: Python
+        :sync: py
+
+        .. code-block:: sh
+
+           compiled_model = core.compile_model(model, "AUTO:GPU.1,GPU.0", {"PERFORMANCE_HINT" : {"CUMULATIVE_THROUGHPUT"})
 
 Code Examples
 --------------------
@@ -267,17 +300,21 @@ Code Examples
 To enable performance hints for your application, use the following code:
 
 
-.. tab:: C++
+.. tab-set::
 
-   .. doxygensnippet:: docs/snippets/AUTO3.cpp
-      :language: cpp
-      :fragment: [part3]
+    .. tab-item:: C++
+        :sync: cpp
 
-.. tab:: Python
+        .. doxygensnippet:: docs/snippets/AUTO3.cpp
+            :language: cpp
+            :fragment: [part3]
 
-   .. doxygensnippet:: docs/snippets/ov_auto.py
-      :language: python
-      :fragment: [part3]
+    .. tab-item:: Python
+        :sync: py
+
+        .. doxygensnippet:: docs/snippets/ov_auto.py
+           :language: python
+           :fragment: [part3]
 
 
 Disabling Auto-Batching for THROUGHPUT and CUMULATIVE_THROUGHPUT
@@ -292,17 +329,21 @@ Configuring Model Priority
 The ``ov::hint::model_priority`` property enables you to control the priorities of models in the Auto-Device plugin. A high-priority model will be loaded to a supported high-priority device. A lower-priority model will not be loaded to a device that is occupied by a higher-priority model.
 
 
-.. tab:: C++
+.. tab-set::
 
-   .. doxygensnippet:: docs/snippets/AUTO4.cpp
-      :language: cpp
-      :fragment: [part4]
+    .. tab-item:: C++
+        :sync: cpp
 
-.. tab:: Python
+        .. doxygensnippet:: docs/snippets/AUTO4.cpp
+            :language: cpp
+            :fragment: [part4]
 
-   .. doxygensnippet:: docs/snippets/ov_auto.py
-      :language: python
-      :fragment: [part4]
+    .. tab-item:: Python
+        :sync: py
+
+        .. doxygensnippet:: docs/snippets/ov_auto.py
+           :language: python
+           :fragment: [part4]
 
 
 Checking Target Runtime Devices
@@ -311,17 +352,21 @@ Checking Target Runtime Devices
 To query the runtime target devices on which the inferences are being executed using AUTO, you can use the ``ov::execution_devices`` property. It must be used with ``get_property``, for example:
 
 
-.. tab:: C++
+.. tab-set::
 
-   .. doxygensnippet:: docs/snippets/AUTO7.cpp
-      :language: cpp
-      :fragment: [part7]
+    .. tab-item:: C++
+        :sync: cpp
 
-.. tab:: Python
+        .. doxygensnippet:: docs/snippets/AUTO7.cpp
+            :language: cpp
+            :fragment: [part7]
 
-   .. doxygensnippet:: docs/snippets/ov_auto.py
-      :language: python
-      :fragment: [part7]
+    .. tab-item:: Python
+        :sync: py
+
+        .. doxygensnippet:: docs/snippets/ov_auto.py
+           :language: python
+           :fragment: [part7]
 
 
 Configuring Individual Devices and Creating the Auto-Device plugin on Top
@@ -329,17 +374,21 @@ Configuring Individual Devices and Creating the Auto-Device plugin on Top
 
 Although the methods described above are currently the preferred way to execute inference with AUTO, the following steps can be also used as an alternative. It is currently available as a legacy feature and used if the device candidate list includes Myriad devices, incapable of utilizing the Performance Hints option.
 
-.. tab:: C++
+.. tab-set::
 
-   .. doxygensnippet:: docs/snippets/AUTO5.cpp
-      :language: cpp
-      :fragment: [part5]
+    .. tab-item:: C++
+        :sync: cpp
 
-.. tab:: Python
+        .. doxygensnippet:: docs/snippets/AUTO5.cpp
+            :language: cpp
+            :fragment: [part5]
 
-   .. doxygensnippet:: docs/snippets/ov_auto.py
-      :language: python
-      :fragment: [part5]
+    .. tab-item:: Python
+        :sync: py
+
+        .. doxygensnippet:: docs/snippets/ov_auto.py
+           :language: python
+           :fragment: [part5]
 
 
 .. _using-auto-with-openvino-samples-and-benchmark-app:
@@ -351,15 +400,15 @@ To see how the Auto-Device plugin is used in practice and test its performance, 
 
 For unlimited device choice:
 
-.. code-block:sh
+.. code-block:: sh
 
    benchmark_app –d AUTO –m <model> -i <input> -niter 1000
 
 For limited device choice:
 
-.. code-block:sh
+.. code-block:: sh
 
-   benchmark_app –d AUTO:CPU,GPU,MYRIAD –m <model> -i <input> -niter 1000
+   benchmark_app –d AUTO:CPU,GPU,GNA –m <model> -i <input> -niter 1000
 
 For more information, refer to the :doc:`C++ <openvino_inference_engine_samples_benchmark_app_README>` or :doc:`Python <openvino_inference_engine_tools_benchmark_tool_README>` version instructions.
 
