@@ -115,8 +115,6 @@ std::vector<std::string> disabledTestPatterns() {
 #endif
             R"(.*CachingSupportCase.*GPU.*CompileModelCacheTestBase.*CompareWithRefImpl.*)",
             // Currently 1D convolution has an issue
-            R"(.*smoke_GroupConvolution1D_ExplicitPadding_Disabled.*)",
-            R"(.*smoke_GroupConvolutionLayerGPUTest_dynamic1DSymPad_Disabled.*)",
             R"(.*smoke_ConvolutionLayerGPUTest_dynamic1DSymPad.*)",
 
             // Looks like the test is targeting CPU plugin and doesn't respect that execution graph may vary from plugin to plugin
