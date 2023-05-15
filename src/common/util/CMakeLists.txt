@@ -38,7 +38,7 @@ add_library(openvino::util ALIAS ${TARGET_NAME})
 
 target_link_libraries(${TARGET_NAME} PRIVATE ${CMAKE_DL_LIBS})
 if (WIN32)
-    target_link_libraries(${TARGET_NAME} PRIVATE Shlwapi)
+    # target_link_libraries(${TARGET_NAME} PRIVATE Shlwapi)
 endif()
 target_include_directories(${TARGET_NAME} PUBLIC
     $<BUILD_INTERFACE:${UTIL_INCLUDE_DIR}>)

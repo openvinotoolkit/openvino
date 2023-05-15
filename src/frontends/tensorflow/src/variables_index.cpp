@@ -265,7 +265,7 @@ bool VariablesIndex::read_variables(std::ifstream& vi_stream, const std::string&
             fullPath = path + "." + suffix.data();
         }
         m_data_files[shard] =
-            std::shared_ptr<std::ifstream>(new std::ifstream(fullPath, std::ifstream::in | std::ifstream::binary));
+            std::shared_ptr<std::ifstream>(new std::ifstream(fullPath.c_str(), std::ifstream::in | std::ifstream::binary));
         FRONT_END_GENERAL_CHECK(m_data_files[shard]->is_open(), "Variable index data file does not exist");
     }
 
@@ -289,7 +289,7 @@ bool VariablesIndex::read_variables(std::ifstream& vi_stream, const std::wstring
             fullPath = path + L"." + suffix.data();
         }
         m_data_files[shard] =
-            std::shared_ptr<std::ifstream>(new std::ifstream(fullPath, std::ifstream::in | std::ifstream::binary));
+            std::shared_ptr<std::ifstream>(new std::ifstream(fullPath.c_str(), std::ifstream::in | std::ifstream::binary));
         FRONT_END_GENERAL_CHECK(m_data_files[shard]->is_open(), "Variable index data file does not exist");
     }
 

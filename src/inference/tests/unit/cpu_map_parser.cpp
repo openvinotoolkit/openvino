@@ -586,7 +586,7 @@ INSTANTIATE_TEST_SUITE_P(CPUMap,
                                          _1sockets_6cores_hyperthreading));
 #endif
 
-#if (defined(_WIN32) || defined(_WIN64))
+#if defined(_WIN32)
 
 int Hex2Int(char c) {
     return (c >= '0' && c <= '9')
