@@ -223,7 +223,7 @@ static void iterate_files_worker(const std::string& path,
                     break;
                 }
             }
-        } catch (const std::exception&) {
+        } catch (...) {
             std::exception_ptr p = std::current_exception();
             closedir(dir);
             std::rethrow_exception(p);
