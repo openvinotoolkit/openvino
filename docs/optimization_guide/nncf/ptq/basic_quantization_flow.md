@@ -174,7 +174,7 @@ Tune quantization parameters
 
 * ``target_device`` - defines the target device, the specificity of which will be taken into account during optimization. The following values are supported: ``ANY`` (default), ``CPU``, ``CPU_SPR``, ``GPU``, and ``VPU``.
 
-    .. code-block:: sh
+  .. code-block:: sh
 
      nncf.quantize(model, dataset, target_device=nncf.TargetDevice.CPU)
 
