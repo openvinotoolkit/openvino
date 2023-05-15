@@ -2,7 +2,7 @@
 const { default: nodeAddon } = require('openvinojs-node')
 
 
-const math = require('./lib/math_func.js');
+const math = require('./lib/helpers.js');
 const imagenetClassesMap = require('../assets/imagenet_classes_map.json');
 const Jimp = require('jimp');
 
