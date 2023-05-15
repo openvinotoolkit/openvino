@@ -263,7 +263,7 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph &graph) {
         if (!scaleDimsCheck(node, scales)) continue;
 
         if (initializeDeQuantizedScales(node, scales)) {
-            DEBUG_LOG("[GraphOptimizer##FusingDQ]: multiply Node ##", mul->getName(), " optimized as DQ scales of Node ##", node->getName());
+            DEBUG_LOG("GraphOptimizer##FusingDQ: Node ##", mul->getName(), " optimized as DQ scales of Node ##", node->getName());
             node->addOriginalLayer(mul->getOriginalLayers());
             auto p_edge = mul->getParentEdgesAtPort(1)[0];
             graph.RemoveEdge(p_edge);
@@ -297,7 +297,23 @@ void GraphOptimizer::FuseConvolutionMatMulDeconvAndBias(Graph &graph) {
             || childNode->getParentEdges().size() != 2)
             return false;
 
-        const auto biasNode = childNode->getParentEdgesAtPort(1)[0]->getParent();
+        auto getConstPort = [](const NodePtr& node) {
+            std::vector<int> constPorts;
+            for (size_t i = 0; i < node->getParentEdges().size(); i++) {
+                const auto& parent = node->getParentEdgeAt(i)->getParent();
+                if (parent->getType() == Type::Input && parent->isConstant())
+                    constPorts.push_back(i);
+            }
+            // there are more than 1 nonconst port or missed
+            if (constPorts.size() != 1)
+                return -1;
+
+            return constPorts[0];
+        };
+        auto constPort = getConstPort(childNode);
+        if (constPort == -1)
+            return false;
+        const auto biasNode = childNode->getParentEdgesAtPort(constPort)[0]->getParent();
         if (biasNode->getType() != Type::Input || !biasNode->isConstant() || biasNode->getChildEdges().size() != 1)
             return false;
 
@@ -417,8 +433,8 @@ void GraphOptimizer::FuseConvolutionMatMulDeconvAndBias(Graph &graph) {
                     cpuReshapeNode->addEdge(newReshapeConstEdge);
                     graphEdges.push_back(newReshapeConstEdge);
                     graphNodes.push_back(cpuReshapeConstInput);
-                    DEBUG_LOG("[GraphOptimizer##FusingBias]:Flatten Bias node from shape [  ", PartialShape{biasOutputShape.getDims()},
-                                        " ] to [ ", PartialShape{flattenShape}, " ] ");
+                    DEBUG_LOG("GraphOptimizer##FusingBias:Flatten Bias node from shape ", PartialShape{biasOutputShape.getDims()},
+                                        "  to  ", PartialShape{flattenShape});
                     // Update bias output shape.
                     biasOutputShape = Shape{flattenShape};
                 }
@@ -426,7 +442,7 @@ void GraphOptimizer::FuseConvolutionMatMulDeconvAndBias(Graph &graph) {
                 parentEltwise->inputShapes.push_back(biasOutputShape);
             }
         }
-        DEBUG_LOG("[GraphOptimizer##FusingBias]:Add Node ##: ", childNode->getName(), " initialize as Bias of Node ##", parentNode->getName());
+        DEBUG_LOG("GraphOptimizer##FusingBias:Node ##: ", childNode->getName(), " initialize as Bias of Node ##", parentNode->getName());
         parentNode->addOriginalLayer(childNode->getOriginalLayers());
         parentNode->addOriginalInputPrecision(childNode->getOriginalInputPrecisionAtPort(1));
         graph.DropNode(childNode);
