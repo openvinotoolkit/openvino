@@ -20,7 +20,7 @@ module.exports = {
   prepareResnetTensor: function(arr) {
     /*
         The images have to be normalized using
-        mean_values: [123.675,116.28,103.53] 
+        mean_values: [123.675,116.28,103.53]
         and scale_values: [58.395,57.12,57.375]
         of the channels
         For more information refer to:
