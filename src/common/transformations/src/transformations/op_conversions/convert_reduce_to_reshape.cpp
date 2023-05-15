@@ -12,7 +12,7 @@ bool CvtReduceBase::is_redundant(ngraph::Shape input, ngraph::Shape output) {
         return false;
 
     for (size_t idx = 0; idx < input.size(); idx++) {
-        if (input[idx] != output[idx] && input[idx] != 1)
+        if (input[idx] != 1 && input [idx] != output[idx])
             return false;
     }
 
