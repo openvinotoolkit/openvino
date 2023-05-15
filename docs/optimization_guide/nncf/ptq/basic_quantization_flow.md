@@ -90,8 +90,6 @@ Once the dataset is ready and the model object is instantiated, you can apply 8-
        :fragment: [quantization]
 
 
-.. note:: The ``model`` is an instance of the ``torch.nn.Module`` class for PyTorch, ``onnx.ModelProto`` for ONNX, and ``openvino.runtime.Model`` for OpenVINO.
-
 After that the model can be converted into the OpenVINO Intermediate Representation (IR) if needed, compiled and run with OpenVINO:
 
 .. tab:: OpenVINO
