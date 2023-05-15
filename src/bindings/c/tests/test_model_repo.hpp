@@ -12,7 +12,7 @@
 #include "openvino/core/visibility.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/util/file_util.hpp"
-#include <common_test_utils/file_utils.hpp>
+#include "common_test_utils/file_utils.hpp"
 
 namespace TestDataHelpers {
 
