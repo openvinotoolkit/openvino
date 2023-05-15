@@ -4,8 +4,8 @@
 
 #include "openvino/op/experimental_detectron_generate_proposals.hpp"
 
-#include "experimental_detectoron_shape_infer_utils.hpp"
 #include "experimental_detectron_generate_proposals_shape_inference.hpp"
+#include "experimental_detectron_shape_infer_utils.hpp"
 #include "itt.hpp"
 #include "openvino/core/attribute_visitor.hpp"
 

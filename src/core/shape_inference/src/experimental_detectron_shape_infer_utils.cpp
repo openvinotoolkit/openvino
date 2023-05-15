@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "experimental_detectoron_shape_infer_utils.hpp"
+#include "experimental_detectron_shape_infer_utils.hpp"
 
 namespace ov {
 namespace op {

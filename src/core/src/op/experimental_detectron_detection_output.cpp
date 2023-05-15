@@ -6,8 +6,8 @@
 
 #include <memory>
 
-#include "experimental_detectoron_shape_infer_utils.hpp"
 #include "experimental_detectron_detection_output_shape_inference.hpp"
+#include "experimental_detectron_shape_infer_utils.hpp"
 #include "itt.hpp"
 #include "openvino/core/attribute_visitor.hpp"
 
