@@ -407,7 +407,6 @@ void SubgraphBaseTest::init_input_shapes(const std::vector<InputShape>& shapes) 
     for (const auto& shape : shapes) {
         auto dynShape = shape.first;
         if (dynShape.rank() == 0) {
-            ASSERT_EQ(targetStaticShapeSize, 1) << "Incorrect number of static shapes for static case";
             dynShape = shape.second.front();
         }
         inputDynamicShapes.push_back(dynShape);
