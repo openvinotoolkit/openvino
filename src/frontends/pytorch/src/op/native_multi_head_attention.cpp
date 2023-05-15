@@ -3,25 +3,7 @@
 //
 
 #include "openvino/frontend/pytorch/node_context.hpp"
-#include "openvino/op/add.hpp"
-#include "openvino/op/broadcast.hpp"
-#include "openvino/op/concat.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/convert_like.hpp"
-#include "openvino/op/divide.hpp"
-#include "openvino/op/gather.hpp"
-#include "openvino/op/greater_eq.hpp"
-#include "openvino/op/logical_not.hpp"
-#include "openvino/op/matmul.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/range.hpp"
-#include "openvino/op/select.hpp"
-#include "openvino/op/shape_of.hpp"
-#include "openvino/op/softmax.hpp"
-#include "openvino/op/sqrt.hpp"
-#include "openvino/op/squeeze.hpp"
-#include "openvino/op/transpose.hpp"
-#include "openvino/op/unsqueeze.hpp"
+#include "openvino/opsets/opset10.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -50,73 +32,36 @@ OutputVector translate_native_multi_head_attention(const NodeContext& context) {
     )
     */
     num_inputs_check(context, 13, 13);
-    auto query = context.get_input(0);
-    auto key = context.get_input(1);
-    auto value = context.get_input(2);
-    auto q_shape = context.mark_node(std::make_shared<v3::ShapeOf>(query, element::i32));
-    auto k_shape = context.mark_node(std::make_shared<v3::ShapeOf>(key, element::i32));
-    auto minus_one = context.mark_node(v0::Constant::create(element::i32, Shape{}, {-1}));
-    auto minus_two = context.mark_node(v0::Constant::create(element::i32, Shape{}, {-2}));
-    auto zero_i = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
-    auto one_i = context.mark_node(v0::Constant::create(element::i32, Shape{}, {1}));
-    auto scale = context.mark_node(std::make_shared<v8::Gather>(q_shape, minus_one, zero_i));
-    scale = context.mark_node(std::make_shared<v1::ConvertLike>(scale, query));
-    auto sqrt_scale = context.mark_node(std::make_shared<v0::Sqrt>(scale));
-    auto one_f = context.mark_node(std::make_shared<v1::ConvertLike>(one_i, sqrt_scale));
-    auto zero_f = context.mark_node(std::make_shared<v1::ConvertLike>(zero_i, sqrt_scale));
-    scale = context.mark_node(std::make_shared<v1::Divide>(one_f, sqrt_scale));
-    auto q_scaled = context.mark_node(std::make_shared<v1::Multiply>(query, scale));
-    auto k_rank = context.mark_node(std::make_shared<v3::ShapeOf>(k_shape, element::i32));
-    auto k_last_dim = context.mark_node(std::make_shared<v1::Add>(k_rank, minus_one));
-    auto k_next_dim = context.mark_node(std::make_shared<v1::Add>(k_rank, minus_two));
-    k_rank = context.mark_node(std::make_shared<v0::Squeeze>(k_rank, zero_i));
-    auto minus_inf =
-        context.mark_node(v0::Constant::create(element::f32, Shape{}, {-std::numeric_limits<float>::infinity()}));
-    auto keep_dim_last = context.mark_node(std::make_shared<v0::Squeeze>(k_next_dim, zero_i));
-    auto k_dims_before_transpose =
-        context.mark_node(std::make_shared<v4::Range>(zero_i, keep_dim_last, one_i, element::i32));
+    const auto query = context.get_input(0);
+    const auto key = context.get_input(1);
+    const auto value = context.get_input(2);
+    const auto embed_dim = context.const_input<int64_t>(3);
+    const auto num_heads = context.const_input<int64_t>(4);
+    const auto qkv_weight = context.get_input(5);
+    const auto qkv_bias = context.get_input(6);
+    const auto proj_weight = context.get_input(7);
+    const auto proj_bias = context.get_input(8);
+    const auto need_weights = context.const_input<bool>(10);
+    const auto average_attn_weights = context.const_input<bool>(11);
 
-    auto transpose_dims = context.mark_node(
-        std::make_shared<v0::Concat>(OutputVector{k_dims_before_transpose, k_last_dim, k_next_dim}, 0));
-    auto k_transposed = context.mark_node(std::make_shared<v1::Transpose>(key, transpose_dims));
-    auto scaled_atten = context.mark_node(std::make_shared<v0::MatMul>(q_scaled, k_transposed));
-    minus_inf = context.mark_node(std::make_shared<v1::ConvertLike>(minus_inf, scaled_atten));
-    // two types of masks are supported. A boolean mask where a value of True indicates that the element should take
-    // part in attention. A float mask of the same type as query, key, value that is added to the attention score.
-    auto is_causal = context.const_input<bool>(5);
-    if (is_causal || !context.input_is_none(3)) {
-        Output<Node> mask;
-        Output<Node> atten_mask;
-        if (!context.input_is_none(3)) {
-            mask = context.get_input(3);
-            if (mask.get_element_type() == element::boolean) {
-                atten_mask = context.mark_node(std::make_shared<v1::ConvertLike>(mask, scaled_atten));
-                auto inv_mask = context.mark_node(std::make_shared<v1::LogicalNot>(mask));
-                atten_mask = context.mark_node(std::make_shared<v1::Select>(inv_mask, atten_mask, minus_inf));
-            } else {
-                atten_mask = mask;
-            }
-        } else {
-            auto target_s_len = context.mark_node(std::make_shared<v8::Gather>(q_shape, minus_two, zero_i));
-            auto source_s_len = context.mark_node(std::make_shared<v8::Gather>(k_shape, minus_two, zero_i));
-            auto ssl = context.mark_node(std::make_shared<v0::Unsqueeze>(source_s_len, zero_i));
-            auto tsl = context.mark_node(std::make_shared<v0::Unsqueeze>(target_s_len, zero_i));
-            auto mask_shape = context.mark_node(std::make_shared<v0::Concat>(OutputVector{tsl, ssl}, 0));
-            mask = context.mark_node(std::make_shared<v1::Broadcast>(minus_inf, mask_shape));
-            auto horizontal_range =
-                context.mark_node(std::make_shared<v4::Range>(zero_i, source_s_len, one_i, element::i32));
-            horizontal_range = context.mark_node(std::make_shared<v0::Unsqueeze>(horizontal_range, zero_i));
-            auto stop = context.mark_node(std::make_shared<v1::Add>(target_s_len, one_i));
-            auto vertical_range = context.mark_node(std::make_shared<v4::Range>(one_i, stop, one_i, element::i32));
-            vertical_range = context.mark_node(std::make_shared<v0::Unsqueeze>(vertical_range, one_i));
-            auto triu = context.mark_node(std::make_shared<v1::GreaterEqual>(horizontal_range, vertical_range));
-            atten_mask = context.mark_node(std::make_shared<v1::Select>(triu, mask, zero_f));
-        }
-        scaled_atten = context.mark_node(std::make_shared<v1::Add>(scaled_atten, atten_mask));
-    }
-    scaled_atten = context.mark_node(std::make_shared<v8::Softmax>(scaled_atten, -1));
-    return {context.mark_node(std::make_shared<v0::MatMul>(scaled_atten, value))};
-};
+    const auto zero = context.mark_node(opset10::Constant::create(element::i32, Shape{}, {0}));
+    const auto one = context.mark_node(opset10::Constant::create(element::i32, Shape{}, {1}));
+    const auto two = context.mark_node(opset10::Constant::create(element::i32, Shape{}, {2}));
+
+    const auto qkv_shape = context.mark_node(std::make_shared<opset10::ShapeOf>(query));
+
+    const auto scale_one = context.mark_node(std::make_shared<opset10::ConvertLike>(one, query));
+    const auto scale_dim = context.mark_node(std::make_shared<opset10::ConvertLike>(embed_dim, query));
+    const auto scale_dim_sqrt = context.mark_node(std::make_shared<opset10::Sqrt>(scale_dim));
+    const auto scale = context.mark_node(std::make_shared<opset10::Divide>(scale_one, scale_dim_sqrt));
+
+    const auto transpose_dims = context.mark_node(std::make_shared<opset10::Concat>(OutputVector{zero, two, one}, 0));
+    const auto key_transpose = context.mark_node(std::make_shared<opset10::Transpose>(key, transpose_dims));
+    const auto query_key_transpose_dot_product = context.mark_node(std::make_shared<opset10::MatMul>(query, key_transpose));
+    const auto scaled_dot_product = context.mark_node(std::make_shared<opset10::Multiply>(query_key_transpose_dot_product, scale));
+    const auto scaled_dot_product_softmax = context.mark_node(std::make_shared<opset10::Softmax>(scaled_dot_product, -1));
+    const auto scaled_dot_product_attention = context.mark_node(std::make_shared<opset10::MatMul>(scaled_dot_product_softmax, value));
+};  
 
 }  // namespace op
 }  // namespace pytorch

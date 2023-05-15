@@ -42,8 +42,14 @@ std::set<std::string> get_unconverted_types_from_model(const std::shared_ptr<Mod
     std::set<std::string> unconverted_ops_types;
     for (const auto& node : model->get_ordered_ops()) {
         if (const auto& fw_node = ov::as_type_ptr<PtFrameworkNode>(node)) {
+            ov::serialize(model, "/home/pkrzemin/model.xml", "/home/pkrzemin/model.bin");
             auto op_type = fw_node->get_decoder()->get_op_type();
             unconverted_ops_types.insert(op_type);
+            if (op_type == "aten::_native_multi_head_attention") {
+                auto dec = fw_node->get_decoder();
+                auto n_n = dec->get_output_debug_name(0);
+                std::cerr << n_n << "\n";
+            }
         }
         if (const auto& fw_node = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node)) {
             for (size_t i = 0; i < fw_node->get_internal_subgraphs_size(); i++) {
