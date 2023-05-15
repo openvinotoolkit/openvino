@@ -25,7 +25,7 @@ typedef std::tuple<
     MatMulWithOptimizedConstantFakeQuantizeTransformationTestValues
 > MatMulWithOptimizedConstantFakeQuantizeTransformationTransformationParams;
 
-class MatMulWithOptimizedConstantFakeQuantizeTransformation :
+class MatMulWithOptimizedConstantFq :
     public testing::WithParamInterface<MatMulWithOptimizedConstantFakeQuantizeTransformationTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:

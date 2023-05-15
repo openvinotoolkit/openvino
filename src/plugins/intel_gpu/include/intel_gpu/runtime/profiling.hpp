@@ -8,6 +8,7 @@
 #include <memory>
 #include <vector>
 #include <string>
+#include <fstream>
 
 #if defined(_WIN32)
 #ifndef NOMINMAX
@@ -18,9 +19,7 @@
 #endif
 
 #include <windows.h>
-#include "Psapi.h"
-#elif !defined(__APPLE__)
-#include <fstream>
+#include "psapi.h"
 #endif
 
 #include "layout.hpp"

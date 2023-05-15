@@ -82,11 +82,13 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
     set(EMSCRIPTEN ON)
 endif()
 
-if(UNIX AND NOT (APPLE OR ANDROID OR EMSCRIPTEN))
+if(UNIX AND NOT (APPLE OR ANDROID OR EMSCRIPTEN OR CYGWIN))
     set(LINUX ON)
 endif()
 
-if(NOT DEFINED CMAKE_HOST_LINUX AND CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux")
+if(CMAKE_VERSION VERSION_LESS 3.25 AND CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux")
+    # the variable is available since 3.25
+    # https://cmake.org/cmake/help/latest/variable/CMAKE_HOST_LINUX.html
     set(CMAKE_HOST_LINUX ON)
 endif()
 
