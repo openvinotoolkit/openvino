@@ -365,3 +365,14 @@ def test_viewed_tensor_default_type():
     new_shape = (4, 8)
     tensor = Tensor(buffer, new_shape)
     assert np.array_equal(tensor.data, buffer.reshape(new_shape))
+
+
+def test_stride_calculation():
+    data_type = np.float32
+    arr = np.ones((16, 512, 1, 1)).astype(data_type)
+    # Forces reorder of strides while keeping C-style memory.
+    arr = arr.transpose((2, 0, 1, 3))
+    t = ov.Tensor(arr)
+    assert t is not None
+    assert np.array_equal(t.data, arr)
+    assert t.strides[0] == (t.shape[1] * t.shape[2] * t.shape[3]) * t.get_element_type().size
