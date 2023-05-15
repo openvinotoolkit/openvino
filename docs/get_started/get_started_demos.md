@@ -33,6 +33,10 @@ Make sure that you also `install OpenCV <https://github.com/opencv/opencv/wiki/B
 Install OpenVINO Development Tools
 ++++++++++++++++++++++++++++++++++
 
+.. note:: 
+   
+   Note that OpenVINO support for Apache MXNet, Caffe, and Kaldi is currently being deprecated and will be removed entirely in the future.
+
 To install OpenVINO Development Tools, follow the :doc:`instructions for C++ developers on the Install OpenVINO Development Tools page <openvino_docs_install_guides_install_dev_tools>`. This guide uses the ``googlenet-v1`` model from the Caffe framework, therefore, when you get to Step 4 of the installation, run the following command to install OpenVINO with the Caffe requirements:
 
 .. code-block:: sh

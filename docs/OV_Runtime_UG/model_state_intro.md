@@ -16,7 +16,7 @@ forecasting) length of data sequence is unknown. Then, data can be divided in sm
 between data portions should be addressed. For that, models save some data between inferences - a state. When one dependent sequence is over,
 a state should be reset to initial value and a new sequence can be started.
 
-Several frameworks have special APIs for states in model. For example, Keras has ``stateful`` - a special option for RNNs, that turns on saving a state between inferences. Kaldi contains special ``Offset`` specifier to define time offset in a model.
+Several frameworks have special APIs for states in model. For example, Keras has ``stateful`` - a special option for RNNs, that turns on saving a state between inferences. Kaldi contains a special ``Offset`` specifier to define time offset in a model.
 
 OpenVINO also contains a special API to simplify work with models with states. A state is automatically saved between inferences, 
 and there is a way to reset a state when needed. A state can also be read or set to some new value between inferences.
@@ -219,5 +219,10 @@ The ``While`` layer is converted to ``TensorIterator``, which body can contain a
 * **TensorFlow2** - ``While`` layer is converted to ``Loop`` operation, which body can contain any supported operations.
 
 * **Kaldi** - Kaldi models already contain ``Assign``/``ReadValue`` (Memory) operations after model conversion. The ``TensorIterator``/``Loop`` operations are not generated.
+
+.. note:: 
+   
+   Note that OpenVINO support for Apache MXNet, Caffe, and Kaldi is currently being deprecated and will be removed entirely in the future.
+
 
 @endsphinxdirective

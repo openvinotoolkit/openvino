@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. warning::
+
+   Note that OpenVINO support for Kaldi is currently being deprecated and will be removed entirely in the future.
+
+
 At the beginning, you should `download a pre-trained model <https://kaldi-asr.org/models/1/0001_aspire_chain_model.tar.gz>`__
 for the ASpIRE Chain Time Delay Neural Network (TDNN) from the Kaldi project official website.
 

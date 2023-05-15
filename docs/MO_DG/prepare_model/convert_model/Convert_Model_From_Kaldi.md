@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+
+.. warning::
+
+   Note that OpenVINO support for Kaldi is currently being deprecated and will be removed entirely in the future.
+
 .. note:: 
 
    Model Optimizer supports the `nnet1 <http://kaldi-asr.org/doc/dnn1.html>`__ and `nnet2 <http://kaldi-asr.org/doc/dnn2.html>`__ formats of Kaldi models. The support of the `nnet3 <http://kaldi-asr.org/doc/dnn3.html>`__ format is limited.
