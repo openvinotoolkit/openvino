@@ -187,7 +187,6 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
                 return false;
 
             // don't transpose inputs if they're aligned to 16
-            const size_t testDim = 2;
             bool inputsAligned = std::all_of(shapes[0].rbegin(), shapes[0].rbegin() + 2,
                                              [] (const ngraph::Dimension& dim) { return dim.is_static() && dim.get_length() % 16 == 0; }) &&
                                  std::all_of(shapes[1].rbegin(), shapes[1].rbegin() + 2,
