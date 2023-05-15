@@ -85,7 +85,7 @@ ie_option (ENABLE_INTEL_GNA_DEBUG "GNA debug build" OFF)
 
 ie_dependent_option (ENABLE_IR_V7_READER "Enables IR v7 reader" ${BUILD_SHARED_LIBS} "ENABLE_TESTS;ENABLE_INTEL_GNA" OFF)
 
-ie_option (ENABLE_GAPI_PREPROCESSING "Enables G-API preprocessing" ON)
+ie_dependent_option (ENABLE_GAPI_PREPROCESSING "Enables G-API preprocessing" ON "NOT MINGW64" OFF)
 
 ie_option (ENABLE_MULTI "Enables MULTI Device Plugin" ON)
 ie_option (ENABLE_AUTO "Enables AUTO Device Plugin" ON)

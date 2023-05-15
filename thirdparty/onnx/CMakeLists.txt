@@ -21,9 +21,6 @@ endif()
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # 4244 conversion from 'XXX' to 'YYY', possible loss of data
     ie_add_compiler_flags(/wd4244)
-
-    # from onnx==1.13 it requires C++17 when compiling on Windows
-    set(CMAKE_CXX_STANDARD 17)
 endif()
 
 set(ONNX_USE_PROTOBUF_SHARED_LIBS OFF CACHE BOOL "Use dynamic protobuf by ONNX library" FORCE)
@@ -46,6 +43,13 @@ ov_onnx_build_static()
 
 target_include_directories(onnx SYSTEM PRIVATE "${Protobuf_INCLUDE_DIRS}")
 target_include_directories(onnx_proto SYSTEM PRIVATE "${Protobuf_INCLUDE_DIRS}")
+
+if(WIN32)
+    # from onnx==1.13.1 it requires C++17 when compiling on Windows
+    target_compile_features(onnx PRIVATE cxx_std_17)
+    # OPTIONAL is a reserved word for mingw at least
+    target_compile_definitions(onnx PRIVATE OPTIONAL=OPTIONAL_PLACEHOLDER)
+endif()
 
 ov_disable_all_warnings(onnx onnx_proto)
 

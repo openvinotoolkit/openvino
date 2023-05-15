@@ -504,6 +504,7 @@ struct NullStream {
 
 }  // namespace details
 }  // namespace InferenceEngine
+
 #if defined(_WIN32)
 #    define __PRETTY_FUNCTION__ __FUNCSIG__
 #else

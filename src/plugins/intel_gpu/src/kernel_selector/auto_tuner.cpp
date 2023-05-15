@@ -195,12 +195,14 @@ TuningCache* TuningCache::get() {
     GetModuleFileName(hm, module_path, sizeof(module_path));
     std::string bin_path(module_path);
     path = bin_path.substr(0, bin_path.find_last_of("\\")) + "\\cache.json";
-#else
+#elif __linux__
     const char* device_info_failed_msg = "Device lookup failed";
     Dl_info dl_info;
     dladdr((void*)(device_info_failed_msg), &dl_info);  // NOLINT
     std::string bin_path(dl_info.dli_fname);
     path = bin_path.substr(0, bin_path.find_last_of("/")) + "/cache.json";
+#else
+#error "Intel GPU plugin: unknown target system"
 #endif
 
     if (!cache_instance) {

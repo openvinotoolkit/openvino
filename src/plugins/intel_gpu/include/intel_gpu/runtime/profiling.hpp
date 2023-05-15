@@ -19,7 +19,7 @@
 
 #include <windows.h>
 #include "Psapi.h"
-#elif !defined(__APPLE__) && !defined(__MACOSX)
+#elif !defined(__APPLE__)
 #include <fstream>
 #endif
 
@@ -235,7 +235,7 @@ private:
         GetProcessMemoryInfo(GetCurrentProcess(), &pmc, sizeof(pmc));
         footprint.rss = (int64_t)(pmc.WorkingSetSize/1024);
         footprint.peak_rss = (int64_t)(pmc.PeakWorkingSetSize/1024);
-#elif !defined(__APPLE__) && !defined(__MACOSX)
+#elif !defined(__APPLE__)
         std::ifstream status("/proc/self/status");
         if (!status.is_open())
             return footprint;
