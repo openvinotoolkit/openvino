@@ -15,7 +15,7 @@
 #    define INFERENCE_ENGINE_API_CLASS(...) __VA_ARGS__
 #else
 #    if defined(_WIN32) || defined(__CYGWIN__)
-#        ifdef IMPLEMENT_OPENVINO_API
+#        ifdef IMPLEMENT_INFERENCE_ENGINE_API
 #            define INFERENCE_ENGINE_API(...)       extern "C" __declspec(dllexport) __VA_ARGS__ __cdecl
 #            define INFERENCE_ENGINE_API_CPP(...)   __declspec(dllexport) __VA_ARGS__
 #            define INFERENCE_ENGINE_API_CLASS(...) __declspec(dllexport) __VA_ARGS__
@@ -73,8 +73,8 @@
         IE_DO_PRAGMA(warning(disable : 4996))
 #    define IE_SUPPRESS_DEPRECATED_END IE_DO_PRAGMA(warning(pop))
 #elif defined(__INTEL_COMPILER)
-#    define IE_SUPPRESS_DEPRECATED_START \
-        IE_DO_PRAGMA(warning(push))      \
+#    define IE_SUPPRESS_DEPRECATED_START      \
+        IE_DO_PRAGMA(warning(push))           \
         IE_DO_PRAGMA(warning(disable : 1478)) \
         IE_DO_PRAGMA(warning(disable : 1786))
 #    define IE_SUPPRESS_DEPRECATED_END IE_DO_PRAGMA(warning(pop))

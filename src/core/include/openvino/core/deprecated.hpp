@@ -56,8 +56,8 @@
         OPENVINO_DO_PRAGMA(warning(disable : 4996))
 #    define OPENVINO_SUPPRESS_DEPRECATED_END OPENVINO_DO_PRAGMA(warning(pop))
 #elif defined(__INTEL_COMPILER)
-#    define OPENVINO_SUPPRESS_DEPRECATED_START \
-        OPENVINO_DO_PRAGMA(warning(push))      \
+#    define OPENVINO_SUPPRESS_DEPRECATED_START      \
+        OPENVINO_DO_PRAGMA(warning(push))           \
         OPENVINO_DO_PRAGMA(warning(disable : 1478)) \
         OPENVINO_DO_PRAGMA(warning(disable : 1786))
 #    define OPENVINO_SUPPRESS_DEPRECATED_END OPENVINO_DO_PRAGMA(warning(pop))

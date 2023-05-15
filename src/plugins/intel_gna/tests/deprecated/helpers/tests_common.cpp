@@ -19,7 +19,7 @@
 # ifndef _WINSOCK2API_
 #  define _WINSOCK2API_
 # endif
-# include <winSock2.h>
+# include <winsock2.h>
 # include <windows.h>
 # include "psapi.h"
 #endif

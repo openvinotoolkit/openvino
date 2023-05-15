@@ -4,6 +4,11 @@
 
 set (TARGET_NAME "inference_engine")
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    # TODO: Add IMPLEMENT_OPENVINO_API to inference_engine_obj
+    ie_add_compiler_flags(/wd4273)
+endif()
+
 file (GLOB LIBRARY_SRC
         ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/cpp/*.cpp
@@ -119,7 +124,7 @@ ie_faster_build(${TARGET_NAME}_obj
 )
 
 target_compile_definitions(${TARGET_NAME}_obj PRIVATE
-    IMPLEMENT_OPENVINO_API
+    IMPLEMENT_INFERENCE_ENGINE_API
     $<TARGET_PROPERTY:ngraph,INTERFACE_COMPILE_DEFINITIONS>
     $<TARGET_PROPERTY:frontend_common::static,INTERFACE_COMPILE_DEFINITIONS>
     $<TARGET_PROPERTY:openvino_gapi_preproc,INTERFACE_COMPILE_DEFINITIONS>)

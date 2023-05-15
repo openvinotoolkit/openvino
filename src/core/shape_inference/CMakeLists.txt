@@ -22,8 +22,6 @@ target_include_directories(${TARGET_NAME} PUBLIC
     $<BUILD_INTERFACE:${SHAPE_INFER_INCLUDE_DIR}>
     $<BUILD_INTERFACE:${OV_CORE_INCLUDE_PATH}>)
 
-target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_OPENVINO_API)
-
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
 if(NOT BUILD_SHARED_LIBS)

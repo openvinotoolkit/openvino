@@ -18,11 +18,8 @@
 
 // Disabled MSVC warning
 #if defined(_MSC_VER)
-#    define OPENVINO_DISABLE_WARNING_MSVC_BEGIN(id) \
-    __pragma(warning(push)) \
-    __pragma(warning(disable : id))
-#    define OPENVINO_DISABLE_WARNING_MSVC_END(id) \
-    __pragma(warning(pop))
+#    define OPENVINO_DISABLE_WARNING_MSVC_BEGIN(id) __pragma(warning(push)) __pragma(warning(disable : id))
+#    define OPENVINO_DISABLE_WARNING_MSVC_END(id)   __pragma(warning(pop))
 #else
 #    define OPENVINO_DISABLE_WARNING_MSVC_BEGIN(id)
 #    define OPENVINO_DISABLE_WARNING_MSVC_END(id)

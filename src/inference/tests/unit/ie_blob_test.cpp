@@ -72,7 +72,10 @@ TEST_F(BlobTests, doesNotUnlockIfLockFailed) {
     InferenceEngine::TBlob<float> blob({InferenceEngine::Precision::FP32, v, InferenceEngine::CHW},
                                        std::dynamic_pointer_cast<InferenceEngine::IAllocator>(allocator));
     blob.allocate();
-    { float * ptr = blob.data(); (void)ptr; }
+    {
+        float* ptr = blob.data();
+        (void)ptr;
+    }
 }
 
 TEST_F(BlobTests, canAccessDataUsingAllocator) {

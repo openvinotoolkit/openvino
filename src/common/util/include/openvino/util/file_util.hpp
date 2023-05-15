@@ -37,11 +37,11 @@ struct FileTraits<char> {
     }
     static std::string library_prefix() {
 #ifdef _WIN32
-#   if defined(__MINGW32__) || defined(__MINGW64__)
+#    if defined(__MINGW32__) || defined(__MINGW64__)
         return {"lib"};
-#   else
+#    else
         return {""};
-#   endif
+#    endif
 #else
         return {"lib"};
 #endif
@@ -66,11 +66,11 @@ struct FileTraits<wchar_t> {
     }
     static std::wstring library_prefix() {
 #ifdef _WIN32
-#   if defined(__MINGW32__) || defined(__MINGW64__)
+#    if defined(__MINGW32__) || defined(__MINGW64__)
         return {L"lib"};
-#   else
+#    else
         return {L""};
-#   endif
+#    endif
 #else
         return {L"lib"};
 #endif
