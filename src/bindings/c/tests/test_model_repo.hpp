@@ -72,7 +72,6 @@ inline std::string generate_test_xml_file() {
     std::string plugin_xml = "plugin_test.xml";
     std::ofstream plugin_xml_file(plugin_xml);
 
-    printf("The plugin path is: %s \n", ov::util::from_file_path(ov::util::get_compiled_plugin_path(libraryname)).c_str());
     // Write to the file
     plugin_xml_file << "<!--\n";
     plugin_xml_file << "Copyright (C) 2023 Intel Corporation\n";

@@ -323,7 +323,6 @@ void ov::CoreImpl::register_compile_time_plugins() {
         }
 #else
         const auto& pluginPath = ov::util::get_compiled_plugin_path(plugin.second.m_plugin_path);
-        printf("Register compiler plugin path is: %s \n", ov::util::from_file_path(pluginPath).c_str());
         if (pluginRegistry.find(deviceName) == pluginRegistry.end() && ov::util::file_exists(pluginPath)) {
             ov::AnyMap config = any_copy(plugin.second.m_default_config);
             PluginDescriptor desc{pluginPath, config};
