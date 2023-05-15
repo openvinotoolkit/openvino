@@ -144,9 +144,9 @@ Shape(4, 6)
 
 * **1**: `data` tensor of arbitrary shape and type *T*. **Required.**
 
-* **2**: `pads_begin` 1D tensor of type *T_INT*. Number of elements matches the shape rank of *data* input. Specifies the number of padding elements to add at the beginning of each axis. Negative value means shrinking of the corresponding dimension's value. **Required.**
+* **2**: `pads_begin` 1D tensor of type *T_INT*. Number of elements matches the shape rank of *data* input. Specifies the number of padding elements to add at the beginning of each axis. Negative value means cropping the corresponding dimension's value. **Required.**
 
-* **3**: `pads_end` 1D tensor of type *T_INT*. Number of elements matches the shape rank of *data* input. Specifies the number of padding elements to add at the end of each axis. Negative value means shrinking of the corresponding dimension's value. **Required.**
+* **3**: `pads_end` 1D tensor of type *T_INT*. Number of elements matches the shape rank of *data* input. Specifies the number of padding elements to add at the end of each axis. Negative value means cropping the corresponding dimension's value. **Required.**
 
 * **4**: `pad_value` scalar tensor of type *T*. Takes effect only if `pad_mode == "constant"` only. All padding elements are populated with this value or with 0 if the input is not provided. This input should not be set with other values of `pad_mode`. **Optional.**
 
