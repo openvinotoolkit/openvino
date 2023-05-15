@@ -180,21 +180,24 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
         auto canTransposeInputs = [] (const std::array<ngraph::PartialShape, 2>& shapes, bool transA, bool transB) -> bool {
             if (!transA && !transB)
                 return false;
-            if (shapes[0].rank().is_dynamic() ||
-                shapes[1].rank().is_dynamic())
+
+            // dynamic shapes and 1D tensors are not transposed
+            if (shapes[0].rank().is_dynamic() || shapes[1].rank().is_dynamic() ||
+                shapes[0].size() < 2 || shapes[1].size() < 2)
                 return false;
 
             // don't transpose inputs if they're aligned to 16
-            bool inputsAligned = std::all_of(shapes[0].rbegin(), shapes[0].rend(),
+            const size_t testDim = 2;
+            bool inputsAligned = std::all_of(shapes[0].rbegin(), shapes[0].rbegin() + 2,
                                              [] (const ngraph::Dimension& dim) { return dim.is_static() && dim.get_length() % 16 == 0; }) &&
-                                 std::all_of(shapes[1].rbegin(), shapes[1].rend(),
+                                 std::all_of(shapes[1].rbegin(), shapes[1].rbegin() + 2,
                                              [] (const ngraph::Dimension& dim) { return dim.is_static() && dim.get_length() % 16 == 0; });
             if (inputsAligned)
                 return false;
 
-            return std::all_of(shapes[0].rbegin(), shapes[0].rend(),
+            return std::all_of(shapes[0].rbegin(), shapes[0].rbegin() + 2,
                                [] (const ngraph::Dimension& dim) { return dim.is_static() && dim.get_length() >= 64; }) &&
-                   std::all_of(shapes[1].rbegin(), shapes[1].rend(),
+                   std::all_of(shapes[1].rbegin(), shapes[1].rbegin() + 2,
                                [] (const ngraph::Dimension& dim) { return dim.is_static() && dim.get_length() >= 64; });
         };
 
