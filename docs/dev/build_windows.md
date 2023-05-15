@@ -62,7 +62,7 @@ Supported configurations:
 
 - Required versions of TBB and OpenCV packages are downloaded automatically by the CMake-based script. If you want to use the automatically-downloaded packages but you have already installed TBB or OpenCV packages configured in your environment, you may need to clean the `TBBROOT` and `OpenCV_DIR` environment variables before running the `cmake` command; otherwise they won'tnbe downloaded and the build may fail if incompatible versions were installed.
 
-- If the CMake-based build script can not find and download the OpenCV package that is supported on your platform, or if you want to use a custom build of the OpenCV library, refer to the [Use Custom OpenCV Builds](./cmake_options_for_custom_comiplation.md#Building-with-custom-OpenCV) section for details.
+- If the CMake-based build script can not find and download the OpenCV package that is supported on your platform, or if you want to use a custom build of the OpenCV library, refer to the [Use Custom OpenCV Builds](./cmake_options_for_custom_compilation.md#Building-with-custom-OpenCV) section for details.
 
 - To build the OpenVINO Runtime Python API:
   1. First, install all additional packages (e.g., cython and opencv) listed in the file:

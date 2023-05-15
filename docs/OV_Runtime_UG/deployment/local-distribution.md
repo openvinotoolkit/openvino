@@ -5,7 +5,7 @@
 With a local distribution, each C or C++ application/installer will have its own copies of OpenVINO Runtime binaries. However, OpenVINO has a scalable plugin-based architecture, which means that some components can be loaded in runtime only when they are really needed. Therefore, it is important to understand which minimal set of libraries is really needed to deploy the application. This guide helps you to achieve that goal.
 
 Local distribution is also appropriate for OpenVINO binaries built from sources using `Build instructions <https://github.com/openvinotoolkit/openvino/wiki#how-to-build>`__, 
-but the guide below supposes OpenVINO Runtime is built dynamically. For case of `Static OpenVINO Runtime <https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/static_libaries.md>`__ select the required OpenVINO capabilities on CMake configuration stage using `CMake Options for Custom Compilation <https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/cmake_options_for_custom_comiplation.md>`__, the build and link the OpenVINO components into the final application.
+but the guide below supposes OpenVINO Runtime is built dynamically. For case of `Static OpenVINO Runtime <https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/static_libaries.md>`__ select the required OpenVINO capabilities on CMake configuration stage using `CMake Options for Custom Compilation <https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/cmake_options_for_custom_compilation.md>`__, the build and link the OpenVINO components into the final application.
 
 .. note::
 
