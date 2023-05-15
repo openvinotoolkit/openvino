@@ -24,7 +24,7 @@ template <typename T>
 static T smReadFixed(const char* ptr) {
     T result = 0;
     for (uint8_t i = 0; i < sizeof(T); ++i) {
-        result |= ptr[i] << (i * 8);
+        result |= static_cast<const uint8_t>(ptr[i]) << (i * 8);
     }
     return result;
 }
