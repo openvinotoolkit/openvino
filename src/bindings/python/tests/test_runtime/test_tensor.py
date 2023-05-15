@@ -372,7 +372,9 @@ def test_stride_calculation():
     arr = np.ones((16, 512, 1, 1)).astype(data_type)
     # Forces reorder of strides while keeping C-style memory.
     arr = arr.transpose((2, 0, 1, 3))
-    t = ov.Tensor(arr)
-    assert t is not None
-    assert np.array_equal(t.data, arr)
-    assert t.strides[0] == (t.shape[1] * t.shape[2] * t.shape[3]) * t.get_element_type().size
+    ov_tensor = ov.Tensor(arr)
+    assert ov_tensor is not None
+    assert np.array_equal(ov_tensor.data, arr)
+
+    elements = (ov_tensor.shape[1] * ov_tensor.shape[2] * ov_tensor.shape[3])
+    assert ov_tensor.strides[0] == elements * ov_tensor.get_element_type().size
