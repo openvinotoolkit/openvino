@@ -23,9 +23,27 @@ Model Conversion API (the ``mo.convert_model()`` method) converts a model from o
 .. image:: _static/images/model_conversion_diagram.svg
    :alt: model conversion diagram
 
-Another option to convert a model is to use MO command line tool. The resulting model is saved to IR (Intermediate Representation) which can be read with the ``ov.read_model()`` method, then be compiled and inferred.
+Another option to convert a model is to use ``mo`` command-line tool. ``mo`` is a cross-platform tool that facilitates the transition between training and deployment environments, performs static model analysis, and adjusts deep learning models for optimal execution on end-point target devices.
 
-``ov.Model`` can be serialized to IR using the ``ov.serialize()`` method. The serialized IR can be further optimized using :doc:`Post-Training Optimization tool <pot_introduction>`.
+The resulting model is saved to IR (Intermediate Representation) which can be read with the ``ov.read_model()`` method, then be compiled and inferred.
+
+To use it, you need a pre-trained deep learning model in one of the supported formats: TensorFlow, PyTorch, PaddlePaddle, TensorFlow Lite, MXNet, Caffe, Kaldi, or ONNX. Model Optimizer converts the model to the OpenVINO Intermediate Representation format (IR), which you can infer later with :doc:`OpenVINO™ Runtime <openvino_docs_OV_UG_OV_Runtime_User_Guide>`.
+
+.. note::
+
+   ``mo`` command-line tool does not infer models.
+
+
+The figure below illustrates the typical workflow for deploying a trained deep learning model:
+
+.. image:: _static/images/BASIC_FLOW_MO_simplified.svg
+
+where IR is a pair of files describing the model:
+
+* ``.xml`` - Describes the network topology.
+* ``.bin`` - Contains the weights and biases binary data.
+
+``ov.Model`` can be serialized to IR using the ``ov.serialize()`` method. The serialized IR can be further optimized using :doc:`Post-Training Optimization tool <pot_introduction>` that applies post-training quantization methods.
 
 Conversion is not required for ONNX, PaddlePaddle, TensorFlow Lite and TensorFlow models (check :doc:`TensorFlow Frontend Capabilities and Limitations <openvino_docs_MO_DG_TensorFlow_Frontend>`), as OpenVINO provides C++ and Python APIs for importing them to OpenVINO Runtime directly. It provides a convenient way to quickly switch from framework-based code to OpenVINO-based code in your inference application.
 
