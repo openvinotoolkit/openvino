@@ -7,7 +7,7 @@ set(TARGET_NAME "InferenceEngineCAPITests")
 
 add_executable(${TARGET_NAME} ie_c_api_test.cpp test_model_repo.hpp)
 
-target_link_libraries(${TARGET_NAME} PRIVATE openvino_c openvino::util commonTestUtils gtest_main)
+target_link_libraries(${TARGET_NAME} PRIVATE openvino_c commonTestUtils gtest_main)
 
 target_compile_definitions(${TARGET_NAME}
     PRIVATE
