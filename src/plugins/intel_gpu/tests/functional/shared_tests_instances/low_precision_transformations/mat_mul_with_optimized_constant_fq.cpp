@@ -4,7 +4,7 @@
 
 #include <vector>
 
-#include "low_precision_transformations/mat_mul_with_optimized_constant_fake_quantize_transformation.hpp"
+#include "low_precision_transformations/mat_mul_with_optimized_constant_fq.hpp"
 #include "common_test_utils/test_constants.hpp"
 
 using namespace LayerTestsDefinitions;
@@ -27,11 +27,11 @@ const std::vector<std::pair<ngraph::PartialShape, ngraph::Shape>> inputShapes = 
     {{ 1, 16 }, { 16, 10 }}
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_LPT, MatMulWithOptimizedConstantFakeQuantizeTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, MatMulWithOptimizedConstantFq,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(inputShapes),
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
         ::testing::ValuesIn(params)),
-    MatMulWithOptimizedConstantFakeQuantizeTransformation::getTestCaseName);
+    MatMulWithOptimizedConstantFq::getTestCaseName);
 }  // namespace

@@ -11,7 +11,7 @@
 
 namespace LayerTestsDefinitions {
 
-class OutputLayersHandlingInTransformations :
+class OutputLayersConcat :
     public testing::WithParamInterface<LayerTestsUtils::LayerTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
