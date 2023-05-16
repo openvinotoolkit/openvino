@@ -249,7 +249,7 @@ Additional Resources
 ###########################################################
 
 * :doc:`Troubleshooting Guide for OpenVINO Installation & Configuration <openvino_docs_get_started_guide_troubleshooting>`
-* Converting models for use with OpenVINO™: :doc:`How to Run Model Conversion <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`
+* Converting models for use with OpenVINO™: :doc:`How to Convert a Model <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`
 * Writing your own OpenVINO™ applications: :doc:`OpenVINO™ Runtime User Guide <openvino_docs_OV_UG_OV_Runtime_User_Guide>`
 * Sample applications: :doc:`OpenVINO™ Toolkit Samples Overview <openvino_docs_OV_UG_Samples_Overview>`
 * Pre-trained deep learning models: :doc:`Overview of OpenVINO™ Toolkit Pre-Trained Models <model_zoo>`

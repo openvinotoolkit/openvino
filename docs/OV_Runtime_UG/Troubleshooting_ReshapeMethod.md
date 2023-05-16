@@ -38,7 +38,7 @@ To fix some operators which prevent normal shape propagation:
 
   .. image:: _static/images/batch_relaxation.png
 
-* transform the model model conversion on the back phase. For more information, see the :doc:`How to Run Model Conversion <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>`,
+* transform the model model conversion on the back phase. For more information, see the :doc:`How to Convert a Model <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>`,
 * transform OpenVINO Model during the runtime. For more information, see :doc:`OpenVINO Runtime Transformations <openvino_docs_transformations>`,
 * modify the original model with the help of the original framework.
 

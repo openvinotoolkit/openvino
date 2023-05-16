@@ -13,7 +13,7 @@ You can download TensorFlow Object Detection API models from the `TensorFlow 1 D
 
 .. note::
 
-   Before converting, make sure you have configured Model Conversion API. For configuration steps, refer to the :doc:`How to Run Model Conversion <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`.
+   Before converting, make sure you have configured Model Conversion API. For configuration steps, refer to the :doc:`How to Convert a Model <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`.
 
 To convert a TensorFlow Object Detection API model, run the ``mo`` command with the following required parameters:
 

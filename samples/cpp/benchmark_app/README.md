@@ -405,7 +405,7 @@ See Also
 ####################
 
 * :doc:`Using OpenVINO Samples <openvino_docs_OV_UG_Samples_Overview>`
-* :doc:`How to Run Model Conversion <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`
+* :doc:`How to Convert a Model <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`
 * :doc:`Model Downloader <omz_tools_downloader>`
 
 @endsphinxdirective

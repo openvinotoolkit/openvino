@@ -139,7 +139,7 @@ and :ref:`ways to relax shape inference flow <how-to-fix-non-reshape-able-model>
 Additional Resources
 ####################
 
-* :doc:`How to Run Model Conversion <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`
+* :doc:`How to Convert a Model <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`
 * :doc:`Cutting Off Parts of a Model <openvino_docs_MO_DG_prepare_model_convert_model_Cutting_Model>`
 
 @endsphinxdirective
