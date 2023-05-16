@@ -132,11 +132,18 @@ JitConstants PermuteKernel_f_y_axes::GetJitConstants(const permute_params& param
     const size_t vector_size = std::min(tile_width, static_cast<size_t>(4));
     const size_t j_times = tile_width / vector_size;
     const size_t tile_size = GetTileSize(params);
+    const size_t feature_block_size = GetFeatureBlockSize(params);
     jit.AddConstant(MakeJitConstant("BLOCK_SIZE", tile_width));
     jit.AddConstant(MakeJitConstant("VEC_SIZE", vector_size));
     jit.AddConstant(MakeJitConstant("J_TIMES", j_times));
     jit.AddConstant(MakeJitConstant("TILE_SIZE", tile_size));
-    jit.AddConstant(MakeJitConstant("FEATURE_BLOCK_SIZE", GetFeatureBlockSize(params)));
+    jit.AddConstant(MakeJitConstant("FEATURE_BLOCK_SIZE", feature_block_size));
+
+    if ((feature_block_size == 16 || feature_block_size == 8) &&
+        (params.inputs.front().GetLayout() == DataLayout::b_fs_yx_fsv32 ||
+         params.inputs.front().GetLayout() == DataLayout::b_fs_yx_fsv16)) {
+        jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", feature_block_size));
+    }
 
     if (!params.fused_ops.empty()) {
         const std::vector<std::string> original_output_order = {"b_idx, f_idx, y_idx, x_idx"};

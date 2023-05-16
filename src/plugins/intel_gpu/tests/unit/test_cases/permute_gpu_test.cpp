@@ -2306,11 +2306,13 @@ INSTANTIATE_TEST_SUITE_P(smoke_permute_f_y_axes_tile,
                          ::testing::ValuesIn(std::vector<TiledPermuteParam>{
                              {{1, 4, 8, 1}, format::bfyx},                // permute_f_y_axes
                              {{1, 4, 8, 1}, format::b_fs_yx_fsv16},       // permute_f_y_axes
-                             {{1, 32, 256, 512}, format::b_fs_yx_fsv32},  // THREE_DIM_TRANSPOSE
+                             {{1, 32, 256, 512}, format::b_fs_yx_fsv32},  // THREE_DIM_TRANSPOSE with subgroup
                              {{1, 32, 256, 512}, format::bfyx},           // PERMUTE_SIMPLE_MEM_COPY
                              {{1, 256, 256, 1}, format::b_fs_yx_fsv32},   // permute_f_y_axes
                              {{1, 8, 4, 4}, format::b_fs_yx_fsv4},        // THREE_DIM_TRANSPOSE
                              {{1, 4, 4, 4}, format::b_fs_yx_fsv4},        // THREE_DIM_TRANSPOSE
+                             {{1, 16, 8, 4}, format::b_fs_yx_fsv16},      // THREE_DIM_TRANSPOSE with subgroup
+                             {{1, 32, 16, 4}, format::b_fs_yx_fsv32},     // THREE_DIM_TRANSPOSE with subgroup
                          }),
                          TiledPermuteTest::PrintToStringParamName);
 
