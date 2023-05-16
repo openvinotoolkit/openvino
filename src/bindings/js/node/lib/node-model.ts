@@ -1,4 +1,4 @@
-import { Tensor, Shape, jsTypeByPrecisionMap } from 'openvinojs-common';
+import { Tensor, Shape, TypedArray } from 'openvinojs-common';
 
 import type { ovNodeModule, NodeModel, NodeTensor } from './types';
 import type {
@@ -11,7 +11,7 @@ import type {
 /* eslint-disable @typescript-eslint/no-var-requires */
 const ovNode: ovNodeModule = require('../build/Release/ov_node_addon.node');
 
-const DEFAULT_TENSOR_PRECISION = 'f32';
+const DEFAULT_PRECISION = 'f32';
 
 export default async function loadModel(xmlPath: string, binPath: string)
 : Promise<IModel> {
@@ -32,19 +32,27 @@ class CommonModel implements IModel {
     this.#nodeModel = nodeModel;
   }
 
-  async infer(tensorOrDataArray: ITensor | number[], shape: IShape)
+  async infer(
+    tensorOrDataArray: ITensor | number[] | TypedArray,
+    shapeOrDimensionsArray?: IShape | number[],
+  )
   : Promise<ITensor> {
-    const tensorData = tensorOrDataArray instanceof Array
-      ? jsTypeByPrecisionMap[DEFAULT_TENSOR_PRECISION].from(tensorOrDataArray)
-      : tensorOrDataArray.data;
+    const shape = shapeOrDimensionsArray instanceof Shape
+      ? shapeOrDimensionsArray
+      : new Shape(shapeOrDimensionsArray as number[] || []);
+
+    const tensor = tensorOrDataArray instanceof Tensor
+      ? tensorOrDataArray
+      : new Tensor(DEFAULT_PRECISION, tensorOrDataArray as number[], shape);
+
     const precision = tensorOrDataArray instanceof Tensor
       ? tensorOrDataArray.precision
-      : DEFAULT_TENSOR_PRECISION;
+      : DEFAULT_PRECISION;
 
     const nodeTensor = new this.#ovNode.Tensor(
       precision,
-      shape.data,
-      tensorData,
+      tensor.shape.data,
+      tensor.data,
     );
     const output = this.#nodeModel.infer(nodeTensor);
 
