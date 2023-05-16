@@ -61,7 +61,7 @@ def openvino_execute(gm: GraphModule, *args, executor_parameters=None, partition
     )
     global compiled_cache
 
-    if use_cache and len(compiled_cache) == max_openvino_partitions:
+    if use_cache and (partition_id in compiled_cache):
         compiled = compiled_cache[partition_id]
     else:
         compiled = openvino_compile(gm, *args)
@@ -91,15 +91,25 @@ class OpenVINOGraphModule(torch.nn.Module):
         self.executor_parameters = {"use_python_fusion_cache": use_python_fusion_cache}
 
     def __call__(self, *args):
-        return openvino_execute(
-            self.gm, *args, executor_parameters=self.executor_parameters, partition_id=self.partition_id
-        )
+        # TODO: Revisit fallback logic to include permanent fallback for failing graphs.
+        tmp_fallback = False
+        for idx, input_data in enumerate(args): #subgraph.example_inputs):
+            if len(input_data.shape) == 0:
+                tmp_fallback = True;
+
+        if tmp_fallback:
+            return self.gm(*args)
+        else:
+            return openvino_execute(
+                self.gm, *args, executor_parameters=self.executor_parameters, partition_id=self.partition_id
+            )
 
 
 def partition_graph(gm: GraphModule, use_python_fusion_cache: bool):
     partitioner = Partitioner()
     partitioned_graph = partitioner.make_partitions(gm)    
-    partition_id = 0
+    global max_openvino_partitions
+    partition_id = max_openvino_partitions
     for node in partitioned_graph.graph.nodes:
         # TODO: use a better way to identify fused submodule
         if node.op == "call_module" and "fused_" in node.name:
@@ -111,7 +121,6 @@ def partition_graph(gm: GraphModule, use_python_fusion_cache: bool):
             )
             partition_id = partition_id + 1
 
-    global max_openvino_partitions
     max_openvino_partitions = partition_id
 
     return partitioned_graph
