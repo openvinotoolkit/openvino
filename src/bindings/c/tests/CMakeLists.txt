@@ -3,8 +3,6 @@
 #
 
 # OpenVINO Legacy C API test sample
-set(DEPENDENCIES mock_engine)
-
 set(TARGET_NAME "InferenceEngineCAPITests")
 
 add_executable(${TARGET_NAME} ie_c_api_test.cpp test_model_repo.hpp)
@@ -15,32 +13,14 @@ target_compile_definitions(${TARGET_NAME}
     PRIVATE
     $<$<BOOL:${ENABLE_GAPI_PREPROCESSING}>:ENABLE_GAPI_PREPROCESSING>)
 
-if(ENABLE_AUTO OR ENABLE_MULTI)
-    add_dependencies(${TARGET_NAME} openvino_auto_plugin)
-endif()
-
-if(ENABLE_AUTO_BATCH)
-    add_dependencies(${TARGET_NAME} openvino_auto_batch_plugin)
-endif()
-
-if(ENABLE_INTEL_CPU)
-    add_dependencies(${TARGET_NAME} openvino_intel_cpu_plugin)
-endif()
-
-if(ENABLE_INTEL_GPU)
-    add_dependencies(${TARGET_NAME} openvino_intel_gpu_plugin)
-endif()
-
-if(ENABLE_HETERO)
-    add_dependencies(${TARGET_NAME} openvino_hetero_plugin)
-endif()
-
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 
 install(TARGETS ${TARGET_NAME}
     RUNTIME DESTINATION tests
     COMPONENT tests
     EXCLUDE_FROM_ALL)
+
+add_dependencies(${TARGET_NAME} mock_engine)
 
 # OpenVINO 2.0 and Legacy C API test sample
 set(TARGET_NAME "ov_capi_test")
@@ -63,25 +43,11 @@ if(TARGET OpenCL::OpenCL)
     target_link_libraries(${TARGET_NAME} PRIVATE OpenCL::OpenCL)
 endif()
 
-if(ENABLE_AUTO OR ENABLE_MULTI)
-    add_dependencies(${TARGET_NAME} openvino_auto_plugin)
-endif()
-
-if(ENABLE_AUTO_BATCH)
-    add_dependencies(${TARGET_NAME} openvino_auto_batch_plugin)
-endif()
-
-if(ENABLE_INTEL_CPU)
-    add_dependencies(${TARGET_NAME} openvino_intel_cpu_plugin)
-endif()
-
-if(ENABLE_INTEL_GPU)
-    add_dependencies(${TARGET_NAME} openvino_intel_gpu_plugin)
-endif()
-
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
 install(TARGETS ${TARGET_NAME}
     RUNTIME DESTINATION tests
     COMPONENT tests
     EXCLUDE_FROM_ALL)
+
+add_dependencies(${TARGET_NAME} mock_engine)
