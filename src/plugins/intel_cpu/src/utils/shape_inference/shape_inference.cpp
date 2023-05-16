@@ -486,7 +486,6 @@ const IShapeInferCommonFactory::TRegistry IShapeInferCommonFactory::registry{
     _OV_OP_SHAPE_INFER_REG(ExperimentalDetectronDetectionOutput, entryIO),
     _OV_OP_SHAPE_INFER_REG(ExperimentalDetectronGenerateProposalsSingleImage, entryIO),
     _OV_OP_SHAPE_INFER_REG(ExperimentalDetectronPriorGridGenerator, entryIO),
-    _OV_OP_SHAPE_INFER_REG(ExperimentalDetectronROIFeatureExtractor, entryIO),
     _OV_OP_SHAPE_INFER_REG(ExperimentalDetectronTopKROIs, entryIO),
     _OV_OP_SHAPE_INFER_REG(ExtractImagePatches, entryIO),
     _OV_OP_SHAPE_INFER_REG(Eye, entryIOC),
@@ -585,6 +584,7 @@ template <>
 const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     // Default opset
     _OV_OP_SHAPE_INFER_MASK_REG(Tile, ShapeInferBase, util::bit::mask(1)),
+    _OV_OP_SHAPE_INFER_MASK_REG(ExperimentalDetectronROIFeatureExtractor, ShapeInferBase, util::bit::mask()),
     // Operators shape inferences for specific opset version should be specified below
     // opset1
     _OV_OP_SHAPE_INFER_MASK_REG(opset1::Reverse, ShapeInferBase, util::bit::mask(1)),
