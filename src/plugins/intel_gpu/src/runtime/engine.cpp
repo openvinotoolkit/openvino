@@ -18,7 +18,7 @@
 #include <stdexcept>
 #include <algorithm>
 
-#if defined(_WIN32) && !defined(__GNUC__)
+#if defined(_WIN32)
 #include <windows.h>
 
 static size_t get_cpu_ram_size() {

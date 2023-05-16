@@ -43,6 +43,8 @@ parent_output = node->input_value(0);
 // Getting all consumers for output port
 auto consumers = output.get_target_inputs();
 // ! [ngraph:ports_example]
+(void)el_type;
+(void)pshape;
 }
 
 {

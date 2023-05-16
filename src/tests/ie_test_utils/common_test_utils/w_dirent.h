@@ -35,7 +35,7 @@
 #include <string>
 #include <windef.h>
 #include <fileapi.h>
-#include <Winbase.h>
+#include <winbase.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 

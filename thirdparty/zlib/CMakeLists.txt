@@ -13,7 +13,7 @@ else()
         #266: function "XXX" declared implicitly
         set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -diag-disable=266")
     endif()
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    if(CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
         set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-deprecated-non-prototype")
         set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unused-variable")
         set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-deprecated-declarations")

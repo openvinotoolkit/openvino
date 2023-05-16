@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <thread>
+
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 

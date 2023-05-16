@@ -74,7 +74,11 @@ else()
 
     message(STATUS "Configure to build ${ARM_COMPUTE_SOURCE_DIR}")
 
-    find_host_program(SCONS scons)
+    if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.18)
+        list(APPEND find_scons_extra_options REQUIRED)
+    endif()
+
+    find_host_program(SCONS scons ${find_scons_extra_options})
 
     if(NOT SCONS)
         message(FATAL_ERROR "Scons tool is not found!")
@@ -194,7 +198,9 @@ else()
 
         set(extra_link_flags "${extra_link_flags} ${extra_flags}")
         set(extra_cxx_flags "${extra_cxx_flags} ${extra_flags}")
-    elseif(CMAKE_CROSSCOMPILING AND LINUX)
+    elseif(LINUX)
+        # we need to bypass this information in case of custom compiler is passed
+        # to cmake call. Such compiler and compiler prefix need to be passed to scons
         get_filename_component(cxx_compiler "${CMAKE_CXX_COMPILER}" NAME)
         get_filename_component(c_compiler "${CMAKE_C_COMPILER}" NAME)
         get_filename_component(compiler_prefix "${CMAKE_CXX_COMPILER}" DIRECTORY)
@@ -258,7 +264,7 @@ else()
     endif()
 
     if(ENABLE_LTO)
-        if((CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG) AND (NOT CMAKE_CROSSCOMPILING))
+        if((CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG) AND NOT CMAKE_CROSSCOMPILING)
             set(extra_cxx_flags "${extra_cxx_flags} -flto=thin")
             set(extra_link_flags "${extra_link_flags} -flto=thin")
         endif()
@@ -300,6 +306,10 @@ else()
                 ${ARM_COMPUTE_SOURCE_DIR}/SConscript
                 ${ARM_COMPUTE_SOURCE_DIR}/SConstruct)
 
+    # Compute Library uses cppthreads=1
+    # if one day will rely on TBB only, we can omit this dependency
+    find_package(Threads REQUIRED)
+
     # Import targets
 
     add_custom_target(arm_compute_static_libs DEPENDS ${arm_compute_full_path})
@@ -307,18 +317,15 @@ else()
     add_library(arm_compute::arm_compute STATIC IMPORTED GLOBAL)
     set_target_properties(arm_compute::arm_compute PROPERTIES
         IMPORTED_LOCATION ${arm_compute_full_path}
-        INTERFACE_INCLUDE_DIRECTORIES ${ARM_COMPUTE_SOURCE_DIR})
+        INTERFACE_INCLUDE_DIRECTORIES ${ARM_COMPUTE_SOURCE_DIR}
+        INTERFACE_LINK_LIBRARIES Threads::Threads
+        OSX_ARCHITECTURES arm64)
     add_dependencies(arm_compute::arm_compute arm_compute_static_libs)
 
     add_library(arm_compute::half INTERFACE IMPORTED GLOBAL)
     set_target_properties(arm_compute::half PROPERTIES
-        INTERFACE_INCLUDE_DIRECTORIES ${ARM_COMPUTE_SOURCE_DIR}/include)
-
-    # Compute Library uses cppthreads=1
-    # if one day will rely on TBB only, we can omit this dependency
-    find_package(Threads REQUIRED)
-    set_target_properties(arm_compute::arm_compute PROPERTIES
-        INTERFACE_LINK_LIBRARIES Threads::Threads)
+        INTERFACE_INCLUDE_DIRECTORIES ${ARM_COMPUTE_SOURCE_DIR}/include
+        OSX_ARCHITECTURES arm64)
 
     # Helpers for oneDNN intergation
 

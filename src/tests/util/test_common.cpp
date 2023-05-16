@@ -16,7 +16,7 @@
 
 #    include <windows.h>
 
-#    include "Psapi.h"
+#    include "psapi.h"
 #endif
 
 namespace ov {

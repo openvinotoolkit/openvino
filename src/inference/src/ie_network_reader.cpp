@@ -182,7 +182,7 @@ CNNNetwork load_ir_v7_network(const std::string& modelPath,
 #    endif
 
     // Try to open model file
-    std::ifstream modelStream(model_path, std::ios::binary);
+    std::ifstream modelStream(model_path.c_str(), std::ios::binary);
     if (!modelStream.is_open())
         IE_THROW() << "Model file " << modelPath << " cannot be opened!";
 
@@ -214,7 +214,7 @@ CNNNetwork load_ir_v7_network(const std::string& modelPath,
             std::string weights_path = bPath;
 #    endif
             std::ifstream binStream;
-            binStream.open(weights_path, std::ios::binary);
+            binStream.open(weights_path.c_str(), std::ios::binary);
             if (!binStream.is_open())
                 IE_THROW() << "Weights file " << bPath << " cannot be opened!";
 

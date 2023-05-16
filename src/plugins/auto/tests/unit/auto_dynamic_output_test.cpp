@@ -1,6 +1,9 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
+#include <thread>
+
 #include "include/mock_auto_device_plugin.hpp"
 #include "include/auto_infer_request_test_base.hpp"
 

@@ -43,7 +43,7 @@
  */
 namespace ov {}  // namespace ov
 
-#ifdef _WIN32
+#ifdef _MSC_VER
 #    pragma warning(disable : 4251)
 #    pragma warning(disable : 4275)
 #endif

@@ -40,6 +40,7 @@ function(ieTargetLinkWholeArchive targetName)
                 "-Wl,-noall_load"
                 )
         else()
+            # non-Apple Clang and GCC / MinGW
             list(APPEND libs
                 "-Wl,--whole-archive"
                 ${staticLib}

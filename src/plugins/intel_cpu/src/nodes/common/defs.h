@@ -11,23 +11,3 @@
 #  include <x86intrin.h>
 # endif
 #endif
-
-#ifdef _WIN32
-# if defined (__INTEL_COMPILER)
-#  define DLSDK_EXT_IVDEP() __pragma(ivdep)
-# elif defined(_MSC_VER)
-#  define DLSDK_EXT_IVDEP() __pragma(loop(ivdep))
-# else
-#  define DLSDK_EXT_IVDEP()
-# endif
-#elif defined(__linux__)
-# if defined(__INTEL_COMPILER)
-#  define DLSDK_EXT_IVDEP() _Pragma("ivdep")
-# elif defined(__GNUC__)
-#  define DLSDK_EXT_IVDEP() _Pragma("GCC ivdep")
-# else
-#  define DLSDK_EXT_IVDEP()
-# endif
-#else
-# define DLSDK_EXT_IVDEP()
-#endif

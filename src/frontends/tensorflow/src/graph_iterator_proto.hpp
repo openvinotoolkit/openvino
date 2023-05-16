@@ -95,7 +95,7 @@ public:
     GraphIteratorProto(const std::basic_string<T>& path)
         : m_graph_def(std::make_shared<::tensorflow::GraphDef>()),
           m_func_def(nullptr) {
-        std::ifstream pb_stream(path, std::ios::in | std::ifstream::binary);
+        std::ifstream pb_stream(path.c_str(), std::ios::in | std::ifstream::binary);
 
         FRONT_END_GENERAL_CHECK(pb_stream && pb_stream.is_open(), "Model file does not exist");
         FRONT_END_GENERAL_CHECK(m_graph_def->ParseFromIstream(&pb_stream), "Model cannot be parsed");
@@ -107,7 +107,7 @@ public:
     template <typename T>
     static bool is_supported(const std::basic_string<T>& path) {
         try {
-            std::ifstream pb_stream(path, std::ios::in | std::ifstream::binary);
+            std::ifstream pb_stream(path.c_str(), std::ios::in | std::ifstream::binary);
             auto graph_def = std::make_shared<::tensorflow::GraphDef>();
             return pb_stream && pb_stream.is_open() && graph_def->ParsePartialFromIstream(&pb_stream) &&
                    graph_def->node_size() > 0;

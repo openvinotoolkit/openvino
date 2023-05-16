@@ -5,7 +5,9 @@
 #pragma once
 
 // avoiding clash of the "max" macro with std::max
+#ifndef NOMINMAX
 #define NOMINMAX
+#endif
 
 #include <algorithm>
 #include <cmath>

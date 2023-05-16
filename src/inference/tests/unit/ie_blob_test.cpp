@@ -8,12 +8,6 @@
 
 #include "unit_test_utils/mocks/mock_allocator.hpp"
 
-#ifdef _WIN32
-#    define UNUSED
-#else
-#    define UNUSED __attribute__((unused))
-#endif
-
 class BlobTests : public ::testing::Test {
 protected:
     std::shared_ptr<MockAllocator> createMockAllocator() {
@@ -78,7 +72,10 @@ TEST_F(BlobTests, doesNotUnlockIfLockFailed) {
     InferenceEngine::TBlob<float> blob({InferenceEngine::Precision::FP32, v, InferenceEngine::CHW},
                                        std::dynamic_pointer_cast<InferenceEngine::IAllocator>(allocator));
     blob.allocate();
-    { float UNUSED* ptr = blob.data(); }
+    {
+        float* ptr = blob.data();
+        (void)ptr;
+    }
 }
 
 TEST_F(BlobTests, canAccessDataUsingAllocator) {

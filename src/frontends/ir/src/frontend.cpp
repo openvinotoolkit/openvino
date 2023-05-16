@@ -77,7 +77,7 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     } else if (model_variant.is<std::wstring>()) {
         const auto& path = model_variant.as<std::wstring>();
-        local_model_stream.open(path, std::ios::in | std::ifstream::binary);
+        local_model_stream.open(path.c_str(), std::ios::in | std::ifstream::binary);
 #endif
     } else if (model_variant.is<std::istream*>()) {
         provided_model_stream = model_variant.as<std::istream*>();
@@ -153,11 +153,11 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
 #else
         model_path = tmp_path;
 #endif
-        local_model_stream.open(model_path, std::ios::in | std::ifstream::binary);
+        local_model_stream.open(model_path.c_str(), std::ios::in | std::ifstream::binary);
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     } else if (model_variant.is<std::wstring>()) {
         model_path = model_variant.as<std::wstring>();
-        local_model_stream.open(model_path, std::ios::in | std::ifstream::binary);
+        local_model_stream.open(model_path.c_str(), std::ios::in | std::ifstream::binary);
 #endif
     } else if (model_variant.is<std::istream*>()) {
         provided_model_stream = model_variant.as<std::istream*>();
@@ -205,7 +205,7 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
             weights = ov::load_mmap_object(weights_path);
         else {
             std::ifstream bin_stream;
-            bin_stream.open(weights_path, std::ios::binary);
+            bin_stream.open(weights_path.c_str(), std::ios::binary);
             if (!bin_stream.is_open())
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
                 IE_THROW() << "Weights file " + ov::util::wstring_to_string(weights_path) + " cannot be opened!";
