@@ -110,9 +110,18 @@ Compile Tool
 
 Compile tool is deprecated since the 2023.0 OpenVINO release. If you need to compile a model for inference on a specific device, use the following script: 
 
-.. code-block:: python
+.. tab:: python
 
-   ov.Core().compile_model("device", model, properties).export_model("compiled_blob")
+    .. doxygensnippet:: docs/snippets/compile_model.py
+       :language: python
+       :fragment: [compile_model]
+
+.. tab:: cpp
+
+    .. doxygensnippet:: docs/snippets/compile_model.cpp
+       :language: cpp
+       :fragment: [compile_model]
+
 
 To learn which device supports the import / export functionality, see the :doc:`feature support matrix <openvino_docs_OV_UG_Working_with_devices>`.
 
