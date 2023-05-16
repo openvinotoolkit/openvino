@@ -1,4 +1,4 @@
-let { addon } = require('openvinojs-node');
+const { addon } = require('openvinojs-node');
 
 const math = require('./lib/helpers.js');
 const cv = require('opencv.js');
