@@ -253,8 +253,7 @@ bool op::v1::StridedSlice::has_evaluate() const {
     return get_input_size() == 4;
 }
 
-bool op::v1::StridedSlice::indices_input_has_and_set_bounds(const size_t port,
-                                                             const std::vector<int64_t>& mask) const {
+bool op::v1::StridedSlice::indices_input_has_and_set_bounds(const size_t port, const std::vector<int64_t>& mask) const {
     const auto& lb_t = get_input_tensor(port).get_lower_value();
     const auto& ub_t = get_input_tensor(port).get_upper_value();
 
@@ -312,9 +311,10 @@ bool op::v1::StridedSlice::constant_fold(OutputVector& output_values, const Outp
             else
                 size = mask.size();
 
-            const auto& zero_constant = make_shared<ov::opset1::Constant>(
-                    inputs_values[port].get_element_type(), ov::Shape{size}, 0);
-            return all_indices_ignored(inputs_values[port].get_partial_shape(), mask) ? zero_constant : inputs_values[port];
+            const auto& zero_constant =
+                make_shared<ov::opset1::Constant>(inputs_values[port].get_element_type(), ov::Shape{size}, 0);
+            return all_indices_ignored(inputs_values[port].get_partial_shape(), mask) ? zero_constant
+                                                                                      : inputs_values[port];
         };
 
         const auto& begin = get_indices_input(1, get_begin_mask());
