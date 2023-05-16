@@ -36,7 +36,7 @@ OutputVector translate_native_multi_head_attention(const NodeContext& context) {
     const auto key = context.get_input(1);
     const auto value = context.get_input(2);
     const auto embed_dim = context.const_input<int64_t>(3);
-    const auto num_heads = context.const_input<int64_t>(4);
+    const auto num_head = context.const_input<int64_t>(4);
     const auto qkv_weight = context.get_input(5);
     const auto qkv_bias = context.get_input(6);
     const auto proj_weight = context.get_input(7);
@@ -50,14 +50,14 @@ OutputVector translate_native_multi_head_attention(const NodeContext& context) {
     const auto two = context.mark_node(opset10::Constant::create(element::i64, Shape{}, {2}));
     const auto three = context.mark_node(opset10::Constant::create(element::i64, Shape{}, {3}));
     const auto ev = context.mark_node(opset10::Constant::create(element::i64, Shape{}, {embed_dim}));
-    const auto heads = context.mark_node(opset10::Constant::create(element::i64, Shape{}, {num_heads}));
+    const auto heads = context.mark_node(opset10::Constant::create(element::i64, Shape{}, {num_head}));
 
     const auto neg_one_1d = context.mark_node(opset10::Constant::create(element::i64, Shape{1}, {-1}));
     const auto zero_1d = context.mark_node(opset10::Constant::create(element::i64, Shape{1}, {0}));
     const auto one_1d = context.mark_node(opset10::Constant::create(element::i64, Shape{1}, {1}));
     const auto two_1d = context.mark_node(opset10::Constant::create(element::i64, Shape{1}, {2}));
     const auto three_1d = context.mark_node(opset10::Constant::create(element::i64, Shape{1}, {3}));
-    const auto heads_1d = context.mark_node(opset10::Constant::create(element::i64, Shape{1}, {num_heads}));
+    const auto heads_1d = context.mark_node(opset10::Constant::create(element::i64, Shape{1}, {num_head}));
 
     const auto ev_1_slice_1d = context.mark_node(opset10::Constant::create(element::i64, Shape{1}, {embed_dim}));
     const auto ev_2_slice_1d = context.mark_node(opset10::Constant::create(element::i64, Shape{1}, {2 * embed_dim}));
@@ -66,8 +66,6 @@ OutputVector translate_native_multi_head_attention(const NodeContext& context) {
     const auto qkv_shape = context.mark_node(std::make_shared<opset10::ShapeOf>(query));
     const auto batch_size = context.mark_node(std::make_shared<opset10::Gather>(qkv_shape, zero_1d, zero_1d));
     const auto seq_size = context.mark_node(std::make_shared<opset10::Gather>(qkv_shape, one_1d, zero_1d));
-    const auto batch_size_unsq = context.mark_node(std::make_shared<opset10::Unsqueeze>(batch_size, zero_1d));
-    const auto seq_size_unsq = context.mark_node(std::make_shared<opset10::Unsqueeze>(batch_size, zero_1d));
     const auto embed_div_heads = context.mark_node(std::make_shared<opset10::Divide>(ev, heads, true));
 
     const auto query_proj_weight =
@@ -116,7 +114,7 @@ OutputVector translate_native_multi_head_attention(const NodeContext& context) {
     const auto scale = context.mark_node(std::make_shared<opset10::Divide>(scale_one, scale_dim_sqrt));
 
     const auto transpose_dims =
-        context.mark_node(std::make_shared<opset10::Concat>(OutputVector{zero_1d, two_1d, one_1d, three_1d}, 0));
+        context.mark_node(std::make_shared<opset10::Concat>(OutputVector{zero_1d, one_1d, three_1d, two_1d}, 0));
     const auto key_transpose = context.mark_node(std::make_shared<opset10::Transpose>(key_transposed, transpose_dims));
     const auto query_key_transpose_dot_product =
         context.mark_node(std::make_shared<opset10::MatMul>(query_transposed, key_transpose));
@@ -125,7 +123,7 @@ OutputVector translate_native_multi_head_attention(const NodeContext& context) {
     const auto scaled_dot_product_softmax =
         context.mark_node(std::make_shared<opset10::Softmax>(scaled_dot_product, -1));
     const auto scaled_dot_product_attention =
-        context.mark_node(std::make_shared<opset10::MatMul>(scaled_dot_product_softmax, value));
+        context.mark_node(std::make_shared<opset10::MatMul>(scaled_dot_product_softmax, value_transposed));
 
     const auto sdp_reshape_dims =
         context.mark_node(std::make_shared<opset10::Concat>(OutputVector{batch_size, seq_size, neg_one_1d}, 0));
