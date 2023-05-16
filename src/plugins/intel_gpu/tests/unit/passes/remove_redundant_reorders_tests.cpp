@@ -182,12 +182,13 @@ TEST(remove_redundant_reorders, not_to_fuse_reshape_with_fused_prims) {
 TEST(remove_redundant_reorders, not_to_fuse_permute) {
     auto& engine = get_test_engine();
     auto input = engine.allocate_memory({data_types::f16, format::b_fs_zyx_fsv16, {2, 256, 2, 8, 8}});
-    auto weight = engine.allocate_memory({data_types::f16, format::bfzyx, {256, 256, 3, 3, 3}});
+    auto weight = engine.allocate_memory({data_types::f16, format::bfzyx, {1, 256, 1, 1, 1}});
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(data("weight", weight));
-    topology.add(convolution("convolution", input_info("input"), {"weight"}));
+    topology.add(
+        convolution("convolution", input_info("input"), "weight", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
     topology.add(
         reorder("reorder1", input_info("convolution"), {data_types::f16, format::b_fs_zyx_fsv16, {2, 256, 2, 8, 8}}));
     topology.add(reorder("reorder2", input_info("reorder1"), {data_types::f16, format::bfwzyx, {2, 2, 1, 8, 8, 256}}));
