@@ -13,11 +13,12 @@
 #include "reshape_inst.h"
 #include "arg_max_min_inst.h"
 #include "shape_of_inst.h"
-#include "generic_layer.hpp"
 #include <sstream>
 
 #include "gemm_inst.h"
 #include "deconvolution_inst.h"
+#include "fully_connected_inst.h"
+#include "non_max_suppression_inst.h"
 #include "eltwise_inst.h"
 #include "pooling_inst.h"
 #include "reduce_inst.h"
@@ -155,50 +156,26 @@ std::pair<std::shared_ptr<reorder>, bool> reorder_factory::get_reorder(primitive
     return std::make_pair(reorder, false);
 }
 
-std::vector<std::pair<std::shared_ptr<primitive>, bool>> reorder_factory::get_weights_reorder(
-    primitive_id input_id,
-    const layout& old_layout,
-    const kernel_selector::weights_reorder_params& reorder_params) {
-
-    if (reorder_params.engine == kernel_selector::weights_reorder_params::Engine::NONE)
+std::pair<std::shared_ptr<primitive>, bool> reorder_factory::get_weights_reorder(primitive_id input_id,
+                                                                                 std::shared_ptr<WeightsReorderParams> reorder_params) {
+    if (reorder_params == nullptr)
         return {};
 
-    std::vector<std::pair<std::shared_ptr<primitive>, bool>> ret;
-
-    if (reorder_params.engine == kernel_selector::weights_reorder_params::Engine::CPU &&
-        reorder_params.cpuKernel != nullptr) {
-        const auto intermediate_format = from_weights_layout(reorder_params.cpuKernel->GetExpectedInputLayout());
-        const auto intermediate_type = from_weights_type(reorder_params.cpuKernel->GetExpectedInputType());
-        if (intermediate_format != old_layout.format || intermediate_type != old_layout.data_type) {
-            const layout intermediate_layout = { intermediate_type,
-                                                intermediate_format,
-                                                old_layout.get_tensor().transform(intermediate_format, 1) };
-
-            auto reorder = get_reorder(input_id, old_layout, intermediate_layout);
-            if (reorder.first) {
-                ret.push_back(reorder);
-                input_id = reorder.first->id;
-            }
-        }
-    }
-
-    layout expected_layout = from_weights_tensor(reorder_params.dest);
+    layout expected_layout = reorder_params->get_output_layout();
 
     cache_key ckey{ input_id, expected_layout, false };
     auto itr = _cached_generic_reorders.find(ckey);
     if (itr != _cached_generic_reorders.end()) {
-        ret.push_back(std::make_pair(itr->second, true));
+        return std::make_pair(itr->second, true);
     } else {
         auto count = _cached_generic_reorders.size();
         std::stringstream ss;
         ss << input_id << "_generic_layer_" << count;
 
-        auto reorder = std::make_shared<cldnn::generic_layer>(ss.str(), input_id, expected_layout, reorder_params);
+        auto reorder = std::make_shared<cldnn::generic_layer>(ss.str(), input_id, reorder_params);
         _cached_generic_reorders[ckey] = reorder;
-        ret.push_back(std::make_pair(reorder, false));
+        return std::make_pair(reorder, false);
     }
-
-    return ret;
 }
 
 bool layout_optimizer::is_format_supported(program_node& node, format::type fmt) {
@@ -533,8 +510,7 @@ bool should_use_winograd_2x3_s1(std::shared_ptr<const convolution> const& prim,
         || weights_layout.batch() % 64 != 0  // current algorithm is effective for ofm to be multiply of 64
         || any_not_one(prim->stride)               // stride has to be 1x1 by definition
         || any_not_one(prim->dilation)             // no support for dilation
-        || (output_size_handling_enabled &&
-            prim->with_output_size)                // no support for convolutions with user-specified output size
+        || output_size_handling_enabled            // This condition is weird. Need to revise it and replace with something meaningful
         || (input_layout.count() > 3000000)        // limit max input size as winograd consumes more memory
         || (input_layout.count() < 50000)          // limit min input size as winograd is not effective for small input
         || (input_layout.spatial(0) < 8 &&
@@ -612,7 +588,8 @@ bool layout_optimizer::convolution_byxf_opt(const layout& input_layout,
          weights_layout.spatial(1) == 1 && output_layout.feature() % 64 == 0 &&
          weights_layout.batch() % 64 == 0 &&
          all_ones(conv->stride) &&
-         all_zeroes(conv->pad)) ||
+         all_zeroes(conv->padding_begin) &&
+         all_zeroes(conv->padding_end)) ||
         // Winograd
         should_use_winograd_2x3_s1(conv, input_layout, weights_layout, _output_size_handling_enabled))
         return true;
@@ -739,7 +716,7 @@ bool layout_optimizer::convolution_bs_fs_yx_bsv16_fsv16_opt(const layout& input_
                                                             std::shared_ptr<const convolution> conv) {
     // A set of rules that define when bs_fs_yx_bsv16_fsv16 mem format can be used
     bool correct_batch = input_layout.batch() > 16;
-    bool correct_feature = (input_layout.feature() % 16 == 0 || input_layout.feature() == 3) && conv->output_size.feature[0] % 16 == 0;
+    bool correct_feature = (input_layout.feature() % 16 == 0 || input_layout.feature() == 3) && output_layout.feature() % 16 == 0;
     bool fp16_ver = input_layout.data_type == data_types::f16 && input_layout.batch() % 32 == 0;
     bool fp32_ver = input_layout.data_type == data_types::f32 && input_layout.batch() % 16 == 0;
     bool single_group = conv->groups == 1;
@@ -1147,16 +1124,12 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
                     current_layout.format == format::os_is_yx_osv16_isv4) {
             // imad case
             // nothing to do, just go out from here.
-        } else if (layout_optimizer::convolution_bfyx_opt(current_layout, weights_layout, prim) ||
-                    (_output_size_handling_enabled && prim->with_output_size) || node.get_transposed()) {
-            {
-                expected_tensor = current_layout.get_tensor();
-                if (current_layout.format == format::b_fs_zyx_fsv16 || current_layout.format == format::bs_fs_zyx_bsv16_fsv16)
-                    expected_format = cldnn::format::bfzyx;
-                else
-                    expected_format = cldnn::format::bfyx;
-            }
-
+        } else if (layout_optimizer::convolution_bfyx_opt(current_layout, weights_layout, prim) || _output_size_handling_enabled || node.get_transposed()) {
+            expected_tensor = current_layout.get_tensor();
+            if (current_layout.format == format::b_fs_zyx_fsv16 || current_layout.format == format::bs_fs_zyx_bsv16_fsv16)
+                expected_format = cldnn::format::bfzyx;
+            else
+                expected_format = cldnn::format::bfyx;
         } else {
             expected_tensor = current_layout.get_tensor();
             expected_format = cldnn::format::yxfb;
