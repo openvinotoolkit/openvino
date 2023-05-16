@@ -47,7 +47,7 @@ The following list provides the MXNet-specific parameters.
 Custom Layer Definition
 #######################
 
-Internally, when you run model conversion, it loads the model, goes through the topology, and tries to find each layer type in a list of known layers. Custom layers are layers that are not included in the list. If your topology contains such kind of layers, Model Conversion API classifies them as custom.
+For the definition of custom layers, refer to the :doc:`Cutting Off Parts of a Model <openvino_docs_MO_DG_prepare_model_convert_model_Cutting_Model>`  page.
 
 Supported MXNet Layers
 #######################
