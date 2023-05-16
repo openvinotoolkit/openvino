@@ -367,8 +367,8 @@ void parse_freq_info_linux(const std::vector<std::vector<std::string>> system_in
         }
     }
 
-    if (_sockets == 1) {
-        _proc_type_table.resize(3, std::vector<int>(PROC_TYPE_TABLE_SIZE, 0));
+    if (_sockets >= 1) {
+        _proc_type_table.resize(_sockets + 2, std::vector<int>(PROC_TYPE_TABLE_SIZE, 0));
         for (int n = 0; n < _processors; n++) {
             _proc_type_table[0][ALL_PROC]++;
             _proc_type_table[_cpu_mapping_table[n][CPU_MAP_SOCKET_ID] + 1][ALL_PROC]++;
@@ -376,7 +376,7 @@ void parse_freq_info_linux(const std::vector<std::vector<std::string>> system_in
             _proc_type_table[0][_cpu_mapping_table[n][CPU_MAP_CORE_TYPE]]++;
             _proc_type_table[_cpu_mapping_table[n][CPU_MAP_SOCKET_ID] + 1][_cpu_mapping_table[n][CPU_MAP_CORE_TYPE]]++;
         }
-        _sockets = 2;
+        _sockets++;
     } else {
         _proc_type_table.resize(1, std::vector<int>(PROC_TYPE_TABLE_SIZE, 0));
         for (int n = 0; n < _processors; n++) {
