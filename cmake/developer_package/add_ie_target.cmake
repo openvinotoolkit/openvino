@@ -163,7 +163,22 @@ function(addIeTargetTest)
 
     addIeTarget(TYPE EXECUTABLE NAME ${ARG_NAME} ${ARG_UNPARSED_ARGUMENTS})
 
-    add_test(NAME ${ARG_NAME} COMMAND ${ARG_NAME})
+    if(EMSCRIPTEN)
+        set(JS_BIN_NAME "${ARG_NAME}.js")
+        set(JS_APP_NAME "${ARG_NAME}_js.js")
+        set(JS_TEST_APP "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${JS_APP_NAME}")
+        file(WRITE   ${JS_TEST_APP} "// Copyright (C) 2018-2023 Intel Corporation\n")
+        file(APPEND  ${JS_TEST_APP} "// SPDX-License-Identifier: Apache-2.0\n")
+        file(APPEND  ${JS_TEST_APP} "//\n")
+        file(APPEND  ${JS_TEST_APP} "// JS test app\n")
+        file(APPEND  ${JS_TEST_APP} "const createModule = require(\"./${JS_BIN_NAME}\");\n")
+        file(APPEND  ${JS_TEST_APP} "createModule().then(function(Module) {});\n")
+        file(APPEND  ${JS_TEST_APP} " ")
+        # node version>= 16.8.0, else need add "--experimental-wasm-threads --experimental-wasm-bulk-memory" option
+        add_test(NAME ${ARG_NAME} COMMAND node ${JS_TEST_APP})
+    else()
+        add_test(NAME ${ARG_NAME} COMMAND ${ARG_NAME})
+    endif()
     set_property(TEST ${ARG_NAME} PROPERTY LABELS ${ARG_LABELS})
 
     install(TARGETS ${ARG_NAME}
