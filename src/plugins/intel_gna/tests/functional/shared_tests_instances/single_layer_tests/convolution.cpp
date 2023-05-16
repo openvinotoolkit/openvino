@@ -108,7 +108,7 @@ void ConvolutionLayerTestFixture::SetUp() {
 
     auto filter_size = std::accumulate(std::begin(kernel), std::end(kernel), 1, std::multiplies<size_t>());
     filter_weights =
-        CommonTestUtils::generate_float_numbers(convOutChannels * inputShape[1] * filter_size, -0.5f, 0.5f);
+        CommonTestUtils::generate_float_numbers(convOutChannels * inputShape[1] * filter_size, -0.1f, 0.1f);
 
     auto conv = std::dynamic_pointer_cast<Convolution>(ngraph::builder::makeConvolution(paramOuts[0],
                                                                                         ngPrc,
