@@ -235,7 +235,7 @@ public:
     virtual ~ICore();
 
 private:
-    virtual void set_property(const std::string& device_name, const AnyMap& properties);
+    virtual void set_property(const std::string& device_name, const AnyMap& properties) = 0;
     friend class ov::proxy::Plugin;
 };
 
