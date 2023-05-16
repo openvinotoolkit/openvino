@@ -11,14 +11,14 @@ To compress the model, use the ``compress_to_fp16=True`` option:
 
 .. tab-set::
 
-    .. tab-item:: MO command line tool
+    .. tab-item:: mo CLI tool
        :sync: cli-tool
 
        .. code-block:: sh
 
           mo --input_model INPUT_MODEL --compress_to_fp16=False
 
-    .. tab-item:: MO Python API
+    .. tab-item:: mo Python API
        :sync: mo-python-api
 
        .. code-block:: python

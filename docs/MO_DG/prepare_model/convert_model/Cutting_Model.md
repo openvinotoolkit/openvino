@@ -48,14 +48,14 @@ Convert this model to ``ov.Model``:
 
 .. tab-set::
 
-   .. tab-item:: MO command line tool
+   .. tab-item:: mo CLI tool
       :sync: cli-tool
 
       .. code-block:: sh
 
          mo --input_model inception_v1.pb -b 1 --output_dir <OUTPUT_MODEL_DIR>
 
-   .. tab-item:: MO Python API
+   .. tab-item:: mo Python API
       :sync: mo-python-api
 
       .. code-block:: python
@@ -110,7 +110,7 @@ Due to automatic identification of inputs and outputs, providing the ``input`` a
 
 .. tab-set::
 
-   .. tab-item:: MO command line tool
+   .. tab-item:: mo CLI tool
       :sync: cli-tool
 
       .. code-block:: sh
@@ -119,7 +119,7 @@ Due to automatic identification of inputs and outputs, providing the ``input`` a
 
          mo --input_model inception_v1.pb -b 1 --input input --output InceptionV1/Logits/Predictions/Reshape_1 --output_dir <OUTPUT_MODEL_DIR>
 
-   .. tab-item:: MO Python API
+   .. tab-item:: mo Python API
       :sync: mo-python-api
 
       .. code-block:: python
@@ -149,14 +149,14 @@ If you want to cut your model at the end, you have the following options:
 
    .. tab-set::
 
-      .. tab-item:: MO command line tool
+      .. tab-item:: mo CLI tool
          :sync: cli-tool
 
          .. code-block:: sh
 
             mo --input_model inception_v1.pb -b 1 --output=InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --output_dir <OUTPUT_MODEL_DIR>
 
-      .. tab-item:: MO Python API
+      .. tab-item:: mo Python API
          :sync: mo-python-api
 
          .. code-block:: python
@@ -212,14 +212,14 @@ If you want to cut your model at the end, you have the following options:
 
    .. tab-set::
 
-      .. tab-item:: MO command line tool
+      .. tab-item:: mo CLI tool
          :sync: cli-tool
 
          .. code-block:: sh
 
             mo --input_model inception_v1.pb -b 1 --output InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu:0 --output_dir <OUTPUT_MODEL_DIR>
 
-      .. tab-item:: MO Python API
+      .. tab-item:: mo Python API
          :sync: mo-python-api
 
          .. code-block:: python
@@ -275,14 +275,14 @@ If you want to cut your model at the end, you have the following options:
 
    .. tab-set::
 
-      .. tab-item:: MO command line tool
+      .. tab-item:: mo CLI tool
          :sync: cli-tool
 
          .. code-block:: sh
 
             mo --input_model inception_v1.pb -b 1 --output=0:InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --output_dir <OUTPUT_MODEL_DIR>
 
-      .. tab-item:: MO Python API
+      .. tab-item:: mo Python API
          :sync: mo-python-api
 
          .. code-block:: python
@@ -332,14 +332,14 @@ If you want to go further and cut the beginning of the model, leaving only the `
 
    .. tab-set::
 
-      .. tab-item:: MO command line tool
+      .. tab-item:: mo CLI tool
          :sync: cli-tool
 
          .. code-block:: sh
 
             mo --input_model=inception_v1.pb -b 1 --output InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --input InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --output_dir <OUTPUT_MODEL_DIR>
 
-      .. tab-item:: MO Python API
+      .. tab-item:: mo Python API
          :sync: mo-python-api
 
          .. code-block:: python
@@ -383,14 +383,14 @@ If you want to go further and cut the beginning of the model, leaving only the `
 
    .. tab-set::
 
-      .. tab-item:: MO command line tool
+      .. tab-item:: mo CLI tool
          :sync: cli-tool
 
          .. code-block:: sh
 
             mo --input_model inception_v1.pb -b 1 --input 0:InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --output InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --output_dir <OUTPUT_MODEL_DIR>
 
-      .. tab-item:: MO Python API
+      .. tab-item:: mo Python API
          :sync: mo-python-api
 
          .. code-block:: python
@@ -434,14 +434,14 @@ If you want to go further and cut the beginning of the model, leaving only the `
 
    .. tab-set::
 
-      .. tab-item:: MO command line tool
+      .. tab-item:: mo CLI tool
          :sync: cli-tool
 
          .. code-block:: sh
 
             mo --input_model inception_v1.pb -b 1 --input InceptionV1/InceptionV1/Conv2d_1a_7x7/BatchNorm/batchnorm/add_1:0 --output InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --output_dir <OUTPUT_MODEL_DIR>
 
-      .. tab-item:: MO Python API
+      .. tab-item:: mo Python API
          :sync: mo-python-api
 
          .. code-block:: python
@@ -489,14 +489,14 @@ Following this behavior, ``convert_model()`` creates an ``Input`` layer for port
 
 .. tab-set::
 
-   .. tab-item:: MO command line tool
+   .. tab-item:: mo CLI tool
       :sync: cli-tool
 
       .. code-block:: sh
 
          mo --input_model inception_v1.pb -b 1 --input InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution --output_dir <OUTPUT_MODEL_DIR>
 
-   .. tab-item:: MO Python API
+   .. tab-item:: mo Python API
       :sync: mo-python-api
 
       .. code-block:: python
@@ -511,14 +511,14 @@ Different behavior occurs when ``input_shape`` is also used as an attempt to ove
 
 .. tab-set::
 
-   .. tab-item:: MO command line tool
+   .. tab-item:: mo CLI tool
       :sync: cli-tool
 
       .. code-block:: sh
 
          mo --input_model inception_v1.pb--input=InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution --input_shape [1,224,224,3]  --output_dir <OUTPUT_MODEL_DIR>
 
-   .. tab-item:: MO Python API
+   .. tab-item:: mo Python API
       :sync: mo-python-api
 
       .. code-block:: python
@@ -541,14 +541,14 @@ The correct command line is:
 
 .. tab-set::
 
-   .. tab-item:: MO command line tool
+   .. tab-item:: mo CLI tool
       :sync: cli-tool
 
       .. code-block:: sh
 
          mo --input_model inception_v1.pb --input 0:InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution --input_shape=[1,224,224,3] --output_dir <OUTPUT_MODEL_DIR>
 
-   .. tab-item:: MO Python API
+   .. tab-item:: mo Python API
       :sync: mo-python-api
 
       .. code-block:: python

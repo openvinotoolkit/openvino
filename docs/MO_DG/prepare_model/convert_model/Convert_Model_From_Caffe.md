@@ -7,7 +7,7 @@
 
    Note that OpenVINO support for Caffe is currently being deprecated and will be removed entirely in the future.
 
-To convert a Caffe model, run Model Optimizer with the path to the input model ``.caffemodel`` file:
+To convert a Caffe model, run ``mo`` with the path to the input model ``.caffemodel`` file:
 
 .. code-block:: cpp
 

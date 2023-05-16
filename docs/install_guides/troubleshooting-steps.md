@@ -12,14 +12,14 @@ Check the versions of OpenVINO Runtime and Development Tools
 
   .. tab-set::
   
-      .. tab-item:: MO command line tool
+      .. tab-item:: mo CLI tool
           :sync: cli-tool
   
           .. code-block:: sh
   
               mo --version
   
-      .. tab-item:: MO Python API
+      .. tab-item:: mo Python API
           :sync: mo-python-api
   
           .. code-block:: sh
