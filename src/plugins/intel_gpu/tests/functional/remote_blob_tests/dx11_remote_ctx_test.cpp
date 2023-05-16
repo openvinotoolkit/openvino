@@ -13,6 +13,7 @@
 #include <gpu/gpu_config.hpp>
 #include <common_test_utils/test_common.hpp>
 #include <common_test_utils/test_constants.hpp>
+#include "common_test_utils/file_utils.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
 #include <openvino/core/preprocess/pre_post_process.hpp>
 
