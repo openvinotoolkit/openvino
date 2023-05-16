@@ -22,7 +22,7 @@ else()
     set(ENABLE_INTEL_GPU_DEFAULT OFF)
 endif()
 
-ie_dependent_option (ENABLE_INTEL_GPU "GPU OpenCL-based plugin for OpenVINO Runtime" ${ENABLE_INTEL_GPU_DEFAULT} "X86_64 OR AARCH64;NOT APPLE;NOT MINGW;NOT WINDOWS_STORE;NOT WINDOWS_PHONE" OFF)
+ie_dependent_option (ENABLE_INTEL_GPU "GPU OpenCL-based plugin for OpenVINO Runtime" ${ENABLE_INTEL_GPU_DEFAULT} "X86_64 OR AARCH64;NOT APPLE;NOT WINDOWS_STORE;NOT WINDOWS_PHONE" OFF)
 
 if (ANDROID OR (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0))
     # oneDNN doesn't support old compilers and android builds for now, so we'll
@@ -85,7 +85,7 @@ ie_option (ENABLE_INTEL_GNA_DEBUG "GNA debug build" OFF)
 
 ie_dependent_option (ENABLE_IR_V7_READER "Enables IR v7 reader" ${BUILD_SHARED_LIBS} "ENABLE_TESTS;ENABLE_INTEL_GNA" OFF)
 
-ie_option (ENABLE_GAPI_PREPROCESSING "Enables G-API preprocessing" ON)
+ie_dependent_option (ENABLE_GAPI_PREPROCESSING "Enables G-API preprocessing" ON "NOT MINGW64" OFF)
 
 ie_option (ENABLE_MULTI "Enables MULTI Device Plugin" ON)
 ie_option (ENABLE_AUTO "Enables AUTO Device Plugin" ON)

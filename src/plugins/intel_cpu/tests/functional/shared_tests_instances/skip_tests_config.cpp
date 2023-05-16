@@ -216,7 +216,7 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(smoke_Snippets.*)");
 #endif
 
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
     retVector.emplace_back(R"(.*LoadNetworkCompiledKernelsCacheTest.*CanCreateCacheDirAndDumpBinariesUnicodePath.*)");
 #endif
 
