@@ -70,9 +70,9 @@ You can try out the toolkit with:
 
 Developing in Python:
 
-* `Start with tensorflow models with OpenVINO™ <https://docs.openvino.ai/2023/0/notebooks/101-tensorflow-to-openvino-with-output.html>`__
-* `Start with ONNX and PyTorch models with OpenVINO™ <https://docs.openvino.ai/2023.0/notebooks/102-pytorch-onnx-to-openvino-with-output.html>`__
-* `Start with PaddlePaddle models with OpenVINO™ <https://docs.openvino.ai/2023.0/notebooks/103-paddle-onnx-to-openvino-classification-with-output.html>`__
+* `Start with tensorflow models with OpenVINO™ <notebooks/101-tensorflow-to-openvino-with-output.html>`__
+* `Start with ONNX and PyTorch models with OpenVINO™ <notebooks/102-pytorch-onnx-to-openvino-with-output.html>`__
+* `Start with PaddlePaddle models with OpenVINO™ <notebooks/103-paddle-to-openvino-classification-with-output.html>`__
 
 Developing in C++:
 

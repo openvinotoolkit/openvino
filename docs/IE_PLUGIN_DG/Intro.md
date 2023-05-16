@@ -87,7 +87,7 @@ Detailed Guides
 API References
 ##############
 
-*  `OpenVINO Plugin API <https://docs.openvino.ai/2023.0/groupov_dev_api.html>`__
-*  `OpenVINO Transformation API <https://docs.openvino.ai/2023.0/groupie_transformation_api.html>`__
+*  :ref:`OpenVINO Plugin API <ov_dev_api>`
+*  :ref:`OpenVINO Transformation API <ie_transformation_api>`
 
 @endsphinxdirective
