@@ -15,6 +15,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "streams_executor.hpp"
+#include "ie_common.h"
 
 namespace ov {
 
@@ -47,7 +48,7 @@ CPU::CPU() {
         cpu_set_t mask;
         CPU_ZERO(&mask);
 
-        if (sched_getaffinity(0, sizeof(cpu_set_t), &mask) == -1) {
+        if ((_processors == 0) && (sched_getaffinity(0, sizeof(cpu_set_t), &mask) == -1)) {
             return -1;
         }
 
@@ -91,14 +92,14 @@ CPU::CPU() {
             }
 
             if (_proc_type_table.size() > 1) {
-                long unsigned int n = 0;
+                size_t n = _proc_type_table.size();
 
-                while (n < _proc_type_table.size()) {
+                while (n > 0) {
                     if (0 == _proc_type_table[n][ALL_PROC]) {
-                        _proc_type_table.erase(_proc_type_table.begin() + n);
+                        _proc_type_table.erase(_proc_type_table.begin() + n - 1);
                         n--;
                     }
-                    n++;
+                    n--;
                 }
 
                 if ((_proc_type_table.size() > 1) && (_proc_type_table[0][ALL_PROC] == _proc_type_table[1][ALL_PROC])) {
@@ -121,7 +122,9 @@ CPU::CPU() {
                                    _cores,
                                    _proc_type_table,
                                    _cpu_mapping_table);
-        CheckValidCpu();
+        if (CheckValidCpu()) {
+            IE_THROW() << "No CPU processor available.";
+        };
     } else {
         /*Previous CPU resource based on calculation*/
         std::ifstream cpuinfo("/proc/cpuinfo");
