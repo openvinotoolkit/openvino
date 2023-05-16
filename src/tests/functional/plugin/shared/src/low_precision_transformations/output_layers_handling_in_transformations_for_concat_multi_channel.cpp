@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "low_precision_transformations/output_layers_handling_in_transformations_for_concat_multi_channel.hpp"
+#include "low_precision_transformations/output_layers_concat_multi_channel.hpp"
 
 #include <memory>
 #include <tuple>
@@ -28,7 +28,7 @@ std::pair<float, float> outputLayersHandlingInTransformationsForConcatMultiChann
     return std::make_pair(low, hight);
 }
 
-std::string OutputLayersHandlingInTransformationsForConcatMultiChannel::getTestCaseName(
+std::string OutputLayersConcatMultiChannel::getTestCaseName(
     const testing::TestParamInfo<LayerTestsUtils::LayerTransformationParams>& obj) {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::SizeVector inputShapes;
@@ -39,7 +39,7 @@ std::string OutputLayersHandlingInTransformationsForConcatMultiChannel::getTestC
     return getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params);
 }
 
-InferenceEngine::Blob::Ptr OutputLayersHandlingInTransformationsForConcatMultiChannel::GenerateInput(const InferenceEngine::InputInfo &info) const {
+InferenceEngine::Blob::Ptr OutputLayersConcatMultiChannel::GenerateInput(const InferenceEngine::InputInfo &info) const {
     InferenceEngine::SizeVector inputShape;
     InferenceEngine::Precision netPrecision;
     std::string targetDevice;
@@ -72,7 +72,7 @@ InferenceEngine::Blob::Ptr OutputLayersHandlingInTransformationsForConcatMultiCh
 *   Output
 */
 
-void OutputLayersHandlingInTransformationsForConcatMultiChannel::SetUp() {
+void OutputLayersConcatMultiChannel::SetUp() {
     threshold = 0.05;
 
     InferenceEngine::SizeVector inputShape1;
@@ -113,7 +113,7 @@ void OutputLayersHandlingInTransformationsForConcatMultiChannel::SetUp() {
     function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector { input1, input2 }, "OutputLayersHandling");
 }
 
-TEST_P(OutputLayersHandlingInTransformationsForConcatMultiChannel, CompareWithRefImpl) {
+TEST_P(OutputLayersConcatMultiChannel, CompareWithRefImpl) {
     Run();
 };
 
