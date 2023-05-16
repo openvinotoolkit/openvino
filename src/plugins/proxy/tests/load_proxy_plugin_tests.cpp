@@ -133,7 +133,7 @@ TEST_F(ProxyTests, load_on_shared_plugin) {
     EXPECT_NO_THROW(core.compile_model(model, "MOCK.1"));
 }
 
-TEST_F(ProxyTests, load_on_support_with_hetero_plugin) {
+TEST_F(ProxyTests, load_and_infer_on_support_with_hetero_plugin) {
     auto model = create_model_with_subtract();
     auto infer_request = core.compile_model(model, "MOCK.1").create_infer_request();
     auto input_tensor = create_and_fill_tensor(model->input().get_element_type(), model->input().get_shape());

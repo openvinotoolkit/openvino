@@ -76,17 +76,6 @@ ov::AnyMap remove_device_properties(ov::AnyMap& config, const std::vector<std::s
     return result;
 }
 
-ov::AnyMap remove_device_properties(ov::AnyMap& config, const std::string& devices) {
-    return remove_device_properties(config, split(devices));
-}
-
-ov::AnyMap remove_device_properties(ov::AnyMap& config, const ov::Any& devices) {
-    if (devices.is<std::vector<std::string>>())
-        return remove_device_properties(config, devices.as<std::vector<std::string>>());
-    else
-        return remove_device_properties(config, devices.as<std::string>());
-}
-
 ov::AnyMap remove_proxy_properties(ov::AnyMap& config, bool rem_device_properties = false) {
     ov::AnyMap dev_properties;
     auto it = config.find(ov::device::id.name());
@@ -95,7 +84,7 @@ ov::AnyMap remove_proxy_properties(ov::AnyMap& config, bool rem_device_propertie
     it = config.find(ov::device::priorities.name());
     if (it != config.end()) {
         if (rem_device_properties)
-            dev_properties = remove_device_properties(config, it->second);
+            dev_properties = remove_device_properties(config, it->second.as<std::vector<std::string>>());
         config.erase(it);
     }
     it = config.find(ov::proxy::alias_for.name());
@@ -539,10 +528,7 @@ bool ov::proxy::Plugin::has_internal_property(const std::string& property, const
         name = "";
 
     it = m_configs.find(name);
-    if (it->second.find(property) != it->second.end())
-        return true;
-
-    return false;
+    return (it != m_configs.end() && it->second.find(property) != it->second.end());
 }
 
 ov::Any ov::proxy::Plugin::get_internal_property(const std::string& property, const std::string& config_name) const {
@@ -555,7 +541,7 @@ ov::Any ov::proxy::Plugin::get_internal_property(const std::string& property, co
         name = "";
 
     it = m_configs.find(name);
-    if (it->second.find(property) != it->second.end())
+    if (it != m_configs.end() && it->second.find(property) != it->second.end())
         result = it->second.at(property);
 
     return result;
