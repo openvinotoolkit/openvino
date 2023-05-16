@@ -7,6 +7,8 @@
 4. Install common dependencies of the samples `npm i` from *./samples/js/common*
 5. Install dependencies of the samples by running `npm i` from *openvino/samples/js/node/*
 
+Note: Perform these steps also before running notebooks.
+
 ## Run samples
 
 ### Common API example
