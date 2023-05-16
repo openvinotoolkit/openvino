@@ -56,9 +56,7 @@ public:
         }
         return result.str();
     }
-    void TearDown() override {
-        core.reset();
-    }
+
 protected:
     void SetUp() override {
         if (core)
