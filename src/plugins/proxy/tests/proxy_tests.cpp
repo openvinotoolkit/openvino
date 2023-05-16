@@ -5,15 +5,31 @@
 #include "proxy_tests.hpp"
 
 #include <memory>
+#include <string>
 
 #include "common_test_utils/file_utils.hpp"
 #include "openvino/opsets/opset11.hpp"
+#include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
 
 namespace {
+
+std::vector<std::string> split(const std::string& str, const std::string& delim = " ") {
+    std::vector<std::string> result;
+    std::string::size_type start(0);
+    std::string::size_type end = str.find(delim);
+    while (end != std::string::npos) {
+        result.emplace_back(str.substr(start, end - start));
+        start = end + delim.size();
+        end = str.find(delim, start);
+    }
+    result.emplace_back(str.substr(start, end - start));
+    return result;
+}
+
 std::string get_mock_engine_path() {
     std::string mockEngineName("mock_engine");
     return ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
@@ -33,12 +49,15 @@ bool support_model(const std::shared_ptr<const ov::Model>& model, const ov::Supp
     }
     return true;
 }
+
 ov::PropertyName RO_property(const std::string& propertyName) {
     return ov::PropertyName(propertyName, ov::PropertyMutability::RO);
 };
+
 ov::PropertyName RW_property(const std::string& propertyName) {
     return ov::PropertyName(propertyName, ov::PropertyMutability::RW);
 };
+
 }  // namespace
 
 void ov::proxy::tests::ProxyTests::SetUp() {
@@ -143,7 +162,9 @@ public:
 
     // Methods from a base class ov::ICompiledModel
     void export_model(std::ostream& model) const override {
-        OPENVINO_NOT_IMPLEMENTED;
+        std::stringstream model_stream, bin_stream;
+        ov::pass::Serialize(model_stream, bin_stream).run_on_model(std::const_pointer_cast<ov::Model>(m_model));
+        model << model_stream.str() << "===mock_format_delimiter===" << bin_stream.str();
     }
 
     std::shared_ptr<const ov::Model> get_runtime_model() const override {
@@ -269,7 +290,13 @@ public:
     }
 
     std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model, const ov::AnyMap& properties) const override {
-        OPENVINO_NOT_IMPLEMENTED;
+        std::string full_config(std::istreambuf_iterator<char>(model), {});
+        auto streams = split(full_config, "===mock_format_delimiter===");
+        OPENVINO_ASSERT(streams.size() == 2);
+        ov::Tensor weights(ov::element::i8, {streams[1].size()}, &streams[1][0]);
+        ov::Core core;
+        auto ov_model = core.read_model(streams[0], weights);
+        return compile_model(ov_model, properties);
     }
 
     std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
