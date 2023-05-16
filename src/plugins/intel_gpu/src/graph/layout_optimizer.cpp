@@ -1873,6 +1873,79 @@ void layout_optimizer::select_preferred_formats_for_onednn(program_node& node, d
             GPU_DEBUG_LOG << "select_preferred_formats:" << node.id() << ": " << fmt_to_str(target_format) << " --> " << fmt_to_str(target_format)
                           << " For index : " << idx << std::endl;
         }
+        // Optimized out permute from permute-gemm pattern. e.f permute -> gemm or gemm -> permute
+        if (node.is_type<gemm>()) {
+            // auto optimized_out_permute = [&](program_node& first, program_node& second, size_t idx) {
+            //     bool is_permute_first = true;
+            //     auto& p_node = first;
+            //     auto& g_node = second;
+            //     if (second.is_type<permute>()) {
+            //         is_permute_first = false;
+            //         p_node = second;
+            //         g_node = first;
+            //     }
+            //     auto& input_node = p_node.get_dependency(0);
+            //     auto input_lay = input_node.get_output_layout();
+            //     auto output_lay = p_node.get_output_layout();
+            //     if (input_lay.compatible(output_lay)) {
+            //         for (int32_t fmt_idx = format::bfyx ; fmt_idx < format::oiyx ; fmt_idx++) {
+            //             auto in = input_lay.get_ordered_dims();
+            //             auto out = output_lay.get_tensor().sizes(format(static_cast<format::type>(fmt_idx)));
+            //             if (in == out) {
+            //                 p_node.set_preferred_output_fmt(0, format(static_cast<format::type>(fmt_idx)));
+            //                 p_node.can_be_optimized(true);
+            //                 node.set_preferred_input_fmt(idx, format(static_cast<format::type>(fmt_idx)));
+            //             }
+            //         }
+            //     }
+            // };
+            for (size_t idx = 0 ; idx < node.get_dependencies().size() ; idx++) {
+                if (node.get_dependency(idx).is_type<permute>()) {
+                    auto& pnode = node.get_dependency(idx);
+                    // optimized_out_permute(pnode);
+                    auto& input_node = pnode.get_dependency(0);
+                    auto input_lay = input_node.get_output_layout();
+                    auto output_lay = pnode.get_output_layout();
+                    // if (pnode.id().find("Transpose_69") != std::string::npos) {
+                    //     GPU_DEBUG_COUT << "Transpose_69: " << std::endl;
+                    // }
+                    if (input_lay.compatible(output_lay)) {
+                        for (int32_t fmt_idx = format::bfyx ; fmt_idx < format::oiyx ; fmt_idx++) {
+                            auto in = input_lay.get_ordered_dims();
+                            auto out = output_lay.get_tensor().sizes(format(static_cast<format::type>(fmt_idx)));
+                            if (in == out) {
+                                pnode.init_preferred_fmt(1, 1);
+                                pnode.set_preferred_output_fmt(0, format(static_cast<format::type>(fmt_idx)));
+                                pnode.can_be_optimized(true);
+                                node.set_preferred_input_fmt(idx, format(static_cast<format::type>(fmt_idx)));
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            // gemm - permute
+            if (node.get_users().size() == 1 && node.get_users().front()->is_type<permute>()) {
+                auto& pnode = node.get_users().front()->as<permute>();
+                // optimized_out_permute(pnode);
+                auto& input_node = pnode.get_dependency(0);
+                auto input_lay = input_node.get_output_layout();
+                auto output_lay = pnode.get_output_layout();
+                if (input_lay.compatible(output_lay)) {
+                    for (int32_t fmt_idx = format::bfyx ; fmt_idx < format::oiyx ; fmt_idx++) {
+                        auto in = input_lay.get_tensor().sizes(format(static_cast<format::type>(fmt_idx)));
+                        auto out = output_lay.get_ordered_dims();
+                        if (in == out) {
+                            node.set_preferred_output_fmt(0, format(static_cast<format::type>(fmt_idx)));
+                            pnode.init_preferred_fmt(1, 1);
+                            pnode.set_preferred_input_fmt(0, format(static_cast<format::type>(fmt_idx)));
+                            pnode.can_be_optimized(true);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
     }
 
     return;

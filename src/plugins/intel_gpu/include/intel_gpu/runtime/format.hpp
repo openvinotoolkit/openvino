@@ -82,6 +82,8 @@ struct format {
         byxf,                                   ///< used in bitmaps, input from user i.e b images of RGB format
         fyxb,                                   ///< format not used inside clDNN, but supported in reorder as extension
         bzyxf,
+        byfx,
+        bxfy,
                                                 ///< for user provided formats.
         b_fs_yx_fsv2,
         b_fs_zyx_fsv2,
@@ -129,6 +131,8 @@ struct format {
         iozyx,                                        ///< 3D weights format for deconvolutions
         iyxo,
         oyxi,
+        oyix,
+        oxiy,
         os_iyx_osv16,                                 ///< format used only for convolution weights
         o_is_yx_isv16,                                ///< format used only for convolution weights
         os_yxi_osv16,                                 ///< format used only for convolution weights
@@ -331,6 +335,7 @@ struct format {
     /// @brief Checks if @p format is simple data format
     static bool is_simple_data_format(type fmt) {
         return (fmt == yxfb || fmt == byxf ||
+                fmt == byfx || fmt == bxfy ||
                 fmt == bfyx || fmt == fyxb ||
                 fmt == bfzyx || fmt == bfwzyx ||
                 fmt == bfuwzyx || fmt == bfvuwzyx);
