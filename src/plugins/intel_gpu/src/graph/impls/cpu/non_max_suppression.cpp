@@ -400,7 +400,7 @@ struct non_max_suppression_impl : typed_primitive_impl<non_max_suppression> {
         return make_unique<non_max_suppression_impl>(*this);
     }
 
-    non_max_suppression_impl() : parent(kernel_selector::weights_reorder_params(), "non_max_suppression_impl") {}
+    non_max_suppression_impl() : parent("non_max_suppression_impl") {}
 
     event::ptr execute_impl(const std::vector<event::ptr>& event, typed_primitive_inst<non_max_suppression>& instance) override {
         for (auto e : event) {
