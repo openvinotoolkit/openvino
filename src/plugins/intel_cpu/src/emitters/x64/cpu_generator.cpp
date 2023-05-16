@@ -184,9 +184,3 @@ ngraph::snippets::Generator::opRegType ov::intel_cpu::CPUGenerator::get_specific
     else
         OPENVINO_THROW("Register type of the operation " + std::string(op->get_type_name()) + " isn't determined!");
 }
-
-ngraph::snippets::lowered::pass::TransformationPipeline ov::intel_cpu::CPUGenerator::target_specific_transformations() const {
-    ngraph::snippets::lowered::pass::TransformationPipeline target_specific_transformation;
-    target_specific_transformation.register_transformation<ov::intel_cpu::pass::FuseLoadStoreConvert>();
-    return target_specific_transformation;
-}

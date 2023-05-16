@@ -55,6 +55,7 @@ protected:
                                                                               ov::pass::Manager pre_dialect = {},
                                                                               ov::pass::Manager post_dialect = {},
                                                                               ov::pass::Manager post_precision = {},
+                                                                              ngraph::snippets::lowered::pass::PassPipeline lowered_pipeline = {},
                                                                               const std::shared_ptr<ngraph::snippets::Generator> generator = nullptr);
     static std::shared_ptr<ngraph::snippets::op::Subgraph> getTokenizedSubgraph(const std::shared_ptr<Model>& f);
     ov::PartialShape master_shape{};

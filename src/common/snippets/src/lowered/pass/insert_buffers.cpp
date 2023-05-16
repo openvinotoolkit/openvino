@@ -16,7 +16,7 @@ namespace lowered {
 namespace pass {
 
 InsertBuffers::InsertBuffers(int32_t buffer_allocation_rank)
-    : Transformation(), m_buffer_allocation_rank(buffer_allocation_rank) {}
+    : Pass(), m_buffer_allocation_rank(buffer_allocation_rank) {}
 
 LinearIR::constExprIt InsertBuffers::insertion_position(const LinearIR& linear_ir, const LinearIR::LoopManagerPtr& loop_manager,
                                                         const ExpressionPtr& up_expr, const ExpressionPtr& down_expr) {

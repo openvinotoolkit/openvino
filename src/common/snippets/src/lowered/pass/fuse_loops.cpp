@@ -17,7 +17,7 @@ namespace pass {
 using LoopManager = LinearIR::LoopManager;
 using LoopInfoPtr = LoopManager::LoopInfoPtr;
 
-FuseLoops::FuseLoops() : Transformation() {}
+FuseLoops::FuseLoops() : Pass() {}
 
 bool FuseLoops::can_be_fused(const LoopInfoPtr& loop_current, const LoopInfoPtr& loop_target) {
     auto current_work_amount = loop_current->work_amount;

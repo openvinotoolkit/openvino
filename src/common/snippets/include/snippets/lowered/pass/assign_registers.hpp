@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "transformation.hpp"
+#include "pass.hpp"
 #include "snippets/generator.hpp"
 
 namespace ngraph {
@@ -18,9 +18,9 @@ namespace pass {
  * Note that changing of the IR is likely to invalidate register assignment.
  * @ingroup snippets
  */
-class AssignRegisters : public Transformation {
+class AssignRegisters : public Pass {
 public:
-    OPENVINO_RTTI("AssignRegisters", "Transformation")
+    OPENVINO_RTTI("AssignRegisters", "Pass")
     explicit AssignRegisters(const std::function<Generator::opRegType(const std::shared_ptr<Node>& op)>& mapper) : m_reg_type_mapper(mapper) {}
     bool run(LinearIR& linear_ir) override;
 

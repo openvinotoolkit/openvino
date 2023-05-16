@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "transformation.hpp"
+#include "pass.hpp"
 
 namespace ngraph {
 namespace snippets {
@@ -35,10 +35,10 @@ namespace pass {
 //                        Result
 // Note: Load* should be replaced with ScalarLoad in this example to avoid invalid read in vector Loop.
 
-class SetScalarCountForLoadStore : public Transformation {
+class SetScalarCountForLoadStore : public Pass {
 public:
     explicit SetScalarCountForLoadStore();
-    OPENVINO_RTTI("SetScalarCountForLoadStore", "Transformation")
+    OPENVINO_RTTI("SetScalarCountForLoadStore", "Pass")
     bool run(lowered::LinearIR& linear_ir) override;
 };
 

@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "transformation.hpp"
+#include "pass.hpp"
 
 namespace ngraph {
 namespace snippets {
@@ -17,9 +17,9 @@ namespace pass {
  * proper data pointer offsets in the Kernel;
  * @ingroup snippets
  */
-class PropagateLayout : public Transformation {
+class PropagateLayout : public Pass {
 public:
-    OPENVINO_RTTI("PropagateLayout", "Transformation")
+    OPENVINO_RTTI("PropagateLayout", "Pass")
     bool run(LinearIR& linear_ir) override;
 };
 

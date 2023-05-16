@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "transformation.hpp"
+#include "pass.hpp"
 
 namespace ngraph {
 namespace snippets {
@@ -17,9 +17,9 @@ namespace pass {
  *        This transformation "fuses" the offsets with an outer loop's ptr_increments, and zeroes the offsets before Results.
  * @ingroup snippets
  */
-class CleanupLoopOffsets : public Transformation {
+class CleanupLoopOffsets : public Pass {
 public:
-    OPENVINO_RTTI("CleanupLoopOffsets", "Transformation")
+    OPENVINO_RTTI("CleanupLoopOffsets", "Pass")
     bool run(LinearIR& linear_ir) override;
 };
 

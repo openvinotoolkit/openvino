@@ -14,7 +14,7 @@ namespace snippets {
 namespace lowered {
 namespace pass {
 
-MarkLoops::MarkLoops(size_t vector_size) : Transformation(), m_vector_size(vector_size) {}
+MarkLoops::MarkLoops(size_t vector_size) : Pass(), m_vector_size(vector_size) {}
 
 bool MarkLoops::run(LinearIR& linear_ir) {
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::MarkLoops")

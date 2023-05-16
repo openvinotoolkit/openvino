@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "transformation.hpp"
+#include "pass.hpp"
 
 namespace ngraph {
 namespace snippets {
@@ -22,9 +22,9 @@ namespace pass {
  *             To avoid such cases, we move Constants to the places in Linear IR before right Consumer to execute Scalar on each Loop iteration.
  * @ingroup snippets
  */
-class MoveScalarToConsumer : public Transformation {
+class MoveScalarToConsumer : public Pass {
 public:
-    OPENVINO_RTTI("MoveScalarsToConsumer", "Transformation")
+    OPENVINO_RTTI("MoveScalarsToConsumer", "Pass")
     MoveScalarToConsumer() = default;
     bool run(LinearIR& linear_ir) override;
 };

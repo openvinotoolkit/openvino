@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "transformation.hpp"
+#include "pass.hpp"
 
 #include "snippets/lowered/loop_manager.hpp"
 
@@ -18,9 +18,9 @@ namespace pass {
  * @brief The pass explicitly insert LoadBegin and LoadEnd in Linear IR using LoopManager::LoopInfo from Loop markup algorithm
  * @ingroup snippets
  */
-class InitLoops : public Transformation {
+class InitLoops : public Pass {
 public:
-    OPENVINO_RTTI("InsertLoops", "Transformation")
+    OPENVINO_RTTI("InsertLoops", "Pass")
     InitLoops();
     bool run(LinearIR& linear_ir) override;
 

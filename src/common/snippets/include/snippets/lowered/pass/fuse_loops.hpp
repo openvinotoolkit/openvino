@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "transformation.hpp"
+#include "pass.hpp"
 
 #include "snippets/lowered/loop_manager.hpp"
 
@@ -36,9 +36,9 @@ namespace pass {
  *        The main conditions of possible fusion is the equal increments and the equal/broadcastable work amounts.
  * @ingroup snippets
  */
-class FuseLoops : public Transformation {
+class FuseLoops : public Pass {
 public:
-    OPENVINO_RTTI("FuseLoops", "Transformation")
+    OPENVINO_RTTI("FuseLoops", "Pass")
     FuseLoops();
     bool run(LinearIR& linear_ir) override;
 

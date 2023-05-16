@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "transformation.hpp"
+#include "pass.hpp"
 
 namespace ngraph {
 namespace snippets {
@@ -17,13 +17,13 @@ namespace pass {
  *  Additional optimizations are performed if a loop body is executed only once.
  * @ingroup snippets
  */
-class InsertTailLoop : public Transformation {
+class InsertTailLoop : public Pass {
     static void tail_transformations(LinearIR& linear_ir,
                                      LinearIR::container::const_iterator tail_begin,
                                      LinearIR::container::const_iterator tail_end,
                                      size_t tail_size);
 public:
-    OPENVINO_RTTI("InsertTailLoop", "Transformation")
+    OPENVINO_RTTI("InsertTailLoop", "Pass")
     bool run(LinearIR& linear_ir) override;
 };
 

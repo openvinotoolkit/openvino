@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "transformation.hpp"
+#include "pass.hpp"
 
 #include "snippets/op/buffer.hpp"
 
@@ -28,9 +28,9 @@ namespace pass {
  *        Note: should be called before ResetBuffer() pass to have correct offsets
  * @ingroup snippets
  */
-class IdentifyBuffers: public Transformation {
+class IdentifyBuffers: public Pass {
 public:
-    OPENVINO_RTTI("IdentifyBuffers", "Transformation")
+    OPENVINO_RTTI("IdentifyBuffers", "Pass")
     IdentifyBuffers() = default;
 
     bool run(LinearIR& linear_ir) override;

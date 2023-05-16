@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "transformation.hpp"
+#include "pass.hpp"
 #include "snippets/snippets_isa.hpp"
 
 namespace ngraph {
@@ -18,9 +18,9 @@ namespace pass {
  * @ingroup snippets
  */
 
-class AllocateBuffers : public Transformation {
+class AllocateBuffers : public Pass {
 public:
-    OPENVINO_RTTI("AllocateBuffers", "Transformation")
+    OPENVINO_RTTI("AllocateBuffers", "Pass")
     bool run(lowered::LinearIR& linear_ir) override;
 
     size_t get_scratchpad_size() const { return m_buffer_scratchpad_size; }

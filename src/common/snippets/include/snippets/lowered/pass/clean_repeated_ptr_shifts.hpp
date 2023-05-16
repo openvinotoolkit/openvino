@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "transformation.hpp"
+#include "pass.hpp"
 
 namespace ngraph {
 namespace snippets {
@@ -21,9 +21,9 @@ namespace pass {
  *              This condition should be removed when Buffers stop being inplace by default.
  * @ingroup snippets
  */
-class CleanRepeatedDataPointerShifts: public Transformation {
+class CleanRepeatedDataPointerShifts: public Pass {
 public:
-    OPENVINO_RTTI("CleanRepeatedDataPointerShifts", "Transformation")
+    OPENVINO_RTTI("CleanRepeatedDataPointerShifts", "Pass")
     CleanRepeatedDataPointerShifts() = default;
 
     bool run(LinearIR& linear_ir) override;

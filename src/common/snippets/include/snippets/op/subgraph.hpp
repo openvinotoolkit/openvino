@@ -101,14 +101,16 @@ public:
     bool has_domain_sensitive_ops() const { return config.m_has_domain_sensitive_ops; }
     snippets::Schedule generate(const BlockedShapeVector& output_shapes,
                                 const BlockedShapeVector& input_shapes,
-                                ngraph::pass::Manager& pre_dialect,
-                                ngraph::pass::Manager& post_dialect,
+                                ngraph::pass::Manager& pre_common,
+                                ngraph::pass::Manager& post_common,
                                 ngraph::pass::Manager& post_precision,
+                                lowered::pass::PassPipeline& target_lowered_pipeline,
                                 const void* compile_params = nullptr);
     snippets::Schedule generate(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes, const void* compile_params = nullptr);
-    snippets::Schedule generate(ngraph::pass::Manager& pre_dialect,
-                                ngraph::pass::Manager& post_dialect,
+    snippets::Schedule generate(ngraph::pass::Manager& pre_common,
+                                ngraph::pass::Manager& post_common,
                                 ngraph::pass::Manager& post_precision,
+                                lowered::pass::PassPipeline& target_lowered_pipeline,
                                 const void* compile_params = nullptr);
     snippets::Schedule generate(const void* compile_params = nullptr);
     ov::PartialShape canonicalize(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes);
@@ -142,7 +144,8 @@ public:
 
 private:
     void align_element_types(const BlockedShapeVector& outputShapes, const BlockedShapeVector& inputShapes);
-    void convert_to_snippet_dialect();
+    void data_flow_transformations(ngraph::pass::Manager& pre_common, ngraph::pass::Manager& post_common, ngraph::pass::Manager& post_precision);
+    void control_flow_transformations(lowered::LinearIR& linear_ir, lowered::pass::PassPipeline& target_pipeline, const lowered::Config& config);
     void init_config();
     // Count of Subgraph virtual ports:
     //  - Potential non-scalar Constants that will be created after some transformations (At the moment it's relevant only for FakeQuantize decomposition)

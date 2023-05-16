@@ -15,18 +15,18 @@ namespace lowered {
 namespace pass {
 
 /**
- * @interface Transformation
+ * @interface Pass
  * @brief Base class for transformations on linear IR
  * @ingroup snippets
  */
-class Transformation {
+class Pass {
 public:
-    Transformation() = default;
-    virtual ~Transformation() = default;
+    Pass() = default;
+    virtual ~Pass() = default;
     // Note that get_type_info_static and get_type_info are needed to mimic OPENVINO_RTTI interface,
     // so the standard OPENVINO_RTTI(...) macros could be used in derived classes.
     _OPENVINO_HIDDEN_METHOD static const ::ov::DiscreteTypeInfo& get_type_info_static() {
-        static ::ov::DiscreteTypeInfo type_info_static {"Transformation"};
+        static ::ov::DiscreteTypeInfo type_info_static {"Pass"};
         type_info_static.hash();
         return type_info_static;
     }
@@ -42,23 +42,23 @@ public:
     virtual bool run(lowered::LinearIR& linear_ir) = 0;
 };
 
-class TransformationPipeline {
+class PassPipeline {
 public:
-    TransformationPipeline() = default;
+    PassPipeline() = default;
 
-    void register_transformation(const std::shared_ptr<Transformation>& transformation);
+    void register_pass(const std::shared_ptr<Pass>& pass);
 
     template<typename T, class... Args>
-    void register_transformation(Args&&... args) {
-        static_assert(std::is_base_of<Transformation, T>::value, "Transformation not derived from lowered::Transformation");
-        auto transformation = std::make_shared<T>(std::forward<Args>(args)...);
-        register_transformation(transformation);
+    void register_pass(Args&&... args) {
+        static_assert(std::is_base_of<Pass, T>::value, "Pass not derived from lowered::Pass");
+        auto pass = std::make_shared<T>(std::forward<Args>(args)...);
+        register_pass(pass);
     }
 
     void run(lowered::LinearIR& linear_ir);
 
 private:
-    std::vector<std::shared_ptr<Transformation>> m_transformations;
+    std::vector<std::shared_ptr<Pass>> m_passes;
 };
 
 } // namespace pass

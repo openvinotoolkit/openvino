@@ -11,7 +11,7 @@
 #include "snippets_isa.hpp"
 
 #include "snippets/lowered/linear_ir.hpp"
-#include "snippets/lowered/pass/transformation.hpp"
+#include "snippets/lowered/pass/pass.hpp"
 
 namespace ngraph {
 namespace snippets {
@@ -73,11 +73,10 @@ public:
      * @return pointer to generated code
      */
      struct LoweringResult {
-         LoweringResult(code c, size_t size) : binary_code(c), buffer_scratchpad_size(size) {}
+         LoweringResult(code c) : binary_code(c) {}
          code binary_code = nullptr;
-         size_t buffer_scratchpad_size = 0;
      };
-    LoweringResult generate(std::shared_ptr<ov::Model>& m, const lowered::Config& config, const void* compile_params = nullptr);
+    LoweringResult generate(lowered::LinearIR& linear_ir, const lowered::Config& config, const void* compile_params = nullptr);
 
     /**
      * @brief gets target machine
@@ -107,10 +106,6 @@ protected:
     * @return register type
     */
     virtual opRegType get_specific_op_reg_type(const std::shared_ptr<ov::Node>& op) const;
-    /**
-    * @brief gets target specific transformations for code generation
-    */
-    virtual lowered::pass::TransformationPipeline target_specific_transformations() const;
 
     std::shared_ptr<TargetMachine> target;
     // todo: we need to save lowered code to access compiled brgemm kernels on execution time (normally lowered is destructed by then).

@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "transformation.hpp"
+#include "pass.hpp"
 
 namespace ngraph {
 namespace snippets {
@@ -19,9 +19,9 @@ namespace pass {
  *        The pass extracts Result expressions from Loop and insert after.
  * @ingroup snippets
  */
-class MoveResultOutOfLoop : public Transformation {
+class MoveResultOutOfLoop : public Pass {
 public:
-    OPENVINO_RTTI("MoveResultOutOfLoop", "Transformation")
+    OPENVINO_RTTI("MoveResultOutOfLoop", "Pass")
     MoveResultOutOfLoop() = default;
     bool run(LinearIR& linear_ir) override;
 };

@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "transformation.hpp"
+#include "pass.hpp"
 
 #include "snippets/lowered/loop_manager.hpp"
 
@@ -20,10 +20,10 @@ namespace pass {
  * @param m_vector_size - the count of elements for loading/storing
  * @ingroup snippets
  */
-class InsertLoadStore : public Transformation {
+class InsertLoadStore : public Pass {
 public:
     explicit InsertLoadStore(size_t vector_size);
-    OPENVINO_RTTI("InsertLoadStore", "Transformation")
+    OPENVINO_RTTI("InsertLoadStore", "Pass")
     bool run(LinearIR& linear_ir) override;
 
 private:

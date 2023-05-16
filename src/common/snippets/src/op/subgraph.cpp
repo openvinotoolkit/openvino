@@ -7,6 +7,7 @@
 
 #include "snippets/op/subgraph.hpp"
 #include "snippets/op/convert_saturation.hpp"
+
 #include "snippets/pass/insert_movebroadcast.hpp"
 #include "snippets/pass/broadcast_to_movebroadcast.hpp"
 #include "snippets/pass/propagate_precision.hpp"
@@ -17,8 +18,27 @@
 #include "snippets/pass/matmul_to_brgemm.hpp"
 #include "snippets/pass/fuse_transpose_brgemm.hpp"
 #include "snippets/pass/set_softmax_ports.hpp"
+
 #include "snippets/utils.hpp"
+
 #include "snippets/lowered/port_descriptor.hpp"
+#include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/pass/assign_registers.hpp"
+#include "snippets/lowered/pass/mark_loops.hpp"
+#include "snippets/lowered/pass/fuse_loops.hpp"
+#include "snippets/lowered/pass/init_loops.hpp"
+#include "snippets/lowered/pass/insert_buffers.hpp"
+#include "snippets/lowered/pass/insert_load_store.hpp"
+#include "snippets/lowered/pass/vector_to_scalar.hpp"
+#include "snippets/lowered/pass/load_movebroadcast_to_broadcastload.hpp"
+#include "snippets/lowered/pass/allocate_buffers.hpp"
+#include "snippets/lowered/pass/propagate_layout.hpp"
+#include "snippets/lowered/pass/cleanup_loop_offsets.hpp"
+#include "snippets/lowered/pass/softmax_decomposition.hpp"
+#include "snippets/lowered/pass/move_scalar_to_consumer.hpp"
+#include "snippets/lowered/pass/move_result_out_of_loop.hpp"
+#include "snippets/lowered/pass/clean_repeated_ptr_shifts.hpp"
+#include "snippets/lowered/pass/identify_buffers.hpp"
 
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/utils/utils.hpp"
@@ -447,34 +467,92 @@ void snippets::op::Subgraph::align_element_types(const BlockedShapeVector& outpu
     }
 }
 
-void snippets::op::Subgraph::convert_to_snippet_dialect() {
+void snippets::op::Subgraph::data_flow_transformations(ngraph::pass::Manager& pre_common,
+                                                       ngraph::pass::Manager& post_common,
+                                                       ngraph::pass::Manager& post_precision) {
     INTERNAL_OP_SCOPE(Subgraph);
-    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::convert_to_snippet_dialect")
-    const auto&  params = body_ptr()->get_parameters();
+    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::data_flow_transformations")
 
+    const auto&  params = body_ptr()->get_parameters();
     bool inputs_has_dynamic_last_dims = std::any_of(params.begin(), params.end(),
-                                                    [](const shared_ptr<ngraph::op::Parameter>& p){
+                                                    [](const shared_ptr<ngraph::op::Parameter>& p) {
                                                         return p->get_partial_shape().rbegin()->is_dynamic();
                                                     });
-    ngraph::pass::Manager manager;
+
+    pre_common.run_passes(body_ptr());
+
+    ngraph::pass::Manager common_manager;
     if (config.m_has_domain_sensitive_ops) {
-        manager.register_pass<snippets::pass::MatMulToBrgemm>();
-        manager.register_pass<snippets::pass::FuseTransposeBrgemm>();
-        manager.register_pass<snippets::pass::TransposeDecomposition>();
-        manager.register_pass<snippets::pass::SetSoftmaxPorts>();
+        common_manager.register_pass<snippets::pass::MatMulToBrgemm>();
+        common_manager.register_pass<snippets::pass::FuseTransposeBrgemm>();
+        common_manager.register_pass<snippets::pass::TransposeDecomposition>();
+        common_manager.register_pass<snippets::pass::SetSoftmaxPorts>();
     }
-    manager.register_pass<snippets::pass::BroadcastToMoveBroadcast>();
-    manager.register_pass<snippets::pass::ConvertConstantsToScalars>();
-    manager.register_pass<snippets::pass::ConvertPowerToPowerStatic>();
+    common_manager.register_pass<snippets::pass::BroadcastToMoveBroadcast>();
+    common_manager.register_pass<snippets::pass::ConvertConstantsToScalars>();
+    common_manager.register_pass<snippets::pass::ConvertPowerToPowerStatic>();
     // todo: presently dynamic pipeline is activated even if the last two dimension are static
     //  In general, we can use static kernels in this case, but several parameters (src and dst memory pointers for example)
     //  should be passed as run-time args, so it's a mixed mode: kernel is shape-aware, but some additional runtime args are required
     // Presently Broadcasting is organized in the following way:
     // * ALL last dims are static => broadcasting is handled via MoveBroadcast and pointer arithmetics (even for dynamic upper dims)
     if (!inputs_has_dynamic_last_dims) {
-        manager.register_pass<snippets::pass::InsertMoveBroadcast>();
+        common_manager.register_pass<snippets::pass::InsertMoveBroadcast>();
     }
-    manager.run_passes(body_ptr());
+    common_manager.run_passes(body_ptr());
+
+    post_common.run_passes(body_ptr());
+
+    ngraph::pass::Manager precision_manager;
+    precision_manager.register_pass<snippets::pass::PropagatePrecision>(m_generator->get_target_machine());
+    precision_manager.register_pass<ngraph::pass::ConstantFolding>();
+    precision_manager.register_pass<snippets::pass::ConvertConstantsToScalars>();
+    precision_manager.run_passes(body_ptr());
+
+    post_precision.run_passes(body_ptr());
+}
+
+void snippets::op::Subgraph::control_flow_transformations(lowered::LinearIR& linear_ir,
+                                                          lowered::pass::PassPipeline& target_pipeline,
+                                                          const lowered::Config& config) {
+    INTERNAL_OP_SCOPE(Subgraph);
+    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::control_flow_transformations")
+
+    linear_ir = lowered::LinearIR(body_ptr(), config);
+    const size_t vector_size = get_generator()->get_target_machine()->get_lanes();
+    const int32_t buffer_allocation_rank = static_cast<int32_t>(config.m_loop_depth);
+
+    // Note: The pass InitLoops uses LoopInfo that contains entry and exit points of the corresponding Loop.
+    //       To avoid the Loop information corruption, we should call the passes with Load/Store work
+    //       (for example, LoadMoveBroadcastToBroadcastLoad()) after explicit Loop insertion (InitLoops())
+    lowered::pass::PassPipeline common_pipeline;
+    common_pipeline.register_pass<lowered::pass::MarkLoops>(vector_size);
+    common_pipeline.register_pass<lowered::pass::SoftmaxDecomposition>(vector_size);
+    common_pipeline.register_pass<lowered::pass::FuseLoops>();
+    common_pipeline.register_pass<lowered::pass::MoveResultOutOfLoop>();
+    common_pipeline.register_pass<lowered::pass::InsertBuffers>(buffer_allocation_rank);
+    common_pipeline.register_pass<lowered::pass::InsertLoadStore>(vector_size);
+    common_pipeline.register_pass<lowered::pass::SetScalarCountForLoadStore>();
+    common_pipeline.register_pass<lowered::pass::InitLoops>();
+    common_pipeline.register_pass<lowered::pass::MoveScalarToConsumer>();
+    common_pipeline.register_pass<lowered::pass::LoadMoveBroadcastToBroadcastLoad>();
+    common_pipeline.run(linear_ir);
+
+    target_pipeline.run(linear_ir);
+
+    const auto buffer_allocation_pass = std::make_shared<lowered::pass::AllocateBuffers>();
+    lowered::pass::PassPipeline buffer_pipeline;
+    buffer_pipeline.register_pass<lowered::pass::IdentifyBuffers>();
+    buffer_pipeline.register_pass<lowered::pass::CleanRepeatedDataPointerShifts>();
+    buffer_pipeline.register_pass(buffer_allocation_pass);
+    buffer_pipeline.run(linear_ir);
+
+    lowered::pass::PassPipeline final_pipeline;
+    final_pipeline.register_pass<lowered::pass::PropagateLayout>();
+    final_pipeline.register_pass<lowered::pass::CleanupLoopOffsets>();
+    final_pipeline.run(linear_ir);
+
+    m_buffer_scratchpad = buffer_allocation_pass->get_scratchpad_size();
 }
 
 snippets::Schedule snippets::op::Subgraph::generate(const BlockedShapeVector& output_shapes,
@@ -486,49 +564,43 @@ snippets::Schedule snippets::op::Subgraph::generate(const BlockedShapeVector& ou
 
 snippets::Schedule snippets::op::Subgraph::generate(const BlockedShapeVector& output_shapes,
                                                     const BlockedShapeVector& input_shapes,
-                                                    ngraph::pass::Manager& pre_dialect,
-                                                    ngraph::pass::Manager& post_dialect,
+                                                    ngraph::pass::Manager& pre_common,
+                                                    ngraph::pass::Manager& post_common,
                                                     ngraph::pass::Manager& post_precision,
+                                                    lowered::pass::PassPipeline& target_lowered_pipeline,
                                                     const void* compile_params) {
     canonicalize(output_shapes, input_shapes);
-    return generate(pre_dialect, post_dialect, post_precision, compile_params);
+    return generate(pre_common, post_common, post_precision, target_lowered_pipeline, compile_params);
 }
 
 snippets::Schedule snippets::op::Subgraph::generate(const void* compile_params) {
     auto mngr = ngraph::pass::Manager();
-    return generate(mngr, mngr, mngr, compile_params);
+    auto lowered = lowered::pass::PassPipeline();
+    return generate(mngr, mngr, mngr, lowered, compile_params);
 }
 
 snippets::Schedule snippets::op::Subgraph::generate(
-    ngraph::pass::Manager& pre_dialect,
-    ngraph::pass::Manager& post_dialect,
+    ngraph::pass::Manager& pre_common,
+    ngraph::pass::Manager& post_common,
     ngraph::pass::Manager& post_precision,
+    lowered::pass::PassPipeline& target_lowered_pipeline,
     const void* compile_params) {
     INTERNAL_OP_SCOPE(Subgraph);
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::generate")
     NGRAPH_CHECK(m_generator != nullptr, "generate is called while generator is not set");
 
-    pre_dialect.run_passes(body_ptr());
-    convert_to_snippet_dialect();
-    post_dialect.run_passes(body_ptr());
-
-    ngraph::pass::Manager precision_manager;
-    precision_manager.register_pass<snippets::pass::PropagatePrecision>(m_generator->get_target_machine());
-    precision_manager.register_pass<ngraph::pass::ConstantFolding>();
-    precision_manager.register_pass<snippets::pass::ConvertConstantsToScalars>();
-    precision_manager.run_passes(body_ptr());
-
-    post_precision.run_passes(body_ptr());
-
-    const auto ops = body_ptr()->get_ops();
-    // actual code emission
+    lowered::LinearIR linear_ir;
     lowered::Config lowering_config;
     lowering_config.m_save_lowered_code = config.m_has_domain_sensitive_ops;
     lowering_config.m_need_fill_tail_register = config.m_has_domain_sensitive_ops;
     lowering_config.m_loop_depth = tileRank;
-    const auto& lowering_result = m_generator->generate(body_ptr(), lowering_config, compile_params);
-    ngraph::snippets::code ptr = lowering_result.binary_code;
-    m_buffer_scratchpad = lowering_result.buffer_scratchpad_size;
+
+    data_flow_transformations(pre_common, post_common, post_precision);
+    control_flow_transformations(linear_ir, target_lowered_pipeline, lowering_config);
+
+    // actual code emission
+    const auto& lowering_result = m_generator->generate(linear_ir, lowering_config, compile_params);
+    const auto ptr = lowering_result.binary_code;
 
     return {master_shape, false /*canBeLinearized*/, ptr};
 }

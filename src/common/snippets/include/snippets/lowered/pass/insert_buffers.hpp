@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "transformation.hpp"
+#include "pass.hpp"
 
 namespace ngraph {
 namespace snippets {
@@ -19,9 +19,9 @@ namespace pass {
  * @param m_buffer_allocation_rank - rank of shape for memory allocation: shape[shape_rank - normalize(m_allocation_rank) : shape_rank]
  * @ingroup snippets
  */
-class InsertBuffers : public Transformation {
+class InsertBuffers : public Pass {
 public:
-    OPENVINO_RTTI("InsertBuffers", "Transformation")
+    OPENVINO_RTTI("InsertBuffers", "Pass")
     InsertBuffers(int32_t buffer_allocation_rank);
     bool run(LinearIR& linear_ir) override;
 

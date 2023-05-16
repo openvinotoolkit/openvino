@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "transformation.hpp"
+#include "pass.hpp"
 
 
 namespace ngraph {
@@ -20,9 +20,9 @@ namespace pass {
  *          - the consumer of the expression is explicitly after this expression - the pass marks the branches
  * @ingroup snippets
  */
-class MarkLoops : public Transformation {
+class MarkLoops : public Pass {
 public:
-    OPENVINO_RTTI("MarkLoops", "Transformation")
+    OPENVINO_RTTI("MarkLoops", "Pass")
     MarkLoops(size_t vector_size);
     bool run(LinearIR& linear_ir) override;
 

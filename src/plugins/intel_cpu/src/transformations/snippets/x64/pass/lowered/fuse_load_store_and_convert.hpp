@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "snippets/lowered/pass/transformation.hpp"
+#include "snippets/lowered/pass/pass.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -18,7 +18,7 @@ namespace pass {
  *        Fuse Store and ConvertTruncation into one op StoreConvertTruncation
  * @ingroup snippets
  */
-class FuseLoadStoreConvert: public ngraph::snippets::lowered::pass::Transformation {
+class FuseLoadStoreConvert: public ngraph::snippets::lowered::pass::Pass {
 public:
     FuseLoadStoreConvert() = default;
     OPENVINO_RTTI("FuseLoadStoreConvert", "LinearIRTransformation");

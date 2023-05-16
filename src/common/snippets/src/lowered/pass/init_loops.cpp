@@ -53,7 +53,7 @@ int64_t get_dim_stride(const size_t dim, const std::vector<size_t>& layout, cons
 }
 }  // namespace
 
-InitLoops::InitLoops() : Transformation() {}
+InitLoops::InitLoops() : Pass() {}
 
 std::vector<int64_t> InitLoops::init_ptr_increments(const std::vector<ExpressionPort>& loop_inputs,
                                                     const std::vector<ExpressionPort>& loop_outputs,

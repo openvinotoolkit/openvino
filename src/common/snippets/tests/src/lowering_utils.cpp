@@ -103,6 +103,7 @@ std::shared_ptr<ngraph::snippets::op::Subgraph> LoweringTests::getLoweredSubgrap
                                                                                   ov::pass::Manager pre_dialect,
                                                                                   ov::pass::Manager post_dialect,
                                                                                   ov::pass::Manager post_precision,
+                                                                                  ngraph::snippets::lowered::pass::PassPipeline lowered_pipeline,
                                                                                   const std::shared_ptr<ngraph::snippets::Generator> generator) {
     auto subgraph = getTokenizedSubgraph(f);
     subgraph->set_generator(generator == nullptr ? std::make_shared<DummyGenerator>() : generator);
@@ -124,7 +125,7 @@ std::shared_ptr<ngraph::snippets::op::Subgraph> LoweringTests::getLoweredSubgrap
     }
     body_rt_info["PluginShapesOverride"] = new_shapes;
     subgraph->set_tile_rank(2);
-    subgraph->generate(pre_dialect, post_precision, post_precision);
+    subgraph->generate(pre_dialect, post_precision, post_precision, lowered_pipeline);
     return subgraph;
 }
 
