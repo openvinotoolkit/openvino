@@ -6,7 +6,6 @@
 
 #include "openvino/runtime/properties.hpp"
 #include "plugin.h"
-#include "cpu_info.h"
 
 #include "transformations/transformation_pipeline.h"
 #include "itt.h"
@@ -36,8 +35,13 @@
 # include <sys/mman.h>
 #endif
 
+#ifndef __aarch64__
 #include <cpu/x64/cpu_isa_traits.hpp>
+#else
+#include <cpu/aarch64/cpu_isa_traits.hpp>
+#endif
 #include <itt.h>
+#include "cpu_info.h"
 
 using namespace InferenceEngine;
 
@@ -385,8 +389,12 @@ StreamCfg Engine::GetNumStreams(InferenceEngine::IStreamsExecutor::ThreadBinding
 
 static bool shouldEnforceBF16(const std::map<std::string, std::string>& modelConfig, const Config& engineConfig) {
     // For BF16 execution, the machine should have AVX512 at least
+#ifdef __aarch64__
+        return false;
+#else
     if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core))
         return false;
+#endif
 
     const auto& enforceBF16 = modelConfig.find(InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16);
     const auto& inferPrec = modelConfig.find(ov::hint::inference_precision.name());
@@ -493,9 +501,13 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
         GetPerformanceStreams(conf, nGraphFunc);
     }
 
+    auto has_SEE = false;
+#ifndef __aarch64__
     // SSE runtime check is needed for some ATOM machine, which is x86-64 but w/o SSE
     static Xbyak::util::Cpu cpu;
-    if (cpu.has(Xbyak::util::Cpu::tSSE)) {
+    has_SEE = cpu.has(Xbyak::util::Cpu::tSSE);
+#endif
+    if (has_SEE) {
         if (conf.denormalsOptMode == Config::DenormalsOptMode::DO_On) {
             flush_to_zero(true);
             conf.DAZOn = denormals_as_zero(true);
@@ -588,9 +600,7 @@ Parameter Engine::GetConfig(const std::string& name, const std::map<std::string,
     return GetConfigLegacy(name, options);
 }
 static float GetGOPS(intel_cpu::CPUInfo& cpu_info, InferenceEngine::Precision dt) {
-    std::cout << "[WangYang] Get GFLOPS for precision...\n";
     auto ret = cpu_info.getPeakGOPSImpl(dt);
-    std::cout << "[WangYang] Get GFLOPS for precision: " << ret << std::endl;
     return ret;
 }
 Parameter Engine::GetMetricLegacy(const std::string& name, const std::map<std::string, Parameter>& options) const {
@@ -615,10 +625,12 @@ Parameter Engine::GetMetricLegacy(const std::string& name, const std::map<std::s
         IE_SET_METRIC_RETURN(AVAILABLE_DEVICES, availableDevices);
     } else if (name == METRIC_KEY(OPTIMIZATION_CAPABILITIES)) {
         std::vector<std::string> capabilities;
+#ifndef __aarch64__
         if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16))
             capabilities.push_back(METRIC_VALUE(BF16));
         if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core))
             capabilities.push_back(METRIC_VALUE(WINOGRAD));
+#endif
         capabilities.push_back(METRIC_VALUE(FP32));
         capabilities.push_back(METRIC_VALUE(FP16));
         capabilities.push_back(METRIC_VALUE(INT8));
@@ -638,16 +650,11 @@ Parameter Engine::GetMetricLegacy(const std::string& name, const std::map<std::s
     } else if (name == METRIC_KEY(IMPORT_EXPORT_SUPPORT)) {
         IE_SET_METRIC_RETURN(IMPORT_EXPORT_SUPPORT, true);
     } else if (name == METRIC_KEY(DEVICE_GOPS)) {
-        std::cout << "[WangYang] Ready to create cpu_info obj....\n";
         CPUInfo cpu_info;
-        std::cout << "[WangYang] Calculate DEVICE_GOPS....\n";
         std::map<InferenceEngine::Precision, float> gops;
         gops[InferenceEngine::Precision::I8] = GetGOPS(cpu_info, InferenceEngine::Precision::I8);
         gops[InferenceEngine::Precision::BIN] = GetGOPS(cpu_info, InferenceEngine::Precision::BIN);
         gops[InferenceEngine::Precision::FP32] = GetGOPS(cpu_info, InferenceEngine::Precision::FP32);
-        std::cout << "[WangYang] Ready to return GFLOPS: " << gops[InferenceEngine::Precision::I8] << "-"
-                  << gops[InferenceEngine::Precision::BIN] << "-" << gops[InferenceEngine::Precision::FP32]
-                  << std::endl;
         IE_SET_METRIC_RETURN(DEVICE_GOPS, gops);
     } else if (name == ov::caching_properties) {
         std::vector<ov::PropertyName> cachingProperties = { METRIC_KEY(FULL_DEVICE_NAME) };
@@ -708,10 +715,12 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
         return decltype(ov::available_devices)::value_type(availableDevices);
     } else if (name == ov::device::capabilities) {
         std::vector<std::string> capabilities;
+#ifndef __aarch64__
         if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16))
             capabilities.push_back(METRIC_VALUE(BF16));
         if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core))
             capabilities.push_back(METRIC_VALUE(WINOGRAD));
+#endif
         capabilities.push_back(METRIC_VALUE(FP32));
         capabilities.push_back(METRIC_VALUE(FP16));
         capabilities.push_back(METRIC_VALUE(INT8));
@@ -725,15 +734,11 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
         const std::tuple<unsigned int, unsigned int> range = std::make_tuple(1, parallel_get_max_threads());
         return decltype(ov::range_for_streams)::value_type(range);
     } else if (name == ov::device::gops) {
-        std::cout << "[WangYang] Ready to create cpu_info obj....\n";
         CPUInfo cpu_info;
-        std::cout << "[WangYang] Calculate DEVICE_GOPS....\n";
         std::map<element::Type, float> gops;
         gops[element::i8] = GetGOPS(cpu_info, InferenceEngine::Precision::I8);
         gops[element::u1] = GetGOPS(cpu_info, InferenceEngine::Precision::BIN);
         gops[element::f32] = GetGOPS(cpu_info, InferenceEngine::Precision::FP32);
-        std::cout << "[WangYang] Ready to return GFLOPS: " << gops[element::i8] << "-" << gops[element::u1] << "-"
-                  << gops[element::f32] << std::endl;
         return decltype(ov::device::gops)::value_type (gops);
     } else if (name == ov::caching_properties) {
         std::vector<ov::PropertyName> cachingProperties = { ov::device::full_name };

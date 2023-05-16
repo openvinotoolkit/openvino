@@ -6,7 +6,11 @@
 #define XBYAK_NO_OP_NAMES
 #define XBYAK_USE_MMAP_ALLOCATOR
 #include <chrono>
+#ifdef __aarch64__
+#include <cpu/aarch64/cpu_isa_traits.hpp>
+#else
 #include <cpu/x64/cpu_isa_traits.hpp>
+#endif
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
@@ -20,6 +24,7 @@
 
 #include <cmath>
 #include <set>
+
 #include "cpu_info.h"
 
 #ifndef WIN32
@@ -28,161 +33,17 @@ static const float Hz_IN_GHz = 1e6f;
 static const float MHz_IN_GHz = 1e3f;
 #endif
 
-using Xbyak::Xmm;
-using Xbyak::Ymm;
-using Xbyak::Zmm;
-
-template <typename T>
-struct RegMap;
-
-template <>
-struct RegMap<Xbyak::Xmm> {
-    void save(Xbyak::CodeGenerator* g, int idx, int off) {
-        g->movaps(g->ptr[g->rsp + off], Xmm(idx));
-    }
-
-    void restore(Xbyak::CodeGenerator* g, int idx, int off) {
-        g->movaps(Xmm(idx), g->ptr[g->rsp + off]);
-    }
-
-    void killdep(Xbyak::CodeGenerator* g, int idx) {
-        g->xorps(Xmm(idx), Xmm(idx));
-    }
-};
-
-template <>
-struct RegMap<Xbyak::Ymm> {
-    void save(Xbyak::CodeGenerator* g, int idx, int off) {
-        g->vmovaps(g->ptr[g->rsp + off], Ymm(idx));
-    }
-
-    void restore(Xbyak::CodeGenerator* g, int idx, int off) {
-        g->vmovaps(Ymm(idx), g->ptr[g->rsp + off]);
-    }
-    void killdep(Xbyak::CodeGenerator* g, int idx) {
-        g->vxorps(Ymm(idx), Ymm(idx), Ymm(idx));
-    }
-};
-
-template <>
-struct RegMap<Xbyak::Zmm> {
-    void save(Xbyak::CodeGenerator* g, int idx, int off) {
-        g->vmovaps(g->ptr[g->rsp + off], Zmm(idx));
-    }
-
-    void restore(Xbyak::CodeGenerator* g, int idx, int off) {
-        g->vmovaps(Zmm(idx), g->ptr[g->rsp + off]);
-    }
-
-    void killdep(Xbyak::CodeGenerator* g, int idx) {
-        g->vpxorq(Zmm(idx), Zmm(idx), Zmm(idx));
-    }
-};
-
-template <typename RegType, typename Gen, typename F>
-struct ThroughputGenerator {
-    void operator()(Gen* g, RegMap<RegType>& rm, F f, int num_insn) {
-        for (int j = 0; j < num_insn / 12; j++)
-            for (int i = 0; i < 12; i++)
-                f(g, 4 + i, 4 + i);
-    }
-};
-
-template <typename RegType, typename F>
-struct Generator : public Xbyak::CodeGenerator {
-    Generator(F f, int num_loop, int num_insn) {
-        RegMap<RegType> rm;
-
-        int reg_size = 64;
-        int num_reg = 12;
-
-        push(rbp);
-        mov(rbp, rsp);
-        and_(rsp, -(Xbyak::sint64)64);
-        sub(rsp, reg_size * (num_reg + 1));
-
-        for (int i = 0; i < num_reg; i++)
-            rm.save(this, 4 + i, -reg_size * (12 - i));
-
-        for (int i = 0; i < num_reg; i++)
-            rm.killdep(this, 4 + i);
-
-        mov(rcx, num_loop);
-
-        align(16);
-        L("@@");
-        ThroughputGenerator<RegType, Generator, F>()(this, rm, f, num_insn);
-        dec(rcx);
-        jnz("@b");
-
-        for (int i = 0; i < num_reg; i++)
-            rm.restore(this, 4 + i, -reg_size * (12 - i));
-
-        mov(rsp, rbp);
-        pop(rbp);
-        ret();
-    }
-};
-
 namespace ov {
 namespace intel_cpu {
-
-bool CPUInfo::haveSSE() {
-    return have_sse && have_sse2 && have_ssse3 && have_sse4_1 && have_sse4_2;
-}
-
-bool CPUInfo::haveAVX() {
-    return have_avx && have_avx2;
-}
-
-bool CPUInfo::haveAVX512() {
-    return have_avx512f;
-}
-
-bool CPUInfo::checkIsaSupport(ISA cpu_isa) {
-    using namespace Xbyak::util;
-    static Cpu cpu;
-
-    switch (cpu_isa) {
-    case ISA::sse:
-        return cpu.has(Cpu::tSSE);
-    case ISA::sse2:
-        return cpu.has(Cpu::tSSE2);
-    case ISA::sse3:
-        return cpu.has(Cpu::tSSE3);
-    case ISA::ssse3:
-        return cpu.has(Cpu::tSSSE3);
-    case ISA::sse4_1:
-        return cpu.has(Cpu::tSSE41);
-    case ISA::sse4_2:
-        return cpu.has(Cpu::tSSE42);
-    case ISA::avx:
-        return cpu.has(Cpu::tAVX);
-    case ISA::avx2:
-        return cpu.has(Cpu::tAVX2);
-    case ISA::fma:
-        return cpu.has(Cpu::tFMA);
-    case ISA::avx512_common:
-        return cpu.has(Cpu::tAVX512F);
-    case ISA::avx512_core:
-        return cpu.has(Cpu::tAVX512F) && cpu.has(Cpu::tAVX512BW) && cpu.has(Cpu::tAVX512VL) && cpu.has(Cpu::tAVX512DQ);
-    case ISA::avx512_mic:
-        return cpu.has(Cpu::tAVX512F) && cpu.has(Cpu::tAVX512CD) && cpu.has(Cpu::tAVX512ER) && cpu.has(Cpu::tAVX512PF);
-    case ISA::avx512_mic_4ops:
-        return checkIsaSupport(ISA::avx512_mic) && cpu.has(Cpu::tAVX512_4FMAPS) && cpu.has(Cpu::tAVX512_4VNNIW);
-    case ISA::avx512_vnni:
-        return cpu.has(Cpu::tAVX512F);//&&
-                   //cpu.has(Cpu::tAVX512_VNNI);
-    }
-
-    return false;
-}
 
 float CPUInfo::calcComputeBlockIPC(InferenceEngine::Precision precision) {
     const int NUM_LOOP = 16384 * 8;
     const int NUM_INSN = 36;
     const int NUM_ITER = 100;
-
+#ifndef __aarch64__
+    using Xbyak::Xmm;
+    using Xbyak::Ymm;
+    using Xbyak::Zmm;
     Xbyak::CodeGenerator* g = NULL;
     if (haveAVX512()) {
         auto gen = [](Xbyak::CodeGenerator* g, int dst_reg, int src_reg) {
@@ -220,7 +81,7 @@ float CPUInfo::calcComputeBlockIPC(InferenceEngine::Precision precision) {
             g = new Generator<Ymm, decltype(gen)>(gen, NUM_LOOP, NUM_INSN);
         }
 
-    } else if (haveSSE()) {
+    } else if (haveSSE() || haveSSEX()) {
         auto gen = [](Xbyak::CodeGenerator* g, int dst_reg, int src_reg) {
             g->mulps(Xmm(dst_reg), Xmm(src_reg));
             g->addps(Xmm(dst_reg), Xmm(src_reg));
@@ -228,26 +89,33 @@ float CPUInfo::calcComputeBlockIPC(InferenceEngine::Precision precision) {
 
         g = new Generator<Xmm, decltype(gen)>(gen, NUM_LOOP, NUM_INSN);
     }
-    typedef void (*func_t)(void);
-    std::cout << "[WangYang] Ready to run getCode() at File:line: " << __FILE__ << ":" << __LINE__ << " ...\n";
-    if (!g)
-        std::cout << "[WangYang] Invalid g pointer!\n";
-    func_t exec = (func_t)g->getCode();
-
-    using clock_type = std::chrono::high_resolution_clock;
-    using duration = clock_type::duration;
-
-    float res = 0;
-    for (int i = 0; i < NUM_ITER; i++) {
-        duration b1 = clock_type::now().time_since_epoch();
-        exec();
-        duration e1 = clock_type::now().time_since_epoch();
-
-        res = std::max(res, (NUM_INSN * NUM_LOOP) / ((e1.count() - b1.count()) * freqGHz));
+#else
+    using Xbyak_aarch64::T_z;
+    using Xbyak_aarch64::XReg;
+    Xbyak_aarch64::CodeGenerator* g = NULL;
+    if (haveAVDSimd()) {
+        g = NULL;
     }
+#endif
+    float res = 0;
+    typedef void (*func_t)(void);
+    if (g) {
+        func_t exec = (func_t)g->getCode();
 
-    delete g;
+        using clock_type = std::chrono::high_resolution_clock;
+        using duration = clock_type::duration;
 
+        for (int i = 0; i < NUM_ITER; i++) {
+            duration b1 = clock_type::now().time_since_epoch();
+            exec();
+            duration e1 = clock_type::now().time_since_epoch();
+
+            res = std::max(res, (NUM_INSN * NUM_LOOP) / ((e1.count() - b1.count()) * freqGHz));
+        }
+        delete g;
+    } else {
+        std::cout << "WARNING: unsupport ISA: " << ISA_detailed << " !\n";
+    }
     return res;
 }
 
@@ -257,8 +125,7 @@ float CPUInfo::getFrequency(const std::string path) {
     try {
         std::ifstream file(path);
         file >> freq;
-    }
-    catch (std::ios_base::failure& e) {
+    } catch (std::ios_base::failure& e) {
         throw std::runtime_error("CPUInfo: unable to open " + path + " file: " + std::string(e.what()) + "\n");
     }
     if (freq.empty())
@@ -351,7 +218,8 @@ void CPUInfo::init() {
     auto getFeatureValue = [](std::string& line) -> std::string {
         std::istringstream iss(line);
         std::string res;
-        while (std::getline(iss, res, ':')) {}
+        while (std::getline(iss, res, ':')) {
+        }
         return res;
     };
 
@@ -359,8 +227,7 @@ void CPUInfo::init() {
     std::ifstream cpuinfo;
     try {
         cpuinfo.open(path);
-    }
-    catch (std::ios_base::failure& e) {
+    } catch (std::ios_base::failure& e) {
         throw std::runtime_error("CPUInfo: unable to open " + path + " file: " + std::string(e.what()) + "\n");
     }
     std::set<uint32_t> unique_core_ids;
@@ -414,6 +281,8 @@ void CPUInfo::init() {
 }
 
 CPUInfo::CPUInfo() {
+    ISA_detailed = dnnl::impl::cpu::platform::get_isa_info();
+#ifndef __aarch64__
     have_sse = checkIsaSupport(ISA::sse);
     have_sse2 = checkIsaSupport(ISA::sse2);
     have_ssse3 = checkIsaSupport(ISA::ssse3);
@@ -424,6 +293,9 @@ CPUInfo::CPUInfo() {
     have_fma = checkIsaSupport(ISA::fma);
     have_avx512f = checkIsaSupport(ISA::avx512_common);
     have_vnni = checkIsaSupport(ISA::avx512_vnni);
+#else
+    have_avdsimd = checkIsaSupport(ISA::asimd);
+#endif
 
     try {
         init();
@@ -437,6 +309,7 @@ CPUInfo::CPUInfo() {
         std::string msg{e.what()};
         IE_THROW() << "Failed to initialize CPU info for calculating GOPS: " << msg;
     }
+    printDetails();
 }
 
 float CPUInfo::getPeakGOPSImpl(InferenceEngine::Precision precision) {
@@ -448,7 +321,7 @@ float CPUInfo::getPeakGOPSImpl(InferenceEngine::Precision precision) {
     case InferenceEngine::Precision::I8:
         data_type_bit_size = sizeof(int8_t) * 8;
         break;
-    case InferenceEngine::Precision::BIN :
+    case InferenceEngine::Precision::BIN:
         data_type_bit_size = 1;
         break;
     default:
@@ -456,17 +329,19 @@ float CPUInfo::getPeakGOPSImpl(InferenceEngine::Precision precision) {
         break;
     }
 
+    simd_size = 1;
+#ifdef __aarch64__
+    if (haveAVDSimd())
+        simd_size = 128 / data_type_bit_size;
+#else
     if (haveAVX512())
         simd_size = 512 / data_type_bit_size;
-    else if (haveAVX())
+    if (haveAVX())
         simd_size = 256 / data_type_bit_size;
-    else if (haveSSE())
+    if (haveSSE())
         simd_size = 128 / data_type_bit_size;
-    else
-        simd_size = 1;
-
+#endif
     operations_per_compute_block = 2 * simd_size;
-    std::cout << "[WangYang] Ready to calculate IPC....\n";
     instructions_per_cycle = calcComputeBlockIPC(precision);
 
     return std::round(instructions_per_cycle * operations_per_compute_block) * freqGHz * cores_per_socket *
@@ -479,6 +354,7 @@ void CPUInfo::printDetails() {
     std::cout << "cycles per second (freq in GHz): " << freqGHz << std::endl;
     std::cout << "cores per socket:                " << cores_per_socket << std::endl;
     std::cout << "sockets count:                   " << sockets_per_node << std::endl;
+    std::cout << "ISA information:                 " << ISA_detailed << std::endl;
 }
-} // namespace intel_cpu
-} // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov
