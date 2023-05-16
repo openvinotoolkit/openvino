@@ -85,7 +85,7 @@ CLI Examples Using Caffe-Specific Parameters
 Custom Layer Definition
 ########################
 
-Internally, when you run Mdel Conversion API, it loads the model, goes through the topology, and tries to find each layer type in a list of known layers. Custom layers are layers that are not included in the list. If your topology contains such kind of layers, Model Conversion API classifies them as custom.
+Internally, when you run Model Conversion API, it loads the model, goes through the topology, and tries to find each layer type in a list of known layers. Custom layers are layers that are not included in the list. If your topology contains such kind of layers, Model Conversion API classifies them as custom.
 
 Supported Caffe Layers
 #######################
