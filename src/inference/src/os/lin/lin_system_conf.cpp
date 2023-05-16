@@ -22,14 +22,15 @@ CPU::CPU() {
     std::vector<std::vector<std::string>> system_info_table;
 
     _num_threads = parallel_get_max_threads();
-    auto GetCatchInfoLinux = [&]() {
+    auto GetCacheInfoLinux = [&]() {
         int cpu_index = 0;
         int cache_index = 0;
+        int cache_files = 3;
 
-        std::vector<std::string> one_info(3);
+        std::vector<std::string> one_info(cache_files);
 
         while (1) {
-            for (int n = 0; n < 3; n++) {
+            for (int n = 0; n < cache_files; n++) {
                 cache_index = (n == 0) ? n : n + 1;
 
                 std::ifstream cache_file("/sys/devices/system/cpu/cpu" + std::to_string(cpu_index) + "/cache/index" +
@@ -62,13 +63,14 @@ CPU::CPU() {
         int cpu_index = 0;
         int cache_index = 0;
 
-        std::vector<std::string> one_info(3);
         std::vector<std::string> file_name = {"/topology/core_cpus_list",
                                               "/topology/physical_package_id",
                                               "/cpufreq/cpuinfo_max_freq"};
+        int num_of_files = file_name.size();
+        std::vector<std::string> one_info(num_of_files);
 
         while (1) {
-            for (int n = 0; n < 3; n++) {
+            for (int n = 0; n < num_of_files; n++) {
                 cache_index = n;
 
                 std::ifstream cache_file("/sys/devices/system/cpu/cpu" + std::to_string(cpu_index) + file_name[n]);
@@ -96,7 +98,7 @@ CPU::CPU() {
         return 0;
     };
 
-    if (!GetCatchInfoLinux()) {
+    if (!GetCacheInfoLinux()) {
         parse_cache_info_linux(system_info_table,
                                _processors,
                                _numa_nodes,
