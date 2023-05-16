@@ -40,25 +40,10 @@ namespace pytorch {
 namespace {
 std::set<std::string> get_unconverted_types_from_model(const std::shared_ptr<Model>& model) {
     std::set<std::string> unconverted_ops_types;
-    ov::serialize(model, "/home/pkrzemin/model.xml", "/home/pkrzemin/model.bin");
     for (const auto& node : model->get_ordered_ops()) {
-        std::cerr << node->get_name() << " " << node->get_friendly_name() << " ";
-        // if (node->inputs().size() >= 1){
-        //     std::cerr << node->get_input_shape(0).to_string() << " ";
-        // }
-        // if (node->inputs().size() >= 2){
-        //     std::cerr << node->get_input_shape(1).to_string() << " ";
-        // }
-        std::cerr << "\n";
         if (const auto& fw_node = ov::as_type_ptr<PtFrameworkNode>(node)) {
-            // ov::serialize(model, "/home/pkrzemin/model.xml", "/home/pkrzemin/model.bin");
             auto op_type = fw_node->get_decoder()->get_op_type();
             unconverted_ops_types.insert(op_type);
-            // if (op_type == "aten::_native_multi_head_attention") {
-            //     auto dec = fw_node->get_decoder();
-            //     auto n_n = dec->get_output_debug_name(0);
-            //     std::cerr << n_n << "\n";
-            // }
         }
         if (const auto& fw_node = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node)) {
             for (size_t i = 0; i < fw_node->get_internal_subgraphs_size(); i++) {
