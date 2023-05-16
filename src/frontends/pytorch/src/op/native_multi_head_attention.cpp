@@ -81,9 +81,9 @@ OutputVector translate_native_multi_head_attention(const NodeContext& context) {
     const auto value_proj_bias =
         context.mark_node(std::make_shared<opset10::Slice>(qkv_bias, ev_2_slice_1d, ev_3_slice_1d, one_1d, zero_1d));
 
-    const auto query_weighted = context.mark_node(std::make_shared<opset10::MatMul>(query, query_proj_weight));
-    const auto key_weighted = context.mark_node(std::make_shared<opset10::MatMul>(key, key_proj_weight));
-    const auto value_weighted = context.mark_node(std::make_shared<opset10::MatMul>(value, value_proj_weight));
+    const auto query_weighted = context.mark_node(std::make_shared<opset10::MatMul>(query, query_proj_weight, false, true));
+    const auto key_weighted = context.mark_node(std::make_shared<opset10::MatMul>(key, key_proj_weight, false, true));
+    const auto value_weighted = context.mark_node(std::make_shared<opset10::MatMul>(value, value_proj_weight, false, true));
 
     const auto query_biased = context.mark_node(std::make_shared<opset10::Add>(query_weighted, query_proj_bias));
     const auto key_biased = context.mark_node(std::make_shared<opset10::Add>(key_weighted, key_proj_bias));
@@ -109,7 +109,7 @@ OutputVector translate_native_multi_head_attention(const NodeContext& context) {
         context.mark_node(std::make_shared<opset10::Transpose>(value_reshaped, qkv_transpose_dims));
 
     const auto scale_one = context.mark_node(std::make_shared<opset10::ConvertLike>(one, query_transposed));
-    const auto scale_dim = context.mark_node(std::make_shared<opset10::ConvertLike>(ev, query_transposed));
+    const auto scale_dim = context.mark_node(std::make_shared<opset10::ConvertLike>(embed_div_heads, query_transposed));
     const auto scale_dim_sqrt = context.mark_node(std::make_shared<opset10::Sqrt>(scale_dim));
     const auto scale = context.mark_node(std::make_shared<opset10::Divide>(scale_one, scale_dim_sqrt));
 
@@ -136,7 +136,7 @@ OutputVector translate_native_multi_head_attention(const NodeContext& context) {
         std::make_shared<opset10::Reshape>(scaled_dot_product_attention_transposed, sdp_reshape_dims, false));
 
     const auto scaled_dot_product_attention_weighted =
-        context.mark_node(std::make_shared<opset10::MatMul>(scaled_dot_product_attention_reshaped, proj_weight));
+        context.mark_node(std::make_shared<opset10::MatMul>(scaled_dot_product_attention_reshaped, proj_weight, false, true));
     const auto scaled_dot_product_attention_biased =
         context.mark_node(std::make_shared<opset10::Add>(scaled_dot_product_attention_weighted, proj_bias));
 

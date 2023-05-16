@@ -22,10 +22,6 @@ class aten_native_multi_head_attention(torch.nn.Module):
         self.proj = torch.nn.Linear(EMBED_DIM, EMBED_DIM, dtype = torch.float32)
         self.proj.requires_grad_(False)
 
-        self.proj_weight = self.proj.weight.detach().numpy().astype(np.float32)
-        self.proj_weight.fill(0)
-        self.proj_bias = self.proj.bias.detach().numpy().astype(np.float32)
-
         self.embed_dim = EMBED_DIM
         self.num_heads = NUM_HEADS
         self.need_weights = need_weights
