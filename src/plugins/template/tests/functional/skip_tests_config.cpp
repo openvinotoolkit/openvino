@@ -114,6 +114,9 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*OVInferRequestCheckTensorPrecision.*get(Input|Output|Inputs|Outputs)From.*FunctionWith(Single|Several).*type=(u4|u1|i4|boolean).*)",
         // AUTO does not support import / export
         R"(.*smoke_Auto_BehaviorTests/OVCompiledGraphImportExportTest.*(mportExport|readFromV10IR).*/targetDevice=(AUTO).*)",
+        // CVS-110345
+        R"(.*ReferenceInterpolate_v11.*data_type=f16.*)",
+        R"(.*LSTMSequence_With_Hardcoded_Refs.*ReferenceLSTMSequenceTest.*iType=f16.*)",
     };
 
 #ifdef _WIN32
