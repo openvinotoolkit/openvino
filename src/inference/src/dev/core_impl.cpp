@@ -463,7 +463,7 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
         {
             // TODO: remove this block of code once GPU removes support of ov::cache_dir
             // also, remove device_supports_cache_dir at all
-            allowNotImplemented([&]() {
+            {
                 OPENVINO_SUPPRESS_DEPRECATED_START
                 if (device_supports_cache_dir(plugin)) {
                     ov::AnyMap empty_map;
@@ -476,7 +476,7 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
                     desc.defaultConfig.erase(CONFIG_KEY(CACHE_DIR));
                 }
                 OPENVINO_SUPPRESS_DEPRECATED_END
-            });
+            }
 
             allowNotImplemented([&]() {
                 // Add device specific value to support device_name.device_id cases
@@ -1126,7 +1126,13 @@ bool ov::CoreImpl::device_supports_model_caching(const ov::Plugin& plugin) const
 }
 
 bool ov::CoreImpl::device_supports_cache_dir(const ov::Plugin& plugin) const {
-    return util::contains(plugin.get_property(ov::supported_properties), ov::cache_dir);
+    try {
+        return util::contains(plugin.get_property(ov::supported_properties), ov::cache_dir);
+    } catch (const InferenceEngine::NotImplemented&) {
+        return false;
+    } catch (const ov::NotImplemented&) {
+        return false;
+    }
 }
 
 ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_and_cache(const std::shared_ptr<const ov::Model>& model,
