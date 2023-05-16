@@ -2,15 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/runtime/itt.hpp"
+
 #include "pass_manager.h"
 #include "data_inst.h"
 #include "mutable_data_inst.h"
 #include "reshape_inst.h"
 #include "quantize_inst.h"
 #include "arg_max_min_inst.h"
+#include "fully_connected_inst.h"
 #include "program_node.h"
-#include "intel_gpu/runtime/engine.hpp"
-#include "intel_gpu/runtime/itt.hpp"
+
 #include <iostream>
 #include <cmath>
 #include <iomanip>

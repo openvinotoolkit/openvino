@@ -479,10 +479,10 @@ TEST_P(OVExecutableNetworkBaseTest, getOutputsFromFunctionWithSeveralOutputs) {
     EXPECT_EQ(function->output(1).get_tensor().get_names(), execNet.output(1).get_tensor().get_names());
     EXPECT_EQ(function->output(1).get_tensor().get_partial_shape(), execNet.output(1).get_tensor().get_partial_shape());
     EXPECT_EQ(function->output(1).get_tensor().get_element_type(), execNet.output(1).get_tensor().get_element_type());
-    EXPECT_EQ(function->output(1).get_node(), function->output("concat1").get_node());
+    EXPECT_EQ(function->output(0).get_node(), function->output("concat1").get_node());
     EXPECT_NE(function->output(0).get_node(), function->output("concat2").get_node());
     EXPECT_EQ(function->output(1).get_node(), function->output("concat2").get_node());
-    EXPECT_NE(function->output(0).get_node(), function->output("concat1").get_node());
+    EXPECT_NE(function->output(1).get_node(), function->output("concat1").get_node());
 }
 
 TEST_P(OVExecutableNetworkBaseTest, getOutputsFromSplitFunctionWithSeveralOutputs) {
