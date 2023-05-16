@@ -5,6 +5,7 @@
 #include "openvino/op/experimental_detectron_generate_proposals.hpp"
 
 #include "experimental_detectron_generate_proposals_shape_inference.hpp"
+#include "experimental_detectron_shape_infer_utils.hpp"
 #include "itt.hpp"
 #include "openvino/core/attribute_visitor.hpp"
 
@@ -47,28 +48,11 @@ bool ExperimentalDetectronGenerateProposalsSingleImage::visit_attributes(Attribu
 void ExperimentalDetectronGenerateProposalsSingleImage::validate_and_infer_types() {
     OV_OP_SCOPE(v6_ExperimentalDetectronGenerateProposalsSingleImage_validate_and_infer_types);
 
-    const auto input_size = get_input_size();
-    auto out_et = element::dynamic;
+    const auto shapes_and_type = detectron::validate::all_inputs_same_floating_type(this);
+    const auto output_shapes = shape_infer(this, shapes_and_type.first);
 
-    auto input_shapes = std::vector<ov::PartialShape>();
-    input_shapes.reserve(input_size);
-
-    for (size_t i = 0; i < input_size; ++i) {
-        NODE_VALIDATION_CHECK(this,
-                              element::Type::merge(out_et, out_et, get_input_element_type(i)) &&
-                                  (out_et.is_dynamic() || out_et.is_real()),
-                              "Input[",
-                              i,
-                              "] type '",
-                              get_input_element_type(i),
-                              "' is not floating point or not same as others inputs.");
-        input_shapes.push_back(get_input_partial_shape(i));
-    }
-
-    const auto output_shapes = shape_infer(this, input_shapes);
-
-    set_output_type(0, out_et, output_shapes[0]);
-    set_output_type(1, out_et, output_shapes[1]);
+    set_output_type(0, shapes_and_type.second, output_shapes[0]);
+    set_output_type(1, shapes_and_type.second, output_shapes[1]);
 }
 
 void ExperimentalDetectronGenerateProposalsSingleImage::set_attrs(Attributes attrs) {
