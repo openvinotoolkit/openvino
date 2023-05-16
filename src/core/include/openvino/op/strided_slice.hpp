@@ -119,7 +119,7 @@ public:
 
 private:
     AxisSet convert_mask_to_axis_set(const std::vector<int64_t>& mask) const;
-    bool indicies_input_has_and_set_bounds(const size_t port, const std::vector<int64_t>& masks) const;
+    bool indices_input_has_and_set_bounds(const size_t port, const std::vector<int64_t>& masks) const;
 
     std::vector<int64_t> m_begin_mask;
     std::vector<int64_t> m_end_mask;
