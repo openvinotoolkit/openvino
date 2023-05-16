@@ -214,6 +214,7 @@ int parse_processor_info_macos(int& _processors,
         if (sysctlbyname("hw.perflevel0.physicalcpu", &output, &size, NULL, 0) < 0) {
             _processors = 0;
             _cores = 0;
+            _numa_nodes = 0;
             return -1;
         } else {
             _proc_type_table.resize(1, std::vector<int>(PROC_TYPE_TABLE_SIZE, 0));
