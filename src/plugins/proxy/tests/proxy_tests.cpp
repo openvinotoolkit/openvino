@@ -8,8 +8,10 @@
 #include <string>
 
 #include "common_test_utils/file_utils.hpp"
+#include "ie_plugin_config.hpp"
 #include "openvino/opsets/opset11.hpp"
 #include "openvino/pass/serialize.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/file_util.hpp"
@@ -164,7 +166,7 @@ public:
     void export_model(std::ostream& model) const override {
         std::stringstream model_stream, bin_stream;
         ov::pass::Serialize(model_stream, bin_stream).run_on_model(std::const_pointer_cast<ov::Model>(m_model));
-        model << model_stream.str() << "===mock_format_delimiter===" << bin_stream.str();
+        model << model_stream.str() << "===mock_format_delimiter===" << bin_stream.str() << "===mock_format_end===";
     }
 
     std::shared_ptr<const ov::Model> get_runtime_model() const override {
@@ -290,12 +292,19 @@ public:
     }
 
     std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model, const ov::AnyMap& properties) const override {
+        static const std::string format_end = "===mock_format_end===";
+        auto start_pos = model.tellg();
         std::string full_config(std::istreambuf_iterator<char>(model), {});
-        auto streams = split(full_config, "===mock_format_delimiter===");
+        auto models = split(full_config, format_end);
+        auto streams = split(models[0], "===mock_format_delimiter===");
         OPENVINO_ASSERT(streams.size() == 2);
         ov::Tensor weights(ov::element::i8, {streams[1].size()}, &streams[1][0]);
         ov::Core core;
         auto ov_model = core.read_model(streams[0], weights);
+        if (models.size() > 1) {
+            model.seekg(start_pos);
+            model.seekg(models[0].size() + format_end.size(), std::ios_base::cur);
+        }
         return compile_model(ov_model, properties);
     }
 
@@ -375,6 +384,8 @@ void ov::proxy::tests::ProxyTests::register_plugin_support_reshape(ov::Core& cor
                 RO_property(ov::available_devices.name()),
                 RO_property(ov::loaded_from_cache.name()),
                 RO_property(ov::device::uuid.name()),
+                RO_property(ov::caching_properties.name()),
+                RO_property(METRIC_KEY(IMPORT_EXPORT_SUPPORT)),
             };
             // the whole config is RW before network is loaded.
             const static std::vector<ov::PropertyName> rwProperties{
@@ -417,6 +428,11 @@ void ov::proxy::tests::ProxyTests::register_plugin_support_reshape(ov::Core& cor
                     configs.emplace_back(property);
                 }
                 return configs;
+            } else if (METRIC_KEY(IMPORT_EXPORT_SUPPORT) == name) {
+                return true;
+            } else if (ov::caching_properties == name) {
+                std::vector<ov::PropertyName> caching_properties = {ov::device::uuid};
+                return decltype(ov::caching_properties)::value_type(caching_properties);
             } else if (name == "SUPPORTED_METRICS") {  // TODO: Remove this key
                 std::vector<std::string> configs;
                 for (const auto& property : roProperties) {
@@ -487,6 +503,8 @@ void ov::proxy::tests::ProxyTests::register_plugin_support_subtract(ov::Core& co
                 RO_property(ov::available_devices.name()),
                 RO_property(ov::loaded_from_cache.name()),
                 RO_property(ov::device::uuid.name()),
+                RO_property(ov::caching_properties.name()),
+                RO_property(METRIC_KEY(IMPORT_EXPORT_SUPPORT)),
             };
             // the whole config is RW before network is loaded.
             const static std::vector<ov::PropertyName> rwProperties{
@@ -531,6 +549,11 @@ void ov::proxy::tests::ProxyTests::register_plugin_support_subtract(ov::Core& co
                     configs.emplace_back(property);
                 }
                 return configs;
+            } else if (METRIC_KEY(IMPORT_EXPORT_SUPPORT) == name) {
+                return true;
+            } else if (ov::caching_properties == name) {
+                std::vector<ov::PropertyName> caching_properties = {ov::device::uuid};
+                return decltype(ov::caching_properties)::value_type(caching_properties);
             } else if (name == "SUPPORTED_METRICS") {  // TODO: Remove this key
                 std::vector<std::string> configs;
                 for (const auto& property : roProperties) {

@@ -46,7 +46,7 @@ TEST_F(ProxyTests, set_property_for_primary_device_full_name) {
 TEST_F(ProxyTests, get_property_on_default_device) {
     const std::string dev_name = "MOCK";
     auto supported_properties = core.get_property(dev_name, ov::supported_properties);
-    EXPECT_EQ(6, supported_properties.size());
+    EXPECT_EQ(8, supported_properties.size());
     size_t mutable_pr(0), immutable_pr(0);
     for (auto&& property : supported_properties) {
         property.is_mutable() ? mutable_pr++ : immutable_pr++;
@@ -66,14 +66,14 @@ TEST_F(ProxyTests, get_property_on_default_device) {
             EXPECT_NO_THROW(core.get_property(dev_name, property));
         }
     }
-    EXPECT_EQ(4, immutable_pr);
+    EXPECT_EQ(6, immutable_pr);
     EXPECT_EQ(2, mutable_pr);
 }
 
 TEST_F(ProxyTests, get_property_on_mixed_device) {
     const std::string dev_name = "MOCK.1";
     auto supported_properties = core.get_property(dev_name, ov::supported_properties);
-    EXPECT_EQ(6, supported_properties.size());
+    EXPECT_EQ(8, supported_properties.size());
     size_t mutable_pr(0), immutable_pr(0);
     for (auto&& property : supported_properties) {
         property.is_mutable() ? mutable_pr++ : immutable_pr++;
@@ -93,14 +93,14 @@ TEST_F(ProxyTests, get_property_on_mixed_device) {
             core.get_property(dev_name, property);
         }
     }
-    EXPECT_EQ(4, immutable_pr);
+    EXPECT_EQ(6, immutable_pr);
     EXPECT_EQ(2, mutable_pr);
 }
 
 TEST_F(ProxyTests, get_property_on_specified_device) {
     const std::string dev_name = "MOCK.3";
     auto supported_properties = core.get_property(dev_name, ov::supported_properties);
-    EXPECT_EQ(5, supported_properties.size());
+    EXPECT_EQ(7, supported_properties.size());
     size_t mutable_pr(0), immutable_pr(0);
     for (auto&& property : supported_properties) {
         property.is_mutable() ? mutable_pr++ : immutable_pr++;
@@ -119,6 +119,6 @@ TEST_F(ProxyTests, get_property_on_specified_device) {
             EXPECT_NO_THROW(core.get_property(dev_name, property));
         }
     }
-    EXPECT_EQ(4, immutable_pr);
+    EXPECT_EQ(6, immutable_pr);
     EXPECT_EQ(1, mutable_pr);
 }
