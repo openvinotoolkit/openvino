@@ -64,9 +64,7 @@ Graph::Graph(cldnn::BinaryInputBuffer &ib, RemoteContextImpl::Ptr context, const
     , m_stream_id(stream_id)
     , m_state(0) {
     m_program = std::make_shared<Program>(get_engine(), config, inputs, outputs);
-    size_t max_batch_size;
-    ib >> max_batch_size;
-    m_program->m_max_batch = max_batch_size;
+    ib >> m_program->m_max_batch;
     if (m_program->m_max_batch > 1)
         m_config.set_property(ov::intel_gpu::max_dynamic_batch(m_program->m_max_batch));
 
@@ -511,7 +509,7 @@ std::shared_ptr<ngraph::Function> Graph::GetExecGraphInfoByPrimitivesInfo(std::v
 //     [ ov::intel_gpu::Graph::outputDims ]
 //     [ cldnn::network ]
 void Graph::Export(cldnn::BinaryOutputBuffer &ob) {
-    ob << GetMaxDynamicBatchSize();
+    ob << m_program->m_max_batch;
 
     bool need_onednn_engine = false;
 #ifdef ENABLE_ONEDNN_FOR_GPU
