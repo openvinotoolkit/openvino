@@ -9,19 +9,25 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 EMBED_DIM = 8
 NUM_HEADS = 4
-SEQ_LENGTH = 4
+SEQ_LENGTH = 6
 BATCH_SIZE = 1
 
 ATTN_MASK, KEY_PAD_MASK, MERGED_MASK = 0, 1, 2
 
-class aten_native_multi_head_attention(torch.nn.MultiheadAttention):
+class aten_native_multi_head_attention(torch.nn.Module):
     def __init__(self, mask, need_weights, average_attn_weights) -> None:
-        super().__init__(EMBED_DIM, NUM_HEADS, 0.0, True, False, False, None, None, True, None, None)
-        # self.qkv_weight = torch.from_numpy(np.random.randn(3 * EMBED_DIM, EMBED_DIM).astype(np.float32))
-        # self.qkv_bias = np.random.randn(EMBED_DIM, EMBED_DIM).astype(np.float32)
-        # self.proj_weight = torch.from_numpy(np.random.randn(EMBED_DIM, EMBED_DIM).astype(np.float32))
-        # self.proj_bias = torch.from_numpy(np.random.randn(EMBED_DIM).astype(np.float32))
+        #super().__init__(EMBED_DIM, NUM_HEADS, 0.0, True, False, False, None, None, True, None, None)
+        super().__init__()
+        self.qkv = torch.nn.Linear(EMBED_DIM, 3 * EMBED_DIM, dtype = torch.float32)
+        self.proj = torch.nn.Linear(EMBED_DIM, EMBED_DIM, dtype = torch.float32)
 
+        # self.in_proj_weight = torch.nn.Parameter(torch.from_numpy(np.random.randn(3 * EMBED_DIM, EMBED_DIM).astype(np.float32)))
+        # self.in_proj_bias = torch.nn.Parameter(torch.from_numpy(np.random.randn(EMBED_DIM, EMBED_DIM).astype(np.float32)))
+        # self.out_proj_weight = torch.nn.Parameter(torch.from_numpy(np.random.randn(EMBED_DIM, EMBED_DIM).astype(np.float32)))
+        # self.out_proj_bias = torch.nn.Parameter(torch.from_numpy(np.random.randn(EMBED_DIM).astype(np.float32)))
+
+        self.embed_dim = EMBED_DIM
+        self.num_heads = NUM_HEADS
         self.need_weights = need_weights
         self.average_attn_weights = average_attn_weights
 
@@ -47,14 +53,30 @@ class aten_native_multi_head_attention(torch.nn.MultiheadAttention):
         #     mask = self.mask, mask_type=self.mask_type,
         #     need_weights=self.need_weights, average_attn_weights=self.average_attn_weights
         # )[0]
-        return torch._native_multi_head_attention(
+        return torch.ops.aten._native_multi_head_attention(
             query, key, value, 
             embed_dim=self.embed_dim, num_head=self.num_heads,
-            qkv_weight=self.in_proj_weight, qkv_bias=self.in_proj_bias,
-            proj_weight=self.out_proj.weight, proj_bias=self.out_proj.bias,
+            qkv_weight=self.qkv.weight, qkv_bias=self.qkv.bias,
+            proj_weight=self.proj.weight, proj_bias=self.proj.bias,
             mask = self.mask, mask_type=self.mask_type,
             need_weights=self.need_weights, average_attn_weights=self.average_attn_weights
         )[0]
+        # return torch._native_multi_head_attention(
+        #     query, key, value, 
+        #     embed_dim=self.embed_dim, num_head=self.num_heads,
+        #     qkv_weight=self.in_proj_weight, qkv_bias=self.in_proj_bias,
+        #     proj_weight=self.out_proj.weight, proj_bias=self.out_proj.bias,
+        #     mask = self.mask, mask_type=self.mask_type,
+        #     need_weights=self.need_weights, average_attn_weights=self.average_attn_weights
+        # )[0]
+        # return torch._native_multi_head_attention(
+        #     query, key, value, 
+        #     embed_dim=self.embed_dim, num_head=self.num_heads,
+        #     qkv_weight=self.in_proj_weight, qkv_bias=self.in_proj_bias,
+        #     proj_weight=self.out_proj_weight, proj_bias=self.out_proj_bias,
+        #     mask = self.mask, mask_type=self.mask_type,
+        #     need_weights=self.need_weights, average_attn_weights=self.average_attn_weights
+        # )[0]
 
 class TestNativeMultiHeadAttention(PytorchLayerTest):
     def _prepare_input(self):
@@ -86,11 +108,11 @@ class TestNativeMultiHeadAttention(PytorchLayerTest):
     @pytest.mark.precommit
     @pytest.mark.parametrize(
         "mask", 
-        [None]
+        [False]
     )
     @pytest.mark.parametrize(
         "need_weights", 
-        [False]
+        [True]
     )
     @pytest.mark.parametrize(
         "average_attn_weights", 
@@ -98,4 +120,4 @@ class TestNativeMultiHeadAttention(PytorchLayerTest):
     )
     def test_native_multi_head_attention(self, ie_device, precision, ir_version, mask, need_weights, average_attn_weights):
         self._test(aten_native_multi_head_attention(mask, need_weights, average_attn_weights), 
-                   None, "aten::_native_multi_head_attention", ie_device, precision, ir_version) # freeze_model = False, trace_model = True, dynamic_shapes = False
+                   None, "aten::_native_multi_head_attention", ie_device, precision, ir_version, freeze_model = False, trace_model = True, dynamic_shapes = False) 

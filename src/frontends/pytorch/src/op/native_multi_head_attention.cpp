@@ -44,6 +44,7 @@ OutputVector translate_native_multi_head_attention(const NodeContext& context) {
     const auto need_weights = context.const_input<bool>(10);
     const auto average_attn_weights = context.const_input<bool>(11);
 
+    const auto neg_one = context.mark_node(opset10::Constant::create(element::i64, Shape{}, {-1}));
     const auto zero = context.mark_node(opset10::Constant::create(element::i64, Shape{}, {0}));
     const auto one = context.mark_node(opset10::Constant::create(element::i64, Shape{}, {1}));
     const auto two = context.mark_node(opset10::Constant::create(element::i64, Shape{}, {2}));
@@ -51,9 +52,13 @@ OutputVector translate_native_multi_head_attention(const NodeContext& context) {
     const auto ev = context.mark_node(opset10::Constant::create(element::i64, Shape{}, {embed_dim}));
     const auto heads = context.mark_node(opset10::Constant::create(element::i64, Shape{}, {num_heads}));
 
+    const auto neg_one_1d = context.mark_node(opset10::Constant::create(element::i64, Shape{1}, {-1}));
     const auto zero_1d = context.mark_node(opset10::Constant::create(element::i64, Shape{1}, {0}));
     const auto one_1d = context.mark_node(opset10::Constant::create(element::i64, Shape{1}, {1}));
     const auto two_1d = context.mark_node(opset10::Constant::create(element::i64, Shape{1}, {2}));
+    const auto three_1d = context.mark_node(opset10::Constant::create(element::i64, Shape{1}, {3}));
+    const auto heads_1d = context.mark_node(opset10::Constant::create(element::i64, Shape{1}, {num_heads}));
+
     const auto ev_1_slice_1d = context.mark_node(opset10::Constant::create(element::i64, Shape{1}, {embed_dim}));
     const auto ev_2_slice_1d = context.mark_node(opset10::Constant::create(element::i64, Shape{1}, {2 * embed_dim}));
     const auto ev_3_slice_1d = context.mark_node(opset10::Constant::create(element::i64, Shape{1}, {3 * embed_dim}));
@@ -87,9 +92,9 @@ OutputVector translate_native_multi_head_attention(const NodeContext& context) {
     const auto value_biased = context.mark_node(std::make_shared<opset10::Add>(value_weighted, value_proj_bias));
 
     const auto qkv_reshape_dims = context.mark_node(
-        std::make_shared<opset10::Concat>(OutputVector{batch_size_unsq, seq_size_unsq, heads, embed_div_heads}, 0));
+        std::make_shared<opset10::Concat>(OutputVector{batch_size, seq_size, heads_1d, neg_one_1d}, 0));
     const auto qkv_transpose_dims =
-        context.mark_node(std::make_shared<opset10::Concat>(OutputVector{zero, two, one, three}, 0));
+        context.mark_node(std::make_shared<opset10::Concat>(OutputVector{zero_1d, two_1d, one_1d, three_1d}, 0));
 
     const auto query_reshaped =
         context.mark_node(std::make_shared<opset10::Reshape>(query_biased, qkv_reshape_dims, false));
@@ -111,7 +116,7 @@ OutputVector translate_native_multi_head_attention(const NodeContext& context) {
     const auto scale = context.mark_node(std::make_shared<opset10::Divide>(scale_one, scale_dim_sqrt));
 
     const auto transpose_dims =
-        context.mark_node(std::make_shared<opset10::Concat>(OutputVector{zero, two, one, three}, 0));
+        context.mark_node(std::make_shared<opset10::Concat>(OutputVector{zero_1d, two_1d, one_1d, three_1d}, 0));
     const auto key_transpose = context.mark_node(std::make_shared<opset10::Transpose>(key_transposed, transpose_dims));
     const auto query_key_transpose_dot_product =
         context.mark_node(std::make_shared<opset10::MatMul>(query_transposed, key_transpose));
@@ -123,21 +128,21 @@ OutputVector translate_native_multi_head_attention(const NodeContext& context) {
         context.mark_node(std::make_shared<opset10::MatMul>(scaled_dot_product_softmax, value));
 
     const auto sdp_reshape_dims =
-        context.mark_node(std::make_shared<opset10::Concat>(OutputVector{batch_size_unsq, seq_size_unsq, ev}, 0));
+        context.mark_node(std::make_shared<opset10::Concat>(OutputVector{batch_size, seq_size, neg_one_1d}, 0));
     const auto sdp_transpose_dims =
-        context.mark_node(std::make_shared<opset10::Concat>(OutputVector{zero, two, one, three}, 0));
+        context.mark_node(std::make_shared<opset10::Concat>(OutputVector{zero_1d, two_1d, one_1d, three_1d}, 0));
 
-    const auto scaled_dot_product_attention_reshaped =
-        context.mark_node(std::make_shared<opset10::Reshape>(scaled_dot_product_attention, sdp_reshape_dims, false));
-    const auto scaled_dot_product_attention_transposed = context.mark_node(
-        std::make_shared<opset10::Transpose>(scaled_dot_product_attention_reshaped, sdp_transpose_dims));
+    const auto scaled_dot_product_attention_transposed =
+        context.mark_node(std::make_shared<opset10::Transpose>(scaled_dot_product_attention, sdp_transpose_dims));
+    const auto scaled_dot_product_attention_reshaped = context.mark_node(
+        std::make_shared<opset10::Reshape>(scaled_dot_product_attention_transposed, sdp_reshape_dims, false));
 
     const auto scaled_dot_product_attention_weighted =
-        context.mark_node(std::make_shared<opset10::MatMul>(scaled_dot_product_attention_transposed, proj_weight));
+        context.mark_node(std::make_shared<opset10::MatMul>(scaled_dot_product_attention_reshaped, proj_weight));
     const auto scaled_dot_product_attention_biased =
         context.mark_node(std::make_shared<opset10::Add>(scaled_dot_product_attention_weighted, proj_bias));
 
-    return {scaled_dot_product_attention_biased};
+    return {scaled_dot_product_attention_biased, scaled_dot_product_attention_biased};
 };
 
 }  // namespace op
