@@ -35,14 +35,14 @@ int parse_processor_info_macos(int& _processors,
     if (sysctlbyname("hw.ncpu", &output, &size, NULL, 0) < 0) {
         return -1;
     } else {
-        _processors = output;
+        _processors = static_cast<int>(output);
     }
 
     if (sysctlbyname("hw.physicalcpu", &output, &size, NULL, 0) < 0) {
         _processors = 0;
         return -1;
     } else {
-        _cores = output;
+        _cores = static_cast<int>(output);
     }
 
     _numa_nodes = 1;
