@@ -18,6 +18,7 @@
 #include "ngraph/slice_plan.hpp"
 #include "ngraph/type/element_type_traits.hpp"
 #include "ngraph/util.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 #include "strided_slice_shape_inference.hpp"
 
@@ -64,6 +65,17 @@ shared_ptr<Node> calculate_default_strides(const Output<Node>& begin, const Outp
     }
 
     return op::Constant::create(element::i64, ov::Shape{strides_length}, vector<int64_t>(strides_length, 1));
+}
+
+/**
+ * @brief Check if all indicies in 1-D input shape are ignored by masks.
+ *
+ * @param shape        Indicies shape (assume compatible 1-D shape).
+ * @param ignored_mask Axis set of ignored indicies.
+ * @return True if all ignored other wise false.
+ */
+bool all_indicies_ignored(const ov::PartialShape& shape, const AxisSet& ignore_mask) {
+    return shape.rank().is_static() && ov::cmp::le(shape[0].get_interval().get_max_val(), ignore_mask.size());
 }
 }  // namespace
 
@@ -237,27 +249,75 @@ bool op::v1::StridedSlice::has_evaluate() const {
     return get_input_size() == 4;
 }
 
-namespace {
-bool strided_slice_input_check(const ov::Node* node) {
-    if (!node->get_input_tensor(1).has_and_set_bound() || !node->get_input_tensor(2).has_and_set_bound() ||
-        !node->get_input_tensor(3).has_and_set_bound())
-        return false;
-    return true;
+bool op::v1::StridedSlice::indicies_input_has_and_set_bounds(const size_t port,
+                                                             const std::vector<int64_t>& masks) const {
+    const auto& lb_t = get_input_tensor(port).get_lower_value();
+    const auto& ub_t = get_input_tensor(port).get_upper_value();
+
+    const auto mask_set = convert_mask_to_axis_set(masks);
+    bool valid_bounds = all_indicies_ignored(get_input_partial_shape(port), mask_set);
+
+    if (!valid_bounds && lb_t && ub_t) {
+        using TCast = int64_t;
+        constexpr auto i64_cast = ov::util::Cast<TCast>();
+        const auto lb = ov::get_tensor_data_as<TCast>(lb_t, i64_cast);
+        const auto ub = ov::get_tensor_data_as<TCast>(ub_t, i64_cast);
+
+        size_t axis = 0;
+        valid_bounds =
+            std::equal(lb.cbegin(), lb.cend(), ub.cbegin(), [&axis, &mask_set](TCast lhs, TCast rhs) -> bool {
+                return mask_set.count(axis++) || lhs == rhs;
+            });
+    }
+
+    return valid_bounds;
 }
-}  // namespace
 
 bool op::v1::StridedSlice::evaluate_lower(ov::TensorVector& output_values) const {
-    return strided_slice_input_check(this) && default_lower_bound_evaluator(this, output_values);
+    return indicies_input_has_and_set_bounds(1, get_begin_mask()) &&
+           indicies_input_has_and_set_bounds(2, get_end_mask()) && get_input_tensor(3).has_and_set_bound() &&
+           default_lower_bound_evaluator(this, output_values);
 }
 
 bool op::v1::StridedSlice::evaluate_upper(ov::TensorVector& output_values) const {
-    return strided_slice_input_check(this) && default_upper_bound_evaluator(this, output_values);
+    return indicies_input_has_and_set_bounds(1, get_begin_mask()) &&
+           indicies_input_has_and_set_bounds(2, get_end_mask()) && get_input_tensor(3).has_and_set_bound() &&
+           default_upper_bound_evaluator(this, output_values);
 }
 
 bool op::v1::StridedSlice::evaluate_label(TensorLabelVector& output_labels) const {
-    if (!strided_slice_input_check(this))
-        return false;
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    return default_label_evaluator(this, output_labels);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    return indicies_input_has_and_set_bounds(1, get_begin_mask()) &&
+           indicies_input_has_and_set_bounds(2, get_end_mask()) && get_input_tensor(3).has_and_set_bound() &&
+           default_label_evaluator(this, {0}, output_labels);
+}
+
+bool op::v1::StridedSlice::constant_fold(OutputVector& output_values, const OutputVector& inputs_values) {
+    auto is_folded = Node::constant_fold(output_values, inputs_values);
+    if (!is_folded) {
+        // If all ignore mask are set for all begin or end then replace this input by dummy constant
+        // to avoid return false from `could_propagate` during bound evaluation (value of const will be ignore).
+        auto get_indicies_input = [&inputs_values](size_t port, AxisSet&& mask) -> Output<Node> {
+            return all_indicies_ignored(inputs_values[port].get_partial_shape(), mask)
+                       ? std::make_shared<op::v0::Constant>(inputs_values[port].get_element_type(),
+                                                            Shape{mask.size()},
+                                                            0)
+                       : inputs_values[port];
+        };
+
+        const auto& begin = get_indicies_input(1, convert_mask_to_axis_set(get_begin_mask()));
+        const auto& end = get_indicies_input(2, convert_mask_to_axis_set(get_end_mask()));
+
+        const auto& output =
+            ((&begin != &inputs_values[1]) || (&end != &inputs_values[2]))
+                ? clone_with_new_inputs(OutputVector{inputs_values[0], begin, end, inputs_values[3]})->output(0)
+                : this->output(0);
+
+        OPENVINO_SUPPRESS_DEPRECATED_START
+        if (const auto c = ov::get_constant_from_source(output)) {
+            OPENVINO_SUPPRESS_DEPRECATED_END
+            output_values[0] = c;
+            is_folded = true;
+        }
+    }
+    return is_folded;
 }
