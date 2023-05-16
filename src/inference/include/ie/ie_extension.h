@@ -21,10 +21,13 @@ namespace InferenceEngine {
 
 IE_SUPPRESS_DEPRECATED_START
 /**
- * @deprecated This API is deprecated and will be removed in 2024.0 release.
+ * @deprecated The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on
+ * transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
  * @brief This class is a C++ helper to work with objects created using extensions.
  */
-class INFERENCE_ENGINE_DEPRECATED("This API is deprecated and will be removed in 2024.0 release.")
+class INFERENCE_ENGINE_DEPRECATED(
+    "The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on "
+    "transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
     INFERENCE_ENGINE_API_CLASS(Extension) final : public IExtension {
 public:
     /**
@@ -102,14 +105,17 @@ protected:
 };
 
 /**
- * @deprecated This API is deprecated and will be removed in 2024.0 release.
+ * @deprecated The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on
+ * transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
  * @brief Creates extension using deprecated API
  * @tparam T extension type
  * @param name extension library name
  * @return shared pointer to extension
  */
 template <typename T = IExtension>
-INFERENCE_ENGINE_DEPRECATED("This API is deprecated and will be removed in 2024.0 release.")
+INFERENCE_ENGINE_DEPRECATED(
+    "The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on "
+    "transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 inline std::shared_ptr<T> make_so_pointer(const std::string& name) {
     return std::make_shared<Extension>(name);
 }
@@ -117,13 +123,16 @@ inline std::shared_ptr<T> make_so_pointer(const std::string& name) {
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
 
 /**
- * @deprecated This API is deprecated and will be removed in 2024.0 release.
+ * @deprecated The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on
+ * transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
  * @brief Creates extension using deprecated API
  * @param name extension library name
  * @return shared pointer to extension
  */
 template <typename T = IExtension>
-INFERENCE_ENGINE_DEPRECATED("This API is deprecated and will be removed in 2024.0 release.")
+INFERENCE_ENGINE_DEPRECATED(
+    "The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on "
+    "transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 inline std::shared_ptr<IExtension> make_so_pointer(const std::wstring& name) {
     return std::make_shared<Extension>(name);
 }

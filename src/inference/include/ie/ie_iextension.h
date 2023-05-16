@@ -43,11 +43,15 @@ namespace InferenceEngine {
 IE_SUPPRESS_DEPRECATED_START
 
 /**
- * @deprecated This API is deprecated and will be removed in 2024.0 release.
+ * @deprecated The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on
+ * transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
  * @struct DataConfig
  * @brief This structure describes data configuration
  */
-struct INFERENCE_ENGINE_DEPRECATED("This API is deprecated and will be removed in 2024.0 release.") DataConfig {
+struct INFERENCE_ENGINE_DEPRECATED(
+    "The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on "
+    "transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+    DataConfig {
     /**
      * @brief Format of memory descriptor
      */
@@ -64,11 +68,15 @@ struct INFERENCE_ENGINE_DEPRECATED("This API is deprecated and will be removed i
 };
 
 /**
- * @deprecated This API is deprecated and will be removed in 2024.0 release.
+ * @deprecated The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on
+ * transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
  * @struct LayerConfig
  * @brief This structure describes Layer configuration
  */
-struct INFERENCE_ENGINE_DEPRECATED("This API is deprecated and will be removed in 2024.0 release.") LayerConfig {
+struct INFERENCE_ENGINE_DEPRECATED(
+    "The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on "
+    "transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+    LayerConfig {
     /**
      * @brief Supported dynamic batch. If false, dynamic batch is not supported
      */
@@ -84,11 +92,14 @@ struct INFERENCE_ENGINE_DEPRECATED("This API is deprecated and will be removed i
 };
 
 /**
- * @deprecated This API is deprecated and will be removed in 2024.0 release.
+ * @deprecated The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on
+ * transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
  * @interface ILayerImpl
  * @brief This class provides interface for extension implementations
  */
-class INFERENCE_ENGINE_DEPRECATED("This API is deprecated and will be removed in 2024.0 release.")
+class INFERENCE_ENGINE_DEPRECATED(
+    "The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on "
+    "transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
     INFERENCE_ENGINE_API_CLASS(ILayerImpl) {
 public:
     /**
@@ -103,11 +114,14 @@ public:
 };
 
 /**
- * @deprecated This API is deprecated and will be removed in 2024.0 release.
+ * @deprecated The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on
+ * transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
  * @interface ILayerExecImpl
  * @brief This class provides interface for the implementation with the custom execution code
  */
-class INFERENCE_ENGINE_DEPRECATED("This API is deprecated and will be removed in 2024.0 release.")
+class INFERENCE_ENGINE_DEPRECATED(
+    "The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on "
+    "transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
     INFERENCE_ENGINE_API_CLASS(ILayerExecImpl)
     : public ILayerImpl {
 public:
@@ -153,10 +167,13 @@ public:
 };
 
 /**
- * @deprecated This API is deprecated and will be removed in 2024.0 release.
+ * @deprecated The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on
+ * transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
  * @brief This class is the main extension interface
  */
-class INFERENCE_ENGINE_DEPRECATED("This API is deprecated and will be removed in 2024.0 release.")
+class INFERENCE_ENGINE_DEPRECATED(
+    "The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on "
+    "transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
     INFERENCE_ENGINE_API_CLASS(IExtension)
     : public std::enable_shared_from_this<IExtension> {
 public:
@@ -233,11 +250,15 @@ INFERENCE_EXTENSION_API(void) CreateExtensionShared(IExtensionPtr& ext);
  */
 #if defined(_WIN32)
 INFERENCE_EXTENSION_API(StatusCode)
-INFERENCE_ENGINE_DEPRECATED("This API is deprecated and will be removed in 2024.0 release.")
+INFERENCE_ENGINE_DEPRECATED(
+    "The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on "
+    "transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 CreateExtension(IExtension*& ext, ResponseDesc* resp) noexcept;
 #else
 INFERENCE_EXTENSION_API(StatusCode)
-INFERENCE_ENGINE_DEPRECATED("This API is deprecated and will be removed in 2024.0 release.")
+INFERENCE_ENGINE_DEPRECATED(
+    "The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on "
+    "transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 CreateExtension(IExtension*& ext, ResponseDesc* resp) noexcept INFERENCE_ENGINE_DEPRECATED(
     "Use IE_DEFINE_EXTENSION_CREATE_FUNCTION macro");
 #endif
@@ -254,16 +275,19 @@ IE_SUPPRESS_DEPRECATED_END
 #endif
 
 /**
- * @deprecated This API is deprecated and will be removed in 2024.0 release.
+ * @deprecated The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on
+ * transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
  * @def IE_DEFINE_EXTENSION_CREATE_FUNCTION
  * @brief Generates extension creation function
  */
-#define IE_DEFINE_EXTENSION_CREATE_FUNCTION(ExtensionType)                                      \
-    IE_SUPPRESS_DEPRECATED_START                                                                \
-    INFERENCE_EXTENSION_API(void)                                                               \
-    INFERENCE_ENGINE_DEPRECATED("This API is deprecated and will be removed in 2024.0 release") \
-    IE_CREATE_EXTENSION(std::shared_ptr<InferenceEngine::IExtension>& ext);                     \
-    void IE_CREATE_EXTENSION(std::shared_ptr<InferenceEngine::IExtension>& ext) {               \
-        ext = std::make_shared<ExtensionType>();                                                \
-    }                                                                                           \
+#define IE_DEFINE_EXTENSION_CREATE_FUNCTION(ExtensionType)                                                           \
+    IE_SUPPRESS_DEPRECATED_START                                                                                     \
+    INFERENCE_EXTENSION_API(void)                                                                                    \
+    INFERENCE_ENGINE_DEPRECATED("The Inference Engine API is deprecated and will be removed in the 2024.0 release. " \
+                                "For instructions on transitioning to the new API, please refer to "                 \
+                                "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")                \
+    IE_CREATE_EXTENSION(std::shared_ptr<InferenceEngine::IExtension>& ext);                                          \
+    void IE_CREATE_EXTENSION(std::shared_ptr<InferenceEngine::IExtension>& ext) {                                    \
+        ext = std::make_shared<ExtensionType>();                                                                     \
+    }                                                                                                                \
     IE_SUPPRESS_DEPRECATED_END
