@@ -157,4 +157,7 @@ if(ENABLE_INTEL_CPU)
     ie_add_onednn()
 endif()
 
-add_subdirectory(mlas)
+if(ENABLE_MLAS)
+    add_subdirectory(mlas)
+endif()
+

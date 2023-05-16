@@ -22,6 +22,13 @@ if (NOT OPENVINO_ARCH_X86_64)
                                           ${CMAKE_CURRENT_SOURCE_DIR}/nodes/eltwise_node_test.cpp)
 endif()
 
+if (NOT ENABLE_MLAS)
+    set(MLAS_LIBRARY "")
+    set(EXCLUDED_SOURCE_PATHS_FOR_NON_MLAS ${CMAKE_CURRENT_SOURCE_DIR}/gemm_api_test.cpp)
+else()
+    set(MLAS_LIBRARY "mlas")
+endif()
+
 addIeTargetTest(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
@@ -36,6 +43,7 @@ addIeTargetTest(
                 $<TARGET_PROPERTY:inference_engine_snippets,SOURCE_DIR>/include
         EXCLUDED_SOURCE_PATHS
             ${EXCLUDED_SOURCE_PATHS_FOR_NON_X64}
+            ${EXCLUDED_SOURCE_PATHS_FOR_NON_MLAS}
         OBJECT_FILES
             ${OBJ_LIB}
         LINK_LIBRARIES
@@ -51,6 +59,7 @@ addIeTargetTest(
             ngraphFunctions
             snippetsNgraphFunctions
             snippets_test_utils
+            ${MLAS_LIBRARY}
         ADD_CPPLINT
         LABELS
             CPU

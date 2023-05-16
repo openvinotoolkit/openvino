@@ -22,7 +22,6 @@
 #include <dnnl_extension_utils.h>
 #include <common/primitive_hashing_utils.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
-#include "mlas.h"
 
 using namespace dnnl;
 using namespace InferenceEngine;
@@ -203,7 +202,6 @@ MatMul::MatMul(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr
 
     transposeIn[0] = matMul->get_transpose_a();
     transposeIn[1] = matMul->get_transpose_b();
-    std::cout << "PREPACK " << MlasGemmPackBSize(128, 128) << std::endl;
 }
 
 bool MatMul::canFuse(const NodePtr& node) const {
