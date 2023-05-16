@@ -41,8 +41,7 @@ OutputVector translate_native_multi_head_attention(const NodeContext& context) {
     const auto qkv_bias = context.get_input(6);
     const auto proj_weight = context.get_input(7);
     const auto proj_bias = context.get_input(8);
-    const auto need_weights = context.const_input<bool>(10);
-    const auto average_attn_weights = context.const_input<bool>(11);
+    // const auto need_weights = context.const_input<bool>(10);
 
     const auto neg_one = context.mark_node(opset10::Constant::create(element::i64, Shape{}, {-1}));
     const auto zero = context.mark_node(opset10::Constant::create(element::i64, Shape{}, {0}));
@@ -51,6 +50,7 @@ OutputVector translate_native_multi_head_attention(const NodeContext& context) {
     const auto three = context.mark_node(opset10::Constant::create(element::i64, Shape{}, {3}));
     const auto ev = context.mark_node(opset10::Constant::create(element::i64, Shape{}, {embed_dim}));
     const auto heads = context.mark_node(opset10::Constant::create(element::i64, Shape{}, {num_head}));
+    const auto minus_inf = context.mark_node(opset10::Constant::create(element::f32, Shape{}, {-std::numeric_limits<float>::infinity()}));
 
     const auto neg_one_1d = context.mark_node(opset10::Constant::create(element::i64, Shape{1}, {-1}));
     const auto zero_1d = context.mark_node(opset10::Constant::create(element::i64, Shape{1}, {0}));
@@ -118,8 +118,36 @@ OutputVector translate_native_multi_head_attention(const NodeContext& context) {
     const auto key_transpose = context.mark_node(std::make_shared<opset10::Transpose>(key_transposed, transpose_dims));
     const auto query_key_transpose_dot_product =
         context.mark_node(std::make_shared<opset10::MatMul>(query_transposed, key_transpose));
-    const auto scaled_dot_product =
+
+    auto scaled_dot_product =
         context.mark_node(std::make_shared<opset10::Multiply>(query_key_transpose_dot_product, scale));
+
+    // Mask handling
+    if (!context.input_is_none(12)) {
+        Output<Node> mask = context.get_input(9);
+        Output<Node> atten_mask;
+        if(mask.get_element_type() == element::boolean) {
+            const auto minus_inf_conv = context.mark_node(std::make_shared<opset10::ConvertLike>(minus_inf, scaled_dot_product));
+            const auto mask_inverse = context.mark_node(std::make_shared<opset10::LogicalNot>(mask));
+            atten_mask = context.mark_node(std::make_shared<opset10::ConvertLike>(mask, scaled_dot_product));
+            atten_mask = context.mark_node(std::make_shared<opset10::Select>(mask_inverse, atten_mask, minus_inf_conv));
+        } else {
+            OPENVINO_THROW("NativeMultiHeadAttention does not (fully) support float masks");
+            atten_mask = context.mark_node(std::make_shared<opset10::ConvertLike>(mask, scaled_dot_product));
+        }
+
+        if(context.const_input<int64_t>(12) == 1) {
+            const auto target_mask_reshape = context.mark_node(
+                std::make_shared<opset10::Concat>(OutputVector{batch_size, one_1d, one_1d, seq_size}, 0));
+            atten_mask = context.mark_node(std::make_shared<opset10::Reshape>(atten_mask, target_mask_reshape, false));
+        }
+
+        const auto target_mask_shape = context.mark_node(
+            std::make_shared<opset10::Concat>(OutputVector{batch_size, heads_1d, seq_size, seq_size}, 0));
+        atten_mask = context.mark_node(std::make_shared<opset10::Broadcast>(atten_mask, target_mask_shape));
+        scaled_dot_product = context.mark_node(std::make_shared<opset10::Add>(scaled_dot_product, atten_mask));
+    }
+
     const auto scaled_dot_product_softmax =
         context.mark_node(std::make_shared<opset10::Softmax>(scaled_dot_product, -1));
     const auto scaled_dot_product_attention =
@@ -140,7 +168,9 @@ OutputVector translate_native_multi_head_attention(const NodeContext& context) {
     const auto scaled_dot_product_attention_biased =
         context.mark_node(std::make_shared<opset10::Add>(scaled_dot_product_attention_weighted, proj_bias));
 
-    return {scaled_dot_product_attention_biased, scaled_dot_product_attention_biased};
+    // TODO return none instead of scaled_dot_product if False in 10th param
+    // TODO return average scaled_dot_product per head if requested in 11th param
+    return {scaled_dot_product_attention_biased, scaled_dot_product};
 };
 
 }  // namespace op

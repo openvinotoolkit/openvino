@@ -27,18 +27,21 @@ class aten_native_multi_head_attention(torch.nn.Module):
         self.need_weights = need_weights
         self.average_attn_weights = average_attn_weights
 
+        # Non - bool masks are converted to bool (incorrectly, the return values are NaN from PyTorch)
         if mask == 0:
-            self.mask = torch.from_numpy(np.random.randn(SEQ_LENGTH, SEQ_LENGTH).astype(np.float32))
+            self.mask = torch.from_numpy(np.random.randint(0, 2, (SEQ_LENGTH, SEQ_LENGTH)).astype(np.bool)) 
             self.mask_type = 0
         elif mask == 1:
-            self.mask = torch.from_numpy(np.random.randn(BATCH_SIZE, SEQ_LENGTH).astype(np.float32))
+            self.mask = torch.from_numpy(np.random.randint(0, 2, (BATCH_SIZE, SEQ_LENGTH)).astype(np.bool))
             self.mask_type = 1
         elif mask == 2:
-            self.mask = torch.from_numpy(np.random.randn(BATCH_SIZE, NUM_HEADS, SEQ_LENGTH, SEQ_LENGTH).astype(np.float32))
+            self.mask = torch.from_numpy(np.random.randint(0, 2, (BATCH_SIZE, NUM_HEADS, SEQ_LENGTH, SEQ_LENGTH)).astype(np.bool))
             self.mask_type = 2
         else:
             self.mask = None
             self.mask_type = None
+
+        print(self.mask)
 
     def forward(self, query, key, value):
         return torch.ops.aten._native_multi_head_attention(
@@ -46,8 +49,9 @@ class aten_native_multi_head_attention(torch.nn.Module):
             embed_dim=self.embed_dim, num_head=self.num_heads,
             qkv_weight=self.qkv.weight, qkv_bias=self.qkv.bias,
             proj_weight=self.proj.weight, proj_bias=self.proj.bias,
-            mask = self.mask, mask_type=self.mask_type,
-            need_weights=self.need_weights, average_attn_weights=self.average_attn_weights
+            mask = self.mask, need_weights=self.need_weights, 
+            average_attn_weights = self.average_attn_weights, 
+            mask_type = self.mask_type
         )[0]
 
 class TestNativeMultiHeadAttention(PytorchLayerTest):
@@ -80,7 +84,7 @@ class TestNativeMultiHeadAttention(PytorchLayerTest):
     @pytest.mark.precommit
     @pytest.mark.parametrize(
         "mask", 
-        [NO_MASK]
+        [NO_MASK, ATTN_MASK, KEY_PAD_MASK, MERGED_MASK]
     )
     @pytest.mark.parametrize(
         "need_weights", 
