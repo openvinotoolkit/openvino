@@ -1,5 +1,5 @@
 import getOVWASM from './ov-wasm-module';
-import { Tensor, Shape } from 'openvinojs-common';
+import { Tensor, Shape, TypedArray } from 'openvinojs-common';
 import {
   getFileDataAsArray,
   uploadFile,
@@ -28,7 +28,7 @@ class WASMModel implements IModel {
   }
 
   async infer(
-    tensorOrDataArray: ITensor | number[],
+    tensorOrDataArray: ITensor | number[] | TypedArray,
     shapeOrDimensionsArray?: IShape | number[],
   ): Promise<ITensor> {
     const shape = shapeOrDimensionsArray instanceof Shape
