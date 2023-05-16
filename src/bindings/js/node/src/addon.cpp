@@ -7,7 +7,6 @@
 #include "model_wrap.hpp"
 #include "openvino/openvino.hpp"
 #include "pre_post_process_wrap.hpp"
-#include "session.hpp"
 #include "shape_lite.hpp"
 #include "tensor.hpp"
 
@@ -25,7 +24,6 @@ Napi::Object InitAll(Napi::Env env, Napi::Object exports) {
     InferRequestWrap::Init(env, exports);
     TensorWrap::Init(env, exports);
     ShapeLite::Init(env, exports);
-    Session::Init(env, exports);
     PrePostProcessorWrap::Init(env, exports);
     Napi::PropertyDescriptor element = Napi::PropertyDescriptor::Accessor<enumElementType>("element");
     exports.DefineProperty(element);
