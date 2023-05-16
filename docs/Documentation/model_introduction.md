@@ -45,7 +45,7 @@ where IR is a pair of files describing the model:
 
 ``ov.Model`` can be serialized to IR using the ``ov.serialize()`` method. The serialized IR can be further optimized using :doc:`Post-Training Optimization tool <pot_introduction>` that applies post-training quantization methods.
 
-Conversion is not required for ONNX, PaddlePaddle, TensorFlow Lite and TensorFlow models (check :doc:`TensorFlow Frontend Capabilities and Limitations <openvino_docs_MO_DG_TensorFlow_Frontend>`), as OpenVINO provides C++ and Python APIs for importing them to OpenVINO Runtime directly. It provides a convenient way to quickly switch from framework-based code to OpenVINO-based code in your inference application.
+Model files (not Python objects) from ONNX, PaddlePaddle, TensorFlow and TensorFlow Lite  (check :doc:`TensorFlow Frontend Capabilities and Limitations <openvino_docs_MO_DG_TensorFlow_Frontend>`) do not require a separate step for model conversion, that is ``mo.convert_model``. OpenVINO provides C++ and Python APIs for importing the models to OpenVINO Runtime directly by just calling the ``read_model`` method. It provides a convenient way to quickly switch from framework-based code to OpenVINO-based code in your inference application.
 
 This section describes how to obtain and prepare your model for work with OpenVINO to get the best inference results:
 
