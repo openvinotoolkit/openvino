@@ -55,6 +55,7 @@ CPU::CPU() {
         std::ifstream cpuinfo("/proc/cpuinfo");
         std::vector<int> processors;
         std::map<int, int> sockets;
+        int big_phys_cores = 0;
         int socketId = 0;
         while (!cpuinfo.eof()) {
             std::string line;
@@ -82,8 +83,21 @@ CPU::CPU() {
         if (_cores == 0) {
             _cores = _processors;
         }
+        big_phys_cores = _cores;
+#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
+        auto core_types = custom::info::core_types();
+        if (core_types.size() > 1) /*Hybrid CPU*/ {
+            big_phys_cores = custom::info::default_concurrency(
+                custom::task_arena::constraints{}.set_core_type(core_types.back()).set_max_threads_per_core(1));
+        }
+#endif
         if (_processors > 0 && _numa_nodes > 0 && _cores > 0) {
-            get_cpu_mapping_from_cores(_processors, _numa_nodes, _cores, _proc_type_table, _cpu_mapping_table);
+            get_cpu_mapping_from_cores(_processors,
+                                       _numa_nodes,
+                                       _cores,
+                                       big_phys_cores,
+                                       _proc_type_table,
+                                       _cpu_mapping_table);
         }
     }
     std::vector<std::vector<std::string>>().swap(system_info_table);
@@ -237,13 +251,13 @@ void parse_processor_info_linux(const int _processors,
 void get_cpu_mapping_from_cores(const int _processors,
                                 const int _sockets,
                                 const int _cores,
+                                const int _big_phys_cores,
                                 std::vector<std::vector<int>>& _proc_type_table,
                                 std::vector<std::vector<int>>& _cpu_mapping_table) {
     const auto hyper_thread = _processors > _cores ? true : false;
-    const auto num_big_cores_phys = get_number_of_cpu_cores(true, _processors, _cores);
-    const auto num_big_cores = hyper_thread ? num_big_cores_phys * 2 : num_big_cores_phys;
-    const auto num_small_cores_phys = _cores - num_big_cores_phys;
-    const auto socket_offset = num_big_cores_phys / _sockets;
+    const auto num_big_cores = hyper_thread ? _big_phys_cores * 2 : _big_phys_cores;
+    const auto num_small_cores_phys = _cores - _big_phys_cores;
+    const auto socket_offset = _big_phys_cores / _sockets;
     const auto threads_per_core = hyper_thread ? 2 : 1;
     const auto step = num_small_cores_phys > 0 ? 2 : 1;
     std::vector<int> pro_all_table;
@@ -253,8 +267,8 @@ void get_cpu_mapping_from_cores(const int _processors,
     pro_all_table.resize(PROC_TYPE_TABLE_SIZE, 0);
 
     for (int t = 0; t < threads_per_core; t++) {
-        int start = t == 0 ? 0 : (num_small_cores_phys > 0 ? 1 : num_big_cores_phys);
-        for (int i = 0; i < num_big_cores_phys; i++) {
+        int start = t == 0 ? 0 : (num_small_cores_phys > 0 ? 1 : _big_phys_cores);
+        for (int i = 0; i < _big_phys_cores; i++) {
             int socket_id = _sockets > 1 ? i / socket_offset : 0;
             int cur_id = start + i * step;
             _cpu_mapping_table[cur_id][CPU_MAP_PROCESSOR_ID] = cur_id;
@@ -274,9 +288,9 @@ void get_cpu_mapping_from_cores(const int _processors,
         for (int j = 0; j < num_small_cores_phys; j++) {
             int cur_id = num_big_cores + j;
             _cpu_mapping_table[cur_id][CPU_MAP_PROCESSOR_ID] = cur_id;
-            _cpu_mapping_table[cur_id][CPU_MAP_CORE_ID] = num_big_cores_phys + j;
+            _cpu_mapping_table[cur_id][CPU_MAP_CORE_ID] = _big_phys_cores + j;
             _cpu_mapping_table[cur_id][CPU_MAP_CORE_TYPE] = EFFICIENT_CORE_PROC;
-            _cpu_mapping_table[cur_id][CPU_MAP_GROUP_ID] = num_big_cores_phys + j / 4;
+            _cpu_mapping_table[cur_id][CPU_MAP_GROUP_ID] = _big_phys_cores + j / 4;
             _cpu_mapping_table[cur_id][CPU_MAP_SOCKET_ID] = 0;
 
             _proc_type_table[0][_cpu_mapping_table[cur_id][CPU_MAP_CORE_TYPE]]++;

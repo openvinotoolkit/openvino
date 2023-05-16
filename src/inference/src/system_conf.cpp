@@ -154,7 +154,7 @@ bool check_open_mp_env_vars(bool include_omp_num_threads) {
 #if defined(__APPLE__) || defined(__EMSCRIPTEN__)
 // for Linux and Windows the getNumberOfCPUCores (that accounts only for physical cores) implementation is OS-specific
 // (see cpp files in corresponding folders), for __APPLE__ it is default :
-int get_number_of_cpu_cores(bool, int, int) {
+int get_number_of_cpu_cores(bool) {
     return parallel_get_max_threads();
 }
 #    if !((OV_THREAD == OV_THREAD_TBB) || (OV_THREAD == OV_THREAD_TBB_AUTO))
@@ -184,9 +184,9 @@ void set_cpu_used(const std::vector<int>& cpu_ids, const int used) {}
 static CPU cpu;
 
 #    ifndef _WIN32
-int get_number_of_cpu_cores(bool bigCoresOnly, int processors, int cores) {
-    unsigned numberOfProcessors = processors == 0 ? cpu._processors : processors;
-    unsigned totalNumberOfCpuCores = cores == 0 ? cpu._cores : cores;
+int get_number_of_cpu_cores(bool bigCoresOnly) {
+    unsigned numberOfProcessors = cpu._processors;
+    unsigned totalNumberOfCpuCores = cpu._cores;
     IE_ASSERT(totalNumberOfCpuCores != 0);
     cpu_set_t usedCoreSet, currentCoreSet, currentCpuSet;
     CPU_ZERO(&currentCpuSet);

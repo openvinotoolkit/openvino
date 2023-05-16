@@ -31,12 +31,6 @@ public:
     int _num_threads = 0;
 };
 
-void get_cpu_mapping_from_cores(const int _processors,
-                                const int _sockets,
-                                const int _cores,
-                                std::vector<std::vector<int>>& _proc_type_table,
-                                std::vector<std::vector<int>>& _cpu_mapping_table);
-
 #ifdef __linux__
 /**
  * @brief      Parse processors infomation on Linux
@@ -52,6 +46,13 @@ void parse_processor_info_linux(const int _processors,
                                 const std::vector<std::vector<std::string>> _system_info_table,
                                 int& _sockets,
                                 int& _cores,
+                                std::vector<std::vector<int>>& _proc_type_table,
+                                std::vector<std::vector<int>>& _cpu_mapping_table);
+
+void get_cpu_mapping_from_cores(const int _processors,
+                                const int _sockets,
+                                const int _cores,
+                                const int _big_phys_cores,
                                 std::vector<std::vector<int>>& _proc_type_table,
                                 std::vector<std::vector<int>>& _cpu_mapping_table);
 #endif

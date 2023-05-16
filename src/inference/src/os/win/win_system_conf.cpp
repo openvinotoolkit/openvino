@@ -192,7 +192,7 @@ void parse_processor_info_win(const char* base_ptr,
     }
 }
 
-int get_number_of_cpu_cores(bool bigCoresOnly, int processors, int cores) {
+int get_number_of_cpu_cores(bool bigCoresOnly) {
     const int fallback_val = parallel_get_max_threads();
     DWORD sz = 0;
     // querying the size of the resulting structure, passing the nullptr for the buffer

@@ -49,7 +49,7 @@ OPENVINO_RUNTIME_API std::vector<int> get_available_cores_types();
  * @param[in]  big_cores_only Additionally limits the number of reported cores to the 'Big' cores only.
  * @return     Number of physical CPU cores.
  */
-OPENVINO_RUNTIME_API int get_number_of_cpu_cores(bool big_cores_only = false, int processors = 0, int cores = 0);
+OPENVINO_RUNTIME_API int get_number_of_cpu_cores(bool big_cores_only = false);
 
 /**
  * @brief      Returns number of CPU logical cores on Linux/Windows (on other OSes it simply relies on the original
