@@ -28,10 +28,7 @@ namespace InferenceEngine {
  *
  * The NN graphs are di-graphs consisting of data nodes and layer nodes.
  */
-class INFERENCE_ENGINE_DEPRECATED(
-    "The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on "
-    "transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
-    INFERENCE_ENGINE_API_CLASS(Data) {
+class INFERENCE_ENGINE_1_0_DEPRECATED INFERENCE_ENGINE_API_CLASS(Data) {
     class Impl;
 
 public:
