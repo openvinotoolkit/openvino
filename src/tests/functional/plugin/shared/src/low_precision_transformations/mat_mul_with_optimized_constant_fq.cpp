@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "low_precision_transformations/mat_mul_with_optimized_constant_fake_quantize_transformation.hpp"
+#include "low_precision_transformations/mat_mul_with_optimized_constant_fq.hpp"
 
 #include <memory>
 #include <tuple>
@@ -20,7 +20,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string MatMulWithOptimizedConstantFakeQuantizeTransformation::getTestCaseName(
+std::string MatMulWithOptimizedConstantFq::getTestCaseName(
     const testing::TestParamInfo<MatMulWithOptimizedConstantFakeQuantizeTransformationTransformationParams>& obj) {
     ngraph::element::Type netPrecision;
     std::pair<ngraph::PartialShape, ngraph::PartialShape> shapes;
@@ -39,7 +39,7 @@ std::string MatMulWithOptimizedConstantFakeQuantizeTransformation::getTestCaseNa
     return result.str();
 }
 
-void MatMulWithOptimizedConstantFakeQuantizeTransformation::SetUp() {
+void MatMulWithOptimizedConstantFq::SetUp() {
     threshold = 0.01f;
 
     ngraph::element::Type precision;
@@ -56,7 +56,7 @@ void MatMulWithOptimizedConstantFakeQuantizeTransformation::SetUp() {
         param.fqOnWeights);
 }
 
-TEST_P(MatMulWithOptimizedConstantFakeQuantizeTransformation, CompareWithRefImpl) {
+TEST_P(MatMulWithOptimizedConstantFq, CompareWithRefImpl) {
     Run();
 };
 
