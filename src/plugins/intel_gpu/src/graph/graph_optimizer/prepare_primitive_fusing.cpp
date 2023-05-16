@@ -25,6 +25,7 @@
 #include "softmax_inst.h"
 #include "resample_inst.h"
 #include "depth_to_space_inst.h"
+#include "fully_connected_inst.h"
 #include "space_to_depth_inst.h"
 #include "gather_inst.h"
 #include "gather_nd_inst.h"
@@ -374,7 +375,7 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
         if (replace_candidate.is_type<convolution>()) {
             auto& conv = replace_candidate.as<convolution>();
             auto desc = conv.get_primitive();
-            std::vector<primitive_id> biases = {bias_name};
+            primitive_id biases = bias_name;
 
             // If the primitive has biases, then we try to combine the values, or do nothing and keep as fused sum.
             if (conv.bias_term()) {
@@ -393,19 +394,19 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
                                                                      desc->input[0],
                                                                      desc->weights,
                                                                      biases,
+                                                                     desc->weights_zero_points,
+                                                                     desc->activations_zero_points,
+                                                                     desc->compensation,
                                                                      desc->groups,
                                                                      desc->stride,
-                                                                     desc->pad,
                                                                      desc->dilation,
-                                                                     conv.get_output_layout().get_tensor(),
-                                                                     conv.get_output_layout().data_type,
-                                                                     desc->grouped_weights_shape);
+                                                                     desc->padding_begin,
+                                                                     desc->padding_end,
+                                                                     desc->grouped_weights_shape,
+                                                                     conv.get_output_layout().data_type);
 
-            conv_with_bias_prim->activations_zero_points = desc->activations_zero_points;
-            conv_with_bias_prim->weights_zero_points = desc->weights_zero_points;
-            conv_with_bias_prim->compensation = desc->compensation;
             // Copy transposed flag to new prim as convolution node might be produced by deconv -> conv replacement before this pass
-            conv_with_bias_prim->transposed = conv.get_transposed();
+            conv_with_bias_prim->transposed = desc->transposed;
             auto& new_conv_node = p.get_or_create(conv_with_bias_prim);
 
             fuse_bias_f(conv, new_conv_node, bias_node, eltw_node);
