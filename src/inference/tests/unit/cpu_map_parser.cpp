@@ -20,6 +20,7 @@ struct LinuxCpuMapTestCase {
     int _processors;
     int _sockets;
     int _cores;
+    int _phys_cores;
     std::vector<std::vector<int>> _proc_type_table;
     std::vector<std::vector<int>> _cpu_mapping_table;
     std::vector<std::vector<std::string>> system_info_table;
@@ -50,9 +51,31 @@ public:
     }
 };
 
+class LinuxGetCpuMapFromCoresTests : public CommonTestUtils::TestsCommon,
+                                     public testing::WithParamInterface<std::tuple<LinuxCpuMapTestCase>> {
+public:
+    void SetUp() override {
+        const auto& test_data = std::get<0>(GetParam());
+
+        std::vector<std::vector<int>> test_proc_type_table;
+        std::vector<std::vector<int>> test_cpu_mapping_table;
+
+        ov::get_cpu_mapping_from_cores(test_data._processors,
+                                       test_data._sockets,
+                                       test_data._cores,
+                                       test_data._phys_cores,
+                                       test_proc_type_table,
+                                       test_cpu_mapping_table);
+
+        ASSERT_EQ(test_data._proc_type_table, test_proc_type_table);
+        ASSERT_EQ(test_data._cpu_mapping_table, test_cpu_mapping_table);
+    }
+};
+
 LinuxCpuMapTestCase _2sockets_104cores_hyperthreading = {
     208,
     2,
+    104,
     104,
     {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
     {
@@ -272,6 +295,7 @@ LinuxCpuMapTestCase _2sockets_24cores_hyperthreading = {
     48,
     2,
     24,
+    24,
     {{48, 24, 0, 24}, {24, 12, 0, 12}, {24, 12, 0, 12}},
     {
         {0, 0, 0, HYPER_THREADING_PROC, 0, -1},    {1, 1, 12, HYPER_THREADING_PROC, 12, -1},
@@ -354,6 +378,7 @@ LinuxCpuMapTestCase _2sockets_48cores = {
     48,
     2,
     48,
+    48,
     {{48, 48, 0, 0}, {24, 24, 0, 0}, {24, 24, 0, 0}},
     {
         {0, 0, 0, MAIN_CORE_PROC, 0, -1},    {1, 0, 1, MAIN_CORE_PROC, 1, -1},    {2, 0, 2, MAIN_CORE_PROC, 2, -1},
@@ -395,6 +420,7 @@ LinuxCpuMapTestCase _2sockets_48cores = {
 LinuxCpuMapTestCase _2sockets_20cores_hyperthreading = {
     40,
     2,
+    20,
     20,
     {{40, 20, 0, 20}, {20, 10, 0, 10}, {20, 10, 0, 10}},
     {
@@ -446,6 +472,7 @@ LinuxCpuMapTestCase _1sockets_14cores_hyperthreading = {
     20,
     1,
     14,
+    6,
     {{20, 6, 8, 6}},
     {
         {0, 0, 0, HYPER_THREADING_PROC, 0, -1},  {1, 0, 0, MAIN_CORE_PROC, 0, -1},
@@ -473,6 +500,7 @@ LinuxCpuMapTestCase _1sockets_10cores_hyperthreading{
     12,
     1,
     10,
+    2,
     {{12, 2, 8, 2}},
     {
         {0, 0, 0, HYPER_THREADING_PROC, 0, -1},
@@ -507,6 +535,7 @@ LinuxCpuMapTestCase _1sockets_8cores_hyperthreading = {
     12,
     1,
     8,
+    4,
     {{12, 4, 4, 4}},
     {
         {0, 0, 0, HYPER_THREADING_PROC, 0, -1},
@@ -540,6 +569,7 @@ LinuxCpuMapTestCase _1sockets_8cores_hyperthreading = {
 LinuxCpuMapTestCase _1sockets_6cores_hyperthreading = {
     12,
     1,
+    6,
     6,
     {{12, 6, 0, 6}},
     {
@@ -584,6 +614,18 @@ INSTANTIATE_TEST_SUITE_P(CPUMap,
                                          _1sockets_10cores_hyperthreading,
                                          _1sockets_8cores_hyperthreading,
                                          _1sockets_6cores_hyperthreading));
+
+TEST_P(LinuxGetCpuMapFromCoresTests, LinuxCpuMap) {}
+
+INSTANTIATE_TEST_SUITE_P(CPUMapFromCore,
+                         LinuxGetCpuMapFromCoresTests,
+                         testing::Values(_2sockets_104cores_hyperthreading,
+                                         _2sockets_48cores,
+                                         _2sockets_20cores_hyperthreading,
+                                         _1sockets_14cores_hyperthreading,
+                                         _1sockets_10cores_hyperthreading,
+                                         _1sockets_8cores_hyperthreading));
+
 #endif
 
 #if (defined(_WIN32) || defined(_WIN64))
