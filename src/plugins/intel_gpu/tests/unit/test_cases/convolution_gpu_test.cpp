@@ -5566,7 +5566,9 @@ TEST_P(convolution_gpu_block_layout3D, bfzyx_bsv16_fsv16_fp32)
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{ "conv_bsv16_fsv16", "reorder_bfzyx" }));
+    config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{ "conv_bsv16_fsv16", "reorder_bfzyx", }));
+    ov::intel_gpu::ImplementationDesc conv_impl = { input_format, "", impl_types::ocl };
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{ "conv_bsv16_fsv16", conv_impl }}));
     network network(engine, topology, config);
 
     network.set_input_data("input", input_mem);
@@ -5704,6 +5706,8 @@ TEST_P(convolution_gpu_block_layout3D, bfzyx_bsv16_fsv16_fp16)
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{ "conv_bsv16_fsv16", "reorder_bfzyx" }));
+    ov::intel_gpu::ImplementationDesc conv_impl = { input_format, "" };
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{ "conv_bsv16_fsv16", conv_impl }}));
     network network(engine, topology, config);
 
     network.set_input_data("input", input_mem);
@@ -8947,7 +8951,7 @@ TEST(convolution_gpu_onednn, padding_for_cldnn_kernel_after_onednn) {
     auto weights = data("weights", weights_mem);
     auto input_reorder = reorder("input_fsv", input_info("input"), { data_types::f16, format::b_fs_yx_fsv16, input_size });
     auto conv1 = convolution("conv1", input_info("input_fsv"), "weights", no_bias, 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false);
-    auto conv2 = convolution("conv2", input_info("conv1"), "weights", no_bias, 1, { 1, 1 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, false);
+    auto conv2 = convolution("conv2", input_info("conv1"), "weights", no_bias, 1, { 1, 1 }, { 1, 1 }, { 1, 1 }, { 2, 2 }, false);
     auto output_reorder = reorder("reorder", input_info("conv2"), { data_types::f32, format::bfyx, { output_b, output_f, output_x, output_x } });
 
     topology topology_test(input, weights, input_reorder, conv1, conv2, output_reorder);

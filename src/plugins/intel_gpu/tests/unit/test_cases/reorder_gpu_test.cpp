@@ -2931,7 +2931,7 @@ TEST_P(testing_onednn_reorder, basic_selection) {
 INSTANTIATE_TEST_SUITE_P(basic_onednn_reorder, testing_onednn_reorder,
                         ::testing::ValuesIn(std::vector<reorder_test_param>{
                                             reorder_test_param{{1, 32, 16, 16}, {1, 32, 16, 16}, {1, 1, 1, 1}, {1, 1}, {0, 0},
-                                                                data_types::f16, format::b_fs_yx_fsv16, data_types::f16, format::goiyx, data_types::f16, format::b_fs_yx_fsv16},
+                                                                data_types::f16, format::b_fs_yx_fsv16, data_types::f16, format::oiyx, data_types::f16, format::b_fs_yx_fsv16},
                                             }));
 
 #endif // ENABLE_ONEDNN_FOR_GPU
