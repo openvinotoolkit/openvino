@@ -251,7 +251,7 @@ TEST(concatenate_f32_gpu, test_concatenation_of_pool_and_unpool) {
     topology.add(resample("unpool1", input_info("input1"), tensor(1, 1, 2, 2), 0, resample::InterpolateOp::InterpolateMode::NEAREST));
     topology.add(concatenation("concat1", { input_info("pool1"), input_info("unpool1") }, 3));
     topology.add(data("weights", weights));
-    topology.add(convolution("conv", input_info("concat1"), {"weights"}));
+    topology.add(convolution("conv", input_info("concat1"), "weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
 
     ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
@@ -448,7 +448,7 @@ TEST(depth_concatenate_f32_gpu, test06_padded_input) {
     topology.add(activation("actv1", input_info("input1"), activation_func::linear, { 0.75f, 0.0f }));
     topology.add(activation("actv2", input_info("input2"), activation_func::linear, { 0.5f, 0.0f }));
     topology.add(data("weights", weights));
-    topology.add(convolution("conv", input_info("actv2"), { "weights" }, {1, 1}, {1, 1}));
+    topology.add(convolution("conv", input_info("actv2"), { "weights" }, {}, 1, {1, 1}, {1, 1}, {1, 1}, {1, 1}, false));
     topology.add(concatenation("depth1", { input_info("actv1"), input_info("actv2") }, 1));
     topology.add(concatenation("depth2", { input_info("depth1"), input_info("conv") }, 1));
     topology.add(reorder("output", input_info("depth2"), format::bfyx, data_types::f32));
@@ -531,7 +531,7 @@ TEST(depth_concatenate_f32_gpu, test07_padded_output) {
     topology.add(activation("actv2", input_info("input2"), activation_func::linear, { 0.5f, 0.0f }));
     topology.add(concatenation("depth1", { input_info("actv1"), input_info("actv2") }, 1));
     topology.add(data("weights", weights));
-    topology.add(convolution("conv", input_info("depth1"), { "weights" }, {1, 1}, {1, 1}));
+    topology.add(convolution("conv", input_info("depth1"), { "weights" }, {}, 1, {1, 1}, {1, 1}, {1, 1}, {1, 1}, false));
     topology.add(reorder("output", input_info("conv"), format::bfyx, data_types::f32));
 
     ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);

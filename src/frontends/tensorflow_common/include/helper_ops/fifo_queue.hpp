@@ -23,7 +23,7 @@ public:
               const std::string& container,
               const std::string& shared_name,
               const std::shared_ptr<DecoderBase>& decoder = nullptr)
-        : InternalOperation(decoder, OutputVector{}, 1),
+        : InternalOperation(decoder, OutputVector{}, 1, "FIFOQueue"),
           m_component_types(component_types),
           m_shapes(shapes),
           m_container(container),
