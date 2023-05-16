@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. warning::
+
+   Note that OpenVINO support for Apache MXNet is currently being deprecated and will be removed entirely in the future.
+
 To convert an MXNet model, run Model Optimizer with the path to the ``.params`` file of the input model:
 
 .. code-block:: sh

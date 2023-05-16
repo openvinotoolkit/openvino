@@ -2,13 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <memory>
 #include <gtest/gtest.h>
 #include <ie_blob.h>
-
 #include <low_precision/layer_transformation.hpp>
 #include <low_precision/network_helper.hpp>
-#include <memory>
-
 #include "ngraph_functions/builders.hpp"
 
 using namespace ngraph;
@@ -21,8 +19,7 @@ TEST(LPT_GetDataPrecision, getDataPrecision_reqU8_U8_to_U8) {
 
     auto const dequantization = pass::low_precision::QuantizationDetails::getDetails(fakeQuantize);
 
-    auto const precisionDetails =
-        ngraph::pass::low_precision::LayerTransformation::getDataPrecision(fakeQuantize, dequantization, {element::u8});
+    auto const precisionDetails = ngraph::pass::low_precision::LayerTransformation::getDataPrecision(fakeQuantize, dequantization, {element::u8});
     ASSERT_EQ(element::u8, precisionDetails.precision);
     ASSERT_EQ(0.f, precisionDetails.min);
     ASSERT_EQ(255.f, precisionDetails.max);
@@ -55,8 +52,7 @@ TEST(LPT_GetDataPrecision, getDataPrecision_reqU8_I8_to_U8zp) {
 
     auto const dequantization = pass::low_precision::QuantizationDetails::getDetails(fakeQuantize);
 
-    auto const precisionDetails =
-        ngraph::pass::low_precision::LayerTransformation::getDataPrecision(fakeQuantize, dequantization, {element::u8});
+    auto const precisionDetails = ngraph::pass::low_precision::LayerTransformation::getDataPrecision(fakeQuantize, dequantization, {element::u8});
     ASSERT_EQ(element::u8, precisionDetails.precision);
     ASSERT_EQ(0.f, precisionDetails.min);
     ASSERT_EQ(255.f, precisionDetails.max);
@@ -72,8 +68,7 @@ TEST(LPT_GetDataPrecision, getDataPrecision_reqI8_U8_to_I8zp) {
 
     auto const dequantization = pass::low_precision::QuantizationDetails::getDetails(fakeQuantize);
 
-    auto const precisionDetails =
-        ngraph::pass::low_precision::LayerTransformation::getDataPrecision(fakeQuantize, dequantization, {element::i8});
+    auto const precisionDetails = ngraph::pass::low_precision::LayerTransformation::getDataPrecision(fakeQuantize, dequantization, {element::i8});
     ASSERT_EQ(element::i8, precisionDetails.precision);
     ASSERT_EQ(-128.f, precisionDetails.min);
     ASSERT_EQ(127.f, precisionDetails.max);
@@ -89,8 +84,7 @@ TEST(LPT_GetDataPrecision, getDataPrecision_reqU8_I8zp_to_U8zp) {
 
     auto const dequantization = pass::low_precision::QuantizationDetails::getDetails(fakeQuantize);
 
-    auto const precisionDetails =
-        ngraph::pass::low_precision::LayerTransformation::getDataPrecision(fakeQuantize, dequantization, {element::u8});
+    auto const precisionDetails = ngraph::pass::low_precision::LayerTransformation::getDataPrecision(fakeQuantize, dequantization, {element::u8});
     ASSERT_EQ(element::u8, precisionDetails.precision);
     ASSERT_EQ(0.f, precisionDetails.min);
     ASSERT_EQ(255.f, precisionDetails.max);
@@ -106,8 +100,7 @@ TEST(LPT_GetDataPrecision, getDataPrecision_reqI8_U8zp_to_I8zp) {
 
     auto const dequantization = pass::low_precision::QuantizationDetails::getDetails(fakeQuantize);
 
-    auto const precisionDetails =
-        ngraph::pass::low_precision::LayerTransformation::getDataPrecision(fakeQuantize, dequantization, {element::i8});
+    auto const precisionDetails = ngraph::pass::low_precision::LayerTransformation::getDataPrecision(fakeQuantize, dequantization, {element::i8});
     ASSERT_EQ(element::i8, precisionDetails.precision);
     ASSERT_EQ(-128.f, precisionDetails.min);
     ASSERT_EQ(127.f, precisionDetails.max);
@@ -123,8 +116,7 @@ TEST(LPT_GetDataPrecision, getDataPrecision_reqNone_I8zp_to_undefzp) {
 
     auto const dequantization = pass::low_precision::QuantizationDetails::getDetails(fakeQuantize);
 
-    auto const precisionDetails =
-        ngraph::pass::low_precision::LayerTransformation::getDataPrecision(fakeQuantize, dequantization, {});
+    auto const precisionDetails = ngraph::pass::low_precision::LayerTransformation::getDataPrecision(fakeQuantize, dequantization, {});
     ASSERT_EQ(element::undefined, precisionDetails.precision);
     ASSERT_EQ(0.f, precisionDetails.min);
     ASSERT_EQ(0.f, precisionDetails.max);
@@ -140,8 +132,7 @@ TEST(LPT_GetDataPrecision, getDataPrecision_reqNone_U8zp_to_undefzp) {
 
     auto const dequantization = pass::low_precision::QuantizationDetails::getDetails(fakeQuantize);
 
-    auto const precisionDetails =
-        ngraph::pass::low_precision::LayerTransformation::getDataPrecision(fakeQuantize, dequantization, {});
+    auto const precisionDetails = ngraph::pass::low_precision::LayerTransformation::getDataPrecision(fakeQuantize, dequantization, {});
     ASSERT_EQ(element::undefined, precisionDetails.precision);
     ASSERT_EQ(0.f, precisionDetails.min);
     ASSERT_EQ(0.f, precisionDetails.max);

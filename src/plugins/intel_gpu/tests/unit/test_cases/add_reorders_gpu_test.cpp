@@ -40,9 +40,9 @@ TEST(add_reorders_gpu, two_convolutions_and_concatenation) {
     topology.add(data("weights1", weights1));
     topology.add(data("weights2", weights2));
 
-    topology.add(cldnn::convolution("conv1", { input_info("input") }, { "weights1" }));
+    topology.add(cldnn::convolution("conv1", input_info("input"), "weights1", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
     topology.add(cldnn::reorder("reorder", input_info("input"), cldnn::layout(data_types::f32, format::byxf, tensor(4))));
-    topology.add(cldnn::convolution("conv2", { input_info("reorder") }, { "weights2" }));
+    topology.add(cldnn::convolution("conv2", input_info("reorder"), "weights2", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
 
     topology.add(cldnn::concatenation("concat", { input_info("conv1"), input_info("conv2") }, 1));
 
