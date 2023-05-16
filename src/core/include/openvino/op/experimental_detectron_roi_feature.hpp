@@ -52,6 +52,10 @@ public:
         return m_attrs;
     }
 
+    ///@brief Set the ExperimentalDetectronROIFeatureExtractor's attributes.
+    ///@param attrs  Attributes to set.
+    void set_attrs(Attributes attrs);
+
 private:
     Attributes m_attrs;
 
