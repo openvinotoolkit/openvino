@@ -568,6 +568,30 @@ def create_pytorch_jit_trace_module_convert_pytorch_frontend(tmp_dir):
         InputCutInfo(shape=[-1, -1, -1, -1], type="f32"), InputCutInfo(shape=[-1, -1, -1, -1], type="f32")]}
 
 
+def create_pytorch_module_convert_pytorch_frontend_oob(tmp_dir):
+    import torch
+    import torch.nn.functional as F
+
+    class ConvModel(torch.nn.Module):
+        def __init__(self):
+            super(ConvModel, self).__init__()
+            self.weights = torch.rand([1, 3, 3, 3])
+
+        def forward(self, x):
+            return F.conv2d(x, self.weights)
+
+    net = ConvModel()
+    shape = PartialShape([-1, 3, -1, -1])
+    param1 = ov.opset10.parameter(shape, dtype=np.float32)
+    weights = ov.opset10.constant(net.weights.numpy(force=True))
+    conv = ov.opset10.convolution(param1, weights, strides=[1, 1],
+                                  pads_begin=[0, 0], pads_end=[0, 0],
+                                  dilations=[1, 1])
+    parameter_list = [param1]
+    ref_model = Model([conv], parameter_list, "test")
+    return net, ref_model, {}
+
+
 class TestMoConvertPyTorch(CommonMOConvertTest):
     test_data = [
         create_pytorch_nn_module_case1,
@@ -602,7 +626,8 @@ class TestMoConvertPyTorch(CommonMOConvertTest):
         create_pytorch_nn_module_convert_pytorch_frontend3,
         create_pytorch_nn_module_convert_pytorch_frontend4,
         create_pytorch_jit_script_module_convert_pytorch_frontend,
-        create_pytorch_jit_trace_module_convert_pytorch_frontend
+        create_pytorch_jit_trace_module_convert_pytorch_frontend,
+        create_pytorch_module_convert_pytorch_frontend_oob
     ]
 
     @ pytest.mark.parametrize("create_model", test_data)
