@@ -1,6 +1,7 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include "openvino/core/partial_shape.hpp"
 #include "openvino/core/type.hpp"
 #include <ngraph/opsets/opset1.hpp>
 #include "openvino/op/parameter.hpp"
@@ -96,7 +97,7 @@ CustomShapeInferFF::CustomShapeInferFF():Factory("CpuCustomShapeInferTestFactory
     // INTEL_CPU_CUSTOM_SHAPE_INFER(Pad, Type::Pad);
     INTEL_CPU_CUSTOM_SHAPE_INFER(node::ReshapeShapeInferFactory, Type::Reshape);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(MVN, Type::MVN);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(node::MMShapeInferFactory, Type::MatMul);
+    INTEL_CPU_CUSTOM_SHAPE_INFER(node::MMShapeInferFactory, Type::MatMul);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(ScatterUpdate, Type::ScatterUpdate);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(ScatterUpdate, Type::ScatterElementsUpdate);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(ScatterUpdate, Type::ScatterNDUpdate);
@@ -162,91 +163,90 @@ static void compare_result(std::vector<StaticShape> ref, std::vector<VectorDims>
     }
 }
 
-void op_reshape(ov::Node* op, const std::vector<StaticShape>& input_shapes) {
-         for (size_t port = 0; port < input_shapes.size(); ++port) {
-            const auto input_op = op->input_value(port).get_node_shared_ptr();
-            const auto const_op = ov::as_type_ptr<const ov::op::v0::Parameter>(input_op);
-            ASSERT_TRUE(const_op != nullptr);
-            const_op->set_partial_shape(input_shapes[i]);
 
-         }
-         op->revalidate_and_infer_types();
-}
+// static void op_reshape(ov::Node* op, const std::vector<StaticShape>& input_shapes) {
+//          for (size_t port = 0; port < input_shapes.size(); ++port) {
+//             const auto input_op = op->input_value(port).get_node_shared_ptr();
+//             auto parameter = ov::as_type_ptr<ov::op::v0::Parameter>(input_op);
+//             if (parameter != nullptr) {
+//                 ov::PartialShape input_partialShape;
+//                 for (auto& dim : input_shapes[port]) {
+//                     input_partialShape.push_back(Dimension(dim.get_length()));
+//                 }
+//                 parameter->set_partial_shape(input_partialShape);
+//             }
+//          }
+//          op->revalidate_and_infer_types();
+// }
+//
 
-void custom_shape_inference(ov::Node* op,
+void cus_usual_shape_infer(ov::Node* op,
                      const std::vector<StaticShape>& input_shapes,
                      std::vector<StaticShape>& output_shapes,
                      const std::map<size_t, HostTensorPtr>& constant_data) {
     static std::shared_ptr<CustomShapeInferFF> cusFactory = std::make_shared<CustomShapeInferFF>();
     std::cout << "=====custom_shape_infer test======" << "op" << op->get_type_name() << std::endl;
-    if (auto shapeInferFactory = cusFactory->create(op->shared_from_this())) {
-        if (TypeFromName(op->get_type_name()) == Type::AdaptivePooling && op->get_output_size() == 0) {
-            // custom shape infer depend on the output of op, need to reshape the op
-            op_reshape(op, input_shapes);
-        } else if (TypeFromName(op->get_type_name()) == Type::ShapeOf
-                && op->get_input_size() > 0
-                && op->get_input_partial_shape(0).size() == 0) {
-            return;
-        } else if (TypeFromName(op->get_type_name()) == Type::StridedSlice) {
-            const auto StridedSlice_op = dynamic_cast<const ov::op::v1::StridedSlice*>(op);
-            if (StridedSlice_op == nullptr)
-                return;
-            const auto& ellipsis_mask = StridedSlice_op->get_ellipsis_mask();
-            if (std::any_of(ellipsis_mask.begin(), ellipsis_mask.end(), [](int64_t x){ return x == 1; })) {
-                return;
-            }
-            if (op->get_output_size() == 0) {
-                // custom shape infer depend on the output of op, need to reshape the op
-                op_reshape(op, input_shapes);
-            }
+    auto shapeInferFactory = cusFactory->create(op->shared_from_this());
+    ASSERT_TRUE(shapeInferFactory != nullptr);
+    // if (TypeFromName(op->get_type_name()) == Type::AdaptivePooling && op->get_output_size() == 0) {
+    // } else if (TypeFromName(op->get_type_name()) == Type::ShapeOf
+    //         && op->get_input_size() > 0
+    //         && op->get_input_partial_shape(0).size() == 0) {
+    // } else if (TypeFromName(op->get_type_name()) == Type::StridedSlice) {
+    //     const auto StridedSlice_op = dynamic_cast<const ov::op::v1::StridedSlice*>(op);
+    //     if (StridedSlice_op == nullptr)
+    //         return;
+    //     const auto& ellipsis_mask = StridedSlice_op->get_ellipsis_mask();
+    //     if (std::any_of(ellipsis_mask.begin(), ellipsis_mask.end(), [](int64_t x){ return x == 1; })) {
+    //         return;
+    //     }
+    // }
+    std::cout << "=====custom_shape_infer test factory======" << "op" << op->get_type_name() << std::endl;
+    auto cusShapeInfer =  shapeInferFactory->makeShapeInfer();
+    std::vector<std::reference_wrapper<const VectorDims>> cusInputShapes;
+    std::vector<VectorDims> tmpInputShapes;
+    cusInputShapes.reserve(input_shapes.size());
+    tmpInputShapes.reserve(input_shapes.size());
+    for (size_t port = 0; port < input_shapes.size(); ++port) {
+        VectorDims dims;
+        for (size_t i =0; i < input_shapes[port].size(); ++i) {
+            dims.emplace_back(input_shapes[port][i].get_length());
         }
-        std::cout << "=====custom_shape_infer test factory======" << "op" << op->get_type_name() << std::endl;
-        auto cusShapeInfer =  shapeInferFactory->makeShapeInfer();
-        std::vector<std::reference_wrapper<const VectorDims>> cusInputShapes;
-        std::vector<VectorDims> tmpInputShapes;
-        cusInputShapes.reserve(input_shapes.size());
-        tmpInputShapes.reserve(input_shapes.size());
-        for (size_t port = 0; port < input_shapes.size(); ++port) {
-            VectorDims dims;
-            for (size_t i =0; i < input_shapes[port].size(); ++i) {
-                dims.emplace_back(input_shapes[port][i].get_length());
-            }
-            tmpInputShapes.emplace_back(dims);
-            cusInputShapes.emplace_back(std::ref(tmpInputShapes[port]));
-        }
-
-        std::unordered_map<size_t, MemoryPtr> cusInputValues;
-        auto input_value_port_mask = cusShapeInfer->get_port_mask();
-        dnnl::engine eng;
-        if (input_value_port_mask) {
-            for (size_t port = 0; port < input_shapes.size(); ++port) {
-                if (input_value_port_mask & (1 << port)) {
-                    const auto tensorIter = constant_data.find(port);
-                    const void* data = nullptr;
-                    ov::element::Type elementType;
-                    if (tensorIter != constant_data.end()) {
-                        const auto tensor = tensorIter->second;
-                        data = tensor->get_data_ptr();
-                        elementType = tensor->get_element_type();
-                    } else {
-                        const auto input_op = op->input_value(port).get_node_shared_ptr();
-                        const auto const_op = ov::as_type_ptr<const ov::op::v0::Constant>(input_op);
-                        ASSERT_TRUE(const_op != nullptr);
-                        data = const_op->get_data_ptr();
-                        elementType = const_op->get_element_type();
-                    }
-                    CpuBlockedMemoryDesc desc(
-                            InferenceEngine::details::convertPrecision(elementType),
-                            ov::intel_cpu::Shape(tmpInputShapes[port]));
-                    MemoryPtr memoryPtr = std::make_shared<Memory>(eng);
-                    memoryPtr->Create(desc, data, true);
-                    cusInputValues[port] = memoryPtr;
-                }
-            }
-        }
-        auto result = cusShapeInfer->infer(cusInputShapes, cusInputValues);
-        compare_result(output_shapes, result.dims);
+        tmpInputShapes.emplace_back(dims);
+        cusInputShapes.emplace_back(std::ref(tmpInputShapes[port]));
     }
+
+    std::unordered_map<size_t, MemoryPtr> cusInputValues;
+    auto input_value_port_mask = cusShapeInfer->get_port_mask();
+    dnnl::engine eng;
+    if (input_value_port_mask) {
+        for (size_t port = 0; port < input_shapes.size(); ++port) {
+            if (input_value_port_mask & (1 << port)) {
+                const auto tensorIter = constant_data.find(port);
+                const void* data = nullptr;
+                ov::element::Type elementType;
+                if (tensorIter != constant_data.end()) {
+                    const auto tensor = tensorIter->second;
+                    data = tensor->get_data_ptr();
+                    elementType = tensor->get_element_type();
+                } else {
+                    const auto input_op = op->input_value(port).get_node_shared_ptr();
+                    const auto const_op = ov::as_type_ptr<const ov::op::v0::Constant>(input_op);
+                    ASSERT_TRUE(const_op != nullptr);
+                    data = const_op->get_data_ptr();
+                    elementType = const_op->get_element_type();
+                }
+                CpuBlockedMemoryDesc desc(
+                        InferenceEngine::details::convertPrecision(elementType),
+                        ov::intel_cpu::Shape(tmpInputShapes[port]));
+                MemoryPtr memoryPtr = std::make_shared<Memory>(eng);
+                memoryPtr->Create(desc, data, true);
+                cusInputValues[port] = memoryPtr;
+            }
+        }
+    }
+    auto result = cusShapeInfer->infer(cusInputShapes, cusInputValues);
+    compare_result(output_shapes, result.dims);
 }
 } // namespace unit_test
 } // namespace intel_cpu

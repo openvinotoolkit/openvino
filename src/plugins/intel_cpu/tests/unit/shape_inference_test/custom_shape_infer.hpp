@@ -19,7 +19,7 @@ public:
     ShapeInferFactory* create(const std::shared_ptr<ov::Node>& op);
 };
 
-void custom_shape_inference(ov::Node* op,
+void cus_usual_shape_infer(ov::Node* op,
                      const std::vector<StaticShape>& input_shapes,
                      std::vector<StaticShape>& output_shapes,
                      const std::map<size_t, HostTensorPtr>& constant_data = {});

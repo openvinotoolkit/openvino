@@ -3,6 +3,7 @@
 //
 #include <gtest/gtest.h>
 
+#include "custom_shape_infer.hpp"
 #include "utils.hpp"
 using namespace ov;
 using namespace ov::intel_cpu;
@@ -83,6 +84,8 @@ TEST_P(MatMulTest, no_input_transpose) {
 
     shape_inference(matmul.get(), static_input_shapes, static_output_shapes);
     ASSERT_EQ(static_output_shapes.front(), exp_shape);
+    // there is some issue in implementation
+    // unit_test::cus_usual_shape_infer(matmul.get(), static_input_shapes, static_output_shapes);
 }
 
 TEST_P(MatMulTest, transpose_input_a) {
@@ -93,6 +96,8 @@ TEST_P(MatMulTest, transpose_input_a) {
 
     shape_inference(matmul.get(), static_input_shapes, static_output_shapes);
     ASSERT_EQ(static_output_shapes.front(), exp_shape);
+    // there is some issue in implementation
+    // unit_test::cus_usual_shape_infer(matmul.get(), static_input_shapes, static_output_shapes);
 }
 
 TEST_P(MatMulTest, transpose_input_b) {
@@ -103,6 +108,7 @@ TEST_P(MatMulTest, transpose_input_b) {
 
     shape_inference(matmul.get(), static_input_shapes, static_output_shapes);
     ASSERT_EQ(static_output_shapes.front(), exp_shape);
+    // unit_test::cus_usual_shape_infer(matmul.get(), static_input_shapes, static_output_shapes);
 }
 
 TEST_P(MatMulTest, transpose_inputs_a_b) {
@@ -115,4 +121,5 @@ TEST_P(MatMulTest, transpose_inputs_a_b) {
 
     shape_inference(matmul.get(), static_input_shapes, static_output_shapes);
     ASSERT_EQ(static_output_shapes.front(), exp_shape);
+    // unit_test::cus_usual_shape_infer(matmul.get(), static_input_shapes, static_output_shapes);
 }

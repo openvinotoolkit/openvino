@@ -3,6 +3,7 @@
 //
 
 #include <gtest/gtest.h>
+#include "custom_shape_infer.hpp"
 #include "transformations/cpu_opset/common/op/ngram.hpp"
 #include "utils.hpp"
 
@@ -15,6 +16,6 @@ TEST(StaticShapeInferenceTest, Ngram) {
     auto op = std::make_shared<ov::intel_cpu::NgramNode>(embeddings, idces, 3);
     std::vector<StaticShape> static_input_shapes = {StaticShape{720, 640}, {5, 6}};
     std::vector<StaticShape> static_output_shapes = {StaticShape{720, 640 * 3}};
-    unit_test::custom_shape_inference(op.get(), static_input_shapes, static_output_shapes);
+    unit_test::cus_usual_shape_infer(op.get(), static_input_shapes, static_output_shapes);
 }
 

@@ -4,6 +4,7 @@
 
 #include <gtest/gtest.h>
 
+#include "custom_shape_infer.hpp"
 #include "utils.hpp"
 
 using namespace ov;
@@ -34,6 +35,7 @@ TEST(StaticShapeInferenceTest, prior_box_clustered0) {
     shape_inference(op.get(), static_input_shapes, static_output_shapes, const_data);
 
     ASSERT_EQ(static_output_shapes[0], StaticShape({2, 6840}));
+    unit_test::cus_usual_shape_infer(op.get(), static_input_shapes, static_output_shapes, const_data);
 }
 
 TEST(StaticShapeInferenceTest, prior_box_clustered1) {
@@ -57,5 +59,6 @@ TEST(StaticShapeInferenceTest, prior_box_clustered1) {
     shape_inference(op.get(), static_input_shapes, static_output_shapes, const_data);
 
     ASSERT_EQ(static_output_shapes[0], StaticShape({2, 4332}));
+    unit_test::cus_usual_shape_infer(op.get(), static_input_shapes, static_output_shapes, const_data);
 }
 

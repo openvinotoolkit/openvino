@@ -4,6 +4,7 @@
 
 #include <gtest/gtest.h>
 
+#include "custom_shape_infer.hpp"
 #include "utils.hpp"
 
 using namespace ov;
@@ -16,6 +17,7 @@ TEST(StaticShapeInferenceTest, ColorConvertNV12toBGR) {
     std::vector<StaticShape> static_output_shapes = {StaticShape{}};
     shape_inference(op.get(), static_input_shapes, static_output_shapes);
     ASSERT_EQ(static_output_shapes[0], StaticShape({1, 480, 640, 3}));
+    unit_test::cus_usual_shape_infer(op.get(), static_input_shapes, static_output_shapes);
 }
 
 TEST(StaticShapeInferenceTest, ColorConvertNV12toBGRMutliPlane) {
@@ -26,6 +28,7 @@ TEST(StaticShapeInferenceTest, ColorConvertNV12toBGRMutliPlane) {
     std::vector<StaticShape> static_output_shapes = {StaticShape{}};
     shape_inference(op.get(), static_input_shapes, static_output_shapes);
     ASSERT_EQ(static_output_shapes[0], StaticShape({1, 480, 640, 3}));
+    unit_test::cus_usual_shape_infer(op.get(), static_input_shapes, static_output_shapes);
 }
 
 TEST(StaticShapeInferenceTest, ColorConvertNV12toRGB) {
@@ -35,6 +38,7 @@ TEST(StaticShapeInferenceTest, ColorConvertNV12toRGB) {
     std::vector<StaticShape> static_output_shapes = {StaticShape{}};
     shape_inference(op.get(), static_input_shapes, static_output_shapes);
     ASSERT_EQ(static_output_shapes[0], StaticShape({1, 480, 640, 3}));
+    unit_test::cus_usual_shape_infer(op.get(), static_input_shapes, static_output_shapes);
 }
 
 TEST(StaticShapeInferenceTest, ColorConvertNV12toRGBMutliPlane) {
@@ -45,6 +49,7 @@ TEST(StaticShapeInferenceTest, ColorConvertNV12toRGBMutliPlane) {
     std::vector<StaticShape> static_output_shapes = {StaticShape{}};
     shape_inference(op.get(), static_input_shapes, static_output_shapes);
     ASSERT_EQ(static_output_shapes[0], StaticShape({1, 480, 640, 3}));
+    unit_test::cus_usual_shape_infer(op.get(), static_input_shapes, static_output_shapes);
 }
 
 TEST(StaticShapeInferenceTest, ColorConvertI420toBGR) {
@@ -54,6 +59,7 @@ TEST(StaticShapeInferenceTest, ColorConvertI420toBGR) {
     std::vector<StaticShape> static_output_shapes = {StaticShape{}};
     shape_inference(op.get(), static_input_shapes, static_output_shapes);
     ASSERT_EQ(static_output_shapes[0], StaticShape({1, 480, 640, 3}));
+    unit_test::cus_usual_shape_infer(op.get(), static_input_shapes, static_output_shapes);
 }
 
 TEST(StaticShapeInferenceTest, ColorConvertI420toBGRMutliPlane) {
@@ -65,6 +71,7 @@ TEST(StaticShapeInferenceTest, ColorConvertI420toBGRMutliPlane) {
     std::vector<StaticShape> static_output_shapes = {StaticShape{}};
     shape_inference(op.get(), static_input_shapes, static_output_shapes);
     ASSERT_EQ(static_output_shapes[0], StaticShape({1, 480, 640, 3}));
+    unit_test::cus_usual_shape_infer(op.get(), static_input_shapes, static_output_shapes);
 }
 
 TEST(StaticShapeInferenceTest, ColorConvertI420toRGB) {
@@ -74,6 +81,7 @@ TEST(StaticShapeInferenceTest, ColorConvertI420toRGB) {
     std::vector<StaticShape> static_output_shapes = {StaticShape{}};
     shape_inference(op.get(), static_input_shapes, static_output_shapes);
     ASSERT_EQ(static_output_shapes[0], StaticShape({1, 480, 640, 3}));
+    unit_test::cus_usual_shape_infer(op.get(), static_input_shapes, static_output_shapes);
 }
 
 TEST(StaticShapeInferenceTest, ColorConvertI420toRGBMutliPlane) {
@@ -85,5 +93,6 @@ TEST(StaticShapeInferenceTest, ColorConvertI420toRGBMutliPlane) {
     std::vector<StaticShape> static_output_shapes = {StaticShape{}};
     shape_inference(op.get(), static_input_shapes, static_output_shapes);
     ASSERT_EQ(static_output_shapes[0], StaticShape({1, 480, 640, 3}));
+    unit_test::cus_usual_shape_infer(op.get(), static_input_shapes, static_output_shapes);
 }
 

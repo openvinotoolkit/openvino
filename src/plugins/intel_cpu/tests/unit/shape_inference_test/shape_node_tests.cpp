@@ -4,6 +4,7 @@
 
 #include <gtest/gtest.h>
 
+#include "custom_shape_infer.hpp"
 #include "utils.hpp"
 
 using namespace ov;
@@ -13,28 +14,30 @@ TEST(StaticShapeInferenceTest, ReshapeTest) {
     auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
     auto pattern = std::make_shared<ov::op::v0::Constant>(element::i32, ov::Shape{2}, std::vector<int32_t>{0, -1});
 
-    auto reduce =
+    auto reshape =
             std::make_shared<op::v1::Reshape>(data, pattern, true);
 
     std::vector<StaticShape> static_input_shapes = {StaticShape{3, 6, 5, 5}, StaticShape{2}},
             static_output_shapes = {StaticShape{}};
-    shape_inference(reduce.get(), static_input_shapes, static_output_shapes);
+    shape_inference(reshape.get(), static_input_shapes, static_output_shapes);
 
     ASSERT_EQ(static_output_shapes[0], StaticShape({3, 150}));
+    unit_test::cus_usual_shape_infer(reshape.get(), static_input_shapes, static_output_shapes);
 }
 
 TEST(StaticShapeInferenceTest, ReshapeEmptyTest) {
     auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, 2, 2});
     auto pattern = std::make_shared<ov::op::v0::Constant>(element::i32, ov::Shape{2}, std::vector<int32_t>{0, 4});
 
-    auto reduce =
+    auto reshape =
             std::make_shared<op::v1::Reshape>(data, pattern, false);
 
     std::vector<StaticShape> static_input_shapes = {StaticShape{0, 2, 2}, StaticShape{2}},
             static_output_shapes = {StaticShape{}};
-    shape_inference(reduce.get(), static_input_shapes, static_output_shapes);
+    shape_inference(reshape.get(), static_input_shapes, static_output_shapes);
 
     ASSERT_EQ(static_output_shapes[0], StaticShape({0, 4}));
+    unit_test::cus_usual_shape_infer(reshape.get(), static_input_shapes, static_output_shapes);
 }
 
 TEST(StaticShapeInferenceTest, ShapeOf5DTest) {
@@ -48,6 +51,7 @@ TEST(StaticShapeInferenceTest, ShapeOf5DTest) {
     shape_inference(shapeof.get(), static_input_shapes, static_output_shapes);
 
     ASSERT_EQ(static_output_shapes[0], StaticShape({5}));
+    unit_test::cus_usual_shape_infer(shapeof.get(), static_input_shapes, static_output_shapes);
 }
 
 TEST(StaticShapeInferenceTest, ShapeOf0DTest) {
@@ -61,4 +65,6 @@ TEST(StaticShapeInferenceTest, ShapeOf0DTest) {
     shape_inference(shapeof.get(), static_input_shapes, static_output_shapes);
 
     ASSERT_EQ(static_output_shapes[0], StaticShape({}));
+    // implementation don't support 0D shape input
+    // unit_test::cus_usual_shape_infer(shapeof.get(), static_input_shapes, static_output_shapes);
 }
