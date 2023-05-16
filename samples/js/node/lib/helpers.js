@@ -1,8 +1,6 @@
 module.exports = {
   argMax: function(arr) {
-    if (arr.length === 0) {
-      return -1;
-    }
+    if (arr.length === 0) return -1;
 
     let max = arr[0];
     let maxIndex = 0;
