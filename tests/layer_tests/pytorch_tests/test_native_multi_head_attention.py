@@ -62,24 +62,6 @@ class TestNativeMultiHeadAttention(PytorchLayerTest):
                 qkv_tensor.copy(),
                 qkv_tensor.copy())
 
-    # @pytest.mark.nightly
-    # @pytest.mark.precommit
-    # @pytest.mark.parametrize(
-    #     "mask", 
-    #     [None, ATTN_MASK, KEY_PAD_MASK, MERGED_MASK]
-    # )
-    # @pytest.mark.parametrize(
-    #     "need_weights", 
-    #     [False, True]
-    # )
-    # @pytest.mark.parametrize(
-    #     "average_attn_weights", 
-    #     [False, True]
-    # )
-    # def test_native_multi_head_attention(self, ie_device, precision, ir_version, mask, need_weights, average_attn_weights):
-    #     self._test(aten_native_multi_head_attention(mask, need_weights, average_attn_weights), 
-    #                None, "aten::_native_multi_head_attention", ie_device, precision, ir_version)
-
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.parametrize(
@@ -87,12 +69,8 @@ class TestNativeMultiHeadAttention(PytorchLayerTest):
         [NO_MASK, ATTN_MASK, KEY_PAD_MASK, MERGED_MASK]
     )
     @pytest.mark.parametrize(
-        "need_weights", 
-        [True]
-    )
-    @pytest.mark.parametrize(
-        "average_attn_weights", 
-        [False]
+        ["need_weights", "average_attn_weights"], 
+        [[False, False], [True, False], [True, True]]
     )
     def test_native_multi_head_attention_2(self, ie_device, precision, ir_version, mask, need_weights, average_attn_weights):
         self._test(aten_native_multi_head_attention(mask, need_weights, average_attn_weights), 
