@@ -10,8 +10,8 @@
 #include <memory>
 #include <list>
 
-DISABLE_WARNING_MSVC_BEGIN(4250)  // Visual Studio warns us about inheritance via dominance but it's done intentionally
-                                  // so turn it off
+OPENVINO_DISABLE_WARNING_MSVC_BEGIN(4250)  // Visual Studio warns us about inheritance via dominance but it's done intentionally
+                                           // so turn it off
 
 namespace cldnn {
 namespace ocl {
@@ -41,7 +41,7 @@ private:
     bool is_set_impl() override;
 };
 
-DISABLE_WARNING_MSVC_END(4250)
+OPENVINO_DISABLE_WARNING_MSVC_END(4250)
 
 }  // namespace ocl
 }  // namespace cldnn
