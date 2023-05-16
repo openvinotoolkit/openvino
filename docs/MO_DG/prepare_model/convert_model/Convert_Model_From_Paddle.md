@@ -26,11 +26,15 @@ Converting PaddlePaddle Model From Memory Using Python API
 
 MO Python API supports passing PaddlePaddle models directly from memory.
 
-Following PaddlePaddle model format are supported:
+Following PaddlePaddle model formats are supported:
 
 * ``paddle.hapi.model.Model``
+* ``paddle.fluid.dygraph.layers.Layer``
+* ``paddle.fluid.executor.Executor``
 
-  Example of converting ``paddle.hapi.model.Model`` format model:
+Converting certain PaddlePaddle models may require setting ``example_input`` or ``example_output``. Below examples show how to execute such the conversion.
+
+* Example of converting ``paddle.hapi.model.Model`` format model:
 
   .. code-block:: python
 
@@ -51,13 +55,11 @@ Following PaddlePaddle model format are supported:
     from openvino.runtime import serialize
     serialize(ov_model, "ov_model.xml", "ov_model.bin")
 
-* ``paddle.fluid.dygraph.layers.Layer``
+* Example of converting ``paddle.fluid.dygraph.layers.Layer`` format model:
 
   ``example_input`` is required while ``example_output`` is optional, which accept the following formats:
 
   ``list`` with tensor(``paddle.Tensor``) or InputSpec(``paddle.static.input.InputSpec``)
-
-  Example of converting ``paddle.fluid.dygraph.layers.Layer`` format model:
 
   .. code-block:: python
   
@@ -71,17 +73,11 @@ Following PaddlePaddle model format are supported:
     # convert to OpenVINO IR format
     ov_model = convert_model(model, example_input=[x])
 
-    # optional: serialize OpenVINO IR to *.xml & *.bin
-    from openvino.runtime import serialize
-    serialize(ov_model, "ov_model.xml", "ov_model.bin")
-  
-* ``paddle.fluid.executor.Executor``
+* Example of converting ``paddle.fluid.executor.Executor`` format model:
 
   ``example_input`` and ``example_output`` are required, which accept the following formats:
 
   ``list`` or ``tuple`` with variable(``paddle.static.data``)
-
-  Example of converting ``paddle.fluid.executor.Executor`` format model:
 
   .. code-block:: python
 
@@ -102,10 +98,6 @@ Following PaddlePaddle model format are supported:
 
     # convert to OpenVINO IR format
     ov_model = convert_model(exe, example_input=[x], example_output=[y])
-
-    # optional: serialize OpenVINO IR to *.xml & *.bin
-    from openvino.runtime import serialize
-    serialize(ov_model, "ov_model.xml", "ov_model.bin")
 
 Supported PaddlePaddle Layers
 #############################

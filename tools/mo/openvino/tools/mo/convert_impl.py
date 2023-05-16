@@ -50,7 +50,7 @@ from openvino.tools.mo.utils.telemetry_utils import send_params_info, send_frame
 from openvino.tools.mo.utils.versions_checker import get_environment_setup  # pylint: disable=no-name-in-module
 from openvino.tools.mo.moc_frontend.check_config import legacy_extensions_used
 from openvino.tools.mo.moc_frontend.pytorch_frontend_utils import get_pytorch_decoder
-from openvino.tools.mo.moc_frontend.paddle_frontend_utils import convert_paddle_to_pdmodel
+from openvino.tools.mo.moc_frontend.paddle_frontend_utils import paddle_frontend_converter
 from openvino.tools.mo.moc_frontend.shape_utils import parse_input_shapes, get_static_shape
 
 # pylint: disable=no-name-in-module,import-error
