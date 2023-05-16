@@ -85,7 +85,7 @@ CLI Examples Using Caffe-Specific Parameters
 Custom Layer Definition
 ########################
 
-For the definition of custom layers, refer to the :doc:`Cutting Off Parts of a Model <openvino_docs_MO_DG_prepare_model_convert_model_Cutting_Model>`  page.
+For the definition of custom layers, refer to the :doc:`Cutting Off Parts of a Model <openvino_docs_MO_DG_prepare_model_convert_model_Cutting_Model>` page.
 
 Supported Caffe Layers
 #######################
