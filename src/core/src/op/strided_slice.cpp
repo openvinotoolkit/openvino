@@ -297,8 +297,8 @@ bool op::v1::StridedSlice::constant_fold(OutputVector& output_values, const Outp
         // If all ignore mask are set for all begin or end then replace this input by dummy constant
         // to avoid return false from `could_propagate` during bound evaluation (value of const will be ignore).
         auto get_indicies_input = [&inputs_values](size_t port, AxisSet&& mask) -> Output<Node> {
-            auto port_shape = inputs_values[port].get_partial_shape();
-            auto data_shape = inputs_values[0].get_partial_shape();
+            const auto& port_shape = inputs_values[port].get_partial_shape();
+            const auto& data_shape = inputs_values[0].get_partial_shape();
 
             size_t size;
             if (port_shape.rank().is_static())
