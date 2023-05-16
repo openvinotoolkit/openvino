@@ -19,7 +19,7 @@
 Model Optimizer is a cross-platform command-line tool that facilitates the transition between training and deployment environments, 
 performs static model analysis, and adjusts deep learning models for optimal execution on end-point target devices.
 
-To convert a model to IR, you can run model conversion API by using the following command:
+To convert a model to IR, you can use the following command:
 
 .. tab-set::
 
