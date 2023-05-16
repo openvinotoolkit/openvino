@@ -51,7 +51,7 @@ Run quantization with accuracy control
       :fragment: [quantization]
 
 
-* ``max_drop`` defines the accuracy drop threshold. The quantization process stops when the degradation of accuracy metric on the validation dataset is less than the ``max_drop``. The default value is 0.01.
+* ``max_drop`` defines the accuracy drop threshold. The quantization process stops when the degradation of accuracy metric on the validation dataset is less than the ``max_drop``. The default value is 0.01. NNCF will stop the quantization and report an error if the ``max_drop`` value can't be reached.
 
 * ``drop_type`` defines how the accuracy drop will be calculated: ``ABSOLUTE`` (used by default) or ``RELATIVE``.
 
