@@ -15,6 +15,10 @@ The following examples are the situations when model cutting is useful or even r
 * A problem occurs with model conversion or inference in OpenVINO™ Runtime. To identify the issue, limit the conversion scope by iterative search for problematic areas in the model.
 * A single custom layer or a combination of custom layers is isolated for debugging purposes.
 
+.. note::
+
+   Internally, when you run Model Conversion API, it loads the model, goes through the topology, and tries to find each layer type in a list of known layers. Custom layers are layers that are not included in the list. If your topology contains such kind of layers, Model Conversion API classifies them as custom.
+
 Model Conversion API parameters
 ###############################
 
