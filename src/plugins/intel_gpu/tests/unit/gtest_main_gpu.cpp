@@ -29,6 +29,7 @@
 
 #include <cstdio>
 #include <string>
+#include <stdlib.h>
 
 #include "intel_gpu/runtime/device_query.hpp"
 #include "gtest/gtest.h"
@@ -51,6 +52,11 @@ GTEST_API_ int main(int argc, char** argv) {
     char** new_argv=new char*[new_argc];
     for(int i=0;i<new_argc;i++)
         new_argv[i]=&varg[i][0];
+
+    if (const auto env_var = std::getenv("cl_cache_dir"))
+        printf("Env variable cl_cache_dir: %s\n", env_var);
+    else
+        printf("WARNING: cl_cache_dir is not set. Test will take longer than expected\n");
 
     //gtest
     testing::InitGoogleTest(&new_argc, new_argv);
