@@ -19,7 +19,7 @@ class GraphIteratorProtoTxt : public GraphIteratorProto {
 public:
     template <typename T>
     GraphIteratorProtoTxt(const std::basic_string<T>& path) : GraphIteratorProto() {
-        std::ifstream pbtxt_stream(path, std::ios::in);
+        std::ifstream pbtxt_stream(path.c_str(), std::ios::in);
         FRONT_END_GENERAL_CHECK(pbtxt_stream && pbtxt_stream.is_open(), "Model file does not exist");
         auto input_stream = std::make_shared<::google::protobuf::io::IstreamInputStream>(&pbtxt_stream);
         FRONT_END_GENERAL_CHECK(input_stream, "Model cannot be read");
@@ -35,7 +35,7 @@ public:
     template <typename T>
     static bool is_supported(const std::basic_string<T>& path) {
         try {
-            std::ifstream pbtxt_stream(path, std::ios::in);
+            std::ifstream pbtxt_stream(path.c_str(), std::ios::in);
             bool model_exists = (pbtxt_stream && pbtxt_stream.is_open());
             if (!model_exists) {
                 return false;
