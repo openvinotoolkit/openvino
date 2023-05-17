@@ -86,10 +86,8 @@ OutputsDataMap copyInfo(const OutputsDataMap& networkOutputs) {
 IInferencePlugin::IInferencePlugin() : _executorManager(InferenceEngine::executorManager()), _isNewAPI(true) {}
 
 void IInferencePlugin::VersionStore::copyFrom(const Version& v) {
-    _dsc = v.description;
-    _buildNumber = v.buildNumber;
-    description = _dsc.c_str();
-    buildNumber = _buildNumber.c_str();
+    description = v.description;
+    buildNumber = v.buildNumber;
     apiVersion = v.apiVersion;
 }
 

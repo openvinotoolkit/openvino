@@ -7,56 +7,41 @@
 #include <map>
 #include <string>
 
-#include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
-#include <ie_icore.hpp>
+#include "openvino/runtime/iplugin.hpp"
 
-class MockPlugin : public InferenceEngine::IInferencePlugin {
-    InferenceEngine::IInferencePlugin * _target = nullptr;
+namespace InferenceEngine {
+class IInferencePlugin;
+}
+
+class MockPlugin : public ov::IPlugin {
+    std::shared_ptr<ov::IPlugin> m_plugin;
+    void set_parameters_if_need() const;
 
 public:
-    explicit MockPlugin(InferenceEngine::IInferencePlugin*target);
+    explicit MockPlugin(const std::shared_ptr<ov::IPlugin>& target);
 
-    void SetConfig(const std::map<std::string, std::string>& config) override;
+    std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                      const ov::AnyMap& properties) const override;
 
-    std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>
-    LoadNetwork(const InferenceEngine::CNNNetwork &network,
-                const std::map<std::string, std::string> &config) override;
+    std::shared_ptr<ov::ICompiledModel> compile_model(const std::string& model_path,
+                                                      const ov::AnyMap& properties) const override;
 
-    std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>
-    LoadNetwork(const InferenceEngine::CNNNetwork& network,
-                const std::map<std::string, std::string>& config,
-                const std::shared_ptr<InferenceEngine::RemoteContext>& context) override;
+    std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                      const ov::AnyMap& properties,
+                                                      const ov::RemoteContext& context) const override;
 
-    std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>
-    LoadExeNetworkImpl(const InferenceEngine::CNNNetwork& network,
-                       const std::map<std::string, std::string>& config) override;
+    void set_property(const ov::AnyMap& properties) override;
 
-    ov::SoPtr<InferenceEngine::IExecutableNetworkInternal>
-    LoadNetwork(const std::string &modelPath,
-                const std::map<std::string, std::string> &config) override;
+    ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const override;
 
-    std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>
-    ImportNetwork(std::istream& networkModel,
-        const std::map<std::string, std::string>& config) override;
+    std::shared_ptr<ov::IRemoteContext> create_context(const ov::AnyMap& remote_properties) const override;
 
-    std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>
-    ImportNetwork(std::istream& networkModel,
-        const std::shared_ptr<InferenceEngine::RemoteContext>& context,
-        const std::map<std::string, std::string>& config) override;
+    std::shared_ptr<ov::IRemoteContext> get_default_context(const ov::AnyMap& remote_properties) const override;
 
-    InferenceEngine::Parameter GetMetric(const std::string& name,
-                        const std::map<std::string, InferenceEngine::Parameter>& options) const override;
-
-    std::shared_ptr<InferenceEngine::RemoteContext> GetDefaultContext(const InferenceEngine::ParamMap& params) override;
-
-    InferenceEngine::QueryNetworkResult QueryNetwork(const InferenceEngine::CNNNetwork& network,
-                                                     const std::map<std::string, std::string>& config) const override;
-
-    void SetCore(std::weak_ptr<InferenceEngine::ICore> core) noexcept override;
-
-    void SetName(const std::string& name) noexcept override;
-
-    std::string GetName() const noexcept override;
-
-    std::map<std::string, std::string> config;
+    std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model, const ov::AnyMap& properties) const override;
+    std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
+                                                     const ov::RemoteContext& context,
+                                                     const ov::AnyMap& properties) const override;
+    ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
+                                    const ov::AnyMap& properties) const override;
 };

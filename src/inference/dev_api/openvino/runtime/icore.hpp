@@ -23,7 +23,7 @@ namespace ov {
  * @brief Minimal ICore interface to allow plugin to get information from Core OpenVINO class.
  * @ingroup ov_dev_api_plugin_api
  */
-class ICore {
+class OPENVINO_RUNTIME_API ICore {
 public:
     /**
      * @brief Reads IR xml and bin (with the same name) files
