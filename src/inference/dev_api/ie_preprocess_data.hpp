@@ -4,18 +4,18 @@
 
 #pragma once
 
-#include <map>
-#include <string>
-#include <memory>
+#include <file_utils.h>
+#include <ie_blob.h>
 
+#include <ie_preprocess.hpp>
+#include <map>
+#include <memory>
+#include <string>
+
+#include "ie_version.hpp"
 #include "openvino/runtime/common.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
-
-#include <ie_blob.h>
-#include <file_utils.h>
-#include <ie_preprocess.hpp>
-#include "ie_version.hpp"
 
 namespace InferenceEngine {
 
@@ -28,7 +28,7 @@ public:
      * @brief Sets ROI blob to be resized and placed to the default input blob during pre-processing.
      * @param blob ROI blob.
      */
-    virtual void setRoiBlob(const Blob::Ptr &blob) = 0;
+    virtual void setRoiBlob(const Blob::Ptr& blob) = 0;
 
     /**
      * @brief Gets pointer to the ROI blob used for a given input.
@@ -43,9 +43,9 @@ public:
      * @param serial disable OpenMP threading if the value set to true.
      * @param batchSize batch size for pre-processing.
      */
-    virtual void execute(Blob::Ptr &preprocessedBlob, const PreProcessInfo& info, bool serial, int batchSize = -1) = 0;
+    virtual void execute(Blob::Ptr& preprocessedBlob, const PreProcessInfo& info, bool serial, int batchSize = -1) = 0;
 
-    virtual void isApplicable(const Blob::Ptr &src, const Blob::Ptr &dst) = 0;
+    virtual void isApplicable(const Blob::Ptr& src, const Blob::Ptr& dst) = 0;
 
 protected:
     virtual ~IPreProcessData() = default;
@@ -71,7 +71,7 @@ public:
         IE_THROW() << "OpenVINO GAPI preprocessing was removed.";
     }
 
-    void setRoiBlob(const Blob::Ptr &blob) {
+    void setRoiBlob(const Blob::Ptr& blob) {
         OV_PREPROC_PLUGIN_CALL_STATEMENT(_ptr->setRoiBlob(blob));
     }
 
@@ -79,11 +79,11 @@ public:
         OV_PREPROC_PLUGIN_CALL_STATEMENT(return _ptr->getRoiBlob());
     }
 
-    void execute(Blob::Ptr &preprocessedBlob, const PreProcessInfo& info, bool serial, int batchSize = -1) {
+    void execute(Blob::Ptr& preprocessedBlob, const PreProcessInfo& info, bool serial, int batchSize = -1) {
         OV_PREPROC_PLUGIN_CALL_STATEMENT(_ptr->execute(preprocessedBlob, info, serial, batchSize));
     }
 
-    void isApplicable(const Blob::Ptr &src, const Blob::Ptr &dst) {
+    void isApplicable(const Blob::Ptr& src, const Blob::Ptr& dst) {
         OV_PREPROC_PLUGIN_CALL_STATEMENT(_ptr->isApplicable(src, dst));
     }
 };
