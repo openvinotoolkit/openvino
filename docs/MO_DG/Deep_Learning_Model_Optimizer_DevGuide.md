@@ -35,6 +35,10 @@ To convert a model to IR, you can use the following command:
           from openvino.tools.mo import convert_model
           ov_model = convert_model(INPUT_MODEL)
 
+       .. note::
+
+          The ``input_model`` argument is optional. The first unnamed argument will be used as ``input_model``, therefore, both ``convert_model(input_model=mode)`` and ``convert_model(model)`` will have the same effect.
+
 
 If the out-of-the-box conversion (only the ``input_model`` parameter is specified) is not successful, use the parameters mentioned below to override input shapes and cut the model:
 
