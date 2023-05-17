@@ -13,7 +13,7 @@
    
 
 | :doc:`Model Preparation <openvino_docs_model_processing_introduction>`
-| With Model Downloader and Model Conversion API guides, you will learn to download pre-trained models and convert them for use with OpenVINO™. You can use your own models or choose some from a broad selection provided in the Open Model Zoo.
+| With Model Conversion API guide, you will learn to convert pre-trained models for use with OpenVINO™. You can use your own models or choose some from a broad selection provided in the Open Model Zoo.
 
 | :doc:`Model Optimization and Compression <openvino_docs_model_optimization_guide>`
 | In this section you will find out how to optimize a model to achieve better inference performance. It describes multiple optimization methods for both the training and post-training stages. 
