@@ -1005,18 +1005,21 @@ std::shared_ptr<ov::Model> ov::Model::clone() const {
 }
 
 bool ov::Model::has_rt_info(const std::vector<std::string>& args) const {
-    ov::AnyMap info = m_rt_info;
-    for (size_t i = 0; i < args.size(); i++) {
-        bool has_attr = has_rt_arg(info, args[i]);
-        if (!has_attr)
-            return false;
-        if (i == args.size() - 1)
-            break;
-        const ov::Any& rt_attr = get_rt_arg<std::string>(info, args[i]);
-        info = get_map_from_attr(rt_attr);
-    }
-    return true;
+    return has_rt_info(m_rt_info, args.cbegin(), args.cend());
 }
+
+bool ov::Model::has_rt_info(const ov::AnyMap& info,
+                            const std::vector<std::string>::const_iterator& begin,
+                            const std::vector<std::string>::const_iterator& end) const {
+    if (!has_rt_arg(info, *begin))
+        return false;
+    if (begin == end - 1) {
+        return true;
+    } else {
+        return has_rt_info(get_map_from_attr(get_rt_arg<std::string>(info, *begin)), begin + 1, end);
+    }
+}
+
 ov::Any& ov::Model::get_rt_info(ov::AnyMap& info,
                                 const std::vector<std::string>::const_iterator& begin,
                                 const std::vector<std::string>::const_iterator& end) {

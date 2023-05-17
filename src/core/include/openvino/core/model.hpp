@@ -467,6 +467,10 @@ private:
                                const std::vector<std::string>::const_iterator& begin,
                                const std::vector<std::string>::const_iterator& end) const;
 
+    bool has_rt_info(const ov::AnyMap& info,
+                     const std::vector<std::string>::const_iterator& begin,
+                     const std::vector<std::string>::const_iterator& end) const;
+
     // Checks rt attribute
     template <class T,
               typename std::enable_if<std::is_same<std::string, T>::value || std::is_same<T, const char*>::value ||
