@@ -218,7 +218,7 @@ function(set_ie_threading_interface_for TARGET_NAME)
         set(LINK_TYPE "PRIVATE")
         set(COMPILE_DEF_TYPE "PUBLIC")
     elseif(target_type STREQUAL "STATIC_LIBRARY")
-        # Affected libraries: inference_engine_s, openvino_gapi_preproc_s
+        # Affected libraries: inference_engine_s
         # they don't have TBB in public headers => PRIVATE
         set(LINK_TYPE "PRIVATE")
         set(COMPILE_DEF_TYPE "PUBLIC")

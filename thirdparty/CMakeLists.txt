@@ -260,31 +260,6 @@ if(NOT TARGET openvino::pugixml)
 endif()
 
 #
-# Fluid, G-API, OpenCV HAL
-#
-
-if(ENABLE_GAPI_PREPROCESSING)
-    add_library(ocv_hal INTERFACE)
-    target_include_directories(ocv_hal INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/ocv")
-
-    add_subdirectory(ade EXCLUDE_FROM_ALL)
-    add_subdirectory(fluid/modules/gapi EXCLUDE_FROM_ALL)
-
-    if(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11)
-        target_compile_options(fluid PRIVATE "-Wno-maybe-uninitialized")
-    endif()
-    if(UNUSED_BUT_SET_VARIABLE_SUPPORTED)
-        target_compile_options(fluid PRIVATE "-Wno-unused-but-set-variable")
-    endif()
-
-    set_target_properties(ade fluid PROPERTIES FOLDER thirdparty)
-    openvino_developer_export_targets(COMPONENT openvino_common TARGETS ade fluid)
-
-    ov_install_static_lib(ade ${OV_CPACK_COMP_CORE})
-    ov_install_static_lib(fluid ${OV_CPACK_COMP_CORE})
-endif()
-
-#
 # Gflags
 #
 

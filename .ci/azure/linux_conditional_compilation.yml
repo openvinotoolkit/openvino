@@ -125,7 +125,6 @@ jobs:
       cmakeArgs: >
         -G "Ninja Multi-Config"
         -DENABLE_CPPLINT=OFF
-        -DENABLE_GAPI_PREPROCESSING=OFF
         -DCMAKE_VERBOSE_MAKEFILE=ON
         -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
         -DENABLE_FASTER_BUILD=ON

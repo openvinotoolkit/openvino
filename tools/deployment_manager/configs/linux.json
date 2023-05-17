@@ -25,7 +25,6 @@
         "runtime/lib/intel64/libopenvino.so.2023.0.0",
         "runtime/lib/intel64/libopenvino.so.2300",
         "runtime/lib/intel64/libopenvino.so",
-        "runtime/lib/intel64/libopenvino_gapi_preproc.so",
         "runtime/lib/intel64/libopenvino_c.so.2023.0.0",
         "runtime/lib/intel64/libopenvino_c.so.2300",
         "runtime/lib/intel64/libopenvino_c.so",

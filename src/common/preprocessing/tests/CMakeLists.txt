@@ -20,11 +20,7 @@ add_executable(${TARGET} ${SOURCES} ${HEADERS})
 target_include_directories(${TARGET} PRIVATE
           "${CMAKE_CURRENT_SOURCE_DIR}/common"
           "${CMAKE_CURRENT_SOURCE_DIR}/cpu"
-          $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
-          $<TARGET_PROPERTY:openvino_gapi_preproc,INTERFACE_INCLUDE_DIRECTORIES>)
-
-target_compile_definitions(${TARGET} PRIVATE
-        $<TARGET_PROPERTY:openvino_gapi_preproc,INTERFACE_COMPILE_DEFINITIONS>)
+          $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
 
 target_link_libraries(${TARGET} PRIVATE opencv_core opencv_imgproc openvino::util
     inference_engine fluid_test_computations gtest gtest_main)

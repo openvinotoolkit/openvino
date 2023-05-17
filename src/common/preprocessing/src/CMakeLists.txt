@@ -90,112 +90,18 @@ if(ARM OR AARCH64)
     add_definitions(-DHAVE_NEON=1)
 endif()
 
-# Create object library
-
-if(ENABLE_GAPI_PREPROCESSING)
-    add_library(${TARGET_NAME}_obj OBJECT
-                ${LIBRARY_SRC}
-                ${LIBRARY_HEADERS})
-    ie_faster_build(${TARGET_NAME}_obj UNITY)
-
-    target_compile_definitions(${TARGET_NAME}_obj PRIVATE
-        IMPLEMENT_INFERENCE_ENGINE_PLUGIN
-        $<TARGET_PROPERTY:openvino::runtime,INTERFACE_COMPILE_DEFINITIONS>
-        $<TARGET_PROPERTY:fluid,INTERFACE_COMPILE_DEFINITIONS>
-        ENABLE_GAPI_PREPROCESSING)
-
-    target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE
-        $<TARGET_PROPERTY:ocv_hal,INTERFACE_INCLUDE_DIRECTORIES>
-        $<TARGET_PROPERTY:fluid,INTERFACE_INCLUDE_DIRECTORIES>
-        $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
-
-    target_include_directories(${TARGET_NAME}_obj PRIVATE
-        "${CMAKE_CURRENT_SOURCE_DIR}"
-        $<TARGET_PROPERTY:openvino::util,INTERFACE_INCLUDE_DIRECTORIES>
-        $<TARGET_PROPERTY:openvino::itt,INTERFACE_INCLUDE_DIRECTORIES>)
-
-    set_ie_threading_interface_for(${TARGET_NAME}_obj)
-
-    add_cpplint_target(${TARGET_NAME}_obj_cpplint FOR_TARGETS ${TARGET_NAME}_obj)
-
-    set(library_sources $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
-endif()
-
 # Create module library file from object library
 
-if(ENABLE_GAPI_PREPROCESSING)
-    if(BUILD_SHARED_LIBS)
-        set(library_type MODULE)
-    else()
-        set(library_type STATIC)
-    endif()
-else()
-    set(library_type INTERFACE)
-endif()
+set(library_type INTERFACE)
 
 add_library(${TARGET_NAME} ${library_type} ${library_sources})
 
 set_ie_threading_interface_for(${TARGET_NAME})
 
-if(ENABLE_GAPI_PREPROCESSING)
-    target_compile_definitions(${TARGET_NAME} PUBLIC ENABLE_GAPI_PREPROCESSING)
-    target_link_libraries(${TARGET_NAME} PRIVATE fluid openvino::itt openvino::util)
-
-    if(BUILD_SHARED_LIBS)
-        target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime)
-        # make plugin to depend on preprocessing library
-        foreach(plugin IN LISTS PLUGIN_FILES)
-            string(REPLACE ":" ";" plugin "${plugin}")
-            list(REMOVE_AT plugin 0)
-            add_dependencies(${plugin} openvino_gapi_preproc)
-        endforeach()
-        add_dependencies(ov_plugins openvino_gapi_preproc)
-    else()
-        # for static linkage the dependencies are in opposite order
-        target_link_libraries(openvino PRIVATE ${TARGET_NAME})
-    endif()
-
-    # Workaround to avoid warnings caused with bug in the avx512intrin.h of GCC5
-    if((CMAKE_CXX_COMPILER_ID STREQUAL "GNU") AND
-       (CMAKE_CXX_COMPILER_VERSION VERSION_LESS_EQUAL 5.5))
-        set_target_properties(${TARGET_NAME} PROPERTIES LINK_FLAGS_RELEASE "-Wno-error=maybe-uninitialized -Wno-maybe-uninitialized")
-    endif()
-
-    if(WIN32 AND NOT library_type STREQUAL "INTERFACE")
-        set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
-    endif()
-
-    # must be called after all target_link_libraries
-    ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
-
-    ov_add_vs_version_file(NAME ${TARGET_NAME}
-                           FILEDESCRIPTION "OpenVINO Preprocessing plugin")
-endif()
-
 target_include_directories(${TARGET_NAME} INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
     $<TARGET_PROPERTY:openvino,INTERFACE_INCLUDE_DIRECTORIES>)
 
-# Static library used for unit tests which are always built
-
-if(ENABLE_GAPI_PREPROCESSING)
-    add_library(${TARGET_NAME}_s STATIC EXCLUDE_FROM_ALL
-                $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
-
-    set_ie_threading_interface_for(${TARGET_NAME}_s)
-
-    target_include_directories(${TARGET_NAME}_s INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}")
-
-    if(WIN32)
-        set_target_properties(${TARGET_NAME}_s PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME}_s)
-    endif()
-
-    target_link_libraries(${TARGET_NAME}_s PRIVATE fluid openvino::itt openvino::runtime)
-
-    target_compile_definitions(${TARGET_NAME}_s INTERFACE USE_STATIC_IE)
-
-    set_target_properties(${TARGET_NAME}_s PROPERTIES EXCLUDE_FROM_ALL ON)
-endif()
 
 # LTO
 

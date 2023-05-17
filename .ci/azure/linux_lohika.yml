@@ -69,7 +69,6 @@ jobs:
   - script: |
       env -C ~/work
       ./buildreleasenolto.sh
-      libopenvino_gapi_preproc.so
       openvino_intel_cpu_plugin
       openvino_intel_gpu_plugin
       clDNN_unit_tests64

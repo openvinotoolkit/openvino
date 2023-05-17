@@ -74,10 +74,6 @@ addIeTarget(
             ${DEPENDENCIES}
 )
 
-if(ENABLE_GAPI_PREPROCESSING)
-    target_compile_definitions(${TARGET_NAME} PUBLIC ENABLE_GAPI_PREPROCESSING)
-endif()
-
 ie_faster_build(${TARGET_NAME}
     PCH PRIVATE "src/precomp.hpp"
 )

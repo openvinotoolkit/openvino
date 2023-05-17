@@ -18,7 +18,7 @@ file(GLOB SHARED_TESTS_SRC
 
 add_library(${TARGET_NAME} STATIC ${SHARED_TESTS_SRC})
 
-add_dependencies(${TARGET_NAME} openvino_gapi_preproc mock_engine)
+add_dependencies(${TARGET_NAME} mock_engine)
 
 if(ENABLE_AUTO OR ENABLE_MULTI)
     add_dependencies(${TARGET_NAME} openvino_auto_plugin)

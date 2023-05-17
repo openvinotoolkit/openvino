@@ -115,7 +115,6 @@ jobs:
       call "$(MSVS_VARS_PATH)" && cmake ^
         -G Ninja ^
         -DENABLE_CPPLINT=OFF ^
-        -DENABLE_GAPI_PREPROCESSING=OFF ^
         -DENABLE_PLUGINS_XML=ON ^
         -DENABLE_FASTER_BUILD=ON ^
         -DCMAKE_COMPILE_WARNING_AS_ERROR=ON ^
@@ -153,7 +152,6 @@ jobs:
         -G "Visual Studio 16 2019" ^
         -DVERBOSE_BUILD=ON ^
         -DENABLE_CPPLINT=OFF ^
-        -DENABLE_GAPI_PREPROCESSING=OFF ^
         -DENABLE_FASTER_BUILD=ON ^
         -DENABLE_PROFILING_ITT=OFF ^
         -DSELECTIVE_BUILD=ON ^

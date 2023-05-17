@@ -68,43 +68,7 @@ class PreProcessDataPlugin {
 
 public:
     PreProcessDataPlugin() {
-#ifdef OPENVINO_STATIC_LIBRARY
-#    ifdef ENABLE_GAPI_PREPROCESSING
-        CreatePreProcessData(_ptr);
-        if (!_ptr)
-            IE_THROW() << "Failed to create IPreProcessData for G-API based preprocessing";
-#   else
-        IE_THROW() << "OpenVINO Runtime is compiled without G-API preprocessing support.\n"
-                      "Use 'cmake -DENABLE_GAPI_PREPROCESSING=ON ...'";
-#   endif // ENABLE_GAPI_PREPROCESSING
-#else
-        // preprocessing plugin can be found in the following locations
-        // 1. in openvino-X.Y.Z location relative to libopenvino.so
-        // 2. in the same folder as libopenvino.so
-
-        ov::util::FilePath ovLibraryPath = getInferenceEngineLibraryPath();
-        ov::util::FilePath libraryName = ov::util::to_file_path(std::string("openvino_gapi_preproc") + std::string(IE_BUILD_POSTFIX));
-        libraryName = FileUtils::makePluginLibraryName({}, libraryName);
-
-        std::ostringstream str;
-        str << "openvino-" << IE_VERSION_MAJOR << "." << IE_VERSION_MINOR << "." << IE_VERSION_PATCH;
-        ov::util::FilePath ovLibraryPathPlusOV = FileUtils::makePath(ovLibraryPath, ov::util::to_file_path(str.str()));
-
-        const ov::util::FilePath preprocLibraryPathPlusOV = FileUtils::makePath(ovLibraryPathPlusOV, libraryName);
-        const ov::util::FilePath preprocLibraryPath = FileUtils::makePath(ovLibraryPath, libraryName);
-        const bool existsInOV = FileUtils::fileExist(preprocLibraryPathPlusOV);
-        const bool existsInLib = FileUtils::fileExist(preprocLibraryPath);
-
-        if (!existsInOV && !existsInLib) {
-            IE_THROW() << "Please, make sure that pre-processing library "
-                << ov::util::from_file_path(libraryName) << " is in "
-                << ov::util::from_file_path(preprocLibraryPathPlusOV) << " or " << ov::util::from_file_path(preprocLibraryPath);
-        }
-
-        using CreateF = void(std::shared_ptr<IPreProcessData>& data);
-        _so = ov::util::load_shared_object(existsInOV ? preprocLibraryPathPlusOV.c_str() : preprocLibraryPath.c_str());
-        reinterpret_cast<CreateF *>(ov::util::get_symbol(_so, "CreatePreProcessData"))(_ptr);
-#endif
+        IE_THROW() << "OpenVINO GAPI preprocessing was removed.";
     }
 
     void setRoiBlob(const Blob::Ptr &blob) {
@@ -129,7 +93,7 @@ public:
 using PreProcessDataPtr = std::shared_ptr<PreProcessDataPlugin>;
 
 inline PreProcessDataPtr CreatePreprocDataHelper() {
-    return std::make_shared<PreProcessDataPlugin>();
+    IE_THROW() << "OpenVINO GAPI preprocessing was removed.";
 }
 
 }  // namespace InferenceEngine
