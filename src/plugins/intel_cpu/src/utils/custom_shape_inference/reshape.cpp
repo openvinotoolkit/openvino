@@ -119,12 +119,16 @@ Result UnsqueezeShapeInfer::infer(const std::vector<std::reference_wrapper<const
     const auto memPtr = data_dependency.at(UNSQUEEZE_PATTERN);
     const auto data = memPtr->GetPtr();
     const auto& dims = memPtr->getStaticDims();
-    const auto outputPatternSize = std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<Dim>());
+    auto outputPatternSize = std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<Dim>());
     std::vector<int64_t> outPattern = ov::get_raw_data_as<int64_t>(
                                           InferenceEngine::details::convertPrecision(memPtr->getDesc().getPrecision()),
                                           data,
                                           outputPatternSize,
                                           ov::util::Cast<int64_t>());
+    // remove repeated pattern
+    std::unordered_set<int64_t> tmp(outPattern.begin(), outPattern.end());
+    outPattern = std::vector<int64_t>(tmp.begin(), tmp.end());
+    outputPatternSize = outPattern.size();
     size_t outputShapeSize = inputShapeSize + outputPatternSize;
     VectorDims outputShape(outputShapeSize, 0);
     bool existError = false;
