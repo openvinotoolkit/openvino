@@ -32,6 +32,16 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def get_layout_from_shape(shape):
+    if 4 != len(shape):
+        raise RuntimeError('Sample supports models with rank 4 input only')
+    if 1 == shape[1] or 3 == shape[1]:
+        return Layout('NCHW')
+    if 1 == shape[3] or 3 == shape[3]:
+        return Layout('NHWC')
+    raise RuntimeError("Can't guess layout by shape")
+
+
 def completion_callback(infer_request: InferRequest, image_path: str) -> None:
     predictions = next(iter(infer_request.results.values()))
 
@@ -76,18 +86,7 @@ def main() -> int:
         log.error('Sample supports only single output topologies')
         return -1
 
-# --------------------------- Step 3. Set up input --------------------------------------------------------------------
-    # Read input images
-    images = [cv2.imread(image_path) for image_path in args.input]
-
-    # Resize images to model input dims
-    _, _, h, w = model.input().shape
-    resized_images = [cv2.resize(image, (w, h)) for image in images]
-
-    # Add N dimension
-    input_tensors = [np.expand_dims(image, 0) for image in resized_images]
-
-# --------------------------- Step 4. Apply preprocessing -------------------------------------------------------------
+# --------------------------- Step 3. Apply preprocessing -------------------------------------------------------------
     ppp = PrePostProcessor(model)
 
     # 1) Set input tensor information:
@@ -98,8 +97,8 @@ def main() -> int:
         .set_element_type(Type.u8) \
         .set_layout(Layout('NHWC'))  # noqa: N400
 
-    # 2) Here we suppose model has 'NCHW' layout for input
-    ppp.input().model().set_layout(Layout('NCHW'))
+    # 2) Here we set the actual model layout input
+    ppp.input().model().set_layout(get_layout_from_shape(model.input().shape))
 
     # 3) Set output tensor information:
     # - precision of tensor is supposed to be 'f32'
@@ -107,6 +106,17 @@ def main() -> int:
 
     # 4) Apply preprocessing modifing the original 'model'
     model = ppp.build()
+
+# --------------------------- Step 4. Set up input --------------------------------------------------------------------
+    # Read input images
+    images = (cv2.imread(image_path) for image_path in args.input)
+
+    # Resize images to model input dims
+    _, h, w, _ = model.input().shape
+    resized_images = (cv2.resize(image, (w, h)) for image in images)
+
+    # Add N dimension
+    input_tensors = (np.expand_dims(image, 0) for image in resized_images)
 
 # --------------------------- Step 5. Loading model to the device -----------------------------------------------------
     log.info('Loading the model to the plugin')

@@ -30,16 +30,9 @@
 #include "classification_sample_async.h"
 // clang-format on
 
-constexpr auto N_TOP_RESULTS = 10;
-
 using namespace ov::preprocess;
 
-/**
- * @brief Checks input args
- * @param argc number of args
- * @param argv list of input arguments
- * @return bool status true(Success) or false(Fail)
- */
+namespace {
 bool parse_and_check_command_line(int argc, char* argv[]) {
     gflags::ParseCommandLineNonHelpFlags(&argc, &argv, true);
     if (FLAGS_h) {
@@ -60,6 +53,20 @@ bool parse_and_check_command_line(int argc, char* argv[]) {
     }
 
     return true;
+}
+
+ov::Layout get_layout_from_shape(const ov::Shape& shape) {
+    if (4 != shape.size()) {
+        throw std::logic_error("Sample supports models with rank 4 input only");
+    }
+    if (1 == shape[1] || 3 == shape[1]) {
+        return "NCHW";
+    }
+    if (1 == shape[3] || 3 == shape[3]) {
+        return "NHWC";
+    }
+    throw std::logic_error("Can't guess layout by shape");
+}
 }
 
 int main(int argc, char* argv[]) {
@@ -100,8 +107,8 @@ int main(int argc, char* argv[]) {
         // - precision of tensor is supposed to be 'u8'
         // - layout of data is 'NHWC'
         input_info.tensor().set_element_type(ov::element::u8).set_layout(tensor_layout);
-        // 3) Here we suppose model has 'NCHW' layout for input
-        input_info.model().set_layout("NCHW");
+        // 3) Here we set the actual model layout input
+        input_info.model().set_layout(get_layout_from_shape(model->input().get_shape()));
         // 4) output() with no args assumes a model has a single result
         // - output() with no args assumes a model has a single result
         // - precision of tensor is supposed to be 'f32'
@@ -223,6 +230,7 @@ int main(int argc, char* argv[]) {
         }
 
         // Prints formatted classification results
+        constexpr size_t N_TOP_RESULTS = 10;
         ClassificationResult classificationResult(output, valid_image_names, batchSize, N_TOP_RESULTS, labels);
         classificationResult.show();
     } catch (const std::exception& ex) {
