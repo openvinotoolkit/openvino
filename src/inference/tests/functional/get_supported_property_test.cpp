@@ -2,21 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gmock/gmock.h>
 #include <gtest/gtest.h>
+
 #include <string>
 
 #include "common_test_utils/file_utils.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "ie_core.hpp"
 #include "ie_icore.hpp"
-#include "ie_metric_helpers.hpp"
-#include "openvino/util/file_util.hpp"
-#include "ie_metric_helpers.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/runtime/properties.hpp"
-#include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
+#include "openvino/util/file_util.hpp"
 
 namespace {
 std::string get_mock_engine_path() {
@@ -35,7 +32,9 @@ std::function<T> make_std_function(const std::shared_ptr<void> so, const std::st
     std::function<T> ptr(reinterpret_cast<T*>(ov::util::get_symbol(so, functionName.c_str())));
     return ptr;
 }
-} // namespace
+
+}  // namespace
+
 class MockHardWarePlugin : public InferenceEngine::IInferencePlugin {
 public:
     void SetConfig(const std::map<std::string, std::string>& config) override {
@@ -46,8 +45,10 @@ public:
                 OPENVINO_THROW(GetName(), " set config: " + it.first);
         }
     }
-    InferenceEngine::Parameter GetMetric(const std::string& name, const std::map<std::string, InferenceEngine::Parameter>& options) const override {
-        const std::vector<ov::PropertyName> roProperties {
+    InferenceEngine::Parameter GetMetric(
+        const std::string& name,
+        const std::map<std::string, InferenceEngine::Parameter>& options) const override {
+        const std::vector<ov::PropertyName> roProperties{
             RO_property(ov::supported_properties.name()),
         };
         // the whole config is RW before network is loaded.
@@ -80,11 +81,11 @@ public:
     }
 
 private:
-        int32_t num_streams{0};
+    int32_t num_streams{0};
 };
 
 using TestParam = std::tuple<ov::AnyMap, ov::AnyMap>;
-class GetPropertyTest: public ::testing::TestWithParam<TestParam> {
+class GetPropertyTest : public ::testing::TestWithParam<TestParam> {
 public:
     ov::Core core;
 
@@ -93,9 +94,7 @@ public:
         m_expected_properties = std::get<1>(GetParam());
     }
 
-    void reg_plugin(ov::Core& core,
-                    std::shared_ptr<InferenceEngine::IInferencePlugin>& plugin,
-                    const std::string& device_name) {
+    void reg_plugin(ov::Core& core, std::shared_ptr<InferenceEngine::IInferencePlugin>& plugin) {
         std::string libraryPath = get_mock_engine_path();
         if (!m_so)
             m_so = ov::util::load_shared_object(libraryPath.c_str());
@@ -104,9 +103,13 @@ public:
 
         injectProxyEngine(plugin.get());
         core.register_plugin(ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
-                                                            std::string("mock_engine") + IE_BUILD_POSTFIX),
-                         device_name);
+                                                                std::string("mock_engine") + IE_BUILD_POSTFIX),
+                             m_plugin_name);
         m_mock_plugin = plugin;
+    }
+
+    void TearDown() override {
+        core.unload_plugin(m_plugin_name);
     }
 
 protected:
@@ -114,7 +117,9 @@ protected:
     std::shared_ptr<InferenceEngine::IInferencePlugin> m_mock_plugin;
     ov::AnyMap m_properties;
     ov::AnyMap m_expected_properties;
+    std::string m_plugin_name{"MOCK_HARDWARE"};
 };
+
 static std::string getTestCaseName(const testing::TestParamInfo<TestParam>& obj) {
     ov::AnyMap properties = std::get<0>(obj.param);
     ov::AnyMap expected_properties = std::get<1>(obj.param);
@@ -130,32 +135,39 @@ static std::string getTestCaseName(const testing::TestParamInfo<TestParam>& obj)
     auto name = result.str();
     name.pop_back();
     return name;
-}   
+}
 
 TEST_P(GetPropertyTest, canGenerateCorrectPropertyList) {
     auto plugin = std::make_shared<MockHardWarePlugin>();
     std::shared_ptr<InferenceEngine::IInferencePlugin> base_plugin = plugin;
-    reg_plugin(core, base_plugin, "MOCK_HARDWARE");
-    core.get_property("MOCK_HARDWARE", ov::supported_properties);
+    reg_plugin(core, base_plugin);
+    core.get_property(m_plugin_name, ov::supported_properties);
     std::map<std::string, std::string> config;
     for (auto&& value : m_properties) {
         config.emplace(value.first, value.second.as<std::string>());
     }
-    auto actual_output = m_mock_plugin->GetCore()->GetSupportedConfig("MOCK_HARDWARE", config);
-    for (auto &iter : m_expected_properties) {
+    auto actual_output = m_mock_plugin->GetCore()->GetSupportedConfig(m_plugin_name, config);
+    for (auto& iter : m_expected_properties) {
         ASSERT_TRUE(actual_output.find(iter.first) != actual_output.end());
         ASSERT_EQ(actual_output.find(iter.first)->second, iter.second.as<std::string>());
     }
-    for (auto &iter : m_properties) {
+    for (auto& iter : m_properties) {
         if (m_expected_properties.find(iter.first) == m_expected_properties.end()) {
             ASSERT_TRUE(actual_output.find(iter.first) == actual_output.end());
         }
     }
 }
+
 static const std::vector<TestParam> test_variants = {
-    TestParam{ov::AnyMap({ov::hint::allow_auto_batching(false), ov::num_streams(2)}), ov::AnyMap({ov::hint::allow_auto_batching(false),ov::num_streams(2)})},
-    TestParam{ov::AnyMap({ov::auto_batch_timeout(0), ov::enable_profiling(false)}), ov::AnyMap({ov::auto_batch_timeout(0)})},
-    TestParam{ov::AnyMap({ov::cache_dir("test"), ov::force_tbb_terminate(false)}), ov::AnyMap({ov::cache_dir("test"), ov::force_tbb_terminate(false)})},
+    TestParam{ov::AnyMap({ov::hint::allow_auto_batching(false), ov::num_streams(2)}),
+              ov::AnyMap({ov::hint::allow_auto_batching(false), ov::num_streams(2)})},
+    TestParam{ov::AnyMap({ov::auto_batch_timeout(0), ov::enable_profiling(false)}),
+              ov::AnyMap({ov::auto_batch_timeout(0)})},
+    TestParam{ov::AnyMap({ov::cache_dir("test"), ov::force_tbb_terminate(false)}),
+              ov::AnyMap({ov::cache_dir("test"), ov::force_tbb_terminate(false)})},
+    TestParam{ov::AnyMap({ov::cache_dir("test"),
+                          ov::device::properties("MOCK_HARDWARE", ov::num_streams(2), ov::enable_profiling(true))}),
+              ov::AnyMap({ov::cache_dir("test"), ov::num_streams(2)})},
 };
 
 INSTANTIATE_TEST_SUITE_P(GetSupportedPropertyTest,
