@@ -5,6 +5,7 @@
 #pragma once
 #include "intel_gpu/primitives/primitive.hpp"
 #include "intel_gpu/primitives/concatenation.hpp"
+#include "intel_gpu/primitives/generic_layer.hpp"
 #include "intel_gpu/runtime/event.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/lru_cache.hpp"
@@ -43,21 +44,22 @@ class typed_primitive_inst;
 */
 struct primitive_impl {
     primitive_impl() = default;
-    explicit primitive_impl(const kernel_selector::weights_reorder_params& params, std::string kernel_name = "", bool is_dynamic = false)
-        : _weights_reorder_params(params), _kernel_name(kernel_name), _is_dynamic(is_dynamic) {}
+    explicit primitive_impl(std::shared_ptr<WeightsReorderParams> params, std::string kernel_name = "", bool is_dynamic = false)
+        : _weights_reorder_params(params), _kernel_name(kernel_name), _is_dynamic(is_dynamic) {
+    }
     explicit primitive_impl(std::string kernel_name, bool is_dynamic = false) :
-        primitive_impl(kernel_selector::weights_reorder_params{}, kernel_name, is_dynamic) {}
+        primitive_impl(nullptr, kernel_name, is_dynamic) {}
     virtual ~primitive_impl() = default;
 
     virtual std::vector<layout> get_internal_buffer_layouts() const = 0;
     virtual void set_node_params(const program_node&) {}
     virtual std::string get_type() const = 0;
     virtual void set_arguments(primitive_inst& instance) = 0;
+    virtual void set_arguments(primitive_inst& instance, kernel_arguments_data& args) = 0;
     virtual kernel_arguments_data get_arguments(const primitive_inst& instance) const = 0;
     virtual event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) = 0;
     std::string get_kernel_name() const { return _kernel_name; }
-    // TODO: added a derived class for weights reordering (maybe for all static data reordering)
-    kernel_selector::weights_reorder_params _weights_reorder_params;
+
     // class typed_primitive_gpu_impl override this with return false;
     virtual bool is_cpu() const { return true; }
     virtual void init_kernels(const kernels_cache& kernels_cache, const kernel_impl_params& params) = 0;
@@ -94,7 +96,14 @@ struct primitive_impl {
     virtual void set_kernels(cldnn::kernels_cache::compiled_kernels kernels) {}
     virtual std::vector<kernel::ptr> get_kernels() { return {}; }
 
+    bool need_weights_reorder() const { return _weights_reorder_params != nullptr; }
+    std::shared_ptr<WeightsReorderParams> get_weights_reorder_params() const { return _weights_reorder_params; }
+    void reset_weights_reorder_params() { _weights_reorder_params = nullptr; }
+
+    std::shared_ptr<kernel_impl_params> get_weights_reorder_kernel_params() const;
+
 protected:
+    std::shared_ptr<WeightsReorderParams> _weights_reorder_params = nullptr;
     std::string _kernel_name;
     bool _is_dynamic = false;
 };
@@ -151,6 +160,8 @@ public:
     const kernel_impl_params* get_impl_params() const { return _impl_params.get(); }
     // return pointer to const to prevent arbitrary 'execute' call -> use primitive_inst.execute() instead
     const primitive_impl* get_impl() const { return _impl.get(); }
+    primitive_impl* get_impl() { return _impl.get(); }
+    void set_impl(std::unique_ptr<primitive_impl> impl) { _impl = std::move(impl); }
 
     memory& input_memory(size_t index = 0) const {
         if (index >= inputs_memory_count())
@@ -228,6 +239,9 @@ public:
     layout get_input_layout(size_t idx = 0) const { return _impl_params->get_input_layout(idx); }
     layout get_output_layout(size_t idx = 0) const { return _impl_params->get_output_layout(idx); }
     layout get_node_output_layout() const { return _node_output_layout; }
+    void set_output_layout(const layout& new_out_lay, size_t idx = 0) {
+        _impl_params->output_layouts[idx] = new_out_lay;
+    }
 #ifdef ENABLE_ONEDNN_FOR_GPU
     std::vector<cldnn::fused_primitive_desc_onednn>& get_fused_primitives_onednn() const { return _impl_params->fused_desc_onednn; }
 #endif // ENABLE_ONEDNN_FOR_GPU
@@ -415,11 +429,22 @@ private:
         return set_arguments_impl(reinterpret_cast<typed_primitive_inst<PType>&>(instance));
     }
 
+    void set_arguments(primitive_inst& instance, kernel_arguments_data& args) override {
+        OPENVINO_ASSERT(instance.type() == PType::type_id(), "[GPU] Implementation type ", instance.type(),
+                                                             " does not match primitive type ", PType::type_id());
+        if (instance.get_impl() != this)
+            throw std::invalid_argument(
+                "Trying to set_arguments for primitive implementation with mismatching primitive instance");
+
+        return set_arguments_impl(reinterpret_cast<typed_primitive_inst<PType>&>(instance), args);
+    }
+
     kernel_arguments_data get_arguments(const primitive_inst& instance) const override {
         return get_arguments_impl(reinterpret_cast<const typed_primitive_inst<PType>&>(instance));
     }
 
     virtual void set_arguments_impl(typed_primitive_inst<PType>& /*instance*/) {}
+    virtual void set_arguments_impl(typed_primitive_inst<PType>& /*instance*/, kernel_arguments_data& /*args*/) {}
     virtual kernel_arguments_data get_arguments_impl(const typed_primitive_inst<PType>& /*instance*/) const {
         kernel_arguments_data args;
         return args;

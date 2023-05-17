@@ -31,7 +31,7 @@ TEST(test_select_preferred_formats, setting_target_conv_format) {
     topology.add(data("weights", weights));
     topology.add(input_layout("input", input->get_layout()));
     topology.add(reorder("reorder", input_info("input"), format::b_fs_yx_fsv16, data_types::f16));
-    topology.add(convolution("conv1", input_info("reorder"), { "weights" }));
+    topology.add(convolution("conv1", input_info("reorder"), "weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));

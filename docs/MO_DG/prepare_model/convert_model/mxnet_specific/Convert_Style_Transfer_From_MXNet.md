@@ -2,6 +2,13 @@
 
 @sphinxdirective
 
+
+.. warning::
+
+   Note that OpenVINO support for Apache MXNet is currently being deprecated and will be removed entirely in the future.
+
+   
+
 This article provides instructions on how to generate a model for style transfer, using the public MXNet neural style transfer sample.
 
 **Step 1**: Download or clone the repository `Zhaw's Neural Style Transfer repository <https://github.com/zhaw/neural_style>`__ with an MXNet neural style transfer sample.
