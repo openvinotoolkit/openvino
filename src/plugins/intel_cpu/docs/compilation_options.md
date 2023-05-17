@@ -2,7 +2,7 @@
 The following compilation options can be helpful in developing CPU plugin
 
 * `ENABLE_DEBUG_CAPS=ON`
-  See [Debug capabilities](README.md#debug_capabilities)
+  See [Debug capabilities](./debug_capabilities/README.md)
 * `ENABLE_CPU_SUBSET_TESTS_PATH="relative/path/to/test/file"`
     * Example: `-DENABLE_CPU_SUBSET_TESTS_PATH="single_layer_tests/convolution.cpp subgraph_tests/src/mha.cpp"`
     * Specifies the list of relative paths to functional tests which will be included into the new target `ov_cpu_func_tests_subset`

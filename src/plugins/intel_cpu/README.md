@@ -16,11 +16,14 @@ CPU Plugin contains the following components:
 
 ## Tutorials
 
-* [Debug capabilities](./docs/debug_capabilities.md)
+* [Debug capabilities](./docs/debug_capabilities/README.md)
 * [Performance analysis using ITT counters](./docs/performance_analysis_ITT_counters.md)
 * [Intel Software Development Emulator (CPU emulation)](./docs/cpu_emulation.md)
 * [Runtime parameters cache](./docs/runtime_parameters_cache.md)
 * [Internal CPU Plugin Optimizations](./docs/internal_cpu_plugin_optimization.md)
+* [FakeQuantize insights and optimizations](./docs/fake_quantize.md)
+* [Selective build (Conditional Compilation)](./docs/selective_build.md)
+* [Workaround for python stack size on AMX hosts](./docs/wa_amx_python_sigaltstack.md)
 
 ## See also
 

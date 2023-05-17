@@ -2,8 +2,6 @@
 ## Introduction
 Selective build or conditional compilation can significantly reduce OpenVINO™ binaries size by excluding unnecessary components for particular model's inference.
 
-Here we enable the selective build function on oneDNN plugin.
-
 ## Workflow
 
 Onednn path in OpenVINO:
