@@ -12,10 +12,10 @@
 #include <vector>
 
 #include "dev/threading/parallel_custom_arena.hpp"
+#include "ie_common.h"
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "streams_executor.hpp"
-#include "ie_common.h"
 
 namespace ov {
 
