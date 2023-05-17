@@ -1925,7 +1925,7 @@ void layout_optimizer::select_preferred_formats_for_onednn(program_node& node, d
                 }
             }
             // gemm - permute
-            if (node.get_users().size() == 1 && node.get_users().front()->is_type<permute>()) {
+            if (node.get_users().size() == 1 && node.get_users().front()->is_type<permute>() && !node.has_fused_primitives()) {
                 auto& pnode = node.get_users().front()->as<permute>();
                 // optimized_out_permute(pnode);
                 auto& input_node = pnode.get_dependency(0);

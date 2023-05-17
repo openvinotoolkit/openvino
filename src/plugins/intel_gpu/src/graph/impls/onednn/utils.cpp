@@ -80,12 +80,18 @@ dnnl::memory::dims convert_gemm_tensor(cldnn::tensor t, size_t dims, bool batche
     return res;
 }
 
-dnnl::memory::format_tag convert_gemm_data_format(dnnl::memory::dims dims) {
-    switch (dims.size()) {
-    case 2: return dnnl::memory::format_tag::ab;
-    case 3: return dnnl::memory::format_tag::abc;
-    case 4: return dnnl::memory::format_tag::abcd;
-    default: throw std::invalid_argument("[clDNN] Unsupported conversion from "+ std::to_string(dims.size()) + " to onednn format_tag");
+dnnl::memory::format_tag convert_gemm_data_format(dnnl::memory::dims dims, format target) {
+    auto tag = convert_data_format(target);
+    if (tag != dnnl::memory::format_tag::undef) {
+        return tag;
+    } else {
+        GPU_DEBUG_COUT << "Can't convert " << target.to_string() << " to onednn tag" << std::endl;
+        switch (dims.size()) {
+        case 2: return dnnl::memory::format_tag::ab;
+        case 3: return dnnl::memory::format_tag::abc;
+        case 4: return dnnl::memory::format_tag::abcd;
+        default: throw std::invalid_argument("[clDNN] Unsupported conversion from "+ std::to_string(dims.size()) + " to onednn format_tag");
+        }
     }
 }
 
@@ -118,6 +124,8 @@ std::vector<std::pair<cldnn::format, dnnl::memory::format_tag>> format_map = {
         { cldnn::format::bfyx, dnnl::memory::format_tag::nchw },
         { cldnn::format::bfzyx, dnnl::memory::format_tag::ncdhw },
         { cldnn::format::byxf, dnnl::memory::format_tag::nhwc },
+        { cldnn::format::byfx, dnnl::memory::format_tag::acbd },
+        { cldnn::format::bxfy, dnnl::memory::format_tag::adbc },
         { cldnn::format::bzyxf, dnnl::memory::format_tag::ndhwc },
         { cldnn::format::b_fs_yx_fsv2, dnnl::memory::format_tag::undef },
         { cldnn::format::b_fs_yx_fsv4, dnnl::memory::format_tag::aBcd4b },
