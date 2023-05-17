@@ -13,6 +13,7 @@
 #include <gpu/gpu_config.hpp>
 #include <common_test_utils/test_common.hpp>
 #include <common_test_utils/test_constants.hpp>
+#include "common_test_utils/file_utils.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
 #include <openvino/core/preprocess/pre_post_process.hpp>
 
@@ -141,6 +142,60 @@ struct DX11CachedTexture_Test : DX11RemoteCtx_Test {
             dx11_textures.emplace_back(pTexture2D);
         }
     }
+
+    void run_make_shared_nv12_tensor_cached_inference(bool is_caching_test) {
+    #if defined(ANDROID)
+        GTEST_SKIP();
+    #endif
+        // inference using remote blob with batch
+        auto fn_ptr_remote = ngraph::builder::subgraph::makeConvPoolRelu({1, 3, texture_description.Height, texture_description.Width});
+        ov::Core core;
+        ov::intel_gpu::ocl::D3DContext context(core, device_ptr);
+
+        using namespace ov::preprocess;
+        auto p = PrePostProcessor(fn_ptr_remote);
+        p.input().tensor().set_element_type(ov::element::u8)
+                        .set_color_format(ov::preprocess::ColorFormat::NV12_TWO_PLANES, {"y", "uv"})
+                        .set_memory_type(GPU_CONFIG_KEY(SURFACE));
+        p.input().preprocess().convert_color(ov::preprocess::ColorFormat::BGR);
+        p.input().model().set_layout("NCHW");
+        auto model = p.build();
+
+        auto param_input_y = model->get_parameters().at(0);
+        auto param_input_uv = model->get_parameters().at(1);
+
+        const size_t total_run_number = 4;
+
+        std::string cacheDirName;
+        if (is_caching_test) {
+            cacheDirName = std::string("make_shared_nv12_tensor_cached_inference");
+            CommonTestUtils::removeFilesWithExt(cacheDirName, "blob");
+            CommonTestUtils::removeFilesWithExt(cacheDirName, "cl_cache");
+            CommonTestUtils::removeDir(cacheDirName);
+            core.set_property(ov::cache_dir(cacheDirName));
+
+            auto tmp_model = core.compile_model(model, context);
+        }
+
+        auto compiled_model = core.compile_model(model, context);
+        auto request = compiled_model.create_infer_request();
+
+        const size_t iteration_count = 10;
+        for (size_t i = 0; i < iteration_count; i++) {
+            auto tensor = context.create_tensor_nv12(texture_description.Height, texture_description.Width, dx11_textures[0]);
+            request.set_tensor(param_input_y, tensor.first);
+            request.set_tensor(param_input_uv, tensor.second);
+
+            ASSERT_NO_THROW(request.infer());
+            auto output_tensor = request.get_tensor(model->get_results().at(0));
+        }
+
+        if (is_caching_test) {
+            CommonTestUtils::removeFilesWithExt(cacheDirName, "blob");
+            CommonTestUtils::removeFilesWithExt(cacheDirName, "cl_cache");
+            CommonTestUtils::removeDir(cacheDirName);
+        }
+    }
 };
 
 TEST_F(DX11RemoteCtx_Test, smoke_make_shared_context) {
@@ -253,40 +308,11 @@ TEST_F(DX11CachedTexture_Test, smoke_make_shared_nv12_tensor_cached) {
 }
 
 TEST_F(DX11CachedTexture_Test, _make_shared_nv12_tensor_cached_inference) {
-#if defined(ANDROID)
-    GTEST_SKIP();
-#endif
-    // inference using remote blob with batch
-    auto fn_ptr_remote = ngraph::builder::subgraph::makeConvPoolRelu({1, 3, texture_description.Height, texture_description.Width});
-    ov::Core core;
-    ov::intel_gpu::ocl::D3DContext context(core, device_ptr);
+    this->run_make_shared_nv12_tensor_cached_inference(false);
+}
 
-    using namespace ov::preprocess;
-    auto p = PrePostProcessor(fn_ptr_remote);
-    p.input().tensor().set_element_type(ov::element::u8)
-                      .set_color_format(ov::preprocess::ColorFormat::NV12_TWO_PLANES, {"y", "uv"})
-                      .set_memory_type(GPU_CONFIG_KEY(SURFACE));
-    p.input().preprocess().convert_color(ov::preprocess::ColorFormat::BGR);
-    p.input().model().set_layout("NCHW");
-    auto model = p.build();
-
-    auto param_input_y = model->get_parameters().at(0);
-    auto param_input_uv = model->get_parameters().at(1);
-
-    const size_t total_run_number = 4;
-
-    auto compiled_model = core.compile_model(model, context);
-    auto request = compiled_model.create_infer_request();
-
-    const size_t iteration_count = 10;
-    for (size_t i = 0; i < iteration_count; i++) {
-        auto tensor = context.create_tensor_nv12(texture_description.Height, texture_description.Width, dx11_textures[0]);
-        request.set_tensor(param_input_y, tensor.first);
-        request.set_tensor(param_input_uv, tensor.second);
-
-        ASSERT_NO_THROW(request.infer());
-        auto output_tensor = request.get_tensor(model->get_results().at(0));
-    }
+TEST_F(DX11CachedTexture_Test, _make_shared_nv12_tensor_cached_inference_cached) {
+    this->run_make_shared_nv12_tensor_cached_inference(true);
 }
 
 #endif // ENABLE_DX11
