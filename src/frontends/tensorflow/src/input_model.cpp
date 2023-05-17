@@ -176,9 +176,9 @@ void InputModel::InputModelTFImpl::load_places() {
             // It may result in unrecognized type in case if it is completely
             // undefined type which are not covered by one of ov::element::StructuralType's
 
-            std::cerr << "[ INFO TF FE ] Retrieved structural type\n";
-            ov::element::StructuralType::print(std::cerr, dtype_any);
-            std::cerr << std::endl;
+            //std::cerr << "[ INFO TF FE ] Retrieved structural type\n";
+            //ov::element::StructuralType::print(std::cerr, dtype_any);
+            //std::cerr << std::endl;
 
             bool is_element_type = dtype_any.is<ov::element::Type>();
 
@@ -186,11 +186,11 @@ void InputModel::InputModelTFImpl::load_places() {
                                             dtype_any.as<ov::element::Type>() :
                                             ov::element::dynamic;
 
-            std::cerr << "[ INFO TF FE ] TensorPlace retrieved type: " << type << "\n";
+            //std::cerr << "[ INFO TF FE ] TensorPlace retrieved type: " << type << "\n";
             if(!is_element_type) {
-                std::cerr << "[ INFO TF FE ] Structural type:";
-                ov::element::StructuralType::print(std::cerr, dtype_any);
-                std::cerr << '\n';
+                //std::cerr << "[ INFO TF FE ] Structural type:";
+                //ov::element::StructuralType::print(std::cerr, dtype_any);
+                //std::cerr << '\n';
             }
 
             auto placeholder_name = node_decoder->get_op_name();

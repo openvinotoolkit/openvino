@@ -99,7 +99,7 @@ void translate_framework_node(const std::shared_ptr<FrameworkNode>& node,
 
 
 
-FrontEnd::FrontEnd() : m_op_translators(tensorflow::op::get_supported_ops()) { std::cerr << "[ INFO ] TensorFlow FE is initialized\n"; }
+FrontEnd::FrontEnd() : m_op_translators(tensorflow::op::get_supported_ops()) {}
 
 
 /// \brief Check if FrontEndTensorflow can recognize model from given parts

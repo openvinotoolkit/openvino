@@ -140,7 +140,7 @@ InferenceEngine::CNNNetwork ov::legacy_convert::convert_model(const std::shared_
 
     {
         int model;  // hide this name to avoid accidental access
-        std::cerr << "model->get_parameters().size() = " << cloned->get_parameters().size() << "\n";
+        //std::cerr << "model->get_parameters().size() = " << cloned->get_parameters().size() << "\n";
 
         for (size_t i = 0; i < cloned->get_parameters().size(); ++i) {
             //std::cerr << model->get_parameters()[i]->get_friendly_name() << "\n";

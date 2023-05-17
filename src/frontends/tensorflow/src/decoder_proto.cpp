@@ -172,7 +172,7 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
     case ::tensorflow::AttrValue::ValueCase::kF:
         return attrs[0].f();
     case ::tensorflow::AttrValue::ValueCase::kS:
-        std::cerr << "kS\n";
+        //std::cerr << "kS\n";
         return attrs[0].s();
     case ::tensorflow::AttrValue::ValueCase::kI:
         return attrs[0].i();
@@ -298,8 +298,8 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
         FRONT_END_GENERAL_CHECK(
             ov_type.is_static(),
             "Encountered unknown element type " + DataType_Name(tf_type) + " on an empty tensor_proto");
-        if(ov_type == element::string)
-            std::cerr << "String tensor value detected, will try to represent as a natural string tensor";
+        //if(ov_type == element::string)
+        //    std::cerr << "String tensor value detected, will try to represent as a natural string tensor";
 // FIXME: This is code from master that should be reworked
 #if 0
         if (tf_type != ::tensorflow::DataType::DT_STRING) {
@@ -382,11 +382,11 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
                 extract_compressed_tensor_content<double>(tensor_proto, val_size, &res);
                 break;
             case ov::element::string:
-                if(ov_type == element::string)std::cerr << "1\n";
+                //if(ov_type == element::string)std::cerr << "1\n";
                 val_size = tensor_proto.string_val_size();
-                if(ov_type == element::string)std::cerr << "2\n";
+                //if(ov_type == element::string)std::cerr << "2\n";
                 extract_compressed_tensor_content<std::string>(tensor_proto, val_size, &res);
-                if(ov_type == element::string)std::cerr << "3\n";
+                //if(ov_type == element::string)std::cerr << "3\n";
                 break;
             default:
                 FRONT_END_THROW("Encountered unknown element type " + ov_type.get_type_name());

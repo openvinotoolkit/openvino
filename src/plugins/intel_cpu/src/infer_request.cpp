@@ -140,7 +140,7 @@ void InferRequestBase::redefineMemoryForInputNodes() {
     const auto cpuInputNodes = graph->GetInputNodesMap();
 
     for (const auto &blob : _inputs) {
-        std::cerr << "blob name: " << blob.first << "\n";
+        //std::cerr << "blob name: " << blob.first << "\n";
         const auto inputNode = cpuInputNodes.find(blob.first);
         if (inputNode == cpuInputNodes.end())
             IE_THROW() << "CPU execution graph doesn't contain input node with name: " << blob.first;
@@ -161,6 +161,7 @@ void InferRequestBase::InferImpl() {
 
     ///////// Prepare string tensors /////////////////
 
+    #if 0
     std::cerr << "Prepare string tensors\n";
 
     for (const auto &blob : _inputs) {
@@ -177,6 +178,7 @@ void InferRequestBase::InferImpl() {
         std::cout << "shape " << x->get_output_partial_shape(0) << "\n";
         std::cout << "type " << x->get_output_element_type(0) << "\n";
     }
+    #endif
 
     ///////////////////////////////////////////////////
 
@@ -670,7 +672,7 @@ void InferRequest::initBlobs() {
 
 void InferRequest::SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr &data) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "SetBlob");
-    std::cerr << "InferRequest::SetBlob, data->size = " << data->size() << "\n";
+    //std::cerr << "InferRequest::SetBlob, data->size = " << data->size() << "\n";
     if (name.empty()) {
         IE_THROW(NotFound) << "Failed to set blob with empty name";
     }
