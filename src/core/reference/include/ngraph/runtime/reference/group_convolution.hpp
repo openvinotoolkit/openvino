@@ -5,7 +5,7 @@
 #pragma once
 
 #include "ngraph/runtime/reference/convolution.hpp"
-#include "ngraph/util.hpp"
+#include "ngraph/runtime/reference/helpers.hpp"
 
 namespace {
 constexpr size_t filter_group_axis = 0;
