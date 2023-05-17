@@ -45,7 +45,6 @@ def convert_model(
 
         # PyTorch-specific parameters:
         example_input: Any = None,
-        onnx_opset_version: int = None,
 
         # TensorFlow*-specific parameters
         input_model_is_text: bool = None,
@@ -265,8 +264,6 @@ def convert_model(
     PyTorch-specific parameters:
         :param example_input:
             Sample of model input in original framework. For PyTorch it can be torch.Tensor.
-        :param onnx_opset_version:
-            Version of ONNX opset that is used for converting from PyTorch to ONNX.
 
     TensorFlow*-specific parameters:
         :param input_model_is_text:

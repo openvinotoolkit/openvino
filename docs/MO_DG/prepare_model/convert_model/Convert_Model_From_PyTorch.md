@@ -49,20 +49,6 @@ Example of using ``example_input``:
 * ``list`` or ``tuple`` with tensors (``openvino.runtime.Tensor`` / ``torch.Tensor`` / ``np.ndarray``)
 * ``dictionary`` where key is the input name, value is the tensor (``openvino.runtime.Tensor`` / ``torch.Tensor`` / ``np.ndarray``)
 
-If ``use_legacy_frontend`` is set, it enables PyTorch model conversion using a temporary ONNX model.
-ONNX opset version can be set using an optional ``onnx_opset_version`` parameter.
-
-If  ``onnx_opset_version`` is not set, the default opset from ``torch.onnx.export()`` is used.
-
-Example of PyTorch model conversion using a temporary ONNX model:
-
-.. code-block:: python
-
-   import torchvision
-   
-   model = torchvision.models.resnet50(pretrained=True)
-   ov_model = convert_model(model, input_shape=[1,3,100,100], use_legacy_frontend=True, onnx_opset_version=13)
-
 Exporting a PyTorch Model to ONNX Format
 ########################################
 

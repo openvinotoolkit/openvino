@@ -49,7 +49,7 @@ from openvino.tools.mo.utils.telemetry_utils import send_params_info, send_frame
     get_tid
 from openvino.tools.mo.utils.versions_checker import get_environment_setup  # pylint: disable=no-name-in-module
 from openvino.tools.mo.moc_frontend.check_config import legacy_extensions_used
-from openvino.tools.mo.moc_frontend.pytorch_frontend_utils import get_pytorch_decoder, convert_pytorch_via_onnx
+from openvino.tools.mo.moc_frontend.pytorch_frontend_utils import get_pytorch_decoder
 from openvino.tools.mo.moc_frontend.shape_utils import parse_input_shapes, get_static_shape
 
 # pylint: disable=no-name-in-module,import-error
@@ -872,12 +872,6 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args, python_api_us
                     example_inputs = args['example_input']
                 elif 'example_inputs' in args:
                     raise AssertionError("'example_inputs' argument is not recognized, maybe you meant to provide 'example_input'?")
-
-                if 'use_legacy_frontend' in args and args['use_legacy_frontend']:
-                    # TO DO: remove this path, when pytorch frontend productization is finished, CVS-103726
-                    # prevent invoking legacy mo python onnx frontend for models converted on the fly
-                    args.pop("use_legacy_frontend")
-                    return convert_pytorch_via_onnx(args, example_inputs, cli_parser, framework, _convert)
 
                 decoder = get_pytorch_decoder(args['input_model'], parse_input_shapes(args), example_inputs, args.get("input"))
                 args['input_model'] = decoder
