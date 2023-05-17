@@ -170,7 +170,7 @@ Below is a list of separate examples for different frameworks and model conversi
 
    For more information, refer to the :doc:`Converting a PaddlePaddle Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Paddle>` guide.
 
-- To get conversion recipes for specific TensorFlow, ONNX, and PyTorch, refer to the :doc:`Model Conversion Tutorials <openvino_docs_MO_DG_prepare_model_convert_model_tutorials>`.
+- To get conversion recipes for specific TensorFlow, ONNX, and PyTorch models, refer to the :doc:`Model Conversion Tutorials <openvino_docs_MO_DG_prepare_model_convert_model_tutorials>`.
 - For more information about IR, see :doc:`Deep Learning Network Intermediate Representation and Operation Sets in OpenVINO™ <openvino_docs_MO_DG_IR_and_opsets>`.
 - For more information about support of neural network models trained with various frameworks, see :doc:`OpenVINO Extensibility Mechanism <openvino_docs_Extensibility_UG_Intro>`
 
