@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gtest/gtest.h>
+#include <gmock/gmock.h>
 
+#include "common_test_utils/test_assertions.hpp"
 #include "utils.hpp"
 
 using namespace ov;
