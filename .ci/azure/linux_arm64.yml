@@ -108,7 +108,6 @@ jobs:
 
   - checkout: self
     clean: 'true'
-    submodules: 'true'
     path: openvino
 
   - script: |
@@ -127,6 +126,11 @@ jobs:
     displayName: 'Install dependencies'
 
   - script: |
+      git submodule update --init -- $(OPENVINO_REPO_DIR)/src/plugins
+      git submodule update --init -- $(OPENVINO_REPO_DIR)/thirdparty/gtest
+    displayName: 'Init submodules for non Conan dependencies'
+
+  - script: |
       python3 -m pip install conan
       # generate build profile
       conan profile detect
@@ -138,10 +142,11 @@ jobs:
       echo "CC=aarch64-linux-gnu-gcc" >> $(BUILD_OPENVINO)/linux_arm64
       echo "CXX=aarch64-linux-gnu-g++" >> $(BUILD_OPENVINO)/linux_arm64
       # install OpenVINO dependencies
-      conan install $(OPENVINO_REPO_DIR)/conanfile.txt -b missing \
-        -s:h tools.cmake.cmaketoolchain:user_toolchain $(OPENVINO_REPO_DIR)/cmake/arm64.toolchain.cmake \
+      conan install $(OPENVINO_REPO_DIR)/conanfile.txt \
         -pr:h $(BUILD_OPENVINO)/linux_arm64 \
-        -of $(BUILD_OPENVINO)
+        -c:h tools.cmake.cmaketoolchain:user_toolchain='["$(OPENVINO_REPO_DIR)/cmake/arm64.toolchain.cmake"]' \
+        -of $(BUILD_OPENVINO) \
+        -b missing
     displayName: 'Install conan and dependencies'
 
   - task: CMake@1
@@ -157,6 +162,7 @@ jobs:
         -DENABLE_DATA=OFF
         -DENABLE_SYSTEM_PROTOBUF=ON
         -DENABLE_SYSTEM_SNAPPY=ON
+        -DENABLE_SYSTEM_PUGIXML=ON
         -DCMAKE_TOOLCHAIN_FILE=$(BUILD_OPENVINO)/conan_toolchain.cmake
         -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
         -DCMAKE_C_COMPILER_LAUNCHER=ccache
