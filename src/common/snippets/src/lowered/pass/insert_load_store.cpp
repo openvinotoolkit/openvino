@@ -140,12 +140,19 @@ bool InsertLoadStore::run(LinearIR& linear_ir) {
     for (auto expr_it = linear_ir.begin(); expr_it != linear_ir.end(); expr_it++) {
         const auto expr = *expr_it;
         const auto& node = expr->get_node();
-        if (ov::is_type<opset1::Parameter>(node) || ov::is_type<op::Buffer>(node)) {
+        if (ov::is_type<opset1::Parameter>(node)) {
             modified |= insert_load(linear_ir, expr_it);
+            continue;
         }
-
-        if (ov::is_type<opset1::Result>(node) || ov::is_type<op::Buffer>(node)) {
+        if (ov::is_type<opset1::Result>(node)) {
             modified |= insert_store(linear_ir, expr_it);
+            continue;
+        }
+        if (auto buffer = ov::as_type_ptr<op::Buffer>(node)) {
+            modified |= insert_load(linear_ir, expr_it);
+            if (buffer->is_intermediate_memory())
+                modified |= insert_store(linear_ir, expr_it);
+            continue;
         }
     }
 
