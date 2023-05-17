@@ -67,7 +67,7 @@ ov::Layout get_layout_from_shape(const ov::Shape& shape) {
     }
     throw std::logic_error("Can't guess layout by shape");
 }
-}
+}  // namespace
 
 int main(int argc, char* argv[]) {
     try {
