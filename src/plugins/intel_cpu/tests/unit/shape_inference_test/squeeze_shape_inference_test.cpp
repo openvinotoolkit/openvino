@@ -5,6 +5,7 @@
 #include "common_test_utils/test_assertions.hpp"
 #include "custom_shape_infer.hpp"
 #include "gmock/gmock.h"
+#include "ie_common.h"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/squeeze.hpp"
@@ -22,6 +23,7 @@ protected:
     }
 };
 
+using SqueezeCustomStaticShapeInferenceTest =  SqueezeStaticShapeInferenceAssertTest;
 TEST_F(SqueezeStaticShapeInferenceAssertTest, no_axes) {
     const auto arg = std::make_shared<op::v0::Parameter>(element::f64, PartialShape{-1, -1});
     const auto axes = std::make_shared<op::v0::Parameter>(element::i64, PartialShape{1});
@@ -44,6 +46,22 @@ TEST_F(SqueezeStaticShapeInferenceAssertTest, parameter_static_shape_axes_no_dat
     OV_EXPECT_THROW(shape_inference(op.get(), input_shapes, output_shapes),
                     NodeValidationFailure,
                     HasSubstr("Check 'constant != nullptr'"));
+}
+
+TEST_F(SqueezeCustomStaticShapeInferenceTest, wrong_pattern) {
+    const auto arg = std::make_shared<op::v0::Parameter>(element::f64, PartialShape{-1, -1});
+    const auto axes = std::make_shared<op::v0::Parameter>(element::i64, PartialShape{1});
+    const auto op = make_op(arg, axes);
+
+    input_shapes = ShapeVector{{5, 6}, axes->get_shape()};
+
+    int64_t axes_data[] = {2};
+    const auto axes_tensor = std::make_shared<ngraph::runtime::HostTensor>(element::i64, ov::Shape{1}, axes_data);
+    const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> constant_data = {{1, axes_tensor}};
+
+    OV_EXPECT_THROW(unit_test::cus_usual_shape_infer(op.get(), input_shapes, output_shapes, constant_data),
+                    InferenceEngine::Unexpected,
+                    HasSubstr("[cpu]squeeze: the shape of input data conflict with the squeeze pattern"));
 }
 
 using TestParams = std::tuple<ShapeVector,           // Input shapes
@@ -123,3 +141,4 @@ TEST_P(SqueezeStaticShapeInferenceTest, shape_inference_with_const_map) {
     ASSERT_EQ(output_shapes.front(), exp_shape);
     unit_test::cus_usual_shape_infer(op.get(), input_shapes, output_shapes, constant_data);
 }
+

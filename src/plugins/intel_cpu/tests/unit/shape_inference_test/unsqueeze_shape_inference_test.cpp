@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/test_assertions.hpp"
 #include "custom_shape_infer.hpp"
 #include "gmock/gmock.h"
 #include "openvino/op/constant.hpp"
@@ -20,6 +21,8 @@ protected:
         output_shapes = ShapeVector(1);
     }
 };
+
+using UnsqueezeCustomStaticShapeInferenceAssertTest = UnsqueezeStaticShapeInferenceAssertTest;
 
 TEST_F(UnsqueezeStaticShapeInferenceAssertTest, no_axes) {
     const auto arg = std::make_shared<op::v0::Parameter>(element::f64, PartialShape{-1, -1});
@@ -51,6 +54,24 @@ TEST_F(UnsqueezeStaticShapeInferenceAssertTest, empty_axes) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
+
+TEST_F(UnsqueezeCustomStaticShapeInferenceAssertTest, wrong_pattern) {
+    const auto arg = std::make_shared<op::v0::Parameter>(element::f64, PartialShape{-1, -1});
+    const auto axes = std::make_shared<op::v0::Parameter>(element::i64, PartialShape{1});
+
+    const auto op = std::make_shared<op::v0::Unsqueeze>(arg, axes);
+
+    input_shapes = ShapeVector{{5, 6}, axes->get_shape()};
+
+    int64_t axes_data[] = {3};
+    const auto axes_tensor = std::make_shared<ngraph::runtime::HostTensor>(element::i64, ov::Shape{1}, axes_data);
+    const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> constant_data = {{1, axes_tensor}};
+
+    OV_EXPECT_THROW(unit_test::cus_usual_shape_infer(op.get(), input_shapes, output_shapes, constant_data),
+                    InferenceEngine::Unexpected,
+                    HasSubstr("[cpu]unsqueeze: the shape of input data conflicts with the unsqueeze pattern"));
+}
+
 
 using TestParams = std::tuple<ShapeVector,           // Input shapes
                               std::vector<int64_t>,  // Unsqueeze axes
