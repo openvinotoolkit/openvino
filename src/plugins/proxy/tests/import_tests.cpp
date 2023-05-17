@@ -7,8 +7,7 @@
 
 using namespace ov::proxy::tests;
 
-// TODO: Fix the test
-TEST_F(ProxyTests, DISABLED_import_and_infer_on_device_without_split_on_default_device) {
+TEST_F(ProxyTests, import_and_infer_on_device_without_split_on_default_device) {
     std::stringstream model_stream;
     // Model has only add (+ 1) op and reshape
     auto model = create_model_with_reshape();

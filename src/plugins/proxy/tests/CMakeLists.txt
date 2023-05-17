@@ -10,6 +10,7 @@ ov_add_test_target(
         EXCLUDED_SOURCE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/mock_plugins
         DEPENDENCIES
             openvino::runtime
+            openvino_ir_frontend
             mock_engine
             funcTestUtils
         LINK_LIBRARIES

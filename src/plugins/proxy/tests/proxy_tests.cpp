@@ -164,9 +164,8 @@ public:
 
     // Methods from a base class ov::ICompiledModel
     void export_model(std::ostream& model) const override {
-        std::stringstream model_stream, bin_stream;
-        ov::pass::Serialize(model_stream, bin_stream).run_on_model(std::const_pointer_cast<ov::Model>(m_model));
-        model << model_stream.str() << "===mock_format_delimiter===" << bin_stream.str() << "===mock_format_end===";
+        ov::pass::StreamSerialize(model, std::function<void(std::ostream&)>())
+            .run_on_model(std::const_pointer_cast<ov::Model>(m_model));
     }
 
     std::shared_ptr<const ov::Model> get_runtime_model() const override {
@@ -292,19 +291,32 @@ public:
     }
 
     std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model, const ov::AnyMap& properties) const override {
-        static const std::string format_end = "===mock_format_end===";
-        auto start_pos = model.tellg();
-        std::string full_config(std::istreambuf_iterator<char>(model), {});
-        auto models = split(full_config, format_end);
-        auto streams = split(models[0], "===mock_format_delimiter===");
-        OPENVINO_ASSERT(streams.size() == 2);
-        ov::Tensor weights(ov::element::i8, {streams[1].size()}, &streams[1][0]);
-        ov::Core core;
-        auto ov_model = core.read_model(streams[0], weights);
-        if (models.size() > 1) {
-            model.seekg(start_pos);
-            model.seekg(models[0].size() + format_end.size(), std::ios_base::cur);
+        std::string xmlString, xmlInOutString;
+        ov::Tensor weights;
+
+        ov::pass::StreamSerialize::DataHeader hdr = {};
+        model.read(reinterpret_cast<char*>(&hdr), sizeof hdr);
+
+        // read CNNNetwork input/output precisions
+        model.seekg(hdr.custom_data_offset);
+        xmlInOutString.resize(hdr.custom_data_size);
+        model.read(const_cast<char*>(xmlInOutString.c_str()), hdr.custom_data_size);
+
+        // read blob content
+        model.seekg(hdr.consts_offset);
+        if (hdr.consts_size) {
+            weights = ov::Tensor(ov::element::i8, ov::Shape{hdr.consts_size});
+            char* data = static_cast<char*>(weights.data());
+            model.read(data, hdr.consts_size);
         }
+
+        // read XML content
+        model.seekg(hdr.model_offset);
+        xmlString.resize(hdr.model_size);
+        model.read(const_cast<char*>(xmlString.c_str()), hdr.model_size);
+
+        ov::Core core;
+        auto ov_model = core.read_model(xmlString, weights);
         return compile_model(ov_model, properties);
     }
 
