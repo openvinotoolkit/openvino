@@ -347,14 +347,7 @@ void InferRequestLegacy::SetBlob(const std::string& name, const Blob::Ptr& data)
                 if (compoundBlobPassed) {
                     IE_THROW(NotImplemented) << cannot_set_compound;
                 }
-                if (isDynamic) {
-                    // extract new batch size from blob
-                    if (m_graph->GetMaxDynamicBatchSize() > 1) {
-                        const auto batch_idx = m_graph->GetInputDynBatchDims()[name].first;
-                        if (batch_idx >= 0)
-                            SetBatch(static_cast<int>(blobDesc.getDims()[batch_idx]));
-                    }
-                } else {
+                if (!isDynamic) {
                     size_t blobSize = desc.getLayout() != SCALAR
                         ? details::product(desc.getDims())
                         : 1;
@@ -531,87 +524,12 @@ void InferRequestLegacy::SetGraph(std::shared_ptr<Graph> graph) {
     }
 
     if (m_graph->GetMaxDynamicBatchSize() > 1) {
-        SetBatch(static_cast<int>(m_graph->GetMaxDynamicBatchSize()));
-        allocate_inputs_dynamic();
-        allocate_outputs_dynamic();
+        IE_THROW(NotImplemented) << "Dynamic batch is not supported!";
     } else {
         allocate_inputs();
         allocate_outputs();
         variables_states_ = m_graph->AllocateVariablesMemories();
     }
-}
-
-void InferRequestLegacy::SetBatch(int new_batch) {
-    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "InferRequestLegacy::SetBatch");
-
-    OPENVINO_ASSERT(new_batch > 0 && static_cast<size_t>(new_batch) <= m_graph->GetMaxDynamicBatchSize(),
-                    "[GPU] Invalid dynamic batch size ", new_batch, " for this request. ",
-                    "Got: ", new_batch, ". ",
-                    "Expected value in range [1;",  m_graph->GetMaxDynamicBatchSize(), "]");
-
-    if (new_batch == m_curBatch)
-        return;
-
-    batchInputs.clear();
-    batchOutputs.clear();
-
-    // tune expected inputs
-    for (auto& input : m_graph->GetNetworkInputs()) {
-        auto sz = input.second->getTensorDesc().getDims();
-        const auto batch_idx = m_graph->GetInputDynBatchDims()[input.first].first;
-        if (batch_idx >= 0)
-            sz[batch_idx] = 1;
-
-        size_t single_batch = std::accumulate(std::begin(sz), std::end(sz), (size_t)1, std::multiplies<size_t>());
-        std::vector<buf_info> in_buf;
-
-        size_t offset = 0;
-        size_t bsz = single_batch;
-
-        // calculate metadata for input buffers
-        for (unsigned nb = 0; nb < m_graph->GetNetworksCount(); nb++) {
-            unsigned int mask = 1 << nb;
-
-            buf_info ib = { offset, bsz };
-            in_buf.push_back(ib);
-
-            if (new_batch & mask)
-                offset += bsz;
-            bsz <<= 1;
-        }
-
-        batchInputs[input.first] = in_buf;
-    }
-
-    // tune expected outputs
-    for (auto& no : m_graph->GetNetworkOutputs()) {
-        auto sz = no.second->getTensorDesc().getDims();
-        const auto batch_idx = m_graph->GetInputDynBatchDims()[no.first].first;
-        if (batch_idx >= 0)
-            sz[batch_idx] = 1;
-        size_t single_batch = std::accumulate(std::begin(sz), std::end(sz), (size_t)1, std::multiplies<size_t>());
-        std::vector<buf_info> out_buf;
-
-        size_t offset = 0;
-        size_t bsz = single_batch;
-        // calculate metadata for output buffers
-        for (uint32_t nb = 0; nb < m_graph->GetNetworksCount(); nb++) {
-            uint32_t mask = 1 << nb;
-
-            buf_info ob = { offset, bsz };
-            out_buf.push_back(ob);
-
-            if (new_batch & mask)
-                offset += bsz;
-
-            bsz <<= 1;
-        }
-
-        batchOutputs[no.first] = out_buf;
-    }
-    variables_states_ = m_graph->AllocateVariablesMemories();
-
-    m_curBatch = new_batch;
 }
 
 InferRequestLegacy::InferRequestLegacy(InputsDataMap networkInputs, OutputsDataMap networkOutputs,
@@ -897,14 +815,8 @@ void InferRequestLegacy::setup_stream_graph() {
         for (auto& input : _networkInputs) {
             auto node = findInputByNodeName(input.first);
             bool is_dynamic = (node && node->get_output_partial_shape(0).is_dynamic());
-            if (!is_dynamic)
-                continue;
-            // extract new batch size from blob
-            const auto batch_idx = m_graph->GetInputDynBatchDims()[input.first].first;
-            if (batch_idx >= 0) {
-                SetBatch(static_cast<int>(_inputs[input.first]->getTensorDesc().getDims()[batch_idx]));
-                break;
-            }
+            if (is_dynamic)
+                IE_THROW(NotImplemented) << "SetBatch() API was removed";
         }
     }
 }

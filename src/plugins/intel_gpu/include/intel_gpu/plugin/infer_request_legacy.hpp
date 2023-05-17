@@ -46,7 +46,6 @@ public:
     void SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr &data) override;
     void SetBlobs(const std::string& name, const std::vector<InferenceEngine::Blob::Ptr> &data) override;
 
-    void SetBatch(int batch = -1) override;
     std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> QueryState() override;
     void SetGraph(std::shared_ptr<Graph> graph);
     void EnableProfiling() { m_useProfiling = true; }

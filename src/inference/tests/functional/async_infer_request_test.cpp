@@ -21,13 +21,6 @@ TEST(InferRequestCPPTests, throwsOnUninitializedGetBlob) {
     ASSERT_THROW(req.GetBlob({}), InferenceEngine::NotAllocated);
 }
 
-TEST(InferRequestCPPTests, throwsOnUninitializedSetBlobPreproc) {
-    InferRequest req;
-    IE_SUPPRESS_DEPRECATED_START
-    ASSERT_THROW(req.SetBlob({}, {}, {}), InferenceEngine::NotAllocated);
-    IE_SUPPRESS_DEPRECATED_END
-}
-
 TEST(InferRequestCPPTests, throwsOnUninitializedGetPreProcess) {
     InferRequest req;
     ASSERT_THROW(req.GetPreProcess({}), InferenceEngine::NotAllocated);
@@ -51,13 +44,6 @@ TEST(InferRequestCPPTests, throwsOnUninitializedSetInput) {
 TEST(InferRequestCPPTests, throwsOnUninitializedSetOutput) {
     InferRequest req;
     ASSERT_THROW(req.SetOutput({{}}), InferenceEngine::NotAllocated);
-}
-
-TEST(InferRequestCPPTests, throwsOnUninitializedSetBatch) {
-    InferRequest req;
-    IE_SUPPRESS_DEPRECATED_START
-    ASSERT_THROW(req.SetBatch({}), InferenceEngine::NotAllocated);
-    IE_SUPPRESS_DEPRECATED_END
 }
 
 TEST(InferRequestCPPTests, throwsOnUninitializedStartAsync) {
