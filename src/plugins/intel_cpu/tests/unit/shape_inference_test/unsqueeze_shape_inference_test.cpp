@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "custom_shape_infer.hpp"
 #include "gmock/gmock.h"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
@@ -102,8 +103,8 @@ INSTANTIATE_TEST_SUITE_P(
     Values(
         make_tuple(ShapeVector{{2, 3}, {2}}, std::vector<int64_t>{1, 1}, StaticShape({2, 1, 3})),
         make_tuple(ShapeVector{{3, 2}, {3}}, std::vector<int64_t>{1, -1, 1}, StaticShape({3, 1, 2, 1})),
-        make_tuple(ShapeVector{{3, 2}, {3}}, std::vector<int64_t>{1, -1, 1, -1}, StaticShape({3, 1, 2, 1})),
-        make_tuple(ShapeVector{{3, 2}, {3}}, std::vector<int64_t>{2, -1, 2, -1, 0}, StaticShape({1, 3, 1, 2, 1})),
+        make_tuple(ShapeVector{{3, 2}, {4}}, std::vector<int64_t>{1, -1, 1, -1}, StaticShape({3, 1, 2, 1})),
+        make_tuple(ShapeVector{{3, 2}, {5}}, std::vector<int64_t>{2, -1, 2, -1, 0}, StaticShape({1, 3, 1, 2, 1})),
         make_tuple(ShapeVector{{2, 6, 7, 8, 3}, {2}}, std::vector<int64_t>{-1, -1}, StaticShape({2, 6, 7, 8, 3, 1}))),
     PrintToStringParamName());
 
@@ -114,6 +115,7 @@ TEST_P(UnsqueezeStaticShapeInferenceTest, shape_inference_empty_const_map) {
     shape_infer(op.get(), input_shapes, output_shapes);
 
     ASSERT_EQ(output_shapes.front(), exp_shape);
+    unit_test::cus_usual_shape_infer(op.get(), input_shapes, output_shapes);
 }
 
 TEST_P(UnsqueezeStaticShapeInferenceTest, shape_inference_with_const_map) {
@@ -127,4 +129,5 @@ TEST_P(UnsqueezeStaticShapeInferenceTest, shape_inference_with_const_map) {
     shape_infer(op.get(), input_shapes, output_shapes, constant_data);
 
     ASSERT_EQ(output_shapes.front(), exp_shape);
+    unit_test::cus_usual_shape_infer(op.get(), input_shapes, output_shapes, constant_data);
 }

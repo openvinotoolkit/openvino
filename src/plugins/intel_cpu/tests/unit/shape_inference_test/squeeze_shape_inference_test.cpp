@@ -32,9 +32,6 @@ TEST_F(SqueezeStaticShapeInferenceAssertTest, no_axes) {
     OV_EXPECT_THROW(shape_inference(op.get(), input_shapes, output_shapes),
                     NodeValidationFailure,
                     HasSubstr("Check 'constant != nullptr'"));
-
-    ASSERT_THROW(unit_test::cus_usual_shape_infer(op.get(), input_shapes, output_shapes),
-                InferenceEngine::GeneralError);
 }
 
 TEST_F(SqueezeStaticShapeInferenceAssertTest, parameter_static_shape_axes_no_data) {
@@ -47,9 +44,6 @@ TEST_F(SqueezeStaticShapeInferenceAssertTest, parameter_static_shape_axes_no_dat
     OV_EXPECT_THROW(shape_inference(op.get(), input_shapes, output_shapes),
                     NodeValidationFailure,
                     HasSubstr("Check 'constant != nullptr'"));
-
-    ASSERT_THROW(unit_test::cus_usual_shape_infer(op.get(), input_shapes, output_shapes),
-                InferenceEngine::GeneralError);
 }
 
 using TestParams = std::tuple<ShapeVector,           // Input shapes
@@ -127,5 +121,5 @@ TEST_P(SqueezeStaticShapeInferenceTest, shape_inference_with_const_map) {
     shape_inference(op.get(), input_shapes, output_shapes, constant_data);
 
     ASSERT_EQ(output_shapes.front(), exp_shape);
-    unit_test::cus_usual_shape_infer(op.get(), input_shapes, output_shapes);
+    unit_test::cus_usual_shape_infer(op.get(), input_shapes, output_shapes, constant_data);
 }
