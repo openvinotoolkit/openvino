@@ -12,8 +12,8 @@
 #include "ie_icore.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/runtime/properties.hpp"
-#include "openvino/util/shared_object.hpp"
 #include "openvino/util/file_util.hpp"
+#include "openvino/util/shared_object.hpp"
 
 namespace {
 std::string get_mock_engine_path() {
