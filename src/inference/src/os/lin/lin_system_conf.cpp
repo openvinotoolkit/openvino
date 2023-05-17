@@ -48,7 +48,7 @@ CPU::CPU() {
         cpu_set_t mask;
         CPU_ZERO(&mask);
 
-        if ((_processors == 0) && (sched_getaffinity(0, sizeof(cpu_set_t), &mask) == -1)) {
+        if ((_processors == 0) || (sched_getaffinity(0, sizeof(cpu_set_t), &mask) == -1)) {
             return -1;
         }
 
@@ -68,7 +68,9 @@ CPU::CPU() {
             }
         }
 
-        if (total_proc == _processors) {
+        if (total_proc == 0) {
+            return -1;
+        } else if (total_proc == _processors) {
             return 0;
         } else {
             _processors = total_proc;
