@@ -520,12 +520,12 @@ private:
                             std::numeric_limits<StorageDataType>::lowest() <= value);
             OPENVINO_ASSERT(std::numeric_limits<StorageDataType>::max() >= value);
         }
-#if defined(_MSC_VER)
-#    pragma warning(pop)
-#elif defined(__clang__)
+#if defined(__clang__)
 #    pragma clang diagnostic pop
 #elif defined(__GNUC__)
 #    pragma GCC diagnostic pop
+#elif defined(_MSC_VER)
+#    pragma warning(pop)
 #endif
 
         const auto size = shape_size(m_shape);
