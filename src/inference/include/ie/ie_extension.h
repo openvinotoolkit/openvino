@@ -34,14 +34,14 @@ public:
      */
     explicit Extension(const std::string& name);
 
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
     /**
      * @brief Loads extension from a shared library
      *
      * @param name Full or relative path to extension library
      */
     explicit Extension(const std::wstring& name);
-#endif  // ENABLE_UNICODE_PATH_SUPPORT
+#endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
     /**
      * @brief Gets the extension version information
@@ -114,7 +114,7 @@ INFERENCE_ENGINE_1_0_DEPRECATED inline std::shared_ptr<T> make_so_pointer(const 
     return std::make_shared<Extension>(name);
 }
 
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 /**
  * @deprecated The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on
@@ -128,6 +128,6 @@ INFERENCE_ENGINE_1_0_DEPRECATED inline std::shared_ptr<IExtension> make_so_point
     return std::make_shared<Extension>(name);
 }
 
-#endif
+#endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 IE_SUPPRESS_DEPRECATED_END
 }  // namespace InferenceEngine
