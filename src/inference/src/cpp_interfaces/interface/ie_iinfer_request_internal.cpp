@@ -433,8 +433,7 @@ void IInferRequestInternal::SetCallback(Callback callback) {
     _callback = std::move(callback);
 }
 
-void IInferRequestInternal::execDataPreprocessing(InferenceEngine::BlobMap& preprocessedBlobs, bool serial) {
-}
+void IInferRequestInternal::execDataPreprocessing(InferenceEngine::BlobMap& preprocessedBlobs, bool serial) {}
 
 bool IInferRequestInternal::findInputAndOutputBlobByName(const std::string& name,
                                                          InputInfo::Ptr& foundInput,
