@@ -56,7 +56,7 @@ public:
      */
     std::map<std::string, Version> GetVersions(const std::string& deviceName) const;
 
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
     /**
      * @brief Reads models from IR and ONNX formats
      * @param modelPath path to model
@@ -69,7 +69,7 @@ public:
      * @return CNNNetwork
      */
     CNNNetwork ReadNetwork(const std::wstring& modelPath, const std::wstring& binPath = {}) const;
-#endif
+#endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
     /**
      * @brief Reads models from IR and ONNX formats
