@@ -120,11 +120,13 @@ pt_to_ov_type_map = {
     "torch.IntTensor": OVType.i32,
     "torch.LongTensor": OVType.i64,
     "torch.BoolTensor": OVType.boolean,
+    "torch.Tensor": OVType.i64,
 }
 
 ov_to_c_type_map = {
     OVType.f32: ctypes.c_float,
     OVType.i32: ctypes.c_int,
+    OVType.i64: ctypes.c_int,
 }
 
 class TorchScriptPythonDecoder (Decoder):
