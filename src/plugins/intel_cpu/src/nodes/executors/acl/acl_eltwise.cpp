@@ -48,7 +48,7 @@ bool AclEltwiseExecutorBuilder::isSupported(const EltwiseAttrs& eltwiseAttrs,
         case Algorithm::EltwiseElu:
         case Algorithm::EltwiseTanh:
         case Algorithm::EltwiseSigmoid:
-//            case Algorithm::EltwisePowerDynamic: // TODO: ACL version doesn't work https://github.com/ARM-software/ComputeLibrary/issues/1047
+        case Algorithm::EltwisePowerDynamic:
         case Algorithm::EltwiseSoftRelu:
         case Algorithm::EltwiseClamp:
         case Algorithm::EltwiseSwish: // TODO: CVS-109354: efficientdet-d0 accuracy drops if ACL Swish is used
