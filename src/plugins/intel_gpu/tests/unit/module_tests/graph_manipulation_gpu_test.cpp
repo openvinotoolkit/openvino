@@ -47,7 +47,7 @@ TEST(basic, test1) {
     topology.add(reorder("reorder2", input_info("input"), layout(data_types::f32, format::byxf, tensor(4))));
     topology.add(reorder("reorder1", input_info("reshape1"), layout(data_types::f32, format::byxf, tensor(4))));
     topology.add(concatenation("concat", { input_info("reorder1"), input_info("weights2") }, 3));
-    topology.add(convolution("conv2", { input_info("reorder2") }, { "concat" }));
+    topology.add(convolution("conv2", input_info("reorder2"), "concat", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
 
     program::ptr prog = program::build_program(engine, topology, config, false);
     network::ptr network = network::allocate_network(engine, prog);
@@ -88,9 +88,9 @@ TEST(add_intermediate_gpu, test1)
     topology.add(input_layout("input", input->get_layout()));
     topology.add(data("weights", weights));
     topology.add(data("weights2", weights2));
-    topology.add(cldnn::convolution("conv1a", { input_info("input") }, { "weights" }));
-    topology.add(cldnn::convolution("conv1b", { input_info("input") }, { "weights" }));
-    topology.add(cldnn::convolution("conv2a", { input_info("conv1a") }, { "weights2" }));
+    topology.add(cldnn::convolution("conv1a", input_info("input"), "weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
+    topology.add(cldnn::convolution("conv1b", input_info("input"), "weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
+    topology.add(cldnn::convolution("conv2a", input_info("conv1a"), "weights2", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
     auto new_reorder = std::make_shared<reorder>("reorder", input_info("nothing"), input->get_layout());
     program::ptr prog = program::build_program(engine, topology, config, false, true);
     prog->add_intermediate(new_reorder, prog->get_node("conv1a"), 0);
@@ -146,12 +146,10 @@ TEST(add_intermediate_gpu, test2)
     topology.add(input_layout("input", input->get_layout()));
     topology.add(data("weights2", weights2));
 
-    topology.add(cldnn::convolution("conv2a", { input_info("input") }, { "weights2" }));
-    topology.add(cldnn::convolution("conv2b", { input_info("input") }, { "weights2" }));
+    topology.add(cldnn::convolution("conv2a", input_info("input"), "weights2", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
+    topology.add(cldnn::convolution("conv2b", input_info("input"), "weights2", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
 
-    std::vector<primitive_id> w_vec;
-    w_vec.push_back("weights");
-    auto new_conv = std::make_shared<convolution>("conv1a", input_info("input"), w_vec);
+    auto new_conv = std::make_shared<convolution>("conv1a", input_info("input"), "weights", "", 1, ov::Strides{1, 1}, ov::Strides{1, 1}, ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0}, false);
     auto weights_node = std::make_shared<data>("weights", weights);
     program::ptr prog = program::build_program(engine, topology, config, false, true);
 
@@ -178,4 +176,56 @@ TEST(add_intermediate_gpu, test2)
             ASSERT_FLOAT_EQ(expected_output_vec[x], output[x]);
         }
     }
+}
+
+TEST(processing_order, bfs_order_restoring) {
+    auto& engine = get_test_engine();
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    if (config.get_property(ov::intel_gpu::queue_type) != QueueTypes::out_of_order)
+        GTEST_SKIP();
+
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 3, 8, 8 } });
+    auto eltwise_mem = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
+    auto input_low_mem = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 3, 1, 1 } });
+    auto input_high_mem = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 3, 1, 1 } });
+    auto output_low_mem = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
+    auto output_high_mem = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
+
+    set_values(eltwise_mem,  generate_random_1d<float>(1, 0, 10));
+    set_values(input_low_mem,  generate_random_1d<float>(3, -10, 0));
+    set_values(input_high_mem, generate_random_1d<float>(3, 1, 10));
+    set_values(output_low_mem, { -127.0f });
+    set_values(output_high_mem, { 127.0f });
+
+    topology topology(
+        input_layout("input", input->get_layout()),
+        activation("act", input_info("input"), activation_func::relu),
+        data("eltwise_data", eltwise_mem),
+        data("in_low", input_low_mem),
+        data("in_high", input_high_mem),
+        data("out_low", output_low_mem),
+        data("out_high", output_high_mem),
+        eltwise("eltwise", { input_info("act"), input_info("eltwise_data") }, eltwise_mode::prod, data_types::f32),
+        activation("act2", input_info("eltwise"), activation_func::pow),
+        quantize("quant", input_info("act2"), input_info("in_low"), input_info("in_high"),
+                 input_info("out_low"), input_info("out_high"), 256, data_types::u8),
+        activation("act3", input_info("quant"), activation_func::relu),
+        reorder("reorder_bfyx1", input_info("act3"), format::bfyx, data_types::f32),
+        activation("act4", input_info("quant"), activation_func::floor),
+        reorder("reorder_bfyx2", input_info("act4"), format::bfyx, data_types::f32)
+    );
+
+    auto prog = program::build_program(engine, topology, config);
+    const auto& processing_order = prog->get_processing_order();
+
+    auto act3_processing_number = processing_order.get_processing_number(prog->get_node_ptr("act3").get());
+    auto act4_processing_number = processing_order.get_processing_number(prog->get_node_ptr("act4").get());
+
+    // Make sure activations (act3 and act4) on parallel branches execute one straight after another
+    auto processing_number_diff = std::abs(act3_processing_number - act4_processing_number);
+
+    ASSERT_EQ(processing_number_diff, 1);
 }

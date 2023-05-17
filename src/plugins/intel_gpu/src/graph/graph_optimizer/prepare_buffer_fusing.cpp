@@ -313,6 +313,18 @@ static bool can_reshape_be_optimized(const reshape_node& node) {
     return node.is_in_place() && !node.has_fused_primitives();
 }
 
+static void propagate_padding_to_opt_out_users(program_node& node, cldnn::padding padding_data) {
+    if (padding_data == cldnn::padding())
+        return;
+
+    for (auto user : node.get_users()) {
+        if (user->can_be_optimized()) {
+            user->merge_output_padding(padding_data);
+            propagate_padding_to_opt_out_users(*user, padding_data);
+        }
+    }
+}
+
 // ToDo remove friendship relation from  program_node
 void prepare_buffer_fusing::run(program& p) {
     /*
@@ -448,6 +460,7 @@ void prepare_buffer_fusing::run(program& p) {
                                  out_padd.upper_size().spatial[0],
                                  out_padd.upper_size().spatial[1]}));
                     node.can_be_optimized(true);
+                    propagate_padding_to_opt_out_users(node, node.get_output_layout().data_padding);
                 }
             }
         });

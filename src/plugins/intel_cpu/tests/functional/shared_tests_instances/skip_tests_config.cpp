@@ -104,7 +104,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_Auto_BehaviorTests.*DynamicOutputToDynamicInput.*)",
         R"(.*smoke_Auto_BehaviorTests.*DynamicInputToDynamicOutput.*)",
         // unsupported metrics
-        R"(.*OVGetMetricPropsTest.*OVGetMetricPropsTest.*(DEVICE_UUID|FULL_DEVICE_NAME_with_DEVICE_ID|DEVICE_GOPS|DEVICE_TYPE|MAX_BATCH_SIZE).*)",
+        R"(.*OVGetMetricPropsTest.*OVGetMetricPropsTest.*(DEVICE_ID|MAX_BATCH_SIZE).*)",
         R"(.*smoke_AutoMultiHeteroOVGetMetricPropsTest.*OVGetMetricPropsTest.*(AVAILABLE_DEVICES|OPTIMIZATION_CAPABILITIES|RANGE_FOR_ASYNC_INFER_REQUESTS|RANGE_FOR_STREAMS).*)",
         // supports only '' as device id
         R"(.*OVClassQueryModelTest.*QueryModelWithDeviceID.*)",
@@ -169,8 +169,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*GridSampleLayerTestCPU.*(BILINEAR|BICUBIC).*(i32|i8).*)",
         // 98151. Not valid sorting for slices in reference.
         R"(.*UniqueLayerTestCPU.*axis.*True.*)",
-        // 109482. Sporadic failure.
-        R"(.*smoke_StaticSpaceToBatch_4D_parallel_block_edge.*)",
         // AUTO does not support import / export
         R"(.*smoke_Auto_BehaviorTests/OVCompiledGraphImportExportTest.*(mportExport|readFromV10IR).*/targetDevice=(AUTO).*)"
     };
@@ -217,7 +215,7 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(smoke_Snippets.*)");
 #endif
 
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
     retVector.emplace_back(R"(.*LoadNetworkCompiledKernelsCacheTest.*CanCreateCacheDirAndDumpBinariesUnicodePath.*)");
 #endif
 

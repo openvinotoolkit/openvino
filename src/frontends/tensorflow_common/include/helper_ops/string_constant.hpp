@@ -19,19 +19,19 @@ public:
     OPENVINO_OP("StringConstant", "ov::frontend::tensorflow::util", UnsupportedConstant);
 
     StringConstant(ov::Any data, const std::shared_ptr<DecoderBase>& decoder = std::make_shared<DecoderFake>())
-        : UnsupportedConstant(decoder),
+        : UnsupportedConstant("Const of string type", decoder),
           m_data(data) {
         validate_and_infer_types();
     }
 
     StringConstant(std::string& str, const std::shared_ptr<DecoderBase>& decoder = std::make_shared<DecoderFake>())
-        : UnsupportedConstant(decoder),
+        : UnsupportedConstant("Const of string type", decoder),
           m_data({str}) {
         validate_and_infer_types();
     }
 
     StringConstant(const std::shared_ptr<DecoderBase>& decoder = std::make_shared<DecoderFake>())
-        : UnsupportedConstant(decoder) {
+        : UnsupportedConstant("Const of string type", decoder) {
         validate_and_infer_types();
     }
 

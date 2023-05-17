@@ -144,6 +144,41 @@ TEST(variable_test_common, exception_on_wrong_layout) {
 }
 
 template <typename T>
+void test_different_output_data_type(bool is_caching_test) {
+    auto& engine = get_test_engine();
+
+    const layout in_layout{data_types::f32, format::bfyx, tensor{1}};
+    const auto input_data = engine.allocate_memory(in_layout);
+    std::vector<float> inputs = { 70.0f };
+    set_values(input_data, inputs);
+
+    const layout variable_layout{data_types::f16, format::bfyx, tensor{1}};
+
+    topology topology;
+    topology.add(input_layout("input", input_data->get_layout()));
+    topology.add(assign("assign", { input_info("input") }, "v0", variable_layout));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+
+    network->assign_variables_memories({ { "v0", std::make_shared<network::VariableState>(engine.allocate_memory(variable_layout)) } });
+    network->set_input_data("input", input_data);
+
+    const auto outputs = network->execute();
+    const auto output = outputs.at("assign").get_memory();
+    const cldnn::mem_lock<T> output_ptr(output, get_test_stream());
+
+    for (size_t i = 0; i < output_ptr.size(); ++i) {
+         ASSERT_EQ(half_to_float(output_ptr[i]), inputs[i]);
+    }
+}
+
+TEST(variable_test_common, different_output_data_type) {
+    test_different_output_data_type<int16_t>(false);
+}
+
+template <typename T>
 void test_variables_are_preserved_across_inferences(bool is_caching_test) {
     auto& engine = get_test_engine();
 
@@ -216,6 +251,10 @@ TEST_P(variable_test_f32, variable_f32_cached) {
 
 TEST(variable_test_common, exception_on_wrong_layout_cached) {
     test_exception_on_wrong_layout<float>(true);
+}
+
+TEST(variable_test_common, different_output_data_type_cached) {
+    test_different_output_data_type<int16_t>(true);
 }
 #endif
 TEST(variable_test_common, variables_are_preserved_across_inferences_cached) {

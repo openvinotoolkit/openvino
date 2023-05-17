@@ -148,6 +148,8 @@ Program::Program(InferenceEngine::CNNNetwork& network, cldnn::engine& engine, co
     Dl_info dl_info;
     dladdr(reinterpret_cast<void *>(CustomLayer::LoadFromFile), &dl_info);
     const char* mpath = dl_info.dli_fname;
+#else
+#error "Intel GPU plugin: unknown target system"
 #endif
     std::string configFile(mpath);
     std::size_t dir_split_pos = configFile.find_last_of("/\\");

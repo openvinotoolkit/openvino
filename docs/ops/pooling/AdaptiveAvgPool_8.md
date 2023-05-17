@@ -1,4 +1,4 @@
-## AdaptiveAvgPool {#openvino_docs_ops_pooling_AdaptiveAvgPool_8}
+# AdaptiveAvgPool {#openvino_docs_ops_pooling_AdaptiveAvgPool_8}
 
 @sphinxdirective
 
@@ -44,7 +44,7 @@ The output is calculated with the following formula:
 
 **Examples**
 
-.. code-block:: console
+.. code-block:: cpp
    
    <layer ... type="AdaptiveAvgPool" ... >
        <data output_type="i64"/>

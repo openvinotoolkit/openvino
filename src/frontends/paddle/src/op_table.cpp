@@ -50,6 +50,7 @@ OP_CONVERTER(gather);
 OP_CONVERTER(gather_nd);
 OP_CONVERTER(gelu);
 OP_CONVERTER(greater_than);
+OP_CONVERTER(grid_sampler);
 OP_CONVERTER(group_norm);
 OP_CONVERTER(hard_sigmoid);
 OP_CONVERTER(hard_swish);
@@ -93,7 +94,9 @@ OP_CONVERTER(shape);
 OP_CONVERTER(slice);
 OP_CONVERTER(softmax);
 OP_CONVERTER(softplus);
+OP_CONVERTER(softshrink);
 OP_CONVERTER(sigmoid);
+OP_CONVERTER(silu);
 OP_CONVERTER(split);
 OP_CONVERTER(sqrt);
 OP_CONVERTER(squeeze);
@@ -162,6 +165,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"generate_proposals_v2", op::generate_proposals_v2},
             {"greater_equal", op::elementwise_greater_equal},
             {"greater_than", op::greater_than},
+            {"grid_sampler", op::grid_sampler},
             {"group_norm", op::group_norm},
             {"hard_sigmoid", op::hard_sigmoid},
             {"hard_swish", op::hard_swish},
@@ -209,7 +213,9 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"slice", op::slice},
             {"softmax", op::softmax},
             {"softplus", op::softplus},
+            {"softshrink", op::softshrink},
             {"sigmoid", op::sigmoid},
+            {"silu", op::silu},
             {"split", op::split},
             {"sqrt", op::sqrt},
             {"squeeze2", op::squeeze},
