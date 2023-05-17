@@ -83,14 +83,10 @@ source_group("include" FILES ${LIBRARY_HEADERS} ${PUBLIC_HEADERS})
 add_library(${TARGET_NAME}_plugin_api INTERFACE)
 
 target_include_directories(${TARGET_NAME}_plugin_api INTERFACE
-    $<TARGET_PROPERTY:openvino_gapi_preproc,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:openvino::core::dev,INTERFACE_INCLUDE_DIRECTORIES>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/dev_api>
     $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
     $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}/ie>)
-
-target_compile_definitions(${TARGET_NAME}_plugin_api INTERFACE
-    $<TARGET_PROPERTY:openvino_gapi_preproc,INTERFACE_COMPILE_DEFINITIONS>)
 
 target_link_libraries(${TARGET_NAME}_plugin_api INTERFACE openvino::pugixml openvino::itt openvino::util)
 
@@ -126,8 +122,7 @@ ie_faster_build(${TARGET_NAME}_obj
 target_compile_definitions(${TARGET_NAME}_obj PRIVATE
     IMPLEMENT_INFERENCE_ENGINE_API
     $<TARGET_PROPERTY:ngraph,INTERFACE_COMPILE_DEFINITIONS>
-    $<TARGET_PROPERTY:frontend_common::static,INTERFACE_COMPILE_DEFINITIONS>
-    $<TARGET_PROPERTY:openvino_gapi_preproc,INTERFACE_COMPILE_DEFINITIONS>)
+    $<TARGET_PROPERTY:frontend_common::static,INTERFACE_COMPILE_DEFINITIONS>)
 
 target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE
     $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>
