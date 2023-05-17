@@ -25,13 +25,13 @@
  * @def INFERENCE_EXTENSION_API(TYPE)
  * @brief Defines Inference Engine Extension API method
  */
-#if defined(_WIN32)
+#if defined(_WIN32) || defined(__CYGWIN__)
 #    if defined(IMPLEMENT_INFERENCE_EXTENSION_API)
 #        define INFERENCE_EXTENSION_API(type) extern "C" __declspec(dllexport) type
 #    else
 #        define INFERENCE_EXTENSION_API(type) extern "C" type
 #    endif
-#elif defined(__GNUC__) && (__GNUC__ >= 4)
+#elif defined(__GNUC__) && (__GNUC__ >= 4) || defined(__clang__)
 #    ifdef IMPLEMENT_INFERENCE_EXTENSION_API
 #        define INFERENCE_EXTENSION_API(type) extern "C" __attribute__((visibility("default"))) type
 #    else
@@ -40,12 +40,15 @@
 #endif
 
 namespace InferenceEngine {
+IE_SUPPRESS_DEPRECATED_START
 
 /**
+ * @deprecated The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on
+ * transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
  * @struct DataConfig
  * @brief This structure describes data configuration
  */
-struct DataConfig {
+struct INFERENCE_ENGINE_1_0_DEPRECATED DataConfig {
     /**
      * @brief Format of memory descriptor
      */
@@ -62,10 +65,12 @@ struct DataConfig {
 };
 
 /**
+ * @deprecated The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on
+ * transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
  * @struct LayerConfig
  * @brief This structure describes Layer configuration
  */
-struct LayerConfig {
+struct INFERENCE_ENGINE_1_0_DEPRECATED LayerConfig {
     /**
      * @brief Supported dynamic batch. If false, dynamic batch is not supported
      */
@@ -81,10 +86,12 @@ struct LayerConfig {
 };
 
 /**
+ * @deprecated The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on
+ * transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
  * @interface ILayerImpl
  * @brief This class provides interface for extension implementations
  */
-class INFERENCE_ENGINE_API_CLASS(ILayerImpl) {
+class INFERENCE_ENGINE_1_0_DEPRECATED INFERENCE_ENGINE_API_CLASS(ILayerImpl) {
 public:
     /**
      * @brief A shared pointer to the ILayerImpl interface
@@ -98,10 +105,12 @@ public:
 };
 
 /**
+ * @deprecated The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on
+ * transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
  * @interface ILayerExecImpl
  * @brief This class provides interface for the implementation with the custom execution code
  */
-class INFERENCE_ENGINE_API_CLASS(ILayerExecImpl) : public ILayerImpl {
+class INFERENCE_ENGINE_1_0_DEPRECATED INFERENCE_ENGINE_API_CLASS(ILayerExecImpl) : public ILayerImpl {
 public:
     /**
      * @brief A shared pointer to the ILayerExecImpl interface
@@ -145,9 +154,12 @@ public:
 };
 
 /**
+ * @deprecated The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on
+ * transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
  * @brief This class is the main extension interface
  */
-class INFERENCE_ENGINE_API_CLASS(IExtension) : public std::enable_shared_from_this<IExtension> {
+class INFERENCE_ENGINE_1_0_DEPRECATED INFERENCE_ENGINE_API_CLASS(IExtension)
+    : public std::enable_shared_from_this<IExtension> {
 public:
     /**
      * @brief Returns operation sets
@@ -220,16 +232,18 @@ INFERENCE_EXTENSION_API(void) CreateExtensionShared(IExtensionPtr& ext);
  * @param resp Responce
  * @return InferenceEngine::OK if extension is constructed and InferenceEngine::GENERAL_ERROR otherwise
  */
-#if defined(_WIN32)
-INFERENCE_ENGINE_DEPRECATED("Use IE_DEFINE_EXTENSION_CREATE_FUNCTION macro")
+#ifdef _MSC_VER
 INFERENCE_EXTENSION_API(StatusCode)
+INFERENCE_ENGINE_1_0_DEPRECATED
 CreateExtension(IExtension*& ext, ResponseDesc* resp) noexcept;
 #else
 INFERENCE_EXTENSION_API(StatusCode)
+INFERENCE_ENGINE_1_0_DEPRECATED
 CreateExtension(IExtension*& ext, ResponseDesc* resp) noexcept INFERENCE_ENGINE_DEPRECATED(
     "Use IE_DEFINE_EXTENSION_CREATE_FUNCTION macro");
 #endif
 
+IE_SUPPRESS_DEPRECATED_END
 }  // namespace InferenceEngine
 
 /**
@@ -241,12 +255,14 @@ CreateExtension(IExtension*& ext, ResponseDesc* resp) noexcept INFERENCE_ENGINE_
 #endif
 
 /**
+ * @deprecated The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on
+ * transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
  * @def IE_DEFINE_EXTENSION_CREATE_FUNCTION
  * @brief Generates extension creation function
  */
-#define IE_DEFINE_EXTENSION_CREATE_FUNCTION(ExtensionType)                        \
-    INFERENCE_EXTENSION_API(void)                                                 \
-    IE_CREATE_EXTENSION(std::shared_ptr<InferenceEngine::IExtension>& ext);       \
-    void IE_CREATE_EXTENSION(std::shared_ptr<InferenceEngine::IExtension>& ext) { \
-        ext = std::make_shared<ExtensionType>();                                  \
+#define IE_DEFINE_EXTENSION_CREATE_FUNCTION(ExtensionType)                                                  \
+    INFERENCE_EXTENSION_API(void)                                                                           \
+    INFERENCE_ENGINE_1_0_DEPRECATED IE_CREATE_EXTENSION(std::shared_ptr<InferenceEngine::IExtension>& ext); \
+    void IE_CREATE_EXTENSION(std::shared_ptr<InferenceEngine::IExtension>& ext) {                           \
+        ext = std::make_shared<ExtensionType>();                                                            \
     }
