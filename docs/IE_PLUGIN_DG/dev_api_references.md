@@ -9,9 +9,9 @@
    ../groupov_dev_api
    ../groupie_transformation_api
 
-@endsphinxdirective
-
 The guides below provides extra API references needed for OpenVINO plugin development:
 
-* [OpenVINO Plugin API](@ref ov_dev_api)
-* [OpenVINO Transformation API](@ref ie_transformation_api)
+* :doc:`OpenVINO Plugin API <ov_dev_api>`
+* :doc:`OpenVINO Transformation API <ie_transformation_api>`
+
+@endsphinxdirective
