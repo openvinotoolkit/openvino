@@ -31,7 +31,7 @@ For C++ Developers
 
 If you are a C++ developer, you must first install OpenVINO Runtime separately to set up the C++ libraries, sample code, and dependencies for building applications with OpenVINO. These files are not included with the PyPI distribution. See the :doc:`Install OpenVINO Runtime <openvino_docs_install_guides_install_runtime>` page to install OpenVINO Runtime from an archive file for your operating system.
 
-Once OpenVINO Runtime is installed, you may install OpenVINO Development Tools for access to tools like Model Conversion API, Model Downloader, Benchmark Tool, and other utilities that will help you optimize your model and develop your application. Follow the steps in the :ref:`Installing OpenVINO Development Tools <install_dev_tools>` section on this page to install it.
+Once OpenVINO Runtime is installed, you may install OpenVINO Development Tools for access to tools like ``mo``, Model Downloader, Benchmark Tool, and other utilities that will help you optimize your model and develop your application. Follow the steps in the :ref:`Installing OpenVINO Development Tools <install_dev_tools>` section on this page to install it.
 
 .. _install_dev_tools:
 
@@ -147,7 +147,7 @@ To verify the package is properly installed, run the command below (this may tak
 
    mo -h
 
-You will see the help message for Model Conversion API if installation finished successfully. If you get an error, refer to the :doc:`Troubleshooting Guide <openvino_docs_get_started_guide_troubleshooting>` for possible solutions.
+You will see the help message for ``mo`` if installation finished successfully. If you get an error, refer to the :doc:`Troubleshooting Guide <openvino_docs_get_started_guide_troubleshooting>` for possible solutions.
 
 Congratulations! You finished installing OpenVINO Development Tools with C++ capability. Now you can start exploring OpenVINO's functionality through example C++ applications. See the "What's Next?" section to learn more!
 

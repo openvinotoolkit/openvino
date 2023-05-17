@@ -9,7 +9,7 @@ To get started, you must first install OpenVINO Runtime, install OpenVINO Develo
 Once the prerequisites have been installed, perform the following steps:
 
 1. :ref:`Use Model Downloader to download a suitable model <download-models>`.
-2. :ref:`Convert the model with Model Conversion API <convert-models-to-intermediate-representation>`.
+2. :ref:`Convert the model with mo <convert-models-to-intermediate-representation>`.
 3. :ref:`Download media files to run inference <download-media>`.
 4. :ref:`Run inference with the Image Classification sample application and see the results <run-image-classification>`.
 
@@ -168,10 +168,10 @@ This guide used the following model to run the Image Classification Sample:
 
 .. _convert-models-to-intermediate-representation:
 
-Step 2: Convert the Model with Model Conversion API
-###################################################
+Step 2: Convert the Model with ``mo``
+#####################################
 
-In this step, your trained models are ready to run through the Model Conversion API to convert them to the IR (Intermediate Representation) format. For most model types, this is required before using OpenVINO Runtime with the model.
+In this step, your trained models are ready for conversion with ``mo`` to the OpenVINO IR (Intermediate Representation) format. For most model types, this is required before using OpenVINO Runtime with the model.
 
 Models in the IR format always include an ``.xml`` and ``.bin`` file and may also include other files such as ``.json`` or ``.mapping``. Make sure you have these files together in a single directory so OpenVINO Runtime can find them.
 
@@ -181,7 +181,7 @@ OPTIONAL: ``model_name.json``, ``model_name.mapping``, etc.
 
 This tutorial uses the public GoogleNet v1 Caffe model to run the Image Classification Sample. See the example in the Download Models section of this page to learn how to download this model.
 
-The googlenet-v1 model is downloaded in the Caffe format. You must use Model Conversion API to convert the model to IR.
+The googlenet-v1 model is downloaded in the Caffe format. You must use ``mo`` to convert the model to IR.
 
 Create an ``<ir_dir>`` directory to contain the model's Intermediate Representation (IR).
 

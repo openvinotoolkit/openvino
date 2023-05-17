@@ -101,7 +101,7 @@ For example, to install and configure the components for working with TensorFlow
    ```sh
    mo -h
    ```
-   You will see the help message for Model Conversion API if installation finished successfully.
+   You will see the help message for ``mo`` if installation finished successfully.
 
 - To verify that OpenVINO Runtime from the **runtime package** is available, run the command below:
    ```sh

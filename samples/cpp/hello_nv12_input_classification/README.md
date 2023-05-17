@@ -70,7 +70,7 @@ The sample accepts an uncompressed image in the NV12 color format. To run the sa
 .. note::
   
    - Because the sample reads raw image files, you should provide a correct image size along with the image path. The sample expects the logical size of the image, not the buffer size. For example, for 640x480 BGR/RGB image the corresponding NV12 logical image size is also 640x480, whereas the buffer size is 640x720.
-   - By default, this sample expects that model input has BGR channels order. If you trained your model to work with RGB order, you need to reconvert your model using Model Conversion API with ``reverse_input_channels`` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of :doc:`Embedding Preprocessing Computation <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>`.
+   - By default, this sample expects that model input has BGR channels order. If you trained your model to work with RGB order, you need to reconvert your model using ``mo`` with ``reverse_input_channels`` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of :doc:`Embedding Preprocessing Computation <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>`.
    - Before running the sample with a trained model, make sure the model is converted to the intermediate representation (IR) format (\*.xml + \*.bin) using the :doc:`Model Conversion API <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`.
    - The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
 
