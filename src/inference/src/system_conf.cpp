@@ -20,9 +20,9 @@
 #include "threading/ie_cpu_streams_info.hpp"
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-#define XBYAK_NO_OP_NAMES
-#define XBYAK_UNDEF_JNL
-#include <xbyak/xbyak_util.h>
+#    define XBYAK_NO_OP_NAMES
+#    define XBYAK_UNDEF_JNL
+#    include <xbyak/xbyak_util.h>
 #endif
 
 using namespace InferenceEngine;

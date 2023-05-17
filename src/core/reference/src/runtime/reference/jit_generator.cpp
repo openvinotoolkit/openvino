@@ -6,11 +6,10 @@
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 
-#include "jit_generator.hpp"
+#    include <xbyak/xbyak_util.h>
 
-#include <xbyak/xbyak_util.h>
-
-#include "ngraph/type/float16.hpp"
+#    include "jit_generator.hpp"
+#    include "ngraph/type/float16.hpp"
 
 namespace ngraph {
 namespace runtime {

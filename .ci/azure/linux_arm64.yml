@@ -117,6 +117,8 @@ jobs:
       python3 -m pip install -r $(OPENVINO_REPO_DIR)/src/bindings/python/wheel/requirements-dev.txt
       # install dependencies needed to build CPU plugin for ARM
       sudo -E apt --assume-yes install scons crossbuild-essential-arm64
+      # generic dependencies
+      sudo -E apt --assume-yes install cmake ccache
       # Speed up build
       sudo -E apt -y --no-install-recommends install unzip
       wget https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-linux.zip
@@ -135,8 +137,6 @@ jobs:
       conan profile detect
       # generate host profile for linux_arm64
       echo "include(default)" > $(BUILD_OPENVINO)/linux_arm64
-      echo "[tool_requires]" >> $(BUILD_OPENVINO)/linux_arm64
-      echo "cmake/3.15.7" >> $(BUILD_OPENVINO)/linux_arm64
       echo "[buildenv]" >> $(BUILD_OPENVINO)/linux_arm64
       echo "CC=aarch64-linux-gnu-gcc" >> $(BUILD_OPENVINO)/linux_arm64
       echo "CXX=aarch64-linux-gnu-g++" >> $(BUILD_OPENVINO)/linux_arm64
@@ -155,13 +155,12 @@ jobs:
       CCACHE_MAXSIZE: 50G
     displayName: 'Install conan and dependencies'
 
-  - script:
-      source $(OPENVINO_REPO_DIR)/conanbuild.sh
+  - script: |
+      source $(BUILD_OPENVINO)/conanbuild.sh
       cmake \
-        -G "Ninja Multi-Config" \
         -DCMAKE_VERBOSE_MAKEFILE=ON \
         -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
-        -DENABLE_CPPLINT=ON \
+        -DENABLE_CPPLINT=OFF \
         -DENABLE_PYTHON=OFF \
         -DENABLE_TESTS=ON \
         -DENABLE_DATA=OFF \
@@ -170,13 +169,12 @@ jobs:
         -DENABLE_SYSTEM_SNAPPY=ON \
         -DENABLE_SYSTEM_PUGIXML=ON \
         -DCMAKE_TOOLCHAIN_FILE=$(BUILD_OPENVINO)/conan_toolchain.cmake \
-        -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
-        -DCMAKE_C_COMPILER_LAUNCHER=ccache \
         -DARM_COMPUTE_SCONS_JOBS=$(NUM_PROC) \
         -DCMAKE_INSTALL_PREFIX=$(INSTALL_OPENVINO) \
+        -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) \
         -S $(OPENVINO_REPO_DIR) \
         -B $(BUILD_OPENVINO)
-      source $(OPENVINO_REPO_DIR)/deactivate_conanbuild.sh
+      source $(BUILD_OPENVINO)/deactivate_conanbuild.sh
     displayName: 'CMake configure'
 
   - script: cmake --build $(BUILD_OPENVINO) --parallel --config $(BUILD_TYPE)
