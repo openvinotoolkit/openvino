@@ -1,45 +1,16 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import os
 import unittest
 
 import numpy as np
 from generator import generator, generate
 
-from openvino.runtime import Core
-from openvino.tools.mo.convert import convert_model
+from utils import basic_check
 
 
 @generator
-class TestMoFreezePlaceholderTFFE(unittest.TestCase):
-    def basic(self, input_model, argv_input, inputs, dtype, expected, freeze_placeholder_with_value=None,
-              input_shape=None, only_conversion=False, input_model_is_text=True, use_new_frontend=True,
-              use_legacy_frontend=False):
-        path = os.path.dirname(__file__)
-        input_model = os.path.join(path, "test_models", input_model)
-
-        try:
-            model = convert_model(input_model, input=argv_input,
-                                  freeze_placeholder_with_value=freeze_placeholder_with_value,
-                                  input_shape=input_shape, input_model_is_text=input_model_is_text,
-                                  use_new_frontend=use_new_frontend, use_legacy_frontend=use_legacy_frontend,
-                                  framework="tf")
-        except Exception as ex:
-            self.fail("Model conversion failed due to error: {}".format(ex))
-
-        if only_conversion:
-            return
-
-        ie = Core()
-        exec_net = ie.compile_model(model, "CPU")
-        req = exec_net.create_infer_request()
-        results = req.infer(inputs)
-        values = list(results.values())[0]
-        if dtype is not None:
-            assert values.dtype == dtype
-        assert np.allclose(values, expected)
-
+class TestBasicConversion(unittest.TestCase):
     @generate(
         *[
             (
@@ -68,9 +39,10 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
             ),
         ],
     )
-    def test_fp32(self, input_freezing_value, inputs, expected,
-                  dtype):
-        self.basic("model_fp32.pbtxt", input_freezing_value, inputs, dtype, expected)
+    def test_fp32(self, argv_input, input_data, expected_value,
+                  expected_dtype):
+        basic_check(input_model="model_fp32.pbtxt", argv_input=argv_input, input_data=input_data,
+                    expected_dtype=expected_dtype, expected_value=expected_value)
 
     @generate(
         *[
@@ -88,9 +60,10 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
             ),
         ],
     )
-    def test_int32(self, input_freezing_value, inputs, expected,
-                   dtype=None):
-        self.basic("model_int32.pbtxt", input_freezing_value, inputs, dtype, expected)
+    def test_int32(self, argv_input, input_data, expected_value,
+                   expected_dtype=None):
+        basic_check(input_model="model_int32.pbtxt", argv_input=argv_input, input_data=input_data,
+                    expected_dtype=expected_dtype, expected_value=expected_value)
 
     @generate(
         *[
@@ -114,9 +87,10 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
             ),
         ],
     )
-    def test_bool(self, input_freezing_value, inputs, expected,
-                  dtype=None):
-        self.basic("model_bool.pbtxt", input_freezing_value, inputs, dtype, expected)
+    def test_bool(self, argv_input, input_data, expected_value,
+                  expected_dtype=None):
+        basic_check(input_model="model_bool.pbtxt", argv_input=argv_input, input_data=input_data,
+                    expected_dtype=expected_dtype, expected_value=expected_value)
 
     @generate(
         *[
@@ -149,10 +123,12 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
             ),
         ],
     )
-    def test_bool2(self, input_freezing_value, inputs, expected,
-                   dtype=None, freeze_placeholder_with_value=None, input_shape=None, only_conversion=False):
-        self.basic("model_bool2.pbtxt", input_freezing_value, inputs, dtype, expected, freeze_placeholder_with_value,
-                   input_shape, only_conversion)
+    def test_bool2(self, argv_input, input_data, expected_value,
+                   expected_dtype=None, freeze_placeholder_with_value=None, input_shape=None, only_conversion=False):
+        basic_check(input_model="model_bool2.pbtxt", argv_input=argv_input, input_data=input_data,
+                    expected_dtype=expected_dtype, expected_value=expected_value,
+                    freeze_placeholder_with_value=freeze_placeholder_with_value,
+                    input_shape=input_shape, only_conversion=only_conversion)
 
     @generate(
         *[
@@ -172,11 +148,13 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
             ),
         ],
     )
-    def test_cutting_fp32(self, input_freezing_value, inputs, expected,
-                          dtype=None, freeze_placeholder_with_value=None, input_shape=None, only_conversion=False):
-        self.basic("model_three_inputs.pbtxt", input_freezing_value, inputs, dtype, expected,
-                   freeze_placeholder_with_value,
-                   input_shape, only_conversion, True)
+    def test_cutting_fp32(self, argv_input, input_data, expected_value,
+                          expected_dtype=None, freeze_placeholder_with_value=None, input_shape=None,
+                          only_conversion=False):
+        basic_check(input_model="model_three_inputs.pbtxt", argv_input=argv_input, input_data=input_data,
+                    expected_dtype=expected_dtype, expected_value=expected_value,
+                    freeze_placeholder_with_value=freeze_placeholder_with_value,
+                    input_shape=input_shape, only_conversion=only_conversion, input_model_is_text=True)
 
     @generate(
         *[
@@ -203,12 +181,13 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
             ),
         ],
     )
-    def test_placeholder_with_default(self, inputs, inputs_data, expected,
-                                      dtype=None, freeze_placeholder_with_value=None, input_shape=None,
+    def test_placeholder_with_default(self, argv_input, input_data, expected_value,
+                                      expected_dtype=None, freeze_placeholder_with_value=None, input_shape=None,
                                       only_conversion=False):
-        self.basic("placeholder_with_default.pbtxt", inputs, inputs_data, dtype, expected,
-                   freeze_placeholder_with_value,
-                   input_shape, only_conversion, True)
+        basic_check(input_model="placeholder_with_default.pbtxt", argv_input=argv_input, input_data=input_data,
+                    expected_dtype=expected_dtype, expected_value=expected_value,
+                    freeze_placeholder_with_value=freeze_placeholder_with_value,
+                    input_shape=input_shape, only_conversion=only_conversion, input_model_is_text=True)
 
     @generate(
         *[
@@ -228,33 +207,42 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
             ),
         ],
     )
-    def test_freeze_placeholder_with_unknown_rank(self, inputs, inputs_data, expected,
-                                                  dtype=None, freeze_placeholder_with_value=None, input_shape=None,
+    def test_freeze_placeholder_with_unknown_rank(self, argv_input, input_data, expected_value,
+                                                  expected_dtype=None, freeze_placeholder_with_value=None,
+                                                  input_shape=None,
                                                   only_conversion=False):
-        self.basic("mul_with_unknown_rank_y.pbtxt", inputs, inputs_data, dtype, expected,
-                   freeze_placeholder_with_value,
-                   input_shape, only_conversion, True)
+        basic_check(input_model="mul_with_unknown_rank_y.pbtxt", argv_input=argv_input, input_data=input_data,
+                    expected_dtype=expected_dtype, expected_value=expected_value,
+                    freeze_placeholder_with_value=freeze_placeholder_with_value,
+                    input_shape=input_shape, only_conversion=only_conversion, input_model_is_text=True)
 
     def test_conversion_failure_fallback_default(self):
-        self.basic("ctc_model_based.pbtxt", None, None, None, None,
-                   None, None, True, True, False, False)
+        basic_check("ctc_model_based.pbtxt", argv_input=None, input_data=None, expected_value=None, expected_dtype=None,
+                    freeze_placeholder_with_value=None, input_shape=None, only_conversion=True,
+                    input_model_is_text=True, use_new_frontend=False, use_legacy_frontend=False)
 
     def test_conversion_failure_fallback_use_new_frontend(self):
         with self.assertRaisesRegex(Exception,
                                     "\[TensorFlow Frontend\] Internal error, no translator found for operation\(s\)\: "
                                     "Enter\, Exit\, LoopCond\, Merge\, NextIteration\, Switch\, TensorArrayGatherV3\, "
                                     "TensorArraySizeV3\, TensorArrayV3"):
-            self.basic("ctc_model_based.pbtxt", None, None, None, None,
-                       None, None, True, True, True, False)
+            basic_check(input_model="ctc_model_based.pbtxt", argv_input=None, input_data=None, expected_value=None,
+                        expected_dtype=None,
+                        freeze_placeholder_with_value=None, input_shape=None, only_conversion=True,
+                        input_model_is_text=True, use_new_frontend=True, use_legacy_frontend=False)
 
     @unittest.skip("88349: Fix auto-pruning in legacy FE")
     def test_conversion_model_oneshot_iterator_use_legacy_frontend(self):
-        self.basic("model_oneshot_iterator.pbtxt", None, None, None, None,
-                   None, None, True, True, False, True)
+        basic_check(input_model="model_oneshot_iterator.pbtxt", argv_input=None, input_data=None, expected_value=None,
+                    expected_dtype=None,
+                    freeze_placeholder_with_value=None, input_shape=None, only_conversion=True,
+                    input_model_is_text=True, use_new_frontend=False, use_legacy_frontend=True)
 
     def test_conversion_model_oneshot_iterator_default(self):
-        self.basic("model_oneshot_iterator.pbtxt", None, None, None, None,
-                   None, None, True, True, False, False)
+        basic_check(input_model="model_oneshot_iterator.pbtxt", argv_input=None, input_data=None, expected_value=None,
+                    expected_dtype=None,
+                    freeze_placeholder_with_value=None, input_shape=None, only_conversion=True,
+                    input_model_is_text=True, use_new_frontend=False, use_legacy_frontend=False)
 
     @generate(
         *[
@@ -273,20 +261,22 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
         ],
     )
     @unittest.skip("109220: Use generating script for this test model instead of Git LFS")
-    def test_conversion_model_with_non_standard_extension(self, input_freezing_value, inputs, expected,
-                                                          dtype):
-        self.basic("model_fp32.frozen", input_freezing_value, inputs, dtype, expected, only_conversion=False,
-                   input_model_is_text=False, use_new_frontend=True,
-                   use_legacy_frontend=False)
+    def test_conversion_model_with_non_standard_extension(self, argv_input, input_data, expected_value,
+                                                          expected_dtype):
+        basic_check(input_model="model_fp32.frozen", argv_input=argv_input, input_data=input_data,
+                    expected_dtype=expected_dtype, expected_value=expected_value,
+                    only_conversion=False,
+                    input_model_is_text=False, use_new_frontend=True,
+                    use_legacy_frontend=False)
 
     @unittest.skip("109220: Make TF FE to return the error")
     def test_conversion_dir_model(self):
         with self.assertRaisesRegex(Exception,
                                     "Internal error or inconsistent input model: the frontend supports "
                                     "only frozen binary protobuf format."):
-            self.basic(".", None, None, None, None,
-                       only_conversion=True, input_model_is_text=False, use_new_frontend=True,
-                       use_legacy_frontend=False)
+            basic_check(input_model=".", argv_input=None, input_data=None, expected_dtype=None, expected_value=None,
+                        only_conversion=True, input_model_is_text=False, use_new_frontend=True,
+                        use_legacy_frontend=False)
 
     @generate(
         *[
@@ -302,9 +292,10 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
             )
         ],
     )
-    def test_conversion_pbtxt_model_with_inference(self, inputs, expected, dtype):
-        self.basic("model_with_if.pbtxt", None, inputs, dtype, expected, only_conversion=False,
-                   input_model_is_text=False, use_new_frontend=True, use_legacy_frontend=False)
+    def test_conversion_pbtxt_model_with_inference(self, input_data, expected_value, expected_dtype):
+        basic_check(input_model="model_with_if.pbtxt", argv_input=None, input_data=input_data,
+                    expected_dtype=expected_dtype, expected_value=expected_value, only_conversion=False,
+                    input_model_is_text=False, use_new_frontend=True, use_legacy_frontend=False)
 
     @generate(
         *[
@@ -340,7 +331,10 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
             ),
         ],
     )
-    def test_conversion_model_with_undefined_constant(self, model_name, argv_input, inputs, expected, dtype,
+    def test_conversion_model_with_undefined_constant(self, input_model, argv_input, input_data,
+                                                      expected_value, expected_dtype,
                                                       use_new_frontend, use_legacy_frontend):
-        self.basic(model_name, argv_input, inputs, dtype, expected, only_conversion=False,
-                   input_model_is_text=True, use_new_frontend=use_new_frontend, use_legacy_frontend=use_legacy_frontend)
+        basic_check(input_model=input_model, argv_input=argv_input, input_data=input_data,
+                    expected_dtype=expected_dtype, expected_value=expected_value, only_conversion=False,
+                    input_model_is_text=True, use_new_frontend=use_new_frontend,
+                    use_legacy_frontend=use_legacy_frontend)
