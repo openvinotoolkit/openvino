@@ -1,7 +1,7 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "custom_shape_infer.hpp"
+#include "common_test_utils/test_assertions.hpp"
 #include "gtest/gtest.h"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
@@ -108,7 +108,8 @@ TEST(StaticShapeInferenceTest, transpose_order_in_constant_map) {
 
     ASSERT_EQ(output_shapes[op::v1::Transpose::ARG_T], StaticShape({4, 6, 2, 8}));
     // implementaion do not support that order is paramter as the input of transpose
-    ASSERT_THROW(unit_test::cus_usual_shape_infer(transpose.get(),
-                    {StaticShape({2, 4, 6, 8}), StaticShape()}, output_shapes, const_map),
-                InferenceEngine::NotImplemented);
+    OV_EXPECT_THROW(unit_test::cus_usual_shape_infer(transpose.get(),
+                        {StaticShape({2, 4, 6, 8}), StaticShape()}, output_shapes, const_map),
+                    InferenceEngine::NotImplemented,
+                    HasSubstr("TODO: Support parameterized Order input for dynamic shapes."));
 }
