@@ -21,35 +21,42 @@ Prepare calibration and validation datasets
 
 This step is similar to the :doc:`Basic 8-bit quantization <basic_quantization_flow>` flow. The only difference is that two datasets, calibration and validation, are required.
 
-.. tab:: OpenVINO
+.. tab-set::
 
-   .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_aa_openvino.py
-      :language: python
-      :fragment: [dataset]
+   .. tab-item:: OpenVINO
+      :sync: ov
+
+      .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_aa_openvino.py
+         :language: python
+         :fragment: [dataset]
 
 Prepare validation function
 ############################
 
 Validation funtion receives ``openvino.runtime.CompiledModel`` object and validation dataset and returns accuracy metric value. The following code snippet shows an example of validation function for OpenVINO model:
 
-.. tab:: OpenVINO
+.. tab-set::
 
-   .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_aa_openvino.py
-      :language: python
-      :fragment: [validation]
+   .. tab-item:: OpenVINO
+      :sync: ov
 
+      .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_aa_openvino.py
+         :language: python
+         :fragment: [validation]
 
 Run quantization with accuracy control
 #######################################
 
 ``nncf.quantize_with_accuracy_control()`` function is used to run the quantization with accuracy control. The following code snippet shows an example of quantization with accuracy control for OpenVINO model:
 
-.. tab:: OpenVINO
+.. tab-set::
 
-   .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_aa_openvino.py
-      :language: python
-      :fragment: [quantization]
+   .. tab-item:: OpenVINO
+      :sync: ov
 
+      .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_aa_openvino.py
+         :language: python
+         :fragment: [quantization]
 
 * ``max_drop`` defines the accuracy drop threshold. The quantization process stops when the degradation of accuracy metric on the validation dataset is less than the ``max_drop``. The default value is 0.01. NNCF will stop the quantization and report an error if the ``max_drop`` value can't be reached.
 
@@ -57,12 +64,14 @@ Run quantization with accuracy control
 
 After that the model can be compiled and run with OpenVINO:
 
-.. tab:: OpenVINO
+.. tab-set::
 
-   .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_aa_openvino.py
-      :language: python
-      :fragment: [inference]
+   .. tab-item:: OpenVINO
+      :sync: ov
 
+      .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_aa_openvino.py
+         :language: python
+         :fragment: [inference]
 
 ``nncf.quantize_with_accuracy_control()`` API supports all the parameters from :doc:`Basic 8-bit quantization <basic_quantization_flow>` API, to quantize a model with accuracy control and a custom configuration.
 
