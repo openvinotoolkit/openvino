@@ -342,7 +342,6 @@ InferenceEngine::Parameter CompiledModel::GetMetric(const std::string &name) con
             CONFIG_KEY(PERFORMANCE_HINT),
             CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS),
             CONFIG_KEY(PERF_COUNT),
-            CONFIG_KEY(DYN_BATCH_ENABLED),
             CONFIG_KEY(CONFIG_FILE),
             CONFIG_KEY(DEVICE_ID),
             CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS),
@@ -351,7 +350,6 @@ InferenceEngine::Parameter CompiledModel::GetMetric(const std::string &name) con
             GPU_CONFIG_KEY(PLUGIN_PRIORITY),
             GPU_CONFIG_KEY(PLUGIN_THROTTLE),
             GPU_CONFIG_KEY(HOST_TASK_PRIORITY),
-            GPU_CONFIG_KEY(NV12_TWO_INPUTS),
             GPU_CONFIG_KEY(MAX_NUM_THREADS),
             GPU_CONFIG_KEY(ENABLE_LOOP_UNROLLING),
         };

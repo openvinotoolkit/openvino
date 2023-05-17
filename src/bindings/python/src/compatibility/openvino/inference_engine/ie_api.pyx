@@ -535,7 +535,7 @@ cdef class IECore:
         
             ie = IECore()
             net = ie.read_network(model=path_to_xml_file, weights=path_to_bin_file)
-            ie.set_config(config={"DYN_BATCH_ENABLED": "YES"}, device_name="CPU")
+            ie.set_config(config={"PERF_COUNT": "YES"}, device_name="CPU")
         """
         cdef map[string, string] c_config = dict_to_c_map(config)
         self.impl.setConfig(c_config, device_name.encode())

@@ -100,12 +100,6 @@ DECLARE_GPU_CONFIG_VALUE(HOST_TASK_PRIORITY_MEDIUM);
 DECLARE_GPU_CONFIG_VALUE(HOST_TASK_PRIORITY_LOW);
 
 /**
- * @brief This key should be set to correctly handle NV12 input without pre-processing.
- * Turned off by default.
- */
-DECLARE_GPU_CONFIG_KEY(NV12_TWO_INPUTS);
-
-/**
  * @brief This key sets the max number of host threads that can be used by GPU plugin on model loading.
  * Default value is maximum number of threads available in the environment.
  */

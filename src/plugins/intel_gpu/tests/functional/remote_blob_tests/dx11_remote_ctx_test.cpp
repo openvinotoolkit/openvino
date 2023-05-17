@@ -196,48 +196,6 @@ TEST_F(DX11CachedTexture_Test, smoke_make_shared_nv12_blob_cached) {
     }
 }
 
-TEST_F(DX11CachedTexture_Test, _make_shared_nv12_blob_cached_inference) {
-#if defined(ANDROID)
-    GTEST_SKIP();
-#endif
-    using namespace InferenceEngine;
-    using namespace InferenceEngine::gpu;
-    // inference using remote blob with batch
-    auto fn_ptr_remote = ngraph::builder::subgraph::makeConvPoolRelu({1, 3, texture_description.Height, texture_description.Width});
-    auto ie = InferenceEngine::Core();
-
-    CNNNetwork net(fn_ptr_remote);
-    net.getInputsInfo().begin()->second->setLayout(Layout::NCHW);
-    net.getInputsInfo().begin()->second->setPrecision(Precision::U8);
-    net.getInputsInfo().begin()->second->getPreProcess().setColorFormat(ColorFormat::NV12);
-
-    auto remote_context = make_shared_context(ie, CommonTestUtils::DEVICE_GPU, device_ptr);
-    Blob::Ptr nv12_blob = make_shared_blob_nv12(texture_description.Height,
-                                            texture_description.Width,
-                                            remote_context, dx11_textures[0]);
-
-    ASSERT_TRUE(remote_context);
-    const size_t total_run_number = 4;
-
-    {
-        auto exec_net = ie.LoadNetwork(net, remote_context,
-            { { GPUConfigParams::KEY_GPU_NV12_TWO_INPUTS, PluginConfigParams::YES} });
-
-        // inference using shared nv12 blob
-        auto inf_req_shared = exec_net.CreateInferRequest();
-        auto dims = net.getInputsInfo().begin()->second->getTensorDesc().getDims();
-        size_t imSize = dims[1] * dims[2] * dims[3];
-
-        const size_t iteration_count = 10;
-        for (size_t i = 0; i < iteration_count; i++) {
-            inf_req_shared.SetBlob(net.getInputsInfo().begin()->first, nv12_blob);
-
-            inf_req_shared.Infer();
-            auto outputBlob_shared = inf_req_shared.GetBlob(net.getOutputsInfo().begin()->first);
-        }
-    }
-}
-
 TEST_F(DX11CachedTexture_Test, smoke_make_shared_nv12_tensor_cached) {
 #if defined(ANDROID)
     GTEST_SKIP();

@@ -27,7 +27,7 @@ INSTANTIATE_TEST_SUITE_P(DISABLE_smoke_ReshapeCheckDynBatch, ReshapeLayerTest,
                 ::testing::Values(std::vector<size_t>({1, 16, 16, 16})),
                 ::testing::Values(std::vector<int64_t>({1, 0, 256})),
                  ::testing::Values(CommonTestUtils::DEVICE_GPU),
-                ::testing::Values(std::map<std::string, std::string>({{CONFIG_KEY(DYN_BATCH_ENABLED), CONFIG_VALUE(YES)}}))),
+                ::testing::Values(std::map<std::string, std::string>({}))),
                 ReshapeLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_ReshapeCheck, ReshapeLayerTest,
