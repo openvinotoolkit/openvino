@@ -125,8 +125,8 @@ endif()
 # additional install rules for case of static libraries
 
 if(NOT BUILD_SHARED_LIBS)
-    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/libGNAConfig.cmake ${CMAKE_BINARY_DIR} COPYONLY)
-    install(FILES "${CMAKE_BINARY_DIR}/libGNAConfig.cmake"
+    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/libGNAConfig.cmake ${OpenVINO_BINARY_DIR} COPYONLY)
+    install(FILES "${OpenVINO_BINARY_DIR}/libGNAConfig.cmake"
             DESTINATION ${OV_CPACK_IE_CMAKEDIR}
             COMPONENT gna)
 

@@ -2,13 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/core/visibility.hpp"
+
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+
 #include "jit_generator.hpp"
 
 #include <xbyak/xbyak_util.h>
 
 #include "ngraph/type/float16.hpp"
-
-#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 
 namespace ngraph {
 namespace runtime {

@@ -126,26 +126,45 @@ jobs:
       sudo cp -v ninja /usr/local/bin/
     displayName: 'Install dependencies'
 
+  - script: |
+      python3 -m pip install conan
+      # generate build profile
+      conan profile detect
+      # generate host profile for linux_arm64
+      echo "include(default)" > $(BUILD_OPENVINO)/linux_arm64
+      echo "[settings]" >> $(BUILD_OPENVINO)/linux_arm64
+      echo "arch=armv8" >> $(BUILD_OPENVINO)/linux_arm64
+      echo "[buildenv]" >> $(BUILD_OPENVINO)/linux_arm64
+      echo "CC=aarch64-linux-gnu-gcc" >> $(BUILD_OPENVINO)/linux_arm64
+      echo "CXX=aarch64-linux-gnu-g++" >> $(BUILD_OPENVINO)/linux_arm64
+      # install OpenVINO dependencies
+      conan install $(OPENVINO_REPO_DIR)/conanfile.txt -b missing \
+        -s:h tools.cmake.cmaketoolchain:user_toolchain $(OPENVINO_REPO_DIR)/cmake/arm64.toolchain.cmake \
+        -pr:h $(BUILD_OPENVINO)/linux_arm64 \
+        -of $(BUILD_OPENVINO)
+    displayName: 'Install conan and dependencies'
+
   - task: CMake@1
     inputs:
       cmakeArgs: >
         -G "Ninja Multi-Config"
         -DCMAKE_VERBOSE_MAKEFILE=ON
+        # -DENABLE_INTEL_GPU=ON
         -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
-        -DOpenCV_DIR=$(INSTALL_OPENCV)/cmake
         -DENABLE_CPPLINT=ON
         -DENABLE_PYTHON=OFF
         -DENABLE_TESTS=ON
         -DENABLE_DATA=OFF
-        -DCMAKE_TOOLCHAIN_FILE=$(OPENVINO_REPO_DIR)/cmake/arm64.toolchain.cmake
-        -DCMAKE_VERBOSE_MAKEFILE=ON
+        -DENABLE_SYSTEM_PROTOBUF=ON
+        -DENABLE_SYSTEM_SNAPPY=ON
+        -DCMAKE_TOOLCHAIN_FILE=$(BUILD_OPENVINO)/conan_toolchain.cmake
         -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
         -DCMAKE_C_COMPILER_LAUNCHER=ccache
         -DARM_COMPUTE_SCONS_JOBS=$(NUM_PROC)
         -DCMAKE_INSTALL_PREFIX=$(INSTALL_OPENVINO)
         -S $(OPENVINO_REPO_DIR)
         -B $(BUILD_OPENVINO)
-    displayName: 'CMake OpenVINO ARM plugin'
+    displayName: 'CMake configure'
 
   - script: cmake --build $(BUILD_OPENVINO) --parallel --config $(BUILD_TYPE)
     env:
@@ -153,13 +172,13 @@ jobs:
       CCACHE_TEMPDIR: $(TMP_DIR)/ccache
       CCACHE_BASEDIR: $(Pipeline.Workspace)
       CCACHE_MAXSIZE: 50G
-    displayName: 'Build OpenVINO ARM plugin'
+    displayName: 'Build OpenVINO Runtime'
 
   - script: cmake --build $(BUILD_OPENVINO) --parallel --config $(BUILD_TYPE) --target install
-    displayName: 'Install OpenVINO ARM plugin'
+    displayName: 'Install OpenVINO Runtime'
 
   - task: PublishBuildArtifacts@1
     inputs:
       PathtoPublish: $(Build.ArtifactStagingDirectory)
       ArtifactName: 'openvino_aarch64_linux'
-    displayName: 'Publish OpenVINO AArch64 linux package'
+    displayName: 'Publish OpenVINO Runtime for ARM'

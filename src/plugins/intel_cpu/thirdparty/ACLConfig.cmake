@@ -3,30 +3,48 @@
 #
 
 if(ARM_COMPUTE_INCLUDE_DIR OR ARM_COMPUTE_LIB_DIR)
-    if (NOT ARM_COMPUTE_INCLUDE_DIR)
-        message(FATAL_ERROR "Undefined ARM_COMPUTE_INCLUDE_DIR input variable should be set manually")
-    else()
-        message(STATUS "Using ${ARM_COMPUTE_INCLUDE_DIR} to include arm compute library headers")
-    endif()
+    set(ARM_COMPUTE_INCLUDE_DIR "" CACHE PATH "Path to ARM Compute Library headers" FORCE)
 
-    if (NOT ARM_COMPUTE_LIB_DIR)
+    if(NOT ARM_COMPUTE_LIB_DIR)
         message(FATAL_ERROR "Undefined ARM_COMPUTE_LIB_DIR input variable should be set manually")
-    else()
-        find_library(
-            ARM_COMPUTE_LIB
-            arm_compute-static
-            PATHS ${ARM_COMPUTE_LIB_DIR}
-        )
+    elseif(NOT TARGET arm_compute::arm_compute)
+        if(WIN32 OR APPLE)
+            if(OV_GENERATOR_MULTI_CONFIG)
+                set(extra_args PATH_SUFFIXES ${CMAKE_CONFIGURATION_TYPES})
+            else()
+                set(extra_args PATH_SUFFIXES ${CMAKE_BUILD_TYPE})
+            endif()
+        endif()
+
+        find_library(ARM_COMPUTE_LIB
+                     NAMES arm_compute-static
+                     PATHS ${ARM_COMPUTE_LIB_DIR}
+                     ${extra_args})
+        unset(extra_args)
+
         message(STATUS "Found arm_compute-static: ${ARM_COMPUTE_LIB}")
-        add_library(arm_compute STATIC IMPORTED GLOBAL)
-        set_target_properties(arm_compute PROPERTIES
-            IMPORTED_LOCATION ${ARM_COMPUTE_LIB}
-            INTERFACE_INCLUDE_DIRECTORIES ${ARM_COMPUTE_INCLUDE_DIR})
+
+        add_library(arm_compute::arm_compute STATIC IMPORTED GLOBAL)
+        set_target_properties(arm_compute::arm_compute PROPERTIES
+            IMPORTED_LOCATION ${ARM_COMPUTE_LIB})
+
+        add_library(arm_compute::half INTERFACE IMPORTED GLOBAL)
+
+        if(ARM_COMPUTE_INCLUDE_DIR)
+            set_target_properties(arm_compute::arm_compute arm_compute::half PROPERTIES
+                INTERFACE_INCLUDE_DIRECTORIES ${ARM_COMPUTE_INCLUDE_DIR})
+        endif()
     endif()
 
-    add_library(half INTERFACE IMPORTED GLOBAL)
-    set_target_properties(half PROPERTIES
-        INTERFACE_INCLUDE_DIRECTORIES ${ARM_COMPUTE_INCLUDE_DIR})
+    # for oneDNN integration
+
+    set(ACL_FOUND ON)
+    set(ACL_LIBRARIES arm_compute::arm_compute arm_compute::half)
+
+    foreach(acl_library IN LISTS ACL_LIBRARIES)
+        list(APPEND ACL_INCLUDE_DIRS
+                $<TARGET_PROPERTY:${acl_library},INTERFACE_INCLUDE_DIRECTORIES>)
+    endforeach()
 elseif(ENABLE_ARM_COMPUTE_CMAKE)
     set(ARM_COMPUTE_SOURCE_DIR "${intel_cpu_thirdparty_SOURCE_DIR}/ComputeLibrary")
     set(ARM_COMPUTE_BINARY_DIR "${intel_cpu_thirdparty_BINARY_DIR}/ComputeLibrary")
@@ -68,7 +86,7 @@ elseif(ENABLE_ARM_COMPUTE_CMAKE)
 
     # required by oneDNN to attempt to parse ACL version
     set(ENV{ACL_ROOT_DIR} "${ARM_COMPUTE_SOURCE_DIR}")
-else()
+elseif(NOT TARGET arm_compute::arm_compute)
     set(ARM_COMPUTE_SOURCE_DIR "${intel_cpu_thirdparty_SOURCE_DIR}/ComputeLibrary")
     set(ARM_COMPUTE_BINARY_DIR "${intel_cpu_thirdparty_BINARY_DIR}/ComputeLibrary")
 
