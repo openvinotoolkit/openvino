@@ -19,19 +19,6 @@
 
 namespace {
 
-std::vector<std::string> split(const std::string& str, const std::string& delim = " ") {
-    std::vector<std::string> result;
-    std::string::size_type start(0);
-    std::string::size_type end = str.find(delim);
-    while (end != std::string::npos) {
-        result.emplace_back(str.substr(start, end - start));
-        start = end + delim.size();
-        end = str.find(delim, start);
-    }
-    result.emplace_back(str.substr(start, end - start));
-    return result;
-}
-
 std::string get_mock_engine_path() {
     std::string mockEngineName("mock_engine");
     return ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
