@@ -4,7 +4,7 @@
 
 .. important::
 
-   This article refers to legacy functionality only.
+   All of the issues below refer to :doc:`legacy functionalities <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>`.
 
 If your question is not covered by the topics below, use the 
 `OpenVINO Support page <https://community.intel.com/t5/Intel-Distribution-of-OpenVINO/bd-p/distribution-openvino-toolkit>`__, 
