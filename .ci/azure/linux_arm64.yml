@@ -135,6 +135,8 @@ jobs:
       conan profile detect
       # generate host profile for linux_arm64
       echo "include(default)" > $(BUILD_OPENVINO)/linux_arm64
+      echo "[tool_requires]" >> $(BUILD_OPENVINO)/linux_arm64
+      echo "cmake/3.15.7" >> $(BUILD_OPENVINO)/linux_arm64
       echo "[buildenv]" >> $(BUILD_OPENVINO)/linux_arm64
       echo "CC=aarch64-linux-gnu-gcc" >> $(BUILD_OPENVINO)/linux_arm64
       echo "CXX=aarch64-linux-gnu-g++" >> $(BUILD_OPENVINO)/linux_arm64
@@ -144,7 +146,6 @@ jobs:
       conan install $(OPENVINO_REPO_DIR)/conanfile.txt \
         -pr:h $(BUILD_OPENVINO)/linux_arm64 \
         -s:h arch=armv8 \
-        -c:h tools.cmake.cmaketoolchain:user_toolchain='["$(OPENVINO_REPO_DIR)/cmake/arm64.toolchain.cmake"]' \
         -of $(BUILD_OPENVINO) \
         -b missing
     env:
@@ -154,28 +155,28 @@ jobs:
       CCACHE_MAXSIZE: 50G
     displayName: 'Install conan and dependencies'
 
-  - task: CMake@1
-    inputs:
-      cmakeArgs: >
-        -G "Ninja Multi-Config"
-        -DCMAKE_VERBOSE_MAKEFILE=ON
-        # -DENABLE_INTEL_GPU=ON
-        -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
-        -DENABLE_CPPLINT=ON
-        -DENABLE_PYTHON=OFF
-        -DENABLE_TESTS=ON
-        -DENABLE_DATA=OFF
-        -DENABLE_SYSTEM_TBB=ON
-        -DENABLE_SYSTEM_PROTOBUF=ON
-        -DENABLE_SYSTEM_SNAPPY=ON
-        -DENABLE_SYSTEM_PUGIXML=ON
-        -DCMAKE_TOOLCHAIN_FILE=$(BUILD_OPENVINO)/conan_toolchain.cmake
-        -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
-        -DCMAKE_C_COMPILER_LAUNCHER=ccache
-        -DARM_COMPUTE_SCONS_JOBS=$(NUM_PROC)
-        -DCMAKE_INSTALL_PREFIX=$(INSTALL_OPENVINO)
-        -S $(OPENVINO_REPO_DIR)
+  - script:
+      source $(OPENVINO_REPO_DIR)/conanbuild.sh
+      cmake \
+        -G "Ninja Multi-Config" \
+        -DCMAKE_VERBOSE_MAKEFILE=ON \
+        -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
+        -DENABLE_CPPLINT=ON \
+        -DENABLE_PYTHON=OFF \
+        -DENABLE_TESTS=ON \
+        -DENABLE_DATA=OFF \
+        -DENABLE_SYSTEM_TBB=ON \
+        -DENABLE_SYSTEM_PROTOBUF=ON \
+        -DENABLE_SYSTEM_SNAPPY=ON \
+        -DENABLE_SYSTEM_PUGIXML=ON \
+        -DCMAKE_TOOLCHAIN_FILE=$(BUILD_OPENVINO)/conan_toolchain.cmake \
+        -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+        -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+        -DARM_COMPUTE_SCONS_JOBS=$(NUM_PROC) \
+        -DCMAKE_INSTALL_PREFIX=$(INSTALL_OPENVINO) \
+        -S $(OPENVINO_REPO_DIR) \
         -B $(BUILD_OPENVINO)
+      source $(OPENVINO_REPO_DIR)/deactivate_conanbuild.sh
     displayName: 'CMake configure'
 
   - script: cmake --build $(BUILD_OPENVINO) --parallel --config $(BUILD_TYPE)
