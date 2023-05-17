@@ -407,11 +407,11 @@ void ov::proxy::tests::ProxyTests::register_plugin_support_reshape(ov::Core& cor
                 ov::device::UUID uuid;
                 for (size_t i = 0; i < uuid.MAX_UUID_SIZE; i++) {
                     if (device_id == "abc_a")
-                        uuid.uuid[i] = i;
+                        uuid.uuid[i] = static_cast<uint8_t>(i);
                     else if (device_id == "abc_b")
-                        uuid.uuid[i] = i * 2;
+                        uuid.uuid[i] = static_cast<uint8_t>(i * 2);
                     else if (device_id == "abc_c")
-                        uuid.uuid[i] = i * 3;
+                        uuid.uuid[i] = static_cast<uint8_t>(i * 3);
                 }
                 return decltype(ov::device::uuid)::value_type{uuid};
             } else if (name == ov::available_devices) {
@@ -524,11 +524,11 @@ void ov::proxy::tests::ProxyTests::register_plugin_support_subtract(ov::Core& co
                 ov::device::UUID uuid;
                 for (size_t i = 0; i < uuid.MAX_UUID_SIZE; i++) {
                     if (device_id == "bde_b")
-                        uuid.uuid[i] = i * 2;
+                        uuid.uuid[i] = static_cast<uint8_t>(i * 2);
                     else if (device_id == "bde_d")
-                        uuid.uuid[i] = i * 4;
+                        uuid.uuid[i] = static_cast<uint8_t>(i * 4);
                     else if (device_id == "bde_e")
-                        uuid.uuid[i] = i * 5;
+                        uuid.uuid[i] = static_cast<uint8_t>(i * 5);
                 }
                 return decltype(ov::device::uuid)::value_type{uuid};
             } else if (name == ov::available_devices) {
