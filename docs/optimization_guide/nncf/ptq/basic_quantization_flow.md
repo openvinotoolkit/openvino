@@ -33,29 +33,35 @@ At this step, create an instance of the ``nncf.Dataset`` class that represents t
 
 The transformation function is a function that takes a sample from the dataset and returns data that can be passed to the model for inference. For example, this function can take a tuple of a data tensor and labels tensor, and return the former while ignoring the latter. The transformation function is used to avoid modifying the dataset code to make it compatible with the quantization API. The function is applied to each sample from the dataset before passing it to the model for inference. The following code snippet shows how to create an instance of the ``nncf.Dataset`` class:
 
-.. tab:: OpenVINO
+.. tab-set::
 
-    .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_openvino.py
-       :language: python
-       :fragment: [dataset]
+   .. tab-item:: OpenVINO
+      :sync: ov
+      
+      .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_openvino.py
+         :language: python
+         :fragment: [dataset]
 
-.. tab:: PyTorch
+   .. tab-item::  PyTorch
+      :sync: pytorch
+      
+      .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_torch.py
+         :language: python
+         :fragment: [dataset]
 
-    .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_torch.py
-       :language: python
-       :fragment: [dataset]
+   .. tab-item:: ONNX
+      :sync: onnx
 
-.. tab:: ONNX
+      .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_onnx.py
+         :language: python
+         :fragment: [dataset]
 
-    .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_onnx.py
-       :language: python
-       :fragment: [dataset]
+   .. tab-item:: TensorFlow
+      :sync: tensorflow
 
-.. tab:: TensorFlow
-
-    .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_tensorflow.py
-       :language: python
-       :fragment: [dataset]
+      .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_tensorflow.py
+         :language: python
+         :fragment: [dataset]
 
 If there is no framework dataset object, you can create your own entity that implements the ``Iterable`` interface in Python, for example the list of images, and returns data samples feasible for inference. In this case, a transformation function is not required.
 
@@ -65,57 +71,69 @@ Quantize a Model
 
 Once the dataset is ready and the model object is instantiated, you can apply 8-bit quantization to it:
 
-.. tab:: OpenVINO
+.. tab-set::
 
-    .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_openvino.py
-       :language: python
-       :fragment: [quantization]
+   .. tab-item:: OpenVINO
+      :sync: ov
+      
+      .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_openvino.py
+         :language: python
+         :fragment: [quantization]
 
-.. tab:: PyTorch
+   .. tab-item::  PyTorch
+      :sync: pytorch
+      
+      .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_torch.py
+         :language: python
+         :fragment: [quantization]
 
-    .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_torch.py
-       :language: python
-       :fragment: [quantization]
+   .. tab-item:: ONNX
+      :sync: onnx
 
-.. tab:: ONNX
+      .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_onnx.py
+         :language: python
+         :fragment: [quantization]
 
-    .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_onnx.py
-       :language: python
-       :fragment: [quantization]
+   .. tab-item:: TensorFlow
+      :sync: tensorflow
 
-.. tab:: TensorFlow
-
-    .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_tensorflow.py
-       :language: python
-       :fragment: [quantization]
-
+      .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_tensorflow.py
+         :language: python
+         :fragment: [quantization]
+         
 
 After that the model can be converted into the OpenVINO Intermediate Representation (IR) if needed, compiled and run with OpenVINO:
 
-.. tab:: OpenVINO
+.. tab-set::
 
-    .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_openvino.py
-       :language: python
-       :fragment: [inference]
+   .. tab-item:: OpenVINO
+      :sync: ov
+      
+      .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_openvino.py
+         :language: python
+         :fragment:  [inference]
 
-.. tab:: PyTorch
+   .. tab-item::  PyTorch
+      :sync: pytorch
+      
+      .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_torch.py
+         :language: python
+         :fragment:  [inference]
 
-    .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_torch.py
-       :language: python
-       :fragment: [inference]
+   .. tab-item:: ONNX
+      :sync: onnx
 
-.. tab:: ONNX
+      .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_onnx.py
+         :language: python
+         :fragment:  [inference]
 
-    .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_onnx.py
-       :language: python
-       :fragment: [inference]
+   .. tab-item:: TensorFlow
+      :sync: tensorflow
 
-.. tab:: TensorFlow
-
-    .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_tensorflow.py
-       :language: python
-       :fragment: [inference]
-
+      .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_tensorflow.py
+         :language: python
+         :fragment:  [inference]
+         
 
 Tune quantization parameters
 ############################
