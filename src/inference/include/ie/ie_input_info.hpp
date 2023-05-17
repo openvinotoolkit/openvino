@@ -22,6 +22,7 @@
 
 namespace InferenceEngine {
 
+IE_SUPPRESS_DEPRECATED_START
 /**
  * @brief This class contains information about each input of the network
  */
@@ -188,5 +189,6 @@ using InputsDataMap = std::map<std::string, InputInfo::Ptr>;
  * @brief A collection that contains string as key, and const InputInfo smart pointer as value
  */
 using ConstInputsDataMap = std::map<std::string, InputInfo::CPtr>;
+IE_SUPPRESS_DEPRECATED_END
 
 }  // namespace InferenceEngine
