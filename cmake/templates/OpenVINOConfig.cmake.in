@@ -236,9 +236,9 @@ macro(_ov_find_pugixml)
         set(_ov_pugixml_cmake_interface "@PugiXML_FOUND@")
 
         if(_ov_pugixml_pkgconfig_interface AND NOT ANDROID)
-            find_dependency(PkgConfig)
+            _ov_find_dependency(PkgConfig)
         elseif(_ov_pugixml_cmake_interface)
-            find_dependency(PugiXML REQUIRED)
+            _ov_find_dependency(PugiXML REQUIRED)
         endif()
 
         if(PugiXML_FOUND)
@@ -296,18 +296,24 @@ endmacro()
 
 macro(_ov_find_itt)
     set(_ENABLE_PROFILING_ITT @ENABLE_PROFILING_ITT@)
-    if(_ENABLE_PROFILING_ITT)
+    # whether 'ittapi' is found via find_package
+    set(_ENABLE_SYSTEM_ITTAPI "@ittapi_FOUND@")
+    if(_ENABLE_PROFILING_ITT AND _ENABLE_SYSTEM_ITTAPI)
         _ov_find_dependency(ittapi)
     endif()
     unset(_ENABLE_PROFILING_ITT)
+    unset(_ENABLE_SYSTEM_ITTAPI)
 endmacro()
 
 macro(_ov_find_ade)
-    set(_OV_ENABLE_GAPI_PREPROCESSING @ENABLE_GAPI_PREPROCESSING@)
-    if(_OV_ENABLE_GAPI_PREPROCESSING)
+    set(_OV_ENABLE_GAPI_PREPROCESSING "@ENABLE_GAPI_PREPROCESSING@")
+    # whether 'ade' is found via find_package
+    set(_ENABLE_SYSTEM_ADE "@ade_FOUND@")
+    if(_OV_ENABLE_GAPI_PREPROCESSING AND _ENABLE_SYSTEM_ADE)
         _ov_find_dependency(ade 0.1.2)
     endif()
     unset(_OV_ENABLE_GAPI_PREPROCESSING)
+    unset(_ENABLE_SYSTEM_ADE)
 endmacro()
 
 macro(_ov_find_intel_cpu_dependencies)
@@ -419,23 +425,20 @@ if(NOT _OV_ENABLE_OPENVINO_BUILD_SHARED)
     # common openvino dependencies
     _ov_find_tbb()
 
-    if(CONAN_EXPORTED)
-        _ov_find_itt()
-        _ov_find_pugixml()
+    _ov_find_itt()
+    _ov_find_pugixml()
 
-        # preprocessing dependencies
-        _ov_find_ade()
+    # preprocessing dependencies
+    _ov_find_ade()
 
-        # frontend dependencies
-        _ov_find_protobuf_frontend_dependency()
-        _ov_find_tensorflow_frontend_dependencies()
-        _ov_find_onnx_frontend_dependencies()
+    # frontend dependencies
+    _ov_find_protobuf_frontend_dependency()
+    _ov_find_tensorflow_frontend_dependencies()
+    _ov_find_onnx_frontend_dependencies()
 
-        # plugin dependencies
-        _ov_find_intel_cpu_dependencies()
-        _ov_find_intel_gpu_dependencies()
-    endif()
-
+    # plugin dependencies
+    _ov_find_intel_cpu_dependencies()
+    _ov_find_intel_gpu_dependencies()
     _ov_find_intel_gna_dependencies()
 endif()
 

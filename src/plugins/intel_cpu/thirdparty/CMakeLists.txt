@@ -136,13 +136,8 @@ function(ov_add_onednn)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-override")
     endif()
 
-    # to find our ACLConfig.cmake
-    if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.15)
-        list(APPEND CMAKE_PREFIX_PATH "${intel_cpu_thirdparty_SOURCE_DIR}")
-        set(CMAKE_FIND_PACKAGE_PREFER_CONFIG ON)
-    else()
-        message(FATAL_ERROR "Building with ARM Compute Library requires cmake 3.15 or higher")
-    endif()
+    # to find our FindACL.cmake
+    list(APPEND CMAKE_MODULE_PATH "${intel_cpu_thirdparty_SOURCE_DIR}")
 
     add_subdirectory(onednn EXCLUDE_FROM_ALL)
 

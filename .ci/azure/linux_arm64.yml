@@ -112,7 +112,6 @@ jobs:
 
   - script: |
       set -e
-      sudo -E $(OPENVINO_REPO_DIR)/install_build_dependencies.sh
       python3 -m pip install --upgrade pip
       python3 -m pip install -r $(OPENVINO_REPO_DIR)/src/bindings/python/requirements.txt
       python3 -m pip install -r $(OPENVINO_REPO_DIR)/src/bindings/python/wheel/requirements-dev.txt
@@ -136,17 +135,23 @@ jobs:
       conan profile detect
       # generate host profile for linux_arm64
       echo "include(default)" > $(BUILD_OPENVINO)/linux_arm64
-      echo "[settings]" >> $(BUILD_OPENVINO)/linux_arm64
-      echo "arch=armv8" >> $(BUILD_OPENVINO)/linux_arm64
       echo "[buildenv]" >> $(BUILD_OPENVINO)/linux_arm64
       echo "CC=aarch64-linux-gnu-gcc" >> $(BUILD_OPENVINO)/linux_arm64
       echo "CXX=aarch64-linux-gnu-g++" >> $(BUILD_OPENVINO)/linux_arm64
       # install OpenVINO dependencies
+      export CMAKE_CXX_COMPILER_LAUNCHER=ccache
+      export CMAKE_C_COMPILER_LAUNCHER=ccache
       conan install $(OPENVINO_REPO_DIR)/conanfile.txt \
         -pr:h $(BUILD_OPENVINO)/linux_arm64 \
+        -s:h arch=armv8 \
         -c:h tools.cmake.cmaketoolchain:user_toolchain='["$(OPENVINO_REPO_DIR)/cmake/arm64.toolchain.cmake"]' \
         -of $(BUILD_OPENVINO) \
         -b missing
+    env:
+      CCACHE_DIR: $(OPENVINO_CCACHE_DIR)
+      CCACHE_TEMPDIR: $(TMP_DIR)/ccache
+      CCACHE_BASEDIR: $(Pipeline.Workspace)
+      CCACHE_MAXSIZE: 50G
     displayName: 'Install conan and dependencies'
 
   - task: CMake@1
@@ -160,6 +165,7 @@ jobs:
         -DENABLE_PYTHON=OFF
         -DENABLE_TESTS=ON
         -DENABLE_DATA=OFF
+        -DENABLE_SYSTEM_TBB=ON
         -DENABLE_SYSTEM_PROTOBUF=ON
         -DENABLE_SYSTEM_SNAPPY=ON
         -DENABLE_SYSTEM_PUGIXML=ON

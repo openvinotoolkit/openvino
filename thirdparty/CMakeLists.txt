@@ -26,6 +26,9 @@ if(ENABLE_PROFILING_ITT)
             IMPORTED_GLOBAL ON
             INTERFACE_COMPILE_DEFINITIONS ENABLE_PROFILING_ITT)
         add_library(ittapi::ittnotify ALIAS ittapi::ittapi)
+
+        # set ittapi_FOUND to parent scope to properly generate OpenVINOConfig.cmake for static build
+        set(ittapi_FOUND ${ittapi_FOUND} PARENT_SCOPE)
     else()
         add_subdirectory(ittapi)
     endif()
@@ -175,11 +178,10 @@ if(ENABLE_SAMPLES OR ENABLE_TESTS)
     if(ZLIB_FOUND)
         # need to make it global to use outside of the current sub-directory
         set_target_properties(ZLIB::ZLIB PROPERTIES IMPORTED_GLOBAL ON)
-        set(zlib_FOUND ON)
     endif()
 
     # cmake has failed to find zlib, let's try pkg-config
-    if(NOT zlib_FOUND AND PkgConfig_FOUND)
+    if(NOT ZLIB_FOUND AND PkgConfig_FOUND)
         pkg_search_module(zlib QUIET
                           IMPORTED_TARGET GLOBAL
                           zlib)
@@ -189,7 +191,7 @@ if(ENABLE_SAMPLES OR ENABLE_TESTS)
         endif()
     endif()
 
-    if(NOT zlib_FOUND)
+    if(NOT (zlib_FOUND OR ZLIB_FOUND))
         add_subdirectory(zlib EXCLUDE_FROM_ALL)
     endif()
 endif()
@@ -281,8 +283,9 @@ if(ENABLE_SYSTEM_PUGIXML)
         # create an alias for real target which can be shared or static
         add_library(openvino::pugixml ALIAS ${pugixml_target})
     else()
-        # reset to prevent improper code generation in OpenVINODeveloperPackage
-        set(ENABLE_SYSTEM_PUGIXML OFF CACHE BOOL "" FORCE)
+        # reset to prevent improper code generation in OpenVINODeveloperPackage.cmake,
+        # and OpenVINOConfig.cmake for static case
+        set(ENABLE_SYSTEM_PUGIXML OFF PARENT_SCOPE)
     endif()
 endif()
 
@@ -315,6 +318,9 @@ if(ENABLE_GAPI_PREPROCESSING)
     find_package(ade 0.1.2 QUIET)
     if(ade_FOUND)
         # conan creates 'ade' target
+
+        # set ade_FOUND to parent scope to properly generate OpenVINOConfig.cmake for static build
+        set(ade_FOUND ${ade_FOUND} PARENT_SCOPE)
     else()
         add_subdirectory(ade EXCLUDE_FROM_ALL)
 
@@ -603,7 +609,7 @@ if(CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW|CONAN)$")
         if(NOT gflags_FOUND)
             message(FATAL_ERROR "gflags must be used as a ${CPACK_GENERATOR} package. Install libgflags-dev / gflags-devel")
         endif()
-        if(NOT zlib_FOUND)
+        if(NOT (zlib_FOUND OR ZLIB_FOUND))
             message(FATAL_ERROR "zlib must be used as a ${CPACK_GENERATOR} package. Install zlib1g-dev / zlib-devel")
         endif()
     endif()
