@@ -510,7 +510,6 @@ const IShapeInferCommonFactory::TRegistry IShapeInferCommonFactory::registry{
     _OV_OP_SHAPE_INFER_REG(Pad, entryIOC),
     _OV_OP_SHAPE_INFER_REG(PriorBox, entryIOC),
     _OV_OP_SHAPE_INFER_REG(PriorBoxClustered, entryIOC),
-    _OV_OP_SHAPE_INFER_REG(Proposal, entryIO),
     _OV_OP_SHAPE_INFER_REG(PSROIPooling, entryIO),
     _OV_OP_SHAPE_INFER_REG(Range, entryIOC),
     _OV_OP_SHAPE_INFER_REG(RDFT, entryIOC),
@@ -566,7 +565,6 @@ const IShapeInferCommonFactory::TRegistry IShapeInferCommonFactory::registry{
     _OV_OP_SHAPE_INFER_REG(opset1::Interpolate, entryIOC),
     _OV_OP_SHAPE_INFER_REG(opset1::LSTMCell, entryIO),
     _OV_OP_SHAPE_INFER_REG(opset1::MaxPool, ShapeInferWithPadding),
-    _OV_OP_SHAPE_INFER_REG(opset1::Proposal, entryIO),
     _OV_OP_SHAPE_INFER_REG(opset1::Range, entryIOC),
     _OV_OP_SHAPE_INFER_REG(opset1::ShapeOf, entryIO),
     _OV_OP_SHAPE_INFER_REG(opset1::TopK, entryIOC),
@@ -583,10 +581,12 @@ using IStaticShapeInferFactory =
 template <>
 const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     // Default opset
-    _OV_OP_SHAPE_INFER_MASK_REG(Tile, ShapeInferBase, util::bit::mask(1)),
     _OV_OP_SHAPE_INFER_MASK_REG(ExperimentalDetectronROIFeatureExtractor, ShapeInferBase, util::bit::mask()),
+    _OV_OP_SHAPE_INFER_MASK_REG(Proposal, ShapeInferBase, util::bit::mask()),
+    _OV_OP_SHAPE_INFER_MASK_REG(Tile, ShapeInferBase, util::bit::mask(1)),
     // Operators shape inferences for specific opset version should be specified below
     // opset1
+    _OV_OP_SHAPE_INFER_MASK_REG(opset1::Proposal, ShapeInferBase, util::bit::mask()),
     _OV_OP_SHAPE_INFER_MASK_REG(opset1::Reverse, ShapeInferBase, util::bit::mask(1)),
 };
 
