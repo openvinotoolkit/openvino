@@ -1,6 +1,5 @@
 name: 'Close stale issues and PRs'
-on:
-  workflow_dispatch:
+on: workflow_dispatch
 
 permissions:
   issues: write
