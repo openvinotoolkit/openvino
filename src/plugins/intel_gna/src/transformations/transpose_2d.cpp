@@ -4,10 +4,10 @@
 
 #include "transformations/transpose_2d.hpp"
 
+#include "common/graph_utils.hpp"
 #include "openvino/cc/ngraph/itt.hpp"
 #include "openvino/opsets/opset11.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "transformations/utils/transformation_helper.hpp"
 
 using namespace ov::opset11;
 using namespace ov::pass;
@@ -17,8 +17,9 @@ Transpose2D::Transpose2D() {
     MATCHER_SCOPE(Transpose2D);
 
     auto transpose_const = pattern::wrap_type<Constant>();
-    auto transpose = pattern::wrap_type<Transpose>({pattern::any_input(), transpose_const},[](const ov::Output<ov::Node>& node) {
-            return (helper::TrimShape(node.get_shape()).size() > 2);
+    auto transpose =
+        pattern::wrap_type<Transpose>({pattern::any_input(), transpose_const}, [](const ov::Output<ov::Node>& node) {
+            return (graph_utils::trim_shape(node.get_shape()).size() > 2);
         });
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
@@ -56,10 +57,12 @@ Transpose2D::Transpose2D() {
             shape_fused_in[i] = shape_fused_out[axises_fused[i]];
         }
         // Reshape in
-        auto reshape_in_const = std::make_shared<Constant>(ov::element::i32, ov::Shape{shape_fused_in.size()}, shape_fused_in);
+        auto reshape_in_const =
+            std::make_shared<Constant>(ov::element::i32, ov::Shape{shape_fused_in.size()}, shape_fused_in);
         auto reshape_in = std::make_shared<Reshape>(transpose_node->input_value(0), reshape_in_const, false);
         // Transpose
-        auto transpose_const = std::make_shared<Constant>(ov::element::i8, ov::Shape{axises_fused.size()}, axises_fused);
+        auto transpose_const =
+            std::make_shared<Constant>(ov::element::i8, ov::Shape{axises_fused.size()}, axises_fused);
         auto transpose = std::make_shared<Transpose>(reshape_in, transpose_const);
         // Reshape out
         auto reshape_out_const = std::make_shared<Constant>(ov::element::i32, ov::Shape{shape_out.size()}, shape_out);
