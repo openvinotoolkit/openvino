@@ -52,9 +52,9 @@
 #include "transformations/split_eltwise.hpp"
 #include "transformations/substitute_softsign.hpp"
 #include "transformations/swap_input_matmul_gna.hpp"
+#include "transformations/transpose_2d.hpp"
 #include "transformations/unfuse_reshape_and_transpose.hpp"
 #include "transformations/utils/utils.hpp"
-#include "transformations/transpose_2d.hpp"
 
 namespace ov {
 namespace intel_gna {
