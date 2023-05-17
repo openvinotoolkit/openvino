@@ -501,7 +501,7 @@ void regclass_Core(py::module m) {
                 :param device_name: A device name to register plugin for.
                 :type device_name: str
                 :param config: Plugin default configuration
-                :type device_name: dict, optional
+                :type config: dict, optional
             )");
 
     cls.def("register_plugins",

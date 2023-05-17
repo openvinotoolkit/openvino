@@ -61,7 +61,7 @@ public:
      * @param device_name Name of device to load network to
      * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
      * operation
-     * @return An compiled model reference
+     * @return A compiled model reference
      */
     virtual ov::SoPtr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
                                                         const std::string& device_name,
@@ -77,7 +77,7 @@ public:
      * @param context  "Remote" (non-CPU) accelerator device-specific execution context to use
      * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
      * operation
-     * @return An compiled model reference
+     * @return A compiled model reference
      */
     virtual ov::SoPtr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
                                                         const ov::RemoteContext& context,
@@ -93,7 +93,7 @@ public:
      * @param device_name Name of device to load network to
      * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
      * operation
-     * @return An compiled model reference
+     * @return A compiled model reference
      */
     virtual ov::SoPtr<ov::ICompiledModel> compile_model(const std::string& model_path,
                                                         const std::string& device_name,
@@ -110,7 +110,7 @@ public:
      * @param device_name Name of device to load network to
      * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
      * operation
-     * @return An compiled model reference
+     * @return A compiled model reference
      */
     virtual ov::SoPtr<ov::ICompiledModel> compile_model(const std::string& model_str,
                                                         const ov::Tensor& weights,
@@ -123,7 +123,7 @@ public:
      * @param device_name Name of device load executable network on
      * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
      * operation*
-     * @return An compiled model reference
+     * @return A compiled model reference
      */
     virtual ov::SoPtr<ov::ICompiledModel> import_model(std::istream& model,
                                                        const std::string& device_name,
@@ -135,11 +135,11 @@ public:
      * @param context Remote context
      * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
      * operation*
-     * @return An compiled model reference
+     * @return A compiled model reference
      */
     virtual ov::SoPtr<ov::ICompiledModel> import_model(std::istream& modelStream,
                                                        const ov::RemoteContext& context,
-                                                       const ov::AnyMap& config) const = 0;
+                                                       const ov::AnyMap& config = {}) const = 0;
 
     /**
      * @brief Query device if it supports specified network with specified configuration

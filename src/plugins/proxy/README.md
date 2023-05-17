@@ -6,7 +6,7 @@ Please contact a member of [openvino-ie-maintainers](https://github.com/orgs/ope
 
 ## Components
 
-Template Plugin contains the following components:
+Proxy Plugin contains the following components:
 
 * [include](./include/) - folder contains public plugin API.
 * [src](./src/) - folder contains sources of the plugin.

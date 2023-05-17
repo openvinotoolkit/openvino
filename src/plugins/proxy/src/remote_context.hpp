@@ -13,29 +13,16 @@ namespace proxy {
 
 class RemoteContext : public ov::IRemoteContext {
 public:
-    RemoteContext(const ov::RemoteContext& ctx)
-        : m_name(ctx.get_device_name()),
-          m_property(ctx.get_params()),
-          m_context(ctx) {}
-    const std::string& get_device_name() const override {
-        m_name = m_context.get_device_name();
-        return m_name;
-    }
+    explicit RemoteContext(const ov::RemoteContext& ctx);
+    const std::string& get_device_name() const override;
 
-    const ov::AnyMap& get_property() const override {
-        m_property = m_context.get_params();
-        return m_property;
-    }
+    const ov::AnyMap& get_property() const override;
 
     std::shared_ptr<ov::IRemoteTensor> create_tensor(const ov::element::Type& type,
                                                      const ov::Shape& shape,
-                                                     const ov::AnyMap& params = {}) override {
-        return m_context._impl->create_tensor(type, shape, params);
-    }
+                                                     const ov::AnyMap& params = {}) override;
 
-    std::shared_ptr<ov::ITensor> create_host_tensor(const ov::element::Type type, const ov::Shape& shape) override {
-        return m_context._impl->create_host_tensor(type, shape);
-    }
+    std::shared_ptr<ov::ITensor> create_host_tensor(const ov::element::Type type, const ov::Shape& shape) override;
 
 private:
     mutable std::string m_name;
