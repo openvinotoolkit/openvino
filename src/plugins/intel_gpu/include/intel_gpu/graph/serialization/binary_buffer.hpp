@@ -63,10 +63,10 @@ public:
     void seekg(std::streampos pos) { _stream.seekg(pos); }
 
     void new_network_added() { _num_networks += 1; }
-    int get_num_networks() { return _num_networks; }
+    int get_num_networks() const { return _num_networks; }
 
     void set_stream_id(uint16_t stream_id) { _stream_id = stream_id; }
-    uint16_t get_stream_id() { return _stream_id; }
+    uint16_t get_stream_id() const { return _stream_id; }
 
 private:
     std::istream& _stream;
