@@ -1033,8 +1033,9 @@ void ov::CoreImpl::set_property(const std::string& device_name, const AnyMap& pr
     for (auto&& config : properties) {
         const auto is_secondary_property = config.first.find(ov::device::properties.name()) != std::string::npos;
         // It is valid change for proxy plugin
-        const auto is_proxy = pluginRegistry[ov::parseDeviceNameIntoConfig(device_name)._deviceName].pluginCreateFunc ==
-                              ov::proxy::create_plugin;
+        const auto dev_name_config = ov::parseDeviceNameIntoConfig(device_name)._deviceName;
+        const auto is_proxy = pluginRegistry.find(dev_name_config) != pluginRegistry.end() &&
+                              pluginRegistry.at(dev_name_config).pluginCreateFunc == ov::proxy::create_plugin;
         OPENVINO_ASSERT(!is_secondary_property || is_proxy,
                         "set_property do not support ov::device::propreties. "
                         "You can configure the devices through the compile_model()/query_model() API.");
