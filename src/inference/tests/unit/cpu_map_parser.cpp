@@ -628,7 +628,7 @@ INSTANTIATE_TEST_SUITE_P(CPUMapFromCore,
 
 #endif
 
-#if (defined(_WIN32) || defined(_WIN64))
+#if defined(_WIN32)
 
 int Hex2Int(char c) {
     return (c >= '0' && c <= '9')
@@ -637,7 +637,7 @@ int Hex2Int(char c) {
 }
 
 void Hex2Bin(const char* hex, std::size_t sz, char* out) {
-    for (int i = 0; i < sz; i += 2) {
+    for (size_t i = 0; i < sz; i += 2) {
         out[i / 2] = (Hex2Int(hex[i]) << 4) | Hex2Int(hex[i + 1]);
     }
 }
@@ -668,7 +668,7 @@ public:
         int test_processors = 0;
         int test_sockets = 0;
         int test_cores = 0;
-        unsigned long len = unsigned long(test_len / 2);
+        unsigned long len = (unsigned long)(test_len / 2);
         std::vector<std::vector<int>> test_proc_type_table;
         std::vector<std::vector<int>> test_cpu_mapping_table;
 

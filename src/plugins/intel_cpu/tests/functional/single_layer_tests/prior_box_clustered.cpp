@@ -108,7 +108,7 @@ protected:
                  inPrc, outPrc, inLayout, outLayout,
                  inputShapes, imageShapes, targetDevice) = GetParam();
 
-        selectedType = makeSelectedTypeStr("ref", inPrc);
+        selectedType = makeSelectedTypeStr("ref_any", ov::test::ElementType::i32);
         targetDevice = CommonTestUtils::DEVICE_CPU;
 
         init_input_shapes({ inputShapes, imageShapes });

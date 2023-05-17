@@ -265,6 +265,20 @@ const auto params_NonZero = ::testing::Combine(::testing::Values(shape_NonZero),
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_NonZero, ShapeOpsCPUTest, params_NonZero, ShapeOpsCPUTest::getTestCaseName);
 
+// test cases about reshape with empty tensor
+inputDescription shape_EmptyTensor{{{-1, 2, 2},
+                                 {ngraph::Shape{0, 2, 2}, ngraph::Shape{2, 2, 2}}},
+                                 {std::vector<int>{0, 4}, std::vector<int>{2, 4}}};
+
+const auto params_EmptyTensor = ::testing::Combine(::testing::Values(shape_EmptyTensor),
+                                                ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
+                                                ::testing::Values(shapeNodeType::Reshape),
+                                                ::testing::Values(Precision::FP32),
+                                                ::testing::ValuesIn(secondInPrcs),
+                                                ::testing::Values(false));
+
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_EmptyTensor, ShapeOpsCPUTest, params_EmptyTensor, ShapeOpsCPUTest::getTestCaseName);
+
 } // namespace reshapeTest
 
 namespace squeezeTest {
