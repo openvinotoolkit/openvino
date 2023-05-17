@@ -53,6 +53,11 @@
 #    define INFERENCE_ENGINE_ENUM_DEPRECATED(msg)
 #endif
 
+#define INFERENCE_ENGINE_1_0_DEPRECATED                                                                              \
+    INFERENCE_ENGINE_DEPRECATED("The Inference Engine API is deprecated and will be removed in the 2024.0 release. " \
+                                "For instructions on transitioning to the new API, please refer to "                 \
+                                "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+
 // Suppress warning "-Wdeprecated-declarations" / C4996
 #if defined(__GNUC__)
 #    define IE_DO_PRAGMA(x) _Pragma(#    x)

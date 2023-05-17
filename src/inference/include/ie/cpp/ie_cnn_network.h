@@ -44,7 +44,6 @@ public:
      */
     INFERENCE_ENGINE_DEPRECATED("Don't use this constructor. It will be removed soon")
     explicit CNNNetwork(std::shared_ptr<ICNNNetwork> network);
-    IE_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief A constructor from ngraph::Function object
@@ -55,6 +54,7 @@ public:
      */
     explicit CNNNetwork(const std::shared_ptr<ngraph::Function>& network,
                         const std::vector<std::shared_ptr<IExtension>>& exts = {});
+    IE_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief Gets the network output Data node information. The received info is stored in the given Data node.

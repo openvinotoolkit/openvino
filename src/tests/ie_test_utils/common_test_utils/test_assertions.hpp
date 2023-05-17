@@ -97,6 +97,7 @@ inline void compare_dims(const InferenceEngine::SizeVector & lhs, const Inferenc
     }
 }
 
+IE_SUPPRESS_DEPRECATED_START
 inline void compare_data(const InferenceEngine::Data & lhs, const InferenceEngine::Data & rhs) {
     ASSERT_DIMS_EQ(lhs.getDims(), rhs.getDims());
     ASSERT_STREQ(lhs.getName().c_str(), rhs.getName().c_str());
@@ -140,6 +141,7 @@ inline void compare_inputs_info(const InferenceEngine::InputsDataMap & lhs, cons
         ASSERT_DATA_EQ(*i->second->getInputData().get(), *j->second->getInputData().get());
     }
 }
+IE_SUPPRESS_DEPRECATED_END
 
 inline void compare_cpp_strings(const std::string & lhs, const std::string &rhs) {
     ASSERT_STREQ(lhs.c_str(), rhs.c_str());
