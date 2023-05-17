@@ -300,12 +300,6 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
     if (next.is_type<eltwise>() && prev_simple && next_simple)
         return true;
 
-    if (next.is_type<permute>() && (fmt_prev == format::b_fs_zyx_fsv16 &&
-        next_output_layout.batch() > 1 &&
-        next_output_layout.feature() % 16 != 0)) {
-        return true;
-    }
-
     if (next.is_type<fully_connected>() &&
         (fmt_prev == format::bfyx || fmt_prev == format::yxfb ||
          fmt_prev == format::b_fs_yx_fsv16 || fmt_prev == format::fs_b_yx_fsv32 ||
