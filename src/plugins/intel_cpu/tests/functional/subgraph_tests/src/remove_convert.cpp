@@ -70,6 +70,43 @@ TEST_P(RemoveUselessBF16ConvertCPUTest, CompareWithRefs) {
     CheckNumberOfNodesWithType(compiledModel, "Subgraph", 0);
     CheckPluginRelatedResults(compiledModel, "StridedSlice");
 }
+class SkipRemoveConvertCPUTest : public testing::WithParamInterface<RemoveConvertCPUTestParams>,
+                             virtual public SubgraphBaseTest,
+                             public CPUTestsBase {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<RemoveConvertCPUTestParams>& obj) {
+        ElementType inType;
+        InputShape inputShape;
+        std::tie(inType, inputShape) = obj.param;
+        std::ostringstream result;
+        result << "IS=" << inputShape << "_";
+        result << "Prc=" << inType;
+        return result.str();
+    }
+
+    void SetUp() override {
+        ElementType inType;
+        InputShape inputShape;
+        std::tie(inType, inputShape) = this->GetParam();
+        targetDevice = CommonTestUtils::DEVICE_CPU;
+        std::tie(inFmts, outFmts, priority, selectedType) =
+            CPUSpecificParams{{}, {}, {}, makeSelectedTypeStr("ref", inType)};
+        init_input_shapes({inputShape});
+        auto inputParams1 = builder::makeDynamicParams(inType, {inputShape.first});
+        auto leftAdd = builder::makeConstant<int64_t>(ElementType::i64, std::vector<size_t>{1}, {}, true);
+        auto convert = builder::makeConversion(inputParams1[0], element::i64, ::helpers::ConversionTypes::CONVERT);
+        auto add = std::make_shared<opset8::Add>(leftAdd, convert);
+        function = std::make_shared<ov::Model>(OutputVector{add->output(0), convert->output(0)},
+           inputParams1, "skip_remove_convert");
+    };
+};
+
+TEST_P(SkipRemoveConvertCPUTest, CompareWithRefs) {
+    run();
+    //Convert is not removed by graph_optimizer
+    CheckNumberOfNodesWithType(compiledModel, "Convert", 1);
+}
+
 namespace {
 const std::vector<ElementType> inPrecisions = {
     // only bf16 could match this pattern
@@ -88,5 +125,23 @@ INSTANTIATE_TEST_SUITE_P(smoke_RemoveConvert,
                          RemoveUselessBF16ConvertCPUTest,
                          ::testing::Combine(::testing::ValuesIn(inPrecisions), ::testing::ValuesIn(inputShapes)),
                          RemoveUselessBF16ConvertCPUTest::getTestCaseName);
+
+const std::vector<ElementType> skipRemoveinPrec = {
+    //convert i32 to i64 is part of the model, not inserted by cpu precsion conversion
+    ElementType::i32,
+};
+
+const std::vector<InputShape> skipRemoveInputShapes = {
+    // static shape
+    {{10}, {{10}}},
+    // dynamic shape
+    {{-1}, {{10}}}
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_SkipRemoveConvert,
+                         SkipRemoveConvertCPUTest,
+                         ::testing::Combine(::testing::ValuesIn(skipRemoveinPrec), ::testing::ValuesIn(skipRemoveInputShapes)),
+                         SkipRemoveConvertCPUTest::getTestCaseName);
+
 }  // namespace
 }  // namespace SubgraphTestsDefinitions
