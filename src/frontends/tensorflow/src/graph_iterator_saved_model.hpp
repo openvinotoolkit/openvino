@@ -68,13 +68,14 @@ private:
 
     template <typename T>
     bool read_saved_model(const std::basic_string<T>& path, const std::string& tags) {
-        std::ifstream sm_stream{path + get_saved_model_name<T>(), std::ifstream::in | std::ifstream::binary};
+        std::basic_string<T> save_model_path = path + get_saved_model_name<T>();
+        std::ifstream sm_stream{save_model_path.c_str(), std::ifstream::in | std::ifstream::binary};
         FRONT_END_GENERAL_CHECK(sm_stream && sm_stream.is_open(), "Model file does not exist");
 
         std::basic_string<T> varIndexPath = path + get_variables_index_name<T>();
         if (ov::util::file_exists(varIndexPath)) {
             m_variables_index = std::make_shared<VariablesIndex>();
-            std::ifstream vi_stream{varIndexPath, std::ifstream::in | std::ifstream::binary};
+            std::ifstream vi_stream{varIndexPath.c_str(), std::ifstream::in | std::ifstream::binary};
             FRONT_END_GENERAL_CHECK(vi_stream && vi_stream.is_open(),
                                     "Saved Model's variable index file does not exist");
             FRONT_END_GENERAL_CHECK(m_variables_index->read_variables(vi_stream, path),
