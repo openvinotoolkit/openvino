@@ -57,11 +57,11 @@ public:
     bool operator==(const StaticShape& shape) const;
     bool operator!=(const StaticShape& shape) const;
     /// Get the max bounding shape
-    Shape get_max_shape() const;
+    ov::Shape get_max_shape() const;
     /// Get the min bounding shape
-    Shape get_min_shape() const;
+    ov::Shape get_min_shape() const;
     /// Get the unique shape
-    Shape get_shape() const;
+    ov::Shape get_shape() const;
     static bool merge_into(StaticShape& dst, const StaticShape& src);
     static bool broadcast_merge_into(StaticShape& dst, const StaticShape& src, const ov::op::AutoBroadcastSpec& autob);
 };
