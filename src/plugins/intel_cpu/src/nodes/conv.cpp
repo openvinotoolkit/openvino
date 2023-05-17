@@ -363,16 +363,6 @@ const std::vector<impl_desc_type>& Convolution::getPrimitivesPriority() {
         impl_desc_type::ref,
     };
 
-    if (!shouldTryBrgconv) {
-        // remove brgconv_avx512_amx_1x1/brgconv_avx512_amx/brgconv_avx512/brgconv_avx512_1x1
-        for (auto it = priorities.begin(); it != priorities.end(); ) {
-            if (((*it) & brgconv_avx512) == brgconv_avx512)
-                it = priorities.erase(it);
-            else
-                ++it;
-        }
-    }
-
     for (const auto& impl : priorities) {
         if (std::find(implPriorities.begin(), implPriorities.end(), impl) == implPriorities.end())
             implPriorities.push_back(impl);
@@ -380,12 +370,14 @@ const std::vector<impl_desc_type>& Convolution::getPrimitivesPriority() {
     return implPriorities;
 }
 
+const bool Convolution::isBrgConvAvailable = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core);
+
 void Convolution::getSupportedDescriptors() {
     if (!descs.empty())
         return;
     if (!attrs.empty())
         IE_THROW() << "attrs vector is not empty '" << getName() << "'";
-    bool enforceBrgconv = false;
+
     attrs.reserve(2);
     withBiases = getOriginalInputsNumber() == 3;
 
@@ -396,15 +388,6 @@ void Convolution::getSupportedDescriptors() {
             dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) && !canBeExecutedInInt8() &&
             getParentEdgeAt(1)->getParent()->isConstant() && getParentEdgeAt(1)->getParent()->getType() == Type::Input &&
             (withBiases ? (getParentEdgeAt(2)->getParent()->isConstant() && getParentEdgeAt(2)->getParent()->getType() == Type::Input) : true);
-
-        // AVX512 brconv may be disabled by heuristics due to performance issues. User can force it via Primitives priority mechanism.
-        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) &&
-            std::any_of(implPriorities.begin(), implPriorities.end(), [](const impl_desc_type& desc_type) {
-                return static_cast<bool>(desc_type & impl_desc_type::brgconv_avx512);
-            })) {
-            shouldTryBrgconv = true;
-            enforceBrgconv = true;
-        }
     }
 
     int expectedInputEdgesNum = static_cast<int>(getOriginalInputsNumber());
@@ -509,9 +492,7 @@ void Convolution::getSupportedDescriptors() {
 
     if (canBeExecutedInInt8()) {
         DEBUG_LOG(getName(), "Creating I8 descriptor");
-        // initTryBrgconvFlag depends on outputDataType, should be after outputDataType computed
-        if (!enforceBrgconv)
-            initTryBrgconvFlag();
+
         SetPostOpsAndZeroPoints(attrs);
 
         in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(0), inputDataType, nspc);
@@ -548,9 +529,7 @@ void Convolution::getSupportedDescriptors() {
         outputDataType = memory::data_type::f32;
         eltwisePrecision = Precision::FP32;
     }
-    // initTryBrgconvFlag depends on outputDataType and eltwisePrecision.
-    if (!enforceBrgconv)
-        initTryBrgconvFlag();
+
     SetPostOpsAndZeroPoints(attrs);
 
     if (!one_of(ndims, 3, 4, 5))
@@ -560,10 +539,10 @@ void Convolution::getSupportedDescriptors() {
     auto outputShape = getOutputShapeAtPort(0);
 
 #if defined(OPENVINO_ARCH_X86_64)
-    bool acceptedFormat = inputDataType == memory::data_type::bf16;
+    // nspc shows better performance only with brgconv implementation
+    bool nspcFirst = isBrgConvAvailable && one_of(inputDataType, memory::data_type::bf16, memory::data_type::f32);
     bool nspcAdded = false;
-    acceptedFormat |= (shouldTryBrgconv && inputDataType == memory::data_type::f32);
-    if (acceptedFormat && impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core)) {
+    if (nspcFirst) {
         in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(inputShape, inputDataType, nspc);
         out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(outputShape, outputDataType, nspc);
         createDescriptor({ in_candidate }, { out_candidate });
@@ -986,7 +965,8 @@ void Convolution::SetPostOpsAndZeroPoints(std::vector<dnnl::primitive_attr> &att
     if (attrContainsPostOp(attrs[0], dnnl::impl::primitive_kind::convolution)) {
         return;
     }
-    //no matter whether shouldTryBrgconv is true, 1 attribute is enough. Avoid duplicated attribute
+
+    // no matter if brgconv is available, 1 attribute is enough. Avoid duplicated attribute
     if (inputZeroPointType == zpType::None &&
         !attrContainsPostOp(attrs[0], dnnl::impl::primitive_kind::depthwise) &&
         !attrContainsPostOp(attrs[0], dnnl::impl::primitive_kind::quantization)) {
@@ -997,11 +977,11 @@ void Convolution::SetPostOpsAndZeroPoints(std::vector<dnnl::primitive_attr> &att
         DEBUG_LOG(getName(), ": Per channel zero point can only supported on attr[0].Avoid extra useless attribute.");
         return;
     }
-    if (!shouldTryBrgconv) {
-        DEBUG_LOG(getName(), ": shouldTryBrgconv = false. Skip extra attribute");
+    if (!isBrgConvAvailable) {
+        DEBUG_LOG(getName(), ": brgconv is not available. Skip extra attribute");
         return;
     }
-    // Try 2 attributes. Consider the shouldTRyBrgconv could be set via RTinfo to enforce brgconv.
+    // Try 2 attributes.
     attrs.resize(2);
     if (inputZeroPointType == zpType::PerTensor && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)) {
         //WR to ONEDNN limitation. attr[1] - legacy post ops + stock zero point.
@@ -1649,15 +1629,6 @@ void Convolution::appendZeroPointsArgs() {
     if (stockInputZeroPointsMemPtr != nullptr) {
         primArgs[DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_SRC] = stockInputZeroPointsMemPtr->GetPrimitive();
     }
-}
-
-// brgconv will be enabled by default when HW supports avx512+
-void Convolution::initTryBrgconvFlag() {
-    if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
-        shouldTryBrgconv = true;
-    }
-
-    DEBUG_LOG(getName(), ": shouldTryBrgconv = ", shouldTryBrgconv);
 }
 
 void Convolution::initializeInputZeroPoints(const uint8_t* inputZpData, const size_t inputZpSize) {
