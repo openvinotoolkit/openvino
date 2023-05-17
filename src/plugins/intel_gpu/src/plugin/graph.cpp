@@ -52,8 +52,6 @@ Graph::Graph(InferenceEngine::CNNNetwork& network, RemoteContextImpl::Ptr contex
     , m_stream_id(stream_id)
     , m_state(0) {
     m_program = std::make_shared<Program>(network, get_engine(), config, false, false, inputs, outputs);
-    if (m_program->m_max_batch > 1)
-        m_config.set_property(ov::intel_gpu::max_dynamic_batch(m_program->m_max_batch));
     Build();
 }
 
@@ -63,8 +61,6 @@ Graph::Graph(cldnn::BinaryInputBuffer &ib, RemoteContextImpl::Ptr context, const
     , m_stream_id(stream_id)
     , m_state(0) {
     m_program = std::make_shared<Program>(get_engine(), config);
-    if (m_program->m_max_batch > 1)
-        m_config.set_property(ov::intel_gpu::max_dynamic_batch(m_program->m_max_batch));
 
     bool need_onednn_engine = false;
     ib >> need_onednn_engine;
@@ -132,16 +128,8 @@ void Graph::Build() {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Graph::Build");
     UpdateLayersMaps();
 
-    if (GetMaxDynamicBatchSize() > 1) {
-        int m_bv_sz = m_program->GetMaxBatchSizeForSingleProgram();
-        for (int b = m_bv_sz - 1; b >= 0; b--) {
-            auto network = BuildNetwork(m_program->GetCompiledProgram(b));
-            m_networks.insert(m_networks.begin(), network);
-        }
-    } else {
-        auto network = BuildNetwork(m_program->GetCompiledProgram());
-        m_networks.emplace_back(network);
-    }
+    auto network = BuildNetwork(m_program->GetCompiledProgram());
+    m_networks.emplace_back(network);
 
     GPU_DEBUG_GET_INSTANCE(debug_config);
     GPU_DEBUG_IF(!debug_config->dry_run_path.empty()) {

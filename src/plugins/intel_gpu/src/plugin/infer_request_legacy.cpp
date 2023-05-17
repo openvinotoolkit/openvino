@@ -177,15 +177,7 @@ Blob::Ptr InferRequestLegacy::GetBlob(const std::string& name) {
             checkInputBlob(data, name, foundInput);
     } else {
         data = _outputs[name];
-        if (isDynamic) {
-            if (m_graph->GetMaxDynamicBatchSize() > 1) {
-                SizeVector outDims = data->getTensorDesc().getDims();
-                outDims[m_graph->GetOutputDynBatchDims()[name]] = m_curBatch;
-                data->getTensorDesc().setDims(outDims);
-            }
-        } else {
-            checkOutputBlob(data, name, foundOutput);
-        }
+        checkOutputBlob(data, name, foundOutput);
     }
     return data;
 }
@@ -435,13 +427,9 @@ void InferRequestLegacy::SetGraph(std::shared_ptr<Graph> graph) {
         IE_THROW(NetworkNotLoaded);
     }
 
-    if (m_graph->GetMaxDynamicBatchSize() > 1) {
-        IE_THROW(NotImplemented) << "Dynamic batch is not supported!";
-    } else {
-        allocate_inputs();
-        allocate_outputs();
-        variables_states_ = m_graph->AllocateVariablesMemories();
-    }
+    allocate_inputs();
+    allocate_outputs();
+    variables_states_ = m_graph->AllocateVariablesMemories();
 }
 
 InferRequestLegacy::InferRequestLegacy(InputsDataMap networkInputs, OutputsDataMap networkOutputs,
@@ -468,20 +456,12 @@ InferRequestLegacy::InferRequestLegacy(const std::vector<std::shared_ptr<const o
 // ----------------------------------------------------------------------------------------- //
 void InferRequestLegacy::preprocess_notify() {
     m_graph->wait(Graph::Stage::PREPROC);
-    if (m_graph->GetMaxDynamicBatchSize() > 1) {
-        preprocess_dynamic();
-    } else {
-        execDataPreprocessing(_inputs, true);  // "true" stands for serial preprocessing in case of OpenMP
-    }
+    execDataPreprocessing(_inputs, true);  // "true" stands for serial preprocessing in case of OpenMP
     m_graph->notify(Graph::Stage::PREPROC);
 }
 
 void InferRequestLegacy::preprocess() {
-    if (m_graph->GetMaxDynamicBatchSize() > 1) {
-        preprocess_dynamic();
-    } else {
-        execDataPreprocessing(_inputs, true);  // "true" stands for serial preprocessing in case of OpenMP
-    }
+    execDataPreprocessing(_inputs, true);  // "true" stands for serial preprocessing in case of OpenMP
 }
 
 void InferRequestLegacy::enqueue_notify() {
@@ -490,11 +470,6 @@ void InferRequestLegacy::enqueue_notify() {
 }
 
 void InferRequestLegacy::enqueue() {
-    if (m_graph->GetMaxDynamicBatchSize() > 1) {
-        enqueue_dynamic();
-        return;
-    }
-
     // set input and output memory from request blob maps
     // into the network object primitives
     std::vector<cldnn::event::ptr> dependencies;
@@ -595,11 +570,6 @@ void InferRequestLegacy::wait_notify() {
 }
 
 void InferRequestLegacy::wait() {
-    if (m_graph->GetMaxDynamicBatchSize() > 1) {
-        wait_dynamic();
-        return;
-    }
-
     if (internal_outputs.empty()) {
         IE_THROW() << "Inference was not started!\n";
     }
@@ -703,15 +673,6 @@ void InferRequestLegacy::setup_stream_graph() {
         streamID = streamID % numGraphs;
     }
     m_graph = streamGraphs[streamID];
-    // in case of dynamic batch, check all input blobs and set new batch
-    if (m_graph->GetMaxDynamicBatchSize() > 1) {
-        for (auto& input : _networkInputs) {
-            auto node = findInputByNodeName(input.first);
-            bool is_dynamic = (node && node->get_output_partial_shape(0).is_dynamic());
-            if (is_dynamic)
-                IE_THROW(NotImplemented) << "SetBatch() API was removed";
-        }
-    }
 }
 
 Blob::Ptr InferRequestLegacy::create_host_blob(const TensorDesc& desc, std::shared_ptr<InferenceEngine::IAllocator> alloc) {

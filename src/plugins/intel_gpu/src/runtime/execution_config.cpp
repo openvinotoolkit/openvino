@@ -54,14 +54,12 @@ void ExecutionConfig::set_default() {
         std::make_tuple(ov::intel_gpu::enable_loop_unrolling, true),
 
         // Legacy API properties
-        std::make_tuple(ov::intel_gpu::enable_dynamic_batch, false),
         std::make_tuple(ov::intel_gpu::exclusive_async_requests, false),
         std::make_tuple(ov::intel_gpu::nv12_two_inputs, false),
         std::make_tuple(ov::intel_gpu::config_file, ""),
         std::make_tuple(ov::intel_gpu::enable_lp_transformations, false));
 
     register_property<PropertyVisibility::INTERNAL>(
-        std::make_tuple(ov::intel_gpu::max_dynamic_batch, 1),
         std::make_tuple(ov::intel_gpu::queue_type, QueueTypes::out_of_order),
         std::make_tuple(ov::intel_gpu::optimize_data, false),
         std::make_tuple(ov::intel_gpu::enable_memory_pool, true),
