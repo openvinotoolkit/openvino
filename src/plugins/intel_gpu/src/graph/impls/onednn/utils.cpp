@@ -81,11 +81,14 @@ dnnl::memory::dims convert_gemm_tensor(cldnn::tensor t, size_t dims, bool batche
 }
 
 dnnl::memory::format_tag convert_gemm_data_format(dnnl::memory::dims dims, format target) {
-    auto tag = convert_data_format(target);
-    if (tag != dnnl::memory::format_tag::undef) {
-        return tag;
+    if (dims.size() == target.dimension()) {
+        auto tag = convert_data_format(target);
+        if (tag != dnnl::memory::format_tag::undef) {
+            return tag;
+        } else {
+            throw std::invalid_argument("[clDNN] Unsupported conversion from "+ target.to_string() + " to onednn format_tag");
+        }
     } else {
-        GPU_DEBUG_COUT << "Can't convert " << target.to_string() << " to onednn tag" << std::endl;
         switch (dims.size()) {
         case 2: return dnnl::memory::format_tag::ab;
         case 3: return dnnl::memory::format_tag::abc;
@@ -94,7 +97,6 @@ dnnl::memory::format_tag convert_gemm_data_format(dnnl::memory::dims dims, forma
         }
     }
 }
-
 
 dnnl::memory::dims convert_spatials(cldnn::tensor t, size_t dims) {
     auto spatials = t.spatial;
