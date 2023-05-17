@@ -12,7 +12,6 @@
 #include "ie_common.h"
 #include "ie_compound_blob.h"
 #include "ie_input_info.hpp"
-#include "ie_preprocess_data.hpp"
 #include "openvino/core/node_output.hpp"
 #include "so_ptr.hpp"
 
@@ -298,19 +297,6 @@ protected:
     void convertBatchedInputBlobs();
 
     /**
-     * @brief Checks whether pre-processing step is required for a given input
-     * @param info InputInfo corresponding to input blob
-     * @param userBlob Input Blob object corresponding to input info
-     * @param deviceBlob Blob object in plugin's desired format
-     * @return `True` if pre-processing is required, `false` otherwise
-     */
-    bool preProcessingRequired(const InputInfo::Ptr& info,
-                               const Blob::Ptr& userBlob,
-                               const Blob::Ptr& deviceBlob = nullptr);
-
-    void addInputPreProcessingFor(const std::string& name, const Blob::Ptr& from, const Blob::Ptr& to);
-
-    /**
      * @brief Performs actual concatenation of blobs into single tensor
      * Default implementation may allocate memory for new blob containing user's input data
      * Plugin is allowed to override this behavior
@@ -335,7 +321,6 @@ protected:
     InferenceEngine::BlobMap _outputs;                //!< A map of user passed blobs for network outputs
     std::vector<std::shared_ptr<const ov::Node>> _parameters;  //!< A vector of function inputs
     std::vector<std::shared_ptr<const ov::Node>> _results;     //!< A vector of function outputs
-    std::map<std::string, PreProcessDataPtr> _preProcData;     //!< A map of pre-process data per input
     std::map<std::string, BatchedBlob::Ptr> _batched_inputs;   //!< A map of user passed blobs for network inputs
     int m_curBatch = -1;                                       //!< Current batch value used in dynamic batching
 

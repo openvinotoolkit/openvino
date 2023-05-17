@@ -401,47 +401,36 @@ void LegacyInferRequest::SetBlob(const std::string& name, const InferenceEngine:
                                << data->getTensorDesc().getPrecision() << ", if CNNNetwork input blob precision is: " << foundInput->getPrecision();
         }
 
-        const bool preProcRequired = preProcessingRequired(foundInput, data);
-        if (compoundBlobPassed && !preProcRequired) {
+        if (compoundBlobPassed) {
             IE_THROW(NotImplemented)
-                               << "cannot set compound blob: supported only for input pre-processing";
+                               << "cannot set compound blob: Compound Blob is not supported";
         }
 
-        if (preProcRequired) {
-            if (_preProcData.find(name) == _preProcData.end()) {
-                _preProcData.emplace(name, InferenceEngine::CreatePreprocDataHelper());
-            }
-            _preProcData[name]->isApplicable(data, _inputs[name]);
-            // Stores the given blob as ROI blob. It will be used to fill in network input during
-            // pre-processing
-            _preProcData[name]->setRoiBlob(data);
-        } else {
-            size_t inputSize = foundInput->getTensorDesc().getLayout() != InferenceEngine::Layout::SCALAR
-                ? InferenceEngine::details::product(foundInput->getTensorDesc().getDims())
-                : 1;
-            if (dataSize != inputSize) {
-                IE_THROW() << "Input blob size is not equal network input size ("
-                                   << dataSize << "!=" << inputSize << ").";
-            }
-
-            if (foundInput->getTensorDesc().getDims() != data->getTensorDesc().getDims()) {
-                IE_THROW(ParameterMismatch) << "Failed to set input blob. Dimensions mismatch.";
-            }
-
-            if (data->getTensorDesc().getLayout() != InferenceEngine::Layout::ANY && foundInput->getTensorDesc().getLayout() != InferenceEngine::Layout::ANY &&
-                foundInput->getTensorDesc().getBlockingDesc() != data->getTensorDesc().getBlockingDesc()) {
-                IE_THROW(ParameterMismatch) << "Failed to set input blob. Blocking descriptor mismatch.";
-            }
-
-            auto pBlobDesc = MemoryDescUtils::interpretAsBlobDesc(graph->getInputNodeByName(name)->getChildEdgesAtPort(0)[0]->getMemory());
-            if (data->getTensorDesc() == pBlobDesc &&
-                graph->_normalizePreprocMap.find(name) == graph->_normalizePreprocMap.end()) {
-                externalPtr[name] = data->buffer();
-            } else if (externalPtr.find(name) != externalPtr.end()) {
-                externalPtr.erase(name);
-            }
-            _inputs[name] = data;
+        size_t inputSize = foundInput->getTensorDesc().getLayout() != InferenceEngine::Layout::SCALAR
+            ? InferenceEngine::details::product(foundInput->getTensorDesc().getDims())
+            : 1;
+        if (dataSize != inputSize) {
+            IE_THROW() << "Input blob size is not equal network input size ("
+                               << dataSize << "!=" << inputSize << ").";
         }
+
+        if (foundInput->getTensorDesc().getDims() != data->getTensorDesc().getDims()) {
+            IE_THROW(ParameterMismatch) << "Failed to set input blob. Dimensions mismatch.";
+        }
+
+        if (data->getTensorDesc().getLayout() != InferenceEngine::Layout::ANY && foundInput->getTensorDesc().getLayout() != InferenceEngine::Layout::ANY &&
+            foundInput->getTensorDesc().getBlockingDesc() != data->getTensorDesc().getBlockingDesc()) {
+            IE_THROW(ParameterMismatch) << "Failed to set input blob. Blocking descriptor mismatch.";
+        }
+
+        auto pBlobDesc = MemoryDescUtils::interpretAsBlobDesc(graph->getInputNodeByName(name)->getChildEdgesAtPort(0)[0]->getMemory());
+        if (data->getTensorDesc() == pBlobDesc &&
+            graph->_normalizePreprocMap.find(name) == graph->_normalizePreprocMap.end()) {
+            externalPtr[name] = data->buffer();
+        } else if (externalPtr.find(name) != externalPtr.end()) {
+            externalPtr.erase(name);
+        }
+        _inputs[name] = data;
     }
     if (foundOutput) {
         if (compoundBlobPassed) {
@@ -489,12 +478,6 @@ InferenceEngine::Blob::Ptr LegacyInferRequest::GetBlob(const std::string& name) 
     auto input = inMap.find(name);
     if (input != inMap.end()) {
         // ROI blob is returned only if it was set previously.
-        auto it = _preProcData.find(name);
-        if (it != _preProcData.end()) {
-            data = it->second->getRoiBlob();
-            return data;
-        }
-
         if (_inputs.find(name) == _inputs.end()) {
             auto pBlob = MemoryDescUtils::interpretAsBlob(graph->getInputNodeByName(name)->getChildEdgesAtPort(0)[0]->getMemory());
             if (!pBlob) {
@@ -529,11 +512,6 @@ InferenceEngine::Blob::Ptr LegacyInferRequest::GetBlob(const std::string& name) 
             InferenceEngine::DataPtr foundOutput;
             if (!findInputAndOutputBlobByName(name, foundInput, foundOutput)) {
                 IE_THROW() << "Blob with name: " << name << " absents in network inputs";
-            }
-            if (preProcessingRequired(foundInput, data)) {
-                _preProcData.emplace(name, InferenceEngine::CreatePreprocDataHelper());
-                _preProcData[name]->isApplicable(data, _inputs[name]);
-                _preProcData[name]->setRoiBlob(data);
             }
         }
     }

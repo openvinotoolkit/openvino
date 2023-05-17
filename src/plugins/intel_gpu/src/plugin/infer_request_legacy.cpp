@@ -172,14 +172,9 @@ Blob::Ptr InferRequestLegacy::GetBlob(const std::string& name) {
 
     if (is_input) {
         // ROI blob is returned only if it was set previously. Otherwise default blob is returned.
-        auto it = _preProcData.find(name);
-        if (it != _preProcData.end()) {
-            data = it->second->getRoiBlob();
-        } else {
-            data = _inputs[name];
-            if (!isDynamic)
-                checkInputBlob(data, name, foundInput);
-        }
+        data = _inputs[name];
+        if (!isDynamic)
+            checkInputBlob(data, name, foundInput);
     } else {
         data = _outputs[name];
         if (isDynamic) {
@@ -262,34 +257,22 @@ void InferRequestLegacy::SetBlob(const std::string& name, const Blob::Ptr& data)
             _inputs[name] = data;
         }
         if (!is_remote) {
-            if (preProcessingRequired(foundInput, data)) {
-                // Stores the given blob as ROI blob. It will be used to fill in network input
-                // during pre-processing
-                if (_inputs[name]->is<gpu::ClBlob>()) {
-                    Blob::Ptr inputHostBlob = create_host_blob(desc);
-                    _inputs[name] = inputHostBlob;
-                }
-                _preProcData[name] = CreatePreprocDataHelper();
-                _preProcData[name]->isApplicable(data, _inputs[name]);
-                _preProcData[name]->setRoiBlob(data);
-            } else {
-                if (compoundBlobPassed) {
-                    IE_THROW(NotImplemented) << cannot_set_compound;
-                }
-                if (!isDynamic) {
-                    size_t blobSize = desc.getLayout() != SCALAR
-                        ? details::product(desc.getDims())
-                        : 1;
-                    if (dataSize != blobSize) {
-                        IE_THROW() << "Input blob size is not equal to network input size ("
-                            << dataSize << "!=" << blobSize << ").";
-                    }
-                }
-
-                if (data->buffer() == nullptr)
-                    IE_THROW(NotAllocated) << str_input_not_allocated << " Input name: \'" << name << "\'";
-                _inputs[name] = data;
+            if (compoundBlobPassed) {
+                IE_THROW(NotImplemented) << cannot_set_compound;
             }
+            if (!isDynamic) {
+                size_t blobSize = desc.getLayout() != SCALAR
+                    ? details::product(desc.getDims())
+                    : 1;
+                if (dataSize != blobSize) {
+                    IE_THROW() << "Input blob size is not equal to network input size ("
+                        << dataSize << "!=" << blobSize << ").";
+                }
+            }
+
+            if (data->buffer() == nullptr)
+                IE_THROW(NotAllocated) << str_input_not_allocated << " Input name: \'" << name << "\'";
+            _inputs[name] = data;
         }
     } else {
         if (compoundBlobPassed) {
