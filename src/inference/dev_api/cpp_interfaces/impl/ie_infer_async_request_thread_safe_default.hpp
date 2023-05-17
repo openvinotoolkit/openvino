@@ -263,13 +263,6 @@ public:
         return _syncRequest->GetPreProcess(name);
     }
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    void SetBatch(int batch) override {
-        CheckState();
-        _syncRequest->SetBatch(batch);
-    };
-    OPENVINO_SUPPRESS_DEPRECATED_END
-
     void SetCallback(Callback callback) override {
         CheckState();
         _callback = std::move(callback);

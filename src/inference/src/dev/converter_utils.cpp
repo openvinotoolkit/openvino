@@ -551,10 +551,6 @@ public:
         OPENVINO_NOT_IMPLEMENTED;
     }
 
-    void SetBatch(int batch) override {
-        OPENVINO_NOT_IMPLEMENTED;
-    }
-
     std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> QueryState() override {
         auto res = m_request->query_state();
         std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> ret;

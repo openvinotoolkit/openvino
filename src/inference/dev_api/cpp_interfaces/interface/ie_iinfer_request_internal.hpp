@@ -146,14 +146,6 @@ public:
     virtual const PreProcessInfo& GetPreProcess(const std::string& name) const;
 
     /**
-     * @brief Sets new batch size when dynamic batching is enabled in executable network that created this request.
-     * @deprecated
-     * @param batch - new batch size to be used by all the following inference calls for this request.
-     */
-    INFERENCE_ENGINE_DEPRECATED("This method is deprecated and will be removed in 2023.1 release")
-    virtual void SetBatch(int batch);
-
-    /**
      * @brief Queries memory states.
      * @return Returns memory states
      */

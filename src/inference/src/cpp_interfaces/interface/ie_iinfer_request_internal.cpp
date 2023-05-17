@@ -429,10 +429,6 @@ const PreProcessInfo& IInferRequestInternal::GetPreProcess(const std::string& na
     }
 }
 
-void IInferRequestInternal::SetBatch(int batch) {
-    IE_THROW(NotImplemented);
-}
-
 std::vector<std::shared_ptr<IVariableStateInternal>> IInferRequestInternal::QueryState() {
     IE_THROW(NotImplemented);
 }

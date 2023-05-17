@@ -4,8 +4,6 @@
 
 #include "behavior/plugin/preprocessing.hpp"
 
-#ifdef ENABLE_GAPI_PREPROCESSING
-
 using namespace BehaviorTestsDefinitions;
 
 namespace {
@@ -38,5 +36,3 @@ INSTANTIATE_TEST_SUITE_P(smoke_Behavior_PreprocessingPrecisionConvertTestsViaGet
                         PreprocessingPrecisionConvertTest::getTestCaseName);
 
 }  // namespace
-
-#endif // ENABLE_GAPI_PREPROCESSING

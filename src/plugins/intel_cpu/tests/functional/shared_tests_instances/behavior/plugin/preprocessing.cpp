@@ -4,8 +4,6 @@
 
 #include "behavior/plugin/preprocessing.hpp"
 
-#ifdef ENABLE_GAPI_PREPROCESSING
-
 using namespace BehaviorTestsDefinitions;
 
 namespace {
@@ -37,5 +35,3 @@ INSTANTIATE_TEST_SUITE_P(BehaviourPreprocessingTestsViaGetBlob, PreprocessingPre
                                 ::testing::ValuesIn(configs)),
                         PreprocessingPrecisionConvertTest::getTestCaseName);
 }  // namespace
-
-#endif // ENABLE_GAPI_PREPROCESSING
