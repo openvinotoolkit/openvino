@@ -31,6 +31,8 @@ public:
     int _num_threads = 0;
 };
 
+CPU& cpu_info();
+
 #ifdef __linux__
 /**
  * @brief      Parse processors infomation on Linux
