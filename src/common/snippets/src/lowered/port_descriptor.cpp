@@ -140,6 +140,11 @@ PortDescriptorPtr PortManager::get_port_descriptor_ptr(const Output<const ov::No
         OPENVINO_THROW("Get output port descriptor is failed: incorrect count");
     return out_descs[out.get_index()];
 }
+
+void PortManager::clean(const std::shared_ptr<ov::Node>& node) {
+    auto& rt_info = node->get_rt_info();
+    rt_info.erase(PortDescriptorVectorAttribute::get_type_info_static());
+}
 } // namespace lowered
 } // namespace snippets
 } // namespace ngraph

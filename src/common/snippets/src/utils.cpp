@@ -5,6 +5,8 @@
 #include "snippets/utils.hpp"
 
 #include "snippets/pass/fq_decomposition.hpp"
+#include <ngraph/rt_info.hpp>
+
 
 namespace ngraph {
 namespace snippets {
@@ -93,6 +95,11 @@ ov::PartialShape get_port_planar_shape(const Input<Node>& in) {
 ov::PartialShape get_port_planar_shape(const Output<Node>& out) {
     const auto& port = lowered::PortManager::get_port_descriptor_ptr(out);
     return utils::get_reordered_planar_shape(ov::Shape{port->get_shape()}, port->get_layout());
+}
+
+void safe_copy_runtime_info(const std::shared_ptr<ov::Node>& from, const std::shared_ptr<ov::Node>& to) {
+    ov::copy_runtime_info(from, to);
+    lowered::PortManager::clean(to);
 }
 
 } // namespace utils

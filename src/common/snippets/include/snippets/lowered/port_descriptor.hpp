@@ -76,6 +76,8 @@ public:
     static PortDescriptorPtr get_port_descriptor_ptr(const ov::Output<ov::Node>& in);
     static PortDescriptorPtr get_port_descriptor_ptr(const ov::Output<const ov::Node>& out);
 
+    static void clean(const std::shared_ptr<ov::Node>& node);
+
 private:
     static void init_default(std::vector<PortDescriptorPtr>& in_descs, std::vector<PortDescriptorPtr>& out_descs, const std::shared_ptr<ov::Node>& node);
 };

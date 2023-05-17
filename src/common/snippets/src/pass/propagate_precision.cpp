@@ -8,7 +8,7 @@
 #include <memory>
 #include "ov_ops/type_relaxed.hpp"
 #include "snippets/itt.hpp"
-#include "ngraph/rt_info.hpp"
+#include "snippets/utils.hpp"
 
 using namespace ngraph;
 
@@ -130,7 +130,7 @@ bool ngraph::snippets::pass::PropagatePrecision::run_on_model(const std::shared_
                         auto convert = std::make_shared<ngraph::snippets::op::ConvertSaturation>(
                             parent_output,
                             required_after);
-                        ngraph::copy_runtime_info(parent_output.get_node_shared_ptr(), convert);
+                        utils::safe_copy_runtime_info(parent_output.get_node_shared_ptr(), convert);
                         op->set_argument(op_input.get_index(), convert);
                         continue;
                     }
@@ -149,7 +149,7 @@ bool ngraph::snippets::pass::PropagatePrecision::run_on_model(const std::shared_
                         auto convert = std::make_shared<ngraph::snippets::op::ConvertSaturation>(
                             existing_convert->get_input_node_shared_ptr(0),
                             required_after);
-                        ngraph::copy_runtime_info(parent_output.get_node_shared_ptr(), convert);
+                        utils::safe_copy_runtime_info(parent_output.get_node_shared_ptr(), convert);
                         op->set_argument(op_input.get_index(), convert);
                         continue;
                     }
@@ -158,7 +158,7 @@ bool ngraph::snippets::pass::PropagatePrecision::run_on_model(const std::shared_
                     auto convert = std::make_shared<ngraph::snippets::op::ConvertSaturation>(
                         existing_convert->output(0),
                         required_after);
-                    ngraph::copy_runtime_info(existing_convert->output(0).get_node()->shared_from_this(), convert);
+                    utils::safe_copy_runtime_info(existing_convert->output(0).get_node()->shared_from_this(), convert);
                     op->set_argument(op_input.get_index(), convert);
                 }
             }
@@ -180,7 +180,7 @@ bool ngraph::snippets::pass::PropagatePrecision::run_on_model(const std::shared_
             auto convert = std::make_shared<ngraph::snippets::op::ConvertSaturation>(
                 result->get_input_node_shared_ptr(0),
                 expected_type);
-            ngraph::copy_runtime_info(result->get_input_node_shared_ptr(0), convert);
+            utils::safe_copy_runtime_info(result->get_input_node_shared_ptr(0), convert);
             result->set_argument(0, convert);
         }
     }
@@ -223,7 +223,7 @@ bool ngraph::snippets::pass::PropagatePrecision::validate_and_infer_types_and_re
             auto convert = std::make_shared<ngraph::snippets::op::ConvertSaturation>(
                 output,
                 op_output_types[i]);
-            ngraph::copy_runtime_info(output.get_node_shared_ptr(), convert);
+            utils::safe_copy_runtime_info(output.get_node_shared_ptr(), convert);
 
             for (auto& input : output.get_target_inputs()) {
                 auto child = input.get_node();

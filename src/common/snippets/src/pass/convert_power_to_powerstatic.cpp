@@ -4,8 +4,8 @@
 
 #include <snippets/itt.hpp>
 #include "snippets/snippets_isa.hpp"
+#include "snippets/utils.hpp"
 #include "snippets/pass/convert_power_to_powerstatic.hpp"
-#include <ngraph/rt_info.hpp>
 
 
 ngraph::snippets::pass::ConvertPowerToPowerStatic::ConvertPowerToPowerStatic() {
@@ -22,7 +22,7 @@ ngraph::snippets::pass::ConvertPowerToPowerStatic::ConvertPowerToPowerStatic() {
         auto value = scalar->cast_vector<float>()[0];
         auto power_static = std::make_shared<snippets::op::PowerStatic>(power->input(0).get_source_output(), value);
         power_static->set_friendly_name(power->get_friendly_name());
-        ngraph::copy_runtime_info(power, power_static);
+        utils::safe_copy_runtime_info(power, power_static);
         ngraph::replace_node(power, power_static);
 
         return true;

@@ -11,7 +11,6 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 
 #include <ngraph/opsets/opset1.hpp>
-#include <ngraph/rt_info.hpp>
 
 #include <numeric>
 
@@ -49,10 +48,7 @@ ngraph::Output<ngraph::Node> ngraph::snippets::pass::InsertMoveBroadcast::Broadc
         ov::PartialShape broadcasted_shape = normalized_shape;
         *broadcasted_shape.rbegin() = *target_shape.rbegin();
         const auto broadcast_node = std::make_shared<ngraph::snippets::op::BroadcastMove>(value, broadcasted_shape);
-        // BroadcastMove should be immediately executed after its input op (input op is node with output which should be broadcasted).
-        // For example, to execute Broadcast outside of a Loop We transfer control dependents and copy rt info
-        broadcast_node->add_node_control_dependents(value.get_node_shared_ptr());
-        ov::copy_runtime_info(value.get_node_shared_ptr(), broadcast_node);
+        utils::safe_copy_runtime_info(value.get_node_shared_ptr(), broadcast_node);
 
         return broadcast_node->output(0);
     }
