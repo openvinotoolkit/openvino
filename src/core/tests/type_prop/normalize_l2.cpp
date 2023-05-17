@@ -39,7 +39,7 @@ TEST(type_prop, normalize_l2_axes_input_not_constant) {
     auto axes = make_shared<op::Parameter>(element::u64, Shape{1});
     float eps{1e-6f};
     auto eps_mode = op::EpsMode::ADD;
-    ASSERT_NO_THROW(make_shared<op::v0::NormalizeL2>(data, axes, eps, eps_mode));
+    ASSERT_NO_THROW(auto op = make_shared<op::v0::NormalizeL2>(data, axes, eps, eps_mode));
 }
 
 TEST(type_prop, normalize_l2_invalid_axes_rank) {
