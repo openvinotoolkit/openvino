@@ -850,7 +850,7 @@ StreamsCalculationTestCase _1sockets_ecores_latency_4 = {
     0,
     4,
     {{16, 0, 16, 0}},
-    {{1, EFFICIENT_CORE_PROC, 16}},
+    {{1, EFFICIENT_CORE_PROC, 4}},
 };
 
 StreamsCalculationTestCase _1sockets_ecores_tput_1 = {

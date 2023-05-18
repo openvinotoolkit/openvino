@@ -70,7 +70,7 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
             if (proc_type_table[0][ALL_PROC] == proc_type_table[0][EFFICIENT_CORE_PROC]) {
                 stream_info[PROC_TYPE] = EFFICIENT_CORE_PROC;
                 stream_info[THREADS_PER_STREAM] =
-                    (input_threads == 0) ? proc_type_table[0][EFFICIENT_CORE_PROC]
+                    (model_prefer_threads == 0) ? proc_type_table[0][EFFICIENT_CORE_PROC]
                                          : std::min(proc_type_table[0][EFFICIENT_CORE_PROC], model_prefer_threads);
                 streams_info_table.push_back(stream_info);
             } else if ((proc_type_table[0][EFFICIENT_CORE_PROC] > 0) &&
