@@ -133,7 +133,7 @@ TEST_F(PriorBoxClusteredV0StaticShapeInferenceTest, invalid_number_of_elements_i
                                     {{0, std::make_shared<HostTensor>(element::i64, ov::Shape{3}, output_size)}}),
                     NodeValidationFailure,
                     HasSubstr("Output size must have two elements"));
-    // TODO, implementation should throw execption
+    // TODO , implementation should throw execption
     // ASSERT_THROW(unit_test::cus_usual_shape_infer(op.get(),
     //                                 input_shapes,
     //                                 output_shapes,
@@ -157,7 +157,7 @@ TEST_F(PriorBoxClusteredV0StaticShapeInferenceTest, invalid_input_ranks) {
                     NodeValidationFailure,
                     HasSubstr("output size input rank 2 must match image shape input rank 1"));
 
-    // TODO, implementation should throw execption
+    // TODO , implementation should throw execption
     // ASSERT_THROW(unit_test::cus_usual_shape_infer(op.get(),
     //                                input_shapes,
     //                                output_shapes,

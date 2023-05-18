@@ -110,7 +110,7 @@ TEST(StaticShapeInferenceTest, OneHotTestConstantMapNegativeDepth) {
                     ov::NodeValidationFailure,
                     HasSubstr("can't be negative"));
 
-    // TODO, implementation should throw exception
+    // TODO , implementation should throw exception
     // ASSERT_THROW(unit_test::cus_usual_shape_infer(ont_hot.get(), static_input_shapes, static_output_shapes, constant_data),
     //            InferenceEngine::GeneralError);
 }

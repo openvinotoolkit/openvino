@@ -108,7 +108,7 @@ TYPED_TEST_P(StaticShapeInferenceTest_BEA, shape_inference_aubtob_none_incompati
 
     ASSERT_THROW(shape_inference(node.get(), static_input_shapes, static_output_shapes), NodeValidationFailure);
 
-    //TODO, below test can't pass.
+    //TODO , below test can't pass.
     // OV_EXPECT_THROW(unit_test::cus_usual_shape_infer(node.get(), static_input_shapes, static_output_shapes),
     //                 InferenceEngine::GeneralError,
     //                 testing::HasSubstr("Eltwise shape infer input shapes dim index:"));
