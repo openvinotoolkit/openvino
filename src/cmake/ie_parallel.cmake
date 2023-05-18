@@ -72,7 +72,7 @@ macro(ov_find_package_tbb)
         # conan generates TBBConfig.cmake files, which follows cmake's
         # SameMajorVersion scheme, while TBB itself follows AnyNewerVersion one
         # see https://cmake.org/cmake/help/latest/module/CMakePackageConfigHelpers.html#generating-a-package-version-file
-        if(CONAN_EXPORTED)
+        if(CMAKE_TOOLCHAIN_FILE MATCHES "conan_toolchain.cmake" OR CONAN_EXPORTED)
             set(_ov_minimal_tbb_version 2021.0)
         else()
             set(_ov_minimal_tbb_version 2017.0)
@@ -96,7 +96,7 @@ macro(ov_find_package_tbb)
             unset(_no_cmake_install_prefix)
         endif()
 
-        find_package(TBB ${_ov_minimal_tbb_version} QUIET COMPONENTS tbb tbbmalloc
+        find_package(TBB ${_ov_minimal_tbb_version} QUIET COMPONENTS tbb tbb_malloc
                      ${_find_package_no_args})
 
         if(NOT TBB_FOUND)
