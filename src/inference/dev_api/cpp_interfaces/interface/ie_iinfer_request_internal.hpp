@@ -332,7 +332,20 @@ protected:
     std::map<std::string, BatchedBlob::Ptr> _batched_inputs;   //!< A map of user passed blobs for network inputs
     int m_curBatch = -1;                                       //!< Current batch value used in dynamic batching
 
-    std::map<std::string, std::shared_ptr<void>> _preProcData;  // TODO: remove after fixes on the plugin side
+    class PreProcessDataPlugin {
+    public:
+        void setRoiBlob(const Blob::Ptr& blob) {}
+
+        Blob::Ptr getRoiBlob() const {
+            return nullptr;
+        }
+
+        void execute(Blob::Ptr& preprocessedBlob, const PreProcessInfo& info, bool serial, int batchSize = -1) {}
+
+        void isApplicable(const Blob::Ptr& src, const Blob::Ptr& dst) {}
+    };
+    std::map<std::string, std::shared_ptr<PreProcessDataPlugin>>
+        _preProcData;  // TODO: remove after fixes on the plugin side
 
     /**
      * @brief A shared pointer to IInferRequestInternal
