@@ -229,48 +229,6 @@ CompiledModel Core::import_model(std::istream& modelStream, const RemoteContext&
     });
 }
 
-CompiledModel Core::import_model(const std::string& model_path, const std::string& device_name, const AnyMap& config) {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::import_model");
-    OV_CORE_CALL_STATEMENT({
-        auto exec = _impl->import_model(model_path, device_name, config);
-        return {exec._ptr, exec._so};
-    });
-}
-
-CompiledModel Core::import_model(const std::string& model_path, const RemoteContext& context, const AnyMap& config) {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::import_model");
-
-    auto parsed = parseDeviceNameIntoConfig(context.get_device_name(), config);
-    OV_CORE_CALL_STATEMENT({
-        auto model_buffer = ov::util::load_mmap_object(model_path);
-        auto exec = _impl->get_plugin(parsed._deviceName).import_model(model_buffer, context, parsed._config);
-        return {exec._ptr, exec._so};
-    });
-}
-
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-CompiledModel Core::import_model(const std::wstring& model_path, const std::string& device_name, const AnyMap& config) {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::import_model");
-    OV_CORE_CALL_STATEMENT({
-        auto _model_path = ov::util::wstring_to_string(model_path);
-        auto exec = _impl->import_model(_model_path, device_name, config);
-        return {exec._ptr, exec._so};
-    });
-}
-
-CompiledModel Core::import_model(const std::wstring& model_path, const RemoteContext& context, const AnyMap& config) {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::import_model");
-
-    auto parsed = parseDeviceNameIntoConfig(context.get_device_name(), config);
-    OV_CORE_CALL_STATEMENT({
-        auto _model_path = ov::util::wstring_to_string(model_path);
-        auto model_buffer = ov::util::load_mmap_object(model_path);
-        auto exec = _impl->get_plugin(parsed._deviceName).import_model(model_buffer, context, parsed._config);
-        return {exec._ptr, exec._so};
-    });
-}
-#endif
-
 SupportedOpsMap Core::query_model(const std::shared_ptr<const ov::Model>& model,
                                   const std::string& device_name,
                                   const AnyMap& config) const {

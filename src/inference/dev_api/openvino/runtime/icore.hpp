@@ -124,18 +124,6 @@ public:
                                                        const ov::AnyMap& config = {}) const = 0;
 
     /**
-     * @brief Creates an executable network from a previously exported network file
-     * @param model_path model file
-     * @param device_name Name of device load executable network on
-     * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
-     * operation*
-     * @return An executable network reference
-     */
-    virtual ov::SoPtr<ov::ICompiledModel> import_model(const std::string& model_path,
-                                                       const std::string& device_name,
-                                                       const ov::AnyMap& config = {}) const = 0;
-
-    /**
      * @brief Query device if it supports specified network with specified configuration
      *
      * @param model OpenVINO Model

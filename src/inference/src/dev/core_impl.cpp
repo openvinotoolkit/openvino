@@ -696,20 +696,6 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::import_model(std::istream& model,
     return compiled_model;
 }
 
-ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::import_model(const std::string& model_path,
-                                                         const std::string& device_name,
-                                                         const ov::AnyMap& config) const {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::import_model");
-    auto parsed = parseDeviceNameIntoConfig(device_name, config);
-    auto model_buffer = ov::util::load_mmap_object(model_path);
-    auto compiled_model = get_plugin(parsed._deviceName).import_model(model_buffer, parsed._config);
-    if (auto wrapper = std::dynamic_pointer_cast<InferenceEngine::ICompiledModelWrapper>(compiled_model._ptr)) {
-        wrapper->get_executable_network()->loadedFromCache();
-    }
-
-    return compiled_model;
-}
-
 ov::SupportedOpsMap ov::CoreImpl::query_model(const std::shared_ptr<const ov::Model>& model,
                                               const std::string& device_name,
                                               const ov::AnyMap& config) const {

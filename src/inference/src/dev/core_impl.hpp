@@ -372,10 +372,6 @@ public:
                                                const std::string& device_name = {},
                                                const ov::AnyMap& config = {}) const override;
 
-    ov::SoPtr<ov::ICompiledModel> import_model(const std::string& model_path,
-                                               const std::string& device_name = {},
-                                               const ov::AnyMap& config = {}) const override;
-
     ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
                                     const std::string& device_name,
                                     const ov::AnyMap& config) const override;

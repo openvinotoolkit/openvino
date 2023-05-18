@@ -143,6 +143,19 @@ public:
         THROW_GNA_EXCEPTION << "Not implemented";
     }
 
+    InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(
+        std::shared_ptr<ngraph::runtime::AlignedBuffer>& networkBuffer,
+        const std::map<std::string, std::string>& config) override {
+        THROW_GNA_EXCEPTION << "Not implemented";
+    }
+
+    InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(
+        std::shared_ptr<ngraph::runtime::AlignedBuffer>& networkBuffer,
+        const std::shared_ptr<InferenceEngine::RemoteContext>& context,
+        const std::map<std::string, std::string>& config) override {
+        THROW_GNA_EXCEPTION << "Not implemented";
+    }
+
     InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(std::istream& networkModel);
 
     /**
