@@ -44,7 +44,7 @@ void validate_group_convolution_parameters(const Shape& in_shape,
     }();
 
     const Shape f_group_shape{std::next(f_shape.begin(), 1), std::end(f_shape)};
-    validate_convolution_parameters(in_group_shape,
+    conv::validate_convolution_parameters(in_group_shape,
                                     f_group_shape,
                                     out_group_shape,
                                     strides,
