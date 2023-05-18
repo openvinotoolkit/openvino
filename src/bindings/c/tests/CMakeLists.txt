@@ -43,6 +43,22 @@ if(TARGET OpenCL::OpenCL)
     target_link_libraries(${TARGET_NAME} PRIVATE OpenCL::OpenCL)
 endif()
 
+if(ENABLE_AUTO OR ENABLE_MULTI)
+    add_dependencies(${TARGET_NAME} openvino_auto_plugin)
+endif()
+
+if(ENABLE_AUTO_BATCH)
+    add_dependencies(${TARGET_NAME} openvino_auto_batch_plugin)
+endif()
+
+if(ENABLE_INTEL_CPU)
+    add_dependencies(${TARGET_NAME} openvino_intel_cpu_plugin)
+endif()
+
+if(ENABLE_INTEL_GPU)
+    add_dependencies(${TARGET_NAME} openvino_intel_gpu_plugin)
+endif()
+
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
 install(TARGETS ${TARGET_NAME}
