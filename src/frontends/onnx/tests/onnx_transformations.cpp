@@ -38,11 +38,11 @@ bool after_func_expand_name_comp(std::string lhs, std::string rhs) {
         auto cut_length = -1;
 
         auto founded_hex = 0;
-        for (int i = 0; i < name.size(); ++i) {
+        for (size_t i = 0; i < name.size(); ++i) {
             if (is_hex_symbol(name[i])) {
                 ++founded_hex;
                 if (cut_begin == -1) {
-                    cut_begin = i;
+                    cut_begin = static_cast<int>(i);
                 }
                 if (founded_hex >= min_address) {
                     cut_length = founded_hex;

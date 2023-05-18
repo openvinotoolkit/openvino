@@ -4,8 +4,6 @@
 
 #include "op_fuzzy.hpp"
 
-#include <cnpy.h>
-
 #include <fstream>
 
 #include "engines_util/test_engines.hpp"
@@ -237,6 +235,9 @@ static const std::vector<std::string> models{
     std::string("greater_than_float32"),
     std::string("greater_than_int32"),
     std::string("greater_than_int64"),
+    std::string("grid_sampler_1"),
+    std::string("grid_sampler_2"),
+    std::string("grid_sampler_dyn"),
     std::string("group_norm_1/group_norm_1.pdmodel"),
     std::string("group_norm_2/group_norm_2.pdmodel"),
     std::string("group_norm_3/group_norm_3.pdmodel"),
@@ -450,6 +451,14 @@ static const std::vector<std::string> models{
     std::string("scale_tensor_bias_before"),
     std::string("shape"),
     std::string("sigmoid"),
+    std::string("silu_static_test1"),
+    std::string("silu_static_test2"),
+    std::string("silu_static_test3"),
+    std::string("silu_static_test4"),
+    std::string("silu_dynamic_test1"),
+    std::string("silu_dynamic_test2"),
+    std::string("silu_dynamic_test3"),
+    std::string("silu_dynamic_test4"),
     std::string("slice"),
     std::string("slice_1d"),
     std::string("slice_decrease_axis/slice_decrease_axis.pdmodel"),
@@ -458,6 +467,8 @@ static const std::vector<std::string> models{
     std::string("softmax"),
     std::string("softmax_minus"),
     std::string("softplus_default_params"),
+    std::string("softshrink_default_params"),
+    std::string("softshrink_threshold_0.6"),
     std::string("split_test1"),
     std::string("split_test2"),
     std::string("split_test3"),

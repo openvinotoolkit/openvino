@@ -352,9 +352,7 @@ public:
     }
     template <typename T>
     const T* get_data_ptr() const {
-        if (sizeof(T) > m_element_type.size() && shape_size(m_shape) > 0) {
-            throw ov::Exception("Buffer over-read");
-        }
+        OPENVINO_ASSERT(sizeof(T) <= m_element_type.size() || shape_size(m_shape) <= 0, "Buffer over-read");
 
         return static_cast<const T*>(get_data_ptr());
     }
@@ -522,12 +520,12 @@ private:
                             std::numeric_limits<StorageDataType>::lowest() <= value);
             OPENVINO_ASSERT(std::numeric_limits<StorageDataType>::max() >= value);
         }
-#if defined(_MSC_VER)
-#    pragma warning(pop)
-#elif defined(__clang__)
+#if defined(__clang__)
 #    pragma clang diagnostic pop
 #elif defined(__GNUC__)
 #    pragma GCC diagnostic pop
+#elif defined(_MSC_VER)
+#    pragma warning(pop)
 #endif
 
         const auto size = shape_size(m_shape);

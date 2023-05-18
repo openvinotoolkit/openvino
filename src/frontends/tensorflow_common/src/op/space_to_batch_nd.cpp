@@ -4,6 +4,7 @@
 
 #include "common_op_table.hpp"
 #include "openvino/opsets/opset8.hpp"
+#include "utils.hpp"
 
 using namespace std;
 using namespace ov::opset8;
@@ -22,7 +23,7 @@ void normalize_block_shape_pads_crops(const NodeContext& node,
     auto paddings_crops = node.get_input(2);
 
     // make sure that paddings_crops and block_shape to have the same type
-    paddings_crops = make_shared<Convert>(paddings_crops, block_shape.get_element_type())->output(0);
+    paddings_crops = make_shared<ConvertLike>(paddings_crops, block_shape)->output(0);
 
     // compute the input rank and a shape of block_shape [M]
     // it is needed to normalize block_shape, pads_begin and pads_end
@@ -42,11 +43,11 @@ void normalize_block_shape_pads_crops(const NodeContext& node,
     pads_crops_end = make_shared<Squeeze>(paddings_crops_split->output(1), split_axis)->output(0);
 
     // normalize block_shape to have it of the same length as the input rank
-    auto one_const = make_shared<Constant>(block_shape.get_element_type(), Shape{}, 1);
+    auto one_const = create_same_type_const_scalar<int32_t>(block_shape, 1);
     block_shape = make_shared<Pad>(block_shape, num_begin, num_end, one_const, ov::op::PadMode::CONSTANT)->output(0);
 
     // normalize pads_begin and pads_end to have it of the same length as the input rank
-    auto zero_const = make_shared<Constant>(pads_crops_begin.get_element_type(), Shape{}, 0);
+    auto zero_const = create_same_type_const_scalar<int32_t>(pads_crops_begin, 0);
     auto pad_mode = ov::op::PadMode::CONSTANT;
     pads_crops_begin = make_shared<Pad>(pads_crops_begin, num_begin, num_end, zero_const, pad_mode)->output(0);
     pads_crops_end = make_shared<Pad>(pads_crops_end, num_begin, num_end, zero_const, pad_mode)->output(0);

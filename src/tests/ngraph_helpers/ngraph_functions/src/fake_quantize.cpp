@@ -10,17 +10,17 @@ namespace ngraph {
 namespace builder {
 
 std::shared_ptr<Node> makeFakeQuantize(const ngraph::Output<Node> &in,
-                                       const element::Type &type,
+                                       const element::Type &constantType,
                                        std::size_t levels,
                                        std::vector<size_t> constShapes,
                                        const std::vector<float> &inputLowData,
                                        const std::vector<float> &inputHighData,
                                        const std::vector<float> &outputLowData,
                                        const std::vector<float> &outputHighData) {
-    auto inputLowNode = makeConstant(type, constShapes, inputLowData, inputLowData.empty());
-    auto inputHighNode = makeConstant(type, constShapes, inputHighData, inputHighData.empty());
-    auto outputLowNode = makeConstant(type, constShapes, outputLowData, outputLowData.empty());
-    auto outputHighNode = makeConstant(type, constShapes, outputHighData, outputHighData.empty());
+    auto inputLowNode = makeConstant(constantType, constShapes, inputLowData, inputLowData.empty());
+    auto inputHighNode = makeConstant(constantType, constShapes, inputHighData, inputHighData.empty());
+    auto outputLowNode = makeConstant(constantType, constShapes, outputLowData, outputLowData.empty());
+    auto outputHighNode = makeConstant(constantType, constShapes, outputHighData, outputHighData.empty());
 
     auto fq = std::make_shared<ngraph::opset1::FakeQuantize>(in, inputLowNode, inputHighNode, outputLowNode, outputHighNode, levels);
 

@@ -114,7 +114,7 @@ void ov::replace_node(const std::shared_ptr<Node>& target,
                       const std::shared_ptr<Node>& replacement,
                       const std::vector<int64_t>& output_order) {
     if (ngraph::op::is_output(target)) {
-        throw ngraph::ngraph_error("Result nodes cannot be replaced.");
+        OPENVINO_THROW("Result nodes cannot be replaced.");
     }
 
     NGRAPH_CHECK(target->get_output_size() == output_order.size(),
@@ -140,7 +140,7 @@ void ov::replace_node(const std::shared_ptr<Node>& target,
 
 void ov::replace_node(const std::shared_ptr<Node>& target, const OutputVector& replacement_values) {
     if (ngraph::op::is_output(target)) {
-        throw ngraph::ngraph_error("Result nodes cannot be replaced.");
+        OPENVINO_THROW("Result nodes cannot be replaced.");
     }
 
     NGRAPH_CHECK(target->get_output_size() == replacement_values.size());
@@ -285,7 +285,7 @@ std::shared_ptr<Model> clone_ov_model(const Model& func, std::unordered_map<Node
     for (shared_ptr<Node> node : func.get_results()) {
         auto result = ov::as_type_ptr<op::v0::Result>(node_map.at(node.get()));
         if (!result) {
-            throw ngraph::ngraph_error("Results should be of type op::Result");
+            OPENVINO_THROW("Results should be of type op::Result");
         }
         cloned_results.push_back(result);
     }
@@ -439,7 +439,7 @@ pair<shared_ptr<ngraph::op::Result>, shared_ptr<ngraph::op::Parameter>> ngraph::
     const shared_ptr<Node>& src_node,
     const shared_ptr<Node>& dst_node) {
     if (src_node->get_output_size() != 1) {
-        throw ngraph_error("Multiple output per op not supported in graph partition yet.");
+        OPENVINO_THROW("Multiple output per op not supported in graph partition yet.");
     }
 
     // Make parameter node

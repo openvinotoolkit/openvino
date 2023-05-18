@@ -16,6 +16,8 @@
 #include <ngraph/opsets/opset7.hpp>
 #include <ngraph/opsets/opset8.hpp>
 #include <ngraph/opsets/opset9.hpp>
+#include <ngraph/opsets/opset10.hpp>
+#include <ngraph/opsets/opset11.hpp>
 
 #include "ngraph_functions/utils/data_utils.hpp"
 #include "openvino/core/partial_shape.hpp"
@@ -300,12 +302,23 @@ std::shared_ptr<ov::Node> makeStridedSlice(const ov::Output<Node> &in,
                                            const std::vector<int64_t> &shrink_mask = std::vector<int64_t>{},
                                            const std::vector<int64_t> &ellipsis_mask = std::vector<int64_t>{});
 
-std::shared_ptr<ngraph::Node> makeSlice(const ngraph::Output<Node> &in,
+std::shared_ptr<ov::Node> makeSlice(const ngraph::Output<Node> &in,
                                         const std::vector<int64_t> &begin,
                                         const std::vector<int64_t> &end,
                                         const std::vector<int64_t> &stride,
                                         const std::vector<int64_t> &axes,
                                         const element::Type &type);
+
+std::shared_ptr<ov::Node> makeSlice(const ov::Output<Node> &in,
+                                    const ov::Output<Node>  &begin,
+                                    const ov::Output<Node>  &end,
+                                    const ov::Output<Node>  &stride,
+                                    const ov::Output<Node>  &axes);
+
+std::shared_ptr<ov::Node> makeSlice(const ov::Output<Node> &in,
+                                    const ov::Output<Node>  &begin,
+                                    const ov::Output<Node>  &end,
+                                    const ov::Output<Node>  &stride);
 
 std::shared_ptr<ngraph::Node> makeMVN(const ngraph::Output<Node> &in,
                                       bool acrossChannels,

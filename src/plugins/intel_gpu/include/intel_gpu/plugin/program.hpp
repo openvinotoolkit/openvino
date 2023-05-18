@@ -82,7 +82,8 @@ public:
 class Program {
 public:
     Program(InferenceEngine::CNNNetwork& network, cldnn::engine& engine, const ExecutionConfig& config,
-            bool createTopologyOnly = false, bool partialBuild = false);
+            bool createTopologyOnly = false, bool partialBuild = false,
+            InferenceEngine::InputsDataMap* inputs = nullptr, InferenceEngine::OutputsDataMap* outputs = nullptr);
     Program(cldnn::engine& engine, const ExecutionConfig& config)
         : m_max_batch(1)
         , m_curBatch(-1)
@@ -159,6 +160,7 @@ public:
     const variables_state_info_map& GetVariablesStatesInfo() const { return m_variablesStateInfo; }
 
     bool use_new_shape_infer() const { return allow_new_shape_infer; }
+    bool requires_new_shape_infer(const ngraph::Node& op) const;
 
 private:
     static factories_map_t factories_map;
@@ -194,7 +196,10 @@ private:
 void CreateCustomOp(Program& p, const std::shared_ptr<ngraph::Node>& node, CustomLayerPtr customLayer);
 void CreateUnaryEltwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& node,
                           cldnn::activation_func func, cldnn::activation_additional_params params);
-void CreateElementwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& node, cldnn::eltwise_mode mode);
+void CreateElementwiseOp(Program& p,
+                         const std::shared_ptr<ngraph::Node>& node,
+                         cldnn::eltwise_mode mode,
+                         std::vector<float> coefficients = {});
 
 bool IsNodeOnConstPath(const std::shared_ptr<ngraph::Node>& node);
 

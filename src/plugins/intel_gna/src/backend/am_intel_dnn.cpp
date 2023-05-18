@@ -722,6 +722,7 @@ void PrintTensors(std::ofstream& out, T tensors) {
 }
 
 void AMIntelDNN::PrintOffset(std::ofstream& out, const std::string& type, void* ptr) {
+    auto flags = out.flags();
     const auto queue = memory->getQueue(ptr);
     std::string typeOfRegion = "UNKNOWN_QUEUE";
     auto offset = std::numeric_limits<uint32_t>::max();
@@ -732,6 +733,7 @@ void AMIntelDNN::PrintOffset(std::ofstream& out, const std::string& type, void* 
     out << "<memory_region_type> " << typeOfRegion << "\n";
     out << "<" << type << "_address> "
         << "0x" << std::setfill('0') << std::setw(8) << std::hex << offset << "\n";
+    out.flags(flags);
 }
 
 void AMIntelDNN::WriteDnnText(const char* filename, intel_dnn_number_type_t logging_precision) {

@@ -13,8 +13,10 @@
 
 #include "executable.hpp"
 #include "ngraph/runtime/tensor.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/itt.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
+#include "openvino/runtime/ivariable_state.hpp"
 
 namespace ov {
 namespace template_plugin {
@@ -37,6 +39,7 @@ public:
     void start_pipeline();
     void wait_pipeline();
     void infer_postprocess();
+    void cancel();
 
     void set_tensors_impl(const ov::Output<const ov::Node> port, const std::vector<ov::Tensor>& tensors) override;
 
@@ -52,6 +55,8 @@ private:
     std::vector<ov::Tensor> m_backend_input_tensors;
     std::vector<ov::Tensor> m_backend_output_tensors;
     std::shared_ptr<ov::runtime::Executable> m_executable;
+    ov::EvaluationContext m_eval_context;
+    std::vector<std::shared_ptr<ov::IVariableState>> m_variable_states;
 };
 // ! [infer_request:header]
 

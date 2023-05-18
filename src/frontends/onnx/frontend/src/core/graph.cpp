@@ -328,7 +328,7 @@ std::shared_ptr<Function> Graph::create_function() {
     const auto& onnx_outputs = m_model->get_graph().output();
     for (std::size_t i{0}; i < function->get_output_size(); ++i) {
         const auto& result_node = function->get_output_op(i);
-        const std::string onnx_output_name = onnx_outputs.Get(i).name();
+        const std::string onnx_output_name = onnx_outputs.Get(static_cast<int>(i)).name();
         result_node->set_friendly_name(onnx_output_name + "/sink_port_0");
         const auto& previous_operation = result_node->get_input_node_shared_ptr(0);
         previous_operation->set_friendly_name(onnx_output_name);
@@ -375,7 +375,7 @@ OutputVector Graph::make_ng_nodes(const Node& onnx_node) {
         throw;
     } catch (const std::exception& exc) {
         std::string msg_prefix = error::detail::get_error_msg_prefix(onnx_node);
-        throw ngraph_error(msg_prefix + ":\n" + std::string(exc.what()));
+        OPENVINO_THROW(msg_prefix + ":\n" + std::string(exc.what()));
     } catch (...) {
         std::string msg_prefix = error::detail::get_error_msg_prefix(onnx_node);
         // Since we do not know anything about current exception data type we can only
@@ -386,7 +386,7 @@ OutputVector Graph::make_ng_nodes(const Node& onnx_node) {
 
     const size_t outputs_size = std::accumulate(std::begin(ng_subgraph_outputs),
                                                 std::end(ng_subgraph_outputs),
-                                                0,
+                                                static_cast<size_t>(0),
                                                 [](const size_t lhs, const Output<ov::Node>& rhs) {
                                                     return lhs + rhs.get_node()->get_output_size();
                                                 });
@@ -420,10 +420,11 @@ void Graph::set_friendly_names(const Node& onnx_node, const OutputVector& ng_sub
 
     const auto common_node = detail::common_node_for_all_outputs(ng_subgraph_outputs);
 
-    for (size_t i = 0; i < ng_subgraph_outputs.size(); ++i) {
+    const auto ng_subgraph_output_size = static_cast<int>(ng_subgraph_outputs.size());
+    for (int i = 0; i < ng_subgraph_output_size; ++i) {
         // Trailing optional outputs may not be specified in the ONNX model.
         // Other optional outputs should have name set to an empty string.
-        if (i >= onnx_node.get_outputs_size()) {
+        if (i >= static_cast<int>(onnx_node.get_outputs_size())) {
             break;
         }
 

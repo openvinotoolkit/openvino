@@ -52,8 +52,6 @@ public:
         this->isOptimized = isOptimized;
     }
 
-    void setDynamicBatchLim(int lim) override;
-
     bool canBeInPlace() const override {
         return false;
     }
@@ -66,6 +64,7 @@ public:
     static void reorderData(const Memory &input, const Memory &output, MultiCachePtr cache = nullptr);
 
 private:
+    dnnl::reorder::primitive prim;
     std::shared_ptr<MemoryDesc> input;
     std::shared_ptr<MemoryDesc> output;
 

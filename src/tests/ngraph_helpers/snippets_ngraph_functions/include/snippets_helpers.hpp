@@ -17,6 +17,7 @@ using ov::Model;
 class SnippetsFunctionBase {
 public:
     SnippetsFunctionBase() = delete;
+    virtual ~SnippetsFunctionBase() = default;
 
     explicit SnippetsFunctionBase(const std::vector<PartialShape>& inputShapes, ov::element::Type_t precision = element::f32)
                 : precision{precision}, input_shapes{inputShapes} {}

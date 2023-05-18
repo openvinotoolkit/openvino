@@ -11,7 +11,7 @@
 namespace ngraph {
 class LP_TRANSFORMATIONS_API SkipCleanupAttribute : public ov::RuntimeAttribute {
 public:
-    OPENVINO_RTTI("LowPrecision::SkipCleanup", "", ov::RuntimeAttribute, 0);
+    OPENVINO_RTTI("LowPrecision::SkipCleanup", "", ov::RuntimeAttribute);
     static ov::Any create(const std::shared_ptr<ngraph::Node>& node);
 };
 } // namespace ngraph

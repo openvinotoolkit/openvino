@@ -18,7 +18,7 @@ OutputVector one_hot(const ov::frontend::tensorflow_lite::NodeContext& node) {
     std::map<std::string, ov::Any> attrs{
         {"axis", static_cast<int64_t>(decoder->get_attribute(&tflite::OneHotOptions::axis))},
     };
-    return attribute_helper(node, attrs, ov::frontend::tensorflow::op::translate_one_hot_op);
+    return attribute_helper(node, attrs, ov::frontend::tensorflow::op::translate_one_hot_op, "OneHot");
 }
 
 }  // namespace op

@@ -17,11 +17,11 @@ else()
     endif()
 endif()
 
-project(OpenVINO DESCRIPTION "OpenVINO toolkit")
-
-if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "CMake build type" FORCE)
+if(POLICY CMP0091)
+    cmake_policy(SET CMP0091 NEW) # Enables use of MSVC_RUNTIME_LIBRARY
 endif()
+
+project(OpenVINO DESCRIPTION "OpenVINO toolkit")
 
 find_package(IEDevScripts REQUIRED
              PATHS "${OpenVINO_SOURCE_DIR}/cmake/developer_package"
@@ -39,19 +39,34 @@ if(ENABLE_COVERAGE)
 endif()
 
 # resolving dependencies for the project
-message (STATUS "PROJECT ............................... " ${PROJECT_NAME})
 message (STATUS "CMAKE_VERSION ......................... " ${CMAKE_VERSION})
-message (STATUS "CMAKE_BINARY_DIR ...................... " ${CMAKE_BINARY_DIR})
-message (STATUS "CMAKE_SOURCE_DIR ...................... " ${CMAKE_SOURCE_DIR})
 message (STATUS "OpenVINO_SOURCE_DIR ................... " ${OpenVINO_SOURCE_DIR})
 message (STATUS "OpenVINO_BINARY_DIR ................... " ${OpenVINO_BINARY_DIR})
 message (STATUS "CMAKE_GENERATOR ....................... " ${CMAKE_GENERATOR})
 message (STATUS "CMAKE_C_COMPILER_ID ................... " ${CMAKE_C_COMPILER_ID})
 message (STATUS "CMAKE_CXX_COMPILER_ID ................. " ${CMAKE_CXX_COMPILER_ID})
-message (STATUS "CMAKE_BUILD_TYPE ...................... " ${CMAKE_BUILD_TYPE})
-message (STATUS "CMAKE_TOOLCHAIN_FILE .................. " ${CMAKE_TOOLCHAIN_FILE})
-message (STATUS "GLIBC_VERSION.......................... " ${OV_GLIBC_VERSION})
-
+if(OV_GENERATOR_MULTI_CONFIG)
+    string(REPLACE ";" " " config_types "${CMAKE_CONFIGURATION_TYPES}")
+    message (STATUS "CMAKE_CONFIGURATION_TYPES ............. " ${config_types})
+    unset(config_types)
+    if(CMAKE_GENERATOR MATCHES "^Ninja Multi-Config$")
+        message (STATUS "CMAKE_DEFAULT_BUILD_TYPE .............. " ${CMAKE_DEFAULT_BUILD_TYPE})
+    endif()
+else()
+    message (STATUS "CMAKE_BUILD_TYPE ...................... " ${CMAKE_BUILD_TYPE})
+endif()
+if(CMAKE_GENERATOR_PLATFORM)
+    message (STATUS "CMAKE_GENERATOR_PLATFORM .............. " ${CMAKE_GENERATOR_PLATFORM})
+endif()
+if(CMAKE_GENERATOR_TOOLSET)
+    message (STATUS "CMAKE_GENERATOR_TOOLSET ............... " ${CMAKE_GENERATOR_TOOLSET})
+endif()
+if(CMAKE_TOOLCHAIN_FILE)
+    message (STATUS "CMAKE_TOOLCHAIN_FILE .................. " ${CMAKE_TOOLCHAIN_FILE})
+endif()
+if(NOT OV_GLIBC_VERSION VERSION_EQUAL 0.0)
+    message (STATUS "GLIBC_VERSION ......................... " ${OV_GLIBC_VERSION})
+endif()
 
 # remove file with exported developer targets to force its regeneration
 file(REMOVE "${CMAKE_BINARY_DIR}/ngraphTargets.cmake")

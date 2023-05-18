@@ -63,7 +63,9 @@ bool evaluate_not(const HostTensorPtr& arg0, const HostTensorPtr& out, const siz
 
 bool op::v1::LogicalNot::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v1_LogicalNot_evaluate);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     return notop::evaluate_not(inputs[0], outputs[0], inputs[0]->get_element_count());
 }
 

@@ -3,6 +3,7 @@
 
 #distutils: language=c++
 #cython: embedsignature=True
+#cython: language_level=3
 
 from cython.operator cimport dereference as deref
 from libcpp.string cimport string
@@ -1545,32 +1546,6 @@ cdef class InferRequest:
         """
         return self.impl.exec_time
 
-    def set_batch(self, size):
-        """Sets new batch size for certain infer request when dynamic batching is enabled in executable network
-        that created this request.
-        
-        .. note:: Support of dynamic batch size depends on the target plugin.
-
-        :param size: New batch size to be used by all the following inference calls for this request
-        :return: None
-
-        Usage example:
-    
-        .. code-block:: python
-
-            ie = IECore()
-            net = ie.read_network(model=path_to_xml_file, weights=path_to_bin_file)
-            # Set max batch size
-            # net.batch = 10
-            ie.set_config(config={"DYN_BATCH_ENABLED": "YES"}, device_name=device)
-            exec_net = ie.load_network(network=net, device_name=device)
-            # Set batch size for certain network.
-            # NOTE: Input data shape will not be changed, but will be used partially in inference which increases performance
-            exec_net.requests[0].set_batch(2)
-        """
-        if size <= 0:
-            raise ValueError(f"Batch size should be positive integer number but {size} specified")
-        deref(self.impl).setBatch(size)
 
     def _fill_inputs(self, inputs):
         for k, v in inputs.items():

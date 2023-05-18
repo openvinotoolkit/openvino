@@ -8,6 +8,7 @@
 
 #include "primitive_inst.h"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "to_string_utils.h"
 #include "register.hpp"
@@ -19,6 +20,7 @@
 
 #include "reorder/reorder_weights_kernel_selector.h"
 #include "reorder/reorder_kernel_base.h"
+#include "impls/ocl/kernel_selector_helper.h"
 
 #include <vector>
 #include <list>
@@ -45,7 +47,7 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
             std::shared_ptr<dnnl::primitive_attr> attrs,
             const PrimDescType& pd,
             kernel_selector::WeightsReorderParams weights_reorder = {})
-        : typed_primitive_impl<PType>(weights_reorder, pd.impl_info_str()),
+        : typed_primitive_impl<PType>(create_weights_reorder_params(weights_reorder), pd.impl_info_str()),
         _engine(&engine),
         _attrs(attrs),
         _pd(pd) {
@@ -200,7 +202,7 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
                 _attrs->set_fpmath_mode(_fmath_mode);
             }
             {
-                const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernlImplParams());
+                const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernelImplParams());
                 const std::vector<cldnn::fused_primitive_desc_onednn>& fused_desc = impl_params->fused_desc_onednn;
                 dnnl::post_ops _post_ops;
                 int post_ops_len;
@@ -249,11 +251,16 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
                         dnnl::algorithm aalgorithm = dnnl::algorithm::undef;
                         ib >> make_data(&aalgorithm, sizeof(dnnl::algorithm));
 
-                        dnnl::memory::desc md = onednn::layout_to_memory_desc(
-                                                        impl_params->get_input_layout(fused_desc.at(idx).mem_dep),
-                                                        fused_desc.at(idx).tag, fused_desc.at(idx).flatten);
+                        if (fused_desc.at(idx).dims.size() > 0) {
+                            _post_ops.append_binary(aalgorithm,
+                                dnnl::memory::desc(fused_desc.at(idx).dims, fused_desc.at(idx).dt, fused_desc.at(idx).tag));
+                        } else {
+                            dnnl::memory::desc md = onednn::layout_to_memory_desc(
+                                                            impl_params->get_input_layout(fused_desc.at(idx).mem_dep),
+                                                            fused_desc.at(idx).tag, fused_desc.at(idx).flatten);
 
-                        _post_ops.append_binary(aalgorithm, md);
+                            _post_ops.append_binary(aalgorithm, md);
+                        }
                     } else if (_kind == dnnl::primitive::kind::prelu) {
                         int mask;
                         ib >> mask;
@@ -451,7 +458,7 @@ protected:
         return args;
     }
 
-    void init_kernels(const kernels_cache&) override { }
+    void init_kernels(const kernels_cache&, const kernel_impl_params&) override { }
 
     event::ptr aggregate_events(const std::vector<event::ptr>& events, stream& stream, bool group = false, bool is_output = false) const {
         if (events.size() == 1 && !is_output)
@@ -483,7 +490,15 @@ protected:
         }
 
         if (!instance.can_be_optimized()) {
-            _prim.execute(stream.get_onednn_stream(), _args[net_id]);
+            try {
+                _prim.execute(stream.get_onednn_stream(), _args[net_id]);
+            } catch (dnnl::error& err) {
+                /// WA: Force exit. Any opencl api call can be hang after CL_OUT_OF_RESOURCES.
+                if (err.status == dnnl_status_t::dnnl_out_of_memory) {
+                    ov::intel_gpu::ForceExit();
+                }
+                throw;    // rethrowing dnnl::error if not out_of_memory
+            }
         }
 
         if (_enable_profiling) {

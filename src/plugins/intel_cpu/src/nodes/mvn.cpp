@@ -13,8 +13,8 @@
 #include <dnnl_extension_utils.h>
 #include "utils/bfloat16.hpp"
 #include "ie_parallel.hpp"
-#include "emitters/jit_load_store_emitters.hpp"
-#include "emitters/jit_bf16_emitters.hpp"
+#include "emitters/x64/jit_load_store_emitters.hpp"
+#include "emitters/x64/jit_bf16_emitters.hpp"
 
 #include <cpu/x64/jit_generator.hpp>
 #include <cpu/x64/jit_uni_eltwise.hpp>
@@ -41,7 +41,7 @@ namespace node {
 namespace {
 
 struct MVNKey {
-    MVN::MVNAttrs mvnAttrs;
+    MVNAttrs mvnAttrs;
     dnnl::primitive_attr attr;
 
     size_t hash() const;
@@ -86,6 +86,8 @@ bool MVNKey::operator==(const MVNKey& rhs) const {
     return retVal;
 }
 } // namespace
+
+#if defined(OPENVINO_ARCH_X86_64)
 
 // some utility functions
 static inline bool isFloatCompatible(Precision prc) {
@@ -1062,6 +1064,9 @@ private:
         }
     }
 };
+
+#endif // OPENVINO_ARCH_X86_64
+
 //////////////////////////////////////////////////////////////////////////////////
 
 bool MVN::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
@@ -1186,7 +1191,6 @@ void MVN::initSupportedPrimitiveDescriptors() {
 
     const size_t inputsNum = getParentEdges().size();
     NodeConfig config;
-    config.dynBatchSupport = false;
     config.inConfs.resize(inputsNum);
     config.outConfs.resize(1);
     config.inConfs[0].constant(false);
@@ -1199,11 +1203,37 @@ void MVN::initSupportedPrimitiveDescriptors() {
     }
 
     auto& creatorsMap = BlockedDescCreator::getCommonCreators();
-    auto pushDesc = [&](LayoutType format, impl_desc_type impl_type) {
+    auto pushDesc = [&](LayoutType format, impl_desc_type impl_type, bool useAclExecutor = false) {
         config.inConfs[0].setMemDesc(creatorsMap.at(format)->createSharedDesc(inputPrecision, getInputShapeAtPort(0)));
         config.outConfs[0].setMemDesc(creatorsMap.at(format)->createSharedDesc(outputPrecision, getOutputShapeAtPort(0)));
-        supportedPrimitiveDescriptors.push_back({config, impl_type});
+
+        if (useAclExecutor) {
+            std::vector<MemoryDescPtr> srcMemoryDescs;
+            for (int i = 0; i < config.inConfs.size(); i++) {
+                srcMemoryDescs.push_back(config.inConfs[i].getMemDesc());
+            }
+            std::vector<MemoryDescPtr> dstMemoryDescs;
+            for (int i = 0; i < config.outConfs.size(); i++) {
+                dstMemoryDescs.push_back(config.outConfs[i].getMemDesc());
+            }
+
+            auto factory = std::make_shared<MVNExecutorFactory>(mvnAttrs, srcMemoryDescs, dstMemoryDescs,
+                                                                        std::make_shared<ExecutorContext>(context, getPrimitivesPriority()));
+            if (!factory->isEmpty()) {
+                supportedPrimitiveDescriptors.push_back({config, impl_type, factory});
+            }
+        } else {
+            supportedPrimitiveDescriptors.push_back({config, impl_type});
+        }
     };
+
+#if defined(OV_CPU_WITH_ACL)
+        pushDesc(LayoutType::nspc, undef, true);
+        pushDesc(LayoutType::ncsp, undef, true);
+        canUseAclExecutor = !supportedPrimitiveDescriptors.empty();
+        if (canUseAclExecutor)
+            return;
+#endif // OV_CPU_WITH_ACL
 
     impl_desc_type impl_type;
     if (mayiuse(cpu::x64::avx512_core)) {
@@ -1239,14 +1269,14 @@ void MVN::initSupportedPrimitiveDescriptors() {
     pushDesc(LayoutType::ncsp, impl_type);
 }
 
-MVN::MVNExecutor::MVNExecutor(const MVNAttrs& mvnAttrs)
+MVN::MVNExecutorBase::MVNExecutorBase(const MVNAttrs& mvnAttrs)
     : mvnAttrs(mvnAttrs),
       src_data_size(mvnAttrs.src_prc.size()),
       dst_data_size(mvnAttrs.dst_prc.size()) {}
 
 MVN::MVNJitExecutor::MVNJitExecutor(const MVNAttrs& mvnAttrs,
                                               const dnnl::primitive_attr& attr):
-                                              MVNExecutor(mvnAttrs) {
+                                              MVNExecutorBase(mvnAttrs) {
     auto jcp = jit_mvn_config_params();
     jcp.src_prc = mvnAttrs.src_prc;
     jcp.dst_prc = mvnAttrs.dst_prc;
@@ -1257,6 +1287,7 @@ MVN::MVNJitExecutor::MVNJitExecutor(const MVNAttrs& mvnAttrs,
     jcp.across_channels = mvnAttrs.execAcrossChannels_;
     int N = 0;
     std::tie(N, jcp.C, jcp.D, jcp.H, jcp.W) = mvnAttrs.shape5D;
+#if defined(OPENVINO_ARCH_X86_64)
     if (mayiuse(cpu::x64::avx512_core)) {
         mvn_kernel.reset(new jit_uni_mvn_kernel_f32<cpu::x64::avx512_core>(jcp, *attr.get()));
         jcp.normalize_variance = false;
@@ -1284,7 +1315,7 @@ MVN::MVNJitExecutor::MVNJitExecutor(const MVNAttrs& mvnAttrs,
     } else {
         IE_THROW() << "Can't create jit MVN kernel";
     }
-
+#endif // OPENVINO_ARCH_X86_64
     if (mvn_kernel)
         mvn_kernel->create_ker();
     if (mvn_mean_kernel)
@@ -1306,7 +1337,7 @@ void MVN::MVNJitExecutor::exec(const uint8_t *src_data, uint8_t *dst_data, const
     }
 }
 
-MVN::MVNRefExecutor::MVNRefExecutor(const MVNAttrs& mvnAttrs):MVNExecutor(mvnAttrs) {}
+MVN::MVNRefExecutor::MVNRefExecutor(const MVNAttrs& mvnAttrs):MVNExecutorBase(mvnAttrs) {}
 
 void MVN::MVNRefExecutor::exec(const uint8_t *src_data, uint8_t *dst_data, const void *post_ops_data_) {
     mvn_ref(src_data, dst_data);
@@ -1336,11 +1367,26 @@ void MVN::prepareParams() {
         mvnAttrs.layout = MVNLayoutType::mvn_block;
     }
 
+    if (canUseAclExecutor) {
+        std::vector<MemoryDescPtr> srcMemoryDescs;
+        for (int i = 0; i < getParentEdges().size(); i++) {
+            srcMemoryDescs.push_back(getParentEdgeAt(i)->getMemoryPtr()->getDescPtr());
+        }
+        std::vector<MemoryDescPtr> dstMemoryDescs;
+        dstMemoryDescs.push_back(getChildEdgeAt(0)->getMemoryPtr()->getDescPtr());
+
+        auto selectedPD = getSelectedPrimitiveDescriptor();
+        aclExecPtr = selectedPD->getExecutorFactoryAs<MVNExecutorFactory>()->makeExecutor(mvnAttrs, srcMemoryDescs, dstMemoryDescs, {});
+        selectedPD->setImplementationType(aclExecPtr->getImplType());
+
+        return;
+    }
+
     MVNKey key = {mvnAttrs, dnnl::primitive_attr()};
     setPostOps(key.attr, true);
 
-    auto builder = [&](const MVNKey& key) -> std::shared_ptr<MVNExecutor> {
-        std::shared_ptr<MVNExecutor> executor;
+    auto builder = [&](const MVNKey& key) -> std::shared_ptr<MVNExecutorBase> {
+        std::shared_ptr<MVNExecutorBase> executor;
         if (mayiuse(cpu::x64::sse41)) {
             executor = std::make_shared<MVNJitExecutor>(key.mvnAttrs, key.attr);
         } else {
@@ -1411,15 +1457,18 @@ void MVN::executeDynamicImpl(dnnl::stream strm) {
 }
 
 void MVN::execute(dnnl::stream strm) {
-    if (!execPtr) {
-        IE_THROW() << "Can't execute MVN node. Primitive didn't created";
-    }
     auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto &srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
 
-    uint8_t *dst_data = reinterpret_cast<uint8_t*>(dstMemPtr->GetPtr());
-    uint8_t *src_data = reinterpret_cast<uint8_t*>(srcMemPtr->GetPtr());
-    execPtr->exec(src_data, dst_data, postOpsDataPtrs.data());
+    if (execPtr) {
+        uint8_t *dst_data = reinterpret_cast<uint8_t*>(dstMemPtr->GetPtr());
+        uint8_t *src_data = reinterpret_cast<uint8_t*>(srcMemPtr->GetPtr());
+        execPtr->exec(src_data, dst_data, postOpsDataPtrs.data());
+    } else if (aclExecPtr) {
+        aclExecPtr->exec({srcMemPtr}, {dstMemPtr}, postOpsDataPtrs.data());
+    } else {
+        IE_THROW() << "Can't execute Interpolate node. Primitive didn't created";
+    }
 }
 
 void MVN::MVNJitExecutor::mvn_pln(const uint8_t* src_data, uint8_t* dst_data, const void *post_ops_data_) {
@@ -2006,7 +2055,8 @@ bool MVN::canFuse(const NodePtr& node) const {
     // 1D only fused with unary
     int inputRank = getInputShapeAtPort(0).getRank();
     bool unaryEltwise = one_of(node->getAlgorithm(), Algorithm::EltwiseRelu,
-                                                     Algorithm::EltwiseGelu,
+                                                     Algorithm::EltwiseGeluErf,
+                                                     Algorithm::EltwiseGeluTanh,
                                                      Algorithm::EltwiseElu,
                                                      Algorithm::EltwiseSigmoid,
                                                      Algorithm::EltwiseClamp,

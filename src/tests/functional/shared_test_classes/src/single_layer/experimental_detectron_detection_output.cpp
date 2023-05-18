@@ -164,7 +164,7 @@ void ExperimentalDetectronDetectionOutputLayerTest::generate_inputs(
     const auto& funcInputs = function->inputs();
     for (auto i = 0ul; i < funcInputs.size(); ++i) {
         if (targetInputStaticShapes[i] != inputTensors[i].get_shape()) {
-            throw Exception("input shape is different from tensor shape");
+            OPENVINO_THROW("input shape is different from tensor shape");
         }
 
         inputs.insert({funcInputs[i].get_node_shared_ptr(), inputTensors[i]});

@@ -121,14 +121,6 @@ private:
     void run(program& p) override;
 };
 
-class handle_input_padding : public base_pass {
-public:
-    handle_input_padding() : base_pass("handle_input_padding") {}
-
-private:
-    void run(program& p) override;
-};
-
 class mark_nodes : public base_pass {
 public:
     mark_nodes() : base_pass("analyzed_graph") {}
@@ -375,7 +367,7 @@ public:
             if (node->id() == dep->id()) {
                 return;
             }
-            for (auto subdep : dep->get_dependencies()) {
+            for (const auto& subdep : dep->get_dependencies()) {
                 add_memory_dependency(node, subdep.first);
                 add_memory_dependency(subdep.first, node);
             }
@@ -412,6 +404,12 @@ private:
 class add_onednn_optimization_attributes : public base_pass {
 public:
     add_onednn_optimization_attributes() : base_pass("add_onednn_optimization_attributes") {}
+    void run(program& p) override;
+};
+
+class build_implementations : public base_pass {
+public:
+    build_implementations() : base_pass("build_implementations") {}
     void run(program& p) override;
 };
 

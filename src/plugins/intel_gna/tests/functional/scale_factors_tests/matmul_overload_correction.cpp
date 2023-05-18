@@ -141,6 +141,7 @@ TEST_P(MatMulOverloadCorrectionNegTest, CompareWithRefImpl) {
     EXPECT_THAT(what.str(), ::testing::HasSubstr(expected));
     std::cout.rdbuf(sbuf);
     std::cerr.rdbuf(ebuf);
+    Run();
 };
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32,
