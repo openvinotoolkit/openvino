@@ -151,9 +151,6 @@ ShapeInferFactory* CustomShapeInferFF::create(const std::shared_ptr<ov::Node>& o
 }
 
 static void compare_result(std::vector<StaticShape> ref, std::vector<VectorDims> cus) {
-    std::cout << "=====custom_shape_infer compile result======" << std::endl;
-    std::cout << "===========" << "ref.size()" << ref.size() << std::endl;
-    std::cout << "===========" << "cus.size()" << cus.size() << std::endl;
     ASSERT_TRUE(ref.size() == cus.size());
     for (size_t i = 0; i < ref.size(); i++) {
         ASSERT_TRUE(ref[i].size() == cus[i].size());
@@ -163,45 +160,13 @@ static void compare_result(std::vector<StaticShape> ref, std::vector<VectorDims>
     }
 }
 
-
-// static void op_reshape(ov::Node* op, const std::vector<StaticShape>& input_shapes) {
-//          for (size_t port = 0; port < input_shapes.size(); ++port) {
-//             const auto input_op = op->input_value(port).get_node_shared_ptr();
-//             auto parameter = ov::as_type_ptr<ov::op::v0::Parameter>(input_op);
-//             if (parameter != nullptr) {
-//                 ov::PartialShape input_partialShape;
-//                 for (auto& dim : input_shapes[port]) {
-//                     input_partialShape.push_back(Dimension(dim.get_length()));
-//                 }
-//                 parameter->set_partial_shape(input_partialShape);
-//             }
-//          }
-//          op->revalidate_and_infer_types();
-// }
-//
-
 void cus_usual_shape_infer(ov::Node* op,
                      const std::vector<StaticShape>& input_shapes,
                      std::vector<StaticShape>& output_shapes,
                      const std::map<size_t, HostTensorPtr>& constant_data) {
     static std::shared_ptr<CustomShapeInferFF> cusFactory = std::make_shared<CustomShapeInferFF>();
-    std::cout << "=====custom_shape_infer test======" << "op" << op->get_type_name() << std::endl;
     auto shapeInferFactory = cusFactory->create(op->shared_from_this());
     ASSERT_TRUE(shapeInferFactory != nullptr);
-    // if (TypeFromName(op->get_type_name()) == Type::AdaptivePooling && op->get_output_size() == 0) {
-    // } else if (TypeFromName(op->get_type_name()) == Type::ShapeOf
-    //         && op->get_input_size() > 0
-    //         && op->get_input_partial_shape(0).size() == 0) {
-    // } else if (TypeFromName(op->get_type_name()) == Type::StridedSlice) {
-    //     const auto StridedSlice_op = dynamic_cast<const ov::op::v1::StridedSlice*>(op);
-    //     if (StridedSlice_op == nullptr)
-    //         return;
-    //     const auto& ellipsis_mask = StridedSlice_op->get_ellipsis_mask();
-    //     if (std::any_of(ellipsis_mask.begin(), ellipsis_mask.end(), [](int64_t x){ return x == 1; })) {
-    //         return;
-    //     }
-    // }
-    std::cout << "=====custom_shape_infer test factory======" << "op" << op->get_type_name() << std::endl;
     auto cusShapeInfer =  shapeInferFactory->makeShapeInfer();
     std::vector<std::reference_wrapper<const VectorDims>> cusInputShapes;
     std::vector<VectorDims> tmpInputShapes;
