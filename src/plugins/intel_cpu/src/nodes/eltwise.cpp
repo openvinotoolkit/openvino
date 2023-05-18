@@ -136,30 +136,22 @@ InferenceEngine::Precision eltwise_precision_helper::get_precision(const size_t 
     std::set<std::vector<element::Type>> supported_precision_intersection = get_supported_precisions(eltwise_data.front().algo);
 
     // for element-wise operations all inputs must to have the same precisions
-    assert(std::all_of(
-        supported_precision_intersection.begin(),
-        supported_precision_intersection.end(),
-        [&supported_precision_intersection](const std::vector<element::Type>& precisions) {
-            return std::all_of(
-                precisions.begin(),
-                precisions.end(),
-                [&precisions](const element::Type precision) { return precision == precisions[0]; });
-        }));
+    auto has_same_precision = [](const std::vector<element::Type>& precisions) {
+        return std::all_of(precisions.begin(), precisions.end(), [&precisions](const element::Type precision) {
+            return precision == precisions[0];
+        });
+    };
+
+    assert(std::all_of(supported_precision_intersection.begin(),
+                       supported_precision_intersection.end(),
+                       has_same_precision));
 
     for (size_t i = 1; i < eltwise_data.size(); ++i) {
         std::set<std::vector<element::Type>> prcs = get_supported_precisions(eltwise_data[i].algo);
         std::set<std::vector<element::Type>> prcs_intersect = {};
 
-        OPENVINO_ASSERT(std::all_of(
-            prcs.begin(),
-            prcs.end(),
-            [](const std::vector<element::Type>& precisions) {
-                return std::all_of(
-                    precisions.begin(),
-                    precisions.end(),
-                    [&precisions](const element::Type& precision) { return precision == precisions[0]; });
-            }),
-            "for element-wise nodes all precisions have to be equal");
+        OPENVINO_ASSERT(std::all_of(prcs.begin(), prcs.end(), has_same_precision),
+                        "for element-wise nodes all precisions have to be equal");
 
         set_intersection(supported_precision_intersection, prcs, prcs_intersect);
 

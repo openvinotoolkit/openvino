@@ -21,6 +21,7 @@ using namespace ov;
 using namespace ov::element;
 using namespace ov::opset10;
 using namespace ov::frontend;
+using namespace ov::frontend::tensorflow::tests;
 
 namespace {
 class TestDecoder : public ov::frontend::DecoderBase {
@@ -70,25 +71,6 @@ shared_ptr<Model> convert_model_partially(const string& model_path) {
         throw "Model is not converted partially";
     }
 
-    return model;
-}
-
-shared_ptr<Model> convert_model(const string& model_path, const ConversionExtension::Ptr& conv_ext = nullptr) {
-    FrontEndManager fem;
-    auto front_end = fem.load_by_framework(TF_FE);
-    if (!front_end) {
-        throw "TensorFlow Frontend is not initialized";
-    }
-    if (conv_ext) {
-        front_end->add_extension(conv_ext);
-    }
-    auto model_filename = FrontEndTestUtils::make_model_path(string(TEST_TENSORFLOW_MODELS_DIRNAME) + model_path);
-    auto input_model = front_end->load(model_filename);
-    if (!input_model) {
-        throw "Input model is not read";
-    }
-
-    auto model = front_end->convert(input_model);
     return model;
 }
 
@@ -212,7 +194,11 @@ TEST(FrontEndConvertModelTest, conversion_with_unknown_exception) {
         string ref_message = "Unknown exception type\n"
                              "[TensorFlow Frontend] Internal error, no translator found for operation(s): Enter, Exit, "
                              "LoopCond, Merge, NextIteration, Switch";
+        string doc_message =
+            "To facilitate the conversion of unsupported operations, refer to Frontend Extension documentation: "
+            "https://docs.openvino.ai/latest/openvino_docs_Extensibility_UG_Frontend_Extensions.html";
         ASSERT_TRUE(error_message.find(ref_message) != string::npos);
+        ASSERT_TRUE(error_message.find(doc_message) != string::npos);
         ASSERT_EQ(model, nullptr);
     } catch (...) {
         FAIL() << "Conversion of TensorFlow 1 While failed by wrong reason.";
@@ -237,5 +223,21 @@ TEST(FrontEndConvertModelTest, test_unsupported_resource_gather_translator) {
         ASSERT_EQ(model, nullptr);
     } catch (...) {
         FAIL() << "Conversion of the model with ResourceGather failed by wrong reason.";
+    }
+}
+
+TEST(FrontEndConvertModelTest, test_unsupported_operation_conversion_with_reason) {
+    shared_ptr<Model> model = nullptr;
+    try {
+        model = convert_model("gather_with_string_table/gather_with_string_table.pb");
+        FAIL() << "The model with Const of string type must not be converted.";
+    } catch (const OpConversionFailure& error) {
+        string error_message = error.what();
+        string ref_message =
+            "[TensorFlow Frontend] Internal error, no translator found for operation(s): Const of string type";
+        ASSERT_TRUE(error_message.find(ref_message) != string::npos);
+        ASSERT_EQ(model, nullptr);
+    } catch (...) {
+        FAIL() << "Conversion of the model with Const of string type failed by wrong reason.";
     }
 }

@@ -105,6 +105,7 @@ public:
         std::vector<std::vector<int>> _orig_proc_type_table;
         std::vector<std::vector<int>> _proc_type_table;
         std::vector<std::vector<int>> _streams_info_table;
+        std::vector<std::vector<int>> _stream_core_ids;
         std::vector<int> _stream_ids;
         bool _cpu_pinning = false;
         bool _streams_changed = false;

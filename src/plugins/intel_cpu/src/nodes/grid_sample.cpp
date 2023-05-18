@@ -133,6 +133,7 @@ void GridSample::createPrimitive() {
         jcp.cannelNum      = jcp.dynamicChannel ? 1lu : srcDataDims[1];
     }
 
+#if defined(OPENVINO_ARCH_X86_64)
     if (x64::mayiuse(x64::avx512_core)) {
         jitKernel.reset(new GridSampleKernel<x64::avx512_core>(jcp));
     } else if (x64::mayiuse(x64::avx2)) {
@@ -140,6 +141,7 @@ void GridSample::createPrimitive() {
     } else if (x64::mayiuse(x64::sse41)) {
         jitKernel.reset(new GridSampleKernel<x64::sse41>(jcp));
     }
+#endif // OPENVINO_ARCH_X86_64
     if (!jitKernel) {
         THROW_ERROR << " could not create JIT kernel.";
     }

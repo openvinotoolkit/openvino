@@ -30,16 +30,15 @@ JitConstants ReduceKernelBase::GetJitConstants(const reduce_params& params) cons
 
     const auto& output = params.outputs[0];
     if (output.is_dynamic()) {
-        size_t output_tensor_offset = 1 + GetFusedPrimitiveInputsCount(params);
-        DimensionAccessHelper dims(output, output_tensor_offset);
-        jit.AddConstant(MakeJitConstant("COMPUTATIONAL_OPERATIONS_NUMBER", toVectorMulString({dims.x,
-                                                                                              dims.y,
-                                                                                              dims.z,
-                                                                                              dims.w,
-                                                                                              dims.u,
-                                                                                              dims.v,
-                                                                                              dims.f,
-                                                                                              dims.b})));
+        DimensionAccessHelper dims(output);
+        jit.AddConstant(MakeJitConstant("COMPUTATIONAL_OPERATIONS_NUMBER", toVectorMulString({dims.x(),
+                                                                                              dims.y(),
+                                                                                              dims.z(),
+                                                                                              dims.w(),
+                                                                                              dims.u(),
+                                                                                              dims.v(),
+                                                                                              dims.f(),
+                                                                                              dims.b()})));
     } else {
         jit.AddConstant(MakeJitConstant("COMPUTATIONAL_OPERATIONS_NUMBER", params.outputs[0].LogicalSize()));
     }

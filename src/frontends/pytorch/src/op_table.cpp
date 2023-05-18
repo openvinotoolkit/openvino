@@ -19,6 +19,7 @@ OP_CONVERTER(translate_adaptive_max_pool2d);
 OP_CONVERTER(translate_add);
 OP_CONVERTER(translate_addcmul);
 OP_CONVERTER(translate_addmm);
+OP_CONVERTER(translate_all);
 OP_CONVERTER(translate_arange);
 OP_CONVERTER(translate_argsort);
 OP_CONVERTER(translate_as_tensor);
@@ -39,6 +40,7 @@ OP_CONVERTER(translate_dim);
 OP_CONVERTER(translate_div);
 OP_CONVERTER(translate_elu);
 OP_CONVERTER(translate_embedding);
+OP_CONVERTER(translate_embedding_bag);
 OP_CONVERTER(translate_empty);
 OP_CONVERTER(translate_expand);
 OP_CONVERTER(translate_expand_as);
@@ -104,6 +106,7 @@ OP_CONVERTER(translate_roi_align);
 OP_CONVERTER(translate_roll);
 OP_CONVERTER(translate_rsqrt);
 OP_CONVERTER(translate_rsub);
+OP_CONVERTER(translate_scaled_dot_product_attention);
 OP_CONVERTER(translate_select);
 OP_CONVERTER(translate_set_item);
 OP_CONVERTER(translate_selu);
@@ -158,6 +161,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::add_", op::inplace_op<op::translate_add>},
         {"aten::addcmul", op::translate_addcmul},
         {"aten::addmm", op::translate_addmm},
+        {"aten::all", op::translate_all},
         {"aten::argsort", op::translate_argsort},
         {"aten::arange", op::translate_arange},
         {"aten::as_tensor", op::translate_as_tensor},
@@ -207,6 +211,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::dropout_", op::skip_node},
         {"aten::elu", op::translate_elu},
         {"aten::embedding", op::translate_embedding},
+        {"aten::embedding_bag", op::translate_embedding_bag},
         {"aten::empty", op::translate_empty},
         {"aten::eq", op::translate_1to1_match_2_inputs_align_types<opset10::Equal>},
         {"aten::exp", op::translate_1to1_match_1_inputs<opset10::Exp>},
@@ -296,6 +301,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::rsqrt", op::translate_rsqrt},
         {"aten::rsub", op::translate_rsub},
         {"aten::ScalarImplicit", op::skip_node},
+        {"aten::scaled_dot_product_attention", op::translate_scaled_dot_product_attention},
         {"aten::select", op::translate_select},
         {"aten::selu", op::translate_selu},
         {"aten::selu_", op::inplace_op<op::translate_selu>},
