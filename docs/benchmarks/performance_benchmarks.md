@@ -8,7 +8,7 @@
 
    openvino_docs_performance_benchmarks_faq
    openvino_docs_performance_int8_vs_fp32
-   Performance Data Spreadsheet (download xlsx) <https://docs.openvino.ai/2022.3/_static/benchmarks_files/OV-2022.3-Performance-Data.xlsx>
+   Performance Data Spreadsheet (download xlsx) <https://docs.openvino.ai/2023.0/_static/benchmarks_files/OV-2022.3-Performance-Data.xlsx>
    openvino_docs_MO_DG_Getting_Performance_Numbers
 
 

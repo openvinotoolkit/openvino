@@ -28,8 +28,8 @@ NNCF Quick Start Examples
 
 See the following Jupyter Notebooks for step-by-step examples showing how to add model compression to a PyTorch or Tensorflow training pipeline with NNCF:
 
-- `Quantization Aware Training with NNCF and PyTorch <https://docs.openvino.ai/latest/notebooks/302-pytorch-quantization-aware-training-with-output.html>`__.
-- `Quantization Aware Training with NNCF and TensorFlow <https://docs.openvino.ai/latest/notebooks/305-tensorflow-quantization-aware-training-with-output.html>`__.
+- `Quantization Aware Training with NNCF and PyTorch <notebooks/302-pytorch-quantization-aware-training-with-output.html>`__.
+- `Quantization Aware Training with NNCF and TensorFlow <notebooks/305-tensorflow-quantization-aware-training-with-output.html>`__.
 
 Installation
 ####################
@@ -109,7 +109,7 @@ Additional Resources
 - :doc:`Quantizing Models Post-training <pot_introduction>`
 - `NNCF GitHub repository <https://github.com/openvinotoolkit/nncf>`__
 - `NNCF FAQ <https://github.com/openvinotoolkit/nncf/blob/develop/docs/FAQ.md>`__
-- `Quantization Aware Training with NNCF and PyTorch <https://docs.openvino.ai/latest/notebooks/302-pytorch-quantization-aware-training-with-output.html>`__
-- `Quantization Aware Training with NNCF and TensorFlow <https://docs.openvino.ai/latest/notebooks/305-tensorflow-quantization-aware-training-with-output.html>`__
+- `Quantization Aware Training with NNCF and PyTorch <notebooks/302-pytorch-quantization-aware-training-with-output.html>`__
+- `Quantization Aware Training with NNCF and TensorFlow <notebooks/305-tensorflow-quantization-aware-training-with-output.html>`__.
 
 @endsphinxdirective

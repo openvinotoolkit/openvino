@@ -123,7 +123,7 @@ See Also
 - :doc:`Using OpenVINO™ Samples <openvino_docs_OV_UG_Samples_Overview>`
 - :doc:`Model Downloader <omz_tools_downloader>`
 - :doc:`Model Optimizer <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`
-- `C API Reference <https://docs.openvino.ai/latest/api/api_reference.html>`__
+- :doc:`C API Reference <api/api_reference>`
 
 @endsphinxdirective
 

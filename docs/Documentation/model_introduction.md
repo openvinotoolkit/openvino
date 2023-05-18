@@ -24,7 +24,7 @@ This section describes how to obtain and prepare your model for work with OpenVI
 
 * :doc:`See the supported formats and how to use them in your project <Supported_Model_Formats>`.
 * :doc:`Convert different model formats to the OpenVINO IR format <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`.
-* `Automate model-related tasks with Model Downloader and additional OMZ Tools <https://docs.openvino.ai/latest/omz_tools_downloader.html>`__.
+* :doc:`Automate model-related tasks with Model Downloader and additional OMZ Tools <omz_tools_downloader>`.
 
 To begin with, you may want to :doc:`browse a database of models for use in your projects <model_zoo>`.
 

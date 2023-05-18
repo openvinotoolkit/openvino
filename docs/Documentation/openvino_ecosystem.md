@@ -45,7 +45,7 @@ A solution for Model Developers and Independent Software Vendors to use secure p
 
 More resources:
 
-* `Documentation <https://docs.openvino.ai/latest/ovsa_get_started.html>`__  
+* :doc:`Documentation <ovsa_get_started>`
 * `GitHub <https://github.com/openvinotoolkit/security_addon>`__  
 
 
@@ -77,7 +77,7 @@ A web-based tool for deploying deep learning models. Built on the core of OpenVI
 
 More resources:
 
-* `Documentation <https://docs.openvino.ai/2022.3/workbench_docs_Workbench_DG_Introduction.html>`__  
+* `Documentation <https://docs.openvino.ai/2023.0/workbench_docs_Workbench_DG_Introduction.html>`__  
 * `Docker Hub <https://hub.docker.com/r/openvino/workbench>`__  
 * `PyPI <https://pypi.org/project/openvino-workbench/>`__   
 
