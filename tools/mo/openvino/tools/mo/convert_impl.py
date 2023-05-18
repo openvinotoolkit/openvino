@@ -7,8 +7,10 @@ import logging as log
 import os
 import platform
 import sys
+import traceback
 from collections import OrderedDict
 from copy import deepcopy
+from distutils.version import LooseVersion
 from pathlib import Path
 
 try:
@@ -35,16 +37,19 @@ from openvino.tools.mo.utils.cli_parser import check_available_transforms, \
     get_model_name_from_args, depersonalize, get_mo_convert_params, input_to_input_cut_info, \
     input_shape_to_input_cut_info, freeze_placeholder_to_input_cut_info
 
-from openvino.tools.mo.utils.error import Error
+from openvino.tools.mo.utils.error import Error, FrameworkError
+from openvino.tools.mo.utils.get_ov_update_message import get_ov_update_message, get_ov_api20_message, \
+    get_tf_fe_message, get_try_legacy_fe_message, get_compression_message
+from openvino.tools.mo.utils.model_analysis import AnalysisResults
 from openvino.tools.mo.utils.version import VersionChecker
 from openvino.tools.mo.utils.guess_framework import deduce_legacy_frontend_by_namespace
 from openvino.tools.mo.utils.logger import init_logger, progress_printer
 from openvino.tools.mo.utils.utils import refer_to_faq_msg
-from openvino.tools.mo.utils.telemetry_utils import send_params_info, send_framework_info
-from openvino.tools.mo.utils.versions_checker import check_requirements  # pylint: disable=no-name-in-module
-from openvino.tools.mo.utils.telemetry_utils import get_tid
+from openvino.tools.mo.utils.telemetry_utils import send_params_info, send_framework_info, send_conversion_result, \
+    get_tid
+from openvino.tools.mo.utils.versions_checker import get_environment_setup  # pylint: disable=no-name-in-module
 from openvino.tools.mo.moc_frontend.check_config import legacy_extensions_used
-from openvino.tools.mo.moc_frontend.pytorch_frontend_utils import get_pytorch_decoder, convert_pytorch_via_onnx
+from openvino.tools.mo.moc_frontend.pytorch_frontend_utils import get_pytorch_decoder
 from openvino.tools.mo.moc_frontend.shape_utils import parse_input_shapes, get_static_shape
 
 # pylint: disable=no-name-in-module,import-error
@@ -211,14 +216,6 @@ def arguments_post_parsing(argv: argparse.Namespace):
     # This is just to check that transform key is valid and transformations are available
     check_available_transforms(parse_transform(argv.transform))
 
-    # For C++ frontends there are no specific Python installation requirements, check only generic ones
-    if moc_front_end:
-        ret_code = check_requirements(silent=argv.silent)
-    else:
-        ret_code = check_requirements(framework=argv.framework, silent=argv.silent)
-    if ret_code:
-        raise Error('check_requirements exited with return code {}'.format(ret_code))
-
     if argv.scale and argv.scale_values:
         raise Error(
             'Both --scale and --scale_values are defined. Specify either scale factor or scale values per input ' +
@@ -303,9 +300,9 @@ def update_fallback_with_conversion_error(use_new_frontend: bool, is_tf: bool, e
         return False
 
     # for TensorFlow FE we have a set of operations that should lead to the fallback to the legacy
-    conversion_error_re = r"^(\[TensorFlow\ Frontend\]\ Internal\ error\:\ No\ translator\ found\ for\ )(\w+)(\ node\.)$"
+    conversion_error_re = r"^(\[TensorFlow\ Frontend\]\ Internal\ error\,\ no\ translator\ found\ for\ operation\(s\)\:\ )((\w+)(\,\ \w+)*)$"
     conversion_error_match = re.findall(conversion_error_re, ex_msg, re.MULTILINE)
-    fallback_operations = [
+    all_fallback_operations = [
         # corresponds to TF1 While operation
         "TensorArrayScatterV3", "TensorArrayV3", "TensorArraySizeV3", "TensorArrayGatherV3",
         "LoopCond", "Enter", "NextIteration", "Exit",
@@ -316,11 +313,17 @@ def update_fallback_with_conversion_error(use_new_frontend: bool, is_tf: bool, e
         "RFFT", "RFFT2D", "RFFT3D", "IRFFT", "IRFFT2D", "IRFFT3D",
         "Complex", "ComplexAbs", "Real", "Imag",
     ]
-    if len(conversion_error_match) < 1 or len(conversion_error_match[0]) != 3 or \
-            conversion_error_match[0][1] not in fallback_operations:
+    if len(conversion_error_match) < 1 or len(conversion_error_match[0]) != 4:
+        # no match for the fallback by unsupported operation
         return False
 
-    fallback_reasons.append("Unsupported operation: " + conversion_error_match[0][1])
+    unsupported_operations = conversion_error_match[0][1].replace(" ", "").split(",")
+    fallback_operations = [operation for operation in unsupported_operations if operation in all_fallback_operations]
+
+    if len(fallback_operations) == 0:
+        return False
+
+    fallback_reasons.append("Fallback to the legacy TF FE due to operation(s): " + ', '.join(fallback_operations))
     return True
 
 
@@ -517,15 +520,21 @@ def check_model_object(argv):
     model = argv['input_model']
     if 'tensorflow' in sys.modules:
         import tensorflow as tf
-        from tensorflow.python.training.tracking.base import Trackable
+        env_setup = get_environment_setup("tf")
 
         if isinstance(model, tf.compat.v1.GraphDef):
+            return "tf"
+        if isinstance(model, tf.compat.v1.Graph):
+            argv['input_model'] = model.as_graph_def()
             return "tf"
         if isinstance(model, tf.compat.v1.Session):
             argv['input_model'] = model.graph_def
             return "tf"
-        if isinstance(model, tf.types.experimental.ConcreteFunction):
+        if env_setup["tensorflow"] >= LooseVersion("2.6.0") and isinstance(model, tf.types.experimental.ConcreteFunction):
             argv['input_model'] = model.graph.as_graph_def()
+            return "tf"
+        if env_setup["tensorflow"] >= LooseVersion("2.6.0") and isinstance(model, tf.types.experimental.GenericFunction):
+            argv['input_model'] = model
             return "tf"
         if isinstance(model, tf.keras.Model):
             return "tf"
@@ -552,12 +561,17 @@ def check_model_object(argv):
             argv['input_model'] = tf.keras.Model(inputs, outputs)
             argv['input_shape'] = None
             return "tf"
-        if isinstance(model, Trackable):
-            return "tf"
     if 'torch' in sys.modules:
         import torch
-        if isinstance(model, torch.nn.Module) or isinstance(model, torch.jit.ScriptFunction):
+        if isinstance(model, (torch.nn.Module, torch.jit.ScriptFunction)):
             return "pytorch"
+        try:
+            from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+            
+            if isinstance(model, TorchScriptPythonDecoder):
+                return "pytorch"
+        except Exception as e:
+            pass
 
     import io
     if isinstance(model, io.BytesIO):
@@ -801,10 +815,8 @@ def pack_params_to_args_namespace(args: dict, cli_parser: argparse.ArgumentParse
             # so we need to set them in argv separately
             if value is not None and getattr(argv, key, None) != value:
                 setattr(argv, key, value)
-        argv.is_python_api_used = True
     else:
         argv = cli_parser.parse_args()
-        argv.is_python_api_used = False
     return argv
 
 
@@ -824,7 +836,20 @@ def update_args_for_saved_model_dir(args: dict):
         args['input_model'] = None
 
 
-def _convert(cli_parser: argparse.ArgumentParser, framework, args):
+def silent_is_false(argv: argparse.Namespace):
+    return argv is not None and hasattr(argv, 'silent') and argv.silent is False
+
+
+def framework_is_tf(args, argv):
+    if input_model_is_object(args) and check_model_object(args) == "tf":
+        return True
+    if argv is not None:
+        is_tf, _, _, _, _ = deduce_legacy_frontend_by_namespace(argv)
+        return is_tf
+    return False
+
+
+def _convert(cli_parser: argparse.ArgumentParser, framework, args, python_api_used):
     if 'help' in args and args['help']:
         show_mo_convert_help()
         return None, None
@@ -835,6 +860,7 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args):
     # Initialize logger with 'ERROR' as default level to be able to form nice messages
     # before arg parser deliver log_level requested by user
     init_logger('ERROR', False)
+    argv = None
     try:
         model_framework = None
         inp_model_is_object = input_model_is_object(args)
@@ -844,20 +870,17 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args):
                 example_inputs = None
                 if 'example_input' in args and args['example_input'] is not None:
                     example_inputs = args['example_input']
-                   
-                if 'use_legacy_frontend' in args and args['use_legacy_frontend']:
-                    # TO DO: remove this path, when pytorch frontend productization is finished, CVS-103726
-                    # prevent invoking legacy mo python onnx frontend for models converted on the fly
-                    args.pop("use_legacy_frontend")
-                    return convert_pytorch_via_onnx(args, example_inputs, cli_parser, framework, _convert)
+                elif 'example_inputs' in args:
+                    raise AssertionError("'example_inputs' argument is not recognized, maybe you meant to provide 'example_input'?")
 
-                decoder = get_pytorch_decoder(args['input_model'], parse_input_shapes(args), example_inputs)
+                decoder = get_pytorch_decoder(args['input_model'], parse_input_shapes(args), example_inputs, args.get("input"))
                 args['input_model'] = decoder
                 args["framework"] = "pytorch"
 
         update_args_for_saved_model_dir(args)
 
         argv = pack_params_to_args_namespace(args, cli_parser)
+        argv.is_python_api_used = python_api_used
 
         argv.feManager = FrontEndManager()
         frameworks = list(set(['tf', 'caffe', 'mxnet', 'kaldi', 'onnx'] + (get_available_front_ends(argv.feManager)
@@ -898,12 +921,54 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args):
         for key, value in non_default_params.items():
             ov_model.set_rt_info(str(value), ["conversion_parameters", str(key)])
 
-        telemetry.send_event('mo', 'conversion_result', 'success')
-        telemetry.end_session('mo')
-        telemetry.force_shutdown(1.0)
+        if silent_is_false(argv) or not python_api_used:
+            if 'compress_to_fp16' in argv and argv.compress_to_fp16:
+                print(get_compression_message())
+
+            ov_update_message = get_ov_update_message()
+            ov_api20_message = get_ov_api20_message()
+            if ov_update_message is not None:
+                print(ov_update_message)
+            if ov_api20_message is not None and ov_model is not None:
+                print(ov_api20_message)
+            is_fallback = getattr(argv, 'is_fallback', False)
+            if not argv.use_legacy_frontend and framework_is_tf(args, argv) and not is_fallback:
+                # now TF FE is default frontend for TensorFlow models conversion
+                print(get_tf_fe_message())
+
+        send_conversion_result('success')
         return ov_model, argv
+
     except Exception as e:
-        telemetry.send_event('mo', 'conversion_result', 'fail')
-        telemetry.end_session('mo')
-        telemetry.force_shutdown(1.0)
-        raise e.with_traceback(None)
+        if silent_is_false(argv) or not python_api_used:
+            if isinstance(e, (FileNotFoundError, NotADirectoryError)):
+                log.error('File {} was not found'.format(str(e).split('No such file or directory:')[1]))
+                log.debug(traceback.format_exc())
+            elif isinstance(e, Error):
+                analysis_results = AnalysisResults()
+                if analysis_results.get_messages() is not None:
+                    for el in analysis_results.get_messages():
+                        log.error(el, extra={'analysis_info': True})
+                log.error(e)
+                log.debug(traceback.format_exc())
+            elif isinstance(e, FrameworkError):
+                log.error(e, extra={'framework_error': True})
+                log.debug(traceback.format_exc())
+            else:
+                log.error("-------------------------------------------------")
+                log.error("----------------- INTERNAL ERROR ----------------")
+                log.error("Unexpected exception happened.")
+                log.error("Please contact Model Optimizer developers and forward the following information:")
+                log.error(str(e))
+                log.error(traceback.format_exc())
+                log.error("---------------- END OF BUG REPORT --------------")
+                log.error("-------------------------------------------------")
+                is_fallback = getattr(argv, 'is_fallback', False) if argv is not None else False
+                if not argv.use_legacy_frontend and framework_is_tf(args, argv) and not is_fallback:
+                    print(get_try_legacy_fe_message())
+
+        send_conversion_result('fail')
+        if python_api_used:
+            raise e.with_traceback(None)
+        else:
+            return None, argv

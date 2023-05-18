@@ -26,11 +26,12 @@ public:
     std::vector<std::vector<int>> _proc_type_table;
     std::vector<std::vector<int>> _cpu_mapping_table;
     std::mutex _cpu_mutex;
-    std::mutex _task_mutex;
     int _plugin_status = PLUGIN_USED_START;
     int _socket_idx = 0;
     int _num_threads = 0;
 };
+
+CPU& cpu_info();
 
 #ifdef __linux__
 /**
@@ -51,7 +52,7 @@ void parse_processor_info_linux(const int _processors,
                                 std::vector<std::vector<int>>& _cpu_mapping_table);
 #endif
 
-#if (defined(_WIN32) || defined(_WIN64))
+#if defined(_WIN32)
 /**
  * @brief      Parse processors infomation on Windows
  * @param[in]  base_ptr buffer object pointer of Windows system infomation

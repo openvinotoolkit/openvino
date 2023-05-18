@@ -42,7 +42,7 @@ public:
         // Skip test according to plugin specific disabledTestPatterns() (if any)
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         APIBaseTest::SetUp();
-        function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(target_device);
+        function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice();
     }
 
     void TearDown() override {
@@ -90,13 +90,13 @@ TEST_P(OVCompiledModelBaseTest, canCompileModel) {
 }
 
 TEST_P(OVCompiledModelBaseTest, canCompileModelFromMemory) {
-    std::string model = R"V0G0N(
+ std::string model = R"V0G0N(
         <net name="Network" version="10">
             <layers>
                 <layer name="in1" type="Parameter" id="0" version="opset8">
                     <data element_type="f16" shape="1,3,22,22"/>
                     <output>
-                        <port id="0" precision="FP16" names="data">
+                        <port id="0" precision="FP16" names="data1">
                             <dim>1</dim>
                             <dim>3</dim>
                             <dim>22</dim>
@@ -104,10 +104,26 @@ TEST_P(OVCompiledModelBaseTest, canCompileModelFromMemory) {
                         </port>
                     </output>
                 </layer>
-                <layer name="round" id="1" type="Round" version="opset8">
-                    <data mode="half_to_even"/>
+                <layer name="in2" type="Parameter" id="1" version="opset8">
+                    <data element_type="f16" shape="1,3,22,22"/>
+                    <output>
+                        <port id="0" precision="FP16" names="data2">
+                            <dim>1</dim>
+                            <dim>3</dim>
+                            <dim>22</dim>
+                            <dim>22</dim>
+                        </port>
+                    </output>
+                </layer>
+                <layer name="concat" id="2" type="Concat" version="opset8">
                     <input>
-                        <port id="1" precision="FP16">
+                        <port id="0" precision="FP16">
+                            <dim>1</dim>
+                            <dim>3</dim>
+                            <dim>22</dim>
+                            <dim>22</dim>
+                        </port>
+                        <port id="1"  precision="FP16">
                             <dim>1</dim>
                             <dim>3</dim>
                             <dim>22</dim>
@@ -117,17 +133,17 @@ TEST_P(OVCompiledModelBaseTest, canCompileModelFromMemory) {
                     <output>
                         <port id="2" precision="FP16" names="r">
                             <dim>1</dim>
-                            <dim>3</dim>
+                            <dim>6</dim>
                             <dim>22</dim>
                             <dim>22</dim>
                         </port>
                     </output>
                 </layer>
-                <layer name="output" type="Result" id="2" version="opset8">
+                <layer name="output" type="Result" id="3" version="opset8">
                     <input>
                         <port id="0" precision="FP16">
                             <dim>1</dim>
-                            <dim>3</dim>
+                            <dim>6</dim>
                             <dim>22</dim>
                             <dim>22</dim>
                         </port>
@@ -135,8 +151,9 @@ TEST_P(OVCompiledModelBaseTest, canCompileModelFromMemory) {
                 </layer>
             </layers>
             <edges>
-                <edge from-layer="0" from-port="0" to-layer="1" to-port="1"/>
-                <edge from-layer="1" from-port="2" to-layer="2" to-port="0"/>
+                <edge from-layer="0" from-port="0" to-layer="2" to-port="0"/>
+                <edge from-layer="1" from-port="0" to-layer="2" to-port="1"/>
+                <edge from-layer="2" from-port="2" to-layer="3" to-port="0"/>
             </edges>
         </net>
         )V0G0N";
@@ -145,16 +162,16 @@ TEST_P(OVCompiledModelBaseTest, canCompileModelFromMemory) {
 
 TEST(OVCompiledModelBaseTest, canCompileModelToDefaultDevice) {
     std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
-    std::shared_ptr<ov::Model> function = ngraph::builder::subgraph::makeConvPoolRelu();
+    std::shared_ptr<ov::Model> function = ngraph::builder::subgraph::makeSingleConcatWithConstant();
     EXPECT_NO_THROW(auto execNet = core->compile_model(function));
 }
 
-TEST_P(OVCompiledModelBaseTestOptional, canCompileModelAndCreateInferRequest) {
+TEST_P(OVCompiledModelBaseTest, canCompileModelAndCreateInferRequest) {
     auto execNet = core->compile_model(function, target_device, configuration);
     EXPECT_NO_THROW(auto req = execNet.create_infer_request());
 }
 
-TEST_P(OVCompiledModelBaseTest, checkGetExecGraphInfoIsNotNullptr) {
+TEST_P(OVCompiledModelBaseTestOptional, checkGetExecGraphInfoIsNotNullptr) {
     auto execNet = core->compile_model(function, target_device, configuration);
     auto execGraph = execNet.get_runtime_model();
     EXPECT_NE(execGraph, nullptr);
@@ -317,9 +334,9 @@ TEST_P(OVCompiledModelBaseTestOptional, CheckExecGraphInfoAfterExecution) {
 }
 
 TEST_P(OVCompiledModelBaseTest, getInputFromFunctionWithSingleInput) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::CompiledModel execNet;
+
+    function = ngraph::builder::subgraph::makeSplitConcat();
 
     execNet = core->compile_model(function, target_device, configuration);
     EXPECT_EQ(function->inputs().size(), 1);
@@ -328,25 +345,12 @@ TEST_P(OVCompiledModelBaseTest, getInputFromFunctionWithSingleInput) {
     EXPECT_EQ(function->input().get_tensor().get_names(), execNet.input().get_tensor().get_names());
     EXPECT_EQ(function->input().get_tensor().get_partial_shape(), execNet.input().get_tensor().get_partial_shape());
     EXPECT_EQ(function->input().get_tensor().get_element_type(), execNet.input().get_tensor().get_element_type());
-
-    ov::InferRequest request = execNet.create_infer_request();
-
-    ov::Tensor tensor1, tensor2;
-    EXPECT_NO_THROW(tensor1 = request.get_tensor(execNet.input()));
-    EXPECT_NO_THROW(tensor2 = request.get_tensor(function->input()));
-    EXPECT_TRUE(compareTensors(tensor1, tensor2));
-    EXPECT_NO_THROW(tensor2 = request.get_tensor(execNet.input().get_any_name()));
-    EXPECT_TRUE(compareTensors(tensor1, tensor2));
-    EXPECT_NO_THROW(tensor2 = request.get_tensor(function->input().get_any_name()));
-    EXPECT_TRUE(compareTensors(tensor1, tensor2));
-    EXPECT_NO_THROW(tensor2 = request.get_input_tensor(0));
-    EXPECT_TRUE(compareTensors(tensor1, tensor2));
 }
 
 TEST_P(OVCompiledModelBaseTest, getOutputFromFunctionWithSingleInput) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::CompiledModel execNet;
+
+    function = ngraph::builder::subgraph::makeSplitConcat();
 
     execNet = core->compile_model(function, target_device, configuration);
     EXPECT_EQ(function->outputs().size(), 1);
@@ -355,47 +359,13 @@ TEST_P(OVCompiledModelBaseTest, getOutputFromFunctionWithSingleInput) {
     EXPECT_EQ(function->output().get_tensor().get_names(), execNet.output().get_tensor().get_names());
     EXPECT_EQ(function->output().get_tensor().get_partial_shape(), execNet.output().get_tensor().get_partial_shape());
     EXPECT_EQ(function->output().get_tensor().get_element_type(), execNet.output().get_tensor().get_element_type());
-
-    ov::InferRequest request = execNet.create_infer_request();
-    ov::Tensor tensor1, tensor2;
-    EXPECT_NO_THROW(tensor1 = request.get_tensor(execNet.output()));
-    EXPECT_NO_THROW(tensor2 = request.get_tensor(function->output()));
-    EXPECT_TRUE(compareTensors(tensor1, tensor2));
-    EXPECT_NO_THROW(tensor2 = request.get_tensor(execNet.output().get_any_name()));
-    EXPECT_TRUE(compareTensors(tensor1, tensor2));
-    EXPECT_NO_THROW(tensor2 = request.get_tensor(function->output().get_any_name()));
-    EXPECT_TRUE(compareTensors(tensor1, tensor2));
-    EXPECT_NO_THROW(tensor2 = request.get_output_tensor(0));
-    EXPECT_TRUE(compareTensors(tensor1, tensor2));
 }
 
 TEST_P(OVCompiledModelBaseTest, getInputsFromFunctionWithSeveralInputs) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::CompiledModel execNet;
 
-    // Create simple function
-    {
-        auto param1 = std::make_shared<ov::opset8::Parameter>(element::Type_t::f32, ngraph::Shape({1, 3, 24, 24}));
-        param1->set_friendly_name("param1");
-        param1->output(0).get_tensor().set_names({"data1"});
-        auto param2 = std::make_shared<ov::opset8::Parameter>(element::Type_t::f32, ngraph::Shape({1, 3, 24, 24}));
-        param2->set_friendly_name("param2");
-        param2->output(0).get_tensor().set_names({"data2"});
-        auto relu = std::make_shared<ov::opset8::Relu>(param1);
-        relu->set_friendly_name("relu_op");
-        relu->output(0).get_tensor().set_names({"relu"});
-        auto result1 = std::make_shared<ov::opset8::Result>(relu);
-        result1->set_friendly_name("result1");
-        auto concat = std::make_shared<ov::opset8::Concat>(OutputVector{relu, param2}, 1);
-        concat->set_friendly_name("concat_op");
-        concat->output(0).get_tensor().set_names({"concat"});
-        auto result2 = std::make_shared<ov::opset8::Result>(concat);
-        result2->set_friendly_name("result2");
-        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result1, result2},
-                                                      ngraph::ParameterVector{param1, param2});
-        function->set_friendly_name("SimpleReLU");
-    }
+    function = ngraph::builder::subgraph::makeConcatWithParams();
+
     execNet = core->compile_model(function, target_device, configuration);
     EXPECT_EQ(function->inputs().size(), 2);
     EXPECT_EQ(function->inputs().size(), execNet.inputs().size());
@@ -410,63 +380,13 @@ TEST_P(OVCompiledModelBaseTest, getInputsFromFunctionWithSeveralInputs) {
     EXPECT_NE(function->input(1).get_node(), function->input("data1").get_node());
     EXPECT_EQ(function->input(1).get_node(), function->input("data2").get_node());
     EXPECT_NE(function->input(0).get_node(), function->input("data2").get_node());
-
-    ov::InferRequest request = execNet.create_infer_request();
-
-    ov::Tensor tensor1, tensor2;
-    EXPECT_NO_THROW(tensor1 = request.get_tensor(execNet.input(0)));
-    EXPECT_NO_THROW(tensor2 = request.get_tensor(function->input(0)));
-    EXPECT_TRUE(compareTensors(tensor1, tensor2));
-    EXPECT_NO_THROW(tensor2 = request.get_tensor(execNet.input(0).get_any_name()));
-    EXPECT_TRUE(compareTensors(tensor1, tensor2));
-    EXPECT_NO_THROW(tensor2 = request.get_tensor(function->input(0).get_any_name()));
-    EXPECT_TRUE(compareTensors(tensor1, tensor2));
-    EXPECT_NO_THROW(tensor2 = request.get_input_tensor(0));
-    EXPECT_TRUE(compareTensors(tensor1, tensor2));
-    EXPECT_NO_THROW(tensor1 = request.get_tensor(execNet.input(1)));
-    try {
-        // To avoid case with remote tensors
-        tensor1.data();
-        EXPECT_FALSE(compareTensors(tensor1, tensor2));
-    } catch (const ov::Exception&) {
-    }
-    EXPECT_NO_THROW(tensor2 = request.get_tensor(function->input(1)));
-    EXPECT_TRUE(compareTensors(tensor1, tensor2));
-    EXPECT_NO_THROW(tensor2 = request.get_tensor(execNet.input(1).get_any_name()));
-    EXPECT_TRUE(compareTensors(tensor1, tensor2));
-    EXPECT_NO_THROW(tensor2 = request.get_tensor(function->input(1).get_any_name()));
-    EXPECT_TRUE(compareTensors(tensor1, tensor2));
-    EXPECT_NO_THROW(tensor2 = request.get_input_tensor(1));
-    EXPECT_TRUE(compareTensors(tensor1, tensor2));
 }
 
 TEST_P(OVCompiledModelBaseTest, getOutputsFromFunctionWithSeveralOutputs) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::CompiledModel execNet;
 
-    // Create simple function
-    {
-        auto param1 = std::make_shared<ov::opset8::Parameter>(ov::element::Type_t::f32, ngraph::Shape({1, 3, 24, 24}));
-        param1->set_friendly_name("param1");
-        param1->output(0).get_tensor().set_names({"data1"});
-        auto param2 = std::make_shared<ov::opset8::Parameter>(ov::element::Type_t::f32, ngraph::Shape({1, 3, 24, 24}));
-        param2->set_friendly_name("param2");
-        param2->output(0).get_tensor().set_names({"data2"});
-        auto relu = std::make_shared<ov::opset8::Relu>(param1);
-        relu->set_friendly_name("relu_op");
-        relu->output(0).get_tensor().set_names({"relu"});
-        auto result1 = std::make_shared<ov::opset8::Result>(relu);
-        result1->set_friendly_name("result1");
-        auto concat = std::make_shared<ov::opset8::Concat>(OutputVector{relu, param2}, 1);
-        concat->set_friendly_name("concat_op");
-        concat->output(0).get_tensor().set_names({"concat"});
-        auto result2 = std::make_shared<ov::opset8::Result>(concat);
-        result2->set_friendly_name("result2");
-        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result1, result2},
-                                                      ngraph::ParameterVector{param1, param2});
-        function->set_friendly_name("SimpleReLU");
-    }
+    function = ngraph::builder::subgraph::makeMultipleInputOutputDoubleConcat();
+
     execNet = core->compile_model(function, target_device, configuration);
     EXPECT_EQ(function->outputs().size(), 2);
     EXPECT_EQ(function->outputs().size(), execNet.outputs().size());
@@ -477,63 +397,17 @@ TEST_P(OVCompiledModelBaseTest, getOutputsFromFunctionWithSeveralOutputs) {
     EXPECT_EQ(function->output(1).get_tensor().get_names(), execNet.output(1).get_tensor().get_names());
     EXPECT_EQ(function->output(1).get_tensor().get_partial_shape(), execNet.output(1).get_tensor().get_partial_shape());
     EXPECT_EQ(function->output(1).get_tensor().get_element_type(), execNet.output(1).get_tensor().get_element_type());
-    EXPECT_EQ(function->output(0).get_node(), function->output("relu").get_node());
-    EXPECT_NE(function->output(1).get_node(), function->output("relu").get_node());
-    EXPECT_EQ(function->output(1).get_node(), function->output("concat").get_node());
-    EXPECT_NE(function->output(0).get_node(), function->output("concat").get_node());
-
-    ov::InferRequest request = execNet.create_infer_request();
-
-    ov::Tensor tensor1, tensor2;
-    EXPECT_NO_THROW(tensor1 = request.get_tensor(execNet.output(0)));
-    EXPECT_NO_THROW(tensor2 = request.get_tensor(function->output(0)));
-    EXPECT_TRUE(compareTensors(tensor1, tensor2));
-    EXPECT_NO_THROW(tensor2 = request.get_tensor(execNet.output(0).get_any_name()));
-    EXPECT_TRUE(compareTensors(tensor1, tensor2));
-    EXPECT_NO_THROW(tensor2 = request.get_tensor(function->output(0).get_any_name()));
-    EXPECT_TRUE(compareTensors(tensor1, tensor2));
-    EXPECT_NO_THROW(tensor2 = request.get_output_tensor(0));
-    EXPECT_TRUE(compareTensors(tensor1, tensor2));
-    EXPECT_NO_THROW(tensor1 = request.get_tensor(execNet.output(1)));
-    try {
-        // To avoid case with remote tensors
-        tensor1.data();
-        EXPECT_FALSE(compareTensors(tensor1, tensor2));
-    } catch (const ov::Exception&) {
-    }
-    EXPECT_NO_THROW(tensor2 = request.get_tensor(function->output(1)));
-    EXPECT_TRUE(compareTensors(tensor1, tensor2));
-    EXPECT_NO_THROW(tensor2 = request.get_tensor(execNet.output(1).get_any_name()));
-    EXPECT_TRUE(compareTensors(tensor1, tensor2));
-    EXPECT_NO_THROW(tensor2 = request.get_tensor(function->output(1).get_any_name()));
-    EXPECT_TRUE(compareTensors(tensor1, tensor2));
-    EXPECT_NO_THROW(tensor2 = request.get_output_tensor(1));
-    EXPECT_TRUE(compareTensors(tensor1, tensor2));
+    EXPECT_EQ(function->output(1).get_node(), function->output("concat2").get_node());
+    EXPECT_NE(function->output(0).get_node(), function->output("concat2").get_node());
+    EXPECT_EQ(function->output(0).get_node(), function->output("concat1").get_node());
+    EXPECT_NE(function->output(1).get_node(), function->output("concat1").get_node());
 }
 
 TEST_P(OVCompiledModelBaseTest, getOutputsFromSplitFunctionWithSeveralOutputs) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::CompiledModel execNet;
 
-    // Create simple function
-    {
-        auto param1 = std::make_shared<ov::opset8::Parameter>(ov::element::Type_t::f32, ngraph::Shape({1, 4, 24, 24}));
-        param1->set_friendly_name("param1");
-        param1->output(0).get_tensor().set_names({"data1"});
-        auto axis_node = ov::opset8::Constant::create(element::i64, Shape{}, {1});
-        auto split = std::make_shared<ov::opset8::Split>(param1, axis_node, 2);
-        split->set_friendly_name("split");
-        split->output(0).get_tensor().set_names({"tensor_split_1"});
-        split->output(1).get_tensor().set_names({"tensor_split_2"});
-        auto result1 = std::make_shared<ov::opset8::Result>(split->output(0));
-        result1->set_friendly_name("result1");
-        auto result2 = std::make_shared<ov::opset8::Result>(split->output(1));
-        result2->set_friendly_name("result2");
-        function =
-            std::make_shared<ngraph::Function>(ngraph::ResultVector{result1, result2}, ngraph::ParameterVector{param1});
-        function->set_friendly_name("SingleSplit");
-    }
+    function = ngraph::builder::subgraph::makeSingleSplit();
+
     execNet = core->compile_model(function, target_device, configuration);
     EXPECT_EQ(function->outputs().size(), 2);
     EXPECT_EQ(function->outputs().size(), execNet.outputs().size());
@@ -548,34 +422,6 @@ TEST_P(OVCompiledModelBaseTest, getOutputsFromSplitFunctionWithSeveralOutputs) {
     EXPECT_NE(function->output(1).get_node(), function->output("tensor_split_1").get_node());
     EXPECT_EQ(function->output(1).get_node(), function->output("tensor_split_2").get_node());
     EXPECT_NE(function->output(0).get_node(), function->output("tensor_split_2").get_node());
-
-    ov::InferRequest request = execNet.create_infer_request();
-
-    ov::Tensor tensor1, tensor2;
-    EXPECT_NO_THROW(tensor1 = request.get_tensor(execNet.output(0)));
-    EXPECT_NO_THROW(tensor2 = request.get_tensor(function->output(0)));
-    EXPECT_TRUE(compareTensors(tensor1, tensor2));
-    EXPECT_NO_THROW(tensor2 = request.get_tensor(execNet.output(0).get_any_name()));
-    EXPECT_TRUE(compareTensors(tensor1, tensor2));
-    EXPECT_NO_THROW(tensor2 = request.get_tensor(function->output(0).get_any_name()));
-    EXPECT_TRUE(compareTensors(tensor1, tensor2));
-    EXPECT_NO_THROW(tensor2 = request.get_output_tensor(0));
-    EXPECT_TRUE(compareTensors(tensor1, tensor2));
-    EXPECT_NO_THROW(tensor1 = request.get_tensor(execNet.output(1)));
-    try {
-        // To avoid case with remote tensors
-        tensor1.data();
-        EXPECT_FALSE(compareTensors(tensor1, tensor2));
-    } catch (const ov::Exception&) {
-    }
-    EXPECT_NO_THROW(tensor2 = request.get_tensor(function->output(1)));
-    EXPECT_TRUE(compareTensors(tensor1, tensor2));
-    EXPECT_NO_THROW(tensor2 = request.get_tensor(execNet.output(1).get_any_name()));
-    EXPECT_TRUE(compareTensors(tensor1, tensor2));
-    EXPECT_NO_THROW(tensor2 = request.get_tensor(function->output(1).get_any_name()));
-    EXPECT_TRUE(compareTensors(tensor1, tensor2));
-    EXPECT_NO_THROW(tensor2 = request.get_output_tensor(1));
-    EXPECT_TRUE(compareTensors(tensor1, tensor2));
 }
 
 // Load correct network to Plugin to get executable network
@@ -599,8 +445,6 @@ TEST_P(OVCompiledModelBaseTest, precisionsAsInOriginalFunction) {
 }
 
 TEST_P(OVCompiledModelBaseTest, loadIncorrectV10Model) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::CompiledModel execNet;
 
     // Create simple function
@@ -608,21 +452,22 @@ TEST_P(OVCompiledModelBaseTest, loadIncorrectV10Model) {
         auto param1 = std::make_shared<ov::opset8::Parameter>(element::Type_t::f32, ngraph::Shape({1, 3, 24, 24}));
         param1->set_friendly_name("param1");
         param1->output(0).get_tensor().set_names({"data1"});
-        auto relu = std::make_shared<ov::opset8::Relu>(param1);
-        relu->set_friendly_name("data1");
-        relu->output(0).get_tensor().set_names({"relu"});
-        auto result = std::make_shared<ov::opset8::Result>(relu);
+        auto param2 = std::make_shared<ov::opset8::Parameter>(element::Type_t::f32, ngraph::Shape({1, 3, 24, 24}));
+        param2->set_friendly_name("param2");
+        param2->output(0).get_tensor().set_names({"data2"});
+        auto concat = std::make_shared<ov::opset8::Concat>(OutputVector{param1, param2}, 1);
+        concat->set_friendly_name("data1");
+        concat->output(0).get_tensor().set_names({"concat"});
+        auto result = std::make_shared<ov::opset8::Result>(concat);
         result->set_friendly_name("result");
-        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param1});
+        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param1, param2});
         function->get_rt_info()["version"] = int64_t(10);
-        function->set_friendly_name("SimpleReLU");
+        function->set_friendly_name("SimpleConcat");
     }
     EXPECT_THROW(core->compile_model(function, target_device, configuration), ov::Exception);
 }
 
 TEST_P(OVCompiledModelBaseTest, loadIncorrectV11Model) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::CompiledModel execNet;
 
     // Create simple function
@@ -630,14 +475,17 @@ TEST_P(OVCompiledModelBaseTest, loadIncorrectV11Model) {
         auto param1 = std::make_shared<ov::opset8::Parameter>(element::Type_t::f32, ngraph::Shape({1, 3, 24, 24}));
         param1->set_friendly_name("param1");
         param1->output(0).get_tensor().set_names({"data1"});
-        auto relu = std::make_shared<ov::opset8::Relu>(param1);
-        relu->set_friendly_name("data1");
-        relu->output(0).get_tensor().set_names({"relu"});
-        auto result = std::make_shared<ov::opset8::Result>(relu);
+        auto param2 = std::make_shared<ov::opset8::Parameter>(element::Type_t::f32, ngraph::Shape({1, 3, 24, 24}));
+        param2->set_friendly_name("param2");
+        param2->output(0).get_tensor().set_names({"data2"});
+        auto concat = std::make_shared<ov::opset8::Concat>(OutputVector{param1, param2}, 1);
+        concat->set_friendly_name("data1");
+        concat->output(0).get_tensor().set_names({"concat"});
+        auto result = std::make_shared<ov::opset8::Result>(concat);
         result->set_friendly_name("result");
-        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param1});
+        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param1, param2});
         function->get_rt_info()["version"] = int64_t(11);
-        function->set_friendly_name("SimpleReLU");
+        function->set_friendly_name("SimpleConcat");
     }
     EXPECT_NO_THROW(core->compile_model(function, target_device, configuration));
 }

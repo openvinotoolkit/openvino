@@ -65,7 +65,6 @@ void GetLSTMActivationParams(const std::shared_ptr<T>& op,
 static void CreateLSTMCellOp(Program& p, const std::shared_ptr<ngraph::op::v4::LSTMCell>& op) {
     validate_inputs_count(op, {6});
     int lstm_batch_size, lstm_input_size, lstm_hidden_size;
-    bool hasBias = true;
     auto inputs = p.GetInputInfo(op);
 
     std::string layerName = layer_type_name_ID(op);
@@ -131,7 +130,6 @@ static void CreateLSTMCellOp(Program& p, const std::shared_ptr<ngraph::op::v4::L
 
     std::string lstm_fc_id = layerName + "_fully_connected";
     std::string lstm_elt_id = layerName + "_lstm_elt";
-    std::string crop_id = layerName + "_crop";
 
     cldnn::primitive_id WRconcatID = layerName + "_WRconcat";
     p.add_primitive(*op, cldnn::concatenation(WRconcatID, { weight, recurrent }, 1));
@@ -140,7 +138,7 @@ static void CreateLSTMCellOp(Program& p, const std::shared_ptr<ngraph::op::v4::L
     cldnn::tensor FCInputReshapeSz = { lstm_batch_size, inputShape.spatial[0] + inStateShape.spatial[0], 1, 1 };
     p.add_primitive(*op, cldnn::reshape(FCInputReshapeID, cldnn::input_info(input_concatID), FCInputReshapeSz));
 
-    p.add_primitive(*op, cldnn::fully_connected(lstm_fc_id, cldnn::input_info(FCInputReshapeID), WRconcatID, hasBias ? bias.pid : ""));
+    p.add_primitive(*op, cldnn::fully_connected(lstm_fc_id, cldnn::input_info(FCInputReshapeID), WRconcatID, bias.pid));
     p.add_primitive(*op, cldnn::reshape(gemmReshapeID, cldnn::input_info(lstm_fc_id), gemmSz));
     p.add_primitive(*op, cldnn::reorder(gemmReorderID, cldnn::input_info(gemmReshapeID), gemmLayout));
     p.add_primitive(*op, cldnn::lstm_elt(lstm_elt_id, cldnn::input_info(gemmReorderID), cellInStr, clip, 0, activations,

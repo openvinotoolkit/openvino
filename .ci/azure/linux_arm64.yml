@@ -129,15 +129,15 @@ jobs:
   - task: CMake@1
     inputs:
       cmakeArgs: >
-        -GNinja
+        -G "Ninja Multi-Config"
         -DCMAKE_VERBOSE_MAKEFILE=ON
         -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
         -DOpenCV_DIR=$(INSTALL_OPENCV)/cmake
+        -DENABLE_CPPLINT=ON
         -DENABLE_PYTHON=OFF
         -DENABLE_TESTS=ON
         -DENABLE_DATA=OFF
         -DCMAKE_TOOLCHAIN_FILE=$(OPENVINO_REPO_DIR)/cmake/arm64.toolchain.cmake
-        -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
         -DCMAKE_VERBOSE_MAKEFILE=ON
         -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
         -DCMAKE_C_COMPILER_LAUNCHER=ccache

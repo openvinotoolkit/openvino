@@ -1191,7 +1191,6 @@ void MVN::initSupportedPrimitiveDescriptors() {
 
     const size_t inputsNum = getParentEdges().size();
     NodeConfig config;
-    config.dynBatchSupport = false;
     config.inConfs.resize(inputsNum);
     config.outConfs.resize(1);
     config.inConfs[0].constant(false);

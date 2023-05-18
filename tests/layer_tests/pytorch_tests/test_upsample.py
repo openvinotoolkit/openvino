@@ -138,3 +138,31 @@ class TestUpsample3D(PytorchLayerTest):
     def test_upsample3d(self, mode, size, scale, ie_device, precision, ir_version):
         self._test(*self.create_model(size, scale, mode), ie_device,
                    precision, ir_version, trace_model=True, **{"custom_eps": 1e-3})
+
+
+class TestUpsample2DListSizes(PytorchLayerTest):
+    def _prepare_input(self):
+        import numpy as np
+        return (np.random.randn(1, 3, 200, 200).astype(np.float32),)
+
+    def create_model(self, mode):
+        import torch
+        import torch.nn.functional as F
+
+        class aten_upsample(torch.nn.Module):
+            def __init__(self, mode):
+                super().__init__()
+                self.mode = mode
+
+            def forward(self, x):
+                return F.interpolate(x, size=x.shape[-2:], mode=self.mode)
+
+        ref_net = None
+
+        return aten_upsample(mode), ref_net, F"aten::upsample_{mode}2d"
+
+    @pytest.mark.parametrize("mode", ['nearest', 'bilinear', 'bicubic'])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_upsample2d_list_sizes(self, mode, ie_device, precision, ir_version):
+        self._test(*self.create_model(mode), ie_device, precision, ir_version, trace_model=True)
