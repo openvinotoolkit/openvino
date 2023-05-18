@@ -78,7 +78,7 @@ namespace v4 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Proposal : public op::v0::Proposal {
 public:
-    OPENVINO_OP("Proposal", "opset4", op::Op);
+    OPENVINO_OP("Proposal", "opset4", op::v0::Proposal);
     Proposal() = default;
     /// \brief Constructs a Proposal operation
     ///

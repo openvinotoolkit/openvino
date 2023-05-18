@@ -6,139 +6,212 @@
 
 #include <iostream>
 #include <map>
+#include <memory>
+#include <mutex>
+#include <queue>
 #include <string>
 #include <utility>
 
+#include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "description_buffer.hpp"
+#include "ie_icore.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/runtime/common.hpp"
+#include "openvino/runtime/icore.hpp"
+#include "openvino/runtime/iplugin.hpp"
 
-using namespace std;
-using namespace InferenceEngine;
+class MockInternalPlugin : public ov::IPlugin {
+    ov::IPlugin* m_plugin;
+    std::shared_ptr<ov::IPlugin> m_converted_plugin;
+    InferenceEngine::IInferencePlugin* m_old_plugin;
+    ov::AnyMap config;
 
-MockPlugin::MockPlugin(InferenceEngine::IInferencePlugin* target) {
-    _target = target;
-}
+public:
+    explicit MockInternalPlugin(InferenceEngine::IInferencePlugin* target) : m_old_plugin(target) {
+        std::shared_ptr<InferenceEngine::IInferencePlugin> shared_target(target,
+                                                                         [](InferenceEngine::IInferencePlugin*) {});
+        m_converted_plugin = InferenceEngine::convert_plugin(shared_target);
+        m_plugin = m_converted_plugin.get();
+    }
+    explicit MockInternalPlugin(ov::IPlugin* target) : m_plugin(target) {}
+    explicit MockInternalPlugin() = default;
 
-void MockPlugin::SetConfig(const std::map<std::string, std::string>& _config) {
-    this->config = _config;
-    if (_target) {
-        _target->SetConfig(config);
+    std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                      const ov::AnyMap& properties) const override {
+        if (m_plugin)
+            return m_plugin->compile_model(model, properties);
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+    std::shared_ptr<ov::ICompiledModel> compile_model(const std::string& model_path,
+                                                      const ov::AnyMap& properties) const override {
+        if (m_plugin)
+            return m_plugin->compile_model(model_path, properties);
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+    std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                      const ov::AnyMap& properties,
+                                                      const ov::RemoteContext& context) const override {
+        if (m_plugin)
+            return m_plugin->compile_model(model, properties, context);
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+    void set_property(const ov::AnyMap& properties) override {
+        config = properties;
+        if (m_plugin) {
+            m_plugin->set_property(config);
+        }
+    }
+
+    ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const override {
+        if (m_plugin)
+            return m_plugin->get_property(name, arguments);
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+    std::shared_ptr<ov::IRemoteContext> create_context(const ov::AnyMap& remote_properties) const override {
+        if (m_plugin)
+            return m_plugin->create_context(remote_properties);
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+    std::shared_ptr<ov::IRemoteContext> get_default_context(const ov::AnyMap& remote_properties) const override {
+        if (m_plugin)
+            return m_plugin->get_default_context(remote_properties);
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+    std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model, const ov::AnyMap& properties) const override {
+        if (m_plugin)
+            return m_plugin->import_model(model, properties);
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+    std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
+                                                     const ov::RemoteContext& context,
+                                                     const ov::AnyMap& properties) const override {
+        if (m_plugin)
+            return m_plugin->import_model(model, context, properties);
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+    ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
+                                    const ov::AnyMap& properties) const override {
+        if (m_plugin)
+            return m_plugin->query_model(model, properties);
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+    void set_parameters_if_need(const std::shared_ptr<ov::ICore>& core, const std::string& dev_name) const {
+        if (m_plugin) {
+            if (!m_plugin->get_core() && core) {
+                m_plugin->set_core(core);
+            }
+            if (m_plugin->get_device_name().empty()) {
+                m_plugin->set_device_name(dev_name);
+            }
+        }
+        if (m_old_plugin) {
+            if (!m_old_plugin->GetCore() && core) {
+                auto old_core = std::static_pointer_cast<InferenceEngine::ICore>(core);
+                m_old_plugin->SetCore(old_core);
+            }
+            if (m_old_plugin->GetName().empty()) {
+                m_old_plugin->SetName(dev_name);
+            }
+        }
+    }
+};
+
+void MockPlugin::set_parameters_if_need() const {
+    auto core = get_core();
+    if (auto internal_plugin = std::dynamic_pointer_cast<const MockInternalPlugin>(m_plugin)) {
+        internal_plugin->set_parameters_if_need(core, get_device_name());
     }
 }
 
-Parameter MockPlugin::GetMetric(const std::string& name,
-                                const std::map<std::string, InferenceEngine::Parameter>& options) const {
-    if (_target) {
-        return _target->GetMetric(name, options);
-    } else {
-        IE_THROW(NotImplemented);
-    }
+MockPlugin::MockPlugin(const std::shared_ptr<ov::IPlugin>& target) : m_plugin(target) {
+    OPENVINO_ASSERT(m_plugin);
 }
 
-std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> MockPlugin::LoadNetwork(
-    const CNNNetwork& network,
-    const std::map<std::string, std::string>& config) {
-    if (_target) {
-        return _target->LoadNetwork(network, config);
-    } else {
-        IE_THROW(NotImplemented);
-    }
+void MockPlugin::set_property(const ov::AnyMap& properties) {
+    set_parameters_if_need();
+    m_plugin->set_property(properties);
 }
 
-std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> MockPlugin::LoadNetwork(
-    const CNNNetwork& network,
-    const std::map<std::string, std::string>& config,
-    const std::shared_ptr<RemoteContext>& context) {
-    if (_target) {
-        return _target->LoadNetwork(network, config, context);
-    } else {
-        IE_THROW(NotImplemented);
-    }
+ov::Any MockPlugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
+    set_parameters_if_need();
+    return m_plugin->get_property(name, arguments);
 }
 
-ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> MockPlugin::LoadNetwork(
-    const std::string& modelPath,
-    const std::map<std::string, std::string>& config) {
-    if (_target) {
-        return _target->LoadNetwork(modelPath, config);
-    } else {
-        return InferenceEngine::IInferencePlugin::LoadNetwork(modelPath, config);
-    }
+std::shared_ptr<ov::ICompiledModel> MockPlugin::compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                              const ov::AnyMap& properties) const {
+    set_parameters_if_need();
+    return m_plugin->compile_model(model, properties);
 }
 
-std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> MockPlugin::LoadExeNetworkImpl(
-    const CNNNetwork& network,
-    const std::map<std::string, std::string>& config) {
-    return {};
+std::shared_ptr<ov::ICompiledModel> MockPlugin::compile_model(const std::string& model_path,
+                                                              const ov::AnyMap& properties) const {
+    set_parameters_if_need();
+    return m_plugin->compile_model(model_path, properties);
 }
 
-std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> MockPlugin::ImportNetwork(
-    std::istream& networkModel,
-    const std::map<std::string, std::string>& config) {
-    if (_target) {
-        return _target->ImportNetwork(networkModel, config);
-    } else {
-        IE_THROW(NotImplemented);
-    }
+std::shared_ptr<ov::ICompiledModel> MockPlugin::compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                              const ov::AnyMap& properties,
+                                                              const ov::RemoteContext& context) const {
+    set_parameters_if_need();
+    return m_plugin->compile_model(model, properties, context);
 }
 
-std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> MockPlugin::ImportNetwork(
-    std::istream& networkModel,
-    const std::shared_ptr<InferenceEngine::RemoteContext>& context,
-    const std::map<std::string, std::string>& config) {
-    if (_target) {
-        return _target->ImportNetwork(networkModel, context, config);
-    } else {
-        IE_THROW(NotImplemented);
-    }
+std::shared_ptr<ov::IRemoteContext> MockPlugin::create_context(const ov::AnyMap& remote_properties) const {
+    set_parameters_if_need();
+    return m_plugin->create_context(remote_properties);
 }
 
-std::shared_ptr<InferenceEngine::RemoteContext> MockPlugin::GetDefaultContext(const InferenceEngine::ParamMap& params) {
-    if (_target) {
-        return _target->GetDefaultContext(params);
-    } else {
-        IE_THROW(NotImplemented);
-    }
+std::shared_ptr<ov::IRemoteContext> MockPlugin::get_default_context(const ov::AnyMap& remote_properties) const {
+    set_parameters_if_need();
+    return m_plugin->get_default_context(remote_properties);
 }
 
-InferenceEngine::QueryNetworkResult MockPlugin::QueryNetwork(const InferenceEngine::CNNNetwork& network,
-                                                             const std::map<std::string, std::string>& config) const {
-    if (_target) {
-        return _target->QueryNetwork(network, config);
-    } else {
-        IE_THROW(NotImplemented);
-    }
+std::shared_ptr<ov::ICompiledModel> MockPlugin::import_model(std::istream& model, const ov::AnyMap& properties) const {
+    set_parameters_if_need();
+    return m_plugin->import_model(model, properties);
+}
+std::shared_ptr<ov::ICompiledModel> MockPlugin::import_model(std::istream& model,
+                                                             const ov::RemoteContext& context,
+                                                             const ov::AnyMap& properties) const {
+    set_parameters_if_need();
+    return m_plugin->import_model(model, context, properties);
+}
+ov::SupportedOpsMap MockPlugin::query_model(const std::shared_ptr<const ov::Model>& model,
+                                            const ov::AnyMap& properties) const {
+    set_parameters_if_need();
+    return m_plugin->query_model(model, properties);
 }
 
-void MockPlugin::SetCore(std::weak_ptr<InferenceEngine::ICore> core) noexcept {
-    if (_target) {
-        _target->SetCore(core);
-    }
-    InferenceEngine::IInferencePlugin::SetCore(core);
-}
-
-void MockPlugin::SetName(const std::string& name) noexcept {
-    if (_target) {
-        _target->SetName(name);
-    }
-    InferenceEngine::IInferencePlugin::SetName(name);
-}
-
-std::string MockPlugin::GetName() const noexcept {
-    if (_target) {
-        return _target->GetName();
-    }
-    return InferenceEngine::IInferencePlugin::GetName();
-}
-
-InferenceEngine::IInferencePlugin* __target = nullptr;
+std::queue<std::shared_ptr<ov::IPlugin>> targets;
+std::mutex targets_mutex;
 
 OPENVINO_PLUGIN_API void CreatePluginEngine(std::shared_ptr<ov::IPlugin>& plugin) {
-    IInferencePlugin* p = nullptr;
-    std::swap(__target, p);
-    plugin = convert_plugin(std::make_shared<MockPlugin>(p));
+    std::shared_ptr<ov::IPlugin> internal_plugin;
+    if (targets.empty()) {
+        internal_plugin = std::make_shared<MockInternalPlugin>();
+    } else {
+        std::lock_guard<std::mutex> lock(targets_mutex);
+        internal_plugin = targets.front();
+        targets.pop();
+    }
+    plugin = std::make_shared<MockPlugin>(internal_plugin);
 }
 
 OPENVINO_PLUGIN_API void InjectProxyEngine(InferenceEngine::IInferencePlugin* target) {
-    __target = target;
+    std::lock_guard<std::mutex> lock(targets_mutex);
+    targets.push(std::make_shared<MockInternalPlugin>(target));
+}
+
+OPENVINO_PLUGIN_API void InjectPlugin(ov::IPlugin* target) {
+    std::lock_guard<std::mutex> lock(targets_mutex);
+    targets.push(std::make_shared<MockInternalPlugin>(target));
 }
