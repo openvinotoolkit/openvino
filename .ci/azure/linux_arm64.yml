@@ -158,7 +158,7 @@ jobs:
   - script: |
       source $(BUILD_OPENVINO)/conanbuild.sh
       cmake \
-        -G "Ninja Multi-Config" \
+        -G Ninja \
         -DCMAKE_VERBOSE_MAKEFILE=ON \
         -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
         -DENABLE_CPPLINT=OFF \

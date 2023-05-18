@@ -379,11 +379,13 @@ endmacro()
 
 macro(_ov_find_tensorflow_frontend_dependencies)
     set(_OV_ENABLE_SYSTEM_SNAPPY "@ENABLE_SYSTEM_SNAPPY@")
+    set(_ov_snappy_lib "@ov_snappy_lib@")
     # TODO: remove check for target existance
-    if(_OV_ENABLE_SYSTEM_SNAPPY AND NOT TARGET Snappy::snappy)
+    if(_OV_ENABLE_SYSTEM_SNAPPY AND NOT TARGET ${_ov_snappy_lib})
         _ov_find_dependency(Snappy @Snappy_VERSION@ EXACT)
     endif()
     unset(_OV_ENABLE_SYSTEM_SNAPPY)
+    unset(_ov_snappy_lib)
 endmacro()
 
 macro(_ov_find_onnx_frontend_dependencies)

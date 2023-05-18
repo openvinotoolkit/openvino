@@ -113,6 +113,9 @@ macro(ov_find_package_tbb)
                 endmacro()
                 pkg_search_module(tbb QUIET
                                   IMPORTED_TARGET
+                                  # we need to set GLOBAL in order to create ALIAS later
+                                  # ALIAS creation for non-GLOBAL targets is available since cmake 3.18
+                                  GLOBAL
                                   tbb)
                 if(tbb_FOUND)
                     # parse version

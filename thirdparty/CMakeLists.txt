@@ -39,7 +39,7 @@ if(ENABLE_SAMPLES OR ENABLE_TESTS)
     add_subdirectory(cnpy EXCLUDE_FROM_ALL)
 endif()
 
-if(X86_64)
+if(X86_64 OR UNIVERSAL2)
     find_package(xbyak QUIET)
     if(xbyak_FOUND)
         # conan creates alias xbyak::xbyak, we only need to make it GLOBAL
@@ -511,15 +511,23 @@ if(ENABLE_SNAPPY_COMPRESSION)
     if(ENABLE_SYSTEM_SNAPPY)
         find_package(Snappy REQUIRED)
 
-        # TODO: use static snappy library in case of BUILD_SHARED_LIBS=OFF
-        set_target_properties(Snappy::snappy PROPERTIES IMPORTED_GLOBAL ON)
+        set(ov_snappy_lib Snappy::snappy)
+        if(NOT BUILD_SHARED_LIBS AND TARGET Snappy::snappy-static)
+            # we can use static library only in static build, because in case od dynamic build
+            # the libsnappy.a should be compiled with -fPIC, while Debian / Ubuntu / RHEL don't do it
+            set(ov_snappy_lib Snappy::snappy-static)
+        endif()
+
+        set_target_properties(${ov_snappy_lib} PROPERTIES IMPORTED_GLOBAL ON)
+        add_library(openvino::snappy ALIAS ${ov_snappy_lib})
 
         # set Snappy_VERSION to parent scope for consistent OpenVINOConfig.cmake generation
         # in case of static build with system dependencies
         set(Snappy_VERSION ${Snappy_VERSION} PARENT_SCOPE)
+        set(ov_snappy_lib ${ov_snappy_lib} PARENT_SCOPE)
     endif()
 
-    if(NOT TARGET Snappy::snappy)
+    if(NOT TARGET openvino::snappy)
         function(ov_build_snappy)
             set(BUILD_SHARED_LIBS OFF)
             set(SNAPPY_BUILD_BENCHMARKS OFF)
@@ -545,8 +553,8 @@ if(ENABLE_SNAPPY_COMPRESSION)
             endif()
 
             add_subdirectory(snappy EXCLUDE_FROM_ALL)
-            # need to create alias Snappy::snappy
-            add_library(Snappy::snappy ALIAS snappy)
+            # need to create alias openvino::snappy
+            add_library(openvino::snappy ALIAS snappy)
 
             # WA for emscripten build which currently requires -fexceptions
             if(EMSCRIPTEN)
