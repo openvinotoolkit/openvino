@@ -679,7 +679,7 @@ StreamsCalculationTestCase _1sockets_8cores_latency_2 = {
     0,
     0,
     {{12, 4, 4, 4}},
-    {{1, ALL_PROC, 12}, {0, MAIN_CORE_PROC, 8}, {0, EFFICIENT_CORE_PROC, 4}},
+    {{1, ALL_PROC, 12}, {0, MAIN_CORE_PROC, 4}, {0, EFFICIENT_CORE_PROC, 4}, {0, HYPER_THREADING_PROC, 4}},
 };
 
 StreamsCalculationTestCase _1sockets_8cores_latency_3 = {

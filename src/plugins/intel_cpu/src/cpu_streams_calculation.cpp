@@ -37,21 +37,13 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
             if (0 != proc_type_table[0][n]) {
                 stream_info[PROC_TYPE] = n;
                 if (n_threads <= proc_type_table[0][n]) {
-                    if (n != HYPER_THREADING_PROC) {
-                        stream_info[THREADS_PER_STREAM] = n_threads;
-                        streams_info_table.push_back(stream_info);
-                        break;
-                    } else {
-                        streams_info_table[MAIN_CORE_PROC][THREADS_PER_STREAM] += n_threads;
-                    }
+                    stream_info[THREADS_PER_STREAM] = n_threads;
+                    streams_info_table.push_back(stream_info);
+                    break;
                 } else {
-                    if (n != HYPER_THREADING_PROC) {
-                        stream_info[THREADS_PER_STREAM] = proc_type_table[0][n];
-                        streams_info_table.push_back(stream_info);
-                        n_threads -= proc_type_table[0][n];
-                    } else {
-                        streams_info_table[MAIN_CORE_PROC][THREADS_PER_STREAM] += n_threads;
-                    }
+                    stream_info[THREADS_PER_STREAM] = proc_type_table[0][n];
+                    streams_info_table.push_back(stream_info);
+                    n_threads -= proc_type_table[0][n];
                 }
             }
         }
