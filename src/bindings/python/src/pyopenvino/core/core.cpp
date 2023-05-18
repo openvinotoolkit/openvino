@@ -9,7 +9,10 @@
 
 #include <openvino/core/any.hpp>
 #include <openvino/runtime/core.hpp>
+#include <openvino/core/op_extension.hpp>
 #include <pyopenvino/core/tensor.hpp>
+
+#include "so_extension.hpp"
 
 #include "common.hpp"
 #include "pyopenvino/utils/utils.hpp"
@@ -19,6 +22,41 @@ namespace py = pybind11;
 inline std::string to_string(py::handle handle) {
     auto encodedString = PyUnicode_AsUTF8String(handle.ptr());
     return PyBytes_AsString(encodedString);
+}
+
+namespace {
+
+class AnyMapAttributeVisitor : public ov::AttributeVisitor {
+public:
+    explicit AnyMapAttributeVisitor(const std::map<std::string, ov::Any>& attributes)
+        : m_attributes(attributes)
+    {
+        for(auto const& pair: attributes){
+            m_unused_attributes.insert(pair.first);
+        }
+    }
+
+    void on_adapter(const std::string& name, ov::ValueAccessor<void>& adapter) override {
+        auto p_value = m_attributes.find(name);
+
+        if (p_value != m_attributes.end()) {
+            adapter.set_as_any(p_value->second);
+            m_unused_attributes.erase(name);
+        } else {
+            // Leave attribute uninitialized with its default value
+            // TODO: Capture uninitialized attributes and report the list in an exception in case if op creation fails
+        }
+    }
+
+    const std::set<std::string>& get_unused_attributes () const {
+        return m_unused_attributes;
+    }
+
+private:
+    const std::map<std::string, ov::Any>& m_attributes;
+    std::set<std::string> m_unused_attributes;
+};
+
 }
 
 void regclass_Core(py::module m) {
@@ -549,7 +587,7 @@ void regclass_Core(py::module m) {
             :param properties: Optional dict of pairs: (property name, property value)
             :type properties: dict
             :return: Pairs a operation name -> a device name supporting this operation.
-            :rtype: dict                
+            :rtype: dict
         )");
 
     cls.def("add_extension",
@@ -567,7 +605,7 @@ void regclass_Core(py::module m) {
             py::arg("extension"),
             R"(
                 Registers an extension to a Core object.
-                
+
                 :param extension: Extension object.
                 :type extension: openvino.runtime.Extension
             )");
@@ -582,6 +620,54 @@ void regclass_Core(py::module m) {
             :param extensions: List of Extension objects.
             :type extensions: list[openvino.runtime.Extension]
         )");
+
+    cls.def(
+        "make_node",
+        [](ov::Core& self,
+            const std::string& op_type,
+            //const std::string& op_version,
+            const ov::OutputVector& inputs,
+            const std::map<std::string, py::object>& py_attributes) {
+                // TODO: Make the search more efficient via caching a map of available operation extensions
+                for(auto extension : self.get_extensions()) {
+                    ov::Extension::Ptr extension_extracted = extension;
+                    if(auto so_extension = std::dynamic_pointer_cast<ov::detail::SOExtension>(extension)) {
+                        extension_extracted = so_extension->extension();
+                    }
+                    if(auto op_extension = std::dynamic_pointer_cast<ov::BaseOpExtension>(extension_extracted)) {
+                        if(op_extension->get_type_info().name == op_type) {
+
+                            std::map<std::string, ov::Any> attributes;
+                            for (const auto& it : py_attributes) {
+                                attributes[it.first] = Common::utils::py_object_to_any(it.second);
+                            }
+
+                            AnyMapAttributeVisitor visitor(attributes);
+                            auto node = op_extension->create(inputs, visitor)[0].get_node_shared_ptr();
+
+                            const auto& unused_attributes = visitor.get_unused_attributes();
+                            if(unused_attributes.size()) {
+                                std::ostringstream message;
+                                message << "While creating operation " + op_type + " unknown attributes are provided: ";
+                                std::copy(
+                                    unused_attributes.begin(),
+                                    unused_attributes.end(),
+                                    std::ostream_iterator<std::string>(message, ", ")
+                                );
+                                message << ". Consult with operation class definition on supported attribute names.";
+                                throw py::value_error(message.str());
+                            }
+
+                            return node;
+                        }
+                    }
+                }
+                throw py::value_error("Operation with type " + op_type + " was not found");
+            },
+            py::arg("op_type"),
+            py::arg("inputs"),
+            py::arg("attributes") = std::map<std::string, py::object>()
+    );
 
     cls.def("get_available_devices",
             &ov::Core::get_available_devices,

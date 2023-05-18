@@ -210,6 +210,10 @@ void Core::add_extension(const std::vector<std::shared_ptr<ov::Extension>>& exte
     OV_CORE_CALL_STATEMENT({ _impl->add_extension(extensions); });
 }
 
+const std::vector<ov::Extension::Ptr>& Core::get_extensions () const {
+    OV_CORE_CALL_STATEMENT({ return _impl->get_extensions(); });
+}
+
 CompiledModel Core::import_model(std::istream& modelStream, const std::string& device_name, const AnyMap& config) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::import_model");
     OV_CORE_CALL_STATEMENT({

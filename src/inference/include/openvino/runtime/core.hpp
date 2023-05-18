@@ -441,6 +441,8 @@ public:
             add_extension<Targs...>();
     }
 
+    const std::vector<ov::Extension::Ptr>& get_extensions () const;
+
     /**
      * @brief Imports a compiled model from the previously exported one.
      * @param model_stream std::istream input stream containing a model previously exported using the

@@ -297,6 +297,14 @@ public:
      */
     const std::vector<InferenceEngine::IExtensionPtr>& GetExtensions() const;
 
+    /**
+     * @brief Provides a list of extension registered with new API add_extension
+     * @return A list of registered with new API extensions
+    */
+    const std::vector<ov::Extension::Ptr>& get_extensions () const {
+        return ov_extensions;
+    }
+
     bool DeviceSupportsModelCaching(const std::string& deviceName) const override;
 
     std::map<std::string, InferenceEngine::Version> GetVersions(const std::string& deviceName) const;
