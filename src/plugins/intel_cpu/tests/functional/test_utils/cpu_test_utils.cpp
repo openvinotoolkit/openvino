@@ -253,6 +253,11 @@ CPUTestsBase::CPUInfo CPUTestsBase::getCPUInfo() const {
     return makeCPUInfo(inFmts, outFmts, priority);
 }
 
+#if defined(OV_CPU_WITH_ACL)
+std::string CPUTestsBase::getPrimitiveType() const {
+    return "acl";
+}
+#else
 std::string CPUTestsBase::getPrimitiveType() const {
     std::string isaType;
     if (InferenceEngine::with_cpu_x86_avx512f()) {
@@ -266,6 +271,8 @@ std::string CPUTestsBase::getPrimitiveType() const {
     }
     return isaType;
 }
+
+#endif
 
 std::string CPUTestsBase::getISA(bool skip_amx) const {
     std::string isaType;
@@ -345,26 +352,28 @@ std::string CPUTestsBase::makeSelectedTypeStr(std::string implString, ngraph::el
     return implString;
 }
 
-std::vector<CPUSpecificParams> filterCPUSpecificParams(std::vector<CPUSpecificParams> &paramsVector) {
+std::vector<CPUSpecificParams> filterCPUSpecificParams(const std::vector<CPUSpecificParams> &paramsVector) {
     auto adjustBlockedFormatByIsa = [](std::vector<cpu_memory_format_t>& formats) {
-        for (int i = 0; i < formats.size(); i++) {
-            if (formats[i] == nCw16c)
-                formats[i] = nCw8c;
-            if (formats[i] == nChw16c)
-                formats[i] = nChw8c;
-            if (formats[i] == nCdhw16c)
-                formats[i] = nCdhw8c;
+        for (auto& format : formats) {
+            if (format == nCw16c)
+                format = nCw8c;
+            if (format == nChw16c)
+                format = nChw8c;
+            if (format == nCdhw16c)
+                format = nCdhw8c;
         }
     };
 
+    std::vector<CPUSpecificParams> filteredParamsVector = paramsVector;
+
     if (!InferenceEngine::with_cpu_x86_avx512f()) {
-        for (auto& param : paramsVector) {
+        for (auto& param : filteredParamsVector) {
             adjustBlockedFormatByIsa(std::get<0>(param));
             adjustBlockedFormatByIsa(std::get<1>(param));
         }
     }
 
-    return paramsVector;
+    return filteredParamsVector;
 }
 
 inline void CheckNumberOfNodesWithTypeImpl(std::shared_ptr<const ov::Model> function,
@@ -414,7 +423,7 @@ void CheckNumberOfNodesWithType(InferenceEngine::ExecutableNetwork &execNet, con
     CheckNumberOfNodesWithTypes(execNet, {nodeType}, expectedCount);
 }
 
-std::vector<CPUSpecificParams> filterCPUInfoForDevice(std::vector<CPUSpecificParams> CPUParams) {
+std::vector<CPUSpecificParams> filterCPUInfoForDevice(const std::vector<CPUSpecificParams>& CPUParams) {
     std::vector<CPUSpecificParams> resCPUParams;
     const int selectedTypeIndex = 3;
 
