@@ -494,7 +494,6 @@ void regclass_Core(py::module m) {
             auto properties = Common::utils::properties_to_any_map(config);
             self.register_plugin(plugin_name, device_name, properties);
         },
-        &ov::Core::register_plugin,
         py::arg("plugin_name"),
         py::arg("device_name"),
         py::arg("config"),
