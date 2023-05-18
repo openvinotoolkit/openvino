@@ -35,11 +35,7 @@
 # include <sys/mman.h>
 #endif
 
-#ifndef __aarch64__
 #include <cpu/x64/cpu_isa_traits.hpp>
-#else
-#include <cpu/aarch64/cpu_isa_traits.hpp>
-#endif
 #include <itt.h>
 #include "cpu_info.h"
 
@@ -389,12 +385,8 @@ StreamCfg Engine::GetNumStreams(InferenceEngine::IStreamsExecutor::ThreadBinding
 
 static bool shouldEnforceBF16(const std::map<std::string, std::string>& modelConfig, const Config& engineConfig) {
     // For BF16 execution, the machine should have AVX512 at least
-#ifdef __aarch64__
-        return false;
-#else
     if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core))
         return false;
-#endif
 
     const auto& enforceBF16 = modelConfig.find(InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16);
     const auto& inferPrec = modelConfig.find(ov::hint::inference_precision.name());
@@ -501,13 +493,9 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
         GetPerformanceStreams(conf, nGraphFunc);
     }
 
-    auto has_SEE = false;
-#ifndef __aarch64__
     // SSE runtime check is needed for some ATOM machine, which is x86-64 but w/o SSE
     static Xbyak::util::Cpu cpu;
-    has_SEE = cpu.has(Xbyak::util::Cpu::tSSE);
-#endif
-    if (has_SEE) {
+    if (cpu.has(Xbyak::util::Cpu::tSSE)) {
         if (conf.denormalsOptMode == Config::DenormalsOptMode::DO_On) {
             flush_to_zero(true);
             conf.DAZOn = denormals_as_zero(true);
@@ -625,12 +613,10 @@ Parameter Engine::GetMetricLegacy(const std::string& name, const std::map<std::s
         IE_SET_METRIC_RETURN(AVAILABLE_DEVICES, availableDevices);
     } else if (name == METRIC_KEY(OPTIMIZATION_CAPABILITIES)) {
         std::vector<std::string> capabilities;
-#ifndef __aarch64__
         if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16))
             capabilities.push_back(METRIC_VALUE(BF16));
         if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core))
             capabilities.push_back(METRIC_VALUE(WINOGRAD));
-#endif
         capabilities.push_back(METRIC_VALUE(FP32));
         capabilities.push_back(METRIC_VALUE(FP16));
         capabilities.push_back(METRIC_VALUE(INT8));
@@ -715,12 +701,10 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
         return decltype(ov::available_devices)::value_type(availableDevices);
     } else if (name == ov::device::capabilities) {
         std::vector<std::string> capabilities;
-#ifndef __aarch64__
         if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16))
             capabilities.push_back(METRIC_VALUE(BF16));
         if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core))
             capabilities.push_back(METRIC_VALUE(WINOGRAD));
-#endif
         capabilities.push_back(METRIC_VALUE(FP32));
         capabilities.push_back(METRIC_VALUE(FP16));
         capabilities.push_back(METRIC_VALUE(INT8));

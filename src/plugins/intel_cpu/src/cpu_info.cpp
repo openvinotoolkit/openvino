@@ -6,11 +6,7 @@
 #define XBYAK_NO_OP_NAMES
 #define XBYAK_USE_MMAP_ALLOCATOR
 #include <chrono>
-#ifdef __aarch64__
-#include <cpu/aarch64/cpu_isa_traits.hpp>
-#else
 #include <cpu/x64/cpu_isa_traits.hpp>
-#endif
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
@@ -18,8 +14,8 @@
 #include <memory>
 #include <sstream>
 #ifdef WIN32
-#    include <powrprof.h>
-#    pragma comment(lib, "powrprof.lib")
+#include <powrprof.h>
+#pragma comment(lib, "powrprof.lib")
 #endif
 
 #include <cmath>
@@ -40,18 +36,35 @@ float CPUInfo::calcComputeBlockIPC(InferenceEngine::Precision precision) {
     const int NUM_LOOP = 16384 * 8;
     const int NUM_INSN = 36;
     const int NUM_ITER = 100;
-#ifndef __aarch64__
+    using Xbyak::Tmm;
     using Xbyak::Xmm;
     using Xbyak::Ymm;
     using Xbyak::Zmm;
     Xbyak::CodeGenerator* g = NULL;
-    if (haveAVX512()) {
-        auto gen = [](Xbyak::CodeGenerator* g, int dst_reg, int src_reg) {
-            g->vfmadd132ps(Zmm(dst_reg), Zmm(src_reg), Zmm(src_reg));
-        };
-
-        g = new Generator<Zmm, decltype(gen)>(gen, NUM_LOOP, NUM_INSN);
-
+    if (haveAMXBF16() || haveAMXINT8()) {
+        if (haveAMXBF16() && precision == InferenceEngine::Precision::BF16) {
+            auto gen = [](Xbyak::CodeGenerator* g, int dst_reg, int src_reg) {
+                g->tdpbf16ps(Tmm(dst_reg), Tmm(src_reg), Tmm(dst_reg));
+            };
+            g = new Generator<Tmm, decltype(gen)>(gen, NUM_LOOP, NUM_INSN);
+        } else if (haveAMXINT8() && precision == InferenceEngine::Precision::I8) {
+            auto gen = [](Xbyak::CodeGenerator* g, int dst_reg, int src_reg) {
+                g->tdpbssd(Tmm(dst_reg), Tmm(src_reg), Tmm(dst_reg));
+            };
+            g = new Generator<Tmm, decltype(gen)>(gen, NUM_LOOP, NUM_INSN);
+        }
+    } else if (haveAVX512()) {
+        if (precision == InferenceEngine::Precision::FP32) {
+            auto gen = [](Xbyak::CodeGenerator* g, int dst_reg, int src_reg) {
+                g->vfmadd132ps(Zmm(dst_reg), Zmm(src_reg), Zmm(src_reg));
+            };
+            g = new Generator<Zmm, decltype(gen)>(gen, NUM_LOOP, NUM_INSN);
+        } else if (precision == InferenceEngine::Precision::FP16) {
+            auto gen = [](Xbyak::CodeGenerator* g, int dst_reg, int src_reg) {
+                g->vfmadd132ph(Zmm(dst_reg), Zmm(src_reg), Zmm(src_reg));
+            };
+            g = new Generator<Zmm, decltype(gen)>(gen, NUM_LOOP, NUM_INSN);
+        }
     } else if (haveAVX()) {
         if (precision == InferenceEngine::Precision::FP32) {
             auto gen = [](Xbyak::CodeGenerator* g, int dst_reg, int src_reg) {
@@ -80,23 +93,16 @@ float CPUInfo::calcComputeBlockIPC(InferenceEngine::Precision precision) {
             };
             g = new Generator<Ymm, decltype(gen)>(gen, NUM_LOOP, NUM_INSN);
         }
-
     } else if (haveSSE() || haveSSEX()) {
-        auto gen = [](Xbyak::CodeGenerator* g, int dst_reg, int src_reg) {
-            g->mulps(Xmm(dst_reg), Xmm(src_reg));
-            g->addps(Xmm(dst_reg), Xmm(src_reg));
-        };
+        if (precision == InferenceEngine::Precision::FP32 || precision == InferenceEngine::Precision::FP16) {
+            auto gen = [](Xbyak::CodeGenerator* g, int dst_reg, int src_reg) {
+                g->mulps(Xmm(dst_reg), Xmm(src_reg));
+                g->addps(Xmm(dst_reg), Xmm(src_reg));
+            };
+            g = new Generator<Xmm, decltype(gen)>(gen, NUM_LOOP, NUM_INSN);
+        }
+    }
 
-        g = new Generator<Xmm, decltype(gen)>(gen, NUM_LOOP, NUM_INSN);
-    }
-#else
-    using Xbyak_aarch64::T_z;
-    using Xbyak_aarch64::XReg;
-    Xbyak_aarch64::CodeGenerator* g = NULL;
-    if (haveAVDSimd()) {
-        g = NULL;
-    }
-#endif
     float res = 0;
     typedef void (*func_t)(void);
     if (g) {
@@ -113,8 +119,6 @@ float CPUInfo::calcComputeBlockIPC(InferenceEngine::Precision precision) {
             res = std::max(res, (NUM_INSN * NUM_LOOP) / ((e1.count() - b1.count()) * freqGHz));
         }
         delete g;
-    } else {
-        std::cout << "WARNING: unsupport ISA: " << ISA_detailed << " !\n";
     }
     return res;
 }
@@ -282,7 +286,6 @@ void CPUInfo::init() {
 
 CPUInfo::CPUInfo() {
     ISA_detailed = dnnl::impl::cpu::platform::get_isa_info();
-#ifndef __aarch64__
     have_sse = checkIsaSupport(ISA::sse);
     have_sse2 = checkIsaSupport(ISA::sse2);
     have_ssse3 = checkIsaSupport(ISA::ssse3);
@@ -293,9 +296,6 @@ CPUInfo::CPUInfo() {
     have_fma = checkIsaSupport(ISA::fma);
     have_avx512f = checkIsaSupport(ISA::avx512_common);
     have_vnni = checkIsaSupport(ISA::avx512_vnni);
-#else
-    have_avdsimd = checkIsaSupport(ISA::asimd);
-#endif
 
     try {
         init();
@@ -309,7 +309,6 @@ CPUInfo::CPUInfo() {
         std::string msg{e.what()};
         IE_THROW() << "Failed to initialize CPU info for calculating GOPS: " << msg;
     }
-    printDetails();
 }
 
 float CPUInfo::getPeakGOPSImpl(InferenceEngine::Precision precision) {
@@ -317,6 +316,9 @@ float CPUInfo::getPeakGOPSImpl(InferenceEngine::Precision precision) {
     switch (precision) {
     case InferenceEngine::Precision::FP32:
         data_type_bit_size = sizeof(float) * 8;
+        break;
+    case InferenceEngine::Precision::FP16:
+        data_type_bit_size = sizeof(float) * 8 * 2;
         break;
     case InferenceEngine::Precision::I8:
         data_type_bit_size = sizeof(int8_t) * 8;
@@ -330,17 +332,14 @@ float CPUInfo::getPeakGOPSImpl(InferenceEngine::Precision precision) {
     }
 
     simd_size = 1;
-#ifdef __aarch64__
-    if (haveAVDSimd())
-        simd_size = 128 / data_type_bit_size;
-#else
+    if (haveAMXBF16() || haveAMXINT8())
+        simd_size = 1024 / data_type_bit_size;
     if (haveAVX512())
         simd_size = 512 / data_type_bit_size;
     if (haveAVX())
         simd_size = 256 / data_type_bit_size;
     if (haveSSE())
         simd_size = 128 / data_type_bit_size;
-#endif
     operations_per_compute_block = 2 * simd_size;
     instructions_per_cycle = calcComputeBlockIPC(precision);
 

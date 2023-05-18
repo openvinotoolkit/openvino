@@ -5,16 +5,14 @@
 #pragma once
 
 #include <string>
-#ifdef __aarch64__
-#include <cpu/aarch64/xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_util.h>
-using Xbyak_aarch64::util::Cpu;
-#else
 #include <cpu/x64/xbyak/xbyak_util.h>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/amx_tile_configure.hpp>
 using Xbyak::Xmm;
 using Xbyak::Ymm;
 using Xbyak::Zmm;
+using Xbyak::Tmm;
 using Xbyak::util::Cpu;
-#endif
 #include <cpu/platform.hpp>
 
 #include "ie_precision.hpp"
@@ -29,7 +27,6 @@ public:
 
 private:
     enum class ISA {
-#ifndef __aarch64__
         sse,
         sse2,
         sse3,
@@ -44,15 +41,13 @@ private:
         avx512_mic,
         avx512_mic_4ops,
         avx512_vnni,
-#else
-        asimd
-#endif
+        amx_int8,
+        amx_bf16,
     };
 
     void init();
     bool checkIsaSupport(ISA cpu_isa) {
         switch (cpu_isa) {
-#ifndef __aarch64__
         case ISA::sse:
             return cpu.has(Cpu::tSSE);
         case ISA::sse2:
@@ -84,15 +79,14 @@ private:
         case ISA::avx512_vnni:
             return cpu.has(Cpu::tAVX512F);  //&&
                                             // cpu.has(Cpu::tAVX512_VNNI);
-#else
-        case ISA::asimd:
-            return cpu.has(Cpu::tADVSIMD);
-#endif
+        case ISA::amx_bf16:
+            return cpu.has(Cpu::tAMX_BF16);
+        case ISA::amx_int8:
+            return cpu.has(Cpu::tAMX_INT8);
         }
 
         return false;
     }
-#ifndef __aarch64__
     bool haveSSE() {
         return have_sse;
     }
@@ -105,11 +99,12 @@ private:
     bool haveAVX512() {
         return have_avx512f;
     }
-#else
-    bool haveAVDSimd() {
-        return have_avdsimd;
+    bool haveAMXBF16() {
+        return have_amx_bf16;
     }
-#endif
+    bool haveAMXINT8() {
+        return have_amx_int8;
+    }
 
     float calcComputeBlockIPC(InferenceEngine::Precision precision);
 
@@ -122,7 +117,6 @@ private:
     float currGHz = 1.0f;
 #endif
 
-#ifndef __aarch64__
     bool have_sse = false;
     bool have_sse2 = false;
     bool have_ssse3 = false;
@@ -133,9 +127,8 @@ private:
     bool have_fma = false;
     bool have_avx512f = false;
     bool have_vnni = false;
-#else
-    bool have_avdsimd = false;
-#endif
+    bool have_amx_int8 = false;
+    bool have_amx_bf16 = false;
 
     // Micro architecture level
     uint32_t simd_size = 1;
@@ -147,26 +140,9 @@ private:
     uint32_t cores_per_socket = 1;
     uint32_t sockets_per_node = 1;
     std::string ISA_detailed;
-#ifdef __aarch64__
-    Xbyak_aarch64::util::Cpu cpu;
-#else
     Xbyak::util::Cpu cpu;
-#endif
 };
 
-#ifdef __aarch64__
-using Xbyak_aarch64::VReg2D;
-struct Generator : public Xbyak_aarch64::CodeGenerator {
-    Generator(int num_loop, int num_insn) {
-        for (int i = 0; i < num_loop; i++) {
-            for (int j = 0; j < num_insn; j++) {
-                fmla(v0.d2, v1.d2, v0.d2);
-            }
-        }
-        ret();
-    }
-};
-#else
 template <typename T>
 struct RegMap;
 
@@ -214,6 +190,48 @@ struct RegMap<Xbyak::Zmm> {
     }
 };
 
+template <>
+struct RegMap<Xbyak::Tmm> {
+    RegMap<Xbyak::Tmm>() {
+        dnnl::impl::cpu::x64::palette_config_t tconf = {0};
+        auto palette_id = dnnl::impl::cpu::x64::amx::get_target_palette();
+        std::cout << "[WangYang] AMX palette ID: " << palette_id << std::endl;
+        tconf.palette_id = palette_id;
+        for (int index = 0; index < sizeof(tconf.rows) / sizeof(tconf.rows[0]); index++) {
+            tconf.rows[index] = dnnl::impl::cpu::x64::amx::get_max_rows(tconf.palette_id);
+            std::cout << "[WangYang] Max rows per register: " << tconf.rows[index] << std::endl;
+        }
+        for (int index = 0; index < sizeof(tconf.cols) / sizeof(tconf.cols[0]); index++) {
+            tconf.cols[index] = dnnl::impl::cpu::x64::amx::get_max_column_bytes(tconf.palette_id);
+            std::cout << "[WangYang] Max number of bytes per rows: " << tconf.cols[index] << std::endl;
+        }
+        // configura AMX tiles
+        dnnl::impl::cpu::x64::amx_tile_configure((const char*)&tconf);
+    }
+
+    ~RegMap<Xbyak::Tmm>() {
+        dnnl::impl::cpu::x64::amx_tile_release();
+    }
+
+    void save(Xbyak::CodeGenerator* g, int idx, int off) {
+        // No need to save AMX registers here and juse clean registers.
+        auto palette_id = dnnl::impl::cpu::x64::amx::get_target_palette();
+        idx = idx % dnnl::impl::cpu::x64::amx::get_max_tiles(palette_id);
+        g->tilezero(Tmm(idx));
+    }
+
+    void restore(Xbyak::CodeGenerator* g, int idx, int off) {
+        // No need to restore AMX registers here and juse clean registers.
+        auto palette_id = dnnl::impl::cpu::x64::amx::get_target_palette();
+        idx = idx % dnnl::impl::cpu::x64::amx::get_max_tiles(palette_id);
+        g->tilezero(Tmm(idx));
+    }
+
+    void killdep(Xbyak::CodeGenerator* g, int idx) {
+        return;
+    }
+};
+
 template <typename RegType, typename Gen, typename F>
 struct ThroughputGenerator {
     void operator()(Gen* g, RegMap<RegType>& rm, F f, int num_insn) {
@@ -258,6 +276,5 @@ struct Generator : public Xbyak::CodeGenerator {
         ret();
     }
 };
-#endif
 }  // namespace intel_cpu
 }  // namespace ov
