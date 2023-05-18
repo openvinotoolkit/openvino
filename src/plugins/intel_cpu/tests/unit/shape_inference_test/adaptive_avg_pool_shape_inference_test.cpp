@@ -84,7 +84,7 @@ TEST_F(AdaptiveAvgPoolV8StaticShapeInferenceTest, out_spatial_dims_in_const_map_
     OV_EXPECT_THROW(shape_inference(op.get(), input_shapes, output_shapes, const_data),
                     ov::NodeValidationFailure,
                     HasSubstr("Number of spatial dimensions is not compatible with input data rank"));
-    // implementation should throw exception
+    // TODO, implementation should throw exception
     // ASSERT_THROW(unit_test::cus_usual_shape_infer(op.get(), input_shapes, output_shapes, const_data),
     //             InferenceEngine::GeneralError);
 }

@@ -84,7 +84,7 @@ TEST_P(MatMulTest, no_input_transpose) {
 
     shape_inference(matmul.get(), static_input_shapes, static_output_shapes);
     ASSERT_EQ(static_output_shapes.front(), exp_shape);
-    // there is some issue in implementation
+    // TODO, below test case can't pass
     // unit_test::cus_usual_shape_infer(matmul.get(), static_input_shapes, static_output_shapes);
 }
 
@@ -96,7 +96,7 @@ TEST_P(MatMulTest, transpose_input_a) {
 
     shape_inference(matmul.get(), static_input_shapes, static_output_shapes);
     ASSERT_EQ(static_output_shapes.front(), exp_shape);
-    // there is some issue in implementation
+    // TODO, below test case can't pass
     // unit_test::cus_usual_shape_infer(matmul.get(), static_input_shapes, static_output_shapes);
 }
 
@@ -108,6 +108,8 @@ TEST_P(MatMulTest, transpose_input_b) {
 
     shape_inference(matmul.get(), static_input_shapes, static_output_shapes);
     ASSERT_EQ(static_output_shapes.front(), exp_shape);
+
+    // TODO, below test case can't pass
     // unit_test::cus_usual_shape_infer(matmul.get(), static_input_shapes, static_output_shapes);
 }
 
@@ -121,5 +123,7 @@ TEST_P(MatMulTest, transpose_inputs_a_b) {
 
     shape_inference(matmul.get(), static_input_shapes, static_output_shapes);
     ASSERT_EQ(static_output_shapes.front(), exp_shape);
+
+    // TODO, below test case can't pass
     // unit_test::cus_usual_shape_infer(matmul.get(), static_input_shapes, static_output_shapes);
 }

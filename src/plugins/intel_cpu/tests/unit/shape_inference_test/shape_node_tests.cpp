@@ -164,6 +164,6 @@ TEST(StaticShapeInferenceTest, ShapeOf0DTest) {
     shape_inference(shapeof.get(), static_input_shapes, static_output_shapes);
 
     ASSERT_EQ(static_output_shapes[0], StaticShape({}));
-    // can't pass implementation don't support 0D shape input
+    // TODO, can't pass implementation don't support 0D shape input
     // unit_test::cus_usual_shape_infer(shapeof.get(), static_input_shapes, static_output_shapes);
 }

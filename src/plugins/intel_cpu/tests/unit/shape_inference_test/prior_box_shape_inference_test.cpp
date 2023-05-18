@@ -6,7 +6,6 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "openvino/opsets/opset11.hpp"
-#include "custom_shape_infer.hpp"
 #include "utils.hpp"
 
 using namespace ov;
@@ -40,6 +39,12 @@ TEST_F(PriorBoxV8StaticShapeInferenceTest, default_ctor_no_args) {
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({2, 200}));
+
+    // TODO should support v8::PriorBox
+    // unit_test::cus_usual_shape_infer(op.get(),
+    //         input_shapes,
+    //         output_shapes,
+    //         {{0, std::make_shared<HostTensor>(element::i32, ov::Shape{2}, out_size)}});
 }
 
 TEST_F(PriorBoxV8StaticShapeInferenceTest, all_inputs_dynamic_rank) {
@@ -58,6 +63,12 @@ TEST_F(PriorBoxV8StaticShapeInferenceTest, all_inputs_dynamic_rank) {
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes[0], (StaticShape{2, 200}));
+
+    // TODO should support v8::PriorBox
+    // unit_test::cus_usual_shape_infer(op.get(),
+    //         input_shapes,
+    //         output_shapes,
+    //         {{0, std::make_shared<HostTensor>(element::i32, ov::Shape{2}, output_size)}});
 }
 
 TEST_F(PriorBoxV8StaticShapeInferenceTest, all_inputs_static_rank) {
@@ -76,6 +87,12 @@ TEST_F(PriorBoxV8StaticShapeInferenceTest, all_inputs_static_rank) {
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes[0], (StaticShape{2, 200}));
+
+    // TODO should support v8::PriorBox
+    // unit_test::cus_usual_shape_infer(op.get(),
+    //                input_shapes,
+    //                output_shapes,
+    //                {{0, std::make_shared<HostTensor>(element::i32, ov::Shape{2}, output_size)}});
 }
 
 TEST_F(PriorBoxV8StaticShapeInferenceTest, out_size_constant) {
@@ -89,6 +106,8 @@ TEST_F(PriorBoxV8StaticShapeInferenceTest, out_size_constant) {
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes[0], (StaticShape{2, 480}));
+    // TODO should support v8::PriorBox
+    // unit_test::cus_usual_shape_infer(op.get(), input_shapes, output_shapes);
 }
 
 TEST_F(PriorBoxV8StaticShapeInferenceTest, all_inputs_constants) {
@@ -102,6 +121,9 @@ TEST_F(PriorBoxV8StaticShapeInferenceTest, all_inputs_constants) {
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes[0], (StaticShape{2, 3840}));
+
+    // TODO should support v8::PriorBox
+    // unit_test::cus_usual_shape_infer(op.get(), input_shapes, output_shapes);
 }
 
 TEST_F(PriorBoxV8StaticShapeInferenceTest, invalid_number_of_elements_in_out_size) {
@@ -119,6 +141,8 @@ TEST_F(PriorBoxV8StaticShapeInferenceTest, invalid_number_of_elements_in_out_siz
                                     {{0, std::make_shared<HostTensor>(element::i64, ov::Shape{3}, output_size)}}),
                     NodeValidationFailure,
                     HasSubstr("Output size must have two elements"));
+
+    // TODO should support v8::PriorBox
 }
 
 TEST_F(PriorBoxV8StaticShapeInferenceTest, invalid_input_ranks) {
@@ -136,6 +160,8 @@ TEST_F(PriorBoxV8StaticShapeInferenceTest, invalid_input_ranks) {
                                     {{0, std::make_shared<HostTensor>(element::i64, ov::Shape{3}, output_size)}}),
                     NodeValidationFailure,
                     HasSubstr("output size input rank 2 must match image shape input rank 1"));
+
+    // TODO should support v8::PriorBox
 }
 
 TEST(StaticShapeInferenceTest, prior_box0) {
@@ -273,7 +299,7 @@ TEST(StaticShapeInferenceTest, prior_box_v8_1) {
 
     ASSERT_EQ(static_output_shapes[0], StaticShape({2, 20480}));
 
-    // should support v8::PriorBox
+    // TODO should support v8::PriorBox
     // unit_test::cus_usual_shape_infer(op.get(), static_input_shapes, static_output_shapes, const_data);
 }
 
