@@ -193,6 +193,7 @@ struct RegMap<Xbyak::Zmm> {
 template <>
 struct RegMap<Xbyak::Tmm> {
     RegMap<Xbyak::Tmm>() {
+#if DNNL_X64
         dnnl::impl::cpu::x64::palette_config_t tconf = {0};
         auto palette_id = dnnl::impl::cpu::x64::amx::get_target_palette();
         std::cout << "[WangYang] AMX palette ID: " << palette_id << std::endl;
@@ -207,24 +208,31 @@ struct RegMap<Xbyak::Tmm> {
         }
         // configura AMX tiles
         dnnl::impl::cpu::x64::amx_tile_configure((const char*)&tconf);
+#endif
     }
 
     ~RegMap<Xbyak::Tmm>() {
+#if DNNL_X64
         dnnl::impl::cpu::x64::amx_tile_release();
+#endif
     }
 
     void save(Xbyak::CodeGenerator* g, int idx, int off) {
+#if DNNL_X64
         // No need to save AMX registers here and juse clean registers.
         auto palette_id = dnnl::impl::cpu::x64::amx::get_target_palette();
         idx = idx % dnnl::impl::cpu::x64::amx::get_max_tiles(palette_id);
         g->tilezero(Tmm(idx));
+#endif
     }
 
     void restore(Xbyak::CodeGenerator* g, int idx, int off) {
+#if DNNL_X64
         // No need to restore AMX registers here and juse clean registers.
         auto palette_id = dnnl::impl::cpu::x64::amx::get_target_palette();
         idx = idx % dnnl::impl::cpu::x64::amx::get_max_tiles(palette_id);
         g->tilezero(Tmm(idx));
+#endif
     }
 
     void killdep(Xbyak::CodeGenerator* g, int idx) {
