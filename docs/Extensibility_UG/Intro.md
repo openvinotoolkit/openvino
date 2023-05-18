@@ -9,7 +9,6 @@
    openvino_docs_Extensibility_UG_add_openvino_ops
    openvino_docs_Extensibility_UG_Frontend_Extensions
    openvino_docs_Extensibility_UG_GPU
-   openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer
    
 .. toctree::
    :maxdepth: 1
@@ -18,14 +17,20 @@
    openvino_docs_transformations
    OpenVINO Plugin Developer Guide <openvino_docs_ie_plugin_dg_overview>
 
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+   
+   openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer
+
 The Intel® Distribution of OpenVINO™ toolkit supports neural network models trained with various frameworks, including
-TensorFlow, PyTorch, ONNX, TensorFlow Lite, PaddlePaddle, Apache MXNet, Caffe, and Kaldi. The list of supported operations is different for
-each of the supported frameworks. To see the operations supported by your framework, refer to :doc:`Supported Framework Operations <openvino_docs_MO_DG_prepare_model_Supported_Frameworks_Layers>`.
+TensorFlow, PyTorch, ONNX, TensorFlow Lite, and PaddlePaddle (OpenVINO support for Apache MXNet, Caffe, and Kaldi is currently 
+being deprecated and will be removed entirely in the future). The list of supported operations is different for each of the supported frameworks. 
+To see the operations supported by your framework, refer to :doc:`Supported Framework Operations <openvino_docs_MO_DG_prepare_model_Supported_Frameworks_Layers>`.
 
 Custom operations, which are not included in the list, are not recognized by OpenVINO out-of-the-box. The need for custom operation may appear in two cases:
 
 1. A new or rarely used regular framework operation is not supported in OpenVINO yet.
-
 2. A new user operation that was created for some specific model topology by the author of the model using framework extension capabilities.
 
 Importing models with such operations requires additional steps. This guide illustrates the workflow for running inference on models featuring custom operations. This allows plugging in your own implementation for them. OpenVINO Extensibility API enables adding support for those custom operations and using one implementation for Model Optimizer and OpenVINO Runtime.
@@ -54,9 +59,9 @@ Mapping of custom operation is implemented differently, depending on model forma
 
 1. If a model is represented in the ONNX (including models exported from Pytorch in ONNX), TensorFlow Lite, PaddlePaddle or TensorFlow formats, then one of the classes from :doc:`Frontend Extension API <openvino_docs_Extensibility_UG_Frontend_Extensions>` should be used. It consists of several classes available in C++ which can be used with the ``--extensions`` option in Model Optimizer or when a model is imported directly to OpenVINO runtime using the ``read_model`` method. Python API is also available for runtime model import.
 
-2. If a model is represented in the Caffe, Kaldi or MXNet formats, then :doc:`Model Optimizer Extensions <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>` should be used. This approach is available for model conversion in Model Optimizer only.
+2. If a model is represented in the Caffe, Kaldi or MXNet formats (as legacy frontends), then :doc:`[Legacy] Model Optimizer Extensions <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>` should be used. This approach is available for model conversion in Model Optimizer only.
 
-Existing of two approaches simultaneously is explained by two different types of frontends used for model conversion in OpenVINO: new frontends (ONNX, PaddlePaddle, TensorFlow Lite and TensorFlow) and legacy frontends (Caffe, Kaldi and Apache MXNet). Model Optimizer can use both front-ends in contrast to the direct import of model with ``read_model`` method which can use new frontends only. Follow one of the appropriate guides referenced above to implement mappings depending on framework frontend.
+Existing of two approaches simultaneously is explained by two different types of frontends used for model conversion in OpenVINO: new frontends (ONNX, PaddlePaddle, TensorFlow Lite, and TensorFlow) and legacy frontends (Caffe, Kaldi, and Apache MXNet). Model Optimizer can use both frontends in contrast to the direct import of model with ``read_model`` method which can use new frontends only. Follow one of the appropriate guides referenced above to implement mappings depending on framework frontend.
 
 If you are implementing extensions for new ONNX, PaddlePaddle, TensorFlow Lite or TensorFlow frontends and plan to use the ``--extensions`` option in Model Optimizer for model conversion, then the extensions should be:
 

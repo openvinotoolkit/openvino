@@ -18,18 +18,15 @@ using namespace ::tests;
 
 TEST(prepare_padding, groupconv_with_output) {
     auto& engine = get_test_engine();
-    auto in_layout = layout{data_types::f16, format::bfyx, tensor{1, 18, 135, 76}};
-    auto weight_layout = layout{data_types::f16, format::bfzyx, tensor{1, 18, 3, 3, 18}};
-    auto weights_data = generate_random_5d<FLOAT16>(1, 18, 18, 3, 3, -1, 1);
-    auto weights_mem = engine.allocate_memory({ data_types::f16, format::bfzyx, weight_layout.get_tensor()});
+    auto in_layout = layout{{1, 18, 76, 135}, data_types::f16, format::bfyx};
+    auto weights_data = generate_random_5d<FLOAT16>(1, 18, 1, 3, 3, -1, 1);
+    auto weights_mem = engine.allocate_memory({ {18, 1, 1, 3, 3}, data_types::f16, format::bfzyx});
     set_values(weights_mem, weights_data);
 
-    auto output_size = tensor{1, 18, 135, 76};
-    ov::CoordinateDiff pad = {0, 0};
     topology topo;
     topo.add(input_layout("input", in_layout));
     topo.add(data("weight", weights_mem));
-    topo.add(convolution("conv", input_info("input"), { "weight" }, {}, 1, {1, 1}, {0, 0}, {1, 1}, output_size, data_types::f16, true));
+    topo.add(convolution("conv", input_info("input"), "weight", "", 1, {1, 1}, {1, 1}, {0, 0}, {2, 2}, true));
     topo.add(reorder("reorder", input_info("conv"), format::bfyx, data_types::f32));
 
     ExecutionConfig config = get_test_default_config(engine);
