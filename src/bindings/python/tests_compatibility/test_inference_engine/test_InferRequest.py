@@ -513,3 +513,19 @@ def test_set_blob_with_incorrect_name(device):
     with pytest.raises(RuntimeError) as e:
         exec_net.requests[0].set_blob("incorrect_name", blob)
     assert f"Failed to find input or output with name: 'incorrect_name'" in str(e.value)
+
+
+def test_set_blob_with_incorrect_size(device):
+    function = create_encoder([4, 4, 20, 20])
+    net = ng.function_to_cnn(function)
+    ie_core = ie.IECore()
+    exec_net = ie_core.load_network(net, device)
+    tensor_desc = exec_net.requests[0].input_blobs["data"].tensor_desc
+    tensor_desc.dims = [tensor_desc.dims[0]*2, 4, 20, 20]
+    blob = ie.Blob(tensor_desc)
+    with pytest.raises(RuntimeError) as e:
+        exec_net.requests[0].set_blob("data", blob)
+    assert f"Input blob size is not equal network input size" in str(e.value)
+    with pytest.raises(RuntimeError) as e:
+        exec_net.requests[0].set_blob("out", blob)
+    assert f"Output blob size is not equal network output size" in str(e.value)
