@@ -97,6 +97,21 @@ public:
         OPENVINO_NOT_IMPLEMENTED;
     }
 
+    std::shared_ptr<ov::ICompiledModel> import_model(std::shared_ptr<ngraph::runtime::AlignedBuffer>& model_buffer,
+                                                     const ov::AnyMap& properties) const override {
+        if (m_plugin)
+            return m_plugin->import_model(model_buffer, properties);
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+    std::shared_ptr<ov::ICompiledModel> import_model(std::shared_ptr<ngraph::runtime::AlignedBuffer>& model_buffer,
+                                                     const ov::RemoteContext& context,
+                                                     const ov::AnyMap& properties) const override {
+        if (m_plugin)
+            return m_plugin->import_model(model_buffer, context, properties);
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
     ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
                                     const ov::AnyMap& properties) const override {
         if (m_plugin)
