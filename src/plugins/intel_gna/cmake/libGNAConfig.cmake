@@ -19,7 +19,7 @@
 #
 # The example usage:
 #
-#  find_package(libGNA COMPONENTS API KERNEL)
+#  find_package(libGNA NO_MODULE COMPONENTS API KERNEL)
 #
 
 set(libGNA_FOUND ON)

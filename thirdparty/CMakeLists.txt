@@ -46,10 +46,8 @@ if(X86_64 OR UNIVERSAL2)
         set_target_properties(xbyak::xbyak PROPERTIES IMPORTED_GLOBAL ON)
     else()
         add_subdirectory(xbyak EXCLUDE_FROM_ALL)
-        # let's create alias xbyak::xbyak
-        add_library(xbyak::xbyak ALIAS xbyak)
         # export and install xbyak
-        openvino_developer_export_targets(COMPONENT openvino_common TARGETS xbyak)
+        openvino_developer_export_targets(COMPONENT openvino_common TARGETS xbyak::xbyak)
         ov_install_static_lib(xbyak ${OV_CPACK_COMP_CORE})
     endif()
 endif()
@@ -204,7 +202,7 @@ if(ENABLE_SYSTEM_PUGIXML)
     # try system pugixml first
     find_package(PugiXML QUIET)
     if(PugiXML_FOUND)
-        # TODO: uset static pugixml library in case of BUILD_SHARED_LIBS=OFF
+        # TODO: use static pugixml library in case of BUILD_SHARED_LIBS=OFF
         if(TARGET pugixml::shared)
             # example: cross-compilation on debian
             set(pugixml_target pugixml::shared)
@@ -229,7 +227,8 @@ if(ENABLE_SYSTEM_PUGIXML)
     elseif(PkgConfig_FOUND)
         # U18 case when cmake interface is not available
         pkg_search_module(pugixml QUIET
-                          IMPORTED_TARGET GLOBAL
+                          IMPORTED_TARGET
+                          GLOBAL
                           pugixml)
         if(pugixml_FOUND)
             set(pugixml_target PkgConfig::pugixml)

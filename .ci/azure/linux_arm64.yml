@@ -160,6 +160,7 @@ jobs:
       cmake \
         -G Ninja \
         -DCMAKE_VERBOSE_MAKEFILE=ON \
+        -DBUILD_SHARED_LIBS=ON \
         -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
         -DENABLE_CPPLINT=OFF \
         -DENABLE_PYTHON=OFF \
@@ -170,6 +171,8 @@ jobs:
         -DENABLE_SYSTEM_SNAPPY=ON \
         -DENABLE_SYSTEM_PUGIXML=ON \
         -DCMAKE_TOOLCHAIN_FILE=$(BUILD_OPENVINO)/conan_toolchain.cmake \
+        -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+        -DCMAKE_C_COMPILER_LAUNCHER=ccache \
         -DARM_COMPUTE_SCONS_JOBS=$(NUM_PROC) \
         -DCMAKE_INSTALL_PREFIX=$(INSTALL_OPENVINO) \
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) \

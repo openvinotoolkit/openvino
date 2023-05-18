@@ -248,6 +248,7 @@ macro(_ov_find_pugixml)
                 set(_ov_pugixml_target pugixml::pugixml)
             endif()
             if(OpenVINODeveloperPackage_DIR)
+                set_property(TARGET ${_ov_pugixml_target} PROPERTY IMPORTED_GLOBAL ON)
                 # align with build tree
                 add_library(openvino::pugixml ALIAS ${_ov_pugixml_target})
             endif()
@@ -264,13 +265,16 @@ macro(_ov_find_pugixml)
                               ${pkg_config_quiet_arg}
                               ${pkg_config_required_arg}
                               IMPORTED_TARGET
+                              GLOBAL
                               pugixml)
 
             unset(pkg_config_quiet_arg)
             unset(pkg_config_required_arg)
 
             if(pugixml_FOUND)
-                add_library(openvino::pugixml ALIAS PkgConfig::pugixml)
+                if(OpenVINODeveloperPackage_DIR)
+                    add_library(openvino::pugixml ALIAS PkgConfig::pugixml)
+                endif()
 
                 # PATCH: on Ubuntu 18.04 pugixml.pc contains incorrect include directories
                 get_target_property(interface_include_dir PkgConfig::pugixml INTERFACE_INCLUDE_DIRECTORIES)
@@ -360,7 +364,8 @@ macro(_ov_find_intel_gna_dependencies)
     if(_OV_ENABLE_INTEL_GNA)
         set_and_check(GNA_PATH "@PACKAGE_GNA_PATH@")
         _ov_find_dependency(libGNA
-                            NO_MODULE
+                            COMPONENTS KERNEL
+                            CONFIG
                             PATHS "${CMAKE_CURRENT_LIST_DIR}"
                             NO_DEFAULT_PATH)
         unset(GNA_PATH)
@@ -386,6 +391,7 @@ macro(_ov_find_tensorflow_frontend_dependencies)
     endif()
     unset(_OV_ENABLE_SYSTEM_SNAPPY)
     unset(_ov_snappy_lib)
+    set(PACKAGE_PREFIX_DIR ${_ov_package_prefix_dir})
 endmacro()
 
 macro(_ov_find_onnx_frontend_dependencies)

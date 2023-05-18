@@ -202,7 +202,6 @@ macro(ie_add_sample)
     find_package(Threads REQUIRED)
 
     find_package(OpenVINO REQUIRED COMPONENTS Runtime)
-    find_package(OpenVINO REQUIRED COMPONENTS Runtime)
     if(c_sample)
         set(ov_link_libraries openvino::runtime::c)
     else()

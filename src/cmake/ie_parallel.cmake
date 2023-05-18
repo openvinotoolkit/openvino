@@ -190,11 +190,13 @@ macro(ov_find_package_tbb)
                 if(PkgConfig_FOUND)
                     pkg_search_module(HWLOC QUIET
                                       IMPORTED_TARGET
+                                      GLOBAL
                                       hwloc)
                 endif()
 
                 if(TARGET PkgConfig::HWLOC)
                     # dependency is satisfied
+                    add_library(HWLOC::hwloc_2_5 ALIAS PkgConfig::HWLOC)
                 else()
                     # Add HWLOC::hwloc_2_5 target to check via ApiValidator
                     get_target_property(imported_configs TBB::tbbbind_2_5 IMPORTED_CONFIGURATIONS)
@@ -209,9 +211,7 @@ macro(ov_find_package_tbb)
                     set(hwloc_dll_name "${CMAKE_SHARED_LIBRARY_PREFIX}hwloc${CMAKE_SHARED_LIBRARY_SUFFIX}")
                     find_file(HWLOC_DLL NAMES ${hwloc_dll_name} PATHS "${TBB_dir}" DOC "Path to hwloc.dll")
 
-                    if(NOT HWLOC_DLL)
-                        message(WARNING "Failed to find ${hwloc_dll_name} in ${TBB_dir}")
-                    else()
+                    if(HWLOC_DLL)
                         add_library(HWLOC::hwloc_2_5 SHARED IMPORTED)
                         set_property(TARGET HWLOC::hwloc_2_5 APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
                         set_target_properties(HWLOC::hwloc_2_5 PROPERTIES IMPORTED_LOCATION_RELEASE "${HWLOC_DLL}")
