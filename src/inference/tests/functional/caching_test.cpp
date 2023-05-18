@@ -27,6 +27,7 @@
 #include "openvino/core/model.hpp"
 #include "openvino/op/logical_not.hpp"
 #include "openvino/util/file_util.hpp"
+#include "openvino/util/shared_object.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iexecutable_network_internal.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iinference_plugin.hpp"
 #include "unit_test_utils/mocks/mock_iexecutable_network.hpp"
