@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from hashlib import sha256
 from utils.conformance_utils import get_logger, set_env_variable
-from utils.constants import PY_OPENVINO, LD_LIB_PATH_NAME, PYTHON_NAME, REL_WEIGHTS_FILENAME, REL_WEIGHTS_REPLACE_STR
+from utils.constants import PY_OPENVINO, LD_LIB_PATH_NAME, PYTHON_NAME, REL_WEIGHTS_FILENAME, REL_WEIGHTS_REPLACE_STR, CONVERT_OP_NAME
 from utils.file_utils import get_ov_path, find_latest_dir
 import defusedxml.ElementTree as ET
 
@@ -53,7 +53,7 @@ def parse_arguments():
     rel_weights_dir = "Path to dir to save rel_weights_file"
 
     parser.add_argument("--input_dir", help=in_dir_help, nargs="*", required=True)
-    parser.add_argument("--rel_weights_dir", help=in_dir_help, type=str, default=None, required=False)
+    parser.add_argument("--rel_weights_dir", help=rel_weights_dir, type=str, default=None, required=False)
 
     return parser.parse_args()
 
@@ -85,20 +85,14 @@ def update_rel_weight(meta_info_file:Path, additional_value: float):
         graph_priority_node.set("value", str(value_attrib + additional_value))
         with open(meta_info_file, "w") as xml_file:
             xml_file.write(ET.tostring(meta_info_root).decode('utf8'))
-        logger.info(f"Meta info file {meta_info_file} was updated")
+        # logger.info(f"Meta info file {meta_info_file} was updated")
     except:
         logger.error(f"Meta info {meta_info_file} is incorrect!")
-        return
 
-def is_report_op(op_name:str, is_convert_model:bool):
-    if "Parameter-1" == op_name or "Result-1" == op_name or "Constant-1" == op_name:
+def is_report_op(op_name:str):
+    if "Parameter-1" == op_name or "Result-1" == op_name or "Constant-1" == op_name or CONVERT_OP_NAME == op_name:
         return False
-    if is_convert_model and "Convert-1" == op_name:
-        return True
-    if not is_convert_model:
-        return True
-    else:
-        return False
+    return True
 
 def generate_node_hash(node):
     str_to_hash = ""
@@ -122,6 +116,27 @@ def generate_node_hash(node):
             str(output_node.get_type_info().name) + str(output_node.get_type_info().version_id)
     return str_to_hash
 
+
+def generate_convert_hash(model_path: Path):
+    try:
+        buf = dict()
+        res = str()
+        layers = ET.parse(model_path).getroot().find("layers")
+        for op in layers:
+            name = f'{op.attrib.get("type")}_{op.attrib.get("version")}'
+            if not name in buf.keys():
+                buf.update({name: list()})
+            for child in op:
+                buf[name].append(ET.tostring(child).decode('utf8').replace('\n', '').replace('\t', ''))
+        for op_name, set_attributes in buf.items():
+            res += op_name
+            for attribute in set_attributes:
+                res += attribute
+        return res
+    except ET.ParseError:
+        logger.error(f' {model_path} is corrupted and skipped')
+    return None
+
 def create_hash(in_dir_path: Path, operations=dict()):
     core = Core()
     models = in_dir_path.rglob("*.xml")
@@ -134,29 +149,37 @@ def create_hash(in_dir_path: Path, operations=dict()):
         check_file(bin_path)
         check_file(meta_path)
 
-        is_convert_model = "Convert" in str(model_path)
         str_to_hash = str()
-        try:
-            model = core.read_model(model_path)
-            rel_weight = get_rel_weight(meta_path)
-
-            for node in model.get_ordered_ops():
-                op_name = generate_op_name(node.get_type_info())
-                if is_report_op(op_name, is_convert_model):
-                    if not op_name in operations.keys():
-                        operations.update({op_name: TestStructure()})
-                    if "static" in str(model_path):
-                        operations[op_name].static += rel_weight
-                    elif "dynamic" in str(model_path):
-                        operations[op_name].dynamic += rel_weight
-                str_to_hash += generate_node_hash(node)
-                try:
-                    for body_node in node.get_function().get_ordered_ops():
-                        str_to_hash += generate_node_hash(body_node)
-                except:
-                    pass
-        except:
-            logger.error(f"Impossible to create hash for {model_path}")
+        rel_weight = get_rel_weight(meta_path)
+        # todo: remove w/a to provide correct convert reporting after merge CVS-110714
+        if (os.sep + CONVERT_OP_NAME + os.sep) in str(model_path):
+            str_to_hash = generate_convert_hash(model_path)
+            if not CONVERT_OP_NAME in operations.keys():
+                operations.update({CONVERT_OP_NAME: TestStructure()})
+            if "static" in str(model_path):
+                operations[CONVERT_OP_NAME].static += rel_weight
+            elif "dynamic" in str(model_path):
+                operations[CONVERT_OP_NAME].dynamic += rel_weight
+        else:
+            try:
+                model = core.read_model(model_path)
+                for node in model.get_ordered_ops():
+                    op_name = generate_op_name(node.get_type_info())
+                    if is_report_op(op_name):
+                        if not op_name in operations.keys():
+                            operations.update({op_name: TestStructure()})
+                        if "static" in str(model_path):
+                            operations[op_name].static += rel_weight
+                        elif "dynamic" in str(model_path):
+                            operations[op_name].dynamic += rel_weight
+                    str_to_hash += generate_node_hash(node)
+                    try:
+                        for body_node in node.get_function().get_ordered_ops():
+                            str_to_hash += generate_node_hash(body_node)
+                    except:
+                        pass
+            except:
+                logger.error(f"Impossible to create hash for {model_path}")
         ports_info = ET.parse(meta_path).getroot().find("ports_info")
         str_to_hash += ET.tostring(ports_info).decode('utf8').replace('\t', '')
 
@@ -167,16 +190,13 @@ def create_hash(in_dir_path: Path, operations=dict()):
         new_xml_path = Path(model_path.parent, new_name + XML_EXTENSION)
         new_bin_path = Path(bin_path.parent, new_name + BIN_EXTENSION)
 
-        if os.path.isfile(new_meta_path):
-            update_rel_weight(new_meta_path, rel_weight)
-            os.remove(meta_path)
-            os.remove(model_path)
-            os.remove(bin_path)
-        else:
+        if not os.path.isfile(new_meta_path):
             model_path.rename(new_xml_path)
             meta_path.rename(new_meta_path)
             bin_path.rename(new_bin_path)
-        # logger.info(f"{old_name} -> {new_name}")
+            logger.info(f"{old_name} -> {new_name}")
+        elif old_name != new_name:
+            update_rel_weight(new_meta_path, rel_weight)
     return operations
 
 def save_rel_weights(rel_weights_dir:Path, operations: dict):
