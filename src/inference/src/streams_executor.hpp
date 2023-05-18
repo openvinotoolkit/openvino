@@ -31,6 +31,8 @@ public:
     int _num_threads = 0;
 };
 
+CPU& cpu_info();
+
 #ifdef __linux__
 /**
  * @brief      Parse CPU cache infomation on Linux
@@ -67,7 +69,7 @@ void parse_freq_info_linux(const std::vector<std::vector<std::string>> _system_i
                            std::vector<std::vector<int>>& _cpu_mapping_table);
 #endif
 
-#if (defined(_WIN32) || defined(_WIN64))
+#if defined(_WIN32)
 /**
  * @brief      Parse processors infomation on Windows
  * @param[in]  base_ptr buffer object pointer of Windows system infomation
