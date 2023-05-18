@@ -45,7 +45,7 @@ A solution for Model Developers and Independent Software Vendors to use secure p
 
 More resources:
 
-* `Documentation <https://docs.openvino.ai/2023.0/ovsa_get_started.html>`__  
+* :doc:`Documentation <ovsa_get_started>`
 * `GitHub <https://github.com/openvinotoolkit/security_addon>`__  
 
 
