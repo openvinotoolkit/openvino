@@ -111,8 +111,8 @@ options. To determine custom input nodes, visualize a model graph in the TensorB
 TensorFlow 2 SavedModel format has a specific graph structure due to eager execution. In case of
 pruning, find custom input nodes in the ``StatefulPartitionedCall/*`` subgraph.
 
-Since 2023.0 release, direct pruning of models in SavedModel format is not supported.
-Prior to the pruning, it is essential to freeze the model. The model freezing can be achieved using the following code snippet:
+Since the 2023.0 release, direct pruning of models in SavedModel format is not supported.
+It is essential to freeze the model before pruning. Use the following code snippet for model freezing: 
 
 .. code-block:: python 
 
