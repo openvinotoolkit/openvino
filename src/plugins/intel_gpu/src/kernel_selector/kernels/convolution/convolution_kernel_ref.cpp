@@ -40,6 +40,8 @@ ParamsKey ConvolutionKernel_Ref::GetSupportedKey() const {
     k.EnableBatching();
     k.EnableGroupedConvolution();
 
+    k.EnableDynamicShapesSupport();
+
     k.EnableQuantization(QuantizationType::SYMMETRIC);
     k.EnableQuantization(QuantizationType::ASYMMETRIC_DATA);
     k.EnableQuantization(QuantizationType::ASYMMETRIC_WEIGHTS);

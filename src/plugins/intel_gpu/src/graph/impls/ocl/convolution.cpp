@@ -288,6 +288,23 @@ attach_convolution_impl::attach_convolution_impl() {
         std::make_tuple(data_types::u8, format::bs_fs_yx_bsv4_fsv2),
         std::make_tuple(data_types::i8, format::bs_fs_yx_bsv4_fsv2),
     });
+
+    auto types = {
+        data_types::f32,
+        data_types::f16,
+        data_types::i8,
+        data_types::u8
+    };
+    auto dyn_formats = {
+        format::bfyx,
+        format::bfzyx
+    };
+
+    implementation_map<convolution>::add(impl_types::ocl,
+                                         shape_types::dynamic_shape,
+                                         typed_primitive_impl_ocl<convolution>::create<convolution_impl>,
+                                         types,
+                                         dyn_formats);
 }
 
 }  // namespace detail

@@ -257,13 +257,15 @@ inline kernel_impl_params canonicalize_fused_shapes(const kernel_impl_params& im
 
     for (auto& fd : updated_impl_params.fused_desc) {
         if (fd.is_type<eltwise>() && fd.total_num_deps == 2 && fd.has_outer_dep()) {
-            auto out_pshape = updated_impl_params.output_layouts[0].get_partial_shape();
+            if (updated_impl_params.input_layouts.size() > size_t(fd.outer_dep_start_idx)) {
+                auto out_pshape = updated_impl_params.output_layouts[0].get_partial_shape();
 
-            auto& dep_layout = updated_impl_params.input_layouts[fd.outer_dep_start_idx];
-            auto dep_shape = dep_layout.get_partial_shape();
+                auto& dep_layout = updated_impl_params.input_layouts[fd.outer_dep_start_idx];
+                auto dep_shape = dep_layout.get_partial_shape();
 
-            if (!broadcastable(dep_shape, out_pshape, use_new_shape_infer)) {
-                dep_layout.set_partial_shape(extend_shape_to_rank_from_begin(dep_shape, out_pshape.size()));
+                if (!broadcastable(dep_shape, out_pshape, use_new_shape_infer)) {
+                    dep_layout.set_partial_shape(extend_shape_to_rank_from_begin(dep_shape, out_pshape.size()));
+                }
             }
         }
     }
