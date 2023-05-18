@@ -6,7 +6,7 @@ import unittest
 import numpy as np
 from generator import generator, generate
 
-from utils import basic_check
+from unit_tests.moc_tf_fe.utils import basic_check
 
 
 @generator

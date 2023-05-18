@@ -7,7 +7,7 @@ import numpy as np
 
 import openvino.runtime.opset11 as ops
 from openvino.frontend import ConversionExtension
-from utils import basic_check
+from unit_tests.moc_tf_fe.utils import basic_check
 
 
 class TestConversionWithExtensions(unittest.TestCase):
