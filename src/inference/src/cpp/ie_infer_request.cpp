@@ -26,7 +26,7 @@ namespace InferenceEngine {
         IE_THROW(NotAllocated) << "Inference Request is not initialized"; \
     try {                                                                 \
         __VA_ARGS__                                                       \
-    } catch (const std::exception&) {                                                       \
+    } catch (const std::exception&) {                                     \
         ::InferenceEngine::details::Rethrow();                            \
     }
 
