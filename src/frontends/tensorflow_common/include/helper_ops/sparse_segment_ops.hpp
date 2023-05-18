@@ -22,7 +22,10 @@ public:
                      const Output<Node>& indices,
                      const Output<Node>& segment_ids,
                      const std::shared_ptr<DecoderBase>& decoder = nullptr)
-        : ov::frontend::tensorflow::InternalOperation(decoder, OutputVector{data, indices, segment_ids}, 1) {
+        : ov::frontend::tensorflow::InternalOperation(decoder,
+                                                      OutputVector{data, indices, segment_ids},
+                                                      1,
+                                                      "SparseSegmentSum") {
         validate_and_infer_types();
     }
 
@@ -33,7 +36,8 @@ public:
                      const std::shared_ptr<DecoderBase>& decoder = nullptr)
         : ov::frontend::tensorflow::InternalOperation(decoder,
                                                       OutputVector{data, indices, segment_ids, num_segments},
-                                                      1) {
+                                                      1,
+                                                      "SparseSegmentSum") {
         validate_and_infer_types();
     }
 
@@ -52,7 +56,9 @@ public:
         // num_segments input is optional so it is not always possible to deduce the first dimension of the output shape
         if (get_input_size() > 3) {
             ov::PartialShape num_segments_value;
+            OPENVINO_SUPPRESS_DEPRECATED_START
             if (output_rank.is_static() && ov::evaluate_as_partial_shape(input_value(3), num_segments_value)) {
+                OPENVINO_SUPPRESS_DEPRECATED_END
                 FRONT_END_OP_CONVERSION_CHECK(output_rank.get_length() >= 1,
                                               "Data input of SparseSegmentSum must be of rank >= 1.");
                 output_shape[0] = num_segments_value[0];

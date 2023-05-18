@@ -59,6 +59,8 @@ void op::v1::GatherTree::validate_and_infer_types() {
                           "Element type of inputs must be numeric. Got: ",
                           result_et);
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto output_shape = shape_infer(this, ov::get_node_input_partial_shapes(*this)).front();
+    OPENVINO_SUPPRESS_DEPRECATED_END
     set_output_type(0, result_et, output_shape);
 }

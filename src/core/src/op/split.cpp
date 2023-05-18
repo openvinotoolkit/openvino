@@ -46,7 +46,9 @@ void op::v1::Split::validate_and_infer_types() {
                           "Attribute 'num_splits' must be greater than zero. Got: ",
                           m_num_splits);
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto input_shapes = get_node_input_partial_shapes(*this);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     std::vector<ov::PartialShape> output_shapes;
     shape_infer(this, input_shapes, output_shapes);
 
@@ -65,7 +67,9 @@ shared_ptr<Node> op::v1::Split::clone_with_new_inputs(const OutputVector& new_ar
 
 bool op::v1::Split::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v1_Split_evaluate);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     OPENVINO_ASSERT(validate_host_tensor_vector(outputs, m_num_splits) && validate_host_tensor_vector(inputs, 2));
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     if (has_evaluate()) {
         const auto& data_tensor = inputs[0];
@@ -85,7 +89,9 @@ bool op::v1::Split::evaluate(const HostTensorVector& outputs, const HostTensorVe
         }
 
         auto axis = host_tensor_2_vector<int64_t>(axis_tensor)[0];
+        OPENVINO_SUPPRESS_DEPRECATED_START
         axis = normalize_axis(this, axis, data_tensor->get_partial_shape().rank());
+        OPENVINO_SUPPRESS_DEPRECATED_END
 
         ngraph::runtime::reference::split(data_tensor->get_data_ptr<char>(),
                                           data_tensor->get_shape(),
@@ -118,5 +124,7 @@ bool op::v1::Split::evaluate_upper(ov::TensorVector& output_values) const {
 bool op::v1::Split::evaluate_label(TensorLabelVector& output_labels) const {
     OPENVINO_ASSERT(output_labels.size() == get_num_splits());
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     return input(1).get_tensor().has_and_set_bound() && default_label_evaluator(this, output_labels);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }

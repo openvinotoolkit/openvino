@@ -5,10 +5,11 @@
 #pragma once
 
 #include <cstdint>
-#include <openvino/core/validation_util.hpp>
-#include <openvino/op/batch_to_space.hpp>
-#include <openvino/opsets/opset2.hpp>
 
+#include "dimension_util.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/batch_to_space.hpp"
+#include "openvino/opsets/opset2.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -19,6 +20,7 @@ template <class TShape>
 std::vector<TShape> shape_infer(const BatchToSpace* op,
                                 const std::vector<TShape>& input_shapes,
                                 const std::map<size_t, HostTensorPtr>& constant_data = {}) {
+    using namespace ov::util;
     using ValType = typename TShape::value_type::value_type;
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 4);
 
@@ -43,13 +45,15 @@ std::vector<TShape> shape_infer(const BatchToSpace* op,
                           "block_shape and crops inputs must have rank 1. Got: ",
                           inputs_same_ps.rank());
 
-    const ov::Rank data_rank = data_shape.rank();
+    const auto data_rank = data_shape.rank();
     if (data_rank.is_static()) {
         constexpr size_t spatial_dim_offset = 1;
+        const auto data_rank_size = data_shape.size();
+
         NODE_VALIDATION_CHECK(op,
-                              (data_shape.size() > spatial_dim_offset),
+                              (data_rank_size > spatial_dim_offset),
                               "data input must have rank greater or equal than 2. Got: ",
-                              data_shape.size());
+                              data_rank_size);
         if (inputs_same_ps.is_static()) {
             NODE_VALIDATION_CHECK(op,
                                   data_rank.get_length() == inputs_same_ps[0].get_length(),
@@ -60,38 +64,52 @@ std::vector<TShape> shape_infer(const BatchToSpace* op,
                                   data_rank);
         }
 
-        auto out_shape = data_shape;
-        std::vector<int64_t> block_val, crops_begin_val, crops_end_val;
+        TShape out_shape;
+        out_shape.reserve(data_rank_size);
 
-        if (get_data_as_int64<TShape>(1, op, block_val, constant_data) &&
-            get_data_as_int64<TShape>(2, op, crops_begin_val, constant_data) &&
-            get_data_as_int64<TShape>(3, op, crops_end_val, constant_data)) {
+        const auto blocks = get_input_const_data_as<TShape, int64_t>(op, 1, constant_data);
+        if (blocks) {
             NODE_VALIDATION_CHECK(op,
-                                  std::none_of(begin(block_val), end(block_val), cmp::Less<int64_t>(1)),
+                                  std::none_of(begin(*blocks), end(*blocks), cmp::Less<int64_t>(1)),
                                   "Elements of block_shape input must be greater or equal to one.");
+            const auto divisor = static_cast<ValType>(
+                std::accumulate(begin(*blocks), end(*blocks), int64_t(1), std::multiplies<int64_t>()));
+            out_shape.push_back(data_shape[0] / divisor);
+            check_divided_result(op, out_shape[0], data_shape[0], divisor);
+        } else {
+            out_shape.emplace_back(dim::inf_bound);
+        }
 
+        std::vector<int64_t> crops_begin_val, crops_end_val;
+        if (get_data_as_int64<TShape>(2, op, crops_begin_val, constant_data) &&
+            get_data_as_int64<TShape>(3, op, crops_end_val, constant_data)) {
             constexpr auto is_invalid_crop = cmp::Less<int64_t>(0);
             NODE_VALIDATION_CHECK(op,
                                   std::none_of(begin(crops_begin_val), end(crops_begin_val), is_invalid_crop) &&
                                       std::none_of(begin(crops_end_val), end(crops_end_val), is_invalid_crop),
                                   "Elements of crops_begin and crops_end inputs must be greater or equal to zero.");
 
-            const auto divisor = static_cast<ValType>(
-                std::accumulate(begin(block_val), end(block_val), int64_t(1), std::multiplies<int64_t>()));
+            if (blocks) {
+                for (auto idx = spatial_dim_offset; idx < data_rank_size; ++idx) {
+                    auto d = data_shape[idx] * static_cast<ValType>((*blocks)[idx]);
+                    auto crop = static_cast<ValType>(crops_begin_val[idx] + crops_end_val[idx]);
+                    NODE_VALIDATION_CHECK(
+                        op,
+                        d.is_dynamic() || crop <= d.get_length(),
+                        "crops_begin[i] + crops_end[i] must be less or equal to block_shape[i] * input_shape[i]");
 
-            out_shape[0] /= divisor;
-            check_divided_result(op, out_shape[0], data_shape[0], divisor);
-
-            for (auto idx = spatial_dim_offset; idx < out_shape.size(); ++idx) {
-                out_shape[idx] *= static_cast<ValType>(block_val[idx]);
-                auto crop = static_cast<ValType>(crops_begin_val[idx] + crops_end_val[idx]);
-                NODE_VALIDATION_CHECK(
-                    op,
-                    out_shape[idx].is_dynamic() || crop <= out_shape[idx].get_length(),
-                    "crops_begin[i] + crops_end[i] must be less or equal to block_shape[i] * input_shape[i]");
-
-                out_shape[idx] = out_shape[idx] - crop;
+                    out_shape.push_back(d - crop);
+                }
+            } else {
+                const auto block = Dimension(1, dim::inf_bound);
+                for (auto idx = spatial_dim_offset; idx < data_rank_size; ++idx) {
+                    auto d = data_shape[idx] * block;
+                    auto crop = static_cast<ValType>(crops_begin_val[idx] + crops_end_val[idx]);
+                    out_shape.push_back(d - crop);
+                }
             }
+        } else {
+            out_shape.insert(out_shape.end(), data_rank_size - spatial_dim_offset, Dimension::dynamic());
         }
         return {out_shape};
     } else {

@@ -8,7 +8,7 @@ include(target_flags)
 # FIXME: there are compiler failures with LTO and Cross-Compile toolchains. Disabling for now, but
 #        this must be addressed in a proper way
 ie_dependent_option (ENABLE_LTO "Enable Link Time Optimization" OFF
-    "LINUX OR (APPLE AND AARCH64);EMSCRIPTEN OR NOT CMAKE_CROSSCOMPILING;CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 4.9" OFF)
+    "LINUX;EMSCRIPTEN OR NOT CMAKE_CROSSCOMPILING;CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 4.9" OFF)
 
 ie_option (OS_FOLDER "create OS dedicated folder in output" OFF)
 
@@ -25,6 +25,8 @@ else()
 endif()
 
 ie_option (CMAKE_COMPILE_WARNING_AS_ERROR "Enable warnings as errors" ${CMAKE_COMPILE_WARNING_AS_ERROR_DEFAULT})
+
+ie_dependent_option (ENABLE_QSPECTRE "Enable Qspectre mitigation" OFF "CMAKE_CXX_COMPILER_ID STREQUAL MSVC" OFF)
 
 ie_dependent_option (ENABLE_INTEGRITYCHECK "build DLLs with /INTEGRITYCHECK flag" OFF "CMAKE_CXX_COMPILER_ID STREQUAL MSVC" OFF)
 
@@ -72,7 +74,12 @@ ie_option (VERBOSE_BUILD "shows extra information about build" OFF)
 
 ie_option (ENABLE_UNSAFE_LOCATIONS "skip check for MD5 for dependency" OFF)
 
-ie_dependent_option (ENABLE_FUZZING "instrument build for fuzzing" OFF "OV_COMPILER_IS_CLANG;NOT WIN32" OFF)
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" AND MSVC_VERSION GREATER_EQUAL 1930)
+    # Visual Studio 2022: 1930-1939 = VS 17.0 (v143 toolset)
+    set(_msvc_version_2022 ON)
+endif()
+
+ie_dependent_option (ENABLE_FUZZING "instrument build for fuzzing" OFF "OV_COMPILER_IS_CLANG OR _msvc_version_2022" OFF)
 
 #
 # Check features

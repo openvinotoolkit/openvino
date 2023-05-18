@@ -60,6 +60,7 @@ ov::pass::ReduceReshapeFusion::ReduceReshapeFusion() {
                        std::dynamic_pointer_cast<op::util::LogicalReductionKeepDims>(reduce_node)) {
             logical_reduce_node->set_keep_dims(true);
         }
+        reduce_node->validate_and_infer_types();
         reduce_node->set_friendly_name(reshape_node->get_friendly_name());
         copy_runtime_info(reshape_node, reduce_node);
         replace_node(m.get_match_root(), reduce_node);

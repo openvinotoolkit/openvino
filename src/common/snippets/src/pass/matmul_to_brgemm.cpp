@@ -6,7 +6,7 @@
 
 #include "snippets/pass/matmul_to_brgemm.hpp"
 
-#include "snippets/op/brgemm.hpp"
+#include "snippets/snippets_isa.hpp"
 
 #include "ngraph/opsets/opset1.hpp"
 #include "ngraph/rt_info.hpp"
@@ -30,9 +30,13 @@ MatMulToBrgemm::MatMulToBrgemm() {
             return false;
 
         auto brgemm = std::make_shared<op::Brgemm>(matmul->get_input_source_output(0), matmul->get_input_source_output(1));
+        ov::NodeVector nodes = { brgemm };
+        if (brgemm->get_output_element_type(0) != matmul->get_output_element_type(0)) {
+            nodes.emplace_back(std::make_shared<op::ConvertSaturation>(brgemm, matmul->get_output_element_type(0)));
+        }
         brgemm->set_friendly_name(matmul->get_friendly_name());
-        ngraph::copy_runtime_info(matmul, brgemm);
-        ngraph::replace_node(matmul, brgemm);
+        ngraph::copy_runtime_info(matmul, nodes);
+        ngraph::replace_node(matmul, nodes.back());
         return true;
     };
 

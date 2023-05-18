@@ -44,6 +44,16 @@ ov_onnx_build_static()
 target_include_directories(onnx SYSTEM PRIVATE "${Protobuf_INCLUDE_DIRS}")
 target_include_directories(onnx_proto SYSTEM PRIVATE "${Protobuf_INCLUDE_DIRS}")
 
+if(WIN32)
+    # from onnx==1.13.1 it requires C++17 when compiling on Windows
+    target_compile_features(onnx PRIVATE cxx_std_17)
+    set_target_properties(onnx PROPERTIES CXX_STANDARD 17)
+    # OPTIONAL is a reserved word for mingw at least
+    if(MINGW)
+        target_compile_definitions(onnx PRIVATE OPTIONAL=OPTIONAL_PLACEHOLDER)
+    endif()
+endif()
+
 ov_disable_all_warnings(onnx onnx_proto)
 
 # install

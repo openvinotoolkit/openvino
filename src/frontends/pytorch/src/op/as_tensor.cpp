@@ -16,7 +16,7 @@ namespace op {
 
 using namespace ov::op;
 
-OutputVector translate_as_tensor(NodeContext& context) {
+OutputVector translate_as_tensor(const NodeContext& context) {
     // aten::tensor(t[] data, *, ScalarType? dtype=None, Device? device=None, bool requires_grad=False) -> Tensor
     num_inputs_check(context, 1, 4);
     auto dtype = element::f32;

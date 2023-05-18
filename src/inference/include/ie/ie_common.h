@@ -78,10 +78,10 @@ enum Layout : uint8_t {
     NDHWC = 4,  //!< NDHWC layout for input / output blobs
 
     // weight layouts
-    OIHW = 64,    //!< NDHWC layout for operation weights
-    GOIHW = 65,   //!< NDHWC layout for operation weights
-    OIDHW = 66,   //!< NDHWC layout for operation weights
-    GOIDHW = 67,  //!< NDHWC layout for operation weights
+    OIHW = 64,    //!< OIHW layout for operation weights
+    GOIHW = 65,   //!< GOIHW layout for operation weights
+    OIDHW = 66,   //!< OIDHW layout for operation weights
+    GOIDHW = 67,  //!< GOIDHW layout for operation weights
 
     // Scalar
     SCALAR = 95,  //!< A scalar layout
@@ -504,7 +504,8 @@ struct NullStream {
 
 }  // namespace details
 }  // namespace InferenceEngine
-#if defined(_WIN32)
+
+#if defined(_WIN32) && !defined(__GNUC__)
 #    define __PRETTY_FUNCTION__ __FUNCSIG__
 #else
 #    define __PRETTY_FUNCTION__ __PRETTY_FUNCTION__

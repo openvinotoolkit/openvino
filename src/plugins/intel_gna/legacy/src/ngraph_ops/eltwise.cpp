@@ -25,7 +25,7 @@ op::Eltwise::Eltwise(const Output<Node>& data1,
 
 std::shared_ptr<Node> op::Eltwise::clone_with_new_inputs(const OutputVector& new_args) const {
     if (new_args.size() != 2) {
-        throw ngraph_error("Incorrect number of new arguments");
+        OPENVINO_THROW("Incorrect number of new arguments");
     }
 
     return make_shared<Eltwise>(new_args.at(0), new_args.at(1), eltwise_type, m_output_type);

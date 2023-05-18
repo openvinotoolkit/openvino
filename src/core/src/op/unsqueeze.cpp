@@ -23,7 +23,9 @@ op::v0::Unsqueeze::Unsqueeze(const Output<Node>& data, const Output<Node>& axes)
 void op::v0::Unsqueeze::validate_and_infer_types() {
     OV_OP_SCOPE(v0_Unsqueeze_validate_and_infer_types);
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto input_shapes = get_node_input_partial_shapes(*this);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     auto output_shapes = std::vector<ov::PartialShape>(1);
 
     shape_infer(this, input_shapes, output_shapes);
@@ -39,7 +41,7 @@ bool op::v0::Unsqueeze::visit_attributes(AttributeVisitor& visitor) {
 shared_ptr<Node> op::v0::Unsqueeze::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v0_Unsqueeze_clone_with_new_inputs);
     if (new_args.size() != 2) {
-        throw ngraph_error("Incorrect number of new arguments");
+        OPENVINO_THROW("Incorrect number of new arguments");
     }
     return make_shared<Unsqueeze>(new_args.at(0), new_args.at(1));
 }
@@ -70,7 +72,9 @@ bool evaluate_unsqueeze(const Node* node,
 
     // Get axes and normalize
     auto axes = read_index_vector(arg1);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     normalize_axes(node, out_rank, axes);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     // Sort in increasing order
     std::set<int64_t> axes_set(axes.begin(), axes.end());
@@ -103,8 +107,10 @@ bool evaluate_unsqueeze(const Node* node,
 
 bool op::v0::Unsqueeze::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v0_Unsqueeze_evaluate);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     NGRAPH_CHECK(validate_host_tensor_vector(inputs, 2));
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     return unsqueeze::evaluate_unsqueeze(this, inputs[0], inputs[1], outputs[0]);
 }
 
@@ -137,7 +143,9 @@ bool op::v0::Unsqueeze::evaluate_upper(ov::TensorVector& output_values) const {
 bool op::v0::Unsqueeze::evaluate_label(TensorLabelVector& output_labels) const {
     if (!get_input_tensor(1).has_and_set_bound())
         return false;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     return default_label_evaluator(this, output_labels);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 bool op::v0::Unsqueeze::constant_fold(OutputVector& output_values, const OutputVector& inputs_values) {

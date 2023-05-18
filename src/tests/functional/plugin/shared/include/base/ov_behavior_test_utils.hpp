@@ -18,7 +18,7 @@
 #include "common_test_utils/test_common.hpp"
 #include "common_test_utils/test_constants.hpp"
 #include "common_test_utils/common_utils.hpp"
-#include "common_test_utils/crash_handler.hpp"
+#include "functional_test_utils/crash_handler.hpp"
 #include "common_test_utils/file_utils.hpp"
 
 #include "functional_test_utils/plugin_cache.hpp"
@@ -32,25 +32,24 @@ namespace ov {
 namespace test {
 namespace behavior {
 
-inline std::shared_ptr<ngraph::Function> getDefaultNGraphFunctionForTheDevice(std::string targetDevice,
-                                                                              std::vector<size_t> inputShape = {1, 1, 32, 32},
+inline std::shared_ptr<ngraph::Function> getDefaultNGraphFunctionForTheDevice(std::vector<size_t> inputShape = {1, 2, 32, 32},
                                                                               ngraph::element::Type_t ngPrc = ngraph::element::Type_t::f32) {
-    // auto-batching (which now relies on the dim tracking) needs a ngraph function without reshapes in that
-    if (targetDevice.find(CommonTestUtils::DEVICE_BATCH) != std::string::npos)
-        return ngraph::builder::subgraph::makeConvPoolReluNoReshapes(inputShape, ngPrc);
-    else  // for compatibility with the GNA that fails on any other ngraph function
-        return ngraph::builder::subgraph::makeConvPoolRelu(inputShape, ngPrc);
+    return ngraph::builder::subgraph::makeSplitConcat(inputShape, ngPrc);
+}
+
+inline bool sw_plugin_in_target_device(std::string targetDevice) {
+    return (targetDevice.find("MULTI") != std::string::npos || targetDevice.find("BATCH") != std::string::npos ||
+            targetDevice.find("HETERO") != std::string::npos || targetDevice.find("AUTO") != std::string::npos);
 }
 
 class APIBaseTest : public CommonTestUtils::TestsCommon {
 private:
-    // place to jump in case of a crash
-    int jmpRes = 0;
     // in case of crash jump will be made and work will be continued
-    const std::unique_ptr<CommonTestUtils::CrashHandler> crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler());
+    const std::unique_ptr<CommonTestUtils::CrashHandler> crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(
+                                                                        new CommonTestUtils::CrashHandler(CommonTestUtils::CONFORMANCE_TYPE::api));
 
 protected:
-    size_t k = 1;
+    double k = 1.0;
     std::string target_device = "";
     ov::test::utils::ov_entity api_entity = ov::test::utils::ov_entity::undefined;
     ov::test::utils::ApiSummary& api_summary = ov::test::utils::ApiSummary::getInstance();
@@ -62,21 +61,11 @@ public:
 
     void SetUp() override {
         set_api_entity();
-        auto test_name = this->GetTestName();
-        k = test_name.find("_mandatory") != std::string::npos || test_name.find("mandatory_") != std::string::npos ? 1 : 0;
+        auto test_name = this->GetFullTestName();
+        k = test_name.find("_mandatory") != std::string::npos || test_name.find("mandatory_") != std::string::npos ? 1.0 : 0.0;
         std::cout << "[ CONFORMANCE ] Influence coefficient: " << k << std::endl;
         api_summary.updateStat(api_entity, target_device, ov::test::utils::PassRate::Statuses::CRASHED, k);
-#ifdef _WIN32
-        jmpRes = setjmp(CommonTestUtils::env);
-#else
-        jmpRes = sigsetjmp(CommonTestUtils::env, 0);
-#endif
-        if (jmpRes == CommonTestUtils::JMP_STATUS::ok) {
-            crashHandler->StartTimer();
-        } else if (jmpRes == CommonTestUtils::JMP_STATUS::alarmErr) {
-            api_summary.updateStat(api_entity, target_device, ov::test::utils::PassRate::Statuses::HANGED, k);
-            GTEST_FAIL();
-        }
+        crashHandler->StartTimer();
     }
 
     void TearDown() override {
@@ -144,7 +133,7 @@ public:
         // Skip test according to plugin specific disabledTestPatterns() (if any)
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         APIBaseTest::SetUp();
-        function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(target_device);
+        function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice();
         ov::AnyMap params;
         for (auto&& v : configuration) {
             params.emplace(v.first, v.second);
@@ -186,11 +175,11 @@ public:
     void SetUp() {
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         // Generic network
-        actualNetwork = ngraph::builder::subgraph::makeSplitConvConcat();
+        actualNetwork = ngraph::builder::subgraph::makeSplitConcat();
         // Quite simple network
-        simpleNetwork = ngraph::builder::subgraph::makeSingleConv();
+        simpleNetwork = ngraph::builder::subgraph::makeSingleConcatWithConstant();
         // Multinput to substruct network
-        multinputNetwork = ngraph::builder::subgraph::make2InputSubtract();
+        multinputNetwork = ngraph::builder::subgraph::makeConcatWithParams();
         // Network with KSO
         ksoNetwork = ngraph::builder::subgraph::makeKSOFunction();
     }
@@ -224,6 +213,8 @@ public:
         OVClassNetworkTest::SetUp();
     }
 };
+using OVClassModelTestP = OVClassBaseTestP;
+using OVClassModelOptionalTestP = OVClassBaseTestP;
 
 class OVCompiledModelClassBaseTestP : public OVClassNetworkTest,
                                       public ::testing::WithParamInterface<std::string>,
@@ -237,27 +228,21 @@ public:
     }
 };
 
-using PriorityParams = std::tuple<
-        std::string,            // Device name
-        ov::AnyMap              // device priority Configuration key
->;
-class OVClassExecutableNetworkGetMetricTest_Priority : public ::testing::WithParamInterface<PriorityParams>,
-                                                       public OVCompiledNetworkTestBase {
+class OVClassSetDevicePriorityConfigPropsTest : public OVPluginTestBase,
+                                                public ::testing::WithParamInterface<std::tuple<std::string, AnyMap>> {
 protected:
+    std::string deviceName;
     ov::AnyMap configuration;
-    std::shared_ptr<ngraph::Function> simpleNetwork;
+    std::shared_ptr<ngraph::Function> actualNetwork;
 
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<PriorityParams> obj);
     void SetUp() override {
         std::tie(target_device, configuration) = GetParam();
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         APIBaseTest::SetUp();
-        simpleNetwork = ngraph::builder::subgraph::makeSingleConv();
+        actualNetwork = ngraph::builder::subgraph::makeSplitConvConcat();
     }
 };
-using OVClassExecutableNetworkGetMetricTest_DEVICE_PRIORITY = OVClassExecutableNetworkGetMetricTest_Priority;
-using OVClassExecutableNetworkGetMetricTest_MODEL_PRIORITY = OVClassExecutableNetworkGetMetricTest_Priority;
 
 #define SKIP_IF_NOT_IMPLEMENTED(...)                   \
 {                                                      \

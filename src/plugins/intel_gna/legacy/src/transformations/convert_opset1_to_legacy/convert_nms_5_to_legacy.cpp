@@ -66,8 +66,7 @@ ngraph::pass::ConvertNMS5ToLegacyMatcher::ConvertNMS5ToLegacyMatcher(bool force_
             center_point_box = 0;
             break;
         default:
-            throw ngraph_error("NonMaxSuppression layer " + nms_5->get_friendly_name() +
-                               " has unsupported box encoding");
+            OPENVINO_THROW("NonMaxSuppression layer " + nms_5->get_friendly_name() + " has unsupported box encoding");
         }
 
         std::shared_ptr<op::NonMaxSuppressionIE3> nms_legacy{nullptr};

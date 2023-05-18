@@ -194,7 +194,7 @@ static std::vector<std::string> GetPlanarPitches(const Tensor::NDims& dims) {
 
 static std::vector<std::string> GetDynamicPitches(const Tensor::NDims& dims, size_t tensor_idx) {
     std::vector<std::string> pitches(dims.size());
-    size_t shape_info_rank = 6;
+    size_t shape_info_rank = DataTensor::max_rank();
     std::string pitch = "1";
     for (size_t i = 0; i < pitches.size(); ++i) {
         size_t bf_idx = dims.size() - i - 1;
@@ -227,7 +227,7 @@ JitConstants ScatterUpdateKernelRef::GetJitConstants(const scatter_update_params
     const auto& input1 = params.inputs[1];
     if (input1.is_dynamic()) {
         const auto& input1_dims = input1.GetDims();
-        size_t input_offset = 6;
+        size_t input_offset = DataTensor::max_rank();
         std::string indices_size = "(";
 
         for (size_t i = 0; i < input1_dims.size(); ++i) {
@@ -331,6 +331,7 @@ KernelsData ScatterUpdateKernelRef::GetKernelsData(const Params& params, const o
             auto dispatchData = SetDefault(prim_params, i == 1);
             kd.kernels[i].params.workGroups.global = dispatchData.gws;
             kd.kernels[i].params.workGroups.local = dispatchData.lws;
+            kd.kernels[i].skip_execution = KernelData::SkipKernelExecution(prim_params);
         }
     };
 

@@ -345,8 +345,8 @@ ov::element::Type getPrecision(std::string value,
 
 ov::element::Type getPrecision2(const std::string& value) {
     static const std::unordered_map<std::string, ov::element::Type> supported_precisions = {
-        {"FP32", ov::element::f32},
-        {"FP16", ov::element::f16},
+        {"F32", ov::element::f32},
+        {"F16", ov::element::f16},
         {"BF16", ov::element::bf16},
         {"U64", ov::element::u64},
         {"I64", ov::element::i64},
