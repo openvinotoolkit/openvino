@@ -8,6 +8,7 @@
 #include "graph_iterator_proto.hpp"
 #include "graph_iterator_proto_txt.hpp"
 #include "graph_iterator_saved_model.hpp"
+#include "helper_ops/internal_operation.hpp"
 #include "helper_transforms/block_lstm_replacer.hpp"
 #include "helper_transforms/const_to_result_remover.hpp"
 #include "helper_transforms/embedding_segments_feature_fusing.hpp"
@@ -37,7 +38,16 @@ void get_unsupported_operations_and_failures(const std::shared_ptr<Model>& model
                                              std::set<std::string>& unsupported_operations,
                                              std::unordered_map<std::string, std::string>& failures) {
     for (const auto& node : model->get_ordered_ops()) {
-        if (const auto& fw_node = ov::as_type_ptr<FrameworkNode>(node)) {
+        if (const auto& internal_op = std::dynamic_pointer_cast<InternalOperation>(node)) {
+            // handle internal operations separately
+            // which can have elaborated reason of unconverted operation
+            // like Const of string type
+            auto op_type = internal_op->get_no_conversion_reason();
+            if (unsupported_operations.count(op_type) > 0) {
+                continue;
+            }
+            unsupported_operations.insert(op_type);
+        } else if (const auto& fw_node = ov::as_type_ptr<FrameworkNode>(node)) {
             auto op_type = fw_node->get_decoder()->get_op_type();
             // if this operation is encountered among unsupported operations
             // or conversion failures, skip it
@@ -91,7 +101,8 @@ FrontEnd::FrontEnd() : m_op_translators(tensorflow::op::get_supported_ops()) {}
 bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
     // Last boolean flag in `variants` (if presented) is reserved for FE configuration
     size_t extra_variants_num = variants.size() > 0 && variants[variants.size() - 1].is<bool>() ? 1 : 0;
-    // TODO: Support other TensorFlow formats: SavedModel, .meta, checkpoint, pbtxt
+
+    // TODO: support checkpoint format
     if (variants.size() != 1 + extra_variants_num)
         return false;
 
@@ -138,13 +149,13 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
 }
 
 ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const {
-    // TODO: Support other TensorFlow formats: SavedModel, .meta, checkpoint
+    // TODO: support checkpoint format
 
     // Last boolean flag in `variants` (if presented) is reserved for FE configuration
     size_t extra_variants_num = variants.size() > 0 && variants[variants.size() - 1].is<bool>() ? 1 : 0;
     FRONT_END_GENERAL_CHECK(variants.size() == 1 + extra_variants_num,
                             "[TensorFlow Frontend] Internal error or inconsistent input model: the frontend supports "
-                            "only frozen binary protobuf format.");
+                            "frozen formats (.pb and .pbtxt), SavedModel and MetaGraph (.meta) formats.");
 
     if (variants[0].is<std::string>()) {
         auto model_path = variants[0].as<std::string>();
@@ -220,7 +231,7 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
 
     FRONT_END_GENERAL_CHECK(false,
                             "[TensorFlow Frontend] Internal error or inconsistent input model: the frontend supports "
-                            "only frozen binary protobuf format.");
+                            "frozen formats (.pb and .pbtxt), SavedModel and MetaGraph (.meta) formats.");
 
     return nullptr;
 }
@@ -256,6 +267,9 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr
             exception_message << unsupported_operation;
             ++counter;
         }
+        exception_message
+            << "\nTo facilitate the conversion of unsupported operations, refer to Frontend Extension documentation: "
+               "https://docs.openvino.ai/latest/openvino_docs_Extensibility_UG_Frontend_Extensions.html \n";
     }
 
     bool is_conversion_successful = ((unsupported_operations.size() == 0) && (failures.size() == 0));

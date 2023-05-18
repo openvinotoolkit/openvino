@@ -1,13 +1,13 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-#include <gna/gna_config.hpp>
+#include "behavior/ov_plugin/core_integration.hpp"
 
 #include "behavior/compiled_model/properties.hpp"
 #include "behavior/ov_plugin/core_integration_sw.hpp"
 #include "behavior/ov_plugin/properties_tests.hpp"
 #include "behavior/ov_plugin/query_model.hpp"
+#include "gna/gna_config.hpp"
 #include "openvino/runtime/intel_gna/properties.hpp"
 
 using namespace ov::test::behavior;

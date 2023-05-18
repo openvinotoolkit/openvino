@@ -24,6 +24,7 @@ def xfail_test(reason="Mark the test as expected to fail", strict=True):
 
 
 skip_segfault = pytest.mark.skip(reason="Segmentation fault error")
+xfail_dynamic_rank = xfail_test(reason="Dynamic rank")
 skip_devtest = pytest.mark.skip(reason="Test might depend on machine, should be run by developers"
                                        "or advanced users for debug/testing purposes.")
 skip_need_mock_op = pytest.mark.skip(reason="Test need to be rewritten with mock operation. Issue #101215")
@@ -101,7 +102,6 @@ xfail_issue_44858 = xfail_test(reason="Expected: Unsupported dynamic op: Unsquee
 xfail_issue_44957 = xfail_test(reason="Expected: Unsupported dynamic op: NonZero")
 xfail_issue_44958 = xfail_test(reason="Expected: Unsupported dynamic op: Interpolate")
 xfail_issue_44965 = xfail_test(reason="Expected: RuntimeError: value info has no element")
-xfail_issue_44968 = xfail_test(reason="Expected: Unsupported dynamic op: Squeeze")
 xfail_issue_47323 = xfail_test(reason="RuntimeError: The plugin does not support FP64")
 xfail_issue_73538 = xfail_test(reason="OneHot: Unsupported negative indices, "
                                       "AssertionError: Mismatched elements.")

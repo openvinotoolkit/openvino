@@ -50,13 +50,13 @@ TEST(kernels_cache, reuse_kernel_for_static_model_01) {
                                     1,
                                     data_types::f16,
                                     padding{{0, 0, 0, 0}, 0}),
-                      convolution("conv1", input_info("concat1"), { "weights1" }, { 1, 1 }),
+                      convolution("conv1", input_info("concat1"), "weights1", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false),
                       concatenation("concat2",
                                     { input_info("input3"), input_info("input4"), input_info("input5") },
                                     1,
                                     data_types::f16,
                                     padding{{0, 0, 0, 0}, 0}),
-                      convolution("conv2", input_info("concat2"), { "weights2" }, { 1, 1 }),
+                      convolution("conv2", input_info("concat2"), "weights2", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false),
                       eltwise("sum", {input_info("concat1"), input_info("concat2")}, eltwise_mode::sum),
                       reorder("output", input_info("sum"), {{3, 2}, data_types::f16, format::bfyx}));
 
@@ -130,4 +130,3 @@ TEST(kernels_cache, sub_kernel_ordering_test) {
         ASSERT_EQ(entry_point_list[i], _out_kernels[i]->get_id());
     }
 }
-
