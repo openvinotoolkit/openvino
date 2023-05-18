@@ -139,9 +139,9 @@ JitConstants PermuteKernel_f_y_axes::GetJitConstants(const permute_params& param
     jit.AddConstant(MakeJitConstant("TILE_SIZE", tile_size));
     jit.AddConstant(MakeJitConstant("FEATURE_BLOCK_SIZE", feature_block_size));
 
-    if ((feature_block_size == 16 || feature_block_size == 8) &&
-        (params.inputs.front().GetLayout() == DataLayout::b_fs_yx_fsv32 ||
-         params.inputs.front().GetLayout() == DataLayout::b_fs_yx_fsv16)) {
+    const auto layout = params.inputs.front().GetLayout();
+    if (IsSIMDSizeSupported(params.engineInfo, feature_block_size) &&
+        (layout == DataLayout::b_fs_yx_fsv32 || layout == DataLayout::b_fs_yx_fsv16)) {
         jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", feature_block_size));
     }
 
