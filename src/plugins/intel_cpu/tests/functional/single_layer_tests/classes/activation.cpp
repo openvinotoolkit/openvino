@@ -99,8 +99,7 @@ void ActivationLayerCPUTest::SetUp() {
     selectedType = getPrimitiveType() + "_" + netPrecision.name();
 
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-    if (activationType == ngraph::helpers::ActivationTypes::Swish     || // @todo tmp fallback to ref, remove after Swish issue fixed
-        activationType == ngraph::helpers::ActivationTypes::GeluTanh  || // @todo not supported by ACL, can be decomposed with ngraph transformation
+    if (activationType == ngraph::helpers::ActivationTypes::GeluTanh  || // @todo not supported by ACL, can be decomposed with ngraph transformation
         activationType == ngraph::helpers::ActivationTypes::SoftSign  || // @todo not supported by ACL, can be decomposed with ngraph transformation
         inputShapes.front().first.rank().get_length() > 5)               // @todo tmp fallback to ref, remove after 6D+ ranks are properly supported
         selectedType = std::string("ref_") + netPrecision.name();
