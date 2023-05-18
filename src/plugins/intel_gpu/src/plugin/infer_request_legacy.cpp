@@ -531,9 +531,6 @@ void InferRequestLegacy::enqueue() {
         std::string inputName = item.first;
         Blob::Ptr& inputBlob = item.second;
 
-        auto batched_ptr = inputBlob->as<BatchedBlob>();
-        bool is_batched = batched_ptr != nullptr;
-
         // regular blob
         prepare_input(inputName, inputBlob, dependencies);
     }
