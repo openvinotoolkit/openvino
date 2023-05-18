@@ -91,7 +91,9 @@ Following the OpenVINO™ naming convention, the Automatic Device Selection mode
 | <device candidate list>                      | **Values**:                                                        |
 |                                              |                                                                    |
 |                                              | empty                                                              |
+|                                              |                                                                    |
 |                                              | ``AUTO``                                                           |
+|                                              |                                                                    |
 |                                              | ``AUTO: <device names>`` (comma-separated, no spaces)              |
 |                                              |                                                                    |
 |                                              | Lists the devices available for selection.                         |
@@ -110,7 +112,9 @@ Following the OpenVINO™ naming convention, the Automatic Device Selection mode
 | ``ov::hint::performance_mode``               | **Values**:                                                        |
 |                                              |                                                                    |
 |                                              | ``ov::hint::PerformanceMode::LATENCY``                             |
+|                                              |                                                                    |
 |                                              | ``ov::hint::PerformanceMode::THROUGHPUT``                          |
+|                                              |                                                                    |
 |                                              | ``ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT``               |
 |                                              |                                                                    |
 |                                              | Specifies the performance option preferred by the application.     |
@@ -118,14 +122,18 @@ Following the OpenVINO™ naming convention, the Automatic Device Selection mode
 | ``ov::hint::model_priority``                 | **Values**:                                                        |
 |                                              |                                                                    |
 |                                              | ``ov::hint::Priority::HIGH``                                       |
+|                                              |                                                                    |
 |                                              | ``ov::hint::Priority::MEDIUM``                                     |
+|                                              |                                                                    |
 |                                              | ``ov::hint::Priority::LOW``                                        |
 |                                              |                                                                    |
 |                                              | Indicates the priority for a model.                                |
+|                                              |                                                                    |
 |                                              | IMPORTANT: This property is not fully supported yet.               |
 +----------------------------------------------+--------------------------------------------------------------------+
 | ``ov::execution_devices``                    | Lists the runtime target devices on which the inferences are being |
 |                                              | executed.                                                          |
+|                                              |                                                                    |
 |                                              | Examples of returning results could be ``(CPU)``(``CPU`` is a      |
 |                                              | temporary device, indicating that CPU is used for acceleration at  |
 |                                              | the model compilation stage), ``CPU``, ``GPU``, ``CPU GPU``,       |
@@ -134,6 +142,7 @@ Following the OpenVINO™ naming convention, the Automatic Device Selection mode
 | ``ov::intel_auto::enable_startup_fallback``  | **Values**:                                                        |
 |                                              |                                                                    |
 |                                              | ``true``                                                           |
+|                                              |                                                                    |
 |                                              | ``false``                                                          |
 |                                              |                                                                    |
 |                                              | Enables/disables CPU as acceleration (or the helper device) in the |
@@ -143,11 +152,13 @@ Following the OpenVINO™ naming convention, the Automatic Device Selection mode
 | ``ov::intel_auto::enable_runtime_fallback``  | **Values**:                                                        |
 |                                              |                                                                    |
 |                                              | ``true``                                                           |
+|                                              |                                                                    |
 |                                              | ``false``                                                          |
 |                                              |                                                                    |
 |                                              | Enables/disables runtime fallback to other devices and performs    |
 |                                              | the failed inference request again, if inference request fails on  |
 |                                              | the currently selected device.                                     |
+|                                              |                                                                    |
 |                                              | The default value is ``true``.                                     |
 +----------------------------------------------+--------------------------------------------------------------------+
 
