@@ -96,7 +96,7 @@ macro(ov_find_package_tbb)
             unset(_no_cmake_install_prefix)
         endif()
 
-        find_package(TBB ${_ov_minimal_tbb_version} QUIET COMPONENTS tbb tbb_malloc
+        find_package(TBB ${_ov_minimal_tbb_version} QUIET COMPONENTS tbb tbbmalloc
                      ${_find_package_no_args})
 
         if(NOT TBB_FOUND)
@@ -112,7 +112,7 @@ macro(ov_find_package_tbb)
                     unset(tbb_FOUND CACHE)
                 endmacro()
                 pkg_search_module(tbb QUIET
-                                  IMPORTED_TARGET GLOBAL
+                                  IMPORTED_TARGET
                                   tbb)
                 if(tbb_FOUND)
                     # parse version
@@ -186,7 +186,7 @@ macro(ov_find_package_tbb)
                 # let's try it first
                 if(PkgConfig_FOUND)
                     pkg_search_module(HWLOC QUIET
-                                      IMPORTED_TARGET GLOBAL
+                                      IMPORTED_TARGET
                                       hwloc)
                 endif()
 
