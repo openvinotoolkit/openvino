@@ -33,10 +33,10 @@ class HeteroExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadS
 public:
     typedef std::shared_ptr<HeteroExecutableNetwork> Ptr;
 
-    HeteroExecutableNetwork(const InferenceEngine::CNNNetwork& network, const Configs& user_config, Engine* plugin);
+    HeteroExecutableNetwork(const InferenceEngine::CNNNetwork& network, const ov::hetero_plugin::Configs& user_config, ov::hetero_plugin::Plugin* plugin);
     HeteroExecutableNetwork(std::istream& heteroModel,
-                            const Configs& user_config,
-                            Engine* plugin,
+                            const ov::hetero_plugin::Configs& user_config,
+                            ov::hetero_plugin::Plugin* plugin,
                             bool from_cache = false);
 
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(
@@ -63,10 +63,10 @@ private:
     };
 
     std::vector<NetworkDesc> _networks;
-    Engine* _heteroPlugin;
+    ov::hetero_plugin::Plugin* _heteroPlugin;
     std::string _name;
-    Configs _hetero_config;
-    Configs _device_config;
+    ov::hetero_plugin::Configs _hetero_config;
+    ov::hetero_plugin::Configs _device_config;
     std::unordered_map<std::string, std::string> _blobNameMap;
     bool _loadedFromCache = false;
 };
