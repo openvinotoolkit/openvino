@@ -204,6 +204,7 @@ if(ENABLE_SYSTEM_PUGIXML)
     # try system pugixml first
     find_package(PugiXML QUIET)
     if(PugiXML_FOUND)
+        # TODO: uset static pugixml library in case of BUILD_SHARED_LIBS=OFF
         if(TARGET pugixml::shared)
             # example: cross-compilation on debian
             set(pugixml_target pugixml::shared)
@@ -417,6 +418,7 @@ endif()
 
 if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND)
     if(ENABLE_SYSTEM_PROTOBUF)
+        # Note: Debian / Ubuntu / RHEL libprotobuf.a cannot be used, because they are compiled with -fPIC
         set(Protobuf_USE_STATIC_LIBS ON)
         if(CMAKE_VERBOSE_MAKEFILE)
             set(Protobuf_DEBUG ON)
@@ -507,6 +509,8 @@ endif()
 if(ENABLE_SNAPPY_COMPRESSION)
     if(ENABLE_SYSTEM_SNAPPY)
         find_package(Snappy REQUIRED)
+
+        # TODO: use static snappy library in case of BUILD_SHARED_LIBS=OFF
         set_target_properties(Snappy::snappy PROPERTIES IMPORTED_GLOBAL ON)
 
         # set Snappy_VERSION to parent scope for consistent OpenVINOConfig.cmake generation
@@ -543,7 +547,7 @@ if(ENABLE_SNAPPY_COMPRESSION)
             # need to create alias Snappy::snappy
             add_library(Snappy::snappy ALIAS snappy)
 
-            # WA for emscriptem build which currently requires -fexceptions
+            # WA for emscripten build which currently requires -fexceptions
             if(EMSCRIPTEN)
                 target_compile_options(snappy PRIVATE "-fexceptions")
             endif()
@@ -582,6 +586,7 @@ if(ENABLE_SAMPLES)
     find_package(nlohmann_json QUIET)
     if(nlohmann_json_FOUND)
         # conan creates imported target nlohmann_json::nlohmann_json
+        # no needs to make the target global, because samples call find_package(nlohmann_json) as well
     else()
         add_subdirectory(json)
 
