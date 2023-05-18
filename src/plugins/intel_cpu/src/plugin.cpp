@@ -292,6 +292,11 @@ void Engine::GetPerformanceStreams(Config& config, const std::shared_ptr<ngraph:
     const auto latency_name = std::string(CONFIG_VALUE(LATENCY)) + "_" + std::string(ov::num_streams.name());
     const auto tput_name = std::string(CONFIG_VALUE(THROUGHPUT)) + "_" + std::string(ov::num_streams.name());
 
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+    // TODO: multi-stream execution has functional issues on ARM target
+    streams = 1;
+#endif
+
     get_num_streams(streams, ngraphFunc, config);
 
     hints_props.insert({latency_name, std::to_string(latency_streams)});
