@@ -14,6 +14,14 @@
 #include "utils/log_util.hpp"
 #include "common.hpp"
 #include "plugin_config.hpp"
+#include "compile_model.hpp"
+
+#ifdef  MULTIUNITTEST
+#define MOCKTESTMACRO virtual
+#define auto_plugin mock_auto_plugin
+#else
+#define MOCKTESTMACRO
+#endif
 
 namespace ov {
 namespace auto_plugin {
@@ -33,13 +41,17 @@ public:
     std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
                                                       const ov::AnyMap& properties) const override;
 
+    std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                              const ov::AnyMap& properties,
+                                                              const ov::RemoteContext& context) const override;
+
     MOCKTESTMACRO std::vector<auto_plugin::DeviceInformation> parse_meta_devices(const std::string & devices_requests_cfg,
                                                                                  const ov::AnyMap& properties) const;
 
     MOCKTESTMACRO std::string get_device_list(const ov::AnyMap& properties) const;
 
     MOCKTESTMACRO std::list<DeviceInformation> get_valid_device(const std::vector<DeviceInformation>& meta_devices,
-                                                   const std::string& network_precision = METRIC_VALUE(FP32));
+                                                   const std::string& network_precision = METRIC_VALUE(FP32)) const;
 
     MOCKTESTMACRO DeviceInformation select_device(const std::vector<DeviceInformation>& meta_devices,
                                                  const std::string& network_precision = METRIC_VALUE(FP32),
@@ -47,21 +59,32 @@ public:
     void unregister_priority(const unsigned int& priority, const std::string& device_name);
     void register_priority(const unsigned int& priority, const std::string& device_name);
 
+    std::shared_ptr<ov::IRemoteContext> create_context(const ov::AnyMap& remote_properties) const override;
+
+
+    std::shared_ptr<ov::IRemoteContext> get_default_context(const ov::AnyMap& remote_properties) const override;
+
+    std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
+                                                             const ov::AnyMap& properties) const override;
+
+    std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
+                                                             const ov::RemoteContext& context,
+                                                             const ov::AnyMap& properties) const override;
+
 protected:
-    ov::AnyMap pre_process_config(const std::map<std::string, std::string>& orig_config) const;
+    ov::AnyMap pre_process_config(const ov::AnyMap& orig_config) const;
 
 private:
     std::shared_ptr<ov::ICompiledModel> compile_model_impl(const std::shared_ptr<const ov::Model>& model,
                                                            const ov::AnyMap& properties,
-                                                           const std::string& networkPrecision = METRIC_VALUE(FP32));
+                                                           const std::string& networkPrecision = METRIC_VALUE(FP32)) const;
     std::vector<DeviceInformation> filter_device(const std::vector<DeviceInformation>& meta_devices,
-                                                const std::map<std::string, std::string>& config);
+                                                 const ov::AnyMap& properties) const;
     std::vector<DeviceInformation> filter_device_by_network(const std::vector<DeviceInformation>& meta_devices,
-                                                         InferenceEngine::CNNNetwork network);
+                                                            const std::shared_ptr<const ov::Model>& model) const;
     std::string get_log_tag() const noexcept;
     static std::mutex m_mtx;
     static std::map<unsigned int, std::list<std::string>> m_priority_map;
-    std::string m_log_tag;
     PluginConfig m_plugin_config;
 };
 

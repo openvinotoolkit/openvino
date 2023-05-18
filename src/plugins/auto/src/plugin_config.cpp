@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "plugin_config.hpp"
+
 namespace ov {
 namespace auto_plugin {
 // AUTO will enable the blocklist if

@@ -48,7 +48,7 @@
 #endif
 namespace ov {
 namespace auto_plugin {
-inline int parseInteger(const char* str) {
+inline int parse_integer(const char* str) {
     std::string var(str ? str : "");
     try {
         return std::stoi(var);
@@ -57,7 +57,7 @@ inline int parseInteger(const char* str) {
     }
 }
 
-inline std::string getFileName(const std::string& filePath) {
+inline std::string get_filename(const std::string& filePath) {
     auto index = filePath.find_last_of("/\\");
     if (std::string::npos == index) {
         return filePath;
@@ -65,10 +65,10 @@ inline std::string getFileName(const std::string& filePath) {
     return filePath.substr(index + 1);
 }
 
-inline int getDebugLevel() {
-    return parseInteger(std::getenv("OPENVINO_LOG_LEVEL"));
+inline int get_debug_level() {
+    return parse_integer(std::getenv("OPENVINO_LOG_LEVEL"));
 }
-const int debug_level = getDebugLevel();
+const int debug_level = get_debug_level();
 enum class LogLevel : uint32_t {
     FREQUENT = 0x01,
     PROCESS = 0x02,
@@ -91,14 +91,14 @@ using LogTask = std::function<void()>;
 
 class Log : public Singleton<Log> {
 public:
-    void setPrefix(std::string prefix);
-    void setSuffix(std::string suffix);
-    void setLogLevel(LogLevel logLevel);
+    void set_prefix(std::string prefix);
+    void set_suffix(std::string suffix);
+    void set_log_level(LogLevel logLevel);
 
     template <typename... Args>
-    void doLog(bool on, bool isTraceCallStack, LogLevel level, const char* levelStr, const char* file,
+    void do_log(bool on, bool isTraceCallStack, LogLevel level, const char* levelStr, const char* file,
         const char* func, long line, const char* tag, const char* fmt, Args... args);
-    void doRun(LogLevel level, const LogTask& task);
+    void do_run(LogLevel level, const LogTask& task);
 #ifdef MULTIUNITTEST
     Log(std::string unittest):Log() {
     }
@@ -114,48 +114,48 @@ private:
 
 private:
     std::mutex mutex;
-    std::string logName;
-    std::string logPath;
+    std::string log_name;
+    std::string log_path;
     std::string prefix;
     std::string suffix;
-    uint32_t logLevel;
-    static uint32_t defaultLogLevel;
-    static std::vector<std::string> validFormat;
+    uint32_t log_level;
+    static uint32_t default_log_level;
+    static std::vector<std::string> valid_format;
 };
 
 inline Log::Log()
-    : logLevel(defaultLogLevel) {
+    : log_level(default_log_level) {
     switch (debug_level) {
         case 0: {
-                    logLevel = static_cast<uint32_t>(LogLevel::LOG_NONE);
+                    log_level = static_cast<uint32_t>(LogLevel::LOG_NONE);
                     break;
                 }
         case 1: {
-                    logLevel = static_cast<uint32_t>(LogLevel::LOG_FATAL);
+                    log_level = static_cast<uint32_t>(LogLevel::LOG_FATAL);
                     break;
                 }
         case 2: {
-                    logLevel = static_cast<uint32_t>(LogLevel::LOG_ERROR);
+                    log_level = static_cast<uint32_t>(LogLevel::LOG_ERROR);
                     break;
                 }
         case 3: {
-                    logLevel = static_cast<uint32_t>(LogLevel::LOG_WARNING);
+                    log_level = static_cast<uint32_t>(LogLevel::LOG_WARNING);
                     break;
                 }
         case 4: {
-                    logLevel = static_cast<uint32_t>(LogLevel::LOG_INFO);
+                    log_level = static_cast<uint32_t>(LogLevel::LOG_INFO);
                     break;
                 }
         case 5: {
-                    logLevel = static_cast<uint32_t>(LogLevel::LOG_DEBUG);
+                    log_level = static_cast<uint32_t>(LogLevel::LOG_DEBUG);
                     break;
                 }
         case 6: {
-                    logLevel = static_cast<uint32_t>(LogLevel::LOG_TRACE);
+                    log_level = static_cast<uint32_t>(LogLevel::LOG_TRACE);
                     break;
                 }
         case 7: {
-                    logLevel = static_cast<uint32_t>(LogLevel::LOG_FREQUENT);
+                    log_level = static_cast<uint32_t>(LogLevel::LOG_FREQUENT);
                     break;
                 }
         default:
@@ -163,19 +163,19 @@ inline Log::Log()
     }
 }
 
-inline void Log::setPrefix(std::string prefix_) {
+inline void Log::set_prefix(std::string prefix_) {
     std::lock_guard<std::mutex> autoLock(mutex);
     prefix = std::move(prefix_);
 }
 
-inline void Log::setSuffix(std::string suffix_) {
+inline void Log::set_suffix(std::string suffix_) {
     std::lock_guard<std::mutex> autoLock(mutex);
     suffix = std::move(suffix_);
 }
 
-inline void Log::setLogLevel(LogLevel logLevel_) {
+inline void Log::set_log_level(LogLevel loglevel_) {
     std::lock_guard<std::mutex> autoLock(mutex);
-    logLevel = static_cast<uint32_t>(logLevel_);
+    log_level = static_cast<uint32_t>(loglevel_);
 }
 
 inline void Log::print(std::stringstream& stream) {
@@ -193,8 +193,8 @@ inline void Log::checkFormat(const char* fmt) {
                 case 1:
                 case 2:
                     {
-                        auto iter = std::find(validFormat.begin(), validFormat.end(), fmtStr);
-                        if (iter != validFormat.end()) {
+                        auto iter = std::find(valid_format.begin(), valid_format.end(), fmtStr);
+                        if (iter != valid_format.end()) {
                             bCollectFmtStr = false;
                             fmtStr = "";
                         }
@@ -221,22 +221,22 @@ inline void Log::checkFormat(const char* fmt) {
 }
 
 template <typename... Args>
-inline void Log::doLog(bool on, bool isTraceCallStack, LogLevel level, const char* levelStr, const char* file,
+inline void Log::do_log(bool on, bool isTraceCallStack, LogLevel level, const char* levelStr, const char* file,
     const char* func, const long line, const char* tag, const char* fmt, Args... args) {
 
-    if (!(static_cast<uint32_t>(level) & static_cast<uint32_t>(logLevel)) || !on) {
+    if (!(static_cast<uint32_t>(level) & static_cast<uint32_t>(log_level)) || !on) {
         return;
     }
 
     std::stringstream stream;
-    stream << colorBegin(level) << prefix << '[' << TimeUtils::getCurrentTime() << ']';
+    stream << colorBegin(level) << prefix << '[' << time_utils::get_current_time() << ']';
 
     if (level < LogLevel::ERROR) {
         stream << levelStr[0];
     } else {
         stream << levelStr;
     }
-    stream << '[' << getFileName(file) << ':' << line << ']';
+    stream << '[' << get_filename(file) << ':' << line << ']';
 
     if (isTraceCallStack) {
         stream << '[' << func << '(' << ')' << ']';
@@ -260,25 +260,25 @@ inline void Log::doLog(bool on, bool isTraceCallStack, LogLevel level, const cha
     print(stream);
 }
 
-inline void Log::doRun(LogLevel level, const LogTask& task) {
-    if (!(static_cast<uint32_t>(level) & static_cast<uint32_t>(logLevel))) {
+inline void Log::do_run(LogLevel level, const LogTask& task) {
+    if (!(static_cast<uint32_t>(level) & static_cast<uint32_t>(log_level))) {
         return;
     }
     task();
 }
 
-inline std::string Log::colorBegin(auto_plugin::LogLevel logLevel) {
-    if (logLevel == LogLevel::WARN) {
+inline std::string Log::colorBegin(auto_plugin::LogLevel loglevel) {
+    if (loglevel == LogLevel::WARN) {
         return std::string(CYAN);
     }
-    if (logLevel == LogLevel::ERROR || logLevel == LogLevel::FATAL) {
+    if (loglevel == LogLevel::ERROR || loglevel == LogLevel::FATAL) {
         return std::string(RED);
     }
     return std::string(DEFAULT_COLOR);
 }
 
-inline std::string Log::colorEnd(auto_plugin::LogLevel logLevel) {
-    if (logLevel == LogLevel::WARN || logLevel == LogLevel::ERROR || logLevel == LogLevel::FATAL) {
+inline std::string Log::colorEnd(auto_plugin::LogLevel loglevel) {
+    if (loglevel == LogLevel::WARN || loglevel == LogLevel::ERROR || loglevel == LogLevel::FATAL) {
         return std::string(COL_END);
     }
     return {};

@@ -61,6 +61,6 @@ std::string get_current_time() {
 
     return ss.str();
 }
-} // namespace TimeUtils
+} // namespace time_utils
 } // namespace auto_plugin
 } // namespace ov

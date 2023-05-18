@@ -10,11 +10,13 @@
 #include "ie_icore.hpp"
 #include "ie_metric_helpers.hpp"
 #include <ie_plugin_config.hpp>
+#include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
+#include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/threading/itask_executor.hpp"
-#include "threading/ie_thread_safe_containers.hpp"
+#include "openvino/runtime/remote_tensor.hpp"
+#include "openvino/runtime/threading/thread_safe_containers.hpp"
 #include "utils/log_util.hpp"
-#include <ie_performance_hints.hpp>
 #include "openvino/runtime/auto/properties.hpp"
 #include "ngraph/opsets/opset1.hpp"
 #include "transformations/utils/utils.hpp"
@@ -30,16 +32,17 @@
 
 namespace ov {
 namespace auto_plugin {
-namespace IE = InferenceEngine;
 using DeviceName = std::string;
-using IInferPtr = std::shared_ptr<ov::ISyncInferRequest>;
-using IExecNetwork = std::shared_ptr<ov::ICompiledModel>;
-using SoInfer = ov::SoPtr<ov::ISyncInferRequest>;
-using SoExecNetwork = ov::SoPtr<ov::ICompiledModel>;
+using IASyncInferPtr = std::shared_ptr<ov::IAsyncInferRequest>;
+using ISyncInferPtr = std::shared_ptr<ov::ISyncInferRequest>;
+using SoAsyncInferRequest = ov::SoPtr<ov::IAsyncInferRequest>;
+using SoCompiledModel = ov::SoPtr<ov::ICompiledModel>;
 using Time = std::chrono::time_point<std::chrono::steady_clock>;
+using Stage = std::pair<std::shared_ptr<ov::threading::ITaskExecutor>, ov::threading::Task>;
+using Pipeline = std::vector<Stage>;
 
 template<typename T>
-using device_map = std::unordered_map<devicename, T>;
+using DeviceMap = std::unordered_map<DeviceName, T>;
 // Bell to do, check if needed, or just use immediate exectutor is enough
 struct AutoImmediateExecutor : public ov::threading::ITaskExecutor {
 public:
@@ -60,6 +63,27 @@ public:
     ov::threading::Task immediate_task;
 };
 
+struct WorkerInferRequest {
+    SoAsyncInferRequest           m_inferrequest;
+    ov::threading::Task           m_task;
+    std::exception_ptr            m_exception_ptr = nullptr;
+    std::list<Time>               m_start_times;
+    std::list<Time>               m_end_times;
+    int                           m_index = 0;
+    AutoImmediateExecutor::Ptr    m_fallback_exec;
+};
+
+struct ThisRequestExecutor : public ov::threading::ITaskExecutor {
+    explicit ThisRequestExecutor(WorkerInferRequest** ptr, AutoImmediateExecutor::Ptr executor = nullptr): m_workptrptr{ptr}, m_fallback_exec(executor) {}
+    void run(ov::threading::Task task) override {
+        (*m_workptrptr)->m_task = std::move(task);
+        (*m_workptrptr)->m_fallback_exec = m_fallback_exec;
+        (*m_workptrptr)->m_inferrequest->start_async();
+    };
+    WorkerInferRequest** m_workptrptr = nullptr;
+    AutoImmediateExecutor::Ptr m_fallback_exec;
+};
+
 struct DeviceInformation {
     DeviceName device_name;
     ov::AnyMap config;
@@ -72,16 +96,6 @@ struct DeviceInformation {
         : device_name(dn), config(conf),
         num_requests_per_devices(nReq), default_device_id(defaultID), unique_name(uName), device_priority(priority)
         {}
-};
-
-struct WorkerInferRequest {
-    SoInfer                       m_inferrequest;
-    ov::threading::Task           m_task;
-    std::exception_ptr            m_exception_ptr = nullptr;
-    std::list<Time>               m_start_times;
-    std::list<Time>               m_end_times;
-    int                           m_index = 0;
-    AutoImmediateExecutor::Ptr    m_fallback_exec;
 };
 
 struct deviceChecker {
@@ -116,11 +130,11 @@ struct deviceChecker {
         U check_and_return_if_device_in_list(const std::string& target, const std::vector<T>& device_list, bool exact_match = false) {
             if (exact_match) {
                 return std::find_if(device_list.begin(), device_list.end(),
-                        [&target](const T& d) { return d.deviceName == target; });
+                        [&target](const T& d) { return d.device_name == target; });
             }
             return std::find_if(device_list.begin(), device_list.end(),
                             [&target](const T& d) {
-                                return d.deviceName.find(target) != std::string::npos;
+                                return d.device_name.find(target) != std::string::npos;
                             });
         }
         template <typename T,
@@ -128,17 +142,19 @@ struct deviceChecker {
         bool check_if_device_in_list(const std::string& target, const std::vector<T>& device_list, bool exact_match = false) {
             if (exact_match) {
                 return std::find_if(device_list.begin(), device_list.end(),
-                                    [&target](const T& d) { return d.deviceName == target; }) != device_list.end();
+                                    [&target](const T& d) { return d.device_name == target; }) != device_list.end();
             }
             return std::find_if(device_list.begin(), device_list.end(),
                             [&target](const T& d) {
-                                return d.deviceName.find(target) != std::string::npos;
+                                return d.device_name.find(target) != std::string::npos;
                             }) != device_list.end();
         }
 };
 
-using NotBusyPriorityWorkerRequests = IE::ThreadSafeBoundedPriorityQueue<std::pair<int, WorkerInferRequest*>>;
-using NotBusyWorkerRequests = IE::ThreadSafeBoundedQueue<WorkerInferRequest*>;
+using NotBusyPriorityWorkerRequests = ov::threading::ThreadSafeBoundedPriorityQueue<std::pair<int, WorkerInferRequest*>>;
+using NotBusyWorkerRequests = ov::threading::ThreadSafeBoundedQueue<WorkerInferRequest*>;
+using TaskQueue = ov::threading::ThreadSafeQueue<ov::threading::Task>;
+
 template <typename T>
 struct IdleGuard {};
 template<>
@@ -152,7 +168,7 @@ struct IdleGuard<NotBusyWorkerRequests> {
             m_not_busy_worker_requests->try_push(m_worker_inferrequest_ptr);
         }
     }
-    NotBusyWorkerRequests* Release() {
+    NotBusyWorkerRequests* release() {
         auto not_busy_worker_requests = m_not_busy_worker_requests;
         m_not_busy_worker_requests = nullptr;
         return not_busy_worker_requests;
@@ -172,7 +188,7 @@ struct IdleGuard<NotBusyPriorityWorkerRequests> {
             m_not_busy_worker_requests->try_push(std::make_pair(m_worker_inferrequest_ptr->m_index, m_worker_inferrequest_ptr));
         }
     }
-    NotBusyPriorityWorkerRequests* Release() {
+    NotBusyPriorityWorkerRequests* release() {
         auto not_busy_worker_requests_queue = m_not_busy_worker_requests;
         m_not_busy_worker_requests = nullptr;
         return not_busy_worker_requests_queue;
@@ -180,36 +196,54 @@ struct IdleGuard<NotBusyPriorityWorkerRequests> {
     WorkerInferRequest* m_worker_inferrequest_ptr = nullptr;
     NotBusyPriorityWorkerRequests*  m_not_busy_worker_requests = nullptr;
 };
-class ScheduleContext : public std::enable_shared_from_this<ScheduleContext> {
+
+class Plugin;
+class ScheduleContext : public std::enable_shared_from_this<ScheduleContext>  {
 public:
     using Ptr = std::shared_ptr<ScheduleContext>;
-    std::shared_ptr<ov::ICore>  m_ov_core;
-    std::weak_ptr<IExecNetwork> m_compiled_model;
-    std::string m_log_tag;
+    std::shared_ptr<ov::ICore>                     m_ov_core;
+    std::weak_ptr<ov::ICompiledModel>              m_compiled_model;
+    std::string                                    m_log_tag;
+    std::vector<DeviceInformation>                 m_device_priorities;
+    std::vector<DeviceInformation>                 m_device_priorities_initial;
+    bool                                           m_need_perf_counters;
+    bool                                           m_batching_disabled = false;
+    bool                                           m_startup_fallback = true;
+    bool                                           m_runtime_fallback = true;
+    bool                                           m_bind_buffer = false;
+    std::shared_ptr<ov::Model>                     m_model;
+    std::shared_ptr<const ov::IPlugin>             m_plugin;
+    std::string                                    m_str_devices;
+    unsigned int                                   m_model_priority = 0;
+    ov::Any                                        m_performance_hint;
+    std::mutex                                     m_mutex;
+    std::mutex                                     m_fallback_mutex;
+    SoCompiledModel                                m_hw_compiled_model;
+    std::string                                    m_network_precision;
     virtual ~ScheduleContext() = default;
 };
 
-class Plugin;
-class AutoScheduleContext : public ScheduleContext {
-public:
-    using Ptr = std::shared_ptr<AutoScheduleContext>;
-    std::vector<DeviceInformation>                 m_device_priorities;
-    std::vector<DeviceInformation>                 m_device_priorities_initial;
-    std::unordered_map<std::string, ov::Any>       m_config;
-    bool                                           m_need_perf_counters;
-    bool                                           m_batching_disabled = {false};
-    bool                                           m_startup_fallback = true;
-    bool                                           m_runtime_fallback = true;
-    std::string                                    m_modelpath;
-    IE::CNNNetwork                                 m_network;
-    std::string                                    m_str_devices;
-    unsigned int                                   m_model_priority = 0;
-    std::string                                    m_performance_hint;
-    std::mutex                                     m_conf_mutex;
-    std::mutex                                     m_fallback_mutex;
-    ov::auto_plugin::Plugin*                       m_plugin;
-    SoExecNetwork                                  m_hw_compiled_model;
-    virtual ~AutoScheduleContext() = default;
+struct AutoLoadContext {
+    std::atomic<bool> m_is_enabled = {false};
+    std::atomic<bool> m_is_already = {false};
+    std::atomic<bool> m_is_load_success = {false};
+    std::atomic<bool> m_is_reload_success = {false};
+    std::future<void> m_future;
+    std::promise<void> m_promise;
+    SoCompiledModel m_exe_network;
+    DeviceInformation  m_device_info;
+    std::vector<DeviceInformation> m_meta_devices;
+    std::string m_network_precision;
+    std::string m_err_message;
+    ov::threading::Task m_task;
+    std::string m_worker_name = "";
+};
+
+enum AutoLoadContextIndex {
+    CPU = 0,
+    ACTUALDEVICE = 1,
+    FALLBACKDEVICE = 2,
+    CONTEXTNUM = 3
 };
 }  // namespace auto_plugin
 } // namespace ov

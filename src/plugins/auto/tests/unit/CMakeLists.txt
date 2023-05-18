@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME ieMultiPluginUnitTests)
+set(TARGET_NAME ov_auto_unit_tests)
 
 set(CI_BUILD_NUMBER "unittest")
 add_definitions(-DMULTIUNITTEST)
