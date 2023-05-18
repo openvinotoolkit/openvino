@@ -223,6 +223,15 @@ StreamsCalculationTestCase _2sockets_104cores_latency_3 = {
     {{1, MAIN_CORE_PROC, 20}},
 };
 
+StreamsCalculationTestCase _2sockets_104cores_latency_4 = {
+    1,
+    300,
+    0,
+    0,
+    {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
+    {{1, MAIN_CORE_PROC, 208}},
+};
+
 StreamsCalculationTestCase _2sockets_104cores_tput_1 = {
     0,
     0,
@@ -565,7 +574,6 @@ StreamsCalculationTestCase _1sockets_14cores_tput_16 = {
     {{6, MAIN_CORE_PROC, 1}, {4, EFFICIENT_CORE_PROC, 2}, {1, HYPER_THREADING_PROC, 1}},
 };
 
-
 StreamsCalculationTestCase _1sockets_10cores_latency_1 = {
     1,
     0,
@@ -671,7 +679,7 @@ StreamsCalculationTestCase _1sockets_8cores_latency_2 = {
     0,
     0,
     {{12, 4, 4, 4}},
-    {{1, ALL_PROC, 8}, {0, MAIN_CORE_PROC, 4}, {0, EFFICIENT_CORE_PROC, 4}},
+    {{1, ALL_PROC, 12}, {0, MAIN_CORE_PROC, 8}, {0, EFFICIENT_CORE_PROC, 4}},
 };
 
 StreamsCalculationTestCase _1sockets_8cores_latency_3 = {
@@ -770,7 +778,7 @@ StreamsCalculationTestCase _1sockets_6cores_latency_2 = {
     0,
     0,
     {{12, 6, 0, 6}},
-    {{1, MAIN_CORE_PROC, 6}},
+    {{1, MAIN_CORE_PROC, 12}},
 };
 
 StreamsCalculationTestCase _1sockets_6cores_tput_1 = {
@@ -906,6 +914,7 @@ INSTANTIATE_TEST_SUITE_P(StreamsInfoTable,
                          testing::Values(_2sockets_104cores_latency_1,
                                          _2sockets_104cores_latency_2,
                                          _2sockets_104cores_latency_3,
+                                         _2sockets_104cores_latency_4,
                                          _2sockets_104cores_tput_1,
                                          _2sockets_104cores_tput_2,
                                          _2sockets_104cores_tput_3,

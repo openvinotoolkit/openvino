@@ -30,48 +30,76 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
     std::vector<int> stream_info(CPU_STREAMS_TABLE_SIZE);
     std::vector<std::vector<int>> streams_info_table;
 
-    if (1 == input_streams) {
-        stream_info[NUMBER_OF_STREAMS] = 1;
-        int limit_threads = (input_threads == 0) ? model_prefer_threads : input_threads;
-        if (proc_type_table[0][ALL_PROC] == proc_type_table[0][EFFICIENT_CORE_PROC]) {
-            stream_info[PROC_TYPE] = EFFICIENT_CORE_PROC;
-            stream_info[THREADS_PER_STREAM] = (input_threads == 0)
-                                                  ? proc_type_table[0][EFFICIENT_CORE_PROC]
-                                                  : std::min(proc_type_table[0][EFFICIENT_CORE_PROC], limit_threads);
-            streams_info_table.push_back(stream_info);
-        } else if ((proc_type_table[0][EFFICIENT_CORE_PROC] > 0) &&
-                   ((limit_threads == 0) || (limit_threads > proc_type_table[0][MAIN_CORE_PROC]))) {
-            stream_info[PROC_TYPE] = ALL_PROC;
-            int n_threads = std::accumulate(proc_type_table[0].begin() + MAIN_CORE_PROC,
-                                            proc_type_table[0].begin() + HYPER_THREADING_PROC,
-                                            0);
-            stream_info[THREADS_PER_STREAM] = (limit_threads == 0) ? n_threads : std::min(n_threads, limit_threads);
-            streams_info_table.push_back(stream_info);
-            stream_info[NUMBER_OF_STREAMS] = 0;
-            n_threads = stream_info[THREADS_PER_STREAM];
-            for (int n = MAIN_CORE_PROC; n < HYPER_THREADING_PROC; n++) {
-                if (0 != proc_type_table[0][n]) {
-                    stream_info[PROC_TYPE] = n;
-                    if (n_threads <= proc_type_table[0][n]) {
+    auto UpdateMixStreamInfo = [&]() {
+        stream_info[NUMBER_OF_STREAMS] = 0;
+        int n_threads = stream_info[THREADS_PER_STREAM];
+        for (int n = MAIN_CORE_PROC; n <= HYPER_THREADING_PROC; n++) {
+            if (0 != proc_type_table[0][n]) {
+                stream_info[PROC_TYPE] = n;
+                if (n_threads <= proc_type_table[0][n]) {
+                    if (n != HYPER_THREADING_PROC) {
                         stream_info[THREADS_PER_STREAM] = n_threads;
                         streams_info_table.push_back(stream_info);
                         break;
                     } else {
+                        streams_info_table[MAIN_CORE_PROC][THREADS_PER_STREAM] += n_threads;
+                    }
+                } else {
+                    if (n != HYPER_THREADING_PROC) {
                         stream_info[THREADS_PER_STREAM] = proc_type_table[0][n];
                         streams_info_table.push_back(stream_info);
                         n_threads -= proc_type_table[0][n];
+                    } else {
+                        streams_info_table[MAIN_CORE_PROC][THREADS_PER_STREAM] += n_threads;
                     }
                 }
             }
+        }
+    };
+
+    if (1 == input_streams) {
+        stream_info[NUMBER_OF_STREAMS] = 1;
+        if (input_threads > 0) {
+            stream_info[THREADS_PER_STREAM] = std::min(proc_type_table[0][ALL_PROC], input_threads);
+            if ((stream_info[THREADS_PER_STREAM] > proc_type_table[0][MAIN_CORE_PROC]) &&
+                (proc_type_table[0][MAIN_CORE_PROC] > 0) && (proc_type_table[0][EFFICIENT_CORE_PROC] > 0)) {
+                stream_info[PROC_TYPE] = ALL_PROC;
+                streams_info_table.push_back(stream_info);
+                UpdateMixStreamInfo();
+            } else if ((stream_info[THREADS_PER_STREAM] <= proc_type_table[0][MAIN_CORE_PROC]) ||
+                       (proc_type_table[0][EFFICIENT_CORE_PROC] == 0)) {
+                stream_info[PROC_TYPE] = MAIN_CORE_PROC;
+                streams_info_table.push_back(stream_info);
+            } else {
+                stream_info[PROC_TYPE] = EFFICIENT_CORE_PROC;
+                streams_info_table.push_back(stream_info);
+            }
         } else {
-            stream_info[PROC_TYPE] = MAIN_CORE_PROC;
-            stream_info[THREADS_PER_STREAM] = (limit_threads == 0)
-                                                  ? proc_type_table[0][MAIN_CORE_PROC]
-                                                  : std::min(proc_type_table[0][MAIN_CORE_PROC], limit_threads);
-            streams_info_table.push_back(stream_info);
+            if (proc_type_table[0][ALL_PROC] == proc_type_table[0][EFFICIENT_CORE_PROC]) {
+                stream_info[PROC_TYPE] = EFFICIENT_CORE_PROC;
+                stream_info[THREADS_PER_STREAM] =
+                    (input_threads == 0) ? proc_type_table[0][EFFICIENT_CORE_PROC]
+                                         : std::min(proc_type_table[0][EFFICIENT_CORE_PROC], model_prefer_threads);
+                streams_info_table.push_back(stream_info);
+            } else if ((proc_type_table[0][EFFICIENT_CORE_PROC] > 0) &&
+                       ((model_prefer_threads == 0) || (model_prefer_threads > proc_type_table[0][MAIN_CORE_PROC]))) {
+                stream_info[PROC_TYPE] = ALL_PROC;
+                int n_threads = std::accumulate(proc_type_table[0].begin() + MAIN_CORE_PROC,
+                                                proc_type_table[0].begin() + HYPER_THREADING_PROC,
+                                                0);
+                stream_info[THREADS_PER_STREAM] =
+                    (model_prefer_threads == 0) ? n_threads : std::min(n_threads, model_prefer_threads);
+                streams_info_table.push_back(stream_info);
+                UpdateMixStreamInfo();
+            } else {
+                stream_info[PROC_TYPE] = MAIN_CORE_PROC;
+                stream_info[THREADS_PER_STREAM] =
+                    (model_prefer_threads == 0) ? proc_type_table[0][MAIN_CORE_PROC]
+                                                : std::min(proc_type_table[0][MAIN_CORE_PROC], model_prefer_threads);
+                streams_info_table.push_back(stream_info);
+            }
         }
         return streams_info_table;
-
     } else {
         int n_streams = 0;
         int n_threads = 0;
