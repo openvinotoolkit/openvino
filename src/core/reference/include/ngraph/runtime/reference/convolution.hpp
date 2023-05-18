@@ -327,52 +327,55 @@ void convolution(const T* in,
         extend_to_2D(params, input_shape, filters_shape);
     }
 
-    const size_t batches_count = input_shape[in_batch_axis];
-    const Shape batch_shape(++input_shape.begin(), input_shape.end());
-    const size_t batch_size = shape_size(batch_shape);
-    const size_t out_spatial_size =
-        std::accumulate(out_shape.begin() + 2, out_shape.end(), size_t(1), std::multiplies<size_t>());
-
-    const size_t filters_count = filters_shape[filter_out_ch_axis];
-    const Shape filter_shape(++filters_shape.begin(), filters_shape.end());
-    const size_t filter_size = shape_size(filter_shape);
-
-    const size_t work_amount = batches_count * filters_count;
-
-    void (*conv_channels)(const ConvolutionParams&, const T*, const Shape&, const T*, const Shape&, T*);
-    if (in_shape.size() == 5) {
-        conv_channels = &convolve_3D_channels;
-    } else {
-        conv_channels = &convolve_2D_channels;
-    }
-
     auto ncores = std::thread::hardware_concurrency() / 2;
     if (ncores == 0) {
         ncores = 1;
     }
     std::vector<std::future<void>> futures(ncores);
 
-    auto split_work = [](const size_t& n, const size_t& nthr, const size_t ithr, size_t& n_start, size_t& n_end) {
-        if (nthr <= 1 || n == 0) {
-            n_start = 0;
-            n_end = n;
+    auto ker_callback = [](const int64_t nthr,
+                           const int64_t ithr,
+                           const T* in,
+                           const T* f,
+                           T* out,
+                           const Shape& input_shape,
+                           const Shape& filters_shape,
+                           const Shape& out_shape,
+                           const ConvolutionParams& params) {
+        const size_t batches_count = input_shape[in_batch_axis];
+        const Shape batch_shape(++input_shape.begin(), input_shape.end());
+        const size_t batch_size = shape_size(batch_shape);
+        const size_t out_spatial_size =
+            std::accumulate(out_shape.begin() + 2, out_shape.end(), size_t(1), std::multiplies<size_t>());
+
+        const size_t filters_count = filters_shape[filter_out_ch_axis];
+        const Shape filter_shape(++filters_shape.begin(), filters_shape.end());
+        const size_t filter_size = shape_size(filter_shape);
+
+        const int64_t work_amount = static_cast<int64_t>(batches_count * filters_count);
+        int64_t start = 0, end = 0;
+        if (nthr <= 1 || work_amount == 0) {
+            start = 0;
+            end = work_amount;
         } else {
-            auto n1 = (n + nthr - 1) / nthr;
+            auto n1 = (work_amount + nthr - 1) / nthr;
             auto n2 = n1 - 1;
-            auto T1 = n - n2 * nthr;
-            n_end = ithr < T1 ? n1 : n2;
-            n_start = ithr <= T1 ? ithr * n1 : T1 * n1 + (ithr - T1) * n2;
+            auto T1 = work_amount - n2 * nthr;
+            end = ithr < T1 ? n1 : n2;
+            start = ithr <= T1 ? ithr * n1 : T1 * n1 + (ithr - T1) * n2;
         }
-
-        n_end += n_start;
-    };
-
-    auto ker_callback = [&](int nthr, int ithr) {
-        size_t start = 0, end = 0;
-        split_work(work_amount, nthr, ithr, start, end);
+        end += start;
         if (start >= end) {
             return;
         }
+
+        void (*conv_channels)(const ConvolutionParams&, const T*, const Shape&, const T*, const Shape&, T*);
+        if (input_shape.size() == 5) {
+            conv_channels = &convolve_3D_channels;
+        } else {
+            conv_channels = &convolve_2D_channels;
+        }
+
         size_t batch_idx = start / filters_count;
         size_t c_idx = start % filters_count;
 
@@ -396,7 +399,8 @@ void convolution(const T* in,
     };
 
     for (size_t ithr = 0; ithr < ncores; ithr++) {
-        futures[ithr] = std::async(ker_callback, ncores, ithr);
+        futures[ithr] =
+            std::async(ker_callback, ncores, ithr, in, f, out, input_shape, filters_shape, out_shape, params);
     }
     for (size_t ithr = 0; ithr < ncores; ithr++) {
         futures[ithr].get();
