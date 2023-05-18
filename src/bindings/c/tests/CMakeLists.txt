@@ -49,5 +49,3 @@ install(TARGETS ${TARGET_NAME}
     RUNTIME DESTINATION tests
     COMPONENT tests
     EXCLUDE_FROM_ALL)
-
-add_dependencies(${TARGET_NAME} mock_engine)
