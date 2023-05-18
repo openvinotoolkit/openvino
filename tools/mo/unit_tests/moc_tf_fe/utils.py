@@ -31,6 +31,8 @@ def basic_check(input_model, argv_input, input_data, expected_dtype, expected_va
     values = list(results.values())[0]
     if expected_dtype is not None:
         assert values.dtype == expected_dtype
-    assert np.allclose(values, expected_value)
+    assert np.allclose(values,
+                       expected_value), "Expected and actual values are different." \
+                                        " Expected value: {}, actual value: {}".format(expected_value, values)
 
     return ov_model

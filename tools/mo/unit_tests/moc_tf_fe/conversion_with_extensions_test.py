@@ -19,15 +19,15 @@ class TestConversionWithExtensions(unittest.TestCase):
     def test_basic_conversion_extension(self):
         # test the converted model to make sure that it performs element-wise summation of operands
         basic_check(input_model="model_fp32.pbtxt", argv_input=None,
-                    input_data={"in1": np.array([[2.0, 4.0], [12.0, 8.0]]),
-                                "in2": np.array([[1.0, -2.0], [-6.0, 1.0]])},
-                    expected_dtype=np.float32, expected_value=np.array([[3.0, 2.0], [6.0, 9.0]]),
+                    input_data={"in1": np.array([[2.0, 4.0], [12.0, 8.0]], dtype=np.float32),
+                                "in2": np.array([[1.0, -2.0], [-6.0, 1.0]], dtype=np.float32)},
+                    expected_dtype=np.float32, expected_value=np.array([[3.0, 2.0], [6.0, 9.0]], dtype=np.float32),
                     only_conversion=False)
 
         # make sure that the model performs element-wise multiplication after the conversion extension
         basic_check(input_model="model_fp32.pbtxt", argv_input=None,
-                    input_data={"in1": np.array([[2.0, 4.0], [12.0, 8.0]]),
-                                "in2": np.array([[1.0, -2.0], [-6.0, 1.0]])},
-                    expected_dtype=np.float32, expected_value=np.array([[2.0, -8.0], [-72.0, 8.0]]),
+                    input_data={"in1": np.array([[2.0, 4.0], [12.0, 8.0]], dtype=np.float32),
+                                "in2": np.array([[1.0, -2.0], [-6.0, 1.0]], dtype=np.float32)},
+                    expected_dtype=np.float32, expected_value=np.array([[2.0, -8.0], [-72.0, 8.0]], dtype=np.float32),
                     only_conversion=False, extensions=ConversionExtension("AddV2",
                                                                           self.conversion_add_v2))
