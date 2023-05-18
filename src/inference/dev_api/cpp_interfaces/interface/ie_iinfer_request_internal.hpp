@@ -314,6 +314,14 @@ protected:
      */
     virtual void checkBlobsForBatch(const std::string& name, const std::vector<Blob::Ptr>& blobs);
 
+    bool preProcessingRequired(const InputInfo::Ptr& info,
+                               const Blob::Ptr& userBlob,
+                               const Blob::Ptr& deviceBlob = nullptr) {
+        // TODO: remove after fix on plugins side
+        return false;
+    }
+    void addInputPreProcessingFor(const std::string& name, const Blob::Ptr& from, const Blob::Ptr& to) {}
+
     InferenceEngine::InputsDataMap _networkInputs;    //!< Holds information about network inputs info
     InferenceEngine::OutputsDataMap _networkOutputs;  //!< Holds information about network outputs data
     InferenceEngine::BlobMap _inputs;                 //!< A map of user passed blobs for network inputs
@@ -323,6 +331,8 @@ protected:
     std::vector<std::shared_ptr<const ov::Node>> _results;     //!< A vector of function outputs
     std::map<std::string, BatchedBlob::Ptr> _batched_inputs;   //!< A map of user passed blobs for network inputs
     int m_curBatch = -1;                                       //!< Current batch value used in dynamic batching
+
+    std::map<std::string, std::shared_ptr<void>> _preProcData;  // TODO: remove after fixes on the plugin side
 
     /**
      * @brief A shared pointer to IInferRequestInternal

@@ -1403,32 +1403,6 @@ cdef class InferRequest:
             mem_state_vec.append(state)
         return mem_state_vec
 
-    def set_blob(self, blob_name : str, blob : Blob, preprocess_info: PreProcessInfo = None):
-        """Sets user defined Blob for the infer request
-        
-        :param blob_name: A name of input blob
-        :param blob: Blob object to set for the infer request
-        :param preprocess_info: PreProcessInfo object to set for the infer request.
-        :return: None
-        
-        Usage example:
-
-        .. code-block:: python
-    
-            ie = IECore()
-            net = IENetwork("./model.xml", "./model.bin")
-            exec_net = ie.load_network(net, "CPU", num_requests=2)
-            td = TensorDesc("FP32", (1, 3, 224, 224), "NCHW")
-            blob_data = np.ones(shape=(1, 3, 224, 224), dtype=np.float32)
-            blob = Blob(td, blob_data)
-            exec_net.requests[0].set_blob(blob_name="input_blob_name", blob=blob),
-        """
-        if preprocess_info:
-            deref(self.impl).setBlob(blob_name.encode(), blob._ptr, deref(preprocess_info._ptr))
-        else:
-            deref(self.impl).setBlob(blob_name.encode(), blob._ptr)
-        self._user_blobs[blob_name] = blob
-
     cpdef infer(self, inputs=None):
         """Starts synchronous inference of the infer request and fill outputs array
         
