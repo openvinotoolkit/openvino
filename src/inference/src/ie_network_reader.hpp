@@ -29,6 +29,7 @@ CNNNetwork ReadNetwork(const std::string& modelPath,
                        const std::string& binPath,
                        const std::vector<IExtensionPtr>& exts,
                        const std::vector<ov::Extension::Ptr>& ov_exts,
+                       const std::vector<ov::Extension::Ptr>& ov_plugin_exts,
                        bool newAPI,
                        bool enable_mmap);
 /**
@@ -45,6 +46,7 @@ CNNNetwork ReadNetwork(const std::string& model,
                        const Blob::CPtr& weights,
                        const std::vector<IExtensionPtr>& exts,
                        const std::vector<ov::Extension::Ptr>& ov_exts,
+                       const std::vector<ov::Extension::Ptr>& ov_plugin_exts,
                        bool newAPI,
                        bool frontendMode = false);
 

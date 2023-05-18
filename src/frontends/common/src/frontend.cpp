@@ -86,9 +86,25 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
     // Each frontend can support own set of extensions, so this method should be implemented on the frontend side
 }
 
+void FrontEnd::remove_extension(const std::shared_ptr<ov::Extension>& extension) {
+    if (m_actual) {
+        remove_extension_from_shared_data(m_shared_object, extension);
+        FRONTEND_CALL_STATEMENT("Removing extension", m_actual->remove_extension(extension))
+        return;
+    }
+    // Left unimplemented intentionally.
+    // Each frontend can support own set of extensions, so this method should be implemented on the frontend side
+}
+
 void FrontEnd::add_extension(const std::vector<std::shared_ptr<ov::Extension>>& extensions) {
     for (const auto& ext : extensions) {
         add_extension(ext);
+    }
+}
+
+void FrontEnd::remove_extension(const std::vector<std::shared_ptr<ov::Extension>>& extensions) {
+    for (const auto& ext : extensions) {
+        remove_extension(ext);
     }
 }
 

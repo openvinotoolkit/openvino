@@ -302,6 +302,14 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
 }
 // ! [plugin:get_property]
 
+// ! [plugin:get_extension]
+const std::vector<ov::Extension::Ptr> ov::template_plugin::Plugin::get_extension() const {
+    // Plugin can return here own operation extensions to read model from IR
+    return {};
+}
+// ! [plugin:get_extension]
+
+
 // ! [plugin:create_plugin_engine]
 static const ov::Version version = {CI_BUILD_NUMBER, "openvino_template_plugin"};
 OV_DEFINE_PLUGIN_CREATE_FUNCTION(ov::template_plugin::Plugin, version)

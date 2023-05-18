@@ -524,7 +524,14 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
         } else {
             TryToRegisterLibraryAsExtensionUnsafe(desc.libraryLocation);
         }
-
+        for (const auto& ext : plugin.get_extension()) {
+            ov_plugin_extensions.emplace_back(ext);
+            if (auto op_base_ext = std::dynamic_pointer_cast<ov::BaseOpExtension>(ext)) {
+                for (const auto& attached_ext : op_base_ext->get_attached_extensions()) {
+                    ov_plugin_extensions.emplace_back(attached_ext);
+                }
+            }
+        }
         return plugins.emplace(deviceName, plugin).first->second;
     } catch (const InferenceEngine::Exception& ex) {
         IE_THROW() << "Failed to create plugin " << ov::util::from_file_path(desc.libraryLocation) << " for device "
@@ -949,7 +956,20 @@ void ov::CoreImpl::unload_plugin(const std::string& deviceName) {
     if (it == plugins.end()) {
         IE_THROW() << "Device with \"" << deviceName << "\" name is not registered in the OpenVINO Runtime";
     }
-
+    auto remove_ext = [&](const ov::Extension::Ptr& ext) {
+        auto ext_it = std::find(ov_plugin_extensions.begin(), ov_plugin_extensions.end(), ext);
+        if (ext_it != ov_plugin_extensions.end()) {
+            ov_plugin_extensions.erase(ext_it);
+        }
+    };
+    for (const auto& ext : it->second.get_extension()) {
+        remove_ext(ext);
+        if (auto op_base_ext = std::dynamic_pointer_cast<ov::BaseOpExtension>(ext)) {
+            for (const auto& attached_ext : op_base_ext->get_attached_extensions()) {
+                remove_ext(attached_ext);
+            }
+        }
+    }
     plugins.erase(deviceName);
 }
 

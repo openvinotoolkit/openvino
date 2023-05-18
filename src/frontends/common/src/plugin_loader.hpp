@@ -19,6 +19,8 @@ namespace frontend {
 class FrontEndSharedData {
     friend inline void add_extension_to_shared_data(std::shared_ptr<void>& obj,
                                                     const std::shared_ptr<ov::Extension>& ext);
+    friend inline void remove_extension_from_shared_data(std::shared_ptr<void>& obj,
+                                                         const std::shared_ptr<ov::Extension>& ext);
     std::shared_ptr<void> m_so;
     std::vector<std::shared_ptr<ov::Extension>> m_loaded_extensions = {};
 
@@ -30,6 +32,14 @@ inline void add_extension_to_shared_data(std::shared_ptr<void>& obj, const std::
     auto obj_data = std::static_pointer_cast<FrontEndSharedData>(obj);
     OPENVINO_ASSERT(obj_data, "internal error: not allowed type of shared data used");
     obj_data->m_loaded_extensions.push_back(ext);
+}
+
+inline void remove_extension_from_shared_data(std::shared_ptr<void>& obj, const std::shared_ptr<ov::Extension>& ext) {
+    auto obj_data = std::static_pointer_cast<FrontEndSharedData>(obj);
+    OPENVINO_ASSERT(obj_data, "internal error: not allowed type of shared data used");
+    auto it = std::find(obj_data->m_loaded_extensions.begin(), obj_data->m_loaded_extensions.end(), ext);
+    if (it != obj_data->m_loaded_extensions.end())
+        obj_data->m_loaded_extensions.erase(it);
 }
 
 /// \brief Internal data structure holding plugin information including library handle, file names and paths, etc.

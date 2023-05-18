@@ -112,6 +112,14 @@ public:
     /// \param extensions vector of extensions
     void add_extension(const std::vector<std::shared_ptr<ov::Extension>>& extensions);
 
+    /// \brief Unregister base extension from the FrontEnd
+    /// \param extension base extension
+    void remove_extension(const std::shared_ptr<ov::Extension>& extension);
+
+    /// \brief Unregister base extensions from the FrontEnd
+    /// \param extensions vector of extensions
+    void remove_extension(const std::vector<std::shared_ptr<ov::Extension>>& extensions);
+
     /// \brief Registers extension
     /// \param library_path path to library with ov::Extension
     void add_extension(const std::string& library_path);

@@ -115,4 +115,8 @@ void IPluginWrapper::set_device_name(const std::string& device_name) {
     m_old_plugin->SetName(device_name);
 }
 
+const std::vector<std::shared_ptr<ov::Extension>> IPluginWrapper::get_extension() const {
+    return {};
+}
+
 }  //  namespace InferenceEngine

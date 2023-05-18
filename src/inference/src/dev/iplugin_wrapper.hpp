@@ -160,6 +160,13 @@ public:
      */
     void set_device_name(const std::string& device_name);
 
+    /**
+     * @brief Get plugin extension
+     *
+     * @return vector of plugin extensions
+     */
+    const std::vector<std::shared_ptr<ov::Extension>> get_extension() const override;
+
 private:
     std::shared_ptr<InferenceEngine::IInferencePlugin> m_old_plugin;
 

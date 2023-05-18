@@ -44,6 +44,8 @@ public:
     ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
                                     const ov::AnyMap& properties) const override;
 
+    const std::vector<ov::Extension::Ptr> get_extension() const override;
+
 private:
     friend class CompiledModel;
     friend class InferRequest;

@@ -42,6 +42,8 @@ public:
 
     void add_extension(const ie::IExtensionPtr& extension);
 
+    const std::vector<ov::Extension::Ptr> get_extension() const;
+
     void set_property(const ov::AnyMap& config);
 
     SoPtr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,

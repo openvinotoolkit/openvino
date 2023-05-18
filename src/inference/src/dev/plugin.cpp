@@ -55,6 +55,10 @@ void ov::Plugin::add_extension(const ie::IExtensionPtr& extension) {
     OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
+const std::vector<ov::Extension::Ptr> ov::Plugin::get_extension() const {
+    OV_PLUGIN_CALL_STATEMENT(return m_ptr->get_extension());
+}
+
 void ov::Plugin::set_property(const ov::AnyMap& config) {
     OV_PLUGIN_CALL_STATEMENT(m_ptr->set_property(config));
 }

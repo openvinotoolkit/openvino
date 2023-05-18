@@ -144,6 +144,7 @@ private:
     // TODO: make extensions to be optional with conditional compilation
     mutable std::vector<InferenceEngine::IExtensionPtr> extensions;
     std::vector<ov::Extension::Ptr> ov_extensions;
+    mutable std::vector<ov::Extension::Ptr> ov_plugin_extensions;
 
     std::map<std::string, PluginDescriptor> pluginRegistry;
 

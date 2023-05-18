@@ -14,6 +14,7 @@
 #include "openvino/core/any.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/core/op_extension.hpp"
 #include "openvino/core/version.hpp"
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
@@ -231,6 +232,13 @@ public:
      * @return Reference to ExecutorManager interface
      */
     const std::shared_ptr<ov::threading::ExecutorManager>& get_executor_manager() const;
+
+    /**
+     * @brief Gets plugin extension
+     * @return Vector of plugin extensions
+     */
+    virtual const std::vector<std::shared_ptr<ov::Extension>> get_extension() const = 0;
+
 
     ~IPlugin() = default;
 

@@ -418,6 +418,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
                                 const std::string& binPath,
                                 const std::vector<IExtensionPtr>& exts,
                                 const std::vector<ov::Extension::Ptr>& ov_exts,
+                                const std::vector<ov::Extension::Ptr>& ov_plugin_exts,
                                 bool newAPI,
                                 bool enable_mmap) {
 #ifdef ENABLE_IR_V7_READER
@@ -463,6 +464,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
     FE = manager.load_by_model(params);
     if (FE) {
         FE->add_extension(ov_exts);
+        FE->add_extension(ov_plugin_exts);
         if (!exts.empty())
             FE->add_extension(wrap_old_extensions(exts));
         inputModel = FE->load(params);
@@ -470,6 +472,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
 
     if (inputModel) {
         auto ngFunc = FE->convert(inputModel);
+        FE->remove_extension(ov_plugin_exts);
         return convert_to_cnnnetwork(ngFunc, exts, newAPI);
     }
 
@@ -487,6 +490,7 @@ CNNNetwork details::ReadNetwork(const std::string& model,
                                 const Blob::CPtr& weights,
                                 const std::vector<IExtensionPtr>& exts,
                                 const std::vector<ov::Extension::Ptr>& ov_exts,
+                                const std::vector<ov::Extension::Ptr>& ov_plugin_exts,
                                 bool newAPI,
                                 bool frontendMode) {
     std::istringstream modelStringStream(model);
@@ -524,12 +528,14 @@ CNNNetwork details::ReadNetwork(const std::string& model,
     FE = manager.load_by_model(params);
     if (FE) {
         FE->add_extension(ov_exts);
+        FE->add_extension(ov_plugin_exts);
         if (!exts.empty())
             FE->add_extension(wrap_old_extensions(exts));
         inputModel = FE->load(params);
     }
     if (inputModel) {
         auto ngFunc = FE->convert(inputModel);
+        FE->remove_extension(ov_plugin_exts);
         return convert_to_cnnnetwork(ngFunc, exts, newAPI, frontendMode);
     }
 
