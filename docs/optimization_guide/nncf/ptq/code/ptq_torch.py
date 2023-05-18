@@ -26,8 +26,12 @@ from openvino.tools.mo import convert_model
 
 input_fp32 = ... # FP32 model input
 
-# convert PyTorch model to OpenVINO model
-ov_quantized_model = convert_model(quantized_model, example_input=input_fp32)
+# export PyTorch model to ONNX model
+onnx_model_path = "model.onnx"
+torch.onnx.export(quantized_model, input_fp32, onnx_model_path)
+
+# convert ONNX model to OpenVINO model
+ov_quantized_model = convert_model(onnx_model_path)
 
 # compile the model to transform quantized operations to int8
 model_int8 = ov.compile_model(ov_quantized_model)
