@@ -2,15 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <snippets/pass/transpose_decomposition.hpp>
-#include <snippets/itt.hpp>
-#include <snippets/snippets_isa.hpp>
-#include "snippets/lowered/port_descriptor.hpp"
-#include <ngraph/partial_shape.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/pass/manager.hpp>
+#include "snippets/pass/transpose_decomposition.hpp"
 
-namespace ngraph {
+#include "snippets/itt.hpp"
+#include "snippets/snippets_isa.hpp"
+#include "snippets/lowered/port_descriptor.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+
+namespace ov {
 namespace snippets {
 namespace pass {
 
@@ -22,15 +21,15 @@ TransposeDecomposition::TransposeDecomposition() {
     //       this is needed to communicate access pattern to the plugin node and op::Kernel
     //       This is the reason we match only to Parameter, this limitation could be relaxed if we propagate access pattern
     //       to the appropriate parameter
-    auto match_data = ngraph::pattern::wrap_type<opset1::Parameter>();
-    auto match_order = ngraph::pattern::wrap_type<opset1::Constant>();
-    auto match_transpose = ngraph::pattern::wrap_type<ngraph::opset1::Transpose>({match_data, match_order});
+    auto match_data = ov::pass::pattern::wrap_type<ov::op::v0::Parameter>();
+    auto match_order = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto match_transpose = ov::pass::pattern::wrap_type<ov::opset1::Transpose>({match_data, match_order});
 
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
-        OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::TransposeDecomposition")
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+        OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::TransposeDecomposition")
         auto& pattern_to_output = m.get_pattern_value_map();
         const auto& data_input = pattern_to_output.at(match_data);
-        const auto transpose = ov::as_type_ptr<ngraph::opset1::Transpose>(pattern_to_output.at(match_transpose).get_node_shared_ptr());
+        const auto transpose = ov::as_type_ptr<ov::opset1::Transpose>(pattern_to_output.at(match_transpose).get_node_shared_ptr());
 
         const auto order = ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(match_order).get_node_shared_ptr());
         if (transformation_callback(transpose) || transpose->is_dynamic())
@@ -61,10 +60,10 @@ TransposeDecomposition::TransposeDecomposition() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(match_transpose, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(match_transpose, matcher_name);
     register_matcher(m, callback);
 }
 
 }  // namespace pass
 }  // namespace snippets
-}  // namespace ngraph
+}  // namespace ov

@@ -5,7 +5,7 @@
 #include "snippets/op/serialization_node.hpp"
 
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace op {
 
@@ -60,4 +60,4 @@ bool SerializationNode::visit_attributes(AttributeVisitor &visitor) {
 
 } // namespace op
 } // namespace snippets
-} // namespace ngraph
+} // namespace ov

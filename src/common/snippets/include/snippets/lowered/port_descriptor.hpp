@@ -8,7 +8,7 @@
 #include "openvino/core/attribute_visitor.hpp"
 
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace lowered {
 
@@ -96,4 +96,4 @@ public:
 
 } // namespace lowered
 } // namespace snippets
-} // namespace ngraph
+} // namespace ov

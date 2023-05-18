@@ -4,21 +4,21 @@
 
 #pragma once
 
-#include "ngraph/pass/graph_rewrite.hpp"
-#include "ngraph/pattern/matcher.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
 
 #include "snippets/op/brgemm.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace pass {
 
 /**
  * @interface MatMulToBrgemm
- * @brief Replaces ngraph::MatMul with snippets::op::Brgemm operation (only non-trasposing MatMuls are currently supported)
+ * @brief Replaces ov::MatMul with snippets::op::Brgemm operation (only non-trasposing MatMuls are currently supported)
  * @ingroup snippets
  */
-class MatMulToBrgemm: public ngraph::pass::MatcherPass {
+class MatMulToBrgemm: public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("MatMulToBrgemm", "0");
     MatMulToBrgemm();
@@ -30,4 +30,4 @@ private:
 
 }  // namespace pass
 }  // namespace snippets
-}  // namespace ngraph
+}  // namespace ov

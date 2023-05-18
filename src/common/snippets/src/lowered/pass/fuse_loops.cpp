@@ -9,7 +9,7 @@
 #include "snippets/snippets_isa.hpp"
 #include "snippets/itt.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace lowered {
 namespace pass {
@@ -95,7 +95,7 @@ bool FuseLoops::fuse_upper_into_current(LinearIR& linear_ir, const LinearIR::Loo
         const auto consumer_inputs = target_exit_point.get_connected_ports();
         for (const auto& consumer_input : consumer_inputs) {
             const auto& consumer = consumer_input.get_expr();
-            if (ov::is_type<opset1::Result>(consumer->get_node()) || consumer == current_entry_point.get_expr())
+            if (ov::is_type<ov::op::v0::Result>(consumer->get_node()) || consumer == current_entry_point.get_expr())
                 continue;
             // The fusing is only valid if target Loop consumer (the Consumer is outside of target Loop)
             // is after current Loop (after Loop_down).
@@ -161,7 +161,7 @@ bool FuseLoops::fuse_lower_into_current(LinearIR& linear_ir, const LinearIR::Loo
         const auto target_entry_point = loop_target->entry_exprs[i];
         const auto parent_expr_output = *target_entry_point.get_connected_ports().begin();
         const auto& parent_expr = parent_expr_output.get_expr();
-        if (ov::is_type<opset1::Parameter>(parent_expr->get_node()) || parent_expr == current_exit_point.get_expr())
+        if (ov::is_type<ov::op::v0::Parameter>(parent_expr->get_node()) || parent_expr == current_exit_point.get_expr())
             continue;
         is_fusion_allowed = parent_expr->get_loop_ids()[dim_idx] == current_loop_id ||  // The parent expr is from the same current Loop
                             std::find(linear_ir.cbegin(), current_loop_begin_pos, parent_expr) != current_loop_begin_pos; // The parent is before current Loop
@@ -213,7 +213,7 @@ bool FuseLoops::fuse_lower_into_current(LinearIR& linear_ir, const LinearIR::Loo
 }
 
 bool FuseLoops::run(LinearIR& linear_ir) {
-    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::FuseLoops")
+    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::FuseLoops")
     if (linear_ir.empty())
         return false;
 
@@ -223,9 +223,9 @@ bool FuseLoops::run(LinearIR& linear_ir) {
     for (auto expr_it = linear_ir.begin(); expr_it != linear_ir.end(); expr_it++) {
         const auto expr = *expr_it;
         const auto& node = expr->get_node();
-        if (ov::is_type<opset1::Parameter>(node) ||
-            ov::is_type<opset1::Constant>(node) ||
-            ov::is_type<opset1::Result>(node))
+        if (ov::is_type<ov::op::v0::Parameter>(node) ||
+            ov::is_type<ov::op::v0::Constant>(node) ||
+            ov::is_type<ov::op::v0::Result>(node))
             continue;
 
         // Outer Loop ----> Inner Loop
@@ -267,8 +267,8 @@ bool FuseLoops::run(LinearIR& linear_ir) {
                     const auto parent_expr_output = *entry_point.get_connected_ports().begin();
                     const auto& parent_expr = parent_expr_output.get_expr();
                     const auto parent = parent_expr->get_node();
-                    if (ov::is_type<opset1::Constant>(parent) ||
-                        ov::is_type<opset1::Parameter>(parent) ||
+                    if (ov::is_type<ov::op::v0::Constant>(parent) ||
+                        ov::is_type<ov::op::v0::Parameter>(parent) ||
                         ov::is_type<op::Buffer>(parent)) {
                         continue;
                     }
@@ -303,7 +303,7 @@ bool FuseLoops::run(LinearIR& linear_ir) {
                     for (const auto& consumer_expr_input : consumer_exprs_inputs) {
                         const auto& consumer_expr = consumer_expr_input.get_expr();
                         const auto consumer = consumer_expr->get_node();
-                        if (ov::is_type<opset1::Result>(consumer) ||
+                        if (ov::is_type<ov::op::v0::Result>(consumer) ||
                             ov::is_type<op::Buffer>(consumer)) {
                             continue;
                         }
@@ -340,4 +340,4 @@ bool FuseLoops::run(LinearIR& linear_ir) {
 } // namespace pass
 } // namespace lowered
 } // namespace snippets
-} // namespace ngraph
+} // namespace ov

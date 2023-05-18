@@ -8,14 +8,14 @@
 #include "snippets/snippets_isa.hpp"
 #include "snippets/itt.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace lowered {
 namespace pass {
 
 
 bool LoadMoveBroadcastToBroadcastLoad::run(LinearIR& linear_ir) {
-    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::LoadMoveBroadcastToBroadcastLoad")
+    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::LoadMoveBroadcastToBroadcastLoad")
     bool modified = false;
 
     for (auto expr_it = linear_ir.begin(); expr_it != linear_ir.end(); expr_it++) {
@@ -62,4 +62,4 @@ bool LoadMoveBroadcastToBroadcastLoad::run(LinearIR& linear_ir) {
 } // namespace pass
 } // namespace lowered
 } // namespace snippets
-} // namespace ngraph
+} // namespace ov

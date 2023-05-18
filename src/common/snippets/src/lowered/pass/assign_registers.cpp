@@ -11,13 +11,13 @@
 // This header is needed to avoid MSVC warning "C2039: 'inserter': is not a member of 'std'"
 #include <iterator>
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace lowered {
 namespace pass {
 
 bool AssignRegisters::run(LinearIR& linear_ir) {
-    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::AssignRegisters")
+    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::AssignRegisters")
     using Reg = size_t;
     using tensor = TensorPtr;
     const auto& expressions = linear_ir.get_ops();
@@ -31,8 +31,8 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
         auto op = expr->get_node();
         auto reg_type = m_reg_type_mapper(op);
         typed_ops.emplace_back(reg_type, expr);
-        num_parameters += is_type<opset1::Parameter>(op);
-        num_results += is_type<opset1::Result>(op);
+        num_parameters += is_type<ov::op::v0::Parameter>(op);
+        num_results += is_type<ov::op::v0::Result>(op);
         ops.push_back(op);
         num_expressions++;
     }
@@ -189,7 +189,7 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
         }
         for (size_t n = 0; n < typed_ops.size(); n++) {
             const auto& expr = typed_ops[n].second;
-            if (is_type<op::LoopEnd>(expr->get_node()) || is_type<opset1::Result>(expr->get_node()))
+            if (is_type<op::LoopEnd>(expr->get_node()) || is_type<ov::op::v0::Result>(expr->get_node()))
                 continue;
             for (const auto& out : expr->get_output_tensors()) {
                 for (const auto& child_expr_input : out->get_consumers()) {
@@ -333,5 +333,5 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
 } // namespace pass
 } // namespace lowered
 } // namespace snippets
-} // namespace ngraph
+} // namespace ov
 

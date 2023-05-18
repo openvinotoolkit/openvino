@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include <ngraph/op/op.hpp>
+#include "openvino/op/op.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace op {
 
@@ -19,7 +19,7 @@ namespace op {
  * @ingroup snippets
  */
 
-class MemoryAccess : public ngraph::op::Op {
+class MemoryAccess : public ov::op::Op {
 public:
     OPENVINO_OP("MemoryAccess", "SnippetsOpset");
 
@@ -86,4 +86,4 @@ protected:
 
 } // namespace op
 } // namespace snippets
-} // namespace ngraph
+} // namespace ov

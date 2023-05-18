@@ -8,7 +8,7 @@
 #include "snippets/snippets_isa.hpp"
 #include "snippets/itt.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace lowered {
 namespace pass {
@@ -146,7 +146,7 @@ auto IdentifyBuffers::coloring(BufferSet& buffers, std::vector<bool>& adj) -> st
 }
 
 bool IdentifyBuffers::run(LinearIR& linear_ir) {
-    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::IdentifyBuffers")
+    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::IdentifyBuffers")
     // Unite Buffers using Graph coloring algorithm.
     // Notes: We identify only Buffer with Intermediate memory because Buffers with new memory are used only in Brgemm case
     //        so these Buffers are always IntermediateBuffer nonadjacent
@@ -178,4 +178,4 @@ bool IdentifyBuffers::run(LinearIR& linear_ir) {
 } // namespace pass
 } // namespace lowered
 } // namespace snippets
-} // namespace ngraph
+} // namespace ov

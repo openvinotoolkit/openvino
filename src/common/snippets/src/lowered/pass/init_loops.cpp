@@ -9,7 +9,7 @@
 #include "snippets/snippets_isa.hpp"
 #include "snippets/itt.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace lowered {
 namespace pass {
@@ -160,7 +160,7 @@ void InitLoops::insertion(LinearIR& linear_ir, const LinearIR::LoopManager::Loop
 }
 
 bool InitLoops::run(LinearIR& linear_ir) {
-    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::InitLoops")
+    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::InitLoops")
     if (linear_ir.empty())
         return false;
 
@@ -172,8 +172,8 @@ bool InitLoops::run(LinearIR& linear_ir) {
         const auto& node = expr->get_node();
         if (ov::is_type<op::LoopBase>(node) ||
             ov::is_type<op::Buffer>(node) ||     // Need to cover Buffer
-            ov::is_type<opset1::Parameter>(node) ||
-            ov::is_type<opset1::Result>(node))
+            ov::is_type<ov::op::v0::Parameter>(node) ||
+            ov::is_type<ov::op::v0::Result>(node))
             continue;
 
         // Outer Loop ----> Inner Loop
@@ -199,4 +199,4 @@ bool InitLoops::run(LinearIR& linear_ir) {
 } // namespace pass
 } // namespace lowered
 } // namespace snippets
-} // namespace ngraph
+} // namespace ov

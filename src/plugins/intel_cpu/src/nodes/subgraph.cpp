@@ -74,25 +74,25 @@ private:
 };
 } // namespace
 
-Snippet::Snippet(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+Snippet::Snippet(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
         : Node(op, context, SnippetShapeInferFactory(this)) {
     host_isa = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ?
         dnnl::impl::cpu::x64::avx512_core : dnnl::impl::cpu::x64::avx2;
-    original_snippet = ov::as_type_ptr<ngraph::snippets::op::Subgraph>(op);
+    original_snippet = ov::as_type_ptr<snippets::op::Subgraph>(op);
     if (!original_snippet) {
         IE_THROW(NotImplemented) << "Node is not an instance of snippets::op::Subgraph";
     }
 }
 
 void Snippet::copy_snippet() {
-    ngraph::OutputVector subgraph_node_inputs;
+    ov::OutputVector subgraph_node_inputs;
     for (const auto &input : original_snippet->input_values()) {
-        auto new_input = std::make_shared<ngraph::opset1::Parameter>(input.get_element_type(), input.get_partial_shape());
+        auto new_input = std::make_shared<ov::opset1::Parameter>(input.get_element_type(), input.get_partial_shape());
         subgraph_node_inputs.push_back(new_input);
     }
     std::shared_ptr<ov::Model> new_body = original_snippet->body_ptr()->clone();
-    snippet = std::make_shared<ngraph::snippets::op::Subgraph>(subgraph_node_inputs, new_body);
-    ngraph::copy_runtime_info(original_snippet, snippet);
+    snippet = std::make_shared<snippets::op::Subgraph>(subgraph_node_inputs, new_body);
+    ov::copy_runtime_info(original_snippet, snippet);
     snippet->set_friendly_name(original_snippet->get_friendly_name());
 #if defined(OPENVINO_ARCH_X86_64)
     snippet->set_generator(std::make_shared<CPUGenerator>(host_isa));
@@ -323,14 +323,14 @@ ov::PartialShape Snippet::canonicalizeBody() {
         // if blockDim == Shape::UNDEFINED_DIM, then it's a dynamic dimension, and we need to recreate a proper dynamic Dim
         for (const auto& d : blockedDesc->getBlockDims())
             dims.emplace_back(d == Shape::UNDEFINED_DIM ? -1 : d);
-        ngraph::PartialShape shape(dims);
-        ngraph::AxisVector blocking(blockedDesc->getOrder());
-        ngraph::element::Type precision = InferenceEngine::details::convertPrecision(blockedDesc->getPrecision());
-        return ngraph::snippets::op::Subgraph::BlockedShape{shape, blocking, precision};
+        ov::PartialShape shape(dims);
+        ov::AxisVector blocking(blockedDesc->getOrder());
+        ov::element::Type precision = InferenceEngine::details::convertPrecision(blockedDesc->getPrecision());
+        return snippets::op::Subgraph::BlockedShape{shape, blocking, precision};
     };
     inputShapeIsBlocked.resize(inputShapes.size(), false);
     masterShapeIsBlocked = false;
-    ngraph::snippets::op::Subgraph::BlockedShapeVector input_blocked_shapes;
+    snippets::op::Subgraph::BlockedShapeVector input_blocked_shapes;
     for (size_t i = 0; i < inputShapes.size(); i++) {
         auto blockedShape = edgeToBlockedShape(getParentEdgesAtPort(i)[0]);
         inputShapeIsBlocked[i] = std::get<0>(blockedShape).size() != std::get<1>(blockedShape).size();
@@ -339,7 +339,7 @@ ov::PartialShape Snippet::canonicalizeBody() {
     }
 
     outputShapeIsBlocked.resize(outputShapes.size(), false);
-    ngraph::snippets::op::Subgraph::BlockedShapeVector output_blocked_shapes;
+    ov::snippets::op::Subgraph::BlockedShapeVector output_blocked_shapes;
     for (size_t i = 0; i < outputShapes.size(); i++) {
         auto blockedShape = edgeToBlockedShape(getChildEdgesAtPort(i)[0]);
         outputShapeIsBlocked[i] = std::get<0>(blockedShape).size() != std::get<1>(blockedShape).size();
@@ -553,7 +553,7 @@ void Snippet::generate(const jit_snippets_compile_args* jcp) {
         // enforce BF16 precisions to supported operations
         // MatMul has to be decomposed to Brgemm operations before enforcement
         // Note, MatMul decomposition will be ran later again for case if BF16 enforcement is not happened
-        CPU_REGISTER_PASS_X64(pre_dialect, ngraph::snippets::pass::MatMulToBrgemm);
+        CPU_REGISTER_PASS_X64(pre_dialect, ov::snippets::pass::MatMulToBrgemm);
         CPU_REGISTER_PASS_X64(pre_dialect, pass::EnforcePrecision, element::f32, element::bf16);
     }
 
@@ -564,7 +564,7 @@ void Snippet::generate(const jit_snippets_compile_args* jcp) {
     CPU_REGISTER_PASS_X64(post_precision, ov::intel_cpu::pass::RemoveConverts);
     CPU_REGISTER_PASS_X64(post_precision, ov::intel_cpu::pass::MulAddToFMA);
 
-    ngraph::snippets::lowered::pass::PassPipeline target_specific_pipeline;
+    ov::snippets::lowered::pass::PassPipeline target_specific_pipeline;
     CPU_REGISTER_PASS_X64(target_specific_pipeline, ov::intel_cpu::pass::FuseLoadStoreConvert);
 
     schedule = snippet->generate(

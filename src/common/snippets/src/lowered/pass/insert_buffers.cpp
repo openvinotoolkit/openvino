@@ -10,7 +10,7 @@
 #include "snippets/itt.hpp"
 
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace lowered {
 namespace pass {
@@ -70,8 +70,8 @@ void InsertBuffers::insertion(LinearIR& linear_ir, const LinearIR::LoopManagerPt
         const auto parent = parent_expr->get_node();
         if (ov::is_type<op::Buffer>(parent) ||
             ov::is_type<op::VectorBuffer>(parent) ||
-            ov::is_type<opset1::Parameter>(parent) ||
-            ov::is_type<opset1::Constant>(parent))
+            ov::is_type<ov::op::v0::Parameter>(parent) ||
+            ov::is_type<ov::op::v0::Constant>(parent))
             continue;
 
         // Each MemoryAccess op needs Buffer
@@ -128,7 +128,7 @@ void InsertBuffers::insertion(LinearIR& linear_ir, const LinearIR::LoopManagerPt
             const auto& child_expr = child_expr_input.get_expr();
             const auto child_port = child_expr_input.get_index();
             const auto& child = child_expr->get_node();
-            if (ov::is_type<opset1::Result>(child))
+            if (ov::is_type<ov::op::v0::Result>(child))
                 continue;
             if (ov::is_type<op::Buffer>(child)) {
                 buffers.insert(child_expr);
@@ -195,7 +195,7 @@ void InsertBuffers::insertion(LinearIR& linear_ir, const LinearIR::LoopManagerPt
 }
 
 bool InsertBuffers::run(LinearIR& linear_ir) {
-    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::InsertBuffers")
+    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::InsertBuffers")
     if (linear_ir.empty())
         return false;
 
@@ -235,4 +235,4 @@ bool InsertBuffers::run(LinearIR& linear_ir) {
 } // namespace pass
 } // namespace lowered
 } // namespace snippets
-} // namespace ngraph
+} // namespace ov

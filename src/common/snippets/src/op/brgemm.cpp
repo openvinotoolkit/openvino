@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "snippets/itt.hpp"
 #include "snippets/op/brgemm.hpp"
-#include "ngraph/runtime/host_tensor.hpp"
-#include "openvino/core/rt_info.hpp"
+
+#include "snippets/itt.hpp"
 #include "snippets/utils.hpp"
 
-namespace ngraph {
+#include "openvino/core/rt_info.hpp"
+
+namespace ov {
 namespace snippets {
 namespace op {
 
@@ -30,10 +31,10 @@ void Brgemm::custom_constructor_validate_and_infer_types(std::vector<size_t> lay
     // During ctor call, Brgemm doesn't know his port descriptors.
     // So we use explicit layouts from parameters
     const auto planar_input_shapes =
-            std::vector<ov::PartialShape>{ ngraph::snippets::utils::get_reordered_planar_shape(get_input_partial_shape(0), layout_a),
-                                           ngraph::snippets::utils::get_reordered_planar_shape(get_input_partial_shape(1), layout_b) };
+            std::vector<ov::PartialShape>{ ov::snippets::utils::get_reordered_planar_shape(get_input_partial_shape(0), layout_a),
+                                           ov::snippets::utils::get_reordered_planar_shape(get_input_partial_shape(1), layout_b) };
     auto output_shape = get_output_partial_shape(planar_input_shapes);
-    set_output_type(0, get_output_type(), ngraph::snippets::utils::get_reordered_planar_shape(output_shape, layout_c));
+    set_output_type(0, get_output_type(), ov::snippets::utils::get_reordered_planar_shape(output_shape, layout_c));
 }
 
 void Brgemm::validate_inputs() const {
@@ -164,4 +165,4 @@ ov::PartialShape Brgemm::get_output_partial_shape(const std::vector<ov::PartialS
 
 } // namespace op
 } // namespace snippets
-} // namespace ngraph
+} // namespace ov

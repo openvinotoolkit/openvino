@@ -10,11 +10,11 @@
 #include "snippets/snippets_isa.hpp"
 #include "snippets/itt.hpp"
 
-#include "ngraph/pattern/op/wrap_type.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace lowered {
 namespace pass {
@@ -22,12 +22,12 @@ namespace pass {
 SoftmaxDecomposition::SoftmaxDecomposition(size_t vector_size) : m_vector_size{vector_size} {}
 
 bool SoftmaxDecomposition::run(LinearIR& linear_ir) {
-    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::SoftmaxDecompositionLowered")
+    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::SoftmaxDecompositionLowered")
     bool modified = false;
     const auto& loop_manager = linear_ir.get_loop_manager();
 
-    auto match_softmax = ngraph::pattern::wrap_type<opset1::Softmax>();
-    auto matcher = std::make_shared<pattern::Matcher>(match_softmax, "SoftmaxDecompositionLowered");
+    auto match_softmax = ov::pass::pattern::wrap_type<ov::op::v1::Softmax>();
+    auto matcher = std::make_shared<ov::pass::pattern::Matcher>(match_softmax, "SoftmaxDecompositionLowered");
 
     for (auto expr_it = linear_ir.begin(); expr_it != linear_ir.end(); expr_it++) {
         const auto& op = (*expr_it)->get_node();
@@ -154,4 +154,4 @@ bool SoftmaxDecomposition::run(LinearIR& linear_ir) {
 } // namespace pass
 } // namespace lowered
 } // namespace snippets
-} // namespace ngraph
+} // namespace ov

@@ -8,7 +8,7 @@
 #include "snippets/snippets_isa.hpp"
 #include "snippets/itt.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace lowered {
 namespace pass {
@@ -24,7 +24,7 @@ void InsertTailLoop::tail_transformations(LinearIR& linear_ir,
         auto fill_rt = rt.find("set_fill");
         if (fill_rt != rt.end()) {
             const auto fill_value = fill_rt->second.as<uint32_t>();
-            fill = std::make_shared<ngraph::snippets::op::Fill>(input.get_source_output(), tail_size, fill_value);
+            fill = std::make_shared<ov::snippets::op::Fill>(input.get_source_output(), tail_size, fill_value);
             input.get_node()->set_argument(input.get_index(), fill);
         }
         return fill;
@@ -52,7 +52,7 @@ void InsertTailLoop::tail_transformations(LinearIR& linear_ir,
                     fill_expr->get_output_port_descriptor(0)->set_reg(reg);
                 }
             }
-        } else if (const auto memory_access = std::dynamic_pointer_cast<ngraph::snippets::op::MemoryAccess>(op)) {
+        } else if (const auto memory_access = std::dynamic_pointer_cast<ov::snippets::op::MemoryAccess>(op)) {
             for (const auto p : memory_access->get_memory_access_input_ports()) {
                 const auto port = p.first;
                 if (memory_access->get_input_count(port) > 1) {
@@ -70,7 +70,7 @@ void InsertTailLoop::tail_transformations(LinearIR& linear_ir,
 }
 
 bool InsertTailLoop::run(LinearIR& linear_ir) {
-    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::insertTailLoop")
+    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::insertTailLoop")
     bool modified = false;
     // *1* solo vector/tail loop + empty outer loop
     //      => skip increments (both counter & ptr) : set evaluate_once flag
@@ -120,7 +120,7 @@ bool InsertTailLoop::run(LinearIR& linear_ir) {
                std::any_of(loop_outs.begin(), loop_outs.end(), is_buffer_output);
     };
     for (auto expr_it = linear_ir.begin(); expr_it != linear_ir.end();) {
-        const auto& loop_begin = ov::as_type_ptr<ngraph::snippets::op::LoopBegin>((*expr_it)->get_node());
+        const auto& loop_begin = ov::as_type_ptr<ov::snippets::op::LoopBegin>((*expr_it)->get_node());
         if (!loop_begin) {
             expr_it++;
             continue;
@@ -166,8 +166,8 @@ bool InsertTailLoop::run(LinearIR& linear_ir) {
                 if (need_vector_loop) {
                     auto vector_loop_deep_copy = LinearIR::deep_copy_range(loop_begin_expr_it, expr_it);
                     auto is_par_or_res = [](const ExpressionPtr& expr) {
-                        return is_type<opset1::Parameter>(expr->get_node()) ||
-                               is_type<opset1::Result>(expr->get_node());
+                        return is_type<ov::op::v0::Parameter>(expr->get_node()) ||
+                               is_type<ov::op::v0::Result>(expr->get_node());
                     };
                     // Note: It's illegal to insert Parameter or Result to the IR, but they can appear inside vector loop
                     //  So we have to remo them before injecting tail loop into linear_ir
@@ -206,5 +206,5 @@ bool InsertTailLoop::run(LinearIR& linear_ir) {
 } // namespace pass
 } // namespace lowered
 } // namespace snippets
-} // namespace ngraph
+} // namespace ov
 

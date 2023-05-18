@@ -7,7 +7,7 @@
 #include "snippets/utils.hpp"
 
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace lowered {
 
@@ -54,4 +54,4 @@ bool operator<(const ExpressionPort& lhs, const ExpressionPort& rhs) {
 
 }// namespace lowered
 }// namespace snippets
-}// namespace ngraph
+}// namespace ov

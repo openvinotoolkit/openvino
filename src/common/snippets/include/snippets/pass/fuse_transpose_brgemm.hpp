@@ -4,14 +4,14 @@
 
 #pragma once
 
-#include "ngraph/pass/graph_rewrite.hpp"
-#include "ngraph/pattern/matcher.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
 
 #include "openvino/op/transpose.hpp"
 
 #include "snippets/lowered/port_descriptor.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace pass {
 
@@ -22,7 +22,7 @@ namespace pass {
  *        but only 0213 Transpose is currently supported.
  * @ingroup snippets
  */
-class FuseTransposeBrgemm: public ngraph::pass::MatcherPass {
+class FuseTransposeBrgemm: public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("FuseTransposeBrgemm", "0");
     FuseTransposeBrgemm();
@@ -34,4 +34,4 @@ private:
 
 }  // namespace pass
 }  // namespace snippets
-}  // namespace ngraph
+}  // namespace ov

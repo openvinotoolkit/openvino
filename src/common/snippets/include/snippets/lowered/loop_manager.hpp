@@ -11,7 +11,7 @@
 
 #include "port_descriptor.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace lowered {
 
@@ -80,4 +80,4 @@ private:
 
 } // namespace lowered
 } // namespace snippets
-} // namespace ngraph
+} // namespace ov

@@ -8,13 +8,13 @@
 #include "snippets/snippets_isa.hpp"
 #include "snippets/itt.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace lowered {
 namespace pass {
 
 bool CleanupLoopOffsets::run(LinearIR& linear_ir) {
-    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::CleanupLoopOffsets")
+    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::CleanupLoopOffsets")
     if (linear_ir.empty())
         return false;
     bool is_modified = false;
@@ -28,7 +28,7 @@ bool CleanupLoopOffsets::run(LinearIR& linear_ir) {
                 // Note: Finalization offsets before the Result can be safely disregarded
                 // TODO: Need verify that Buffers on the inputs doesn't have other consumers (other Loops)
                 //       and this Loop doesn't have Buffer on other outputs.
-                if (is_type<ngraph::op::v0::Result>(next_node)) {
+                if (is_type<ov::op::v0::Result>(next_node)) {
                     const auto& fin_offsets = loop_end->get_finalization_offsets();
                     loop_end->set_finalization_offsets(std::vector<int64_t>(fin_offsets.size(), 0));
                     is_modified = true;
@@ -62,5 +62,5 @@ bool CleanupLoopOffsets::run(LinearIR& linear_ir) {
 } // namespace pass
 } // namespace lowered
 } // namespace snippets
-} // namespace ngraph
+} // namespace ov
 

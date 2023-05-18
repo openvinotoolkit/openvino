@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <snippets/itt.hpp>
+#include "snippets/itt.hpp"
 #include "snippets/op/memory_access.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace op {
 
@@ -119,4 +119,4 @@ size_t MemoryAccess::get_output_offset(size_t idx) const {
 
 } // namespace op
 } // namespace snippets
-} // namespace ngraph
+} // namespace ov

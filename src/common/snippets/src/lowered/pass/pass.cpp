@@ -5,7 +5,7 @@
 #include "snippets/lowered/pass/pass.hpp"
 
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace lowered {
 namespace pass {
@@ -23,4 +23,4 @@ void PassPipeline::run(LinearIR& linear_ir) {
 } // namespace pass
 } // namespace lowered
 } // namespace snippets
-} // namespace ngraph
+} // namespace ov

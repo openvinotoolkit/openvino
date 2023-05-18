@@ -5,19 +5,19 @@
 #include "snippets/utils.hpp"
 
 #include "snippets/pass/fq_decomposition.hpp"
-#include <ngraph/rt_info.hpp>
+#include "openvino/core/rt_info.hpp"
 
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace utils {
 
-auto get_non_scalar_constant_count_for_fq(const std::shared_ptr<opset1::FakeQuantize>& fq) -> size_t {
+auto get_non_scalar_constant_count_for_fq(const std::shared_ptr<ov::op::v0::FakeQuantize>& fq) -> size_t {
     std::vector<float> cl, ch, isc, ish, osc, osh;
-    const bool status = ngraph::snippets::pass::FakeQuantizeDecomposition::getScalesAndShifts(fq, cl, ch, isc, ish, osc, osh);
+    const bool status = ov::snippets::pass::FakeQuantizeDecomposition::getScalesAndShifts(fq, cl, ch, isc, ish, osc, osh);
     bool is_optimized = false;  // The case when we can calculate only scales
     if (status) {
-        const auto out_scales = ngraph::snippets::pass::FakeQuantizeDecomposition::calculateScales(fq->get_output_element_type(0), cl, ch, isc, ish, osc, osh);
+        const auto out_scales = ov::snippets::pass::FakeQuantizeDecomposition::calculateScales(fq->get_output_element_type(0), cl, ch, isc, ish, osc, osh);
         is_optimized = out_scales.size() != 0;
     }
 
@@ -26,10 +26,10 @@ auto get_non_scalar_constant_count_for_fq(const std::shared_ptr<opset1::FakeQuan
                                                      [](float val) { return val == 1.f; }) &&
                                                  std::all_of(osh.cbegin(), osh.cend(),
                                                      [](float val) { return val == 0.f; }));
-    const bool il = ngraph::shape_size(fq->input(1).get_shape()) != 1lu;
-    const bool ih = ngraph::shape_size(fq->input(2).get_shape()) != 1lu;
-    const bool ol = !only_quantized && ngraph::shape_size(fq->input(3).get_shape()) != 1lu;
-    const bool oh = !only_quantized && ngraph::shape_size(fq->input(4).get_shape()) != 1lu;
+    const bool il = ov::shape_size(fq->input(1).get_shape()) != 1lu;
+    const bool ih = ov::shape_size(fq->input(2).get_shape()) != 1lu;
+    const bool ol = !only_quantized && ov::shape_size(fq->input(3).get_shape()) != 1lu;
+    const bool oh = !only_quantized && ov::shape_size(fq->input(4).get_shape()) != 1lu;
 
     // FakeQuantize decompoisition has the folowwing formula:
     //      round(x * (levels-1) / (ih - il) - il * (levels-1) / (ih - il)) * (oh - ol) / (levels-1) + ol
@@ -104,4 +104,4 @@ void safe_copy_runtime_info(const std::shared_ptr<ov::Node>& from, const std::sh
 
 } // namespace utils
 } // namespace snippets
-} // namespace ngraph
+} // namespace ov

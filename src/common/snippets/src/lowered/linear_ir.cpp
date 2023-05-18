@@ -4,17 +4,17 @@
 
 #include "snippets/lowered/linear_ir.hpp"
 
-#include <snippets/itt.hpp>
+#include "snippets/itt.hpp"
 
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/lowered/expression_factory.hpp"
-#include <snippets/op/serialization_node.hpp>
+#include "snippets/op/serialization_node.hpp"
 #include "snippets/utils.hpp"
 
-#include <openvino/core/graph_util.hpp>
-#include <openvino/core/type.hpp>
+#include "openvino/core/graph_util.hpp"
+#include "openvino/core/type.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace lowered {
 
@@ -67,14 +67,14 @@ ov::NodeVector LinearIR::get_ordered_ops(const std::shared_ptr<ov::Model>& m) {
 }
 
 void LinearIR::serialize(const std::string& xml, const std::string& bin) {
-    auto first_node = std::make_shared<opset1::Parameter>(element::f32, Shape{});
+    auto first_node = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{});
     first_node->set_friendly_name("Start");
     first_node->get_rt_info()["execTimeMcs"] = 0;
     std::shared_ptr<Node> body_node = first_node;
     for (const auto& expr : m_lowered_ops) {
         body_node = std::make_shared<op::SerializationNode>(body_node, expr);
     }
-    auto last_node = std::make_shared<opset1::Result>(body_node);
+    auto last_node = std::make_shared<ov::op::v0::Result>(body_node);
     last_node->set_friendly_name("End");
     const auto tmp_model = std::make_shared<ov::Model>(ResultVector {last_node},
                                                        ParameterVector {first_node},
@@ -90,7 +90,7 @@ LinearIR::container LinearIR::deep_copy_range(LinearIR::container::const_iterato
     NodeVector original_nodes;
     for (auto it = begin; it != end; it++)
         original_nodes.push_back((*it)->get_node());
-    NodeMap node_map;
+    ngraph::NodeMap node_map;
     ngraph::clone_nodes(original_nodes,  node_map);
     for (auto it = begin; it != end; it++) {
         // copy by value, so result shared_pointer point to new objects
@@ -260,4 +260,4 @@ void LinearIR::move(LinearIR::constExprIt from, LinearIR::constExprIt to) {
 
 }// namespace lowered
 }// namespace snippets
-}// namespace ngraph
+}// namespace ov

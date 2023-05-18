@@ -4,11 +4,11 @@
 
 #pragma once
 
-#include <ngraph/op/op.hpp>
+#include "openvino/op/op.hpp"
 #include <snippets/snippets_isa.hpp>
 #include <snippets/lowered/expression.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace op {
 
@@ -17,7 +17,7 @@ namespace op {
  * @brief Fake node needed to serialize lowered::Expression sessionIR
  * @ingroup snippets
  */
-class SerializationNode : public ngraph::op::Op {
+class SerializationNode : public ov::op::Op {
 public:
     OPENVINO_OP("SerializationNode", "SnippetsOpset");
 
@@ -34,4 +34,4 @@ private:
 
 } // namespace op
 } // namespace snippets
-} // namespace ngraph
+} // namespace ov

@@ -4,11 +4,11 @@
 
 #pragma once
 
-#include "ngraph/op/op.hpp"
+#include "openvino/op/op.hpp"
 #include "snippets/emitter.hpp"
 #include "ngraph/op/parameter.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace op {
 
@@ -17,7 +17,7 @@ namespace op {
  * @brief Base class for LoopBegin and LoopEnd
  * @ingroup snippets
  */
-class LoopBase : public ngraph::op::Op {
+class LoopBase : public ov::op::Op {
 public:
     OPENVINO_OP("LoopBase", "SnippetsOpset");
     LoopBase(const std::vector<Output<Node>>& args);
@@ -112,4 +112,4 @@ private:
 
 } // namespace op
 } // namespace snippets
-} // namespace ngraph
+} // namespace ov

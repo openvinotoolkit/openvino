@@ -18,9 +18,9 @@ namespace intel_cpu {
  *        with support of several precisions on plugin level
  * @ingroup snippets
  */
-class BrgemmCPU : public ngraph::snippets::op::Brgemm {
+class BrgemmCPU : public snippets::op::Brgemm {
 public:
-    OPENVINO_OP("BrgemmCPU", "SnippetsOpset", ngraph::snippets::op::Brgemm);
+    OPENVINO_OP("BrgemmCPU", "SnippetsOpset", snippets::op::Brgemm);
 
     enum Type {
         Floating,          // f32|f32

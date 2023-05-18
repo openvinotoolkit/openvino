@@ -7,7 +7,7 @@
 #include "pass.hpp"
 #include "snippets/snippets_isa.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace lowered {
 namespace pass {
@@ -34,4 +34,4 @@ private:
 } // namespace pass
 } // namespace lowered
 } // namespace snippets
-} // namespace ngraph
+} // namespace ov

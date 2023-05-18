@@ -6,8 +6,6 @@
 
 #include "store_convert.hpp"
 
-#include "ngraph/runtime/host_tensor.hpp"
-
 using namespace std;
 using namespace ov;
 

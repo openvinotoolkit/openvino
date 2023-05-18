@@ -4,13 +4,13 @@
 
 #include "snippets/lowered/expression.hpp"
 
-#include <snippets/itt.hpp>
+#include "snippets/itt.hpp"
 #include "snippets/utils.hpp"
 
-#include <openvino/core/graph_util.hpp>
-#include <openvino/core/type.hpp>
+#include "openvino/core/graph_util.hpp"
+#include "openvino/core/type.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace lowered {
 
@@ -126,4 +126,4 @@ IOExpression::IOExpression(const std::shared_ptr<ov::opset1::Result>& res, int64
 
 }// namespace lowered
 }// namespace snippets
-}// namespace ngraph
+}// namespace ov

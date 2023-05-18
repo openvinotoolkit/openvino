@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/rt_info.hpp>
-#include <cpu/x64/jit_generator.hpp>
-
 #include "jit_snippets_emitters.hpp"
+
+#include <cpu/x64/jit_generator.hpp>
 
 #include "snippets/lowered/expression.hpp"
 #include "snippets/op/subgraph.hpp"
@@ -18,15 +17,15 @@
 #include "snippets/lowered/tensor.hpp"
 
 using namespace InferenceEngine;
-using ngraph::snippets::op::Subgraph;
-using ngraph::snippets::AllocatedEmitter;
+using ov::snippets::op::Subgraph;
+using ov::snippets::AllocatedEmitter;
 using namespace Xbyak;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
-using ngraph::snippets::lowered::Expression;
-using ngraph::snippets::lowered::IOExpression;
-using ngraph::snippets::lowered::ExpressionPtr;
-using ngraph::snippets::lowered::TensorPtr;
+using ov::snippets::lowered::Expression;
+using ov::snippets::lowered::IOExpression;
+using ov::snippets::lowered::ExpressionPtr;
+using ov::snippets::lowered::TensorPtr;
 
 namespace ov {
 namespace intel_cpu {
@@ -46,7 +45,7 @@ jit_container_emitter::jit_container_emitter(dnnl::impl::cpu::x64::jit_generator
 }
 
 void jit_container_emitter::map_abstract_registers(mapping_info& gpr_map_pool,  mapping_info& vec_map_pool,
-                            ngraph::snippets::lowered::LinearIR::container& expressions) const {
+                                                   snippets::lowered::LinearIR::container& expressions) const {
     if (expressions.empty())
         IE_THROW() << "Cannot map registers when there is no allocated_emitters provided";
     auto map_regs = [](const std::vector<size_t>& abstract_regs, mapping_info& mapping) {
@@ -108,7 +107,7 @@ KernelEmitter::KernelEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
     jit_container_emitter(h, isa, n),
     reg_indexes_idx(abi_param1.getIdx()),
     reg_const_params_idx(abi_param2.getIdx()) {
-    const auto kernel = ov::as_type_ptr<ngraph::snippets::op::Kernel>(n);
+    const auto kernel = ov::as_type_ptr<snippets::op::Kernel>(n);
     if (!kernel)
         IE_THROW() << "KernelEmitter invoked with invalid op argument";
     if (kernel->region.empty())
@@ -121,16 +120,16 @@ KernelEmitter::KernelEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
     num_inputs = 0;
     num_outputs = 0;
     for (const auto& expr : io_exprs) {
-        ngraph::snippets::lowered::PortDescriptorPtr desc = nullptr;
+        snippets::lowered::PortDescriptorPtr desc = nullptr;
         element::Type etype;
         switch (expr->get_type()) {
-            case ngraph::snippets::lowered::IOExpression::io_type::INPUT: {
+            case snippets::lowered::IOExpression::io_type::INPUT: {
                 desc = expr->get_output_port_descriptor(0);
                 etype = expr->get_node()->get_output_element_type(0);
                 num_inputs++;
                 break;
             }
-            case ngraph::snippets::lowered::IOExpression::io_type::OUTPUT: {
+            case snippets::lowered::IOExpression::io_type::OUTPUT: {
                 num_outputs++;
                 desc = expr->get_input_port_descriptor(0);
                 etype = expr->get_node()->get_input_element_type(0);
@@ -164,16 +163,16 @@ KernelEmitter::KernelEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
 
     mapping_info gpr_map_pool({}, gp_regs_pool);
     mapping_info vec_map_pool({}, vec_regs_pool);
-    ngraph::snippets::lowered::LinearIR::container mem_access_exprs;
-    ngraph::snippets::lowered::LinearIR::container general_exprs;
+    snippets::lowered::LinearIR::container mem_access_exprs;
+    snippets::lowered::LinearIR::container general_exprs;
     std::set<size_t> unique_buffers;
 
     for (const auto& expr : body) {
         // Brgemm is a special case since it incorporates input and output (we use onednn kernel)
         // Just like Load & Store it requires offsets calculation
-        if (std::dynamic_pointer_cast<ngraph::snippets::lowered::IOExpression>(expr)) {
+        if (std::dynamic_pointer_cast<snippets::lowered::IOExpression>(expr)) {
             mem_access_exprs.emplace_back(expr);
-        } else if (const auto buffer = ov::as_type_ptr<ngraph::snippets::op::Buffer>(expr->get_node())) {
+        } else if (const auto buffer = ov::as_type_ptr<snippets::op::Buffer>(expr->get_node())) {
             const auto buffer_id = buffer->get_id();
             if (unique_buffers.count(buffer_id) == 0) {
                 mem_access_exprs.push_back(expr);
@@ -323,14 +322,14 @@ void KernelEmitter::emit_impl(const std::vector<size_t>& in,
 
 LoopBeginEmitter::LoopBeginEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
                          const std::shared_ptr<ov::Node>& n) : jit_emitter(h, isa, n) {
-    loop_begin = ov::as_type_ptr<ngraph::snippets::op::LoopBegin>(n);
+    loop_begin = ov::as_type_ptr<snippets::op::LoopBegin>(n);
     if (!loop_begin)
         IE_THROW() << "LoopBeginEmitter invoked with invalid op argument";
     const auto& target_inputs = loop_begin->output(loop_begin->get_output_size() - 1).get_target_inputs();
     // todo: this check could be excessive, since we check for it in validate_and_infer_types()
     if (target_inputs.size() != 1)
         IE_THROW() << "LoopBeginEmitter invoked with invalid configuration: the last output must have exactly one input attached";
-    const auto loop_end = ov::as_type_ptr<ngraph::snippets::op::LoopEnd>(target_inputs.begin()->get_node()->shared_from_this());
+    const auto loop_end = ov::as_type_ptr<snippets::op::LoopEnd>(target_inputs.begin()->get_node()->shared_from_this());
     if (!loop_end)
         IE_THROW() << "LoopBeginEmitter invoked with invalid configuration: the last output must be LoopEnd";
     work_amount = loop_end->get_work_amount();
@@ -369,7 +368,7 @@ void LoopBeginEmitter::emit_impl(const std::vector<size_t>& in,
 
 LoopEndEmitter::LoopEndEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
                                    const std::shared_ptr<ov::Node>& n) : jit_emitter(h, isa, n) {
-    loop_end = ov::as_type_ptr<ngraph::snippets::op::LoopEnd>(n);
+    loop_end = ov::as_type_ptr<snippets::op::LoopEnd>(n);
     if (!loop_end)
         IE_THROW() << "LoopEndEmitter invoked with invalid op argument";
     loop_begin = loop_end->get_loop_begin();
@@ -532,7 +531,7 @@ StoreEmitter::StoreEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::c
     if (src_prc != dst_prc)
         IE_THROW() << "StoreEmitter supports only equal input and output types but gets: " << src_prc.name() << " and " << dst_prc.name();
 
-    const auto store = ov::as_type_ptr<ngraph::snippets::op::Store>(n);
+    const auto store = ov::as_type_ptr<snippets::op::Store>(n);
     count = store->get_count();
     byte_offset = store->get_offset();
     in_out_type_ = emitter_in_out_map::vec_to_gpr;
@@ -568,7 +567,7 @@ LoadEmitter::LoadEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu
     if (src_prc != dst_prc)
         IE_THROW() << "LoadEmitter supports only equal input and output types but gets: " << src_prc.name() << " and " << dst_prc.name();
 
-    const auto load = std::dynamic_pointer_cast<ngraph::snippets::op::Load>(n);
+    const auto load = std::dynamic_pointer_cast<snippets::op::Load>(n);
     count = load->get_count();
     byte_offset = load->get_offset();
     in_out_type_ = emitter_in_out_map::gpr_to_vec;
@@ -604,7 +603,7 @@ BroadcastLoadEmitter::BroadcastLoadEmitter(dnnl::impl::cpu::x64::jit_generator* 
     if (src_prc != dst_prc)
         IE_THROW() << "BroadcastEmitters support only equal input and output types but gets: " << src_prc.name() << " and " << dst_prc.name();
 
-    const auto broadcast_load = std::dynamic_pointer_cast<ngraph::snippets::op::BroadcastLoad>(n);
+    const auto broadcast_load = std::dynamic_pointer_cast<snippets::op::BroadcastLoad>(n);
     byte_offset = broadcast_load->get_offset();
     in_out_type_ = emitter_in_out_map::gpr_to_vec;
 }
@@ -641,7 +640,7 @@ void BroadcastLoadEmitter::emit_isa(const std::vector<size_t> &in, const std::ve
 
 LoadConvertEmitter::LoadConvertEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
     : MemoryEmitter(h, isa, n) {
-    const auto load = ov::as_type_ptr<ngraph::snippets::op::Load>(n);
+    const auto load = ov::as_type_ptr<snippets::op::Load>(n);
     count = load->get_count();
     byte_offset = load->get_offset();
     in_out_type_ = emitter_in_out_map::gpr_to_vec;
@@ -674,7 +673,7 @@ void LoadConvertEmitter::emit_data() const {
 
 StoreConvertEmitter::StoreConvertEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
                                          const std::shared_ptr<ov::Node>& n) : MemoryEmitter(h, isa, n) {
-    const auto store = ov::as_type_ptr<ngraph::snippets::op::Store>(n);
+    const auto store = ov::as_type_ptr<snippets::op::Store>(n);
     count = store->get_count();
     byte_offset = store->get_offset();
     in_out_type_ = emitter_in_out_map::vec_to_gpr;
@@ -746,10 +745,10 @@ BrgemmEmitter::BrgemmEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
     std::vector<ov::Input<ov::Node>> brgemm_inputs = {brgemm_node->input(0),
                                                       brgemm_copy ? brgemm_copy->input(0) : brgemm_node->input(1)};
     for (const auto& input : brgemm_inputs) {
-        init_scheduling_params(ngraph::snippets::lowered::PortManager::get_port_descriptor_ptr(input)->get_layout(),
+        init_scheduling_params(snippets::lowered::PortManager::get_port_descriptor_ptr(input)->get_layout(),
                                input.get_shape());
     }
-    init_scheduling_params(ngraph::snippets::lowered::PortManager::get_port_descriptor_ptr(brgemm_node->output(0))->get_layout(),
+    init_scheduling_params(snippets::lowered::PortManager::get_port_descriptor_ptr(brgemm_node->output(0))->get_layout(),
                            brgemm_node->output(0).get_shape());
 
     const auto& A_shape = brgemm_node->get_input_shape(0);
@@ -1106,7 +1105,7 @@ BrgemmCopyBEmitter::BrgemmCopyBEmitter(dnnl::impl::cpu::x64::jit_generator* h, d
     if (m_with_comp)
         m_comp_offset = brgemm_repack->get_offset_compensations();
 
-    const auto& layout = ngraph::snippets::lowered::PortManager::get_port_descriptor_ptr(brgemm_repack->input(0))->get_layout();
+    const auto& layout = snippets::lowered::PortManager::get_port_descriptor_ptr(brgemm_repack->input(0))->get_layout();
     const auto& original_shape = brgemm_repack->get_input_shape(0);
     auto transposed_shape = original_shape;
     size_t leading_dimension = *(original_shape.rbegin());
@@ -1452,7 +1451,7 @@ void VectorBufferEmitter::emit_isa(const std::vector<size_t> &in, const std::vec
 
 FillEmitter::FillEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n) :
     jit_emitter(h, isa, n, Precision::FP32, emitter_in_out_map::vec_to_vec) {
-    const auto fill = ov::as_type_ptr<ngraph::snippets::op::Fill>(n);
+    const auto fill = ov::as_type_ptr<snippets::op::Fill>(n);
     if (fill->get_element_type().size() != 4) {
         IE_THROW() << "Fill emitter supports only 4 Byte element types but gets: " << fill->get_element_type();
     }

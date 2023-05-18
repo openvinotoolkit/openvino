@@ -5,8 +5,7 @@
 #include "snippets/op/loop.hpp"
 #include "snippets/generator.hpp"
 
-using namespace std;
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace op {
 
@@ -189,4 +188,4 @@ size_t LoopEnd::get_increment() const {
 
 } // namespace op
 } // namespace snippets
-} // namespace ngraph
+} // namespace ov

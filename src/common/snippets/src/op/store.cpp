@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <snippets/itt.hpp>
+#include "snippets/itt.hpp"
 
 #include "snippets/op/store.hpp"
 
-#include <ngraph/runtime/host_tensor.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace op {
 
@@ -35,4 +34,4 @@ std::shared_ptr<Node> snippets::op::Store::clone_with_new_inputs(const OutputVec
 
 } // namespace op
 } // namespace snippets
-} // namespace ngraph
+} // namespace ov

@@ -42,7 +42,7 @@ std::shared_ptr<ov::Model> MatMulFunction::initReference() const {
     } else {
         matmul = std::make_shared<op::v0::MatMul>(indata0, indata1);
     }
-    const auto subgraph = std::make_shared<ngraph::snippets::op::Subgraph>(NodeVector{data0, data1},
+    const auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(NodeVector{data0, data1},
                                                                 std::make_shared<ov::Model>(NodeVector{matmul},
                                                                                             ParameterVector{indata0, indata1}));
     return std::make_shared<ov::Model>(NodeVector{subgraph}, ParameterVector{data0, data1});

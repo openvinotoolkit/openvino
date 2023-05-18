@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <snippets/itt.hpp>
+#include "snippets/itt.hpp"
 
 #include "snippets/pass/tokenization.hpp"
 #include "snippets/pass/common_optimizations.hpp"
+#include "openvino/pass/manager.hpp"
 
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace pass {
 
@@ -18,7 +19,7 @@ void SetSnippetsNodeType(const std::shared_ptr<Node> &node, SnippetsNodeType nod
 }
 
 SnippetsNodeType GetSnippetsNodeType(const std::shared_ptr<const Node> &node) {
-    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::GetSnippetsNodeType")
+    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::GetSnippetsNodeType")
     auto& rt = node->get_rt_info();
     const auto rinfo = rt.find("SnippetsNodeType");
     if (rinfo == rt.end())
@@ -27,7 +28,7 @@ SnippetsNodeType GetSnippetsNodeType(const std::shared_ptr<const Node> &node) {
 }
 
 void SetTopologicalOrder(const std::shared_ptr<Node> &node, int64_t order) {
-    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::SetTopologicalOrder")
+    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::SetTopologicalOrder")
     auto& rt = node->get_rt_info();
     rt["TopologicalOrder"] = order;
 }
@@ -41,7 +42,7 @@ int64_t GetTopologicalOrder(const std::shared_ptr<const Node> &node) {
 }
 
 bool EnumerateNodes::run_on_model(const std::shared_ptr<ov::Model> &m) {
-    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::EnumerateNodes")
+    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::EnumerateNodes")
     int64_t order = 0;
     // Todo: We don't really have to set order for every node, just for subgraph parents and children would be enough
     for (auto& node : m->get_ordered_ops()) {
@@ -53,7 +54,7 @@ bool EnumerateNodes::run_on_model(const std::shared_ptr<ov::Model> &m) {
 
 bool SnippetsTokenization::run_on_model(const std::shared_ptr<ov::Model>& m) {
     RUN_ON_FUNCTION_SCOPE(SnippetsTokenization);
-    ngraph::pass::Manager manager(get_pass_config());
+    ov::pass::Manager manager(get_pass_config());
     manager.set_per_pass_validation(false);
 
     manager.register_pass<EnumerateNodes>();
@@ -69,4 +70,4 @@ bool SnippetsTokenization::run_on_model(const std::shared_ptr<ov::Model>& m) {
 
 } // namespace pass
 } // namespace snippets
-} // namespace ngraph
+} // namespace ov

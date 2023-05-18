@@ -18,17 +18,17 @@ namespace pass {
  *        Fuse Store and ConvertTruncation into one op StoreConvertTruncation
  * @ingroup snippets
  */
-class FuseLoadStoreConvert: public ngraph::snippets::lowered::pass::Pass {
+class FuseLoadStoreConvert: public snippets::lowered::pass::Pass {
 public:
     FuseLoadStoreConvert() = default;
     OPENVINO_RTTI("FuseLoadStoreConvert", "LinearIRTransformation");
-    bool run(ngraph::snippets::lowered::LinearIR& linear_ir) override;
+    bool run(snippets::lowered::LinearIR& linear_ir) override;
 
 private:
-    bool fuse_load_convert(ngraph::snippets::lowered::LinearIR& linear_ir,
-                           ngraph::snippets::lowered::LinearIR::constExprIt& convert_it);
-    bool fuse_store_convert(ngraph::snippets::lowered::LinearIR& linear_ir,
-                            ngraph::snippets::lowered::LinearIR::constExprIt& convert_it);
+    bool fuse_load_convert(snippets::lowered::LinearIR& linear_ir,
+                           snippets::lowered::LinearIR::constExprIt& convert_it);
+    bool fuse_store_convert(snippets::lowered::LinearIR& linear_ir,
+                            snippets::lowered::LinearIR::constExprIt& convert_it);
 };
 
 }  // namespace pass

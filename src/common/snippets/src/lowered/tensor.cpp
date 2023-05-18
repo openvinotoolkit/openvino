@@ -4,11 +4,11 @@
 
 #include "snippets/lowered/tensor.hpp"
 
-#include <snippets/itt.hpp>
+#include "snippets/itt.hpp"
 #include "snippets/utils.hpp"
 
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace lowered {
 
@@ -49,4 +49,4 @@ void Tensor::remove_consumer(const ExpressionPort& consumer) {
 
 }// namespace lowered
 }// namespace snippets
-}// namespace ngraph
+}// namespace ov

@@ -48,11 +48,11 @@ void BrgemmCPU::custom_constructor_validate_and_infer_types(std::vector<size_t> 
     // So we use port descs from source inputs
     const auto brgemm_copy = is_with_data_repacking() ? get_brgemm_copy() : nullptr;
     const auto planar_input_shapes =
-        std::vector<ov::PartialShape>{ ngraph::snippets::utils::get_reordered_planar_shape(get_input_partial_shape(0), layout_a),
-                                       brgemm_copy ? ngraph::snippets::utils::get_port_planar_shape(brgemm_copy->input(0))
-                                                   : ngraph::snippets::utils::get_reordered_planar_shape(get_input_partial_shape(1), layout_b) };
+        std::vector<ov::PartialShape>{ snippets::utils::get_reordered_planar_shape(get_input_partial_shape(0), layout_a),
+                                       brgemm_copy ? snippets::utils::get_port_planar_shape(brgemm_copy->input(0))
+                                                   : snippets::utils::get_reordered_planar_shape(get_input_partial_shape(1), layout_b) };
     auto output_shape = get_output_partial_shape(planar_input_shapes);
-    set_output_type(0, get_output_type(), ngraph::snippets::utils::get_reordered_planar_shape(output_shape, layout_c));
+    set_output_type(0, get_output_type(), snippets::utils::get_reordered_planar_shape(output_shape, layout_c));
 
     //Additional check for 3rd input
     validate_with_scratchpad(planar_input_shapes[1].get_shape());
@@ -110,22 +110,22 @@ std::shared_ptr<Node> BrgemmCPU::clone_with_new_inputs(const OutputVector& new_a
     if (!is_with_scratchpad()) {
         new_node = std::make_shared<BrgemmCPU>(new_args.at(0), new_args.at(1), m_type,
                                                get_offset_a(), get_offset_b(), get_offset_c(),
-                                               ngraph::snippets::lowered::PortManager::get_port_descriptor_ptr(input(0))->get_layout(),
-                                               ngraph::snippets::lowered::PortManager::get_port_descriptor_ptr(input(1))->get_layout(),
-                                               ngraph::snippets::lowered::PortManager::get_port_descriptor_ptr(output(0))->get_layout());
+                                               snippets::lowered::PortManager::get_port_descriptor_ptr(input(0))->get_layout(),
+                                               snippets::lowered::PortManager::get_port_descriptor_ptr(input(1))->get_layout(),
+                                               snippets::lowered::PortManager::get_port_descriptor_ptr(output(0))->get_layout());
     } else {
         new_node = std::make_shared<BrgemmCPU>(new_args.at(0), new_args.at(1), new_args.at(2), m_type,
                                                get_offset_a(), get_offset_b(), get_offset_scratch(), get_offset_c(),
-                                               ngraph::snippets::lowered::PortManager::get_port_descriptor_ptr(input(0))->get_layout(),
-                                               ngraph::snippets::lowered::PortManager::get_port_descriptor_ptr(input(1))->get_layout(),
-                                               ngraph::snippets::lowered::PortManager::get_port_descriptor_ptr(output(0))->get_layout());
+                                               snippets::lowered::PortManager::get_port_descriptor_ptr(input(0))->get_layout(),
+                                               snippets::lowered::PortManager::get_port_descriptor_ptr(input(1))->get_layout(),
+                                               snippets::lowered::PortManager::get_port_descriptor_ptr(output(0))->get_layout());
     }
     return new_node;
 }
 
 std::shared_ptr<BrgemmCopyB> BrgemmCPU::get_brgemm_copy() const {
     OPENVINO_ASSERT(one_of(m_type, Type::WithDataRepacking, Type::WithCompensations, Type::AMX), "Brgemm doesn't need BrgemmCopyB");
-    if (const auto buffer = ov::as_type_ptr<ngraph::snippets::op::Buffer>(get_input_node_shared_ptr(1))) {
+    if (const auto buffer = ov::as_type_ptr<snippets::op::Buffer>(get_input_node_shared_ptr(1))) {
         return ov::as_type_ptr<BrgemmCopyB>(buffer->get_input_node_shared_ptr(0));
     }
     OPENVINO_THROW("BrgemmCopyB hasn't been found!");

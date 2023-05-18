@@ -4,7 +4,7 @@
 
 #include "snippets/lowered/port_descriptor.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace lowered {
 
@@ -147,4 +147,4 @@ void PortManager::clean(const std::shared_ptr<ov::Node>& node) {
 }
 } // namespace lowered
 } // namespace snippets
-} // namespace ngraph
+} // namespace ov

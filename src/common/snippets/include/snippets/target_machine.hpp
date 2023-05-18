@@ -10,11 +10,11 @@
 
 #include "emitter.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 
-typedef std::pair<std::function<std::shared_ptr<Emitter>(const std::shared_ptr<ngraph::Node>&)>,
-        std::function<std::set<std::vector<element::Type>>(const std::shared_ptr<ngraph::Node>&)>> jitters_value;
+typedef std::pair<std::function<std::shared_ptr<Emitter>(const std::shared_ptr<ov::Node>&)>,
+        std::function<std::set<std::vector<element::Type>>(const std::shared_ptr<ov::Node>&)>> jitters_value;
 
 /**
  * @interface TargetMachine
@@ -46,7 +46,7 @@ public:
      * @brief called by generator to all the emitter for a target machine
      * @return a map by node's type info with callbacks to create an instance of emitter for corresponding operation type
      */
-    std::function<std::shared_ptr<Emitter>(const std::shared_ptr<Node>)> get(const ngraph::DiscreteTypeInfo& type) const {
+    std::function<std::shared_ptr<Emitter>(const std::shared_ptr<Node>)> get(const ov::DiscreteTypeInfo& type) const {
         auto jitter = jitters.find(type);
         if (jitter == jitters.end()) {
             OPENVINO_THROW(std::string("Target code emitter is not available for ") + type.name + " operation.");
@@ -54,8 +54,8 @@ public:
         return jitter->second.first;
     }
 
-    std::function<std::set<std::vector<element::Type>>(const std::shared_ptr<ngraph::Node>&)>
-    get_supported_precisions(const ngraph::DiscreteTypeInfo type) const {
+    std::function<std::set<std::vector<element::Type>>(const std::shared_ptr<ov::Node>&)>
+    get_supported_precisions(const ov::DiscreteTypeInfo type) const {
         auto jitter = jitters.find(type);
         if (jitter == jitters.end()) {
             OPENVINO_THROW(std::string("Target code emitter is not available for ") + type.name + " operation.");
@@ -67,14 +67,14 @@ public:
      * @brief checks if emitter for a specific operation is supported
      * @return true, if supported
      */
-    bool has(const ngraph::DiscreteTypeInfo type) const {
+    bool has(const ov::DiscreteTypeInfo type) const {
         return jitters.find(type) != jitters.end();
     }
     virtual ~TargetMachine() = default;
 
 protected:
-    std::map<const ngraph::DiscreteTypeInfo, jitters_value> jitters;
+    std::map<const ov::DiscreteTypeInfo, jitters_value> jitters;
 };
 
 } // namespace snippets
-} // namespace ngraph
+} // namespace ov

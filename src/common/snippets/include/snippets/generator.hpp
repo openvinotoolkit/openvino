@@ -13,7 +13,7 @@
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/pass/pass.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 
 /**
@@ -114,4 +114,4 @@ protected:
 };
 
 } // namespace snippets
-} // namespace ngraph
+} // namespace ov

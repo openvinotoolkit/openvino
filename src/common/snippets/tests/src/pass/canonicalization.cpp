@@ -10,7 +10,7 @@
 namespace ov {
 namespace test {
 namespace snippets {
-using ngraph::snippets::op::Subgraph;
+using ov::snippets::op::Subgraph;
 
 std::string CanonicalizationTests::getTestCaseName(testing::TestParamInfo<canonicalizationParams> obj) {
     std::vector<std::tuple<Shape, Subgraph::BlockedShape>> inputs(2);
@@ -56,7 +56,7 @@ TEST_P(CanonicalizationTests, Add) {
 }
 
 namespace CanonicalizationTestsInstantiation {
-using ngraph::snippets::op::Subgraph;
+using ov::snippets::op::Subgraph;
 std::vector<Shape> input_shapes;
 Shape expected_output_shape;
 Subgraph::BlockedShapeVector input_blocked_shapes;

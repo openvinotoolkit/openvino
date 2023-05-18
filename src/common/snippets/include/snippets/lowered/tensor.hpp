@@ -12,7 +12,7 @@
 #include "expression_port.hpp"
 
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace lowered {
 
@@ -41,4 +41,4 @@ using TensorPtr = std::shared_ptr<Tensor>;
 
 } // namespace lowered
 } // namespace snippets
-} // namespace ngraph
+} // namespace ov

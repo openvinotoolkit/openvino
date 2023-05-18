@@ -4,19 +4,19 @@
 
 #pragma once
 
-#include <ngraph/pass/graph_rewrite.hpp>
-#include <ngraph/pattern/matcher.hpp>
+#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace pass {
 
-class CommonOptimizations : public ngraph::pass::MatcherPass {
+class CommonOptimizations : public ov::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("CommonOptimizations", "0");
     CommonOptimizations();
 };
 
 }  // namespace pass
 }  // namespace snippets
-}  // namespace ngraph
+}  // namespace ov

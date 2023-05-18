@@ -6,7 +6,7 @@
 
 #include "pass.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace lowered {
 namespace pass {
@@ -20,8 +20,8 @@ namespace pass {
  */
 
 // Note that, BrodacastMove is typically inserted right after the Load. Such cases are typical for
-// simple subgraphs where one of the ngraph::op's inputs is broadcasted to match the larger one. However, BroadcastMove
-// could also be inserted after the ngraph::op, if the op input don't need broadcasting, but the output does
+// simple subgraphs where one of the ov::op's inputs is broadcasted to match the larger one. However, BroadcastMove
+// could also be inserted after the ov::op, if the op input don't need broadcasting, but the output does
 // (for example, to match the larger output of a child node). In such cases, Loads (and Stores) should be replaced
 // with ScalarLoads (ScalarStores) to avoid invalid read in vector Loop. Graph example:
 // Parameter_0    Parameter_1        Parameter_2
@@ -45,4 +45,4 @@ public:
 } // namespace pass
 } // namespace lowered
 } // namespace snippets
-} // namespace ngraph
+} // namespace ov

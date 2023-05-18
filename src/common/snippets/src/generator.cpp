@@ -10,14 +10,14 @@
 
 #include "snippets/op/kernel.hpp"
 
-#include <snippets/itt.hpp>
+#include "snippets/itt.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 
 Generator::LoweringResult Generator::generate(lowered::LinearIR& linear_ir, const lowered::Config& config, const void* compile_params) {
-    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::Generator::generate")
-    OV_ITT_TASK_CHAIN(GENERATE, ngraph::pass::itt::domains::SnippetsTransform, "Snippets::Generator", "::Transformations")
+    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::Generator::generate")
+    OV_ITT_TASK_CHAIN(GENERATE, ov::pass::itt::domains::SnippetsTransform, "Snippets::Generator", "::Transformations")
     if (!target->is_supported())
         OPENVINO_THROW("unsupported architecture for code generation");
 
@@ -57,8 +57,8 @@ std::shared_ptr<const TargetMachine> Generator::get_target_machine() const {
 }
 
 Generator::opRegType Generator::get_op_reg_type(const std::shared_ptr<Node>& op) const {
-    if (std::dynamic_pointer_cast<opset1::Parameter>(op) ||
-        std::dynamic_pointer_cast<opset1::Result>(op) ||
+    if (std::dynamic_pointer_cast<ov::op::v0::Parameter>(op) ||
+        std::dynamic_pointer_cast<ov::op::v0::Result>(op) ||
         std::dynamic_pointer_cast<op::LoopBegin>(op) ||
         std::dynamic_pointer_cast<op::LoopEnd>(op) ||
         std::dynamic_pointer_cast<op::Brgemm>(op) ||
@@ -73,10 +73,10 @@ Generator::opRegType Generator::get_op_reg_type(const std::shared_ptr<Node>& op)
              ov::op::util::is_binary_elementwise_arithmetic(op) ||
              ov::op::util::is_binary_elementwise_comparison(op) ||
              ov::op::util::is_binary_elementwise_logical(op) ||
-             std::dynamic_pointer_cast<opset1::LogicalNot>(op) ||
-             std::dynamic_pointer_cast<opset1::PRelu>(op) ||
-             std::dynamic_pointer_cast<opset1::Convert>(op) ||
-             std::dynamic_pointer_cast<opset1::Select>(op) ||
+             std::dynamic_pointer_cast<ov::op::v1::LogicalNot>(op) ||
+             std::dynamic_pointer_cast<ov::op::v0::PRelu>(op) ||
+             std::dynamic_pointer_cast<ov::op::v0::Convert>(op) ||
+             std::dynamic_pointer_cast<ov::op::v1::Select>(op) ||
              std::dynamic_pointer_cast<op::VectorBuffer>(op) ||
              std::dynamic_pointer_cast<op::BroadcastMove>(op) ||
              std::dynamic_pointer_cast<op::Scalar>(op) ||
@@ -92,4 +92,4 @@ Generator::opRegType Generator::get_specific_op_reg_type(const std::shared_ptr<o
 }
 
 }// namespace snippets
-}// namespace ngraph
+}// namespace ov

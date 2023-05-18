@@ -2,27 +2,29 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <snippets/itt.hpp>
 
 #include "snippets/op/buffer.hpp"
-#include "snippets/snippets_isa.hpp"
+
+#include "snippets/itt.hpp"
 #include "snippets/utils.hpp"
 
 
-using namespace std;
-using namespace ngraph;
+namespace ov {
+namespace snippets {
+namespace op {
 
-snippets::op::Buffer::Buffer(const ov::Shape& shape, size_t id)
+
+Buffer::Buffer(const ov::Shape& shape, size_t id)
     : Op(), m_type(Type::NewMemory), m_shape(shape), m_offset(0), m_id(id) {
     constructor_validate_and_infer_types();
 }
 
-snippets::op::Buffer::Buffer(const ov::Output<ov::Node>& arg, const ov::Shape& shape, size_t id)
+Buffer::Buffer(const ov::Output<ov::Node>& arg, const ov::Shape& shape, size_t id)
     : Op({arg}), m_type(Type::IntermediateMemory), m_shape(shape), m_offset(0), m_id(id) {
     constructor_validate_and_infer_types();
 }
 
-snippets::op::Buffer::Buffer(const ov::Output<ov::Node>& arg, int32_t allocation_rank, size_t id)
+Buffer::Buffer(const ov::Output<ov::Node>& arg, int32_t allocation_rank, size_t id)
     : Op({arg}), m_type(Type::IntermediateMemory), m_offset(0), m_id(id) {
     const auto& pshape = arg.get_partial_shape();
     OPENVINO_ASSERT(pshape.is_static(), "Buffer supports only static input shape");
@@ -33,7 +35,7 @@ snippets::op::Buffer::Buffer(const ov::Output<ov::Node>& arg, int32_t allocation
     constructor_validate_and_infer_types();
 }
 
-bool snippets::op::Buffer::visit_attributes(AttributeVisitor& visitor) {
+bool Buffer::visit_attributes(AttributeVisitor& visitor) {
     INTERNAL_OP_SCOPE(Buffer_visit_attributes);
     visitor.on_attribute("allocation_shape", m_shape);
     visitor.on_attribute("offset", m_offset);
@@ -41,7 +43,7 @@ bool snippets::op::Buffer::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-void snippets::op::Buffer::validate_and_infer_types() {
+void Buffer::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(Buffer_validate_and_infer_types);
     ov::element::Type output_type;
     ov::Shape output_shape;
@@ -60,7 +62,7 @@ void snippets::op::Buffer::validate_and_infer_types() {
     set_output_type(0, output_type, output_shape);
 }
 
-std::shared_ptr<Node> snippets::op::Buffer::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<Node> Buffer::clone_with_new_inputs(const OutputVector& new_args) const {
     INTERNAL_OP_SCOPE(Buffer_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     std::shared_ptr<op::Buffer> new_buffer = nullptr;
@@ -75,7 +77,11 @@ std::shared_ptr<Node> snippets::op::Buffer::clone_with_new_inputs(const OutputVe
     return new_buffer;
 }
 
-size_t ngraph::snippets::op::Buffer::get_byte_size() const {
+size_t Buffer::get_byte_size() const {
     const auto shape = get_allocation_shape();
-    return ngraph::shape_size(shape) * get_element_type().size();
+    return ov::shape_size(shape) * get_element_type().size();
 }
+
+} // namespace op
+} // namespace snippets
+} // namespace ov

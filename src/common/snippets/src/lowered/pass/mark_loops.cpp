@@ -9,7 +9,7 @@
 #include "snippets/snippets_isa.hpp"
 #include "snippets/itt.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace lowered {
 namespace pass {
@@ -17,7 +17,7 @@ namespace pass {
 MarkLoops::MarkLoops(size_t vector_size) : Pass(), m_vector_size(vector_size) {}
 
 bool MarkLoops::run(LinearIR& linear_ir) {
-    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::MarkLoops")
+    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::MarkLoops")
     if (linear_ir.empty())
         return false;
 
@@ -27,9 +27,9 @@ bool MarkLoops::run(LinearIR& linear_ir) {
 
     // Parameters Results or Constants are ignored. They can't be used as a loop starting point
     auto is_not_start_point = [](const std::shared_ptr<ov::Node>& node) {
-        return ov::is_type<opset1::Result>(node) ||
-               ov::is_type<opset1::Constant>(node) ||
-               ov::is_type<opset1::Parameter>(node);
+        return ov::is_type<ov::op::v0::Result>(node) ||
+               ov::is_type<ov::op::v0::Constant>(node) ||
+               ov::is_type<ov::op::v0::Parameter>(node);
     };
 
     auto are_conflicted = [](const ExpressionPort& lhs, const ExpressionPort& rhs) {
@@ -60,8 +60,8 @@ bool MarkLoops::run(LinearIR& linear_ir) {
             // If iterator is the last, we should finish Loop
             const auto& current_expr = *loop_end_pos;
             const auto& current_node = current_expr->get_node();
-            if (ov::is_type<opset1::Result>(current_node) ||
-                ov::is_type<opset1::Constant>(current_node))
+            if (ov::is_type<ov::op::v0::Result>(current_node) ||
+                ov::is_type<ov::op::v0::Constant>(current_node))
                 break;
 
             // We finish Loop if
@@ -96,4 +96,4 @@ bool MarkLoops::run(LinearIR& linear_ir) {
 } // namespace pass
 } // namespace lowered
 } // namespace snippets
-} // namespace ngraph
+} // namespace ov

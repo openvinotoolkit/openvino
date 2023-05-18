@@ -7,12 +7,12 @@
 #include "snippets/lowered/expression.hpp"
 #include "snippets/utils.hpp"
 
-#include <openvino/core/graph_util.hpp>
-#include <openvino/core/type.hpp>
+#include "openvino/core/graph_util.hpp"
+#include "openvino/core/type.hpp"
 
-#include <snippets/itt.hpp>
+#include "snippets/itt.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace lowered {
 
@@ -195,4 +195,4 @@ void LinearIR::LoopManager::exprs_marking(LinearIR::constExprIt loop_begin_pos,
 
 }// namespace lowered
 }// namespace snippets
-}// namespace ngraph
+}// namespace ov

@@ -6,9 +6,10 @@
 
 #include <vector>
 #include <cstdint>
-#include "ngraph/node.hpp"
 
-namespace ngraph {
+#include "openvino/core/node.hpp"
+
+namespace ov {
 namespace snippets {
 
 using code = const uint8_t *;
@@ -24,7 +25,7 @@ public:
     /**
      * @brief Default constructor
      */
-    Emitter(const std::shared_ptr<ngraph::Node>& n) {}
+    Emitter(const std::shared_ptr<ov::Node>& n) {}
 
     Emitter(std::vector<std::pair<std::shared_ptr<Emitter>, RegInfo>>& region) {}
 
@@ -50,7 +51,7 @@ public:
     virtual ~Emitter() = default;
 };
 
-using AllocatedEmitter = std::pair<std::shared_ptr<Emitter>, ngraph::snippets::RegInfo>;
+using AllocatedEmitter = std::pair<std::shared_ptr<Emitter>, ov::snippets::RegInfo>;
 
 } // namespace snippets
-} // namespace ngraph
+} // namespace ov

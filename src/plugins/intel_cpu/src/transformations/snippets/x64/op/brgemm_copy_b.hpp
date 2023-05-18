@@ -16,9 +16,9 @@ namespace intel_cpu {
          OneDNN requiers data repacking for second input of Brgemm with input non-fp32 precisions.
 * @ingroup snippets
 */
-class BrgemmCopyB : public ngraph::snippets::op::MemoryAccess {
+class BrgemmCopyB : public snippets::op::MemoryAccess {
 public:
-    OPENVINO_OP("BrgemmCopyB", "SnippetsOpset", MemoryAccess);
+    OPENVINO_OP("BrgemmCopyB", "SnippetsOpset", snippets::op::MemoryAccess);
 
     enum Type {
         OnlyRepacking,     // Just data repacking - one output

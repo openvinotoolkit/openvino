@@ -7,7 +7,7 @@
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/itt.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace lowered {
 namespace pass {
@@ -26,7 +26,7 @@ void AllocateBuffers::propagate_offset(const LinearIR& linear_ir, const Expressi
             const auto& parent_expr = parent_output.get_expr();
             const auto port = parent_output.get_index();
             const auto& parent_node = parent_expr->get_node();
-            auto memory_access = ov::as_type_ptr<ngraph::snippets::op::MemoryAccess>(parent_node);
+            auto memory_access = ov::as_type_ptr<ov::snippets::op::MemoryAccess>(parent_node);
             if (memory_access && memory_access->is_memory_access_output_port(port)) {
                 memory_access->set_output_offset(offset, port);
             } else {
@@ -41,7 +41,7 @@ void AllocateBuffers::propagate_offset(const LinearIR& linear_ir, const Expressi
         const auto& child_expr = child_expr_input.get_expr();
         const auto port = child_expr_input.get_index();
         const auto& child_node = child_expr->get_node();
-        auto memory_access = ov::as_type_ptr<ngraph::snippets::op::MemoryAccess>(child_node);
+        auto memory_access = ov::as_type_ptr<ov::snippets::op::MemoryAccess>(child_node);
         if (memory_access && memory_access->is_memory_access_input_port(port)) {
             memory_access->set_input_offset(offset, port);
         } else if (ov::is_type<op::LoopEnd>(child_node)) {
@@ -56,7 +56,7 @@ void AllocateBuffers::propagate_offset(const LinearIR& linear_ir, const Expressi
 
 
 bool AllocateBuffers::run(LinearIR& linear_ir) {
-    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::AllocateBuffers");
+    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::AllocateBuffers");
 
     bool modified = false;
     size_t offset = 0;
@@ -105,4 +105,4 @@ bool AllocateBuffers::run(LinearIR& linear_ir) {
 } // namespace pass
 } // namespace lowered
 } // namespace snippets
-} // namespace ngraph
+} // namespace ov

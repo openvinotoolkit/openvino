@@ -4,7 +4,7 @@
 
 #include "snippets/op/kernel.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace op {
 
@@ -12,4 +12,4 @@ Kernel::Kernel(lowered::LinearIR nested) : Op(), region(std::move(nested)) {}
 
 } // namespace op
 } // namespace snippets
-} // namespace ngraph
+} // namespace ov

@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include <ngraph/pass/graph_rewrite.hpp>
-#include <ngraph/pattern/matcher.hpp>
+#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace pass {
 
@@ -16,11 +16,11 @@ namespace pass {
  * @brief The pass updates port descriptors in accordance with the Softmax reduction axis
  * @ingroup snippets
  */
-class SetSoftmaxPorts: public ngraph::pass::MatcherPass {
+class SetSoftmaxPorts: public ov::pass::MatcherPass {
 public:
     SetSoftmaxPorts();
 };
 
 } // namespace pass
 } // namespace snippets
-} // namespace ngraph
+} // namespace ov

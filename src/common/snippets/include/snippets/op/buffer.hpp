@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include <ngraph/op/op.hpp>
+#include "openvino/op/op.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace op {
 
@@ -25,7 +25,7 @@ namespace op {
  * @param m_id - Buffer ID in common Buffer system
  * @ingroup snippets
  */
-class Buffer : public ngraph::op::Op {
+class Buffer : public ov::op::Op {
 public:
     OPENVINO_OP("Buffer", "SnippetsOpset");
     Buffer() = default;
@@ -63,4 +63,4 @@ private:
 
 } // namespace op
 } // namespace snippets
-} // namespace ngraph
+} // namespace ov

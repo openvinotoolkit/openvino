@@ -8,7 +8,7 @@
 
 #include "snippets/snippets_isa.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace lowered {
 
@@ -30,9 +30,9 @@ public:
 
 private:
     /* -- Default Builders - initialize input tensors from parents and create new output tensors themselves */
-    static ExpressionPtr create(const std::shared_ptr<ngraph::op::v0::Parameter>& par, const LinearIR& linear_ir,
+    static ExpressionPtr create(const std::shared_ptr<ov::op::v0::Parameter>& par, const LinearIR& linear_ir,
                                 const std::shared_ptr<ov::Model>& model);
-    static ExpressionPtr create(const std::shared_ptr<ngraph::op::v0::Result>& res, const LinearIR& linear_ir,
+    static ExpressionPtr create(const std::shared_ptr<ov::op::v0::Result>& res, const LinearIR& linear_ir,
                                 const std::shared_ptr<ov::Model>& model);
     static ExpressionPtr create(const std::shared_ptr<ov::Node>& n, const LinearIR& linear_ir,
                                 const std::shared_ptr<ov::Model>& model);
@@ -52,4 +52,4 @@ private:
 
 } // namespace lowered
 } // namespace snippets
-} // namespace ngraph
+} // namespace ov

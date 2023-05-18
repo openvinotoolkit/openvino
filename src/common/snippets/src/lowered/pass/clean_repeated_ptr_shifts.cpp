@@ -8,7 +8,7 @@
 #include "snippets/snippets_isa.hpp"
 #include "snippets/itt.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace lowered {
 namespace pass {
@@ -90,7 +90,7 @@ bool CleanRepeatedDataPointerShifts::reuse_increments(const LinearIR& linear_ir,
 }
 
 bool CleanRepeatedDataPointerShifts::run(LinearIR& linear_ir) {
-    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::CleanRepeatedDataPointerShifts")
+    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::CleanRepeatedDataPointerShifts")
     bool modified = false;
 
     for (const auto& expr : linear_ir) {
@@ -106,4 +106,4 @@ bool CleanRepeatedDataPointerShifts::run(LinearIR& linear_ir) {
 } // namespace pass
 } // namespace lowered
 } // namespace snippets
-} // namespace ngraph
+} // namespace ov

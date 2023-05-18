@@ -9,7 +9,7 @@
 #include "snippets/snippets_isa.hpp"
 #include "snippets/itt.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace lowered {
 namespace pass {
@@ -124,7 +124,7 @@ bool InsertLoadStore::insert_store(LinearIR& linear_ir, const LinearIR::constExp
     const auto should_be_saved = std::any_of(consumer_inputs.begin(), consumer_inputs.end(),
                                 [](const ExpressionPort& input_port) {
                                     const auto& node = input_port.get_expr()->get_node();
-                                    return ov::is_type<opset1::Result>(node) || ov::is_type<op::Buffer>(node);
+                                    return ov::is_type<ov::op::v0::Result>(node) || ov::is_type<op::Buffer>(node);
                                 });
     const auto new_exit_point = store_expr->get_output_port(0);
     const auto new_exit_points = should_be_saved ? std::vector<ExpressionPort>{prev_exit_point, new_exit_point}
@@ -134,17 +134,17 @@ bool InsertLoadStore::insert_store(LinearIR& linear_ir, const LinearIR::constExp
 }
 
 bool InsertLoadStore::run(LinearIR& linear_ir) {
-    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::InsertLoadStore")
+    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::InsertLoadStore")
 
     bool modified = false;
     for (auto expr_it = linear_ir.begin(); expr_it != linear_ir.end(); expr_it++) {
         const auto expr = *expr_it;
         const auto& node = expr->get_node();
-        if (ov::is_type<opset1::Parameter>(node)) {
+        if (ov::is_type<ov::op::v0::Parameter>(node)) {
             modified |= insert_load(linear_ir, expr_it);
             continue;
         }
-        if (ov::is_type<opset1::Result>(node)) {
+        if (ov::is_type<ov::op::v0::Result>(node)) {
             modified |= insert_store(linear_ir, expr_it);
             continue;
         }
@@ -162,4 +162,4 @@ bool InsertLoadStore::run(LinearIR& linear_ir) {
 } // namespace pass
 } // namespace lowered
 } // namespace snippets
-} // namespace ngraph
+} // namespace ov

@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include <ngraph/op/op.hpp>
+#include "openvino/op/op.hpp"
 #include "snippets/op/memory_access.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace op {
 
@@ -63,4 +63,4 @@ private:
 };
 } // namespace op
 } // namespace snippets
-} // namespace ngraph
+} // namespace ov

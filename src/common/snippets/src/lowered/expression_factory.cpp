@@ -6,7 +6,7 @@
 
 #include "snippets/snippets_isa.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace lowered {
 
@@ -53,7 +53,7 @@ void LinearIR::ExpressionFactory::init_expression_inputs(const ExpressionPtr& ex
     expr->m_input_tensors = inputs;
 }
 
-ExpressionPtr LinearIR::ExpressionFactory::create(const std::shared_ptr<ngraph::op::v0::Parameter>& par,
+ExpressionPtr LinearIR::ExpressionFactory::create(const std::shared_ptr<ov::op::v0::Parameter>& par,
                                                   const LinearIR& linear_ir, const std::shared_ptr<ov::Model>& model) {
     // Note: ctor of shared_ptr isn't friend class for Expression -> we cannot use directly make_shared<Expression>(args)
     OPENVINO_ASSERT(model != nullptr, "To create IOExpression from Parameter there must be inited model!");
@@ -63,7 +63,7 @@ ExpressionPtr LinearIR::ExpressionFactory::create(const std::shared_ptr<ngraph::
     return expr;
 }
 
-ExpressionPtr LinearIR::ExpressionFactory::create(const std::shared_ptr<ngraph::op::v0::Result>& res,
+ExpressionPtr LinearIR::ExpressionFactory::create(const std::shared_ptr<ov::op::v0::Result>& res,
                                                   const LinearIR& linear_ir, const std::shared_ptr<ov::Model>& model) {
     // Note: ctor of shared_ptr isn't friend class for Expression -> we cannot use directly make_shared<Expression>(args)
     OPENVINO_ASSERT(model != nullptr, "To create IOExpression from Result there must be inited model!");
@@ -114,8 +114,8 @@ ExpressionPtr LinearIR::ExpressionFactory::create(const std::shared_ptr<op::Loop
 }
 
 ExpressionPtr LinearIR::ExpressionFactory::create(const std::shared_ptr<ov::Node>& n, const std::vector<TensorPtr>& inputs) {
-    OPENVINO_ASSERT(!ov::is_type<ngraph::op::v0::Parameter>(n) &&
-                    !ov::is_type<ngraph::op::v0::Result>(n),
+    OPENVINO_ASSERT(!ov::is_type<ov::op::v0::Parameter>(n) &&
+                    !ov::is_type<ov::op::v0::Result>(n),
                     "Expression builder with inputs doesn't support Result and Parameter");
     auto expr = std::make_shared<Expression>(Expression(n));
     init_expression_inputs(expr, inputs);
@@ -125,4 +125,4 @@ ExpressionPtr LinearIR::ExpressionFactory::create(const std::shared_ptr<ov::Node
 }
 }// namespace lowered
 }// namespace snippets
-}// namespace ngraph
+}// namespace ov

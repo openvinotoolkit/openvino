@@ -9,13 +9,13 @@
 #include "snippets/snippets_isa.hpp"
 #include "snippets/itt.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace lowered {
 namespace pass {
 
 bool MoveResultOutOfLoop::run(LinearIR& linear_ir) {
-    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::MoveResultOutOfLoop")
+    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::MoveResultOutOfLoop")
     if (linear_ir.empty())
         return false;
 
@@ -27,7 +27,7 @@ bool MoveResultOutOfLoop::run(LinearIR& linear_ir) {
         const auto& forward_it = std::prev(expr_it.base());
         const auto& expr = *expr_it;
         const auto& node = expr->get_node();
-        if (!ov::is_type<opset1::Result>(node)) {
+        if (!ov::is_type<ov::op::v0::Result>(node)) {
             continue;
         }
 
@@ -71,4 +71,4 @@ bool MoveResultOutOfLoop::run(LinearIR& linear_ir) {
 } // namespace pass
 } // namespace lowered
 } // namespace snippets
-} // namespace ngraph
+} // namespace ov
