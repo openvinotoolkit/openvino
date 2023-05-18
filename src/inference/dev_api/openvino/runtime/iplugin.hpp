@@ -168,7 +168,7 @@ public:
     virtual std::shared_ptr<ov::IRemoteContext> get_default_context(const ov::AnyMap& remote_properties) const = 0;
 
     /**
-     * @brief Creates an compiled model from an previously exported model using plugin implementation
+     * @brief Creates a compiled model from a previously exported model using plugin implementation
      *        and removes OpenVINO Runtime magic and plugin name
      * @param model Reference to model output stream
      * @param properties A ov::AnyMap of properties
@@ -178,7 +178,7 @@ public:
                                                              const ov::AnyMap& properties) const = 0;
 
     /**
-     * @brief Creates an compiled model from an previously exported model using plugin implementation
+     * @brief Creates a compiled model from a previously exported model using plugin implementation
      *        and removes OpenVINO Runtime magic and plugin name
      * @param model Reference to model output stream
      * @param context A pointer to plugin context derived from RemoteContext class used to
