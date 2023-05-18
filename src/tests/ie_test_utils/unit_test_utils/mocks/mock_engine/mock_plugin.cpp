@@ -93,6 +93,27 @@ std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> MockPlugin::ImportN
     }
 }
 
+std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> MockPlugin::ImportNetwork(
+    std::shared_ptr<ngraph::runtime::AlignedBuffer>& networkBuffer,
+    const std::map<std::string, std::string>& config) {
+    if (_target) {
+        return _target->ImportNetwork(networkBuffer, config);
+    } else {
+        IE_THROW(NotImplemented);
+    }
+}
+
+std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> MockPlugin::ImportNetwork(
+    std::shared_ptr<ngraph::runtime::AlignedBuffer>& networkBuffer,
+    const std::shared_ptr<InferenceEngine::RemoteContext>& context,
+    const std::map<std::string, std::string>& config) {
+    if (_target) {
+        return _target->ImportNetwork(networkBuffer, context, config);
+    } else {
+        IE_THROW(NotImplemented);
+    }
+}
+
 std::shared_ptr<InferenceEngine::RemoteContext> MockPlugin::GetDefaultContext(const InferenceEngine::ParamMap& params) {
     if (_target) {
         return _target->GetDefaultContext(params);
