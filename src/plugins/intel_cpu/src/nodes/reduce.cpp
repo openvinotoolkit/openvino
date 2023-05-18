@@ -2527,14 +2527,29 @@ inline void Reduce::reduce_kernel_process(const uint8_t *in_p, uint8_t *out_p, s
 inline void Reduce::reduce_kernel_post_process(uint8_t *out_ptr) {
     const size_t integerDivisor = IB * IC * ID * IH * IW / (OB * OC * OD * OH * OW);
     const float divisor = static_cast<float>(integerDivisor);
-    if (layout == ReduceLayoutType::reduce_ncsp || layout == ReduceLayoutType::reduce_nspc) {
+    if (layout == ReduceLayoutType::reduce_ncsp) {
         parallel_for2d(OB, OC, [&](size_t ob, size_t oc) {
             uint8_t *out_p = out_ptr + (ob * OC + oc) * OD * OH * OW * dst_data_size;
             auto arg = jit_reduce_post_call_args();
             arg.dst = static_cast<void *>(out_p);
-            arg.oc_off = layout == ReduceLayoutType::reduce_nspc ? 0 : oc * sizeof(float);
-            arg.channel_size = layout == ReduceLayoutType::reduce_nspc ? OW : OC; // OW is related to nspc-ncsp dimension reinterpret
+            arg.oc_off = oc * sizeof(float);
+            arg.channel_size = OC;
             arg.work_amount = OD * OH * OW;
+            arg.divisor = &divisor;
+            arg.post_op_data = static_cast<const void **>(postOpsDataPtrs.data());
+            (*reduce_post_kernel)(&arg);
+        });
+    } else if (layout == ReduceLayoutType::reduce_nspc) {
+        size_t num_threads = static_cast<size_t>(parallel_get_max_threads());
+        size_t OP = OB * OC >= num_threads ? OB * OC : OB * OC * OD;
+        size_t work_amount = OB * OC * OD * OH * OW / OP;
+        parallel_for(OP, [&](size_t op) {
+            uint8_t *out_p = out_ptr + op * work_amount * dst_data_size;
+            auto arg = jit_reduce_post_call_args();
+            arg.dst = static_cast<void *>(out_p);
+            arg.oc_off = 0;
+            arg.channel_size = OW; // OW is related to nspc-ncsp dimension reinterpret
+            arg.work_amount = work_amount;
             arg.divisor = &divisor;
             arg.post_op_data = static_cast<const void **>(postOpsDataPtrs.data());
             (*reduce_post_kernel)(&arg);
