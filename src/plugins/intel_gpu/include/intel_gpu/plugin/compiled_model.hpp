@@ -26,7 +26,8 @@ public:
 
     CompiledModel(InferenceEngine::CNNNetwork &network, InferenceEngine::RemoteContext::Ptr context, const ExecutionConfig& config,
                   InferenceEngine::InputsDataMap* inputs = nullptr, InferenceEngine::OutputsDataMap* outputs = nullptr);
-    CompiledModel(cldnn::BinaryInputBuffer& ib, InferenceEngine::RemoteContext::Ptr context, const ExecutionConfig& config);
+    CompiledModel(cldnn::BinaryInputBuffer& ib, InferenceEngine::RemoteContext::Ptr context, const ExecutionConfig& config,
+                  InferenceEngine::InputsDataMap* inputs = nullptr, InferenceEngine::OutputsDataMap* outputs = nullptr);
 
     void Export(std::ostream& networkModel) override;
     std::shared_ptr<ngraph::Function> GetExecGraphInfo() override;
