@@ -11,7 +11,7 @@
 
 The guides below provides extra API references needed for OpenVINO plugin development:
 
-* :doc:`OpenVINO Plugin API <ov_dev_api>`
-* :doc:`OpenVINO Transformation API <ie_transformation_api>`
+*  `OpenVINO Plugin API <https://docs.openvino.ai/2023.0/groupov_dev_api.html>`__
+*  `OpenVINO Transformation API <https://docs.openvino.ai/2023.0/groupie_transformation_api.html>`__
 
 @endsphinxdirective
