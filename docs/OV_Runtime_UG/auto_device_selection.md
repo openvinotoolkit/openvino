@@ -90,9 +90,9 @@ Following the OpenVINO™ naming convention, the Automatic Device Selection mode
 +==============================================+====================================================================+
 | <device candidate list>                      | **Values**:                                                        |
 |                                              |                                                                    |
-|                                              |   empty                                                            |
-|                                              |   ``AUTO``                                                         |
-|                                              |   ``AUTO: <device names>`` (comma-separated, no spaces)            |
+|                                              | empty                                                              |
+|                                              | ``AUTO``                                                           |
+|                                              | ``AUTO: <device names>`` (comma-separated, no spaces)              |
 |                                              |                                                                    |
 |                                              | Lists the devices available for selection.                         |
 |                                              | The device sequence will be taken as priority from high to low.    |
@@ -101,7 +101,7 @@ Following the OpenVINO™ naming convention, the Automatic Device Selection mode
 +----------------------------------------------+--------------------------------------------------------------------+
 | ``ov::device::priorities``                   | **Values**:                                                        |
 |                                              |                                                                    |
-|                                              |   ``<device names>`` (comma-separated, no spaces)                  |
+|                                              | ``<device names>`` (comma-separated, no spaces)                    |
 |                                              |                                                                    |
 |                                              | Specifies the devices for AUTO to select.                          |
 |                                              | The device sequence will be taken as priority from high to low.    |
@@ -109,17 +109,17 @@ Following the OpenVINO™ naming convention, the Automatic Device Selection mode
 +----------------------------------------------+--------------------------------------------------------------------+
 | ``ov::hint::performance_mode``               | **Values**:                                                        |
 |                                              |                                                                    |
-|                                              |   ``ov::hint::PerformanceMode::LATENCY``                           |
-|                                              |   ``ov::hint::PerformanceMode::THROUGHPUT``                        |
-|                                              |   ``ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT``             |
+|                                              | ``ov::hint::PerformanceMode::LATENCY``                             |
+|                                              | ``ov::hint::PerformanceMode::THROUGHPUT``                          |
+|                                              | ``ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT``               |
 |                                              |                                                                    |
 |                                              | Specifies the performance option preferred by the application.     |
 +----------------------------------------------+--------------------------------------------------------------------+
 | ``ov::hint::model_priority``                 | **Values**:                                                        |
 |                                              |                                                                    |
-|                                              |   ``ov::hint::Priority::HIGH``                                     |
-|                                              |   ``ov::hint::Priority::MEDIUM``                                   |
-|                                              |   ``ov::hint::Priority::LOW``                                      |
+|                                              | ``ov::hint::Priority::HIGH``                                       |
+|                                              | ``ov::hint::Priority::MEDIUM``                                     |
+|                                              | ``ov::hint::Priority::LOW``                                        |
 |                                              |                                                                    |
 |                                              | Indicates the priority for a model.                                |
 |                                              | IMPORTANT: This property is not fully supported yet.               |
@@ -133,8 +133,8 @@ Following the OpenVINO™ naming convention, the Automatic Device Selection mode
 +----------------------------------------------+--------------------------------------------------------------------+
 | ``ov::intel_auto::enable_startup_fallback``  | **Values**:                                                        |
 |                                              |                                                                    |
-|                                              |   ``true``                                                         |
-|                                              |   ``false``                                                        |
+|                                              | ``true``                                                           |
+|                                              | ``false``                                                          |
 |                                              |                                                                    |
 |                                              | Enables/disables CPU as acceleration (or the helper device) in the |
 |                                              | beginning. The default value is ``true``, indicating that CPU is   |
@@ -142,8 +142,8 @@ Following the OpenVINO™ naming convention, the Automatic Device Selection mode
 +----------------------------------------------+--------------------------------------------------------------------+
 | ``ov::intel_auto::enable_runtime_fallback``  | **Values**:                                                        |
 |                                              |                                                                    |
-|                                              |   ``true``                                                         |
-|                                              |   ``false``                                                        |
+|                                              | ``true``                                                           |
+|                                              | ``false``                                                          |
 |                                              |                                                                    |
 |                                              | Enables/disables runtime fallback to other devices and performs    |
 |                                              | the failed inference request again, if inference request fails on  |
