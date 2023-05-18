@@ -205,6 +205,9 @@ static std::string get_extension_path() {
 }
 
 
+// Disable the following tests, caused by unsupported "readlink()" func call in WASM
+#    ifndef __EMSCRIPTEN__
+
 TEST(Extension, XmlModelWithExtensionFromDSO) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
@@ -275,3 +278,5 @@ TEST(Extension, OnnxModelWithExtensionFromDSO) {
     auto network = ie.ReadNetwork(model_full_path("func_tests/models/custom_template_op.onnx"));
     infer_model(ie, network, input_values, expected);
 }
+
+#endif
