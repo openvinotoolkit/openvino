@@ -213,7 +213,7 @@ AtenIndexToSelect::AtenIndexToSelect() {
                 }
                 concat_dims.push_back(cum_adv_index_shape_tensor);
                 for (auto i : non_used_dims) {
-                    if (i < advanced_ids[i]) {
+                    if (i < advanced_ids[0]) {
                         continue;
                     }
                     concat_dims.push_back(input_dims->output(i));

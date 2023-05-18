@@ -66,6 +66,7 @@ void FakeQuantizeDecompositionTest::SetUp() {
 }
 
 TEST_P(FakeQuantizeDecompositionTest, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
 
     const auto operation = std::get<1>(this->GetParam());

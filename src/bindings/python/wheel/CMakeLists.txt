@@ -73,6 +73,8 @@ macro(_ov_platform_arch)
         else()
             set(_arch "aarch64")
         endif()
+    elseif(UNIVERSAL2)
+        set(_arch "universal2")
     elseif(ARM)
         set(_arch "armvl7")
     elseif(X86_64)
@@ -179,7 +181,7 @@ add_custom_target(ie_wheel ALL DEPENDS ${openvino_wheel_path} ${fdupes_report})
 
 # install
 
-ie_cpack_add_component(${OV_CPACK_COMP_PYTHON_WHEELS} HIDDEN)
+ov_cpack_add_component(${OV_CPACK_COMP_PYTHON_WHEELS} HIDDEN)
 
 install(FILES ${openvino_wheel_path}
         DESTINATION ${OV_CPACK_WHEELSDIR}

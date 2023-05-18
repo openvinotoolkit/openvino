@@ -25,7 +25,7 @@ inline std::string backend_name_to_device(const std::string& backend_name) {
         return "CPU";
     if (backend_name == "IE_GPU")
         return "GPU";
-    throw ngraph_error("Unsupported backend name");
+    OPENVINO_THROW("Unsupported backend name");
 }
 
 std::shared_ptr<Function> function_from_ir(const std::string& xml_path, const std::string& bin_path = {});

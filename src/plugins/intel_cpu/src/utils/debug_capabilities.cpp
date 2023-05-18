@@ -93,6 +93,8 @@ void DebugLogEnabled::break_at(const std::string & log) {
         std::cout << "[ DEBUG ] " << " Debug log breakpoint hit" << std::endl;
 #if defined(_MSC_VER)
         __debugbreak();
+#elif defined(__APPLE__) || defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+       __builtin_trap();
 #else
         asm("int3");
 #endif

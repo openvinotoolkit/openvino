@@ -21,13 +21,16 @@
 #include <ie_ngraph_utils.hpp>
 
 #include <snippets/op/subgraph.hpp>
-#include "emitters/cpu_generator.hpp"
+#include "snippets/pass/matmul_to_brgemm.hpp"
 #include "utils/cpu_utils.hpp"
-#include "snippets_transformations/fuse_load_store_and_convert.hpp"
-#include "snippets_transformations/mul_add_to_fma.hpp"
-#include "snippets_transformations/brgemm_to_brgemm_cpu.hpp"
-#include "snippets_transformations/remove_converts.hpp"
-#include "ngraph_transformations/convert_to_swish_cpu.hpp"
+#include "emitters/x64/cpu_generator.hpp"
+#include "transformations/snippets/x64/pass/fuse_load_store_and_convert.hpp"
+#include "transformations/snippets/x64/pass/mul_add_to_fma.hpp"
+#include "transformations/snippets/x64/pass/brgemm_to_brgemm_cpu.hpp"
+#include "transformations/snippets/x64/pass/remove_converts.hpp"
+#include "transformations/snippets/x64/pass/enforce_precision.hpp"
+#include "transformations/cpu_opset/common/pass/convert_to_swish_cpu.hpp"
+#include "transformations/defs.hpp"
 
 using namespace InferenceEngine;
 using namespace dnnl::impl::utils;
@@ -87,19 +90,16 @@ void Snippet::copy_snippet() {
         auto new_input = std::make_shared<ngraph::opset1::Parameter>(input.get_element_type(), input.get_partial_shape());
         subgraph_node_inputs.push_back(new_input);
     }
-    std::shared_ptr<ov::Model> new_body = nullptr;
-    // Ticket[79554]: TypeRelaxed ops aren't thread safe so we use mutex to avoid collision in throughput mode
-    if (original_snippet->has_type_relaxed_ops()) {
-        std::lock_guard<std::mutex> lock(*context->getSharedMutex());
-        new_body = original_snippet->body_ptr()->clone();
-    } else {
-        new_body = original_snippet->body_ptr()->clone();
-    }
+    std::shared_ptr<ov::Model> new_body = original_snippet->body_ptr()->clone();
     snippet = std::make_shared<ngraph::snippets::op::Subgraph>(subgraph_node_inputs, new_body);
     ngraph::copy_runtime_info(original_snippet, snippet);
     snippet->set_friendly_name(original_snippet->get_friendly_name());
+#if defined(OPENVINO_ARCH_X86_64)
     snippet->set_generator(std::make_shared<CPUGenerator>(host_isa));
     isa_num_lanes =  snippet->get_generator()->get_target_machine()->get_lanes();
+#else
+    IE_THROW(NotImplemented) << "CPU plugin: code-generation is not supported on non-x64 platforms";
+#endif // OPENVINO_ARCH_X86_64
 }
 
 void Snippet::initSupportedPrimitiveDescriptors() {
@@ -177,10 +177,14 @@ void Snippet::initSupportedPrimitiveDescriptors() {
 
         size_t offset = 0;
         NodeConfig config;
-        config.dynBatchSupport = false;
         config.inConfs.resize(inputShapes.size());
         for (size_t i = 0; i < inputShapes.size(); i++) {
-            auto precision = getOriginalInputPrecisionAtPort(i);
+            const auto originalInputPrecision = getOriginalInputPrecisionAtPort(i);
+            const auto precision = ((originalInputPrecision == InferenceEngine::Precision::FP32) &&
+                                     context->getConfig().enforceBF16 &&
+                                     snippet->has_domain_sensitive_ops()) ?
+                static_cast<InferenceEngine::Precision>(InferenceEngine::Precision::BF16) :
+                originalInputPrecision;
             if (supportedPrecisions.count(precision) == 0)
                 IE_THROW() << "Subgraph node with name `" << getName() << "` doesn't support " << precision << " precision.";
 
@@ -535,14 +539,21 @@ bool Snippet::created() const {
 void Snippet::generate(const jit_snippets_compile_args* jcp) {
     ov::pass::Manager pre_dialect;
     pre_dialect.register_pass<ConvertToSwishCPU>();
+    if (context->getConfig().enforceBF16 && snippet->has_domain_sensitive_ops()) {
+        // enforce BF16 precisions to supported operations
+        // MatMul has to be decomposed to Brgemm operations before enforcement
+        // Note, MatMul decomposition will be ran later again for case if BF16 enforcement is not happened
+        CPU_REGISTER_PASS_X64(pre_dialect, ngraph::snippets::pass::MatMulToBrgemm);
+        CPU_REGISTER_PASS_X64(pre_dialect, pass::EnforcePrecision, element::f32, element::bf16);
+    }
 
     ov::pass::Manager post_dialect;
-    post_dialect.register_pass<ov::intel_cpu::pass::BrgemmToBrgemmCPU>();
+    CPU_REGISTER_PASS_X64(post_dialect, ov::intel_cpu::pass::BrgemmToBrgemmCPU);
 
     ov::pass::Manager post_precision;
-    post_precision.register_pass<ov::intel_cpu::pass::RemoveConverts>();
-    post_precision.register_pass<ov::intel_cpu::pass::FuseLoadConvert>();
-    post_precision.register_pass<ov::intel_cpu::pass::FuseStoreConvert>();
+    CPU_REGISTER_PASS_X64(post_precision, ov::intel_cpu::pass::RemoveConverts);
+    CPU_REGISTER_PASS_X64(post_precision, ov::intel_cpu::pass::FuseLoadConvert);
+    CPU_REGISTER_PASS_X64(post_precision, ov::intel_cpu::pass::FuseStoreConvert);
     // LoadConvert uses Load emitter that support conversion from any type to only f32
     post_precision.get_pass_config()->set_callback<ov::intel_cpu::pass::FuseLoadConvert>(
             [](const std::shared_ptr<const ov::Node>& n) -> bool {
@@ -557,7 +568,7 @@ void Snippet::generate(const jit_snippets_compile_args* jcp) {
                     return convert->get_input_element_type(0) != ov::element::f32;
                 return true;
             });
-    post_precision.register_pass<ov::intel_cpu::pass::MulAddToFMA>();
+    CPU_REGISTER_PASS_X64(post_precision, ov::intel_cpu::pass::MulAddToFMA);
 
     schedule = snippet->generate(
         pre_dialect,

@@ -41,7 +41,7 @@ bool op::v0::Unsqueeze::visit_attributes(AttributeVisitor& visitor) {
 shared_ptr<Node> op::v0::Unsqueeze::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v0_Unsqueeze_clone_with_new_inputs);
     if (new_args.size() != 2) {
-        throw ngraph_error("Incorrect number of new arguments");
+        OPENVINO_THROW("Incorrect number of new arguments");
     }
     return make_shared<Unsqueeze>(new_args.at(0), new_args.at(1));
 }

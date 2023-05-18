@@ -46,7 +46,17 @@ std::vector<layout> non_max_suppression_inst::calc_output_layouts(non_max_suppre
         auto max_output_boxes_per_class_tensor = make_host_tensor(max_output_boxes_per_class_mem->get_layout(),
                                                                   max_output_boxes_per_class_lock.data());
         const_data.emplace(2, max_output_boxes_per_class_tensor);
-        ov::op::v9::shape_infer(&op, input_shapes, output_shapes, true, const_data);
+
+        const auto& boxes = input_shapes[0];
+        const auto& scores = input_shapes[1];
+        // To produce a static output, we need to check dynamism of input tensor's dimensions
+        // Output tensor has the following shape: [min(num_boxes, max_output_boxes_per_class) * num_batches * num_classes, 3]
+        // The first dimension is an upper bound for the number of possible selected boxes
+        bool static_output = boxes[1].is_static() && scores[0].is_static() && scores[1].is_static();
+        ov::op::v9::shape_infer(&op, input_shapes, output_shapes, static_output, const_data);
+    } else {
+        output_shapes[0] = output_shapes[1] = ShapeType{ov::Dimension::dynamic(), 3};
+        output_shapes[2] = ShapeType{1};
     }
 
     for (size_t i = 0; i < desc->num_outputs; ++i) {

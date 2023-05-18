@@ -170,7 +170,7 @@ public:
                         std::swap(begin, end);
                         begin--;
                         end--;
-                    } else {
+                    } else if (begin_org != -1) {  // If begin is -1 with negative stride, clamping begin is already expected value
                         if (is_clamp_begin)
                             begin--;
                         if (is_clamp_end)

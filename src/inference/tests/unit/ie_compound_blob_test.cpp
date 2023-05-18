@@ -245,6 +245,7 @@ TEST_F(CompoundBlobTests, compoundBlobHoldsValidDataWhenUnderlyingBlobIsDestroye
     EXPECT_EQ(stored_value, mb0->rmap().as<const uint8_t*>()[0]);
 }
 
+IE_SUPPRESS_DEPRECATED_START
 TEST_F(NV12BlobTests, cannotCreateNV12BlobFromNullptrBlobs) {
     Blob::Ptr valid = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 1, 4, 4}, NHWC));
     EXPECT_THROW(make_shared_blob<NV12Blob>(valid, nullptr), InferenceEngine::Exception);

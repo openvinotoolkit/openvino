@@ -8,18 +8,18 @@ set(file_content
     </plugins>
 </ie>")
 
-if(NOT EXISTS "${IE_CONFIG_OUTPUT_FILE}")
-    file(WRITE "${IE_CONFIG_OUTPUT_FILE}" "${file_content}")
+if(NOT EXISTS "${OV_CONFIG_OUTPUT_FILE}")
+    file(WRITE "${OV_CONFIG_OUTPUT_FILE}" "${file_content}")
 endif()
 
 # get list of plugin files
-file(GLOB plugin_files "${IE_CONFIGS_DIR}/*.xml")
+file(GLOB plugin_files "${OV_CONFIGS_DIR}/*.xml")
 
 function(check_plugin_exists plugin_name outvar)
     set(${outvar} OFF PARENT_SCOPE)
 
     # check if config file already has this plugin
-    file(STRINGS "${IE_CONFIG_OUTPUT_FILE}" content REGEX "plugin .*=\"")
+    file(STRINGS "${OV_CONFIG_OUTPUT_FILE}" content REGEX "plugin .*=\"")
 
     foreach(line IN LISTS content)
         string(REGEX MATCH "location=\"([^\"]*)\"" location "${line}")
@@ -44,7 +44,7 @@ endforeach()
 
 # add plugin
 set(newContent "")
-file(STRINGS "${IE_CONFIG_OUTPUT_FILE}" content)
+file(STRINGS "${OV_CONFIG_OUTPUT_FILE}" content)
 
 set(already_exists_in_xml OFF)
 foreach(line IN LISTS content)
@@ -77,4 +77,4 @@ ${content}")
     endif()
 endforeach()
 
-file(WRITE "${IE_CONFIG_OUTPUT_FILE}" "${newContent}")
+file(WRITE "${OV_CONFIG_OUTPUT_FILE}" "${newContent}")

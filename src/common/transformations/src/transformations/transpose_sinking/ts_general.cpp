@@ -14,6 +14,7 @@
 #include "transformations/transpose_sinking/ts_concat.hpp"
 #include "transformations/transpose_sinking/ts_data_movement.hpp"
 #include "transformations/transpose_sinking/ts_fuse.hpp"
+#include "transformations/transpose_sinking/ts_gather.hpp"
 #include "transformations/transpose_sinking/ts_interpolate.hpp"
 #include "transformations/transpose_sinking/ts_reduction.hpp"
 #include "transformations/transpose_sinking/ts_slice.hpp"
@@ -37,6 +38,7 @@ TSGeneralForward::TSGeneralForward() {
     add_matcher<TSUnsqueezeForward>();
     add_matcher<TSInterpolateForward>();
     add_matcher<TSSliceForward>();
+    add_matcher<TSGatherForward>();
     add_matcher<TSFuse>();
 }
 
@@ -52,6 +54,7 @@ TSGeneralBackward::TSGeneralBackward() {
     add_matcher<TSUnsqueezeBackward>();
     add_matcher<TSInterpolateBackward>();
     add_matcher<TSSliceBackward>();
+    add_matcher<TSGatherBackward>();
     add_matcher<TSFuse>();
 }
 

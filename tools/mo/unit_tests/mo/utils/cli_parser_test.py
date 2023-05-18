@@ -1386,6 +1386,15 @@ class TestLayoutParsing(unittest.TestCase):
         for i in exp_res.keys():
             assert np.array_equal(result[i], exp_res[i])
 
+    def test_get_layout_8(self):
+        argv_layout = "name1-0(n...c),name2-0(n...c->nc...)"
+        result = get_layout_values(argv_layout)
+        exp_res = {'name1-0': {'source_layout': 'n...c', 'target_layout': None},
+                   'name2-0': {'source_layout': 'n...c', 'target_layout': 'nc...'}}
+        self.assertEqual(list(exp_res.keys()), list(result.keys()))
+        for i in exp_res.keys():
+            assert np.array_equal(result[i], exp_res[i])
+
     def test_get_layout_scalar(self):
         argv_layout = "name1(nhwc),name2([])"
         result = get_layout_values(argv_layout)
@@ -1571,6 +1580,16 @@ class TestLayoutParsing(unittest.TestCase):
         result = get_layout_values(argv_source_layout=argv_source_layout, argv_target_layout=argv_target_layout)
         exp_res = {'name1.0:a/b': {'source_layout': 'nhwc', 'target_layout': 'nchw'},
                    'name2\\d\\': {'source_layout': '[n,h,w,c]', 'target_layout': '[n,c,h,w]'}}
+        self.assertEqual(list(exp_res.keys()), list(result.keys()))
+        for i in exp_res.keys():
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_source_target_layout_7(self):
+        argv_source_layout = "name1-0[n,h,w,c],name2-1(?c??)"
+        argv_target_layout = "name1-0(nchw),name2-1[?,?,?,c]"
+        result = get_layout_values(argv_source_layout=argv_source_layout, argv_target_layout=argv_target_layout)
+        exp_res = {'name1-0': {'source_layout': '[n,h,w,c]', 'target_layout': 'nchw'},
+                   'name2-1': {'source_layout': '?c??', 'target_layout': '[?,?,?,c]'}}
         self.assertEqual(list(exp_res.keys()), list(result.keys()))
         for i in exp_res.keys():
             assert np.array_equal(result[i], exp_res[i])
@@ -1985,8 +2004,8 @@ class TestPackParamsToArgsNamespace(unittest.TestCase):
         assert argv.reverse_input_channels == args['reverse_input_channels']
         assert argv.scale == 0.5
         assert argv.batch == 1
-        assert argv.input_shape == "[1,100,100,3],[2,3]"
-        assert argv.input == "name,a[1 2 3]{f32}->[5 6 7]"
+        assert argv.input_shape == [PartialShape([1,100,100,3]), [2,3]]
+        assert argv.input == ['name', InputCutInfo("a", [1,2,3], numpy.float32, [5, 6, 7])]
         assert argv.output == "a,b,c"
         assert argv.mean_values == "[0.5,0.3]"
         assert argv.scale_values == "a[0.4],b[0.5,0.6]"
@@ -1995,7 +2014,7 @@ class TestPackParamsToArgsNamespace(unittest.TestCase):
         assert argv.transform == "LowLatency2[use_const_initializer=False]"
 
         for arg, value in vars(argv).items():
-            if arg not in args:
+            if arg not in args and arg != 'is_python_api_used':
                 assert value == cli_parser.get_default(arg)
 
     def test_not_existing_dir(self):
@@ -2033,7 +2052,7 @@ class TestConvertModelParamsParsing(unittest.TestCase):
             'MXNet-specific parameters:': {'input_symbol', 'nd_prefix_name', 'pretrained_model_name', 'save_params_from_nd',
                                            'legacy_mxnet_model', 'enable_ssd_gluoncv'},
             'Kaldi-specific parameters:': {'counts', 'remove_output_softmax', 'remove_memory'},
-            'PyTorch-specific parameters:': {'example_input', 'onnx_opset_version'}
+            'PyTorch-specific parameters:': {'example_input'}
         }
 
         params = get_mo_convert_params()

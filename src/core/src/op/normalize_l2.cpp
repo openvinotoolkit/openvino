@@ -38,8 +38,6 @@ void op::v0::NormalizeL2::validate_and_infer_types() {
     const auto& input_rank = input_pshape.rank();
     const auto& axes_rank = axes_pshape.rank();
 
-    NODE_VALIDATION_CHECK(this, has_and_set_equal_bounds(input_value(1)), "Input axes must be Constant type");
-
     if (axes_rank.is_static()) {
         NODE_VALIDATION_CHECK(this,
                               axes_rank.get_length() <= 1,
@@ -82,7 +80,7 @@ AxisSet op::v0::NormalizeL2::get_reduction_axes() const {
 shared_ptr<Node> op::v0::NormalizeL2::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v0_NormalizeL2_clone_with_new_inputs);
     if (new_args.size() != 2) {
-        throw ngraph_error("Incorrect number of new arguments");
+        OPENVINO_THROW("Incorrect number of new arguments");
     }
     return make_shared<op::v0::NormalizeL2>(new_args.at(0), new_args.at(1), m_eps, m_eps_mode);
 }

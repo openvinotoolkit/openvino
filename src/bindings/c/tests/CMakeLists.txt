@@ -29,6 +29,10 @@ if(ENABLE_INTEL_GPU)
     add_dependencies(${TARGET_NAME} openvino_intel_gpu_plugin)
 endif()
 
+if(ENABLE_HETERO)
+    add_dependencies(${TARGET_NAME} openvino_hetero_plugin)
+endif()
+
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 
 install(TARGETS ${TARGET_NAME}

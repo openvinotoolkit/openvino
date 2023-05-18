@@ -186,8 +186,10 @@ std::vector<CommonTestUtils::OpType> opTypes = {
 std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypesBinInp = {
         ngraph::helpers::EltwiseTypes::ADD,
         ngraph::helpers::EltwiseTypes::MULTIPLY,
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64) // TODO: Fix CVS-105430
         ngraph::helpers::EltwiseTypes::SUBTRACT,
         ngraph::helpers::EltwiseTypes::DIVIDE,
+#endif
         ngraph::helpers::EltwiseTypes::FLOOR_MOD,
         ngraph::helpers::EltwiseTypes::SQUARED_DIFF,
 };
@@ -199,7 +201,11 @@ std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypesDiffInp = { // Differen
 
 ov::AnyMap additional_config;
 
-std::vector<ElementType> netType = {ElementType::bf16, ElementType::f32};
+std::vector<ElementType> netType = {
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+        ElementType::bf16,
+#endif
+        ElementType::f32};
 
 std::vector<CPUSpecificParams> cpuParams_4D = {
         CPUSpecificParams({nChw16c, nChw16c}, {nChw16c}, {}, {}),
@@ -215,6 +221,7 @@ std::vector<CPUSpecificParams> cpuParams_5D = {
 
 const std::vector<fusingSpecificParams> fusingParamsSet{
     emptyFusingSpec,
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
     // eltwise
     fusingSigmoid,
     fusingPRelu1D,
@@ -224,6 +231,7 @@ const std::vector<fusingSpecificParams> fusingParamsSet{
     fusingFakeQuantizePerTensorRelu,
     fusingFakeQuantizePerChannelRelu,
     fusingFQPerChannelSigmoidFQPerTensor
+#endif
 };
 
 std::vector<std::vector<ov::Shape>> inShapes_4D = {
@@ -266,7 +274,7 @@ const auto params_4D_fusing = ::testing::Combine(
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                 ::testing::Values(additional_config)),
-        ::testing::ValuesIn(cpuParams_4D),
+        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D)),
         ::testing::ValuesIn(fusingParamsSet));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_Fusing, EltwiseLayerCPUTest, params_4D_fusing, EltwiseLayerCPUTest::getTestCaseName);
@@ -329,14 +337,18 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_5D, EltwiseLayerCPUTest, params_5
 std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypesI32 = {
         ngraph::helpers::EltwiseTypes::ADD,
         ngraph::helpers::EltwiseTypes::MULTIPLY,
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64) // TODO: Fix CVS-105430
         ngraph::helpers::EltwiseTypes::SUBTRACT,
         ngraph::helpers::EltwiseTypes::DIVIDE,
+#endif
         ngraph::helpers::EltwiseTypes::SQUARED_DIFF,
 };
 
 const std::vector<fusingSpecificParams> fusingParamsSetI32{
     emptyFusingSpec,
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
     fusingMultiplyAddPerChannel,
+#endif
 };
 
 const auto params_5D_emptyCPUSpec_I32 = ::testing::Combine(
@@ -353,8 +365,9 @@ const auto params_5D_emptyCPUSpec_I32 = ::testing::Combine(
         ::testing::Values(emptyCPUSpec),
         ::testing::ValuesIn(fusingParamsSetI32));
 
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_5D_I32, EltwiseLayerCPUTest, params_5D_emptyCPUSpec_I32, EltwiseLayerCPUTest::getTestCaseName);
-
+#endif
 
 std::vector<std::vector<ov::Shape>> inShapes_4D_Blocked_Planar = {
         {{2, 17, 31, 3}, {2, 1, 31, 3}},
@@ -558,7 +571,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_5D_1D_Parameter, EltwiseLayerCPUT
 std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypesBinDyn = {
         ngraph::helpers::EltwiseTypes::ADD,
         ngraph::helpers::EltwiseTypes::MULTIPLY,
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64) // TODO: Fix CVS-105430
         ngraph::helpers::EltwiseTypes::SUBTRACT,
+#endif
         ngraph::helpers::EltwiseTypes::SQUARED_DIFF,
 };
 
@@ -682,7 +697,7 @@ const auto params_4D_dyn_param_fusing = ::testing::Combine(
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                 ::testing::Values(additional_config)),
-        ::testing::ValuesIn(cpuParams_4D),
+        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D)),
         ::testing::ValuesIn(fusingParamsSet));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_dyn_param_fusing, EltwiseLayerCPUTest, params_4D_dyn_param_fusing, EltwiseLayerCPUTest::getTestCaseName);

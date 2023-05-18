@@ -69,6 +69,7 @@
                             <tab type="user" title="VariadicSplitTransformation" url="@ref openvino_docs_OV_UG_lpt_VariadicSplitTransformation"/>
                         </tab>
                         <tab type="user" title="Step 4. Cleanup transformations" url="@ref openvino_docs_OV_UG_lpt_step4_cleanup">
+                            <tab type="user" title="EliminateFakeQuantizeTransformation" url="@ref openvino_docs_OV_UG_lpt_EliminateFakeQuantizeTransformation"/>
                             <tab type="user" title="FoldConvertTransformation" url="@ref openvino_docs_OV_UG_lpt_FoldConvertTransformation"/>
                             <tab type="user" title="FoldFakeQuantizeTransformation" url="@ref openvino_docs_OV_UG_lpt_FoldFakeQuantizeTransformation"/>
                             <tab type="user" title="FuseConvertTransformation" url="@ref openvino_docs_OV_UG_lpt_FuseConvertTransformation"/>

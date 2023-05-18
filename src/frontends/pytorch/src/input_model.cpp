@@ -45,9 +45,13 @@ std::vector<ov::frontend::Place::Ptr> InputModel::get_inputs() const {
     for (const auto& input_idx : m_model_decoder->inputs()) {
         auto place_it = m_name_to_place.find(std::to_string(input_idx));
         FRONT_END_GENERAL_CHECK(place_it != m_name_to_place.end(), "Couldn't find Place for input.");
-        if (input_idx != 0) {
-            res.push_back(place_it->second);
+        const auto& names = place_it->second->get_names();
+        if (input_idx == 0 && std::any_of(names.cbegin(), names.cend(), [](const std::string& n) {
+                return n.find("self") != std::string::npos;
+            })) {
+            continue;
         }
+        res.push_back(place_it->second);
     }
     return res;
 }

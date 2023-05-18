@@ -71,8 +71,6 @@ class ColorFormat(Enum):
     BGR = 2
     RGBX = 3
     BGRX = 4
-    NV12 = 5
-    I420 = 6
 
 
 cpdef enum StatusCode:

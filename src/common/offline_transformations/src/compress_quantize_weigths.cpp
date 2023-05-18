@@ -95,13 +95,13 @@ ngraph::pass::CompressQuantizeWeights::CompressQuantizeWeights() {
                  output_high = levels - 1 + output_low
                The FakeQuantize result is converted to low precision type and then constant folded
             */
-            std::shared_ptr<Node> new_input_low;
-            auto new_output_low = op::Constant::create(input_type, Shape{}, {-static_cast<float>(levels / 2)});
-            auto new_output_high =
+            std::shared_ptr<Node> new_output_low =
+                op::Constant::create(input_type, Shape{}, {-static_cast<float>(levels / 2)});
+            std::shared_ptr<Node> new_output_high =
                 std::make_shared<opset8::Add>(new_output_low, op::Constant::create(input_type, Shape{}, {levels - 1}));
             const auto& weights_const = pattern_value_map.at(weights_const_pattern);
-            const auto& input_low = pattern_value_map.at(input_low_pattern);
-            const auto& input_high = pattern_value_map.at(input_high_pattern);
+            Output<Node> input_low = pattern_value_map.at(input_low_pattern);
+            Output<Node> input_high = pattern_value_map.at(input_high_pattern);
             const auto& fq_data_input = pattern_value_map.count(weigths_convert_pattern)
                                             ? pattern_value_map.at(weigths_convert_pattern)
                                             : weights_const;
@@ -143,8 +143,18 @@ ngraph::pass::CompressQuantizeWeights::CompressQuantizeWeights() {
                     scale = (output_high - output_low) / (new_output_high - new_output_low)
                     zero_point = new_output_low - output_low / scale
             */
-            const auto& output_low = pattern_value_map.at(output_low_pattern);
-            const auto& output_high = pattern_value_map.at(output_high_pattern);
+            Output<Node> output_low = pattern_value_map.at(output_low_pattern);
+            Output<Node> output_high = pattern_value_map.at(output_high_pattern);
+            const auto& fq_type = fq->get_output_element_type(0);
+            const bool should_convert = fq_type.is_real() && fq_type.size() < element::f32.size();
+            if (should_convert) {
+                input_low = std::make_shared<opset8::Convert>(input_low, element::f32);
+                input_high = std::make_shared<opset8::Convert>(input_high, element::f32);
+                output_low = std::make_shared<opset8::Convert>(output_low, element::f32);
+                output_high = std::make_shared<opset8::Convert>(output_high, element::f32);
+                new_output_low = std::make_shared<opset8::Convert>(new_output_low, element::f32);
+                new_output_high = std::make_shared<opset8::Convert>(new_output_high, element::f32);
+            }
             auto output_range = std::make_shared<opset8::Subtract>(output_high, output_low);
             auto input_range = std::make_shared<opset8::Subtract>(new_output_high, new_output_low);
             std::shared_ptr<Node> scale = std::make_shared<opset8::Divide>(output_range, input_range);
@@ -155,11 +165,17 @@ ngraph::pass::CompressQuantizeWeights::CompressQuantizeWeights() {
                 OPENVINO_SUPPRESS_DEPRECATED_END
                 scale = constant;
             }
-            auto zero = op::Constant::create(input_type, Shape{}, {0});
+            auto zero = op::Constant::create(scale->get_output_element_type(0), Shape{}, {0});
             auto scale_eq_zero = std::make_shared<opset8::Equal>(scale, zero);
             // shift equals to input_low - output_low / scale
             // for positions where scale == 0, we put zero as shift
             std::shared_ptr<Node> zero_point = std::make_shared<opset8::Select>(scale_eq_zero, zero, shift);
+
+            if (should_convert) {
+                scale = std::make_shared<opset8::Convert>(scale, fq_type);
+                zero_point = std::make_shared<opset8::Convert>(zero_point, fq_type);
+            }
+
             OPENVINO_SUPPRESS_DEPRECATED_START
             if (auto constant = ov::get_constant_from_source(zero_point)) {
                 OPENVINO_SUPPRESS_DEPRECATED_END

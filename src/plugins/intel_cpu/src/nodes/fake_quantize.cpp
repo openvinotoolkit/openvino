@@ -45,7 +45,7 @@ using namespace Xbyak;
 namespace ov {
 namespace intel_cpu {
 namespace node {
-
+#if defined(OPENVINO_ARCH_X86_64)
 #define GET_OFF(field) offsetof(jit_quantize_call_args, field)
 
 template <cpu_isa_t isa>
@@ -228,7 +228,7 @@ struct jit_uni_quantization_kernel : public jit_uni_quantize_kernel, public jit_
     };
 
     void generate() override {
-        do_dequantization = jqp_.op_type == Algorithm::FQCommon || jqp_.op_type == Algorithm::FQRequantization;
+        do_dequantization = jqp_.op_type == Algorithm::FQCommon;
         do_rounding = do_dequantization || jqp_.dst_prc == Precision::FP32;
 
         this->preamble();
@@ -863,7 +863,7 @@ private:
         }
     }
 };
-
+#endif
 bool FakeQuantize::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         const auto fq = std::dynamic_pointer_cast<const ngraph::opset1::FakeQuantize>(op);
@@ -1236,8 +1236,7 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const GraphC
                 }
             }
 
-            algorithm = quantizationOnly ? Algorithm::FQQuantization :
-                        (isFakeQuantization || isFakeQuantizationWithScale) ? Algorithm::FQCommon : Algorithm::FQRequantization;
+            algorithm = quantizationOnly ? Algorithm::FQQuantization : Algorithm::FQCommon;
         }
     } else {
         IE_THROW(NotImplemented) << errorMessage;
@@ -1326,7 +1325,6 @@ void FakeQuantize::initSupportedPrimitiveDescriptors() {
     } else {
         impl_type = impl_desc_type::ref;
     }
-
     if (!mayiuse(cpu::x64::sse41) || getAxis() != 1) {
         impl_type = impl_desc_type::ref;
 
@@ -1346,7 +1344,6 @@ void FakeQuantize::initSupportedPrimitiveDescriptors() {
 
     for (auto& fmt : dataFormats) {
         NodeConfig config;
-        config.dynBatchSupport = true;
         for (size_t i = 0; i < getParentEdges().size(); i++) {
             PortConfig dataConfig;
             dataConfig.inPlace(-1);
@@ -1597,8 +1594,8 @@ void FakeQuantize::executeReference() {
         });
     }
 }
-
 void FakeQuantize::executeBinarization(const std::unique_ptr<jit_uni_quantize_kernel> &pKernel) const {
+#if defined(OPENVINO_ARCH_X86_64)
     const auto &srcMemory = getParentEdgeAt(0)->getMemoryPtr();
     auto &dstMemory = getChildEdgeAt(0)->getMemoryPtr();
 
@@ -1636,9 +1633,11 @@ void FakeQuantize::executeBinarization(const std::unique_ptr<jit_uni_quantize_ke
 
         (*pKernel)(&arg);
     });
+#endif
 }
 
 void FakeQuantize::executeQuantization(const std::unique_ptr<jit_uni_quantize_kernel> &pKernel) const {
+#if defined(OPENVINO_ARCH_X86_64)
     auto &srcMemory = getParentEdgeAt(0)->getMemoryPtr();
     auto &dstMemory = getChildEdgeAt(0)->getMemoryPtr();
 
@@ -1761,6 +1760,7 @@ void FakeQuantize::executeQuantization(const std::unique_ptr<jit_uni_quantize_ke
             (*pKernel)(&arg);
         });
     }
+#endif
 }
 
 void FakeQuantize::executeDynamicImpl(dnnl::stream strm) {
@@ -1993,6 +1993,9 @@ void FakeQuantize::updateOptimizedFormula(bool do_rounding) {
             // merged with inputScale/inputShift with updated cropLow/cropHigh
             clo = clo * osc + osh;
             chi = chi * osc + osh;
+            if (clo > chi)
+                std::swap(clo, chi);
+
             //  crop(x*isc + ish, a, b)*osc + osh
             //  crop(x*isc*osc + ish*osc + osh, a', b')
             isc = isc * osc;
@@ -2111,6 +2114,7 @@ bool FakeQuantize::appendAttrPostOps(DnnlPostOpsComposer& dnnlpoc,
 }
 
 FakeQuantize::FakeQuantizeJitExecutor::FakeQuantizeJitExecutor(const jit_quantize_params &_jqp) {
+#if defined(OPENVINO_ARCH_X86_64)
     bool isBinarization = _jqp.op_type == Algorithm::FQBinarization;
     if (mayiuse(cpu::x64::avx512_core)) {
         if (isBinarization)
@@ -2133,6 +2137,7 @@ FakeQuantize::FakeQuantizeJitExecutor::FakeQuantizeJitExecutor(const jit_quantiz
     if (pKernel) {
         pKernel->create_ker();
     }
+#endif
 }
 
 void FakeQuantize::FakeQuantizeJitExecutor::exec(const FakeQuantize& node) {

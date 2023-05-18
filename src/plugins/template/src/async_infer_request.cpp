@@ -23,6 +23,9 @@ ov::template_plugin::AsyncInferRequest::AsyncInferRequest(
     // and waiting tasks. Waiting tasks can lock execution thread so they use separate threads from other executor.
     constexpr const auto remoteDevice = false;
 
+    m_cancel_callback = [request] {
+        request->cancel();
+    };
     if (remoteDevice) {
         m_pipeline = {{task_executor,
                        [this, request] {
@@ -51,3 +54,10 @@ ov::template_plugin::AsyncInferRequest::~AsyncInferRequest() {
     ov::IAsyncInferRequest::stop_and_wait();
 }
 // ! [async_infer_request:dtor]
+
+// ! [async_infer_request:cancel]
+void ov::template_plugin::AsyncInferRequest::cancel() {
+    ov::IAsyncInferRequest::cancel();
+    m_cancel_callback();
+}
+// ! [async_infer_request:cancel]

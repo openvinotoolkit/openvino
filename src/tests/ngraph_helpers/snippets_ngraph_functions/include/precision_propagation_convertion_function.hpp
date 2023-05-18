@@ -27,20 +27,18 @@ public:
         const element::Type input_type,
         const std::vector<float>& fake_quantize_intervals);
 
+protected:
+    std::shared_ptr<Model> initOriginal() const override;
+
+private:
     /*
-     * Don't call this method explicity. You should create the instance of PrecisionPropagationConvertionFunction before.
-     * After the method will be called implicitly in getOriginal.
-     * Note, please, getReference and getLowered methods are not implemented and throw exception.
+     * Returns model implicitly via getOriginal call in initOriginal.
      */
     static std::shared_ptr<ov::Model> get(
         const std::vector<ov::PartialShape>& input_shapes,
         const element::Type input_type,
         const std::vector<float>& fake_quantize_intervals);
 
-protected:
-    std::shared_ptr<Model> initOriginal() const override;
-
-private:
     const std::vector<float> fake_quantize_intervals;
 };
 
