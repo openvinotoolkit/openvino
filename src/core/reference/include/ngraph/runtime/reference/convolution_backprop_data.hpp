@@ -17,9 +17,7 @@
 namespace ngraph {
 namespace runtime {
 namespace reference {
-namespace {
-constexpr size_t filter_input_ch_axis = 0;
-
+namespace conv_backprop {
 template <typename T>
 void extend_with_zeros(const Strides& strides,
                        const Shape& input_shape,
@@ -77,13 +75,13 @@ void extend_with_zeros(const Strides& strides,
     }
 }
 
-void infer_forward_convbackprop_output_shape(const Shape& in_spatial_shape,
-                                             const Shape& f_spatial_shape,
-                                             const Shape& out_spatial_shape,
-                                             Shape& infer_spatial_shape,
-                                             const Strides& strides,
-                                             const Strides& dilations,
-                                             const CoordinateDiff& output_padding) {
+inline void infer_forward_convbackprop_output_shape(const Shape& in_spatial_shape,
+                                                    const Shape& f_spatial_shape,
+                                                    const Shape& out_spatial_shape,
+                                                    Shape& infer_spatial_shape,
+                                                    const Strides& strides,
+                                                    const Strides& dilations,
+                                                    const CoordinateDiff& output_padding) {
     for (size_t idx = 0; idx < in_spatial_shape.size(); idx++) {
         // FIXME: Incorrect logic with negative pad
         int total_padding =
@@ -105,6 +103,9 @@ inline void validate_convolution_backprop_parameters(const Shape& in_shape,
                                                      const CoordinateDiff& pads_begin,
                                                      const CoordinateDiff& pads_end,
                                                      const CoordinateDiff& output_padding) {
+    constexpr size_t filter_input_ch_axis = 0;
+    constexpr size_t in_channel_axis = 1;
+
     // this implementation supports 1D, 2D and 3D convolutions
     NGRAPH_CHECK(in_shape.size() >= 3 && in_shape.size() <= 5, "Unsupported input rank: ", in_shape);
 
@@ -148,7 +149,7 @@ inline void validate_convolution_backprop_parameters(const Shape& in_shape,
                                             output_padding);
     NGRAPH_CHECK(out_spatial_shape == infered_out_spatial_shape, "Incorrect output shape provided");
 }
-}  // namespace
+}  // namespace conv_backprop
 
 template <typename T>
 void convolution_backprop_impl(const T* in,
@@ -164,9 +165,11 @@ void convolution_backprop_impl(const T* in,
                                const CoordinateDiff& output_padding)
 
 {
+    constexpr size_t filter_out_ch_axis = 0;
+    constexpr size_t in_batch_axis = 0;
     // here we are converting all param types to int's to avoid arithmetic issues
     // (e.g signed + unsigned) in indexes calculation later
-    ConvolutionParams params{strides, dilation, pads_begin, pads_end, output_padding};
+    conv::ConvolutionParams params{strides, dilation, pads_begin, pads_end, output_padding};
 
     // here we are extending spatial dimensions to 3D, because we are going to use 3D
     // convolution implementation to convolve also in 1D & 2D case
@@ -222,11 +225,11 @@ void convolution_backprop_impl(const T* in,
 
     const size_t work_amount = batches_count * filters_count;
 
-    void (*conv_channels)(const ConvolutionParams&, const T*, const Shape&, const T*, const Shape&, T*);
+    void (*conv_channels)(const conv::ConvolutionParams&, const T*, const Shape&, const T*, const Shape&, T*);
     if (in_shape.size() == 5) {
-        conv_channels = &convolve_3D_channels;
+        conv_channels = &conv::convolve_3D_channels;
     } else {
-        conv_channels = &convolve_2D_channels;
+        conv_channels = &conv::convolve_2D_channels;
     }
 
     auto ncores = std::thread::hardware_concurrency() / 2;
@@ -309,14 +312,14 @@ void convolution_backprop_in(const T* delta_in,
     Strides conv_filter_dilation = filter_dilation;
     auto conv_input_data = delta_in;
 
-    validate_convolution_backprop_parameters(in_shape,
-                                             filter_shape,
-                                             out_shape,
-                                             stride,
-                                             filter_dilation,
-                                             forward_in_pad_bellow,
-                                             forward_in_pad_above,
-                                             output_padding);
+    conv_backprop::validate_convolution_backprop_parameters(in_shape,
+                                                            filter_shape,
+                                                            out_shape,
+                                                            stride,
+                                                            filter_dilation,
+                                                            forward_in_pad_bellow,
+                                                            forward_in_pad_above,
+                                                            output_padding);
 
     // Note that we only reverse the spatial dimensions here (loop
     // starts at 2)
@@ -360,7 +363,7 @@ void convolution_backprop_in(const T* delta_in,
     // > 1, after that set stride and filter params to 1.
     const size_t stride_dim = std::accumulate(stride.begin(), stride.end(), int64_t(1), std::multiplies<int64_t>());
     if (stride_dim >= 2) {
-        extend_with_zeros(stride, in_shape, delta_in, conv_input_shape, extended_input);
+        conv_backprop::extend_with_zeros(stride, in_shape, delta_in, conv_input_shape, extended_input);
         std::fill(conv_stride.begin(), conv_stride.end(), 1);
         conv_input_data = extended_input.data();
     }
@@ -368,11 +371,11 @@ void convolution_backprop_in(const T* delta_in,
     const size_t dilation_dim =
         std::accumulate(filter_dilation.begin(), filter_dilation.end(), uint64_t(1), std::multiplies<size_t>());
     if (dilation_dim >= 2) {
-        extend_with_zeros<T>(filter_dilation,
-                             filter_shape,
-                             reinterpret_cast<const T*>(&reversed[0]),
-                             conv_filter_shape,
-                             extended_filter);
+        conv_backprop::extend_with_zeros<T>(filter_dilation,
+                                            filter_shape,
+                                            reinterpret_cast<const T*>(&reversed[0]),
+                                            conv_filter_shape,
+                                            extended_filter);
         std::fill(conv_filter_dilation.begin(), conv_filter_dilation.end(), 1);
         conv_filter_data = extended_filter.data();
     }

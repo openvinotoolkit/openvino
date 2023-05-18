@@ -11,14 +11,7 @@
 namespace ngraph {
 namespace runtime {
 namespace reference {
-namespace {
-
-constexpr size_t in_batch_axis = 0;
-constexpr size_t in_channel_axis = 1;
-constexpr size_t filter_out_ch_axis = 0;
-constexpr size_t filter_in_ch_axis = 1;
-constexpr size_t out_batch_axis = 0;
-constexpr size_t out_channel_axis = 1;
+namespace conv {
 
 struct ConvolutionParams {
     std::vector<int64_t> strides;
@@ -260,6 +253,8 @@ inline void validate_convolution_parameters(const Shape& in_shape,
                                             const Strides& dilations,
                                             const CoordinateDiff& pads_begin,
                                             const CoordinateDiff& pads_end) {
+    constexpr size_t filter_in_ch_axis = 1;
+    constexpr size_t in_channel_axis = 1;
     // this implementation supports 1D, 2D and 3D convolutions
     NGRAPH_CHECK(in_shape.size() >= 3 && in_shape.size() <= 5, "Unsupported input rank: ", in_shape);
 
@@ -300,7 +295,7 @@ inline void validate_convolution_parameters(const Shape& in_shape,
                                     pads_end);
     NGRAPH_CHECK(out_spatial_shape == infered_out_spatial_shape, "Incorrect output shape provided");
 }
-}  // namespace
+}  // namespace conv
 
 template <typename T>
 void convolution(const T* in,
@@ -313,11 +308,13 @@ void convolution(const T* in,
                  const Strides& dilations,
                  const CoordinateDiff& pads_begin,
                  const CoordinateDiff& pads_end) {
-    validate_convolution_parameters(in_shape, f_shape, out_shape, strides, dilations, pads_begin, pads_end);
+    constexpr size_t filter_out_ch_axis = 0;
+    constexpr size_t in_batch_axis = 0;
+    conv::validate_convolution_parameters(in_shape, f_shape, out_shape, strides, dilations, pads_begin, pads_end);
 
     // here we are converting all param types to int's to avoid arithmetic issues
     // (e.g signed + unsigned) in indexes calculation later
-    ConvolutionParams params{strides, dilations, pads_begin, pads_end};
+    conv::ConvolutionParams params{strides, dilations, pads_begin, pads_end};
 
     // here we are extending spatial dimensions to 3D, because we are going to use 3D
     // convolution implementation to convolve also in 1D & 2D case
@@ -339,11 +336,11 @@ void convolution(const T* in,
 
     const size_t work_amount = batches_count * filters_count;
 
-    void (*conv_channels)(const ConvolutionParams&, const T*, const Shape&, const T*, const Shape&, T*);
+    void (*conv_channels)(const conv::ConvolutionParams&, const T*, const Shape&, const T*, const Shape&, T*);
     if (in_shape.size() == 5) {
-        conv_channels = &convolve_3D_channels;
+        conv_channels = &conv::convolve_3D_channels;
     } else {
-        conv_channels = &convolve_2D_channels;
+        conv_channels = &conv::convolve_2D_channels;
     }
 
     auto ncores = std::thread::hardware_concurrency() / 2;
