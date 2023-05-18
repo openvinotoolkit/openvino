@@ -40,7 +40,13 @@ inline void validate_deformable_convolution_params(const Shape& in_shape,
         return shape;
     }(groups);
 
-    validate_convolution_parameters(in_shape, scaled_f_shape, out_shape, strides, dilations, pads_begin, pads_end);
+    conv::validate_convolution_parameters(in_shape,
+                                          scaled_f_shape,
+                                          out_shape,
+                                          strides,
+                                          dilations,
+                                          pads_begin,
+                                          pads_end);
 
     const Shape f_spatial_shape{std::next(f_shape.begin(), 2), std::end(f_shape)};
     const Shape o_spatial_shape{std::next(o_shape.begin(), 2), std::end(o_shape)};
@@ -104,7 +110,7 @@ inline float bilinear_interpolation(const inputType* data,
 }
 
 template <typename T>
-void convolve_2D_channels(const ConvolutionParams& p,
+void convolve_2D_channels(const conv::ConvolutionParams& p,
                           const T* batch,
                           const Shape& batch_shape,
                           const T* offsets,
@@ -230,17 +236,17 @@ void deformable_convolution(const T* in,
 
     // here we are converting all param types to int's to avoid arithmetic issues
     // (e.g signed + unsigned) in indexes calculation later
-    ConvolutionParams params{strides, dilation, pads_begin, pads_end};
+    conv::ConvolutionParams params{strides, dilation, pads_begin, pads_end};
     const size_t groups_count = static_cast<size_t>(groups);
 
-    const size_t batches_count = in_shape[in_batch_axis];
+    const size_t batches_count = in_shape[conv::in_batch_axis];
     const Shape group_in_shape = shape_scale(shape_reduce(in_shape), groups);
     const size_t group_in_size = shape_size(group_in_shape);
 
     const Shape group_offset_shape = shape_scale(shape_reduce(o_shape), deformable_groups);
     const size_t group_offset_batch_size = shape_size(shape_reduce(o_shape));
 
-    const size_t group_filters_count = f_shape[filter_out_ch_axis] / groups;
+    const size_t group_filters_count = f_shape[conv::filter_out_ch_axis] / groups;
     const Shape group_filter_shape = shape_reduce(f_shape);
     const size_t group_filter_size = shape_size(group_filter_shape);
 

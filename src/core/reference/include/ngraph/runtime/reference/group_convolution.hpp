@@ -7,15 +7,6 @@
 #include "ngraph/runtime/reference/convolution.hpp"
 #include "ngraph/runtime/reference/helpers.hpp"
 
-namespace {
-constexpr size_t filter_group_axis = 0;
-constexpr size_t filter_in_ch_axis = 2;
-constexpr size_t in_batch_axis = 0;
-constexpr size_t in_channel_axis = 1;
-constexpr size_t out_batch_axis = 0;
-constexpr size_t out_channel_axis = 1;
-}  // namespace
-
 namespace ngraph {
 namespace runtime {
 namespace reference {
@@ -42,13 +33,13 @@ void group_convolution(const INPUT* in,
 {
     validate_group_convolution_parameters(in_shape, filter_shape, out_shape, strides, dilation, pads_begin, pads_end);
 
-    const size_t group_count = filter_shape[filter_group_axis];
+    const size_t group_count = filter_shape[conv::filter_group_axis];
 
     const INPUT* group_batch = in;
     const Shape group_batch_shape = [&]() {
         Shape new_shape{in_shape};
-        new_shape[in_batch_axis] = 1;
-        new_shape[in_channel_axis] /= group_count;
+        new_shape[conv::in_batch_axis] = 1;
+        new_shape[conv::in_channel_axis] /= group_count;
         return new_shape;
     }();
     const size_t group_batch_size = shape_size(group_batch_shape);
@@ -63,13 +54,13 @@ void group_convolution(const INPUT* in,
     OUTPUT* group_out = out;
     const Shape group_out_shape = [&]() {
         Shape new_shape{out_shape};
-        new_shape[out_batch_axis] = 1;
-        new_shape[out_channel_axis] /= group_count;
+        new_shape[conv::out_batch_axis] = 1;
+        new_shape[conv::out_channel_axis] /= group_count;
         return new_shape;
     }();
     const size_t group_out_size = shape_size(group_out_shape);
 
-    for (size_t batch_idx = 0; batch_idx < in_shape[in_batch_axis]; ++batch_idx) {
+    for (size_t batch_idx = 0; batch_idx < in_shape[conv::in_batch_axis]; ++batch_idx) {
         group_filter = f;
         for (size_t group_idx = 0; group_idx < group_count; ++group_idx) {
             runtime::reference::convolution(group_batch,

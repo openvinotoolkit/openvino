@@ -49,13 +49,13 @@ void group_convolution_backprop_data(const T* in,
                                      const CoordinateDiff& output_padding)
 
 {
-    const size_t group_count = filter_shape[filter_group_axis];
+    const size_t group_count = filter_shape[conv::filter_group_axis];
 
     const T* group_batch = in;
     const Shape group_batch_shape = [&]() {
         Shape new_shape{in_shape};
-        new_shape[in_batch_axis] = 1;
-        new_shape[in_channel_axis] /= group_count;
+        new_shape[conv::in_batch_axis] = 1;
+        new_shape[conv::in_channel_axis] /= group_count;
         return new_shape;
     }();
     const size_t group_batch_size = shape_size(group_batch_shape);
@@ -70,14 +70,14 @@ void group_convolution_backprop_data(const T* in,
     T* group_out = out;
     const Shape group_out_shape = [&]() {
         Shape new_shape{out_shape};
-        new_shape[out_batch_axis] = 1;
-        new_shape[out_channel_axis] /= group_count;
+        new_shape[conv::out_batch_axis] = 1;
+        new_shape[conv::out_channel_axis] /= group_count;
         return new_shape;
     }();
     const size_t group_out_size = shape_size(group_out_shape);
 
     Strides in_dilation(in_shape.size(), 1);
-    for (size_t batch_idx = 0; batch_idx < in_shape[in_batch_axis]; ++batch_idx) {
+    for (size_t batch_idx = 0; batch_idx < in_shape[conv::in_batch_axis]; ++batch_idx) {
         group_filter = f;
         for (size_t group_idx = 0; group_idx < group_count; ++group_idx) {
             runtime::reference::convolution_backprop_in(group_batch,

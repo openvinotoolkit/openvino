@@ -13,6 +13,14 @@ namespace runtime {
 namespace reference {
 namespace conv {
 
+constexpr size_t filter_group_axis = 0;
+constexpr size_t in_batch_axis = 0;
+constexpr size_t in_channel_axis = 1;
+constexpr size_t filter_out_ch_axis = 0;
+constexpr size_t filter_in_ch_axis = 1;
+constexpr size_t out_batch_axis = 0;
+constexpr size_t out_channel_axis = 1;
+
 struct ConvolutionParams {
     std::vector<int64_t> strides;
     std::vector<int64_t> dilation;
@@ -253,8 +261,6 @@ inline void validate_convolution_parameters(const Shape& in_shape,
                                             const Strides& dilations,
                                             const CoordinateDiff& pads_begin,
                                             const CoordinateDiff& pads_end) {
-    constexpr size_t filter_in_ch_axis = 1;
-    constexpr size_t in_channel_axis = 1;
     // this implementation supports 1D, 2D and 3D convolutions
     NGRAPH_CHECK(in_shape.size() >= 3 && in_shape.size() <= 5, "Unsupported input rank: ", in_shape);
 
@@ -264,11 +270,11 @@ inline void validate_convolution_parameters(const Shape& in_shape,
                  " and ",
                  f_shape.size());
 
-    NGRAPH_CHECK(in_shape[in_channel_axis] == f_shape[filter_in_ch_axis],
+    NGRAPH_CHECK(in_shape[conv::in_channel_axis] == f_shape[conv::filter_in_ch_axis],
                  "Incompatible input channels in data batch and filters shapes: ",
-                 in_shape[in_channel_axis],
+                 in_shape[conv::in_channel_axis],
                  " and ",
-                 f_shape[filter_in_ch_axis]);
+                 f_shape[conv::filter_in_ch_axis]);
 
     NGRAPH_CHECK(in_shape.size() == out_shape.size(),
                  "Incompatible input and output ranks: ",
@@ -308,8 +314,6 @@ void convolution(const T* in,
                  const Strides& dilations,
                  const CoordinateDiff& pads_begin,
                  const CoordinateDiff& pads_end) {
-    constexpr size_t filter_out_ch_axis = 0;
-    constexpr size_t in_batch_axis = 0;
     conv::validate_convolution_parameters(in_shape, f_shape, out_shape, strides, dilations, pads_begin, pads_end);
 
     // here we are converting all param types to int's to avoid arithmetic issues
@@ -324,13 +328,13 @@ void convolution(const T* in,
         extend_to_2D(params, input_shape, filters_shape);
     }
 
-    const size_t batches_count = input_shape[in_batch_axis];
+    const size_t batches_count = input_shape[conv::in_batch_axis];
     const Shape batch_shape(++input_shape.begin(), input_shape.end());
     const size_t batch_size = shape_size(batch_shape);
     const size_t out_spatial_size =
         std::accumulate(out_shape.begin() + 2, out_shape.end(), size_t(1), std::multiplies<size_t>());
 
-    const size_t filters_count = filters_shape[filter_out_ch_axis];
+    const size_t filters_count = filters_shape[conv::filter_out_ch_axis];
     const Shape filter_shape(++filters_shape.begin(), filters_shape.end());
     const size_t filter_size = shape_size(filter_shape);
 

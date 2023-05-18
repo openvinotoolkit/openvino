@@ -39,11 +39,11 @@ void validate_convolution_backprop_data_parameters(const Shape& in_shape,
                  in_shape.size(),
                  " and ",
                  f_shape.size());
-    NGRAPH_CHECK(in_shape[in_channel_axis] == f_shape[filter_in_ch_axis],
+    NGRAPH_CHECK(in_shape[conv::in_channel_axis] == f_shape[conv::filter_in_ch_axis],
                  "Incompatible input channels in data batch and filters shapes: ",
-                 in_shape[in_channel_axis],
+                 in_shape[conv::in_channel_axis],
                  " and ",
-                 f_shape[filter_in_ch_axis]);
+                 f_shape[conv::filter_in_ch_axis]);
     NGRAPH_CHECK(in_shape.size() == out_shape.size(),
                  "Incompatible input and output ranks: ",
                  in_shape.size(),
@@ -85,20 +85,20 @@ void validate_group_convolution_backprop_data_parameters(const Shape& in_shape,
                  " and ",
                  out_shape.size());
 
-    const size_t groups = f_shape[filter_group_axis];
-    const size_t in_channels = in_shape[in_channel_axis];
+    const size_t groups = f_shape[conv::filter_group_axis];
+    const size_t in_channels = in_shape[conv::in_channel_axis];
     NGRAPH_CHECK(in_channels % groups == 0, "Input channels of data batch input must be multiple of groups");
     const Shape in_group_shape = [&]() {
         Shape new_shape{in_shape};
-        new_shape[in_channel_axis] /= groups;
+        new_shape[conv::in_channel_axis] /= groups;
         return new_shape;
     }();
 
-    const size_t out_channels = out_shape[out_channel_axis];
+    const size_t out_channels = out_shape[conv::out_channel_axis];
     NGRAPH_CHECK(out_channels % groups == 0, "Output channels of output must be multiple of groups");
     const Shape out_group_shape = [&]() {
         Shape new_shape{out_shape};
-        new_shape[out_channel_axis] /= groups;
+        new_shape[conv::out_channel_axis] /= groups;
         return new_shape;
     }();
 

@@ -18,6 +18,7 @@ namespace ngraph {
 namespace runtime {
 namespace reference {
 namespace conv_backprop {
+constexpr size_t filter_input_ch_axis = 0;
 template <typename T>
 void extend_with_zeros(const Strides& strides,
                        const Shape& input_shape,
@@ -103,9 +104,6 @@ inline void validate_convolution_backprop_parameters(const Shape& in_shape,
                                                      const CoordinateDiff& pads_begin,
                                                      const CoordinateDiff& pads_end,
                                                      const CoordinateDiff& output_padding) {
-    constexpr size_t filter_input_ch_axis = 0;
-    constexpr size_t in_channel_axis = 1;
-
     // this implementation supports 1D, 2D and 3D convolutions
     NGRAPH_CHECK(in_shape.size() >= 3 && in_shape.size() <= 5, "Unsupported input rank: ", in_shape);
 
@@ -115,9 +113,9 @@ inline void validate_convolution_backprop_parameters(const Shape& in_shape,
                  " and ",
                  f_shape.size());
 
-    NGRAPH_CHECK(in_shape[in_channel_axis] == f_shape[filter_input_ch_axis],
+    NGRAPH_CHECK(in_shape[conv::in_channel_axis] == f_shape[filter_input_ch_axis],
                  "Incompatible input channels in data batch and filters shapes: ",
-                 in_shape[in_channel_axis],
+                 in_shape[conv::in_channel_axis],
                  " and ",
                  f_shape[filter_input_ch_axis]);
 
@@ -165,8 +163,6 @@ void convolution_backprop_impl(const T* in,
                                const CoordinateDiff& output_padding)
 
 {
-    constexpr size_t filter_out_ch_axis = 0;
-    constexpr size_t in_batch_axis = 0;
     // here we are converting all param types to int's to avoid arithmetic issues
     // (e.g signed + unsigned) in indexes calculation later
     conv::ConvolutionParams params{strides, dilation, pads_begin, pads_end, output_padding};
@@ -215,11 +211,11 @@ void convolution_backprop_impl(const T* in,
         }
     }
 
-    const size_t filters_count = filters_shape[filter_out_ch_axis];
+    const size_t filters_count = filters_shape[conv::filter_out_ch_axis];
     const Shape filter_shape(++filters_shape.begin(), filters_shape.end());
     const size_t filter_size = shape_size(filter_shape);
 
-    const size_t batches_count = input_shape[in_batch_axis];
+    const size_t batches_count = input_shape[conv::in_batch_axis];
     Shape batch_shape(++input_shape.begin(), input_shape.end());
     const size_t batch_size = shape_size(batch_shape);
 

@@ -21,7 +21,7 @@ inline bool xnor(T a, T b) {
 }
 
 template <typename T_IN, typename T_F>
-void binary_convolve_3D_channels(const ConvolutionParams& p,
+void binary_convolve_3D_channels(const conv::ConvolutionParams& p,
                                  const T_IN* batch,
                                  const Shape& batch_shape,
                                  const T_F* filter,
@@ -64,9 +64,9 @@ void binary_convolve_3D_channels(const ConvolutionParams& p,
                                 int64_t rel_i_y = i_y + (f_y * p.dilation[1]);
                                 int64_t rel_i_x = i_x + (f_x * p.dilation[2]);
 
-                                bool padding =
-                                    !(in_range(rel_i_x, {0, input_size_x}) && in_range(rel_i_y, {0, input_size_y}) &&
-                                      in_range(rel_i_z, {0, input_size_z}));
+                                bool padding = !(conv::in_range(rel_i_x, {0, input_size_x}) &&
+                                                 conv::in_range(rel_i_y, {0, input_size_y}) &&
+                                                 conv::in_range(rel_i_z, {0, input_size_z}));
                                 int64_t i_buf_idx =
                                     (rel_i_z * input_size_y * input_size_x) + (rel_i_y * input_size_x) + rel_i_x;
 
@@ -110,11 +110,11 @@ void binary_convolution(const T_IN* in,
                         const CoordinateDiff& pads_begin,
                         const CoordinateDiff& pads_end,
                         const float pad_value) {
-    validate_convolution_parameters(in_shape, f_shape, out_shape, strides, dilations, pads_begin, pads_end);
+    conv::validate_convolution_parameters(in_shape, f_shape, out_shape, strides, dilations, pads_begin, pads_end);
 
     // here we are converting all param types to int's to avoid arithmetic issues
     // (e.g signed + unsigned) in indexes calculation later
-    ConvolutionParams params{strides, dilations, pads_begin, pads_end};
+    conv::ConvolutionParams params{strides, dilations, pads_begin, pads_end};
 
     // here we are extending spatial dimensions to 3D, because we are going to use 3D
     // convolution implementation to convolve also in 1D & 2D case
@@ -124,11 +124,11 @@ void binary_convolution(const T_IN* in,
         extend_to_3D(params, input_shape, filters_shape);
     }
 
-    const size_t batches_count = input_shape[in_batch_axis];
+    const size_t batches_count = input_shape[conv::in_batch_axis];
     const Shape batch_shape(++input_shape.begin(), input_shape.end());
     const size_t batch_size = shape_size(batch_shape);
 
-    const size_t filters_count = filters_shape[filter_out_ch_axis];
+    const size_t filters_count = filters_shape[conv::filter_out_ch_axis];
     const Shape filter_shape(++filters_shape.begin(), filters_shape.end());
     const size_t filter_size = shape_size(filter_shape);
 
