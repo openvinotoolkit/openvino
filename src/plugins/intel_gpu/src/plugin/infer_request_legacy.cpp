@@ -105,8 +105,7 @@ inline void checkAlloc(const Blob::Ptr& blob, const std::string& err_str) {
 
 void checkInputBlob(const Blob::Ptr &blob,
     const std::string &name,
-    const InputInfo::Ptr foundInput,
-    bool nv12_two_inputs = false) {
+    const InputInfo::Ptr foundInput) {
     const std::string strNotMatched("The input blob size is not equal to the network input size");
 
     if (!blob) {
@@ -399,7 +398,7 @@ void InferRequestLegacy::checkBlobs() {
         auto node = findInputByNodeName(input.first);
         bool is_dynamic = (node && node->get_output_partial_shape(0).is_dynamic());
         if (!is_dynamic)
-            checkInputBlob(input.second, input.first, foundInput, m_graph->get_config().get_property(ov::intel_gpu::nv12_two_inputs));
+            checkInputBlob(input.second, input.first, foundInput);
     }
     for (auto const &output : _outputs) {
         DataPtr foundOutput = nullptr;
