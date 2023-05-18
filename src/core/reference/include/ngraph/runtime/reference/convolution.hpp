@@ -231,13 +231,13 @@ inline void extend_to_3D(ConvolutionParams& p, Shape& in_shape, Shape& filter_sh
     }
 }
 
-void infer_forward_conv_output_shape(const Shape& in_spatial_shape,
-                                     const Shape& f_spatial_shape,
-                                     Shape& out_spatial_shape,
-                                     const Strides& strides,
-                                     const Strides& dilations,
-                                     const CoordinateDiff& pads_begin,
-                                     const CoordinateDiff& pads_end) {
+inline void infer_forward_conv_output_shape(const Shape& in_spatial_shape,
+                                            const Shape& f_spatial_shape,
+                                            Shape& out_spatial_shape,
+                                            const Strides& strides,
+                                            const Strides& dilations,
+                                            const CoordinateDiff& pads_begin,
+                                            const CoordinateDiff& pads_end) {
     for (size_t idx = 0; idx < in_spatial_shape.size(); idx++) {
         size_t in_padded_dim = in_spatial_shape[idx] + pads_begin[idx] + pads_end[idx];
         size_t filter_dilated_dim = dilations[idx] * (f_spatial_shape[idx] - 1) + 1;
