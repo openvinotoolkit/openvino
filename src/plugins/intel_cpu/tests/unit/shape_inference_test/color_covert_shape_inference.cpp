@@ -4,7 +4,7 @@
 
 #include <gtest/gtest.h>
 
-#include "custom_shape_infer.hpp"
+#include "common_test_utils/test_assertions.hpp"
 #include "utils.hpp"
 
 using namespace ov;
@@ -95,4 +95,18 @@ TEST(StaticShapeInferenceTest, ColorConvertI420toRGBMutliPlane) {
     ASSERT_EQ(static_output_shapes[0], StaticShape({1, 480, 640, 3}));
     unit_test::cus_usual_shape_infer(op.get(), static_input_shapes, static_output_shapes);
 }
+
+TEST(StaticCustomShapeInferenceTest, novalid_input) {
+    auto dataY = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+    auto dataU = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+    auto dataV = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+    auto op = std::make_shared<op::v8::I420toRGB>(dataY, dataU, dataV);
+    std::vector<StaticShape> static_input_shapes = {StaticShape{480, 640, 1}, StaticShape{240, 320, 1}, StaticShape{240, 320, 1}};
+    std::vector<StaticShape> static_output_shapes = {StaticShape{}};
+
+    OV_EXPECT_THROW(unit_test::cus_usual_shape_infer(op.get(), static_input_shapes, static_output_shapes),
+                    InferenceEngine::GeneralError,
+                    testing::HasSubstr("NV12Converter node has incorrect input dimensions"));
+}
+
 
