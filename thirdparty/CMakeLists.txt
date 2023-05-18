@@ -87,7 +87,7 @@ if(ENABLE_INTEL_GPU)
                 set_property(TARGET OpenCL::OpenCL APPEND PROPERTY INTERFACE_LINK_LIBRARIES OpenCL::HeadersCpp)
             endif()
 
-            # set OpenCLICDLoader_FOUND to parent scope to generate proper OpenVINOConfig.cmake for sattic libraries case
+            # set OpenCLICDLoader_FOUND to parent scope to generate proper OpenVINOConfig.cmake for static libraries case
             set(OpenCLICDLoader_FOUND ON PARENT_SCOPE)
         else()
             # try to find system OpenCL:
@@ -591,10 +591,13 @@ endif()
 #
 
 if(ENABLE_SAMPLES)
-    find_package(nlohmann_json QUIET)
+    # Note: VPUX requires 3.9.0 version, because it contains 'nlohmann::ordered_json'
+    find_package(nlohmann_json 3.9.0 QUIET)
     if(nlohmann_json_FOUND)
         # conan creates imported target nlohmann_json::nlohmann_json
         # no needs to make the target global, because samples call find_package(nlohmann_json) as well
+        # but we need to set nlohmann_json_FOUND to parent scope to properly generate InferenceEngineDeveloperPackageConfig.cmake
+        set(nlohmann_json_FOUND ${nlohmann_json_FOUND} PARENT_SCOPE)
     else()
         add_subdirectory(json)
 

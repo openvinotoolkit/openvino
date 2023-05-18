@@ -6,6 +6,9 @@
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 
+#    if defined _WIN32 && !defined NOMINMAX
+#        define NOMINMAX
+#    endif
 #    include <xbyak/xbyak_util.h>
 
 #    include "jit_generator.hpp"
