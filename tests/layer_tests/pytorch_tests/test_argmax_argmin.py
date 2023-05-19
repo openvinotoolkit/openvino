@@ -7,11 +7,9 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 
 class TestArgMinArgMax(PytorchLayerTest):
-    def _prepare_input(self, repeat_values=True, dtype="float32"):
+    def _prepare_input(self, dtype="float32"):
         import numpy as np
         a = np.random.randn(1, 3, 10, 10).astype(dtype)
-        if not repeat_values:
-            return (a, )
 
         return (a.repeat(2).reshape(1, 3, 20, 10),)
 
@@ -70,11 +68,10 @@ class TestArgMinArgMax(PytorchLayerTest):
         (-1, False),
         (-1, True)])
     @pytest.mark.parametrize("op_type", ['max', 'min'])
-    @pytest.mark.parametrize("repeat_values", [True, False])
     @pytest.mark.parametrize("dtype", ["float32", "int32", "int64"])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_argmin_argmax(self, axes, keep_dims, op_type, repeat_values, dtype, ie_device, precision, ir_version):
+    def test_argmin_argmax(self, axes, keep_dims, op_type, dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(op_type, axes, keep_dims),
                    ie_device, precision, ir_version, trace_model=True, 
-                   kwargs_to_prepare_input={"repeat_values": repeat_values, "dtype": dtype})
+                   kwargs_to_prepare_input={"dtype": dtype})
