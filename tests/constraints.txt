@@ -18,4 +18,4 @@ py>=1.9.0
 pytest>=5.0,<7.3
 pytest-dependency==0.5.1
 pytest-html==1.19.0
-pytest-timeout==2.0.1
+pytest-timeout==2.1.0
