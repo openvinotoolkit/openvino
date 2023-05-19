@@ -72,6 +72,8 @@ public:
         return m_attrs;
     }
 
+    void set_attrs(Attributes attrs);
+
 private:
     Attributes m_attrs;
 };
@@ -117,13 +119,6 @@ public:
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
     OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
-
-    const InterpolateAttrs& get_attrs() const {
-        return m_attrs;
-    }
-    void set_attrs(const InterpolateAttrs& attrs) {
-        this->m_attrs = attrs;
-    }
 
 protected:
     /// \return The interpolation axes.

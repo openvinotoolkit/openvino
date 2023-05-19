@@ -75,6 +75,11 @@ EnumNames<ov::op::v0::Interpolate::InterpolateMode>::get() {
          {"area", ov::op::v0::Interpolate::InterpolateMode::AREA}});
     return enum_names;
 }
+
+void op::v0::Interpolate::set_attrs(Attributes attrs) {
+    m_attrs = std::move(attrs);
+}
+
 }  // namespace ov
 
 // Interpolate v4
