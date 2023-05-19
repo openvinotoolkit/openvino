@@ -41,13 +41,6 @@ public:
         return m_aligned_buffer;
     }
 
-    void set_pos(const size_t pos) {
-        m_cur_pos = pos;
-    }
-    const size_t get_pos() const {
-        return m_cur_pos;
-    }
-
     template <typename T>
     T* get_ptr() {
         return reinterpret_cast<T*>(m_aligned_buffer);
@@ -70,7 +63,6 @@ protected:
     char* m_allocated_buffer;
     char* m_aligned_buffer;
     size_t m_byte_size;
-    size_t m_cur_pos;
 };
 }  // namespace runtime
 }  // namespace ngraph

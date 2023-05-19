@@ -19,8 +19,8 @@
 #include "ie_iextension.h"
 #include "ie_input_info.hpp"
 #include "ie_parameter.hpp"
-#include "openvino/util/mmap_object.hpp"
 #include "openvino/runtime/iplugin.hpp"
+#include "openvino/util/mmap_object.hpp"
 #include "openvino/util/pp.hpp"
 #include "so_ptr.hpp"
 

@@ -41,8 +41,7 @@ if (WIN32)
     target_link_libraries(${TARGET_NAME} PRIVATE Shlwapi)
 endif()
 target_include_directories(${TARGET_NAME} PUBLIC
-    $<BUILD_INTERFACE:${UTIL_INCLUDE_DIR}>
-    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/core/include>)
+    $<BUILD_INTERFACE:${UTIL_INCLUDE_DIR}>)
 
 ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
 
