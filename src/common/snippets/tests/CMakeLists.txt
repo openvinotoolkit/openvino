@@ -19,6 +19,9 @@ addIeTargetTest(
         IE OV SNIPPETS
 )
 
+# LTO
+set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+
 ie_faster_build(${TARGET_NAME}
     UNITY
     PCH PRIVATE "src/precomp.hpp"
