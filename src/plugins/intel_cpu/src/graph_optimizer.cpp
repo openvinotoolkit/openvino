@@ -1996,8 +1996,14 @@ void GraphOptimizer::FusePerformedAsScaleShiftAndFakeQuantize(Graph &graph) {
 
         const auto &outputShape = child->getOutputShapeAtPort(0);
         VectorDims outputDims = outputShape.getDims();
-        const auto nonBiasPort = (parent->getParentEdgeAt(0)->getParent()->isConstant() ? 1 : 0);
-        const auto channelPos = parent->getParentEdgeAt(nonBiasPort)->getParent()->getFusingAxis();
+
+        // We need to compute explicitly port with unfolded parent
+        // because there is no guarantee, that the order of operands will be invariant
+        // after all transformations, which may cause wrong dim in
+        // [Bias -> Add <- Mul] topology with constant-folded bias,
+        // (Const node return 1 by default as channel dim.)
+        const auto nonConstPort = (parent->getParentEdgeAt(0)->getParent()->isConstant() ? 1 : 0);
+        const auto channelPos = parent->getParentEdgeAt(nonConstPort)->getParent()->getFusingAxis();
 
         if (outputShape.isDynamic()) {
             if (outputDims[channelPos] == Shape::UNDEFINED_DIM) {
