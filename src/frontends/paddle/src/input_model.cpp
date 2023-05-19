@@ -200,7 +200,7 @@ std::basic_string<wchar_t> get_model_path(const std::basic_string<wchar_t>& path
         std::wstring params_ext = L".pdiparams";
         std::wstring weights_file{path};
         weights_file.replace(weights_file.size() - ext.size(), ext.size(), params_ext);
-        weights_stream->open(weights_file, std::ios::binary);
+        weights_stream->open(weights_file.c_str(), std::ios::binary);
         // Don't throw error if file isn't opened
         // It may mean that model don't have constants
     } else {
@@ -306,7 +306,7 @@ void InputModel::InputModelImpl::loadConsts(const std::basic_string<T>& folder_w
         if (weight_stream) {
             read_succeed = read_tensor(*weight_stream, reinterpret_cast<char*>(&tensor_data[0]), data_length);
         } else if (!folder_with_weights.empty()) {
-            std::ifstream is(get_const_path(folder_with_weights, name), std::ios::in | std::ifstream::binary);
+            std::ifstream is(get_const_path(folder_with_weights, name).c_str(), std::ios::in | std::ifstream::binary);
             FRONT_END_GENERAL_CHECK(is && is.is_open(), "Cannot open file for constant value.");
             read_succeed = read_tensor(is, reinterpret_cast<char*>(&tensor_data[0]), data_length);
         } else {
@@ -332,7 +332,7 @@ InputModel::InputModelImpl::InputModelImpl(const std::basic_string<T>& path,
       m_telemetry(telemetry) {
     std::string empty_str;
     std::ifstream weights_stream;
-    std::ifstream pb_stream(get_model_path<T>(path, &weights_stream), std::ios::in | std::ifstream::binary);
+    std::ifstream pb_stream(get_model_path<T>(path, &weights_stream).c_str(), std::ios::in | std::ifstream::binary);
 
     FRONT_END_GENERAL_CHECK(pb_stream && pb_stream.is_open(), "Model file doesn't exist");
     FRONT_END_GENERAL_CHECK(m_fw_ptr->ParseFromIstream(&pb_stream), "Model can't be parsed");
