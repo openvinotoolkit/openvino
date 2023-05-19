@@ -40,8 +40,6 @@ endif()
 
 # resolving dependencies for the project
 message (STATUS "CMAKE_VERSION ......................... " ${CMAKE_VERSION})
-message (STATUS "CMAKE_BINARY_DIR ...................... " ${CMAKE_BINARY_DIR})
-message (STATUS "CMAKE_SOURCE_DIR ...................... " ${CMAKE_SOURCE_DIR})
 message (STATUS "OpenVINO_SOURCE_DIR ................... " ${OpenVINO_SOURCE_DIR})
 message (STATUS "OpenVINO_BINARY_DIR ................... " ${OpenVINO_BINARY_DIR})
 message (STATUS "CMAKE_GENERATOR ....................... " ${CMAKE_GENERATOR})
@@ -66,7 +64,7 @@ endif()
 if(CMAKE_TOOLCHAIN_FILE)
     message (STATUS "CMAKE_TOOLCHAIN_FILE .................. " ${CMAKE_TOOLCHAIN_FILE})
 endif()
-if(OV_GLIBC_VERSION)
+if(NOT OV_GLIBC_VERSION VERSION_EQUAL 0.0)
     message (STATUS "GLIBC_VERSION ......................... " ${OV_GLIBC_VERSION})
 endif()
 

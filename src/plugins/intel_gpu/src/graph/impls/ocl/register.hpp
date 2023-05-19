@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "generic_layer.hpp"
 #include "intel_gpu/primitives/activation.hpp"
 #include "intel_gpu/primitives/arg_max_min.hpp"
 #include "intel_gpu/primitives/batch_to_space.hpp"
@@ -29,6 +28,7 @@
 #include "intel_gpu/primitives/experimental_detectron_topk_rois.hpp"
 #include "intel_gpu/primitives/eye.hpp"
 #include "intel_gpu/primitives/fully_connected.hpp"
+#include "intel_gpu/primitives/generic_layer.hpp"
 #include "intel_gpu/primitives/gather.hpp"
 #include "intel_gpu/primitives/gather_elements.hpp"
 #include "intel_gpu/primitives/gather_nd.hpp"

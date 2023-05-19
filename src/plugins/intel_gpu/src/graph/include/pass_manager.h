@@ -121,14 +121,6 @@ private:
     void run(program& p) override;
 };
 
-class handle_input_padding : public base_pass {
-public:
-    handle_input_padding() : base_pass("handle_input_padding") {}
-
-private:
-    void run(program& p) override;
-};
-
 class mark_nodes : public base_pass {
 public:
     mark_nodes() : base_pass("analyzed_graph") {}
