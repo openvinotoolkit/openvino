@@ -488,8 +488,6 @@ void program::init_graph() {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "Program::init_graph");
     apply_opt_pass<graph_initializations>();
 
-    apply_opt_pass<calculate_prior_boxes>();
-
     apply_opt_pass<mark_nodes>();
 }
 
@@ -534,17 +532,6 @@ void program::pre_optimize_graph(bool is_internal) {
         // but after format selection to select correct alignment.
         // Unfortunately those passes currently happen in reverse order.
         apply_opt_pass<concat_input_order>();
-
-        // TODO this code should be moved to post compilation after kernel selector will support handling reorder bias
-        apply_opt_pass<pre_optimize_bias>(rf);
-
-        // passes regarding conv + eltwise optimizations
-
-        // shrinking eltwise if users are conv 1x1 with stride > 1 optimization
-        apply_opt_pass<eltwise_shrinking>();
-
-        // trying to set stride to 1x1 by shrinking convolutions before eltwise if doable
-        apply_opt_pass<eltwise_remove_stride>();
     }
 
     apply_opt_pass<strided_slice_optimize>();
