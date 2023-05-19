@@ -262,7 +262,6 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::masked_fill", op::translate_masked_fill},
         {"aten::masked_fill_", op::inplace_op<op::translate_masked_fill>},
         {"aten::matmul", op::translate_1to1_match_2_inputs<opset10::MatMul>},
-        {"aten::matmul", op::translate_1to1_match_2_inputs<opset10::MatMul>},
         {"aten::max", op::translate_max},
         {"aten::max_pool1d", op::translate_max_poolnd},
         {"aten::max_pool2d", op::translate_max_poolnd},
