@@ -304,7 +304,7 @@ target_include_directories(${TARGET_NAME}_s PUBLIC
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/core/src>
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/frontends/common/include>
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/inference/src>
-    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/inference/include/dev_api>
+    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/inference/dev_api>
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/inference/include>
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/inference/include/ie>)
 
