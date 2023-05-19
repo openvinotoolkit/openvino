@@ -19,15 +19,17 @@
 #include "streams_executor.hpp"
 #include "threading/ie_cpu_streams_info.hpp"
 
-#define XBYAK_NO_OP_NAMES
-#define XBYAK_UNDEF_JNL
-#include <xbyak/xbyak_util.h>
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    define XBYAK_NO_OP_NAMES
+#    define XBYAK_UNDEF_JNL
+#    include <xbyak/xbyak_util.h>
+#endif
 
 using namespace InferenceEngine;
 
 namespace ov {
 
-#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#if defined(OPENVINO_ARCH_X86_64)
 
 // note: MSVC 2022 (17.4) is not able to compile the next line for ARM and ARM64
 // so, we disable this code since for non-x86 platforms it returns 'false' anyway
@@ -77,7 +79,7 @@ bool with_cpu_x86_avx512_core_amx() {
     return with_cpu_x86_avx512_core_amx_int8() || with_cpu_x86_avx512_core_amx_bf16();
 }
 
-#else  // OPENVINO_ARCH_X86 || OPENVINO_ARCH_X86_64
+#else  // OPENVINO_ARCH_X86_64
 
 bool with_cpu_x86_sse42() {
     return false;
@@ -110,7 +112,7 @@ bool with_cpu_x86_avx512_core_amx() {
     return false;
 }
 
-#endif  // OPENVINO_ARCH_X86 || OPENVINO_ARCH_X86_64
+#endif  // OPENVINO_ARCH_X86_64
 
 bool check_open_mp_env_vars(bool include_omp_num_threads) {
     for (auto&& var : {"GOMP_CPU_AFFINITY",
