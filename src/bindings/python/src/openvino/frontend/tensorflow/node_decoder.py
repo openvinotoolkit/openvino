@@ -3,10 +3,7 @@
 
 from openvino.frontend.tensorflow.py_tensorflow_frontend import _FrontEndDecoderBase as DecoderBase
 from openvino.runtime import PartialShape, Shape, Type, OVAny, Tensor
-from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
 import tensorflow as tf
-import ctypes
-import numpy as np
 
 
 def tf_type_to_numpy_type(tf_type_int):
@@ -39,9 +36,11 @@ def tf_attr_to_ov(attr):
 
 
 class TFGraphNodeDecoder(DecoderBase):
-    def __init__(self, opeartion):
+    def __init__(self, opeartion, inner_graph, graph_iterator):
         DecoderBase.__init__(self)
         self.m_operation = opeartion
+        self.m_inner_graph = inner_graph
+        self.m_graph_iterator = graph_iterator
         if self.m_operation.type == 'Const':
             value = self.m_operation.node_def.attr['value'].tensor
             # if tf.dtypes.as_dtype(value.dtype).as_numpy_dtype == np.int32 and len(value.int_val) > 0:
@@ -52,7 +51,7 @@ class TFGraphNodeDecoder(DecoderBase):
             #     return
 
             import datetime
-            #content = value.tensor_content # copy of value, returns bytes string
+            # content = value.tensor_content # copy of value, returns bytes string
             self.m_parsed_content = tf.make_ndarray(value)
             # if len(content) == 0:
             #     print('error')
@@ -70,28 +69,90 @@ class TFGraphNodeDecoder(DecoderBase):
             # self.m_parsed_content = np.fromstring(content, dtype=numpy_type)  # copy of value, returns numpy array
             # self.m_parsed_content.resize(shape_list)  # no copy
 
+        if self.m_operation.type == 'Placeholder':
+            data_type = self.m_operation.node_def.attr['dtype'].type
+            if tf.dtypes.DType(data_type).name == 'resource' and not self.m_inner_graph:
+                var = TFGraphNodeDecoder.get_variable(self.m_operation, self.m_graph_iterator)
+                if var is not None:
+                    self.m_parsed_content = var.numpy()
+
     def get_op_name(self) -> str:
         return self.m_operation.name
 
     def get_op_type(self) -> str:
+        if self.m_operation.type == 'Placeholder':
+            type = tf.dtypes.DType(self.m_operation.node_def.attr['dtype'].type)
+            if type.name == 'resource' and not self.m_inner_graph:
+                if TFGraphNodeDecoder.get_variable(self.m_operation, self.m_graph_iterator) is not None:
+                    return 'Const'
+                raise Exception("Could not get variable for resource Placeholder {}".format(self.m_operation.name))
         return self.m_operation.type
 
+    @staticmethod
+    def get_upper_level_name(operation, graph_iterator):
+        if graph_iterator.m_inputs is None:
+            return None
+        index_found = False
+        for idx, inp in enumerate(operation.graph.inputs):
+            if inp.op.name == operation.name:
+                index_found = True
+                break
+        assert index_found, "Could not find {} among inputs".format(operation.name)
+        return graph_iterator.m_inputs[idx].name
+
+    @staticmethod
+    def get_variable(operation, graph_iterator):
+        tf_graph = operation.graph
+        for var_tensor, op_tensor in tf_graph.captures:
+            if operation.outputs[0].name == op_tensor.name:
+                resource_name = var_tensor._name
+                for var in operation.graph.variables:
+                    if var.name == resource_name:
+                        return var
+                return None
+        return None
+        #         raise Exception("Could not find variable with name {}".format(resource_name))
+        # raise Exception("Could not find resource for node with name {}".format(operation.name))
+        # top_level_name = operation.outputs[0].name
+        # while True:
+        #     upper_name = TFGraphNodeDecoder.get_upper_level_name(operation, graph_iterator)
+        #     if upper_name is None:
+        #         break
+        #     top_level_name = upper_name
+        #
+        #
+        # top_level_graph = graph_iterator
+        # while top_level_graph.m_parent_graph is not None:
+        #     top_level_graph = top_level_graph.m_parent_graph
+        # try:
+        #     resource_name = top_level_graph.m_captures[top_level_name]
+        # except:
+        #     print('k')
+        # for var in top_level_graph.m_graph.variables:
+        #     if var.name == resource_name:
+        #         return var
+        # raise Exception("Could not find variable with name {}".format(resource_name))
+
     def get_attribute(self, name):
-        if name == 'shape':
+        if name == 'shape' or name == '_output_shapes':
             shape = [dim.size for dim in self.m_operation.node_def.attr['shape'].shape.dim]
+            type_num = self.m_operation.node_def.attr['dtype'].type
+            if type_num is not None and tf.dtypes.DType(type_num).name == 'resource':
+                if self.m_inner_graph:
+                    return OVAny(PartialShape.dynamic())
+                var = TFGraphNodeDecoder.get_variable(self.m_operation, self.m_graph_iterator)
+                return OVAny(PartialShape(list(var.shape)))
             return OVAny(PartialShape(shape))
-        if name == '_output_shapes':
-            shapes = []
-            for output_tensor in self.m_operation.outputs:
-                out_shape = [dim.value for dim in output_tensor.shape.dims]
-                for idx, dim in enumerate(out_shape):
-                    if out_shape[idx] is None:
-                        out_shape[idx] = -1
-                shapes.append(PartialShape(out_shape))
-            return OVAny(shapes)
         if name == 'dtype':
             try:
-                numpy_type = tf_type_to_numpy_type(self.m_operation.node_def.attr['dtype'].type)
+                type_num = self.m_operation.node_def.attr['dtype'].type
+                if tf.dtypes.DType(type_num).name == 'resource':
+                    if not self.m_inner_graph:
+                        var = TFGraphNodeDecoder.get_variable(self.m_operation, self.m_graph_iterator)
+                        return OVAny(Type(tf_type_to_numpy_type(var.dtype)))
+                    else:
+                        return OVAny(Type.undefined)
+                numpy_type = tf_type_to_numpy_type(type_num)
                 return OVAny(Type(numpy_type))
             except Exception as e:
                 print("oops")
@@ -102,6 +163,8 @@ class TFGraphNodeDecoder(DecoderBase):
             ov_tensor = Tensor(self.m_parsed_content, shared_memory=True)
             ov_tensor = OVAny(ov_tensor)
             return ov_tensor
+        if name == 'f':
+            return OVAny(self.m_operation.node_def.attr[name].func.name)
 
         return tf_attr_to_ov(self.m_operation.node_def.attr[name])
 

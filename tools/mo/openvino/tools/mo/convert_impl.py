@@ -374,7 +374,6 @@ def prepare_ir(argv: argparse.Namespace):
     # TODO: remove this workaround once new TensorFlow frontend supports non-frozen formats: checkpoint, MetaGraph, and SavedModel
     # Now it converts all TensorFlow formats to the frozen .pb format in case new TensorFlow frontend
     is_tf, _, _, _, _ = deduce_legacy_frontend_by_namespace(argv)
-    use_tf_graph_decoder = True
     argv = arguments_post_parsing(argv)
     t = tm.Telemetry()
     graph = None
@@ -386,9 +385,11 @@ def prepare_ir(argv: argparse.Namespace):
         if len(fallback_reasons) == 0:
             path_to_aux_pb = None
             orig_argv_values = {"input_model": argv.input_model, "model_name": argv.model_name}
-            if not argv.use_legacy_frontend and is_tf and not use_tf_graph_decoder:
-                from openvino.tools.mo.front.tf.loader import convert_to_pb
-                path_to_aux_pb = convert_to_pb(argv)
+            if not argv.use_legacy_frontend and is_tf:
+                import tensorflow as tf
+                if not isinstance(argv.input_model, tf.Graph):
+                    from openvino.tools.mo.front.tf.loader import convert_to_pb
+                    path_to_aux_pb = convert_to_pb(argv)
             try:
                 t.send_event("mo", "conversion_method", moc_front_end.get_name() + "_frontend")
                 moc_front_end.add_extension(TelemetryExtension("mo", t.send_event, t.send_error, t.send_stack_trace))
@@ -539,8 +540,6 @@ def check_model_object(argv):
         if env_setup["tensorflow"] >= LooseVersion("2.6.0") and isinstance(model, tf.types.experimental.GenericFunction):
             argv['input_model'] = model
             return "tf"
-        if isinstance(model, tf.keras.Model):
-            return "tf"
         if isinstance(model, tf.train.Checkpoint):
             if isinstance(model.root, tf.keras.Model):
                 argv['input_model'] = model.root
@@ -548,21 +547,19 @@ def check_model_object(argv):
             else:
                 raise Error("Unknown checkpoint format.")
 
-        if isinstance(model, tf.keras.layers.Layer) or isinstance(model, tf.Module):
-            assert 'input_shape' in argv and argv['input_shape'] is not None, \
-                "Converting of {} requires providing of input_shape.".format(type(model))
-            assert len(argv['input_shape']) > 0, "Please provide non-empty input shape."
-            inputs = []
-            for shape_idx, shape in enumerate(parse_input_shapes(argv)):
-                inp_shape = get_static_shape(shape)
-                batch_size = None
-                if len(inp_shape) > 1:
-                    batch_size = inp_shape[0]
-                    inp_shape = inp_shape[1:]
-                inputs.append(tf.keras.Input(shape=inp_shape, batch_size=batch_size))
-            outputs = model(*inputs)
-            argv['input_model'] = tf.keras.Model(inputs, outputs)
-            argv['input_shape'] = None
+        if isinstance(model, (tf.keras.layers.Layer, tf.Module, tf.keras.Model)):
+            # Try to trace TF model
+            @tf.function
+            def tf_function(x):
+                return model(x)
+
+            try:
+                concrete_func = tf_function.get_concrete_function(tf.TensorSpec(model._build_input_shape))
+            except:
+                if 'example_input' not in argv or argv['example_input'] is None:
+                    raise Exception("Could not trace the TF model. Please provide 'example_input'.")
+                concrete_func = tf_function.get_concrete_function(argv['example_input'])
+            argv['input_model'] = concrete_func.graph
             return "tf"
     if 'torch' in sys.modules:
         import torch
@@ -978,6 +975,6 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args, python_api_us
 
         send_conversion_result('fail')
         if python_api_used:
-            raise e.with_traceback(None)
+            raise e#.with_traceback(None)
         else:
             return None, argv
