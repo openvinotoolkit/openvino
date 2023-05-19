@@ -36,7 +36,7 @@ try using :doc:`Quantization-aware Training <qat_introduction>` to increase its 
 | Try out these interactive Jupyter Notebook examples to learn the POT API and see post-training quantization in action:
 
 * `Quantization of Image Classification Models with POT <https://docs.openvino.ai/nightly/notebooks/113-image-classification-quantization-with-output.html>`__.
-* `Object Detection Quantization with POT <https://docs.openvino.ai/nightly/notebooks/111-detection-quantization-with-output.html>`__.
+* `Object Detection Quantization with POT <https://docs.openvino.ai/nightly/notebooks/111-yolov5-quantization-migration-with-output.html>`__.
 
 
 
