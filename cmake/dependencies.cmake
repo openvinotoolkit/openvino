@@ -104,7 +104,7 @@ function(ov_download_tbb)
                 ARCHIVE_WIN "tbb2020_81e4471_win.zip"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "0255892d90c4acbb61089ed2e50e625016b32a887ce6e7311562ba503b6961dc"
+                SHA256 "5e7c9dc430e8a61becd0b149668cb336ff44d0b4f8f823fc695b181880e213d2"
                 USE_NEW_LOCATION TRUE)
     elseif(ANDROID AND X86_64)
         RESOLVE_DEPENDENCY(TBB
