@@ -18,6 +18,7 @@ ParamsKey ArgMaxMinKernelGPURef::GetSupportedKey() const {
     k.EnableDifferentTypes();
     k.EnableBatching();
     k.EnableTensorPitches();
+    k.EnableDynamicShapesSupport();
     return k;
 }
 

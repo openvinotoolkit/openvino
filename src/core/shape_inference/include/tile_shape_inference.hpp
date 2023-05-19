@@ -12,26 +12,34 @@ namespace op {
 namespace v0 {
 
 template <class T>
+struct NegativeToZero {
+    NegativeToZero() = default;
+    template <class U>
+    T operator()(const U u) const {
+        return static_cast<T>(std::max<U>(0, ov::util::InTypeRange<U>()(u)));
+    }
+};
+
+template <class T>
 std::vector<T> shape_infer(const Tile* op,
                            const std::vector<T>& input_shapes,
-                           const std::map<size_t, std::reference_wrapper<const ov::Tensor>>& constant_data = {}) {
+                           const ITensorAccessor& tensor_accessor = make_tensor_accessor()) {
     using TDim = typename T::value_type;
     using TDimValue = typename TDim::value_type;
 
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 2);
 
     const auto& repeats_shape = input_shapes[1];
-    NODE_VALIDATION_CHECK(op, repeats_shape.rank().compatible(1), "Tile repeats must be of rank 1");
+    const auto& repeats_rank = repeats_shape.rank();
+    NODE_VALIDATION_CHECK(op, repeats_rank.compatible(1), "Tile repeats must be of rank 1");
 
     const auto& arg_shape = input_shapes[0];
     T output_shape;
 
     // Get repeats and pre process values
-    auto negative_repeats_to_zero = [](const TDimValue v) -> TDimValue {
-        return std::max<TDimValue>(0, ov::util::InTypeRange<TDimValue>()(v));
-    };
+    constexpr auto negative_repeats_to_zero = NegativeToZero<TDimValue>();
 
-    auto repeats = get_input_const_data_as_shape<T>(op, 1, constant_data, negative_repeats_to_zero);
+    auto repeats = get_input_const_data_as_shape<T>(op, 1, tensor_accessor, negative_repeats_to_zero);
 
     const auto& arg_rank = arg_shape.rank();
     if (arg_rank.is_static() && repeats) {
@@ -51,8 +59,8 @@ std::vector<T> shape_infer(const Tile* op,
                        rep_it,
                        std::back_inserter(output_shape),
                        std::multiplies<TDim>());
-    } else if (arg_rank.is_static() && repeats_shape[0].is_static()) {
-        // unknown repeats but shape is 1-D static, any dim can be repeated (add missing dimension)
+    } else if (arg_rank.is_static() && repeats_rank.is_static() && repeats_shape[0].is_static()) {
+        // unknown repeats any dim can be repeated (add missing dimension)
         output_shape.resize(std::max<size_t>(arg_rank.get_length(), repeats_shape[0].get_length()));
     } else {
         // can't deduce shape, set default value

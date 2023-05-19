@@ -14,7 +14,7 @@ namespace v3 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API EmbeddingSegmentsSum : public Op {
 public:
-    OPENVINO_OP("EmbeddingSegmentsSum", "opset3", op::Op, 3);
+    OPENVINO_OP("EmbeddingSegmentsSum", "opset3", op::Op);
     /// \brief Constructs a EmbeddingSegmentsSum operation.
     EmbeddingSegmentsSum() = default;
     /// \brief Constructs a EmbeddingSegmentsSum operation.

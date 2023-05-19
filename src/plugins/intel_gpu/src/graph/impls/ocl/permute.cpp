@@ -24,7 +24,7 @@ inline std::vector<uint16_t> convert_permute_order(const std::vector<uint16_t>& 
     // 1. Switch permute order values for spatial dims
     for (auto const& o : ie_order_aligned) {
         if (o >= 2)
-            cldnn_order.push_back(1 + ie_order_aligned.size() - o);
+            cldnn_order.push_back(1 + static_cast<uint16_t>(ie_order_aligned.size()) - o);
         else
             cldnn_order.push_back(o);
     }
@@ -65,7 +65,6 @@ struct permute_impl : typed_primitive_impl_ocl<permute> {
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
         auto kernel_params = get_kernel_params(impl_param, true);
         (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
-        update_kernels_list_to_skip();
     }
 };
 
@@ -85,7 +84,9 @@ attach_permute_impl::attach_permute_impl() {
     auto dyn_formats = {
         format::bfyx,
         format::bfzyx,
-        format::bfwzyx
+        format::bfwzyx,
+        format::bfuwzyx,
+        format::bfvuwzyx,
     };
 
     implementation_map<permute>::add(impl_types::ocl,

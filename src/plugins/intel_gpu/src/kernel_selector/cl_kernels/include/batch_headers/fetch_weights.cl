@@ -177,6 +177,17 @@ inline uint get_g_os_is_zyx_osv_isv_index(uint g, uint o, uint i, uint z, uint y
         16,                                                                  \
         16)
 
+#define GET_FILTER_OS_IS_YX_OSV16_ISV2_INDEX(prefix, o, i, y, x)  \
+    get_os_is_zyx_osv_isv_index(                                  \
+        o, i, 0, y, x,                                            \
+        CAT(prefix, _SIZE_X),                                     \
+        CAT(prefix, _SIZE_Y),                                     \
+        1,                                                        \
+        CAT(prefix, _IFM_NUM),                                    \
+        CAT(prefix, _OFM_NUM),                                    \
+        16,                                                       \
+        2)
+
 #define GET_FILTER_OS_IS_YX_OSV16_ISV16_INDEX(prefix, o, i, y, x) \
     get_os_is_zyx_osv_isv_index(                                  \
         o, i, 0, y, x,                                            \
@@ -1532,6 +1543,8 @@ inline uint get_os_i_yxs_osv_yxsv4_index(uint o, uint i, uint y, uint x, uint i_
         (i)*CAT(prefix, _IFM_PITCH) +                                    \
         ((o) / (sub_group_size))*CAT(prefix, _OFM_PITCH)                 \
     )
+
+#define GET_FILTER_OS_IYX_OSV16(prefix, o, i, y, x, sub_group_size) GET_FILTER_G_OS_IYX_OSV16(prefix, 0, o, i, y, x, sub_group_size)
 
 #define GET_FILTER_GS_OIYX_GSV16(prefix, g, o, i, y, x, sub_group_size)  \
     CAT(prefix, _OFFSET) +                                               \

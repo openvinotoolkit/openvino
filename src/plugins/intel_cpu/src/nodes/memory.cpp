@@ -71,7 +71,6 @@ void MemoryOutput::initSupportedPrimitiveDescriptors() {
 
     InferenceEngine::Precision precision = getOriginalInputPrecisionAtPort(0);
     NodeConfig config;
-    config.dynBatchSupport = true;
     config.inConfs.resize(1);
     config.inConfs[0].inPlace(-1);
     config.inConfs[0].constant(false);

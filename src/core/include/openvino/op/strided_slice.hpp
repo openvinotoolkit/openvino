@@ -18,7 +18,7 @@ namespace v1 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API StridedSlice : public Op {
 public:
-    OPENVINO_OP("StridedSlice", "opset1", op::Op, 1);
+    OPENVINO_OP("StridedSlice", "opset1", op::Op);
 
     StridedSlice() = default;
 
@@ -112,14 +112,14 @@ public:
     bool evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const override;
     OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    OPENVINO_SUPPRESS_DEPRECATED_END
     bool evaluate_lower(TensorVector& outputs) const override;
     bool evaluate_upper(TensorVector& outputs) const override;
     bool evaluate_label(TensorLabelVector& output_labels) const override;
+    bool constant_fold(OutputVector& output_values, const OutputVector& inputs_values) override;
 
 private:
     AxisSet convert_mask_to_axis_set(const std::vector<int64_t>& mask) const;
+    bool indices_input_has_and_set_bounds(const size_t port, const std::vector<int64_t>& masks) const;
 
     std::vector<int64_t> m_begin_mask;
     std::vector<int64_t> m_end_mask;

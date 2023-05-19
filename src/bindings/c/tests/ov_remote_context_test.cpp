@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <CL/cl2.hpp>
-
+#include "openvino/runtime/intel_gpu/ocl/ocl_wrapper.hpp"
 #include "ov_test.hpp"
 
-class ov_remote_context_ocl : public ::testing::TestWithParam<std::string> {
+class ov_remote_context_ocl : public ov_capi_test_base {
 protected:
     void SetUp() override {
         core = nullptr;
@@ -17,16 +16,21 @@ protected:
         remote_tensor = nullptr;
         out_tensor_name = nullptr;
         in_tensor_name = nullptr;
+        ov_capi_test_base::SetUp();
 
         OV_EXPECT_OK(ov_core_create(&core));
         EXPECT_NE(nullptr, core);
 
-        OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
+        OV_EXPECT_OK(ov_core_read_model(core, xml_file_name.c_str(), bin_file_name.c_str(), &model));
         EXPECT_NE(nullptr, model);
 
         char* info = nullptr;
         const char* key = ov_property_key_available_devices;
-        if (ov_core_get_property(core, "GPU", key, &info) != ov_status_e::OK) {
+        EXPECT_EQ(ov_core_get_property(core, "GPU", key, &info), ov_status_e::OK);
+        EXPECT_STRNE(info, nullptr);
+
+        if (strlen(info) == 0) {
+            ov_free(info);
             GTEST_SKIP();
         }
         ov_free(info);
@@ -40,11 +44,11 @@ protected:
         std::vector<cl_platform_id> platform_ids(n);
         err = clGetPlatformIDs(n, platform_ids.data(), NULL);
 
-        for (auto& id : platform_ids) {
+        for (auto const& id : platform_ids) {
             cl::Platform platform = cl::Platform(id);
             std::vector<cl::Device> devices;
             platform.getDevices(CL_DEVICE_TYPE_GPU, &devices);
-            for (auto& d : devices) {
+            for (auto const& d : devices) {
                 if (refVendorID == d.getInfo<CL_DEVICE_VENDOR_ID>()) {
                     cl_device = d;
                     cl_context = cl::Context(cl_device);
@@ -69,6 +73,7 @@ protected:
         ov_free(in_tensor_name);
         ov_remote_context_free(context);
         ov_core_free(core);
+        ov_capi_test_base::TearDown();
     }
 
 public:

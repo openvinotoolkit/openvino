@@ -129,29 +129,29 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reshape_negative_dim) {
                                                                               "onnx/reshape_negative_dim.onnx"));
 
     // 2x3x4
-    auto input = test::NDArray<float, 3>({{{0.5488135, 0.71518934, 0.60276335, 0.5448832},
-                                           {0.4236548, 0.6458941, 0.4375872, 0.891773},
-                                           {0.96366274, 0.3834415, 0.79172504, 0.5288949}},
+    auto input = test::NDArray<float, 3>({{{0.5488135f, 0.71518934f, 0.60276335f, 0.5448832f},
+                                           {0.4236548f, 0.6458941f, 0.4375872f, 0.891773f},
+                                           {0.96366274f, 0.3834415f, 0.79172504f, 0.5288949f}},
 
-                                          {{0.56804454, 0.92559665, 0.07103606, 0.0871293},
-                                           {0.0202184, 0.83261985, 0.77815676, 0.87001216},
-                                           {0.9786183, 0.7991586, 0.46147937, 0.7805292}}})
+                                          {{0.56804454f, 0.92559665f, 0.07103606f, 0.0871293f},
+                                           {0.0202184f, 0.83261985f, 0.77815676f, 0.87001216f},
+                                           {0.9786183f, 0.7991586f, 0.46147937f, 0.7805292f}}})
                      .get_vector();
 
     // 2x6x2
-    auto expected_output = test::NDArray<float, 3>({{{0.5488135, 0.71518934},
-                                                     {0.60276335, 0.5448832},
-                                                     {0.4236548, 0.6458941},
-                                                     {0.4375872, 0.891773},
-                                                     {0.96366274, 0.3834415},
-                                                     {0.79172504, 0.5288949}},
+    auto expected_output = test::NDArray<float, 3>({{{0.5488135f, 0.71518934f},
+                                                     {0.60276335f, 0.5448832f},
+                                                     {0.4236548f, 0.6458941f},
+                                                     {0.4375872f, 0.891773f},
+                                                     {0.96366274f, 0.3834415f},
+                                                     {0.79172504f, 0.5288949f}},
 
-                                                    {{0.56804454, 0.92559665},
-                                                     {0.07103606, 0.0871293},
-                                                     {0.0202184, 0.83261985},
-                                                     {0.77815676, 0.87001216},
-                                                     {0.9786183, 0.7991586},
-                                                     {0.46147937, 0.7805292}}})
+                                                    {{0.56804454f, 0.92559665f},
+                                                     {0.07103606f, 0.0871293f},
+                                                     {0.0202184f, 0.83261985f},
+                                                     {0.77815676f, 0.87001216f},
+                                                     {0.9786183f, 0.7991586f},
+                                                     {0.46147937f, 0.7805292f}}})
                                .get_vector();
 
     auto test_case = test::TestCase(function, s_device);
@@ -207,7 +207,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_depth_to_space) {
         file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/depth_to_space.onnx"));
 
     std::vector<float> input(32);
-    std::iota(input.begin(), input.end(), 0);
+    std::iota(input.begin(), input.end(), 0.f);
 
     std::vector<float> expected_output{0.f,  8.f,  1.f,  9.f,  16.f, 24.f, 17.f, 25.f, 2.f,  10.f, 3.f,
                                        11.f, 18.f, 26.f, 19.f, 27.f, 4.f,  12.f, 5.f,  13.f, 20.f, 28.f,
@@ -224,7 +224,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_v1) {
         file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/depth_to_space_v1.onnx"));
 
     std::vector<float> input(32);
-    std::iota(input.begin(), input.end(), 0);
+    std::iota(input.begin(), input.end(), 0.f);
 
     std::vector<float> expected_output{0.f,  8.f,  1.f,  9.f,  16.f, 24.f, 17.f, 25.f, 2.f,  10.f, 3.f,
                                        11.f, 18.f, 26.f, 19.f, 27.f, 4.f,  12.f, 5.f,  13.f, 20.f, 28.f,
@@ -242,7 +242,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_crd) {
                                                                         "onnx/depth_to_space_crd.onnx"));
 
     std::vector<float> input(32);
-    std::iota(input.begin(), input.end(), 0);
+    std::iota(input.begin(), input.end(), 0.f);
 
     std::vector<float> expected_output{0.f,  4.f,  1.f,  5.f,  8.f,  12.f, 9.f,  13.f, 2.f,  6.f,  3.f,
                                        7.f,  10.f, 14.f, 11.f, 15.f, 16.f, 20.f, 17.f, 21.f, 24.f, 28.f,
@@ -304,7 +304,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_space_to_depth) {
         file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/space_to_depth.onnx"));
 
     std::vector<float> input(32);
-    std::iota(input.begin(), input.end(), 0);
+    std::iota(input.begin(), input.end(), 0.f);
 
     std::vector<float> expected_output{
         0.f, 2.f, 8.f,  10.f, 16.f, 18.f, 24.f, 26.f, 1.f, 3.f, 9.f,  11.f, 17.f, 19.f, 25.f, 27.f,
@@ -364,6 +364,18 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_squeeze) {
     auto test_case = test::TestCase(function, s_device);
     test_case.add_input(Shape{1, 4, 1, 1, 2}, input);
     test_case.add_expected_output(Shape{4, 2}, expected_output);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_squeeze_empty_axes_attribute) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/squeeze_empty_axes_attribute.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+    const std::vector<float> data = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f};
+    test_case.add_input<float>(Shape{1, 4, 1, 1, 2}, data);
+    test_case.add_expected_output<float>(Shape{4, 2}, data);
     test_case.run();
 }
 

@@ -43,18 +43,18 @@ The table below lists the supported operating systems and Python versions.
 |                                     | (64-bit                        |
 |                                     | ) <https://www.python.org/>`__ |
 +=====================================+================================+
-| Ubuntu 18.04 LTS                    | 3.7, 3.8, 3.9, 3.10            |
+| Ubuntu 18.04 LTS                    | 3.7, 3.8, 3.9, 3.10. 3.11      |
 +-------------------------------------+--------------------------------+
-| Ubuntu 20.04 LTS                    | 3.7, 3.8, 3.9, 3.10            |
+| Ubuntu 20.04 LTS                    | 3.7, 3.8, 3.9, 3.10, 3.11      |
 +-------------------------------------+--------------------------------+
-| Red Hat Enterprise Linux 8          | 3.8, 3.9, 3.10                 |
+| Red Hat Enterprise Linux 8          | 3.8, 3.9, 3.10, 3.11           |
 +-------------------------------------+--------------------------------+
-| macOS 10.15.x versions              | 3.7, 3.8, 3.9, 3.10            |
+| macOS 10.15.x versions              | 3.7, 3.8, 3.9, 3.10, 3.11      |
 +-------------------------------------+--------------------------------+
-| Windows 10 Pro, Enterprise          | 3.7, 3.8, 3.9, 3.10            |
+| Windows 10 Pro, Enterprise          | 3.7, 3.8, 3.9, 3.10, 3.11      |
 | or Education editions               |                                |
 +-------------------------------------+--------------------------------+
-| Windows Server 2016 or higher       | 3.7, 3.8, 3.9, 3.10            |
+| Windows Server 2016 or higher       | 3.7, 3.8, 3.9, 3.10, 3.11      |
 +-------------------------------------+--------------------------------+
 
 OpenVINO Notebooks also require Git. Follow the guide below for your 
@@ -67,7 +67,7 @@ operating system or environment.
 
    1. **Install Python**
 
-      Download 64 bit version of Python software (3.7, 3.8, 3.9, 3.10) from  `python.org`_. 
+      Download 64 bit version of Python software (3.7, 3.8, 3.9, 3.10, 3.11) from  `python.org`_. 
 
       .. _python.org: https://www.python.org/downloads/windows/
 
@@ -127,7 +127,7 @@ operating system or environment.
 
    1. **Install Python**
 
-      Download Python software (3.7, 3.8, 3.9, 3.10) from `python.org`. For example, this `installer`_.
+      Download Python software (3.7, 3.8, 3.9, 3.10, 3.11) from `python.org`. For example, this `installer`_.
 
       .. _installer: https://www.python.org/ftp/python/3.7.9/python-3.7.9-macosx10.9.pkg
 
@@ -598,13 +598,9 @@ or create an
 `FAQ`_
 ========
 
--  `Which devices does OpenVINO
-   support? <https://docs.openvino.ai/2022.1/openvino_docs_OV_UG_supported_plugins_Supported_Devices.html>`__
--  `What is the first CPU generation that OpenVINO
-   supports? <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
--  `Are there any success stories about deploying real-world solutions
-   with
-   OpenVINO? <https://www.intel.com/content/www/us/en/internet-of-things/ai-in-production/success-stories.html>`__
+-  :doc:`Which devices does OpenVINO support? <openvino_docs_OV_UG_supported_plugins_Supported_Devices>`
+-  `What is the first CPU generation that OpenVINO supports? <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
+-  `Are there any success stories about deploying real-world solutions with OpenVINO? <https://www.intel.com/content/www/us/en/internet-of-things/ai-in-production/success-stories.html>`__
 
 --------------
 
@@ -612,7 +608,7 @@ or create an
 -------------------------
 
 * `OpenVINO™ Notebooks - Github Repository <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/README.md>`_
-* `Install OpenVINO™ Development Tools <https://docs.openvino.ai/nightly/openvino_docs_install_guides_install_dev_tools.html>`_
+* :doc:`Install OpenVINO™ Development Tools <openvino_docs_install_guides_install_dev_tools>`
 
 
 .. |br| raw:: html

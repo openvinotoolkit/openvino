@@ -16,7 +16,7 @@ namespace v3 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Atanh : public util::UnaryElementwiseArithmetic {
 public:
-    OPENVINO_OP("Atanh", "opset4", util::UnaryElementwiseArithmetic, 3);
+    OPENVINO_OP("Atanh", "opset4", util::UnaryElementwiseArithmetic);
 
     /// \brief Constructs an Atanh operation.
     Atanh() = default;

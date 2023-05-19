@@ -4,7 +4,7 @@
 
 /**
  * @brief OpenVINO Runtime AsyncInferRequest interface
- * @file openvino/runtime/iasync_nfer_request.hpp
+ * @file openvino/runtime/iasync_infer_request.hpp
  */
 
 #pragma once
@@ -33,6 +33,7 @@ namespace ov {
  * @par Example
  *        Here is an example of asynchronous inference request implementation for some accelerator device.
  *        It uses 5 different executors to run different stages of a synchronous inference request.
+ * @ingroup ov_dev_api_async_infer_request_api
  */
 class OPENVINO_RUNTIME_API IAsyncInferRequest : public IInferRequest {
 public:
@@ -227,9 +228,9 @@ private:
             state = m_state;
             switch (m_state) {
             case InferState::BUSY:
-                throw ov::Busy("Infer Request is busy");
+                ov::Busy::create("Infer Request is busy");
             case InferState::CANCELLED:
-                throw ov::Cancelled("Infer Request was canceled");
+                ov::Cancelled::create("Infer Request was canceled");
             case InferState::IDLE: {
                 m_futures.erase(std::remove_if(std::begin(m_futures),
                                                std::end(m_futures),

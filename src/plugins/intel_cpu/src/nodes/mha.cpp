@@ -11,15 +11,16 @@
 #include "common/cpu_memcpy.h"
 #include <utils/general_utils.h>
 #include <cpu/x64/jit_generator.hpp>
-#include "emitters/jit_dnnl_emitters.hpp"
-#include "emitters/jit_load_store_emitters.hpp"
+#include "emitters/x64/jit_dnnl_emitters.hpp"
+#include "emitters/x64/jit_load_store_emitters.hpp"
 #include "common/cpu_convert.h"
-#include "ngraph_transformations/op/mha.hpp"
+#include "transformations/cpu_opset/x64/op/mha.hpp"
 #include "dnnl_extension_utils.h"
 #include <ie_ngraph_utils.hpp>
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
+using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::cpu::x64::matmul;
 using namespace Xbyak;
@@ -29,6 +30,8 @@ using namespace Xbyak;
 namespace ov {
 namespace intel_cpu {
 namespace node {
+
+#if defined(OPENVINO_ARCH_X86_64)
 
 template <cpu_isa_t isa>
 struct jit_mul_add_softmax_kernel : public jit_uni_mul_add_softmax_kernel, public jit_generator {
@@ -662,6 +665,8 @@ private:
     std::unordered_map<size_t, std::unique_ptr<jit_emitter>> emitters;
 };
 
+#endif // OPENVINO_ARCH_X86_64
+
 bool MHA::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         const auto mha = std::dynamic_pointer_cast<const MHANode>(op);
@@ -784,16 +789,16 @@ void MHA::initSupportedPrimitiveDescriptors() {
                           {LayoutType::ncsp, Precision::FP32},
                           {LayoutType::ncsp, inputPrecisions[3]}},
                          {{LayoutType::ncsp, getOriginalOutputPrecisionAtPort(0)}},
-                         ref_any,
-                         isDynamicNode());
+                         ref_any);
 }
 
 void MHA::init_brgemm(brgemmCtx& ctx, std::unique_ptr<brgemm_kernel_t>& brgKernel, bool use_amx) {
+#ifdef OPENVINO_ARCH_X86_64
     brgemm_t brgDesc;
     brgemm_strides_t strides {static_cast<dnnl_dim_t>(ctx.M * ctx.K), static_cast<dnnl_dim_t>(ctx.K * ctx.N)};
 
-    const bool is_int8 = utils::one_of(ctx.dt_in0, data_type::u8, data_type::s8) && utils::one_of(ctx.dt_in1, data_type::u8, data_type::s8);
-    auto isa = use_amx ? isa_any
+    const bool is_int8 = one_of(ctx.dt_in0, data_type::u8, data_type::s8) && one_of(ctx.dt_in1, data_type::u8, data_type::s8);
+    auto isa = use_amx ? isa_undef
         : ctx.dt_in0 == dnnl_data_type_t::dnnl_bf16 ? avx512_core_bf16 : (is_int8 ? avx512_core_vnni : avx512_core);
     auto status = brgemm_desc_init(&brgDesc, isa, brgemm_strd, ctx.dt_in0, ctx.dt_in1,
             false, false, brgemm_row_major, 1.f, ctx.beta, ctx.LDA, ctx.LDB, ctx.LDC, ctx.M, ctx.N, ctx.K, &strides);
@@ -815,6 +820,9 @@ void MHA::init_brgemm(brgemmCtx& ctx, std::unique_ptr<brgemm_kernel_t>& brgKerne
         THROW_ERROR << "cannot be executed due to invalid brgconv params";
     }
     brgKernel.reset(brgKernel_);
+#else
+    THROW_ERROR << "is not supported on non-x86_64";
+#endif // OPENVINO_ARCH_X86_64
 }
 
 void MHA::init_brgemm_copy_a(std::unique_ptr<jit_brgemm_matmul_copy_a_t>& brgCopyKernel, size_t K, size_t K_blk, size_t K_tail,
@@ -834,7 +842,9 @@ void MHA::init_brgemm_copy_a(std::unique_ptr<jit_brgemm_matmul_copy_a_t>& brgCop
     brgCopyKernelConf.a_dt_sz = DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(dt_in0));
     brgCopyKernelConf.transposed_A = false;
 
+#if defined(OPENVINO_ARCH_X86_64)
     create_brgemm_matmul_copy_a(brgCopyKernel, &brgCopyKernelConf);
+#endif // OPENVINO_ARCH_X86_64
 }
 
 void MHA::init_brgemm_copy_b(std::unique_ptr<jit_brgemm_matmul_copy_b_t>& brgCopyKernel, size_t N, size_t N_blk, size_t N_tail, size_t LDB, size_t K,
@@ -857,7 +867,7 @@ void MHA::init_brgemm_copy_b(std::unique_ptr<jit_brgemm_matmul_copy_b_t>& brgCop
     brgCopyKernelConf.req_wei_vnni_downconvert = false;
 
     if (is_with_amx) {
-        brgCopyKernelConf.isa = dt_in0 == dnnl_data_type_t::dnnl_bf16 ? avx512_core_bf16_amx_bf16 : avx512_core_bf16_amx_int8;
+        brgCopyKernelConf.isa = avx512_core_amx;
         brgCopyKernelConf.s8s8_compensation_required = false;
     } else {
         brgCopyKernelConf.isa = dt_in0 == dnnl_data_type_t::dnnl_bf16 ? avx512_core_bf16 : avx512_core_vnni;
@@ -868,7 +878,11 @@ void MHA::init_brgemm_copy_b(std::unique_ptr<jit_brgemm_matmul_copy_b_t>& brgCop
     brgCopyKernelConf.has_zero_point_b = false;
     brgCopyKernelConf.src_zp_type = dnnl::impl::cpu::x64::none;
 
-    create_brgemm_matmul_copy_b(brgCopyKernel, &brgCopyKernelConf);
+#if defined(OPENVINO_ARCH_X86_64)
+    auto ret = create_brgemm_matmul_copy_b(brgCopyKernel, &brgCopyKernelConf);
+    if ( ret != dnnl::impl::status_t::dnnl_success )
+        THROW_ERROR << "cannot create_brgemm_matmul_copy_b kernel, dnnl_status: " << ret;
+#endif // OPENVINO_ARCH_X86_64
 }
 
 void MHA::prepareParams() {
@@ -909,7 +923,7 @@ void MHA::prepareParams() {
     std::vector<size_t> orderTranspose2 = {0, 2, 1, 3};
     dimsMatMul1In1 = transpose(dimsTranspose2In0, orderTranspose2);
 
-    bool isAMXSupported = mayiuse(avx512_core_bf16_amx_int8) || mayiuse(avx512_core_bf16_amx_bf16);
+    bool isAMXSupported = mayiuse(avx512_core_amx);
 
     size_t numThreads = parallel_get_max_threads();
 
@@ -1078,13 +1092,16 @@ void MHA::prepareParams() {
         jcp.with_scales1 = !fqScales2.empty();
         jcp.broadcast_scales1 = fqScales2.size() == 1;
 
+#if defined(OPENVINO_ARCH_X86_64)
         if (mayiuse(cpu_isa_t::avx512_core)) {
             mulAddSoftmaxKernel.reset(new jit_mul_add_softmax_kernel<cpu_isa_t::avx512_core>(jcp));
         } else if (mayiuse(cpu_isa_t::avx2)) {
             mulAddSoftmaxKernel.reset(new jit_mul_add_softmax_kernel<cpu_isa_t::avx2>(jcp));
         } else if (mayiuse(cpu_isa_t::sse41)) {
             mulAddSoftmaxKernel.reset(new jit_mul_add_softmax_kernel<cpu_isa_t::sse41>(jcp));
-        } else {
+        }
+#endif // OPENVINO_ARCH_X86_64
+        if (!mulAddSoftmaxKernel) {
             THROW_ERROR << "cannot create jit eltwise kernel";
         }
     }
@@ -1099,13 +1116,16 @@ void MHA::prepareParams() {
         jcp.src_stride = N1;
         jcp.dst_stride = batch1 * N1;
 
+#if defined(OPENVINO_ARCH_X86_64)
         if (mayiuse(cpu_isa_t::avx512_core)) {
             convertReorderKernel.reset(new jit_convert_reorder_kernel<cpu_isa_t::avx512_core>(jcp));
         } else if (mayiuse(cpu_isa_t::avx2)) {
             convertReorderKernel.reset(new jit_convert_reorder_kernel<cpu_isa_t::avx2>(jcp));
         } else if (mayiuse(cpu_isa_t::sse41)) {
             convertReorderKernel.reset(new jit_convert_reorder_kernel<cpu_isa_t::sse41>(jcp));
-        } else {
+        }
+#endif // OPENVINO_ARCH_X86_64
+        if (!convertReorderKernel) {
             THROW_ERROR << "cannot create jit eltwise kernel";
         }
     }
@@ -1122,13 +1142,17 @@ void MHA::prepareParams() {
         jcp.outter_src_stride = strTranspose1In0[3];
         jcp.outter_dst_stride = N0;
 
+#if defined(OPENVINO_ARCH_X86_64)
         if (mayiuse(cpu_isa_t::avx512_core)) {
             convertTransposeKernel.reset(new jit_convert_transpose_kernel<cpu_isa_t::avx512_core>(jcp));
         } else if (mayiuse(cpu_isa_t::avx2)) {
             convertTransposeKernel.reset(new jit_convert_transpose_kernel<cpu_isa_t::avx2>(jcp));
         } else if (mayiuse(cpu_isa_t::sse41)) {
             convertTransposeKernel.reset(new jit_convert_transpose_kernel<cpu_isa_t::sse41>(jcp));
-        } else {
+        }
+#endif // OPENVINO_ARCH_X86_64
+
+        if (!convertTransposeKernel) {
             THROW_ERROR << "cannot create jit eltwise kernel";
         }
     }
@@ -1167,6 +1191,7 @@ static void reorder2D(const srcT* pin, dstT* pout, const std::vector<size_t>& di
 }
 
 void MHA::callBrgemm(brgemmCtx& ctx, std::unique_ptr<brgemm_kernel_t>& brgKernel, const void* pin0, const void* pin1, void* pout, void* wsp) {
+#if defined(OPENVINO_ARCH_X86_64)
     if (ctx.is_with_amx)
         amx_tile_configure(ctx.palette);
     if (ctx.is_with_comp) {
@@ -1175,6 +1200,9 @@ void MHA::callBrgemm(brgemmCtx& ctx, std::unique_ptr<brgemm_kernel_t>& brgKernel
     } else {
         brgemm_kernel_execute(brgKernel.get(), 1, pin0, pin1, nullptr, pout, wsp);
     }
+#else
+    THROW_ERROR << "is not supported on non-x64 platforms";
+#endif // OPENVINO_ARCH_X86_64
 }
 
 template <typename in1_type>

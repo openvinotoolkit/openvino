@@ -3,6 +3,7 @@
 //
 
 #include "matrix_nms.h"
+#include "ov_ops/nms_static_shape_ie.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -56,6 +57,9 @@ MatrixNms::MatrixNms(const std::shared_ptr<ngraph::Node>& op, const GraphContext
     }
 
     m_errorPrefix = "MatrixNMS layer with name '" + getName() + "' ";
+
+    if (one_of(op->get_type_info(), ov::op::internal::NmsStaticShapeIE<ngraph::op::v8::MatrixNms>::get_type_info_static()))
+        m_outStaticShape = true;
 
     if (getOriginalInputsNumber() != 2)
         IE_THROW() << m_errorPrefix << "has incorrect number of input edges: " << getOriginalInputsNumber();
@@ -195,7 +199,7 @@ size_t MatrixNms::nmsMatrix(const float* boxesData, const float* scoresData, Box
         float max_iou = 0.;
         size_t actual_index = i + 1;
         auto idx_a = candidateIndex[actual_index];
-        for (int64_t j = 0; j < actual_index; j++) {
+        for (size_t j = 0; j < actual_index; j++) {
             auto idx_b = candidateIndex[j];
             auto iou = intersectionOverUnion(boxesData + idx_a * 4, boxesData + idx_b * 4, m_normalized);
             max_iou = std::max(max_iou, iou);
@@ -323,16 +327,15 @@ void MatrixNms::execute(dnnl::stream strm) {
 
         for (size_t i = 1; i < numPerClass.size(); i++) {
             auto offset_class = m_classOffset[i];
-            for (size_t j = 0; j < numPerClass[i]; j++) {
+            for (int64_t j = 0; j < numPerClass[i]; j++) {
                 batchFilteredBox[start_offset + j] = batchFilteredBox[offset_class + j];
             }
             start_offset += numPerClass[i];
         }
         auto keepNum = numDet;
         if (m_keepTopk > -1) {
-            auto k = static_cast<size_t>(m_keepTopk);
-            if (keepNum > k)
-                keepNum = k;
+            if (keepNum > m_keepTopk)
+                keepNum = m_keepTopk;
         }
 
         std::partial_sort(batchFilteredBox, batchFilteredBox + keepNum, batchFilteredBox + numDet, [](const BoxInfo& lhs, const BoxInfo rhs) {
@@ -345,7 +348,7 @@ void MatrixNms::execute(dnnl::stream strm) {
     auto startOffset = m_numPerBatch[0];
     for (size_t i = 1; i < m_numPerBatch.size(); i++) {
         auto offset_batch = i * m_realNumClasses * m_realNumBoxes;
-        for (size_t j = 0; j < m_numPerBatch[i]; j++) {
+        for (int64_t j = 0; j < m_numPerBatch[i]; j++) {
             m_filteredBoxes[startOffset + j] = m_filteredBoxes[offset_batch + j];
         }
         startOffset += m_numPerBatch[i];
@@ -371,8 +374,9 @@ void MatrixNms::execute(dnnl::stream strm) {
     auto selectedIndicesMemPtr = getChildEdgesAtPort(NMS_SELECTED_INDICES)[0]->getMemoryPtr();
     auto validOutputsMemPtr = getChildEdgesAtPort(NMS_VALID_OUTPUTS)[0]->getMemoryPtr();
 
-    // TODO [DS NMS]: remove when nodes from models where nms is not last node in model supports DS
-    if (isDynamicNode()) {
+    // NMS-alike nodes are always transformed to NMSIEInternal node in case of legacy api, for compatibility.
+    // And on the other hand in case of api 2.0, keep them internal dynamic for better performance and functionality.
+    if (!m_outStaticShape) {
         size_t totalBox = std::accumulate(m_numPerBatch.begin(), m_numPerBatch.end(), size_t(0));
         redefineOutputMemory({{totalBox, 6}, {totalBox, 1}, {m_numBatches}});
     }
@@ -386,7 +390,7 @@ void MatrixNms::execute(dnnl::stream strm) {
     int64_t originalOffset = 0;
     for (size_t i = 0; i < m_numBatches; i++) {
         auto real_boxes = m_numPerBatch[i];
-        for (size_t j = 0; j < real_boxes; j++) {
+        for (int64_t j = 0; j < real_boxes; j++) {
             auto originalIndex = originalOffset + j;
             selectedIndices[j + outputOffset] = static_cast<int>(m_filteredBoxes[originalIndex].index);
             auto selectedBase = selectedOutputs + (outputOffset + j) * 6;
@@ -397,8 +401,8 @@ void MatrixNms::execute(dnnl::stream strm) {
             selectedBase[4] = m_filteredBoxes[originalIndex].box.x2;
             selectedBase[5] = m_filteredBoxes[originalIndex].box.y2;
         }
-        // TODO [DS NMS]: remove when nodes from models where nms is not last node in model supports DS
-        if (!isDynamicNode()) {
+
+        if (m_outStaticShape) {
             std::fill_n(selectedOutputs + (outputOffset + real_boxes) * 6, (m_maxBoxesPerBatch - real_boxes) * 6, -1.f);
             std::fill_n(selectedIndices + (outputOffset + real_boxes), m_maxBoxesPerBatch - real_boxes, -1);
             outputOffset += m_maxBoxesPerBatch;

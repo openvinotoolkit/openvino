@@ -18,7 +18,7 @@ function(ov_native_compile_external_project)
     set(multiValueArgs CMAKE_ARGS NATIVE_TARGETS)
     cmake_parse_arguments(ARG "" "${oneValueRequiredArgs};${oneValueOptionalArgs}" "${multiValueArgs}" ${ARGN})
 
-    if(YOCTO_AARCH64)
+    if(YOCTO_AARCH64 OR EMSCRIPTEN)
         # need to unset several variables which can set env to cross-environment
         foreach(var SDKTARGETSYSROOT CONFIG_SITE OECORE_NATIVE_SYSROOT OECORE_TARGET_SYSROOT
                     OECORE_ACLOCAL_OPTS OECORE_BASELIB OECORE_TARGET_ARCH OECORE_TARGET_OS CC CXX
@@ -31,10 +31,17 @@ function(ov_native_compile_external_project)
             endif()
         endforeach()
 
+        # set root path
+        if(YOCTO_AARCH64)
+            set(root_path "$ENV{OECORE_NATIVE_SYSROOT}")
+        elseif(EMSCRIPTEN)
+            set(root_path "$ENV{EMSDK}")
+        endif()
+
         # filter out PATH from yocto locations
         string(REPLACE ":" ";" custom_path "$ENV{PATH}")
         foreach(path IN LISTS custom_path)
-            if(NOT path MATCHES "^$ENV{OECORE_NATIVE_SYSROOT}")
+            if(DEFINED root_path AND NOT path MATCHES "^${root_path}")
                 list(APPEND clean_path "${path}")
             endif()
         endforeach()
@@ -63,6 +70,39 @@ function(ov_native_compile_external_project)
         set(ARG_NATIVE_SOURCE_SUBDIR SOURCE_SUBDIR ${ARG_NATIVE_SOURCE_SUBDIR})
     endif()
 
+    if(OV_GENERATOR_MULTI_CONFIG)
+        if(CMAKE_GENERATOR MATCHES "^Ninja Multi-Config$")
+            list(APPEND ARG_CMAKE_ARGS "-DCMAKE_CONFIGURATION_TYPES=${CMAKE_DEFAULT_BUILD_TYPE}")
+            list(APPEND ARG_CMAKE_ARGS "-DCMAKE_DEFAULT_BUILD_TYPE=${CMAKE_DEFAULT_BUILD_TYPE}")
+        endif()
+    else()
+        list(APPEND ARG_CMAKE_ARGS "-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}")
+    endif()
+
+    if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.21)
+        if(DEFINED CMAKE_CXX_LINKER_LAUNCHER)
+            list(APPEND ARG_CMAKE_ARGS "-DCMAKE_CXX_LINKER_LAUNCHER=${CMAKE_CXX_LINKER_LAUNCHER}")
+        endif()
+        if(DEFINED CMAKE_C_LINKER_LAUNCHER)
+            list(APPEND ARG_CMAKE_ARGS "-DCMAKE_C_LINKER_LAUNCHER=${CMAKE_C_LINKER_LAUNCHER}")
+        endif()
+    endif()
+
+    if(compile_flags)
+        list(APPEND ARG_CMAKE_ARGS "-DCMAKE_CXX_FLAGS=${compile_flags}" "-DCMAKE_C_FLAGS=${compile_flags}")
+    endif()
+
+    if(DEFINED CMAKE_CXX_COMPILER_LAUNCHER)
+        list(APPEND ARG_CMAKE_ARGS "-DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}")
+    endif()
+    if(DEFINED CMAKE_C_COMPILER_LAUNCHER)
+        list(APPEND ARG_CMAKE_ARGS "-DCMAKE_C_COMPILER_LAUNCHER=${CMAKE_C_COMPILER_LAUNCHER}")
+    endif()
+
+    if(DEFINED CMAKE_MAKE_PROGRAM)
+        list(APPEND ARG_CMAKE_ARGS "-DCMAKE_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM}")
+    endif()
+
     ExternalProject_Add(${ARG_TARGET_NAME}
         # Directory Options
         SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}"
@@ -71,23 +111,17 @@ function(ov_native_compile_external_project)
         INSTALL_DIR "${ARG_NATIVE_INSTALL_DIR}"
         # Configure Step Options:
         CMAKE_COMMAND
-            ${NATIVE_CMAKE_COMMAND}
+            "${NATIVE_CMAKE_COMMAND}" -E env ${cmake_env}
+                "${NATIVE_CMAKE_COMMAND}"
         CMAKE_ARGS
-            "-DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}"
-            "-DCMAKE_C_COMPILER_LAUNCHER=${CMAKE_C_COMPILER_LAUNCHER}"
-            "-DCMAKE_CXX_LINKER_LAUNCHER=${CMAKE_CXX_LINKER_LAUNCHER}"
-            "-DCMAKE_C_LINKER_LAUNCHER=${CMAKE_C_LINKER_LAUNCHER}"
-            "-DCMAKE_CXX_FLAGS=${compile_flags}"
-            "-DCMAKE_C_FLAGS=${compile_flags}"
             "-DCMAKE_POLICY_DEFAULT_CMP0069=NEW"
             "-DCMAKE_INSTALL_PREFIX=${ARG_NATIVE_INSTALL_DIR}"
-            "-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}"
             ${ARG_CMAKE_ARGS}
         CMAKE_GENERATOR "${CMAKE_GENERATOR}"
         ${ARG_NATIVE_SOURCE_SUBDIR}
         # Build Step Options:
         BUILD_COMMAND
-            ${NATIVE_CMAKE_COMMAND}
+            "${NATIVE_CMAKE_COMMAND}"
                 --build "${CMAKE_CURRENT_BINARY_DIR}/build"
                 --config Release
                 --parallel

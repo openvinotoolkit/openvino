@@ -18,7 +18,7 @@
 #include <stdexcept>
 #include <algorithm>
 
-#if defined(_WIN32) && !defined(__GNUC__)
+#if defined(_WIN32)
 #include <windows.h>
 
 static size_t get_cpu_ram_size() {
@@ -215,6 +215,7 @@ uint64_t engine::get_used_device_memory(allocation_type type) const {
 }
 
 std::map<std::string, uint64_t> engine::get_memory_statistics() const {
+    std::lock_guard<std::mutex> guard(_mutex);
     std::map<std::string, uint64_t> statistics;
     for (auto const& m : _memory_usage_map) {
         std::ostringstream oss;
@@ -263,6 +264,9 @@ std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type, runtime_
 std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type, runtime_types runtime_type) {
     device_query query(engine_type, runtime_type);
     auto devices = query.get_available_devices();
+
+    OPENVINO_ASSERT(!devices.empty(), "[GPU] Can't create ", engine_type, " engine for ", runtime_type, " runtime as no suitable devices are found\n"
+                                      "[GPU] Please check OpenVINO documentation for GPU drivers setup guide.\n");
 
     auto iter = devices.find(std::to_string(device_query::device_id));
     auto& device = iter != devices.end() ? iter->second : devices.begin()->second;

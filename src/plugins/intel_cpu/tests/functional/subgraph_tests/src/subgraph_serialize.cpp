@@ -16,7 +16,7 @@ namespace SubgraphTestsDefinitions {
 
 class SubgraphSnippetSerializationTest : public ::testing::Test, public CPUTestsBase {};
 
-TEST_F(SubgraphSnippetSerializationTest, SerializeSubgraph) {
+TEST_F(SubgraphSnippetSerializationTest, smoke_SerializeSubgraph) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     auto model = ([] () -> std::shared_ptr<ov::Model> {
@@ -64,7 +64,7 @@ TEST_F(SubgraphSnippetSerializationTest, SerializeSubgraph) {
     ASSERT_TRUE(results.valid) << results.message;
 }
 
-TEST_F(SubgraphSnippetSerializationTest, SerializeSubgraphWithScalarConst) {
+TEST_F(SubgraphSnippetSerializationTest, smoke_SerializeSubgraphWithScalarConst) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     auto model = ([] () -> std::shared_ptr<ov::Model> {
         auto shape = ov::Shape({1});
@@ -109,7 +109,7 @@ TEST_F(SubgraphSnippetSerializationTest, SerializeSubgraphWithScalarConst) {
     ASSERT_TRUE(results.valid) << results.message;
 }
 
-TEST_F(SubgraphSnippetSerializationTest, SerializeSubgraphWithResultAs1stOutput) {
+TEST_F(SubgraphSnippetSerializationTest, smoke_SerializeSubgraphWithResultAs1stOutput) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     auto precision = ov::element::f32;
     auto shape = ov::Shape{1, 3, 16, 16};

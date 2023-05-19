@@ -33,12 +33,9 @@ bool Split::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, 
             errorMessage = "Constant expected as the axis input.";
             return false;
         }
-        if (op->get_input_size() > 2) {
-            auto splitLengthsOp = ngraph::as_type_ptr<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(2));
-            if (!splitLengthsOp) {
-                errorMessage = "Constant expected as the split_lengths input.";
-                return false;
-            }
+        if (op->get_input_size() > 2 && op->get_input_partial_shape(2).is_dynamic()) {
+            errorMessage = "Expected static 'split_lengths' shape because dynamic number of outputs is not supported";
+            return false;
         }
     } catch (...) {
         return false;
@@ -57,6 +54,10 @@ Split::Split(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr c
         INPUTS_NUM = 2;
     } else if (ngraph::as_type_ptr<const ngraph::op::v1::VariadicSplit>(op)) {
         INPUTS_NUM = 3;
+        if (!ngraph::is_type<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(2))) {
+            this->splitLengths.resize(op->get_input_shape(2)[0]);
+            this->constSplitLengths = false;
+        }
     }
 
     const auto inRank = getInputShapeAtPort(0).getRank();
@@ -65,7 +66,7 @@ Split::Split(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr c
     if (axis < 0) {
         axis += inRank;
     }
-    if (axis >= inRank) {
+    if (axis >= static_cast<int64_t>(inRank)) {
         THROW_ERROR << "Split node with name '" << op->get_friendly_name() << "' has invalid value of axis parameter: " << axis;
     }
     this->axis = axis;
@@ -97,13 +98,8 @@ void Split::initSupportedPrimitiveDescriptors() {
     }
 
     InferenceEngine::Precision inpPrecision = getOriginalInputPrecisionAtPort(0);
-    const auto axisPrecision = getOriginalInputPrecisionAtPort(1);
+    const auto axisPrecision = Precision::I32;
     auto outPrecision = inpPrecision; // the split layer doesn't convert precisions
-
-    bool dynBatchSupport = true;
-    if (axis < 1) {
-        dynBatchSupport = false;
-    }
 
     // Set plain and tailC formats
     std::vector<LayoutType> tdCreatorTypes{ LayoutType::ncsp, LayoutType::nspc };
@@ -136,7 +132,6 @@ void Split::initSupportedPrimitiveDescriptors() {
     for (auto itr = itrRange.first; itr != itrRange.second; ++itr) {
         NodeConfig config;
 
-        config.dynBatchSupport = dynBatchSupport;
         config.inConfs.resize(INPUTS_NUM);
         config.inConfs[0].inPlace(-1);
         config.inConfs[0].constant(false);
@@ -146,7 +141,7 @@ void Split::initSupportedPrimitiveDescriptors() {
         config.inConfs[1].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(axisPrecision, Shape(VectorDims{1})));
         if (INPUTS_NUM == 3) {
             config.inConfs[2].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(axisPrecision, Shape(VectorDims{outputShapes.size()})));
-            config.inConfs[2].constant(true);
+            config.inConfs[2].constant(constSplitLengths);
         }
 
         config.outConfs.resize(outputShapes.size());
@@ -214,7 +209,6 @@ void Split::initSupportedPrimitiveDescriptors() {
     if (axis == 1 && (dstFirstDims.size() == 4 || dstFirstDims.size() == 5)) {
         NodeConfig config;
 
-        config.dynBatchSupport = dynBatchSupport;
         config.inConfs.resize(INPUTS_NUM);
         config.inConfs[0].inPlace(-1);
         config.inConfs[0].constant(false);
@@ -224,7 +218,7 @@ void Split::initSupportedPrimitiveDescriptors() {
         config.inConfs[1].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(axisPrecision, Shape(VectorDims{1})));
         if (INPUTS_NUM == 3) {
             config.inConfs[2].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(axisPrecision, Shape(VectorDims{outputShapes.size()})));
-            config.inConfs[2].constant(true);
+            config.inConfs[2].constant(constSplitLengths);
         }
         config.outConfs.resize(outputShapes.size());
 
@@ -237,17 +231,43 @@ void Split::initSupportedPrimitiveDescriptors() {
     }
 }
 
+bool Split::needShapeInfer() const {
+    if (Node::needShapeInfer()) {
+        return true;
+    } else if (!constSplitLengths) {
+        const auto& lengthsMemPtr = getParentEdgeAt(2)->getMemoryPtr();
+        const auto curLengthsSize = lengthsMemPtr->getStaticDims()[0];
+        if (curLengthsSize != splitLengths.size()) {
+            return true;
+        }
+        const int* curLengthsValues = reinterpret_cast<int*>(lengthsMemPtr->GetPtr());
+        for (size_t i = 0; i < curLengthsSize; ++i) {
+            if (curLengthsValues[i] != splitLengths[i]) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 bool Split::needPrepareParams() const {
     if (isOptimized()) {
         return false;
     }
-    return Node::inputShapesModified();
+    return needShapeInfer();
 }
 
 void Split::prepareParams() {
     const auto &srcMemPtr = getParentEdgesAtPort(0)[0]->getMemoryPtr();
     if (!srcMemPtr || !srcMemPtr->isAllocated()) {
         THROW_ERROR << "has not allocated input memory";
+    }
+
+    if (!constSplitLengths) {
+        const auto& splitLengthsPtr = getParentEdgeAt(2)->getMemoryPtr();
+        const int* curSplitLengths = reinterpret_cast<int*>(splitLengthsPtr->GetPtr());
+        const auto curLengthsSize = splitLengthsPtr->getStaticDims()[0];
+        splitLengths.assign(curSplitLengths, curSplitLengths + curLengthsSize);
     }
 
     dstMemPtrs.clear();
@@ -288,17 +308,15 @@ void Split::execute(dnnl::stream strm) {
         THROW_ERROR << "Output data pointers have not been initialized.";
 
     const auto &srcMem = getParentEdgesAtPort(0)[0]->getMemory();
-    size_t batch = srcMem.getStaticDims()[0];
-    Dim MB = isDynamicNode() ? batch : batchToProcess();
 
     if (canUseOptimizedNspc2Ncsp) {
-        optimizedNspc2Ncsp(MB);
+        optimizedNspc2Ncsp(srcMem.getStaticDims()[0]);
         return;
     }
 
     uint8_t* srcData = reinterpret_cast<uint8_t*>(srcMem.GetPtr());
     IE_ASSERT(execPtr != nullptr);
-    execPtr->exec(srcData, getRawDstMemPtrs(), batch, MB);
+    execPtr->exec(srcData, getRawDstMemPtrs());
 }
 
 bool Split::created() const {
@@ -367,7 +385,7 @@ void Split::initOptimalPrimitiveDescriptor() {
     canUseOptimizedNspc2Ncsp = false;
     IE_ASSERT(config.inConfs.size() > 0);
     const auto inConfDesc = config.inConfs[0].getMemDesc();
-    if (axis == 1 && one_of(inConfDesc->getShape().getRank(), 4, 5) && inConfDesc->hasLayoutType(LayoutType::nspc)) {
+    if (axis == 1 && one_of(inConfDesc->getShape().getRank(), 4u, 5u) && inConfDesc->hasLayoutType(LayoutType::nspc)) {
         canUseOptimizedNspc2Ncsp = true;
         for (size_t i = 0; i < config.outConfs.size(); i++) {
             if (!config.outConfs[i].getMemDesc()->hasLayoutType(LayoutType::ncsp))
@@ -472,13 +490,6 @@ void Split::selectOptimalPrimitiveDescriptor() {
     selectPrimitiveDescriptorByIndex(0);
 }
 
-void Split::setDynamicBatchLim(int lim) {
-    if (axis == 0)
-        THROW_ERROR << "Dynamic batch is not supported by split layer with axis == 0 parameter";
-
-    dynBatchLim = lim;
-}
-
 void Split::optimizedNspc2Ncsp(size_t MB) {
     auto parentEdge = getParentEdgeAt(0);
     const int rank = parentEdge->getMemory().GetShape().getRank();
@@ -558,7 +569,7 @@ Split::SplitOptimizedExecutor::SplitOptimizedExecutor(BlockedMemoryDescCPtr inDe
     const auto getRank = srcDims.size();
 
     countStrides = 1;
-    for (int i = 0; i < axisOrderPos; i++)
+    for (unsigned int i = 0; i < axisOrderPos; i++)
         countStrides *= srcDims[i];
 
     srcDataStride = 0;
@@ -579,11 +590,8 @@ Split::SplitOptimizedExecutor::SplitOptimizedExecutor(BlockedMemoryDescCPtr inDe
     }
 }
 
-void Split::SplitOptimizedExecutor::exec(const uint8_t* srcData, const std::vector<uint8_t*>& dstRawMemPtrs,
-                                                   const Dim origBatch, const Dim perInferBatch) {
+void Split::SplitOptimizedExecutor::exec(const uint8_t* srcData, const std::vector<uint8_t*>& dstRawMemPtrs) {
     size_t execCountStrides = countStrides;
-    if (origBatch != perInferBatch)
-        execCountStrides = execCountStrides / origBatch * perInferBatch;
 
     parallel_for2d(dstRawMemPtrs.size(), execCountStrides, [&](size_t i, size_t j) {
         uint8_t* dstData = dstRawMemPtrs[i];

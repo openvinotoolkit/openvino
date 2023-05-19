@@ -26,7 +26,7 @@ inline pugi::xml_node GetChild(const pugi::xml_node& node, std::vector<std::stri
     return pugi::xml_node();
 }
 
-using namespace XMLParseUtils;
+using namespace pugixml::utils;
 
 namespace InferenceEngine {
 namespace details {

@@ -19,7 +19,7 @@ namespace op {
 
 using namespace ov::op;
 
-OutputVector translate_roi_align(NodeContext& context) {
+OutputVector translate_roi_align(const NodeContext& context) {
     num_inputs_check(context, 7, 7);
     auto const_1 = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {1}));
     auto const_neg_1 = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-1}));

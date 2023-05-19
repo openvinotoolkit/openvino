@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <snippets/op/broadcastmove.hpp>
+#include <snippets/op/memory_access.hpp>
 
 #include "ngraph/op/op.hpp"
 
@@ -17,22 +17,21 @@ namespace op {
  * @brief Is generated for broadcasting by least varying dimension for non-blocked cases and the second varying dimension for blocked
  * @ingroup snippets
  */
-class BroadcastLoad : public BroadcastMove {
+class BroadcastLoad : public MemoryAccess {
 public:
-    OPENVINO_OP("BroadcastLoad", "SnippetsOpset", ngraph::snippets::op::BroadcastMove);
+    OPENVINO_OP("BroadcastLoad", "SnippetsOpset", ngraph::snippets::op::MemoryAccess);
 
     BroadcastLoad(const Output<Node>& x, ov::PartialShape output_shape, size_t offset = 0lu);
     BroadcastLoad() = default;
 
-    size_t get_offset() const { return m_offset; }
-    void set_offset(const size_t offset) { m_offset = offset; }
+    size_t get_offset() const { return get_input_offset(0); }
 
     bool visit_attributes(AttributeVisitor& visitor) override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
     void validate_and_infer_types() override;
 
 private:
-    size_t m_offset = 0lu;
+    ov::PartialShape output_shape;
 };
 
 } // namespace op

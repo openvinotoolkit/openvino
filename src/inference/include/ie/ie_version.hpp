@@ -21,7 +21,7 @@
  */
 
 #define IE_VERSION_MAJOR 2023
-#define IE_VERSION_MINOR 0
+#define IE_VERSION_MINOR 1
 #define IE_VERSION_PATCH 0
 
 #include "ie_api.h"

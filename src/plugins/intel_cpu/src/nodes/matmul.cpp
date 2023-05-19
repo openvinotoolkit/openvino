@@ -21,6 +21,7 @@
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include <dnnl_extension_utils.h>
 #include <common/primitive_hashing_utils.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
 
 using namespace dnnl;
 using namespace InferenceEngine;
@@ -50,7 +51,7 @@ size_t MatMulKey::hash() const {
 
     for (const auto& ptr : {inp0, inp1, bias, out}) {
         if (ptr) {
-            seed = hash_combine(seed, get_md_hash(ptr->getDnnlDesc().data));
+            seed = hash_combine(seed, get_md_hash(*ptr->getDnnlDesc().get()));
         }
     }
 
@@ -110,13 +111,14 @@ bool MatMul::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
     return true;
 }
 
+namespace {
 class MMShapeInfer : public ShapeInferEmptyPads {
 public:
     MMShapeInfer(const size_t& out_rank, const bool& transpose_a, const bool& transpose_b) :
         m_out_rank(out_rank), m_transpose_a(transpose_a), m_transpose_b(transpose_b) {
         m_shapeY = VectorDims(m_out_rank, 1); // for output and cache
     }
-    std::vector<VectorDims> infer(
+    Result infer(
         const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
         const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
         const VectorDims& shapeA = input_shapes[0].get();
@@ -132,7 +134,7 @@ public:
         // 5. Just support the same rank of matmul
         // 6. simplify the broadcast check
         if (rankA == 1 && rankB == 1 && shapeA[0] == shapeB[0]) {
-            return {m_shapeY};
+            return {{m_shapeY}, ShapeInferStatus::success};
         }
 
         m_shapeY[m_out_rank-2] = m_transpose_a ? shapeA[rankA-1] : shapeA[rankA-2];
@@ -151,7 +153,7 @@ public:
             m_shapeY[i] = shapeB[i];
         }
 
-        return {m_shapeY};
+        return {{m_shapeY}, ShapeInferStatus::success};
     }
 
     port_mask_t get_port_mask() const override {
@@ -181,6 +183,7 @@ public:
 private:
     std::shared_ptr<ngraph::Node> m_op;
 };
+} // namespace
 
 MatMul::MatMul(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context) :
     Node(op, context, MMShapeInferFactory(op)), withBiases(false) {
@@ -202,33 +205,26 @@ MatMul::MatMul(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr
 }
 
 bool MatMul::canFuse(const NodePtr& node) const {
-    // per channel binary post op for rank > 2D is supported only by oneDNN reference implementation because of unusual MatMul channel axis (issue 6669)
-    if (getOutputShapeAtPort(0).getRank() > 2) {
-        if (const auto* eltwiseNode = dynamic_cast<Eltwise *>(node.get())) {
-            if (one_of(eltwiseNode->getAlgorithm(), Algorithm::EltwiseAdd,
-                                                    Algorithm::EltwiseMultiply,
-                                                    Algorithm::EltwiseSubtract,
-                                                    Algorithm::EltwiseDivide,
-                                                    Algorithm::EltwisePrelu,
-                                                    Algorithm::EltwiseMulAdd,
-                                                    Algorithm::EltwisePowerStatic) &&
-                eltwiseNode->getBroadcastingPolicy() != Eltwise::PerTensor) {
-                return false;
-            }
-        } else if (const auto* fakeQuantizeNode = dynamic_cast<FakeQuantize *>(node.get())) {
-            if (fakeQuantizeNode->getBroadcastingPolicy() != FakeQuantize::PerTensor) {
-                return false;
+    // WA for CVS-84056: oneDNN brgemm impl has problem with per-OC binary-postOps for MatMul with 6D inputs
+    if (impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core)) {
+        if (auto* eltwiseNode = dynamic_cast<Eltwise*>(node.get())) {
+            if (eltwiseNode->getBroadcastingPolicy() == Eltwise::BroadcastingPolicy::PerChannel) {
+                auto rank = getInputShapeAtPort(0).getRank();
+                if (rank > 4) {
+                    DEBUG_LOG("skip fusing non-perTensor Eltwise:", eltwiseNode->getName(), " into 6D MatMul:", getName());
+                    return false;
+                }
             }
         }
     }
 
-    // Todo:
     //  Consider the case when Matmul doesn't support execution in int8, but is getting fused with FQ with int8 output.
-    //  Then the Matmul will change its output precision to fp32, but the FQ child will still has the int8 input precision.
-    //  This information should be propagated! Note that we may need to propagate updated precision to child fused nodes.
-    if (node->getType() == Type::FakeQuantize &&
-        one_of(node->getOriginalOutputPrecisionAtPort(0), Precision::I8, Precision::U8) &&
-        !canBeExecutedInInt8(getOriginalInputPrecisionAtPort(0), getOriginalInputPrecisionAtPort(1)))
+    //  Then the Matmul will change its output precision to fp32. If fusing FQ into matmul, there would be reorder inserted
+    //  after matmul. In some bert model, this reorder causes great perf degradation.
+    //  Todo: Remove this if onednn primitive support U8 output with floating input.
+    if (node->getType() == Type::FakeQuantize && one_of(node->getOriginalOutputPrecisionAtPort(0), Precision::I8, Precision::U8) &&
+        !canBeExecutedInInt8(getOriginalInputPrecisionAtPort(0), getOriginalInputPrecisionAtPort(1)) &&
+        getOriginalInputPrecisionAtPort(0) == InferenceEngine::Precision::FP32 )
         return false;
     return canFuseSimpleOperation(node);
 }
@@ -243,7 +239,7 @@ void MatMul::setPostOps(dnnl::primitive_attr& attr, const VectorDims& dims, bool
 
     bool isINT8 = canBeExecutedInInt8(getOriginalInputPrecisionAtPort(0), getOriginalInputPrecisionAtPort(1));
 
-    DnnlPostOpsComposer dnnlpoc(getEngine(), attr, ops, postOpsArgs, dims, dims.size() - 1, isINT8);
+    DnnlPostOpsComposer dnnlpoc(getEngine(), attr, ops, postOpsArgs, dims, dims.size() - 1, isINT8, 1 << (dims.size() - 1), getDQScales(), withBiases);
 
     for (int i = 0; i < fusedWith.size(); ++i) {
         auto& node = fusedWith[i];
@@ -342,12 +338,20 @@ void MatMul::getSupportedDescriptors() {
         outPortPrec = firstInPortPrec = secondInPortPrec = Precision::FP32;
     }
 
+    Precision postOpsPrec = outPortPrec;
     if (!fusedWith.empty()) {
-        outPortPrec = fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0);
+        postOpsPrec = fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0);
     }
 
-    if (!canBeExecutedInInt8(firstInPortPrec, secondInPortPrec) && one_of(outPortPrec, Precision::U8, Precision::I8))
-        outPortPrec = Precision::FP32; // INT output is not supported for non-INT inputs
+    if (canBeExecutedInInt8(firstInPortPrec, secondInPortPrec)) {
+        // INT8 mode support wide range of output precisions
+        outPortPrec = postOpsPrec;
+    } else if (postOpsPrec == Precision::FP32) {
+        // all non-INT8 modes support fp32 output precision
+        outPortPrec = postOpsPrec;
+    } else {
+        // otherwise we ignore postOpsPrec and stay with getOriginalOutputPrecisionAtPort(0)
+    }
 
     const auto& inputShape0 = getInputShapeAtPort(0);
     const auto& inputShape1 = getInputShapeAtPort(1);
@@ -475,17 +479,24 @@ std::pair<Shape, Shape> MatMul::makeDummyInputShapes(const Shape& in0, const Sha
 }
 
 void MatMul::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
-                                        const std::vector<MemoryDescPtr>& outputDesc) {
-    std::shared_ptr<dnnl::matmul::desc> matmul_desc;
+                              const std::vector<MemoryDescPtr>& outputDesc) {
+    const auto attr = initPrimitiveAttr();
+    dnnl::matmul::primitive_desc matmul_desc;
     if (withBiases) {
-        matmul_desc.reset(new matmul::desc(inDataDesc[0]->getDnnlDesc(),
-                                           inDataDesc[1]->getDnnlDesc(),
-                                           getBiasDescFrom(outDataDesc),
-                                           outDataDesc->getDnnlDesc()));
+        matmul_desc = matmul::primitive_desc(
+            getEngine(),
+            inDataDesc[0]->getDnnlDesc(),
+            inDataDesc[1]->getDnnlDesc(),
+            getBiasDescFrom(outDataDesc),
+            outDataDesc->getDnnlDesc(),
+            *attr);
     } else {
-        matmul_desc.reset(new matmul::desc(inDataDesc[0]->getDnnlDesc(),
-                                           inDataDesc[1]->getDnnlDesc(),
-                                           outDataDesc->getDnnlDesc()));
+        matmul_desc = matmul::primitive_desc(
+            getEngine(),
+            inDataDesc[0]->getDnnlDesc(),
+            inDataDesc[1]->getDnnlDesc(),
+            outDataDesc->getDnnlDesc(),
+            *attr);
     }
 
     descs.emplace_back(matmul_desc);
@@ -495,14 +506,11 @@ void MatMul::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    auto attr = initPrimitiveAttr();
-
     for (auto& desc : descs) {
-        auto itpd = desc.createPrimitiveDescriptorIterator(getEngine(), *attr);
-        while (static_cast<bool>(itpd)) {
+        auto itpd = desc;
+        while (itpd) {
             NodeConfig config;
-            config.dynBatchSupport = true;
-            for (size_t i = 0; i < descInputNumbers(desc); i++) {
+            for (size_t i = 0; i < descInputNumbers(); i++) {
                 PortConfig portConfig;
                 portConfig.inPlace(-1);
                 portConfig.constant(false);
@@ -511,7 +519,7 @@ void MatMul::initSupportedPrimitiveDescriptors() {
                 config.inConfs.push_back(portConfig);
             }
 
-            for (size_t i = 0; i < descOutputNumbers(desc); i++) {
+            for (size_t i = 0; i < descOutputNumbers(); i++) {
                 PortConfig portConfig;
                 portConfig.inPlace(canBeInPlace() ? 0 : -1);
                 portConfig.constant(false);
@@ -534,7 +542,7 @@ MemoryDescPtr MatMul::getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_des
 
     if (idx < 2) // inputs
         return std::make_shared<CpuBlockedMemoryDesc>(
-            DnnlExtensionUtils::DataTypeToIEPrecision(static_cast<dnnl::memory::data_type>(desc.data.data_type)),
+            DnnlExtensionUtils::DataTypeToIEPrecision(desc.get_data_type()),
             getInputShapeAtPort(idx)); /* provide initial shapes, so hide transpose effect */
     else // bias
         return DnnlExtensionUtils::makeDescriptor(desc);
@@ -542,12 +550,6 @@ MemoryDescPtr MatMul::getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_des
 
 bool MatMul::created() const {
     return getType() == Type::MatMul;
-}
-
-size_t MatMul::getMaxBatch() const {
-    if (!outputShapes.empty())
-        return outputShapes[0].getStaticDims()[0];
-    return 0;
 }
 
 InferenceEngine::Precision MatMul::getRuntimePrecision() const {
@@ -606,50 +608,50 @@ void MatMul::prepareParams() {
 
     auto engine = getEngine();
 
-    auto builder = [&engine](const MatMulKey& key) -> dnnl::primitive {
-        std::shared_ptr<dnnl::matmul::desc> matmul_desc;
+    auto builder = [&engine](const MatMulKey& key) -> executorPtr {
+        dnnl::matmul::primitive_desc prim_desc;
 
         if (key.bias) {
-            matmul_desc.reset(new dnnl::matmul::desc{key.inp0->getDnnlDesc(),
-                                                       key.inp1->getDnnlDesc(),
-                                                       key.bias->getDnnlDesc(),
-                                                       key.out->getDnnlDesc()});
+            prim_desc = matmul::primitive_desc(
+                engine,
+                key.inp0->getDnnlDesc(),
+                key.inp1->getDnnlDesc(),
+                key.bias->getDnnlDesc(),
+                key.out->getDnnlDesc(),
+                key.attr);
         } else {
-            matmul_desc.reset(new dnnl::matmul::desc(key.inp0->getDnnlDesc(),
-                                                       key.inp1->getDnnlDesc(),
-                                                       key.out->getDnnlDesc()));
+            prim_desc = matmul::primitive_desc(
+                engine,
+                key.inp0->getDnnlDesc(),
+                key.inp1->getDnnlDesc(),
+                key.out->getDnnlDesc(),
+                key.attr);
         }
 
-        DnnlDesriptor desc(matmul_desc);
-        primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(engine, key.attr);
-        matmul::primitive_desc prim_desc;
+        auto first_desc = dnnl::matmul::primitive_desc(prim_desc.get());
+        const bool found = DnnlExtensionUtils::find_implementation(prim_desc, key.implType);
 
-        while (static_cast<bool>(itpd))  {
-            impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
+        if (found)
+            return std::make_shared<DnnlExecutor>(prim_desc);
 
-            if (impl_type == key.implType) {
-                prim_desc = itpd.get();
-                break;
-            }
-            if (!itpd.next_impl())
-                return matmul();
-        }
-        return matmul(prim_desc);
+        // In case of dynamic shapes an implementation type chosen as optimal for a primitive_desc with
+        // undefined input shapes, is not necessarily available for the primitive_desc with defined shape.
+        // Example: brgemm_avx512_amx (Intel Sapphire Rapids Platform) is available for a primitive with
+        // undefined input shapes but not available for primitive_desc with input batch 1.
+        return std::make_shared<DnnlExecutor>(first_desc);
     };
 
     auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, builder);
 
-    if (!result.first) {
+    execPtr = result.first;
+    if (!execPtr) {
         IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
     }
 
-    prim = result.first;
+    auto schratchpadMem = getScratchPadMem(execPtr->getScratchPadDesc());
 
-    auto pd = prim.get_primitive_desc();
-    auto scratchpadMem = getScratchPadMem(pd);
-
-    primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->GetPrimitive();
+    primArgs[DNNL_ARG_SCRATCHPAD] = schratchpadMem->GetPrimitive();
     primArgs[DNNL_ARG_SRC_0] = src0MemPtr->GetPrimitive();
     primArgs[DNNL_ARG_WEIGHTS_0] = src1MemPtr->GetPrimitive();
     primArgs[DNNL_ARG_DST] = dstMemPtr->GetPrimitive();
@@ -657,6 +659,20 @@ void MatMul::prepareParams() {
         primArgs[DNNL_ARG_BIAS] = getParentEdgeAt(2)->getMemoryPtr()->GetPrimitive();
 
     appendPostOpArgs(*attr, primArgs, postOpsArgs);
+#ifdef CPU_DEBUG_CAPS
+    if (result.second == CacheEntryBase::LookUpStatus::Miss) {
+        auto pd = execPtr->getPrimitiveDesc();
+        DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
+    }
+#endif
+}
+
+void MatMul::execute(dnnl::stream strm) {
+    if (execPtr) {
+        execPtr->exec(primArgs, strm);
+    } else {
+        IE_THROW() << errorPrefix << " doesn't have an initialized executor";
+    }
 }
 
 void MatMul::executeDynamicImpl(dnnl::stream strm) {
@@ -668,6 +684,7 @@ const std::vector<impl_desc_type>& MatMul::getPrimitivesPriority() {
             impl_desc_type::unknown,
             impl_desc_type::brgemm_avx512_amx,
             impl_desc_type::brgemm_avx512,
+            impl_desc_type::gemm_acl,
             impl_desc_type::gemm_blas,
             impl_desc_type::gemm_avx512,
             impl_desc_type::gemm_avx2,

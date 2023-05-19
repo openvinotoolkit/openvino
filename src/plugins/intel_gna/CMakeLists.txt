@@ -21,7 +21,6 @@ if(CMAKE_COMPILER_IS_GNUCC)
     ie_add_compiler_flags(-Wno-int-in-bool-context)
 elseif(OV_COMPILER_IS_CLANG)
     ie_add_compiler_flags(-Wno-int-in-bool-context)
-    ie_add_compiler_flags(-Wno-implicit-const-int-float-conversion)
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # C4267, 4244 issues from mkl-dnn headers conversion from 'XXX' to 'YYY', possible loss of data
     ie_add_compiler_flags(/wd4267)
@@ -44,8 +43,6 @@ file(GLOB_RECURSE HEADERS
         ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h
         ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
 
-addVersionDefines(src/gna_plugin_entry_points.cpp CI_BUILD_NUMBER)
-
 find_package(libGNA REQUIRED
              PATHS "${CMAKE_CURRENT_SOURCE_DIR}/cmake"
              NO_DEFAULT_PATH)
@@ -54,9 +51,10 @@ find_package(libGNA REQUIRED
 # Shared plugin library
 #
 
-ie_add_plugin(NAME ${TARGET_NAME}
+ov_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "GNA"
               SOURCES ${SOURCES} ${HEADERS}
+              VERSION_DEFINES_FOR src/gna_plugin_entry_points.cpp
               ADD_CLANG_FORMAT)
 
 # Enable support of CC for the plugin
@@ -79,6 +77,8 @@ ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 #
 
 add_library(${TARGET_NAME}_test_static STATIC EXCLUDE_FROM_ALL ${SOURCES} ${HEADERS})
+
+ov_add_version_defines(src/gna_plugin_entry_points.cpp ${TARGET_NAME}_test_static)
 
 target_compile_definitions(${TARGET_NAME}_test_static
         PRIVATE
