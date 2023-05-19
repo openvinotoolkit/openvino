@@ -42,6 +42,7 @@ float CPUInfo::calcComputeBlockIPC(InferenceEngine::Precision precision) {
     using Xbyak::Zmm;
     Xbyak::CodeGenerator* g = NULL;
     if (haveAMXBF16() || haveAMXINT8()) {
+        std::cout << "[WangYang] AMX....." << std::endl;
         if (haveAMXBF16() && precision == InferenceEngine::Precision::BF16) {
             auto gen = [](Xbyak::CodeGenerator* g, int dst_reg, int src_reg) {
                 g->tdpbf16ps(Tmm(dst_reg), Tmm(src_reg), Tmm(dst_reg));
@@ -296,6 +297,8 @@ CPUInfo::CPUInfo() {
     have_fma = checkIsaSupport(ISA::fma);
     have_avx512f = checkIsaSupport(ISA::avx512_common);
     have_vnni = checkIsaSupport(ISA::avx512_vnni);
+    have_amx_bf16 = checkIsaSupport(ISA::amx_bf16);
+    have_amx_int8 = checkIsaSupport(ISA::amx_int8);
 
     try {
         init();
@@ -342,6 +345,9 @@ float CPUInfo::getPeakGOPSImpl(InferenceEngine::Precision precision) {
         simd_size = 128 / data_type_bit_size;
     operations_per_compute_block = 2 * simd_size;
     instructions_per_cycle = calcComputeBlockIPC(precision);
+    std::cout << "IPC of the compute block:        " << instructions_per_cycle << " for precision " << precision.name()
+              << std::endl;
+    std::cout << "ISA information:                 " << ISA_detailed << std::endl;
 
     return std::round(instructions_per_cycle * operations_per_compute_block) * freqGHz * cores_per_socket *
            sockets_per_node;
