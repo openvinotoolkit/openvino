@@ -4,7 +4,7 @@
 
 .. toctree::
    :maxdepth: 1
-   
+
    Abs-1 <openvino_docs_ops_arithmetic_Abs_1>
    Acos-1 <openvino_docs_ops_arithmetic_Acos_1>
    Acosh-3 <openvino_docs_ops_arithmetic_Acosh_3>
@@ -136,6 +136,7 @@
    PReLU-1 <openvino_docs_ops_activation_PReLU_1>
    PSROIPooling-1 <openvino_docs_ops_detection_PSROIPooling_1>
    Pad-1 <openvino_docs_ops_movement_Pad_1>
+   Pad-12 <openvino_docs_ops_movement_Pad_12>
    Parameter-1 <openvino_docs_ops_infrastructure_Parameter_1>
    Power-1 <openvino_docs_ops_arithmetic_Power_1>
    PriorBoxClustered-1 <openvino_docs_ops_detection_PriorBoxClustered_1>
