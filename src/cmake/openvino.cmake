@@ -300,13 +300,10 @@ if (TBBBIND_2_5_FOUND)
 endif()
 
 target_include_directories(${TARGET_NAME}_s PUBLIC
-    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/core/include>
+    $<TARGET_PROPERTY:${TARGET_NAME}_dev,INTERFACE_INCLUDE_DIRECTORIES>
+    $<TARGET_PROPERTY:${TARGET_NAME},INTERFACE_INCLUDE_DIRECTORIES>
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/core/src>
-    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/frontends/common/include>
-    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/inference/src>
-    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/inference/dev_api>
-    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/inference/include>
-    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/inference/include/ie>)
+    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/inference/src>)
 
 if(WIN32)
     set_target_properties(${TARGET_NAME}_s PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME}_s)
