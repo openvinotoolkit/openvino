@@ -46,7 +46,7 @@ addIeTargetTest(
             inference_engine_transformations
             inference_engine_lp_transformations
             ov_shape_inference
-            inference_engine_s
+            openvino_s
             unitTestUtils
             ngraphFunctions
             snippetsNgraphFunctions

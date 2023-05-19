@@ -282,3 +282,40 @@ if(ENABLE_PKGCONFIG_GEN)
         COMMENT "[pkg-config] validating openvino.pc"
         VERBATIM)
 endif()
+
+# Static library used for unit tests which are always built
+
+add_library(${TARGET_NAME}_s STATIC EXCLUDE_FROM_ALL
+            $<TARGET_OBJECTS:ngraph_obj>
+            $<TARGET_OBJECTS:ngraph_obj_version>
+            $<TARGET_OBJECTS:frontend_common_obj>
+            $<TARGET_OBJECTS:inference_engine_obj>
+            $<TARGET_OBJECTS:inference_engine_obj_version>
+            $<TARGET_OBJECTS:inference_engine_transformations_obj>
+            $<TARGET_OBJECTS:inference_engine_lp_transformations_obj>)
+
+set_ie_threading_interface_for(${TARGET_NAME}_s)
+if (TBBBIND_2_5_FOUND)
+    target_link_libraries(${TARGET_NAME}_s PRIVATE ${TBBBIND_2_5_IMPORTED_TARGETS})
+endif()
+
+target_include_directories(${TARGET_NAME}_s PUBLIC
+    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/core/include>
+    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/core/src>
+    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/frontends/common/include>
+    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/inference/src>
+    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/inference/include/dev_api>
+    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/inference/include>
+    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/inference/include/ie>)
+
+if(WIN32)
+    set_target_properties(${TARGET_NAME}_s PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME}_s)
+endif()
+
+target_link_libraries(${TARGET_NAME}_s PRIVATE openvino::itt ${CMAKE_DL_LIBS} openvino::pugixml)
+
+target_compile_definitions(${TARGET_NAME}_s PUBLIC OPENVINO_STATIC_LIBRARY)
+
+set_target_properties(${TARGET_NAME}_s PROPERTIES
+    EXCLUDE_FROM_ALL ON
+    INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})

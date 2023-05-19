@@ -20,6 +20,6 @@ addIeTarget(
         LINK_LIBRARIES
             PUBLIC
                 commonTestUtils_s
-                inference_engine_s
+                openvino_s
                 gmock
 )

@@ -333,8 +333,8 @@ function(ov_generate_plugins_hpp)
 
     # add plugins to libraries including ov_plugins.hpp
     ov_target_link_plugins(openvino)
-    if(TARGET inference_engine_s)
-        ov_target_link_plugins(inference_engine_s)
+    if(TARGET openvino_s)
+        ov_target_link_plugins(openvino_s)
     endif()
 
     if(OV_GENERATOR_MULTI_CONFIG AND CMAKE_VERSION VERSION_GREATER_EQUAL 3.20)
