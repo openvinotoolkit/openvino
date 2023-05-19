@@ -28,4 +28,16 @@ INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, OVInferenceChaining,
                                 ::testing::ValuesIn(HeteroConfigs)),
                         OVInferenceChaining::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferenceChainingStatic,
+                        ::testing::Combine(
+                                ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
+                                ::testing::ValuesIn(configs)),
+                        OVInferenceChainingStatic::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, OVInferenceChainingStatic,
+                        ::testing::Combine(
+                                ::testing::Values(CommonTestUtils::DEVICE_HETERO),
+                                ::testing::ValuesIn(HeteroConfigs)),
+                        OVInferenceChainingStatic::getTestCaseName);
+
 }  // namespace

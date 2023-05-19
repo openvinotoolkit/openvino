@@ -13,10 +13,10 @@
 #include <openvino/cc/ngraph/itt.hpp>
 #include <vector>
 
+#include "common/graph_utils.hpp"
 #include "common/numerical_utils.hpp"
 #include "ops/pwl.hpp"
 #include "ops/reference/pwl.hpp"
-#include "ops/util/util.hpp"
 #include "transformations/utils/utils.hpp"
 
 static constexpr double EXP_BREAK = 0.045;
@@ -25,8 +25,8 @@ using namespace ov::intel_gna;
 using namespace ov::intel_gna::pass;
 using namespace ov::intel_gna::common;
 
-NGRAPH_RTTI_DEFINITION(PWLApproximation, "PWLApproximation", 0);
-NGRAPH_RTTI_DEFINITION(PWLApproximationWithFq, "PWLApproximationWithFq", 0);
+NGRAPH_RTTI_DEFINITION(PWLApproximation, "PWLApproximation");
+NGRAPH_RTTI_DEFINITION(PWLApproximationWithFq, "PWLApproximationWithFq");
 
 template <typename T>
 double get_break_bound() {
@@ -304,8 +304,8 @@ std::pair<double, double> get_bounds(const std::shared_ptr<ngraph::Node>& fake_q
     if (fq) {
         auto input_low = std::dynamic_pointer_cast<ngraph::opset8::Constant>(fq->get_input_node_shared_ptr(1));
         auto input_high = std::dynamic_pointer_cast<ngraph::opset8::Constant>(fq->get_input_node_shared_ptr(2));
-        if (!ngraph_util::get_constant_value(input_low, lower_bound) ||
-            !ngraph_util::get_constant_value(input_high, upper_bound)) {
+        if (!graph_utils::get_constant_value(input_low, lower_bound) ||
+            !graph_utils::get_constant_value(input_high, upper_bound)) {
             throw std::runtime_error("The unsupported type of element.");
         }
 
@@ -370,8 +370,8 @@ static bool pwl_search_power(const std::shared_ptr<ngraph::Node>& node,
     if (fq) {
         auto output_low = std::dynamic_pointer_cast<ngraph::opset8::Constant>(fq->get_input_node_shared_ptr(1));
         auto output_high = std::dynamic_pointer_cast<ngraph::opset8::Constant>(fq->get_input_node_shared_ptr(2));
-        if (!ngraph_util::get_constant_value(output_low, lower_bound) ||
-            !ngraph_util::get_constant_value(output_high, upper_bound)) {
+        if (!graph_utils::get_constant_value(output_low, lower_bound) ||
+            !graph_utils::get_constant_value(output_high, upper_bound)) {
             throw std::runtime_error("The unsupported type of element.");
         }
     }
@@ -411,7 +411,7 @@ bool pwl_search<ngraph::opset8::Power>(const std::shared_ptr<ngraph::opset8::Pow
                                        std::vector<details::Pwl>& segments) {
     auto constant = std::dynamic_pointer_cast<ngraph::opset8::Constant>(node->get_input_node_shared_ptr(1));
     double exponent = 0;
-    if (!ngraph_util::get_constant_value(constant, exponent)) {
+    if (!graph_utils::get_constant_value(constant, exponent)) {
         throw std::runtime_error("The unsupported type of element.");
     }
 

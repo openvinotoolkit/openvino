@@ -24,6 +24,15 @@ def get_scripted_model(model):
         print(model.inlined_graph)  # will help debugging
         return model
 
+def get_traced_model(model, inputs=[], frozen=True):
+    with torch.no_grad():
+        model = torch.jit.trace(model, example_inputs=inputs)
+        model.eval()
+        if frozen:
+            model = torch.jit.freeze(model)
+        print(model.inlined_graph)  # will help debugging
+        return model
+
 
 @pytest.mark.precommit
 def test_pytorch_decoder_get_output_type_str():
@@ -443,3 +452,161 @@ def test_pytorch_decoder_can_convert_empty_list():
     assert len(ov_const) == 1
     assert ov_const[0].get_element_type() == Type.i32
     assert ov_const[0].get_partial_shape() == PartialShape([0])
+
+@pytest.mark.precommit
+def test_pytorch_decoder_can_convert_int_scalar_tensor():
+    from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+    from openvino.runtime import PartialShape, Type
+
+    class SomeTensor(torch.nn.Module):
+        def __init__(self) -> None:
+            super().__init__()
+            self.value: int = 1
+
+        def forward(self):
+            # Reproduce specific case where prim::Constant for `self.value + 1`
+            # would create torch.Node with output being Tensor with IValue  of type int.
+            return torch.add(torch.tensor([1], dtype=torch.int32), self.value + 1)
+
+    model = get_traced_model(SomeTensor(), frozen=False)
+    consts = [n for n in model.inlined_graph.nodes() if n.kind() ==
+              "prim::Constant"]
+    assert len(consts) > 0
+    some_const = consts[6]
+    node_output = list(some_const.outputs())[0]
+    assert node_output.isCompleteTensor()
+    assert isinstance(node_output.toIValue(), int)
+    nc_decoder = TorchScriptPythonDecoder(model, some_const)
+    ov_const = nc_decoder.as_constant()
+    assert ov_const is not None
+    assert len(ov_const) == 1
+    assert ov_const[0].get_element_type() == Type.i32
+    assert ov_const[0].get_partial_shape() == PartialShape([])
+
+@pytest.mark.precommit
+def test_pytorch_decoder_can_convert_float_scalar_tensor():
+    from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+    from openvino.runtime import PartialShape, Type
+
+    class SomeTensor(torch.nn.Module):
+        def __init__(self) -> None:
+            super().__init__()
+            self.value: float = 1.
+
+        def forward(self):
+            # Reproduce specific case where prim::Constant for `self.value + 1`
+            # would create nore with output being Tensor with IValue  of type float.
+            return torch.add(torch.tensor([1.], dtype=torch.float), self.value + 1)
+
+
+    model = get_traced_model(SomeTensor(), frozen=False)
+    consts = [n for n in model.inlined_graph.nodes() if n.kind() ==
+            "prim::Constant"]
+    assert len(consts) > 0
+    some_const = consts[6]
+    node_output = list(some_const.outputs())[0]
+    assert node_output.isCompleteTensor()
+    assert isinstance(node_output.toIValue(), float)
+    nc_decoder = TorchScriptPythonDecoder(model, some_const)
+    ov_const = nc_decoder.as_constant()
+    assert ov_const is not None
+    assert len(ov_const) == 1
+    assert ov_const[0].get_element_type() == Type.f32
+    assert ov_const[0].get_partial_shape() == PartialShape([])
+
+@pytest.mark.precommit
+def test_pytorch_decoder_can_convert_tensor_list():
+    from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+    from openvino.runtime import PartialShape, Type
+    from typing import List, Optional
+
+    class SomeTensor(torch.nn.Module):
+        def forward(self):
+            l = torch.jit.annotate(List[Optional[torch.Tensor]], [torch.ones((1, 3, 3), dtype=torch.float),])
+            return l
+
+    model = get_scripted_model(SomeTensor())
+    consts = list(model.graph.findAllNodes("prim::Constant"))
+    assert len(consts) == 1, "Input model should contain 1 prim::Constant"
+    nc_decoder = TorchScriptPythonDecoder(model)
+    graph = nc_decoder.graph_element
+    converted_const_nodes = list(graph.findAllNodes("prim::Constant"))
+    converted_listconstruct_nodes = list(graph.findAllNodes("prim::ListConstruct"))
+    # # Assert that replaced const exist and is not used
+    assert len(converted_const_nodes) == 2
+    assert len([node for node in converted_const_nodes if not node.hasUses()]) == 1
+    # Assert that prim::ListConstruct exist and has uses
+    assert len(converted_listconstruct_nodes) == 1
+    assert converted_listconstruct_nodes[0].kind() == "prim::ListConstruct"
+    assert converted_listconstruct_nodes[0].hasUses()
+    assert len(list(converted_listconstruct_nodes[0].inputs())) == 1
+    created_const = converted_listconstruct_nodes[0].input().node()
+    assert created_const in converted_const_nodes
+    created_const_decoder = TorchScriptPythonDecoder(model, created_const).as_constant()
+    assert created_const_decoder[0].get_element_type() == Type.f32
+    assert created_const_decoder[0].get_partial_shape() == PartialShape([1, 3, 3])
+
+@pytest.mark.precommit
+def test_pytorch_decoder_can_convert_tensor_list_empty():
+    from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+    from typing import List, Optional
+
+    class SomeTensor(torch.nn.Module):
+        def forward(self):
+            l = torch.jit.annotate(List[Optional[torch.Tensor]], [])
+            return l
+
+    model = get_scripted_model(SomeTensor())
+    consts = list(model.graph.findAllNodes("prim::Constant"))
+    assert len(consts) == 1, "Input model should contain 1 prim::Constant"
+    nc_decoder = TorchScriptPythonDecoder(model)
+    graph = nc_decoder.graph_element
+    converted_const_nodes = list(graph.findAllNodes("prim::Constant"))
+    converted_listconstruct_nodes = list(graph.findAllNodes("prim::ListConstruct"))
+    # Assert that replaced const exist and is not used
+    assert len(converted_const_nodes) == 1
+    assert not converted_const_nodes[0].hasUses()
+    # Assert that prim::ListConstruct exist, has uses and dont have inputs
+    assert len(converted_listconstruct_nodes) == 1
+    assert converted_listconstruct_nodes[0].kind() == "prim::ListConstruct"
+    assert converted_listconstruct_nodes[0].hasUses()
+    assert len(list(converted_listconstruct_nodes[0].inputs())) == 0
+
+@pytest.mark.precommit
+def test_pytorch_decoder_can_convert_optional_tensor_none():
+    from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+    from typing import Optional
+    class SomeTensor(torch.nn.Module):
+        def forward(self):
+            l = torch.jit.annotate(Optional[torch.Tensor], None)
+            return l
+
+    model = get_scripted_model(SomeTensor())
+    consts = list(model.graph.findAllNodes("prim::Constant"))
+    assert len(consts) == 1, "Input model should contain 1 prim::Constant"
+    nc_decoder = TorchScriptPythonDecoder(model)
+    graph = nc_decoder.graph_element
+    converted_const_nodes = list(graph.findAllNodes("prim::Constant"))
+    removed_consts = [node for node in converted_const_nodes if not node.hasUses()]
+    created_consts = [node for node in converted_const_nodes if node.hasUses()]
+    assert len(removed_consts) == len(created_consts) == 1
+    # Assert that unused const has torch.OptionalType dtype
+    assert isinstance(removed_consts[0].output().type(), torch.OptionalType)
+    # Assert that replacer const has correct dtype
+    assert isinstance(created_consts[0].output().type(), torch.NoneType)
+    # Assert that graph has correct output
+    outputs = list(nc_decoder.graph_element.outputs())
+    assert len(outputs) == 1
+    assert isinstance(outputs[0].type(), torch.NoneType)
+
+
+def f(x, y):
+    return x + y
+
+
+@pytest.mark.precommit
+def test_pytorch_decoder_can_convert_scripted_function():
+    from openvino.tools.mo import convert_model
+    scripted = torch.jit.script(f)
+    model = convert_model(scripted)
+    assert model is not None

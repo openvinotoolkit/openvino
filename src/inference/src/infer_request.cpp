@@ -6,6 +6,7 @@
 
 #include <map>
 #include <memory>
+#include <openvino/core/except.hpp>
 #include <string>
 
 #include "ie_common.h"
@@ -20,11 +21,11 @@
     try {                                                                   \
         __VA_ARGS__;                                                        \
     } catch (const ::InferenceEngine::RequestBusy& ex) {                    \
-        throw ov::Busy(ex.what());                                          \
+        ov::Busy::create(ex.what());                                        \
     } catch (const std::exception& ex) {                                    \
-        throw ov::Exception(ex.what());                                     \
+        OPENVINO_THROW(ex.what());                                          \
     } catch (...) {                                                         \
-        OPENVINO_ASSERT(false, "Unexpected exception");                     \
+        OPENVINO_THROW("Unexpected exception");                             \
     }
 
 namespace {
@@ -195,9 +196,8 @@ Tensor InferRequest::get_output_tensor(size_t idx) {
 Tensor InferRequest::get_input_tensor() {
     OV_INFER_REQ_CALL_STATEMENT({
         const auto inputs = _impl->get_inputs();
-        if (inputs.size() != 1) {
-            throw ov::Exception("get_input_tensor() must be called on a function with exactly one parameter.");
-        }
+        OPENVINO_ASSERT(inputs.size() == 1,
+                        "get_input_tensor() must be called on a function with exactly one parameter.");
         return get_tensor(inputs.at(0));
     });
 }
@@ -205,9 +205,8 @@ Tensor InferRequest::get_input_tensor() {
 Tensor InferRequest::get_output_tensor() {
     OV_INFER_REQ_CALL_STATEMENT({
         const auto outputs = _impl->get_outputs();
-        if (outputs.size() != 1) {
-            throw ov::Exception("get_output_tensor() must be called on a function with exactly one parameter.");
-        }
+        OPENVINO_ASSERT(outputs.size() == 1,
+                        "get_output_tensor() must be called on a function with exactly one parameter.");
         return get_tensor(outputs.at(0));
     });
 }
@@ -235,11 +234,11 @@ void InferRequest::wait() {
     } catch (const ov::Cancelled&) {
         throw;
     } catch (const ie::InferCancelled& e) {
-        throw Cancelled{e.what()};
+        Cancelled::create(e.what());
     } catch (const std::exception& ex) {
-        throw Exception(ex.what());
+        OPENVINO_THROW(ex.what());
     } catch (...) {
-        OPENVINO_UNREACHABLE("Unexpected exception");
+        OPENVINO_THROW("Unexpected exception");
     }
 }
 
@@ -248,11 +247,11 @@ bool InferRequest::wait_for(const std::chrono::milliseconds timeout) {
     try {
         return _impl->wait_for(timeout);
     } catch (const ie::InferCancelled& e) {
-        throw Cancelled{e.what()};
+        Cancelled::create(e.what());
     } catch (const std::exception& ex) {
-        throw Exception(ex.what());
+        OPENVINO_THROW(ex.what());
     } catch (...) {
-        OPENVINO_UNREACHABLE("Unexpected exception");
+        OPENVINO_THROW("Unexpected exception");
     }
 }
 

@@ -8,7 +8,7 @@
 #include "primitive_onednn_base.h"
 #include "implementation_map.hpp"
 
-#include "kernel_selector_common.h"
+#include "impls/ocl/kernel_selector_helper.h"
 
 #include "utils.hpp"
 
@@ -158,12 +158,11 @@ protected:
 
         weights_reorder_params.engine = kernel_selector::WeightsReorderParams::Engine::GPU;
         weights_reorder_params.clKernel = std::make_shared<kernel_selector::clKernelData>(kernels_data[0].kernels[0]);
+        weights_reorder_params.src = r_params.input;
         weights_reorder_params.dest = r_params.output;
 
         return weights_reorder_params;
     }
-
-
 
 public:
     void save(BinaryOutputBuffer& ob) const override {
@@ -196,7 +195,7 @@ public:
             _attrs->set_zero_points_mask(DNNL_ARG_SRC, _zero_point_mask);
         }
 
-        const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernlImplParams());
+        const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernelImplParams());
 
         auto input_md = onednn::layout_to_memory_desc(impl_params->get_input_layout(0), dnnl::memory::format_tag::undef);
         auto weights_md = onednn::layout_to_memory_desc(impl_params->get_input_layout(1), dnnl::memory::format_tag::any);

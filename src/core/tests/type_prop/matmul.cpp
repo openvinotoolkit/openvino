@@ -528,7 +528,7 @@ TEST(type_prop, matmul_propagate_labels_on_interval_dims) {
 }
 
 TEST(type_prop, matmul_propagate_label_on_b_input_after_reshape) {
-    constexpr size_t my_label = 2;
+    constexpr ov::label_t my_label = 2;
     auto marked_dim = Dimension(2, 3);
     ov::DimensionTracker::set_label(marked_dim, my_label);
 

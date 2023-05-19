@@ -21,7 +21,8 @@
 #include <openvino/op/irdft.hpp>
 #include <openvino/op/constant.hpp>
 
-using namespace dnnl;
+using namespace dnnl::impl;
+using namespace dnnl::impl::cpu::x64;
 using namespace InferenceEngine;
 
 namespace ov {
@@ -732,7 +733,7 @@ std::vector<std::vector<float>> RDFTExecutor::generateTwiddles(const std::vector
     }
     return twiddles;
 }
-
+#if defined(OPENVINO_ARCH_X86_64)
 struct RDFTJitExecutor : public RDFTExecutor {
     RDFTJitExecutor(bool inverse, NodeDesc* primDesc) : RDFTExecutor(inverse) {
         enum dft_type rdftType = isInverse ? complex_to_real : real_to_complex;
@@ -840,7 +841,7 @@ struct RDFTJitExecutor : public RDFTExecutor {
 
     int vlen;
 };
-
+#endif
 
 struct RDFTRefExecutor : public RDFTExecutor {
     RDFTRefExecutor(bool inverse) : RDFTExecutor(inverse) {}
@@ -986,12 +987,14 @@ void RDFT::createPrimitive() {
     auto buildExecutor = [&] (const RDFTKey& key) -> std::shared_ptr<RDFTExecutor> {
         std::shared_ptr<RDFTExecutor> executor;
         NodeDesc* primDesc = getSelectedPrimitiveDescriptor();
+#if defined(OPENVINO_ARCH_X86_64)
         if (mayiuse(cpu::x64::sse41)) {
             executor = std::make_shared<RDFTJitExecutor>(key.isInverse, primDesc);
-        } else {
-            executor = std::make_shared<RDFTRefExecutor>(key.isInverse);
-            primDesc->setImplementationType(ref_any);
+            return executor;
         }
+#endif
+        executor = std::make_shared<RDFTRefExecutor>(key.isInverse);
+        primDesc->setImplementationType(ref_any);
         return executor;
     };
 

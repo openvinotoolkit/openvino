@@ -45,7 +45,9 @@ op::v1::Pad::Pad(const Output<Node>& arg,
 
 CoordinateDiff op::v1::Pad::get_pads_begin() const {
     CoordinateDiff pads_begin_coord{};
+    OPENVINO_SUPPRESS_DEPRECATED_START
     if (auto pads_begin_const = get_constant_from_source(input_value(1))) {
+        OPENVINO_SUPPRESS_DEPRECATED_END
         pads_begin_coord = pads_begin_const->cast_vector<ptrdiff_t>();
     }
     return pads_begin_coord;
@@ -53,7 +55,9 @@ CoordinateDiff op::v1::Pad::get_pads_begin() const {
 
 CoordinateDiff op::v1::Pad::get_pads_end() const {
     CoordinateDiff pads_end_coord{};
+    OPENVINO_SUPPRESS_DEPRECATED_START
     if (auto pads_end_const = get_constant_from_source(input_value(2))) {
+        OPENVINO_SUPPRESS_DEPRECATED_END
         pads_end_coord = pads_end_const->cast_vector<ptrdiff_t>();
     }
     return pads_end_coord;
@@ -104,7 +108,9 @@ void op::v1::Pad::validate_and_infer_types() {
                           pads_end_element_type,
                           ").");
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto output_shapes = shape_infer(this, get_node_input_partial_shapes(*this));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     set_output_type(0, result_et, output_shapes[0]);
 }
 
@@ -183,5 +189,7 @@ bool op::v1::Pad::evaluate_upper(ov::TensorVector& output_values) const {
 
 bool op::v1::Pad::evaluate_label(ov::TensorLabelVector& output_labels) const {
     OV_OP_SCOPE(v1_Pad_evaluate_label);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     return ov::default_label_evaluator(this, output_labels);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }

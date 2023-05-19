@@ -360,9 +360,9 @@ void regclass_Core(py::module m) {
             }
 
             std::stringstream str;
-            str << "Provided python object type " << model_path.get_type().str()
+            str << "Provided python object type " << py::str(model_path.get_type())
                 << " isn't supported as 'model' argument.";
-            throw ov::Exception(str.str());
+            OPENVINO_THROW(str.str());
         },
         py::arg("model"),
         py::arg("weights") = py::none(),
@@ -582,6 +582,21 @@ void regclass_Core(py::module m) {
             :param extensions: List of Extension objects.
             :type extensions: list[openvino.runtime.Extension]
         )");
+
+    cls.def("get_available_devices",
+            &ov::Core::get_available_devices,
+            py::call_guard<py::gil_scoped_release>(),
+            R"(
+                Returns devices available for inference Core objects goes over all registered plugins.
+
+                GIL is released while running this function.
+
+                :returns: A list of devices. The devices are returned as: CPU, GPU.0, GPU.1, GNA...
+                    If there more than one device of specific type, they are enumerated with .# suffix.
+                    Such enumerated device can later be used as a device name in all Core methods like:
+                    compile_model, query_model, set_property and so on.
+                :rtype: list
+            )");
 
     cls.def_property_readonly("available_devices",
                               &ov::Core::get_available_devices,

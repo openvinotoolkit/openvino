@@ -15,7 +15,7 @@
 #include <ngraph/opsets/opset9.hpp>
 
 #include <cpu/x64/jit_generator.hpp>
-#include "emitters/jit_load_store_emitters.hpp"
+#include "emitters/x64/jit_load_store_emitters.hpp"
 
 using namespace InferenceEngine;
 using namespace dnnl;
@@ -31,7 +31,7 @@ namespace node {
 
 using ngPoolingMode = ngraph::opset9::ROIAlign::PoolingMode;
 using ngAlignedMode = ngraph::opset9::ROIAlign::AlignedMode;
-
+#if defined(OPENVINO_ARCH_X86_64)
 #define GET_OFF(field) offsetof(jit_roi_align_call_args, field)
 
 template <cpu_isa_t isa>
@@ -648,7 +648,7 @@ private:
         }
     }
 };
-
+#endif
 bool ROIAlign::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         auto roiAlign = ngraph::as_type_ptr<const ngraph::opset9::ROIAlign>(op);
@@ -749,7 +749,7 @@ void ROIAlign::createJitKernel(const InferenceEngine::Precision& dataPrec, const
     jcp.layout = selectLayout;
     jcp.pooled_h = pooledH;
     jcp.pooled_w = pooledW;
-
+#if defined(OPENVINO_ARCH_X86_64)
     if (mayiuse(cpu::x64::avx512_core)) {
         roi_align_kernel.reset(new jit_uni_roi_align_kernel_f32<cpu::x64::avx512_core>(jcp));
     } else if (mayiuse(cpu::x64::avx2)) {
@@ -757,9 +757,9 @@ void ROIAlign::createJitKernel(const InferenceEngine::Precision& dataPrec, const
     } else if (mayiuse(cpu::x64::sse41)) {
         roi_align_kernel.reset(new jit_uni_roi_align_kernel_f32<cpu::x64::sse41>(jcp));
     }
-
     if (roi_align_kernel)
         roi_align_kernel->create_ker();
+#endif
 }
 
 void ROIAlign::initSupportedPrimitiveDescriptors() {
@@ -778,7 +778,6 @@ void ROIAlign::initSupportedPrimitiveDescriptors() {
     }
 
     NodeConfig config;
-    config.dynBatchSupport = false;
     config.inConfs.resize(3);
     config.outConfs.resize(1);
 
@@ -792,7 +791,6 @@ void ROIAlign::initSupportedPrimitiveDescriptors() {
     } else {
         impl_type = impl_desc_type::ref;
     }
-
     std::vector<std::pair<LayoutType, LayoutType>> supportedFormats {
             {LayoutType::ncsp, LayoutType::ncsp}
     };
@@ -1018,13 +1016,13 @@ void ROIAlign::executeSpecified() {
                         auto sampleXLow = static_cast<unsigned int>(sampleX);
                         unsigned int sampleYHigh;
                         unsigned int sampleXHigh;
-                        if (sampleYLow >= H - 1) {
+                        if (static_cast<int>(sampleYLow) >= H - 1) {
                             sampleYHigh = sampleYLow = H - 1;
                             sampleY = static_cast<float>(sampleYLow);
                         } else {
                             sampleYHigh = sampleYLow + 1;
                         }
-                        if (sampleXLow >= W - 1) {
+                        if (static_cast<int>(sampleXLow) >= W - 1) {
                             sampleXHigh = sampleXLow = W - 1;
                             sampleX = static_cast<float>(sampleXLow);
                         } else {
@@ -1132,7 +1130,7 @@ void ROIAlign::executeSpecified() {
             float numSamplesInBinInvert = 1.f / numSamplesROI;
 
             float pooledValue = 0;
-            for (unsigned int binSampleInd = 0; binSampleInd < numSamplesROI; binSampleInd++) {
+            for (auto binSampleInd = 0; binSampleInd < numSamplesROI; binSampleInd++) {
                 float src0 = srcData[channelSrcOffset + srcIndexTbl[n][paramOffset]];
                 float src1 = srcData[channelSrcOffset + srcIndexTbl[n][paramOffset + 1]];
                 float src2 = srcData[channelSrcOffset + srcIndexTbl[n][paramOffset + 2]];

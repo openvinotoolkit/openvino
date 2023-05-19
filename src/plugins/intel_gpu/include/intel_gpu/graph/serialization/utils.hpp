@@ -56,6 +56,15 @@ protected:
         return (_pos < _buf.size()) ? _buf[_pos++] : EOF;
     }
 
+    pos_type seekoff(off_type off, std::ios_base::seekdir dir, std::ios_base::openmode which = std::ios_base::in) override {
+        return _pos;
+    }
+
+    pos_type seekpos(pos_type pos, std::ios_base::openmode which = std::ios_base::in) override {
+        _pos = pos;
+        return _pos;
+    }
+
 private:
     std::vector<int_type> _buf;
     size_t _pos;

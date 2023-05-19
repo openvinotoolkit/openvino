@@ -17,9 +17,11 @@
  * handling it by itself.
  */
 int runPipeline(const std::string &model, const std::string &device, const bool isCacheEnabled,
+                const std::string &inputPrecision, const std::string &outputPrecision,
                 std::map<std::string, ov::PartialShape> reshapeShapes,
                 std::map<std::string, std::vector<size_t>> dataShapes) {
     auto pipeline = [](const std::string &model, const std::string &device, const bool isCacheEnabled,
+                       const std::string &inputPrecision, const std::string &outputPrecision,
                        std::map<std::string, ov::PartialShape> reshapeShapes,
                        std::map<std::string, std::vector<size_t>> dataShapes) {
         ov::Core ie;
@@ -32,6 +34,14 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
         bool reshape = false;
         if (!reshapeShapes.empty()) {
             reshape = true;
+        }
+        bool ip = false;
+        if (!inputPrecision.empty()) {
+            ip = true;
+        }
+        bool op = false;
+        if (!outputPrecision.empty()) {
+            op = true;
         }
 
          // first_inference_latency = time_to_inference + first_inference
@@ -67,6 +77,22 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
                                     cnnNetwork->reshape(reshapeShapes);
                                 }
                             }
+                            if (ip || op) {
+                                auto preprocessor = ov::preprocess::PrePostProcessor(cnnNetwork);
+                                if (ip) {
+                                    const auto inputs = cnnNetwork->inputs();
+                                    for (size_t i = 0; i < inputs.size(); i++) {
+                                        preprocessor.input(i).tensor().set_element_type(ov::element::Type(inputPrecision));
+                                    }
+                                }
+                                if (op) {
+                                    const auto outputs = cnnNetwork->outputs();
+                                    for (size_t i = 0; i < outputs.size(); i++) {
+                                        preprocessor.output(i).tensor().set_element_type(ov::element::Type(outputPrecision));
+                                    }
+                                }
+                                cnnNetwork = preprocessor.build();
+                            }
                             {
                                 SCOPED_TIMER(load_network);
                                 exeNetwork = ie.compile_model(cnnNetwork, device);
@@ -99,7 +125,7 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
     };
 
     try {
-        pipeline(model, device, isCacheEnabled, reshapeShapes, dataShapes);
+        pipeline(model, device, isCacheEnabled, inputPrecision, outputPrecision, reshapeShapes, dataShapes);
     } catch (const ov::Exception &iex) {
         std::cerr
                 << "Inference Engine pipeline failed with Inference Engine exception:\n"

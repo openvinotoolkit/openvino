@@ -26,7 +26,7 @@ namespace ngraph {
  */
 class LP_TRANSFORMATIONS_API PrecisionsAttribute : public SharedAttribute<std::vector<ngraph::element::Type>> {
 public:
-    OPENVINO_RTTI("LowPrecision::Precisions", "", ov::RuntimeAttribute, 0);
+    OPENVINO_RTTI("LowPrecision::Precisions", "", ov::RuntimeAttribute);
     PrecisionsAttribute(const std::vector<ngraph::element::Type>& precisions);
 
     static ov::Any create(

@@ -8,7 +8,7 @@
 // to suppress deprecated definition errors
 #define IMPLEMENT_INFERENCE_ENGINE_PLUGIN
 #include "common/versioning.hpp"
-#include "gna_model_serial.hpp"
+#include "serial/gna_model_serial.hpp"
 
 using namespace testing;
 

@@ -13,6 +13,7 @@ public:
     virtual ~ArgMaxMinKernelAxis() {}
 
     JitConstants GetJitConstants(const arg_max_min_params& params) const override;
+    DispatchData SetDefault(const arg_max_min_params& params) const override;
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
     KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;

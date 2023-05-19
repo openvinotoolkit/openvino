@@ -13,6 +13,7 @@
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "test_utils/cpu_test_utils.hpp"
+#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 
 using namespace CPUTestUtils;
 using namespace ov::test;
@@ -218,6 +219,13 @@ protected:
             rel_threshold = 10.f;
 
             configuration.insert({{ InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::YES }});
+        }
+
+        // Snippets MHA tokenization has limitations to avoid performance degradations. These limitations depend on target machine.
+        // Just for testing, we disable these limitations to allow Snippets to tokenize pattern on all machines for validation.
+        if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
+            configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
+                                  InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK});
         }
     }
 };
@@ -498,6 +506,13 @@ protected:
             function = initMHAQuantSubgraph1(inputDynamicShapes, inputPrecisions, matMulIn0Precisions);
         } else {
             FAIL() << "Unsupported MHA pattern type";
+        }
+
+        // Snippets MHA tokenization has limitations to avoid performance degradations. These limitations depend on target machine.
+        // Just for testing, we disable these limitations to allow Snippets to tokenize pattern on all machines for validation.
+        if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
+            configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
+                                  InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK});
         }
     }
 };

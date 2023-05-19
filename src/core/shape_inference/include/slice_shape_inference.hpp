@@ -70,11 +70,12 @@ void shape_infer(const Slice* op,
                               shape_rank);
 
         if (input_rank.is_static()) {
-            NODE_VALIDATION_CHECK(op,
-                                  shape_rank.is_dynamic() || shape[0].get_min_length() <= input_rank.get_length(),
-                                  "Slice `",
-                                  slice::shape_names[i - 1],
-                                  "` input dim size can't be bigger than `data` rank.");
+            NODE_VALIDATION_CHECK(
+                op,
+                shape_rank.is_dynamic() || static_cast<int64_t>(shape[0].get_min_length()) <= input_rank.get_length(),
+                "Slice `",
+                slice::shape_names[i - 1],
+                "` input dim size can't be bigger than `data` rank.");
         }
     }
 
@@ -106,7 +107,9 @@ void shape_infer(const Slice* op,
                               "Slice `axes` input must have compatible shape with `start`, `stop`, `step` inputs.");
 
         if (auto axes = get_input_const_data_as<T, int64_t>(op, 4, constant_data)) {
+            OPENVINO_SUPPRESS_DEPRECATED_START
             ov::normalize_axes(op, input_shape.rank().get_length(), *axes);
+            OPENVINO_SUPPRESS_DEPRECATED_END
             axes_map.add(*axes);
             NODE_VALIDATION_CHECK(op, axes_map.is_valid, "Slice values in `axes` input must be unique.");
         }

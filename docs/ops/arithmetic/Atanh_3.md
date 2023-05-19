@@ -1,5 +1,7 @@
 # Atanh {#openvino_docs_ops_arithmetic_Atanh_3}
 
+@sphinxdirective
+
 **Versioned name**: *Atanh-3*
 
 **Category**: *Arithmetic unary*
@@ -10,15 +12,21 @@
 
 Float type input:
 
-\f[ a_{i} = atanh(a_{i}) \f]
+.. math::
+
+   a_{i} = atanh(a_{i})
 
 Signed Intragral type put:
 
-\f[ a_{i} = (i <= -1) ? std::numeric_limits<T>::min() : (i >= 1) ? std::numeric_limits<T>::max() : atanh(a_{i}) \f]
+.. math::
+
+   a_{i} = (i <= -1) ? std::numeric_limits<T>::min() : (i >= 1) ? std::numeric_limits<T>::max() : atanh(a_{i})
 
 Unsigned Intragral type put:
 
-\f[ a_{i} = (i > 0) ? std::numeric_limits<T>::max() : atanh(a_{i}) \f]
+.. math::
+
+   a_{i} = (i > 0) ? std::numeric_limits<T>::max() : atanh(a_{i})
 
 
 **Attributes**: Atanh operation has no attributes.
@@ -37,19 +45,22 @@ Unsigned Intragral type put:
 
 **Examples**
 
-```xml
-<layer ... type="Atanh">
-    <input>
-        <port id="0">
-            <dim>256</dim>
-            <dim>56</dim>
-        </port>
-    </input>
-    <output>
-        <port id="1">
-            <dim>256</dim>
-            <dim>56</dim>
-        </port>
-    </output>
-</layer>
-```
+.. code-block:: cpp
+   
+   <layer ... type="Atanh">
+       <input>
+           <port id="0">
+               <dim>256</dim>
+               <dim>56</dim>
+           </port>
+       </input>
+       <output>
+           <port id="1">
+               <dim>256</dim>
+               <dim>56</dim>
+           </port>
+       </output>
+   </layer>
+
+@endsphinxdirective
+

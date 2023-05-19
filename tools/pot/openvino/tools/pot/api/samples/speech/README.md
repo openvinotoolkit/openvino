@@ -1,33 +1,46 @@
 # Quantizing for GNA Device {#pot_example_speech_README}
 
-This example demonstrates the use of the [Post-training Optimization Tool API](@ref pot_compression_api_README) for the task of quantizing a speech model for [GNA](@ref openvino_docs_OV_UG_supported_plugins_GNA) device. 
-Quantization for GNA is different from CPU quantization due to device specific: GNA supports quantized inputs in INT16 and INT32 (for activations) precision and quantized weights in INT8 and INT16 precision.
+@sphinxdirective
 
-This example contains pre-selected quantization options based on the DefaultQuantization algorithm and created for models from [Kaldi](http://kaldi-asr.org/doc/) framework, and its data format.
-A custom `ArkDataLoader` is created to load the dataset from files with .ark extension for speech analysis task. 
+This example demonstrates the use of the :doc:`Post-training Optimization Tool API <pot_compression_api_README>` for the task of quantizing a speech model for :doc:`GNA <openvino_docs_OV_UG_supported_plugins_GNA>` device. Quantization for GNA is different from CPU quantization due to device specific: GNA supports quantized inputs in INT16 and INT32 (for activations) precision and quantized weights in INT8 and INT16 precision.
 
-## How to prepare the data
+This example contains pre-selected quantization options based on the DefaultQuantization algorithm and created for models from `Kaldi <http://kaldi-asr.org/doc/>`__ framework, and its data format.
+A custom ``ArkDataLoader`` is created to load the dataset from files with .ark extension for speech analysis task.
 
-To run this example, you will need to use the .ark files for each model input from your `<DATA_FOLDER>`.
-For generating data from original formats to .ark, please, follow the [Kaldi data preparation tutorial](https://kaldi-asr.org/doc/data_prep.html).
+How to prepare the data
+#######################
 
-## How to Run the example
+To run this example, you will need to use the .ark files for each model input from your ``<DATA_FOLDER>``.
+For generating data from original formats to .ark, please, follow the `Kaldi data preparation tutorial <https://kaldi-asr.org/doc/data_prep.html>`__.
 
-1. Launch [Model Optimizer](@ref openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide) with the necessary options (for details follow the [instructions for Kaldi](@ref openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Kaldi) to generate Intermediate Representation (IR) files for the model:
-   ```sh
-   mo --input_model <PATH_TO_KALDI_MODEL> [MODEL_OPTIMIZER_OPTIONS]
-   ```
+How to Run the example
+######################
+
+1. Launch :doc:`Model Optimizer <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>` with the necessary options (for details follow the :doc:`instructions for Kaldi <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Kaldi>` to generate Intermediate Representation (IR) files for the model:
+
+   .. code-block:: sh
+
+      mo --input_model <PATH_TO_KALDI_MODEL> [MODEL_OPTIMIZER_OPTIONS]
+
+
 2. Launch the example script:
-   ```sh
-   python3 <POT_DIR>/api/examples/speech/gna_example.py -m <PATH_TO_IR_XML> -w <PATH_TO_IR_BIN> -d <DATA_FOLDER> --input_names [LIST_OF_MODEL_INPUTS] --files_for_input [LIST_OF_INPUT_FILES]
-   ```
+
+   .. code-block:: sh
+
+      python3 <POT_DIR>/api/examples/speech/gna_example.py -m <PATH_TO_IR_XML> -w <PATH_TO_IR_BIN> -d <DATA_FOLDER> --input_names [LIST_OF_MODEL_INPUTS] --files_for_input [LIST_OF_INPUT_FILES]
+
+
    Required parameters:
-   - `-i`, `--input_names` option. Defines list of model inputs;
-   - `-f`, `--files_for_input` option. Defines list of filenames (.ark) mapped with input names. You should define names without extension, for example: FILENAME_1, FILENAME_2 maps with INPUT_1, INPUT_2.  
-  
-  
+
+   - ``-i``, ``--input_names`` option. Defines list of model inputs;
+   - ``-f``, ``--files_for_input`` option. Defines list of filenames (.ark) mapped with input names. You should define names without extension, for example: FILENAME_1, FILENAME_2 maps with INPUT_1, INPUT_2.
+
    Optional parameters:
-    - `-p`, `--preset` option. Defines preset for quantization: `performance` for INT8 weights, `accuracy` for INT16 weights;
-    - `-s`, `--subset_size` option. Defines subset size for calibration;
-    - `-o`, `--output` option. Defines output folder for quantized model.
-3. Validate your INT8 model using `./speech_example` from the Inference Engine examples. Follow the [speech example description link](@ref openvino_inference_engine_samples_speech_sample_README) for details.
+
+    - ``-p``, ``--preset`` option. Defines preset for quantization: ``performance`` for INT8 weights, ``accuracy`` for INT16 weights;
+    - ``-s``, ``--subset_size`` option. Defines subset size for calibration;
+    - ``-o``, ``--output`` option. Defines output folder for quantized model.
+
+3. Validate your INT8 model using ``./speech_example`` from the Inference Engine examples. Follow the :doc:`speech example description link <openvino_inference_engine_samples_speech_sample_README>` for details.
+
+@endsphinxdirective

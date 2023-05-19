@@ -20,7 +20,7 @@ namespace v3 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API NonZero : public Op {
 public:
-    OPENVINO_OP("NonZero", "opset3", op::Op, 3);
+    OPENVINO_OP("NonZero", "opset3", op::Op);
     /// \brief Constructs a NonZero operation.
     NonZero() = default;
     /// \brief Constructs a NonZero operation.

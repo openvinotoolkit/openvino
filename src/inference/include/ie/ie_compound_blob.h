@@ -118,7 +118,9 @@ protected:
 /**
  * @brief Represents a blob that contains two planes (Y and UV) in NV12 color format
  */
-class INFERENCE_ENGINE_API_CLASS(NV12Blob) : public CompoundBlob {
+class INFERENCE_ENGINE_DEPRECATED("This class is deprecated and will be removed in 2023.1 release")
+    INFERENCE_ENGINE_API_CLASS(NV12Blob)
+    : public CompoundBlob {
 public:
     /**
      * @brief A smart pointer to the NV12Blob object
@@ -176,7 +178,9 @@ public:
 /**
  * @brief Represents a blob that contains three planes (Y,U and V) in I420 color format
  */
-class INFERENCE_ENGINE_API_CLASS(I420Blob) : public CompoundBlob {
+class INFERENCE_ENGINE_DEPRECATED("This class is deprecated and will be removed in 2023.1 release")
+    INFERENCE_ENGINE_API_CLASS(I420Blob)
+    : public CompoundBlob {
 public:
     /**
      * @brief A smart pointer to the I420Blob object

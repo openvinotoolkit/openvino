@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <fstream>
 #include <functional>
 #include <string>
@@ -36,7 +37,11 @@ struct FileTraits<char> {
     }
     static std::string library_prefix() {
 #ifdef _WIN32
+#    if defined(__MINGW32__) || defined(__MINGW64__)
+        return {"lib"};
+#    else
         return {""};
+#    endif
 #else
         return {"lib"};
 #endif
@@ -61,7 +66,11 @@ struct FileTraits<wchar_t> {
     }
     static std::wstring library_prefix() {
 #ifdef _WIN32
+#    if defined(__MINGW32__) || defined(__MINGW64__)
+        return {L"lib"};
+#    else
         return {L""};
+#    endif
 #else
         return {L"lib"};
 #endif
@@ -122,6 +131,15 @@ void create_directory_recursive(const std::string& path);
  * @return true if directory exists, false otherwise
  */
 bool directory_exists(const std::string& path);
+
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+/**
+ * @brief Interface function to check if directory exists for given path
+ * @param path - path to directory wide-string
+ * @return true if directory exists, false otherwise
+ */
+bool directory_exists(const std::wstring& path);
+#endif
 
 /**
  * @brief      Returns file size for file
@@ -259,6 +277,14 @@ inline std::basic_string<C> make_plugin_library_name(const std::basic_string<C>&
  * @return absolute path or file name with extension (to be found in ENV)
  */
 FilePath get_plugin_path(const std::string& plugin);
+
+/**
+ * @brief Find the plugins which are located together with OV library
+ * @param plugin - Path (absolute or relative) or name of a plugin. Depending on platform, `plugin` is wrapped with
+ * shared library suffix and prefix to identify library full name
+ * @return absolute path or file name with extension (to be found in ENV)
+ */
+FilePath get_compiled_plugin_path(const std::string& plugin);
 
 /**
  * @brief Format plugin path (canonicalize, complete to absolute or complete to file name) for further
