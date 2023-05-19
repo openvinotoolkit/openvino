@@ -118,9 +118,9 @@ def compare_graphs(graph: Graph, graph_ref: Graph, last_node: str, last_node_ref
 
                     def align_strided_slice_masks(curr_node: Node, rank: int):
                         for mask_name in StridedSlice.get_mask_names():
-                            if type(curr_node[mask_name]) == int:
+                            if isinstance(curr_node[mask_name], int):
                                 curr_node[mask_name] = [curr_node[mask_name]]
-                            elif type(curr_node[mask_name]) == str:  # if mask is an empty string ''
+                            elif isinstance(curr_node[mask_name], str):  # if mask is an empty string ''
                                 assert len(curr_node[mask_name]) == 0
                                 curr_node[mask_name] = []
 
