@@ -39,8 +39,8 @@ OutputVector create_argmax_argmin_op(const NodeContext& context, TopKMode mode) 
         }
     } else {
         int64_t axis = 0;
-        auto munus_one = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
-        auto flatten_input = context.mark_node(std::make_shared<v1::Reshape>(input, munus_one, false));
+        auto minus_one = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
+        auto flatten_input = context.mark_node(std::make_shared<v1::Reshape>(input, minus_one, false));
         auto topk = context.mark_node(std::make_shared<v3::TopK>(flatten_input, k, axis, mode, TopKSortType::NONE));
         indices = context.mark_node(std::make_shared<v0::Convert>(topk->output(1), element::i64));
         if (keep_dims) {
