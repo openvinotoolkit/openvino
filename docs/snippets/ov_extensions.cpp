@@ -16,7 +16,7 @@
 //! [frontend_extension_Identity_header]
 
 //! [frontend_extension_ThresholdedReLU_header]
-#include <openvino/opsets/opset8.hpp>
+#include <openvino/opsets/opset11.hpp>
 //! [frontend_extension_ThresholdedReLU_header]
 
 //! [frontend_extension_framework_map_macro_headers]
@@ -206,20 +206,19 @@ auto extension = std::make_shared<ov::frontend::OpExtension<CustomElu>>("aten::e
 core.add_extension(ov::frontend::ConversionExtension(
     "ThresholdedRelu",
     [](const ov::frontend::NodeContext& node) {
-        auto greater = std::make_shared<ov::opset8::Greater>(
+        auto greater = std::make_shared<ov::opset11::Greater>(
             node.get_input(0),
-            ov::opset8::Constant::create(ov::element::f32, {}, {node.get_attribute<float>("alpha")}));
-        auto casted = std::make_shared<ov::opset8::Convert>(greater, ov::element::f32);
-        return ov::OutputVector{ std::make_shared<ov::opset8::Multiply>(node.get_input(0), casted) };
+            ov::opset11::Constant::create(ov::element::f32, {}, {node.get_attribute<float>("alpha")}));
+        auto casted = std::make_shared<ov::opset11::Convert>(greater, ov::element::f32);
+        return ov::OutputVector{ std::make_shared<ov::opset11::Multiply>(node.get_input(0), casted) };
     }));
 //! [frontend_extension_ThresholdedReLU]
 
 //! [frontend_extension_paddle_TopK]
 core.add_extension(ov::frontend::ConversionExtension("top_k_v2", [](const ov::frontend::NodeContext& node) {
     auto x = node.get_input("X");
-    ov::Output<ov::Node> k_expected_node;
     const auto k_expected = node.get_attribute<int>("k", 1);
-    k_expected_node = ov::opset8::Constant::create(ov::element::i32, {}, {k_expected});
+    auto k_expected_node = ov::opset11::Constant::create(ov::element::i32, {}, {k_expected});
 
     auto axis = node.get_attribute<int32_t>("axis", -1);
     bool sorted = node.get_attribute<bool>("sorted", true);
@@ -228,7 +227,7 @@ core.add_extension(ov::frontend::ConversionExtension("top_k_v2", [](const ov::fr
     std::string sort_type = sorted ? "value" : "none";
     std::string mode = largest ? "max" : "min";
 
-    auto node_topk = std::make_shared<ov::opset8::TopK>(x, k_expected_node, axis, mode, sort_type);
+    auto node_topk = std::make_shared<ov::opset11::TopK>(x, k_expected_node, axis, mode, sort_type);
 
     ov::frontend::paddle::NamedOutputs named_outputs;
     named_outputs["Out"] = ov::OutputVector{node_topk->output(0)};
@@ -243,9 +242,9 @@ core.add_extension(ov::frontend::ConversionExtension("TopKV2", [](const ov::fron
     auto input = node.get_input(0);
     auto k_input = node.get_input(1);
     bool sorted = node.get_attribute<bool>("sorted", true);    
-    auto mode = ov::opset8::TopK::Mode::MAX;
-    auto sort_type = sorted ? ov::opset8::TopK::SortType::SORT_VALUES : ov::opset8::TopK::SortType::SORT_INDICES;
-    auto top_k = std::make_shared<ov::opset8::TopK>(input, k_input, -1, mode, sort_type, ov::element::i32, true);
+    auto mode = ov::opset11::TopK::Mode::MAX;
+    auto sort_type = sorted ? ov::opset11::TopK::SortType::SORT_VALUES : ov::opset11::TopK::SortType::SORT_INDICES;
+    auto top_k = std::make_shared<ov::opset11::TopK>(input, k_input, -1, mode, sort_type, ov::element::i32, true);
     return ov::frontend::NamedOutputVector{{"values", top_k->output(0)}, {"indices", top_k->output(1)}};
 }));
 //! [frontend_extension_tf_TopK]
