@@ -94,7 +94,7 @@ Model Compression and Quantization
 
 Use OpenVINO’s model compression tools to reduce your model’s latency and memory footprint while maintaining good accuracy.
 
-* Tutorial - `OpenVINO Post-Training Model Quantization <https://docs.openvino.ai/nightly/notebooks/111-detection-quantization-with-output.html>`__
+* Tutorial - `OpenVINO Post-Training Model Quantization <https://docs.openvino.ai/nightly/notebooks/111-yolov5-quantization-migration-with-output.html>`__
 * Tutorial - `Quantization-Aware Training in TensorFlow with OpenVINO NNCF <https://docs.openvino.ai/nightly/notebooks/305-tensorflow-quantization-aware-training-with-output.html>`__
 * Tutorial - `Quantization-Aware Training in PyTorch with NNCF <https://docs.openvino.ai/nightly/notebooks/302-pytorch-quantization-aware-training-with-output.html>`__
 * `Model Optimization Guide <https://docs.openvino.ai/nightly/notebooks/openvino_docs_model_optimization_guide.html>`__
