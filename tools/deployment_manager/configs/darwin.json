@@ -47,7 +47,7 @@
       ]
     },
     "cpu": {
-      "ui_name": "Inference Engine Runtime for Intel(R) CPU",
+      "ui_name": "OpenVINO Runtime for Intel(R) CPU",
       "group": ["ie"],
       "dependencies" : ["ie_core"],
       "files": [
@@ -84,6 +84,14 @@
       "dependencies" : ["ie_core"],
       "files": [
         "python/python3.10"
+      ]
+    },
+    "python3.11": {
+      "ui_name": "OpenVINO Python API for Python 3.11",
+      "group": ["python"],
+      "dependencies" : ["ie_core"],
+      "files": [
+        "python/python3.11"
       ]
     }
   }
