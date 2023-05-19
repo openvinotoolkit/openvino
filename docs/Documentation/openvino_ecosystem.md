@@ -112,15 +112,15 @@ Compile tool is deprecated since the 2023.0 OpenVINO release. If you need to com
 
 .. tab:: python
 
-    .. doxygensnippet:: docs/snippets/compile_model.py
+    .. doxygensnippet:: docs/snippets/export_compiled_model.py
        :language: python
-       :fragment: [compile_model]
+       :fragment: [export_compiled_model]
 
 .. tab:: cpp
 
-    .. doxygensnippet:: docs/snippets/compile_model.cpp
+    .. doxygensnippet:: docs/snippets/export_compiled_model.cpp
        :language: cpp
-       :fragment: [compile_model]
+       :fragment: [export_compiled_model]
 
 
 To learn which device supports the import / export functionality, see the :doc:`feature support matrix <openvino_docs_OV_UG_Working_with_devices>`.
