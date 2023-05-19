@@ -168,8 +168,9 @@ class PytorchLayerTest:
                 model = torch.jit.trace(model, example_input)
             else:
                 model = torch.jit.script(model)
-        print(model.inlined_graph)
         decoder = TorchScriptPythonDecoder(model, freeze=freeze_model)
+        model = decoder.pt_module
+        print(model.inlined_graph)
         im = fe.load(decoder)
         om = fe.convert(im)
         self._resolve_input_shape_dtype(om, ov_inputs, dynamic_shapes)
