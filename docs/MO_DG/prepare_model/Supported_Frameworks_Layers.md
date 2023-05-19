@@ -752,7 +752,8 @@ paddlepaddle >= 2.1
  greater_than 
  group_norm 
  hard_sigmoid 
- hard_swish 
+ hard_swish
+ index_select 
  layer_norm 
  leaky_relu 
  less_than 
@@ -792,7 +793,8 @@ paddlepaddle >= 2.1
  sigmoid 
  slice 
  softmax 
- softplus 
+ softplus
+ softshrink 
  split 
  sqrt 
  squeeze 
