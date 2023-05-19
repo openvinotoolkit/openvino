@@ -1,6 +1,6 @@
 //! [export_compiled_model]
 
-#include <openvino/runtime/core.hpp>
+#include <openvino/openvino.hpp>
 
 ov::Core core;
 
