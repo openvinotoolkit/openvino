@@ -11,8 +11,8 @@ from openvino.runtime.utils.types import make_constant_node
 
 import openvino.runtime.opset1 as ov_opset1
 import openvino.runtime.opset5 as ov_opset5
-import openvino.runtime.opset9 as ov
 import openvino.runtime.opset10 as ov_opset10
+import openvino.runtime.opset11 as ov
 from openvino.runtime import Type
 
 np_types = [np.float32, np.int32]
@@ -2147,8 +2147,29 @@ def test_interpolate_opset10(dtype, expected_shape, shape_calculation_mode):
     mode = "cubic"
 
     node = ov_opset10.interpolate(image=image_node, output_shape=output_shape, scales=scales,
-                                  axes=axes, mode=mode,
-                                  shape_calculation_mode=shape_calculation_mode)
+                                  axes=axes, mode=mode, shape_calculation_mode=shape_calculation_mode)
+    assert node.get_type_name() == "Interpolate"
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == expected_shape
+
+
+@pytest.mark.parametrize(
+    ("expected_shape", "shape_calculation_mode", "input_value"),
+    [
+        ([1, 3, 64, 64], "scales", np.array([1 / 16, 1 / 16], dtype=np.float32)),
+        ([1, 3, 256, 256], "sizes", np.array([256, 256], dtype=np.int32)),
+    ],
+)
+@pytest.mark.parametrize("dtype", np_types)
+def test_interpolate_opset11(dtype, expected_shape, shape_calculation_mode, input_value):
+
+    image_shape = [1, 3, 1024, 1024]
+    image_node = ov.parameter(image_shape, dtype, name="Image")
+    axes = [2, 3]
+    mode = "bilinear_pillow"
+
+    node = ov.interpolate(image=image_node, scales_or_sizes=input_value, axes=axes, mode=mode,
+                          shape_calculation_mode=shape_calculation_mode)
     assert node.get_type_name() == "Interpolate"
     assert node.get_output_size() == 1
     assert list(node.get_output_shape(0)) == expected_shape
@@ -2157,7 +2178,7 @@ def test_interpolate_opset10(dtype, expected_shape, shape_calculation_mode):
 def test_is_finite_opset10():
     input_shape = [1, 2, 3, 4]
     input_node = ov.parameter(input_shape, np.float32, name="InputData")
-    node = ov_opset10.is_finite(input_node)
+    node = ov.is_finite(input_node)
 
     assert node.get_type_name() == "IsFinite"
     assert node.get_output_size() == 1
@@ -2168,7 +2189,7 @@ def test_is_finite_opset10():
 def test_is_inf_opset10_default():
     input_shape = [2, 2, 2, 2]
     input_node = ov.parameter(input_shape, dtype=np.float32, name="InputData")
-    node = ov_opset10.is_inf(input_node)
+    node = ov.is_inf(input_node)
 
     assert node.get_type_name() == "IsInf"
     assert node.get_output_size() == 1
@@ -2185,7 +2206,7 @@ def test_is_inf_opset10_custom_attribute():
     attributes = {
         "detect_positive": False,
     }
-    node = ov_opset10.is_inf(input_node, attributes)
+    node = ov.is_inf(input_node, attributes)
 
     assert node.get_type_name() == "IsInf"
     assert node.get_output_size() == 1
@@ -2203,7 +2224,7 @@ def test_is_inf_opset10_custom_all_attributes():
         "detect_negative": False,
         "detect_positive": True,
     }
-    node = ov_opset10.is_inf(input_node, attributes)
+    node = ov.is_inf(input_node, attributes)
 
     assert node.get_type_name() == "IsInf"
     assert node.get_output_size() == 1
@@ -2217,7 +2238,7 @@ def test_is_inf_opset10_custom_all_attributes():
 def test_is_nan_opset10():
     input_shape = [1, 2, 3, 4]
     input_node = ov.parameter(input_shape, np.float32, name="InputData")
-    node = ov_opset10.is_nan(input_node)
+    node = ov.is_nan(input_node)
 
     assert node.get_type_name() == "IsNaN"
     assert node.get_output_size() == 1
@@ -2230,7 +2251,7 @@ def test_unique_opset10():
     input_node = ov.parameter(input_shape, np.float32, name="input_data")
     axis = ov.constant([1], np.int32, [1])
 
-    node = ov_opset10.unique(input_node, axis, False, "i32")
+    node = ov.unique(input_node, axis, False, "i32")
 
     assert node.get_type_name() == "Unique"
     assert node.get_sorted() is False
@@ -2247,7 +2268,7 @@ def test_unique_opset10():
     assert node.get_output_element_type(3) == Type.i64
 
     # Axis default, means flattened result
-    node = ov_opset10.unique(input_node, None, False, "i32", "i32")
+    node = ov.unique(input_node, None, False, "i32", "i32")
 
     assert node.get_type_name() == "Unique"
     assert node.get_sorted() is False
@@ -2264,7 +2285,7 @@ def test_unique_opset10():
     assert node.get_output_element_type(3) == Type.i32
 
     # All arguments default
-    node = ov_opset10.unique(input_node)
+    node = ov.unique(input_node)
 
     assert node.get_type_name() == "Unique"
     assert node.get_output_size() == 4
@@ -2279,3 +2300,16 @@ def test_unique_opset10():
     assert node.get_output_element_type(1) == Type.i64
     assert node.get_output_element_type(2) == Type.i64
     assert node.get_output_element_type(3) == Type.i64
+
+
+def test_topk_opset11():
+    data_shape = [1, 3, 256]
+    data = ov.parameter(data_shape, dtype=np.int32, name="Data")
+    k_val = np.int32(3)
+    axis = np.int32(-1)
+    node = ov.topk(data, k_val, axis, "min", "value", stable=True)
+
+    assert node.get_type_name() == "TopK"
+    assert node.get_output_size() == 2
+    assert list(node.get_output_shape(0)) == [1, 3, 3]
+    assert list(node.get_output_shape(1)) == [1, 3, 3]

@@ -16,7 +16,7 @@ ngraph::snippets::pass::InsertLoad::InsertLoad(const size_t count) {
     MATCHER_SCOPE(InsertLoad);
     register_matcher(std::make_shared<ngraph::pattern::Matcher>(
         ngraph::pattern::wrap_type<ngraph::opset1::Parameter, ngraph::snippets::op::Buffer>(), matcher_name),
-            [this, count](ngraph::pattern::Matcher &m) {
+            [count](ngraph::pattern::Matcher &m) {
             OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::InsertLoad")
             auto root = m.get_match_root();
 
@@ -30,7 +30,7 @@ ngraph::snippets::pass::InsertLoad::InsertLoad(const size_t count) {
                     const auto& consumer_node = consumer.get_node();
                     if (ov::is_type<ngraph::snippets::op::Load>(consumer_node) ||
                         ov::is_type<ngraph::snippets::op::LoopBegin>(consumer_node) ||
-                        ov::is_type<ngraph::op::v0::MatMul>(consumer_node) ||
+                        ov::is_type<ngraph::snippets::op::Brgemm>(consumer_node) ||
                         ov::is_type<ngraph::op::v1::Transpose>(consumer_node)) {
                         return false;
                     }
@@ -58,7 +58,7 @@ ngraph::snippets::pass::InsertStore::InsertStore(const size_t count) {
     MATCHER_SCOPE(InsertStore);
     register_matcher(std::make_shared<ngraph::pattern::Matcher>(
         ngraph::pattern::wrap_type<ngraph::opset1::Result, ngraph::snippets::op::Buffer>(), matcher_name),
-            [this, count](ngraph::pattern::Matcher &m) {
+            [count](ngraph::pattern::Matcher &m) {
             OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::InsertStore")
             auto root = m.get_match_root();
 
@@ -67,7 +67,7 @@ ngraph::snippets::pass::InsertStore::InsertStore(const size_t count) {
                 const auto& parent_node = input.get_source_output().get_node();
                 if (ov::is_type<ngraph::snippets::op::Store>(parent_node) ||
                     ov::is_type<ngraph::snippets::op::LoopEnd>(parent_node) ||
-                    ov::is_type<ngraph::op::v0::MatMul>(parent_node)  ||
+                    ov::is_type<ngraph::snippets::op::Brgemm>(parent_node)  ||
                     ov::is_type<ngraph::op::v1::Transpose>(parent_node)) {
                     return false;
                 }

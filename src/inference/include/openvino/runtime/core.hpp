@@ -69,41 +69,43 @@ public:
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
     /**
-     * @brief Reads models from IR/ONNX/PDPD formats.
+     * @brief Reads models from IR / ONNX / PDPD / TF / TFLite file formats.
      * @param model_path Path to a model.
      * @param bin_path Path to a data file.
      * For IR format (*.bin):
-     *  * if path is empty, will try to read a bin file with the same name as xml and
+     *  * if `bin_path` is empty, will try to read a bin file with the same name as xml and
      *  * if the bin file with the same name is not found, will load IR without weights.
-     * For ONNX format (*.onnx):
-     *  * the bin_path parameter is not used.
-     * For PDPD format (*.pdmodel)
-     *  * the bin_path parameter is not used.
+     * For the following file formats the `bin_path` parameter is not used:
+     *  * ONNX format (*.onnx)
+     *  * PDPD (*.pdmodel)
+     *  * TF (*.pb)
+     *  * TFLite (*.tflite)
      * @return A model.
      */
     std::shared_ptr<ov::Model> read_model(const std::wstring& model_path, const std::wstring& bin_path = {}) const;
 #endif
 
     /**
-     * @brief Reads models from IR/ONNX/PDPD formats.
+     * @brief Reads models from IR / ONNX / PDPD / TF / TFLite file formats.
      * @param model_path Path to a model.
      * @param bin_path Path to a data file.
      * For IR format (*.bin):
-     *  * if path is empty, will try to read a bin file with the same name as xml and
+     *  * if `bin_path` is empty, will try to read a bin file with the same name as xml and
      *  * if the bin file with the same name is not found, will load IR without weights.
-     * For ONNX format (*.onnx):
-     *  * the bin_path parameter is not used.
-     * For PDPD format (*.pdmodel)
-     *  * the bin_path parameter is not used.
+     * For the following file formats the `bin_path` parameter is not used:
+     *  * ONNX format (*.onnx)
+     *  * PDPD (*.pdmodel)
+     *  * TF (*.pb)
+     *  * TFLite (*.tflite)
      * @return A model.
      */
     std::shared_ptr<ov::Model> read_model(const std::string& model_path, const std::string& bin_path = {}) const;
 
     /**
-     * @brief Reads models from IR/ONNX/PDPD formats.
-     * @param model String with a model in IR/ONNX/PDPD format.
+     * @brief Reads models from IR / ONNX / PDPD / TF / TFLite formats.
+     * @param model String with a model in IR / ONNX / PDPD / TF / TFLite format.
      * @param weights Shared pointer to a constant tensor with weights.
-     * Reading ONNX/PDPD models does not support loading weights from the @p weights tensors.
+     * Reading ONNX / PDPD / TF / TFLite models does not support loading weights from the @p weights tensors.
      * @note Created model object shares the weights with the @p weights object.
      * Thus, do not create @p weights on temporary data that can be freed later, since the model
      * constant data will point to an invalid memory.
@@ -194,28 +196,44 @@ public:
      * operation.
      *
      * @return A compiled model.
+     * @{
      */
     CompiledModel compile_model(const std::string& model_path, const AnyMap& properties = {});
 
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+    CompiledModel compile_model(const std::wstring& model_path, const AnyMap& properties = {});
+#endif
+    /// @}
+
     /**
-     * @brief Reads and loads a compiled model from IR / ONNX / PDPD file to the default OpenVINI device selected by
+     * @brief Reads and loads a compiled model from IR / ONNX / PDPD file to the default OpenVINO device selected by
      * AUTO plugin.
      *
      * This can be more efficient than using read_model + compile_model(Model) flow
      * especially for cases when caching is enabled and cached model is available
      *
      * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types
-     * @param model_path path to model
+     * @param model_path path to model with string or wstring
      * @param properties Optional pack of pairs: (property name, property value) relevant only for this
      * load operation
      *
      * @return A compiled model
+     * @{
      */
     template <typename... Properties>
     util::EnableIfAllStringAny<CompiledModel, Properties...> compile_model(const std::string& model_path,
                                                                            Properties&&... properties) {
         return compile_model(model_path, AnyMap{std::forward<Properties>(properties)...});
     }
+
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+    template <typename... Properties>
+    util::EnableIfAllStringAny<CompiledModel, Properties...> compile_model(const std::wstring& model_path,
+                                                                           Properties&&... properties) {
+        return compile_model(model_path, AnyMap{std::forward<Properties>(properties)...});
+    }
+#endif
+    /// @}
 
     /**
      * @brief Reads a model and creates a compiled model from the IR/ONNX/PDPD file.
@@ -229,10 +247,18 @@ public:
      * operation.
      *
      * @return A compiled model.
+     * @{
      */
     CompiledModel compile_model(const std::string& model_path,
                                 const std::string& device_name,
                                 const AnyMap& properties = {});
+
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+    CompiledModel compile_model(const std::wstring& model_path,
+                                const std::string& device_name,
+                                const AnyMap& properties = {});
+#endif
+    /// @}
 
     /**
      * @brief Reads a model and creates a compiled model from the IR/ONNX/PDPD file.
@@ -247,6 +273,7 @@ public:
      * load operation.
      *
      * @return A compiled model.
+     * @{
      */
     template <typename... Properties>
     util::EnableIfAllStringAny<CompiledModel, Properties...> compile_model(const std::string& model_path,
@@ -254,6 +281,16 @@ public:
                                                                            Properties&&... properties) {
         return compile_model(model_path, device_name, AnyMap{std::forward<Properties>(properties)...});
     }
+
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+    template <typename... Properties>
+    util::EnableIfAllStringAny<CompiledModel, Properties...> compile_model(const std::wstring& model_path,
+                                                                           const std::string& device_name,
+                                                                           Properties&&... properties) {
+        return compile_model(model_path, device_name, AnyMap{std::forward<Properties>(properties)...});
+    }
+#endif
+    /// @}
 
     /**
      * @brief Reads a model and creates a compiled model from the IR/ONNX/PDPD memory.
@@ -322,6 +359,7 @@ public:
         return compile_model(model, context, AnyMap{std::forward<Properties>(properties)...});
     }
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     /**
      * @deprecated This method is deprecated. Please use other Core::add_extension methods.
      * @brief Registers OpenVINO 1.0 extension to a Core object.
@@ -329,6 +367,7 @@ public:
      */
     OPENVINO_DEPRECATED("Please use add_extension(ov::Extension) or add_extension(path_to_library) instead.")
     void add_extension(const std::shared_ptr<InferenceEngine::IExtension>& extension);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief Registers an extension to a Core object.
@@ -576,13 +615,13 @@ public:
      *
      * @tparam T Type of a returned value.
      * @tparam M Property mutability.
-     * @param deviceName  Name of a device to get a property value.
+     * @param device_name  Name of a device to get a property value.
      * @param property  Property object.
      * @return Property value.
      */
     template <typename T, PropertyMutability M>
-    T get_property(const std::string& deviceName, const ov::Property<T, M>& property) const {
-        return get_property(deviceName, property.name(), {}).template as<T>();
+    T get_property(const std::string& device_name, const ov::Property<T, M>& property) const {
+        return get_property(device_name, property.name(), {}).template as<T>();
     }
 
     /**
@@ -593,14 +632,14 @@ public:
      *
      * @tparam T Type of a returned value.
      * @tparam M Property mutability.
-     * @param deviceName  Name of a device to get a property value.
+     * @param device_name  Name of a device to get a property value.
      * @param property  Property object.
      * @param arguments  Additional arguments to get a property.
      * @return Property value.
      */
     template <typename T, PropertyMutability M>
-    T get_property(const std::string& deviceName, const ov::Property<T, M>& property, const AnyMap& arguments) const {
-        return get_property(deviceName, property.name(), arguments).template as<T>();
+    T get_property(const std::string& device_name, const ov::Property<T, M>& property, const AnyMap& arguments) const {
+        return get_property(device_name, property.name(), arguments).template as<T>();
     }
 
     /**
@@ -612,16 +651,16 @@ public:
      * @tparam T Type of a returned value.
      * @tparam M Property mutability.
      * @tparam Args Set of additional arguments ended with property object variable.
-     * @param deviceName  Name of a device to get a property value.
+     * @param device_name  Name of a device to get a property value.
      * @param property  Property object.
      * @param args Optional pack of pairs: (argument name, argument value) ended with property object.
      * @return Property value.
      */
     template <typename T, PropertyMutability M, typename... Args>
-    util::EnableIfAllStringAny<T, Args...> get_property(const std::string& deviceName,
+    util::EnableIfAllStringAny<T, Args...> get_property(const std::string& device_name,
                                                         const ov::Property<T, M>& property,
                                                         Args&&... args) const {
-        return get_property(deviceName, property.name(), AnyMap{std::forward<Args>(args)...}).template as<T>();
+        return get_property(device_name, property.name(), AnyMap{std::forward<Args>(args)...}).template as<T>();
     }
 
     /**
@@ -687,8 +726,7 @@ public:
      *    for different systems with different configurations.
      * - `properties` are set to a plugin via the ov::Core::set_property method.
      * - `extensions` are set to a plugin via the ov::Core::add_extension method.
-     * Notes:
-     * - For security purposes it suggested to specify absolute path to register plugin.
+     * @note For security purposes it suggested to specify absolute path to register plugin.
      *
      * @param xml_config_file A path to .xml file with plugins to register.
      */
@@ -734,6 +772,6 @@ public:
  * You might want to use this function if you are developing a dynamically-loaded library which should clean up all
  * resources after itself when the library is unloaded.
  */
-void OPENVINO_RUNTIME_API shutdown();
+OPENVINO_RUNTIME_API void shutdown();
 
 }  // namespace ov

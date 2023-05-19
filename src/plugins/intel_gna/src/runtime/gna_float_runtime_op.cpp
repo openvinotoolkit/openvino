@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gna_float_runtime.hpp"
-#include "pwl.h"
 #include "cnn.h"
 #include "floatmath.h"
+#include "gna_float_runtime.hpp"
+#include "pwl.h"
 
 namespace ov {
 namespace intel_gna {
@@ -140,11 +140,13 @@ void FP::ApplyPiecewiseLinearTransform(intel_dnn_component_t* component,
     PwlApply32(component, num_row, num_row, 0, listsize - 1);
 }
 
-void FP::ApplyMaxPoolTransform(intel_dnn_component_t* component, intel_dnn_number_type_t number_type) {
+void FP::ApplyMaxPoolTransform(intel_dnn_component_t* component,
+                               intel_dnn_number_type_t number_type,
+                               const bool fused_with_convolution_2d) {
     if (4 != component->num_bytes_per_input) {
         THROW_GNA_EXCEPTION << "Bad data width: " << component->num_bytes_per_input;
     }
-    CNNMaxPool(component, number_type);
+    CNNMaxPool(component, number_type, fused_with_convolution_2d);
 }
 
 void FP::ApplyTranspose(intel_dnn_component_t* component) {

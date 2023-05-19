@@ -2,14 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "deformable_convolution_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
-#include "kernel_selector_helper.h"
+
+#include "deformable_convolution_inst.h"
 #include "convolution/convolution_kernel_selector.h"
 #include "convolution/convolution_params.h"
-#include <algorithm>
 
 namespace cldnn {
 namespace ocl {
@@ -105,14 +102,14 @@ public:
 
         params.padding = {pad_x, pad_y, pad_z};
 
-        uint32_t stride_z = stride.size() >= 3 ? stride[stride.size() - 3] : 1;
-        uint32_t stride_y = stride.size() >= 2 ? stride[stride.size() - 2] : 1;
-        uint32_t stride_x = stride.size() >= 1 ? stride[stride.size() - 1] : 1;
+        uint32_t stride_z = stride.size() >= 3 ? static_cast<uint32_t>(stride[stride.size() - 3]) : 1;
+        uint32_t stride_y = stride.size() >= 2 ? static_cast<uint32_t>(stride[stride.size() - 2]) : 1;
+        uint32_t stride_x = stride.size() >= 1 ? static_cast<uint32_t>(stride[stride.size() - 1]) : 1;
         params.stride = {stride_x, stride_y, stride_z};
 
-        uint32_t dilation_z = dilation.size() >= 3 ? dilation[dilation.size() - 3] : 1;
-        uint32_t dilation_y = dilation.size() >= 2 ? dilation[dilation.size() - 2] : 1;
-        uint32_t dilation_x = dilation.size() >= 1 ? dilation[dilation.size() - 1] : 1;
+        uint32_t dilation_z = dilation.size() >= 3 ? static_cast<uint32_t>(dilation[dilation.size() - 3]) : 1;
+        uint32_t dilation_y = dilation.size() >= 2 ? static_cast<uint32_t>(dilation[dilation.size() - 2]) : 1;
+        uint32_t dilation_x = dilation.size() >= 1 ? static_cast<uint32_t>(dilation[dilation.size() - 1]) : 1;
         params.dilation = {dilation_x, dilation_y, dilation_z};
 
         params.kernelSize = { (uint32_t)kernel_size.spatial[0],

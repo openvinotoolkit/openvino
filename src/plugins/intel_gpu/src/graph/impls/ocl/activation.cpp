@@ -2,16 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "activation/activation_kernel_base.h"
-#include "activation/activation_kernel_selector.h"
-#include "activation_inst.h"
-#include "impls/implementation_map.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
-#include "kernel_selector_helper.h"
 #include "primitive_base.hpp"
 
+#include "activation_inst.h"
+#include "activation/activation_kernel_base.h"
+#include "activation/activation_kernel_selector.h"
+
 namespace {
-inline void convert_new_activation_func(const activation& prim, std::vector<kernel_selector::base_activation_params>& params) {
+inline void convert_new_activation_func(const cldnn::activation& prim, std::vector<kernel_selector::base_activation_params>& params) {
     params.insert(params.begin(), {get_kernel_selector_activation_param(prim.activation_function),
                                    prim.additional_params.a,
                                    prim.additional_params.b});
@@ -43,9 +41,9 @@ struct activation_impl : typed_primitive_impl_ocl<activation> {
         return args;
     }
 
-    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
         const auto& primitive = impl_param.typed_desc<activation>();
-        auto params = get_default_params<kernel_selector::activation_params>(impl_param);
+        auto params = get_default_params<kernel_selector::activation_params>(impl_param, is_shape_agnostic);
         auto optional_params = get_default_optional_params<kernel_selector::activation_optional_params>(impl_param.get_program());
 
         convert_new_activation_func(*primitive, params.activations);
@@ -64,72 +62,61 @@ struct activation_impl : typed_primitive_impl_ocl<activation> {
 
         return {params, optional_params};
     }
+
+    void update_dispatch_data(const kernel_impl_params& impl_param) override {
+        auto kernel_params = get_kernel_params(impl_param, true);
+        (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
+    }
 };
 
 namespace detail {
 
 attach_activation_impl::attach_activation_impl() {
-    implementation_map<activation>::add(impl_types::ocl, typed_primitive_impl_ocl<activation>::create<activation_impl>, {
-        std::make_tuple(data_types::f32, format::yxfb),
-        std::make_tuple(data_types::f16, format::yxfb),
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::f32, format::byxf),
-        std::make_tuple(data_types::f16, format::byxf),
-        std::make_tuple(data_types::i8, format::yxfb),
-        std::make_tuple(data_types::i8, format::bfyx),
-        std::make_tuple(data_types::i8, format::byxf),
-        std::make_tuple(data_types::u8, format::yxfb),
-        std::make_tuple(data_types::u8, format::bfyx),
-        std::make_tuple(data_types::u8, format::byxf),
-        std::make_tuple(data_types::i32, format::bfyx),
-        std::make_tuple(data_types::i32, format::byxf),
-        std::make_tuple(data_types::i32, format::yxfb),
-        // block f16 format
-        std::make_tuple(data_types::f16, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::f32, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::i8, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::u8, format::b_fs_yx_fsv16),
-        // 3D
-        std::make_tuple(data_types::f32, format::bfzyx),
-        std::make_tuple(data_types::f16, format::bfzyx),
-        std::make_tuple(data_types::i8, format::bfzyx),
-        std::make_tuple(data_types::i32, format::bfzyx),
+     auto types = {
+        data_types::f32,
+        data_types::f16,
+        data_types::i8,
+        data_types::u8,
+        data_types::i32
+    };
 
-        std::make_tuple(data_types::f32, format::b_fs_zyx_fsv16),
-        std::make_tuple(data_types::f16, format::b_fs_zyx_fsv16),
-        std::make_tuple(data_types::i8, format::b_fs_zyx_fsv16),
-        std::make_tuple(data_types::u8, format::b_fs_zyx_fsv16),
+    auto dyn_formats = {
+        format::bfyx,
+        format::bfzyx,
+        format::bfwzyx,
+        format::bfuwzyx,
+        format::bfvuwzyx,
+    };
 
-        std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv16_fsv16),
-        std::make_tuple(data_types::f16, format::bs_fs_zyx_bsv16_fsv16),
-        std::make_tuple(data_types::i8, format::bs_fs_zyx_bsv16_fsv16),
-        std::make_tuple(data_types::u8, format::bs_fs_zyx_bsv16_fsv16),
+    auto static_formats = {
+        format::yxfb,
+        format::byxf,
+        format::b_fs_yx_fsv16,
+        format::b_fs_zyx_fsv16,
+        format::bs_fs_zyx_bsv16_fsv16,
+        format::bs_fs_yx_bsv16_fsv16,
+        format::bs_fs_yx_bsv32_fsv16,
+        format::bs_fs_yx_bsv32_fsv32,
+        format::bfyx,
+        format::bfzyx,
+        format::bfwzyx,
+        format::bfuwzyx,
+        format::bfvuwzyx,
+    };
 
-        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv16_fsv16),
-        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv16_fsv16),
-        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv16_fsv16),
-        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv16_fsv16),
+    auto keys = implementation_map<activation>::combine(types, static_formats);
+    keys.emplace(data_types::f16, format::fs_b_yx_fsv32);
 
-        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv16),
-        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv16),
-        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv32_fsv16),
-        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv32_fsv16),
+    implementation_map<activation>::add(impl_types::ocl,
+                                        shape_types::dynamic_shape,
+                                        typed_primitive_impl_ocl<activation>::create<activation_impl>,
+                                        types,
+                                        dyn_formats);
 
-        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv32),
-        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv32),
-        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv32_fsv32),
-        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv32_fsv32),
-
-        // bfwzyx
-        std::make_tuple(data_types::f32, format::bfwzyx),
-        std::make_tuple(data_types::f16, format::bfwzyx),
-        std::make_tuple(data_types::i32, format::bfwzyx),
-        std::make_tuple(data_types::i8, format::bfwzyx),
-        std::make_tuple(data_types::u8, format::bfwzyx),
-        // fs_b_yx_fsv32
-        std::make_tuple(data_types::f16, format::fs_b_yx_fsv32),
-    });
+    implementation_map<activation>::add(impl_types::ocl,
+                                        shape_types::static_shape,
+                                        typed_primitive_impl_ocl<activation>::create<activation_impl>,
+                                        keys);
 }
 
 }  // namespace detail
@@ -137,3 +124,4 @@ attach_activation_impl::attach_activation_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::activation_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::activation)

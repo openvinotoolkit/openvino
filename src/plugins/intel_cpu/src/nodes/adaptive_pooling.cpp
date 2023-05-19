@@ -32,7 +32,7 @@ namespace {
 class AdaptivePoolingShapeInfer : public ShapeInferEmptyPads {
 public:
     explicit AdaptivePoolingShapeInfer(size_t outputs_count) : m_outputs_count(outputs_count) {}
-    std::vector<VectorDims> infer(
+    Result infer(
         const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
         const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
         const auto& inputDims = input_shapes[0].get();
@@ -49,7 +49,7 @@ public:
         }
 
         std::vector<VectorDims> result(m_outputs_count, outputDims);
-        return result;
+        return {std::move(result), ShapeInferStatus::success};
     }
 
     port_mask_t get_port_mask() const override {
@@ -159,7 +159,6 @@ void AdaptivePooling::initSupportedPrimitiveDescriptors() {
     precision = Precision::FP32;
 
     InferenceEngine::LayerConfig config;
-    config.dynBatchSupport = false;
     config.inConfs.resize(2);
     config.outConfs.resize((algorithm == Algorithm::AdaptivePoolingAvg ? 1 : 2));
 

@@ -3,15 +3,13 @@
 //
 
 #include "openvino/frontend/pytorch/node_context.hpp"
-#include "openvino/opsets/opset10.hpp"
-#include "utils.hpp"
 
 namespace ov {
 namespace frontend {
 namespace pytorch {
 namespace op {
 
-OutputVector translate_constant(NodeContext& context) {
+OutputVector translate_constant(const NodeContext& context) {
     return context.as_constant();
 };
 

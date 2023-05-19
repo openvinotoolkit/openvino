@@ -8,6 +8,8 @@
 
 #include "behavior/ov_plugin/caching_tests.hpp"
 
+#include "openvino/pass/manager.hpp"
+
 #include "common_test_utils/file_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "functional_test_utils/summary/api_summary.hpp"
@@ -15,6 +17,8 @@
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/op/parameter.hpp"
 
 #define GTEST_COUT std::cout << "[          ] [ INFO ] "
 
@@ -287,7 +291,7 @@ void CompileModelLoadFromFileTestBase::SetUp() {
     }
     m_cacheFolderName = ss.str();
     core->set_property(ov::cache_dir());
-    ngraph::pass::Manager manager;
+    ov::pass::Manager manager;
     manager.register_pass<ov::pass::Serialize>(m_modelName, m_weightsName);
     manager.run_passes(ngraph::builder::subgraph::makeConvPoolRelu(
             {1, 3, 227, 227}, InferenceEngine::details::convertPrecision(InferenceEngine::Precision::FP32)));
@@ -317,7 +321,7 @@ void CompileModelLoadFromFileTestBase::run() {
     }
 }
 
-TEST_P(CompileModelLoadFromFileTestBase, CanLoadFromFileWithoutExecption) {
+TEST_P(CompileModelLoadFromFileTestBase, CanLoadFromFileWithoutException) {
     run();
 }
 
@@ -370,7 +374,7 @@ void CompileModelLoadFromMemoryTestBase::SetUp() {
     }
     m_cacheFolderName = ss.str();
     core->set_property(ov::cache_dir());
-    ngraph::pass::Manager manager;
+    ov::pass::Manager manager;
     manager.register_pass<ov::pass::Serialize>(m_modelName, m_weightsName);
     manager.run_passes(ngraph::builder::subgraph::makeConvPoolRelu(
         {1, 3, 227, 227},
@@ -452,6 +456,33 @@ TEST_P(CompileModelLoadFromMemoryTestBase, CanLoadFromMemoryWithoutExecption) {
     run();
 }
 
+TEST_P(CompileModelLoadFromMemoryTestBase, CanLoadFromMemoryWithoutWeightsANdExecption) {
+    ov::pass::Manager manager;
+    std::shared_ptr<ov::Model> model;
+    {
+        auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3, 1, 2});
+
+        auto mul = std::make_shared<ov::op::v1::Multiply>(data, data);
+
+        auto res = std::make_shared<ov::op::v0::Result>(mul);
+        model = std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{data});
+    }
+
+    manager.register_pass<ov::pass::Serialize>(m_modelName, m_weightsName);
+    manager.run_passes(model);
+
+    try {
+        std::ifstream model_file(m_modelName, std::ios::binary);
+        std::stringstream ss;
+        ss << model_file.rdbuf();
+        m_model = ss.str();
+    } catch (const Exception& ex) {
+        GTEST_FAIL() << "Can't read xml file from: " << m_modelName << "\nException [" << ex.what() << "]" << std::endl;
+    }
+    m_weights = ov::Tensor();
+    run();
+}
+
 std::string CompiledKernelsCacheTest::getTestCaseName(testing::TestParamInfo<compileKernelsCacheParams> obj) {
     auto param = obj.param;
     std::string deviceName;
@@ -479,14 +510,16 @@ void CompiledKernelsCacheTest::SetUp() {
     std::string ext = userConfig.second;
     std::string::size_type pos = 0;
     if ((pos = ext.find(",", pos)) != std::string::npos) {
-    m_extList.push_back(ext.substr(0, pos));
-    m_extList.push_back(ext.substr(pos + 1));
-} else {
-    m_extList.push_back(ext);
-}
-    std::replace(test_name.begin(), test_name.end(), '/', '_');
-    std::replace(test_name.begin(), test_name.end(), '\\', '_');
-    cache_path = "compiledModel" + test_name + "_cache";
+        m_extList.push_back(ext.substr(0, pos));
+        m_extList.push_back(ext.substr(pos + 1));
+    } else {
+        m_extList.push_back(ext);
+    }
+    auto hash = std::hash<std::string>()(test_name);
+    std::stringstream ss;
+    ss << std::this_thread::get_id();
+    cache_path = "compiledModel" + std::to_string(hash) + "_"
+                + ss.str() + "_" + GetTimestamp() + "_cache";
 }
 
 void CompiledKernelsCacheTest::TearDown() {

@@ -30,7 +30,7 @@ void jit_convert_vec<uint8_t, float16>(jit::Generator& gen, const Xbyak::RegExp&
     gen.vcvtdq2ps(fvec, i32vec);
     gen.vcvtps2ph(f16vec, fvec, 0);
     gen.vzeroupper();
-    gen.movdqu(gen.xword[dst], f16vec);
+    gen.vmovdqu(gen.xword[dst], f16vec);
 }
 
 template <>
@@ -38,9 +38,19 @@ void jit_convert_vec<float16, float>(jit::Generator& gen, const Xbyak::RegExp& s
     auto f16vec = gen.xmm3;
     auto f32vec = gen.ymm4;
 
-    gen.movdqu(f16vec, gen.xword[src]);
+    gen.vmovdqu(f16vec, gen.xword[src]);
     gen.vcvtph2ps(f32vec, f16vec);
     gen.vmovups(gen.yword[dst], f32vec);
+}
+
+template <>
+void jit_convert_vec<float, float16>(jit::Generator& gen, const Xbyak::RegExp& src, const Xbyak::RegExp& dst) {
+    auto f16vec = gen.xmm3;
+    auto f32vec = gen.ymm4;
+
+    gen.vmovups(f32vec, gen.yword[src]);
+    gen.vcvtps2ph(f16vec, f32vec, 0);
+    gen.vmovdqu(gen.xword[dst], f16vec);
 }
 
 template <>
@@ -203,6 +213,11 @@ void convert<uint8_t, float16>(const uint8_t* arg, float16* out, size_t count) {
 
 template <>
 void convert<float16, float>(const float16* arg, float* out, size_t count) {
+    convert_impl(arg, out, count);
+}
+
+template <>
+void convert<float, float16>(const float* arg, float16* out, size_t count) {
     convert_impl(arg, out, count);
 }
 

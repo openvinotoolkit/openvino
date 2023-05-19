@@ -86,7 +86,7 @@ public:
         result << "outPRC=" << outType << "_";
         result << "trgDev=" << targetDevice;
         result << "config=(";
-        for (const auto configEntry : additionalConfig) {
+        for (const auto& configEntry : additionalConfig) {
             result << configEntry.first << ", " << configEntry.second << ":";
         }
         result << ")";
@@ -1277,6 +1277,13 @@ INSTANTIATE_TEST_SUITE_P(nightly_MM_Brgemm_Amx_Static, MatMulLayerCPUTest, testB
 
 
 const std::vector<ShapeRelatedParams> IS_Brgemm_Dynamic = {
+        {
+                {
+                        {{-1, 256}, {{1, 256}}},
+                        {{256, 384}, {{256, 384}}}
+                },
+                {false, false}
+        },
         {
                 {
                         {{-1, -1}, {{55, 12}, {33, 7}}},

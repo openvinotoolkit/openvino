@@ -6,13 +6,14 @@
 
 using namespace BehaviorTestsDefinitions;
 namespace {
-    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, VersionTest,
-                                    ::testing::Values(CommonTestUtils::DEVICE_GNA),
-                            VersionTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
+                         VersionTest,
+                         ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                         VersionTest::getTestCaseName);
 
-    INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, VersionTest,
-                                    ::testing::Values(CommonTestUtils::DEVICE_HETERO),
-                            VersionTest::getTestCaseName);
-
+INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests,
+                         VersionTest,
+                         ::testing::Values(CommonTestUtils::DEVICE_HETERO),
+                         VersionTest::getTestCaseName);
 
 }  // namespace

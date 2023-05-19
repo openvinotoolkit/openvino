@@ -13,7 +13,7 @@ namespace v3 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API ShapeOf : public util::ShapeOfBase {
 public:
-    OPENVINO_OP("ShapeOf", "opset3", util::ShapeOfBase, 3);
+    OPENVINO_OP("ShapeOf", "opset3", util::ShapeOfBase);
     ShapeOf() = default;
     /// \brief Constructs a shape-of operation.
     ShapeOf(const Output<Node>& arg, const element::Type output_type = element::i64);
@@ -36,10 +36,9 @@ public:
     bool evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const override;
     OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate_lower(const HostTensorVector& output_values) const override;
-    bool evaluate_upper(const HostTensorVector& output_values) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate(TensorVector& output_values, const TensorVector& input_values) const override;
+    bool evaluate_lower(TensorVector& output_values) const override;
+    bool evaluate_upper(TensorVector& output_values) const override;
     bool evaluate_label(TensorLabelVector& output_labels) const override;
     bool constant_fold(OutputVector& output_values, const OutputVector& input_values) override;
 
@@ -67,10 +66,9 @@ public:
     bool evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const override;
     OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate_lower(const HostTensorVector& output_values) const override;
-    bool evaluate_upper(const HostTensorVector& output_values) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate(TensorVector& output_values, const TensorVector& input_values) const override;
+    bool evaluate_lower(TensorVector& output_values) const override;
+    bool evaluate_upper(TensorVector& output_values) const override;
     bool evaluate_label(TensorLabelVector& output_labels) const override;
     bool constant_fold(OutputVector& output_values, const OutputVector& input_values) override;
 };

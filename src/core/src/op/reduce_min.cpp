@@ -4,6 +4,7 @@
 
 #include <ngraph/validation_util.hpp>
 
+#include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/op/min.hpp"
 #include "ngraph/op/util/evaluate_helpers.hpp"
@@ -32,6 +33,8 @@ bool evaluate_min(const HostTensorPtr& arg, const HostTensorPtr& out, const Axis
         NGRAPH_TYPE_CASE(evaluate_min, u64, arg, out, axes, keep_dims);
         NGRAPH_TYPE_CASE(evaluate_min, f16, arg, out, axes, keep_dims);
         NGRAPH_TYPE_CASE(evaluate_min, f32, arg, out, axes, keep_dims);
+        NGRAPH_TYPE_CASE(evaluate_min, i8, arg, out, axes, keep_dims);
+        NGRAPH_TYPE_CASE(evaluate_min, u8, arg, out, axes, keep_dims);
     default:
         rc = false;
         break;
@@ -54,8 +57,10 @@ shared_ptr<Node> op::v1::ReduceMin::clone_with_new_inputs(const OutputVector& ne
 
 bool op::v1::ReduceMin::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v1_ReduceMin_evaluate);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     NGRAPH_CHECK(validate_host_tensor_vector(inputs, 2));
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     const auto reduction_axes =
         get_normalized_axes_from_tensor(inputs[1], inputs[0]->get_partial_shape().rank(), get_friendly_name());
@@ -66,6 +71,8 @@ bool op::v1::ReduceMin::evaluate(const HostTensorVector& outputs, const HostTens
 bool op::v1::ReduceMin::has_evaluate() const {
     OV_OP_SCOPE(v1_ReduceMin_has_evaluate);
     switch (get_input_element_type(0)) {
+    case ngraph::element::i8:
+    case ngraph::element::u8:
     case ngraph::element::i32:
     case ngraph::element::i64:
     case ngraph::element::u32:
@@ -79,14 +86,10 @@ bool op::v1::ReduceMin::has_evaluate() const {
     return false;
 }
 
-bool op::v1::ReduceMin::evaluate_lower(const HostTensorVector& output_values) const {
-    if (!input_value(1).get_tensor().has_and_set_bound())
-        return false;
-    return default_lower_bound_evaluator(this, output_values);
+bool op::v1::ReduceMin::evaluate_lower(ov::TensorVector& output_values) const {
+    return input_value(1).get_tensor().has_and_set_bound() && default_lower_bound_evaluator(this, output_values);
 }
 
-bool op::v1::ReduceMin::evaluate_upper(const HostTensorVector& output_values) const {
-    if (!input_value(1).get_tensor().has_and_set_bound())
-        return false;
-    return default_upper_bound_evaluator(this, output_values);
+bool op::v1::ReduceMin::evaluate_upper(ov::TensorVector& output_values) const {
+    return input_value(1).get_tensor().has_and_set_bound() && default_upper_bound_evaluator(this, output_values);
 }

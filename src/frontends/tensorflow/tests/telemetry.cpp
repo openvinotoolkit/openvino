@@ -11,6 +11,7 @@
 #include "utils.hpp"
 
 using namespace ov::frontend;
+using namespace ov::frontend::tensorflow::tests;
 using namespace std;
 using namespace std::placeholders;
 
@@ -85,7 +86,7 @@ TEST(TFTelemetryTest, test_nonexistent_add) {
         FAIL() << "Non-existent operation Adddd must not be supported by TF FE.";
     } catch (const OpConversionFailure& error) {
         string error_message = error.what();
-        string ref_message = "No translator found for Adddd node.";
+        string ref_message = "Internal error, no translator found for operation(s): Adddd";
         ASSERT_TRUE(error_message.find(ref_message) != string::npos);
         ASSERT_EQ(function, nullptr);
 
@@ -94,7 +95,7 @@ TEST(TFTelemetryTest, test_nonexistent_add) {
         EXPECT_EQ(m_test_telemetry.m_event_cnt, 7);
         EXPECT_EQ(m_test_telemetry.m_trace_cnt, 0);
         bool is_found = false;
-        for (const auto m_expected_events : expected_res.m_expected_events) {
+        for (const auto& m_expected_events : expected_res.m_expected_events) {
             is_found = false;
             is_found = (m_test_telemetry.m_event_cnt == m_expected_events.size()) &&
                        (m_test_telemetry.m_received_events == m_expected_events);

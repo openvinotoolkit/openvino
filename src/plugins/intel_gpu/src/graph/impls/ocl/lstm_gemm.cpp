@@ -2,13 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "lstm_gemm_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "kernel_selector_helper.h"
+
+#include "lstm_gemm_inst.h"
 #include "lstm/lstm_gemm_kernel_selector.h"
 #include "lstm/lstm_gemm_kernel_base.h"
-#include "intel_gpu/runtime/error_handler.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -76,7 +74,7 @@ public:
         } else {  // For unidirectional input
             lstm_gemm_params.input_direction = 0;
         }
-
+        lstm_gemm_params.set_dynamic_shape_offsets();
         auto lstm_gemm_optional_params =
             get_default_optional_params<kernel_selector::lstm_gemm_optional_params>(impl_param.get_program());
 
@@ -103,3 +101,4 @@ attach_lstm_gemm_impl::attach_lstm_gemm_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::lstm_gemm_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::lstm_gemm)

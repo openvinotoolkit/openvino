@@ -6,7 +6,7 @@
 #include "eltwise_inst.h"
 #include "quantize_inst.h"
 #include "primitive_onednn_base.h"
-#include "impls/implementation_map.hpp"
+#include "implementation_map.hpp"
 
 #include "kernel_selector_common.h"
 
@@ -34,8 +34,8 @@ protected:
         int input_idx = DNNL_ARG_MULTIPLE_SRC;
         for (size_t i = 0; i < instance.inputs_memory_count(); i++) {
             auto& input = instance.input_memory(i);
-            auto offset = onednn::get_f_offset(instance.get_input_layout(), _pd.dnnl::primitive_desc_base::src_desc(i));
-            args.insert({input_idx++, input.get_onednn_memory(_pd.dnnl::primitive_desc_base::src_desc(i), offset)});
+            auto offset = onednn::get_f_offset(instance.get_input_layout(), _pd.dnnl::primitive_desc_base::src_desc(static_cast<uint8_t>(i)));
+            args.insert({input_idx++, input.get_onednn_memory(_pd.dnnl::primitive_desc_base::src_desc(static_cast<uint8_t>(i)), offset)});
         }
 
         {
@@ -50,9 +50,9 @@ protected:
     }
 
     static std::shared_ptr<dnnl::concat::primitive_desc> get_concatenation_primitive_descriptor(const kernel_impl_params& impl_params,
+                                                                                      cldnn::engine& engine,
                                                                                       const dnnl::primitive_attr& attr,
                                                                                       const int64_t axis) {
-        auto& engine = impl_params.prog->get_engine();
         std::vector<dnnl::memory::desc> input_mds;
         for (size_t i = 0; i < impl_params.input_layouts.size(); i++) {
             input_mds.push_back(onednn::layout_to_memory_desc(impl_params.get_input_layout(i)));
@@ -78,7 +78,7 @@ public:
 
         parent::save(ob);
 
-        const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ob.getKernlImplParams());
+        const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ob.getKernelImplParams());
         auto prim = impl_params->typed_desc<concatenation>();
         ob << prim->axis;
 
@@ -101,9 +101,9 @@ public:
         int64_t prim_axis;
         ib >> prim_axis;
 
-        const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernlImplParams());
-        auto desc = get_concatenation_descriptor(*impl_params, prim_axis, ib.get_engine());
-        _pd = *desc;
+        const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernelImplParams());
+        auto prim_desc = get_concatenation_primitive_descriptor(*impl_params, ib.get_engine(), *_attrs, prim_axis);
+        _pd = *prim_desc;
 
         std::vector<uint8_t> prim_cache;
         ib >> prim_cache;
@@ -119,7 +119,7 @@ public:
             return make_unique<concatenation_onednn>(engine, config);
         auto prim = impl_params.typed_desc<concatenation>();
         auto attr = arg.get_onednn_primitive_attributes();
-        auto prim_desc = get_concatenation_primitive_descriptor(impl_params, *attr, prim->axis);
+        auto prim_desc = get_concatenation_primitive_descriptor(impl_params, impl_params.prog->get_engine(), *attr, prim->axis);
 
         return cldnn::make_unique<concatenation_onednn>(engine, config, attr, *prim_desc);
     }

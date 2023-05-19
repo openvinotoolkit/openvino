@@ -11,9 +11,7 @@ target_link_libraries(${TARGET_NAME} PRIVATE openvino_c commonTestUtils gtest_ma
 
 target_compile_definitions(${TARGET_NAME}
     PRIVATE
-    $<$<BOOL:${ENABLE_GAPI_PREPROCESSING}>:ENABLE_GAPI_PREPROCESSING>
-    DATA_PATH=\"${DATA_PATH}\"
-    MODELS_PATH=\"${MODELS_PATH}\")
+    $<$<BOOL:${ENABLE_GAPI_PREPROCESSING}>:ENABLE_GAPI_PREPROCESSING>)
 
 if(ENABLE_AUTO OR ENABLE_MULTI)
     add_dependencies(${TARGET_NAME} openvino_auto_plugin)
@@ -31,6 +29,10 @@ if(ENABLE_INTEL_GPU)
     add_dependencies(${TARGET_NAME} openvino_intel_gpu_plugin)
 endif()
 
+if(ENABLE_HETERO)
+    add_dependencies(${TARGET_NAME} openvino_hetero_plugin)
+endif()
+
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 
 install(TARGETS ${TARGET_NAME}
@@ -44,6 +46,10 @@ set(TARGET_NAME "ov_capi_test")
 file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/ov_*.cpp)
 file(GLOB HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 
+if(NOT TARGET OpenCL::OpenCL)
+    list(FILTER SOURCES EXCLUDE REGEX ov_remote_context_test.cpp)
+endif()
+
 add_executable(${TARGET_NAME} ${SOURCES} ${HEADERS})
 target_link_libraries(${TARGET_NAME} PRIVATE openvino_c openvino::util
     commonTestUtils gtest_main)
@@ -51,10 +57,9 @@ target_link_libraries(${TARGET_NAME} PRIVATE openvino_c openvino::util
 target_include_directories(${TARGET_NAME} PUBLIC
     $<BUILD_INTERFACE:${OPENVINO_API_SOURCE_DIR}/include>)
 
-target_compile_definitions(${TARGET_NAME}
-    PRIVATE
-    DATA_PATH=\"${DATA_PATH}\"
-    MODELS_PATH=\"${MODELS_PATH}\")
+if(TARGET OpenCL::OpenCL)
+    target_link_libraries(${TARGET_NAME} PRIVATE OpenCL::OpenCL)
+endif()
 
 if(ENABLE_AUTO OR ENABLE_MULTI)
     add_dependencies(${TARGET_NAME} openvino_auto_plugin)

@@ -21,7 +21,7 @@ endif()
 #
 
 set(ov_python_req "${OpenVINOPython_SOURCE_DIR}/requirements.txt")
-set(ie_python_req "cython>=0.29.32")
+set(ie_python_req "${OpenVINOPython_SOURCE_DIR}/src/compatibility/openvino/requirements-dev.txt")
 
 function(ov_check_python_build_conditions)
     # user explicitly specified ENABLE_PYTHON=ON
@@ -36,12 +36,18 @@ function(ov_check_python_build_conditions)
     # Try to find python3 and its libs
     find_host_package(PythonInterp 3 ${find_package_mode})
     if(PYTHONINTERP_FOUND)
+        if(PYTHON_VERSION_MINOR GREATER_EQUAL 11)
+            set(pybind11_min_version 2.9.2)
+        else()
+            set(pybind11_min_version 2.8.0)
+        endif()
+
         function(_ov_find_python_libs_new)
             set(pybind11_tools_dir "${OpenVINOPython_SOURCE_DIR}/thirdparty/pybind11/tools")
             if(EXISTS ${pybind11_tools_dir})
                 list(APPEND CMAKE_MODULE_PATH ${pybind11_tools_dir})
             else()
-                find_package(pybind11 QUIET)
+                find_package(pybind11 ${pybind11_min_version} QUIET)
                 list(APPEND CMAKE_MODULE_PATH "${pybind11_DIR}")
             endif()
             # use libraries with the same version as python itself
@@ -72,10 +78,10 @@ function(ov_check_python_build_conditions)
     set(ov_python_req_FOUND ON)
 
     # check for Cython requirement for build IE API 1.0
-    ov_check_pip_package(REQUIREMENT ${ie_python_req}
-                         RESULT_VAR ie_python_req_FOUND
-                         WARNING_MESSAGE "install python3 -m install ${ie_python_req} for IE API 1.0 requirements"
-                         MESSAGE_MODE TRACE)
+    ov_check_pip_packages(REQUIREMENTS_FILE ${ie_python_req}
+                          RESULT_VAR ie_python_req_FOUND
+                          WARNING_MESSAGE "install python3 -m pip install -r ${ie_python_req} for IE API 1.0 requirements"
+                          MESSAGE_MODE TRACE)
 
     # cython can be installed as a debian package, so pip requirements can be unsatisfied
     # so, let's check to find cython anyway
@@ -87,11 +93,11 @@ function(ov_check_python_build_conditions)
         if(CYTHON_VERSION VERSION_GREATER_EQUAL 0.29)
             set(ie_python_req_FOUND ON)
         else()
-            message(${message_mode} "Python module '${ie_python_req}' is missed, IE Python API 1.0 will not be built (ENABLE_PYTHON is OFF)")
+            message(${message_mode} "Python requirements '${ie_python_req}' are missed, IE Python API 1.0 will not be built (ENABLE_PYTHON is OFF)")
         endif()
     endif()
 
-    if(CMAKE_BUILD_TYPE STREQUAL "Debug" AND CMAKE_DEBUG_POSTFIX)
+    if(NOT OV_GENERATOR_MULTI_CONFIG AND CMAKE_BUILD_TYPE STREQUAL "Debug" AND CMAKE_DEBUG_POSTFIX)
         set(python_debug ON)
         message(${message_mode} "Building python bindings in debug configuration is not supported on your platform (ENABLE_PYTHON is OFF)")
     else()
@@ -106,6 +112,8 @@ function(ov_check_python_build_conditions)
 
     # to disable API 1.0
     set(ie_python_req_FOUND ${ie_python_req_FOUND} PARENT_SCOPE)
+    # set pybind11 minimal version
+    set(pybind11_min_version ${pybind11_min_version} PARENT_SCOPE)
 endfunction()
 
 ov_check_python_build_conditions()
@@ -141,7 +149,7 @@ if(LINUX)
 endif()
 
 if(CMAKE_VERSION VERSION_LESS 3.15)
-    message(${message_mode} "Cmake version 3.15 and higher is required. Provided version ${CMAKE_VERSION}")
+    message(${message_mode} "Cmake version 3.15 and higher is required to build 'openvino' wheel. Provided version ${CMAKE_VERSION}")
     set(ENABLE_WHEEL_DEFAULT OFF)
 endif()
 
@@ -161,7 +169,7 @@ endif()
 # Build the code
 #
 
-find_package(pybind11 QUIET)
+find_package(pybind11 ${pybind11_min_version} QUIET)
 
 if(NOT pybind11_FOUND)
     add_subdirectory(thirdparty/pybind11 EXCLUDE_FROM_ALL)

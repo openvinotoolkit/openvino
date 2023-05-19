@@ -77,7 +77,9 @@ std::shared_ptr<ov::Node> clone(const std::shared_ptr<ov::Node> &node, LayerTest
     auto add_input_func = [&](size_t index) {
         const auto input = node->input(index).get_source_output();
         auto port_info = LayerTestsUtils::PortInfo();
+        OPENVINO_SUPPRESS_DEPRECATED_START
         const auto constant = ov::get_constant_from_source(input);
+        OPENVINO_SUPPRESS_DEPRECATED_END
         std::shared_ptr<ov::Node> input_node;
         if (constant) {
             get_port_range(constant, port_info);
@@ -142,7 +144,9 @@ std::shared_ptr<ov::Node> clone_weightable_node(const std::shared_ptr<ov::Node> 
     bool has_parameters = false;
     for (size_t i = 0; i < node->get_input_size(); ++i) {
         const auto input = node->input(i).get_source_output();
+        OPENVINO_SUPPRESS_DEPRECATED_START
         const auto constant_input = ov::get_constant_from_source(input);
+        OPENVINO_SUPPRESS_DEPRECATED_END
         auto port_info = LayerTestsUtils::PortInfo();
         // Input is Parameter or dynamic data pass
         if (!constant_input) {

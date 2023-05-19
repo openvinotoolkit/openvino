@@ -133,7 +133,8 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
                                              "",
                                              cldnn::element_type_to_data_type(op->get_output_element_type(0)),
                                              cldnn::padding(),
-                                             shape_a.size());
+                                             rank_a,
+                                             rank_b);
 
         p.add_primitive(*op, fcPrim);
 
@@ -179,8 +180,10 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
         auto canTransposeInputs = [] (const std::array<ngraph::PartialShape, 2>& shapes, bool transA, bool transB) -> bool {
             if (!transA && !transB)
                 return false;
-            if (shapes[0].rank().is_dynamic() ||
-                shapes[1].rank().is_dynamic())
+
+            // dynamic shapes and 1D tensors are not transposed
+            if (shapes[0].rank().is_dynamic() || shapes[1].rank().is_dynamic() ||
+                shapes[0].size() < 2 || shapes[1].size() < 2)
                 return false;
 
             // don't transpose inputs if they're aligned to 16
@@ -197,8 +200,8 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
                                [] (const ngraph::Dimension& dim) { return dim.is_static() && dim.get_length() >= 64; });
         };
 
-        auto transposeInput = [&layerName] (Program& p, const std::shared_ptr<ngraph::Node>& op, const ngraph::PartialShape& shape,
-                                            const std::string& suffix, const cldnn::primitive_id& primitiveId) -> cldnn::input_info {
+        auto transposeInput = [] (Program& p, const std::shared_ptr<ngraph::Node>& op, const ngraph::PartialShape& shape,
+                                  const std::string& suffix, const cldnn::primitive_id& primitiveId) -> cldnn::input_info {
             std::vector<uint16_t> transposeOrder(shape.size());
             std::iota(transposeOrder.begin(), transposeOrder.end(), 0);
             std::swap(*(transposeOrder.end() - 1), *(transposeOrder.end() - 2));

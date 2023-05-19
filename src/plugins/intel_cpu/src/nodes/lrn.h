@@ -9,6 +9,7 @@
 #include <string>
 #include <memory>
 #include <vector>
+#include "common/dnnl_executor.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -21,7 +22,7 @@ public:
     void getSupportedDescriptors() override;
     void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                           const std::vector<MemoryDescPtr>& outputDesc) override;
-    size_t descInputNumbers(DnnlDesriptor desc) override {
+    size_t descInputNumbers() override {
         return static_cast<size_t>(getOriginalInputsNumber());
     }
     std::shared_ptr<MemoryDesc> getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
@@ -31,11 +32,14 @@ public:
     }
 
     void prepareParams() override;
+    void execute(dnnl::stream strm) override;
     void executeDynamicImpl(dnnl::stream strm) override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 private:
+    using executorPtr = std::shared_ptr<DnnlExecutor>;
+    executorPtr execPtr = nullptr;
     dnnl::algorithm alg;
     size_t size = 1;
     int k = 1;

@@ -36,9 +36,9 @@ struct ReduceToPoolParams {
     ReduceToPoolParams(const std::vector<int64_t>& begin,
                        const ngraph::Shape& pooling_kernel,
                        const std::vector<int64_t>& end)
-        : pooling_kernel(pooling_kernel),
-          reshape_begin(begin),
-          reshape_end(end) {}
+        : reshape_begin(begin),
+          reshape_end(end),
+          pooling_kernel(pooling_kernel) {}
 };
 
 class ConvertReduceToPoolingTests
@@ -113,7 +113,7 @@ public:
                                                                   false /*any*/,
                                                                   ngraph::op::RoundingType::FLOOR /*any*/);
             } else {
-                throw ngraph::ngraph_error("Unsupported Reduce type!");
+                OPENVINO_THROW("Unsupported Reduce type!");
             }
         }
 

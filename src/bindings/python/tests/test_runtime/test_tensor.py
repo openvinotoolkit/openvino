@@ -39,7 +39,7 @@ def test_init_with_ngraph(ov_type, numpy_dtype):
     ov_tensors = []
     ov_tensors.append(Tensor(type=ov_type, shape=ov.Shape([1, 3, 32, 32])))
     ov_tensors.append(Tensor(type=ov_type, shape=[1, 3, 32, 32]))
-    assert np.all([list(ov_tensor.shape) == [1, 3, 32, 32] for ov_tensor in ov_tensors])
+    assert np.all(list(ov_tensor.shape) == [1, 3, 32, 32] for ov_tensor in ov_tensors)
     assert np.all(ov_tensor.element_type == ov_type for ov_tensor in ov_tensors)
     assert np.all(ov_tensor.data.dtype == numpy_dtype for ov_tensor in ov_tensors)
     assert np.all(ov_tensor.data.shape == (1, 3, 32, 32) for ov_tensor in ov_tensors)
@@ -148,13 +148,6 @@ def test_init_with_numpy_copy_memory(ov_type, numpy_dtype):
     assert ov_tensor.byte_size == arr.nbytes
 
 
-def test_init_with_numpy_fail():
-    arr = np.asfortranarray(generate_image())
-    with pytest.raises(RuntimeError) as e:
-        _ = Tensor(array=arr, shared_memory=True)
-    assert "Tensor with shared memory must be C contiguous" in str(e.value)
-
-
 def test_init_with_roi_tensor():
     array = np.random.normal(size=[1, 3, 48, 48])
     ov_tensor1 = Tensor(array)
@@ -248,7 +241,7 @@ def test_cannot_set_bigger_shape_on_preallocated_memory():
     assert np.shares_memory(ones_arr, ov_tensor.data)
     with pytest.raises(RuntimeError) as e:
         ov_tensor.shape = ref_shape
-    assert "Cannot call setShape for Blobs created on top of preallocated memory" in str(e.value)
+    assert "failed" in str(e.value)
 
 
 @pytest.mark.skip(reason="no support yet")
@@ -265,11 +258,11 @@ def test_can_reset_shape_after_decreasing_on_preallocated_memory():
     assert list(ov_tensor.shape) == ref_shape_2
 
 
-def test_cannot_set_shape_incorrect_dims():
+def test_can_set_shape_other_dims():
     ov_tensor = Tensor(np.float32, [1, 3, 48, 48])
-    with pytest.raises(RuntimeError) as e:
-        ov_tensor.shape = [3, 28, 28]
-    assert "Dims and format are inconsistent" in str(e.value)
+    ref_shape_1 = [3, 28, 28]
+    ov_tensor.shape = ref_shape_1
+    assert list(ov_tensor.shape) == ref_shape_1
 
 
 @pytest.mark.parametrize("ov_type", [
@@ -372,3 +365,16 @@ def test_viewed_tensor_default_type():
     new_shape = (4, 8)
     tensor = Tensor(buffer, new_shape)
     assert np.array_equal(tensor.data, buffer.reshape(new_shape))
+
+
+def test_stride_calculation():
+    data_type = np.float32
+    arr = np.ones((16, 512, 1, 1)).astype(data_type)
+    # Forces reorder of strides while keeping C-style memory.
+    arr = arr.transpose((2, 0, 1, 3))
+    ov_tensor = ov.Tensor(arr)
+    assert ov_tensor is not None
+    assert np.array_equal(ov_tensor.data, arr)
+
+    elements = (ov_tensor.shape[1] * ov_tensor.shape[2] * ov_tensor.shape[3])
+    assert ov_tensor.strides[0] == elements * ov_tensor.get_element_type().size

@@ -1,6 +1,6 @@
 # OpenVINO™ Runtime
 
-<!--- The note below is intended for master branch only for pre-release purpose. Remove it for offical releases. --->
+<!--- The note below is intended for master branch only for pre-release purpose. Remove it for official releases. --->
 > **NOTE**: This version is pre-release software and has not undergone full release validation or qualification. No support is offered on pre-release software and APIs/behavior are subject to change. It should NOT be incorporated into any production software/solution and instead should be used only for early testing and integration while awaiting a final release version of this software.
 
 Intel® Distribution of OpenVINO™ toolkit is an open-source toolkit for optimizing and deploying AI inference. It can be used to develop applications and solutions based on deep learning tasks, such as: emulation of human vision, automatic speech recognition, natural language processing, recommendation systems, etc. It provides high-performance and rich deployment options, from edge to cloud.
@@ -101,6 +101,7 @@ sudo apt-get install libpython3.7
 - [Intel® Distribution of OpenVINO™ toolkit](https://software.intel.com/en-us/openvino-toolkit)
 - [OpenVINO™ Documentation](https://docs.openvino.ai/)
 - [OpenVINO™ Notebooks](https://github.com/openvinotoolkit/openvino_notebooks)
+- [OpenVINO Installation Selector Tool](https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html)
 
 Copyright © 2018-2022 Intel Corporation
 > **LEGAL NOTICE**: Your use of this software and any required dependent software (the

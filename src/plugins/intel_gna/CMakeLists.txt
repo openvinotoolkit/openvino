@@ -6,6 +6,8 @@ if (NOT ENABLE_INTEL_GNA)
     return()
 endif()
 
+add_subdirectory(legacy)
+
 set(TARGET_NAME "openvino_intel_gna_plugin")
 
 if (ENABLE_INTEL_GNA_DEBUG)
@@ -13,10 +15,13 @@ if (ENABLE_INTEL_GNA_DEBUG)
 endif()
 
 if(CMAKE_COMPILER_IS_GNUCC)
-    ie_add_compiler_flags(-Wno-all)
-endif()
-
-if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    ie_add_compiler_flags(-Wno-sign-compare)
+    ie_add_compiler_flags(-Wno-parentheses)
+    ie_add_compiler_flags(-Wno-comment)
+    ie_add_compiler_flags(-Wno-int-in-bool-context)
+elseif(OV_COMPILER_IS_CLANG)
+    ie_add_compiler_flags(-Wno-int-in-bool-context)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # C4267, 4244 issues from mkl-dnn headers conversion from 'XXX' to 'YYY', possible loss of data
     ie_add_compiler_flags(/wd4267)
     ie_add_compiler_flags(/wd4244)
@@ -24,9 +29,6 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     ie_add_compiler_flags(/wd4018)
     ie_add_compiler_flags(/wd4099)
     ie_add_compiler_flags(/wd4200)
-endif()
-
-if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # C4661: no suitable definition provided for explicit template instantiation request
     ie_add_compiler_flags(/wd4661)
     # C4297: function assumed not to throw an exception but does
@@ -41,9 +43,8 @@ file(GLOB_RECURSE HEADERS
         ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h
         ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
 
-addVersionDefines(src/gna_plugin_entry_points.cpp CI_BUILD_NUMBER)
-
 find_package(libGNA REQUIRED
+             NO_MODULE
              PATHS "${CMAKE_CURRENT_SOURCE_DIR}/cmake"
              NO_DEFAULT_PATH)
 
@@ -51,9 +52,11 @@ find_package(libGNA REQUIRED
 # Shared plugin library
 #
 
-ie_add_plugin(NAME ${TARGET_NAME}
+ov_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "GNA"
-              SOURCES ${SOURCES} ${HEADERS})
+              SOURCES ${SOURCES} ${HEADERS}
+              VERSION_DEFINES_FOR src/gna_plugin_entry_points.cpp
+              ADD_CLANG_FORMAT)
 
 # Enable support of CC for the plugin
 ie_mark_target_as_cc(${TARGET_NAME})
@@ -67,6 +70,7 @@ target_compile_definitions(${TARGET_NAME}
         _NO_MKL_
     )
 
+# must be called after all target_link_libraries
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
 #
@@ -74,6 +78,8 @@ ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 #
 
 add_library(${TARGET_NAME}_test_static STATIC EXCLUDE_FROM_ALL ${SOURCES} ${HEADERS})
+
+ov_add_version_defines(src/gna_plugin_entry_points.cpp ${TARGET_NAME}_test_static)
 
 target_compile_definitions(${TARGET_NAME}_test_static
         PRIVATE
@@ -90,7 +96,6 @@ target_include_directories(${TARGET_NAME}_test_static
         $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>
     PRIVATE
         $<TARGET_PROPERTY:openvino::conditional_compilation,INTERFACE_INCLUDE_DIRECTORIES>)
-set_target_properties(${TARGET_NAME}_test_static PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME}_test_static)
 
 set_target_properties(${TARGET_NAME} ${TARGET_NAME}_test_static
                       PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
@@ -136,5 +141,3 @@ if(NOT BUILD_SHARED_LIBS)
 endif()
 
 add_subdirectory(tests)
-
-

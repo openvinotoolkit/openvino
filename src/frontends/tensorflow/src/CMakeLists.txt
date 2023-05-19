@@ -5,7 +5,9 @@
 ov_add_frontend(NAME tensorflow
                 LINKABLE_FRONTEND
                 FILEDESCRIPTION "FrontEnd to load and convert TensorFlow file format"
-                LINK_LIBRARIES openvino::util openvino::runtime::dev)
+                LINK_LIBRARIES openvino::core::dev openvino::frontend::tensorflow_common)
 
-set(TARGET_NAME "${FRONTEND_NAME_PREFIX}tensorflow${FRONTEND_NAME_SUFFIX}")
-target_link_libraries(${TARGET_NAME} PRIVATE openvino::frontend::tensorflow_common)
+if(ENABLE_SNAPPY_COMPRESSION)
+    target_link_libraries(openvino_tensorflow_frontend PRIVATE openvino::snappy)
+    target_compile_definitions(openvino_tensorflow_frontend PRIVATE ENABLE_SNAPPY_COMPRESSION)
+endif()

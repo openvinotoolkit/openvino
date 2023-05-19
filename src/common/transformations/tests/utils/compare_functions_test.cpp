@@ -201,7 +201,7 @@ TEST(TransformationTests, CompareFunctoinsTINegative) {
     const auto fc = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
     auto res = fc(f, f_ref);
     EXPECT_FALSE(res.valid);
-    EXPECT_THAT(res.message, HasSubstr("LSTMCell/4 != Relu/0"));
+    EXPECT_THAT(res.message, HasSubstr("LSTMCell/opset4 != Relu/opset1"));
 }
 
 TEST(TransformationTests, CompareFunctoinsTINegativeDifferentElementTypeBetweenSubGraphsInputs) {
@@ -514,7 +514,7 @@ public:
     DummyConstant& operator=(const DummyConstant&) = delete;
 
     const NodeTypeInfo& get_type_info() const override {
-        static const NodeTypeInfo type_info{typeid(this).name(), static_cast<uint64_t>(0)};
+        static const NodeTypeInfo type_info{typeid(this).name(), "0"};
         return type_info;
     }
 

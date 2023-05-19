@@ -2,14 +2,14 @@ import os
 import re
 import argparse
 
-from utils import utils
+from utils.conformance_utils import get_logger
 
 from pathlib import Path
 import xml.etree.ElementTree as ET
 from jinja2 import Environment, FileSystemLoader
 
 
-logger = utils.get_logger('HighlightTable')
+logger = get_logger('HighlightTable')
 
 OPSET_REPORT_NAME_RE = r'.*report_opset_\w*.xml'
 API_REPORT_NAME_RE = r'.*report_api_\w*.xml'

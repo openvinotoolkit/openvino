@@ -6,9 +6,10 @@
 
 #include <cstdint>
 #include <map>
+
 #include "backend/dnn_types.hpp"
-#include "serial/headers/2dot7/gna_model_header.hpp"
 #include "gna_data_types.hpp"
+#include "serial/headers/2dot7/gna_model_header.hpp"
 
 #pragma pack(push, 1)
 
@@ -175,7 +176,7 @@ struct RuntimeEndPoint {
         *this = header_2_dot_8::RuntimeEndPoint(ep_v7);
     }
 
-    RuntimeEndPoint(header_2_dot_7::RuntimeEndPoint& old) {
+    RuntimeEndPoint(const header_2_dot_7::RuntimeEndPoint& old) {
         scaleFactor = old.scaleFactor;
         descriptor_ptr = old.descriptor_ptr;
         element_size = old.element_size;

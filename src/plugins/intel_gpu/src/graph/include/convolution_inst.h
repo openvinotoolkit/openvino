@@ -20,15 +20,13 @@ struct typed_program_node<convolution> : public typed_program_node_base<convolut
 public:
     typed_program_node(std::shared_ptr<primitive> prim, program& prog)
         : parent(prim, prog),
-          transposed(false),
           groups(this->get_primitive()->groups),
           deformable_groups(this->get_primitive()->deformable_groups),
           deformable_mode(this->get_primitive()->deformable_mode) {
         support_padding_all(true);
     }
 
-    void set_transposed(bool node_transposed) { transposed = node_transposed; }
-    bool get_transposed() const { return transposed; }
+    bool get_transposed() const { return get_primitive()->transposed; }
 
     uint32_t get_groups() const { return groups; }
 
@@ -92,6 +90,9 @@ public:
     bool compensation_term() const { return get_primitive()->compensation.size() > 0; }
     bool activations_zero_points_term() const { return get_primitive()->activations_zero_points.size() > 0; }
 
+    // Currently convolution with constant weight is only supported for dynamic shape
+    std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
+
     using parent::get_kernel_impl_params;
     std::unique_ptr<kernel_impl_params> get_kernel_impl_params(const std::vector<layout>& in_layouts, const std::vector<layout>& out_layouts) const override {
         auto params = parent::get_kernel_impl_params(in_layouts, out_layouts);
@@ -108,7 +109,6 @@ public:
     }
 
 private:
-    bool transposed;
     uint32_t groups;
     uint32_t deformable_groups;
     bool deformable_mode;
@@ -127,12 +127,30 @@ public:
     static layout calc_output_layout(convolution_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(convolution_node const& node);
 
-public:
+    bool need_reset_input_memory() const override {
+        auto input_layout = _deps[0].first->_impl_params->get_output_layout(0);
+        if (input_layout.data_padding) {
+            return true;
+        }
+        return false;
+    }
+
+    bool need_reset_output_memory() const override {
+        bool res = parent::need_reset_output_memory();
+        auto output_layout = _impl_params->get_output_layout(0);
+        if (output_layout.data_padding) {
+            return true;
+        }
+        return res;
+    }
+
     typed_primitive_inst(network& network, convolution_node const& node);
 
     memory::ptr weights_memory() const {
-        if (is_dynamic() && _impl_params->reordered_weights != nullptr) {
-            return _impl_params->reordered_weights;
+        if (is_dynamic()) {
+            auto weights_mem = _reordered_weights_cache.get(*_impl_params->weights_layout);
+            OPENVINO_ASSERT(weights_mem != nullptr, "[GPU] Can't find proper weights memory buffer in cache");
+            return weights_mem;
         } else {  // all weights are in one buffer
             return dep_memory_ptr(1 + _deform_conv_dep_offset);
         }

@@ -12,10 +12,6 @@
 # define NOMINMAX
 #endif
 
-#ifndef OV_GPU_USE_OPENCL_HPP
-#define OV_GPU_USE_OPENCL_HPP
-#endif
-
 #ifdef _WIN32
 # include <gpu/gpu_context_api_dx.hpp>
 #else
@@ -54,7 +50,7 @@ public:
     const std::shared_ptr<InferenceEngine::IAllocator> &getAllocator() const noexcept;
     void *getHandle() const noexcept { return _handle; }
 
-    void reinterpret(cldnn::layout new_layout);
+    void reinterpret(const cldnn::layout& new_layout);
 
     bool is_allocated() const noexcept;
     bool is_locked() const noexcept;

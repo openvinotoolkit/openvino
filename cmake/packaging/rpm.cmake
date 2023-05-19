@@ -38,6 +38,8 @@ macro(ov_cpack_settings)
            NOT item STREQUAL OV_CPACK_COMP_PYTHON_WHEELS AND
            # see ticket # 82605
            NOT item STREQUAL "gna" AND
+           # don't install Intel OpenMP during rpm
+           NOT item STREQUAL "omp" AND
            # even for case of system TBB we have installation rules for wheels packages
            # so, need to skip this explicitly
            NOT item MATCHES "^tbb(_dev)?$" AND
@@ -76,8 +78,8 @@ macro(ov_cpack_settings)
         # 2022 release series
         # - 2022.1.0 is the last public release with rpm packages from Intel install team
         # - 2022.1.1, 2022.2 do not have rpm packages enabled, distributed only as archives
-        # - 2022.3 is the first release where RPM updated packages are introduced
-        2022.3.0
+        # - 2022.3 is the first release where RPM updated packages are introduced, others 2022.3.X are LTS
+        2022.3.0 2022.3.1 2022.3.2 2022.3.3 2022.3.4 2022.3.5
         )
 
     find_host_program(rpmlint_PROGRAM NAMES rpmlint DOC "Path to rpmlint")
@@ -154,17 +156,20 @@ macro(ov_cpack_settings)
         set(auto_copyright "generic")
     endif()
 
-    # intel-cpu
-    if(ENABLE_INTEL_CPU OR DEFINED openvino_arm_cpu_plugin_SOURCE_DIR)
-        if(ENABLE_INTEL_CPU)
+    # cpu
+    if(ENABLE_INTEL_CPU)
+        if(ARM OR AARCH64)
+            set(CPACK_RPM_CPU_PACKAGE_NAME "libopenvino-arm-cpu-plugin-${cpack_name_ver}")
+            set(CPACK_COMPONENT_CPU_DESCRIPTION "ARM® CPU plugin")
+            set(cpu_copyright "arm_cpu")
+        elseif(X86 OR X86_64)
+            set(CPACK_RPM_CPU_PACKAGE_NAME "libopenvino-intel-cpu-plugin-${cpack_name_ver}")
             set(CPACK_COMPONENT_CPU_DESCRIPTION "Intel® CPU")
             set(cpu_copyright "generic")
         else()
-            set(CPACK_COMPONENT_CPU_DESCRIPTION "ARM CPU")
-            set(cpu_copyright "arm_cpu")
+            message(FATAL_ERROR "Unsupported CPU architecture: ${CMAKE_SYSTEM_PROCESSOR}")
         endif()
         set(CPACK_RPM_CPU_PACKAGE_REQUIRES "${core_package}")
-        set(CPACK_RPM_CPU_PACKAGE_NAME "libopenvino-intel-cpu-plugin-${cpack_name_ver}")
         _ov_add_package(plugin_packages cpu)
     endif()
 
@@ -235,6 +240,15 @@ macro(ov_cpack_settings)
         set(pytorch_copyright "generic")
     endif()
 
+    if(ENABLE_OV_TF_LITE_FRONTEND)
+        set(CPACK_COMPONENT_TENSORFLOW_LITE_DESCRIPTION "OpenVINO TensorFlow Lite Frontend")
+        set(CPACK_RPM_TENSORFLOW_LITE_PACKAGE_NAME "libopenvino-tensorflow-lite-frontend-${cpack_name_ver}")
+        set(CPACK_RPM_TENSORFLOW_LITE_POST_INSTALL_SCRIPT_FILE "${def_triggers}")
+        set(CPACK_RPM_TENSORFLOW_LITE_POST_UNINSTALL_SCRIPT_FILE "${def_triggers}")
+        _ov_add_package(frontend_packages tensorflow_lite)
+        set(tensorflow_lite_copyright "generic")
+    endif()
+
     #
     # core_dev: depends on core and frontends (since frontends don't want to provide its own dev packages)
     #
@@ -277,6 +291,7 @@ macro(ov_cpack_settings)
 
     set(samples_build_deps "cmake3, gcc-c++, gcc, glibc-devel, make, pkgconf-pkg-config")
     set(samples_build_deps_suggest "opencv-devel >= 3.0")
+    set(samples_opencl_deps_suggest "ocl-icd-devel, opencl-headers")
 
     # c_samples / cpp_samples
     set(CPACK_COMPONENT_SAMPLES_DESCRIPTION "Intel(R) Distribution of OpenVINO(TM) Toolkit C / C++ Samples")
@@ -284,9 +299,10 @@ macro(ov_cpack_settings)
     set(samples_package "${CPACK_RPM_SAMPLES_PACKAGE_NAME} = ${cpack_full_ver}")
     # SUGGESTS may be unsupported, it's part of RPM 4.12.0 (Sep 16th 2014) only
     # see https://rpm.org/timeline.html
-    set(CPACK_RPM_SAMPLES_PACKAGE_SUGGESTS "${samples_build_deps_suggest}, ${plugin_packages}")
+    set(CPACK_RPM_SAMPLES_PACKAGE_SUGGESTS "${samples_build_deps_suggest}, ${samples_opencl_deps_suggest}, ${plugin_packages}")
     set(CPACK_RPM_SAMPLES_PACKAGE_REQUIRES "${core_dev_package}, ${samples_build_deps}, gflags-devel, json-devel, zlib-devel")
     set(CPACK_RPM_SAMPLES_PACKAGE_ARCHITECTURE "noarch")
+    ov_rpm_generate_conflicts(${OV_CPACK_COMP_CPP_SAMPLES} ${conflicting_versions})
 
     ov_rpm_add_rpmlint_suppression("${OV_CPACK_COMP_CPP_SAMPLES}"
         # contains samples source codes

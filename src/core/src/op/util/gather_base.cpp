@@ -4,8 +4,7 @@
 
 #include "ngraph/op/util/gather_base.hpp"
 
-#include <ngraph/validation_util.hpp>
-
+#include "bound_evaluate.hpp"
 #include "gather_shape_inference.hpp"
 #include "itt.hpp"
 #include "ngraph/op/concat.hpp"
@@ -40,9 +39,10 @@ void ov::op::util::GatherBase::validate_and_infer_types() {
 }
 
 int64_t ov::op::util::GatherBase::get_axis() const {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto& const_op = get_constant_from_source(input_value(2));
-    if (!const_op)
-        throw ov::Exception("axis value is not set");
+    OPENVINO_SUPPRESS_DEPRECATED_END
+    OPENVINO_ASSERT(const_op, "axis value is not set");
 
     int64_t axis = const_op->cast_vector<int64_t>()[0];
     if (axis < 0) {
@@ -106,8 +106,7 @@ bool evaluate(const ngraph::HostTensorPtr& arg0,
                                                        axis,
                                                        batch_dims);
     } else {
-        throw ov::Exception(std::string("Unexpected type ") + arg1->get_element_type().c_type_string() +
-                            " for Gather evaluate method.");
+        OPENVINO_THROW("Unexpected type ", arg1->get_element_type().c_type_string(), " for Gather evaluate method.");
     }
 
     return true;
@@ -195,9 +194,10 @@ bool cf_gather_with_subgraph(ov::OutputVector& output_values,
 
 bool ov::op::util::GatherBase::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(util_GatherBase_evaluate);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     NGRAPH_CHECK(ngraph::validate_host_tensor_vector(inputs, 3));
     NGRAPH_CHECK(ngraph::validate_host_tensor_vector(outputs, 1));
-
+    OPENVINO_SUPPRESS_DEPRECATED_END
     int64_t axis = 0;
     switch (inputs[2]->get_element_type()) {
     case element::Type_t::i32:
@@ -225,7 +225,7 @@ bool ov::op::util::GatherBase::evaluate(const HostTensorVector& outputs, const H
         axis = inputs[2]->get_data_ptr<element::Type_t::u64>()[0];
         break;
     default:
-        throw ov::Exception("axis must be of integral data type.");
+        OPENVINO_THROW("axis must be of integral data type.");
     }
 
     if (axis < 0) {
@@ -243,22 +243,24 @@ bool ov::op::util::GatherBase::evaluate(const HostTensorVector& outputs, const H
     return gather::evaluate_gather(inputs[0], inputs[1], outputs[0], axis, batch_dims);
 }
 
-bool ov::op::util::GatherBase::evaluate_lower(const HostTensorVector& output_values) const {
+bool ov::op::util::GatherBase::evaluate_lower(ov::TensorVector& output_values) const {
     if (!get_input_tensor(1).has_and_set_bound() || !get_input_tensor(2).has_and_set_bound())
         return false;
-    return ngraph::default_lower_bound_evaluator(this, output_values);
+    return default_lower_bound_evaluator(this, output_values);
 }
 
-bool ov::op::util::GatherBase::evaluate_upper(const HostTensorVector& output_values) const {
+bool ov::op::util::GatherBase::evaluate_upper(ov::TensorVector& output_values) const {
     if (!get_input_tensor(1).has_and_set_bound() || !get_input_tensor(2).has_and_set_bound())
         return false;
-    return ngraph::default_upper_bound_evaluator(this, output_values);
+    return default_upper_bound_evaluator(this, output_values);
 }
 
 bool ov::op::util::GatherBase::evaluate_label(TensorLabelVector& output_labels) const {
     if (!get_input_tensor(1).has_and_set_bound() || !get_input_tensor(2).has_and_set_bound())
         return false;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     return default_label_evaluator(this, output_labels);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 bool ov::op::util::GatherBase::constant_fold(OutputVector& output_values, const OutputVector& input_values) {

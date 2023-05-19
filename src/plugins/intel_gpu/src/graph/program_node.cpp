@@ -9,6 +9,8 @@
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include "convolution_inst.h"
+#include "gemm_inst.h"
+#include "fully_connected_inst.h"
 #include "deconvolution_inst.h"
 #include "quantize_inst.h"
 #include "reorder_inst.h"
@@ -121,10 +123,10 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
             dep_ids.push_back(dep.first);
         }
         fused_node_info.add("dependencies", dep_ids);
-        fused_node_info.add("dep start_idx", fused_desc.dep_start_idx);
+        fused_node_info.add("dep start_idx", fused_desc.outer_dep_start_idx);
         json_composite info;
         info.add("data type", dt_to_str(fused_desc.output_layout.data_type));
-        info.add("format", fmt_to_str(output_layouts[0].format));
+        info.add("format", output_layouts[0].format.to_string());
         info.add("size", output_layouts[0].to_short_string());
         fused_node_info.add("output layout", info);
         fused_nodes_info.add("fused primitive idx " + std::to_string(index++), fused_node_info);
@@ -188,6 +190,13 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
 #pragma clang diagnostic ignored "-Wpotentially-evaluated-expression"
 #endif
         impls.push_back(selected_impl->get_kernel_name());
+
+        if (get_preferred_impl_type() == impl_types::ocl) {
+            json_composite cl_dump_info;
+            cl_dump_info.add("batch_hash", selected_impl->get_kernels_dump_info().first);
+            cl_dump_info.add("kernel_entry", selected_impl->get_kernels_dump_info().second);
+            node_info->add("cl dump_ info", cl_dump_info);
+        }
 #ifdef __clang__
 #pragma clang diagnostic pop
 #endif
@@ -357,11 +366,11 @@ bool program_node::is_dynamic() {
 }
 
 bool program_node::is_dynamic_output_layout(size_t idx) const {
-    return (output_layouts[idx].is_dynamic()) ||  (output_layouts[idx].get_partial_shape().size() == 0);
+    return output_layouts[idx].is_dynamic();
 }
 
 bool program_node::is_dynamic_output_layout(size_t idx) {
-    return (output_layouts[idx].is_dynamic()) ||  (output_layouts[idx].get_partial_shape().size() == 0);
+    return output_layouts[idx].is_dynamic();
 }
 
 bool program_node::has_padded_dependency() {
@@ -376,6 +385,16 @@ bool program_node::has_padded_dependency() const {
     });
 }
 
+bool program_node::is_fused_dep(size_t dep_idx) const {
+    for (auto fused : get_fused_primitives()) {
+        if (fused.has_outer_dep() && static_cast<int32_t>(dep_idx) >= fused.outer_dep_start_idx) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 std::map<size_t, memory::ptr> program_node::get_const_memory_deps() const {
     std::map<size_t, memory::ptr> mem_deps;
     for (auto& i : get_shape_infer_dependencies()) {
@@ -383,6 +402,12 @@ std::map<size_t, memory::ptr> program_node::get_const_memory_deps() const {
         if (i >= get_dependencies().size())
             continue;
 
+        // exclude fused dependency
+        if (is_fused_dep(i)) {
+            continue;
+        }
+
+        // constant type only
         auto& dep = get_dependency(i);
         if (dep.is_type<data>()) {
             mem_deps.insert({i, dep.as<data>().get_attached_memory_ptr()});
@@ -488,6 +513,7 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
             case onednn_post_op_type::eltwise_clip:
             case onednn_post_op_type::eltwise_linear:
             case onednn_post_op_type::eltwise_round:
+            case onednn_post_op_type::eltwise_hardsigmoid:
             {
                 dnnl::algorithm alg;
                 float alpha, beta;
@@ -897,8 +923,12 @@ void program_node::init_onednn_primitive_attributes() {
     size_t empty_mem = 0xff;
 
     // Add information about post-operation into the list, update indices
-    auto update_onednn_post_op_list = [&](onednn_post_op_type type, size_t m_dep) {
-        fused_primitive_desc_onednn cur_op_desc = { type, memory_offset, m_dep };
+    auto update_onednn_post_op_list = [&](onednn_post_op_type type, size_t m_dep,
+                                          dnnl::memory::format_tag tag = dnnl::memory::format_tag::undef,
+                                          bool flatten = false,
+                                          dnnl::memory::dims dims = {},
+                                          dnnl::memory::data_type dt = dnnl::memory::data_type::undef) {
+        fused_primitive_desc_onednn cur_op_desc = { type, memory_offset, m_dep, tag, flatten, dims, dt };
         fused_ops.push_back(cur_op_desc);
 
         auto has_memory_buffers = type == onednn_post_op_type::binary_add ||
@@ -921,19 +951,26 @@ void program_node::init_onednn_primitive_attributes() {
             auto fused_desc = desc.typed_desc<activation>();
             if (fused_desc->activation_function == cldnn::activation_func::relu_negative_slope
                 && !fused_desc->additional_params_input.empty()) {
-                auto dep_idx = cldnn_post_ops[idx].dep_start_idx;
-                int oc_dim = desc.output_layout.get_tensor().feature.size();
+                auto dep_idx = cldnn_post_ops[idx].outer_dep_start_idx;
+                int oc_dim = static_cast<int>(desc.output_layout.get_tensor().feature.size());
                 post_ops.append_prelu(1 << oc_dim);
                 update_onednn_post_op_list(onednn_post_op_type::binary_relu, dep_idx);
             } else if (fused_desc->activation_function == cldnn::activation_func::hard_sigmoid) {
-                // Splits hard_sigmoid activation into eltwise_linear, min and max.
-                post_ops.append_eltwise(dnnl::algorithm::eltwise_linear,
-                    fused_desc->additional_params.a, fused_desc->additional_params.b);
-                post_ops.append_eltwise(dnnl::algorithm::eltwise_clip, 0.0f, 1.0f);
+                post_ops.append_eltwise(dnnl::algorithm::eltwise_hardsigmoid, fused_desc->additional_params.a, fused_desc->additional_params.b);
+                update_onednn_post_op_list(onednn_post_op_type::eltwise_hardsigmoid, empty_mem);
+            } else if (fused_desc->activation_function == cldnn::activation_func::hsigmoid) {
+                // hard_sigmoid(x,a,b) = clamp(ax+b, 0, 1)
+                // hsigmoid(x) = clamp(val+3, 0, 6) / 6 = clamp(val/6+0.5, 0, 1) = hard_sigmoid(val, 1/6, 1/2)
+                post_ops.append_eltwise(dnnl::algorithm::eltwise_hardsigmoid, 1.f/6, 1.f/2);
+                update_onednn_post_op_list(onednn_post_op_type::eltwise_hardsigmoid, empty_mem);
+            } else if (fused_desc->activation_function == cldnn::activation_func::negative) {
+                post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, -1, 0);
                 update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
-                update_onednn_post_op_list(onednn_post_op_type::eltwise_clip, empty_mem);
             } else {
                 dnnl::algorithm alg = onednn::convert_activation_func(fused_desc->activation_function);
+                if (alg == dnnl::algorithm::undef)
+                    IE_THROW() << "Activations that are undef algorithms must be converted to other activations before "
+                                  "pushing to post-op.";
                 // Usage of alpha and beta between cldnn::pow and dnnl::eltwise::pow is different : d = pow(src, a) / d = a * pow(src, b)
                 if (alg == dnnl::algorithm::eltwise_pow)
                     post_ops.append_eltwise(alg, 1.0f, fused_desc->additional_params.a);
@@ -945,8 +982,34 @@ void program_node::init_onednn_primitive_attributes() {
                 update_onednn_post_op_list(onednn_post_op_type::eltwise_act, empty_mem);
             }
         } else if (desc.is_type<eltwise>()) {
-            auto dep_idx = desc.dep_start_idx;
+            auto dep_idx = desc.outer_dep_start_idx;
             auto in = get_dependency(dep_idx).get_output_layout();
+            auto set_binary_op = [&](dnnl::algorithm alg, onednn_post_op_type op_type) {
+                if (is_type<fully_connected>()) {
+                    std::unique_ptr<const kernel_impl_params> impl_params = get_kernel_impl_params();
+                    auto prim = impl_params->typed_desc<fully_connected>();
+                    if (prim->input_size == 3) {
+                        cldnn::onednn::combine_bf_with_first_spatial_dim(in);
+                    }
+                    auto mem_desc = onednn::layout_to_memory_desc(in, dnnl::memory::format_tag::ab);
+                    post_ops.append_binary(alg, mem_desc);
+                    update_onednn_post_op_list(op_type, dep_idx, dnnl::memory::format_tag::ab, false,
+                            mem_desc.get_dims(), mem_desc.get_data_type());
+                } else if (is_type<gemm>()) {
+                    size_t rank = cldnn::format::dimension(in.format);
+                    size_t in_batched_size = in.count() / (in.spatial(0) * in.spatial(1));
+                    dnnl::memory::dims dims = onednn::convert_gemm_tensor(in.get_tensor(), rank, in_batched_size == 1);
+                    dnnl::memory::data_type dt = onednn::convert_data_type(in.data_type);
+                    dnnl::memory::format_tag fmt = onednn::convert_gemm_data_format(dims);
+                    post_ops.append_binary(alg, dnnl::memory::desc(dims, dt, fmt));
+                    update_onednn_post_op_list(op_type, dep_idx, fmt, false, dims, dt);
+                } else {
+                    auto mem_desc = onednn::layout_to_memory_desc(in);
+                    post_ops.append_binary(alg, mem_desc);
+                    update_onednn_post_op_list(op_type, dep_idx, onednn::convert_data_format(in.format), false,
+                            mem_desc.get_dims(), mem_desc.get_data_type());
+                }
+            };
 
             if (desc.typed_desc<eltwise>()->mode == eltwise_mode::sum) {
                 auto fusing_type = onednn_add_fusing_helpers::get_add_fusing_type(*this, cldnn_post_ops[idx]);
@@ -959,18 +1022,12 @@ void program_node::init_onednn_primitive_attributes() {
                     update_onednn_post_op_list(onednn_post_op_type::sum, dep_idx);
                     num_sum_post_ops++;
                 } else {
-                    dnnl::memory::desc in_desc = onednn::layout_to_memory_desc(in);
-                    post_ops.append_binary(dnnl::algorithm::binary_add, in_desc);
-                    update_onednn_post_op_list(onednn_post_op_type::binary_add, dep_idx);
+                    set_binary_op(dnnl::algorithm::binary_add, onednn_post_op_type::binary_add);
                 }
             } else if (desc.typed_desc<eltwise>()->mode == eltwise_mode::sub) {
-                dnnl::memory::desc in_desc = onednn::layout_to_memory_desc(in);
-                post_ops.append_binary(dnnl::algorithm::binary_sub, in_desc);
-                update_onednn_post_op_list(onednn_post_op_type::binary_sub, dep_idx);
+                set_binary_op(dnnl::algorithm::binary_sub, onednn_post_op_type::binary_sub);
             } else if (desc.typed_desc<eltwise>()->mode == eltwise_mode::prod) {
-                dnnl::memory::desc in_desc = onednn::layout_to_memory_desc(in, dnnl::memory::format_tag::ab, true);
-                post_ops.append_binary(dnnl::algorithm::binary_mul, in_desc);
-                update_onednn_post_op_list(onednn_post_op_type::binary_mul, dep_idx);
+                set_binary_op(dnnl::algorithm::binary_mul, onednn_post_op_type::binary_mul);
             } else {
                 std::stringstream error_msg;
                 error_msg << "Unsupported eltwise mode: " << static_cast<int>(desc.typed_desc<eltwise>()->mode) << ". ";
@@ -978,36 +1035,38 @@ void program_node::init_onednn_primitive_attributes() {
                 OPENVINO_ASSERT(false, error_msg.str());
             }
         } else if (desc.is_type<quantize>()) {
-            auto dep_idx = desc.dep_start_idx;
+            auto dep_idx = desc.outer_dep_start_idx;
 
             // ********************************* Common case with output range usage ********************************* //
-            const auto& q_param = desc.get_typed_fuse_params<kernel_selector::quantize_fuse_params>();
-            if (q_param->per_tensor_output_range && q_param->out_lo < q_param->out_hi) {
+            const auto& q_param = desc.get_typed_fuse_params<QuantizeFuseParams>();
+            if (q_param->_per_tensor_output_range && q_param->_out_lo < q_param->_out_hi) {
                 // 1. pre-scale & pre-shift
                 {
-                    if (q_param->per_tensor_input_scale && q_param->per_tensor_input_shift) {
-                        post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, q_param->in_scale, q_param->in_shift);
+                    if (q_param->_per_tensor_input_scale && q_param->_per_tensor_input_shift) {
+                        post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, q_param->_in_scale, q_param->_in_shift);
                         update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                     } else {
-                        if (q_param->per_tensor_input_scale) {
-                            post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, q_param->in_scale, 0.0f);
+                        if (q_param->_per_tensor_input_scale) {
+                            post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, q_param->_in_scale, 0.0f);
                             update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                         } else {
                             auto in_scale = get_dependency(dep_idx++).get_output_layout();
                             dnnl::memory::desc in_scale_desc = onednn::layout_to_memory_desc(in_scale, dnnl::memory::format_tag::ab, true);
                             post_ops.append_binary(dnnl::algorithm::binary_mul, in_scale_desc);
-                            update_onednn_post_op_list(onednn_post_op_type::binary_mul, dep_idx - 1);
+                            update_onednn_post_op_list(onednn_post_op_type::binary_mul, dep_idx - 1, dnnl::memory::format_tag::ab, true,
+                                                       in_scale_desc.get_dims(), in_scale_desc.get_data_type());
                         }
 
-                        if (q_param->has_pre_shift) {
-                            if (q_param->per_tensor_input_shift) {
-                                post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, 1.0f, q_param->in_shift);
+                        if (q_param->_need_pre_shift) {
+                            if (q_param->_per_tensor_input_shift) {
+                                post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, 1.0f, q_param->_in_shift);
                                 update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                             } else {
                                 auto in_shift = get_dependency(dep_idx++).get_output_layout();
                                 dnnl::memory::desc in_shift_desc = onednn::layout_to_memory_desc(in_shift, dnnl::memory::format_tag::ab, true);
                                 post_ops.append_binary(dnnl::algorithm::binary_add, in_shift_desc);
-                                update_onednn_post_op_list(onednn_post_op_type::binary_add, dep_idx - 1);
+                                update_onednn_post_op_list(onednn_post_op_type::binary_add, dep_idx - 1, dnnl::memory::format_tag::ab, true,
+                                                           in_shift_desc.get_dims(), in_shift_desc.get_data_type());
                             }
                         }
                     }
@@ -1025,32 +1084,34 @@ void program_node::init_onednn_primitive_attributes() {
 
                 // 3. post-scale & post-shift
                 {
-                    if (q_param->has_post_scale && q_param->has_post_shift &&
-                        q_param->per_tensor_output_scale && q_param->per_tensor_output_shift) {
-                        post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, q_param->out_scale, q_param->out_shift);
+                    if (q_param->_need_post_scale && q_param->_need_post_shift &&
+                        q_param->_per_tensor_output_scale && q_param->_per_tensor_output_shift) {
+                        post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, q_param->_out_scale, q_param->_out_shift);
                         update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                     } else {
-                        if (q_param->has_post_scale) {
-                            if (q_param->per_tensor_output_scale) {
-                                post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, q_param->out_scale, 0.0f);
+                        if (q_param->_need_post_scale) {
+                            if (q_param->_per_tensor_output_scale) {
+                                post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, q_param->_out_scale, 0.0f);
                                 update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                             } else {
                                 auto out_scale = get_dependency(dep_idx++).get_output_layout();
                                 dnnl::memory::desc out_scale_desc = onednn::layout_to_memory_desc(out_scale, dnnl::memory::format_tag::ab, true);
                                 post_ops.append_binary(dnnl::algorithm::binary_mul, out_scale_desc);
-                                update_onednn_post_op_list(onednn_post_op_type::binary_mul, dep_idx - 1);
+                                update_onednn_post_op_list(onednn_post_op_type::binary_mul, dep_idx - 1, dnnl::memory::format_tag::ab, true,
+                                                           out_scale_desc.get_dims(), out_scale_desc.get_data_type());
                             }
                         }
 
-                        if (q_param->has_post_shift) {
-                            if (q_param->per_tensor_output_shift) {
-                                post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, 1.0f, q_param->out_shift);
+                        if (q_param->_need_post_shift) {
+                            if (q_param->_per_tensor_output_shift) {
+                                post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, 1.0f, q_param->_out_shift);
                                 update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                             } else {
                                 auto out_shift = get_dependency(dep_idx++).get_output_layout();
                                 dnnl::memory::desc out_shift_desc = onednn::layout_to_memory_desc(out_shift, dnnl::memory::format_tag::ab, true);
                                 post_ops.append_binary(dnnl::algorithm::binary_add, out_shift_desc);
-                                update_onednn_post_op_list(onednn_post_op_type::binary_add, dep_idx - 1);
+                                update_onednn_post_op_list(onednn_post_op_type::binary_add, dep_idx - 1, dnnl::memory::format_tag::ab, true,
+                                                           out_shift_desc.get_dims(), out_shift_desc.get_data_type());
                             }
                         }
                     }
@@ -1058,9 +1119,9 @@ void program_node::init_onednn_primitive_attributes() {
 
                 // 4. clamp
                 {
-                    if (q_param->has_clamp || idx < cldnn_post_ops.size() - 1) {
-                        float out_lo = q_param->has_min_clamp ? q_param->out_lo : data_type_traits::min<float>(out_dt);
-                        float out_hi = q_param->has_max_clamp ? q_param->out_hi : data_type_traits::max<float>(out_dt);
+                    if (q_param->_need_clamp || idx < cldnn_post_ops.size() - 1) {
+                        float out_lo = q_param->_need_min_clamp ? q_param->_out_lo : data_type_traits::min<float>(out_dt);
+                        float out_hi = q_param->_need_max_clamp ? q_param->_out_hi : data_type_traits::max<float>(out_dt);
                         post_ops.append_eltwise(dnnl::algorithm::eltwise_clip, out_lo, out_hi);
                         update_onednn_post_op_list(onednn_post_op_type::eltwise_clip, empty_mem);
                     }
@@ -1069,7 +1130,7 @@ void program_node::init_onednn_primitive_attributes() {
             } else {
                 // 1. clamp
                 {
-                    if (q_param->has_clamp) {
+                    if (q_param->_need_clamp) {
                         auto in_lo = get_dependency(dep_idx++).get_output_layout();
                         auto in_hi = get_dependency(dep_idx++).get_output_layout();
                         dnnl::algorithm clamp_max = dnnl::algorithm::binary_max;
@@ -1078,37 +1139,41 @@ void program_node::init_onednn_primitive_attributes() {
                         dnnl::memory::desc in_hi_desc = onednn::layout_to_memory_desc(in_hi, dnnl::memory::format_tag::ab, true);
 
                         post_ops.append_binary(clamp_max, in_lo_desc);
-                        update_onednn_post_op_list(onednn_post_op_type::binary_max, dep_idx - 2);
+                        update_onednn_post_op_list(onednn_post_op_type::binary_max, dep_idx - 2, dnnl::memory::format_tag::ab, true,
+                                                   in_lo_desc.get_dims(), in_lo_desc.get_data_type());
                         post_ops.append_binary(clamp_min, in_hi_desc);
-                        update_onednn_post_op_list(onednn_post_op_type::binary_min, dep_idx - 1);
+                        update_onednn_post_op_list(onednn_post_op_type::binary_min, dep_idx - 1, dnnl::memory::format_tag::ab, true,
+                                                   in_hi_desc.get_dims(), in_hi_desc.get_data_type());
                     }
                 }
 
                 // 2. pre-scale & pre-shift
                 {
-                    if (q_param->per_tensor_input_scale && q_param->per_tensor_input_shift) {
-                        post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, q_param->in_scale, q_param->in_shift);
+                    if (q_param->_per_tensor_input_scale && q_param->_per_tensor_input_shift) {
+                        post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, q_param->_in_scale, q_param->_in_shift);
                         update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                     } else {
-                        if (q_param->per_tensor_input_scale) {
-                            post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, q_param->in_scale, 0.0f);
+                        if (q_param->_per_tensor_input_scale) {
+                            post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, q_param->_in_scale, 0.0f);
                             update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                         } else {
                             auto in_scale = get_dependency(dep_idx++).get_output_layout();
                             dnnl::memory::desc in_scale_desc = onednn::layout_to_memory_desc(in_scale, dnnl::memory::format_tag::ab, true);
                             post_ops.append_binary(dnnl::algorithm::binary_mul, in_scale_desc);
-                            update_onednn_post_op_list(onednn_post_op_type::binary_mul, dep_idx - 1);
+                            update_onednn_post_op_list(onednn_post_op_type::binary_mul, dep_idx - 1, dnnl::memory::format_tag::ab, true,
+                                                       in_scale_desc.get_dims(), in_scale_desc.get_data_type());
                         }
 
-                        if (q_param->has_pre_shift) {
-                            if (q_param->per_tensor_input_shift) {
-                                post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, 1.0f, q_param->in_shift);
+                        if (q_param->_need_pre_shift) {
+                            if (q_param->_per_tensor_input_shift) {
+                                post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, 1.0f, q_param->_in_shift);
                                 update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                             } else {
                                 auto in_shift = get_dependency(dep_idx++).get_output_layout();
                                 dnnl::memory::desc in_shift_desc = onednn::layout_to_memory_desc(in_shift, dnnl::memory::format_tag::ab, true);
                                 post_ops.append_binary(dnnl::algorithm::binary_add, in_shift_desc);
-                                update_onednn_post_op_list(onednn_post_op_type::binary_add, dep_idx - 1);
+                                update_onednn_post_op_list(onednn_post_op_type::binary_add, dep_idx - 1, dnnl::memory::format_tag::ab, true,
+                                                           in_shift_desc.get_dims(), in_shift_desc.get_data_type());
                             }
                         }
                     }
@@ -1122,32 +1187,34 @@ void program_node::init_onednn_primitive_attributes() {
 
                 // 4. post-scale & post-shift
                 {
-                    if (q_param->has_post_scale && q_param->has_post_shift &&
-                        q_param->per_tensor_output_scale && q_param->per_tensor_output_shift) {
-                        post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, q_param->out_scale, q_param->out_shift);
+                    if (q_param->_need_post_scale && q_param->_need_post_shift &&
+                        q_param->_per_tensor_output_scale && q_param->_per_tensor_output_shift) {
+                        post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, q_param->_out_scale, q_param->_out_shift);
                         update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                     } else {
-                        if (q_param->has_post_scale) {
-                            if (q_param->per_tensor_output_scale) {
-                                post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, q_param->out_scale, 0.0f);
+                        if (q_param->_need_post_scale) {
+                            if (q_param->_per_tensor_output_scale) {
+                                post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, q_param->_out_scale, 0.0f);
                                 update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                             } else {
                                 auto out_scale = get_dependency(dep_idx++).get_output_layout();
                                 dnnl::memory::desc out_scale_desc = onednn::layout_to_memory_desc(out_scale, dnnl::memory::format_tag::ab, true);
                                 post_ops.append_binary(dnnl::algorithm::binary_mul, out_scale_desc);
-                                update_onednn_post_op_list(onednn_post_op_type::binary_mul, dep_idx - 1);
+                                update_onednn_post_op_list(onednn_post_op_type::binary_mul, dep_idx - 1, dnnl::memory::format_tag::ab, true,
+                                                           out_scale_desc.get_dims(), out_scale_desc.get_data_type());
                             }
                         }
 
-                        if (q_param->has_post_shift) {
-                            if (q_param->per_tensor_output_shift) {
-                                post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, 1.0f, q_param->out_shift);
+                        if (q_param->_need_post_shift) {
+                            if (q_param->_per_tensor_output_shift) {
+                                post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, 1.0f, q_param->_out_shift);
                                 update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                             } else {
                                 auto out_shift = get_dependency(dep_idx++).get_output_layout();
                                 dnnl::memory::desc out_shift_desc = onednn::layout_to_memory_desc(out_shift, dnnl::memory::format_tag::ab, true);
                                 post_ops.append_binary(dnnl::algorithm::binary_add, out_shift_desc);
-                                update_onednn_post_op_list(onednn_post_op_type::binary_add, dep_idx - 1);
+                                update_onednn_post_op_list(onednn_post_op_type::binary_add, dep_idx - 1, dnnl::memory::format_tag::ab, true,
+                                                           out_shift_desc.get_dims(), out_shift_desc.get_data_type());
                             }
                         }
                     }
@@ -1188,3 +1255,4 @@ void program_node::init_onednn_primitive_attributes() {
 
 
 #endif // ENABLE_ONEDNN_FOR_GPU
+

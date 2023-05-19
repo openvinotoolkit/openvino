@@ -6,7 +6,9 @@
 
 #include <memory>
 #include <openvino/opsets/opset9.hpp>
+#include <openvino/pass/constant_folding.hpp>
 #include <openvino/pass/manager.hpp>
+#include <transformations/common_optimizations/push_constant_to_subgraph.hpp>
 #include <transformations/control_flow/unroll_if.hpp>
 #include <transformations/init_node_info.hpp>
 
@@ -216,6 +218,88 @@ TEST(TransformationTests, UnrollIfCondIsTrueMultiOutput) {
             ngraph::opset6::Constant::create(ngraph::element::i32, {2}, {1, 2}));
         auto if_result = std::make_shared<ngraph::opset1::Result>(X->output(1));
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{if_result}, ngraph::ParameterVector{data});
+    }
+
+    auto res = compare_functions(f, f_ref);
+    ASSERT_TRUE(res.first) << res.second;
+}
+
+TEST(TransformationTests, UnrollIfInsideIf) {
+    std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
+    {
+        auto cond = std::make_shared<ov::opset9::Constant>(ov::element::boolean, ov::Shape{1}, true);
+        auto not_cond = std::make_shared<ov::opset9::LogicalNot>(cond);
+        auto if_op = std::make_shared<ov::opset8::If>(cond);
+
+        std::shared_ptr<ov::Model> then_body;
+        {
+            auto cond_inside = std::make_shared<ov::opset9::Parameter>(ov::element::boolean, ov::Shape{1});
+            auto if_inside = std::make_shared<ov::opset8::If>(cond_inside);
+
+            std::shared_ptr<ov::Model> then_body_inside;
+            {
+                auto X = std::make_shared<ov::opset9::Parameter>(ov::element::f32, ov::Shape{3});
+                auto Y = std::make_shared<ov::opset9::Parameter>(ov::element::f32, ov::Shape{3});
+                auto add = std::make_shared<ov::opset9::Add>(X, Y);
+                then_body_inside = std::make_shared<ov::Model>(add, ov::ParameterVector{X, Y});
+            }
+            std::shared_ptr<ov::Model> else_body_inside;
+            {
+                auto X = std::make_shared<ov::opset9::Parameter>(ov::element::f32, ov::Shape{3});
+                auto Y = std::make_shared<ov::opset9::Parameter>(ov::element::f32, ov::Shape{3});
+                auto mul = std::make_shared<ov::opset9::Multiply>(X, Y);
+                else_body_inside = std::make_shared<ov::Model>(mul, ov::ParameterVector{X, Y});
+            }
+
+            auto X = std::make_shared<ov::opset9::Parameter>(ov::element::f32, ov::Shape{3});
+            auto Y = std::make_shared<ov::opset9::Parameter>(ov::element::f32, ov::Shape{3});
+            if_inside->set_then_body(then_body_inside);
+            if_inside->set_else_body(else_body_inside);
+            auto then_p = then_body_inside->get_parameters();
+            auto else_p = else_body_inside->get_parameters();
+            if_inside->set_input(X, then_p[0], else_p[0]);
+            if_inside->set_input(Y, then_p[1], else_p[1]);
+            if_inside->set_output(then_body_inside->get_results()[0], else_body_inside->get_results()[0]);
+            auto if_result = std::make_shared<ov::opset9::Result>(if_inside);
+
+            then_body = std::make_shared<ov::Model>(if_result, ov::ParameterVector{cond_inside, X, Y});
+        }
+
+        std::shared_ptr<ov::Model> else_body;
+        {
+            auto X = std::make_shared<ov::opset9::Parameter>(ov::element::f32, ov::Shape{3});
+            auto Y = std::make_shared<ov::opset9::Parameter>(ov::element::f32, ov::Shape{3});
+            auto sub = std::make_shared<ov::opset9::Subtract>(X, Y);
+            else_body = std::make_shared<ov::Model>(sub, ov::ParameterVector{X, Y});
+        }
+
+        auto X = std::make_shared<ov::opset9::Parameter>(ov::element::f32, ov::Shape{3});
+        auto Y = std::make_shared<ov::opset9::Parameter>(ov::element::f32, ov::Shape{3});
+        if_op->set_then_body(then_body);
+        if_op->set_else_body(else_body);
+        auto then_p = then_body->get_parameters();
+        auto else_p = else_body->get_parameters();
+        if_op->set_input(not_cond, then_p[0], nullptr);
+        if_op->set_input(X, then_p[1], else_p[0]);
+        if_op->set_input(Y, then_p[2], else_p[1]);
+        if_op->set_output(then_body->get_results()[0], else_body->get_results()[0]);
+        auto if_result = std::make_shared<ov::opset9::Result>(if_op);
+
+        f = std::make_shared<ov::Model>(ov::NodeVector{if_result}, ov::ParameterVector{X, Y});
+        ov::pass::Manager manager;
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::PushConstantToSubgraph>();
+        manager.register_pass<ov::pass::ConstantFolding>();
+        manager.register_pass<ov::pass::UnrollIf>();
+        manager.run_passes(f);
+        ASSERT_NO_THROW(check_rt_info(f));
+    }
+
+    {
+        auto X = std::make_shared<ov::opset9::Parameter>(ov::element::f32, ov::Shape{3});
+        auto Y = std::make_shared<ov::opset9::Parameter>(ov::element::f32, ov::Shape{3});
+        auto mul = std::make_shared<ov::opset9::Multiply>(X, Y);
+        f_ref = std::make_shared<ov::Model>(mul, ov::ParameterVector{X, Y});
     }
 
     auto res = compare_functions(f, f_ref);

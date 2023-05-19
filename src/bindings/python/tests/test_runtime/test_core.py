@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
+import sys
 import numpy as np
 import os
 from pathlib import Path
@@ -28,8 +29,8 @@ from tests.test_utils.test_utils import (
     generate_image,
     generate_relu_compiled_model,
     get_relu_model,
-    generate_lib_name,
     plugins_path,
+    compare_models,
 )
 
 
@@ -109,6 +110,13 @@ def test_read_model_from_tensor():
     assert isinstance(model, Model)
 
 
+def test_read_model_with_wrong_input():
+    core = Core()
+    with pytest.raises(RuntimeError) as e:
+        core.read_model(model=3, weights=3)
+    assert "Provided python object type <class 'int'> isn't supported as 'model' argument." in str(e.value)
+
+
 def test_read_model_as_path():
     core = Core()
     model = core.read_model(model=Path(test_net_xml), weights=Path(test_net_bin))
@@ -133,7 +141,7 @@ def test_read_model_from_onnx_as_path():
     assert isinstance(model, Model)
 
 
-def test_read_net_from_buffer():
+def test_read_model_from_buffer():
     core = Core()
     with open(test_net_bin, "rb") as f:
         weights = f.read()
@@ -143,7 +151,7 @@ def test_read_net_from_buffer():
     assert isinstance(model, Model)
 
 
-def test_net_from_buffer_valid():
+def test_model_from_buffer_valid():
     core = Core()
     with open(test_net_bin, "rb") as f:
         weights = f.read()
@@ -151,9 +159,7 @@ def test_net_from_buffer_valid():
         xml = f.read()
     model = core.read_model(model=xml, weights=weights)
     ref_model = core.read_model(model=test_net_xml, weights=test_net_bin)
-    assert model.get_parameters() == ref_model.get_parameters()
-    assert model.get_results() == ref_model.get_results()
-    assert model.get_ordered_ops() == ref_model.get_ordered_ops()
+    assert compare_models(model, ref_model)
 
 
 def test_get_version(device):
@@ -169,11 +175,13 @@ def test_get_version(device):
 
 def test_available_devices(device):
     core = Core()
-    devices = core.available_devices
-    assert device in devices, (
-        f"Current device '{device}' is not listed in "
-        f"available devices '{', '.join(devices)}'"
-    )
+    devices_attr = core.available_devices
+    devices_method = core.get_available_devices()
+    for devices in (devices_attr, devices_method):
+        assert device in devices, (
+            f"Current device '{device}' is not listed in "
+            f"available devices '{', '.join(devices)}'"
+        )
 
 
 def test_get_property(device):
@@ -257,43 +265,40 @@ def test_query_model(device):
 
 
 @pytest.mark.dynamic_library()
-def test_register_plugin(device):
+def test_register_plugin():
+    device = "TEST_DEVICE"
+    lib_name = "test_plugin"
+    full_lib_name = lib_name + ".dll" if sys.platform == "win32" else "lib" + lib_name + ".so"
+
     core = Core()
-    full_device_name = core.get_property(device, "FULL_DEVICE_NAME")
-    lib_name = generate_lib_name(device, full_device_name)
-    core.register_plugin(lib_name, "BLA")
-    model = core.read_model(model=test_net_xml, weights=test_net_bin)
-    compiled_model = core.compile_model(model, "BLA")
-    assert isinstance(compiled_model, CompiledModel), "Cannot load the network to the registered plugin with name 'BLA'"
+    core.register_plugin(lib_name, device)
+    with pytest.raises(RuntimeError) as e:
+        core.get_versions(device)
+    assert f"Cannot load library '{full_lib_name}'" in str(e.value)
 
 
 @pytest.mark.dynamic_library()
-def test_register_plugins(device):
+def test_register_plugins():
+    device = "TEST_DEVICE"
+    lib_name = "test_plugin"
+    full_lib_name = lib_name + ".dll" if sys.platform == "win32" else "lib" + lib_name + ".so"
+    plugins_xml = plugins_path(device, full_lib_name)
+
     core = Core()
-    full_device_name = core.get_property(device, "FULL_DEVICE_NAME")
-    plugins_xml = plugins_path(device, full_device_name)
     core.register_plugins(plugins_xml)
-    model = core.read_model(model=test_net_xml, weights=test_net_bin)
-    compiled_model = core.compile_model(model, "CUSTOM")
     os.remove(plugins_xml)
-    assert isinstance(compiled_model, CompiledModel), (
-        "Cannot load the network to "
-        "the registered plugin with name 'CUSTOM' "
-        "registered in the XML file"
-    )
 
-
-@pytest.mark.skip(reason="Need to figure out if it's expected behaviour (fails with C++ API as well")
-def test_unregister_plugin(device):
-    core = Core()
-    core.unload_plugin(device)
-    model = core.read_model(model=test_net_xml, weights=test_net_bin)
     with pytest.raises(RuntimeError) as e:
-        core.load_network(model, device)
-    assert (
-        f"Device with '{device}' name is not registered in the OpenVINO Runtime"
-        in str(e.value)
-    )
+        core.get_versions(device)
+    assert f"Cannot load library '{full_lib_name}'" in str(e.value)
+
+
+def test_unload_plugin(device):
+    core = Core()
+    # Trigger plugin loading
+    core.get_versions(device)
+    # Unload plugin
+    core.unload_plugin(device)
 
 
 @pytest.mark.template_plugin()

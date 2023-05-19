@@ -130,7 +130,7 @@ bool ov::pass::ConstantFolding::pre_calculated_values_folding(const std::shared_
             // propagation because we can't detect borders of shape_of sub-graphs, so we propagate can_be_folded
             // attribute through all nodes including nodes on data path. So to limit the spread of attribute to other
             // shape-of sub-graphs we do not propagate it through ShapeOf nodes.
-            can_be_folded = input_values.begin()->get_partial_shape().is_static();
+            can_be_folded = true;
         } else if (op::util::is_parameter(node) || op::util::is_output(node) || op::util::is_sink(node) ||
                    is_type<op::util::ReadValueBase>(node)) {
             can_be_folded = false;
@@ -161,7 +161,9 @@ bool ov::pass::ConstantFolding::pre_calculated_values_folding(const std::shared_
         for (auto& output : curr_node->input_values()) {
             if (is_output_foldable(output) && output.get_tensor().has_and_set_bound()) {
                 auto input_node = output.get_node_shared_ptr();
-                auto replacement = std::make_shared<ov::op::v0::Constant>(output.get_tensor().get_lower_value());
+                const auto& lower = output.get_tensor().get_lower_value();
+                auto replacement =
+                    std::make_shared<ov::op::v0::Constant>(lower.get_element_type(), lower.get_shape(), lower.data());
                 if (replacement && !ov::is_type<ov::op::v0::Constant>(input_node)) {
                     replacement->set_friendly_name(
                         friendly_name_from(*input_node, input_node->get_output_size(), output.get_index()));

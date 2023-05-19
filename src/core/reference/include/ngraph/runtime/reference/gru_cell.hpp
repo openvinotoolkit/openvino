@@ -131,7 +131,7 @@ void gru_cell(const T* X,
         } else if (activation == "tanh") {
             reference::tanh(gate.data(), gate.data(), gate.size());
         } else {
-            throw ngraph_error("Activation function " + activation + " is not supported.");
+            OPENVINO_THROW("Activation function " + activation + " is not supported.");
         }
     };
 

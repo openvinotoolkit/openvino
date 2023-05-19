@@ -24,8 +24,18 @@ namespace ov {
 namespace intel_gpu {
 
 static cldnn::tensor getConstTensor(const ngraph::Shape constDims) {
+    std::vector<cldnn::tensor::value_type> shuffled_dims(constDims.size());
+
+    // cldnn tensor c-tor expects constants be in a reversed order (x, y, z, w, u, v)
+    for (size_t i = 0; i < constDims.size(); i++) {
+        shuffled_dims[i] = TensorValue(constDims[i < 2 ? i : (constDims.size() - 1 - i)]);
+    }
     cldnn::tensor constTensor;
     switch (constDims.size()) {
+    case 8:
+    case 7:
+        constTensor = cldnn::tensor(shuffled_dims);
+        break;
     case 6: constTensor = cldnn::tensor(TensorValue(constDims[0]), TensorValue(constDims[1]),
                                         TensorValue(constDims[5]), TensorValue(constDims[4]),
                                         TensorValue(constDims[3]), TensorValue(constDims[2]));
@@ -98,6 +108,7 @@ static void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::C
             }
         } else if (ngraph::op::is_binary_elementwise_arithmetic(outOp) ||
                    ngraph::op::is_binary_elementwise_logical(outOp) ||
+                   ngraph::op::is_binary_elementwise_comparison(outOp) ||
                    ngraph::is_type<ngraph::op::v0::SquaredDifference>(outOp)) {
             bool all_inputs_1d = true;
             for (size_t j = 0; j < outOp->get_input_size(); j++) {
@@ -107,6 +118,8 @@ static void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::C
             }
             consts[op].needsBatchInterpretation = all_inputs_1d && constDims.size() == 1;
         } else if (ngraph::is_type<ngraph::op::v1::Gather>(outOp) ||
+                   ngraph::is_type<ngraph::op::v7::Gather>(outOp) ||
+                   ngraph::is_type<ngraph::op::v8::Gather>(outOp) ||
                    ngraph::is_type<ngraph::op::v1::Split>(outOp) ||
                    ngraph::is_type<ngraph::op::v1::VariadicSplit>(outOp)) {
             consts[op].needsBatchInterpretation = constDims.size() == 1;
@@ -134,11 +147,10 @@ static void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::C
                     slope_shape[slope_shape.size() - j] = constDims[constDims.size() - j];
                 constDims = slope_shape;
             }
-        } else if (ngraph::is_type<ngraph::op::v1::GroupConvolution>(outOp) && node.get_index() == 1) {
+        } else if (ngraph::is_type<ngraph::op::v1::GroupConvolution>(outOp) && node.get_index() == 1 && !p.use_new_shape_infer()) {
             auto input_shape = outOp->get_input_partial_shape(0);
             if (constDims.size() == 4 && input_shape.size() == 3) { // In case of weight dim 4 and input dim 3,
-                constDims[2] = constDims[3];                        // The weight cldnn tensor adds 1d to the end
-                constDims[3] = 1;                                   // as the input cldnn tensor does.
+                constDims.push_back(1);                             // The weight cldnn tensor adds 1d to the end as the input cldnn tensor does
             }
         }
     }
@@ -153,7 +165,7 @@ void createClDnnConstant(Program& p, const ngraph::Shape& constDims, const std::
     auto constFormat = cldnn::format::get_default_format(constDims.size());
 
     if (props.needsBatchInterpretation) {
-        constTensor.batch[0] = constTensor.count();
+        constTensor.batch[0] = static_cast<cldnn::tensor::value_type>(constTensor.count());
         constTensor.feature[0] = 1;
     }
 

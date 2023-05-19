@@ -4,7 +4,7 @@
 
 #include "reorder_inst.h"
 #include "primitive_onednn_base.h"
-#include "impls/implementation_map.hpp"
+#include "implementation_map.hpp"
 
 #include "kernel_selector_common.h"
 
@@ -77,9 +77,18 @@ public:
 #ifdef ONEDNN_PRIMITIVE_SERIALIZATION
         parent::load(ib);
 
-        const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernlImplParams());
-        auto desc = get_reorder_descriptor(*impl_params, *_attrs, ib.get_engine());
-        _pd = *desc;
+        const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernelImplParams());
+
+        auto input_md = onednn::layout_to_memory_desc(impl_params->get_input_layout(0));
+        auto output_md = onednn::layout_to_memory_desc(impl_params->get_output_layout());
+
+        auto prim_desc = std::make_shared<dnnl::reorder::primitive_desc>(
+            ib.get_engine().get_onednn_engine(),
+            input_md,
+            ib.get_engine().get_onednn_engine(),
+            output_md,
+            *_attrs.get());
+        _pd = *prim_desc;
 
         std::vector<uint8_t> prim_cache;
         ib >> prim_cache;

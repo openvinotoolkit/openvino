@@ -85,7 +85,7 @@ void op::v4::Range::validate_and_infer_types() {
 
     std::vector<PartialShape> result_shapes = {PartialShape::dynamic()};
     std::vector<PartialShape> input_shapes;
-    for (int i = 0; i < get_input_size(); i++)
+    for (size_t i = 0; i < get_input_size(); i++)
         input_shapes.push_back(get_input_partial_shape(i));
 
     op::v4::shape_infer(this, input_shapes, result_shapes);
@@ -272,9 +272,11 @@ adjust_for_step_and_sign(T span, T step) {
 
 template <typename T>
 static ov::PartialShape infer_output_shape(const op::v0::Range* node, const element::Type& /* et */) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     auto const_start = get_constant_from_source(node->input_value(0));
     auto const_stop = get_constant_from_source(node->input_value(1));
     auto const_step = get_constant_from_source(node->input_value(2));
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     T start = static_cast<T>(0);
     T stop = static_cast<T>(0);
@@ -356,7 +358,7 @@ void op::v0::Range::validate_and_infer_types() {
     } else {
         std::vector<PartialShape> result_shapes = {PartialShape::dynamic()};
         std::vector<PartialShape> input_shapes;
-        for (int i = 0; i < get_input_size(); i++)
+        for (size_t i = 0; i < get_input_size(); i++)
             input_shapes.push_back(get_input_partial_shape(i));
 
         op::v0::shape_infer(this, input_shapes, result_shapes);

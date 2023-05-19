@@ -17,9 +17,10 @@ using ov::Model;
 class SnippetsFunctionBase {
 public:
     SnippetsFunctionBase() = delete;
+    virtual ~SnippetsFunctionBase() = default;
 
     explicit SnippetsFunctionBase(const std::vector<PartialShape>& inputShapes, ov::element::Type_t precision = element::f32)
-                : input_shapes{inputShapes}, precision{precision} {};
+                : precision{precision}, input_shapes{inputShapes} {}
 
     std::shared_ptr<Model> getReference() const {
         std::shared_ptr<Model> function_ref = initReference();

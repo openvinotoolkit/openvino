@@ -6,6 +6,7 @@
 
 #include <ngraph/validation_util.hpp>
 
+#include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/runtime/reference/clamp.hpp"
 #include "ngraph/util.hpp"
@@ -74,7 +75,9 @@ bool evaluate_clamp(const HostTensorPtr& arg, const HostTensorPtr& out, double m
 
 bool op::v0::Clamp::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v0_Clamp_evaluate);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     return clamp::evaluate_clamp(inputs[0], outputs[0], get_min(), get_max());
 }
 
@@ -139,10 +142,10 @@ bool op::Clamp::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-bool op::Clamp::evaluate_lower(const HostTensorVector& output_values) const {
-    return default_lower_bound_evaluator(this, output_values);
+bool op::Clamp::evaluate_lower(ov::TensorVector& output_values) const {
+    return ov::default_lower_bound_evaluator(this, output_values);
 }
 
-bool op::Clamp::evaluate_upper(const HostTensorVector& output_values) const {
-    return default_upper_bound_evaluator(this, output_values);
+bool op::Clamp::evaluate_upper(ov::TensorVector& output_values) const {
+    return ov::default_upper_bound_evaluator(this, output_values);
 }

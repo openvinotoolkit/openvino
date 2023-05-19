@@ -6,12 +6,12 @@
 
 #include <numeric>
 
+#include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/runtime/reference/slice.hpp"
-#include "ngraph/validation_util.hpp"
 #include "slice_shape_inference.hpp"
 
 using namespace std;
@@ -87,7 +87,9 @@ void op::v8::Slice::validate_and_infer_types() {
         set_input_is_relevant_to_shape(i);
     }
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto input_shapes = get_node_input_partial_shapes(*this);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape::dynamic()};
 
     shape_infer(this, input_shapes, output_shapes);
@@ -205,20 +207,18 @@ bool slice_input_check(const ov::Node* node) {
 }
 }  // namespace
 
-bool op::v8::Slice::evaluate_lower(const HostTensorVector& output_values) const {
-    if (!slice_input_check(this))
-        return false;
-    return default_lower_bound_evaluator(this, output_values);
+bool op::v8::Slice::evaluate_lower(ov::TensorVector& output_values) const {
+    return slice_input_check(this) && default_lower_bound_evaluator(this, output_values);
 }
 
-bool op::v8::Slice::evaluate_upper(const HostTensorVector& output_values) const {
-    if (!slice_input_check(this))
-        return false;
-    return default_upper_bound_evaluator(this, output_values);
+bool op::v8::Slice::evaluate_upper(ov::TensorVector& output_values) const {
+    return slice_input_check(this) && default_upper_bound_evaluator(this, output_values);
 }
 
 bool op::v8::Slice::evaluate_label(TensorLabelVector& output_labels) const {
     if (!slice_input_check(this))
         return false;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     return default_label_evaluator(this, output_labels);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }

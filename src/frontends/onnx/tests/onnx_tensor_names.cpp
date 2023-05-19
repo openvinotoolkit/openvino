@@ -69,8 +69,8 @@ NGRAPH_TEST(onnx_tensor_names, node_multiple_outputs) {
 
     const auto ops = function->get_ordered_ops();
     EXPECT_TRUE(matching_node_found_in_graph<op::Parameter>(ops, "x", {"x"}));
-    EXPECT_TRUE(matching_node_found_in_graph<op::v1::TopK>(ops, "indices", {"values"}, 0));
-    EXPECT_TRUE(matching_node_found_in_graph<op::v1::TopK>(ops, "indices", {"indices"}, 1));
+    EXPECT_TRUE(matching_node_found_in_graph<ov::op::util::TopKBase>(ops, "indices", {"values"}, 0));
+    EXPECT_TRUE(matching_node_found_in_graph<ov::op::util::TopKBase>(ops, "indices", {"indices"}, 1));
 
     const auto results = function->get_results();
     EXPECT_TRUE(matching_node_found_in_graph<op::Result>(results, "values/sink_port_0", {"values"}));

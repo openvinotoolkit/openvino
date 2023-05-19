@@ -7,14 +7,14 @@
 #include "openvino/core/type.hpp"
 #include "openvino/core/visibility.hpp"
 
-#define _OPENVINO_RTTI_EXPAND(X)                                      X
-#define _OPENVINO_RTTI_DEFINITION_SELECTOR(_1, _2, _3, _4, NAME, ...) NAME
+#define _OPENVINO_RTTI_EXPAND(X)                                  X
+#define _OPENVINO_RTTI_DEFINITION_SELECTOR(_1, _2, _3, NAME, ...) NAME
 
 #define _OPENVINO_RTTI_WITH_TYPE(TYPE_NAME) _OPENVINO_RTTI_WITH_TYPE_VERSION(TYPE_NAME, "util")
 
 #define _OPENVINO_RTTI_WITH_TYPE_VERSION(TYPE_NAME, VERSION_NAME)                         \
     _OPENVINO_HIDDEN_METHOD static const ::ov::DiscreteTypeInfo& get_type_info_static() { \
-        static ::ov::DiscreteTypeInfo type_info_static{TYPE_NAME, 0, VERSION_NAME};       \
+        static ::ov::DiscreteTypeInfo type_info_static{TYPE_NAME, VERSION_NAME};          \
         type_info_static.hash();                                                          \
         return type_info_static;                                                          \
     }                                                                                     \
@@ -23,19 +23,18 @@
     }
 
 #define _OPENVINO_RTTI_WITH_TYPE_VERSION_PARENT(TYPE_NAME, VERSION_NAME, PARENT_CLASS) \
-    _OPENVINO_RTTI_WITH_TYPE_VERSIONS_PARENT(TYPE_NAME, VERSION_NAME, PARENT_CLASS, 0)
+    _OPENVINO_RTTI_WITH_TYPE_VERSIONS_PARENT(TYPE_NAME, VERSION_NAME, PARENT_CLASS)
 
-#define _OPENVINO_RTTI_WITH_TYPE_VERSIONS_PARENT(TYPE_NAME, VERSION_NAME, PARENT_CLASS, OLD_VERSION) \
-    _OPENVINO_HIDDEN_METHOD static const ::ov::DiscreteTypeInfo& get_type_info_static() {            \
-        static ::ov::DiscreteTypeInfo type_info_static{TYPE_NAME,                                    \
-                                                       OLD_VERSION,                                  \
-                                                       VERSION_NAME,                                 \
-                                                       &PARENT_CLASS::get_type_info_static()};       \
-        type_info_static.hash();                                                                     \
-        return type_info_static;                                                                     \
-    }                                                                                                \
-    const ::ov::DiscreteTypeInfo& get_type_info() const override {                                   \
-        return get_type_info_static();                                                               \
+#define _OPENVINO_RTTI_WITH_TYPE_VERSIONS_PARENT(TYPE_NAME, VERSION_NAME, PARENT_CLASS)        \
+    _OPENVINO_HIDDEN_METHOD static const ::ov::DiscreteTypeInfo& get_type_info_static() {      \
+        static ::ov::DiscreteTypeInfo type_info_static{TYPE_NAME,                              \
+                                                       VERSION_NAME,                           \
+                                                       &PARENT_CLASS::get_type_info_static()}; \
+        type_info_static.hash();                                                               \
+        return type_info_static;                                                               \
+    }                                                                                          \
+    const ::ov::DiscreteTypeInfo& get_type_info() const override {                             \
+        return get_type_info_static();                                                         \
     }
 
 /// Helper macro that puts necessary declarations of RTTI block inside a class definition.
@@ -92,11 +91,10 @@
 /// OPENVINO_RTTI(name, version_id)
 /// OPENVINO_RTTI(name, version_id, parent)
 /// OPENVINO_RTTI(name, version_id, parent, old_version)
-#define OPENVINO_RTTI(...)                                                                             \
-    _OPENVINO_RTTI_EXPAND(_OPENVINO_RTTI_DEFINITION_SELECTOR(__VA_ARGS__,                              \
-                                                             _OPENVINO_RTTI_WITH_TYPE_VERSIONS_PARENT, \
-                                                             _OPENVINO_RTTI_WITH_TYPE_VERSION_PARENT,  \
-                                                             _OPENVINO_RTTI_WITH_TYPE_VERSION,         \
+#define OPENVINO_RTTI(...)                                                                            \
+    _OPENVINO_RTTI_EXPAND(_OPENVINO_RTTI_DEFINITION_SELECTOR(__VA_ARGS__,                             \
+                                                             _OPENVINO_RTTI_WITH_TYPE_VERSION_PARENT, \
+                                                             _OPENVINO_RTTI_WITH_TYPE_VERSION,        \
                                                              _OPENVINO_RTTI_WITH_TYPE)(__VA_ARGS__))
 
 /// Note: Please don't use this macros for new operations

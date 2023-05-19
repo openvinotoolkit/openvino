@@ -32,12 +32,12 @@ public:
     OPENVINO_OP("ControlDependencyOp");
     virtual std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override {
         auto clone = make_shared<ControlDependencyOp>(new_args, std::set<std::shared_ptr<Node>>{});
-        return move(clone);
+        return std::move(clone);
     }
 
     ControlDependencyOp(const OutputVector& args, const std::set<std::shared_ptr<Node>>& deps) : Op(args) {
         if (args.size() == 0 && deps.size() == 0) {
-            throw ngraph_error("Expected some arguments or dependencies");
+            OPENVINO_THROW("Expected some arguments or dependencies");
         }
 
         for (auto& node : deps) {

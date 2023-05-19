@@ -14,7 +14,7 @@ namespace v1 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API FloorMod : public util::BinaryElementwiseArithmetic {
 public:
-    OPENVINO_OP("FloorMod", "opset1", op::util::BinaryElementwiseArithmetic, 1);
+    OPENVINO_OP("FloorMod", "opset1", op::util::BinaryElementwiseArithmetic);
 
     /// \brief Constructs an uninitialized addition operation
     FloorMod() : util::BinaryElementwiseArithmetic(AutoBroadcastType::NUMPY) {}

@@ -190,6 +190,13 @@ std::string getIncorrectExtensionPath() {
                                               std::string("incorrect") + IE_BUILD_POSTFIX);
 }
 
+std::string getRelativeOVExtensionPath() {
+    std::string absolutePath =
+        ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
+                                           std::string("openvino_template_extension") + IE_BUILD_POSTFIX);
+    return CommonTestUtils::getRelativePath(CommonTestUtils::getCurrentWorkingDir(), absolutePath);
+}
+
 }  // namespace
 
 class CustomOldIdentity : public ngraph::op::Op {
@@ -207,7 +214,7 @@ public:
 
     std::shared_ptr<ngraph::Node> clone_with_new_inputs(const ngraph::OutputVector& new_args) const override {
         if (new_args.size() != 1) {
-            throw ngraph::ngraph_error("Incorrect number of new arguments");
+            OPENVINO_THROW("Incorrect number of new arguments");
         }
 
         return std::make_shared<CustomOldIdentity>(new_args.at(0));
@@ -353,4 +360,9 @@ TEST_F(OVExtensionTests, load_old_extension) {
 TEST_F(OVExtensionTests, load_incorrect_extension) {
     EXPECT_THROW(core.add_extension(getIncorrectExtensionPath()), ov::Exception);
 }
+
+TEST_F(OVExtensionTests, load_relative) {
+    EXPECT_NO_THROW(core.add_extension(getRelativeOVExtensionPath()));
+}
+
 #endif  // defined(ENABLE_OV_IR_FRONTEND)

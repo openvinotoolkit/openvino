@@ -91,9 +91,11 @@ static void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v
                 }
 
                 // -1 because it's a position of ellipses
-                unsigned long num_input_axis_after_ellipses = (begin.size() - axis - num_new_axis_after_ellipses - 1);
-                unsigned long num_of_hidden_dims = input_shape.size() - num_input_axis_after_ellipses
-                                                    - num_input_axis_before_ellipses;
+                unsigned long num_input_axis_after_ellipses =
+                    static_cast<unsigned long>(begin.size() - axis - num_new_axis_after_ellipses - 1);
+                unsigned long num_of_hidden_dims =
+                    static_cast<unsigned long>(input_shape.size() - num_input_axis_after_ellipses
+                                                    - num_input_axis_before_ellipses);
                 for (size_t i = 0; i < num_of_hidden_dims; ++i) {
                     axes.emplace_back(uniq_id);
                     uniq_id++;
@@ -204,10 +206,8 @@ static void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v
 
         std::vector<cldnn::tensor::value_type> offset_tensor{ 0, 0, 0, 0 };
         for (size_t i = 0; i < axes.size(); i++) {
-            if (axes[i] < 0 || axes[i] > 3) {
-                IE_THROW() << "Invalid crop axis: " << std::to_string(axes[i]) << " in op " + op->get_friendly_name();
-            }
-            offset_tensor[axes[i]] = offset[i];
+            OPENVINO_ASSERT(axes[i] < 4, "[GPU] Invalid crop axis: ", axes[i], " in op ", op->get_friendly_name());
+            offset_tensor[axes[i]] = static_cast<cldnn::tensor::value_type>(offset[i]);
         }
 
         ngraph::Shape crop_shape(reshape_pattern);
@@ -215,10 +215,8 @@ static void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v
             crop_shape[axes[i]] = dim[i];
         }
 
-
         cldnn::tensor refSize = tensor_from_dims(crop_shape);
         cldnn::tensor offSize = tensor_from_dims(offset, 0);
-
 
         auto cropPrim = cldnn::crop(layerName, inPrimitive, refSize, offSize);
         p.add_primitive(*op, cropPrim);
@@ -245,7 +243,7 @@ static void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v
     auto output_shape = output_pshape.is_static() ? output_pshape.to_shape() : ov::Shape{};
 
     std::shared_ptr<cldnn::strided_slice> stridedSlicePrim = nullptr;
-    if (begin_constant && end_constant && stride_constant) {
+    if (begin_constant && end_constant && stride_constant && !input_pshape.is_dynamic() && !output_pshape.is_dynamic()) {
         stridedSlicePrim = std::make_shared<cldnn::strided_slice>(layerName,
                                                                   inputs[0],
                                                                   begin,

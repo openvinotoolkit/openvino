@@ -9,9 +9,9 @@
 #include "intel_gpu/primitives/implementation_desc.hpp"
 #include "intel_gpu/graph/program.hpp"
 
-#include "kernel_selector_helper.h"
-#include "fused_primitive_desc.h"
-#include "meta_utils.h"
+#include "intel_gpu/graph/fused_primitive_desc.hpp"
+#include "intel_gpu/graph/kernel_impl_params.hpp"
+#include "intel_gpu/runtime/utils.hpp"
 
 #include <set>
 #include <array>
@@ -71,7 +71,7 @@ struct program_node {
 public:
     virtual const primitive_id& id() const { return desc->id; }
     virtual primitive_type_id type() const { return desc->type; }
-    virtual std::shared_ptr<kernel_selector::fuse_params> get_fuse_params() const { return nullptr; }
+    virtual std::shared_ptr<NodeFuseParams> get_fuse_params() const { return nullptr; }
     virtual bool generates_dynamic_output() const { return false; }
 
     virtual std::vector<size_t> get_shape_infer_dependencies() const {
@@ -83,6 +83,45 @@ public:
         return res;
     }
 
+    bool is_shape_infer_dep(void) const {
+        if (!myprog.get_config().get_property(ov::intel_gpu::allow_new_shape_infer))
+            return false;
+        for (auto u : users) {
+            for (auto dep_idx : u->get_shape_infer_dependencies()) {
+                if (u->get_dependencies().size() <= dep_idx) {
+                    continue;
+                }
+                if (u->is_fused_dep(dep_idx)) {
+                    continue;
+                }
+                if (u->get_dependencies().at(dep_idx).first == this) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    bool is_fused_dep(size_t dep_idx) const;
+
+    bool has_fused_dep() const {
+        for (auto fused : get_fused_primitives()) {
+            if (fused.has_outer_dep())
+                return true;
+        }
+        return false;
+    }
+
+    int32_t get_first_fused_dep_idx() const {
+        if (!has_fused_dep())
+            return -1;
+        for (auto fused : get_fused_primitives()) {
+            if (fused.has_outer_dep())
+                return fused.outer_dep_start_idx;
+        }
+        return -1;
+    }
+
     std::map<size_t, memory::ptr> get_const_memory_deps() const;
 
     virtual std::unique_ptr<kernel_impl_params> get_kernel_impl_params() const {
@@ -90,8 +129,8 @@ public:
     }
 
     virtual std::unique_ptr<kernel_impl_params> get_kernel_impl_params(const std::vector<layout>& in_layouts, const std::vector<layout>& out_layouts) const {
-        auto params = std::unique_ptr<kernel_impl_params>(new kernel_impl_params(get_program(), get_primitive(), get_unique_id(), in_layouts, out_layouts,
-                                                                                 get_fused_primitives()));
+        auto params = std::unique_ptr<kernel_impl_params>(new kernel_impl_params(get_program(), get_program().get_stream_ptr(), get_primitive(),
+                                                                                 get_unique_id(), in_layouts, out_layouts, get_fused_primitives()));
         params->memory_deps = get_const_memory_deps();
 
         auto deps = get_dependencies();
@@ -369,7 +408,6 @@ public:
     void init_preferred_fmt(size_t dep_size, size_t user_size);
     void set_preferred_input_fmt(size_t idx, format::type type);
     void set_preferred_output_fmt(size_t idx, format::type type);
-
 
 protected:
     size_t unique_id = 0;

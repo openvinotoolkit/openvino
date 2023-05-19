@@ -51,6 +51,8 @@
  * If MatcherPass register more than one node make sure that this nodes are registered in
  * topological order. */
 
+#ifdef ENABLE_PROFILING_ITT
+
 namespace ov {
 namespace pass {
 namespace {
@@ -61,6 +63,8 @@ PerfCounters& perf_counters_graph_rewrite() {
 }  // namespace
 }  // namespace pass
 }  // namespace ov
+
+#endif  // ENABLE_PROFILING_ITT
 
 bool ov::pass::BackwardGraphRewrite::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_MODEL_SCOPE(BackwardGraphRewrite);
@@ -233,37 +237,6 @@ bool ov::pass::GraphRewrite::apply_matcher_passes(std::shared_ptr<Model> f,
         }
     }
     return rewritten;
-}
-
-void ov::pass::GraphRewrite::add_matcher(const std::shared_ptr<pattern::Matcher>& m,
-                                         const graph_rewrite_callback& callback,
-                                         const PassPropertyMask& property) {
-    m_matchers.push_back(std::make_shared<MatcherPass>(
-        m->get_name(),
-        m,
-        [m, callback](const std::shared_ptr<Node>& node) -> bool {
-            NGRAPH_DEBUG << "Running matcher " << m->get_name() << " on " << node;
-            if (m->match(node->output(0))) {
-                NGRAPH_DEBUG << "Matcher " << m->get_name() << " matched " << node;
-                OV_PASS_CALLBACK(m);
-                bool status = callback(*m.get());
-                // explicitly clear Matcher state because it holds pointers to matched nodes
-                m->clear_state();
-                return status;
-            }
-            m->clear_state();
-            return false;
-        },
-        property));
-}
-
-void ov::pass::GraphRewrite::add_matcher(const std::shared_ptr<pattern::Matcher>& m,
-                                         const graph_rewrite_callback& callback) {
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    // TODO: before deprecate this function, by default expect the
-    // callback require static shape.
-    add_matcher(m, callback, {PassProperty::REQUIRE_STATIC_SHAPE});
-    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
 void ov::pass::GraphRewrite::set_pass_config(const std::shared_ptr<PassConfig>& rhs) {

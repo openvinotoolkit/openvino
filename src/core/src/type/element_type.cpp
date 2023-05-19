@@ -71,9 +71,51 @@ inline TypeInfo get_type_info(ov::element::Type_t type) {
     case ov::element::Type_t::u64:
         return {64, false, false, false, "uint64_t", "u64"};
     default:
-        OPENVINO_UNREACHABLE("ov::element::Type_t not supported: ", type);
+        OPENVINO_THROW("ov::element::Type_t not supported: ", type);
     }
 };
+
+ov::element::Type type_from_string(const std::string& type) {
+    if (type == "f16" || type == "FP16") {
+        return ::ov::element::Type(::ov::element::Type_t::f16);
+    } else if (type == "f32" || type == "FP32") {
+        return ::ov::element::Type(::ov::element::Type_t::f32);
+    } else if (type == "bf16" || type == "BF16") {
+        return ::ov::element::Type(::ov::element::Type_t::bf16);
+    } else if (type == "f64" || type == "FP64") {
+        return ::ov::element::Type(::ov::element::Type_t::f64);
+    } else if (type == "i4" || type == "I4") {
+        return ::ov::element::Type(::ov::element::Type_t::i4);
+    } else if (type == "i8" || type == "I8") {
+        return ::ov::element::Type(::ov::element::Type_t::i8);
+    } else if (type == "i16" || type == "I16") {
+        return ::ov::element::Type(::ov::element::Type_t::i16);
+    } else if (type == "i32" || type == "I32") {
+        return ::ov::element::Type(::ov::element::Type_t::i32);
+    } else if (type == "i64" || type == "I64") {
+        return ::ov::element::Type(::ov::element::Type_t::i64);
+    } else if (type == "u1" || type == "U1" || type == "BIN" || type == "bin") {
+        return ::ov::element::Type(::ov::element::Type_t::u1);
+    } else if (type == "u4" || type == "U4") {
+        return ::ov::element::Type(::ov::element::Type_t::u4);
+    } else if (type == "u8" || type == "U8") {
+        return ::ov::element::Type(::ov::element::Type_t::u8);
+    } else if (type == "u16" || type == "U16") {
+        return ::ov::element::Type(::ov::element::Type_t::u16);
+    } else if (type == "u32" || type == "U32") {
+        return ::ov::element::Type(::ov::element::Type_t::u32);
+    } else if (type == "u64" || type == "U64") {
+        return ::ov::element::Type(::ov::element::Type_t::u64);
+    } else if (type == "boolean" || type == "BOOL") {
+        return ::ov::element::Type(::ov::element::Type_t::boolean);
+    } else if (type == "undefined" || type == "UNSPECIFIED") {
+        return ::ov::element::Type(::ov::element::Type_t::undefined);
+    } else if (type == "dynamic") {
+        return ::ov::element::Type(::ov::element::Type_t::dynamic);
+    } else {
+        OPENVINO_THROW("Incorrect type: ", type);
+    }
+}
 }  // namespace
 
 std::vector<const ov::element::Type*> ov::element::Type::get_known_types() {
@@ -132,6 +174,8 @@ ov::element::Type::Type(size_t bitwidth,
         }
     }
 }
+
+ov::element::Type::Type(const std::string& type) : Type(type_from_string(type)) {}
 
 std::string ov::element::Type::c_type_string() const {
     return get_type_info(m_type).m_cname;
@@ -243,7 +287,7 @@ Type fundamental_type_for(const Type& type) {
     case Type_t::u64:
         return from<element_type_traits<Type_t::u64>::value_type>();
     default:
-        OPENVINO_UNREACHABLE("Unsupported Data type: ", type);
+        OPENVINO_THROW("Unsupported Data type: ", type);
     }
 }
 
@@ -360,8 +404,7 @@ inline size_t compiler_byte_size(ov::element::Type_t et) {
         return 0;
     }
 
-    throw ov::Exception("compiler_byte_size: Unsupported value of ov::element::Type_t: " +
-                        std::to_string(static_cast<int>(et)));
+    OPENVINO_THROW("compiler_byte_size: Unsupported value of ov::element::Type_t: ", static_cast<int>(et));
 }
 
 namespace ov {

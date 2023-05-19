@@ -4,9 +4,7 @@
 
 #include "strided_slice_inst.h"
 #include "primitive_type_base.h"
-#include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
-#include "data_inst.h"
 #include <string>
 #include <vector>
 
@@ -20,7 +18,10 @@ layout strided_slice_inst::calc_output_layout(strided_slice_node const& node, ke
     auto input_layout = impl_param.get_input_layout();
     auto output_format = format::get_default_format(desc->out_size.size());
     auto out_shape = desc->out_size;
-    std::vector<tensor::value_type> dims_converted(out_shape.begin(), out_shape.end());
+    std::vector<tensor::value_type> dims_converted;
+    for (auto dim : out_shape) {
+        dims_converted.push_back(static_cast<tensor::value_type>(dim));
+    }
     // extend shape to 4d
     for (size_t i = dims_converted.size(); i < 4; i++) {
         dims_converted.push_back(1);
@@ -34,7 +35,6 @@ std::vector<layout> strided_slice_inst::calc_output_layouts(strided_slice_node c
     auto desc = impl_param.typed_desc<strided_slice>();
     auto input0_layout = impl_param.get_input_layout(0);
     auto input0_shape = input0_layout.get<ShapeType>();
-    auto input0_rank = input0_shape.size();
 
     auto& constant_mem = impl_param.memory_deps;
     auto begin_data = desc->begin;
@@ -49,10 +49,9 @@ std::vector<layout> strided_slice_inst::calc_output_layouts(strided_slice_node c
     }
 
     ov::op::v1::StridedSlice op;
-
-    ShapeType begin_shape = begin_data.empty() ? ov::Shape{ input0_rank } : ov::Shape{ begin_data.size() };
-    ShapeType end_shape = end_data.empty() ? ov::Shape{ input0_rank } : ov::Shape{ end_data.size() };
-    ShapeType strides_shape = strides_data.empty() ? ov::Shape{ input0_rank } : ov::Shape{ strides_data.size() };
+    ShapeType begin_shape = begin_data.empty() ? impl_param.get_input_layout(1).get<ShapeType>() : ov::Shape{ begin_data.size() };
+    ShapeType end_shape = end_data.empty() ? impl_param.get_input_layout(2).get<ShapeType>() : ov::Shape{ end_data.size() };
+    ShapeType strides_shape = strides_data.empty() ? impl_param.get_input_layout(3).get<ShapeType>() : ov::Shape{ strides_data.size() };
 
     std::vector<ShapeType> output_shapes = {ShapeType{}};
     std::vector<ShapeType> input_shapes = {
@@ -84,9 +83,9 @@ std::vector<layout> strided_slice_inst::calc_output_layouts(strided_slice_node c
         auto end_mem = constant_mem.at(2);
         auto strides_mem = constant_mem.at(3);
 
-        cldnn::mem_lock<uint8_t, mem_lock_type::read> lock1(begin_mem, impl_param.prog->get_stream());
-        cldnn::mem_lock<uint8_t, mem_lock_type::read> lock2(end_mem, impl_param.prog->get_stream());
-        cldnn::mem_lock<uint8_t, mem_lock_type::read> lock3(strides_mem, impl_param.prog->get_stream());
+        cldnn::mem_lock<uint8_t, mem_lock_type::read> lock1(begin_mem, impl_param.get_stream());
+        cldnn::mem_lock<uint8_t, mem_lock_type::read> lock2(end_mem, impl_param.get_stream());
+        cldnn::mem_lock<uint8_t, mem_lock_type::read> lock3(strides_mem, impl_param.get_stream());
 
         auto begin_tensor = make_host_tensor(begin_mem->get_layout(), lock1.data());
         auto end_tensor = make_host_tensor(end_mem->get_layout(), lock2.data());
@@ -115,9 +114,10 @@ std::string strided_slice_inst::to_string(strided_slice_node const& node) {
 
     json_composite strided_slice_info;
     strided_slice_info.add("input id", input.id());
-    strided_slice_info.add("begin_param id", node.get_dependency(1).id());
-    strided_slice_info.add("end_param id", node.get_dependency(2).id());
-    strided_slice_info.add("stride_param id", node.get_dependency(3).id());
+    std::vector<std::string> dependencies_info = {"begin_param id", "end_param id", "stride_param id"};
+    for (size_t i = 0; i < node.get_dependencies().size(); ++i) {
+        strided_slice_info.add(dependencies_info[i], node.get_dependency(i).id());
+    }
     strided_slice_info.add("begin", node.get_primitive()->begin);
     strided_slice_info.add("end", node.get_primitive()->end);
     strided_slice_info.add("strides", node.get_primitive()->strides);

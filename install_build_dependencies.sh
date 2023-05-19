@@ -29,6 +29,8 @@ if [ -f /etc/lsb-release ] || [ -f /etc/debian_version ] ; then
         file \
         `# build tools` \
         build-essential \
+        ninja-build \
+        scons \
         ccache \
         "${cmake_packages[@]}" \
         "${x86_64_specific_packages[@]}" \
@@ -48,19 +50,30 @@ if [ -f /etc/lsb-release ] || [ -f /etc/debian_version ] ; then
         `# openvino main dependencies` \
         libtbb-dev \
         libpugixml-dev \
+        `# OpenCL for GPU` \
+        ocl-icd-opencl-dev \
+        opencl-headers \
         `# GPU plugin extensions` \
         libva-dev \
+        `# For TF FE saved models` \
+        libsnappy-dev \
         `# python API` \
         python3-pip \
         python3-venv \
         python3-setuptools \
         libpython3-dev \
+        pybind11-dev \
         libffi-dev \
         `# spell checking for MO sources` \
         python3-enchant \
         `# samples and tools` \
         libgflags-dev \
-        zlib1g-dev
+        zlib1g-dev \
+        wget
+    # TF lite frontend
+    if apt-cache search --names-only '^libflatbuffers-dev'| grep -q libflatbuffers-dev; then
+        apt-get install -y --no-install-recommends libflatbuffers-dev
+    fi
     # git-lfs is not available on debian9
     if apt-cache search --names-only '^git-lfs'| grep -q git-lfs; then
         apt-get install -y --no-install-recommends git-lfs
@@ -78,12 +91,15 @@ if [ -f /etc/lsb-release ] || [ -f /etc/debian_version ] ; then
 elif [ -f /etc/redhat-release ] || grep -q "rhel" /etc/os-release ; then
     # RHEL 8 / CentOS 7
     yum update
-    yum install -y centos-release-scl epel-release
+    yum install -y centos-release-scl
+    yum install -y epel-release
     yum install -y \
         file \
-        `# build tools`
+        `# build tools` \
         cmake3 \
         ccache \
+        ninja-build \
+        scons \
         gcc \
         gcc-c++ \
         make \
@@ -101,14 +117,61 @@ elif [ -f /etc/redhat-release ] || grep -q "rhel" /etc/os-release ; then
         `# main openvino dependencies` \
         tbb-devel \
         pugixml-devel \
-        `# GPU plugin dependency`
-        libva-devel
+        `# GPU plugin dependency` \
+        libva-devel \
+        `# For TF FE saved models` \
+        snappy-devel \
+        `# OpenCL for GPU` \
+        ocl-icd-devel \
+        opencl-headers \
         `# python API` \
         python3-pip \
         python3-devel \
         `# samples and tools` \
         zlib-devel \
         gflags-devel
+elif [ -f /etc/os-release ] && grep -q "SUSE" /etc/os-release ; then
+    zypper refresh
+    zypper install -y \
+        file \
+        `# build tools` \
+        cmake \
+        ccache \
+        ninja \
+        scons \
+        gcc \
+        gcc-c++ \
+        make \
+        `# to determine openvino version via git` \
+        git \
+        git-lfs \
+        `# to build and check pip packages` \
+        patchelf \
+        fdupes \
+        `# to build and check rpm packages` \
+        rpm-build \
+        rpmlint \
+        `# check bash scripts for correctness` \
+        ShellCheck \
+        `# main openvino dependencies` \
+        tbb-devel \
+        pugixml-devel \
+        `# GPU plugin dependency` \
+        libva-devel \
+        `# For TF FE saved models` \
+        snappy-devel \
+        `# OpenCL for GPU` \
+        ocl-icd-devel \
+        opencl-cpp-headers \
+        opencl-headers \
+        `# python API` \
+        python39-pip \
+        python39-setuptools \
+        python39-devel \
+        `# samples and tools` \
+        zlib-devel \
+        gflags-devel-static \
+        nlohmann_json-devel
 elif [ -f /etc/os-release ] && grep -q "raspbian" /etc/os-release; then
     # Raspbian
     apt update
@@ -117,6 +180,8 @@ elif [ -f /etc/os-release ] && grep -q "raspbian" /etc/os-release; then
         `# build tools` \
         build-essential \
         ccache \
+        ninja-build \
+        scons \
         `# to find dependencies` \
         pkg-config \
         `# to deternime product version via git` \
@@ -143,14 +208,31 @@ else
 fi
 
 # cmake 3.20.0 or higher is required to build OpenVINO
-current_cmake_ver=$(cmake --version | sed -ne 's/[^0-9]*\(\([0-9]\.\)\{0,4\}[0-9][^.]\).*/\1/p')
+
+if command -v cmake &> /dev/null; then
+    cmake_command=cmake
+elif command -v cmake3 &> /dev/null; then
+    cmake_command=cmake3
+fi
+
+current_cmake_ver=$($cmake_command --version | sed -ne 's/[^0-9]*\(\([0-9]\.\)\{0,4\}[0-9][^.]\).*/\1/p')
 required_cmake_ver=3.20.0
 if [ ! "$(printf '%s\n' "$required_cmake_ver" "$current_cmake_ver" | sort -V | head -n1)" = "$required_cmake_ver" ]; then
-    installed_cmake_ver=3.23.2
+    installed_cmake_ver=3.24.0
     arch=$(uname -m)
-    apt-get install -y --no-install-recommends wget
-    wget "https://github.com/Kitware/CMake/releases/download/v${installed_cmake_ver}/cmake-${installed_cmake_ver}-linux-${arch}.sh"
-    chmod +x "cmake-${installed_cmake_ver}-linux-${arch}.sh"
-    "./cmake-${installed_cmake_ver}-linux-${arch}.sh" --skip-license --prefix=/usr/local
-    rm -rf "cmake-${installed_cmake_ver}-linux-${arch}.sh"
+
+    if command -v apt-get &> /dev/null; then
+        apt-get install -y --no-install-recommends wget
+    elif command -v yum &> /dev/null; then
+        yum install -y wget
+    elif command -v zypper &> /dev/null; then
+        zypper in -y wget
+    fi
+
+    cmake_install_bin="cmake-${installed_cmake_ver}-linux-${arch}.sh"
+    github_cmake_release="https://github.com/Kitware/CMake/releases/download/v${installed_cmake_ver}/${cmake_install_bin}"
+    wget "${github_cmake_release}" -O "${cmake_install_bin}"
+    chmod +x "${cmake_install_bin}"
+    "./${cmake_install_bin}" --skip-license --prefix=/usr/local
+    rm -rf "${cmake_install_bin}"
 fi

@@ -68,7 +68,31 @@ private:
     const OutputVector& m_inputs;
 };
 
-using CreatorFunction = std::function<ov::OutputVector(const ov::frontend::tensorflow::NodeContext&)>;
+using CreatorFunctionIndexed = std::function<ov::OutputVector(const ov::frontend::tensorflow::NodeContext&)>;
+using CreatorFunctionNamedAndIndexed = std::function<NamedOutputVector(const ov::frontend::tensorflow::NodeContext&)>;
+
+class CreatorFunction {
+public:
+    CreatorFunction() = default;
+    CreatorFunction(CreatorFunctionIndexed _func) : func_indexed(_func) {}
+    CreatorFunction(CreatorFunctionNamedAndIndexed _func) : func_named_and_indexed(_func) {}
+
+    NamedOutputVector operator()(const ov::frontend::tensorflow::NodeContext& node) const {
+        if (func_indexed) {
+            auto outputs = func_indexed(node);
+            return NamedOutputVector(outputs.begin(), outputs.end());
+        } else if (func_named_and_indexed) {
+            return func_named_and_indexed(node);
+        } else {
+            FRONT_END_GENERAL_CHECK(false, "No conversion function exist in this CreatorFunction");
+        }
+    }
+
+private:
+    CreatorFunctionIndexed func_indexed = nullptr;
+    CreatorFunctionNamedAndIndexed func_named_and_indexed = nullptr;
+};
+
 using TranslatorDictionaryType = std::map<std::string, CreatorFunction>;
 
 }  // namespace tensorflow

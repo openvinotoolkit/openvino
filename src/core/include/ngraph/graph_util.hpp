@@ -37,11 +37,15 @@ using ov::op::v0::Result;
 }  // namespace op
 
 inline std::shared_ptr<ngraph::Function> clone_function(const ngraph::Function& func, ngraph::NodeMap& node_map) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     return ov::clone_model(func, node_map);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 inline std::shared_ptr<ngraph::Function> clone_function(const ngraph::Function& func) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     return ov::clone_model(func);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 using ov::compare_constants;
@@ -185,12 +189,6 @@ bool is_used(Node* node);
 NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 NGRAPH_API
 size_t get_user_count(Node* node);
-
-// Return true if a node's user could potentially overwrite
-// the output of this node with in-place kernels
-NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
-NGRAPH_API
-bool possibly_overwritten(Node* node);
 
 NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 NGRAPH_API

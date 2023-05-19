@@ -6,7 +6,7 @@
 
 #include "intel_gpu/runtime/layout.hpp"
 #include "intel_gpu/runtime/memory.hpp"
-#include "kernel_selector_helper.h"
+#include "intel_gpu/graph/kernel_impl_params.hpp"
 
 #include <memory>
 #include <string>

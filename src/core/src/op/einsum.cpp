@@ -186,11 +186,13 @@ void op::v7::Einsum::validate_and_infer_types() {
     for (size_t input_idx = 1; input_idx < num_inputs; ++input_idx) {
         const auto& input_type_i = get_input_element_type(input_idx);
         NODE_VALIDATION_CHECK(this,
-                              input_type_0 == input_type_i,
+                              input_type_0.compatible(input_type_i),
                               "Inputs to Einsum operation must have the same type.");
     }
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto input_shapes = get_node_input_partial_shapes(*this);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape::dynamic()};
 
     shape_infer(this, input_shapes, output_shapes);

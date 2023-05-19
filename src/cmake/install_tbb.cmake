@@ -82,7 +82,7 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
        ( (DEFINED TBBROOT AND TBBROOT MATCHES ${TEMP}) OR
          (DEFINED TBBROOT OR DEFINED TBB_DIR OR DEFINED ENV{TBBROOT} OR
           DEFINED ENV{TBB_DIR}) OR ENABLE_SYSTEM_TBB ) )
-    ie_cpack_add_component(tbb HIDDEN)
+    ov_cpack_add_component(tbb HIDDEN)
     list(APPEND core_components tbb)
 
     if(TBBROOT MATCHES ${TEMP})
@@ -96,7 +96,7 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
         set(_ov_system_tbb_is_obsolete ON)
     endif()
 
-    if(CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW)$" AND
+    if(CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW|CONAN)$" AND
         NOT ENABLE_SYSTEM_TBB AND
         NOT _ov_system_tbb_is_obsolete)
         message(FATAL_ERROR "Debian | RPM | Conda-forge | Brew packages can be built only with system TBB. Use -DENABLE_SYSTEM_TBB=ON")
@@ -192,7 +192,8 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
         else()
             install(DIRECTORY "${TBBROOT}/lib"
                     DESTINATION "${IE_TBB_DIR_INSTALL}"
-                    COMPONENT tbb)
+                    COMPONENT tbb
+                    PATTERN "cmake" EXCLUDE)
         endif()
 
         install(FILES "${TBBROOT}/LICENSE"
@@ -201,15 +202,24 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
 
         # install development files
 
-        ie_cpack_add_component(tbb_dev
+        ov_cpack_add_component(tbb_dev
                                HIDDEN
                                DEPENDS tbb)
         list(APPEND core_dev_components tbb_dev)
 
-        install(FILES "${TBBROOT}/cmake/TBBConfig.cmake"
-                      "${TBBROOT}/cmake/TBBConfigVersion.cmake"
-                DESTINATION "${IE_TBB_DIR_INSTALL}/cmake"
-                COMPONENT tbb_dev)
+        if(EXISTS "${TBBROOT}/lib/cmake")
+            # oneTBB case
+            install(DIRECTORY "${TBBROOT}/lib/cmake"
+                    DESTINATION "${IE_TBB_DIR_INSTALL}/lib"
+                    COMPONENT tbb_dev)
+        else()
+            # tbb2020 case
+            install(FILES "${TBBROOT}/cmake/TBBConfig.cmake"
+                          "${TBBROOT}/cmake/TBBConfigVersion.cmake"
+                    DESTINATION "${IE_TBB_DIR_INSTALL}/cmake"
+                    COMPONENT tbb_dev)
+        endif()
+
         install(DIRECTORY "${TBBROOT}/include"
                 DESTINATION "${IE_TBB_DIR_INSTALL}"
                 COMPONENT tbb_dev)
@@ -218,7 +228,8 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
             # .lib files are needed only for Windows
             install(DIRECTORY "${TBBROOT}/lib"
                     DESTINATION "${IE_TBB_DIR_INSTALL}"
-                    COMPONENT tbb_dev)
+                    COMPONENT tbb_dev
+                    PATTERN "cmake" EXCLUDE)
         endif()
 
         set(pkg_config_tbb_lib_dir "${IE_TBB_DIR_INSTALL}/lib")

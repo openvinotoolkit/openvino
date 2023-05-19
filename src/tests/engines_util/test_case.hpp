@@ -25,7 +25,7 @@ inline std::string backend_name_to_device(const std::string& backend_name) {
         return "CPU";
     if (backend_name == "IE_GPU")
         return "GPU";
-    throw ngraph_error("Unsupported backend name");
+    OPENVINO_THROW("Unsupported backend name");
 }
 
 std::shared_ptr<Function> function_from_ir(const std::string& xml_path, const std::string& bin_path = {});
@@ -178,8 +178,9 @@ public:
         m_request.infer();
         const auto res = compare_results(tolerance_bits);
 
-        if (res != testing::AssertionSuccess()) {
-            std::cout << res.message() << std::endl;
+        if (res.first != testing::AssertionSuccess()) {
+            std::cout << "Results comparison failed for output: " << res.second << std::endl;
+            std::cout << res.first.message() << std::endl;
         }
 
         m_input_index = 0;
@@ -187,7 +188,7 @@ public:
 
         m_expected_outputs.clear();
 
-        EXPECT_TRUE(res);
+        EXPECT_TRUE(res.first);
     }
 
     void run_with_tolerance_as_fp(const float tolerance = 1.0e-5f) {
@@ -213,7 +214,7 @@ private:
     std::vector<ov::Tensor> m_expected_outputs;
     size_t m_input_index = 0;
     size_t m_output_index = 0;
-    testing::AssertionResult compare_results(size_t tolerance_bits);
+    std::pair<testing::AssertionResult, size_t> compare_results(size_t tolerance_bits);
     testing::AssertionResult compare_results_with_tolerance_as_fp(float tolerance_bits);
 };
 }  // namespace test

@@ -7,11 +7,11 @@ import logging as log
 import os
 import platform
 import sys
+import traceback
 from collections import OrderedDict
 from copy import deepcopy
+from distutils.version import LooseVersion
 from pathlib import Path
-
-import numpy as np
 
 try:
     import openvino_telemetry as tm
@@ -25,6 +25,7 @@ from openvino.tools.mo.moc_frontend.pipeline import moc_pipeline
 from openvino.tools.mo.moc_frontend.serialize import moc_emit_ir
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
+from openvino.tools.mo.middle.passes.convert_data_type import destination_type_to_np_data_type
 from openvino.tools.mo.pipeline.common import prepare_emit_ir
 from openvino.tools.mo.pipeline.unified import unified_pipeline
 from openvino.tools.mo.utils import import_extensions
@@ -32,25 +33,29 @@ from openvino.tools.mo.utils.cli_parser import check_available_transforms, \
     get_advanced_cli_options, get_available_front_ends, get_caffe_cli_options, \
     get_common_cli_options, get_freeze_placeholder_values, get_kaldi_cli_options, get_layout_values, \
     get_mean_scale_dictionary, get_mxnet_cli_options, get_onnx_cli_options, \
-    get_placeholder_shapes, get_tf_cli_options, get_tuple_values, parse_transform, parse_tuple_pairs, \
-    get_all_cli_parser, mo_convert_params, get_model_name_from_args, split_shapes, depersonalize
+    get_placeholder_shapes, get_tf_cli_options, parse_transform, parse_tuple_pairs, \
+    get_model_name_from_args, depersonalize, get_mo_convert_params, input_to_input_cut_info, \
+    input_shape_to_input_cut_info, freeze_placeholder_to_input_cut_info
 
-from openvino.tools.mo.utils.error import Error
-from openvino.tools.mo.utils.find_ie_version import find_ie_version
+from openvino.tools.mo.utils.error import Error, FrameworkError
+from openvino.tools.mo.utils.get_ov_update_message import get_ov_update_message, get_ov_api20_message, \
+    get_tf_fe_message, get_try_legacy_fe_message, get_compression_message
+from openvino.tools.mo.utils.model_analysis import AnalysisResults
+from openvino.tools.mo.utils.version import VersionChecker
 from openvino.tools.mo.utils.guess_framework import deduce_legacy_frontend_by_namespace
 from openvino.tools.mo.utils.logger import init_logger, progress_printer
 from openvino.tools.mo.utils.utils import refer_to_faq_msg
-from openvino.tools.mo.utils.telemetry_utils import send_params_info, send_framework_info
-from openvino.tools.mo.utils.version import get_simplified_mo_version, get_simplified_ie_version, get_version
-from openvino.tools.mo.utils.versions_checker import check_requirements  # pylint: disable=no-name-in-module
-from openvino.tools.mo.utils.telemetry_utils import get_tid
-from openvino.tools.mo.front.common.partial_infer.utils import mo_array
+from openvino.tools.mo.utils.telemetry_utils import send_params_info, send_framework_info, send_conversion_result, \
+    get_tid
+from openvino.tools.mo.utils.versions_checker import get_environment_setup  # pylint: disable=no-name-in-module
 from openvino.tools.mo.moc_frontend.check_config import legacy_extensions_used
+from openvino.tools.mo.moc_frontend.pytorch_frontend_utils import get_pytorch_decoder
+from openvino.tools.mo.moc_frontend.shape_utils import parse_input_shapes, get_static_shape
 
 # pylint: disable=no-name-in-module,import-error
 from openvino.frontend import FrontEndManager, OpConversionFailure, ProgressReporterExtension, TelemetryExtension
-from openvino.runtime import PartialShape, Dimension
 from openvino.runtime import get_version as get_rt_version
+from openvino.runtime import Type, PartialShape
 
 
 def load_extensions(argv: argparse.Namespace, is_tf: bool, is_caffe: bool, is_mxnet: bool, is_kaldi: bool,
@@ -133,6 +138,8 @@ def print_argv(argv: argparse.Namespace, is_caffe: bool, is_tf: bool, is_mxnet: 
 def arguments_post_parsing(argv: argparse.Namespace):
     use_legacy_frontend = argv.use_legacy_frontend
     use_new_frontend = argv.use_new_frontend
+    if argv.extensions is None:
+        argv.extensions = [import_extensions.default_path()]
 
     if use_new_frontend and use_legacy_frontend:
         raise Error('Options --use_new_frontend and --use_legacy_frontend must not be used simultaneously '
@@ -183,7 +190,6 @@ def arguments_post_parsing(argv: argparse.Namespace):
     elif (is_kaldi or is_onnx) and not argv.input_model:
         raise Error('Path to input model is required: use --input_model.')
 
-    log.debug(str(argv))
     log.debug("Model Optimizer started")
 
     log.debug('Output model name would be {}{{.xml, .bin}}'.format(argv.model_name))
@@ -203,43 +209,12 @@ def arguments_post_parsing(argv: argparse.Namespace):
     if not argv.silent:
         print_argv(argv, is_caffe, is_tf, is_mxnet, is_kaldi, is_onnx, argv.model_name)
 
-    # This try-except is additional reinsurance that the IE
-    # dependency search does not break the MO pipeline
-    def raise_ie_not_found():
-        raise Error("Could not find the Inference Engine or nGraph Python API.\n"
-                    "Consider building the Inference Engine and nGraph Python APIs from sources or "
-                    "try to install OpenVINO (TM) Toolkit using pip \npip install openvino")
+    VersionChecker().check_runtime_dependencies(argv.silent)
 
-    try:
-        if not find_ie_version(silent=argv.silent):
-            raise_ie_not_found()
-    except Exception as e:
-        log.error(e)
-        raise_ie_not_found()
-
-    if ('data_type' in argv and argv.data_type in ['FP16', 'half']) or \
-            ('compress_to_fp16' in argv and argv.compress_to_fp16 is True):
-        argv.data_type = 'FP32'
-        argv.compress_fp16 = True
-    else:
-        argv.compress_fp16 = False
+    argv.data_type = 'FP32'  # if compression was enabled will be restored back to 'FP16' after apply_offline_transformations
 
     # This is just to check that transform key is valid and transformations are available
     check_available_transforms(parse_transform(argv.transform))
-
-    # For C++ frontends there are no specific Python installation requirements, check only generic ones
-    if moc_front_end:
-        ret_code = check_requirements(silent=argv.silent)
-    else:
-        ret_code = check_requirements(framework=argv.framework, silent=argv.silent)
-    if ret_code:
-        raise Error('check_requirements exited with return code {}'.format(ret_code))
-
-    if hasattr(argv, 'tensorflow_use_custom_operations_config') and \
-            argv.tensorflow_use_custom_operations_config is not None:
-        # update command-line arguments even for new TensorFlow Frontend
-        # because it should fallback to the Legacy Frontend in this case
-        argv.transformations_config = argv.tensorflow_use_custom_operations_config
 
     if argv.scale and argv.scale_values:
         raise Error(
@@ -259,17 +234,22 @@ def arguments_post_parsing(argv: argparse.Namespace):
                 raise Error('Incorrect saved model tag was provided. Specify --saved_model_tags with no spaces in it')
             argv.saved_model_tags = argv.saved_model_tags.split(',')
 
+    if hasattr(argv, 'is_python_api_used') and argv.is_python_api_used:
+        python_api_params_parsing(argv)
+    else:
+        argv.inputs_list, argv.placeholder_shapes, argv.placeholder_data_types = get_placeholder_shapes(
+            argv.input, argv.input_shape, argv.batch)
+        argv.freeze_placeholder_with_value, argv.input = get_freeze_placeholder_values(
+            argv.input,
+            argv.freeze_placeholder_with_value)
+        argv.unnamed_freeze_placeholder_with_value = {}
+
     argv.output = argv.output.split(',') if argv.output else None
-
-    inputs_list, argv.placeholder_shapes, argv.placeholder_data_types = get_placeholder_shapes(
-        argv.input, argv.input_shape, argv.batch)
-    argv.inputs_list = inputs_list
-
+    argv.layout_values = get_layout_values(argv.layout, argv.source_layout, argv.target_layout)
     mean_values = parse_tuple_pairs(argv.mean_values)
     scale_values = parse_tuple_pairs(argv.scale_values)
     mean_scale = get_mean_scale_dictionary(mean_values, scale_values, argv.input)
     argv.mean_scale_values = mean_scale
-    argv.layout_values = get_layout_values(argv.layout, argv.source_layout, argv.target_layout)
 
     if not os.path.exists(argv.output_dir):
         try:
@@ -284,9 +264,6 @@ def arguments_post_parsing(argv: argparse.Namespace):
                         refer_to_faq_msg(22), argv.output_dir)
 
     log.debug("Placeholder shapes : {}".format(argv.placeholder_shapes))
-
-    argv.freeze_placeholder_with_value, argv.input = get_freeze_placeholder_values(argv.input,
-                                                                                   argv.freeze_placeholder_with_value)
 
     load_extensions(argv, is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx)
 
@@ -323,31 +300,30 @@ def update_fallback_with_conversion_error(use_new_frontend: bool, is_tf: bool, e
         return False
 
     # for TensorFlow FE we have a set of operations that should lead to the fallback to the legacy
-    conversion_error_re = r"^(\[TensorFlow\ Frontend\]\ Internal\ error\:\ No\ translator\ found\ for\ )(\w+)(\ node\.)$"
+    conversion_error_re = r"^(\[TensorFlow\ Frontend\]\ Internal\ error\,\ no\ translator\ found\ for\ operation\(s\)\:\ )((\w+)(\,\ \w+)*)$"
     conversion_error_match = re.findall(conversion_error_re, ex_msg, re.MULTILINE)
-    fallback_operations = [
+    all_fallback_operations = [
         # corresponds to TF1 While operation
         "TensorArrayScatterV3", "TensorArrayV3", "TensorArraySizeV3", "TensorArrayGatherV3",
         "LoopCond", "Enter", "NextIteration", "Exit",
         # corresponds to TF1 If and TF1 While operations
         "Switch", "Merge",
-        # corresponds to TF2 While operations
-        "TensorListLength", "TensorListReserve", "TensorListFromTensor",
-        "TensorListSetItem", "TensorListStack",
         # corresponds to operations with complex tensors
         "FFT", "FFT2D", "FFT3D", "IFFT", "IFFT2D", "IFFT3D",
         "RFFT", "RFFT2D", "RFFT3D", "IRFFT", "IRFFT2D", "IRFFT3D",
         "Complex", "ComplexAbs", "Real", "Imag",
-        # corresponds to automatic pruning
-        "FIFOQueueV2", "QueueDequeueUpToV2", "QueueDequeueManyV2",
-        "QueueDequeue", "QueueDequeueV2", "IteratorGetNext",
-        "LookupTableInsert", "LookupTableInsertV2"
     ]
-    if len(conversion_error_match) < 1 or len(conversion_error_match[0]) != 3 or \
-            conversion_error_match[0][1] not in fallback_operations:
+    if len(conversion_error_match) < 1 or len(conversion_error_match[0]) != 4:
+        # no match for the fallback by unsupported operation
         return False
 
-    fallback_reasons.append("Unsupported operation: " + conversion_error_match[0][1])
+    unsupported_operations = conversion_error_match[0][1].replace(" ", "").split(",")
+    fallback_operations = [operation for operation in unsupported_operations if operation in all_fallback_operations]
+
+    if len(fallback_operations) == 0:
+        return False
+
+    fallback_reasons.append("Fallback to the legacy TF FE due to operation(s): " + ', '.join(fallback_operations))
     return True
 
 
@@ -398,12 +374,6 @@ def prepare_ir(argv: argparse.Namespace):
     # TODO: remove this workaround once new TensorFlow frontend supports non-frozen formats: checkpoint, MetaGraph, and SavedModel
     # Now it converts all TensorFlow formats to the frozen .pb format in case new TensorFlow frontend
     is_tf, _, _, _, _ = deduce_legacy_frontend_by_namespace(argv)
-    path_to_aux_pb = None
-    orig_argv_values = {"input_model": argv.input_model, "model_name": argv.model_name}
-    if not argv.use_legacy_frontend and is_tf:
-        from openvino.tools.mo.front.tf.loader import convert_to_pb
-        path_to_aux_pb = convert_to_pb(argv)
-
     argv = arguments_post_parsing(argv)
     t = tm.Telemetry()
     graph = None
@@ -413,6 +383,11 @@ def prepare_ir(argv: argparse.Namespace):
     if moc_front_end:
         fallback_reasons = check_fallback(argv)
         if len(fallback_reasons) == 0:
+            path_to_aux_pb = None
+            orig_argv_values = {"input_model": argv.input_model, "model_name": argv.model_name}
+            if not argv.use_legacy_frontend and is_tf:
+                from openvino.tools.mo.front.tf.loader import convert_to_pb
+                path_to_aux_pb = convert_to_pb(argv)
             try:
                 t.send_event("mo", "conversion_method", moc_front_end.get_name() + "_frontend")
                 moc_front_end.add_extension(TelemetryExtension("mo", t.send_event, t.send_error, t.send_stack_trace))
@@ -453,6 +428,8 @@ def prepare_ir(argv: argparse.Namespace):
                     f"The detailed reason why fallback was executed: not supported {reasons_message} were used. "
                     "You can specify --use_new_frontend flag to force using the Frontend MO path to avoid additional checks. " +
                     refer_to_faq_msg(105))
+        assert not hasattr(argv, 'is_fallback'), '`is_fallback` argument must not exist.'
+        argv.is_fallback = True
 
     t.send_event("mo", "conversion_method", "mo_legacy")
     graph = unified_pipeline(argv)
@@ -516,18 +493,17 @@ def emit_ir(graph: Graph, argv: argparse.Namespace, non_default_params: dict):
         try:
             from openvino.tools.mo.back.offline_transformations import apply_offline_transformations
             func = apply_offline_transformations(func, argv)
-            if "compress_fp16" in argv and argv.compress_fp16:
+            if "compress_to_fp16" in argv and argv.compress_to_fp16:
                 # restore data_type cmd parameter
                 argv.data_type = 'FP16'
             return_code = 0
         except Exception as e:
             return_code = "failed"
             log.error(e)
-
         message = str(dict({
             "platform": platform.system(),
-            "mo_version": get_simplified_mo_version(),
-            "ie_version": get_simplified_ie_version(env=os.environ),
+            "mo_version": VersionChecker().get_mo_simplified_version(),
+            "ie_version": VersionChecker().get_ie_simplified_version(),
             "python_version": sys.version,
             "return_code": return_code
         }))
@@ -540,77 +516,25 @@ def emit_ir(graph: Graph, argv: argparse.Namespace, non_default_params: dict):
     return func
 
 
-def get_static_shape(shape: [PartialShape, list, tuple], dynamic_value=None):
-    # Current function returns list with static dimensions with following logic.
-    # For dynamic dimensions return lower boundaries if they are set, otherwise
-    # return upper boundaries if they are set. If dimension is fully dynamic then raise error.
-    shape_list = []
-    for idx, dim in enumerate(shape):
-        if isinstance(dim, int):
-            if dim == -1:
-                shape_list.append(dynamic_value)
-                continue
-            shape_list.append(dim)
-        elif isinstance(dim, np.int64):
-            if dim == np.int64(-1):
-                shape_list.append(dynamic_value)
-                continue
-            shape_list.append(dim)
-        elif isinstance(dim, tuple):
-            # tuple where (min_length, max_length), the format which uses MO cli parser
-            assert len(dim) == 2, "Unknown dimension type {}".format(dim)
-            if dim[0] > 0:
-                shape_list.append(dim[0])
-            elif dim[1] < np.iinfo(np.int64).max:
-                shape_list.append(dim[1])
-            else:
-                shape_list.append(dynamic_value)
-                continue
-        elif isinstance(dim, Dimension):
-            if dim.is_static or dim.get_min_length() > 0:
-                shape_list.append(dim.get_min_length())
-            elif dim.get_max_length() != -1:
-                shape_list.append(dim.get_max_length())
-            else:
-                shape_list.append(dynamic_value)
-                continue
-        else:
-            raise Error("Unknown dimension type {}".format(dim))
-
-    return tuple(shape_list)
-
-
-def get_dynamic_dims(shape: [PartialShape, list, tuple]):
-    dynamic_dims = []
-    for idx, dim in enumerate(shape):
-        if isinstance(dim, int):
-            if dim == -1:
-                dynamic_dims.append(idx)
-        if isinstance(dim, np.int64):
-            if dim == np.int64(-1):
-                dynamic_dims.append(idx)
-        elif isinstance(dim, tuple):
-            dynamic_dims.append(idx)
-        elif isinstance(dim, Dimension):
-            if dim.get_min_length() == 0 and dim.get_max_length() == -1:
-                dynamic_dims.append(idx)
-
-    return dynamic_dims
-
-
 def check_model_object(argv):
     model = argv['input_model']
     if 'tensorflow' in sys.modules:
         import tensorflow as tf
-        from tensorflow.python.training.tracking.base import Trackable
+        env_setup = get_environment_setup("tf")
 
         if isinstance(model, tf.compat.v1.GraphDef):
+            return "tf"
+        if isinstance(model, tf.compat.v1.Graph):
+            argv['input_model'] = model.as_graph_def()
             return "tf"
         if isinstance(model, tf.compat.v1.Session):
             argv['input_model'] = model.graph_def
             return "tf"
-        if isinstance(model, tf.types.experimental.ConcreteFunction):
+        if env_setup["tensorflow"] >= LooseVersion("2.6.0") and isinstance(model, tf.types.experimental.ConcreteFunction):
             argv['input_model'] = model.graph.as_graph_def()
+            return "tf"
+        if env_setup["tensorflow"] >= LooseVersion("2.6.0") and isinstance(model, tf.types.experimental.GenericFunction):
+            argv['input_model'] = model
             return "tf"
         if isinstance(model, tf.keras.Model):
             return "tf"
@@ -637,12 +561,17 @@ def check_model_object(argv):
             argv['input_model'] = tf.keras.Model(inputs, outputs)
             argv['input_shape'] = None
             return "tf"
-        if isinstance(model, Trackable):
-            return "tf"
     if 'torch' in sys.modules:
         import torch
-        if isinstance(model, torch.nn.Module) or isinstance(model, torch.jit.ScriptFunction):
+        if isinstance(model, (torch.nn.Module, torch.jit.ScriptFunction)):
             return "pytorch"
+        try:
+            from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+            
+            if isinstance(model, TorchScriptPythonDecoder):
+                return "pytorch"
+        except Exception as e:
+            pass
 
     import io
     if isinstance(model, io.BytesIO):
@@ -651,125 +580,11 @@ def check_model_object(argv):
     raise Error('Unknown model type: {}'.format(type(model)))
 
 
-def get_onnx_temp_filename(output_dir):
-    output_dir = output_dir if output_dir is not None else os.getcwd()
-    return os.path.normpath(os.path.join(output_dir, "model.onnx"))
-
-
-def to_torch_tensor(tensor):
-    import torch
-    from openvino.runtime import Tensor
-    if isinstance(tensor, torch.Tensor):
-        return tensor
-    if isinstance(tensor, np.ndarray):
-        return torch.tensor(tensor)
-    if isinstance(tensor, np.ndarray):
-        return torch.tensor(tensor)
-    if isinstance(tensor, Tensor):
-        return torch.tensor(tensor.data)
-    else:
-        raise Error("Unexpected type of example_input. Supported types torch.Tensor, np.array or ov.Tensor. "
-                    "Got {}".format(type(tensor)))
-
-
-def convert_pytorch_to_onnx(model, input_shape, opset_version, example_inputs, output_dir):
-    import io
-    import torch
-
-    input_names = None
-    if example_inputs is not None:
-        inputs = example_inputs
-        if isinstance(inputs, list):
-            inputs = [to_torch_tensor(x) for x in inputs]
-            if len(inputs) == 1:
-                inputs = torch.unsqueeze(inputs[0], 0)
-            else:
-                inputs = inputs
-        elif isinstance(inputs, tuple):
-            inputs = [to_torch_tensor(x) for x in inputs]
-            inputs = tuple(inputs)
-        elif isinstance(inputs, dict):
-            for name, tensor in inputs.items():
-                assert isinstance(name, str), "Expected dictionary where keys are input names of string type and" \
-                                              " values are tensors. Got key of type {}".format(type(name))
-                inputs[name] = to_torch_tensor(tensor)
-        else:
-            inputs = to_torch_tensor(inputs)
-    elif input_shape is not None:
-        inputs = []
-        for shape_idx, shape in enumerate(input_shape):
-            static_shape = get_static_shape(shape, dynamic_value=1)
-            inputs.append(torch.zeros(static_shape))
-        inputs = tuple(inputs)
-    else:
-        raise Error("Please provide input_shape or example_input for converting PyTorch model.")
-
-    dynamic_dims_dict = {}
-    if input_shape is not None and input_names is None:
-        input_names = ["input_{}".format(idx) for idx in range(len(input_shape))]
-        for shape_idx, shape in enumerate(input_shape):
-            dynamic_dims = get_dynamic_dims(shape)
-            if len(dynamic_dims) > 0:
-                dynamic_dims_dict[input_names[shape_idx]] = dynamic_dims
-    additional_params = {}
-    if len(dynamic_dims_dict) > 0:
-        additional_params.update({'dynamic_axes': dynamic_dims_dict})
-    if input_names is not None and len(input_names) > 0:
-        additional_params.update({'input_names': input_names})
-
-    if os.environ.get('SAVE_TO_BYTES_IO_ONNX_MODEL'):
-        model_onnx = io.BytesIO()
-    else:
-        model_onnx = get_onnx_temp_filename(output_dir)
-    if opset_version is not None:
-        additional_params.update({'opset_version': opset_version})
-
-    torch.onnx.export(model,
-                      inputs,
-                      model_onnx,
-                      **additional_params)
-    return model_onnx
-
-
-def parse_input_shapes(argv):
-    input_shapes = None
-    if 'input_shape' in argv and argv['input_shape'] is not None:
-        shapes = argv['input_shape']
-        if isinstance(shapes, str):
-            shapes = ["[{}]".format(x) for x in split_shapes(shapes)]
-        if isinstance(shapes, list) or isinstance(shapes, tuple):
-            input_shapes = []
-            is_single_shape = False
-            for shape in shapes:
-                if isinstance(shape, str):
-                    _, shape_tuple, _ = get_placeholder_shapes(argv_input=None, argv_input_shape=shape)
-                    input_shapes.append(shape_tuple)
-                    if is_single_shape:
-                        raise Error("Incorrect format of shape.")
-                elif isinstance(shape, int) or isinstance(shape, np.int64) or isinstance(shape, Dimension):
-                    is_single_shape = True
-                    input_shapes.append(shape)
-                else:
-                    input_shapes.append(shape)
-            if is_single_shape:
-                return [input_shapes]
-            else:
-                return input_shapes
-        elif isinstance(shapes, PartialShape):
-            return [shapes]
-        else:
-            try:
-                import torch
-                if isinstance(shapes, torch.Size):
-                    return [shapes]
-            except ImportError:
-                raise Error("Unknown type of input shape {}.".format(type(shapes)))
-
-    return input_shapes
-
-
 def driver(argv: argparse.Namespace, non_default_params: dict):
     init_logger(argv.log_level.upper(), argv.silent)
+
+    # Log dictionary with non-default cli parameters where complex classes are excluded.
+    log.debug(str(non_default_params))
 
     start_time = datetime.datetime.now()
 
@@ -800,36 +615,53 @@ def driver(argv: argparse.Namespace, non_default_params: dict):
 
 
 def args_dict_to_list(cli_parser, **kwargs):
+    # This method is needed to prepare args from convert_model() for args_parse().
+    # The method will not be needed when cli_parser checks are moved from cli_parser to a separate pass.
+    import inspect
+    from openvino.tools.mo import convert_model
+    signature = inspect.signature(convert_model)
     result = []
     for key, value in kwargs.items():
-        if value is not None and cli_parser.get_default(key) != value:
-            # skip parser checking for non str objects
-            if not isinstance(value, str):
-                continue
-            result.append('--{}'.format(key))
-            if not isinstance(value, bool):
-                result.append(value)
+        if value is None:
+            continue
+        if key in signature.parameters and signature.parameters[key].default == value:
+            continue
+        if cli_parser.get_default(key) == value:
+            continue
+        # skip parser checking for non str objects
+        if not isinstance(value, (str, bool)):
+            continue
+        result.append('--{}'.format(key))
+        if not isinstance(value, bool):
+            result.append(value)
 
     return result
 
 
 def get_non_default_params(argv, cli_parser):
     import numbers
+    import inspect
+    from openvino.tools.mo import convert_model
+
+    signature = inspect.signature(convert_model)
     # make dictionary with parameters which have non-default values to be serialized in IR in rt_info
     non_default_params = {}
     for arg, arg_value in vars(argv).items():
-        if arg_value != cli_parser.get_default(arg):
-            value = depersonalize(arg_value, arg)
-            # Skip complex classes in params to prevent
-            # serializing it to rt_info
-            if isinstance(value, (str, bool, numbers.Number)):
-                non_default_params[arg] = value
+        if arg in signature.parameters and arg_value == signature.parameters[arg].default:
+            continue
+        if arg_value == cli_parser.get_default(arg):
+            continue
+        value = depersonalize(arg_value, arg)
+        # Skip complex classes in params to prevent
+        # serializing it to rt_info
+        if isinstance(value, (str, bool, numbers.Number)):
+            non_default_params[arg] = value
     return non_default_params
 
 
 def params_to_string(**kwargs):
     all_params = {}
-    for key, value in mo_convert_params.items():
+    for key, value in get_mo_convert_params().items():
         all_params.update(value)
 
     for key, value in kwargs.items():
@@ -841,7 +673,7 @@ def params_to_string(**kwargs):
 
 
 def add_line_breaks(text: str, char_num: int, line_break: str):
-    words = text.split(" ")
+    words = text.replace('\n', "\n ").split(" ")
     cnt = 0
     for i, w in enumerate(words):
         cnt += len(w)
@@ -856,26 +688,12 @@ def add_line_breaks(text: str, char_num: int, line_break: str):
 
 
 def show_mo_convert_help():
+    mo_convert_params = get_mo_convert_params()
     for group_name, group in mo_convert_params.items():
-        if group_name == "optional":
-            print("optional arguments:")
-        elif group_name == "fw_agnostic":
-            print("Framework-agnostic parameters:")
-        elif group_name == "tf":
-            print("TensorFlow*-specific parameters:")
-        elif group_name == "caffe":
-            print("Caffe*-specific parameters:")
-        elif group_name == "mxnet":
-            print("Mxnet-specific parameters:")
-        elif group_name == "kaldi":
-            print("Kaldi-specific parameters:")
-        elif group_name == "pytorch":
-            print("Pytorch-specific parameters:")
-        else:
-            raise Error("Unknown parameters group {}.".format(group_name))
+        print(group_name)
         for param_name in group:
             param_data = group[param_name]
-            text = param_data.description.format(param_data.possible_types_python_api)
+            text = param_data.description.replace("    ", '')
             text = add_line_breaks(text, 56, "\n\t\t\t")
             print("  --{} {}".format(param_name, text))
         print()
@@ -893,6 +711,91 @@ def input_model_is_object(argv):
     return True
 
 
+def python_api_params_parsing(argv: argparse.Namespace):
+    """
+    Parses params passed to convert_model and wraps resulting values into dictionaries or lists.
+    After working of this method following values are set in argv:
+
+    argv.input, argv.inputs_list - list of input names. Both values are used in some parts of MO.
+    Could be good to refactor it and use only one of these values.
+
+    argv.placeholder_shapes - dictionary where key is node name, value is PartialShape,
+    or list of PartialShape if node names were not set.
+
+    argv.placeholder_data_types - dictionary where key is node name, value is node np.type,
+    or list of np.types if node names were not set.
+
+    argv.freeze_placeholder_with_value - dictionary where key is node name, value is np.ndarray
+
+    argv.unnamed_freeze_placeholder_with_value - list with np.ndarray
+
+    :param argv: MO arguments
+    """
+    # Parse input to list of InputCutInfo
+    inputs = input_to_input_cut_info(argv.input)
+
+    # Make list of input names
+    input_names_list = []
+    for inp in inputs:
+        if inp.name is not None:
+            input_names_list.append(inp.name)
+    if len(input_names_list) > 0:
+        assert len(input_names_list) == len(inputs), "--input parameter has unnamed inputs and named inputs. " \
+                                                     "Please either set names for all inputs, " \
+                                                     "or do not set names for all inputs."
+    argv.inputs_list = input_names_list
+    argv.input = ','.join(input_names_list)
+
+    # Parse input_shape param and update InputCutInfo list
+    input_shape_to_input_cut_info(argv.input_shape, inputs)
+
+    # Parse freeze_placeholder_with_value.
+    # values for freezing can be set both by named and unnamed approach if
+    # 'input' was used without names and 'freeze_placeholder_with_value' was used with names.
+    # So named and unnamed values are stored separately.
+    argv.freeze_placeholder_with_value, argv.unnamed_freeze_placeholder_with_value = \
+        freeze_placeholder_to_input_cut_info(argv.freeze_placeholder_with_value, inputs)
+
+    if len(input_names_list) > 0:
+        # Named inputs case
+        shape_dict = {}
+        data_type_dict = {}
+        for inp in inputs:
+            if inp.shape is not None:
+                # Wrap shape to PartialShape for uniformity of stored values
+                shape_dict[inp.name] = PartialShape(inp.shape)
+            else:
+                shape_dict[inp.name] = None
+            if inp.type is not None:
+                # Convert type to numpy type for uniformity of stored values
+                if isinstance(inp.type, str):
+                    data_type_dict[inp.name] = destination_type_to_np_data_type(inp.type)
+                elif isinstance(inp.type, Type):
+                    data_type_dict[inp.name] = inp.type.to_dtype().type
+                else:
+                    data_type_dict[inp.name] = inp.type
+        argv.placeholder_shapes = shape_dict if shape_dict else None
+        argv.placeholder_data_types = data_type_dict if data_type_dict else {}
+    else:
+        # Unnamed inputs case
+        shape_list = []
+        data_type_list = []
+        for inp in inputs:
+            if inp.shape is not None:
+                # Wrap shape to PartialShape for uniformity of stored values
+                shape_list.append(PartialShape(inp.shape))
+            if inp.type is not None:
+                # Convert type to numpy type for uniformity of stored values
+                if isinstance(inp.type, str):
+                    data_type_list.append(destination_type_to_np_data_type(inp.type))
+                elif isinstance(inp.type, Type):
+                    data_type_list.append(inp.type.to_dtype().type)
+                else:
+                    data_type_list.append(inp.type)
+        argv.placeholder_shapes = shape_list if shape_list else None
+        argv.placeholder_data_types = data_type_list if data_type_list else {}
+
+
 def pack_params_to_args_namespace(args: dict, cli_parser: argparse.ArgumentParser):
     if len(args) > 0:
         args_string = params_to_string(**args)
@@ -900,7 +803,7 @@ def pack_params_to_args_namespace(args: dict, cli_parser: argparse.ArgumentParse
 
         # get list of all available params for convert_model()
         all_params = {}
-        for key, value in mo_convert_params.items():
+        for key, value in get_mo_convert_params().items():
             all_params.update(value)
 
         # check that there are no unknown params provided
@@ -910,70 +813,82 @@ def pack_params_to_args_namespace(args: dict, cli_parser: argparse.ArgumentParse
 
             # Non string params like input_model or extensions are ignored by parse_args()
             # so we need to set them in argv separately
-            if value is not None and getattr(argv, key) != value:
+            if value is not None and getattr(argv, key, None) != value:
                 setattr(argv, key, value)
     else:
         argv = cli_parser.parse_args()
     return argv
 
 
-def remove_tmp_onnx_model(out_dir):
-    if not os.environ.get('SAVE_TO_BYTES_IO_ONNX_MODEL'):
-        tmp_onnx_model = get_onnx_temp_filename(out_dir)
+def update_args_for_saved_model_dir(args: dict):
+    """
+    If directory is set in 'input_model' argument, the directory is considered as TF saved model.
+    In this case this method updates args and moves saved model directory to 'saved_model_dir' param.
+    :param args: dictionary with arguments from user
+    """
+    if 'saved_model_dir' in args and args['saved_model_dir'] is not None and \
+            'input_model' in args and args['input_model'] is not None:
+        raise Error("Both --input_model and --saved_model_dir are defined. "
+                    "Please specify either input_model or saved_model_dir directory.")
+    
+    if 'input_model' in args and isinstance(args['input_model'], (str, Path)) and os.path.isdir(args['input_model']):
+        args['saved_model_dir'] = args['input_model']
+        args['input_model'] = None
 
-        if os.path.exists(tmp_onnx_model):
-            os.remove(tmp_onnx_model)
+
+def silent_is_false(argv: argparse.Namespace):
+    return argv is not None and hasattr(argv, 'silent') and argv.silent is False
 
 
-def _convert(cli_parser: argparse.ArgumentParser, framework, args):
+def framework_is_tf(args, argv):
+    if input_model_is_object(args) and check_model_object(args) == "tf":
+        return True
+    if argv is not None:
+        is_tf, _, _, _, _ = deduce_legacy_frontend_by_namespace(argv)
+        return is_tf
+    return False
+
+
+def _convert(cli_parser: argparse.ArgumentParser, framework, args, python_api_used):
     if 'help' in args and args['help']:
         show_mo_convert_help()
-        return None
-
-    telemetry = tm.Telemetry(tid=get_tid(), app_name='Model Optimizer', app_version=get_simplified_mo_version())
+        return None, None
+    simplified_mo_version = VersionChecker().get_mo_simplified_version()
+    telemetry = tm.Telemetry(tid=get_tid(), app_name='Model Optimizer', app_version=simplified_mo_version)
     telemetry.start_session('mo')
-    telemetry.send_event('mo', 'version', get_simplified_mo_version())
+    telemetry.send_event('mo', 'version', simplified_mo_version)
+    # Initialize logger with 'ERROR' as default level to be able to form nice messages
+    # before arg parser deliver log_level requested by user
+    init_logger('ERROR', False)
+    argv = None
     try:
         model_framework = None
         inp_model_is_object = input_model_is_object(args)
         if inp_model_is_object:
             model_framework = check_model_object(args)
-            if model_framework == "pytorch" and not os.environ.get('USE_PYTORCH_FRONTEND'):
-
-                opset_version = None
-                if 'onnx_opset_version' in args and args['onnx_opset_version'] is not None:
-                    opset_version = args['onnx_opset_version']
-
+            if model_framework == "pytorch":
                 example_inputs = None
                 if 'example_input' in args and args['example_input'] is not None:
                     example_inputs = args['example_input']
+                elif 'example_inputs' in args:
+                    raise AssertionError("'example_inputs' argument is not recognized, maybe you meant to provide 'example_input'?")
 
-                out_dir = args['output_dir'] if 'output_dir' in args else None
+                decoder = get_pytorch_decoder(args['input_model'], parse_input_shapes(args), example_inputs, args.get("input"))
+                args['input_model'] = decoder
+                args["framework"] = "pytorch"
 
-                model_onnx = convert_pytorch_to_onnx(args['input_model'],
-                                                     parse_input_shapes(args),
-                                                     opset_version,
-                                                     example_inputs,
-                                                     out_dir)
-
-                args['input_model'] = model_onnx
-                if os.environ.get('SAVE_TO_BYTES_IO_ONNX_MODEL'):
-                    args['use_legacy_frontend'] = True
-                args['example_input'] = None
-                args['onnx_opset_version'] = None
-
-                try:
-                    ov_model = _convert(cli_parser, framework, args)
-                except Exception as e:
-                    remove_tmp_onnx_model(out_dir)
-                    raise e
-
-                remove_tmp_onnx_model(out_dir)
-                return ov_model
+        update_args_for_saved_model_dir(args)
 
         argv = pack_params_to_args_namespace(args, cli_parser)
+        argv.is_python_api_used = python_api_used
 
+        argv.feManager = FrontEndManager()
+        frameworks = list(set(['tf', 'caffe', 'mxnet', 'kaldi', 'onnx'] + (get_available_front_ends(argv.feManager)
+                                                                           if argv.feManager else [])))
+        framework = argv.framework if hasattr(argv, 'framework') and argv.framework is not None else framework
         if framework is not None:
+            assert framework in frameworks, "error: argument --framework: invalid choice: '{}'. " \
+                                            "Expected one of {}.".format(framework, frameworks)
             setattr(argv, 'framework', framework)
 
         # send telemetry with params info
@@ -991,32 +906,69 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args):
                 if argv.framework != model_framework:
                     raise Error("Provided model does not correspond to provided framework. The provided "
                                 "framework is {}, the model type is {} which is expected to be {} framework.".format(
-                        argv.framework,
-                        type(argv.input_model),
-                        model_framework))
+                                    argv.framework,
+                                    type(argv.input_model),
+                                    model_framework))
             else:
                 argv.framework = model_framework
 
-        # Initialize logger with 'ERROR' as default level to be able to form nice messages
-        # before arg parser deliver log_level requested by user
-        init_logger('ERROR', False)
-
-        argv.feManager = FrontEndManager()
         ov_model, legacy_path = driver(argv, {"conversion_parameters": non_default_params})
 
         # add MO meta data to model
-        ov_model.set_rt_info(get_version(), "MO_version")
+        ov_model.set_rt_info(VersionChecker().get_mo_version(), "MO_version")
         ov_model.set_rt_info(get_rt_version(), "Runtime_version")
         ov_model.set_rt_info(str(legacy_path), "legacy_frontend")
         for key, value in non_default_params.items():
             ov_model.set_rt_info(str(value), ["conversion_parameters", str(key)])
 
-        telemetry.send_event('mo', 'conversion_result', 'success')
-        telemetry.end_session('mo')
-        telemetry.force_shutdown(1.0)
+        if silent_is_false(argv) or not python_api_used:
+            if 'compress_to_fp16' in argv and argv.compress_to_fp16:
+                print(get_compression_message())
+
+            ov_update_message = get_ov_update_message()
+            ov_api20_message = get_ov_api20_message()
+            if ov_update_message is not None:
+                print(ov_update_message)
+            if ov_api20_message is not None and ov_model is not None:
+                print(ov_api20_message)
+            is_fallback = getattr(argv, 'is_fallback', False)
+            if not argv.use_legacy_frontend and framework_is_tf(args, argv) and not is_fallback:
+                # now TF FE is default frontend for TensorFlow models conversion
+                print(get_tf_fe_message())
+
+        send_conversion_result('success')
         return ov_model, argv
+
     except Exception as e:
-        telemetry.send_event('mo', 'conversion_result', 'fail')
-        telemetry.end_session('mo')
-        telemetry.force_shutdown(1.0)
-        raise e.with_traceback(None)
+        if silent_is_false(argv) or not python_api_used:
+            if isinstance(e, (FileNotFoundError, NotADirectoryError)):
+                log.error('File {} was not found'.format(str(e).split('No such file or directory:')[1]))
+                log.debug(traceback.format_exc())
+            elif isinstance(e, Error):
+                analysis_results = AnalysisResults()
+                if analysis_results.get_messages() is not None:
+                    for el in analysis_results.get_messages():
+                        log.error(el, extra={'analysis_info': True})
+                log.error(e)
+                log.debug(traceback.format_exc())
+            elif isinstance(e, FrameworkError):
+                log.error(e, extra={'framework_error': True})
+                log.debug(traceback.format_exc())
+            else:
+                log.error("-------------------------------------------------")
+                log.error("----------------- INTERNAL ERROR ----------------")
+                log.error("Unexpected exception happened.")
+                log.error("Please contact Model Optimizer developers and forward the following information:")
+                log.error(str(e))
+                log.error(traceback.format_exc())
+                log.error("---------------- END OF BUG REPORT --------------")
+                log.error("-------------------------------------------------")
+                is_fallback = getattr(argv, 'is_fallback', False) if argv is not None else False
+                if not argv.use_legacy_frontend and framework_is_tf(args, argv) and not is_fallback:
+                    print(get_try_legacy_fe_message())
+
+        send_conversion_result('fail')
+        if python_api_used:
+            raise e.with_traceback(None)
+        else:
+            return None, argv

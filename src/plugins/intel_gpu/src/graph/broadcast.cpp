@@ -73,7 +73,7 @@ std::vector<layout> broadcast_inst::calc_output_layouts(broadcast_node const& /*
     auto& constant_mem = impl_param.memory_deps;
     if (constant_mem.count(1)) {
         auto target_shape_mem = constant_mem.at(1);
-        cldnn::mem_lock<uint8_t, mem_lock_type::read> target_shape_lock(target_shape_mem, impl_param.prog->get_stream());
+        cldnn::mem_lock<uint8_t, mem_lock_type::read> target_shape_lock(target_shape_mem, impl_param.get_stream());
         const_data.emplace(1, make_host_tensor(target_shape_mem->get_layout(), target_shape_lock.data()));
         ov::op::v3::shape_infer(&op, input_shapes, output_shapes, const_data);
     } else if (impl_param.input_layouts.size() == 1) {
@@ -82,10 +82,13 @@ std::vector<layout> broadcast_inst::calc_output_layouts(broadcast_node const& /*
                                                      static_cast<void*>(target_shape.data()));
         const_data.emplace(1, target_shape_tensor);
         ov::op::v3::shape_infer(&op, input_shapes, output_shapes, const_data);
-    } else {
-        // Pattern shape is set as second input. Even though the input is scalar, the shape should be propagaterd as dynamic
-        auto output_rank = input_shapes[0].size();
-        output_shapes[0] = ShapeType::dynamic(std::max(output_rank, static_cast<size_t>(1)));
+    } else if (impl_param.input_layouts.size() >= 2) {
+        auto input1 = impl_param.get_input_layout(1);
+        auto output_rank = input1.get<ShapeType>().size();
+        if (input1.is_static()) {
+            output_rank = input1.get_dim(0);    // target shape rank is set as second input.
+        }
+        output_shapes[0] = ShapeType::dynamic(std::max(static_cast<int>(output_rank), 1));
     }
 
     format output_format = format::adjust_to_rank(input0_layout.format, output_shapes[0].size());

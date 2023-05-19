@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/base/layer_test_utils.hpp"
 #include <util/type_prop.hpp>
-#include "ngraph_functions/builders.hpp"
+
 #include "../shared_tests_instances/skip_tests_check.hpp"
+#include "ngraph_functions/builders.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 
 typedef std::tuple<InferenceEngine::Precision,          // Network Precision
                    std::string,                         // Target Device
@@ -68,9 +69,6 @@ protected:
         std::tie(precision, targetDevice, configuration, input_shape, filter_shape, padding_size) = this->GetParam();
 
         GnaLayerTestCheck::SetUp(targetDevice);
-        if (GnaLayerTestCheck::gnaLibVersionLessThan("3.5")) {
-            GTEST_SKIP() << GnaLayerTestCheck::getLastCmpResultMsg() << std::endl;
-        }
 
         auto ng_precision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(precision);
         auto input = std::make_shared<ngraph::opset8::Parameter>(ng_precision, ngraph::Shape{input_shape});
@@ -105,7 +103,7 @@ TEST_P(ConvWithPaddingTestNeg, CompareWithRefImpl) {
     } catch (...) {
         what.assign("Unknown failure occurred.");
     }
-    EXPECT_HAS_SUBSTRING(what, std::string("Convolution's input padding is not supported"));
+    EXPECT_HAS_SUBSTRING(what, std::string("Unsupported convolution input padding"));
 };
 
 const InferenceEngine::Precision net_precisions{InferenceEngine::Precision::FP32};
@@ -126,7 +124,7 @@ const std::vector<std::vector<size_t>> inputs2D_gna_3_5 = {{1, 1, 4, 16}, {1, 1,
 const std::vector<std::vector<size_t>> inputs1D_gna_3_5 = {{1, 1, 1, 16}};
 const std::vector<std::vector<size_t>> filters1D_gna_3_5 = {{1, 1, 1, 2}, {1, 1, 1, 16}};
 const std::vector<std::vector<size_t>> filters2D_mappable_to_1D_gna_3_5 = {{1, 1, 2, 16}};
-const std::vector<std::ptrdiff_t> no_padding ={0, 0};
+const std::vector<std::ptrdiff_t> no_padding = {0, 0};
 const std::vector<std::ptrdiff_t> padding1D = {0, 1};
 const std::vector<std::ptrdiff_t> padding2D = {1, 1};
 

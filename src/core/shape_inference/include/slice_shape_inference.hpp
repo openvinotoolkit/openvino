@@ -70,11 +70,12 @@ void shape_infer(const Slice* op,
                               shape_rank);
 
         if (input_rank.is_static()) {
-            NODE_VALIDATION_CHECK(op,
-                                  shape_rank.is_dynamic() || shape[0].get_min_length() <= input_rank.get_length(),
-                                  "Slice `",
-                                  slice::shape_names[i - 1],
-                                  "` input dim size can't be bigger than `data` rank.");
+            NODE_VALIDATION_CHECK(
+                op,
+                shape_rank.is_dynamic() || static_cast<int64_t>(shape[0].get_min_length()) <= input_rank.get_length(),
+                "Slice `",
+                slice::shape_names[i - 1],
+                "` input dim size can't be bigger than `data` rank.");
         }
     }
 
@@ -94,12 +95,10 @@ void shape_infer(const Slice* op,
         return;
     }
 
-    constexpr auto cast_i64 = sh_infer::tr::Cast<int64_t>();
-
     // compute constant values of begin, end, and strides if possible
     const auto start = slice::get_input_bounds<T>(op, 1, constant_data);
     const auto stop = slice::get_input_bounds<T>(op, 2, constant_data);
-    const auto steps = get_input_const_data_as<T, int64_t>(op, 3, constant_data, cast_i64);
+    const auto steps = get_input_const_data_as<T, int64_t>(op, 3, constant_data);
 
     slice::AxesMap axes_map;
     if (input_shapes.size() > 4) {
@@ -107,8 +106,10 @@ void shape_infer(const Slice* op,
                               input_shapes[4].compatible(start_shape),
                               "Slice `axes` input must have compatible shape with `start`, `stop`, `step` inputs.");
 
-        if (auto axes = get_input_const_data_as<T, int64_t>(op, 4, constant_data, cast_i64)) {
+        if (auto axes = get_input_const_data_as<T, int64_t>(op, 4, constant_data)) {
+            OPENVINO_SUPPRESS_DEPRECATED_START
             ov::normalize_axes(op, input_shape.rank().get_length(), *axes);
+            OPENVINO_SUPPRESS_DEPRECATED_END
             axes_map.add(*axes);
             NODE_VALIDATION_CHECK(op, axes_map.is_valid, "Slice values in `axes` input must be unique.");
         }

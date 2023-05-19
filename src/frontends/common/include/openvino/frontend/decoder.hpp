@@ -33,6 +33,8 @@ struct List {
 
 struct Str {};
 
+struct PyNone {};
+
 struct Optional;
 struct Dict;
 struct NamedTuple;
@@ -48,6 +50,7 @@ public:
 
 class FRONTEND_API DecoderBase {
 public:
+    using OpTypeByName = std::unordered_map<std::string, std::string>;
     /// \brief Get attribute value by name
     ///
     /// \param name Attribute name
@@ -61,9 +64,11 @@ public:
     ///
     /// \param input_port_idx              Input port index by which data is consumed
     /// \param producer_name               A producer name
-    /// \return producer_output_port_index Output port index from which data is generated
+    /// \param producer_output_port_name   Output port name if exists
+    /// \param producer_output_port_index  Output port index from which data is generated
     virtual void get_input_node(size_t input_port_idx,
                                 std::string& producer_name,
+                                std::string& producer_output_port_name,
                                 size_t& producer_output_port_index) const = 0;
 
     /// \brief Get operation type

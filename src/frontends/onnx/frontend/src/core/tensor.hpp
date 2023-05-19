@@ -29,6 +29,7 @@ using TensorProto_DataType = decltype(ONNX_NAMESPACE::TensorProto{}.data_type())
 
 namespace error {
 namespace tensor {
+OPENVINO_SUPPRESS_DEPRECATED_START
 struct invalid_data_type : ngraph_error {
     explicit invalid_data_type(TensorProto_DataType type) : ngraph_error{"invalid data type"} {}
 };
@@ -56,6 +57,7 @@ struct segments_unsupported : ngraph_error {
 struct shape_doesnt_match_data_size : ngraph_error {
     shape_doesnt_match_data_size() : ngraph_error{"tensor shape doesn't match data size"} {}
 };
+OPENVINO_SUPPRESS_DEPRECATED_END
 }  // namespace tensor
 }  // namespace error
 
@@ -235,7 +237,7 @@ private:
                                       bool>::type = true>
     std::shared_ptr<ngraph::op::Constant> make_ng_constant(const element::Type& type) const {
         std::shared_ptr<default_opset::Constant> constant{nullptr};
-        int data_size = get_data_size();
+        size_t data_size = get_data_size();
         if (has_external_data()) {
             auto external_data = load_external_data();
             constant = std::make_shared<ngraph::op::Constant>(type, m_shape, external_data.data());

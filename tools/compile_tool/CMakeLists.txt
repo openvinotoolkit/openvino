@@ -34,11 +34,11 @@ add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 
 # install
 
-ie_cpack_add_component(${OV_CPACK_COMP_CORE_TOOLS}
+ov_cpack_add_component(${OV_CPACK_COMP_CORE_TOOLS}
                        HIDDEN
                        DEPENDS ${OV_CPACK_COMP_CORE})
 
-if(CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW)$")
+if(CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW|CONAN)$")
     install(TARGETS compile_tool
             RUNTIME DESTINATION ${OV_CPACK_TOOLSDIR}
             COMPONENT ${OV_CPACK_COMP_CORE_TOOLS})

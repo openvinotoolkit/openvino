@@ -5,6 +5,7 @@
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/util/log.hpp"
+#include "translate_session.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -12,7 +13,32 @@ namespace frontend {
 namespace pytorch {
 namespace op {
 
-OutputVector translate_if(NodeContext& context) {
+namespace {
+// TODO: Ticket 106627. This is a WA and will work only if both branches of if will eventually go to the operation that
+// will have same output type for both types
+void align_result_types(const NodeContext& context,
+                        std::shared_ptr<opset10::Result> r1,
+                        std::shared_ptr<opset10::Result> r2) {
+    auto r1_tensor = r1->input_value(0);
+    auto r2_tensor = r2->input_value(0);
+    auto r1_type = r1_tensor.get_element_type();
+    auto r2_type = r2_tensor.get_element_type();
+    if (r1_type.is_dynamic() || r2_type.is_dynamic())
+        return;
+    element::Type merged_type;
+    if (!element::Type::merge(merged_type, r1_type, r2_type)) {
+        if (r1_type.bitwidth() >= r2_type.bitwidth()) {
+            auto convert = std::make_shared<opset10::Convert>(r2_tensor, r1_type);
+            r2->set_argument(0, convert);
+        } else {
+            auto convert = std::make_shared<opset10::Convert>(r1_tensor, r2_type);
+            r1->set_argument(0, convert);
+        }
+    }
+}
+}  // namespace
+
+OutputVector translate_if(const NodeContext& context) {
     auto if_node = std::make_shared<opset10::If>(context.get_input(0));
     context.mark_node(if_node);
     auto decoder = context.get_decoder();
@@ -34,9 +60,9 @@ OutputVector translate_if(NodeContext& context) {
 
     std::map<size_t, ParameterVector> inputs_map;
     std::map<size_t, ResultVector> outputs_map;
+    auto session = context.get_session();
     for (const auto& param : then_body->get_parameters()) {
-        auto name = param->get_output_tensor(0).get_any_name();
-        size_t input_idx = (size_t)std::stoll(name);
+        auto input_idx = session->decode_tensor_name(param->output(0));
         FRONT_END_OP_CONVERSION_CHECK(inputs_map.count(input_idx) == 0,
                                       "More than one then_body input with same tensor name: ",
                                       input_idx,
@@ -47,8 +73,7 @@ OutputVector translate_if(NodeContext& context) {
         inputs_map[input_idx] = {param, nullptr};
     }
     for (const auto& param : else_body->get_parameters()) {
-        auto name = param->get_output_tensor(0).get_any_name();
-        size_t input_idx = (size_t)std::stoll(name);
+        auto input_idx = session->decode_tensor_name(param->output(0));
         if (inputs_map.count(input_idx)) {
             inputs_map[input_idx][1] = param;
         } else {
@@ -56,22 +81,22 @@ OutputVector translate_if(NodeContext& context) {
         }
     }
     OutputVector res;
-    const auto num_outs = context.num_of_outputs();
+    const auto num_outs = context.get_output_size();
     const auto then_results = then_body->get_results();
     const auto else_results = else_body->get_results();
     FRONT_END_OP_CONVERSION_CHECK(then_results.size() >= num_outs && else_results.size() >= num_outs,
                                   "Else or then body have less outputs than prim::If requires.");
-    for (int i = 0; i < num_outs; i++) {
+    for (size_t i = 0; i < num_outs; i++) {
+        align_result_types(context, then_results[i], else_results[i]);
         res.push_back(if_node->set_output(then_results[i], else_results[i]));
     }
     // Each body can have mutated outputs that are not included into pytorch node outputs.
     std::map<size_t, std::shared_ptr<opset10::Result>> extra_then_body_results;
     std::map<size_t, std::shared_ptr<opset10::Result>> extra_else_body_results;
     std::set<size_t> extra_output_idxs;
-    for (int i = num_outs; i < then_results.size(); i++) {
+    for (size_t i = num_outs; i < then_results.size(); i++) {
         const auto result = then_results[i];
-        const auto name = result->input(0).get_tensor().get_any_name();
-        size_t output_idx = (size_t)std::stoll(name);
+        auto output_idx = session->decode_tensor_name(result->input(0).get_source_output());
         FRONT_END_OP_CONVERSION_CHECK(extra_then_body_results.count(output_idx) == 0,
                                       "More than one then_body output with same tensor name: ",
                                       output_idx,
@@ -82,10 +107,9 @@ OutputVector translate_if(NodeContext& context) {
         extra_then_body_results[output_idx] = result;
         extra_output_idxs.insert(output_idx);
     }
-    for (int i = num_outs; i < else_results.size(); i++) {
+    for (size_t i = num_outs; i < else_results.size(); i++) {
         const auto result = else_results[i];
-        const auto name = result->input(0).get_tensor().get_any_name();
-        size_t output_idx = (size_t)std::stoll(name);
+        auto output_idx = session->decode_tensor_name(result->input(0).get_source_output());
         FRONT_END_OP_CONVERSION_CHECK(extra_else_body_results.count(output_idx) == 0,
                                       "More than one else_body output with same tensor name: ",
                                       output_idx,
@@ -102,7 +126,7 @@ OutputVector translate_if(NodeContext& context) {
         if (!extra_then_body_results.count(output_idx)) {
             // Need to add Parameter->Result construction in then body
             auto new_parameter = std::make_shared<opset10::Parameter>(element::dynamic, PartialShape::dynamic());
-            new_parameter->get_output_tensor(0).add_names({std::to_string(output_idx)});
+            session->encode_tensor_name(new_parameter->output(0), output_idx);
             auto new_result = std::make_shared<opset10::Result>(new_parameter);
             then_body->add_parameters({new_parameter});
             then_body->add_results({new_result});
@@ -114,7 +138,7 @@ OutputVector translate_if(NodeContext& context) {
         } else if (!extra_else_body_results.count(output_idx)) {
             // Need to add Parameter->Result construction in else body
             auto new_parameter = std::make_shared<opset10::Parameter>(element::dynamic, PartialShape::dynamic());
-            new_parameter->get_output_tensor(0).add_names({std::to_string(output_idx)});
+            session->encode_tensor_name(new_parameter->output(0), output_idx);
             auto new_result = std::make_shared<opset10::Result>(new_parameter);
             else_body->add_parameters({new_parameter});
             else_body->add_results({new_result});
@@ -138,6 +162,7 @@ OutputVector translate_if(NodeContext& context) {
         }
     }
     for (const auto& output_idx : extra_output_idxs) {
+        align_result_types(context, extra_then_body_results.at(output_idx), extra_else_body_results.at(output_idx));
         context.add_tensor_to_context(
             output_idx,
             if_node->set_output(extra_then_body_results.at(output_idx), extra_else_body_results.at(output_idx)));

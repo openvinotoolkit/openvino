@@ -7,6 +7,9 @@
 #include "openvino/util/file_util.hpp"
 
 // clang-format-off
+#ifndef NOMINMAX
+#    define NOMINMAX
+#endif
 #include <windows.h>
 // clang-format-on
 
@@ -58,12 +61,16 @@ public:
     }
 
     void set(const std::string& path) {
+        // Note that file can't be changed (renamed/deleted) until it's unmapped. FILE_SHARE_DELETE flag allow 
+        // rename/deletion, but it doesn't work with FAT32 filesystem (works on NTFS)
         auto h = ::CreateFileA(path.c_str(), GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
         map(path, h);
     }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
     void set(const std::wstring& path) {
+        // Note that file can't be changed (renamed/deleted) until it's unmapped. FILE_SHARE_DELETE flag allow 
+        // rename/deletion, but it doesn't work with FAT32 filesystem (works on NTFS)
         auto h = ::CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
         map(ov::util::wstring_to_string(path), h);
     }
@@ -85,9 +92,7 @@ private:
         m_handle = HandleHolder(h);
         SYSTEM_INFO SystemInfo;
         GetSystemInfo(&SystemInfo);
-        const int64_t page_size = SystemInfo.dwAllocationGranularity;
 
-        DWORD file_mode = GENERIC_READ;
         DWORD map_mode = FILE_MAP_READ;
         DWORD access = PAGE_READONLY;
 
@@ -107,12 +112,12 @@ private:
                                      m_size);
             OPENVINO_ASSERT(m_data, "Can not create map view for ", path);
         } else {
-            m_data = NULL;
+            m_data = nullptr;
         }
     }
 
 private:
-    void* m_data = NULL;
+    void* m_data = nullptr;
     size_t m_size = 0;
     HandleHolder m_handle;
     HandleHolder m_mapping;

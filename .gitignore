@@ -26,6 +26,7 @@ temp/
 .repo/
 CMakeLists.txt.user
 docs/IE_PLUGIN_DG/html/
+CMakeUserPresets.json
 
 *.project
 *.cproject
@@ -57,3 +58,5 @@ __pycache__
 /tools/mo/*.mapping
 /tools/mo/*.dat
 /tools/mo/*.svg
+/src/plugins/intel_cpu/tools/commit_slider/*.json
+/src/plugins/intel_cpu/tools/commit_slider/slider_cache/*

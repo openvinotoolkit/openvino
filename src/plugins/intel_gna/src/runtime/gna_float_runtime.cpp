@@ -1,10 +1,11 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include "gna_float_runtime.hpp"
+
 #include <cstdint>
 
 #include "backend/dnn_types.hpp"
-#include "gna_float_runtime.hpp"
 #include "log/debug.hpp"
 
 namespace ov {
@@ -70,7 +71,12 @@ void FP::infer() {
             break;
         }
         case kDnnMaxPoolOp: {
-            ApplyMaxPoolTransform(comp, kDnnFloat);
+            bool is_fused_with_convolution_2d = false;
+            if (i > 0 && dnn->component[i - 1].operation == kDnnConvolutional2dOp) {
+                is_fused_with_convolution_2d = true;
+            }
+
+            ApplyMaxPoolTransform(comp, kDnnFloat, is_fused_with_convolution_2d);
             break;
         }
         case kDnnInterleaveOp: {

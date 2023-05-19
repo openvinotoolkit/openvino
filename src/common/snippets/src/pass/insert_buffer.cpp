@@ -20,7 +20,7 @@ ngraph::snippets::pass::InsertBuffer::InsertBuffer(const int32_t allocation_rank
                                                     op::Brgemm>();
 
     register_matcher(std::make_shared<ngraph::pattern::Matcher>(pattern, matcher_name),
-            [this, allocation_rank](ngraph::pattern::Matcher &m) {
+            [allocation_rank](ngraph::pattern::Matcher &m) {
             OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::InsertBuffer")
             auto root = m.get_match_root();
             bool rewritten = false;
@@ -31,13 +31,13 @@ ngraph::snippets::pass::InsertBuffer::InsertBuffer(const int32_t allocation_rank
                 if (!ov::is_type<ngraph::snippets::op::Buffer>(input_node) &&
                     !ov::is_type<ngraph::op::v0::Parameter>(input_node) &&
                     !ov::is_type<ngraph::op::v0::Constant>(input_node)) {
-                    const auto buffer = std::make_shared<ngraph::snippets::op::Buffer>(input_node, allocation_rank);
+                    const auto buffer = std::make_shared<op::Buffer>(input_node, allocation_rank);
                     root->set_argument(input.get_index(), buffer);
                     rewritten |= true;
                 }
                 if (ov::is_type<op::Buffer>(input.get_source_output().get_node_shared_ptr()) &&
                     input.get_source_output().get_target_inputs().size() != 1) {
-                    throw ngraph::ngraph_error(
+                    OPENVINO_THROW(
                             "If Buffer is a input for operation output, this Buffer should be a single consumer for this port");
                 }
             }
@@ -53,21 +53,22 @@ ngraph::snippets::pass::InsertBuffer::InsertBuffer(const int32_t allocation_rank
                             // we should remove them to insert one common Buffer on one common port
                             replace_output_update_name(output_node->output(0), output_node->input_value(0));
                         } else if (ov::is_type<ngraph::op::v0::Result>(output_node)) {
-                            // TODO: At this moment operation which is should be wrapped by Buffers doesn't support several childs where one of them is Result
-                            // because Result and Buffer from one root port should have the same register. It's not supported at the moment
-                            // For example,
-                            //    Buffer
-                            //      |
-                            //    Softmax
-                            //    /    \
-                            // Buffer Result
-                            throw ngraph::ngraph_error(
+                            /* TODO: At this moment operation which is should be wrapped by Buffers doesn't support several childs where one of them is Result
+                             * because Result and Buffer from one root port should have the same register. It's not supported at the moment
+                             * For example,
+                             *    Buffer
+                             *      |
+                             *    Softmax
+                             *    /    \
+                             * Buffer Result
+                             */
+                            OPENVINO_THROW(
                                 "Operation which is should be wrapped by Buffers has few children from one output port where one of them is Result");
                         }
                     }
                 }
 
-                const auto buffer = std::make_shared<ngraph::snippets::op::Buffer>(output, allocation_rank);
+                const auto buffer = std::make_shared<op::Buffer>(output, allocation_rank);
                 for (const auto& consumer : output.get_target_inputs()) {
                     const auto output_node = consumer.get_node()->shared_from_this();
                     if (output_node != buffer &&
@@ -87,7 +88,7 @@ ngraph::snippets::pass::InsertBuffer::InsertBuffer(const int32_t allocation_rank
                     return ov::is_type<ngraph::snippets::op::Buffer>(child) && child->output(0).get_target_inputs().size() > 0;
                 });
                 if (has_buffer_on_output && new_target_inputs.size() != 1) {
-                    throw ngraph::ngraph_error(
+                    OPENVINO_THROW(
                             "If Buffer is a input for operation output, this Buffer should be a single consumer for this port");
                 }
             }

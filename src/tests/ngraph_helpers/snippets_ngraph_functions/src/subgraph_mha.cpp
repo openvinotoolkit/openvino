@@ -343,6 +343,22 @@ std::shared_ptr<ov::Model> MHAWOTransposeOnInputsFunction::initOriginal() const 
     return std::make_shared<ov::Model>(results, ngraphParam, "mha");
 }
 
+std::shared_ptr<ov::Model> MHAWOTransposeFunction::initOriginal() const {
+    auto param0 = std::make_shared<ngraph::opset1::Parameter>(precision, input_shapes[0]);
+    auto param1 = std::make_shared<ngraph::opset1::Parameter>(precision, input_shapes[1]);
+    auto param2 = std::make_shared<ngraph::opset1::Parameter>(precision, input_shapes[2]);
+    ngraph::ParameterVector ngraphParam = {param0, param1, param2};
+
+    float transA = false;
+    float transB = false;
+    const auto matMul0 = std::make_shared<ngraph::opset3::MatMul>(param0, param1, transA, transB);
+    const auto softmax = std::make_shared<ngraph::opset1::Softmax>(matMul0, 3);
+    const auto matMul1 = std::make_shared<ngraph::opset3::MatMul>(softmax, param2, transA, transB);
+
+    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(matMul1)};
+    return std::make_shared<ov::Model>(results, ngraphParam, "mha");
+}
+
 }  // namespace snippets
 }  // namespace test
 }  // namespace ov

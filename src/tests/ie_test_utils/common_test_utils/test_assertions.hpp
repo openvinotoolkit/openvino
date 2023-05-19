@@ -12,7 +12,6 @@
 #include <ie_data.h>
 #include <ie_input_info.hpp>
 #include <ie_blob.h>
-#include <ie_common.h>
 #include <ie_preprocess.hpp>
 #include "openvino/util/pp.hpp"
 
@@ -74,14 +73,16 @@ inline bool strDoesnotContain(const std::string & str, const std::string & subst
     } \
   }
 
-#define OV_EXPECT_THROW(statement, exception, exception_what_matcher) \
-    try {                                                             \
-        GTEST_SUPPRESS_UNREACHABLE_CODE_WARNING_BELOW_(statement);    \
-        FAIL() << "Expected exception " << OV_PP_TOSTRING(exception); \
-    } catch (const exception& ex) {                                   \
-        EXPECT_THAT(ex.what(), exception_what_matcher);               \
-    } catch (...) {                                                   \
-        FAIL() << "Unknown exception";                                \
+#define OV_EXPECT_THROW(statement, exp_exception, exception_what_matcher) \
+    try {                                                                 \
+        GTEST_SUPPRESS_UNREACHABLE_CODE_WARNING_BELOW_(statement);        \
+        FAIL() << "Expected exception " << OV_PP_TOSTRING(exp_exception); \
+    } catch (const exp_exception& ex) {                                   \
+        EXPECT_THAT(ex.what(), exception_what_matcher);                   \
+    } catch (const std::exception& e) {                                   \
+        FAIL() << "Unexpected exception " << e.what();                    \
+    } catch (...) {                                                       \
+        FAIL() << "Unknown exception";                                    \
     }
 
 inline void compare_blob(InferenceEngine::Blob::Ptr lhs, InferenceEngine::Blob::Ptr rhs) {
@@ -96,6 +97,7 @@ inline void compare_dims(const InferenceEngine::SizeVector & lhs, const Inferenc
     }
 }
 
+IE_SUPPRESS_DEPRECATED_START
 inline void compare_data(const InferenceEngine::Data & lhs, const InferenceEngine::Data & rhs) {
     ASSERT_DIMS_EQ(lhs.getDims(), rhs.getDims());
     ASSERT_STREQ(lhs.getName().c_str(), rhs.getName().c_str());
@@ -139,6 +141,7 @@ inline void compare_inputs_info(const InferenceEngine::InputsDataMap & lhs, cons
         ASSERT_DATA_EQ(*i->second->getInputData().get(), *j->second->getInputData().get());
     }
 }
+IE_SUPPRESS_DEPRECATED_END
 
 inline void compare_cpp_strings(const std::string & lhs, const std::string &rhs) {
     ASSERT_STREQ(lhs.c_str(), rhs.c_str());

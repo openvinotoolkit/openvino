@@ -60,12 +60,12 @@ std::vector<layout> crop_inst::calc_output_layouts(const crop_node& /*node*/, co
 
         OPENVINO_ASSERT(impl_param.memory_deps.count(1) > 0, "[GPU] Can't find Crop(ngraph VariadicSplit op mode) axis values memory dependency");
         auto axis_values_mem = impl_param.memory_deps.at(1);
-        cldnn::mem_lock<uint8_t, mem_lock_type::read> axis_values_mem_lock(axis_values_mem, impl_param.prog->get_stream());
+        cldnn::mem_lock<uint8_t, mem_lock_type::read> axis_values_mem_lock(axis_values_mem, impl_param.get_stream());
         const_data.emplace(1, make_host_tensor(axis_values_mem->get_layout(), axis_values_mem_lock.data()));
 
         OPENVINO_ASSERT(impl_param.memory_deps.count(2) > 0, "[GPU] Can't find Crop(ngraph VariadicSplit op mode) split length values memory dependency");
         auto split_length_mem = impl_param.memory_deps.at(2);
-        cldnn::mem_lock<uint8_t, mem_lock_type::read> split_length_mem_lock(split_length_mem, impl_param.prog->get_stream());
+        cldnn::mem_lock<uint8_t, mem_lock_type::read> split_length_mem_lock(split_length_mem, impl_param.get_stream());
         const_data.emplace(2, make_host_tensor(split_length_mem->get_layout(), split_length_mem_lock.data()));
 
         ov::op::v1::VariadicSplit op;
@@ -75,7 +75,7 @@ std::vector<layout> crop_inst::calc_output_layouts(const crop_node& /*node*/, co
 
         OPENVINO_ASSERT(impl_param.memory_deps.count(1) > 0, "[GPU] Can't find Crop(ngraph Split op mode) axis values memory dependency");
         auto axis_values_mem = impl_param.memory_deps.at(1);
-        cldnn::mem_lock<uint8_t, mem_lock_type::read> axis_values_mem_lock(axis_values_mem, impl_param.prog->get_stream());
+        cldnn::mem_lock<uint8_t, mem_lock_type::read> axis_values_mem_lock(axis_values_mem, impl_param.get_stream());
         const_data.emplace(1, make_host_tensor(axis_values_mem->get_layout(), axis_values_mem_lock.data()));
 
         ov::op::v1::Split op;
@@ -102,9 +102,9 @@ std::vector<layout> crop_inst::calc_output_layouts(const crop_node& /*node*/, co
             const auto lt_sizes = offsets.sub({0, 0, 0, 0, 0});
             const auto out_sizes = in_sizes - (rb_sizes + lt_sizes);
 
-            return {layout({in_layout.data_type, in_layout.format, out_sizes})};
+            return {layout{out_sizes.get_partial_shape(in_layout.get_partial_shape().size()), in_layout.data_type, in_layout.format}};
         }
-        return {layout({in_layout.data_type, in_layout.format, ref_in_sizes})};
+        return {layout{ref_in_sizes.get_partial_shape(in_layout.get_partial_shape().size()), in_layout.data_type, in_layout.format}};
     }
 
     bool is_output_static = false;
@@ -145,23 +145,22 @@ std::string crop_inst::to_string(crop_node const& node) {
     auto ref_in_sizes = desc->reference_input;
     const auto& offsets = desc->offsets;
     const auto in_layout = node.input().get_output_layout();
-    const auto& in_sizes = in_layout.get_tensor();
-
     auto node_info = node.desc_to_json();
-
-    // Check for borders variant of crop.
-    if (ref_in_sizes.batch[0] < 0 || ref_in_sizes.feature[0] < 0 || ref_in_sizes.spatial[0] < 0 ||
-        ref_in_sizes.spatial[1] < 0 || ref_in_sizes.spatial[2] < 0) {
-        // Ignore not supported dimensions.
-        const auto rb_sizes = ref_in_sizes.negate().sub({0, 0, 0, 0, 0});
-        const auto lt_sizes = offsets.sub({0, 0, 0, 0, 0});
-
-        ref_in_sizes = in_sizes - (rb_sizes + lt_sizes);
-    }
-
     std::stringstream primitive_description;
-
     json_composite crop_info;
+
+    if (!in_layout.is_dynamic()) {
+        const auto& in_sizes = in_layout.get_tensor();
+
+        // Check for borders variant of crop.
+        if (ref_in_sizes.batch[0] < 0 || ref_in_sizes.feature[0] < 0 || ref_in_sizes.spatial[0] < 0 ||
+            ref_in_sizes.spatial[1] < 0 || ref_in_sizes.spatial[2] < 0) {
+            // Ignore not supported dimensions.
+            const auto rb_sizes = ref_in_sizes.negate().sub({0, 0, 0, 0, 0});
+            const auto lt_sizes = offsets.sub({0, 0, 0, 0, 0});
+            ref_in_sizes = in_sizes - (rb_sizes + lt_sizes);
+        }
+    }
     crop_info.add("reference input size", ref_in_sizes.to_string());
     crop_info.add("offset", offsets.to_string());
 
