@@ -47,7 +47,7 @@ public:
 
     void Export(std::ostream& modelStream) override;
 
-    void SetNetworkSharedBuffer(std::shared_ptr<ngraph::runtime::AlignedBuffer> network_buffer) {
+    void SetNetworkSharedBuffer(std::shared_ptr<ov::util::MmapBuffer> network_buffer) {
         _network_shared_buffer = network_buffer;
     }
 

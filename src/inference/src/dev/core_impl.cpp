@@ -1195,7 +1195,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
             try {
                 cacheContent.cacheManager->read_cache_entry(
                     cacheContent.blobId,
-                    [&](std::shared_ptr<ngraph::runtime::AlignedBuffer>& shared_buffer) {
+                    [&](std::shared_ptr<ov::util::MmapBuffer>& shared_buffer) {
                         OV_ITT_SCOPE(FIRST_INFERENCE,
                                      InferenceEngine::itt::domains::IE_LT,
                                      "Core::load_model_from_cache::ReadStreamAndImport");
@@ -1203,7 +1203,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                             ov::CompiledBlobHeader header;
                             std::string xmlStr = std::string(reinterpret_cast<char*>(shared_buffer->get_ptr()));
                             xmlStr >> header;
-                            shared_buffer->set_pos(xmlStr.size() - 1);
+                            shared_buffer->set_offset(xmlStr.size() - 1);
                             if (header.getIeVersion() != InferenceEngine::GetInferenceEngineVersion()->buildNumber) {
                                 // Build number mismatch, don't use this cache
                                 throw InferenceEngine::NetworkNotRead("Version does not match");

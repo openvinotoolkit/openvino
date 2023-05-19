@@ -127,7 +127,7 @@ public:
      *
      * @return shared pointer to compiled model interface
      */
-    std::shared_ptr<ov::ICompiledModel> import_model(std::shared_ptr<ngraph::runtime::AlignedBuffer>& model_buffer,
+    std::shared_ptr<ov::ICompiledModel> import_model(std::shared_ptr<ov::util::MmapBuffer>& model_buffer,
                                                      const ov::AnyMap& properties) const override;
 
     /**
@@ -139,7 +139,7 @@ public:
      *
      * @return shared pointer to compiled model interface
      */
-    std::shared_ptr<ov::ICompiledModel> import_model(std::shared_ptr<ngraph::runtime::AlignedBuffer>& model_buffer,
+    std::shared_ptr<ov::ICompiledModel> import_model(std::shared_ptr<ov::util::MmapBuffer>& model_buffer,
                                                      const ov::RemoteContext& context,
                                                      const ov::AnyMap& properties) const override;
 

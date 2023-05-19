@@ -11,7 +11,6 @@
 
 #include <memory>
 
-#include "ngraph/runtime/aligned_buffer.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/core/model.hpp"
@@ -21,6 +20,7 @@
 #include "openvino/runtime/icore.hpp"
 #include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
+#include "openvino/util/mmap_object.hpp"
 #include "openvino/util/pp.hpp"
 
 namespace InferenceEngine {
@@ -197,9 +197,8 @@ public:
      * @param properties A ov::AnyMap of properties
      * @return An Compiled model
      */
-    virtual std::shared_ptr<ov::ICompiledModel> import_model(
-        std::shared_ptr<ngraph::runtime::AlignedBuffer>& model_buffer,
-        const ov::AnyMap& properties) const = 0;
+    virtual std::shared_ptr<ov::ICompiledModel> import_model(std::shared_ptr<ov::util::MmapBuffer>& model_buffer,
+                                                             const ov::AnyMap& properties) const = 0;
 
     /**
      * @brief Creates an compiled model from an previously exported model using plugin implementation
@@ -210,10 +209,9 @@ public:
      * @param properties A ov::AnyMap of properties
      * @return An Compiled model
      */
-    virtual std::shared_ptr<ov::ICompiledModel> import_model(
-        std::shared_ptr<ngraph::runtime::AlignedBuffer>& model_buffer,
-        const ov::RemoteContext& context,
-        const ov::AnyMap& properties) const = 0;
+    virtual std::shared_ptr<ov::ICompiledModel> import_model(std::shared_ptr<ov::util::MmapBuffer>& model_buffer,
+                                                             const ov::RemoteContext& context,
+                                                             const ov::AnyMap& properties) const = 0;
 
     /**
      * @brief Queries a plugin about supported layers in model

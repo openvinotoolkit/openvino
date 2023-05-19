@@ -124,8 +124,7 @@ CNNNetworkDeserializer::CNNNetworkDeserializer(std::istream& istream, cnn_networ
       _network_buffer(nullptr),
       _cnn_network_builder(fn) {}
 
-CNNNetworkDeserializer::CNNNetworkDeserializer(std::shared_ptr<ngraph::runtime::AlignedBuffer>& _buffer,
-                                               cnn_network_builder fn)
+CNNNetworkDeserializer::CNNNetworkDeserializer(std::shared_ptr<ov::util::MmapBuffer>& _buffer, cnn_network_builder fn)
     : _istream(nullptr),
       _network_buffer(_buffer),
       _cnn_network_builder(fn) {}
@@ -186,7 +185,7 @@ void CNNNetworkDeserializer::parse_buffer(InferenceEngine::CNNNetwork& network) 
 
     InferenceEngine::Blob::Ptr dataBlob;
     auto buffer_base = static_cast<char*>(_network_buffer->get_ptr());
-    auto hdr_pos = _network_buffer->get_pos();
+    auto hdr_pos = _network_buffer->get_offset();
 
     StreamSerialize::DataHeader hdr = {};
     std::memcpy(reinterpret_cast<char*>(&hdr), buffer_base + hdr_pos, sizeof hdr);

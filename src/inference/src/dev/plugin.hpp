@@ -61,10 +61,10 @@ public:
                                            const ov::RemoteContext& context,
                                            const ov::AnyMap& config) const;
 
-    SoPtr<ov::ICompiledModel> import_model(std::shared_ptr<ngraph::runtime::AlignedBuffer>& network_buffer,
+    SoPtr<ov::ICompiledModel> import_model(std::shared_ptr<ov::util::MmapBuffer>& network_buffer,
                                            const ov::AnyMap& properties) const;
 
-    SoPtr<ov::ICompiledModel> import_model(std::shared_ptr<ngraph::runtime::AlignedBuffer>& network_buffer,
+    SoPtr<ov::ICompiledModel> import_model(std::shared_ptr<ov::util::MmapBuffer>& network_buffer,
                                            const ov::RemoteContext& context,
                                            const ov::AnyMap& config) const;
 

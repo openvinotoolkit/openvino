@@ -201,9 +201,13 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
         }
     }
     if (!weights_path.empty()) {
-        if (enable_mmap)
-            weights = ov::util::load_mmap_object(weights_path);
-        else {
+        if (enable_mmap) {
+            auto mmap_buffer = ov::util::load_mmap_object(weights_path);
+            weights = std::make_shared<ngraph::runtime::SharedBuffer<std::shared_ptr<ov::util::MmapBuffer>>>(
+                mmap_buffer->get_ptr(),
+                mmap_buffer->get_size(),
+                mmap_buffer);
+        } else {
             std::ifstream bin_stream;
             bin_stream.open(weights_path.c_str(), std::ios::binary);
             if (!bin_stream.is_open())

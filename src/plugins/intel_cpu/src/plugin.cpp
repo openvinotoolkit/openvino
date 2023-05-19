@@ -771,7 +771,7 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
 InferenceEngine::IExecutableNetworkInternal::Ptr Engine::HandleImportedNework(
     CNNNetwork& cnnnetwork,
     const std::map<std::string, std::string>& config,
-    const std::shared_ptr<ngraph::runtime::AlignedBuffer>& model_buffer) {
+    const std::shared_ptr<ov::util::MmapBuffer>& model_buffer) {
     Config conf = engConfig;
     conf.readProperties(config);
 
@@ -823,10 +823,10 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(
 }
 
 InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(
-    std::shared_ptr<ngraph::runtime::AlignedBuffer>& network_buffer,
+    std::shared_ptr<ov::util::MmapBuffer>& network_buffer,
     const std::map<std::string, std::string>& config) {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "ImportNetwork");
-    if (network_buffer->size() == 0) {
+    if (network_buffer->get_size() == 0) {
         IE_THROW() << "ImportNetwork model file size is 0, file name";
     }
 

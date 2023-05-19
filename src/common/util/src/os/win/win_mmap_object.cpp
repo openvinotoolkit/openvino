@@ -5,7 +5,6 @@
 
 #include <sstream>
 
-#include "ngraph/runtime/shared_buffer.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/mmap_object.hpp"
 
@@ -146,22 +145,18 @@ private:
     HandleHolder m_mapping;
 };
 
-std::shared_ptr<ngraph::runtime::AlignedBuffer> load_mmap_object(const std::string& path) {
+std::shared_ptr<MmapBuffer> load_mmap_object(const std::string& path) {
     auto holder = std::make_shared<MapHolder>();
     holder->set(path);
-    return std::make_shared<ngraph::runtime::SharedBuffer<std::shared_ptr<MapHolder>>>(holder->data(),
-                                                                                       holder->size(),
-                                                                                       holder);
+    return std::make_shared<SharedMmapBuffer<std::shared_ptr<MapHolder>>>(holder->data(), holder->size(), holder);
 }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
-std::shared_ptr<ngraph::runtime::AlignedBuffer> load_mmap_object(const std::wstring& path) {
+std::shared_ptr<MmapBuffer> load_mmap_object(const std::wstring& path) {
     auto holder = std::make_shared<MapHolder>();
     holder->set(path);
-    return std::make_shared<ngraph::runtime::SharedBuffer<std::shared_ptr<MapHolder>>>(holder->data(),
-                                                                                       holder->size(),
-                                                                                       holder);
+    return std::make_shared<SharedMmapBuffer<std::shared_ptr<MapHolder>>>(holder->data(), holder->size(), holder);
 }
 
 #endif

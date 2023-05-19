@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
-#include "extension_mngr.h"
-
-#include <iostream>
-#include <functional>
 #include <cpp/ie_cnn_network.h>
-#include "ngraph/runtime/aligned_buffer.hpp"
+
+#include <functional>
+#include <iostream>
+
+#include "extension_mngr.h"
+#include "openvino/util/mmap_object.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -27,14 +28,14 @@ public:
     typedef std::function<InferenceEngine::CNNNetwork(const std::string&, const InferenceEngine::Blob::CPtr&)>
         cnn_network_builder;
     CNNNetworkDeserializer(std::istream& istream, cnn_network_builder fn);
-    CNNNetworkDeserializer(std::shared_ptr<ngraph::runtime::AlignedBuffer>& _buffer, cnn_network_builder fn);
+    CNNNetworkDeserializer(std::shared_ptr<ov::util::MmapBuffer>& _buffer, cnn_network_builder fn);
     void operator>>(InferenceEngine::CNNNetwork& network);
     void parse_buffer(InferenceEngine::CNNNetwork& network);
     void parse_stream(InferenceEngine::CNNNetwork& network);
 
 private:
     std::istream* _istream;
-    std::shared_ptr<ngraph::runtime::AlignedBuffer> _network_buffer;
+    std::shared_ptr<ov::util::MmapBuffer> _network_buffer;
     cnn_network_builder _cnn_network_builder;
 };
 

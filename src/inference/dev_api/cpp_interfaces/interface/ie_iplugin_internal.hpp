@@ -19,7 +19,7 @@
 #include "ie_iextension.h"
 #include "ie_input_info.hpp"
 #include "ie_parameter.hpp"
-#include "ngraph/runtime/aligned_buffer.hpp"
+#include "openvino/util/mmap_object.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/util/pp.hpp"
 #include "so_ptr.hpp"
@@ -287,7 +287,7 @@ public:
      * @return An Executable network
      */
     virtual std::shared_ptr<IExecutableNetworkInternal> ImportNetwork(
-        std::shared_ptr<ngraph::runtime::AlignedBuffer>& networkBuffer,
+        std::shared_ptr<ov::util::MmapBuffer>& networkBuffer,
         const std::map<std::string, std::string>& config);
 
     /**
@@ -300,7 +300,7 @@ public:
      * @return An Executable network
      */
     virtual std::shared_ptr<IExecutableNetworkInternal> ImportNetwork(
-        std::shared_ptr<ngraph::runtime::AlignedBuffer>& networkBuffer,
+        std::shared_ptr<ov::util::MmapBuffer>& networkBuffer,
         const std::shared_ptr<RemoteContext>& context,
         const std::map<std::string, std::string>& config);
 

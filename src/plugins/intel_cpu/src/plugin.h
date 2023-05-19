@@ -39,7 +39,7 @@ public:
         std::istream& networkModel,
         const std::map<std::string, std::string>& config) override;
     InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(
-        std::shared_ptr<ngraph::runtime::AlignedBuffer>& model_buffer,
+        std::shared_ptr<ov::util::MmapBuffer>& model_buffer,
         const std::map<std::string, std::string>& config) override;
 
 private:
@@ -60,7 +60,7 @@ private:
     InferenceEngine::IExecutableNetworkInternal::Ptr HandleImportedNework(
         InferenceEngine::CNNNetwork& cnnnetwork,
         const std::map<std::string, std::string>& config,
-        const std::shared_ptr<ngraph::runtime::AlignedBuffer>& model_buffer = nullptr);
+        const std::shared_ptr<ov::util::MmapBuffer>& model_buffer = nullptr);
 
     Config engConfig;
     ExtensionManager::Ptr extensionManager = std::make_shared<ExtensionManager>();

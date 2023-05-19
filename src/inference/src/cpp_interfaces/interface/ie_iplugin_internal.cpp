@@ -255,13 +255,13 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::ImportNetwork(
 }
 
 std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::ImportNetwork(
-    std::shared_ptr<ngraph::runtime::AlignedBuffer>& buffer,
+    std::shared_ptr<ov::util::MmapBuffer>& buffer,
     const std::map<std::string, std::string>& config) {
     IE_THROW(NotImplemented);
 }
 
 std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::ImportNetwork(
-    std::shared_ptr<ngraph::runtime::AlignedBuffer>& buffer,
+    std::shared_ptr<ov::util::MmapBuffer>& buffer,
     const std::shared_ptr<RemoteContext>& context,
     const std::map<std::string, std::string>& config) {
     IE_THROW(NotImplemented);

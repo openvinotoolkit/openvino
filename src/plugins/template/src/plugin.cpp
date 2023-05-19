@@ -126,7 +126,7 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(st
 
 // ! [plugin:import_model]
 std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(
-    std::shared_ptr<ngraph::runtime::AlignedBuffer>& model_buffer,
+    std::shared_ptr<ov::util::MmapBuffer>& model_buffer,
     const ov::AnyMap& properties) const {
     OPENVINO_NOT_IMPLEMENTED;
 }
@@ -171,7 +171,7 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(st
 
 // ! [plugin:import_model_with_remote]
 std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(
-    std::shared_ptr<ngraph::runtime::AlignedBuffer>& model_buffer,
+    std::shared_ptr<ov::util::MmapBuffer>& model_buffer,
     const ov::RemoteContext& context,
     const ov::AnyMap& properties) const {
     OPENVINO_NOT_IMPLEMENTED;
