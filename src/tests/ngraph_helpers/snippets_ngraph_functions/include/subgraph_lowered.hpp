@@ -62,23 +62,6 @@ protected:
     std::shared_ptr<ov::Model> initLowered() const override;
 };
 
-class SoftmaxLoweredFunction : public SoftmaxFunction {
-public:
-    explicit SoftmaxLoweredFunction(const std::vector<PartialShape>& inputShapes, int axis) : SoftmaxFunction(inputShapes, axis) {}
-
-protected:
-    std::shared_ptr<ov::Model> initLowered() const override;
-};
-
-// With LoopFusion pass
-class AddSoftmaxLoweredFunction : public AddSoftmaxFunction {
-public:
-    explicit AddSoftmaxLoweredFunction(const std::vector<PartialShape>& inputShapes, int axis) : AddSoftmaxFunction(inputShapes, axis) {}
-
-protected:
-    std::shared_ptr<ov::Model> initLowered() const override;
-};
-
 class BroadcastAddLoweredFunction : public BroadcastAddFunction {
 public:
     explicit BroadcastAddLoweredFunction(const std::vector<PartialShape>& inputShapes, const PartialShape& targetShape) :
