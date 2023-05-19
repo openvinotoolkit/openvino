@@ -3,7 +3,6 @@
 //
 
 #include "common_test_utils/test_assertions.hpp"
-#include "custom_shape_infer.hpp"
 #include "gmock/gmock.h"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"

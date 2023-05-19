@@ -5,8 +5,6 @@
 #include <gmock/gmock.h>
 
 #include "common_test_utils/test_assertions.hpp"
-#include "custom_shape_infer.hpp"
-#include "ie_common.h"
 #include "openvino/opsets/opset10.hpp"
 #include "utils.hpp"
 

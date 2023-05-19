@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "custom_shape_infer.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "strided_slice_shape_inference.hpp"
@@ -291,8 +290,8 @@ TEST_F(StridedSliceCustomShapeInferenceTest, use_reverse_stride_on_last_dimensio
     std::vector<StaticShape> static_input_shapes = {StaticShape{3, 2, 3}, {3}, {3}, {3}};
     std::vector<StaticShape> static_output_shapes = {StaticShape{1, 2, 3}};
     // implementation depend on the some output information of op
-    op->set_output_type(0, element::i32, {1, 2, 3});
-    // there is some issue in implementation, this test case can't pass
+    // op->set_output_type(0, element::i32, {1, 2, 3});
+    // TODO ,there is some issue in implementation, this test case can't pass
     // unit_test::cus_usual_shape_infer(op.get(), static_input_shapes, static_output_shapes, const_data);
 }
 
@@ -308,8 +307,8 @@ TEST_F(StridedSliceCustomShapeInferenceTest, default_stride) {
     std::vector<StaticShape> static_input_shapes = {{3, 2, 3}, {3}, {3}};
     std::vector<StaticShape> static_output_shapes = {StaticShape{1, 2, 2}};
     // implementation depend on the some output information of op
-    op->set_output_type(0, element::i32, {1, 2, 2});
-    // there is some issue in implementation, this test case can't pass
+    // op->set_output_type(0, element::i32, {1, 2, 2});
+    // TODO ,there is some issue in implementation, this test case can't pass
     // unit_test::cus_usual_shape_infer(op.get(), static_input_shapes, static_output_shapes);
 }
 

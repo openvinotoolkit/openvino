@@ -4,7 +4,6 @@
 
 #include <gtest/gtest.h>
 
-#include "ie_common.h"
 #include "utils.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/op/parameter.hpp"

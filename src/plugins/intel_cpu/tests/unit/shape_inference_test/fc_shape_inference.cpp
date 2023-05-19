@@ -3,7 +3,6 @@
 //
 
 #include <gtest/gtest.h>
-#include "custom_shape_infer.hpp"
 #include "transformations/cpu_opset/common/op/fully_connected.hpp"
 #include "utils.hpp"
 

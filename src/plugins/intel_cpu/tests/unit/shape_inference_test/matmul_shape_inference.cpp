@@ -3,7 +3,6 @@
 //
 #include <gtest/gtest.h>
 
-#include "custom_shape_infer.hpp"
 #include "utils.hpp"
 using namespace ov;
 using namespace ov::intel_cpu;

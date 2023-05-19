@@ -5,7 +5,6 @@
 #include <gmock/gmock.h>
 
 #include "common_test_utils/test_assertions.hpp"
-#include "custom_shape_infer.hpp"
 #include "one_hot_shape_inference.hpp"
 #include "utils.hpp"
 
