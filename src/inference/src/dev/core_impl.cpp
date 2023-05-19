@@ -38,6 +38,7 @@
 #include "openvino/util/shared_object.hpp"
 #include "ov_plugins.hpp"
 #include "preprocessing/preprocessing.hpp"
+#include "so_extension.hpp"
 #include "xml_parse_utils.h"
 
 ov::ICore::~ICore() = default;
@@ -523,6 +524,7 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
             }
         } else {
             TryToRegisterLibraryAsExtensionUnsafe(desc.libraryLocation);
+            try_to_register_plugin_extensions(desc.libraryLocation);
         }
 
         return plugins.emplace(deviceName, plugin).first->second;
@@ -1089,7 +1091,10 @@ void ov::CoreImpl::add_extension(const std::vector<ov::Extension::Ptr>& extensio
     std::lock_guard<std::mutex> lock(get_mutex());
     for (const auto& ext : extensions) {
         ov_extensions.emplace_back(ext);
-        if (auto op_base_ext = std::dynamic_pointer_cast<ov::BaseOpExtension>(ext)) {
+        auto ext_obj = ext;
+        if (auto so_ext = std::dynamic_pointer_cast<ov::detail::SOExtension>(ext_obj))
+            ext_obj = so_ext->extension();
+        if (auto op_base_ext = std::dynamic_pointer_cast<ov::BaseOpExtension>(ext_obj)) {
             for (const auto& attached_ext : op_base_ext->get_attached_extensions()) {
                 ov_extensions.emplace_back(attached_ext);
             }
