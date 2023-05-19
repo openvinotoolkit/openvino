@@ -17,7 +17,7 @@ OutputVector translate_log_softmax(const NodeContext& context) {
     /*
     aten::log_softmax(
         Tensor input,
-        int64 dim = 1,
+        int64 dim,
         dtype dtype = None
     )
     */
