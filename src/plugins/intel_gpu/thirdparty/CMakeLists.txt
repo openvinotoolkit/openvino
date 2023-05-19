@@ -104,6 +104,9 @@ if(ENABLE_ONEDNN_FOR_GPU)
                 "-DONEDNN_BUILD_GRAPH=OFF"
                 "-DOpenCL_LIBRARY=${OpenCL_LIBRARY}"
                 "-DOpenCL_INCLUDE_DIR=${OpenCL_INCLUDE_DIR}"
+                # specifically for Conan, because it overrides CMAKE_PREFIX_PATH and oneDNN's FindOpenCL.cmake is ignored
+                # Conan's FindOpenCL.cmake module does not set OpenCL_INCLUDE_DIRS, so we need to set it manually
+                "-DOpenCL_INCLUDE_DIRS=${OpenCL_INCLUDE_DIR}"
         )
         add_library(onednn_gpu_tgt INTERFACE)
         set_target_properties(onednn_gpu_tgt PROPERTIES

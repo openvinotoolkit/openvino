@@ -44,6 +44,7 @@ file(GLOB_RECURSE HEADERS
         ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
 
 find_package(libGNA REQUIRED
+             NO_MODULE
              PATHS "${CMAKE_CURRENT_SOURCE_DIR}/cmake"
              NO_DEFAULT_PATH)
 

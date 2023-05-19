@@ -96,7 +96,7 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
         set(_ov_system_tbb_is_obsolete ON)
     endif()
 
-    if(CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW)$" AND
+    if(CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW|CONAN)$" AND
         NOT ENABLE_SYSTEM_TBB AND
         NOT _ov_system_tbb_is_obsolete)
         message(FATAL_ERROR "Debian | RPM | Conda-forge | Brew packages can be built only with system TBB. Use -DENABLE_SYSTEM_TBB=ON")

@@ -39,7 +39,7 @@ namespace {
             1
     };
 
-    static std::shared_ptr<ngraph::Function> simple_function_non_max_supression_internal(ngraph::element::Type, size_t) {
+    static std::shared_ptr<ngraph::Function> simple_function_non_max_suppression_internal(ngraph::element::Type, size_t) {
         auto boxes = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 1000, 4});
         auto scores = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 1, 1000});
         auto max_output_boxes_per_class = ov::op::v0::Constant::create(element::i32, Shape{1}, {10});
@@ -77,7 +77,7 @@ namespace {
 
     static std::vector<ovModelWithName> internal_functions_cpu() {
         std::vector<ovModelWithName> funcs = {
-            ovModelWithName { simple_function_non_max_supression_internal, "NonMaxSuppressionIEInternal"},
+            ovModelWithName { simple_function_non_max_suppression_internal, "NonMaxSuppressionIEInternal"},
             ovModelWithName { simple_function_matrix_nms_internal, "NmsStaticShapeIE_MatrixNms"},
             ovModelWithName { simple_function_multiclass_nms_internal, "MulticlassNmsIEInternal"},
         };

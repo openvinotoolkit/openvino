@@ -10,7 +10,7 @@
 
 namespace cldnn {
 
-/// @brief Performs non max supression of input boxes and returns indices of selected boxes.
+/// @brief Performs non max suppression of input boxes and returns indices of selected boxes.
 /// @detail Filters out boxes that have high intersection-over-union (IOU) with previously
 /// selected boxes with higher score. Boxes with score higher than score_threshold are
 /// filtered out. This filtering happens per class.
@@ -24,7 +24,7 @@ struct non_max_suppression : public primitive_base<non_max_suppression> {
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
-    /// @brief Creates non max supression primitive.
+    /// @brief Creates non max suppression primitive.
     /// @param id This primitive id.
     /// @param boxes_positions Id of primitive with bounding boxes.
     /// @param boxes_score Id of primitive with boxes scores per class.

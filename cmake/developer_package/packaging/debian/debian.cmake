@@ -31,6 +31,7 @@ macro(ov_debian_cpack_set_dirs)
     set(OV_CPACK_NGRAPH_CMAKEDIR ${OV_CPACK_RUNTIMEDIR}/cmake/ngraph${OpenVINO_VERSION})
     set(OV_CPACK_OPENVINO_CMAKEDIR ${OV_CPACK_RUNTIMEDIR}/cmake/openvino${OpenVINO_VERSION})
     set(OV_CPACK_DOCDIR ${CMAKE_INSTALL_DATADIR}/doc/openvino-${OpenVINO_VERSION})
+    set(OV_CPACK_LICENSESDIR ${OV_CPACK_DOCDIR}/licenses)
     set(OV_CPACK_PYTHONDIR lib/python3/dist-packages)
 
     # non-native stuff

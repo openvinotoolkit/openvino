@@ -10,8 +10,8 @@ macro(ov_cpack_settings)
     set(cpack_components_all ${CPACK_COMPONENTS_ALL})
     unset(CPACK_COMPONENTS_ALL)
     foreach(item IN LISTS cpack_components_all)
-        # filter out some components, which are not needed to be wrapped to conda-forge | brew
-        if(# python is not a part of conda | brew
+        # filter out some components, which are not needed to be wrapped to conda-forge | brew | conan
+        if(# python is not a part of conda | brew | conan
            NOT item MATCHES "^${OV_CPACK_COMP_PYTHON_OPENVINO}_python.*" AND
            # python wheels are not needed to be wrapped by conda | brew packages
            NOT item STREQUAL OV_CPACK_COMP_PYTHON_WHEELS AND

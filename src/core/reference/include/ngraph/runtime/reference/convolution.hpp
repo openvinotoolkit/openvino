@@ -40,7 +40,7 @@ struct ConvolutionParams {
 };
 
 template <typename Int>
-constexpr inline bool in_range(Int val, std::pair<Int, Int> range) noexcept {
+constexpr inline bool in_range(Int val, const std::pair<Int, Int>& range) noexcept {
     return val >= range.first && val < range.second;
 }
 

@@ -142,6 +142,14 @@ if(ENABLE_SYSTEM_PUGIXML)
     endif()
 endif()
 
+set(_IE_nlohmann_json_FOUND "@nlohmann_json_FOUND@")
+if(_IE_nlohmann_json_FOUND)
+    find_dependency(nlohmann_json)
+    set_target_properties(nlohmann_json::nlohmann_json PROPERTIES IMPORTED_GLOBAL ON)
+    add_library(IE::nlohmann_json ALIAS nlohmann_json::nlohmann_json)
+endif()
+unset(_IE_nlohmann_json_FOUND)
+
 # inherit OpenCV from main IE project if enabled
 if ("@OpenCV_FOUND@")
     load_cache("${cache_path}" READ_WITH_PREFIX "" OpenCV_DIR)

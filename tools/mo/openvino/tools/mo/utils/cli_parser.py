@@ -580,7 +580,7 @@ class IgnoredAction(argparse.Action):
 
 
 def canonicalize_and_check_paths(values: Union[str, List[str]], param_name,
-                                 try_mo_root=False, check_existance=True) -> List[str]:
+                                 try_mo_root=False, check_existence=True) -> List[str]:
     if values is not None:
         list_of_values = list()
         if isinstance(values, str):
@@ -591,7 +591,7 @@ def canonicalize_and_check_paths(values: Union[str, List[str]], param_name,
         else:
             raise Error('Unsupported type of command line parameter "{}" value'.format(param_name))
 
-        if not check_existance:
+        if not check_existence:
             return [get_absolute_path(path) for path in list_of_values]
 
         for idx, val in enumerate(list_of_values):
@@ -619,7 +619,7 @@ class CanonicalizePathAction(argparse.Action):
 
     def __call__(self, parser, namespace, values, option_string=None):
         list_of_paths = canonicalize_and_check_paths(values, param_name=option_string,
-                                                     try_mo_root=False, check_existance=False)
+                                                     try_mo_root=False, check_existence=False)
         setattr(namespace, self.dest, ','.join(list_of_paths))
 
 
@@ -631,7 +631,7 @@ class CanonicalizeTransformationPathCheckExistenceAction(argparse.Action):
 
     def __call__(self, parser, namespace, values, option_string=None):
         list_of_paths = canonicalize_and_check_paths(values, param_name=option_string,
-                                                     try_mo_root=True, check_existance=True)
+                                                     try_mo_root=True, check_existence=True)
         setattr(namespace, self.dest, ','.join(list_of_paths))
 
 
@@ -643,7 +643,7 @@ class CanonicalizePathCheckExistenceAction(argparse.Action):
 
     def __call__(self, parser, namespace, values, option_string=None):
         list_of_paths = canonicalize_and_check_paths(values, param_name=option_string,
-                                                     try_mo_root=False, check_existance=True)
+                                                     try_mo_root=False, check_existence=True)
         setattr(namespace, self.dest, ','.join(list_of_paths))
 
 
@@ -655,7 +655,7 @@ class CanonicalizeExtensionsPathCheckExistenceAction(argparse.Action):
 
     def __call__(self, parser, namespace, values, option_string=None):
         list_of_paths = canonicalize_and_check_paths(values, param_name=option_string,
-                                                     try_mo_root=False, check_existance=True)
+                                                     try_mo_root=False, check_existence=True)
         # Extensions paths are needed to be stored as list
         setattr(namespace, self.dest, list_of_paths)
 

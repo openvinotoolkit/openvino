@@ -15,7 +15,7 @@ if(ENABLE_LTO)
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
 endif()
 
-function(ie_add_onednn)
+function(ov_add_onednn)
     set(DNNL_ENABLE_JIT_PROFILING ${BUILD_SHARED_LIBS} CACHE BOOL "" FORCE)
     if(BUILD_SHARED_LIBS AND ENABLE_PROFILING_ITT)
         set(DNNL_ENABLE_ITT_TASKS ON CACHE BOOL "" FORCE)
@@ -137,16 +137,26 @@ function(ie_add_onednn)
     endif()
 
     # to find our FindACL.cmake
-    list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}")
+    list(APPEND CMAKE_MODULE_PATH "${intel_cpu_thirdparty_SOURCE_DIR}")
 
     add_subdirectory(onednn EXCLUDE_FROM_ALL)
 
+    # install static libraries
     ov_install_static_lib(dnnl cpu)
-    if(ARM OR AARCH64)
-        ov_install_static_lib(arm_compute_core cpu)
+
+    if(DNNL_USE_ACL AND NOT BUILD_SHARED_LIBS)
+        # use ACLConfig.cmake in OpenVINOConfig.cmake in case of static build
+        # we cannot use 'ov_install_static_lib' for imported targets,
+        # but for this we need to install library files
+        install(FILES $<TARGET_PROPERTY:arm_compute::arm_compute,IMPORTED_LOCATION>
+                DESTINATION ${OV_CPACK_ARCHIVEDIR}
+                COMPONENT cpu)
+        install(FILES "${intel_cpu_thirdparty_SOURCE_DIR}/ACLConfig.cmake"
+                DESTINATION ${OV_CPACK_OPENVINO_CMAKEDIR}
+                COMPONENT core_dev)
     endif()
 endfunction()
 
 if(ENABLE_INTEL_CPU)
-    ie_add_onednn()
+    ov_add_onednn()
 endif()

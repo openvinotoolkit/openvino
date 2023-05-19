@@ -215,22 +215,33 @@ macro(ov_add_frontend)
 
     if(proto_files)
         if(OV_FRONTEND_PROTOBUF_LITE)
-            if(NOT protobuf_lite_installed)
-                ov_install_static_lib(${Protobuf_LITE_LIBRARIES} ${OV_CPACK_COMP_CORE})
-                set(protobuf_lite_installed ON CACHE INTERNAL "" FORCE)
-            endif()
-            link_system_libraries(${TARGET_NAME} PRIVATE ${Protobuf_LITE_LIBRARIES})
+            set(protobuf_target_name libprotobuf-lite)
+            set(protobuf_install_name "protobuf_lite_installed")
         else()
-            if(NOT protobuf_installed)
-                ov_install_static_lib(${Protobuf_LIBRARIES} ${OV_CPACK_COMP_CORE})
-                set(protobuf_installed ON CACHE INTERNAL "" FORCE)
-            endif()
-            link_system_libraries(${TARGET_NAME} PRIVATE ${Protobuf_LIBRARIES})
+            set(protobuf_target_name libprotobuf)
+            set(protobuf_install_name "protobuf_installed")
         endif()
+        if(ENABLE_SYSTEM_PROTOBUF)
+            # use imported target name with namespace
+            set(protobuf_target_name "protobuf::${protobuf_target_name}")
+        endif()
+
+        link_system_libraries(${TARGET_NAME} PRIVATE ${protobuf_target_name})
 
         # protobuf generated code emits -Wsuggest-override error
         if(SUGGEST_OVERRIDE_SUPPORTED)
             target_compile_options(${TARGET_NAME} PRIVATE -Wno-suggest-override)
+        endif()
+
+        # install protobuf if it is not installed yet
+        if(NOT ${protobuf_install_name})
+            if(ENABLE_SYSTEM_PROTOBUF)
+                # we have to add find_package(Protobuf) to the OpenVINOConfig.cmake for static build
+                # no needs to install protobuf
+            else()
+                ov_install_static_lib(${protobuf_target_name} ${OV_CPACK_COMP_CORE})
+                set("${protobuf_install_name}" ON CACHE INTERNAL "" FORCE)
+            endif()
         endif()
     endif()
 
