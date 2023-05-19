@@ -770,6 +770,7 @@ paddlepaddle >= 2.1
  multiclass_nms                              Only supports IE CPU plugin with "number of selected boxes" static shape (e.g.: ``min(min(num_boxes, nms_top_k) * num_classes_output, keep_top_k)``).
  nearest_interp                              ``NCW``, ``NWC``, ``NHWC``, ``NCDHW``, ``NDHWC`` data_layout are not supported. 
  not_equal 
+ one_hot_v2                                  Passing input with N-dims. 
  p_norm 
  pad3d                                       ``Circular`` mode is not supported. 
  pool2d                                      ``NHWC`` data_layout is not supported. 
