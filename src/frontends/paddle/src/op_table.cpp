@@ -41,6 +41,7 @@ OP_CONVERTER(elementwise_sub);
 OP_CONVERTER(embedding);
 OP_CONVERTER(exp);
 OP_CONVERTER(expand_v2);
+OP_CONVERTER(flip);
 OP_CONVERTER(fill_any_like);
 OP_CONVERTER(fill_constant_batch_size_like);
 OP_CONVERTER(fill_constant);
@@ -160,6 +161,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"fill_constant_batch_size_like", op::fill_constant_batch_size_like},
             {"fill_constant", op::fill_constant},
             {"flatten_contiguous_range", op::flatten_contiguous_range},
+            {"flip", op::flip},
             {"floor", op::floor},
             {"gather", op::gather},
             {"gather_nd", op::gather_nd},

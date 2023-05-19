@@ -8,7 +8,7 @@ namespace ov {
 namespace frontend {
 namespace paddle {
 namespace op {
-NamedOutputs reverse(const NodeContext& node) {
+NamedOutputs flip(const NodeContext& node) {
     return reverse_op(node);
 }
 }  // namespace op
