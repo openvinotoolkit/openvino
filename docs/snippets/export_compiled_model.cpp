@@ -4,7 +4,9 @@
 
 ov::Core core;
 
-ov::CompiledModel model = core.compile_model(device, modelPath, properties)
-model.export_model(compiled_blob);
+std::stringstream stream;
+
+ov::CompiledModel model = core.compile_model("modelPath", "deviceName");
+model.export_model(stream);
 
 //!  [export_compiled_model]
