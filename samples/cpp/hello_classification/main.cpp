@@ -39,7 +39,6 @@ int tmain(int argc, tchar* argv[]) {
 
         // -------- Step 1. Initialize OpenVINO Runtime Core --------
         ov::Core core;
-        core.set_property(ov::cache_dir("./my_cache_dir_test"));
 
         // -------- Step 2. Read a model --------
         slog::info << "Loading model files: " << model_path << slog::endl;
