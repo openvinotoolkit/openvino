@@ -95,25 +95,25 @@ Model conversion handles the command line parameter ``input_shape`` for TensorFl
 
 * ``fixed_shape_resizer`` --- *Stretches* input image to the specific height and width. The ``pipeline.config`` snippet below shows a ``fixed_shape_resizer`` sample definition:
 
-.. code-block:: sh
+  .. code-block:: sh
 
-  image_resizer {
-    fixed_shape_resizer {
-      height: 300
-      width: 300
+    image_resizer {
+      fixed_shape_resizer {
+        height: 300
+        width: 300
+      }
     }
-  }
 
 * ``keep_aspect_ratio_resizer`` --- Resizes the input image *keeping aspect ratio* to satisfy the minimum and maximum size constraints. The ``pipeline.config`` snippet below shows a ``keep_aspect_ratio_resizer`` sample definition:
 
-.. code-block:: sh
+  .. code-block:: sh
 
-  image_resizer {
-    keep_aspect_ratio_resizer {
-      min_dimension: 600
-      max_dimension: 1024
+    image_resizer {
+      keep_aspect_ratio_resizer {
+        min_dimension: 600
+        max_dimension: 1024
+      }
     }
-  }
 
 If an additional parameter "pad_to_max_dimension" is equal to "true", then the resized image will be padded with 0s to the square image of size "max_dimension".
 
@@ -135,13 +135,13 @@ Keeping Aspect Ratio Resizer Replacement
 
 * If the ``input_shape [1, H, W, 3]`` command line parameter is specified, Model Conversion API scales the specified input image height ``H`` and width ``W`` to satisfy the ``min_dimension`` and ``max_dimension`` constraints defined in the ``keep_aspect_ratio_resizer``. The following function calculates the input operation height and width:
 
-.. code-block:: py
+  .. code-block:: py
 
-  def calculate_shape_keeping_aspect_ratio(H: int, W: int, min_dimension: int, max_dimension: int):
-      ratio_min = min_dimension / min(H, W)
-      ratio_max = max_dimension / max(H, W)
-      ratio = min(ratio_min, ratio_max)
-      return int(round(H * ratio)), int(round(W * ratio))
+    def calculate_shape_keeping_aspect_ratio(H: int, W: int, min_dimension: int, max_dimension: int):
+        ratio_min = min_dimension / min(H, W)
+        ratio_max = max_dimension / max(H, W)
+        ratio = min(ratio_min, ratio_max)
+        return int(round(H * ratio)), int(round(W * ratio))
 
 The ``input_shape`` command line parameter should be specified only if the "pad_to_max_dimension" does not exist of is set to "false" in the ``keep_aspect_ratio_resizer``.
 
