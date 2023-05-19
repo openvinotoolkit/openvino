@@ -44,6 +44,7 @@ OpenVINO components define several common groups which allow to run tests for se
  - ONNX_FE - ONNX frontend tests
  - PADDLE_FE - Paddle frontend tests
  - TF_FE - TensorFlow frontend tests
+ - TFL_FE - TensorFlow Lite frontend tests
  - CPU - CPU plugin tests
  - GPU - GPU plugin tests
  - GNA - GNA plugin tests

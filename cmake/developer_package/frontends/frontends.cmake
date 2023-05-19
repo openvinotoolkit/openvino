@@ -171,7 +171,7 @@ macro(ov_add_frontend)
     endforeach()
 
     # Disable all warnings for generated code
-    set_source_files_properties(${PROTO_SRCS} ${PROTO_HDRS} PROPERTIES COMPILE_OPTIONS -w GENERATED TRUE)
+    set_source_files_properties(${PROTO_SRCS} ${PROTO_HDRS} PROPERTIES COMPILE_OPTIONS -w GENERATED ON)
 
     # Create library
     add_library(${TARGET_NAME} ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS}
@@ -204,8 +204,7 @@ macro(ov_add_frontend)
     ov_add_vs_version_file(NAME ${TARGET_NAME}
                            FILEDESCRIPTION ${OV_FRONTEND_FILEDESCRIPTION})
 
-    target_link_libraries(${TARGET_NAME} PUBLIC openvino::runtime)
-    target_link_libraries(${TARGET_NAME} PRIVATE ${OV_FRONTEND_LINK_LIBRARIES})
+    target_link_libraries(${TARGET_NAME} PRIVATE ${OV_FRONTEND_LINK_LIBRARIES} PUBLIC openvino::runtime)
     ov_add_library_version(${TARGET_NAME})
 
     # WA for TF frontends which always require protobuf (not protobuf-lite)
@@ -229,7 +228,7 @@ macro(ov_add_frontend)
             link_system_libraries(${TARGET_NAME} PRIVATE ${Protobuf_LIBRARIES})
         endif()
 
-        # prptobuf generated code emits -Wsuggest-override error
+        # protobuf generated code emits -Wsuggest-override error
         if(SUGGEST_OVERRIDE_SUPPORTED)
             target_compile_options(${TARGET_NAME} PRIVATE -Wno-suggest-override)
         endif()
@@ -261,6 +260,10 @@ macro(ov_add_frontend)
 
     # must be called after all target_link_libraries
     ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
+
+    # since frontends are user-facing component which can be linked against,
+    # then we need to mark it to be CXX ABI free
+    ov_abi_free_target(${TARGET_NAME})
 
     # installation
 

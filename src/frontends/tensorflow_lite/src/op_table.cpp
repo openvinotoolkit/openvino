@@ -156,7 +156,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
         {"ROUND", DEQUANTIZE_INPUTS(translate_round_op)},
         {"RSQRT", DEQUANTIZE_INPUTS(translate_rsqrt_op)},
         {"SCATTER_ND", DEQUANTIZE_INPUTS(translate_scatter_nd_op)},
-        {"SEGMENT_SUM", DEQUANTIZE_INPUTS(translate_segment_sum_op)},
+        {"SEGMENT_SUM", OP_CONVERT_TYPE_RENAME(translate_segment_sum_op, "SegmentSum")},
         {"SELECT", OP_CONVERT_TYPE_RENAME(translate_select_op, "Select")},
         {"SELECT_V2", OP_CONVERT_TYPE_RENAME(translate_select_v2_op, "SelectV2")},
         {"SHAPE", shape},

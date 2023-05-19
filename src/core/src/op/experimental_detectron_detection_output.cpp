@@ -2,18 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/experimental_detectron_detection_output.hpp"
+#include "openvino/op/experimental_detectron_detection_output.hpp"
 
-#include <experimental_detectron_detection_output_shape_inference.hpp>
 #include <memory>
 
+#include "experimental_detectron_detection_output_shape_inference.hpp"
+#include "experimental_detectron_shape_infer_utils.hpp"
 #include "itt.hpp"
-#include "ngraph/attribute_visitor.hpp"
-#include "ngraph/runtime/host_tensor.hpp"
+#include "openvino/core/attribute_visitor.hpp"
 
 using namespace std;
-using namespace ngraph;
 
+namespace ov {
 op::v6::ExperimentalDetectronDetectionOutput::ExperimentalDetectronDetectionOutput(const Output<Node>& input_rois,
                                                                                    const Output<Node>& input_deltas,
                                                                                    const Output<Node>& input_scores,
@@ -40,19 +40,12 @@ bool op::v6::ExperimentalDetectronDetectionOutput::visit_attributes(AttributeVis
 void op::v6::ExperimentalDetectronDetectionOutput::validate_and_infer_types() {
     OV_OP_SCOPE(v6_ExperimentalDetectronDetectionOutput_validate_and_infer_types);
 
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}, ov::PartialShape{}, ov::PartialShape{}};
-    std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0),
-                                                  get_input_partial_shape(1),
-                                                  get_input_partial_shape(2),
-                                                  get_input_partial_shape(3)};
-    shape_infer(this, input_shapes, output_shapes);
+    const auto shapes_and_type = detectron::validate::all_inputs_same_floating_type(this);
+    const auto output_shapes = shape_infer(this, shapes_and_type.first);
 
-    auto input_et = get_input_element_type(0);
-
-    set_output_size(3);
-    set_output_type(0, input_et, output_shapes[0]);
-    set_output_type(1, element::Type_t::i32, output_shapes[1]);
-    set_output_type(2, input_et, output_shapes[2]);
+    set_output_type(0, shapes_and_type.second, output_shapes[0]);
+    set_output_type(1, element::i32, output_shapes[1]);
+    set_output_type(2, shapes_and_type.second, output_shapes[2]);
 }
 
 shared_ptr<Node> op::v6::ExperimentalDetectronDetectionOutput::clone_with_new_inputs(
@@ -65,3 +58,8 @@ shared_ptr<Node> op::v6::ExperimentalDetectronDetectionOutput::clone_with_new_in
                                                                      new_args.at(3),
                                                                      m_attrs);
 }
+
+void op::v6::ExperimentalDetectronDetectionOutput::set_attrs(Attributes attrs) {
+    m_attrs = std::move(attrs);
+}
+}  // namespace ov

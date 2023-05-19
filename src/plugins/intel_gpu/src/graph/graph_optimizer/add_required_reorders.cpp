@@ -2,13 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <algorithm>
 
 #include "pass_manager.h"
 #include "program_node.h"
 #include "mutable_data_inst.h"
 #include "convert_color_inst.h"
+#include "fully_connected_inst.h"
+#include "assign_inst.h"
 #include "tensor_type.h"
+
+#include <algorithm>
 #include <memory>
 #include <vector>
 #include <stdexcept>
@@ -56,6 +59,21 @@ void add_required_reorders::run(program& p) {
             continue;  // only nodes with dependencies
         if (usr->is_type<data>())
             continue;
+
+        // If usr is assign and input and output data types are different
+        // add reorder with usr's output data type between dep and usr
+        if (usr->is_type<assign>()) {
+            auto& dep = usr->get_dependency(0);
+            auto dep_layout = dep.get_output_layout();
+            auto out_layout = usr->get_output_layout();
+            bool required_reorder = out_layout.data_type != dep_layout.data_type;
+            if (required_reorder) {
+                auto new_reorder = std::make_shared<reorder>(dep.id() + "_reorder_" + usr->id(), dep.id(), out_layout.format, out_layout.data_type);
+                auto& new_reorder_node = p.get_or_create(new_reorder);
+                p.add_intermediate(new_reorder_node, *usr, dep);
+                new_reorder_node.recalc_output_layout(false);
+            }
+        }
 
         if (optimize_data) {
             auto fused_ops = usr->get_fused_primitives();
@@ -198,14 +216,13 @@ void add_required_reorders::run(program& p) {
                     }
                 }
 
-                if (!correct_layout_selected) {
-                    throw std::runtime_error("Internal Error: no layout format available for " + usr->id() +
-                                                " (format: " + std::to_string(original_layout.format.value) +
-                                                ", data_type: " + data_type_traits::name(original_layout.data_type) + ") "
-                                                "compatible with " + node.first->id() +
-                                                " (format: " + std::to_string(node.first->get_output_layout().format.value) +
-                                                ", data_type: " + data_type_traits::name(node.first->get_output_layout().data_type) + ")");
-                }
+                OPENVINO_ASSERT(correct_layout_selected,
+                                "[GPU] No layout format available for ", usr->id(),  ", impl_type: ", usr->get_preferred_impl_type(),
+                                " (format: ", original_layout.format.to_string(),
+                                ", data_type: ", data_type_traits::name(original_layout.data_type), ") ",
+                                "compatible with ", node.first->id(),
+                                " (format: ", node.first->get_output_layout().format.to_string(),
+                                ", data_type: ", data_type_traits::name(node.first->get_output_layout().data_type), ")");
             }
         }
 

@@ -1608,8 +1608,6 @@ bool InterpolateKey::operator==(const InterpolateKey &rhs) const {
         return false;
     if (nodeAttrs.outPrc != rhs.nodeAttrs.outPrc)
         return false;
-    if (nodeAttrs.layout != rhs.nodeAttrs.layout)
-        return false;
 
     if (srcDims != rhs.srcDims)
         return false;
@@ -1780,7 +1778,8 @@ public:
         } else if (auto interp11 = ov::as_type_ptr<ngraph::opset11::Interpolate>(m_op)) {
             port_mask = PortMask(Interpolate::SIZE_OR_SCALE_ID_V11, Interpolate::AXES_ID_V11);
         } else {
-            IE_THROW(Unexpected) << "Wrong operation type";
+            IE_THROW() << "Shape infer factory cannot be created for " << m_op->get_type_name() << " node with name: " << m_op->get_friendly_name()
+                <<", only versions 4 and 11 are supported.";
         }
         return std::make_shared<NgraphShapeInfer>(make_shape_inference(m_op), port_mask);
     }
@@ -1957,6 +1956,11 @@ Interpolate::Interpolate(const std::shared_ptr<ngraph::Node>& op, const GraphCon
 
             if (isAxesSpecified) {
                 axes = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(interp->get_input_node_shared_ptr(AXES_ID_V11))->cast_vector<int>();
+                if (dataRank == 4 && axes.size() == 2 && axes[0] == 1 && axes[1] == 2 && mayiuse(cpu::x64::sse41)) {
+                    NCHWAsNHWC = true;
+                    axes[0] = 2;
+                    axes[1] = 3;
+                }
             } else {
                 axes.resize(dataRank);
                 for (int i = 0; i < dataRank; i++) {
@@ -1994,6 +1998,7 @@ void Interpolate::getSupportedDescriptors() {
     }
     //correct pad
     if (hasPad) {
+        NCHWAsNHWC = false;
         auto correctPad = [&](std::vector<int> pad, int rank) {
             int padLen = pad.size();
             if (padLen == rank) {
@@ -2047,9 +2052,17 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
         } else {
             config.inConfs.resize(2);
         }
-        auto& creatorsMap = BlockedDescCreator::getCommonCreators();
-        auto pushDesc = [&](LayoutType dataFormat, impl_desc_type implDetail, bool useAclExecutor = false) {
-            config.inConfs[DATA_ID].setMemDesc(creatorsMap.at(dataFormat)->createSharedDesc(inputPrecision, getInputShapeAtPort(DATA_ID)));
+    } else {
+        if (isAxesSpecified) {
+            config.inConfs.resize(4);
+        } else {
+            config.inConfs.resize(3);
+        }
+    }
+    auto& creatorsMap = BlockedDescCreator::getCommonCreators();
+    auto pushDesc = [&](LayoutType dataFormat, impl_desc_type implDetail, bool is_version11, bool useAclExecutor = false) {
+        config.inConfs[DATA_ID].setMemDesc(creatorsMap.at(dataFormat)->createSharedDesc(inputPrecision, getInputShapeAtPort(DATA_ID)));
+        if (is_version11) {
             if (shapeCalcMode == InterpolateShapeCalcMode::sizes) {
                 config.inConfs[SIZE_OR_SCALE_ID_V11].setMemDesc(
                     creatorsMap.at(LayoutType::ncsp)->createSharedDesc(targetShapeType, getInputShapeAtPort(SIZE_OR_SCALE_ID_V11)));
@@ -2061,122 +2074,101 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
             if (isAxesSpecified)
                 config.inConfs[AXES_ID_V11].setMemDesc(
                     creatorsMap.at(LayoutType::ncsp)->createSharedDesc(axesType, getInputShapeAtPort(AXES_ID_V11)));
-
-            config.outConfs[0].setMemDesc(creatorsMap.at(dataFormat)->createSharedDesc(outputPrecision, getOutputShapeAtPort(0)));
-
-            if (useAclExecutor) {
-                std::vector<MemoryDescPtr> srcMemoryDescs;
-                for (int i = 0; i < config.inConfs.size(); i++) {
-                    srcMemoryDescs.push_back(config.inConfs[i].getMemDesc());
-                }
-                std::vector<MemoryDescPtr> dstMemoryDescs;
-                for (int i = 0; i < config.outConfs.size(); i++) {
-                    dstMemoryDescs.push_back(config.outConfs[i].getMemDesc());
-                }
-
-                auto factory = std::make_shared<InterpolateExecutorFactory>(interpAttrs, srcMemoryDescs, dstMemoryDescs,
-                                                                        std::make_shared<ExecutorContext>(context, getPrimitivesPriority()));
-                if (!factory->isEmpty()) {
-                    supportedPrimitiveDescriptors.push_back({config, implDetail, factory});
-                }
-            } else {
-                supportedPrimitiveDescriptors.push_back({config, implDetail});
-            }
-        };
-
-#if defined (OV_CPU_WITH_ACL)
-                interpAttrs.hasPad = hasPad;
-                pushDesc(LayoutType::nspc, undef, true);
-                pushDesc(LayoutType::ncsp, undef, true);
-                canUseAclExecutor = !supportedPrimitiveDescriptors.empty();
-                if (canUseAclExecutor)
-                    return;
-#endif
-
-        if (getInputShapeAtPort(DATA_ID).getRank() == 4) {
-            if (mayiuse(cpu::x64::avx512_core)) {
-                pushDesc(LayoutType::nspc, jit_avx512);
-            } else if (mayiuse(cpu::x64::avx2)) {
-                pushDesc(LayoutType::nspc, jit_avx2);
-            } else if (mayiuse(cpu::x64::sse41)) {
-                pushDesc(LayoutType::nspc, jit_sse42);
-            }
-        }
-        pushDesc(LayoutType::ncsp, ref);
-    } else {
-        if (isAxesSpecified) {
-            config.inConfs.resize(4);
         } else {
-            config.inConfs.resize(3);
-        }
-
-        auto& creatorsMap = BlockedDescCreator::getCommonCreators();
-        auto pushDesc = [&](LayoutType dataFormat, impl_desc_type implDetail, bool useAclExecutor = false) {
-            config.inConfs[DATA_ID].setMemDesc(creatorsMap.at(dataFormat)->createSharedDesc(inputPrecision, getInputShapeAtPort(DATA_ID)));
             config.inConfs[TARGET_SHAPE_ID].setMemDesc(
                 creatorsMap.at(LayoutType::ncsp)->createSharedDesc(targetShapeType, getInputShapeAtPort(TARGET_SHAPE_ID)));
             config.inConfs[get_scale_id()].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(scalesType, getInputShapeAtPort(get_scale_id())));
 
             if (isAxesSpecified)
                 config.inConfs[get_axis_id()].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(axesType, getInputShapeAtPort(get_axis_id())));
+        }
 
-            config.outConfs[0].setMemDesc(creatorsMap.at(dataFormat)->createSharedDesc(outputPrecision, getOutputShapeAtPort(0)));
+        config.outConfs[0].setMemDesc(creatorsMap.at(dataFormat)->createSharedDesc(outputPrecision, getOutputShapeAtPort(0)));
 
-            if (useAclExecutor) {
-                std::vector<MemoryDescPtr> srcMemoryDescs;
-                for (int i = 0; i < config.inConfs.size(); i++) {
-                    srcMemoryDescs.push_back(config.inConfs[i].getMemDesc());
-                }
-                std::vector<MemoryDescPtr> dstMemoryDescs;
-                for (int i = 0; i < config.outConfs.size(); i++) {
-                    dstMemoryDescs.push_back(config.outConfs[i].getMemDesc());
-                }
-
-                auto factory = std::make_shared<InterpolateExecutorFactory>(interpAttrs, srcMemoryDescs, dstMemoryDescs,
-                                                                        std::make_shared<ExecutorContext>(context, getPrimitivesPriority()));
-                if (!factory->isEmpty()) {
-                    supportedPrimitiveDescriptors.push_back({config, implDetail, factory});
-                }
-            } else {
-                supportedPrimitiveDescriptors.push_back({config, implDetail});
+        if (useAclExecutor) {
+            std::vector<MemoryDescPtr> srcMemoryDescs;
+            for (int i = 0; i < config.inConfs.size(); i++) {
+                srcMemoryDescs.push_back(config.inConfs[i].getMemDesc());
             }
-        };
+            std::vector<MemoryDescPtr> dstMemoryDescs;
+            for (int i = 0; i < config.outConfs.size(); i++) {
+                dstMemoryDescs.push_back(config.outConfs[i].getMemDesc());
+            }
 
+            auto factory = std::make_shared<InterpolateExecutorFactory>(interpAttrs, srcMemoryDescs, dstMemoryDescs,
+                                                                    std::make_shared<ExecutorContext>(context, getPrimitivesPriority()));
+            if (!factory->isEmpty()) {
+                supportedPrimitiveDescriptors.push_back({config, implDetail, factory});
+            }
+        } else {
+            supportedPrimitiveDescriptors.push_back({config, implDetail});
+        }
+    };
+    if (is_version11) {
+#if defined (OV_CPU_WITH_ACL)
+        interpAttrs.hasPad = hasPad;
+        pushDesc(LayoutType::nspc, undef, true, true);
+        pushDesc(LayoutType::ncsp, undef, true, true);
+        canUseAclExecutor = !supportedPrimitiveDescriptors.empty();
+        if (canUseAclExecutor)
+            return;
+#endif
+
+        if (getInputShapeAtPort(DATA_ID).getRank() == 4) {
+            if (mayiuse(cpu::x64::avx512_core)) {
+                if (NCHWAsNHWC)
+                    pushDesc(LayoutType::ncsp, jit_avx512, true);
+                else
+                    pushDesc(LayoutType::nspc, jit_avx512, true);
+            } else if (mayiuse(cpu::x64::avx2)) {
+                if (NCHWAsNHWC)
+                    pushDesc(LayoutType::ncsp, jit_avx2, true);
+                else
+                    pushDesc(LayoutType::nspc, jit_avx2, true);
+            } else if (mayiuse(cpu::x64::sse41)) {
+                if (NCHWAsNHWC)
+                    pushDesc(LayoutType::ncsp, jit_sse42, true);
+                else
+                    pushDesc(LayoutType::nspc, jit_sse42, true);
+            }
+        }
+        pushDesc(LayoutType::ncsp, ref, true);
+    } else {
         const auto &dataMinDims = getInputShapeAtPort(DATA_ID).getMinDims();
         bool isBlkApplied = getInputShapeAtPort(DATA_ID).getRank() > 1 && dataMinDims[1] != Shape::UNDEFINED_DIM && dataMinDims[1] > 1;
 
 #if defined (OV_CPU_WITH_ACL)
         interpAttrs.hasPad = hasPad;
-        pushDesc(LayoutType::nspc, undef, true);
-        pushDesc(LayoutType::ncsp, undef, true);
+        pushDesc(LayoutType::nspc, undef, false, true);
+        pushDesc(LayoutType::ncsp, undef, false, true);
         canUseAclExecutor = !supportedPrimitiveDescriptors.empty();
         if (canUseAclExecutor)
             return;
 #endif
 
         if (!mayiuse(cpu::x64::sse41) || interpAttrs.mode == InterpolateMode::linear) {
-            pushDesc(LayoutType::ncsp, ref);
+            pushDesc(LayoutType::ncsp, ref, false);
         } else {
             // blk and by_channel JIT kernel on sse41 or above machine
             if (getInputShapeAtPort(DATA_ID).getRank() == 4 || (getInputShapeAtPort(DATA_ID).getRank() == 5 && interpAttrs.mode != InterpolateMode::cubic)) {
                 if (mayiuse(cpu::x64::avx512_core)) {
-                    pushDesc(LayoutType::nspc, jit_avx512);
+                    pushDesc(LayoutType::nspc, jit_avx512, false);
                     if (isBlkApplied)
-                        pushDesc(LayoutType::nCsp16c, jit_avx512);
+                        pushDesc(LayoutType::nCsp16c, jit_avx512, false);
                 } else if (mayiuse(cpu::x64::avx2)) {
-                    pushDesc(LayoutType::nspc, jit_avx2);
+                    pushDesc(LayoutType::nspc, jit_avx2, false);
                     if (isBlkApplied)
-                        pushDesc(LayoutType::nCsp8c, jit_avx2);
+                        pushDesc(LayoutType::nCsp8c, jit_avx2, false);
                 } else {
-                    pushDesc(LayoutType::nspc, jit_sse42);
+                    pushDesc(LayoutType::nspc, jit_sse42, false);
                     if (isBlkApplied)
-                        pushDesc(LayoutType::nCsp8c, jit_sse42);
+                        pushDesc(LayoutType::nCsp8c, jit_sse42, false);
                 }
             }
 
             // planar for 1.ref on machine without sse41(if no sse41, canFuse() is false). 2.JIT kernel for f32 && avx2(gather).(with fuse)
             if (mayiuse(cpu::x64::avx2) && inputPrecision == Precision::FP32) {
-                pushDesc(LayoutType::ncsp, jit_avx2);
+                pushDesc(LayoutType::ncsp, jit_avx2, false);
             }
         }
     }
@@ -2274,8 +2266,24 @@ void Interpolate::prepareParams() {
     if (selected_pd == nullptr)
         IE_THROW() << errorPrefix << " did not set preferable primitive descriptor";
 
-    const auto &srcDims = srcMemPtr->getStaticDims();
-    const auto &dstDims = dstMemPtr->getStaticDims();
+    const auto &srcDimsOrign = srcMemPtr->getStaticDims();
+    const auto &dstDimsOrign = dstMemPtr->getStaticDims();
+
+    VectorDims srcDims = srcDimsOrign;
+    VectorDims dstDims = dstDimsOrign;
+
+    // layoutAlignment
+    if (NCHWAsNHWC && srcMemPtr->getDesc().hasLayoutType(LayoutType::ncsp)) {
+        auto logicalShapeAlign = [] (VectorDims& Dims) {
+            size_t C = Dims[3];
+            Dims[3] = Dims[2];
+            Dims[2] = Dims[1];
+            Dims[1] = C;
+        };
+        logicalShapeAlign(srcDims);
+        logicalShapeAlign(dstDims);
+        interpAttrs.layout = InterpolateLayoutType::by_channel;
+    }
 
     if (shapeCalcMode == InterpolateShapeCalcMode::scales) {
         if (!isScaleConstant) {
@@ -2286,7 +2294,7 @@ void Interpolate::prepareParams() {
     }
 
     std::vector<float> dataScales = getScales(getPaddedInputShape(srcDims, interpAttrs.padBegin, interpAttrs.padEnd), dstDims);
-    if (getOutputShapeAtPort(0).getRank() > 2 && (dataScales[0] != 1.f || dataScales[1] != 1.f)) {
+    if (!NCHWAsNHWC && (getOutputShapeAtPort(0).getRank() > 2 && (dataScales[0] != 1.f || dataScales[1] != 1.f))) {
         IE_THROW() << "Interpolate layer only supports resize on spatial dimensions(depth, height and width)";
     }
 
@@ -2341,7 +2349,7 @@ void Interpolate::prepareParams() {
     auto result = cache->getOrCreate(key, buildExecutor);
     execPtr = result.first;
 
-    lastOutputDims = dstDims;
+    lastOutputDims = dstDimsOrign;
 }
 
 void Interpolate::createPrimitive() {
@@ -2441,20 +2449,17 @@ void Interpolate::execute(dnnl::stream strm) {
     if (execPtr) {
         uint8_t *dst_data = reinterpret_cast<uint8_t*>(dstMemPtr->GetPtr());
         const uint8_t *src_data_origin = reinterpret_cast<uint8_t*>(srcMemPtr->GetData());
-
-        const auto &srcDim = srcMemPtr->getStaticDims();
-        const auto &dstDim = dstMemPtr->getStaticDims();
-        size_t dimSize = srcDim.size();
-        auto srcDimPad = execPtr->getSrcDimPad5d();
-
-        const auto srcDim5d = to5Dim(srcDim);
-        const auto srcDimPad5d = to5Dim(srcDimPad);
-        const auto dstDim5d = to5Dim(dstDim);
-        const auto srcDataSize = srcMemPtr->getDesc().getPrecision().size();
-
         const uint8_t *src_data = nullptr;
         std::vector<uint8_t> srcPadded;
         if (hasPad) {
+            const auto &srcDim = srcMemPtr->getStaticDims();
+            auto srcDimPad = execPtr->getSrcDimPad5d();
+            size_t dimSize = srcDim.size();
+
+            const auto srcDim5d = to5Dim(srcDim);
+            const auto srcDimPad5d = to5Dim(srcDimPad);
+            const auto srcDataSize = srcMemPtr->getDesc().getPrecision().size();
+
             int padB0 = (dimSize > 2) ? interpAttrs.padBegin[0] : 0;
             int padB1 = (dimSize > 2) ? interpAttrs.padBegin[1] : 0;
             int padB2 = (dimSize == 5) ? interpAttrs.padBegin[dimSize - 3] : 0;

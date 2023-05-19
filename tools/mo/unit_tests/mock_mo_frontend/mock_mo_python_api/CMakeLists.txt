@@ -28,7 +28,13 @@ set(PYBIND_FE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/mock_mo_python_api.cpp)
 
 source_group("src" FILES ${PYBIND_FE_SRC})
 
-find_package(pybind11 2.8.0 QUIET)
+if(PYTHON_VERSION_MINOR GREATER_EQUAL 11)
+    set(pybind11_min_version 2.9.2)
+else()
+    set(pybind11_min_version 2.8.0)
+endif()
+
+find_package(pybind11 ${pybind11_min_version} QUIET)
 
 if(NOT pybind11_FOUND)
     add_subdirectory(${OpenVINO_SOURCE_DIR}/src/bindings/python/thirdparty/pybind11

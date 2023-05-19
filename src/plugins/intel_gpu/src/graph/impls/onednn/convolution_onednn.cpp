@@ -8,7 +8,7 @@
 #include "primitive_onednn_base.h"
 #include "implementation_map.hpp"
 
-#include "kernel_selector_common.h"
+#include "impls/ocl/kernel_selector_helper.h"
 
 #include "utils.hpp"
 
@@ -158,6 +158,7 @@ protected:
 
         weights_reorder_params.engine = kernel_selector::WeightsReorderParams::Engine::GPU;
         weights_reorder_params.clKernel = std::make_shared<kernel_selector::clKernelData>(kernels_data[0].kernels[0]);
+        weights_reorder_params.src = r_params.input;
         weights_reorder_params.dest = r_params.output;
 
         return weights_reorder_params;

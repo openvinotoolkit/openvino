@@ -68,37 +68,12 @@ private:
     void run(program& p) override;
 };
 
-class calculate_prior_boxes : public base_pass {
-public:
-    calculate_prior_boxes() : base_pass("calculated_prior_boxes") {}
-
-private:
-    void run(program& p) override;
-};
-
 class compile_graph : public base_pass {
 public:
     compile_graph() : base_pass("compile_graph") {}
 
 private:
     void run(program& p) override;
-};
-
-class eltwise_shrinking : public base_pass {
-public:
-    eltwise_shrinking() : base_pass("eltwise_shrinking") {}
-
-private:
-    void run(program& p) override;
-};
-
-class eltwise_remove_stride : public base_pass {
-public:
-    eltwise_remove_stride() : base_pass("eltwise_remove_stride") {}
-
-private:
-    void run(program& p) override;
-    void conv_stride_extend(program& p, program_node& node, cldnn::tensor& tensor);
 };
 
 class graph_initializations : public base_pass {
@@ -116,14 +91,6 @@ private:
 class handle_reshape : public base_pass {
 public:
     handle_reshape() : base_pass("handle_reshape") {}
-
-private:
-    void run(program& p) override;
-};
-
-class handle_input_padding : public base_pass {
-public:
-    handle_input_padding() : base_pass("handle_input_padding") {}
 
 private:
     void run(program& p) override;
@@ -212,18 +179,6 @@ public:
 private:
     void run(program& p) override;
     layout_optimizer& _lo;
-};
-
-class pre_optimize_bias : public base_pass {
-public:
-    explicit pre_optimize_bias(reorder_factory& rf_ref);
-
-private:
-    void run(program& p) override;
-    virtual void run(program& p, reorder_factory& rf);
-    template <typename T>
-    bool optimize_bias(T& node, reorder_factory& rf, program& p);
-    reorder_factory& _rf;
 };
 
 class prepare_padding : public base_pass {
@@ -375,7 +330,7 @@ public:
             if (node->id() == dep->id()) {
                 return;
             }
-            for (auto subdep : dep->get_dependencies()) {
+            for (const auto& subdep : dep->get_dependencies()) {
                 add_memory_dependency(node, subdep.first);
                 add_memory_dependency(subdep.first, node);
             }

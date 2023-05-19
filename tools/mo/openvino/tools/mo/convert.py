@@ -45,7 +45,6 @@ def convert_model(
 
         # PyTorch-specific parameters:
         example_input: Any = None,
-        onnx_opset_version: int = None,
 
         # TensorFlow*-specific parameters
         input_model_is_text: bool = None,
@@ -103,6 +102,7 @@ def convert_model(
             torch.jit.ScriptFunction
 
             TF
+            tf.compat.v1.Graph
             tf.compat.v1.GraphDef
             tf.compat.v1.wrap_function
             tf.compat.v1.session
@@ -113,7 +113,6 @@ def convert_model(
             tf.function
             tf.Module
             tf.train.checkpoint
-            tf.python.training.tracking.base.Trackable for case when it is output from tf.saved_model.load()
 
         :param input:
             Input can be set by passing a list of InputCutInfo objects or by a list
@@ -265,8 +264,6 @@ def convert_model(
     PyTorch-specific parameters:
         :param example_input:
             Sample of model input in original framework. For PyTorch it can be torch.Tensor.
-        :param onnx_opset_version:
-            Version of ONNX opset that is used for converting from PyTorch to ONNX.
 
     TensorFlow*-specific parameters:
         :param input_model_is_text:
@@ -348,6 +345,6 @@ def convert_model(
     del params['args']
     params.update(args)
     cli_parser = get_all_cli_parser()
-    ov_model, _ = _convert(cli_parser, framework, params)
+    ov_model, _ = _convert(cli_parser, framework, params, True)
     restore_logger_state(logger_state)
     return ov_model

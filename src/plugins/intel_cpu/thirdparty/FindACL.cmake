@@ -74,7 +74,11 @@ else()
 
     message(STATUS "Configure to build ${ARM_COMPUTE_SOURCE_DIR}")
 
-    find_host_program(SCONS scons)
+    if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.18)
+        list(APPEND find_scons_extra_options REQUIRED)
+    endif()
+
+    find_host_program(SCONS scons ${find_scons_extra_options})
 
     if(NOT SCONS)
         message(FATAL_ERROR "Scons tool is not found!")
@@ -90,7 +94,7 @@ else()
     if(MSVC64)
         # clang-cl does not recognize /MP option
         string(REPLACE "/MP " "" extra_cxx_flags "${extra_cxx_flags}")
-    else()
+    elseif(CMAKE_POSITION_INDEPENDENT_CODE)
         # -fPIC is not applicable for clang-cl
         set(extra_cxx_flags "${extra_cxx_flags} -fPIC")
     endif()
@@ -134,9 +138,15 @@ else()
     # https://cmake.org/cmake/help/latest/command/add_custom_command.html#examples-generating-files
     if(OV_GENERATOR_MULTI_CONFIG AND CMAKE_VERSION VERSION_GREATER_EQUAL 3.20)
         foreach(option IN LISTS ARM_COMPUTE_DEBUG_OPTIONS)
-            list(APPEND ARM_COMPUTE_OPTIONS $<$<CONFIG:Debug>:${option}>)
+            list(APPEND ARM_COMPUTE_OPTIONS $<$<CONFIG:Debug>:${option}>
+                                            $<$<CONFIG:RelWithDebInfo>:${option}>)
         endforeach()
-    elseif(CMAKE_BUILD_TYPE STREQUAL "Debug")
+        foreach(config IN LISTS CMAKE_CONFIGURATION_TYPES)
+            string(TOUPPER "${config}" config_upper)
+            set(flags ${CMAKE_CXX_FLAGS_${config_upper}})
+            set(extra_cxx_flags "${extra_cxx_flags} $<$<CONFIG:${config}>:${flags}>")
+        endforeach()
+    elseif(CMAKE_BUILD_TYPE MATCHES "^(Debug|RelWithDebInfo)$")
         list(APPEND ARM_COMPUTE_OPTIONS ${ARM_COMPUTE_DEBUG_OPTIONS})
     endif()
 
@@ -188,7 +198,9 @@ else()
 
         set(extra_link_flags "${extra_link_flags} ${extra_flags}")
         set(extra_cxx_flags "${extra_cxx_flags} ${extra_flags}")
-    elseif(CMAKE_CROSSCOMPILING AND LINUX)
+    elseif(LINUX)
+        # we need to bypass this information in case of custom compiler is passed
+        # to cmake call. Such compiler and compiler prefix need to be passed to scons
         get_filename_component(cxx_compiler "${CMAKE_CXX_COMPILER}" NAME)
         get_filename_component(c_compiler "${CMAKE_C_COMPILER}" NAME)
         get_filename_component(compiler_prefix "${CMAKE_CXX_COMPILER}" DIRECTORY)
@@ -239,6 +251,7 @@ else()
             endforeach()
         endif()
     elseif(MSVC64)
+        # required for clang-cl compiler
         if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.20)
             set(extra_cxx_flags "${extra_cxx_flags} $<IF:$<CONFIG:Release>,/MD,/MDd>")
         else()
@@ -251,7 +264,7 @@ else()
     endif()
 
     if(ENABLE_LTO)
-        if((CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG) AND (NOT CMAKE_CROSSCOMPILING))
+        if((CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG) AND NOT CMAKE_CROSSCOMPILING)
             set(extra_cxx_flags "${extra_cxx_flags} -flto=thin")
             set(extra_link_flags "${extra_link_flags} -flto=thin")
         endif()
@@ -293,6 +306,10 @@ else()
                 ${ARM_COMPUTE_SOURCE_DIR}/SConscript
                 ${ARM_COMPUTE_SOURCE_DIR}/SConstruct)
 
+    # Compute Library uses cppthreads=1
+    # if one day will rely on TBB only, we can omit this dependency
+    find_package(Threads REQUIRED)
+
     # Import targets
 
     add_custom_target(arm_compute_static_libs DEPENDS ${arm_compute_full_path})
@@ -300,18 +317,15 @@ else()
     add_library(arm_compute::arm_compute STATIC IMPORTED GLOBAL)
     set_target_properties(arm_compute::arm_compute PROPERTIES
         IMPORTED_LOCATION ${arm_compute_full_path}
-        INTERFACE_INCLUDE_DIRECTORIES ${ARM_COMPUTE_SOURCE_DIR})
+        INTERFACE_INCLUDE_DIRECTORIES ${ARM_COMPUTE_SOURCE_DIR}
+        INTERFACE_LINK_LIBRARIES Threads::Threads
+        OSX_ARCHITECTURES arm64)
     add_dependencies(arm_compute::arm_compute arm_compute_static_libs)
 
     add_library(arm_compute::half INTERFACE IMPORTED GLOBAL)
     set_target_properties(arm_compute::half PROPERTIES
-        INTERFACE_INCLUDE_DIRECTORIES ${ARM_COMPUTE_SOURCE_DIR}/include)
-
-    # Compute Library uses cppthreads=1
-    # if one day will rely on TBB only, we can omit this dependency
-    find_package(Threads REQUIRED)
-    set_target_properties(arm_compute::arm_compute PROPERTIES
-        INTERFACE_LINK_LIBRARIES Threads::Threads)
+        INTERFACE_INCLUDE_DIRECTORIES ${ARM_COMPUTE_SOURCE_DIR}/include
+        OSX_ARCHITECTURES arm64)
 
     # Helpers for oneDNN intergation
 
