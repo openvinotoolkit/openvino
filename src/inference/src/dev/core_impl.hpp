@@ -144,7 +144,7 @@ private:
     mutable std::unordered_set<std::string> opsetNames;
     // TODO: make extensions to be optional with conditional compilation
     mutable std::vector<InferenceEngine::IExtensionPtr> extensions;
-    std::vector<ov::Extension::Ptr> ov_extensions;
+    mutable std::vector<ov::Extension::Ptr> ov_extensions;
 
     std::map<std::string, PluginDescriptor> pluginRegistry;
 
@@ -181,11 +181,12 @@ private:
     void try_to_register_plugin_extensions(const std::basic_string<C>& path) const {
         try {
             auto plugin_extensions = ov::detail::load_extensions(path);
-            add_extension(plugin_extensions);
+            add_extensions_unsafe(plugin_extensions);
         } catch (const std::runtime_error&) {
             // in case of shared library is not opened
         }
     }
+    void add_extensions_unsafe(const std::vector<ov::Extension::Ptr>& extensions) const;
 
     // Legacy API
     void AddExtensionUnsafe(const InferenceEngine::IExtensionPtr& extension) const;

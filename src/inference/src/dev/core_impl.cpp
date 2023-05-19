@@ -1086,9 +1086,7 @@ void ov::CoreImpl::set_property_for_device(const ov::AnyMap& configMap, const st
         });
     }
 }
-
-void ov::CoreImpl::add_extension(const std::vector<ov::Extension::Ptr>& extensions) {
-    std::lock_guard<std::mutex> lock(get_mutex());
+void ov::CoreImpl::add_extensions_unsafe(const std::vector<ov::Extension::Ptr>& extensions) const {
     for (const auto& ext : extensions) {
         ov_extensions.emplace_back(ext);
         auto ext_obj = ext;
@@ -1100,6 +1098,11 @@ void ov::CoreImpl::add_extension(const std::vector<ov::Extension::Ptr>& extensio
             }
         }
     }
+}
+
+void ov::CoreImpl::add_extension(const std::vector<ov::Extension::Ptr>& extensions) {
+    std::lock_guard<std::mutex> lock(get_mutex());
+    add_extensions_unsafe(extensions);
 }
 
 const std::vector<InferenceEngine::IExtensionPtr>& ov::CoreImpl::GetExtensions() const {
