@@ -69,7 +69,7 @@ You can integrate and offload to accelerators additional operations for pre- and
 Model Quantization and Compression
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Boost your model’s speed even further with quantization and other state-of-the-art compression techniques available in OpenVINO’s Post-Training Optimization Tool and Neural Network Compression Framework. These techniques also reduce your model size and memory requirements, allowing it to be deployed on resource-constrained edge hardware. 
+Boost your model’s speed even further with quantization and other state-of-the-art compression techniques available in OpenVINO’s Neural Network Compression Framework. These techniques also reduce your model size and memory requirements, allowing it to be deployed on resource-constrained edge hardware. 
 
 .. panels::
    :card: homepage-panels
