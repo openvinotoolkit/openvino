@@ -1355,7 +1355,10 @@ TEST_P(CachingTest, TestChangeCacheDirFailure) {
         });
         testLoad([&](Core& ie) {
             ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}});
+// Disable the following ASSERTION, caused by "mkdir()" func call support long name in WASM
+#ifndef __EMSCRIPTEN__
             EXPECT_ANY_THROW(ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir + "/" + longName}}));
+#endif
             m_testFunction(ie);
         });
     }
