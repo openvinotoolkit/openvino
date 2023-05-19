@@ -165,7 +165,6 @@ def swish(
     return _get_node_factory_opset4().create("Swish", as_nodes(data, beta), {})
 
 
-
 @nameable_op
 def acosh(node: NodeInput, name: Optional[str] = None) -> Node:
     """Apply hyperbolic inverse cosine function on the input node element-wise.
@@ -177,7 +176,6 @@ def acosh(node: NodeInput, name: Optional[str] = None) -> Node:
     return _get_node_factory_opset4().create("Acosh", as_nodes(node))
 
 
-
 @nameable_op
 def asinh(node: NodeInput, name: Optional[str] = None) -> Node:
     """Apply hyperbolic inverse sinus function on the input node element-wise.
@@ -187,7 +185,6 @@ def asinh(node: NodeInput, name: Optional[str] = None) -> Node:
     :return: New node with arcsinh operation applied on it.
     """
     return _get_node_factory_opset4().create("Asinh", as_nodes(node))
-
 
 
 @nameable_op
