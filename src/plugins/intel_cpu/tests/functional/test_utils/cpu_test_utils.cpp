@@ -11,32 +11,27 @@ namespace CPUTestUtils {
 const char* CPUTestsBase::any_type = "any_type";
 
 const char *CPUTestsBase::cpu_fmt2str(cpu_memory_format_t v) {
-#define CASE(_fmt) do { \
-    if (v == _fmt) return #_fmt; \
-} while (0)
-    CASE(undef);
-    CASE(ncw);
-    CASE(nCw8c);
-    CASE(nCw16c);
-    CASE(nwc);
-    CASE(nchw);
-    CASE(nChw8c);
-    CASE(nChw16c);
-    CASE(nhwc);
-    CASE(ncdhw);
-    CASE(nCdhw8c);
-    CASE(nCdhw16c);
-    CASE(ndhwc);
-    CASE(nc);
-    CASE(x);
-    CASE(tnc);
-    CASE(ntc);
-    CASE(ldnc);
-    CASE(ldigo);
-    CASE(ldgoi);
-    CASE(ldio);
-    CASE(ldoi);
-    CASE(ldgo);
+#define CASE(_fmt) case (cpu_memory_format_t::_fmt): return #_fmt;
+    switch (v) {
+        CASE(undef);
+        CASE(ncw);
+        CASE(nCw8c);
+        CASE(nCw16c);
+        CASE(nwc);
+        CASE(nchw);
+        CASE(nChw8c);
+        CASE(nChw16c);
+        CASE(nhwc);
+        CASE(ncdhw);
+        CASE(nCdhw8c);
+        CASE(nCdhw16c);
+        CASE(ndhwc);
+        CASE(nc);
+        CASE(x);
+        CASE(ntc);
+        CASE(ldgoi);
+        CASE(ldoi);
+    }
 #undef CASE
     assert(!"unknown fmt");
     return "undef";
@@ -258,6 +253,11 @@ CPUTestsBase::CPUInfo CPUTestsBase::getCPUInfo() const {
     return makeCPUInfo(inFmts, outFmts, priority);
 }
 
+#if defined(OV_CPU_WITH_ACL)
+std::string CPUTestsBase::getPrimitiveType() const {
+    return "acl";
+}
+#else
 std::string CPUTestsBase::getPrimitiveType() const {
     std::string isaType;
     if (InferenceEngine::with_cpu_x86_avx512f()) {
@@ -271,6 +271,8 @@ std::string CPUTestsBase::getPrimitiveType() const {
     }
     return isaType;
 }
+
+#endif
 
 std::string CPUTestsBase::getISA(bool skip_amx) const {
     std::string isaType;
@@ -286,6 +288,21 @@ std::string CPUTestsBase::getISA(bool skip_amx) const {
         isaType = "";
     }
     return isaType;
+}
+
+static std::string setToString(const std::unordered_set<std::string> s) {
+    if (s.empty())
+        return {};
+
+    std::string result;
+    result.append("{");
+    for (const auto& str : s) {
+        result.append(str);
+        result.append(",");
+    }
+    result.append("}");
+
+    return result;
 }
 
 CPUTestsBase::CPUInfo
@@ -335,30 +352,32 @@ std::string CPUTestsBase::makeSelectedTypeStr(std::string implString, ngraph::el
     return implString;
 }
 
-std::vector<CPUSpecificParams> filterCPUSpecificParams(std::vector<CPUSpecificParams> &paramsVector) {
+std::vector<CPUSpecificParams> filterCPUSpecificParams(const std::vector<CPUSpecificParams> &paramsVector) {
     auto adjustBlockedFormatByIsa = [](std::vector<cpu_memory_format_t>& formats) {
-        for (int i = 0; i < formats.size(); i++) {
-            if (formats[i] == nCw16c)
-                formats[i] = nCw8c;
-            if (formats[i] == nChw16c)
-                formats[i] = nChw8c;
-            if (formats[i] == nCdhw16c)
-                formats[i] = nCdhw8c;
+        for (auto& format : formats) {
+            if (format == nCw16c)
+                format = nCw8c;
+            if (format == nChw16c)
+                format = nChw8c;
+            if (format == nCdhw16c)
+                format = nCdhw8c;
         }
     };
 
+    std::vector<CPUSpecificParams> filteredParamsVector = paramsVector;
+
     if (!InferenceEngine::with_cpu_x86_avx512f()) {
-        for (auto& param : paramsVector) {
+        for (auto& param : filteredParamsVector) {
             adjustBlockedFormatByIsa(std::get<0>(param));
             adjustBlockedFormatByIsa(std::get<1>(param));
         }
     }
 
-    return paramsVector;
+    return filteredParamsVector;
 }
 
 inline void CheckNumberOfNodesWithTypeImpl(std::shared_ptr<const ov::Model> function,
-                                           std::string nodeType,
+                                           const std::unordered_set<std::string>& nodeTypes,
                                            size_t expectedCount) {
     ASSERT_NE(nullptr, function);
     size_t actualNodeCount = 0;
@@ -369,30 +388,42 @@ inline void CheckNumberOfNodesWithTypeImpl(std::shared_ptr<const ov::Model> func
             IE_ASSERT(rtInfo.end() != it);
             return it->second.as<std::string>();
         };
-        if (getExecValue(ExecGraphInfoSerialization::LAYER_TYPE) == nodeType) {
+
+        if (nodeTypes.count(getExecValue(ExecGraphInfoSerialization::LAYER_TYPE))) {
             actualNodeCount++;
         }
     }
 
-    ASSERT_EQ(expectedCount, actualNodeCount) << "Unexpected count of the node type '" << nodeType << "' ";
+    ASSERT_EQ(expectedCount, actualNodeCount) << "Unexpected count of the node types '" << setToString(nodeTypes) << "' ";
 }
 
-void CheckNumberOfNodesWithType(ov::CompiledModel &compiledModel, std::string nodeType, size_t expectedCount) {
-    if (!compiledModel) return;
 
-    std::shared_ptr<const ov::Model> function = compiledModel.get_runtime_model();
-    CheckNumberOfNodesWithTypeImpl(function, nodeType, expectedCount);
-}
-
-void CheckNumberOfNodesWithType(InferenceEngine::ExecutableNetwork &execNet, std::string nodeType, size_t expectedCount) {
+void CheckNumberOfNodesWithTypes(InferenceEngine::ExecutableNetwork &execNet, const std::unordered_set<std::string>& nodeTypes, size_t expectedCount) {
     if (!execNet) return;
 
     InferenceEngine::CNNNetwork execGraphInfo = execNet.GetExecGraphInfo();
     std::shared_ptr<const ov::Model> function = execGraphInfo.getFunction();
-    CheckNumberOfNodesWithTypeImpl(function, nodeType, expectedCount);
+
+    CheckNumberOfNodesWithTypeImpl(function, nodeTypes, expectedCount);
 }
 
-std::vector<CPUSpecificParams> filterCPUInfoForDevice(std::vector<CPUSpecificParams> CPUParams) {
+void CheckNumberOfNodesWithTypes(const ov::CompiledModel &compiledModel, const std::unordered_set<std::string>& nodeTypes, size_t expectedCount) {
+    if (!compiledModel) return;
+
+    std::shared_ptr<const ov::Model> function = compiledModel.get_runtime_model();
+
+    CheckNumberOfNodesWithTypeImpl(function, nodeTypes, expectedCount);
+}
+
+void CheckNumberOfNodesWithType(const ov::CompiledModel &compiledModel, const std::string& nodeType, size_t expectedCount) {
+    CheckNumberOfNodesWithTypes(compiledModel, {nodeType}, expectedCount);
+}
+
+void CheckNumberOfNodesWithType(InferenceEngine::ExecutableNetwork &execNet, const std::string& nodeType, size_t expectedCount) {
+    CheckNumberOfNodesWithTypes(execNet, {nodeType}, expectedCount);
+}
+
+std::vector<CPUSpecificParams> filterCPUInfoForDevice(const std::vector<CPUSpecificParams>& CPUParams) {
     std::vector<CPUSpecificParams> resCPUParams;
     const int selectedTypeIndex = 3;
 

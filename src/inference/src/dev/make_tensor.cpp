@@ -528,7 +528,7 @@ public:
             OPENVINO_ASSERT(!std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor));
         }
     catch (const std::exception& ex) {
-        throw ov::Exception(ex.what());
+        OPENVINO_THROW(ex.what());
     }
 
     void setShape(const ie::SizeVector& dims) override {

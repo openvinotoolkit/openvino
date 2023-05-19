@@ -12,10 +12,12 @@ namespace v0 {
 
 template <class TOp>
 void check_unsqueeze_axes_rank(const TOp* op, const Rank& rank) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     NODE_VALIDATION_CHECK(op,
                           is_rank_compatible_any_of(rank, {0, 1}),
                           "Second input (axes) should not be of rank higher than 1. Got: ",
                           rank);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 template <class T>
@@ -40,7 +42,9 @@ void shape_infer(const Unsqueeze* op,
         const auto expanded_rank = arg_shape.rank().get_length() + unique_axes.size();
 
         // Normalize then remove repeated axes after normalization.
+        OPENVINO_SUPPRESS_DEPRECATED_START
         normalize_axes(op, expanded_rank, unique_axes);
+        OPENVINO_SUPPRESS_DEPRECATED_END
         const std::set<int64_t> axes(unique_axes.begin(), unique_axes.end());
 
         out_shape = arg_shape;

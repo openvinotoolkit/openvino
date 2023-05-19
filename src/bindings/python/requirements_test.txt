@@ -1,6 +1,6 @@
 -c ./constraints.txt
-numpy>=1.16.6,<=1.23.4
-protobuf~=3.20.3
+protobuf
+numpy
 onnx
 bandit
 black
@@ -29,7 +29,7 @@ flake8_quotes
 mypy
 Pep8-naming
 pydocstyle
-pytest-forked
+pytest-forked; sys_platform != 'win32'
 pytest-xdist
 pytest-html
 pytest

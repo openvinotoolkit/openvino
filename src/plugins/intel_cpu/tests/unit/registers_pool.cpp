@@ -3,7 +3,7 @@
 //
 
 #include <gtest/gtest.h>
-#include "nodes/kernels/registers_pool.hpp"
+#include "nodes/kernels/x64/registers_pool.hpp"
 #include "common/nstl.hpp"
 
 using namespace ov::intel_cpu;

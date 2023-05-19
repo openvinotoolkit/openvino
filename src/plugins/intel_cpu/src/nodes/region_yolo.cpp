@@ -12,7 +12,7 @@
 #include <ngraph/opsets/opset1.hpp>
 #include "common/cpu_convert.h"
 #include <cpu/x64/jit_generator.hpp>
-#include <emitters/jit_bf16_emitters.hpp>
+#include "emitters/x64/jit_bf16_emitters.hpp"
 #include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
 #include "utils/bfloat16.hpp"
 
@@ -21,12 +21,14 @@ using namespace dnnl::impl::cpu;
 using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::utils;
 
+#if defined(OPENVINO_ARCH_X86_64)
 #define GET_OFF(field) offsetof(jit_args_logistic, field)
+#endif
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
-
+#if defined(OPENVINO_ARCH_X86_64)
 template <cpu_isa_t isa>
 struct jit_uni_logistic_kernel_f32 : public jit_uni_logistic_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_logistic_kernel_f32)
@@ -226,6 +228,7 @@ private:
         }
     }
 };
+#endif
 
 bool RegionYolo::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -306,6 +309,7 @@ void RegionYolo::createPrimitive() {
         updateLastInputDims();
     }
 
+#if defined(OPENVINO_ARCH_X86_64)
     jit_logistic_config_params jcp;
     jcp.src_dt = jcp.dst_dt = output_prec;
     jcp.src_data_size = jcp.dst_data_size = output_prec.size();
@@ -322,10 +326,10 @@ void RegionYolo::createPrimitive() {
         block_size = 4;
     }
 
-    softmax_kernel = std::make_shared<SoftmaxGeneric>(input_prec, output_prec);
-
     if (logistic_kernel)
         logistic_kernel->create_ker();
+#endif
+    softmax_kernel = std::make_shared<SoftmaxGeneric>(input_prec, output_prec);
 }
 
 inline float RegionYolo::logistic_scalar(float src) {

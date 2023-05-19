@@ -8,6 +8,7 @@
 
    openvino_docs_OV_UG_Model_Representation
    openvino_docs_OV_UG_Infer_request
+   openvino_docs_OV_UG_Python_API_inference
    openvino_docs_OV_UG_Python_API_exclusives
    openvino_docs_MO_DG_TensorFlow_Frontend
 
@@ -430,9 +431,9 @@ To build your project using CMake with the default build tools currently availab
 Additional Resources
 ####################
 
-* See the :doc:`OpenVINO Samples <openvino_docs_OV_UG_Samples_Overview>` page or the `Open Model Zoo Demos <https://docs.openvino.ai/nightly/omz_demos.html>`__ page for specific examples of how OpenVINO pipelines are implemented for applications like image classification, text prediction, and many others.
+* See the :doc:`OpenVINO Samples <openvino_docs_OV_UG_Samples_Overview>` page or the `Open Model Zoo Demos <https://docs.openvino.ai/2023.0/omz_demos.html>`__ page for specific examples of how OpenVINO pipelines are implemented for applications like image classification, text prediction, and many others.
 * :doc:`OpenVINO™ Runtime Preprocessing <openvino_docs_OV_UG_Preprocessing_Overview>`
 * :doc:`Using Encrypted Models with OpenVINO <openvino_docs_OV_UG_protecting_model_guide>`
-* `Open Model Zoo Demos <https://docs.openvino.ai/nightly/omz_demos.html>`__
+* `Open Model Zoo Demos <https://docs.openvino.ai/2023.0/omz_demos.html>`__
 
 @endsphinxdirective

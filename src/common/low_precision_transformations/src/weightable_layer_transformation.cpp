@@ -14,6 +14,33 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
+namespace {
+std::vector<size_t> getWeightsDequantizationIdces(const std::shared_ptr<const Node> weightableLayer) {
+    if (ov::is_type<opset1::Convolution>(weightableLayer)) {
+        return std::vector<size_t>{0};
+    } else if (ov::is_type<opset1::ConvolutionBackpropData>(weightableLayer)) {
+        return std::vector<size_t>{1};
+    } else if (ov::is_type<opset1::GroupConvolution>(weightableLayer)) {
+        return ov::is_type<opset1::Reshape>(weightableLayer->get_input_node_shared_ptr(1)) ? std::vector<size_t>{0}
+                                                                                           : std::vector<size_t>{0, 1};
+    } else {
+        THROW_IE_LPT_EXCEPTION(*weightableLayer) << "getWeightsDequantizationIdces is called for unexpected layer";
+    }
+}
+
+bool checkConstShape(const std::vector<size_t>& idcesToCheck, const std::shared_ptr<opset1::Constant> constant) {
+    const auto& shape = constant->get_shape();
+    if (shape_size(shape) == 1) {
+        return true;
+    }
+    size_t dqVolume = 1;
+    for (const auto& outChannelsIdx : idcesToCheck) {
+        dqVolume *= shape[outChannelsIdx];
+    }
+    return shape_size(shape) == dqVolume;
+}
+}  // namespace
+
 WeightableLayerTransformation::WeightableLayerTransformation(const Params& params) : LayerTransformation(params) {}
 
 bool WeightableLayerTransformation::canConvolutionBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer,
@@ -165,20 +192,29 @@ bool WeightableLayerTransformation::canBeTransformed(const TransformationContext
 
 
         const auto fqOutPShape = fqFromWeights->get_output_partial_shape(0);
-        const size_t outChannelsIdx = ov::is_type<opset1::ConvolutionBackpropData>(layer) ? 1ul : 0ul;
-        if (fqOutPShape.rank().is_dynamic() || fqOutPShape[outChannelsIdx].is_dynamic()) {
+        if (fqOutPShape.rank().is_dynamic()) {
             return false;
         }
 
         const Shape constShape = olPShape.to_shape();
-        if (shape_size(constShape) != 1ul) {
-            const size_t constChannels = constShape[outChannelsIdx];
-            const size_t fqOutChannels = fqOutPShape[outChannelsIdx].get_length();
-            const bool constChannelsAndFqChannelsMismatched = (constChannels != 1ul) && (fqOutChannels != constChannels);
-
-            if ((constShape.size() <= outChannelsIdx) || (shape_size(constShape) != constChannels) || constChannelsAndFqChannelsMismatched) {
+        const auto dqIdces = getWeightsDequantizationIdces(layer);
+        size_t dqVolume = 1;
+        for (const auto outChannelsIdx : dqIdces) {
+            if (fqOutPShape[outChannelsIdx].is_dynamic()) {
                 return false;
             }
+
+            if (shape_size(constShape) != 1ul) {
+                const size_t constChannels = constShape[outChannelsIdx];
+                const size_t fqOutChannels = fqOutPShape[outChannelsIdx].get_length();
+                if ((constShape.size() <= outChannelsIdx) || (constChannels != 1ul && fqOutChannels != constChannels)) {
+                    return false;
+                }
+                dqVolume *= constChannels;
+            }
+        }
+        if (shape_size(constShape) != 1 && shape_size(constShape) != dqVolume) {
+            return false;
         }
     } else {
         // TODO: LPT: is it possible to share with isQuantized?
@@ -206,18 +242,10 @@ bool WeightableLayerTransformation::canBeTransformed(const TransformationContext
             }
         }
 
-        const size_t outChannelsIdx = ov::is_type<opset1::ConvolutionBackpropData>(layer) ? 1ul : 0ul;
-        if (dequantizationOnWeights.subtract) {
-            const auto subConstShape = dequantizationOnWeights.subtractConstant->get_shape();
-            if (shape_size(subConstShape) > 1ul && shape_size(subConstShape) != subConstShape[outChannelsIdx]) {
-                return false;
-            }
-        }
-        if (dequantizationOnWeights.multiply) {
-            const auto mulConstShape = dequantizationOnWeights.multiplyConstant->get_shape();
-            if (shape_size(mulConstShape) > 1ul && shape_size(mulConstShape) != mulConstShape[outChannelsIdx]) {
-                return false;
-            }
+        const auto dqIdces = getWeightsDequantizationIdces(layer);
+        if ((dequantizationOnWeights.subtract && !checkConstShape(dqIdces, dequantizationOnWeights.subtractConstant)) ||
+            (dequantizationOnWeights.multiply && !checkConstShape(dqIdces, dequantizationOnWeights.multiplyConstant))) {
+            return false;
         }
     }
 
@@ -253,17 +281,9 @@ bool WeightableLayerTransformation::isQuantizedStatic(const std::shared_ptr<cons
         return false;
     }
 
-    const size_t outChannelsShapeIndex = ov::is_type<opset1::ConvolutionBackpropData>(layer) ? 1ul : 0ul;
-    auto checkConstShape = [&](const std::shared_ptr<ngraph::opset1::Constant> node) {
-        const auto subConstShape = node->get_shape();
-        if (shape_size(subConstShape) > 1ul && shape_size(subConstShape) != subConstShape[outChannelsShapeIndex])
-            return false;
-        else
-            return true;
-    };
-
-    if ((dequantizationOnWeights.subtract && !checkConstShape(dequantizationOnWeights.subtractConstant)) ||
-        (dequantizationOnWeights.multiply && !checkConstShape(dequantizationOnWeights.multiplyConstant))) {
+    const auto dqIdces = getWeightsDequantizationIdces(layer);
+    if ((dequantizationOnWeights.subtract && !checkConstShape(dqIdces, dequantizationOnWeights.subtractConstant)) ||
+        (dequantizationOnWeights.multiply && !checkConstShape(dqIdces, dequantizationOnWeights.multiplyConstant))) {
         return false;
     }
 
@@ -289,7 +309,7 @@ bool WeightableLayerTransformation::isQuantizedStatic(const std::shared_ptr<cons
     } else if (auto fq = ov::as_type_ptr<opset1::FakeQuantize>(deqData)) {
         for (size_t i = 1; i < fq->get_input_size(); ++i) {
             if (auto constant = ov::as_type_ptr<ngraph::opset1::Constant>(fq->get_input_node_shared_ptr(i))) {
-                if (!checkConstShape(constant)) {
+                if (!checkConstShape(dqIdces, constant)) {
                     return false;
                 }
             }

@@ -79,7 +79,7 @@ struct resample : public primitive_base<resample> {
           cube_coeff(cube_coeff),
           coord_trans_mode(ctm),
           round_mode(nm) {
-        if (scales.size() != axes.size())
+        if (scales.size() != axes.size() && shape_calc_mode == InterpolateOp::ShapeCalcMode::SCALES)
             throw std::runtime_error("Resample's scales/axes count does not match");
     }
 

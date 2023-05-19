@@ -11,15 +11,16 @@ namespace test {
 namespace snippets {
 
 std::shared_ptr<ngraph::Function> PrecisionPropagationAddFunction::get(
-    const ngraph::element::Type precision1,
+    const ngraph::element::Type& precision1,
     const ngraph::PartialShape& inputShape1,
-    const ngraph::element::Type precision2,
+    const ngraph::element::Type& precision2,
     const ngraph::PartialShape& inputShape2,
-    const ngraph::element::Type constant_precision,
+    const ngraph::element::Type& constant_precision,
     const std::pair<element::Type, element::Type>& convertion_before_op1,
-    const element::Type convertion_before_op2_1,
+    const element::Type& convertion_before_op2_1,
     const std::pair<element::Type, element::Type>& convertion_before_op2_2,
-    const element::Type convertion_after_op2) {
+    const element::Type& convertion_after_op2,
+    const element::Type& convertion_before_result) {
     const auto create_convert = [](std::shared_ptr<Node> parent, const element::Type convertion_type) -> std::shared_ptr<Node> {
         return convertion_type == element::undefined
             ? std::dynamic_pointer_cast<Node>(parent)
@@ -64,6 +65,8 @@ std::shared_ptr<ngraph::Function> PrecisionPropagationAddFunction::get(
 
     parent = create_convert(parent, convertion_after_op2);
 
+    parent = create_convert(parent, convertion_before_result);
+
     const auto result = std::make_shared<ngraph::opset1::Result>(parent);
     auto& result_out_tensor = result->get_output_tensor(0);
     result_out_tensor.set_names({ "result_tensor" });
@@ -84,7 +87,8 @@ std::shared_ptr<ov::Model> PrecisionPropagationAddFunction::initOriginal() const
         constant_precision,
         actual.convertion_before_op1,
         actual.convertion_before_op2_1,
-        actual.convertion_before_op2_2);
+        actual.convertion_before_op2_2,
+        actual.convertion_after_op2);
 }
 
 std::shared_ptr<ov::Model> PrecisionPropagationAddFunction::initReference() const {
@@ -97,7 +101,8 @@ std::shared_ptr<ov::Model> PrecisionPropagationAddFunction::initReference() cons
         expected.convertion_before_op1,
         expected.convertion_before_op2_1,
         expected.convertion_before_op2_2,
-        expected.convertion_after_op2);
+        expected.convertion_after_op2,
+        expected.convertion_before_result);
 }
 
 }  // namespace snippets

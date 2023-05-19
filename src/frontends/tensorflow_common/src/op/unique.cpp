@@ -12,7 +12,7 @@ namespace ov {
 namespace frontend {
 namespace tensorflow {
 namespace op {
-OutputVector translate_unique_op(const NodeContext& node) {
+NamedOutputVector translate_unique_op(const NodeContext& node) {
     // This operation returns a tensor y containing all of the unique elements of x sorted in the same order that they
     // occur in x. This operation also returns a tensor idx the same size as x that contains the index of each value of
     // x in the unique output y.
@@ -28,7 +28,7 @@ OutputVector translate_unique_op(const NodeContext& node) {
     set_out_name(node_name + ":0", unique->output(0));
     set_out_name(node_name + ":1", unique->output(2));
 
-    return {unique->output(0), unique->output(2)};
+    return {{"y", unique->output(0)}, {"idx", unique->output(2)}};
 }
 
 }  // namespace op

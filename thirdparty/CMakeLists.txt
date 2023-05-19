@@ -43,9 +43,18 @@ if(ENABLE_INTEL_GPU)
             # 'brew install opencl-headers'
             find_package(OpenCLHeaders QUIET)
             if(NOT OpenCLHeaders_FOUND)
-                message(FATAL_ERROR "OpenCLHeaders not found, but OpenCLICDLoader is installed. Please, install OpenCL headers")
+                message(WARNING "OpenCLHeaders not found, but OpenCLICDLoader is installed. Please, install OpenCL headers")
             else()
                 set_target_properties(OpenCL::Headers PROPERTIES IMPORTED_GLOBAL ON)
+            endif()
+
+            # 'brew install opencl-clhpp-gheaders'
+            find_package(OpenCLHeadersCpp QUIET)
+            if(NOT OpenCLHeadersCpp_FOUND)
+                message(WARNING "OpenCLHeadersCpp not found, but OpenCLICDLoader is installed. Please, install OpenCL C++ headers")
+            else()
+                set_target_properties(OpenCL::HeadersCpp PROPERTIES IMPORTED_GLOBAL ON)
+                get_target_property(opencl_cpp_include_dirs OpenCL::HeadersCpp INTERFACE_INCLUDE_DIRECTORIES)
             endif()
         else()
             # try to find system OpenCL:
@@ -62,20 +71,21 @@ if(ENABLE_INTEL_GPU)
         # try to find CL/opencl.hpp
         find_file(OpenCL_HPP
                   NAMES CL/opencl.hpp OpenCL/opencl.hpp
-                  HINTS ${OpenCL_INCLUDE_DIRS}
+                  HINTS ${OpenCL_INCLUDE_DIRS} ${opencl_cpp_include_dirs}
                   DOC "Path to CL/opencl.hpp")
 
         # add definition to select proper header and suppress warnings
         if(OpenCL_HPP)
-            set_target_properties(OpenCL::OpenCL PROPERTIES
-                INTERFACE_COMPILE_DEFINITIONS OV_GPU_USE_OPENCL_HPP)
+            set(opencl_interface_definitions OV_GPU_USE_OPENCL_HPP)
 
             # check whether CL/opencl.hpp contains C++ wrapper for property CL_DEVICE_UUID_KHR
             file(STRINGS "${OpenCL_HPP}" CL_DEVICE_UUID_KHR_CPP REGEX ".*CL_DEVICE_UUID_KHR.*")
             if(CL_DEVICE_UUID_KHR_CPP)
-                set_target_properties(OpenCL::OpenCL PROPERTIES
-                    INTERFACE_COMPILE_DEFINITIONS OV_GPU_OPENCL_HPP_HAS_UUID)
+                list(APPEND opencl_interface_definitions OV_GPU_OPENCL_HPP_HAS_UUID)
             endif()
+
+            set_target_properties(OpenCL::OpenCL PROPERTIES
+                INTERFACE_COMPILE_DEFINITIONS "${opencl_interface_definitions}")
         endif()
 
         # set variables for onednn_gpu
@@ -427,7 +437,7 @@ if(ENABLE_SNAPPY_COMPRESSION)
     endif()
 
     if(NOT TARGET Snappy::snappy)
-        function(tf_build_snappy)
+        function(ov_build_snappy)
             set(BUILD_SHARED_LIBS OFF)
             set(SNAPPY_BUILD_BENCHMARKS OFF)
             set(SNAPPY_BUILD_TESTS OFF)
@@ -454,9 +464,14 @@ if(ENABLE_SNAPPY_COMPRESSION)
             add_subdirectory(snappy EXCLUDE_FROM_ALL)
             # need to create alias Snappy::snappy
             add_library(Snappy::snappy ALIAS snappy)
+
+            # WA for emscriptem build which currently requires -fexceptions
+            if(EMSCRIPTEN)
+                target_compile_options(snappy PRIVATE "-fexceptions")
+            endif()
         endfunction()
 
-        tf_build_snappy()
+        ov_build_snappy()
         ov_install_static_lib(snappy ${OV_CPACK_COMP_CORE})
     endif()
 endif()

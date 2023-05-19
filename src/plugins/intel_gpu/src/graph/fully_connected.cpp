@@ -50,8 +50,8 @@ format::type get_preferred_format(fully_connected_node const& node, const kernel
 
     if (data_type_traits::is_floating_point(input_layout.data_type) &&
         (is_batch_after_spatial(input_layout.format.order()) ||
-         input_layout.format == format::bs_x_bsv16 ||
-         input_layout.format == format::bs_xs_xsv8_bsv8))
+         input_layout.format == format::bs_f_bsv16 ||
+         input_layout.format == format::bs_fs_fsv8_bsv8))
         return format::yxfb;
 
     bool no_spatial_padding = true;
@@ -176,9 +176,15 @@ kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_par
         auto updated_param = orig_impl_param;
         auto input_shape = orig_input_layout.get_partial_shape().to_shape();
         auto input_row_idx = input_shape.size() - 2;
-        input_shape[input_row_idx] = align_to(input_shape[input_row_idx], 8);
         auto output_shape = orig_output_layout.get_partial_shape().to_shape();
         auto output_row_idx = output_shape.size() - 2;
+
+        // Vector by matrix multiplication sometimes works slower if we align it
+        if (input_shape[input_row_idx] == 1 && output_shape[output_row_idx] == 1 && input_shape[input_shape.size() - 1] >= 1024) {
+            return std::move(orig_impl_param);
+        }
+
+        input_shape[input_row_idx] = align_to(input_shape[input_row_idx], 8);
         output_shape[output_row_idx] = align_to(output_shape[output_row_idx], 8);
 
         updated_param.input_layouts[0] = layout(ov::PartialShape(input_shape),

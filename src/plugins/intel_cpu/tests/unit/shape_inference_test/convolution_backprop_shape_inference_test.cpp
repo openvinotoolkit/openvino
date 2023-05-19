@@ -84,6 +84,28 @@ TEST_F(ConvolutionBackpropDataV1StaticShapeInferenceTest, default_ctor) {
     EXPECT_EQ(shape_infer->get_pads_end(), CoordinateDiff({0, 0}));
 }
 
+TEST_F(ConvolutionBackpropDataV1StaticShapeInferenceTest, default_ctor_more_inputs) {
+    const auto spatial_shape = PartialShape{500, 500};
+
+    op = make_op();
+    op->set_strides({2, 2});
+    op->set_dilations({1, 1});
+    op->set_pads_begin({1, 1});
+    op->set_pads_end({1, 1});
+    op->set_output_padding({0, 0});
+    op->set_auto_pad(op::PadType::EXPLICIT);
+    op->set_output_shape(spatial_shape.to_shape());
+
+    input_shapes = ShapeVector{{1, 20, 224, 224}, {20, 10, 3, 3}, {spatial_shape.size()}, {0}};
+    auto shape_infer = make_shape_inference(op);
+    output_shapes = shape_infer->infer(input_shapes, {}).shapes;
+
+    EXPECT_EQ(output_shapes.size(), 1);
+    EXPECT_EQ(output_shapes.front(), StaticShape({1, 10, 500, 500}));
+    EXPECT_EQ(shape_infer->get_pads_begin(), CoordinateDiff({1, 1}));
+    EXPECT_EQ(shape_infer->get_pads_end(), CoordinateDiff({1, 1}));
+}
+
 TEST_F(ConvolutionBackpropDataV1StaticShapeInferenceTest, 2d_inputs_dynamic_rank_no_spatial_shape) {
     const auto strides = Strides{1, 1};
     const auto dilations = Strides{1, 1};

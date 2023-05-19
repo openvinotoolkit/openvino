@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior/ov_executable_network/get_metric.hpp"
-
 #include <gna/gna_config.hpp>
 
+#include "behavior/compiled_model/properties.hpp"
 #include "openvino/runtime/intel_gna/properties.hpp"
 
 using namespace ov::test::behavior;
@@ -56,7 +55,7 @@ public:
     }
 };
 
-class OVClassExecutableNetworkGetMetricTestForSpecificConfigGNA
+class OVClassCompiledModelGetPropertyTestForSpecificConfigGNA
     : public OVClassNetworkTestGNA,
       public ::testing::WithParamInterface<std::tuple<std::string, std::pair<std::string, ov::Any>>> {
 protected:
@@ -79,23 +78,23 @@ using OVGNAClassExecutableNetworkGetMetricTest_NETWORK_NAME = OVClassBaseTestGNA
 using OVGNAClassExecutableNetworkGetMetricTest_OPTIMAL_NUMBER_OF_INFER_REQUESTS = OVClassBaseTestGNAP;
 using OVGNAClassExecutableNetworkGetMetricTest_ThrowsUnsupported = OVClassBaseTestGNAP;
 
-INSTANTIATE_TEST_SUITE_P(smoke_OVClassExecutableNetworkGetMetricTest,
+INSTANTIATE_TEST_SUITE_P(smoke_OVClassCompiledModelGetPropertyTest,
                          OVGNAClassExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS,
                          ::testing::Values("GNA" /*, "MULTI:GNA"*/, "HETERO:GNA"));
 
-INSTANTIATE_TEST_SUITE_P(smoke_OVClassExecutableNetworkGetMetricTest,
+INSTANTIATE_TEST_SUITE_P(smoke_OVClassCompiledModelGetPropertyTest,
                          OVGNAClassExecutableNetworkGetMetricTest_SUPPORTED_METRICS,
                          ::testing::Values("GNA" /*, "MULTI:GNA"*/, "HETERO:GNA"));
 
-INSTANTIATE_TEST_SUITE_P(smoke_OVClassExecutableNetworkGetMetricTest,
+INSTANTIATE_TEST_SUITE_P(smoke_OVClassCompiledModelGetPropertyTest,
                          OVGNAClassExecutableNetworkGetMetricTest_NETWORK_NAME,
                          ::testing::Values("GNA" /*, "MULTI:GNA"*/, "HETERO:GNA"));
 
-INSTANTIATE_TEST_SUITE_P(smoke_OVClassExecutableNetworkGetMetricTest,
+INSTANTIATE_TEST_SUITE_P(smoke_OVClassCompiledModelGetPropertyTest,
                          OVGNAClassExecutableNetworkGetMetricTest_OPTIMAL_NUMBER_OF_INFER_REQUESTS,
                          ::testing::Values("GNA" /*, "MULTI:GNA"*/, "HETERO:GNA"));
 
-INSTANTIATE_TEST_SUITE_P(smoke_OVClassExecutableNetworkGetMetricTest,
+INSTANTIATE_TEST_SUITE_P(smoke_OVClassCompiledModelGetPropertyTest,
                          OVGNAClassExecutableNetworkGetMetricTest_ThrowsUnsupported,
                          ::testing::Values("GNA" /*, "MULTI:GNA"*/, "HETERO:GNA"));
 
@@ -106,16 +105,24 @@ INSTANTIATE_TEST_SUITE_P(smoke_OVClassExecutableNetworkGetMetricTest,
 using OVGNAClassExecutableNetworkGetConfigTest = OVClassBaseTestGNAP;
 using OVGNAClassExecutableNetworkSetConfigTest = OVClassBaseTestGNAP;
 
-INSTANTIATE_TEST_SUITE_P(moke_OVClassExecutableNetworkGetConfigTest,
+INSTANTIATE_TEST_SUITE_P(moke_OVClassCompiledModelGetConfigTest,
                          OVGNAClassExecutableNetworkGetConfigTest,
                          ::testing::Values("GNA"));
 
-INSTANTIATE_TEST_SUITE_P(smoke_OVClassExecutableNetworkSetConfigTest,
+INSTANTIATE_TEST_SUITE_P(smoke_OVClassCompiledModelGetIncorrectPropertyTest,
+                         OVClassCompiledModelGetIncorrectPropertyTest,
+                         ::testing::Values("GNA"));
+
+INSTANTIATE_TEST_SUITE_P(smoke_OVClassCompiledModelGetConfigTest,
+                         OVClassCompiledModelGetConfigTest,
+                         ::testing::Values("GNA"));
+
+INSTANTIATE_TEST_SUITE_P(smoke_OVClassCompiledModelSetIncorrectConfigTest,
                          OVGNAClassExecutableNetworkSetConfigTest,
                          ::testing::Values("GNA"));
 
-using OVGNAClassExecutableNetworkSupportedConfigTest = OVClassExecutableNetworkGetMetricTestForSpecificConfigGNA;
-using OVGNAClassExecutableNetworkUnsupportedConfigTest = OVClassExecutableNetworkGetMetricTestForSpecificConfigGNA;
+using OVGNAClassExecutableNetworkSupportedConfigTest = OVClassCompiledModelGetPropertyTestForSpecificConfigGNA;
+using OVGNAClassExecutableNetworkUnsupportedConfigTest = OVClassCompiledModelGetPropertyTestForSpecificConfigGNA;
 
 IE_SUPPRESS_DEPRECATED_START
 INSTANTIATE_TEST_SUITE_P(
@@ -139,8 +146,8 @@ INSTANTIATE_TEST_SUITE_P(
                                          std::make_pair(CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS), CONFIG_VALUE(YES)),
                                          std::make_pair(GNA_CONFIG_KEY(COMPACT_MODE), CONFIG_VALUE(NO)))));
 
-using OVClassExecutableNetworkSetConfigFromFp32Test = OVClassExecutableNetworkGetMetricTestForSpecificConfigGNA;
-using OVClassExecutableNetworkSetConfigROProperties = OVClassExecutableNetworkGetMetricTestForSpecificConfigGNA;
+using OVClassExecutableNetworkSetConfigFromFp32Test = OVClassCompiledModelGetPropertyTestForSpecificConfigGNA;
+using OVClassExecutableNetworkSetConfigROProperties = OVClassCompiledModelGetPropertyTestForSpecificConfigGNA;
 
 TEST_P(OVClassExecutableNetworkSetConfigFromFp32Test, SetConfigFromFp32Throws) {
     ov::Core ie;
@@ -193,7 +200,7 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Combine(
         ::testing::Values("GNA"),
         ::testing::Values(ov::intel_gna::scale_factors_per_input(std::map<std::string, float>{{"0", 1.0f}}),
-                          ov::inference_precision(ngraph::element::i8),
+                          ov::hint::inference_precision(ngraph::element::i8),
                           ov::hint::num_requests(2),
                           ov::intel_gna::pwl_design_algorithm(ov::intel_gna::PWLDesignAlgorithm::UNIFORM_DISTRIBUTION),
                           ov::intel_gna::pwl_max_error_percent(0.2),
@@ -201,7 +208,7 @@ INSTANTIATE_TEST_SUITE_P(
                           ov::intel_gna::compile_target(ov::intel_gna::HWGeneration::GNA_3_0),
                           ov::intel_gna::execution_target(ov::intel_gna::HWGeneration::GNA_3_0))));
 
-using OVClassExecutableNetworkDevicePropertiesTest = OVClassExecutableNetworkGetMetricTestForSpecificConfigGNA;
+using OVClassExecutableNetworkDevicePropertiesTest = OVClassCompiledModelGetPropertyTestForSpecificConfigGNA;
 TEST_P(OVClassExecutableNetworkDevicePropertiesTest, DevicePropertiesNoThrow) {
     ov::Core ie;
     ASSERT_NO_THROW(auto compiled_model =
@@ -221,11 +228,10 @@ INSTANTIATE_TEST_SUITE_P(
                           ov::intel_gna::execution_mode(ov::intel_gna::ExecutionMode::SW_FP32),
                           ov::intel_gna::execution_mode(ov::intel_gna::ExecutionMode::AUTO),
                           ov::intel_gna::scale_factors_per_input(std::map<std::string, float>{{"input", 1.0f}}),
-                          ov::inference_precision(ov::element::i8),
-                          ov::inference_precision(ov::element::i16),
+                          ov::hint::inference_precision(ov::element::i8),
+                          ov::hint::inference_precision(ov::element::i16),
                           ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY),
                           ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
-                          ov::hint::performance_mode(ov::hint::PerformanceMode::UNDEFINED),
                           ov::hint::num_requests(1),
                           ov::intel_gna::execution_target(ov::intel_gna::HWGeneration::GNA_2_0),
                           ov::intel_gna::execution_target(ov::intel_gna::HWGeneration::GNA_3_0),
@@ -238,22 +244,9 @@ INSTANTIATE_TEST_SUITE_P(
                           ov::intel_gna::pwl_max_error_percent(0.05),
                           ov::log::level(ov::log::Level::NO))));
 
-//
-// Hetero Executable Network GetMetric
-//
-INSTANTIATE_TEST_SUITE_P(smoke_OVClassHeteroExecutableNetworkGetMetricTest,
-                         OVClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS,
-                         ::testing::Values("GNA"));
+// IE Class Load network
 
-INSTANTIATE_TEST_SUITE_P(smoke_OVClassHeteroExecutableNetworkGetMetricTest,
-                         OVClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_METRICS,
-                         ::testing::Values("GNA"));
-
-INSTANTIATE_TEST_SUITE_P(smoke_OVClassHeteroExecutableNetworkGetMetricTest,
-                         OVClassHeteroExecutableNetworkGetMetricTest_NETWORK_NAME,
-                         ::testing::Values("GNA"));
-
-INSTANTIATE_TEST_SUITE_P(smoke_OVClassHeteroExecutableNetworkGetMetricTest,
-                         OVClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK,
+INSTANTIATE_TEST_SUITE_P(smoke_OVCompiledModelIncorrectDevice,
+                         OVCompiledModelIncorrectDevice,
                          ::testing::Values("GNA"));
 }  // namespace

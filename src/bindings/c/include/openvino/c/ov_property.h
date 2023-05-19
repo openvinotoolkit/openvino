@@ -120,11 +120,19 @@ OPENVINO_C_VAR(const char*)
 ov_property_key_inference_num_threads;
 
 /**
+ * @brief Read-write property, it is high-level OpenVINO hint for using CPU pinning to bind CPU threads to processors
+ * during inference
+ * @ingroup ov_property_c_api
+ */
+OPENVINO_C_VAR(const char*)
+ov_property_key_hint_enable_cpu_pinning;
+
+/**
  * @brief Read-write property, it is high-level OpenVINO hint for using hyper threading processors during CPU inference
  * @ingroup ov_property_c_api
  */
 OPENVINO_C_VAR(const char*)
-ov_property_key_hint_use_hyper_threading;
+ov_property_key_hint_enable_hyper_threading;
 
 /**
  * @brief Read-write property, it is high-level OpenVINO Performance Hints
@@ -192,10 +200,23 @@ ov_property_key_device_priorities;
  * and turns into device-specific settings
  * Execution mode hint controls preferred optimization targets (performance or accuracy) for given model
  * It can be set to be below value:
- *   "UNDEFINED"     //!<  Undefined value, settings may vary from device to device
  *   "PERFORMANCE",  //!<  Optimize for max performance
  *   "ACCURACY",     //!<  Optimize for max accuracy
  * @ingroup ov_property_c_api
  */
 OPENVINO_C_VAR(const char*)
 ov_property_key_hint_execution_mode;
+
+/**
+ * @brief Read-write property to set whether force terminate tbb when ov core destruction
+ * @ingroup ov_property_c_api
+ */
+OPENVINO_C_VAR(const char*)
+ov_property_key_force_tbb_terminate;
+
+/**
+ * @brief Read-write property to configure `mmap()` use for model read
+ * @ingroup ov_property_c_api
+ */
+OPENVINO_C_VAR(const char*)
+ov_property_key_enable_mmap;

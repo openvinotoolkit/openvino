@@ -124,20 +124,16 @@ bool evaluate_bound_shape(const Node* shape_of_node, ov::TensorVector& output_va
                                                                       : interval.get_max_val();
     }
     NGRAPH_CHECK(pshape_up.is_static() && pshape_low.is_static());
-    const auto output_et = shape_of_node->get_output_element_type(0);
+    const auto output_et = output_values[0].get_element_type();
 
     if (pshape_low.to_shape() == pshape_up.to_shape()) {
         shape_of::evaluate_shape_of(output_values[0], pshape_low.to_shape());
-        shape_of_node->get_output_tensor(0).set_lower_value(output_values[0]);
-        shape_of_node->get_output_tensor(0).set_upper_value(output_values[0]);
     } else {
         auto&& upper = is_upper ? output_values : ov::TensorVector{{output_et, Shape{pshape_up.to_shape().size()}}};
         shape_of::evaluate_shape_of(upper[0], pshape_up.to_shape());
-        shape_of_node->get_output_tensor(0).set_upper_value(upper[0]);
 
         auto&& lower = is_upper ? ov::TensorVector{{output_et, Shape{pshape_low.to_shape().size()}}} : output_values;
         shape_of::evaluate_shape_of(lower[0], pshape_low.to_shape());
-        shape_of_node->get_output_tensor(0).set_lower_value(lower[0]);
 
         vector<char> dynamic_mask;  // true if dimension is dynamic
         for (const auto& i : input_partial_shape)
@@ -173,8 +169,10 @@ bool evaluate_label(const Node* shape_of_node, TensorLabelVector& output_labels)
 
 bool op::v3::ShapeOf::evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const {
     OV_OP_SCOPE(v3_ShapeOf_evaluate);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     NGRAPH_CHECK(validate_host_tensor_vector(input_values, 1));
     NGRAPH_CHECK(validate_host_tensor_vector(output_values, 1));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     return shape_of::evaluate_shape_of(output_values[0], input_values[0]);
 }
 
@@ -251,8 +249,10 @@ shared_ptr<Node> op::v0::ShapeOf::clone_with_new_inputs(const OutputVector& new_
 
 bool op::v0::ShapeOf::evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const {
     OV_OP_SCOPE(v0_ShapeOf_evaluate);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     NGRAPH_CHECK(validate_host_tensor_vector(input_values, 1));
     NGRAPH_CHECK(validate_host_tensor_vector(output_values, 1));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     return shape_of::evaluate_shape_of(output_values[0], input_values[0]);
 }
 

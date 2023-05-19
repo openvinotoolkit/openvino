@@ -105,11 +105,15 @@ ov::pass::AddFakeQuantizeFusion::AddFakeQuantizeFusion() {
         }
 
         auto input_low_sub = std::make_shared<opset5::Subtract>(fq->input_value(1), new_const);
+        OPENVINO_SUPPRESS_DEPRECATED_START
         std::shared_ptr<Node> new_input_low = get_constant_from_source(input_low_sub);
+        OPENVINO_SUPPRESS_DEPRECATED_END
         if (!new_input_low)
             new_input_low = input_low_sub;
         auto input_high_sub = std::make_shared<opset5::Subtract>(fq->input_value(2), new_const);
+        OPENVINO_SUPPRESS_DEPRECATED_START
         std::shared_ptr<Node> new_input_high = get_constant_from_source(input_high_sub);
+        OPENVINO_SUPPRESS_DEPRECATED_END
         if (!new_input_high)
             new_input_high = input_high_sub;
         auto new_fq =

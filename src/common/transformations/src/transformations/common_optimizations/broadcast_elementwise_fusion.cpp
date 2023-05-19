@@ -54,13 +54,13 @@ bool can_eliminate_broadcast(const ngraph::Output<ngraph::Node>& eltwise,
                 // input_shape will be broadcast
                 return false;
             }
-        } else if (input_shape[i_dim].is_dynamic() && broadcast_shape[i_dim].is_static() &&
-                   broadcast_shape[i_dim].get_length() != 1) {
+        } else if (input_shape[i_dim].is_dynamic() && broadcast_shape[b_dim].is_static() &&
+                   broadcast_shape[b_dim].get_length() != 1) {
             return false;
-        } else if (broadcast_shape[i_dim].is_dynamic() && input_shape[i_dim].is_static() &&
+        } else if (broadcast_shape[b_dim].is_dynamic() && input_shape[i_dim].is_static() &&
                    input_shape[i_dim].get_length() == 1) {
             return false;
-        } else if (broadcast_shape[i_dim].is_dynamic() && input_shape[i_dim].is_dynamic()) {
+        } else if (broadcast_shape[b_dim].is_dynamic() && input_shape[i_dim].is_dynamic()) {
             return false;
         }
     }

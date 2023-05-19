@@ -11,11 +11,11 @@ The following Python API is used in the application:
 +--------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------+
 | Feature            | API                                                                                                                                                                                                       | Description               |
 +====================+===========================================================================================================================================================================================================+===========================+
-| Asynchronous Infer | `openvino.runtime.AsyncInferQueue <https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.AsyncInferQueue.html>`__ ,                                                             | Do asynchronous inference |
-|                    | `openvino.runtime.AsyncInferQueue.set_callback <https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.AsyncInferQueue.html#openvino.runtime.AsyncInferQueue.set_callback>`__ ,  |                           |
-|                    | `openvino.runtime.AsyncInferQueue.start_async <https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.AsyncInferQueue.html#openvino.runtime.AsyncInferQueue.start_async>`__ ,    |                           |
-|                    | `openvino.runtime.AsyncInferQueue.wait_all <https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.AsyncInferQueue.html#openvino.runtime.AsyncInferQueue.wait_all>`__ ,          |                           |
-|                    | `openvino.runtime.InferRequest.results <https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.InferRequest.html#openvino.runtime.InferRequest.results>`__                       |                           |
+| Asynchronous Infer | `openvino.runtime.AsyncInferQueue <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.runtime.AsyncInferQueue.html>`__ ,                                                             | Do asynchronous inference |
+|                    | `openvino.runtime.AsyncInferQueue.set_callback <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.runtime.AsyncInferQueue.html#openvino.runtime.AsyncInferQueue.set_callback>`__ ,  |                           |
+|                    | `openvino.runtime.AsyncInferQueue.start_async <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.runtime.AsyncInferQueue.html#openvino.runtime.AsyncInferQueue.start_async>`__ ,    |                           |
+|                    | `openvino.runtime.AsyncInferQueue.wait_all <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.runtime.AsyncInferQueue.html#openvino.runtime.AsyncInferQueue.wait_all>`__ ,          |                           |
+|                    | `openvino.runtime.InferRequest.results <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.runtime.InferRequest.html#openvino.runtime.InferRequest.results>`__                       |                           |
 +--------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------+
 
 Basic OpenVINO™ Runtime API is covered by :doc:`Hello Classification Python* Sample <openvino_inference_engine_ie_bridges_python_sample_hello_classification_README>`.
@@ -81,6 +81,8 @@ To run the sample, you need specify a model and image:
    - Before running the sample with a trained model, make sure the model is converted to the intermediate representation (IR) format (\*.xml + \*.bin) using the :doc:`Model Optimizer tool <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`.
   
    - The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
+
+   - Stating flags that take only single option like `-m` multiple times, for example `python classification_sample_async.py -m model.xml -m model2.xml`, results in only the last value being used.
 
 Example
 +++++++

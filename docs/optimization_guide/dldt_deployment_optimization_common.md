@@ -36,7 +36,7 @@ The key advantage of the Async approach is that when a device is busy with the i
 In the example below, inference is applied to the results of the video decoding. It is possible to keep two parallel infer requests, and while the current one is processed, the input frame for the next one is being captured. This essentially hides the latency of capturing, so that the overall frame rate is rather determined only by the slowest part of the pipeline (decoding vs inference) and not by the sum of the stages.
 
 .. image:: _static/images/synch-vs-asynch.svg
-   :alt: Intel&reg; VTune&trade; screenshot
+   :alt: Intel® VTune™ screenshot
 
 Below are example-codes for the regular and async-based approaches to compare:
 
@@ -54,7 +54,7 @@ Below are example-codes for the regular and async-based approaches to compare:
 
 
 The technique can be generalized to any available parallel slack. For example, you can do inference and simultaneously encode the resulting or previous frames or run further inference, like emotion detection on top of the face detection results.
-Refer to the `Object Detection C++ Demo <https://docs.openvino.ai/latest/omz_demos_object_detection_demo_cpp.html>`__, `Object Detection Python Demo <https://docs.openvino.ai/latest/omz_demos_object_detection_demo_python.html>`__ (latency-oriented Async API showcase) and :doc:`Benchmark App Sample <openvino_inference_engine_samples_benchmark_app_README>` for complete examples of the Async API in action.
+Refer to the `Object Detection C++ Demo <https://docs.openvino.ai/2023.0/omz_demos_object_detection_demo_cpp.html>`__ , `Object Detection Python Demo <https://docs.openvino.ai/2023.0/omz_demos_object_detection_demo_python.html>`__ (latency-oriented Async API showcase) and :doc:`Benchmark App Sample <openvino_inference_engine_samples_benchmark_app_README>` for complete examples of the Async API in action.
 
 .. note::
 

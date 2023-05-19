@@ -41,7 +41,9 @@ void ov::op::util::EmbeddingBagPackedBase::validate_and_infer_types() {
     }
 
     const auto& emb_et = get_input_element_type(EMB_TABLE);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto input_shapes = get_node_input_partial_shapes(*this);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     set_output_type(0, emb_et, shape_infer(this, input_shapes)[0]);
 }
 

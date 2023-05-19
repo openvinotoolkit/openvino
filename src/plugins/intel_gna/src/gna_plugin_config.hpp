@@ -55,7 +55,7 @@ struct Config {
     static const InferenceEngine::Parameter GetImpactingModelCompilationProperties(bool compiled);
     static const InferenceEngine::Parameter GetSupportedProperties(bool compiled = false);
 
-    ov::hint::PerformanceMode performance_mode = ov::hint::PerformanceMode::UNDEFINED;
+    ov::hint::PerformanceMode performance_mode = ov::hint::PerformanceMode::LATENCY;
 
     // default precision of GNA hardware model
     ov::element::Type inference_precision = ov::element::undefined;

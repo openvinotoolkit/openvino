@@ -144,12 +144,13 @@ public:
         return res;
     }
 
-public:
     typed_primitive_inst(network& network, convolution_node const& node);
 
     memory::ptr weights_memory() const {
-        if (is_dynamic() && _impl_params->reordered_weights != nullptr) {
-            return _impl_params->reordered_weights;
+        if (is_dynamic()) {
+            auto weights_mem = _reordered_weights_cache.get(*_impl_params->weights_layout);
+            OPENVINO_ASSERT(weights_mem != nullptr, "[GPU] Can't find proper weights memory buffer in cache");
+            return weights_mem;
         } else {  // all weights are in one buffer
             return dep_memory_ptr(1 + _deform_conv_dep_offset);
         }
