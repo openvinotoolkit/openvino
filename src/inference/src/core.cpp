@@ -10,7 +10,6 @@
 #include "dev/core_impl.hpp"
 #include "ie_itt.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
-#include "openvino/util/mmap_object.hpp"
 #include "so_extension.hpp"
 
 namespace {

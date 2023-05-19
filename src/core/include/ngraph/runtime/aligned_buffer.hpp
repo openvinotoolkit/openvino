@@ -40,7 +40,6 @@ public:
     const void* get_ptr() const {
         return m_aligned_buffer;
     }
-
     template <typename T>
     T* get_ptr() {
         return reinterpret_cast<T*>(m_aligned_buffer);
