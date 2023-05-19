@@ -134,7 +134,6 @@ After that the model can be converted into the OpenVINO Intermediate Representat
          :language: python
          :fragment:  [inference]
          
-
 Tune quantization parameters
 ############################
 

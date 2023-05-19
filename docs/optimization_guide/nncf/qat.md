@@ -140,7 +140,7 @@ the case of PyTorch and frozen graph - for TensorFlow 2.
 
 
 .. note::
-   The precision of weigths gets INT8 only after the step of model conversion to OpenVINO Intermediate Representation. 
+   The precision of weights gets INT8 only after the step of model conversion to OpenVINO Intermediate Representation. 
    You can expect the model footprint reduction only for that format.
 
 

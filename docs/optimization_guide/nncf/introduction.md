@@ -51,7 +51,7 @@ To install the latest released version via pip manager run the following command
    To install with specific frameworks, use the `pip install nncf[extras]` command, where extras is a list of possible extras, for example, `torch`, `tf`, `onnx`.
 
 
-To install the latest NNCF version from source follow the instruction on `GitHub <https://github.com/openvinotoolkit/nncf#installation>`__.
+To install the latest NNCF version from source, follow the instruction on `GitHub <https://github.com/openvinotoolkit/nncf#installation>`__.
 
 .. note::
 
@@ -86,7 +86,7 @@ Filter pruning algorithms compress models by zeroing out the output filters of c
 Experimental methods
 --------------------
 
-NNCF also provides state-of-the-art compression techniques that are still in experimental stages of development and are only recommended for expert developers. These include:
+NNCF also provides state-of-the-art compression techniques that are still in the experimental stages of development and are only recommended for expert developers. These include:
 
 - Mixed-precision quantization
 - Sparsity
