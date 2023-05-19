@@ -23,7 +23,7 @@ If your question is not covered below, use the `OpenVINO™ Community Forum page
 .. _opensourced-pot-faq:
 
 Is the Post-training Optimization Tool (POT) open-sourced?
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Yes, POT is developed on GitHub as a part of `openvinotoolkit/openvino <https://github.com/openvinotoolkit/openvino>`__ under Apache-2.0 License.
 
@@ -127,7 +127,7 @@ This error is reported when you have a Python version older than 3.7 in your env
 .. _nomodule-pot-faq:
 
 What does the message "ModuleNotFoundError: No module named 'some\_module\_name'" mean?
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 It means that some required python module is not installed in your environment. To install it, run ``pip install some_module_name``.
 
