@@ -32,5 +32,6 @@ Additional Resources
 - :doc:`Post-training Quantization <ptq_introduction>`
 - :doc:`Training-time Optimization <tmo_introduction>`
 - :doc:`Deployment optimization <openvino_docs_deployment_optimization_guide_dldt_optimization_guide>`
+- `HuggingFace Optimum Intel <https://huggingface.co/docs/optimum/intel/optimization_ov>`__
 
 @endsphinxdirective
