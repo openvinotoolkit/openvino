@@ -11,11 +11,13 @@
 #include "fully_connected_inst.h"
 #include "convolution_inst.h"
 #include "crop_inst.h"
+#include "eltwise_inst.h"
 #include "deconvolution_inst.h"
 #include "shape_of_inst.h"
 #include "gemm_inst.h"
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
 #include "compilation_context.hpp"
+#include "implementation_map.hpp"
 
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/graph/network.hpp"
@@ -91,6 +93,19 @@ bool is_any_user_cpu(const std::list<const program_node*>& users) {
             return true;
     }
     return false;
+}
+
+std::shared_ptr<kernel_impl_params> primitive_impl::get_weights_reorder_kernel_params() const {
+    if (!need_weights_reorder())
+        return nullptr;
+
+    auto reorder_kernel_params = std::make_shared<kernel_impl_params>();
+    auto prim = std::make_shared<generic_layer>("", "", _weights_reorder_params);
+    reorder_kernel_params->desc = prim;
+    reorder_kernel_params->unique_id = _weights_reorder_params->hash();
+    reorder_kernel_params->input_layouts.push_back(_weights_reorder_params->get_input_layout());
+    reorder_kernel_params->output_layouts.push_back(_weights_reorder_params->get_output_layout());
+    return reorder_kernel_params;
 }
 
 kernel_impl_params primitive_impl::static_canonicalize_shapes(const kernel_impl_params& impl_params) {
@@ -324,26 +339,62 @@ bool primitive_inst::update_impl() {
         mem_lock<int32_t> lock(_shape_info_memory, _network.get_stream());
         size_t offset = 0;
         for (size_t i = 0; i < _node->get_dependencies().size(); i++) {
-            if (_node->get_dependency(i).get_output_layout().is_dynamic()) {
+            auto node_in_lay = _node->get_dependency(i).get_output_layout();
+            if (node_in_lay.is_dynamic()) {
                 auto pshape = params.get_input_layout(i).get_partial_shape();
-                auto input_shape = layout::transform(pshape,
-                                                     format::get_default_format(pshape.size()),
-                                                     format::get_default_format(layout::max_rank())).to_shape();
-
-                for (size_t j = 0; j < input_shape.size(); j++)
-                    lock[offset++] = static_cast<int32_t>(input_shape[j]);
+                GPU_DEBUG_TRACE_DETAIL << id() << " : update shape_info for input[" << i << "]" << std::endl;
+                auto input_shape_max_rank = layout::transform(pshape,
+                                                              format::get_default_format(pshape.size()),
+                                                              format::get_default_format(layout::max_rank())).to_shape();
+                for (size_t j = 0; j < input_shape_max_rank.size(); ++j) {
+                    GPU_DEBUG_TRACE_DETAIL << " shape_info[" << offset << "] = " << input_shape_max_rank[j] << std::endl;
+                    lock[offset++] = static_cast<int32_t>(input_shape_max_rank[j]);
+                }
+                auto is_dynamic_pad = node_in_lay.data_padding.get_dynamic_pad_dims().sizes(format::get_default_format(layout::max_rank()));
+                auto data_padding = params.input_layouts[i].data_padding;
+                for (size_t j = 0; j < input_shape_max_rank.size(); ++j) {
+                    if (is_dynamic_pad[j] == 1) {
+                        auto lower_pads =
+                            data_padding.lower_size().sizes(format::get_default_format(layout::max_rank()));
+                        GPU_DEBUG_TRACE_DETAIL << " shape_info[" << offset << "] = " << lower_pads[j]
+                                               << "(pad_before for input[" << i << "] " << j << "-th dim)" << std::endl;
+                        lock[offset++] = lower_pads[j];  // pad_before
+                        auto upper_pads =
+                            data_padding.upper_size().sizes(format::get_default_format(layout::max_rank()));
+                        GPU_DEBUG_TRACE_DETAIL << " shape_info[" << offset << "] = " << upper_pads[j]
+                                               << "(pad_after for input[" << i << "] " << j << "-th dim)" << std::endl;
+                        lock[offset++] = upper_pads[j];  // pad_after
+                    }
+                }
             }
         }
-
         for (size_t i = 0; i < _node->get_output_layouts().size(); i++) {
-            if (_node->get_output_layout(i).is_dynamic()) {
+            auto node_out_lay = _node->get_output_layout(i);
+            if (node_out_lay.is_dynamic()) {
+                GPU_DEBUG_TRACE_DETAIL << id() << " : update shape_info for output[" << i << "]" << std::endl;
                 auto pshape = params.get_output_layout(i).get_partial_shape();
-                auto output_shape = layout::transform(pshape,
-                                                      format::get_default_format(pshape.size()),
-                                                      format::get_default_format(layout::max_rank())).to_shape();
-
-                for (size_t j = 0; j < output_shape.size(); j++)
-                    lock[offset++] = static_cast<int32_t>(output_shape[j]);
+                auto output_shape_max_rank = layout::transform(pshape,
+                                                               format::get_default_format(pshape.size()),
+                                                               format::get_default_format(layout::max_rank()))
+                                                               .to_shape();
+                for (size_t j = 0; j < output_shape_max_rank.size(); j++) {
+                    GPU_DEBUG_TRACE_DETAIL << " shape_info[" << offset << "] = " << output_shape_max_rank[j] << std::endl;
+                    lock[offset++] = static_cast<int32_t>(output_shape_max_rank[j]);
+                }
+                auto is_dynamic_pad = node_out_lay.data_padding.get_dynamic_pad_dims().sizes(format::get_default_format(layout::max_rank()));
+                auto data_padding = params.output_layouts[i].data_padding;
+                for (size_t j = 0; j < output_shape_max_rank.size(); j++) {
+                    if (is_dynamic_pad[j] == 1) {
+                        GPU_DEBUG_TRACE_DETAIL
+                            << " shape_info[" << offset << "] = " << data_padding.lower_size().sizes()[j]
+                            << "(pad_before for output[" << i << "] " << j << "-th dim)" << std::endl;
+                        lock[offset++] = data_padding.lower_size().sizes()[j];  // pad_before
+                        GPU_DEBUG_TRACE_DETAIL << " shape_info[" << offset
+                                               << "] = " << data_padding.lower_size().sizes()[j]
+                                               << "(pad_after for output[" << i << "] " << j << "-th dim)" << std::endl;
+                        lock[offset++] = data_padding.upper_size().sizes()[j];  // pad_after
+                    }
+                }
             }
         }
         std::stringstream s;
@@ -380,7 +431,14 @@ bool primitive_inst::update_impl() {
         if (!cached_impl) {
             if (_dynamic_impl) {
                 auto& compilation_context = get_network().get_program()->get_compilation_context();
-                compilation_context.push_task(updated_params.hash(), [this, &compilation_context, updated_params]() {
+                auto updated_params_no_dyn_pad = updated_params;
+                for (auto& i : updated_params_no_dyn_pad.input_layouts) {
+                    i.data_padding.set_dynamic_pad(tensor(0));
+                }
+                for (auto& o : updated_params_no_dyn_pad.output_layouts) {
+                    o.data_padding.set_dynamic_pad(tensor(0));
+                }
+                compilation_context.push_task(updated_params_no_dyn_pad.hash(), [this, &compilation_context, updated_params_no_dyn_pad]() {
                     if (compilation_context.is_stopped())
                         return;
                     auto _program = get_network().get_program();
@@ -388,16 +446,16 @@ bool primitive_inst::update_impl() {
                     {
                         // Check existense in the cache one more time as several iterations of model execution could happens and multiple compilation
                         // tasks created for same shapes
-                        if (cache.has(updated_params))
+                        if (cache.has(updated_params_no_dyn_pad))
                             return;
                     }
 
-                    auto impl = _node->type()->choose_impl(*_node, updated_params);
+                    auto impl = _node->type()->choose_impl(*_node, updated_params_no_dyn_pad);
                     if (!can_be_optimized()) {
-                        auto kernels = _program->get_kernels_cache().compile(updated_params, impl->get_kernels_source());
+                        auto kernels = _program->get_kernels_cache().compile(updated_params_no_dyn_pad, impl->get_kernels_source());
                         impl->set_kernels(kernels);
                     }
-                    cache.add(updated_params, impl->clone());
+                    cache.add(updated_params_no_dyn_pad, impl->clone());
                 });
                 if (!can_be_optimized())  {
                     _impl = _dynamic_impl->clone();
@@ -643,8 +701,17 @@ primitive_inst::primitive_inst(network& network, program_node const& node, bool 
             // Actual shape info layout is the following:
             // input_0 -> input_1, ..., fused_dep_0, fused_dep1, ..., output_0, output_1, ...
             // For each tensor we save max_rank dimensions in [bfvuwzyx] order
+            size_t num_dynamic_pads = 0;
+            for (auto in : _node->get_dependencies()) {
+                const auto& dyn_pad_dims = in.first->get_output_layout(false).data_padding.get_dynamic_pad_dims().sizes();
+                num_dynamic_pads += std::accumulate(dyn_pad_dims.begin(), dyn_pad_dims.end(), static_cast<int32_t>(0));
+            }
+            for (auto o : _node->get_output_layouts()) {
+                const auto& dyn_pad_dims = o.data_padding.get_dynamic_pad_dims().sizes();
+                num_dynamic_pads += std::accumulate(dyn_pad_dims.begin(), dyn_pad_dims.end(), static_cast<int32_t>(0));
+            }
             const int64_t buffers_count = _node->get_dependencies().size() + _node->get_outputs_count();
-            const int64_t shape_elements = buffers_count * layout::max_rank();
+            const int64_t shape_elements = buffers_count * layout::max_rank() + num_dynamic_pads * 2 /*pad_before + pad_after*/;
             _shape_info_memory = _network.get_engine().allocate_memory(layout{{shape_elements}, data_types::i32, format::bfyx});
         }
     }
@@ -735,19 +802,19 @@ event::ptr primitive_inst::update_weights() {
         return nullptr;
 
     auto& engine = _network.get_engine();
-    auto& weights_params = _impl->_weights_reorder_params;
+    auto reorder_kernel_params = _impl->get_weights_reorder_kernel_params();
 
     auto weights_idx = _node->get_primitive()->input.size();
     auto original_weights_memory = dep_memory_ptr(weights_idx);
     auto original_layout = original_weights_memory->get_layout();
 
-    if (weights_params.engine == kernel_selector::GenericKernelParams::Engine::NONE) {
+    if (!reorder_kernel_params) {
         // If kernel doesn't says that it doesn't require weights reorder, but weights were reordered previously, then
         // incorrect memory buffer may be assigned, so reset cached weights for such case
         _reordered_weights_cache.add(original_layout, original_weights_memory);
         _impl_params->weights_layout = optional_layout(original_layout);
     } else {
-        auto expected_layout = from_weights_tensor(weights_params.dest);
+        auto expected_layout = reorder_kernel_params->get_output_layout();
         // Set original patrial shape, because it may be lost during kernel_selector::weights_tensor -> layout conversion
         expected_layout.set_partial_shape(original_layout.get_partial_shape());
         _impl_params->weights_layout = optional_layout(expected_layout);
@@ -764,30 +831,27 @@ event::ptr primitive_inst::update_weights() {
             return nullptr;
         } else {
             GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(false);
-            auto get_kernel_key = [&]() -> size_t {
-                auto seed = _node->get_primitive()->hash();
-                seed = hash_combine(seed, expected_layout.hash());
-                seed = hash_combine(seed, original_layout.hash());
-                return seed;
-            };
+            auto& cache = get_network().get_program()->get_implementations_cache();
+            auto reorder_inst = std::make_shared<generic_layer_inst>(get_network());
 
-            cldnn::kernel::ptr kernel = nullptr;
-            auto kernel_key = get_kernel_key();
-            auto& cache = get_network().get_in_mem_kernels_cache();
-            if (cache.has(kernel_key)) {
+            if (auto cached_impl = cache.get(*reorder_kernel_params)) {
                 GPU_DEBUG_TRACE_DETAIL << id() << ": reorder weights (cached) from " << original_layout.to_short_string()
                                        << " to " << expected_layout.to_short_string() << std::endl;
-                GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(true);
-                kernel = cache.get(kernel_key);
+                reorder_inst->set_impl(cached_impl->clone());
             } else {
                 GPU_DEBUG_TRACE_DETAIL << id() << ": reorder weights from " << original_layout.to_short_string()
                                        << " to " << expected_layout.to_short_string() << std::endl;
+
+                auto factory = WeightsReordersFactory::get(impl_types::ocl, shape_types::static_shape);
+                auto reorder_impl = factory(*reorder_kernel_params);
                 auto& kernels_cache = get_network().get_program()->get_kernels_cache();
-                auto kernels = kernels_cache.compile(*_impl_params, {weights_params.clKernel->code.kernelString});
-                OPENVINO_ASSERT(kernels.size() == 1, "The output of kernel compile has issue");
-                auto& kernel_data = kernels.begin()->second;
-                kernel = kernel_data[0].first;
-                cache.add(kernel_key, kernel);
+                auto kernels = kernels_cache.compile(*_impl_params, reorder_impl->get_kernels_source());
+                OPENVINO_ASSERT(kernels.size() == 1, "[GPU] Expected number of compiled kernels is 1, but got ", kernels.size());
+                reorder_impl->set_kernels(kernels);
+
+                reorder_inst->set_impl(reorder_impl->clone());
+
+                cache.add(*reorder_kernel_params, reorder_impl->clone());
             }
 
             auto& stream = get_network().get_stream();
@@ -815,8 +879,10 @@ event::ptr primitive_inst::update_weights() {
             kernel_arguments_data args;
             args.inputs.push_back(original_weights_memory);
             args.outputs.push_back(weights_memory);
-            stream.set_arguments(*kernel, weights_params.clKernel->params, args);
-            auto ev = stream.enqueue_kernel(*kernel, weights_params.clKernel->params, args, {}, true);
+
+            auto reorder_impl = reorder_inst->get_impl();
+            reorder_impl->set_arguments(*reorder_inst, args);
+            auto ev = reorder_impl->execute({}, *reorder_inst);
 
             GPU_DEBUG_GET_INSTANCE(debug_config);
             GPU_DEBUG_IF(!debug_config->dump_profiling_data.empty()) {

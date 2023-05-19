@@ -22,13 +22,13 @@ size_t getOperationNumber(const arg_max_min_params& params) {
 
 std::string getOperationNumberString(const arg_max_min_params& params) {
     const auto& output = params.outputs[0];
-    DimensionAccessHelper dims(output, 1);
+    DimensionAccessHelper dims(output);
     switch (params.argMaxMinAxis) {
-        case ArgMaxMinAxis::BATCH: return toVectorMulString({dims.x, dims.y, dims.z, dims.f});
-        case ArgMaxMinAxis::FEATURE: return toVectorMulString({dims.x, dims.y, dims.z, dims.b});
-        case ArgMaxMinAxis::Z: return toVectorMulString({dims.y, dims.z, dims.f, dims.b});
-        case ArgMaxMinAxis::Y: return toVectorMulString({dims.x, dims.z, dims.f, dims.b});
-        case ArgMaxMinAxis::X: return toVectorMulString({dims.y, dims.z, dims.f, dims.b});
+        case ArgMaxMinAxis::BATCH: return toVectorMulString({dims.x(), dims.y(), dims.z(), dims.f()});
+        case ArgMaxMinAxis::FEATURE: return toVectorMulString({dims.x(), dims.y(), dims.z(), dims.b()});
+        case ArgMaxMinAxis::Z: return toVectorMulString({dims.y(), dims.z(), dims.f(), dims.b()});
+        case ArgMaxMinAxis::Y: return toVectorMulString({dims.x(), dims.z(), dims.f(), dims.b()});
+        case ArgMaxMinAxis::X: return toVectorMulString({dims.y(), dims.z(), dims.f(), dims.b()});
         default:
             throw std::invalid_argument("Unsupported axis");
     }
