@@ -5,6 +5,7 @@
 #include <memory>
 #include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/pass/manager.hpp>
+#include <transformations/common_optimizations/adaptive_pool_to_reduce.hpp>
 #include <transformations/common_optimizations/add_fake_quantize_fusion.hpp>
 #include <transformations/common_optimizations/align_eltwise_input_ranks.hpp>
 #include <transformations/common_optimizations/batch_to_space_fusion.hpp>
@@ -205,6 +206,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Fu
     ADD_MATCHER(common_fusions, DepthToSpaceFusion)
     ADD_MATCHER(common_fusions, ShuffleChannelsFusion, !m_use_shapes)
     ADD_MATCHER(common_fusions, NonZeroHorizontalFusion)
+    ADD_MATCHER(common_fusions, AdaptivePoolToReduce)
     common_fusions->set_name("ov::pass::CommonFusions");
 
     REGISTER_PASS(manager, BinarizeWeights)
