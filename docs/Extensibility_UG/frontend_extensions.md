@@ -389,7 +389,8 @@ The next example shows such conversion for the ``top_k_v2`` operation.
    :language: cpp
    :fragment: [frontend_extension_paddle_TopK]
 
-For TensorFlow framework, if an operation has more than one output, it is recommended to assign names to those outputs using the``NamedOutputVector`` structure which allows both indexed and named output access.
+For TensorFlow framework, if an operation has more than one output, it is recommended to assign names to those
+outputs using the ``NamedOutputVector`` structure which allows both indexed and named output access.
 The next example shows such conversion for the ``TopKV2`` operation.
 
 .. doxygensnippet:: docs/snippets/ov_extensions.cpp
