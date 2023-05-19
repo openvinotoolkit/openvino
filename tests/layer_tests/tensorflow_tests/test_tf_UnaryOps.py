@@ -3,6 +3,7 @@
 
 import numpy as np
 import pytest
+import sys
 from common.layer_test_class import check_ir_version
 from common.tf_layer_test_class import CommonTFLayerTest
 from common.utils.tf_utils import permute_nchw_to_nhwc
@@ -46,15 +47,65 @@ class TestUnaryOps(CommonTFLayerTest):
 
         return inputs_dict
 
+    def create_net_with_mish(self, shape, ir_version, use_new_frontend):
+        """
+        TODO: Move functionality to `create_net_with_unary_op()` once tensorflow_addons
+        supports Python 3.11
+            Tensorflow net                 IR net
+
+            Input->mish          =>       Input->mish
+        """
+        import tensorflow as tf
+        import tensorflow_addons as tfa
+
+        tf.compat.v1.reset_default_graph()
+
+        with tf.compat.v1.Session() as sess:
+            tf_x_shape = shape.copy()
+            tf_x_shape = permute_nchw_to_nhwc(tf_x_shape, use_new_frontend)
+
+            input = tf.compat.v1.placeholder(tf.float32, tf_x_shape, 'Input')
+            tfa.activations.mish(input)
+
+            tf.compat.v1.global_variables_initializer()
+            tf_net = sess.graph_def
+
+        #
+        #   Create reference IR net
+        #   Please, specify 'type': 'Input' for input node
+        #   Moreover, do not forget to validate ALL layer attributes!!!
+        #
+
+        ref_net = None
+
+        if check_ir_version(10, None, ir_version) and not use_new_frontend:
+            nodes_attributes = {
+                'input': {'kind': 'op', 'type': 'Parameter'},
+                'input_data': {'shape': shape, 'kind': 'data'},
+                'testing_op': {'kind': 'op', 'type': 'Mish'},
+                'testing_data': {'shape': shape, 'kind': 'data'},
+                'result': {'kind': 'op', 'type': 'Result'}
+            }
+
+            ref_net = build_graph(nodes_attributes,
+                                  [('input', 'input_data'),
+                                   ('input_data', 'testing_op'),
+                                   ('testing_op', 'testing_data'),
+                                   ('testing_data', 'result')
+                                   ])
+
+        return tf_net, ref_net
+
     def create_net_with_unary_op(self, shape, ir_version, op_type, use_new_frontend):
         """
+        TODO: Move functionality of `create_net_with_mish()` here once tensorflow_addons
+        supports Python 3.11
             Tensorflow net                 IR net
 
             Input->UnaryOp       =>       Input->UnaryOp
 
         """
         import tensorflow as tf
-        import tensorflow_addons as tfa
 
         self.current_op_type = op_type
         op_type_to_tf = {
@@ -74,7 +125,7 @@ class TestUnaryOps(CommonTFLayerTest):
             'Floor': tf.math.floor,
             'Log': tf.math.log,
             'LogicalNot': tf.math.logical_not,
-            'Mish': tfa.activations.mish,
+            #'Mish': tfa.activations.mish,  # temporarily moved to `create_net_with_mish()`
             'Negative': tf.math.negative,
             'Sigmoid': tf.nn.sigmoid,
             'Sign': tf.math.sign,
@@ -162,7 +213,6 @@ class TestUnaryOps(CommonTFLayerTest):
                                          'LogicalNot',
                                          'Square',
                                          'Erf',
-                                         'Mish',
                                          ])
     @pytest.mark.precommit
     def test_unary_op_precommit(self, params, ie_device, precision, ir_version, temp_dir, op_type,
@@ -171,6 +221,21 @@ class TestUnaryOps(CommonTFLayerTest):
             pytest.skip("5D tensors is not supported on GPU")
         self._test(*self.create_net_with_unary_op(**params, ir_version=ir_version, op_type=op_type,
                                                   use_new_frontend=use_new_frontend),
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+        
+    @pytest.mark.xfail(sys.version_info > (3, 10), reason="tensorflow_addons package is not available for Python 3.11 and higher")
+    @pytest.mark.parametrize("params", test_data_precommit)
+    @pytest.mark.precommit
+    def test_unary_op_mish_precommit(self, params, ie_device, precision, ir_version, temp_dir,
+                                use_new_frontend, use_old_api):
+        """
+        TODO: Move to `test_unary_op_precommit()` once tensorflow_addons package is available for Python 3.11
+        """
+        if ie_device == 'GPU':
+            pytest.skip("5D tensors is not supported on GPU")
+        self._test(*self.create_net_with_mish(**params, ir_version=ir_version,
+                                              use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_new_frontend=use_new_frontend, use_old_api=use_old_api)
 
@@ -206,7 +271,6 @@ class TestUnaryOps(CommonTFLayerTest):
                                          'Asinh',
                                          'Square',
                                          'Erf',
-                                         'Mish',
                                          ])
     @pytest.mark.nightly
     def test_unary_op(self, params, ie_device, precision, ir_version, temp_dir, op_type,
@@ -215,5 +279,20 @@ class TestUnaryOps(CommonTFLayerTest):
             pytest.skip("5D tensors is not supported on GPU")
         self._test(*self.create_net_with_unary_op(**params, ir_version=ir_version, op_type=op_type,
                                                   use_new_frontend=use_new_frontend),
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+        
+    @pytest.mark.xfail(sys.version_info > (3, 10), reason="tensorflow_addons package is not available for Python 3.11 and higher")
+    @pytest.mark.parametrize("params", test_data)
+    @pytest.mark.nightly
+    def test_unary_op_mish(self, params, ie_device, precision, ir_version, temp_dir, op_type,
+                           use_new_frontend, use_old_api):
+        """
+        TODO: Move to `test_unary_op()` once tensorflow_addons package is available for Python 3.11
+        """
+        if ie_device == 'GPU':
+            pytest.skip("5D tensors is not supported on GPU")
+        self._test(*self.create_net_with_mish(**params, ir_version=ir_version,
+                                              use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_new_frontend=use_new_frontend, use_old_api=use_old_api)

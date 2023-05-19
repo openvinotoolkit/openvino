@@ -26,6 +26,8 @@ using namespace Xbyak;
 namespace ov {
 namespace intel_cpu {
 
+#if defined(OPENVINO_ARCH_X86_64)
+
 template <cpu_isa_t isa>
 struct jit_uni_permute_kernel_f32 : public jit_uni_permute_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_permute_kernel_f32)
@@ -140,6 +142,8 @@ private:
     Vmm vmm = Vmm(1);
     Xbyak::Xmm xmm = Xbyak::Xmm(1);
 };
+
+#endif // OPENVINO_ARCH_X86_64
 
 PermuteKernel::PermuteKernel(const PermuteParams& params) : params(params) {
     prepareParams();
@@ -257,6 +261,7 @@ void PermuteKernel::prepareParams() {
     jcp.ndims = sorted_order.size();
     jcp.data_size = params.data_size;
 
+#if defined(OPENVINO_ARCH_X86_64)
     if (mayiuse(cpu::x64::avx512_core)) {
         permute_kernel.reset(new jit_uni_permute_kernel_f32<cpu::x64::avx512_core>(jcp));
     } else if (mayiuse(cpu::x64::avx2)) {
@@ -264,6 +269,7 @@ void PermuteKernel::prepareParams() {
     } else if (mayiuse(cpu::x64::sse41)) {
         permute_kernel.reset(new jit_uni_permute_kernel_f32<cpu::x64::sse41>(jcp));
     }
+#endif // OPENVINO_ARCH_X86_64
 
     if (permute_kernel)
         permute_kernel->create_ker();

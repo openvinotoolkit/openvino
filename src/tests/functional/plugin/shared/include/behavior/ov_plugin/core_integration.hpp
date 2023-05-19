@@ -121,8 +121,9 @@ using OVClassLoadNetworkTest = OVClassQueryNetworkTest;
 using OVClassSetGlobalConfigTest = OVClassBaseTestP;
 using OVClassSetModelPriorityConfigTest = OVClassBaseTestP;
 using OVClassSetExecutionModeHintConfigTest = OVClassBaseTestP;
+using OVClassSetEnableCpuPinningHintConfigTest = OVClassBaseTestP;
 using OVClassSetSchedulingCoreTypeHintConfigTest = OVClassBaseTestP;
-using OVClassSetUseHyperThreadingHintConfigTest = OVClassBaseTestP;
+using OVClassSetEnableHyperThreadingHintConfigTest = OVClassBaseTestP;
 using OVClassSetTBBForceTerminatePropertyTest = OVClassBaseTestP;
 using OVClassSetLogLevelConfigTest = OVClassBaseTestP;
 using OVClassSpecificDeviceTestSetConfig = OVClassBaseTestP;
@@ -605,12 +606,27 @@ TEST_P(OVClassSetExecutionModeHintConfigTest, SetConfigNoThrow) {
     ASSERT_NO_THROW(defaultMode = ie.get_property(target_device, ov::hint::execution_mode));
     (void)defaultMode;
 
-    ie.set_property(target_device, ov::hint::execution_mode(ov::hint::ExecutionMode::UNDEFINED));
-    ASSERT_EQ(ov::hint::ExecutionMode::UNDEFINED, ie.get_property(target_device, ov::hint::execution_mode));
     ie.set_property(target_device, ov::hint::execution_mode(ov::hint::ExecutionMode::ACCURACY));
     ASSERT_EQ(ov::hint::ExecutionMode::ACCURACY, ie.get_property(target_device, ov::hint::execution_mode));
     ie.set_property(target_device, ov::hint::execution_mode(ov::hint::ExecutionMode::PERFORMANCE));
     ASSERT_EQ(ov::hint::ExecutionMode::PERFORMANCE, ie.get_property(target_device, ov::hint::execution_mode));
+}
+
+TEST_P(OVClassSetEnableCpuPinningHintConfigTest, SetConfigNoThrow) {
+    ov::Core ie = createCoreWithTemplate();
+
+    OV_ASSERT_PROPERTY_SUPPORTED(ov::hint::enable_cpu_pinning);
+
+    bool defaultMode{};
+    ASSERT_NO_THROW(defaultMode = ie.get_property(target_device, ov::hint::enable_cpu_pinning));
+    (void)defaultMode;
+
+    ASSERT_EQ(true, ie.get_property(target_device, ov::hint::enable_cpu_pinning));
+
+    ie.set_property(target_device, ov::hint::enable_cpu_pinning(false));
+    ASSERT_EQ(false, ie.get_property(target_device, ov::hint::enable_cpu_pinning));
+    ie.set_property(target_device, ov::hint::enable_cpu_pinning(true));
+    ASSERT_EQ(true, ie.get_property(target_device, ov::hint::enable_cpu_pinning));
 }
 
 TEST_P(OVClassSetSchedulingCoreTypeHintConfigTest, SetConfigNoThrow) {
@@ -632,21 +648,21 @@ TEST_P(OVClassSetSchedulingCoreTypeHintConfigTest, SetConfigNoThrow) {
     ASSERT_EQ(ov::hint::SchedulingCoreType::ANY_CORE, ie.get_property(target_device, ov::hint::scheduling_core_type));
 }
 
-TEST_P(OVClassSetUseHyperThreadingHintConfigTest, SetConfigNoThrow) {
+TEST_P(OVClassSetEnableHyperThreadingHintConfigTest, SetConfigNoThrow) {
     ov::Core ie = createCoreWithTemplate();
 
-    OV_ASSERT_PROPERTY_SUPPORTED(ov::hint::use_hyper_threading);
+    OV_ASSERT_PROPERTY_SUPPORTED(ov::hint::enable_hyper_threading);
 
     bool defaultMode{};
-    ASSERT_NO_THROW(defaultMode = ie.get_property(target_device, ov::hint::use_hyper_threading));
+    ASSERT_NO_THROW(defaultMode = ie.get_property(target_device, ov::hint::enable_hyper_threading));
     (void)defaultMode;
 
-    ASSERT_EQ(true, ie.get_property(target_device, ov::hint::use_hyper_threading));
+    ASSERT_EQ(true, ie.get_property(target_device, ov::hint::enable_hyper_threading));
 
-    ie.set_property(target_device, ov::hint::use_hyper_threading(false));
-    ASSERT_EQ(false, ie.get_property(target_device, ov::hint::use_hyper_threading));
-    ie.set_property(target_device, ov::hint::use_hyper_threading(true));
-    ASSERT_EQ(true, ie.get_property(target_device, ov::hint::use_hyper_threading));
+    ie.set_property(target_device, ov::hint::enable_hyper_threading(false));
+    ASSERT_EQ(false, ie.get_property(target_device, ov::hint::enable_hyper_threading));
+    ie.set_property(target_device, ov::hint::enable_hyper_threading(true));
+    ASSERT_EQ(true, ie.get_property(target_device, ov::hint::enable_hyper_threading));
 }
 
 TEST_P(OVClassSetDevicePriorityConfigTest, SetConfigAndCheckGetConfigNoThrow) {
@@ -673,10 +689,22 @@ TEST(OVClassBasicTest, SetTBBForceTerminatePropertyCoreNoThrow) {
     bool value = true;
     OV_ASSERT_NO_THROW(ie.set_property(ov::force_tbb_terminate(false)));
     OV_ASSERT_NO_THROW(value = ie.get_property(ov::force_tbb_terminate.name()).as<bool>());
-    EXPECT_EQ(value, false);
+    EXPECT_FALSE(value);
     OV_ASSERT_NO_THROW(ie.set_property(ov::force_tbb_terminate(true)));
     OV_ASSERT_NO_THROW(value = ie.get_property(ov::force_tbb_terminate.name()).as<bool>());
-    EXPECT_EQ(value, true);
+    EXPECT_TRUE(value);
+}
+
+TEST(OVClassBasicTest, SetEnableMmapPropertyCoreNoThrow) {
+    ov::Core ie;
+
+    bool value = true;
+    OV_ASSERT_NO_THROW(ie.set_property(ov::enable_mmap(false)));
+    OV_ASSERT_NO_THROW(value = ie.get_property(ov::enable_mmap.name()).as<bool>());
+    EXPECT_FALSE(value);
+    OV_ASSERT_NO_THROW(ie.set_property(ov::enable_mmap(true)));
+    OV_ASSERT_NO_THROW(value = ie.get_property(ov::enable_mmap.name()).as<bool>());
+    EXPECT_TRUE(value);
 }
 
 TEST(OVClassBasicTest, GetUnsupportedPropertyCoreThrow) {
@@ -684,20 +712,6 @@ TEST(OVClassBasicTest, GetUnsupportedPropertyCoreThrow) {
 
     // Unsupported property test
     ASSERT_THROW(ie.get_property("unsupported_property"), ov::Exception);
-}
-
-TEST(OVClassBasicTest, SetAllowAutoBatchingPropertyCoreNoThrows) {
-    ov::Core ie = createCoreWithTemplate();
-
-    bool value1 = true;
-    OV_ASSERT_NO_THROW(ie.set_property(ov::hint::allow_auto_batching(false)));
-    OV_ASSERT_NO_THROW(value1 = ie.get_property(ov::hint::allow_auto_batching.name()).as<bool>());
-    ASSERT_FALSE(value1);
-
-    bool value2 = false;
-    OV_ASSERT_NO_THROW(ie.set_property(ov::hint::allow_auto_batching(true)));
-    OV_ASSERT_NO_THROW(value2 = ie.get_property(ov::hint::allow_auto_batching.name()).as<bool>());
-    ASSERT_TRUE(value2);
 }
 
 TEST_P(OVClassSetLogLevelConfigTest, SetConfigNoThrow) {
@@ -815,7 +829,7 @@ TEST_P(OVClassNetworkTestP, SetAffinityWithConstantBranches) {
         std::string affinity = rl_map[op->get_friendly_name()];
         op->get_rt_info()["affinity"] = affinity;
     }
-    auto exeNetwork = ie.compile_model(ksoNetwork, target_device);
+    auto exeNetwork = ie.compile_model(func, target_device);
 }
 
 TEST_P(OVClassNetworkTestP, SetAffinityWithKSO) {
@@ -1357,6 +1371,7 @@ TEST_P(OVClassLoadNetworkAndCheckSecondaryPropertiesTest, LoadNetworkAndCheckSec
     ASSERT_TRUE(property.count(ov::num_streams.name()));
     auto actual = property.at(ov::num_streams.name()).as<int32_t>();
     ov::Any value;
+    //AutoExcutableNetwork GetMetric() does not support key ov::num_streams
     OV_ASSERT_NO_THROW(value = model.get_property(ov::num_streams.name()));
     int32_t expect = value.as<int32_t>();
     ASSERT_EQ(actual, expect);
@@ -1384,7 +1399,7 @@ TEST_P(OVClassLoadNetWorkDoNotReturnDefaultHintTest, LoadNetworkDoNotReturnDefau
     if (target_device.find("AUTO") != std::string::npos) {
         ASSERT_NE(value, ov::hint::PerformanceMode::LATENCY);
     } else {
-        ASSERT_NE(value, ov::hint::PerformanceMode::THROUGHPUT);
+        ASSERT_EQ(value, ov::hint::PerformanceMode::THROUGHPUT);
     }
 }
 

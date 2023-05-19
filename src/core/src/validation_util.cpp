@@ -27,6 +27,7 @@
 #include "ngraph/util.hpp"
 #include "openvino/op/ops.hpp"
 #include "sequnce_generator.hpp"
+#include "validation_util.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 using namespace std;
@@ -872,7 +873,7 @@ std::string normalize_axis_error_msg(const int64_t& axis, const int64_t& lower, 
 }
 }  // namespace
 
-int64_t ov::normalize(const int64_t& value, const int64_t& max) {
+int64_t ov::util::normalize(const int64_t& value, const int64_t& max) {
     return (value < 0) ? value + max : value;
 };
 
@@ -937,7 +938,7 @@ int64_t ov::normalize_axis(const std::string& node_description,
     OPENVINO_ASSERT((axis_range_min <= axis) && (axis <= axis_range_max),
                     node_description,
                     normalize_axis_error_msg(axis, axis_range_min, axis_range_max));
-    return normalize(axis, tensor_rank);
+    return util::normalize(axis, tensor_rank);
 }
 
 void ngraph::opset1::infer_conv_backprop_auto_padding(const Shape& input_data_shape,
@@ -1312,7 +1313,7 @@ void ov::generate_transpose_default_order(std::vector<int64_t>& axes_order, cons
 }
 
 bool ov::is_valid_axes_order(const std::vector<int64_t>& axes_order, const size_t size) {
-    return are_unique(axes_order) &&
+    return util::are_unique(axes_order) &&
            std::all_of(axes_order.cbegin(), axes_order.cend(), ov::cmp::Between<int64_t, ov::cmp::LOWER>(0, size));
 }
 
@@ -1331,16 +1332,16 @@ bool ov::is_rank_compatible_any_of(const ov::Rank& rank, const std::vector<Rank>
     });
 }
 
-bool ov::are_unique(const std::vector<int64_t>& data) {
+bool ov::util::are_unique(const std::vector<int64_t>& data) {
     return std::unordered_set<int64_t>(data.begin(), data.cend()).size() == data.size();
 }
 
 // clip value to min, max
-int64_t ov::clip(const int64_t& value, const int64_t& min, const int64_t& max) {
+int64_t ov::util::clip(const int64_t& value, const int64_t& min, const int64_t& max) {
     return std::min(std::max(value, min), max);
 };
 
-std::shared_ptr<op::v0::Constant> ov::constantfold_subgraph(const Output<Node>& subgraph_sink) {
+std::shared_ptr<op::v0::Constant> ov::util::constantfold_subgraph(const Output<Node>& subgraph_sink) {
     if (const auto& c = ov::as_type_ptr<op::v0::Constant>(subgraph_sink.get_node_shared_ptr()))
         return c;
 

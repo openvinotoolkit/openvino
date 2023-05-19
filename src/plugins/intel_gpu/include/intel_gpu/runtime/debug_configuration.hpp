@@ -6,6 +6,7 @@
 #include <string>
 #include <mutex>
 #include <vector>
+#include <set>
 
 namespace ov {
 namespace intel_gpu {
@@ -41,6 +42,12 @@ enum class LogLevel : int8_t {
 }  // namespace ov
 
 #ifdef GPU_DEBUG_CONFIG
+#if defined(_WIN32)
+#define SEPARATE '\\'
+#else
+#define SEPARATE '/'
+#endif
+#define __FILENAME__ (strrchr(__FILE__, SEPARATE) ? strrchr(__FILE__, SEPARATE) + 1 : __FILE__)
 #define GPU_DEBUG_IF(cond) if (cond)
 #define GPU_DEBUG_CODE(...) __VA_ARGS__
 #define GPU_DEBUG_DEFINE_MEM_LOGGER(stage) \
@@ -51,8 +58,16 @@ enum class LogLevel : int8_t {
 #define GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(val) stage_prof.set_cache_hit(val)
 
 #define GPU_DEBUG_LOG_RAW_INT(min_verbose_level) if (cldnn::debug_configuration::get_instance()->verbose >= min_verbose_level) \
-                                                std::cout << cldnn::debug_configuration::prefix
+    ((cldnn::debug_configuration::get_instance()->verbose_color == 0) ? GPU_DEBUG_LOG_PREFIX : GPU_DEBUG_LOG_COLOR_PREFIX)
 #define GPU_DEBUG_LOG_RAW(min_verbose_level) GPU_DEBUG_LOG_RAW_INT(static_cast<std::underlying_type<ov::intel_gpu::LogLevel>::type>(min_verbose_level))
+#define GPU_DEBUG_LOG_PREFIX    std::cout << cldnn::debug_configuration::prefix << __FILENAME__ << ":" <<__LINE__ << ":" << __func__ << ": "
+#define GPU_DEBUG_LOG_COLOR_PREFIX  std::cout << DARK_GRAY << cldnn::debug_configuration::prefix << \
+    BLUE << __FILENAME__ << ":" << PURPLE <<  __LINE__ << ":" << CYAN << __func__ << ": " << RESET
+#define DARK_GRAY   "\033[1;30m"
+#define BLUE        "\033[1;34m"
+#define PURPLE      "\033[1;35m"
+#define CYAN        "\033[1;36m"
+#define RESET       "\033[0m"
 #else
 #define GPU_DEBUG_IF(cond) if (0)
 #define GPU_DEBUG_CODE(...)
@@ -65,6 +80,7 @@ enum class LogLevel : int8_t {
 // Macro below is inserted to avoid unused variable warning when GPU_DEBUG_CONFIG is OFF
 #define GPU_DEBUG_GET_INSTANCE(name) auto name = cldnn::debug_configuration::get_instance(); (void)(name);
 
+#define GPU_DEBUG_COUT              GPU_DEBUG_LOG_RAW(ov::intel_gpu::LogLevel::DISABLED)
 #define GPU_DEBUG_INFO              GPU_DEBUG_LOG_RAW(ov::intel_gpu::LogLevel::INFO)
 #define GPU_DEBUG_LOG               GPU_DEBUG_LOG_RAW(ov::intel_gpu::LogLevel::LOG)
 #define GPU_DEBUG_TRACE             GPU_DEBUG_LOG_RAW(ov::intel_gpu::LogLevel::TRACE)
@@ -80,6 +96,8 @@ public:
     static const char *prefix;
     int help;                                   // Print help messages
     int verbose;                                // Verbose execution
+    int verbose_color;                          // Print verbose color
+    int list_layers;                            // Print list layers
     int print_multi_kernel_perf;                // Print execution time of each kernel in multi-kernel primitimive
     int disable_usm;                            // Disable usm usage
     int disable_onednn;                         // Disable onednn for discrete GPU (no effect for integrated GPU)
@@ -99,8 +117,10 @@ public:
     int serialize_compile;                      // Serialize creating primitives and compiling kernels
     std::vector<std::string> forced_impl_types; // Force implementation type either ocl or onednn
     int max_kernels_per_batch;                  // Maximum number of kernels in a batch during compiling kernels
+    std::set<int64_t> dump_iteration;           // Dump n-th execution of network.
     static const debug_configuration *get_instance();
     bool is_dumped_layer(const std::string& layerName, bool is_output = false) const;
+    bool is_target_iteration(int64_t iteration) const;
 };
 
 }  // namespace cldnn

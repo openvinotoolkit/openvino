@@ -33,7 +33,9 @@ void createDft(Program& p,
     if (direction != cldnn::dft_direction::forward || mode != cldnn::dft_mode::real) {
         --axis_correction;
     }
+    OPENVINO_SUPPRESS_DEPRECATED_START
     ov::normalize_axes(op.get(), axis_correction, axes);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     std::vector<int64_t> signal_size;
     if (op->get_input_size() == 3) {

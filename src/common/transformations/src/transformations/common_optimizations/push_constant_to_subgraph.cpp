@@ -4,10 +4,10 @@
 
 #include "transformations/common_optimizations/push_constant_to_subgraph.hpp"
 
-#include <openvino/core/validation_util.hpp>
-#include <openvino/op/util/multi_subgraph_base.hpp>
-
 #include "itt.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/util/multi_subgraph_base.hpp"
+#include "validation_util.hpp"
 
 using MultiSubGraphOp = ov::op::util::MultiSubGraphOp;
 
@@ -21,7 +21,7 @@ static std::shared_ptr<ov::op::v0::Constant> try_constantfold_input(
     const auto input_index = input_desc->m_input_index;
     auto it = cache.find(input_index);
     if (it == cache.end()) {
-        auto constant = constantfold_subgraph(op->input_value(input_index));
+        auto constant = ov::util::constantfold_subgraph(op->input_value(input_index));
         if (constant) {
             cache.insert({input_index, constant});
         }

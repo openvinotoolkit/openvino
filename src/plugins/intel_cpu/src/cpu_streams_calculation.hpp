@@ -17,7 +17,6 @@
 
 namespace ov {
 namespace intel_cpu {
-
 /**
  * @brief      Generate streams information table according to processors type table.
  * @param[in]  input_streams is the targeted number of streams set by user via ov::num_streams or hints.
@@ -64,7 +63,6 @@ struct StreamCfg {
     int num_streams;               // Number of streams
     int num_threads;               // Number of threads
     int big_core_streams;          // Number of streams in Performance-core(big core)
-    int big_core_logic_streams;    // Number of streams in Performance logical core(big core)
     int small_core_streams;        // Number of streams in Efficient-core(small core)
     int threads_per_stream_big;    // Threads per stream in big cores
     int threads_per_stream_small;  // Threads per stream in small cores
@@ -72,16 +70,14 @@ struct StreamCfg {
 };
 
 /**
- * @brief      Parse streams table to StreamCfg
- * @param[in]  streams_table summary table of streams info will be used by StreamsExecutor
- * @return     Streams info
+ * @brief      Get information about number of streams, threads and pinning threads on different processors
+ * @param[in]  streams number of streams
+ * @param[in]  ngraphFunc graph handle
+ * @param[in]  config intel cpu configuration
  */
-StreamCfg parse_streams_table(std::vector<std::vector<int>> streams_table);
-
-std::pair<std::string, StreamCfg> get_num_streams(const int streams,
-                                                  const int infer_requests,
-                                                  const std::shared_ptr<ngraph::Function>& ngraphFunc,
-                                                  const InferenceEngine::IStreamsExecutor::Config streamExecutorConfig);
+void get_num_streams(const int streams,
+                     const std::shared_ptr<ngraph::Function>& ngraphFunc,
+                     Config& config);
 
 }  // namespace intel_cpu
 }  // namespace ov

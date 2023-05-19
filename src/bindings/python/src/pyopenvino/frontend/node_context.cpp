@@ -85,7 +85,7 @@ void regclass_frontend_NodeContext(py::module m) {
             auto any = self.get_attribute_as_any(name);
 
             auto type = m.attr("Type");
-            if (dtype == type) {
+            if (dtype.is(type)) {
                 if (any.is<int32_t>() || any.is<int64_t>()) {
                     return py::cast(self.get_attribute<ov::element::Type>(name));
                 } else if (any.is<std::vector<int32_t>>() || any.is<std::vector<int64_t>>()) {

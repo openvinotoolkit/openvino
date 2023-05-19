@@ -73,11 +73,11 @@ jobs:
   steps:
   - task: UsePythonVersion@0
     inputs:
-      versionSpec: '3.10'
+      versionSpec: '3.11.2'
       addToPath: true
       architecture: 'x64'
       githubToken: $(auth_token)
-    displayName: Setup Python 3.10
+    displayName: Setup Python 3.11
     name: setupPython
 
   - script: |
@@ -113,10 +113,6 @@ jobs:
     lfs: 'true'
     path: testdata
 
-  - task: UsePythonVersion@0
-    inputs:
-      versionSpec: '3.10'
-
   - script: |
       brew install cython
       brew install automake
@@ -127,7 +123,8 @@ jobs:
 
   - script: |
       export PATH="/usr/local/opt/cython/bin:$PATH"
-      cmake -GNinja \
+      cmake \
+        -G Ninja \
         -DENABLE_CPPLINT=OFF \
         -DCMAKE_VERBOSE_MAKEFILE=ON \
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) \

@@ -61,7 +61,7 @@ std::vector<layout> resample_inst::calc_output_layouts(resample_node const& /*no
 
     if (((sizes_data.empty() && !memory_deps.count(1)) || !sizes_calc_mod) &&
         ((scales_data.empty() && !memory_deps.count(2)) || sizes_calc_mod)) {
-       return { layout{ShapeType::dynamic(input_rank), input_layout.data_type, input_layout.format} };
+        return { layout{ShapeType::dynamic(input_rank), input_layout.data_type, input_layout.format} };
     }
 
     auto axes_data = desc->axes;
@@ -84,7 +84,7 @@ std::vector<layout> resample_inst::calc_output_layouts(resample_node const& /*no
             ov::op::v4::shape_infer(&op, pads_begin, pads_end, input_shapes, output_shapes, {const_data});
         } else {
             auto sizes_mem = memory_deps.at(1);
-            cldnn::mem_lock<uint8_t, mem_lock_type::read> lock(sizes_mem, impl_param.prog->get_stream());
+            cldnn::mem_lock<uint8_t, mem_lock_type::read> lock(sizes_mem, impl_param.get_stream());
             auto sizes_tensor = make_host_tensor(sizes_mem->get_layout(), lock.data());
             const_data.emplace(1, sizes_tensor);
             ov::op::v4::shape_infer(&op, pads_begin, pads_end, input_shapes, output_shapes, {const_data});
@@ -96,7 +96,7 @@ std::vector<layout> resample_inst::calc_output_layouts(resample_node const& /*no
             ov::op::v4::shape_infer(&op, pads_begin, pads_end, input_shapes, output_shapes, {const_data});
         } else {
             auto scales_mem = memory_deps.at(2);
-            cldnn::mem_lock<uint8_t, mem_lock_type::read> lock(scales_mem, impl_param.prog->get_stream());
+            cldnn::mem_lock<uint8_t, mem_lock_type::read> lock(scales_mem, impl_param.get_stream());
             auto scales_tensor = make_host_tensor(scales_mem->get_layout(), lock.data());
             const_data.emplace(2, scales_tensor);
             ov::op::v4::shape_infer(&op, pads_begin, pads_end, input_shapes, output_shapes, {const_data});

@@ -8,6 +8,7 @@ import errno
 import subprocess  # nosec
 import typing
 import platform
+import re
 import multiprocessing
 from fnmatch import fnmatchcase
 from pathlib import Path
@@ -97,6 +98,7 @@ LIB_INSTALL_CFG = {
         "name": "tbb",
         "prefix": "libs.tbb",
         "install_dir": TBB_LIBS_DIR,
+        "rpath": LIBS_RPATH,
         "binary_dir": OPENVINO_BUILD_DIR,
     },
     "pugixml_libs": {
@@ -288,6 +290,11 @@ class PrepareLibs(build_clib):
                 install_dir = os.path.join(install_prefix, install_dir)
             # set rpath if applicable
             if sys.platform != "win32" and comp_data.get("rpath"):
+                # after tbb libraries on mac arm64 are signed, setting rpath for them will report error:
+                # LC_SEGMENT_64 command 3 fileoff field plus filesize field extends past the end of the file
+                if comp == "tbb_libs" and ARCH == "arm64" and sys.platform == "darwin":
+                    continue
+
                 for path in filter(
                     lambda x: any(item in ([".so"] if sys.platform == "linux" else [".dylib", ".so"])
                                   for item in x.suffixes), Path(install_dir).glob("*"),
@@ -307,7 +314,7 @@ class PrepareLibs(build_clib):
     def generate_package(self, src_dirs):
         """Collect package data files from preinstalled dirs and put all runtime libraries to the subpackage."""
         # additional blacklist filter, just to fix cmake install issues
-        blacklist = [".lib", ".pdb", "_debug.dll", "_debug.dylib"]
+        blacklist_patterns = ["^.*\\.lib$", "^.*\\.pdb$", "^.*_debug\\.dll$", "^.*_debug\\.\\d*\\.dylib$", "^.*_debug\\.so\\.\\d*$", "^.*\\.la$"]
         package_dir = os.path.join(get_package_dir(PY_INSTALL_CFG), WHEEL_LIBS_INSTALL_DIR)
 
         for src_dir in src_dirs:
@@ -354,7 +361,12 @@ class PrepareLibs(build_clib):
                 file_name = os.path.basename(file_path)
                 if file_path.is_symlink():
                     sys.exit(f"Wheel package content must not contain symlinks {file_path}")
-                if file_path.is_file() and not any(file_name.endswith(ext) for ext in blacklist):
+                blacklisted = False
+                for pattern in blacklist_patterns:
+                    if re.match(pattern, file_name) is not None:
+                        blacklisted = True
+                        break
+                if file_path.is_file() and not blacklisted:
                     dst_file = os.path.join(package_dir, os.path.relpath(file_path, local_base_dir))
                     os.makedirs(os.path.dirname(dst_file), exist_ok=True)
                     copyfile(file_path, dst_file)

@@ -104,6 +104,8 @@ std::string toString(DataLayout l) {
         case kernel_selector::DataLayout::bzyxf:                 return "BZYXF";
         case kernel_selector::DataLayout::fs_b_yx_fsv32:         return "FS_B_YX_FSV32";
         case kernel_selector::DataLayout::bfwzyx:                return "BFWZYX";
+        case kernel_selector::DataLayout::bfuwzyx:               return "BFUWZYX";
+        case kernel_selector::DataLayout::bfvuwzyx:              return "BFVUWZYX";
         case kernel_selector::DataLayout::b_fs_zyx_fsv16:        return "B_FS_ZYX_FSV16";
         case kernel_selector::DataLayout::bs_fs_yx_bsv16_fsv16:  return "BS_FS_YX_BSV16_FSV16";
         case kernel_selector::DataLayout::bs_fs_yx_bsv16_fsv32:  return "BS_FS_YX_BSV16_FSV32";
@@ -298,6 +300,7 @@ std::string toString(WeightsLayout layout) {
         case WeightsLayout::iyxo:                                        return "IYXO";
         case WeightsLayout::yxio:                                        return "YXIO";
         case WeightsLayout::os_is_yx_isv16_osv16:                        return "OS_IS_YX_ISV16_OSV16";
+        case WeightsLayout::os_is_yx_osv16_isv2:                         return "OS_IS_YX_OSV16_ISV2";
         case WeightsLayout::os_is_yx_osv16_isv16:                        return "OS_IS_YX_OSV16_ISV16";
         case WeightsLayout::os_is_zyx_osv16_isv16:                       return "OS_IS_ZYX_OSV16_ISV16";
         case WeightsLayout::os_is_zyx_osv32_isv16:                       return "OS_IS_ZYX_OSV32_ISV16";

@@ -26,7 +26,7 @@ void regclass_pyngraph_CoordinateDiff(py::module m) {
 
     coordinate_diff.def("__str__", [](const ngraph::CoordinateDiff& self) -> std::string {
         std::stringstream stringstream;
-        std::copy(self.begin(), self.end(), std::ostream_iterator<int>(stringstream, ", "));
+        std::copy(self.begin(), self.end(), std::ostream_iterator<size_t>(stringstream, ", "));
         std::string string = stringstream.str();
         return string.substr(0, string.size() - 2);
     });

@@ -109,6 +109,7 @@ def test_mo_extensions_test():
     assert not status.returncode
 
 
+@pytest.mark.skipif(sys.version_info > (3, 10), reason="Ticket: 95904")
 def test_mo_fallback_test():
     setup_env()
     args = [sys.executable, '-m', 'pytest',

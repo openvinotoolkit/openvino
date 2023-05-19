@@ -1,5 +1,7 @@
 # Sinh {#openvino_docs_ops_arithmetic_Sinh_1}
 
+@sphinxdirective
+
 **Versioned name**: *Sinh-1*
 
 **Category**: *Arithmetic unary*
@@ -8,9 +10,9 @@
 
 **Detailed description**: *Sinh* performs element-wise hyperbolic sine (sinh) operation on a given input tensor, based on the following mathematical formula:
 
-\f[
-a_{i} = sinh(a_{i})
-\f]
+.. math::
+
+   a_{i} = sinh(a_{i})
 
 **Attributes**: *Sinh* operation has no attributes.
 
@@ -28,19 +30,22 @@ a_{i} = sinh(a_{i})
 
 **Example**
 
-```xml
-<layer ... type="Sinh">
-    <input>
-        <port id="0">
-            <dim>256</dim>
-            <dim>56</dim>
-        </port>
-    </input>
-    <output>
-        <port id="1">
-            <dim>256</dim>
-            <dim>56</dim>
-        </port>
-    </output>
-</layer>
-```
+.. code-block:: cpp
+
+    <layer ... type="Sinh">
+        <input>
+            <port id="0">
+                <dim>256</dim>
+                <dim>56</dim>
+            </port>
+        </input>
+        <output>
+            <port id="1">
+                <dim>256</dim>
+                <dim>56</dim>
+            </port>
+        </output>
+    </layer>
+
+
+@endsphinxdirective

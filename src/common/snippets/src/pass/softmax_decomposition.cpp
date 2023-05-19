@@ -33,7 +33,9 @@ ngraph::snippets::pass::SoftmaxDecomposition::SoftmaxDecomposition(const size_t 
 
         int64_t axis = 0;
         if (const auto softmax_v8 = ngraph::as_type_ptr<const ov::op::v8::Softmax>(root)) {
+            OPENVINO_SUPPRESS_DEPRECATED_START
             axis = ngraph::normalize_axis(root->get_friendly_name(), softmax_v8->get_axis(), rank);
+            OPENVINO_SUPPRESS_DEPRECATED_END
         } else if (const auto softmax_v1 = ngraph::as_type_ptr<const ov::op::v1::Softmax>(root)) {
             axis = softmax_v1->get_axis();
         } else {

@@ -29,8 +29,8 @@ std::vector<TShape> shape_infer(const GroupConvolutionBackpropData* op,
                                 CoordinateDiff& pads_end,
                                 const std::map<size_t, HostTensorPtr>& constant_data = {}) {
     const auto inputs_count = input_shapes.size();
-    const auto has_spatial_shape = inputs_count == 3;
-    NODE_VALIDATION_CHECK(op, inputs_count == 2 || has_spatial_shape);
+    const auto has_spatial_shape = inputs_count >= 3;
+    NODE_VALIDATION_CHECK(op, inputs_count >= 2);
     using namespace ov::util;
 
     TShape out_spatial_shape;

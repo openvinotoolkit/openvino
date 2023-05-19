@@ -38,10 +38,10 @@ struct shape_of_impl : typed_primitive_impl_ocl<shape_of> {
         auto updated_impl_params = canonicalize_fused_shapes(impl_params);
 
         auto& input_layout = updated_impl_params.input_layouts[0];
-        input_layout.set_partial_shape(extend_shape_to_rank_from_end(input_layout.get_partial_shape(), 6));
+        input_layout.set_partial_shape(extend_shape_to_rank_from_end(input_layout.get_partial_shape(), layout::max_rank()));
 
         auto& output_layout = updated_impl_params.output_layouts[0];
-        output_layout.set_partial_shape(extend_shape_to_rank_from_end(output_layout.get_partial_shape(), 6));
+        output_layout.set_partial_shape(extend_shape_to_rank_from_end(output_layout.get_partial_shape(), layout::max_rank()));
 
         return updated_impl_params;
     }
@@ -53,7 +53,6 @@ struct shape_of_impl : typed_primitive_impl_ocl<shape_of> {
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
         auto kernel_params = get_kernel_params(impl_param, true);
         (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
-        update_kernels_list_to_skip();
     }
 };
 

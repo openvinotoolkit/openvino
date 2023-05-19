@@ -49,7 +49,12 @@ InferenceEngine::RemoteContext::Ptr ov::CoreImpl::GetDefaultContext(const std::s
 
 InferenceEngine::CNNNetwork ov::CoreImpl::ReadNetwork(const std::string& modelPath, const std::string& binPath) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::IE_RT, "CoreImpl::ReadNetwork from file");
-    return InferenceEngine::details::ReadNetwork(modelPath, binPath, extensions, ov_extensions, is_new_api());
+    return InferenceEngine::details::ReadNetwork(modelPath,
+                                                 binPath,
+                                                 extensions,
+                                                 ov_extensions,
+                                                 is_new_api(),
+                                                 coreConfig.get_enable_mmap());
 }
 
 InferenceEngine::CNNNetwork ov::CoreImpl::ReadNetwork(const std::string& model,

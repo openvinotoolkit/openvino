@@ -1867,6 +1867,42 @@ NGRAPH_TEST(onnx_editor, subgraph__cut_custom_edges_from_different_sources_and_m
     EXPECT_TRUE(result.is_ok) << result.error_message;
 }
 
+NGRAPH_TEST(onnx_editor, subgraph__duplicated_output) {
+    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                        SERIALIZED_ZOO,
+                                                        "onnx/model_editor/add_ab_duplicated_output.onnx")};
+
+    const auto y_out_edge = editor.find_output_edge("Y");
+    editor.extract_subgraph({}, {{y_out_edge}});
+
+    const auto ref_model = ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                        SERIALIZED_ZOO,
+                                                        "onnx/model_editor/add_ab.onnx");
+
+    const auto result = compare_onnx_models(editor.model_string(), ref_model);
+
+    EXPECT_TRUE(result.is_ok) << result.error_message;
+}
+
+NGRAPH_TEST(onnx_editor, subgraph__duplicated_output_2) {
+    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                        SERIALIZED_ZOO,
+                                                        "onnx/model_editor/add_ab_duplicated_output.onnx")};
+
+    const auto y_out_edge_1 = editor.find_output_edge("Y");
+    const auto y_out_edge_2 = editor.find_output_edge("Y");
+    editor.extract_subgraph({}, {{y_out_edge_1, y_out_edge_2}});
+
+    const auto ref_model = ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                        SERIALIZED_ZOO,
+                                                        "onnx/model_editor/add_ab_duplicated_output.onnx");
+
+    // Model not changed
+    const auto result = compare_onnx_models(editor.model_string(), ref_model);
+
+    EXPECT_TRUE(result.is_ok) << result.error_message;
+}
+
 NGRAPH_TEST(onnx_editor, onnx_shape_infer_exception) {
     ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,

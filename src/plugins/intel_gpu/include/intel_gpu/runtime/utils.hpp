@@ -161,6 +161,11 @@ inline bool all_zeroes(const std::vector<T> vec) {
 }
 
 template <typename T>
+inline bool all_not_zeroes(const std::vector<T> vec) {
+    return std::all_of(vec.begin(), vec.end(), [](const T& val) { return val != 0; });
+}
+
+template <typename T>
 inline bool any_one(const std::vector<T> vec) {
     return std::any_of(vec.begin(), vec.end(), [](const T& val) { return val == 1; });
 }

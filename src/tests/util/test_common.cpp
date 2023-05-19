@@ -16,7 +16,7 @@
 
 #    include <windows.h>
 
-#    include "Psapi.h"
+#    include "psapi.h"
 #endif
 
 namespace ov {
@@ -90,13 +90,13 @@ std::shared_ptr<SharedRTInfo> ModelAccessor::get_shared_info() const {
     if (auto f = m_function.lock()) {
         return f->m_shared_rt_info;
     }
-    throw ngraph::ngraph_error("Original model is not available");
+    OPENVINO_THROW("Original model is not available");
 }
 
 std::set<std::shared_ptr<SharedRTInfo>> NodeAccessor::get_shared_info() const {
     if (auto node = m_node.lock()) {
         return node->m_shared_rt_info;
     }
-    throw ngraph::ngraph_error("Original node is not available");
+    OPENVINO_THROW("Original node is not available");
 }
 }  // namespace ov

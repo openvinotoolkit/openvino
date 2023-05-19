@@ -12,11 +12,13 @@
 
 #include "ngraph/except.hpp"
 #include "onnx_import/core/operator_set.hpp"
+#include "openvino/core/deprecated.hpp"
 #include "version_range.hpp"
 
 namespace ngraph {
 namespace onnx_import {
 namespace error {
+OPENVINO_SUPPRESS_DEPRECATED_START
 struct UnknownOperator : ngraph_error {
     UnknownOperator(const std::string& name, const std::string& domain)
         : ngraph_error{(domain.empty() ? "" : domain + ".") + name} {}
@@ -31,6 +33,7 @@ struct UnsupportedVersion : ngraph_error {
         : ngraph_error{"Unsupported operator version: " + (domain.empty() ? "" : domain + ".") + name + ":" +
                        std::to_string(version)} {}
 };
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 }  // namespace error
 
@@ -103,7 +106,7 @@ private:
     std::unordered_map<std::string, DomainOpset> m_map;
 };
 
-constexpr const char* OPENVINO_ONNX_DOMAIN = "org.openvinotoolkit";
+extern const char* OPENVINO_ONNX_DOMAIN;
 
 }  // namespace onnx_import
 

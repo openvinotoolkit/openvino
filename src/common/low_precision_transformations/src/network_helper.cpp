@@ -24,6 +24,7 @@
 #include "low_precision/rt_info/quantization_alignment_attribute.hpp"
 #include "ngraph/opsets/opset3.hpp"
 #include "ngraph/opsets/opset6.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -503,11 +504,9 @@ std::shared_ptr<Node> NetworkHelper::fold_fake_quantize(const std::shared_ptr<op
     return foldFakeQuantize(fq, false, false);
 }
 
-std::shared_ptr<Node> NetworkHelper::fold_fake_quantize(
-        const std::shared_ptr<opset1::FakeQuantize>& fq,
-        const bool roundValues,
-        const int outChannelsShapeIndex) {
-    return foldFakeQuantize(fq, roundValues, true, outChannelsShapeIndex);
+std::shared_ptr<Node> NetworkHelper::fold_fake_quantize(const std::shared_ptr<opset1::FakeQuantize>& fq,
+                                                        const bool roundValues) {
+    return foldFakeQuantize(fq, roundValues, true);
 }
 
 FakeQuantizeDequantization NetworkHelper::foldDequantization(const std::shared_ptr<Node>& node,
@@ -711,37 +710,8 @@ size_t NetworkHelper::calculateLevels(
 std::shared_ptr<Node> NetworkHelper::foldFakeQuantize(
     const std::shared_ptr<opset1::FakeQuantize>& fq,
     const bool roundValuesArg,
-    const bool roundValuesWasSet,
-    const int outChannelsShapeIndex) {
-    if (ov::is_type<opset1::Constant>(fq->get_input_node_shared_ptr(0)) &&
-        ov::is_type<opset1::Constant>(fq->get_input_node_shared_ptr(1)) &&
-        ov::is_type<opset1::Constant>(fq->get_input_node_shared_ptr(2)) &&
-        ov::is_type<opset1::Constant>(fq->get_input_node_shared_ptr(3)) &&
-        ov::is_type<opset1::Constant>(fq->get_input_node_shared_ptr(4)) &&
-        ov::op::util::constantIsEqualTo(ov::as_type_ptr<opset1::Constant>(fq->get_input_node_shared_ptr(1)), 0.f) &&
-        ov::op::util::constantIsEqualTo(ov::as_type_ptr<opset1::Constant>(fq->get_input_node_shared_ptr(2)), 254.f) &&
-        ov::op::util::constantIsEqualTo(ov::as_type_ptr<opset1::Constant>(fq->get_input_node_shared_ptr(3)), -127.f) &&
-        ov::op::util::constantIsEqualTo(ov::as_type_ptr<opset1::Constant>(fq->get_input_node_shared_ptr(4)), 127.f)) {
-        const auto type1 = fq->input_value(0).get_element_type();
-        const auto type2 = fq->input_value(3).get_element_type();
-        if (type1.is_real() && type2.is_real()) {
-            return fold<opset1::Add>(fq->input_value(0), fq->input_value(3));
-        }
-        if (type1.is_real() && !type2.is_real()) {
-            return fold<opset1::Add>(
-                fq->input_value(0),
-                foldConvert(fq->input_value(3), type1));
-        }
-        if (!type1.is_real() && type2.is_real()) {
-            return fold<opset1::Add>(
-                foldConvert(fq->input_value(0), type2),
-                fq->input_value(3));
-        }
-        return fold<opset1::Add>(
-            foldConvert(fq->input_value(0), element::f32),
-            foldConvert(fq->input_value(3), element::f32));
-    }
-
+    const bool roundValuesWasSet) {
+    // Corner case
     //    y = FakeQuantize(x, inputLow, inputHigh, outputLow, outputHigh)
     // given:
     //    outputLow is const
@@ -762,99 +732,20 @@ std::shared_ptr<Node> NetworkHelper::foldFakeQuantize(
         }
     }
 
-    auto constant = ov::as_type_ptr<opset1::Constant>(fq->get_input_node_shared_ptr(0));
-
-    if (constant) {
-        const bool roundValues = roundValuesWasSet ? roundValuesArg : fq->get_output_element_type(0).is_integral();
-
-        const auto constPShape = fq->get_output_partial_shape(0);
-        assert(constPShape.is_static());
-        const Shape constShape = constPShape.to_shape();
-
-        if (constShape.size() > 5lu) {
-            THROW_IE_LPT_EXCEPTION(*fq) << "Unexpected dimensions count " << constShape.size();
-        }
-        if (outChannelsShapeIndex != 0 && outChannelsShapeIndex != 1) {
-            THROW_IE_LPT_EXCEPTION(*fq) << "Unexpected outChannelsShapeIndex " << outChannelsShapeIndex;
+    if (ov::is_type<opset1::Constant>(fq->get_input_node_shared_ptr(0))) {
+        std::shared_ptr<Node> subgraph = std::make_shared<ov::op::TypeRelaxed<opset1::FakeQuantize>>(*fq, element::f32);
+        const auto& original_et = fq->get_output_element_type(0);
+        const bool roundValues = roundValuesWasSet ? roundValuesArg : original_et.is_integral();
+        if (roundValues) {
+            subgraph = std::make_shared<opset6::Round>(subgraph, opset6::Round::RoundMode::HALF_TO_EVEN);
         }
 
-        size_t OC;
-        size_t IC;
-        // OIDHW or IODHW
-        if (constShape.size() <= 1) {
-            OC = constShape.empty() ? 1ul : constShape[0];
-            IC = 1;
-        } else {
-            OC = constShape[outChannelsShapeIndex];
-            IC = constShape[outChannelsShapeIndex == 0 ? 1 : 0];
+        OPENVINO_SUPPRESS_DEPRECATED_START
+        const auto result = ov::get_constant_from_source(subgraph);
+        OPENVINO_SUPPRESS_DEPRECATED_END
+        if (result != nullptr) {
+            return foldConvert(result, original_et);
         }
-        const size_t D = constShape.size() > 4lu ? constShape[constShape.size() - 3] : 1;
-        const size_t H = constShape.size() > 2lu ? constShape.size() == 3lu ? constShape[2] : constShape[constShape.size() - 2] : 1;
-        const size_t W = constShape.size() > 3lu ? constShape[constShape.size() - 1] : 1;
-
-        const auto inputLowValues = ov::as_type_ptr<opset1::Constant>(fq->get_input_node_shared_ptr(1))->cast_vector<float>();
-        const auto inputHighValues = ov::as_type_ptr<opset1::Constant>(fq->get_input_node_shared_ptr(2))->cast_vector<float>();
-        const auto outputLowValues = ov::as_type_ptr<opset1::Constant>(fq->get_input_node_shared_ptr(3))->cast_vector<float>();
-        const auto outputHighValues = ov::as_type_ptr<opset1::Constant>(fq->get_input_node_shared_ptr(4))->cast_vector<float>();
-
-        const size_t inputLowSize = inputLowValues.size();
-        const size_t inputHighSize = inputHighValues.size();
-        const size_t outputLowSize = outputLowValues.size();
-        const size_t outputHighSize = outputHighValues.size();
-
-        const bool isInputLowBroadcasted = inputLowSize != OC;
-        if ((inputLowSize != 1) && (inputLowSize != OC)) {
-            THROW_IE_LPT_EXCEPTION(*fq) << "Unexpected input low values count " << inputLowSize << " for " << OC << " channels";
-        }
-        const bool isInputHighBroadcasted = inputHighSize != OC;
-        if ((inputHighSize != 1) && (inputHighSize != OC)) {
-            THROW_IE_LPT_EXCEPTION(*fq) << "Unexpected input high values count " << inputHighSize << " for " << OC << " channels";
-        }
-        const bool isOutputLowBroadcasted = outputLowSize != OC;
-        if ((outputLowSize != 1) && (outputLowSize != OC)) {
-            THROW_IE_LPT_EXCEPTION(*fq) << "Unexpected output low values count " << outputLowSize << " for " << OC << " channels";
-        }
-        const bool isOutputHighBroadcasted = outputHighSize != OC;
-        if ((outputHighSize != 1) && (outputHighSize != OC)) {
-            THROW_IE_LPT_EXCEPTION(*fq) << "Unexpected output high values count " << outputHighSize << " for " << OC << " channels";
-        }
-
-        auto levels_1 = fq->get_levels() - 1.f;
-
-        const size_t DHW = D * H * W;
-        const size_t IDHW = outChannelsShapeIndex == 0 ? IC * D * H * W : OC * D * H * W;
-
-        const auto values = constant->cast_vector<float>();
-        std::vector<float> quantizedValues(OC * IC * D * H * W);
-
-        for (size_t oc = 0; oc < OC; ++oc) {
-            const float inputLow = inputLowValues[isInputLowBroadcasted ? 0 : oc];
-            const float inputHigh = inputHighValues[isInputHighBroadcasted ? 0 : oc];
-            const float outputLow = outputLowValues[isOutputLowBroadcasted ? 0 : oc];
-            const float outputHigh = outputHighValues[isOutputHighBroadcasted ? 0 : oc];
-            for (size_t ic = 0; ic < IC; ++ic) {
-                for (size_t iidx = 0; iidx < DHW; ++iidx) {
-                    size_t idx;
-                    if (outChannelsShapeIndex == 0) {
-                        idx = oc * IDHW + ic * DHW + iidx;
-                    } else {
-                        idx = ic * IDHW + oc * DHW + iidx;
-                    }
-
-                    if (values[idx] <= inputLow) {
-                        quantizedValues[idx] = roundValues ? std::roundf(outputLow) : outputLow;
-                    } else if (values[idx] > inputHigh) {
-                        quantizedValues[idx] = roundValues ? std::roundf(outputHigh) : outputHigh;
-                    } else {
-                        const float value = std::roundf((values[idx] - inputLow) / (inputHigh - inputLow) * levels_1) /
-                            levels_1 * (outputHigh - outputLow) + outputLow;
-                        quantizedValues[idx] = roundValues ? std::roundf(value) : value;
-                    }
-                }
-            }
-        }
-
-        return std::make_shared<opset1::Constant>(fq->get_output_element_type(0), constShape, quantizedValues);
     }
 
     return fq;
@@ -1086,8 +977,7 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> NetworkHelper::decompos
             newMax->output(0),
             fq->get_levels(),
             fq->get_auto_broadcast()),
-        true,
-        static_cast<int>(outChannelsShapeIndex));
+        true);
     NetworkHelper::copyInfo(fq, newFQ);
 
     std::shared_ptr<ngraph::Node> convert2;
@@ -1286,7 +1176,14 @@ FakeQuantizeDequantization NetworkHelper::getDequantization(const std::shared_pt
         return 1ul;
     };
 
-    Output<Node> dataNode = inPlace ? std::const_pointer_cast<Node>(node)->output(0) : node->input_value(parentIndex);
+    Output<Node> dataNode;
+    if (inPlace) {
+        dataNode = std::const_pointer_cast<Node>(node);
+    } else {
+        if (parentIndex >= node->get_input_size())
+            return FakeQuantizeDequantization();
+        dataNode = node->input_value(parentIndex);
+    }
 
     const std::shared_ptr<ngraph::opset1::Multiply> multiply = ov::as_type_ptr<ngraph::opset1::Multiply>(dataNode.get_node_shared_ptr());
     std::shared_ptr<opset1::Constant> multiplyConstant;

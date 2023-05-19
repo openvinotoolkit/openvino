@@ -69,7 +69,11 @@ void ScaleShiftAfterConvTest::SetUp() {
 
     auto filterWeights = CommonTestUtils::generate_float_numbers(outputChannels * convInputShape[1] * kernelShape[0] * kernelShape[1],
                                                                  -0.2f, 0.2f);
-    auto conv = ngraph::builder::makeConvolution(reshape1, ngPrc, { kernelShape[0], kernelShape[1] }, { stride, stride }, { 0, 0 },
+    auto conv = ngraph::builder::makeConvolution(reshape1,
+                                                 ngPrc,
+                                                 {kernelShape[0], kernelShape[1]},
+                                                 {kernelShape[0] > 1 ? stride : 1, stride},
+                                                 {0, 0},
         { 0, 0 }, { 1, 1 }, ngraph::op::PadType::VALID, outputChannels, false, filterWeights);
 
     auto widthAfterConv = (convInputShape[3] - kernelShape[1]) / stride + 1;
@@ -165,7 +169,11 @@ void ScaleShiftBeforeConvTest::SetUp() {
 
     auto filterWeights = CommonTestUtils::generate_float_numbers(outputChannels * convInputShape[1] * kernelShape[0] * kernelShape[1],
                                                                  -0.1f, 0.1f);
-    auto conv = ngraph::builder::makeConvolution(reshape2, ngPrc, { kernelShape[0], kernelShape[1] }, { stride, stride }, { 0, 0 },
+    auto conv = ngraph::builder::makeConvolution(reshape2,
+                                                 ngPrc,
+                                                 {kernelShape[0], kernelShape[1]},
+                                                 {kernelShape[0] > 1 ? stride : 1, stride},
+                                                 {0, 0},
         { 0, 0 }, { 1, 1 }, ngraph::op::PadType::VALID, outputChannels, false, filterWeights);
 
     auto widthAfterReshape = (convInputShape[3] - kernelShape[1]) / stride + 1;

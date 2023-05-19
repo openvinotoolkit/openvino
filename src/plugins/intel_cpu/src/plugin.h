@@ -47,9 +47,7 @@ private:
 
     void ApplyPerformanceHints(std::map<std::string, std::string> &config, const std::shared_ptr<ngraph::Function>& ngraphFunc) const;
 
-    void GetPerformanceStreams(std::map<std::string, std::string> &config, const std::shared_ptr<ngraph::Function>& ngraphFunc) const;
-
-    void SetStreamtoConfig(const std::map<std::string, std::string> &config);
+    void GetPerformanceStreams(Config &config, const std::shared_ptr<ngraph::Function>& ngraphFunc);
 
     StreamCfg GetNumStreams(InferenceEngine::IStreamsExecutor::ThreadBindingType thread_binding_type,
                             int stream_mode,
@@ -57,7 +55,7 @@ private:
 
     Config engConfig;
     ExtensionManager::Ptr extensionManager = std::make_shared<ExtensionManager>();
-    /* Explicily configured streams have higher priority even than performance hints.
+    /* Explicily configured streams have higher priority than performance hints.
        So track if streams is set explicitly (not auto-configured) */
     bool streamsExplicitlySetForEngine = false;
     const std::string deviceFullName;

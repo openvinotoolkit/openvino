@@ -954,36 +954,6 @@ TEST_P(ie_c_api_test, ie_exec_network_get_config) {
     ie_core_free(&core);
 }
 
-TEST_P(ie_c_api_test, ie_exec_network_set_config) {
-    ie_core_t *core = nullptr;
-    IE_ASSERT_OK(ie_core_create("", &core));
-    ASSERT_NE(nullptr, core);
-
-    ie_param_t param;
-    if (ie_core_get_metric(core, "GPU", "AVAILABLE_DEVICES", &param) != IEStatusCode::OK) {
-        ie_core_free(&core);
-        GTEST_SKIP();
-    }
-
-    ie_network_t *network = nullptr;
-    IE_EXPECT_OK(ie_core_read_network(core, xml_file_name.c_str(), bin_file_name.c_str(), &network));
-    EXPECT_NE(nullptr, network);
-
-    const char *device_name = "MULTI:GPU,CPU";
-    ie_config_t config = {nullptr, nullptr, nullptr};
-    ie_executable_network_t *exe_network = nullptr;
-    IE_EXPECT_OK(ie_core_load_network(core, network, device_name, &config, &exe_network));
-    EXPECT_NE(nullptr, exe_network);
-
-    ie_config_t config_param = {"MULTI_DEVICE_PRIORITIES", "GPU,CPU", nullptr};
-    IE_EXPECT_OK(ie_exec_network_set_config(exe_network, &config_param));
-
-    ie_exec_network_free(&exe_network);
-    ie_network_free(&network);
-    ie_core_free(&core);
-    ie_param_free(&param);
-}
-
 TEST_P(ie_c_api_test, ie_exec_network_get_metric) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
@@ -1254,8 +1224,6 @@ TEST_P(ie_c_api_test, ie_infer_request_infer_async_wait_time) {
     ie_core_free(&core);
 }
 
-// For ARM plugin, no "Batch" related operations support for now, so skip related APIs
-#ifndef __aarch64__
 TEST_P(ie_c_api_test, ie_infer_request_set_batch) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
@@ -1342,7 +1310,6 @@ TEST_P(ie_c_api_test, ie_infer_request_set_negative_batch) {
     ie_network_free(&network);
     ie_core_free(&core);
 }
-#endif
 
 TEST_P(ie_c_api_test, ie_blob_make_memory) {
 

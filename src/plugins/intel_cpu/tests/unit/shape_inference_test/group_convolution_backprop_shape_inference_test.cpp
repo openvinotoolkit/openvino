@@ -65,6 +65,30 @@ TEST_F(GroupConvolutionBackpropDataStaticShapeInferenceTest, default_ctor) {
     EXPECT_EQ(shape_infer->get_pads_end(), CoordinateDiff({2, 1, 3}));
 }
 
+TEST_F(GroupConvolutionBackpropDataStaticShapeInferenceTest, default_ctor_more_inputs) {
+    op = make_op();
+    op->set_strides({1, 1, 1});
+    op->set_dilations({1, 1, 1});
+    op->set_pads_begin({2, 2, 2});
+    op->set_pads_end({2, 1, 3});
+    op->set_output_padding({1, 1, 1});
+    op->set_auto_pad(op::PadType::EXPLICIT);
+
+    int32_t spatial_shape[] = {5, 10, 15};
+    const auto const_data =
+        std::map<size_t, HostTensorPtr>{{2, std::make_shared<HostTensor>(element::i32, Shape{3}, spatial_shape)}};
+
+    // More than three inputs can be provided, but not used
+    input_shapes = ShapeVector{{1, 6, 10, 12, 2}, {3, 2, 2, 5, 5, 5}, {3}, {0}};
+    auto shape_infer = make_shape_inference(op);
+    output_shapes = shape_infer->infer(input_shapes, const_data).shapes;
+
+    EXPECT_EQ(output_shapes.size(), 1);
+    EXPECT_EQ(output_shapes.front(), StaticShape({1, 6, 5, 10, 15}));
+    EXPECT_EQ(shape_infer->get_pads_begin(), CoordinateDiff({2, 2, 2}));
+    EXPECT_EQ(shape_infer->get_pads_end(), CoordinateDiff({2, 1, 3}));
+}
+
 TEST_F(GroupConvolutionBackpropDataStaticShapeInferenceTest, 2d_inputs_dynamic_rank_no_spatial_shape) {
     const auto strides = Strides{1, 1};
     const auto dilations = Strides{1, 1};

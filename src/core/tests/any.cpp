@@ -326,7 +326,7 @@ TEST_F(AnyTests, AnyDoesNotShareValues) {
     }
 }
 
-TEST_F(AnyTests, DISABLED_AnyMapSharesValues) {
+TEST_F(AnyTests, AnyMapSharesValues) {
     AnyMap map{
         {"1", 1},
         {"2", 2},
@@ -338,8 +338,31 @@ TEST_F(AnyTests, DISABLED_AnyMapSharesValues) {
     ASSERT_EQ(1, copy_map["1"].as<int>());
     ASSERT_EQ(2, copy_map["2"].as<int>());
 
-    map["1"].as<int>() = 110;               // change map
-    EXPECT_EQ(1, copy_map["1"].as<int>());  // TODO: why value is changed here?
+    // change map
+    map["1"].as<int>() = 110;
+
+    // check copied state
+    EXPECT_EQ(110, map["1"].as<int>());
+    EXPECT_EQ(1, copy_map["1"].as<int>());
+}
+
+TEST_F(AnyTests, AnyMapSharesComplexValues) {
+    const std::string string_props = "{map1:{subprop_map:{prop:value}},prop1:1,prop2:2.0}";
+    ov::Any any(string_props);
+    ov::AnyMap map;
+    ASSERT_NO_THROW(map = any.as<ov::AnyMap>());
+
+    AnyMap copy_map = map;
+
+    // check initial state
+    ASSERT_EQ(1, copy_map["prop1"].as<int>());
+
+    // change map
+    map["prop1"].as<std::string>() = "110";
+
+    // check original and copied state
+    EXPECT_EQ("110", map["prop1"].as<std::string>());
+    EXPECT_EQ("1", copy_map["prop1"].as<std::string>());
 }
 
 TEST_F(AnyTests, AnyNotEmpty) {

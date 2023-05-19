@@ -42,9 +42,9 @@ TEST_F(AvgPoolV1StaticShapeInferenceTest, no_auto_pad_round_floor) {
     const auto data = std::make_shared<op::v0::Parameter>(element::f64, PartialShape{-1, -1, -1, -1});
 
     const Strides strides{1, 1};
-    const Shape pads_begin{2, 2};
-    const Shape pads_end{2, 1};
-    const Shape kernel_shape{3, 2};
+    const ov::Shape pads_begin{2, 2};
+    const ov::Shape pads_end{2, 1};
+    const ov::Shape kernel_shape{3, 2};
     const auto rounding_mode = op::RoundingType::FLOOR;
     const auto pad_type = op::PadType::EXPLICIT;
 
@@ -64,9 +64,9 @@ TEST_F(AvgPoolV1StaticShapeInferenceTest, auto_padding_same_lower_round_ceil) {
     const auto data = std::make_shared<op::v0::Parameter>(element::f64, PartialShape::dynamic());
 
     const Strides strides{1, 3, 2};
-    const Shape pads_begin{2, 2, 1};
-    const Shape pads_end{2, 1, 10};
-    const Shape kernel_shape{5, 5, 5};
+    const ov::Shape pads_begin{2, 2, 1};
+    const ov::Shape pads_end{2, 1, 10};
+    const ov::Shape kernel_shape{5, 5, 5};
     const auto rounding_mode = op::RoundingType::CEIL;
     const auto pad_type = op::PadType::SAME_LOWER;
 
@@ -86,9 +86,9 @@ TEST_F(AvgPoolV1StaticShapeInferenceTest, auto_padding_same_upper_round_floor_ex
     const auto data = std::make_shared<op::v0::Parameter>(element::f64, PartialShape::dynamic());
 
     const Strides strides{1, 3, 2};
-    const Shape pads_begin{2, 2, 1};
-    const Shape pads_end{2, 1, 10};
-    const Shape kernel_shape{5, 5, 5};
+    const ov::Shape pads_begin{2, 2, 1};
+    const ov::Shape pads_end{2, 1, 10};
+    const ov::Shape kernel_shape{5, 5, 5};
     const auto rounding_mode = op::RoundingType::FLOOR;
     const auto pad_type = op::PadType::SAME_UPPER;
 
@@ -108,9 +108,9 @@ TEST_F(AvgPoolV1StaticShapeInferenceTest, 5d_auto_padding_same_upper_round_floor
     const auto data = std::make_shared<op::v0::Parameter>(element::f64, PartialShape::dynamic());
 
     const Strides strides{1, 1, 1};
-    const Shape pads_begin{0, 0, 0};
-    const Shape pads_end{0, 0, 0};
-    const Shape kernel_shape{2, 2, 2};
+    const ov::Shape pads_begin{0, 0, 0};
+    const ov::Shape pads_end{0, 0, 0};
+    const ov::Shape kernel_shape{2, 2, 2};
     const auto rounding_mode = op::RoundingType::FLOOR;
     const auto pad_type = op::PadType::SAME_UPPER;
 

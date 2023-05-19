@@ -14,6 +14,12 @@ std::string OpValidationFailure::get_error_msg_prefix_paddle(const paddle::NodeC
     ss << "While validating node '" << node.get_op_type() << '\'';
     return ss.str();
 }
+
+void OpValidationFailure::create(const CheckLocInfo& check_loc_info,
+                                 const NodeContext& node,
+                                 const std::string& explanation) {
+    throw OpValidationFailure(make_what(check_loc_info, get_error_msg_prefix_paddle(node), explanation));
+}
 }  // namespace paddle
 }  // namespace frontend
 }  // namespace ov
