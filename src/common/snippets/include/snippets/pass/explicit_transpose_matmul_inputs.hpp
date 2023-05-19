@@ -1,13 +1,13 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <ngraph/pass/graph_rewrite.hpp>
-#include <ngraph/pattern/matcher.hpp>
+#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace pass {
 
@@ -22,11 +22,11 @@ namespace pass {
  *        change Transpose order to {0, 2, 3, 1} which is supported by Snippets
  * @ingroup snippets
  */
-class ExplicitTransposeMatMulInputs: public ngraph::pass::MatcherPass {
+class ExplicitTransposeMatMulInputs: public ov::pass::MatcherPass {
 public:
     ExplicitTransposeMatMulInputs();
 };
 
 }  // namespace pass
 }  // namespace snippets
-}  // namespace ngraph
+}  // namespace ov

@@ -1,25 +1,24 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <snippets/itt.hpp>
+#include "snippets/itt.hpp"
 
 #include "snippets/pass/broadcast_to_movebroadcast.hpp"
 #include "snippets/pass/insert_movebroadcast.hpp"
-#include <ngraph/pattern/op/wrap_type.hpp>
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/rt_info.hpp>
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/core/rt_info.hpp"
 
-using namespace ngraph;
 
-ngraph::snippets::pass::BroadcastToMoveBroadcast::BroadcastToMoveBroadcast() {
+ov::snippets::pass::BroadcastToMoveBroadcast::BroadcastToMoveBroadcast() {
     MATCHER_SCOPE(BroadcastToMoveBroadcast);
 
-    auto m_broadcast = ngraph::pattern::wrap_type<ngraph::op::v1::Broadcast, ngraph::op::v3::Broadcast>();
+    auto m_broadcast = ov::pass::pattern::wrap_type<ov::op::v1::Broadcast, ov::op::v3::Broadcast>();
 
-    auto callback = [](ngraph::pattern::Matcher &m) {
-        OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::BroadcastToMoveBroadcast")
+    auto callback = [](ov::pass::pattern::Matcher &m) {
+        OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::BroadcastToMoveBroadcast")
         auto root = m.get_match_root();
         if (auto broadcast_v1 = ov::as_type_ptr<const ov::op::v1::Broadcast>(root)) {
             if (broadcast_v1->get_broadcast_spec().m_type != ov::op::AutoBroadcastType::NUMPY)
@@ -35,15 +34,15 @@ ngraph::snippets::pass::BroadcastToMoveBroadcast::BroadcastToMoveBroadcast() {
             return false;
         }
 
-        const auto broadcast_node = ngraph::snippets::pass::InsertMoveBroadcast::BroadcastNodeLastDim(root->input_value(0),
+        const auto broadcast_node = ov::snippets::pass::InsertMoveBroadcast::BroadcastNodeLastDim(root->input_value(0),
                                                                                                       target_shape.get_shape(),
                                                                                                       value_shape.get_shape());
         replace_output_update_name(root->output(0), broadcast_node);
-        ngraph::copy_runtime_info(root, broadcast_node.get_node_shared_ptr());
+        ov::copy_runtime_info(root, broadcast_node.get_node_shared_ptr());
 
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(m_broadcast, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(m_broadcast, matcher_name);
     register_matcher(m, callback);
 }

@@ -7,7 +7,6 @@
 #include <transformations/snippets/x64/pass/mul_add_to_fma.hpp>
 #include <transformations/snippets/x64/op/fused_mul_add.hpp>
 
-#include "snippets/pass/loop_helpers.hpp"
 #include "lowering_utils.hpp"
 
 namespace ov {
@@ -68,30 +67,13 @@ protected:
             data2 = parameter;
         }
 
-        auto load0 = std::make_shared<ngraph::snippets::op::Load>(data0);
-        auto load1 = std::make_shared<ngraph::snippets::op::Load>(data1);
-        auto load2 = scalar_input ? data2 : std::make_shared<ngraph::snippets::op::Load>(data2);
 
-        auto a = scalar_input || add_input_idx == 0 ? load0 : load1;
-        auto b = scalar_input || add_input_idx == 0 ? load1 : load2;
-        auto c = scalar_input || add_input_idx == 0 ? load2 : load0;
+        auto a = scalar_input || add_input_idx == 0 ? data0 : data1;
+        auto b = scalar_input || add_input_idx == 0 ? data1 : data2;
+        auto c = scalar_input || add_input_idx == 0 ? data2 : data0;
 
         auto fma = std::make_shared<ov::intel_cpu::FusedMulAdd>(a, b, c);
-        auto store = std::make_shared<ngraph::snippets::op::Store>(fma);
-        auto model = std::make_shared<ov::Model>(NodeVector{store}, parameters);
-
-        ResultVector results({model->get_results()[0]});
-        const auto& inner_loop_begin = ngraph::snippets::op::insertLoopBegin(parameters);
-        // control dependency is added only in the case when scalar are located before loopBegin in topological order
-        if (scalar_input && add_input_idx == 1) {
-            data2->add_control_dependency(inner_loop_begin);
-        }
-        std::vector<bool> apply_increments(parameters.size() + results.size(), true);
-        ngraph::snippets::op::insertLoopEnd(results, inner_loop_begin, 1, 1, apply_increments);
-        const auto& outer_loop_begin = ngraph::snippets::op::insertLoopBegin(parameters);
-        ngraph::snippets::op::insertLoopEnd(results, outer_loop_begin, 1, 1, apply_increments);
-
-        return model;
+        return std::make_shared<ov::Model>(NodeVector{fma}, parameters);
     }
 
     void validate_function(const std::shared_ptr<Model> &m) const override {

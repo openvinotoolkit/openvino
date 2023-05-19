@@ -5,7 +5,7 @@ This document describes the design and rationale for a snippets code generator. 
 
 Core **CNN operators (convolution, gemm, fully connected) are limited by compute, the rest is memory bound**. Math approximations (like transcendental functions) are rare in emerging workloads and could be treated with the same machinery. **Snippets are designed to optimize topology for memory**, while leaving compute intensive kernels for backend developers.
 
-The **potential speedup is proportional to shrink in memory-walked bytes**. Therefore, you can transform the problem to a task to optimize for memory walks, whatever pattern snippet has and operations it contains. The number of memory walks should be less or equal to handcrafted optimizations. This guarantees performance improvements over the previous approach (excluding corner cases caused by cache effects). *Shrinkage factor might be encoded to some cost function in future evolution of code generator*. Snippets generator provides diagnostics to estimate this shrinkage factor with `ngraph::snippets::op::Subgraph::print_statistics(bool verbose)` member.
+The **potential speedup is proportional to shrink in memory-walked bytes**. Therefore, you can transform the problem to a task to optimize for memory walks, whatever pattern snippet has and operations it contains. The number of memory walks should be less or equal to handcrafted optimizations. This guarantees performance improvements over the previous approach (excluding corner cases caused by cache effects). *Shrinkage factor might be encoded to some cost function in future evolution of code generator*. Snippets generator provides diagnostics to estimate this shrinkage factor with `ov::snippets::op::Subgraph::print_statistics(bool verbose)` member.
 
 The SnippetS generator is designed for back-end developers. The main purpose of inventing the snippets code generator is an **operator fusion**, **register allocation** and **target kernel generation** decomposition. This allows modifications (like new fusion support) and feature extensions (like new operation support) to be done in a single point of modification and avoid combinatorial explosion for fusions/types/architectures etc.
 
@@ -28,7 +28,7 @@ Code generation is split into 2 phases, **tokenization** and **lowering**.
 
 ### Tokenization
 
-Tokenization runs on full topology nGraph function inside a specific plugin in a stage of common transformations. Input of tokenization is a topology graph. Output is a modified topology graph with `ngraph::snippets::op::Subgraph` operations installed. Each subgraph contains nGraph function (called **body**) which holds a part of original topology legal for snippet generation (can be scheduled with a single schedule).
+Tokenization runs on full topology nGraph function inside a specific plugin in a stage of common transformations. Input of tokenization is a topology graph. Output is a modified topology graph with `ov::snippets::op::Subgraph` operations installed. Each subgraph contains nGraph function (called **body**) which holds a part of original topology legal for snippet generation (can be scheduled with a single schedule).
 
 A procedure of finding subgraphs suitable for code generation is called **tokenization**. During tokenization the topology tree is split into subgraphs in the same greedy approach which is used for parsing input stream of characters into the tokens. It may also be seen as and modified into a basic block construction problem, since there is a leader and potentially terminators. See the example of implementation [here](https://github.com/openvinotoolkit/openvino/blob/master/src/common/snippets/src/pass/collapse_subgraph.cpp).
 
@@ -94,7 +94,7 @@ The goal of this step is to apply target-independent and schedule-related optimi
 
 All input and output shapes are normalized to 6D for future schedule generation. If shape propagation fails or leads to inconsistent output shapes an exception is raised.
 
-The layout assigned by a user code and passed to a `generate` function is propagated through a subgraph on this step as well. The layout is passed to a `generate` function as a `BlockedShapeVector` which is a `std::vector<BlockedShape>` , while `BlockedShape` is `std::tuple<ngraph::Shape, ngraph::AxisVector, ngraph::element::Type>`. For example, if backend supports `NCHW16c` layout and a tensor has a size of `<1, 42, 17, 31>` and holds single precision floating point, this structure should be `std::make_tuple(ngraph::Shape {1, 3, 17, 31, 16}, ngraph::AxisVector {0, 1, 2, 3, 1}, ngraph::element::f32);`. This allows generic layout representation.
+The layout assigned by a user code and passed to a `generate` function is propagated through a subgraph on this step as well. The layout is passed to a `generate` function as a `BlockedShapeVector` which is a `std::vector<BlockedShape>` , while `BlockedShape` is `std::tuple<ov::Shape, ov::AxisVector, ov::element::Type>`. For example, if backend supports `NCHW16c` layout and a tensor has a size of `<1, 42, 17, 31>` and holds single precision floating point, this structure should be `std::make_tuple(ov::Shape {1, 3, 17, 31, 16}, ov::AxisVector {0, 1, 2, 3, 1}, ov::element::f32);`. This allows generic layout representation.
 
 ##### Dialect conversion
 
@@ -191,17 +191,17 @@ Broadcast and regular streaming vector load is possible from the same pointer. B
 
 #### Target-specific optimizations
 
-Target developers can plug in to the code generation pipeline some specific optimizations with passing `ngraph::pass::Manager` into `generate` function of `subgraph`. **Passes are executed on subgraph in canonical form converted to a snippet dialect**.
+Target developers can plug in to the code generation pipeline some specific optimizations with passing `ov::pass::Manager` into `generate` function of `subgraph`. **Passes are executed on subgraph in canonical form converted to a snippet dialect**.
 
 *It might be also extended to provide an interface for target independent optimizations in future*
 
 #### Register allocation
 
-Canonicalized subgraph in a snippets dialect forms a basic block or region inside a snippet (kernel). Registers are allocated globally for the whole subgraph. Since all operations for a subgraph are assumed to be vector, only vector registers are allocated for the first generation of SnippetS. Linear scan register allocation algorithm is used. Register allocator is implemented as the `ngraph::snippets::pass::AssignRegisters` function pass and store allocated registers for each node into `rt_info`. `rt_info` for a node holds a register for Node's output. *However, this part should be refactored better, either to become target independent or to use target-specific abstraction to acquire a new register*
+Canonicalized subgraph in a snippets dialect forms a basic block or region inside a snippet (kernel). Registers are allocated globally for the whole subgraph. Since all operations for a subgraph are assumed to be vector, only vector registers are allocated for the first generation of SnippetS. Linear scan register allocation algorithm is used. Register allocator is implemented as the `ov::snippets::pass::AssignRegisters` function pass and store allocated registers for each node into `rt_info`. `rt_info` for a node holds a register for Node's output. *However, this part should be refactored better, either to become target independent or to use target-specific abstraction to acquire a new register*
 
 #### Schedule generation
 
-The goal of this step is to transform subgraphs in a scalar notation into kernel functions callable from user code. The `Kernel` and `Tile` operations are introduced for this purpose. Each of these operations has a constructor from code region described as a collection of operation and operand pairs `Kernel(const std::vector<std::pair<std::shared_ptr<ngraph::snippets::Emitter>, ngraph::snippets::RegInfo>>& region);`.
+The goal of this step is to transform subgraphs in a scalar notation into kernel functions callable from user code. The `Kernel` and `Tile` operations are introduced for this purpose. Each of these operations has a constructor from code region described as a collection of operation and operand pairs `Kernel(const std::vector<std::pair<std::shared_ptr<ov::snippets::Emitter>, ov::snippets::RegInfo>>& region);`.
 
 The example above can be used for the following hierarchical IR. If the scope to layout oblivious operations with broadcasting support is limited, `Tile` could be generated as a single loop over the most warning dimension. The second `Tile` is generated to handle tails and can be omitted if not needed. A special pass replaces memory operations on vector with scalar versions for tail subgraph.
 
@@ -253,7 +253,7 @@ Where
 A target code emission is table based. A target is responsible for filling `jitters` table field in `Generator` class.
 
 ```
-std::map<const ngraph::DiscreteTypeInfo, std::function<std::shared_ptr<Emitter>(std::shared_ptr<ngraph::Node>)>> jitters;
+std::map<const ov::DiscreteTypeInfo, std::function<std::shared_ptr<Emitter>(std::shared_ptr<ov::Node>)>> jitters;
 ```
 
 ##### Interface with a target
@@ -279,7 +279,7 @@ Once a schedule is generated, a target code is emitted from a kernel in `Generat
 
 A target can potentially extend the snippets dialect with a target-specific operation for code emission. It should implement:
 
-* nGraph operation (for example, `class FMA : public ngraph::op::Op`)
+* nGraph operation (for example, `class FMA : public ov::op::Op`)
 * Emitter for the operation (for example, `class FmaEmitter : public Emitter` )
 * register the pair in `jitters` map
 

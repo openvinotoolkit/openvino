@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,8 +11,8 @@ namespace ov {
 namespace test {
 namespace snippets {
 
-using BlockedShape = ngraph::snippets::op::Subgraph::BlockedShape;
-using BlockedShapeVector = ngraph::snippets::op::Subgraph::BlockedShapeVector;
+using BlockedShape = ov::snippets::op::Subgraph::BlockedShape;
+using BlockedShapeVector = ov::snippets::op::Subgraph::BlockedShapeVector;
 
 // todo: implement tests with 3 inputs and two outputs (aka SnippetsCanonicalizationParams3Inputs)
 // Note that the expected output shape isn't necessary equal to one of the output blocked_shapes.

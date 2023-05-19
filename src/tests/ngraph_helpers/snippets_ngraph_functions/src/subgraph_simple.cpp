@@ -21,7 +21,7 @@ std::shared_ptr<ov::Model> AddFunction::initReference() const {
     auto data1 = std::make_shared<op::v0::Parameter>(precision, input_shapes[1]);
     auto indata0 = std::make_shared<op::v0::Parameter>(precision, data0->get_shape());
     auto indata1 = std::make_shared<op::v0::Parameter>(precision, data1->get_shape());
-    auto add = std::make_shared<ngraph::snippets::op::Subgraph>(NodeVector{data0, data1},
+    auto add = std::make_shared<ov::snippets::op::Subgraph>(NodeVector{data0, data1},
                                           std::make_shared<ov::Model>(NodeVector{std::make_shared<op::v1::Add>(indata0, indata1)},
                                                                       ParameterVector{indata0, indata1}));
     return std::make_shared<ov::Model>(NodeVector{add}, ParameterVector{data0, data1});
@@ -67,7 +67,7 @@ std::shared_ptr<ov::Model> EltwiseFunction::initReference() const {
     auto indata2 = std::make_shared<op::v0::Parameter>(precision, data1->get_shape());
     auto add = std::make_shared<op::v1::Add>(indata0, indata1);
     auto sub = std::make_shared<op::v1::Subtract>(add, const_data);
-    auto mul = std::make_shared<ngraph::snippets::op::Subgraph>(NodeVector{data0, data1, const_data},
+    auto mul = std::make_shared<ov::snippets::op::Subgraph>(NodeVector{data0, data1, const_data},
                                           std::make_shared<ov::Model>(NodeVector{std::make_shared<op::v1::Multiply>(add, sub)},
                                                                   ParameterVector{indata0, indata1, indata2}));
     return std::make_shared<ov::Model>(NodeVector{mul}, ParameterVector{data0, data1});
@@ -139,10 +139,10 @@ std::shared_ptr<ov::Model> MatMulEltwiseBranchesFunction::initReference() const 
     const std::vector<float> const_values = CommonTestUtils::generate_float_numbers(4, -10., 10.);
     // snippet inputs
     auto non_snippet_op = std::make_shared<op::v0::MatMul>(sinh_1, sinh_2);
-    auto mul_const_1 = std::make_shared<ngraph::snippets::op::Scalar>(precision, Shape{1}, const_values[0]);
-    auto add_const_1 = std::make_shared<ngraph::snippets::op::Scalar>(precision, Shape{1}, const_values[1]);
-    auto mul_const_2 = std::make_shared<ngraph::snippets::op::Scalar>(precision, Shape{1}, const_values[2]);
-    auto sub_const_2 = std::make_shared<ngraph::snippets::op::Scalar>(precision, Shape{1}, const_values[3]);
+    auto mul_const_1 = std::make_shared<ov::snippets::op::Scalar>(precision, Shape{1}, const_values[0]);
+    auto add_const_1 = std::make_shared<ov::snippets::op::Scalar>(precision, Shape{1}, const_values[1]);
+    auto mul_const_2 = std::make_shared<ov::snippets::op::Scalar>(precision, Shape{1}, const_values[2]);
+    auto sub_const_2 = std::make_shared<ov::snippets::op::Scalar>(precision, Shape{1}, const_values[3]);
 
     // snippet function
     Shape matMulOutShape = input_shapes[0].get_shape();
@@ -162,7 +162,7 @@ std::shared_ptr<ov::Model> MatMulEltwiseBranchesFunction::initReference() const 
     auto snippet_function = std::make_shared<Model>(NodeVector{ add }, subgraph_params);
 
     ngraph::NodeVector snippet_inputs{ non_snippet_op };
-    auto snippet = std::make_shared<ngraph::snippets::op::Subgraph>(snippet_inputs, snippet_function);
+    auto snippet = std::make_shared<ov::snippets::op::Subgraph>(snippet_inputs, snippet_function);
     auto result = std::make_shared<op::v0::Result>(snippet);
 
     return std::make_shared<Model>(NodeVector{ result }, ParameterVector{ data_1, data_2 });
@@ -185,14 +185,14 @@ std::shared_ptr<ov::Model> EltwiseLogLoopFunction::initReference() const {
     auto inAdd = std::make_shared<op::v1::Add>(indata0, indata1);
     auto inHswish = std::make_shared<op::v4::HSwish>(inAdd);
     auto body = std::make_shared<Model>(NodeVector{inAdd, inHswish}, ParameterVector{indata0, indata1});
-    auto subgraph = std::make_shared<ngraph::snippets::op::Subgraph>(NodeVector{data0, data1}, body);
+    auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(NodeVector{data0, data1}, body);
     auto log = std::make_shared<op::v0::Log>(subgraph->output(0));
     //Note that log is not currently supported by snippets, so it won't be converted to subgraph.
     // Todo: Note that collapse_subgraph changes the output ports so that the input subgraph's outputs come
     //  before the node outputs. So the Subgraph{Add}.output(1)->Log{} becomes Subgraph{Add+Hswish}.output(0)->Log{}
     auto subgraph_param = std::make_shared<op::v0::Parameter>(precision, subgraph->get_output_shape(1));
     auto log_param = std::make_shared<op::v0::Parameter>(precision, log->get_output_shape(0));
-    auto mul = std::make_shared<ngraph::snippets::op::Subgraph>(OutputVector{subgraph->output(1), log->output(0)},
+    auto mul = std::make_shared<ov::snippets::op::Subgraph>(OutputVector{subgraph->output(1), log->output(0)},
                                           std::make_shared<Model>(NodeVector{std::make_shared<op::v1::Multiply>(subgraph_param, log_param)},
                                                                   ParameterVector{subgraph_param, log_param}));
     return std::make_shared<Model>(NodeVector{mul}, ParameterVector{data0, data1});
@@ -238,14 +238,14 @@ std::shared_ptr<ov::Model> EltwiseTwoResultsFunction::initReference() const {
     add->set_friendly_name("add");
     auto hswish = std::make_shared<op::v4::HSwish>(add);
     hswish->set_friendly_name("hswish");
-    auto subgraph0 = std::make_shared<ngraph::snippets::op::Subgraph>(NodeVector{data0, data1},
+    auto subgraph0 = std::make_shared<ov::snippets::op::Subgraph>(NodeVector{data0, data1},
                                         std::make_shared<ov::Model>(NodeVector{add, hswish},
                                                                     ParameterVector{indata0, indata1}));
     subgraph0->set_friendly_name("add");
     auto indata2 = std::make_shared<op::v0::Parameter>(precision, subgraph0->get_output_shape(1));
     auto relu = std::make_shared<op::v0::Relu>(indata2);
     relu->set_friendly_name("relu");
-    auto subgraph1 = std::make_shared<ngraph::snippets::op::Subgraph>(OutputVector{subgraph0->output(1)},
+    auto subgraph1 = std::make_shared<ov::snippets::op::Subgraph>(OutputVector{subgraph0->output(1)},
                                         std::make_shared<ov::Model>(NodeVector{relu},
                                                                     ParameterVector{indata2}));
     subgraph1->set_friendly_name("relu");

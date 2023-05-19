@@ -67,7 +67,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Eltwise, AddRollConst,
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Eltwise_BF16, AddRollConst,
         ::testing::Combine(
-                ::testing::Values(ov::Shape {1, 42, 16, 64}),
+                ::testing::Values(ov::Shape {1, 2, 3, 32}),
                 ::testing::Values(ov::element::bf16),
                 ::testing::Values(3), // Add + reorder + roll after inputs
                 ::testing::Values(1), // Subgraph is created, since the inputs are followed by converts

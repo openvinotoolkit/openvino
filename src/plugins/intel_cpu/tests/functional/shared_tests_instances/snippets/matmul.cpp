@@ -36,6 +36,16 @@ static inline std::vector<std::vector<element::Type>> precisions(bool only_fp32 
     }
     return prc;
 }
+static inline std::vector<std::vector<element::Type>> quantized_precisions() {
+    std::vector<std::vector<element::Type>> prc = {};
+    // In Snippets MatMul INT8 is supported only on VNNI/AMX platforms
+    if (InferenceEngine::with_cpu_x86_avx512_core_vnni() || InferenceEngine::with_cpu_x86_avx512_core_amx_int8()) {
+        prc.emplace_back(std::vector<element::Type>{element::i8, element::i8});
+        prc.emplace_back(std::vector<element::Type>{element::u8, element::i8});
+    }
+    return prc;
+}
+
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMult, MatMul,
                          ::testing::Combine(
                              ::testing::ValuesIn(input_shapes),
@@ -60,6 +70,35 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulBias, MatMulBias,
                                  ::testing::ValuesIn(precisions(false)),
                                  ::testing::Values(1), // Subgraph;
                                  ::testing::Values(1), // Tokenized MatMul+Bias
+                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                         MatMul::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulBiasQuantized, MatMulBiasQuantized,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(std::vector<std::vector<ov::PartialShape>>{
+                                        std::vector<ov::PartialShape>{{1, 2, 69, 43}, {2, 1, 43, 49}, {1, 2, 1, 1}},
+                                        std::vector<ov::PartialShape>{{1, 2, 69, 43}, {2, 1, 43, 49}, {1, 2, 69, 49}}}),
+                                 ::testing::ValuesIn(quantized_precisions()),
+                                 ::testing::Values(1), // Subgraph
+                                 ::testing::Values(1), // Tokenized MatMul+Bias
+                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                         MatMul::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulsQuantized, MatMulsQuantized,
+                         ::testing::Combine(
+                                 ::testing::Values(std::vector<ov::PartialShape>{{1, 16, 128, 64}, {1, 16, 64, 128}, {128, 64}}),
+                                 ::testing::ValuesIn(quantized_precisions()),
+                                 ::testing::Values(3), // Subgraph + Reshape + Subgraph
+                                 ::testing::Values(2), // Tokenized [MatMul+FQ+Matmul] and [FQ]
+                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                         MatMul::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulsQuantizedSoftmax, MatMulsQuantizedSoftmax,
+                         ::testing::Combine(
+                                 ::testing::Values(std::vector<ov::PartialShape>{{1, 16, 128, 64}, {1, 16, 64, 128}, {128, 64}}),
+                                 ::testing::ValuesIn(quantized_precisions()),
+                                 ::testing::Values(3), // Subgraph + Reshape + Subgraph
+                                 ::testing::Values(2), // Tokenized [MatMul+FQ+Matmul] and [FQ]
                                  ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                          MatMul::getTestCaseName);
 

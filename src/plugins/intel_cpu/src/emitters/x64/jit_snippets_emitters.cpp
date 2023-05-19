@@ -2,18 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/rt_info.hpp>
+#include "jit_snippets_emitters.hpp"
+
 #include <cpu/x64/jit_generator.hpp>
 
-#include "jit_snippets_emitters.hpp"
-#include "snippets/op/subgraph.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/snippets_isa.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/port_connector.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/op//brgemm_cpu.hpp"
 
 using namespace InferenceEngine;
-using ngraph::snippets::op::Subgraph;
-using ngraph::snippets::AllocatedEmitter;
 using namespace Xbyak;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
@@ -36,8 +35,8 @@ jit_container_emitter::jit_container_emitter(dnnl::impl::cpu::x64::jit_generator
 }
 
 void jit_container_emitter::map_abstract_registers(mapping_info& gpr_map_pool,  mapping_info& vec_map_pool,
-                            std::vector<AllocatedEmitter>& allocated_emitters) const {
-    if (allocated_emitters.empty())
+                                                   snippets::lowered::LinearIR::container& expressions) const {
+    if (expressions.empty())
         IE_THROW() << "Cannot map registers when there is no allocated_emitters provided";
     auto map_regs = [](const std::vector<size_t>& abstract_regs, mapping_info& mapping) {
         auto& abstract_to_physical = mapping.first;
@@ -59,25 +58,14 @@ void jit_container_emitter::map_abstract_registers(mapping_info& gpr_map_pool,  
         return physical_regs;
     };
 
-    for (auto& code : allocated_emitters) {
-        const auto& emitter = code.first;
+    for (const auto& expression : expressions) {
+        const auto& emitter = expression->get_emitter();
         std::vector<size_t> in_abstract_regs, out_abstract_regs;
-        std::tie(in_abstract_regs, out_abstract_regs) = code.second;
+        std::tie(in_abstract_regs, out_abstract_regs) = expression->get_reg_info();
         std::vector<size_t> in_physical_regs, out_physical_regs;
         switch (std::dynamic_pointer_cast<jit_emitter>(emitter)->get_in_out_type()) {
             case gpr_to_gpr:
-                // Note that gpr_to_gpr is used for high-level utility operations like Kernel/Loop.
-                // Input registers are not mapped in this case, since they contain utility info
-                // (num_params, loop increment, etc.), but not reg indexes.
-                // todo: Note that LoopBeginEmitter and LoopEndEmitter demonstrate new paradigm,
-                //  where all utility emitters align with conventional Op emitters
-                if (std::dynamic_pointer_cast<LoopBeginEmitter>(emitter) ||
-                    std::dynamic_pointer_cast<LoopEndEmitter>(emitter) ||
-                    std::dynamic_pointer_cast<BrgemmEmitter>(emitter) ||
-                    std::dynamic_pointer_cast<BrgemmCopyBEmitter>(emitter))
-                    in_physical_regs = map_regs(in_abstract_regs, gpr_map_pool);
-                else
-                    in_physical_regs = std::move(in_abstract_regs);
+                in_physical_regs = map_regs(in_abstract_regs, gpr_map_pool);
                 out_physical_regs = map_regs(out_abstract_regs, gpr_map_pool);
                 break;
             case gpr_to_vec:
@@ -98,9 +86,9 @@ void jit_container_emitter::map_abstract_registers(mapping_info& gpr_map_pool,  
             default:
                 IE_THROW() << "Unhandled in_out type";
         }
-        code.second = std::make_pair(in_physical_regs, out_physical_regs);
-        if (auto container = std::dynamic_pointer_cast<jit_container_emitter>(code.first))
-            container->map_abstract_registers(gpr_map_pool,  vec_map_pool, allocated_emitters);
+        expression->set_reg_info({in_physical_regs, out_physical_regs});
+        if (auto container = std::dynamic_pointer_cast<jit_container_emitter>(expression->get_emitter()))
+            container->map_abstract_registers(gpr_map_pool,  vec_map_pool, expressions);
     }
 }
 
@@ -109,7 +97,7 @@ KernelEmitter::KernelEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
     jit_container_emitter(h, isa, n),
     reg_indexes_idx(abi_param1.getIdx()),
     reg_const_params_idx(abi_param2.getIdx()) {
-    const auto kernel = ov::as_type_ptr<ngraph::snippets::op::Kernel>(n);
+    const auto kernel = ov::as_type_ptr<snippets::op::Kernel>(n);
     if (!kernel)
         IE_THROW() << "KernelEmitter invoked with invalid op argument";
     if (kernel->region.empty())
@@ -118,48 +106,33 @@ KernelEmitter::KernelEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
         IE_THROW() << "KernelEmitter invoked with op::Kernel that contains no compile_params";
     body = kernel->region;
     jcp = *reinterpret_cast<const jit_snippets_compile_args*>(kernel->compile_params);
-    // calc data access pattern. we'll need it for offsets calculation
-    const auto&  model = kernel->model;
-    const auto get_data_layout = [](const Output<ov::Node>& out, std::vector<size_t>& shape) {
-        const auto& layout = ngraph::snippets::utils::get_node_output_layout(out.get_node_shared_ptr());
-        // default access pattern
-        if (!layout.empty()) {
-            const auto layout_shape_diff = static_cast<int64_t>(shape.size()) - static_cast<int64_t>(layout.size());
-            // Plugin can (and usually does) prepend shapes with 1's to facilitate scheduling, here we can safely remove leading 1's
-            if (layout_shape_diff > 0) {
-                if (std::any_of(shape.begin(), shape.begin() + layout_shape_diff, [](size_t x){return x != 1;}))
-                    IE_THROW() << "KernelEmitter detected shape vs access pattern conflict: only leading 1's can be removed from the shape";
-                shape.erase(shape.begin(), shape.begin() + layout_shape_diff);
+    const auto& io_exprs = body.get_IO_ops();
+    num_inputs = 0;
+    num_outputs = 0;
+    for (const auto& expr : io_exprs) {
+        snippets::lowered::PortDescriptorPtr desc = nullptr;
+        element::Type etype;
+        switch (expr->get_type()) {
+            case snippets::lowered::IOExpression::io_type::INPUT: {
+                desc = expr->get_output_port_descriptor(0);
+                etype = expr->get_node()->get_output_element_type(0);
+                num_inputs++;
+                break;
+            }
+            case snippets::lowered::IOExpression::io_type::OUTPUT: {
+                num_outputs++;
+                desc = expr->get_input_port_descriptor(0);
+                etype = expr->get_node()->get_input_element_type(0);
+                break;
+            } default : {
+                IE_THROW() << "Kernel detected unsupported io_type";
             }
         }
-        return layout;
-    };
-    const auto& ops = model->get_ordered_ops();
-    auto params = model->get_parameters();
-    auto results = model->get_results();
-    num_inputs = params.size();
-    num_outputs = results.size();
-    is_buffer_needed = std::any_of(ops.begin(), ops.end(),
-        [](const std::shared_ptr<ov::Node>& node) { return ov::is_type<ngraph::snippets::op::Buffer>(node); } );
-    NodeVector io_nodes;
-    std::copy(params.begin(), params.end(), std::back_inserter(io_nodes));
-    std::copy(results.begin(), results.end(), std::back_inserter(io_nodes));
+        io_shapes.push_back(desc->get_shape());
+        io_data_layouts.push_back(desc->get_layout());
+        io_data_sizes.push_back(etype.size());
+    }
 
-    const auto& model_rt_info = model->get_rt_info();
-    const auto& plugin_shapes = model_rt_info.find("PluginShapesOverride");
-    if (plugin_shapes == model_rt_info.end()) {
-        IE_THROW() << "JIT KernelEmitter requires plugin-overriden shapes in model rt_info";
-    } else {
-        const auto& new_shapes = plugin_shapes->second.as<std::vector<std::vector<size_t>>>();
-        if (new_shapes.size() != num_inputs + num_outputs)
-            IE_THROW() << "JIT KernelEmitter detected invalid plugin-overriden shapes";
-        io_shapes = new_shapes;
-    }
-    for (int i = 0; i < io_nodes.size(); i++) {
-        const auto& out = i < num_inputs ? io_nodes[i]->output(0) : io_nodes[i]->input_value(0);
-        data_layout.push_back(get_data_layout(out, io_shapes[i]));
-        io_data_size.push_back(out.get_element_type().size());
-    }
     // Initialize pools of gp and vec registers
     gp_regs_pool.resize(16);
     vec_regs_pool.resize(16);
@@ -180,28 +153,37 @@ KernelEmitter::KernelEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
 
     mapping_info gpr_map_pool({}, gp_regs_pool);
     mapping_info vec_map_pool({}, vec_regs_pool);
-    std::vector<AllocatedEmitter> data_io_emitters;
-    std::copy_if(body.begin(), body.end(), std::back_inserter(data_io_emitters),
-                           [](const AllocatedEmitter& code){
-                                   const auto& emitter = code.first;
-                                   const auto emitter_type = std::dynamic_pointer_cast<jit_emitter>(emitter)->get_in_out_type();
-                                   // todo: how this will be handled if Brgemm in & out are op::Buffer
-                                   // Brgemm is a special case since it incorporates input and output (we use onednn kernel)
-                                   // Just like Load & Store it requires offsets calculation
-                                   const auto is_brgemm = std::dynamic_pointer_cast<BrgemmEmitter>(emitter) ||
-                                                          std::dynamic_pointer_cast<BrgemmCopyBEmitter>(emitter);
-                                   return emitter_type == gpr_to_vec || emitter_type == vec_to_gpr || is_brgemm;
-                           });
+    snippets::lowered::LinearIR::container mem_access_exprs;
+    snippets::lowered::LinearIR::container general_exprs;
+    std::set<size_t> unique_buffers;
+
+    for (const auto& expr : body) {
+        // Brgemm is a special case since it incorporates input and output (we use onednn kernel)
+        // Just like Load & Store it requires offsets calculation
+        if (std::dynamic_pointer_cast<snippets::lowered::IOExpression>(expr)) {
+            mem_access_exprs.emplace_back(expr);
+        } else if (const auto buffer = ov::as_type_ptr<snippets::op::Buffer>(expr->get_node())) {
+            const auto buffer_id = buffer->get_id();
+            if (unique_buffers.count(buffer_id) == 0) {
+                mem_access_exprs.push_back(expr);
+                unique_buffers.insert(buffer_id);
+            }
+        } else {
+            general_exprs.emplace_back(expr);
+        }
+    }
+    num_unique_buffer = unique_buffers.size();
+
     // Note that we can't use reg_indexes_idx or reg_const_params_idx to store data pointers because these two
     // regs are used to calculate offsets for the data pointers
-    map_abstract_registers(gpr_map_pool, vec_map_pool, data_io_emitters);
+    map_abstract_registers(gpr_map_pool, vec_map_pool, mem_access_exprs);
     for (const auto& abstract_to_physical : gpr_map_pool.first)
         data_ptr_regs_idx.push_back(abstract_to_physical.second);
     // However we can use reg_indexes_idx and reg_const_params_idx for other operations since we won't need them
     // after offsets calculation
     gpr_map_pool.second.push_back(reg_indexes_idx);
     gpr_map_pool.second.push_back(reg_const_params_idx);
-    map_abstract_registers(gpr_map_pool, vec_map_pool, body);
+    map_abstract_registers(gpr_map_pool, vec_map_pool, general_exprs);
 }
 
 void KernelEmitter::emit_code(const std::vector<size_t> &in,
@@ -216,21 +198,19 @@ void KernelEmitter::validate_arguments(const std::vector<size_t> &in,
         IE_THROW() << "KernelEmitter got invalid number of inputs. Expected 0, got " << in.size();
     if (!out.empty())
         IE_THROW() << "KernelEmitter got invalid number of outputs. Expected 0, got " << out.size();
-    const auto num_params = num_inputs + num_outputs + static_cast<size_t>(is_buffer_needed);
+    const auto num_params = num_inputs + num_outputs + num_unique_buffer;
     // The number of used gpr may be >= num_params since LoopBegin+LoopEnd could also use gpr to store work_amount
     if (data_ptr_regs_idx.size() != num_params)
         IE_THROW() << "KernelEmitter: number of inputs and outputs is inconsisnent with the number of allocated registers"
         << num_params << " data_ptr_regs_idx.size() = " << data_ptr_regs_idx.size();
 }
 
-void KernelEmitter::init_data_pointers(size_t num_inputs, size_t num_params, bool is_buffer_needed,
+void KernelEmitter::init_data_pointers(size_t num_inputs, size_t num_params, size_t num_buffer,
                                        const Reg64& reg_indexes, const Reg64& reg_const_params, const std::vector<Reg64>& data_ptr_regs) const {
     // Note that we don't need offset for the last dim, since it's handled directly by Tile emitter
     const size_t offset_rank = jcp.master_shape.size() - 1;
-    //const size_t tile_rank = jcp.tile_rank;
     std::vector<std::vector<size_t>> data_offsets(num_params, std::vector<size_t>{});
-    auto offset_calculation = [=](const std::vector<size_t>& shape,
-                                            const std::vector<size_t>& layout, const size_t data_size) {
+    auto offset_calculation = [=](const std::vector<size_t>& shape, const std::vector<size_t>& layout, const size_t data_size) {
         // Strides represent distance between consecutive elements of corresponding dimension.
         // If a dim size == 1, then the next dim starts immediately and the stride is 0
         // case 1:
@@ -265,7 +245,7 @@ void KernelEmitter::init_data_pointers(size_t num_inputs, size_t num_params, boo
         return strides;
     };
     for (size_t i = 0; i < num_params; i++) {
-        data_offsets[i] = offset_calculation(io_shapes[i],  data_layout[i], io_data_size[i]);
+        data_offsets[i] = offset_calculation(io_shapes[i],  io_data_layouts[i], io_data_sizes[i]);
     }
     // master_shape size must be valid in both static and dynamic cases
     std::function<void(Reg64, const std::vector<size_t>&, Reg64)> init_ptr_with_offset;
@@ -287,8 +267,8 @@ void KernelEmitter::init_data_pointers(size_t num_inputs, size_t num_params, boo
     // Vector "data_ptr_regs" is sorted by abstract regs.
     // It means that the vector contains the physical registers in order [src, .., src, dst, .., dst, buffer]
     // So we can initialize buffer register firstly as last value of vector "data_ptr_regs"
-    if (is_buffer_needed) {
-        h->mov(data_ptr_regs[num_params], h->ptr[reg_const_params + GET_OFF(buffer_scratchpad_ptr)]);
+    for (size_t i = 0; i < num_buffer; ++i) {
+        h->mov(data_ptr_regs[num_params + i], h->ptr[reg_const_params + GET_OFF(buffer_scratchpad_ptr)]);
     }
     size_t i = 0;
     for (; i < num_params - last_iter_explicitly; i++) {
@@ -319,11 +299,11 @@ void KernelEmitter::emit_impl(const std::vector<size_t>& in,
     std::vector<Reg64> data_ptr_regs;
     transform_idxs_to_regs(data_ptr_regs_idx, data_ptr_regs);
 
-    init_data_pointers(num_inputs, num_inputs + num_outputs, is_buffer_needed, reg_indexes, reg_const_params, data_ptr_regs);
-    for (const auto& c : body) {
-        const auto& emitter = c.first;
+    init_data_pointers(num_inputs, num_inputs + num_outputs, num_unique_buffer, reg_indexes, reg_const_params, data_ptr_regs);
+    for (const auto& expression : body) {
+        const auto& emitter = expression->get_emitter();
         std::vector<size_t> in_regs, out_regs;
-        std::tie(in_regs, out_regs) = c.second;
+        std::tie(in_regs, out_regs) = expression->get_reg_info();
         emitter->emit_code(in_regs, out_regs, vec_regs_pool, gp_regs_pool);
     }
     h->postamble();
@@ -332,19 +312,18 @@ void KernelEmitter::emit_impl(const std::vector<size_t>& in,
 
 LoopBeginEmitter::LoopBeginEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
                          const std::shared_ptr<ov::Node>& n) : jit_emitter(h, isa, n) {
-    loop_begin = ov::as_type_ptr<ngraph::snippets::op::LoopBegin>(n);
+    loop_begin = ov::as_type_ptr<snippets::op::LoopBegin>(n);
     if (!loop_begin)
         IE_THROW() << "LoopBeginEmitter invoked with invalid op argument";
     const auto& target_inputs = loop_begin->output(loop_begin->get_output_size() - 1).get_target_inputs();
     // todo: this check could be excessive, since we check for it in validate_and_infer_types()
     if (target_inputs.size() != 1)
         IE_THROW() << "LoopBeginEmitter invoked with invalid configuration: the last output must have exactly one input attached";
-    const auto loop_end = ov::as_type_ptr<ngraph::snippets::op::LoopEnd>(target_inputs.begin()->get_node()->shared_from_this());
+    const auto loop_end = ov::as_type_ptr<snippets::op::LoopEnd>(target_inputs.begin()->get_node()->shared_from_this());
     if (!loop_end)
         IE_THROW() << "LoopBeginEmitter invoked with invalid configuration: the last output must be LoopEnd";
-    work_amount = loop_begin->get_work_amount();
-    evaluate_once = loop_begin->get_evaluate_once();
-    num_inputs = loop_begin->get_input_size();
+    work_amount = loop_end->get_work_amount();
+    evaluate_once = loop_end->get_evaluate_once();
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
 }
 
@@ -355,17 +334,17 @@ void LoopBeginEmitter::emit_code(const std::vector<size_t> &in,
 }
 
 void LoopBeginEmitter::validate_arguments(const std::vector<size_t> &in,
-                                        const std::vector<size_t> &out) const {
-    if (in.size() != num_inputs)
-        IE_THROW() << "Invalid inputs size: expected " << num_inputs << " got " << in.size();
-    if (out.size() != num_inputs + 1)
-        IE_THROW() << "Invalid outputs size: expected " << num_inputs + 1 << " got " << out.size();
+                                          const std::vector<size_t> &out) const {
+    if (!in.empty())
+        IE_THROW() << "Invalid inputs size: expected 0 got " << in.size();
+    if (out.size() != 1)
+        IE_THROW() << "Invalid outputs size: expected 1 got " << out.size();
 }
 
 void LoopBeginEmitter::emit_impl(const std::vector<size_t>& in,
                                  const std::vector<size_t>& out) const {
     // todo: In dynamic case we will also need to set broadcasting info here
-    Reg64 reg_work_amount = Reg64(out.back());
+    Reg64 reg_work_amount = Reg64(static_cast<int>(out.back()));
     Label for_body;
     // save previous register state (if there is an outer loop that uses this reg for example)
     if (!evaluate_once) {
@@ -375,12 +354,11 @@ void LoopBeginEmitter::emit_impl(const std::vector<size_t>& in,
     // or ready(), but they both set internal flags and that's not a desired way to use them.
     // So the most obvious WA is just to use current address manually
     loop_begin->begin_address = h->getCurr();
-    loop_begin->input_regs = in;
 }
 
 LoopEndEmitter::LoopEndEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
                                    const std::shared_ptr<ov::Node>& n) : jit_emitter(h, isa, n) {
-    loop_end = ov::as_type_ptr<ngraph::snippets::op::LoopEnd>(n);
+    loop_end = ov::as_type_ptr<snippets::op::LoopEnd>(n);
     if (!loop_end)
         IE_THROW() << "LoopEndEmitter invoked with invalid op argument";
     loop_begin = loop_end->get_loop_begin();
@@ -388,17 +366,14 @@ LoopEndEmitter::LoopEndEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::imp
     if (!loop_begin)
         IE_THROW() << "LoopEndEmitter invoked with invalid configuration: the last arg must be LoopBegin";
     // Note that 1 edge connects LoopBegin and LoopEnd
-    num_inputs = loop_begin->get_input_size();
-    num_outputs = loop_end->get_output_size();
-    wa_increment = loop_end->get_increment();
-    work_amount = loop_end->get_work_amount();
+    num_inputs = loop_end->get_input_num();
+    num_outputs = loop_end->get_output_num();
+    wa_increment = static_cast<int64_t>(loop_end->get_increment());
+    work_amount = static_cast<int64_t>(loop_end->get_work_amount());
     ptr_increments = loop_end->get_ptr_increments();
     finalization_offsets = loop_end->get_finalization_offsets();
     evaluate_once = loop_end->get_evaluate_once();
-    for (int i = 0; i < num_inputs; i++)
-        io_data_size.push_back(static_cast<int64_t>(loop_begin->get_input_element_type(i).size()));
-    for (int i = 0; i < num_outputs; i++)
-        io_data_size.push_back(static_cast<int64_t>(loop_end->get_output_element_type(i).size()));
+    io_data_size = loop_end->get_element_type_sizes();
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
 }
 
@@ -411,31 +386,30 @@ void LoopEndEmitter::emit_code(const std::vector<size_t> &in,
 
 void LoopEndEmitter::validate_arguments(const std::vector<size_t> &in,
                                        const std::vector<size_t> &out) const {
-    if (loop_begin->input_regs.size() != num_inputs)
-        IE_THROW() << "Invalid loop_begin->input_regs size: expected " << num_inputs << " got " << loop_begin->input_regs.size();
     if (out.size() != num_outputs)
         IE_THROW() << "Invalid number of out arguments: expected " << num_outputs << " got " << out.size();
-    if (in.size() != num_outputs + 1)
-        IE_THROW() << "Invalid number of in arguments: expected " << num_inputs + 1 << " got " << in.size();
-    const auto io_size = num_inputs + num_outputs;
+    if (in.size() != num_inputs)
+        IE_THROW() << "Invalid number of in arguments: expected " << num_inputs  << " got " << in.size();
+    const auto io_size = num_inputs - 1;
     if (ptr_increments.size() != io_size)
-        IE_THROW() << "Invalid apply_increments size: expected " << io_size << " got " << ptr_increments.size();
+        IE_THROW() << "Invalid ptr_increments size: expected " << io_size << " got " << ptr_increments.size();
     if (finalization_offsets.size() != io_size)
         IE_THROW() << "Invalid finalization_offsets size: expected: " << io_size << " got " << finalization_offsets.size();
 }
 
 void LoopEndEmitter::emit_impl(const std::vector<size_t>& in,
                                  const std::vector<size_t>& out) const {
-    std::vector<size_t> data_ptr_reg_idxs(loop_begin->input_regs);
-    data_ptr_reg_idxs.reserve(num_inputs + num_outputs);
-    std::copy(out.begin(), out.end(), std::back_inserter(data_ptr_reg_idxs));
+    std::vector<size_t> data_ptr_reg_idxs;
+    // the last input is actually a work_amount reg
+    data_ptr_reg_idxs.reserve(num_inputs - 1);
+    std::copy(in.begin(), in.end() - 1, std::back_inserter(data_ptr_reg_idxs));
     std::vector<Reg64> data_ptr_regs;
     transform_idxs_to_regs(data_ptr_reg_idxs, data_ptr_regs);
     Reg64 reg_work_amount = Reg64(in.back());
     if (!evaluate_once) {
         for (int idx = 0; idx < data_ptr_regs.size(); idx++) {
             if (ptr_increments[idx] != 0)
-                h->add(data_ptr_regs[idx], ptr_increments[idx] * io_data_size[idx]);
+                h->add(data_ptr_regs[idx], ptr_increments[idx] * wa_increment * io_data_size[idx]);
         }
         h->sub(reg_work_amount, wa_increment);
         h->cmp(reg_work_amount, wa_increment);
@@ -446,6 +420,16 @@ void LoopEndEmitter::emit_impl(const std::vector<size_t>& in,
         if (finalization_offsets[idx] != 0)
             h->add(data_ptr_regs[idx], finalization_offsets[idx] * io_data_size[idx]);
     }
+}
+
+ParameterEmitter::ParameterEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
+                                   const std::shared_ptr<ov::Node>& n) : NopEmitter(h, isa, n) {
+    in_out_type_ = emitter_in_out_map::gpr_to_gpr;
+}
+
+ResultEmitter::ResultEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
+                                   const std::shared_ptr<ov::Node>& n) : NopEmitter(h, isa, n) {
+    in_out_type_ = emitter_in_out_map::gpr_to_gpr;
 }
 
 BroadcastMoveEmitter::BroadcastMoveEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
@@ -537,7 +521,7 @@ StoreEmitter::StoreEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::c
     if (src_prc != dst_prc)
         IE_THROW() << "StoreEmitter supports only equal input and output types but gets: " << src_prc.name() << " and " << dst_prc.name();
 
-    const auto store = ov::as_type_ptr<ngraph::snippets::op::Store>(n);
+    const auto store = ov::as_type_ptr<snippets::op::Store>(n);
     count = store->get_count();
     byte_offset = store->get_offset();
     in_out_type_ = emitter_in_out_map::vec_to_gpr;
@@ -573,7 +557,7 @@ LoadEmitter::LoadEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu
     if (src_prc != dst_prc)
         IE_THROW() << "LoadEmitter supports only equal input and output types but gets: " << src_prc.name() << " and " << dst_prc.name();
 
-    const auto load = std::dynamic_pointer_cast<ngraph::snippets::op::Load>(n);
+    const auto load = std::dynamic_pointer_cast<snippets::op::Load>(n);
     count = load->get_count();
     byte_offset = load->get_offset();
     in_out_type_ = emitter_in_out_map::gpr_to_vec;
@@ -609,7 +593,7 @@ BroadcastLoadEmitter::BroadcastLoadEmitter(dnnl::impl::cpu::x64::jit_generator* 
     if (src_prc != dst_prc)
         IE_THROW() << "BroadcastEmitters support only equal input and output types but gets: " << src_prc.name() << " and " << dst_prc.name();
 
-    const auto broadcast_load = std::dynamic_pointer_cast<ngraph::snippets::op::BroadcastLoad>(n);
+    const auto broadcast_load = std::dynamic_pointer_cast<snippets::op::BroadcastLoad>(n);
     byte_offset = broadcast_load->get_offset();
     in_out_type_ = emitter_in_out_map::gpr_to_vec;
 }
@@ -646,7 +630,7 @@ void BroadcastLoadEmitter::emit_isa(const std::vector<size_t> &in, const std::ve
 
 LoadConvertEmitter::LoadConvertEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
     : MemoryEmitter(h, isa, n) {
-    const auto load = ov::as_type_ptr<ngraph::snippets::op::Load>(n);
+    const auto load = ov::as_type_ptr<snippets::op::Load>(n);
     count = load->get_count();
     byte_offset = load->get_offset();
     in_out_type_ = emitter_in_out_map::gpr_to_vec;
@@ -679,7 +663,7 @@ void LoadConvertEmitter::emit_data() const {
 
 StoreConvertEmitter::StoreConvertEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
                                          const std::shared_ptr<ov::Node>& n) : MemoryEmitter(h, isa, n) {
-    const auto store = ov::as_type_ptr<ngraph::snippets::op::Store>(n);
+    const auto store = ov::as_type_ptr<snippets::op::Store>(n);
     count = store->get_count();
     byte_offset = store->get_offset();
     in_out_type_ = emitter_in_out_map::vec_to_gpr;
@@ -724,14 +708,11 @@ BrgemmEmitter::BrgemmEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
     if (brgemm_node->is_dynamic())
         IE_THROW() << "Snippets don't support code generation for dynamic Brgemm";
     const auto brgemm_copy = brgemm_node->is_with_data_repacking() ? brgemm_node->get_brgemm_copy() : nullptr;
-    const OutputVector io_values {brgemm_node->input_value(0),
-                                  brgemm_copy ? brgemm_copy->input_value(0) : brgemm_node->input_value(1),
-                                  brgemm_node->output(0)};
+
     std::vector<size_t> leading_dimensions;
     std::vector<std::vector<size_t>> io_layouts;
-    for (const auto& val : io_values) {
-        const auto& layout = ngraph::snippets::utils::get_node_output_layout(val.get_node_shared_ptr());
-        const auto& io_shape = val.get_shape();
+
+    auto init_scheduling_params = [&](const std::vector<size_t>& layout, const ov::Shape& io_shape) {
         if (layout.empty()) {
             // empty value indicates a planar layout
             leading_dimensions.push_back(io_shape.back());
@@ -744,17 +725,25 @@ BrgemmEmitter::BrgemmEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
             // counting from the end since shape could be prepended with ones
             const int64_t num_last_dims = layout.end() - std::find(layout.begin(), layout.end(), layout.size() - 2) - 1;
             if (layout.back() != layout.size() - 1 || num_last_dims < 1)
-                IE_THROW() << "BrgemmEmitter detected invalid layout values: " <<
-                    "check that this shape + layout combination is schedulable";
+                IE_THROW() << "BrgemmEmitter detected invalid layout values: check that this shape + layout combination is schedulable";
             leading_dimensions.emplace_back(
                     std::accumulate(io_shape.end() - num_last_dims, io_shape.end(), 1, std::multiplies<size_t>()));
             io_layouts.push_back(layout);
         }
-    }
+    };
 
-    const auto& A_shape = io_values[0].get_shape();
+    std::vector<ov::Input<ov::Node>> brgemm_inputs = {brgemm_node->input(0),
+                                                      brgemm_copy ? brgemm_copy->input(0) : brgemm_node->input(1)};
+    for (const auto& input : brgemm_inputs) {
+        init_scheduling_params(snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input)->get_layout(),
+                               input.get_shape());
+    }
+    init_scheduling_params(snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(brgemm_node->output(0))->get_layout(),
+                           brgemm_node->output(0).get_shape());
+
+    const auto& A_shape = brgemm_node->get_input_shape(0);
     const auto& A_layout = io_layouts[0];
-    const auto& C_shape = io_values[2].get_shape();
+    const auto& C_shape = brgemm_node->get_output_shape(0);
     const auto& C_layout = io_layouts[2];
 
     // We need find original M,N,K having layouts and ordered shapes
@@ -1106,7 +1095,7 @@ BrgemmCopyBEmitter::BrgemmCopyBEmitter(dnnl::impl::cpu::x64::jit_generator* h, d
     if (m_with_comp)
         m_comp_offset = brgemm_repack->get_offset_compensations();
 
-    auto layout = ngraph::snippets::utils::get_node_output_layout(brgemm_repack->get_input_node_shared_ptr(0));
+    const auto& layout = snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(brgemm_repack->input(0))->get_layout();
     const auto& original_shape = brgemm_repack->get_input_shape(0);
     auto transposed_shape = original_shape;
     size_t leading_dimension = *(original_shape.rbegin());
@@ -1452,7 +1441,7 @@ void VectorBufferEmitter::emit_isa(const std::vector<size_t> &in, const std::vec
 
 FillEmitter::FillEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n) :
     jit_emitter(h, isa, n, Precision::FP32, emitter_in_out_map::vec_to_vec) {
-    const auto fill = ov::as_type_ptr<ngraph::snippets::op::Fill>(n);
+    const auto fill = ov::as_type_ptr<snippets::op::Fill>(n);
     if (fill->get_element_type().size() != 4) {
         IE_THROW() << "Fill emitter supports only 4 Byte element types but gets: " << fill->get_element_type();
     }

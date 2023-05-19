@@ -9,73 +9,12 @@
 #pragma once
 
 #include "snippets_isa.hpp"
-#include "emitter.hpp"
 
-namespace ngraph {
+#include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/pass/pass.hpp"
+
+namespace ov {
 namespace snippets {
-
-auto getRegisters(std::shared_ptr<ngraph::Node>& n) -> ngraph::snippets::RegInfo;
-
-typedef std::pair<std::function<std::shared_ptr<Emitter>(const std::shared_ptr<ngraph::Node>&)>,
-                  std::function<std::set<std::vector<element::Type>>(const std::shared_ptr<ngraph::Node>&)>> jitters_value;
-/**
- * @interface TargetMachine
- * @brief Base class Target machine representation. Target derives from this class to provide generator information about supported emitters
- * @ingroup snippets
- */
-class TargetMachine {
-public:
-    /**
-     * @brief checks if target is natively supported
-     * @return true, if supported
-     */
-    virtual bool is_supported() const = 0;
-
-    /**
-     * @brief finalizes code generation
-     * @return generated kernel binary
-     */
-    virtual code get_snippet() const = 0;
-
-    /**
-     * @brief gets number of lanes supported by target's vector ISA
-     * @return number of lanes
-     */
-    virtual size_t get_lanes() const = 0;
-
-    /**
-     * @brief called by generator to all the emitter for a target machine
-     * @return a map by node's type info with callbacks to create an instance of emitter for corresponding operation type
-     */
-    std::function<std::shared_ptr<Emitter>(std::shared_ptr<ngraph::Node>)> get(const ngraph::DiscreteTypeInfo type) const {
-        auto jitter = jitters.find(type);
-        if (jitter == jitters.end()) {
-            OPENVINO_THROW(std::string("Target code emitter is not available for ") + type.name + " operation.");
-        }
-        return jitter->second.first;
-    }
-
-    std::function<std::set<std::vector<element::Type>>(const std::shared_ptr<ngraph::Node>&)>
-        get_supported_precisions(const ngraph::DiscreteTypeInfo type) const {
-        auto jitter = jitters.find(type);
-        if (jitter == jitters.end()) {
-            OPENVINO_THROW(std::string("Target code emitter is not available for ") + type.name + " operation.");
-        }
-        return jitter->second.second;
-    }
-
-    /**
-     * @brief checks if emitter for a specific operation is supported
-     * @return true, if supported
-     */
-    bool has(const ngraph::DiscreteTypeInfo type) const {
-        return jitters.find(type) != jitters.end();
-    }
-    virtual ~TargetMachine() = default;
-
-protected:
-    std::map<const ngraph::DiscreteTypeInfo, jitters_value> jitters;
-};
 
 /**
  * @interface Schedule
@@ -117,7 +56,7 @@ public:
     /**
      * @brief Default constructor
      */
-    Generator(const std::shared_ptr<TargetMachine>& t) : target(t) {}
+    Generator(const std::shared_ptr<TargetMachine>& t) : target(t), lowered_saved{} {}
     /**
      * @brief Default destructor
      */
@@ -126,19 +65,6 @@ public:
     * @interface GeneratorConfig
     * @brief Allows to tweak the lowering process.
     */
-    class GeneratorConfig {
-    public:
-        // True if the lowered Emitters need to be accessed during runtime. Normally they're destroyed after code emission.
-        bool m_save_lowered_code = false;
-        // True if we can optimize tails for single evaluation during code generation
-        // More details with optimization examples you can see in generate() method
-        // For example, tails with Buffer ops doesn't support single evaluation optimizations
-        //              because of that we should always reset memory pointer using finalization offsets
-        //              after data storing to Buffer
-        bool m_optimize_single_evaluation = true;
-        // True if we should check runtime info for nodes to call specific needed transformations
-        bool m_need_fill_tail_register = false;
-    };
     /**
      * @brief virtual method any specific implementation should implement
      * @param m model in canonical for for table-based code generation
@@ -146,7 +72,11 @@ public:
      * @param compile_params parameters for generated code
      * @return pointer to generated code
      */
-    code generate(std::shared_ptr<ov::Model>& m, const GeneratorConfig& config, const void* compile_params = nullptr);
+     struct LoweringResult {
+         LoweringResult(code c) : binary_code(c) {}
+         code binary_code = nullptr;
+     };
+    LoweringResult generate(lowered::LinearIR& linear_ir, const lowered::Config& config, const void* compile_params = nullptr);
 
     /**
      * @brief gets target machine
@@ -180,8 +110,8 @@ protected:
     std::shared_ptr<TargetMachine> target;
     // todo: we need to save lowered code to access compiled brgemm kernels on execution time (normally lowered is destructed by then).
     //  This is temporary solution, remove this when kernel caching is implemented. Don't forget to make generate const method.
-    std::vector<AllocatedEmitter> lowered_saved;
+    lowered::LinearIR lowered_saved;
 };
 
 } // namespace snippets
-} // namespace ngraph
+} // namespace ov

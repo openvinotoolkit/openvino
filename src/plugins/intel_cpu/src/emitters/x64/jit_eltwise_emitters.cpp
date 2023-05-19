@@ -1462,7 +1462,7 @@ size_t jit_logical_not_emitter::aux_vecs_count() const {
 /// POWER_STATIC ///
 jit_power_static_emitter::jit_power_static_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node, Precision exec_prc)
 : jit_emitter(host, host_isa, node, exec_prc) {
-    auto powerStaticNode = ov::as_type_ptr<ngraph::snippets::op::PowerStatic>(node);
+    auto powerStaticNode = ov::as_type_ptr<ov::snippets::op::PowerStatic>(node);
     if (powerStaticNode == nullptr) {
         IE_THROW() << "Can't cast to snippets::op::PowerStatic";
     }

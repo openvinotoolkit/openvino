@@ -53,7 +53,7 @@ std::shared_ptr<ov::Model> ConvMulActivationFunction::initReference() const {
     auto ineltwise_unary_1 = custom_ops[1]->clone_with_new_inputs({ineltwise_binary->output(0)});
     auto ineltwise_unary_2 = custom_ops[2]->clone_with_new_inputs({ineltwise_unary_1->output(0)});
 
-    auto subgraph = std::make_shared<ngraph::snippets::op::Subgraph>(NodeVector{conv, eltwise_sinh},
+    auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(NodeVector{conv, eltwise_sinh},
                                           std::make_shared<ov::Model>(NodeVector{ineltwise_unary_2},
                                                                   ParameterVector{indata0, indata1}));
     return std::make_shared<ov::Model>(NodeVector{subgraph}, ParameterVector{conv_param, eltwise_param});
