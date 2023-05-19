@@ -64,8 +64,8 @@ bool InsertLoadStore::insert_load(LinearIR& linear_ir, const LinearIR::constExpr
     const auto& loop_manager = linear_ir.get_loop_manager();
     const auto& data_expr = *data_expr_it;
     const auto& data_node = data_expr->get_node();
-    const auto& output_tensor = data_expr->get_output_tensor(0);
-    const auto consumer_inputs = output_tensor->get_consumers();
+    const auto& output_connector = data_expr->get_output_port_connector(0);
+    const auto consumer_inputs = output_connector->get_consumers();
 
     bool was_inserted = false;
     for (const auto& consumer_input : consumer_inputs) {
@@ -83,9 +83,9 @@ bool InsertLoadStore::insert_load(LinearIR& linear_ir, const LinearIR::constExpr
 
         const auto load = std::make_shared<op::Load>(data_node->output(0), get_count(data_expr->get_output_port_descriptor(0)));
         PortDescriptorUtils::set_port_descriptor_ptr(load->output(0), consumer_input.get_descriptor_ptr()->clone());
-        const auto load_expr = linear_ir.create_expression(load, {output_tensor});
+        const auto load_expr = linear_ir.create_expression(load, {output_connector});
         linear_ir.insert(std::find(data_expr_it, linear_ir.cend(), consumer_expr), load_expr);
-        linear_ir.replace_input(consumer_input, load_expr->get_output_tensor(0));
+        linear_ir.replace_input(consumer_input, load_expr->get_output_port_connector(0));
         // Copy Loop identifies
         load_expr->set_loop_ids(loop_ids);
 
@@ -102,8 +102,8 @@ bool InsertLoadStore::insert_load(LinearIR& linear_ir, const LinearIR::constExpr
 bool InsertLoadStore::insert_store(LinearIR& linear_ir, const LinearIR::constExprIt& data_expr_it) {
     const auto& loop_manager = linear_ir.get_loop_manager();
     const auto& data_expr = *data_expr_it;
-    const auto& input_tensor = data_expr->get_input_tensor(0);
-    const auto& parent_output = input_tensor->get_source();
+    const auto& input_connector = data_expr->get_input_port_connector(0);
+    const auto& parent_output = input_connector->get_source();
     const auto& parent_expr = parent_output.get_expr();
     const auto port = parent_output.get_index();
     const auto& parent = parent_expr->get_node();
@@ -118,11 +118,11 @@ bool InsertLoadStore::insert_store(LinearIR& linear_ir, const LinearIR::constExp
 
     const auto store = std::make_shared<op::Store>(parent->output(port), get_count(data_expr->get_input_port_descriptor(0)));
     PortDescriptorUtils::set_port_descriptor_ptr(store->output(0), parent_output.get_descriptor_ptr()->clone());
-    const auto store_expr = linear_ir.create_expression(store, {input_tensor});
+    const auto store_expr = linear_ir.create_expression(store, {input_connector});
     const auto& reverse_insertion_pos = std::find(std::reverse_iterator<LinearIR::constExprIt>(data_expr_it), linear_ir.crend(), parent_expr);
     const auto& insertion_pos = reverse_insertion_pos.base();
     linear_ir.insert(insertion_pos, store_expr);
-    linear_ir.replace_input(data_expr->get_input_port(0), store_expr->get_output_tensor(0));
+    linear_ir.replace_input(data_expr->get_input_port(0), store_expr->get_output_port_connector(0));
     // Copy Loop identifies
     store_expr->set_loop_ids(loop_ids);
 
@@ -130,7 +130,7 @@ bool InsertLoadStore::insert_store(LinearIR& linear_ir, const LinearIR::constExp
     const auto prev_exit_point = parent_output;
     // The previous exit point byt one output port can have several consumers that can be potential exit points
     // So we should verify on the possible future exit points
-    const auto consumer_inputs = input_tensor->get_consumers();
+    const auto consumer_inputs = input_connector->get_consumers();
     const auto should_be_saved = std::any_of(consumer_inputs.begin(), consumer_inputs.end(),
                                 [](const ExpressionPort& input_port) {
                                     const auto& node = input_port.get_expr()->get_node();

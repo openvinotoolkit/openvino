@@ -15,11 +15,11 @@ bool ov::intel_cpu::pass::FuseLoadStoreConvert::fuse_load_convert(snippets::lowe
                                                                   snippets::lowered::LinearIR::constExprIt& convert_it) {
     const auto& convert_expr = *convert_it;
     const auto& convert = ov::as_type_ptr<ov::op::v0::Convert>(convert_expr->get_node());
-    const auto& input_td = convert_expr->get_input_tensor(0);
+    const auto& input_connector = convert_expr->get_input_port_connector(0);
     if (convert->get_destination_type() != ov::element::f32 && convert->get_destination_type() != ov::element::i32)
         return false;
 
-    const auto& load_output = input_td->get_source();
+    const auto& load_output = input_connector->get_source();
     const auto& load_expr = load_output.get_expr();
     const auto load = ov::as_type_ptr<snippets::op::Load>(load_expr->get_node());
     if (!load ||
@@ -27,7 +27,7 @@ bool ov::intel_cpu::pass::FuseLoadStoreConvert::fuse_load_convert(snippets::lowe
         ov::is_type<snippets::op::BroadcastLoad>(load_expr->get_node()))
         return false;
 
-    const auto consumers = input_td->get_consumers();
+    const auto consumers = input_connector->get_consumers();
     if (consumers.size() != 1)
         return false;
 
@@ -47,13 +47,13 @@ bool ov::intel_cpu::pass::FuseLoadStoreConvert::fuse_load_convert(snippets::lowe
     const auto out_port = convert_expr->get_output_port(0);
     const auto convert_consumers = out_port.get_connected_ports();
     snippets::lowered::PortDescriptorUtils::set_port_descriptor_ptr(load_convert->output(0), out_port.get_descriptor_ptr()->clone());
-    const auto load_convert_expr = linear_ir.create_expression(load_convert, { load_expr->get_input_tensor(0) });
+    const auto load_convert_expr = linear_ir.create_expression(load_convert, { load_expr->get_input_port_connector(0) });
     const auto convert_expr_it = convert_it;
     const auto insertion_pos = std::next(convert_it);
     convert_it = linear_ir.insert(insertion_pos, load_convert_expr);
     linear_ir.erase(std::find(linear_ir.cbegin(), convert_expr_it, load_expr));
     linear_ir.erase(convert_expr_it);
-    linear_ir.replace_input(convert_consumers, load_convert_expr->get_output_tensor(0));
+    linear_ir.replace_input(convert_consumers, load_convert_expr->get_output_port_connector(0));
     return true;
 }
 
@@ -61,12 +61,12 @@ bool ov::intel_cpu::pass::FuseLoadStoreConvert::fuse_store_convert(snippets::low
                                                                    snippets::lowered::LinearIR::constExprIt& convert_it) {
     const auto& convert_expr = *convert_it;
     const auto& convert = convert_expr->get_node();
-    const auto& input_td = convert_expr->get_input_tensor(0);
-    const auto& output_td = convert_expr->get_output_tensor(0);
+    const auto& input_connector = convert_expr->get_input_port_connector(0);
+    const auto& output_connector = convert_expr->get_output_port_connector(0);
     if (convert->get_input_element_type(0) != ov::element::f32 && convert->get_input_element_type(0) != ov::element::i32)
         return false;
 
-    const auto consumers = output_td->get_consumers();
+    const auto consumers = output_connector->get_consumers();
     if (consumers.size() != 1)
         return false;
 
@@ -92,13 +92,13 @@ bool ov::intel_cpu::pass::FuseLoadStoreConvert::fuse_store_convert(snippets::low
     const auto out_port = store_expr->get_output_port(0);
     const auto store_consumers = out_port.get_connected_ports();
     snippets::lowered::PortDescriptorUtils::set_port_descriptor_ptr(store_convert->output(0), out_port.get_descriptor_ptr()->clone());
-    const auto store_convert_expr = linear_ir.create_expression(store_convert, { input_td });
+    const auto store_convert_expr = linear_ir.create_expression(store_convert, { input_connector });
     const auto convert_expr_it = convert_it;
     const auto insertion_pos = std::next(convert_it);
     convert_it = linear_ir.insert(insertion_pos, store_convert_expr);
     linear_ir.erase(std::find(convert_expr_it, linear_ir.cend(), store_expr));
     linear_ir.erase(convert_expr_it);
-    linear_ir.replace_input(store_consumers, store_convert_expr->get_output_tensor(0));
+    linear_ir.replace_input(store_consumers, store_convert_expr->get_output_port_connector(0));
     return true;
 }
 

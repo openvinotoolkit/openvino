@@ -63,8 +63,8 @@ void InsertBuffers::insertion(LinearIR& linear_ir, const LinearIR::LoopManagerPt
         const auto& expr = entry_point.get_expr();
         const auto port = entry_point.get_index();
         const auto node = expr->get_node();
-        const auto& input_tensor = expr->get_input_tensor(port);
-        const auto& parent_expr_output = input_tensor->get_source();
+        const auto& input_connector = expr->get_input_port_connector(port);
+        const auto& parent_expr_output = input_connector->get_source();
         const auto& parent_expr = parent_expr_output.get_expr();
         const auto parent_port = parent_expr_output.get_index();
         const auto parent = parent_expr->get_node();
@@ -104,10 +104,10 @@ void InsertBuffers::insertion(LinearIR& linear_ir, const LinearIR::LoopManagerPt
             const auto pos = insertion_position(linear_ir, loop_manager, parent_expr, expr);
             const auto buffer = std::make_shared<op::Buffer>(parent->output(parent_port), m_buffer_allocation_rank);
             PortDescriptorUtils::set_port_descriptor_ptr(buffer->output(0), parent_expr_output.get_descriptor_ptr()->clone());
-            // Output tensor is automatically filled from PortDescriptor
-            const auto buffer_expr = linear_ir.create_expression(buffer, {input_tensor});
+            // Output connector is automatically filled from PortDescriptor
+            const auto buffer_expr = linear_ir.create_expression(buffer, {input_connector});
             linear_ir.insert(pos, buffer_expr);
-            linear_ir.replace_input(entry_point, buffer_expr->get_output_tensor(0));
+            linear_ir.replace_input(entry_point, buffer_expr->get_output_port_connector(0));
         }
     }
 
@@ -115,11 +115,11 @@ void InsertBuffers::insertion(LinearIR& linear_ir, const LinearIR::LoopManagerPt
         const auto& expr = exit_point.get_expr();
         const auto port = exit_point.get_index();
         const auto node = expr->get_node();
-        const auto output_tensor = exit_point.get_tensor_ptr();
-        const auto child_exprs_inputs = output_tensor->get_consumers();
+        const auto output_connector = exit_point.get_port_connector_ptr();
+        const auto child_exprs_inputs = output_connector->get_consumers();
         const auto current_loops = expr->get_loop_ids();
         const auto current_loop_count = current_loops.size();
-        const std::vector<TensorPtr> node_outs = {output_tensor};
+        const std::vector<PortConnectorPtr> node_outs = {output_connector};
 
         std::set<ExpressionPort> potential_consumers;
         std::set<ExpressionPtr> buffers;
@@ -161,9 +161,9 @@ void InsertBuffers::insertion(LinearIR& linear_ir, const LinearIR::LoopManagerPt
             // we should remove them to insert one common Buffer on one common port
             if (!buffers.empty()) {
                 for (const auto& buffer : buffers) {
-                    const auto& buffer_out = buffer->get_output_tensor(0);
+                    const auto& buffer_out = buffer->get_output_port_connector(0);
                     const auto buffer_consumers_inputs = buffer_out->get_consumers();
-                    linear_ir.replace_input(buffer_consumers_inputs, output_tensor);
+                    linear_ir.replace_input(buffer_consumers_inputs, output_connector);
                     potential_consumers.insert(buffer_consumers_inputs.begin(), buffer_consumers_inputs.end());
                     linear_ir.erase(std::find(linear_ir.begin(), linear_ir.end(), buffer));
                 }
@@ -179,17 +179,17 @@ void InsertBuffers::insertion(LinearIR& linear_ir, const LinearIR::LoopManagerPt
 
             auto buffer = std::make_shared<op::Buffer>(node->output(port), m_buffer_allocation_rank);
             PortDescriptorUtils::set_port_descriptor_ptr(buffer->output(0), exit_point.get_descriptor_ptr()->clone());
-            // We cannot insert Node output tensor on Buffer output because not all consumers of Node needs Buffer
+            // We cannot insert Node output connector on Buffer output because not all consumers of Node needs Buffer
             //  Example:
             //       Add
             //      /   \  <- It should be the same TD
             //  Result   Buffer
             //             |    <- It should be new TD
             //            Relu
-            // Output tensor is automatically filled from PortDescriptor
+            // Output port connector is automatically filled from PortDescriptor
             const auto buffer_expr = linear_ir.create_expression(buffer, node_outs);
             linear_ir.insert(pos, buffer_expr);
-            linear_ir.replace_input(potential_consumers, buffer_expr->get_output_tensor(0));
+            linear_ir.replace_input(potential_consumers, buffer_expr->get_output_port_connector(0));
         }
     }
 }

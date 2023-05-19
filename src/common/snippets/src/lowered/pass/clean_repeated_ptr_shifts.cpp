@@ -18,7 +18,7 @@ bool CleanRepeatedDataPointerShifts::reuse_increments(const LinearIR& linear_ir,
     if (!loop_end)
         return false;
 
-    const auto loop_tds = loop_end_expr->get_input_tensors();
+    const auto loop_connectors = loop_end_expr->get_input_port_connectors();
     const auto input_count = loop_end->get_input_num();
     const auto output_count = loop_end->get_output_num();
 
@@ -30,7 +30,7 @@ bool CleanRepeatedDataPointerShifts::reuse_increments(const LinearIR& linear_ir,
     //    Load_0  Load_1
     std::set<ExpressionPtr> read_data_exprs;
     for (size_t i = 0; i < input_count; ++i) {
-        const auto& parent_output = loop_tds[i]->get_source().get_expr();
+        const auto& parent_output = loop_connectors[i]->get_source().get_expr();
         if (const auto buffer = ov::as_type_ptr<op::Buffer>(parent_output->get_node())) {
             // If Buffer is missed in set, Just save - it's first meeting
             if (buffers_ids.count(buffer->get_id()) == 0) {
@@ -51,7 +51,7 @@ bool CleanRepeatedDataPointerShifts::reuse_increments(const LinearIR& linear_ir,
         }
     }
     for (size_t i = 0; i < output_count; ++i) {
-        const auto consumer_inputs = loop_tds[input_count + i]->get_consumers();
+        const auto consumer_inputs = loop_connectors[input_count + i]->get_consumers();
         size_t buffer_count = 0;
         size_t loop_count = 0;
         for (const auto& consumer_input : consumer_inputs) {

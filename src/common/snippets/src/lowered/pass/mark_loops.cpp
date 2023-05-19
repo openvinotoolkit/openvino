@@ -70,13 +70,13 @@ bool MarkLoops::run(LinearIR& linear_ir) {
             bool is_connected = false;
             bool is_conflicted = false;
             for (size_t i = 0; i < prev_expr->get_output_count(); ++i) {
-                const auto& loop_tensor = prev_expr->get_output_tensor(i);
-                const auto consumers = loop_tensor->get_consumers();
+                const auto& connector = prev_expr->get_output_port_connector(i);
+                const auto consumers = connector->get_consumers();
                 const auto found = std::find_if(consumers.begin(), consumers.end(), [&loop_end_pos](const ExpressionPort& consumer) {
                     return consumer.get_expr() == *loop_end_pos;
                 });
                 if (found != consumers.end()) {
-                    if (are_conflicted(*found, loop_tensor->get_source())) {
+                    if (are_conflicted(*found, connector->get_source())) {
                         is_conflicted = true;
                         break;
                     }

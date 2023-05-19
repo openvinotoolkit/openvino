@@ -140,7 +140,7 @@ void InitLoops::insertion(LinearIR& linear_ir, const LinearIR::LoopManager::Loop
     const auto io_data_sizes = init_element_type_sizes(loop_entries, loop_exits);
 
     const auto& loop_begin = std::make_shared<op::LoopBegin>();
-    const auto& loop_begin_expr = linear_ir.create_expression(loop_begin, std::vector<TensorPtr>{});
+    const auto& loop_begin_expr = linear_ir.create_expression(loop_begin, std::vector<PortConnectorPtr>{});
     linear_ir.insert(loop_begin_pos, loop_begin_expr);
 
     const auto& loop_end = std::make_shared<op::LoopEnd>(
@@ -148,12 +148,12 @@ void InitLoops::insertion(LinearIR& linear_ir, const LinearIR::LoopManager::Loop
             io_data_sizes, loop_entries.size(), loop_exits.size());
     loop_end->has_outer_loop = has_outer_loop;
 
-    std::vector<TensorPtr> loop_end_inputs;
+    std::vector<PortConnectorPtr> loop_end_inputs;
     for (const auto& expr_port : loop_entries)
-        loop_end_inputs.push_back(expr_port.get_expr()->get_input_tensor(expr_port.get_index()));
+        loop_end_inputs.push_back(expr_port.get_expr()->get_input_port_connector(expr_port.get_index()));
     for (const auto& expr_port : loop_exits)
-        loop_end_inputs.push_back(expr_port.get_expr()->get_output_tensor(expr_port.get_index()));
-    loop_end_inputs.push_back(loop_begin_expr->get_output_tensor(0));
+        loop_end_inputs.push_back(expr_port.get_expr()->get_output_port_connector(expr_port.get_index()));
+    loop_end_inputs.push_back(loop_begin_expr->get_output_port_connector(0));
 
     const auto& loop_end_expr = linear_ir.create_expression(loop_end, loop_end_inputs);
     linear_ir.insert(loop_end_pos, loop_end_expr);

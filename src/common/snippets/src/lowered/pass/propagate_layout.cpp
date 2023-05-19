@@ -26,14 +26,14 @@ bool PropagateLayout::run(LinearIR& linear_ir) {
             continue;
 
         const bool is_input = io_expr->get_type() == IOExpression::io_type::INPUT;
-        const auto& tds = is_input ? expr->get_output_tensors() : expr->get_input_tensors();
-        if (tds.size() != 1)
+        const auto& connectors = is_input ? expr->get_output_port_connectors() : expr->get_input_port_connectors();
+        if (connectors.size() != 1)
             OPENVINO_THROW("Parameter/Results should have exactly one output/input");
 
         // If input - we should be looking downstream, if output - upstream
-        const auto& target_tensor = tds.front();
+        const auto& target_connector = connectors.front();
         if (is_input) {
-            const auto consumer_inputs = target_tensor->get_consumers();
+            const auto consumer_inputs = target_connector->get_consumers();
             // Note that here we consider only the first child (which is usually load),
             // but often there is another child - LoopEnd
             std::set<std::vector<size_t>> child_layouts;
@@ -49,7 +49,7 @@ bool PropagateLayout::run(LinearIR& linear_ir) {
             OPENVINO_ASSERT(child_layouts.size() == 1, "All children of an input expression must have the same layout");
             io_expr->get_output_port_descriptor(0)->set_layout(*child_layouts.begin());
         } else {
-            io_expr->get_input_port_descriptor(0)->set_layout(target_tensor->get_source().get_descriptor_ptr()->get_layout());
+            io_expr->get_input_port_descriptor(0)->set_layout(target_connector->get_source().get_descriptor_ptr()->get_layout());
         }
     }
 

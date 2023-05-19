@@ -65,7 +65,7 @@ std::vector<bool> IdentifyBuffers::create_adjacency_matrix(const LinearIR& linea
         std::map<std::shared_ptr<op::Buffer>, ShiftPtrParams> buffer_neighbours;
 
         for (size_t i = 0; i < input_count; ++i) {
-            const auto& parent_output = expr->get_input_tensor(i)->get_source().get_expr();
+            const auto& parent_output = expr->get_input_port_connector(i)->get_source().get_expr();
             if (const auto buffer = ov::as_type_ptr<op::Buffer>(parent_output->get_node())) {
                 buffer_neighbours[buffer] = { ptr_increments[i], finalization_offsets[i] };
             }
@@ -73,7 +73,7 @@ std::vector<bool> IdentifyBuffers::create_adjacency_matrix(const LinearIR& linea
         for (size_t i = 0; i < output_count; ++i) {
             // The consumers of the corresponding Store ops
             const auto index = input_count + i;
-            const auto consumer_inputs = expr->get_input_tensor(index)->get_consumers();
+            const auto consumer_inputs = expr->get_input_port_connector(index)->get_consumers();
             size_t buffer_count = 0;
             size_t loop_count = 0;
             for (const auto& consumer_input : consumer_inputs) {

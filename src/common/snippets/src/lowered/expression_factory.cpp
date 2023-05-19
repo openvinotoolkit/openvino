@@ -14,14 +14,14 @@ void LinearIR::ExpressionFactory::create_expression_inputs(const LinearIR& linea
     OPENVINO_ASSERT(expr != nullptr, "Failed expression inputs creation: expression is null");
     const auto& node = expr->get_node();
 
-    expr->m_input_tensors.resize(node->get_input_size(), nullptr);
+    expr->m_input_port_connectors.resize(node->get_input_size(), nullptr);
     for (const auto& input : node->inputs()) {
         const auto input_source = input.get_source_output();
         const auto in_index = input.get_index();
         const auto& parent_expr = linear_ir.get_expr_by_node(input_source.get_node_shared_ptr());
-        const auto& tensor = parent_expr->get_output_tensor(input_source.get_index());
-        tensor->add_consumer(expr->get_input_port(in_index));
-        expr->m_input_tensors[in_index] = tensor;
+        const auto& port_connector = parent_expr->get_output_port_connector(input_source.get_index());
+        port_connector->add_consumer(expr->get_input_port(in_index));
+        expr->m_input_port_connectors[in_index] = port_connector;
     }
 }
 
@@ -29,16 +29,16 @@ void LinearIR::ExpressionFactory::create_expression_outputs(const ExpressionPtr&
     OPENVINO_ASSERT(expr != nullptr, "Failed expression outputs creation: expression is null");
     const auto& node = expr->get_node();
 
-    expr->m_output_tensors.resize(node->get_output_size(), nullptr);
+    expr->m_output_port_connectors.resize(node->get_output_size(), nullptr);
     for (const auto& output : node->outputs()) {
         const auto out_index = output.get_index();
         const auto source = expr->get_output_port(out_index);
-        expr->m_output_tensors[out_index] = std::make_shared<Tensor>(source);
+        expr->m_output_port_connectors[out_index] = std::make_shared<PortConnector>(source);
     }
 }
 
-// The method verifies of input tensors to availability of the expression as consumer and add it if missed
-void LinearIR::ExpressionFactory::init_expression_inputs(const ExpressionPtr& expr, const std::vector<TensorPtr>& inputs) {
+// The method verifies of input port connectors to availability of the expression as consumer and add it if missed
+void LinearIR::ExpressionFactory::init_expression_inputs(const ExpressionPtr& expr, const std::vector<PortConnectorPtr>& inputs) {
     for (size_t i = 0; i < inputs.size(); ++i) {
         const auto& input = inputs[i];
         const auto consumers = input->get_consumers();
@@ -50,7 +50,7 @@ void LinearIR::ExpressionFactory::init_expression_inputs(const ExpressionPtr& ex
             input->add_consumer(expr->get_input_port(i));
         }
     }
-    expr->m_input_tensors = inputs;
+    expr->m_input_port_connectors = inputs;
 }
 
 ExpressionPtr LinearIR::ExpressionFactory::create(const std::shared_ptr<ov::op::v0::Parameter>& par,
@@ -87,7 +87,7 @@ ExpressionPtr LinearIR::ExpressionFactory::create(const std::shared_ptr<ov::Node
     return expr;
 }
 
-ExpressionPtr LinearIR::ExpressionFactory::create(const std::shared_ptr<op::LoopBegin>& n, const std::vector<TensorPtr>& inputs) {
+ExpressionPtr LinearIR::ExpressionFactory::create(const std::shared_ptr<op::LoopBegin>& n, const std::vector<PortConnectorPtr>& inputs) {
     OPENVINO_ASSERT(inputs.empty(), "LoopBegin cannot have inputs");
     auto expr = std::make_shared<Expression>(Expression(n));
     init_expression_inputs(expr, inputs);
@@ -96,7 +96,7 @@ ExpressionPtr LinearIR::ExpressionFactory::create(const std::shared_ptr<op::Loop
     return expr;
 }
 
-ExpressionPtr LinearIR::ExpressionFactory::create(const std::shared_ptr<op::LoopEnd>& n, const std::vector<TensorPtr>& inputs) {
+ExpressionPtr LinearIR::ExpressionFactory::create(const std::shared_ptr<op::LoopEnd>& n, const std::vector<PortConnectorPtr>& inputs) {
     auto expr = std::make_shared<Expression>(Expression(n));
     expr->m_input_port_descriptors.resize(inputs.size(), nullptr);
     for (size_t i = 0; i < inputs.size() - 1; ++i) {
@@ -113,7 +113,7 @@ ExpressionPtr LinearIR::ExpressionFactory::create(const std::shared_ptr<op::Loop
     return expr;
 }
 
-ExpressionPtr LinearIR::ExpressionFactory::create(const std::shared_ptr<ov::Node>& n, const std::vector<TensorPtr>& inputs) {
+ExpressionPtr LinearIR::ExpressionFactory::create(const std::shared_ptr<ov::Node>& n, const std::vector<PortConnectorPtr>& inputs) {
     OPENVINO_ASSERT(!ov::is_type<ov::op::v0::Parameter>(n) &&
                     !ov::is_type<ov::op::v0::Result>(n),
                     "Expression builder with inputs doesn't support Result and Parameter");

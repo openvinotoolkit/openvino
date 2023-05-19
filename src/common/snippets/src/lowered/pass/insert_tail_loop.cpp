@@ -41,11 +41,11 @@ void InsertTailLoop::tail_transformations(LinearIR& linear_ir,
              ov::is_type<ov::op::v1::Add>(op))) {
             for (size_t i = 0; i < op->inputs().size(); ++i) {
                 if (auto fill = insertFill(op->input(i))) {
-                    const auto& input = expr_it->get()->get_input_tensor(i);
+                    const auto& input = expr_it->get()->get_input_port_connector(i);
                     const auto consumers = input->get_consumers();
                     auto fill_expr = linear_ir.create_expression(fill, {input});
                     linear_ir.insert(expr_it, fill_expr);
-                    linear_ir.replace_input(consumers, fill_expr->get_output_tensor(0));
+                    linear_ir.replace_input(consumers, fill_expr->get_output_port_connector(0));
                     // in_reg == out_reg since we want to modify vector reg inplace
                     const auto reg = expr_it->get()->get_input_port_descriptor(0)->get_reg();
                     fill_expr->get_input_port_descriptor(0)->set_reg(reg);
@@ -97,25 +97,25 @@ bool InsertTailLoop::run(LinearIR& linear_ir) {
         }
     };
     auto is_loop_with_buffers = [&linear_ir](const std::shared_ptr<op::LoopEnd>& loop_end) {
-        auto is_buffer_input = [](const TensorPtr& input) {
+        auto is_buffer_input = [](const PortConnectorPtr& input) {
             const auto& parent_expr = input->get_source().get_expr();
             return ov::is_type<op::Buffer>(parent_expr->get_node());
         };
-        auto is_buffer_output = [](const TensorPtr& output) {
+        auto is_buffer_output = [](const PortConnectorPtr& output) {
             const auto child_exprs_inputs = output->get_consumers();
             return std::any_of(child_exprs_inputs.begin(), child_exprs_inputs.end(),
                                [](const ExpressionPort& lp) {return ov::is_type<op::Buffer>(lp.get_expr()->get_node());});
         };
 
         const auto& loop_end_expr = linear_ir.get_expr_by_node(loop_end);
-        const auto inputs = loop_end_expr->get_input_tensors();
+        const auto inputs = loop_end_expr->get_input_port_connectors();
         const auto in_num = loop_end->get_input_num();
         const auto out_num = loop_end->get_output_num();
         OPENVINO_ASSERT(inputs.size() == (in_num + out_num + 1),
                         std::string("The LoopEnd expression must have the count of inputs is") +
                         std::string("equal to count of input and outputs of Loop plus one for work amount"));
-        const std::vector<TensorPtr> loop_ins(inputs.begin(), inputs.begin() + in_num);
-        const std::vector<TensorPtr> loop_outs(inputs.begin() + in_num, inputs.begin() + in_num + out_num);
+        const std::vector<PortConnectorPtr> loop_ins(inputs.begin(), inputs.begin() + in_num);
+        const std::vector<PortConnectorPtr> loop_outs(inputs.begin() + in_num, inputs.begin() + in_num + out_num);
         return std::any_of(loop_ins.begin(), loop_ins.end(), is_buffer_input) ||
                std::any_of(loop_outs.begin(), loop_outs.end(), is_buffer_output);
     };

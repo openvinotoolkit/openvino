@@ -16,7 +16,8 @@ namespace lowered {
 
 size_t Expression::LOOP_NULL_ID = SIZE_MAX;
 
-Expression::Expression(const std::shared_ptr<Node>& n) : m_source_node{n}, m_emitter{nullptr}, m_input_tensors{}, m_output_tensors{} {
+Expression::Expression(const std::shared_ptr<Node>& n)
+        : m_source_node{n}, m_emitter{nullptr}, m_input_port_connectors{}, m_output_port_connectors{} {
     m_input_port_descriptors.reserve(n->get_input_size());
     m_output_port_descriptors.reserve(n->get_output_size());
     for (const auto& input : n->inputs()) {
@@ -27,13 +28,13 @@ Expression::Expression(const std::shared_ptr<Node>& n) : m_source_node{n}, m_emi
     }
 }
 
-const TensorPtr& Expression::get_input_tensor(size_t i) const {
-    OPENVINO_ASSERT(i < m_input_tensors.size(), "Failed to get input tensor: target input port must be less than input count!");
-    return m_input_tensors[i];
+const PortConnectorPtr& Expression::get_input_port_connector(size_t i) const {
+    OPENVINO_ASSERT(i < m_input_port_connectors.size(), "Failed to get input port connector: target input port must be less than input count!");
+    return m_input_port_connectors[i];
 }
-const TensorPtr& Expression::get_output_tensor(size_t i) const {
-    OPENVINO_ASSERT(i < m_output_tensors.size(), "Failed to get output: target output port must be less than output count!");
-    return m_output_tensors[i];
+const PortConnectorPtr& Expression::get_output_port_connector(size_t i) const {
+    OPENVINO_ASSERT(i < m_output_port_connectors.size(), "Failed to get output port connector: target output port must be less than output count!");
+    return m_output_port_connectors[i];
 }
 
 const PortDescriptorPtr& Expression::get_input_port_descriptor(size_t i) const {
@@ -84,14 +85,17 @@ void Expression::init_emitter(const std::shared_ptr<const TargetMachine>& target
 }
 
 void Expression::validate() const {
-    OPENVINO_ASSERT(m_input_port_descriptors.size() == m_input_tensors.size(), "The count of input ports and input tensors must be equal");
-    OPENVINO_ASSERT(m_output_port_descriptors.size() == m_output_tensors.size(), "The count of output ports and output tensors must be equal");
-    OPENVINO_ASSERT(m_source_node != nullptr, "The expression has null source node");
+    OPENVINO_ASSERT(m_input_port_descriptors.size() == m_input_port_connectors.size(),
+                    "The count of input ports and input port connectors must be equal");
+    OPENVINO_ASSERT(m_output_port_descriptors.size() == m_output_port_connectors.size(),
+                    "The count of output ports and output port connectors must be equal");
+    OPENVINO_ASSERT(m_source_node != nullptr,
+                    "The expression has null source node");
 }
 
-void Expression::replace_input(size_t port, TensorPtr to) {
-    OPENVINO_ASSERT(port < m_input_tensors.size(), "Failed to replace: target input port must be less than input count!");
-    m_input_tensors[port] = std::move(to);
+void Expression::replace_input(size_t port, PortConnectorPtr to) {
+    OPENVINO_ASSERT(port < m_input_port_connectors.size(), "Failed to replace: target input port must be less than input count!");
+    m_input_port_connectors[port] = std::move(to);
 }
 
 void Expression::set_loop_id(size_t id, size_t idx) {

@@ -132,7 +132,7 @@ void LinearIR::LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
     std::vector<size_t> loop_tensor(loop_depth, 1);
     for (const auto& exit_point : loop_exit_points) {
         const auto& desc = exit_point.get_descriptor_ptr();
-        const auto tensor = utils::get_reordered_planar_shape(ov::PartialShape(desc->get_shape()), desc->get_layout()).get_shape();
+        const auto shape = utils::get_reordered_planar_shape(ov::PartialShape(desc->get_shape()), desc->get_layout()).get_shape();
         auto subtensor = desc->get_subtensor();
         if (subtensor.empty()) {
             subtensor.resize(loop_depth, 1);
@@ -150,7 +150,7 @@ void LinearIR::LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
 
         for (size_t dim_idx = 0; dim_idx < loop_depth; ++dim_idx) {
             if (*(subtensor.rbegin() + dim_idx) != PortDescriptor::ServiceDimensions::FULL_DIM) {
-                broadcast(loop_tensor, tensor, dim_idx);
+                broadcast(loop_tensor, shape, dim_idx);
             }
         }
     }

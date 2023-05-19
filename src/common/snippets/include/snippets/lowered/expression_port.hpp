@@ -14,7 +14,7 @@ namespace ov {
 namespace snippets {
 namespace lowered {
 
-class Tensor;
+class PortConnector;
 class Expression;
 class ExpressionPort {
 public:
@@ -31,7 +31,7 @@ public:
     size_t get_index() const { return m_port_index; }
 
     const PortDescriptorPtr& get_descriptor_ptr() const;
-    const std::shared_ptr<Tensor>& get_tensor_ptr() const;
+    const std::shared_ptr<PortConnector>& get_port_connector_ptr() const;
     // Returns connected ports to the current:
     //  - Input port returns one source (parent) port
     //  - Output port returns all consumer ports (children)

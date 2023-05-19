@@ -8,7 +8,7 @@
 
 #include "snippets/snippets_isa.hpp"
 #include "snippets/lowered/expression.hpp"
-#include "snippets/lowered/tensor.hpp"
+#include "snippets/lowered/port_connector.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/op//brgemm_cpu.hpp"
 
@@ -16,11 +16,6 @@ using namespace InferenceEngine;
 using namespace Xbyak;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
-using ov::snippets::AllocatedEmitter;
-using ov::snippets::lowered::Expression;
-using ov::snippets::lowered::IOExpression;
-using ov::snippets::lowered::ExpressionPtr;
-using ov::snippets::lowered::TensorPtr;
 
 namespace ov {
 namespace intel_cpu {

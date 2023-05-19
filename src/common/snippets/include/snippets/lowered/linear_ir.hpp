@@ -32,7 +32,7 @@ public:
     LinearIR() = default;
     explicit LinearIR(const std::shared_ptr<ov::Model>& m, Config config = {});
 
-    ExpressionPtr create_expression(const std::shared_ptr<Node>& n, const std::vector<TensorPtr>& inputs);
+    ExpressionPtr create_expression(const std::shared_ptr<Node>& n, const std::vector<PortConnectorPtr>& inputs);
 
     static LinearIR::container deep_copy_range(LinearIR::container::const_iterator begin, LinearIR::container::const_iterator end);
 
@@ -42,8 +42,8 @@ public:
 
     const ExpressionPtr& get_expr_by_node(const std::shared_ptr<Node>& n) const;
 
-    void replace_input(const std::set<ExpressionPort>& consumers, const TensorPtr& to);
-    void replace_input(const ExpressionPort& expr_port, const TensorPtr& to);
+    void replace_input(const std::set<ExpressionPort>& consumers, const PortConnectorPtr& to);
+    void replace_input(const ExpressionPort& expr_port, const PortConnectorPtr& to);
 
     /**
     * @brief Move an expression from the position "from" to the position immediately before "to".

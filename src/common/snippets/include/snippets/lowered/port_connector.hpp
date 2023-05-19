@@ -8,7 +8,6 @@
 #include <vector>
 
 #include "port_descriptor.hpp"
-
 #include "expression_port.hpp"
 
 
@@ -18,10 +17,10 @@ namespace lowered {
 
 class Expression;
 
-class Tensor {
+class PortConnector {
 public:
-    Tensor() = default;
-    explicit Tensor(ExpressionPort source_descriptor, const std::set<ExpressionPort>& consumer_descriptors = {});
+    PortConnector() = default;
+    explicit PortConnector(ExpressionPort source_descriptor, const std::set<ExpressionPort>& consumer_descriptors = {});
 
     const ExpressionPort& get_source() const { return m_source_port; }
     std::set<ExpressionPort> get_consumers() const { return m_consumer_ports; }
@@ -36,7 +35,7 @@ private:
     ExpressionPort m_source_port;
     std::set<ExpressionPort> m_consumer_ports;
 };
-using TensorPtr = std::shared_ptr<Tensor>;
+using PortConnectorPtr = std::shared_ptr<PortConnector>;
 
 
 } // namespace lowered

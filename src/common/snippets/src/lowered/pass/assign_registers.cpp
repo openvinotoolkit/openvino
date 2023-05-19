@@ -19,7 +19,7 @@ namespace pass {
 bool AssignRegisters::run(LinearIR& linear_ir) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::AssignRegisters")
     using Reg = size_t;
-    using tensor = TensorPtr;
+    using tensor = PortConnectorPtr;
     const auto& expressions = linear_ir.get_ops();
 
     std::vector<std::pair<Generator::opRegType, ExpressionPtr>> typed_ops;
@@ -47,38 +47,38 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
         auto op = expr->get_node();
         if (const auto io_expr = std::dynamic_pointer_cast<IOExpression>(expr)) {
             if (io_expr->get_type() == IOExpression::io_type::INPUT)
-                manually_assigned_gprs[expr->get_output_tensor(0)] = io_expr->get_index();
+                manually_assigned_gprs[expr->get_output_port_connector(0)] = io_expr->get_index();
             else if (io_expr->get_type() == IOExpression::io_type::OUTPUT)
-                manually_assigned_gprs[expr->get_input_tensor(0)] = num_parameters + io_expr->get_index();
+                manually_assigned_gprs[expr->get_input_port_connector(0)] = num_parameters + io_expr->get_index();
             else
                 OPENVINO_THROW("Unsupported io_type detected");
         } else if (const auto& buffer = ov::as_type_ptr<op::Buffer>(op)) {
             const auto buffer_id = buffer->get_id();
             // All buffers have one common data pointer
             if (buffer->is_intermediate_memory()) {
-                manually_assigned_gprs[expr->get_input_tensor(0)] =
+                manually_assigned_gprs[expr->get_input_port_connector(0)] =
                         static_cast<Reg>(num_results + num_parameters + buffer_id);
             }
-            manually_assigned_gprs[expr->get_output_tensor(0)] =
+            manually_assigned_gprs[expr->get_output_port_connector(0)] =
                     static_cast<Reg>(num_results + num_parameters + buffer_id);
         } else if (ov::is_type<op::HorizonMax>(op) || ov::is_type<op::HorizonSum>(op)) {
             // Only in SoftmaxDecomposition ReduceMax and ReduceSum use HorizonMax/HorizonSum and VectorBuffer.
             // We should manually set the one vector register for VectorBuffer and Max/Sum output to simulate a accumulator
             // TODO [96351]: We should rewrite accumulator pattern using another way
-            const auto& input_tensor = expr->get_input_tensor(0);
+            const auto& input_tensor = expr->get_input_port_connector(0);
             const auto& input_expr = input_tensor->get_source().get_expr();
-            const auto& input_expr_input_tensors = input_expr->get_input_tensors();
+            const auto& input_expr_input_tensors = input_expr->get_input_port_connectors();
             for (const auto& tensor : input_expr_input_tensors) {
                 if (ov::is_type<op::VectorBuffer>(tensor->get_source().get_expr()->get_node())) {
                     manually_assigned_vecs[tensor] = static_cast<Reg>(accumulator_reg);
                 }
             }
-            const auto& output_tensor = expr->get_output_tensor(0);
+            const auto& output_tensor = expr->get_output_port_connector(0);
             manually_assigned_vecs[input_tensor] = static_cast<Reg>(accumulator_reg);
             manually_assigned_vecs[output_tensor] = static_cast<Reg>(accumulator_reg);
             for (const auto& child_expr_input : output_tensor->get_consumers()) {
                 if (ov::is_type<op::BroadcastMove>(child_expr_input.get_expr()->get_node())) {
-                    manually_assigned_vecs[child_expr_input.get_expr()->get_output_tensor(0)] =
+                    manually_assigned_vecs[child_expr_input.get_expr()->get_output_port_connector(0)] =
                             static_cast<Reg>(accumulator_reg);
                 }
             }
@@ -88,9 +88,9 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
             const auto current_loops_ids = expr->get_loop_ids();
             auto next_expr = output_tensor->get_consumers().begin()->get_expr();
             while (next_expr->get_loop_ids() == current_loops_ids) {
-                manually_assigned_vecs[next_expr->get_output_tensor(0)] =
+                manually_assigned_vecs[next_expr->get_output_port_connector(0)] =
                         static_cast<Reg>(accumulator_reg);
-                next_expr = next_expr->get_output_tensor(0)->get_consumers().begin()->get_expr();
+                next_expr = next_expr->get_output_port_connector(0)->get_consumers().begin()->get_expr();
             }
 
             accumulator_reg++;
@@ -103,7 +103,7 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
                                                               decltype(regs_vec)& reg_map,
                                                               const std::map<tensor, Reg>& manually_assigned_regs,
                                                               size_t& counter) {
-        for (const auto& out_tensor : expr->get_output_tensors()) {
+        for (const auto& out_tensor : expr->get_output_port_connectors()) {
             // Note that some ops might have identical input&output tensors (Result and Tile* for ex.)
             // so we have to check that the tensor has not been enumerated already
             if (reg_map.count(out_tensor) == 0) {
@@ -143,9 +143,9 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
     for (size_t i = 0; i < typed_ops.size(); i++) {
         const auto& t_op = typed_ops[i];
         std::vector<tensor> used_tensors, defined_tensors;
-        for (const auto& in : t_op.second->get_input_tensors())
+        for (const auto& in : t_op.second->get_input_port_connectors())
             used_tensors.push_back(in);
-        for (const auto& out : t_op.second->get_output_tensors())
+        for (const auto& out : t_op.second->get_output_port_connectors())
             defined_tensors.push_back(out);
         switch (t_op.first) {
             case Generator::opRegType::vec2vec:
@@ -191,7 +191,7 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
             const auto& expr = typed_ops[n].second;
             if (is_type<op::LoopEnd>(expr->get_node()) || is_type<ov::op::v0::Result>(expr->get_node()))
                 continue;
-            for (const auto& out : expr->get_output_tensors()) {
+            for (const auto& out : expr->get_output_port_connectors()) {
                 for (const auto& child_expr_input : out->get_consumers()) {
                     const auto& child_expr = child_expr_input.get_expr();
                     auto child_it = linear_ir.begin();
@@ -319,10 +319,10 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
     for (auto& t_op : typed_ops) {
         RegInfo rinfo;
         const auto& expr = t_op.second;
-        for (const auto& in : expr->get_input_tensors()) {
+        for (const auto& in : expr->get_input_port_connectors()) {
             rinfo.first.push_back(assigned_regs[in]);
         }
-        for (const auto& out : expr->get_output_tensors()) {
+        for (const auto& out : expr->get_output_port_connectors()) {
             rinfo.second.push_back(assigned_regs[out]);
         }
         t_op.second->set_reg_info(rinfo);

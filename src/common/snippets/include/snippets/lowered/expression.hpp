@@ -9,7 +9,7 @@
 
 #include "snippets/emitter.hpp"
 #include "snippets/target_machine.hpp"
-#include "snippets/lowered/tensor.hpp"
+#include "snippets/lowered/port_connector.hpp"
 #include "snippets/lowered/expression_port.hpp"
 
 
@@ -35,18 +35,18 @@ public:
     RegInfo get_reg_info() const;
     void set_reg_info(RegInfo rinfo);
 
-    const TensorPtr& get_input_tensor(size_t i) const;
-    const TensorPtr& get_output_tensor(size_t i) const;
-    std::vector<TensorPtr> get_input_tensors() const { return m_input_tensors; }
-    std::vector<TensorPtr> get_output_tensors() const { return m_output_tensors; }
+    const PortConnectorPtr& get_input_port_connector(size_t i) const;
+    const PortConnectorPtr& get_output_port_connector(size_t i) const;
+    std::vector<PortConnectorPtr> get_input_port_connectors() const { return m_input_port_connectors; }
+    std::vector<PortConnectorPtr> get_output_port_connectors() const { return m_output_port_connectors; }
 
     const PortDescriptorPtr& get_input_port_descriptor(size_t i) const;
     const PortDescriptorPtr& get_output_port_descriptor(size_t i) const;
     std::vector<PortDescriptorPtr> get_input_port_descriptors() const { return m_input_port_descriptors; }
     std::vector<PortDescriptorPtr> get_output_port_descriptors() const { return m_output_port_descriptors; }
 
-    size_t get_input_count() const { return m_input_tensors.size(); }
-    size_t get_output_count() const { return m_output_tensors.size(); }
+    size_t get_input_count() const { return m_input_port_connectors.size(); }
+    size_t get_output_count() const { return m_output_port_connectors.size(); }
 
     std::vector<size_t> get_loop_ids() const { return m_loop_ids; }
     void set_loop_ids(const std::vector<size_t>& loops) { m_loop_ids = loops; }
@@ -60,16 +60,16 @@ public:
     ExpressionPort get_output_port(size_t i);
 
 protected:
-    // Note: The constructor and tensor initialization are private since an expression can be created only by Linear IR.
-    //       These methods must be used only by Linear IR builder of expressions!
+    // Note: The constructor initialization is private since an expression can be created only by Linear IR.
+    //       The method must be used only by Linear IR builder of expressions!
     explicit Expression(const std::shared_ptr<Node>& n);
 
-    void replace_input(size_t port, TensorPtr to);
+    void replace_input(size_t port, PortConnectorPtr to);
 
     std::shared_ptr<Node> m_source_node{nullptr};
     std::shared_ptr<Emitter> m_emitter{nullptr};
-    std::vector<TensorPtr> m_input_tensors{};
-    std::vector<TensorPtr> m_output_tensors{};
+    std::vector<PortConnectorPtr> m_input_port_connectors{};
+    std::vector<PortConnectorPtr> m_output_port_connectors{};
     std::vector<PortDescriptorPtr> m_input_port_descriptors{};
     std::vector<PortDescriptorPtr> m_output_port_descriptors{};
     // The order Loops identifies: Outer ---> Inner

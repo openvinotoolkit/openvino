@@ -23,15 +23,15 @@ bool LoadMoveBroadcastToBroadcastLoad::run(LinearIR& linear_ir) {
         const auto& op = expr->get_node();
         // Match on MoveBroadcast because MoveBroadcast is rare node in bodies
         if (const auto move_broadcast = ov::as_type_ptr<op::BroadcastMove>(op)) {
-            const auto& interm_tensor = expr->get_input_tensor(0);
-            const auto parent_expr = interm_tensor->get_source().get_expr();
+            const auto& interm_connector = expr->get_input_port_connector(0);
+            const auto parent_expr = interm_connector->get_source().get_expr();
             const auto load = ov::as_type_ptr<op::Load>(parent_expr->get_node());
             if (!load)
                 continue;
 
             // Cannot rewrite Broadcast + Load if load has more than 1 user
             // or more than one input, or if Broadcast has several inputs
-            const auto load_consumers_inputs = interm_tensor->get_consumers();
+            const auto load_consumers_inputs = interm_connector->get_consumers();
             size_t count = 0;
             for (const auto& consumer_expr_input : load_consumers_inputs) {
                 const auto consumer = consumer_expr_input.get_expr()->get_node();
@@ -44,15 +44,15 @@ bool LoadMoveBroadcastToBroadcastLoad::run(LinearIR& linear_ir) {
 
             const auto& outshape = move_broadcast->get_output_partial_shape(0);
             const auto broadcastload = std::make_shared<snippets::op::BroadcastLoad>(load->input_value(0), outshape, load->get_offset());
-            const auto move_consumers = expr->get_output_tensor(0)->get_consumers();
+            const auto move_consumers = expr->get_output_port_connector(0)->get_consumers();
             PortDescriptorUtils::set_port_descriptor_ptr(broadcastload->output(0), expr->get_output_port(0).get_descriptor_ptr()->clone());
-            const auto broadcastload_expr = linear_ir.create_expression(broadcastload, { parent_expr->get_input_tensor(0) });
+            const auto broadcastload_expr = linear_ir.create_expression(broadcastload, { parent_expr->get_input_port_connector(0) });
             const auto mv_expr_it = expr_it;
             const auto insertion_pos = std::next(expr_it);
             expr_it = linear_ir.insert(insertion_pos, broadcastload_expr);
             linear_ir.erase(std::find(linear_ir.begin(), mv_expr_it, parent_expr));
             linear_ir.erase(mv_expr_it);
-            linear_ir.replace_input(move_consumers, broadcastload_expr->get_output_tensor(0));
+            linear_ir.replace_input(move_consumers, broadcastload_expr->get_output_port_connector(0));
             modified |= true;
         }
     }

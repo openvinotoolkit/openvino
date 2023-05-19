@@ -21,19 +21,19 @@ const PortDescriptorPtr& ExpressionPort::get_descriptor_ptr() const {
     return descs[m_port_index];
 }
 
-const std::shared_ptr<Tensor>& ExpressionPort::get_tensor_ptr() const {
-    const auto& tensors = m_type == Type::Input ? m_expr->m_input_tensors
-                                                : m_expr->m_output_tensors;
-    OPENVINO_ASSERT(m_port_index < tensors.size(), "Incorrect index of port");
-    return tensors[m_port_index];
+const std::shared_ptr<PortConnector>& ExpressionPort::get_port_connector_ptr() const {
+    const auto& connectors = m_type == Type::Input ? m_expr->m_input_port_connectors
+                                                : m_expr->m_output_port_connectors;
+    OPENVINO_ASSERT(m_port_index < connectors.size(), "Incorrect index of port");
+    return connectors[m_port_index];
 }
 
 std::set<ExpressionPort> ExpressionPort::get_connected_ports() const {
     if (ExpressionPort::m_type == Type::Input) {
-        return { m_expr->m_input_tensors[m_port_index]->get_source() };
+        return { m_expr->m_input_port_connectors[m_port_index]->get_source() };
     }
     if (ExpressionPort::m_type == Type::Output) {
-        return m_expr->m_output_tensors[m_port_index]->get_consumers();
+        return m_expr->m_output_port_connectors[m_port_index]->get_consumers();
     }
     OPENVINO_THROW("ExpressionPort supports only Input and Output types");
 }
