@@ -669,7 +669,7 @@ StridedSliceTransformationTestValues::LayerParams slice2 = {
 };
 
 const std::vector<StridedSliceTransformationTestValues> testValuesWithDQBySpatialDimension = {
-    // U8: channel slice, quantization by special dimension
+    // U8: channel slice, quantization by spatial dimension
     {
         LayerTransformation::createParamsU8I8(),
         slice,
@@ -692,7 +692,7 @@ const std::vector<StridedSliceTransformationTestValues> testValuesWithDQBySpatia
             }
         }
     },
-    // U8: channel slice, quantization by special dimension
+    // U8: channel slice, quantization by spatial dimension
     {
         LayerTransformation::createParamsU8I8(),
         slice2,

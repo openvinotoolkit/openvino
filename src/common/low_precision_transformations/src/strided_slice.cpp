@@ -18,9 +18,9 @@ namespace low_precision {
 namespace {
 
 std::shared_ptr<ov::opset1::Constant> stridedSliceDeqConstant(
-    const std::shared_ptr<ngraph::Node> strSlice,
-    const std::shared_ptr<ngraph::Node> dequantizaitonConstant) {
-    const auto constant = ov::as_type_ptr<ov::opset1::Constant>(dequantizaitonConstant);
+    const std::shared_ptr<Node> node,
+    const std::shared_ptr<Node> dequantizaiton_constant) {
+    const auto constant = ov::as_type_ptr<ov::opset1::Constant>(dequantizaiton_constant);
     const auto& original_constant_shape = constant->get_shape();
     if (shape_size(original_constant_shape) == 1ul) {
         return NetworkHelper::toScalar(constant);
@@ -28,46 +28,46 @@ std::shared_ptr<ov::opset1::Constant> stridedSliceDeqConstant(
 
     // step #1: align shapes
     std::shared_ptr<ov::opset1::Constant> new_constant = constant;
-    const size_t rank = strSlice->get_input_partial_shape(0).rank().get_length();
-    ngraph::Shape newConstantShape = original_constant_shape;
-    if (rank != newConstantShape.size()) {
-        if (ngraph::shape_size(original_constant_shape) == 1) {
-            newConstantShape = ngraph::Shape(rank, 1);
-        } else {
-            newConstantShape = original_constant_shape;
-
-            // case when constShape without batch
-            if ((original_constant_shape.size() > 1) &&
-                (original_constant_shape.size() < rank)) {
-                newConstantShape.insert(newConstantShape.begin(), 1);
-            }
+    const size_t rank = node->get_input_partial_shape(0).size();
+    Shape new_constant_shape = original_constant_shape;
+    if (rank != new_constant_shape.size()) {
+        // case when constant shape without batch
+        if (original_constant_shape.size() < rank) {
+            new_constant_shape.insert(new_constant_shape.begin(), 1);
         }
 
-        if (original_constant_shape != newConstantShape) {
-            const auto newConstant = fold<ov::opset1::Broadcast>(
+        if (original_constant_shape != new_constant_shape) {
+            const auto result = fold<ov::opset1::Broadcast>(
                 constant,
-                ov::opset1::Constant::create(ngraph::element::i32, { newConstantShape.size() }, newConstantShape));
-            new_constant = ov::as_type_ptr<ov::opset1::Constant>(newConstant);
+                ov::opset1::Constant::create(ov::element::i32, { new_constant_shape.size() }, new_constant_shape));
+            new_constant = ov::as_type_ptr<ov::opset1::Constant>(result);
         }
     }
 
     // step #2: update original begin & end & strides
-    const auto strided_slice = ov::as_type_ptr<ov::opset1::StridedSlice>(strSlice);
-    auto begin = ov::as_type_ptr<ov::opset1::Constant>(strided_slice->get_input_node_shared_ptr(1))->cast_vector<int64_t>();
-    auto end = ov::as_type_ptr<ov::opset1::Constant>(strided_slice->get_input_node_shared_ptr(2))->cast_vector<int64_t>();
-    auto strides = ov::as_type_ptr<ov::opset1::Constant>(strided_slice->get_input_node_shared_ptr(3))->cast_vector<int64_t>();
+    auto cast_vector = [](const std::shared_ptr<ov::opset1::StridedSlice>& strided_slice, const size_t i) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
+        const auto constant = ov::get_constant_from_source(strided_slice->get_input_source_output(i));
+        OPENVINO_SUPPRESS_DEPRECATED_END
+        assert(constant != nullptr);
+        return constant->cast_vector<int64_t>();
+    };
+
+    const auto strided_slice = ov::as_type_ptr<ov::opset1::StridedSlice>(node);
+    auto begin = cast_vector(strided_slice, 1);
+    auto end = cast_vector(strided_slice, 2);
+    auto strides = cast_vector(strided_slice, 3);
     auto begin_mask = strided_slice->get_begin_mask();
     auto end_mask = strided_slice->get_end_mask();
-    for (auto i = 0ull; i < newConstantShape.size(); ++i) {
+    for (auto i = 0ull; i < new_constant_shape.size(); ++i) {
         // don't slice constant if current dimension is 1
-        if (newConstantShape[i] == 1ull) {
+        if (new_constant_shape[i] == 1ull) {
             if (i < begin.size()) {
                 begin[i] = 0;
             }
             if (i < end.size()) {
-                end[i] = 1;
+                end[i] = 0;
             }
-
             if (i < strides.size()) {
                 strides[i] = 1;
             }
@@ -94,13 +94,7 @@ std::shared_ptr<ov::opset1::Constant> stridedSliceDeqConstant(
         strided_slice->get_shrink_axis_mask(),
         strided_slice->get_ellipsis_mask());
 
-    new_constant = ov::as_type_ptr<ov::opset1::Constant>(NetworkHelper::toScalarIfPossible(result));
-
-    if (shape_size(new_constant->get_shape()) == 1ul) {
-        return NetworkHelper::toScalar(new_constant);
-    }
-
-    return new_constant;
+    return ov::as_type_ptr<ov::opset1::Constant>(NetworkHelper::toScalarIfPossible(result));
 }
 
 } // namespace
@@ -109,7 +103,7 @@ StridedSliceTransformation::StridedSliceTransformation(const Params& params) : L
     MATCHER_SCOPE(StridedSliceTransformation);
     auto matcher = ngraph::pattern::wrap_type<ov::opset1::StridedSlice>();
 
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+    ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
         if (transformation_callback(op)) {
             return false;
@@ -117,29 +111,29 @@ StridedSliceTransformation::StridedSliceTransformation(const Params& params) : L
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
-bool StridedSliceTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher& m) {
+bool StridedSliceTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher& m) {
     if (!StridedSliceTransformation::canBeTransformed(context, m.get_match_root())) {
         return false;
     }
 
-    const auto stridedSlice = NetworkHelper::separateInStandaloneBranch(m.get_match_root(), defaultPrecisions);
-    auto dequantization = NetworkHelper::getDequantization(stridedSlice, defaultPrecisions);
+    const auto strided_slice = NetworkHelper::separateInStandaloneBranch(m.get_match_root(), defaultPrecisions);
+    auto dequantization = NetworkHelper::getDequantization(strided_slice, defaultPrecisions);
 
     if (dequantization.subtract) {
-        const auto newSubConst = stridedSliceDeqConstant(stridedSlice, dequantization.subtractConstant);
-        replace_node(dequantization.subtractConstant, newSubConst);
-        dequantization.subtractConstant = newSubConst;
+        const auto new_sub_const = stridedSliceDeqConstant(strided_slice, dequantization.subtractConstant);
+        replace_node(dequantization.subtractConstant, new_sub_const);
+        dequantization.subtractConstant = new_sub_const;
     }
 
-    const auto newMulConst = stridedSliceDeqConstant(stridedSlice, dequantization.multiplyConstant);
-    replace_node(dequantization.multiplyConstant, newMulConst);
-    dequantization.multiplyConstant = newMulConst;
+    const auto new_mul_const = stridedSliceDeqConstant(strided_slice, dequantization.multiplyConstant);
+    replace_node(dequantization.multiplyConstant, new_mul_const);
+    dequantization.multiplyConstant = new_mul_const;
 
-    moveDequantizationAfter(context, stridedSlice, NetworkHelper::getDequantization(stridedSlice, defaultPrecisions), false);
+    moveDequantizationAfter(context, strided_slice, NetworkHelper::getDequantization(strided_slice, defaultPrecisions), false);
     return true;
 }
 
@@ -153,13 +147,21 @@ bool StridedSliceTransformation::canBeTransformed(const TransformationContext& c
         return false;
     }
 
-    if (operation->get_input_partial_shape(0).rank().is_dynamic() &&
-        ((dequantization.subtract && ngraph::shape_size(dequantization.subtractConstant->get_shape()) > 1) ||
-         (dequantization.multiply && ngraph::shape_size(dequantization.multiplyConstant->get_shape()) > 1))) {
+    const auto is_dequantization_scalar =
+        ((dequantization.subtract && shape_size(dequantization.subtractConstant->get_shape()) == 1ull) &&
+        (dequantization.multiply && shape_size(dequantization.multiplyConstant->get_shape()) == 1ull));
+
+    if (operation->get_input_partial_shape(0).rank().is_dynamic() && !is_dequantization_scalar) {
         return false;
     }
 
-    return true;
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    return
+        is_dequantization_scalar ||
+        (ov::get_constant_from_source(operation->get_input_source_output(1)) &&
+        ov::get_constant_from_source(operation->get_input_source_output(2)) &&
+        ov::get_constant_from_source(operation->get_input_source_output(3)));
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 bool StridedSliceTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept {
