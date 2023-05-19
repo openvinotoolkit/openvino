@@ -29,7 +29,7 @@ class TestDeriveIndex(PytorchLayerTest):
 
         ref_net = None
 
-        return prim_derive_index(start, stop, step), ref_net, "aten::__derive_index"
+        return prim_derive_index(start, stop, step), ref_net, "aten::__range_length"
 
     @pytest.mark.parametrize(
         "start, stop, step",
