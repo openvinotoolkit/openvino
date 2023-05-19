@@ -71,7 +71,7 @@ public:
         }
         size_t inputProduct = 1;
         for (size_t i = 0; i < inputShapeSize; ++i) {
-            if (i < outputPatternSize && outPattern[i] == 0)
+            if (i < outputPatternSize && outPattern[i] == 0 && m_specialZero)
                 continue;
             inputProduct *= inputShape[i];
         }

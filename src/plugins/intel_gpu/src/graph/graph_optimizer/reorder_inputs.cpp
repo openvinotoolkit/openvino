@@ -13,6 +13,8 @@
 #include "mvn_inst.h"
 #include "to_string_utils.h"
 #include "pooling_inst.h"
+#include "reshape_inst.h"
+#include "fully_connected_inst.h"
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include "gemm_inst.h"
@@ -566,7 +568,7 @@ void insert_reorders_in_dir(program& p, const std::map<program_node*, format::ty
         in_layout.format = get_target_output_format(lo, fmt_map, predecessor, successor);
         out_layout.format = get_target_input_format(lo, fmt_map, successor, predecessor);
 
-        GPU_DEBUG_LOG << __func__ << ":" << __LINE__ << ":" << dir_msg(dir) << "  " << node->id() << " --> " << next->id() << " ## "
+        GPU_DEBUG_LOG << dir_msg(dir) << "  " << node->id() << " --> " << next->id() << " ## "
                       << fmt_to_str(in_layout.format) << " --> " << fmt_to_str(out_layout.format) << std::endl;
 
         if (in_layout.format == format::any || out_layout.format == format::any)
@@ -579,8 +581,7 @@ void insert_reorders_in_dir(program& p, const std::map<program_node*, format::ty
         auto reorder = reorder_pair.first;
         if (reorder && (in_layout.format != format::any && out_layout.format != format::any)) {
             auto& reorder_node = p.get_or_create(reorder);
-            GPU_DEBUG_LOG << __func__ << ":" << __LINE__ << ":" << dir_msg(dir) << "  " << reorder_node.id()
-                          << "  Reorder is added" << std::endl;
+            GPU_DEBUG_LOG << dir_msg(dir) << "  " << reorder_node.id() << "  Reorder is added" << std::endl;
             p.add_intermediate(reorder_node,
                                *travel_direction_wrapper<dir>::second(node, next),
                                *travel_direction_wrapper<dir>::first(node, next),
@@ -615,8 +616,7 @@ void insert_reorders_in_dir<direction_e::backwards>(program& p, const std::map<p
         in_layout.format = get_target_output_format(lo, fmt_map, predecessor, successor);
         out_layout.format = get_target_input_format(lo, fmt_map, successor, predecessor);
 
-        GPU_DEBUG_LOG << __func__ << ":" << __LINE__ << ":" << dir_msg(direction_e::backwards)
-                      << "  " << node->id() << " --> " << next.first->id() << " ## "
+        GPU_DEBUG_LOG << dir_msg(direction_e::backwards) << "  " << node->id() << " --> " << next.first->id() << " ## "
                       << fmt_to_str(in_layout.format) << " --> " << fmt_to_str(out_layout.format) << std::endl;
 
         if (in_layout.format == format::any || out_layout.format == format::any)
@@ -629,8 +629,7 @@ void insert_reorders_in_dir<direction_e::backwards>(program& p, const std::map<p
         auto reorder = reorder_pair.first;
         if (reorder && (in_layout.format != format::any && out_layout.format != format::any)) {
             auto& reorder_node = p.get_or_create(reorder);
-            GPU_DEBUG_LOG << __func__ << ":" << __LINE__ << ":" << dir_msg(direction_e::backwards) << "  " << reorder_node.id()
-                          << "  Reorder is added" << std::endl;
+            GPU_DEBUG_LOG << dir_msg(direction_e::backwards) << "  " << reorder_node.id() << "  Reorder is added" << std::endl;
             p.add_intermediate(reorder_node,
                                *travel_direction_wrapper<direction_e::backwards>::second(node, next.first),
                                *travel_direction_wrapper<direction_e::backwards>::first(node, next.first),
