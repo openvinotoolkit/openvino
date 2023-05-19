@@ -2,7 +2,7 @@
 
 #include <openvino/runtime/core.hpp>
 
-void main() {
+int main() {
 
 ov::Core core;
 
@@ -12,6 +12,7 @@ ov::CompiledModel model = core.compile_model("modelPath", "deviceName");
 
 model.export_model(stream);
 
+    return 0;
 }
 
 //!  [export_compiled_model]
