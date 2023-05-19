@@ -56,15 +56,17 @@ ov::pass::ConvertScatterElementsToScatter::ConvertScatterElementsToScatter() {
             return false;
         }
 
+        OPENVINO_SUPPRESS_DEPRECATED_START
         const size_t axis = ngraph::normalize_axes(scatter->get_friendly_name(),
                                                    axis_const->cast_vector<int64_t>(),
                                                    data_pshape.rank())[0];
+        OPENVINO_SUPPRESS_DEPRECATED_END
 
         struct Range {
             uint64_t l, r;
             Range(const uint64_t& l, const uint64_t& r) : l(l), r(r) {
                 if (l > r)
-                    throw Exception("Range values are inconsistent");
+                    OPENVINO_THROW("Range values are inconsistent");
             }
 
             uint64_t size() const {

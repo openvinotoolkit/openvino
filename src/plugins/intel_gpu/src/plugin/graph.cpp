@@ -57,12 +57,14 @@ Graph::Graph(InferenceEngine::CNNNetwork& network, RemoteContextImpl::Ptr contex
     Build();
 }
 
-Graph::Graph(cldnn::BinaryInputBuffer &ib, RemoteContextImpl::Ptr context, const ExecutionConfig& config, uint16_t stream_id)
+Graph::Graph(cldnn::BinaryInputBuffer &ib, RemoteContextImpl::Ptr context, const ExecutionConfig& config, uint16_t stream_id,
+             InferenceEngine::InputsDataMap* inputs, InferenceEngine::OutputsDataMap* outputs)
     : m_context(context)
     , m_config(config)
     , m_stream_id(stream_id)
     , m_state(0) {
-    m_program = std::make_shared<Program>(get_engine(), config);
+    m_program = std::make_shared<Program>(get_engine(), config, inputs, outputs);
+    ib >> m_program->m_max_batch;
     if (m_program->m_max_batch > 1)
         m_config.set_property(ov::intel_gpu::max_dynamic_batch(m_program->m_max_batch));
 
@@ -105,7 +107,8 @@ Graph::Graph(cldnn::BinaryInputBuffer &ib, RemoteContextImpl::Ptr context, const
     size_t num_networks;
     ib >> num_networks;
     for (size_t i = 0; i < num_networks; ++i) {
-        m_networks.emplace_back(std::make_shared<cldnn::network>(ib, get_engine().create_stream(config), get_engine(), m_stream_id));
+        ib.set_stream_id(m_stream_id);
+        m_networks.emplace_back(std::make_shared<cldnn::network>(ib, get_engine().create_stream(config), get_engine(), m_stream_id == 0));
     }
 }
 
@@ -506,6 +509,8 @@ std::shared_ptr<ngraph::Function> Graph::GetExecGraphInfoByPrimitivesInfo(std::v
 //     [ ov::intel_gpu::Graph::outputDims ]
 //     [ cldnn::network ]
 void Graph::Export(cldnn::BinaryOutputBuffer &ob) {
+    ob << m_program->m_max_batch;
+
     bool need_onednn_engine = false;
 #ifdef ENABLE_ONEDNN_FOR_GPU
     try {
@@ -535,7 +540,7 @@ void Graph::Export(cldnn::BinaryOutputBuffer &ob) {
     ob << outputDims;
 
     ob << m_networks.size();
-    for (auto net : m_networks) {
+    for (const auto& net : m_networks) {
         net->save(ob);
     }
 }

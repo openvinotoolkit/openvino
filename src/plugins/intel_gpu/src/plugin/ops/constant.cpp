@@ -24,8 +24,18 @@ namespace ov {
 namespace intel_gpu {
 
 static cldnn::tensor getConstTensor(const ngraph::Shape constDims) {
+    std::vector<cldnn::tensor::value_type> shuffled_dims(constDims.size());
+
+    // cldnn tensor c-tor expects constants be in a reversed order (x, y, z, w, u, v)
+    for (size_t i = 0; i < constDims.size(); i++) {
+        shuffled_dims[i] = TensorValue(constDims[i < 2 ? i : (constDims.size() - 1 - i)]);
+    }
     cldnn::tensor constTensor;
     switch (constDims.size()) {
+    case 8:
+    case 7:
+        constTensor = cldnn::tensor(shuffled_dims);
+        break;
     case 6: constTensor = cldnn::tensor(TensorValue(constDims[0]), TensorValue(constDims[1]),
                                         TensorValue(constDims[5]), TensorValue(constDims[4]),
                                         TensorValue(constDims[3]), TensorValue(constDims[2]));
@@ -137,11 +147,10 @@ static void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::C
                     slope_shape[slope_shape.size() - j] = constDims[constDims.size() - j];
                 constDims = slope_shape;
             }
-        } else if (ngraph::is_type<ngraph::op::v1::GroupConvolution>(outOp) && node.get_index() == 1) {
+        } else if (ngraph::is_type<ngraph::op::v1::GroupConvolution>(outOp) && node.get_index() == 1 && !p.use_new_shape_infer()) {
             auto input_shape = outOp->get_input_partial_shape(0);
             if (constDims.size() == 4 && input_shape.size() == 3) { // In case of weight dim 4 and input dim 3,
-                constDims[2] = constDims[3];                        // The weight cldnn tensor adds 1d to the end
-                constDims[3] = 1;                                   // as the input cldnn tensor does.
+                constDims.push_back(1);                             // The weight cldnn tensor adds 1d to the end as the input cldnn tensor does
             }
         }
     }

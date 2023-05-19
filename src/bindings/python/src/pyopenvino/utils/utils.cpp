@@ -215,7 +215,7 @@ std::string convert_path_to_string(const py::object& path) {
     py::object Path = py::module_::import("pathlib").attr("Path");
     // check if model path is either a string or pathlib.Path
     if (py::isinstance(path, Path) || py::isinstance<py::str>(path)) {
-        return path.str();
+        return py::str(path);
     }
     // Convert bytes to string
     if (py::isinstance<py::bytes>(path)) {
@@ -240,7 +240,10 @@ Version convert_to_version(const std::string& version) {
                    "'! The supported versions are: 'UNSPECIFIED'(default), 'IR_V10', 'IR_V11'.");
 }
 
-void deprecation_warning(const std::string& function_name, const std::string& version, const std::string& message) {
+void deprecation_warning(const std::string& function_name,
+                         const std::string& version,
+                         const std::string& message,
+                         int stacklevel) {
     std::stringstream ss;
     ss << function_name << " is deprecated";
     if (!version.empty()) {
@@ -249,7 +252,7 @@ void deprecation_warning(const std::string& function_name, const std::string& ve
     if (!message.empty()) {
         ss << ". " << message;
     }
-    PyErr_WarnEx(PyExc_DeprecationWarning, ss.str().data(), 2);
+    PyErr_WarnEx(PyExc_DeprecationWarning, ss.str().data(), stacklevel);
 }
 
 bool py_object_is_any_map(const py::object& py_obj) {

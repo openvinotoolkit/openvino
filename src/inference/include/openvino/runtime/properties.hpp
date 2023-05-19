@@ -372,7 +372,7 @@ inline std::ostream& operator<<(std::ostream& os, const SchedulingCoreType& core
     case SchedulingCoreType::ECORE_ONLY:
         return os << "ECORE_ONLY";
     default:
-        throw ov::Exception{"Unsupported core type!"};
+        OPENVINO_THROW("Unsupported core type!");
     }
 }
 
@@ -386,7 +386,7 @@ inline std::istream& operator>>(std::istream& is, SchedulingCoreType& core_type)
     } else if (str == "ECORE_ONLY") {
         core_type = SchedulingCoreType::ECORE_ONLY;
     } else {
-        throw ov::Exception{"Unsupported core type: " + str};
+        OPENVINO_THROW("Unsupported core type: ", str);
     }
     return is;
 }
@@ -677,6 +677,17 @@ static constexpr Property<std::tuple<unsigned int, unsigned int, unsigned int>, 
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<bool, PropertyMutability::RW> force_tbb_terminate{"FORCE_TBB_TERMINATE"};
+
+/**
+ * @brief Read-write property to configure `mmap()` use for model read. Enabled by default.
+ * For the moment only IR Frontend supports the property.
+ *
+ * value type: boolean
+ *   - True enable `mmap()` use and map model
+ *   - False disable `mmap()` use and read model
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<bool, PropertyMutability::RW> enable_mmap{"ENABLE_MMAP"};
 
 /**
  * @brief Namespace with device properties

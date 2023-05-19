@@ -161,20 +161,10 @@ function filterTable() {
 }
 
 function checkVersion(element, opsetNumber) {
-    var name = element.find('th').text().split("-")[0];
-    var version = Number(element.find('th').text().split("-")[1]);
+    var name = element.find('th')[0].getAttribute('name');
+    var opsets = JSON.parse(name)[element.find('th').text()];
     var realOpsetNumber = Number(opsetNumber);
-    if (version > realOpsetNumber) {
-        return false;
-    } else {
-        var versions = [];
-        $('#report #data tr th[name^="' + name + '-"]').each(function () {
-            if (Number($(this).text().split('-')[1]) <= realOpsetNumber) {
-                versions.push(Number(+$(this).text().split('-')[1]));
-            }
-        });
-        return version == Math.max.apply(null, versions);
-    }
+    return opsets.indexOf(realOpsetNumber) != -1;
 }
 
 function calculateStatistics() {

@@ -80,7 +80,7 @@ private:
         } else if (eltwise_type == ngraph::opset5::Multiply::get_type_info_static()) {
             eltwise = std::make_shared<ngraph::opset5::Multiply>(conv, const_node);
         } else {
-            throw ngraph::ngraph_error("Unsupported element type");
+            OPENVINO_THROW("Unsupported element type");
         }
 
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{eltwise.get_node_shared_ptr()},
@@ -121,7 +121,7 @@ private:
                 std::make_shared<ngraph::opset5::Multiply>(weights, ov::op::util::reshapeTo(const_node, const_shape));
             conv = conv.get_node_shared_ptr()->copy_with_new_inputs({input, weights});
         } else {
-            throw ngraph::ngraph_error("Unsupported element type");
+            OPENVINO_THROW("Unsupported element type");
         }
 
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{conv.get_node_shared_ptr()},

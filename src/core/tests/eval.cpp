@@ -101,14 +101,18 @@ TEST(eval, bad_get_data_ptr) {
 TEST(eval, max_eval_parameter) {
     auto p = make_shared<op::Parameter>(element::i64, Shape{});
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     auto result = maximum_value(p);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     EXPECT_FALSE(result.first);
     EXPECT_EQ(result.second, numeric_limits<uint64_t>::max());
 }
 
 TEST(eval, max_eval_constant) {
     auto c = op::Constant::create<int64_t>(element::i64, Shape{}, {27});
+    OPENVINO_SUPPRESS_DEPRECATED_START
     auto result = maximum_value(c);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     ASSERT_TRUE(result.first);
     EXPECT_EQ(result.second, 27);
 }
@@ -117,7 +121,9 @@ TEST(eval, max_eval_minimum_constant) {
     auto c = op::Constant::create<int64_t>(element::i64, Shape{}, {27});
     auto p = make_shared<op::Parameter>(element::i64, Shape{});
     auto m = make_shared<op::v1::Minimum>(c, p);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     auto result = maximum_value(m);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     ASSERT_TRUE(result.first);
     EXPECT_EQ(result.second, 27);
 }
@@ -134,7 +140,9 @@ TEST(eval, max_eval_reduce_min) {
     auto squeezes = make_shared<op::v0::Squeeze>(
         make_shared<op::v0::Unsqueeze>(reduce, make_shared<op::v0::Constant>(element::i32, Shape{1}, 0)),
         make_shared<op::v0::Constant>(element::i64, Shape{1}, 0));
+    OPENVINO_SUPPRESS_DEPRECATED_START
     EXPECT_EQ(maximum_value(squeezes).second, 37);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 TEST(eval, evaluate_shape_of) {

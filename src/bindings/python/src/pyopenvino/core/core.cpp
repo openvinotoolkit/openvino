@@ -360,7 +360,7 @@ void regclass_Core(py::module m) {
             }
 
             std::stringstream str;
-            str << "Provided python object type " << model_path.get_type().str()
+            str << "Provided python object type " << py::str(model_path.get_type())
                 << " isn't supported as 'model' argument.";
             OPENVINO_THROW(str.str());
         },

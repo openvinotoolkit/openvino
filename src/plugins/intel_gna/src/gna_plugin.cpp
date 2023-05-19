@@ -55,7 +55,7 @@
 #include "scale_factor_helper.hpp"
 #include "serial/gna_model_serial.hpp"
 
-using namespace ov::intel_gna::ngraph_util;
+using namespace ov::intel_gna::graph_utils;
 
 inline uint32_t ToByteSize(const Gna2DataType type) {
     switch (type) {
@@ -83,13 +83,6 @@ using namespace InferenceEngine::details;
 using namespace ov::intel_gna::memory;
 using namespace ov::intel_gna::frontend;
 using namespace ov::intel_gna::pre_post_processing;
-
-namespace InferenceEngine {
-template <>
-InferenceEngine::TBlob<gna_compound_bias_t, std::enable_if<true, void>>::~TBlob() {
-    free();
-}
-}  // namespace InferenceEngine
 
 template <typename T, typename U>
 void GNAPlugin::copyInputData(T* dst,
@@ -348,10 +341,10 @@ void GNAPlugin::PrePostProcess(InferenceEngine::Blob::Ptr input_blob,
                                std::shared_ptr<ov::Model> model) {
     const ov::element::Type input_type = details::convertPrecision(input_blob->getTensorDesc().getPrecision());
     const ov::element::Type output_type = details::convertPrecision(output_blob->getTensorDesc().getPrecision());
-    const ov::Shape& input_shape = input_blob->getTensorDesc().getDims();
-    const ov::Shape& output_shape = output_blob->getTensorDesc().getDims();
+    const ov::Shape& input_shape = model->get_parameters().front()->get_shape();
+    const ov::Shape& output_shape = model->get_results().front()->get_shape();
 
-    for (auto param : model->get_parameters()) {
+    for (const auto& param : model->get_parameters()) {
         param->set_element_type(input_type);
     }
     model->validate_nodes_and_infer_types();
@@ -419,17 +412,25 @@ void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork& network
     for (auto&& input : inputs) {
         auto data = input.second->getInputData();
         for (auto&& nextToInputLayer : getInputTo(data)) {
-            if (!LayerInfo(nextToInputLayer.second).isFakeQuantize()) {
+            CNNLayerPtr next_layer = nextToInputLayer.second;
+            // FQ layer can be connected to the input via Reshape/Transpose/Gather and other non-functional layers.
+            if (LayerInfo(next_layer).is_fq_non_sensitive()) {
+                next_layer = CNNNetCheckNextLayerSkipCertain(nextToInputLayer.second, 0, 0, true, [](CNNLayerPtr l) {
+                                 return LayerInfo(l).is_fq_non_sensitive();
+                             }).first;
+            }
+
+            if (!LayerInfo(next_layer).isFakeQuantize()) {
                 continue;
             }
 
             // replacing scale factor from this fq layer
-            GNAFakeQuantizeLayer fqLayer(nextToInputLayer.second);
+            GNAFakeQuantizeLayer fqLayer(next_layer);
             auto inputRange = fqLayer.getInputRange();
             auto outputRange = fqLayer.getOutputRange();
             if (inputRange.second.size() != 1 || inputRange.second.size() != 1 || outputRange.second.size() != 1 ||
                 outputRange.second.size() != 1) {
-                THROW_GNA_LAYER_EXCEPTION(nextToInputLayer.second)
+                THROW_GNA_LAYER_EXCEPTION(next_layer)
                     << "unsupported, per-channel quantization for input layer : " << input.second->name();
             }
 

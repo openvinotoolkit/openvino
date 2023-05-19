@@ -25,6 +25,8 @@
 #include <stdint.h>
 #include <stdio.h>
 
+#include "openvino/c/deprecated.h"
+
 #ifdef __cplusplus
 #    define INFERENCE_ENGINE_C_API_EXTERN extern "C"
 #else
@@ -35,7 +37,7 @@
 #    define INFERENCE_ENGINE_C_API(...) INFERENCE_ENGINE_C_API_EXTERN __VA_ARGS__
 #    define IE_NODISCARD
 #else
-#    if defined(_WIN32)
+#    if defined(_WIN32) || defined(__CYGWIN__)
 #        define INFERENCE_ENGINE_C_API_CALLBACK __cdecl
 #        ifdef openvino_c_EXPORTS
 #            define INFERENCE_ENGINE_C_API(...) INFERENCE_ENGINE_C_API_EXTERN __declspec(dllexport) __VA_ARGS__ __cdecl
@@ -216,8 +218,12 @@ typedef enum {
     BGR,       //!< BGR color format, default in OpenVINO
     RGBX,      //!< RGBX color format with X ignored during inference
     BGRX,      //!< BGRX color format with X ignored during inference
-    NV12,      //!< NV12 color format represented as compound Y+UV blob
-    I420,      //!< I420 color format represented as compound Y+U+V blob
+    NV12 OPENVINO_ENUM_DEPRECATED(
+        "This type is deprecated and will be removed in 2023.1 release"),  //!< NV12 color format represented as
+                                                                           //!< compound Y+UV blob
+    I420 OPENVINO_ENUM_DEPRECATED(
+        "This type is deprecated and will be removed in 2023.1 release"),  //!< I420 color format represented as
+                                                                           //!< compound Y+U+V blob
 } colorformat_e;
 
 /**
@@ -752,7 +758,8 @@ ie_infer_request_wait(ie_infer_request_t* infer_request, const int64_t timeout);
  * @param size New batch size to be used by all the following inference calls for this request.
  * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
+INFERENCE_ENGINE_C_API(OPENVINO_DEPRECATED("This function is deprecated and will be removed in 2023.1 release")
+                           IE_NODISCARD IEStatusCode)
 ie_infer_request_set_batch(ie_infer_request_t* infer_request, const size_t size);
 
 /** @} */  // end of InferRequest
@@ -1071,7 +1078,8 @@ ie_blob_make_memory_with_roi(const ie_blob_t* inputBlob, const roi_t* roi, ie_bl
  * @param nv12Blob A pointer to the newly created blob.
  * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
+INFERENCE_ENGINE_C_API(OPENVINO_DEPRECATED("This function is deprecated and will be removed in 2023.1 release")
+                           IE_NODISCARD IEStatusCode)
 ie_blob_make_memory_nv12(const ie_blob_t* y, const ie_blob_t* uv, ie_blob_t** nv12Blob);
 
 /**
@@ -1083,7 +1091,8 @@ ie_blob_make_memory_nv12(const ie_blob_t* y, const ie_blob_t* uv, ie_blob_t** nv
  * @param i420Blob A pointer to the newly created blob.
  * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
+INFERENCE_ENGINE_C_API(OPENVINO_DEPRECATED("This function is deprecated and will be removed in 2023.1 release")
+                           IE_NODISCARD IEStatusCode)
 ie_blob_make_memory_i420(const ie_blob_t* y, const ie_blob_t* u, const ie_blob_t* v, ie_blob_t** i420Blob);
 
 /**

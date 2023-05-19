@@ -27,6 +27,13 @@ def test_properties_rw_base():
     assert "incompatible function arguments" in str(e.value)
 
 
+def test_deprecation():
+    with pytest.warns(DeprecationWarning) as w:
+        _ = properties.hint.PerformanceMode.UNDEFINED
+    assert issubclass(w[0].category, DeprecationWarning)
+    assert "PerformanceMode.UNDEFINED is deprecated and will be removed" in str(w[0].message)
+
+
 ###
 # Enum-like values
 ###
@@ -213,7 +220,8 @@ def test_properties_ro(ov_property_ro, expected_value):
             "AFFINITY",
             ((properties.Affinity.NONE, properties.Affinity.NONE),),
         ),
-        (properties.force_tbb_terminate, "FORCE_TBB_TERMINATE", ((True, True),)),
+        (properties.force_tbb_terminate, "FORCE_TBB_TERMINATE", ((True, True), (False, False))),
+        (properties.enable_mmap, "ENABLE_MMAP", ((True, True), (False, False))),
         (properties.hint.inference_precision, "INFERENCE_PRECISION_HINT", ((Type.f32, Type.f32),)),
         (
             properties.hint.model_priority,

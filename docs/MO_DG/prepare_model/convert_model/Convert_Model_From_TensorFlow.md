@@ -108,11 +108,26 @@ If a model contains operations currently unsupported by OpenVINO™,
 prune these operations by explicit specification of input nodes using the ``--input`` or ``--output``
 options. To determine custom input nodes, visualize a model graph in the TensorBoard.
 
-To generate TensorBoard logs of the graph, use the Model Optimizer ``--tensorboard_logs`` command-line
-option.
-
 TensorFlow 2 SavedModel format has a specific graph structure due to eager execution. In case of
 pruning, find custom input nodes in the ``StatefulPartitionedCall/*`` subgraph.
+
+Since the 2023.0 release, direct pruning of models in SavedModel format is not supported.
+It is essential to freeze the model before pruning. Use the following code snippet for model freezing: 
+
+.. code-block:: python 
+
+   import tensorflow as tf
+   from tensorflow.python.framework.convert_to_constants import convert_variables_to_constants_v2
+   saved_model_dir = "./saved_model"
+   imported = tf.saved_model.load(saved_model_dir)
+   # retrieve the concrete function and freeze
+   concrete_func = imported.signatures[tf.saved_model.DEFAULT_SERVING_SIGNATURE_DEF_KEY]
+   frozen_func = convert_variables_to_constants_v2(concrete_func,
+                                                   lower_control_flow=False,
+                                                   aggressive_inlining=True)
+   # retrieve GraphDef and save it into .pb format
+   graph_def = frozen_func.graph.as_graph_def(add_shapes=True)
+   tf.io.write_graph(graph_def, '.', 'model.pb', as_text=False)
 
 Keras H5
 ++++++++
@@ -167,6 +182,103 @@ Command-Line Interface (CLI) Examples Using TensorFlow-Specific Parameters
 
    mo --saved_model_dir BERT --input mask,word_ids,type_ids --input_shape [2,30],[2,30],[2,30]
 
+Conversion of TensorFlow models from memory using Python API
+############################################################
+
+MO Python API supports passing TensorFlow/TensorFlow2 models directly from memory.
+
+* ``tf.keras.Model``
+
+.. code-block:: python
+
+   model = tf.keras.applications.ResNet50(weights="imagenet")
+   ov_model = convert_model(model)
+
+
+* ``tf.keras.layers.Layer``. Requires setting the "input_shape".
+
+.. code-block:: python
+
+   import tensorflow_hub as hub
+
+   model = hub.KerasLayer("https://tfhub.dev/google/imagenet/mobilenet_v1_100_224/classification/5")
+   ov_model = convert_model(model, input_shape=[-1, 224, 224, 3])
+
+* ``tf.Module``. Requires setting the "input_shape".
+
+.. code-block:: python
+
+   class MyModule(tf.Module):
+      def __init__(self, name=None):
+         super().__init__(name=name)
+         self.variable1 = tf.Variable(5.0, name="var1")
+         self.variable2 = tf.Variable(1.0, name="var2")
+      def __call__(self, x):
+         return self.variable1 * x + self.variable2
+
+   model = MyModule(name="simple_module")
+   ov_model = convert_model(model, input_shape=[-1])
+
+* ``tf.compat.v1.Graph``
+
+.. code-block:: python
+
+   with tf.compat.v1.Session() as sess:
+      inp1 = tf.compat.v1.placeholder(tf.float32, [100], 'Input1')
+      inp2 = tf.compat.v1.placeholder(tf.float32, [100], 'Input2')
+      output = tf.nn.relu(inp1 + inp2, name='Relu')
+      tf.compat.v1.global_variables_initializer()
+      model = sess.graph
+   
+   ov_model = convert_model(model)  
+
+* ``tf.compat.v1.GraphDef``
+
+.. code-block:: python
+
+   with tf.compat.v1.Session() as sess:
+      inp1 = tf.compat.v1.placeholder(tf.float32, [100], 'Input1')
+      inp2 = tf.compat.v1.placeholder(tf.float32, [100], 'Input2')
+      output = tf.nn.relu(inp1 + inp2, name='Relu')
+      tf.compat.v1.global_variables_initializer()
+      model = sess.graph_def
+   
+   ov_model = convert_model(model)  
+
+* ``tf.function``
+
+.. code-block:: python
+
+   @tf.function(
+      input_signature=[tf.TensorSpec(shape=[1, 2, 3], dtype=tf.float32),
+                       tf.TensorSpec(shape=[1, 2, 3], dtype=tf.float32)])
+   def func(x, y):
+      return tf.nn.sigmoid(tf.nn.relu(x + y))
+   
+   ov_model = convert_model(func)  
+
+* ``tf.compat.v1.session``
+
+.. code-block:: python
+
+   with tf.compat.v1.Session() as sess:
+      inp1 = tf.compat.v1.placeholder(tf.float32, [100], 'Input1')
+      inp2 = tf.compat.v1.placeholder(tf.float32, [100], 'Input2')
+      output = tf.nn.relu(inp1 + inp2, name='Relu')
+      tf.compat.v1.global_variables_initializer()
+
+      ov_model = convert_model(sess)
+
+* ``tf.train.checkpoint``
+
+.. code-block:: python
+
+   model = tf.keras.Model(...)
+   checkpoint = tf.train.Checkpoint(model)
+   save_path = checkpoint.save(save_directory)
+   # ... 
+   checkpoint.restore(save_path)
+   ov_model = convert_model(checkpoint)
 
 Supported TensorFlow and TensorFlow 2 Keras Layers
 ##################################################

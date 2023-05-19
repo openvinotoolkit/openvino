@@ -37,6 +37,7 @@ void SnippetsTestsCommon::validateNumSubgraphs() {
 }
 
 void SnippetsTestsCommon::validateOriginalLayersNamesByType(const std::string& layerType, const std::string& originalLayersNames) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     const auto& compiled_model = compiledModel.get_runtime_model();
     for (const auto& op : compiled_model->get_ops()) {
         const auto& rtInfo = op->get_rt_info();

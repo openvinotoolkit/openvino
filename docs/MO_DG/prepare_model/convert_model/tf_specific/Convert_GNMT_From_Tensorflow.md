@@ -219,7 +219,7 @@ To generate ``vocab.bpe.32000``, execute the ``nmt/scripts/wmt16_en_de.sh`` scri
    --output_dir /path/to/output/IR/
 
 
-Input and output cutting with the ``--input`` and ``--output`` options is required since OpenVINO&trade; does not support ``IteratorGetNext`` and ``LookupTableFindV2`` operations.
+Input and output cutting with the ``--input`` and ``--output`` options is required since OpenVINO™ does not support ``IteratorGetNext`` and ``LookupTableFindV2`` operations.
 
 Input cutting:
 
@@ -299,6 +299,6 @@ Running GNMT IR
    result_ie = exec_net.infer(input_data)
 
 
-For more information about Python API, refer to the `OpenVINO Runtime Python API <https://docs.openvino.ai/2022.3/api/ie_python_api/api.html>`__  guide.
+For more information about Python API, refer to the :doc:`OpenVINO Runtime Python API <api/ie_python_api/api>` guide.
 
 @endsphinxdirective

@@ -41,10 +41,14 @@ void op::ReverseSequence::validate_and_infer_types() {
                           "Sequence lengths element type must be numeric type. Got: ",
                           seq_lengths_et);
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto output_shape = shape_infer(this, get_node_input_partial_shapes(*this)).front();
+    OPENVINO_SUPPRESS_DEPRECATED_END
     set_output_type(0, get_input_element_type(0), output_shape);
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     m_normalized_seq_axis = ov::normalize_axis(this, m_seq_axis, get_input_partial_shape(0).rank());
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 shared_ptr<Node> op::ReverseSequence::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -59,10 +63,14 @@ void op::ReverseSequence::set_batch_axis(int64_t batch_axis) {
 
 size_t op::ReverseSequence::get_batch_axis() const {
     const auto& data_rank = get_input_partial_shape(0).rank();
+    OPENVINO_SUPPRESS_DEPRECATED_START
     return static_cast<size_t>(ov::normalize_axis(this, m_batch_axis, data_rank));
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 void op::ReverseSequence::set_sequence_axis(int64_t sequence_axis) {
     m_seq_axis = sequence_axis;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     m_normalized_seq_axis = ov::normalize_axis(this, m_seq_axis, get_input_partial_shape(0).rank());
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }

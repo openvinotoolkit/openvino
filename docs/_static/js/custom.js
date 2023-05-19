@@ -36,6 +36,7 @@ function addLegalNotice() {
 $(document).ready(function () {
     createVersions();
     updateTitleTag();
+    updateLanguageSelector();
     init_col_sections();
     init_switchers();
     handleSwitcherParam();
@@ -49,11 +50,11 @@ $(document).ready(function () {
 
 // Determine where we'd go if clicking on a version selector option
 function getPageUrlWithVersion(version) {
-    var currentURL = window.location.href;
-    var newURL = currentURL.replace(getCurrentVersion(), version);
-    return encodeURI(newURL);
+    const currentUrl = window.location.href;
+    const pattern = new RegExp('(?:http|https)\:\/\/.*?\/');
+    const newUrl = currentUrl.match(pattern) + version + '/index.html';
+    return encodeURI(newUrl);
 }
-
 
 function createSphinxTabSets() {
     var sphinxTabSets = $('.sphinxtabset');
@@ -127,7 +128,14 @@ function createVersions() {
     })
     var downloadBtn = $('#download-zip-btn');
     downloadBtn.attr('href', '/archives/' + currentVersion + '.zip')
+}
 
+function updateLanguageSelector() {
+    const currentVersion = getCurrentVersion();
+    $('[aria-labelledby="language-selector"]').find('a').each(function(){
+        const newUrl = $(this).attr('href').replace('latest', currentVersion);
+        $(this).attr('href', newUrl);
+    });
 }
 
 function initViewerJS() {

@@ -206,3 +206,17 @@ ov_property_key_device_priorities;
  */
 OPENVINO_C_VAR(const char*)
 ov_property_key_hint_execution_mode;
+
+/**
+ * @brief Read-write property to set whether force terminate tbb when ov core destruction
+ * @ingroup ov_property_c_api
+ */
+OPENVINO_C_VAR(const char*)
+ov_property_key_force_tbb_terminate;
+
+/**
+ * @brief Read-write property to configure `mmap()` use for model read
+ * @ingroup ov_property_c_api
+ */
+OPENVINO_C_VAR(const char*)
+ov_property_key_enable_mmap;

@@ -64,21 +64,12 @@ public:
     ///
     /// \param input_port_idx              Input port index by which data is consumed
     /// \param producer_name               A producer name
-    /// \return producer_output_port_index Output port index from which data is generated
-    virtual void get_input_node(size_t input_port_idx,
-                                std::string& producer_name,
-                                size_t& producer_output_port_index) const = 0;
-
-    /// \brief Get a producer name and its output port index
-    ///
-    /// \param input_port_idx              Input port index by which data is consumed
-    /// \param producer_name               A producer name
+    /// \param producer_output_port_name   Output port name if exists
     /// \param producer_output_port_index  Output port index from which data is generated
-    /// \param op_type_by_name             Map of operation name to their types
     virtual void get_input_node(size_t input_port_idx,
                                 std::string& producer_name,
-                                size_t& producer_output_port_index,
-                                const OpTypeByName& op_type_by_name) const = 0;
+                                std::string& producer_output_port_name,
+                                size_t& producer_output_port_index) const = 0;
 
     /// \brief Get operation type
     virtual const std::string& get_op_type() const = 0;

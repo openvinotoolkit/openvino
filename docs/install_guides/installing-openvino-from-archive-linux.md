@@ -14,7 +14,7 @@ page for instructions on how to install OpenVINO Runtime for Python using PyPI.
    Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, 
    Accuracy Checker, and Annotation Converter.
 
-See the `Release Notes <https://software.intel.com/en-us/articles/OpenVINO-RelNotes>` for more information on updates in the latest release.
+See the `Release Notes <https://software.intel.com/en-us/articles/OpenVINO-RelNotes>`__ for more information on updates in the latest release.
 
 
 .. tab:: System Requirements
@@ -30,7 +30,7 @@ See the `Release Notes <https://software.intel.com/en-us/articles/OpenVINO-RelNo
 .. tab:: Software
 
   * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`__
-  * `Python 3.7 - 3.10, 64-bit <https://www.python.org/downloads/>`__
+  * `Python 3.7 - 3.11, 64-bit <https://www.python.org/downloads/>`__
   * GCC:
 
   .. tab:: Ubuntu 18.04
@@ -211,7 +211,7 @@ Learn more about how to integrate a model in OpenVINO applications by trying out
 
 .. tab:: Get started with Python
    
-   Try the `Python Quick Start Example <https://docs.openvino.ai/nightly/notebooks/201-vision-monodepth-with-output.html>`_
+   Try the `Python Quick Start Example <notebooks/201-vision-monodepth-with-output.html>`_
    to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
    
    .. image:: https://user-images.githubusercontent.com/15709723/127752390-f6aa371f-31b5-4846-84b9-18dd4f662406.gif
@@ -219,9 +219,9 @@ Learn more about how to integrate a model in OpenVINO applications by trying out
    
    Visit the :doc:`Tutorials <tutorials>` page for more Jupyter Notebooks to get you started with OpenVINO, such as:
    
-   * `OpenVINO Python API Tutorial <https://docs.openvino.ai/nightly/notebooks/002-openvino-api-with-output.html>`_
-   * `Basic image classification program with Hello Image Classification <https://docs.openvino.ai/nightly/notebooks/001-hello-world-with-output.html>`_
-   * `Convert a PyTorch model and use it for image background removal <https://docs.openvino.ai/nightly/notebooks/205-vision-background-removal-with-output.html>`_
+   * `OpenVINO Python API Tutorial <notebooks/002-openvino-api-with-output.html>`__
+   * `Basic image classification program with Hello Image Classification <notebooks/001-hello-world-with-output.html>`__
+   * `Convert a PyTorch model and use it for image background removal <notebooks/205-vision-background-removal-with-output.html>`__
 
 
 .. tab:: Get started with C++

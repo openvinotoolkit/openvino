@@ -101,9 +101,9 @@ build_samples_msvc.bat
 
 2. Install OpenVINO Development Tools
 
-> **NOTE**: To build OpenVINO Development Tools (Model Optimizer, Post-Training Optimization Tool, Model Downloader, and Open Model Zoo tools) wheel package locally you are required to use CMake option: `-DENABLE_WHEEL=ON`.
+> **NOTE**: To build OpenVINO Development Tools (Model Optimizer, Post-Training Optimization Tool, Model Downloader, and Open Model Zoo tools) wheel package locally you are required to use the CMake option: `-DENABLE_WHEEL=ON`.
 
-To install OpenVINO Development Tools to work with Caffe models, execute the following commands:
+To install OpenVINO Development Tools to work with Caffe models (OpenVINO support for Caffe is currently being deprecated and will be removed entirely in the future), execute the following commands:
 
 Linux and macOS:
 
@@ -148,12 +148,12 @@ omz_downloader --name googlenet-v1 --output_dir %USERPROFILE%\Documents\models
 Linux and macOS:
 ```sh
 mkdir ~/ir
-mo --input_model ~/models/public/googlenet-v1/googlenet-v1.caffemodel --data_type FP16 --output_dir ~/ir
+mo --input_model ~/models/public/googlenet-v1/googlenet-v1.caffemodel --compress_to_fp16 --output_dir ~/ir
 ```
 Windows:
 ```bat
 mkdir %USERPROFILE%\Documents\ir
-mo --input_model %USERPROFILE%\Documents\models\public\googlenet-v1\googlenet-v1.caffemodel --data_type FP16 --output_dir %USERPROFILE%\Documents\ir
+mo --input_model %USERPROFILE%\Documents\models\public\googlenet-v1\googlenet-v1.caffemodel --compress_to_fp16 --output_dir %USERPROFILE%\Documents\ir
 ```
 
 5. Run Inference on the Sample

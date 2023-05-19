@@ -12,12 +12,12 @@
 #include <unordered_set>
 
 #include "common/gna_target.hpp"
+#include "common/graph_utils.hpp"
 #include "gna/gna_config.hpp"
 #include "gna_graph_tools.hpp"
 #include "gna_lib_ver_selector.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "log/log.hpp"
-#include "ops/util/util.hpp"
 
 namespace std {
 inline std::ostream& operator<<(std::ostream& os, const std::set<ov::element::Type>& t) {
@@ -83,6 +83,23 @@ bool SupportedElementTypes::is_constant_type_supported(ov::element::Type elem_ty
         return false;
     }
     return true;
+}
+
+bool is_transpose_supported(const std::shared_ptr<const ov::Node>& node) {
+    OPENVINO_ASSERT(node, "Transpose node is empty!");
+    const ov::Shape squeezed_shape = graph_utils::squeeze_shape(node->get_input_shape(0));
+    const size_t min_input_dim = std::min(squeezed_shape[0], squeezed_shape[1]);
+    const size_t max_input_dim = std::max(squeezed_shape[0], squeezed_shape[1]);
+
+    // GNA transpose limitations:
+    // - supports 2d transposes only
+    // - smaller dimension should be less or equal to 8
+    // - bigger dimension should be a multiple of limitations::noOfInputsDivisor
+    if (squeezed_shape.size() == 2 && min_input_dim <= 8 &&
+        ALIGN(max_input_dim, limitations::noOfInputsDivisor) == max_input_dim) {
+        return true;
+    }
+    return false;
 }
 
 bool is_conv_supported(const std::shared_ptr<ngraph::op::ConvolutionIE>& conv_ie,
@@ -181,7 +198,7 @@ bool is_split_supported(const std::shared_ptr<ov::Node>& node, bool is_exception
     OPENVINO_ASSERT(node, "Split node is empty!");
     bool is_aligned = true;
     for (size_t i = 0; i < node->get_output_size(); i++) {
-        is_aligned &= ov::intel_gna::ngraph_util::is_aligned_split(node, i);
+        is_aligned &= ov::intel_gna::graph_utils::is_aligned_split(node, i);
     }
     return is_aligned;
 }
@@ -198,22 +215,22 @@ bool is_op_supported(const std::shared_ptr<ov::Node>& node,
         return is_conv_supported(conv_ie, effective_compile_target, gna_precision, is_exception_allowed);
     } else if (auto fully_connected = std::dynamic_pointer_cast<ngraph::op::FullyConnected>(node)) {
         return is_fc_supported(fully_connected, is_exception_allowed);
-    } else if (ov::intel_gna::ngraph_util::is_pooling(node)) {
+    } else if (ov::intel_gna::graph_utils::is_pooling(node)) {
         return is_pooling_supported(std::dynamic_pointer_cast<ngraph::opset7::MaxPool>(node),
                                     effective_compile_target,
                                     is_exception_allowed);
     } else if (ov::op::util::is_output(node) || ov::op::util::is_sink(node) ||
-               ov::intel_gna::ngraph_util::is_eltwise_add(node) || ov::intel_gna::ngraph_util::is_eltwise_mul(node) ||
-               ov::intel_gna::ngraph_util::is_crop_affined(node) ||
-               ov::intel_gna::ngraph_util::is_activation(node.get()) ||
-               ov::intel_gna::ngraph_util::is_gna_precision_agnostic(
+               ov::intel_gna::graph_utils::is_eltwise_add(node) || ov::intel_gna::graph_utils::is_eltwise_mul(node) ||
+               ov::intel_gna::graph_utils::is_crop_affined(node) ||
+               ov::intel_gna::graph_utils::is_activation(node.get()) ||
+               ov::intel_gna::graph_utils::is_gna_precision_agnostic(
                    node) ||  // check concat/split are aligned when transformations will be moved to ngraph
                (std::dynamic_pointer_cast<ov::op::util::ReadValueBase>(node) != nullptr) ||
                (std::dynamic_pointer_cast<ngraph::op::ScaleShiftIE>(node) != nullptr) ||
                (std::dynamic_pointer_cast<ngraph::op::PowerIE>(node) != nullptr) ||
                (std::dynamic_pointer_cast<ngraph::opset9::MatMul>(node) != nullptr)) {
         return true;
-    } else if (ov::intel_gna::ngraph_util::is_gna_precision_agnostic(node)) {
+    } else if (ov::intel_gna::graph_utils::is_gna_precision_agnostic(node)) {
         if ((std::dynamic_pointer_cast<ngraph::opset9::Split>(node) != nullptr) ||
             (std::dynamic_pointer_cast<ngraph::opset9::VariadicSplit>(node) != nullptr)) {
             return is_split_supported(node, is_exception_allowed);
@@ -528,6 +545,13 @@ std::string Validator_35::ValidateCnn(const Validator_35::CnnLimits& limits,
     error += kerneHWlLimit.GetErrorOrEmpty(kernelH, kernelW);
     auto& strideHWLimit = (inPrecision == OvGnaTypeInt8) ? limits.kStrideHWLimit1B : limits.kStrideHWLimit2B;
     error += strideHWLimit.GetErrorOrEmpty(strideH, strideW);
+
+    const RangeLimit kKernelStrideHLimit{1, kernelH, "kernel stride height (must be up to kernel height)"};
+    const RangeLimit kKernelStrideWLimit{1, kernelW, "kernel stride width (must be up to kernel width)"};
+
+    error += kKernelStrideHLimit.GetErrorOrEmpty(strideH);
+    error += kKernelStrideWLimit.GetErrorOrEmpty(strideW);
+
     error += limits.kDilationLimit.GetErrorOrEmpty(dilationH, dilationW);
     return error;
 }
@@ -598,6 +622,12 @@ std::string Validator_35::ValidatePooling(const CnnLimits& limits,
                                           const uint32_t strideW) const {
     auto error = limits.kPoolingWindowHWLimit.GetErrorOrEmpty(windowH, windowW);
     error += limits.kPoolingStrideHWLimit.GetErrorOrEmpty(strideH, strideW);
+
+    const RangeLimit poolingStrideHLimit{1, windowH, "pooling stride height (must be up to pooling window height)"};
+    const RangeLimit poolingStrideWLimit{1, windowW, "pooling stride width (must be up to pooling window width)"};
+
+    error += poolingStrideHLimit.GetErrorOrEmpty(strideH);
+    error += poolingStrideWLimit.GetErrorOrEmpty(strideW);
 
     return error;
 }
@@ -803,7 +833,10 @@ static bool ValidateConcatAxis(const InferenceEngine::CNNLayerPtr layer, std::st
         if (unsupported_concat_axis != end_dim) {
             auto dims = concat_layer->insData[0].lock()->getDims();
             std::ostringstream in_dims_oss;
-            std::copy(dims.begin(), dims.end(), std::ostream_iterator<size_t>(in_dims_oss, ","));
+            std::copy(dims.begin(), std::prev(dims.end()), std::ostream_iterator<size_t>(in_dims_oss, ","));
+            if (!dims.empty()) {
+                in_dims_oss << dims.back();
+            }
             errMessage = "[ WARNING ] Topology with layer: " + layer->name + ", type: " + layer->type +
                          ", and concatenation axis(" + std::to_string(concat_layer->_axis) + ") for input dimensions(" +
                          in_dims_oss.str() + ") not supported\n";
@@ -822,7 +855,8 @@ bool ValidateConvConcatAxis(const InferenceEngine::ConcatLayer* concat_layer) {
 
         // Skipping here all layers which would disappear or otherwise fuse with convolution in the final GNA graph
         auto isFusableWithConv = [](InferenceEngine::CNNLayerPtr ptr) {
-            return (LayerInfo(ptr).isFusableWithConv() || LayerInfo(ptr).isNonFunctional());
+            return (LayerInfo(ptr).isFusableWithConv() || LayerInfo(ptr).isNonFunctional() ||
+                    LayerInfo(ptr).isConcat());
         };
 
         auto in_dims = concat_layer->insData[0].lock()->getDims();

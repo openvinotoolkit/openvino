@@ -116,7 +116,6 @@ public:
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
         auto kernel_params = get_kernel_params(impl_param, true);
         (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
-        update_kernels_list_to_skip();
     }
 };
 
@@ -152,6 +151,9 @@ attach_fully_connected_impl::attach_fully_connected_impl() {
         std::make_tuple(data_types::i8, format::bs_fs_yx_bsv16_fsv16),
         std::make_tuple(data_types::u8, format::bs_fs_yx_bsv16_fsv16),
         std::make_tuple(data_types::f16, format::fs_b_yx_fsv32),
+        std::make_tuple(data_types::f32, format::bs_fs_fsv8_bsv8),
+        std::make_tuple(data_types::f16, format::bs_fs_fsv8_bsv8),
+        std::make_tuple(data_types::f16, format::bs_fs_fsv8_bsv16),
     });
 }
 

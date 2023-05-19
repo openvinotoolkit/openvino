@@ -10,6 +10,7 @@
 #include <vector>
 #include <memory>
 #include <caseless.hpp>
+#include "executors/eltwise_list.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -132,8 +133,6 @@ public:
 
     void executeDynamicImpl(dnnl::stream strm) override;
 
-    void setDynamicBatchLim(int lim) override;
-
     enum BroadcastingPolicy {
         PerChannel,
         PerTensor,
@@ -152,7 +151,6 @@ private:
 
     EltwiseImplType implType = EltwiseImplType::reference;
     std::vector<bool> broadcastPolicy;
-    bool isDynBatchEnabled = false;
     bool specialConvolutionAddFusing = false;
     size_t inputNum = 0;
     std::vector<ptrdiff_t> start_offset_in = {};
@@ -199,6 +197,10 @@ private:
 
     void appendMemory(const std::vector<float> &data, MemoryPtr &memPtr, std::vector<MemoryPtr>& postOpsMem);
     void appendMemory(const std::vector<float> &data, MemoryPtr &memPtr, std::vector<const void*>& postOpsMem);
+
+    bool canUseAclExecutor = false;
+    EltwiseAttrs eltwiseAttrs;
+    std::shared_ptr<EltwiseExecutor> aclExecPtr = nullptr;
 };
 
 class eltwise_precision_helper {

@@ -28,9 +28,18 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
     auto inputInfo = networkInputs.at(op->get_friendly_name());
     // first create and add the input layout
     const auto inputDesc = inputInfo->getTensorDesc();
-    auto input_pshape = op->get_partial_shape();
     InferenceEngine::Layout l = inputDesc.getLayout();
     InferenceEngine::Precision ip = inputDesc.getPrecision();
+
+    auto input_pshape = op->get_partial_shape();
+    if (!p.use_new_shape_infer()) {
+        if (input_pshape.size() < 4) {
+            input_pshape.insert(input_pshape.end(), 4 - input_pshape.size(), ov::Dimension(1));
+        }
+        if (p.m_max_batch > 1) {
+            input_pshape[0] = ov::Dimension(p.m_curBatch);
+        }
+    }
 
     cldnn::format inputFormat = cldnn::format::get_default_format(input_pshape.size());
     std::vector<size_t> default_order(input_pshape.size());

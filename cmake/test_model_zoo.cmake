@@ -42,11 +42,12 @@ function(ov_model_convert SRC DST OUT)
         endif()
 
         set(full_out_name "${DST}/${rel_out_name}")
-        file(MAKE_DIRECTORY "${DST}/${rel_dir}")
 
         if(ext STREQUAL ".prototxt")
             # convert .prototxt models to .onnx binary
             add_custom_command(OUTPUT ${full_out_name}
+                COMMAND ${CMAKE_COMMAND} -E make_directory
+                    "${DST}/${rel_dir}"
                 COMMAND ${PYTHON_EXECUTABLE} ${onnx_gen_script}
                     "${SRC}/${in_file}" ${full_out_name}
                 DEPENDS ${onnx_gen_script} "${SRC}/${in_file}"
@@ -55,6 +56,8 @@ function(ov_model_convert SRC DST OUT)
                 WORKING_DIRECTORY "${model_source_dir}")
         else()
             add_custom_command(OUTPUT ${full_out_name}
+                COMMAND ${CMAKE_COMMAND} -E make_directory
+                    "${DST}/${rel_dir}"
                 COMMAND "${CMAKE_COMMAND}" -E copy_if_different
                     "${SRC}/${in_file}" ${full_out_name}
                 DEPENDS ${onnx_gen_script} "${SRC}/${in_file}"
@@ -68,18 +71,24 @@ function(ov_model_convert SRC DST OUT)
     set(${OUT} ${files} PARENT_SCOPE)
 endfunction()
 
+if(OV_GENERATOR_MULTI_CONFIG AND CMAKE_VERSION VERSION_GREATER_EQUAL 3.20)
+    set(test_model_zoo_output_dir "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>/test_model_zoo")
+else()
+    set(test_model_zoo_output_dir "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo")
+endif()
+
 ov_model_convert("${CMAKE_CURRENT_SOURCE_DIR}/src/core/tests"
-                 "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo/core"
+                 "${test_model_zoo_output_dir}/core"
                   core_tests_out_files)
 
 set(rel_path "src/tests/functional/plugin/shared/models")
 ov_model_convert("${OpenVINO_SOURCE_DIR}/${rel_path}"
-                 "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo/func_tests/models"
+                 "${test_model_zoo_output_dir}/func_tests/models"
                  ft_out_files)
 
 set(rel_path "src/frontends/onnx/tests/models")
 ov_model_convert("${OpenVINO_SOURCE_DIR}/${rel_path}"
-                 "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo/onnx"
+                 "${test_model_zoo_output_dir}/onnx"
                  onnx_fe_out_files)
 
 if(ENABLE_TESTS)
@@ -87,11 +96,12 @@ if(ENABLE_TESTS)
                                              ${ft_out_files}
                                              ${onnx_fe_out_files})
 
-    if (ENABLE_OV_PADDLE_FRONTEND)
-        add_dependencies(test_model_zoo paddle_test_models)
-    endif()
+    # TODO Reenable PDPD after paddlepaddle==2.5.0 with compliant protobuf is released (ticket 95904)
+    #if (ENABLE_OV_PADDLE_FRONTEND)
+    #    add_dependencies(test_model_zoo paddle_test_models)
+    #endif()
 
-    install(DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo"
+    install(DIRECTORY "${test_model_zoo_output_dir}"
             DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
 
     set(TEST_MODEL_ZOO "./test_model_zoo" CACHE PATH "Path to test model zoo")

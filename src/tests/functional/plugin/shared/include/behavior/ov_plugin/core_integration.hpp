@@ -689,10 +689,22 @@ TEST(OVClassBasicTest, SetTBBForceTerminatePropertyCoreNoThrow) {
     bool value = true;
     OV_ASSERT_NO_THROW(ie.set_property(ov::force_tbb_terminate(false)));
     OV_ASSERT_NO_THROW(value = ie.get_property(ov::force_tbb_terminate.name()).as<bool>());
-    EXPECT_EQ(value, false);
+    EXPECT_FALSE(value);
     OV_ASSERT_NO_THROW(ie.set_property(ov::force_tbb_terminate(true)));
     OV_ASSERT_NO_THROW(value = ie.get_property(ov::force_tbb_terminate.name()).as<bool>());
-    EXPECT_EQ(value, true);
+    EXPECT_TRUE(value);
+}
+
+TEST(OVClassBasicTest, SetEnableMmapPropertyCoreNoThrow) {
+    ov::Core ie;
+
+    bool value = true;
+    OV_ASSERT_NO_THROW(ie.set_property(ov::enable_mmap(false)));
+    OV_ASSERT_NO_THROW(value = ie.get_property(ov::enable_mmap.name()).as<bool>());
+    EXPECT_FALSE(value);
+    OV_ASSERT_NO_THROW(ie.set_property(ov::enable_mmap(true)));
+    OV_ASSERT_NO_THROW(value = ie.get_property(ov::enable_mmap.name()).as<bool>());
+    EXPECT_TRUE(value);
 }
 
 TEST(OVClassBasicTest, GetUnsupportedPropertyCoreThrow) {
@@ -700,20 +712,6 @@ TEST(OVClassBasicTest, GetUnsupportedPropertyCoreThrow) {
 
     // Unsupported property test
     ASSERT_THROW(ie.get_property("unsupported_property"), ov::Exception);
-}
-
-TEST(OVClassBasicTest, SetAllowAutoBatchingPropertyCoreNoThrows) {
-    ov::Core ie = createCoreWithTemplate();
-
-    bool value1 = true;
-    OV_ASSERT_NO_THROW(ie.set_property(ov::hint::allow_auto_batching(false)));
-    OV_ASSERT_NO_THROW(value1 = ie.get_property(ov::hint::allow_auto_batching.name()).as<bool>());
-    ASSERT_FALSE(value1);
-
-    bool value2 = false;
-    OV_ASSERT_NO_THROW(ie.set_property(ov::hint::allow_auto_batching(true)));
-    OV_ASSERT_NO_THROW(value2 = ie.get_property(ov::hint::allow_auto_batching.name()).as<bool>());
-    ASSERT_TRUE(value2);
 }
 
 TEST_P(OVClassSetLogLevelConfigTest, SetConfigNoThrow) {
@@ -831,7 +829,7 @@ TEST_P(OVClassNetworkTestP, SetAffinityWithConstantBranches) {
         std::string affinity = rl_map[op->get_friendly_name()];
         op->get_rt_info()["affinity"] = affinity;
     }
-    auto exeNetwork = ie.compile_model(ksoNetwork, target_device);
+    auto exeNetwork = ie.compile_model(func, target_device);
 }
 
 TEST_P(OVClassNetworkTestP, SetAffinityWithKSO) {

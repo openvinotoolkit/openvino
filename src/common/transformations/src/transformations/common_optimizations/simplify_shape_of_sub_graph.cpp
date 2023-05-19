@@ -147,7 +147,9 @@ ov::pass::GatherNopElimination::GatherNopElimination() {
             return false;
         std::vector<int64_t> expected_vector(number_of_indices);
         std::iota(expected_vector.begin(), expected_vector.end(), 0);
+        OPENVINO_SUPPRESS_DEPRECATED_START
         if (const auto& indices = get_constant_from_source(gather->input_value(1))) {
+            OPENVINO_SUPPRESS_DEPRECATED_END
             const auto& indices_values = indices->cast_vector<int64_t>();
             if (indices_values != expected_vector)
                 return false;
