@@ -21,6 +21,9 @@ public:
     size_t m_loop_depth = 1;
 };
 
+/* The control flow of Snippets is built on Linear Intermediate Representation (Linear IR).
+ * The class diagram is described in the documentation `snippets/docs/snippets_design_guide.md`.
+ */
 class LinearIR {
     class ExpressionFactory;
 public:
