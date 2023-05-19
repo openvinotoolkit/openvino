@@ -178,3 +178,36 @@ TEST(remove_redundant_reorders, not_to_fuse_reshape_with_fused_prims) {
         ASSERT_GE(output_ptr[i], 0);
     }
 }
+
+TEST(remove_redundant_reorders, not_to_fuse_permute) {
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({data_types::f16, format::b_fs_zyx_fsv16, {2, 256, 2, 8, 8}});
+    auto weight = engine.allocate_memory({data_types::f16, format::bfzyx, {1, 256, 1, 1, 1}});
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(data("weight", weight));
+    topology.add(
+        convolution("convolution", input_info("input"), "weight", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
+    topology.add(
+        reorder("reorder1", input_info("convolution"), {data_types::f16, format::b_fs_zyx_fsv16, {2, 256, 2, 8, 8}}));
+    topology.add(reorder("reorder2", input_info("reorder1"), {data_types::f16, format::bfwzyx, {2, 2, 1, 8, 8, 256}}));
+    topology.add(permute("permute", input_info("reorder2"), {0, 3, 2, 4, 5, 1}));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    auto prog = program::build_program(engine, topology, config, false, true);
+    ASSERT_NE(prog, nullptr);
+
+    layout_optimizer lo(true);
+    bool opt_data = config.get_property(ov::intel_gpu::optimize_data);
+
+    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog, lo);
+    program_wrapper::apply_opt_pass<remove_redundant_reorders>(*prog, lo, opt_data);
+
+    auto& node = prog->get_node("permute");
+    auto in_layout = node.get_input_layouts()[0];
+    ASSERT_EQ(in_layout.format.value, format::bfwzyx);
+
+    network network(engine, topology, config);
+}
