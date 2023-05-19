@@ -35,6 +35,9 @@ target_include_directories(${TARGET_NAME} PUBLIC
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
     $<BUILD_INTERFACE:$<$<TARGET_EXISTS:xbyak::xbyak>:$<TARGET_PROPERTY:xbyak::xbyak,INTERFACE_INCLUDE_DIRECTORIES>>>)
 
+find_package(Threads REQUIRED)
+target_link_libraries(${TARGET_NAME} PRIVATE Threads::Threads)
+
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
 # Add an alias so that library can be used inside the build tree, e.g. when testing
