@@ -33,11 +33,11 @@ std::vector<size_t> make_subtensor(const ov::Shape& tensor) {
 template<typename T>
 void set_full_port_desc(const T& port) {
     const auto& shape = port.get_shape();
-    PortManager::set_port_descriptor_ptr(port, std::make_shared<PortDescriptor>(shape, make_subtensor(shape)));
+    PortDescriptorUtils::set_port_descriptor_ptr(port, std::make_shared<PortDescriptor>(shape, make_subtensor(shape)));
 }
 template<typename T, typename... Args>
 void set_port_desc(const T& port, Args... params) {
-    PortManager::set_port_descriptor_ptr(port, std::make_shared<PortDescriptor>(params...));
+    PortDescriptorUtils::set_port_descriptor_ptr(port, std::make_shared<PortDescriptor>(params...));
 }
 } // namespace
 
@@ -58,9 +58,9 @@ pass::BrgemmToBrgemmCPU::BrgemmToBrgemmCPU() {
             return false;
         }
 
-        const auto& brgemm_in0_desc = PortManager::get_port_descriptor_ptr(brgemm->input(0));
-        const auto& brgemm_in1_desc = PortManager::get_port_descriptor_ptr(brgemm->input(1));
-        const auto& brgemm_out_desc = PortManager::get_port_descriptor_ptr(brgemm->output(0));
+        const auto& brgemm_in0_desc = PortDescriptorUtils::get_port_descriptor_ptr(brgemm->input(0));
+        const auto& brgemm_in1_desc = PortDescriptorUtils::get_port_descriptor_ptr(brgemm->input(1));
+        const auto& brgemm_out_desc = PortDescriptorUtils::get_port_descriptor_ptr(brgemm->output(0));
 
         const auto dimsMatMulIn0 = snippets::utils::get_port_planar_shape(brgemm->input_value(0)).get_shape();
         const auto dimsMatMulIn1 = snippets::utils::get_port_planar_shape(brgemm->input_value(1)).get_shape();

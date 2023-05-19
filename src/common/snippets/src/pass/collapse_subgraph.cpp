@@ -578,7 +578,10 @@ TokenizeSnippets::TokenizeSnippets() {
             OPENVINO_THROW("body results and node results size mismatch during subgraph collaps");
         }
 
-        // todo: move this plugin-specific constraint to the plugin callback
+        // The each data node (Parameter (and non-Scalar Constants), Result, Buffers with the same ID) requires the own unique GPR.
+        // At the moment, CPU Plugin has limitation for GPR registers: there are only 12 available registers.
+        // This limitation will be resolved once generator supports gprs spills [75622].
+        // TODO [75567]: move this plugin-specific constraint to the plugin callback
         const auto unique_buffer_count = op::Subgraph::get_estimated_buffer_count(new_body_ops);
         if (body_parameters.size() + body_results.size() + hidden_data_count + unique_buffer_count > 12) {
             const std::string message_reset = "new subgraph is created. Impossible to schedule subgraph with " +

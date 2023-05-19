@@ -57,9 +57,9 @@ std::shared_ptr<Node> Brgemm::clone_with_new_inputs(const OutputVector& new_args
     check_new_args_count(this, new_args);
     return std::make_shared<Brgemm>(new_args.at(0), new_args.at(1),
                                     get_offset_a(), get_offset_b(), get_offset_c(),
-                                    lowered::PortManager::get_port_descriptor_ptr(input(0))->get_layout(),
-                                    lowered::PortManager::get_port_descriptor_ptr(input(1))->get_layout(),
-                                    lowered::PortManager::get_port_descriptor_ptr(output(0))->get_layout());
+                                    lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(0))->get_layout(),
+                                    lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(1))->get_layout(),
+                                    lowered::PortDescriptorUtils::get_port_descriptor_ptr(output(0))->get_layout());
 }
 
 ov::element::Type Brgemm::get_output_type() const {

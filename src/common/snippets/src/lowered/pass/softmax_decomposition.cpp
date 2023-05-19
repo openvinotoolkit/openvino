@@ -142,6 +142,7 @@ bool SoftmaxDecomposition::run(LinearIR& linear_ir) {
 
             // For tail loop we should fill input of Max by float min and
             // input of Sum by zero to avoid math incorrect calculations
+            // TODO [111383]: It should be covered via general pipeline (for example, via analyze in InsertTailLoop?)
             max.second->input(0).get_rt_info()["set_fill"] = uint32_t(0xff7fffff);
             sum.second->input(0).get_rt_info()["set_fill"] = uint32_t(0x00000000);
             modified = true;

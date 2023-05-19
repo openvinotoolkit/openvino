@@ -60,7 +60,9 @@ bool operator==(const PortDescriptor& lhs, const PortDescriptor& rhs) {
            lhs.m_subtensor_shape == rhs.m_subtensor_shape;
 }
 
-void PortManager::init_default(std::vector<PortDescriptorPtr>& in_descs, std::vector<PortDescriptorPtr>& out_descs, const std::shared_ptr<ov::Node>& node) {
+void PortDescriptorUtils::init_default(std::vector<PortDescriptorPtr>& in_descs,
+                                       std::vector<PortDescriptorPtr>& out_descs,
+                                       const std::shared_ptr<ov::Node>& node) {
     in_descs.resize(node->get_input_size());
     out_descs.resize(node->get_output_size());
     for (size_t i = 0; i < node->get_input_size(); ++i) {
@@ -71,7 +73,7 @@ void PortManager::init_default(std::vector<PortDescriptorPtr>& in_descs, std::ve
     }
 }
 
-void PortManager::set_port_descriptor_ptr(const ov::Input<ov::Node>& in, const PortDescriptorPtr& desc) {
+void PortDescriptorUtils::set_port_descriptor_ptr(const ov::Input<ov::Node>& in, const PortDescriptorPtr& desc) {
     const auto& node = in.get_node()->shared_from_this();
     auto& rt_info = node->get_rt_info();
     const auto& key = PortDescriptorVectorAttribute::get_type_info_static();
@@ -89,7 +91,7 @@ void PortManager::set_port_descriptor_ptr(const ov::Input<ov::Node>& in, const P
     }
 }
 
-void PortManager::set_port_descriptor_ptr(const ov::Output<ov::Node>& out, const PortDescriptorPtr& desc) {
+void PortDescriptorUtils::set_port_descriptor_ptr(const ov::Output<ov::Node>& out, const PortDescriptorPtr& desc) {
     const auto& node = out.get_node_shared_ptr();
     auto& rt_info = node->get_rt_info();
     const auto& key = PortDescriptorVectorAttribute::get_type_info_static();
@@ -107,10 +109,10 @@ void PortManager::set_port_descriptor_ptr(const ov::Output<ov::Node>& out, const
     }
 }
 
-PortDescriptorPtr PortManager::get_port_descriptor_ptr(const ov::Input<ov::Node>& in) {
+PortDescriptorPtr PortDescriptorUtils::get_port_descriptor_ptr(const ov::Input<ov::Node>& in) {
     return get_port_descriptor_ptr(ov::Input<const Node>(in.get_node(), in.get_index()));
 }
-PortDescriptorPtr PortManager::get_port_descriptor_ptr(const ov::Input<const ov::Node>& in) {
+PortDescriptorPtr PortDescriptorUtils::get_port_descriptor_ptr(const ov::Input<const ov::Node>& in) {
     const auto& node = in.get_node();
     auto& rt_info = node->get_rt_info();
     const auto& key = PortDescriptorVectorAttribute::get_type_info_static();
@@ -124,10 +126,10 @@ PortDescriptorPtr PortManager::get_port_descriptor_ptr(const ov::Input<const ov:
     return in_descs[in.get_index()];
 }
 
-PortDescriptorPtr PortManager::get_port_descriptor_ptr(const Output<ov::Node>& out) {
+PortDescriptorPtr PortDescriptorUtils::get_port_descriptor_ptr(const Output<ov::Node>& out) {
     return get_port_descriptor_ptr(ov::Output<const Node>(out.get_node(), out.get_index()));
 }
-PortDescriptorPtr PortManager::get_port_descriptor_ptr(const Output<const ov::Node>& out) {
+PortDescriptorPtr PortDescriptorUtils::get_port_descriptor_ptr(const Output<const ov::Node>& out) {
     const auto& node = out.get_node();
     const auto& rt_info = node->get_rt_info();
     const auto& key = PortDescriptorVectorAttribute::get_type_info_static();
@@ -141,7 +143,7 @@ PortDescriptorPtr PortManager::get_port_descriptor_ptr(const Output<const ov::No
     return out_descs[out.get_index()];
 }
 
-void PortManager::clean(const std::shared_ptr<ov::Node>& node) {
+void PortDescriptorUtils::clean(const std::shared_ptr<ov::Node>& node) {
     auto& rt_info = node->get_rt_info();
     rt_info.erase(PortDescriptorVectorAttribute::get_type_info_static());
 }

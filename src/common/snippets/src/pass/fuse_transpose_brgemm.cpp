@@ -26,8 +26,8 @@ bool FuseTransposeBrgemm::is_supported_transpose(const Output<Node>& transpose_p
     // if Transpose in and out layout is not empty => something was already fused on this port
     auto default_layout = std::vector<size_t>(transpose_port.get_shape().size());
     std::iota(default_layout.begin(), default_layout.end(), 0);// NCHW layout by default
-    if (lowered::PortManager::get_port_descriptor_ptr(transpose_port)->get_layout() != default_layout ||
-        lowered::PortManager::get_port_descriptor_ptr(transpose_node->input_value(0))->get_layout() != default_layout)
+    if (lowered::PortDescriptorUtils::get_port_descriptor_ptr(transpose_port)->get_layout() != default_layout ||
+        lowered::PortDescriptorUtils::get_port_descriptor_ptr(transpose_node->input_value(0))->get_layout() != default_layout)
         return false;
     const auto& transpose_order = constant->cast_vector<int>();
     // todo: this limitation is due to the fact that offsets are calculated in Kernel, and the only way
@@ -65,7 +65,7 @@ FuseTransposeBrgemm::FuseTransposeBrgemm() {
             const auto& brgemm_out = brgemm->output(0);
             const auto& transpose_out = m.get_match_value();
             const auto& const_order = ov::as_type_ptr<ov::op::v0::Constant>(transpose_out.get_node_shared_ptr()->get_input_node_shared_ptr(1));
-            const auto& original_port = ov::snippets::lowered::PortManager::get_port_descriptor_ptr(brgemm_out);
+            const auto& original_port = ov::snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(brgemm_out);
             original_port->set_shape(transpose_out.get_shape());
             original_port->set_layout(const_order->cast_vector<size_t>());
             for (const auto& in : transpose_out.get_target_inputs())
@@ -79,7 +79,7 @@ FuseTransposeBrgemm::FuseTransposeBrgemm() {
                 const auto& transpose = as_type_ptr<ov::op::v1::Transpose>(in_value.get_node_shared_ptr());
                 const auto& const_order = ov::as_type_ptr<ov::op::v0::Constant>(transpose->get_input_node_shared_ptr(1));
                 brgemm->set_argument(i, transpose->input_value(0));
-                const auto& original_port = ov::snippets::lowered::PortManager::get_port_descriptor_ptr(in);
+                const auto& original_port = ov::snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(in);
                 original_port->set_shape(transpose->get_input_shape(0));
                 original_port->set_layout(const_order->cast_vector<size_t>());
             }

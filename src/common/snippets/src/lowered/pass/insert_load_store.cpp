@@ -50,6 +50,16 @@ void InsertLoadStore::update_loop(const LinearIR::LoopManager::LoopInfoPtr& loop
     ports.insert(port_it, target_ports.cbegin(), target_ports.cend());
 }
 
+size_t InsertLoadStore::get_count(const PortDescriptorPtr& port_desc) const {
+    const auto layout = port_desc->get_layout();
+    const auto shape = port_desc->get_shape();
+    // Find last dimension by layout
+    const auto last_dim_idx = std::find(layout.begin(), layout.end(), layout.size() - 1);
+    OPENVINO_ASSERT(last_dim_idx != layout.end(), "Load/Store expression have incorrect layout");
+    const auto dim = shape[*last_dim_idx];
+    return dim == 1 ? 1 : m_vector_size;
+}
+
 bool InsertLoadStore::insert_load(LinearIR& linear_ir, const LinearIR::constExprIt& data_expr_it) {
     const auto& loop_manager = linear_ir.get_loop_manager();
     const auto& data_expr = *data_expr_it;
@@ -71,8 +81,8 @@ bool InsertLoadStore::insert_load(LinearIR& linear_ir, const LinearIR::constExpr
         const auto inner_loop = get_inner_loop_id(loop_ids);
         OPENVINO_ASSERT(inner_loop != Expression::LOOP_NULL_ID, "Loop hasn't been found!");
 
-        const auto load = std::make_shared<op::Load>(data_node->output(0), m_vector_size);
-        PortManager::set_port_descriptor_ptr(load->output(0), consumer_input.get_descriptor_ptr()->clone());
+        const auto load = std::make_shared<op::Load>(data_node->output(0), get_count(data_expr->get_output_port_descriptor(0)));
+        PortDescriptorUtils::set_port_descriptor_ptr(load->output(0), consumer_input.get_descriptor_ptr()->clone());
         const auto load_expr = linear_ir.create_expression(load, {output_tensor});
         linear_ir.insert(std::find(data_expr_it, linear_ir.cend(), consumer_expr), load_expr);
         linear_ir.replace_input(consumer_input, load_expr->get_output_tensor(0));
@@ -106,8 +116,8 @@ bool InsertLoadStore::insert_store(LinearIR& linear_ir, const LinearIR::constExp
     const auto inner_loop = get_inner_loop_id(loop_ids);
     OPENVINO_ASSERT(inner_loop != Expression::LOOP_NULL_ID, "Loop hasn't been found!");
 
-    const auto store = std::make_shared<op::Store>(parent->output(port), m_vector_size);
-    PortManager::set_port_descriptor_ptr(store->output(0), parent_output.get_descriptor_ptr()->clone());
+    const auto store = std::make_shared<op::Store>(parent->output(port), get_count(data_expr->get_input_port_descriptor(0)));
+    PortDescriptorUtils::set_port_descriptor_ptr(store->output(0), parent_output.get_descriptor_ptr()->clone());
     const auto store_expr = linear_ir.create_expression(store, {input_tensor});
     const auto& reverse_insertion_pos = std::find(std::reverse_iterator<LinearIR::constExprIt>(data_expr_it), linear_ir.crend(), parent_expr);
     const auto& insertion_pos = reverse_insertion_pos.base();

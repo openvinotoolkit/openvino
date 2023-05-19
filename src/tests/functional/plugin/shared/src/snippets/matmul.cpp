@@ -35,82 +35,41 @@ void MatMul::SetUp() {
     std::tie(input_shapes, elem_types, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
     init_input_shapes(static_partial_shapes_to_test_representation(input_shapes));
 
-    auto f = ov::test::snippets::MatMulFunction(input_shapes, elem_types);
-    function = f.getOriginal();
+    init_subgraph(input_shapes, elem_types);
     if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
         configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
                               InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK});
     }
 }
 
-void MatMulFQ::SetUp() {
-    std::vector<ov::PartialShape> input_shapes;
-    std::vector<ov::element::Type> elem_types;
-    std::tie(input_shapes, elem_types, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
-    init_input_shapes(static_partial_shapes_to_test_representation(input_shapes));
-
-    auto f = ov::test::snippets::FQMatMulFunction(input_shapes);
+void MatMul::init_subgraph(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& types) {
+    auto f = ov::test::snippets::MatMulFunction(inputShapes, types);
     function = f.getOriginal();
-    if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
-        configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
-                              InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK});
-    }
 }
 
-void MatMulBias::SetUp() {
-    std::vector<ov::PartialShape> input_shapes;
-    std::vector<ov::element::Type> elem_types;
-    std::tie(input_shapes, elem_types, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
-    init_input_shapes(static_partial_shapes_to_test_representation(input_shapes));
-
-    auto f = ov::test::snippets::MatMulBiasFunction(input_shapes, elem_types);
+void MatMulFQ::init_subgraph(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& types) {
+    auto f = ov::test::snippets::FQMatMulFunction(inputShapes);
     function = f.getOriginal();
-    if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
-        configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
-                              InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK});
-    }
 }
 
-void MatMulBiasQuantized::SetUp() {
-    std::vector<ov::PartialShape> input_shapes;
-    std::vector<ov::element::Type> elem_types;
-    std::tie(input_shapes, elem_types, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
-    init_input_shapes(static_partial_shapes_to_test_representation(input_shapes));
-
-    auto f = ov::test::snippets::MatMulBiasQuantizedFunction(input_shapes, elem_types);
+void MatMulBias::init_subgraph(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& types) {
+    auto f = ov::test::snippets::MatMulBiasFunction(inputShapes, types);
     function = f.getOriginal();
-    if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
-        configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
-                              InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK});
-    }
 }
 
-void MatMulsQuantized::SetUp() {
-    std::vector<ov::PartialShape> input_shapes;
-    std::vector<ov::element::Type> elem_types;
-    std::tie(input_shapes, elem_types, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
-    init_input_shapes(static_partial_shapes_to_test_representation(input_shapes));
-
-    auto f = ov::test::snippets::MatMulsQuantizedFunction(input_shapes, elem_types);
+void MatMulBiasQuantized::init_subgraph(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& types) {
+    auto f = ov::test::snippets::MatMulBiasQuantizedFunction(inputShapes, types);
     function = f.getOriginal();
-    if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
-        configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
-                              InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK});
-    }
 }
 
-void MatMulsQuantizedSoftmax::SetUp() {
-    std::vector<ov::PartialShape> input_shapes;
-    std::vector<ov::element::Type> elem_types;
-    std::tie(input_shapes, elem_types, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
-    init_input_shapes(static_partial_shapes_to_test_representation(input_shapes));
-
-    auto f = ov::test::snippets::MatMulsQuantizedSoftmaxFunction(input_shapes, elem_types);
+void MatMulsQuantized::init_subgraph(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& types) {
+    auto f = ov::test::snippets::MatMulsQuantizedFunction(inputShapes, types);
     function = f.getOriginal();
-    if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
-        configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
-                              InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK});
-    }
+}
+
+void MatMulsQuantizedSoftmax::init_subgraph(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& types) {
+    auto f = ov::test::snippets::MatMulsQuantizedSoftmaxFunction(inputShapes, types);
+    function = f.getOriginal();
 }
 
 TEST_P(MatMul, CompareWithRefImpl) {

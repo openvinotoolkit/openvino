@@ -6,22 +6,17 @@
 
 #include <cpu/x64/jit_generator.hpp>
 
-#include "snippets/lowered/expression.hpp"
-#include "snippets/op/subgraph.hpp"
 #include "snippets/snippets_isa.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/tensor.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/op//brgemm_cpu.hpp"
-#include "snippets/snippets_isa.hpp"
-#include "snippets/op/subgraph.hpp"
-#include "snippets/lowered/tensor.hpp"
 
 using namespace InferenceEngine;
-using ov::snippets::op::Subgraph;
-using ov::snippets::AllocatedEmitter;
 using namespace Xbyak;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
+using ov::snippets::AllocatedEmitter;
 using ov::snippets::lowered::Expression;
 using ov::snippets::lowered::IOExpression;
 using ov::snippets::lowered::ExpressionPtr;
@@ -68,10 +63,10 @@ void jit_container_emitter::map_abstract_registers(mapping_info& gpr_map_pool,  
         return physical_regs;
     };
 
-    for (const auto& lowered_code : expressions) {
-        const auto& emitter = lowered_code->get_emitter();
+    for (const auto& expression : expressions) {
+        const auto& emitter = expression->get_emitter();
         std::vector<size_t> in_abstract_regs, out_abstract_regs;
-        std::tie(in_abstract_regs, out_abstract_regs) = lowered_code->get_reg_info();
+        std::tie(in_abstract_regs, out_abstract_regs) = expression->get_reg_info();
         std::vector<size_t> in_physical_regs, out_physical_regs;
         switch (std::dynamic_pointer_cast<jit_emitter>(emitter)->get_in_out_type()) {
             case gpr_to_gpr:
@@ -96,8 +91,8 @@ void jit_container_emitter::map_abstract_registers(mapping_info& gpr_map_pool,  
             default:
                 IE_THROW() << "Unhandled in_out type";
         }
-        lowered_code->set_reg_info({in_physical_regs, out_physical_regs});
-        if (auto container = std::dynamic_pointer_cast<jit_container_emitter>(lowered_code->get_emitter()))
+        expression->set_reg_info({in_physical_regs, out_physical_regs});
+        if (auto container = std::dynamic_pointer_cast<jit_container_emitter>(expression->get_emitter()))
             container->map_abstract_registers(gpr_map_pool,  vec_map_pool, expressions);
     }
 }
@@ -310,10 +305,10 @@ void KernelEmitter::emit_impl(const std::vector<size_t>& in,
     transform_idxs_to_regs(data_ptr_regs_idx, data_ptr_regs);
 
     init_data_pointers(num_inputs, num_inputs + num_outputs, num_unique_buffer, reg_indexes, reg_const_params, data_ptr_regs);
-    for (const auto& lowered_code : body) {
-        const auto& emitter = lowered_code->get_emitter();
+    for (const auto& expression : body) {
+        const auto& emitter = expression->get_emitter();
         std::vector<size_t> in_regs, out_regs;
-        std::tie(in_regs, out_regs) = lowered_code->get_reg_info();
+        std::tie(in_regs, out_regs) = expression->get_reg_info();
         emitter->emit_code(in_regs, out_regs, vec_regs_pool, gp_regs_pool);
     }
     h->postamble();
@@ -745,10 +740,10 @@ BrgemmEmitter::BrgemmEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
     std::vector<ov::Input<ov::Node>> brgemm_inputs = {brgemm_node->input(0),
                                                       brgemm_copy ? brgemm_copy->input(0) : brgemm_node->input(1)};
     for (const auto& input : brgemm_inputs) {
-        init_scheduling_params(snippets::lowered::PortManager::get_port_descriptor_ptr(input)->get_layout(),
+        init_scheduling_params(snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input)->get_layout(),
                                input.get_shape());
     }
-    init_scheduling_params(snippets::lowered::PortManager::get_port_descriptor_ptr(brgemm_node->output(0))->get_layout(),
+    init_scheduling_params(snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(brgemm_node->output(0))->get_layout(),
                            brgemm_node->output(0).get_shape());
 
     const auto& A_shape = brgemm_node->get_input_shape(0);
@@ -1105,7 +1100,7 @@ BrgemmCopyBEmitter::BrgemmCopyBEmitter(dnnl::impl::cpu::x64::jit_generator* h, d
     if (m_with_comp)
         m_comp_offset = brgemm_repack->get_offset_compensations();
 
-    const auto& layout = snippets::lowered::PortManager::get_port_descriptor_ptr(brgemm_repack->input(0))->get_layout();
+    const auto& layout = snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(brgemm_repack->input(0))->get_layout();
     const auto& original_shape = brgemm_repack->get_input_shape(0);
     auto transposed_shape = original_shape;
     size_t leading_dimension = *(original_shape.rbegin());

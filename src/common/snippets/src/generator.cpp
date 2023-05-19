@@ -46,7 +46,7 @@ Generator::LoweringResult Generator::generate(lowered::LinearIR& linear_ir, cons
 
     // todo: we save lowered to access compiled brgemm kernels on execution time (normally lowered is destructed by then)
     //  remove this when kernel caching is implemented. Don't forget to make generate const method.
-    if (config.m_save_lowered_code)
+    if (config.m_save_expressions)
         lowered_saved = linear_ir;
 
     return { target->get_snippet() };

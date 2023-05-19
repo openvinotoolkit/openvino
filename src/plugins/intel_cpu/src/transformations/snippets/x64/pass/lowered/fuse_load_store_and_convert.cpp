@@ -46,7 +46,7 @@ bool ov::intel_cpu::pass::FuseLoadStoreConvert::fuse_load_convert(snippets::lowe
 
     const auto out_port = convert_expr->get_output_port(0);
     const auto convert_consumers = out_port.get_connected_ports();
-    snippets::lowered::PortManager::set_port_descriptor_ptr(load_convert->output(0), out_port.get_descriptor_ptr()->clone());
+    snippets::lowered::PortDescriptorUtils::set_port_descriptor_ptr(load_convert->output(0), out_port.get_descriptor_ptr()->clone());
     const auto load_convert_expr = linear_ir.create_expression(load_convert, { load_expr->get_input_tensor(0) });
     const auto convert_expr_it = convert_it;
     const auto insertion_pos = std::next(convert_it);
@@ -91,7 +91,7 @@ bool ov::intel_cpu::pass::FuseLoadStoreConvert::fuse_store_convert(snippets::low
 
     const auto out_port = store_expr->get_output_port(0);
     const auto store_consumers = out_port.get_connected_ports();
-    snippets::lowered::PortManager::set_port_descriptor_ptr(store_convert->output(0), out_port.get_descriptor_ptr()->clone());
+    snippets::lowered::PortDescriptorUtils::set_port_descriptor_ptr(store_convert->output(0), out_port.get_descriptor_ptr()->clone());
     const auto store_convert_expr = linear_ir.create_expression(store_convert, { input_td });
     const auto convert_expr_it = convert_it;
     const auto insertion_pos = std::next(convert_it);

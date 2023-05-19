@@ -62,11 +62,11 @@ private:
     std::vector<size_t> m_layout{};
     /// \brief Minimal tensor size that could be processed in one call
     std::vector<size_t> m_subtensor_shape{};
-    /// \brief The corresponding abstract register
+    /// \brief The corresponding abstract/physical register
     size_t m_reg = 0;
 };
 
-class PortManager {
+class PortDescriptorUtils {
 public:
     static void set_port_descriptor_ptr(const ov::Input<ov::Node>& n, const PortDescriptorPtr& desc);
     static void set_port_descriptor_ptr(const ov::Output<ov::Node>& n, const PortDescriptorPtr& desc);

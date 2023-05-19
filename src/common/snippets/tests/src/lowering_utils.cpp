@@ -62,7 +62,7 @@ void LoweringTests::SetUp() {
 
 void LoweringTests::TearDown() {
     ASSERT_TRUE(function);
-    auto cloned_function = ov::clone_model(*function);
+    auto cloned_function = function->clone();
     if (!function_ref) {
         function_ref = cloned_function;
     }

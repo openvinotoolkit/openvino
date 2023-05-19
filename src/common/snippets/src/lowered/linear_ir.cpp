@@ -19,10 +19,10 @@ namespace snippets {
 namespace lowered {
 
 LinearIR::LinearIR(const std::shared_ptr<ov::Model>& model, Config config)
-        : m_io_lowered_ops{}, m_config{std::move(config)}, m_loop_manager(std::make_shared<LoopManager>()) {
-    constExprIt last_param = m_lowered_ops.end();
+        : m_io_expressions{}, m_config{std::move(config)}, m_loop_manager(std::make_shared<LoopManager>()) {
+    constExprIt last_param = m_expressions.end();
     for (const auto& n : get_ordered_ops(model)) {
-        constExprIt insertion_pos = m_lowered_ops.end();
+        constExprIt insertion_pos = m_expressions.end();
         const auto expr = create_expression(n, model);
 
         // Scalar should be on the Linear IR beginning after Parameters to have valid expression order after Loop passes.
@@ -33,10 +33,10 @@ LinearIR::LinearIR(const std::shared_ptr<ov::Model>& model, Config config)
         }
 
         register_expression(expr, true);
-        const auto& it = m_lowered_ops.insert(insertion_pos, expr);
+        const auto& it = m_expressions.insert(insertion_pos, expr);
 
         if (const auto io_expr = std::dynamic_pointer_cast<IOExpression>(expr)) {
-            m_io_lowered_ops.push_back(io_expr);
+            m_io_expressions.push_back(io_expr);
             if (ov::is_type<ov::op::v0::Parameter>(n))
                 last_param = it;
         }
@@ -71,7 +71,7 @@ void LinearIR::serialize(const std::string& xml, const std::string& bin) {
     first_node->set_friendly_name("Start");
     first_node->get_rt_info()["execTimeMcs"] = 0;
     std::shared_ptr<Node> body_node = first_node;
-    for (const auto& expr : m_lowered_ops) {
+    for (const auto& expr : m_expressions) {
         body_node = std::make_shared<op::SerializationNode>(body_node, expr);
     }
     auto last_node = std::make_shared<ov::op::v0::Result>(body_node);
@@ -116,7 +116,7 @@ void LinearIR::debug_print(bool tds_as_pointers) const {
     std::map<TensorPtr, int> td2int;
     int td_counter = 0;
     int counter = 0;
-    for (const auto& expr : m_lowered_ops) {
+    for (const auto& expr : m_expressions) {
         const auto& node = expr->get_node();
         std::cerr << counter++ << " : " <<
                   node->get_friendly_name() << " :  ";
@@ -148,7 +148,7 @@ void LinearIR::debug_print(bool tds_as_pointers) const {
 }
 
 void LinearIR::init_emitters(const std::shared_ptr<TargetMachine>& target) {
-    for (auto& expr : m_lowered_ops) {
+    for (auto& expr : m_expressions) {
         if (!expr->get_emitter())
             expr->init_emitter(target);
     }
@@ -206,12 +206,12 @@ void LinearIR::unregister_expression(const ExpressionPtr& expr) {
 
 LinearIR::exprIt LinearIR::insert(constExprIt pos, container::value_type&& value) {
     register_expression(value);
-    return m_lowered_ops.insert(pos, value);
+    return m_expressions.insert(pos, value);
 }
 
 LinearIR::exprIt LinearIR::insert(constExprIt pos, const container::value_type& value) {
     register_expression(value);
-    return m_lowered_ops.insert(pos, value);
+    return m_expressions.insert(pos, value);
 }
 
 LinearIR::exprIt LinearIR::insert(constExprIt pos, exprIt begin, exprIt end) {
@@ -223,15 +223,15 @@ LinearIR::exprIt LinearIR::insert(constExprIt pos, exprIt begin, exprIt end) {
 LinearIR::exprIt LinearIR::insert(constExprIt pos, constExprIt begin, constExprIt end) {
     for (auto b = begin; b != end; b++)
         register_expression(*b);
-    return m_lowered_ops.insert(pos, begin, end);
+    return m_expressions.insert(pos, begin, end);
 }
 
 LinearIR::exprIt LinearIR::insert(LinearIR::constExprIt pos, const NodeVector& nodes) {
-    auto ret = m_lowered_ops.end();
+    auto ret = m_expressions.end();
     for (const auto& n : nodes) {
         const auto& expr = create_expression(n);
         register_expression(expr);
-        ret = m_lowered_ops.insert(pos, expr);
+        ret = m_expressions.insert(pos, expr);
     }
     // Need to return iterator to the first of the inserted values
     return std::prev(ret, static_cast<int64_t>(nodes.size()));
@@ -240,22 +240,22 @@ LinearIR::exprIt LinearIR::insert(LinearIR::constExprIt pos, const NodeVector& n
 LinearIR::exprIt LinearIR::insert(LinearIR::constExprIt pos, const std::shared_ptr<Node>& n) {
     const auto& expr = create_expression(n);
     register_expression(expr);
-    return m_lowered_ops.insert(pos, expr);
+    return m_expressions.insert(pos, expr);
 }
 
 LinearIR::exprIt LinearIR::erase(LinearIR::exprIt pos) {
     unregister_expression(*pos);
-    return m_lowered_ops.erase(pos);
+    return m_expressions.erase(pos);
 }
 
 LinearIR::exprIt LinearIR::erase(LinearIR::constExprIt pos) {
     unregister_expression(*pos);
-    return m_lowered_ops.erase(pos);
+    return m_expressions.erase(pos);
 }
 
 void LinearIR::move(LinearIR::constExprIt from, LinearIR::constExprIt to) {
     // Instead of `insert()` + `erase()`, we use `splice()` for the same list
-    m_lowered_ops.splice(to, m_lowered_ops, from);
+    m_expressions.splice(to, m_expressions, from);
 }
 
 }// namespace lowered

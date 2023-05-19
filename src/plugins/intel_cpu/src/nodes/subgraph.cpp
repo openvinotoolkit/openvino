@@ -564,14 +564,14 @@ void Snippet::generate(const jit_snippets_compile_args* jcp) {
     CPU_REGISTER_PASS_X64(post_precision, ov::intel_cpu::pass::RemoveConverts);
     CPU_REGISTER_PASS_X64(post_precision, ov::intel_cpu::pass::MulAddToFMA);
 
-    ov::snippets::lowered::pass::PassPipeline target_specific_pipeline;
-    CPU_REGISTER_PASS_X64(target_specific_pipeline, ov::intel_cpu::pass::FuseLoadStoreConvert);
+    ov::snippets::lowered::pass::PassPipeline control_flow_pipeline;
+    CPU_REGISTER_PASS_X64(control_flow_pipeline, ov::intel_cpu::pass::FuseLoadStoreConvert);
 
     schedule = snippet->generate(
         pre_dialect,
         post_dialect,
         post_precision,
-        target_specific_pipeline,
+        control_flow_pipeline,
         reinterpret_cast<const void*>(jcp));
 }
 

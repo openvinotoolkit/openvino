@@ -20,10 +20,10 @@ Expression::Expression(const std::shared_ptr<Node>& n) : m_source_node{n}, m_emi
     m_input_port_descriptors.reserve(n->get_input_size());
     m_output_port_descriptors.reserve(n->get_output_size());
     for (const auto& input : n->inputs()) {
-        m_input_port_descriptors.push_back(PortManager::get_port_descriptor_ptr(input));
+        m_input_port_descriptors.push_back(PortDescriptorUtils::get_port_descriptor_ptr(input));
     }
     for (const auto& output : n->outputs()) {
-        m_output_port_descriptors.push_back(PortManager::get_port_descriptor_ptr(output));
+        m_output_port_descriptors.push_back(PortDescriptorUtils::get_port_descriptor_ptr(output));
     }
 }
 

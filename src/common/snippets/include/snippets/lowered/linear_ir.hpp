@@ -15,7 +15,7 @@ namespace lowered {
 class Config {
 public:
     // True if the lowered Emitters need to be accessed during runtime. Normally they're destroyed after code emission.
-    bool m_save_lowered_code = false;
+    bool m_save_expressions = false;
     // True if we should check runtime info for nodes to call specific needed transformations
     bool m_need_fill_tail_register = false;
     size_t m_loop_depth = 1;
@@ -36,8 +36,8 @@ public:
 
     static LinearIR::container deep_copy_range(LinearIR::container::const_iterator begin, LinearIR::container::const_iterator end);
 
-    const container& get_ops() const {return m_lowered_ops; }
-    const io_container& get_IO_ops() const {return m_io_lowered_ops; }
+    const container& get_ops() const {return m_expressions; }
+    const io_container& get_IO_ops() const {return m_io_expressions; }
     Config get_config() {return m_config; }
 
     const ExpressionPtr& get_expr_by_node(const std::shared_ptr<Node>& n) const;
@@ -52,24 +52,24 @@ public:
     */
     void move(constExprIt from, constExprIt to);
 
-    bool empty() const noexcept {return m_lowered_ops.empty(); }
+    bool empty() const noexcept {return m_expressions.empty(); }
     void debug_print(bool tds_as_pointers = false) const;
 
-    container::reference back() noexcept {return m_lowered_ops.back();}
-    container::const_reference back() const noexcept {return m_lowered_ops.back();}
-    container::reference front() noexcept {return m_lowered_ops.front();}
-    container::const_reference front() const noexcept {return m_lowered_ops.front();}
+    container::reference back() noexcept {return m_expressions.back();}
+    container::const_reference back() const noexcept {return m_expressions.back();}
+    container::reference front() noexcept {return m_expressions.front();}
+    container::const_reference front() const noexcept {return m_expressions.front();}
 
-    exprIt begin() noexcept {return m_lowered_ops.begin();}
-    exprIt end() noexcept {return m_lowered_ops.end();}
+    exprIt begin() noexcept {return m_expressions.begin();}
+    exprIt end() noexcept {return m_expressions.end();}
     constExprIt begin() const noexcept {return cbegin();}
     constExprIt end() const noexcept {return cend();}
-    constExprIt cbegin() const noexcept {return m_lowered_ops.cbegin();}
-    constExprIt cend() const noexcept {return m_lowered_ops.cend();}
-    container::reverse_iterator rbegin() noexcept {return m_lowered_ops.rbegin();}
-    container::reverse_iterator rend() noexcept {return m_lowered_ops.rend();}
-    container::const_reverse_iterator crbegin() const noexcept {return m_lowered_ops.crbegin();}
-    container::const_reverse_iterator crend() const noexcept {return m_lowered_ops.crend();}
+    constExprIt cbegin() const noexcept {return m_expressions.cbegin();}
+    constExprIt cend() const noexcept {return m_expressions.cend();}
+    container::reverse_iterator rbegin() noexcept {return m_expressions.rbegin();}
+    container::reverse_iterator rend() noexcept {return m_expressions.rend();}
+    container::const_reverse_iterator crbegin() const noexcept {return m_expressions.crbegin();}
+    container::const_reverse_iterator crend() const noexcept {return m_expressions.crend();}
 
     exprIt insert(constExprIt pos, const ov::NodeVector& nodes);
     exprIt insert(constExprIt pos, const std::shared_ptr<Node>& n);
@@ -97,9 +97,9 @@ private:
     void register_expression(const ExpressionPtr& expr, bool io_allowed = false);
     void unregister_expression(const ExpressionPtr& expr);
 
-    container m_lowered_ops{};
+    container m_expressions{};
     std::unordered_map<std::shared_ptr<Node>, std::shared_ptr<Expression>> m_node2expression_map;
-    io_container m_io_lowered_ops;
+    io_container m_io_expressions;
     Config m_config{};
     LoopManagerPtr m_loop_manager = nullptr;
 };

@@ -29,7 +29,6 @@
 #include "snippets/lowered/pass/init_loops.hpp"
 #include "snippets/lowered/pass/insert_buffers.hpp"
 #include "snippets/lowered/pass/insert_load_store.hpp"
-#include "snippets/lowered/pass/vector_to_scalar.hpp"
 #include "snippets/lowered/pass/load_movebroadcast_to_broadcastload.hpp"
 #include "snippets/lowered/pass/allocate_buffers.hpp"
 #include "snippets/lowered/pass/propagate_layout.hpp"
@@ -40,7 +39,6 @@
 #include "snippets/lowered/pass/clean_repeated_ptr_shifts.hpp"
 #include "snippets/lowered/pass/identify_buffers.hpp"
 
-#include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/utils/utils.hpp"
 
 #include <ngraph/pass/manager.hpp>
@@ -513,14 +511,12 @@ void snippets::op::Subgraph::data_flow_transformations(ov::pass::Manager& pre_co
 }
 
 void snippets::op::Subgraph::control_flow_transformations(lowered::LinearIR& linear_ir,
-                                                          lowered::pass::PassPipeline& target_pipeline,
-                                                          const lowered::Config& config) {
+                                                          lowered::pass::PassPipeline& target_pipeline) {
     INTERNAL_OP_SCOPE(Subgraph);
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::control_flow_transformations")
 
-    linear_ir = lowered::LinearIR(body_ptr(), config);
     const size_t vector_size = get_generator()->get_target_machine()->get_lanes();
-    const int32_t buffer_allocation_rank = static_cast<int32_t>(config.m_loop_depth);
+    const int32_t buffer_allocation_rank = static_cast<int32_t>(linear_ir.get_config().m_loop_depth);
 
     // Note: The pass InitLoops uses LoopInfo that contains entry and exit points of the corresponding Loop.
     //       To avoid the Loop information corruption, we should call the passes with Load/Store work
@@ -532,7 +528,6 @@ void snippets::op::Subgraph::control_flow_transformations(lowered::LinearIR& lin
     common_pipeline.register_pass<lowered::pass::MoveResultOutOfLoop>();
     common_pipeline.register_pass<lowered::pass::InsertBuffers>(buffer_allocation_rank);
     common_pipeline.register_pass<lowered::pass::InsertLoadStore>(vector_size);
-    common_pipeline.register_pass<lowered::pass::SetScalarCountForLoadStore>();
     common_pipeline.register_pass<lowered::pass::InitLoops>();
     common_pipeline.register_pass<lowered::pass::MoveScalarToConsumer>();
     common_pipeline.register_pass<lowered::pass::LoadMoveBroadcastToBroadcastLoad>();
@@ -589,14 +584,15 @@ snippets::Schedule snippets::op::Subgraph::generate(
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::generate")
     NGRAPH_CHECK(m_generator != nullptr, "generate is called while generator is not set");
 
-    lowered::LinearIR linear_ir;
+    data_flow_transformations(pre_common, post_common, post_precision);
+
     lowered::Config lowering_config;
-    lowering_config.m_save_lowered_code = config.m_has_domain_sensitive_ops;
+    lowering_config.m_save_expressions = config.m_has_domain_sensitive_ops;
     lowering_config.m_need_fill_tail_register = config.m_has_domain_sensitive_ops;
     lowering_config.m_loop_depth = tileRank;
 
-    data_flow_transformations(pre_common, post_common, post_precision);
-    control_flow_transformations(linear_ir, target_lowered_pipeline, lowering_config);
+    lowered::LinearIR linear_ir = lowered::LinearIR(body_ptr(), lowering_config);
+    control_flow_transformations(linear_ir, target_lowered_pipeline);
 
     // actual code emission
     const auto& lowering_result = m_generator->generate(linear_ir, lowering_config, compile_params);

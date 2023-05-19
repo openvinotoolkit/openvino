@@ -88,18 +88,18 @@ ov::PartialShape get_reordered_planar_shape(const ov::PartialShape& shape, const
 }
 
 ov::PartialShape get_port_planar_shape(const Input<Node>& in) {
-    const auto& port = lowered::PortManager::get_port_descriptor_ptr(in);
+    const auto& port = lowered::PortDescriptorUtils::get_port_descriptor_ptr(in);
     return utils::get_reordered_planar_shape(ov::Shape{port->get_shape()}, port->get_layout());
 }
 
 ov::PartialShape get_port_planar_shape(const Output<Node>& out) {
-    const auto& port = lowered::PortManager::get_port_descriptor_ptr(out);
+    const auto& port = lowered::PortDescriptorUtils::get_port_descriptor_ptr(out);
     return utils::get_reordered_planar_shape(ov::Shape{port->get_shape()}, port->get_layout());
 }
 
 void safe_copy_runtime_info(const std::shared_ptr<ov::Node>& from, const std::shared_ptr<ov::Node>& to) {
     ov::copy_runtime_info(from, to);
-    lowered::PortManager::clean(to);
+    lowered::PortDescriptorUtils::clean(to);
 }
 
 } // namespace utils

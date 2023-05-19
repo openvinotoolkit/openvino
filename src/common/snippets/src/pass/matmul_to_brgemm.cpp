@@ -22,11 +22,11 @@ void MatMulToBrgemm::init_ports(const std::shared_ptr<op::Brgemm>& brgemm) const
     for (const auto& input : brgemm->inputs()) {
         const auto tensor = input.get_shape();
         const auto subtensor = get_subtensor(tensor);
-        lowered::PortManager::set_port_descriptor_ptr(input, std::make_shared<lowered::PortDescriptor>(tensor, subtensor));
+        lowered::PortDescriptorUtils::set_port_descriptor_ptr(input, std::make_shared<lowered::PortDescriptor>(tensor, subtensor));
     }
     const auto tensor = brgemm->get_output_shape(0);
     const auto subtensor = get_subtensor(tensor);
-    lowered::PortManager::set_port_descriptor_ptr(brgemm->output(0), std::make_shared<lowered::PortDescriptor>(tensor, subtensor));
+    lowered::PortDescriptorUtils::set_port_descriptor_ptr(brgemm->output(0), std::make_shared<lowered::PortDescriptor>(tensor, subtensor));
 }
 
 MatMulToBrgemm::MatMulToBrgemm() {

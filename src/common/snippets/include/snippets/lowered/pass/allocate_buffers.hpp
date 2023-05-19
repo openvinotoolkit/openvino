@@ -14,7 +14,12 @@ namespace pass {
 
 /**
  * @interface AllocateBuffers
- * @brief The pass calculation common size of buffer scratchpad and propagates Buffer offsets to connected MemoryAccess operations.
+ * @brief The pass calculates common size of buffer scratchpad and propagates Buffer offsets to connected MemoryAccess operations.
+ *        Notes:
+ *           - The pass implicitly regulates InPlace processing for some Buffers when it's possible.
+ *             The pass don't allocate new memory for InPlace Buffers, we propagate the same offsets for them.
+ *           - The pass should be splitted into two passes: ProcessInplace (markup of Buffers which can use the same memory)
+ *             and AllocateBuffer (allocate memory for Buffers using MemorySolver which can optimally reuse memory).
  * @ingroup snippets
  */
 

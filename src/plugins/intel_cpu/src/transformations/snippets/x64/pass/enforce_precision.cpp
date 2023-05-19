@@ -15,9 +15,9 @@
 using namespace ov::intel_cpu::pass;
 
 EnforcePrecision::EnforcePrecision(
-    const element::Type source,
-    const element::Type target,
-    std::function<std::set<std::vector<element::Type>>(const std::shared_ptr<ngraph::Node>& op)> get_supported_precisions) :
+    const ov::element::Type source,
+    const ov::element::Type target,
+    std::function<std::set<std::vector<ov::element::Type>>(const std::shared_ptr<ov::Node>& op)> get_supported_precisions) :
     source(source),
     target(target),
     get_supported_precisions(get_supported_precisions == nullptr ? get_supported_precisions_default : get_supported_precisions) {
@@ -118,7 +118,7 @@ bool EnforcePrecision::run_on_model(const std::shared_ptr<ov::Model>& f) {
 }
 
 std::set<std::vector<ov::element::Type>> EnforcePrecision::get_supported_precisions_default(
-    const std::shared_ptr<ngraph::Node>&op) noexcept {
+    const std::shared_ptr<ov::Node>&op) noexcept {
     if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16) && ov::is_type<snippets::op::Brgemm>(op)) {
         return {{element::bf16, element::bf16}};
     }

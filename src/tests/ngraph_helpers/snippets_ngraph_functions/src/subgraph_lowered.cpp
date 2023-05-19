@@ -80,33 +80,33 @@ std::shared_ptr<ov::Model> Transpose0213MatMulLoweredFunction::initLowered() con
     // Note: validity of transpose_position values is checked in Transpose0213MatMulSinhFunction constructor
     if (transpose_position < 2) {
         const auto& anchor = data[transpose_position]->output(0);
-        const auto& td = ov::snippets::lowered::PortManager::get_port_descriptor_ptr(anchor);
+        const auto& td = ov::snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(anchor);
         const auto& tensor = td->get_shape();
         const auto& subtensor = td->get_subtensor();
     }
     auto matmul = std::make_shared<ov::snippets::op::Brgemm>(data[0], data[1], 0, 0, 0, transpose_position == 0 ? layout : std::vector<size_t>{},
-                                                                                            transpose_position == 1 ? layout : std::vector<size_t>{},
-                                                                                            transpose_position == 2 ? layout : std::vector<size_t>{});
+                                                                                        transpose_position == 1 ? layout : std::vector<size_t>{},
+                                                                                        transpose_position == 2 ? layout : std::vector<size_t>{});
     auto result = std::make_shared<ov::op::v0::Result>(matmul);
     if (transpose_position == 2) {
         const auto& anchor = matmul->output(0);
-        const auto& td = ov::snippets::lowered::PortManager::get_port_descriptor_ptr(anchor);
+        const auto& td = ov::snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(anchor);
         const auto& tensor = td->get_shape();
         const auto& subtensor = td->get_subtensor();
-        ov::snippets::lowered::PortManager::set_port_descriptor_ptr(anchor,
+        ov::snippets::lowered::PortDescriptorUtils::set_port_descriptor_ptr(anchor,
                                                                         std::make_shared<ov::snippets::lowered::PortDescriptor>(tensor,
-                                                                                                                                    subtensor,
-                                                                                                                                    layout));
+                                                                                                                                subtensor,
+                                                                                                                                layout));
     }
     if (transpose_position < 2) {
         const auto& anchor = data[transpose_position]->output(0);
-        const auto& td = ov::snippets::lowered::PortManager::get_port_descriptor_ptr(anchor);
+        const auto& td = ov::snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(anchor);
         const auto& tensor = td->get_shape();
         const auto& subtensor = td->get_subtensor();
-        ov::snippets::lowered::PortManager::set_port_descriptor_ptr(matmul->input(transpose_position),
+        ov::snippets::lowered::PortDescriptorUtils::set_port_descriptor_ptr(matmul->input(transpose_position),
                                                                         std::make_shared<ov::snippets::lowered::PortDescriptor>(tensor,
-                                                                                                                                    subtensor,
-                                                                                                                                    layout));
+                                                                                                                                subtensor,
+                                                                                                                                layout));
     }
     matmul->validate_and_infer_types();
     return std::make_shared<ov::Model>(NodeVector{matmul}, data);

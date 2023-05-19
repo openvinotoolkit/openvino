@@ -110,15 +110,15 @@ std::shared_ptr<Node> BrgemmCPU::clone_with_new_inputs(const OutputVector& new_a
     if (!is_with_scratchpad()) {
         new_node = std::make_shared<BrgemmCPU>(new_args.at(0), new_args.at(1), m_type,
                                                get_offset_a(), get_offset_b(), get_offset_c(),
-                                               snippets::lowered::PortManager::get_port_descriptor_ptr(input(0))->get_layout(),
-                                               snippets::lowered::PortManager::get_port_descriptor_ptr(input(1))->get_layout(),
-                                               snippets::lowered::PortManager::get_port_descriptor_ptr(output(0))->get_layout());
+                                               snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(0))->get_layout(),
+                                               snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(1))->get_layout(),
+                                               snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(output(0))->get_layout());
     } else {
         new_node = std::make_shared<BrgemmCPU>(new_args.at(0), new_args.at(1), new_args.at(2), m_type,
                                                get_offset_a(), get_offset_b(), get_offset_scratch(), get_offset_c(),
-                                               snippets::lowered::PortManager::get_port_descriptor_ptr(input(0))->get_layout(),
-                                               snippets::lowered::PortManager::get_port_descriptor_ptr(input(1))->get_layout(),
-                                               snippets::lowered::PortManager::get_port_descriptor_ptr(output(0))->get_layout());
+                                               snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(0))->get_layout(),
+                                               snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(1))->get_layout(),
+                                               snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(output(0))->get_layout());
     }
     return new_node;
 }
