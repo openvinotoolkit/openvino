@@ -36,7 +36,7 @@
     #include <string.h>
     #include <windef.h>
     #include <fileapi.h>
-    #include <Winbase.h>
+    #include <winbase.h>
     #include <sys/stat.h>
     // clang-format on
 

@@ -84,13 +84,6 @@ using namespace ov::intel_gna::memory;
 using namespace ov::intel_gna::frontend;
 using namespace ov::intel_gna::pre_post_processing;
 
-namespace InferenceEngine {
-template <>
-InferenceEngine::TBlob<gna_compound_bias_t, std::enable_if<true, void>>::~TBlob() {
-    free();
-}
-}  // namespace InferenceEngine
-
 template <typename T, typename U>
 void GNAPlugin::copyInputData(T* dst,
                               const U* src,
