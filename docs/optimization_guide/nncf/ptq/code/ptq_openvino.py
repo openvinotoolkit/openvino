@@ -28,4 +28,7 @@ model_int8 = ov.compile_model(quantized_model)
 
 input_fp32 = ... # FP32 model input
 res = model_int8(input_fp32)
+
+# save the model
+ov.serialize(quantized_model, "quantized_model.xml")
 #! [inference]
