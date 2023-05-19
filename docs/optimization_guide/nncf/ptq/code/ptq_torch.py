@@ -37,4 +37,7 @@ ov_quantized_model = convert_model(onnx_model_path)
 model_int8 = ov.compile_model(ov_quantized_model)
 
 res = model_int8(input_fp32)
+
+# save the model
+ov.serialize(ov_quantized_model, "quantized_model.xml")
 #! [inference]
