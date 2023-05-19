@@ -29,14 +29,18 @@ def one_hot_v2(name: str, x, num_classes, is_tensor):
 
 
 def main():
-    # int32
-    data = np.array([1, 1, 3, 0]).astype("int32")
+    # int 32
+    data = np.array([1]).astype("int32")
     num_classes = 4
     one_hot_v2("one_hot_v2_1", data, num_classes, is_tensor=False)
-    # int64
+    # rank 1 int64
     data = np.array([4, 1, 3, 3]).astype("int64")
     num_classes = np.array([5]).astype("int32")
     one_hot_v2("one_hot_v2_2", data, num_classes, is_tensor=True)
+    # rank 2 int64
+    data = np.array([[4, 1, 3, 3], [1, 1, 3, 0]]).astype("int64")
+    num_classes = np.array([5]).astype("int32")
+    one_hot_v2("one_hot_v2_3", data, num_classes, is_tensor=True)
 
 
 if __name__ == "__main__":

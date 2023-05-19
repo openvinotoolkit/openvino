@@ -21,7 +21,7 @@ NamedOutputs one_hot_v2(const NodeContext& node) {
     }
     auto on_value = default_opset::Constant::create(element::f32, Shape{}, {1});
     auto off_value = default_opset::Constant::create(element::f32, Shape{}, {0});
-    const auto indices_axis = 1;
+    const auto indices_axis = -1;
     auto result = std::make_shared<default_opset::OneHot>(data, depth, on_value, off_value, indices_axis);
     return node.default_single_output_mapping({result}, {"Out"});
 }
