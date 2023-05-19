@@ -1,18 +1,18 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include <direct.h>
-
 #include <sstream>
 
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/mmap_object.hpp"
 
+// clang-format-off
+#include <direct.h>
 #ifndef NOMINMAX
 #    define NOMINMAX
 #endif
-
 #include <windows.h>
+// clang-format-on
 
 namespace ov {
 namespace util {

@@ -265,7 +265,6 @@ public:
 
         if (!t.is_dynamic()) {
             definitions.push_back({_name + "_OFFSET", toCodeString(t.GetFirstElementOffset())});
-            definitions.push_back({_name + "_SIZE", toCodeString(t.GetDims().size())});
             definitions.push_back(
                 {_name + "_SIZES_DATA",
                 toVectorString(t.GetDims(), "", KERNEL_SELECTOR_TENSOR_DIM_MAX, 1, [](const Tensor::Dim& d) { return d.v; })});
