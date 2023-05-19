@@ -12,15 +12,20 @@ namespace test {
 namespace snippets {
 
 std::string PrecisionPropagationConvertion::getTestCaseName(testing::TestParamInfo<PrecisionPropagationParams> obj) {
-    std::vector<ov::PartialShape> input_shapes;
+    std::vector<InputShape> input_shapes;
     std::vector<float> fake_quantize_intervals;
     std::string targetDevice;
     size_t num_nodes, num_subgraphs;
     std::tie(input_shapes, fake_quantize_intervals, num_nodes, num_subgraphs, targetDevice) = obj.param;
 
     std::ostringstream result;
-    for (size_t i = 0; i < input_shapes.size(); ++i)
-        result << "IS[" << i << "]=" << input_shapes[i] << "_";
+    for (size_t i = 0; i < input_shapes.size(); ++i) {
+        result << "IS[" << i << "]=" << CommonTestUtils::partialShape2str({input_shapes[i].first}) << "_";
+        result << "TS[" << i << "}=";
+        for (const auto& shape : input_shapes[i].second) {
+            result << "(" << CommonTestUtils::vec2str(shape) << ")_";
+        }
+    }
     for (size_t i = 0; i < fake_quantize_intervals.size(); ++i)
         result << "FQ[" << i << "]=" << fake_quantize_intervals[i] << "_";
     result << "#N=" << num_nodes << "_";
@@ -30,12 +35,12 @@ std::string PrecisionPropagationConvertion::getTestCaseName(testing::TestParamIn
 }
 
 void PrecisionPropagationConvertion::SetUp() {
-    std::vector<ov::PartialShape> input_shapes;
+    std::vector<InputShape> input_shapes;
     std::vector<float> fake_quantize_intervals;
     std::tie(input_shapes, fake_quantize_intervals, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
-    init_input_shapes(static_partial_shapes_to_test_representation(input_shapes));
+    init_input_shapes(input_shapes);
 
-    function = PrecisionPropagationConvertionFunction(input_shapes, ov::element::f32, fake_quantize_intervals).getOriginal();
+    function = PrecisionPropagationConvertionFunction(inputDynamicShapes, ov::element::f32, fake_quantize_intervals).getOriginal();
 }
 
 TEST_P(PrecisionPropagationConvertion, CompareWithRefImpl) {

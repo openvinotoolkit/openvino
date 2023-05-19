@@ -11,14 +11,19 @@ namespace test {
 namespace snippets {
 
 std::string TwoInputsAndOutputs::getTestCaseName(testing::TestParamInfo<ov::test::snippets::TwoInputsAndOutputsParams> obj) {
-    std::vector<ov::PartialShape> inputShapes;
+    std::vector<InputShape> inputShapes;
     std::string targetDevice;
     size_t num_nodes, num_subgraphs;
     std::tie(inputShapes, num_nodes, num_subgraphs, targetDevice) = obj.param;
 
     std::ostringstream result;
-    for (auto i = 0; i < inputShapes.size(); i++)
-        result << "IS[" << i << "]=" << ov::test::utils::vec2str(inputShapes[i].get_shape()) << "_";
+    for (size_t i = 0; i < inputShapes.size(); ++i) {
+        result << "IS[" << i << "]=" << ov::test::utils::partialShape2str({inputShapes[i].first}) << "_";
+        result << "TS[" << i << "]=";
+        for (const auto& shape : inputShapes[i].second) {
+            result << "(" << ov::test::utils::vec2str(shape) << ")_";
+        }
+    }
     result << "#N=" << num_nodes << "_";
     result << "#S=" << num_subgraphs << "_";
     result << "targetDevice=" << targetDevice;
@@ -26,18 +31,18 @@ std::string TwoInputsAndOutputs::getTestCaseName(testing::TestParamInfo<ov::test
 }
 
 void TwoInputsAndOutputs::SetUp() {
-    std::vector<ov::PartialShape> inputShape;
+    std::vector<InputShape> inputShape;
     std::tie(inputShape, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
-    init_input_shapes(static_partial_shapes_to_test_representation(inputShape));
-    auto f = ov::test::snippets::TwoInputsAndOutputsFunction(inputShape);
+    init_input_shapes(inputShape);
+    auto f = ov::test::snippets::TwoInputsAndOutputsFunction(inputDynamicShapes);
     function = f.getOriginal();
 }
 
 void TwoInputsAndOutputsWithReversedOutputs::SetUp() {
-    std::vector<ov::PartialShape> inputShape;
+    std::vector<InputShape> inputShape;
     std::tie(inputShape, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
-    init_input_shapes(static_partial_shapes_to_test_representation(inputShape));
-    auto f = ov::test::snippets::TwoInputsAndOutputsWithReversedOutputsFunction(inputShape);
+    init_input_shapes(inputShape);
+    auto f = ov::test::snippets::TwoInputsAndOutputsWithReversedOutputsFunction(inputDynamicShapes);
     function = f.getOriginal();
 }
 

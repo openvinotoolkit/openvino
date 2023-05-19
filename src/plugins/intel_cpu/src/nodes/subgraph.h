@@ -145,11 +145,6 @@ private:
 
             std::vector<size_t> dataSize = {};
 
-            // this is needed for fast shape inference of blocking-invariant prepended shapes
-            std::vector<bool> inputShapeIsBlocked = {}; // we need this info to shape-infer mixed layouts
-            std::vector<bool> outputShapeIsBlocked = {}; // we need this info to shape-infer mixed layouts
-            bool masterShapeIsBlocked = false;
-
             // master shape is mutable since we need to modify it inside const shapeInfer method
             mutable VectorDims masterShape = {};
             mutable std::vector<VectorDims> normInputShapes = {};

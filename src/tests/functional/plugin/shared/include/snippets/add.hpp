@@ -20,20 +20,21 @@ typedef std::tuple<
 > AddParams;
 
 typedef std::tuple<
+        InputShape,                  // Input 0 Shape
+        PartialShape,                // const shape
+        ov::element::Type,           // Element type
+        size_t,                      // Expected num nodes
+        size_t,                      // Expected num subgraphs
+        std::string                  // Target Device
+> AddConstParams;
+
+typedef std::tuple<
         std::vector<InputShape>,     // Input 0, Input 1 Shape
         ov::element::Type,           // Element type
         size_t,                      // Expected num nodes
         size_t,                      // Expected num subgraphs
         std::string                  // Target Device
 > AddParamsPair;
-
-typedef std::tuple<
-        InputShape,                  // Input 0 Shape
-        ov::element::Type,           // Element type
-        size_t,                      // Expected num nodes
-        size_t,                      // Expected num subgraphs
-        std::string                  // Target Device
-> AddConstParams;
 
 class Add : public testing::WithParamInterface<ov::test::snippets::AddParams>,
             virtual public ov::test::SnippetsTestsCommon {
@@ -57,7 +58,6 @@ protected:
     void SetUp() override;
 };
 
-// repack AddPair input shapes into shape vector to cover some cases easier
 class AddPair : public testing::WithParamInterface<ov::test::snippets::AddParamsPair>,
                 virtual public ov::test::SnippetsTestsCommon {
 public:

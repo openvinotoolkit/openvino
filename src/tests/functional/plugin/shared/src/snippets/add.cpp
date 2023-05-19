@@ -41,21 +41,19 @@ void Add::SetUp() {
     ov::test::InputShape inputShape0, inputShape1;
     ov::element::Type type;
     std::tie(inputShape0, inputShape1, type, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
-    init_input_shapes({{inputShape0}, {inputShape1}});
-
-    bool is_dynamic = inputShape0.first.is_dynamic();
-    auto f = ov::test::snippets::AddFunction({is_dynamic ? inputShape0.first : inputShape0.second[0],
-                                              is_dynamic ? inputShape1.first : inputShape1.second[0]});
+    init_input_shapes({inputShape0, inputShape1});
+    auto f = ov::test::snippets::AddFunction(inputDynamicShapes);
     function = f.getOriginal();
     setInferenceType(type);
 }
 
 std::string AddConst::getTestCaseName(testing::TestParamInfo<ov::test::snippets::AddConstParams> obj) {
     InputShape inputShapes;
+    PartialShape constShape;
     ov::element::Type type;
     std::string targetDevice;
     size_t num_nodes, num_subgraphs;
-    std::tie(inputShapes, type, num_nodes, num_subgraphs, targetDevice) = obj.param;
+    std::tie(inputShapes, constShape, type, num_nodes, num_subgraphs, targetDevice) = obj.param;
 
     std::ostringstream result;
     result << "IS[0]=" << ov::test::utils::partialShape2str({inputShapes.first}) << "_";
@@ -63,6 +61,7 @@ std::string AddConst::getTestCaseName(testing::TestParamInfo<ov::test::snippets:
     for (const auto& shape : inputShapes.second) {
         result << "(" << ov::test::utils::vec2str(shape) << ")_";
     }
+    result << "IS_ConstShape=" << CommonTestUtils::partialShape2str({constShape}) << "_";
     result << "T=" << type << "_";
     result << "#N=" << num_nodes << "_";
     result << "#S=" << num_subgraphs << "_";
@@ -72,24 +71,22 @@ std::string AddConst::getTestCaseName(testing::TestParamInfo<ov::test::snippets:
 
 void AddConst::SetUp() {
     InputShape inputShape;
+    PartialShape constShape;
     ov::element::Type type;
-    std::tie(inputShape, type, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
+    std::tie(inputShape, constShape, type, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
     init_input_shapes({{inputShape}});
-
-    bool is_dynamic = inputShape.first.is_dynamic();
-    auto f = ov::test::snippets::AddConstFunction({is_dynamic ? inputShape.first : inputShape.second[0]});
+    auto f = ov::test::snippets::AddConstFunction({inputDynamicShapes}, constShape);
     function = f.getOriginal();
     setInferenceType(type);
 }
 
 void AddRollConst::SetUp() {
     InputShape inputShape;
+    PartialShape constShape;
     ov::element::Type type;
-    std::tie(inputShape, type, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
-    init_input_shapes({{inputShape}});
-
-    bool is_dynamic = inputShape.first.is_dynamic();
-    auto f = ov::test::snippets::AddRollConstFunction({is_dynamic ? inputShape.first : inputShape.second[0]});
+    std::tie(inputShape, constShape, type, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
+    init_input_shapes({inputShape});
+    auto f = ov::test::snippets::AddRollConstFunction({inputDynamicShapes}, constShape);
     function = f.getOriginal();
     setInferenceType(type);
 }
@@ -125,9 +122,7 @@ void AddPair::SetUp() {
     ov::element::Type type;
     std::tie(input_shapes, type, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
     init_input_shapes(input_shapes);
-    bool is_dynamic = input_shapes[0].first.is_dynamic();
-    auto f = ov::test::snippets::AddFunction({is_dynamic ? input_shapes[0].first : input_shapes[0].second[0],
-                                              is_dynamic ? input_shapes[1].first : input_shapes[1].second[0]});
+    auto f = ov::test::snippets::AddFunction(inputDynamicShapes);
     function = f.getOriginal();
     setInferenceType(type);
 }
