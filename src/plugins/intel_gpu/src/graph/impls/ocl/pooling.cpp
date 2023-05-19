@@ -88,6 +88,7 @@ public:
 
         auto kernel = primitive->size;
         auto stride = primitive->stride;
+        auto size = primitive->size;
         auto dilation = primitive->dilation.empty() ? ov::Strides(stride.size(), 1)
                                                     : primitive->dilation;
 
@@ -117,6 +118,7 @@ public:
 
         kernel.resize(std::max<size_t>(2, kernel.size()), 1);
         stride.resize(std::max<size_t>(2, stride.size()), 1);
+        size.resize(std::max<size_t>(2, size.size()), 1);
         dilation.resize(std::max<size_t>(2, dilation.size()), 1);
         pads_begin.resize(std::max<size_t>(2, pads_begin.size()), 0);
         pads_end.resize(std::max<size_t>(2, pads_end.size()), 0);
@@ -131,7 +133,7 @@ public:
         // adjusted to that, to work properly this calculation must take pad_end into account.
         auto dynamic_mode = false;
         for (size_t i = 0; i < spatial_rank; i++) {
-            dynamic_mode |= (((output_layout.spatial(i) - 1) * stride[spatial_rank - i - 1]) + primitive->size[spatial_rank - i - 1]) >
+            dynamic_mode |= (((output_layout.spatial(i) - 1) * stride[spatial_rank - i - 1]) + size[spatial_rank - i - 1]) >
                                  static_cast<size_t>(pads_end[spatial_rank - i - 1] + pads_begin[spatial_rank - i - 1] + input_layout.spatial(i));
         }
 
