@@ -381,16 +381,16 @@ To access original framework operation attribute value and connect to inputs, ``
 The conversion function should return a vector of node outputs that are mapped to 
 corresponding outputs of the original framework operation in the same order.
 
-Some frameworks require names of outputs of operation to be provided during conversion.
-For paddlepaddle operations it is generally necessary to provide names for all outputs using ``NamedOutputs`` container.
-The next example shows such conversion for ``top_k_v2`` operation.
+Some frameworks require output names of the operation to be provided during conversion.
+For PaddlePaddle operations, it is generally necessary to provide names for all outputs using the ``NamedOutputs`` container.
+The next example shows such conversion for the ``top_k_v2`` operation.
 
 .. doxygensnippet:: docs/snippets/ov_extensions.cpp
    :language: cpp
    :fragment: [frontend_extension_paddle_TopK]
 
-For tensorflow framework if operation has more then one output it is recommended to assign names to those outputs using ``NamedOutputVector`` structure which allows both indexed and named output access.
-The next example shows such conversion for ``TopKV2`` operation.
+For TensorFlow framework, if an operation has more than one output, it is recommended to assign names to those outputs using the``NamedOutputVector`` structure which allows both indexed and named output access.
+The next example shows such conversion for the ``TopKV2`` operation.
 
 .. doxygensnippet:: docs/snippets/ov_extensions.cpp
    :language: cpp
