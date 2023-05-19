@@ -41,6 +41,7 @@ OP_CONVERTER(elementwise_sub);
 OP_CONVERTER(embedding);
 OP_CONVERTER(exp);
 OP_CONVERTER(expand_v2);
+OP_CONVERTER(flip);
 OP_CONVERTER(fill_any_like);
 OP_CONVERTER(fill_constant_batch_size_like);
 OP_CONVERTER(fill_constant);
@@ -54,6 +55,7 @@ OP_CONVERTER(grid_sampler);
 OP_CONVERTER(group_norm);
 OP_CONVERTER(hard_sigmoid);
 OP_CONVERTER(hard_swish);
+OP_CONVERTER(index_select);
 OP_CONVERTER(layer_norm);
 OP_CONVERTER(leaky_relu);
 OP_CONVERTER(less_than);
@@ -159,6 +161,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"fill_constant_batch_size_like", op::fill_constant_batch_size_like},
             {"fill_constant", op::fill_constant},
             {"flatten_contiguous_range", op::flatten_contiguous_range},
+            {"flip", op::flip},
             {"floor", op::floor},
             {"gather", op::gather},
             {"gather_nd", op::gather_nd},
@@ -170,6 +173,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"group_norm", op::group_norm},
             {"hard_sigmoid", op::hard_sigmoid},
             {"hard_swish", op::hard_swish},
+            {"index_select", op::index_select},
             {"layer_norm", op::layer_norm},
             {"leaky_relu", op::leaky_relu},
             {"less_than", op::less_than},
