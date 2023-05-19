@@ -4,6 +4,7 @@
 
 ov::Core core;
 
-core.compile_model(device, modelPath, properties).export_model(compiled_blob);
+ov::CompiledModel model = core.compile_model(device, modelPath, properties)
+model.export_model(compiled_blob);
 
 //!  [export_compiled_model]
