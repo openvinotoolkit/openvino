@@ -1,14 +1,19 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <direct.h>
+
+#include <sstream>
 
 #include "ngraph/runtime/shared_buffer.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/mmap_object.hpp"
 
-// clang-format-off
+#ifndef NOMINMAX
+#    define NOMINMAX
+#endif
+
 #include <windows.h>
-// clang-format-on
 
 namespace ov {
 namespace util {
@@ -82,10 +87,13 @@ public:
 
 private:
     void map(const std::string& path, HANDLE h) {
-        OPENVINO_ASSERT(h != INVALID_HANDLE_VALUE,
-                        "Can not open file ",
-                        path,
-                        " for mapping. Ensure that file exists and has appropriate permissions");
+        if (h == INVALID_HANDLE_VALUE) {
+            std::stringstream ss;
+            ss << "Cannot load library " << path
+               << " for mapping. Ensure that file exists and has appropriate permissions";
+            throw std::runtime_error(ss.str());
+        }
+
         m_handle = HandleHolder(h);
         SYSTEM_INFO SystemInfo;
         GetSystemInfo(&SystemInfo);
@@ -94,20 +102,38 @@ private:
         DWORD access = PAGE_READONLY;
 
         LARGE_INTEGER file_size_large;
-        OPENVINO_ASSERT(::GetFileSizeEx(m_handle.get(), &file_size_large) != 0, "Can not get file size for ", path);
+        if (::GetFileSizeEx(m_handle.get(), &file_size_large) <= 0) {
+            char cwd[1024];
+            std::stringstream ss;
+            ss << "Can not get file size for " << path << " : " << GetLastError()
+               << " from cwd: " << _getcwd(cwd, sizeof(cwd));
+            throw std::runtime_error(ss.str());
+        }
 
         m_size = static_cast<uint64_t>(file_size_large.QuadPart);
         if (m_size > 0) {
             m_mapping =
                 HandleHolder(::CreateFileMapping(m_handle.get(), 0, access, m_size >> 32, m_size & 0xffffffff, 0));
-            OPENVINO_ASSERT(m_mapping.get() != INVALID_HANDLE_VALUE, "Can not create file mapping for ", path);
+            if (m_mapping.get() == INVALID_HANDLE_VALUE) {
+                char cwd[1024];
+                std::stringstream ss;
+                ss << "Can not create file mapping for " << path << " : " << GetLastError()
+                   << " from cwd: " << _getcwd(cwd, sizeof(cwd));
+                throw std::runtime_error(ss.str());
+            }
 
             m_data = ::MapViewOfFile(m_mapping.get(),
                                      map_mode,
                                      0,  // offset_align >> 32,
                                      0,  // offset_align & 0xffffffff,
                                      m_size);
-            OPENVINO_ASSERT(m_data, "Can not create map view for ", path);
+            if (m_data == nullptr) {
+                char cwd[1024];
+                std::stringstream ss;
+                ss << "Can not create map view for  " << path << " : " << GetLastError()
+                   << " from cwd: " << _getcwd(cwd, sizeof(cwd));
+                throw std::runtime_error(ss.str());
+            }
         } else {
             m_data = nullptr;
         }

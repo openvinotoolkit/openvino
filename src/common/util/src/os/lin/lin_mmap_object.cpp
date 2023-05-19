@@ -68,15 +68,35 @@ public:
         int mode = O_RDONLY;
         struct stat sb = {};
         m_handle = HandleHolder(open(path.c_str(), mode));
-        OPENVINO_ASSERT(m_handle.get() != -1,
-                        "Can not open file ",
-                        path,
-                        " for mapping. Ensure that file exists and has appropriate permissions");
-        OPENVINO_ASSERT(fstat(m_handle.get(), &sb) != -1, "Can not get file size for ", path);
+        if (m_handle.get() == -1) {
+            std::stringstream ss;
+            ss << "Can not open file  '" << path
+               << "' for mapping. Ensure that file exists and has appropriate permissions";
+            if (auto error = dlerror()) {
+                ss << ": " << error;
+            }
+            throw std::runtime_error(ss.str());
+        }
+
+        if (fstat(m_handle.get(), &sb) == -1) {
+            std::stringstream ss;
+            ss << "Can not get file size for " << path;
+            if (auto error = dlerror()) {
+                ss << ": " << error;
+            }
+            throw std::runtime_error(ss.str());
+        }
         m_size = sb.st_size;
         if (m_size > 0) {
             m_data = mmap(nullptr, m_size, prot, MAP_PRIVATE, m_handle.get(), 0);
-            OPENVINO_ASSERT(m_data != MAP_FAILED, "Can not create file mapping for ", path, ", err=", strerror(errno));
+            if (m_data == MAP_FAILED) {
+                std::stringstream ss;
+                ss << "Can not create file mapping for " << path;
+                if (auto error = dlerror()) {
+                    ss << ": " << error;
+                }
+                throw std::runtime_error(ss.str());
+            }
         } else {
             m_data = MAP_FAILED;
         }
