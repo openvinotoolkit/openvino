@@ -15,6 +15,11 @@ void regclass_Version(py::module m) {
     cls.doc() =
         "openvino.runtime.Version represents version information that describes plugins and the OpenVINO library.";
 
+    cls.def("__repr__", [](const ov::Version& self) {
+        return "<Version: " + std::string(self.buildNumber) +
+                " " + self.description + ">";
+    });
+
     cls.def_readonly("build_number",
                      &ov::Version::buildNumber,
                      R"(

@@ -31,8 +31,8 @@ void regclass_Core(py::module m) {
     cls.def(py::init<const std::string&>(), py::arg("xml_config_file") = "");
 
     cls.def("__repr__", [](const ov::Core& self) {
-        auto devices = Common::docs::container_to_string(self.get_available_devices(), ",\n");
-        return "<Core: available devices[" + devices + "]>";
+        auto devices = Common::docs::container_to_string(self.get_available_devices(), ", ");
+        return "<Core: available plugins[" + devices + "]>";
     });
 
     cls.def(
