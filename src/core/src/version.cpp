@@ -30,7 +30,7 @@ std::ostream& ov::operator<<(std::ostream& s, const std::map<std::string, Versio
 namespace ov {
 
 const Version get_openvino_version() noexcept {
-    static const Version version = {NGRAPH_VERSION_NUMBER, "OpenVINO Runtime"};
+    static const Version version = {CI_BUILD_NUMBER, "OpenVINO Runtime"};
     return version;
 }
 
