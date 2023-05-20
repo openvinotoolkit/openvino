@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/runtime/debug_configuration.hpp"
+
 #include "pass_manager.h"
 #include "program_helpers.h"
-#include "binary_convolution_inst.h"
-#include <vector>
-#include <list>
-#include <utility>
 
+#include "binary_convolution_inst.h"
 #include "reshape_inst.h"
 #include "convert_color_inst.h"
 #include "one_hot_inst.h"
@@ -16,7 +15,11 @@
 #include "depth_to_space_inst.h"
 #include "concatenation_inst.h"
 #include "region_yolo_inst.h"
-#include "intel_gpu/runtime/debug_configuration.hpp"
+#include "fully_connected_inst.h"
+
+#include <vector>
+#include <list>
+#include <utility>
 
 using namespace cldnn;
 
@@ -637,7 +640,7 @@ void remove_redundant_reorders::run(program& p) {
                           !reshape_input_node.has_fused_primitives();
         bool remove_current = remove_dep && !reshape_input_node.get_dependencies().empty() &&
                               reshape_input_node.get_dependency(0).get_output_layout() == reshape_node.get_output_layout() &&
-                              reshape_node.has_fused_primitives();
+                              !reshape_node.has_fused_primitives();
 
         if (remove_dep) {
             LOG_NODE_REMOVAL(reshape_input_node.id());

@@ -39,6 +39,9 @@
 #ifdef __GNUC__
 #    pragma GCC diagnostic push
 #    pragma GCC system_header
+#elif defined(_MSC_VER)
+#    pragma warning(push)
+#    pragma system_header
 #endif
 
 #ifdef OV_GPU_USE_OPENCL_HPP
@@ -49,6 +52,8 @@
 
 #ifdef __GNUC__
 #    pragma GCC diagnostic pop
+#elif defined(_MSC_VER)
+#    pragma warning(pop)
 #endif
 
 /// @endcond

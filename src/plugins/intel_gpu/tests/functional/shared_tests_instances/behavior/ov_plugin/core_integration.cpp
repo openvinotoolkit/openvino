@@ -13,6 +13,7 @@ namespace {
 // IE Class Common tests with <pluginName, target_device params>
 //
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassModelTestP, OVClassModelTestP, ::testing::Values("GPU"));
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassModelOptionalTestP, OVClassModelOptionalTestP, ::testing::Values("GPU"));
 
 // Several devices case
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassSeveralDevicesTest,
