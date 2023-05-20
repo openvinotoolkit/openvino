@@ -295,6 +295,9 @@ All parameters must be set before calling ``ov::Core::compile_model()`` in order
 - ``ov::hint::inference_precision``
 - ``ov::hint::performance_mode``
 - ``ov::hint::num_request``
+- ``ov::hint::scheduling_core_type``
+- ``ov::hint::enable_hyper_threading``
+- ``ov::hint::enable_cpu_pinning``
 - ``ov::num_streams``
 - ``ov::affinity``
 - ``ov::inference_num_threads``
@@ -434,6 +437,38 @@ from perf counters log. The "exec type" field will contain the implementation ty
 
    MatMul_1800         EXECUTED         layerType: FullyConnected         execType: brgemm_avx512_amx_sparse_I8 realTime (ms): 0.050000  cpuTime (ms): 0.050000
 
+Multi-Threading Optimization
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+CPU inference will infer an input or multiple inputs in parallel on multiple CPU processors. 
+
+From 2023.0 release, user can use properties ``ov::inference_num_threads``, ``ov::hint::scheduling_core_type`` and ``ov::hint::enable_hyper_threading`` to limit candidate CPU resource for model inference. 
+
+.. tab:: C++
+
+   .. doxygensnippet:: docs/snippets/cpu/multi_threading.cpp
+      :language: cpp
+      :fragment: [ov:intel_cpu:multi_threading:part0]
+
+.. tab:: Python
+
+   .. doxygensnippet:: docs/snippets/cpu/multi_threading.py
+      :language: python
+      :fragment: [ov:intel_cpu:multi_threading:part0]
+
+By default, OpenVINO Runtime will enable CPU threads pinning for better performance. User also can use property ``ov::hint::enable_cpu_pinning`` to disable threads pinning when application run inference with multiple models parallelly. 
+
+.. tab:: C++
+
+   .. doxygensnippet:: docs/snippets/cpu/multi_threading.cpp
+      :language: cpp
+      :fragment: [ov:intel_cpu:multi_threading:part1]
+
+.. tab:: Python
+
+   .. doxygensnippet:: docs/snippets/cpu/multi_threading.py
+      :language: python
+      :fragment: [ov:intel_cpu:multi_threading:part1]
 
 Limitations
 -----------------------------------------------------------
