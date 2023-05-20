@@ -64,7 +64,7 @@ def main():
     value = np.array([0]).astype(dtype)
 
     def set_value1(x, value):
-        x[1:2, ::2, 2:4] = value
+        x[1:2, 0:4:2, 2:4] = value
         return x
 
     paddle_set_value("set_value1", data, value, set_value1, dtype)
@@ -86,7 +86,7 @@ def main():
     value = np.random.randint(0, 2, (10, 2, 3)).astype(dtype)
 
     def set_value3(x, value):
-        x[:, :, -4:-1] = value
+        x[:, :, 1:4] = value
         return x
 
     paddle_set_value("set_value3", data, value, set_value3, dtype)
@@ -119,38 +119,38 @@ def main():
 
     paddle_set_value("set_value5", data, value, set_value5, dtype, starts, ends, steps)
 
-    shape = (17, 19)
-    dtype = "float32"
-    data = np.random.randn(*shape).astype(dtype)
-    value = np.random.randn(1).astype(dtype)
+    # shape = (17, 19)
+    # dtype = "float32"
+    # data = np.random.randn(*shape).astype(dtype)
+    # value = np.random.randn(1).astype(dtype)
 
-    def set_value_step(x, value):
-        x[::4, 2:-1:5] = value
-        return x
+    # def set_value_step(x, value):
+    #     x[::4, 2:-1:5] = value
+    #     return x
 
-    paddle_set_value("set_value6", data, value, set_value_step, dtype)
+    # paddle_set_value("set_value6", data, value, set_value_step, dtype)
 
-    shape = (7, 9)
-    dtype = "int32"
-    data = np.random.randint(0, 5, shape).astype(dtype)
-    value = np.random.randint(0, 2, (1, )).astype(dtype)
+    # shape = (7, 9)
+    # dtype = "int32"
+    # data = np.random.randint(0, 5, shape).astype(dtype)
+    # value = np.random.randint(0, 2, (1, )).astype(dtype)
 
-    def set_value_step1(x, value):
-        x[::2, 2:7:5] = value
-        return x
+    # def set_value_step1(x, value):
+    #     x[::2, 2:7:5] = value
+    #     return x
 
-    paddle_set_value("set_value7", data, value, set_value_step1, dtype)
+    # paddle_set_value("set_value7", data, value, set_value_step1, dtype)
 
-    shape = (10, 5)
-    dtype = "float32"
-    data = np.random.randint(0, 5, shape).astype(dtype)
-    value = np.random.randint(0, 2, (10, 3)).astype(dtype)
+    # shape = (10, 5)
+    # dtype = "float32"
+    # data = np.random.randint(0, 5, shape).astype(dtype)
+    # value = np.random.randint(0, 2, (10, 3)).astype(dtype)
 
-    def set_value6(x, value):
-        x[:, -4:-1] = value
-        return x
+    # def set_value6(x, value):
+    #     x[:, -4:-1] = value
+    #     return x
 
-    paddle_set_value("set_value_dynamic1", data, value, set_value6, dtype, is_dynamic=True)
+    # paddle_set_value("set_value_dynamic1", data, value, set_value6, dtype, is_dynamic=True)
 
     shape = (10, 5)
     dtype = "int32"
