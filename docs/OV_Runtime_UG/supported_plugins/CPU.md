@@ -442,7 +442,7 @@ Multi-Threading Optimization
 
 CPU inference will infer an input or multiple inputs in parallel on multiple CPU processors. 
 
-From 2023.0 release, user can use properties ``ov::inference_num_threads``, ``ov::hint::scheduling_core_type`` and ``ov::hint::enable_hyper_threading`` to limit candidate CPU resource for model inference. 
+From 2023.0 release, user can use properties ``ov::inference_num_threads``, ``ov::hint::scheduling_core_type`` and ``ov::hint::enable_hyper_threading`` to limit candidate CPU resource for model inference. Then OpenVINO Runtime will perform multi-thread scheduling according to the limited candidate CPU resources.
 
 .. tab:: C++
 
