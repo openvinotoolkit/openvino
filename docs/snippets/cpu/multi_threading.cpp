@@ -13,7 +13,7 @@ int main() {
         ov::Core core;
         core.set_property(ov::inference_num_threads(1));
         auto model = core.read_model(modelPath);
-        //! [ov:intel_cpu:multi_threading_0:part0]
+        //! [ov:intel_cpu:multi_threading:part0]
         // Use one processor for inference
         auto compiled_model_1 = core.compile_model(model, device, ov::inference_num_threads(1));
 
@@ -22,12 +22,12 @@ int main() {
 
         // Use one processor per core for inference when hyper threading is on
         auto compiled_model_3 = core.compile_model(model, device, ov::hint::enable_hyper_threading(false));
-        //! [ov:intel_cpu:multi_threading_0:part0]
+        //! [ov:intel_cpu:multi_threading:part0]
 
-        //! [ov:intel_cpu:multi_threading_0:part1]
+        //! [ov:intel_cpu:multi_threading:part1]
         // Disable CPU threads pinning for inference when system supoprt it
         auto compiled_model_4 = core.compile_model(model, device, ov::hint::enable_cpu_pinning(false));
-        //! [ov:intel_cpu:multi_threading_0:part1]
+        //! [ov:intel_cpu:multi_threading:part1]
         if ((!compiled_model_1) || (!compiled_model_2) || (!compiled_model_3) || (!compiled_model_4)) {
             throw std::runtime_error("error");
         }
