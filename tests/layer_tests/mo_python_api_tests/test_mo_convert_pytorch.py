@@ -66,6 +66,8 @@ def make_ref_pt_model_one_input(shape, dtype=np.float32):
     shape = PartialShape(shape)
     param1 = ov.opset8.parameter(shape, name="input_0", dtype=dtype)
     relu = ov.opset8.relu(param1)
+    if dtype != np.float32:
+        relu = ov.opset8.convert(relu, np.float32)
     sigm = ov.opset8.sigmoid(relu)
 
     parameter_list = [param1]
@@ -84,7 +86,9 @@ def make_ref_pt_model_two_inputs(shape, dtype=np.float32):
         param1 = ov.opset8.parameter(shape, name="input_0", dtype=dtype)
         param2 = ov.opset8.parameter(shape, name="input_1", dtype=dtype)
     mul = ov.opset8.multiply(param1, param2)
-    relu = ov.opset8.relu(mul)
+    relu = ov.opset8.relu(mul)    
+    if dtype != np.float32:
+        relu = ov.opset8.convert(relu, np.float32)
     sigm = ov.opset8.sigmoid(relu)
 
     parameter_list = [param1, param2]
