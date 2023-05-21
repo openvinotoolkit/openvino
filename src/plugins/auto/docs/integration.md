@@ -3,11 +3,11 @@
 ## Implement a new plugin
 Please refer to [OpenVINO Plugin Developer Guide](https://docs.openvino.ai/latest/openvino_docs_ie_plugin_dg_overview.html)
 
-QueryNetwork(query_model) is recommanded since it is important for AUTO to make quick decision and save selection time.
+Query model method (`ov::IPlugin::query_model()`) is recommended since it is important for AUTO to make quick decision and save selection time.
 
 ## AUTO Plugin requirements of properties
 
-.. note:: AUTO Plugin call IE APIs to plugins
+.. note:: AUTO Plugin asks for the following plugin properties
 
 | Property                             |  Manatory | Purpose                                       |
 | ------------------------------------ |  -------- | --------------------------------------------- |
