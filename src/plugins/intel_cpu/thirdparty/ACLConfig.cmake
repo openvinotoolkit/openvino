@@ -92,7 +92,6 @@ elseif(NOT TARGET arm_compute::arm_compute)
     #
 
     set(ARM_COMPUTE_SCONS_JOBS "8" CACHE STRING "Number of parallel threads to build ARM Compute Library")
-
     set(ARM_COMPUTE_TARGET_GENERIC_ARCHS armv8a
                                          armv8.2-a
                                          armv8.6-a armv8.6-a-sve armv8.6-a-sve2 armv8.6-a-sve2-sme2
@@ -108,7 +107,7 @@ elseif(NOT TARGET arm_compute::arm_compute)
             # Apple M1 / M2 is assumed
             set(ARM_COMPUTE_TARGET_ARCH_DEFAULT arm64-v8.2-a)
         else()
-            set(ARM_COMPUTE_TARGET_ARCH_DEFAULT arm64-v8a)
+            set(ARM_COMPUTE_TARGET_ARCH_DEFAULT armv8a)
         endif()
         set(ARM_COMPUTE_TARGET_ARCHS arm64-v8a
                                      arm64-v8.2-a arm64-v8.2-a-sve arm64-v8.2-a-sve2
@@ -174,7 +173,7 @@ elseif(NOT TARGET arm_compute::arm_compute)
     if(ARM)
         list(APPEND ARM_COMPUTE_OPTIONS estate=32)
     else()
-        list(APPEND ARM_COMPUTE_OPTIONS estate=64)
+        list(APPEND ARM_COMPUTE_OPTIONS estate=32)
         if(NOT APPLE AND CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 10.2)
             # arm_sve.h header is not available on gcc older 10.2
             list(APPEND ARM_COMPUTE_OPTIONS multi_isa=1)
