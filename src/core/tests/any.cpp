@@ -162,6 +162,111 @@ TEST_F(AnyTests, AnyAsMapOfAnys) {
     ASSERT_EQ(refMap["testParamString"].as<std::string>(), testString);
 }
 
+TEST_F(AnyTests, AnyAsMapOfMapOfAnys) {
+    std::map<std::string, Any> refMap1;
+    refMap1["testParamInt"] = 4;
+    refMap1["testParamString"] = "test";
+
+    std::map<std::string, Any> refMap2;
+    refMap2["testParamInt"] = 5;
+    refMap2["testParamString"] = "test2";
+
+    std::map<std::string, Any> refMap;
+    refMap["refMap1"] = refMap1;
+    refMap["refMap2"] = refMap2;
+
+    Any p = refMap;
+    bool isMap = p.is<std::map<std::string, Any>>();
+    ASSERT_TRUE(isMap);
+    auto testMap = p.as<std::map<std::string, Any>>();
+
+    ASSERT_NE(testMap.find("refMap1"), testMap.end());
+    auto testMap1 = testMap.at("refMap1").as<std::map<std::string, Any>>();
+    ASSERT_NE(testMap1.find("testParamInt"), testMap1.end());
+    ASSERT_NE(testMap1.find("testParamString"), testMap1.end());
+
+    int testInt1 = testMap1["testParamInt"].as<int>();
+    std::string testString1 = testMap1["testParamString"].as<std::string>();
+
+    ASSERT_EQ(refMap1["testParamInt"].as<int>(), testInt1);
+    ASSERT_EQ(refMap1["testParamString"].as<std::string>(), testString1);
+
+    ASSERT_NE(testMap.find("refMap2"), testMap.end());
+    auto testMap2 = testMap.at("refMap2").as<std::map<std::string, Any>>();
+    ASSERT_NE(testMap2.find("testParamInt"), testMap2.end());
+    ASSERT_NE(testMap2.find("testParamString"), testMap2.end());
+
+    int testInt2 = testMap2["testParamInt"].as<int>();
+    std::string testString2 = testMap2["testParamString"].as<std::string>();
+
+    ASSERT_EQ(refMap2["testParamInt"].as<int>(), testInt2);
+    ASSERT_EQ(refMap2["testParamString"].as<std::string>(), testString2);
+}
+
+TEST_F(AnyTests, AnyDoesNotShareValues) {
+    // simple types
+    {
+        Any a = 1;
+        Any b = a;
+        a = 2;
+        ASSERT_EQ(1, b.as<int>());
+        ASSERT_EQ(2, a.as<int>());
+        b = 3;
+        ASSERT_EQ(2, a.as<int>());
+        ASSERT_EQ(3, b.as<int>());
+    }
+
+    // AnyMap's
+    {
+        AnyMap map{
+            {"1", ov::Any(1)},
+            {"2", ov::Any(2)},
+        };
+
+        Any a = map;
+
+        // check initial state
+        ASSERT_EQ(1, a.as<AnyMap>()["1"].as<int>());
+        ASSERT_EQ(2, a.as<AnyMap>()["2"].as<int>());
+
+        map["1"] = 3;                                 // change map
+        ASSERT_EQ(1, a.as<AnyMap>()["1"].as<int>());  // Any is not changed
+
+        a.as<AnyMap>()["2"] = 4;           // change Any
+        ASSERT_EQ(2, map["2"].as<int>());  // map is not changed
+
+        // erase from Any's map
+        AnyMap from_any_map = a.as<AnyMap>();
+        from_any_map.erase(from_any_map.begin());
+        ASSERT_EQ(2, map.size());
+
+        // erase from map
+        map.erase(map.find("2"));
+        ASSERT_NE(from_any_map.end(), from_any_map.find("2"));
+        ASSERT_EQ(4, a.as<AnyMap>()["2"].as<int>());
+    }
+}
+
+TEST_F(AnyTests, AnyMapSharesValues) {
+    AnyMap map{
+        {"1", 1},
+        {"2", 2},
+    };
+
+    AnyMap copy_map = map;
+
+    // check initial state
+    ASSERT_EQ(1, copy_map["1"].as<int>());
+    ASSERT_EQ(2, copy_map["2"].as<int>());
+
+    // change map
+    map["1"].as<int>() = 110;
+
+    // check copied state
+    EXPECT_EQ(110, map["1"].as<int>());
+    EXPECT_EQ(1, copy_map["1"].as<int>());
+}
+
 TEST_F(AnyTests, AnyNotEmpty) {
     Any p = 4;
     ASSERT_FALSE(p.empty());

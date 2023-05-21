@@ -65,6 +65,18 @@ Follow the [Yocto Project official documentation](https://docs.yoctoproject.org/
    CORE_IMAGE_EXTRA_INSTALL:append = " openvino-model-optimizer"
    ```
 
+@sphinxdirective
+
+.. warning::
+
+   OpenVINO 2022.3, temporarily, does not support the VPU devices.
+   The feature will be re-implemented with the next update. Until then, 
+   continue using a previous release of OpenVINO, if you work with VPUs.
+
+@endsphinxdirective
+
+
+
 ## Step 2: Build a Yocto Image with OpenVINO Packages
 
 Run BitBake to build your image with OpenVINO packages. For example, to build the minimal image, run the following command:
