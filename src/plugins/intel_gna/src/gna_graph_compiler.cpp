@@ -1033,12 +1033,6 @@ void GNAGraphCompiler::PoolingPrimitive(InferenceEngine::CNNLayerPtr layer) {
     uint32_t h_dim_out = InferenceEngine::GetDataDimByName(outputs, InferenceEngine::DataDimName::H);
     const uint32_t c_dim_out = InferenceEngine::GetDataDimByName(outputs, InferenceEngine::DataDimName::C);
 #endif
-    if (w_dim_in == 1) {  // swap dimensions if needed to support swapped 1D case
-        std::swap(h_dim_in, w_dim_in);
-        std::swap(h_dim_out, w_dim_out);
-        std::swap(pooling._kernel[X_AXIS], pooling._kernel[Y_AXIS]);
-        std::swap(pooling._stride[X_AXIS], pooling._stride[Y_AXIS]);
-    }
 
     void* ptr_inputs = nullptr;
     void* ptr_outputs = nullptr;
