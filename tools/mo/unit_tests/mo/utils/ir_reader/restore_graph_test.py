@@ -133,8 +133,9 @@ class TestIRReader(unittest.TestCase):
         self.assertRaises(ValueError, restore_graph_from_ir, malformed_ir_file.name)
         os.remove(malformed_ir_file.name)
 
-    def test_save_and_restore(self):
-        test_port_types_alignment_ir = """<?xml version="1.0"?>
+
+class TestIRSerializeAndRestore(unittest.TestCase):
+    test_ir_xml = """<?xml version="1.0"?>
         <net name="test_ir" version="11">
         <layers>
         <layer id="0" name="input_1" type="Parameter" version="opset1">
@@ -154,33 +155,38 @@ class TestIRReader(unittest.TestCase):
                 </port>
             </output>
         </layer>
-        <layer id="501" name="reshape" type="Reshape" version="opset1">
-            <data special_zero="false" />
-            <input>
-                <port id="0" precision="FP32">
-                    <dim>1</dim>
-                    <dim>128</dim>
-                </port>
-                <port id="1" precision="I32">
-                    <dim>4</dim>
-                </port>
-            </input>
+        <layer id="3" name="input_dynamic_axis" type="Parameter" version="opset1">
+            <data shape="1" element_type="i32" />
             <output>
-                <port id="2" precision="FP32" names="reshape">
+                <port id="0" precision="I32" names="input_dynamic_axis">
                     <dim>1</dim>
-                    <dim>1</dim>
-                    <dim>1</dim>
-                    <dim>128</dim>
                 </port>
             </output>
+        </layer>
+        <layer id="501" name="gather" type="Gather" version="opset8">
+        <data batch_dims="0" />
+        <input>
+            <port id="0" precision="FP32">
+                <dim>1</dim>
+                <dim>128</dim>
+            </port>
+            <port id="1" precision="I32">
+                <dim>10</dim>
+            </port>
+            <port id="2" precision="I32" />
+        </input>
+        <output>
+            <port id="3" precision="FP32" names="gather">
+                <dim>1</dim>
+                <dim>10</dim>
+            </port>
+        </output>
         </layer>
         <layer id="590" name="result" type="Result" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
-                    <dim>1</dim>
-                    <dim>1</dim>
-                    <dim>128</dim>
+                    <dim>10</dim>
                 </port>
             </input>
         </layer>
@@ -189,12 +195,15 @@ class TestIRReader(unittest.TestCase):
         <edges>
         <edge from-layer="0" from-port="0" to-layer="501" to-port="0" />
         <edge from-layer="1" from-port="0" to-layer="501" to-port="1" />
-        <edge from-layer="501" from-port="2" to-layer="590" to-port="0" />
+        <edge from-layer="3" from-port="0" to-layer="501" to-port="2" />
+        <edge from-layer="501" from-port="3" to-layer="590" to-port="0" />
         </edges>
         </net>
         """
+
+    def test_save_and_restore(self):
         original_ir_file = tempfile.NamedTemporaryFile(delete=False)
-        original_ir_file.write(bytes(test_port_types_alignment_ir, 'utf-8'))
+        original_ir_file.write(bytes(self.test_ir_xml, 'utf-8'))
         original_ir_file.close()
 
         # we must expect no exceptions
@@ -205,6 +214,8 @@ class TestIRReader(unittest.TestCase):
         restored_ir_dir = tempfile.TemporaryDirectory()
         prepare_emit_ir(graph_orig.copy(), 'FP32', restored_ir_dir.name, graph_orig.name, meta_info={}, rename_results=False)
 
+        # Gather is listed in convert_inputs_of_specific_ops as 'Gather': {2: 'int64'}, but
+        # no additional converts will be inserted, because input is int32
         graph_restored, _ = restore_graph_from_ir(restored_ir_dir.name + '/test_ir.xml')
         os.remove(restored_ir_dir.name + '/test_ir.xml')
         os.remove(restored_ir_dir.name + '/test_ir.bin')
@@ -212,4 +223,181 @@ class TestIRReader(unittest.TestCase):
         os.removedirs(restored_ir_dir.name)
 
         flag, msg = compare_graphs(graph_orig, graph_restored, 'result')
+        self.assertTrue(flag, msg)
+
+    test_ir_xml_with_i8 = """<?xml version="1.0"?>
+        <net name="test_ir" version="11">
+        <layers>
+        <layer id="0" name="input_1" type="Parameter" version="opset1">
+            <data shape="1,128" element_type="f32" />
+            <output>
+                <port id="0" precision="FP32" names="input_1">
+                    <dim>1</dim>
+                    <dim>128</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="1" name="input_2" type="Parameter" version="opset1">
+            <data shape="4" element_type="i32" />
+            <output>
+                <port id="0" precision="I32" names="input_2">
+                    <dim>4</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="3" name="input_dynamic_axis" type="Parameter" version="opset1">
+            <data shape="1" element_type="i8" />
+            <output>
+                <port id="0" precision="I8" names="input_dynamic_axis">
+                    <dim>1</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="501" name="gather" type="Gather" version="opset8">
+        <data batch_dims="0" />
+        <input>
+            <port id="0" precision="FP32">
+                <dim>1</dim>
+                <dim>128</dim>
+            </port>
+            <port id="1" precision="I32">
+                <dim>10</dim>
+            </port>
+            <port id="2" precision="I32" />
+        </input>
+        <output>
+            <port id="3" precision="FP32" names="gather">
+                <dim>1</dim>
+                <dim>10</dim>
+            </port>
+        </output>
+        </layer>
+        <layer id="590" name="result" type="Result" version="opset1">
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>10</dim>
+                </port>
+            </input>
+        </layer>
+        </layers>
+        
+        <edges>
+        <edge from-layer="0" from-port="0" to-layer="501" to-port="0" />
+        <edge from-layer="1" from-port="0" to-layer="501" to-port="1" />
+        <edge from-layer="3" from-port="0" to-layer="501" to-port="2" />
+        <edge from-layer="501" from-port="3" to-layer="590" to-port="0" />
+        </edges>
+        </net>
+        """
+
+    test_ir_xml_with_convert = """<?xml version="1.0"?>
+    <net name="test_ir" version="11">
+    <layers>
+    <layer id="0" name="input_1" type="Parameter" version="opset1">
+        <data shape="1,128" element_type="f32" />
+        <output>
+            <port id="0" precision="FP32" names="input_1">
+                <dim>1</dim>
+                <dim>128</dim>
+            </port>
+        </output>
+    </layer>
+    <layer id="1" name="input_2" type="Parameter" version="opset1">
+        <data shape="4" element_type="i32" />
+        <output>
+            <port id="0" precision="I32" names="input_2">
+                <dim>4</dim>
+            </port>
+        </output>
+    </layer>
+    <layer id="3" name="input_dynamic_axis" type="Parameter" version="opset1">
+        <data shape="1" element_type="i8" />
+        <output>
+            <port id="0" precision="I8" names="input_dynamic_axis">
+                <dim>1</dim>
+            </port>
+        </output>
+    </layer>
+    <layer id="583" name="convert" type="Convert" version="opset1">
+        <data destination_type="i64" />
+        <input>
+            <port id="0" precision="I8">
+                <dim>1</dim>
+            </port>
+        </input>
+        <output>
+            <port id="1" precision="I64">
+                <dim>1</dim>
+            </port>
+        </output>
+    </layer>
+    <layer id="501" name="gather" type="Gather" version="opset8">
+    <data batch_dims="0" />
+    <input>
+        <port id="0" precision="FP32">
+            <dim>1</dim>
+            <dim>128</dim>
+        </port>
+        <port id="1" precision="I32">
+            <dim>10</dim>
+        </port>
+        <port id="2" precision="I32" />
+    </input>
+    <output>
+        <port id="3" precision="FP32" names="gather">
+            <dim>1</dim>
+            <dim>10</dim>
+        </port>
+    </output>
+    </layer>
+    <layer id="590" name="result" type="Result" version="opset1">
+        <input>
+            <port id="0" precision="FP32">
+                <dim>1</dim>
+                <dim>10</dim>
+            </port>
+        </input>
+    </layer>
+    </layers>
+    
+    <edges>
+    <edge from-layer="0" from-port="0" to-layer="501" to-port="0" />
+    <edge from-layer="1" from-port="0" to-layer="501" to-port="1" />
+    <edge from-layer="3" from-port="0" to-layer="583" to-port="0" />
+    <edge from-layer="583" from-port="1" to-layer="501" to-port="2" />
+    <edge from-layer="501" from-port="3" to-layer="590" to-port="0" />
+    </edges>
+    </net>
+    """
+
+    def test_save_and_restore_with_converts(self):
+        original_ir_file = tempfile.NamedTemporaryFile(delete=False)
+        original_ir_file.write(bytes(self.test_ir_xml_with_i8, 'utf-8'))
+        original_ir_file.close()
+
+        # we must expect no exceptions
+        graph_orig, _ = restore_graph_from_ir(original_ir_file.name)
+        type_infer(graph_orig)
+        os.remove(original_ir_file.name)
+
+        restored_ir_dir = tempfile.TemporaryDirectory()
+        prepare_emit_ir(graph_orig.copy(), 'FP32', restored_ir_dir.name, graph_orig.name, meta_info={}, rename_results=False)
+
+        ir_file_with_convert = tempfile.NamedTemporaryFile(delete=False)
+        ir_file_with_convert.write(bytes(self.test_ir_xml_with_convert, 'utf-8'))
+        ir_file_with_convert.close()
+        graph_with_convert, _ = restore_graph_from_ir(ir_file_with_convert.name)
+        type_infer(graph_with_convert)
+        os.remove(ir_file_with_convert.name)
+
+        # Gather is listed in convert_inputs_of_specific_ops as 'Gather': {2: 'int64'},
+        # converts from int8 to int64 will be inserted
+        graph_restored, _ = restore_graph_from_ir(restored_ir_dir.name + '/test_ir.xml')
+        os.remove(restored_ir_dir.name + '/test_ir.xml')
+        os.remove(restored_ir_dir.name + '/test_ir.bin')
+        os.remove(restored_ir_dir.name + '/test_ir.mapping')
+        os.removedirs(restored_ir_dir.name)
+
+        flag, msg = compare_graphs(graph_with_convert, graph_restored, 'result')
         self.assertTrue(flag, msg)
