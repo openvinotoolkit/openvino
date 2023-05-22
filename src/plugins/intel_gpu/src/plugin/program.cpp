@@ -170,6 +170,19 @@ Program::Program(InferenceEngine::CNNNetwork& network, cldnn::engine& engine, co
     m_programs.emplace_back(BuildProgram(ops, networkInputs, networkOutputs, createTopologyOnly, partialBuild));
 }
 
+Program::Program(cldnn::engine& engine, const ExecutionConfig& config,
+                 InferenceEngine::InputsDataMap* inputs, InferenceEngine::OutputsDataMap* outputs)
+        : m_max_batch(1)
+        , m_curBatch(-1)
+        , m_config(config)
+        , m_engine(engine)
+        , queryMode(false) {
+    if (inputs != nullptr)
+        m_networkInputs = *inputs;
+    if (outputs != nullptr)
+        m_networkOutputs = *outputs;
+}
+
 std::shared_ptr<cldnn::program> Program::GetCompiledProgram(int program_id) {
     if (program_id >= static_cast<int32_t>(m_programs.size()))
         IE_THROW() << "Invalid program ID";

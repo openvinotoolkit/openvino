@@ -8,7 +8,6 @@ include(cmake/install_tbb.cmake)
 
 # CC library should be registered before other cc targets
 add_subdirectory(common)
-# TODO: Fix Wall for core, frontends and tests
 add_subdirectory(core)
 add_subdirectory(frontends)
 # TODO: remove ngraph/ngraph.hpp usage
@@ -17,7 +16,6 @@ if(ENABLE_TESTS)
 endif()
 
 if(CMAKE_COMPILER_IS_GNUCXX)
-    ie_add_compiler_flags(-Wall)
     ie_add_compiler_flags(-Wmissing-declarations)
 endif()
 

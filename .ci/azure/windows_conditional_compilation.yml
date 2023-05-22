@@ -116,7 +116,6 @@ jobs:
         -G Ninja ^
         -DENABLE_CPPLINT=OFF ^
         -DENABLE_PLUGINS_XML=ON ^
-        -DENABLE_FASTER_BUILD=ON ^
         -DCMAKE_COMPILE_WARNING_AS_ERROR=ON ^
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) ^
         -DENABLE_PROFILING_ITT=ON ^
@@ -152,7 +151,6 @@ jobs:
         -G "Visual Studio 16 2019" ^
         -DVERBOSE_BUILD=ON ^
         -DENABLE_CPPLINT=OFF ^
-        -DENABLE_FASTER_BUILD=ON ^
         -DENABLE_PROFILING_ITT=OFF ^
         -DSELECTIVE_BUILD=ON ^
         -DCMAKE_COMPILE_WARNING_AS_ERROR=ON ^

@@ -55,12 +55,13 @@ Graph::Graph(InferenceEngine::CNNNetwork& network, RemoteContextImpl::Ptr contex
     Build();
 }
 
-Graph::Graph(cldnn::BinaryInputBuffer &ib, RemoteContextImpl::Ptr context, const ExecutionConfig& config, uint16_t stream_id)
+Graph::Graph(cldnn::BinaryInputBuffer &ib, RemoteContextImpl::Ptr context, const ExecutionConfig& config, uint16_t stream_id,
+             InferenceEngine::InputsDataMap* inputs, InferenceEngine::OutputsDataMap* outputs)
     : m_context(context)
     , m_config(config)
     , m_stream_id(stream_id)
     , m_state(0) {
-    m_program = std::make_shared<Program>(get_engine(), config);
+    m_program = std::make_shared<Program>(get_engine(), config, inputs, outputs);
 
     bool need_onednn_engine = false;
     ib >> need_onednn_engine;
@@ -101,6 +102,7 @@ Graph::Graph(cldnn::BinaryInputBuffer &ib, RemoteContextImpl::Ptr context, const
     size_t num_networks;
     ib >> num_networks;
     for (size_t i = 0; i < num_networks; ++i) {
+        ib.set_stream_id(m_stream_id);
         m_networks.emplace_back(std::make_shared<cldnn::network>(ib, get_engine().create_stream(config), get_engine(), m_stream_id == 0));
     }
 }

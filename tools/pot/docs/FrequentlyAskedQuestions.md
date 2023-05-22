@@ -2,9 +2,11 @@
 
 @sphinxdirective
 
+.. note:: Post-training Optimization Tool is deprecated since OpenVINO 2023.0. :doc:`Neural Network Compression Framework (NNCF) <ptq_introduction>` is recommended for the post-training quantization instead.
+
 If your question is not covered below, use the `OpenVINO™ Community Forum page <https://community.intel.com/t5/Intel-Distribution-of-OpenVINO/bd-p/distribution-openvino-toolkit>`__, where you can participate freely.
 
-- :ref:`Is the Post-training Optimization Tool opensourced? <opensourced-pot-faq>`
+- :ref:`Is the Post-training Optimization Tool open-sourced? <opensourced-pot-faq>`
 - :ref:`Can I quantize my model without a dataset? <dataset-pot-faq>`
 - :ref:`Can a model in any framework be quantized by the POT? <framework-pot-faq>`
 - :ref:`What is a tradeoff when you go to low precision? <tradeoff-pot-faq>`
@@ -16,14 +18,14 @@ If your question is not covered below, use the `OpenVINO™ Community Forum page
 - :ref:`When I execute POT CLI, I get "File "/workspace/venv/lib/python3.7/site-packages/nevergrad/optimization/base.py", line 35... SyntaxError: invalid syntax". What is wrong? <python-pot-faq>`
 - :ref:`What does a message "ModuleNotFoundError: No module named 'some\_module\_name'" mean? <nomodule-pot-faq>`
 - :ref:`Is there a way to collect an intermediate IR when the AccuracyAware mechanism fails? <dump-pot-faq>`
-- :ref:`What do the messages "Output name: result_operation_name not found" or "Output node with result_operation_name is not found in graph" mean? <outputs-pot-faq>`
+- :ref:`What do the messages "Output name: result_operation_name not found" or "Output node with result_operation_name is not found in the graph" mean? <outputs-pot-faq>`
 
 .. _opensourced-pot-faq:
 
-Is the Post-training Optimization Tool (POT) opensourced?
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Is the Post-training Optimization Tool (POT) open-sourced?
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-Yes, POT is developed on GitHub as a part of `openvinotoolkit/openvino <https://github.com/openvinotoolkit/openvino>` under Apache-2.0 License.
+Yes, POT is developed on GitHub as a part of `openvinotoolkit/openvino <https://github.com/openvinotoolkit/openvino>`__ under Apache-2.0 License.
 
 .. _dataset-pot-faq:
 
@@ -38,7 +40,7 @@ If your dataset is not annotated, you can use :doc:`Default Quantization <pot_de
 Can a model in any framework be quantized by the POT?
 +++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-The POT accepts models in the OpenVINO&trade; Intermediate Representation (IR) format only. For that you need to convert your model to the IR format using
+The POT accepts models in the OpenVINO&trade; Intermediate Representation (IR) format only. For that, you need to convert your model to the IR format using
 :doc:`Model Optimizer <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`.
 
 .. _noac-pot-faq:
@@ -81,10 +83,10 @@ I get “RuntimeError: Cannot get memory” and “RuntimeError: Output data was
 These issues happen due to insufficient available amount of memory for statistics collection during the quantization process of a huge model or
 due to a very high resolution of input images in the quantization dataset. If you do not have a possibility to increase your RAM size, one of the following options can help:
 
-- Set ``inplace_statistics`` parameters to ``True``. In that case the POT will change method collect statistics and use less memory. Note that such change might increase time required for quantization.
-- Set ``eval_requests_number`` and ``stat_requests_number`` parameters to 1. In that case the POT will limit the number of infer requests by 1 and use less memory.
-Note that such change might increase time required for quantization.
-- Set ``use_fast_bias`` parameter to ``false``. In that case the POT will switch from the FastBiasCorrection algorithm to the full BiasCorrection algorithm
+- Set ``inplace_statistics`` parameters to ``True``. In that case, the POT will change the method to collect statistics and use less memory. Note that such change might increase the time required for quantization.
+- Set ``eval_requests_number`` and ``stat_requests_number`` parameters to 1. In that case, the POT will limit the number of infer requests by 1 and use less memory.
+Note that such change might increase the time required for quantization.
+- Set ``use_fast_bias`` parameter to ``false``. In that case, the POT will switch from the FastBiasCorrection algorithm to the full BiasCorrection algorithm
 which is usually more accurate and takes more time but requires less memory. See :doc:`Post-Training Optimization Best Practices <pot_docs_BestPractices>` for more details.
 - Reshape your model to a lower resolution and resize the size of images in the dataset. Note that such change might impact the accuracy.
 
@@ -124,8 +126,8 @@ This error is reported when you have a Python version older than 3.7 in your env
 
 .. _nomodule-pot-faq:
 
-What does a message "ModuleNotFoundError: No module named 'some\_module\_name'" mean?
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+What does the message "ModuleNotFoundError: No module named 'some\_module\_name'" mean?
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 It means that some required python module is not installed in your environment. To install it, run ``pip install some_module_name``.
 
@@ -141,6 +143,6 @@ You can add ``"dump_intermediate_model": true`` to the POT configuration file an
 What do the messages "Output name: result_operation_name not found" or "Output node with result_operation_name is not found in graph" mean?
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-Errors are caused by missing output nodes names in a graph when using the POT tool for model quantization. It might appear for some models only for IRs converted from ONNX models using new frontend (which is the default conversion path starting from 2022.1 release). To avoid such errors, use legacy MO frontend to convert a model to IR by passing the ``--use_legacy_frontend`` option. Then, use the produced IR for quantization.
+Errors are caused by missing output nodes names in a graph when using the POT tool for model quantization. It might appear for some models only for IRs converted from ONNX models using the new frontend (which is the default conversion path starting from 2022.1 release). To avoid such errors, use the legacy MO frontend to convert a model to IR by passing the ``--use_legacy_frontend`` option. Then, use the produced IR for quantization.
 
 @endsphinxdirective
