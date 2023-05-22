@@ -1146,7 +1146,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_and_cache(const std::s
                                                         ov::ModelCache::calculate_file_info(cacheContent.modelPath));
                 execNetwork->export_model(networkStream);
             });
-        } catch (const ov::Exception&) {
+        } catch (...) {
             cacheContent.cacheManager->remove_cache_entry(cacheContent.blobId);
             throw;
         }
@@ -1180,7 +1180,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                     // Original file is changed, don't use cache
                     throw InferenceEngine::NetworkNotRead("Original model file is changed");
                 }
-            } catch (const ov::Exception&) {
+            } catch (...) {
                 throw HeaderException();
             }
 
@@ -1193,7 +1193,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
     } catch (const HeaderException&) {
         // For these exceptions just remove old cache and set that import didn't work
         cacheContent.cacheManager->remove_cache_entry(cacheContent.blobId);
-    } catch (const ov::Exception&) {
+    } catch (...) {
         cacheContent.cacheManager->remove_cache_entry(cacheContent.blobId);
         // TODO: temporary disabled by #54335. In future don't throw only for new 'blob_outdated' exception
         // throw;

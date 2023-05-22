@@ -13,7 +13,7 @@
         IE_THROW(NotAllocated) << "VariableState was not initialized."; \
     try {                                                               \
         __VA_ARGS__;                                                    \
-    } catch (const std::exception&) {                                   \
+    } catch (...) {                                   \
         ::InferenceEngine::details::Rethrow();                          \
     }
 
