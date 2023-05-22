@@ -81,6 +81,7 @@ public:
         }
 
         quantize_params.is_shape_agnostic = impl_param.is_dynamic();
+        quantize_params.set_dynamic_shape_offsets();
         auto& kernel_selector = kernel_selector::quantize_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(quantize_params, quantize_optional_params);
 
