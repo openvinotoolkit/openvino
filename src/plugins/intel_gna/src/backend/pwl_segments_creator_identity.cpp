@@ -61,17 +61,27 @@ std::vector<gna_pwl_segment_t> PWLSegmentsCreatorIdentity::CreateSegments(const 
 
         // adapt xBase for point on the left side of 0,0 to ensure that F(-1) <= F(0)
         UpdateSegmentOnTheLeftOf0_0(segments[0], segments[1], y0);
-    }
 
-    AddRightSegmentIFNeeded(border_values, segments);
+        AddRightSegmentIFNeeded(border_values, true, segments);
+    } else {
+        AddRightSegmentIFNeeded(border_values, false, segments);
+    }
 
     return segments;
 }
 
 void PWLSegmentsCreatorIdentity::AddRightSegmentIFNeeded(const ov::intel_gna::backend::BorderValues& border_values,
+                                                         const bool segment_for_0_0_was_inserted,
                                                          std::vector<gna_pwl_segment_t>& segments) const {
+    // Inserting segment to cut values to y_upper.
     if (std::numeric_limits<int32_t>::max() > border_values.x_upper) {
-        segments.push_back(CreateSegmentOnTheRight(segments.back(), border_values));
+        if (segment_for_0_0_was_inserted) {
+            // if Segments 0_0 was inserted we need to do special calculation for xBase.
+            segments.push_back(CreateSegmentOnTheRightf0_0Inserted(segments.back(), border_values));
+        } else {
+            // if Segments 0_0 was not inserted add default segment.
+            segments.push_back(CreateSegmentOnTheRightDefault(border_values));
+        }
     }
 }
 
@@ -131,8 +141,13 @@ void PWLSegmentsCreatorIdentity::UpdateSegmentOnTheLeftOf0_0(const gna_pwl_segme
     segment_1.xBase = ComputeXBaseForSegment(static_cast<int32_t>(new_segment_1_x_base), slope_scale_index);
 }
 
-gna_pwl_segment_t PWLSegmentsCreatorIdentity::CreateSegmentOnTheRight(const gna_pwl_segment_t& segment_0_0,
-                                                                      const BorderValues& border_values) const {
+gna_pwl_segment_t PWLSegmentsCreatorIdentity::CreateSegmentOnTheRightDefault(const BorderValues& border_values) const {
+    return {ComputeXBaseForSegment(std::numeric_limits<int32_t>::max(), 0), border_values.y_upper, 0};
+}
+
+gna_pwl_segment_t PWLSegmentsCreatorIdentity::CreateSegmentOnTheRightf0_0Inserted(
+    const gna_pwl_segment_t& segment_0_0,
+    const BorderValues& border_values) const {
     // right_segment_x_base = segment_0_0.xBase + (border_values.y_upper - segment_0_0.yBase ) *
     // segment_0_0.scale_facotr / segment_0_0.slope
     auto segment_0_0_in_int64 = ConvertSegmentTo64(segment_0_0);

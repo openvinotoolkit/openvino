@@ -25,6 +25,7 @@ private:
     std::vector<gna_pwl_segment_t> CreateSegments(const PWLInputParams& input_params,
                                                   const BorderValues& border_values) const;
     void AddRightSegmentIFNeeded(const ov::intel_gna::backend::BorderValues& border_values,
+                                 bool segment_for_0_0_was_inserted,
                                  std::vector<gna_pwl_segment_t>& segments) const;
     gna_pwl_segment_t CreateSegment0(const ov::intel_gna::backend::BorderValues& border_values) const;
     gna_pwl_segment_t CreateSegment1(const PWLInputParams& input_params,
@@ -36,8 +37,9 @@ private:
     void UpdateSegmentOnTheLeftOf0_0(const gna_pwl_segment_t& before_left_segment,
                                      gna_pwl_segment_t& left_segment,
                                      const int64_t delta_y) const;
-    gna_pwl_segment_t CreateSegmentOnTheRight(const gna_pwl_segment_t& segment_0_0,
-                                              const BorderValues& border_values) const;
+    gna_pwl_segment_t CreateSegmentOnTheRightDefault(const BorderValues& border_values) const;
+    gna_pwl_segment_t CreateSegmentOnTheRightf0_0Inserted(const gna_pwl_segment_t& segment_0_0,
+                                                          const BorderValues& border_values) const;
 
 private:
     std::shared_ptr<PWLBorderValuesCounter> border_counter_;

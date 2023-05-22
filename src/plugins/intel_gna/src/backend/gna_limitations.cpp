@@ -798,6 +798,10 @@ static bool ValidateConcatAxis(const InferenceEngine::CNNLayerPtr layer, std::st
 
                     if (LayerInfo(pre_prev_layer).isConst()) {
                         continue;
+                        // TODO remove if https://github.com/openvinotoolkit/openvino/pull/17558
+                        // will be merged.
+                    } else if (LayerInfo(pre_prev_layer).isPermute()) {
+                        continue;
                     }
 
                     concat_all_const_or_inputs = false;
