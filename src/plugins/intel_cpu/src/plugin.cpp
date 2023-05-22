@@ -294,7 +294,7 @@ void Engine::GetPerformanceStreams(Config& config, const std::shared_ptr<ngraph:
 
     get_num_streams(streams, ngraphFunc, config);
 
-    hints_props.insert({latency_name, std::to_string(latency_streams)});
+    hints_props.insert({latency_name, std::to_string(config.streamExecutorConfig._streams)});
     hints_props.insert({tput_name, std::to_string(config.streamExecutorConfig._streams)});
     ngraphFunc->set_rt_info(hints_props, "intel_cpu_hints_config");
     config._config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = std::to_string(config.streamExecutorConfig._streams);
