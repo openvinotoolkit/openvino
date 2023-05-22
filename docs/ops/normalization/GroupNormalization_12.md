@@ -12,37 +12,39 @@
 
 The GroupNormalization operation performs the following transformation of the input tensor:
 
-  `y = scale * (x - mean) / sqrt(variance + epsilon) + bias`
+.. math::
 
-The operation is applied per batch, per group of channels. This means that the example input with `N x C x H x W` layout is transformed to the `N x G x C/G x H x W` form. The `scale` and `bias` coefficients are the inputs to the model and need to be specified separately for each group. The `mean` and `variance` are calculated for each group and applied accordingly.
+   y = scale * (x - mean) / sqrt(variance + epsilon) + bias
+
+The operation is applied per batch, per group of channels. This means that the example input with ``N x C x H x W`` layout is transformed to the ``N x G x C/G x H x W`` form. The ``scale`` and ``bias`` coefficients are the inputs to the model and need to be specified separately for each group. The ``mean`` and ``variance`` are calculated for each group and applied accordingly.
 
 **Attributes**
 
 * *num_groups*
 
-  * **Description**: Specifies the number of groups `G` that the channel dimesion will be divided into.
-  * **Range of values**: between `1` and the number of channels `C` in the input tensor
-  * **Type**: `int`
+  * **Description**: Specifies the number of groups ``G`` that the channel dimesion will be divided into.
+  * **Range of values**: between ``1`` and the number of channels ``C`` in the input tensor
+  * **Type**: ``int``
   * **Required**: *yes*
 
 * *epsilon*
 
   * **Description**: A very small value added to the variance for numerical stability. Ensures that division by zero does not occur for any normalized element.
   * **Range of values**: a positive floating-point number
-  * **Type**: `float`
+  * **Type**: ``float``
   * **Required**: *yes*
 
 **Inputs**
 
-* **1**: `data` - The input tensor to be normalized. The type of this tensor is *T*. The tensor's shape is arbitrary but the first two dimensions are interpreted as `batch` and `channels` respectively. **Required.**
+* **1**: ``data`` - The input tensor to be normalized. The type of this tensor is *T*. The tensor's shape is arbitrary but the first two dimensions are interpreted as ``batch`` and ``channels`` respectively. **Required.**
 
-* **2**: `scale` - 1D tensor of type *T* containing the scale values for each group. The expected shape of this tensor is `[G]` where `G` is equal to the value of the `num_groups` attribute. **Required.**
+* **2**: ``scale`` - 1D tensor of type *T* containing the scale values for each group. The expected shape of this tensor is ``[C]`` where ``C`` is the number of channels in the ``data`` tensor. **Required.**
 
-* **3**: `bias` - 1D tensor of type *T* containing the bias values for each group. The expected shape of this tensor is `[G]` where `G` is equal to the value of the `num_groups` attribute. **Required.**
+* **3**: ``bias`` - 1D tensor of type *T* containing the bias values for each group. The expected shape of this tensor is ``[C]`` where ``C`` is the number of channels in the ``data`` tensor. **Required.**
 
 **Outputs**
 
-* **1**: Output tensor of the same shape and type as the `data` input tensor.
+* **1**: Output tensor of the same shape and type as the ``data`` input tensor.
 
 **Types**
 
@@ -50,7 +52,8 @@ The operation is applied per batch, per group of channels. This means that the e
 
 **Example**
 
-```xml
+.. code-block:: cpp
+
 <layer ... type="GroupNormalization">
     <data epsilon="1e-5" num_groups="4"/>
     <input>
@@ -76,7 +79,6 @@ The operation is applied per batch, per group of channels. This means that the e
         </port>
     </output>
 </layer>
-```
 
 
 @endsphinxdirective
