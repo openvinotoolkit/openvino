@@ -145,7 +145,7 @@ target_include_directories(ov_onnx_frontend_tests
     SYSTEM PRIVATE
         $<TARGET_PROPERTY:onnx,INTERFACE_INCLUDE_DIRECTORIES>
         $<TARGET_PROPERTY:onnx_proto,INTERFACE_INCLUDE_DIRECTORIES>
-        ${Protobuf_INCLUDE_DIRS})
+        $<TARGET_PROPERTY:protobuf::libprotobuf,INTERFACE_INCLUDE_DIRECTORIES>)
 target_compile_definitions(ov_onnx_frontend_tests PRIVATE $<TARGET_PROPERTY:onnx,INTERFACE_COMPILE_DEFINITIONS>)
 target_compile_definitions(ov_onnx_frontend_tests PRIVATE ENABLE_OV_ONNX_FRONTEND)
 
