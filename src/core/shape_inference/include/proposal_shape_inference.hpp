@@ -79,9 +79,7 @@ TShape shape_infer_boxes(const TOp* op, const std::vector<TShape>& input_shapes)
 
 namespace v0 {
 template <class TShape>
-std::vector<TShape> shape_infer(const Proposal* op,
-                                const std::vector<TShape>& input_shapes,
-                                const ITensorAccessor& tensor_accessor = make_tensor_accessor()) {
+std::vector<TShape> shape_infer(const Proposal* op, const std::vector<TShape>& input_shapes) {
     return {ov::op::proposal::shape_infer_boxes(op, input_shapes)};
 }
 }  // namespace v0
@@ -92,9 +90,7 @@ namespace ov {
 namespace op {
 namespace v4 {
 template <class TShape>
-std::vector<TShape> shape_infer(const Proposal* op,
-                                const std::vector<TShape>& input_shapes,
-                                const ITensorAccessor& tensor_accessor = make_tensor_accessor()) {
+std::vector<TShape> shape_infer(const Proposal* op, const std::vector<TShape>& input_shapes) {
     auto output_shapes = std::vector<TShape>(2, ov::op::proposal::shape_infer_boxes(op, input_shapes));
     output_shapes[1].resize(1);
     return output_shapes;
