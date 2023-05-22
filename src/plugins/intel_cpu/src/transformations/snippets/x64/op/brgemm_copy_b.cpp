@@ -9,21 +9,18 @@
 
 #include "utils/general_utils.h"
 
-using namespace std;
 using namespace ov;
 
 intel_cpu::BrgemmCopyB::BrgemmCopyB(const Output<Node>& x, const element::Type src_type, const Type type,
-                                    const size_t offset_in, const size_t offset_out0, const size_t offset_out1)
-    : ngraph::snippets::op::MemoryAccess({x}, 1, type == Type::WithCompensations ? 2 : 1), m_type(type), m_src_type(src_type) {
-    set_output_size(get_output_port_count());
-    m_input_ports.resize(get_input_size());
-    m_output_ports.resize(get_output_size());
+                                    const size_t offset_in, const size_t offset_out0, const size_t offset_out1, std::vector<size_t> layout_input)
+    : snippets::op::MemoryAccess({x}, 1, type == Type::WithCompensations ? 2 : 1), m_type(type), m_src_type(src_type) {
+    set_output_size(type == Type::WithCompensations ? 2 : 1);
     set_input_port_descriptor({0, offset_in}, 0);
     set_output_port_descriptor({0, offset_out0}, 0);
     if (is_with_compensations()) {
         set_output_port_descriptor({0, offset_out1}, 1);
     }
-    constructor_validate_and_infer_types();
+    custom_constructor_validate_and_infer_types(std::move(layout_input));
 }
 
 bool intel_cpu::BrgemmCopyB::visit_attributes(AttributeVisitor& visitor) {
@@ -33,14 +30,27 @@ bool intel_cpu::BrgemmCopyB::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
+void intel_cpu::BrgemmCopyB::custom_constructor_validate_and_infer_types(std::vector<size_t> layout_input) {
+    INTERNAL_OP_SCOPE(BrgemmRepack_ctor_validate_and_infer_types);
+    // During ctor call, BrgemmCopyB doesn't know his port descriptors.
+    // So we use port descs from source inputs
+    const auto element_type = get_input_element_type(0);
+    const auto pshape = snippets::utils::get_reordered_planar_shape(get_input_partial_shape(0), layout_input);
+    validate(pshape, element_type);
+}
+
 void intel_cpu::BrgemmCopyB::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(BrgemmRepack_validate_and_infer_types);
 
     const auto element_type = get_input_element_type(0);
-    NGRAPH_CHECK(one_of(element_type, element::bf16, element::i8),
-                 "BrgemmCopyB doesn't support element type" + element_type.get_type_name());
+    const auto pshape = snippets::utils::get_port_planar_shape(input(0));
+    validate(pshape, element_type);
+}
 
-    const auto pshape = ngraph::snippets::utils::get_port_planar_shape(input_value(0));
+void intel_cpu::BrgemmCopyB::validate(const ov::PartialShape& pshape, const ov::element::Type& element_type) {
+    NGRAPH_CHECK(one_of(element_type, element::bf16, element::i8),
+             "BrgemmCopyB doesn't support element type" + element_type.get_type_name());
+
     if (pshape.is_dynamic()) {
         set_output_type(0, element_type, ov::PartialShape{ov::Dimension::dynamic()});
         if (is_with_compensations()) {
@@ -68,7 +78,8 @@ std::shared_ptr<Node> intel_cpu::BrgemmCopyB::clone_with_new_inputs(const Output
     return std::make_shared<BrgemmCopyB>(new_args.at(0), m_src_type, m_type,
                                          get_offset_in(),
                                          get_offset_out(),
-                                         is_with_compensations() ? get_offset_compensations() : 0);
+                                         is_with_compensations() ? get_offset_compensations() : 0,
+                                         snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(0))->get_layout());
 }
 
 size_t intel_cpu::BrgemmCopyB::get_offset_compensations() const {
