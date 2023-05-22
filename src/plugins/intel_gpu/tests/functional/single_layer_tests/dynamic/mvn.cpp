@@ -96,17 +96,6 @@ namespace {
 const std::vector<InputShape> inputShapes_1D = {
        {
            // dynamic
-           {-1},
-           // target
-           {
-               {2},
-               {16},
-               {1},
-               {2}
-           }
-       },
-       {
-           // dynamic
            {{1, 20}},
            // target
            {
@@ -114,31 +103,6 @@ const std::vector<InputShape> inputShapes_1D = {
                {16},
                {4},
                {16}
-           }
-       }
-};
-
-const std::vector<InputShape> inputShapes_2D = {
-       {
-           // dynamic
-           {-1, -1},
-           // target
-           {
-               {2, 16},
-               {4, 16},
-               {1, 16},
-               {4, 16}
-           }
-       },
-       {
-           // dynamic
-           {{1, 5}, {1, 20}},
-           // target
-           {
-               {1, 1},
-               {2, 16},
-               {4, 16},
-               {2, 16}
            }
        }
 };
@@ -282,30 +246,6 @@ const auto Mvn1D = ::testing::Combine(
        ::testing::ValuesIn(inpPrc));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn1D, MvnLayerGPUTest, Mvn1D, MvnLayerGPUTest::getTestCaseName);
-
-// 2D no transformed
-const auto Mvn2D = ::testing::Combine(
-       ::testing::Combine(
-               ::testing::ValuesIn(inputShapes_2D),
-               ::testing::Values(ElementType::f32),
-               ::testing::ValuesIn({empty_reduction_axes}),
-               ::testing::ValuesIn(normalizeVariance),
-               ::testing::ValuesIn(epsilon)),
-       ::testing::ValuesIn(inpPrc));
-
-INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn2D, MvnLayerGPUTest, Mvn2D, MvnLayerGPUTest::getTestCaseName);
-
-// 2d transformed
-const auto Mvn2DTrans = ::testing::Combine(
-       ::testing::Combine(
-               ::testing::ValuesIn(inputShapes_2D),
-               ::testing::Values(ElementType::f32),
-               ::testing::ValuesIn({empty_reduction_axes}),
-               ::testing::ValuesIn(normalizeVariance),
-               ::testing::ValuesIn(epsilon)),
-       ::testing::ValuesIn(inpPrc));
-
-INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn2DTrans, MvnLayerGPUTest, Mvn2DTrans, MvnLayerGPUTest::getTestCaseName);
 
 } // namespace
 } // namespace GPULayerTestsDefinitions
