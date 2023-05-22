@@ -171,7 +171,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_adaptive_avg_pooling_test_f32_2d,
                                  ::testing::ValuesIn(std::vector<AdaptiveAvgPoolingParams>{
                                         { tensor(1, 2, 7, 3), tensor(1, 2, 3, 3) },
                                         { tensor(2, 3, 7, 3), tensor(2, 3, 3, 3) },
-                                        { tensor(1, 3, 16, 16), tensor(1, 3, 16, 16) },
+                                        { tensor(1, 3, 7, 7), tensor(1, 3, 7, 7) },
                                     }),
                                  ::testing::Values(format::bfyx),
                                  ::testing::Values(format::bfyx),

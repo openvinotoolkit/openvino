@@ -34,6 +34,7 @@
 
 #include <utils/shape_inference/shape_inference_cpu.hpp>
 #include "utils/debug_capabilities.h"
+#include "utils/bit_util.hpp"
 
 #include "dnnl_postops_composer.h"
 #include "graph_context.h"
@@ -728,13 +729,9 @@ private:
 #endif
 };
 
-constexpr uint64_t PortMask(int n) {
-    return static_cast<uint64_t>(1) << n;
-}
-
 template <class... T>
-constexpr uint64_t PortMask(int n, T... rest) {
-    return PortMask(rest...) | (1 << n);
+constexpr uint64_t PortMask(T... rest) {
+    return util::bit::mask(rest...);
 }
 
 class Node::NodesFactory : public openvino::cc::Factory<Type,

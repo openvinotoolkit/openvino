@@ -1913,6 +1913,44 @@ TEST(gather_gpu_fp32, dynamic_322_axisF) {
     }
 }
 
+TEST(gather_gpu_fp32, indice_out_of_bound) {
+    auto& engine = get_test_engine();
+
+    ov::Shape in1_shape = { 3, 3 };
+    ov::Shape in2_shape = { 2, 2 };
+    auto in1_layout = layout{in1_shape, data_types::f32, format::bfyx};
+    auto in2_layout = layout{in2_shape, data_types::i32, format::bfyx};
+    auto input1 = engine.allocate_memory(layout{ov::PartialShape(in1_shape), data_types::f32, format::bfyx}); // data
+    auto input2 = engine.allocate_memory(layout{ov::PartialShape(in2_shape), data_types::i32, format::bfyx}); // Indexes
+
+    int64_t axis = 1;
+    set_values(input1, {0, 1, 2, 10, 11, 12, 20, 21, 22 });
+    set_values(input2, {1, 0, 2, 3});
+
+    topology topology;
+    topology.add(input_layout("input1", in1_layout));
+    topology.add(input_layout("input2", in2_layout));
+    topology.add(gather("gather", input_info("input1"), input_info("input2"), axis, ov::Shape{}, 0, true));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+    network.set_input_data("input1", input1);
+    network.set_input_data("input2", input2);
+
+    auto outputs = network.execute();
+
+    auto output = outputs.at("gather").get_memory();
+    cldnn::mem_lock<int> output_ptr(output, get_test_stream());
+
+    std::vector<int> expected_results = {1, 0, 2, 0,  11, 10, 12, 0,  21, 20, 22, 0};
+
+    ASSERT_EQ(expected_results.size(), output_ptr.size());
+    for (size_t i = 0; i < expected_results.size(); ++i) {
+        ASSERT_EQ(expected_results[i], output_ptr[i]) << i;
+    }
+}
+
 template <typename T>
 void test_gather_gpu_u8_322_axisF(bool is_caching_test) {
     //  Dictionary : 3x3x1x1

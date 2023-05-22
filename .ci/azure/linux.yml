@@ -105,7 +105,7 @@ jobs:
   steps:
   - task: UsePythonVersion@0
     inputs:
-      versionSpec: '$(OV_PYTHON_VERSION)' # Setting only major & minor version will download latest release from GH repo example 3.10 will be 3.10.10. 
+      versionSpec: '$(OV_PYTHON_VERSION)' # Setting only major & minor version will download latest release from GH repo example 3.10 will be 3.10.10.
       addToPath: true
       disableDownloadFromRegistry: false
       architecture: 'x64'
@@ -245,6 +245,7 @@ jobs:
         -DCMAKE_CXX_COMPILER=clang++
         -DCMAKE_C_COMPILER=clang
         -DENABLE_SYSTEM_SNAPPY=ON
+        -DENABLE_SYSTEM_TBB=ON
         -DCPACK_GENERATOR=$(CMAKE_CPACK_GENERATOR)
         -DBUILD_nvidia_plugin=OFF
         -S $(REPO_DIR)
@@ -367,7 +368,7 @@ jobs:
     displayName: 'Build cpp samples - gcc'
 
   - script: $(SAMPLES_INSTALL_DIR)/cpp/build_samples.sh -b $(BUILD_DIR)/cpp_samples_clang
-    env: 
+    env:
       CC: clang
       CXX: clang++
     displayName: 'Build cpp samples - clang'
@@ -446,6 +447,9 @@ jobs:
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_cpu_func_tests --gtest_filter=*smoke* --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_cpu_func_tests.xml
     displayName: 'CPU FuncTests'
     condition: and(succeeded(), eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'OFF'))
+
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_auto_batch_func_tests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_auto_batch_func_tests.xml
+    displayName: 'AutoBatch FuncTests'
 
   - script: |
       $(RUN_PREFIX) $(INSTALL_TEST_DIR)/InferenceEngineCAPITests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-InferenceEngineCAPITests.xml

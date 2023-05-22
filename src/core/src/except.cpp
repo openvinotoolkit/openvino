@@ -4,6 +4,10 @@
 
 #include "openvino/core/except.hpp"
 
+ov::Exception::Exception(const std::string& what_arg) : std::runtime_error(what_arg) {}
+
+ov::Exception::Exception(const std::stringstream& what_arg) : std::runtime_error(what_arg.str()) {}
+
 void ov::Exception::create(const CheckLocInfo& check_loc_info,
                            const std::string& context_info,
                            const std::string& explanation) {
