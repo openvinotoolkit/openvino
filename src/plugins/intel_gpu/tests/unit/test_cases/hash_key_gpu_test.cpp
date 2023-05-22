@@ -14,10 +14,10 @@
 #include <intel_gpu/primitives/mvn.hpp>
 #include <intel_gpu/primitives/permute.hpp>
 #include <intel_gpu/primitives/reshape.hpp>
+#include <intel_gpu/primitives/quantize.hpp>
 
 
-#include "eltwise_inst.h"
-// #include "fully_connected_inst.h"
+#include "primitive_inst.h"
 
 using namespace cldnn;
 using namespace tests;
@@ -45,7 +45,7 @@ TEST(check_hash_value, eltwise_basic) {
     const auto params_hash = prog_node.get_kernel_impl_params()->hash();
 
     ASSERT_EQ(primitive_hash, 11385140218618178073UL);
-    ASSERT_EQ(params_hash, 1027235386189301125UL);
+    ASSERT_EQ(params_hash, 15305755526697935028UL);
 }
 
 TEST(check_hash_value, fc_basic) {
@@ -75,7 +75,7 @@ TEST(check_hash_value, fc_basic) {
     const auto params_hash = prog_node.type()->get_fake_aligned_params(*prog_node.get_kernel_impl_params()).hash();
 
     ASSERT_EQ(primitive_hash, 2197080758510296176UL);
-    ASSERT_EQ(params_hash, 11955559181519986341UL);
+    ASSERT_EQ(params_hash, 11739524625665981477UL);
 }
 
 TEST(check_hash_value, gather_basic) {
@@ -106,7 +106,7 @@ TEST(check_hash_value, gather_basic) {
     const auto params_hash = prog_node.get_kernel_impl_params()->hash();
 
     ASSERT_EQ(primitive_hash, 93320679543770233UL);
-    ASSERT_EQ(params_hash, 10172614448743302593UL);
+    ASSERT_EQ(params_hash, 12757094369728796455UL);
 }
 
 TEST(check_hash_value, gemm_basic) {
@@ -130,9 +130,8 @@ TEST(check_hash_value, gemm_basic) {
 
     const auto primitive_hash = primitve->hash();
     const auto params_hash = prog_node.get_kernel_impl_params()->hash();
-
     ASSERT_EQ(primitive_hash, 8009877756431655269UL);
-    ASSERT_EQ(params_hash, 5997261677234251325UL);
+    ASSERT_EQ(params_hash, 1712886801865621575UL);
 }
 
 TEST(check_hash_value, permute_basic) {
@@ -155,7 +154,7 @@ TEST(check_hash_value, permute_basic) {
     const auto params_hash = prog_node.get_kernel_impl_params()->hash();
 
     ASSERT_EQ(primitive_hash, 4658575237077439700UL);
-    ASSERT_EQ(params_hash, 17614582924449795856UL);
+    ASSERT_EQ(params_hash, 8075003758662478789UL);
 }
 
 TEST(check_hash_value, reorder_basic) {
@@ -184,7 +183,7 @@ TEST(check_hash_value, reorder_basic) {
     const auto params_hash = prog_node.get_kernel_impl_params()->hash();
 
     ASSERT_EQ(primitive_hash, 16293979194373117693UL);
-    ASSERT_EQ(params_hash, 3697547102322623168UL);
+    ASSERT_EQ(params_hash, 12014408712579440062UL);
 }
 
 TEST(check_hash_value, reshape_basic) {
@@ -210,7 +209,7 @@ TEST(check_hash_value, reshape_basic) {
     const auto params_hash = prog_node.get_kernel_impl_params()->hash();
 
     ASSERT_EQ(primitive_hash, 1534749073560581535UL);
-    ASSERT_EQ(params_hash, 11227242497540193830UL);
+    ASSERT_EQ(params_hash, 5579157377851947119UL);
 }
 
 TEST(check_hash_value, conv_basic) {
@@ -225,7 +224,7 @@ TEST(check_hash_value, conv_basic) {
         input_layout("input", input->get_layout()),
         data("weights", weights),
         data("biases", biases),
-        convolution(key_prim_id, input_info("input"), { "weights" }, { "biases" }, {1, 1, 1}, {0, 0, 0}, {1, 1, 1}));
+        convolution(key_prim_id, input_info("input"), "weights", "biases", 1, {1, 1, 1}, {1, 1, 1}, {0, 0, 0}, {0, 0, 0}, false));
 
     auto prog = program::build_program(engine, topology, get_test_default_config(engine));
     network net(prog, 0);
@@ -236,8 +235,8 @@ TEST(check_hash_value, conv_basic) {
     const auto primitive_hash = primitve->hash();
     const auto params_hash = prog_node.get_kernel_impl_params()->hash();
 
-    ASSERT_EQ(primitive_hash, 14591385718963138714UL);
-    ASSERT_EQ(params_hash, 14648650631759496785UL);
+    ASSERT_EQ(primitive_hash, 13549661972131371304UL);
+    ASSERT_EQ(params_hash, 4330346452027285061UL);
 }
 
 TEST(check_hash_value, quantize_basic) {
@@ -268,7 +267,6 @@ TEST(check_hash_value, quantize_basic) {
 
     const auto primitive_hash = primitve->hash();
     const auto params_hash = prog_node.get_kernel_impl_params()->hash();
-
     ASSERT_EQ(primitive_hash, 4135863035456568493UL);
-    ASSERT_EQ(params_hash, 11586366692713421904UL);
+    ASSERT_EQ(params_hash, 4679882936150524961UL);
 }
