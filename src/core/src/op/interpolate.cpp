@@ -45,12 +45,11 @@ void ov::op::v0::Interpolate::validate_and_infer_types() {
                           "output shape must be an integral number.");
     set_input_is_relevant_to_shape(1);
 
-    const auto& input_shape = get_input_partial_shape(0);
-    const auto& target_spatial_shape = get_input_partial_shape(1);
-    std::vector<ov::PartialShape> input_shapes = {input_shape, target_spatial_shape};
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    const auto input_shapes = ov::get_node_input_partial_shapes(*this);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
-    shape_infer(this, input_shapes, output_shapes);
+    const auto output_shapes = shape_infer(this, input_shapes, make_tensor_accessor());
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }
 
@@ -125,22 +124,14 @@ std::vector<int64_t> ov::op::v4::Interpolate::get_axes() const {
     return axes_node->cast_vector<int64_t>();
 }
 
-static constexpr float epsilon = 1.0e-6f;
-
 void ov::op::v4::Interpolate::infer_using_scales(ov::PartialShape& output_shape,
                                                  const std::vector<int64_t>& axes,
                                                  const std::vector<float>& scales,
                                                  const ov::PartialShape& padded_input_shape) const {
-    size_t i = 0;
+    auto scale_iter = scales.begin();
     for (auto axis : axes) {
-        const auto& current_dim = padded_input_shape[axis];
-        float multiplier = scales[i] + epsilon;
-
-        int64_t new_lower_bound = util::multiply_bound_and_scale(current_dim.get_min_length(), multiplier);
-        int64_t new_upper_bound = util::multiply_bound_and_scale(current_dim.get_max_length(), multiplier);
-
-        output_shape[axis] = Dimension(new_lower_bound, new_upper_bound);
-        ++i;
+        output_shape[axis] = padded_input_shape[axis];
+        ov::util::dim::scale(output_shape[axis], *scale_iter++);
     }
 }
 
@@ -174,23 +165,10 @@ void ov::op::v4::Interpolate::validate_and_infer_types() {
     InterpolateBase::validate_and_infer_types();
 
     validate_sizes_element_type(get_input_element_type(1));
-
     validate_scales_element_type(get_input_element_type(2));
 
     if (input_values().size() == 4) {
         validate_axes_element_type(get_input_element_type(3));
-    }
-
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape()};
-    std::vector<ov::PartialShape> input_shapes;
-    const auto& input_shape = get_input_partial_shape(0);
-    const auto& target_spatial_shape = get_input_partial_shape(1);
-    const auto& scales = get_input_partial_shape(2);
-    if (input_values().size() == 3) {
-        input_shapes = {input_shape, target_spatial_shape, scales};
-    } else {
-        const auto& axes = get_input_partial_shape(3);
-        input_shapes = {input_shape, target_spatial_shape, scales, axes};
     }
 
     const auto interpolation_mode_check = [](const op::util::InterpolateBase::InterpolateMode mode) {
@@ -208,8 +186,12 @@ void ov::op::v4::Interpolate::validate_and_infer_types() {
                           "Unsupported interpolation mode used with version 4 of the Interpolate op: ",
                           as_string(m_attrs.mode));
 
-    util::correct_pads_attr(this, m_attrs.pads_begin, m_attrs.pads_end, input_shapes);
-    shape_infer(this, m_attrs.pads_begin, m_attrs.pads_end, input_shapes, output_shapes, {});
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    const auto input_shapes = get_node_input_partial_shapes(*this);
+    OPENVINO_SUPPRESS_DEPRECATED_END
+
+    const auto output_shapes =
+        shape_infer(this, input_shapes, m_attrs.pads_begin, m_attrs.pads_end, make_tensor_accessor());
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }
 
@@ -507,19 +489,12 @@ void op::v11::Interpolate::validate_and_infer_types() {
         validate_axes_element_type(get_input_element_type(2));
     }
 
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape()};
-    std::vector<ov::PartialShape> input_shapes;
-    const auto& input_shape = get_input_partial_shape(0);
-    const auto& scales_or_sizes = get_input_partial_shape(1);
-    if (input_values().size() == 2) {
-        input_shapes = {input_shape, scales_or_sizes};
-    } else {
-        const auto& axes = get_input_partial_shape(2);
-        input_shapes = {input_shape, scales_or_sizes, axes};
-    }
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    const auto input_shapes = get_node_input_partial_shapes(*this);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
-    util::correct_pads_attr(this, m_attrs.pads_begin, m_attrs.pads_end, input_shapes);
-    shape_infer(this, m_attrs.pads_begin, m_attrs.pads_end, input_shapes, output_shapes, {});
+    const auto output_shapes =
+        shape_infer(this, input_shapes, m_attrs.pads_begin, m_attrs.pads_end, make_tensor_accessor());
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }
 }  // namespace ov
