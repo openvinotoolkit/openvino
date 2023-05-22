@@ -8,6 +8,8 @@
 
 using namespace InferenceEngine;
 
+IE_SUPPRESS_DEPRECATED_START
+
 namespace {
 
 template <typename T>
