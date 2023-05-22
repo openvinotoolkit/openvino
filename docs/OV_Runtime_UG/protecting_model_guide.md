@@ -40,7 +40,7 @@ Additional Resources
 ####################
 
 - Intel® Distribution of OpenVINO™ toolkit `home page <https://software.intel.com/en-us/openvino-toolkit>`__.
-- :doc:`How to Convert a Model <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`.
+- :doc:`Convert a Model <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`.
 - :doc:`OpenVINO™ Runtime User Guide <openvino_docs_OV_UG_OV_Runtime_User_Guide>`.
 - For more information on Sample Applications, see the :doc:`OpenVINO Samples Overview <openvino_docs_OV_UG_Samples_Overview>`
 - For information on a set of pre-trained models, see the `Overview of OpenVINO™ Toolkit Pre-Trained Models <https://docs.openvino.ai/latest/omz_models_group_intel.html#doxid-omz-models-group-intel>`__.

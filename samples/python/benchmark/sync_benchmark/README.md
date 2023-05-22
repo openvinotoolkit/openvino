@@ -124,6 +124,6 @@ See Also
 * :doc:`Integrate the OpenVINO™ Runtime with Your Application <openvino_docs_OV_UG_Integrate_OV_with_your_application>`
 * :doc:`Using OpenVINO Samples <openvino_docs_OV_UG_Samples_Overview>`
 * :doc:`Model Downloader <omz_tools_downloader>`
-* :doc:`How to Convert a Model <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`
+* :doc:`Convert a Model <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`
 
 @endsphinxdirective
