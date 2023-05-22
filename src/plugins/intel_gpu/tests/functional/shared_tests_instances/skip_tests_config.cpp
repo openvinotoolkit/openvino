@@ -103,8 +103,6 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*CoreThreadingTests.*smoke.*Network.*)",
             // Assign-3/ReadValue-3 does not have evaluate() methods; ref implementation does not save the value across the inferences.
             R"(smoke_MemoryTestV3.*)",
-            // Unsupported 8d tensors
-            R"(smoke_Basic/SqueezeUnsqueezeLayerTest.CompareWithRefs/OpType=Unsqueeze_IS=\(1.1.1.1\)_Axes=\((0.1.2|0.2.3|1.2.3|0.1.2.3|)\)_.*)",
             // Issue: 90539
             R"(smoke_AutoBatch_BehaviorTests/OVInferRequestIOTensorTest.InferStaticNetworkSetInputTensor/targetDevice=BATCH.*)",
             // TODO: range input with one element should NOT be regarded as dynamic batch model in Program::IsDynBatchModel().
@@ -125,5 +123,8 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*(Auto|Multi).*SetPropLoadNetWorkGetPropTests.*)",
             // unsupported metrics
             R"(.*nightly_MultiHeteroAutoBatchOVGetMetricPropsTest.*OVGetMetricPropsTest.*(FULL_DEVICE_NAME_with_DEVICE_ID|AVAILABLE_DEVICES|DEVICE_UUID|OPTIMIZATION_CAPABILITIES|MAX_BATCH_SIZE|DEVICE_GOPS|DEVICE_TYPE|RANGE_FOR_ASYNC_INFER_REQUESTS|RANGE_FOR_STREAMS).*)",
+            //MVN op6 for empty reduction axes to be skipped
+            R"(.*CompareWithRefs_Mvn1D/MvnLayerGPUTest.CompareWithRefs/IS=\[\?\].*)",
+            R"(.*CompareWithRefs_Mvn2D(Trans|)/MvnLayerGPUTest.CompareWithRefs/IS=.*)",
     };
 }

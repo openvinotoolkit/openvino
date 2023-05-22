@@ -44,7 +44,7 @@ public:
            result << "(" << CommonTestUtils::vec2str(shape) << ")_";
        }
        result << "Precision=" << netPrecision << "_";
-       result << "ReductionAccess=" << CommonTestUtils::vec2str(axes) << "_";
+       result << "ReductionAxes=" << CommonTestUtils::vec2str(axes) << "_";
        result << "NormalizeVariance=" << (normalizeVariance ? "TRUE" : "FALSE") << "_";
        result << "Epsilon=" << eps;
        result << "_" << "CNNInpPrc=" << inputPrecision;
