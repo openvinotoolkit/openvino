@@ -46,21 +46,24 @@ using ConfigParams = std::tuple<
 const DeviceInformation CPU_INFO = {CommonTestUtils::DEVICE_CPU, {}, 2, "01", "CPU_01"};
 const DeviceInformation IGPU_INFO = {"GPU.0", {}, 2, "01", "iGPU_01"};
 const DeviceInformation DGPU_INFO = {"GPU.1", {}, 2, "01", "dGPU_01"};
-const DeviceInformation MYRIAD_INFO = {"MYRIAD", {}, 2, "01", "MYRIAD_01" };
 const DeviceInformation KEEMBAY_INFO = {CommonTestUtils::DEVICE_KEEMBAY, {}, 2, "01", "VPUX_01" };
-const std::vector<DeviceInformation>  fp32DeviceVector = {DGPU_INFO, IGPU_INFO, CPU_INFO, MYRIAD_INFO};
-const std::vector<DeviceInformation>  fp16DeviceVector = {DGPU_INFO, IGPU_INFO, MYRIAD_INFO, CPU_INFO};
-const std::vector<DeviceInformation>  int8DeviceVector = {KEEMBAY_INFO, DGPU_INFO, IGPU_INFO, CPU_INFO};
-const std::vector<DeviceInformation>  binDeviceVector = {DGPU_INFO, IGPU_INFO, CPU_INFO};
-const std::vector<DeviceInformation>  batchedblobDeviceVector = {DGPU_INFO, IGPU_INFO};
+const DeviceInformation AUTO_INFO = {"AUTO", {}, 2, "01", "AUTO_01" };
+const DeviceInformation MULTI_INFO = {"MULTI", {}, 2, "01", "MULTI_01" };
+const DeviceInformation HETERO_INFO = {"HETERO", {}, 2, "01", "HETERO_01" };
+const DeviceInformation BATCH_INFO = {"BATCH", {}, 2, "01", "BATCH_01" };
+const std::vector<DeviceInformation>  fp32DeviceVector = {DGPU_INFO, IGPU_INFO, CPU_INFO, AUTO_INFO, MULTI_INFO, HETERO_INFO, BATCH_INFO};
+const std::vector<DeviceInformation>  fp16DeviceVector = {DGPU_INFO, IGPU_INFO, CPU_INFO, AUTO_INFO, MULTI_INFO, HETERO_INFO, BATCH_INFO};
+const std::vector<DeviceInformation>  int8DeviceVector = {KEEMBAY_INFO, DGPU_INFO, IGPU_INFO, CPU_INFO, AUTO_INFO, MULTI_INFO, HETERO_INFO, BATCH_INFO};
+const std::vector<DeviceInformation>  binDeviceVector = {DGPU_INFO, IGPU_INFO, CPU_INFO, AUTO_INFO, MULTI_INFO, HETERO_INFO, BATCH_INFO};
+const std::vector<DeviceInformation>  batchedblobDeviceVector = {DGPU_INFO, IGPU_INFO, AUTO_INFO, MULTI_INFO, HETERO_INFO, BATCH_INFO};
 std::map<std::string, const std::vector<DeviceInformation>> devicesMap = {{"FP32", fp32DeviceVector},
                                                                            {"FP16", fp16DeviceVector},
                                                                            {"INT8", int8DeviceVector},
                                                                            {"BIN",  binDeviceVector},
                                                                            {"BATCHED_BLOB", batchedblobDeviceVector}
                                                                          };
-const std::vector<DeviceInformation> totalDevices = {DGPU_INFO, IGPU_INFO, MYRIAD_INFO, CPU_INFO, KEEMBAY_INFO};
-const std::vector<DeviceInformation> reverseTotalDevices = {KEEMBAY_INFO, CPU_INFO, MYRIAD_INFO, IGPU_INFO, DGPU_INFO};
+const std::vector<DeviceInformation> totalDevices = {DGPU_INFO, IGPU_INFO, CPU_INFO, KEEMBAY_INFO, AUTO_INFO, MULTI_INFO, HETERO_INFO, BATCH_INFO};
+const std::vector<DeviceInformation> reverseTotalDevices = {BATCH_INFO, HETERO_INFO, MULTI_INFO, AUTO_INFO, KEEMBAY_INFO, CPU_INFO, IGPU_INFO, DGPU_INFO};
 const std::vector<std::string> netPrecisions = {"FP32", "FP16", "INT8", "BIN", "BATCHED_BLOB"};
 std::vector<ConfigParams> testConfigs;
 
@@ -237,8 +240,11 @@ public:
 
        IE_SET_METRIC(OPTIMIZATION_CAPABILITIES, cpuCability, {"FP32", "FP16", "INT8", "BIN"});
        IE_SET_METRIC(OPTIMIZATION_CAPABILITIES, gpuCability, {"FP32", "FP16", "BATCHED_BLOB", "BIN", "INT8"});
-       IE_SET_METRIC(OPTIMIZATION_CAPABILITIES, myriadCability, {"FP16"});
        IE_SET_METRIC(OPTIMIZATION_CAPABILITIES, vpuxCability, {"INT8"});
+       IE_SET_METRIC(OPTIMIZATION_CAPABILITIES, autoCability, {"FP32", "FP16", "INT8", "BIN", "BATCHED_BLOB"});
+       IE_SET_METRIC(OPTIMIZATION_CAPABILITIES, multiCability, {"FP32", "FP16", "INT8", "BIN", "BATCHED_BLOB"});
+       IE_SET_METRIC(OPTIMIZATION_CAPABILITIES, heteroCability, {"FP32", "FP16", "INT8", "BIN", "BATCHED_BLOB"});
+       IE_SET_METRIC(OPTIMIZATION_CAPABILITIES, batchCability, {"FP32", "FP16", "INT8", "BIN", "BATCHED_BLOB"});
        IE_SET_METRIC(DEVICE_ARCHITECTURE, gpuArchitecture, "GPU: vendor=0x8086 arch=0");
        IE_SET_METRIC(DEVICE_TYPE, dGpuType, Metrics::DeviceType::discrete);
        IE_SET_METRIC(DEVICE_TYPE, iGpuType, Metrics::DeviceType::integrated);
@@ -247,10 +253,16 @@ public:
                    StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES)), _)).WillByDefault(RETURN_MOCK_VALUE(cpuCability));
        ON_CALL(*core, GetMetric(HasSubstr("GPU"),
                    StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES)), _)).WillByDefault(RETURN_MOCK_VALUE(gpuCability));
-       ON_CALL(*core, GetMetric(StrEq("MYRIAD"),
-                   StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES)), _)).WillByDefault(RETURN_MOCK_VALUE(myriadCability));
        ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_KEEMBAY),
                    StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES)), _)).WillByDefault(RETURN_MOCK_VALUE(vpuxCability));
+       ON_CALL(*core, GetMetric(StrEq("AUTO"),
+                   StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES)), _)).WillByDefault(RETURN_MOCK_VALUE(autoCability));
+       ON_CALL(*core, GetMetric(StrEq("MULTI"),
+                   StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES)), _)).WillByDefault(RETURN_MOCK_VALUE(multiCability));
+       ON_CALL(*core, GetMetric(StrEq("HETERO"),
+                   StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES)), _)).WillByDefault(RETURN_MOCK_VALUE(heteroCability));
+       ON_CALL(*core, GetMetric(StrEq("BATCH"),
+                   StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES)), _)).WillByDefault(RETURN_MOCK_VALUE(batchCability));
        ON_CALL(*core, GetMetric(HasSubstr("GPU"),
                    StrEq(METRIC_KEY(DEVICE_ARCHITECTURE)), _)).WillByDefault(RETURN_MOCK_VALUE(gpuArchitecture));
        ON_CALL(*core, GetMetric(StrEq("GPU"),

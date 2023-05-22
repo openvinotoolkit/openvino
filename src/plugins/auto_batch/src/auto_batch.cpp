@@ -696,15 +696,6 @@ DeviceInformation AutoBatchInferencePlugin::ParseMetaDevice(
     const std::map<std::string, std::string>& user_config) const {
     auto metaDevice = ParseBatchDevice(devicesBatchCfg);
     metaDevice.config = GetCore()->GetSupportedConfig(metaDevice.deviceName, user_config);
-
-    // check that no irrelevant config-keys left
-    for (const auto& k : user_config) {
-        const auto& name = k.first;
-        if (metaDevice.config.find(name) == metaDevice.config.end() &&
-            !ov::util::contains(supported_configKeys, name)) {
-            IE_THROW() << "Unsupported config key: " << name;
-        }
-    }
     return metaDevice;
 }
 

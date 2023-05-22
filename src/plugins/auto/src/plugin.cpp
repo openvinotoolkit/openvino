@@ -380,8 +380,8 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     auto priorities = loadConfig.get_property(ov::device::priorities);
     if (priorities.empty() && !workModeAuto)
         IE_THROW() << "KEY_MULTI_DEVICE_PRIORITIES key is not set for " << GetName() << " device";
-    if (priorities.find("AUTO") != std::string::npos || priorities.find("MULTI") != std::string::npos) {
-        IE_THROW() << "The device candidate list should not include the meta plugin for " << GetName() << " device";
+    if (priorities.find(":") != std::string::npos) {
+        IE_THROW() << "The device candidate list should not include ':' for " << GetName() << " device";
     }
     // check the configure and check if need to set PerfCounters configure to device
     // and set filter configure
@@ -532,16 +532,15 @@ std::list<DeviceInformation> MultiDeviceInferencePlugin::GetValidDevice(
     std::list<DeviceInformation> CPU;
     std::list<DeviceInformation> dGPU;
     std::list<DeviceInformation> iGPU;
-    std::list<DeviceInformation> MYRIAD;
     std::list<DeviceInformation> VPUX;
+    std::list<DeviceInformation> AUTO;
+    std::list<DeviceInformation> MULTI;
+    std::list<DeviceInformation> HETERO;
+    std::list<DeviceInformation> BATCH;
 
     for (auto& item : metaDevices) {
         if (item.deviceName.find("CPU") == 0) {
             CPU.push_back(item);
-            continue;
-        }
-        if (item.deviceName.find("MYRIAD") == 0) {
-            MYRIAD.push_back(item);
             continue;
         }
         if (item.deviceName.find("VPUX") == 0) {
@@ -564,9 +563,25 @@ std::list<DeviceInformation> MultiDeviceInferencePlugin::GetValidDevice(
             }
             continue;
         }
+        if (item.deviceName.find("AUTO") == 0) {
+            AUTO.push_back(item);
+            continue;
+        }
+        if (item.deviceName.find("MULTI") == 0) {
+            MULTI.push_back(item);
+            continue;
+        }
+        if (item.deviceName.find("HETERO") == 0) {
+            HETERO.push_back(item);
+            continue;
+        }
+        if (item.deviceName.find("BATCH") == 0) {
+            BATCH.push_back(item);
+            continue;
+        }
     }
 
-    // Priority of selecting device: dGPU > VPUX > iGPU > MYRIAD > CPU
+    // Priority of selecting device: dGPU > VPUX > iGPU > CPU
     std::list<DeviceInformation> devices;
     if (networkPrecision == "INT8") {
         devices.splice(devices.end(), VPUX);
@@ -576,8 +591,11 @@ std::list<DeviceInformation> MultiDeviceInferencePlugin::GetValidDevice(
         devices.splice(devices.end(), VPUX);
     }
     devices.splice(devices.end(), iGPU);
-    devices.splice(devices.end(), MYRIAD);
     devices.splice(devices.end(), CPU);
+    devices.splice(devices.end(), AUTO);
+    devices.splice(devices.end(), MULTI);
+    devices.splice(devices.end(), HETERO);
+    devices.splice(devices.end(), BATCH);
 
     std::list<DeviceInformation> validDevices;
 
@@ -588,7 +606,8 @@ std::list<DeviceInformation> MultiDeviceInferencePlugin::GetValidDevice(
                                       ->GetMetric(iter->deviceName, METRIC_KEY(OPTIMIZATION_CAPABILITIES))
                                       .as<std::vector<std::string>>();
                 auto supportNetwork = std::find(capability.begin(), capability.end(), (networkPrecision));
-                if (supportNetwork != capability.end()) {
+                if (supportNetwork != capability.end() || iter->deviceName == "AUTO" || iter->deviceName == "HETERO" ||
+                    iter->deviceName == "MULTI" || iter->deviceName == "BATCH") {
                     validDevices.push_back(std::move(*iter));
                     devices.erase(iter++);
                     continue;

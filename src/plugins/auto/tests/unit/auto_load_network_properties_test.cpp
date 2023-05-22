@@ -128,6 +128,30 @@ public:
         testConfigs.push_back(ConfigParams{"MULTI:GPU,CPU",
                                            {"CPU", "GPU"},
                                            {{"DEVICE_PROPERTIES", "{GPU:{NUM_STREAMS:5}}"}, {"MULTI_DEVICE_PRIORITIES", "GPU,CPU"}}});
+        testConfigs.push_back(
+            ConfigParams{"AUTO:AUTO",
+                         {"AUTO"},
+                         {{"DEVICE_PROPERTIES", "{CPU:{NUM_STREAMS:3}}"}, {"MULTI_DEVICE_PRIORITIES", "AUTO"}}});
+        testConfigs.push_back(ConfigParams{
+            "AUTO:MULTI",
+            {"MULTI"},
+            {{"DEVICE_PROPERTIES", "{MULTI:{MULTI_DEVICE_PRIORITIES:CPU}}"}, {"MULTI_DEVICE_PRIORITIES", "MULTI"}}});
+        testConfigs.push_back(ConfigParams{
+            "AUTO:HETERO",
+            {"HETERO"},
+            {{"DEVICE_PROPERTIES", "{HETERO:{MULTI_DEVICE_PRIORITIES:CPU}}"}, {"MULTI_DEVICE_PRIORITIES", "HETERO"}}});
+        testConfigs.push_back(ConfigParams{
+            "AUTO:BATCH",
+            {"BATCH"},
+            {{"DEVICE_PROPERTIES", "{BATCH:{MULTI_DEVICE_PRIORITIES:GPU}}"}, {"MULTI_DEVICE_PRIORITIES", "BATCH"}}});
+        testConfigs.push_back(ConfigParams{"AUTO:HETERO,MULTI",
+                                           {"HETERO"},
+                                           {{"DEVICE_PROPERTIES", "{HETERO:{MULTI_DEVICE_PRIORITIES:CPU}}"},
+                                            {"MULTI_DEVICE_PRIORITIES", "HETERO,MULTI"}}});
+        testConfigs.push_back(ConfigParams{"AUTO:HETERO,CPU",
+                                           {"HETERO"},
+                                           {{"DEVICE_PROPERTIES", "{HETERO:{MULTI_DEVICE_PRIORITIES:CPU}}"},
+                                            {"MULTI_DEVICE_PRIORITIES", "HETERO,CPU"}}});
         return testConfigs;
     }
 
@@ -241,6 +265,29 @@ public:
                             ::testing::Matcher<const std::map<std::string, std::string>&>(_)))
             .WillByDefault(Return(gpuMockExeNetwork));
 
+        ON_CALL(*core,
+                LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
+                            ::testing::Matcher<const std::string&>(StrEq("AUTO")),
+                            ::testing::Matcher<const std::map<std::string, std::string>&>(_)))
+            .WillByDefault(Return(gpuMockExeNetwork));
+
+        ON_CALL(*core,
+                LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
+                            ::testing::Matcher<const std::string&>(StrEq("HETERO")),
+                            ::testing::Matcher<const std::map<std::string, std::string>&>(_)))
+            .WillByDefault(Return(cpuMockExeNetwork));
+
+        ON_CALL(*core,
+                LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
+                            ::testing::Matcher<const std::string&>(StrEq("BATCH")),
+                            ::testing::Matcher<const std::map<std::string, std::string>&>(_)))
+            .WillByDefault(Return(gpuMockExeNetwork));
+
+        ON_CALL(*core,
+                LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
+                            ::testing::Matcher<const std::string&>(StrEq("MULTI")),
+                            ::testing::Matcher<const std::map<std::string, std::string>&>(_)))
+            .WillByDefault(Return(cpuMockExeNetwork));
         std::shared_ptr<ngraph::Function> simpleNetwork = ngraph::builder::subgraph::makeSingleConv();
         ASSERT_NO_THROW(simpleCnnNetwork = InferenceEngine::CNNNetwork(simpleNetwork));
     }
@@ -251,9 +298,11 @@ TEST_P(LoadNetworkWithSecondaryConfigsMockTest, LoadNetworkWithSecondaryConfigsT
     std::vector<std::string> targetDevices;
     Config config;
     std::tie(device, targetDevices, config) = this->GetParam();
-    if (device.find("AUTO") != std::string::npos)
+    std::string autoPluginName = device.find(":") == std::string::npos ? "AUTO" : "AUTO:";
+    std::string multiPluginName = device.find(":") == std::string::npos ? "MULTI" : "MULTI:";
+    if (device.find(autoPluginName) != std::string::npos)
         plugin->SetName("AUTO");
-    if (device.find("MULTI") != std::string::npos)
+    if (device.find(multiPluginName) != std::string::npos)
         plugin->SetName("MULTI");
 
     for (auto& deviceName : targetDevices) {

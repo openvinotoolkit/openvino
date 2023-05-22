@@ -392,6 +392,10 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
             DEBUG_RUN([this, &contextPtr, &deviceName, &supported_config_keys] {
                 std::lock_guard<std::mutex> lock(_autoSContext->_confMutex);
                 for (const auto& cfg : supported_config_keys) {
+                    if (deviceName == "HETERO" && cfg == "EXCLUSIVE_ASYNC_REQUESTS") {
+                        // GetConfig of EXCLUSIVE_ASYNC_REQUESTS maybe assert in HETERO
+                        continue;
+                    }
                     try {
                         LOG_DEBUG_TAG("device:%s, GetConfig:%s=%s",
                                       deviceName.c_str(),
@@ -433,11 +437,15 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
         });
     };
     if (_loadContext[ACTUALDEVICE].isEnabled) {
-        LOG_INFO_TAG("select device:%s", _loadContext[ACTUALDEVICE].deviceInfo.deviceName.c_str());
-        bool isActualDevCPU = _loadContext[ACTUALDEVICE].deviceInfo.deviceName.find("CPU") != std::string::npos;
+        std::string actualDevName = _loadContext[ACTUALDEVICE].deviceInfo.deviceName;
+        LOG_INFO_TAG("select device:%s", actualDevName.c_str());
+        bool isActualDevCPU = actualDevName.find("CPU") != std::string::npos;
+        bool isActualDevMetaDev =
+            actualDevName.find("AUTO") != std::string::npos || actualDevName.find("MULTI") != std::string::npos ||
+            actualDevName.find("HETERO") != std::string::npos || actualDevName.find("BATCH") != std::string::npos;
         // if Actual device is CPU or perf_hint is cumulative, disabled _loadContext[CPU], only use
         // _loadContext[ACTUALDEVICE]
-        if (isActualDevCPU || !_autoSContext->_startupfallback) {
+        if (isActualDevCPU || !_autoSContext->_startupfallback || isActualDevMetaDev) {
             _loadContext[CPU].isEnabled = false;
         } else {
             const auto CPUIter = deviceChecker().checkAndReturnIfDeviceInList("CPU", _autoSContext->_devicePriorities);

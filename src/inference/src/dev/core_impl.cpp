@@ -812,10 +812,10 @@ void ov::CoreImpl::apply_auto_batching(const std::shared_ptr<const ov::Model>& m
     bool strictly_check_dims = true;
     if (deviceName.find("BATCH") != std::string::npos) {
         // explicitly enabled Auto-Batching
-        auto pos = deviceName.find_first_of(":");
+        auto pos = deviceName.find("BATCH:");
         if (pos == std::string::npos)
             return;  // BATCH device is already configured via the config
-        deviceNameWithBatchSize = deviceName.substr(pos + 1);
+        deviceNameWithBatchSize = deviceName.substr(pos + 6);
         deviceNameWithoutBatch = ov::DeviceIDParser::get_batch_device(deviceNameWithBatchSize);
         // when user sets the BATCH device explicitly, we may check the dims less strictly
         // as the result is being checked by the user
