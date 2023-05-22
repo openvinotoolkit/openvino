@@ -25,7 +25,7 @@
 
 namespace InferenceEngine {
 
-_IE_SUPPRESS_DEPRECATED_START_GCC
+IE_SUPPRESS_DEPRECATED_START
 
 /**
  * @deprecated Use InferenceEngine::CNNNetwork wrapper instead
@@ -35,13 +35,11 @@ _IE_SUPPRESS_DEPRECATED_START_GCC
 class INFERENCE_ENGINE_1_0_DEPRECATED INFERENCE_ENGINE_API_CLASS(ICNNNetwork)
     : public std::enable_shared_from_this<ICNNNetwork> {
 public:
-    IE_SUPPRESS_DEPRECATED_START
     /**
      * @deprecated Use InferenceEngine::CNNNetwork wrapper instead
      * @brief A shared pointer to a ICNNNetwork interface
      */
     using Ptr = std::shared_ptr<ICNNNetwork>;
-    IE_SUPPRESS_DEPRECATED_END
 
     /**
      * @deprecated Use InferenceEngine::CNNNetwork wrapper instead
@@ -262,14 +260,12 @@ public:
     }
 
 protected:
-    IE_SUPPRESS_DEPRECATED_START
     /**
      * @brief Default destructor.
      */
     ~ICNNNetwork() = default;
-    IE_SUPPRESS_DEPRECATED_END
 };
 
-_IE_SUPPRESS_DEPRECATED_END_GCC
+IE_SUPPRESS_DEPRECATED_END
 
 }  // namespace InferenceEngine
