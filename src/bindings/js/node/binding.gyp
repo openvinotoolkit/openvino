@@ -8,7 +8,6 @@
 
       "sources": [  
         "src/shape_lite.cpp",
-        "src/session.cpp",
         "src/async_reader.cpp",
         "src/pre_post_process_wrap.cpp",
         "src/errors.cpp",
