@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include <ngraph/pass/graph_rewrite.hpp>
-#include <ngraph/pattern/matcher.hpp>
+#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace pass {
 
@@ -17,15 +17,15 @@ namespace pass {
  * The pass is used to convert model to a canonical form for code generation
  * @ingroup snippets
  */
-class InsertMoveBroadcast: public ngraph::pass::MatcherPass {
+class InsertMoveBroadcast: public ov::pass::MatcherPass {
 public:
     InsertMoveBroadcast();
 
-    static Output<ngraph::Node> BroadcastNodeLastDim(const ngraph::Output<ngraph::Node>& value,
+    static Output<ov::Node> BroadcastNodeLastDim(const ov::Output<ov::Node>& value,
                                                      const ov::PartialShape& target_shape,
                                                      const ov::PartialShape& normalized_shape);
 };
 
 } // namespace pass
 } // namespace snippets
-} // namespace ngraph
+} // namespace ov
