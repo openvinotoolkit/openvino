@@ -64,8 +64,7 @@ void regclass_transformations(py::module m) {
         :type version: Union[str, openvino.runtime.passes.Version]
     )");
 
-    serialize.def("__repr__",
-    [](const ov::pass::Serialize& self) {
+    serialize.def("__repr__", [](const ov::pass::Serialize& self) {
         return "<Serialize>";
     });
 
@@ -76,8 +75,7 @@ void regclass_transformations(py::module m) {
         cf(m, "ConstantFolding");
     cf.doc() = "openvino.runtime.passes.ConstantFolding transformation";
     cf.def(py::init<>());
-    cf.def("__repr__",
-    [](const ov::pass::ConstantFolding& self) {
+    cf.def("__repr__", [](const ov::pass::ConstantFolding& self) {
         return "<ConstantFolding>";
     });
 
@@ -103,8 +101,7 @@ void regclass_transformations(py::module m) {
                   :param don_only: Enable only dot file generation.
                   :type don_only: bool
     )");
-    visualize.def("__repr__",
-    [](const ov::pass::VisualizeTree& self) {
+    visualize.def("__repr__", [](const ov::pass::VisualizeTree& self) {
         return "<VisualizeTree>";
     });
 
@@ -127,8 +124,7 @@ void regclass_transformations(py::module m) {
         :param pairs_to_replace: a dictionary of names of the provided Parameter and Result operations.
         :type pairs_to_replace: Dict[str, str]
     )");
-    make_stateful.def("__repr__",
-    [](const ov::pass::MakeStateful& self) {
+    make_stateful.def("__repr__", [](const ov::pass::MakeStateful& self) {
         return "<MakeStateful>";
     });
 
@@ -150,8 +146,7 @@ void regclass_transformations(py::module m) {
                                                   If "false, then the transformation leaves existed initializing subgraph for ReadValue operation.
                     :type use_const_initializer: bool
     )");
-    low_latency.def("__repr__",
-    [](const ov::pass::LowLatency2& self) {
+    low_latency.def("__repr__", [](const ov::pass::LowLatency2& self) {
         return "<LowLatency2>";
     });
 
@@ -162,8 +157,7 @@ void regclass_transformations(py::module m) {
         convert(m, "ConvertFP32ToFP16");
     convert.doc() = "openvino.runtime.passes.ConvertFP32ToFP16 transformation";
     convert.def(py::init<>());
-    convert.def("__repr__",
-    [](const ov::pass::ConvertFP32ToFP16& self) {
+    convert.def("__repr__", [](const ov::pass::ConvertFP32ToFP16& self) {
         return "<ConvertFP32ToFP16>";
     });
 }

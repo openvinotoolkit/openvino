@@ -212,8 +212,7 @@ void regclass_graph_op_Constant(py::module m) {
             :rtype: numpy.array
         )");
 
-    constant.def("__repr__",
-    [](const ov::op::v0::Constant& self) {
+    constant.def("__repr__", [](const ov::op::v0::Constant& self) {
         return "<Constant>";
     });
 }

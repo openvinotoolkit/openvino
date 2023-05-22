@@ -44,9 +44,7 @@ void regclass_graph_Layout(py::module m) {
         return self.to_string();
     });
     layout.def_property_readonly("empty", &ov::Layout::empty);
-    layout.def(
-        "__repr__",
-        [](const ov::Layout& self) {
-            return "<Layout: " + self.to_string() + ">";
+    layout.def("__repr__", [](const ov::Layout& self) {
+        return "<Layout: " + self.to_string() + ">";
     });
 }

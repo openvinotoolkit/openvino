@@ -135,8 +135,7 @@ void regclass_graph_op_Loop(py::module m) {
         },
         py::arg("outputs"));
 
-    cld.def("__repr__",
-    [](const ov::op::v5::Loop& self) {
+    cls.def("__repr__", [](const ov::op::v5::Loop& self) {
         return "<loop>";
     });
 }

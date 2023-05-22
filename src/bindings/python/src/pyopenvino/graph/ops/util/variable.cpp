@@ -19,8 +19,7 @@ void regclass_graph_op_util_Variable(py::module m) {
     variable_info.def_readwrite("data_shape", &ov::op::util::VariableInfo::data_shape);
     variable_info.def_readwrite("data_type", &ov::op::util::VariableInfo::data_type);
     variable_info.def_readwrite("variable_id", &ov::op::util::VariableInfo::variable_id);
-    variable_info.def("__repr__",
-    [](const ov::op::util::VariableInfo& self) {
+    variable_info.def("__repr__", [](const ov::op::util::VariableInfo& self) {
         return "<VariableInfo>";
     });
 
@@ -33,8 +32,7 @@ void regclass_graph_op_util_Variable(py::module m) {
     variable.def_property_readonly("info", &ov::op::util::Variable::get_info);
     variable.def("get_info", &ov::op::util::Variable::get_info);
     variable.def("update", &ov::op::util::Variable::update, py::arg("variable_info"));
-    variable.def("__repr__",
-    [](const ov::op::util::Variable& self) {
+    variable.def("__repr__", [](const ov::op::util::Variable& self) {
         return "<Variable>";
     });
 }

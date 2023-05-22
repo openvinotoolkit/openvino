@@ -36,10 +36,8 @@ void regclass_graph_Coordinate(py::module m) {
             return py::make_iterator(self.begin(), self.end());
         },
         py::keep_alive<0, 1>()); /* Keep vector alive while iterator is used */
-    
-    coordinate.def(
-        "__repr__",
-        [](const ov::Coordinate& self) {
-            return "<Coordinate>";
+
+    coordinate.def("__repr__", [](const ov::Coordinate& self) {
+        return "<Coordinate>";
     });
 }

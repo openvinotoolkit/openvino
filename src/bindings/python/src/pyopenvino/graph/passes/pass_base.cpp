@@ -31,8 +31,7 @@ void regclass_passes_PassBase(py::module m) {
                   :return: Transformation name.
                   :rtype: str
     )");
-    pass_base.def("__repr__",
-    [](const ov::pass::PassBase& self) {
+    pass_base.def("__repr__", [](const ov::pass::PassBase& self) {
         return "<PassBase>";
     });
 }

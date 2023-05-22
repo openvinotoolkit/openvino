@@ -54,10 +54,7 @@ void regclass_passes_Manager(py::module m) {
                 :type transformation: openvino.runtime.passes.PassBase
     )");
 
-    
-    manager.def("__repr__",
-    [](const ov::pass::Manager& self) {
+    manager.def("__repr__", [](const ov::pass::Manager& self) {
         return "<Manager>";
-    }
-    );
+    });
 }

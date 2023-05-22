@@ -89,10 +89,9 @@ void regclass_graph_op_util_MultiSubgraphOp(py::module m) {
                PyInputDescription>(m, "InputDescription")
         .def(py::init<>())
         .def("copy", &ov::op::util::MultiSubGraphOp::InputDescription::copy)
-        .def("__repr__",
-    [](const ov::op::util::MultiSubGraphOp::InputDescription& self) {
-        return "<InputDescription>";
-    });
+        .def("__repr__", [](const ov::op::util::MultiSubGraphOp::InputDescription& self) {
+            return "<InputDescription>";
+        });
 
     py::class_<ov::op::util::MultiSubGraphOp::SliceInputDescription,
                std::shared_ptr<ov::op::util::MultiSubGraphOp::SliceInputDescription>,
@@ -118,8 +117,7 @@ void regclass_graph_op_util_MultiSubgraphOp(py::module m) {
     slice.def_readonly("part_size", &ov::op::util::MultiSubGraphOp::SliceInputDescription::m_part_size);
     slice.def_readonly("end", &ov::op::util::MultiSubGraphOp::SliceInputDescription::m_end);
     slice.def_readonly("axis", &ov::op::util::MultiSubGraphOp::SliceInputDescription::m_axis);
-    slice.def("__repr__",
-    [](const ov::op::util::MultiSubGraphOp::SliceInputDescription& self) {
+    slice.def("__repr__", [](const ov::op::util::MultiSubGraphOp::SliceInputDescription& self) {
         return "<SliceInputDescription>";
     });
 
@@ -139,8 +137,7 @@ void regclass_graph_op_util_MultiSubgraphOp(py::module m) {
     merged.def_readonly("body_parameter_index",
                         &ov::op::util::MultiSubGraphOp::MergedInputDescription::m_body_parameter_index);
     merged.def_readonly("body_value_index", &ov::op::util::MultiSubGraphOp::MergedInputDescription::m_body_value_index);
-    merged.def("__repr__",
-    [](const ov::op::util::MultiSubGraphOp::MergedInputDescription& self) {
+    merged.def("__repr__", [](const ov::op::util::MultiSubGraphOp::MergedInputDescription& self) {
         return "<MergedInputDescription>";
     });
 
@@ -156,8 +153,7 @@ void regclass_graph_op_util_MultiSubgraphOp(py::module m) {
     invariant.def_readonly("input_index", &ov::op::util::MultiSubGraphOp::InvariantInputDescription::m_input_index);
     invariant.def_readonly("body_parameter_index",
                            &ov::op::util::MultiSubGraphOp::InvariantInputDescription::m_body_parameter_index);
-    invariant.def("__repr__",
-    [](const ov::op::util::MultiSubGraphOp::InvariantInputDescription& self) {
+    invariant.def("__repr__", [](const ov::op::util::MultiSubGraphOp::InvariantInputDescription& self) {
         return "<InvariantInputDescription>";
     });
 
@@ -165,11 +161,10 @@ void regclass_graph_op_util_MultiSubgraphOp(py::module m) {
                std::shared_ptr<ov::op::util::MultiSubGraphOp::OutputDescription>,
                PyOutputDescription>(m, "OutputDescription")
         .def(py::init<>())
-        .def("copy", &ov::op::util::MultiSubGraphOp::OutputDescription::copy);
-        .def("__repr__",
-            [](const ov::op::util::MultiSubGraphOp::OutputDescription& self) {
-                return "<OutputDescription>";
-            });
+        .def("copy", &ov::op::util::MultiSubGraphOp::OutputDescription::copy)
+        .def("__repr__", [](const ov::op::util::MultiSubGraphOp::OutputDescription& self) {
+            return "<OutputDescription>";
+        });
 
     py::class_<ov::op::util::MultiSubGraphOp::ConcatOutputDescription,
                std::shared_ptr<ov::op::util::MultiSubGraphOp::ConcatOutputDescription>,
@@ -195,8 +190,7 @@ void regclass_graph_op_util_MultiSubgraphOp(py::module m) {
     concat.def_readonly("part_size", &ov::op::util::MultiSubGraphOp::ConcatOutputDescription::m_part_size);
     concat.def_readonly("end", &ov::op::util::MultiSubGraphOp::ConcatOutputDescription::m_end);
     concat.def_readonly("axis", &ov::op::util::MultiSubGraphOp::ConcatOutputDescription::m_axis);
-    concat.def("__repr__",
-    [](const ov::op::util::MultiSubGraphOp::ConcatOutputDescription& self) {
+    concat.def("__repr__", [](const ov::op::util::MultiSubGraphOp::ConcatOutputDescription& self) {
         return "<ConcatOutputDescription>";
     });
 
@@ -215,8 +209,7 @@ void regclass_graph_op_util_MultiSubgraphOp(py::module m) {
     body.def_readonly("output_index", &ov::op::util::MultiSubGraphOp::BodyOutputDescription::m_output_index);
     body.def_readonly("body_value_index", &ov::op::util::MultiSubGraphOp::BodyOutputDescription::m_body_value_index);
     body.def_readonly("iteration", &ov::op::util::MultiSubGraphOp::BodyOutputDescription::m_iteration);
-    body.def("__repr__",
-    [](const ov::op::util::MultiSubGraphOp::BodyOutputDescription& self) {
+    body.def("__repr__", [](const ov::op::util::MultiSubGraphOp::BodyOutputDescription& self) {
         return "<BodyOutputDescription>";
     });
 }

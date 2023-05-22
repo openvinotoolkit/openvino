@@ -199,8 +199,7 @@ void regclass_passes_MatcherPass(py::module m) {
                      :type callback: function
     )");
 
-    matcher_pass.def("__repr__",
-    [](const ov::pass::MatcherPass& self) {
+    matcher_pass.def("__repr__", [](const ov::pass::MatcherPass& self) {
         return "<MatcherPass>";
     });
 }
