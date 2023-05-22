@@ -169,17 +169,15 @@ def convert_inputs_of_specific_ops(graph: Graph):
                                   ''.format(port_id, node.soft_get('name', node.id), precision))
                         in_port = node.in_port(port_id)
                         np_type = data_type_str_to_np(precision)
-                        in_node = node.in_port(port_id).get_source().node
-                        in_node_type = in_node.out_port(0).get_data_type()
-                        if np.issubdtype(in_node_type, np.integer) and np.issubdtype(np_type, np.integer):
-                            # do not convert if both source and destination types are of integer types
-                            # otherwise, it affects compatibility of MO IR Engine and TF FE
-                            # TF FE intents to use original model type for layers if it is possible.
-                            # Also, this skip is needed to get the same graphs from original IR and
-                            # restored with ir_reader_utils
-                            continue
                         if in_port.get_source().node.type == 'Const':
-                            convert_const_node_value_type(in_node, np_type)
+                            const_node = node.in_port(port_id).get_source().node
+                            const_type = const_node.out_port(0).get_data_type()
+                            if np.issubdtype(const_type, np.integer) and np.issubdtype(np_type, np.integer):
+                                # do not convert Constant value if both source and destination types are of integer types
+                                # otherwise, it affects compatibility of MO IR Engine and TF FE
+                                # TF FE intents to use original model type for layers if it is possible
+                                continue
+                            convert_const_node_value_type(const_node, np_type)
                         else:
                             in_port.get_connection().insert_node(Cast(graph, {'dst_type': np_type}).create_node())
 
