@@ -30,11 +30,6 @@ void regclass_Core(py::module m) {
 
     cls.def(py::init<const std::string&>(), py::arg("xml_config_file") = "");
 
-    cls.def("__repr__", [](const ov::Core& self) {
-        auto devices = Common::docs::container_to_string(self.get_available_devices(), ", ");
-        return "<Core: available plugins[" + devices + "]>";
-    });
-
     cls.def(
         "set_property",
         [](ov::Core& self, const std::map<std::string, py::object>& properties) {
@@ -617,4 +612,9 @@ void regclass_Core(py::module m) {
                                         compile_model, query_model, set_property and so on.
                                     :rtype: list
                                 )");
+    
+    cls.def("__repr__", [](const ov::Core& self) {
+        auto devices = Common::docs::container_to_string(self.get_available_devices(), ", ");
+        return "<Core: available plugins[" + devices + "]>";
+    });
 }

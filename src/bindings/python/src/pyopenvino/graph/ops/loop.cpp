@@ -134,4 +134,9 @@ void regclass_graph_op_Loop(py::module m) {
             self->set_output_descriptions(0, MultiSubgraphHelpers::list_to_output_descriptor(outputs));
         },
         py::arg("outputs"));
+
+    cld.def("__repr__",
+    [](const ov::op::v5::Loop& self) {
+        return "<loop>";
+    });
 }

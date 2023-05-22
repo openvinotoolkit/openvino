@@ -198,4 +198,9 @@ void regclass_passes_MatcherPass(py::module m) {
                      :param callback: Function that performs transformation on the matched nodes.
                      :type callback: function
     )");
+
+    matcher_pass.def("__repr__",
+    [](const ov::pass::MatcherPass& self) {
+        return "<MatcherPass>";
+    });
 }

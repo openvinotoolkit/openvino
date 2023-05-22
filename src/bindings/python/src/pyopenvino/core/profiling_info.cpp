@@ -14,6 +14,10 @@ void regclass_ProfilingInfo(py::module m) {
     py::class_<ov::ProfilingInfo, std::shared_ptr<ov::ProfilingInfo>> cls(m, "ProfilingInfo");
     cls.doc() = "openvino.runtime.ProfilingInfo contains performance metrics for single node.";
 
+    cls.def("__repr__", [](const ov::ProfilingInfo& self) {
+        return "<ProfilingInfo>";
+    });
+
     cls.def(py::init<>())
         .def_readwrite("status", &ov::ProfilingInfo::status)
         .def_readwrite("real_time", &ov::ProfilingInfo::real_time)

@@ -72,4 +72,9 @@ void regclass_passes_GraphRewrite(py::module m) {
         :param pass: openvino.runtime.passes.MatcherPass instance
         :type pass: openvino.runtime.passes.MatcherPass
     )");
+
+    back_graph_rewrite.def("__repr__",
+    [](const ov::pass::BackwardGraphRewrite& self) {
+        return "<BackwardGraphRewrite>";
+    });
 }

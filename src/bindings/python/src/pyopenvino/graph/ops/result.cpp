@@ -28,4 +28,9 @@ void regclass_graph_op_Result(py::module m) {
     result.def("set_layout", &ov::op::v0::Result::set_layout, py::arg("layout"));
 
     result.def_property("layout", &ov::op::v0::Result::get_layout, &ov::op::v0::Result::set_layout);
+
+    result.def("__repr__",
+    [](const ov::op::v0::Result& self) {
+        return "<Result>";
+    });
 }

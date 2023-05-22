@@ -414,6 +414,11 @@ static void reg_pattern_wrap_type(py::module m) {
         :param predicate: Function that performs additional checks for matching.
         :type predicate: function
     )");
+    
+    wrap_type.def("__repr__",
+    [](const ov::pass::pattern::op::WrapType& self) {
+        return "<WrapType>";
+    });
 }
 
 static void reg_pattern_or(py::module m) {
@@ -441,6 +446,11 @@ static void reg_pattern_or(py::module m) {
                 :param inputs: Operation inputs.
                 :type inputs: List[openvino.runtime.Node]
     )");
+
+    or_type.def("__repr__",
+    [](const ov::pass::pattern::op::Or& self) {
+        return "<Or>";
+    });
 }
 
 static void reg_pattern_any_input(py::module m) {
@@ -468,6 +478,11 @@ static void reg_pattern_any_input(py::module m) {
                   :param pred: Function that performs additional checks for matching.
                   :type pred: function
     )");
+
+    any_input.def("__repr__",
+    [](const ov::pass::pattern::op::Label& self) {
+        return "<AnyInput>";
+    });
 }
 
 inline void reg_predicates(py::module m) {

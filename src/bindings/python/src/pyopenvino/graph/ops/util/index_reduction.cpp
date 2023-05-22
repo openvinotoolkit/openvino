@@ -28,4 +28,8 @@ void regclass_graph_op_util_IndexReduction(py::module m) {
     indexReduction.def_property("index_element_type",
                                 &ov::op::util::IndexReduction::get_index_element_type,
                                 &ov::op::util::IndexReduction::set_index_element_type);
+    indexReduction.def("__repr__",
+    [](const ov::op::util::IndexReduction& self) {
+        return "<IndexReduction>";
+    });
 }

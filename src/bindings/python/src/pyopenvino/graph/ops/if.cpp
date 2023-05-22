@@ -82,4 +82,9 @@ void regclass_graph_op_If(py::module m) {
             return result;
         },
         py::arg("index"));
+    
+    cls.def("__repr__",
+    [](const ov::op::v8::If& self) {
+        return "<if_op>";
+    });
 }

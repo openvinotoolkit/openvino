@@ -121,4 +121,12 @@ void regclass_graph_descriptor_Tensor(py::module m) {
     tensor.def_property_readonly("any_name", &ov::descriptor::Tensor::get_any_name);
 
     tensor.def_property("names", &ov::descriptor::Tensor::get_names, &ov::descriptor::Tensor::set_names);
+
+    tensor.def("__repr__",
+      [](const ov::descriptor::Tensor& self) {
+         std::stringstream shape_type_ss;
+         shape_type_ss << " shape" << self.get_partial_shape() << " type: " << self.get_element_type();
+         auto names_str = Common::docs::container_to_string(self.get_names(), ", ");
+         return "<DescriptorTensor: names[" + names_str + "]" + shape_type_ss.str() + ">";
+      });
 }

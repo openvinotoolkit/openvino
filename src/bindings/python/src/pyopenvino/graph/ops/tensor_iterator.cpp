@@ -101,4 +101,9 @@ void regclass_graph_op_TensorIterator(py::module m) {
             self->set_output_descriptions(0, MultiSubgraphHelpers::list_to_output_descriptor(outputs));
         },
         py::arg("outputs"));
+    
+    cls.def("__repr__",
+    [](const ov::op::v0::TensorIterator& self) {
+        return "<tensor_iterator>";
+    });
 }

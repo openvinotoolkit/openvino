@@ -98,4 +98,12 @@ void regclass_graph_Input(py::module m) {
     input.def_property_readonly("rt_info",
                                 (const ov::RTMap& (ov::Input<ov::Node>::*)() const) & ov::Input<ov::Node>::get_rt_info,
                                 py::return_value_policy::reference_internal);
+    
+    input.def(
+        "__repr__",
+        [](const ov::Input<ov::Node>& self) {
+          std::stringstream shape_type_ss;
+          shape_type_ss << " shape" << self.get_partial_shape() << " type: " << self.get_element_type();
+          return "<Input:" + shape_type_ss.str() + ">";
+    });
 }

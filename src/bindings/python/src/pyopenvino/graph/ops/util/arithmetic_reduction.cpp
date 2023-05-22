@@ -24,4 +24,8 @@ void regclass_graph_op_util_ArithmeticReduction(py::module m) {
     arithmeticReduction.def_property("reduction_axes",
                                      &ov::op::util::ArithmeticReduction::get_reduction_axes,
                                      &ov::op::util::ArithmeticReduction::set_reduction_axes);
+    arithmeticReduction.def("__repr__",
+    [](const ov::op::util::ArithmeticReduction& self) {
+        return "<ArithmeticReduction>";
+    });
 }
