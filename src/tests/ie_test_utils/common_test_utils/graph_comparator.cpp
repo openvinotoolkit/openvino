@@ -1039,9 +1039,7 @@ AccuracyCheckResult accuracy_check(const std::shared_ptr<ov::Model>& ref_functio
         IE_ASSERT(ref_outputs.size() == outputs.size());
 
         for (int i = 0; i < ref_outputs.size(); i++) {
-            ov::test::utils::compare(ref_outputs[i], outputs[i],
-                                     std::numeric_limits<double>::max(),
-                                     std::numeric_limits<double>::max());
+            ov::test::utils::compare(ref_outputs[i], outputs[i], 5e-4, 1e-3);
         }
     }
     catch (const std::runtime_error &re) {
