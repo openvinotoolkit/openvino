@@ -5,7 +5,7 @@ import numpy as np
 from common.tflite_layer_test_class import TFLiteLayerTest
 
 test_params = [
-    {'shapes': ((None, 4, 5), (None, 5, 6), (3, 4, 7), (3, 5, 6)), 'adjoint_a': True, 'adjoint_b': True},
+    {'shapes': ((None, 4, 5), (None, 5, 6), (3, 4, 5), (3, 5, 6)), 'adjoint_a': True, 'adjoint_b': True},
     {'shapes': ((None, 1, 3, 4), (None, 4, 2), (2, 1, 3, 4), (5, 4, 2)), 'adjoint_a': False, 'adjoint_b': False},
     {'shapes': ((None, None, None, 3, 4), (None, None, None, 4, 3),
                 (2, 2, 2, 3, 4), (2, 2, 2, 4, 3)), 'adjoint_a': False, 'adjoint_b': False},
@@ -18,15 +18,15 @@ class TestTFLiteBatchMatmulLayerTest(TFLiteLayerTest):
     allowed_ops = ['BATCH_MATMUL']
 
     def _prepare_input(self, inputs_dict, generator=None):
-        input0_shape = self.shapes["shapes"][2]
-        adj_a = self.adjoint_a["adjoint_a"]
-        adj_b = self.adjoint_b["adjoint_b"]
+        input0_shape = self.shapes[2]
+        adj_a = self.adjoint_a
+        adj_b = self.adjoint_b
         if adj_a:
             input0_shape = self._swap_last_two_dims(*input0_shape)
-        inputs_dict['Input'] = (1.0 - (-1.0)) * np.random.random_sample(input0_shape) + (-1.0)
+        inputs_dict['Input'] = np.float32((1.0 - (-1.0)) * np.random.random_sample(input0_shape) + (-1.0))
 
         input1_shape = self.shapes[3] if not adj_b else self._swap_last_two_dims(*self.shapes[3])
-        inputs_dict['Input1'] = (1.0 - (-1.0)) * np.random.random_sample(input1_shape) + (-1.0)
+        inputs_dict['Input1'] = np.float32((1.0 - (-1.0)) * np.random.random_sample(input1_shape) + (-1.0))
 
         return inputs_dict
 

@@ -20,7 +20,6 @@ class TestTFLiteHardSwishLayerTest(TFLiteLayerTest):
 
     def _prepare_input(self, inputs_dict, generator=None):
         inputs_dict['Input'] = np.float32((10 - (-10)) * np.random.random_sample(inputs_dict['Input']) + (-10))
-
         return inputs_dict
 
     def make_model(self, params):

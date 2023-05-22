@@ -119,6 +119,6 @@ class InferAPI20(BaseInfer):
         net = core.read_model(self.model, self.weights)
         inputs_info = {}
         for item in net.inputs:
-            inputs_info[item.get_any_name()] = list(item.shape)
+            inputs_info[item.get_any_name()] = list(item.partial_shape)
 
         return inputs_info
