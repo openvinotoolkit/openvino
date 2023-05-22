@@ -530,17 +530,29 @@ inline void update_output_tensors(const ngraph::HostTensorVector& output_values,
 
 bool ov::Model::evaluate(const HostTensorVector& output_tensors,
                          const HostTensorVector& input_tensors,
-                         EvaluationContext evaluation_context) const {
+                         EvaluationContext& evaluation_context) const {
     ov::TensorVector outputs = create_tmp_tensors(output_tensors);
     ov::TensorVector inputs = create_tmp_tensors(input_tensors);
-    bool sts = evaluate(outputs, inputs, std::move(evaluation_context));
+    bool sts = evaluate(outputs, inputs, evaluation_context);
     update_output_tensors(output_tensors, outputs);
     return sts;
 }
 
+bool ov::Model::evaluate(const HostTensorVector& output_tensors, const HostTensorVector& input_tensors) const {
+    ov::EvaluationContext evaluation_context;
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    return evaluate(output_tensors, input_tensors, evaluation_context);
+    OPENVINO_SUPPRESS_DEPRECATED_END
+}
+
+bool ov::Model::evaluate(ov::TensorVector& output_tensors, const ov::TensorVector& input_tensors) const {
+    ov::EvaluationContext evaluation_context;
+    return evaluate(output_tensors, input_tensors, evaluation_context);
+}
+
 bool ov::Model::evaluate(ov::TensorVector& output_tensors,
                          const ov::TensorVector& input_tensors,
-                         ov::EvaluationContext evaluation_context) const {
+                         ov::EvaluationContext& evaluation_context) const {
     evaluation_context.emplace("VariableContext", ov::op::util::VariableContext());
     std::map<RawNodeOutput, ov::Tensor> value_map;
     for (size_t i = 0; i < m_parameters.size(); ++i) {
@@ -993,18 +1005,21 @@ std::shared_ptr<ov::Model> ov::Model::clone() const {
 }
 
 bool ov::Model::has_rt_info(const std::vector<std::string>& args) const {
-    ov::AnyMap info = m_rt_info;
-    for (size_t i = 0; i < args.size(); i++) {
-        bool has_attr = has_rt_arg(info, args[i]);
-        if (!has_attr)
-            return false;
-        if (i == args.size() - 1)
-            break;
-        const ov::Any& rt_attr = get_rt_arg<std::string>(info, args[i]);
-        info = get_map_from_attr(rt_attr);
-    }
-    return true;
+    return has_rt_info(m_rt_info, args.cbegin(), args.cend());
 }
+
+bool ov::Model::has_rt_info(const ov::AnyMap& info,
+                            const std::vector<std::string>::const_iterator& begin,
+                            const std::vector<std::string>::const_iterator& end) const {
+    if (!has_rt_arg(info, *begin))
+        return false;
+    if (begin == end - 1) {
+        return true;
+    } else {
+        return has_rt_info(get_map_from_attr(get_rt_arg<std::string>(info, *begin)), begin + 1, end);
+    }
+}
+
 ov::Any& ov::Model::get_rt_info(ov::AnyMap& info,
                                 const std::vector<std::string>::const_iterator& begin,
                                 const std::vector<std::string>::const_iterator& end) {
