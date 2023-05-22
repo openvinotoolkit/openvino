@@ -691,7 +691,9 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
 std::shared_ptr<MemoryDesc> FullyConnected::getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) {
     auto desc = idx > 0 ? primitive_desc_it.weights_desc(idx - 1) : primitive_desc_it.src_desc(idx);
 
-    if (getInputShapeAtPort(idx).getRank() == 3) {
+    if (getInputShapeAtPort(idx).getRank() == 3
+        // report original plain layout for weight since it needs to be reordered dynamically at runtime
+        || idx == 1) {
         return std::make_shared<CpuBlockedMemoryDesc>(
             DnnlExtensionUtils::DataTypeToIEPrecision(desc.get_data_type()), getInputShapeAtPort(idx));
     }
