@@ -17,6 +17,7 @@
 
 #include "ie_api.h"
 
+IE_SUPPRESS_DEPRECATED_START
 namespace InferenceEngine {
 
 /**
@@ -77,3 +78,4 @@ INFERENCE_ENGINE_API_CPP(std::shared_ptr<InferenceEngine::IAllocator>)
 INFERENCE_ENGINE_1_0_DEPRECATED CreateDefaultAllocator() noexcept;
 
 }  // namespace InferenceEngine
+IE_SUPPRESS_DEPRECATED_END
