@@ -10,6 +10,7 @@
 
 #pragma once
 
+#include "ie_api.h"
 #ifndef IN_OV_LIBRARY
 #    warning("The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 #endif
@@ -18,6 +19,7 @@
 
 #include "ie_locked_memory.hpp"
 
+IE_SUPPRESS_DEPRECATED_START
 namespace InferenceEngine {
 namespace details {
 /**
@@ -89,3 +91,4 @@ public:
 };
 }  // namespace details
 }  // namespace InferenceEngine
+IE_SUPPRESS_DEPRECATED_END

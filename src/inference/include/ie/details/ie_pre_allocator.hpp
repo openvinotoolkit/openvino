@@ -17,6 +17,7 @@
 
 #include "ie_allocator.hpp"
 
+IE_SUPPRESS_DEPRECATED_START
 namespace InferenceEngine {
 namespace details {
 /*
@@ -77,3 +78,4 @@ std::shared_ptr<IAllocator> INFERENCE_ENGINE_1_0_DEPRECATED make_pre_allocator(T
 
 }  // namespace details
 }  // namespace InferenceEngine
+IE_SUPPRESS_DEPRECATED_END
