@@ -74,6 +74,7 @@ public:
             const bool enable_hyper_thread = true);  // no network specifics considered (only CPU's caps);
         static int GetHybridNumStreams(std::map<std::string, std::string>& config, const int stream_mode);
         static void UpdateHybridCustomThreads(Config& config);
+        static Config ReserveCpuThreads(const Config& initial);
 
         /**
          * @brief      A constructor with arguments
@@ -94,7 +95,9 @@ public:
                int threadBindingStep = 1,
                int threadBindingOffset = 0,
                int threads = 0,
-               PreferredCoreType threadPreferredCoreType = PreferredCoreType::ANY)
+               PreferredCoreType threadPreferredCoreType = PreferredCoreType::ANY,
+               std::vector<std::vector<int>> streamsInfoTable = {{}},
+               bool cpuPinning = false)
             : ov::threading::IStreamsExecutor::Config(name,
                                                       streams,
                                                       threadsPerStream,
@@ -102,7 +105,9 @@ public:
                                                       threadBindingStep,
                                                       threadBindingOffset,
                                                       threads,
-                                                      threadPreferredCoreType) {}
+                                                      threadPreferredCoreType,
+                                                      streamsInfoTable,
+                                                      cpuPinning) {}
 
         Config(const ov::threading::IStreamsExecutor::Config& config)
             : ov::threading::IStreamsExecutor::Config(config) {}

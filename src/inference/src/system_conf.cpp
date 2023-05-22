@@ -231,7 +231,6 @@ std::vector<int> get_available_numa_nodes() {
 
 std::vector<std::vector<int>> get_proc_type_table() {
     CPU& cpu = cpu_info();
-    std::lock_guard<std::mutex> lock{cpu._cpu_mutex};
     return cpu._proc_type_table;
 }
 
@@ -246,22 +245,21 @@ int get_num_numa_nodes() {
 }
 
 std::vector<std::vector<int>> reserve_available_cpus(const std::vector<std::vector<int>> streams_info_table) {
-    std::vector<int> cpu_ids;
+    CPU& cpu = cpu_info();
     int info_table_size = static_cast<int>(streams_info_table.size());
     std::vector<std::vector<int>> stream_ids;
     std::vector<std::vector<std::vector<int>>> res_stream_ids;
-    CPU& cpu = cpu_info();
+
+    std::lock_guard<std::mutex> lock{cpu._cpu_mutex};
     stream_ids.assign(info_table_size, std::vector<int>());
     res_stream_ids.assign(info_table_size, std::vector<std::vector<int>>());
 
     for (int i = 0; i < cpu._processors; i++) {
         for (int j = 0; j < info_table_size; j++) {
             if (static_cast<int>(res_stream_ids[j].size()) < streams_info_table[j][NUMBER_OF_STREAMS]) {
-                std::lock_guard<std::mutex> lock{cpu._cpu_mutex};
                 if (cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE] == streams_info_table[j][PROC_TYPE] &&
                     cpu._cpu_mapping_table[i][CPU_MAP_USED_FLAG] == NOT_USED) {
                     stream_ids[j].push_back(cpu._cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID]);
-                    cpu_ids.push_back(cpu._cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID]);
                 }
                 if (static_cast<int>(stream_ids[j].size()) == streams_info_table[j][THREADS_PER_STREAM]) {
                     std::vector<int> stream_group(stream_ids[j].begin(), stream_ids[j].end());
@@ -290,29 +288,6 @@ void set_cpu_used(const std::vector<int>& cpu_ids, const int used) {
     for (int i = 0; i < cpu_size; i++) {
         if (cpu_ids[i] < cpu._processors) {
             cpu._cpu_mapping_table[cpu_ids[i]][CPU_MAP_USED_FLAG] = used;
-        }
-    }
-    // update _proc_type_table
-    if (used == NOT_USED || used >= PLUGIN_USED_START) {
-        std::vector<int> all_table;
-        int start = cpu._numa_nodes > 1 ? 1 : 0;
-        if (cpu._proc_type_table.size() > 0 && cpu._num_threads == cpu._proc_type_table[0][ALL_PROC]) {
-            cpu._proc_type_table.assign(cpu._proc_type_table.size(), std::vector<int>(PROC_TYPE_TABLE_SIZE, 0));
-            all_table.resize(PROC_TYPE_TABLE_SIZE, 0);
-            for (int i = 0; i < cpu._processors; i++) {
-                if (cpu._cpu_mapping_table[i][CPU_MAP_USED_FLAG] < PLUGIN_USED_START &&
-                    cpu._cpu_mapping_table[i][CPU_MAP_SOCKET_ID] >= 0 &&
-                    cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE] >= ALL_PROC) {
-                    cpu._proc_type_table[cpu._cpu_mapping_table[i][CPU_MAP_SOCKET_ID] + start]
-                                        [cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE]]++;
-                    cpu._proc_type_table[cpu._cpu_mapping_table[i][CPU_MAP_SOCKET_ID] + start][ALL_PROC]++;
-                    all_table[cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE]]++;
-                    all_table[ALL_PROC]++;
-                }
-            }
-            if (cpu._numa_nodes > 1) {
-                cpu._proc_type_table[0] = all_table;
-            }
         }
     }
 }

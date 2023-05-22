@@ -130,6 +130,7 @@ struct CPUStreamsExecutor::Impl {
         void init_stream() {
             std::lock_guard<std::mutex> lock{_impl->_cpumap_mutex};
             const auto stream_id = _streamId >= _impl->_config._streams ? _impl->_config._streams - 1 : _streamId;
+            const auto proc_type_table = get_proc_type_table();
             const auto concurrency =
                 (_impl->_config._streams_info_table.size() > 0 && _impl->_config._stream_ids.size() > 0)
                     ? _impl->_config._streams_info_table[_impl->_config._stream_ids[stream_id]][THREADS_PER_STREAM]
@@ -142,7 +143,7 @@ struct CPUStreamsExecutor::Impl {
             if (concurrency <= 0) {
                 return;
             }
-            if (_impl->_config._orig_proc_type_table[0][EFFICIENT_CORE_PROC] > 0) {
+            if (proc_type_table[0][EFFICIENT_CORE_PROC] > 0) {
                 const auto selected_core_type =
                     (cpu_core_type == MAIN_CORE_PROC || cpu_core_type == HYPER_THREADING_PROC)
                         ? custom::info::core_types().back()
@@ -164,7 +165,7 @@ struct CPUStreamsExecutor::Impl {
                                                                     .set_max_concurrency(concurrency)});
                     }
                 }
-            } else if (_impl->_config._proc_type_table.size() > 1 && !_impl->_config._cpu_pinning) {
+            } else if (proc_type_table.size() > 1 && !_impl->_config._cpu_pinning) {
                 _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{_numaNodeId, concurrency}});
             } else {
                 _taskArena.reset(new custom::task_arena{concurrency});
@@ -326,7 +327,6 @@ struct CPUStreamsExecutor::Impl {
         } else {
             _usedNumaNodes = numaNodes;
         }
-        _config._streams = _config._streams == 0 ? 1 : _config._streams;
 #if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
         if (!is_cpu_map_available() && ThreadBindingType::HYBRID_AWARE == config._threadBindingType) {
             const auto core_types = custom::info::core_types();

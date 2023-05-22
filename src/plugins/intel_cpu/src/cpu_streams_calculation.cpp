@@ -200,7 +200,7 @@ int get_model_prefer_threads(const int num_streams,
     auto model_prefer = 0;
     // latency
     if (num_streams <= sockets && num_streams > 0) {
-        if (streamExecutorConfig._threadBindingType == IStreamsExecutor::ThreadBindingType::HYBRID_AWARE) {
+        if (proc_type_table[0][EFFICIENT_CORE_PROC] > 0 && proc_type_table[0][MAIN_CORE_PROC] > 0) {
             bool fp_intesive = !ov::op::util::has_op_with_type<ngraph::op::FakeQuantize>(ngraphFunc);
             const int int8_threshold = 4;  // ~relative efficiency of the VNNI-intensive code for Big vs Little cores;
             const int fp32_threshold = 2;  // ~relative efficiency of the AVX2 fp32 code for Big vs Little cores;
@@ -267,7 +267,6 @@ void get_num_streams(const int streams,
     std::vector<std::string> core_type_str = {" Any core: ", " PCore: ", " ECore: ", " Logical core: "};
 
     std::vector<std::vector<int>> orig_proc_type_table = get_proc_type_table();
-    executor_config._orig_proc_type_table = orig_proc_type_table;
     std::vector<std::vector<int>> proc_type_table =
         apply_scheduling_core_type(config.schedulingCoreType, orig_proc_type_table);
     proc_type_table = apply_hyper_threading(config.enableHyperThreading, config.changedHyperThreading, proc_type_table);
@@ -283,22 +282,22 @@ void get_num_streams(const int streams,
                                                                  config.perfHintsConfig.ovPerfHintNumRequests,
                                                                  model_prefer,
                                                                  proc_type_table);
-    executor_config._stream_core_ids = reserve_available_cpus(executor_config._streams_info_table);
+    executor_config = InferenceEngine::IStreamsExecutor::Config::reserve_cpu_threads(executor_config);
     executor_config._threadsPerStream = executor_config._streams_info_table[0][THREADS_PER_STREAM];
-    executor_config._streams = 0;
-    executor_config._threads = 0;
-    for (int i = 0; i < executor_config._streams_info_table.size(); i++) {
-        executor_config._streams += executor_config._streams_info_table[i][NUMBER_OF_STREAMS];
-        executor_config._threads += executor_config._streams_info_table[i][NUMBER_OF_STREAMS] *
-                                    executor_config._streams_info_table[i][THREADS_PER_STREAM];
-        stream_ids.insert(stream_ids.end(), executor_config._streams_info_table[i][NUMBER_OF_STREAMS], i);
-        log += core_type_str[executor_config._streams_info_table[i][PROC_TYPE]] +
-               std::to_string(executor_config._streams_info_table[i][NUMBER_OF_STREAMS]) + "(" +
-               std::to_string(executor_config._streams_info_table[i][THREADS_PER_STREAM]) + ")";
-    }
-    executor_config._stream_ids = stream_ids;
-    log += " Total: " + std::to_string(executor_config._streams) + "(" + std::to_string(executor_config._threads) + ")";
-    DEBUG_LOG(log);
+    // executor_config._streams = 0;
+    // executor_config._threads = 0;
+    // for (int i = 0; i < executor_config._streams_info_table.size(); i++) {
+    //     executor_config._streams += executor_config._streams_info_table[i][NUMBER_OF_STREAMS];
+    //     executor_config._threads += executor_config._streams_info_table[i][NUMBER_OF_STREAMS] *
+    //                                 executor_config._streams_info_table[i][THREADS_PER_STREAM];
+    //     stream_ids.insert(stream_ids.end(), executor_config._streams_info_table[i][NUMBER_OF_STREAMS], i);
+    //     log += core_type_str[executor_config._streams_info_table[i][PROC_TYPE]] +
+    //            std::to_string(executor_config._streams_info_table[i][NUMBER_OF_STREAMS]) + "(" +
+    //            std::to_string(executor_config._streams_info_table[i][THREADS_PER_STREAM]) + ")";
+    // }
+    // executor_config._stream_ids = stream_ids;
+    // log += " Total: " + std::to_string(executor_config._streams) + "(" + std::to_string(executor_config._threads) + ")";
+    // DEBUG_LOG(log);
 }
 }  // namespace intel_cpu
 }  // namespace ov
