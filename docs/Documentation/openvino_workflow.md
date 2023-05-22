@@ -10,7 +10,7 @@
    Model Preparation <openvino_docs_model_processing_introduction>
    Model Optimization and Compression <openvino_docs_model_optimization_guide>
    Running Inference <openvino_docs_OV_UG_OV_Runtime_User_Guide>
-   Deploy on a Local Machine  <openvino_docs_deployment_guide_introduction>
+   Deploy on a Local Machine  <openvino_deployment_guide>
    Delpoy on a Model Server <ovms_what_is_openvino_model_server>
    
 
@@ -20,7 +20,26 @@
 | :doc:`Model Optimization and Compression <openvino_docs_model_optimization_guide>`
 | In this section you will find out how to optimize a model to achieve better inference performance. It describes multiple optimization methods for both the training and post-training stages. 
 
-| :doc:`Deployment <openvino_docs_deployment_guide_introduction>`
-| This section explains the process of deploying your own inference application using either OpenVINO Runtime or OpenVINO Model Server. It describes how to run inference which is the most basic form of deployment and the quickest way of launching inference.
+| :doc:`Running Inference <openvino_docs_OV_UG_OV_Runtime_User_Guide>`
+| This section explains describes how to run inference which is the most basic form of deployment and the quickest way of launching inference.
+
+| Deployment 
+
+Once you have a model that meets both OpenVINO™ and your requirements, you can choose how to deploy it with your application.
+
+.. panels::
+
+    :doc:`Deploy via OpenVINO Runtime <openvino_deployment_guide>` 
+    ^^^^^^^^^^^^^^
+
+    Local deployment uses OpenVINO Runtime that is called from, and linked to, the application directly. 
+    It utilizes resources available to the system and provides the quickest way of launching inference.
+    ---
+
+    :doc:`Deploy via Model Server <ovms_what_is_openvino_model_server>`
+    ^^^^^^^^^^^^^^
+
+    Deployment via OpenVINO Model Server allows the application to connect to the inference server set up remotely. 
+    This way inference can use external resources instead of those available to the application itself. 
 
 @endsphinxdirective
