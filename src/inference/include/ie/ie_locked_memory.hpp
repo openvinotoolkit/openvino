@@ -9,13 +9,16 @@
  */
 #pragma once
 
-#warning("The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#ifndef IN_OV_LIBRARY
+#    warning("The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#endif
 
 #include <utility>
 
 #include "ie_allocator.hpp"
 
 namespace InferenceEngine {
+IE_SUPPRESS_DEPRECATED_START
 namespace details {
 /**
  * @brief This class is a LockedMemory concept for hardware memory
@@ -415,4 +418,5 @@ public:
         return reinterpret_cast<S>(base::dereference());
     }
 };
+IE_SUPPRESS_DEPRECATED_END
 }  // namespace InferenceEngine

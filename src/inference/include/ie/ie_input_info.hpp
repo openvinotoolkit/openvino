@@ -9,10 +9,9 @@
  */
 #pragma once
 
-#warning("The Inference Engine API is deprecated and will be removed in the 2024.0 release. " \
-         "For instructions on transitioning to the new API, please refer to "                 \
-         "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
-
+#ifndef IN_OV_LIBRARY
+#    warning("The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#endif
 #include <map>
 #include <memory>
 #include <string>
@@ -134,11 +133,12 @@ public:
     }
 
     /**
-     * @brief Initializes the pointer to the input data that stores the main input parameters like dims, etc
+     * @brief Initializes the pointer to the input data that stores the main input parameters like dims,
+     * etc
      *
      * This method initializes the precision with the information from the inputPtr if it was not set
-     * explicitly through InputInfo::setPrecision. If InputInfo::setPrecision is called, this method does not overwrite
-     * the precision.
+     * explicitly through InputInfo::setPrecision. If InputInfo::setPrecision is called, this method does
+     * not overwrite the precision.
      * @param inputPtr Pointer to the input data to set
      */
     void setInputData(DataPtr inputPtr) {
