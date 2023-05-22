@@ -41,33 +41,35 @@ TShape shape_infer_boxes(const TOp* op, const std::vector<TShape>& input_shapes)
             ").");
     }
 
+    const auto is_bbox_rank_dynamic = bbox_deltas_ps.rank().is_dynamic();
+
     TShape proposed_boxes_shape;
     proposed_boxes_shape.reserve(2);
 
     if (class_probs_ps.rank().is_static()) {
         proposed_boxes_shape.push_back(class_probs_ps[0]);
 
-        if (bbox_deltas_ps.rank().is_static()) {
-            // check anchor count and batch number consistency
-            NODE_VALIDATION_CHECK(op,
-                                  bbox_deltas_ps[1].compatible(class_probs_ps[1] * 2),
-                                  "Anchor number inconsistent between class_probs (",
-                                  class_probs_ps[1] * 2,
-                                  "), and bbox_deltas (",
-                                  bbox_deltas_ps[1],
-                                  ").");
+        // check anchor count and batch number consistency
+        NODE_VALIDATION_CHECK(op,
+                              is_bbox_rank_dynamic || bbox_deltas_ps[1].compatible(class_probs_ps[1] * 2),
+                              "Anchor number inconsistent between class_probs (",
+                              class_probs_ps[1] * 2,
+                              "), and bbox_deltas (",
+                              bbox_deltas_ps[1],
+                              ").");
 
-            NODE_VALIDATION_CHECK(op,
-                                  TDim::merge(proposed_boxes_shape[0], proposed_boxes_shape[0], bbox_deltas_ps[0]),
-                                  "Batch size inconsistent between class_probs (",
-                                  class_probs_ps[0],
-                                  ") and bbox deltas (",
-                                  bbox_deltas_ps[0],
-                                  ").");
-        }
     } else {
         proposed_boxes_shape.emplace_back(ov::util::dim::inf_bound);
     }
+
+    NODE_VALIDATION_CHECK(
+        op,
+        is_bbox_rank_dynamic || TDim::merge(proposed_boxes_shape[0], proposed_boxes_shape[0], bbox_deltas_ps[0]),
+        "Batch size inconsistent between class_probs (",
+        class_probs_ps[0],
+        ") and bbox deltas (",
+        bbox_deltas_ps[0],
+        ").");
 
     proposed_boxes_shape[0] *= op->get_attrs().post_nms_topn;
     proposed_boxes_shape.emplace_back(5);

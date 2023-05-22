@@ -203,6 +203,32 @@ TEST(type_prop, proposal_v0_dynamic_image_shape_shape_infer) {
     EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), Each(ov::no_label));
 }
 
+TEST(type_prop, proposal_v0_class_probs_dynamic_rank_but_batch_shape_defined_in_bbox) {
+    op::ProposalAttrs attrs;
+    attrs.post_nms_topn = 2;
+    const auto batch_size = Dimension(7);
+
+    auto class_probs = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, PartialShape{batch_size, 24, 32, 32});
+    auto image_shape = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(1));
+
+    auto op = make_shared<op::v0::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{batch_size * attrs.post_nms_topn, 5}));
+}
+
+TEST(type_prop, proposal_v0_bbox_dynamic_rank_but_batch_defined_in_class_probs) {
+    op::ProposalAttrs attrs;
+    attrs.post_nms_topn = 2;
+    const auto batch_size = Dimension(7);
+
+    auto class_probs = make_shared<op::Parameter>(element::f32, PartialShape{batch_size, 24, 32, 32});
+    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto image_shape = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(1));
+
+    auto op = make_shared<op::v0::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{batch_size * attrs.post_nms_topn, 5}));
+}
+
 TEST(type_prop, proposal_v0_everything_dynamic_shape_infer) {
     op::ProposalAttrs attrs;
     attrs.post_nms_topn = 1;
@@ -543,6 +569,34 @@ TEST(type_prop, proposal_v4_dynamic_range_class_probs_bbox_deltas_dim1_batch_siz
     EXPECT_EQ(op->get_output_partial_shape(1),
               (PartialShape{Dimension(10 * attrs.post_nms_topn, 14 * attrs.post_nms_topn)}));
     EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(1)), Each(ov::no_label));
+}
+
+TEST(type_prop, proposal_v4_class_dynamic_rank_but_batch_shape_defined_in_bbox) {
+    op::ProposalAttrs attrs;
+    attrs.post_nms_topn = 1;
+    const auto batch_size = Dimension(7);
+
+    auto class_probs = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, PartialShape{batch_size, 24, 32, 32});
+    auto image_shape = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(1));
+
+    auto op = make_shared<op::v4::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{batch_size * attrs.post_nms_topn, 5}));
+    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{batch_size * attrs.post_nms_topn}));
+}
+
+TEST(type_prop, proposal_v4_bbox_dynamic_rank_but_batch_defined_in_class_probs) {
+    op::ProposalAttrs attrs;
+    attrs.post_nms_topn = 1;
+    const auto batch_size = Dimension(10);
+
+    auto class_probs = make_shared<op::Parameter>(element::f32, PartialShape{batch_size, 24, 32, 32});
+    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto image_shape = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(1));
+
+    auto op = make_shared<op::v4::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{batch_size * attrs.post_nms_topn, 5}));
+    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{batch_size * attrs.post_nms_topn}));
 }
 
 TEST(type_prop, proposal_v4_invalid_class_probs_dynamic) {
