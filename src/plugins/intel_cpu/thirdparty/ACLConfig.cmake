@@ -87,6 +87,42 @@ elseif(ENABLE_ARM_COMPUTE_CMAKE)
     # required by oneDNN to attempt to parse ACL version
     set(ENV{ACL_ROOT_DIR} "${ARM_COMPUTE_SOURCE_DIR}")
 elseif(NOT TARGET arm_compute::arm_compute)
+    #
+    # Options
+    #
+
+    set(ARM_COMPUTE_SCONS_JOBS "8" CACHE STRING "Number of parallel threads to build ARM Compute Library")
+
+    set(ARM_COMPUTE_TARGET_GENERIC_ARCHS armv8a
+                                         armv8.2-a
+                                         armv8.6-a armv8.6-a-sve armv8.6-a-sve2 armv8.6-a-sve2-sme2
+                                         armv8r64 # the same as armv8.4-a
+    )
+    if(ARM)
+        set(ARM_COMPUTE_TARGET_ARCH_DEFAULT armv7a)
+        set(ARM_COMPUTE_TARGET_ARCHS armv7a armv7a-hf
+                                     # requires estate=32
+                                     ${ARM_COMPUTE_TARGET_GENERIC_ARCHS})
+    else()
+        if(APPLE)
+            # Apple M1 / M2 is assumed
+            set(ARM_COMPUTE_TARGET_ARCH_DEFAULT arm64-v8.2-a)
+        else()
+            set(ARM_COMPUTE_TARGET_ARCH_DEFAULT arm64-v8a)
+        endif()
+        set(ARM_COMPUTE_TARGET_ARCHS arm64-v8a
+                                     arm64-v8.2-a arm64-v8.2-a-sve arm64-v8.2-a-sve2
+                                     # used with estate=64
+                                     ${ARM_COMPUTE_TARGET_GENERIC_ARCHS})
+    endif()
+
+    set(ARM_COMPUTE_TARGET_ARCH "${ARM_COMPUTE_TARGET_ARCH_DEFAULT}" CACHE STRING "Architecture for ARM ComputeLibrary")
+    set_property(CACHE ARM_COMPUTE_TARGET_ARCH PROPERTY STRINGS ${ARM_COMPUTE_TARGET_ARCHS})
+
+    #
+    # Configure & build
+    #
+
     set(ARM_COMPUTE_SOURCE_DIR "${intel_cpu_thirdparty_SOURCE_DIR}/ComputeLibrary")
     set(ARM_COMPUTE_BINARY_DIR "${intel_cpu_thirdparty_BINARY_DIR}/ComputeLibrary")
 
@@ -128,14 +164,22 @@ elseif(NOT TARGET arm_compute::arm_compute)
         reference_openmp=0
         validation_tests=0
         benchmark_tests=0
-        # TODO: check this for Apple Silicon
-        # multi_isa=1
         # TODO: use CC for ARM compute library to minimize binary size
         # build_config=<file>
         # TODO: use data_type_support to disable useless kernels
         data_layout_support=all
         arch=${ARM_COMPUTE_TARGET_ARCH}
     )
+
+    if(ARM)
+        list(APPEND ARM_COMPUTE_OPTIONS estate=32)
+    else()
+        list(APPEND ARM_COMPUTE_OPTIONS estate=64)
+        if(NOT APPLE AND CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 10.2)
+            # arm_sve.h header is not available on gcc older 10.2
+            list(APPEND ARM_COMPUTE_OPTIONS multi_isa=1)
+        endif()
+    endif()
 
     if(NOT MSVC64)
         list(APPEND ARM_COMPUTE_OPTIONS
@@ -342,8 +386,7 @@ elseif(NOT TARGET arm_compute::arm_compute)
 
     add_library(arm_compute::half INTERFACE IMPORTED GLOBAL)
     set_target_properties(arm_compute::half PROPERTIES
-        INTERFACE_INCLUDE_DIRECTORIES ${ARM_COMPUTE_SOURCE_DIR}/include
-        OSX_ARCHITECTURES arm64)
+        INTERFACE_INCLUDE_DIRECTORIES ${ARM_COMPUTE_SOURCE_DIR}/include)
 
     # Helpers for oneDNN intergation
 
