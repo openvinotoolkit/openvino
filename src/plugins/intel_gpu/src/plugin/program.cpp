@@ -25,7 +25,7 @@ using namespace InferenceEngine::details;
 
 namespace ov {
 namespace intel_gpu {
-
+// test for ci.
 const cldnn::primitive_id Program::m_preProcessTag("_cldnn_input_preprocess");
 const cldnn::primitive_id Program::m_meanValuesTag("_cldnn_mean_values");
 const cldnn::primitive_id Program::m_preCustomLayerTag("_cldnn_custom_preprocess");
