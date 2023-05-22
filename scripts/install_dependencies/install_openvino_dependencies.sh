@@ -60,7 +60,7 @@ if [ -n "$selftest" ] ; then
                  raspbian9 debian9 ubuntu18.04 \
                  raspbian10 debian10 ubuntu20.04 ubuntu20.10 ubuntu21.04 \
                  raspbian11 debian11 ubuntu21.10 ubuntu22.04 \
-                 raspbian12 debian12 ubuntu22.10 ; do
+                 raspbian12 debian12 ubuntu22.10 ubuntu23.04 ; do
         for opt in  "-h" "-p" "-e -p" "-n" "-n -e" "-y" "-y -e" ; do
             echo "||"
             echo "|| Test $image / '$opt'"
@@ -131,23 +131,32 @@ elif [ "$os" == "ubuntu18.04" ] ; then
 
 elif [ "$os" == "ubuntu20.04" ] || [ "$os" == "debian10" ] || [ "$os" == "raspbian10" ] ||
      [ "$os" == "ubuntu21.10" ] || [ "$os" == "ubuntu22.04" ] || [ "$os" == "debian11" ] || [ "$os" == "raspbian11" ] ||
-     [ "$os" == "ubuntu22.10" ] || [ "$os" == "debian12" ] || [ "$os" == "raspbian12" ]; then
+     [ "$os" == "ubuntu22.10" ] || [ "$os" == "ubuntu23.04" ] || [ "$os" == "debian12" ] || [ "$os" == "raspbian12" ]; then
 
-    pkgs_core=(libpugixml1v5 libtbb2)
+    pkgs_core=(libpugixml1v5)
     pkgs_gpu=()
     pkgs_python=(python3 python3-venv python3-pip)
     pkgs_dev=(cmake pkg-config g++ gcc libc6-dev libgflags-dev zlib1g-dev nlohmann-json3-dev make curl sudo)
 
+    if [ "$os" == "ubuntu22.04" ] || [ "$os" == "ubuntu22.10" ] || [ "$os" == "ubuntu23.04" ] ||
+       [ "$os" == "debian12" ] || [ "$os" == "raspbian12" ] ; then
+        pkgs_core+=(libtbb12)
+    else
+        pkgs_core+=(libtbb2)
+    fi
+
     if [ "$os" == "debian10" ] || [ "$os" == "raspbian10" ] ; then
-        pkgs_python=("${pkgs_python[@]}" libpython3.7)
+        pkgs_python+=(libpython3.7)
     elif [ "$os" == "ubuntu20.04" ] || [ "$os" == "ubuntu20.10" ] || [ "$os" == "ubuntu21.04" ] ; then
-        pkgs_python=("${pkgs_python[@]}" libpython3.8)
+        pkgs_python+=(libpython3.8)
     elif [ "$os" == "ubuntu21.10" ] ||
          [ "$os" == "debian11" ] || [ "$os" == "raspbian11" ] ; then
-        pkgs_python=("${pkgs_python[@]}" libpython3.9)
+        pkgs_python+=(libpython3.9)
     elif [ "$os" == "ubuntu22.04" ] || [ "$os" == "ubuntu22.10" ] ||
          [ "$os" == "debian12" ] || [ "$os" == "raspbian12" ] ; then
-        pkgs_python=("${pkgs_python[@]}" libpython3.10)
+        pkgs_python+=(libpython3.10)
+    elif [ "$os" == "ubuntu23.04" ] ; then
+        pkgs_python+=(libpython3.11)
     fi
 
 elif [ "$os" == "centos7" ] || [ "$os" == "centos8" ] ||
