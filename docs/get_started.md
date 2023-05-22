@@ -63,10 +63,10 @@ Interactive Tutorials - Jupyter Notebooks
 
 Start with :doc:`interactive Python tutorials <tutorials>` that show the basics of model inferencing, the OpenVINO API, how to convert models to OpenVINO format, and more.
 
-* `Hello Image Classification <https://docs.openvino.ai/nightly/notebooks/001-hello-world-with-output.html>`__ - Load an image classification model in OpenVINO and use it to apply a label to an image
-* `OpenVINO Runtime API Tutorial <https://docs.openvino.ai/nightly/notebooks/002-openvino-api-with-output.html>`__ - Learn the basic Python API for working with models in OpenVINO
-* `Convert TensorFlow Models to OpenVINO <https://docs.openvino.ai/nightly/notebooks/101-tensorflow-to-openvino-with-output.html>`__
-* `Convert PyTorch Models to OpenVINO <https://docs.openvino.ai/nightly/notebooks/102-pytorch-onnx-to-openvino-with-output.html>`__
+* `Hello Image Classification <notebooks/001-hello-world-with-output.html>`__ - Load an image classification model in OpenVINO and use it to apply a label to an image
+* `OpenVINO Runtime API Tutorial <notebooks/002-openvino-api-with-output.html>`__ - Learn the basic Python API for working with models in OpenVINO
+* `Convert TensorFlow Models to OpenVINO <notebooks/101-tensorflow-to-openvino-with-output.html>`__
+* `Convert PyTorch Models to OpenVINO <notebooks/102-pytorch-onnx-to-openvino-with-output.html>`__
 
 .. _code-samples:
 
