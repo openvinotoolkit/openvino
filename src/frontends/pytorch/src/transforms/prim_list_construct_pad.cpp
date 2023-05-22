@@ -68,7 +68,7 @@ PrimListConstructPadReplacer::PrimListConstructPadReplacer() {
         auto minus_one = v0::Constant::create(element::i32, Shape{}, {-1});
         auto zero = v0::Constant::create(element::i32, Shape{}, {0});
         auto input_node = pad_op->input_value(0);
-        auto padding = pad_op->input_value(1).get_node_shared_ptr();
+        auto padding = pad_op->input_value(1);
         // for case. when padding is list of scalars, concatenate them into one tensor
         auto pad_values = concat_list_construct(padding);
         std::string mode = "constant";
@@ -106,7 +106,7 @@ PrimListConstructPadReplacer::PrimListConstructPadReplacer() {
         auto pad_mode = PAD_MODES.at(mode);
         auto pad = std::make_shared<v1::Pad>(input_node, pad_begins_full, pad_ends_full, pad_value, pad_mode);
         replace_node(pad_op, pad);
-        copy_runtime_info({pad_op, padding, mode_const, pad_op->input_value(3).get_node_shared_ptr()}, pad);
+        copy_runtime_info({pad_op, padding.get_node_shared_ptr(), mode_const, pad_value.get_node_shared_ptr()}, pad);
         pad->set_friendly_name(pad_op->get_friendly_name());
         return true;
     };

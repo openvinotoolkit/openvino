@@ -213,7 +213,7 @@ OutputVector TranslateSession::convert_node(const NodeContext& context) {
             return it->second(context);
         }
 
-    } catch (std::runtime_error& e) {
+    } catch (std::exception& e) {
         OPENVINO_DEBUG << "Exception happened during conversion of op: " << context.get_op_type()
                        << " with schema: " << context.get_schema() << ": " << e.what() << '\n';
     } catch (...) {
