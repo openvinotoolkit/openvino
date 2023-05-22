@@ -4,6 +4,8 @@
 
 #pragma once
 
+#warning("The nGraph API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+
 #include "ngraph/function.hpp"
 
 namespace ngraph {
@@ -89,7 +91,7 @@ namespace ngraph {
 ///       which a Constant node with element type parameter_element_types[i] and shape
 ///       parameter_shapes[i] can be created.
 ///
-NGRAPH_DEPRECATED("This function was deprecated. Please modify the original ov::Model instead.")
+NGRAPH_API_DEPRECATED
 NGRAPH_API
 std::shared_ptr<Function> specialize_function(std::shared_ptr<Function> f,
                                               const std::vector<element::Type>& parameter_element_types,

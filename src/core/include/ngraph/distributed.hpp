@@ -4,11 +4,14 @@
 
 #pragma once
 
+#warning("The nGraph API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+
 #include <cstddef>
 #include <memory>
 #include <string>
 
 #include "ngraph/attribute_visitor.hpp"
+#include "ngraph/deprecated.hpp"
 #include "ngraph/type.hpp"
 #include "ngraph/type/element_type.hpp"
 
@@ -21,10 +24,7 @@ enum class Type {
     MAX,
 };
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-NGRAPH_API
-std::ostream& operator<<(std::ostream& out, const Type& obj);
-NGRAPH_SUPPRESS_DEPRECATED_END
+NGRAPH_API_DEPRECATED NGRAPH_API std::ostream& operator<<(std::ostream& out, const Type& obj);
 }  // namespace reduction
 
 }  // namespace ngraph
@@ -32,7 +32,8 @@ NGRAPH_SUPPRESS_DEPRECATED_END
 namespace ov {
 
 template <>
-class NGRAPH_API AttributeAdapter<ngraph::reduction::Type> : public EnumAttributeAdapterBase<ngraph::reduction::Type> {
+class NGRAPH_API_DEPRECATED NGRAPH_API AttributeAdapter<ngraph::reduction::Type>
+    : public EnumAttributeAdapterBase<ngraph::reduction::Type> {
 public:
     AttributeAdapter(ngraph::reduction::Type& value) : EnumAttributeAdapterBase<ngraph::reduction::Type>(value) {}
 

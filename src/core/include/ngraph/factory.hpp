@@ -4,6 +4,8 @@
 
 #pragma once
 
+#warning("The nGraph API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+
 #include <functional>
 #include <mutex>
 #include <unordered_map>
@@ -12,11 +14,11 @@
 #include "ngraph/ngraph_visibility.hpp"
 
 namespace ngraph {
-NGRAPH_API std::mutex& get_registry_mutex();
+NGRAPH_API_DEPRECATED NGRAPH_API std::mutex& get_registry_mutex();
 
 /// \brief Registry of factories that can construct objects derived from BASE_TYPE
 template <typename BASE_TYPE>
-class FactoryRegistry {
+class NGRAPH_API_DEPRECATED FactoryRegistry {
 public:
     using Factory = std::function<BASE_TYPE*()>;
     using FactoryMap = std::unordered_map<typename BASE_TYPE::type_info_t, Factory>;

@@ -4,6 +4,8 @@
 
 #pragma once
 
+#warning("The nGraph API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+
 #include <functional>
 #include <memory>
 #include <ngraph/log.hpp>
@@ -23,7 +25,7 @@ using ov::pass::BackwardGraphRewrite;
 using ov::pass::GraphRewrite;
 using ov::pass::MatcherPass;
 
-class NGRAPH_DEPRECATED("Use MatcherPass or FunctionPass instead.") NGRAPH_API RecurrentGraphRewrite
+class NGRAPH_API_DEPRECATED NGRAPH_API RecurrentGraphRewrite
     : public FunctionPass {
 public:
     RecurrentGraphRewrite(size_t num_iters = 10) : ModelPass(), m_num_iters(num_iters) {}

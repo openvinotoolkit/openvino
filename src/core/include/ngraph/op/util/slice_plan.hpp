@@ -4,6 +4,8 @@
 
 #pragma once
 
+#warning("The nGraph API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+
 #include <set>
 
 #include "ngraph/axis_set.hpp"
@@ -27,7 +29,7 @@ namespace ngraph {
 //
 // A SlicePlan is used to collect parameters for these ops.
 //
-struct NGRAPH_API SlicePlan {
+struct NGRAPH_API_DEPRECATED NGRAPH_API SlicePlan {
     // Parameters for the Slice
     std::vector<int64_t> begins;
     std::vector<int64_t> ends;
@@ -44,7 +46,7 @@ struct NGRAPH_API SlicePlan {
     bool operator!=(const SlicePlan& other) const;
 };
 
-SlicePlan NGRAPH_API make_slice_plan(const Shape& input_shape,
+NGRAPH_API_DEPRECATED SlicePlan NGRAPH_API make_slice_plan(const Shape& input_shape,
                                      const std::vector<int64_t>& begins,
                                      const std::vector<int64_t>& ends,
                                      const std::vector<int64_t>& strides,

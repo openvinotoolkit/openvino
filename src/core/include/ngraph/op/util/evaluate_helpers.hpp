@@ -4,6 +4,8 @@
 
 #pragma once
 
+#warning("The nGraph API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+
 #include "ngraph/axis_set.hpp"
 #include "ngraph/descriptor/tensor.hpp"
 #include "ngraph/util.hpp"
@@ -17,7 +19,7 @@ namespace ngraph {
 /// \param node_description An identifier of the operator's node (used to report errors)
 ///
 /// \return Normalized (positive only) axes as an AxisSet object.
-AxisSet get_normalized_axes_from_tensor(const HostTensorPtr tensor,
+NGRAPH_API_DEPRECATED AxisSet get_normalized_axes_from_tensor(const HostTensorPtr tensor,
                                         const ngraph::Rank& rank,
                                         const std::string& node_description);
 }  // namespace ngraph

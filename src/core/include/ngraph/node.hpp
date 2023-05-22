@@ -4,6 +4,8 @@
 
 #pragma once
 
+#warning("The nGraph API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+
 #include <atomic>
 #include <cstring>
 #include <deque>
@@ -69,8 +71,10 @@ using ResultVector = std::vector<std::shared_ptr<ngraph::op::v0::Result>>;
 const auto node_validation_failure_loc_string = ov::node_validation_failure_loc_string;
 
 NGRAPH_API
+NGRAPH_API_DEPRECATED
 const std::shared_ptr<Node>& check_single_output_arg(const std::shared_ptr<Node>& node, size_t i);
 NGRAPH_API
+NGRAPH_API_DEPRECATED
 const NodeVector& check_single_output_args(const NodeVector& args);
 
 const auto as_output_vector = ov::as_output_vector;

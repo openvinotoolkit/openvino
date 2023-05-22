@@ -4,6 +4,8 @@
 
 #pragma once
 
+#warning("The nGraph API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+
 #include <memory>
 #include <vector>
 
@@ -42,7 +44,7 @@ namespace pass {
  * by step, the states will store between inferences.
  */
 
-class NGRAPH_DEPRECATED("Use LowLatency2 instead.") NGRAPH_API LowLatency : public ngraph::pass::MatcherPass {
+class NGRAPH_API_DEPRECATED NGRAPH_API LowLatency : public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     LowLatency();

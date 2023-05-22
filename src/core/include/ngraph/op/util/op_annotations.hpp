@@ -4,6 +4,8 @@
 
 #pragma once
 
+#warning("The nGraph API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+
 #include <vector>
 
 #include "ngraph/deprecated.hpp"
@@ -13,7 +15,7 @@
 namespace ngraph {
 namespace op {
 namespace util {
-struct NGRAPH_DEPRECATED("It is obsolete structure and will be removed soon") oi_pair {
+struct NGRAPH_API_DEPRECATED oi_pair {
     size_t output;
     size_t input;
     bool destructive;
@@ -21,7 +23,7 @@ struct NGRAPH_DEPRECATED("It is obsolete structure and will be removed soon") oi
 
 /// \brief Base class for annotations added to graph ops
 
-class NGRAPH_DEPRECATED("It is obsolete structure and will be removed soon") NGRAPH_API OpAnnotations {
+class NGRAPH_API_DEPRECATED NGRAPH_API OpAnnotations {
     NGRAPH_SUPPRESS_DEPRECATED_START
 public:
     virtual ~OpAnnotations() = default;

@@ -4,6 +4,8 @@
 
 #pragma once
 
+#warning("The nGraph API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+
 #include <locale>
 #include <map>
 #include <mutex>
@@ -17,7 +19,7 @@
 
 namespace ngraph {
 /// \brief Run-time opset information
-class NGRAPH_API OpSet : public ov::OpSet {
+class NGRAPH_API_DEPRECATED NGRAPH_API OpSet : public ov::OpSet {
 public:
     explicit OpSet(const ov::OpSet& opset);
     OpSet(const ngraph::OpSet& opset);
@@ -43,16 +45,16 @@ public:
     }
 };
 
-const NGRAPH_API OpSet& get_opset1();
-const NGRAPH_API OpSet& get_opset2();
-const NGRAPH_API OpSet& get_opset3();
-const NGRAPH_API OpSet& get_opset4();
-const NGRAPH_API OpSet& get_opset5();
-const NGRAPH_API OpSet& get_opset6();
-const NGRAPH_API OpSet& get_opset7();
-const NGRAPH_API OpSet& get_opset8();
-const NGRAPH_API OpSet& get_opset9();
-const NGRAPH_API OpSet& get_opset10();
-const NGRAPH_API OpSet& get_opset11();
-const NGRAPH_API std::map<std::string, std::function<const ngraph::OpSet&()>>& get_available_opsets();
+NGRAPH_API_DEPRECATED const NGRAPH_API OpSet& get_opset1();
+NGRAPH_API_DEPRECATED const NGRAPH_API OpSet& get_opset2();
+NGRAPH_API_DEPRECATED const NGRAPH_API OpSet& get_opset3();
+NGRAPH_API_DEPRECATED const NGRAPH_API OpSet& get_opset4();
+NGRAPH_API_DEPRECATED const NGRAPH_API OpSet& get_opset5();
+NGRAPH_API_DEPRECATED const NGRAPH_API OpSet& get_opset6();
+NGRAPH_API_DEPRECATED const NGRAPH_API OpSet& get_opset7();
+NGRAPH_API_DEPRECATED const NGRAPH_API OpSet& get_opset8();
+NGRAPH_API_DEPRECATED const NGRAPH_API OpSet& get_opset9();
+NGRAPH_API_DEPRECATED const NGRAPH_API OpSet& get_opset10();
+NGRAPH_API_DEPRECATED const NGRAPH_API OpSet& get_opset11();
+NGRAPH_API_DEPRECATED const NGRAPH_API std::map<std::string, std::function<const ngraph::OpSet&()>>& get_available_opsets();
 }  // namespace ngraph

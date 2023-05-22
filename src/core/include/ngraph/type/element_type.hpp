@@ -8,6 +8,8 @@
 
 #pragma once
 
+#warning("The nGraph API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+
 #include "ngraph/deprecated.hpp"
 #include "ngraph/type/bfloat16.hpp"
 #include "ngraph/type/float16.hpp"
@@ -39,12 +41,12 @@ using ov::element::u8;
 using ov::element::undefined;
 
 template <typename T>
-Type from() {
+NGRAPH_API_DEPRECATED Type from() {
     return ov::element::from<T>();
 }
 }  // namespace element
 
 /// \brief Return the number of bytes in the compile-time representation of the element type.
-NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
+NGRAPH_API_DEPRECATED
 size_t compiler_byte_size(element::Type_t et);
 }  // namespace ngraph

@@ -4,6 +4,8 @@
 
 #pragma once
 
+#warning("The nGraph API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+
 #include <map>
 #include <stack>
 #include <utility>
@@ -18,7 +20,7 @@ namespace ngraph {
 ///
 ///
 template <typename V>
-class NGRAPH_DEPRECATED("This class is deprecated and will be removed soon.") Evaluator {
+class NGRAPH_API_DEPRECATED Evaluator {
     NGRAPH_SUPPRESS_DEPRECATED_START
 public:
     /// \brief values we compute for outputs
