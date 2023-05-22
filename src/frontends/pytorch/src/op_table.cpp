@@ -22,6 +22,8 @@ OP_CONVERTER(translate_addmm);
 OP_CONVERTER(translate_all);
 OP_CONVERTER(translate_arange);
 OP_CONVERTER(translate_argsort);
+OP_CONVERTER(translate_argmax);
+OP_CONVERTER(translate_argmin);
 OP_CONVERTER(translate_as_tensor);
 OP_CONVERTER(translate_avg_poolnd);
 OP_CONVERTER(translate_bool);
@@ -162,8 +164,10 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::addcmul", op::translate_addcmul},
         {"aten::addmm", op::translate_addmm},
         {"aten::all", op::translate_all},
-        {"aten::argsort", op::translate_argsort},
         {"aten::arange", op::translate_arange},
+        {"aten::argmax", op::translate_argmax},
+        {"aten::argmin", op::translate_argmin},
+        {"aten::argsort", op::translate_argsort},
         {"aten::as_tensor", op::translate_as_tensor},
         {"aten::asin", op::translate_1to1_match_1_inputs<opset10::Asin>},
         {"aten::asin_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Asin>>},

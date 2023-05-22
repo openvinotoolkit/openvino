@@ -177,7 +177,7 @@ std::shared_ptr<ov::Model> FakeQuantizeFunction::getSubgraphWithFakeQuantize(
 
     auto parent = FunctionHelper::applyPrerequisites(parameter, prerequisites);
 
-    const auto subgraph = std::make_shared<ngraph::snippets::op::Subgraph>(
+    const auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(
         ngraph::OutputVector{ parent },
         getSubgraphBody(inputShape, inputType, fakeQuantizeShapes, zeroPoint, beforeFakeQuantizeOperations));
     subgraph->set_friendly_name("subgraph");
@@ -248,7 +248,7 @@ std::shared_ptr<ov::Model> FakeQuantizeFunction::getSubgraphWithDecomposedFakeQu
     const auto parameter = std::make_shared<ngraph::opset1::Parameter>(inputType, inputShape);
     parameter->set_friendly_name("parameter");
 
-    const auto subgraph = std::make_shared<ngraph::snippets::op::Subgraph>(
+    const auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(
         ngraph::OutputVector {parameter},
         getSubgraphBody(inputShape, inputType, fakeQuantizeShapes, zeroPoint));
     subgraph->set_friendly_name("subgraph");
