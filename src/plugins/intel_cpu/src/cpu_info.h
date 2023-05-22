@@ -199,7 +199,7 @@ struct RegMap<Xbyak::Tmm> {
         std::cout << "[WangYang] AMX palette ID: " << palette_id << std::endl;
         tconf.palette_id = palette_id;
         for (int index = 0; index < sizeof(tconf.rows) / sizeof(tconf.rows[0]); index++) {
-            tconf.rows[index] = dnnl::impl::cpu::x64::amx::get_max_rows(tconf.palette_id);
+            tconf.rows[index] = 16; //dnnl::impl::cpu::x64::amx::get_max_rows(tconf.palette_id);
             std::cout << "[WangYang] Max rows per register: " << tconf.rows[index] << std::endl;
         }
         for (int index = 0; index < sizeof(tconf.cols) / sizeof(tconf.cols[0]); index++) {
