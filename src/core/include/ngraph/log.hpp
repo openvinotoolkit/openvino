@@ -25,6 +25,7 @@
 
 #include "ngraph/deprecated.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 class NGRAPH_API_DEPRECATED ConstString {
 public:
@@ -138,3 +139,4 @@ void default_logger_handler_func(const std::string& s);
                       ngraph::default_logger_handler_func)                \
         .stream()
 }  // namespace ngraph
+NGRAPH_SUPPRESS_DEPRECATED_END
