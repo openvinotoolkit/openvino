@@ -172,8 +172,7 @@ Program::Program(InferenceEngine::CNNNetwork& network, cldnn::engine& engine, co
 
 Program::Program(cldnn::engine& engine, const ExecutionConfig& config,
                  InferenceEngine::InputsDataMap* inputs, InferenceEngine::OutputsDataMap* outputs)
-        : m_max_batch(1)
-        , m_curBatch(-1)
+        : m_curBatch(-1)
         , m_config(config)
         , m_engine(engine)
         , queryMode(false) {
