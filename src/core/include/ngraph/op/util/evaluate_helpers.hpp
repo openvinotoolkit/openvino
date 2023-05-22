@@ -20,6 +20,6 @@ namespace ngraph {
 ///
 /// \return Normalized (positive only) axes as an AxisSet object.
 NGRAPH_API_DEPRECATED AxisSet get_normalized_axes_from_tensor(const HostTensorPtr tensor,
-                                        const ngraph::Rank& rank,
-                                        const std::string& node_description);
+                                                              const ngraph::Rank& rank,
+                                                              const std::string& node_description);
 }  // namespace ngraph

@@ -56,5 +56,6 @@ NGRAPH_API_DEPRECATED const NGRAPH_API OpSet& get_opset8();
 NGRAPH_API_DEPRECATED const NGRAPH_API OpSet& get_opset9();
 NGRAPH_API_DEPRECATED const NGRAPH_API OpSet& get_opset10();
 NGRAPH_API_DEPRECATED const NGRAPH_API OpSet& get_opset11();
-NGRAPH_API_DEPRECATED const NGRAPH_API std::map<std::string, std::function<const ngraph::OpSet&()>>& get_available_opsets();
+NGRAPH_API_DEPRECATED const NGRAPH_API std::map<std::string, std::function<const ngraph::OpSet&()>>&
+get_available_opsets();
 }  // namespace ngraph

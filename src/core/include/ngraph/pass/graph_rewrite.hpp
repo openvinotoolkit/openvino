@@ -25,8 +25,7 @@ using ov::pass::BackwardGraphRewrite;
 using ov::pass::GraphRewrite;
 using ov::pass::MatcherPass;
 
-class NGRAPH_API_DEPRECATED NGRAPH_API RecurrentGraphRewrite
-    : public FunctionPass {
+class NGRAPH_API_DEPRECATED NGRAPH_API RecurrentGraphRewrite : public FunctionPass {
 public:
     RecurrentGraphRewrite(size_t num_iters = 10) : ModelPass(), m_num_iters(num_iters) {}
 
