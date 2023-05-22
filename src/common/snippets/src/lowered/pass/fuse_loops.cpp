@@ -13,6 +13,11 @@ namespace ov {
 namespace snippets {
 namespace lowered {
 namespace pass {
+namespace {
+bool is_loop_id_found(const std::vector<size_t>& ids, size_t id) {
+    return std::find(ids.cbegin(), ids.cend(), id) != ids.cend();
+}
+} // namespace
 
 using LoopManager = LinearIR::LoopManager;
 using LoopInfoPtr = LoopManager::LoopInfoPtr;
@@ -21,9 +26,7 @@ FuseLoops::FuseLoops() : Pass() {}
 
 bool FuseLoops::can_be_fused(const LoopInfoPtr& loop_current, const LoopInfoPtr& loop_target) {
     auto current_work_amount = loop_current->work_amount;
-    auto current_increment = loop_current->increment;
     auto target_work_amount = loop_target->work_amount;
-    auto target_increment = loop_target->increment;
     // Loop fusion is supported only if Loops have equal increments and the equal/broadcastable work amounts.
     // Note: For example, Broadcastable work amounts are possible in the following case:
     //     Relu_0 [16x1]     Relu_1 [16x128]
@@ -34,8 +37,9 @@ bool FuseLoops::can_be_fused(const LoopInfoPtr& loop_current, const LoopInfoPtr&
     //  - Relu_1 and Add with work amount `128` and increment `vector size`
     // We can fuse them into one Loop with work amount `128` and increment `vector size`
     const auto supported_work_amount = current_work_amount == target_work_amount || current_work_amount == 1 || target_work_amount == 1;
-    const auto supported_increment = current_increment == target_increment;
-    return supported_work_amount && supported_increment;
+    const auto supported_increment = loop_current->increment == loop_target->increment;
+    const auto supported_dim_idxs = loop_current->dim_idx == loop_target->dim_idx;
+    return supported_work_amount && supported_increment && supported_dim_idxs;
 }
 
 void FuseLoops::fuse_points(std::vector<ExpressionPort>& exit_points, std::vector<ExpressionPort>& entry_points,
@@ -77,7 +81,7 @@ void FuseLoops::fuse_points(std::vector<ExpressionPort>& exit_points, std::vecto
 }
 
 bool FuseLoops::fuse_upper_into_current(LinearIR& linear_ir, const LinearIR::LoopManagerPtr& loop_manager, const ExpressionPort& current_entry_point,
-                                        size_t current_loop_id, size_t target_loop_id, size_t dim_idx,
+                                        size_t current_loop_id, size_t target_loop_id,
                                         LinearIR::constExprIt& current_loop_begin_pos, LinearIR::constExprIt& current_loop_end_pos) {
     const auto& loop_current = loop_manager->get_loop_info(current_loop_id);
     const auto& loop_target = loop_manager->get_loop_info(target_loop_id);
@@ -99,8 +103,8 @@ bool FuseLoops::fuse_upper_into_current(LinearIR& linear_ir, const LinearIR::Loo
                 continue;
             // The fusing is only valid if target Loop consumer (the Consumer is outside of target Loop)
             // is after current Loop (after Loop_down).
-            is_fusion_allowed = consumer->get_loop_ids()[dim_idx] == target_loop_id || // is inside target Loop
-                                consumer->get_loop_ids()[dim_idx] == current_loop_id || // is inside current Loop
+            is_fusion_allowed = is_loop_id_found(consumer->get_loop_ids(), target_loop_id) || // is inside target Loop
+                                is_loop_id_found(consumer->get_loop_ids(), current_loop_id) || // is inside current Loop
                                 std::find(current_loop_end_pos, linear_ir.cend(), consumer) != linear_ir.end();  // is after current Loop
         }
     }
@@ -124,7 +128,7 @@ bool FuseLoops::fuse_upper_into_current(LinearIR& linear_ir, const LinearIR::Loo
         // but for markup we need have the expression from the target Loop.
         // Because of that we manually increment iterator before moving
         it = std::next(it);
-        expr->set_loop_id(current_loop_id, dim_idx);
+        expr->replace_loop_id(target_loop_id, current_loop_id);
         if (is_move_needed)
             linear_ir.move(expr_it, insertion_place);
     }
@@ -147,7 +151,7 @@ bool FuseLoops::fuse_upper_into_current(LinearIR& linear_ir, const LinearIR::Loo
 }
 
 bool FuseLoops::fuse_lower_into_current(LinearIR& linear_ir, const LinearIR::LoopManagerPtr& loop_manager, const ExpressionPort& current_exit_point,
-                                        size_t current_loop_id, size_t target_loop_id, size_t dim_idx,
+                                        size_t current_loop_id, size_t target_loop_id,
                                         LinearIR::constExprIt& current_loop_begin_pos, LinearIR::constExprIt& current_loop_end_pos) {
     const auto& loop_current = loop_manager->get_loop_info(current_loop_id);
     const auto& loop_target = loop_manager->get_loop_info(target_loop_id);
@@ -163,7 +167,7 @@ bool FuseLoops::fuse_lower_into_current(LinearIR& linear_ir, const LinearIR::Loo
         const auto& parent_expr = parent_expr_output.get_expr();
         if (ov::is_type<ov::op::v0::Parameter>(parent_expr->get_node()) || parent_expr == current_exit_point.get_expr())
             continue;
-        is_fusion_allowed = parent_expr->get_loop_ids()[dim_idx] == current_loop_id ||  // The parent expr is from the same current Loop
+        is_fusion_allowed = is_loop_id_found(parent_expr->get_loop_ids(), current_loop_id) ||  // The parent expr is from the same current Loop
                             std::find(linear_ir.cbegin(), current_loop_begin_pos, parent_expr) != current_loop_begin_pos; // The parent is before current Loop
     }
 
@@ -189,7 +193,7 @@ bool FuseLoops::fuse_lower_into_current(LinearIR& linear_ir, const LinearIR::Loo
         // but for markup we need have the expression from the target Loop.
         // Because of that we manually increment iterator before moving
         it = std::next(it);
-        expr->set_loop_id(current_loop_id, dim_idx);
+        expr->replace_loop_id(target_loop_id, current_loop_id);
         if (is_move_needed)
             linear_ir.move(expr_it, insertion_place);
     }
@@ -218,7 +222,7 @@ bool FuseLoops::run(LinearIR& linear_ir) {
         return false;
 
     const auto& loop_manager = linear_ir.get_loop_manager();
-    std::vector<size_t> prev_expr_loops;
+    std::set<size_t> prev_fused_loops;
 
     for (auto expr_it = linear_ir.begin(); expr_it != linear_ir.end(); expr_it++) {
         const auto expr = *expr_it;
@@ -229,28 +233,17 @@ bool FuseLoops::run(LinearIR& linear_ir) {
             continue;
 
         // Outer Loop ----> Inner Loop
-        const auto expr_loops = expr->get_loop_ids();
-        const auto loop_depth = expr_loops.size();
-        size_t diff_idx = 0;
-        if (prev_expr_loops.empty()) {
-            prev_expr_loops = expr_loops;
-        } else {
-            OPENVINO_ASSERT(loop_depth == prev_expr_loops.size(),
-                            "Expressions in Linear IR must have the same count of Loop identifiers");
-            for (; diff_idx < loop_depth; ++diff_idx) {
-                if (expr_loops[diff_idx] != prev_expr_loops[diff_idx])
-                    break;
-            }
-        }
-
-        for (size_t dim_idx = diff_idx; dim_idx < loop_depth; ++dim_idx) {
-            const auto loop_id = expr_loops[dim_idx];
-            if (loop_id == Expression::LOOP_NULL_ID)
+        const auto current_expr_loops = expr->get_loop_ids();
+        const auto current_loop_depth = current_expr_loops.size();
+        for (size_t i = 0; i < current_loop_depth; ++i) {
+            const auto current_loop_id = current_expr_loops[i];
+            // If the current Loop ID is in prev fused Loops, it means that on previous step all possible fusions are completed
+            if (prev_fused_loops.count(current_loop_id) != 0)
                 continue;
 
-            const auto loop_info = loop_manager->get_loop_info(loop_id);
-            LinearIR::constExprIt loop_begin_pos, loop_end_pos;
-            loop_manager->get_loop_bounds(linear_ir, loop_id, loop_begin_pos, loop_end_pos);
+            const auto current_loop_info = loop_manager->get_loop_info(current_loop_id);
+            LinearIR::constExprIt current_loop_begin_pos, current_loop_end_pos;
+            loop_manager->get_loop_bounds(linear_ir, current_loop_id, current_loop_begin_pos, current_loop_end_pos);
 
             // We fuse upper Loops into the current till we can do it.
             // After that we fuse lower Loops into the current till we can do it.
@@ -260,7 +253,7 @@ bool FuseLoops::run(LinearIR& linear_ir) {
                 // Loop_0 (Upper)                 |
                 //   |               =>           |
                 // Loop_1 (Current)     Loop_0 + Loop_1 => new `Loop_1`
-                auto entry_points = loop_info->entry_exprs;
+                auto entry_points = current_loop_info->entry_exprs;
                 bool was_fusion_up = false;
                 for (size_t in_port = 0; in_port < entry_points.size() && !was_fusion_up; ++in_port) {
                     const auto entry_point = entry_points[in_port];
@@ -272,30 +265,40 @@ bool FuseLoops::run(LinearIR& linear_ir) {
                         ov::is_type<op::Buffer>(parent)) {
                         continue;
                     }
-                    const auto loop_ids_target = parent_expr->get_loop_ids();
-                    OPENVINO_ASSERT(loop_depth == loop_ids_target.size(),
-                                    "Expressions in Linear IR must have the same count of Loop identifiers");
-                    const auto loop_id_target = loop_ids_target[dim_idx];
-                    OPENVINO_ASSERT(loop_id != loop_id_target,
-                                    "Loops cannot have parents of entry points with the same identifier");
-                    if (loop_id_target == Expression::LOOP_NULL_ID)
+
+                    const auto upper_loop_ids = parent_expr->get_loop_ids();
+                    if (upper_loop_ids.empty())
                         continue;
 
-                    if (fuse_upper_into_current(linear_ir, loop_manager, entry_point, loop_id, loop_id_target,
-                                                dim_idx, loop_begin_pos, loop_end_pos)) {
+                    size_t loop_idx = 0;
+                    bool allowed = true;
+                    for (; loop_idx < std::min(i, upper_loop_ids.size()) && allowed; ++loop_idx) {
+                        if (current_expr_loops[loop_idx] != upper_loop_ids[loop_idx])
+                            allowed = false;
+                    }
+                    // There are different outer loops or all Loop IDs are the same
+                    if (!allowed || loop_idx == upper_loop_ids.size())
+                        continue;
+
+                    const auto upper_loop_id = upper_loop_ids[loop_idx];
+                    OPENVINO_ASSERT(current_loop_id != upper_loop_id,
+                                    "Loops cannot have parents of entry points with the same identifier");
+                    if (fuse_upper_into_current(linear_ir, loop_manager, entry_point, current_loop_id, upper_loop_id,
+                                                current_loop_begin_pos, current_loop_end_pos)) {
                         was_fusion_up = true;
-                        loop_manager->remove_loop_info(loop_id_target);
+                        loop_manager->remove_loop_info(upper_loop_id);
+                        prev_fused_loops.insert(current_loop_id);
                     }
                 }
 
                 // If Loops were fused and there are new entry_exprs, we should check for possible fusion again
-                if (was_fusion_up && entry_points != loop_info->entry_exprs)
+                if (was_fusion_up && entry_points != current_loop_info->entry_exprs)
                     continue;
 
                 // Loop_0 (Current)    Loop_0 + Loop_1 => new `Loop_0`
                 //   |               =>           |
                 // Loop_1 (Lower)                 |
-                auto exit_points = loop_info->exit_exprs;
+                auto exit_points = current_loop_info->exit_exprs;
                 bool was_fusion_down = false;
                 for (size_t out_port = 0; out_port < exit_points.size() && !was_fusion_down; ++out_port) {
                     const auto exit_point = exit_points[out_port];
@@ -308,19 +311,30 @@ bool FuseLoops::run(LinearIR& linear_ir) {
                             continue;
                         }
 
-                        const auto loop_ids_target = consumer_expr->get_loop_ids();
-                        OPENVINO_ASSERT(loop_depth == loop_ids_target.size(),
-                                        "Expressions in Linear IR must have the same count of Loop identifiers");
-                        // The exit point of Loop can have several consumers where some of them can be in this Loop as well
-                        // So we skip this consumer.
-                        const auto loop_id_target = loop_ids_target[dim_idx];
-                        if (loop_id == loop_id_target || loop_id_target == Expression::LOOP_NULL_ID)
+                        const auto lower_loop_ids = consumer_expr->get_loop_ids();
+                        if (lower_loop_ids.empty())
                             continue;
 
-                        if (fuse_lower_into_current(linear_ir, loop_manager, exit_point, loop_id, loop_id_target,
-                                                    dim_idx, loop_begin_pos, loop_end_pos)) {
+                        size_t loop_idx = 0;
+                        bool allowed = true;
+                        for (; loop_idx < std::min(i, lower_loop_ids.size()) && allowed; ++loop_idx) {
+                            if (current_expr_loops[loop_idx] != lower_loop_ids[loop_idx])
+                                allowed = false;
+                        }
+                        // There are different outer loops or all Loop IDs are the same
+                        if (!allowed || loop_idx == lower_loop_ids.size())
+                            continue;
+
+                        const auto lower_loop_id = lower_loop_ids[loop_idx];
+                        // if expressions have the same loop ID, it means that they're from the same Loop (one of consumers is in Loop)
+                        if (current_loop_id == lower_loop_id)
+                            continue;
+
+                        if (fuse_lower_into_current(linear_ir, loop_manager, exit_point, current_loop_id, lower_loop_id,
+                                                    current_loop_begin_pos, current_loop_end_pos)) {
                             was_fusion_down = true;
-                            loop_manager->remove_loop_info(loop_id_target);
+                            loop_manager->remove_loop_info(lower_loop_id);
+                            prev_fused_loops.insert(current_loop_id);
                             // Need to check for possible fusion again because of new input expressions for Loop
                             break;
                         }

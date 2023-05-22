@@ -24,8 +24,6 @@ class Expression : public std::enable_shared_from_this<Expression> {
     friend class ExpressionPort;
 
 public:
-    static size_t LOOP_NULL_ID;
-
     Expression() = default;
     virtual ~Expression() = default;
 
@@ -48,16 +46,25 @@ public:
     size_t get_input_count() const { return m_input_port_connectors.size(); }
     size_t get_output_count() const { return m_output_port_connectors.size(); }
 
-    std::vector<size_t> get_loop_ids() const { return m_loop_ids; }
-    void set_loop_ids(const std::vector<size_t>& loops) { m_loop_ids = loops; }
-    void set_loop_id(size_t id, size_t idx);
-    void remove_loop_id(size_t id);
-
     void validate() const;
     void init_emitter(const std::shared_ptr<const TargetMachine>& target);
 
     ExpressionPort get_input_port(size_t i);
     ExpressionPort get_output_port(size_t i);
+
+    std::vector<size_t> get_loop_ids() const;
+    void set_loop_ids(const std::vector<size_t>& loops);
+    // Insert loop ID before inner ID in vector of identifiers so loop with inner ID is inside new Loop
+    //   loop_ids: [.., id, inner, ..]
+    // Default value of inner ID - SIZE_MAX - it means, that the new Loop is the most outer Loop
+    void add_outer_loop_id(size_t id, size_t inner = SIZE_MAX);
+    void add_outer_loop_ids(const std::vector<size_t>& ids, size_t inner);
+    // Insert loop ID after outer ID in vector of identifiers so new Loop is inside Loop with outer ID
+    //   loop_ids: [.., outer, id, ..]
+    // Default value of outer ID - SIZE_MAX - it means, that the new Loop is the most inner Loop
+    void add_inner_loop_id(size_t id, size_t outer = SIZE_MAX);
+    void replace_loop_id(size_t prev_id, size_t new_id);
+    void remove_loop_id(size_t id);
 
 protected:
     // Note: The constructor initialization is private since an expression can be created only by Linear IR.

@@ -26,12 +26,12 @@ public:
     bool run(LinearIR& linear_ir) override;
 
 private:
-    void insertion(LinearIR& linear_ir, const LinearIR::LoopManagerPtr& loop_manager, size_t loop_id,
+    void insertion(LinearIR& linear_ir, const LinearIR::LoopManagerPtr& loop_manager,
                    const std::vector<ExpressionPort>& loop_entries, const std::vector<ExpressionPort>& loop_exits);
 
     LinearIR::constExprIt insertion_position(const LinearIR& linear_ir,
                                              const LinearIR::LoopManagerPtr& loop_manager,
-                                             const ExpressionPtr& up_expr,
+                                             const ExpressionPtr& expr,
                                              const ExpressionPtr& down_expr);
 
     int32_t m_buffer_allocation_rank;

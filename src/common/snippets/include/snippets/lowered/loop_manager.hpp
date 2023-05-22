@@ -22,12 +22,13 @@ public:
     class LoopInfo {
     public:
         LoopInfo() = default;
-        LoopInfo(size_t work_amount, size_t increment,
+        LoopInfo(size_t work_amount, size_t increment, size_t dim_idx,
                  const std::vector<ExpressionPort>& entries,
                  const std::vector<ExpressionPort>& exits)
-            : work_amount(work_amount), increment(increment), entry_exprs(entries), exit_exprs(exits) {}
+            : work_amount(work_amount), increment(increment), dim_idx(dim_idx), entry_exprs(entries), exit_exprs(exits) {}
         size_t work_amount = 0;
         size_t increment = 0;
+        size_t dim_idx = 0;  // The numeration begins from the end (dim_idx = 0 -> is the most inner dimension)
         // The order of entry and exit expressions is important:
         //     - The position before first entry expr is Loop Begin position
         //     - The position after last exit expr is Loop End position
@@ -48,9 +49,9 @@ public:
                    size_t loop_depth, size_t vector_size);
     void mark_loop(LinearIR::constExprIt loop_begin_pos,
                    LinearIR::constExprIt loop_end_pos,
-                   size_t idx,
                    size_t work_amount,
                    size_t work_amount_increment,
+                   size_t dim_idx,
                    const std::vector<ExpressionPort>& entries,
                    const std::vector<ExpressionPort>& exits);
 
@@ -63,12 +64,9 @@ public:
                                 const std::vector<ExpressionPort>& exits,
                                 LinearIR::constExprIt& loop_begin_pos,
                                 LinearIR::constExprIt& loop_end_pos,
-                                size_t loop_id = Expression::LOOP_NULL_ID);
+                                size_t loop_id);
 
 private:
-    static void exprs_marking(LinearIR::constExprIt loop_begin_pos,
-                              LinearIR::constExprIt loop_end_pos,
-                              size_t loop_id, size_t idx);
     static void get_io_loop_ports(LinearIR::constExprIt loop_begin_pos,
                                   LinearIR::constExprIt loop_end_pos,
                                   std::vector<ExpressionPort>& entries,

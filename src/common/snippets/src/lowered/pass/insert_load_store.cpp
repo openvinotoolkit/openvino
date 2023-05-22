@@ -14,19 +14,6 @@ namespace snippets {
 namespace lowered {
 namespace pass {
 
-namespace {
-auto get_inner_loop_id(const std::vector<size_t>& loop_ids) -> size_t {
-    size_t inner_loop = Expression::LOOP_NULL_ID;
-    for (int i = static_cast<int>(loop_ids.size()) - 1; i >= 0; --i) {
-        if (loop_ids[i] != Expression::LOOP_NULL_ID) {
-            inner_loop = loop_ids[i];
-            break;
-        }
-    }
-    return inner_loop;
-}
-} // namespace
-
 using LoopManager = LinearIR::LoopManager;
 using LoopInfoPtr = LoopManager::LoopInfoPtr;
 
@@ -35,8 +22,7 @@ InsertLoadStore::InsertLoadStore(size_t vector_size) : m_vector_size(vector_size
 void InsertLoadStore::update_loops(const LinearIR::LoopManagerPtr& loop_manager, const std::vector<size_t>& loop_ids,
                                    const ExpressionPort& actual_port, const std::vector<ExpressionPort>& target_ports, bool is_entry) {
     for (auto loop_id : loop_ids) {
-        if (loop_id != Expression::LOOP_NULL_ID)
-            update_loop(loop_manager->get_loop_info(loop_id), actual_port, target_ports, is_entry);
+        update_loop(loop_manager->get_loop_info(loop_id), actual_port, target_ports, is_entry);
     }
 }
 
@@ -76,11 +62,7 @@ bool InsertLoadStore::insert_load(LinearIR& linear_ir, const LinearIR::constExpr
         if (ma && ma->is_memory_access_input_port(port))
             return false;
 
-        // Find Inner Loop
-        const auto& loop_ids = consumer_expr->get_loop_ids();
-        const auto inner_loop = get_inner_loop_id(loop_ids);
-        OPENVINO_ASSERT(inner_loop != Expression::LOOP_NULL_ID, "Loop hasn't been found!");
-
+        const auto loop_ids = consumer_expr->get_loop_ids();
         const auto load = std::make_shared<op::Load>(data_node->output(0), get_count(data_expr->get_output_port_descriptor(0)));
         PortDescriptorUtils::set_port_descriptor_ptr(load->output(0), consumer_input.get_descriptor_ptr()->clone());
         const auto load_expr = linear_ir.create_expression(load, {output_connector});
@@ -111,11 +93,7 @@ bool InsertLoadStore::insert_store(LinearIR& linear_ir, const LinearIR::constExp
     if (ma && ma->is_memory_access_output_port(port))
         return false;
 
-    // Find Inner Loop
-    const auto& loop_ids = parent_expr->get_loop_ids();
-    const auto inner_loop = get_inner_loop_id(loop_ids);
-    OPENVINO_ASSERT(inner_loop != Expression::LOOP_NULL_ID, "Loop hasn't been found!");
-
+    const auto loop_ids = parent_expr->get_loop_ids();
     const auto store = std::make_shared<op::Store>(parent->output(port), get_count(data_expr->get_input_port_descriptor(0)));
     PortDescriptorUtils::set_port_descriptor_ptr(store->output(0), parent_output.get_descriptor_ptr()->clone());
     const auto store_expr = linear_ir.create_expression(store, {input_connector});

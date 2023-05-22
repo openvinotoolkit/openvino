@@ -157,7 +157,6 @@ void LinearIR::LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
 
     for (size_t dim_idx = 0; dim_idx < loop_depth; ++dim_idx) {
         if (*(loop_subtensor.rbegin() + dim_idx) == PortDescriptor::ServiceDimensions::FULL_DIM) {
-            exprs_marking(loop_begin_pos, loop_end_pos, Expression::LOOP_NULL_ID, loop_depth - dim_idx - 1);
             continue;
         }
 
@@ -168,28 +167,21 @@ void LinearIR::LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
         const auto work_amount_increment =
                 loop_subtensor.size() > dim_idx ? *(loop_subtensor.rbegin() + dim_idx)
                                                 : (dim_idx == 0 ? vector_size : 1);
-        mark_loop(loop_begin_pos, loop_end_pos, loop_depth - dim_idx - 1, work_amount,
-                  work_amount_increment, loop_entry_points, loop_exit_points);
+        mark_loop(loop_begin_pos, loop_end_pos, work_amount, work_amount_increment, dim_idx, loop_entry_points, loop_exit_points);
     }
 }
 
 void LinearIR::LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
                                       LinearIR::constExprIt loop_end_pos,
-                                      size_t idx,
                                       size_t work_amount,
                                       size_t work_amount_increment,
+                                      size_t dim_idx,
                                       const std::vector<ExpressionPort> &entries,
                                       const std::vector<ExpressionPort> &exits) {
-    const auto loop_info = std::make_shared<LoopManager::LoopInfo>(work_amount, work_amount_increment, entries, exits);
+    const auto loop_info = std::make_shared<LoopManager::LoopInfo>(work_amount, work_amount_increment, dim_idx, entries, exits);
     const auto loop_id = this->add_loop_info(loop_info);
-    exprs_marking(loop_begin_pos, loop_end_pos, loop_id, idx);
-}
-
-void LinearIR::LoopManager::exprs_marking(LinearIR::constExprIt loop_begin_pos,
-                                          LinearIR::constExprIt loop_end_pos,
-                                          size_t loop_id, size_t idx) {
     for (auto expr_it = loop_begin_pos; expr_it != loop_end_pos; ++expr_it) {
-        expr_it->get()->set_loop_id(loop_id, idx);
+        expr_it->get()->add_outer_loop_id(loop_id);
     }
 }
 
