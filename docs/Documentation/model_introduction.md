@@ -52,5 +52,5 @@ This section describes how to obtain and prepare your model for work with OpenVI
 * :doc:`See the supported formats and how to use them in your project <Supported_Model_Formats>`.
 * :doc:`Convert different model formats to the ov.Model format <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`.
 
-
 @endsphinxdirective
+

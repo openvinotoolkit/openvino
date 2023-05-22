@@ -199,6 +199,7 @@ public:
     virtual ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
                                             const ov::AnyMap& properties) const = 0;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     /**
      * @deprecated This method allows to load legacy Inference Engine Extensions and will be removed in 2024.0 release
      * @brief Registers legacy extension within plugin
@@ -207,6 +208,7 @@ public:
     OPENVINO_DEPRECATED(
         "This method allows to load legacy Inference Engine Extensions and will be removed in 2024.0 release")
     virtual void add_extension(const std::shared_ptr<InferenceEngine::IExtension>& extension);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief Sets pointer to ICore interface

@@ -60,7 +60,7 @@ class StridedSlice(Op):
         # StridedSliceNormalizer inserts nodes that change original begin, end, and strides data nodes
         # and since input permutations are stored in data nodes we end up having permutations
         # in the wrong place of the graph.
-        # Therefore PermuteInputs will be set after StridedSliceNormalizer.
+        # Therefore, PermuteInputs will be set after StridedSliceNormalizer.
 
     @staticmethod
     def get_slices(node: Node, data_shape: Tuple) -> List:
