@@ -41,6 +41,10 @@ function(ov_check_python_build_conditions)
         else()
             set(pybind11_min_version 2.8.0)
         endif()
+        if(CMAKE_CROSSCOMPILING)
+            # since this version pybind11 has PYBIND11_PYTHONLIBS_OVERWRITE option
+            set(pybind11_min_version 2.10.1)
+        endif()
 
         function(_ov_find_python_libs_new)
             set(pybind11_tools_dir "${OpenVINOPython_SOURCE_DIR}/thirdparty/pybind11/tools")

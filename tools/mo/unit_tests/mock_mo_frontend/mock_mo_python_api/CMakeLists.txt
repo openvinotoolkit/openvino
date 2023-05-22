@@ -33,6 +33,10 @@ if(PYTHON_VERSION_MINOR GREATER_EQUAL 11)
 else()
     set(pybind11_min_version 2.8.0)
 endif()
+if(CMAKE_CROSSCOMPILING)
+    # since this version pybind11 has PYBIND11_PYTHONLIBS_OVERWRITE
+    set(pybind11_min_version 2.10.1)
+endif()
 
 find_package(pybind11 ${pybind11_min_version} QUIET)
 
