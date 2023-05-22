@@ -21,6 +21,11 @@ namespace {
 bool is_output_equal(const cldnn::memory::ptr mem, const std::vector<float>& ref)
 {
     cldnn::mem_lock<float> ptr(mem, get_test_stream());
+    std::cout << "ptr = {";
+    for (size_t i = 0; i < mem->get_layout().count(); i++) {
+        std::cout << ptr[i] << ",";
+    }
+    std::cout << "}" << std::endl;
     for (size_t i = 0; i < mem->get_layout().count(); i++) {
         if (!are_equal(ptr[i], ref[i])) return false;
     }
@@ -32,11 +37,11 @@ topology generate_simple_branch (bool branch_true_false, const primitive_id& inp
     topology branch;
     if (branch_true_false) {
         branch.add(
-            pooling(input_id + "_when_true", input_id, cldnn::pooling_mode::max, { 0, 0, 2, 1 }, { 0, 0, 2, 1 })
+            pooling(input_id + "_when_true", input_id, cldnn::pooling_mode::max, { 1, 2 }, { 1, 2 })
         );
     } else {
         branch.add(
-            pooling(input_id + "_when_false", input_id, cldnn::pooling_mode::average, { 0, 0, 2, 1 }, { 0, 0, 2, 1 })
+            pooling(input_id + "_when_false", input_id, cldnn::pooling_mode::average, { 1, 2 }, { 1, 2 })
         );
     }
     return branch;
@@ -85,7 +90,7 @@ std::pair<std::vector<float>, std::vector<float>> get_values_to_compare(const cl
 
 }  // namespace
 
-TEST(DISABLED_condition_gpu, basic_equal_comp) {
+TEST(condition_gpu, basic_equal_comp) {
     auto& engine = get_test_engine();
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
@@ -378,7 +383,7 @@ TEST(DISABLED_condition_gpu, basic_stacked_ifs) {
     ASSERT_TRUE(is_output_equal(out_data, {1.0f, 2.0f}));
 }
 
-TEST(DISABLED_condition_gpu, basic_nested_ifs) {
+TEST(condition_gpu, basic_nested_ifs) {
     /*
     <prims...>
     <if 0>
@@ -414,7 +419,7 @@ TEST(DISABLED_condition_gpu, basic_nested_ifs) {
 
     topology branch_true;
     branch_true.add(
-        pooling("pooling_when_true", input_info("condi"), cldnn::pooling_mode::max, { 0, 0, 2, 1 }, { 0, 0, 2, 1 })
+        pooling("pooling_when_true", input_info("condi"), cldnn::pooling_mode::max, { 1, 1, 2, 1 }, { 1, 1, 2, 1 })
     );
     branch_true.add(
         input_layout("compare2", compare2->get_layout())
@@ -432,7 +437,7 @@ TEST(DISABLED_condition_gpu, basic_nested_ifs) {
 
     topology branch_false;
     branch_false.add(
-        pooling("pooling_when_false", input_info("condi"), cldnn::pooling_mode::average, { 0, 0, 2, 1 }, { 0, 0, 2, 1 })
+        pooling("pooling_when_false", input_info("condi"), cldnn::pooling_mode::average, { 1, 1, 2, 1 }, { 1, 1, 2, 1 })
     );
 
     topology topology;
