@@ -28,6 +28,9 @@ def get_type_from_py_type(value):
 
 def ivalue_to_constant(ivalue):
     ov_type = get_type_from_py_type(ivalue)
+    if ov_type == OVType.i64:
+        # TODO: Figure out better way to handle this
+        return op.Constant(OVType.i32, Shape([]), [np.clip(ivalue, np.iinfo(np.int32).min, np.iinfo(np.int32).max)]).outputs()
     if ov_type.is_static():
         return op.Constant(ov_type, Shape([]), [ivalue]).outputs()
 

@@ -87,6 +87,10 @@ ListConstructReplacer::ListConstructReplacer() {
             auto reshape = std::make_shared<v1::Reshape>(input, neg_1, false);
             inputs.push_back(reshape);
         }
+        if (inputs.size() == 0) {
+            // Concat for empty list is not supported.
+            return false;
+        }
         auto concat = std::make_shared<v0::Concat>(inputs, 0);
         copy_runtime_info({list_node}, concat);
         replace_node(list_node, concat);

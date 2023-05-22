@@ -4,6 +4,7 @@
 
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/concat.hpp"
+#include "openvino/op/parameter.hpp"
 #include "pt_framework_node.hpp"
 #include "utils.hpp"
 
@@ -25,6 +26,12 @@ OutputVector translate_cat(const NodeContext& context) {
         attrs["axis"] = std::to_string(axis);
         fw_node->set_attrs(attrs);
         return {context.mark_node(std::dynamic_pointer_cast<Node>(fw_node))};
+    } else {
+        auto first_elem = list_elems.front().get_node_shared_ptr();
+        FRONT_END_OP_CONVERSION_CHECK(
+            list_elems.size() > 1 || !std::dynamic_pointer_cast<ov::op::v0::Parameter>(first_elem),
+            "aten::cat is located inside body while inputs are located outside of the body. "
+            "This case is not supported.");
     }
     auto concat = std::make_shared<ov::op::v0::Concat>(OutputVector(list_elems.begin(), list_elems.end()), axis);
     return {context.mark_node(concat)};

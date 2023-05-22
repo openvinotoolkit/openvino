@@ -97,6 +97,12 @@ AtenCatToConcat::AtenCatToConcat() {
         }
 
         const auto&& tmp_inputs = get_list_as_outputs(cat->get_input_source_output(0));
+        if (tmp_inputs.size() == 1 &&
+            std::dynamic_pointer_cast<ov::op::v0::Parameter>(tmp_inputs.front().get_node_shared_ptr())) {
+            // aten::cat is located inside body while inputs are located outside of the body. This case is not
+            // supported.
+            return false;
+        }
         auto result = std::make_shared<ov::op::v0::Concat>(OutputVector(tmp_inputs.begin(), tmp_inputs.end()), axis);
         copy_runtime_info(cat, result);
         replace_node(cat, result);

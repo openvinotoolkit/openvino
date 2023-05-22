@@ -220,8 +220,15 @@ OutputVector TranslateSession::convert_node(const NodeContext& context) {
         OPENVINO_DEBUG << "Some exception happened during conversion of node of type: " << context.get_op_type()
                        << '\n';
     }
-    // Create PtFrameworkNode for everything that wasn't able to be converted normally
-    return make_framework_node(context);
+    try {
+        // Create PtFrameworkNode for everything that wasn't able to be converted normally
+        return make_framework_node(context);
+    } catch (std::exception& e) {
+        std::stringstream err;
+        err << "Exception happened during construction of FrameworkNode of type " << context.get_op_type() << ": "
+            << e.what() << ". Not possible to recover.";
+        throw std::runtime_error(err.str());
+    }
 }
 
 void TranslateSession::encode_tensor_name(Output<Node> output,

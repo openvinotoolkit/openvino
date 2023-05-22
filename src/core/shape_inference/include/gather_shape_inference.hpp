@@ -71,6 +71,7 @@ void shape_infer(const GatherBase* op,
 
     if (data_rank.is_static() && indices_rank.is_static()) {
         auto out_rank = data_rank.get_length() + indices_rank.get_length() - 1 - batch_dims;
+        NODE_VALIDATION_CHECK(op, out_rank >= 0, "Calculated out rank is negative: ", out_rank);
         // scalar has one
         output_pshape.resize(out_rank);
 
