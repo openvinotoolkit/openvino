@@ -28,7 +28,7 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
         size_t batchSize = 0;
 
         ie.set_property("AUTO", InferenceEngine::log::level(InferenceEngine::log::Level::DEBUG));
-        std::string device_prefix = device.substr(0, device.find(':'));
+        //std::string device = device.substr(0, device.find(':'));
 
         // first_inference_latency = time_to_inference + first_inference
         {
@@ -37,8 +37,8 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
                 SCOPED_TIMER(time_to_inference);
                 {
                     SCOPED_TIMER(load_plugin);
-                    TimeTest::setPerformanceConfig(ie, device_prefix);
-                    ie.GetVersions(device_prefix);
+                    TimeTest::setPerformanceConfig(ie, device);
+                    ie.GetVersions(device);
 
                     if (isCacheEnabled)
                         ie.SetConfig({ {CONFIG_KEY(CACHE_DIR), "models_cache"} });
@@ -48,7 +48,7 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
                     if (!isCacheEnabled) {
                         if (TimeTest::fileExt(model) == "blob") {
                             SCOPED_TIMER(import_network);
-                            exeNetwork = ie.ImportNetwork(model, device_prefix);
+                            exeNetwork = ie.ImportNetwork(model, device);
                         }
                         else {
                             {
@@ -58,13 +58,13 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
                             }
                             {
                                 SCOPED_TIMER(load_network);
-                                exeNetwork = ie.LoadNetwork(cnnNetwork, device_prefix);
+                                exeNetwork = ie.LoadNetwork(cnnNetwork, device);
                             }
                         }
                     }
                     else {
                         SCOPED_TIMER(load_network_cache);
-                        exeNetwork = ie.LoadNetwork(model, device_prefix);
+                        exeNetwork = ie.LoadNetwork(model, device);
                     }
                 }
                 inferRequest = exeNetwork.CreateInferRequest();
