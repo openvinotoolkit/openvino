@@ -77,3 +77,7 @@ The operation is applied per batch, per group of channels. This means that the e
     </output>
 </layer>
 ```
+
+
+@endsphinxdirective
+
