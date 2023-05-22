@@ -8,6 +8,8 @@
  */
 #pragma once
 
+#warning("The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+
 #include <cassert>
 #include <functional>
 #include <memory>
@@ -24,7 +26,7 @@ namespace details {
  * parameter
  */
 template <class T>
-class SOCreatorTrait {};
+class INFERENCE_ENGINE_1_0_DEPRECATED SOCreatorTrait {};
 
 /**
  * @brief Enables only `char` or `wchar_t` template specializations
@@ -40,7 +42,7 @@ using enableIfSupportedChar =
  * @tparam T An type of object SOPointer can hold
  */
 template <class T>
-class INFERENCE_ENGINE_DEPRECATED("This is internal stuff. Use Inference Engine Plugin API") SOPointer {
+class INFERENCE_ENGINE_1_0_DEPRECATED SOPointer {
     template <class U>
     friend class SOPointer;
 

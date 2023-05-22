@@ -9,6 +9,8 @@
  */
 #pragma once
 
+#warning("The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+
 #include <memory>
 
 #include "ie_api.h"
@@ -18,7 +20,7 @@ namespace InferenceEngine {
 /**
  * @brief Allocator handle mapping type
  */
-enum LockOp {
+enum INFERENCE_ENGINE_1_0_DEPRECATED LockOp {
     LOCK_FOR_READ = 0,  //!< A flag to lock data for read
     LOCK_FOR_WRITE      //!< A flag to lock data for write
 };
@@ -27,7 +29,7 @@ enum LockOp {
  * @interface IAllocator
  * @brief Allocator concept to be used for memory management and is used as part of the Blob.
  */
-class IAllocator : public std::enable_shared_from_this<IAllocator> {
+class INFERENCE_ENGINE_1_0_DEPRECATED IAllocator : public std::enable_shared_from_this<IAllocator> {
 public:
     /**
      * @brief Maps handle to heap memory accessible by any memory manipulation routines.
@@ -69,6 +71,7 @@ protected:
  *
  * @return The Inference Engine IAllocator* instance
  */
-INFERENCE_ENGINE_API_CPP(std::shared_ptr<InferenceEngine::IAllocator>) CreateDefaultAllocator() noexcept;
+INFERENCE_ENGINE_API_CPP(std::shared_ptr<InferenceEngine::IAllocator>)
+INFERENCE_ENGINE_1_0_DEPRECATED CreateDefaultAllocator() noexcept;
 
 }  // namespace InferenceEngine

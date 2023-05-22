@@ -9,6 +9,8 @@
  */
 #pragma once
 
+#warning("The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+
 #include <map>
 #include <memory>
 #include <string>
@@ -28,7 +30,7 @@ class IExtension;
 /**
  * @brief This class contains all the information about the Neural Network and the related binary information
  */
-class INFERENCE_ENGINE_API_CLASS(CNNNetwork) {
+class INFERENCE_ENGINE_1_0_DEPRECATED INFERENCE_ENGINE_API_CLASS(CNNNetwork) {
 public:
     /**
      * @brief A default constructor

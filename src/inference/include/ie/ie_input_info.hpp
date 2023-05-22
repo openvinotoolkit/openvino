@@ -9,6 +9,10 @@
  */
 #pragma once
 
+#warning("The Inference Engine API is deprecated and will be removed in the 2024.0 release. " \
+         "For instructions on transitioning to the new API, please refer to "                 \
+         "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+
 #include <map>
 #include <memory>
 #include <string>
@@ -26,7 +30,7 @@ IE_SUPPRESS_DEPRECATED_START
 /**
  * @brief This class contains information about each input of the network
  */
-class InputInfo {
+class INFERENCE_ENGINE_1_0_DEPRECATED InputInfo {
 public:
     /** @brief A smart pointer to the InputInfo instance */
     using Ptr = std::shared_ptr<InputInfo>;

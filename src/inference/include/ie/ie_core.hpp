@@ -9,6 +9,8 @@
  */
 #pragma once
 
+#warning("The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+
 #include <istream>
 #include <map>
 #include <memory>
@@ -29,7 +31,7 @@ namespace InferenceEngine {
  *
  * It can throw exceptions safely for the application, where it is properly handled.
  */
-class INFERENCE_ENGINE_API_CLASS(Core) {
+class INFERENCE_ENGINE_1_0_DEPRECATED INFERENCE_ENGINE_API_CLASS(Core) {
     class Impl;
     std::shared_ptr<Impl> _impl;
 
@@ -365,5 +367,5 @@ public:
  * You might want to use this function if you are developing a dynamically-loaded library which should clean up all
  * resources after itself when the library is unloaded.
  */
-INFERENCE_ENGINE_API_CPP(void) shutdown();
+INFERENCE_ENGINE_API_CPP(void) INFERENCE_ENGINE_1_0_DEPRECATED shutdown();
 }  // namespace InferenceEngine

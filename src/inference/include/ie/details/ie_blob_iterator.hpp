@@ -10,6 +10,8 @@
 
 #pragma once
 
+#warning("The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+
 #include <utility>
 
 #include "ie_locked_memory.hpp"
@@ -20,7 +22,7 @@ namespace details {
  * @brief This class provides range loops support for TBlob objects
  */
 template <class T>
-class BlobIterator {
+class INFERENCE_ENGINE_1_0_DEPRECATED BlobIterator {
     LockedMemory<T> _mem;
     size_t _offset;
 

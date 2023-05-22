@@ -9,6 +9,8 @@
  */
 #pragma once
 
+#warning("The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+
 #include <map>
 #include <memory>
 #include <string>
@@ -28,7 +30,8 @@ _IE_SUPPRESS_DEPRECATED_START_GCC
  * @interface ICNNNetwork
  * @brief This is the main interface to describe the NN topology
  */
-class INFERENCE_ENGINE_API_CLASS(ICNNNetwork) : public std::enable_shared_from_this<ICNNNetwork> {
+class INFERENCE_ENGINE_1_0_DEPRECATED INFERENCE_ENGINE_API_CLASS(ICNNNetwork)
+    : public std::enable_shared_from_this<ICNNNetwork> {
 public:
     IE_SUPPRESS_DEPRECATED_START
     /**
