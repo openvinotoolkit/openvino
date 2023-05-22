@@ -27,13 +27,16 @@ add_library(${TARGET_NAME} SHARED ${SOURCES})
 target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 set_target_properties(${TARGET_NAME} PROPERTIES OUTPUT_NAME IntelSEAPI)
 
-target_link_libraries(${TARGET_NAME} PRIVATE ittnotify)
+target_link_libraries(${TARGET_NAME} PRIVATE ittapi::ittnotify)
 
 if(UNIX)
-    target_link_libraries(${TARGET_NAME} PRIVATE dl)
-    target_compile_options(${TARGET_NAME} PRIVATE -Wno-undef -Wno-deprecated-declarations -Wno-multichar)
+    target_link_libraries(${TARGET_NAME} PRIVATE ${CMAKE_DL_LIBS})
 elseif(WIN32)
     target_link_libraries(${TARGET_NAME} PRIVATE Dbghelp)
+endif()
+
+if(CMAKE_COMPILER_IS_GNUCC OR OV_COMPILER_IS_CLANG)
+    target_compile_options(${TARGET_NAME} PRIVATE -Wno-undef -Wno-deprecated-declarations -Wno-multichar)
 endif()
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})

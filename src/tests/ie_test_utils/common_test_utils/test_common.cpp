@@ -20,7 +20,7 @@
 #define _WINSOCKAPI_
 
 #include <windows.h>
-#include "Psapi.h"
+#include "psapi.h"
 #endif
 
 namespace CommonTestUtils {

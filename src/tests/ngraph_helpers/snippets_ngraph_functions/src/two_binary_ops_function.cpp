@@ -24,7 +24,7 @@ std::shared_ptr<ngraph::Function> TwoBinaryOpsFunction::get(
     const auto create_convert = [](std::shared_ptr<Node> parent, const element::Type convertion_type) -> std::shared_ptr<Node> {
         return convertion_type == element::undefined
             ? std::dynamic_pointer_cast<Node>(parent)
-            : std::make_shared<ngraph::snippets::op::ConvertSaturation>(parent, convertion_type);
+            : std::make_shared<ov::snippets::op::ConvertSaturation>(parent, convertion_type);
     };
 
     const auto make_branch = [&create_convert](
