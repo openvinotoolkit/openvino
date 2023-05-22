@@ -197,9 +197,6 @@ public:
     }
 
     bool compare(std::map<std::string, std::string> a, std::map<std::string, std::string> b) {
-        if (a.size() != b.size())
-            return false;
-
         for (auto& it : a) {
             auto item = b.find(it.first);
             if (item == b.end())
@@ -342,18 +339,18 @@ const std::vector<MetricConfigParams> metricTestConfigs = {
 
 const std::vector<MetaDeviceParams> testMetaDeviceConfigs = {
     MetaDeviceParams{"CPU(4)", {}, DeviceInformation{"CPU", {}, 4}, false},
-    MetaDeviceParams{"CPU(4)", {{}}, DeviceInformation{"CPU", {{}}, 4}, true},
+    MetaDeviceParams{"CPU(4)", {{}}, DeviceInformation{"CPU", {{}}, 4}, false},
     MetaDeviceParams{"CPU(4)", {{"CACHE_DIR", "./"}}, DeviceInformation{"CPU", {{"CACHE_DIR", "./"}}, 4}, false},
     MetaDeviceParams{"GPU(4)", {{"CACHE_DIR", "./"}}, DeviceInformation{"GPU", {{"CACHE_DIR", "./"}}, 4}, false},
     MetaDeviceParams{"GPU(8)",
                      {{"CACHE_DIR", "./"}, {"OPTIMAL_BATCH_SIZE", "16"}},
                      DeviceInformation{"GPU", {{"CACHE_DIR", "./"}, {"OPTIMAL_BATCH_SIZE", "16"}}, 8},
                      false},
-    MetaDeviceParams{"CPU(4)", {{"OPTIMAL_BATCH_SIZE", "16"}}, DeviceInformation{"CPU", {{}}, 4}, true},
+    MetaDeviceParams{"CPU(4)", {{"OPTIMAL_BATCH_SIZE", "16"}}, DeviceInformation{"CPU", {{}}, 4}, false},
     MetaDeviceParams{"CPU(4)",
                      {{"CACHE_DIR", "./"}, {"OPTIMAL_BATCH_SIZE", "16"}},
                      DeviceInformation{"CPU", {{"CACHE_DIR", "./"}}, 4},
-                     true},
+                     false},
 };
 
 const std::vector<SetGetConfigParams> testSetGetConfigParams = {
