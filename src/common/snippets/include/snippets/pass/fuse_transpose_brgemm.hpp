@@ -1,13 +1,17 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "ngraph/pass/graph_rewrite.hpp"
-#include "ngraph/pattern/matcher.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
 
-namespace ngraph {
+#include "openvino/op/transpose.hpp"
+
+#include "snippets/lowered/port_descriptor.hpp"
+
+namespace ov {
 namespace snippets {
 namespace pass {
 
@@ -18,13 +22,16 @@ namespace pass {
  *        but only 0213 Transpose is currently supported.
  * @ingroup snippets
  */
-class FuseTransposeBrgemm: public ngraph::pass::MatcherPass {
+class FuseTransposeBrgemm: public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("FuseTransposeBrgemm", "0");
     FuseTransposeBrgemm();
     static const std::set<std::vector<int>> supported_cases;
+
+private:
+    static bool is_supported_transpose(const Output<Node>& transpose_port);
 };
 
 }  // namespace pass
 }  // namespace snippets
-}  // namespace ngraph
+}  // namespace ov
