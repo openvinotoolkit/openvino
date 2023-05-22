@@ -4,7 +4,12 @@
 import os
 import tempfile
 import unittest
+
 from defusedxml.common import EntitiesForbidden
+
+from openvino.tools.mo.middle.passes.infer import type_infer
+from openvino.tools.mo.pipeline.common import prepare_emit_ir
+from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from openvino.tools.mo.utils.ir_reader.restore_graph import restore_graph_from_ir
 
 
@@ -127,3 +132,84 @@ class TestIRReader(unittest.TestCase):
         malformed_ir_file.close()
         self.assertRaises(ValueError, restore_graph_from_ir, malformed_ir_file.name)
         os.remove(malformed_ir_file.name)
+
+    def test_save_and_restore(self):
+        test_port_types_alignment_ir = """<?xml version="1.0"?>
+        <net name="test_ir" version="11">
+        <layers>
+        <layer id="0" name="input_1" type="Parameter" version="opset1">
+            <data shape="1,128" element_type="f32" />
+            <output>
+                <port id="0" precision="FP32" names="input_1">
+                    <dim>1</dim>
+                    <dim>128</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="1" name="input_2" type="Parameter" version="opset1">
+            <data shape="4" element_type="i32" />
+            <output>
+                <port id="0" precision="I32" names="input_2">
+                    <dim>4</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="501" name="reshape" type="Reshape" version="opset1">
+            <data special_zero="false" />
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>128</dim>
+                </port>
+                <port id="1" precision="I32">
+                    <dim>4</dim>
+                </port>
+            </input>
+            <output>
+                <port id="2" precision="FP32" names="reshape">
+                    <dim>1</dim>
+                    <dim>1</dim>
+                    <dim>1</dim>
+                    <dim>128</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="590" name="result" type="Result" version="opset1">
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>1</dim>
+                    <dim>1</dim>
+                    <dim>128</dim>
+                </port>
+            </input>
+        </layer>
+        </layers>
+        
+        <edges>
+        <edge from-layer="0" from-port="0" to-layer="501" to-port="0" />
+        <edge from-layer="1" from-port="0" to-layer="501" to-port="1" />
+        <edge from-layer="501" from-port="2" to-layer="590" to-port="0" />
+        </edges>
+        </net>
+        """
+        original_ir_file = tempfile.NamedTemporaryFile(delete=False)
+        original_ir_file.write(bytes(test_port_types_alignment_ir, 'utf-8'))
+        original_ir_file.close()
+
+        # we must expect no exceptions
+        graph_orig, _ = restore_graph_from_ir(original_ir_file.name)
+        type_infer(graph_orig)
+        os.remove(original_ir_file.name)
+
+        restored_ir_dir = tempfile.TemporaryDirectory()
+        prepare_emit_ir(graph_orig.copy(), 'FP32', restored_ir_dir.name, graph_orig.name, meta_info={}, rename_results=False)
+
+        graph_restored, _ = restore_graph_from_ir(restored_ir_dir.name + '/test_ir.xml')
+        os.remove(restored_ir_dir.name + '/test_ir.xml')
+        os.remove(restored_ir_dir.name + '/test_ir.bin')
+        os.remove(restored_ir_dir.name + '/test_ir.mapping')
+        os.removedirs(restored_ir_dir.name)
+
+        flag, msg = compare_graphs(graph_orig, graph_restored, 'result')
+        self.assertTrue(flag, msg)
