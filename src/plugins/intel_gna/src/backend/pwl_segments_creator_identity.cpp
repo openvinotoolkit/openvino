@@ -114,7 +114,8 @@ void PWLSegmentsCreatorIdentity::UpdateSegmentOnTheLeftOf0_0(const gna_pwl_segme
     auto segment_1_in_int64 = ConvertSegmentTo64(segment_1);
 
     if (segment_1_in_int64.slope == 0) {
-        THROW_GNA_EXCEPTION << "Slope is 0 possible division by 0 when updating left segment!.";
+        THROW_GNA_EXCEPTION << "Slope is 0 possible division by 0 when updating left segment!. Check if your input "
+                               "data for POT were valid.";
     }
 
     int64_t new_segment_1_x_base =
@@ -139,7 +140,8 @@ gna_pwl_segment_t PWLSegmentsCreatorIdentity::CreateSegmentOnTheRight(const gna_
     int64_t right_y_base_64 = static_cast<int64_t>(border_values.y_upper);
 
     if (segment_0_0_in_int64.slope == 0) {
-        THROW_GNA_EXCEPTION << "Slope is 0 possible division by 0 when calculating right segment!.";
+        THROW_GNA_EXCEPTION << "Slope is 0 possible division by 0 when calculating right segment!. Check if your input "
+                               "data for POT were valid.";
     }
 
     int64_t right_segment_x_base = segment_0_0_in_int64.x_base + (right_y_base_64 - segment_0_0_in_int64.y_base) *
