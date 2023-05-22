@@ -74,6 +74,11 @@ std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& /*node
 
     ShapeType pattern_shape = impl_param.input_layouts.size() == 2 ? impl_param.get_input_layout(1).get<ShapeType>()
                                                                    : ShapeType(ov::Shape{ prim->output_pattern.size() });
+    // Since reshape does not support 0D tensor(scalar) for shape input
+    // the case propagated to 0D tensor should be handled manually with 1D tensor
+    if (pattern_shape.size() == 0) {
+        pattern_shape = ShapeType{1};
+    }
     std::vector<ShapeType> output_shapes = {ShapeType()};
     std::vector<ShapeType> input_shapes = {
         input_layout.get<ShapeType>(),
