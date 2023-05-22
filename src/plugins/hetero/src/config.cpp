@@ -10,7 +10,7 @@
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 
-using namespace ov::hetero_plugin;
+using namespace ov::hetero;
 
 Configuration::Configuration() {}
 

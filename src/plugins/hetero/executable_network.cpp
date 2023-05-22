@@ -47,9 +47,6 @@
 #include <ngraph/rt_info.hpp>
 #include "graph_debug_dump.hpp"
 
-#include <dev/converter_utils.hpp>
-#include <any_copy.hpp>
-
 // clang-format on
 
 using namespace InferenceEngine;
@@ -62,8 +59,8 @@ template <typename T>
 using NodeMap = std::unordered_map<ngraph::Node*, T>;
 
 HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwork& network,
-                                                 const ov::hetero_plugin::Configs& user_config,
-                                                 ov::hetero_plugin::Plugin* plugin)
+                                                 const Configs& user_config,
+                                                 Engine* plugin)
     : InferenceEngine::ExecutableNetworkThreadSafeDefault(nullptr,
                                                           std::make_shared<InferenceEngine::ImmediateExecutor>()),
       _heteroPlugin{plugin},
@@ -105,7 +102,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
     if (queryNetworkResult.supportedLayersMap.empty()) {
         // here we need to bypass unchanged / unparsed user-set configuration
         // because it can contain TARGET_FALLBACK / ov::device::priorities
-        queryNetworkResult = _heteroPlugin->query_model(ov::legacy_convert::convert_model(network, plugin->get_core()->is_new_api()), ov::any_copy(user_config));
+        queryNetworkResult = _heteroPlugin->QueryNetwork(network, user_config);
     }
 
     using Input = ngraph::Input<ngraph::Node>;
@@ -459,8 +456,8 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
 }
 
 HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream& heteroModel,
-                                                 const ov::hetero_plugin::Configs& user_config,
-                                                 ov::hetero_plugin::Plugin* heteroPlugin,
+                                                 const Configs& user_config,
+                                                 Engine* heteroPlugin,
                                                  bool fromCache)
     : _heteroPlugin(heteroPlugin),
       _hetero_config{},
@@ -789,7 +786,6 @@ IInferRequestInternal::Ptr HeteroExecutableNetwork::CreateInferRequest() {
 }
 
 InferenceEngine::Parameter HeteroExecutableNetwork::GetConfig(const std::string& name) const {
-    // TODO vurusovs: USE PLUGIN Configuration
     InferenceEngine::Parameter result;
     if (name == "TARGET_FALLBACK" || name == ov::device::priorities.name()) {
         result = _heteroPlugin->GetTargetFallback(_hetero_config, false);

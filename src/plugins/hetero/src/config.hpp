@@ -11,7 +11,7 @@
 #include "openvino/runtime/threading/istreams_executor.hpp"
 
 namespace ov {
-namespace hetero_plugin {
+namespace hetero {
 
 // ! [configuration:header]
 
@@ -38,5 +38,5 @@ struct Configuration {
 };
 // ! [configuration:header]
 
-}  // namespace hetero_plugin
+}  // namespace hetero
 }  // namespace ov

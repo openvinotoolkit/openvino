@@ -11,15 +11,11 @@
 #include <utility>
 #include <vector>
 
-#include "openvino/runtime/iplugin.hpp"
-#include "config.hpp"
-
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "description_buffer.hpp"
 #include "ie_icore.hpp"
 
-namespace ov {
-namespace hetero_plugin {
+namespace HeteroPlugin {
 
 using Configs = std::map<std::string, std::string>;
 
@@ -29,74 +25,39 @@ struct ParsedConfig {
     T device_config;
 };
 
-class Plugin : public ov::IPlugin {
+class Engine : public InferenceEngine::IInferencePlugin {
 public:
-    using DeviceMetaInformationMap = std::unordered_map<std::string, ov::AnyMap>;
+    using DeviceMetaInformationMap = std::unordered_map<std::string, Configs>;
 
-    Plugin();
-    ~Plugin();
-
-    std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                      const ov::AnyMap& properties) const override;
-
-    std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                      const ov::AnyMap& properties,
-                                                      const ov::RemoteContext& context) const override;
-
-    void set_property(const ov::AnyMap& properties) override;
-
-    ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const override;
-
-    std::shared_ptr<ov::IRemoteContext> create_context(const ov::AnyMap& remote_properties) const override;
-
-    std::shared_ptr<ov::IRemoteContext> get_default_context(const ov::AnyMap& remote_properties) const override;
-
-    std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model, const ov::AnyMap& properties) const override;
-
-    std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
-                                                     const ov::RemoteContext& context,
-                                                     const ov::AnyMap& properties) const override;
-
-    ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
-                                    const ov::AnyMap& properties) const override;
-
-    
-    
-
-    // TODO vurusovs: THINK TWICE ABOUT NECESSITY OF FUNCTION
-    DeviceMetaInformationMap GetDevicePlugins(const std::string& targetFallback, const ov::AnyMap& properties) const;
-
-    // FROM OLD HETERO PLUGIN
-    // TODO vurusovs: CHANGE RETURN TYPE AND RENAME
-    InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(std::istream& heteroModel,
-                                                                   const Configs& config);
+    Engine();
 
     InferenceEngine::IExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const InferenceEngine::CNNNetwork& network,
-                                                                        const Configs& config);
+                                                                        const Configs& config) override;
 
-    
+    void SetConfig(const Configs& config) override;
 
-    // std::string GetTargetFallback(const Configs& config, bool raise_exception = true) const;
-    // std::string GetTargetFallback(const ov::AnyMap& config, bool raise_exception = true) const;
+    InferenceEngine::QueryNetworkResult QueryNetwork(const InferenceEngine::CNNNetwork& network,
+                                                     const Configs& config) const override;
 
-    // FROM OLD HETERO PLUGIN
+    InferenceEngine::Parameter GetMetric(const std::string& name, const ov::AnyMap& options) const override;
+
+    InferenceEngine::Parameter GetConfig(const std::string& name, const ov::AnyMap& options) const override;
+
+    InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(std::istream& heteroModel,
+                                                                   const Configs& config) override;
+
+    DeviceMetaInformationMap GetDevicePlugins(const std::string& targetFallback, const Configs& localConfig) const;
+
+    std::string GetTargetFallback(const Configs& config, bool raise_exception = true) const;
+    std::string GetTargetFallback(const ov::AnyMap& config, bool raise_exception = true) const;
+
+    ParsedConfig<Configs> MergeConfigs(const Configs& user_config) const;
+    ParsedConfig<ov::AnyMap> MergeConfigs(const ov::AnyMap& user_config) const;
 
 private:
-    friend class CompiledModel;
-    friend class InferRequest;
-
-    Configuration m_cfg;
-
-    // FROM TEMPLATE PLUGIN
-    // std::shared_ptr<ov::runtime::Backend> m_backend;
-    
-    // std::shared_ptr<ov::threading::ITaskExecutor> m_waitExecutor;
-
-
     std::string DeviceCachingProperties(const std::string& targetFallback) const;
 
     Configs _device_config;
 };
 
-}  // namespace hetero_plugin
-}  // namespace ov
+}  // namespace HeteroPlugin

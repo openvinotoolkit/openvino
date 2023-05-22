@@ -18,7 +18,7 @@
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/runtime/properties.hpp"
-#include "properties.hpp"
+#include "internal_properties.hpp"
 #include "openvino/util/common_util.hpp"
 // clang-format on
 
@@ -27,60 +27,122 @@ using namespace InferenceEngine::PluginConfigParams;
 using namespace InferenceEngine::HeteroConfigParams;
 using namespace HeteroPlugin;
 
+namespace {
 
-// ! [plugin:ctor]
-ov::hetero_plugin::Plugin::Plugin() {
-    // TODO: fill with actual device name, backend engine
-    set_device_name("HETERO");
+const std::vector<std::string>& getHeteroSupportedConfigKeys() {
+    static const std::vector<std::string> supported_configKeys = {HETERO_CONFIG_KEY(DUMP_GRAPH_DOT),
+                                                                  "TARGET_FALLBACK",
+                                                                  ov::device::priorities.name()};
 
-    // // create ngraph backend which performs inference using ngraph reference implementations
-    // m_backend = ov::runtime::Backend::create();
-
-    // // create default stream executor with a given name
-    // m_waitExecutor = get_executor_manager()->get_idle_cpu_streams_executor({wait_executor_name});
+    return supported_configKeys;
 }
-// ! [plugin:ctor]
 
-// ! [plugin:dtor]
-ov::hetero_plugin::Plugin::~Plugin() {
-    // Plugin should remove executors from executor cache to avoid threads number growth in the whole application
-    // get_executor_manager()->clear(stream_executor_name);
-    // get_executor_manager()->clear(wait_executor_name);
+const std::vector<std::string>& getHeteroDeviceSupportedConfigKeys() {
+    static const std::vector<std::string> supported_configKeys = {CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS)};
+    return supported_configKeys;
 }
-// ! [plugin:dtor]
 
-// // ! [plugin:compile_model]
-// std::shared_ptr<ov::ICompiledModel> ov::hetero_plugin::Plugin::compile_model(
-//     const std::shared_ptr<const ov::Model>& model,
-//     const ov::AnyMap& properties) const {
-//     return compile_model(model, properties, {});
-// }
-// // ! [plugin:compile_model]
+std::vector<std::string> getSupportedConfigKeys() {
+    std::vector<std::string> supported_configKeys = getHeteroSupportedConfigKeys();
+    for (auto&& key : getHeteroDeviceSupportedConfigKeys())
+        supported_configKeys.emplace_back(key);
+    return supported_configKeys;
+}
 
-// // ! [plugin:compile_model_with_remote]
-// std::shared_ptr<ov::ICompiledModel> ov::hetero_plugin::Plugin::compile_model(
-//     const std::shared_ptr<const ov::Model>& model,
-//     const ov::AnyMap& properties,
-//     const ov::RemoteContext& context) const {
-//     OV_ITT_SCOPED_TASK(itt::domains::HeteroPlugin, "Plugin::compile_model");
+ov::AnyMap any_copy(const Configs& params) {
+    ov::AnyMap result;
+    for (auto&& value : params) {
+        result.emplace(value.first, value.second);
+    }
+    return result;
+}
 
-//     auto fullConfig = Configuration{properties, m_cfg};
-//     // auto compiled_model = std::make_shared<CompiledModel>(
-//     //     model->clone(),
-//     //     shared_from_this(),
-//     //     context,
-//     //     fullConfig.exclusive_async_requests
-//     //         ? get_executor_manager()->get_executor(template_exclusive_executor)
-//     //         : get_executor_manager()->get_idle_cpu_streams_executor(streamsExecutorConfig),
-//     //     fullConfig);
-    
-//     return std::make_shared<HeteroExecutableNetwork>(ov::legacy_convert::convert_model(model, true), ov::any_copy(fullConfig.GetDeviceConfig()), this);
-// }
-// // ! [plugin:compile_model_with_remote]
+Configs any_copy(const ov::AnyMap& params) {
+    Configs result;
+    for (auto&& value : params) {
+        result.emplace(value.first, value.second.as<std::string>());
+    }
+    return result;
+}
 
-InferenceEngine::IExecutableNetworkInternal::Ptr ov::hetero_plugin::Plugin::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork& network,
-                                                                            const ov::hetero_plugin::Configs& user_config) {
-    if (get_core() == nullptr) {
+}  // namespace
+
+Engine::Engine() {
+    _pluginName = "HETERO";
+    _config[HETERO_CONFIG_KEY(DUMP_GRAPH_DOT)] = NO;
+    _device_config[CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS)] = YES;
+}
+
+ParsedConfig<ov::AnyMap> Engine::MergeConfigs(const ov::AnyMap& user_config) const {
+    auto device_config = user_config;
+    auto hetero_config = _config;
+
+    // after API 1.0 removal, replace with the loop over getHeteroSupportedConfigKeys()
+    {
+        auto try_merge_property = [&](const std::string& property_name) -> bool {
+            auto property_it = device_config.find(property_name);
+            if (property_it != device_config.end()) {
+                // migrate HETERO property to hetero_config
+                hetero_config[property_it->first] = property_it->second.as<std::string>();
+                // and erase it from device_config
+                device_config.erase(property_it->first);
+                return true;
+            }
+
+            return false;
+        };
+
+        try_merge_property(HETERO_CONFIG_KEY(DUMP_GRAPH_DOT));
+
+        // if we have not found TARGET_FALLBACK in user_config, let's try to find device::priorities
+        // Note: we can have conflicts here like
+        //   core.set_property(HETERO, TARGET_FALLBACK=MULTI,CPU)
+        //   core.compile_model(HETERO, DEVICE_PRIORITIES=GPU.0,GPU.1)
+        // so, we need to check whether TARGET_FALLBACK was set before in set_property
+        // This check can be removed after API 1.0 is removed
+        if (!try_merge_property("TARGET_FALLBACK") && hetero_config.find("TARGET_FALLBACK") == hetero_config.end()) {
+            try_merge_property(ov::device::priorities.name());
+        }
+    }
+
+    // merge device_config settings
+    for (auto&& key : getHeteroDeviceSupportedConfigKeys()) {
+        auto user_config_it = user_config.find(key);
+        if (user_config_it != user_config.end()) {
+            device_config[user_config_it->first] = user_config_it->second;
+        }
+    }
+
+    return {hetero_config, device_config};
+}
+
+ParsedConfig<Configs> Engine::MergeConfigs(const Configs& user_config) const {
+    auto parsed_config = MergeConfigs(any_copy(user_config));
+    return {parsed_config.hetero_config, any_copy(parsed_config.device_config)};
+}
+
+std::string Engine::GetTargetFallback(const Configs& user_config, bool raise_exception) const {
+    return GetTargetFallback(any_copy(user_config), raise_exception);
+}
+
+std::string Engine::GetTargetFallback(const ov::AnyMap& user_config, bool raise_exception) const {
+    auto hetero_config = MergeConfigs(user_config).hetero_config;
+    auto it = hetero_config.find("TARGET_FALLBACK");
+    if (it == hetero_config.end()) {
+        it = hetero_config.find(ov::device::priorities.name());
+    }
+    if (it == hetero_config.end()) {
+        if (raise_exception)
+            IE_THROW() << "The '" << ov::device::priorities.name()
+                       << "' option was not defined for heterogeneous plugin";
+        return std::string("");
+    }
+    return it->second;
+}
+
+InferenceEngine::IExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork& network,
+                                                                            const Configs& user_config) {
+    if (GetCore() == nullptr) {
         IE_THROW() << "Please, work with HETERO device via InferencEngine::Core object";
     }
 
@@ -91,147 +153,109 @@ InferenceEngine::IExecutableNetworkInternal::Ptr ov::hetero_plugin::Plugin::Load
     return std::make_shared<HeteroExecutableNetwork>(network, user_config, this);
 }
 
-InferenceEngine::IExecutableNetworkInternal::Ptr ov::hetero_plugin::Plugin::ImportNetwork(
+InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(
     std::istream& heteroModel,
     const std::map<std::string, std::string>& user_config) {
     return std::make_shared<HeteroExecutableNetwork>(heteroModel, user_config, this, true);
 }
 
-ov::hetero_plugin::Plugin::DeviceMetaInformationMap ov::hetero_plugin::Plugin::GetDevicePlugins(const std::string& targetFallback,
-                                                                                                const ov::AnyMap& properties) const {
+Engine::DeviceMetaInformationMap Engine::GetDevicePlugins(const std::string& targetFallback,
+                                                          const Configs& device_config) const {
     auto fallbackDevices = ov::DeviceIDParser::get_hetero_devices(targetFallback);
-    DeviceMetaInformationMap metaDevices;
+    Engine::DeviceMetaInformationMap metaDevices;
     for (auto&& deviceName : fallbackDevices) {
         auto itPlugin = metaDevices.find(deviceName);
         if (metaDevices.end() == itPlugin) {
-            metaDevices[deviceName] = get_core()->get_supported_property(deviceName, properties);
+            metaDevices[deviceName] = GetCore()->GetSupportedConfig(deviceName, device_config);
         }
     }
     return metaDevices;
 }
 
-ov::SupportedOpsMap ov::hetero_plugin::Plugin::query_model(const std::shared_ptr<const ov::Model>& model,
-                                                           const ov::AnyMap& properties) const {
-    OV_ITT_SCOPED_TASK(itt::domains::HeteroPlugin, "Plugin::query_model");
+void Engine::SetConfig(const Configs& user_config) {
+    for (auto&& kvp : user_config) {
+        const auto& name = kvp.first;
+        if (ov::util::contains(getHeteroSupportedConfigKeys(), name))
+            _config[name] = kvp.second;
+        else if (ov::util::contains(getHeteroDeviceSupportedConfigKeys(), name))
+            _device_config[name] = kvp.second;
+        else
+            IE_THROW() << "Unsupported HETERO config key: " << name;
+    }
+}
 
-    Configuration fullConfig{properties, m_cfg, false};
-    
-    OPENVINO_ASSERT(model, "OpenVINO Model is empty!");
+QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const Configs& user_config) const {
+    if (GetCore() == nullptr) {
+        IE_THROW() << "Please, work with HETERO device via ov::Core object";
+    }
 
-    std::string fallbackDevicesStr = fullConfig.device_priorities;
-    // std::string fallbackDevicesStr = GetTargetFallback(parsed_config.hetero_config);
-    
-    DeviceMetaInformationMap metaDevices = GetDevicePlugins(fallbackDevicesStr, fullConfig.GetDeviceConfig());
-    // DeviceMetaInformationMap metaDevices = GetDevicePlugins(fallbackDevicesStr, parsed_config.device_config);
+    auto parsed_config = MergeConfigs(user_config);
+    std::string fallbackDevicesStr = GetTargetFallback(parsed_config.hetero_config);
+    DeviceMetaInformationMap metaDevices = GetDevicePlugins(fallbackDevicesStr, parsed_config.device_config);
 
-    std::map<std::string, ov::SupportedOpsMap> queryResults;
+    auto function = network.getFunction();
+    if (function == nullptr) {
+        IE_THROW() << "HETERO device supports just nGraph model representation";
+    }
+
+    std::map<std::string, QueryNetworkResult> queryResults;
     for (auto&& metaDevice : metaDevices) {
         const auto& deviceName = metaDevice.first;
         const auto& device_config = metaDevice.second;
-        queryResults[deviceName] = get_core()->query_model(model, deviceName, device_config);
+        queryResults[deviceName] = GetCore()->QueryNetwork(network, deviceName, device_config);
     }
 
     //  WARNING: Here is devices with user set priority
     auto fallbackDevices = ov::DeviceIDParser::get_hetero_devices(fallbackDevicesStr);
 
-    ov::SupportedOpsMap res;
+    QueryNetworkResult qr;
     for (auto&& deviceName : fallbackDevices) {
-        for (auto&& layerQueryResult : queryResults[deviceName]) {
-            res.emplace(layerQueryResult);
+        for (auto&& layerQueryResult : queryResults[deviceName].supportedLayersMap) {
+            qr.supportedLayersMap.emplace(layerQueryResult);
         }
     }
 
-    return res;
+    // set OK status
+    qr.rc = StatusCode::OK;
+
+    return qr;
 }
 
-// ! [plugin:set_property]
-void ov::hetero_plugin::Plugin::set_property(const ov::AnyMap& properties) {
-    m_cfg = Configuration{properties, m_cfg};
-}
-// ! [plugin:set_property]
-
-ov::Any ov::hetero_plugin::Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
-    const auto& add_ro_properties = [](const std::string& name, std::vector<ov::PropertyName>& properties) {
-        properties.emplace_back(ov::PropertyName{name, ov::PropertyMutability::RO});
-    };
-
-    const auto& default_ro_properties = []() {
-        std::vector<ov::PropertyName> ro_properties{ov::supported_properties,
-                                                    ov::device::full_name,
-                                                    ov::device::capabilities,
-                                                    ov::caching_properties};
-                                                    //ov::available_devices,
-                                                    //ov::device::architecture,
-                                                    //ov::range_for_async_infer_requests
-        return ro_properties;
-    };
-    const auto& default_rw_properties = []() {
-        std::vector<ov::PropertyName> rw_properties{ov::device::priorities};
-                                                    //ov::device::id,
-                                                    //ov::enable_profiling,
-                                                    //ov::hint::performance_mode,
-                                                    //ov::exclusive_async_requests,
-        return rw_properties;
-    };
-    const auto& to_string_vector = [](const std::vector<ov::PropertyName>& properties) {
-        std::vector<std::string> ret;
-        for (const auto& property : properties) {
-            ret.emplace_back(property);
-        }
-        return ret;
-    };
-    if (METRIC_KEY(SUPPORTED_METRICS) == name) {
-        auto metrics = default_ro_properties();
-
-        add_ro_properties(METRIC_KEY(SUPPORTED_METRICS), metrics);
-        add_ro_properties(METRIC_KEY(SUPPORTED_CONFIG_KEYS), metrics);
-        add_ro_properties(METRIC_KEY(IMPORT_EXPORT_SUPPORT), metrics);
-        return to_string_vector(metrics);
-        // IE_SET_METRIC_RETURN(SUPPORTED_METRICS,
-        //                     // TODO: check list
-        //                      std::vector<std::string>{METRIC_KEY(SUPPORTED_METRICS),
-        //                                               ov::device::full_name.name(),
-        //                                               METRIC_KEY(SUPPORTED_CONFIG_KEYS),
-        //                                               METRIC_KEY(IMPORT_EXPORT_SUPPORT),
-        //                                               ov::caching_properties.name(),
-        //                                               ov::device::capabilities.name()});
+Parameter Engine::GetMetric(const std::string& name, const ov::AnyMap& user_options) const {
+    if (ov::supported_properties == name) {
+        return decltype(ov::supported_properties)::value_type{
+            ov::PropertyName{ov::supported_properties.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::caching_properties.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::device::full_name.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::device::capabilities.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::device::priorities.name(), ov::PropertyMutability::RW}};
+    } else if (ov::caching_properties == name) {
+        return decltype(ov::caching_properties)::value_type{ov::hetero::caching_device_properties.name()};
+    } else if (ov::hetero::caching_device_properties == name) {
+        std::string targetFallback = GetTargetFallback(user_options);
+        return decltype(ov::hetero::caching_device_properties)::value_type{DeviceCachingProperties(targetFallback)};
+    } else if (METRIC_KEY(SUPPORTED_METRICS) == name) {
+        IE_SET_METRIC_RETURN(SUPPORTED_METRICS,
+                             std::vector<std::string>{METRIC_KEY(SUPPORTED_METRICS),
+                                                      ov::device::full_name.name(),
+                                                      METRIC_KEY(SUPPORTED_CONFIG_KEYS),
+                                                      METRIC_KEY(IMPORT_EXPORT_SUPPORT),
+                                                      ov::caching_properties.name(),
+                                                      ov::device::capabilities.name()});
     } else if (METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
-        return to_string_vector(default_rw_properties());
-        // IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, getSupportedConfigKeys());
-    } else if (ov::supported_properties == name) {
-        auto ro_properties = default_ro_properties();
-        auto rw_properties = default_rw_properties();
-
-        std::vector<ov::PropertyName> supported_properties;
-        supported_properties.reserve(ro_properties.size() + rw_properties.size());
-        supported_properties.insert(supported_properties.end(), ro_properties.begin(), ro_properties.end());
-        supported_properties.insert(supported_properties.end(), rw_properties.begin(), rw_properties.end());
-        return decltype(ov::supported_properties)::value_type(supported_properties);
+        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, getSupportedConfigKeys());
     } else if (ov::device::full_name == name) {
         return decltype(ov::device::full_name)::value_type{"HETERO"};
     } else if (METRIC_KEY(IMPORT_EXPORT_SUPPORT) == name) {
-        return true;
-    } else if (ov::caching_properties == name) {
-        // TODO vurusovs: RECHECK WITH ov::hetero_plugin::caching_device_properties
-        return decltype(ov::caching_properties)::value_type{ov::hetero_plugin::caching_device_properties.name()};
-    } else if (ov::hetero_plugin::caching_device_properties == name) {
-        // std::string targetFallback = GetTargetFallback(user_options);
-        // it = hetero_config.find(ov::device::priorities.name());
-
-        // TODO vurusovs: CHECK `target_fallback` is empty or not
-        // TODO vurusovs: RECHECK WITH ov::caching_properties
-        auto target_fallback = m_cfg.device_priorities;
-        return decltype(ov::hetero_plugin::caching_device_properties)::value_type{DeviceCachingProperties(target_fallback)};
+        IE_SET_METRIC_RETURN(IMPORT_EXPORT_SUPPORT, true);
     } else if (ov::device::capabilities == name) {
         return decltype(ov::device::capabilities)::value_type{{ov::device::capability::EXPORT_IMPORT}};
     } else {
-        return m_cfg.Get(name);
+        IE_THROW() << "Unsupported HETERO metric key: " << name;
     }
 }
 
-std::string ov::hetero_plugin::Plugin::DeviceCachingProperties(const std::string& targetFallback) const {
-    // TODO: CHECK FUNCTION WORKS CORRECTLY
-
+std::string Engine::DeviceCachingProperties(const std::string& targetFallback) const {
     auto fallbackDevices = ov::DeviceIDParser::get_hetero_devices(targetFallback);
     // Vector of caching configs for devices
     std::vector<ov::AnyMap> result = {};
@@ -241,16 +265,16 @@ std::string ov::hetero_plugin::Plugin::DeviceCachingProperties(const std::string
         // Use name without id
         auto device_name = parser.get_device_name();
         auto supported_properties =
-            get_core()->get_property(device, ov::supported_properties);
-        if (ov::util::contains(supported_properties, ov::caching_properties)) {
+            GetCore()->GetMetric(device, ov::supported_properties.name()).as<std::vector<ov::PropertyName>>();
+        if (ov::util::contains(supported_properties, ov::caching_properties.name())) {
             auto caching_properties =
-                get_core()->get_property(device, ov::caching_properties);
+                GetCore()->GetMetric(device, ov::caching_properties.name()).as<std::vector<ov::PropertyName>>();
             for (auto& property_name : caching_properties) {
-                properties[property_name] = get_core()->get_property(device, std::string(property_name), {});
+                properties[property_name] = GetCore()->GetMetric(device, property_name);
             }
             // If caching properties are not supported by device, try to add at least device architecture
-        } else if (ov::util::contains(supported_properties, ov::device::architecture)) {
-            auto device_architecture = get_core()->get_property(device, ov::device::architecture);
+        } else if (ov::util::contains(supported_properties, ov::device::architecture.name())) {
+            auto device_architecture = GetCore()->GetMetric(device, ov::device::architecture.name());
             properties = ov::AnyMap{{ov::device::architecture.name(), device_architecture}};
             // Device architecture is not supported, add device name as achitecture
         } else {
@@ -261,8 +285,32 @@ std::string ov::hetero_plugin::Plugin::DeviceCachingProperties(const std::string
     return result.empty() ? "" : ov::Any(result).as<std::string>();
 }
 
+Parameter Engine::GetConfig(const std::string& name, const ov::AnyMap& options) const {
+    if (name == HETERO_CONFIG_KEY(DUMP_GRAPH_DOT)) {
+        auto it = _config.find(name);
+        IE_ASSERT(it != _config.end());
+        bool dump = it->second == YES;
+        return {dump};
+    } else if (name == ov::device::priorities) {
+        std::string targetFallback = GetTargetFallback(options);
+        auto priorities = ov::util::from_string(targetFallback, ov::device::priorities);
+        return decltype(ov::device::priorities)::value_type{priorities};
+    } else if (name == "TARGET_FALLBACK") {
+        return GetTargetFallback(options);
+    } else if (name == CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS)) {
+        auto it = _device_config.find(name);
+        IE_ASSERT(it != _device_config.end());
+        bool exclusive_async = it->second == YES;
+        return {exclusive_async};
+    } else {
+        IE_THROW() << "Unsupported HETERO config key: " << name;
+    }
+}
 
-// ! [plugin:create_plugin_engine]
-static const ov::Version version = {CI_BUILD_NUMBER, "hetero_plugin"};
-OV_DEFINE_PLUGIN_CREATE_FUNCTION(ov::hetero_plugin::Plugin, version)
-// ! [plugin:create_plugin_engine]
+static Version heteroPluginDescription = {
+    {2, 1},  // plugin API version
+    CI_BUILD_NUMBER,
+    "heteroPlugin"  // plugin description message
+};
+
+// IE_DEFINE_PLUGIN_CREATE_FUNCTION(Engine, heteroPluginDescription)

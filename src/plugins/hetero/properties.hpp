@@ -7,11 +7,11 @@
 #include "openvino/runtime/properties.hpp"
 
 namespace ov {
-namespace hetero_plugin {
+namespace hetero {
 /**
  * @brief Read-only property to get device caching properties
  */
 static constexpr Property<std::string, PropertyMutability::RO> caching_device_properties{"CACHING_DEVICE_PROPERTIES"};
 
-}  // namespace hetero_plugin
+}  // namespace hetero
 }  // namespace ov
