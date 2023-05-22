@@ -27,6 +27,7 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
         InferenceEngine::InferRequest inferRequest;
         size_t batchSize = 0;
 
+        ie.set_property("AUTO", InferenceEngine::log::level(InferenceEngine::log::Level::DEBUG));
         std::string device_prefix = device.substr(0, device.find(':'));
 
         // first_inference_latency = time_to_inference + first_inference
@@ -47,7 +48,7 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
                     if (!isCacheEnabled) {
                         if (TimeTest::fileExt(model) == "blob") {
                             SCOPED_TIMER(import_network);
-                            exeNetwork = ie.ImportNetwork(model, device);
+                            exeNetwork = ie.ImportNetwork(model, device_prefix);
                         }
                         else {
                             {
@@ -57,13 +58,13 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
                             }
                             {
                                 SCOPED_TIMER(load_network);
-                                exeNetwork = ie.LoadNetwork(cnnNetwork, device);
+                                exeNetwork = ie.LoadNetwork(cnnNetwork, device_prefix);
                             }
                         }
                     }
                     else {
                         SCOPED_TIMER(load_network_cache);
-                        exeNetwork = ie.LoadNetwork(model, device);
+                        exeNetwork = ie.LoadNetwork(model, device_prefix);
                     }
                 }
                 inferRequest = exeNetwork.CreateInferRequest();

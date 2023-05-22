@@ -30,6 +30,8 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
         ov::InferRequest inferRequest;
 
         std::vector<ov::Output<ov::Node>> defaultInputs;
+
+        ie.set_property("AUTO", ov::log::level(ov::log::Level::DEBUG));
         std::string device_prefix = device.substr(0, device.find(':'));
 
         bool reshape = false;
