@@ -98,7 +98,7 @@ While an application is free to create more requests if needed (for example to s
 Keep in mind that `ov::hint::PerformanceMode::LATENCY` does not necessarily imply using single inference request. For example, multi-socket CPUs can deliver as many requests at the same minimal latency as the number of NUMA nodes in the system.
 To make your application fully scalable, make sure to query the `ov::optimal_number_of_infer_requests` directly.
 
-## Prefer Async API
+## <a name="prefer-async-api"></a>Prefer Async API  
 
 The API of the inference requests offers Sync and Async execution. The `ov::InferRequest::infer()` is inherently synchronous and simple to operate (as it serializes the execution flow in the current application thread). The Async "splits" the `infer()` into `ov::InferRequest::start_async()` and `ov::InferRequest::wait()` (or callbacks). For more information on synchronous and asynchronous modes, refer to the [OpenVINO Inference Request documentation](../OV_Runtime_UG/ov_infer_request.md).
 
