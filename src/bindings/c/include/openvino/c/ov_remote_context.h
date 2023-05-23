@@ -25,7 +25,7 @@ typedef struct ov_remote_context ov_remote_context_t;
  * @param shape Defines the shape of the tensor.
  * @param object_args_size Size of the low-level tensor object parameters.
  * @param remote_tensor Pointer to returned ov_tensor_t that contains remote tensor instance.
- * @param variadic params Contains low-level tensor object parameters.
+ * ... variadic params Contains low-level tensor object parameters.
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
