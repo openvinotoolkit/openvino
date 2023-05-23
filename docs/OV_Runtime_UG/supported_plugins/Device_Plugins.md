@@ -46,7 +46,7 @@ The table below demonstrates support of key features by OpenVINO device plugins.
   :doc:`Multi-stream execution <openvino_docs_deployment_optimization_guide_tput>`          Yes             Yes             No              Yes                     
   :doc:`Models caching <openvino_docs_OV_UG_Model_caching_overview>`                        Yes             Partial         Yes             No                      
   :doc:`Dynamic shapes <openvino_docs_OV_UG_DynamicShapes>`                                 Yes             Partial         No              No                      
-  :doc:`Import/Export <openvino_inference_engine_tools_compile_tool_README>`                Yes             No              Yes             No                      
+  :doc:`Import/Export <openvino_ecosystem>`                                                 Yes             No              Yes             No                      
   :doc:`Preprocessing acceleration <openvino_docs_OV_UG_Preprocessing_Overview>`            Yes             Yes             No              Partial                 
   :doc:`Stateful models <openvino_docs_OV_UG_model_state_intro>`                            Yes             No              Yes             No                      
   :doc:`Extensibility <openvino_docs_Extensibility_UG_Intro>`                               Yes             Yes             No              No                      
