@@ -32,7 +32,11 @@ target_include_directories(${TARGET_NAME} PUBLIC
     $<BUILD_INTERFACE:${REF_IMPL_INCLUDE_DIR}>
     $<BUILD_INTERFACE:${OV_CORE_INCLUDE_PATH}>)
 
-link_system_libraries(${TARGET_NAME} PRIVATE xbyak)
+target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
+    $<BUILD_INTERFACE:$<$<TARGET_EXISTS:xbyak::xbyak>:$<TARGET_PROPERTY:xbyak::xbyak,INTERFACE_INCLUDE_DIRECTORIES>>>)
+
+find_package(Threads REQUIRED)
+target_link_libraries(${TARGET_NAME} PRIVATE Threads::Threads)
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
