@@ -47,7 +47,4 @@ else()
     install(TARGETS compile_tool
             RUNTIME DESTINATION ${OV_CPACK_TOOLSDIR}/compile_tool
             COMPONENT ${OV_CPACK_COMP_CORE_TOOLS})
-    install(FILES README.md
-            DESTINATION ${OV_CPACK_TOOLSDIR}/compile_tool
-            COMPONENT ${OV_CPACK_COMP_CORE_TOOLS})
 endif()
