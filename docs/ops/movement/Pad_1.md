@@ -20,9 +20,9 @@ The following examples illustrate how output tensor is generated for the *Pad* l
     [ 9 10 11 12 ]]
 
 
-with the following attributes: cpp
+with the following attributes: 
 
-.. code-block:: 
+.. code-block:: cpp
 
     pads_begin = [0, 1]
     pads_end = [2, 3]

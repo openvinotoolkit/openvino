@@ -65,7 +65,7 @@ OUTPUT =
 
 * ``pad_mode = "symmetric"``:
 
-.. code-block:: 
+.. code-block:: cpp
 
     OUTPUT =
     [[ 1,  1,  2,  3,  4,  4,  3,  2 ]
