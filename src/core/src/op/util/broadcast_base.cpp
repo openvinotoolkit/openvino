@@ -47,7 +47,9 @@ ov::PartialShape ov::op::util::BroadcastBase::get_result_shape_pdpd(const Partia
     }
     const auto arg_rank_length = arg0_shape.rank().get_length();
     PartialShape result_shape = target_shape;
-    auto start_axis = broadcast_spec.m_axis;
+    auto start_axis = ((broadcast_spec.m_type == op::BroadcastType::PDPD) && (broadcast_spec.m_axis == -1))
+                          ? static_cast<int64_t>(target_pshape.size()) - static_cast<int64_t>(arg0_shape.size())
+                          : broadcast_spec.m_axis;
 
     NODE_VALIDATION_CHECK(this,
                           start_axis >= 0,
@@ -262,7 +264,7 @@ std::pair<bool, ov::AxisSet> ov::op::util::BroadcastBase::get_broadcast_axes_num
     const op::BroadcastModeSpec& broadcast_spec) {
     AxisSet broadcast_axes;
     bool axes_known = false;
-    int64_t start_axis = (broadcast_spec.m_type == op::BroadcastType::PDPD)
+    int64_t start_axis = ((broadcast_spec.m_type == op::BroadcastType::PDPD) && (broadcast_spec.m_axis != -1))
                              ? broadcast_spec.m_axis
                              : static_cast<int64_t>(result_shape.size()) - static_cast<int64_t>(arg_shape.size());
     NGRAPH_CHECK(start_axis >= 0);
