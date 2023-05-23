@@ -13,7 +13,7 @@ For an in-depth description of CPU plugin, see:
 - `OpenVINO Runtime CPU plugin source files <https://github.com/openvinotoolkit/openvino/tree/master/src/plugins/intel_cpu/>`__.
 
 .. note::
-   The scope of the CPU plugin features and optimizations on Arm® may differ from Intel® x86-64. If limitation is not mentioned explicitly it means the feature is supported for all CPU acrhitectures.
+   The scope of the CPU plugin features and optimizations on Arm® may differ from Intel® x86-64. If limitation is not mentioned explicitly it means the feature is supported for all CPU architectures.
    
 
 Device Name
@@ -52,7 +52,7 @@ CPU plugin supports the following data types as inference precision of internal 
 | - Integer data types:
 |   - i32 (Intel® x86-64, Arm®)
 | - Quantized data types:
-|   - u8 (Intel® x86-64, Arm®)
+|   - u8 (Intel® x86-64)
 |   - i8 (Intel® x86-64)
 |   - u1 (Intel® x86-64)
 
@@ -74,11 +74,16 @@ For more details on how to get a quantized model see the :doc:`low-precision opt
 
 .. note:: 
    
-   Arm® platforms execute quantized models in simulation mode: the whole model (including qauntization operations) is executed in floating point precision.
+   Arm® platforms execute quantized models in simulation mode: the whole model (including quantization operations) is executed in floating point precision.
 
 
 Floating Point Data Types Specifics
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+CPU plugin supports the following floating-point data types as inference precision of internal primitives:
+
+- f32 (Intel® x86-64, Arm®)
+- bf16 (Intel® x86-64)
 
 The default floating-point precision of a CPU primitive is ``f32``. To support the ``f16`` OpenVINO IR the plugin internally converts 
 all the ``f16`` values to ``f32`` and all the calculations are performed using the native precision of ``f32``.
@@ -199,7 +204,7 @@ For more details, see the :doc:`optimization guide <openvino_docs_deployment_opt
 
 .. note:: 
 
-   Multi-stream execution is not supported on Arm® platforms. Latency and throughput hint has identical behavior and uses only one stream for inference.
+   Multi-stream execution is not supported on Arm® platforms. Latency and throughput hints have identical behavior and use only one stream for inference.
    
 
 Dynamic Shapes
