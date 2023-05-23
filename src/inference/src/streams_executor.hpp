@@ -54,7 +54,6 @@ void parse_processor_info_linux(const int _processors,
 void get_cpu_mapping_from_cores(const int _processors,
                                 const int _sockets,
                                 const int _cores,
-                                const int _big_phys_cores,
                                 std::vector<std::vector<int>>& _proc_type_table,
                                 std::vector<std::vector<int>>& _cpu_mapping_table);
 #endif
