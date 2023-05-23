@@ -7,8 +7,6 @@
 #include <functional>
 #include "primitive.hpp"
 #include "intel_gpu/graph/topology.hpp"
-#include "intel_gpu/graph/serialization/string_serializer.hpp"
-#include "intel_gpu/graph/serialization/vector_serializer.hpp"
 
 #define DEFAULT_MAX_NUM_ITERATION 256
 namespace cldnn {
