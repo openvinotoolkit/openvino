@@ -17,10 +17,14 @@
    openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ
 
 
+Model Optimizer is a cross-platform command-line tool that facilitates the transition between training and deployment environments, 
+performs static model analysis, and adjusts deep learning models for optimal execution on end-point target devices.
 
-Model Optimizer is a cross-platform command-line tool that facilitates the transition between training and deployment environments, performs static model analysis, and adjusts deep learning models for optimal execution on end-point target devices.
 
-To use it, you need a pre-trained deep learning model in one of the supported formats: TensorFlow, PyTorch, PaddlePaddle, TensorFlow Lite, MXNet, Caffe, Kaldi, or ONNX. Model Optimizer converts the model to the OpenVINO Intermediate Representation format (IR), which you can infer later with :doc:`OpenVINO™ Runtime <openvino_docs_OV_UG_OV_Runtime_User_Guide>`.
+To use it, you need a pre-trained deep learning model in one of the supported formats: 
+TensorFlow, PyTorch, ONNX, TensorFlow Lite, and PaddlePaddle (OpenVINO support for Apache MXNet, Caffe, and Kaldi is currently 
+being deprecated and will be removed entirely in the future). Model Optimizer converts the model to the OpenVINO Intermediate Representation format (IR), 
+which you can infer later with :doc:`OpenVINO™ Runtime <openvino_docs_OV_UG_OV_Runtime_User_Guide>`.
 
 Note that Model Optimizer does not infer models.
 
@@ -139,5 +143,6 @@ Below is a list of separate examples for different frameworks and Model Optimize
 
 - To get conversion recipes for specific TensorFlow, ONNX, PyTorch, Apache MXNet, and Kaldi models, refer to the :doc:`Model Conversion Tutorials <openvino_docs_MO_DG_prepare_model_convert_model_tutorials>`.
 - For more information about IR, see :doc:`Deep Learning Network Intermediate Representation and Operation Sets in OpenVINO™ <openvino_docs_MO_DG_IR_and_opsets>`.
+- For more information about support of neural network models trained with various frameworks, see :doc:`OpenVINO Extensibility Mechanism <openvino_docs_Extensibility_UG_Intro>`
 
 @endsphinxdirective

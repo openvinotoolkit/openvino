@@ -36,7 +36,7 @@
     #include <string.h>
     #include <windef.h>
     #include <fileapi.h>
-    #include <Winbase.h>
+    #include <winbase.h>
     #include <sys/stat.h>
 // clang-format on
 
@@ -131,7 +131,7 @@ public:
  * @param string directory path
  * @return pointer to directory data struct element
  */
-static DIR* opendir(const char* dirPath) {
+inline DIR* opendir(const char* dirPath) {
     auto dp = new DIR(dirPath);
     if (!dp->isValid()) {
         delete dp;
@@ -145,7 +145,7 @@ static DIR* opendir(const char* dirPath) {
  * @param pointer to directory data struct
  * @return pointer to directory data struct next element
  */
-static struct dirent* readdir(DIR* dp) {
+inline struct dirent* readdir(DIR* dp) {
     return dp->nextEnt();
 }
 
@@ -154,7 +154,7 @@ static struct dirent* readdir(DIR* dp) {
  * @param pointer to struct directory data
  * @return void
  */
-static void closedir(DIR* dp) {
+inline void closedir(DIR* dp) {
     delete dp;
 }
 
