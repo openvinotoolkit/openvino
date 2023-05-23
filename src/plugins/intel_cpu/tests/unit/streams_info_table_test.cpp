@@ -88,6 +88,7 @@ struct UseHTTestCase {
     std::string input_pm_hint;
     std::vector<std::vector<int>> proc_type_table;
     std::vector<std::vector<int>> result_table;
+    bool output_ht_value;
 };
 
 class UseHTTests : public CommonTestUtils::TestsCommon, public testing::WithParamInterface<std::tuple<UseHTTestCase>> {
@@ -102,6 +103,7 @@ public:
                                                  test_data.proc_type_table);
 
         ASSERT_EQ(test_data.result_table, test_result_table);
+        ASSERT_EQ(test_data.input_ht_value, test_data.output_ht_value);
     }
 };
 
@@ -111,6 +113,7 @@ UseHTTestCase _2sockets_false_latency = {
     "LATENCY",
     {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
     {{104, 104, 0, 0}, {52, 52, 0, 0}, {52, 52, 0, 0}},
+    false,
 };
 
 UseHTTestCase _2sockets_false_throughput = {
@@ -119,6 +122,7 @@ UseHTTestCase _2sockets_false_throughput = {
     "THROUGHPUT",
     {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
     {{104, 104, 0, 0}, {52, 52, 0, 0}, {52, 52, 0, 0}},
+    false,
 };
 
 UseHTTestCase _2sockets_true_latency = {
@@ -127,6 +131,7 @@ UseHTTestCase _2sockets_true_latency = {
     "LATENCY",
     {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
     {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
+    true,
 };
 
 UseHTTestCase _2sockets_true_throughput = {
@@ -135,6 +140,7 @@ UseHTTestCase _2sockets_true_throughput = {
     "THROUGHPUT",
     {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
     {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
+    true,
 };
 
 UseHTTestCase _2sockets_default_1_latency = {
@@ -143,6 +149,7 @@ UseHTTestCase _2sockets_default_1_latency = {
     "LATENCY",
     {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
     {{104, 104, 0, 0}, {52, 52, 0, 0}, {52, 52, 0, 0}},
+    false,
 };
 
 UseHTTestCase _2sockets_default_1_throughput = {
@@ -151,6 +158,7 @@ UseHTTestCase _2sockets_default_1_throughput = {
     "THROUGHPUT",
     {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
     {{104, 104, 0, 0}, {52, 52, 0, 0}, {52, 52, 0, 0}},
+    false,
 };
 
 UseHTTestCase _2sockets_default_2_latency = {
@@ -159,6 +167,7 @@ UseHTTestCase _2sockets_default_2_latency = {
     "LATENCY",
     {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
     {{104, 104, 0, 0}, {52, 52, 0, 0}, {52, 52, 0, 0}},
+    false,
 };
 
 UseHTTestCase _2sockets_default_2_throughput = {
@@ -167,6 +176,7 @@ UseHTTestCase _2sockets_default_2_throughput = {
     "THROUGHPUT",
     {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
     {{104, 104, 0, 0}, {52, 52, 0, 0}, {52, 52, 0, 0}},
+    false,
 };
 
 UseHTTestCase _1sockets_1_false_latency = {
@@ -175,6 +185,7 @@ UseHTTestCase _1sockets_1_false_latency = {
     "LATENCY",
     {{20, 6, 8, 6}},
     {{14, 6, 8, 0}},
+    false,
 };
 
 UseHTTestCase _1sockets_1_false_throughput = {
@@ -183,6 +194,7 @@ UseHTTestCase _1sockets_1_false_throughput = {
     "THROUGHPUT",
     {{20, 6, 8, 6}},
     {{14, 6, 8, 0}},
+    false,
 };
 
 UseHTTestCase _1sockets_1_true_latency = {
@@ -191,6 +203,7 @@ UseHTTestCase _1sockets_1_true_latency = {
     "LATENCY",
     {{20, 6, 8, 6}},
     {{20, 6, 8, 6}},
+    true,
 };
 
 UseHTTestCase _1sockets_1_true_throughput = {
@@ -199,6 +212,7 @@ UseHTTestCase _1sockets_1_true_throughput = {
     "THROUGHPUT",
     {{20, 6, 8, 6}},
     {{20, 6, 8, 6}},
+    true,
 };
 
 UseHTTestCase _1sockets_1_default_1_latency = {
@@ -207,6 +221,7 @@ UseHTTestCase _1sockets_1_default_1_latency = {
     "LATENCY",
     {{20, 6, 8, 6}},
     {{14, 6, 8, 0}},
+    false,
 };
 
 UseHTTestCase _1sockets_1_default_1_throughput = {
@@ -215,6 +230,7 @@ UseHTTestCase _1sockets_1_default_1_throughput = {
     "THROUGHPUT",
     {{20, 6, 8, 6}},
     {{20, 6, 8, 6}},
+    true,
 };
 
 UseHTTestCase _1sockets_1_default_2_latency = {
@@ -223,6 +239,7 @@ UseHTTestCase _1sockets_1_default_2_latency = {
     "LATENCY",
     {{20, 6, 8, 6}},
     {{14, 6, 8, 0}},
+    false,
 };
 
 UseHTTestCase _1sockets_1_default_2_throughput = {
@@ -231,6 +248,7 @@ UseHTTestCase _1sockets_1_default_2_throughput = {
     "THROUGHPUT",
     {{20, 6, 8, 6}},
     {{20, 6, 8, 6}},
+    true,
 };
 
 UseHTTestCase _1sockets_2_false_latency = {
@@ -239,6 +257,7 @@ UseHTTestCase _1sockets_2_false_latency = {
     "LATENCY",
     {{12, 6, 0, 6}},
     {{6, 6, 0, 0}},
+    false,
 };
 
 UseHTTestCase _1sockets_2_false_throughput = {
@@ -247,6 +266,7 @@ UseHTTestCase _1sockets_2_false_throughput = {
     "THROUGHPUT",
     {{12, 6, 0, 6}},
     {{6, 6, 0, 0}},
+    false,
 };
 
 UseHTTestCase _1sockets_2_true_latency = {
@@ -255,6 +275,7 @@ UseHTTestCase _1sockets_2_true_latency = {
     "LATENCY",
     {{12, 6, 0, 6}},
     {{12, 6, 0, 6}},
+    true,
 };
 
 UseHTTestCase _1sockets_2_true_throughput = {
@@ -263,6 +284,7 @@ UseHTTestCase _1sockets_2_true_throughput = {
     "THROUGHPUT",
     {{12, 6, 0, 6}},
     {{12, 6, 0, 6}},
+    true,
 };
 
 UseHTTestCase _1sockets_2_default_1_latency = {
@@ -271,6 +293,7 @@ UseHTTestCase _1sockets_2_default_1_latency = {
     "LATENCY",
     {{12, 6, 0, 6}},
     {{6, 6, 0, 0}},
+    false,
 };
 
 UseHTTestCase _1sockets_2_default_1_throughput = {
@@ -279,6 +302,7 @@ UseHTTestCase _1sockets_2_default_1_throughput = {
     "THROUGHPUT",
     {{12, 6, 0, 6}},
     {{12, 6, 0, 6}},
+    true,
 };
 
 UseHTTestCase _1sockets_2_default_2_latency = {
@@ -287,6 +311,7 @@ UseHTTestCase _1sockets_2_default_2_latency = {
     "LATENCY",
     {{12, 6, 0, 6}},
     {{6, 6, 0, 0}},
+    false,
 };
 
 UseHTTestCase _1sockets_2_default_2_throughput = {
@@ -295,6 +320,7 @@ UseHTTestCase _1sockets_2_default_2_throughput = {
     "THROUGHPUT",
     {{12, 6, 0, 6}},
     {{12, 6, 0, 6}},
+    true,
 };
 
 TEST_P(UseHTTests, UseHT) {}
