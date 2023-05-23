@@ -52,13 +52,13 @@ NamedOutputVector translate_non_max_suppression_op(const NodeContext& node) {
     auto scores = node.get_input(1);
     auto max_output_size = node.get_input(2);
 
-    // prepare boxes: in TensorFlow NonMaxSupression operation there is no batch dimension
+    // prepare boxes: in TensorFlow NonMaxSuppression operation there is no batch dimension
     // so we need to introduce it to be aligned with OpenVINO NonMaxSuppression
     // boxes of shape [num_batches, num_boxes, 4]
     auto boxes_axis = make_shared<Constant>(element::i32, Shape{1}, 0);
     auto ov_boxes = make_shared<Unsqueeze>(boxes, boxes_axis);
 
-    // prepare scores: in TensorFlow NonMaxSupression operation there is no batch and class dimensions
+    // prepare scores: in TensorFlow NonMaxSuppression operation there is no batch and class dimensions
     // so we need to introduce them to be aligned with OpenVINO NonMaxSuppression scores
     // of shape [num_batches, num_classes, num_boxes]
     auto scores_axes = make_shared<Constant>(element::i32, Shape{2}, vector<int32_t>{0, 1});
