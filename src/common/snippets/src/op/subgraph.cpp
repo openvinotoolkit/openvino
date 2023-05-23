@@ -547,8 +547,6 @@ void snippets::op::Subgraph::control_flow_transformations(lowered::LinearIR& lin
     final_pipeline.register_pass<lowered::pass::CleanupLoopOffsets>();
     final_pipeline.run(linear_ir);
 
-    linear_ir.serialize("debug.xml", "debug.bin");
-
     m_buffer_scratchpad = buffer_allocation_pass->get_scratchpad_size();
 }
 

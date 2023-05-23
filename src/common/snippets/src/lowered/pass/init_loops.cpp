@@ -62,11 +62,12 @@ void add_stride_from_splitted_loops(int64_t& increment, const LinearIR::LoopMana
     // Firstly, we find all Loop IDs with the same dimension index.
     // The Loop Info's with the same dimension index mean that these Loops split this dimension together.
     // It's possible in Brgemm Blocking by M, for example
-    std::unordered_set<size_t> splitted_loops;
+    std::vector<size_t> splitted_loops;
+    // Inner -> Outer
     for (auto it = loop_ids.rbegin(); it != loop_ids.rend(); ++it) {
         const auto id = *it;
         if (loop_manager->get_loop_info(id)->dim_idx == dim_idx)
-            splitted_loops.insert(id);
+            splitted_loops.push_back(id);
     }
     // Secondly, we added work amount of inner splitted Loops
     for (auto id : splitted_loops) {
