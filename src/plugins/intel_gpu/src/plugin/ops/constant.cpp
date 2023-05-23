@@ -135,7 +135,7 @@ static void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::C
             //       [N] --> [1, N, 1, 1]
             //
             // 2. Multi-dims slope tensor is handled by the numpy broadcasting rule that is defined at
-            //    'https://docs.openvino.ai/latest/openvino_docs_ops_broadcast_rules.html'.
+            //    'https://docs.openvino.ai/2023.0/openvino_docs_ops_broadcast_rules.html'.
             //   ex) [N, 1, 1] --> [1, N, 1, 1]
             //       [N, M, 1] --> [1, N, M, 1]
             auto input_shape = outOp->get_input_partial_shape(0);
