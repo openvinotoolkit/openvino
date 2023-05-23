@@ -259,7 +259,9 @@ const RectLimitByChannelsAndPrecision Validator_30::kKernelLimit{
     {{{48, {7, 7}}, {64, {7, 5}}, {80, {7, 4}}, {120, {7, 3}}, {384, {7, 1}}}},
 };
 
-const RangeLimit2D Validator_30::kDilationLimit{{1, 1, "dilation height"}, {1, 1, "dilation width"}};
+const RangeLimit2D Validator_30::kDilationLimit{
+    {Limitations::kConvDilationHeight, Limitations::kConvDilationHeight, "dilation height"},
+    {Limitations::kConvDilationWidth, Limitations::kConvDilationWidth, "dilation width"}};
 
 bool Validator_30::ValidateCnn2D(const std::string& name,
                                  const uint32_t inHeight,
@@ -445,8 +447,8 @@ const Validator_35::CnnLimits Validator_35::kCnn2DLimits{
     {{1, 255, "kernel height"}, {1, 256, "kernel width"}},                          // kKerneHWlLimit2B
     {{1, 255, "convolution stride height"}, {1, 256, "convolution stride width"}},  // kStrideHWLimit1B
     {{1, 255, "convolution stride height"}, {1, 256, "convolution stride width"}},  // kStrideHWLimit2B
-    {{1, 1, "dilation height"},                                                     // kDilationLimit
-     {1, 1, "dilation width"}},
+    {{Limitations::kConvDilationHeight, Limitations::kConvDilationHeight, "dilation height"},  // kDilationLimit
+     {Limitations::kConvDilationWidth, Limitations::kConvDilationWidth, "dilation width"}},
     {{1, 255, "pooling window height"}, {1, 255, "pooling window width"}},  // kPoolingWindowHWLimit
     {{1, 255, "pooling stride height"}, {1, 255, "pooling stride width"}}   // kPoolingStrideHWLimit
 };
@@ -460,8 +462,8 @@ const Validator_35::CnnLimits Validator_35::kCnn1DLimits{
     {{1, 1, "kernel height"}, {1, 2048, "kernel width"}},                          // kKerneHWlLimit2B
     {{1, 1, "convolution stride height"}, {1, 4096, "convolution stride width"}},  // kStrideHWLimit1B
     {{1, 1, "convolution stride height"}, {1, 2048, "convolution stride width"}},  // kStrideHWLimit2B
-    {{1, 1, "dilation height"},                                                    // kDilationLimit
-     {1, 1, "dilation width"}},
+    {{Limitations::kConvDilationHeight, Limitations::kConvDilationHeight, "dilation height"},  // kDilationLimit
+     {Limitations::kConvDilationWidth, Limitations::kConvDilationWidth, "dilation width"}},
     {{1, 1, "pooling window height"}, {1, 255, "pooling window width"}},  // kPoolingWindowHWLimit
     {{1, 1, "pooling stride height"}, {1, 255, "pooling stride width"}}   // kPoolingStrideHWLimit
 };
@@ -763,6 +765,22 @@ bool SupportedElementTypes::IsConstantTypeSupported(ov::element::Type elem_type,
     return true;
 }
 
+bool Limitations::is_transpose_supported(const std::shared_ptr<const ov::Node>& node) {
+    OPENVINO_ASSERT(node, "Transpose node is empty!");
+    const ov::Shape squeezed_shape = graph_utils::squeeze_shape(node->get_input_shape(0));
+    const size_t min_input_dim = std::min(squeezed_shape[0], squeezed_shape[1]);
+    const size_t max_input_dim = std::max(squeezed_shape[0], squeezed_shape[1]);
+
+    // GNA transpose limitations:
+    // - supports 2d transposes only
+    // - smaller dimension should be less or equal to 8
+    // - bigger dimension should be a multiple of Limitations::kNoOfInputsDivisor
+    if (squeezed_shape.size() == 2 && min_input_dim <= 8 && ALIGN(max_input_dim, kNoOfInputsDivisor) == max_input_dim) {
+        return true;
+    }
+    return false;
+}
+
 bool Limitations::is_conv_supported(const std::shared_ptr<ngraph::op::ConvolutionIE>& conv_ie,
                                     const InferenceEngine::Precision gna_precision,
                                     bool is_exception_allowed) {
@@ -857,7 +875,7 @@ bool Limitations::is_split_supported(const std::shared_ptr<ov::Node>& node, bool
     OPENVINO_ASSERT(node, "Split node is empty!");
     bool is_aligned = true;
     for (size_t i = 0; i < node->get_output_size(); i++) {
-        is_aligned &= ov::intel_gna::ngraph_util::is_aligned_split(node, i);
+        is_aligned &= ov::intel_gna::graph_utils::is_aligned_split(node, i);
     }
     return is_aligned;
 }
@@ -873,20 +891,20 @@ bool Limitations::is_op_supported(const std::shared_ptr<ov::Node>& node,
         return is_conv_supported(conv_ie, gna_precision, is_exception_allowed);
     } else if (auto fully_connected = std::dynamic_pointer_cast<ngraph::op::FullyConnected>(node)) {
         return is_fc_supported(fully_connected, is_exception_allowed);
-    } else if (ov::intel_gna::ngraph_util::is_pooling(node)) {
+    } else if (ov::intel_gna::graph_utils::is_pooling(node)) {
         return is_pooling_supported(std::dynamic_pointer_cast<ngraph::opset7::MaxPool>(node), is_exception_allowed);
     } else if (ov::op::util::is_output(node) || ov::op::util::is_sink(node) ||
-               ov::intel_gna::ngraph_util::is_eltwise_add(node) || ov::intel_gna::ngraph_util::is_eltwise_mul(node) ||
-               ov::intel_gna::ngraph_util::is_crop_affined(node) ||
-               ov::intel_gna::ngraph_util::is_activation(node.get()) ||
-               ov::intel_gna::ngraph_util::is_gna_precision_agnostic(
+               ov::intel_gna::graph_utils::is_eltwise_add(node) || ov::intel_gna::graph_utils::is_eltwise_mul(node) ||
+               ov::intel_gna::graph_utils::is_crop_affined(node) ||
+               ov::intel_gna::graph_utils::is_activation(node.get()) ||
+               ov::intel_gna::graph_utils::is_gna_precision_agnostic(
                    node) ||  // check concat/split are aligned when transformations will be moved to ngraph
                (std::dynamic_pointer_cast<ov::op::util::ReadValueBase>(node) != nullptr) ||
                (std::dynamic_pointer_cast<ngraph::op::ScaleShiftIE>(node) != nullptr) ||
                (std::dynamic_pointer_cast<ngraph::op::PowerIE>(node) != nullptr) ||
                (std::dynamic_pointer_cast<ngraph::opset9::MatMul>(node) != nullptr)) {
         return true;
-    } else if (ov::intel_gna::ngraph_util::is_gna_precision_agnostic(node)) {
+    } else if (ov::intel_gna::graph_utils::is_gna_precision_agnostic(node)) {
         if ((std::dynamic_pointer_cast<ngraph::opset9::Split>(node) != nullptr) ||
             (std::dynamic_pointer_cast<ngraph::opset9::VariadicSplit>(node) != nullptr)) {
             return is_split_supported(node, is_exception_allowed);

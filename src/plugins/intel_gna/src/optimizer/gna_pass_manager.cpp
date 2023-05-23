@@ -150,11 +150,12 @@ static void insertDiagonalLayerBetween(InferenceEngine::CNNLayerPtr prevLayer,
         return LayerInfo(ptr).isNonValuesChangable();
     });
     IE_ASSERT(inputLayer != nullptr);
-    size_t weightsSize =
-        LayerInfo(prevLayer).has32BOutput()
-            ? nextLayer->outData[0]->getDims().back()
-            : Get2DReshapedData(nextLayer->outData[0], Limitations::get_min_batch_to_fit_in_buffer(nextLayer->outData[0]), 8)
-                  ->getDims()[1];
+    size_t weightsSize = LayerInfo(prevLayer).has32BOutput()
+                             ? nextLayer->outData[0]->getDims().back()
+                             : Get2DReshapedData(nextLayer->outData[0],
+                                                 Limitations::get_min_batch_to_fit_in_buffer(nextLayer->outData[0]),
+                                                 8)
+                                   ->getDims()[1];
     std::vector<float> weightsValues(weightsSize, fillValue);
     IE_ASSERT(diagLayer != nullptr);
     diagLayer->_weights = make_shared_blob<float>(TensorDesc(nextLayer->outData[0]->getTensorDesc().getPrecision(),
@@ -1748,9 +1749,10 @@ void SubstituteScaleShiftBroadCastPass::run() {
         if (was_reshaped) {
             dataDims = reshaped_data[insData->getName()];
         } else {
-            dataDims = HasTo2DReshapeData(l)
-                           ? Get2DReshapedData(insData, Limitations::get_min_batch_to_fit_in_buffer(insData), 8)->getDims()
-                           : insData->getDims();
+            dataDims =
+                HasTo2DReshapeData(l)
+                    ? Get2DReshapedData(insData, Limitations::get_min_batch_to_fit_in_buffer(insData), 8)->getDims()
+                    : insData->getDims();
         }
 
         if (dataDims.size() <= 2) {

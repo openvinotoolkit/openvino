@@ -204,7 +204,7 @@ public:
      * @return true if supported
      */
     static bool is_fc_supported(const std::shared_ptr<ngraph::op::FullyConnected>& fully_connected,
-                              bool is_exception_allowed = false);
+                                bool is_exception_allowed = false);
     /**
      * @brief Validates if split is supported by GNA
      * @param node split
@@ -213,6 +213,12 @@ public:
      */
     static bool is_split_supported(const std::shared_ptr<ov::Node>& node, bool is_exception_allowed = false);
     /**
+     * @brief Validates if transpose is supported by GNA
+     * @param node transpose
+     * @return true if supported
+     */
+    static bool is_transpose_supported(const std::shared_ptr<const ov::Node>& node);
+    /**
      * @brief Validates if legacy convolution is supported by GNA
      * @param conv_ie convolution
      * @param gna_precision GNA inference precision
@@ -220,15 +226,16 @@ public:
      * @return true if supported
      */
     bool is_conv_supported(const std::shared_ptr<ngraph::op::ConvolutionIE>& conv_ie,
-                         const InferenceEngine::Precision gna_precision,
-                         bool is_exception_allowed = false);
+                           const InferenceEngine::Precision gna_precision,
+                           bool is_exception_allowed = false);
     /**
      * @brief Validates if max pooling is supported by GNA
      * @param max_pool max pooling
      * @param is_exception_allowed flag specifies whether exception is allowed
      * @return true if precision is found in supported
      */
-    bool is_pooling_supported(const std::shared_ptr<ngraph::opset7::MaxPool> max_pool, bool is_exception_allowed = false);
+    bool is_pooling_supported(const std::shared_ptr<ngraph::opset7::MaxPool> max_pool,
+                              bool is_exception_allowed = false);
 
     /**
      * @brief Validates if operation is supported by GNA
@@ -238,15 +245,16 @@ public:
      * @return true if supported
      */
     bool is_op_supported(const std::shared_ptr<ov::Node>& node,
-                       const InferenceEngine::Precision gna_precision,
-                       bool is_exception_allowed = false);
+                         const InferenceEngine::Precision gna_precision,
+                         bool is_exception_allowed = false);
 
     /**
      * @brief Check if all operations are supported by GNA
      * @param model ngraph model
      * @param gna_precision GNA inference precision
      */
-    void check_all_ops_supported(const std::shared_ptr<ov::Model>& model, const InferenceEngine::Precision gna_precision);
+    void check_all_ops_supported(const std::shared_ptr<ov::Model>& model,
+                                 const InferenceEngine::Precision gna_precision);
 
     bool use_only_16bit_convolution_weights() const;
 
