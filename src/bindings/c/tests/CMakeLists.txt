@@ -9,10 +9,6 @@ add_executable(${TARGET_NAME} ie_c_api_test.cpp test_model_repo.hpp)
 
 target_link_libraries(${TARGET_NAME} PRIVATE openvino_c commonTestUtils gtest_main)
 
-target_compile_definitions(${TARGET_NAME}
-    PRIVATE
-    $<$<BOOL:${ENABLE_GAPI_PREPROCESSING}>:ENABLE_GAPI_PREPROCESSING>)
-
 if(ENABLE_AUTO OR ENABLE_MULTI)
     add_dependencies(${TARGET_NAME} openvino_auto_plugin)
 endif()
