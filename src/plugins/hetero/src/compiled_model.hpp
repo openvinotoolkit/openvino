@@ -7,6 +7,7 @@
 #include "config.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/iinfer_request.hpp"
+#include "openvino/runtime/so_ptr.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
 #include "openvino/runtime/tensor.hpp"
 
@@ -53,6 +54,15 @@ private:
     Configuration m_cfg;
     std::shared_ptr<ov::Model> m_model;
     const bool m_loaded_from_cache;
+
+    struct NetworkDesc {
+        std::string _device;
+        std::shared_ptr<ov::Model> _clonedNetwork;
+        ov::SoPtr<ov::ICompiledModel> _network;
+    };
+
+    std::vector<NetworkDesc> m_networks;
+    std::string m_name;
 };
 
 }  // namespace hetero

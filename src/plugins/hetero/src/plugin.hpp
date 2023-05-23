@@ -39,10 +39,9 @@ public:
     std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
                                                       const ov::AnyMap& properties) const override;
 
-    // TODO vurusovs: THROW NOT IMPLEMENTED
-    // std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
-    //                                                   const ov::AnyMap& properties,
-    //                                                   const ov::RemoteContext& context) const override;
+    std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                      const ov::AnyMap& properties,
+                                                      const ov::RemoteContext& context) const override;
 
     void set_property(const ov::AnyMap& properties) override;
 
@@ -54,15 +53,14 @@ public:
 
     std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model, const ov::AnyMap& properties) const override;
 
-    // TODO vurusovs: THROW NOT IMPLEMENTED
-    // std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
-    //                                                  const ov::RemoteContext& context,
-    //                                                  const ov::AnyMap& properties) const override;
+    std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
+                                                     const ov::RemoteContext& context,
+                                                     const ov::AnyMap& properties) const override;
 
     ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
                                     const ov::AnyMap& properties) const override;
-
     
+
     
 
     // TODO vurusovs: THINK TWICE ABOUT NECESSITY OF FUNCTION

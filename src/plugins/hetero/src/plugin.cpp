@@ -14,13 +14,17 @@
 #include <fstream>
 #include <unordered_set>
 #include "ie_plugin_config.hpp"
-#include "executable_network.hpp"
+#include "../executable_network.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/runtime/properties.hpp"
-#include "properties.hpp"
+#include "../properties.hpp"
 #include "openvino/util/common_util.hpp"
 // clang-format on
+
+// #include "dev/converter_utils.hpp"
+// #include "any_copy.hpp"
+#include "compiled_model.hpp"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::PluginConfigParams;
@@ -44,7 +48,20 @@ std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::compile_model(
         fullConfig);
     
     // TODO: remove convert_model
-    return std::make_shared<HeteroExecutableNetwork>(ov::legacy_convert::convert_model(compiled_model, true), ov::any_copy(fullConfig.GetDeviceConfig()), this);
+    // return std::make_shared<HeteroExecutableNetwork>(ov::legacy_convert::convert_model(compiled_model, true), ov::any_copy(fullConfig.GetDeviceConfig()), this);
+    return compiled_model;
+}
+
+std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
+    const ov::AnyMap& properties,
+    const ov::RemoteContext& context) const {
+    OPENVINO_THROW("Not Implemented");
+}
+
+std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::import_model(std::istream& model,
+    const ov::RemoteContext& context,
+    const ov::AnyMap& properties) const  {
+    OPENVINO_THROW("Not Implemented");
 }
 
 std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::import_model(std::istream& model,
@@ -241,7 +258,13 @@ std::string ov::hetero::Plugin::DeviceCachingProperties(const std::string& targe
 }
 
 
-// ! [plugin:create_plugin_engine]
+std::shared_ptr<ov::IRemoteContext> ov::hetero::Plugin::create_context(const ov::AnyMap& remote_properties) const {
+    OPENVINO_THROW("Not Implemented");
+}
+
+std::shared_ptr<ov::IRemoteContext> ov::hetero::Plugin::get_default_context(const ov::AnyMap& remote_properties) const {
+    OPENVINO_THROW("Not Implemented");
+}
+
 static const ov::Version version = {CI_BUILD_NUMBER, "hetero"};
 OV_DEFINE_PLUGIN_CREATE_FUNCTION(ov::hetero::Plugin, version)
-// ! [plugin:create_plugin_engine]

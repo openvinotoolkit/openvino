@@ -18,7 +18,7 @@
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/runtime/properties.hpp"
-#include "internal_properties.hpp"
+#include "properties.hpp"
 #include "openvino/util/common_util.hpp"
 // clang-format on
 
@@ -117,8 +117,8 @@ ParsedConfig<ov::AnyMap> Engine::MergeConfigs(const ov::AnyMap& user_config) con
 }
 
 ParsedConfig<Configs> Engine::MergeConfigs(const Configs& user_config) const {
-    auto parsed_config = MergeConfigs(any_copy(user_config));
-    return {parsed_config.hetero_config, any_copy(parsed_config.device_config)};
+    auto parsed_config = MergeConfigs(::any_copy(user_config));
+    return {parsed_config.hetero_config, ::any_copy(parsed_config.device_config)};
 }
 
 std::string Engine::GetTargetFallback(const Configs& user_config, bool raise_exception) const {
@@ -307,10 +307,10 @@ Parameter Engine::GetConfig(const std::string& name, const ov::AnyMap& options) 
     }
 }
 
-static Version heteroPluginDescription = {
-    {2, 1},  // plugin API version
-    CI_BUILD_NUMBER,
-    "heteroPlugin"  // plugin description message
-};
+// static Version heteroPluginDescription = {
+//     {2, 1},  // plugin API version
+//     CI_BUILD_NUMBER,
+//     "heteroPlugin"  // plugin description message
+// };
 
 // IE_DEFINE_PLUGIN_CREATE_FUNCTION(Engine, heteroPluginDescription)
