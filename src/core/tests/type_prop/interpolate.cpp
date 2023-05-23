@@ -355,7 +355,7 @@ TEST(type_prop, interpolate_v4_target_shape_not_1d) {
     const auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
 
     ov::op::util::InterpolateBase::InterpolateAttrs attrs;
-    attrs.shape_calculation_mode = ov::op::util::InterpolateBase::ShapeCalcMode::SCALES;
+    attrs.shape_calculation_mode = ov::op::util::InterpolateBase::ShapeCalcMode::SIZES;
     attrs.mode = ov::op::util::InterpolateBase::InterpolateMode::NEAREST;
     attrs.pads_begin = {0, 0, 0, 0};
     attrs.pads_end = {0, 0, 0, 0};

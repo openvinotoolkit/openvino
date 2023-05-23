@@ -16,6 +16,21 @@ namespace op {
 namespace interpolate {
 namespace validate {
 /**
+ * @brief Validates that input at port number from is 1-D rank.
+ *
+ * @tparam TShape
+ * @param op      Pointer to operator.
+ * @param shapes  Vector of op's input shapes.
+ * @param port    Port number.
+ */
+template <class TShape>
+void input_rank_1d(const Node* const op, const std::vector<TShape>& shapes, size_t port) {
+    constexpr auto exp_rank = 1;
+    const auto r = shapes[port].rank();
+    NODE_VALIDATION_CHECK(op, r.compatible(exp_rank), "Input [", port, "] is not rank ", exp_rank);
+}
+
+/**
  * @brief Validates that inputs from 2nd to last are compatible 1-D rank.
  *
  * @tparam TShape
@@ -24,10 +39,8 @@ namespace validate {
  */
 template <class TShape>
 void are_inputs_except_first_1d(const Node* const op, const std::vector<TShape>& shapes) {
-    constexpr auto exp_rank = 1;
     for (size_t i = 1; i < shapes.size(); ++i) {
-        const auto r = shapes[i].rank();
-        NODE_VALIDATION_CHECK(op, r.compatible(exp_rank), "Input [", i, "] is not rank ", exp_rank);
+        input_rank_1d(op, shapes, i);
     }
 }
 
@@ -266,7 +279,14 @@ std::vector<TShape> shape_infer(const Interpolate* op,
                                 const ITensorAccessor& tensor_accessor) {
     NODE_VALIDATION_CHECK(op, (input_shapes.size() == 3 || input_shapes.size() == 4));
 
-    interpolate::validate::are_inputs_except_first_1d(op, input_shapes);
+    const auto has_axes_input = (input_shapes.size() == 4);
+    const auto is_using_scales = (op->get_attrs().shape_calculation_mode == Interpolate::ShapeCalcMode::SCALES);
+
+    interpolate::validate::input_rank_1d(op, input_shapes, is_using_scales ? 2 : 1);
+
+    if (has_axes_input) {
+        interpolate::validate::input_rank_1d(op, input_shapes, 3);
+    }
 
     const auto& img_shape = input_shapes[0];
     auto output_shapes = std::vector<TShape>();
@@ -275,12 +295,11 @@ std::vector<TShape> shape_infer(const Interpolate* op,
         const auto img_rank = img_shape.size();
         interpolate::resize_padding(op, img_rank, pads_begin, pads_end);
 
-        const auto has_axes_input = (input_shapes.size() == 4);
         const auto axes = interpolate::get_axes<TShape>(op, 3, has_axes_input, img_rank, tensor_accessor);
         if (axes) {
             output_shapes.push_back(interpolate::make_padded_shape(img_shape, pads_begin.cbegin(), pads_end.cbegin()));
 
-            if (op->get_attrs().shape_calculation_mode == Interpolate::ShapeCalcMode::SCALES) {
+            if (is_using_scales) {
                 interpolate::update_dims_with_scales_on_axes(output_shapes.front(), *axes, op, 2, tensor_accessor);
             } else {
                 interpolate::update_dims_with_sizes_on_axes(output_shapes.front(), *axes, op, 1, tensor_accessor);
