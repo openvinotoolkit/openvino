@@ -242,7 +242,15 @@ std::vector<TShape> shape_infer(const Interpolate* op,
         const auto img_rank = img_shape.size();
 
         interpolate::validate::axes_values(op, axes, img_rank);
-        interpolate::update_dims_with_sizes_on_axes(out_shape, axes, op, 1, tensor_accessor);
+
+        if (const auto target_spatial_shape = get_input_const_data_as_shape<TShape>(op, 1, tensor_accessor)) {
+            auto target_spatial_shape_iter = target_spatial_shape->begin();
+            for (const auto axis : axes) {
+                out_shape[axis] = *target_spatial_shape_iter++;
+            }
+        } else {
+            interpolate::set_undefined_dim_on_axes(out_shape, axes);
+        }
     }
 
     return output_shapes;
