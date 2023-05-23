@@ -111,8 +111,8 @@ else()
     set(BIN_FOLDER "bin/${ARCH_FOLDER}")
 endif()
 
-if(CMAKE_GENERATOR MATCHES "^Ninja Multi-Config$")
-    # Ninja-Multi specific, see:
+if(CMAKE_GENERATOR STREQUAL "Ninja Multi-Config")
+    # 'Ninja Multi-Config' specific, see:
     # https://cmake.org/cmake/help/latest/variable/CMAKE_DEFAULT_BUILD_TYPE.html
     set(CMAKE_DEFAULT_BUILD_TYPE "Release" CACHE STRING "CMake default build type")
 elseif(NOT OV_GENERATOR_MULTI_CONFIG)
@@ -240,7 +240,7 @@ if(ENABLE_LTO)
                         LANGUAGES C CXX)
 
     if(NOT IPO_SUPPORTED)
-        set(ENABLE_LTO "OFF" CACHE STRING "Enable Link Time Optmization" FORCE)
+        set(ENABLE_LTO "OFF" CACHE STRING "Enable Link Time Optimization" FORCE)
         message(WARNING "IPO / LTO is not supported: ${OUTPUT_MESSAGE}")
     endif()
 endif()
@@ -250,8 +250,8 @@ endif()
 macro(ov_install_static_lib target comp)
     if(NOT BUILD_SHARED_LIBS)
         get_target_property(target_type ${target} TYPE)
-        if(${target_type} STREQUAL "STATIC_LIBRARY")
-            set_target_properties(${target} PROPERTIES EXCLUDE_FROM_ALL FALSE)
+        if(target_type STREQUAL "STATIC_LIBRARY")
+            set_target_properties(${target} PROPERTIES EXCLUDE_FROM_ALL OFF)
         endif()
         install(TARGETS ${target} EXPORT OpenVINOTargets
                 ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${comp} ${ARGN})

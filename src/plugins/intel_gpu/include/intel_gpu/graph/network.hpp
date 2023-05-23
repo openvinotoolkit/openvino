@@ -225,10 +225,6 @@ public:
     /// Returns memory state @p variable_id of stateful network
     VariableState& get_variable_memory(const std::string &variable_id);
 
-    /// Return in_mem_kernels_cache
-    KernelsCache& get_in_mem_kernels_cache() const { return *_in_mem_kernels_cache; }
-    std::mutex& get_impl_cache_mutex() const { return _in_mem_cache_mutex; }
-
     const ExecutionConfig& get_config() const { return _config; }
 
 private:
@@ -260,8 +256,6 @@ private:
     std::unordered_map<primitive_id, event::ptr> _events;
     output_chains_map _output_chains;
 
-    mutable std::mutex _in_mem_cache_mutex;
-
     void build_exec_order();
     void allocate_primitive_instance(program_node const& node);
     void transfer_memory_to_device(std::shared_ptr<primitive_inst> instance, program_node const& node);
@@ -273,8 +267,8 @@ private:
     void calculate_weights_cache_capacity();
     output_chains_map::iterator add_output_chain(std::shared_ptr<primitive_inst>& p_inst);
 
-    // Move from cldnn::program to cldnn::network for multi-threads issue.
-    std::unique_ptr<KernelsCache> _in_mem_kernels_cache;
-    const size_t _in_mem_kernels_cache_capacity = 10000;
+#ifdef GPU_DEBUG_CONFIG
+    int64_t iteration = 0;
+#endif
 };
 }  // namespace cldnn

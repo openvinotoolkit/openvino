@@ -110,13 +110,11 @@ std::vector<std::string> disabledTestPatterns() {
             // TODO: range input with one element should NOT be regarded as dynamic batch model in Program::IsDynBatchModel().
             R"(.*smoke_select_CompareWithRefsNumpy_dynamic_range.*)",
             R"(.*CachingSupportCase.*LoadNetworkCacheTestBase.*CompareWithRefImpl.*)",
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
             R"(.*KernelCachingSupportCase.*CanCreateCacheDirAndDumpBinariesUnicodePath.*)",
 #endif
             R"(.*CachingSupportCase.*GPU.*CompileModelCacheTestBase.*CompareWithRefImpl.*)",
             // Currently 1D convolution has an issue
-            R"(.*smoke_GroupConvolution1D_ExplicitPadding_Disabled.*)",
-            R"(.*smoke_GroupConvolutionLayerGPUTest_dynamic1DSymPad_Disabled.*)",
             R"(.*smoke_ConvolutionLayerGPUTest_dynamic1DSymPad.*)",
 
             // Looks like the test is targeting CPU plugin and doesn't respect that execution graph may vary from plugin to plugin
@@ -126,6 +124,6 @@ std::vector<std::string> disabledTestPatterns() {
             // TODO: move auto/multi cases to dedicated unit tests
             R"(.*(Auto|Multi).*SetPropLoadNetWorkGetPropTests.*)",
             // unsupported metrics
-            R"(.*nightly_MultiHeteroAutoBatchOVGetMetricPropsTest.*OVGetMetricPropsTest.*(AVAILABLE_DEVICES|DEVICE_UUID|OPTIMIZATION_CAPABILITIES|MAX_BATCH_SIZE|DEVICE_GOPS|DEVICE_GOPS|RANGE_FOR_ASYNC_INFER_REQUESTS|RANGE_FOR_STREAMS).*)",
+            R"(.*nightly_MultiHeteroAutoBatchOVGetMetricPropsTest.*OVGetMetricPropsTest.*(FULL_DEVICE_NAME_with_DEVICE_ID|AVAILABLE_DEVICES|DEVICE_UUID|OPTIMIZATION_CAPABILITIES|MAX_BATCH_SIZE|DEVICE_GOPS|DEVICE_TYPE|RANGE_FOR_ASYNC_INFER_REQUESTS|RANGE_FOR_STREAMS).*)",
     };
 }

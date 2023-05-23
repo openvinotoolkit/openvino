@@ -79,7 +79,7 @@ void readAllFile(const std::string& string_file_name, void* buffer, size_t maxSi
     std::string file_name = string_file_name;
 #endif
 
-    inputFile.open(file_name, std::ios::binary | std::ios::in);
+    inputFile.open(file_name.c_str(), std::ios::binary | std::ios::in);
     if (!inputFile.is_open())
         IE_THROW() << "cannot open file " << string_file_name;
     if (!inputFile.read(reinterpret_cast<char*>(buffer), maxSize)) {
