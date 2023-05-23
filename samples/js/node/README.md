@@ -17,13 +17,13 @@ Note: Perform these steps also before running notebooks.
 - Console will contain execution results
 
 ### Node samples
-- To run `read_model_async_example.js` and `simple_inference_example.js` pass example name and optionally path to an image.
+- To run `read_model_async_example.js`, `ppp_example.js` and `simple_inference_example.js` pass example name and optionally path to an image.
 ```sh
 $ node <example-name> [path-to-image]
 ```
 
-- To run ppp_example.js you have to additionally specify a path to the `resnet50-v1-7.onnx` model.
-It can be downloaded: [here](https://github.com/onnx/models/blob/main/vision/classification/resnet/model/resnet50-v1-7.onnx).
+- To run ppp_example.js you have to additionally specify a path to the `alexnet` model.
+You can find instructions about how to download `alexnet` model [here](https://docs.openvino.ai/latest/omz_models_model_alexnet.html#doxid-omz-models-model-alexnet).
 ```sh
 $ node <example-name> <path-to-model> [path-to-image]
 ```
