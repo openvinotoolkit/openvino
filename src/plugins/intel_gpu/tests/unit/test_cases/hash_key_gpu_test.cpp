@@ -22,7 +22,7 @@
 using namespace cldnn;
 using namespace tests;
 
-class check_hash_valuee: public ::testing::Test {
+class check_hash_value: public ::testing::Test {
 public:
     void test_eltwise_basic (bool is_caching_test) {
         auto& engine = get_test_engine();
@@ -147,157 +147,182 @@ public:
         ASSERT_EQ(primitive_hash, 4658575237077439700UL);
         ASSERT_EQ(params_hash, 8075003758662478789UL);
     }
+
+    void test_reorder_basic(bool is_caching_test) {
+        auto& engine = get_test_engine();
+
+        const int32_t b_in = 1;
+        const int32_t f_in = 8 * 4;
+        const int32_t y_in = 4;
+        const int32_t x_in = 8 * 2;
+
+        auto input = engine.allocate_memory({ { b_in,f_in,y_in,x_in }, data_types::f32, format::bfyx });
+        layout output_layout({ b_in,f_in,y_in,x_in }, data_types::f32, format::b_fs_yx_fsv16);
+
+        auto key_prim_id = "reorder";
+        topology topology(
+            input_layout("input", input->get_layout()),
+            reorder(key_prim_id, input_info("input"), output_layout));
+
+        cldnn::network::ptr net = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
+        const auto  prim_inst = net->get_primitive(key_prim_id);
+        const auto  primitve  = prim_inst->desc();
+
+        const auto primitive_hash = primitve->hash();
+        const auto params_hash = prim_inst->get_impl_params()->hash();
+
+        ASSERT_EQ(primitive_hash, 16293979194373117693UL);
+        ASSERT_EQ(params_hash, 12014408712579440062UL);
+    }
+
+    void test_reshape_basic(bool is_caching_test) {
+        auto& engine = get_test_engine();
+
+        auto input = engine.allocate_memory({ { 1, 1, 2, 2 }, data_types::f32, format::bfyx });
+
+        auto key_prim_id = "reshape";
+        topology topology;
+        topology.add(input_layout("input", input->get_layout()));
+        auto padded_input_layout = input->get_layout();
+        padded_input_layout.data_padding = padding();
+        topology.add(reorder("reorder", input_info("input"), padded_input_layout));
+        topology.add(reshape(key_prim_id, input_info("reorder"), tensor( 1, 1, 4, 1 ), cldnn::reshape::reshape_mode::base, padding({0, 0, 2, 2})));
+
+        cldnn::network::ptr net = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
+        const auto  prim_inst = net->get_primitive(key_prim_id);
+        const auto  primitve  = prim_inst->desc();
+
+        const auto primitive_hash = primitve->hash();
+        const auto params_hash = prim_inst->get_impl_params()->hash();
+
+        ASSERT_EQ(primitive_hash, 1534749073560581535UL);
+        ASSERT_EQ(params_hash, 5579157377851947119UL);
+    }
+
+    void test_conv_basic(bool is_caching_test) {
+        auto& engine = get_test_engine();
+
+        auto input = engine.allocate_memory({ { 1, 1, 4, 4, 4 }, data_types::f32, format::bfzyx });
+        auto weights = engine.allocate_memory({ { 1, 1, 2, 2, 2 }, data_types::f32, format::bfzyx });
+        auto biases = engine.allocate_memory({ { 1, 1, 1, 1 }, data_types::f32, format::bfyx });
+
+        auto key_prim_id = "convolution";
+        topology topology(
+            input_layout("input", input->get_layout()),
+            data("weights", weights),
+            data("biases", biases),
+            convolution(key_prim_id, input_info("input"), "weights", "biases", 1, {1, 1, 1}, {1, 1, 1}, {0, 0, 0}, {0, 0, 0}, false));
+
+        cldnn::network::ptr net = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
+        const auto  prim_inst = net->get_primitive(key_prim_id);
+        const auto  primitve  = prim_inst->desc();
+
+        const auto primitive_hash = primitve->hash();
+        const auto params_hash = prim_inst->get_impl_params()->hash();
+
+        ASSERT_EQ(primitive_hash, 13549661972131371304UL);
+        ASSERT_EQ(params_hash, 4330346452027285061UL);
+    }
+
+    void test_quantize_basic(bool is_caching_test) {
+        auto& engine = get_test_engine();
+
+        auto input = engine.allocate_memory({ {1, 16, 2, 2}, data_types::f32, format::bfyx });
+        auto input_low = engine.allocate_memory({ { 1, 16, 1, 1 }, data_types::f32,format::bfyx });
+        auto input_high = engine.allocate_memory({ { 1, 16, 1, 1 }, data_types::f32,format::bfyx });
+        auto output_low = engine.allocate_memory({ { 1, 1, 1, 1 }, data_types::f32,format::bfyx });
+        auto output_high = engine.allocate_memory({ { 1, 1, 1, 1 }, data_types::f32,format::bfyx });
+
+        auto key_prim_id = "quantize";
+        topology topology;
+        topology.add(
+            input_layout("input", input->get_layout()),
+            data("input_low", input_low),
+            data("input_high", input_high),
+            data("output_low", output_low),
+            data("output_high", output_high),
+            quantize(key_prim_id, input_info("input"), input_info("input_low"), input_info("input_high"), input_info("output_low"), input_info("output_high"), 256, data_types::u8)
+        );
+
+        cldnn::network::ptr net = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
+        const auto  prim_inst = net->get_primitive(key_prim_id);
+        const auto  primitve  = prim_inst->desc();
+
+        const auto primitive_hash = primitve->hash();
+        const auto params_hash = prim_inst->get_impl_params()->hash();
+        ASSERT_EQ(primitive_hash, 4135863035456568493UL);
+        ASSERT_EQ(params_hash, 4679882936150524961UL);
+    }
 };
 
-TEST_F(check_hash_valuee, eltwise_basic) {
+TEST_F(check_hash_value, eltwise_basic) {
     this->test_eltwise_basic(false);
 }
 
-TEST_F(check_hash_valuee, eltwise_basic_cached) {
+TEST_F(check_hash_value, eltwise_basic_cached) {
     this->test_eltwise_basic(true);
 }
 
-TEST_F(check_hash_valuee, fc_basic) {
+TEST_F(check_hash_value, fc_basic) {
     this->test_fc_basic(false);
 }
 
-TEST_F(check_hash_valuee, fc_basic_cached) {
+TEST_F(check_hash_value, fc_basic_cached) {
     this->test_fc_basic(true);
 }
 
-TEST_F(check_hash_valuee, gather_basic) {
+TEST_F(check_hash_value, gather_basic) {
     this->test_gather_basic(false);
 }
 
-TEST_F(check_hash_valuee, gather_basic_cached) {
+TEST_F(check_hash_value, gather_basic_cached) {
     this->test_gather_basic(true);
 }
 
-TEST_F(check_hash_valuee, gemm_basic) {
+TEST_F(check_hash_value, gemm_basic) {
     this->test_gemm_basic(false);
 }
 
-TEST_F(check_hash_valuee, gemm_basic_cached) {
+TEST_F(check_hash_value, gemm_basic_cached) {
     this->test_gemm_basic(true);
 }
 
-TEST_F(check_hash_valuee, permute_basic) {
+TEST_F(check_hash_value, permute_basic) {
     this->test_permute_basic(false);
 }
 
-TEST_F(check_hash_valuee, permute_basic_cached) {
+TEST_F(check_hash_value, permute_basic_cached) {
     this->test_permute_basic(true);
 }
 
-TEST(check_hash_value, reorder_basic) {
-    auto& engine = get_test_engine();
-
-    const int32_t b_in = 1;
-    const int32_t f_in = 8 * 4;
-    const int32_t y_in = 4;
-    const int32_t x_in = 8 * 2;
-
-    auto input = engine.allocate_memory({ { b_in,f_in,y_in,x_in }, data_types::f32, format::bfyx });
-    layout output_layout({ b_in,f_in,y_in,x_in }, data_types::f32, format::b_fs_yx_fsv16);
-
-    auto key_prim_id = "reorder";
-    topology topology(
-        input_layout("input", input->get_layout()),
-        reorder(key_prim_id, input_info("input"), output_layout));
-
-    auto prog = program::build_program(engine, topology, get_test_default_config(engine));
-    network net(prog, 0);
-    const auto  prim_inst = net.get_primitive(key_prim_id);
-    const auto  primitve  = prim_inst->desc();
-    const auto& prog_node = net.get_program()->get_node(key_prim_id);
-
-    const auto primitive_hash = primitve->hash();
-    const auto params_hash = prog_node.get_kernel_impl_params()->hash();
-
-    ASSERT_EQ(primitive_hash, 16293979194373117693UL);
-    ASSERT_EQ(params_hash, 12014408712579440062UL);
+TEST_F(check_hash_value, reorder_basic) {
+    this->test_reorder_basic(false);
 }
 
-TEST(check_hash_value, reshape_basic) {
-    auto& engine = get_test_engine();
-
-    auto input = engine.allocate_memory({ { 1, 1, 2, 2 }, data_types::f32, format::bfyx });
-
-    auto key_prim_id = "reshape";
-    topology topology;
-    topology.add(input_layout("input", input->get_layout()));
-    auto padded_input_layout = input->get_layout();
-    padded_input_layout.data_padding = padding();
-    topology.add(reorder("reorder", input_info("input"), padded_input_layout));
-    topology.add(reshape(key_prim_id, input_info("reorder"), tensor( 1, 1, 4, 1 ), cldnn::reshape::reshape_mode::base, padding({0, 0, 2, 2})));
-
-    auto prog = program::build_program(engine, topology, get_test_default_config(engine));
-    network net(prog, 0);
-    const auto  prim_inst = net.get_primitive(key_prim_id);
-    const auto  primitve  = prim_inst->desc();
-    const auto& prog_node = net.get_program()->get_node(key_prim_id);
-
-    const auto primitive_hash = primitve->hash();
-    const auto params_hash = prog_node.get_kernel_impl_params()->hash();
-
-    ASSERT_EQ(primitive_hash, 1534749073560581535UL);
-    ASSERT_EQ(params_hash, 5579157377851947119UL);
+TEST_F(check_hash_value, reorder_basic_cached) {
+    this->test_reorder_basic(true);
 }
 
-TEST(check_hash_value, conv_basic) {
-    auto& engine = get_test_engine();
-
-    auto input = engine.allocate_memory({ { 1, 1, 4, 4, 4 }, data_types::f32, format::bfzyx });
-    auto weights = engine.allocate_memory({ { 1, 1, 2, 2, 2 }, data_types::f32, format::bfzyx });
-    auto biases = engine.allocate_memory({ { 1, 1, 1, 1 }, data_types::f32, format::bfyx });
-
-    auto key_prim_id = "convolution";
-    topology topology(
-        input_layout("input", input->get_layout()),
-        data("weights", weights),
-        data("biases", biases),
-        convolution(key_prim_id, input_info("input"), "weights", "biases", 1, {1, 1, 1}, {1, 1, 1}, {0, 0, 0}, {0, 0, 0}, false));
-
-    auto prog = program::build_program(engine, topology, get_test_default_config(engine));
-    network net(prog, 0);
-    const auto  prim_inst = net.get_primitive(key_prim_id);
-    const auto  primitve  = prim_inst->desc();
-    const auto& prog_node = net.get_program()->get_node(key_prim_id);
-
-    const auto primitive_hash = primitve->hash();
-    const auto params_hash = prog_node.get_kernel_impl_params()->hash();
-
-    ASSERT_EQ(primitive_hash, 13549661972131371304UL);
-    ASSERT_EQ(params_hash, 4330346452027285061UL);
+TEST_F(check_hash_value, reshape_basic) {
+    this->test_reshape_basic(false);
 }
 
-TEST(check_hash_value, quantize_basic) {
-    auto& engine = get_test_engine();
+TEST_F(check_hash_value, reshape_basic_cached) {
+    this->test_reshape_basic(true);
+}
 
-    auto input = engine.allocate_memory({ {1, 16, 2, 2}, data_types::f32, format::bfyx });
-    auto input_low = engine.allocate_memory({ { 1, 16, 1, 1 }, data_types::f32,format::bfyx });
-    auto input_high = engine.allocate_memory({ { 1, 16, 1, 1 }, data_types::f32,format::bfyx });
-    auto output_low = engine.allocate_memory({ { 1, 1, 1, 1 }, data_types::f32,format::bfyx });
-    auto output_high = engine.allocate_memory({ { 1, 1, 1, 1 }, data_types::f32,format::bfyx });
+TEST_F(check_hash_value, conv_basic) {
+    this->test_conv_basic(false);
+}
 
-    auto key_prim_id = "quantize";
-    topology topology;
-    topology.add(
-        input_layout("input", input->get_layout()),
-        data("input_low", input_low),
-        data("input_high", input_high),
-        data("output_low", output_low),
-        data("output_high", output_high),
-        quantize(key_prim_id, input_info("input"), input_info("input_low"), input_info("input_high"), input_info("output_low"), input_info("output_high"), 256, data_types::u8)
-    );
+TEST_F(check_hash_value, conv_basic_cached) {
+    this->test_conv_basic(true);
+}
 
-    auto prog = program::build_program(engine, topology, get_test_default_config(engine));
-    network net(prog, 0);
-    const auto  prim_inst = net.get_primitive(key_prim_id);
-    const auto  primitve  = prim_inst->desc();
+TEST_F(check_hash_value, quantize_basic) {
+    this->test_quantize_basic(false);
+}
 
-    const auto primitive_hash = primitve->hash();
-    const auto params_hash = prim_inst->get_impl_params()->hash();
-    ASSERT_EQ(primitive_hash, 4135863035456568493UL);
-    ASSERT_EQ(params_hash, 4679882936150524961UL);
+TEST_F(check_hash_value, quantize_basic_cached) {
+    this->test_quantize_basic(true);
 }

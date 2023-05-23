@@ -206,6 +206,7 @@ struct loop : public primitive_base<loop> {
     }
 
     void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<loop>::save(ob);
         ob << trip_count_id;
         ob << initial_execution_id;
         ob << num_iteration_id;
@@ -218,6 +219,7 @@ struct loop : public primitive_base<loop> {
     }
 
     void load(BinaryInputBuffer& ib) override {
+        primitive_base<loop>::load(ib);
         ib >> trip_count_id;
         ib >> initial_execution_id;
         ib >> num_iteration_id;
