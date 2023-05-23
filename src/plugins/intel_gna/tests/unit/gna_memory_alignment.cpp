@@ -47,7 +47,7 @@ public:
             gnamem.reset(new gna_memory_float(memory::GNAFloatAllocator{},
                                               Limitations::get_instance()->get_memory_alignment(),
                                               Limitations::kMemoryPageSize));
-            graphCompiler.setGNAMemoryPtr(gnamem);
+            m_graph_compiler->setGNAMemoryPtr(gnamem);
             gnadevice.reset();
         }
     }
@@ -150,7 +150,7 @@ INSTANTIATE_TEST_SUITE_P(MemoryAlignment_GNA_4_0,
 class MemoryAlignmentTest : public ::testing::Test {};
 
 TEST(MemoryAlignmentTest, getMemoryAlignmentBytes_ExpectExceptionWhenTargetIsUnset) {
-    EXPECT_ANY_THROW(Limitations::get_instance()->get_memory_alignment(), 64);
+    EXPECT_ANY_THROW(Limitations::get_instance()->get_memory_alignment());
 }
 
 TEST(MemoryAlignmentTest, getMemoryAlignmentBytes_Expect64ByteAlignmentWhenTargetIsGNA3_5) {

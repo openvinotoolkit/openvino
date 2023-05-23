@@ -359,7 +359,7 @@ void GNAPlugin::PrePostProcess(InferenceEngine::Blob::Ptr input_blob,
     }
 }
 
-GNAPlugin::GNAPlugin() : graphCompiler(config) {
+GNAPlugin::GNAPlugin() {
     Init();
     UpdateFieldsFromConfig();
     InitGNADevice();
@@ -368,7 +368,7 @@ GNAPlugin::GNAPlugin() : graphCompiler(config) {
     InitGraphCompiler();
 }
 
-GNAPlugin::GNAPlugin(const std::map<std::string, std::string>& configMap) : graphCompiler(config) {
+GNAPlugin::GNAPlugin(const std::map<std::string, std::string>& configMap) {
     Init();
     SetConfig(configMap);
     log::set_log_level(gnaFlags->log_level);
@@ -412,10 +412,8 @@ void GNAPlugin::InitGNAMemory() {
 void GNAPlugin::InitGraphCompiler() {
     OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "InitGraphCompiler");
 
-    graphCompiler.setDNNPtr(dnn);
-    graphCompiler.setInputsPtr(inputs_ptr_);
-    graphCompiler.setGNAMemoryPtr(gnamem);
-    graphCompiler.initTargetValidator();
+    m_graph_compiler = std::make_shared<GNAGraphCompiler>(
+        GNAGraphCompiler(config, dnn, inputs_ptr_, Limitations::get_instance()->get_cnn_validator(), gnamem));
 }
 
 void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork& network) {
@@ -570,12 +568,12 @@ bool GNAPlugin::TryToInitOutput(const std::string& portName, InferenceEngine::CN
     };
 
     // probing gna_primitives
-    auto irLayerAvatar = std::find_if(graphCompiler.dnnComponents.components.begin(),
-                                      graphCompiler.dnnComponents.components.end(),
+    auto irLayerAvatar = std::find_if(m_graph_compiler->dnnComponents.components.begin(),
+                                      m_graph_compiler->dnnComponents.components.end(),
                                       [&layer](const backend::DnnComponents::storage_type::value_type& value) {
                                           return value.name == layer->name;
                                       });
-    if (irLayerAvatar != graphCompiler.dnnComponents.components.end()) {
+    if (irLayerAvatar != m_graph_compiler->dnnComponents.components.end()) {
         initOutput(irLayerAvatar->dnnComponent.orientation_out,
                    irLayerAvatar->dnnComponent.num_bytes_per_output,
                    irLayerAvatar->dnnComponent.num_rows_out,
@@ -585,8 +583,8 @@ bool GNAPlugin::TryToInitOutput(const std::string& portName, InferenceEngine::CN
 
     // probing concatInfo
     if (LayerInfo(layer).isConcat()) {
-        auto concatConnection = graphCompiler.concat_connection.find(layer->name);
-        if (concatConnection != graphCompiler.concat_connection.end()) {
+        auto concatConnection = m_graph_compiler->concat_connection.find(layer->name);
+        if (concatConnection != m_graph_compiler->concat_connection.end()) {
             auto precision = layer->outData.front()->getPrecision().size();
             initOutput(kDnnInterleavedOrientation,
                        precision,
@@ -599,8 +597,8 @@ bool GNAPlugin::TryToInitOutput(const std::string& portName, InferenceEngine::CN
     // probing a constant info, for constant trivial networks support
     if (LayerInfo(layer).isConst()) {
         auto const_blob = layer->blobs["custom"];
-        auto constConnection = graphCompiler.const_connections.find(layer->name);
-        if (constConnection != graphCompiler.const_connections.end()) {
+        auto constConnection = m_graph_compiler->const_connections.find(layer->name);
+        if (constConnection != m_graph_compiler->const_connections.end()) {
             initOutput(kDnnInterleavedOrientation,
                        layer->outData.front()->getPrecision().size(),
                        const_blob->size(),
@@ -820,17 +818,17 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
             memoryPairs[id][generic->GetParamAsInt("index")] = layer;
             continue;
         } else if (layerInfo.isConcat()) {
-            graphCompiler.fillConcatConnections(layer);
+            m_graph_compiler->fillConcatConnections(layer);
         } else if (layerInfo.isSplit() || layerInfo.isSlice()) {
-            graphCompiler.fillSplitConnections(layer);
+            m_graph_compiler->fillSplitConnections(layer);
         }
         sortedNoMem.push_back(layer);
     }
 
     // fill in extra storage with memory layers
-    graphCompiler.fillMemoryConnections(memoryPairs);
+    m_graph_compiler->fillMemoryConnections(memoryPairs);
 
-    if (!graphCompiler.memory_connection.empty() && gnaFlags->num_requests != 1) {
+    if (!m_graph_compiler->memory_connection.empty() && gnaFlags->num_requests != 1) {
         gnaFlags->num_requests = 1;
     }
 
@@ -852,17 +850,17 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
 
     // Creating Layer primitives
     for (auto& layer : sortedNoMem) {
-        graphCompiler.CreateLayerPrimitive(layer);
+        m_graph_compiler->CreateLayerPrimitive(layer);
     }
 
     for (auto& inputLayer : inputLayers) {
         auto layerInfo = LayerInfo(inputLayer);
         if (layerInfo.isInput() && 0 == inputs_ptr_->at(inputLayer->name).get_allocated_size()) {
-            graphCompiler.connectOutput(inputLayer, &inputs_ptr_->at(inputLayer->name).ptrs.front(), 0);
+            m_graph_compiler->connectOutput(inputLayer, &inputs_ptr_->at(inputLayer->name).ptrs.front(), 0);
         }
     }
 
-    if (graphCompiler.dnnComponents.components.empty()) {
+    if (m_graph_compiler->dnnComponents.components.empty()) {
         log::warning() << "No GNA primitives created based on topology. This might indicate trivial topology\n";
         trivialTopology = true;
     }
@@ -876,7 +874,7 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
         // Memory layers are not dnnComponents hence we need to make switch with identity layer
         if (outLayer->type == "Memory") {
             // traverse memory connection to find corresponding output_memory
-            for (auto&& memConnection : graphCompiler.memory_connection) {
+            for (auto&& memConnection : m_graph_compiler->memory_connection) {
                 if (memConnection.second.getInput()->name == outLayer->name) {
                     // if connection is found, replace memory input layer with memory output layer
                     outLayer = memConnection.second.getOutput();
@@ -924,11 +922,11 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
     dnn->Init(gnamem.get(), gnaFlags->sw_fp32 ? kDnnFloat : kDnnInt, 1);
 
     // TODO: this copy is unneeded; in fact, we can directly create gna structs from list
-    auto execOrder = graphCompiler.dnnComponents.getExecutionOrder();
+    auto execOrder = m_graph_compiler->dnnComponents.getExecutionOrder();
     dnn->component.insert(dnn->component.begin(), execOrder.begin(), execOrder.end());
 
     // in fp32 mode last PWL cannot be computed without that
-    if (!graphCompiler.dnnComponents.components.empty()) {
+    if (!m_graph_compiler->dnnComponents.components.empty()) {
         dnn->InitActiveList(NULL);
     }
 
@@ -980,7 +978,7 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
     for (auto& inputLayer : inputLayers) {
         if (LayerInfo(inputLayer).isInput()) {
             ov::intel_gna::helpers::updateModelInputOrientationWithoutConvolution(*inputLayer,
-                                                                                  graphCompiler.dnnComponents,
+                                                                                  m_graph_compiler->dnnComponents,
                                                                                   *inputs_ptr_);
         }
     }
@@ -991,7 +989,7 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
         if (outLayer && LayerInfo(outLayer).isOutput()) {
             ov::intel_gna::helpers::updateModelOutputOrientation(outPort.first,
                                                                  outLayer->name,
-                                                                 graphCompiler.dnnComponents,
+                                                                 m_graph_compiler->dnnComponents,
                                                                  outputs_);
         }
     }
@@ -1116,7 +1114,7 @@ void GNAPlugin::DumpXNNToFile() const {
 uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap& inputs, InferenceEngine::BlobMap& result) {
     auto freeWorker = requestWorkerPool_->findFreeModelWorker();
     if (freeWorker == nullptr) {
-        if (!graphCompiler.memory_connection.empty()) {
+        if (!m_graph_compiler->memory_connection.empty()) {
             Wait(requestWorkerPool_->firstWorker().representingIndex());
             freeWorker = requestWorkerPool_->findFreeModelWorker();
             if (freeWorker == nullptr) {
@@ -1427,7 +1425,7 @@ RequestStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
 }
 
 void GNAPlugin::Reset() {
-    graphCompiler.Reset();
+    m_graph_compiler->Reset();
 }
 
 bool GNAPlugin::Infer(const InferenceEngine::Blob& input, InferenceEngine::Blob& output) {
@@ -1494,9 +1492,9 @@ Blob::Ptr GNAPlugin::GetInputBlob(const std::string& name, InferenceEngine::Prec
 }
 
 std::vector<InferenceEngine::IVariableStateInternal::Ptr> GNAPlugin::QueryState() {
-    if (memoryStates.size() != graphCompiler.memory_connection.size()) {
+    if (memoryStates.size() != m_graph_compiler->memory_connection.size()) {
         memoryStates.clear();
-        for (auto& connection : graphCompiler.memory_connection) {
+        for (auto& connection : m_graph_compiler->memory_connection) {
             auto state =
                 std::make_shared<memory::GNAVariableState>(connection.first,
                                                            std::make_shared<GNAMemoryLayer>(connection.second));
@@ -1590,7 +1588,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::i
         GNAMemoryLayer memoryLayer(nullptr, nullptr, gnaFlags->sw_fp32 ? 4 : 2);
         std::string name;
         std::tie(memoryLayer.gna_ptr, memoryLayer.reserved_size, name, memoryLayer.scale_factor) = memory;
-        graphCompiler.memory_connection.emplace_back(make_pair(name, memoryLayer));
+        m_graph_compiler->memory_connection.emplace_back(make_pair(name, memoryLayer));
     }
 
     // TODO update documenation to allow exporting tlv with importing cep only for sue creek
@@ -1622,7 +1620,7 @@ void GNAPlugin::Export(std::ostream& outStream) {
                       .SetInputRotation(transpose_inputs_info)
                       .SetOutputRotation(transpose_outputs_info);
 
-    for (auto&& memoryConnection : graphCompiler.memory_connection) {
+    for (auto&& memoryConnection : m_graph_compiler->memory_connection) {
         auto state =
             std::make_shared<memory::GNAVariableState>(memoryConnection.first,
                                                        std::make_shared<GNAMemoryLayer>(memoryConnection.second));

@@ -47,8 +47,7 @@ protected:
     std::shared_ptr<gna_memory_type> gnamem;
     std::shared_ptr<GnaInputs> inputs_ptr_;
     GnaOutputs outputs_;
-
-    GNAGraphCompiler graphCompiler;
+    std::shared_ptr<GNAGraphCompiler> m_graph_compiler;
 
     uint32_t activeLayerIndex = 0xffffffff;
     // TODO: transpose_inputs_info and transpose_outputs_info should be moved to GNAModelSerial class when ngraph

@@ -82,18 +82,20 @@ static uint32_t count_conv2D_input_width_for_expected_output_width(uint32_t expe
     return (expected_ouput_width - 1) * stride_width - 2 * padding_width + kernel_width;
 };
 
-GNAGraphCompiler::GNAGraphCompiler(const Config& gna_config) : gna_config(gna_config) {}
+GNAGraphCompiler::GNAGraphCompiler(const Config& gna_config,
+                                   std::shared_ptr<backend::AMIntelDNN> dnn_ptr,
+                                   std::shared_ptr<GnaInputs> inputs_ptr,
+                                   std::shared_ptr<limitations::cnn2d::AbstractValidator> cnn2d_validator_ptr,
+                                   std::shared_ptr<gna_memory_type> gna_mem_ptr)
+    : gna_config(gna_config) {
+    dnn = std::move(dnn_ptr);
+    inputs_ptr_ = std::move(inputs_ptr);
+    m_cnn2d_validator = std::move(cnn2d_validator_ptr);
+    gnamem = std::move(gna_mem_ptr);
+}
 
 void GNAGraphCompiler::setGNAMemoryPtr(std::shared_ptr<gna_memory_type> gnaMemPtr) {
     this->gnamem = std::move(gnaMemPtr);
-}
-
-void GNAGraphCompiler::setDNNPtr(std::shared_ptr<backend::AMIntelDNN> dnnPtr) {
-    this->dnn = std::move(dnnPtr);
-}
-
-void GNAGraphCompiler::setInputsPtr(std::shared_ptr<GnaInputs> inputsPtr) {
-    this->inputs_ptr_ = std::move(inputsPtr);
 }
 
 intel_dnn_component_t* GNAGraphCompiler::find_first_unused_input(InferenceEngine::CNNLayerPtr current) {
@@ -229,12 +231,8 @@ void GNAGraphCompiler::fillSplitConnections(InferenceEngine::CNNLayerPtr layer) 
     split_connection.emplace(id, layerInfoItem);
 }
 
-void GNAGraphCompiler::initTargetValidator() {
-    cnn2dValidator = Limitations::get_instance()->get_cnn_validator();
-}
-
 bool GNAGraphCompiler::ShouldUseOnlyConv2DGnaIface() const {
-    return cnn2dValidator && cnn2dValidator->ShouldUseOnlyConv2DGnaIface();
+    return m_cnn2d_validator && m_cnn2d_validator->ShouldUseOnlyConv2DGnaIface();
 }
 
 void GNAGraphCompiler::ValidateCnn2D(const std::string& name,
@@ -249,23 +247,23 @@ void GNAGraphCompiler::ValidateCnn2D(const std::string& name,
                                      const uint32_t dilH,
                                      const uint32_t dilW,
                                      OvGnaType inPrecision) const {
-    if (cnn2dValidator) {
-        if (cnn2dValidator->ValidateCnn1D(name,
-                                          inHeight,
-                                          inWidth,
-                                          inChannels,
-                                          kH,
-                                          kW,
-                                          kN,
-                                          strideH,
-                                          strideW,
-                                          dilH,
-                                          dilW,
-                                          inPrecision,
-                                          false)) {
+    if (m_cnn2d_validator) {
+        if (m_cnn2d_validator->ValidateCnn1D(name,
+                                             inHeight,
+                                             inWidth,
+                                             inChannels,
+                                             kH,
+                                             kW,
+                                             kN,
+                                             strideH,
+                                             strideW,
+                                             dilH,
+                                             dilW,
+                                             inPrecision,
+                                             false)) {
             return;
         }
-        cnn2dValidator
+        m_cnn2d_validator
             ->ValidateCnn2D(name, inHeight, inWidth, inChannels, kH, kW, kN, strideH, strideW, dilH, dilW, inPrecision);
     } else {
         THROW_GNA_EXCEPTION << "No Cnn2D validator found for layer " << name;
@@ -277,8 +275,8 @@ void GNAGraphCompiler::ValidatePooling2D(const std::string& name,
                                          const uint32_t windowW,
                                          const uint32_t strideH,
                                          const uint32_t strideW) const {
-    if (cnn2dValidator) {
-        cnn2dValidator->ValidatePooling2D(name, windowH, windowW, strideH, strideW);
+    if (m_cnn2d_validator) {
+        m_cnn2d_validator->ValidatePooling2D(name, windowH, windowW, strideH, strideW);
     } else {
         THROW_GNA_EXCEPTION << "No Pooling2D validator found for layer " << name;
     }
@@ -684,17 +682,17 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
     // TODO add function
     // printConvolution2DLayer(convolution);
 
-    if (!cnn2dValidator) {
+    if (!m_cnn2d_validator) {
         THROW_GNA_EXCEPTION << "No Cnn2D validator found for layer " << convolution.name;
     }
 
-    cnn2dValidator->ValidateInputPadding(convolution.name,
-                                         convolution._padding_y,
-                                         convolution._pads_end_y,
-                                         convolution._padding_x,
-                                         convolution._pads_end_x,
-                                         convolution._kernel_y,
-                                         convolution._kernel_x);
+    m_cnn2d_validator->ValidateInputPadding(convolution.name,
+                                            convolution._padding_y,
+                                            convolution._pads_end_y,
+                                            convolution._padding_x,
+                                            convolution._pads_end_x,
+                                            convolution._kernel_y,
+                                            convolution._kernel_x);
 
     // Check if kernel width needs to be extended to stride width.
     const auto effective_kernel_width = std::max(convolution._kernel_x, convolution._stride_x);

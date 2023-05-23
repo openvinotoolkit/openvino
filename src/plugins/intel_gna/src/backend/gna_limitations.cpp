@@ -764,8 +764,8 @@ bool SupportedElementTypes::IsConstantTypeSupported(ov::element::Type elem_type,
 }
 
 bool Limitations::is_conv_supported(const std::shared_ptr<ngraph::op::ConvolutionIE>& conv_ie,
-                                  const InferenceEngine::Precision gna_precision,
-                                  bool is_exception_allowed) {
+                                    const InferenceEngine::Precision gna_precision,
+                                    bool is_exception_allowed) {
     OPENVINO_ASSERT(conv_ie, "ConvolutionIE node is empty!");
     size_t batch_size = conv_ie->input_value(0).get_shape()[0];
     if (batch_size != 1) {
@@ -821,7 +821,7 @@ bool Limitations::is_conv_supported(const std::shared_ptr<ngraph::op::Convolutio
 }
 
 bool Limitations::is_pooling_supported(const std::shared_ptr<ngraph::opset7::MaxPool> max_pool,
-                                     bool is_exception_allowed) {
+                                       bool is_exception_allowed) {
     OPENVINO_ASSERT(max_pool, "MaxPool node is empty!");
     auto kernels = max_pool->get_kernel();
     if (2 == kernels.size() && kernels[0] > 1 && kernels[1] > 1) {
@@ -839,7 +839,7 @@ bool Limitations::is_pooling_supported(const std::shared_ptr<ngraph::opset7::Max
 }
 
 bool Limitations::is_fc_supported(const std::shared_ptr<ngraph::op::FullyConnected>& fully_connected,
-                                bool is_exception_allowed) {
+                                  bool is_exception_allowed) {
     OPENVINO_ASSERT(fully_connected, "FullyConnected node is empty!");
     size_t output_batch_size = fully_connected->get_output_shape(0)[0];
     if (output_batch_size > 8) {
@@ -863,8 +863,8 @@ bool Limitations::is_split_supported(const std::shared_ptr<ov::Node>& node, bool
 }
 
 bool Limitations::is_op_supported(const std::shared_ptr<ov::Node>& node,
-                                const InferenceEngine::Precision gna_precision,
-                                bool is_exception_allowed) {
+                                  const InferenceEngine::Precision gna_precision,
+                                  bool is_exception_allowed) {
     if (ov::op::util::is_parameter(node)) {
         return SupportedElementTypes::IsParameterTypeSupported(node->get_element_type(), is_exception_allowed);
     } else if (ov::op::util::is_constant(node)) {
@@ -898,7 +898,7 @@ bool Limitations::is_op_supported(const std::shared_ptr<ov::Node>& node,
 }
 
 void Limitations::check_all_ops_supported(const std::shared_ptr<ov::Model>& model,
-                                       const InferenceEngine::Precision gna_precision) {
+                                          const InferenceEngine::Precision gna_precision) {
     std::stringstream error;
     // Walk through the transformed model
     for (auto& op : model->get_ops()) {
