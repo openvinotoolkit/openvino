@@ -85,7 +85,8 @@ ov_remote_context_create_host_tensor(const ov_remote_context_t* context,
  * @param context A pointer to the ov_remote_context_t to free memory.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(void) ov_remote_context_free(ov_remote_context_t* context);
+OPENVINO_C_API(void) 
+ov_remote_context_free(ov_remote_context_t* context);
 
 /**
  * @brief Returns a string contains device-specific parameters required for low-level
