@@ -349,7 +349,7 @@ ov_core_versions_free(ov_core_version_list_t* versions);
  * @param device_name Device name to identify a plugin.
  * @param context_args_size How many property args will be for this remote context creation.
  * @param context A pointer to the newly created remote context.
- * @param variadic parmameters Actual context property parameter for remote context
+ * @param ... variadic parmameters Actual context property parameter for remote context
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
