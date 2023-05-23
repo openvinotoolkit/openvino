@@ -27,7 +27,7 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
         InferenceEngine::InferRequest inferRequest;
         size_t batchSize = 0;
 
-        ov.set_property("AUTO", ov::log::level(ov::log::Level::DEBUG));
+        //ov.set_property("AUTO", ov::log::level(ov::log::Level::DEBUG));
         //std::string device = device.substr(0, device.find(':'));
 
         // first_inference_latency = time_to_inference + first_inference

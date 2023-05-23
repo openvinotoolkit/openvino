@@ -31,7 +31,7 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
 
         std::vector<ov::Output<ov::Node>> defaultInputs;
 
-        ov.set_property("AUTO", ov::log::level(ov::log::Level::DEBUG));
+        ie.set_property("AUTO", ov::log::level(ov::log::Level::DEBUG));
         //std::string device = device.substr(0, device.find(':'));
 
         bool reshape = false;
