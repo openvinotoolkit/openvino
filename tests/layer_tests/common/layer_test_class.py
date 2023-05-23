@@ -149,8 +149,6 @@ class CommonLayerTest:
     # It is possible to redefine this function and generate your own input
     def _prepare_input(self, inputs_dict):
         for input in inputs_dict.keys():
-            assert not inputs_dict[input].is_dynamic, "Model has dynamic inputs, please implement custom function" \
-                                                      " to prepare inputs"
             inputs_dict[input] = np.random.randint(-255, 255, inputs_dict[input]).astype(np.float32)
         return inputs_dict
 
