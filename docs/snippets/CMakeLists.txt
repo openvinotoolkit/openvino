@@ -4,7 +4,7 @@
 
 set(TARGET_NAME ie_docs_snippets)
 
-add_definitions(-DIN_OV_LIBRARY)
+add_definitions(-DIN_OV_COMPONENT)
 
 if(CMAKE_COMPILER_IS_GNUCXX)
     ie_add_compiler_flags(-Wall)
