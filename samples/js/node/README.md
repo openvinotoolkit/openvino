@@ -23,7 +23,7 @@ $ node <example-name> [path-to-image]
 ```
 
 - To run ppp_example.js you have to additionally specify a path to the `alexnet` model.
-It can be downloaded: [here](https://docs.openvino.ai/latest/omz_models_model_alexnet.html#doxid-omz-models-model-alexnet).
+You can find instructions about how to download `alexnet` model [here](https://docs.openvino.ai/latest/omz_models_model_alexnet.html#doxid-omz-models-model-alexnet).
 ```sh
 $ node <example-name> <path-to-model> [path-to-image]
 ```
