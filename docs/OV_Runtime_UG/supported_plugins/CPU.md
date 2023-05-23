@@ -74,7 +74,7 @@ For more details on how to get a quantized model see the :doc:`low-precision opt
 
 .. note:: 
    
-   Arm® platforms execute quantized models in simulation mode: the whole model (including quantization operations) is executed in floating point precision.
+   Arm® platforms execute quantized models in simulation mode: the whole model (including quantization operations) is executed in floating-point precision.
 
 
 Floating Point Data Types Specifics
