@@ -47,10 +47,10 @@ jobs:
           python-version: ${{ matrix.config.py_ver }}
           architecture: 'x64'
 
-#     - name: Setup ccache
-#       uses: hendrikmuhs/ccache-action@v1.2
-#       with:
-#         max-size: 50G
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          max-size: 50G
 
 #     - name: Clone OpenVINO
 #       uses: actions/checkout@v3
