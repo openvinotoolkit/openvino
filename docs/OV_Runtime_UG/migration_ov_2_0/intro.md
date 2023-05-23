@@ -53,7 +53,7 @@ API 2.0 also supports backward compatibility for models of OpenVINO IR v10. If y
 Some of the OpenVINO Development Tools also support both OpenVINO IR v10 and v11 as an input:
 
 - Accuracy checker uses API 2.0 for model accuracy measurement by default. It also supports switching to the old API by using the ``--use_new_api False`` command-line parameter. Both launchers accept OpenVINO IR v10 and v11, but in some cases configuration files should be updated. For more details, see the `Accuracy Checker documentation <https://github.com/openvinotoolkit/open_model_zoo/blob/master/tools/accuracy_checker/openvino/tools/accuracy_checker/launcher/openvino_launcher_readme.md>`__.
-- :doc:`Compile tool <openvino_inference_engine_tools_compile_tool_README>` compiles the model to be used in API 2.0 by default. To use the resulting compiled blob under the Inference Engine API, the additional ``ov_api_1_0`` option should be passed.
+- :doc:`Compile tool <openvino_ecosystem>` compiles the model to be used in API 2.0 by default. To use the resulting compiled blob under the Inference Engine API, the additional ``ov_api_1_0`` option should be passed.
 
 However, Post-Training Optimization Tool of OpenVINO 2022.1 does not support OpenVINO IR v10. They require the latest version of Model Optimizer to generate OpenVINO IR v11 files.
 
