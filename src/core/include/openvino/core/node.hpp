@@ -295,6 +295,11 @@ public:
     size_t get_instance_id() const {
         return m_instance_id;
     }
+
+    void set_instance_id(size_t id) {
+        m_instance_id = id;
+    }
+
     /// \brief Writes a description of a node to a stream
     /// \param os The stream; should be returned
     /// \param depth How many levels of inputs to describe

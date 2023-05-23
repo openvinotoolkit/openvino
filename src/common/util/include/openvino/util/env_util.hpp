@@ -13,7 +13,7 @@ namespace util {
 /// \param env_var The string name of the environment variable to get.
 /// \return Returns string by value or an empty string if the environment
 ///         variable is not set.
-std::string getenv_string(const char* env_var);
+std::string getenv_string(const char* env_var, std::string default_value = "");
 
 /// \brief Get the names environment variable as an integer. If the value is not a
 ///        valid integer then an exception is thrown.

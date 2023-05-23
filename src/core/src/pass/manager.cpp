@@ -22,6 +22,7 @@
 #include "ngraph/util.hpp"
 #include "openvino/util/env_util.hpp"
 #include "perf_counters.hpp"
+#include "openvino/pass/pass_tracker.hpp"
 
 using namespace std;
 
@@ -109,7 +110,12 @@ bool ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
                     needs_validate = false;
                 }
             } else {
-                pass_applied = function_pass->run_on_model(func);
+                if (function_pass->skip_profiling()) {
+                    pass_applied = function_pass->run_on_model(func);
+                } else {
+                    PassTracker tracker(func, function_pass->get_name());
+                    pass_applied = function_pass->run_on_model(func);
+                }
             }
         } else if (auto node_pass = dynamic_pointer_cast<ngraph::pass::NodePass>(pass)) {
             if (node_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) && func->is_dynamic()) {

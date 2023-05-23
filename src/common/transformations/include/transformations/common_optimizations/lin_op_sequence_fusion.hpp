@@ -49,5 +49,6 @@ public:
         add_matcher<ov::pass::AddMultiplyFusion>();
         add_matcher<ov::pass::AddAddFusion>();
         add_matcher<ov::pass::MultiplyMultiplyFusion>();
+        set_skip_profiling(true);
     }
 };

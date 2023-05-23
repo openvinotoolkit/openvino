@@ -6,13 +6,14 @@
 
 #include <set>
 #include <sstream>
+#include <utility>
 
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/log.hpp"
 
-std::string ov::util::getenv_string(const char* env_var) {
+std::string ov::util::getenv_string(const char* env_var, std::string default_value) {
     const char* env_p = ::getenv(env_var);
-    return env_p != nullptr ? std::string(env_p) : "";
+    return env_p != nullptr ? std::string(env_p) : std::move(default_value);
 }
 
 int32_t ov::util::getenv_int(const char* env_var, int32_t default_value) {

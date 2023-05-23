@@ -110,8 +110,17 @@
 #include "transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp"
 #include "transformations/op_conversions/unique_decomposition.hpp"
 
+#include "openvino/pass/pass_tracker.hpp"
+
 bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(CommonOptimizations);
+
+    // PassTracker is disabled by default for now, since not all passes were properly updated
+    // with set_skip_profiling() annotation. So we currently limit its scope to CommonOptimizations
+    // transformation pipeline as an example.
+    auto & state = ov::pass::PassTracker::get_state();
+    state.enable_tracker();
+
     ngraph::pass::Manager manager(get_pass_config());
     manager.set_per_pass_validation(false);
 
@@ -137,6 +146,7 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     ADD_MATCHER(common_fusions, SkipGatherBeforeTransposeAndReshape)
     ADD_MATCHER(common_fusions, ReduceMerge)
     common_fusions->set_name("ngraph::pass::CommonFusions");
+    common_fusions->set_skip_profiling(true);
 
     manager.register_pass<ConcatReduceFusion>();
     REGISTER_DISABLED_PASS(manager, ConvertPadToGroupConvolution)
@@ -173,6 +183,7 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     ADD_MATCHER(decomp, EyeDecomposition)
     ADD_MATCHER(decomp, UniqueDecomposition)
     decomp->set_name("ngraph::pass::CommonDecompositions");
+    decomp->set_skip_profiling(true);
 
     // CF is required after all decompositions
     REGISTER_PASS(manager, ConstantFolding)
@@ -192,6 +203,7 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     ADD_MATCHER(multiply_fusions, MultiplyGroupConvolutionBackpropDataFusion)
     ADD_MATCHER(multiply_fusions, MatMulMultiplyFusion)
     multiply_fusions->set_name("ngraph::pass::MultiplyFusions");
+    multiply_fusions->set_skip_profiling(true);
 
     REGISTER_PASS(manager, ConstantFolding)
     REGISTER_PASS(manager, ConvertGather8ToGather7)  // not plugins implemented gather8
@@ -222,6 +234,7 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     ADD_MATCHER(fq_fusions, AddFakeQuantizeFusion)
     ADD_MATCHER(fq_fusions, MulFakeQuantizeFusion)
     fq_fusions->set_name("ngraph::pass::FakeQuantizeFusions");
+    fq_fusions->set_skip_profiling(true);
 
     // StridesOptimization should be at the very end
     // because we cannot insert any MaxPools since they may prevent
@@ -229,6 +242,8 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     manager.register_pass<StridesOptimization>();
     REGISTER_PASS(manager, Validate)
     manager.run_passes(f);
+
+    state.disable_tracker();
 
     // Returning value is false because pass::Manager always apply Validation pass
     // if function was changed. This helps to avoid excess Validations after applying

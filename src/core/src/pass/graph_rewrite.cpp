@@ -18,6 +18,7 @@
 #include "ngraph/log.hpp"
 #include "ngraph/op/util/sub_graph_base.hpp"
 #include "perf_counters.hpp"
+#include "openvino/pass/pass_tracker.hpp"
 
 /* GraphRewrite algorithm:
  * GraphRewrite processes an input graph in an topological order(i.e. args before users)
@@ -138,7 +139,7 @@ bool ov::pass::GraphRewrite::apply_matcher_passes(std::shared_ptr<Model> f,
     // This lambda preforms execution of particular MatcherPass on given node.
     // It automatically handles nodes registered by MatcherPass during transformation and set
     // transformation callback.
-    auto run_matcher_pass = [&](std::shared_ptr<MatcherPass> m_pass, std::shared_ptr<Node> node) -> bool {
+    auto run_matcher_pass = [&](std::shared_ptr<MatcherPass> m_pass, std::weak_ptr<Node> node) -> bool {
         // Keep this property check for backward compatibility. In future transformation property
         // will be deprecated and removed.
         if (m_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) && f->is_dynamic()) {
@@ -151,7 +152,16 @@ bool ov::pass::GraphRewrite::apply_matcher_passes(std::shared_ptr<Model> f,
 
         // Apply MatcherPass. In case if it returns true no other MatcherPasses will apply
         // to this node
-        bool status = m_pass->apply(node);
+
+        bool status = false;
+        {
+            if (m_pass->skip_profiling()) {
+                status = m_pass->apply(node.lock());
+            } else {
+                PassTracker tracker(f, m_pass->get_name());
+                status = m_pass->apply(node.lock());
+            }
+        }
 
         // In case if MatcherPass registered nodes they will be added to the beginning of execution
         // queue
@@ -174,12 +184,12 @@ bool ov::pass::GraphRewrite::apply_matcher_passes(std::shared_ptr<Model> f,
         auto weak_node = nodes_to_run.front();
         nodes_to_run.pop_front();
 
-        auto node = weak_node.lock();
-        if (!node)
+        // auto node = weak_node.lock();
+        if (!weak_node.lock())
             continue;
 
         // Recursive apply Matchers for sub-graph based nodes
-        if (auto sub_graph_node = std::dynamic_pointer_cast<ngraph::op::util::MultiSubGraphOp>(node)) {
+        if (auto sub_graph_node = std::dynamic_pointer_cast<ngraph::op::util::MultiSubGraphOp>(weak_node.lock())) {
             if (sub_graph_node->get_transformations_allowed()) {
                 size_t sub_graphs_num = sub_graph_node->get_internal_subgraphs_size();
                 for (size_t sub_graph_ind = 0; sub_graph_ind < sub_graphs_num; ++sub_graph_ind) {
@@ -190,12 +200,12 @@ bool ov::pass::GraphRewrite::apply_matcher_passes(std::shared_ptr<Model> f,
         }
         // Temporary keep this GraphRewrite property for backward compatibility
         if (m_enable_shape_inference) {
-            node->revalidate_and_infer_types();
+            weak_node.lock()->revalidate_and_infer_types();
         }
         // If all Matchers in MatcherPasses has type based root node then we apply efficient
         // algorithm for finding matchers
         if (all_roots_has_type) {
-            const DiscreteTypeInfo* node_type_info = &node->get_type_info();
+            const DiscreteTypeInfo* node_type_info = &weak_node.lock()->get_type_info();
             matcher_passes_to_run.clear();
             while (node_type_info) {
                 auto matchers = type_to_matcher.find(*node_type_info);
@@ -216,7 +226,7 @@ bool ov::pass::GraphRewrite::apply_matcher_passes(std::shared_ptr<Model> f,
             // fast processing at the next time when node with the same type will be processed
 
             for (size_t matcher_index : matcher_passes_to_run) {
-                if (run_matcher_pass(m_matchers[matcher_index], node)) {
+                if (run_matcher_pass(m_matchers[matcher_index], weak_node)) {
                     rewritten = true;
                     break;
                 }
@@ -229,7 +239,7 @@ bool ov::pass::GraphRewrite::apply_matcher_passes(std::shared_ptr<Model> f,
                 if (pass_config->is_disabled(m_pass->get_type_info()))
                     continue;
 
-                if (run_matcher_pass(m_pass, node)) {
+                if (run_matcher_pass(m_pass, weak_node)) {
                     rewritten = true;
                     break;
                 }

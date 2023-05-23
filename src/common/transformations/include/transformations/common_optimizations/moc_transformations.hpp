@@ -37,7 +37,9 @@ public:
      */
     explicit MOCTransformations(bool use_shapes, bool low_precision_enabled = true)
         : m_use_shapes(use_shapes),
-          m_low_precision_enabled(low_precision_enabled) {}
+          m_low_precision_enabled(low_precision_enabled) {
+        set_skip_profiling(true);
+    }
 
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };

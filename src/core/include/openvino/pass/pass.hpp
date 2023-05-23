@@ -44,6 +44,22 @@ public:
     }
     std::string get_name() const;
 
+    /// \brief This flag disable model tracking for current pass instance. This is
+    /// useful in cases when we have pass container like this:
+    ///
+    ///   GraphRewrite()
+    ///       \
+    ///        `--->MatcherPassA
+    ///        `--->MatcherPassB
+    ///
+    /// so if we want to track each MatcherPass individually we can disable tracking for
+    /// GraphRewrite by calling `set_skip_profiling(true)`. By default all passes has
+    /// pass profiling enabled, so all passes in GraphRewrite will be considered as a single pass.
+    /// \param boolean flag.
+    void set_skip_profiling(bool flag) { m_skip_profiling = flag; }
+
+    bool skip_profiling() const { return m_skip_profiling; }
+
     /// \brief Set callback for particular transformation type.
     /// This method set global callback. For more details see PassConfig class
     /// documentation.
@@ -79,6 +95,7 @@ protected:
 private:
     PassPropertyMask m_property;
 
+    bool m_skip_profiling = false;
     std::string m_name;
     std::shared_ptr<PassConfig> m_pass_config;
 };

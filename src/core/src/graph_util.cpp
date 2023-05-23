@@ -330,6 +330,7 @@ std::vector<std::shared_ptr<ngraph::Node>> ngraph::clone_nodes(const std::vector
                 }
             }
             auto cloned_node = node->copy_with_new_inputs(cloned_args, cloned_dependencies);
+            cloned_node->set_instance_id(node->get_instance_id());
             // There is a friendly name for this node so copy it
             cloned_node->set_friendly_name(node->get_friendly_name());
             auto rt_info = node->get_rt_info();
