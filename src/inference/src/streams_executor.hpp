@@ -73,7 +73,7 @@ void parse_processor_info_win(const char* base_ptr,
                               std::vector<std::vector<int>>& _cpu_mapping_table);
 #endif
 
-#ifdef __APPLE__
+#if defined(__APPLE__)
 /**
  * @brief      Parse processors infomation on Linux
  * @param[in]  _processors total number for processors in system.

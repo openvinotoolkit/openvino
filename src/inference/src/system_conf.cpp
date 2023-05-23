@@ -158,7 +158,35 @@ CPU& cpu_info() {
     return cpu;
 }
 
-#if defined(__APPLE__) || defined(__EMSCRIPTEN__)
+#if defined(__EMSCRIPTEN__)
+// for Linux and Windows the getNumberOfCPUCores (that accounts only for physical cores) implementation is OS-specific
+// (see cpp files in corresponding folders), for __APPLE__ it is default :
+int get_number_of_cpu_cores(bool) {
+    return parallel_get_max_threads();
+}
+#    if !((OV_THREAD == OV_THREAD_TBB) || (OV_THREAD == OV_THREAD_TBB_AUTO))
+std::vector<int> get_available_numa_nodes() {
+    return {-1};
+}
+#    endif
+int get_number_of_logical_cpu_cores(bool) {
+    return parallel_get_max_threads();
+}
+std::vector<std::vector<int>> get_proc_type_table() {
+    return {{-1}};
+}
+bool is_cpu_map_available() {
+    return false;
+}
+int get_num_numa_nodes() {
+    return -1;
+}
+std::vector<std::vector<int>> reserve_available_cpus(const std::vector<std::vector<int>> streams_info_table) {
+    return {{-1}};
+}
+void set_cpu_used(const std::vector<int>& cpu_ids, const int used) {}
+
+#elif defined(__APPLE__)
 // for Linux and Windows the getNumberOfCPUCores (that accounts only for physical cores) implementation is OS-specific
 // (see cpp files in corresponding folders), for __APPLE__ it is default :
 int get_number_of_cpu_cores(bool) {
@@ -173,7 +201,6 @@ int get_number_of_logical_cpu_cores(bool) {
     return parallel_get_max_threads();
 }
 
-#    ifdef __APPLE__
 bool is_cpu_map_available() {
     CPU& cpu = cpu_info();
     std::lock_guard<std::mutex> lock{cpu._cpu_mutex};
@@ -189,18 +216,6 @@ std::vector<std::vector<int>> get_proc_type_table() {
 int get_num_numa_nodes() {
     return cpu_info()._numa_nodes;
 }
-#    else
-std::vector<std::vector<int>> get_proc_type_table() {
-    return {{-1}};
-}
-bool is_cpu_map_available() {
-    return false;
-}
-int get_num_numa_nodes() {
-    return -1;
-}
-#    endif
-
 std::vector<std::vector<int>> reserve_available_cpus(const std::vector<std::vector<int>> streams_info_table) {
     return {{-1}};
 }
