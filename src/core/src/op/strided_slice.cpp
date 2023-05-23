@@ -18,6 +18,7 @@
 #include "ngraph/slice_plan.hpp"
 #include "ngraph/type/element_type_traits.hpp"
 #include "ngraph/util.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 #include "openvino/pass/constant_folding.hpp"
@@ -335,6 +336,10 @@ bool op::v1::StridedSlice::constant_fold(OutputVector& output_values, const Outp
             if (const auto c = ov::get_constant_from_source(output)) {
                 OPENVINO_SUPPRESS_DEPRECATED_END
                 output_values[0] = c;
+                auto output_ptr = output_values[0].get_node_shared_ptr();
+                for (const auto& n : nodes) {
+                    copy_runtime_info(n->shared_from_this(), output_ptr);
+                }
                 is_folded = true;
             }
         }

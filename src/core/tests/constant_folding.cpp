@@ -2456,8 +2456,8 @@ TEST(constant_folding, strided_slice_can_be_folded_but_is_blocked_by_shape_of_wh
     auto model = make_shared<ov::Model>(slice, ParameterVector{p_begin, p_end});
 
     pass::Manager pass_manager;
-    pass_manager.register_pass<ov::pass::DisableShapeOfConstantFolding>();
     pass_manager.register_pass<ov::pass::InitNodeInfo>();
+    pass_manager.register_pass<ov::pass::DisableShapeOfConstantFolding>();
     pass_manager.register_pass<pass::ConstantFolding>();
     pass_manager.run_passes(model);
 
