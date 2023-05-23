@@ -98,11 +98,6 @@ void PermConvPermConcat::Run() {
         inferRequest.SetBlob(info->name(), blob);
         inputs.push_back(blob);
     }
-    if (configuration.count(InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED) &&
-        configuration.count(InferenceEngine::PluginConfigParams::YES)) {
-        auto batchSize = cnnNetwork.getInputsInfo().begin()->second->getTensorDesc().getDims()[0] / 2;
-        inferRequest.SetBatch(batchSize);
-    }
     inferRequest.Infer();
 
     Validate();

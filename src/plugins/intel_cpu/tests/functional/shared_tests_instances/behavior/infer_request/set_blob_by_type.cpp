@@ -13,8 +13,6 @@ const std::vector<FuncTestUtils::BlobType> BlobTypes = {
     FuncTestUtils::BlobType::Batched,
     FuncTestUtils::BlobType::Memory,
 //    FuncTestUtils::BlobType::Remote,
-    FuncTestUtils::BlobType::I420,
-    FuncTestUtils::BlobType::NV12
 };
 
 const std::map<std::string, std::string> cpuConfig{}; //nothing special

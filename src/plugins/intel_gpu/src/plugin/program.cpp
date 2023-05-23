@@ -167,148 +167,12 @@ Program::Program(InferenceEngine::CNNNetwork& network, cldnn::engine& engine, co
 
     auto ops = func->get_ordered_ops();
 
-    bool dyn_shape_batch_found = false;
-    std::map<std::string, ngraph::PartialShape> shapes;
-    std::map<std::string, std::pair<int64_t, int64_t>> batch_dim;
-    auto enable_dynamic_batch = m_config.get_property(ov::intel_gpu::enable_dynamic_batch);
-    if (enable_dynamic_batch) {
-        m_config.set_property(ov::intel_gpu::max_dynamic_batch(network.getBatchSize()));
-        // in case of legacy dynamic batch,
-        // we assume 4D input with 0 batch dim
-        auto param = func->get_parameters().front();
-        auto pname = getParamName(param);
-        shapes[pname] = param->get_output_partial_shape(0);
-        batch_dim[pname].first = 0;
-        batch_dim[pname].second = m_config.get_property(ov::intel_gpu::max_dynamic_batch);
-    } else {
-        dyn_shape_batch_found = IsDynBatchModel(func, shapes, batch_dim);
-        if (dyn_shape_batch_found) {
-            m_config.set_property(ov::intel_gpu::max_dynamic_batch(batch_dim.begin()->second.second));
-        }
-    }
-
-    int m_bv_sz = GetMaxBatchSizeForSingleProgram();
-    m_max_batch = static_cast<int>(m_config.get_property(ov::intel_gpu::max_dynamic_batch));
-
-    if (dyn_shape_batch_found || m_max_batch > 1) {
-        // compile log2 networks to serve dynamic batch requests
-        for (int b = m_bv_sz - 1; b >= 0; b--) {
-            inputLayouts.clear();
-            outputDims.clear();
-            primitive_ids.clear();
-            blobMemCache.clear();
-
-            auto new_batch = 1U << static_cast<unsigned>(b);
-            ChangeInputBatch(new_batch);
-
-            // clone the source model, find the batch dim
-            // and reshape the model to next batch size
-            auto new_func = func->clone();
-            std::map<ov::Output<ov::Node>, ngraph::PartialShape> new_shapes;
-            for (const auto& param : new_func->get_parameters()) {
-                ov::PartialShape pshape = param->get_output_partial_shape(0);
-
-                auto pname = getParamName(param);
-                auto batch_idx = batch_dim[pname].first;
-
-                if (batch_idx >= 0) {
-                    auto pshape = shapes[pname];
-                    pshape[batch_idx] = new_batch;
-                    new_shapes[param->output(0)] = pshape;
-                }
-            }
-            new_func->reshape(new_shapes);
-            {
-                auto deviceInfo = engine.get_device_info();
-                TransformationsPipeline transformations(m_config, deviceInfo);
-                transformations.apply(new_func);
-            }
-
-            // reshape network input/output maps accordingly
-            // for correct network compilation
-            for (auto& new_input : new_func->inputs()) {
-                auto iname = new_input.get_node()->get_friendly_name();
-                auto it = networkInputs.find(iname);
-                if (it != networkInputs.end()) {
-                    auto shape = new_input.get_shape();
-                    auto l = it->second->getTensorDesc().getLayout();
-                    it->second->getInputData()->reshape(shape, l);
-                }
-            }
-
-            for (auto& new_output : new_func->outputs()) {
-                auto iname = new_output.get_node_shared_ptr()->get_input_source_output(0).get_node_shared_ptr()->get_friendly_name();
-                auto it = networkOutputs.find(iname);
-                if (it != networkOutputs.end()) {
-                    auto shape = new_output.get_shape();
-                    auto l = it->second->getTensorDesc().getLayout();
-                    it->second->reshape(shape, l);
-                }
-            }
-            m_programs.insert(m_programs.begin(), BuildProgram(new_func->get_ordered_ops(), networkInputs, networkOutputs,
-                createTopologyOnly, partialBuild));
-        }
-        {
-            // recompute maximal dynamic batch inputs/outputs for infer request
-            // and store them into internal maps
-            // same operations as above, but for maximum batch
-            auto new_func = func->clone();
-            std::map<ov::Output<ov::Node>, ngraph::PartialShape> new_shapes;
-            for (const auto& param : new_func->get_parameters()) {
-                ov::PartialShape pshape = param->get_output_partial_shape(0);
-
-                auto pname = getParamName(param);
-                auto batch_idx = batch_dim[pname].first;
-
-                if (batch_idx >= 0) {
-                    auto pshape = shapes[pname];
-                    pshape[batch_idx] = m_max_batch;
-                    new_shapes[param->output(0)] = pshape;
-                }
-            }
-            new_func->reshape(new_shapes);
-
-            for (auto& new_input : new_func->inputs()) {
-                auto iname = new_input.get_node()->get_friendly_name();
-                auto it = networkInputs.find(iname);
-                if (it != networkInputs.end()) {
-                    auto shape = new_input.get_shape();
-                    auto l = it->second->getTensorDesc().getLayout();
-                    it->second->getInputData()->reshape(shape, l);
-                }
-            }
-
-            for (auto& new_output : new_func->outputs()) {
-                auto iname = new_output.get_node_shared_ptr()->get_input_source_output(0).get_node_shared_ptr()->get_friendly_name();
-                auto it = networkOutputs.find(iname);
-                if (it != networkOutputs.end()) {
-                    auto shape = new_output.get_shape();
-                    auto l = it->second->getTensorDesc().getLayout();
-                    SizeVector old_shape = it->second->getTensorDesc().getDims();
-                    it->second->reshape(shape, l);
-                    // detect changed output batch dimension
-                    SizeVector new_shape = it->second->getTensorDesc().getDims();
-                    for (int64_t i = 0; i < static_cast<int64_t>(old_shape.size()); i++) {
-                        if (old_shape[i] != new_shape[i]) {
-                            m_output_batch_dim[iname] = i;
-                            break;
-                        }
-                    }
-                }
-            }
-            m_networkInputs = networkInputs;
-            m_networkOutputs = networkOutputs;
-            m_input_batch_dim = batch_dim;
-        }
-    } else {
-        m_programs.emplace_back(BuildProgram(ops, networkInputs, networkOutputs, createTopologyOnly, partialBuild));
-    }
+    m_programs.emplace_back(BuildProgram(ops, networkInputs, networkOutputs, createTopologyOnly, partialBuild));
 }
 
 Program::Program(cldnn::engine& engine, const ExecutionConfig& config,
                  InferenceEngine::InputsDataMap* inputs, InferenceEngine::OutputsDataMap* outputs)
-        : m_max_batch(1)
-        , m_curBatch(-1)
+        : m_curBatch(-1)
         , m_config(config)
         , m_engine(engine)
         , queryMode(false) {
@@ -316,25 +180,6 @@ Program::Program(cldnn::engine& engine, const ExecutionConfig& config,
         m_networkInputs = *inputs;
     if (outputs != nullptr)
         m_networkOutputs = *outputs;
-}
-
-int Program::GetMaxBatchSizeForSingleProgram() {
-    auto max_dynamic_batch = m_config.get_property(ov::intel_gpu::max_dynamic_batch);
-    if (max_dynamic_batch > 1) {
-        // calculate number of networks necessary based on binary log
-        unsigned int tmp = static_cast<unsigned int>(max_dynamic_batch);
-        unsigned int mask = 1U << 31;
-        unsigned int ldigit = 31;
-
-        while (!(tmp & mask)) {
-            mask >>= 1;
-            ldigit--;
-        }
-
-        return ldigit + 1;
-    }
-
-    return 0;
 }
 
 std::shared_ptr<cldnn::program> Program::GetCompiledProgram(int program_id) {

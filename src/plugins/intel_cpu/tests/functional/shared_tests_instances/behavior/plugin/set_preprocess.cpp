@@ -4,8 +4,6 @@
 
 #include "behavior/plugin/set_preprocess.hpp"
 
-#ifdef ENABLE_GAPI_PREPROCESSING
-
 using namespace BehaviorTestsDefinitions;
 namespace {
     const std::vector<InferenceEngine::Precision> netPrecisions = {
@@ -183,5 +181,3 @@ namespace {
                         InferRequestPreprocessDynamicallyInSetBlobTest::getTestCaseName);
 
 }  // namespace
-
-#endif // ENABLE_GAPI_PREPROCESSING

@@ -82,13 +82,6 @@ ExecNetwork::ExecNetwork(const InferenceEngine::CNNNetwork &network,
     _cfg.isNewApi = !isLegacyAPI();
     _mutex = std::make_shared<std::mutex>();
 
-    if (_cfg.batchLimit > 1) {
-        // check topology for applicability
-        if (!CanProcessDynBatch(_network)) {
-            IE_THROW() << "Graph::CreateGraph: such topology cannot be compiled for dynamic batch!";
-        }
-    }
-
     if (cfg.exclusiveAsyncRequests) {
         // special case when all InferRequests are muxed into a single queue
         _taskExecutor = _plugin->executorManager()->getExecutor("CPU");

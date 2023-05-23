@@ -354,19 +354,6 @@ void LegacyInferRequest::initBlobs() {
     }
 }
 
-void LegacyInferRequest::SetBatch(int new_batch) {
-    if (!graph->getConfig().enableDynamicBatch)
-        IE_THROW() << "Dynamic batch is not enabled.";
-
-    if (new_batch < 1 || new_batch > graph->getConfig().batchLimit) {
-        IE_THROW() << "Invalid dynamic batch size " << new_batch <<
-            " for this request.";
-    }
-
-    m_curBatch = new_batch;
-    graph->setDynBatch(m_curBatch);
-}
-
 void LegacyInferRequest::changeDefaultPtr() {
     // renew external pointers before infer
     const auto &inMap = graph->inputNodesMap;
@@ -414,47 +401,36 @@ void LegacyInferRequest::SetBlob(const std::string& name, const InferenceEngine:
                                << data->getTensorDesc().getPrecision() << ", if CNNNetwork input blob precision is: " << foundInput->getPrecision();
         }
 
-        const bool preProcRequired = preProcessingRequired(foundInput, data);
-        if (compoundBlobPassed && !preProcRequired) {
+        if (compoundBlobPassed) {
             IE_THROW(NotImplemented)
-                               << "cannot set compound blob: supported only for input pre-processing";
+                               << "cannot set compound blob: Compound Blob is not supported";
         }
 
-        if (preProcRequired) {
-            if (_preProcData.find(name) == _preProcData.end()) {
-                _preProcData.emplace(name, InferenceEngine::CreatePreprocDataHelper());
-            }
-            _preProcData[name]->isApplicable(data, _inputs[name]);
-            // Stores the given blob as ROI blob. It will be used to fill in network input during
-            // pre-processing
-            _preProcData[name]->setRoiBlob(data);
-        } else {
-            size_t inputSize = foundInput->getTensorDesc().getLayout() != InferenceEngine::Layout::SCALAR
-                ? InferenceEngine::details::product(foundInput->getTensorDesc().getDims())
-                : 1;
-            if (dataSize != inputSize) {
-                IE_THROW() << "Input blob size is not equal network input size ("
-                                   << dataSize << "!=" << inputSize << ").";
-            }
-
-            if (foundInput->getTensorDesc().getDims() != data->getTensorDesc().getDims()) {
-                IE_THROW(ParameterMismatch) << "Failed to set input blob. Dimensions mismatch.";
-            }
-
-            if (data->getTensorDesc().getLayout() != InferenceEngine::Layout::ANY && foundInput->getTensorDesc().getLayout() != InferenceEngine::Layout::ANY &&
-                foundInput->getTensorDesc().getBlockingDesc() != data->getTensorDesc().getBlockingDesc()) {
-                IE_THROW(ParameterMismatch) << "Failed to set input blob. Blocking descriptor mismatch.";
-            }
-
-            auto pBlobDesc = MemoryDescUtils::interpretAsBlobDesc(graph->getInputNodeByName(name)->getChildEdgesAtPort(0)[0]->getMemory());
-            if (data->getTensorDesc() == pBlobDesc &&
-                graph->_normalizePreprocMap.find(name) == graph->_normalizePreprocMap.end() && !graph->getConfig().batchLimit) {
-                externalPtr[name] = data->buffer();
-            } else if (externalPtr.find(name) != externalPtr.end()) {
-                externalPtr.erase(name);
-            }
-            _inputs[name] = data;
+        size_t inputSize = foundInput->getTensorDesc().getLayout() != InferenceEngine::Layout::SCALAR
+            ? InferenceEngine::details::product(foundInput->getTensorDesc().getDims())
+            : 1;
+        if (dataSize != inputSize) {
+            IE_THROW() << "Input blob size is not equal network input size ("
+                               << dataSize << "!=" << inputSize << ").";
         }
+
+        if (foundInput->getTensorDesc().getDims() != data->getTensorDesc().getDims()) {
+            IE_THROW(ParameterMismatch) << "Failed to set input blob. Dimensions mismatch.";
+        }
+
+        if (data->getTensorDesc().getLayout() != InferenceEngine::Layout::ANY && foundInput->getTensorDesc().getLayout() != InferenceEngine::Layout::ANY &&
+            foundInput->getTensorDesc().getBlockingDesc() != data->getTensorDesc().getBlockingDesc()) {
+            IE_THROW(ParameterMismatch) << "Failed to set input blob. Blocking descriptor mismatch.";
+        }
+
+        auto pBlobDesc = MemoryDescUtils::interpretAsBlobDesc(graph->getInputNodeByName(name)->getChildEdgesAtPort(0)[0]->getMemory());
+        if (data->getTensorDesc() == pBlobDesc &&
+            graph->_normalizePreprocMap.find(name) == graph->_normalizePreprocMap.end()) {
+            externalPtr[name] = data->buffer();
+        } else if (externalPtr.find(name) != externalPtr.end()) {
+            externalPtr.erase(name);
+        }
+        _inputs[name] = data;
     }
     if (foundOutput) {
         if (compoundBlobPassed) {
@@ -481,8 +457,7 @@ void LegacyInferRequest::SetBlob(const std::string& name, const InferenceEngine:
         }
 
         auto pBlobDesc = MemoryDescUtils::interpretAsBlobDesc(graph->getOutputNodeByName(name)->getParentEdgesAtPort(0)[0]->getMemory());
-        if (data->getTensorDesc() == pBlobDesc &&
-                !graph->getConfig().batchLimit) {
+        if (data->getTensorDesc() == pBlobDesc) {
             externalPtr[name] = data->buffer();
         } else if (externalPtr.find(name) != externalPtr.end()) {
             externalPtr.erase(name);
@@ -503,12 +478,6 @@ InferenceEngine::Blob::Ptr LegacyInferRequest::GetBlob(const std::string& name) 
     auto input = inMap.find(name);
     if (input != inMap.end()) {
         // ROI blob is returned only if it was set previously.
-        auto it = _preProcData.find(name);
-        if (it != _preProcData.end()) {
-            data = it->second->getRoiBlob();
-            return data;
-        }
-
         if (_inputs.find(name) == _inputs.end()) {
             auto pBlob = MemoryDescUtils::interpretAsBlob(graph->getInputNodeByName(name)->getChildEdgesAtPort(0)[0]->getMemory());
             if (!pBlob) {
@@ -527,7 +496,7 @@ InferenceEngine::Blob::Ptr LegacyInferRequest::GetBlob(const std::string& name) 
             _inputs[name] = make_blob_with_precision(desc);
             _inputs[name]->allocate();
             if (pBlob->getTensorDesc() == desc &&
-                graph->_normalizePreprocMap.find(name) == graph->_normalizePreprocMap.end() && !graph->getConfig().batchLimit) {
+                graph->_normalizePreprocMap.find(name) == graph->_normalizePreprocMap.end()) {
                 externalPtr[name] = _inputs[name]->buffer();
             }
         }
@@ -543,11 +512,6 @@ InferenceEngine::Blob::Ptr LegacyInferRequest::GetBlob(const std::string& name) 
             InferenceEngine::DataPtr foundOutput;
             if (!findInputAndOutputBlobByName(name, foundInput, foundOutput)) {
                 IE_THROW() << "Blob with name: " << name << " absents in network inputs";
-            }
-            if (preProcessingRequired(foundInput, data)) {
-                _preProcData.emplace(name, InferenceEngine::CreatePreprocDataHelper());
-                _preProcData[name]->isApplicable(data, _inputs[name]);
-                _preProcData[name]->setRoiBlob(data);
             }
         }
     }
@@ -589,7 +553,7 @@ InferenceEngine::Blob::Ptr LegacyInferRequest::GetBlob(const std::string& name) 
             }
 
             _outputs[name] = data;
-            if (!externalPtr.count(name) && data->getTensorDesc() == pBlobDesc && !graph->getConfig().batchLimit) {
+            if (!externalPtr.count(name) && data->getTensorDesc() == pBlobDesc) {
                 externalPtr[name] = data->buffer();
             }
         }
@@ -706,7 +670,7 @@ void InferRequest::SetBlob(const std::string& name, const InferenceEngine::Blob:
                                                                                                                 blobDesc.getDims());
         }
         if (actualDesc->isCompatible(MemoryDescUtils::convertToCpuBlockedMemoryDesc(blobDesc)) &&
-                graph->_normalizePreprocMap.find(name) == graph->_normalizePreprocMap.end() && !graph->getConfig().batchLimit) {
+                graph->_normalizePreprocMap.find(name) == graph->_normalizePreprocMap.end()) {
             externalPtr[name] = data->buffer();
         } else if (externalPtr.find(name) != externalPtr.end()) {
             externalPtr.erase(name);
@@ -738,7 +702,7 @@ void InferRequest::SetBlob(const std::string& name, const InferenceEngine::Blob:
         }
 
         const auto &desc = graph->getOutputNodeByName(name)->getParentEdgesAtPort(0)[0]->getMemory().getDesc();
-        if (!isDynamic && blobDesc == MemoryDescUtils::convertToTensorDesc(desc) && !graph->getConfig().batchLimit) {
+        if (!isDynamic && blobDesc == MemoryDescUtils::convertToTensorDesc(desc)) {
             externalPtr[name] = data->buffer();
         } else if (externalPtr.find(name) != externalPtr.end()) {
             externalPtr.erase(name);
@@ -786,7 +750,7 @@ InferenceEngine::Blob::Ptr InferRequest::GetBlob(const std::string& name) {
 
                 if (!isDynamic &&
                     desc == MemoryDescUtils::convertToTensorDesc(graph->getInputNodeByName(name)->getChildEdgesAtPort(0)[0]->getMemory().getDesc()) &&
-                        graph->_normalizePreprocMap.find(name) == graph->_normalizePreprocMap.end() && !graph->getConfig().batchLimit) {
+                        graph->_normalizePreprocMap.find(name) == graph->_normalizePreprocMap.end()) {
                     externalPtr[name] = _inputs[name]->buffer();
                 }
             } else {
@@ -842,8 +806,7 @@ InferenceEngine::Blob::Ptr InferRequest::GetBlob(const std::string& name) {
 
                 _outputs[name] = data;
                 if (!isDynamic && !externalPtr.count(name) &&
-                    data->getTensorDesc() == MemoryDescUtils::convertToTensorDesc(output->second->getParentEdgesAtPort(0)[0]->getMemory().getDesc()) &&
-                        !graph->getConfig().batchLimit) {
+                    data->getTensorDesc() == MemoryDescUtils::convertToTensorDesc(output->second->getParentEdgesAtPort(0)[0]->getMemory().getDesc())) {
                     externalPtr[name] = data->buffer();
                 }
             } else {
