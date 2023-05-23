@@ -13,6 +13,16 @@ auto auto_batch_inconfigs = []() {
         {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), CommonTestUtils::DEVICE_TEMPLATE},
          {ov::hint::performance_mode.name(), "DOESN'T EXIST"}},
         {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), CommonTestUtils::DEVICE_TEMPLATE},
+         {ov::device::id.name(), "DEVICE_UNKNOWN"}}};
+};
+
+auto auto_batch_inconfigs_api_test = []() {
+    return std::vector<std::map<std::string, std::string>>{
+        {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), CommonTestUtils::DEVICE_TEMPLATE},
+         {ov::auto_batch_timeout.name(), "-1"}},
+        {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), CommonTestUtils::DEVICE_TEMPLATE},
+         {ov::hint::performance_mode.name(), "DOESN'T EXIST"}},
+        {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), CommonTestUtils::DEVICE_TEMPLATE},
          {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, InferenceEngine::PluginConfigParams::LATENCY},
          {ov::hint::performance_mode.name(), "LATENCY"},
          {ov::hint::num_requests.name(), "-1"}},
@@ -39,7 +49,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests,
 INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests,
                          IncorrectConfigAPITests,
                          ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_BATCH),
-                                            ::testing::ValuesIn(auto_batch_inconfigs())),
+                                            ::testing::ValuesIn(auto_batch_inconfigs_api_test())),
                          IncorrectConfigAPITests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests,
