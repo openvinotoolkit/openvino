@@ -331,8 +331,8 @@ Read-only properties
 External Dependencies
 ###########################################################
 For some performance-critical DL operations, the CPU plugin uses third-party libraries:
-- `oneDNN <https://github.com/oneapi-src/oneDNN>` (Intel® x86-64, Arm®)
-- `Compute Library <https://github.com/ARM-software/ComputeLibrary>` (Arm®)
+- `oneDNN <https://github.com/oneapi-src/oneDNN>`__ (Intel® x86-64, Arm®)
+- `Compute Library <https://github.com/ARM-software/ComputeLibrary>`__ (Arm®)
 
 
 Optimization guide
