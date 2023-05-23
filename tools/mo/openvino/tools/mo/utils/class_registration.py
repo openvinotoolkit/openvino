@@ -7,6 +7,7 @@ from enum import Enum
 
 import networkx as nx
 
+from openvino.tools.mo.front.common.custom_replacement_registry import CustomReplacementRegistry
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.middle.passes.eliminate import shape_inference
 from openvino.tools.mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
@@ -337,4 +338,5 @@ def apply_replacements(graph: Graph, replacements_type: list):
 
 
 def clear_registered_classes_dict():
+    CustomReplacementRegistry.registry = {}
     _registered_classes_dict.clear()

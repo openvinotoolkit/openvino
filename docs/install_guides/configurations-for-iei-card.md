@@ -1,5 +1,20 @@
 # Configurations for IEI Mustang-V100-MX8-R10 Card {#openvino_docs_install_guides_movidius_setup_guide}
 
+> **warning:**
+> OpenVINO 2022.3, temporarily, does not support the VPU devices.
+> The feature will be re-implemented with the next update. Until then, 
+> continue using a previous release of OpenVINO, if you work with VPUs.
+
+@sphinxdirective
+
+.. warning::
+
+   OpenVINO 2022.3, temporarily, does not support the VPU devices.
+   The feature will be re-implemented with the next update. Until then, 
+   continue using a previous release of OpenVINO, if you work with VPUs.
+
+@endsphinxdirective
+
 @sphinxdirective
 
 .. note:: These steps are only required for **IEI Mustang-V100-MX8-R10** card. **IEI Mustang-V100-MX8-R11** card doesn't require any additional steps and it's completely configured using the :doc:`general guidance <openvino_docs_install_guides_installing_openvino_ivad_vpu>`

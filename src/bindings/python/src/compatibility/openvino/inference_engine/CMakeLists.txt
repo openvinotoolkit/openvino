@@ -17,6 +17,18 @@ file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/ie_api.pyx
 file(GLOB PYX_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.pyx)
 set_source_files_properties(${PYX_SOURCES} PROPERTIES CYTHON_IS_CXX ON)
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    # 'argument': conversion from 'size_t' to 'int', possible loss of data
+    ie_add_compiler_flags(/wd4267)
+    ie_add_compiler_flags(/wd4244)
+endif()
+if (OV_COMPILER_IS_CLANG OR CMAKE_COMPILER_IS_GNUCXX)
+    ie_add_compiler_flags(-Wno-undef)
+endif()
+if(UNUSED_BUT_SET_VARIABLE_SUPPORTED)
+    ie_add_compiler_flags(-Wno-unused-but-set-variable)
+endif()
+
 # create target
 
 cython_add_module(${TARGET_NAME} ${SOURCES})

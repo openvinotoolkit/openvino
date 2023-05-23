@@ -1,6 +1,8 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+#cython: language_level=3
+
 from .cimport ie_api_impl_defs as C
 
 import numpy as np

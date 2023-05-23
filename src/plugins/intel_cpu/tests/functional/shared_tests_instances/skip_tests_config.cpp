@@ -115,10 +115,6 @@ std::vector<std::string> disabledTestPatterns() {
         // need to add support convert BIN -> FP32
         // if we set output precision as BIN, when we create output blob precision looks like UNSPECIFIED
         R"(.*smoke_FakeQuantizeLayerCPUTest.*bin.*)",
-        // Issue: 69088
-        // bad accuracy
-        R"(.*smoke_FakeQuantizeLayerCPUTest_Decompos.
-            *IS=_TS=\(\(4\.5\.6\.7\)\)_RS=\(\(1\.1\.6\.1\)\)_\(\(1\.5\.6\.1\)\)_\(\(1\.1\.1\.1\)\)_\(\(1\.1\.6\.1\)\).*)",
         // Issue: 69222
         R"(.*smoke_PriorBoxClustered.*PriorBoxClusteredLayerCPUTest.*_netPRC=f16_.*)",
         // Issue: 72005

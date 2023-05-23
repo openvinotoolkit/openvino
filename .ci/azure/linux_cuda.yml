@@ -37,11 +37,13 @@ resources:
     type: github
     endpoint: openvinotoolkit
     name: openvinotoolkit/openvino_contrib
+    ref: releases/2022/3
 
   - repository: testdata
     type: github
     endpoint: openvinotoolkit
     name: openvinotoolkit/testdata
+    ref: releases/2022/3
 
 jobs:
 - job: CUDAPlugin_Lin

@@ -1,7 +1,8 @@
 Supported Devices {#openvino_docs_OV_UG_supported_plugins_Supported_Devices}
 ==================
 
-The OpenVINO Runtime can infer models in different formats with various input and output formats. This section provides supported and optimal configurations per device. In OpenVINO™ documentation, "device" refers to an Intel® processors used for inference, which can be a supported CPU, GPU, VPU (vision processing unit), or GNA (Gaussian neural accelerator coprocessor), or a combination of those devices.
+The OpenVINO runtime can infer various models of different input and output formats. Here, you can find configurations 
+supported by OpenVINO devices, which are CPU, GPU, or GNA (Gaussian neural accelerator coprocessor). Currently, 11th generation and later processors (currently up to 13th generation) provide a further performance boost, especially with INT8 models.
 
 > **NOTE**: With OpenVINO™ 2020.4 release, Intel® Movidius™ Neural Compute Stick support has been cancelled.
 
@@ -17,6 +18,18 @@ The OpenVINO Runtime provides unique capabilities to infer deep learning models 
 |[Multi-Device execution](../multi_device.md) |Multi-Device execution enables simultaneous inference of the same model on several devices in parallel    |
 |[Auto-Device plugin](../auto_device_selection.md) |Auto-Device plugin enables selecting Intel&reg; device for inference automatically |
 |[Heterogeneous plugin](../hetero_execution.md) |Heterogeneous execution enables automatic inference splitting between several devices (for example if a device doesn't [support certain operation](#supported-layers)).                                                           |
+
+
+@sphinxdirective
+
+.. warning::
+
+   OpenVINO 2022.3, temporarily, does not support the VPU devices.
+   The feature will be re-implemented with the next update. Until then, 
+   continue using a previous release of OpenVINO, if you work with VPUs.
+
+@endsphinxdirective
+
 
 > **NOTE**: ARM® CPU plugin is a community-level add-on to OpenVINO™. Intel® welcomes community participation in the OpenVINO™ ecosystem, technical questions and code contributions on community forums. However, this component has not undergone full release validation or qualification from Intel®, hence no official support is offered. 
 

@@ -363,6 +363,8 @@ else()
     endif()
 endif()
 
+check_cxx_compiler_flag("-Wunused-but-set-variable" UNUSED_BUT_SET_VARIABLE_SUPPORTED)
+
 # Links provided libraries and include their INTERFACE_INCLUDE_DIRECTORIES as SYSTEM
 function(link_system_libraries TARGET_NAME)
     set(MODE PRIVATE)

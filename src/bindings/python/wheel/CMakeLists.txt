@@ -109,7 +109,18 @@ elseif(LINUX)
         set(PLATFORM_TAG "linux_${_arch}")
     else()
         string(REPLACE "." "_" _ov_glibc_version "${OV_GLIBC_VERSION}")
-        set(PLATFORM_TAG "manylinux_${_ov_glibc_version}_${_arch}")
+        set(manylinux "manylinux_${_ov_glibc_version}")
+
+        # convert to well-known formats according to PEP 600
+        if(manylinux STREQUAL "manylinux_2_5")
+            set(manylinux "manylinux1")
+        elseif(manylinux STREQUAL "manylinux_2_12")
+            set(manylinux "manylinux2010")
+        elseif(manylinux STREQUAL "manylinux_2_17")
+            set(manylinux "manylinux2014")
+        endif()
+
+        set(PLATFORM_TAG "${manylinux}_${_arch}")
     endif()
 endif()
 
@@ -135,11 +146,13 @@ add_custom_command(OUTPUT ${openvino_wheel_path}
     COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}"
     COMMAND ${CMAKE_COMMAND} -E copy_directory "${OpenVINO_SOURCE_DIR}/licensing" "${CMAKE_BINARY_DIR}/licensing"
     COMMAND ${wheel_env}
-        ${PYTHON_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/setup.py" bdist_wheel
+        ${PYTHON_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/setup.py"
+            --quiet
+            --no-user-cfg
+            bdist_wheel
             --dist-dir ${openvino_wheels_output_dir}
             --build-number=${WHEEL_BUILD}
             --plat-name=${PLATFORM_TAG}
-            --quiet
     COMMAND ${CMAKE_COMMAND} -E remove_directory "${CMAKE_CURRENT_BINARY_DIR}/site-packages"
     COMMAND ${wheel_env}
         ${PYTHON_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/setup.py" clean
