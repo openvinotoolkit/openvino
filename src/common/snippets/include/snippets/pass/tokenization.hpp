@@ -1,16 +1,16 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <ngraph/pass/graph_rewrite.hpp>
-#include <ngraph/pattern/matcher.hpp>
+#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
 
 #include "snippets/pass/mha_tokenization.hpp"
 #include "snippets/pass/collapse_subgraph.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace pass {
 
@@ -46,7 +46,7 @@ public:
  *         4. Some common transformations for Subgraphs. For example, FakeQuantize decomposition
  * @ingroup snippets
  */
-class SnippetsTokenization : public ngraph::pass::FunctionPass {
+class SnippetsTokenization : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("SnippetsTokenization", "0");
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
@@ -55,4 +55,4 @@ public:
 
 }  // namespace pass
 }  // namespace snippets
-}  // namespace ngraph
+}  // namespace ov
