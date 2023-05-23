@@ -288,21 +288,35 @@ struct padding {
     /// @return Tensor with padding for bottom/right/upper bounds of data.
     tensor upper_size() const { return _upper_size; }
 
+    void set_dynamic_pad(const tensor& dynamic_pad_dims) {
+        _dynamic_pad_dims = dynamic_pad_dims;
+    }
+
+    tensor get_dynamic_pad_dims() const {
+        return _dynamic_pad_dims;
+    }
     /// @brief
     /// @param lower_sizes Top-left padding sizes. See @ref tensor::tensor(const std::vector<value_type>&, value_type) for details.
     /// @param upper_sizes Bottom-right padding sizes. See @ref tensor::tensor(const std::vector<value_type>&, value_type) for details.
     /// @param filling_value Filling value for padding area.
-    padding(const std::vector<tensor::value_type>& lower_sizes, const std::vector<tensor::value_type>& upper_sizes, float filling_value = 0.0f)
-        : _lower_size(to_abs(lower_sizes), 0), _upper_size(to_abs(upper_sizes), 0), _filling_value(filling_value) {}
+    padding(const std::vector<tensor::value_type>& lower_sizes,
+            const std::vector<tensor::value_type>& upper_sizes,
+            float filling_value = 0.0f,
+            const tensor& dynamic_pad_dims = tensor(0))
+        : _lower_size(to_abs(lower_sizes), 0),
+          _upper_size(to_abs(upper_sizes), 0),
+          _filling_value(filling_value),
+          _dynamic_pad_dims(dynamic_pad_dims) {}
 
     /// @brief Constrcuts symmetric padding.
-    /// @param sizes Top-left and bottom-right padding sizes. See @ref tensor::tensor(const std::vector<value_type>&, value_type) for details.
+    /// @param sizes Top-left and bottom-right padding sizes. See @ref tensor::tensor(const std::vector<value_type>&,
+    /// value_type) for details.
     /// @param filling_value Filling value for padding area.
-    explicit padding(const std::vector<tensor::value_type>& sizes, float filling_value = 0.0f)
-        : padding(sizes, sizes, filling_value) {}
+    explicit padding(const std::vector<tensor::value_type>& sizes, float filling_value = 0.0f, const tensor& dynamic_pad_dims = tensor(0))
+        : padding(sizes, sizes, filling_value, dynamic_pad_dims) {}
 
     /// @brief Constructs "zero-sized" padding.
-    padding() : padding({0, 0, 0, 0}, 0) {}
+    padding() : padding({0, 0, 0, 0}, 0, tensor(0)) {}
 
     /// @brief Returns true if padding size is not zero.
     explicit operator bool() const {
@@ -311,7 +325,8 @@ struct padding {
     }
 
     friend bool operator==(const padding& lhs, const padding& rhs) {
-        return lhs._lower_size == rhs._lower_size && lhs._upper_size == rhs._upper_size && lhs._filling_value == rhs._filling_value;
+        return lhs._lower_size == rhs._lower_size && lhs._upper_size == rhs._upper_size &&
+               lhs._filling_value == rhs._filling_value && lhs._dynamic_pad_dims == rhs._dynamic_pad_dims;
     }
 
     friend bool operator!=(const padding& lhs, const padding& rhs) {
@@ -329,7 +344,8 @@ struct padding {
     static padding max(padding const& lhs, padding const& rhs, float filling_value = 0.0f) {
         auto lower = tensor::max(lhs.lower_size(), rhs.lower_size());
         auto upper = tensor::max(lhs.upper_size(), rhs.upper_size());
-        return padding{lower.sizes(), upper.sizes(), filling_value};
+        auto dynamic_pad_dims = tensor::max(lhs.get_dynamic_pad_dims(), rhs.get_dynamic_pad_dims());
+        return padding{lower.sizes(), upper.sizes(), filling_value, dynamic_pad_dims};
     }
 
     size_t hash() const {
@@ -337,6 +353,7 @@ struct padding {
         seed = cldnn::hash_combine(seed, _filling_value);
         seed = cldnn::hash_combine(seed, _lower_size.hash());
         seed = cldnn::hash_combine(seed, _upper_size.hash());
+        seed = cldnn::hash_combine(seed, _dynamic_pad_dims.hash());
         return seed;
     }
 
@@ -347,6 +364,7 @@ private:
     float _filling_value;  ///< Filling value for an element of padding. If data type of elements is different than float it is converted
                            ///< to it using round-towards-nearest-even (for floating-point data types) or round-towards-zero (for integral
                            ///< data types).
+    tensor _dynamic_pad_dims = tensor(0);
 
     static std::vector<tensor::value_type> to_abs(const std::vector<tensor::value_type>& sizes) {
         std::vector<tensor::value_type> result;

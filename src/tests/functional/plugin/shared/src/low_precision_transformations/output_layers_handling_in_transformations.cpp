@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "low_precision_transformations/output_layers_handling_in_transformations.hpp"
+#include "low_precision_transformations/output_layers.hpp"
 
 #include <memory>
 #include <tuple>
@@ -21,7 +21,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string OutputLayersHandlingInTransformations::getTestCaseName(const testing::TestParamInfo<LayerTestsUtils::LayerTransformationParams>& obj) {
+std::string OutputLayers::getTestCaseName(const testing::TestParamInfo<LayerTestsUtils::LayerTransformationParams>& obj) {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::SizeVector inputShapes;
     std::string targetDevice;
@@ -31,7 +31,7 @@ std::string OutputLayersHandlingInTransformations::getTestCaseName(const testing
     return getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params);
 }
 
-InferenceEngine::Blob::Ptr OutputLayersHandlingInTransformations::GenerateInput(const InferenceEngine::InputInfo &info) const {
+InferenceEngine::Blob::Ptr OutputLayers::GenerateInput(const InferenceEngine::InputInfo &info) const {
     InferenceEngine::SizeVector inputShape;
     InferenceEngine::Precision netPrecision;
     std::string targetDevice;
@@ -46,7 +46,7 @@ InferenceEngine::Blob::Ptr OutputLayersHandlingInTransformations::GenerateInput(
     return input;
 }
 
-void OutputLayersHandlingInTransformations::SetUp() {
+void OutputLayers::SetUp() {
     InferenceEngine::SizeVector inputShape;
     InferenceEngine::Precision netPrecision;
     ngraph::pass::low_precision::LayerTransformation::Params params;
@@ -89,7 +89,7 @@ void OutputLayersHandlingInTransformations::SetUp() {
     function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector { input }, "OutputLayersHandling");
 }
 
-TEST_P(OutputLayersHandlingInTransformations, CompareWithRefImpl) {
+TEST_P(OutputLayers, CompareWithRefImpl) {
     Run();
 };
 
