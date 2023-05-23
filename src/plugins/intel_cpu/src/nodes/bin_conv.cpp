@@ -636,6 +636,9 @@ private:
         if (jcp_.with_binarization) {
             int binarization_idx = p.find(primitive_kind::binarization);
 
+            if (binarization_idx < 0)  // for coverity correctness
+                binarization_idx = 0;
+
             pop(reg_oc_off);
 
             mov(reg_b_weights, reinterpret_cast<size_t>(p.entry_[binarization_idx].binarization.weights_data));
