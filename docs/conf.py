@@ -46,7 +46,7 @@ extensions = [
     'sphinx_sitemap'
 ]
 
-html_baseurl = 'https://docs.openvino.ai/latest/'
+html_baseurl = 'https://docs.openvino.ai/canonical/'
 
 sitemap_url_scheme = "{link}"
 
