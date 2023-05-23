@@ -51,35 +51,66 @@ int64_t get_dim_stride(const size_t dim, const std::vector<size_t>& layout, cons
     }
     return stride;
 }
+void add_stride_from_splitted_loops(int64_t& increment, const LinearIR::LoopManagerPtr& loop_manager,
+                                    const std::vector<size_t>& loop_ids, size_t loop_id, size_t dim_idx) {
+    // Example, shape = [3, 384, 64], loop_ids = [0, 1, 2]
+    // Loop Info:                            | Pointer increments:
+    // - 0: work_amount = 12, dim_idx = 1    | 1 x 64 x 32 - 32 is work_amount of inner splitted Loop
+    // - 1: work_amount = 32, dim_idx = 1    | 1 x 64
+    // - 2: work_amount = 64, dim_idx = 0    | 1
+
+    // Firstly, we find all Loop IDs with the same dimension index.
+    // The Loop Info's with the same dimension index mean that these Loops split this dimension together.
+    // It's possible in Brgemm Blocking by M, for example
+    std::unordered_set<size_t> splitted_loops;
+    for (auto it = loop_ids.rbegin(); it != loop_ids.rend(); ++it) {
+        const auto id = *it;
+        if (loop_manager->get_loop_info(id)->dim_idx == dim_idx)
+            splitted_loops.insert(id);
+    }
+    // Secondly, we added work amount of inner splitted Loops
+    for (auto id : splitted_loops) {
+        if (id == loop_id)
+            break;
+        increment *= loop_manager->get_loop_info(id)->work_amount;
+    }
+}
 }  // namespace
 
 InitLoops::InitLoops() : Pass() {}
 
 std::vector<int64_t> InitLoops::init_ptr_increments(const std::vector<ExpressionPort>& loop_inputs,
                                                     const std::vector<ExpressionPort>& loop_outputs,
-                                                    size_t work_amount, size_t dim_idx) {
+                                                    const LinearIR::LoopManagerPtr& loop_manager,
+                                                    size_t loop_id, size_t work_amount, size_t dim_idx) {
      std::vector<int64_t> ptr_increments;
     for (const auto& loop_input : loop_inputs) {
         // For strides we have to use layout from source since source writes data by special rules
         const auto source = *loop_input.get_connected_ports().begin();
+        const auto loop_ids = loop_input.get_expr()->get_loop_ids();
         const auto& layout = loop_input.get_descriptor_ptr()->get_layout();
         const auto& shape = loop_input.get_descriptor_ptr()->get_shape();
         const auto& dim = *(layout.rbegin() + dim_idx);
         int64_t ptr_increment = 0;
         // If relevant dim is not broadcasted, then ptr_increment is the dim stride in the new layout
-        if (!(shape[dim] == 1 && work_amount != 1))
+        if (!(shape[dim] == 1 && work_amount != 1)) {
             ptr_increment = get_dim_stride(dim, source.get_descriptor_ptr()->get_layout(), shape);
+            add_stride_from_splitted_loops(ptr_increment, loop_manager, loop_ids, loop_id, dim_idx);
+        }
         ptr_increments.push_back(ptr_increment);
     }
 
     for (const auto& loop_output : loop_outputs) {
+        const auto loop_ids = loop_output.get_expr()->get_loop_ids();
         const auto& layout = loop_output.get_descriptor_ptr()->get_layout();
         const auto& shape = loop_output.get_descriptor_ptr()->get_shape();
         const auto& dim = *(layout.rbegin() + dim_idx);
         int64_t ptr_increment = 0;
         // If relevant dim is not broadcasted, then ptr_increment is the dim stride in the new layout
-        if (!(shape[dim] == 1 && work_amount != 1))
+        if (!(shape[dim] == 1 && work_amount != 1)) {
             ptr_increment = get_dim_stride(dim, layout, shape);
+            add_stride_from_splitted_loops(ptr_increment, loop_manager, loop_ids, loop_id, dim_idx);
+        }
         ptr_increments.push_back(ptr_increment);
     }
 
@@ -108,7 +139,8 @@ std::vector<int64_t> InitLoops::init_element_type_sizes(const std::vector<Expres
     return element_types;
 }
 
-void InitLoops::insertion(LinearIR& linear_ir, const LinearIR::LoopManager::LoopInfoPtr& loop_info, size_t loop_id, bool has_outer_loop) {
+void InitLoops::insertion(LinearIR& linear_ir, const LinearIR::LoopManagerPtr& loop_manager, size_t loop_id, bool has_outer_loop) {
+    const auto loop_info = loop_manager->get_loop_info(loop_id);
     auto loop_entries = loop_info->entry_exprs;
     auto loop_exits = loop_info->exit_exprs;
     const auto work_amount = loop_info->work_amount;
@@ -116,12 +148,12 @@ void InitLoops::insertion(LinearIR& linear_ir, const LinearIR::LoopManager::Loop
     const auto dim_idx = loop_info->dim_idx;
 
     LinearIR::constExprIt loop_begin_pos, loop_end_pos;
-    LinearIR::LoopManager::get_loop_bounds(linear_ir, loop_entries, loop_exits, loop_begin_pos, loop_end_pos, loop_id);
+    loop_manager->get_loop_bounds(linear_ir, loop_id, loop_begin_pos, loop_end_pos);
 
     filter_ports(linear_ir, loop_entries, loop_exits);
 
-    auto ptr_increments = init_ptr_increments(loop_entries, loop_exits, work_amount, dim_idx);
-    auto finalization_offsets = init_finalization_offsets(ptr_increments, work_amount);
+    const auto ptr_increments = init_ptr_increments(loop_entries, loop_exits, loop_manager, loop_id, work_amount, dim_idx);
+    const auto finalization_offsets = init_finalization_offsets(ptr_increments, work_amount);
     const auto io_data_sizes = init_element_type_sizes(loop_entries, loop_exits);
 
     const auto& loop_begin = std::make_shared<op::LoopBegin>();
@@ -167,9 +199,8 @@ bool InitLoops::run(LinearIR& linear_ir) {
         for (size_t i = 0; i < loop_depth; ++i) {
             const auto loop_id = expr_loops[i];
             if (inserted_loops.count(loop_id) == 0) {
-                const auto loop_info = loop_manager->get_loop_info(loop_id);
                 const bool has_outer_loop = i > 0 && inserted_loops.find(expr_loops[i - 1]) != inserted_loops.end();
-                insertion(linear_ir, loop_info, loop_id, has_outer_loop);
+                insertion(linear_ir, loop_manager, loop_id, has_outer_loop);
                 inserted_loops.insert(loop_id);  // save Loop ID
             }
         }
