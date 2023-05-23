@@ -162,8 +162,8 @@ ov::op::PadType convert_pad(const std::string& pt_pad) {
     return TORCH_AUTO_PAD_TO_OV.at(pt_pad);
 };
 
-std::shared_ptr<Node> concat_list_construct(std::shared_ptr<Node> input) {
-    if (auto list_construct = cast_fw_node(input, "prim::ListConstruct")) {
+Output<Node> concat_list_construct(const Output<Node>& input) {
+    if (auto list_construct = cast_fw_node(input.get_node_shared_ptr(), "prim::ListConstruct")) {
         auto list_inputs = list_construct->input_values();
         OutputVector node_vector;
         auto zero = opset10::Constant::create(element::i32, Shape{}, {0});
