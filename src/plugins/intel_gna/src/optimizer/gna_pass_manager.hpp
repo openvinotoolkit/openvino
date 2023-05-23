@@ -215,14 +215,6 @@ DECL_PASS(FuseFQIntoWeights);
 DECL_PASS(MoveFakeQuantizeLayerIntoQuantParams);
 
 /**
- * @brief convert FullyConnected, ScaleShift and Eltwise layers weights order from NCHW to NHWC.
- * Information for transposition is found from convolution/pooling input or output dimensions.
- * Convolution weights are transposed in finalizeConvolution1DPrimitive() method (gna_graph_compiler.cpp).
- * They are transposed for the both, NCHW and NHWC models since MO always stores them in NCHW layout.
- */
-DECL_PASS(TransposeWeightsFromNCHWToNHWC);
-
-/**
  * @brief fuse FullyConnected and Eltwise layers, also in case there is a Reshape between them having input with only
  * one dimension > 1
  */
