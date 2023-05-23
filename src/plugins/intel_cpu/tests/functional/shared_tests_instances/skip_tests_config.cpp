@@ -170,7 +170,9 @@ std::vector<std::string> disabledTestPatterns() {
         // 98151. Not valid sorting for slices in reference.
         R"(.*UniqueLayerTestCPU.*axis.*True.*)",
         // AUTO does not support import / export
-        R"(.*smoke_Auto_BehaviorTests/OVCompiledGraphImportExportTest.*(mportExport|readFromV10IR).*/targetDevice=(AUTO).*)"
+        R"(.*smoke_Auto_BehaviorTests/OVCompiledGraphImportExportTest.*(mportExport|readFromV10IR).*/targetDevice=(AUTO).*)",
+        // AdaptiveAvgPool is converted into Reduce op for suitable parameters. CPU Reduce impl doesn't support non planar layout for 3D case
+        R"(.*StaticAdaPoolAvg3DLayoutTest.*OS=\(1\).*_inFmts=(nwc|nCw16c|nCw8c).*)"
     };
 
 #if defined(OPENVINO_ARCH_X86)

@@ -305,6 +305,19 @@ Program::Program(InferenceEngine::CNNNetwork& network, cldnn::engine& engine, co
     }
 }
 
+Program::Program(cldnn::engine& engine, const ExecutionConfig& config,
+                 InferenceEngine::InputsDataMap* inputs, InferenceEngine::OutputsDataMap* outputs)
+        : m_max_batch(1)
+        , m_curBatch(-1)
+        , m_config(config)
+        , m_engine(engine)
+        , queryMode(false) {
+    if (inputs != nullptr)
+        m_networkInputs = *inputs;
+    if (outputs != nullptr)
+        m_networkOutputs = *outputs;
+}
+
 int Program::GetMaxBatchSizeForSingleProgram() {
     auto max_dynamic_batch = m_config.get_property(ov::intel_gpu::max_dynamic_batch);
     if (max_dynamic_batch > 1) {
