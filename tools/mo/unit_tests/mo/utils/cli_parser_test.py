@@ -2052,7 +2052,8 @@ class TestConvertModelParamsParsing(unittest.TestCase):
             'MXNet-specific parameters:': {'input_symbol', 'nd_prefix_name', 'pretrained_model_name', 'save_params_from_nd',
                                            'legacy_mxnet_model', 'enable_ssd_gluoncv'},
             'Kaldi-specific parameters:': {'counts', 'remove_output_softmax', 'remove_memory'},
-            'PyTorch-specific parameters:': {'example_input', 'onnx_opset_version'}
+            'PaddlePaddle-specific parameters:': {'example_input', 'example_output'},
+            'PyTorch-specific parameters:': {'example_input'}
         }
 
         params = get_mo_convert_params()
@@ -2064,7 +2065,7 @@ class TestConvertModelParamsParsing(unittest.TestCase):
         for group_name, params in ref_params.items():
             for param_name in params:
                 param_name = '--' + param_name
-                if group_name == 'PyTorch-specific parameters:':
+                if group_name == 'PyTorch-specific parameters:' or group_name == 'PaddlePaddle-specific parameters:':
                     assert param_name not in cli_parser._option_string_actions
                 else:
                     assert param_name in cli_parser._option_string_actions

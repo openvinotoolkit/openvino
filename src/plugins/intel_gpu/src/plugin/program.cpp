@@ -148,6 +148,8 @@ Program::Program(InferenceEngine::CNNNetwork& network, cldnn::engine& engine, co
     Dl_info dl_info;
     dladdr(reinterpret_cast<void *>(CustomLayer::LoadFromFile), &dl_info);
     const char* mpath = dl_info.dli_fname;
+#else
+#error "Intel GPU plugin: unknown target system"
 #endif
     std::string configFile(mpath);
     std::size_t dir_split_pos = configFile.find_last_of("/\\");
@@ -301,6 +303,19 @@ Program::Program(InferenceEngine::CNNNetwork& network, cldnn::engine& engine, co
     } else {
         m_programs.emplace_back(BuildProgram(ops, networkInputs, networkOutputs, createTopologyOnly, partialBuild));
     }
+}
+
+Program::Program(cldnn::engine& engine, const ExecutionConfig& config,
+                 InferenceEngine::InputsDataMap* inputs, InferenceEngine::OutputsDataMap* outputs)
+        : m_max_batch(1)
+        , m_curBatch(-1)
+        , m_config(config)
+        , m_engine(engine)
+        , queryMode(false) {
+    if (inputs != nullptr)
+        m_networkInputs = *inputs;
+    if (outputs != nullptr)
+        m_networkOutputs = *outputs;
 }
 
 int Program::GetMaxBatchSizeForSingleProgram() {

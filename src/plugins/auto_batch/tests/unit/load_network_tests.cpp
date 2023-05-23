@@ -110,7 +110,7 @@ TEST_P(PluginLoadNetworkTest, PluginLoadNetworkTestCase) {
         .WillByDefault(Return(params["PERFORMANCE_HINT_NUM_REQUESTS"]));
 
     ON_CALL(*core, GetMetric(_, StrEq("GPU_MEMORY_STATISTICS"), _))
-        .WillByDefault([this, &params](const std::string& device, const std::string& key, const ov::AnyMap& options) {
+        .WillByDefault([&params](const std::string& device, const std::string& key, const ov::AnyMap& options) {
             static int flag = 0;
             ov::Any value = params[key];
             uint64_t data = flag * value.as<uint64_t>();
@@ -139,7 +139,7 @@ TEST_P(PluginLoadNetworkTest, PluginLoadBatchedNetworkTestCase) {
         .WillByDefault(Return(params["PERFORMANCE_HINT_NUM_REQUESTS"]));
 
     ON_CALL(*core, GetMetric(_, StrEq("GPU_MEMORY_STATISTICS"), _))
-        .WillByDefault([this, &params](const std::string& device, const std::string& key, const ov::AnyMap& options) {
+        .WillByDefault([&params](const std::string& device, const std::string& key, const ov::AnyMap& options) {
             static int flag = 0;
             ov::Any value = params[key];
             uint64_t data = flag * value.as<uint64_t>();
@@ -180,7 +180,7 @@ TEST_P(PluginLoadNetworkTest, PluginLoadNetworkGetMetricTestCase) {
         .WillByDefault(Return(params["PERFORMANCE_HINT_NUM_REQUESTS"]));
 
     ON_CALL(*core, GetMetric(_, StrEq("GPU_MEMORY_STATISTICS"), _))
-        .WillByDefault([this, &params](const std::string& device, const std::string& key, const ov::AnyMap& options) {
+        .WillByDefault([&params](const std::string& device, const std::string& key, const ov::AnyMap& options) {
             static int flag = 0;
             ov::Any value = params[key];
             uint64_t data = flag * value.as<uint64_t>();

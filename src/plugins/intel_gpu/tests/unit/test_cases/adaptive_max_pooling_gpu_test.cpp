@@ -69,7 +69,7 @@ ov::Shape tensorToShape(const tensor& t, const format f)
 template<typename T>
 void generateTestData(const AdaptiveMaxPoolingParams& p, const format fmt,
                       std::vector<T>& inputs, std::vector<T>& outputs, std::vector<int32_t>& indices) {
-    const auto in = generate_random_1d<float>(p.inputTensor.count(), -127, 127, 1);
+    const auto in = generate_random_1d<float>(p.inputTensor.count(), -127, 127, 8);
     std::vector<float> out(p.outputTensor.count());
     std::vector<int32_t> ind(p.outputTensor.count());
 

@@ -94,6 +94,13 @@ std::shared_ptr<ngraph::Node> VerifyBiasGetConst(std::shared_ptr<ngraph::Node> c
 std::shared_ptr<ngraph::Node> InsertFQLayer(const std::shared_ptr<ngraph::opset7::FakeQuantize> fq_layer,
                                             std::shared_ptr<ngraph::Node> last_node);
 
+/**
+ * @brief removes single node and inserts Reshape if its input and output shapes differ
+ * @param node the node to be removed
+ * @return void
+ */
+void remove_single_input_node(std::shared_ptr<ov::Node> node);
+
 }  // namespace helper
 }  // namespace pass
 }  // namespace intel_gna
