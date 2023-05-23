@@ -30,14 +30,13 @@ Once you have a model that meets both OpenVINO™ and your requirements, you can
 | :doc:`Option 1. Deployment via OpenVINO Runtime <openvino_deployment_guide>` 
 | Local deployment uses OpenVINO Runtime that is called from, and linked to, the application directly. 
 | It utilizes resources available to the system and provides the quickest way of launching inference.
+| Deployment on a local system requires performing the steps from the running inference section.
 
 
 | :doc:`Option 2. Deployment via Model Server <ovms_what_is_openvino_model_server>`
 | Deployment via OpenVINO Model Server allows the application to connect to the inference server set up remotely. 
 | This way inference can use external resources instead of those available to the application itself. 
+| Deployment on a model server can be done immediately without the need to run inference.
 
-.. note::
-
-   Deployment on a local system requires performing the steps from the running inference section.  Deployment on a model server can be done separately without the need to run inference."
 
 @endsphinxdirective
