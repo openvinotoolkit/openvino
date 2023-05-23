@@ -111,11 +111,11 @@ bool SoftmaxDecomposition::run(LinearIR& linear_ir) {
                 expr->add_outer_loop_ids(softmax_loop_ids, expr->get_loop_ids().back());
             }
 
-            auto update_loop_bounds = [&softmax_expr](std::vector<ExpressionPort>& points,
+            auto update_loop_bounds = [&softmax_expr](std::vector<LinearIR::LoopManager::LoopPoint>& points,
                                                      const std::vector<ExpressionPort>& new_points,
                                                      const LinearIR::LoopManager::LoopInfoPtr& loop_info) {
-                auto entry_found = std::find_if(points.begin(), points.end(), [&softmax_expr](const ExpressionPort& desc) {
-                    return desc.get_expr() == softmax_expr;
+                auto entry_found = std::find_if(points.begin(), points.end(), [&softmax_expr](const LinearIR::LoopManager::LoopPoint& point) {
+                    return point.port.get_expr() == softmax_expr;
                 });
                 if (entry_found != points.end()) {
                     entry_found = points.erase(entry_found);
@@ -126,9 +126,9 @@ bool SoftmaxDecomposition::run(LinearIR& linear_ir) {
             // Update Loop info for outer loops
             for (auto loop_id : softmax_loop_ids) {
                 const auto loop_info = loop_manager->get_loop_info(loop_id);
-                update_loop_bounds(loop_info->entry_exprs, std::vector<ExpressionPort>{(*max.first)->get_input_port(0),
+                update_loop_bounds(loop_info->entry_points, std::vector<ExpressionPort>{(*max.first)->get_input_port(0),
                                                                                        (*sub.first)->get_input_port(0)}, loop_info);
-                update_loop_bounds(loop_info->exit_exprs, std::vector<ExpressionPort>{(*mul.first)->get_output_port(0)}, loop_info);
+                update_loop_bounds(loop_info->exit_points, std::vector<ExpressionPort>{(*mul.first)->get_output_port(0)}, loop_info);
             }
 
             /* =========================================== */

@@ -16,6 +16,43 @@ namespace ov {
 namespace snippets {
 namespace lowered {
 
+int64_t LinearIR::LoopManager::LoopPoint::UNDEFINED = INT64_MAX;
+
+LinearIR::LoopManager::LoopInfo::LoopInfo(size_t work_amount, size_t increment, size_t dim_idx,
+                                          const std::vector<ExpressionPort>& entries, const std::vector<ExpressionPort>& exits)
+    : work_amount(work_amount), increment(increment), dim_idx(dim_idx) {
+    entry_points.reserve(entries.size());
+    exit_points.reserve(exits.size());
+    for (const auto& port : entries)
+        entry_points.emplace_back(port);
+    for (const auto& port : exits)
+        exit_points.emplace_back(port);
+}
+
+std::vector<ExpressionPort> LinearIR::LoopManager::LoopInfo::get_entry_ports() const {
+    std::vector<ExpressionPort> ports;
+    std::transform(entry_points.cbegin(), entry_points.cend(), std::back_inserter(ports), [](const LoopPoint& point) { return point.port; });
+    return ports;
+}
+std::vector<ExpressionPort> LinearIR::LoopManager::LoopInfo::get_exit_ports() const {
+    std::vector<ExpressionPort> ports;
+    std::transform(exit_points.cbegin(), exit_points.cend(), std::back_inserter(ports), [](const LoopPoint& point) { return point.port; });
+    return ports;
+}
+
+bool operator==(const LinearIR::LoopManager::LoopPoint& lhs, const LinearIR::LoopManager::LoopPoint& rhs) {
+    if (&lhs == &rhs)
+        return true;
+    return lhs.port == rhs.port && lhs.ptr_increment == rhs.ptr_increment && lhs.finalization_offset == rhs.finalization_offset;
+}
+bool operator!=(const LinearIR::LoopManager::LoopPoint& lhs, const LinearIR::LoopManager::LoopPoint& rhs) {
+    return !(lhs == rhs);
+}
+bool operator<(const LinearIR::LoopManager::LoopPoint& lhs, const LinearIR::LoopManager::LoopPoint& rhs) {
+    // Compare only ports is enough since it's needed only in Set Comparator. Several the same ports cannot be there
+    return lhs.port < rhs.port;
+}
+
 size_t LinearIR::LoopManager::add_loop_info(const LoopInfoPtr &loop) {
     const auto index = next_id;
     m_map[index] = loop;
@@ -44,18 +81,18 @@ void LinearIR::LoopManager::get_loop_bounds(const LinearIR &linear_ir,
                                             LinearIR::constExprIt &loop_begin_pos,
                                             LinearIR::constExprIt &loop_end_pos) const {
     const auto loop_info = get_loop_info(loop_id);
-    get_loop_bounds(linear_ir, loop_info->entry_exprs, loop_info->exit_exprs, loop_begin_pos, loop_end_pos, loop_id);
+    get_loop_bounds(linear_ir, loop_info->entry_points, loop_info->exit_points, loop_begin_pos, loop_end_pos, loop_id);
 }
 
 void LinearIR::LoopManager::get_loop_bounds(const LinearIR &linear_ir,
-                                            const std::vector<ExpressionPort> &entries,
-                                            const std::vector<ExpressionPort> &exits,
+                                            const std::vector<LoopPoint>& entries,
+                                            const std::vector<LoopPoint>& exits,
                                             LinearIR::constExprIt &loop_begin_pos,
                                             LinearIR::constExprIt &loop_end_pos,
                                             size_t loop_id) {
     OPENVINO_ASSERT(!entries.empty(), "Loop must have entry points");
     OPENVINO_ASSERT(!exits.empty(), "Loop must have entry points");
-    const auto& entry_expr = entries.front().get_expr();
+    const auto& entry_expr = entries.front().port.get_expr();
     loop_begin_pos = std::find(linear_ir.begin(), linear_ir.end(), entry_expr);
     OPENVINO_ASSERT(loop_begin_pos != linear_ir.end(), "Loop begin hasn't been found!");
 
@@ -68,7 +105,7 @@ void LinearIR::LoopManager::get_loop_bounds(const LinearIR &linear_ir,
     }
 
     // At the moment all Loops must have exit points
-    const auto& exit_expr = exits.back().get_expr();
+    const auto& exit_expr = exits.back().port.get_expr();
     loop_end_pos = std::next(std::find(loop_begin_pos, linear_ir.end(), exit_expr));
     OPENVINO_ASSERT(loop_end_pos != linear_ir.end(), "Loop end hasn't been found!");
 }

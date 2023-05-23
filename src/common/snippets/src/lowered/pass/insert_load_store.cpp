@@ -28,8 +28,9 @@ void InsertLoadStore::update_loops(const LinearIR::LoopManagerPtr& loop_manager,
 
 void InsertLoadStore::update_loop(const LinearIR::LoopManager::LoopInfoPtr& loop_info,
                                   const ExpressionPort& actual_port, const std::vector<ExpressionPort>& target_ports, bool is_entry) {
-    auto& ports = is_entry ? loop_info->entry_exprs : loop_info->exit_exprs;
-    auto port_it = std::find(ports.begin(), ports.end(), actual_port);
+    auto& ports = is_entry ? loop_info->entry_points : loop_info->exit_points;
+    auto port_it = std::find_if(ports.begin(), ports.end(),
+                                [&actual_port](const LoopManager::LoopPoint& point) { return point.port == actual_port; });
     if (port_it == ports.end())
         return;
     port_it = ports.erase(port_it);

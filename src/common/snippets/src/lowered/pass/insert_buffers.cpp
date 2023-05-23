@@ -200,8 +200,8 @@ bool InsertBuffers::run(LinearIR& linear_ir) {
     const auto loop_data_map = loop_manager->get_map();
     for (const auto& loop_data : loop_data_map) {
         const auto loop_info = loop_data.second;
-        const auto loop_entries = loop_info->entry_exprs;
-        const auto loop_exits = loop_info->exit_exprs;
+        const auto loop_entries = loop_info->get_entry_ports();
+        const auto loop_exits = loop_info->get_exit_ports();
         insertion(linear_ir, loop_manager, loop_entries, loop_exits);
     }
 

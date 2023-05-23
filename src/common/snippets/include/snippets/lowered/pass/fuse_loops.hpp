@@ -51,7 +51,7 @@ private:
     static bool fuse_lower_into_current(LinearIR& linear_ir, const LinearIR::LoopManagerPtr& loop_manager, const ExpressionPort& current_entry_point,
                                         size_t current_loop_id, size_t target_loop_id,
                                         LinearIR::constExprIt& current_loop_begin_pos, LinearIR::constExprIt& current_loop_end_pos);
-    static void fuse_points(std::vector<ExpressionPort>& exit_points, std::vector<ExpressionPort>& entry_points,
+    static void fuse_points(std::vector<LinearIR::LoopManager::LoopPoint>& exit_points, std::vector<LinearIR::LoopManager::LoopPoint>& entry_points,
                             LinearIR::constExprIt loop_begin_pos, LinearIR::constExprIt loop_end_pos);
 };
 

@@ -19,13 +19,36 @@ class LinearIR::LoopManager {
 public:
     LoopManager() = default;
 
+    struct LoopPoint {
+        static int64_t UNDEFINED;
+
+        LoopPoint() = default;
+        LoopPoint(const ExpressionPort& port, int64_t ptr_increment = UNDEFINED, int64_t final_offset = UNDEFINED)
+            : port(port), ptr_increment(ptr_increment), finalization_offset(final_offset) {}
+
+        friend bool operator==(const LoopPoint& lhs, const LoopPoint& rhs);
+        friend bool operator!=(const LoopPoint& lhs, const LoopPoint& rhs);
+        friend bool operator<(const LoopPoint& lhs, const LoopPoint& rhs);
+
+        ExpressionPort port = {};
+        int64_t ptr_increment = UNDEFINED;
+        int64_t finalization_offset = UNDEFINED;
+    };
+
     class LoopInfo {
     public:
         LoopInfo() = default;
         LoopInfo(size_t work_amount, size_t increment, size_t dim_idx,
+                 const std::vector<LoopPoint>& entries,
+                 const std::vector<LoopPoint>& exits)
+            : work_amount(work_amount), increment(increment), dim_idx(dim_idx), entry_points(entries), exit_points(exits) {}
+        LoopInfo(size_t work_amount, size_t increment, size_t dim_idx,
                  const std::vector<ExpressionPort>& entries,
-                 const std::vector<ExpressionPort>& exits)
-            : work_amount(work_amount), increment(increment), dim_idx(dim_idx), entry_exprs(entries), exit_exprs(exits) {}
+                 const std::vector<ExpressionPort>& exits);
+
+        std::vector<ExpressionPort> get_entry_ports() const;
+        std::vector<ExpressionPort> get_exit_ports() const;
+
         size_t work_amount = 0;
         size_t increment = 0;
         size_t dim_idx = 0;  // The numeration begins from the end (dim_idx = 0 -> is the most inner dimension)
@@ -33,8 +56,8 @@ public:
         //     - The position before first entry expr is Loop Begin position
         //     - The position after last exit expr is Loop End position
         // Note: Scalars aren't entry expressions but can be before first entry expr in Linear IR
-        std::vector<ExpressionPort> entry_exprs = {};
-        std::vector<ExpressionPort> exit_exprs = {};
+        std::vector<LoopPoint> entry_points = {};
+        std::vector<LoopPoint> exit_points = {};
     };
     using LoopInfoPtr = std::shared_ptr<LoopInfo>;
 
@@ -60,8 +83,8 @@ public:
                          LinearIR::constExprIt& loop_begin_pos,
                          LinearIR::constExprIt& loop_end_pos) const;
     static void get_loop_bounds(const LinearIR& linear_ir,
-                                const std::vector<ExpressionPort>& entries,
-                                const std::vector<ExpressionPort>& exits,
+                                const std::vector<LoopPoint>& entries,
+                                const std::vector<LoopPoint>& exits,
                                 LinearIR::constExprIt& loop_begin_pos,
                                 LinearIR::constExprIt& loop_end_pos,
                                 size_t loop_id);

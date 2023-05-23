@@ -27,13 +27,15 @@ public:
 private:
     static void insertion(LinearIR& linear_ir, const LinearIR::LoopManagerPtr& loop_manager, size_t loop_id, bool has_outer_loop);
 
-    static std::vector<int64_t> init_ptr_increments(const std::vector<ExpressionPort>& loop_inputs,
-                                                    const std::vector<ExpressionPort>& loop_outputs,
+    static std::vector<int64_t> init_ptr_increments(std::vector<LinearIR::LoopManager::LoopPoint>& loop_inputs,
+                                                    std::vector<LinearIR::LoopManager::LoopPoint>& loop_outputs,
                                                     const LinearIR::LoopManagerPtr& loop_manager,
                                                     size_t loop_id, size_t work_amount, size_t dim_idx);
-    static std::vector<int64_t> init_finalization_offsets(const std::vector<int64_t>& finalization_offsets, size_t work_amount);
-    static std::vector<int64_t> init_element_type_sizes(const std::vector<ExpressionPort>& loop_inputs,
-                                                        const std::vector<ExpressionPort>& loop_outputs);
+    static std::vector<int64_t> init_finalization_offsets(std::vector<LinearIR::LoopManager::LoopPoint>& loop_inputs,
+                                                          std::vector<LinearIR::LoopManager::LoopPoint>& loop_outputs,
+                                                          size_t work_amount);
+    static std::vector<int64_t> init_element_type_sizes(const std::vector<LinearIR::LoopManager::LoopPoint>& loop_inputs,
+                                                        const std::vector<LinearIR::LoopManager::LoopPoint>& loop_outputs);
 };
 
 } // namespace pass
