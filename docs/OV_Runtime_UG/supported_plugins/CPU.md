@@ -13,7 +13,7 @@ For an in-depth description of CPU plugin, see:
 - `OpenVINO Runtime CPU plugin source files <https://github.com/openvinotoolkit/openvino/tree/master/src/plugins/intel_cpu/>`__.
 
 .. note::
-   The scope of the CPU plugin features and optimizations on Arm® may differ from Intel® x86-64. If limitation is not mentioned explicitly it means the feature is supported for all CPU architectures.
+   The scope of the CPU plugin features and optimizations on Arm® may differ from Intel® x86-64. If the limitation is not mentioned explicitly, the feature is supported for all CPU architectures.
    
 
 Device Name
