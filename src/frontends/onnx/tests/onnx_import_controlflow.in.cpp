@@ -773,7 +773,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_if_with_only_indentity_in_else_branch) {
                                 14.f,      16.f, 18.f,      20.f,      22.f,       24.f,     26.f,
                                 28.f,      30.f, 25.33333f, 27.f,      28.666667f, 30.33333f};
     test_case.add_input<float>(x);
-    test_case.add_expected_output<float>(expected);
+    test_case.add_expected_output<float>(Shape{1, 5, 2, 2}, expected);
     test_case.run();
 }
 

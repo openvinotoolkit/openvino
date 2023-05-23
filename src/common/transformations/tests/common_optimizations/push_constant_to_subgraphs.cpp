@@ -254,3 +254,32 @@ TEST_F(TransformationTestsF, PushConstantToSubgraphLoopMoreThan32Inputs) {
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
+
+TEST_F(TransformationTestsF, PushConstantToSubgraphIfSkipForCommonConstants) {
+    auto cond = std::make_shared<opset10::Constant>(element::boolean, Shape{1}, true);
+    auto if_op = std::make_shared<opset10::If>(cond);
+
+    auto X = std::make_shared<opset10::Constant>(element::f32, Shape{1}, std::vector<float>{3.0f});
+    auto Xt = std::make_shared<opset10::Parameter>(element::f32, PartialShape::dynamic());
+    auto Xe = std::make_shared<opset10::Parameter>(element::f32, PartialShape::dynamic());
+
+    auto add_then = std::make_shared<opset10::Add>(Xt, Xt);
+    auto then_op_res = std::make_shared<opset10::Result>(add_then);
+
+    auto multiply_then = std::make_shared<opset10::Multiply>(Xe, Xe);
+    auto else_op_res = std::make_shared<opset10::Result>(multiply_then);
+
+    auto then_body = std::make_shared<Model>(OutputVector{then_op_res}, ParameterVector{Xt});
+    auto else_body = std::make_shared<Model>(OutputVector{else_op_res}, ParameterVector{Xe});
+    if_op->set_then_body(then_body);
+    if_op->set_else_body(else_body);
+    if_op->set_input(X, Xt, Xe);
+
+    auto res = if_op->set_output(then_op_res, else_op_res);
+    function = std::make_shared<Model>(OutputVector{res}, ParameterVector{});
+
+    manager.register_pass<pass::PushConstantToSubgraph>();
+
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+}

@@ -33,25 +33,42 @@ OutputVector if_op(const Node& node) {
     if_node->set_else_body(else_branch);
 
     const auto then_branch_inputs_from_parent = then_subgraph->get_inputs_from_parent();
+    const auto else_branch_inputs_from_parent = else_subgraph->get_inputs_from_parent();
+
     NGRAPH_CHECK(then_branch_inputs_from_parent.size() == then_params.size(),
                  "Number of inputs to 'then_branch' is invalid. Expected " +
                      std::to_string(then_branch_inputs_from_parent.size()) + ", actual " +
                      std::to_string(then_params.size()));
-    auto then_param = then_params.cbegin();
-    for (const auto& from_parent : then_branch_inputs_from_parent) {
-        if_node->set_input(from_parent, *then_param, nullptr);
-        then_param++;
-    }
-    const auto else_branch_inputs_from_parent = else_subgraph->get_inputs_from_parent();
     NGRAPH_CHECK(else_branch_inputs_from_parent.size() == else_params.size(),
                  "Number of inputs to 'else_branch' is invalid. Expected " +
                      std::to_string(else_branch_inputs_from_parent.size()) + ", actual " +
                      std::to_string(else_params.size()));
+
+    auto then_param = then_params.cbegin();
     auto else_param = else_params.cbegin();
-    for (const auto& from_parent : else_branch_inputs_from_parent) {
-        if_node->set_input(from_parent, nullptr, *else_param);
-        else_param++;
+    for (const auto& from_parent : then_branch_inputs_from_parent) {
+        auto else_parent_it = std::find(std::begin(else_branch_inputs_from_parent),
+                                        std::end(else_branch_inputs_from_parent),
+                                        from_parent);
+        if (else_parent_it != std::end(else_branch_inputs_from_parent)) {
+            else_param = else_params.cbegin();
+            std::advance(else_param, std::distance(std::begin(else_branch_inputs_from_parent), else_parent_it));
+            if_node->set_input(from_parent, *then_param, *else_param);
+        } else {
+            if_node->set_input(from_parent, *then_param, nullptr);
+        }
+        then_param++;
     }
+    else_param = else_params.cbegin();
+    for (const auto& from_parent : else_branch_inputs_from_parent) {
+        if (std::count(std::begin(then_branch_inputs_from_parent),
+                       std::end(then_branch_inputs_from_parent),
+                       from_parent) == 0) {
+            if_node->set_input(from_parent, nullptr, *else_param);
+            else_param++;
+        }
+    }
+
     NGRAPH_CHECK(then_branch->get_results().size() == else_branch->get_results().size(),
                  "'then' and 'else' branches have to have the same number of outputs");
     auto else_result = else_branch->get_results().cbegin();
