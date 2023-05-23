@@ -73,7 +73,7 @@ function(ov_check_python_build_conditions)
         if(PYTHONLIBSNEW_FOUND)
             # clear Python_ADDITIONAL_VERSIONS to find only python library matching PYTHON_EXECUTABLE
             unset(Python_ADDITIONAL_VERSIONS CACHE)
-            find_package(PythonLibs ${PYTHON_VERSION_STRING} EXACT ${find_package_mode})
+            find_host_package(PythonLibs ${PYTHON_VERSION_STRING} EXACT ${find_package_mode})
         endif()
         if(NOT PYTHONLIBS_FOUND)
             message(${message_mode} "Python development libraries are not found. OpenVINO Python API will be turned off (ENABLE_PYTHON is OFF)")
