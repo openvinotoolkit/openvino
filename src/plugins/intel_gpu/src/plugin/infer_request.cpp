@@ -497,7 +497,7 @@ void InferRequest::enqueue() {
 
     // If dump layers path is set, only runs first inference.
     GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(debug_config->dump_layers_path.length() > 0) {
+    GPU_DEBUG_IF(debug_config->dump_layers_path.length() > 0 && debug_config->dump_iteration.empty()) {
         GPU_DEBUG_INFO << "Only run first inference to dump layers." << std::endl;
         exit(0);
     }

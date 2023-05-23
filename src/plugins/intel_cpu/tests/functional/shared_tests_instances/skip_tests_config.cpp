@@ -169,10 +169,10 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*GridSampleLayerTestCPU.*(BILINEAR|BICUBIC).*(i32|i8).*)",
         // 98151. Not valid sorting for slices in reference.
         R"(.*UniqueLayerTestCPU.*axis.*True.*)",
-        // 109482. Sporadic failure.
-        R"(.*smoke_StaticSpaceToBatch_4D_parallel_block_edge.*)",
         // AUTO does not support import / export
-        R"(.*smoke_Auto_BehaviorTests/OVCompiledGraphImportExportTest.*(mportExport|readFromV10IR).*/targetDevice=(AUTO).*)"
+        R"(.*smoke_Auto_BehaviorTests/OVCompiledGraphImportExportTest.*(mportExport|readFromV10IR).*/targetDevice=(AUTO).*)",
+        // AdaptiveAvgPool is converted into Reduce op for suitable parameters. CPU Reduce impl doesn't support non planar layout for 3D case
+        R"(.*StaticAdaPoolAvg3DLayoutTest.*OS=\(1\).*_inFmts=(nwc|nCw16c|nCw8c).*)"
     };
 
 #if defined(OPENVINO_ARCH_X86)
@@ -217,7 +217,7 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(smoke_Snippets.*)");
 #endif
 
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
     retVector.emplace_back(R"(.*LoadNetworkCompiledKernelsCacheTest.*CanCreateCacheDirAndDumpBinariesUnicodePath.*)");
 #endif
 

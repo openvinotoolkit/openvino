@@ -38,6 +38,7 @@
 #include "openvino/util/shared_object.hpp"
 #include "ov_plugins.hpp"
 #include "preprocessing/preprocessing.hpp"
+#include "so_extension.hpp"
 #include "xml_parse_utils.h"
 
 ov::ICore::~ICore() = default;
@@ -523,6 +524,7 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
             }
         } else {
             TryToRegisterLibraryAsExtensionUnsafe(desc.libraryLocation);
+            try_to_register_plugin_extensions(desc.libraryLocation);
         }
 
         return plugins.emplace(deviceName, plugin).first->second;
@@ -1084,17 +1086,23 @@ void ov::CoreImpl::set_property_for_device(const ov::AnyMap& configMap, const st
         });
     }
 }
-
-void ov::CoreImpl::add_extension(const std::vector<ov::Extension::Ptr>& extensions) {
-    std::lock_guard<std::mutex> lock(get_mutex());
+void ov::CoreImpl::add_extensions_unsafe(const std::vector<ov::Extension::Ptr>& extensions) const {
     for (const auto& ext : extensions) {
         ov_extensions.emplace_back(ext);
-        if (auto op_base_ext = std::dynamic_pointer_cast<ov::BaseOpExtension>(ext)) {
+        auto ext_obj = ext;
+        if (auto so_ext = std::dynamic_pointer_cast<ov::detail::SOExtension>(ext_obj))
+            ext_obj = so_ext->extension();
+        if (auto op_base_ext = std::dynamic_pointer_cast<ov::BaseOpExtension>(ext_obj)) {
             for (const auto& attached_ext : op_base_ext->get_attached_extensions()) {
                 ov_extensions.emplace_back(attached_ext);
             }
         }
     }
+}
+
+void ov::CoreImpl::add_extension(const std::vector<ov::Extension::Ptr>& extensions) {
+    std::lock_guard<std::mutex> lock(get_mutex());
+    add_extensions_unsafe(extensions);
 }
 
 const std::vector<InferenceEngine::IExtensionPtr>& ov::CoreImpl::GetExtensions() const {
@@ -1126,7 +1134,13 @@ bool ov::CoreImpl::device_supports_model_caching(const ov::Plugin& plugin) const
 }
 
 bool ov::CoreImpl::device_supports_cache_dir(const ov::Plugin& plugin) const {
-    return util::contains(plugin.get_property(ov::supported_properties), ov::cache_dir);
+    try {
+        return util::contains(plugin.get_property(ov::supported_properties), ov::cache_dir);
+    } catch (const InferenceEngine::NotImplemented&) {
+        return false;
+    } catch (const ov::NotImplemented&) {
+        return false;
+    }
 }
 
 ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_and_cache(const std::shared_ptr<const ov::Model>& model,

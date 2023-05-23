@@ -12,14 +12,14 @@
 #include <openvino/cc/ngraph/itt.hpp>
 #include <ops/identity.hpp>
 
+#include "common/graph_utils.hpp"
 #include "log/log.hpp"
-#include "ops/util/util.hpp"
 #include "transformations/rt_info/gna_precision_change_flag.hpp"
 
 using namespace ov::intel_gna;
 using namespace ov::intel_gna::pass;
 using namespace ov::intel_gna::rt_info;
-using namespace ov::intel_gna::ngraph_util;
+using namespace ov::intel_gna::graph_utils;
 
 namespace {
 void mark_for_identity_insertion(std::shared_ptr<ngraph::Node> node, size_t input_index) {
