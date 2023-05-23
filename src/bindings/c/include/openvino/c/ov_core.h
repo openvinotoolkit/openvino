@@ -199,7 +199,7 @@ ov_core_read_model_from_memory(const ov_core_t* core,
  * @param device_name Name of a device to load a model to.
  * @param property_args_size How many properties args will be passed, each property contains 2 args: key and value.
  * @param compiled_model A pointer to the newly created compiled_model.
- * @param property paramater: Optional pack of pairs: <char* property_key, char* property_value> relevant only
+ * @param ... property paramater: Optional pack of pairs: <char* property_key, char* property_value> relevant only
  * for this load operation operation. Supported property key please see ov_property.h.
  * @return Status code of the operation: OK(0) for success.
  */
@@ -367,7 +367,7 @@ ov_core_create_context(const ov_core_t* core,
  * @param context A pointer to the newly created remote context.
  * @param property_args_size How many args will be for this compiled model.
  * @param compiled_model A pointer to the newly created compiled_model.
- * @param variadic parmameters Actual property parameter for remote context
+ * @param ... variadic parmameters Actual property parameter for remote context
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
