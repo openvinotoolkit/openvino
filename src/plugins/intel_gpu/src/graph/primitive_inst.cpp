@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "program_helpers.h"
 #include "primitive_inst.h"
 #include "data_inst.h"
 #include "mutable_data_inst.h"
@@ -11,6 +12,10 @@
 #include "fully_connected_inst.h"
 #include "convolution_inst.h"
 #include "crop_inst.h"
+#include "pooling_inst.h"
+#include "permute_inst.h"
+#include "resample_inst.h"
+#include "reshape_inst.h"
 #include "eltwise_inst.h"
 #include "deconvolution_inst.h"
 #include "shape_of_inst.h"
@@ -179,7 +184,10 @@ void primitive_inst::set_output_memory(memory::ptr mem_new, bool check, size_t i
 
 void primitive_inst::update_shape() {
     GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::shape_inference);
-
+    if (update_shape_done_by_other) {
+        update_shape_done_by_other = false; // reset
+        return;
+    }
     bool input_shape_changed = false;
     for (size_t i = 0; i < _deps.size(); i++) {
         auto idx = _deps[i].second;
@@ -279,6 +287,14 @@ event::ptr primitive_inst::realloc_if_needed() {
     GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::memory_allocation);
 
     event::ptr ev = nullptr;
+    if (_node->get_users().size() == 1 && _node->get_users().front()->is_type<concatenation>()) {
+        auto concat_inst = _network.get_primitive(get_users().front()->id());
+        if (concat_inst->can_be_optimized()) {
+            concat_inst->realloc_if_needed();
+            this->_outputs[0] = concat_inst->_outputs[0];
+            return ev;
+        }
+    }
     // Update param if fake_alignment is available
     auto updated_params = _node->type()->get_fake_aligned_params(*_impl_params);
     auto actual_layout = updated_params.get_output_layout();
@@ -429,6 +445,7 @@ bool primitive_inst::update_impl() {
             }
         }
         if (!cached_impl) {
+            #if 1
             if (_dynamic_impl) {
                 auto& compilation_context = get_network().get_program()->get_compilation_context();
                 auto updated_params_no_dyn_pad = updated_params;
@@ -465,6 +482,9 @@ bool primitive_inst::update_impl() {
                     update_shape_info(new_impl_params);
                 }
             } else {
+            #else
+            {
+            #endif
                 _impl = _node->type()->choose_impl(*_node, updated_params);
                 if (!can_be_optimized()) {
                     auto& kernels_cache = get_network().get_program()->get_kernels_cache();
@@ -484,11 +504,199 @@ bool primitive_inst::update_impl() {
     return true;
 }
 
+void primitive_inst::do_runtime_buffer_fusing() {
+    if (update_shape_done_by_other)
+        return;
+    auto available_pred = [](const program_node& input) {
+        if (!input.is_type<pooling>() && !input.is_type<convolution>() &&
+            !input.is_type<quantize>() && !input.is_type<activation>() &&
+            !input.is_type<deconvolution>() && !input.is_type<concatenation>() &&
+            !input.is_type<crop>() && !input.is_type<eltwise>() && !input.is_type<resample>() && !input.is_type<permute>())
+            return false;
+        return true;
+    };
+    if (get_users().size() != 1) return;
+    auto concat_inst = _network.get_primitive(get_users().front()->id());
+    if (!concat_inst->get_node().is_type<concatenation>())
+        return;
+    const auto& concat_node = concat_inst->get_node().as<concatenation>();
+    std::vector<std::shared_ptr<primitive_inst>> concat_preds;
+    if (!concat_node.is_dynamic() || concat_node.has_fused_primitives())
+        return;
+    for (auto pred : concat_inst->_deps) {
+        concat_preds.push_back(pred.first);
+    }
+    bool is_onednn_impl = false;
+    auto output_format = _impl_params->get_output_layout().format;
+    auto output_datatype = _impl_params->get_output_layout().data_type;
+    auto concat_axis = concat_node.get_primitive()->axis;
+    size_t idx = 0;
+    for (auto pred : concat_preds) {
+        if (!available_pred(pred->get_node()))
+            return;
+        if (pred->is_output())
+            return;
+       // TODO: handle optimized reshape
+        if (pred->get_node().is_type<reshape>() && pred->can_be_optimized())
+            return;
+        if (pred->get_users().size() > 2)
+            return;
+        layout pred_l = pred->_impl_params->get_output_layout();
+        if (output_format != pred_l.format || output_datatype != pred_l.data_type)
+            return;
+        if (pred_l.format.block_sizes().size() > 1)
+            return;
+        // TODO: Below condition should be moved to program_node::supports_padding.
+        // This however will need updating the algorithm as it may make cascade adjustment impossible in some cases.
+        // It however would make normal optimizations possible in others, so this is a trade-off to be investigated.
+        if (idx != concat_node.get_dependencies().size() - 1) {
+            if ((pred_l.format == format::b_fs_yx_fsv16 || pred_l.format == format::b_fs_zyx_fsv16) &&
+                (pred_l.feature() % 16 != 0 || concat_axis != 1))
+                return;
+
+            if ((pred_l.format == format::b_fs_yx_fsv32 || pred_l.format == format::b_fs_zyx_fsv32) &&
+                (pred_l.feature() % 32 != 0 || concat_axis != 1))
+                return;
+
+            if (pred_l.format == format::b_fs_yx_fsv4 && (pred_l.feature() != 4 || concat_axis != 1))
+                return;
+        }
+        if (pred->get_node().get_preferred_impl_type() == impl_types::onednn) {
+            for (const auto& fused_op : pred->get_node().get_fused_primitives()) {
+                auto add_type = onednn_add_fusing_helpers::get_add_fusing_type(pred->get_node(), fused_op);
+                if (add_type == add_fusing_type::sum)
+                    return;
+                else
+                    continue;
+            }
+
+            // Optimized-out input node is no longer onednn impl.
+            if (!pred->can_be_optimized())
+                is_onednn_impl = true;
+        }
+        idx++;
+    }
+    if (is_onednn_impl) {
+        bool use_usm = concat_node.get_program().get_engine().use_unified_shared_memory();
+        layout concat_out_l = concat_inst->_impl_params->get_output_layout();
+
+        if (!use_usm)
+            return;
+        if (concat_out_l.batch() > 1)
+            return;
+
+        // TODO: cldnn cases should be updated. This logic is working for onednn only.
+        //       white list for support fusing formats.
+        const std::vector<format> white_list = {
+            format::bfyx,
+            format::bfzyx,
+            format::b_fs_yx_fsv16,
+            format::b_fs_zyx_fsv16,
+            format::b_fs_yx_fsv32,
+            format::b_fs_zyx_fsv32,
+            format::b_fs_yx_fsv4,
+        };
+        if (std::find_if(white_list.begin(), white_list.end(), [&concat_out_l](format fmt){ return (fmt == concat_out_l.format); }) == std::end(white_list))
+            return;
+    }
+
+    // Now matched
+    // Do shape_infer for all concat's preds and concat
+    for (auto pred : concat_preds) {
+        if (!pred->update_shape_done_by_other) {
+            pred->update_shape();
+            pred->update_shape_done_by_other = true;
+        }
+    }
+    concat_inst->update_shape();
+    // Now, do buffer fusing
+    // if user is optimizable concat, do shape infer for all the prev nodes of concat & concat
+//    std::vector<std::shared_ptr<primitive_inst>> insts_to_shape_infer;
+//    auto concat_deps = _node->get_users().front()->get_dependencies();
+//    for (auto u : concat_deps) {
+//        if (u.first->id() == this->id())
+//            continue;
+//        insts_to_shape_infer.push_back(_network.get_primitive(u.first->id()));
+//    }
+    // do concat shape infer last
+//    insts_to_shape_infer.push_back(_network.get_primitive(_node->get_users().front()->id()));
+//    for (auto u : insts_to_shape_infer) {
+//        // update shape for user's other deps, and user (concat)
+//        u->update_shape(true);
+//        u->set_shape_by_other = true;
+//    }
+    // Update padding of this and other deps
+//    auto concat_prim = _network.get_primitive(_node->get_users().front()->id());
+    auto concat_out_layout = concat_inst->_impl_params->get_output_layout();
+    auto concat_out_rank = concat_out_layout.get_rank();
+ //   auto concat_axis = concat_inst->get_node().as<concatenation>().get_primitive()->axis;
+    // We need to transform axis from bf[w][z]yx order to bfxy[z][w] due to tensor.sizes() usages here
+    // should be removed once pad representation is changed
+    auto concat_axis_legacy = concat_axis;
+    if (concat_axis_legacy >= 2) {
+        auto spatial_axis = concat_axis_legacy - 2;
+        // Default and minimum number of dimensions is 4
+        auto spatial_size = std::max<size_t>(concat_out_rank, 4) - 2;
+        concat_axis_legacy = spatial_size - spatial_axis - 1 + 2;
+    }
+
+    // Select output padding by propagating all required input paddings.
+    auto padd = concat_out_layout.data_padding;
+    for (auto input : concat_inst->get_node().get_dependencies()) {
+        auto inputPadding = input.first->get_output_layout().data_padding;
+        padd = padding::max(padd, inputPadding);
+    }
+
+    auto lower_padd = padd.lower_size().sizes();
+    auto upper_padd = padd.upper_size().sizes();
+
+    // For cascade adjustment override padding in concat axis to output padding.
+    // In other case match(...) already checked that only first/last input have lower/upper padding.
+    lower_padd[concat_axis_legacy] = concat_out_layout.data_padding.lower_size().sizes()[concat_axis_legacy];
+    upper_padd[concat_axis_legacy] = concat_out_layout.data_padding.upper_size().sizes()[concat_axis_legacy];
+    concat_inst->_impl_params->output_layouts[0].data_padding = padding(lower_padd, upper_padd);
+
+    upper_padd[concat_axis_legacy] += concat_out_layout.get_dims()[concat_axis];
+
+    // apply concatenation in place optimization
+    //for (auto input_node : concat_inst->get_node().get_dependencies()) {
+    for (auto input_inst : concat_preds) {
+//        auto input_inst = _network.get_primitive(input_node.first->id());
+        auto input_length = input_inst->_impl_params->output_layouts[0].get_dims()[concat_axis];
+
+        // if (input_node.first->is_type<concatenation>() && input.first->can_be_optimized())
+        //     need_reoptimization.push_back(&input.first->as<concatenation>());
+        //TODO : nested concat
+
+        // shrink upper pad so it points at the end of the input's buffer
+        //
+        //   |--- lower padd ---|                    |---------- upper padd -----------|
+        //   |-- output padd ---| ----- input1 ------|----- input2 -----|-- out padd --|
+        upper_padd[concat_axis_legacy] -= input_length;
+
+        // set new padding for input
+        input_inst->_impl_params->output_layouts[0].data_padding = padding(lower_padd, upper_padd);
+
+        // move lower padd further
+        //
+        //   |-------------- lower padd -------------|---------- upper padd -----------|
+        //   |-- output padd ---| ----- input1 ------|----- input2 -----|-- out padd --|
+        lower_padd[concat_axis_legacy] += input_length;
+    }
+//    for (auto input_node : concat_inst->get_node().get_dependencies()) {
+  //      auto input_inst = _network.get_primitive(input_node.first->id());
+    for (auto input_inst : concat_preds) {
+        std::cout << "Shape of " << input_inst->id() << std::endl;
+        std::cout << input_inst->_impl_params->output_layouts[0].to_string() << std::endl;
+    }
+    concat_inst->_can_be_optimized = true;
+}
+
 event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
     const auto primitive_id = id();
     OPENVINO_ASSERT(_has_valid_input, primitive_id, " has invalid/unset input");
     GPU_DEBUG_GET_INSTANCE(debug_config);
-
+    do_runtime_buffer_fusing();
     std::vector<event::ptr> dependencies;
     if (is_dynamic()) {
         OPENVINO_ASSERT(_node != nullptr, "[GPU] Invalid primitive_inst object for dynamic shapes case: program_node can't be null");

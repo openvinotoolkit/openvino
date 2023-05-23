@@ -199,7 +199,7 @@ public:
     void set_shape_change() { _shape_changed = true; }
 
     void build_deps();
-
+    void do_runtime_buffer_fusing();
     memory::ptr fused_memory(size_t dep_id) const {
         return dep_memory_ptr(get_fused_mem_offset() + dep_id);
     }
@@ -257,6 +257,7 @@ protected:
     program_node const* _node;
     layout _node_output_layout;
 
+    bool update_shape_done_by_other = false;
     std::unique_ptr<kernel_impl_params> _impl_params;
     std::unique_ptr<primitive_impl> _impl;
     std::unique_ptr<primitive_impl> _dynamic_impl = nullptr;

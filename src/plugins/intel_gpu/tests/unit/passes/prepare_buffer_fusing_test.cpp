@@ -152,3 +152,116 @@ TEST(prepare_buffer_fusing, propagate_data_padding) {
         ASSERT_EQ(output_ptr[i], input_ptr[i]);
     }
 }
+
+TEST(prepare_buffer_fusing, in_place_concat_static) {
+    auto& engine = get_test_engine();
+    auto in_layout1 = layout{ ov::PartialShape{1, 2, 3, 4}, data_types::f32, format::bfyx }; // => {1, 3, 4, 2}
+    auto in_layout2 = layout{ ov::PartialShape{1, 2, 4, 1}, data_types::f32, format::bfyx }; // => {1, 1, 4, 2}
+    topology topology;
+    topology.add(input_layout("input1", in_layout1));
+    topology.add(input_layout("input2", in_layout2));
+    topology.add(permute("permute1", input_info("input1"), {0, 2, 3, 1}));
+    topology.add(permute("permute2", input_info("input2"), {0, 3, 2, 1}));
+    topology.add(concatenation("concat", { input_info("permute1"), input_info("permute2") }, 1));
+    topology.add(permute("output", input_info("concat"), {0, 2, 3, 1}));
+
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    //config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto prog = program::build_program(engine, topology, config, false, false);
+
+    ASSERT_NE(prog, nullptr);
+    //ASSERT_TRUE(has_node_with_type<reshape>(*prog));
+
+    cldnn::network net(prog, 0);
+
+    auto input_memory1 = engine.allocate_memory(in_layout1);
+    auto input_memory2 = engine.allocate_memory(in_layout2);
+    set_values<float>(input_memory1,
+        {
+            0.0,   1.1,   2.2,   3.3,   4.4,     5.5,    6.6,    7.7,
+            8.8,   9.9,   10.10, 11.11, 22.22,   33.33,  44.44,  55.55,
+            66.66, 77.77, 88.88, 99.99, 100.100, 101.101,102.102,103.103
+            }
+    );
+    set_values<float>(input_memory2, {0.1, 1.1, 2.2, 3.0, 4.0, -5.0, 0.1, 0.7});
+
+    net.set_input_data("input1", input_memory1);
+    net.set_input_data("input2", input_memory2);
+    std::map<cldnn::primitive_id, cldnn::network_output> output;
+    EXPECT_NO_THROW(output = net.execute());
+    const auto& concat_node = net.get_primitive("concat")->get_node();
+    auto out_l = net.get_output_layout("output");
+    auto out_mem = output.at("output").get_memory();
+
+    ASSERT_TRUE(concat_node.can_be_optimized());
+//    ASSERT_EQ(out_mem->count(), 16);
+}
+
+TEST(prepare_buffer_fusing, in_place_concat_dynamic) {
+    auto& engine = get_test_engine();
+    auto in_layout1_0 = layout{ ov::PartialShape::dynamic(4), data_types::f32, format::bfyx }; // => {1, 3, 4, 2}
+    auto in_layout2_0 = layout{ ov::PartialShape::dynamic(4), data_types::f32, format::bfyx }; // => {1, 3, 4, 2}
+#if 0
+   auto in_layout1 = layout{ ov::PartialShape{1, 2, 3, 4}, data_types::f32, format::bfyx }; // {1, 2, 3, 4} => {1, 3, 4, 2}
+    auto in_layout2 = layout{ ov::PartialShape{1, 2, 4, 1}, data_types::f32, format::bfyx }; // {1, 2, 4, 1} => {1, 1, 4, 2}
+#endif
+    auto in_layout1 = layout{ ov::PartialShape{1, 2, 3, 4}, data_types::f32, format::bfyx }; // {1, 2, 3, 4} =>  {1, 2, 3, 4}
+    auto in_layout2 = layout{ ov::PartialShape{1, 2, 4, 1}, data_types::f32, format::bfyx }; // {1, 2, 4, 1} =>  {1, 2, 1, 4]
+
+    topology topology;
+    topology.add(input_layout("input1", in_layout1_0));
+    topology.add(input_layout("input2", in_layout2_0));
+//    topology.add(permute("permute1", input_info("input1"), {0, 2, 3, 1}));
+//    topology.add(permute("permute2", input_info("input2"), {0, 3, 2, 1}));
+    topology.add(permute("permute1", input_info("input1"), {0, 1, 2, 3}));
+    topology.add(permute("permute2", input_info("input2"), {0, 1, 3, 2}));
+
+//    topology.add(concatenation("concat", { input_info("permute1"), input_info("permute2") }, 1));
+    topology.add(concatenation("concat", { input_info("permute1"), input_info("permute2") }, 2));
+    topology.add(permute("output", input_info("concat"), {0, 2, 3, 1}));
+
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto prog = program::build_program(engine, topology, config, false, false);
+
+    ASSERT_NE(prog, nullptr);
+    //ASSERT_TRUE(has_node_with_type<reshape>(*prog));
+
+    cldnn::network net(prog, 0);
+
+    auto input_memory1 = engine.allocate_memory(in_layout1);
+    auto input_memory2 = engine.allocate_memory(in_layout2);
+    set_values<float>(input_memory1,
+        {
+            0.0,   1.1,   2.2,   3.3,   4.4,     5.5,    6.6,    7.7,
+            8.8,   9.9,   10.10, 11.11, 22.22,   33.33,  44.44,  55.55,
+            66.66, 77.77, 88.88, 99.99, 100.100, 101.101,102.102,103.103
+            }
+    );
+    set_values<float>(input_memory2, {0.1, 1.1, 2.2, 3.0, 4.0, -5.0, 0.1, 0.7});
+#if 0 // faxis
+    std::vector<float> ref_output = {
+        0.0, 4.4, 8.8,   0.1, 22.22, 66.66, 100.100, 4.0, 1.1, 5.5, 9.9,   1.1, 33.33, 77.77, 101.101, -5.0,
+        2.2, 6.6, 10.10, 2.2, 44.44, 88.88, 102.102, 0.1, 3.3, 7.7, 11.11, 3.0, 55.55, 99.99, 103.103, 0.7
+    };
+#endif
+    std::vector<float> ref_output = {
+        0.0, 22.22,   1.1, 33.33,   2.2,   44.44,   3.3,   55.55,   4.4, 66.66, 5.5, 77.77, 6.6, 88.88, 7.7, 99.99,
+        8.8,      100.100, 9.9, 101.101, 10.10, 102.102, 11.11, 103.103, 0.1, 4.0,   1.1, -5.0,  2.2, 0.1,   3.0, 0.7};
+    net.set_input_data("input1", input_memory1);
+    net.set_input_data("input2", input_memory2);
+    std::map<cldnn::primitive_id, cldnn::network_output> output;
+    EXPECT_NO_THROW(output = net.execute());
+    auto out_l = net.get_output_layout("output");
+    auto out_mem = output.at("output").get_memory();
+    cldnn::mem_lock<float> output_ptr(out_mem, get_test_stream());
+
+    ASSERT_NE(out_mem, nullptr);
+    ASSERT_EQ(out_mem->count(), 32);
+    for (size_t x = 0; x < out_l.count(); ++x) {
+        ASSERT_EQ(ref_output[x], output_ptr[x]);
+    }
+
+}
