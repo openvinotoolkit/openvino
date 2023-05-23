@@ -69,8 +69,7 @@ if(ENABLE_NCC_STYLE)
         set(CMAKE_FIND_LIBRARY_SUFFIXES ".dylib")
         find_host_library(libclang_location NAMES clang
                           PATHS /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib
-                          DOC "Path to clang library"
-                          REQUIRED)
+                          DOC "Path to clang library")
         set(CMAKE_FIND_LIBRARY_PREFIXES ${_old_CMAKE_FIND_LIBRARY_PREFIXES})
         set(CMAKE_FIND_LIBRARY_SUFFIXES ${_old_CMAKE_FIND_LIBRARY_SUFFIXES})
     else()
