@@ -84,6 +84,13 @@ void regclass_graph_op_If(py::module m) {
         py::arg("index"));
 
     cls.def("__repr__", [](const ov::op::v8::If& self) {
-        return "<if_op>";
+        std::stringstream shapes_ss;
+        for (size_t i = 0; i < self.get_output_size(); ++i) {
+            if (i > 0) {
+                shapes_ss << ", ";
+            }
+            shapes_ss << self.get_output_partial_shape(i);
+        }
+        return "<if_op: '" + self.get_friendly_name() + "' (" + shapes_ss.str() + ")>";
     });
 }

@@ -136,6 +136,13 @@ void regclass_graph_op_Loop(py::module m) {
         py::arg("outputs"));
 
     cls.def("__repr__", [](const ov::op::v5::Loop& self) {
-        return "<loop>";
+        std::stringstream shapes_ss;
+        for (size_t i = 0; i < self.get_output_size(); ++i) {
+            if (i > 0) {
+                shapes_ss << ", ";
+            }
+            shapes_ss << self.get_output_partial_shape(i);
+        }
+        return "<loop: '" + self.get_friendly_name() + "' (" + shapes_ss.str() + ")>";
     });
 }

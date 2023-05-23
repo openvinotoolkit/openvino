@@ -103,6 +103,13 @@ void regclass_graph_op_TensorIterator(py::module m) {
         py::arg("outputs"));
 
     cls.def("__repr__", [](const ov::op::v0::TensorIterator& self) {
-        return "<tensor_iterator>";
+        std::stringstream shapes_ss;
+        for (size_t i = 0; i < self.get_output_size(); ++i) {
+            if (i > 0) {
+                shapes_ss << ", ";
+            }
+            shapes_ss << self.get_output_partial_shape(i);
+        }
+        return "<tensor_iterator: '" + self.get_friendly_name() + "' (" + shapes_ss.str() + ")>";
     });
 }

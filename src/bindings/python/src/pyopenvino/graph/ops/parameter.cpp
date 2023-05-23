@@ -55,6 +55,13 @@ void regclass_graph_op_Parameter(py::module m) {
     parameter.def_property("layout", &ov::op::v0::Parameter::get_layout, &ov::op::v0::Parameter::set_layout);
 
     parameter.def("__repr__", [](const ov::op::v0::Parameter& self) {
-        return "<Parameter>";
+        std::stringstream shapes_ss;
+        for (size_t i = 0; i < self.get_output_size(); ++i) {
+            if (i > 0) {
+                shapes_ss << ", ";
+            }
+            shapes_ss << self.get_output_partial_shape(i);
+        }
+        return "<Parameter: '" + self.get_friendly_name() + "' (" + shapes_ss.str() + ")>";
     });
 }

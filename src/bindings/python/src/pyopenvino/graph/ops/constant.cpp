@@ -213,6 +213,13 @@ void regclass_graph_op_Constant(py::module m) {
         )");
 
     constant.def("__repr__", [](const ov::op::v0::Constant& self) {
-        return "<Constant>";
+        std::stringstream shapes_ss;
+        for (size_t i = 0; i < self.get_output_size(); ++i) {
+            if (i > 0) {
+                shapes_ss << ", ";
+            }
+            shapes_ss << self.get_output_partial_shape(i);
+        }
+        return "<Constants: '" + self.get_friendly_name() + "' (" + shapes_ss.str() + ")>";
     });
 }

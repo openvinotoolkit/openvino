@@ -30,6 +30,13 @@ void regclass_graph_op_Result(py::module m) {
     result.def_property("layout", &ov::op::v0::Result::get_layout, &ov::op::v0::Result::set_layout);
 
     result.def("__repr__", [](const ov::op::v0::Result& self) {
-        return "<Result>";
+        std::stringstream shapes_ss;
+        for (size_t i = 0; i < self.get_output_size(); ++i) {
+            if (i > 0) {
+                shapes_ss << ", ";
+            }
+            shapes_ss << self.get_output_partial_shape(i);
+        }
+        return "<Result: '" + self.get_friendly_name() + "' (" + shapes_ss.str() + ")>";
     });
 }
