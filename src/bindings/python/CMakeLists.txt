@@ -43,6 +43,12 @@ function(ov_check_python_build_conditions)
         endif()
         if(CMAKE_CROSSCOMPILING)
             # since this version pybind11 has PYBIND11_PYTHONLIBS_OVERWRITE option
+            # to properly cross-compile, users need to set:
+            #  -DPYTHON_EXECUTABLE=<python interpreter of our choice version 3.X>
+            #  -DPYTHON_LIBRARY=/usr/lib/aarch64-linux-gnu/libc-2.31.so
+            #  -DPYTHON_INCLUDE_DIR=<path to includes for python 3.X>
+            #  -DPYBIND11_PYTHONLIBS_OVERWRITE=OFF
+            #  -DPYTHON_MODULE_EXTENSION=$(aarch64-linux-gnu-python3-config --extension-suffix)
             set(pybind11_min_version 2.10.1)
         endif()
 
@@ -51,14 +57,15 @@ function(ov_check_python_build_conditions)
             if(EXISTS ${pybind11_tools_dir})
                 list(APPEND CMAKE_MODULE_PATH ${pybind11_tools_dir})
             else()
-                find_package(pybind11 ${pybind11_min_version} QUIET)
+                find_host_package(pybind11 ${pybind11_min_version} QUIET)
                 if(pybind11_FOUND)
                     list(APPEND CMAKE_MODULE_PATH "${pybind11_DIR}")
                 endif()
             endif()
             # use libraries with the same version as python itself
             set(PYBIND11_PYTHON_VERSION ${PYTHON_VERSION_STRING})
-            find_package(PythonLibsNew ${PYBIND11_PYTHON_VERSION} EXACT ${find_package_mode})
+            find_host_package(PythonLibsNew ${PYBIND11_PYTHON_VERSION} EXACT
+                              ${find_package_mode})
             set(PYTHONLIBSNEW_FOUND ${PYTHONLIBS_FOUND} PARENT_SCOPE)
         endfunction()
         # try to find python libraries

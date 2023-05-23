@@ -83,19 +83,21 @@ endfunction()
 if(CMAKE_CROSSCOMPILING AND NOT (OV_ARCH STREQUAL OV_HOST_ARCH AND
                                  CMAKE_SYSTEM_NAME STREQUAL CMAKE_HOST_SYSTEM_NAME))
     # don't look at directories which are part of PATH (with removed bin / sbin at the end)
-    # like /opt/homebrew on macOS where we cannit use system env path, because brew's
+    # like /opt/homebrew on macOS where we cannot use system env path, because brew's
     # dependencies will be found, but at the same time we need to find flatbufffers and
     # other build system dependencies
-    # ov_set_if_not_defined(CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH OFF)
+    ov_set_if_not_defined(CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH OFF)
     ov_set_if_not_defined(CMAKE_FIND_PACKAGE_NO_SYSTEM_PACKAGE_REGISTRY OFF)
-    ov_set_if_not_defined(CMAKE_FIND_USE_CMAKE_SYSTEM_PATH OFF)
+    # it contains /usr and if we set this var to OFF, then CMAKE_FIND_ROOT_PATH is ignored
+    # ov_set_if_not_defined(CMAKE_FIND_USE_CMAKE_SYSTEM_PATH OFF)
     ov_set_if_not_defined(CMAKE_SYSTEM_PREFIX_PATH OFF)
     ov_set_if_not_defined(CMAKE_SYSTEM_INCLUDE_PATH OFF)
     ov_set_if_not_defined(CMAKE_SYSTEM_LIBRARY_PATH OFF)
     ov_set_if_not_defined(CMAKE_SYSTEM_PROGRAM_PATH OFF)
     if(LINUX)
         # set root paths (overridden to /usr/lib/<CMAKE_LIBRARY_ARCHITECTURE>/cmake)
-        # ov_set_if_not_defined(CMAKE_FIND_ROOT_PATH "/usr")
+        # CMAKE_LIBRARY_ARCHITECTURE is defined automatically by cmake after trying the compilers
+        ov_set_if_not_defined(CMAKE_FIND_ROOT_PATH "/usr")
     endif()
 
     # controling CMAKE_FIND_ROOT_PATH usage
@@ -107,7 +109,7 @@ endif()
 
 macro(__ov_cmake_find_system_path_save_and_reset)
     foreach(v
-            # CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH
+            CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH
             CMAKE_FIND_PACKAGE_NO_SYSTEM_PACKAGE_REGISTRY
             CMAKE_FIND_USE_CMAKE_SYSTEM_PATH
             CMAKE_SYSTEM_PREFIX_PATH
@@ -122,7 +124,7 @@ endmacro()
 
 macro(__ov_cmake_find_system_path_restore)
     foreach(v
-            # CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH
+            CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH
             CMAKE_FIND_PACKAGE_NO_SYSTEM_PACKAGE_REGISTRY
             CMAKE_FIND_USE_CMAKE_SYSTEM_PATH
             CMAKE_SYSTEM_PREFIX_PATH

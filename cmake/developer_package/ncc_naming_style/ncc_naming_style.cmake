@@ -60,7 +60,7 @@ endif()
 if(ENABLE_NCC_STYLE)
     if(CMAKE_HOST_WIN32)
         find_host_program(libclang_location NAMES libclang.dll
-                          PATHS ENV PATH
+                          PATHS $ENV{PATH}
                           NO_CMAKE_FIND_ROOT_PATH)
     elseif(CMAKE_HOST_APPLE)
         set(_old_CMAKE_FIND_LIBRARY_PREFIXES ${CMAKE_FIND_LIBRARY_PREFIXES})
@@ -69,7 +69,9 @@ if(ENABLE_NCC_STYLE)
         set(CMAKE_FIND_LIBRARY_SUFFIXES ".dylib")
         find_host_library(libclang_location NAMES clang
                           PATHS /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib
-                          DOC "Path to clang library")
+                          DOC "Path to clang library"
+                          NO_DEFAULT_PATH
+                          NO_CMAKE_FIND_ROOT_PATH)
         set(CMAKE_FIND_LIBRARY_PREFIXES ${_old_CMAKE_FIND_LIBRARY_PREFIXES})
         set(CMAKE_FIND_LIBRARY_SUFFIXES ${_old_CMAKE_FIND_LIBRARY_SUFFIXES})
     else()
