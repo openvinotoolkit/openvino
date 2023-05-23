@@ -37,6 +37,27 @@ More resources:
 * `GitHub <https://github.com/openvinotoolkit/training_extensions>`__
 * `Documentation <https://openvinotoolkit.github.io/training_extensions/stable/guide/get_started/introduction.html>`__
 
+Compile Tool 
+#############
+
+Compile tool is deprecated since the 2023.0 OpenVINO release. If you need to compile a model for inference on a specific device, use the following script: 
+
+.. tab:: python
+
+    .. doxygensnippet:: docs/snippets/export_compiled_model.py
+       :language: python
+       :fragment: [export_compiled_model]
+
+.. tab:: cpp
+
+    .. doxygensnippet:: docs/snippets/export_compiled_model.cpp
+       :language: cpp
+       :fragment: [export_compiled_model]
+
+
+To learn which device supports the import / export functionality, see the :doc:`feature support matrix <openvino_docs_OV_UG_Working_with_devices>`.
+
+For more details on preprocessing steps, refer to the :doc:`Optimize Preprocessing <openvino_docs_OV_UG_Preprocessing_Overview>`. To compile the model with advanced preprocessing capabilities, refer to the :doc:`Use Case - Integrate and Save Preprocessing Steps Into OpenVINO IR <openvino_docs_OV_UG_Preprocess_Usecase_save>`, which shows how to have all the preprocessing in the compiled blob. 
 
 OpenVINO™ Security Add-on
 #########################
@@ -52,23 +73,8 @@ More resources:
 OpenVINO™ integration with TensorFlow (OVTF)
 ############################################
 
-A solution empowering TensorFlow developers with OpenVINO's optimization capabilities. With just two lines of code in your application, you can offload inference to OpenVINO, while keeping the TensorFlow API.
+OpenVINO™ Integration with TensorFlow will no longer be supported as of OpenVINO release 2023.0. As part of the 2023.0 release, OpenVINO will feature a significantly enhanced TensorFlow user experience within native OpenVINO without needing offline model conversions. :doc:`Learn more <openvino_docs_MO_DG_TensorFlow_Frontend>`.
 
-More resources:
-
-* `Documentation <https://github.com/openvinotoolkit/openvino_tensorflow>`__  
-* `PyPI <https://pypi.org/project/openvino-tensorflow/>`__  
-* `GitHub <https://github.com/openvinotoolkit/openvino_tensorflow>`__  
-
-DL Streamer	
-###########
-
-A streaming media analytics framework, based on the GStreamer multimedia framework, for creating complex media analytics pipelines.
-
-More resources:
-
-* `Documentation on GitHub <https://dlstreamer.github.io/index.html>`__  
-* `Installation Guide on GitHub <https://github.com/openvinotoolkit/dlstreamer_gst/wiki/Install-Guide>`__  
 
 DL Workbench
 ############
@@ -98,27 +104,6 @@ More resources:
 * `PyPI <https://pypi.org/project/datumaro/>`__  
 * `GitHub <https://github.com/openvinotoolkit/datumaro>`__  
 
-Compile Tool 
-#############
-
-Compile tool is deprecated since the 2023.0 OpenVINO release. If you need to compile a model for inference on a specific device, use the following script: 
-
-.. tab:: python
-
-    .. doxygensnippet:: docs/snippets/export_compiled_model.py
-       :language: python
-       :fragment: [export_compiled_model]
-
-.. tab:: cpp
-
-    .. doxygensnippet:: docs/snippets/export_compiled_model.cpp
-       :language: cpp
-       :fragment: [export_compiled_model]
-
-
-To learn which device supports the import / export functionality, see the :doc:`feature support matrix <openvino_docs_OV_UG_Working_with_devices>`.
-
-For more details on preprocessing steps, refer to the :doc:`Optimize Preprocessing <openvino_docs_OV_UG_Preprocessing_Overview>`. To compile the model with advanced preprocessing capabilities, refer to the :doc:`Use Case - Integrate and Save Preprocessing Steps Into OpenVINO IR <openvino_docs_OV_UG_Preprocess_Usecase_save>`, which shows how to have all the preprocessing in the compiled blob. 
 
 @endsphinxdirective
 

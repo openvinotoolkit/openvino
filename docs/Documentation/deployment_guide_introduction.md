@@ -28,6 +28,4 @@ Once you have a model that meets both OpenVINO™ and your requirements, you can
     This way inference can use external resources instead of those available to the application itself. 
 
 
-Apart from the default deployment options, you may also :doc:`deploy your application for the TensorFlow framework with OpenVINO Integration <ovtf_integration>`
-
 @endsphinxdirective
