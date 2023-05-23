@@ -79,6 +79,7 @@ Table of Contents
 * :doc:`GRN <openvino_docs_ops_normalization_GRN_1>`
 * :doc:`GroupConvolution <openvino_docs_ops_convolution_GroupConvolution_1>`
 * :doc:`GroupConvolutionBackpropData <openvino_docs_ops_convolution_GroupConvolutionBackpropData_1>`
+* :doc:`GroupNormalization <openvino_docs_ops_normalization_GroupNormalization_12>`
 * :doc:`GRUCell <openvino_docs_ops_sequence_GRUCell_3>`
 * :doc:`GRUSequence <openvino_docs_ops_sequence_GRUSequence_5>`
 * :doc:`HardSigmoid <openvino_docs_ops_activation_HardSigmoid_1>`

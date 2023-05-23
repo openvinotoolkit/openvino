@@ -82,6 +82,7 @@
    Greater-1 <openvino_docs_ops_comparison_Greater_1>
    GroupConvolutionBackpropData-1 <openvino_docs_ops_convolution_GroupConvolutionBackpropData_1>
    GroupConvolution-1 <openvino_docs_ops_convolution_GroupConvolution_1>
+   GroupNormalization-12 <openvino_docs_ops_normalization_GroupNormalization_12>
    HardSigmoid-1 <openvino_docs_ops_activation_HardSigmoid_1>
    HSigmoid-5 <openvino_docs_ops_activation_HSigmoid_5>
    HSwish-4 <openvino_docs_ops_activation_HSwish_4>
