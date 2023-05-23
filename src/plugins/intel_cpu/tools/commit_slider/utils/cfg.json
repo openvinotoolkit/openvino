@@ -39,5 +39,9 @@
     "usePrevRunCache" : false,
     "serviceConfig" : {
         "comment" : "For inner purpose. Data will be overwritten during script running."
+    },
+    "dlbConfig" : {
+        "launchedAsJob" : false,
+        "appPath" : "path, substituted by job"
     }
 }

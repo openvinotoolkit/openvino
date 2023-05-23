@@ -92,6 +92,8 @@ def absolutizePaths(cfg):
         raise CfgError(
             "No support for current OS: {pl}".format(pl=pl)
             )
+    if cfg["dlbConfig"]["launchedAsJob"]:
+        cfg["appPath"] = cfg["dlbConfig"]["appPath"]
     pathToAbsolutize = ["gitPath", "buildPath", "appPath", "workPath"]
     for item in pathToAbsolutize:
         path = cfg[item]
