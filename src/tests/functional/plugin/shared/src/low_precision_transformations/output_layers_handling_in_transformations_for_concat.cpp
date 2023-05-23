@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "low_precision_transformations/output_layers_handling_in_transformations_for_concat.hpp"
+#include "low_precision_transformations/output_layers_concat.hpp"
 
 #include <memory>
 #include <tuple>
@@ -21,7 +21,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string OutputLayersHandlingInTransformationsForConcat::getTestCaseName(const testing::TestParamInfo<LayerTestsUtils::LayerTransformationParams>& obj) {
+std::string OutputLayersConcat::getTestCaseName(const testing::TestParamInfo<LayerTestsUtils::LayerTransformationParams>& obj) {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::SizeVector inputShapes;
     std::string targetDevice;
@@ -31,7 +31,7 @@ std::string OutputLayersHandlingInTransformationsForConcat::getTestCaseName(cons
     return getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params);
 }
 
-InferenceEngine::Blob::Ptr OutputLayersHandlingInTransformationsForConcat::GenerateInput(const InferenceEngine::InputInfo &info) const {
+InferenceEngine::Blob::Ptr OutputLayersConcat::GenerateInput(const InferenceEngine::InputInfo &info) const {
     InferenceEngine::SizeVector inputShape;
     InferenceEngine::Precision netPrecision;
     std::string targetDevice;
@@ -62,7 +62,7 @@ InferenceEngine::Blob::Ptr OutputLayersHandlingInTransformationsForConcat::Gener
 *   Output
 */
 
-void OutputLayersHandlingInTransformationsForConcat::SetUp() {
+void OutputLayersConcat::SetUp() {
     InferenceEngine::SizeVector inputShape1;
     InferenceEngine::Precision netPrecision;
     ngraph::pass::low_precision::LayerTransformation::Params params;
@@ -121,7 +121,7 @@ void OutputLayersHandlingInTransformationsForConcat::SetUp() {
     function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector { input1, input2 }, "OutputLayersHandling");
 }
 
-TEST_P(OutputLayersHandlingInTransformationsForConcat, CompareWithRefImpl) {
+TEST_P(OutputLayersConcat, CompareWithRefImpl) {
     Run();
 };
 
