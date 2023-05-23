@@ -422,9 +422,9 @@ void TensorIterator::getSupportedDescriptors() {
     for (const auto &out : tiOp->get_function()->get_results()) {
         const auto prev = out->input_value(0);
         const auto inputID = ov::op::util::create_ie_output_name(prev);
-        auto outNode = outMap.find(inputID);
-        if (outNode != outMap.end()) {
-            auto outMem = outNode->second->getParentEdgeAt(0)->getMemoryPtr();
+        auto outNode = outMap.getNodePtrByName(inputID);
+        if (outNode != nullptr) {
+            auto outMem = outNode->getParentEdgeAt(0)->getMemoryPtr();
             output_mem.push_back(outMem);
         }
     }

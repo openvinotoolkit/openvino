@@ -105,7 +105,7 @@ void Graph::CreateGraph(const std::vector<NodePtr> &graphNodes,
         if ("Parameter" == node->getTypeStr()) {
             inputNodesMap[node->getName()] = node;
         } else if ("Result" == node->getTypeStr()) {
-            outputNodesMap[node->getName()] = node;
+            outputNodesMap.InsertNode(node, {node->getName()});
         }
     }
 
@@ -152,7 +152,7 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph) {
             const auto prev = op->input_value(0);
             const std::string inputID = op::util::get_ie_output_name(prev);
 
-            outputNodesMap[inputID] = node;
+            outputNodesMap.InsertNode(node, {inputID});
         }
 
         op2node[op] = node;
@@ -249,23 +249,14 @@ void Graph::Replicate(const CNNNetwork &network) {
 
             for (const auto& name : input.get_names()) {
                 if (outputsInfo.count(name) != 0) {
-                    outputNodesMap[name] = node;
+                    outputNodesMap.InsertNode(node, input.get_names());
+                    break;
                 }
             }
 
-            // To support the old API.
-            const auto name = ov::op::util::get_ie_output_name(input);
-            if (outputsInfo.count(name) != 0 && outputNodesMap.count(name) == 0) {
-                bool found = false;
-                for (auto it : outputNodesMap) {
-                    if (it.second == node) {
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found) {
-                    outputNodesMap[name] = node;
-                }
+            const auto name = op::util::get_ie_output_name(input);
+            if (outputsInfo.count(name) != 0) {
+                outputNodesMap.InsertNode(node, {name});
             }
         }
 
@@ -334,13 +325,19 @@ void Graph::Replicate(const CNNNetwork &network) {
         }
     }
 
-    for (auto &output : outputNodesMap) {
-        const auto precToSet = normalizeToSupportedPrecision(outputsInfo.at(output.first)->getPrecision());
-        output.second->setOriginalInputPrecisionAtPort(0, precToSet);
-        const auto parentEdges = output.second->getParentEdgesAtPort(0);
-        for (size_t i = 0; i < parentEdges.size(); i++) {
-            const auto parent = parentEdges[i]->getParent();
-            parent->setOriginalOutputPrecisionAtPort(parentEdges[i]->getInputNum(), precToSet);
+    for (auto &nIt : outputNodesMap.get()) {
+        for (auto name : nIt.second) {
+            auto dataIt = outputsInfo.find(name);
+            if (dataIt != outputsInfo.end()) {
+                const auto precToSet = normalizeToSupportedPrecision(dataIt->second->getPrecision());
+                nIt.first->setOriginalInputPrecisionAtPort(0, precToSet);
+                const auto parentEdges = nIt.first->getParentEdgesAtPort(0);
+                for (size_t i = 0; i < parentEdges.size(); i++) {
+                    const auto parent = parentEdges[i]->getParent();
+                    parent->setOriginalOutputPrecisionAtPort(parentEdges[i]->getInputNum(), precToSet);
+                }
+                break;
+            }
         }
     }
 
@@ -930,17 +927,23 @@ void Graph::PullOutputData(BlobMap &out) {
     if (!IsReady())
         IE_THROW() << "Wrong state. Topology not ready.";
 
-    for (auto &outputMap : outputNodesMap) {
-        auto name = outputMap.first;
-        auto node = outputMap.second;
+    for (auto &nIt : outputNodesMap.get()) {
+        std::string name;
+        for (auto tName : nIt.second) {
+            if (out.find(tName) != out.end()) {
+                name = tName;
+                break;
+            }
+        }
+        if (name.empty()) {
+            IE_THROW(Unexpected) << "The CPU plugin graph doesn't contain output node with name: \"" << name << "\"";
+        }
+        auto node = nIt.first;
         auto parentEdge = node->getParentEdgeAt(0);
         const Memory& intr_blob = parentEdge->getMemory();
 
         const auto ext_blob_map = out.find(name);
         const auto ext_blob = ext_blob_map->second;
-        if (ext_blob_map == out.end()) {
-            IE_THROW(Unexpected) << "The CPU plugin graph doesn't contain output node with name: \"" << name << "\"";
-        }
 
         const auto actualDesc = MemoryDescUtils::convertToTensorDesc(intr_blob.getDesc());
         auto &expectedDesc = ext_blob->getTensorDesc();
@@ -1644,9 +1647,9 @@ void Graph::EnforceInferencePrecision() {
      * Experiments show zero peformance impact on average */
     std::unordered_set<NodePtr> nodesToSkip;
     // starting from output nodes
-    for (const auto& entry : outputNodesMap) {
-        const auto& node = entry.second;
-        if (node->getOriginalInputPrecisionAtPort(0) == inferPrec)
+    for (const auto& entry : outputNodesMap.get()) {
+        const auto& node = entry.first;
+        if (node->getOriginalInputPrecisionAtPort(0) == Precision::BF16)
             continue;
         searchForNodesToSkip(node, nodesToSkip);
     }
@@ -1689,6 +1692,48 @@ void Graph::EnforceInferencePrecision() {
 
 std::shared_ptr<ov::Model> Graph::dump() const {
     return dump_graph_as_ie_ngraph_net(*this);
+}
+
+void Graph::OutputNodesMap::InsertNode(const NodePtr& node, const std::unordered_set<std::string>& names) {
+    auto it = nodesMap.find(node);
+    if (it != nodesMap.end()) {
+        it->second.insert(names.begin(), names.end());
+    } else {
+        bool found = false;
+        for (auto it : nodesMap) {
+            for (auto oName : it.second) {
+                if (names.find(oName) != names.end()) {
+                    it.second.insert(names.begin(), names.end());
+                    found = true;
+                    break;
+                }
+            }
+            if (found) {
+                break;
+            }
+        }
+        if (!found) {
+            nodesMap[node] = names;
+        }
+    }
+}
+
+NodePtr Graph::OutputNodesMap::getNodePtrByName(const std::string& name) const {
+    for (auto nIt : nodesMap) {
+        if (nIt.second.find(name) != nIt.second.end()) {
+            return nIt.first;
+        }
+    }
+    return nullptr;
+}
+
+bool Graph::OutputNodesMap::hasOutputWithName(const std::string& name) const {
+    for (auto nIt : nodesMap) {
+        if (nIt.second.find(name) != nIt.second.end()) {
+            return true;
+        }
+    }
+    return false;
 }
 
 }   // namespace intel_cpu

@@ -148,8 +148,8 @@ std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const Graph &graph
             }
         }
 
-        for (auto && kvp : graph.outputNodesMap) {
-            if (kvp.second == node) {
+        for (auto && kvp : graph.outputNodesMap.get()) {
+            if (kvp.first == node) {
                 is_output = true;
                 break;
             }
