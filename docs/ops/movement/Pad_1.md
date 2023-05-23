@@ -30,9 +30,9 @@ with the following attributes:
 
 depending on the *pad_mode*.
 
-* ``pad_mode = "constant"``: cpp
+* ``pad_mode = "constant"``: 
 
-.. code-block:: 
+.. code-block:: cpp
 
     OUTPUT =
     [[ 0  1  2  3  4  0  0  0 ]
@@ -42,9 +42,9 @@ depending on the *pad_mode*.
     [ 0  0  0  0  0  0  0  0 ]]
 
 
-* ``pad_mode = "edge"``: cpp
+* ``pad_mode = "edge"``: 
 
-.. code-block:: 
+.. code-block:: cpp
 
     OUTPUT =
     [[ 1  1  2  3  4  4  4  4 ]
