@@ -383,14 +383,17 @@ corresponding outputs of the original framework operation in the same order.
 
 Some frameworks require output names of the operation to be provided during conversion.
 For PaddlePaddle operations, it is generally necessary to provide names for all outputs using the ``NamedOutputs`` container.
+Usually those names can be found in source code of the individual operation in PaddlePaddle code.
 The next example shows such conversion for the ``top_k_v2`` operation.
 
 .. doxygensnippet:: docs/snippets/ov_extensions.cpp
    :language: cpp
    :fragment: [frontend_extension_paddle_TopK]
 
-For TensorFlow framework, if an operation has more than one output, it is recommended to assign names to those
-outputs using the ``NamedOutputVector`` structure which allows both indexed and named output access.
+For TensorFlow framework, if an operation has more than one output, it is recommended to assign names to
+those outputs using the ``NamedOutputVector`` structure which allows both indexed and named output access.
+For description of TensorFlow operations where names of outputs are also listed please refer to
+[tf.raw_ops](https://www.tensorflow.org/api_docs/python/tf/raw_ops/) documentation page.
 The next example shows such conversion for the ``TopKV2`` operation.
 
 .. doxygensnippet:: docs/snippets/ov_extensions.cpp
