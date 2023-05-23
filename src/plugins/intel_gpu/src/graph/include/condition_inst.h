@@ -18,47 +18,47 @@ struct typed_program_node<condition> : public typed_program_node_base<condition>
 private:
     using parent = typed_program_node_base<condition>;
 
-    class branch {
-    public:
-        explicit branch(const topology& tpl) : _topology(tpl) {}
+class branch {
+public:
+    explicit branch(topology::ptr tpl) : _topology(tpl) {}
 
-        void set(const program_node& node) {
-            add_or_change_input_layout(node);
-            _program = program::build_program(node.get_program().get_engine(),
-                                              _topology,
-                                              node.get_program().get_config(),
-                                              true);  // rebuild program
-        }
-        program::ptr get() const { return _program; }
+    void set(const program_node& node) {
+        add_or_change_input_layout(node);
+        _program = program::build_program(node.get_program().get_engine(),
+                                            *_topology.get(),
+                                            node.get_program().get_config(),
+                                            true);  // rebuild program
+    }
+    program::ptr get() const { return _program; }
 
-    private:
-        topology _topology;
-        program::ptr _program = nullptr;
+private:
+    topology::ptr _topology;
+    program::ptr _program = nullptr;
 
-        void add_or_change_input_layout(const program_node& node) {
-            auto layout = node.get_dependency(0).get_output_layout();
-            auto input_id = node.as<condition>().result_id();
-            if (_topology.get_primitives().count(input_id) == 0) {
-                _topology.add_primitive(std::make_shared<input_layout>(input_id, layout));
-                for (auto& prim : _topology.get_primitives()) {
-                    for (auto& inp : prim.second->input) {
-                        if (inp.pid == node.id())
-                            inp.pid = input_id;
-                    }
+    void add_or_change_input_layout(const program_node& node) {
+        auto layout = node.get_dependency(0).get_output_layout();
+        auto input_id = node.as<condition>().result_id();
+        if (_topology->get_primitives().count(input_id) == 0) {
+            _topology->add_primitive(std::make_shared<input_layout>(input_id, layout));
+            for (auto& prim : _topology->get_primitives()) {
+                for (auto& inp : prim.second->input) {
+                    if (inp.pid == node.id())
+                        inp.pid = input_id;
                 }
-            } else {
-                _topology.change_input_layout(input_id, layout);
             }
+        } else {
+            _topology->change_input_layout(input_id, layout);
         }
-    };
+    }
+};
 
 public:
     using parent::parent;
 
     typed_program_node(std::shared_ptr<primitive> prim, program& prog)
         : parent(prim, prog),
-          _branch_true(this->get_primitive()->topology_true),
-          _branch_false(this->get_primitive()->topology_false) {}
+          _branch_true(this->get_primitive()->branch_true.topology_ptr),
+          _branch_false(this->get_primitive()->branch_false.topology_ptr) {}
 
     program_node& input() const { return get_dependency(0); }
     program_node& compare() const { return get_dependency(1); }

@@ -21,6 +21,12 @@ enum cond_functions : int32_t { EQUAL, GREATER, LESS };
 struct condition : public primitive_base<condition> {
     CLDNN_DECLARE_PRIMITIVE(condition)
 
+    struct branch_info {
+        std::map<primitive_id, primitive_id> input_map;
+        std::map<primitive_id, primitive_id> output_map;
+        topology::ptr topology_ptr;
+    };
+
     /// @brief Constructs condition primitive / layer.
     ///
     /// @param id                 An identifier of new primitive.
@@ -35,14 +41,14 @@ struct condition : public primitive_base<condition> {
     /// @param offset             Offset for compare data.
     /// @param output_padding     Optional padding for output from primitive.
     condition(const primitive_id& id,
-              const input_info& input,
+              const std::vector<input_info>& inputs,
               const topology& topology_true,
               const topology& topology_false,
               const primitive_id& compare_data,
               const cond_functions& func,
               const tensor& offset = {0, 0, 0, 0, 0},
               const padding& output_padding = padding())
-        : primitive_base(id, {input}, {output_padding}),
+        : primitive_base(id, inputs, {output_padding}),
           topology_true(topology_true),
           topology_false(topology_false),
           compare_data(compare_data),
@@ -59,6 +65,9 @@ struct condition : public primitive_base<condition> {
     cond_functions function;
     /// @brief Offset for compare data.
     tensor offset;
+
+    branch_info branch_true;
+    branch_info branch_false;
 
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override { return {compare_data}; }

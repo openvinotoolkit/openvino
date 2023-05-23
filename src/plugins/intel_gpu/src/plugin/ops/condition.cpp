@@ -35,6 +35,35 @@ static cldnn::topology::ptr gen_topology(Program& p, const std::shared_ptr<ngrap
 // TODO: [If_op] Modify params by params of ngraph::if (cond{boolean})
 static void CreateIfOp(Program& p, const std::shared_ptr<ngraph::op::v8::If>& op) {
     const std::string layerName = layer_type_name_ID(op);
+    auto inputs = p.GetInputInfo(op);
+    std::cout << "inputs : " << inputs.size() << std::endl;
+    for (auto& in : inputs) {
+        std::cout << "* " << in.idx << ", " << in.pid << std::endl;
+    }
+
+    auto& then_desc_vec = op->get_input_descriptions(0);
+    {
+        std::cout << "then_desc_vec=[";
+        for (auto& in_desc : then_desc_vec) {
+            std::cout << "{" << in_desc->m_body_parameter_index;
+            std::cout << "," << in_desc->m_input_index << "},";
+        }
+
+        std::cout << "]" << std::endl;
+    }
+    auto& else_desc_vec = op->get_input_descriptions(1);
+    {
+        std::cout << "else_desc_vec=[{m_body_parameter_index, m_input_index}, ";
+        for (auto& in_desc : else_desc_vec) {
+            std::cout << "{" << in_desc->m_body_parameter_index;
+            std::cout << "," << in_desc->m_input_index << "},";
+        }
+
+        std::cout << "]" << std::endl;
+    }
+
+
+    // op->get_input_size();
     cldnn::input_info input;
 
     auto topology_true  = *gen_topology(p, op->get_then_body());
@@ -43,7 +72,7 @@ static void CreateIfOp(Program& p, const std::shared_ptr<ngraph::op::v8::If>& op
     cldnn::cond_functions func;
 
     const cldnn::condition conditionPrimitive(layerName,
-                                input,
+                                {input},
                                 topology_true,
                                 topology_false,
                                 compare_data,

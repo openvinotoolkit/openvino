@@ -259,57 +259,57 @@ public:
         }
     }
 
-    void build_body_program() const {
-        for (const auto& pm : input_primitive_maps) {
-            layout calculated_layout = calc_body_input_layout(pm);
-            const primitive_id& internal_input_id = pm.internal_id;
+void build_body_program() const {
+    for (const auto& pm : input_primitive_maps) {
+        layout calculated_layout = calc_body_input_layout(pm);
+        const primitive_id& internal_input_id = pm.internal_id;
 
-            // add inputs for body network if not exist
-            if (body.get_primitives().count(internal_input_id) == 0) {
-                body.add_primitive(std::make_shared<input_layout>(internal_input_id, calculated_layout));
-            } else {
-                body.change_input_layout(internal_input_id, calculated_layout);
-            }
+        // add inputs for body network if not exist
+        if (body.get_primitives().count(internal_input_id) == 0) {
+            body.add_primitive(std::make_shared<input_layout>(internal_input_id, calculated_layout));
+        } else {
+            body.change_input_layout(internal_input_id, calculated_layout);
         }
-
-        // setup internal output
-        OPENVINO_ASSERT(!output_primitive_maps.empty(), "[GPU] Output primitive map should have at least 1 mapping in primitive ", this->id());
-        std::set<primitive_id> output_names;
-        output_names.insert(output_primitive_maps.front().internal_id);
-
-        // add current_iteration_id in body network, condition_id if exist
-        process_current_iteration();
-        process_single_int_output(get_condition_id());
-
-        // setup outputs for backedges
-        for (auto& back_edge : back_edges) {
-            // check whether the back_edge.to has its corresponding io_primitive_map
-            const auto& input_map = std::find_if(input_primitive_maps.begin(), input_primitive_maps.end(),
-                [&](const loop::io_primitive_map& pm) {
-                    return pm.internal_id == back_edge.to;
-                });
-
-            // backedge which is current_iteration does not have
-            // input primitive map because its initial value is always
-            // zero and the value will be set in execute_impl()
-            if (back_edge.to != get_current_iteration_id() && input_map == input_primitive_maps.end()) {
-                std::string msg = "[GPU] No primitive mapping for backedge (internal_id: " + back_edge.to + ") for primitive " + this->id();
-                OPENVINO_ASSERT(false, msg.c_str());
-            }
-
-            output_names.insert(back_edge.from);
-        }
-
-        // if execution_condition_id is specified, we need to add the id in build_option::outputs
-        if (!get_condition_id().empty()) {
-            output_names.insert(get_condition_id());
-        }
-
-        std::vector<primitive_id> output_names_vec(output_names.begin(), output_names.end());
-        auto config = get_program().get_config();
-        config.set_property(ov::intel_gpu::custom_outputs(output_names_vec));
-        body_program = program::build_program(get_program().get_engine(), body, config, false, false, true);
     }
+
+    // setup internal output
+    OPENVINO_ASSERT(!output_primitive_maps.empty(), "[GPU] Output primitive map should have at least 1 mapping in primitive ", this->id());
+    std::set<primitive_id> output_names;
+    output_names.insert(output_primitive_maps.front().internal_id);
+
+    // add current_iteration_id in body network, condition_id if exist
+    process_current_iteration();
+    process_single_int_output(get_condition_id());
+
+    // setup outputs for backedges
+    for (auto& back_edge : back_edges) {
+        // check whether the back_edge.to has its corresponding io_primitive_map
+        const auto& input_map = std::find_if(input_primitive_maps.begin(), input_primitive_maps.end(),
+            [&](const loop::io_primitive_map& pm) {
+                return pm.internal_id == back_edge.to;
+            });
+
+        // backedge which is current_iteration does not have
+        // input primitive map because its initial value is always
+        // zero and the value will be set in execute_impl()
+        if (back_edge.to != get_current_iteration_id() && input_map == input_primitive_maps.end()) {
+            std::string msg = "[GPU] No primitive mapping for backedge (internal_id: " + back_edge.to + ") for primitive " + this->id();
+            OPENVINO_ASSERT(false, msg.c_str());
+        }
+
+        output_names.insert(back_edge.from);
+    }
+
+    // if execution_condition_id is specified, we need to add the id in build_option::outputs
+    if (!get_condition_id().empty()) {
+        output_names.insert(get_condition_id());
+    }
+
+    std::vector<primitive_id> output_names_vec(output_names.begin(), output_names.end());
+    auto config = get_program().get_config();
+    config.set_property(ov::intel_gpu::custom_outputs(output_names_vec));
+    body_program = program::build_program(get_program().get_engine(), body, config, false, false, true);
+}
 
     const primitive_id& get_trip_count_id() const { return get_primitive()->trip_count_id; }
     const primitive_id& get_initial_execution_id() const { return get_primitive()->initial_execution_id; }
