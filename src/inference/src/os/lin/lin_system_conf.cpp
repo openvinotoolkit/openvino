@@ -83,11 +83,7 @@ CPU::CPU() {
             _cores = _processors;
         }
         if (_processors > 0 && _numa_nodes > 0 && _cores > 0) {
-            get_cpu_mapping_from_cores(_processors,
-                                       _numa_nodes,
-                                       _cores,
-                                       _proc_type_table,
-                                       _cpu_mapping_table);
+            get_cpu_mapping_from_cores(_processors, _numa_nodes, _cores, _proc_type_table, _cpu_mapping_table);
         }
     }
     std::vector<std::vector<std::string>>().swap(system_info_table);
