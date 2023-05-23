@@ -338,7 +338,7 @@ ov_core_get_versions_by_device_name(const ov_core_t* core, const char* device_na
  * @ingroup ov_core_c_api
  * @param versions A pointer to the ie_core_versions to free memory.
  */
-OPENVINO_C_API(void) 
+OPENVINO_C_API(void)
 ov_core_versions_free(ov_core_version_list_t* versions);
 
 /**
