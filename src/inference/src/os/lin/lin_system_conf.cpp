@@ -324,7 +324,7 @@ void parse_freq_info_linux(const std::vector<std::vector<std::string>> system_in
             _cpu_mapping_table[nproc][CPU_MAP_CORE_TYPE] = EFFICIENT_CORE_PROC;
         }
 
-        _cpu_mapping_table[nproc][CPU_MAP_GROUP_ID] = _cores;
+        _cpu_mapping_table[nproc][CPU_MAP_GROUP_ID] = _cores++;
 
         return;
     };
@@ -356,14 +356,10 @@ void parse_freq_info_linux(const std::vector<std::vector<std::string>> system_in
                 _cpu_mapping_table[core_2][CPU_MAP_CORE_ID] = _cpu_mapping_table[core_1][CPU_MAP_CORE_ID];
                 _cpu_mapping_table[core_2][CPU_MAP_CORE_TYPE] = HYPER_THREADING_PROC;
                 _cpu_mapping_table[core_2][CPU_MAP_GROUP_ID] = _cpu_mapping_table[core_1][CPU_MAP_GROUP_ID];
-            } else if (pos != std::string::npos) {
+            } else if (system_info_table[n][0].size() > 0) {
                 core_1 = std::stoi(system_info_table[n][0]);
                 UpdateProcMapping(core_1);
-
-                _cpu_mapping_table[core_1][CPU_MAP_GROUP_ID] = _cores;
             }
-
-            _cores++;
         }
     }
 
