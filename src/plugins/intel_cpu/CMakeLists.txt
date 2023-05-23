@@ -96,12 +96,12 @@ ie_mark_target_as_cc(${TARGET_NAME})
 target_link_libraries(${TARGET_NAME} PRIVATE dnnl
                                              ov_shape_inference
                                              openvino::pugixml
-                                             inference_engine_snippets
-                                             mlas)
+                                             inference_engine_snippets)
 
 target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_EXTENSION_API)
 target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 if (ENABLE_MLAS)
+    target_link_libraries(${TARGET_NAME} PRIVATE mlas)
     target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:mlas,INCLUDE_DIRECTORIES>)
 endif()
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
