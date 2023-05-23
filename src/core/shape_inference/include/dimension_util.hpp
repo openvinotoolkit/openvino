@@ -226,12 +226,12 @@ void scale(TDim& d, float scale) {
         scale += epsilon;
 
         auto ub = d.get_max_length();
-        ub = is_inf_bound(ub) ? value_convert<T>(inf_bound) : value_convert<T>(static_cast<float>(ub) * scale);
+        ub = is_inf_bound(ub) ? static_cast<T>(inf_bound) : static_cast<T>(static_cast<float>(ub) * scale);
 
         if (d.is_static()) {
             d = TDim(ub);
         } else {
-            d = TDim(value_convert<T>(static_cast<float>(d.get_min_length()) * scale), ub);
+            d = TDim(static_cast<T>(static_cast<float>(d.get_min_length()) * scale), ub);
         }
     }
 }
