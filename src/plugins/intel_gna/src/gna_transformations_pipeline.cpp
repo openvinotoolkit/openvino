@@ -384,9 +384,7 @@ void TransformationsPipeline::apply_legacy(const InferenceEngine::CNNNetwork& ne
     passes->registerPass<FlattenTrivialConcatPass>();
     passes->registerPass<InsertConcatAligningFilterPass>();
     passes->registerPass<ReorderConcatInputsPass>();
-    if (!is_ngraph_passes_used) {
-        passes->registerPass<RemovePermutationsNHWCToNCHWPass>();
-    }
+
     // Keep legacy inserting of Identity layer here
     // because concat and split aliging passes are not moved to ngraph yet
     passes->registerPass<InsertIdentityLayerPass>();
