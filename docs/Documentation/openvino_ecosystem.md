@@ -9,11 +9,11 @@
    ote_documentation
    ovtf_integration
    ovsa_get_started
-   openvino_inference_engine_tools_compile_tool_README
    openvino_docs_tuning_utilities
 
 
 OpenVINO™ is not just one tool. It is an expansive ecosystem of utilities, providing a comprehensive workflow for deep learning solution development. Learn more about each of them to reach the full potential of OpenVINO™ Toolkit.
+
 
 Neural Network Compression Framework (NNCF)
 ###########################################
@@ -38,6 +38,7 @@ More resources:
 * `GitHub <https://github.com/openvinotoolkit/training_extensions>`__
 * `Documentation <https://openvinotoolkit.github.io/training_extensions/stable/guide/get_started/introduction.html>`__
 
+
 OpenVINO™ Security Add-on
 #########################
 
@@ -45,7 +46,7 @@ A solution for Model Developers and Independent Software Vendors to use secure p
 
 More resources:
 
-* `Documentation <https://docs.openvino.ai/latest/ovsa_get_started.html>`__  
+* :doc:`Documentation <ovsa_get_started>`
 * `GitHub <https://github.com/openvinotoolkit/security_addon>`__  
 
 
@@ -77,7 +78,7 @@ A web-based tool for deploying deep learning models. Built on the core of OpenVI
 
 More resources:
 
-* `Documentation <https://docs.openvino.ai/2022.3/workbench_docs_Workbench_DG_Introduction.html>`__  
+* `Documentation <https://docs.openvino.ai/2023.0/workbench_docs_Workbench_DG_Introduction.html>`__  
 * `Docker Hub <https://hub.docker.com/r/openvino/workbench>`__  
 * `PyPI <https://pypi.org/project/openvino-workbench/>`__   
 
@@ -103,6 +104,28 @@ More resources:
 * `Documentation on GitHub <https://openvinotoolkit.github.io/datumaro/stable/docs/get-started/introduction.html>`__  
 * `PyPI <https://pypi.org/project/datumaro/>`__  
 * `GitHub <https://github.com/openvinotoolkit/datumaro>`__  
+
+Compile Tool 
+#############
+
+Compile tool is deprecated since the 2023.0 OpenVINO release. If you need to compile a model for inference on a specific device, use the following script: 
+
+.. tab:: python
+
+    .. doxygensnippet:: docs/snippets/export_compiled_model.py
+       :language: python
+       :fragment: [export_compiled_model]
+
+.. tab:: cpp
+
+    .. doxygensnippet:: docs/snippets/export_compiled_model.cpp
+       :language: cpp
+       :fragment: [export_compiled_model]
+
+
+To learn which device supports the import / export functionality, see the :doc:`feature support matrix <openvino_docs_OV_UG_Working_with_devices>`.
+
+For more details on preprocessing steps, refer to the :doc:`Optimize Preprocessing <openvino_docs_OV_UG_Preprocessing_Overview>`. To compile the model with advanced preprocessing capabilities, refer to the :doc:`Use Case - Integrate and Save Preprocessing Steps Into OpenVINO IR <openvino_docs_OV_UG_Preprocess_Usecase_save>`, which shows how to have all the preprocessing in the compiled blob. 
 
 @endsphinxdirective
 

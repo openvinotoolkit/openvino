@@ -1,8 +1,5 @@
 name: 'Close stale issues and PRs'
-on:
-  workflow_dispatch:
-  schedule:
-    - cron: '0 0 * * *'
+on: workflow_dispatch
 
 permissions:
   issues: write
@@ -23,3 +20,4 @@ jobs:
           ascending: true
           operations-per-run: 5000
           repo-token: ${{ secrets.STALE_ISSUES_TOKEN }}
+          exempt-pr-labels: 'no_stale'

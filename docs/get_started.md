@@ -63,10 +63,10 @@ Interactive Tutorials - Jupyter Notebooks
 
 Start with :doc:`interactive Python tutorials <tutorials>` that show the basics of model inferencing, the OpenVINO API, how to convert models to OpenVINO format, and more.
 
-* `Hello Image Classification <https://docs.openvino.ai/nightly/notebooks/001-hello-world-with-output.html>`__ - Load an image classification model in OpenVINO and use it to apply a label to an image
-* `OpenVINO Runtime API Tutorial <https://docs.openvino.ai/nightly/notebooks/002-openvino-api-with-output.html>`__ - Learn the basic Python API for working with models in OpenVINO
-* `Convert TensorFlow Models to OpenVINO <https://docs.openvino.ai/nightly/notebooks/101-tensorflow-to-openvino-with-output.html>`__
-* `Convert PyTorch Models to OpenVINO <https://docs.openvino.ai/nightly/notebooks/102-pytorch-onnx-to-openvino-with-output.html>`__
+* `Hello Image Classification <notebooks/001-hello-world-with-output.html>`__ - Load an image classification model in OpenVINO and use it to apply a label to an image
+* `OpenVINO Runtime API Tutorial <notebooks/002-openvino-api-with-output.html>`__ - Learn the basic Python API for working with models in OpenVINO
+* `Convert TensorFlow Models to OpenVINO <notebooks/101-tensorflow-to-openvino-with-output.html>`__
+* `Convert PyTorch Models to OpenVINO <notebooks/102-pytorch-onnx-to-openvino-with-output.html>`__
 
 .. _code-samples:
 
@@ -94,7 +94,7 @@ Model Compression and Quantization
 
 Use OpenVINO’s model compression tools to reduce your model’s latency and memory footprint while maintaining good accuracy.
 
-* Tutorial - `OpenVINO Post-Training Model Quantization <https://docs.openvino.ai/nightly/notebooks/111-detection-quantization-with-output.html>`__
+* Tutorial - `OpenVINO Post-Training Model Quantization <https://docs.openvino.ai/nightly/notebooks/111-yolov5-quantization-migration-with-output.html>`__
 * Tutorial - `Quantization-Aware Training in TensorFlow with OpenVINO NNCF <https://docs.openvino.ai/nightly/notebooks/305-tensorflow-quantization-aware-training-with-output.html>`__
 * Tutorial - `Quantization-Aware Training in PyTorch with NNCF <https://docs.openvino.ai/nightly/notebooks/302-pytorch-quantization-aware-training-with-output.html>`__
 * `Model Optimization Guide <https://docs.openvino.ai/nightly/notebooks/openvino_docs_model_optimization_guide.html>`__

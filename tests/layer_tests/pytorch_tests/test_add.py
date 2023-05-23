@@ -38,6 +38,7 @@ class TestAdd(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_ts_backend
     @pytest.mark.parametrize("op_type", ["add", "add_"])
     def test_add(self, ie_device, precision, ir_version, alpha, input_rhs, op_type):
         self.input_rhs = input_rhs
@@ -98,6 +99,7 @@ class TestAddTypes(PytorchLayerTest):
                                                           ])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_ts_backend
     def test_add_types(self, ie_device, precision, ir_version, lhs_type, lhs_shape, rhs_type, rhs_shape):
         self.lhs_type = lhs_type
         self.lhs_shape = lhs_shape
@@ -120,5 +122,6 @@ class TestAddLists(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_ts_backend
     def test_add(self, ie_device, precision, ir_version):
         self._test(*self.create_model(), ie_device, precision, ir_version)
