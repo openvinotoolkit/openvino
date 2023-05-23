@@ -7,7 +7,6 @@
    :hidden:
 
    ote_documentation
-   ovtf_integration
    ovsa_get_started
    openvino_docs_tuning_utilities
 
@@ -75,12 +74,6 @@ DL Workbench
 ############
 
 A web-based tool for deploying deep learning models. Built on the core of OpenVINO and equipped with a graphics user interface, DL Workbench is a great way to explore the possibilities of the OpenVINO workflow, import, analyze, optimize, and build your pre-trained models. You can do all that by visiting `Intel® Developer Cloud <https://software.intel.com/content/www/us/en/develop/tools/devcloud.html>`__ and launching DL Workbench online.
-
-More resources:
-
-* `Documentation <https://docs.openvino.ai/2023.0/workbench_docs_Workbench_DG_Introduction.html>`__  
-* `Docker Hub <https://hub.docker.com/r/openvino/workbench>`__  
-* `PyPI <https://pypi.org/project/openvino-workbench/>`__   
 
 Computer Vision Annotation Tool (CVAT)
 ######################################
