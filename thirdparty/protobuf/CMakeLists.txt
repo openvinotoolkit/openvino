@@ -96,10 +96,3 @@ else()
     set(PROTOC_EXECUTABLE $<TARGET_FILE:protoc> PARENT_SCOPE)
     set(PROTOC_DEPENDENCY protoc PARENT_SCOPE)
 endif()
-
-# set to parent scope
-
-set(protobuf_VERSION ${protobuf_VERSION} PARENT_SCOPE)
-set(Protobuf_LITE_LIBRARIES libprotobuf-lite PARENT_SCOPE)
-set(Protobuf_LIBRARIES libprotobuf PARENT_SCOPE)
-set(Protobuf_INCLUDE_DIRS ${Protobuf_INCLUDE_DIRS} PARENT_SCOPE)
