@@ -8,6 +8,7 @@
 #include <pybind11/stl.h>
 
 #include "openvino/op/op.hpp"
+#include "pyopenvino/core/common.hpp"
 #include "pyopenvino/graph/ops/util/arithmetic_reduction.hpp"
 
 namespace py = pybind11;
@@ -25,6 +26,6 @@ void regclass_graph_op_util_ArithmeticReduction(py::module m) {
                                      &ov::op::util::ArithmeticReduction::get_reduction_axes,
                                      &ov::op::util::ArithmeticReduction::set_reduction_axes);
     arithmeticReduction.def("__repr__", [](const ov::op::util::ArithmeticReduction& self) {
-        return "<ArithmeticReduction>";
+        return Common::get_simple_repr(self);
     });
 }

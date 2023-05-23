@@ -17,6 +17,7 @@
 #include <openvino/pass/serialize.hpp>
 #include <openvino/pass/visualize_tree.hpp>
 
+#include "pyopenvino/core/common.hpp"
 #include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;
@@ -65,7 +66,7 @@ void regclass_transformations(py::module m) {
     )");
 
     serialize.def("__repr__", [](const ov::pass::Serialize& self) {
-        return "<Serialize>";
+        return Common::get_simple_repr(self);
     });
 
     py::class_<ov::pass::ConstantFolding,
@@ -76,7 +77,7 @@ void regclass_transformations(py::module m) {
     cf.doc() = "openvino.runtime.passes.ConstantFolding transformation";
     cf.def(py::init<>());
     cf.def("__repr__", [](const ov::pass::ConstantFolding& self) {
-        return "<ConstantFolding>";
+        return Common::get_simple_repr(self);
     });
 
     py::class_<ov::pass::VisualizeTree,
@@ -102,7 +103,7 @@ void regclass_transformations(py::module m) {
                   :type don_only: bool
     )");
     visualize.def("__repr__", [](const ov::pass::VisualizeTree& self) {
-        return "<VisualizeTree>";
+        return Common::get_simple_repr(self);
     });
 
     py::class_<ov::pass::MakeStateful, std::shared_ptr<ov::pass::MakeStateful>, ov::pass::ModelPass, ov::pass::PassBase>
@@ -125,7 +126,7 @@ void regclass_transformations(py::module m) {
         :type pairs_to_replace: Dict[str, str]
     )");
     make_stateful.def("__repr__", [](const ov::pass::MakeStateful& self) {
-        return "<MakeStateful>";
+        return Common::get_simple_repr(self);
     });
 
     py::class_<ov::pass::LowLatency2, std::shared_ptr<ov::pass::LowLatency2>, ov::pass::ModelPass, ov::pass::PassBase>
@@ -146,8 +147,8 @@ void regclass_transformations(py::module m) {
                                                   If "false, then the transformation leaves existed initializing subgraph for ReadValue operation.
                     :type use_const_initializer: bool
     )");
-    low_latency.def("__repr__", [](const ov::pass::LowLatency2& self) {
-        return "<LowLatency2>";
+    low_latency.def("__repr__", [low_latency](const ov::pass::LowLatency2& self) {
+        return Common::get_simple_repr(self);
     });
 
     py::class_<ov::pass::ConvertFP32ToFP16,
@@ -158,6 +159,6 @@ void regclass_transformations(py::module m) {
     convert.doc() = "openvino.runtime.passes.ConvertFP32ToFP16 transformation";
     convert.def(py::init<>());
     convert.def("__repr__", [](const ov::pass::ConvertFP32ToFP16& self) {
-        return "<ConvertFP32ToFP16>";
+        return Common::get_simple_repr(self);
     });
 }

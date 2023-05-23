@@ -9,6 +9,8 @@
 #include <memory>
 #include <openvino/pass/pass.hpp>
 
+#include "pyopenvino/core/common.hpp"
+
 namespace py = pybind11;
 
 void regclass_passes_PassBase(py::module m) {
@@ -32,6 +34,6 @@ void regclass_passes_PassBase(py::module m) {
                   :rtype: str
     )");
     pass_base.def("__repr__", [](const ov::pass::PassBase& self) {
-        return "<PassBase>";
+        return Common::get_simple_repr(self);
     });
 }

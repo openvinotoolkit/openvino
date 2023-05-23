@@ -11,6 +11,7 @@
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/pass.hpp"
 #include "openvino/pass/serialize.hpp"
+#include "pyopenvino/core/common.hpp"
 #include "pyopenvino/graph/passes/manager.hpp"
 #include "pyopenvino/utils/utils.hpp"
 
@@ -55,6 +56,6 @@ void regclass_passes_Manager(py::module m) {
     )");
 
     manager.def("__repr__", [](const ov::pass::Manager& self) {
-        return "<Manager>";
+        return Common::get_simple_repr(self);
     });
 }

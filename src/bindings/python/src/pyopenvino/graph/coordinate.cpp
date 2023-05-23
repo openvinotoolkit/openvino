@@ -7,6 +7,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
+#include "pyopenvino/core/common.hpp"
 #include "pyopenvino/graph/coordinate.hpp"
 
 namespace py = pybind11;
@@ -38,6 +39,6 @@ void regclass_graph_Coordinate(py::module m) {
         py::keep_alive<0, 1>()); /* Keep vector alive while iterator is used */
 
     coordinate.def("__repr__", [](const ov::Coordinate& self) {
-        return "<Coordinate>";
+        return Common::get_simple_repr(self);
     });
 }

@@ -96,6 +96,12 @@ py::dict outputs_to_dict(InferRequestWrapper& request);
 
 ov::pass::Serialize::Version convert_to_version(const std::string& version);
 
+template <typename T>
+std::string get_simple_repr(const T& obj) {
+    std::string class_name = py::str(py::cast(obj).get_type().attr("__name__"));
+    return "<" + class_name + ">";
+}
+
 // Use only with classes that are not creatable by users on Python's side, because
 // Objects created in Python that are wrapped with such wrapper will cause memory leaks.
 template <typename T>

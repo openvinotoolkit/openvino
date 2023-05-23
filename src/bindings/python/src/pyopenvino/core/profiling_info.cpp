@@ -7,6 +7,7 @@
 #include <pybind11/chrono.h>
 
 #include "openvino/runtime/profiling_info.hpp"
+#include "pyopenvino/core/common.hpp"
 
 namespace py = pybind11;
 
@@ -15,7 +16,7 @@ void regclass_ProfilingInfo(py::module m) {
     cls.doc() = "openvino.runtime.ProfilingInfo contains performance metrics for single node.";
 
     cls.def("__repr__", [](const ov::ProfilingInfo& self) {
-        return "<ProfilingInfo>";
+        return Common::get_simple_repr(self);
     });
 
     cls.def(py::init<>())

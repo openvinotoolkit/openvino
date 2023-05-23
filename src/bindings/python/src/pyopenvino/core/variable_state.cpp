@@ -7,6 +7,7 @@
 #include <pybind11/pybind11.h>
 
 #include "openvino/runtime/variable_state.hpp"
+#include "pyopenvino/core/common.hpp"
 
 namespace py = pybind11;
 
@@ -15,7 +16,7 @@ void regclass_VariableState(py::module m) {
     variable_st.doc() = "openvino.runtime.VariableState class.";
 
     variable_st.def("__repr__", [](const ov::VariableState& self) {
-        return "<VariableState>";
+        return Common::get_simple_repr(self);
     });
 
     variable_st.def("reset",

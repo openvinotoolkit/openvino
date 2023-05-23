@@ -126,6 +126,6 @@ void regclass_graph_PyRTMap(py::module m) {
     py_map.def("__len__", &PyRTMap::size);
 
     py_map.def("__repr__", [](const PyRTMap& self) {
-        return "<RTMap>";
+        return Common::get_simple_repr(self);
     });
 }

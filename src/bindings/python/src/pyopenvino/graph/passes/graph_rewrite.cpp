@@ -9,6 +9,8 @@
 #include <openvino/pass/graph_rewrite.hpp>
 #include <openvino/pass/pass.hpp>
 
+#include "pyopenvino/core/common.hpp"
+
 namespace py = pybind11;
 
 void regclass_passes_GraphRewrite(py::module m) {
@@ -74,6 +76,6 @@ void regclass_passes_GraphRewrite(py::module m) {
     )");
 
     back_graph_rewrite.def("__repr__", [](const ov::pass::BackwardGraphRewrite& self) {
-        return "<BackwardGraphRewrite>";
+        return Common::get_simple_repr(self);
     });
 }

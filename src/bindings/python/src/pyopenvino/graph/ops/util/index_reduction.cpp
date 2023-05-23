@@ -8,6 +8,7 @@
 #include <pybind11/stl.h>
 
 #include "openvino/op/op.hpp"
+#include "pyopenvino/core/common.hpp"
 #include "pyopenvino/graph/ops/util/index_reduction.hpp"
 
 namespace py = pybind11;
@@ -29,6 +30,6 @@ void regclass_graph_op_util_IndexReduction(py::module m) {
                                 &ov::op::util::IndexReduction::get_index_element_type,
                                 &ov::op::util::IndexReduction::set_index_element_type);
     indexReduction.def("__repr__", [](const ov::op::util::IndexReduction& self) {
-        return "<IndexReduction>";
+        return Common::get_simple_repr(self);
     });
 }
