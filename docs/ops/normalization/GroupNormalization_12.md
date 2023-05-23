@@ -16,7 +16,7 @@ The GroupNormalization operation performs the following transformation of the in
 
    y = scale * (x - mean) / sqrt(variance + epsilon) + bias
 
-The operation is applied per batch, per group of channels. This means that the example input with ``N x C x H x W`` layout is transformed to the ``N x G x C/G x H x W`` form. The ``scale`` and ``bias`` coefficients are the inputs to the model and need to be specified separately for each group. The ``mean`` and ``variance`` are calculated for each group and applied accordingly.
+The operation is applied per batch, per group of channels. This means that the example input with ``N x C x H x W`` layout is transformed to the ``N x G x C/G x H x W`` form. The ``scale`` and ``bias`` coefficients are the inputs to the model and need to be specified separately for each channel. The ``mean`` and ``variance`` are calculated for each group.
 
 **Attributes**
 
@@ -64,10 +64,10 @@ The operation is applied per batch, per group of channels. This means that the e
             <dim>100</dim>
         </port>
         <port id="1">
-            <dim>4</dim> <!-- 4 scale values, 1 for each group -->
+            <dim>12</dim> <!-- 12 scale values, 1 for each channel -->
         </port>
         <port id="2">
-            <dim>4</dim> <!-- 4 bias values, 1 for each group -->
+            <dim>12</dim> <!-- 12 bias values, 1 for each channel -->
         </port>
     </input>
     <output>
