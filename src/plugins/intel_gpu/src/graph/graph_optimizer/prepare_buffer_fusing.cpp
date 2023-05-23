@@ -86,8 +86,6 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
         return false;
     if (node.has_fused_primitives())
         return false;
-    if (node.is_dynamic())
-        return false;
 
     bool is_onednn_impl = false;
 
@@ -185,13 +183,14 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
         if (!input.first->is_type<pooling>() && !input.first->is_type<convolution>() && !input.first->is_type<quantize>() &&
             !input.first->is_type<activation>() && !input.first->is_type<deconvolution>() &&
             !input.first->is_type<concatenation>() && !input.first->is_type<crop>() && !input.first->is_type<eltwise>() &&
-            !input.first->is_type<resample>())
+            !input.first->is_type<resample>() && !(input.first->is_type<permute>() && !input.first->as<permute>().is_rotating_except_batch()))
             return false;
 
         // if an input is marked as network output, prevent optimizations
         // which would affect a form of its output (unless debug flag is set),
         // we also need to restrict input types to those which support padding on all axis
-        if (input.first->is_output() || !input.first->is_padding_supported(concat_axis, lower_padd_in_axis))
+        //if (input.first->is_output() || !input.first->is_padding_supported(concat_axis, lower_padd_in_axis))
+        if (input.first->is_output() || input.first->is_type<data>()) // TMP
             return false;
 
         // TODO: Investigate if this condition is needed
@@ -200,7 +199,7 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
 
         // If sibling is using onednn impl and batch > 1, the onednn impl cannot process the implicit concat'ed buffer.
         // Onednn impls can process implicit concat'ed buffer only through buffer pointer manipulation.
-        if (node.get_output_layout().batch() > 1) {
+        if (!node.is_dynamic() && node.get_output_layout().batch() > 1) {
             for (auto& sib : input.first->get_users()) {
                 if (sib->get_preferred_impl_type() == impl_types::onednn) {
                     return false;
@@ -236,8 +235,8 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
             if (idx != 0 && input_padd.lower_size().sizes(def_fmt)[concat_axis] != 0)
                 return false;
         }
-
-        lower_padd_in_axis += input.first->get_output_layout().get_tensor().sizes(def_fmt)[concat_axis];
+        if (!node.is_dynamic())
+            lower_padd_in_axis += input.first->get_output_layout().get_tensor().sizes(def_fmt)[concat_axis];
         idx += 1;
     }
 
@@ -248,6 +247,26 @@ void concat_in_place_optimization::optimize_cascade(concatenation_node& node, st
     auto out_layout = node.get_output_layout();
     auto out_rank = out_layout.get_rank();
     auto concat_axis = node.get_primitive()->axis;
+
+    if (node.is_dynamic()) {
+        auto concat_axis_legacy = concat_axis;
+        if (concat_axis_legacy >= 2) {
+            auto spatial_axis = concat_axis_legacy - 2;
+            auto spatial_size = std::max<size_t>(out_rank, 4) - 2;
+            concat_axis_legacy = spatial_size - spatial_axis - 1 + 2;
+        }
+        node.can_be_optimized(true);
+        for (auto& dep : node.get_dependencies()) {
+            dep.first->can_share_buffer(false);
+            auto dep_output_layout = dep.first->get_output_layout();
+            auto info_dynamic_pad = tensor(0).sizes();
+            info_dynamic_pad[concat_axis_legacy] = 1;
+            dep_output_layout.data_padding.set_dynamic_pad(tensor(info_dynamic_pad));
+            std::vector<layout> lay = {dep_output_layout};
+            dep.first->set_output_layouts(lay, false);
+        }
+        return;
+    }
     // We need to transform axis from bf[w][z]yx order to bfxy[z][w] due to tensor.sizes() usages here
     // should be removed once pad representation is changed
     auto concat_axis_legacy = concat_axis;

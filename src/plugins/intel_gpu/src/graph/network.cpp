@@ -1083,36 +1083,29 @@ void network::build_insts_deps() {
 
 void network::build_exec_order() {
     GPU_DEBUG_DEFINE_MEM_LOGGER("build_exec_order");
-#if 0
-    for (auto& node : _program->get_processing_order()) {
-        if (!node->is_type<data>() && !(node->is_type<mutable_data>() && node->get_dependencies().empty())) {
-            add_to_exec_order(node->id());
+    if (!_is_dynamic) {
+        for (auto& node : _program->get_processing_order()) {
+            if (!node->is_type<data>() && !(node->is_type<mutable_data>() && node->get_dependencies().empty())) {
+                add_to_exec_order(node->id());
+            }
         }
-    }
-#else
-    for (auto& node : _program->get_processing_order()) {
-        if (!node->is_type<data>() && !(node->is_type<mutable_data>() && node->get_dependencies().empty())) {
-            if (node->get_users().size() == 1 && node->get_users().front()->is_type<concatenation>() && node->get_users().front()->is_dynamic()) {
-                continue;
-            } else if (node->is_dynamic() && node->is_type<concatenation>()) {
-                std::cout << "Pulled concat " << node->id() << " 's preds" << std::endl;
-                for (auto dep : node->get_dependencies()) {
-                    if (!dep.first->is_type<data>() && dep.first->get_users().size() == 1) {
-                        add_to_exec_order(dep.first->id());
-                        std::cout << dep.first->id() << "( can be optimized: " << dep.first->can_be_optimized() << " ) " << std::endl;
-                    } else {
-                        std::cout << dep.first->id() << "( data )" << std::endl;
+    } else {
+        for (auto& node : _program->get_processing_order()) {
+            if (!node->is_type<data>() && !(node->is_type<mutable_data>() && node->get_dependencies().empty())) {
+                if (node->get_users().size() == 1 && node->get_users().front()->is_type<concatenation>() &&
+                    node->get_users().front()->is_dynamic()) {
+                    continue;
+                } else if (node->is_dynamic() && node->is_type<concatenation>()) {
+                    for (auto dep : node->get_dependencies()) {
+                        if (!dep.first->is_type<data>() && dep.first->get_users().size() == 1) {
+                            add_to_exec_order(dep.first->id());
+                        }
                     }
                 }
+                add_to_exec_order(node->id());
             }
-            add_to_exec_order(node->id());
         }
     }
-#endif
-//    std::cout << "Exec order " << std::endl;
-//    for (auto e : _exec_order) {
-//        std::cout << e->id() << std::endl;
-//    }
 }
 void network::add_to_exec_order(const primitive_id& id) {
     auto inst = get_primitive(id);
