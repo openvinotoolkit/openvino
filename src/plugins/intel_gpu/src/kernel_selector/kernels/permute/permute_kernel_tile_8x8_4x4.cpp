@@ -162,9 +162,8 @@ JitConstants PermuteKernel_tile_8x8_4x4::GetJitConstants(const permute_params& p
     if (params.has_dynamic_tensors()) {
         jit.AddConstant(MakeJitConstant("DEFAULT_TILE_SIZE", DEFAULT_TILE_SIZE));
         jit.AddConstant(MakeJitConstant("MIN_TILE_SIZE", MIN_TILE_SIZE));
-        auto local_mem_per_wi = DEFAULT_TILE_SIZE * BytesPerElement(params.inputs[0].GetDType());
-        // Combining device execution and local memory restrictions to compute maximum possible LWS.
-        auto max_lws = std::min(params.engineInfo.maxWorkGroupSize, params.engineInfo.maxLocalMemSize / local_mem_per_wi);
+        auto req_local_mem_size = DEFAULT_TILE_SIZE * BytesPerElement(params.inputs[0].GetDType());
+        auto max_lws = params.engineInfo.maxLocalMemSize / req_local_mem_size;
         jit.AddConstant(MakeJitConstant("TRANS_BUF_SIZE", max_lws));
     } else {
         size_t vector_width = tile_size;
