@@ -30,7 +30,7 @@ TYPED_TEST_P(ReduceStaticShapeInferenceTest, default_ctor) {
     int32_t axes_val[] = {0, 1, 3};
     const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {
         {1, std::make_shared<HostTensor>(element::i32, Shape{3}, axes_val)}};
-    shape_infer(this->op.get(), this->input_shapes, this->output_shapes, constant_data);
+    shape_inference(this->op.get(), this->input_shapes, this->output_shapes, constant_data);
 
     EXPECT_EQ(this->output_shapes.front(), StaticShape({1, 1, 7, 1, 4}));
 }

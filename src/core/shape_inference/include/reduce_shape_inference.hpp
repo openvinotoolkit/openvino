@@ -21,49 +21,73 @@ inline void dynamic_inference<ov::PartialShape>(const ov::PartialShape& input_sh
     output_shape = keep_dims ? ov::PartialShape::dynamic(input_shape.rank()) : ov::PartialShape::dynamic();
 }
 
-template <class T>
-void reduce_shape_infer(const ov::op::util::ReductionBase* op,
-                        bool keep_dims,
-                        const T& input_shape,
-                        T& output_shape,
-                        const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
-    const auto& data_rank = input_shape.rank();
-    std::vector<int64_t> axes_val;
-    bool axes_are_known = get_data_as_int64<T>(1, op, axes_val, constant_data);
+template <class TShape>
+std::vector<TShape> reduce_shape_infer(const ov::op::util::ReductionBase* op,
+                                       bool keep_dims,
+                                       const std::vector<TShape>& input_shapes,
+                                       const ov::ITensorAccessor& tensor_accessor = ov::make_tensor_accessor()) {
+    NODE_VALIDATION_CHECK(op, input_shapes.size() >= 1);
 
-    if (data_rank.is_static() && axes_are_known) {
+    const auto& input_shape = input_shapes[0];
+    const auto& data_rank = input_shape.rank();
+    TShape output_shape;
+
+    const auto axes_val =
+        ov::op::get_input_const_data_as<TShape, int64_t>(op, 1, tensor_accessor, ov::util::Cast<int64_t>());
+
+    if (data_rank.is_static() && axes_val) {
         OPENVINO_SUPPRESS_DEPRECATED_START
-        ov::normalize_axes(op, data_rank.get_length(), axes_val);
+        ov::normalize_axes(op, data_rank.get_length(), *axes_val);
         OPENVINO_SUPPRESS_DEPRECATED_END
 
         if (keep_dims) {
             output_shape = input_shape;
-            for (const auto& axis : axes_val)
+            for (const auto& axis : *axes_val) {
                 output_shape[axis] = 1;
-            return;
+            }
+        } else {
+            for (size_t i = 0; i < input_shape.size(); ++i) {
+                if (std::find(axes_val->begin(), axes_val->end(), i) == axes_val->end()) {
+                    output_shape.push_back(input_shape[i]);
+                }
+            }
         }
-        for (int64_t i = 0; i < data_rank.get_length(); ++i)
-            if (find(axes_val.begin(), axes_val.end(), i) == axes_val.end())
-                output_shape.push_back(input_shape[i]);
     } else {
         dynamic_inference(input_shape, output_shape, keep_dims);
     }
+    return {output_shape};
 }
 
-template <class T>
+// API: TensorAccessor to constant data
+template <class TShape>
+std::vector<TShape> shape_infer(const ov::op::util::ArithmeticReductionKeepDims* op,
+                                const std::vector<TShape>& input_shapes,
+                                const ov::ITensorAccessor& tensor_accessor = ov::make_tensor_accessor()) {
+    return reduce_shape_infer(op, op->get_keep_dims(), input_shapes, tensor_accessor);
+}
+
+template <class TShape>
+std::vector<TShape> shape_infer(const ov::op::util::LogicalReductionKeepDims* op,
+                                const std::vector<TShape>& input_shapes,
+                                const ov::ITensorAccessor& tensor_accessor = ov::make_tensor_accessor()) {
+    return reduce_shape_infer(op, op->get_keep_dims(), input_shapes, tensor_accessor);
+}
+
+// API for compatibility: Constant data map
+template <class TShape>
 void shape_infer(const ov::op::util::ArithmeticReductionKeepDims* op,
-                 const std::vector<T>& input_shapes,
-                 std::vector<T>& output_shapes,
+                 const std::vector<TShape>& input_shapes,
+                 std::vector<TShape>& output_shapes,
                  const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
-    NODE_VALIDATION_CHECK(op, input_shapes.size() == 2 && output_shapes.size() == 1);
-    reduce_shape_infer(op, op->get_keep_dims(), input_shapes[0], output_shapes[0], constant_data);
+    const auto tensor_accessor = ov::make_tensor_accessor(constant_data);
+    output_shapes = reduce_shape_infer(op, op->get_keep_dims(), input_shapes, tensor_accessor);
 }
 
-template <class T>
+template <class TShape>
 void shape_infer(const ov::op::util::LogicalReductionKeepDims* op,
-                 const std::vector<T>& input_shapes,
-                 std::vector<T>& output_shapes,
+                 const std::vector<TShape>& input_shapes,
+                 std::vector<TShape>& output_shapes,
                  const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
-    NODE_VALIDATION_CHECK(op, input_shapes.size() == 2 && output_shapes.size() == 1);
-    reduce_shape_infer(op, op->get_keep_dims(), input_shapes[0], output_shapes[0], constant_data);
+    const auto tensor_accessor = ov::make_tensor_accessor(constant_data);
+    output_shapes = reduce_shape_infer(op, op->get_keep_dims(), input_shapes, tensor_accessor);
 }

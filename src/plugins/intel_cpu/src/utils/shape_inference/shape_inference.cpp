@@ -538,15 +538,6 @@ const IShapeInferCommonFactory::TRegistry IShapeInferCommonFactory::registry{
     _OV_OP_SHAPE_INFER_REG(Unsqueeze, entryIOC),
     _OV_OP_SHAPE_INFER_REG(VariadicSplit, entryIOC),
     _OV_OP_SHAPE_INFER_VA_REG(Gather, entryIOC, ov::op::util::GatherBase),
-    _OV_OP_SHAPE_INFER_VA_REG(ReduceL1, entryIOC, op::util::ArithmeticReductionKeepDims),
-    _OV_OP_SHAPE_INFER_VA_REG(ReduceL2, entryIOC, op::util::ArithmeticReductionKeepDims),
-    _OV_OP_SHAPE_INFER_VA_REG(ReduceLogicalAnd, entryIOC, op::util::LogicalReductionKeepDims),
-    _OV_OP_SHAPE_INFER_VA_REG(ReduceLogicalOr, entryIOC, op::util::LogicalReductionKeepDims),
-    _OV_OP_SHAPE_INFER_VA_REG(ReduceMax, entryIOC, op::util::ArithmeticReductionKeepDims),
-    _OV_OP_SHAPE_INFER_VA_REG(ReduceMean, entryIOC, op::util::ArithmeticReductionKeepDims),
-    _OV_OP_SHAPE_INFER_VA_REG(ReduceMin, entryIOC, op::util::ArithmeticReductionKeepDims),
-    _OV_OP_SHAPE_INFER_VA_REG(ReduceProd, entryIOC, op::util::ArithmeticReductionKeepDims),
-    _OV_OP_SHAPE_INFER_VA_REG(ReduceSum, entryIOC, op::util::ArithmeticReductionKeepDims),
     // opset7
     _OV_OP_SHAPE_INFER_VA_REG(opset7::Gather, entryIOC, ov::op::util::GatherBase),
     // opset5
@@ -585,6 +576,15 @@ const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     // Default opset
     _OV_OP_SHAPE_INFER_MASK_REG(Tile, ShapeInferBase, util::bit::mask(1)),
     _OV_OP_SHAPE_INFER_MASK_REG(ExperimentalDetectronROIFeatureExtractor, ShapeInferBase, util::bit::mask()),
+    _OV_OP_SHAPE_INFER_VA_REG(ReduceL1, ShapeInferBase, op::util::ArithmeticReductionKeepDims, util::bit::mask(1)),
+    _OV_OP_SHAPE_INFER_VA_REG(ReduceL2, ShapeInferBase, op::util::ArithmeticReductionKeepDims, util::bit::mask(1)),
+    _OV_OP_SHAPE_INFER_VA_REG(ReduceLogicalAnd, ShapeInferBase, op::util::LogicalReductionKeepDims, util::bit::mask(1)),
+    _OV_OP_SHAPE_INFER_VA_REG(ReduceLogicalOr, ShapeInferBase, op::util::LogicalReductionKeepDims, util::bit::mask(1)),
+    _OV_OP_SHAPE_INFER_VA_REG(ReduceMax, ShapeInferBase, op::util::ArithmeticReductionKeepDims, util::bit::mask(1)),
+    _OV_OP_SHAPE_INFER_VA_REG(ReduceMean, ShapeInferBase, op::util::ArithmeticReductionKeepDims, util::bit::mask(1)),
+    _OV_OP_SHAPE_INFER_VA_REG(ReduceMin, ShapeInferBase, op::util::ArithmeticReductionKeepDims, util::bit::mask(1)),
+    _OV_OP_SHAPE_INFER_VA_REG(ReduceProd, ShapeInferBase, op::util::ArithmeticReductionKeepDims, util::bit::mask(1)),
+    _OV_OP_SHAPE_INFER_VA_REG(ReduceSum, ShapeInferBase, op::util::ArithmeticReductionKeepDims, util::bit::mask(1)),
     // Operators shape inferences for specific opset version should be specified below
     // opset1
     _OV_OP_SHAPE_INFER_MASK_REG(opset1::Reverse, ShapeInferBase, util::bit::mask(1)),
