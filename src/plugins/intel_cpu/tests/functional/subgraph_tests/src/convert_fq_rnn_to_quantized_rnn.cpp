@@ -75,30 +75,22 @@ protected:
         const auto& shapeX = targetInputStaticShapes[0];
         const auto& shapeH = targetInputStaticShapes[1];
 
-        // @todo update arguments after random data generation is fixed
-        ov::Tensor tensorX = utils::create_and_fill_tensor(funcInputs[0].get_element_type(), shapeX, 1*128, 0, 128);
-        ov::Tensor tensorH = utils::create_and_fill_tensor(funcInputs[1].get_element_type(), shapeH, 1*128, 0, 128);
+        ov::Tensor tensorX = utils::create_and_fill_tensor(funcInputs[0].get_element_type(), shapeX, 1, 0, 16);
+        ov::Tensor tensorH = utils::create_and_fill_tensor(funcInputs[1].get_element_type(), shapeH, 1, 0, 16);
 
         inputs.insert({funcInputs[0].get_node_shared_ptr(), tensorX});
         inputs.insert({funcInputs[1].get_node_shared_ptr(), tensorH});
 
         if (hasCell) {
-            const auto& shapeC = targetInputStaticShapes[2];
-            ov::Tensor tensorC = utils::create_and_fill_tensor(funcInputs[2].get_element_type(), shapeC, 2*128, -1, 128, 2);
-            inputs.insert({funcInputs[2].get_node_shared_ptr(), tensorC});
+            const auto& shapeC = targetInputStaticShapes[cellIdx];
+            ov::Tensor tensorC = utils::create_and_fill_tensor(funcInputs[cellIdx].get_element_type(), shapeC, 2, -1, 128, 2);
+            inputs.insert({funcInputs[cellIdx].get_node_shared_ptr(), tensorC});
         }
-
-        const size_t batchSize = targetInputStaticShapes[0][0];
-        const int maxSeqLen = static_cast<int>(targetInputStaticShapes[0][1]);
-        const auto& shapeSeqLen = targetInputStaticShapes[seqLenIdx];
-        ov::Tensor tensorSeqLen{funcInputs[seqLenIdx].get_element_type(), shapeSeqLen};
-        auto data = tensorSeqLen.data<ov::element_type_traits<ElementType::i64>::value_type>();
-        std::fill(data, data + batchSize, maxSeqLen);
-        inputs.insert({funcInputs[seqLenIdx].get_node_shared_ptr(), tensorSeqLen});
     }
 
     void SetUp() override {
         targetDevice = CommonTestUtils::DEVICE_CPU;
+        selectedType = "ref_any_I8";
 
         std::vector<InputShape> inputShapes;
         std::string rnnType;
@@ -106,25 +98,24 @@ protected:
 
         std::tie(rnnType, inputShapes, quantizedHiddenState) = this->GetParam();
 
-        if (rnnType == "GRUSequence")
-            inputShapes.erase(inputShapes.begin() + 2);
+        if (rnnType != "LSTMSequence") // remove cell input for non-cell rnn types
+            inputShapes.erase(inputShapes.begin() + cellIdx);
 
         init_input_shapes(inputShapes);
+
         const auto inputSize  = targetStaticShapes.front()[0][2];
         const auto hiddenSize = targetStaticShapes.front()[1][2];
         const size_t numDirections = 1;
-        const size_t numOfGates = rnnType == "LSTMSequence" ? 4 : 3;
-        seqLenIdx = rnnType == "LSTMSequence" ? 3 : 2;
+        const size_t numOfGates     = rnnType == "LSTMSequence"   ? 4 : 3;
+        const size_t numOfBiasGates = rnnType == "LBRGRUSequence" ? numOfGates + 1 : numOfGates;
 
         const auto ngPrec = element::f32;
         ngraph::ParameterVector inputParams;
         std::shared_ptr<Node> H;
 
         inputParams = ngraph::builder::makeDynamicParams(ngPrec, inputDynamicShapes);
-        inputParams.at(seqLenIdx)->set_element_type(ElementType::i64);
 
         const auto outputNodes = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes(inputParams));
-
 
         auto makeDataFQ = [](const ngraph::Output<Node>& input) {
             const auto fqLevels = 256;
@@ -141,9 +132,9 @@ protected:
             H = ngraph::builder::makeConstant(ngraph::element::f32, inputDynamicShapes[1].get_shape(),  {}, true, 1.f, -1.f);
         }
 
-        auto W = ngraph::builder::makeConstant(ngraph::element::f32, {numDirections, numOfGates * hiddenSize, inputSize},  {}, true, 1.f, -1.f);
-        auto R = ngraph::builder::makeConstant(ngraph::element::f32, {numDirections, numOfGates * hiddenSize, hiddenSize}, {}, true, 1.f, -1.f);
-        auto B = ngraph::builder::makeConstant(ngraph::element::f32, {numDirections, numOfGates * hiddenSize},             {}, true, 0.01f, -0.01f);
+        auto W = ngraph::builder::makeConstant(ngraph::element::f32, {numDirections, numOfGates     * hiddenSize, inputSize},  {}, true, 1.f, -1.f);
+        auto R = ngraph::builder::makeConstant(ngraph::element::f32, {numDirections, numOfGates     * hiddenSize, hiddenSize}, {}, true, 1.f, -1.f);
+        auto B = ngraph::builder::makeConstant(ngraph::element::f32, {numDirections, numOfBiasGates * hiddenSize},             {}, true, 0.1f, -0.1f);
 
         auto makeWeightsFQ = [](const std::shared_ptr<Node> weight) {
             const auto fqLevelsW = 255;
@@ -158,29 +149,46 @@ protected:
 
         std::shared_ptr<ov::Node> rnnCellOp;
 
-        auto seq_lengths = outputNodes[seqLenIdx];
+        // fill sequence_length constant with max sequence length values
+        const auto batchSize  = targetStaticShapes.front()[0][0];
+        const auto maxSeqLen  = targetStaticShapes.front()[0][1];
+        std::vector<int> lengths(batchSize, static_cast<int>(maxSeqLen));
+        auto seq_lengths = ngraph::opset1::Constant::create(element::i64, Shape{batchSize}, lengths);
 
         if (rnnType == "LSTMSequence") {
             hasCell = true;
-            auto C = outputNodes[2];
+            auto C = outputNodes[cellIdx];
             rnnCellOp = std::make_shared<ov::op::v5::LSTMSequence>(
                 X_FQ, H, C, seq_lengths, W_FQ, R_FQ, B,
                 hiddenSize, op::RecurrentSequenceDirection::FORWARD);
-        } else {
+        } else if (rnnType == "GRUSequence") {
             rnnCellOp = std::make_shared<ov::op::v5::GRUSequence>(
                 X_FQ, H, seq_lengths, W_FQ, R_FQ, B,
                 hiddenSize, op::RecurrentSequenceDirection::FORWARD);
+        } else if (rnnType == "LBRGRUSequence") {
+            const std::vector<std::string> activations{"sigmoid", "tanh"};
+            const std::vector<float> activations_alpha, activations_beta;
+            rnnCellOp = std::make_shared<ov::op::v5::GRUSequence>(
+                X_FQ, H, seq_lengths, W_FQ, R_FQ, B,
+                hiddenSize, op::RecurrentSequenceDirection::FORWARD,
+                activations, activations_alpha, activations_beta, 0.f, true);
+        } else {
+            IE_THROW() << "Unexpected offset type";
         }
+
+        if (maxSeqLen > 1)
+            abs_threshold = 0.05; // RNN int8 computation is expected to affect the accuracy, especially when sequence_length > 1
 
         function = makeNgraphFunction(ngPrec, inputParams, rnnCellOp, "ConvertFqRnnToQuantizedRnn");
     }
 private:
+    static const size_t cellIdx = 2;
     bool hasCell = false;
-    size_t seqLenIdx = 0;
 };
 
 TEST_P(ConvertFqRnnToQuantizedRnn, CompareWithRefs) {
     run();
+    CheckPluginRelatedResults(compiledModel, "RNNSeq");
 }
 
 namespace {
@@ -190,13 +198,11 @@ const std::vector<std::vector<InputShape>> staticShapesLSTM = {
         { {}, { {2, 5, 10} } },  // X
         { {}, { {2, 1, 4}} },    // H
         { {}, { {2, 1, 4}} },    // C
-        { {}, { {2} } }          // seq_length
     },
     {   // seq len = 1
         { {}, { {2, 1, 5} } },   // X
         { {}, { {2, 1, 1}} },    // H
         { {}, { {2, 1, 1}} },    // C
-        { {}, { {2} } }          // seq_length
     },
 };
 
@@ -204,27 +210,9 @@ std::vector<bool> quantizedHiddenStateParam{true, false};
 
 INSTANTIATE_TEST_SUITE_P(smoke_static, ConvertFqRnnToQuantizedRnn,
                          ::testing::Combine(::testing::Values("LSTMSequence", "GRUSequence"),
+                                            // "LBRGRUSequence", // enable after implemented in oneDNN
                                             ::testing::ValuesIn(staticShapesLSTM),
                                             ::testing::ValuesIn(quantizedHiddenStateParam)),
-                         ConvertFqRnnToQuantizedRnn::getTestCaseName);
-
-const std::vector<std::vector<InputShape>> dynamicShapesLSTM = {
-    {
-        { {-1, 1, 10},                   // X
-          { {1, 1, 10}, {16, 1, 10} } }, // Target shapes
-        { {-1, 1, 4},                    // H
-          { {1, 1, 4}, {16, 1, 4}} },    // Target shapes
-        { {-1, 1, 4},                    // C
-          { {1, 1, 4}, {16, 1, 4}} },    // Target shapes
-        { {-1},                          // seq_length
-          { {1}, {16} } }                // Target shapes
-    },
-};
-
-INSTANTIATE_TEST_SUITE_P(smoke_dynamic, ConvertFqRnnToQuantizedRnn,
-                         ::testing::Combine(::testing::Values("LSTMSequence", "GRUSequence"),
-                                            ::testing::ValuesIn(dynamicShapesLSTM),
-                                            ::testing::Values(true)),
                          ConvertFqRnnToQuantizedRnn::getTestCaseName);
 } // namespace
 

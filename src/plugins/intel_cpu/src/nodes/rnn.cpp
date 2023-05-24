@@ -984,19 +984,19 @@ void RNN::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
 
     // Fill supported config
     NodeConfig config;
-    for (size_t i = 0; i < inputDesc.size(); i++) {
+    for (const auto &desc : inputDesc) {
         PortConfig dataConfig;
         dataConfig.inPlace(-1);
         dataConfig.constant(false);
-        dataConfig.setMemDesc(inputDesc[i]);
+        dataConfig.setMemDesc(desc);
         config.inConfs.push_back(dataConfig);
     }
 
-    for (size_t i = 0; i < outputDesc.size(); i++) {
+    for (const auto &desc : outputDesc) {
         PortConfig dataConfig;
         dataConfig.inPlace(-1);
         dataConfig.constant(false);
-        dataConfig.setMemDesc(outputDesc[i]);
+        dataConfig.setMemDesc(desc);
         config.outConfs.push_back(dataConfig);
     }
 
@@ -1011,6 +1011,9 @@ Node::AttrPtr RNN::initPrimitiveAttr() {
         const int weightsScaleMask = 0
             + (1 << 3) // bit, indicating the unique scales for `g` dim in `ldigo`
             + (1 << 4); // bit, indicating the unique scales for `o` dim in `ldigo`
+
+        DEBUG_LOG(getName(), ": inputScale: ", inputScale, ", inputShift: ", inputShift,
+                  ", weightsScaleMask: ", weightsScaleMask, ", weightsScales[0]: ", weightsScales[0]);
 
         attr->set_rnn_weights_qparams(weightsScaleMask, weightsScales);
         attr->set_rnn_data_qparams(inputScale, inputShift);
