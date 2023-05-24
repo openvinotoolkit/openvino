@@ -17,7 +17,6 @@
 #include "convolution_inst.h"
 #include "permute_inst.h"
 #include "reshape_inst.h"
-#include "gather_inst.h"
 #include "activation_inst.h"
 #include "pass_manager.h"
 #include "to_string_utils.h"
