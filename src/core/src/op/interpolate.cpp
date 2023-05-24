@@ -213,6 +213,7 @@ bool ov::op::v4::Interpolate::evaluate_interpolate(TensorVector& outputs, const 
 
     const auto ta = make_tensor_accessor(inputs);
     const auto out_shape = shape_infer(this, input_shapes, pads_begin, pads_end, ta).front().to_shape();
+    outputs[0].set_shape(out_shape);
 
     auto padded_input_shape =
         interpolate::make_padded_shape(input_shapes.front(), pads_begin.begin(), pads_end.begin()).to_shape();
@@ -233,13 +234,13 @@ bool ov::op::v4::Interpolate::evaluate_interpolate(TensorVector& outputs, const 
 
     switch (input_et) {
     case element::Type_t::f32:
-        ngraph::runtime::reference::interpolate(reinterpret_cast<float*>(padded_data_ptr),
-                                                padded_input_shape,
-                                                scales,
-                                                *axes,
-                                                outputs[0].data<float>(),
-                                                out_shape,
-                                                m_attrs);
+        ngraph::runtime::reference::interpolate<float>(reinterpret_cast<float*>(padded_data_ptr),
+                                                       padded_input_shape,
+                                                       scales,
+                                                       *axes,
+                                                       outputs[0].data<float>(),
+                                                       out_shape,
+                                                       m_attrs);
         break;
     case element::Type_t::f16:
         ngraph::runtime::reference::interpolate<float16>(reinterpret_cast<float16*>(padded_data_ptr),
