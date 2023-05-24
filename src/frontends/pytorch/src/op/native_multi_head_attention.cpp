@@ -4,6 +4,7 @@
 
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/opsets/opset10.hpp"
+#include "pt_framework_node.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -44,8 +45,6 @@ OutputVector translate_native_multi_head_attention(const NodeContext& context) {
     const auto need_weights = context.const_input<bool>(10);
     const auto average_weights = context.const_input<bool>(11);
 
-    const auto zero = context.mark_node(opset10::Constant::create(element::i64, Shape{}, {0}));
-    const auto one = context.mark_node(opset10::Constant::create(element::i64, Shape{}, {1}));
     const auto ev = context.mark_node(opset10::Constant::create(element::i64, Shape{}, {embed_dim}));
     const auto heads = context.mark_node(opset10::Constant::create(element::i64, Shape{}, {num_head}));
     const auto minus_inf =
@@ -111,7 +110,7 @@ OutputVector translate_native_multi_head_attention(const NodeContext& context) {
     const auto value_transposed =
         context.mark_node(std::make_shared<opset10::Transpose>(value_reshaped, qv_transpose_dims));
 
-    const auto scale_one = context.mark_node(std::make_shared<opset10::ConvertLike>(one, query_transposed));
+    const auto scale_one = context.mark_node(std::make_shared<opset10::ConvertLike>(one_1d, query_transposed));
     const auto scale_dim = context.mark_node(std::make_shared<opset10::ConvertLike>(embed_div_heads, query_transposed));
     const auto scale_dim_sqrt = context.mark_node(std::make_shared<opset10::Sqrt>(scale_dim));
     const auto scale = context.mark_node(std::make_shared<opset10::Divide>(scale_one, scale_dim_sqrt));
@@ -180,7 +179,12 @@ OutputVector translate_native_multi_head_attention(const NodeContext& context) {
     if (need_weights) {
         return {scaled_dot_product_attention_biased, scaled_dot_product};
     } else {
-        return {scaled_dot_product_attention_biased, zero};
+        const auto none = std::make_shared<PtFrameworkNode>(context.get_decoder(), context.inputs());
+        auto attrs = none->get_attrs();
+        attrs["none_value"] = "";
+        none->set_attrs(attrs);
+        const auto none_marked = context.mark_node(none);
+        return {scaled_dot_product_attention_biased, none_marked};
     }
 };
 
