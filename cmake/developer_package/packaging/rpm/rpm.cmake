@@ -22,6 +22,11 @@ macro(ov_rpm_cpack_set_dirs)
     set(OV_CPACK_NGRAPH_CMAKEDIR ${CMAKE_INSTALL_LIBDIR}/cmake/ngraph${OpenVINO_VERSION})
     set(OV_CPACK_OPENVINO_CMAKEDIR ${CMAKE_INSTALL_LIBDIR}/cmake/openvino${OpenVINO_VERSION})
     set(OV_CPACK_DOCDIR ${CMAKE_INSTALL_DATADIR}/doc/openvino-${OpenVINO_VERSION})
+    set(OV_CPACK_LICENSESDIR ${OV_CPACK_DOCDIR}/licenses)
+
+    # TODO:
+    # 1. define python installation directories for RPM packages
+    # 2. make sure only a single version of python API can be installed at the same time (define conflicts section)
     # set(OV_CPACK_PYTHONDIR lib/python3/dist-packages)
 
     ov_get_pyversion(pyversion)
@@ -93,9 +98,7 @@ macro(ov_rpm_specific_settings)
     # use rpmlint to check packages in post-build step
     set(CPACK_POST_BUILD_SCRIPTS "${IEDevScripts_DIR}/packaging/rpm/post_build.cmake")
     # enable for debug cpack run
-    if(NOT DEFINED CPACK_RPM_PACKAGE_DEBUG)
-        set(CPACK_RPM_PACKAGE_DEBUG OFF)
-    endif()
+    ov_set_if_not_defined(CPACK_RPM_PACKAGE_DEBUG OFF)
 
     # naming convention for rpm package files
     set(CPACK_RPM_FILE_NAME "RPM-DEFAULT")
