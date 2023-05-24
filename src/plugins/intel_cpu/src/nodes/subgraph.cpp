@@ -21,12 +21,16 @@
 #include <ie_ngraph_utils.hpp>
 
 #include <snippets/op/subgraph.hpp>
-#include "emitters/cpu_generator.hpp"
+#include "snippets/pass/matmul_to_brgemm.hpp"
 #include "utils/cpu_utils.hpp"
-#include "snippets_transformations/fuse_load_store_and_convert.hpp"
-#include "snippets_transformations/mul_add_to_fma.hpp"
-#include "snippets_transformations/remove_converts.hpp"
-#include "ngraph_transformations/convert_to_swish_cpu.hpp"
+#include "emitters/x64/cpu_generator.hpp"
+#include "transformations/snippets/x64/pass/lowered/fuse_load_store_and_convert.hpp"
+#include "transformations/snippets/x64/pass/mul_add_to_fma.hpp"
+#include "transformations/snippets/x64/pass/brgemm_to_brgemm_cpu.hpp"
+#include "transformations/snippets/x64/pass/remove_converts.hpp"
+#include "transformations/snippets/x64/pass/enforce_precision.hpp"
+#include "transformations/cpu_opset/common/pass/convert_to_swish_cpu.hpp"
+#include "transformations/defs.hpp"
 
 using namespace InferenceEngine;
 using namespace dnnl::impl::utils;
@@ -70,35 +74,32 @@ private:
 };
 } // namespace
 
-Snippet::Snippet(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+Snippet::Snippet(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
         : Node(op, context, SnippetShapeInferFactory(this)) {
     host_isa = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ?
         dnnl::impl::cpu::x64::avx512_core : dnnl::impl::cpu::x64::avx2;
-    original_snippet = ov::as_type_ptr<ngraph::snippets::op::Subgraph>(op);
+    original_snippet = ov::as_type_ptr<snippets::op::Subgraph>(op);
     if (!original_snippet) {
         IE_THROW(NotImplemented) << "Node is not an instance of snippets::op::Subgraph";
     }
 }
 
 void Snippet::copy_snippet() {
-    ngraph::OutputVector subgraph_node_inputs;
+    ov::OutputVector subgraph_node_inputs;
     for (const auto &input : original_snippet->input_values()) {
-        auto new_input = std::make_shared<ngraph::opset1::Parameter>(input.get_element_type(), input.get_partial_shape());
+        auto new_input = std::make_shared<ov::opset1::Parameter>(input.get_element_type(), input.get_partial_shape());
         subgraph_node_inputs.push_back(new_input);
     }
-    std::shared_ptr<ov::Model> new_body = nullptr;
-    // Ticket[79554]: TypeRelaxed ops aren't thread safe so we use mutex to avoid collision in throughput mode
-    if (original_snippet->has_type_relaxed_ops()) {
-        std::lock_guard<std::mutex> lock(*context->getSharedMutex());
-        new_body = original_snippet->body_ptr()->clone();
-    } else {
-        new_body = original_snippet->body_ptr()->clone();
-    }
-    snippet = std::make_shared<ngraph::snippets::op::Subgraph>(subgraph_node_inputs, new_body);
-    ngraph::copy_runtime_info(original_snippet, snippet);
+    std::shared_ptr<ov::Model> new_body = original_snippet->body_ptr()->clone();
+    snippet = std::make_shared<snippets::op::Subgraph>(subgraph_node_inputs, new_body);
+    ov::copy_runtime_info(original_snippet, snippet);
     snippet->set_friendly_name(original_snippet->get_friendly_name());
+#if defined(OPENVINO_ARCH_X86_64)
     snippet->set_generator(std::make_shared<CPUGenerator>(host_isa));
     isa_num_lanes =  snippet->get_generator()->get_target_machine()->get_lanes();
+#else
+    IE_THROW(NotImplemented) << "CPU plugin: code-generation is not supported on non-x64 platforms";
+#endif // OPENVINO_ARCH_X86_64
 }
 
 void Snippet::initSupportedPrimitiveDescriptors() {
@@ -176,10 +177,14 @@ void Snippet::initSupportedPrimitiveDescriptors() {
 
         size_t offset = 0;
         NodeConfig config;
-        config.dynBatchSupport = false;
         config.inConfs.resize(inputShapes.size());
         for (size_t i = 0; i < inputShapes.size(); i++) {
-            auto precision = getOriginalInputPrecisionAtPort(i);
+            const auto originalInputPrecision = getOriginalInputPrecisionAtPort(i);
+            const auto precision = ((originalInputPrecision == InferenceEngine::Precision::FP32) &&
+                                     context->getConfig().enforceBF16 &&
+                                     snippet->has_domain_sensitive_ops()) ?
+                static_cast<InferenceEngine::Precision>(InferenceEngine::Precision::BF16) :
+                originalInputPrecision;
             if (supportedPrecisions.count(precision) == 0)
                 IE_THROW() << "Subgraph node with name `" << getName() << "` doesn't support " << precision << " precision.";
 
@@ -318,14 +323,14 @@ ov::PartialShape Snippet::canonicalizeBody() {
         // if blockDim == Shape::UNDEFINED_DIM, then it's a dynamic dimension, and we need to recreate a proper dynamic Dim
         for (const auto& d : blockedDesc->getBlockDims())
             dims.emplace_back(d == Shape::UNDEFINED_DIM ? -1 : d);
-        ngraph::PartialShape shape(dims);
-        ngraph::AxisVector blocking(blockedDesc->getOrder());
-        ngraph::element::Type precision = InferenceEngine::details::convertPrecision(blockedDesc->getPrecision());
-        return ngraph::snippets::op::Subgraph::BlockedShape{shape, blocking, precision};
+        ov::PartialShape shape(dims);
+        ov::AxisVector blocking(blockedDesc->getOrder());
+        ov::element::Type precision = InferenceEngine::details::convertPrecision(blockedDesc->getPrecision());
+        return snippets::op::Subgraph::BlockedShape{shape, blocking, precision};
     };
     inputShapeIsBlocked.resize(inputShapes.size(), false);
     masterShapeIsBlocked = false;
-    ngraph::snippets::op::Subgraph::BlockedShapeVector input_blocked_shapes;
+    snippets::op::Subgraph::BlockedShapeVector input_blocked_shapes;
     for (size_t i = 0; i < inputShapes.size(); i++) {
         auto blockedShape = edgeToBlockedShape(getParentEdgesAtPort(i)[0]);
         inputShapeIsBlocked[i] = std::get<0>(blockedShape).size() != std::get<1>(blockedShape).size();
@@ -334,7 +339,7 @@ ov::PartialShape Snippet::canonicalizeBody() {
     }
 
     outputShapeIsBlocked.resize(outputShapes.size(), false);
-    ngraph::snippets::op::Subgraph::BlockedShapeVector output_blocked_shapes;
+    ov::snippets::op::Subgraph::BlockedShapeVector output_blocked_shapes;
     for (size_t i = 0; i < outputShapes.size(); i++) {
         auto blockedShape = edgeToBlockedShape(getChildEdgesAtPort(i)[0]);
         outputShapeIsBlocked[i] = std::get<0>(blockedShape).size() != std::get<1>(blockedShape).size();
@@ -443,17 +448,21 @@ std::vector<VectorDims> Snippet::shapeInfer() {
 
 void Snippet::prepareParams() {
     masterShape = getNormalizedDimsBySize(masterShape, tensorRank);
-    for (auto& pshape : normInputShapes)
+    std::vector<size_t> original_input_shape_ranks;
+    for (auto& pshape : normInputShapes) {
+        original_input_shape_ranks.push_back(pshape.size());
         pshape = getNormalizedDimsBySize(pshape, tensorRank);
+    }
     for (auto& pshape : normOutputShapes)
         pshape = getNormalizedDimsBySize(pshape, tensorRank);
 
     tileRank = 1;
+    bool dims_collapsed = false;
     fullWorkAmount = std::accumulate(masterShape.begin(), masterShape.end(), 1, std::multiplies<size_t>());
     if (snippet->has_domain_sensitive_ops()) {
         tileRank = 2;
     } else {
-        optimizeExecDomain(normInputShapes, normOutputShapes, masterShape, tileRank);
+        dims_collapsed = optimizeExecDomain(normInputShapes, normOutputShapes, masterShape, tileRank);
     }
     exec_domain = masterShape;
 
@@ -490,10 +499,16 @@ void Snippet::prepareParams() {
         dim = 1;
     }
 
-    auto& body_rt_info = snippet->body_ptr()->get_rt_info();
-    std::vector<std::vector<size_t>> new_shapes(normInputShapes);
-    std::copy(normOutputShapes.begin(), normOutputShapes.end(), std::back_inserter(new_shapes));
-    body_rt_info["PluginShapesOverride"] = new_shapes;
+    if (dims_collapsed) {
+        std::vector<ov::Shape> new_shapes;
+        for (int i = 0; i < normInputShapes.size(); i++) {
+            const auto norm_shape = normInputShapes[i];
+            size_t ndims_to_skip = norm_shape.size() - original_input_shape_ranks[i];
+            new_shapes.emplace_back(norm_shape.begin() + ndims_to_skip, norm_shape.end());
+        }
+        snippet->reshape_body(new_shapes);
+    }
+
     snippet->set_master_shape(ov::PartialShape(masterShape));
     snippet->set_tile_rank(tileRank);
 }
@@ -534,33 +549,29 @@ bool Snippet::created() const {
 void Snippet::generate(const jit_snippets_compile_args* jcp) {
     ov::pass::Manager pre_dialect;
     pre_dialect.register_pass<ConvertToSwishCPU>();
+    if (context->getConfig().enforceBF16 && snippet->has_domain_sensitive_ops()) {
+        // enforce BF16 precisions to supported operations
+        // MatMul has to be decomposed to Brgemm operations before enforcement
+        // Note, MatMul decomposition will be ran later again for case if BF16 enforcement is not happened
+        CPU_REGISTER_PASS_X64(pre_dialect, ov::snippets::pass::MatMulToBrgemm);
+        CPU_REGISTER_PASS_X64(pre_dialect, pass::EnforcePrecision, element::f32, element::bf16);
+    }
 
     ov::pass::Manager post_dialect;
+    CPU_REGISTER_PASS_X64(post_dialect, ov::intel_cpu::pass::BrgemmToBrgemmCPU);
 
     ov::pass::Manager post_precision;
-    post_precision.register_pass<ov::intel_cpu::pass::RemoveConverts>();
-    post_precision.register_pass<ov::intel_cpu::pass::FuseLoadConvert>();
-    post_precision.register_pass<ov::intel_cpu::pass::FuseStoreConvert>();
-    // LoadConvert uses Load emitter that support conversion from any type to only f32
-    post_precision.get_pass_config()->set_callback<ov::intel_cpu::pass::FuseLoadConvert>(
-            [](const std::shared_ptr<const ov::Node>& n) -> bool {
-                if (const auto& convert = std::dynamic_pointer_cast<const ov::op::v0::Convert>(n))
-                    return convert->get_destination_type() != ov::element::f32;
-                return true;
-            });
-    // StoreConvert uses Store emitter that support conversion from only f32 to any types
-    post_precision.get_pass_config()->set_callback<ov::intel_cpu::pass::FuseStoreConvert>(
-            [](const std::shared_ptr<const ov::Node>& n) -> bool {
-                if (const auto& convert = std::dynamic_pointer_cast<const ov::op::v0::Convert>(n))
-                    return convert->get_input_element_type(0) != ov::element::f32;
-                return true;
-            });
-    post_precision.register_pass<ov::intel_cpu::pass::MulAddToFMA>();
+    CPU_REGISTER_PASS_X64(post_precision, ov::intel_cpu::pass::RemoveConverts);
+    CPU_REGISTER_PASS_X64(post_precision, ov::intel_cpu::pass::MulAddToFMA);
+
+    ov::snippets::lowered::pass::PassPipeline control_flow_pipeline;
+    CPU_REGISTER_PASS_X64(control_flow_pipeline, ov::intel_cpu::pass::FuseLoadStoreConvert);
 
     schedule = snippet->generate(
         pre_dialect,
         post_dialect,
         post_precision,
+        control_flow_pipeline,
         reinterpret_cast<const void*>(jcp));
 }
 

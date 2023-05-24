@@ -7,8 +7,10 @@
 #include <threading/ie_istreams_executor.hpp>
 #include <ie_performance_hints.hpp>
 #include <ie/ie_common.h>
+#include <openvino/runtime/properties.hpp>
 #include <openvino/util/common_util.hpp>
 #include "utils/debug_caps_config.h"
+#include "openvino/runtime/properties.hpp"
 
 #include <bitset>
 #include <string>
@@ -46,10 +48,18 @@ struct Config {
     std::string device_id = {};
     int batchLimit = 0;
     float fcSparseWeiDecompressionRate = 1.0f;
+#if defined(OPENVINO_ARCH_X86_64)
     size_t rtCacheCapacity = 5000ul;
+#else
+    // TODO: Executor cache may leads to incorrect behavior on oneDNN ACL primitives
+    size_t rtCacheCapacity = 0ul;
+#endif
     InferenceEngine::IStreamsExecutor::Config streamExecutorConfig;
     InferenceEngine::PerfHintsConfig  perfHintsConfig;
-    bool useHyperThreading = true;
+    bool enableCpuPinning = true;
+    bool changedCpuPinning = false;
+    ov::hint::SchedulingCoreType schedulingCoreType = ov::hint::SchedulingCoreType::ANY_CORE;
+    bool enableHyperThreading = true;
     bool changedHyperThreading = false;
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
     LPTransformsMode lpTransformsMode = LPTransformsMode::On;
@@ -59,6 +69,8 @@ struct Config {
     LPTransformsMode lpTransformsMode = LPTransformsMode::Off;
     bool enforceBF16 = false;
 #endif
+    bool inferencePrecisionSetExplicitly = false;
+    ov::hint::ExecutionMode executionMode = ov::hint::ExecutionMode::PERFORMANCE;
 
     DenormalsOptMode denormalsOptMode = DenormalsOptMode::DO_Keep;
 

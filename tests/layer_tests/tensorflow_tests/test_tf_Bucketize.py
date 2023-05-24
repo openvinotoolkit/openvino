@@ -23,6 +23,7 @@ class TestBucketize(CommonTFLayerTest):
         with tf.compat.v1.Session() as sess:
             input = tf.compat.v1.placeholder(input_type, input_shape, 'input')
             # generate boundaries list
+            # use wider range for boundaries than input data in order to cover all bucket indices cases
             boundaries = np.sort(np.unique(np.random.randint(-200, 200, [boundaries_size]).astype(np.float32))).tolist()
             tf.raw_ops.Bucketize(input=input, boundaries=boundaries)
             tf.compat.v1.global_variables_initializer()

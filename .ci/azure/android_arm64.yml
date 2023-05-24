@@ -31,14 +31,6 @@ pr:
     - 'tools/*'
     - 'tests/layer_tests/*'
 
-resources:
-  repositories:
-  - repository: openvino_contrib
-    type: github
-    endpoint: openvinotoolkit
-    name: openvinotoolkit/openvino_contrib
-    ref: master
-
 variables:
   - group: github
 
@@ -56,7 +48,6 @@ jobs:
     VSTS_HTTP_TIMEOUT: 200
     BUILD_TYPE: Release
     OPENVINO_REPO_DIR: $(Build.Repository.LocalPath)
-    OPENVINO_CONTRIB_REPO_DIR: $(OPENVINO_REPO_DIR)/../openvino_contrib
     WORK_DIR: $(Pipeline.Workspace)/_w
     BUILD_DIR: $(WORK_DIR)/build
     ANDROID_TOOLS: $(WORK_DIR)/android_tools
@@ -66,7 +57,7 @@ jobs:
     SHARE_DIR: /mount/cinfsshare/onnxtestdata
     CCACHE_DIR: $(SHARE_DIR)/ccache/master/android_arm64
     LD_LIBRARY_PATH: $(Agent.ToolsDirectory)/Python/$(OV_PYTHON_VERSION)/x64/lib
-    OV_PYTHON_VERSION: 3.10.10 # Full version of Python its required for LD_LIBRARY_PATH. More details https://github.com/microsoft/azure-pipelines-tool-lib/blob/master/docs/overview.md#tool-cache
+    OV_PYTHON_VERSION: 3.11.2 # Full version of Python its required for LD_LIBRARY_PATH. More details https://github.com/microsoft/azure-pipelines-tool-lib/blob/master/docs/overview.md#tool-cache
 
   steps:
   - task: UsePythonVersion@0
@@ -76,7 +67,7 @@ jobs:
       disableDownloadFromRegistry: false
       architecture: 'x64'
       githubToken: $(auth_token)
-    displayName: Setup Python 3.10
+    displayName: Setup Python 3.11
     name: setupPython
   - bash: |
       #!/bin/bash
@@ -121,11 +112,6 @@ jobs:
     submodules: 'true'
     path: openvino
 
-  - checkout: openvino_contrib
-    clean: 'true'
-    submodules: 'true'
-    path: openvino_contrib
-
   - script: |
       set -e
       sudo -E $(OPENVINO_REPO_DIR)/install_build_dependencies.sh
@@ -147,20 +133,14 @@ jobs:
   - task: CMake@1
     inputs:
       cmakeArgs: >
-        -GNinja
+        -G "Ninja Multi-Config"
         -DCMAKE_VERBOSE_MAKEFILE=ON
-        -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
         -DCMAKE_TOOLCHAIN_FILE=$(ANDROID_TOOLS)/ndk-bundle/build/cmake/android.toolchain.cmake
         -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
         -DANDROID_ABI=$(ANDROID_ABI_CONFIG)
         -DANDROID_STL=c++_shared
         -DANDROID_PLATFORM=$(ANDROID_SDK_VERSION)
         -DENABLE_TESTS=ON
-        -DBUILD_java_api=ON
-        -DBUILD_nvidia_plugin=OFF
-        -DBUILD_custom_operations=OFF
-        -DENABLE_INTEL_GPU=ON
-        -DOPENVINO_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules
         -DCMAKE_CXX_LINKER_LAUNCHER=ccache
         -DCMAKE_C_LINKER_LAUNCHER=ccache
         -DCMAKE_CXX_COMPILER_LAUNCHER=ccache

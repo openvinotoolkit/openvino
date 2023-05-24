@@ -89,7 +89,9 @@ ov::pass::TransposeEltwise::TransposeEltwise() {
 
         if (ov::shape_size(shape) != 1) {
             eltwise_const_input = std::make_shared<opset6::Transpose>(eltwise_const_input, transpose->input_value(1));
+            OPENVINO_SUPPRESS_DEPRECATED_START
             if (auto const_node = ov::get_constant_from_source(eltwise_const_input)) {
+                OPENVINO_SUPPRESS_DEPRECATED_END
                 eltwise_const_input = const_node;
             }
         }
@@ -167,9 +169,11 @@ ov::pass::TransposeReduction::TransposeReduction() {
         if (!transpose_order || !reduction_axes)
             return false;
 
+        OPENVINO_SUPPRESS_DEPRECATED_START
         const auto& non_negative_axes = normalize_axes(reduction->get_friendly_name(),
                                                        reduction_axes->cast_vector<int64_t>(),
                                                        reduction->get_input_partial_shape(0).rank());
+        OPENVINO_SUPPRESS_DEPRECATED_END
         reduction_axes = opset6::Constant::create(ngraph::element::i64, {non_negative_axes.size()}, non_negative_axes);
 
         ngraph::NodeVector new_ops;

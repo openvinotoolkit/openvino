@@ -18,18 +18,7 @@
 #define OV_EXPECT_NOT_OK(...)       EXPECT_NE(ov_status_e::OK, __VA_ARGS__)
 #define OV_EXPECT_ARREQ(arr1, arr2) EXPECT_TRUE(std::equal(std::begin(arr1), std::end(arr1), std::begin(arr2)))
 
-#ifndef ENABLE_UNICODE_PATH_SUPPORT
-#    ifdef _WIN32
-#        if defined __INTEL_COMPILER || defined _MSC_VER
-#            define ENABLE_UNICODE_PATH_SUPPORT
-#        endif
-#    elif defined(__GNUC__) && (__GNUC__ > 5 || (__GNUC__ == 5 && __GNUC_MINOR__ > 2)) || defined(__clang__)
-#        define ENABLE_UNICODE_PATH_SUPPORT
-#    endif
-#endif
-
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
-#    define OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 #    include <wchar.h>
 #endif
 
@@ -88,14 +77,14 @@ inline void fix_slashes(std::wstring& str) {
 }
 
 inline bool copy_file(std::string source_path, std::wstring dest_path) {
-#    ifndef _WIN32
-    std::ifstream source(source_path, std::ios::binary);
-    std::ofstream dest(ov::util::wstring_to_string(dest_path), std::ios::binary);
-#    else
+#    ifdef _WIN32
     fix_slashes(source_path);
     fix_slashes(dest_path);
     std::ifstream source(source_path, std::ios::binary);
     std::ofstream dest(dest_path, std::ios::binary);
+#    else
+    std::ifstream source(source_path, std::ios::binary);
+    std::ofstream dest(ov::util::wstring_to_string(dest_path), std::ios::binary);
 #    endif
     bool result = source && dest;
     std::istreambuf_iterator<char> begin_source(source);

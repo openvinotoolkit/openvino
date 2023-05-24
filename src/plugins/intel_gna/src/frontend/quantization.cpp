@@ -150,7 +150,7 @@ void QuantizeWeights<int8_t>(const QuantizationData& data,
                 if (quantized_weights) {
                     value -= MAX_VAL_1B_WEIGHT;
                 } else {
-                    value = value * (data.scale_factor / channel_multiplier) + rounding_value;
+                    value = value * (data.scale_factor / ptr_int_biases[row].multiplier) + rounding_value;
                 }
             } else {
                 value = value * data.scale_factor + rounding_value;

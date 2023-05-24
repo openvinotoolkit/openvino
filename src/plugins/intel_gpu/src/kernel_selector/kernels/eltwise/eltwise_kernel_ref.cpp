@@ -71,10 +71,12 @@ JitConstants EltwiseKernelRef::GetJitConstants(const eltwise_params& params) con
             } else {
                 idx_order = {"d4", "d3", "d2", "d1"};
             }
-        } else if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 5) {
-            idx_order = {"d5", "d4", "d3", "d2", "d1"};
-        } else if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 6) {
-            idx_order = {"d6", "d5", "d4", "d3", "d2", "d1"};
+        } else {
+            size_t channels = DataTensor::ChannelsCount(params.outputs[0].GetLayout());
+            idx_order.resize(channels);
+            for (size_t i = 0; i < channels; i++) {
+                idx_order[i] = "d" + std::to_string(channels - i);
+            }
         }
 
         if (!params.layoutBased && !params.int8_quantization && !params.broadcast && CheckInputsOutputNoPitchSameDims(params)) {

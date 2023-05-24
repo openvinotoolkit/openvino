@@ -99,10 +99,33 @@ public:
         return {params, optional_params};
     }
 
+    static kernel_impl_params static_canonicalize_shapes(const kernel_impl_params& impl_params) {
+        auto updated_impl_params = canonicalize_fused_shapes(impl_params);
+        const auto& prim = impl_params.typed_desc<gather>();
+
+        auto input_pshape = updated_impl_params.input_layouts[0].get_partial_shape();
+        auto& out_layout = updated_impl_params.output_layouts[0];
+        auto output_pshape = out_layout.get_partial_shape();
+
+        OPENVINO_ASSERT(input_pshape.size() <= output_pshape.size() || input_pshape.size() - output_pshape.size() == 1,
+                        "[GPU] Gather output rank must be greater than or equal to the input rank, or less by one");
+
+        if (input_pshape.size() > output_pshape.size()) {
+            output_pshape.insert(output_pshape.begin() + prim->axis, ov::Dimension(1));
+            out_layout.set_partial_shape(output_pshape);
+            out_layout.format = format::adjust_to_rank(out_layout.format, output_pshape.size());
+        }
+
+        return primitive_impl::static_canonicalize_shapes(updated_impl_params);
+    }
+
+    kernel_impl_params canonicalize_shapes(const kernel_impl_params& impl_params) const override {
+        return static_canonicalize_shapes(impl_params);
+    }
+
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
         auto kernel_params = get_kernel_params(impl_param, true);
         (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
-        update_kernels_list_to_skip();
     }
 };
 

@@ -17,7 +17,7 @@ namespace frontend {
 namespace tensorflow {
 namespace op {
 
-OutputVector translate_ctc_greedy_decoder_op(const NodeContext& node) {
+NamedOutputVector translate_ctc_greedy_decoder_op(const NodeContext& node) {
     default_op_checks(node, 2, {"CTCGreedyDecoder"});
     auto inputs = node.get_input(0);
     auto sequence_length = node.get_input(1);
@@ -82,7 +82,10 @@ OutputVector translate_ctc_greedy_decoder_op(const NodeContext& node) {
     set_node_name(node.get_name() + ":2", dense_shape);
     set_node_name(node.get_name() + ":3", neg_sum_logits);
 
-    return {decoded_indices_transposed, decoded_values, dense_shape, neg_sum_logits};
+    return {{"decoded_indices", decoded_indices_transposed},
+            {"decoded_values", decoded_values},
+            {"decoded_shape", dense_shape},
+            {"log_probability", neg_sum_logits}};
 }
 }  // namespace op
 }  // namespace tensorflow

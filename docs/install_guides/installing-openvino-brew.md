@@ -2,11 +2,25 @@
 
 @sphinxdirective
 
-With the OpenVINO™ 2022.3 release, you can install OpenVINO Runtime on macOS and Linux via `Homebrew <https://brew.sh/>`_. OpenVINO™ Development Tools can be installed via PyPI only. See `Installing Additional Components <#optional-installing-additional-components>`__ for more information.
+.. note::
 
-See the `Release Notes <https://www.intel.com/content/www/us/en/developer/articles/release-notes/openvino-2022-3-lts-relnotes.html>`__ for more information on updates in the latest release.
+   Installing OpenVINO Runtime from Homebrew is recommended for C++ developers. 
+   If you work with Python, consider :doc:`installing OpenVINO from PyPI <openvino_docs_install_guides_installing_openvino_pip>`
 
-Installing OpenVINO Runtime from Homebrew is recommended for C++ developers. If you are working with Python, the PyPI package has everything needed for Python development and deployment on CPU and GPUs. Visit the :doc:`Install OpenVINO from PyPI <openvino_docs_install_guides_installing_openvino_pip>` page for instructions on how to install OpenVINO Runtime for Python using PyPI.
+   The current Homebrew package provides inference support for CPU only.
+
+You can use `Homebrew <https://brew.sh/>`_ to install OpenVINO Runtime on macOS and Linux. 
+OpenVINO™ Development Tools can be installed via PyPI only. 
+See `Installing Additional Components <#optional-installing-additional-components>`__ for more information.
+
+See the `Release Notes <https://www.intel.com/content/www/us/en/developer/articles/release-notes/openvino-2022-3-lts-relnotes.html>`_ 
+for more information on updates in the latest release.
+
+.. warning:: 
+
+   By downloading and using this container and the included software, you agree to the terms and conditions of the 
+   `software license agreements <https://software.intel.com/content/dam/develop/external/us/en/documents/intel-openvino-license-agreements.pdf>`_.
+
 
 .. note::
 

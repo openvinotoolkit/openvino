@@ -39,7 +39,7 @@ namespace v1 {
 template <class TShape>
 std::vector<TShape> shape_infer(const Reverse* op,
                                 const std::vector<TShape>& input_shapes,
-                                const std::map<size_t, std::reference_wrapper<const ov::Tensor>>& constant_data = {}) {
+                                const ITensorAccessor& tensor_accessor = make_tensor_accessor()) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 2);
 
     const auto& data_shape = input_shapes[0];
@@ -69,7 +69,7 @@ std::vector<TShape> shape_infer(const Reverse* op,
                       "AxisSet::value_type != ClipNegative::value_type");
 
         if (const auto axes =
-                get_input_const_data_as<TShape, TAxis, AxisSet>(op, 1, constant_data, util::ClipNegative())) {
+                get_input_const_data_as<TShape, TAxis, AxisSet>(op, 1, tensor_accessor, util::ClipNegative())) {
             NODE_VALIDATION_CHECK(op,
                                   all_of(axes->begin(), axes->end(), cmp::Less<TAxis>(data_rank.get_length())),
                                   "Some of the provided axes (",

@@ -217,17 +217,7 @@ protected:
     }
 };
 
-using Gna35PaddedToValidConvTest = PaddedToValidConvTest;
-
 TEST_P(PaddedToValidConvTest, CompareWithRefs) {
-    Run();
-}
-
-TEST_P(Gna35PaddedToValidConvTest, CompareWithRefs) {
-    if (gnaVersionCheck.gnaLibVersionLessThan("3.5")) {
-        GTEST_SKIP() << gnaVersionCheck.getLastCmpResultMsg() << std::endl;
-        return;
-    }
     Run();
 }
 
@@ -236,15 +226,11 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::
 
 const std::vector<std::map<std::string, std::string>> configs1D = {
     {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_SCALE_FACTOR_0", "1"}, {"GNA_EXEC_TARGET", "GNA_TARGET_2_0"}},
-    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_SCALE_FACTOR_0", "1"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_0"}}};
-
-const std::vector<std::map<std::string, std::string>> configs1D_Gna35 = {
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_SCALE_FACTOR_0", "1"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_0"}},
     {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_SCALE_FACTOR_0", "1"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_5"}}};
 
 const std::vector<std::map<std::string, std::string>> configs2D = {
-    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_SCALE_FACTOR_0", "1"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_0"}}};
-
-const std::vector<std::map<std::string, std::string>> configs2D_Gna35 = {
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_SCALE_FACTOR_0", "1"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_0"}},
     {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_SCALE_FACTOR_0", "1"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_5"}}};
 
 const std::vector<op::PadType> padTypes = {op::PadType::VALID,
@@ -322,37 +308,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_1DPaddedToValid,
                                             ::testing::ValuesIn(models)),
                          PaddedToValidConvTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_1DPaddedToValid,
-                         Gna35PaddedToValidConvTest,
-                         ::testing::Combine(conv1DParams,
-                                            misc1DParams,
-                                            ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
-                                            ::testing::ValuesIn(configs1D_Gna35),
-                                            ::testing::ValuesIn(input1DNHWC),
-                                            ::testing::ValuesIn(models)),
-                         Gna35PaddedToValidConvTest::getTestCaseName);
-
 INSTANTIATE_TEST_SUITE_P(smoke_2DPaddedToValid,
                          PaddedToValidConvTest,
                          ::testing::Combine(conv2DParams,
                                             misc2DParams,
                                             ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(CommonTestUtils::DEVICE_GNA),
-                                            ::testing::ValuesIn(configs2D_Gna35),
+                                            ::testing::ValuesIn(configs2D),
                                             ::testing::ValuesIn(input2DNHWC),
                                             ::testing::ValuesIn(models)),
                          PaddedToValidConvTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_2DPaddedToValid,
-                         Gna35PaddedToValidConvTest,
-                         ::testing::Combine(conv2DParams,
-                                            misc2DParams,
-                                            ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
-                                            ::testing::ValuesIn(configs2D_Gna35),
-                                            ::testing::ValuesIn(input2DNHWC),
-                                            ::testing::ValuesIn(models)),
-                         Gna35PaddedToValidConvTest::getTestCaseName);
 
 }  // namespace LayerTestsDefinitions

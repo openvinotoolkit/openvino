@@ -29,6 +29,7 @@ macro(ov_cpack_set_dirs)
     set(OV_CPACK_NGRAPH_CMAKEDIR runtime/cmake)
     set(OV_CPACK_OPENVINO_CMAKEDIR runtime/cmake)
     set(OV_CPACK_DOCDIR docs)
+    set(OV_CPACK_LICENSESDIR ${OV_CPACK_DOCDIR}/licenses)
     set(OV_CPACK_SAMPLESDIR samples)
     set(OV_CPACK_WHEELSDIR tools)
     set(OV_CPACK_TOOLSDIR tools)
@@ -66,11 +67,11 @@ endmacro()
 ov_cpack_set_dirs()
 
 #
-# ie_cpack_add_component(NAME ...)
+# ov_cpack_add_component(NAME ...)
 #
 # Wraps original `cpack_add_component` and adds component to internal IE list
 #
-function(ie_cpack_add_component name)
+function(ov_cpack_add_component name)
     if(NOT ${name} IN_LIST IE_CPACK_COMPONENTS_ALL)
         cpack_add_component(${name} ${ARGN})
 
@@ -99,10 +100,10 @@ endif()
 # if <FILE> is a symlink, we resolve it, but install file with a name of symlink
 #
 function(ov_install_with_name file component)
-    if((APPLE AND file MATCHES "^[^\.]+\.[0-9]+${CMAKE_SHARED_LIBRARY_SUFFIX}$") OR
-                (file MATCHES "^.*\.${CMAKE_SHARED_LIBRARY_SUFFIX}\.[0-9]+$"))
+    get_filename_component(actual_name "${file}" NAME)
+    if((APPLE AND actual_name MATCHES "^[^\.]+\.[0-9]+${CMAKE_SHARED_LIBRARY_SUFFIX}$") OR
+                (actual_name MATCHES "^.*\.${CMAKE_SHARED_LIBRARY_SUFFIX}\.[0-9]+$"))
         if(IS_SYMLINK "${file}")
-            get_filename_component(actual_name "${file}" NAME)
             get_filename_component(file "${file}" REALPATH)
             set(install_rename RENAME "${actual_name}")
         endif()
@@ -162,7 +163,7 @@ elseif(CPACK_GENERATOR STREQUAL "RPM")
     include(packaging/rpm/rpm)
 elseif(CPACK_GENERATOR STREQUAL "NSIS")
     include(packaging/nsis)
-elseif(CPACK_GENERATOR MATCHES "^(CONDA-FORGE|BREW)$")
+elseif(CPACK_GENERATOR MATCHES "^(CONDA-FORGE|BREW|CONAN)$")
     include(packaging/common-libraries)
 endif()
 

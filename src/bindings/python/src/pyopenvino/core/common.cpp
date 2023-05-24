@@ -67,7 +67,7 @@ const TensorIndexMap cast_to_tensor_index_map(const py::dict& inputs) {
             auto tensor = Common::cast_to_tensor(input.second);
             result_map[idx] = tensor;
         } else {
-            throw ov::Exception("Unable to cast tensor " + std::to_string(idx) + "!");
+            OPENVINO_THROW("Unable to cast tensor " + std::to_string(idx) + "!");
         }
     }
     return result_map;
@@ -186,7 +186,7 @@ py::array array_from_tensor(ov::Tensor&& t) {
         break;
     }
     default: {
-        throw ov::Exception("Numpy array cannot be created from given OV Tensor!");
+        OPENVINO_THROW("Numpy array cannot be created from given OV Tensor!");
         break;
     }
     }
@@ -255,8 +255,7 @@ ov::Tensor create_shared(py::array& array) {
         // If ndim of py::array is 0, array is a numpy scalar.
         return ov::Tensor(array_helpers::get_ov_type(array),
                           array_helpers::get_shape(array),
-                          array.ndim() == 0 ? array.mutable_data() : array.mutable_data(0),
-                          array_helpers::get_strides(array));
+                          array.ndim() == 0 ? array.mutable_data() : array.mutable_data(0));
     }
     // If passed array is not C-style, throw an error.
     OPENVINO_THROW("SHARED MEMORY MODE FOR THIS TENSOR IS NOT APPLICABLE! Passed numpy array must be C contiguous.");
@@ -288,14 +287,14 @@ ov::PartialShape partial_shape_from_list(const py::list& shape) {
                                      std::to_string(bounded_dim.size()) + " elements were given.");
             }
             if (!(py::isinstance<py::int_>(bounded_dim[0]) && py::isinstance<py::int_>(bounded_dim[1]))) {
-                throw py::type_error("Incorrect pair of types (" + std::string(bounded_dim[0].get_type().str()) + ", " +
-                                     std::string(bounded_dim[1].get_type().str()) +
+                throw py::type_error("Incorrect pair of types (" + std::string(py::str(bounded_dim[0].get_type())) +
+                                     ", " + std::string(py::str(bounded_dim[1].get_type())) +
                                      ") for dynamic dimension, ints are expected.");
             }
             pshape.insert(pshape.end(),
                           ov::Dimension(bounded_dim[0].cast<value_type>(), bounded_dim[1].cast<value_type>()));
         } else {
-            throw py::type_error("Incorrect type " + std::string(dim.get_type().str()) +
+            throw py::type_error("Incorrect type " + std::string(py::str(dim.get_type())) +
                                  " for dimension. Expected types are: "
                                  "int, str, openvino.runtime.Dimension, list/tuple with lower and upper values for "
                                  "dynamic dimension.");

@@ -25,6 +25,7 @@
 #include "softmax_inst.h"
 #include "resample_inst.h"
 #include "depth_to_space_inst.h"
+#include "fully_connected_inst.h"
 #include "space_to_depth_inst.h"
 #include "gather_inst.h"
 #include "gather_nd_inst.h"
@@ -67,7 +68,7 @@ void prepare_primitive_fusing::remove_redundant_reshape(program &p) {
     while (node_itr != p.get_processing_order().end()) {
         auto node = (*node_itr++);
         program_helpers::do_for_types<reshape>(*node, [&p](reshape_node& node) {
-            for (auto prev : node.get_dependencies()) {
+            for (const auto& prev : node.get_dependencies()) {
                 if (!prev.first->is_type<reshape>())
                     return;
                 if (prev.first->get_users().size() > 1 || prev.first->get_dependencies().size() > 1)
@@ -374,7 +375,7 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
         if (replace_candidate.is_type<convolution>()) {
             auto& conv = replace_candidate.as<convolution>();
             auto desc = conv.get_primitive();
-            std::vector<primitive_id> biases = {bias_name};
+            primitive_id biases = bias_name;
 
             // If the primitive has biases, then we try to combine the values, or do nothing and keep as fused sum.
             if (conv.bias_term()) {
@@ -393,19 +394,19 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
                                                                      desc->input[0],
                                                                      desc->weights,
                                                                      biases,
+                                                                     desc->weights_zero_points,
+                                                                     desc->activations_zero_points,
+                                                                     desc->compensation,
                                                                      desc->groups,
                                                                      desc->stride,
-                                                                     desc->pad,
                                                                      desc->dilation,
-                                                                     conv.get_output_layout().get_tensor(),
-                                                                     conv.get_output_layout().data_type,
-                                                                     desc->grouped_weights_shape);
+                                                                     desc->padding_begin,
+                                                                     desc->padding_end,
+                                                                     desc->grouped_weights_shape,
+                                                                     conv.get_output_layout().data_type);
 
-            conv_with_bias_prim->activations_zero_points = desc->activations_zero_points;
-            conv_with_bias_prim->weights_zero_points = desc->weights_zero_points;
-            conv_with_bias_prim->compensation = desc->compensation;
             // Copy transposed flag to new prim as convolution node might be produced by deconv -> conv replacement before this pass
-            conv_with_bias_prim->transposed = conv.get_transposed();
+            conv_with_bias_prim->transposed = desc->transposed;
             auto& new_conv_node = p.get_or_create(conv_with_bias_prim);
 
             fuse_bias_f(conv, new_conv_node, bias_node, eltw_node);
@@ -558,10 +559,14 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             return false;
         };
 
-        auto fc_supports_fusings = [](fully_connected_node& node) -> bool {
-            auto in_dt = node.get_dependency(0).get_output_layout().data_type;
-
-            return data_type_traits::is_i8_u8(in_dt);
+        auto fc_supports_fusings = [&](fully_connected_node& node) -> bool {
+            if (_lo.get_optimization_attributes().use_onednn_impls &&
+                _lo.get_preferred_impl_type(node, format::any /*dummy*/) == impl_types::onednn) {
+                return true;
+            } else {
+                auto in_dt = node.get_dependency(0).get_output_layout().data_type;
+                return data_type_traits::is_i8_u8(in_dt);
+            }
         };
 
         auto gemm_supports_fusings = [](gemm_node& node) -> bool {
@@ -589,9 +594,11 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             return does_support_fusings;
         };
 
-        auto mvn_supports_fusings = [](mvn_node& node) -> bool {
-            auto in_dt = node.get_dependency(0).get_output_layout().data_type;
-            return data_type_traits::is_i8_u8(in_dt);
+        auto mvn_supports_fusings = [](mvn_node& node, bool for_eltwise = false) -> bool {
+            auto in_layout = node.get_dependency(0).get_output_layout();
+            if (node.get_primitive()->requires_alignment(in_layout.get_partial_shape()))
+                return false;
+            return data_type_traits::is_i8_u8(in_layout.data_type) || for_eltwise;
         };
 
         auto dts_supports_fusings = [](depth_to_space_node& node) -> bool {
@@ -686,7 +693,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         };
 
         auto fuse_activation_f = [&](activation_node& activation_node) {
-            if (supports_immad && activation_node.get_primitive()->activation_function == cldnn::activation_func::hyperbolic_tan) {
+            auto activation_func = activation_node.get_primitive()->activation_function;
+            if (supports_immad && activation_func == cldnn::activation_func::hyperbolic_tan) {
                 return;
             }
 
@@ -700,14 +708,22 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             if (_lo.get_optimization_attributes().use_onednn_impls) {
                 if (input.is_type<reshape>() || input.is_type<concatenation>())
                     return;
-                #ifdef ENABLE_ONEDNN_FOR_GPU
-                // Activation should not fused if it isn't supported in onednn
-                try {
-                    onednn::convert_activation_func(activation_node.get_primitive()->activation_function);
-                } catch (...) {
+                auto additional_params_input = activation_node.get_primitive()->additional_params_input;
+                if (activation_func == cldnn::activation_func::relu_negative_slope && !additional_params_input.empty() &&
+                    (input.is_type<fully_connected>() || input.is_type<gemm>())) {
+                    // prelu fusion is not implemented in oneDNN3.1 (CVS-108233)
                     return;
                 }
-                #endif
+                // Activation should not be fused if oneDNN does NOT support it
+                if (_lo.is_primitive_implemented_for_onednn(input))  {
+                    #ifdef ENABLE_ONEDNN_FOR_GPU
+                    try {
+                        onednn::convert_activation_func(activation_func);
+                    } catch (...) {
+                        return;
+                    }
+                    #endif
+                }
             }
 
             bool should_fuse = input.is_type<binary_convolution>();
@@ -928,7 +944,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                                       (parents[i].first->is_type<binary_convolution>() &&
                                        bin_conv_supports_eltw_fusings(parents[i].first->as<binary_convolution>())) ||
                                       (parents[i].first->is_type<mvn>() &&
-                                       mvn_supports_fusings(parents[i].first->as<mvn>())) ||
+                                       mvn_supports_fusings(parents[i].first->as<mvn>(), true)) ||
                                       (parents[i].first->is_type<deconvolution>()) ||
                                       (parents[i].first->is_type<permute>()) ||
                                       (parents[i].first->is_type<resample>()) ||

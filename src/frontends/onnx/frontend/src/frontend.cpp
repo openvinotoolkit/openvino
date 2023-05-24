@@ -59,7 +59,7 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
     if (variants[0].is<std::istream*>()) {
         const auto stream = variants[0].as<std::istream*>();
         if (variants.size() > 1 && variants[1].is<std::string>()) {
-            const auto path = variants[0].as<std::string>();
+            const auto path = variants[1].as<std::string>();
             return std::make_shared<InputModel>(*stream, path, m_extensions);
         }
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
@@ -140,7 +140,7 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     else if (variants[0].is<std::wstring>()) {
         const auto path = variants[0].as<std::wstring>();
-        model_stream.open(path, std::ios::in | std::ifstream::binary);
+        model_stream.open(path.c_str(), std::ios::in | std::ifstream::binary);
     }
 #endif
     if (model_stream.is_open()) {

@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include <ngraph/op/op.hpp>
+#include "openvino/op/op.hpp"
 #include "snippets/op/memory_access.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace op {
 
@@ -20,14 +20,21 @@ namespace op {
  */
 class Store : public MemoryAccess {
 public:
-    OPENVINO_OP("Store", "SnippetsOpset");
+    OPENVINO_OP("Store", "SnippetsOpset", MemoryAccess);
 
     Store(const Output<Node>& x, const size_t count = 1lu, const size_t offset = 0lu);
     Store() = default;
 
+    size_t get_offset() const { return get_output_offset(0); }
+    size_t get_count() const { return get_output_count(0); }
+
+    void set_offset(size_t offset) { set_output_offset(offset, 0); }
+    void set_count(size_t count) { set_output_count(count, 0); }
+
+    void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 };
 
 } // namespace op
 } // namespace snippets
-} // namespace ngraph
+} // namespace ov

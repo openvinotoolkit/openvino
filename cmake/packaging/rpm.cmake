@@ -80,6 +80,7 @@ macro(ov_cpack_settings)
         # - 2022.1.1, 2022.2 do not have rpm packages enabled, distributed only as archives
         # - 2022.3 is the first release where RPM updated packages are introduced, others 2022.3.X are LTS
         2022.3.0 2022.3.1 2022.3.2 2022.3.3 2022.3.4 2022.3.5
+        2023.0
         )
 
     find_host_program(rpmlint_PROGRAM NAMES rpmlint DOC "Path to rpmlint")
@@ -156,17 +157,20 @@ macro(ov_cpack_settings)
         set(auto_copyright "generic")
     endif()
 
-    # intel-cpu
-    if(ENABLE_INTEL_CPU OR DEFINED openvino_arm_cpu_plugin_SOURCE_DIR)
-        if(ENABLE_INTEL_CPU)
+    # cpu
+    if(ENABLE_INTEL_CPU)
+        if(ARM OR AARCH64)
+            set(CPACK_RPM_CPU_PACKAGE_NAME "libopenvino-arm-cpu-plugin-${cpack_name_ver}")
+            set(CPACK_COMPONENT_CPU_DESCRIPTION "ARM® CPU plugin")
+            set(cpu_copyright "arm_cpu")
+        elseif(X86 OR X86_64)
+            set(CPACK_RPM_CPU_PACKAGE_NAME "libopenvino-intel-cpu-plugin-${cpack_name_ver}")
             set(CPACK_COMPONENT_CPU_DESCRIPTION "Intel® CPU")
             set(cpu_copyright "generic")
         else()
-            set(CPACK_COMPONENT_CPU_DESCRIPTION "ARM CPU")
-            set(cpu_copyright "arm_cpu")
+            message(FATAL_ERROR "Unsupported CPU architecture: ${CMAKE_SYSTEM_PROCESSOR}")
         endif()
         set(CPACK_RPM_CPU_PACKAGE_REQUIRES "${core_package}")
-        set(CPACK_RPM_CPU_PACKAGE_NAME "libopenvino-intel-cpu-plugin-${cpack_name_ver}")
         _ov_add_package(plugin_packages cpu)
     endif()
 

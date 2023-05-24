@@ -128,9 +128,11 @@ ov::pass::PullUnsqueezeThroughReduce::PullUnsqueezeThroughReduce() {
         }
 
         auto unsqueeze_axes_val = unsqueeze_axes_input->cast_vector<int64_t>();
+        OPENVINO_SUPPRESS_DEPRECATED_START
         normalize_axes(unsqueeze_node.get(),
                        unsqueeze_node->get_output_partial_shape(0).rank().get_length(),
                        unsqueeze_axes_val);
+        OPENVINO_SUPPRESS_DEPRECATED_END
         const auto reduce_axes_val = reduce_node->get_reduction_axes().to_vector();
 
         if (have_same_axes(unsqueeze_axes_val, reduce_axes_val)) {

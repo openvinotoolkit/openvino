@@ -69,7 +69,7 @@ bool StaticShape::same_scheme(const StaticShape& s) const {
     return true;
 }
 
-bool StaticShape::merge_rank(Rank r) {
+bool StaticShape::merge_rank(const Rank& r) {
     if (r.is_dynamic()) {
         return true;
     } else {
@@ -128,31 +128,24 @@ bool StaticShape::broadcast_merge_into(StaticShape& dst,
             auto src_rank = src.rank().get_length();
             // source rank can't be bigger than destination rank according to
             // PDPD broadcast rule.
-            if (src_rank > dst_rank)
-              return false;
-            if (dst_rank == src_rank && dst.compatible(src))
-                return true;
 
             int64_t axis = autob.m_axis;
-            if (axis < -1) {
+            if (src_rank > dst_rank || axis < -1)
                 return false;
-            }
-            if (axis == -1) {
-                axis = dst_rank - src_rank;
-            }
 
-            size_t len = src_rank;
-            while (len > 0 && src[len - 1].is_static() && src[len - 1].get_length() == 1) {
-                --len;
-            }
+            axis = (axis == -1) ? (dst_rank - src_rank) : axis;
+            if (src_rank + axis > dst_rank)
+                return false;
 
-            for (size_t i = axis; i < axis + len; ++i) {
-                if (!(dst[i].compatible(src[i - axis]))) {
+            bool success = true;
+            for (int64_t i = 0; i < src_rank; ++i) {
+                if (src[i].get_length() > dst[axis + i].get_length())
                     return false;
-                }
+
+                success &= StaticDimension::broadcast_merge(dst[axis + i], dst[axis + i], src[i]);
             }
 
-            return true;
+            return success;
         }
         default:
             NGRAPH_CHECK(false, "Unsupported auto broadcast type: ", autob.m_type);

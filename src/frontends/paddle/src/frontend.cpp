@@ -136,7 +136,7 @@ std::istream* variant_to_stream_ptr(const ov::Any& variant, std::ifstream& ext_s
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     else if (variant.is<std::wstring>()) {
         const auto& model_path = variant.as<std::wstring>();
-        ext_stream.open(model_path, std::ios::in | std::ifstream::binary);
+        ext_stream.open(model_path.c_str(), std::ios::in | std::ifstream::binary);
     }
 #endif
     FRONT_END_INITIALIZATION_CHECK(ext_stream && ext_stream.is_open(), "Cannot open model file.");
@@ -350,8 +350,10 @@ void FrontEnd::fuse_fakequantize_ops(const std::vector<std::shared_ptr<Model>>& 
 }
 
 bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
+    // Last boolean flag in `variants` (if presented) is reserved for FE configuration
+    size_t extra_variants_num = variants.size() > 0 && variants[variants.size() - 1].is<bool>() ? 1 : 0;
     // FrontEnd can only load model specified by one path, one file or two files.
-    if (variants.empty() || variants.size() > 2)
+    if (variants.empty() || variants.size() > 2 + extra_variants_num)
         return false;
 
     // Validating first path, it must contain a model
@@ -373,7 +375,7 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
         if (!ov::util::ends_with(model_path, suffix)) {
             model_path += paddle::get_path_sep<wchar_t>() + L"__model__";
         }
-        std::ifstream model_str(model_path, std::ios::in | std::ifstream::binary);
+        std::ifstream model_str(model_path.c_str(), std::ios::in | std::ifstream::binary);
         // It is possible to validate here that protobuf can read model from the stream,
         // but it will complicate the check, while it should be as quick as possible
         return model_str && model_str.is_open();
@@ -389,7 +391,9 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
 }
 
 InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const {
-    if (variants.size() == 1) {
+    // Last boolean flag in `variants` (if presented) is reserved for FE configuration
+    size_t extra_variants_num = variants.size() > 0 && variants[variants.size() - 1].is<bool>() ? 1 : 0;
+    if (variants.size() == 1 + extra_variants_num) {
         // The case when folder with __model__ and weight files is provided or .pdmodel file
         if (variants[0].is<std::string>()) {
             std::string m_path = variants[0].as<std::string>();
@@ -407,7 +411,7 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
             auto p_model_stream = variants[0].as<std::istream*>();
             return std::make_shared<InputModel>(std::vector<std::istream*>{p_model_stream}, m_telemetry);
         }
-    } else if (variants.size() == 2) {
+    } else if (variants.size() == 2 + extra_variants_num) {
         // The case when .pdmodel and .pdparams files are provided
         std::ifstream model_stream;
         std::ifstream weights_stream;

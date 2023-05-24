@@ -48,7 +48,9 @@ bool ReduceBaseTransformation::canBeTransformed(const TransformationContext& con
         return false;
     }
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const std::vector<size_t> axes = ngraph::normalize_axes(reduce->get_friendly_name(), constData, inputRank);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     const auto deqByReducedConst = [&](const std::shared_ptr<Node>& eltwise) {
         const auto constShape = eltwise->get_shape();

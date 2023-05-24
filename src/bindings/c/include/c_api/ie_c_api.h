@@ -25,6 +25,8 @@
 #include <stdint.h>
 #include <stdio.h>
 
+#include "openvino/c/deprecated.h"
+
 #ifdef __cplusplus
 #    define INFERENCE_ENGINE_C_API_EXTERN extern "C"
 #else
@@ -35,7 +37,7 @@
 #    define INFERENCE_ENGINE_C_API(...) INFERENCE_ENGINE_C_API_EXTERN __VA_ARGS__
 #    define IE_NODISCARD
 #else
-#    if defined(_WIN32)
+#    if defined(_WIN32) || defined(__CYGWIN__)
 #        define INFERENCE_ENGINE_C_API_CALLBACK __cdecl
 #        ifdef openvino_c_EXPORTS
 #            define INFERENCE_ENGINE_C_API(...) INFERENCE_ENGINE_C_API_EXTERN __declspec(dllexport) __VA_ARGS__ __cdecl
@@ -215,9 +217,7 @@ typedef enum {
     RGB,       //!< RGB color format
     BGR,       //!< BGR color format, default in OpenVINO
     RGBX,      //!< RGBX color format with X ignored during inference
-    BGRX,      //!< BGRX color format with X ignored during inference
-    NV12,      //!< NV12 color format represented as compound Y+UV blob
-    I420,      //!< I420 color format represented as compound Y+U+V blob
+    BGRX       //!< BGRX color format with X ignored during inference
 } colorformat_e;
 
 /**
@@ -744,17 +744,6 @@ ie_infer_set_completion_callback(ie_infer_request_t* infer_request, ie_complete_
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
 ie_infer_request_wait(ie_infer_request_t* infer_request, const int64_t timeout);
 
-/**
- * @brief  Sets new batch size for certain infer request when dynamic batching is enabled in executable network that
- * created this request.
- * @ingroup InferRequest
- * @param infer_request A pointer to ie_infer_request_t instance.
- * @param size New batch size to be used by all the following inference calls for this request.
- * @return Status code of the operation: OK(0) for success.
- */
-INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-ie_infer_request_set_batch(ie_infer_request_t* infer_request, const size_t size);
-
 /** @} */  // end of InferRequest
 
 // Network
@@ -1062,29 +1051,6 @@ ie_blob_make_memory_from_preallocated(const tensor_desc_t* tensorDesc, void* ptr
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
 ie_blob_make_memory_with_roi(const ie_blob_t* inputBlob, const roi_t* roi, ie_blob_t** blob);
-
-/**
- * @brief Creates a NV12 blob from two planes Y and UV.
- * @ingroup Blob
- * @param y A pointer to the ie_blob_t instance that represents Y plane in NV12 color format.
- * @param uv A pointer to the ie_blob_t instance that represents UV plane in NV12 color format.
- * @param nv12Blob A pointer to the newly created blob.
- * @return Status code of the operation: OK(0) for success.
- */
-INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-ie_blob_make_memory_nv12(const ie_blob_t* y, const ie_blob_t* uv, ie_blob_t** nv12Blob);
-
-/**
- * @brief Creates I420 blob from three planes Y, U and V.
- * @ingroup Blob
- * @param y A pointer to the ie_blob_t instance that represents Y plane in I420 color format.
- * @param u A pointer to the ie_blob_t instance that represents U plane in I420 color format.
- * @param v A pointer to the ie_blob_t instance that represents V plane in I420 color format.
- * @param i420Blob A pointer to the newly created blob.
- * @return Status code of the operation: OK(0) for success.
- */
-INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-ie_blob_make_memory_i420(const ie_blob_t* y, const ie_blob_t* u, const ie_blob_t* v, ie_blob_t** i420Blob);
 
 /**
  * @brief Gets the total number of elements, which is a product of all the dimensions.

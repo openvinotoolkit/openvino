@@ -120,7 +120,6 @@ public:
         map_type::instance().insert({{impl_type, shape_type}, {keys, factory}});
     }
 
-private:
     static std::set<key_type> combine(const std::vector<data_types>& types, const std::vector<format::type>& formats) {
         std::set<key_type> keys;
         for (const auto& type : types) {
@@ -129,6 +128,30 @@ private:
             }
         }
         return keys;
+    }
+};
+
+struct WeightsReordersFactory {
+    using factory_type = std::function<std::unique_ptr<primitive_impl>(const kernel_impl_params&)>;
+    using map_type = singleton_map<std::pair<impl_types, shape_types>, factory_type>;
+    static void add(impl_types impl_type, shape_types shape_type, factory_type factory) {
+        OPENVINO_ASSERT(impl_type != impl_types::any, "[GPU] Can't register WeightsReordersFactory with type any");
+        map_type::instance().insert({{impl_type, shape_type}, factory});
+    }
+
+    static factory_type get(impl_types preferred_impl_type, shape_types target_shape_type) {
+        for (auto& kv : map_type::instance()) {
+            impl_types impl_type = kv.first.first;
+            shape_types supported_shape_type = kv.first.second;
+            if ((preferred_impl_type & impl_type) != impl_type)
+                continue;
+            if ((target_shape_type & supported_shape_type) != target_shape_type)
+                continue;
+
+            return kv.second;
+        }
+        OPENVINO_THROW("[GPU] WeightsReordersFactory doesn't have any implementation for "
+                       " impl_type: ", preferred_impl_type, ", shape_type: ", target_shape_type);
     }
 };
 }  // namespace cldnn

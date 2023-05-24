@@ -12,13 +12,34 @@ namespace pytorch {
 namespace op {
 
 OutputVector translate_mean(const NodeContext& context) {
-    num_inputs_check(context, 3, 4);
+    num_inputs_check(context, 2, 5);
     auto x = context.get_input(0);
-    auto y = context.get_input(1);
-    auto keep_dims = context.const_input<bool>(2);
-    FRONT_END_OP_CONVERSION_CHECK(context.input_is_none(3),
-                                  "Only False is supported for input with index 3 for aten::mean");
-    return {context.mark_node(std::make_shared<ov::op::v1::ReduceMean>(x, y, keep_dims))};
+    auto num_inputs = context.get_input_size();
+    bool keep_dims = false;
+    Output<Node> axes;
+    // aten::mean(Tensor self, *, ScalarType? dtype=None) -> Tensor
+    if (num_inputs == 2) {
+        if (!context.input_is_none(1)) {
+            x = apply_dtype(context, 3, x);
+        }
+        axes = get_axes_range(context, 0);
+    } else {
+        // aten::mean.dim(Tensor self, int[1]? dim, bool keepdim=False, *, ScalarType? dtype=None) -> Tensor
+        // aten::mean.out(Tensor self, int[1]? dim, bool keepdim=False, *, ScalarType? dtype=None, Tensor(a!) out) ->
+        // Tensor(a!)
+        axes = context.get_input(1);
+        if (!context.input_is_none(2)) {
+            keep_dims = context.const_input<bool>(2);
+        }
+        if (!context.input_is_none(3)) {
+            x = apply_dtype(context, 3, x);
+        }
+    }
+    auto mean = context.mark_node(std::make_shared<ov::op::v1::ReduceMean>(x, axes, keep_dims));
+    if (num_inputs == 5 && !context.input_is_none(4)) {
+        context.mutate_input(4, mean);
+    }
+    return {mean};
 };
 
 }  // namespace op

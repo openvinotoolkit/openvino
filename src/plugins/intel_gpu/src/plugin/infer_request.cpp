@@ -497,7 +497,7 @@ void InferRequest::enqueue() {
 
     // If dump layers path is set, only runs first inference.
     GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(debug_config->dump_layers_path.length() > 0) {
+    GPU_DEBUG_IF(debug_config->dump_layers_path.length() > 0 && debug_config->dump_iteration.empty()) {
         GPU_DEBUG_INFO << "Only run first inference to dump layers." << std::endl;
         exit(0);
     }
@@ -524,7 +524,8 @@ void InferRequest::wait() {
 
         bool need_output_update = false;
 
-        if (outputLayout.bytes_count() == 0 || _outputs.find(no.first) == _outputs.end() || _outputs.at(no.first)->byteSize() != outputMemory->size()) {
+        if (outputLayout.bytes_count() == 0 || _outputs.find(no.first) == _outputs.end() ||
+            (outputMemory && _outputs.at(no.first)->byteSize() != outputMemory->size())) {
             need_output_update = true;
         }
 
@@ -544,13 +545,10 @@ void InferRequest::wait() {
             }
             auto layout_by_rank = [](size_t rank) {
                 switch (rank) {
-                    case 6: return InferenceEngine::Layout::BLOCKED;
                     case 5: return InferenceEngine::Layout::NCDHW;
                     case 4: return InferenceEngine::Layout::NCHW;
-                    case 3: return InferenceEngine::Layout::BLOCKED;
                     case 2: return InferenceEngine::Layout::NC;
-                    case 1: return InferenceEngine::Layout::BLOCKED;
-                    default: IE_THROW() << "[GPU] Unsupported out rank";
+                    default: return InferenceEngine::Layout::BLOCKED;
                 }
             };
             auto layout = layout_by_rank(out_rank);

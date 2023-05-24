@@ -9,7 +9,7 @@
 #include "fake_quantize.h"
 #include "input.h"
 #include "reorder.h"
-#include "ngraph_transformations/op/fully_connected.hpp"
+#include "transformations/cpu_opset/common/op/fully_connected.hpp"
 #include "ngraph/opsets/opset1.hpp"
 #include "dnnl_extension_utils.h"
 #include "onednn/dnnl.h"
@@ -237,6 +237,7 @@ void FullyConnected::getSupportedDescriptors() {
     }
     auto weightsDataType = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(WEIGHTS_ID));
 
+    isINT8 = one_of(inputDataType, memory::data_type::u8, memory::data_type::s8) && weightsDataType == memory::data_type::s8;
     // revert back outputDataType on special cases
     if (inputDataType == memory::data_type::f32) {
         // oneDNN only support f32 output when input is f32, even if FQ is fused
@@ -314,83 +315,57 @@ void FullyConnected::prepareParams() {
     auto& engine = getEngine();
 
     auto builder = [&engine](const FCKey& key) -> executorPtr {
-        executorPtr execPtr = nullptr;
+        // use conv1x1 primitive for computation
         if (key.useConv1x1) {
-            auto desc = createDescriptorInternalForConv(key.inp0, key.inp1, key.bias, key.out, key.attr, engine);
-            primitive_desc_iterator itpd = desc;
-            convolution_forward::primitive_desc prim_desc;
+            auto prim_desc = createDescriptorInternalForConv(key.inp0, key.inp1, key.bias, key.out, key.attr, engine);
+            const bool found = DnnlExtensionUtils::find_implementation(prim_desc, brgconv_avx512_1x1);
 
-            while (static_cast<bool>(itpd))  {
-                impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
-
-                if (impl_type == brgconv_avx512_1x1) {
-                    prim_desc = itpd.get();
-                    break;
-                }
-                if (!itpd.next_impl()) {
-                    break;
-                }
-            }
-
-            if (prim_desc) {
-                execPtr = std::make_shared<DnnlExecutor>(prim_desc);
-            }
+            if (found)
+                return std::make_shared<DnnlExecutor>(prim_desc);
         }
-        // fallback
-        if (!execPtr) {
-            auto inDesc = key.inp0->getDnnlDesc();
-            const auto& inDims = inDesc.get_dims(); // @TODO query + copy might be slow
-            if (inDims.size() == 3) {
-                auto normalizedInDims = {inDims[0] * inDims[1], inDims[2]};
-                inDesc = inDesc.reshape(normalizedInDims);
-            }
 
-            auto outDesc = key.out->getDnnlDesc();
-            const auto& outDims = outDesc.get_dims(); // @TODO query + copy might be slow
-
-            if (outDims.size() == 3) {
-                auto normalizedOutDims = { outDims[0] * outDims[1], outDims[2] };
-                outDesc = outDesc.reshape(normalizedOutDims);
-            }
-
-            std::shared_ptr<dnnl::inner_product_forward::primitive_desc> fcDsc;
-            if (key.bias) {
-                fcDsc = std::make_shared<dnnl::inner_product_forward::primitive_desc>(
-                    engine,
-                    dnnl::prop_kind::forward_inference,
-                    inDesc,
-                    key.inp1->getDnnlDesc(),
-                    key.bias->getDnnlDesc(),
-                    outDesc,
-                    key.attr);
-            } else {
-                fcDsc = std::make_shared<dnnl::inner_product_forward::primitive_desc>(
-                    engine,
-                    dnnl::prop_kind::forward_inference,
-                    inDesc,
-                    key.inp1->getDnnlDesc(),
-                    outDesc,
-                    key.attr);
-            }
-
-            primitive_desc_iterator itpd = *fcDsc;
-            inner_product_forward::primitive_desc prim_desc;
-
-            while (itpd) {
-                impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
-
-                if (impl_type == key.implType) {
-                    prim_desc = itpd.get();
-                    break;
-                }
-                if (!itpd.next_impl()) {
-                    return nullptr;
-                }
-            }
-
-            execPtr = std::make_shared<DnnlExecutor>(prim_desc);
+        // fallback to normal convolution primitive
+        auto inDesc = key.inp0->getDnnlDesc();
+        const auto& inDims = inDesc.get_dims(); // @TODO query + copy might be slow
+        if (inDims.size() == 3) {
+            auto normalizedInDims = {inDims[0] * inDims[1], inDims[2]};
+            inDesc = inDesc.reshape(normalizedInDims);
         }
-        return execPtr;
+
+        auto outDesc = key.out->getDnnlDesc();
+        const auto& outDims = outDesc.get_dims(); // @TODO query + copy might be slow
+
+        if (outDims.size() == 3) {
+            auto normalizedOutDims = { outDims[0] * outDims[1], outDims[2] };
+            outDesc = outDesc.reshape(normalizedOutDims);
+        }
+
+        dnnl::inner_product_forward::primitive_desc prim_desc;
+        if (key.bias) {
+            prim_desc = dnnl::inner_product_forward::primitive_desc(
+                engine,
+                dnnl::prop_kind::forward_inference,
+                inDesc,
+                key.inp1->getDnnlDesc(),
+                key.bias->getDnnlDesc(),
+                outDesc,
+                key.attr);
+        } else {
+            prim_desc = dnnl::inner_product_forward::primitive_desc(
+                engine,
+                dnnl::prop_kind::forward_inference,
+                inDesc,
+                key.inp1->getDnnlDesc(),
+                outDesc,
+                key.attr);
+        }
+
+        const bool found = DnnlExtensionUtils::find_implementation(prim_desc, key.implType);
+
+        if (!found)
+            return nullptr;
+
+        return std::make_shared<DnnlExecutor>(prim_desc);;
     };
 
     auto cache = context->getParamsCache();
@@ -442,38 +417,6 @@ void FullyConnected::prepareParams() {
 #endif
     } else {
         IE_THROW() << "Executor is not created for node " << getName() << ".";
-    }
-}
-
-void FullyConnected::setDynamicBatchLim(int lim) {
-    if (!execPtr) {
-        IE_THROW() << "Can't set dynamic batch for FullyConnected node with name: " << getName() << ", because executor is not compiled";
-    }
-    if (execPtr->needReordering()) {
-        IE_THROW() << "Can't execute FullyConnected node with dynamic batch via executor with reorders";
-    }
-
-    auto setBatchPrimArgs = [this](int argType, const dnnl::memory& oldMem) {
-        dnnl::memory::desc newMemDesc(oldMem.get_desc());
-        newMemDesc.get()->dims[0] = batchToProcess();
-        newMemDesc.get()->padded_dims[0] = batchToProcess();
-
-        const auto dims = newMemDesc.get_dims();
-
-        if (dims.size() == 3) {
-            std::vector<dnnl::memory::dim> normalizedDims({dims[0] * dims[1], dims[2]});
-            newMemDesc = newMemDesc.reshape(normalizedDims);
-        }
-
-        primArgs.at(argType) = dnnl::memory(newMemDesc, oldMem.get_engine(), oldMem.get_data_handle());
-    };
-
-    if (useConv1x1) {
-        Node::setDynamicBatchLim(lim);
-    } else {
-        dynBatchLim = lim;
-        setBatchPrimArgs(DNNL_ARG_SRC, getParentEdgesAtPort(0)[0]->getMemory().GetPrimitive());
-        setBatchPrimArgs(DNNL_ARG_DST, getChildEdgesAtPort(0)[0]->getMemory().GetPrimitive());
     }
 }
 
@@ -534,10 +477,8 @@ void FullyConnected::setPostOps(dnnl::primitive_attr& attr, const VectorDims& di
         IE_THROW() << "Unexpected rank(" << dims_ext.size() << ") for output tensor of node: " << getName();
     }
 
-    bool isINT8 = getOriginalInputPrecisionAtPort(WEIGHTS_ID) == Precision::U8 ||
-                  getOriginalInputPrecisionAtPort(WEIGHTS_ID) == Precision::I8;
 
-    DnnlPostOpsComposer dnnlpoc(getEngine(), attr, ops, postOpsArgs, dims, dims.size() - 1, isINT8);
+    DnnlPostOpsComposer dnnlpoc(getEngine(), attr, ops, postOpsArgs, dims, dims.size() - 1, isINT8, 1 << 0,  getDQScales(), withBiases);
 
     for (int i = 0; i < fusedWith.size(); ++i) {
         auto& node = fusedWith[i];
@@ -567,6 +508,7 @@ bool FullyConnected::created() const {
 const std::vector<impl_desc_type>& FullyConnected::getPrimitivesPriority() {
     std::vector<impl_desc_type> priorities = {
             impl_desc_type::unknown,
+            impl_desc_type::acl,
             impl_desc_type::brgemm_sparse_avx512_amx,
             impl_desc_type::brgemm_avx512_amx,
             impl_desc_type::brgemm_avx512,
@@ -706,7 +648,6 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
             };
 
             NodeConfig config;
-            config.dynBatchSupport = true;
             for (size_t i = 0; i < descInputNumbers(); i++) {
                 PortConfig portConfig;
                 portConfig.inPlace(-1);
@@ -911,51 +852,6 @@ bool FullyConnected::canBeExecutedInConv1x1() const {
     }
 
     return retVal;
-}
-
-MemoryPtr FullyConnected::prepareWeightMemory(DnnlMemoryDescPtr weightDesc) {
-    if (!getParentEdgeAt(1)->getParent()->isConstant())
-        IE_THROW() << "Weight input is not const for node " << getName() << ".";
-    auto blob = getParentEdgeAt(1)->getMemoryPtr();
-    if (!blob)
-        IE_THROW() << "Cannot get const weights blob for node " << getName() << ".";
-
-    auto constDnnlMemOutDesc = blob->GetDescWithType<DnnlMemoryDesc>();
-    auto weightSrcDesc = constDnnlMemOutDesc->getDnnlDesc();
-    weightSrcDesc = weightSrcDesc.reshape(weightDesc->getDnnlDesc().get_dims());
-    auto create = [&] () {
-        auto newSrcDesc = DnnlExtensionUtils::makeDescriptor(weightSrcDesc);
-
-        Memory srcMemory{ getEngine() };
-        srcMemory.Create(newSrcDesc, blob->GetData());
-
-        MemoryPtr _ptr = std::make_shared<Memory>(getEngine());
-        _ptr->Create(weightDesc);
-        node::Reorder::reorderData(srcMemory, *_ptr, context->getParamsCache());
-
-        return _ptr;
-    };
-
-    MemoryPtr ptr;
-    const auto& format = weightDesc->serializeFormat();
-    auto itr = privateWeightCache.find(format);
-    if (privateWeightCache.end() != itr) {
-        ptr = itr->second;
-    } else {
-        auto weightCache = context->getWeightsCache();
-        if (weightCache != nullptr) {
-            const std::string string_hash = getName() + "_" + format
-                                            + "_" + std::to_string(blob->GetSize())
-                                            + "_" + std::to_string(reinterpret_cast<uint64_t>(blob->GetData()));
-
-            ptr = *weightCache->findOrCreate(string_hash, create);
-        } else {
-            ptr = create();
-        }
-        privateWeightCache[format] = ptr;
-    }
-
-    return ptr;
 }
 
 bool FullyConnected::useSparseWeightsDecompression() {

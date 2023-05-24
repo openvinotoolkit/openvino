@@ -34,7 +34,9 @@ void ngraph::op::v1::VariadicSplit::validate_and_infer_types() {
         set_input_is_relevant_to_value(i);
     }
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto input_shapes = get_node_input_partial_shapes(*this);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     std::vector<ov::PartialShape> output_shapes;
     shape_infer(this, input_shapes, output_shapes);
 
@@ -85,7 +87,9 @@ bool op::v1::VariadicSplit::evaluate_variadic_split(const HostTensorVector& inpu
                  "split_lengths element type is not integral data type");
 
     int64_t axis = host_tensor_2_vector<int64_t>(axis_tensor)[0];
+    OPENVINO_SUPPRESS_DEPRECATED_START
     axis = ngraph::normalize_axis(this, axis, data_tensor->get_partial_shape().rank());
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     std::vector<ov::PartialShape> input_shapes = {data_tensor->get_partial_shape(),
                                                   axis_tensor->get_partial_shape(),
@@ -141,5 +145,7 @@ bool op::v1::VariadicSplit::evaluate_upper(ov::TensorVector& output_values) cons
 }
 
 bool op::v1::VariadicSplit::evaluate_label(TensorLabelVector& output_labels) const {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     return has_axis_and_splits_bound_set() && default_label_evaluator(this, output_labels);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }

@@ -69,9 +69,6 @@ protected:
         std::tie(precision, targetDevice, configuration, input_shape, filter_shape, padding_size) = this->GetParam();
 
         GnaLayerTestCheck::SetUp(targetDevice);
-        if (GnaLayerTestCheck::gnaLibVersionLessThan("3.5")) {
-            GTEST_SKIP() << GnaLayerTestCheck::getLastCmpResultMsg() << std::endl;
-        }
 
         auto ng_precision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(precision);
         auto input = std::make_shared<ngraph::opset8::Parameter>(ng_precision, ngraph::Shape{input_shape});

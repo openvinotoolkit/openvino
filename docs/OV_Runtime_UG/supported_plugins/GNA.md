@@ -140,7 +140,7 @@ quantization hints based on statistics for the provided dataset.
 * Accuracy (i16 weights)
 * Performance (i8 weights)
 
-For POT quantized models, the ``ov::inference_precision`` property has no effect except in cases described in the
+For POT quantized models, the ``ov::hint::inference_precision`` property has no effect except in cases described in the
 :ref:`Model and Operation Limitations section <#model-and-operation-limitations>`.
 
 
@@ -203,7 +203,7 @@ Import model:
          :fragment: [ov_gna_import]
 
 
-To compile a model, use either :doc:`compile Tool <openvino_inference_engine_tools_compile_tool_README>` or 
+To compile a model, use either :ref:`compile Tool <openvino_ecosystem>` or 
 :doc:`Speech C++ Sample <openvino_inference_engine_samples_speech_sample_README>`.
 
 Stateful Models
@@ -268,7 +268,7 @@ In order to take effect, the following parameters must be set before model compi
 
 - ov::cache_dir
 - ov::enable_profiling
-- ov::inference_precision
+- ov::hint::inference_precision
 - ov::hint::num_requests
 - ov::intel_gna::compile_target
 - ov::intel_gna::firmware_model_image_path
@@ -354,7 +354,7 @@ Support for 2D Convolutions using POT
 For POT to successfully work with the models including GNA3.0 2D convolutions, the following requirements must be met:
 
 * All convolution parameters are natively supported by HW (see tables above).
-* The runtime precision is explicitly set by the ``ov::inference_precision`` property as ``i8`` for the models produced by 
+* The runtime precision is explicitly set by the ``ov::hint::inference_precision`` property as ``i8`` for the models produced by 
   the ``performance mode`` of POT, and as ``i16`` for the models produced by the ``accuracy mode`` of POT.
 
 

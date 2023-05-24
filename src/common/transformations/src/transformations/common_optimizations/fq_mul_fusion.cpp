@@ -102,7 +102,9 @@ ov::pass::FakeQuantizeMulFusion::FakeQuantizeMulFusion() {
         auto get_adjusted_output_range = [&](const Output<Node>& node) -> std::shared_ptr<Node> {
             auto ret = std::make_shared<opset4::Multiply>(node, mul_constant);
             copy_runtime_info(node.get_node_shared_ptr(), ret);
+            OPENVINO_SUPPRESS_DEPRECATED_START
             auto constant = get_constant_from_source(ret);
+            OPENVINO_SUPPRESS_DEPRECATED_END
             if (constant)
                 return constant;
             return ret;
@@ -113,7 +115,9 @@ ov::pass::FakeQuantizeMulFusion::FakeQuantizeMulFusion() {
                                                                  fq_node->input_value(2),
                                                                  get_adjusted_output_range(original_output_low),
                                                                  get_adjusted_output_range(original_output_high)});
+        OPENVINO_SUPPRESS_DEPRECATED_START
         bool fq_on_weights = is_type<opset4::Constant>(data.get_node()) || get_constant_from_source(data) != nullptr;
+        OPENVINO_SUPPRESS_DEPRECATED_END
         if (!fq_on_weights && transformation_callback(new_fq_node))
             return false;
 

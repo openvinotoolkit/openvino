@@ -54,6 +54,8 @@ public:
         return m_tensor_map->at(input);
     }
 
+    Any get_values_from_const_input(int index) const override;
+
     // TODO: upstream to base class
     OutputVector inputs() const {
         OutputVector res;

@@ -67,7 +67,9 @@ static MemBandwidthPressure MemBandwidthPressureTolerance(
                 output.get_partial_shape().is_static()) {
                 const auto& shapeInput0 = input0.get_shape();
                 const auto& shapeInput1 = input1.get_shape();
+                OPENVINO_SUPPRESS_DEPRECATED_START
                 const auto non_const = !get_constant_from_source(node->input_value(1));
+                OPENVINO_SUPPRESS_DEPRECATED_END
                 const auto& shapeOutput = output.get_shape();
                 const auto dataSizeInput0 =
                     std::accumulate(shapeInput0.begin(), shapeInput0.end(), size_t(1), std::multiplies<size_t>());

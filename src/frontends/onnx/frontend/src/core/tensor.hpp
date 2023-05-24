@@ -29,6 +29,7 @@ using TensorProto_DataType = decltype(ONNX_NAMESPACE::TensorProto{}.data_type())
 
 namespace error {
 namespace tensor {
+OPENVINO_SUPPRESS_DEPRECATED_START
 struct invalid_data_type : ngraph_error {
     explicit invalid_data_type(TensorProto_DataType type) : ngraph_error{"invalid data type"} {}
 };
@@ -56,6 +57,7 @@ struct segments_unsupported : ngraph_error {
 struct shape_doesnt_match_data_size : ngraph_error {
     shape_doesnt_match_data_size() : ngraph_error{"tensor shape doesn't match data size"} {}
 };
+OPENVINO_SUPPRESS_DEPRECATED_END
 }  // namespace tensor
 }  // namespace error
 

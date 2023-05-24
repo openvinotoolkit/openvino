@@ -26,7 +26,7 @@ public:
     };
 
 public:
-    ~IShapeInfer() = default;
+    virtual ~IShapeInfer() = default;
 
     /**
      * @brief This method actually performs all the necessary shape inference computations

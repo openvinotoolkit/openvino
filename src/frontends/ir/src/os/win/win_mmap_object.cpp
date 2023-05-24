@@ -7,6 +7,9 @@
 #include "openvino/util/file_util.hpp"
 
 // clang-format-off
+#ifndef NOMINMAX
+#    define NOMINMAX
+#endif
 #include <windows.h>
 // clang-format-on
 
@@ -58,12 +61,16 @@ public:
     }
 
     void set(const std::string& path) {
+        // Note that file can't be changed (renamed/deleted) until it's unmapped. FILE_SHARE_DELETE flag allow 
+        // rename/deletion, but it doesn't work with FAT32 filesystem (works on NTFS)
         auto h = ::CreateFileA(path.c_str(), GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
         map(path, h);
     }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
     void set(const std::wstring& path) {
+        // Note that file can't be changed (renamed/deleted) until it's unmapped. FILE_SHARE_DELETE flag allow 
+        // rename/deletion, but it doesn't work with FAT32 filesystem (works on NTFS)
         auto h = ::CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
         map(ov::util::wstring_to_string(path), h);
     }

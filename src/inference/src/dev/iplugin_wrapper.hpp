@@ -22,6 +22,11 @@ public:
     IPluginWrapper(const std::shared_ptr<InferenceEngine::IInferencePlugin>& ptr);
 
     /**
+     * @brief Destructor
+     */
+    virtual ~IPluginWrapper() = default;
+
+    /**
      * @brief Create compiled model based on model and properties
      *
      * @param model OpenVINO Model representation

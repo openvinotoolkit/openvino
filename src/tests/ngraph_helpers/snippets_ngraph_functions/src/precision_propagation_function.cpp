@@ -11,19 +11,20 @@ namespace test {
 namespace snippets {
 
 std::shared_ptr<ngraph::Function> PrecisionPropagationAddFunction::get(
-    const ngraph::element::Type precision1,
+    const ngraph::element::Type& precision1,
     const ngraph::PartialShape& inputShape1,
-    const ngraph::element::Type precision2,
+    const ngraph::element::Type& precision2,
     const ngraph::PartialShape& inputShape2,
-    const ngraph::element::Type constant_precision,
+    const ngraph::element::Type& constant_precision,
     const std::pair<element::Type, element::Type>& convertion_before_op1,
-    const element::Type convertion_before_op2_1,
+    const element::Type& convertion_before_op2_1,
     const std::pair<element::Type, element::Type>& convertion_before_op2_2,
-    const element::Type convertion_after_op2) {
+    const element::Type& convertion_after_op2,
+    const element::Type& convertion_before_result) {
     const auto create_convert = [](std::shared_ptr<Node> parent, const element::Type convertion_type) -> std::shared_ptr<Node> {
         return convertion_type == element::undefined
             ? std::dynamic_pointer_cast<Node>(parent)
-            : std::make_shared<ngraph::snippets::op::ConvertSaturation>(parent, convertion_type);
+            : std::make_shared<ov::snippets::op::ConvertSaturation>(parent, convertion_type);
     };
 
     const auto make_branch = [&create_convert](
@@ -52,7 +53,7 @@ std::shared_ptr<ngraph::Function> PrecisionPropagationAddFunction::get(
         convertion_before_op2_2.second;
     if ((convertion_before_op2_2.first == element::undefined) &&
         (parent->get_output_element_type(0) != maximum_in2_type)) {
-        parent = std::make_shared<ngraph::snippets::op::ConvertSaturation>(parent, maximum_in2_type);
+        parent = std::make_shared<ov::snippets::op::ConvertSaturation>(parent, maximum_in2_type);
     }
 
     parent = std::make_shared<ngraph::opset1::Maximum>(
@@ -63,6 +64,8 @@ std::shared_ptr<ngraph::Function> PrecisionPropagationAddFunction::get(
     parent->set_friendly_name("maximum");
 
     parent = create_convert(parent, convertion_after_op2);
+
+    parent = create_convert(parent, convertion_before_result);
 
     const auto result = std::make_shared<ngraph::opset1::Result>(parent);
     auto& result_out_tensor = result->get_output_tensor(0);
@@ -84,7 +87,8 @@ std::shared_ptr<ov::Model> PrecisionPropagationAddFunction::initOriginal() const
         constant_precision,
         actual.convertion_before_op1,
         actual.convertion_before_op2_1,
-        actual.convertion_before_op2_2);
+        actual.convertion_before_op2_2,
+        actual.convertion_after_op2);
 }
 
 std::shared_ptr<ov::Model> PrecisionPropagationAddFunction::initReference() const {
@@ -97,7 +101,8 @@ std::shared_ptr<ov::Model> PrecisionPropagationAddFunction::initReference() cons
         expected.convertion_before_op1,
         expected.convertion_before_op2_1,
         expected.convertion_before_op2_2,
-        expected.convertion_after_op2);
+        expected.convertion_after_op2,
+        expected.convertion_before_result);
 }
 
 }  // namespace snippets

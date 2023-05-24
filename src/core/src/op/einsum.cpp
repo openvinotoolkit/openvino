@@ -190,7 +190,9 @@ void op::v7::Einsum::validate_and_infer_types() {
                               "Inputs to Einsum operation must have the same type.");
     }
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto input_shapes = get_node_input_partial_shapes(*this);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape::dynamic()};
 
     shape_infer(this, input_shapes, output_shapes);
