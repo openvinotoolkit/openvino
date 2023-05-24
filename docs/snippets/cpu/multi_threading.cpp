@@ -25,7 +25,7 @@ int main() {
         //! [ov:intel_cpu:multi_threading:part0]
 
         //! [ov:intel_cpu:multi_threading:part1]
-        // Disable CPU threads pinning for inference when system supoprt it
+        // Disable CPU threads pinning for inference when system support it
         auto compiled_model_4 = core.compile_model(model, device, ov::hint::enable_cpu_pinning(false));
         //! [ov:intel_cpu:multi_threading:part1]
         if ((!compiled_model_1) || (!compiled_model_2) || (!compiled_model_3) || (!compiled_model_4)) {
