@@ -5,7 +5,6 @@
 #include "helper_ops/block_lstm.hpp"
 
 #include "common_op_table.hpp"
-#include "ngraph/validation_util.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/tensorflow/node_context.hpp"
 

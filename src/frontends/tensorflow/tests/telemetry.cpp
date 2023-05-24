@@ -79,16 +79,16 @@ TEST(TFTelemetryTest, test_nonexistent_add) {
                                                              string("nonexistent_add/nonexistent_add.pb"));
     ASSERT_NO_THROW(inputModel = frontEnd->load(model_filename));
     ASSERT_NE(inputModel, nullptr);
-    shared_ptr<ngraph::Function> function;
+    shared_ptr<ov::Model> model;
 
     try {
-        function = frontEnd->convert(inputModel);
+        model = frontEnd->convert(inputModel);
         FAIL() << "Non-existent operation Adddd must not be supported by TF FE.";
     } catch (const OpConversionFailure& error) {
         string error_message = error.what();
         string ref_message = "Internal error, no translator found for operation(s): Adddd";
         ASSERT_TRUE(error_message.find(ref_message) != string::npos);
-        ASSERT_EQ(function, nullptr);
+        ASSERT_EQ(model, nullptr);
 
         // check telemetry data
         EXPECT_EQ(m_test_telemetry.m_error_cnt, 0);
