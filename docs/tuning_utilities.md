@@ -4,7 +4,7 @@
 
 .. toctree::
    :maxdepth: 1
-   :caption: 
+   :caption: Tuning Utilities
    
    omz_tools_accuracy_checker
    omz_data_datasets
