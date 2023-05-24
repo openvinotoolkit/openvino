@@ -185,10 +185,10 @@ const std::vector<ov::AnyMap> configsDeviceProperties = {
     {ov::device::properties(ov::AnyMap{{"CPU", ov::AnyMap{ov::num_streams(3)}}})}};
 
 const std::vector<ov::AnyMap> configsDevicePropertiesDouble = {
-    {ov::device::properties("CPU", ov::num_streams(5)), ov::num_streams(3)},
-    {ov::device::properties("CPU", ov::num_streams(5)),
+    {ov::device::properties("CPU", ov::num_streams(3)), ov::num_streams(5)},
+    {ov::device::properties("CPU", ov::num_streams(3)),
      ov::device::properties(ov::AnyMap{{"CPU", ov::AnyMap{ov::num_streams(7)}}}),
-     ov::num_streams(3)},
+     ov::num_streams(5)},
     {ov::device::properties("CPU", ov::num_streams(3)), ov::device::properties("CPU", ov::num_streams(5))},
     {ov::device::properties("CPU", ov::num_streams(3)),
      ov::device::properties(ov::AnyMap{{"CPU", ov::AnyMap{ov::num_streams(5)}}})},
