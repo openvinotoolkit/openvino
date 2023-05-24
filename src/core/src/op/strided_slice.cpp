@@ -18,8 +18,10 @@
 #include "ngraph/slice_plan.hpp"
 #include "ngraph/type/element_type_traits.hpp"
 #include "ngraph/util.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
+#include "openvino/pass/constant_folding.hpp"
 #include "strided_slice_shape_inference.hpp"
 
 using namespace std;
@@ -296,7 +298,7 @@ bool op::v1::StridedSlice::evaluate_label(TensorLabelVector& output_labels) cons
 
 bool op::v1::StridedSlice::constant_fold(OutputVector& output_values, const OutputVector& inputs_values) {
     auto is_folded = Node::constant_fold(output_values, inputs_values);
-    if (!is_folded) {
+    if (!is_const_fold_disabled() && !is_folded) {
         // If all ignored mask are set for all begin or end then replace this input by dummy constant
         // to avoid return false from `could_propagate` during bound evaluation (value of const will be ignored).
         auto get_indices_input = [&inputs_values](size_t port, const std::vector<int64_t>& mask) -> Output<Node> {
@@ -325,11 +327,21 @@ bool op::v1::StridedSlice::constant_fold(OutputVector& output_values, const Outp
                 ? clone_with_new_inputs(OutputVector{inputs_values[0], begin, end, inputs_values[3]})->output(0)
                 : this->output(0);
 
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        if (const auto c = ov::get_constant_from_source(output)) {
-            OPENVINO_SUPPRESS_DEPRECATED_END
-            output_values[0] = c;
-            is_folded = true;
+        std::vector<Node*> nodes;
+        // Check if bounds can be evaluated and none of output nodes have disabled constant folding.
+        if (ov::could_propagate(output, nodes) && std::none_of(nodes.begin(), nodes.end(), [](const Node* n) {
+                return ov::pass::constant_folding_is_disabled(n);
+            })) {
+            OPENVINO_SUPPRESS_DEPRECATED_START
+            if (const auto c = ov::get_constant_from_source(output)) {
+                OPENVINO_SUPPRESS_DEPRECATED_END
+                output_values[0] = c;
+                auto output_ptr = output_values[0].get_node_shared_ptr();
+                for (const auto& n : nodes) {
+                    copy_runtime_info(n->shared_from_this(), output_ptr);
+                }
+                is_folded = true;
+            }
         }
     }
     return is_folded;
