@@ -151,7 +151,6 @@ jobs:
             -DCMAKE_CXX_LINKER_LAUNCHER=ccache
           parallel: ${{ steps.cpu-cores.outputs.count }}
 
-
       - name: Print info
         run: |
           ls -laR
