@@ -1414,7 +1414,7 @@ void Graph::DropNode(const NodePtr &node) {
             if (!child)
                 continue;
 
-            EdgePtr &remEdge = p_edge;
+            EdgePtr remEdge = p_edge;
             int inNum = 0;
             if (remEdge) {
                 inNum = remEdge->getInputNum();
@@ -1459,7 +1459,7 @@ void Graph::DropDWConvNode(const NodePtr &node) {
             if (!child)
                 continue;
 
-            EdgePtr &remEdge = p_edge;
+            EdgePtr remEdge = p_edge;
             int inNum = 0;
             if (remEdge) {
                 inNum = remEdge->getInputNum();
@@ -1485,7 +1485,7 @@ void Graph::DropDWConvNode(const NodePtr &node) {
         auto parent = p_edge->getParent();
         if (!parent) continue;
 
-        EdgePtr &remEdge = p_edge;
+        EdgePtr remEdge = p_edge;
         int inNum = 0;
         int portCandidate = 0;
         if (remEdge) {
