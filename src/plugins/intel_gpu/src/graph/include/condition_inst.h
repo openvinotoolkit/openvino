@@ -20,34 +20,34 @@ private:
 
 class branch {
 public:
-    explicit branch(topology::ptr tpl) : _topology(tpl) {}
+    explicit branch(const cldnn::condition::branch_info& data) : _data(data) {}
 
     void set(const program_node& node) {
         add_or_change_input_layout(node);
-        _program = program::build_program(node.get_program().get_engine(),
-                                            *_topology.get(),
-                                            node.get_program().get_config(),
-                                            true);  // rebuild program
+        if (_program == nullptr) {
+            std::cout << "[START][" << node.id();
+            std::cout << "][" << _data.tags << "] Build inner program ....... " << std::endl;
+            _program = program::build_program(node.get_program().get_engine(),
+                                                *_data.topology_ptr.get(),
+                                                node.get_program().get_config(),
+                                                true);  // rebuild program
+            std::cout << "[END..] Build inner program ....... " << std::endl;
+        }
     }
     program::ptr get() const { return _program; }
 
 private:
-    topology::ptr _topology;
+    cldnn::condition::branch_info _data;
     program::ptr _program = nullptr;
 
     void add_or_change_input_layout(const program_node& node) {
-        auto layout = node.get_dependency(0).get_output_layout();
-        auto input_id = node.as<condition>().result_id();
-        if (_topology->get_primitives().count(input_id) == 0) {
-            _topology->add_primitive(std::make_shared<input_layout>(input_id, layout));
-            for (auto& prim : _topology->get_primitives()) {
-                for (auto& inp : prim.second->input) {
-                    if (inp.pid == node.id())
-                        inp.pid = input_id;
-                }
+        for (auto& p_iter : node.get_dependencies()) {
+            auto pid = p_iter.first->id();
+            auto iter = _data.input_map.find(pid);
+            if (iter != _data.input_map.end()) {
+                auto out_layout = p_iter.first->get_output_layout();
+                _data.topology_ptr->change_input_layout(iter->second.second, out_layout);
             }
-        } else {
-            _topology->change_input_layout(input_id, layout);
         }
     }
 };
@@ -57,11 +57,11 @@ public:
 
     typed_program_node(std::shared_ptr<primitive> prim, program& prog)
         : parent(prim, prog),
-          _branch_true(this->get_primitive()->branch_true.topology_ptr),
-          _branch_false(this->get_primitive()->branch_false.topology_ptr) {}
+          _branch_true(this->get_primitive()->branch_true),
+          _branch_false(this->get_primitive()->branch_false) {}
 
     program_node& input() const { return get_dependency(0); }
-    program_node& compare() const { return get_dependency(1); }
+    // program_node& compare() const { return get_dependency(0); }
     cond_functions func() const { return get_primitive()->function; }
     tensor offset() const { return get_primitive()->offset; }
     void set_branches() const {
@@ -70,7 +70,6 @@ public:
     }
     program::ptr get_branch_true() const { return _branch_true.get(); }
     program::ptr get_branch_false() const { return _branch_false.get(); }
-    primitive_id result_id() const { return id() + ":result"; }
 
 private:
     mutable branch _branch_true;
@@ -95,7 +94,6 @@ public:
     memory& compare_memory() const { return dep_memory(1); }
     network::ptr get_net_true() const { return _net_true; }
     network::ptr get_net_false() const { return _net_false; }
-    primitive_id result_id() const { return node->result_id(); }
 
 private:
     network::ptr _net_true;

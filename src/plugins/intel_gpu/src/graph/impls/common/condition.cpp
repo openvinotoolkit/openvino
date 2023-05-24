@@ -30,6 +30,7 @@ struct condition_impl : typed_primitive_impl<condition> {
     }
 
     event::ptr execute_impl(const std::vector<event::ptr>& events, condition_inst& instance) override {
+        OPENVINO_ASSERT(false, "Not implemented yet");
         for (auto& a : events) {
             a->wait();
         }
@@ -39,9 +40,9 @@ struct condition_impl : typed_primitive_impl<condition> {
         bool exec_branch = choose_branch_to_exec(instance);
         memory::ptr memory_to_copy;
         if (exec_branch)
-            memory_to_copy = execute_branch(instance.get_net_true(), instance.result_id(), instance.input_memory_ptr());
+            memory_to_copy = execute_branch(instance.get_net_true(), "", instance.input_memory_ptr());
         else
-            memory_to_copy = execute_branch(instance.get_net_false(), instance.result_id(), instance.input_memory_ptr());
+            memory_to_copy = execute_branch(instance.get_net_false(), "", instance.input_memory_ptr());
         // just copy memory
         mem_lock<float, mem_lock_type::read> inp_ptr{memory_to_copy, instance.get_network().get_stream()};
         mem_lock<float, mem_lock_type::write> out_ptr{instance.output_memory_ptr(), instance.get_network().get_stream()};

@@ -24,18 +24,71 @@
 namespace ov {
 namespace intel_gpu {
 
+const size_t idx_true = 0;
+const size_t idx_false = 1;
+
 static cldnn::topology::ptr gen_topology(Program& p, const std::shared_ptr<ngraph::Function> net) {
     InferenceEngine::CNNNetwork body_network(net);
     Program body_program(body_network, p.get_engine(), p.get_config(), true);
     return body_program.GetTopology();
 }
 
+static cldnn::condition::branch_info gen_branch_info(Program& p, const std::shared_ptr<ngraph::op::v8::If>& op, size_t idx) {
+    cldnn::condition::branch_info branch;
+    const auto& internal_body = (idx == idx_true)? op->get_then_body() : op->get_else_body();
+
+    branch.topology_ptr = gen_topology(p, internal_body);
+
+    auto& input_map = branch.input_map;
+    auto external_inputs = p.GetInputInfo(op);
+    auto internal_inputs = internal_body->get_parameters();
+    auto input_desc_vec = op->get_input_descriptions(idx);
+    for (auto& in_desc : input_desc_vec) {
+        const auto& external_id = external_inputs.at(in_desc->m_input_index).pid;
+        const auto& internal_id = layer_type_name_ID(internal_inputs.at(in_desc->m_body_parameter_index));
+        input_map.insert({external_id, {in_desc->m_input_index, internal_id}});
+    }
+
+    auto& output_map = branch.output_map;
+    auto internal_outputs = internal_body->get_results();
+    std::cout << "inner body outputs: " << internal_outputs.size() << std::endl;
+    auto output_desc_vec = op->get_output_descriptions(idx);
+    for (auto& out_desc : output_desc_vec) {
+        const auto& internal_id = layer_type_name_ID(internal_outputs.at(out_desc->m_body_value_index));
+        output_map.insert({out_desc->m_output_index, internal_id});
+    }
+
+    return branch;
+}
+
 // TODO: [If_op] Convert Model to primitive
 // TODO: [If_op] Rename condition to If
 // TODO: [If_op] Modify params by params of ngraph::if (cond{boolean})
 static void CreateIfOp(Program& p, const std::shared_ptr<ngraph::op::v8::If>& op) {
-    const std::string layerName = layer_type_name_ID(op);
     auto inputs = p.GetInputInfo(op);
+    OPENVINO_ASSERT(inputs.size() >= 1, "Invalid inputs count (Not allowed no input)");
+
+    for (auto& in : inputs) {
+        std::cout << "= [" << in.idx << "] " << in.pid << std::endl;
+    }
+
+    const std::string layerName = layer_type_name_ID(op);
+    auto branch_true = gen_branch_info(p, op, idx_true);
+    branch_true.tags = "branch_true";
+    auto branch_false = gen_branch_info(p, op, idx_false);
+    branch_false.tags = "branch_false";
+
+    std::cout << "branch_true : " << branch_true << std::endl;
+    std::cout << "branch_false: " << branch_false << std::endl;
+
+    const cldnn::condition conditionPrimitive(layerName,
+                                inputs,
+                                branch_true,
+                                branch_false);
+
+    p.add_primitive(*op, conditionPrimitive);
+
+#if 0
     std::cout << "inputs : " << inputs.size() << std::endl;
     for (auto& in : inputs) {
         std::cout << "* " << in.idx << ", " << in.pid << std::endl;
@@ -61,6 +114,18 @@ static void CreateIfOp(Program& p, const std::shared_ptr<ngraph::op::v8::If>& op
 
         std::cout << "]" << std::endl;
     }
+    {
+        auto& else_desc_out_vec = op->get_output_descriptions(1);
+        {
+            std::cout << "else_desc_vec=[{m_output_index, m_body_value_index}, ";
+            for (auto& out_desc : else_desc_out_vec) {
+                std::cout << "{" << out_desc->m_output_index;
+                std::cout << "," << out_desc->m_body_value_index << "},";
+            }
+
+            std::cout << "]" << std::endl;
+        }
+    }
 
 
     // op->get_input_size();
@@ -68,7 +133,7 @@ static void CreateIfOp(Program& p, const std::shared_ptr<ngraph::op::v8::If>& op
 
     auto topology_true  = *gen_topology(p, op->get_then_body());
     auto topology_false = *gen_topology(p, op->get_else_body());
-    cldnn::primitive_id compare_data;
+    cldnn::primitive_id compare_data = inputs[0].pid;
     cldnn::cond_functions func;
 
     const cldnn::condition conditionPrimitive(layerName,
@@ -77,8 +142,7 @@ static void CreateIfOp(Program& p, const std::shared_ptr<ngraph::op::v8::If>& op
                                 topology_false,
                                 compare_data,
                                 func);
-
-    p.add_primitive(*op, conditionPrimitive);
+#endif
 }
 
 REGISTER_FACTORY_IMPL(v8, If);
