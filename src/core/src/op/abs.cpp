@@ -69,5 +69,6 @@ bool ov::op::v0::Abs::has_evaluate() const {
     default:
         break;
     }
+    std::cout << "I'm tests" << std::endl;
     return false;
 }
