@@ -12,8 +12,7 @@
 #include <vector>
 
 using namespace cldnn;
-
-namespace {
+namespace cldnn {
 struct concat_noop_optimization : pattern_match_optimization_typed<concat_noop_optimization, concatenation> {
     // Removes concatenation nodes with single input.
     using base = pattern_match_optimization_typed<concat_noop_optimization, concatenation>;
@@ -32,9 +31,19 @@ struct concat_in_place_optimization : pattern_match_optimization_typed<concat_in
     using base = pattern_match_optimization_typed<concat_in_place_optimization, concatenation>;
     using base::base;
 
-    // Runs concat in-place optimization and adds already optimized concatenations that need re-optimization to `needs_reoptimization`.
+    // Runs concat in-place optimization and adds already optimized concatenations that need re-optimization to
+    // `needs_reoptimization`.
     void optimize_cascade(concatenation_node& node, std::list<concatenation_node*>& need_reoptimization);
+    static void update_in_place_concat_paddings(layout& concat_layout,
+                                 std::vector<layout>& preds_layouts,
+                                 size_t concat_axis,
+                                 std::list<concatenation_node*>& need_reoptimization,
+                                 bool is_runtime);
     bool match(concatenation_node& node);
+    static bool match(const program_node& concat_node,
+                      kernel_impl_params concat_params,
+                      std::vector<kernel_impl_params> pred_params,
+                      bool is_runtime = false);
     bool optimize(concatenation_node& node) {
         std::list<concatenation_node*> need_reopt;
         optimize_cascade(node, need_reopt);
@@ -51,4 +60,4 @@ struct concat_in_place_optimization : pattern_match_optimization_typed<concat_in
     }
 };
 
-} // namespace
+} // namespace cldnn
