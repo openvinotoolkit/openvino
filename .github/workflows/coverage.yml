@@ -1,4 +1,4 @@
-name: Code coverage (new)
+name: Code coverage
 
 on:
   push:
