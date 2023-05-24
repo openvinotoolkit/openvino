@@ -228,7 +228,7 @@ TEST_P(OVCompiledModelBaseTest, canCompileModelwithBrace) {
             </edges>
         </net>
         )V0G0N";
-    ov::CompiledModel compiled_model = ov::Core{}.compile_model(model, target_device);
+    ov::CompiledModel compiled_model = ov::Core{}.compile_model(model, ov::Tensor(), target_device);
     EXPECT_NO_THROW(compiled_model.get_property(ov::optimal_number_of_infer_requests));
 }
 
