@@ -5,8 +5,8 @@
 #include "transformations/common_optimizations/merge_similar_branches.hpp"
 
 #include <algorithm>
-#include <queue>
-#include <unordered_set>
+#include <set>
+#include <stack>
 
 #include "openvino/op/util/op_types.hpp"
 
@@ -61,14 +61,17 @@ bool compare_consumers(const Input<Node>& l, const Input<Node>& r) {
 bool MergeSimilarBranches::run_on_model(const std::shared_ptr<ov::Model>& model) {
     bool rewritten = false;
 
-    queue<Node*> nodes_for_check;  // TODO consider lifo
-    unordered_set<Node*> nodes_checked;
-
+    stack<Node*> nodes_for_check;
     for (const auto& p : model->get_parameters())
         nodes_for_check.push(p.get());
 
+    set<Node*> result_procuder_nodes;
+    for (const auto r : model->get_results())
+        result_procuder_nodes.insert(r->input(0).get_source_output().get_node());
+
+    set<Node*> nodes_checked;
     while (!nodes_for_check.empty()) {
-        const auto node = nodes_for_check.front();
+        const auto node = nodes_for_check.top();
         nodes_for_check.pop();
 
         if (nodes_checked.find(node) != nodes_checked.end())
@@ -80,25 +83,15 @@ bool MergeSimilarBranches::run_on_model(const std::shared_ptr<ov::Model>& model)
 
             // erase Result producers from consumers
             const auto find_result_producer = [&]() {
-                return find_if(begin(consumers), end(consumers), [](const Input<Node>& consumer) {
-                    set<Node*> consumer_target_nodes;  // TODO rather gather it up-front and just use it here
-                    for (const auto& o : consumer.get_node()->outputs())
-                        for (const auto& c : o.get_target_inputs())
-                            consumer_target_nodes.emplace(c.get_node());
-
-                    return any_of(begin(consumer_target_nodes), end(consumer_target_nodes), [](Node* n) {
-                        return ov::op::util::is_output(n);
-                    });
+                return find_if(begin(consumers), end(consumers), [&](const Input<Node>& c) {
+                    return result_procuder_nodes.find(c.get_node()) != result_procuder_nodes.end();
                 });
             };
-            auto to_be_erased = find_result_producer();
-            while (to_be_erased != end(consumers)) {
-                consumers.erase(to_be_erased);
-                to_be_erased = find_result_producer();
-            }
+            for (auto i = find_result_producer(); i != end(consumers); i = find_result_producer())
+                consumers.erase(i);
 
             if (consumers.size() > 1) {
-                while (!consumers.empty()) {
+                do {
                     // get node for comparison
                     const auto first_consumer = *consumers.begin();
                     const auto first_consumer_node = first_consumer.get_node();
@@ -115,7 +108,7 @@ bool MergeSimilarBranches::run_on_model(const std::shared_ptr<ov::Model>& model)
                                        return compare_consumers(first_consumer, n);
                                    });
 
-                    // merge nodes
+                    // merge equal nodes
                     if (!consumers_for_merge.empty()) {
                         const auto replacement_node = first_consumer_node->shared_from_this();
                         for (size_t i = 0; i < consumers_for_merge.size(); ++i) {
@@ -128,9 +121,8 @@ bool MergeSimilarBranches::run_on_model(const std::shared_ptr<ov::Model>& model)
 
                     nodes_for_check.push(first_consumer_node);
                     consumers.swap(remaining_consumers);
-                }
-            } else if (consumers.size() == 1) {
-                // nothing to merge
+                } while (!consumers.empty());
+            } else if (consumers.size() == 1) {  // nothing to merge
                 nodes_for_check.push(consumers.begin()->get_node());
             }
         }
