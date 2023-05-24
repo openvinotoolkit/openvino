@@ -5,20 +5,17 @@ from utils import (
     add_content_below,
     process_notebook_name,
     verify_notebook_name,
-    split_notebooks_into_sections,
+
 )
 from consts import (
     artifacts_link,
     binder_template,
     blacklisted_extensions,
-    notebooks_docs,
     notebooks_path,
     no_binder_template,
     repo_directory,
     repo_name,
     repo_owner,
-    rst_template,
-    section_names,
 )
 from notebook import Notebook
 from section import Section
@@ -84,14 +81,7 @@ class NbProcessor:
             for notebook in os.listdir(self.nb_path)
             if verify_notebook_name(notebook)
         ]
-        notebooks = split_notebooks_into_sections(notebooks)
-        self.rst_data = {
-            "sections": [
-                Section(name=section_name, notebooks=section_notebooks)
-                for section_name, section_notebooks in zip(section_names, notebooks)
-            ]
 
-        }
         self.binder_data = {
             "owner": repo_owner,
             "repo": repo_name,
@@ -140,19 +130,6 @@ class NbProcessor:
                 if not add_content_below(button_text, f"{self.nb_path}/{notebook}"):
                     raise FileNotFoundError("Unable to modify file")
 
-    def render_rst(self, path: str = notebooks_docs, template: str = rst_template):
-        """Rendering rst file for all notebooks
-
-        :param path: Path to notebook main rst file. Defaults to notebooks_docs.
-        :type path: str
-        :param template: Template for default rst page. Defaults to rst_template.
-        :type template: str
-
-        """
-        with open(path, "w+") as nb_file:
-            nb_file.writelines(Template(template).render(self.rst_data))
-
-
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('outdir', type=Path)
@@ -165,7 +142,6 @@ def main():
     nbp = NbProcessor(outdir)
     buttons_list = nbp.fetch_binder_list('txt')
     nbp.add_binder(buttons_list)
-    nbp.render_rst(outdir.joinpath(notebooks_docs))
 
 
 if __name__ == '__main__':
