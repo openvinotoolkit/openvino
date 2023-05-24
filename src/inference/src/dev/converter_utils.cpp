@@ -171,7 +171,6 @@ std::shared_ptr<const ov::Model> ov::legacy_convert::convert_model(const Inferen
         auto input_info = network.getInputsInfo().at(param_name);
         auto& rt_info = input.get_rt_info();
         rt_info["ie_legacy_preproc"] = input_info->getPreProcess();
-        rt_info["ie_legacy_td"] = input_info->getTensorDesc();
     }
     for (auto&& result : cloned_model->get_results()) {
         auto output = result->input_value(0);
@@ -179,9 +178,6 @@ std::shared_ptr<const ov::Model> ov::legacy_convert::convert_model(const Inferen
 
         OPENVINO_ASSERT(network.getOutputsInfo().count(res_name));
         auto output_info = network.getOutputsInfo().at(res_name);
-
-        auto& rt_info = output.get_rt_info();
-        rt_info["ie_legacy_td"] = output_info->getTensorDesc();
     }
     if (!cloned_model->has_rt_info("version")) {
         cloned_model->set_rt_info(int64_t(10), "version");
