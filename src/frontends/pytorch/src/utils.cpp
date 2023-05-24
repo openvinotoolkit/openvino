@@ -351,13 +351,13 @@ void align_eltwise_input_types(const NodeContext& context, Output<Node>& lhs, Ou
     auto rhs_dst_type = rhs_type;
     if (is_lhs_scalar && lhs_type.is_real() && !rhs_type.is_real()) {
         // if div we need to also align float types to highest bitness regardless of scalar
-        if (!align_scalars)
+        if (!align_scalars && lhs.get_node_shared_ptr()->inputs().empty()) // Checking empty is quick workaround to check whether input is prim::Constant in layer tests, not suitable for production
             lhs_dst_type = element::f32;
         rhs_dst_type = element::f32;
     } else if (is_rhs_scalar && !lhs_type.is_real() && rhs_type.is_real()) {
         lhs_dst_type = element::f32;
         // if div we need to also align float types to highest bitness regardless of scalar
-        if (!align_scalars)
+        if (!align_scalars && rhs.get_node_shared_ptr()->inputs().empty()) // Checking empty is quick workaround to check whether input is prim::Constant in layer tests, not suitable for production
             rhs_dst_type = element::f32;
     } else if (is_lhs_scalar) {
         lhs = context.mark_node(std::make_shared<opset10::ConvertLike>(lhs, rhs));

@@ -148,7 +148,6 @@ class PytorchLayerTest:
             else:
                 model = torch.jit.script(model)
             model = torch.jit.freeze(model)
-            print(model)
             if not dynamic_shapes:
                 input_shapes = [inp.shape for inp in ov_inputs]
                 kwargs["input_shape"] = input_shapes
@@ -168,12 +167,25 @@ class PytorchLayerTest:
                 model = torch.jit.trace(model, example_input)
             else:
                 model = torch.jit.script(model)
-        print(model.inlined_graph)
-        decoder = TorchScriptPythonDecoder(model, freeze=freeze_model)
-        im = fe.load(decoder)
-        om = fe.convert(im)
-        self._resolve_input_shape_dtype(om, ov_inputs, dynamic_shapes)
-        return model, om
+        try:
+            decoder = TorchScriptPythonDecoder(model, freeze=freeze_model)
+            model = decoder.pt_module
+            im = fe.load(decoder)
+            om = fe.convert(im)
+            self._resolve_input_shape_dtype(om, ov_inputs, dynamic_shapes)
+            return model, om
+        except Exception as e:
+            if "decoder" in locals():
+                model = decoder.pt_module
+            else:
+                # Conversion failed in TorchScriptPythonDecoder,
+                # replicate modifications to TorchScript model for debugging.
+                with torch.no_grad():
+                    model.eval()
+                    if freeze_model:
+                        model = torch.jit.freeze(model)
+            print(model.inlined_graph)
+            raise e
 
     def _resolve_input_shape_dtype(self, om, ov_inputs, dynamic_shapes):
         params = list(om.inputs)

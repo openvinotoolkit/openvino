@@ -101,7 +101,7 @@ OutputVector translate_1to1_match_2_inputs_align_types(const NodeContext& contex
     FRONT_END_OP_CONVERSION_CHECK(!context.input_is_none(0) && !context.input_is_none(1), "Inputs should not be None.");
     auto lhs = context.get_input(0);
     auto rhs = context.get_input(1);
-    align_eltwise_input_types(context, lhs, rhs, true);
+    align_eltwise_input_types(context, lhs, rhs, false);
     return {context.mark_node(std::make_shared<T>(lhs, rhs))};
 }
 
