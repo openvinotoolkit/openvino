@@ -162,26 +162,16 @@ public:
 class Limitations {
 public:
     /**
-     * @brief Returns the instance of Limitations object. Requires an Init call before the first usage or once the Reset
-     * function has been called
-     */
-    static inline std::shared_ptr<Limitations> get_instance() {
-        if (!k_instance) {
-            THROW_GNA_EXCEPTION << "Limitations instance is not initialized.\n";
-        }
-        return k_instance;
-    }
-
-    /**
-     * @brief Creates the instance of Limitations object.
+     * @brief Create instance of the Limitations class. Due to Limitations being a singleton, multiple instances of the
+     * plugin with different compilation targets cannot exist at the same time
      * @param compile_target GNA compile target
      */
     static void init(const target::DeviceVersion& compile_target);
 
     /**
-     * @brief Releases the instance of the Limitations object.
+     * @brief Returns the instance of Limitations object. Requires an Init call before the first usage
      */
-    static void deinit();
+    static inline std::shared_ptr<Limitations> get_instance();
 
     static bool is_transpose_2d(const std::vector<size_t>& shape);
     static bool is_transpose_supported(const std::vector<size_t>& shape);
@@ -306,6 +296,13 @@ private:
     std::shared_ptr<cnn2d::AbstractValidator> m_cnn_validator;
     static thread_local std::shared_ptr<Limitations> k_instance;
 };
+
+inline std::shared_ptr<Limitations> Limitations::get_instance() {
+    if (!k_instance) {
+        THROW_GNA_EXCEPTION << "Limitations instance is not initialized.\n";
+    }
+    return k_instance;
+}
 
 inline bool Limitations::is_crop_affined_offset(size_t numberOfElements) const {
     const auto cropOffset = numberOfElements * kBytesPerCropElement;

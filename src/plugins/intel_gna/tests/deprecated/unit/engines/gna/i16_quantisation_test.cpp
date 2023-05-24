@@ -54,10 +54,6 @@ protected:
     void SetUp() override {
         Limitations::init(target::DeviceVersion::Default);
     }
-
-    void TearDown() override {
-        Limitations::deinit();
-    }
 };
 
 template <class T>

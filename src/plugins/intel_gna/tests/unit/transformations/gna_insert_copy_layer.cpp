@@ -38,7 +38,6 @@ public:
         return result.str();
     }
     void SetUp() override;
-    void TearDown() override;
     virtual void Validate();
     virtual void Run();
 
@@ -59,12 +58,7 @@ void InsertCopyLayerTest::SetUp() {
     ov::intel_gna::limitations::Limitations::init(ov::intel_gna::target::DeviceVersion::Default);
 }
 
-void InsertCopyLayerTest::TearDown() {
-    ov::intel_gna::limitations::Limitations::deinit();
-}
-
 void InsertCopyLayerTest::Run() {
-    SetUp();
     Validate();
 }
 
@@ -186,7 +180,6 @@ public:
 void RunPasses(ngraph::pass::Manager& m, std::shared_ptr<ov::Model> func) {
     ov::intel_gna::limitations::Limitations::init(ov::intel_gna::target::DeviceVersion::Default);
     m.run_passes(func);
-    ov::intel_gna::limitations::Limitations::deinit();
 }
 
 //      [Parameter]            [Parameter]

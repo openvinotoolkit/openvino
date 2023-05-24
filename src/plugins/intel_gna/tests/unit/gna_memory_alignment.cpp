@@ -149,20 +149,14 @@ INSTANTIATE_TEST_SUITE_P(MemoryAlignment_GNA_4_0,
 
 class MemoryAlignmentTest : public ::testing::Test {};
 
-TEST(MemoryAlignmentTest, getMemoryAlignmentBytes_ExpectExceptionWhenTargetIsUnset) {
-    EXPECT_ANY_THROW(Limitations::get_instance()->get_memory_alignment());
-}
-
 TEST(MemoryAlignmentTest, getMemoryAlignmentBytes_Expect64ByteAlignmentWhenTargetIsGNA3_5) {
     Limitations::init(DeviceVersion::GNA3_5);
     EXPECT_EQ(Limitations::get_instance()->get_memory_alignment(), 64);
-    Limitations::deinit();
 }
 
 TEST(MemoryAlignmentTest, getMemoryAlignmentBytes_Expect16ByteAlignmentWhenTargetIsGNA3_6) {
     Limitations::init(DeviceVersion::GNA3_6);
     EXPECT_EQ(Limitations::get_instance()->get_memory_alignment(), 16);
-    Limitations::deinit();
 }
 
 }  // namespace testing

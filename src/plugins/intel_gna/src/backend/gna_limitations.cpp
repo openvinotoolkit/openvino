@@ -686,15 +686,7 @@ Limitations::Limitations(const DeviceVersion& target) {
 }
 
 void Limitations::init(const DeviceVersion& compile_target) {
-    if (k_instance) {
-        THROW_GNA_EXCEPTION << "Limitations instance already initialized.\n";
-    }
-
     k_instance = std::shared_ptr<Limitations>(new Limitations(compile_target));
-}
-
-void Limitations::deinit() {
-    k_instance.reset();
 }
 
 bool Limitations::is_transpose_2d(const std::vector<size_t>& shape) {

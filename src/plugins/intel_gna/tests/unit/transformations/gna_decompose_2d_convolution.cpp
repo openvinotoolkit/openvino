@@ -296,10 +296,6 @@ class Decompose2DConvTestInvalidFixture : public CommonTestUtils::TestsCommon,
 public:
     void SetUp() override;
 
-    void TearDown() override {
-        Limitations::deinit();
-    }
-
 public:
     std::shared_ptr<ngraph::Function> function, reference_function;
     modelType model;
@@ -349,10 +345,6 @@ class Decompose2DConvTestFixture : public CommonTestUtils::TestsCommon,
                                    public ::testing::WithParamInterface<fqDecompose2DConvParams> {
 public:
     void SetUp() override;
-
-    void TearDown() override {
-        Limitations::deinit();
-    }
 
     std::shared_ptr<ngraph::Function> get_reference(const bool& fq,
                                                     const modelType& model,
