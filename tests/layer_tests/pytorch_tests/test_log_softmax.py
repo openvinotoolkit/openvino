@@ -19,13 +19,20 @@ class aten_log_softmax(torch.nn.Module):
 
 class TestLogSoftmax(PytorchLayerTest):
     def _prepare_input(self):
+        if self.input_dtype == torch.float:
+            self.input_tensor = np.random.randn(5, 9, 7)
+        else:
+            self.input_tensor = np.random.randint(-100, 100, (5, 9, 7))
         return (self.input_tensor,)
 
-    @pytest.mark.parametrize(["input_tensor", "dtype"], [
-        [np.random.randint(-100, 100, (5, 9, 7)), torch.float32],
-        [np.random.randint(-100, 100, (5, 9, 7)), torch.float64],
-        [np.random.randn(10, 13, 11), None],
-        [np.random.randn(10, 13, 11), torch.float32]
+    @pytest.mark.parametrize(["input_dtype", "convert_dtype"], [
+        # For a tensor with element dtype int, it is necessary to 
+        # convert the input to float (internal aten::logsoftmax operation).
+        # convert_dtype cannot be of type int from pytorch limitations
+        [torch.int, torch.float32],
+        [torch.int, torch.float64],
+        [torch.float, None],
+        [torch.float, torch.float64]
     ])
     @pytest.mark.parametrize("dim", [
         0,
@@ -34,7 +41,7 @@ class TestLogSoftmax(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_log_softmax(self, input_tensor, dim, dtype, ie_device, precision, ir_version):
-        self.input_tensor = input_tensor
-        self._test(aten_log_softmax(dim, dtype), None, "aten::log_softmax", 
+    def test_log_softmax(self, input_dtype, convert_dtype, dim, ie_device, precision, ir_version):
+        self.input_dtype = input_dtype
+        self._test(aten_log_softmax(dim, convert_dtype), None, "aten::log_softmax", 
                     ie_device, precision, ir_version)
