@@ -49,25 +49,23 @@ std::vector<layout> resample_inst::calc_output_layouts(resample_node const& /*no
 
     auto sizes = desc->sizes;
     if (!sizes.empty()) {
-        tensors.emplace(1, ov::Tensor{ov::element::i64, ov::Shape{sizes.size()}, static_cast<void*>(sizes.data())});
+        tensors.emplace(1, ov::Tensor(ov::element::i64, ov::Shape{sizes.size()}, sizes.data()));
     }
 
     auto scales = desc->scales;
     if (!scales.empty()) {
-        tensors.emplace(2, ov::Tensor{ov::element::f32, ov::Shape{scales.size()}, static_cast<void*>(scales.data())});
+        tensors.emplace(2, ov::Tensor(ov::element::f32, ov::Shape{scales.size()}, scales.data()));
     }
 
     auto axes = desc->axes;
     if (!axes.empty()) {
-        input_shape.emplace_back(axes.size());
-        tensors.emplace(3, ov::Tensor{ov::element::i64, ov::Shape(axes.size()), static_cast<void*>(axes.data())});
+        auto axes_shape = ov::Shape{axes.size()};
+        input_shapes.push_back(axes_shape);
+        tensors.emplace(3, ov::Tensor(ov::element::i64, axes_shape, axes.data()));
     }
 
     auto& memory_deps = impl_param.memory_deps;
-    const auto desc_data_ta = ov::make_tensor_accessor(tensors);
-    const auto ta = MemoryAccessor(&memory_deps, impl_param.get_stream(), [&desc_data_ta](size_t port) -> ov::Tensor {
-        return desc_data_ta(port);
-    });
+    const auto ta = MemoryAccessor(&memory_deps, impl_param.get_stream(), ov::make_tensor_accessor(tensors));
 
     auto pads_begin = desc->pads_begin;
     auto pads_end = desc->pads_end;
