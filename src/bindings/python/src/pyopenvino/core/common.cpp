@@ -255,8 +255,7 @@ ov::Tensor create_shared(py::array& array) {
         // If ndim of py::array is 0, array is a numpy scalar.
         return ov::Tensor(array_helpers::get_ov_type(array),
                           array_helpers::get_shape(array),
-                          array.ndim() == 0 ? array.mutable_data() : array.mutable_data(0),
-                          array_helpers::get_strides(array));
+                          array.ndim() == 0 ? array.mutable_data() : array.mutable_data(0));
     }
     // If passed array is not C-style, throw an error.
     OPENVINO_THROW("SHARED MEMORY MODE FOR THIS TENSOR IS NOT APPLICABLE! Passed numpy array must be C contiguous.");

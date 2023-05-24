@@ -5,7 +5,9 @@
 include(CheckCXXCompilerFlag)
 
 if (ENABLE_SANITIZER)
-    if (WIN32)
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+        # the flag is available since MSVC 2019 16.9
+        # see https://learn.microsoft.com/en-us/cpp/build/reference/fsanitize?view=msvc-160
         check_cxx_compiler_flag("/fsanitize=address" SANITIZE_ADDRESS_SUPPORTED)
         if (SANITIZE_ADDRESS_SUPPORTED)
             set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} /fsanitize=address")
@@ -14,21 +16,23 @@ if (ENABLE_SANITIZER)
             "Please, check requirements:\n"
             "https://github.com/openvinotoolkit/openvino/wiki/AddressSanitizer-and-LeakSanitizer")
         endif()
-    else()
+    elseif(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
         set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -fsanitize=address")
         check_cxx_compiler_flag("-fsanitize-recover=address" SANITIZE_RECOVER_ADDRESS_SUPPORTED)
         if (SANITIZE_RECOVER_ADDRESS_SUPPORTED)
             set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -fsanitize-recover=address")
         endif()
         set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS} -fsanitize=address")
+    else()
+        message(WARNING "Unsupported CXX compiler ${CMAKE_CXX_COMPILER_ID}")
     endif()
 endif()
 
-if (ENABLE_UB_SANITIZER)
-    if (WIN32)
-        message(FATAL_ERROR "UndefinedBehavior sanitizer is not supported in Windows")
+if(ENABLE_UB_SANITIZER)
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+        message(FATAL_ERROR "UndefinedBehavior sanitizer is not supported in Windows with MSVC compiler. Please, use clang-cl or mingw")
     endif()
-    
+
     # TODO: Remove -fno-sanitize=null as thirdparty/ocl/clhpp_headers UBSAN compatibility resolved:
     # https://github.com/KhronosGroup/OpenCL-CLHPP/issues/17
     # Mute -fsanitize=function Indirect call of a function through a function pointer of the wrong type.
@@ -48,43 +52,50 @@ if (ENABLE_UB_SANITIZER)
         set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -fno-sanitize=function")
     endif()
 
-    if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-        # TODO: Remove -Wno-maybe-uninitialized after CVS-61143 fix
+    if(CMAKE_COMPILER_IS_GNUCXX)
+        # TODO: Remove -Wno-maybe-uninitialized after CVS-61143 is fixed
         set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -Wno-maybe-uninitialized")
     endif()
     check_cxx_compiler_flag("-fsanitize-recover=undefined" SANITIZE_RECOVER_UNDEFINED_SUPPORTED)
-    if (SANITIZE_RECOVER_UNDEFINED_SUPPORTED)
+    if(SANITIZE_RECOVER_UNDEFINED_SUPPORTED)
         set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -fsanitize-recover=undefined")
     endif()
 
     set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS} -fsanitize=undefined")
 endif()
 
-if (ENABLE_THREAD_SANITIZER)
-    set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -fsanitize=thread")
-    set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS} -fsanitize=thread")
+if(ENABLE_THREAD_SANITIZER)
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+        message(FATAL_ERROR "Thread sanitizer is not supported in Windows with MSVC compiler. Please, use clang-cl or mingw")
+    elseif(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
+        set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -fsanitize=thread")
+        set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS} -fsanitize=thread")
+    else()
+        message(WARNING "Unsupported CXX compiler ${CMAKE_CXX_COMPILER_ID}")
+    endif()
 endif()
 
 # common sanitizer options
-if (DEFINED SANITIZER_COMPILER_FLAGS)
+if(DEFINED SANITIZER_COMPILER_FLAGS)
     # ensure symbols are present
-    if (NOT WIN32)
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+        set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} /Oy-")
+    elseif(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
         set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -g -fno-omit-frame-pointer")
-        if(NOT OV_COMPILER_IS_CLANG)
+        if(CMAKE_COMPILER_IS_GNUCXX)
             # GPU plugin tests compilation is slow with -fvar-tracking-assignments on GCC.
             # Clang has no var-tracking-assignments.
             set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -fno-var-tracking-assignments")
         endif()
         # prevent unloading libraries at runtime, so sanitizer can resolve their symbols
-        if (NOT CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
+        if(NOT OV_COMPILER_IS_APPLECLANG)
             set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS} -Wl,-z,nodelete")
             if(OV_COMPILER_IS_CLANG AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 8.0)
                 set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS} -fuse-ld=lld")
             endif()
         endif()
-
     else()
-        set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} /Oy-")
+        message(WARNING "Unsupported CXX compiler ${CMAKE_CXX_COMPILER_ID}")
     endif()
 
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${SANITIZER_COMPILER_FLAGS}")
