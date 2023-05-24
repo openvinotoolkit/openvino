@@ -94,6 +94,7 @@ if(ENABLE_INTEL_GPU)
             # - 'apt-get install opencl-headers ocl-icd-opencl-dev'
             # - 'yum install ocl-icd-devel opencl-headers'
             # - 'conda install khronos-opencl-icd-loader -c conda-forge'
+            # - 'vcpkg install opencl:<triplet>'
             find_package(OpenCL QUIET)
         endif()
     endif()
@@ -200,7 +201,8 @@ endif()
 
 if(ENABLE_SYSTEM_PUGIXML)
     # try system pugixml first
-    find_package(PugiXML QUIET)
+    # Note: we also specify 'pugixml' in NAMES because vcpkg
+    find_package(PugiXML QUIET NAMES pugixml)
     if(PugiXML_FOUND)
         # TODO: use static pugixml library in case of BUILD_SHARED_LIBS=OFF
         if(TARGET pugixml::shared)
@@ -315,12 +317,13 @@ if(ENABLE_GAPI_PREPROCESSING)
     target_include_directories(ocv_hal INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/ocv")
 
     # ade
-    find_package(ade 0.1.2 QUIET)
+    find_package(ade 0.1.0 QUIET)
     if(ade_FOUND)
         # conan creates 'ade' target
 
         # set ade_FOUND to parent scope to properly generate OpenVINOConfig.cmake for static build
         set(ade_FOUND ${ade_FOUND} PARENT_SCOPE)
+        set(ade_VERSION ${ade_VERSION} PARENT_SCOPE)
     else()
         add_subdirectory(ade EXCLUDE_FROM_ALL)
 
@@ -351,17 +354,20 @@ endif()
 #
 
 if(ENABLE_SAMPLES OR ENABLE_COMPILE_TOOL OR ENABLE_TESTS)
-    # on Windows and macOS we don't use gflags, because will be dynamically linked
-    if(CMAKE_HOST_LINUX AND LINUX)
+    if(DEFINED VCPKG_VERBOSE OR
+        CMAKE_TOOLCHAIN_FILE MATCHES "conan_toolchain.cmake" OR CONAN_EXPORTED)
+        # vcpkg contains only libs compiled with threads
+        # conan case
+        find_package(gflags QUIET)
+    elseif(APPLE OR WIN32)
+        # on Windows and macOS we don't use gflags, because will be dynamically linked
+    elseif(CMAKE_HOST_LINUX AND LINUX)
         if(OV_OS_RHEL)
             set(gflag_component nothreads_shared)
         elseif(OV_OS_DEBIAN)
             set(gflag_component nothreads_static)
         endif()
         find_package(gflags QUIET OPTIONAL_COMPONENTS ${gflag_component})
-    else()
-        # conan case
-        find_package(gflags QUIET)
     endif()
 
     if(gflags_FOUND)
@@ -423,7 +429,8 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
         if(CMAKE_VERBOSE_MAKEFILE)
             set(Protobuf_DEBUG ON)
         endif()
-        find_package(Protobuf 3.20.3 REQUIRED)
+        # Note: we also specify 'protobuf' in NAMES because vcpkg
+        find_package(Protobuf 3.20.3 REQUIRED NAMES protobuf)
         set(PROTOC_EXECUTABLE protobuf::protoc)
 
         # in case of system protobuf, we have to add version to OpenVINOConfig.cmake for static build

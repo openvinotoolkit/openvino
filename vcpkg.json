@@ -1,0 +1,141 @@
+{
+    "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+    "name": "openvino",
+    "version": "2023.1.0",
+    "port-version": 0,
+    "license": "Apache-2.0",
+    "documentation": "https://docs.openvino.ai/latest/index.html",
+    "homepage": "https://github.com/openvinotoolkit/openvino",
+    "maintainers": "OpenVINO Developers <openvino@intel.com>",
+    "builtin-baseline": "357604e844c2e9d2a82fc21702f0d525071f3dbd",
+    "summary": "This is a port for Open Visual Inference And Optimization toolkit for AI inference",
+    "description": [
+        "Intel® Distribution of OpenVINO™ toolkit is an open-source toolkit for optimizing ",
+        "and deploying AI inference. It can be used to develop applications and solutions based ",
+        "on deep learning tasks, such as: emulation of human vision, automatic speech recognition, ",
+        "natural language processing, recommendation systems, etc. It provides high-performance ",
+        "and rich deployment options, from edge to cloud"
+    ],
+    "dependencies": [
+        "ade",
+        "pugixml",
+        "pybind11",
+        {
+            "name": "xbyak",
+            "version>=": "6.00",
+            "platform": "!arm"
+        },
+        {
+            "name": "tbb",
+            "version>=": "2021.5.0"
+        },
+        {
+            "name": "pkgconf",
+            "host": true
+        },
+        "zlib",
+        "gflags",
+        "nlohmann-json"
+    ],
+    "default-features": [
+        "cpu",
+        "hetero",
+        "auto",
+        "auto-batch",
+        "ir",
+        "onnx",
+        "paddle",
+        "pytorch",
+        "tensorflow",
+        "tensorflow-lite"
+    ],
+    "features": {
+        "cpu": {
+            "description": "Enables CPU plugin for inference",
+            "supports": "x64 | x86 | arm"
+        },
+        "gpu": {
+            "description": "Enables GPU plugin for inference",
+            "supports": "(x64 | arm64) & (linux | windows | freebsd | openbsd | android)",
+            "dependencies": [
+                "opencl"
+            ]
+        },
+        "auto": {
+            "description": "Enables Auto plugin for inference"
+        },
+        "auto-batch": {
+            "description": "Enables Auto Batch plugin for inference, useful for throughput mode"
+        },
+        "hetero": {
+            "description": "Enables Hetero plugin for inference"
+        },
+        "ir": {
+            "description": "Enables IR frontend for reading models in OpenVINO IR format"
+        },
+        "onnx": {
+            "description": "Enables ONNX frontend for reading models in ONNX format",
+            "dependencies": [
+                {
+                    "name": "onnx",
+                    "default-features": false
+                },
+                {
+                    "name": "protobuf",
+                    "version>=": "3.21.6"
+                },
+                {
+                    "name": "protobuf",
+                    "host": true,
+                    "version>=": "3.21.6"
+                }
+            ]
+        },
+        "paddle": {
+            "description": "Enables PaddlePaddle frontend for reading models in PaddlePaddle format",
+            "dependencies": [
+                {
+                    "name": "protobuf",
+                    "version>=": "3.21.6"
+                },
+                {
+                    "name": "protobuf",
+                    "host": true,
+                    "version>=": "3.21.6"
+                }
+            ]
+        },
+        "tensorflow": {
+            "description": "Enables TensorFlow frontend for reading models in TensorFlow format",
+            "dependencies": [
+                "snappy",
+                {
+                    "name": "protobuf",
+                    "version>=": "3.21.6"
+                },
+                {
+                    "name": "protobuf",
+                    "host": true,
+                    "version>=": "3.21.6"
+                }
+            ]
+        },
+        "tensorflow-lite": {
+            "description": "Enables TensorFlow Lite frontend for reading models in TensorFlow Lite format",
+            "dependencies": [
+                {
+                    "name": "flatbuffers",
+                    "version>=": "2.0.6"
+                },
+                {
+                    "name": "flatbuffers",
+                    "host": true,
+                    "version>=": "2.0.6"
+                }
+            ]
+        },
+        "pytorch": {
+            "description": "Enables PyTorch frontend to convert models in PyTorch format"
+        }
+    }
+}
