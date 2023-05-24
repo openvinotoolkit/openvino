@@ -21,7 +21,7 @@ The script should include three basic steps:
 
 1. Prepare data and dataset interface.
 2. Select quantization parameters.
-3. Define and run quantization process.
+3. Define and run the quantization process.
 
 Prepare data and dataset interface
 ##################################
@@ -29,9 +29,9 @@ Prepare data and dataset interface
 In most cases, it is required to implement only the ``openvino.tools.pot.DataLoader`` interface, which allows acquiring data from a dataset and applying model-specific pre-processing providing access by index. Any implementation should override the following methods: 
 
 * The ``__len__()``, returns the size of the dataset.
-* The ``__getitem__()``, provides access to the data by index in range of 0 to ``len(self)``. It can also encapsulate the logic of model-specific pre-processing. This method should return data in the ``(data, annotation)`` format, in which:
+* The ``__getitem__()``, provides access to the data by index in the range of 0 to ``len(self)``. It can also encapsulate the logic of model-specific pre-processing. This method should return data in the ``(data, annotation)`` format, in which:
 
-  * The ``data`` is the input that is passed to the model at inference so that it should be properly preprocessed. It can be either the ``numpy.array`` object or a dictionary, where the key is the name of the model input and value is ``numpy.array`` which corresponds to this input.
+  * The ``data`` is the input that is passed to the model at inference so that it should be properly preprocessed. It can be either the ``numpy.array`` object or a dictionary, where the key is the name of the model input and the value is ``numpy.array`` which corresponds to this input.
   * The ``annotation`` is not used by the Default Quantization method. Therefore, this object can be ``None`` in this case.
 
 Framework data loading classes can be wrapped by the ``openvino.tools.pot.DataLoader`` interface which is usually straightforward. 
@@ -93,10 +93,10 @@ Default Quantization algorithm has mandatory and optional parameters which are d
   * ``"CPU_SPR"`` -  to quantize models for CPU SPR (4th Generation Intel® Xeon® Scalable processor family)
   * ``"GNA"``, ``"GNA3"``, ``"GNA3.5"`` - to quantize models for GNA devices respectively.
 
-* ``"stat_subset_size"`` - size of data subset to calculate activations statistics used for quantization. The whole dataset is used if no parameter is specified. It is recommended to use not less than 300 samples.
-* ``"stat_batch_size"`` - size of batch to calculate activations statistics used for quantization. 1 if no parameter specified.
+* ``"stat_subset_size"`` - size of the data subset to calculate activations statistics used for quantization. The whole dataset is used if no parameter is specified. It is recommended to use not less than 300 samples.
+* ``"stat_batch_size"`` - size of the batch to calculate activations statistics used for quantization. 1 if no parameter is specified.
 
-For full specification, see the the :doc:`Default Quantization method <pot_compression_algorithms_quantization_default_README>`.
+For full specification, see the :doc:`Default Quantization method <pot_compression_algorithms_quantization_default_README>`.
 
 Run quantization
 ####################
@@ -177,7 +177,7 @@ Examples
 * Tutorials:
 
   * `Quantization of Image Classification model <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/301-tensorflow-training-openvino>`__
-  * `Quantization of Object Detection model from Model Zoo <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/111-detection-quantization>`__
+  * `Quantization of Object Detection model from Model Zoo <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/111-yolov5-quantization-migration>`__
   * `Quantization of Segmentation model for medical data <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/110-ct-segmentation-quantize>`__
   * `Quantization of BERT for Text Classification <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/105-language-quantize-bert>`__
 

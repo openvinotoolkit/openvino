@@ -115,6 +115,9 @@ elseif(gflags_required)
         elseif(TARGET gflags-shared)
             # gflags shared case for CentOS / RHEL / Fedora
             set(GFLAGS_TARGET gflags-shared)
+        elseif(TARGET gflags::gflags)
+            # gflags case for Conan
+            set(GFLAGS_TARGET gflags::gflags)
         else()
             message(FATAL_ERROR "Internal error: failed to find imported target 'gflags' using '${gflags_component}' component")
         endif()

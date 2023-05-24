@@ -531,7 +531,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Plugin::ImportNetwork(std::istr
             auto transformedNetwork = GetCore()->ReadNetwork(xmlString, std::move(dataBlob), true);
             exeNetwork = std::make_shared<CompiledModel>(transformedNetwork, context, config, &inputs, &outputs);
         } else {
-            exeNetwork = std::make_shared<CompiledModel>(ib, context, config);
+            exeNetwork = std::make_shared<CompiledModel>(ib, context, config, &inputs, &outputs);
             exeNetwork->SetPointerToPlugin(shared_from_this());
         }
 

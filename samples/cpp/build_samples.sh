@@ -60,6 +60,7 @@ if [ -z "$INTEL_OPENVINO_DIR" ]; then
         true
     elif [ -e "$SAMPLES_PATH/../../setupvars.sh" ]; then
         setvars_path="$SAMPLES_PATH/../../setupvars.sh"
+        # shellcheck source=/dev/null
         source "$setvars_path" || true
     else
         printf "Error: Failed to set the environment variables automatically. To fix, run the following command:\n source <INSTALL_DIR>/setupvars.sh\n where INSTALL_DIR is the OpenVINO installation directory.\n\n"
@@ -67,6 +68,7 @@ if [ -z "$INTEL_OPENVINO_DIR" ]; then
     fi
 else
     # case for run with `sudo -E`
+    # shellcheck source=/dev/null
     source "$INTEL_OPENVINO_DIR/setupvars.sh" || true
 fi
 
@@ -81,11 +83,11 @@ else
 fi
 
 OS_PATH=$(uname -m)
-NUM_THREADS=2
+NUM_THREADS="-j2"
 
 if [ "$OS_PATH" == "x86_64" ]; then
   OS_PATH="intel64"
-  NUM_THREADS=8
+  NUM_THREADS="-j8"
 fi
 
 if [ -e "$build_dir/CMakeCache.txt" ]; then
@@ -93,11 +95,12 @@ if [ -e "$build_dir/CMakeCache.txt" ]; then
 fi
 
 mkdir -p "$build_dir"
-$CMAKE_EXEC -DCMAKE_BUILD_TYPE=Release -S "$SAMPLES_PATH" -B "$build_dir"
-$CMAKE_EXEC --build "$build_dir" --config Release --parallel $NUM_THREADS
+cd "$build_dir" || exit
+$CMAKE_EXEC -DCMAKE_BUILD_TYPE=Release "$SAMPLES_PATH"
+make $NUM_THREADS
 
 if [ "$sample_install_dir" != "" ]; then
-    $CMAKE_EXEC -DCMAKE_INSTALL_PREFIX="$sample_install_dir" -DCOMPONENT=samples_bin -P "$build_dir/cmake_install.cmake"
+    $CMAKE_EXEC -DCMAKE_INSTALL_PREFIX="$sample_install_dir" -DCOMPONENT=samples_bin -P cmake_install.cmake
     printf "\nBuild completed, you can find binaries for all samples in the %s/samples_bin subfolder.\n\n" "$sample_install_dir"
 else
     printf "\nBuild completed, you can find binaries for all samples in the $build_dir/%s/Release subfolder.\n\n" "$OS_PATH"
