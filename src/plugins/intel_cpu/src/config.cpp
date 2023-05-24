@@ -209,11 +209,13 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
                     IE_THROW() << "Platform doesn't support BF16 format";
                 }
             } else if (val == "f16") {
-                if (mayiuse(avx512_core_fp16) || mayiuse(avx512_core_amx_fp16)) {
-                    inferencePrecision = ov::element::f16;
-                } else {
+// TODO: add runtime FP16 feature support check for ARM
+#if defined(OPENVINO_ARCH_X86_64)
+                if (!mayiuse(avx512_core_fp16) && !mayiuse(avx512_core_amx_fp16)) {
                     IE_THROW() << "Platform doesn't support FP16 format";
                 }
+#endif
+                inferencePrecision = ov::element::f16;
             } else if (val == "f32") {
                 inferencePrecision = ov::element::f32;
             } else {

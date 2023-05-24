@@ -1987,6 +1987,9 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
     }
 
     auto filterPrecision = [&](Precision& prc) {
+#if defined (OV_CPU_WITH_ACL)
+        return one_of(prc, Precision::FP16, Precision::FP32) ? prc : Precision(Precision::FP32);
+#else
         if (implType == EltwiseImplType::reference) {
             return Precision(Precision::FP32);
         } else if (std::find(supportedPrecisions.begin(), supportedPrecisions.end(), prc) == supportedPrecisions.end()) {
@@ -1998,6 +2001,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
         } else {
             return prc;
         }
+#endif
     };
 
     for (size_t i = 0; i < inputPrecisions.size(); i++) {
