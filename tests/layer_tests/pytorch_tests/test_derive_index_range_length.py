@@ -6,22 +6,23 @@ import pytest
 import torch
 from pytorch_layer_test_class import PytorchLayerTest
 
+
 @pytest.mark.parametrize(
-        "start, stop, step",
-        [
-            [1, 32, 1],
-            [1, 32, 2],
-            [1, 32, 10],
-            [1, 32, -1],
-            [1, 32, -2],
-            [1, 32, -10],
-            [32, 1, -1],
-            [32, 1, -2],
-            [32, 1, -10],
-            [32, -31, -1],
-            [32, -31, -2],
-            [32, -31, -10],
-        ],
+    "start, stop, step",
+    [
+        [1, 32, 1],
+        [1, 32, 2],
+        [1, 32, 10],
+        [1, 32, -1],
+        [1, 32, -2],
+        [1, 32, -10],
+        [32, 1, -1],
+        [32, 1, -2],
+        [32, 1, -10],
+        [32, -31, -1],
+        [32, -31, -2],
+        [32, -31, -10],
+    ],
 )
 class TestDeriveIndexRangeLength(PytorchLayerTest):
     def _prepare_input(self):
