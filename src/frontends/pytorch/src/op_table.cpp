@@ -49,6 +49,7 @@ OP_CONVERTER(translate_expand_as);
 OP_CONVERTER(translate_eye);
 OP_CONVERTER(translate_fill_);
 OP_CONVERTER(translate_flatten);
+OP_CONVERTER(translate_flip);
 OP_CONVERTER(translate_floor_divide);
 OP_CONVERTER(translate_floordiv);
 OP_CONVERTER(translate_full);
@@ -224,6 +225,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::eye", op::translate_eye},
         {"aten::fill_", op::inplace_op<op::translate_fill_>},
         {"aten::flatten", op::translate_flatten},
+        {"aten::flip", op::translate_flip},
         {"aten::floor", op::translate_1to1_match_1_inputs<opset10::Floor>},
         {"aten::floor_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Floor>>},
         {"aten::floor_divide", op::translate_floor_divide},
