@@ -8,6 +8,6 @@ ov_add_frontend(NAME tensorflow
                 LINK_LIBRARIES openvino::core::dev openvino::frontend::tensorflow_common)
 
 if(ENABLE_SNAPPY_COMPRESSION)
-    target_link_libraries(openvino_tensorflow_frontend PRIVATE Snappy::snappy)
+    target_link_libraries(openvino_tensorflow_frontend PRIVATE openvino::snappy)
     target_compile_definitions(openvino_tensorflow_frontend PRIVATE ENABLE_SNAPPY_COMPRESSION)
 endif()

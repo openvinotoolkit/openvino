@@ -127,7 +127,6 @@ public:
 
         cldnn::network::ptr network;
         if (is_caching_test) {
-            std::cout << "cached" << std::endl;
             membuf mem_buf;
             {
                 cldnn::network _network(engine, tp, get_test_default_config(engine));
