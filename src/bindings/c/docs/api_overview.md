@@ -702,19 +702,6 @@ This struct provides an interface to infer requests of `ExecutableNetwork` and s
 
   - Return value:  Status code of the operation: OK(0) for success.
 
-- `IEStatusCode ie_infer_request_set_batch(ie_infer_request_t *infer_request, const size_t size)`
-
-  - Description:  Sets new batch size for certain infer request when dynamic batching is enabled in executable network that created this request.
-
-    NOTE:** Support of dynamic batch size depends on the target plugin.
-
-  - Parameters:
-
-    - `infer_request` -A pointer to a `ie_infer_request_t` instance.
-    - `size` - New batch size to be used by all the following inference calls for this request.
-
-  - Return value: Status code of the operation: OK(0) for success.
-
 ## Blob
 
 ### Methods
