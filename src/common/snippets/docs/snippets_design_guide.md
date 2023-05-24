@@ -403,7 +403,7 @@ In both of the cases, a new `Subgraph` is started instead of attaching to the ex
 Another interesting case is the tokenization of constant nodes. 
 If a `Constant` represents a single value (scalar) and its child was attached to a `Subgraph`, then the `Constant` also attached to the same `Subgraph`. 
 If a `Constant` is not scalar, then it can't be tokenized since storing `Constant's` values requires memory management, and memory management is a plugin responsibility. 
-Please refer to the [collapse_subgraph.cpp](https://github.com/openvinotoolkit/openvino/blob/master/src/common/snippets/src/pass/collapse_subgraph.cpp) to gain more insights on the tokenization process.
+Please refer to the [collapse_subgraph.cpp](../src/pass/collapse_subgraph.cpp) to gain more insights on the tokenization process.
 
 There is however one more aspect of the tokenization process that is worth covering here. 
 As discussed in the **Plugin integration** section above, the `Tokenizer` is executed before the plugin converts the `nGraph model` to an internal graph representation. 
@@ -412,9 +412,9 @@ In particular, the plugin won't be able to fuse the nodes using the OneDNN post-
 This type of fusings is backend-specific, therefore can't be supported by `Snippets` directly, but it's still important from the performance perspective.
 
 To avoid this kind of fusing conflicts, `Snippets` allow a plugin to mark a node as `SkippedByPlugin` so it will be ignored by the `Tokenizer`. 
-It is a plugin responsibility to mark all nodes that (can be tokenized, but) should be ignored by `Snippets` with a `SkippedByPlugin` tag (defined in [tokenization.hpp](https://github.com/openvinotoolkit/openvino/blob/master/src/common/snippets/include/snippets/pass/tokenization.hpp)). 
+It is a plugin responsibility to mark all nodes that (can be tokenized, but) should be ignored by `Snippets` with a `SkippedByPlugin` tag (defined in [tokenization.hpp](../include/snippets/pass/tokenization.hpp)). 
 This is usually implemented as a separate markup transformation that is applied immediately before the tokenization. 
-Please, refer to the [snippets_mark_skipped.cpp](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_cpu/src/transformations/snippets/x64/pass/snippets_mark_skipped.cpp) pass for a detailed example.
+Please, refer to the [snippets_mark_skipped.cpp](../../../plugins/intel_cpu/src/transformations/snippets/x64/pass/snippets_mark_skipped.cpp) pass for a detailed example.
 
 ### Optimizer
 
@@ -475,7 +475,7 @@ Here what happend with the graph during the optimizations:
 2. The `Scalar->Power`sequence was replaced with the `PowerStatic` operation (`Snipppets` opset). Again, this allows to generate more specialized and performant code.
 3. An explicit `BroadcastMove` operation was inserted between the `Multiply` and `Add` nodes, since a special broadcasting instruction needs to be generated to broadcast a single value to fill the whole vector register.
 
-This should give you a general idea on how the `Data flow optimizer` works, please refer to `canonicalize(...)` and `data_flow_transformations(...)` in [subgraph.cpp](https://github.com/openvinotoolkit/openvino/blob/master/src/common/snippets/src/op/subgraph.cpp) for more details. 
+This should give you a general idea on how the `Data flow optimizer` works, please refer to `canonicalize(...)` and `data_flow_transformations(...)` in [subgraph.cpp](../src/op/subgraph.cpp) for more details. 
 The last thing worth mentioning here is that the `Snippets` also allow a plugin to perform target-specific optimizations by providing several transformation managers to `snippets::op::Subgraph::generate(...)` (which in turn calls both `data_flow_transformations(...)` and `control_flow_transformations(...)`). 
 The managers will be executed on different stages of the pipeline to enable more fine-tuning.
 
@@ -536,7 +536,7 @@ flowchart LR
 `LinearIR` is our graph representation, it's an analog to an nGraph model. 
 It is simply a container for `Expressions`, the order of `Expressions` represents control flow. 
 `LIR` also incorporates a range of useful methods to manage the `Expressions`, for example `create_expression(...)` to build `Expressions` from nGraph nodes, or `replace_input(...)` to modify data dependencies between `Expressions`. 
-Please refer to the implementation in [linear_ir.cpp](https://github.com/openvinotoolkit/openvino/blob/master/src/common/snippets/src/lowered/linear_ir.cpp) for more details.
+Please refer to the implementation in [linear_ir.cpp](../src/lowered/linear_ir.cpp) for more details.
 
 `Expression` is the main building block of a `Linear IR`. 
 It contains a pointer to the nGraph node it was created from and a pointer to the emitter it will be mapped to (which is null until `Expression::init_emitter(...)` is called). 
@@ -577,19 +577,19 @@ This pass can move some `Expressions` up or down the graph, so the `Expressions`
 3. `InsertBuffers` - analyzes `LoopInfo` and `Expression` semantics, inserts `snippets::op::Buffer`. `Buffer` is an operation that represents a memory buffer needed to save some intermediate results.
 4. `InsertLoadStore` - inserts explicit memory access operations like `Load` and `Store` (both from `snippets::op`). 
 These are needed, so appropriate instructions will be emitted during the code generation stage to move data between memory and vector registers.
-5. `InitLoops` - inserts explicit `LoopBeegin` and `LoopEnd` (`snippets::op`) operations based on the acquired `LoopInfo`. 
+5. `InitLoops` - inserts explicit `LoopBegin` and `LoopEnd` (`snippets::op`) operations based on the acquired `LoopInfo`. 
 Again, the explicit operations are needed to emit appropriate instructions later.
 6. `LoadMoveBroadcastToBroadcastLoad` fuse `Load->MoveBroadcast` sequences into a single `BroadcastLoad` expressions.
 
 The buffer pipeline is focused on managing `op::Buffer` operations:
-1. `IdentifyBuffers` - analyzes buffers using graph coloring algorithm to enable memory reuse.
+1. `IdentifyBuffers` - analyzes buffers using graph coloring algorithm to avoid redundant pointer increments.
 2. `AllocateBuffers` - calculates minimal memory size required to handle all the buffers. The memory will be allocated during the execution stage by the plugin `Snippet` node.
     
 The final pipeline applies finishing touches before the `IR` will be passed to the `Generator` module:
 1. `PropagateLayout` - propagates data layouts to `Parameters` and `Results` (actually to corresponding `Expressions`), so `Kernel` will be able to calculate appropriate data offsets for every iteration of an external parallel loop.
 2. `CleanupLoopOffsets` - eliminates redundant pointer increments from the loops.
 
-More details on control flow optimization passes could be found in the `control_flow_transformations(...)` method inside [subgraph.cpp](https://github.com/openvinotoolkit/openvino/blob/master/src/common/snippets/src/op/subgraph.cpp). 
+More details on control flow optimization passes could be found in the `control_flow_transformations(...)` method inside [subgraph.cpp](../src/op/subgraph.cpp). 
 When all the passes are applied, the `LinearIR` is handled further to the `Generator` to emit executable code.
 
 ### Generator
@@ -615,23 +615,23 @@ The `increment` defines how many data entries are processed on every loop iterat
 So if a loop's `work_amount` is not evenly divisible by its `increment`, it means that a tail processing is required. 
 `InsertTailLoop` duplicates the body of such a loop, rescales pointer increments and load/store masks appropriately, and injects these `Ops` immediately after the processed loop.
 
-Please see [assign_registers.cpp](https://github.com/openvinotoolkit/openvino/blob/master/src/common/snippets/src/lowered/pass/assign_registers.cpp) and [insert_tail_loop.cpp](https://github.com/openvinotoolkit/openvino/blob/master/src/common/snippets/src/lowered/pass/insert_tail_loop.cpp) for more info regarding the `Preparation` passes. 
+Please see [assign_registers.cpp](../src/lowered/pass/assign_registers.cpp) and [insert_tail_loop.cpp](../src/lowered/pass/insert_tail_loop.cpp) for more info regarding the `Preparation` passes. 
 When the `Preparation` is finished, the `Generator` constructs target-specific emitters by calling `init_emitter(target)` method for every `Expression` in the `LinearIR`, where the `target` is a `TargetMachine` instance.
 
 The `TargetMachine` is a class that provides generator with target-specific information, such as supported instruction sets, vector register size etc. 
 `TargetMachine` also maps the nGraph's `DiscreteTypeInfo` (stored in the `Expression`) to the emitter that actually implements the operation. 
-The mapping is done using the `jitters` map defined in [target_machine.hpp](https://github.com/openvinotoolkit/openvino/blob/master/src/common/snippets/include/snippets/target_machine.hpp). 
-In order for this mechanism to work, every `Snippets'` code generation backend should create emitter implementations derived from the `Emitter` base class defined in [emitter.hpp](https://github.com/openvinotoolkit/openvino/blob/master/src/common/snippets/include/snippets/emitter.hpp). 
-The backend then should create its own target machine class (derived from the common `TargetMachine`) and populate the `jitters` map, see the [cpu_generator.cpp](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_cpu/src/emitters/x64/cpu_generator.cpp#) for an implementation example.
+The mapping is done using the `jitters` map defined in [target_machine.hpp](../include/snippets/target_machine.hpp). 
+In order for this mechanism to work, every `Snippets'` code generation backend should create emitter implementations derived from the `Emitter` base class defined in [emitter.hpp](../include/snippets/emitter.hpp). 
+The backend then should create its own target machine class (derived from the common `TargetMachine`) and populate the `jitters` map, see the [cpu_generator.cpp](../../../plugins/intel_cpu/src/emitters/x64/cpu_generator.cpp) for an implementation example.
 
 Note that `init_emitters(...)` only initializes the appropriate emitters, but do not actually emit any code. 
-To perform code emission, a `snippets::op::Kernel` operation is constructed (see [generator.cpp](https://github.com/openvinotoolkit/openvino/blob/master/src/common/snippets/src/generator.cpp)), its constructor takes the `IR` with all the initialized emitters as an only input argument. 
+To perform code emission, a `snippets::op::Kernel` operation is constructed (see [generator.cpp](../src/generator.cpp)), its constructor takes the `IR` with all the initialized emitters as an only input argument. 
 Then a `KernelEmitter` is created from the `Op` using the standard mapping approach. 
 Finally, the `kernel->emit_code({}, {})` command initiates the code emission. 
 Note that the `emit_code(...)` is called only for the `KernelEmitter`, and the emitter is responsible for calling the same method for the rest of the expressions in the `IR` This encapsulation is needed because the `KernelEmitter` performs mapping of the assigned abstract registers to physical registers available on a particular platform. 
 Another important function of the `KernelEmitter` is to calculate input/output data offsets based on dimension indices provided in runtime, and to shift corresponding data-handling registers accordingly. 
 Keep in mind however, that the required functionality of the `KernelEmitter` depends on how the rest of the emitters are implemented (particularly for `Load`/`Store` `Ops`). 
-We've discussed above how the emitters for the `intel_cpu` plugin are implemented (see [jit_snippets_emitters.cpp](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_cpu/src/emitters/x64/jit_snippets_emitters.cpp) for more details), but a different backend might require a different approach depending on hardware specifics.
+We've discussed above how the emitters for the `intel_cpu` plugin are implemented (see [jit_snippets_emitters.cpp](../../../plugins/intel_cpu/src/emitters/x64/jit_snippets_emitters.cpp) for more details), but a different backend might require a different approach depending on hardware specifics.
 
 ## See also
 
