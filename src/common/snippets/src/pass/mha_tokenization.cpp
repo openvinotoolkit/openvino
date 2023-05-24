@@ -166,8 +166,8 @@ auto update_intermediate_supported_ops(std::shared_ptr<ov::Node>& interm_op, ov:
                         break;
 
                     ordered_ops.insert(ordered_ops.begin() + shift, parent);
-                    // We think that sequence of ops goes through input port 0
-                    // But can be Select here? If it can be, parent shouldn't be on input port 0. Need another way?
+                    // TODO [107731]: We think that sequence of ops goes through input port 0
+                    //                But can be Select here? If it can be, parent shouldn't be on input port 0. Need another way?
                     if (parent->get_input_size() > 0)
                         parent = parent->get_input_node_shared_ptr(0);
                 }
@@ -363,7 +363,7 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const Config& confi
             }
             potential_body_params_count += get_potential_body_params(parent);
             ordered_ops.insert(ordered_ops.begin(), parent);
-            // [107731] To go always through 0-th port - is it safe?
+            // TODO [107731] To go always through 0-th port - is it safe?
             parent = parent->get_input_node_shared_ptr(0);
         }
 
@@ -425,8 +425,8 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const Config& confi
             }
             potential_body_params_count += get_potential_body_params(child);
 
-            // [75567]: move this plugin-specific constraint to the plugin callback
-            //          We cannot collapse op to Subgraph if count of potential Parameter and Result count is higher 12
+            // TODO [75567]: move this plugin-specific constraint to the plugin callback
+            //               We cannot collapse op to Subgraph if count of potential Parameter and Result count is higher 12
             if (potential_body_params_count + child->get_output_target_inputs(0).size() + hidden_virtual_ports_count + buffer_count > 12) {
                 break;
             }
@@ -453,7 +453,7 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const Config& confi
 
         /* ====== Subgraph creation ======= */
 
-        // [75567]: move this plugin-specific constraint to the plugin callback
+        // TODO [75567]: move this plugin-specific constraint to the plugin callback
         const auto last_node = ordered_ops.back();
         if (potential_body_params_count + last_node->get_output_size() + hidden_virtual_ports_count + buffer_count > 12) {
             return false;

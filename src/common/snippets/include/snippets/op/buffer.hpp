@@ -60,7 +60,7 @@ private:
     ov::Shape m_shape = {};
     int64_t m_offset = 0;
     size_t m_id = 0;  // Default ID - 0. All Buffers are from the same set
-    ov::element::Type m_element_type = ov::element::u8;
+    ov::element::Type m_element_type = ov::element::u8;  // u8 - default 1 byte
 };
 
 } // namespace op

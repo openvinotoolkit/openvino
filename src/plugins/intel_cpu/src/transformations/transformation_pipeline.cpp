@@ -620,7 +620,7 @@ void Transformations::MainSnippets(void) {
     //      - ConvertSaturation[BF16->FP32] will be inserted after Parameters and before Transposes in canonicalization stage
     //      - ConvertSaturation[FP32->BF16] will be inserted after Transposes and before Brgemm in precision propagation stage
     // Because of that Transposes won't be fused into Brgemm
-    // TODO: Need to update this pipeline to avoid Converts between Transposes and Brgemm on inputs
+    // TODO [111813]: Need to update this pipeline to avoid Converts between Transposes and Brgemm on inputs
     ov::snippets::pass::SnippetsTokenization::Config tokenization_config;
     tokenization_config.mha_config.enable_transpose = !enableBF16;
 
@@ -631,7 +631,7 @@ void Transformations::MainSnippets(void) {
     CPU_REGISTER_PASS_X64(snippetsManager, snippets::pass::SnippetsTokenization, tokenization_config);
 
     // Tokenize MHA in quantized model or with BF16 only in tests.
-    // On real models the performance is worse. Need to support blocking for Brgemm
+    // TODO [106921]: Please enable the tokenization when the ticket 106921 with blocking support for BRGEMM will be implemented
     const bool onlyFloatSupported = snippetsMode != Config::SnippetsMode::IgnoreCallback;
     const bool isMHASupported =
             IMPLICATION(enableBF16, !onlyFloatSupported) &&

@@ -84,6 +84,8 @@ size_t Buffer::get_byte_size() const {
 void Buffer::set_element_type(ov::element::Type element_type) {
     OPENVINO_ASSERT(is_new_memory(), "Only Buffer with NewMemory can change his output precision!");
     m_element_type = std::move(element_type);
+    // Apply the change
+    validate_and_infer_types();
 }
 
 } // namespace op

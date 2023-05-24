@@ -29,7 +29,10 @@ namespace pass {
  *                                MatMul1
  *                                  |
  *                  Eltwise/Select/Reshape/Transpose3
- *        Note: Transposes can be missed
+ *        Notes:
+ *          - Transposes can be missed
+ *          - Transpose0, Transpose2 and Transpose3 may have only [0,2,1,3] order
+ *          - Transpose1 may have only [0,2,3,1] order
  * @ingroup snippets
  */
 class TokenizeMHASnippets: public ov::pass::MatcherPass {
