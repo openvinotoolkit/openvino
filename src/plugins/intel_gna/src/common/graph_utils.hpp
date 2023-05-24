@@ -87,7 +87,7 @@ inline bool is_aligned_split(const std::shared_ptr<ngraph::Node> input_op, size_
             offset += outputSize * limitations::Limitations::kBytesPerSplitElement;
         }
     }
-    return (offset == ALIGN64(offset));
+    return (offset == ALIGN(offset, limitations::Limitations::get_instance()->get_memory_alignment()));
 }
 
 inline bool is_crop_affined(std::shared_ptr<ngraph::Node> node) {

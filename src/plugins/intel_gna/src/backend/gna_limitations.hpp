@@ -260,7 +260,6 @@ public:
     constexpr static uint32_t kConvFilterSizeDivider = 8;
     constexpr static uint32_t kConvFilterMaxSize = 768;
     constexpr static uint32_t kConvEachKernelByteAlignment = 16;
-    constexpr static uint32_t kInputByteAlignment = 64;
     constexpr static uint32_t kNoOfInputsDivisor = 8;
     constexpr static uint32_t kNoOfInputsLowPrecDivisor = 16;
     constexpr static uint32_t kAffineMaxBatchSize = 8;
@@ -306,7 +305,7 @@ inline std::shared_ptr<Limitations> Limitations::get_instance() {
 
 inline bool Limitations::is_crop_affined_offset(size_t numberOfElements) const {
     const auto cropOffset = numberOfElements * kBytesPerCropElement;
-    return (ALIGN64(cropOffset) != cropOffset);
+    return (ALIGN(cropOffset, get_memory_alignment()) != cropOffset);
 }
 
 inline size_t Limitations::get_memory_alignment() const {

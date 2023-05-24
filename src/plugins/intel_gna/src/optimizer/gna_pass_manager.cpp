@@ -1290,7 +1290,9 @@ void InsertConcatAligningFilterPass::run() {
             // correcting offset by copy layer insertion. This can be improved by collapsing copy and affine or diagonal
             // later-on if next concat inputs requires align filter - then current input also requires either copy or
             // align filter
-            if (ALIGN64(offset) != offset || (ALIGN64(outputSize) != outputSize && useAlignFilterIf(input_idx + 1))) {
+            if (ALIGN(offset, Limitations::get_instance()->get_memory_alignment()) != offset ||
+                (ALIGN(outputSize, Limitations::get_instance()->get_memory_alignment()) != outputSize &&
+                 useAlignFilterIf(input_idx + 1))) {
                 auto prevLayer = getCreatorLayer(concatInput).lock();
                 // input layer parameters are copied not using GNA-primitives - so nothing to allign here.
                 if (!useAlignFilterIf(input_idx))
@@ -1310,13 +1312,15 @@ void InsertConcatAligningFilterPass::run() {
                 }
 
                 auto num_rows_in = dims[1];
-                size_t aligned64_offset = std::max(0, static_cast<int>(ALIGN64(offset) - 64));
-                size_t num_rows_padded = (offset - aligned64_offset) / bytesPerConcatElement;
+                size_t aligned_offset =
+                    std::max(0,
+                             static_cast<int>(ALIGN(offset, Limitations::get_instance()->get_memory_alignment()) -
+                                              Limitations::get_instance()->get_memory_alignment()));
+                size_t num_rows_padded = (offset - aligned_offset) / bytesPerConcatElement;
                 size_t num_rows_out = num_rows_padded + num_rows_in;
 
                 // encodes offset to beginning of split layer input
-                size_t bytesOffset =
-                    (aligned64_offset / bytesPerConcatElement) * (quantized ? bytesPerConcatElement : 4);
+                size_t bytesOffset = (aligned_offset / bytesPerConcatElement) * (quantized ? bytesPerConcatElement : 4);
                 concatAligningFilter->params["output_offset"] = std::to_string(bytesOffset);
 
                 // for padded rows we cannot use copy layer - TBD how to implement
@@ -1496,7 +1500,8 @@ void InsertSplitAligningFilterPass::run() {
         for (auto&& splitOutput : l->outData) {
             auto outputSize = product(begin(splitOutput->getDims()), end(splitOutput->getDims()));
 
-            if ((currentOffset != ALIGN64(currentOffset)) || (padding != 0)) {
+            if ((currentOffset != ALIGN(currentOffset, Limitations::get_instance()->get_memory_alignment())) ||
+                (padding != 0)) {
                 // check that this split output actually connected to further layers
                 if (getInputTo(splitOutput).empty()) {
                     log::debug() << "Output port: " << splitOutIndex << " of " << l->name << " unconnected, skipping\n";
@@ -1507,7 +1512,7 @@ void InsertSplitAligningFilterPass::run() {
                             << " Convolution Filter doesn't support batch=" << splitOutput->getDims().front();
                     }
 
-                    // this split output not beginning from 64 bytes aligned boundary - need to correct by aligning
+                    // this split output not beginning from aligned bytes boundary - need to correct by aligning
                     // filter layer insert the filter
                     auto filterName = std::string("AlignFilter_") + std::to_string(numOfFilterLayers++);
 
@@ -1527,20 +1532,22 @@ void InsertSplitAligningFilterPass::run() {
 
                     auto inputData = splitOutput;
 
-                    size_t aligned64_offset = std::max(0, static_cast<int>(ALIGN64(currentOffset) - 64));
+                    size_t aligned_offset = std::max(
+                        0,
+                        static_cast<int>(ALIGN(currentOffset, Limitations::get_instance()->get_memory_alignment()) -
+                                         Limitations::get_instance()->get_memory_alignment()));
 
                     IE_ASSERT(filterLayer != nullptr);
 
                     // encodes offset to beginning of split layer input
-                    filterLayer->params["offset"] =
-                        std::to_string(aligned64_offset / Limitations::kBytesPerSplitElement);
+                    filterLayer->params["offset"] = std::to_string(aligned_offset / Limitations::kBytesPerSplitElement);
                     auto dims = splitOutput->getTensorDesc().getDims();
                     if (dims.size() > 3) {
                         THROW_GNA_EXCEPTION << "unsupported split layer dims size: " << dims.size();
                     }
 
                     const auto offsetOfUnalignment =
-                        (currentOffset - aligned64_offset) / Limitations::kBytesPerSplitElement;
+                        (currentOffset - aligned_offset) / Limitations::kBytesPerSplitElement;
                     // TODO consider to use a different number of filters do decrese the number of trailing zeros
                     // (additionalPaddingOfFilter)
                     const auto numberOfFilters = Limitations::kConvMinFiltersNum;

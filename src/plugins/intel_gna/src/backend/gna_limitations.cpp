@@ -661,7 +661,6 @@ constexpr uint32_t Limitations::kConvFiltersNumDivider;
 constexpr uint32_t Limitations::kConvFilterSizeDivider;
 constexpr uint32_t Limitations::kConvFilterMaxSize;
 constexpr uint32_t Limitations::kConvEachKernelByteAlignment;
-constexpr uint32_t Limitations::kInputByteAlignment;
 constexpr uint32_t Limitations::kNoOfInputsDivisor;
 constexpr uint32_t Limitations::kNoOfInputsLowPrecDivisor;
 constexpr uint32_t Limitations::kAffineMaxBatchSize;
