@@ -36,7 +36,7 @@ std::string ov::Exception::make_what(const CheckLocInfo& check_loc_info,
     std::stringstream ss;
     if (check_loc_info.check_string) {
         ss << "Check '" << check_loc_info.check_string << "' failed at " << getRelativePath(check_loc_info.file) << ":"
-            << check_loc_info.line;
+           << check_loc_info.line;
     } else {
         ss << "Exception from " << getRelativePath(check_loc_info.file) << ":" << check_loc_info.line;
     }
