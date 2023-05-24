@@ -135,13 +135,14 @@ TEST_P(ov_compiled_model_test, get_property) {
     OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), 0, &compiled_model));
     EXPECT_NE(nullptr, compiled_model);
 
-    const char* key = ov_property_key_auto_batch_timeout;
-    OV_EXPECT_OK(ov_compiled_model_set_property(compiled_model, key));
-    ov_free(key);
+    const char* auto_batch_timeout_set_property = ov_property_key_auto_batch_timeout;
+    OV_EXPECT_OK(ov_compiled_model_set_property(compiled_model, auto_batch_timeout_set_property));
 
     const char* key = ov_property_key_supported_properties;
+    const char* auto_batch_timeout_get_property = ov_property_key_auto_batch_timeout;
     char* result = nullptr;
     OV_EXPECT_OK(ov_compiled_model_get_property(compiled_model, key, &result));
+    OV_EXPECT_OK(ov_compiled_model_get_property(compiled_model, auto_batch_timeout_get_property, &result));
     ov_free(result);
 
     ov_compiled_model_free(compiled_model);
