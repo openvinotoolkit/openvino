@@ -138,7 +138,7 @@ InferenceEngine::CNNNetwork Plugin::clone_and_transform_model(const InferenceEng
 }
 
 Plugin::Plugin() : m_default_contexts({}) {
-    _pluginName = "Intel_GPU";
+    _pluginName = "GPU";
     register_primitives();
     // try loading gpu engine and get info from it
     {
