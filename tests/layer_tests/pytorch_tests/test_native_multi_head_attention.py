@@ -27,7 +27,9 @@ class aten_native_multi_head_attention(torch.nn.Module):
         self.need_weights = need_weights
         self.average_attn_weights = average_attn_weights
 
-        # Non - bool masks are converted to bool (incorrectly, the return values are NaN from PyTorch)
+        # Currently only int masks are working correctly, they are converted to bool.
+        # Float masks raise a warning in PyTorch and are (incorrectly) converted to bool,
+        # which later returns NaNs as MHA's output
         if mask == 0:
             self.mask = torch.from_numpy(np.random.randint(0, 2, (SEQ_LENGTH, SEQ_LENGTH)).astype(np.bool)) 
             self.mask_type = 0

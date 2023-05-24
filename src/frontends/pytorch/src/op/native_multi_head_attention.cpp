@@ -14,7 +14,7 @@ namespace op {
 using namespace ov::op;
 
 OutputVector translate_native_multi_head_attention(const NodeContext& context) {
-    /* pytorch.org/cppdocs/api/function_namespaceat_1aa4f72ac82c15c7aeef274332b25a543b.html
+    /*
     aten::_native_multi_head_attention(
         Tensor query,
         Tensor key,
@@ -44,11 +44,8 @@ OutputVector translate_native_multi_head_attention(const NodeContext& context) {
     const auto need_weights = context.const_input<bool>(10);
     const auto average_weights = context.const_input<bool>(11);
 
-    const auto neg_one = context.mark_node(opset10::Constant::create(element::i64, Shape{}, {-1}));
     const auto zero = context.mark_node(opset10::Constant::create(element::i64, Shape{}, {0}));
     const auto one = context.mark_node(opset10::Constant::create(element::i64, Shape{}, {1}));
-    const auto two = context.mark_node(opset10::Constant::create(element::i64, Shape{}, {2}));
-    const auto three = context.mark_node(opset10::Constant::create(element::i64, Shape{}, {3}));
     const auto ev = context.mark_node(opset10::Constant::create(element::i64, Shape{}, {embed_dim}));
     const auto heads = context.mark_node(opset10::Constant::create(element::i64, Shape{}, {num_head}));
     const auto minus_inf =
@@ -61,9 +58,9 @@ OutputVector translate_native_multi_head_attention(const NodeContext& context) {
     const auto three_1d = context.mark_node(opset10::Constant::create(element::i64, Shape{1}, {3}));
     const auto heads_1d = context.mark_node(opset10::Constant::create(element::i64, Shape{1}, {num_head}));
 
-    const auto ev_1_slice_1d = context.mark_node(opset10::Constant::create(element::i64, Shape{1}, {embed_dim}));
-    const auto ev_2_slice_1d = context.mark_node(opset10::Constant::create(element::i64, Shape{1}, {2 * embed_dim}));
-    const auto ev_3_slice_1d = context.mark_node(opset10::Constant::create(element::i64, Shape{1}, {3 * embed_dim}));
+    const auto ev_1_slice_1d = context.mark_node(std::make_shared<opset10::Multiply>(one_1d, ev));
+    const auto ev_2_slice_1d = context.mark_node(std::make_shared<opset10::Multiply>(two_1d, ev));
+    const auto ev_3_slice_1d = context.mark_node(std::make_shared<opset10::Multiply>(three_1d, ev));
 
     const auto qkv_shape = context.mark_node(std::make_shared<opset10::ShapeOf>(query));
     const auto batch_size = context.mark_node(std::make_shared<opset10::Gather>(qkv_shape, zero_1d, zero_1d));
@@ -95,8 +92,10 @@ OutputVector translate_native_multi_head_attention(const NodeContext& context) {
 
     const auto qkv_reshape_dims = context.mark_node(
         std::make_shared<opset10::Concat>(OutputVector{batch_size, seq_size, heads_1d, neg_one_1d}, 0));
-    const auto qkv_transpose_dims =
+    const auto qv_transpose_dims =
         context.mark_node(std::make_shared<opset10::Concat>(OutputVector{zero_1d, two_1d, one_1d, three_1d}, 0));
+    const auto k_transpose_dims = 
+        context.mark_node(std::make_shared<opset10::Concat>(OutputVector{zero_1d, two_1d, three_1d, one_1d}, 0));
 
     const auto query_reshaped =
         context.mark_node(std::make_shared<opset10::Reshape>(query_biased, qkv_reshape_dims, false));
@@ -106,22 +105,19 @@ OutputVector translate_native_multi_head_attention(const NodeContext& context) {
         context.mark_node(std::make_shared<opset10::Reshape>(value_biased, qkv_reshape_dims, false));
 
     const auto query_transposed =
-        context.mark_node(std::make_shared<opset10::Transpose>(query_reshaped, qkv_transpose_dims));
+        context.mark_node(std::make_shared<opset10::Transpose>(query_reshaped, qv_transpose_dims));
     const auto key_transposed =
-        context.mark_node(std::make_shared<opset10::Transpose>(key_reshaped, qkv_transpose_dims));
+        context.mark_node(std::make_shared<opset10::Transpose>(key_reshaped, k_transpose_dims));
     const auto value_transposed =
-        context.mark_node(std::make_shared<opset10::Transpose>(value_reshaped, qkv_transpose_dims));
+        context.mark_node(std::make_shared<opset10::Transpose>(value_reshaped, qv_transpose_dims));
 
     const auto scale_one = context.mark_node(std::make_shared<opset10::ConvertLike>(one, query_transposed));
     const auto scale_dim = context.mark_node(std::make_shared<opset10::ConvertLike>(embed_div_heads, query_transposed));
     const auto scale_dim_sqrt = context.mark_node(std::make_shared<opset10::Sqrt>(scale_dim));
     const auto scale = context.mark_node(std::make_shared<opset10::Divide>(scale_one, scale_dim_sqrt));
 
-    const auto transpose_dims =
-        context.mark_node(std::make_shared<opset10::Concat>(OutputVector{zero_1d, one_1d, three_1d, two_1d}, 0));
-    const auto key_transpose = context.mark_node(std::make_shared<opset10::Transpose>(key_transposed, transpose_dims));
     const auto query_key_transpose_dot_product =
-        context.mark_node(std::make_shared<opset10::MatMul>(query_transposed, key_transpose));
+        context.mark_node(std::make_shared<opset10::MatMul>(query_transposed, key_transposed));
 
     auto scaled_dot_product =
         context.mark_node(std::make_shared<opset10::Multiply>(query_key_transpose_dot_product, scale));
@@ -136,7 +132,7 @@ OutputVector translate_native_multi_head_attention(const NodeContext& context) {
             atten_mask = context.mark_node(std::make_shared<opset10::ConvertLike>(atten_mask, scaled_dot_product));
             atten_mask = context.mark_node(std::make_shared<opset10::Select>(mask_inverse, atten_mask, minus_inf_conv));
         } else {
-            OPENVINO_THROW("NativeMultiHeadAttention does not (fully) support float masks");
+            OPENVINO_THROW("PyTorch's NativeMultiHeadAttention does not support float masks"); //TODO remove once fully supported
             atten_mask = context.mark_node(std::make_shared<opset10::ConvertLike>(atten_mask, scaled_dot_product));
         }
 
@@ -159,8 +155,7 @@ OutputVector translate_native_multi_head_attention(const NodeContext& context) {
 
     const auto sdp_reshape_dims =
         context.mark_node(std::make_shared<opset10::Concat>(OutputVector{batch_size, seq_size, neg_one_1d}, 0));
-    const auto sdp_transpose_dims =
-        context.mark_node(std::make_shared<opset10::Concat>(OutputVector{zero_1d, two_1d, one_1d, three_1d}, 0));
+    const auto sdp_transpose_dims = qv_transpose_dims;
 
     const auto scaled_dot_product_attention_transposed =
         context.mark_node(std::make_shared<opset10::Transpose>(scaled_dot_product_attention, sdp_transpose_dims));
