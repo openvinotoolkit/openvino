@@ -26,7 +26,7 @@ ov::runtime::Tensor generate(const std::shared_ptr<ov::Node>& node,
     size_t inNodeCnt = node->get_input_size();
     InputGenerateData inGenData;
     if (elemType.is_real()) {
-        inGenData.range = 2560;
+        inGenData.range = 10;
         inGenData.resolution = 256;
     }
     auto it = inputRanges.find(node->get_type_info());
@@ -39,18 +39,13 @@ ov::runtime::Tensor generate(const std::shared_ptr<ov::Node>& node,
         inGenData = range.size() < inNodeCnt ? range.front() : range.at(port);
     }
     return ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData.range,
-                                          inGenData.start_from, inGenData.resolution, inGenData.seed);
+                                                   inGenData.start_from, inGenData.resolution, inGenData.seed);
 }
 
 namespace Activation {
-// todo: this is a bug fixed! Merge it separately.
-//  Default parameters InputGenerateData(10, 20, 32768, 1) lead to input generation according to 10 + x/32768,
-//  where x {0, 20}, so all generated values are in the range [10, 10 + 6.1e-4].
-//  Thus all the interval more-or-less fall within the uncertainty validation interval
-//  Fix let the range be at least 20x of resolution
 ov::runtime::Tensor generate(const ov::element::Type& elemType,
                              const ov::Shape& targetShape,
-                             InputGenerateData inGenData = InputGenerateData(-1, 2*32768, 32768, 1)) {
+                             InputGenerateData inGenData = InputGenerateData(-1, 2, 32768, 1)) {
     if (!elemType.is_signed()) {
         inGenData.range = 15;
         inGenData.start_from = 0;

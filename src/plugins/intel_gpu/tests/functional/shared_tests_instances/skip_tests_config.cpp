@@ -116,14 +116,17 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*CachingSupportCase.*GPU.*CompileModelCacheTestBase.*CompareWithRefImpl.*)",
             // Currently 1D convolution has an issue
             R"(.*smoke_ConvolutionLayerGPUTest_dynamic1DSymPad.*)",
-
             // Looks like the test is targeting CPU plugin and doesn't respect that execution graph may vary from plugin to plugin
             R"(.*ExecGraphSerializationTest.*)",
-
             // TODO: support getconfig in auto/multi CVS-104942
             // TODO: move auto/multi cases to dedicated unit tests
             R"(.*(Auto|Multi).*SetPropLoadNetWorkGetPropTests.*)",
             // unsupported metrics
             R"(.*nightly_MultiHeteroAutoBatchOVGetMetricPropsTest.*OVGetMetricPropsTest.*(FULL_DEVICE_NAME_with_DEVICE_ID|AVAILABLE_DEVICES|DEVICE_UUID|OPTIMIZATION_CAPABILITIES|MAX_BATCH_SIZE|DEVICE_GOPS|DEVICE_TYPE|RANGE_FOR_ASYNC_INFER_REQUESTS|RANGE_FOR_STREAMS).*)",
+            // Issue: 111437
+            R"(.*smoke_Deconv_2D_Dynamic_.*FP32/DeconvolutionLayerGPUTest.CompareWithRefs.*)",
+            R"(.*smoke_GroupDeconv_2D_Dynamic_.*FP32/GroupDeconvolutionLayerGPUTest.CompareWithRefs.*)",
+            // Issue: 111440
+            R"(.*smoke_set1/GatherElementsGPUTest.CompareWithRefs.*)",
     };
 }
