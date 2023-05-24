@@ -128,7 +128,7 @@ std::shared_ptr<ov::Model> MHAFunction::initReference() const {
     const auto matMul1 = std::make_shared<ngraph::opset3::MatMul>(reshape1, transpose2, transA, transB);
     const auto transpose3 = std::make_shared<ov::op::v1::Transpose>(matMul1, transpose3Const);
 
-    auto subgraph = std::make_shared<ngraph::snippets::op::Subgraph>(subgraph_inputs,
+    auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(subgraph_inputs,
             std::make_shared<ov::Model>(NodeVector{transpose3}, subgraph_params));
 
     return std::make_shared<ov::Model>(NodeVector{subgraph}, ngraphParams);
@@ -242,7 +242,7 @@ std::shared_ptr<ov::Model> MHAMatMul0TransposeFunction::initReference() const {
     const auto matMul1 = std::make_shared<ngraph::opset3::MatMul>(reshape1, transpose2, transA, transB);
     const auto transpose3 = std::make_shared<ov::op::v1::Transpose>(matMul1, transpose3Const);
 
-    auto subgraph = std::make_shared<ngraph::snippets::op::Subgraph>(
+    auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(
             NodeVector{data0, data1, data2, data3},
             std::make_shared<ov::Model>(NodeVector{transpose3}, subgraphParams));
 

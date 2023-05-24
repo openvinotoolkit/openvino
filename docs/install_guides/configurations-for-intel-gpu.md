@@ -16,7 +16,7 @@ Linux
 To install the latest available **Intel® Graphics Compute Runtime for OpenCL™** for your OS, see the `Install Guides <https://github.com/intel/compute-runtime/releases/latest>`__ .
 
 .. note::
-   If you use RedHat 8 OS please install OpenCL library as prerequisite via following command line: ```sh rpm -ivh http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/ocl-icd-2.2.12-1.el8.x86_64.rpm```
+   If you use RedHat 8 OS please install OpenCL library as prerequisite via following command line: ``sh rpm -ivh http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/ocl-icd-2.2.12-1.el8.x86_64.rpm``
 
 .. note::
    For instructions specific to discrete graphics platforms, refer to `the dgpu guide <https://dgpu-docs.intel.com/installation-guides/index.html>`__ (Intel® Arc™ A-Series Graphics, Intel® Data Center GPU Flex Series, Intel® Data Center GPU MAX Series, Intel® processor graphics Gen12, and Intel® Iris Xe MAX codename DG1).
@@ -57,8 +57,11 @@ In the internal OpenVINO validation the following versions of Intel Graphics Dri
 | Operation System | Driver version                                                                      |
 +==================+=====================================================================================+
 | Ubuntu 20.04     | `22.35.24055 <https://github.com/intel/compute-runtime/releases/tag/22.35.24055>`__ |
++------------------+-------------------------------------------------------------------------------------+
 | Ubuntu 18.04     | `21.38.21026 <https://github.com/intel/compute-runtime/releases/tag/21.38.21026>`__ |
++------------------+-------------------------------------------------------------------------------------+
 | CentOS 7         | `19.41.14441 <https://github.com/intel/compute-runtime/releases/tag/19.41.14441>`__ |
++------------------+-------------------------------------------------------------------------------------+
 | RHEL 8           | `22.28.23726 <https://github.com/intel/compute-runtime/releases/tag/22.28.23726>`__ |
 +------------------+-------------------------------------------------------------------------------------+
 
@@ -70,9 +73,9 @@ You can try out the toolkit with:
 
 Developing in Python:
 
-* `Start with tensorflow models with OpenVINO™ <https://docs.openvino.ai/latest/notebooks/101-tensorflow-to-openvino-with-output.html>`__
-* `Start with ONNX and PyTorch models with OpenVINO™ <https://docs.openvino.ai/latest/notebooks/102-pytorch-onnx-to-openvino-with-output.html>`__
-* `Start with PaddlePaddle models with OpenVINO™ <https://docs.openvino.ai/latest/notebooks/103-paddle-onnx-to-openvino-classification-with-output.html>`__
+* `Start with tensorflow models with OpenVINO™ <notebooks/101-tensorflow-to-openvino-with-output.html>`__
+* `Start with ONNX and PyTorch models with OpenVINO™ <notebooks/102-pytorch-onnx-to-openvino-with-output.html>`__
+* `Start with PaddlePaddle models with OpenVINO™ <notebooks/103-paddle-to-openvino-classification-with-output.html>`__
 
 Developing in C++:
 
