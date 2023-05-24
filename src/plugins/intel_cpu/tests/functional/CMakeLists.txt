@@ -53,6 +53,8 @@ addIeTargetTest(
         LABELS CPU
 )
 
+target_compile_definitions(${TARGET_NAME} PUBLIC OV_CORE_CONFIGURATION)
+
 set_ie_threading_interface_for(${TARGET_NAME})
 
 include(specific_tests.cmake)

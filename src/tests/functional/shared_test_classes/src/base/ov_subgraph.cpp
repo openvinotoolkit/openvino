@@ -23,8 +23,9 @@
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 
 #include "common_test_utils/file_utils.hpp"
-#include "functional_test_utils/crash_handler.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
+#include "functional_test_utils/crash_handler.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
@@ -34,6 +35,11 @@
 
 namespace ov {
 namespace test {
+
+
+#ifndef OV_CORE_CONFIGURATION
+void core_configuration(ov::test::SubgraphBaseTest* test) {}
+#endif
 
 std::ostream& operator <<(std::ostream& os, const InputShape& inputShape) {
     os << CommonTestUtils::partialShape2str({inputShape.first}) << "_" << CommonTestUtils::vec2str(inputShape.second);
@@ -210,25 +216,7 @@ void SubgraphBaseTest::compile_model() {
     if (functionRefs == nullptr) {
         functionRefs = function->clone();
     }
-
-    // Within the test scope we don't need any implicit bf16 optimisations, so let's run the network as is.
-    #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-        if (targetDevice == CommonTestUtils::DEVICE_CPU && !configuration.count(InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16)) {
-                configuration.insert({InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::NO});
-        }
-    #endif
-
-    // Set inference_precision hint to run fp32 model in fp32 runtime precision as default plugin execution precision may vary
-    if (targetDevice == CommonTestUtils::DEVICE_GPU) {
-        ov::element::Type hint = ov::element::f32;
-        for (auto& param : function->get_parameters()) {
-            if (param->get_output_element_type(0) == ov::element::f16) {
-                hint = ov::element::f16;
-                break;
-            }
-        }
-        configuration.insert({ov::hint::inference_precision.name(), hint});
-    }
+    core_configuration(this);
 
     compiledModel = core->compile_model(function, targetDevice, configuration);
     if (is_report_stages) {
