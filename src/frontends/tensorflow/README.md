@@ -31,7 +31,7 @@ flowchart BT
 ```
 
 The MO tool and MO Python API now use the TensorFlow Frontend as the default path for conversion to IR.
-Known limitations of TF FE are described [here](https://docs.openvino.ai/latest/openvino_docs_MO_DG_TensorFlow_Frontend.html).
+Known limitations of TF FE are described [here](https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_TensorFlow_Frontend.html).
 
 ## Key contacts
 
