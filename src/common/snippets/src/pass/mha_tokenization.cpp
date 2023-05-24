@@ -6,8 +6,7 @@
 
 
 #include "snippets/itt.hpp"
-#include "snippets/utils.hpp"
-#include "snippets/pass/tokenization.hpp"
+#include "snippets/pass/collapse_subgraph.hpp"
 #include "snippets/op/subgraph.hpp"
 #include "snippets/op/brgemm.hpp"
 #include "snippets/utils.hpp"
@@ -183,7 +182,7 @@ auto update_intermediate_supported_ops(std::shared_ptr<ov::Node>& interm_op, ov:
 };
 }  // namespace
 
-ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const Config& config) {
+ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsTokenization::Config& config) {
     MATCHER_SCOPE(TokenizeMHASnippets);
 
     auto m_matmul0 = std::make_shared<ov::opset1::MatMul>(ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape()),
@@ -325,8 +324,8 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const Config& confi
          */
 
         auto tokenize_transpose = [config](const std::shared_ptr<ov::Node>& node) -> std::shared_ptr<ov::opset1::Transpose> {
-            return config.enable_transpose ? ov::as_type_ptr<ov::opset1::Transpose>(node)
-                                           : nullptr;
+            return config.mha_token_enable_transpose ? ov::as_type_ptr<ov::opset1::Transpose>(node)
+                                                     : nullptr;
         };
 
         // First input branch of MatMul0 should be executed before second input branch of MatMul0,

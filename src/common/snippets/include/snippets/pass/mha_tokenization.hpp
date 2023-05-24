@@ -6,6 +6,7 @@
 
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
+#include "snippets/pass/tokenization.hpp"
 
 namespace ov {
 namespace snippets {
@@ -37,20 +38,8 @@ namespace pass {
  */
 class TokenizeMHASnippets: public ov::pass::MatcherPass {
 public:
-    /**
-     * @interface Config
-     * @brief Allow to adjust tokenization
-     * @ingroup snippets
-     */
-    struct Config {
-        Config(bool enable_transpose_token = true) : enable_transpose(enable_transpose_token) {}
-
-        // False if all Transposes aren't tokenized. Otherwise, they may be fused into Subgraph is possible
-        bool enable_transpose = true;
-    };
-
     OPENVINO_RTTI("TokenizeMHASnippets", "0");
-    TokenizeMHASnippets(const Config& config = {});
+    TokenizeMHASnippets(const SnippetsTokenization::Config& config = {});
 };
 
 }  // namespace pass

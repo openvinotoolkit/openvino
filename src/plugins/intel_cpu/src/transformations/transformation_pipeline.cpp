@@ -108,6 +108,8 @@
 
 // Snippets
 #include "snippets/pass/tokenization.hpp"
+#include "snippets/pass/mha_tokenization.hpp"
+#include "snippets/pass/collapse_subgraph.hpp"
 #include "snippets/pass/common_optimizations.hpp"
 
 // Misc
@@ -622,7 +624,7 @@ void Transformations::MainSnippets(void) {
     // Because of that Transposes won't be fused into Brgemm
     // TODO [111813]: Need to update this pipeline to avoid Converts between Transposes and Brgemm on inputs
     ov::snippets::pass::SnippetsTokenization::Config tokenization_config;
-    tokenization_config.mha_config.enable_transpose = !enableBF16;
+    tokenization_config.mha_token_enable_transpose = !enableBF16;
 
     ngraph::pass::Manager snippetsManager;
     snippetsManager.set_per_pass_validation(false);

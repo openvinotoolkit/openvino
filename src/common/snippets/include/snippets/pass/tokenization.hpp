@@ -7,8 +7,6 @@
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 
-#include "snippets/pass/mha_tokenization.hpp"
-#include "snippets/pass/collapse_subgraph.hpp"
 #include "snippets/op/subgraph.hpp"
 
 namespace ov {
@@ -59,13 +57,16 @@ class SnippetsTokenization : public ov::pass::ModelPass {
 public:
     /**
      * @interface Config
-     * @brief Allow to adjust tokenization passes using the corresponding Configs
+     * @brief Allow to adjust tokenization passes
      * @ingroup snippets
      */
     struct Config {
-        Config(const TokenizeMHASnippets::Config& mha_config = {}) : mha_config(mha_config) {}
+        Config(bool enable_transpose = true) : mha_token_enable_transpose(enable_transpose) {}
 
-        TokenizeMHASnippets::Config mha_config;
+        // False if all Transposes aren't tokenized in MHA Tokenization.
+        // Otherwise, they may be fused into Subgraph if possible
+        // TODO [106921]: Remove please when the ticket 106921 is implemented
+        bool mha_token_enable_transpose = true;
     };
 
     OPENVINO_RTTI("SnippetsTokenization", "0");
