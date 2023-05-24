@@ -120,32 +120,34 @@ ov::pass::GRUCellFusion::GRUCellFusion() {
         auto cnt_of_consumers_of_zero_out = pattern_split->get_output_target_inputs(0).size();
         auto cnt_of_consumers_of_first_out = pattern_split->get_output_target_inputs(1).size();
 
-        Output<Node> Wzrh, Rzrh;
+        Output<Node> B;
+        if (pattern_map.find(add_1) != pattern_map.end()) {
+            B = pattern_map[add_1]->input_value(1);
+        } else {
+            B = rg.make<Constant>(WR.get_element_type(), Shape{1, static_cast<size_t>(2 * hidden_size)}, 0);
+        }
+
+        Output<Node> Bh;
+        if (pattern_map.find(add_2) != pattern_map.end()) {
+            Bh = pattern_map[add_2]->input_value(1);
+        } else {
+            Bh = rg.make<Constant>(WRh.get_element_type(), Shape{1, static_cast<size_t>(hidden_size)}, 0);
+        }
+
+        Output<Node> Wzrh, Rzrh, Bzrh;
         if (cnt_of_consumers_of_zero_out == 1 && cnt_of_consumers_of_first_out == 2) {
             tie(Wzrh, Rzrh) = process_weights(rg, false, WR, WRh, input_size, hidden_size, axis_0, axis_1);
+            auto split_B_r_z = rg.make<Split>(B, axis_1, 2);
+            Bzrh = rg.make<Concat>(OutputVector{split_B_r_z->output(1), split_B_r_z->output(0), Bh}, 1);
         } else if (cnt_of_consumers_of_zero_out == 2 && cnt_of_consumers_of_first_out == 1) {
             tie(Wzrh, Rzrh) = process_weights(rg, true, WR, WRh, input_size, hidden_size, axis_0, axis_1);
+            Bzrh = rg.make<Concat>(OutputVector{B, Bh}, 1);
         } else {
             // we can't detect the weights format
             return false;
         }
 
-        Output<Node> bias_add_1;
-        if (pattern_map.find(add_1) != pattern_map.end()) {
-            bias_add_1 = pattern_map[add_1]->input_value(1);
-        } else {
-            bias_add_1 = rg.make<Constant>(WR.get_element_type(), Shape{1, static_cast<size_t>(2 * hidden_size)}, 0);
-        }
-
-        Output<Node> bias_add_2;
-        if (pattern_map.find(add_2) != pattern_map.end()) {
-            bias_add_2 = pattern_map[add_2]->input_value(1);
-        } else {
-            bias_add_2 = rg.make<Constant>(WRh.get_element_type(), Shape{1, static_cast<size_t>(hidden_size)}, 0);
-        }
-
-        auto B = rg.make<Concat>(OutputVector{bias_add_1, bias_add_2}, 1);
-        auto squeeze_B = rg.make<Squeeze>(B, axis_0);
+        auto squeeze_B = rg.make<Squeeze>(Bzrh, axis_0);
 
         string act_name_1 = pattern_map.at(activation_1)->get_type_name();
         string act_name_2 = pattern_map.at(activation_2)->get_type_name();

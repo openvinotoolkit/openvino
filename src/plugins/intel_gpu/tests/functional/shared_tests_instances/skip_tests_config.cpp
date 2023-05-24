@@ -110,13 +110,11 @@ std::vector<std::string> disabledTestPatterns() {
             // TODO: range input with one element should NOT be regarded as dynamic batch model in Program::IsDynBatchModel().
             R"(.*smoke_select_CompareWithRefsNumpy_dynamic_range.*)",
             R"(.*CachingSupportCase.*LoadNetworkCacheTestBase.*CompareWithRefImpl.*)",
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
             R"(.*KernelCachingSupportCase.*CanCreateCacheDirAndDumpBinariesUnicodePath.*)",
 #endif
             R"(.*CachingSupportCase.*GPU.*CompileModelCacheTestBase.*CompareWithRefImpl.*)",
             // Currently 1D convolution has an issue
-            R"(.*smoke_GroupConvolution1D_ExplicitPadding_Disabled.*)",
-            R"(.*smoke_GroupConvolutionLayerGPUTest_dynamic1DSymPad_Disabled.*)",
             R"(.*smoke_ConvolutionLayerGPUTest_dynamic1DSymPad.*)",
 
             // Looks like the test is targeting CPU plugin and doesn't respect that execution graph may vary from plugin to plugin

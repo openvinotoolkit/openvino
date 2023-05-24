@@ -120,7 +120,6 @@ private:
     VectorDims outputStaticShape() const;
     void appendLegacyZeroPointsArgs();
     void appendZeroPointsArgs();
-    void initTryBrgconvFlag();
 
     bool withBiases;
     bool withSum;
@@ -161,7 +160,7 @@ private:
     const size_t Y_AXIS = 1;
 
     bool isWino = false;
-    bool shouldTryBrgconv = false;
+    static const bool isBrgConvAvailable;
     std::vector<dnnl::primitive_attr> attrs;
     AttrPtr pAttr;
     bool autoPadding = false;
