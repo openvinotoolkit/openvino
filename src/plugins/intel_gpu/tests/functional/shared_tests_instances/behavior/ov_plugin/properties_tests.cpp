@@ -159,7 +159,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVGetAvailableDevicesPropsTest,
 INSTANTIATE_TEST_SUITE_P(
     smoke_MultiAutoOVCheckSetSupportedRWMetricsPropsTests,
     OVCheckSetSupportedRWMetricsPropsTests,
-    ::testing::Combine(::testing::Values("MULTI", "AUTO"),
+    ::testing::Combine(::testing::Values("MULTI:GPU", "AUTO:GPU"),
                        ::testing::ValuesIn(OVCheckSetSupportedRWMetricsPropsTests::getRWMandatoryPropertiesValues(
                            {ov::hint::model_priority.name(), ov::log::level.name()}))),
     OVCheckSetSupportedRWMetricsPropsTests::getTestCaseName);
@@ -169,8 +169,20 @@ INSTANTIATE_TEST_SUITE_P(
     OVCheckGetSupportedROMetricsPropsTests,
     ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_GPU),
                        ::testing::ValuesIn(OVCheckGetSupportedROMetricsPropsTests::configureProperties(
-                           {ov::device::uuid.name(), ov::device::gops.name(), ov::device::type.name()}))),
+                           {ov::device::uuid.name(), ov::device::gops.name(), ov::device::type.name(), ov::device::full_name.name()}))),
     OVCheckGetSupportedROMetricsPropsTests::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(nightly_MultiHeteroAutoBatchOVCheckChangePropComplieModleGetPropTests_DEVICE_ID,
+                         OVCheckChangePropComplieModleGetPropTests_DEVICE_ID,
+                         ::testing::Combine(::testing::Values("MULTI", "HETERO", "AUTO", "BATCH"),
+                                            ::testing::Values(ov::AnyMap({}))),
+                        OVCheckChangePropComplieModleGetPropTests_DEVICE_ID::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(nightly_gpuOVCheckChangePropComplieModleGetPropTests_DEVICE_ID,
+                         OVCheckChangePropComplieModleGetPropTests_DEVICE_ID,
+                         ::testing::Combine(::testing::Values("GPU"),
+                                            ::testing::Values(ov::AnyMap({}))),
+                        OVCheckChangePropComplieModleGetPropTests_DEVICE_ID::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_OVCheckSetSupportedRWMetricsPropsTests,

@@ -56,7 +56,7 @@ public:
     AnyMap compileModelProperties;
 };
 
-class OVPropertiesTestsWithComplieModelProps : public testing::WithParamInterface<PropertiesParams>,
+class OVPropertiesTestsWithCompileModelProps : public testing::WithParamInterface<PropertiesParams>,
                                                public OVPropertiesBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<PropertiesParams> obj);
@@ -77,10 +77,10 @@ public:
     static std::vector<ov::AnyMap> getModelDependcePropertiesValues();
 };
 
-using OVCheckSetSupportedRWMetricsPropsTests = OVPropertiesTestsWithComplieModelProps;
-using OVCheckGetSupportedROMetricsPropsTests = OVPropertiesTestsWithComplieModelProps;
-using OVCheckChangePropComplieModleGetPropTests_DEVICE_ID = OVPropertiesTestsWithComplieModelProps;
-using OVCheckMetricsPropsTests_ModelDependceProps = OVPropertiesTestsWithComplieModelProps;
+using OVCheckSetSupportedRWMetricsPropsTests = OVPropertiesTestsWithCompileModelProps;
+using OVCheckGetSupportedROMetricsPropsTests = OVPropertiesTestsWithCompileModelProps;
+using OVCheckChangePropComplieModleGetPropTests_DEVICE_ID = OVPropertiesTestsWithCompileModelProps;
+using OVCheckMetricsPropsTests_ModelDependceProps = OVPropertiesTestsWithCompileModelProps;
 
 class OVClassSetDefaultDeviceIDPropTest : public OVPluginTestBase,
                                           public ::testing::WithParamInterface<std::pair<std::string, std::string>> {
