@@ -240,7 +240,7 @@ TEST_F(FrontEndConversionWithReferenceTestsF, ModelWithDilatedGroupConvolution) 
         model = convert_model("dilated_gconv_model/dilated_gconv_model.pbtxt");
         // need to call MOC to fuse BatchToSpace/SpaceToBatch with GroupConvolution
         manager.register_pass<pass::MOCTransformations>(false);
-        // TODO: enable ATTRIBUTES, CONST_VALUES and ACCURACY checks, CVS-xxxx
+        // TODO: enable ATTRIBUTES, CONST_VALUES and ACCURACY checks, CVS-111900
         comparator.disable(FunctionsComparator::CmpValues::ATTRIBUTES);
         comparator.disable(FunctionsComparator::CmpValues::CONST_VALUES);
         comparator.disable(FunctionsComparator::CmpValues::ACCURACY);
@@ -367,7 +367,7 @@ TEST_F(FrontEndConversionWithReferenceTestsF, ModelWithIteratorGetNextAndUnsuppo
 TEST_F(FrontEndConversionWithReferenceTestsF, ModelWithMultioutputBodyGraphNode) {
     {
         model = convert_model("partitioned_call2/partitioned_call2.pbtxt");
-        // TODO: enable ATTRIBUTES check, CVS-xxxx
+        // TODO: enable ATTRIBUTES check, CVS-111901
         comparator.disable(FunctionsComparator::CmpValues::ATTRIBUTES);
     }
     {
