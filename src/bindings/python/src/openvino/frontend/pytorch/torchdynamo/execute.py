@@ -98,6 +98,7 @@ class OpenVINOGraphModule(torch.nn.Module):
         for idx, input_data in enumerate(args): #subgraph.example_inputs):
             if len(input_data.shape) == 0:
                 tmp_fallback = True;
+                break;
 
         if tmp_fallback:
             return self.gm(*args)
@@ -112,15 +113,13 @@ class OpenVINOGraphModule(torch.nn.Module):
 
 
 def partition_graph(gm: GraphModule, use_python_fusion_cache: bool):
-    partitioner = Partitioner()
-    partitioned_graph = partitioner.make_partitions(gm)    
     global max_openvino_partitions
     partition_id = max_openvino_partitions
-    for node in partitioned_graph.graph.nodes:
+    for node in gm.graph.nodes:
         # TODO: use a better way to identify fused submodule
         if node.op == "call_module" and "fused_" in node.name:
-            openvino_submodule = getattr(partitioned_graph, node.name)
-            partitioned_graph.delete_submodule(node.target)
+            openvino_submodule = getattr(gm, node.name)
+            gm.delete_submodule(node.target)
             gm.add_submodule(
                 node.target,
                 OpenVINOGraphModule(openvino_submodule, partition_id, use_python_fusion_cache),
@@ -129,7 +128,7 @@ def partition_graph(gm: GraphModule, use_python_fusion_cache: bool):
 
     max_openvino_partitions = partition_id
 
-    return partitioned_graph
+    return gm
 
 
 def openvino_execute_partitioned(gm: GraphModule, *args, executor_parameters=None):
