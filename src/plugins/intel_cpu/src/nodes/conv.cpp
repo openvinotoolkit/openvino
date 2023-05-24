@@ -884,7 +884,7 @@ void Convolution::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
     dnnl::memory::desc biasDnnlDesc;
 
     if (withBiases) {
-        memory::data_type bdt = memory::data_type::f32;
+        memory::data_type bdt = outDnnlDesc.get_data_type();
         biasDnnlDesc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(expectedBiasDims), bdt, memory::format_tag::any);
     }
 
