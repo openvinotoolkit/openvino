@@ -10,7 +10,6 @@
    openvino_docs_OV_UG_supported_plugins_CPU
    openvino_docs_OV_UG_supported_plugins_GPU
    openvino_docs_OV_UG_supported_plugins_GNA
-   openvino_docs_OV_UG_supported_plugins_ARM_CPU
 
 
 OpenVINO™ Runtime can infer deep learning models using the following device types:
@@ -18,7 +17,7 @@ OpenVINO™ Runtime can infer deep learning models using the following device ty
 * :doc:`CPU <openvino_docs_OV_UG_supported_plugins_CPU>`
 * :doc:`GPU <openvino_docs_OV_UG_supported_plugins_GPU>`
 * :doc:`GNA <openvino_docs_OV_UG_supported_plugins_GNA>`
-* :doc:`Arm® CPU <openvino_docs_OV_UG_supported_plugins_ARM_CPU>`
+* :doc:`Arm® CPU <openvino_docs_OV_UG_supported_plugins_CPU>`
 
 For a more detailed list of hardware, see :doc:`Supported Devices <openvino_docs_OV_UG_supported_plugins_Supported_Devices>`.
 
@@ -37,20 +36,20 @@ Feature Support Matrix
 
 The table below demonstrates support of key features by OpenVINO device plugins.
 
- ========================================================================================= =============== =============== =============== ======================== 
-  Capability                                                                                CPU             GPU             GNA             Arm® CPU  
- ========================================================================================= =============== =============== =============== ======================== 
-  :doc:`Heterogeneous execution <openvino_docs_OV_UG_Hetero_execution>`                     Yes             Yes             No              Yes                     
-  :doc:`Multi-device execution <openvino_docs_OV_UG_Running_on_multiple_devices>`           Yes             Yes             Partial         Yes                     
-  :doc:`Automatic batching <openvino_docs_OV_UG_Automatic_Batching>`                        No              Yes             No              No                      
-  :doc:`Multi-stream execution <openvino_docs_deployment_optimization_guide_tput>`          Yes             Yes             No              Yes                     
-  :doc:`Models caching <openvino_docs_OV_UG_Model_caching_overview>`                        Yes             Partial         Yes             No                      
-  :doc:`Dynamic shapes <openvino_docs_OV_UG_DynamicShapes>`                                 Yes             Partial         No              No                      
-  :doc:`Import/Export <openvino_inference_engine_tools_compile_tool_README>`                Yes             No              Yes             No                      
-  :doc:`Preprocessing acceleration <openvino_docs_OV_UG_Preprocessing_Overview>`            Yes             Yes             No              Partial                 
-  :doc:`Stateful models <openvino_docs_OV_UG_model_state_intro>`                            Yes             No              Yes             No                      
-  :doc:`Extensibility <openvino_docs_Extensibility_UG_Intro>`                               Yes             Yes             No              No                      
- ========================================================================================= =============== =============== =============== ======================== 
+ ========================================================================================= ============================ =============== ===============
+  Capability                                                                                CPU                         GPU             GNA            
+ ========================================================================================= ============================ =============== ===============
+  :doc:`Heterogeneous execution <openvino_docs_OV_UG_Hetero_execution>`                     Yes                         Yes             No            
+  :doc:`Multi-device execution <openvino_docs_OV_UG_Running_on_multiple_devices>`           Yes                         Yes             Partial       
+  :doc:`Automatic batching <openvino_docs_OV_UG_Automatic_Batching>`                        No                          Yes             No            
+  :doc:`Multi-stream execution <openvino_docs_deployment_optimization_guide_tput>`          Yes (Intel® x86-64 only)    Yes             No             
+  :doc:`Models caching <openvino_docs_OV_UG_Model_caching_overview>`                        Yes                         Partial         Yes            
+  :doc:`Dynamic shapes <openvino_docs_OV_UG_DynamicShapes>`                                 Yes                         Partial         No             
+  :doc:`Import/Export <openvino_ecosystem>`                                                 Yes                         No              Yes            
+  :doc:`Preprocessing acceleration <openvino_docs_OV_UG_Preprocessing_Overview>`            Yes                         Yes             No            
+  :doc:`Stateful models <openvino_docs_OV_UG_model_state_intro>`                            Yes                         No              Yes            
+  :doc:`Extensibility <openvino_docs_Extensibility_UG_Intro>`                               Yes                         Yes             No            
+ ========================================================================================= ============================ =============== ===============
 
 For more details on plugin-specific feature limitations, see the corresponding plugin pages.
 
