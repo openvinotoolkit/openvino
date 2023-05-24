@@ -227,7 +227,6 @@ TEST(remove_redundant_reorders, remove_fused) {
     topology.add(reorder("reorder2", input_info("input1"), output_layout_fp16));
     topology.add(eltwise("sum", input_info("reorder2"), input_info("act"), eltwise_mode::sum));
     topology.add(reorder("reorder3", input_info("sum"), output_layout_fp32));
-    
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
