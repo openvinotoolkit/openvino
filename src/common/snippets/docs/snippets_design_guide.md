@@ -398,7 +398,7 @@ Let us briefly describe the process:
 
 The algorithm described above reflects a general idea behind the tokenization process, but there are of course other details that should be considered in a real-life implementation. 
 For instance, the `Tokenizer` should take additional care to avoid creation of cyclic dependencies when attaching a Node to `Subgraph`. 
-Similarly, `Subgraph` is not allowed to connect with more than one `Result` node (no node can do that). 
+Similarly, `Subgraph` is not allowed to connect with more than one `Result` node. 
 In both of the cases, a new `Subgraph` is started instead of attaching to the existing one to avoid an illegal configuration. 
 Another interesting case is the tokenization of constant nodes. 
 If a `Constant` represents a single value (scalar) and its child was attached to a `Subgraph`, then the `Constant` also attached to the same `Subgraph`. 
