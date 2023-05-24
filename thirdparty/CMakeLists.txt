@@ -172,7 +172,7 @@ endif()
 #
 
 if(ENABLE_SAMPLES OR ENABLE_TESTS)
-    find_package(ZLIB QUIET NO_MODULE)
+    find_package(ZLIB QUIET CONFIG)
     if(ZLIB_FOUND)
         # need to make it global to use outside of the current sub-directory
         set_target_properties(ZLIB::ZLIB PROPERTIES IMPORTED_GLOBAL ON)
@@ -466,7 +466,7 @@ endif()
 
 if(ENABLE_OV_TF_LITE_FRONTEND)
     if(ENABLE_SYSTEM_FLATBUFFERS)
-        if(CMAKE_HOST_LINUX AND EMSCRIPTEN)
+        if(CMAKE_HOST_LINUX)
             set(_old_flat_CMAKE_LIBRARY_ARCHITECTURE ${CMAKE_LIBRARY_ARCHITECTURE})
             # without this WA cmake does not search in <triplet> subfolder
             # see https://cmake.org/cmake/help/latest/command/find_package.html#config-mode-search-procedure

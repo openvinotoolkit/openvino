@@ -58,16 +58,22 @@ endif()
 # Since we were able to find_package(Clang) in a separate process
 # let's try to find in current process
 if(ENABLE_NCC_STYLE)
-    if(WIN32)
-        set(CLANG_LIB_NAME libclang.dll)
-        find_host_program(CLANG NAMES ${CLANG_LIB_NAME} PATHS ENV PATH)
-        if(CLANG)
-            set(libclang_location ${CLANG})
-        endif()
-    elseif(APPLE)
+    if(CMAKE_HOST_WIN32)
+        find_host_program(libclang_location NAMES libclang.dll
+                          PATHS $ENV{PATH}
+                          NO_CMAKE_FIND_ROOT_PATH)
+    elseif(CMAKE_HOST_APPLE)
+        set(_old_CMAKE_FIND_LIBRARY_PREFIXES ${CMAKE_FIND_LIBRARY_PREFIXES})
+        set(_old_CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES})
+        set(CMAKE_FIND_LIBRARY_PREFIXES "lib")
+        set(CMAKE_FIND_LIBRARY_SUFFIXES ".dylib")
         find_host_library(libclang_location NAMES clang
                           PATHS /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib
-                          DOC "Path to clang library")
+                          DOC "Path to clang library"
+                          NO_DEFAULT_PATH
+                          NO_CMAKE_FIND_ROOT_PATH)
+        set(CMAKE_FIND_LIBRARY_PREFIXES ${_old_CMAKE_FIND_LIBRARY_PREFIXES})
+        set(CMAKE_FIND_LIBRARY_SUFFIXES ${_old_CMAKE_FIND_LIBRARY_SUFFIXES})
     else()
         find_host_package(Clang QUIET)
     endif()
