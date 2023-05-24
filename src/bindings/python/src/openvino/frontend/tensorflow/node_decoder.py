@@ -62,6 +62,8 @@ class TFGraphNodeDecoder(DecoderBase):
     @staticmethod
     def get_variable(operation):
         tf_graph = operation.graph
+        if not hasattr(tf_graph, 'captures'):
+            return None
         for var_tensor, op_tensor in tf_graph.captures:
             if operation.outputs[0].name == op_tensor.name:
                 resource_name = var_tensor._name
