@@ -184,8 +184,8 @@ bool convert_function_precision(
         if (skip_precision_sensitive && fp16_compression_is_disabled(node) && has_fp16_compression)
             continue;
 
-        // todo: a dirty hack to keep Const+DecompressionConvert for CPU
-        if (skip_precision_sensitive && constant_folding_is_disabled(node))
+        // To keep Const+DecompressionConvert for CPU
+        if (!has_fp16_compression && constant_folding_is_disabled(node))
             continue;
 
         is_changed |= convert_node_input_precision(node, precisions, type_to_extend);
@@ -214,8 +214,8 @@ bool convert_function_precision(
         if (skip_precision_sensitive && fp16_compression_is_disabled(node) && has_fp16_compression)
             continue;
 
-        // todo: a dirty hack to keep Const+DecompressionConvert for CPU
-        if (skip_precision_sensitive && constant_folding_is_disabled(node))
+        // To keep Const+DecompressionConvert for CPU
+        if (!has_fp16_compression && constant_folding_is_disabled(node))
             continue;
 
         // Recursively apply transformation for sub-graph based operations
@@ -392,7 +392,9 @@ bool ov::pass::ConvertPrecision::run_on_model(const std::shared_ptr<ngraph::Func
     // to remove extra converts
     if (m_keep_precision_sensitive_in_fp32) {
         pass::Manager manager(get_pass_config());
-        //        manager.register_pass<pass::EnableDecompressionConvertConstantFolding>();
+        if (has_fp16_compression) {
+            manager.register_pass<pass::EnableDecompressionConvertConstantFolding>();
+        }
         manager.register_pass<pass::ConstantFolding>();
         manager.run_passes(f);
     }

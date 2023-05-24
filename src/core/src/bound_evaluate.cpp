@@ -10,6 +10,7 @@
 #include "openvino/opsets/opset10.hpp"
 #include "shape_util.hpp"
 #include "tensor_conversion_util.hpp"
+#include "transformations/rt_info/decompression.hpp"
 
 namespace {
 using namespace ov;
@@ -247,7 +248,7 @@ bool ov::could_propagate(const Output<Node>& output, std::vector<Node*>& result)
             bool can_add = true;
             size_t arg_count = node->get_input_size();
 
-            if (arg_count == 0 && !is_type<op::v0::Constant>(node)) {
+            if ((arg_count == 0 && !is_type<op::v0::Constant>(node)) || is_decompression(node->shared_from_this())) {
                 status = false;
                 continue;
             } else if (is_type<op::v0::ShapeOf>(node) || is_type<op::v3::ShapeOf>(node)) {
