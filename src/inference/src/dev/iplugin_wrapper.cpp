@@ -8,8 +8,10 @@
 
 #include "any_copy.hpp"
 #include "dev/converter_utils.hpp"
+#include "ie_common.h"
 #include "ie_icore.hpp"
 #include "threading/ie_executor_manager.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace InferenceEngine {
 
@@ -32,8 +34,42 @@ const std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>& IPluginWrapp
 
 std::shared_ptr<ov::ICompiledModel> IPluginWrapper::compile_model(const std::shared_ptr<const ov::Model>& model,
                                                                   const ov::AnyMap& properties) const {
-    auto exec_network =
-        m_old_plugin->LoadNetwork(ov::legacy_convert::convert_model(model, is_new_api()), ov::any_copy(properties));
+    InputsDataMap orig_in_data_map;
+    auto cloned_model = model->clone();
+    for (auto&& input : cloned_model->inputs()) {
+        auto param_name = input.get_node()->get_friendly_name();
+
+        ov::legacy_convert::fill_input_info(input, orig_in_data_map[param_name]);
+
+        auto& rt_info = input.get_rt_info();
+        auto it = rt_info.find("ie_legacy_td");
+        if (it != rt_info.end()) {
+            rt_info.erase(it);
+        }
+        it = rt_info.find("ie_legacy_preproc");
+        if (it != rt_info.end()) {
+            rt_info.erase(it);
+        }
+    }
+    OutputsDataMap orig_out_data_map;
+    for (auto&& result : cloned_model->get_results()) {
+        auto output = result->input_value(0);
+        const auto& res_name = ov::op::util::create_ie_output_name(output);
+
+        ov::legacy_convert::fill_output_info(output, orig_out_data_map[res_name]);
+
+        auto& rt_info = output.get_rt_info();
+        auto it = rt_info.find("ie_legacy_td");
+        if (it != rt_info.end()) {
+            rt_info.erase(it);
+        }
+    }
+    auto cnnNetwork = ov::legacy_convert::convert_model(cloned_model, is_new_api());
+
+    auto exec_network = m_old_plugin->LoadNetwork(cnnNetwork, ov::any_copy(properties));
+
+    exec_network->setNetworkInputs(orig_in_data_map);
+    exec_network->setNetworkOutputs(orig_out_data_map);
     return ov::legacy_convert::convert_compiled_model(update_exec_network(exec_network));
 }
 
@@ -46,10 +82,45 @@ std::shared_ptr<ov::ICompiledModel> IPluginWrapper::compile_model(const std::str
 std::shared_ptr<ov::ICompiledModel> IPluginWrapper::compile_model(const std::shared_ptr<const ov::Model>& model,
                                                                   const ov::AnyMap& properties,
                                                                   const ov::RemoteContext& context) const {
-    return ov::legacy_convert::convert_compiled_model(
-        update_exec_network(m_old_plugin->LoadNetwork(ov::legacy_convert::convert_model(model, is_new_api()),
-                                                      any_copy(properties),
-                                                      ov::legacy_convert::convert_remote_context(context._impl))));
+    InputsDataMap orig_in_data_map;
+    auto cloned_model = model->clone();
+    for (auto&& input : cloned_model->inputs()) {
+        auto param_name = input.get_node()->get_friendly_name();
+
+        ov::legacy_convert::fill_input_info(input, orig_in_data_map[param_name]);
+
+        auto& rt_info = input.get_rt_info();
+        auto it = rt_info.find("ie_legacy_td");
+        if (it != rt_info.end()) {
+            rt_info.erase(it);
+        }
+        it = rt_info.find("ie_legacy_preproc");
+        if (it != rt_info.end()) {
+            rt_info.erase(it);
+        }
+    }
+    OutputsDataMap orig_out_data_map;
+    for (auto&& result : cloned_model->get_results()) {
+        auto output = result->input_value(0);
+        const auto& res_name = ov::op::util::create_ie_output_name(output);
+
+        ov::legacy_convert::fill_output_info(output, orig_out_data_map[res_name]);
+
+        auto& rt_info = output.get_rt_info();
+        auto it = rt_info.find("ie_legacy_td");
+        if (it != rt_info.end()) {
+            rt_info.erase(it);
+        }
+    }
+    auto cnnNetwork = ov::legacy_convert::convert_model(cloned_model, is_new_api());
+    auto exec_network = m_old_plugin->LoadNetwork(cnnNetwork,
+                                                  any_copy(properties),
+                                                  ov::legacy_convert::convert_remote_context(context._impl));
+
+    exec_network->setNetworkInputs(orig_in_data_map);
+    exec_network->setNetworkOutputs(orig_out_data_map);
+
+    return ov::legacy_convert::convert_compiled_model(update_exec_network(exec_network));
 }
 
 void IPluginWrapper::set_property(const ov::AnyMap& properties) {

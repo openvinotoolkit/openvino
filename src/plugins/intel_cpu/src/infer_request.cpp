@@ -502,18 +502,6 @@ InferenceEngine::Blob::Ptr LegacyInferRequest::GetBlob(const std::string& name) 
         }
         data = _inputs[name];
         checkBlob(data, name, true);
-        // check if preprocess required, but still wasn't set
-        auto preProcessedInput = std::find_if(std::begin(_networkInputs), std::end(_networkInputs),
-            [&](const std::pair<std::string, InferenceEngine::InputInfo::Ptr>& pair) {
-                return pair.first == name;
-            });
-        if (preProcessedInput != std::end(_networkInputs)) {
-            InferenceEngine::InputInfo::Ptr foundInput;
-            InferenceEngine::DataPtr foundOutput;
-            if (!findInputAndOutputBlobByName(name, foundInput, foundOutput)) {
-                IE_THROW() << "Blob with name: " << name << " absents in network inputs";
-            }
-        }
     }
 
     if (graph->hasOutputWithName(name)) {

@@ -14,6 +14,7 @@
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "cpp_interfaces/interface/ie_ivariable_state_internal.hpp"
 #include "dev/make_tensor.hpp"
+#include "dev/preprocessing/preprocessing.hpp"
 #include "icompiled_model_wrapper.hpp"
 #include "ie_blob.h"
 #include "ie_common.h"
@@ -27,6 +28,7 @@
 #include "iplugin_wrapper.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/pass/manager.hpp"
 #include "openvino/runtime/exception.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/iinfer_request.hpp"
@@ -171,6 +173,7 @@ std::shared_ptr<const ov::Model> ov::legacy_convert::convert_model(const Inferen
         auto input_info = network.getInputsInfo().at(param_name);
         auto& rt_info = input.get_rt_info();
         rt_info["ie_legacy_preproc"] = input_info->getPreProcess();
+        rt_info["ie_legacy_td"] = input_info->getTensorDesc();
     }
     for (auto&& result : cloned_model->get_results()) {
         auto output = result->input_value(0);
@@ -178,10 +181,19 @@ std::shared_ptr<const ov::Model> ov::legacy_convert::convert_model(const Inferen
 
         OPENVINO_ASSERT(network.getOutputsInfo().count(res_name));
         auto output_info = network.getOutputsInfo().at(res_name);
+
+        auto& rt_info = output.get_rt_info();
+        rt_info["ie_legacy_td"] = output_info->getTensorDesc();
     }
     if (!cloned_model->has_rt_info("version")) {
         cloned_model->set_rt_info(int64_t(10), "version");
     }
+
+    // Add pre-processing to converted model
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::AddPreprocessing>();
+
+    manager.run_passes(cloned_model);
     return cloned_model;
 }
 
