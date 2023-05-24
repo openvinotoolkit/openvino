@@ -36,11 +36,6 @@
 namespace ov {
 namespace test {
 
-
-#ifndef OV_CORE_CONFIGURATION
-void core_configuration(ov::test::SubgraphBaseTest* test) {}
-#endif
-
 std::ostream& operator <<(std::ostream& os, const InputShape& inputShape) {
     os << CommonTestUtils::partialShape2str({inputShape.first}) << "_" << CommonTestUtils::vec2str(inputShape.second);
     return os;
@@ -217,7 +212,6 @@ void SubgraphBaseTest::compile_model() {
         functionRefs = function->clone();
     }
     core_configuration(this);
-
     compiledModel = core->compile_model(function, targetDevice, configuration);
     if (is_report_stages) {
         auto end_time = std::chrono::system_clock::now();

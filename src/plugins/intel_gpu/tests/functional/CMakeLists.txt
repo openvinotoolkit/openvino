@@ -31,8 +31,6 @@ addIeTargetTest(
             GPU
 )
 
-target_compile_definitions(${TARGET_NAME} PUBLIC OV_CORE_CONFIGURATION)
-
 # try to find VA libraries
 if(NOT ANDROID)
     find_package(PkgConfig QUIET)
