@@ -87,9 +87,46 @@ std::shared_ptr<ov::frontend::tensorflow_lite::TensorLitePlace> DecoderFlatBuffe
         ov::frontend::tensorflow_lite::get_ov_type(tensor->type()),
         names,
         ov::frontend::tensorflow_lite::get_quantization(tensor->quantization()),
-        tensor_info.input_idx,
-        tensor_info.output_idx,
-        (tensor_info.buffer->data() ? tensor_info.buffer->data()->data() : nullptr));
+        (tensor_info.buffer && tensor_info.buffer->data() ? tensor_info.buffer->data()->data() : nullptr));
+}
+
+ov::Any get_value_as_ov_any(const flexbuffers::Reference& value) {
+#define CASE_MACRO(fbt, as_stmt) \
+    case flexbuffers::fbt:       \
+        return {value.as_stmt()};
+    switch (value.GetType()) {
+        CASE_MACRO(FBT_INT, AsInt32)
+        CASE_MACRO(FBT_INDIRECT_INT, AsInt32)
+        CASE_MACRO(FBT_UINT, AsUInt32)
+        CASE_MACRO(FBT_INDIRECT_UINT, AsUInt32)
+        CASE_MACRO(FBT_FLOAT, AsFloat)
+        CASE_MACRO(FBT_INDIRECT_FLOAT, AsFloat)
+        CASE_MACRO(FBT_STRING, AsString)
+        CASE_MACRO(FBT_BOOL, AsBool)
+    case flexbuffers::FBT_NULL:
+    case flexbuffers::FBT_MAP:
+    case flexbuffers::FBT_KEY:
+    case flexbuffers::FBT_VECTOR:
+    case flexbuffers::FBT_VECTOR_INT:
+    case flexbuffers::FBT_VECTOR_UINT:
+    case flexbuffers::FBT_VECTOR_FLOAT:
+    case flexbuffers::FBT_VECTOR_KEY:
+    case flexbuffers::FBT_VECTOR_STRING_DEPRECATED:
+    case flexbuffers::FBT_VECTOR_INT2:
+    case flexbuffers::FBT_VECTOR_UINT2:
+    case flexbuffers::FBT_VECTOR_FLOAT2:
+    case flexbuffers::FBT_VECTOR_INT3:
+    case flexbuffers::FBT_VECTOR_UINT3:
+    case flexbuffers::FBT_VECTOR_FLOAT3:
+    case flexbuffers::FBT_VECTOR_INT4:
+    case flexbuffers::FBT_VECTOR_UINT4:
+    case flexbuffers::FBT_VECTOR_FLOAT4:
+    case flexbuffers::FBT_BLOB:
+    case flexbuffers::FBT_VECTOR_BOOL:
+    case flexbuffers::FBT_MAX_TYPE:
+        return {};
+    }
+    return {};
 }
 
 }  // namespace tensorflow_lite
