@@ -1133,7 +1133,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4_dynamic, normal_bfyx_0_2_3_1) {
 
     auto& engine = get_test_engine();
 
-    auto input_layout_dynamic = layout{ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), 8, 2}, data_types::f32, format::bfyx};
+    auto input_layout_dynamic = layout{ov::PartialShape{ov::PartialShape::dynamic(4)}, data_types::f32, format::bfyx};
     auto input_layout_static = layout{ov::PartialShape{2, 8, 8, 2}, data_types::f32, format::bfyx};
 
     auto input = engine.allocate_memory(input_layout_static);
@@ -1191,12 +1191,69 @@ TEST(permute_gpu_f32_tile_8x8_4x4_dynamic, normal_bfyx_0_2_3_1) {
     }
 }
 
+TEST(permute_gpu_f32_tile_8x8_4x4_dynamic, f_remainder_bfyx_0_2_3_1) {
+    constexpr size_t array_size = 160;
+
+    auto& engine = get_test_engine();
+
+    auto input_layout_dynamic = layout{ov::PartialShape{ov::PartialShape::dynamic(4)}, data_types::f32, format::bfyx};
+    auto input_layout_static = layout{ov::PartialShape{2, 5, 8, 2}, data_types::f32, format::bfyx};
+
+    auto input = engine.allocate_memory(input_layout_static);
+
+    std::vector<float> input_data;
+    input_data.reserve(array_size);
+    for (size_t i=0 ; i < array_size; ++i)
+        input_data.push_back(static_cast<float>(i));
+
+    set_values(input, input_data);
+
+    topology topology(
+        input_layout("input", input_layout_dynamic),
+        permute("permute", input_info("input"), { 0, 2, 3, 1 }));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    auto inst = network.get_primitive("permute");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "permute");
+
+    auto output = outputs.begin()->second.get_memory();
+
+    float answers[array_size] = {
+        0.f,  16.f,  32.f,  48.f,  64.f,   1.f,  17.f,  33.f,  49.f,  65.f,   2.f,  18.f,  34.f,  50.f,  66.f,   3.f,
+        19.f,  35.f,  51.f,  67.f,   4.f,  20.f,  36.f,  52.f,  68.f,   5.f,  21.f,  37.f,  53.f,  69.f,   6.f,  22.f,
+        38.f,  54.f,  70.f,   7.f,  23.f,  39.f,  55.f,  71.f,   8.f,  24.f,  40.f,  56.f,  72.f,   9.f,  25.f,  41.f,
+        57.f,  73.f,  10.f,  26.f,  42.f,  58.f,  74.f,  11.f,  27.f,  43.f,  59.f,  75.f,  12.f,  28.f,  44.f,  60.f,
+        76.f,  13.f,  29.f,  45.f,  61.f,  77.f,  14.f,  30.f,  46.f,  62.f,  78.f,  15.f,  31.f,  47.f,  63.f,  79.f,
+        80.f,  96.f, 112.f, 128.f, 144.f,  81.f,  97.f, 113.f, 129.f, 145.f,  82.f,  98.f, 114.f, 130.f, 146.f,  83.f,
+        99.f, 115.f, 131.f, 147.f,  84.f, 100.f, 116.f, 132.f, 148.f,  85.f, 101.f, 117.f, 133.f, 149.f,  86.f, 102.f,
+        118.f, 134.f, 150.f,  87.f, 103.f, 119.f, 135.f, 151.f,  88.f, 104.f, 120.f, 136.f, 152.f,  89.f, 105.f, 121.f,
+        137.f, 153.f,  90.f, 106.f, 122.f, 138.f, 154.f,  91.f, 107.f, 123.f, 139.f, 155.f,  92.f, 108.f, 124.f, 140.f,
+        156.f,  93.f, 109.f, 125.f, 141.f, 157.f,  94.f, 110.f, 126.f, 142.f, 158.f,  95.f, 111.f, 127.f, 143.f, 159.f
+    };
+
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    for (size_t i = 0; i < array_size; i++)
+    {
+        ASSERT_FLOAT_EQ(answers[i], output_ptr[i]);
+    }
+}
+
 TEST(permute_gpu_f32_tile_8x8_4x4_dynamic, x_remainder_bfyx_0_2_3_1) {
     constexpr size_t array_size = 160;
 
     auto& engine = get_test_engine();
 
-    auto input_layout_dynamic = layout{ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), 5, 2}, data_types::f32, format::bfyx};
+    auto input_layout_dynamic = layout{ov::PartialShape{ov::PartialShape::dynamic(4)}, data_types::f32, format::bfyx};
     auto input_layout_static = layout{ov::PartialShape{2, 8, 5, 2}, data_types::f32, format::bfyx};
 
     auto input = engine.allocate_memory(input_layout_static);
@@ -1253,6 +1310,64 @@ TEST(permute_gpu_f32_tile_8x8_4x4_dynamic, x_remainder_bfyx_0_2_3_1) {
         ASSERT_FLOAT_EQ(answers[i], output_ptr[i]);
     }
 }
+
+TEST(permute_gpu_f32_tile_8x8_4x4_dynamic, xf_remainder_bfyx_0_2_3_1) {
+    constexpr size_t array_size = 100;
+
+    auto& engine = get_test_engine();
+
+    auto input_layout_dynamic = layout{ov::PartialShape{ov::PartialShape::dynamic(4)}, data_types::f32, format::bfyx};
+    auto input_layout_static = layout{ov::PartialShape{2, 5, 5, 2}, data_types::f32, format::bfyx};
+
+    auto input = engine.allocate_memory(input_layout_static);
+
+    std::vector<float> input_data;
+    input_data.reserve(array_size);
+    for (size_t i=0 ; i < array_size; ++i)
+        input_data.push_back(static_cast<float>(i));
+
+    set_values(input, input_data);
+
+    topology topology(
+        input_layout("input", input_layout_dynamic),
+        permute("permute", input_info("input"), { 0, 2, 3, 1 }));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    auto inst = network.get_primitive("permute");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "permute");
+
+    auto output = outputs.begin()->second.get_memory();
+
+    float answers[array_size] = {
+        0.f,  10.f,  20.f,  30.f,  40.f,   1.f,  11.f,  21.f,  31.f,  41.f,
+        2.f,  12.f,  22.f,  32.f,  42.f,   3.f,  13.f,  23.f,  33.f,  43.f,
+        4.f,  14.f,  24.f,  34.f,  44.f,   5.f,  15.f,  25.f,  35.f,  45.f,
+        6.f,  16.f,  26.f,  36.f,  46.f,   7.f,  17.f,  27.f,  37.f,  47.f,
+        8.f,  18.f,  28.f,  38.f,  48.f,   9.f,  19.f,  29.f,  39.f,  49.f,
+        50.f,  60.f,  70.f,  80.f,  90.f,  51.f,  61.f,  71.f,  81.f,  91.f,
+        52.f,  62.f,  72.f,  82.f,  92.f,  53.f,  63.f,  73.f,  83.f,  93.f,
+        54.f,  64.f,  74.f,  84.f,  94.f,  55.f,  65.f,  75.f,  85.f,  95.f,
+        56.f,  66.f,  76.f,  86.f,  96.f,  57.f,  67.f,  77.f,  87.f,  97.f,
+        58.f,  68.f,  78.f,  88.f,  98.f,  59.f,  69.f,  79.f,  89.f,  99.f
+    };
+
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    for (size_t i = 0; i < array_size; i++)
+    {
+        ASSERT_FLOAT_EQ(answers[i], output_ptr[i]);
+    }
+}
+
 
 TEST(permute_gpu_f32_tile_8x8_4x4, normal_bfzyx_0_2_3_4_1) {
     //  Input               : bfzyx:2x8x2x2x8
