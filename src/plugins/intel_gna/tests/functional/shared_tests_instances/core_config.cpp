@@ -72,4 +72,3 @@ void core_configuration(ov::test::SubgraphBaseTest* test) {
 
 }  // namespace test
 }  // namespace ov
-ß
