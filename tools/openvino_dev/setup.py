@@ -287,13 +287,13 @@ def concat_files(output_file, input_files):
 
 description_md = SCRIPT_DIR.parents[1] / 'docs' / 'install_guides' / 'pypi-openvino-dev.md'
 md_files = [description_md, SCRIPT_DIR.parents[1] / 'docs' / 'install_guides' / 'pre-release-note.md']
-docs_url = 'https://docs.openvino.ai/latest/index.html'
+docs_url = 'https://docs.openvino.ai/2023.0/index.html'
 
 if(os.getenv('CI_BUILD_DEV_TAG')):
     output = Path.cwd() / 'build' / 'pypi-openvino-dev.md'
     output.parent.mkdir(exist_ok=True)
     description_md = concat_files(output, md_files)
-    docs_url = 'https://docs.openvino.ai/nightly/index.html'
+    docs_url = 'https://docs.openvino.ai/2023.0/index.html'
 
 setup(
     name='openvino-dev',
