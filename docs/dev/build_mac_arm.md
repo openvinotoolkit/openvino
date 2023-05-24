@@ -53,13 +53,10 @@ The software was validated on:
 
 ## How to build
 
-1. (Get sources) Clone submodules:
+1. (Get sources) Clone the repository and submodules:
 ```sh
 git clone https://github.com/openvinotoolkit/openvino.git
-git clone https://github.com/openvinotoolkit/openvino_contrib.git
-cd openvino_contrib
-git submodule update --init
-cd ../openvino
+cd openvino
 git submodule update --init
 ```
 2. Create a build folder:
