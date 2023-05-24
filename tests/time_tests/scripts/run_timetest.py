@@ -58,6 +58,7 @@ def aggregate_stats(stats: dict):
 def prepare_executable_cmd(args: dict):
     """Generate common part of cmd from arguments to execute"""
     return [
+        "export OPENVINO_LOG_LEVEL=4 && ",
         str(args["executable"].resolve(strict=True)),
         "-m", str(args["model"].resolve(strict=True)),
         "-d", args["device"],
