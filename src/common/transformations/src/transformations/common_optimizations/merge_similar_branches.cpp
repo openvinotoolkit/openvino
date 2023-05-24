@@ -18,11 +18,11 @@ namespace pass {
 namespace {
 
 bool are_equal_constants(const Node* const l, const Node* const r) {
-    auto l_const = dynamic_cast<const ngraph::op::Constant*>(l);
-    auto r_const = dynamic_cast<const ngraph::op::Constant*>(r);
+    const auto l_const = dynamic_cast<const op::v0::Constant*>(l);
+    const auto r_const = dynamic_cast<const op::v0::Constant*>(r);
     if (l_const && r_const) {
-        auto l_ptr = l_const->get_data_ptr();
-        auto r_ptr = r_const->get_data_ptr();
+        const auto l_ptr = l_const->get_data_ptr();
+        const auto r_ptr = r_const->get_data_ptr();
         size_t bytes = shape_size(l_const->get_shape()) * l_const->get_element_type().size();
         return l_const->get_element_type() == r_const->get_element_type() &&
                l_const->get_shape() == r_const->get_shape() && (l_ptr == r_ptr || memcmp(l_ptr, r_ptr, bytes) == 0);
@@ -31,7 +31,6 @@ bool are_equal_constants(const Node* const l, const Node* const r) {
 }
 
 bool compare_consumers(const Input<Node>& l, const Input<Node>& r) {
-    assert(l != r);
     const auto l_node = l.get_node();
     const auto r_node = r.get_node();
     if (l_node == r_node)
@@ -44,7 +43,6 @@ bool compare_consumers(const Input<Node>& l, const Input<Node>& r) {
     if (l.get_index() != r.get_index())
         return false;
 
-    // it seems not needed, as these are consumers of same node output
     for (size_t i = 0; i < l_node->get_output_size(); ++i)
         if (l_node->get_output_element_type(i) != r_node->get_output_element_type(i))
             return false;
