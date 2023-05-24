@@ -25,13 +25,13 @@
  * @def INFERENCE_EXTENSION_API(TYPE)
  * @brief Defines Inference Engine Extension API method
  */
-#if defined(_WIN32)
+#if defined(_WIN32) || defined(__CYGWIN__)
 #    if defined(IMPLEMENT_INFERENCE_EXTENSION_API)
 #        define INFERENCE_EXTENSION_API(type) extern "C" __declspec(dllexport) type
 #    else
 #        define INFERENCE_EXTENSION_API(type) extern "C" type
 #    endif
-#elif defined(__GNUC__) && (__GNUC__ >= 4)
+#elif defined(__GNUC__) && (__GNUC__ >= 4) || defined(__clang__)
 #    ifdef IMPLEMENT_INFERENCE_EXTENSION_API
 #        define INFERENCE_EXTENSION_API(type) extern "C" __attribute__((visibility("default"))) type
 #    else
@@ -220,7 +220,7 @@ INFERENCE_EXTENSION_API(void) CreateExtensionShared(IExtensionPtr& ext);
  * @param resp Responce
  * @return InferenceEngine::OK if extension is constructed and InferenceEngine::GENERAL_ERROR otherwise
  */
-#if defined(_WIN32)
+#ifdef _MSC_VER
 INFERENCE_ENGINE_DEPRECATED("Use IE_DEFINE_EXTENSION_CREATE_FUNCTION macro")
 INFERENCE_EXTENSION_API(StatusCode)
 CreateExtension(IExtension*& ext, ResponseDesc* resp) noexcept;

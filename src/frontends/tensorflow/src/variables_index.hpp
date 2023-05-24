@@ -78,7 +78,7 @@ public:
     }
 
     /// \brief Checks if variable has a mapped pair
-    /// \param name Name of variable for checking existance
+    /// \param name Name of variable for checking existence
     /// \returns True in case variable has mapped value and false otherwise
     bool has_mapped_variable(const std::string& name) const {
         auto mapItem = m_variables_map.find(name);
