@@ -169,7 +169,6 @@ class PytorchLayerTest:
             else:
                 model = torch.jit.script(model)
         decoder = TorchScriptPythonDecoder(model, freeze=freeze_model)
-        model = decoder.pt_module
         print(model.inlined_graph)
         im = fe.load(decoder)
         om = fe.convert(im)
