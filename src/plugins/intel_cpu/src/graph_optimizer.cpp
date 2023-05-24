@@ -1149,6 +1149,14 @@ void GraphOptimizer::FuseConvolutionAndSimpleOperation(Graph &graph) {
             continue;
         }
 
+#if defined(OV_CPU_WITH_ACL)
+        // OneDNN doesn't post-ops for FP16 case
+        if (parentNode->getOriginalInputPrecisionAtPort(0) == Precision::FP16) {
+            parent++;
+            continue;
+        }
+#endif
+
         CPU_GRAPH_OPTIMIZER_SCOPE(FuseConvolutionAndSimpleOperation_ParentNode);
 
         const auto parentNodeType = parentNode->getType();
@@ -1366,6 +1374,13 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph &graph)
                 isSuitableParent2 = isSuitableParent2 && !checkFusedWithSum(convNode2);
             }
         }
+
+#if defined(OV_CPU_WITH_ACL)
+    // OneDNN doesn't post-ops for FP16 case
+    if (convNode1->getOriginalInputPrecisionAtPort(0) == Precision::FP16 ||
+        convNode2->getOriginalInputPrecisionAtPort(0) == Precision::FP16)
+            continue;
+#endif
 
         if (!isSuitableParent1 && !isSuitableParent2)
             continue;
