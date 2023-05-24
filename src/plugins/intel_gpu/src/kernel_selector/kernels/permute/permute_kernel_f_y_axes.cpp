@@ -20,7 +20,7 @@ constexpr size_t c3DTransposeBufHeight = 4UL;
 
 size_t GetDivisor(const size_t input_size) {
     std::vector<size_t> v = {/*32,*/ 16, 8, 4, /*2,*/ 1};
-    auto is_divided = [input_size](int i) {
+    auto is_divided = [input_size](size_t i) {
         return input_size % i == 0;
     };
     auto result = std::find_if(begin(v), end(v), is_divided);
