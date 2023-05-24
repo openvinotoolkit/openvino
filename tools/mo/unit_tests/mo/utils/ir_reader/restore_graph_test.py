@@ -5,12 +5,12 @@ import os
 import tempfile
 import unittest
 
+import numpy as np
 from defusedxml.common import EntitiesForbidden
 
 from openvino.tools.mo.middle.passes.infer import type_infer
-from openvino.tools.mo.pipeline.common import prepare_emit_ir
 from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
-from openvino.tools.mo.utils.ir_reader.restore_graph import restore_graph_from_ir
+from openvino.tools.mo.utils.ir_reader.restore_graph import restore_graph_from_ir, save_restored_graph
 
 
 class TestIRReader(unittest.TestCase):
@@ -155,10 +155,10 @@ class TestIRSerializeAndRestore(unittest.TestCase):
                 </port>
             </output>
         </layer>
-        <layer id="3" name="input_dynamic_axis" type="Parameter" version="opset1">
-            <data shape="1" element_type="i32" />
+        <layer id="3" name="gather_axis" type="Const" version="opset1">
+            <data element_type="i32" shape="1" offset="0" size="4" />
             <output>
-                <port id="0" precision="I32" names="input_dynamic_axis">
+                <port id="0" precision="I32">
                     <dim>1</dim>
                 </port>
             </output>
@@ -202,17 +202,23 @@ class TestIRSerializeAndRestore(unittest.TestCase):
         """
 
     def test_save_and_restore(self):
-        original_ir_file = tempfile.NamedTemporaryFile(delete=False)
-        original_ir_file.write(bytes(self.test_ir_xml, 'utf-8'))
-        original_ir_file.close()
+        original_xml_file = tempfile.NamedTemporaryFile(delete=False)
+        original_xml_file.write(bytes(self.test_ir_xml, 'utf-8'))
+        original_xml_file.close()
 
-        # we must expect no exceptions
-        graph_orig, _ = restore_graph_from_ir(original_ir_file.name)
+        blob = np.array([0], dtype=np.int32)
+        original_bin_file = tempfile.NamedTemporaryFile(mode='wb', delete=False)
+        blob.tofile(original_bin_file)
+        original_bin_file.close()
+
+        graph_orig, _ = restore_graph_from_ir(original_xml_file.name, original_bin_file.name)
         type_infer(graph_orig)
-        os.remove(original_ir_file.name)
+        os.remove(original_xml_file.name)
+        os.remove(original_bin_file.name)
 
         restored_ir_dir = tempfile.TemporaryDirectory()
-        prepare_emit_ir(graph_orig.copy(), 'FP32', restored_ir_dir.name, graph_orig.name, meta_info={}, rename_results=False)
+
+        save_restored_graph(graph_orig.copy(), restored_ir_dir.name, {})
 
         # Gather is listed in convert_inputs_of_specific_ops as 'Gather': {2: 'int64'}, but
         # no additional converts will be inserted, because input is int32
@@ -245,10 +251,10 @@ class TestIRSerializeAndRestore(unittest.TestCase):
                 </port>
             </output>
         </layer>
-        <layer id="3" name="input_dynamic_axis" type="Parameter" version="opset1">
-            <data shape="1" element_type="i8" />
+        <layer id="3" name="gather_axis" type="Const" version="opset1">
+            <data element_type="i8" shape="1" offset="0" size="1" />
             <output>
-                <port id="0" precision="I8" names="input_dynamic_axis">
+                <port id="0" precision="I8">
                     <dim>1</dim>
                 </port>
             </output>
@@ -311,10 +317,10 @@ class TestIRSerializeAndRestore(unittest.TestCase):
             </port>
         </output>
     </layer>
-    <layer id="3" name="input_dynamic_axis" type="Parameter" version="opset1">
-        <data shape="1" element_type="i8" />
+    <layer id="3" name="gather_axis" type="Const" version="opset1">
+        <data element_type="i8" shape="1" offset="0" size="1" />
         <output>
-            <port id="0" precision="I8" names="input_dynamic_axis">
+            <port id="0" precision="I8">
                 <dim>1</dim>
             </port>
         </output>
@@ -372,17 +378,22 @@ class TestIRSerializeAndRestore(unittest.TestCase):
     """
 
     def test_save_and_restore_with_converts(self):
-        original_ir_file = tempfile.NamedTemporaryFile(delete=False)
-        original_ir_file.write(bytes(self.test_ir_xml_with_i8, 'utf-8'))
-        original_ir_file.close()
+        original_xml_file = tempfile.NamedTemporaryFile(delete=False)
+        original_xml_file.write(bytes(self.test_ir_xml_with_i8, 'utf-8'))
+        original_xml_file.close()
 
-        # we must expect no exceptions
-        graph_orig, _ = restore_graph_from_ir(original_ir_file.name)
+        blob = np.array([0], dtype=np.int8)
+        original_bin_file = tempfile.NamedTemporaryFile(mode='wb', delete=False)
+        blob.tofile(original_bin_file)
+        original_bin_file.close()
+
+        graph_orig, _ = restore_graph_from_ir(original_xml_file.name, original_bin_file.name)
         type_infer(graph_orig)
-        os.remove(original_ir_file.name)
+        os.remove(original_xml_file.name)
+        os.remove(original_bin_file.name)
 
         restored_ir_dir = tempfile.TemporaryDirectory()
-        prepare_emit_ir(graph_orig.copy(), 'FP32', restored_ir_dir.name, graph_orig.name, meta_info={}, rename_results=False)
+        save_restored_graph(graph_orig.copy(), restored_ir_dir.name, {})
 
         ir_file_with_convert = tempfile.NamedTemporaryFile(delete=False)
         ir_file_with_convert.write(bytes(self.test_ir_xml_with_convert, 'utf-8'))
