@@ -355,7 +355,7 @@ class CNNLayerCreator : public ::ngraph::AttributeVisitor {
 public:
     explicit CNNLayerCreator();
 
-    CNNLayerPtr create(const std::shared_ptr<::ngraph::Node>& node_);
+    CNNLayerPtr create(const std::shared_ptr<::ngraph::Node>& origin);
 
 protected:
     using CreatorFor = std::function<CNNLayerPtr(const std::shared_ptr<::ngraph::Node>& node,
@@ -1970,20 +1970,23 @@ CNNLayerCreator::CNNLayerCreator() {
                        });
 }
 
-CNNLayerPtr CNNLayerCreator::create(const std::shared_ptr<::ngraph::Node>& node_) {
-    node = node_;  // node used by node->visit_attributes(..) > AttributeVisitor::on_attribute(..)
+CNNLayerPtr CNNLayerCreator::create(const std::shared_ptr<::ngraph::Node>& origin) {
+    node = origin;  // node used by node->visit_attributes(..) > AttributeVisitor::on_attribute(..)
 
-    if (!node_->visit_attributes(*this))
+    if (!node->visit_attributes(*this))
         return nullptr;
 
-    LayerParams attrs = {node_->get_friendly_name(),
-                         node_->description(),
-                         details::convertPrecision(node_->get_output_element_type(0))};
+    LayerParams attrs = {node->get_friendly_name(),
+                         node->description(),
+                         details::convertPrecision(node->get_output_element_type(0))};
 
     CNNLayerPtr res;
 
-    if (creators.find(node_->description()) != creators.end())
-        res = creators[node_->description()](node_, params);
+    auto creator = creators.find(node->description());
+    ;
+
+    if (creator != creators.end())
+        res = creator->second(node, params);
     else {
         res = std::make_shared<CNNLayer>(attrs);
         res->params = params;
