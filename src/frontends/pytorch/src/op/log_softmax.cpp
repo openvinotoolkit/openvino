@@ -21,7 +21,7 @@ OutputVector translate_log_softmax(const NodeContext& context) {
         dtype dtype = None
     )
     */
-    num_inputs_check(context, 1, 3);
+    num_inputs_check(context, 2, 3);
     auto input = context.get_input(0);
     auto const dim = context.const_input<int64_t>(1);
 
