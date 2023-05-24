@@ -46,19 +46,21 @@ TEST_P(ExportOptimalNumStreams, OptimalNumStreams) {
     auto nstreams_tp_original = original_tp_network.get_property(ov::num_streams.name()).as<std::string>();
     auto nstreams_latency_original = original_latency_network.get_property(ov::num_streams.name()).as<std::string>();
 
-    std::stringstream exported_stream;
-    original_tp_network.export_model(exported_stream);
+    std::stringstream exported_tput_stream;
+    original_tp_network.export_model(exported_tput_stream);
     {
-        std::stringstream ss(exported_stream.str());
+        std::stringstream ss(exported_tput_stream.str());
         auto imported_tp_network = core.import_model(ss, deviceName, tput_mode);
         auto nstreams_tp_imported = imported_tp_network.get_property(ov::num_streams.name()).as<std::string>();
         EXPECT_EQ(nstreams_tp_original, nstreams_tp_imported);
     }
-
+    std::stringstream exported_latency_stream;
+    original_latency_network.export_model(exported_latency_stream);
     {
-        std::stringstream ss(exported_stream.str());
+        std::stringstream ss(exported_latency_stream.str());
         auto imported_latency_network = core.import_model(ss, deviceName, latency_mode);
-        auto nstreams_latency_imported = imported_latency_network.get_property(ov::num_streams.name()).as<std::string>();
+        auto nstreams_latency_imported =
+            imported_latency_network.get_property(ov::num_streams.name()).as<std::string>();
         EXPECT_EQ(nstreams_latency_original, nstreams_latency_imported);
     }
 }
