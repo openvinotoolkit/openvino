@@ -5,6 +5,7 @@
 #pragma once
 
 #include <string>
+#include <mutex>
 #include <cpu/x64/xbyak/xbyak_util.h>
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cpu/x64/amx_tile_configure.hpp>
@@ -94,7 +95,10 @@ private:
         return have_sse2 && have_ssse3 && have_sse4_1 && have_sse4_2;
     }
     bool haveAVX() {
-        return have_avx && have_avx2;
+        return have_avx;
+    }
+    bool haveAVX2() {
+        return have_avx2;
     }
     bool haveAVX512() {
         return have_avx512f;
@@ -196,15 +200,12 @@ struct RegMap<Xbyak::Tmm> {
 #if DNNL_X64
         dnnl::impl::cpu::x64::palette_config_t tconf = {0};
         auto palette_id = dnnl::impl::cpu::x64::amx::get_target_palette();
-        std::cout << "[WangYang] AMX palette ID: " << palette_id << std::endl;
         tconf.palette_id = palette_id;
-        for (int index = 0; index < sizeof(tconf.rows) / sizeof(tconf.rows[0]); index++) {
+        for (int index = 0; index < 8 ; index++) {
             tconf.rows[index] = 16; //dnnl::impl::cpu::x64::amx::get_max_rows(tconf.palette_id);
-            std::cout << "[WangYang] Max rows per register: " << tconf.rows[index] << std::endl;
         }
-        for (int index = 0; index < sizeof(tconf.cols) / sizeof(tconf.cols[0]); index++) {
-            tconf.cols[index] = dnnl::impl::cpu::x64::amx::get_max_column_bytes(tconf.palette_id);
-            std::cout << "[WangYang] Max number of bytes per rows: " << tconf.cols[index] << std::endl;
+        for (int index = 0; index < 8; index++) {
+            tconf.cols[index] = 64; //dnnl::impl::cpu::x64::amx::get_max_column_bytes(tconf.palette_id);
         }
         // configura AMX tiles
         dnnl::impl::cpu::x64::amx_tile_configure((const char*)&tconf);
@@ -220,8 +221,7 @@ struct RegMap<Xbyak::Tmm> {
     void save(Xbyak::CodeGenerator* g, int idx, int off) {
 #if DNNL_X64
         // No need to save AMX registers here and juse clean registers.
-        auto palette_id = dnnl::impl::cpu::x64::amx::get_target_palette();
-        idx = idx % dnnl::impl::cpu::x64::amx::get_max_tiles(palette_id);
+        idx = idx % 4;
         g->tilezero(Tmm(idx));
 #endif
     }
@@ -229,8 +229,7 @@ struct RegMap<Xbyak::Tmm> {
     void restore(Xbyak::CodeGenerator* g, int idx, int off) {
 #if DNNL_X64
         // No need to restore AMX registers here and juse clean registers.
-        auto palette_id = dnnl::impl::cpu::x64::amx::get_target_palette();
-        idx = idx % dnnl::impl::cpu::x64::amx::get_max_tiles(palette_id);
+        idx = idx % 4;
         g->tilezero(Tmm(idx));
 #endif
     }
