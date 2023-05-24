@@ -90,33 +90,6 @@ TEST_F(InterpolateV0StaticShapeInferenceTest, all_inputs_static_rank_use_sizes) 
     EXPECT_EQ(output_shapes.front(), StaticShape({10, 20, 30, 128, 128, 64}));
 }
 
-TEST_F(InterpolateV0StaticShapeInferenceTest, performance) {
-    using namespace std::chrono;
-
-    attrs.axes = AxisSet{0, 1, 2};
-
-    const auto img = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(6));
-    const auto out_shape = std::make_shared<op::v0::Parameter>(element::i32, PartialShape::dynamic(1));
-    op = make_op(img, out_shape, attrs);
-
-    int32_t out_shape_v[] = {10, 20, 30};
-    // const auto const_data = ov::TensorVector{{}, {element::i32, Shape{3}, out_shape_v}};
-    const auto const_data =
-        std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::i32, Shape{3}, out_shape_v)}};
-    input_shapes = ShapeVector{{5, 2, 128, 128, 128, 64}, {3}};
-
-    const auto op_sh_infer = make_shape_inference<IShapeInferCommon>(op);
-    // const auto ta = ov::make_tensor_accessor(const_data);
-
-    const auto start = steady_clock::now();
-    for (size_t i = 0; i < 1000; ++i) {
-        op_sh_infer->infer(input_shapes, const_data);
-    }
-    const auto duration = duration_cast<microseconds>(steady_clock::now() - start);
-
-    std::cout << "Interpolate v0 shape inference duration: " << duration.count() << " [us]" << std::endl;
-}
-
 // --- v4 ---
 class InterpolateV4StaticShapeInferenceTest : public OpStaticShapeInferenceTest<op::v4::Interpolate> {
 protected:

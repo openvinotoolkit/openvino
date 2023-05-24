@@ -105,7 +105,7 @@ TEST(type_prop, interpolate_v0_target_shape_as_shape_of) {
 // --- v4 ---
 TEST(type_prop, interpolate_v4_default_ctor) {
     auto image = std::make_shared<op::Parameter>(element::f32, Shape{2, 2, 30, 60});
-    auto target_shape = std::make_shared<op::Parameter>(element::i32, Shape{2});
+    auto target_shape = std::make_shared<op::Parameter>(element::i32, Shape{});
     auto scales = op::Constant::create<float>(element::f32, Shape{2}, {0.5f, 0.5f});
     auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
 
@@ -131,7 +131,7 @@ TEST(type_prop, interpolate_v4_default_ctor) {
 
 TEST(type_prop, interpolate_v4) {
     auto image = std::make_shared<op::Parameter>(element::f32, Shape{2, 2, 30, 60});
-    auto target_shape = std::make_shared<op::Parameter>(element::i32, Shape{2});
+    auto target_shape = std::make_shared<op::Parameter>(element::i32, Shape{15, 30});
     auto scales = op::Constant::create<float>(element::f32, Shape{2}, {0.5f, 0.5f});
     auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
 
@@ -156,7 +156,7 @@ TEST(type_prop, interpolate_v4_non_constant_axes_scales) {
     set_shape_labels(img_shape, 10);
 
     auto image = std::make_shared<op::Parameter>(element::f16, img_shape);
-    auto target_shape = std::make_shared<op::Parameter>(element::i64, Shape{2});
+    auto target_shape = std::make_shared<op::Parameter>(element::i64, Shape{});
     auto scales = op::Constant::create<float>(element::f32, Shape{2}, {0.5f, 0.5f});
     auto axes = std::make_shared<op::Parameter>(element::i32, PartialShape{2});
 
@@ -182,7 +182,7 @@ TEST(type_prop, interpolate_v4_non_constant_axes_sizes) {
 
     auto image = std::make_shared<op::Parameter>(element::bf16, img_shape);
     auto target_shape = std::make_shared<op::Parameter>(element::i64, Shape{2});
-    auto scales = op::Constant::create<float>(element::f32, Shape{2}, {0.5f, 0.5f});
+    auto scales = op::Constant::create<float>(element::f32, Shape{2, 1}, {0.5f, 0.5f});
 
     auto axes = std::make_shared<op::Parameter>(element::i32, PartialShape{2});
 
@@ -684,7 +684,6 @@ TEST(type_prop, interpolate_v11_scales_not_1d) {
 TEST(type_prop, interpolate_v11_axes_not_1d) {
     const auto image = std::make_shared<op::Parameter>(element::f32, Shape{1, 3, 30, 60});
     const auto scales = op::Constant::create<float>(element::f32, Shape{2}, {6.f, 12.f});
-    // const auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
 
     ov::op::util::InterpolateBase::InterpolateAttrs attrs;
     attrs.shape_calculation_mode = ov::op::util::InterpolateBase::ShapeCalcMode::SCALES;

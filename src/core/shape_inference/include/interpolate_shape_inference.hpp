@@ -277,9 +277,9 @@ std::vector<TShape> shape_infer(const Interpolate* op,
                                 TContainer& pads_begin,
                                 TContainer& pads_end,
                                 const ITensorAccessor& tensor_accessor) {
-    NODE_VALIDATION_CHECK(op, (input_shapes.size() == 3 || input_shapes.size() == 4));
-
     const auto has_axes_input = (input_shapes.size() == 4);
+    NODE_VALIDATION_CHECK(op, (input_shapes.size() == 3 || has_axes_input));
+
     const auto is_using_scales = (op->get_attrs().shape_calculation_mode == Interpolate::ShapeCalcMode::SCALES);
 
     interpolate::validate::input_rank_1d(op, input_shapes, is_using_scales ? 2 : 1);

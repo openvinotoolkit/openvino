@@ -263,22 +263,6 @@ public:
     }
 };
 
-template <typename OP>
-class entryInterpolate : public entryBase {
-public:
-    using entryBase::entryBase;
-
-    IShapeInferCommon::Result
-    infer(const std::vector<StaticShape>& input_shapes, const std::map<size_t, HostTensorPtr>& constant_data) override {
-        std::vector<size_t> pads_begin, pads_end;
-        auto op = static_cast<OP*>(node.get());
-        std::vector<StaticShape> output_shapes(op->get_output_size());
-        correct_pads_attr(op, pads_begin, pads_end, input_shapes);
-        shape_infer(op, pads_begin, pads_end, input_shapes, output_shapes, constant_data);
-        return {std::move(output_shapes), ShapeInferStatus::success};
-    }
-};
-
 template <class TOp>
 class ShapeInferWithPadding : public entryBase {
 public:
