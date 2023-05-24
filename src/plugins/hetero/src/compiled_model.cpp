@@ -6,7 +6,8 @@
 
 #include <memory>
 
-// #include "async_infer_request.hpp"
+#include "sync_infer_request.hpp"
+#include "async_infer_request.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "ie_plugin_config.hpp"
 // #include "itt.hpp"
@@ -47,20 +48,26 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
         auto orderedOps = m_model->get_ordered_ops();
 
         // TODO vurusovs REMOVE plugin->query_model FROM HERE
-        queryNetworkResult = plugin->query_model(model, {ov::device::priorities(m_cfg.device_priorities)});
+        // queryNetworkResult = plugin->query_model(model, {ov::device::priorities(m_cfg.device_priorities)});
+
         bool allEmpty = true;
         // Get user defined affinity
         for (auto&& node : orderedOps) {
             auto& nodeInfo = node->get_rt_info();
-            if (node->get_friendly_name() == "conv0")
-                nodeInfo["affinity"] = ov::Any{"GPU"};
+
+            // TODO vurusovs REMOVE FROM HERE
+            // if (node->get_friendly_name() == "conv0")
+            //     nodeInfo["affinity"] = ov::Any{"GPU"};
+
+
             auto itInfo = nodeInfo.find("affinity");
             if (itInfo != nodeInfo.end()) {
                 IE_ASSERT(itInfo->second.is<std::string>());
                 queryNetworkResult.emplace(node->get_friendly_name(), itInfo->second.as<std::string>());
                 
                 // TODO vurusovs REMOVE LINE BELOW
-                queryNetworkResult[node->get_friendly_name()] = itInfo->second.as<std::string>();
+                // queryNetworkResult[node->get_friendly_name()] = itInfo->second.as<std::string>();
+                
                 allEmpty = false;
             }
         }
@@ -430,20 +437,20 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
 }
 
 std::shared_ptr<ov::ISyncInferRequest> ov::hetero::CompiledModel::create_sync_infer_request() const {
-    // TODO vurusovs WAIT FOR ov::hetero::InferRequest
-    // return std::make_shared<ov::hetero::InferRequest>(
-    //     std::static_pointer_cast<const ov::hetero::CompiledModel>(shared_from_this()));
+    return std::make_shared<ov::hetero::InferRequest>(
+        std::static_pointer_cast<const ov::hetero::CompiledModel>(shared_from_this()));
     return nullptr;
 }
 
 std::shared_ptr<ov::IAsyncInferRequest> ov::hetero::CompiledModel::create_infer_request() const {
     // TODO vurusovs WAIT FOR ov::hetero::AsyncInferRequest and ov::hetero::InferRequest
-    // auto internal_request = create_sync_infer_request();
-    // auto async_infer_request = std::make_shared<ov::hetero::AsyncInferRequest>(
-    //     std::static_pointer_cast<ov::hetero::InferRequest>(internal_request));
+    auto internal_request = create_sync_infer_request();
+    auto async_infer_request = std::make_shared<ov::hetero::AsyncInferRequest>(
+        std::static_pointer_cast<ov::hetero::InferRequest>(internal_request),
+        get_task_executor(),
+        get_callback_executor());
 
-    // return async_infer_request;
-    return nullptr;
+    return async_infer_request;
 }
 
 void ov::hetero::CompiledModel::set_property(const ov::AnyMap& properties) {
