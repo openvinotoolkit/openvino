@@ -678,22 +678,22 @@ constexpr uint32_t Limitations::kMemoryPageSize;
 thread_local std::shared_ptr<Limitations> Limitations::k_instance{nullptr};
 
 Limitations::Limitations(const DeviceVersion& target) {
-    m_compile_target = target;
+    m_use_only_16bit_conv_weights = (target == DeviceVersion::GNA1_0 || target == DeviceVersion::GNA2_0 ||
+                                     target == DeviceVersion::GNA3_0 || target == DeviceVersion::GNA3_1);
+
     m_mem_alignment = get_memory_alignment_bytes(target);
     m_cnn_validator = cnn2d::AbstractValidator::Create(target);
 }
 
 void Limitations::init(const DeviceVersion& compile_target) {
     if (k_instance) {
-        if (get_instance()->get_compile_target() != compile_target) {
-            THROW_GNA_EXCEPTION << "Limitations instance already initialized with a different configuration.\n";
-        }
-    } else {
-        k_instance = std::shared_ptr<Limitations>(new Limitations(compile_target));
+        THROW_GNA_EXCEPTION << "Limitations instance already initialized.\n";
     }
+
+    k_instance = std::shared_ptr<Limitations>(new Limitations(compile_target));
 }
 
-void Limitations::reset() {
+void Limitations::deinit() {
     k_instance.reset();
 }
 
@@ -729,10 +729,6 @@ size_t Limitations::get_memory_alignment_bytes(const DeviceVersion& target) cons
                                                                              {DeviceVersion::GNA4_0, 16}};
 
     return common::GetValueForKey<DeviceVersion, size_t>(target, mem_alignment_map);
-}
-
-DeviceVersion Limitations::get_compile_target() const {
-    return m_compile_target;
 }
 
 bool SupportedElementTypes::IsParameterTypeSupported(ov::element::Type elem_type, bool is_exception_allowed) {
@@ -931,8 +927,7 @@ void Limitations::check_all_ops_supported(const std::shared_ptr<ov::Model>& mode
 }
 
 bool Limitations::use_only_16bit_convolution_weights() const {
-    return m_compile_target == DeviceVersion::GNA1_0 || m_compile_target == DeviceVersion::GNA2_0 ||
-           m_compile_target == DeviceVersion::GNA3_0 || m_compile_target == DeviceVersion::GNA3_1;
+    return m_use_only_16bit_conv_weights;
 }
 
 IE_SUPPRESS_DEPRECATED_START

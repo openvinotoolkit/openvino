@@ -1751,5 +1751,5 @@ GNAPlugin::~GNAPlugin() {
     if (gnadevice)
         gnadevice->close();
 
-    Limitations::reset();
+    Limitations::deinit();
 }

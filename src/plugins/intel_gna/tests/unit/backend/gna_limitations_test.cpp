@@ -288,7 +288,7 @@ protected:
     }
 
     void TearDown() override {
-        Limitations::reset();
+        Limitations::deinit();
     }
 
     std::shared_ptr<cnn2d::AbstractValidator> validator;

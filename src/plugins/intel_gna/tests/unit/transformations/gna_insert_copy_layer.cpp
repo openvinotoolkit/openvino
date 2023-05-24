@@ -60,7 +60,7 @@ void InsertCopyLayerTest::SetUp() {
 }
 
 void InsertCopyLayerTest::TearDown() {
-    ov::intel_gna::limitations::Limitations::reset();
+    ov::intel_gna::limitations::Limitations::deinit();
 }
 
 void InsertCopyLayerTest::Run() {
@@ -186,7 +186,7 @@ public:
 void RunPasses(ngraph::pass::Manager& m, std::shared_ptr<ov::Model> func) {
     ov::intel_gna::limitations::Limitations::init(ov::intel_gna::target::DeviceVersion::Default);
     m.run_passes(func);
-    ov::intel_gna::limitations::Limitations::reset();
+    ov::intel_gna::limitations::Limitations::deinit();
 }
 
 //      [Parameter]            [Parameter]

@@ -297,7 +297,7 @@ public:
     void SetUp() override;
 
     void TearDown() override {
-        Limitations::reset();
+        Limitations::deinit();
     }
 
 public:
@@ -351,7 +351,7 @@ public:
     void SetUp() override;
 
     void TearDown() override {
-        Limitations::reset();
+        Limitations::deinit();
     }
 
     std::shared_ptr<ngraph::Function> get_reference(const bool& fq,

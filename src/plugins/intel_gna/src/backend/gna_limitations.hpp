@@ -181,7 +181,7 @@ public:
     /**
      * @brief Releases the instance of the Limitations object.
      */
-    static void reset();
+    static void deinit();
 
     static bool is_transpose_2d(const std::vector<size_t>& shape);
     static bool is_transpose_supported(const std::vector<size_t>& shape);
@@ -257,19 +257,9 @@ public:
                                  const InferenceEngine::Precision gna_precision);
 
     bool use_only_16bit_convolution_weights() const;
-
-    inline bool is_crop_affined_offset(size_t numberOfElements) const {
-        const auto cropOffset = numberOfElements * kBytesPerCropElement;
-        return (ALIGN64(cropOffset) != cropOffset);
-    }
-
-    inline size_t get_memory_alignment() const {
-        return m_mem_alignment;
-    }
-
-    inline std::shared_ptr<cnn2d::AbstractValidator> get_cnn_validator() const {
-        return m_cnn_validator;
-    }
+    bool is_crop_affined_offset(size_t numberOfElements) const;
+    size_t get_memory_alignment() const;
+    std::shared_ptr<cnn2d::AbstractValidator> get_cnn_validator() const;
 
     constexpr static uint32_t kBufferMaxSize = 65528;
     constexpr static uint32_t kConvMinFiltersNum = 4;
@@ -307,17 +297,28 @@ private:
 
     size_t get_memory_alignment_bytes(const target::DeviceVersion& target) const;
 
-    target::DeviceVersion get_compile_target() const;
-
     IE_SUPPRESS_DEPRECATED_START
     static bool validate_concat_axis(const InferenceEngine::CNNLayerPtr layer, std::string& errMessage);
     IE_SUPPRESS_DEPRECATED_END
 
-    target::DeviceVersion m_compile_target;
+    bool m_use_only_16bit_conv_weights = false;
     size_t m_mem_alignment = 0;
     std::shared_ptr<cnn2d::AbstractValidator> m_cnn_validator;
     static thread_local std::shared_ptr<Limitations> k_instance;
 };
+
+inline bool Limitations::is_crop_affined_offset(size_t numberOfElements) const {
+    const auto cropOffset = numberOfElements * kBytesPerCropElement;
+    return (ALIGN64(cropOffset) != cropOffset);
+}
+
+inline size_t Limitations::get_memory_alignment() const {
+    return m_mem_alignment;
+}
+
+inline std::shared_ptr<cnn2d::AbstractValidator> Limitations::get_cnn_validator() const {
+    return m_cnn_validator;
+}
 
 }  // namespace limitations
 }  // namespace intel_gna

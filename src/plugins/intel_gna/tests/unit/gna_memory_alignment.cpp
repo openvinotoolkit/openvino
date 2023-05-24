@@ -156,13 +156,13 @@ TEST(MemoryAlignmentTest, getMemoryAlignmentBytes_ExpectExceptionWhenTargetIsUns
 TEST(MemoryAlignmentTest, getMemoryAlignmentBytes_Expect64ByteAlignmentWhenTargetIsGNA3_5) {
     Limitations::init(DeviceVersion::GNA3_5);
     EXPECT_EQ(Limitations::get_instance()->get_memory_alignment(), 64);
-    Limitations::reset();
+    Limitations::deinit();
 }
 
 TEST(MemoryAlignmentTest, getMemoryAlignmentBytes_Expect16ByteAlignmentWhenTargetIsGNA3_6) {
     Limitations::init(DeviceVersion::GNA3_6);
     EXPECT_EQ(Limitations::get_instance()->get_memory_alignment(), 16);
-    Limitations::reset();
+    Limitations::deinit();
 }
 
 }  // namespace testing
