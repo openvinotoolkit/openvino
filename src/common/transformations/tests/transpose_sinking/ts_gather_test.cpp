@@ -146,6 +146,51 @@ vector<GatherBackwardArguments> tests_arguments_bw{
 
 INSTANTIATE_TEST_SUITE_P(TSCommonGatherBackward_0, TSTestFixture, test_backward_gather(tests_arguments_bw[0]));
 
+// In some cases shape of 2nd input to Gather op (indices) has `1` dims which can
+// prevent TransposeSinking in backward direction.
+// We can get around this case by wrapping Transpose op with Squeeze+Unsqueeze pair.
+auto test_backward_gather_optimization = [](const GatherBackwardArguments& test_arguments) {
+    TestCase test_case;
+
+    // Initialize common attributes
+    test_case.transformation = CREATE_PASS_FACTORY(TSGatherBackward);
+    test_case.num_main_ops = {1};
+    test_case.inputs_to_main = test_arguments.inputs_to_main;
+
+    // Test model description:
+    test_case.model.main_op = {CREATE_GATHER_FACTORY(Gather)};
+    test_case.model.preprocess_outputs_of_main = {{set_transpose_for}, {{0}}};
+    test_case.model.model_template = create_model;
+
+    // Reference model description:
+    auto update_gather_inputs = [&](const vector<size_t>& idxs, const OutputVector& out_vec) -> OutputVector {
+        OutputVector new_out_vec(out_vec.size());
+        new_out_vec[0] = out_vec[0];
+        new_out_vec[1] = make_shared<Squeeze>(out_vec[1]);
+        new_out_vec[2] = test_arguments.new_input_to_Gather_1;
+        return new_out_vec;
+    };
+
+    auto unsqueeze_for = [&](const vector<size_t>& idxs, const OutputVector& out_vec) -> OutputVector {
+        auto axis = constant<int>(i32, {1}, {0});
+        return {make_shared<Unsqueeze>(out_vec[0], axis)};
+    };
+
+    test_case.model_ref.preprocess_inputs_to_main = {{set_transpose_for, update_gather_inputs}, {{0}, {1, 2}}};
+    test_case.model_ref.main_op = {CREATE_GATHER_FACTORY(Gather)};
+    test_case.model_ref.preprocess_outputs_of_main = {{unsqueeze_for}, {{0}}};
+    test_case.model_ref.model_template = create_model;
+
+    return wrapper(test_case);
+};
+
+vector<GatherBackwardArguments> tests_arguments_bw_optimization{
+    {{{parameter(f32, {257, 8}), constant<int>(i32, {1, 2}, {0}), constant<int>(i32, {1}, {0})}},
+     constant<int>(i32, {1}, {1})}};
+
+INSTANTIATE_TEST_SUITE_P(TSCommonGatherBackwardOptimization_0,
+                         TSTestFixture,
+                         test_backward_gather_optimization(tests_arguments_bw_optimization[0]));
 }  // namespace gather
 }  // namespace testing
 }  // namespace transpose_sinking

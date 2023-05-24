@@ -169,27 +169,52 @@ TSGatherBackward::TSGatherBackward() {
         bool optimization = out_pshape.is_static() && main_node->input_value(1).get_partial_shape().is_static();
         bool success = false;
         std::vector<size_t> axes_val;
+        std::shared_ptr<ov::op::v0::Squeeze> squeeze;
+        // In some cases shape of 2nd input to Gather op (indices) has `1` dims which can
+        // prevent TransposeSinking in backward direction.
+        // We can get around this case by wrapping Transpose op with Squeeze+Unsqueeze pair.
+        /*
+         * Data_input:shape(257, 8)       Indices_input: shape(1, 2)
+                 │                               │
+                 └────────────┐    ┌─────────────┘
+                              ▼    ▼
+                           Gather(axis = 0)
+                                │
+                                ▼
+                         Gather output: shape(1,2,8)
+                                │
+                                │
+                                ▼
+                            Transpose
+                                │
+                                ▼
+                         Transpose output: shape(1,8,2)
+        */
         if (optimization) {
-            auto squeeze = std::make_shared<ov::op::v0::Squeeze>(main_node->input_value(1));
+            squeeze = std::make_shared<ov::op::v0::Squeeze>(main_node->input_value(1));
+            copy_runtime_info(main_node, squeeze);
             main_node->input(1).replace_source_output(squeeze);
             main_node->validate_and_infer_types();
             auto new_out_pshape = main_node->get_output_partial_shape(0);
-            auto shape = out_pshape.get_shape();
-            auto new_shape = new_out_pshape.get_shape();
-            success = !(new_out_pshape.is_dynamic() || shape == new_shape);
-            if (success) {
-                size_t j = 0;
-                for (size_t i = 0; i < shape.size(); ++i) {
-                    if (shape[i] != new_shape[j] && shape[i] == 1) {
-                        axes_val.push_back(i);
-                        continue;
-                    } else if (shape[i] != new_shape[j]) {
+            if (new_out_pshape.is_static()) {
+                const auto shape = out_pshape.get_shape();
+                const auto new_shape = new_out_pshape.get_shape();
+                success = shape != new_shape;
+                if (success) {
+                    size_t j = 0;
+                    for (size_t i = 0; i < shape.size(); ++i) {
+                        if (shape[i] != new_shape[j] && shape[i] == 1) {
+                            axes_val.push_back(i);
+                            continue;
+                        } else if (shape[i] != new_shape[j]) {
+                            success = false;
+                            break;
+                        }
+                        j++;
+                    }
+                    if (j != new_shape.size()) {
                         success = false;
                     }
-                    j++;
-                }
-                if (j != new_shape.size()) {
-                    success = false;
                 }
             }
             if (!success) {
@@ -216,6 +241,9 @@ TSGatherBackward::TSGatherBackward() {
                 size_t prev_idx = i;
                 for (size_t k = 0; i < order_val.size() && k < indices_rank_val; ++i, ++k) {
                     if (order_val[i] != order_val[prev_idx]) {
+                        if (success && squeeze) {
+                            main_node->input(1).replace_source_output(squeeze->input_value(0));
+                        }
                         return false;
                     }
                     prev_idx = i;
@@ -230,6 +258,11 @@ TSGatherBackward::TSGatherBackward() {
             for (const auto& input : target_inputs) {
                 input.replace_source_output(unsqueeze);
             }
+            unsqueeze->output(0).add_names(main_node->output(0).get_names());
+            main_node->output(0).set_names({});
+            unsqueeze->set_friendly_name(main_node->get_friendly_name());
+            main_node->set_friendly_name("");
+            copy_runtime_info(main_node, {unsqueeze, unsqueeze_axes});
         }
         const auto reversed_transpose_order = ReverseTransposeOrder(order_val);
         const auto& transpose_const = ov::op::v0::Constant::create(transpose_order->get_element_type(),
