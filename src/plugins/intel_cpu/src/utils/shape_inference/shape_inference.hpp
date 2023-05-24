@@ -12,6 +12,7 @@
 #include "shape_inference_status.hpp"
 #include "static_shape.hpp"
 #include "tensor_data_accessor.hpp"
+#include <ie_common.h>
 
 namespace ov {
 namespace intel_cpu {
@@ -40,6 +41,10 @@ public:
     using IShapeInferCommon::infer;
 
     virtual Result infer(const std::vector<StaticShape>& input_shapes, const ov::ITensorAccessor& tensor_accessor) = 0;
+    Result infer(const std::vector<StaticShape>& input_shapes,
+                     const std::map<size_t, HostTensorPtr>& constant_data) override {
+        IE_THROW(NotImplemented)  << "IStaticShapeInfer not not Implemented HostTensorPtr";
+    }
 
     /**
      * @brief Do shape inference.
@@ -59,9 +64,12 @@ public:
      * @return port_mask_t a bit mask where each bit corresponds to an input port number.
      */
     virtual port_mask_t get_port_mask() const = 0;
+    virtual bool is_implemented_accessor(void) {
+        return true;
+    }
 };
 
-template <class TShapeInferIface = IShapeInferCommon>
+template <class TShapeInferIface = IStaticShapeInfer>
 std::shared_ptr<TShapeInferIface> make_shape_inference(std::shared_ptr<ov::Node> op);
 
 template <>

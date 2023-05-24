@@ -57,7 +57,7 @@ TEST_F(ConvolutionBackpropDataV1StaticShapeInferenceTest, default_ctor_with_outp
 
     input_shapes = ShapeVector{{1, 20, 224, 224}, {20, 10, 3, 3}, {spatial_shape.size()}};
     auto shape_infer = make_shape_inference(op);
-    output_shapes = shape_infer->infer(input_shapes, {}).shapes;
+    output_shapes = shape_infer->infer(input_shapes, std::map<size_t, std::shared_ptr<ov::HostTensor>>{}).shapes;
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({1, 10, 500, 500}));
@@ -76,7 +76,7 @@ TEST_F(ConvolutionBackpropDataV1StaticShapeInferenceTest, default_ctor) {
 
     input_shapes = ShapeVector{{1, 3, 10, 12}, {3, 3, 5, 5}};
     auto shape_infer = make_shape_inference(op);
-    output_shapes = shape_infer->infer(input_shapes, {}).shapes;
+    output_shapes = shape_infer->infer(input_shapes, std::map<size_t, std::shared_ptr<ov::HostTensor>>{}).shapes;
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({1, 3, 15, 17}));
@@ -98,7 +98,7 @@ TEST_F(ConvolutionBackpropDataV1StaticShapeInferenceTest, default_ctor_more_inpu
 
     input_shapes = ShapeVector{{1, 20, 224, 224}, {20, 10, 3, 3}, {spatial_shape.size()}, {0}};
     auto shape_infer = make_shape_inference(op);
-    output_shapes = shape_infer->infer(input_shapes, {}).shapes;
+    output_shapes = shape_infer->infer(input_shapes, std::map<size_t, std::shared_ptr<ov::HostTensor>>{}).shapes;
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({1, 10, 500, 500}));

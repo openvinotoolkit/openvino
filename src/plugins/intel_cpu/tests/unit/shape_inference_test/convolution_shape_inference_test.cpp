@@ -29,7 +29,7 @@ TEST_F(ConvolutionV1StaticShapeInferenceTest, default_ctor) {
 
     input_shapes = ShapeVector{{1, 3, 10, 12}, {2, 3, 5, 5}};
     auto shape_infer = make_shape_inference(op);
-    output_shapes = shape_infer->infer(input_shapes, {}).shapes;
+    output_shapes = shape_infer->infer(input_shapes, std::map<size_t, std::shared_ptr<ov::HostTensor>>{}).shapes;
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({1, 2, 6, 8}));
@@ -48,7 +48,7 @@ TEST_F(ConvolutionV1StaticShapeInferenceTest, default_ctor_three_input_shapes) {
     // Third input shape (bias) can be provided, but is not used
     input_shapes = ShapeVector{{1, 3, 10, 12}, {2, 3, 5, 5}, {2}};
     auto shape_infer = make_shape_inference(op);
-    output_shapes = shape_infer->infer(input_shapes, {}).shapes;
+    output_shapes = shape_infer->infer(input_shapes, std::map<size_t, std::shared_ptr<ov::HostTensor>>{}).shapes;
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({1, 2, 6, 8}));

@@ -5,6 +5,7 @@
 #include <gmock/gmock.h>
 
 #include "common_test_utils/test_assertions.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "utils.hpp"
 
@@ -30,7 +31,7 @@ TEST_F(AvgPoolV1StaticShapeInferenceTest, default_ctor) {
 
     input_shapes = ShapeVector{{1, 3, 10, 12}};
     auto shape_infer = make_shape_inference(op);
-    output_shapes = shape_infer->infer(input_shapes, {}).shapes;
+    output_shapes = shape_infer->infer(input_shapes, std::map<size_t, std::shared_ptr<ov::HostTensor>>{}).shapes;
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({1, 3, 8, 11}));
@@ -52,7 +53,7 @@ TEST_F(AvgPoolV1StaticShapeInferenceTest, no_auto_pad_round_floor) {
 
     input_shapes = ShapeVector{{1, 3, 10, 12}};
     auto shape_infer = make_shape_inference(op);
-    output_shapes = shape_infer->infer(input_shapes, {}).shapes;
+    output_shapes = shape_infer->infer(input_shapes, std::map<size_t, std::shared_ptr<ov::HostTensor>>{}).shapes;
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({1, 3, 12, 14}));
@@ -74,7 +75,7 @@ TEST_F(AvgPoolV1StaticShapeInferenceTest, auto_padding_same_lower_round_ceil) {
 
     input_shapes = ShapeVector{{1, 3, 10, 12, 20}};
     auto shape_infer = make_shape_inference(op);
-    output_shapes = shape_infer->infer(input_shapes, {}).shapes;
+    output_shapes = shape_infer->infer(input_shapes, std::map<size_t, std::shared_ptr<ov::HostTensor>>{}).shapes;
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({1, 3, 10, 4, 10}));
@@ -96,7 +97,7 @@ TEST_F(AvgPoolV1StaticShapeInferenceTest, auto_padding_same_upper_round_floor_ex
 
     input_shapes = ShapeVector{{1, 3, 10, 12, 20}};
     auto shape_infer = make_shape_inference(op);
-    output_shapes = shape_infer->infer(input_shapes, {}).shapes;
+    output_shapes = shape_infer->infer(input_shapes, std::map<size_t, std::shared_ptr<ov::HostTensor>>{}).shapes;
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({1, 3, 10, 4, 10}));
@@ -118,7 +119,7 @@ TEST_F(AvgPoolV1StaticShapeInferenceTest, 5d_auto_padding_same_upper_round_floor
 
     input_shapes = ShapeVector{{32, 32, 2, 2, 4}};
     auto shape_infer = make_shape_inference(op);
-    output_shapes = shape_infer->infer(input_shapes, {}).shapes;
+    output_shapes = shape_infer->infer(input_shapes, std::map<size_t, std::shared_ptr<ov::HostTensor>>{}).shapes;
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({32, 32, 2, 2, 4}));

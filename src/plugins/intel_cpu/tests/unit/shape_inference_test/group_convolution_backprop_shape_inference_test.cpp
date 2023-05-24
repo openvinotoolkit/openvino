@@ -34,7 +34,7 @@ TEST_F(GroupConvolutionBackpropDataStaticShapeInferenceTest, default_ctor_with_o
 
     input_shapes = ShapeVector{{1, 20, 224, 224}, {2, 10, 10, 3, 3}, {2}};
     auto shape_infer = make_shape_inference(op);
-    output_shapes = shape_infer->infer(input_shapes, {}).shapes;
+    output_shapes = shape_infer->infer(input_shapes, std::map<size_t, std::shared_ptr<ov::HostTensor>>{}).shapes;
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({1, 20, 500, 500}));
