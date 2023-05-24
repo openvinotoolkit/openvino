@@ -126,7 +126,7 @@ OutputVector translate_norm(const NodeContext& context) {
     } else {
         dim = context.get_input(2);
     }
-    if (!context.input_is_none(3)){
+    if (!context.input_is_none(3)) {
         keep_dim = context.const_input<bool>(3);
     }
     if (!context.input_is_none(4)) {
@@ -298,22 +298,22 @@ OutputVector translate_linalg_norm(const NodeContext& context) {
     return {result};
 };
 
-OutputVector translate_frobenius_norm(const NodeContext& context){
+OutputVector translate_frobenius_norm(const NodeContext& context) {
     // aten::frobenius_norm.dim(Tensor self, int[1] dim, bool keepdim=False) -> Tensor
     // aten::frobenius_norm.out(Tensor self, int[1] dim, bool keepdim=False, *, Tensor(a!) out) -> Tensor(a!)
     num_inputs_check(context, 3, 4);
     auto x = context.get_input(0);
     bool keep_dim = context.const_input<bool>(2);
     Output<Node> dim;
-    if (context.input_is_none(1)){
+    if (context.input_is_none(1)) {
         dim = get_axes_range(context, 0);
 
     } else {
         dim = context.get_input(1);
     }
     auto result = frobenius_norm(context, x, dim, keep_dim);
-    if (!context.input_is_none(3)){
-         context.mutate_input(3, result);
+    if (!context.input_is_none(3)) {
+        context.mutate_input(3, result);
     }
     return {result};
 }
