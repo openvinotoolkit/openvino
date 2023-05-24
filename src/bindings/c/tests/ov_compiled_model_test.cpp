@@ -137,7 +137,8 @@ TEST_P(ov_compiled_model_test, get_property) {
 
     const char* key = ov_property_key_auto_batch_timeout;
     OV_EXPECT_OK(ov_compiled_model_set_property(compiled_model, key));
-
+    ov_free(key);
+    
     const char* key = ov_property_key_supported_properties;
     char* result = nullptr;
     OV_EXPECT_OK(ov_compiled_model_get_property(compiled_model, key, &result));
