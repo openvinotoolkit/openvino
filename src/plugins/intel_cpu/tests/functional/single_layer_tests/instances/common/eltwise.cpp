@@ -15,10 +15,6 @@ using namespace ov::test;
 namespace CPULayerTestsDefinitions {
 namespace Eltwise {
 
-const std::vector<fusingSpecificParams> fusingParamsSet{
-    emptyFusingSpec,
-};
-
 const auto params_4D = ::testing::Combine(
         ::testing::Combine(
                 ::testing::ValuesIn(static_shapes_to_test_representation(inShapes_4D())),
@@ -34,22 +30,6 @@ const auto params_4D = ::testing::Combine(
         ::testing::Values(emptyFusingSpec));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_MemOrder, EltwiseLayerCPUTest, params_4D, EltwiseLayerCPUTest::getTestCaseName);
-
-const auto params_4D_fusing = ::testing::Combine(
-        ::testing::Combine(
-                ::testing::ValuesIn(static_shapes_to_test_representation(inShapes_4D_fusing())),
-                ::testing::ValuesIn(eltwiseOpTypesBinInp()),
-                ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
-                ::testing::ValuesIn(opTypes()),
-                ::testing::Values(ElementType::f32),
-                ::testing::Values(ov::element::undefined),
-                ::testing::Values(ov::element::undefined),
-                ::testing::Values(CommonTestUtils::DEVICE_CPU),
-                ::testing::Values(additional_config())),
-        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D())),
-        ::testing::ValuesIn(fusingParamsSet));
-
-INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_Fusing, EltwiseLayerCPUTest, params_4D_fusing, EltwiseLayerCPUTest::getTestCaseName);
 
 const auto params_4D_emptyCPUSpec = ::testing::Combine(
         ::testing::Combine(
@@ -194,22 +174,6 @@ const auto params_4D_dyn_param = ::testing::Combine(
         ::testing::Values(emptyFusingSpec));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_MemOrder_dyn_param, EltwiseLayerCPUTest, params_4D_dyn_param, EltwiseLayerCPUTest::getTestCaseName);
-
-const auto params_4D_dyn_param_fusing = ::testing::Combine(
-        ::testing::Combine(
-                ::testing::Values(inShapes_4D_dyn_param_fusing()),
-                ::testing::ValuesIn(eltwiseOpTypesBinDyn()),
-                ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
-                ::testing::ValuesIn(opTypes()),
-                ::testing::Values(ElementType::f32),
-                ::testing::Values(ov::element::undefined),
-                ::testing::Values(ov::element::undefined),
-                ::testing::Values(CommonTestUtils::DEVICE_CPU),
-                ::testing::Values(additional_config())),
-        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D())),
-        ::testing::ValuesIn(fusingParamsSet));
-
-INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_dyn_param_fusing, EltwiseLayerCPUTest, params_4D_dyn_param_fusing, EltwiseLayerCPUTest::getTestCaseName);
 
 const auto params_5D_dyn_const = ::testing::Combine(
         ::testing::Combine(

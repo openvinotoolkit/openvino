@@ -17,9 +17,13 @@ using namespace ov::test;
 
 namespace CPULayerTestsDefinitions {
 namespace Eltwise {
+namespace {
 
-std::vector<ElementType> netType_x64 = {
-        ElementType::bf16};
+const std::vector<ElementType>& netType() {
+        static const std::vector<ElementType> netType = {
+                ElementType::bf16};
+        return netType;
+}
 
 const std::vector<CPUSpecificParams>& cpuParams_4D_Blocked_Planar() {
         static const std::vector<CPUSpecificParams> cpuParams_4D_Blocked_Planar = {
@@ -74,7 +78,7 @@ const auto params_4D = ::testing::Combine(
                 ::testing::ValuesIn(eltwiseOpTypesBinInp()),
                 ::testing::ValuesIn(secondaryInputTypes()),
                 ::testing::ValuesIn(opTypes()),
-                ::testing::ValuesIn(netType_x64),
+                ::testing::ValuesIn(netType()),
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
@@ -98,7 +102,7 @@ const auto params_4D_fusing = ::testing::Combine(
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D())),
         ::testing::ValuesIn(fusingParamsSet_x64));
 
-INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_Fusing_x64, EltwiseLayerCPUTest, params_4D_fusing, EltwiseLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_Fusing, EltwiseLayerCPUTest, params_4D_fusing, EltwiseLayerCPUTest::getTestCaseName);
 
 const auto params_4D_emptyCPUSpec = ::testing::Combine(
         ::testing::Combine(
@@ -106,7 +110,7 @@ const auto params_4D_emptyCPUSpec = ::testing::Combine(
                 ::testing::ValuesIn(eltwiseOpTypesDiffInp()),
                 ::testing::ValuesIn(secondaryInputTypes()),
                 ::testing::ValuesIn(opTypes()),
-                ::testing::ValuesIn(netType_x64),
+                ::testing::ValuesIn(netType()),
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
@@ -122,7 +126,7 @@ const auto params_5D = ::testing::Combine(
                 ::testing::ValuesIn(eltwiseOpTypesBinInp()),
                 ::testing::ValuesIn(secondaryInputTypes()),
                 ::testing::ValuesIn(opTypes()),
-                ::testing::ValuesIn(netType_x64),
+                ::testing::ValuesIn(netType()),
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
@@ -132,23 +136,7 @@ const auto params_5D = ::testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_5D_MemOrder_x64, EltwiseLayerCPUTest, params_5D, EltwiseLayerCPUTest::getTestCaseName);
 
-const auto params_5D_emptyCPUSpec = ::testing::Combine(
-        ::testing::Combine(
-                ::testing::ValuesIn(static_shapes_to_test_representation(inShapes_5D())),
-                ::testing::ValuesIn(eltwiseOpTypesDiffInp()),
-                ::testing::ValuesIn(secondaryInputTypes()),
-                ::testing::ValuesIn(opTypes()),
-                ::testing::ValuesIn(netType_x64),
-                ::testing::Values(ov::element::undefined),
-                ::testing::Values(ov::element::undefined),
-                ::testing::Values(CommonTestUtils::DEVICE_CPU),
-                ::testing::Values(additional_config())),
-        ::testing::Values(emptyCPUSpec),
-        ::testing::Values(emptyFusingSpec));
-
-INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_5D_x64, EltwiseLayerCPUTest, params_5D_emptyCPUSpec, EltwiseLayerCPUTest::getTestCaseName);
-
-const std::vector<fusingSpecificParams> fusingParamsSet_x64I32_x64{
+const std::vector<fusingSpecificParams> fusingParamsSet_I32{
     fusingMultiplyAddPerChannel
 };
 
@@ -164,9 +152,9 @@ const auto params_5D_emptyCPUSpec_I32 = ::testing::Combine(
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                 ::testing::Values(additional_config())),
         ::testing::Values(emptyCPUSpec),
-        ::testing::ValuesIn(fusingParamsSet_x64I32_x64));
+        ::testing::ValuesIn(fusingParamsSet_I32));
 
-INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_5D_I32_x64, EltwiseLayerCPUTest, params_5D_emptyCPUSpec_I32, EltwiseLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_5D_I32, EltwiseLayerCPUTest, params_5D_emptyCPUSpec_I32, EltwiseLayerCPUTest::getTestCaseName);
 
 const auto params_4D_Blocked_Planar = ::testing::Combine(
         ::testing::Combine(
@@ -174,7 +162,7 @@ const auto params_4D_Blocked_Planar = ::testing::Combine(
                 ::testing::ValuesIn(eltwiseOpTypesBinInp()),
                 ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
                 ::testing::ValuesIn(opTypes()),
-                ::testing::ValuesIn(netType_x64),
+                ::testing::ValuesIn(netType()),
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
@@ -190,7 +178,7 @@ const auto params_4D_Planar_Blocked = ::testing::Combine(
                 ::testing::ValuesIn(eltwiseOpTypesBinInp()),
                 ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
                 ::testing::ValuesIn(opTypes()),
-                ::testing::ValuesIn(netType_x64),
+                ::testing::ValuesIn(netType()),
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
@@ -206,7 +194,7 @@ const auto params_5D_Blocked_Planar = ::testing::Combine(
                 ::testing::ValuesIn(eltwiseOpTypesBinInp()),
                 ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
                 ::testing::ValuesIn(opTypes()),
-                ::testing::ValuesIn(netType_x64),
+                ::testing::ValuesIn(netType()),
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
@@ -222,7 +210,7 @@ const auto params_5D_Planar_Blocked = ::testing::Combine(
                 ::testing::ValuesIn(eltwiseOpTypesBinInp()),
                 ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
                 ::testing::ValuesIn(opTypes()),
-                ::testing::ValuesIn(netType_x64),
+                ::testing::ValuesIn(netType()),
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
@@ -238,7 +226,7 @@ const auto params_4D_1D_constant_mode = ::testing::Combine(
                 ::testing::Values(ngraph::helpers::EltwiseTypes::ADD, ngraph::helpers::EltwiseTypes::MULTIPLY),
                 ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
                 ::testing::ValuesIn(opTypes()),
-                ::testing::ValuesIn(netType_x64),
+                ::testing::ValuesIn(netType()),
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
@@ -254,7 +242,7 @@ const auto params_4D_1D_parameter_mode = ::testing::Combine(
                 ::testing::Values(ngraph::helpers::EltwiseTypes::ADD, ngraph::helpers::EltwiseTypes::MULTIPLY),
                 ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
                 ::testing::ValuesIn(opTypes()),
-                ::testing::ValuesIn(netType_x64),
+                ::testing::ValuesIn(netType()),
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
@@ -270,7 +258,7 @@ const auto params_5D_1D_constant = ::testing::Combine(
                 ::testing::Values(ngraph::helpers::EltwiseTypes::ADD, ngraph::helpers::EltwiseTypes::MULTIPLY),
                 ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
                 ::testing::ValuesIn(opTypes()),
-                ::testing::ValuesIn(netType_x64),
+                ::testing::ValuesIn(netType()),
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
@@ -286,7 +274,7 @@ const auto params_5D_1D_parameter = ::testing::Combine(
                 ::testing::Values(ngraph::helpers::EltwiseTypes::ADD, ngraph::helpers::EltwiseTypes::MULTIPLY),
                 ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
                 ::testing::ValuesIn(opTypes()),
-                ::testing::ValuesIn(netType_x64),
+                ::testing::ValuesIn(netType()),
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
@@ -304,7 +292,7 @@ const auto params_4D_dyn_const = ::testing::Combine(
                 ::testing::ValuesIn(eltwiseOpTypesBinInp()),
                 ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
                 ::testing::ValuesIn(opTypes()),
-                ::testing::ValuesIn(netType_x64),
+                ::testing::ValuesIn(netType()),
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
@@ -320,7 +308,7 @@ const auto params_4D_dyn_param = ::testing::Combine(
                 ::testing::ValuesIn(eltwiseOpTypesBinDyn()),
                 ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
                 ::testing::ValuesIn(opTypes()),
-                ::testing::ValuesIn(netType_x64),
+                ::testing::ValuesIn(netType()),
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
@@ -344,7 +332,7 @@ const auto params_4D_dyn_param_fusing = ::testing::Combine(
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D())),
         ::testing::ValuesIn(fusingParamsSet_x64));
 
-INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_dyn_param_fusing_x64, EltwiseLayerCPUTest, params_4D_dyn_param_fusing, EltwiseLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_dyn_param_fusing, EltwiseLayerCPUTest, params_4D_dyn_param_fusing, EltwiseLayerCPUTest::getTestCaseName);
 
 //// ============================================ 5D ============================================
 
@@ -354,7 +342,7 @@ const auto params_5D_dyn_const = ::testing::Combine(
                 ::testing::ValuesIn(eltwiseOpTypesBinInp()),
                 ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
                 ::testing::ValuesIn(opTypes()),
-                ::testing::ValuesIn(netType_x64),
+                ::testing::ValuesIn(netType()),
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
@@ -370,7 +358,7 @@ const auto params_5D_dyn_param = ::testing::Combine(
                 ::testing::ValuesIn(eltwiseOpTypesBinDyn()),
                 ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
                 ::testing::ValuesIn(opTypes()),
-                ::testing::ValuesIn(netType_x64),
+                ::testing::ValuesIn(netType()),
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
@@ -380,5 +368,6 @@ const auto params_5D_dyn_param = ::testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_5D_MemOrder_dyn_param_x64, EltwiseLayerCPUTest, params_5D_dyn_param, EltwiseLayerCPUTest::getTestCaseName);
 
+} // namespace
 } // namespace Eltwise
 } // namespace CPULayerTestsDefinitions
