@@ -120,7 +120,7 @@ jobs:
       # install dependencies needed to build CPU plugin for ARM
       sudo -E apt --assume-yes install scons crossbuild-essential-arm64
       # generic dependencies
-      sudo -E apt --assume-yes install cmake ccache ninja-build unzip
+      sudo -E apt --assume-yes install cmake ccache ninja-build unzip fdupes
     displayName: 'Install build dependencies'
 
   - script: |
