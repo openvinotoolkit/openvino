@@ -23,6 +23,11 @@ bool ov::pass::AddPreprocessing::run_on_model(const std::shared_ptr<ov::Model>& 
     for (size_t i = 0; i < model->inputs().size(); i++) {
         ov::Output<const Node> const_input(model->input(i).get_node(), model->input(i).get_index());
         InferenceEngine::InputInfo::Ptr input_info;
+
+        // Skip input if preprocessing already was introduced
+        auto& rt_info = model->input(i).get_rt_info();
+        if (rt_info.find("preprocess_converted") != rt_info.end())
+            continue;
         // I don't remove rt info to have information in InputsInfo about pre-processing in legacy
         // ExecutableNetwork
         ov::legacy_convert::fill_input_info(const_input, input_info);
@@ -110,10 +115,15 @@ bool ov::pass::AddPreprocessing::run_on_model(const std::shared_ptr<ov::Model>& 
 
         if (const_input.get_partial_shape().is_static() && const_input.get_shape().size() == 4)
             preproc.input(i).model().set_layout("NCHW");
+        rt_info["preprocess_converted"] = true;
     }
     for (size_t i = 0; i < model->outputs().size(); i++) {
         ov::Output<const Node> const_output(model->output(i).get_node(), model->output(i).get_index());
         InferenceEngine::DataPtr output_info;
+        // Skip output if postprocessing already was introduced
+        auto& rt_info = model->output(i).get_rt_info();
+        if (rt_info.find("postprocess_converted") != rt_info.end())
+            continue;
         // I don't remove rt info to have information in InputsInfo about pre-processing in legacy
         // ExecutableNetwork
         ov::legacy_convert::fill_output_info(const_output, output_info);
@@ -122,6 +132,7 @@ bool ov::pass::AddPreprocessing::run_on_model(const std::shared_ptr<ov::Model>& 
         if (element_type != model->output(i).get_element_type()) {
             preproc.output(i).tensor().set_element_type(element_type);
         }
+        rt_info["postprocess_converted"] = true;
     }
 
     ov::pass::Manager manager(get_pass_config());

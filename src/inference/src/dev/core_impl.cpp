@@ -595,19 +595,14 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_with_preprocess(ov::Pl
                                                                           const std::shared_ptr<const ov::Model>& model,
                                                                           const ov::RemoteContext& context,
                                                                           const ov::AnyMap& config) const {
-    std::shared_ptr<const ov::Model> preprocessed_model = model;
+    const auto cloned_model = model->clone();
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::AddPreprocessing>();
 
-    if (!is_new_api() && !std::dynamic_pointer_cast<InferenceEngine::IPluginWrapper>(plugin.m_ptr)) {
-        ov::pass::Manager manager;
-        manager.register_pass<ov::pass::AddPreprocessing>();
+    manager.run_passes(cloned_model);
 
-        auto cloned_model = model->clone();
-        manager.run_passes(cloned_model);
-        preprocessed_model = cloned_model;
-    }
-
-    return context._impl ? plugin.compile_model(preprocessed_model, context, config)
-                         : plugin.compile_model(preprocessed_model, config);
+    return context._impl ? plugin.compile_model(cloned_model, context, config)
+                         : plugin.compile_model(cloned_model, config);
 }
 
 ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& model_path,
