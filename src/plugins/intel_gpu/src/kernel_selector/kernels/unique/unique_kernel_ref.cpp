@@ -137,7 +137,7 @@ KernelsData UniqueCountKernelRef::GetKernelsData(const Params& params, const opt
     const auto jit = CreateJit(kernelName, jit_constants, entry_point);
     auto& kernel = kernel_data.kernels.front();
 
-    kernel_data.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
+    kernel_data.update_dispatch_data_func = [](const Params& params, KernelData& kd) {
         const auto& prim_params = dynamic_cast<const unique_count_params&>(params);
         auto dispatchData = SetDefault(prim_params);
         OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
@@ -247,7 +247,7 @@ KernelsData UniqueGatherKernelRef::GetKernelsData(const Params& params, const op
     const auto jit = CreateJit(kernelName, jit_constants, entry_point);
     auto& kernel = kernel_data.kernels.front();
 
-    kernel_data.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
+    kernel_data.update_dispatch_data_func = [](const Params& params, KernelData& kd) {
         const auto& prim_params = dynamic_cast<const unique_gather_params&>(params);
         auto dispatchData = SetDefault(prim_params);
         OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
