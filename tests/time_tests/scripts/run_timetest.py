@@ -58,7 +58,6 @@ def aggregate_stats(stats: dict):
 def prepare_executable_cmd(args: dict):
     """Generate common part of cmd from arguments to execute"""
     return [
-        "export OPENVINO_LOG_LEVEL=4 && ",
         str(args["executable"].resolve(strict=True)),
         "-m", str(args["model"].resolve(strict=True)),
         "-d", args["device"],
@@ -80,7 +79,7 @@ def run_timetest(args: dict, log=None):
     logs = []
     for run_iter in range(args["niter"]):
         tmp_stats_path = tempfile.NamedTemporaryFile().name
-        retcode, msg = cmd_exec(cmd_common + ["-s", str(tmp_stats_path)], log=log)
+        retcode, msg = cmd_exec(cmd_common + ["-s", str(tmp_stats_path)], log=log, env="OPENVINO_LOG_LEVEL=4")
 
         if os.path.exists(tmp_stats_path):
             with open(tmp_stats_path, "r") as file:
