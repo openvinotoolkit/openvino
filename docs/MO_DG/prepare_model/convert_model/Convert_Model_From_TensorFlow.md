@@ -108,9 +108,6 @@ If a model contains operations currently unsupported by OpenVINO™,
 prune these operations by explicit specification of input nodes using the ``--input`` or ``--output``
 options. To determine custom input nodes, visualize a model graph in the TensorBoard.
 
-To generate TensorBoard logs of the graph, use Model Conversion API ``tensorboard_logs`` command-line
-parameter.
-
 TensorFlow 2 SavedModel format has a specific graph structure due to eager execution. In case of
 pruning, find custom input nodes in the ``StatefulPartitionedCall/*`` subgraph.
 
