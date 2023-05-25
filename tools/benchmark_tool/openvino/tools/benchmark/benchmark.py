@@ -59,14 +59,6 @@ class Benchmark:
     def set_cache_dir(self, cache_dir: str):
         self.core.set_property({'CACHE_DIR': cache_dir})
 
-    def set_allow_auto_batching(self, flag: bool):
-        try:
-            self.core.set_property({'ALLOW_AUTO_BATCHING': flag})
-        except RuntimeError:
-            # Not every device supports ALLOW_AUTO_BATCHING property.
-            # For example CPU doesn't support it
-            pass
-
     def read_model(self, path_to_model: str):
         model_filename = os.path.abspath(path_to_model)
         head, ext = os.path.splitext(model_filename)
