@@ -12,6 +12,7 @@
 #include "utils/general_utils.h"
 #include <memory_desc/cpu_memory_desc_utils.h>
 #include "utils/ngraph_utils.hpp"
+#include <partitioned_mem_mgr.h>
 
 #define THROW_ERROR IE_THROW() << "Split layer with name '" << getName() <<"' "
 
@@ -99,12 +100,11 @@ void Split::initSupportedPrimitiveDescriptors() {
 
     InferenceEngine::Precision inpPrecision = getOriginalInputPrecisionAtPort(0);
     const auto axisPrecision = Precision::I32;
-    auto outPrecision = inpPrecision; // the split layer doesn't convert precisions
 
     // Set plain and tailC formats
     std::vector<LayoutType> tdCreatorTypes{ LayoutType::ncsp, LayoutType::nspc };
 
-    // Support channel blocked format
+    // Support channel blocked format only if we manipulate complete blocks
     if (srcShape.getRank() > 2) {
         for (auto item : { std::make_pair(8lu, LayoutType::nCsp8c), std::make_pair(16lu, LayoutType::nCsp16c) }) {
             const auto &blkDims = srcShape.getDims();
@@ -163,43 +163,15 @@ void Split::initSupportedPrimitiveDescriptors() {
         }
     }
 
-    // Optimized inplace case
-    // TODO [DS]: inplace
-    if (!isDynamicNode()) {
+    // in place only makes sense when we split by dense blocks since strided tensors are not supported by most nodes.
+    const auto& parentdDims = inputShapes[0].getDims();
+    if (parentdDims[axis] != Shape::UNDEFINED_DIM &&
+        std::all_of(parentdDims.begin(), parentdDims.begin() + axis, [](size_t dim) { return  dim == 1; })) {
         for (auto refPdIndex : pdIndexesToReuse) {
-            const auto& refConfig = supportedPrimitiveDescriptors[refPdIndex].getConfig();
-            auto config = refConfig;
-            const auto inBlockingDesc = refConfig.inConfs[0].getMemDesc()->as<CpuBlockedMemoryDesc>();
-            const auto& order = inBlockingDesc->getOrder();
-            const auto& blkDims = inBlockingDesc->getBlockDims();
-            auto numOfDim = blkDims.size();
+            auto config = supportedPrimitiveDescriptors[refPdIndex].getConfig();
 
-            SizeVector offsets(numOfDim, 0lu);
-            SizeVector strides(numOfDim);
-            strides.back() = 1lu;
-            size_t offset = Shape::UNDEFINED_DIM;
-            BlockedMemoryDesc::CmpMask mask = BlockedMemoryDesc::SKIP_OFFSET_MASK; // accepts any offset
-
-            for (size_t i = 2; i <= numOfDim; i++) {
-                if (numOfDim - i < axis) {
-                    strides[numOfDim - i] = Shape::UNDEFINED_DIM;
-                    mask.reset(numOfDim - i); // accepts any strides on axis
-                } else {
-                    strides[numOfDim - i] = strides[numOfDim - i + 1] * blkDims[numOfDim - i + 1];
-                }
-            }
-
-            config.inConfs[0].setMemDesc(std::dynamic_pointer_cast<CpuBlockedMemoryDesc>(refConfig.inConfs[0].getMemDesc()), mask);
-
-            for (size_t i = 0; i < outputShapes.size(); i++) {
-                auto outBlockingDesc = refConfig.outConfs[i].getMemDesc()->as<CpuBlockedMemoryDesc>();
-                const auto& outBlkDims = outBlockingDesc->getBlockDims();
-                const auto& shape = outBlockingDesc->getShape();
-                const auto& dims = shape.getStaticDims();
-
+            for (size_t i = 0; i < config.outConfs.size(); i++) {
                 config.outConfs[i].inPlace(0);
-                config.outConfs[i].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(outPrecision, Shape(dims), outBlkDims, order, offset, offsets,
-                                                                                 shape.hasZeroDims() ? SizeVector(numOfDim, 0) : strides), mask);
             }
             supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
         }
@@ -251,7 +223,7 @@ bool Split::needShapeInfer() const {
 }
 
 bool Split::needPrepareParams() const {
-    if (isOptimized()) {
+    if (isInPlace()) {
         return false;
     }
     return needShapeInfer();
@@ -296,11 +268,11 @@ void Split::prepareParams() {
 }
 
 bool Split::isExecutable() const {
-    return !isInputTensorAtPortEmpty(0) && !isOptimized();
+    return !isInPlace() && !isInputTensorAtPortEmpty(0);
 }
 
 void Split::execute(dnnl::stream strm) {
-    if (isOptimized()) {
+    if (isInPlace()) {
         return;
     }
 
@@ -323,67 +295,13 @@ bool Split::created() const {
     return getType() == Type::Split;
 }
 
-bool Split::isOptimized() const {
-    return getSelectedPrimitiveDescriptor() && getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].inPlace() >= 0;
-}
-
 void Split::initOptimalPrimitiveDescriptor() {
+    Node::initOptimalPrimitiveDescriptor();
     auto selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
         THROW_ERROR << "Preferable primitive descriptor is not set.";
+
     auto config = selected_pd->getConfig();
-
-    if (!isOptimized()) {
-        Node::initOptimalPrimitiveDescriptor();
-    } else if (!isDynamicNode() && !isConfigDefined(config)) {
-        for (size_t i = 0; i < config.inConfs.size(); i++) {
-            int num = getParentEdgeAt(i)->getInputNum();
-            if (getParentEdgeAt(i)->getParent()->getSelectedPrimitiveDescriptor()) {
-                if (num >= 0) {
-                    const auto& parentConfig = getParentEdgeAt(i)->getParent()->getSelectedPrimitiveDescriptor()->getConfig().outConfs[num];
-                    if (!parentConfig.getMemDesc()->isDefined() && parentConfig.inPlace() >= 0)
-                        getParentEdgeAt(i)->getParent()->initOptimalPrimitiveDescriptor();
-                    if (parentConfig.getMemDesc()->isDefined() && config.inConfs[i].getPortDesc()->isCompatible(*parentConfig.getPortDesc())) {
-                        config.inConfs[i].setMemDesc(parentConfig.getMemDesc());
-                        continue;
-                    }
-                }
-            }
-
-            // reset mask
-            config.inConfs[i].setMemDesc(config.inConfs[i].getMemDesc());
-        }
-        if (config.outConfs.size() != outputShapes.size())
-            THROW_ERROR << "has invalid config";
-
-        auto firstInBlockingDesc = config.inConfs[0].getMemDesc()->as<BlockedMemoryDesc>();
-        size_t offset = 0;
-        for (size_t i = 0; i < outputShapes.size(); i++) {
-            auto oldDesc = config.outConfs[i].getMemDesc();
-            auto outBlockingDesc = oldDesc->as<BlockedMemoryDesc>();
-            const auto& shape = outBlockingDesc->getShape();
-            const auto& blkDims = outBlockingDesc->getBlockDims();
-            config.outConfs[i].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(
-                                              outBlockingDesc->getPrecision(),
-                                              shape,
-                                              blkDims,
-                                              outBlockingDesc->getOrder(),
-                                              firstInBlockingDesc->getOffsetPadding() + offset,
-                                              firstInBlockingDesc->getOffsetPaddingToData(),
-                                              (shape.hasZeroDims() ? VectorDims(blkDims.size(), 0) :
-                                               firstInBlockingDesc->getStrides())),
-                                          BlockedMemoryDesc::FULL_MASK);
-
-            size_t axisSize = 1;
-            for (size_t j = axis; j < outBlockingDesc->getBlockDims().size(); j++) {
-                axisSize *= outBlockingDesc->getBlockDims()[j];
-            }
-            offset += axisSize;
-        }
-        initDescriptor(config);
-    }
-
-    config = selected_pd->getConfig();
     canUseOptimizedNspc2Ncsp = false;
     IE_ASSERT(config.inConfs.size() > 0);
     const auto inConfDesc = config.inConfs[0].getMemDesc();
@@ -602,6 +520,39 @@ void Split::SplitOptimizedExecutor::exec(const uint8_t* srcData, const std::vect
                    &srcData[srcDataOffsets[i] + j * srcDataStride],
                    dataSize[i]);
     });
+}
+
+void Split::resolveInPlaceEdges() {
+    if (isInPlace()) {
+        auto selected_pd = getSelectedPrimitiveDescriptor();
+        if (selected_pd == nullptr)
+            IE_THROW() << "Preferable primitive descriptor is not set.";
+        auto& config = selected_pd->getConfig();
+        size_t numberOfOutputs = config.outConfs.size();
+        size_t inplaceInpIndx = selected_pd->getConfig().outConfs[0].inPlace();
+        auto baseDim = inputShapes.front().getDims()[axis];
+        IE_ASSERT(baseDim != Shape::UNDEFINED_DIM) << "Split node: " << getName() << " can not use inPlace memory with splitting on dynamic dimention";
+        auto parentEdge = getParentEdgesAtPort(inplaceInpIndx).front();
+        ptrdiff_t offset = 0;
+        for (size_t i = 0; i < numberOfOutputs; ++i) {
+            auto partDim = outputShapes[i].getDims()[axis];
+            IE_ASSERT(partDim != Shape::UNDEFINED_DIM) << "Split node: " << getName() << " can not use inPlace memory with splitting on dynamic dimention";
+            const auto& childEdges = getChildEdgesAtPort(i);
+            for (auto& childEdge : childEdges) {
+                // IE_ASSERT(parentEdge->getStatus() == Edge::Status::NotAllocated) << "Unexpected edge status in node: " <<
+                //     getName() << " with type " << getTypeStr();
+
+                auto memMgr = std::make_shared<PartitionedMemoryMngr>(parentEdge, baseDim, offset, partDim);
+                childEdge->getMemoryPtr().reset(new Memory(getEngine()));
+                childEdge->getMemoryPtr()->Create(selected_pd->getConfig().outConfs[i].getMemDesc(), memMgr);
+
+                childEdge->changeStatus(Edge::Status::Allocated);
+            }
+            offset += partDim;
+        }
+    } else {
+        Node::resolveInPlaceEdges();
+    }
 }
 
 }   // namespace node

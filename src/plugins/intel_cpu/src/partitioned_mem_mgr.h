@@ -11,8 +11,8 @@ namespace intel_cpu {
 
 class PartitionedMemoryMngr : public IMemoryMngrObserver {
 public:
-    PartitionedMemoryMngr(EdgePtr pEdge, size_t part = 1, ptrdiff_t offset_blocks = 0)
-        : m_wEdge(pEdge), m_part(part), m_offset_blocks(offset_blocks) {}
+    PartitionedMemoryMngr(EdgePtr pEdge, size_t total_blocks = 1, ptrdiff_t offset_blocks = 0, size_t size_blocks = 1)
+        : m_wEdge(pEdge), m_total_blocks(total_blocks), m_offset_blocks(offset_blocks), m_size_blocks(size_blocks) {}
 
     void* getRawPtr() const noexcept override;
     void setExtBuff(void* ptr, size_t size) override;
@@ -27,8 +27,9 @@ private:
 
 private:
     EdgeWeakPtr m_wEdge;
-    size_t m_part = 1; // the size of the block as a fraction of the reference memory size
-    ptrdiff_t m_offset_blocks = 0; // offset from the reference memory beginning in blocks
+    size_t m_total_blocks = 1; // size of the parent memory in blocks
+    ptrdiff_t m_offset_blocks = 0; // offset from the base pointer in blocks
+    size_t m_size_blocks = 1; // size of the partition in blocks
     size_t m_size = 0; // self size in bytes
 };
 

@@ -32,7 +32,7 @@ MemoryMngrPtr PartitionedMemoryMngr::sourceMemMngr() const {
 
 void* PartitionedMemoryMngr::getRawPtr() const noexcept {
     if (auto memMngr = sourceMemMngrNoThrow()) {
-        return static_cast<uint8_t*>(memMngr->getRawPtr()) + m_offset_blocks * m_size;
+        return static_cast<uint8_t*>(memMngr->getRawPtr()) + m_offset_blocks * m_size / m_size_blocks;
     }
     return nullptr;
 }
@@ -45,7 +45,7 @@ void PartitionedMemoryMngr::setExtBuff(void* ptr, size_t size) {
 bool PartitionedMemoryMngr::resize(size_t size) {
     auto memMngr = sourceMemMngr();
     m_size = size;
-    return memMngr->resize(size * m_part);
+    return memMngr->resize(m_size * m_total_blocks / m_size_blocks);
 }
 
 bool PartitionedMemoryMngr::hasExtBuffer() const noexcept {
@@ -61,7 +61,9 @@ void PartitionedMemoryMngr::registerMemory(Memory* memPtr) {
 }
 
 void PartitionedMemoryMngr::unregisterMemory(Memory* memPtr) {
-    auto memMngr = sourceMemMngr();
-    memMngr->unregisterMemory(memPtr);
+    if (!m_wEdge.expired()) {
+        auto memMngr = sourceMemMngr();
+        memMngr->unregisterMemory(memPtr);
+    }
 }
 
