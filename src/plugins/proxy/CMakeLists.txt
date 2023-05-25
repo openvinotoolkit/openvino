@@ -8,26 +8,39 @@ set(PUBLIC_HEADERS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 file(GLOB LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 file(GLOB LIBRARY_HEADERS ${PUBLIC_HEADERS_DIR}/*.hpp ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
 
-addVersionDefines(${CMAKE_CURRENT_SOURCE_DIR}/src/plugin.cpp CI_BUILD_NUMBER)
-
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj
 source_group("src" FILES ${LIBRARY_SRC})
 source_group("include" FILES ${LIBRARY_HEADERS})
 
 add_library(${TARGET_NAME} OBJECT ${LIBRARY_SRC} ${LIBRARY_HEADERS})
-target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_OPENVINO_API)
 
-add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
+if(NOT BUILD_SHARED_LIBS)
+    target_compile_definitions(${TARGET_NAME} PUBLIC OPENVINO_STATIC_LIBRARY)
+endif()
 
-ie_mark_target_as_cc(${TARGET_NAME})
+target_compile_definitions(${TARGET_NAME} PRIVATE
+        CI_BUILD_NUMBER=\"${CI_BUILD_NUMBER}\"
+        $<TARGET_PROPERTY:ngraph,INTERFACE_COMPILE_DEFINITIONS>
+        $<TARGET_PROPERTY:inference_engine,INTERFACE_COMPILE_DEFINITIONS>
+        $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_COMPILE_DEFINITIONS>
+        IMPLEMENT_OPENVINO_API)
 
 # LTO
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
-                                          PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src
-                                                  $<BUILD_INTERFACE:$<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>>)
+                                          PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+
+target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
+    $<BUILD_INTERFACE:$<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>>)
+
+add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
+
+ie_mark_target_as_cc(${TARGET_NAME})
+
+ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
+                    SOURCE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}")
 
 if(ENABLE_TESTS)
     add_subdirectory(tests)
