@@ -337,11 +337,6 @@ network::network(program::ptr program, const ExecutionConfig& config, stream::pt
     build_exec_order();
     validate_primitives();
     add_default_output_chains();
-
-    if (is_dynamic()) {
-        GPU_DEBUG_DEFINE_MEM_LOGGER("dynamic_network_initialization");
-        _in_mem_kernels_cache = std::unique_ptr<KernelsCache>(new KernelsCache(_in_mem_kernels_cache_capacity));
-    }
 }
 
 network::network(engine& engine,
@@ -376,6 +371,8 @@ network::network(cldnn::BinaryInputBuffer& ib, const ExecutionConfig& config, st
     , _is_primary_stream(is_primary_stream)
     , _reset_arguments(true) {
     net_id = get_unique_net_id();
+    if (is_primary_stream)
+        ib.new_network_added();
 
     kernels_cache kernels_cache(get_engine(), config, 0, nullptr, {""});
     ib >> kernels_cache;
@@ -537,7 +534,8 @@ void network::save(cldnn::BinaryOutputBuffer& ob) {
     kernels_cache.reset();
     for (const auto& p_inst : _exec_order) {
         if (p_inst->get_impl() != nullptr) {
-            kernels_cache.add_to_cached_kernels(p_inst->get_impl()->get_kernels());
+            auto const_impl = static_cast<const primitive_impl*>(p_inst->get_impl());
+            kernels_cache.add_to_cached_kernels(const_impl->get_kernels());
         }
     }
     ob << kernels_cache;

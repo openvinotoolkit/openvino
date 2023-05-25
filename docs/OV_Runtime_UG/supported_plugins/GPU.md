@@ -338,9 +338,8 @@ Preprocessing Acceleration
 +++++++++++++++++++++++++++++++++++++++
 
 The GPU plugin has the following additional preprocessing options:
-- The ``ov::intel_gpu::memory_type::surface`` and ``ov::intel_gpu::memory_type::buffer`` values for the 
-  ``ov::preprocess::InputTensorInfo::set_memory_type()`` preprocessing method. These values are intended 
-  to be used to provide a hint for the plugin on the type of input Tensors that will be set in runtime to generate proper kernels.
+
+- The ``ov::intel_gpu::memory_type::surface`` and ``ov::intel_gpu::memory_type::buffer`` values for the ``ov::preprocess::InputTensorInfo::set_memory_type()`` preprocessing method. These values are intended to be used to provide a hint for the plugin on the type of input Tensors that will be set in runtime to generate proper kernels.
 
 .. tab-set::
 
@@ -400,38 +399,38 @@ Read-write properties
 
 All parameters must be set before calling ``ov::Core::compile_model()`` in order to take effect or passed as additional argument to ``ov::Core::compile_model()``.
 
-- ov::cache_dir
-- ov::enable_profiling
-- ov::hint::model_priority
-- ov::hint::performance_mode
-- ov::hint::execution_mode
-- ov::hint::num_requests
-- ov::hint::inference_precision
-- ov::num_streams
-- ov::compilation_num_threads
-- ov::device::id
-- ov::intel_gpu::hint::host_task_priority
-- ov::intel_gpu::hint::queue_priority
-- ov::intel_gpu::hint::queue_throttle
-- ov::intel_gpu::enable_loop_unrolling
+- ``ov::cache_dir``
+- ``ov::enable_profiling``
+- ``ov::hint::model_priority``
+- ``ov::hint::performance_mode``
+- ``ov::hint::execution_mode``
+- ``ov::hint::num_requests``
+- ``ov::hint::inference_precision``
+- ``ov::num_streams``
+- ``ov::compilation_num_threads``
+- ``ov::device::id``
+- ``ov::intel_gpu::hint::host_task_priority``
+- ``ov::intel_gpu::hint::queue_priority``
+- ``ov::intel_gpu::hint::queue_throttle``
+- ``ov::intel_gpu::enable_loop_unrolling``
 
 Read-only Properties
 +++++++++++++++++++++++++++++++++++++++
 
-- ov::supported_properties
-- ov::available_devices
-- ov::range_for_async_infer_requests
-- ov::range_for_streams
-- ov::optimal_batch_size
-- ov::max_batch_size
-- ov::device::full_name
-- ov::device::type
-- ov::device::gops
-- ov::device::capabilities
-- ov::intel_gpu::device_total_mem_size
-- ov::intel_gpu::uarch_version
-- ov::intel_gpu::execution_units_count
-- ov::intel_gpu::memory_statistics
+- ``ov::supported_properties``
+- ``ov::available_devices``
+- ``ov::range_for_async_infer_requests``
+- ``ov::range_for_streams``
+- ``ov::optimal_batch_size``
+- ``ov::max_batch_size``
+- ``ov::device::full_name``
+- ``ov::device::type``
+- ``ov::device::gops``
+- ``ov::device::capabilities``
+- ``ov::intel_gpu::device_total_mem_size``
+- ``ov::intel_gpu::uarch_version``
+- ``ov::intel_gpu::execution_units_count``
+- ``ov::intel_gpu::memory_statistics``
 
 Limitations
 #######################################
