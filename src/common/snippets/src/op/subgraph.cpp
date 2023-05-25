@@ -38,6 +38,7 @@
 #include "snippets/lowered/pass/move_result_out_of_loop.hpp"
 #include "snippets/lowered/pass/clean_repeated_ptr_shifts.hpp"
 #include "snippets/lowered/pass/identify_buffers.hpp"
+#include "snippets/lowered/pass/validate_loops.hpp"
 
 #include "transformations/utils/utils.hpp"
 
@@ -528,6 +529,7 @@ void snippets::op::Subgraph::control_flow_transformations(lowered::LinearIR& lin
     common_pipeline.register_pass<lowered::pass::MoveResultOutOfLoop>();
     common_pipeline.register_pass<lowered::pass::InsertBuffers>(buffer_allocation_rank);
     common_pipeline.register_pass<lowered::pass::InsertLoadStore>(vector_size);
+    //common_pipeline.register_pass<lowered::pass::ValidateLoops>();
     common_pipeline.register_pass<lowered::pass::InitLoops>();
     common_pipeline.register_pass<lowered::pass::MoveScalarToConsumer>();
     common_pipeline.register_pass<lowered::pass::LoadMoveBroadcastToBroadcastLoad>();

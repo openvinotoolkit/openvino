@@ -54,17 +54,6 @@ public:
 
     std::vector<size_t> get_loop_ids() const;
     void set_loop_ids(const std::vector<size_t>& loops);
-    // Insert loop ID before inner ID in vector of identifiers so loop with inner ID is inside new Loop
-    //   loop_ids: [.., id, inner, ..]
-    // Default value of inner ID - SIZE_MAX - it means, that the new Loop is the most outer Loop
-    void add_outer_loop_id(size_t id, size_t inner = SIZE_MAX);
-    void add_outer_loop_ids(const std::vector<size_t>& ids, size_t inner);
-    // Insert loop ID after outer ID in vector of identifiers so new Loop is inside Loop with outer ID
-    //   loop_ids: [.., outer, id, ..]
-    // Default value of outer ID - SIZE_MAX - it means, that the new Loop is the most inner Loop
-    void add_inner_loop_id(size_t id, size_t outer = SIZE_MAX);
-    void replace_loop_id(size_t prev_id, size_t new_id);
-    void remove_loop_id(size_t id);
 
 protected:
     // Note: The constructor initialization is private since an expression can be created only by Linear IR.
@@ -80,6 +69,7 @@ protected:
     std::vector<PortDescriptorPtr> m_input_port_descriptors{};
     std::vector<PortDescriptorPtr> m_output_port_descriptors{};
     // The order Loops identifies: Outer ---> Inner
+    // Note: The loops with the same dimension index (splitted dimension) should be successively nested
     std::vector<size_t> m_loop_ids;
 };
 using ExpressionPtr = std::shared_ptr<Expression>;

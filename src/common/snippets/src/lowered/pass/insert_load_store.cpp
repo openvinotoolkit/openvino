@@ -30,7 +30,7 @@ void InsertLoadStore::update_loop(const LinearIR::LoopManager::LoopInfoPtr& loop
                                   const ExpressionPort& actual_port, const std::vector<ExpressionPort>& target_ports, bool is_entry) {
     auto& ports = is_entry ? loop_info->entry_points : loop_info->exit_points;
     auto port_it = std::find_if(ports.begin(), ports.end(),
-                                [&actual_port](const LoopManager::LoopPoint& point) { return point.port == actual_port; });
+                                [&actual_port](const LoopManager::LoopPort& point) { return point.port == actual_port; });
     if (port_it == ports.end())
         return;
     port_it = ports.erase(port_it);
@@ -107,12 +107,16 @@ bool InsertLoadStore::insert_store(LinearIR& linear_ir, const LinearIR::constExp
 
     // Need to update all the corresponding Loops with the same Exit Point
     const auto prev_exit_point = parent_output;
-    // The previous exit point byt one output port can have several consumers that can be potential exit points
+    // The previous exit point but one output port can have several consumers that can be potential exit points
     // So we should verify on the possible future exit points
     const auto consumer_inputs = input_connector->get_consumers();
     const auto should_be_saved = std::any_of(consumer_inputs.begin(), consumer_inputs.end(),
-                                [](const ExpressionPort& input_port) {
-                                    const auto& node = input_port.get_expr()->get_node();
+                                [&data_expr](const ExpressionPort& input_port) {
+                                    const auto expr = input_port.get_expr();
+                                    // Skip the current data expr since the input of the expr is changed to Store expr
+                                    if (expr == data_expr)
+                                        return false;
+                                    const auto& node = expr->get_node();
                                     return ov::is_type<ov::op::v0::Result>(node) || ov::is_type<op::Buffer>(node);
                                 });
     const auto new_exit_point = store_expr->get_output_port(0);

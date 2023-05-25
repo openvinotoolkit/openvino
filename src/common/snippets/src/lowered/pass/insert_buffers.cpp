@@ -22,7 +22,6 @@ LinearIR::constExprIt InsertBuffers::insertion_position(const LinearIR& linear_i
                                                         const ExpressionPtr& up_expr, const ExpressionPtr& down_expr) {
     const auto up_loops = up_expr->get_loop_ids();
     const auto down_loops = down_expr->get_loop_ids();
-    OPENVINO_ASSERT(up_loops != down_loops, "Buffer isn't supported in Inner Loop at the moment!");
     // If upper expression is out of Loop, we can insert Buffer implicitly after him
     if (up_loops.empty()) {
         const auto it = std::find(linear_ir.cbegin(), linear_ir.cend(), up_expr);

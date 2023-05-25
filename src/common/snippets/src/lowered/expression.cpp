@@ -106,52 +106,6 @@ void Expression::set_loop_ids(const std::vector<size_t>& loops) {
     m_loop_ids = loops;
 }
 
-void Expression::add_outer_loop_id(size_t id, size_t inner) {
-    OPENVINO_ASSERT(std::find(m_loop_ids.cbegin(), m_loop_ids.cend(), id) == m_loop_ids.cend(),
-                    "Expression cannot have several the same Loop IDs");
-    auto insert_it = m_loop_ids.cbegin();
-    if (inner != SIZE_MAX) {
-        insert_it = std::find(m_loop_ids.cbegin(), m_loop_ids.cend(), inner);
-        OPENVINO_ASSERT(insert_it != m_loop_ids.cend(), "Failed add outer loop ID: Inner ID hasn't been found");
-    }
-    m_loop_ids.insert(insert_it, id);
-}
-
-void Expression::add_outer_loop_ids(const std::vector<size_t>& ids, size_t inner) {
-    const auto insert_it = std::find(m_loop_ids.cbegin(), m_loop_ids.cend(), inner);
-    OPENVINO_ASSERT(insert_it != m_loop_ids.cend(), "Failed add outer loop IDs: Inner ID hasn't been found");
-    m_loop_ids.insert(insert_it, ids.cbegin(), ids.cend());
-    std::unordered_set<size_t> s(m_loop_ids.cbegin(), m_loop_ids.cend());
-    OPENVINO_ASSERT(s.size() == m_loop_ids.size(), "Loop IDs must be unique");
-}
-
-void Expression::add_inner_loop_id(size_t id, size_t outer) {
-    OPENVINO_ASSERT(std::find(m_loop_ids.cbegin(), m_loop_ids.cend(), id) == m_loop_ids.cend(),
-                    "Expression cannot have several the same Loop IDs");
-    auto insert_it = m_loop_ids.cend();
-    if (outer != SIZE_MAX) {
-        insert_it = std::find(m_loop_ids.cbegin(), m_loop_ids.cend(), outer);
-        OPENVINO_ASSERT(insert_it != m_loop_ids.cend(), "Failed add outer loop ID: Inner ID hasn't been found");
-        insert_it = std::next(insert_it);
-    }
-    m_loop_ids.insert(insert_it, id);
-}
-
-void Expression::replace_loop_id(size_t prev_id, size_t new_id) {
-    OPENVINO_ASSERT(std::find(m_loop_ids.cbegin(), m_loop_ids.cend(), new_id) == m_loop_ids.cend(),
-                    "Expression already has the Loop with ID " + std::to_string(new_id));
-    auto it = std::find(m_loop_ids.begin(), m_loop_ids.end(), prev_id);
-    OPENVINO_ASSERT(it != m_loop_ids.end(),
-                    "Expression doesn't have the Loop with ID " + std::to_string(prev_id));
-    (*it) = new_id;
-}
-
-void Expression::remove_loop_id(size_t id) {
-    const auto it = std::find(m_loop_ids.cbegin(), m_loop_ids.cend(), id);
-    OPENVINO_ASSERT(it != m_loop_ids.cend(), "Expression doesn't have the Loop with ID " + std::to_string(id));
-    m_loop_ids.erase(it);
-}
-
 ExpressionPort Expression::get_input_port(size_t i) {
     return ExpressionPort(this->shared_from_this(), ExpressionPort::Type::Input, i);
 }

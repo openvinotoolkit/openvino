@@ -108,13 +108,13 @@ bool SoftmaxDecomposition::run(LinearIR& linear_ir) {
                     expr->set_loop_ids(softmax_loop_ids);
                     continue;
                 }
-                expr->add_outer_loop_ids(softmax_loop_ids, expr->get_loop_ids().back());
+                loop_manager->insert_loop_ids(expr, softmax_loop_ids, true, expr->get_loop_ids().back());
             }
 
-            auto update_loop_bounds = [&softmax_expr](std::vector<LinearIR::LoopManager::LoopPoint>& points,
+            auto update_loop_bounds = [&softmax_expr](std::vector<LinearIR::LoopManager::LoopPort>& points,
                                                      const std::vector<ExpressionPort>& new_points,
                                                      const LinearIR::LoopManager::LoopInfoPtr& loop_info) {
-                auto entry_found = std::find_if(points.begin(), points.end(), [&softmax_expr](const LinearIR::LoopManager::LoopPoint& point) {
+                auto entry_found = std::find_if(points.begin(), points.end(), [&softmax_expr](const LinearIR::LoopManager::LoopPort& point) {
                     return point.port.get_expr() == softmax_expr;
                 });
                 if (entry_found != points.end()) {

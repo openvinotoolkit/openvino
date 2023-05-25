@@ -42,18 +42,18 @@ bool FuseLoops::can_be_fused(const LoopInfoPtr& loop_current, const LoopInfoPtr&
     return supported_work_amount && supported_increment && supported_dim_idxs;
 }
 
-void FuseLoops::fuse_points(std::vector<LinearIR::LoopManager::LoopPoint>& exit_points,
-                            std::vector<LinearIR::LoopManager::LoopPoint>& entry_points,
+void FuseLoops::fuse_points(std::vector<LinearIR::LoopManager::LoopPort>& exit_points,
+                            std::vector<LinearIR::LoopManager::LoopPort>& entry_points,
                             LinearIR::constExprIt loop_begin_pos, LinearIR::constExprIt loop_end_pos) {
-    std::vector<LinearIR::LoopManager::LoopPoint> new_exit_points;
+    std::vector<LinearIR::LoopManager::LoopPort> new_exit_points;
     for (const auto& exit_point : exit_points) {
         const auto consumers_inputs = exit_point.port.get_connected_ports();
 
-        std::set<LinearIR::LoopManager::LoopPoint> mapped_entry_points;
+        std::set<LinearIR::LoopManager::LoopPort> mapped_entry_points;
         std::set<ExpressionPtr> outside_consumers;
         for (const auto& consumer_input : consumers_inputs) {
             const auto entry_point_it = std::find_if(entry_points.begin(), entry_points.end(),
-                                                     [&consumer_input](const LoopManager::LoopPoint& point) { return point.port == consumer_input; });
+                                                     [&consumer_input](const LoopManager::LoopPort& point) { return point.port == consumer_input; });
             if (entry_point_it != entry_points.end()) {
                 mapped_entry_points.insert(*entry_point_it);
                 continue;
@@ -130,7 +130,7 @@ bool FuseLoops::fuse_upper_into_current(LinearIR& linear_ir, const LinearIR::Loo
         // but for markup we need have the expression from the target Loop.
         // Because of that we manually increment iterator before moving
         it = std::next(it);
-        expr->replace_loop_id(target_loop_id, current_loop_id);
+        loop_manager->replace_loop_id(expr, target_loop_id, current_loop_id);
         if (is_move_needed)
             linear_ir.move(expr_it, insertion_place);
     }
@@ -141,9 +141,9 @@ bool FuseLoops::fuse_upper_into_current(LinearIR& linear_ir, const LinearIR::Loo
     // Update work_amount for Loop (increment is constant because increments must be the identical for fusion):
     loop_current->work_amount = std::max(loop_current->work_amount, loop_target->work_amount);
 
-    std::vector<LoopManager::LoopPoint> new_entries = target_entry_points;
+    std::vector<LoopManager::LoopPort> new_entries = target_entry_points;
     new_entries.insert(new_entries.end(), current_entry_points.begin(), current_entry_points.end());
-    std::vector<LoopManager::LoopPoint> new_exits = target_exit_points;
+    std::vector<LoopManager::LoopPort> new_exits = target_exit_points;
     new_exits.insert(new_exits.end(), current_exit_points.begin(), current_exit_points.end());
 
     loop_current->entry_points = new_entries;
@@ -196,7 +196,7 @@ bool FuseLoops::fuse_lower_into_current(LinearIR& linear_ir, const LinearIR::Loo
         // but for markup we need have the expression from the target Loop.
         // Because of that we manually increment iterator before moving
         it = std::next(it);
-        expr->replace_loop_id(target_loop_id, current_loop_id);
+        loop_manager->replace_loop_id(expr, target_loop_id, current_loop_id);
         if (is_move_needed)
             linear_ir.move(expr_it, insertion_place);
     }
@@ -208,9 +208,9 @@ bool FuseLoops::fuse_lower_into_current(LinearIR& linear_ir, const LinearIR::Loo
     // Update work_amount for Loop (increment is constant because increments must be the identical for fusion):
     loop_current->work_amount = std::max(loop_current->work_amount, loop_target->work_amount);
 
-    std::vector<LoopManager::LoopPoint>& new_entries = current_entry_points;
+    std::vector<LoopManager::LoopPort>& new_entries = current_entry_points;
     new_entries.insert(new_entries.end(), target_entry_points.begin(), target_entry_points.end());
-    std::vector<LoopManager::LoopPoint>& new_exits = current_exit_points;
+    std::vector<LoopManager::LoopPort>& new_exits = current_exit_points;
     new_exits.insert(new_exits.end(), target_exit_points.begin(), target_exit_points.end());
 
     loop_current->entry_points = new_entries;

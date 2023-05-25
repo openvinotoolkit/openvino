@@ -16,8 +16,6 @@ namespace ov {
 namespace snippets {
 namespace lowered {
 
-int64_t LinearIR::LoopManager::LoopPoint::UNDEFINED = INT64_MAX;
-
 LinearIR::LoopManager::LoopInfo::LoopInfo(size_t work_amount, size_t increment, size_t dim_idx,
                                           const std::vector<ExpressionPort>& entries, const std::vector<ExpressionPort>& exits)
     : work_amount(work_amount), increment(increment), dim_idx(dim_idx) {
@@ -31,26 +29,25 @@ LinearIR::LoopManager::LoopInfo::LoopInfo(size_t work_amount, size_t increment, 
 
 std::vector<ExpressionPort> LinearIR::LoopManager::LoopInfo::get_entry_ports() const {
     std::vector<ExpressionPort> ports;
-    std::transform(entry_points.cbegin(), entry_points.cend(), std::back_inserter(ports), [](const LoopPoint& point) { return point.port; });
+    std::transform(entry_points.cbegin(), entry_points.cend(), std::back_inserter(ports), [](const LoopPort& point) { return point.port; });
     return ports;
 }
 std::vector<ExpressionPort> LinearIR::LoopManager::LoopInfo::get_exit_ports() const {
     std::vector<ExpressionPort> ports;
-    std::transform(exit_points.cbegin(), exit_points.cend(), std::back_inserter(ports), [](const LoopPoint& point) { return point.port; });
+    std::transform(exit_points.cbegin(), exit_points.cend(), std::back_inserter(ports), [](const LoopPort& point) { return point.port; });
     return ports;
 }
 
-bool operator==(const LinearIR::LoopManager::LoopPoint& lhs, const LinearIR::LoopManager::LoopPoint& rhs) {
+bool operator==(const LinearIR::LoopManager::LoopPort& lhs, const LinearIR::LoopManager::LoopPort& rhs) {
     if (&lhs == &rhs)
         return true;
-    return lhs.port == rhs.port && lhs.ptr_increment == rhs.ptr_increment && lhs.finalization_offset == rhs.finalization_offset;
+    return lhs.port == rhs.port && lhs.is_incremented == rhs.is_incremented;
 }
-bool operator!=(const LinearIR::LoopManager::LoopPoint& lhs, const LinearIR::LoopManager::LoopPoint& rhs) {
+bool operator!=(const LinearIR::LoopManager::LoopPort& lhs, const LinearIR::LoopManager::LoopPort& rhs) {
     return !(lhs == rhs);
 }
-bool operator<(const LinearIR::LoopManager::LoopPoint& lhs, const LinearIR::LoopManager::LoopPoint& rhs) {
-    // Compare only ports is enough since it's needed only in Set Comparator. Several the same ports cannot be there
-    return lhs.port < rhs.port;
+bool operator<(const LinearIR::LoopManager::LoopPort& lhs, const LinearIR::LoopManager::LoopPort& rhs) {
+    return (lhs.port < rhs.port) || (lhs.port == rhs.port && (lhs.is_incremented < rhs.is_incremented));
 }
 
 size_t LinearIR::LoopManager::add_loop_info(const LoopInfoPtr &loop) {
@@ -85,8 +82,8 @@ void LinearIR::LoopManager::get_loop_bounds(const LinearIR &linear_ir,
 }
 
 void LinearIR::LoopManager::get_loop_bounds(const LinearIR &linear_ir,
-                                            const std::vector<LoopPoint>& entries,
-                                            const std::vector<LoopPoint>& exits,
+                                            const std::vector<LoopPort>& entries,
+                                            const std::vector<LoopPort>& exits,
                                             LinearIR::constExprIt &loop_begin_pos,
                                             LinearIR::constExprIt &loop_end_pos,
                                             size_t loop_id) {
@@ -218,8 +215,50 @@ void LinearIR::LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
     const auto loop_info = std::make_shared<LoopManager::LoopInfo>(work_amount, work_amount_increment, dim_idx, entries, exits);
     const auto loop_id = this->add_loop_info(loop_info);
     for (auto expr_it = loop_begin_pos; expr_it != loop_end_pos; ++expr_it) {
-        expr_it->get()->add_outer_loop_id(loop_id);
+        insert_loop_id(*expr_it, loop_id);
     }
+}
+
+
+void LinearIR::LoopManager::insert_loop_id(const ExpressionPtr& expr, size_t new_id, bool before, size_t target_id) {
+    auto& loop_ids = expr->m_loop_ids;
+    OPENVINO_ASSERT(std::find(loop_ids.cbegin(), loop_ids.cend(), new_id) == loop_ids.cend(),
+                    "Expression cannot have several the same Loop IDs");
+    auto insert_it = before ? loop_ids.cbegin() : loop_ids.cend();
+    if (target_id != SIZE_MAX) {
+        insert_it = std::find(loop_ids.cbegin(), loop_ids.cend(), target_id);
+        OPENVINO_ASSERT(insert_it != loop_ids.cend(), "Failed add loop ID: target ID hasn't been found");
+    }
+    loop_ids.insert(insert_it, new_id);
+}
+
+void LinearIR::LoopManager::insert_loop_ids(const ExpressionPtr& expr, const std::vector<size_t>& new_ids, bool before, size_t target_id) {
+    auto& loop_ids = expr->m_loop_ids;
+    auto insert_it = before ? loop_ids.cbegin() : loop_ids.cend();
+    if (target_id != SIZE_MAX) {
+        insert_it = std::find(loop_ids.cbegin(), loop_ids.cend(), target_id);
+        OPENVINO_ASSERT(insert_it != loop_ids.cend(), "Failed add loop ID: target ID hasn't been found");
+    }
+    loop_ids.insert(insert_it, new_ids.cbegin(), new_ids.cend());
+    std::unordered_set<size_t> s(loop_ids.cbegin(), loop_ids.cend());
+    OPENVINO_ASSERT(s.size() == loop_ids.size(), "Loop IDs must be unique");
+}
+
+void LinearIR::LoopManager::replace_loop_id(const ExpressionPtr& expr, size_t prev_id, size_t new_id) {
+    auto& loop_ids = expr->m_loop_ids;
+    OPENVINO_ASSERT(std::find(loop_ids.cbegin(), loop_ids.cend(), new_id) == loop_ids.cend(),
+                    "Expression already has the Loop with ID " + std::to_string(new_id));
+    auto it = std::find(loop_ids.begin(), loop_ids.end(), prev_id);
+    OPENVINO_ASSERT(it != loop_ids.end(),
+                    "Expression doesn't have the Loop with ID " + std::to_string(prev_id));
+    (*it) = new_id;
+}
+
+void LinearIR::LoopManager::remove_loop_id(const ExpressionPtr& expr, size_t id) {
+    auto& loop_ids = expr->m_loop_ids;
+    const auto it = std::find(loop_ids.cbegin(), loop_ids.cend(), id);
+    OPENVINO_ASSERT(it != loop_ids.cend(), "Expression doesn't have the Loop with ID " + std::to_string(id));
+    loop_ids.erase(it);
 }
 
 }// namespace lowered

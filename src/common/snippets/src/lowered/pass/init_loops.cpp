@@ -14,11 +14,12 @@ namespace snippets {
 namespace lowered {
 namespace pass {
 
+using LoopPort = LinearIR::LoopManager::LoopPort;
+
 namespace {
-void filter_ports(LinearIR& linear_ir,
-                  std::vector<LinearIR::LoopManager::LoopPoint>& loop_entries, std::vector<LinearIR::LoopManager::LoopPoint>& loop_exits) {
-    std::vector<LinearIR::LoopManager::LoopPoint> new_loop_entries;
-    std::vector<LinearIR::LoopManager::LoopPoint> new_loop_exits;
+void filter_ports(std::vector<LoopPort>& loop_entries, std::vector<LoopPort>& loop_exits) {
+    std::vector<LoopPort> new_loop_entries;
+    std::vector<LoopPort> new_loop_exits;
     new_loop_entries.reserve(loop_entries.size());
     new_loop_exits.reserve(loop_exits.size());
 
@@ -42,23 +43,15 @@ void filter_ports(LinearIR& linear_ir,
     loop_exits = new_loop_exits;
 }
 
-int64_t get_dim_stride(const size_t dim, const std::vector<size_t>& layout, const std::vector<size_t>& shape) {
-    int64_t stride = 1;
-    for (int i = static_cast<int>(layout.size()) - 1; i >= 0; i--) {
-        if (layout[i] == dim)
-            break;
-        stride *= static_cast<int64_t>(shape[layout[i]]);
-    }
-    return stride;
-}
-void add_stride_from_splitted_loops(int64_t& increment, const LinearIR::LoopManagerPtr& loop_manager,
-                                    const std::vector<size_t>& loop_ids, size_t loop_id, size_t dim_idx) {
+int64_t get_dim_stride(const LinearIR::LoopManagerPtr& loop_manager, const std::vector<size_t>& loop_ids,
+                       size_t loop_id, size_t dim, size_t dim_idx,
+                       const std::vector<size_t>& layout, const std::vector<size_t>& shape) {
     // Example, shape = [3, 384, 64], loop_ids = [0, 1, 2]
     // Loop Info:                            | Pointer increments:
     // - 0: work_amount = 12, dim_idx = 1    | 1 x 64 x 32 - 32 is work_amount of inner splitted Loop
     // - 1: work_amount = 32, dim_idx = 1    | 1 x 64
     // - 2: work_amount = 64, dim_idx = 0    | 1
-
+    // Note that dim_idx enumerates dimensions from the end: 64, 384, 3
     // Firstly, we find all Loop IDs with the same dimension index.
     // The Loop Info's with the same dimension index mean that these Loops split this dimension together.
     // It's possible in Brgemm Blocking by M, for example
@@ -66,22 +59,31 @@ void add_stride_from_splitted_loops(int64_t& increment, const LinearIR::LoopMana
     // Inner -> Outer
     for (auto it = loop_ids.rbegin(); it != loop_ids.rend(); ++it) {
         const auto id = *it;
-        if (loop_manager->get_loop_info(id)->dim_idx == dim_idx)
+        if (loop_manager->get_loop_info(id)->dim_idx == dim_idx) {
             splitted_loops.push_back(id);
+        }
     }
-    // Secondly, we added work amount of inner splitted Loops
-    for (auto id : splitted_loops) {
-        if (id == loop_id)
+
+    int64_t stride = 1;
+    for (int i = static_cast<int>(layout.size()) - 1; i >= 0; i--) {
+        if (layout[i] == dim) {
+            // We added work amount of inner splitted Loops
+            for (auto id : splitted_loops) {
+                if (id == loop_id)
+                    break;
+                stride *= loop_manager->get_loop_info(id)->work_amount;
+            }
             break;
-        increment *= loop_manager->get_loop_info(id)->work_amount;
+        }
+        stride *= static_cast<int64_t>(shape[layout[i]]);
     }
+    return stride;
 }
 }  // namespace
 
 InitLoops::InitLoops() : Pass() {}
-
-std::vector<int64_t> InitLoops::init_ptr_increments(std::vector<LinearIR::LoopManager::LoopPoint>& loop_inputs,
-                                                    std::vector<LinearIR::LoopManager::LoopPoint>& loop_outputs,
+std::vector<int64_t> InitLoops::init_ptr_increments(std::vector<LoopPort>& loop_inputs,
+                                                    std::vector<LoopPort>& loop_outputs,
                                                     const LinearIR::LoopManagerPtr& loop_manager,
                                                     size_t loop_id, size_t work_amount, size_t dim_idx) {
     std::vector<int64_t> ptr_increments;
@@ -95,16 +97,12 @@ std::vector<int64_t> InitLoops::init_ptr_increments(std::vector<LinearIR::LoopMa
         const auto& layout = port.get_descriptor_ptr()->get_layout();
         const auto& shape = port.get_descriptor_ptr()->get_shape();
         const auto& dim = *(layout.rbegin() + dim_idx);
-        // If ptr increment has not been manually set
-        if (loop_input.ptr_increment == LinearIR::LoopManager::LoopPoint::UNDEFINED) {
-            loop_input.ptr_increment = 0;
-            // If relevant dim is not broadcasted, then ptr_increment is the dim stride in the new layout
-            if (!(shape[dim] == 1 && work_amount != 1)) {
-                loop_input.ptr_increment = get_dim_stride(dim, source.get_descriptor_ptr()->get_layout(), shape);
-                add_stride_from_splitted_loops(loop_input.ptr_increment, loop_manager, loop_ids, loop_id, dim_idx);
-            }
+        int64_t ptr_increment = 0;
+        // If relevant dim is not broadcasted, then ptr_increment is the dim stride in the new layout
+        if (loop_input.is_incremented && !(shape[dim] == 1 && work_amount != 1)) {
+            ptr_increment = get_dim_stride(loop_manager, loop_ids, loop_id, dim, dim_idx, source.get_descriptor_ptr()->get_layout(), shape);
         }
-        ptr_increments.push_back(loop_input.ptr_increment);
+        ptr_increments.push_back(ptr_increment);
     }
 
     for (auto& loop_output : loop_outputs) {
@@ -113,45 +111,27 @@ std::vector<int64_t> InitLoops::init_ptr_increments(std::vector<LinearIR::LoopMa
         const auto& layout = port.get_descriptor_ptr()->get_layout();
         const auto& shape = port.get_descriptor_ptr()->get_shape();
         const auto& dim = *(layout.rbegin() + dim_idx);
-        // If ptr increment has not been manually set
-        if (loop_output.ptr_increment == LinearIR::LoopManager::LoopPoint::UNDEFINED) {
-            loop_output.ptr_increment = 0;
-            // If relevant dim is not broadcasted, then ptr_increment is the dim stride in the new layout
-            if (!(shape[dim] == 1 && work_amount != 1)) {
-                loop_output.ptr_increment = get_dim_stride(dim, layout, shape);
-                add_stride_from_splitted_loops(loop_output.ptr_increment, loop_manager, loop_ids, loop_id, dim_idx);
-            }
+        int64_t ptr_increment = 0;
+        // If relevant dim is not broadcasted, then ptr_increment is the dim stride in the new layout
+        if (loop_output.is_incremented && !(shape[dim] == 1 && work_amount != 1)) {
+            ptr_increment = get_dim_stride(loop_manager, loop_ids, loop_id, dim, dim_idx, layout, shape);
         }
-        ptr_increments.push_back(loop_output.ptr_increment);
+        ptr_increments.push_back(ptr_increment);
     }
     return ptr_increments;
 }
 
-std::vector<int64_t> InitLoops::init_finalization_offsets(std::vector<LinearIR::LoopManager::LoopPoint>& loop_inputs,
-                                                          std::vector<LinearIR::LoopManager::LoopPoint>& loop_outputs,
-                                                          size_t work_amount) {
+std::vector<int64_t> InitLoops::init_finalization_offsets(const std::vector<int64_t>& ptr_increments, size_t work_amount) {
     std::vector<int64_t> finalization_offsets;
-    finalization_offsets.reserve(loop_inputs.size() + loop_outputs.size());
-
-    for (auto& loop_input : loop_inputs) {
-        // If finalization offset has not been manually set
-        if (loop_input.finalization_offset == LinearIR::LoopManager::LoopPoint::UNDEFINED) {
-            loop_input.finalization_offset = -1 * loop_input.ptr_increment * work_amount;
-        }
-        finalization_offsets.push_back(loop_input.finalization_offset);
-    }
-    for (auto& loop_output : loop_outputs) {
-        // If finalization offset has not been manually set
-        if (loop_output.finalization_offset == LinearIR::LoopManager::LoopPoint::UNDEFINED) {
-            loop_output.finalization_offset = -1 * loop_output.ptr_increment * work_amount;
-        }
-        finalization_offsets.push_back(loop_output.finalization_offset);
+    finalization_offsets.resize(ptr_increments.size());
+    for (size_t i = 0; i < ptr_increments.size(); ++i) {
+        finalization_offsets[i] = -1 * ptr_increments[i] * work_amount;
     }
     return finalization_offsets;
 }
 
-std::vector<int64_t> InitLoops::init_element_type_sizes(const std::vector<LinearIR::LoopManager::LoopPoint>& loop_inputs,
-                                                        const std::vector<LinearIR::LoopManager::LoopPoint>& loop_outputs) {
+std::vector<int64_t> InitLoops::init_element_type_sizes(const std::vector<LoopPort>& loop_inputs,
+                                                        const std::vector<LoopPort>& loop_outputs) {
     std::vector<int64_t> element_types;
     element_types.reserve(loop_inputs.size() + loop_outputs.size());
     for (const auto& in : loop_inputs) {
@@ -176,10 +156,11 @@ void InitLoops::insertion(LinearIR& linear_ir, const LinearIR::LoopManagerPtr& l
     LinearIR::constExprIt loop_begin_pos, loop_end_pos;
     loop_manager->get_loop_bounds(linear_ir, loop_id, loop_begin_pos, loop_end_pos);
 
-    filter_ports(linear_ir, loop_entries, loop_exits);
+    // Remove non MemoryAccess ports since Loop can have only GPR inputs
+    filter_ports(loop_entries, loop_exits);
 
     const auto ptr_increments = init_ptr_increments(loop_entries, loop_exits, loop_manager, loop_id, work_amount, dim_idx);
-    const auto finalization_offsets = init_finalization_offsets(loop_entries, loop_exits, work_amount);
+    const auto finalization_offsets = init_finalization_offsets(ptr_increments, work_amount);
     const auto io_data_sizes = init_element_type_sizes(loop_entries, loop_exits);
 
     const auto& loop_begin = std::make_shared<op::LoopBegin>();
