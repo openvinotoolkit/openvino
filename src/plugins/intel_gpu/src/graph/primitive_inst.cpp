@@ -541,8 +541,10 @@ void primitive_inst::do_runtime_in_place_concat() {
         preds_layouts.push_back(pred.first->_impl_params->get_output_layout());
     }
 
-    if (!concat_in_place_optimization::match(concat_inst->get_node(), *concat_inst->_impl_params, pred_params, true))
+    if (!concat_in_place_optimization::match(concat_inst->get_node(), *concat_inst->_impl_params, pred_params, true)) {
+        concat_inst->_can_be_optimized = false;
         return;
+    }
 
     auto concat_axis = concat_inst->_impl_params->typed_desc<concatenation>()->axis;
     std::list<concatenation_node*> need_reoptimization; // not used for now
@@ -612,7 +614,7 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
             }
         }
     }
-    update_shape_done_by_other = false;
+    update_shape_done_by_other = false; // reset
     OPENVINO_ASSERT(_impl_params->get_output_layout().is_static(),
                     "[GPU] Can't execute ", primitive_id, " primitive as output layout is dynamic in runtime");
 
