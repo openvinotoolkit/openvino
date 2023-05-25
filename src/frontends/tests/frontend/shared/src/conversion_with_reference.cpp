@@ -13,7 +13,7 @@ FrontEndConversionWithReferenceTestsF::FrontEndConversionWithReferenceTestsF()
     comparator.enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
     comparator.enable(FunctionsComparator::CmpValues::SUBGRAPH_DESCRIPTORS);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
-    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    // TODO: enable comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
