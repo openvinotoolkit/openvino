@@ -119,9 +119,8 @@ std::shared_ptr<Node> get_axes_range(const NodeContext& context, int input_id) {
 std::shared_ptr<Node> normalize_axis(const NodeContext& context,
                                      const Output<Node>& axis,
                                      const Output<Node>& input_node) {
-    Output<Node> shape;
     Output<Node> rank;
-    std::tie(shape, rank) = get_shape_rank(context, input_node);
+    std::tie(std::ignore, rank) = get_shape_rank(context, input_node);
     auto axis_rank = context.mark_node(std::make_shared<opset10::Add>(axis, rank));
     auto is_less = context.mark_node(std::make_shared<opset10::Less>(axis_rank, rank));
     auto new_axis = context.mark_node(std::make_shared<opset10::Select>(is_less, axis_rank, axis));
