@@ -76,8 +76,7 @@ CPU::CPU() {
             }
         }
         _processors = processors.size();
-        _numa_nodes = sockets.size();
-        _numa_nodes = _numa_nodes == 0 ? 1 : _numa_nodes;
+        _numa_nodes = sockets.size() == 0 ? 1 : sockets.size();
         for (auto&& socket : sockets) {
             _cores += socket.second;
         }
