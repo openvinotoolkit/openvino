@@ -288,13 +288,13 @@ The `Snippets` integration into the plugin pipeline is schematically depicted be
     subgraph internal[<b> Transformations on internal plugin graph </b>]
          direction LR
          init["init()"]
-         subgraph create["CreatePrimitive()"]
+         subgraph create["CreateComputePrimitive"]
             direction LR
             optimize[Optimizer]
             generate[Generator]
             optimize-->generate
          end
-         subgraph execute["Execute(...)"]
+         subgraph execute["Execute"]
             direction LR
             Executable[Kernel]
          end
@@ -321,7 +321,7 @@ In such cases, we will refer to the `IR` (`nGraph` or `Linear`) as `body functio
 
 When the plugin finalizes all `nGraph model` transformations, the model is converted to an internal plugin graph representation. 
 At this point `ov::op::Subgraph` is converted to `ov::intel_cpu::node::Snippet` which still retains the `nGraph IR`. 
-This IR is then optimized and an executable `Kernel` is produced during the `CreatePrimitive()` stage. 
+This IR is then optimized and an executable `Kernel` is produced during the `CreateComputePrimitive` stage (`CreatePrimitive()` stage in CPU plugin). 
 Finally, multiple copies of the produced kernel executed in parallel during the `Execute` stage.
 
 This brief description finalizes our discussion of Snippets architecture.
@@ -553,7 +553,7 @@ This information will be used by the control flow optimization pipeline to deter
 An `Expression` internally stores two separate vectors of input and output `PortDescriptors` which could be accessed by calling `get_input_port_descriptors()` or `get_input_port_descriptor(i)` (and similar for outputs).
 
 Finally, `PortConnectors` specify how the `Expression's` ports are connected. 
-Note that an `Expression` output can be connected to several inputs (like with nGraph nodes), So every `PortConnector` stores one source `ExpressionPort` and a set of consumer `ExpressionPorts` that can be accessed by the `get_cource()` or `get_consumers()` methods, respectively. 
+Note that an `Expression` output can be connected to several inputs (like with nGraph nodes), So every `PortConnector` stores one source `ExpressionPort` and a set of consumer `ExpressionPorts` that can be accessed by the `get_source()` or `get_consumers()` methods, respectively. 
 Like with `PortDescriptors`, an `Expression` stores input and output `PortConnectors` in two separate vectors accessed via `get_input_port_connector(i)` (or its output twin).
 
 An example on how `PortConnectors` can be used to move between `Expressions` is given on the right side of the above picture. 
