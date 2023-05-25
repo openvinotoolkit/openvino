@@ -371,6 +371,8 @@ network::network(cldnn::BinaryInputBuffer& ib, const ExecutionConfig& config, st
     , _is_primary_stream(is_primary_stream)
     , _reset_arguments(true) {
     net_id = get_unique_net_id();
+    if (is_primary_stream)
+        ib.new_network_added();
 
     kernels_cache kernels_cache(get_engine(), config, 0, nullptr, {""});
     ib >> kernels_cache;
