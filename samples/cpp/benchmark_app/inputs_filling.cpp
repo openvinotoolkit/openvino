@@ -572,6 +572,7 @@ ov::Tensor get_random_tensor(const std::pair<std::string, benchmark_app::InputIn
         // uniform_int_distribution<uint8_t> is not allowed in the C++17
         // standard and vs2017/19
         return create_tensor_random<uint8_t, uint32_t>(inputInfo.second);
+    // TODO: Rollback after implementation
     } else if (type == ov::element::boolean) {
         // uniform_int_distribution<uint8_t> is not allowed in the C++17
         // standard and vs2017/19
