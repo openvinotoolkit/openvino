@@ -328,6 +328,10 @@ public:
         return {std::move(out_shapes), ShapeInferStatus::success};
     }
 
+    bool is_implemented_accessor(void) override {
+        return false;
+    }
+
     // denpend on constant_data, need ngraph op to implement shape_infer(op, input_shapes, m_pads_begin, m_pads_end, constant_data);
     IShapeInferCommon::Result
     infer(const std::vector<StaticShape>& input_shapes, const ov::ITensorAccessor& tensor_accessor) override {
@@ -793,8 +797,6 @@ std::shared_ptr<IShapeInferCommon> make_shape_inference<IShapeInferCommon>(std::
 template <>
 std::shared_ptr<IStaticShapeInfer> make_shape_inference<IStaticShapeInfer>(std::shared_ptr<ov::Node> op) {
     if (auto shape_infer = IStaticShapeInferFactory::make(op->get_type_info(), op)) {
-        return shape_infer;
-    } else if (auto shape_infer = make_shape_inference<IStaticShapeInfer>(op)) {
         return shape_infer;
     } else if (ov::is_type<op::util::UnaryElementwiseArithmetic>(op)) {
         // The unary nad binary elementwise ops can be moved to map but it is easier to handle them by these statements.

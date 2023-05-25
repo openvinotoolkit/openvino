@@ -15,13 +15,18 @@
 
 namespace ov {
 namespace intel_cpu {
-template <class TIface = IShapeInferCommon, class TTensorPtr = HostTensorPtr>
+template <class TIface = IStaticShapeInfer, class TTensorPtr = HostTensorPtr>
 void shape_inference(ov::Node* op,
                      const std::vector<StaticShape>& input_shapes,
                      std::vector<StaticShape>& output_shapes,
                      const std::map<size_t, TTensorPtr>& constant_data = {}) {
     const auto shape_infer = make_shape_inference<TIface>(op->shared_from_this());
-    auto result = shape_infer->infer(input_shapes, constant_data);
+    IShapeInferCommon::Result result;
+    if (shape_infer->is_implemented_accessor()) {
+        result = shape_infer->infer(input_shapes,  make_tensor_accessor(constant_data));
+    } else {
+        result = shape_infer->infer(input_shapes,  constant_data);
+    }
     OPENVINO_ASSERT(ShapeInferStatus::success == result.status, "shape inference result has unexpected status");
     output_shapes = std::move(result.shapes);
 }
