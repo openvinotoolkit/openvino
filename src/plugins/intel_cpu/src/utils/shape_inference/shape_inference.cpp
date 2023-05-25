@@ -129,13 +129,18 @@ public:
         return input_ranks;
     }
 
+    void set_port_mask(port_mask_t mask) override {
+         m_mask = mask;
+    }
+
     port_mask_t get_port_mask() const override {
-        return util::bit::mask();
+        return m_mask;
     };
 
 protected:
     std::vector<int64_t> input_ranks;
     std::shared_ptr<ov::Node> node;
+    IStaticShapeInfer::port_mask_t m_mask;
 };
 
 template <typename OP>
@@ -170,7 +175,7 @@ public:
     // denpend on constant_data, need ngraph op to implement shape_infer(op, input_shapes, output_shapes, tensor_accessor)
     IShapeInferCommon::Result
     infer(const std::vector<StaticShape>& input_shapes, const ov::ITensorAccessor& tensor_accessor) override {
-        IE_THROW(NotImplemented)  << "entryIOC not not Implemented ITensorAccessor interface";
+        IE_THROW(NotImplemented)  << "entryIOC not has not implemented ITensorAccessor interface";
     }
 };
 
@@ -288,7 +293,7 @@ public:
     // denpend on constant_data, need to reimplemented
     IShapeInferCommon::Result
     infer(const std::vector<StaticShape>& input_shapes, const ov::ITensorAccessor& tensor_accessor) override {
-        IE_THROW(NotImplemented)  << "entryInterpolate not Implemented ITensorAccessor interface";
+        IE_THROW(NotImplemented)  << "entryFallback has not implemented ITensorAccessor interface";
     }
 };
 
@@ -309,10 +314,10 @@ public:
     bool is_implemented_accessor(void) override {
         return false;
     }
-    // denpend on constant_data, need ngraph op to implement shape_infer(op, pads_begin, pads_end, input_shapes, output_shapes, constant_data);
+    // denpend on constant_data, need ngraph op to implement shape_infer(op, pads_begin, pads_end, input_shapes, output_shapes, tensor_accessor);
     IShapeInferCommon::Result
     infer(const std::vector<StaticShape>& input_shapes, const ov::ITensorAccessor& tensor_accessor) override {
-        IE_THROW(NotImplemented)  << "entryInterpolate not Implemented ITensorAccessor interface";
+        IE_THROW(NotImplemented)  << "entryInterpolate has not implemented ITensorAccessor interface";
     }
 };
 
@@ -335,7 +340,7 @@ public:
     // denpend on constant_data, need ngraph op to implement shape_infer(op, input_shapes, m_pads_begin, m_pads_end, constant_data);
     IShapeInferCommon::Result
     infer(const std::vector<StaticShape>& input_shapes, const ov::ITensorAccessor& tensor_accessor) override {
-        IE_THROW(NotImplemented)  << "ShapeInferWithPadding not Implemented ITensorAccessor interface";
+        IE_THROW(NotImplemented)  << "ShapeInferWithPadding has not implemented ITensorAccessor interface";
     }
 
     const ov::CoordinateDiff& get_pads_begin() override {

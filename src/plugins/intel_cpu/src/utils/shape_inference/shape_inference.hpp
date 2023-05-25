@@ -43,7 +43,7 @@ public:
     virtual Result infer(const std::vector<StaticShape>& input_shapes, const ov::ITensorAccessor& tensor_accessor) = 0;
     Result infer(const std::vector<StaticShape>& input_shapes,
                      const std::map<size_t, HostTensorPtr>& constant_data) override {
-        IE_THROW(NotImplemented)  << "IStaticShapeInfer not not Implemented HostTensorPtr";
+        IE_THROW(Unexpected)  << "should not come here, this function should not be call or should be override";
     }
 
     /**
@@ -64,6 +64,20 @@ public:
      * @return port_mask_t a bit mask where each bit corresponds to an input port number.
      */
     virtual port_mask_t get_port_mask() const = 0;
+
+    /**
+     * @brief For backward compatibility, IShapeInferCommon didn't have fucntion get_port_mask()
+     *
+     * @param port_mask_t  a bit mask where each bit corresponds to an input port number.
+     */
+    virtual void set_port_mask(port_mask_t) {}
+
+
+    /**
+     * @brief this function is only used temporarily, after all implementations use accessor, will remove it.
+     *
+     * @returns if implement ITensorAccess return true, otherwise return false.
+     */
     virtual bool is_implemented_accessor(void) {
         return true;
     }
