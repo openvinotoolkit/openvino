@@ -30,9 +30,6 @@ DnnlPostOpsComposer::DnnlPostOpsComposer(const dnnl::engine& engine,
       isINT8(isInt8),
       weightScaleMaskPerChannel(weiScaleMaskPerChannel) {
     IE_ASSERT(idxOC >= 0 && idxOC < outputDims.size());
-    if (!isINT8 && !DQScales.empty()) {
-        IE_THROW() << "DQScales is set on non I8 precision.";
-    }
     OC = outputDims[idxOC];
     dimsPerOC = dimsPerTensor = VectorDims(outputDims.size(), 1);
     dimsPerOC[idxOC] = OC;

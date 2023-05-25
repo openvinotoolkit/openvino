@@ -126,12 +126,12 @@ std::ostream & operator<<(std::ostream & os, const PrintableVector<T>& vec) {
     return os;
 }
 
-static inline std::ostream& write_all_to_stream(std::ostream& os) {
+static inline std::ostream& _write_all_to_stream(std::ostream& os) {
     return os;
 }
 template <typename T, typename... TS>
-static inline std::ostream& write_all_to_stream(std::ostream& os, const T& arg, TS&&... args) {
-    return ov::intel_cpu::write_all_to_stream(os << arg, std::forward<TS>(args)...);
+static inline std::ostream& _write_all_to_stream(std::ostream& os, const T& arg, TS&&... args) {
+    return ov::intel_cpu::_write_all_to_stream(os << arg, std::forward<TS>(args)...);
 }
 
 }   // namespace intel_cpu
@@ -144,7 +144,7 @@ static inline std::ostream& write_all_to_stream(std::ostream& os, const T& arg, 
             static DebugLogEnabled DEBUG_ENABLE_NAME(__FILE__, __func__, __LINE__, name);                  \
             if (DEBUG_ENABLE_NAME) {                                                                       \
                 ::std::stringstream ss___;                                                                 \
-                ov::intel_cpu::write_all_to_stream(ss___, prefix, DEBUG_ENABLE_NAME.get_tag(), " ", __VA_ARGS__); \
+                ov::intel_cpu::_write_all_to_stream(ss___, prefix, DEBUG_ENABLE_NAME.get_tag(), " ", __VA_ARGS__); \
                 ostream << ss___.str() << std::endl;                                                     \
                 DEBUG_ENABLE_NAME.break_at(ss___.str());                                                   \
             }                                                                                              \

@@ -1596,11 +1596,43 @@ bool Graph::InsertNode(NodePtr parent, NodePtr child, NodePtr node, int parentPo
     return true;
 }
 
+#ifdef CPU_DEBUG_CAPS
+/*
+ * important debugging tools for accuracy issues
+ * define F16SET as comma separated list of node types for which F16 is allowed to be enabled
+ * define F16CNT as number of nodes totally allowed to enable f16
+ * increasing/decreasing F16CNT until accuracy issue happens/disappears
+ * from the log we can spot the first node having issue when enabled f16
+ */
+struct FP16Debug {
+    std::string safe_getenv(const char* name, const char* default_value = "") {
+        std::string value = default_value;
+        const char* p = getenv(name);
+        if (p)
+            value = p;
+        return value;
+    }
+
+    std::string nodeTypes = safe_getenv("F16SET", "");
+    int count_limit = atoi(safe_getenv("F16CNT", "9999999").c_str());
+    int count = 0;
+
+    bool enabled(std::string type, std::string name) {
+        if (nodeTypes.find(type + ",") != std::string::npos) {
+            if (count < count_limit) {
+                std::cout << " enabled [" << count << "/" << count_limit << "] : " << type << " " << name << std::endl;
+                count++;
+                return true;
+            }
+        }
+        return false;
+    }
+};
+#endif
+
 // Set all non const data paths precision to BF16
 void Graph::EnforceInferencePrecision() {
-    CPU_DEBUG_CAP_ENABLE(static std::string F16SET = std::getenv("F16SET") ? std::getenv("F16SET") : "");
-    CPU_DEBUG_CAP_ENABLE(static int F16CNT = atoi(std::getenv("F16CNT") ? std::getenv("F16CNT") : "9999999"));
-    CPU_DEBUG_CAP_ENABLE(static int f16cnt = 0);
+    CPU_DEBUG_CAP_ENABLE(static FP16Debug f16debug);
     auto inferPrec = InferenceEngine::Precision::FP32;
     switch (getConfig().inferencePrecision) {
     case ov::element::bf16:
@@ -1672,17 +1704,10 @@ void Graph::EnforceInferencePrecision() {
 
         if (node->getType() != Type::Input && node->getType() != Type::Output) {
             // FP16 is only implemented on limited types of node.
-            // TODO:
-            //     Eltwise : fused is supported, need to support standalone
 #ifdef CPU_DEBUG_CAPS
-            if (inferPrec == InferenceEngine::Precision::FP16 &&
-                F16SET.find(NameFromType(node->getType()) + ",") != std::string::npos) {
-                if (f16cnt < F16CNT) {
-                    std::cout << " f16cnt [" << f16cnt << "] : " << NameFromType(node->getType()) << " " << node->getName() << std::endl;
-                    f16cnt++;
-                } else {
+            if (inferPrec == InferenceEngine::Precision::FP16) {
+                if (!f16debug.enabled(NameFromType(node->getType()), node->getName()))
                     continue;
-                }
             }
 #endif
             if (inferPrec == InferenceEngine::Precision::FP16 && !one_of(node->getType(),

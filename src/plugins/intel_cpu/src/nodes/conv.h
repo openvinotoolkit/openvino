@@ -56,10 +56,6 @@ public:
     std::vector<int32_t> inputZeroPoints;
     void initializeInputZeroPoints(const uint8_t* inputZpData, const size_t inputZpSize);
 
-    // Hold output scales
-    // std::vector<float> DQScales;
-    // void initializeDQScales(const float* scaleData, const size_t scaleSize);
-
     const InferenceEngine::SizeVector &getWeightDims() { return weightDims; }
     const std::vector<size_t> &getStride() { return stride; }
     const std::vector<ptrdiff_t> &getDilation() { return dilation; }
@@ -85,6 +81,7 @@ private:
         PerTensor,
         PerChannel
     };
+
     class FusedSubgraph;
     using FusedSubgraphPtr = std::shared_ptr<FusedSubgraph>;
     using executorPtr = std::shared_ptr<DnnlExecutor>;
@@ -105,7 +102,6 @@ private:
     void executeDynamicImpl(dnnl::stream strm) override;
     void addLegacyZeroPoints(dnnl::primitive_attr& attr);
     void addZeroPoints(dnnl::primitive_attr& attr);
-    // void addOutputScales(dnnl::primitive_attr& attr);
     void setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims, bool useLegacyPostOps, bool initWeights = false);
     void SetPostOpsAndZeroPoints(std::vector<dnnl::primitive_attr> &attrs);
     void filterSupportedDescriptors();
@@ -130,7 +126,6 @@ private:
     bool preferLegacyPostOps = false;
     bool preferLegacyZeroPoint = false;
     zpType inputZeroPointType = zpType::None;
-    // scalesType outputScalesType = scalesType::None;
     // maps each supportedPrimitiveDescriptor to corresponding desc from descs
     std::vector<size_t> descIdx;
 
@@ -171,7 +166,6 @@ private:
     MemoryPtr legacyWeightsZeroPointsMemPtr;
     MemoryPtr legacyOutputCompensationMemPtr;
     MemoryPtr stockInputZeroPointsMemPtr;
-    MemoryPtr outScaleMemPtr;
     dnnl::memory::data_type outputDataType = dnnl::memory::data_type::undef;
     InferenceEngine::Precision sumPrc = InferenceEngine::Precision::UNSPECIFIED;
 
