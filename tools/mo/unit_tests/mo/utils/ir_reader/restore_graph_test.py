@@ -7,14 +7,15 @@ import unittest
 
 import numpy as np
 from defusedxml.common import EntitiesForbidden
-
-from openvino.tools.mo.middle.passes.infer import type_infer
-from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
-from openvino.tools.mo.utils.ir_reader.restore_graph import restore_graph_from_ir, save_restored_graph
-from openvino.frontend import FrontEndManager, FrontEnd
+from openvino.frontend import FrontEndManager
 from openvino.test_utils import compare_functions
 
+from openvino.tools.mo.middle.passes.infer import type_infer
+from openvino.tools.mo.utils.ir_reader.restore_graph import restore_graph_from_ir, save_restored_graph
+
 fem = FrontEndManager()
+
+
 class TestIRReader(unittest.TestCase):
     def test_read_xml_incorrect(self):
         incorrect_xml = b'<?xml version="1.0"?>\n' \
