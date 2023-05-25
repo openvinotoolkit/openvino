@@ -21,7 +21,6 @@ class InferRequest;
  * @class CompiledModel
  * @brief Implementation of compiled model
  */
-// ! [compiled_model:header]
 class CompiledModel : public ov::ICompiledModel {
 public:
     CompiledModel(const std::shared_ptr<ov::Model>& model,
@@ -64,6 +63,5 @@ private:
     std::vector<NetworkDesc> m_networks;
     std::string m_name;
 };
-
 }  // namespace hetero
 }  // namespace ov

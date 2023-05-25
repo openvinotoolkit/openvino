@@ -26,7 +26,7 @@ private:
     std::function<void()> m_cancel_callback;
     // std::shared_ptr<ov::threading::ITaskExecutor> m_wait_executor;
 
-    friend class InferRequest;
+    
     std::shared_ptr<InferRequest> _heteroInferRequest;
 };
 

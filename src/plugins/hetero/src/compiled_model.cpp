@@ -6,22 +6,25 @@
 
 #include <memory>
 
-#include "sync_infer_request.hpp"
+#include "plugin.hpp"
 #include "async_infer_request.hpp"
-#include "ie_ngraph_utils.hpp"
-#include "ie_plugin_config.hpp"
-// #include "itt.hpp"
-#include "openvino/op/util/op_types.hpp"
+
+#include "itt.hpp"
+
+// #include "perf_counter.hpp"
+// #include "graph_debug_dump.hpp"
+
+
 #include "openvino/runtime/exec_model_info.hpp"
 #include "openvino/runtime/properties.hpp"
-// #include "perf_counter.hpp"
-#include "plugin.hpp"
+#include "openvino/op/util/op_types.hpp"
+#include "openvino/util/common_util.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/utils/utils.hpp"
 
-// #include "graph_debug_dump.hpp"
-#include "openvino/op/util/op_types.hpp"
-#include "openvino/util/common_util.hpp"
+
+#include "ie_ngraph_utils.hpp"
+#include "ie_plugin_config.hpp"
 #include "ie_algorithm.hpp"
 
 template <typename T>
@@ -47,27 +50,14 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
         ov::SupportedOpsMap queryNetworkResult;
         auto orderedOps = m_model->get_ordered_ops();
 
-        // TODO vurusovs REMOVE plugin->query_model FROM HERE
-        // queryNetworkResult = plugin->query_model(model, {ov::device::priorities(m_cfg.device_priorities)});
-
         bool allEmpty = true;
         // Get user defined affinity
         for (auto&& node : orderedOps) {
             auto& nodeInfo = node->get_rt_info();
-
-            // TODO vurusovs REMOVE FROM HERE
-            // if (node->get_friendly_name() == "conv0")
-            //     nodeInfo["affinity"] = ov::Any{"GPU"};
-
-
             auto itInfo = nodeInfo.find("affinity");
             if (itInfo != nodeInfo.end()) {
                 IE_ASSERT(itInfo->second.is<std::string>());
                 queryNetworkResult.emplace(node->get_friendly_name(), itInfo->second.as<std::string>());
-                
-                // TODO vurusovs REMOVE LINE BELOW
-                // queryNetworkResult[node->get_friendly_name()] = itInfo->second.as<std::string>();
-                
                 allEmpty = false;
             }
         }
@@ -486,7 +476,6 @@ std::shared_ptr<const ov::Model> ov::hetero::CompiledModel::get_runtime_model() 
     }
     return model;
 }
-// ! [compiled_model:get_runtime_model]
 
 std::shared_ptr<const ov::hetero::Plugin> ov::hetero::CompiledModel::get_hetero_plugin() const {
     auto plugin = get_plugin();
@@ -496,7 +485,6 @@ std::shared_ptr<const ov::hetero::Plugin> ov::hetero::CompiledModel::get_hetero_
     return hetero_plugin;
 }
 
-// ! [compiled_model:get_property]
 ov::Any ov::hetero::CompiledModel::get_property(const std::string& name) const {
     const auto& add_ro_properties = [](const std::string& name, std::vector<ov::PropertyName>& properties) {
         properties.emplace_back(ov::PropertyName{name, ov::PropertyMutability::RO});
@@ -559,12 +547,10 @@ ov::Any ov::hetero::CompiledModel::get_property(const std::string& name) const {
 
     return m_cfg.Get(name);
 }
-// ! [compiled_model:get_property]
 
-// ! [compiled_model:export_model]
 void ov::hetero::CompiledModel::export_model(std::ostream& model_stream) const {
-    // TODO vurusovs CONTINUE
-    // OV_ITT_SCOPED_TASK(itt::domains::HeteroPlugin, "CompiledModel::export_model");
+    // TODO vurusovs CONTINUE - SPLIT FOR SEVERAL SUBNETWORKS
+    OV_ITT_SCOPED_TASK(itt::domains::Hetero, "CompiledModel::export_model");
 
     std::stringstream xmlFile, binFile;
     ov::pass::Serialize serializer(xmlFile, binFile);
@@ -581,4 +567,3 @@ void ov::hetero::CompiledModel::export_model(std::ostream& model_stream) const {
     model_stream.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
     model_stream.write(reinterpret_cast<char*>(&m_constants[0]), dataSize);
 }
-// ! [compiled_model:export_model]

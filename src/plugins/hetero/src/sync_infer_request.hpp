@@ -14,9 +14,8 @@
 // #include "executable.hpp"
 #include "ngraph/runtime/tensor.hpp"
 #include "openvino/core/node.hpp"
-// #include "openvino/itt.hpp"
+#include "openvino/itt.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
-#include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/ivariable_state.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 
@@ -45,31 +44,29 @@ public:
     void set_tensors_impl(const ov::Output<const ov::Node> port, const std::vector<ov::Tensor>& tensors) override;
 
 
+    
+
+private:
+    friend class CompiledModel;
+    friend class AsyncInferRequest;
+
+    std::shared_ptr<const CompiledModel> get_hetero_model() const;
+
+    
+    enum { Preprocess, Postprocess, StartPipeline, WaitPipeline, numOfStages };
+    
     struct SubRequestDesc {
         ov::SoPtr<ov::ICompiledModel> _network;
         ov::SoPtr<ov::IAsyncInferRequest> _request;
-        // std::shared_ptr<ov::IInferRequest> _request;
-        
-        // openvino::itt::handle_t _profilingTask;
+        std::array<openvino::itt::handle_t, numOfStages> _profilingTask;
     };
 
     std::vector<SubRequestDesc> m_infer_requests;
 
-private:
-    friend class CompiledModel;
-
-    std::shared_ptr<const CompiledModel> get_hetero_model() const;
-
-    // enum { Preprocess, Postprocess, StartPipeline, WaitPipeline, numOfStages };
-
-    // std::array<openvino::itt::handle_t, numOfStages> m_profiling_task;
     // for performance counters
-    // std::array<std::chrono::duration<float, std::micro>, numOfStages> m_durations;
+    std::array<std::chrono::duration<float, std::micro>, numOfStages> m_durations;
 
-    // std::vector<ov::Tensor> m_backend_input_tensors;
-    // std::vector<ov::Tensor> m_backend_output_tensors;
     // ov::EvaluationContext m_eval_context;
-
     
     std::vector<std::shared_ptr<ov::IVariableState>> m_variable_states;
 };

@@ -12,9 +12,6 @@
 
 namespace ov {
 namespace hetero {
-
-// ! [configuration:header]
-
 struct Configuration {
     Configuration();
     Configuration(const Configuration&) = default;
@@ -36,7 +33,5 @@ struct Configuration {
     bool exclusive_async_requests = true;
     std::string device_priorities;
 };
-// ! [configuration:header]
-
 }  // namespace hetero
 }  // namespace ov

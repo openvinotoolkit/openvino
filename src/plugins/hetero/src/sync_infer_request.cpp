@@ -10,14 +10,17 @@
 #include <string>
 #include <utility>
 
-// #include "itt.hpp"
+#include "itt.hpp"
+#include "plugin.hpp"
+#include "compiled_model.hpp"
+
 #include "openvino/core/except.hpp"
 #include "openvino/op/util/variable_context.hpp"
 #include "openvino/runtime/ivariable_state.hpp"
 #include "openvino/runtime/profiling_info.hpp"
 #include "openvino/runtime/tensor.hpp"
-#include "plugin.hpp"
-#include "compiled_model.hpp"
+#include "openvino/runtime/iasync_infer_request.hpp"
+
 // #include "template/remote_tensor.hpp"
 // #include "variable_state.hpp"
 
@@ -37,12 +40,18 @@ void allocate_tensor_impl(ov::Tensor& tensor, const ov::element::Type& element_t
 
 ov::hetero::InferRequest::InferRequest(const std::shared_ptr<const ov::hetero::CompiledModel>& compiled_model)
     : ov::ISyncInferRequest(compiled_model) {
-    
     int index = 0;
     for (auto&& subnetwork : compiled_model->m_networks) {
         InferRequest::SubRequestDesc desc;
         desc._network = subnetwork._network;
-        // desc._profilingTask = openvino::itt::handle("Infer" + std::to_string(index++));
+        
+        std::string prof_task_name = get_hetero_model()->m_model->get_friendly_name() + "_Req" + std::to_string(index);
+        desc._profilingTask = {
+            openvino::itt::handle("Hetero_" + prof_task_name + "_Preprocess"),
+            openvino::itt::handle("Hetero_" + prof_task_name + "_Postprocess"),
+            openvino::itt::handle("Hetero_" + prof_task_name + "_StartPipeline"),
+            openvino::itt::handle("Hetero_" + prof_task_name + "_WaitPipline"),
+        };
         desc._request = {desc._network->create_infer_request(), desc._network._so};
 
         
@@ -68,13 +77,10 @@ ov::hetero::InferRequest::InferRequest(const std::shared_ptr<const ov::hetero::C
     }
 }
 
-// ! [infer_request:dtor]
 ov::hetero::InferRequest::~InferRequest() = default;
-// ! [infer_request:dtor]
 
-// ! [infer_request:set_tensors_impl]
 void ov::hetero::InferRequest::set_tensors_impl(const ov::Output<const ov::Node> port,
-                                                         const std::vector<ov::Tensor>& tensors) {
+                                                const std::vector<ov::Tensor>& tensors) {
     for (const auto& input : get_inputs()) {
         if (input == port) {
             m_batched_tensors[input.get_tensor_ptr()] = tensors;
@@ -83,13 +89,10 @@ void ov::hetero::InferRequest::set_tensors_impl(const ov::Output<const ov::Node>
     }
     OPENVINO_THROW("Cannot find input tensors for port ", port);
 }
-// ! [infer_request:set_tensors_impl]
 
-// ! [infer_request:query_state]
 std::vector<std::shared_ptr<ov::IVariableState>> ov::hetero::InferRequest::query_state() const {
     return m_variable_states;
 }
-// ! [infer_request:query_state]
 
 std::shared_ptr<const ov::hetero::CompiledModel> ov::hetero::InferRequest::get_hetero_model()
     const {
@@ -99,7 +102,6 @@ std::shared_ptr<const ov::hetero::CompiledModel> ov::hetero::InferRequest::get_h
     return hetero_model;
 }
 
-// ! [infer_request:infer]
 void ov::hetero::InferRequest::infer() {
     // TODO: fill with actual list of pipeline stages, which are executed synchronously for sync infer requests
     infer_preprocess();
@@ -107,9 +109,7 @@ void ov::hetero::InferRequest::infer() {
     wait_pipeline();  // does nothing in current implementation
     infer_postprocess();
 }
-// ! [infer_request:infer]
 
-// ! [infer_request:infer_preprocess]
 void ov::hetero::InferRequest::infer_preprocess() {
     // OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, m_profiling_task[Preprocess]);
     // auto start = Time::now();
@@ -174,27 +174,29 @@ void ov::hetero::InferRequest::infer_preprocess() {
     // }
     // m_durations[Preprocess] = Time::now() - start;
 }
-// ! [infer_request:infer_preprocess]
 
-// ! [infer_request:start_pipeline]
 void ov::hetero::InferRequest::start_pipeline() {
-    // OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, m_profiling_task[StartPipeline])
-    // auto start = Time::now();
-    // m_executable->call(m_backend_output_tensors,
-    //                    m_backend_input_tensors,
-    //                    m_eval_context,
-    //                    get_template_model()->m_cfg.perf_count);
-    // m_durations[StartPipeline] = Time::now() - start;
+    auto start = Time::now();
+    for (auto&& desc : m_infer_requests) {
+        OV_ITT_SCOPED_TASK(itt::domains::Hetero, desc._profilingTask[StartPipeline])
+        auto& request = desc._request;
+        OPENVINO_ASSERT(request);
+        request->infer();
+        request->wait();
+    }
+    m_durations[StartPipeline] = Time::now() - start;
 }
-// ! [infer_request:start_pipeline]
 
 // ! [infer_request:wait_pipeline]
 void ov::hetero::InferRequest::wait_pipeline() {
-    // OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, m_profiling_task[WaitPipeline])
-    // auto start = Time::now();
-    // // TODO: Wait pipeline using driver API or other synchronizations methods
-    // // NOTE: not used in current implementation since `startPipeline` executes pipiline synchronously
-    // m_durations[WaitPipeline] = Time::now() - start;
+    auto start = Time::now();
+    for (auto&& desc : m_infer_requests) {
+        OV_ITT_SCOPED_TASK(itt::domains::Hetero, desc._profilingTask[StartPipeline])
+        auto& request = desc._request;
+        OPENVINO_ASSERT(request);
+        request->wait();
+    }
+    m_durations[StartPipeline] = Time::now() - start;
 }
 // ! [infer_request:wait_pipeline]
 

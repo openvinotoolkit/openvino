@@ -14,9 +14,6 @@
 #include "openvino/runtime/iplugin.hpp"
 #include "config.hpp"
 
-#include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
-#include "description_buffer.hpp"
-#include "ie_icore.hpp"
 
 namespace ov {
 namespace hetero {
@@ -66,26 +63,17 @@ public:
     // TODO vurusovs: THINK TWICE ABOUT NECESSITY OF FUNCTION
     DeviceMetaInformationMap GetDevicePlugins(const std::string& targetFallback, const ov::AnyMap& properties) const;
 
+    // FROM OLD HETERO PLUGIN
     // std::string GetTargetFallback(const Configs& config, bool raise_exception = true) const;
     // std::string GetTargetFallback(const ov::AnyMap& config, bool raise_exception = true) const;
-
-    // FROM OLD HETERO PLUGIN
 
 private:
     friend class CompiledModel;
     friend class InferRequest;
 
-    Configuration m_cfg;
-
-    // FROM TEMPLATE PLUGIN
-    // std::shared_ptr<ov::runtime::Backend> m_backend;
-    
-    // std::shared_ptr<ov::threading::ITaskExecutor> m_waitExecutor;
-
-
     std::string DeviceCachingProperties(const std::string& targetFallback) const;
 
-    Configs _device_config;
+    Configuration m_cfg;
 };
 
 }  // namespace hetero
