@@ -509,7 +509,7 @@ bool primitive_inst::update_impl() {
     return true;
 }
 
-void primitive_inst::do_runtime_buffer_fusing() {
+void primitive_inst::do_runtime_in_place_concat() {
     if (update_shape_done_by_other)
         return;
     if (get_users().size() != 1) return;
@@ -532,21 +532,19 @@ void primitive_inst::do_runtime_buffer_fusing() {
     }
     concat_inst->update_shape();
     concat_inst->update_shape_done_by_other = true;
+    layout concat_layout = concat_inst->_impl_params->get_output_layout();
 
     std::vector<kernel_impl_params> pred_params;
+    std::vector<layout> preds_layouts;
     for (auto pred : concat_inst->_deps) {
         pred_params.push_back(*pred.first->_impl_params);
+        preds_layouts.push_back(pred.first->_impl_params->get_output_layout());
     }
 
     if (!concat_in_place_optimization::match(concat_inst->get_node(), *concat_inst->_impl_params, pred_params, true))
         return;
 
-    layout concat_layout = concat_inst->_impl_params->get_output_layout();
-    std::vector<layout> preds_layouts;
     auto concat_axis = concat_inst->_impl_params->typed_desc<concatenation>()->axis;
-    for (auto dep : concat_inst->_deps) {
-        preds_layouts.push_back(dep.first->_impl_params->get_output_layout());
-    }
     std::list<concatenation_node*> need_reoptimization; // not used for now
     concat_in_place_optimization::update_in_place_concat_paddings(concat_layout, preds_layouts, concat_axis, need_reoptimization, true);
     size_t i = 0;
@@ -562,7 +560,7 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
     const auto primitive_id = id();
     OPENVINO_ASSERT(_has_valid_input, primitive_id, " has invalid/unset input");
     GPU_DEBUG_GET_INSTANCE(debug_config);
-    do_runtime_buffer_fusing();
+    do_runtime_in_place_concat();
     std::vector<event::ptr> dependencies;
     if (is_dynamic()) {
         OPENVINO_ASSERT(_node != nullptr, "[GPU] Invalid primitive_inst object for dynamic shapes case: program_node can't be null");

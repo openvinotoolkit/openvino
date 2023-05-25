@@ -1095,7 +1095,9 @@ void network::build_exec_order() {
                 if (node->get_users().size() == 1 && node->get_users().front()->is_type<concatenation>() &&
                     node->get_users().front()->is_dynamic()) {
                     continue;
-                } else if (node->is_dynamic() && node->is_type<concatenation>()) {
+                } else if (node->is_dynamic() && node->is_type<concatenation>() && node->can_be_optimized()) {
+                    // For in-place concat applied at runtime, we need to do update_shape for all other predecessors of the concat user.
+                    // i.e., We need to make sure that all the preds of them are already updated too.
                     for (auto dep : node->get_dependencies()) {
                         if (!dep.first->is_type<data>() && dep.first->get_users().size() == 1) {
                             add_to_exec_order(dep.first->id());

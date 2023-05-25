@@ -206,7 +206,7 @@ public:
     void set_shape_change() { _shape_changed = true; }
 
     void build_deps();
-    void do_runtime_buffer_fusing();
+    void do_runtime_in_place_concat();
     memory::ptr fused_memory(size_t dep_id) const {
         return dep_memory_ptr(get_fused_mem_offset() + dep_id);
     }
