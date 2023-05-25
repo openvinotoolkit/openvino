@@ -23,7 +23,7 @@
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/common_optimizations/align_mixed_fp32_fp16_types.hpp"
 #include "transformations/common_optimizations/mark_subgraphs_to_keep_in_mixed_precision.hpp"
-#include "transformations/enable_decompression_convert_constant_folding.hpp"
+#include "transformations/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/rt_info/disable_constant_folding.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 

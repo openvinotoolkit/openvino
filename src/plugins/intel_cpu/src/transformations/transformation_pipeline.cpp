@@ -4,7 +4,6 @@
 
 #include "transformation_pipeline.h"
 #include "defs.hpp"
-#include "transformations/enable_decompression_convert_constant_folding.hpp"
 
 // Operations
 #include "openvino/opsets/opset1.hpp"
@@ -31,7 +30,7 @@
 #include "transformations/common_optimizations/common_optimizations.hpp"
 #include "transformations/common_optimizations/wrap_interpolate_into_transposes.hpp"
 #include "transformations/control_flow/unroll_tensor_iterator.hpp"
-#include "transformations/disable_decompression_convert_constant_folding.hpp"
+#include "transformations/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/op_conversions/convert_batch_to_space.hpp"
 #include "transformations/op_conversions/convert_broadcast_to_tiles.hpp"
 #include "transformations/op_conversions/convert_depth_to_space.hpp"
@@ -116,7 +115,6 @@
 #include "nodes/normalize.h"
 #include "nodes/fake_quantize.h"
 #include "nodes/mha.h"
-#include "transformations/common_optimizations/keep_decompressions_in_fp32.hpp"
 #include "dnnl.hpp"
 #include <cpu/x64/cpu_isa_traits.hpp>
 
@@ -199,7 +197,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     manager.set_per_pass_validation(false);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::InitNodeInfo);
     // todo: should be uncommented when xxx-105060 is ready
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::KeepDecompressionsInFP32);
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::KeepConstAndDecompression);
 
     const bool useLpt = !defaultPrecisions.empty();
     if (useLpt) {
