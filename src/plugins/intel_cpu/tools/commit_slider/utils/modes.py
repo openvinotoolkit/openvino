@@ -54,6 +54,8 @@ class CheckOutputMode(Mode):
             self.setCommitCash(commit, checkOut)
         stopPattern = cfg["runConfig"]["stopPattern"]
         isFound = re.search(stopPattern, checkOut)
+        if isFound is None:
+            isFound = False
         return isFound
 
 
