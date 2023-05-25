@@ -26,6 +26,7 @@ public:
           m_shape{shape},
           m_capacity{shape},
           m_strides{},
+          m_strides_once{},
           m_ptr{ptr} {
         OPENVINO_ASSERT(m_ptr != nullptr);
         OPENVINO_ASSERT(m_element_type != element::undefined && m_element_type.is_static());
@@ -61,7 +62,7 @@ public:
         OPENVINO_ASSERT(m_element_type.bitwidth() >= 8,
                         "Could not get strides for types with bitwidths less then 8 bit. Tensor type: ",
                         m_element_type);
-        update_strides();
+        std::call_once(m_strides_once, &ViewTensor::update_strides, this);
         return m_strides;
     }
 
@@ -86,6 +87,7 @@ protected:
     Shape m_shape;
     Shape m_capacity;
     mutable Strides m_strides;
+    mutable std::once_flag m_strides_once;
     void* m_ptr;
 };
 
