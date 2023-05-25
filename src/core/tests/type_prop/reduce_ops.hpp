@@ -98,6 +98,40 @@ TYPED_TEST_P(ReduceTest, reduce_basic_shape_infer_keep_dims) {
     ASSERT_EQ(reduce_op->get_output_partial_shape(0), out_ps);
 }
 
+TYPED_TEST_P(ReduceTest, reduce_basic_shape_infer_duplicated_axes) {
+    PartialShape data_ps{3, 4, 5};
+    element::Type data_et = element::dynamic;
+
+    Shape axes_ps{2};
+    element::Type axes_et = element::i64;
+    std::vector<int64_t> axes{1, 1};
+
+    bool keep_dims = false;
+
+    PartialShape out_ps{3, 5};
+
+    const ReduceParams params{data_ps, data_et, axes_ps, axes, axes_et, keep_dims};
+    auto reduce_op = makeReduceOp<TypeParam>(params);
+    EXPECT_EQ(reduce_op->get_output_partial_shape(0), out_ps);
+}
+
+TYPED_TEST_P(ReduceTest, reduce_basic_shape_infer_keep_dims_duplicated_axes) {
+    PartialShape data_ps{3, 4, 5};
+    element::Type data_et = element::dynamic;
+
+    Shape axes_ps{2};
+    element::Type axes_et = element::i64;
+    std::vector<int64_t> axes{1, 1};
+
+    bool keep_dims = true;
+
+    PartialShape out_ps{3, 1, 5};
+
+    const ReduceParams params{data_ps, data_et, axes_ps, axes, axes_et, keep_dims};
+    auto reduce_op = makeReduceOp<TypeParam>(params);
+    EXPECT_EQ(reduce_op->get_output_partial_shape(0), out_ps);
+}
+
 TYPED_TEST_P(ReduceTest, reduce_basic_shape_infer_scalar_axis) {
     PartialShape data_ps{3, 4, 5};
     element::Type data_et = element::dynamic;
@@ -341,6 +375,8 @@ REGISTER_TYPED_TEST_SUITE_P(ReduceTest,
                             reduce_default_ctor,
                             reduce_basic_shape_infer,
                             reduce_basic_shape_infer_keep_dims,
+                            reduce_basic_shape_infer_duplicated_axes,
+                            reduce_basic_shape_infer_keep_dims_duplicated_axes,
                             reduce_basic_shape_infer_scalar_axis,
                             reduce_basic_shape_infer_axes_as_param,
                             reduce_dynamic_shape_data,

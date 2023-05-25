@@ -32,6 +32,7 @@ TYPED_TEST_P(ReduceStaticShapeInferenceTest, default_ctor) {
         {1, std::make_shared<HostTensor>(element::i32, Shape{3}, axes_val)}};
     shape_inference(this->op.get(), this->input_shapes, this->output_shapes, constant_data);
 
+    EXPECT_EQ(this->output_shapes.size(), 1);
     EXPECT_EQ(this->output_shapes.front(), StaticShape({1, 1, 7, 1, 4}));
 }
 
@@ -44,6 +45,7 @@ TYPED_TEST_P(ReduceStaticShapeInferenceTest, axes_constant) {
 
     shape_inference(this->op.get(), this->input_shapes, this->output_shapes);
 
+    EXPECT_EQ(this->output_shapes.size(), 1);
     EXPECT_EQ(this->output_shapes.front(), StaticShape({3, 5}));
 }
 
@@ -59,6 +61,7 @@ TYPED_TEST_P(ReduceStaticShapeInferenceTest, axes_param) {
         {1, std::make_shared<HostTensor>(element::i32, Shape{2}, axes_val)}};
     shape_inference(this->op.get(), this->input_shapes, this->output_shapes, constant_data);
 
+    EXPECT_EQ(this->output_shapes.size(), 1);
     EXPECT_EQ(this->output_shapes.front(), StaticShape({3, 5}));
 }
 
@@ -71,6 +74,7 @@ TYPED_TEST_P(ReduceStaticShapeInferenceTest, axes_constant_keep_dims) {
 
     shape_inference(this->op.get(), this->input_shapes, this->output_shapes);
 
+    EXPECT_EQ(this->output_shapes.size(), 1);
     EXPECT_EQ(this->output_shapes.front(), StaticShape({3, 1, 5, 1}));
 }
 
@@ -86,6 +90,7 @@ TYPED_TEST_P(ReduceStaticShapeInferenceTest, axes_param_keep_dims) {
         {1, std::make_shared<HostTensor>(element::i32, Shape{2}, axes_val)}};
     shape_inference(this->op.get(), this->input_shapes, this->output_shapes, constant_data);
 
+    EXPECT_EQ(this->output_shapes.size(), 1);
     EXPECT_EQ(this->output_shapes.front(), StaticShape({3, 1, 5, 1}));
 }
 
