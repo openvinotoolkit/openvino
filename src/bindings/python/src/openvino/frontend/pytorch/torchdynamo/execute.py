@@ -89,32 +89,37 @@ class OpenVINOGraphModule(torch.nn.Module):
         self.gm = gm
         self.partition_id = partition_id
         self.executor_parameters = {"use_python_fusion_cache": use_python_fusion_cache}
+        self.perm_fallback = False
 
     def __call__(self, *args):
-        # TODO: Revisit fallback logic to include permanent fallback for failing graphs.
+        if self.perm_fallback:
+            return self.gm(*args)
         tmp_fallback = False
         for idx, input_data in enumerate(args): #subgraph.example_inputs):
             if len(input_data.shape) == 0:
                 tmp_fallback = True;
+                break;
 
         if tmp_fallback:
             return self.gm(*args)
         else:
-            return openvino_execute(
-                self.gm, *args, executor_parameters=self.executor_parameters, partition_id=self.partition_id
-            )
+            try:
+                result = openvino_execute(self.gm, *args, executor_parameters=self.executor_parameters, partition_id=self.partition_id)
+            except Exception as e:
+                self.perm_fallback = True
+                return self.gm(*args)
+
+            return result
 
 
 def partition_graph(gm: GraphModule, use_python_fusion_cache: bool):
-    partitioner = Partitioner()
-    partitioned_graph = partitioner.make_partitions(gm)    
     global max_openvino_partitions
     partition_id = max_openvino_partitions
-    for node in partitioned_graph.graph.nodes:
+    for node in gm.graph.nodes:
         # TODO: use a better way to identify fused submodule
         if node.op == "call_module" and "fused_" in node.name:
-            openvino_submodule = getattr(partitioned_graph, node.name)
-            partitioned_graph.delete_submodule(node.target)
+            openvino_submodule = getattr(gm, node.name)
+            gm.delete_submodule(node.target)
             gm.add_submodule(
                 node.target,
                 OpenVINOGraphModule(openvino_submodule, partition_id, use_python_fusion_cache),
@@ -123,7 +128,7 @@ def partition_graph(gm: GraphModule, use_python_fusion_cache: bool):
 
     max_openvino_partitions = partition_id
 
-    return partitioned_graph
+    return gm
 
 
 def openvino_execute_partitioned(gm: GraphModule, *args, executor_parameters=None):
