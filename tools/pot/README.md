@@ -56,4 +56,3 @@ OpenVINO provides several examples to demonstrate the POT optimization workflow:
 ## See Also
 
 * [Performance Benchmarks](https://docs.openvino.ai/2023.0/openvino_docs_performance_benchmarks.html)
-* [INT8 Quantization by Using Web-Based Interface of the DL Workbench](https://docs.openvino.ai/2022.2/workbench_docs_Workbench_DG_Int_8_Quantization.html)

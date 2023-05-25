@@ -191,7 +191,6 @@ Report questions, issues and suggestions, using:
 * [Neural Network Compression Framework (NNCF)](https://github.com/openvinotoolkit/nncf) - a suite of advanced algorithms for model inference optimization including quantization, filter pruning, binarization and sparsity
 * [OpenVINO™ Training Extensions (OTE)](https://github.com/openvinotoolkit/training_extensions) - convenient environment to train Deep Learning models and convert them using OpenVINO for optimized inference.
 * [OpenVINO™ Model Server (OVMS)](https://github.com/openvinotoolkit/model_server) - a scalable, high-performance solution for serving deep learning models optimized for Intel architectures
-* [DL Workbench](https://docs.openvino.ai/2022.3/workbench_docs_Workbench_DG_Introduction.html) - an alternative, web-based version of OpenVINO designed to facilitate optimization and compression of pre-trained deep learning models.
 * [Computer Vision Annotation Tool (CVAT)](https://github.com/opencv/cvat) - an online, interactive video and image annotation tool for computer vision purposes.
 * [Dataset Management Framework (Datumaro)](https://github.com/openvinotoolkit/datumaro) - a framework and CLI tool to build, transform, and analyze datasets.
 
