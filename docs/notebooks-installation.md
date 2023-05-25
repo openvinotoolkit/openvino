@@ -598,13 +598,9 @@ or create an
 `FAQ`_
 ========
 
--  `Which devices does OpenVINO
-   support? <https://docs.openvino.ai/2022.1/openvino_docs_OV_UG_supported_plugins_Supported_Devices.html>`__
--  `What is the first CPU generation that OpenVINO
-   supports? <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
--  `Are there any success stories about deploying real-world solutions
-   with
-   OpenVINO? <https://www.intel.com/content/www/us/en/internet-of-things/ai-in-production/success-stories.html>`__
+-  :doc:`Which devices does OpenVINO support? <openvino_docs_OV_UG_supported_plugins_Supported_Devices>`
+-  `What is the first CPU generation that OpenVINO supports? <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
+-  `Are there any success stories about deploying real-world solutions with OpenVINO? <https://www.intel.com/content/www/us/en/internet-of-things/ai-in-production/success-stories.html>`__
 
 --------------
 
@@ -612,7 +608,7 @@ or create an
 -------------------------
 
 * `OpenVINO™ Notebooks - Github Repository <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/README.md>`_
-* `Install OpenVINO™ Development Tools <https://docs.openvino.ai/nightly/openvino_docs_install_guides_install_dev_tools.html>`_
+* :doc:`Install OpenVINO™ Development Tools <openvino_docs_install_guides_install_dev_tools>`
 
 
 .. |br| raw:: html
