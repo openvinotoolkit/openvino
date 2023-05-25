@@ -34,7 +34,7 @@ namespace {
 }
 
 bool Concat::isExecutable() const {
-    return !hasEmptyOutputTensors() && !isOptimized();
+    return !isInPlace() && !hasEmptyOutputTensors();
 }
 
 bool Concat::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
@@ -119,7 +119,8 @@ void Concat::initSupportedPrimitiveDescriptors() {
     const auto& dstShape = getOutputShapeAtPort(0);
     std::vector<LayoutType> tdCreatorTypes = {LayoutType::ncsp, LayoutType::nspc};
 
-    // check if blocked layouts are available the channels size should be evenly divided by the block size to avoid slow oneDNN ref implementation
+    // check if blocked layouts are available the channels size should be evenly divided by the block size to avoid slow oneDNN ref implementation and allow
+    // inPlace memory usage if possible
     if (dstShape.getRank() > channelAxis) {
         for (auto& item : { std::make_pair(8lu, LayoutType::nCsp8c), std::make_pair(16lu, LayoutType::nCsp16c)}) {
             const VectorDims &blkDims = dstShape.getDims();
@@ -159,12 +160,7 @@ void Concat::initSupportedPrimitiveDescriptors() {
             config.inConfs[i].inPlace(-1);
             config.inConfs[i].constant(false);
             auto desc = itr->second->createSharedDesc(inputPrecision, getInputShapeAtPort(i));
-            // TODO [DS]: inplace
-            if (isDynamicNode()) {
-                config.inConfs[i].setMemDesc(desc);
-            } else {
-                config.inConfs[i].setMemDesc(desc, BlockedMemoryDesc::EMPTY_MASK);
-            }
+            config.inConfs[i].setMemDesc(desc);
         }
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref);
         if (itr->first != LayoutType::nspc) {
@@ -184,42 +180,9 @@ void Concat::initSupportedPrimitiveDescriptors() {
 
     // Optimized inplace case
     for (auto refPdIndex : pdIndexesToReuse) {
-        const auto& refConfig = supportedPrimitiveDescriptors[refPdIndex].getConfig();
-        auto config = refConfig;
-
-        auto denseOutDesc = refConfig.outConfs[0].getMemDesc()->as<CpuBlockedMemoryDesc>();
-        // const auto &order = denseOutDesc->getOrder();
-        const auto &blkDims = denseOutDesc->getBlockDims();
-        auto numOfDim = blkDims.size();
-
-        SizeVector offsets(numOfDim, 0lu);
-        // SizeVector strides(numOfDim);
-        // strides.back() = 1lu;
-        // size_t offset = Shape::UNDEFINED_DIM;
-        //BlockedMemoryDesc::CmpMask mask = BlockedMemoryDesc::SKIP_OFFSET_MASK; // any offset
-        BlockedMemoryDesc::CmpMask mask = BlockedMemoryDesc::FULL_MASK;
-
-        // for (size_t i = 2; i <= numOfDim; i++) {
-        //     if (numOfDim - i < axis) {
-        //         strides[numOfDim - i] = Shape::UNDEFINED_DIM;
-        //         mask.reset(numOfDim - i); // any strides on certain axis
-        //     } else {
-        //         strides[numOfDim - i] = strides[numOfDim - i + 1] * blkDims[numOfDim - i + 1];
-        //     }
-        // }
-
-        const auto outDesc = std::dynamic_pointer_cast<CpuBlockedMemoryDesc>(refConfig.outConfs[0].getMemDesc());
-        config.outConfs[0].setMemDesc(outDesc, mask);
-
-        for (size_t i = 0; i < getParentEdges().size(); i++) {
-            //const auto& srcBlkDims = refConfig.inConfs[i].getMemDesc()->as<CpuBlockedMemoryDesc>()->getBlockDims();
-            // const auto& shape = refConfig.inConfs[i].getMemDesc()->getShape();
-
-            // const auto inDesc = std::make_shared<CpuBlockedMemoryDesc>(inputPrecision, shape, srcBlkDims, order, offset, offsets, strides);
-            auto inDesc = std::dynamic_pointer_cast<CpuBlockedMemoryDesc>(refConfig.inConfs[i].getMemDesc());
-
+        auto config = supportedPrimitiveDescriptors[refPdIndex].getConfig();;
+        for (size_t i = 0; i < config.inConfs.size(); i++) {
             config.inConfs[i].inPlace(0);
-            config.inConfs[i].setMemDesc(inDesc, mask);
         }
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
     }
@@ -345,19 +308,15 @@ bool Concat::created() const {
     return getType() == Type::Concatenation;
 }
 
-bool Concat::isOptimized() const {
-    return getSelectedPrimitiveDescriptor() && getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].inPlace() >= 0;
-}
-
 bool Concat::needPrepareParams() const {
-    if (canOptimizeNspc) {
+    if (canOptimizeNspc || isInPlace()) {
         return false;
     }
     return inputShapesModified();
 }
 
 void Concat::prepareParams() {
-    if (canOptimizeNspc || isOptimized())
+    if (canOptimizeNspc || isInPlace())
         return;
 
     const auto& dstMemPtr = getChildEdgesAtPort(0)[0]->getMemoryPtr();
@@ -456,7 +415,7 @@ void Concat::initOptimalPrimitiveDescriptor() {
     if (selected_pd == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set.";
 
-   if (!isOptimized()) {
+   if (!isInPlace()) {
        Node::initOptimalPrimitiveDescriptor();
         auto config = selected_pd->getConfig();
         if (!isConfigDefined(config)) {
@@ -473,64 +432,6 @@ void Concat::initOptimalPrimitiveDescriptor() {
         }
     }
 
-    auto config = selected_pd->getConfig();
-    if (!isDynamicNode() && !isConfigDefined(config)) {
-        for (size_t i = 0; i < config.outConfs.size(); i++) {
-            int num = getChildEdgeAt(i)->getOutputNum();
-            if (num >= 0) {
-                auto childConf = getChildEdgeAt(i)->getChild()->getSelectedPrimitiveDescriptor()->getConfig().inConfs[num];
-                childConf.setMemDesc(childConf.getMemDesc()->cloneWithNewPrecision(config.outConfs[i].getMemDesc()->getPrecision()));
-
-                if (getChildEdgeAt(i)->getChild()->getSelectedPrimitiveDescriptor()) {
-                    if (!childConf.getMemDesc()->isDefined() && childConf.inPlace() >= 0)
-                        getChildEdgeAt(i)->getChild()->initOptimalPrimitiveDescriptor();
-
-                    if (childConf.getMemDesc()->isDefined() && config.outConfs[i].getPortDesc()->isCompatible(*childConf.getPortDesc())) {
-                        config.outConfs[i].setMemDesc(childConf.getMemDesc());
-                        continue;
-                    }
-                }
-            }
-
-            // reset mask
-            config.outConfs[i].setMemDesc(config.outConfs[i].getMemDesc());
-        }
-        auto firstOutBlockingDesc = config.outConfs[0].getMemDesc()->as<BlockedMemoryDesc>();
-        size_t offset = 0;
-        for (size_t i = 0; i < config.inConfs.size(); i++) {
-            auto oldDesc = config.inConfs[i].getMemDesc();
-            auto inpBlockingDesc = oldDesc->as<BlockedMemoryDesc>();
-
-            config.inConfs[i].setMemDesc(
-                std::make_shared<CpuBlockedMemoryDesc>(
-                    inpBlockingDesc->getPrecision(),
-                    inpBlockingDesc->getShape(),
-                    inpBlockingDesc->getBlockDims(),
-                    inpBlockingDesc->getOrder(),
-                    firstOutBlockingDesc->getOffsetPadding() + offset,
-                    firstOutBlockingDesc->getOffsetPaddingToData(),
-                    firstOutBlockingDesc->getStrides()),
-                BlockedMemoryDesc::FULL_MASK);
-            size_t axisSize = 1;
-
-            auto firstInpBlockingDesc = config.inConfs[0].getMemDesc()->as<BlockedMemoryDesc>();
-            if (firstInpBlockingDesc->hasLayoutType(LayoutType::nspc)) {
-                // This is more general and works for any "direct" Layout (such as nchw or nhwc), but it doesn't work for blocked
-                size_t realAxis = inverseOrder(firstInpBlockingDesc->getOrder(), axis);
-                for (size_t j = realAxis; j < inpBlockingDesc->getBlockDims().size(); j++) {
-                    size_t jj = firstInpBlockingDesc->getOrder()[j];
-                    axisSize *= inpBlockingDesc->getBlockDims()[jj];
-                }
-            } else {
-                // This works for nchw and nchw8c/nchw16c
-                for (size_t j = axis; j < inpBlockingDesc->getBlockDims().size(); j++) {
-                    axisSize *= inpBlockingDesc->getBlockDims()[j];
-                }
-            }
-            offset += axisSize;
-        }
-        initDescriptor(config);
-    }
     //block layout may have axis greater than rank, disable ref_concat
     auto primDesc = getSelectedPrimitiveDescriptor();
     auto memDesc = primDesc->getConfig().outConfs[0].getMemDesc()->as<BlockedMemoryDesc>();
@@ -548,7 +449,7 @@ void Concat::initOptimalPrimitiveDescriptor() {
 }
 
 void Concat::execute(dnnl::stream strm) {
-    if (isOptimized()) {
+    if (isInPlace()) {
         return;
     }
 
@@ -725,7 +626,7 @@ void Concat::execRef() {
 }
 
 void Concat::resolveInPlaceEdges() {
-    if (isOptimized()) {
+    if (isInPlace()) {
         auto selected_pd = getSelectedPrimitiveDescriptor();
         if (selected_pd == nullptr)
             IE_THROW() << "Preferable primitive descriptor is not set.";

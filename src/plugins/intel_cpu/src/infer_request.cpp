@@ -220,12 +220,9 @@ void InferRequestBase::changeDefaultPtr() {
                     break;
                 }
 
-                if (child->getType() == Type::Concatenation) {
-                    auto concat = dynamic_cast<node::Concat*>(child.get());
-                    if (concat && concat->isOptimized()) {
-                        canBeInPlace = false;
-                        break;
-                    }
+                if (child->getType() == Type::Concatenation && child->isInPlace()) {
+                    canBeInPlace = false;
+                    break;
                 }
 
                 // Cannot be in-place before split because split is using different ptrs without offsets

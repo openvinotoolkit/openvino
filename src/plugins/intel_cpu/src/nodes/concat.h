@@ -28,8 +28,6 @@ public:
     void executeDynamicImpl(dnnl::stream strm) override { execute(strm); }
     void resolveInPlaceEdges() override;
 
-    bool isOptimized() const;
-
     InferenceEngine::Precision getRuntimePrecision() const override;
 
     bool isExecutable() const override;
