@@ -870,7 +870,7 @@ AutoSchedule::~AutoSchedule() {
                 reqAllEndTimes.splice(reqAllEndTimes.end(), request._endTimes);
             }
             size_t count = reqAllStartTimes.size();
-            size_t statisCount = count;
+            size_t statis_count = count;
             IE_ASSERT(count == reqAllEndTimes.size());
             reqAllStartTimes.sort(std::less<Time>());
             reqAllEndTimes.sort(std::less<Time>());
@@ -889,13 +889,13 @@ AutoSchedule::~AutoSchedule() {
                 // keep count as real count, don't count-- when skipping the first infer
                 if (!reqAllStartTimes.empty()) {
                     reqAllStartTimes.pop_front();
-                    statisCount--;
+                    statis_count--;
                 }
                 while (!reqAllStartTimes.empty()) {
                     time = reqAllStartTimes.front();
                     if (time < _cpuHelpReleaseTime) {
                         reqAllStartTimes.pop_front();
-                        statisCount--;
+                        statis_count--;
                     } else {
                         break;
                     }
@@ -906,7 +906,7 @@ AutoSchedule::~AutoSchedule() {
                     LOG_INFO_TAG("%s:duration:%lf", _workerRequest.first.c_str(), durtation.count());
                     // to count the fps of the device running at full speed, skip the first infer and use (count - 1) to
                     // calculate fps
-                    LOG_INFO_TAG("%s:fps:%lf", _workerRequest.first.c_str(), statisCount * 1000 / durtation.count());
+                    LOG_INFO_TAG("%s:fps:%lf", _workerRequest.first.c_str(), statis_count * 1000 / durtation.count());
                 }
             }
         }

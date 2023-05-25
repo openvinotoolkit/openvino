@@ -26,7 +26,7 @@ public:
     virtual ~BinderMultiSchedule();
 
 private:
-    std::mutex _devInferMutex;
-    std::unordered_map<InferenceEngine::IInferRequestInternal::Ptr, WorkerInferRequest*> _devInfer;
+    std::mutex m_dev_infer_mutex;
+    std::unordered_map<InferenceEngine::IInferRequestInternal::Ptr, WorkerInferRequest*> m_dev_infer;
 };
 }  // namespace MultiDevicePlugin

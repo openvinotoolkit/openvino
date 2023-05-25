@@ -50,9 +50,9 @@ Pipeline BinderMultiSchedule::GetPipeline(const IInferPtr& syncInferRequest, Wor
         std::static_pointer_cast<MultiDeviceInferRequest>(syncInferRequest)->GetSharedRequest();
     WorkerInferRequest* workInferReq = nullptr;
     INFO_RUN([&]() {
-        std::lock_guard<std::mutex> lock(_devInferMutex);
-        auto iter = _devInfer.find(soInferReq._ptr);
-        if (iter != _devInfer.end()) {
+        std::lock_guard<std::mutex> lock(m_dev_infer_mutex);
+        auto iter = m_dev_infer.find(soInferReq._ptr);
+        if (iter != m_dev_infer.end()) {
             workInferReq = iter->second;
         }
     });
@@ -81,8 +81,8 @@ IInferPtr BinderMultiSchedule::CreateInferRequestImpl(
         if ((num - sum) < dev_requests.size()) {
             request_to_share_blobs_with = dev_requests.at(num - sum)._inferRequest;
             INFO_RUN([&]() {
-                std::lock_guard<std::mutex> lock(_devInferMutex);
-                _devInfer.insert(std::make_pair(request_to_share_blobs_with._ptr, &dev_requests.at(num - sum)));
+                std::lock_guard<std::mutex> lock(m_dev_infer_mutex);
+                m_dev_infer.insert(std::make_pair(request_to_share_blobs_with._ptr, &dev_requests.at(num - sum)));
             });
             break;
         }
@@ -109,8 +109,8 @@ IInferPtr BinderMultiSchedule::CreateInferRequestImpl(IE::InputsDataMap networkI
         if ((num - sum) < dev_requests.size()) {
             request_to_share_blobs_with = dev_requests.at(num - sum)._inferRequest;
             INFO_RUN([&]() {
-                std::lock_guard<std::mutex> lock(_devInferMutex);
-                _devInfer.insert(std::make_pair(request_to_share_blobs_with._ptr, &dev_requests.at(num - sum)));
+                std::lock_guard<std::mutex> lock(m_dev_infer_mutex);
+                m_dev_infer.insert(std::make_pair(request_to_share_blobs_with._ptr, &dev_requests.at(num - sum)));
             });
             break;
         }
