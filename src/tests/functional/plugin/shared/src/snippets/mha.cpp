@@ -71,7 +71,7 @@ void MHA::generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticSha
     for (int i = 0; i < model_inputs.size(); ++i) {
         const auto& model_input = model_inputs[i];
         ov::Tensor tensor;
-        tensor = ov::test::utils::create_and_fill_tensor(model_input.get_element_type(), model_input.get_shape(), 21, -10, 256);
+        tensor = ov::test::utils::create_and_fill_tensor(model_input.get_element_type(), model_input.get_shape(), 2, -1, 256);
         inputs.insert({model_input.get_node_shared_ptr(), tensor});
     }
 }
@@ -93,7 +93,7 @@ void MHASelect::generate_inputs(const std::vector<ngraph::Shape>& targetInputSta
             tensor = ov::test::utils::create_and_fill_tensor(model_input.get_element_type(), model_input.get_shape(), 5 + seed, -2, 10, seed);
             seed++;
         } else {
-            tensor = ov::test::utils::create_and_fill_tensor_normal_distribution(model_input.get_element_type(), model_input.get_shape(), 1.0f, 0.5f);
+            tensor = ov::test::utils::create_and_fill_tensor(model_input.get_element_type(), model_input.get_shape(), 2, -1, 256);
         }
         inputs.insert({node_input, tensor});
     }
