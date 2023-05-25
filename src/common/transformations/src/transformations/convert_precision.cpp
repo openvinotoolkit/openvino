@@ -183,11 +183,6 @@ bool convert_function_precision(
     for (auto& node : ops) {
         if (skip_precision_sensitive && fp16_compression_is_disabled(node) && has_fp16_compression)
             continue;
-
-        // To keep Const+DecompressionConvert for CPU
-        if (!has_fp16_compression && constant_folding_is_disabled(node))
-            continue;
-
         is_changed |= convert_node_input_precision(node, precisions, type_to_extend);
     }
 
@@ -213,11 +208,6 @@ bool convert_function_precision(
         // skip precision sensitive nodes
         if (skip_precision_sensitive && fp16_compression_is_disabled(node) && has_fp16_compression)
             continue;
-
-        // To keep Const+DecompressionConvert for CPU
-        if (!has_fp16_compression && constant_folding_is_disabled(node))
-            continue;
-
         // Recursively apply transformation for sub-graph based operations
         if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::MultiSubGraphOp>(node)) {
             size_t sub_graphs_num = sub_graph_node->get_internal_subgraphs_size();
@@ -392,9 +382,7 @@ bool ov::pass::ConvertPrecision::run_on_model(const std::shared_ptr<ngraph::Func
     // to remove extra converts
     if (m_keep_precision_sensitive_in_fp32) {
         pass::Manager manager(get_pass_config());
-        if (has_fp16_compression) {
-            manager.register_pass<pass::EnableDecompressionConvertConstantFolding>();
-        }
+        manager.register_pass<pass::EnableDecompressionConvertConstantFolding>();
         manager.register_pass<pass::ConstantFolding>();
         manager.run_passes(f);
     }
@@ -1041,6 +1029,10 @@ std::shared_ptr<Node> convert_low_precisions_int(std::shared_ptr<opset4::Constan
 bool fuse_type_to_constant(const std::shared_ptr<ngraph::Node>& node,
                            const precisions_map& precisions,
                            const std::vector<Input<Node>>& consumers) {
+    if (constant_folding_is_disabled(node)) {
+        // Consts marked with disable_constant_folding should be kept in f16 till they reach to the plugin
+        return false;
+    }
     auto from = node->get_element_type();
     auto it = precisions.find(from);
     if (it == precisions.end())

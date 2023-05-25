@@ -832,7 +832,7 @@ TEST(TransformationTests, ConvertPrecision_without_keep_precision_sensitive_in_f
     ASSERT_TRUE(interpolate->input_value(2).get_element_type() == element::Type_t::f16);
 }
 
-TEST(TransformationTests, DISABLED_ConvertPrecision_check_marking_does_not_leak_in_trivial_case) {
+TEST(TransformationTests, ConvertPrecision_check_marking_does_not_leak_in_trivial_case) {
     std::shared_ptr<Model> model(nullptr), model_ref(nullptr);
     {
         auto input_1 = std::make_shared<opset10::Parameter>(element::f32, Shape{1, 3, 720, 1280});
@@ -867,7 +867,7 @@ TEST(TransformationTests, DISABLED_ConvertPrecision_check_marking_does_not_leak_
     ASSERT_TRUE(res.valid) << res.message;
 }
 
-TEST(TransformationTests, DISABLED_ConvertPrecision_whole_shape_subgraph_is_marked_1) {
+TEST(TransformationTests, ConvertPrecision_whole_shape_subgraph_is_marked_1) {
     std::shared_ptr<Model> model(nullptr), model_ref(nullptr);
     {
         auto input_1 = std::make_shared<opset10::Parameter>(element::f32, Shape{360, 640});
@@ -913,7 +913,7 @@ TEST(TransformationTests, DISABLED_ConvertPrecision_whole_shape_subgraph_is_mark
     ASSERT_TRUE(res.valid) << res.message;
 }
 
-TEST(TransformationTests, DISABLED_ConvertPrecision_whole_shape_subgraph_is_marked_2) {
+TEST(TransformationTests, ConvertPrecision_whole_shape_subgraph_is_marked_2) {
     std::shared_ptr<Model> model(nullptr), model_ref(nullptr);
     {
         auto input_1 = std::make_shared<opset10::Parameter>(element::f32, Shape{1, 1, 720, 1280});
@@ -977,7 +977,7 @@ TEST(TransformationTests, DISABLED_ConvertPrecision_whole_shape_subgraph_is_mark
     ASSERT_TRUE(res.valid) << res.message;
 }
 
-TEST(TransformationTests, DISABLED_ConvertPrecision_whole_shape_subgraph_is_marked_3) {
+TEST(TransformationTests, ConvertPrecision_whole_shape_subgraph_is_marked_3) {
     std::shared_ptr<Model> model(nullptr);
     std::shared_ptr<Model> model_ref(nullptr);
     {
@@ -1335,7 +1335,7 @@ TEST(TransformationTests, ConvertPrecision_ConstantConversion_U1ToU4) {
                                             {1, 0, 1, 0, 1, 0, 1, 1});
 }
 
-TEST(TransformationTests, DISABLED_ConvertPrecision_keep_precission_sensitive_fp32_with_exp) {
+TEST(TransformationTests, ConvertPrecision_keep_precission_sensitive_fp32_with_exp) {
     shared_ptr<Model> model, model_ref;
     pass::Manager manager;
     {
@@ -1381,7 +1381,7 @@ TEST(TransformationTests, DISABLED_ConvertPrecision_keep_precission_sensitive_fp
     ASSERT_TRUE(result.valid) << result.message;
 }
 
-TEST(TransformationTests, DISABLED_ConvertPrecision_keep_precission_sensitive_fp32_with_reducemean) {
+TEST(TransformationTests, ConvertPrecision_keep_precission_sensitive_fp32_with_reducemean) {
     shared_ptr<Model> model, model_ref;
     pass::Manager manager;
     {
@@ -1471,7 +1471,7 @@ TEST(TransformationTests, ConvertPrecision_reducesum_without_exp) {
     ASSERT_TRUE(result.valid) << result.message;
 }
 
-TEST(TransformationTests, DISABLED_ConvertPrecision_keep_precission_sensitive_fp32_t2t_subgraph) {
+TEST(TransformationTests, ConvertPrecision_keep_precission_sensitive_fp32_t2t_subgraph) {
     shared_ptr<Model> model, model_ref;
     pass::Manager manager;
     // subgraph from t2t-vit-7
@@ -1672,7 +1672,7 @@ TEST(TransformationTests, ConvertPrecision_PowWithNegativeExponent) {
     ASSERT_TRUE(result.valid) << result.message;
 }
 
-TEST(TransformationTests, DISABLED_ConvertPrecision_exp_through_unsqueeze) {
+TEST(TransformationTests, ConvertPrecision_exp_through_unsqueeze) {
     shared_ptr<Model> model, model_ref;
     pass::Manager manager;
     {
