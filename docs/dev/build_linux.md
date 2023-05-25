@@ -11,7 +11,7 @@ The software was validated on:
 
 - [CMake](https://cmake.org/download/) 3.13 or higher
 - GCC 7.5 or higher to build OpenVINO Runtime
-- Python 3.7 or higher for OpenVINO Runtime Python API
+- Python 3.7 - 3.11 for OpenVINO Runtime Python API
 - (Optional) [Install Intel® Graphics Compute Runtime for OpenCL™ Driver package 19.41.14441](https://github.com/intel/compute-runtime/releases/tag/19.41.14441) to enable inference on Intel integrated GPUs.
 
 ## How to build
@@ -36,7 +36,7 @@ The software was validated on:
    ```sh
    sudo ./install_build_dependencies.sh
    ```
-   > **NOTE**: By default, the build enables the OpenVINO Runtime GPU plugin to infer models on your Intel® Processor Graphics. This requires you to [Install Intel® Graphics Compute Runtime for OpenCL™ Driver package 19.41.14441](https://github.com/intel/compute-runtime/releases/tag/19.41.14441) before running the build. If you don't want to use the GPU plugin, use the `-DENABLE_INTEL_GPU=OFF` CMake build option and skip the installation of the Intel® Graphics Compute Runtime for OpenCL™ Driver.
+   > **NOTE**: By default, the build enables the OpenVINO Runtime GPU plugin to infer models on your Intel® Processor Graphics. This requires you to [Install Intel® Graphics Compute Runtime for OpenCL™ Driver package 23.13.26032.30](https://github.com/intel/compute-runtime/releases/tag/23.13.26032.30) before running the build. If you don't want to use the GPU plugin, use the `-DENABLE_INTEL_GPU=OFF` CMake build option and skip the installation of the Intel® Graphics Compute Runtime for OpenCL™ Driver.
 
 3. Create a build folder:
 ```sh
