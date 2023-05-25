@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "functional_test_utils/core_config.hpp"
+
 #include <ie_ngraph_utils.hpp>
 #include <string>
 
 #include "functional_test_utils/blob_utils.hpp"
-#include "functional_test_utils/core_config.hpp"
-
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 void CoreConfiguration(LayerTestsUtils::LayerTestsCommon* test) {
