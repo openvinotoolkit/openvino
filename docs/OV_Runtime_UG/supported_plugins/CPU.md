@@ -6,12 +6,15 @@
 @sphinxdirective
 
 
-The CPU plugin is a part of the Intel® Distribution of OpenVINO™ toolkit. It is developed to achieve high performance inference of neural networks on Intel® x86-64 CPUs.The newer 11th generation and later Intel® CPUs provide even further performance boost, especially with INT8 models.
+The CPU plugin is a part of the Intel® Distribution of OpenVINO™ toolkit. It is developed to achieve high performance inference of neural networks on Intel® x86-64 and Arm® CPUs. The newer 11th generation and later Intel® CPUs provide even further performance boost, especially with INT8 models.
 For an in-depth description of CPU plugin, see:
 
 - `CPU plugin developers documentation <https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/cmake_options_for_custom_compilation.md>`__.
 - `OpenVINO Runtime CPU plugin source files <https://github.com/openvinotoolkit/openvino/tree/master/src/plugins/intel_cpu/>`__.
 
+.. note::
+   The scope of the CPU plugin features and optimizations on Arm® may differ from Intel® x86-64. If the limitation is not mentioned explicitly, the feature is supported for all CPU architectures.
+   
 
 Device Name
 ###########################################################
@@ -44,14 +47,14 @@ Supported Inference Data Types
 CPU plugin supports the following data types as inference precision of internal primitives:
 
 | - Floating-point data types:
-|   - f32
-|   - bf16
+|   - f32 (Intel® x86-64, Arm®)
+|   - bf16 (Intel® x86-64)
 | - Integer data types:
-|   - i32
+|   - i32 (Intel® x86-64, Arm®)
 | - Quantized data types:
-|   - u8
-|   - i8
-|   - u1
+|   - u8 (Intel® x86-64)
+|   - i8 (Intel® x86-64)
+|   - u1 (Intel® x86-64)
 
 :doc:`Hello Query Device C++ Sample <openvino_inference_engine_samples_hello_query_device_README>` can be used to print out supported data types for all detected devices.
 
@@ -69,9 +72,18 @@ For more details on how to get a quantized model see the :doc:`low-precision opt
    Platforms that do not support Intel® AVX512-VNNI have a known "saturation issue" that may lead to reduced computational accuracy for ``u8/i8`` precision calculations.
    To get more information on how to detect such issues and possible workarounds, see the :doc:`saturation (overflow) issue section <pot_saturation_issue>`.
 
+.. note:: 
+   
+   Arm® platforms execute quantized models in simulation mode: the whole model (including quantization operations) is executed in floating-point precision.
+
 
 Floating Point Data Types Specifics
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+CPU plugin supports the following floating-point data types as inference precision of internal primitives:
+
+- f32 (Intel® x86-64, Arm®)
+- bf16 (Intel® x86-64)
 
 The default floating-point precision of a CPU primitive is ``f32``. To support the ``f16`` OpenVINO IR the plugin internally converts 
 all the ``f16`` values to ``f32`` and all the calculations are performed using the native precision of ``f32``.
@@ -190,6 +202,10 @@ For more details, see the :doc:`optimization guide <openvino_docs_deployment_opt
    on data transfer between NUMA nodes. In that case it is better to use the ``ov::hint::PerformanceMode::LATENCY`` performance hint. 
    For more details see the :doc:`performance hints <openvino_docs_OV_UG_Performance_Hints>` overview.
 
+.. note:: 
+
+   Multi-stream execution is not supported on Arm® platforms. Latency and throughput hints have identical behavior and use only one stream for inference.
+   
 
 Dynamic Shapes
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -314,27 +330,9 @@ Read-only properties
 
 External Dependencies
 ###########################################################
-For some performance-critical DL operations, the CPU plugin uses optimized implementations from the oneAPI Deep Neural Network Library 
-(`oneDNN <https://github.com/oneapi-src/oneDNN>`__).
-
-.. dropdown:: The following operations are implemented using primitives from the OneDNN library:
-
-   * AvgPool
-   * Concat
-   * Convolution
-   * ConvolutionBackpropData
-   * GroupConvolution
-   * GroupConvolutionBackpropData
-   * GRUCell
-   * GRUSequence
-   * LRN
-   * LSTMCell
-   * LSTMSequence
-   * MatMul
-   * MaxPool
-   * RNNCell
-   * RNNSequence
-   * SoftMax
+For some performance-critical DL operations, the CPU plugin uses third-party libraries:
+- `oneDNN <https://github.com/oneapi-src/oneDNN>`__ (Intel® x86-64, Arm®)
+- `Compute Library <https://github.com/ARM-software/ComputeLibrary>`__ (Arm®)
 
 
 Optimization guide
@@ -382,7 +380,7 @@ To enable denormals optimization in the application, the ``denormals_optimizatio
       :fragment: [ov:intel_cpu:denormals_optimization:part0]
 
 
-Sparse weights decompression
+Sparse weights decompression (Intel® x86-64)
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 ``Sparse weights`` are weights where most of the elements are zero. The ratio of the number of zero elements 
