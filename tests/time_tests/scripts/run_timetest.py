@@ -75,7 +75,6 @@ def run_timetest(args: dict, log=None):
     cmd_common = prepare_executable_cmd(args)
     ov_env = os.environ
     ov_env['OPENVINO_LOG_LEVEL'] = '4'
-    log.info(f">>>> ov_env['OPENVINO_LOG_LEVEL']:{ov_env['OPENVINO_LOG_LEVEL']}")
     # Run executable and collect statistics
     stats = {}
     logs = []
