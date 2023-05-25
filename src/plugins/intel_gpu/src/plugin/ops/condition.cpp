@@ -51,7 +51,7 @@ static cldnn::condition::branch_info gen_branch_info(Program& p, const std::shar
 
     auto& output_map = branch.output_map;
     auto internal_outputs = internal_body->get_results();
-    std::cout << "inner body outputs: " << internal_outputs.size() << std::endl;
+    // std::cout << "inner body outputs: " << internal_outputs.size() << std::endl;
     auto output_desc_vec = op->get_output_descriptions(idx);
     for (auto& out_desc : output_desc_vec) {
         const auto& internal_id = layer_type_name_ID(internal_outputs.at(out_desc->m_body_value_index));
@@ -68,9 +68,9 @@ static void CreateIfOp(Program& p, const std::shared_ptr<ngraph::op::v8::If>& op
     auto inputs = p.GetInputInfo(op);
     OPENVINO_ASSERT(inputs.size() >= 1, "Invalid inputs count (Not allowed no input)");
 
-    for (auto& in : inputs) {
-        std::cout << "= [" << in.idx << "] " << in.pid << std::endl;
-    }
+    // for (auto& in : inputs) {
+    //     std::cout << "= [" << in.idx << "] " << in.pid << std::endl;
+    // }
 
     const std::string layerName = layer_type_name_ID(op);
     auto branch_true = gen_branch_info(p, op, idx_true);
@@ -78,8 +78,8 @@ static void CreateIfOp(Program& p, const std::shared_ptr<ngraph::op::v8::If>& op
     auto branch_false = gen_branch_info(p, op, idx_false);
     branch_false.tags = "branch_false";
 
-    std::cout << "branch_true : " << branch_true << std::endl;
-    std::cout << "branch_false: " << branch_false << std::endl;
+    // std::cout << "branch_true : " << branch_true << std::endl;
+    // std::cout << "branch_false: " << branch_false << std::endl;
 
     const cldnn::condition conditionPrimitive(layerName,
                                 inputs,

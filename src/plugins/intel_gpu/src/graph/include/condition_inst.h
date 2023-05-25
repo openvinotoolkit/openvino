@@ -61,7 +61,6 @@ public:
           _branch_false(this->get_primitive()->branch_false) {}
 
     program_node& input() const { return get_dependency(0); }
-    // program_node& compare() const { return get_dependency(0); }
     cond_functions func() const { return get_primitive()->function; }
     tensor offset() const { return get_primitive()->offset; }
     void set_branches() const {

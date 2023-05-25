@@ -27,8 +27,8 @@ layout condition_inst::calc_output_layout(condition_node const& node, kernel_imp
 
     auto branch_true_output = node.get_branch_true()->get_outputs();
     auto branch_false_output = node.get_branch_false()->get_outputs();
-    std::cout << "- branch_true_output : " << branch_true_output.size() << std::endl;
-    std::cout << "- branch_false_output: " << branch_false_output.size() << std::endl;
+    // std::cout << "- branch_true_output : " << branch_true_output.size() << std::endl;
+    // std::cout << "- branch_false_output: " << branch_false_output.size() << std::endl;
 
     CLDNN_ERROR_NOT_EQUAL(impl_param.desc->id,
                           "Count of branch true outputs",
@@ -79,22 +79,6 @@ condition_inst::typed_primitive_inst(network& network, condition_node const& nod
     : parent(network, node),
       _net_true(network::allocate_network(node.get_program().get_engine(), node.get_branch_true(), true)),
       _net_false(network::allocate_network(node.get_program().get_engine(), node.get_branch_false(), true)) {
-    // auto compare_tensor = node.input().get_output_layout().get_tensor();
-    // auto input_tensor = node.input().get_output_layout().get_tensor();
-    // CLDNN_ERROR_TENSOR_SIZES_GREATER_THAN(node.id(),
-    //                                       "Compare tensor",
-    //                                       compare_tensor,
-    //                                       "input tensor",
-    //                                       input_tensor,
-    //                                       "Compare primitive is too big.");
-
-    // auto compare_with_offster_tensor = compare_tensor + node.offset();
-    // CLDNN_ERROR_TENSOR_SIZES_GREATER_THAN(node.id(),
-    //                                       "Offset with compare tensor",
-    //                                       compare_with_offster_tensor,
-    //                                       "input tensor",
-    //                                       input_tensor,
-    //                                       "Offset is too big.");
 }
 
 network::ptr condition_inst::get_networks(bool is_net_true) {
