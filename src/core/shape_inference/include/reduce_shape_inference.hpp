@@ -61,6 +61,7 @@ std::vector<TShape> reduce_shape_infer(const ov::op::util::ReductionBase* op,
     return output_shapes;
 }
 
+// API: TensorAccessor to constant data
 template <class TShape>
 std::vector<TShape> shape_infer(const ov::op::util::ArithmeticReductionKeepDims* op,
                                 const std::vector<TShape>& input_shapes,
@@ -73,4 +74,23 @@ std::vector<TShape> shape_infer(const ov::op::util::LogicalReductionKeepDims* op
                                 const std::vector<TShape>& input_shapes,
                                 const ov::ITensorAccessor& tensor_accessor = ov::make_tensor_accessor()) {
     return reduce_shape_infer(op, op->get_keep_dims(), input_shapes, tensor_accessor);
+}
+
+// API for compatibility: Constant data map
+template <class TShape>
+void shape_infer(const ov::op::util::ArithmeticReductionKeepDims* op,
+                 const std::vector<TShape>& input_shapes,
+                 std::vector<TShape>& output_shapes,
+                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
+    const auto tensor_accessor = ov::make_tensor_accessor(constant_data);
+    output_shapes = reduce_shape_infer(op, op->get_keep_dims(), input_shapes, tensor_accessor);
+}
+
+template <class TShape>
+void shape_infer(const ov::op::util::LogicalReductionKeepDims* op,
+                 const std::vector<TShape>& input_shapes,
+                 std::vector<TShape>& output_shapes,
+                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
+    const auto tensor_accessor = ov::make_tensor_accessor(constant_data);
+    output_shapes = reduce_shape_infer(op, op->get_keep_dims(), input_shapes, tensor_accessor);
 }
