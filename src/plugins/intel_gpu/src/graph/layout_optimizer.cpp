@@ -1875,6 +1875,12 @@ void layout_optimizer::select_preferred_formats_for_onednn(program_node& node, d
         }
         // Optimized out permute from permute-gemm pattern. e.f permute -> gemm
         if (node.is_type<gemm>()) {
+            // onednn gemm run ocl:ref:any below formats, it cause a huge performance drop.
+            std::vector<format> gemm_in_blist = {
+                format::yxfb,
+                format::byxf,
+                format::winograd_2x3_s1_data    // same dims order issue
+            };
             for (size_t idx = 0 ; idx < node.get_dependencies().size() ; idx++) {
                 if (node.get_dependency(idx).is_type<permute>()) {
                     auto& pnode = node.get_dependency(idx);
@@ -1885,6 +1891,9 @@ void layout_optimizer::select_preferred_formats_for_onednn(program_node& node, d
                     auto output_lay = pnode.get_output_layout();
                     if (input_lay.compatible(output_lay)) {
                         for (int32_t fmt_idx = format::bfyx ; fmt_idx < format::oiyx ; fmt_idx++) {
+                            if (std::find(gemm_in_blist.begin(), gemm_in_blist.end(), static_cast<format::type>(fmt_idx)) != gemm_in_blist.end()) {
+                                continue;
+                            }
                             auto impl_param = pnode.get_kernel_impl_params();
                             auto desc = impl_param->typed_desc<permute>();
                             auto permute_order = desc->permute_order;
@@ -1902,12 +1911,21 @@ void layout_optimizer::select_preferred_formats_for_onednn(program_node& node, d
             }
             // gemm -> permute
             if (node.get_users().size() == 1 && node.get_users().front()->is_type<permute>() && !node.has_fused_primitives()) {
+                std::vector<format> gemm_out_blist = {
+                    format::yxfb,
+                    format::byxf,
+                    format::bxfy,
+                    format::winograd_2x3_s1_data
+                };
                 auto& pnode = node.get_users().front()->as<permute>();
                 if (!pnode.has_fused_primitives()) {
                     auto input_lay = pnode.get_dependency(0).get_output_layout();
                     auto output_lay = pnode.get_output_layout();
                     if (input_lay.compatible(output_lay)) {
                         for (int32_t fmt_idx = format::bfyx ; fmt_idx < format::oiyx ; fmt_idx++) {
+                            if (std::find(gemm_out_blist.begin(), gemm_out_blist.end(), static_cast<format::type>(fmt_idx)) != gemm_out_blist.end()) {
+                                continue;
+                            }
                             auto impl_param = pnode.get_kernel_impl_params();
                             auto desc = impl_param->typed_desc<permute>();
                             auto permute_order = desc->permute_order;
