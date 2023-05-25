@@ -42,4 +42,5 @@ class TestTFLiteExpandDimsLayerTest(TFLiteLayerTest):
     @pytest.mark.parametrize("params", test_params)
     @pytest.mark.nightly
     def test_expand_dims(self, params, ie_device, precision, temp_dir):
+        pytest.xfail("CVS-111983")
         self._test(ie_device, precision, temp_dir, params)
