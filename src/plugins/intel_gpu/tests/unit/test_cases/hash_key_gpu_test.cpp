@@ -14,10 +14,10 @@
 #include <intel_gpu/primitives/mvn.hpp>
 #include <intel_gpu/primitives/permute.hpp>
 #include <intel_gpu/primitives/reshape.hpp>
+#include <intel_gpu/primitives/quantize.hpp>
 
 
-#include "eltwise_inst.h"
-// #include "fully_connected_inst.h"
+#include "primitive_inst.h"
 
 using namespace cldnn;
 using namespace tests;
@@ -224,7 +224,7 @@ TEST(check_hash_value, conv_basic) {
         input_layout("input", input->get_layout()),
         data("weights", weights),
         data("biases", biases),
-        convolution(key_prim_id, input_info("input"), { "weights" }, { "biases" }, {1, 1, 1}, {0, 0, 0}, {1, 1, 1}));
+        convolution(key_prim_id, input_info("input"), "weights", "biases", 1, {1, 1, 1}, {1, 1, 1}, {0, 0, 0}, {0, 0, 0}, false));
 
     auto prog = program::build_program(engine, topology, get_test_default_config(engine));
     network net(prog, 0);
@@ -235,8 +235,8 @@ TEST(check_hash_value, conv_basic) {
     const auto primitive_hash = primitve->hash();
     const auto params_hash = prog_node.get_kernel_impl_params()->hash();
 
-    ASSERT_EQ(primitive_hash, 14591385718963138714UL);
-    ASSERT_EQ(params_hash, 11221940619044440553UL);
+    ASSERT_EQ(primitive_hash, 13549661972131371304UL);
+    ASSERT_EQ(params_hash, 4330346452027285061UL);
 }
 
 TEST(check_hash_value, quantize_basic) {

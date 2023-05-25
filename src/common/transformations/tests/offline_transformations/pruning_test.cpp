@@ -5064,7 +5064,7 @@ TEST(TransformationTests, MaskPropagationBroadcastedEltwiseWrongBroadcastingMode
 
     auto mult_const = create_constant_with_zeros({c, 1, 1}, {{0, 1, 2, 3, 4}, {}});
 
-    auto autob = ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::PDPD, 2);
+    auto autob = ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::PDPD, 0);
     auto mult = std::make_shared<opset10::Multiply>(mul, mult_const, autob);
 
     auto mul_last_const = create_constant_with_zeros(weightsShape2, {{}, {}});

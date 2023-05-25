@@ -13,6 +13,7 @@
 #include "reshape_inst.h"
 #include "reorder_inst.h"
 #include "broadcast_inst.h"
+#include "fully_connected_inst.h"
 #include "pass_manager.h"
 #include "to_string_utils.h"
 

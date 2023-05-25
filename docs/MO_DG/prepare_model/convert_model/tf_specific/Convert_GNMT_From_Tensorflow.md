@@ -299,6 +299,6 @@ Running GNMT IR
    result_ie = exec_net.infer(input_data)
 
 
-For more information about Python API, refer to the `OpenVINO Runtime Python API <https://docs.openvino.ai/2022.3/api/ie_python_api/api.html>`__  guide.
+For more information about Python API, refer to the :doc:`OpenVINO Runtime Python API <api/ie_python_api/api>` guide.
 
 @endsphinxdirective

@@ -73,6 +73,8 @@ macro(_ov_platform_arch)
         else()
             set(_arch "aarch64")
         endif()
+    elseif(UNIVERSAL2)
+        set(_arch "universal2")
     elseif(ARM)
         set(_arch "armvl7")
     elseif(X86_64)
@@ -88,18 +90,22 @@ endmacro()
 
 # For macOS and Linux `PLATFORM_TAG` is not always correctly detected
 # So, we need to add our-own post-processing
-if(APPLE AND DEFINED CMAKE_OSX_DEPLOYMENT_TARGET)
+if(APPLE)
     _ov_platform_arch()
 
-    set(_macos_min_version "${CMAKE_OSX_DEPLOYMENT_TARGET}")
-    if(_macos_min_version MATCHES "^1[0-9]$")
-        set(_macos_min_version "${CMAKE_OSX_DEPLOYMENT_TARGET}.0")
+    if(CMAKE_OSX_DEPLOYMENT_TARGET)
+        set(_macos_target_version "${CMAKE_OSX_DEPLOYMENT_TARGET}")
+        if(_macos_target_version MATCHES "^1[0-9]$")
+            set(_macos_target_version "${CMAKE_OSX_DEPLOYMENT_TARGET}.0")
+        endif()
+        string(REPLACE "." "_" _macos_target_version "${_macos_target_version}")
+    else()
+        string(REGEX MATCH "1[0-9]_[0-9]+" _macos_target_version ${PLATFORM_TAG})
     endif()
-    string(REPLACE "." "_" _macos_min_version "${_macos_min_version}")
 
     # common platform tag looks like macosx_<macos major>_<macos minor>_<arch>
-    if(_arch AND _macos_min_version)
-        set(PLATFORM_TAG "macosx_${_macos_min_version}_${_arch}")
+    if(_arch AND _macos_target_version)
+        set(PLATFORM_TAG "macosx_${_macos_target_version}_${_arch}")
     endif()
 elseif(LINUX)
     _ov_platform_arch()
@@ -133,6 +139,7 @@ set(openvino_wheel_path "${openvino_wheels_output_dir}/${openvino_wheel_name}")
 #
 
 set(wheel_env ${CMAKE_COMMAND} -E env
+    SETUPTOOLS_EXT_SUFFIX=${PYTHON_MODULE_EXTENSION}
     WHEEL_VERSION=${WHEEL_VERSION}
     WHEEL_BUILD=${WHEEL_BUILD}
     OPENVINO_BUILD_DIR=${OpenVINO_BINARY_DIR}
