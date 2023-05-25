@@ -285,15 +285,13 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
                     input_subsets[input_subgraph_id].emplace(input);
                 }
             }
-            // for each subset of inputs create separate Result operation if subset belongs to other
+            auto result = std::make_shared<ngraph::op::Result>(output);
+            result->set_friendly_name(output.get_node()->get_friendly_name() + "_" +
+                                        std::to_string(output.get_index()) + "_result");
+            ngraph::copy_runtime_info(output.get_node_shared_ptr(), result);
+            subgraphIds.emplace(result.get(), output_subgraph_id);
+            results.push_back(result);
             for (auto&& input_subset : input_subsets) {
-                auto result = std::make_shared<ngraph::op::Result>(output);
-                result->set_friendly_name(output.get_node()->get_friendly_name() + "_" +
-                                          std::to_string(output.get_index()) + "_" +
-                                          std::to_string(input_subset.first) + "_result");
-                ngraph::copy_runtime_info(output.get_node_shared_ptr(), result);
-                subgraphIds.emplace(result.get(), output_subgraph_id);
-                results.push_back(result);
                 for (auto&& input : input_subset.second) {
                     output.remove_target_input(input);
                     auto parameter =
