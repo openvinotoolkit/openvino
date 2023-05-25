@@ -195,14 +195,15 @@ void inline
 fill_data_random(T *pointer, std::size_t size, const uint32_t range = 10, int32_t start_from = 0, const int32_t k = 1,
                  const int seed = 1) {
     testing::internal::Random random(seed);
-    random.Generate(range);
+    const uint32_t k_range = k * range; // range with respect to k
+    random.Generate(k_range);
 
     if (start_from < 0 && !std::is_signed<T>::value) {
         start_from = 0;
     }
 
     for (std::size_t i = 0; i < size; i++) {
-        pointer[i] = static_cast<T>(start_from + static_cast<T>(random.Generate(range)) / k);
+        pointer[i] = static_cast<T>(start_from + static_cast<T>(random.Generate(k_range)) / k);
     }
 }
 
@@ -504,7 +505,7 @@ inline ngraph::bfloat16 ie_abs(const ngraph::bfloat16 &val) {
 }
 
 inline ngraph::float16 ie_abs(const ngraph::float16 &val) {
-    return ngraph::float16::from_bits(val.to_bits() ^ 0x8000);
+    return ngraph::float16::from_bits(val.to_bits() & 0x7FFF);
 }
 
 }  // namespace CommonTestUtils

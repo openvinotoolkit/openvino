@@ -32,7 +32,7 @@
 #    ifndef NOMINMAX
 #        define NOMINMAX
 #    endif
-#    include <Windows.h>
+#    include <windows.h>
 #endif
 
 long long FileUtils::fileSize(const char* charfilepath) {

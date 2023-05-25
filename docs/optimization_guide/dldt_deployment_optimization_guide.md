@@ -8,11 +8,13 @@
 
    openvino_docs_deployment_optimization_guide_common
    openvino_docs_OV_UG_Performance_Hints
+   openvino_docs_OV_UG_Precision_Control
    openvino_docs_deployment_optimization_guide_latency
    openvino_docs_deployment_optimization_guide_tput
    openvino_docs_deployment_optimization_guide_tput_advanced
    openvino_docs_OV_UG_Preprocessing_Overview
    openvino_docs_deployment_optimization_guide_internals
+   openvino_docs_memory_optimization_guide
 
 
 Runtime optimization, or deployment optimization, focuses on tuning inference parameters and execution means (e.g., the optimum number of requests executed simultaneously). Unlike model-level optimizations, they are highly specific to the hardware and case they are used for, and often come at a cost.
