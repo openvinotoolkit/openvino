@@ -17,6 +17,7 @@
 #include "convolution_inst.h"
 #include "permute_inst.h"
 #include "reshape_inst.h"
+#include "activation_inst.h"
 #include "pass_manager.h"
 #include "to_string_utils.h"
 
@@ -210,4 +211,32 @@ TEST(remove_redundant_reorders, not_to_fuse_permute) {
     ASSERT_EQ(in_layout.format.value, format::bfwzyx);
 
     network network(engine, topology, config);
+}
+
+TEST(remove_redundant_reorders, remove_fused) {
+    auto& engine = get_test_engine();
+    layout output_layout_fp16( data_types::f16, format::bfyx, { 1, 3, 2, 2 } );
+    layout output_layout_fp32( data_types::f32, format::bfyx, { 2, 3, 1, 2 } );
+
+    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 3, 2, 2 } });
+    topology topology;
+    topology.add(input_layout("input1", input1->get_layout()));
+    topology.add(reorder("reorder1", input_info("input1"), output_layout_fp16));
+    topology.add(activation("act", input_info("reorder1"), activation_func::relu));
+    topology.add(reorder("reorder2", input_info("input1"), output_layout_fp16));
+    topology.add(eltwise("sum", input_info("reorder2"), input_info("act"), eltwise_mode::sum));
+    topology.add(reorder("reorder3", input_info("sum"), output_layout_fp32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    auto prog = program::build_program(engine, topology, config, false, true);
+
+    layout_optimizer lo(true);
+    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog, lo);
+    bool optimize_data = config.get_property(ov::intel_gpu::optimize_data);
+    program_wrapper::apply_opt_pass<remove_redundant_reorders>(*prog, lo, optimize_data);
+
+    ASSERT_NE(prog, nullptr);
+    network network(engine, topology, config);
+    ASSERT_TRUE(has_node(*prog, "reorder2"));
 }

@@ -349,6 +349,9 @@ void remove_redundant_reorders::run(program& p) {
         if (node->get_dependencies().size() != 1)
             continue;
 
+        if (node->has_fused_primitives())
+            continue;
+
         auto& dep = node->get_dependency(0);
 
         for (auto& user : dep.get_users()) {
