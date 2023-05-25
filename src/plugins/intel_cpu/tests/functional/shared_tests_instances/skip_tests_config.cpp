@@ -120,6 +120,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_FakeQuantizeLayerCPUTest.*bin.*)",
         // Issue: 69222
         R"(.*smoke_PriorBoxClustered.*PriorBoxClusteredLayerCPUTest.*_netPRC=f16_.*)",
+        // Skip the PriorBox from opset8 due to this is not supported by plugin and executed on reference.
+        R"(.*smoke_PriorBox_Basic/PriorBoxLayerTest.*)",
         // Issue: 72005
         // there are some inconsistency between cpu plugin and ng ref
         // for ctcMergeRepeated is true when legal randomized inputs value.

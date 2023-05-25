@@ -8,7 +8,6 @@
 
 #include <openvino/core/partial_shape.hpp>
 #include "ngraph_functions/builders.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
@@ -61,7 +60,7 @@ public:
                  imageShapes,
                  targetDevice) = obj.param;
 
-        ngraph::op::PriorBoxAttrs attributes;
+        ov::op::v0::PriorBox::Attributes attributes;
         std::tie(
             attributes.min_size,
             attributes.max_size,
@@ -122,7 +121,7 @@ protected:
 
         init_input_shapes({ inputShapes, imageShapes });
 
-        ngraph::op::PriorBoxAttrs attributes;
+        ov::op::v0::PriorBox::Attributes attributes;
         std::tie(
             attributes.min_size,
             attributes.max_size,
@@ -139,15 +138,15 @@ protected:
 
         auto params = ngraph::builder::makeDynamicParams(netPrecision, inputDynamicShapes);
 
-        auto shape_of_1 = std::make_shared<ngraph::opset3::ShapeOf>(params[0]);
-        auto shape_of_2 = std::make_shared<ngraph::opset3::ShapeOf>(params[1]);
-        auto priorBox = std::make_shared<ngraph::op::PriorBox>(
+        auto shape_of_1 = std::make_shared<ov::op::v3::ShapeOf>(params[0]);
+        auto shape_of_2 = std::make_shared<ov::op::v3::ShapeOf>(params[1]);
+        auto priorBox = std::make_shared<ov::op::v0::PriorBox>(
                 shape_of_1,
                 shape_of_2,
                 attributes);
 
-        ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(priorBox)};
-        function = std::make_shared <ngraph::Function>(results, params, "priorBox");
+        ov::ResultVector results{std::make_shared<ov::op::v0::Result>(priorBox)};
+        function = std::make_shared <ov::Model>(results, params, "priorBox");
     }
 };
 

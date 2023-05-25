@@ -4,15 +4,7 @@
 
 #include "priorbox.h"
 
-#include <algorithm>
-#include <cmath>
-#include <memory>
-#include <vector>
-
 #include <ie_parallel.hpp>
-#include <dnnl_types.h>
-#include <ngraph/ngraph.hpp>
-#include <ngraph/opsets/opset1.hpp>
 
 using namespace InferenceEngine;
 
@@ -52,12 +44,12 @@ class PriorBoxShapeInferFactory : public ShapeInferFactory {
 public:
     explicit PriorBoxShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(op) {}
     ShapeInferPtr makeShapeInfer() const override {
-        auto priorBox = ov::as_type_ptr<const ngraph::opset1::PriorBox>(m_op);
+        auto priorBox = ov::as_type_ptr<const op::v0::PriorBox>(m_op);
         if (!priorBox) {
             IE_THROW() << "Unexpected op type in PriorBox shape inference factory: " << m_op->get_type_name();
         }
         const auto& attrs = priorBox->get_attrs();
-        auto number_of_priors = ngraph::opset1::PriorBox::number_of_priors(attrs);
+        auto number_of_priors = op::v0::PriorBox::number_of_priors(attrs);
         return std::make_shared<PriorBoxShapeInfer>(number_of_priors);
     }
 
@@ -75,9 +67,9 @@ float clip_less(float x, float threshold) {
 
 }   // namespace
 
-bool PriorBox::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool PriorBox::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto priorBox = std::dynamic_pointer_cast<const ngraph::opset1::PriorBox>(op);
+        const auto priorBox = std::dynamic_pointer_cast<const op::v0::PriorBox>(op);
         if (!priorBox) {
             errorMessage = "Only opset1 PriorBox operation is supported";
             return false;
@@ -88,15 +80,15 @@ bool PriorBox::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& o
     return true;
 }
 
-PriorBox::PriorBox(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+PriorBox::PriorBox(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, PriorBoxShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
     }
 
-    const auto priorBox = std::dynamic_pointer_cast<const ngraph::opset1::PriorBox>(op);
-    const ngraph::opset1::PriorBox::Attributes& attrs = priorBox->get_attrs();
+    const auto priorBox = std::dynamic_pointer_cast<const op::v0::PriorBox>(op);
+    const auto& attrs = priorBox->get_attrs();
     offset = attrs.offset;
     step = attrs.step;
     min_size = attrs.min_size;
@@ -134,7 +126,7 @@ PriorBox::PriorBox(const std::shared_ptr<ngraph::Node>& op, const GraphContext::
         }
     }
 
-    number_of_priors = ngraph::opset1::PriorBox::number_of_priors(attrs);
+    number_of_priors = op::v0::PriorBox::number_of_priors(attrs);
 
     if (attrs.variance.size() == 1 || attrs.variance.size() == 4) {
         for (float i : attrs.variance) {
