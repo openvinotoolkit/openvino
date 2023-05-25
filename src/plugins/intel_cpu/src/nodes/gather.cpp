@@ -12,6 +12,7 @@
 #include <utils/general_utils.h>
 #include "kernels/x64/gather_uni_kernel.hpp"
 #include "utils/shape_inference/shape_inference_cpu.hpp"
+#include <partitioned_mem_mgr.h>
 
 using namespace InferenceEngine;
 using namespace dnnl::impl::cpu;
@@ -162,6 +163,10 @@ Gather::Gather(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr con
         if (axis < 0 || axis >= dataSrcRank || batchDims > axis)
             THROW_ERROR << "has incorrect input parameter axis value: " << axis;
     }
+
+    if (auto indices = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(GATHER_INDICES))) {
+        constIndices = indices->cast_vector<int>();
+    }
 }
 
 void Gather::initSupportedPrimitiveDescriptors() {
@@ -201,9 +206,28 @@ void Gather::initSupportedPrimitiveDescriptors() {
                           {LayoutType::ncsp, Precision::I32, isAxisInputConst}},
                          {{LayoutType::ncsp, dataPrecision}},
                          ref_any);
+
+    // Let's check for the special inPlace memory use case
+    // in place only makes sense when we split by dense blocks since strided tensors are not supported by most nodes
+
+    const auto& parentdDims = inputShapes[0].getDims();
+    if (isAxisInputConst &&
+        0 == batchDims &&
+        1 == constIndices.size() &&
+        parentdDims[axis] != Shape::UNDEFINED_DIM &&
+        std::all_of(parentdDims.begin(), parentdDims.begin() + axis, [](size_t dim) { return  dim == 1; })) {
+        addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision},
+                        {LayoutType::ncsp, Precision::I32},
+                        {LayoutType::ncsp, Precision::I32, isAxisInputConst}},
+                        {{LayoutType::ncsp, dataPrecision, false, GATHER_DATA}},
+                        unknown);
+    }
 }
 
 void Gather::createPrimitive() {
+    if (isInPlace()) {
+        return;
+    }
 #if defined(OPENVINO_ARCH_X86_64)
     uint64_t idxElPerVec = 1;
     if (!isDynamicNode()) {
@@ -274,6 +298,9 @@ void Gather::createPrimitive() {
 }
 
 bool Gather::needPrepareParams() const {
+    if (isInPlace()) {
+        return false;
+    }
     bool result = inputShapesModified();
     if (!isAxisInputConst)
         result = result || axis != (reinterpret_cast<const int32_t*>(getParentEdgeAt(GATHER_AXIS)->getMemoryPtr()->GetPtr()))[0];
@@ -554,6 +581,40 @@ void Gather::execReference() {
 
 bool Gather::created() const {
     return getType() == Type::Gather;
+}
+
+bool Gather::isExecutable() const {
+    return !isInPlace() && Node::isExecutable();
+}
+
+void Gather::resolveInPlaceEdges() {
+    if (isInPlace()) {
+        auto selected_pd = getSelectedPrimitiveDescriptor();
+        if (selected_pd == nullptr)
+            IE_THROW() << "Preferable primitive descriptor is not set.";
+        constexpr size_t outputPort = 0;
+
+        auto& config = selected_pd->getConfig();
+        size_t inplaceInpIndx = selected_pd->getConfig().outConfs[outputPort].inPlace();
+        auto baseDim = inputShapes.front().getDims()[axis];
+        IE_ASSERT(baseDim != Shape::UNDEFINED_DIM) << "Gather node: " << getName() << " can not use inPlace memory with splitting on dynamic dimention";
+        auto parentEdge = getParentEdgesAtPort(inplaceInpIndx).front();
+        auto index = constIndices.at(0);
+        ptrdiff_t offset = index < 0 ? baseDim + index : index;
+        const auto& childEdges = getChildEdgesAtPort(outputPort);
+        for (auto& childEdge : childEdges) {
+            // IE_ASSERT(parentEdge->getStatus() == Edge::Status::NotAllocated) << "Unexpected edge status in node: " <<
+            //     getName() << " with type " << getTypeStr();
+
+            auto memMgr = std::make_shared<PartitionedMemoryMngr>(parentEdge, baseDim, offset);
+            childEdge->getMemoryPtr().reset(new Memory(getEngine()));
+            childEdge->getMemoryPtr()->Create(config.outConfs[outputPort].getMemDesc(), memMgr);
+
+            childEdge->changeStatus(Edge::Status::Allocated);
+        }
+    } else {
+        Node::resolveInPlaceEdges();
+    }
 }
 
 }   // namespace node
