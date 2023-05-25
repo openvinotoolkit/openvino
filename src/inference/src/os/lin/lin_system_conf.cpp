@@ -77,6 +77,7 @@ CPU::CPU() {
         }
         _processors = processors.size();
         _numa_nodes = sockets.size();
+        _numa_nodes = _numa_nodes == 0 ? 1 : _numa_nodes;
         for (auto&& socket : sockets) {
             _cores += socket.second;
         }
@@ -86,8 +87,8 @@ CPU::CPU() {
         if (_processors > 0 && _numa_nodes > 0 && _cores > 0) {
             get_cpu_mapping_from_cores(_processors, _numa_nodes, _cores, _proc_type_table, _cpu_mapping_table);
         } else {
-            IE_THROW() << "Get wrong CPU information. processors: " << _processors << " numa_nodes: " << _numa_nodes
-                       << " cores: " << _cores;
+            IE_THROW() << "Wrong CPU information. processors: " << _processors << ", numa_nodes: " << _numa_nodes
+                       << ", cores: " << _cores;
         }
     }
     std::vector<std::vector<std::string>>().swap(system_info_table);
