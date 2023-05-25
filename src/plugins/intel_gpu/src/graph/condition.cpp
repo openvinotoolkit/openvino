@@ -96,4 +96,31 @@ condition_inst::typed_primitive_inst(network& network, condition_node const& nod
     //                                       input_tensor,
     //                                       "Offset is too big.");
 }
+
+network::ptr condition_inst::get_networks(bool is_net_true) {
+    auto net = is_net_true? _net_true : _net_false;
+    auto& branch = is_net_true? node->get_primitive()->branch_true : node->get_primitive()->branch_false;
+
+    // set input memory
+    for (size_t mem_idx = 0; mem_idx < inputs_memory_count(); mem_idx++) {
+        const primitive_id& input_external_id = dependencies().at(mem_idx).first->id();
+        auto iter = branch.input_map.find(input_external_id);
+        if (iter != branch.input_map.end()) {
+            const primitive_id& input_internal_id = iter->second.second;
+            auto mem_ptr = input_memory_ptr(mem_idx);
+            net->set_input_data(input_internal_id, mem_ptr);
+        }
+    }
+
+    // set output memory
+    for (auto out_mem_map : branch.output_map) {
+        auto idx = out_mem_map.first;
+        auto out_internal_id = out_mem_map.second;
+        auto mem_ptr = output_memory_ptr(idx);
+        net->set_output_memory(out_internal_id, mem_ptr);
+    }
+
+    return net;
+}
+
 }  // namespace cldnn

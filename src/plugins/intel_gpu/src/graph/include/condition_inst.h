@@ -88,12 +88,11 @@ public:
     static std::string to_string(condition_node const& node);
     typed_primitive_inst(network& network, condition_node const& node);
 
-    memory::ptr input_memory_ptr() const { return dep_memory_ptr(0); }
-    memory::ptr compare_memory_ptr() const { return dep_memory_ptr(1); }
-    memory& input_memory() const { return dep_memory(0); }
-    memory& compare_memory() const { return dep_memory(1); }
+    // TODO: When memory is allocated for dep input
+    memory::ptr compare_memory_ptr() const { return dep_memory_ptr(0); }
     network::ptr get_net_true() const { return _net_true; }
     network::ptr get_net_false() const { return _net_false; }
+    network::ptr get_networks(bool is_net_true);
 
 private:
     network::ptr _net_true;

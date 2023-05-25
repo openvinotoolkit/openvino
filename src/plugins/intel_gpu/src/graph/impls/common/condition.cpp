@@ -30,23 +30,17 @@ struct condition_impl : typed_primitive_impl<condition> {
     }
 
     event::ptr execute_impl(const std::vector<event::ptr>& events, condition_inst& instance) override {
-        OPENVINO_ASSERT(false, "Not implemented yet");
         for (auto& a : events) {
             a->wait();
         }
         auto ev = instance.get_network().get_stream().create_user_event(false);
         set_node_params(instance.get_node());
 
-        bool exec_branch = choose_branch_to_exec(instance);
-        memory::ptr memory_to_copy;
-        if (exec_branch)
-            memory_to_copy = execute_branch(instance.get_net_true(), "", instance.input_memory_ptr());
-        else
-            memory_to_copy = execute_branch(instance.get_net_false(), "", instance.input_memory_ptr());
-        // just copy memory
-        mem_lock<float, mem_lock_type::read> inp_ptr{memory_to_copy, instance.get_network().get_stream()};
-        mem_lock<float, mem_lock_type::write> out_ptr{instance.output_memory_ptr(), instance.get_network().get_stream()};
-        std::copy(inp_ptr.begin(), inp_ptr.end(), out_ptr.begin());
+        mem_lock<bool, mem_lock_type::read> lock_compare_data{instance.compare_memory_ptr(), instance.get_network().get_stream()};
+        auto compare_data = *lock_compare_data.begin();
+        network::ptr executed_net = instance.get_networks(compare_data);
+        executed_net->execute({});
+
         ev->set();
         return ev;
     }
@@ -80,51 +74,52 @@ private:
         }
     }
 
-    /*
-    Loop over memory and check condition.
-    Returns boolean flag, which says what branch should be executed.
-    */
-    bool choose_branch_to_exec(condition_inst& instance) const {
-        mem_lock<float, mem_lock_type::read> lock_compare_data{instance.compare_memory_ptr(), instance.get_network().get_stream()};
-        auto compare_layout = instance.compare_memory().get_layout();
-        auto compare_ptr = lock_compare_data.begin();
+    // /*
+    // Loop over memory and check condition.
+    // Returns boolean flag, which says what branch should be executed.
+    // */
+    // bool choose_branch_to_exec(condition_inst& instance) const {
+    //     mem_lock<float, mem_lock_type::read> lock_compare_data{instance.compare_memory_ptr(), instance.get_network().get_stream()};
+    //     auto compare_layout = instance.compare_memory().get_layout();
+    //     auto compare_ptr = lock_compare_data.begin();
 
-        mem_lock<float, mem_lock_type::read> lock_input{instance.input_memory_ptr(), instance.get_network().get_stream()};
-        auto input_layout = instance.input_memory().get_layout();
-        auto input_ptr = lock_input.begin();
+    //     mem_lock<float, mem_lock_type::read> lock_input{instance.input_memory_ptr(), instance.get_network().get_stream()};
+    //     auto input_layout = instance.input_memory().get_layout();
+    //     auto input_ptr = lock_input.begin();
 
-        auto function = instance.argument->function;
-        auto& offset = instance.argument->offset;
+    //     auto function = instance.argument->function;
+    //     auto& offset = instance.argument->offset;
 
-        for (auto b = 0; b < compare_layout.batch(); b++) {
-            for (auto f = 0; f < compare_layout.feature(); f++) {
-                for (auto z = 0; z < compare_layout.spatial(2); z++) {
-                    for (auto y = 0; y < compare_layout.spatial(1); y++) {
-                        for (auto x = 0; x < compare_layout.spatial(0); x++) {
-                            tensor input_tensor{
-                                batch(b + offset.batch[0]),
-                                feature(f + offset.feature[0]),
-                                spatial(x + offset.spatial[0], y + offset.spatial[1], z + offset.spatial[2], 0) };
-                            auto input_idx = input_layout.get_linear_offset(input_tensor);
-                            tensor compare_tensor{ batch(b), feature(f), spatial(x, y, z, 0) };
-                            auto compare_idx = compare_layout.get_linear_offset(compare_tensor);
-                            if (!check_condition(input_ptr[input_idx], compare_ptr[compare_idx], function))
-                                return false;
-                        }
-                    }
-                }
-            }
-        }
-        return true;
-    }
+    //     for (auto b = 0; b < compare_layout.batch(); b++) {
+    //         for (auto f = 0; f < compare_layout.feature(); f++) {
+    //             for (auto z = 0; z < compare_layout.spatial(2); z++) {
+    //                 for (auto y = 0; y < compare_layout.spatial(1); y++) {
+    //                     for (auto x = 0; x < compare_layout.spatial(0); x++) {
+    //                         tensor input_tensor{
+    //                             batch(b + offset.batch[0]),
+    //                             feature(f + offset.feature[0]),
+    //                             spatial(x + offset.spatial[0], y + offset.spatial[1], z + offset.spatial[2], 0) };
+    //                         auto input_idx = input_layout.get_linear_offset(input_tensor);
+    //                         tensor compare_tensor{ batch(b), feature(f), spatial(x, y, z, 0) };
+    //                         auto compare_idx = compare_layout.get_linear_offset(compare_tensor);
+    //                         if (!check_condition(input_ptr[input_idx], compare_ptr[compare_idx], function))
+    //                             return false;
+    //                     }
+    //                 }
+    //             }
+    //         }
+    //     }
+    //     return true;
+    // }
 
-    memory::ptr execute_branch(network::ptr branch,
-                           const primitive_id& input_id,
-                           memory::ptr input_memory) const {
-        branch->set_input_data(input_id, input_memory);
-        branch->execute({});
-        return branch->get_outputs().at(0)->output_memory_ptr();
-    }
+    // // TODO: how to connect multiple inputs
+    // memory::ptr execute_branch(network::ptr branch,
+    //                        const primitive_id& input_id,
+    //                        memory::ptr input_memory) const {
+    //     branch->set_input_data(input_id, input_memory);
+    //     branch->execute({});
+    //     return branch->get_outputs().at(0)->output_memory_ptr();
+    // }
 };
 
 namespace detail {
