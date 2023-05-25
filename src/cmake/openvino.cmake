@@ -24,7 +24,6 @@ add_library(${TARGET_NAME}
     $<TARGET_OBJECTS:frontend_common_obj>
     $<TARGET_OBJECTS:inference_engine_obj>
     $<TARGET_OBJECTS:inference_engine_obj_version>
-    $<TARGET_OBJECTS:openvino_proxy_plugin_obj>
     $<TARGET_OBJECTS:inference_engine_transformations_obj>
     $<TARGET_OBJECTS:inference_engine_lp_transformations_obj>)
 
