@@ -199,7 +199,7 @@ public:
         return engine;
     }
 
-    bool isInPlace();
+    bool isInPlace() const;
 
     // must be called only after Graph::InitEdges()
     virtual bool isExecutable() const {
@@ -601,7 +601,7 @@ protected:
         Const,
         NoConst
     };
-    InPlaceType inplace = InPlaceType::Unknown;
+    mutable InPlaceType inplace = InPlaceType::Unknown;
     ConstantType constant = ConstantType::Unknown;
     std::vector<InferenceEngine::Blob::Ptr> internalBlobs;
     std::vector<MemoryPtr> internalBlobMemory;

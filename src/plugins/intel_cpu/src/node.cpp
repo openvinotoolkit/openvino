@@ -900,7 +900,7 @@ MemoryPtr Node::prepareWeightMemory(DnnlMemoryDescPtr weightDesc) {
     return ptr;
 }
 
-bool Node::isInPlace() {
+bool Node::isInPlace() const {
     if (inplace == InPlaceType::Unknown) {
         auto selected_pd = getSelectedPrimitiveDescriptor();
         if (selected_pd == nullptr)
@@ -1463,14 +1463,31 @@ bool Node::isInputTensorAtPortEmpty(size_t port) const {
     if (inputShapes.size() <= port) {
         IE_THROW() << "Incorrect input port number for node " << getName();
     }
-    return getParentEdgesAtPort(port)[0]->getMemory().GetShape().hasZeroDims();
+
+    if (inputShapes[port].isStatic()) {
+        return inputShapes[port].hasZeroDims();
+    } else {
+        auto& mem = getParentEdgesAtPort(port)[0]->getMemory();
+        if (mem.isAllocated()) {
+            return mem.GetShape().hasZeroDims();
+        }
+    }
+    return false;
 }
 
 bool Node::isOutputTensorAtPortEmpty(size_t port) const {
     if (outputShapes.size() <= port) {
         IE_THROW() << "Incorrect output port number for node " << getName();
     }
-    return getChildEdgesAtPort(port)[0]->getMemory().GetShape().hasZeroDims();
+    if (outputShapes[port].isStatic()) {
+        return outputShapes[port].hasZeroDims();
+    } else {
+        auto& mem = getChildEdgesAtPort(port)[0]->getMemory();
+        if (mem.isAllocated()) {
+            return mem.GetShape().hasZeroDims();
+        }
+    }
+    return false;
 }
 
 bool Node::hasEmptyInputTensors() const {

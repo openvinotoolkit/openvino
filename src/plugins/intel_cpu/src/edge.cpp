@@ -97,62 +97,20 @@ bool Edge::enforceReorder() {
         }
     }
 
-    auto childCanModifyMem = [](const Edge& edge) {
-        bool result = false;
-        int outNumber = edge.getOutputNum();
-        if (auto childSPD = edge.getChild()->getSelectedPrimitiveDescriptor()) {
-            result = childSPD->getConfig().outConfs.empty();
-            for (const auto& conf : childSPD->getConfig().outConfs) {
-                if (outNumber >= 0 && conf.inPlace() == outNumber && edge.getChild()->isExecutable())
-                    return true;
-            }
-        }
-        return result;
-    };
-
-    const auto& detectInPlaceChildrenNum = [&childCanModifyMem](const std::vector<EdgePtr>& edges) -> size_t {
-        size_t count = 0;
-        for (const auto& edge : edges) {
-            if (childCanModifyMem(*edge)) {
-                count++;
-            }
-        }
-        return count;
-    };
-
     int inNumber = getInputNum();
-
     const auto portChildEdges = parentNode->getChildEdgesAtPort(inNumber);
-    if (childCanModifyMem(*this) && portChildEdges.size() > 1) {
-        if (childNode->getType() == Type::Convolution) {
-            auto execIndex = childNode->getExecIndex();
-            for (auto pEdgePeer : portChildEdges) {
-                if (pEdgePeer.get() == this)
-                    continue;
-                std::vector<NodePtr> vecConsumers;
-                pEdgePeer->collectConsumers(vecConsumers);
 
-                for (auto node : vecConsumers) {
-                    if (node->getExecIndex() >= execIndex) {
-                        return true;
-                    }
+    if (portChildEdges.size() > 1) {
+        if (in_place) {
+            for (auto& p_edge_peer : portChildEdges) {
+                if (p_edge_peer.get() == this)
+                    continue;
+                if (p_edge_peer->inPlace(LOOK_DOWN)) { //p_edge_peer->getChild()->getType() != Type::Reorder &&
+                    return true;
                 }
             }
-        } else if (in_place && detectInPlaceChildrenNum(portChildEdges) > 1) {
-            return true;
         }
     }
-
-    // if (!canBeInPlaceConflicts && in_place && !parentNode->getChildEdges().empty()) {
-    //     for (auto& p_edge_peer : portChildEdges) {
-    //         if (p_edge_peer.get() == this)
-    //             continue;
-    //         if (p_edge_peer->getChild()->getType() != Type::Reorder && p_edge_peer->inPlace(LOOK_DOWN)) {
-    //             canBeInPlaceConflicts = true;
-    //             break;
-    //         }
-    //     }
-    // }
 
     // In case the parent node is an input constant, the memory is unaligned and the child primitive isa is SSE,
     // we have to insert reorder since the vast majority of arithmetic and data processing instructions in legacy SSE isa requires
@@ -525,22 +483,22 @@ void Edge::init() {
         }
         sharedMemFrom(edgePtr);
     }
-
-    auto port = getInputNum();
-    if (port < 0)
-        return;
-    auto edges_at_same_port = getParent()->getChildEdgesAtPort(static_cast<size_t>(port));
-    for (auto edge : edges_at_same_port) {
-        if (edge->getStatus() != Status::NeedAllocation && edge->getStatus() != Status::Uninitialized) {
-            if (edge->getSharedEdge() != edgePtr)
-                IE_THROW() << "Unsupported behavior. Cannot mark edge "
-                                   << getParent()->getChildEdgeAt(0)->getParent()->getName() << "->"
-                                   << getParent()->getChildEdgeAt(0)->getChild()->getName() << " as not allocated!";
-        } else {
-            if (edge != edgePtr)
-                edge->sharedMemFrom(edgePtr);
-        }
-    }
+//
+    // auto port = getInputNum();
+    // if (port < 0)
+    //     return;
+    // auto edges_at_same_port = getParent()->getChildEdgesAtPort(static_cast<size_t>(port));
+    // for (auto edge : edges_at_same_port) {
+    //     if (edge->getStatus() != Status::NeedAllocation && edge->getStatus() != Status::Uninitialized) {
+    //         if (edge->getSharedEdge() != edgePtr)
+    //             IE_THROW() << "Unsupported behavior. Cannot mark edge "
+    //                                << getParent()->getChildEdgeAt(0)->getParent()->getName() << "->"
+    //                                << getParent()->getChildEdgeAt(0)->getChild()->getName() << " as not allocated!";
+    //     } else {
+    //         if (edge != edgePtr)
+    //             edge->sharedMemFrom(edgePtr);
+    //     }
+    // }
 }
 
 /**
@@ -572,19 +530,16 @@ EdgePtr Edge::getBaseEdge(int look) {
                 break;
             }
         }
-        return next_ch_edge->getBaseEdge(LOOK_DOWN);
+        return next_ch_edge;
     } else if (parentInPlacePort >= 0 && (look & LOOK_UP)) {
-        return getParent()->getParentEdgesAtPort(parentInPlacePort)[0]->getBaseEdge(LOOK_UP);
+        return getParent()->getParentEdgesAtPort(parentInPlacePort)[0];
     }
 
     auto edgesForSamePort = getParent()->getChildEdgesAtPort(inputNum);
-    if (!(look & LOOK_NO_RECURRENT)) {
-        for (auto edge : edgesForSamePort) {
-            if (edge.get() != this) {
-                auto base = edge->getBaseEdge(LOOK_BOTH | LOOK_NO_RECURRENT);
-                // Return once found the first inplace consumer
-                if (base != edge && base != edgesForSamePort[0]) return base;
-            }
+    for (auto edge : edgesForSamePort) {
+        if (edge.get() != this) {
+            // Return once found the first inplace consumer
+            if (edge->inPlace() && edge != edgesForSamePort[0]) return edge;
         }
     }
     return edgesForSamePort[0];
