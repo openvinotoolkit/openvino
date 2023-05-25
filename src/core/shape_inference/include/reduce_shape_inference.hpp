@@ -14,12 +14,20 @@ std::vector<TShape> reduce_shape_infer(const ov::op::util::ReductionBase* op,
                                        bool keep_dims,
                                        const std::vector<TShape>& input_shapes,
                                        const ov::ITensorAccessor& tensor_accessor = ov::make_tensor_accessor()) {
-    NODE_VALIDATION_CHECK(op, input_shapes.size() >= 1);
+    NODE_VALIDATION_CHECK(op, input_shapes.size() == 2);
 
     const auto& data_shape = input_shapes[0];
     const auto& data_rank = data_shape.rank();
+    const auto& axes_shape = input_shapes[1];
+    const auto& axes_rank = axes_shape.rank();
+
     std::vector<TShape> output_shapes;
     output_shapes.reserve(1);
+
+    NODE_VALIDATION_CHECK(op,
+                          axes_rank.compatible(0) || axes_rank.compatible(1),
+                          "Axes input must be a scalar or 1D input. Got: ",
+                          axes_shape);
 
     const auto axes_val = ov::op::get_input_const_data_as<TShape, int64_t>(op, 1, tensor_accessor);
 

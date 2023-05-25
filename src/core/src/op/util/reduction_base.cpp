@@ -15,7 +15,10 @@ ov::op::util::ReductionBase::ReductionBase(const Output<Node>& arg, const Output
     : Op({arg, reduction_axes}) {}
 
 ov::PartialShape ov::op::util::ReductionBase::infer_reduction_output_shape(const bool keep_dims) {
-    return reduce_shape_infer(this, keep_dims, std::vector<ov::PartialShape>{get_input_partial_shape(0)}).front();
+    return reduce_shape_infer(this,
+                              keep_dims,
+                              std::vector<ov::PartialShape>{get_input_partial_shape(0), get_input_partial_shape(1)})
+        .front();
 }
 
 bool ov::op::util::ReductionBase::reduction_axes_constant() const {
