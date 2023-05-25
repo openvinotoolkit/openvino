@@ -49,7 +49,8 @@ from openvino.tools.mo.utils.telemetry_utils import send_params_info, send_frame
     get_tid
 from openvino.tools.mo.utils.versions_checker import get_environment_setup  # pylint: disable=no-name-in-module
 from openvino.tools.mo.moc_frontend.check_config import legacy_extensions_used
-from openvino.tools.mo.moc_frontend.pytorch_frontend_utils import get_pytorch_decoder, convert_pytorch_via_onnx
+from openvino.tools.mo.moc_frontend.pytorch_frontend_utils import get_pytorch_decoder
+from openvino.tools.mo.moc_frontend.paddle_frontend_utils import paddle_frontend_converter
 from openvino.tools.mo.moc_frontend.shape_utils import parse_input_shapes, get_static_shape
 
 # pylint: disable=no-name-in-module,import-error
@@ -577,6 +578,11 @@ def check_model_object(argv):
     if isinstance(model, io.BytesIO):
         return 'onnx'
 
+    if 'paddle' in sys.modules:
+        import paddle
+        if isinstance(model, paddle.hapi.model.Model) or isinstance(model, paddle.fluid.dygraph.layers.Layer) or isinstance(model, paddle.fluid.executor.Executor):
+            return "paddle"
+
     raise Error('Unknown model type: {}'.format(type(model)))
 
 
@@ -873,15 +879,21 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args, python_api_us
                 elif 'example_inputs' in args:
                     raise AssertionError("'example_inputs' argument is not recognized, maybe you meant to provide 'example_input'?")
 
-                if 'use_legacy_frontend' in args and args['use_legacy_frontend']:
-                    # TO DO: remove this path, when pytorch frontend productization is finished, CVS-103726
-                    # prevent invoking legacy mo python onnx frontend for models converted on the fly
-                    args.pop("use_legacy_frontend")
-                    return convert_pytorch_via_onnx(args, example_inputs, cli_parser, framework, _convert)
-
                 decoder = get_pytorch_decoder(args['input_model'], parse_input_shapes(args), example_inputs, args.get("input"))
                 args['input_model'] = decoder
-                args["framework"] = "pytorch"
+                args['framework'] = model_framework
+            if model_framework == "paddle":
+                example_inputs = None
+                if 'example_input' in args and args['example_input'] is not None:
+                    example_inputs = args['example_input']
+
+                example_outputs = None
+                if 'example_output' in args and args['example_output'] is not None:
+                    example_outputs = args['example_output']
+                paddle_runtime_converter = paddle_frontend_converter(args['input_model'], example_inputs, example_outputs)
+                pdmodel = paddle_runtime_converter.convert_paddle_to_pdmodel()
+                args['input_model'] = pdmodel
+                args['framework'] = model_framework
 
         update_args_for_saved_model_dir(args)
 
@@ -919,6 +931,10 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args, python_api_us
                 argv.framework = model_framework
 
         ov_model, legacy_path = driver(argv, {"conversion_parameters": non_default_params})
+
+        if inp_model_is_object and model_framework == "paddle":
+            if paddle_runtime_converter:
+                paddle_runtime_converter.destroy()
 
         # add MO meta data to model
         ov_model.set_rt_info(VersionChecker().get_mo_version(), "MO_version")

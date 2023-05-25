@@ -1,13 +1,13 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-#include <gna/gna_config.hpp>
+#include "behavior/ov_plugin/core_integration.hpp"
 
 #include "behavior/compiled_model/properties.hpp"
 #include "behavior/ov_plugin/core_integration_sw.hpp"
 #include "behavior/ov_plugin/properties_tests.hpp"
 #include "behavior/ov_plugin/query_model.hpp"
+#include "gna/gna_config.hpp"
 #include "openvino/runtime/intel_gna/properties.hpp"
 
 using namespace ov::test::behavior;
@@ -35,6 +35,22 @@ INSTANTIATE_TEST_SUITE_P(smoke_MultiHeteroOVGetMetricPropsTest,
                          ::testing::Values("MULTI", "HETERO"));
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVGetMetricPropsTest, OVGetMetricPropsTest, ::testing::Values("GNA"));
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_MultiHeteroOVCheckGetSupportedROMetricsPropsTests,
+    OVCheckGetSupportedROMetricsPropsTests,
+    ::testing::Combine(::testing::Values("MULTI", "HETERO"),
+                       ::testing::ValuesIn(OVCheckGetSupportedROMetricsPropsTests::configureProperties(
+                           {ov::device::full_name.name()}))),
+    OVCheckGetSupportedROMetricsPropsTests::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_OVCheckGetSupportedROMetricsPropsTests,
+    OVCheckGetSupportedROMetricsPropsTests,
+    ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_GNA),
+                       ::testing::ValuesIn(OVCheckGetSupportedROMetricsPropsTests::configureProperties(
+                           {ov::device::full_name.name()}))),
+    OVCheckGetSupportedROMetricsPropsTests::getTestCaseName);
 
 const std::vector<std::tuple<std::string, std::pair<ov::AnyMap, std::string>>> GetMetricTest_ExecutionDevice_GNA = {
     {"GNA", std::make_pair(ov::AnyMap{}, "GNA")}};
