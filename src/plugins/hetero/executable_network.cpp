@@ -287,7 +287,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
             }
             auto result = std::make_shared<ngraph::op::Result>(output);
             result->set_friendly_name(output.get_node()->get_friendly_name() + "_" +
-                                        std::to_string(output.get_index()) + "_result");
+                                      std::to_string(output.get_index()) + "_result");
             ngraph::copy_runtime_info(output.get_node_shared_ptr(), result);
             subgraphIds.emplace(result.get(), output_subgraph_id);
             results.push_back(result);
