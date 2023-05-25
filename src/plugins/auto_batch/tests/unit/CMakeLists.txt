@@ -21,6 +21,8 @@ addIeTargetTest(
             ${SHARED_HEADERS_DIR}
         LINK_LIBRARIES
             unitTestUtils
+            openvino::runtime
+            openvino::runtime::dev
             ngraphFunctions
         DEPENDENCIES
             mock_engine
