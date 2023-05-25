@@ -655,6 +655,35 @@ LinuxCpuMapTestCase freq_2sockets_20cores_hyperthreading = {
     },
 };
 
+LinuxCpuMapTestCase freq_1sockets_24cores_hyperthreading = {
+    24,
+    1,
+    16,
+    {{24, 8, 8, 8}},
+    {
+        {0, 0, 0, MAIN_CORE_PROC, 0, -1},         {1, 0, 0, HYPER_THREADING_PROC, 0, -1},
+        {2, 0, 1, MAIN_CORE_PROC, 1, -1},         {3, 0, 1, HYPER_THREADING_PROC, 1, -1},
+        {4, 0, 2, MAIN_CORE_PROC, 2, -1},         {5, 0, 2, HYPER_THREADING_PROC, 2, -1},
+        {6, 0, 3, MAIN_CORE_PROC, 3, -1},         {7, 0, 3, HYPER_THREADING_PROC, 3, -1},
+        {8, 0, 4, MAIN_CORE_PROC, 4, -1},         {9, 0, 4, HYPER_THREADING_PROC, 4, -1},
+        {10, 0, 5, MAIN_CORE_PROC, 5, -1},        {11, 0, 5, HYPER_THREADING_PROC, 5, -1},
+        {12, 0, 6, MAIN_CORE_PROC, 6, -1},        {13, 0, 6, HYPER_THREADING_PROC, 6, -1},
+        {14, 0, 7, MAIN_CORE_PROC, 7, -1},        {15, 0, 7, HYPER_THREADING_PROC, 7, -1},
+        {16, 0, 8, EFFICIENT_CORE_PROC, 8, -1},   {17, 0, 9, EFFICIENT_CORE_PROC, 9, -1},
+        {18, 0, 10, EFFICIENT_CORE_PROC, 10, -1}, {19, 0, 11, EFFICIENT_CORE_PROC, 11, -1},
+        {20, 0, 12, EFFICIENT_CORE_PROC, 12, -1}, {21, 0, 13, EFFICIENT_CORE_PROC, 13, -1},
+        {22, 0, 14, EFFICIENT_CORE_PROC, 14, -1}, {23, 0, 15, EFFICIENT_CORE_PROC, 15, -1},
+    },
+    {
+        {"0-1", "0", "5376760"},   {"0-1", "0", "5376760"},   {"2-3", "0", "5376760"},   {"2-3", "0", "5376760"},
+        {"4-5", "0", "5376760"},   {"4-5", "0", "5376760"},   {"6-7", "0", "5376760"},   {"6-7", "0", "5376760"},
+        {"8-9", "0", "5400000"},   {"8-9", "0", "5400000"},   {"10-11", "0", "5400000"}, {"10-11", "0", "5400000"},
+        {"12-13", "0", "5376760"}, {"12-13", "0", "5376760"}, {"14-15", "0", "5376760"}, {"14-15", "0", "5376760"},
+        {"16", "0", "4200000"},    {"17", "0", "4200000"},    {"18", "0", "4200000"},    {"19", "0", "4200000"},
+        {"20", "0", "4200000"},    {"21", "0", "4200000"},    {"22", "0", "4200000"},    {"23", "0", "4200000"},
+    },
+};
+
 LinuxCpuMapTestCase freq_1sockets_4cores = {
     4,
     1,
@@ -678,7 +707,9 @@ TEST_P(LinuxCpuMapFreqParserTests, LinuxCpuMapFreq) {}
 
 INSTANTIATE_TEST_SUITE_P(CPUMap,
                          LinuxCpuMapFreqParserTests,
-                         testing::Values(freq_2sockets_20cores_hyperthreading, freq_1sockets_4cores));
+                         testing::Values(freq_2sockets_20cores_hyperthreading,
+                                         freq_1sockets_24cores_hyperthreading,
+                                         freq_1sockets_4cores));
 
 #endif
 
