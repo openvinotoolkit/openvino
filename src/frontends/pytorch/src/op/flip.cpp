@@ -27,7 +27,7 @@ OutputVector translate_flip(const NodeContext& context) {
     auto start = context.mark_node(std::make_shared<v3::Broadcast>(minus_one, axis_shape));
     auto stop = context.mark_node(std::make_shared<v3::Broadcast>(minimum_int, axis_shape));
     auto slice = context.mark_node(std::make_shared<v8::Slice>(x, start, stop, start, axis));
-    if (!context.input_is_none(2)){
+    if (!context.input_is_none(2)) {
         context.mutate_input(2, slice);
     }
     return {slice};
