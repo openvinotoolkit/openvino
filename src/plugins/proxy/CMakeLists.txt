@@ -37,7 +37,8 @@ add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 ie_mark_target_as_cc(${TARGET_NAME})
 
 ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
-                    SOURCE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}")
+                    SOURCE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include"
+                                       "${CMAKE_CURRENT_SOURCE_DIR}/src")
 
 if(ENABLE_TESTS)
     add_subdirectory(tests)
