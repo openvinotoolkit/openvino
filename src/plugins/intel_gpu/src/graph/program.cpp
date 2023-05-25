@@ -178,6 +178,8 @@ void program::init_program() {
 
 void program::init_primitives() {
     static bool is_initialized = false;
+    static std::mutex m;
+    std::lock_guard<std::mutex> lock(m);
     if (!is_initialized) {
         common::register_implementations();
         cpu::register_implementations();
