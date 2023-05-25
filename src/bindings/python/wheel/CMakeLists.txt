@@ -139,6 +139,7 @@ set(openvino_wheel_path "${openvino_wheels_output_dir}/${openvino_wheel_name}")
 #
 
 set(wheel_env ${CMAKE_COMMAND} -E env
+    SETUPTOOLS_EXT_SUFFIX=${PYTHON_MODULE_EXTENSION}
     WHEEL_VERSION=${WHEEL_VERSION}
     WHEEL_BUILD=${WHEEL_BUILD}
     OPENVINO_BUILD_DIR=${OpenVINO_BINARY_DIR}
