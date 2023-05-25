@@ -5,7 +5,7 @@
 # OpenVINO Legacy C API test sample
 set(TARGET_NAME "InferenceEngineCAPITests")
 
-add_executable(${TARGET_NAME} ie_c_api_test.cpp test_model_repo.hpp)
+add_executable(${TARGET_NAME} ie_c_api_test.cpp ov_test_util.hpp ov_test_util.cpp test_model_repo.hpp test_model_repo.cpp)
 
 target_link_libraries(${TARGET_NAME} PRIVATE openvino_c commonTestUtils gtest_main)
 
@@ -43,8 +43,8 @@ install(TARGETS ${TARGET_NAME}
 # OpenVINO 2.0 and Legacy C API test sample
 set(TARGET_NAME "ov_capi_test")
 
-file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/ov_*.cpp)
-file(GLOB HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
+file(GLOB SOURCES ov_test_util.cpp test_model_repo.cpp ${CMAKE_CURRENT_SOURCE_DIR}/ov_*.cpp)
+file(GLOB HEADERS ov_test_util.hpp test_model_repo.hpp ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 
 if(NOT TARGET OpenCL::OpenCL)
     list(FILTER SOURCES EXCLUDE REGEX ov_remote_context_test.cpp)
