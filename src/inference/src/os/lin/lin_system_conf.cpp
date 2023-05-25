@@ -97,9 +97,8 @@ CPU::CPU() {
                 size_t n = _proc_type_table.size();
 
                 while (n > 0) {
-                    if (0 == _proc_type_table[n][ALL_PROC]) {
+                    if (0 == _proc_type_table[n - 1][ALL_PROC]) {
                         _proc_type_table.erase(_proc_type_table.begin() + n - 1);
-                        n--;
                     }
                     n--;
                 }
