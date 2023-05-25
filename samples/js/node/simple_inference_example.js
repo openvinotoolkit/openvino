@@ -1,6 +1,5 @@
 const { addon } = require('openvinojs-node');
 
-const math = require('./lib/helpers.js');
 const cv = require('opencv.js');
 const imagenetClassesMap = require('../assets/imagenet_classes_map.json');
 const Jimp = require('jimp');
@@ -33,6 +32,8 @@ async function run()
   const output = model.infer(tensor);
 
   //show the results
-  console.log('Result: ' + imagenetClassesMap[math.argMax(output.data)]);
-  console.log(math.argMax(output.data));
+  const { getMaxElement } = await import('../common/index.mjs');
+  const result = getMaxElement(output.data);
+  console.log('Result: ' + imagenetClassesMap[result.index],
+    '\nIndex: ', result.index);
 }

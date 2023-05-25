@@ -74,7 +74,7 @@ async function getClasses() {
     .then((response) => response.json());
 }
 
-function getMaxElement(arr) {
+export function getMaxElement(arr) {
   if (!arr.length) return { value: -Infinity, index: -1 };
 
   let max = arr[0];

@@ -1,6 +1,5 @@
 const { addon } = require('openvinojs-node');
 
-const math = require('./lib/helpers.js');
 const cv = require('opencv.js');
 const imagenetClassesMap = require('../assets/imagenet_classes_map.json');
 const Jimp = require('jimp');
@@ -9,6 +8,7 @@ run();
 
 async function run()
 {
+  const { getMaxElement } = await import('../common/index.mjs');
   const imgPath = process.argv[2] || '../assets/images/shih_tzu.jpg';
   const modelPath = '../assets/models/v3-small_224_1.0_float.xml';
   const core = new addon.Core();
@@ -23,9 +23,9 @@ async function run()
   Promise.all([modelPromise, tensorPromise]).then(([model, tensor]) => {
     const output = model.compile('CPU').infer(tensor);
     //show the results
-    console.log('Result: ' + imagenetClassesMap[math.argMax(output.data)]);
-    console.log(math.argMax(output.data));
-  });
+    const result = getMaxElement(output.data);
+    console.log('Result: ' + imagenetClassesMap[result.index],
+      '\nIndex: ', result.index);});
 
 }
 
