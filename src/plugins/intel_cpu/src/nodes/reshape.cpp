@@ -334,8 +334,14 @@ void Reshape::execute(dnnl::stream strm) {
 }
 
 bool Reshape::isExecutable() const {
-    bool inPlaceEnabled =
-        getSelectedPrimitiveDescriptor() && getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].inPlace() >= 0;
+    bool inPlaceEnabled = false;
+    if (auto prim_desc = getSelectedPrimitiveDescriptor()) {
+        auto& config = prim_desc->getConfig();
+        if (config.inConfs[0].inPlace() >= 0 ||
+            config.outConfs[0].inPlace() >= 0) {
+            inPlaceEnabled = true;
+        }
+    }
     return !inPlaceEnabled;
 }
 
