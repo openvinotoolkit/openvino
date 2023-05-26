@@ -260,14 +260,24 @@ macro(_ov_find_pugixml)
                 set(pkg_config_required_arg REQUIRED)
             endif()
 
+            # see https://cmake.org/cmake/help/latest/command/add_library.html#alias-libraries
+            # cmake 3.18 (and older) cannot create an alias for imported non-GLOBAL targets
+            # so, we have to use 'IMPORTED_GLOBAL' property for cases when we call from OpenVINODeveloperPackage
+            # because the alias openvino::pugixml is created later
+            if(CMAKE_VERSION VERSION_LESS 3.18 AND OpenVINODeveloperPackage_DIR)
+                set(pkg_config_visibility IMPORTED_GLOBAL)
+            endif()
+
             pkg_search_module(pugixml
                               ${pkg_config_quiet_arg}
                               ${pkg_config_required_arg}
                               IMPORTED_TARGET
+                              ${pkg_config_visibility}
                               pugixml)
 
             unset(pkg_config_quiet_arg)
             unset(pkg_config_required_arg)
+            unset(pkg_config_visibility)
 
             if(pugixml_FOUND)
                 if(OpenVINODeveloperPackage_DIR)

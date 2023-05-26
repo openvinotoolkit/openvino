@@ -7,6 +7,12 @@
 # libraries cannot be linked into Android binaries.
 if(NOT ANDROID)
     find_package(PkgConfig QUIET)
+    # see https://cmake.org/cmake/help/latest/command/add_library.html#alias-libraries
+    # cmake 3.18 (and older) cannot create an alias for imported non-GLOBAL targets
+    # so, we have to use 'IMPORTED_GLOBAL' property
+    if(CMAKE_VERSION VERSION_LESS 3.18)
+        set(OV_PkgConfig_VISILITY IMPORTED_GLOBAL)
+    endif()
 endif()
 
 if(SUGGEST_OVERRIDE_SUPPORTED)
@@ -160,6 +166,7 @@ if(ENABLE_SAMPLES OR ENABLE_TESTS)
     if(NOT ZLIB_FOUND AND PkgConfig_FOUND)
         pkg_search_module(zlib QUIET
                           IMPORTED_TARGET
+                          ${OV_PkgConfig_VISILITY}
                           zlib)
         if(zlib_FOUND)
             add_library(ZLIB::ZLIB ALIAS PkgConfig::zlib)
@@ -215,6 +222,7 @@ if(ENABLE_SYSTEM_PUGIXML)
         # U18 case when cmake interface is not available
         pkg_search_module(pugixml QUIET
                           IMPORTED_TARGET
+                          ${OV_PkgConfig_VISILITY}
                           pugixml)
         if(pugixml_FOUND)
             set(pugixml_target PkgConfig::pugixml)
