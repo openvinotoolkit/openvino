@@ -23,29 +23,20 @@ if(ENABLE_PROFILING_ITT)
         # conan defines 'ittapi::ittapi' target
         # create more common alias 'ittapi::ittnotify'
         set_target_properties(ittapi::ittapi PROPERTIES
-            IMPORTED_GLOBAL ON
             INTERFACE_COMPILE_DEFINITIONS ENABLE_PROFILING_ITT)
         add_library(ittapi::ittnotify ALIAS ittapi::ittapi)
-
-        # set ittapi_FOUND to parent scope to properly generate OpenVINOConfig.cmake for static build
-        set(ittapi_FOUND ${ittapi_FOUND} PARENT_SCOPE)
     else()
-        add_subdirectory(ittapi)
+        add_subdirectory(thirdparty/ittapi)
     endif()
-    add_subdirectory(itt_collector EXCLUDE_FROM_ALL)
-endif()
-
-if(ENABLE_SAMPLES OR ENABLE_TESTS)
-    add_subdirectory(cnpy EXCLUDE_FROM_ALL)
+    add_subdirectory(thirdparty/itt_collector EXCLUDE_FROM_ALL)
 endif()
 
 if(X86_64 OR UNIVERSAL2)
     find_package(xbyak QUIET)
     if(xbyak_FOUND)
-        # conan creates alias xbyak::xbyak, we only need to make it GLOBAL
-        set_target_properties(xbyak::xbyak PROPERTIES IMPORTED_GLOBAL ON)
+        # conan creates alias xbyak::xbyak, no extra steps are required
     else()
-        add_subdirectory(xbyak EXCLUDE_FROM_ALL)
+        add_subdirectory(thirdparty/xbyak EXCLUDE_FROM_ALL)
         # export and install xbyak
         openvino_developer_export_targets(COMPONENT openvino_common TARGETS xbyak::xbyak)
         ov_install_static_lib(xbyak ${OV_CPACK_COMP_CORE})
@@ -71,7 +62,6 @@ if(ENABLE_INTEL_GPU)
             if(NOT OpenCLHeaders_FOUND)
                 message(WARNING "OpenCLHeaders not found, but OpenCLICDLoader is installed. Please, install OpenCL headers")
             else()
-                set_target_properties(OpenCL::Headers PROPERTIES IMPORTED_GLOBAL ON)
                 set_property(TARGET OpenCL::OpenCL APPEND PROPERTY INTERFACE_LINK_LIBRARIES OpenCL::Headers)
             endif()
 
@@ -82,13 +72,9 @@ if(ENABLE_INTEL_GPU)
             if(NOT OpenCLHeadersCpp_FOUND)
                 message(WARNING "OpenCLHeadersCpp not found, but OpenCLICDLoader is installed. Please, install OpenCL C++ headers")
             else()
-                set_target_properties(OpenCL::HeadersCpp PROPERTIES IMPORTED_GLOBAL ON)
                 get_target_property(opencl_cpp_include_dirs OpenCL::HeadersCpp INTERFACE_INCLUDE_DIRECTORIES)
                 set_property(TARGET OpenCL::OpenCL APPEND PROPERTY INTERFACE_LINK_LIBRARIES OpenCL::HeadersCpp)
             endif()
-
-            # set OpenCLICDLoader_FOUND to parent scope to generate proper OpenVINOConfig.cmake for static libraries case
-            set(OpenCLICDLoader_FOUND ON PARENT_SCOPE)
         else()
             # try to find system OpenCL:
             # - 'apt-get install opencl-headers ocl-icd-opencl-dev'
@@ -100,8 +86,6 @@ if(ENABLE_INTEL_GPU)
     endif()
 
     if(TARGET OpenCL::OpenCL)
-        set_target_properties(OpenCL::OpenCL PROPERTIES IMPORTED_GLOBAL ON)
-
         # try to find CL/opencl.hpp
         find_file(OpenCL_HPP
                   NAMES CL/opencl.hpp OpenCL/opencl.hpp
@@ -124,8 +108,8 @@ if(ENABLE_INTEL_GPU)
 
         # set variables for onednn_gpu
         if(OpenCLHeaders_FOUND)
-            set(OpenCL_INCLUDE_DIR "$<TARGET_PROPERTY:OpenCL::Headers,INTERFACE_INCLUDE_DIRECTORIES>" PARENT_SCOPE)
-            set(OpenCL_LIBRARY "$<TARGET_PROPERTY:OpenCL::OpenCL,IMPORTED_LOCATION_RELEASE>" PARENT_SCOPE)
+            set(OpenCL_INCLUDE_DIR "$<TARGET_PROPERTY:OpenCL::Headers,INTERFACE_INCLUDE_DIRECTORIES>")
+            set(OpenCL_LIBRARY "$<TARGET_PROPERTY:OpenCL::OpenCL,IMPORTED_LOCATION_RELEASE>")
         elseif(OpenCL_FOUND)
             # find_package(OpenCL) already defines OpenCL_INCLUDE_DIR and OpenCL_LIBRARY
             # see https://cmake.org/cmake/help/latest/module/FindOpenCL.html
@@ -134,14 +118,7 @@ if(ENABLE_INTEL_GPU)
             message(FATAL_ERROR "Internal error: cannot find OpenCL headers")
         endif()
     else()
-        add_subdirectory(ocl)
-
-        set(OpenCL_INCLUDE_DIR "${OpenCL_INCLUDE_DIR}" PARENT_SCOPE)
-        set(OpenCL_LIBRARY "${OpenCL_LIBRARY}" PARENT_SCOPE)
-        set(opencl_root_hints "${opencl_root_hints}" PARENT_SCOPE)
-
-        # system OpenCL is not found: set it explictly for consistent OpenVINOConfig.cmake generation
-        set(ENABLE_SYSTEM_OPENCL OFF PARENT_SCOPE)
+        add_subdirectory(thirdparty/ocl)
     endif()
 
     # cmake cannot set properties for imported targets
@@ -158,7 +135,8 @@ if(ENABLE_INTEL_GPU)
     # used in tests
     add_library(opencl_new_headers INTERFACE)
     add_library(OpenCL::NewHeaders ALIAS opencl_new_headers)
-    foreach(opencl_dir "${CMAKE_CURRENT_SOURCE_DIR}/ocl/clhpp_headers/include" "${CMAKE_CURRENT_SOURCE_DIR}/ocl/cl_headers")
+    foreach(opencl_dir "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/ocl/clhpp_headers/include"
+                       "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/ocl/cl_headers")
         if(EXISTS "${opencl_dir}")
             set_property(TARGET opencl_new_headers APPEND PROPERTY INTERFACE_INCLUDE_DIRECTORIES
                 $<BUILD_INTERFACE:${opencl_dir}>)
@@ -175,14 +153,13 @@ endif()
 if(ENABLE_SAMPLES OR ENABLE_TESTS)
     find_package(ZLIB QUIET CONFIG)
     if(ZLIB_FOUND)
-        # need to make it global to use outside of the current sub-directory
-        set_target_properties(ZLIB::ZLIB PROPERTIES IMPORTED_GLOBAL ON)
+        # FindZLIB module defines ZLIB::ZLIB, no extra steps are required
     endif()
 
     # cmake has failed to find zlib, let's try pkg-config
     if(NOT ZLIB_FOUND AND PkgConfig_FOUND)
         pkg_search_module(zlib QUIET
-                          IMPORTED_TARGET GLOBAL
+                          IMPORTED_TARGET
                           zlib)
         if(zlib_FOUND)
             add_library(ZLIB::ZLIB ALIAS PkgConfig::zlib)
@@ -191,8 +168,16 @@ if(ENABLE_SAMPLES OR ENABLE_TESTS)
     endif()
 
     if(NOT (zlib_FOUND OR ZLIB_FOUND))
-        add_subdirectory(zlib EXCLUDE_FROM_ALL)
+        add_subdirectory(thirdparty/zlib EXCLUDE_FROM_ALL)
     endif()
+endif()
+
+#
+# cnpy
+#
+
+if(ENABLE_SAMPLES OR ENABLE_TESTS)
+    add_subdirectory(thirdparty/cnpy EXCLUDE_FROM_ALL)
 endif()
 
 #
@@ -218,7 +203,7 @@ if(ENABLE_SYSTEM_PUGIXML)
             # - 'apt-get install libpugixml-dev'
             set(pugixml_target pugixml)
         elseif(TARGET pugixml::static)
-            # sometimes pugixml::static target already exists, just need to make it global
+            # sometimes pugixml::static target already exists, just need to create an alias
             # - 'conda install pugixml -c conda-forge'
             set(pugixml_target pugixml::static)
         else()
@@ -230,7 +215,6 @@ if(ENABLE_SYSTEM_PUGIXML)
         # U18 case when cmake interface is not available
         pkg_search_module(pugixml QUIET
                           IMPORTED_TARGET
-                          GLOBAL
                           pugixml)
         if(pugixml_FOUND)
             set(pugixml_target PkgConfig::pugixml)
@@ -248,7 +232,7 @@ if(ENABLE_SYSTEM_PUGIXML)
     if(NOT TARGET ${pugixml_target})
         find_library(PUGIXML_LIBRARY NAMES pugixml DOC "Path to pugixml library")
         if(PUGIXML_LIBRARY)
-            add_library(pugixml INTERFACE IMPORTED GLOBAL)
+            add_library(pugixml INTERFACE IMPORTED)
             set_target_properties(pugixml PROPERTIES INTERFACE_LINK_LIBRARIES "${PUGIXML_LIBRARY}")
             set(pugixml_target pugixml)
             set(PugiXML_FOUND ON)
@@ -281,13 +265,12 @@ if(ENABLE_SYSTEM_PUGIXML)
             message(FATAL_ERROR "Debian | RPM package build requires shared Pugixml library")
         endif()
 
-        set_target_properties(${pugixml_target} PROPERTIES IMPORTED_GLOBAL ON)
         # create an alias for real target which can be shared or static
         add_library(openvino::pugixml ALIAS ${pugixml_target})
     else()
         # reset to prevent improper code generation in OpenVINODeveloperPackage.cmake,
         # and OpenVINOConfig.cmake for static case
-        set(ENABLE_SYSTEM_PUGIXML OFF PARENT_SCOPE)
+        set(ENABLE_SYSTEM_PUGIXML OFF)
     endif()
 endif()
 
@@ -296,7 +279,7 @@ if(NOT TARGET openvino::pugixml)
     function(ov_build_pugixml)
         function(ov_build_pugixml_static)
             set(BUILD_SHARED_LIBS OFF)
-            add_subdirectory(pugixml EXCLUDE_FROM_ALL)
+            add_subdirectory(thirdparty/pugixml EXCLUDE_FROM_ALL)
         endfunction()
         ov_build_pugixml_static()
         set_property(TARGET pugixml-static PROPERTY EXPORT_NAME pugixml)
@@ -314,18 +297,14 @@ endif()
 
 if(ENABLE_GAPI_PREPROCESSING)
     add_library(ocv_hal INTERFACE)
-    target_include_directories(ocv_hal INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/ocv")
+    target_include_directories(ocv_hal INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/ocv")
 
     # ade
     find_package(ade 0.1.0 QUIET)
     if(ade_FOUND)
-        # conan creates 'ade' target
-
-        # set ade_FOUND to parent scope to properly generate OpenVINOConfig.cmake for static build
-        set(ade_FOUND ${ade_FOUND} PARENT_SCOPE)
-        set(ade_VERSION ${ade_VERSION} PARENT_SCOPE)
+        # conan and vcpkg create 'ade' target, no extra steps are required
     else()
-        add_subdirectory(ade EXCLUDE_FROM_ALL)
+        add_subdirectory(thirdparty/ade EXCLUDE_FROM_ALL)
 
         set_target_properties(ade PROPERTIES FOLDER thirdparty)
         openvino_developer_export_targets(COMPONENT openvino_common TARGETS ade)
@@ -334,7 +313,7 @@ if(ENABLE_GAPI_PREPROCESSING)
     endif()
 
     # fluid
-    add_subdirectory(fluid/modules/gapi EXCLUDE_FROM_ALL)
+    add_subdirectory(thirdparty/fluid/modules/gapi EXCLUDE_FROM_ALL)
 
     if(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11)
         target_compile_options(fluid PRIVATE "-Wno-maybe-uninitialized")
@@ -372,17 +351,14 @@ if(ENABLE_SAMPLES OR ENABLE_COMPILE_TOOL OR ENABLE_TESTS)
 
     if(gflags_FOUND)
         if(TARGET gflags)
-            set_target_properties(gflags PROPERTIES IMPORTED_GLOBAL ON)
+            # no extra steps
         elseif(TARGET gflags_nothreads-static)
             # Debian 9: gflag_component is ignored
-            set_target_properties(gflags_nothreads-static PROPERTIES IMPORTED_GLOBAL ON)
             add_library(gflags ALIAS gflags_nothreads-static)
         elseif(TARGET gflags_nothreads-shared)
             # CentOS / RHEL / Fedora case
-            set_target_properties(gflags_nothreads-shared PROPERTIES IMPORTED_GLOBAL ON)
             add_library(gflags ALIAS gflags_nothreads-shared)
         elseif(TARGET ${GFLAGS_TARGET})
-            set_target_properties(${GFLAGS_TARGET} PROPERTIES IMPORTED_GLOBAL ON)
             add_library(gflags ALIAS ${GFLAGS_TARGET})
         else()
             message(FATAL_ERROR "Internal error: failed to find imported target 'gflags' using '${gflag_component}' component")
@@ -392,7 +368,7 @@ if(ENABLE_SAMPLES OR ENABLE_COMPILE_TOOL OR ENABLE_TESTS)
     endif()
 
     if(NOT TARGET gflags)
-        add_subdirectory(gflags EXCLUDE_FROM_ALL)
+        add_subdirectory(thirdparty/gflags EXCLUDE_FROM_ALL)
         openvino_developer_export_targets(COMPONENT openvino_common TARGETS gflags)
     endif()
 endif()
@@ -407,11 +383,10 @@ if(ENABLE_TESTS)
 
     if(GTest_FOUND)
         foreach(gtest_target gtest gtest_main gmock gmock_main)
-            set_target_properties(GTest::${gtest_target} PROPERTIES IMPORTED_GLOBAL ON)
             add_library(${gtest_target} ALIAS GTest::${gtest_target})
         endforeach()
     else()
-        add_subdirectory(gtest EXCLUDE_FROM_ALL)
+        add_subdirectory(thirdparty/gtest EXCLUDE_FROM_ALL)
         openvino_developer_export_targets(COMPONENT tests
                                           TARGETS gmock gmock_main gtest gtest_main)
     endif()
@@ -432,23 +407,12 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
         # Note: we also specify 'protobuf' in NAMES because vcpkg
         find_package(Protobuf 3.20.3 REQUIRED NAMES protobuf)
         set(PROTOC_EXECUTABLE protobuf::protoc)
-
-        # in case of system protobuf, we have to add version to OpenVINOConfig.cmake for static build
-        # to ensure no mismatch between versions of protoc and libprotobuf, we need to use exactly
-        # the same versions
-        set(Protobuf_VERSION ${Protobuf_VERSION} PARENT_SCOPE)
-
-        foreach(target ${PROTOC_EXECUTABLE} protobuf::libprotobuf protobuf::libprotobuf-lite)
-            set_target_properties(${target} PROPERTIES IMPORTED_GLOBAL ON)
-        endforeach()
     else()
-        add_subdirectory(protobuf EXCLUDE_FROM_ALL)
+        add_subdirectory(thirdparty/protobuf EXCLUDE_FROM_ALL)
     endif()
 
-    # forward variables used in the other places
-    set(PROTOC_DEPENDENCY ${PROTOC_DEPENDENCY} PARENT_SCOPE)
-    set(PROTOC_EXECUTABLE ${PROTOC_EXECUTABLE} PARENT_SCOPE)
-    set(Protobuf_IN_FRONTEND ON PARENT_SCOPE)
+    # forward additional variables used in the other places
+    set(Protobuf_IN_FRONTEND ON)
 
     # set public / interface compile options
     foreach(target_name protobuf::libprotobuf protobuf::libprotobuf-lite)
@@ -496,17 +460,12 @@ if(ENABLE_OV_TF_LITE_FRONTEND)
         # we don't actually use library files (.so | .dylib | .a) itself, only headers
         set(flatbuffers_LIBRARY flatbuffers::flatbuffers)
         set(flatbuffers_COMPILER flatbuffers::flatc)
-
-        foreach(target IN LISTS flatbuffers_LIBRARY flatbuffers_COMPILER)
-            set_property(TARGET ${target} PROPERTY IMPORTED_GLOBAL ON)
-        endforeach()
     else()
-        add_subdirectory(flatbuffers EXCLUDE_FROM_ALL)
+        add_subdirectory(thirdparty/flatbuffers EXCLUDE_FROM_ALL)
     endif()
 
-    set(flatbuffers_INCLUDE_DIRECTORIES $<TARGET_PROPERTY:${flatbuffers_LIBRARY},INTERFACE_INCLUDE_DIRECTORIES> PARENT_SCOPE)
-    set(flatbuffers_COMPILER ${flatbuffers_COMPILER} PARENT_SCOPE)
-    set(flatbuffers_DEPENDENCY ${flatbuffers_DEPENDENCY} PARENT_SCOPE)
+    # set additional variables, used in other places of our cmake scripts
+    set(flatbuffers_INCLUDE_DIRECTORIES $<TARGET_PROPERTY:${flatbuffers_LIBRARY},INTERFACE_INCLUDE_DIRECTORIES>)
 endif()
 
 #
@@ -524,13 +483,7 @@ if(ENABLE_SNAPPY_COMPRESSION)
             set(ov_snappy_lib Snappy::snappy-static)
         endif()
 
-        set_target_properties(${ov_snappy_lib} PROPERTIES IMPORTED_GLOBAL ON)
         add_library(openvino::snappy ALIAS ${ov_snappy_lib})
-
-        # set Snappy_VERSION to parent scope for consistent OpenVINOConfig.cmake generation
-        # in case of static build with system dependencies
-        set(Snappy_VERSION ${Snappy_VERSION} PARENT_SCOPE)
-        set(ov_snappy_lib ${ov_snappy_lib} PARENT_SCOPE)
     endif()
 
     if(NOT TARGET openvino::snappy)
@@ -558,7 +511,7 @@ if(ENABLE_SNAPPY_COMPRESSION)
                 ie_add_compiler_flags(-Wno-sign-compare)
             endif()
 
-            add_subdirectory(snappy EXCLUDE_FROM_ALL)
+            add_subdirectory(thirdparty/snappy EXCLUDE_FROM_ALL)
             # need to create alias openvino::snappy
             add_library(openvino::snappy ALIAS snappy)
 
@@ -581,15 +534,9 @@ if(ENABLE_OV_ONNX_FRONTEND)
     find_package(ONNX 1.13.1 EXACT QUIET COMPONENTS onnx onnx_proto NO_MODULE)
 
     if(ONNX_FOUND)
-        # conan creates imported targets 'onnx' and 'onnx_proto'
-        set_target_properties(onnx onnx_proto PROPERTIES IMPORTED_GLOBAL ON)
-
-        # set ONNX_VERSION to parent scope for correct OpenVINOConfig.cmake generation
-        # in case of static libraries
-        set(ONNX_VERSION ${ONNX_VERSION} PARENT_SCOPE)
-        set(ENABLE_SYSTEM_ONNX ON PARENT_SCOPE)
+        # conan and vcpkg create imported targets 'onnx' and 'onnx_proto'
     else()
-        add_subdirectory(onnx)
+        add_subdirectory(thirdparty/onnx)
     endif()
 endif()
 
@@ -601,19 +548,16 @@ if(ENABLE_SAMPLES)
     # Note: VPUX requires 3.9.0 version, because it contains 'nlohmann::ordered_json'
     find_package(nlohmann_json 3.9.0 QUIET)
     if(nlohmann_json_FOUND)
-        # conan creates imported target nlohmann_json::nlohmann_json
-        # no needs to make the target global, because samples call find_package(nlohmann_json) as well
-        # but we need to set nlohmann_json_FOUND to parent scope to properly generate InferenceEngineDeveloperPackageConfig.cmake
-        set(nlohmann_json_FOUND ${nlohmann_json_FOUND} PARENT_SCOPE)
+        # conan and vcpkg create imported target nlohmann_json::nlohmann_json
     else()
-        add_subdirectory(json)
+        add_subdirectory(thirdparty/json)
 
         # this is required only because of VPUX plugin reused this
         openvino_developer_export_targets(COMPONENT openvino_common TARGETS nlohmann_json)
 
         # for nlohmann library versions older than v3.0.0
         if(NOT TARGET nlohmann_json::nlohmann_json)
-            add_library(nlohmann_json::nlohmann_json INTERFACE IMPORTED GLOBAL)
+            add_library(nlohmann_json::nlohmann_json INTERFACE IMPORTED)
             set_target_properties(nlohmann_json::nlohmann_json PROPERTIES
                 INTERFACE_LINK_LIBRARIES nlohmann_json
                 INTERFACE_COMPILE_DEFINITIONS JSON_HEADER)
@@ -640,7 +584,7 @@ if(CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW|CONAN)$")
         message(FATAL_ERROR "Pugixml must be used as a ${CPACK_GENERATOR} package. Install libpugixml-dev / pugixml-devel")
     endif()
 elseif(APPLE OR WIN32)
-    install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/gflags
+    install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags
             DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
             COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
             PATTERN bazel EXCLUDE
@@ -659,16 +603,16 @@ elseif(APPLE OR WIN32)
             PATTERN .travis.yml EXCLUDE
             PATTERN WORKSPACE EXCLUDE)
 
-    file(GLOB zlib_sources ${CMAKE_CURRENT_SOURCE_DIR}/zlib/zlib/*.c
-                           ${CMAKE_CURRENT_SOURCE_DIR}/zlib/zlib/*.h)
+    file(GLOB zlib_sources ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/zlib/zlib/*.c
+                           ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/zlib/zlib/*.h)
     install(FILES ${zlib_sources}
             DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty/zlib/zlib
             COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES})
-    install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/zlib/CMakeLists.txt
+    install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/zlib/CMakeLists.txt
             DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty/zlib
             COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES})
 
-    install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/json/nlohmann_json
+    install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/json/nlohmann_json
             DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
             COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
             PATTERN ChangeLog.md EXCLUDE
@@ -689,6 +633,6 @@ elseif(APPLE OR WIN32)
             PATTERN wsjcpp.yml EXCLUDE)
 endif()
 
-install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/cnpy
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/cnpy
         DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
         COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES})

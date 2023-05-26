@@ -248,8 +248,7 @@ macro(_ov_find_pugixml)
                 set(_ov_pugixml_target pugixml::pugixml)
             endif()
             if(OpenVINODeveloperPackage_DIR)
-                set_property(TARGET ${_ov_pugixml_target} PROPERTY IMPORTED_GLOBAL ON)
-                # align with build tree
+                # align with build tree and create alias
                 add_library(openvino::pugixml ALIAS ${_ov_pugixml_target})
             endif()
             unset(_ov_pugixml_target)
@@ -265,7 +264,6 @@ macro(_ov_find_pugixml)
                               ${pkg_config_quiet_arg}
                               ${pkg_config_required_arg}
                               IMPORTED_TARGET
-                              GLOBAL
                               pugixml)
 
             unset(pkg_config_quiet_arg)
@@ -375,8 +373,7 @@ endmacro()
 
 macro(_ov_find_protobuf_frontend_dependency)
     set(_OV_ENABLE_SYSTEM_PROTOBUF "@ENABLE_SYSTEM_PROTOBUF@")
-    # TODO: remove check for target existence
-    if(_OV_ENABLE_SYSTEM_PROTOBUF AND NOT TARGET protobuf::libprotobuf)
+    if(_OV_ENABLE_SYSTEM_PROTOBUF)
         _ov_find_dependency(Protobuf @Protobuf_VERSION@ EXACT NAMES protobuf)
     endif()
     unset(_OV_ENABLE_SYSTEM_PROTOBUF)
@@ -385,8 +382,7 @@ endmacro()
 macro(_ov_find_tensorflow_frontend_dependencies)
     set(_OV_ENABLE_SYSTEM_SNAPPY "@ENABLE_SYSTEM_SNAPPY@")
     set(_ov_snappy_lib "@ov_snappy_lib@")
-    # TODO: remove check for target existence
-    if(_OV_ENABLE_SYSTEM_SNAPPY AND NOT TARGET ${_ov_snappy_lib})
+    if(_OV_ENABLE_SYSTEM_SNAPPY)
         _ov_find_dependency(Snappy @Snappy_VERSION@ EXACT)
     endif()
     unset(_OV_ENABLE_SYSTEM_SNAPPY)

@@ -120,7 +120,7 @@ if (ENABLE_TESTS)
     include(cmake/test_model_zoo.cmake)
 endif()
 
-add_subdirectory(thirdparty)
+include(thirdparty/dependencies.cmake)
 add_subdirectory(src)
 
 if(ENABLE_SAMPLES OR ENABLE_TESTS OR ENABLE_COMPILE_TOOL)
