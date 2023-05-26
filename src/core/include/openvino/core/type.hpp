@@ -62,7 +62,7 @@ struct OPENVINO_API DiscreteTypeInfo {
           parent(_parent),
           hash_value(0) {}
 
-     DiscreteTypeInfo(const char* _name, const DiscreteTypeInfo* _parent = nullptr)
+    DiscreteTypeInfo(const char* _name, const DiscreteTypeInfo* _parent = nullptr)
         : name(_name),
           version_id(nullptr),
           parent(_parent),
