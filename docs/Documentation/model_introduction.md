@@ -23,7 +23,7 @@ Model Conversion API, specifically, the ``mo.convert_model()`` method converts a
 .. image:: _static/images/model_conversion_diagram.svg
    :alt: model conversion diagram
 
-Another option to convert a model is to use ``mo`` command-line tool. ``mo`` is a cross-platform tool that facilitates the transition between training and deployment environments, performs static model analysis, and adjusts deep learning models for optimal execution on end-point target devices.
+Another option to convert a model is to use ``mo`` command-line tool. ``mo`` is a cross-platform tool that facilitates the transition between training and deployment environments, performs static model analysis, and adjusts deep learning models for optimal execution on end-point target devices in the same measure, as the ``mo.convert_model`` method,
 
 The resulting model is saved to IR (Intermediate Representation) which can be read with the ``ov.read_model()`` method, then be compiled and inferred.
 
