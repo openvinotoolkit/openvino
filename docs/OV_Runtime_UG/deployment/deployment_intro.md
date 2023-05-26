@@ -1,4 +1,4 @@
-# Run and Deploy Locally {#openvino_deployment_guide}
+# Deploy Locally {#openvino_deployment_guide}
 
 @sphinxdirective
 
@@ -6,8 +6,6 @@
    :maxdepth: 1
    :hidden:
 
-   Run Inference <openvino_docs_OV_UG_OV_Runtime_User_Guide>
-   Optimize Inference <openvino_docs_deployment_optimization_guide_dldt_optimization_guide>
    Deploy Application with Deployment Manager <openvino_docs_install_guides_deployment_manager_tool>
    Local Distribution Libraries <openvino_docs_deploy_local_distribution>
 
