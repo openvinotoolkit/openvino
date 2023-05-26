@@ -54,7 +54,9 @@ private:
     const std::string m_xmlPath;
     const std::string m_binPath;
     const Version m_version;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const std::map<std::string, ngraph::OpSet> m_custom_opsets;
+    OPENVINO_SUPPRESS_DEPRECATED_END
 };
 
 /**
@@ -89,7 +91,9 @@ public:
 
 private:
     std::ostream& m_stream;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     std::map<std::string, ngraph::OpSet> m_custom_opsets;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     std::function<void(std::ostream&)> m_custom_data_serializer;
     const Serialize::Version m_version;
 };

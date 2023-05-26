@@ -451,6 +451,7 @@ void LayerTransformation::addPattern(ngraph::pass::GraphRewrite& pass, Transform
             m->get_name(),
             m,
             [m, internal_callback](const std::shared_ptr<Node>& node) -> bool {
+                NGRAPH_SUPPRESS_DEPRECATED_START
                 NGRAPH_DEBUG << "Running matcher " << m->get_name() << " on " << node;
                 OV_PASS_CALLBACK(m);
                 if (std::dynamic_pointer_cast<ov::pass::pattern::Matcher>(m)->match(node->output(0))) {
@@ -460,6 +461,7 @@ void LayerTransformation::addPattern(ngraph::pass::GraphRewrite& pass, Transform
                     m->clear_state();
                     return status;
                 }
+                NGRAPH_SUPPRESS_DEPRECATED_END
             m->clear_state();
             return false;
             },

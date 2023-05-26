@@ -34,6 +34,7 @@ bool evaluate_reduce_logical_or(const HostTensorPtr& data,
                                 const HostTensorPtr& out,
                                 const AxisSet& reduction_axes,
                                 bool keep_dims) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     out->set_shape(reduce(data->get_shape(), reduction_axes, keep_dims));
     try {
         runtime::reference::reduce_logical_or(data->get_data_ptr<char>(),
@@ -45,6 +46,7 @@ bool evaluate_reduce_logical_or(const HostTensorPtr& data,
         NGRAPH_WARN << e.what();
         return false;
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 }  // namespace
 }  // namespace reduce_or
@@ -54,7 +56,6 @@ bool op::v1::ReduceLogicalOr::evaluate(const HostTensorVector& outputs, const Ho
     OPENVINO_SUPPRESS_DEPRECATED_START
     NGRAPH_CHECK(validate_host_tensor_vector(inputs, 2));
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
     const auto& data = inputs[0];
     const auto& axes = inputs[1];
@@ -64,6 +65,7 @@ bool op::v1::ReduceLogicalOr::evaluate(const HostTensorVector& outputs, const Ho
     }
     const auto reduction_axes =
         get_normalized_axes_from_tensor(axes, data->get_partial_shape().rank(), get_friendly_name());
+    OPENVINO_SUPPRESS_DEPRECATED_END
     return reduce_or::evaluate_reduce_logical_or(data, out, reduction_axes, get_keep_dims());
 }
 

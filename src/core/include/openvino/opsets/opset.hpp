@@ -34,7 +34,9 @@ public:
     /// \brief Insert OP_TYPE into the opset with a special name and the default factory
     template <typename OP_TYPE>
     void insert(const std::string& name) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         insert(name, OP_TYPE::get_type_info_static(), ngraph::FactoryRegistry<Node>::get_default_factory<OP_TYPE>());
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 
     /// \brief Insert OP_TYPE into the opset with the default name and factory
@@ -87,6 +89,7 @@ public:
     }
 
 protected:
+    OPENVINO_SUPPRESS_DEPRECATED_START
     /// \brief Insert an op into the opset with a particular name and factory
     void insert(const std::string& name,
                 const NodeTypeInfo& type_info,
@@ -98,6 +101,7 @@ protected:
         m_factory_registry.register_factory(type_info, std::move(factory));
     }
     ngraph::FactoryRegistry<ov::Node> m_factory_registry;
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
 private:
     static std::string to_upper_name(const std::string& name) {

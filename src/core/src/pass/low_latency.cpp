@@ -346,6 +346,7 @@ bool ov::pass::LowLatency2::run_on_model(const shared_ptr<Model>& f) {
                         generate_variable_name(sub_graph_op->get_friendly_name(), param_name, variable_id);
 
                     const auto& input = sub_graph_op->input(merged_in->m_input_index);
+                    OPENVINO_SUPPRESS_DEPRECATED_START
                     if (dynamic_pointer_cast<ReadValueBase>(input.get_source_output().get_node_shared_ptr()) !=
                         nullptr) {
                         NGRAPH_DEBUG << msg_low_latency_2_already_applied;
@@ -360,6 +361,7 @@ bool ov::pass::LowLatency2::run_on_model(const shared_ptr<Model>& f) {
                             return false;
                         }
                     }
+                    OPENVINO_SUPPRESS_DEPRECATED_END
 
                     /** insert ReadValue and Assign ops:
                      *

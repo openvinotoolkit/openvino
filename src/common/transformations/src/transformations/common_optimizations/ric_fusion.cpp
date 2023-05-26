@@ -30,6 +30,7 @@ std::shared_ptr<opset8::Constant> create_1d_const(const std::vector<int64_t>& va
 }
 }  // namespace
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 // Attribute describes RIC type which we propagate.
 // Also, it contains callback which can expand this attribute to the real RIC sub-graph.
 // In addition, attribute has some functionality and properties for propagation.

@@ -119,38 +119,30 @@ void default_logger_handler_func(const std::string& s);
 NGRAPH_SUPPRESS_DEPRECATED_END
 
 #define NGRAPH_ERR                                                        \
-    NGRAPH_SUPPRESS_DEPRECATED_START                                      \
     ngraph::LogHelper(ngraph::LOG_TYPE::_LOG_TYPE_ERROR,                  \
                       ngraph::trim_file_name(PROJECT_ROOT_DIR, __FILE__), \
                       __LINE__,                                           \
                       ngraph::default_logger_handler_func)                \
-        .stream();                                                        \
-    NGRAPH_SUPPRESS_DEPRECATED_END
+        .stream()
 
 #define NGRAPH_WARN                                                       \
-    NGRAPH_SUPPRESS_DEPRECATED_START                                      \
     ngraph::LogHelper(ngraph::LOG_TYPE::_LOG_TYPE_WARNING,                \
                       ngraph::trim_file_name(PROJECT_ROOT_DIR, __FILE__), \
                       __LINE__,                                           \
                       ngraph::default_logger_handler_func)                \
-        .stream();                                                        \
-    NGRAPH_SUPPRESS_DEPRECATED_END
+        .stream()
 
 #define NGRAPH_INFO                                                       \
-    NGRAPH_SUPPRESS_DEPRECATED_START                                      \
     ngraph::LogHelper(ngraph::LOG_TYPE::_LOG_TYPE_INFO,                   \
                       ngraph::trim_file_name(PROJECT_ROOT_DIR, __FILE__), \
                       __LINE__,                                           \
                       ngraph::default_logger_handler_func)                \
-        .stream();                                                        \
-    NGRAPH_SUPPRESS_DEPRECATED_END
+        .stream()
 
 #define NGRAPH_DEBUG                                                      \
-    NGRAPH_SUPPRESS_DEPRECATED_START                                      \
     ngraph::LogHelper(ngraph::LOG_TYPE::_LOG_TYPE_DEBUG,                  \
                       ngraph::trim_file_name(PROJECT_ROOT_DIR, __FILE__), \
                       __LINE__,                                           \
                       ngraph::default_logger_handler_func)                \
-        .stream();                                                        \
-    NGRAPH_SUPPRESS_DEPRECATED_END
+        .stream()
 }  // namespace ngraph
