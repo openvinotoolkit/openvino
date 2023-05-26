@@ -13,6 +13,10 @@ namespace cldnn {
 struct reverse_sequence : public primitive_base<reverse_sequence> {
     CLDNN_DECLARE_PRIMITIVE(reverse_sequence)
 
+    reverse_sequence() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     /// @brief Constructs reverse_sequence primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id.
@@ -67,6 +71,18 @@ struct reverse_sequence : public primitive_base<reverse_sequence> {
 
         return seq_axis == rhs_casted.seq_axis &&
                batch_axis == rhs_casted.batch_axis;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<reverse_sequence>::save(ob);
+        ob << seq_axis;
+        ob << batch_axis;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<reverse_sequence>::load(ib);
+        ib >> seq_axis;
+        ib >> batch_axis;
     }
 };
 }  // namespace cldnn

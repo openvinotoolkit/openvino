@@ -122,6 +122,7 @@ struct non_max_suppression : public primitive_base<non_max_suppression> {
     }
 
     void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<non_max_suppression>::save(ob);
         ob << selected_indices_num;
         ob << center_point_box;
         ob << sort_result_descending;
@@ -134,6 +135,7 @@ struct non_max_suppression : public primitive_base<non_max_suppression> {
     }
 
     void load(BinaryInputBuffer& ib) override {
+        primitive_base<non_max_suppression>::load(ib);
         ib >> selected_indices_num;
         ib >> center_point_box;
         ib >> sort_result_descending;

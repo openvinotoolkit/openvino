@@ -66,6 +66,10 @@ enum class eltwise_mode : int32_t {
 struct eltwise : public primitive_base<eltwise> {
     CLDNN_DECLARE_PRIMITIVE(eltwise)
 
+    eltwise() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     /// @brief Constructs eltwise primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id.
@@ -191,6 +195,22 @@ struct eltwise : public primitive_base<eltwise> {
                coefficients == rhs_casted.coefficients &&
                broadcast_spec == rhs_casted.broadcast_spec &&
                stride == rhs_casted.stride;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<eltwise>::save(ob);
+        ob << make_data(&mode, sizeof(eltwise_mode));
+        ob << coefficients;
+        ob << stride;
+        ob << make_data(&broadcast_spec, sizeof(ov::op::AutoBroadcastSpec));;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<eltwise>::load(ib);
+        ib >> make_data(&mode, sizeof(eltwise_mode));
+        ib >> coefficients;
+        ib >> stride;
+        ib >> make_data(&broadcast_spec, sizeof(ov::op::AutoBroadcastSpec));;
     }
 };
 }  // namespace cldnn

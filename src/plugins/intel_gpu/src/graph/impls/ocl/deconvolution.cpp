@@ -106,3 +106,4 @@ attach_deconvolution_impl::attach_deconvolution_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::deconvolution_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::deconvolution)

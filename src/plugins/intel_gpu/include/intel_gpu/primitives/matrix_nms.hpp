@@ -14,6 +14,10 @@ namespace cldnn {
 struct matrix_nms : public primitive_base<matrix_nms> {
     CLDNN_DECLARE_PRIMITIVE(matrix_nms)
 
+    matrix_nms() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     enum decay_function { gaussian, linear };
 
     enum sort_result_type {
@@ -82,6 +86,32 @@ struct matrix_nms : public primitive_base<matrix_nms> {
               gaussian_sigma(gaussian_sigma),
               post_threshold(post_threshold),
               normalized(normalized) {}
+
+        void save(BinaryOutputBuffer& ob) const {
+            ob << make_data(&sort_type, sizeof(sort_result_type));
+            ob << sort_result_across_batch;
+            ob << score_threshold;
+            ob << nms_top_k;
+            ob << keep_top_k;
+            ob << background_class;
+            ob << make_data(&decay, sizeof(decay_function));
+            ob << gaussian_sigma;
+            ob << post_threshold;
+            ob << normalized;
+        }
+
+        void load(BinaryInputBuffer& ib) {
+            ib >> make_data(&sort_type, sizeof(sort_result_type));
+            ib >> sort_result_across_batch;
+            ib >> score_threshold;
+            ib >> nms_top_k;
+            ib >> keep_top_k;
+            ib >> background_class;
+            ib >> make_data(&decay, sizeof(decay_function));
+            ib >> gaussian_sigma;
+            ib >> post_threshold;
+            ib >> normalized;
+        }
     };
 
     /// @brief Constructs matrix_nms primitive.
@@ -151,6 +181,16 @@ struct matrix_nms : public primitive_base<matrix_nms> {
                cmp_fields(attribs.post_threshold) &&
                cmp_fields(attribs.normalized);
         #undef cmp_fields
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<matrix_nms>::save(ob);
+        ob << attribs;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<matrix_nms>::load(ib);
+        ib >> attribs;
     }
 
 private:

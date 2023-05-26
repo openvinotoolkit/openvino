@@ -56,3 +56,4 @@ attach_reorg_yolo_impl::attach_reorg_yolo_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::reorg_yolo_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::reorg_yolo)

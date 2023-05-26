@@ -112,3 +112,4 @@ attach_scatter_update_impl::attach_scatter_update_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::scatter_update_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::scatter_update)

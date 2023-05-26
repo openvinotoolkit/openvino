@@ -58,3 +58,4 @@ attach_ctc_loss_impl::attach_ctc_loss_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::ctc_loss_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ctc_loss)

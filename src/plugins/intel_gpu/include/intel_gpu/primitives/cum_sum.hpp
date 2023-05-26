@@ -11,6 +11,10 @@ namespace cldnn {
 struct cum_sum : public primitive_base<cum_sum> {
     CLDNN_DECLARE_PRIMITIVE(cum_sum)
 
+    cum_sum() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     /// @brief Constructs cum_sum primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id.
@@ -50,6 +54,20 @@ struct cum_sum : public primitive_base<cum_sum> {
         return axis == rhs_casted.axis &&
                exclusive == rhs_casted.exclusive &&
                reverse == rhs_casted.reverse;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<cum_sum>::save(ob);
+        ob << axis;
+        ob << exclusive;
+        ob << reverse;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<cum_sum>::load(ib);
+        ib >> axis;
+        ib >> exclusive;
+        ib >> reverse;
     }
 };
 }  // namespace cldnn

@@ -162,3 +162,4 @@ attach_fully_connected_impl::attach_fully_connected_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::fully_connected_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::fully_connected)

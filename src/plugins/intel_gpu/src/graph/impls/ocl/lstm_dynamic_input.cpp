@@ -75,3 +75,5 @@ attach_lstm_dynamic_input_impl::attach_lstm_dynamic_input_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::lstm_dynamic_input_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::lstm_dynamic_input)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::lstm_dynamic)

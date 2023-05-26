@@ -11,6 +11,10 @@ namespace cldnn {
 struct bucketize : primitive_base<bucketize> {
     CLDNN_DECLARE_PRIMITIVE(bucketize)
 
+    bucketize() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     /// @brief Constructs bucketize primitive.
     /// @param id This primitive id.
     /// @param inputs Input primitives ids.
@@ -39,6 +43,16 @@ struct bucketize : primitive_base<bucketize> {
         auto rhs_casted = downcast<const bucketize>(rhs);
 
         return with_right_bound == rhs_casted.with_right_bound;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<bucketize>::save(ob);
+        ob << with_right_bound;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<bucketize>::load(ib);
+        ib >> with_right_bound;
     }
 };
 

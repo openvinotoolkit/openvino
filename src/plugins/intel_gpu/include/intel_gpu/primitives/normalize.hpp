@@ -27,6 +27,10 @@ namespace cldnn {
 struct normalize : public primitive_base<normalize> {
     CLDNN_DECLARE_PRIMITIVE(normalize)
 
+    normalize() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     /// @brief Constructs normalize primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id.
@@ -70,6 +74,20 @@ struct normalize : public primitive_base<normalize> {
 
         return across_spatial == rhs_casted.across_spatial &&
                epsilon == rhs_casted.epsilon;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<normalize>::save(ob);
+        ob << scale_input;
+        ob << across_spatial;
+        ob << epsilon;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<normalize>::load(ib);
+        ib >> scale_input;
+        ib >> across_spatial;
+        ib >> epsilon;
     }
 
 protected:

@@ -65,3 +65,4 @@ attach_space_to_depth_impl::attach_space_to_depth_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::space_to_depth_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::space_to_depth)

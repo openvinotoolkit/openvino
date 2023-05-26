@@ -72,3 +72,4 @@ attach_reverse_impl::attach_reverse_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::reverse_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::reverse)

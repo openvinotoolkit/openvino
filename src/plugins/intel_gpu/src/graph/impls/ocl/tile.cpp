@@ -94,3 +94,4 @@ attach_tile_impl::attach_tile_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::tile_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::tile)

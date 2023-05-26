@@ -65,3 +65,4 @@ attach_shuffle_channels_impl::attach_shuffle_channels_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::shuffle_channels_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::shuffle_channels)

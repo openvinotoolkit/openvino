@@ -13,6 +13,10 @@ namespace cldnn {
 struct convolution : public primitive_base<convolution> {
     CLDNN_DECLARE_PRIMITIVE(convolution)
 
+    convolution() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     /// @brief Constructs convolution primitive
     /// @param id This primitive id.
     /// @param input Input primitive id.
@@ -245,6 +249,46 @@ struct convolution : public primitive_base<convolution> {
         #undef cmp_fields
     }
 
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<convolution>::save(ob);
+        ob << groups;
+        ob << stride;
+        ob << dilation;
+        ob << padding_begin;
+        ob << padding_end;
+        ob << make_data(&auto_pad, sizeof(ov::op::PadType));
+        ob << deformable_mode;
+        ob << deformable_groups;
+        ob << bilinear_interpolation_pad;
+        ob << transposed;
+        ob << grouped_weights_shape;
+        ob << weights;
+        ob << bias;
+        ob << weights_zero_points;
+        ob << activations_zero_points;
+        ob << compensation;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<convolution>::load(ib);
+        ib >> groups;
+        ib >> stride;
+        ib >> dilation;
+        ib >> padding_begin;
+        ib >> padding_end;
+        ib >> make_data(&auto_pad, sizeof(ov::op::PadType));
+        ib >> deformable_mode;
+        ib >> deformable_groups;
+        ib >> bilinear_interpolation_pad;
+        ib >> transposed;
+        ib >> grouped_weights_shape;
+        ib >> *const_cast<primitive_id*>(&weights);
+        ib >> *const_cast<primitive_id*>(&bias);
+        ib >> *const_cast<primitive_id*>(&weights_zero_points);
+        ib >> *const_cast<primitive_id*>(&activations_zero_points);
+        ib >> *const_cast<primitive_id*>(&compensation);
+    }
+
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret = {std::ref(weights)};
         if (!bias.empty()) {
@@ -266,6 +310,10 @@ struct convolution : public primitive_base<convolution> {
 
 struct deformable_interp : public primitive_base<deformable_interp> {
     CLDNN_DECLARE_PRIMITIVE(deformable_interp)
+
+    deformable_interp() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     deformable_interp(const primitive_id& id,
                       const std::vector<input_info>& inputs,
@@ -347,10 +395,42 @@ struct deformable_interp : public primitive_base<deformable_interp> {
                cmp_fields(bilinear_interpolation_pad);
         #undef cmp_fields
     }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<deformable_interp>::save(ob);
+        ob << pad;
+        ob << stride;
+        ob << dilation;
+        ob << output_size;
+        ob << kernel_size;
+        ob << groups;
+        ob << deformable_groups;
+        ob << padding_begin;
+        ob << padding_end;
+        ob << bilinear_interpolation_pad;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<deformable_interp>::load(ib);
+        ib >> pad;
+        ib >> stride;
+        ib >> dilation;
+        ib >> output_size;
+        ib >> kernel_size;
+        ib >> groups;
+        ib >> deformable_groups;
+        ib >> padding_begin;
+        ib >> padding_end;
+        ib >> bilinear_interpolation_pad;
+    }
 };
 
 struct deformable_conv : public primitive_base<deformable_conv> {
     CLDNN_DECLARE_PRIMITIVE(deformable_conv)
+
+    deformable_conv() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     deformable_conv(const primitive_id& id,
                     const input_info& input,
@@ -391,6 +471,22 @@ struct deformable_conv : public primitive_base<deformable_conv> {
         return groups == rhs_casted.groups &&
                weights.size() == rhs_casted.weights.size() &&
                bias.size() == rhs_casted.bias.size();
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<deformable_conv>::save(ob);
+        ob << output_size;
+        ob << groups;
+        ob << weights;
+        ob << bias;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<deformable_conv>::load(ib);
+        ib >> output_size;
+        ib >> groups;
+        ib >> *const_cast<primitive_id_arr*>(&weights);
+        ib >> *const_cast<primitive_id_arr*>(&bias);
     }
 
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {

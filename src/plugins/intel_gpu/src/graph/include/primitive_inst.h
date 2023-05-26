@@ -149,7 +149,7 @@ public:
     primitive_id id() const { return _id; }
     primitive_id org_id() const { return _org_id; }
     bool can_be_optimized() const { return _can_be_optimized; }
-    std::shared_ptr<const primitive> desc() const { return _node->get_primitive(); }
+    std::shared_ptr<const primitive> desc() const { return _impl_params->desc; }
     program_node const& get_node() const { return *_node; }
     network& get_network() const { return _network; }
     uint32_t get_network_id() const;

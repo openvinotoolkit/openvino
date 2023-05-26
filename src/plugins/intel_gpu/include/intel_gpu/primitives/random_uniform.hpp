@@ -17,6 +17,14 @@ namespace cldnn {
 struct random_uniform : public primitive_base<random_uniform> {
     CLDNN_DECLARE_PRIMITIVE(random_uniform)
 
+    random_uniform() : primitive_base("", {}),
+                       global_seed(0),
+                       op_seed(0),
+                       output_shape{},
+                       output_format(format::type::any) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     /**
      * Construct Random Uniform privitive.
      * @param id primitive id
@@ -58,6 +66,24 @@ struct random_uniform : public primitive_base<random_uniform> {
 
         return global_seed == rhs_casted.global_seed &&
                op_seed == rhs_casted.op_seed;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<random_uniform>::save(ob);
+        ob << global_seed;
+        ob << op_seed;
+        ob << output_shape;
+        ob << make_data(&output_format.value, sizeof(format::type));
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<random_uniform>::load(ib);
+        ib >> *const_cast<uint64_t*>(&global_seed);
+        ib >> *const_cast<uint64_t*>(&op_seed);
+        ib >> *const_cast<tensor*>(&output_shape);
+        format::type tmp_type;
+        ib >> make_data(&tmp_type, sizeof(format::type));
+        *const_cast<format*>(&output_format) = format(tmp_type);
     }
 };
 

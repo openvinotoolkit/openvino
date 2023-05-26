@@ -72,3 +72,4 @@ attach_pyramid_roi_align_impl::attach_pyramid_roi_align_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::pyramid_roi_align_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::pyramid_roi_align)

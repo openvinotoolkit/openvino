@@ -13,6 +13,10 @@ namespace cldnn {
 struct shuffle_channels : public primitive_base<shuffle_channels> {
     CLDNN_DECLARE_PRIMITIVE(shuffle_channels)
 
+    shuffle_channels() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     /// @brief Constructs shuffle_channels primitive.
     /// @param id This primitive id.
     /// @param input Input dictionary primitive id.
@@ -45,6 +49,18 @@ struct shuffle_channels : public primitive_base<shuffle_channels> {
 
         return group == rhs_casted.group &&
                axis == rhs_casted.axis;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<shuffle_channels>::save(ob);
+        ob << group;
+        ob << axis;
+   }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<shuffle_channels>::load(ib);
+        ib >> group;
+        ib >> axis;
     }
 };
 }  // namespace cldnn

@@ -87,3 +87,4 @@ attach_shape_of_impl::attach_shape_of_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::shape_of_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::shape_of)

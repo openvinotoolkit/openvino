@@ -33,6 +33,10 @@ namespace cldnn {
 struct one_hot : public primitive_base<one_hot> {
     CLDNN_DECLARE_PRIMITIVE(one_hot)
 
+    one_hot() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     /// @brief Constructs one-hot primitive layer.
     /// @param id              An identifier of new primitive.
     /// @param input           An identifier of primitive which is an input for newly created one-hot primitive.
@@ -106,6 +110,24 @@ struct one_hot : public primitive_base<one_hot> {
                depth == rhs_casted.depth &&
                on_value == rhs_casted.on_value &&
                off_value == rhs_casted.off_value;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<one_hot>::save(ob);
+        ob << shape;
+        ob << one_hot_axis;
+        ob << depth;
+        ob << on_value;
+        ob << off_value;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<one_hot>::load(ib);
+        ib >> shape;
+        ib >> one_hot_axis;
+        ib >> depth;
+        ib >> on_value;
+        ib >> off_value;
     }
 };
 }  // namespace cldnn

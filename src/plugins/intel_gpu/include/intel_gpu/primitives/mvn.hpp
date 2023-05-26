@@ -12,6 +12,10 @@ namespace cldnn {
 struct mvn : public primitive_base<mvn> {
     CLDNN_DECLARE_PRIMITIVE(mvn)
 
+    mvn() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     /// @brief Constructs mvn primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id.
@@ -60,6 +64,22 @@ struct mvn : public primitive_base<mvn> {
                epsilon == rhs_casted.epsilon &&
                eps_inside_sqrt == rhs_casted.eps_inside_sqrt &&
                reduction_axes == rhs_casted.reduction_axes;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<mvn>::save(ob);
+        ob << normalize_variance;
+        ob << epsilon;
+        ob << eps_inside_sqrt;
+        ob << reduction_axes;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<mvn>::load(ib);
+        ib >> normalize_variance;
+        ib >> epsilon;
+        ib >> eps_inside_sqrt;
+        ib >> reduction_axes;
     }
 
     bool across_channels() const {

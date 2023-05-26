@@ -19,6 +19,10 @@ namespace cldnn {
 struct prior_box : public primitive_base<prior_box> {
     CLDNN_DECLARE_PRIMITIVE(prior_box)
 
+    prior_box() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     /// @brief Constructs prior-box primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id.
@@ -233,6 +237,56 @@ struct prior_box : public primitive_base<prior_box> {
                cmp_fields(heights) &&
                cmp_fields(clustered);
         #undef cmp_fields
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<prior_box>::save(ob);
+        ob << output_size;
+        ob << img_size;
+        ob << min_sizes;
+        ob << max_sizes;
+        ob << aspect_ratios;
+        ob << flip;
+        ob << clip;
+        ob << variance;
+        ob << step_width;
+        ob << step_height;
+        ob << offset;
+        ob << scale_all_sizes;
+        ob << fixed_ratio;
+        ob << fixed_size;
+        ob << density;
+        ob << support_opset8;
+        ob << step;
+        ob << min_max_aspect_ratios_order;
+        ob << widths;
+        ob << heights;
+        ob << clustered;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<prior_box>::load(ib);
+        ib >> output_size;
+        ib >> img_size;
+        ib >> min_sizes;
+        ib >> max_sizes;
+        ib >> aspect_ratios;
+        ib >> flip;
+        ib >> clip;
+        ib >> variance;
+        ib >> step_width;
+        ib >> step_height;
+        ib >> offset;
+        ib >> scale_all_sizes;
+        ib >> fixed_ratio;
+        ib >> fixed_size;
+        ib >> density;
+        ib >> support_opset8;
+        ib >> step;
+        ib >> min_max_aspect_ratios_order;
+        ib >> widths;
+        ib >> heights;
+        ib >> clustered;
     }
 
 private:

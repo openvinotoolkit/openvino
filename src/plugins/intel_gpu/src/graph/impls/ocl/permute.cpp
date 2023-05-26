@@ -101,3 +101,4 @@ attach_permute_impl::attach_permute_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::permute_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::permute)
