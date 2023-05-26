@@ -523,20 +523,18 @@ def check_model_object(argv):
     model = argv['input_model']
     if 'tensorflow' in sys.modules:
         import tensorflow as tf
+        from tensorflow.python.training.tracking.base import Trackable
         env_setup = get_environment_setup("tf")
 
         if isinstance(model, tf.Graph):
             return "tf"
         if isinstance(model, tf.compat.v1.GraphDef):
             return "tf"
-        if isinstance(model, tf.compat.v1.Graph):
-            argv['input_model'] = model.as_graph_def()
-            return "tf"
         if isinstance(model, tf.compat.v1.Session):
-            argv['input_model'] = model.graph_def
+            argv['input_model'] = model.graph
             return "tf"
         if env_setup["tensorflow"] >= LooseVersion("2.6.0") and isinstance(model, tf.types.experimental.ConcreteFunction):
-            argv['input_model'] = model.graph.as_graph_def()
+            argv['input_model'] = model.graph
             return "tf"
         if env_setup["tensorflow"] >= LooseVersion("2.6.0") and isinstance(model, tf.types.experimental.GenericFunction):
             argv['input_model'] = model
@@ -550,17 +548,29 @@ def check_model_object(argv):
 
         if isinstance(model, (tf.keras.layers.Layer, tf.Module, tf.keras.Model)):
             # Try to trace TF model
-            @tf.function
-            def tf_function(x):
-                return model(x)
+
+            if isinstance(model.__call__, tf.types.experimental.GenericFunction):
+                tf_function = model.__call__
+            else:
+                @tf.function
+                def tf_function(x):
+                    return model(x)
 
             try:
                 concrete_func = tf_function.get_concrete_function(tf.TensorSpec(model._build_input_shape))
             except:
                 if 'example_input' not in argv or argv['example_input'] is None:
                     raise Exception("Could not trace the TF model. Please provide 'example_input'.")
-                concrete_func = tf_function.get_concrete_function(argv['example_input'])
+
+                try:
+                    concrete_func = tf_function.get_concrete_function(argv['example_input'])
+                except Exception as e:
+                    raise Exception("Could not trace the TF model with the following error: {}".format(e))
+
             argv['input_model'] = concrete_func.graph
+            return "tf"
+        if isinstance(model, Trackable):
+            argv['input_model'] = model.signatures['serving_default'].graph
             return "tf"
     if 'torch' in sys.modules:
         import torch
@@ -991,6 +1001,6 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args, python_api_us
 
         send_conversion_result('fail')
         if python_api_used:
-            raise e#.with_traceback(None)
+            raise e.with_traceback(None)
         else:
             return None, argv
