@@ -241,6 +241,14 @@ macro(_ov_find_pugixml)
             _ov_find_dependency(PugiXML NAMES PugiXML pugixml)
         endif()
 
+        # see https://cmake.org/cmake/help/latest/command/add_library.html#alias-libraries
+        # cmake older than 3.18 cannot create an alias for imported non-GLOBAL targets
+        # so, we have to use 'GLOBAL' property for cases when we call from OpenVINODeveloperPackage
+        # because the alias openvino::pugixml is created later
+        if(CMAKE_VERSION VERSION_LESS 3.18 AND OpenVINODeveloperPackage_DIR)
+            set(_ov_pugixml_visibility GLOBAL)
+        endif()
+
         if(PugiXML_FOUND)
             if(TARGET pugixml)
                 set(_ov_pugixml_target pugixml)
@@ -249,6 +257,9 @@ macro(_ov_find_pugixml)
             endif()
             if(OpenVINODeveloperPackage_DIR)
                 # align with build tree and create alias
+                if(_ov_pugixml_visibility STREQUAL "GLOBAL")
+                    set_target_properties(${_ov_pugixml_target} PROPERTIES IMPORTED_GLOBAL TRUE)
+                endif()
                 add_library(openvino::pugixml ALIAS ${_ov_pugixml_target})
             endif()
             unset(_ov_pugixml_target)
@@ -260,24 +271,15 @@ macro(_ov_find_pugixml)
                 set(pkg_config_required_arg REQUIRED)
             endif()
 
-            # see https://cmake.org/cmake/help/latest/command/add_library.html#alias-libraries
-            # cmake older than 3.18 cannot create an alias for imported non-GLOBAL targets
-            # so, we have to use 'IMPORTED_GLOBAL' property for cases when we call from OpenVINODeveloperPackage
-            # because the alias openvino::pugixml is created later
-            if(CMAKE_VERSION VERSION_LESS 3.18 AND OpenVINODeveloperPackage_DIR)
-                set(pkg_config_visibility GLOBAL)
-            endif()
-
             pkg_search_module(pugixml
                               ${pkg_config_quiet_arg}
                               ${pkg_config_required_arg}
                               IMPORTED_TARGET
-                              ${pkg_config_visibility}
+                              ${_ov_pugixml_visibility}
                               pugixml)
 
             unset(pkg_config_quiet_arg)
             unset(pkg_config_required_arg)
-            unset(pkg_config_visibility)
 
             if(pugixml_FOUND)
                 if(OpenVINODeveloperPackage_DIR)
@@ -303,6 +305,8 @@ macro(_ov_find_pugixml)
                 message(FATAL_ERROR "Failed to find system pugixml in OpenVINO Developer Package")
             endif()
         endif()
+
+        unset(_ov_pugixml_visibility)
     endif()
 endmacro()
 

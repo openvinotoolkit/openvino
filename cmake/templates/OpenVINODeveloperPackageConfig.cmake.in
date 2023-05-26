@@ -33,11 +33,12 @@ set(ENABLE_PLUGINS_XML ON)
 
 # for samples in 3rd party projects
 if(ENABLE_SAMPLES)
-    if("@gflags_FOUND@")
-        set_and_check(gflags_DIR "@gflags_DIR@")
-    else()
-        set_and_check(gflags_DIR "@gflags_BINARY_DIR@")
-    endif()
+    # if("@gflags_FOUND@")
+    #     set_and_check(gflags_DIR "@gflags_DIR@")
+    # else()
+    #     set_and_check(gflags_DIR "@gflags_BINARY_DIR@")
+    # endif()
+    set_and_check(gflags_DIR "@gflags_BINARY_DIR@")
 endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
