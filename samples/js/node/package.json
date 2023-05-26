@@ -5,8 +5,6 @@
   "main": "run_sample.js",
   "devDependencies": {
     "eslint": "^8.39.0",
-    "bindings": "~1.2.1",
-    "jimp": "^0.16.13",
     "opencv.js": "^1.2.1",
     "openvinojs-node": "file:../../../src/bindings/js/node/"
   },

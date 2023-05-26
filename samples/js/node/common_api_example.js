@@ -2,13 +2,12 @@ const { default: nodeAddon } = require('openvinojs-node');
 
 const cv = require('opencv.js');
 const imagenetClassesMap = require('../assets/imagenet_classes_map.json');
-const Jimp = require('jimp');
 
 run();
 
 async function run()
 {
-  const { getMaxElement } = await import('../common/index.mjs');
+  const { getMaxElement, getImageData } = await import('../common/index.mjs');
   const {loadModel, Shape, Tensor, getDescriptionString} = nodeAddon;
   console.log(await getDescriptionString());
   const model = await loadModel(
@@ -17,8 +16,8 @@ async function run()
   );
 
   const imgPath = '../assets/images/coco224x224.jpg';
-  const jimpSrc = await Jimp.read(imgPath);
-  const src = cv.matFromImageData(jimpSrc.bitmap);
+  const imgData = await getImageData(imgPath);
+  const src = cv.matFromImageData(imgData);
   cv.cvtColor(src, src, cv.COLOR_RGBA2RGB);
 
   //create tensor

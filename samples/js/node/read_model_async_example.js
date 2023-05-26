@@ -2,7 +2,6 @@ const { addon } = require('openvinojs-node');
 
 const cv = require('opencv.js');
 const imagenetClassesMap = require('../assets/imagenet_classes_map.json');
-const Jimp = require('jimp');
 
 run();
 
@@ -30,8 +29,9 @@ async function run()
 }
 
 async function createTensor(imgPath) {
-  const jimpSrc = await Jimp.read(imgPath);
-  const src = cv.matFromImageData(jimpSrc.bitmap);
+  const { getImageData } = await import('../common/index.mjs');
+  const imgData = await getImageData(imgPath);
+  const src = cv.matFromImageData(imgData);
   cv.cvtColor(src, src, cv.COLOR_RGBA2RGB);
   cv.resize(src, src, new cv.Size(224, 224));
   //create tensor
