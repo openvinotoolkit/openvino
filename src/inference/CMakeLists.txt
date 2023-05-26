@@ -119,6 +119,10 @@ if(NOT BUILD_SHARED_LIBS)
     target_compile_definitions(${TARGET_NAME}_obj PUBLIC OPENVINO_STATIC_LIBRARY)
 endif()
 
+if(NOT TARGET openvino_proxy_plugin_obj)
+    target_compile_definitions(${TARGET_NAME}_obj PUBLIC NO_PROXY_PLUGIN)
+endif()
+
 ie_faster_build(${TARGET_NAME}_obj
     UNITY PCH PRIVATE "src/precomp.hpp"
 )
@@ -133,7 +137,7 @@ target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE
     $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:openvino::pugixml,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:frontend_common::static,INTERFACE_INCLUDE_DIRECTORIES>
-    $<TARGET_PROPERTY:openvino_proxy_plugin_obj,INTERFACE_INCLUDE_DIRECTORIES>
+    $<$<TARGET_EXISTS:openvino_proxy_plugin_obj>:$<TARGET_PROPERTY:openvino_proxy_plugin_obj,INTERFACE_INCLUDE_DIRECTORIES>>
     $<$<TARGET_EXISTS:xbyak::xbyak>:$<TARGET_PROPERTY:xbyak::xbyak,INTERFACE_INCLUDE_DIRECTORIES>>)
 
 target_include_directories(${TARGET_NAME}_obj PRIVATE
@@ -173,7 +177,7 @@ ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}_obj
 # Static library used for unit tests which are always built
 
 add_library(${TARGET_NAME}_s STATIC EXCLUDE_FROM_ALL
-            $<TARGET_OBJECTS:openvino_proxy_plugin_obj>
+            $<$<TARGET_EXISTS:openvino_proxy_plugin_obj>:$<TARGET_OBJECTS:openvino_proxy_plugin_obj>>
             $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
 
 set_ie_threading_interface_for(${TARGET_NAME}_s)

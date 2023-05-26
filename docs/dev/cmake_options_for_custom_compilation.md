@@ -15,6 +15,8 @@ This document provides description and default values for CMake options that can
 ## Disable / enable plugins build and other components
 
 * Inference plugins:
+    * `ENABLE_PROXY` enables Proxy plugin compilation:
+        * `ON` is default.
     * `ENABLE_INTEL_CPU` enables CPU plugin compilation:
         * `ON` is default for x86 platforms; `OFF`, otherwise.
     * `ENABLE_INTEL_GPU` enables Intel GPU plugin compilation:
