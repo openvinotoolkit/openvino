@@ -11,7 +11,7 @@ To download the model for IR conversion, follow the instructions:
 
 1. Create new directory to store the model:
 
-   .. code-block:: shell
+   .. code-block:: sh
 
       mkdir lm_1b
 
