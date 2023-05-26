@@ -242,6 +242,9 @@ if(ENABLE_SYSTEM_PUGIXML)
             set_target_properties(pugixml PROPERTIES INTERFACE_LINK_LIBRARIES "${PUGIXML_LIBRARY}")
             set(pugixml_target pugixml)
             set(PugiXML_FOUND ON)
+            # because we don't need to have a dependency on specific cmake targets in this case
+            # in file OpenVINOConfig.cmake static build case
+            set(ENABLE_SYSTEM_PUGIXML OFF)
         endif()
     endif()
 
