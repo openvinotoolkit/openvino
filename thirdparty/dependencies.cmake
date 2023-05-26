@@ -11,7 +11,7 @@ if(NOT ANDROID)
     # cmake 3.18 (and older) cannot create an alias for imported non-GLOBAL targets
     # so, we have to use 'IMPORTED_GLOBAL' property
     if(CMAKE_VERSION VERSION_LESS 3.18)
-        set(OV_PkgConfig_VISILITY IMPORTED_GLOBAL)
+        set(OV_PkgConfig_VISILITY GLOBAL)
     endif()
 endif()
 
@@ -219,7 +219,7 @@ if(ENABLE_SYSTEM_PUGIXML)
         # to property generate OpenVINO Developer packages files
         set(PugiXML_FOUND ${PugiXML_FOUND} CACHE BOOL "" FORCE)
     elseif(PkgConfig_FOUND)
-        # U18 case when cmake interface is not available
+        # Ubuntu 18.04 case when cmake interface is not available
         pkg_search_module(pugixml QUIET
                           IMPORTED_TARGET
                           ${OV_PkgConfig_VISILITY}
