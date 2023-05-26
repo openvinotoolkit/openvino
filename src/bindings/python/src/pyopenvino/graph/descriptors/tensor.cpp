@@ -127,6 +127,6 @@ void regclass_graph_descriptor_Tensor(py::module m) {
         std::stringstream shape_type_ss;
         shape_type_ss << " shape" << self.get_partial_shape() << " type: " << self.get_element_type();
         auto names_str = Common::docs::container_to_string(self.get_names(), ", ");
-        return "<DescriptorTensor: names[" + names_str + "]" + shape_type_ss.str() + ">";
+        return "<" + Common::get_class_name(self) + ": names[" + names_str + "]" + shape_type_ss.str() + ">";
     });
 }

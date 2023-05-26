@@ -11,6 +11,7 @@
 
 #include "openvino/core/node.hpp"
 #include "openvino/core/partial_shape.hpp"  // ov::PartialShape
+#include "pyopenvino/core/common.hpp"
 #include "pyopenvino/graph/ops/parameter.hpp"
 
 namespace py = pybind11;
@@ -62,6 +63,6 @@ void regclass_graph_op_Parameter(py::module m) {
             }
             shapes_ss << self.get_output_partial_shape(i);
         }
-        return "<Parameter: '" + self.get_friendly_name() + "' (" + shapes_ss.str() + ")>";
+        return "<" + Common::get_class_name(self) + ": '" + self.get_friendly_name() + "' (" + shapes_ss.str() + ")>";
     });
 }

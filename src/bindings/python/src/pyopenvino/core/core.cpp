@@ -615,6 +615,6 @@ void regclass_Core(py::module m) {
 
     cls.def("__repr__", [](const ov::Core& self) {
         auto devices = Common::docs::container_to_string(self.get_available_devices(), ", ");
-        return "<Core: available plugins[" + devices + "]>";
+        return "<" + Common::get_class_name(self) + ": available plugins[" + devices + "]>";
     });
 }

@@ -9,6 +9,7 @@
 #include "ngraph/log.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
+#include "pyopenvino/core/common.hpp"
 #include "pyopenvino/graph/ops/if.hpp"
 #include "pyopenvino/graph/ops/util/multisubgraph.hpp"
 
@@ -91,6 +92,6 @@ void regclass_graph_op_If(py::module m) {
             }
             shapes_ss << self.get_output_partial_shape(i);
         }
-        return "<if_op: '" + self.get_friendly_name() + "' (" + shapes_ss.str() + ")>";
+        return "<" + Common::get_class_name(self) + ": '" + self.get_friendly_name() + "' (" + shapes_ss.str() + ")>";
     });
 }

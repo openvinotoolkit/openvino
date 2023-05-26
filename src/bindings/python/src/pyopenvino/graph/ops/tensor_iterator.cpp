@@ -7,6 +7,7 @@
 #include "openvino/core/node.hpp"
 #include "openvino/op/tensor_iterator.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
+#include "pyopenvino/core/common.hpp"
 #include "pyopenvino/graph/ops/util/multisubgraph.hpp"
 
 namespace py = pybind11;
@@ -110,6 +111,6 @@ void regclass_graph_op_TensorIterator(py::module m) {
             }
             shapes_ss << self.get_output_partial_shape(i);
         }
-        return "<tensor_iterator: '" + self.get_friendly_name() + "' (" + shapes_ss.str() + ")>";
+        return "<" + Common::get_class_name(self) + ": '" + self.get_friendly_name() + "' (" + shapes_ss.str() + ")>";
     });
 }

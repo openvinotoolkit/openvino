@@ -103,6 +103,6 @@ void regclass_graph_Input(py::module m) {
     input.def("__repr__", [](const ov::Input<ov::Node>& self) {
         std::stringstream shape_type_ss;
         shape_type_ss << " shape" << self.get_partial_shape() << " type: " << self.get_element_type();
-        return "<Input:" + shape_type_ss.str() + ">";
+        return "<" + Common::get_class_name(self) + ":" + shape_type_ss.str() + ">";
     });
 }

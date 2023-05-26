@@ -220,6 +220,6 @@ void regclass_graph_op_Constant(py::module m) {
             }
             shapes_ss << self.get_output_partial_shape(i);
         }
-        return "<Constants: '" + self.get_friendly_name() + "' (" + shapes_ss.str() + ")>";
+        return "<" + Common::get_class_name(self) + ": '" + self.get_friendly_name() + "' (" + shapes_ss.str() + ")>";
     });
 }

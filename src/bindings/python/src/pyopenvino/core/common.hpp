@@ -97,8 +97,13 @@ py::dict outputs_to_dict(InferRequestWrapper& request);
 ov::pass::Serialize::Version convert_to_version(const std::string& version);
 
 template <typename T>
+std::string get_class_name(const T& obj) {
+    return py::str(py::cast(obj).get_type().attr("__name__"));
+}
+
+template <typename T>
 std::string get_simple_repr(const T& obj) {
-    std::string class_name = py::str(py::cast(obj).get_type().attr("__name__"));
+    std::string class_name = get_class_name(obj);
     return "<" + class_name + ">";
 }
 
