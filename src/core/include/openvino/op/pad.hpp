@@ -7,15 +7,16 @@
 #include "openvino/core/coordinate_diff.hpp"
 #include "openvino/op/op.hpp"
 #include "openvino/op/util/attr_types.hpp"
+#include "openvino/op/util/pad_base.hpp"
 
 namespace ov {
 namespace op {
 namespace v1 {
 /// \brief Generic padding operation.
 /// \ingroup ov_ops_cpp_api
-class OPENVINO_API Pad : public Op {
+class OPENVINO_API Pad : public util::PadBase {
 public:
-    OPENVINO_OP("Pad", "opset1", op::Op);
+    OPENVINO_OP("Pad", "opset1", op::util::PadBase);
 
     /// \brief Constructs a generic padding operation.
     ///
@@ -50,35 +51,35 @@ public:
     /// \brief Constructs a generic padding operation.
     Pad() = default;
 
-    bool visit_attributes(AttributeVisitor& visitor) override;
-    void validate_and_infer_types() override;
-    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+    //     bool visit_attributes(AttributeVisitor& visitor) override;
+    //     void validate_and_infer_types() override;
+    //     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    /// return The node which specifies the number of padding elements
-    /// added at the beginning of each axis
-    CoordinateDiff get_pads_begin() const;
-    /// return The node which specifies the number of padding elements
-    /// added at the end of each axis
-    CoordinateDiff get_pads_end() const;
+    //     /// return The node which specifies the number of padding elements
+    //     /// added at the beginning of each axis
+    //     CoordinateDiff get_pads_begin() const;
+    //     /// return The node which specifies the number of padding elements
+    //     /// added at the end of each axis
+    //     CoordinateDiff get_pads_end() const;
 
-    /// \return The padding mode.
-    PadMode get_pad_mode() const {
-        return m_pad_mode;
-    }
-    void set_pad_mode(PadMode pad_mode) {
-        m_pad_mode = pad_mode;
-    }
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    bool has_evaluate() const override;
-    bool evaluate_lower(TensorVector& output_values) const override;
-    bool evaluate_upper(TensorVector& output_values) const override;
-    bool evaluate_label(TensorLabelVector& output_labels) const override;
+    //     /// \return The padding mode.
+    //     PadMode get_pad_mode() const {
+    //         return m_pad_mode;
+    //     }
+    //     void set_pad_mode(PadMode pad_mode) {
+    //         m_pad_mode = pad_mode;
+    //     }
+    //     OPENVINO_SUPPRESS_DEPRECATED_START
+    //     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    //     OPENVINO_SUPPRESS_DEPRECATED_END
+    //     bool has_evaluate() const override;
+    //     bool evaluate_lower(TensorVector& output_values) const override;
+    //     bool evaluate_upper(TensorVector& output_values) const override;
+    //     bool evaluate_label(TensorLabelVector& output_labels) const override;
 
-private:
-    PadMode m_pad_mode{PadMode::CONSTANT};
-    bool evaluate_pad(const HostTensorVector& outputs, const HostTensorVector& inputs) const;
+    // private:
+    //     PadMode m_pad_mode{PadMode::CONSTANT};
+    //     bool evaluate_pad(const HostTensorVector& outputs, const HostTensorVector& inputs) const;
 };
 }  // namespace v1
 }  // namespace op
