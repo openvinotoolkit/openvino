@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <utility>
 #include <memory>
+#include <utility>
 
 #ifndef IN_OV_COMPONENT
 #    define IN_OV_COMPONENT

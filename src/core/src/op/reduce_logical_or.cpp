@@ -11,6 +11,7 @@
 #include "ngraph/op/util/evaluate_helpers.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/logical_reduction.hpp"
+#include "openvino/util/log.hpp"
 
 using namespace ngraph;
 using namespace std;
@@ -43,7 +44,7 @@ bool evaluate_reduce_logical_or(const HostTensorPtr& data,
                                               reduction_axes);
         return true;
     } catch (const ngraph_error& e) {
-        NGRAPH_WARN << e.what();
+        OPENVINO_WARN << e.what();
         return false;
     }
     OPENVINO_SUPPRESS_DEPRECATED_END

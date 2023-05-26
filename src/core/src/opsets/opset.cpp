@@ -8,6 +8,7 @@
 #include "ngraph/log.hpp"
 #include "ngraph/ops.hpp"
 #include "openvino/opsets/opset.hpp"
+#include "openvino/util/log.hpp"
 
 ngraph::OpSet::OpSet(const ov::OpSet& opset) : ov::OpSet(opset) {}
 
@@ -31,9 +32,7 @@ ov::OpSet& ov::OpSet::operator=(const ov::OpSet& opset) {
 ov::Node* ov::OpSet::create(const std::string& name) const {
     auto type_info_it = m_name_type_info_map.find(name);
     if (type_info_it == m_name_type_info_map.end()) {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        NGRAPH_WARN << "Couldn't create operator of type: " << name << " . Operation not registered in opset.";
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        OPENVINO_WARN << "Couldn't create operator of type: " << name << " . Operation not registered in opset.";
         return nullptr;
     }
     REGISTER_OP(m_name, name);
@@ -43,9 +42,7 @@ ov::Node* ov::OpSet::create(const std::string& name) const {
 ov::Node* ov::OpSet::create_insensitive(const std::string& name) const {
     auto type_info_it = m_case_insensitive_type_info_map.find(to_upper_name(name));
     if (type_info_it == m_case_insensitive_type_info_map.end()) {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        NGRAPH_WARN << "Couldn't create operator of type: " << name << " . Operation not registered in opset.";
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        OPENVINO_WARN << "Couldn't create operator of type: " << name << " . Operation not registered in opset.";
         return nullptr;
     }
     REGISTER_OP(m_name, name);

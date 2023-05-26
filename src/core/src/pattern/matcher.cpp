@@ -12,6 +12,7 @@
 #include "ngraph/op/parameter.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "openvino/util/env_util.hpp"
+#include "openvino/util/log.hpp"
 
 namespace ov {
 namespace pass {
@@ -120,13 +121,13 @@ bool Matcher::match_permutation(const OutputVector& pattern_args, const OutputVe
 
 bool Matcher::match_arguments(Node* pattern_node, const std::shared_ptr<Node>& graph_node) {
     OPENVINO_SUPPRESS_DEPRECATED_START
-    NGRAPH_DEBUG << "[MATCHER] Match arguments at " << *graph_node << " for pattern " << *pattern_node;
+    OPENVINO_DEBUG << "[MATCHER] Match arguments at " << *graph_node << " for pattern " << *pattern_node;
 
     auto args = graph_node->input_values();
     auto pattern_args = pattern_node->input_values();
 
     if (args.size() != pattern_args.size()) {
-        NGRAPH_DEBUG << "[MATCHER] Aborting at " << *graph_node << " for pattern " << *pattern_node;
+        OPENVINO_DEBUG << "[MATCHER] Aborting at " << *graph_node << " for pattern " << *pattern_node;
         return false;
     }
 
@@ -153,7 +154,7 @@ bool Matcher::match_arguments(Node* pattern_node, const std::shared_ptr<Node>& g
         return match_permutation(pattern_args, args);
     }
 
-    NGRAPH_DEBUG << "[MATCHER] Aborting at " << *graph_node << " for pattern " << *pattern_node;
+    OPENVINO_DEBUG << "[MATCHER] Aborting at " << *graph_node << " for pattern " << *pattern_node;
     OPENVINO_SUPPRESS_DEPRECATED_END
     return false;
 }
