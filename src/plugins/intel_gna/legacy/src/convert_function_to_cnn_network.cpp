@@ -1983,7 +1983,6 @@ CNNLayerPtr CNNLayerCreator::create(const std::shared_ptr<::ngraph::Node>& origi
     CNNLayerPtr res;
 
     auto creator = creators.find(node->description());
-    ;
 
     if (creator != creators.end())
         res = creator->second(node, params);
