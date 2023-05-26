@@ -16,7 +16,7 @@ Every deep learning workflow begins with obtaining a model. You can choose to pr
 
 There are several options to convert a model from original framework to OpenVINO model format (``ov.Model``).
 
-The ``read_model()`` method reads a model from a file and produces ``ov.Model``. If the file is in one of the supported original framework file formats, it is converted automatically to OpenVINO Intermediate Representation. If the file is already in an OpenVINO IR format, it is just read "as-is", without any conversion involved.
+The ``read_model()`` method reads a model from a file and produces ``ov.Model``. If the file is in one of the supported original framework file formats, it is converted automatically to OpenVINO Intermediate Representation. If the file is already in the OpenVINO IR format, it is read "as-is", without any conversion involved.
 
 Model Conversion API, specifically, the ``mo.convert_model()`` method converts a model from original framework to ``ov.Model``. The resulting ``ov.Model`` can be inferred in the same training environment (python script or Jupiter Notebook). ``mo.convert_model()`` provides a convenient way to quickly switch from framework-based code to OpenVINO-based code in your inference application. In addition to model files, ``mo.convert_model()`` can take OpenVINO extension objects constructed directly in Python for easier conversion of operations that are not supported in OpenVINO. The ``mo.convert_model()`` method also has a set of parameters to :doc:`cut the model <openvino_docs_MO_DG_prepare_model_convert_model_Cutting_Model>`, :doc:`set input shapes or layout <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>`, :doc:`add preprocessing <openvino_docs_MO_DG_Additional_Optimization_Use_Cases>`, etc.
 
