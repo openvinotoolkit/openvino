@@ -311,10 +311,6 @@ jobs:
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_template_func_tests --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-templateFuncTests.xml
     displayName: 'TEMPLATE FuncTests'
 
-  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_cpu_func_tests --gtest_filter=*smoke* --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-ov_cpu_func_tests.xml
-    displayName: 'CPU FuncTests'
-    condition: and(succeeded(), eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'OFF'))
-
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_auto_batch_func_tests --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-ov_auto_batch_func_tests.xml
     displayName: 'AutoBatch FuncTests'
 
@@ -325,6 +321,10 @@ jobs:
   - script: |
       call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_capi_test --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-ov_capi_test.xml
     displayName: 'OV CAPITests'
+
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_cpu_func_tests --gtest_filter=*smoke* --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-ov_cpu_func_tests.xml
+    displayName: 'CPU FuncTests'
+    condition: and(succeeded(), eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'OFF'))
 
   - task: PublishTestResults@2
     condition: always()

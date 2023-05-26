@@ -35,6 +35,7 @@
 #include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
 #include <transformations/common_optimizations/matmul_const_transposes_extraction.hpp>
 #include <transformations/common_optimizations/matmul_multiply_fusion.hpp>
+#include <transformations/common_optimizations/merge_similar_branches.hpp>
 #include <transformations/common_optimizations/moc_transformations.hpp>
 #include <transformations/common_optimizations/mul_conv_fusion.hpp>
 #include <transformations/common_optimizations/mul_fake_quantize_fusion.hpp>
@@ -244,6 +245,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Fu
     REGISTER_PASS(manager, ReverseInputChannelsFusion)
     REGISTER_PASS(manager, AlignEltwiseInputRanks)
     REGISTER_PASS(manager, ConstantFolding)
+    REGISTER_PASS(manager, MergeSimilarBranches);
     manager.run_passes(f);
 
     if (!m_use_shapes) {

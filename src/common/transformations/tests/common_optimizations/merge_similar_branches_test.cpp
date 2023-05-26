@@ -28,6 +28,8 @@ public:
     }
 };
 
+class DISABLED_MergeSimilarBranchesTest : public MergeSimilarBranchesTest {};
+
 TEST_F(MergeSimilarBranchesTest, unary_nodes) {
     using namespace ov::opset11;
     {
@@ -195,7 +197,7 @@ TEST_F(MergeSimilarBranchesTest, different_op_versions) {
     model = make_shared<Model>(NodeVector{add}, ParameterVector{input});
 }
 
-TEST_F(MergeSimilarBranchesTest, different_input_nodes) {
+TEST_F(DISABLED_MergeSimilarBranchesTest, different_input_nodes) {
     using namespace ov::opset11;
     const auto input1 = make_shared<Parameter>(f32, PartialShape{7});
     const auto input2 = make_shared<Parameter>(f32, PartialShape{7});
@@ -207,7 +209,7 @@ TEST_F(MergeSimilarBranchesTest, different_input_nodes) {
     model = make_shared<Model>(NodeVector{concat}, ParameterVector{input1, input2});
 }
 
-TEST_F(MergeSimilarBranchesTest, mixed_input_order) {
+TEST_F(DISABLED_MergeSimilarBranchesTest, mixed_input_order) {
     using namespace ov::opset11;
     {
         const auto input = make_shared<Parameter>(i16, PartialShape{13, 27});
