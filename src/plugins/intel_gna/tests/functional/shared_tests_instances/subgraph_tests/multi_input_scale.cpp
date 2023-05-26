@@ -12,7 +12,8 @@ std::vector<size_t> input = {32, 15, 17, 10};
 
 std::vector<std::map<std::string, std::string>> additional_config = {
     {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_SCALE_FACTOR_0", "2"}, {"GNA_SCALE_FACTOR_1", "2"}},
-    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_SCALE_FACTOR_0", "2"}, {"GNA_SCALE_FACTOR_1", "1638.4"}}};
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_SCALE_FACTOR_0", "2"}, {"GNA_SCALE_FACTOR_1", "1638.4"}},
+    {{"GNA_DEVICE_MODE", "GNA_SW_FP32"}}};
 }  // namespace
 
 INSTANTIATE_TEST_SUITE_P(smoke_multiple_input_scale,

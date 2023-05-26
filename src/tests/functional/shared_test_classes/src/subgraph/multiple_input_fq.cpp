@@ -17,6 +17,9 @@ std::string MultipleInputTest::getTestCaseName(const testing::TestParamInfo<mult
     result << "netPrecision=" << netPrecision.name() << "_";
     result << "IS=" << inputSize << "_";
     result << "targetDevice=" << targetDevice;
+    for (auto const& configItem : config) {
+        result << "_configItem=" << configItem.first << "_" << configItem.second;
+    }
     return result.str();
 }
 

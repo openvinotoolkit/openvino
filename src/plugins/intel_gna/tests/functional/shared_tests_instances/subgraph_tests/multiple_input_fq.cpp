@@ -12,9 +12,8 @@ std::vector<size_t> input = {
     64,
 };
 
-std::map<std::string, std::string> additional_config = {
-    {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
-};
+std::vector<std::map<std::string, std::string>> configs = {{{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}},
+                                                           {{"GNA_DEVICE_MODE", "GNA_SW_FP32"}}};
 }  // namespace
 
 INSTANTIATE_TEST_SUITE_P(smoke_multiple_input,
@@ -22,6 +21,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_multiple_input,
                          ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_GNA),
                                             ::testing::Values(InferenceEngine::Precision::FP32),
                                             ::testing::ValuesIn(input),
-                                            ::testing::Values(additional_config)),
+                                            ::testing::ValuesIn(configs)),
                          MultipleInputTest::getTestCaseName);
 }  // namespace SubgraphTestsDefinitions
