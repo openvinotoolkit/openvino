@@ -5,18 +5,15 @@
 #include "transformations/common_optimizations/merge_similar_branches.hpp"
 
 #include <algorithm>
-#include <set>
-#include <stack>
 
 #include "openvino/op/util/op_types.hpp"
 
 using namespace std;
 
-namespace ov {
-namespace pass {
+using namespace ov;
+using namespace pass;
 
 namespace {
-
 bool are_equal_constants(const Node* const l, const Node* const r) {
     const auto l_const = dynamic_cast<const op::v0::Constant*>(l);
     const auto r_const = dynamic_cast<const op::v0::Constant*>(r);
@@ -30,28 +27,52 @@ bool are_equal_constants(const Node* const l, const Node* const r) {
     return false;
 }
 
+bool is_op_input_order_agnostic(Node* n) {
+    using namespace ov::op;
+    // Subgraphs not considered
+    static const set<size_t> input_order_agnostic_ops{v1::Add::get_type_info_static().hash(),
+                                                      v1::Equal::get_type_info_static().hash(),
+                                                      v1::LogicalAnd::get_type_info_static().hash(),
+                                                      v1::LogicalNot::get_type_info_static().hash(),
+                                                      v1::LogicalXor::get_type_info_static().hash(),
+                                                      v1::Maximum::get_type_info_static().hash(),
+                                                      v1::Minimum::get_type_info_static().hash(),
+                                                      v1::Multiply::get_type_info_static().hash(),
+                                                      v1::NotEqual::get_type_info_static().hash()};
+    return input_order_agnostic_ops.find(n->get_type_info().hash()) != input_order_agnostic_ops.end();
+}
+
 bool compare_consumers(const Input<Node>& l, const Input<Node>& r) {
     const auto l_node = l.get_node();
     const auto r_node = r.get_node();
     if (l_node == r_node)
-        return false;
+        return true;
 
     if (l_node->get_type_info() != r_node->get_type_info())
         return false;
 
-    // TODO It doesn't matter for Add Mul etc
-    if (l.get_index() != r.get_index())
-        return false;
+    const auto equal_outputs = [](const Output<Node>& l, const Output<Node>& r) {
+        return l == r || are_equal_constants(l.get_node(), r.get_node());
+    };
 
-    for (size_t i = 0; i < l_node->get_output_size(); ++i)
-        if (l_node->get_output_element_type(i) != r_node->get_output_element_type(i))
+    if (is_op_input_order_agnostic(l_node)) {
+        vector<Output<Node>> l_isos, r_isos;
+        for (size_t i = 0; i < l_node->get_input_size(); ++i) {
+            l_isos.push_back(l_node->get_input_source_output(i));
+            r_isos.push_back(r_node->get_input_source_output(i));
+        }
+        if (!is_permutation(begin(l_isos), end(l_isos), begin(r_isos), equal_outputs))
+            return false;
+    } else {
+        if (l.get_index() != r.get_index())
             return false;
 
-    for (size_t i = 0; i < l_node->get_input_size(); ++i) {
-        const auto l_iso = l_node->get_input_source_output(i);
-        const auto r_iso = r_node->get_input_source_output(i);
-        if (l_iso != r_iso && !are_equal_constants(l_iso.get_node(), r_iso.get_node()))
-            return false;
+        for (size_t i = 0; i < l_node->get_input_size(); ++i) {
+            const auto l_iso = l_node->get_input_source_output(i);
+            const auto r_iso = r_node->get_input_source_output(i);
+            if (!equal_outputs(l_iso, r_iso))
+                return false;
+        }
     }
 
     return true;
@@ -83,8 +104,8 @@ bool MergeSimilarBranches::run_on_model(const std::shared_ptr<ov::Model>& model)
 
             // erase Result producers from consumers
             const auto find_result_producer = [&]() {
-                return find_if(begin(consumers), end(consumers), [&](const Input<Node>& c) {
-                    return result_procuder_nodes.find(c.get_node()) != result_procuder_nodes.end();
+                return find_if(begin(consumers), end(consumers), [&](const Input<Node>& i) {
+                    return result_procuder_nodes.find(i.get_node()) != result_procuder_nodes.end();
                 });
             };
             for (auto i = find_result_producer(); i != end(consumers); i = find_result_producer())
@@ -92,44 +113,57 @@ bool MergeSimilarBranches::run_on_model(const std::shared_ptr<ov::Model>& model)
 
             if (consumers.size() > 1) {
                 do {
-                    // get node for comparison
-                    const auto first_consumer = *consumers.begin();
-                    const auto first_consumer_node = first_consumer.get_node();
-                    consumers.erase(first_consumer);
-
-                    // gather equal nodes
-                    vector<Input<Node>> consumers_for_merge;
-                    set<Input<Node>> remaining_consumers;
+                    // gather mergeable consumer nodes
+                    set<Input<Node>> mergeable_consumers, remaining_consumers;
                     partition_copy(begin(consumers),
                                    end(consumers),
-                                   back_inserter(consumers_for_merge),
+                                   inserter(mergeable_consumers, mergeable_consumers.end()),
                                    inserter(remaining_consumers, remaining_consumers.end()),
-                                   [&](const Input<Node>& n) {
-                                       return compare_consumers(first_consumer, n);
+                                   [&](const Input<Node>& i) {
+                                       return compare_consumers(*consumers.begin(), i);
                                    });
+                    set<Node*> nodes_for_merge;
+                    for (const auto& c : mergeable_consumers)
+                        nodes_for_merge.insert(c.get_node());
+
+                    // drop nodes for merge from remaining consumers
+                    set<Input<Node>> new_remaining_consumers;
+                    remove_copy_if(begin(new_remaining_consumers),
+                                   end(new_remaining_consumers),
+                                   inserter(new_remaining_consumers, new_remaining_consumers.end()),
+                                   [&](const Input<Node>& i) {
+                                       return any_of(begin(nodes_for_merge), end(nodes_for_merge), [&](Node* n) {
+                                           return i.get_node() == n;
+                                       });
+                                   });
+                    remaining_consumers.swap(new_remaining_consumers);
 
                     // merge equal nodes
-                    if (!consumers_for_merge.empty()) {
-                        const auto replacement_node = first_consumer_node->shared_from_this();
-                        for (size_t i = 0; i < consumers_for_merge.size(); ++i) {
-                            const auto merge_target_node = consumers_for_merge[i].get_node()->shared_from_this();
+                    const auto first_node = *nodes_for_merge.begin();
+                    nodes_for_merge.erase(first_node);
+                    if (!nodes_for_merge.empty()) {
+                        const auto replacement_node = first_node->shared_from_this();
+                        for (const auto& n : nodes_for_merge) {
+                            const auto merge_target_node = n->shared_from_this();
                             copy_runtime_info(merge_target_node, replacement_node);
                             replace_node(merge_target_node, replacement_node);
                         }
                         rewritten = true;
                     }
 
-                    nodes_for_check.push(first_consumer_node);
+                    nodes_for_check.push(first_node);
+                    if (remaining_consumers.size() == 1) {
+                        // TODO add test for this case
+                        nodes_for_check.push(remaining_consumers.begin()->get_node());
+                        break;
+                    }
                     consumers.swap(remaining_consumers);
                 } while (!consumers.empty());
             } else if (consumers.size() == 1) {  // nothing to merge
                 nodes_for_check.push(consumers.begin()->get_node());
-            }
+            }  // TODO reorder the loop flow
         }
     }
 
     return rewritten;
 }
-
-}  // namespace pass
-}  // namespace ov
