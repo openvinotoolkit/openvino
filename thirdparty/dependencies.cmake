@@ -155,7 +155,7 @@ endif()
 #
 
 if(ENABLE_SAMPLES OR ENABLE_TESTS)
-    find_package(ZLIB QUIET CONFIG)
+    find_package(ZLIB QUIET)
     if(ZLIB_FOUND)
         # FindZLIB module defines ZLIB::ZLIB, no extra steps are required
     endif()
