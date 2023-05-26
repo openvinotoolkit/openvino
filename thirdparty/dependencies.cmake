@@ -194,7 +194,7 @@ endif()
 if(ENABLE_SYSTEM_PUGIXML)
     # try system pugixml first
     # Note: we also specify 'pugixml' in NAMES because vcpkg
-    find_package(PugiXML QUIET NAMES pugixml)
+    find_package(PugiXML QUIET NAMES PugiXML pugixml)
     if(PugiXML_FOUND)
         # TODO: use static pugixml library in case of BUILD_SHARED_LIBS=OFF
         if(TARGET pugixml::shared)
@@ -416,7 +416,7 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
             set(Protobuf_DEBUG ON)
         endif()
         # Note: we also specify 'protobuf' in NAMES because vcpkg
-        find_package(Protobuf 3.20.3 REQUIRED NAMES protobuf)
+        find_package(Protobuf 3.20.3 REQUIRED NAMES Protobuf protobuf)
         set(PROTOC_EXECUTABLE protobuf::protoc)
     else()
         add_subdirectory(thirdparty/protobuf EXCLUDE_FROM_ALL)
