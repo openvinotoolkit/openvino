@@ -15,10 +15,15 @@ If it is already installed, and you want to keep it, you can skip the installati
 
 To install the latest available **Intel® Graphics Compute Runtime for OpenCL™** for your OS, see the [Install Guides](https://github.com/intel/compute-runtime/releases/latest).
 
-> **NOTE**: If you use RedHat 8 OS please install OpenCL library as prerequisite via following command line:  
-> ```sh rpm -ivh http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/ocl-icd-2.2.12-1.el8.x86_64.rpm```
+@sphinxdirective
 
-> **NOTE**: For instructions specific to discrete graphics platforms, refer to [the dgpu guide](https://dgpu-docs.intel.com/installation-guides/index.html) (Intel® Arc™ A-Series Graphics, Intel® Data Center GPU Flex Series, Intel® Data Center GPU MAX Series, Intel® processor graphics Gen12, and Intel® Iris Xe MAX codename DG1).
+.. note::
+   If you use RedHat 8 OS please install OpenCL library as prerequisite via following command line: ``sh rpm -ivh http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/ocl-icd-2.2.12-1.el8.x86_64.rpm``
+
+.. note::
+   For instructions specific to discrete graphics platforms, refer to `the dgpu guide <https://dgpu-docs.intel.com/installation-guides/index.html>`__ (Intel® Arc™ A-Series Graphics, Intel® Data Center GPU Flex Series, Intel® Data Center GPU MAX Series, Intel® processor graphics Gen12, and Intel® Iris Xe MAX codename DG1).
+
+@endsphinxdirective
 
 You may consider installing one of the earlier versions of the driver, based on your particular setup needs.
 
@@ -51,12 +56,22 @@ You are done updating your device driver and are ready to use your GPU.
 
 In the internal OpenVINO validation the following versions of Intel Graphics Driver were used:
 
-Operation System | Driver version
---- |-------------------------
-Ubuntu 20.04 | [22.35.24055](https://github.com/intel/compute-runtime/releases/tag/22.35.24055)
-Ubuntu 18.04 | [21.38.21026](https://github.com/intel/compute-runtime/releases/tag/21.38.21026)
-CentOS 7 | [19.41.14441](https://github.com/intel/compute-runtime/releases/tag/19.41.14441)
-RHEL 8 | [22.28.23726](https://github.com/intel/compute-runtime/releases/tag/22.28.23726)
+@sphinxdirective
+
++------------------+-------------------------------------------------------------------------------------+
+| Operation System | Driver version                                                                      |
++==================+=====================================================================================+
+| Ubuntu 20.04     | `22.35.24055 <https://github.com/intel/compute-runtime/releases/tag/22.35.24055>`__ |
++------------------+-------------------------------------------------------------------------------------+
+| Ubuntu 18.04     | `21.38.21026 <https://github.com/intel/compute-runtime/releases/tag/21.38.21026>`__ |
++------------------+-------------------------------------------------------------------------------------+
+| CentOS 7         | `19.41.14441 <https://github.com/intel/compute-runtime/releases/tag/19.41.14441>`__ |
++------------------+-------------------------------------------------------------------------------------+
+| RHEL 8           | `22.28.23726 <https://github.com/intel/compute-runtime/releases/tag/22.28.23726>`__ |
++------------------+-------------------------------------------------------------------------------------+
+
+@endsphinxdirective
+
 
 ## What’s Next?
 
