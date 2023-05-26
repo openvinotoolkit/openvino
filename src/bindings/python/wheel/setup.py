@@ -290,6 +290,11 @@ class PrepareLibs(build_clib):
                 install_dir = os.path.join(install_prefix, install_dir)
             # set rpath if applicable
             if sys.platform != "win32" and comp_data.get("rpath"):
+                # after tbb libraries on mac arm64 are signed, setting rpath for them will report error:
+                # LC_SEGMENT_64 command 3 fileoff field plus filesize field extends past the end of the file
+                if comp == "tbb_libs" and ARCH == "arm64" and sys.platform == "darwin":
+                    continue
+
                 for path in filter(
                     lambda x: any(item in ([".so"] if sys.platform == "linux" else [".dylib", ".so"])
                                   for item in x.suffixes), Path(install_dir).glob("*"),
@@ -577,13 +582,13 @@ ext_modules = find_prebuilt_extensions(get_install_dirs_list(PY_INSTALL_CFG)) if
 
 description_md = SCRIPT_DIR.parents[3] / "docs" / "install_guides" / "pypi-openvino-rt.md"
 md_files = [description_md, SCRIPT_DIR.parents[3] / "docs" / "install_guides" / "pre-release-note.md"]
-docs_url = "https://docs.openvino.ai/latest/index.html"
+docs_url = "https://docs.openvino.ai/2023.0/index.html"
 
 if (os.getenv("CI_BUILD_DEV_TAG")):
     output = Path.cwd() / "build" / "pypi-openvino-rt.md"
     output.parent.mkdir(exist_ok=True)
     description_md = concat_files(output, md_files)
-    docs_url = "https://docs.openvino.ai/nightly/index.html"
+    docs_url = "https://docs.openvino.ai/2023.0/index.html"
     OPENVINO_VERSION = WHEEL_VERSION[0:8]
 
 setup(

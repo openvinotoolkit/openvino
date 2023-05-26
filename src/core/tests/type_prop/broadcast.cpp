@@ -181,6 +181,20 @@ TYPED_TEST_P(BroadcastTests, broadcast_axes_wrong_rank) {
     }
 }
 
+TYPED_TEST_P(BroadcastTests, broadcast_target_shape_wrong_rank) {
+    auto arg = make_shared<op::Parameter>(element::f32, Shape{2, 4});
+    auto bc_shape = make_shared<op::Parameter>(element::i64, Shape{});
+
+    try {
+        auto bc = make_shared<TypeParam>(arg, bc_shape);
+        FAIL() << "Broadcast: axes target shape rank not detected";
+    } catch (const NodeValidationFailure& error) {
+        EXPECT_HAS_SUBSTRING(error.what(), "Broadcast shape rank must be 1, but has");
+    } catch (...) {
+        FAIL() << "Deduced type check failed for unexpected reason";
+    }
+}
+
 TYPED_TEST_P(BroadcastTests, broadcast_fully_dynamic_target_shape) {
     auto arg = make_shared<op::Parameter>(element::f32, Shape{2, 4});
     auto bc_shape = make_shared<op::Parameter>(element::i64, PartialShape::dynamic());
@@ -559,6 +573,7 @@ REGISTER_TYPED_TEST_SUITE_P(BroadcastTests,
                             broadcast_fail_axes_map,
                             broadcast_fail_axes_map_shape,
                             broadcast_axes_wrong_rank,
+                            broadcast_target_shape_wrong_rank,
                             broadcast_fully_dynamic_target_shape,
                             broadcast_dynamic_values_of_target_shape,
                             broadcast_broadcast_shape_et_wrong,

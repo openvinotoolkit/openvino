@@ -240,6 +240,9 @@ def read_requirements(path: str) -> List[str]:
     1. version specified in requirements.txt
     2. version specified in constraints.txt
     3. version unbound
+
+    Putting environment markers into constraints.txt is prone to bugs.
+    They should be specified in requirements.txt files.
     """
     requirements = []
     constraints = read_constraints()
@@ -251,8 +254,15 @@ def read_requirements(path: str) -> List[str]:
             continue
         # get rid of newlines
         line = line.replace('\n', '')
-        # if version is specified (non-word chars present)
-        if re.search('(~|=|<|>|;)', line):
+        # if version is specified (non-word chars present) 
+        package_constraint = constraints.get(line.split(';')[0])
+        if re.search('(~|=|<|>)', line) and len(line.split(';'))>1:
+            if package_constraint:  # both markers and versions specified
+                marker_index = line.find(";")
+                # insert package version between package name and environment markers
+                line = line[:marker_index] \
+                + ",".join([constraint for constraint in package_constraint]) \
+                + line[marker_index:]
             requirements.append(line)
         # else get version from constraints
         else:
@@ -277,13 +287,13 @@ def concat_files(output_file, input_files):
 
 description_md = SCRIPT_DIR.parents[1] / 'docs' / 'install_guides' / 'pypi-openvino-dev.md'
 md_files = [description_md, SCRIPT_DIR.parents[1] / 'docs' / 'install_guides' / 'pre-release-note.md']
-docs_url = 'https://docs.openvino.ai/latest/index.html'
+docs_url = 'https://docs.openvino.ai/2023.0/index.html'
 
 if(os.getenv('CI_BUILD_DEV_TAG')):
     output = Path.cwd() / 'build' / 'pypi-openvino-dev.md'
     output.parent.mkdir(exist_ok=True)
     description_md = concat_files(output, md_files)
-    docs_url = 'https://docs.openvino.ai/nightly/index.html'
+    docs_url = 'https://docs.openvino.ai/2023.0/index.html'
 
 setup(
     name='openvino-dev',

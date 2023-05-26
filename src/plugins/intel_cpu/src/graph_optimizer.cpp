@@ -1068,7 +1068,7 @@ void GraphOptimizer::FuseConvolutionAndDWConvolution(Graph &graph) {
 
         parentConvNode->addFusedNode(childConvNode);
 
-        for (auto node : childConvNode->getFusedWith()) {
+        for (auto& node : childConvNode->getFusedWith()) {
             parentConvNode->addFusedNode(node);
         }
         childConvNode->clearFusedWith();
@@ -1226,7 +1226,7 @@ static bool is_data_dependency(const std::shared_ptr<Node> &parent,
     for (; !nextLayers.empty();) {
         auto layer = *nextLayers.begin();
         if (layer == child.get()) return true;
-        for (auto oe : layer->getChildEdges()) {
+        for (auto& oe : layer->getChildEdges()) {
             auto nn = oe.lock()->getChild();
             if (visited.find(nn.get()) == visited.end()) {
                 nextLayers.push_back(nn.get());
@@ -1837,7 +1837,7 @@ void GraphOptimizer::DropDoubleReorders(Graph &graph) {
             processed.insert(nextNode);
 
             EdgePtr edge;
-            for (auto cur : p->getChildEdgesAtPort(oldEdgeNum)) {
+            for (auto& cur : p->getChildEdgesAtPort(oldEdgeNum)) {
                 if (cur->getChild() == c)
                     edge = cur;
             }
@@ -2259,6 +2259,10 @@ void GraphOptimizer::MergeTransposeAndReorder(Graph &graph) {
             // transposeNode support blocked input & non-blocked output, in the case, the reorder
             // cannot be optimized
             auto* transposeNode = dynamic_cast<Transpose*>(parentNode.get());
+            if (transposeNode == nullptr) {
+                IE_THROW() << "[CPU] parent node of type:" << parentNode->getTypeStr() << " with name: "
+                    << parentNode->getName() << " is not a transpose node";
+            }
             auto inOrder = transposeNode->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].getMemDesc()->as<BlockedMemoryDesc>()->getOrder();
 
             if (inOrder.size() > reorderOutDesc->as<BlockedMemoryDesc>()->getOrder().size()) {

@@ -543,13 +543,11 @@ void InferRequestLegacy::SetGraph(std::shared_ptr<Graph> graph) {
 
 void InferRequestLegacy::SetBatch(int new_batch) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "InferRequestLegacy::SetBatch");
-    if (m_graph->GetMaxDynamicBatchSize() < 0)
-        IE_THROW() << "Dynamic batch is not enabled.";
 
-     if (new_batch < 1 || static_cast<size_t>(new_batch) > m_graph->GetMaxDynamicBatchSize()) {
-        IE_THROW() << "Invalid dynamic batch size " << new_batch <<
-            " for this request. Got: " << new_batch << ". Expected value in range [1;" << m_graph->GetMaxDynamicBatchSize() << "]";
-    }
+    OPENVINO_ASSERT(new_batch > 0 && static_cast<size_t>(new_batch) <= m_graph->GetMaxDynamicBatchSize(),
+                    "[GPU] Invalid dynamic batch size ", new_batch, " for this request. ",
+                    "Got: ", new_batch, ". ",
+                    "Expected value in range [1;",  m_graph->GetMaxDynamicBatchSize(), "]");
 
     if (new_batch == m_curBatch)
         return;
@@ -774,7 +772,7 @@ void InferRequestLegacy::enqueue() {
 
     // If dump layers path is set, only runs first inference.
     GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(debug_config->dump_layers_path.length() > 0) {
+    GPU_DEBUG_IF(debug_config->dump_layers_path.length() > 0 && debug_config->dump_iteration.empty()) {
         GPU_DEBUG_INFO << "Only run first inference to dump layers." << std::endl;
         exit(0);
     }

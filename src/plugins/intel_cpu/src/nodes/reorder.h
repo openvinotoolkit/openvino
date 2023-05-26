@@ -52,8 +52,6 @@ public:
         this->isOptimized = isOptimized;
     }
 
-    void setDynamicBatchLim(int lim) override;
-
     bool canBeInPlace() const override {
         return false;
     }

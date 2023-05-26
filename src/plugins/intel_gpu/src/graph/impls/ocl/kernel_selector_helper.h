@@ -14,9 +14,11 @@
 #include "intel_gpu/primitives/eltwise.hpp"
 #include "intel_gpu/primitives/quantize.hpp"
 #include "intel_gpu/primitives/activation.hpp"
+#include "intel_gpu/primitives/generic_layer.hpp"
 #include "intel_gpu/primitives/primitive.hpp"
 
 #include "kernel_selector_params.h"
+#include "weight_bias_params.h"
 #include "kernel_selector_common.h"
 #include "tensor_type.h"
 
@@ -118,112 +120,35 @@ void convert_fused_ops_to_legacy_activations(const kernel_impl_params& param_inf
 bool use_legacy_fused_ops(const kernel_impl_params& param_info);
 
 void set_params(const kernel_impl_params& param_info, kernel_selector::params& params);
+void set_default_params(const kernel_impl_params& param_info, kernel_selector::base_params& params, bool is_shape_agnostic);
+void set_dynamic_shape_offsets(kernel_selector::params& params);
+void set_weights_bias_default_params(const kernel_impl_params& param_info,
+                                     kernel_selector::weight_bias_params& params,
+                                     bool has_group_dimension,
+                                     bool is_shape_agnostic);
+void set_weight_bias_zero_point_default_params(const kernel_impl_params& param_info,
+                                               kernel_selector::weight_bias_zero_point_params& params,
+                                               bool has_group_dimension,
+                                               bool is_shape_agnostic);
 
 template <typename params_t>
 inline params_t get_default_params(const kernel_impl_params& param_info, bool is_shape_agnostic = false) {
     params_t params;
-
-    set_params(param_info, params);
-
-    const auto& input_layout = param_info.get_input_layout(0);
-    const auto& output_layout = param_info.get_output_layout(0);
-
-    params.is_shape_agnostic = is_shape_agnostic;
-    params.inputs[0] = convert_data_tensor(input_layout);
-    params.outputs[0] = convert_data_tensor(output_layout);
-    params.layerID = param_info.desc->id;
-
-    if (use_legacy_fused_ops(param_info)) {
-        // Single activation is converted to legacy fused ops format to keep good performance
-        // TODO: Remove it once all kernels supports new fused ops mechanism
-        convert_fused_ops_to_legacy_activations(param_info, params.activations);
-    } else {
-        std::map<primitive_id, std::pair<size_t, kernel_selector::Datatype>> prim_id_type_map;
-        size_t op_id = 0;
-        for (auto& fused_prim : param_info.fused_desc) {
-            kernel_selector::fused_operation_desc desc;
-            desc.op_params = convert_fuse_params(fused_prim.f_param);
-
-            OPENVINO_ASSERT(desc.op_params != nullptr, "[GPU] Invalid fused operation (", param_info.desc->id , ") of type ", param_info.desc->type_string());
-
-
-            desc.dep_idx_start = fused_prim.dep_start_idx;
-            desc.dep_size = fused_prim.deps.size();
-            desc.op_id = op_id++;
-            desc.output_tensor = convert_data_tensor(fused_prim.output_layout);
-            prim_id_type_map[fused_prim.desc->id] = std::make_pair(desc.op_id, desc.output_tensor.GetDType());
-
-            for (size_t i = desc.dep_idx_start; i < desc.dep_idx_start + desc.dep_size; i++) {
-                desc.tensors.push_back(convert_data_tensor(param_info.get_input_layout(i)));
-            }
-
-            if (fused_prim.total_num_deps > 0) {
-                desc.dep_data.resize(fused_prim.total_num_deps);
-                for (auto& dep : fused_prim.fused_deps) {
-                    auto iter = prim_id_type_map.find(dep.first);
-                    if (iter != prim_id_type_map.end()) {
-                        auto& op_data = iter->second;
-                        desc.dep_data[dep.second].dep_type  = kernel_selector::DepType::INTERNAL;
-                        desc.dep_data[dep.second].op_id     = op_data.first;
-                        desc.dep_data[dep.second].data_type = op_data.second;
-                    }
-                }
-
-                int idx = 0;
-                for (auto& dep : fused_prim.deps) {
-                    desc.dep_data[dep.second].dep_type  = kernel_selector::DepType::EXTERNAL;
-                    desc.dep_data[dep.second].op_id     = idx;
-                    desc.dep_data[dep.second].data_type = desc.tensors[idx++].GetDType();
-                }
-
-                for (auto& dep : desc.dep_data) {
-                    if (dep.dep_type == kernel_selector::DepType::UNDEFINED) {
-                        dep.dep_type    = kernel_selector::DepType::ORIGINAL;
-                        break;
-                    }
-                }
-            }
-            params.fused_ops.push_back(desc);
-        }
-    }
-
+    set_default_params(param_info, params, is_shape_agnostic);
     return params;
 }
 
 template <typename params_t>
 inline params_t get_weights_bias_default_params(const kernel_impl_params& param_info, bool has_group_dimension = false, bool is_shape_agnostic = false) {
-    params_t params = get_default_params<params_t>(param_info, is_shape_agnostic);
-    params.weights = convert_weights_tensor(*param_info.weights_layout, has_group_dimension);
-
-    if (param_info.bias_layout) {
-        auto bias_layout = *param_info.bias_layout;
-        params.bias.push_back(convert_data_tensor(bias_layout).FlattenFeatureAndSpatials());
-    }
-
+    params_t params;
+    set_weights_bias_default_params(param_info, params, has_group_dimension, is_shape_agnostic);
     return params;
 }
 
 template <typename params_t>
 params_t get_weight_bias_zero_point_default_params(const kernel_impl_params& param_info, bool has_group_dimension = false, bool is_shape_agnostic = false) {
-    params_t params = get_weights_bias_default_params<params_t>(param_info, has_group_dimension, is_shape_agnostic);
-
-    if (param_info.weights_zero_points_layout) {
-        params.weights_zero_points.push_back(
-            convert_data_tensor(*param_info.weights_zero_points_layout)
-            .FlattenFeatureAndSpatials());
-    }
-
-    if (param_info.activations_zero_points_layout) {
-        params.activations_zero_points.push_back(
-            convert_data_tensor(*param_info.activations_zero_points_layout)
-            .FlattenFeatureAndSpatials());
-    }
-
-    if (param_info.compensation_layout) {
-        params.compensation.push_back(
-            convert_data_tensor(*param_info.compensation_layout).FlattenFeatureAndSpatials());
-    }
-
+    params_t params;
+    set_weight_bias_zero_point_default_params(param_info, params, has_group_dimension, is_shape_agnostic);
     return params;
 }
 
@@ -242,7 +167,7 @@ inline optional_params_t get_default_weights_bias_optional_params(const program&
 }
 
 inline kernel_selector::eltwise_mode convert_to_eltwise_mode(eltwise_mode mode) {
-switch (mode) {
+    switch (mode) {
         case eltwise_mode::sum:
             return kernel_selector::eltwise_mode::ADD;
         case eltwise_mode::sub:
@@ -331,18 +256,122 @@ inline kernel_impl_params canonicalize_fused_shapes(const kernel_impl_params& im
     bool use_new_shape_infer = impl_params.prog->get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
 
     for (auto& fd : updated_impl_params.fused_desc) {
-        if (fd.is_type<eltwise>() && fd.total_num_deps == 2) {
-            auto out_pshape = updated_impl_params.output_layouts[0].get_partial_shape();
+        if (fd.is_type<eltwise>() && fd.total_num_deps == 2 && fd.has_outer_dep()) {
+            if (updated_impl_params.input_layouts.size() > size_t(fd.outer_dep_start_idx)) {
+                auto out_pshape = updated_impl_params.output_layouts[0].get_partial_shape();
 
-            auto& dep_layout = updated_impl_params.input_layouts[fd.dep_start_idx];
-            auto dep_shape = dep_layout.get_partial_shape();
+                auto& dep_layout = updated_impl_params.input_layouts[fd.outer_dep_start_idx];
+                auto dep_shape = dep_layout.get_partial_shape();
 
-            if (!broadcastable(dep_shape, out_pshape, use_new_shape_infer)) {
-                dep_layout.set_partial_shape(extend_shape_to_rank_from_begin(dep_shape, out_pshape.size()));
+                if (!broadcastable(dep_shape, out_pshape, use_new_shape_infer)) {
+                    dep_layout.set_partial_shape(extend_shape_to_rank_from_begin(dep_shape, out_pshape.size()));
+                }
             }
         }
     }
     return updated_impl_params;
+}
+
+class WeightsReorderParamsOCL : public WeightsReorderParams {
+public:
+    explicit WeightsReorderParamsOCL(const kernel_selector::WeightsReorderParams& params)
+    : WeightsReorderParams(from_weights_tensor(params.src), from_weights_tensor(params.dest)) {
+        cl_kernel = params.clKernel;
+    }
+
+    size_t hash() const override {
+        size_t seed = WeightsReorderParams::hash();
+
+        if (cl_kernel == nullptr)
+            return seed;
+
+        seed = hash_combine(seed, cl_kernel->skip_execution);
+
+        auto& gws = cl_kernel->params.workGroups.global;
+        seed = hash_range(seed, gws.begin(), gws.end());
+
+        auto& lws = cl_kernel->params.workGroups.local;
+        seed = hash_range(seed, lws.begin(), lws.end());
+
+        auto& arguments = cl_kernel->params.arguments;
+        for (auto& args : arguments) {
+            seed = hash_combine(seed, args.index);
+            seed = hash_combine(seed, args.t);
+        }
+
+        auto& scalars = cl_kernel->params.scalars;
+        for (auto& s : scalars) {
+            seed = hash_combine(seed, s.t);
+        }
+
+        return seed;
+    }
+
+    bool operator==(const WeightsReorderParams& rhs) const override {
+        if (typeid(*this) != typeid(rhs))
+            return false;
+
+        if (!WeightsReorderParams::operator==(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const WeightsReorderParamsOCL>(rhs);
+
+        if (cl_kernel != nullptr && rhs_casted.cl_kernel != nullptr) {
+            auto& clKernel_rhs = rhs_casted.cl_kernel;
+            if (cl_kernel->skip_execution != clKernel_rhs->skip_execution)
+                return false;
+
+            auto& gws       = cl_kernel->params.workGroups.global;
+            auto& gws_rhs   = clKernel_rhs->params.workGroups.global;
+            if (gws != gws_rhs)
+                return false;
+
+            auto& lws       = cl_kernel->params.workGroups.local;
+            auto& lws_rhs   = clKernel_rhs->params.workGroups.local;
+            if (lws != lws_rhs)
+                return false;
+
+            auto& arguments     = cl_kernel->params.arguments;
+            auto& arguments_rhs = clKernel_rhs->params.arguments;
+            if (arguments.size() != arguments_rhs.size())
+                return false;
+
+            for (size_t idx = 0; idx < arguments.size(); idx++) {
+                if (arguments[idx].index != arguments_rhs[idx].index)
+                    return false;
+
+                if (arguments[idx].t != arguments_rhs[idx].t)
+                    return false;
+            }
+
+            auto& scalars     = cl_kernel->params.scalars;
+            auto& scalars_rhs = clKernel_rhs->params.scalars;
+            if (scalars.size() != scalars_rhs.size())
+                return false;
+
+            for (size_t idx = 0; idx < scalars.size(); idx++) {
+                if (scalars[idx].t != scalars_rhs[idx].t)
+                    return false;
+            }
+        }
+
+        return true;
+    }
+
+    std::shared_ptr<kernel_selector::clKernelData> get_cl_kernel() {
+        return cl_kernel;
+    }
+
+private:
+    std::shared_ptr<kernel_selector::clKernelData> cl_kernel;
+};
+
+inline std::shared_ptr<WeightsReorderParams> create_weights_reorder_params(const kernel_selector::WeightsReorderParams& params) {
+    if (params.engine == kernel_selector::generic_kernel_params::Engine::NONE) {
+        return nullptr;
+    }
+
+    return std::make_shared<WeightsReorderParamsOCL>(params);
 }
 
 }  // namespace cldnn

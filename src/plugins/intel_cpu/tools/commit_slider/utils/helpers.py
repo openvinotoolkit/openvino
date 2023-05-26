@@ -1,4 +1,5 @@
 import importlib
+import shutil
 import os
 import sys
 import subprocess
@@ -34,11 +35,13 @@ def getParams():
     presetCfgPath = "utils/cfg.json"
     customCfgPath = ""
     customCfgPath = args.__dict__["configuration"]
-    cfgFile = open(presetCfgPath)
-    presetCfgData = json.load(cfgFile)
+    presetCfgData = None
+    with open(presetCfgPath) as cfgFile:
+        presetCfgData = json.load(cfgFile)
     cfgFile.close()
-    cfgFile = open(customCfgPath)
-    customCfgData = json.load(cfgFile)
+    customCfgData = None
+    with open(customCfgPath) as cfgFile:
+        customCfgData = json.load(cfgFile)
     cfgFile.close()
     # customize cfg
     for key in customCfgData:
@@ -75,6 +78,22 @@ def getBlobDiff(file1, file2):
 
 
 def absolutizePaths(cfg):
+    pl = sys.platform
+    if pl == "linux" or pl == "linux2":
+        cfg["workPath"] = cfg["linWorkPath"]
+    elif pl == "win32":
+        wp = cfg["winWorkPath"]
+        wp = "echo {path}".format(path=wp)
+        wp = subprocess.check_output(wp, shell=True)
+        wp = wp.decode()
+        wp = wp.rstrip()
+        cfg["workPath"] = wp
+    else:
+        raise CfgError(
+            "No support for current OS: {pl}".format(pl=pl)
+            )
+    if cfg["dlbConfig"]["launchedAsJob"]:
+        cfg["appPath"] = cfg["dlbConfig"]["appPath"]
     pathToAbsolutize = ["gitPath", "buildPath", "appPath", "workPath"]
     for item in pathToAbsolutize:
         path = cfg[item]
@@ -195,6 +214,7 @@ def fetchAppOutput(cfg):
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         env=newEnv,
+        shell=True
     )
     output, err = p.communicate()
     output = output.decode("utf-8")
@@ -226,7 +246,8 @@ def setupLogger(name, logPath, logFileName, level=log.INFO):
     if not os.path.exists(logPath):
         os.makedirs(logPath)
     logFileName = logPath + logFileName
-    open(logFileName, "w").close()  # clear old log
+    with open(logFileName, "w"):  # clear old log
+        pass
     handler = log.FileHandler(logFileName)
     formatter = log.Formatter("%(asctime)s %(levelname)s %(message)s")
     handler.setFormatter(formatter)
@@ -255,11 +276,7 @@ def getActualPath(pathName, cfg):
 def safeClearDir(path):
     if not os.path.exists(path):
         os.makedirs(path)
-    p = subprocess.Popen(
-        "rm -rf *", cwd=path,
-        stdout=subprocess.PIPE, shell=True
-    )
-    p.wait()
+    shutil.rmtree(path)
     return
 
 

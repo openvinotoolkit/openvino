@@ -1,14 +1,13 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
 #include "behavior/ov_plugin/core_integration.hpp"
 
-#include <gna/gna_config.hpp>
-
+#include "behavior/compiled_model/properties.hpp"
 #include "behavior/ov_plugin/core_integration_sw.hpp"
 #include "behavior/ov_plugin/properties_tests.hpp"
 #include "behavior/ov_plugin/query_model.hpp"
+#include "gna/gna_config.hpp"
 #include "openvino/runtime/intel_gna/properties.hpp"
 
 using namespace ov::test::behavior;
@@ -19,12 +18,13 @@ namespace {
 // IE Class Common tests with <pluginName, deviceName params>
 //
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassBasicPropsTestP,
-                         OVClassBasicPropsTestP,
+INSTANTIATE_TEST_SUITE_P(nightly_OVBasicPropertiesTestsP,
+                         OVBasicPropertiesTestsP,
                          ::testing::Values(std::make_pair("openvino_intel_gna_plugin", "GNA")));
 
 // TODO
 INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_OVClassModelTestP, OVClassModelTestP, ::testing::Values("GNA"));
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_OVClassModelOptionalTestP, OVClassModelOptionalTestP, ::testing::Values("GNA"));
 
 //
 // IE Class GetMetric
@@ -36,17 +36,28 @@ INSTANTIATE_TEST_SUITE_P(smoke_MultiHeteroOVGetMetricPropsTest,
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVGetMetricPropsTest, OVGetMetricPropsTest, ::testing::Values("GNA"));
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVGetConfigTest,
-                         OVGetConfigTest_ThrowUnsupported,
-                         ::testing::Values("GNA", "MULTI", "HETERO"));
+INSTANTIATE_TEST_SUITE_P(
+    smoke_MultiHeteroOVCheckGetSupportedROMetricsPropsTests,
+    OVCheckGetSupportedROMetricsPropsTests,
+    ::testing::Combine(::testing::Values("MULTI", "HETERO"),
+                       ::testing::ValuesIn(OVCheckGetSupportedROMetricsPropsTests::configureProperties(
+                           {ov::device::full_name.name()}))),
+    OVCheckGetSupportedROMetricsPropsTests::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_OVCheckGetSupportedROMetricsPropsTests,
+    OVCheckGetSupportedROMetricsPropsTests,
+    ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_GNA),
+                       ::testing::ValuesIn(OVCheckGetSupportedROMetricsPropsTests::configureProperties(
+                           {ov::device::full_name.name()}))),
+    OVCheckGetSupportedROMetricsPropsTests::getTestCaseName);
 
 const std::vector<std::tuple<std::string, std::pair<ov::AnyMap, std::string>>> GetMetricTest_ExecutionDevice_GNA = {
     {"GNA", std::make_pair(ov::AnyMap{}, "GNA")}};
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVGetMetricPropsTest,
-                         OVClassExecutableNetworkGetMetricTest_EXEC_DEVICES,
-                         ::testing::ValuesIn(GetMetricTest_ExecutionDevice_GNA),
-                         OVCompileModelGetExecutionDeviceTests::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassCompiledModelGetPropertyTest,
+                         OVClassCompiledModelGetPropertyTest_EXEC_DEVICES,
+                         ::testing::ValuesIn(GetMetricTest_ExecutionDevice_GNA));
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVGetAvailableDevicesPropsTest,
                          OVGetAvailableDevicesPropsTest,
@@ -56,7 +67,9 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVGetAvailableDevicesPropsTest,
 // IE Class GetConfig
 //
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVGetConfigTest, OVGetConfigTest, ::testing::Values("GNA"));
+INSTANTIATE_TEST_SUITE_P(nightly_OVPropertiesDefaultSupportedTests,
+                         OVPropertiesDefaultSupportedTests,
+                         ::testing::Values("GNA"));
 
 TEST(OVClassBasicPropsTest, smoke_SetConfigAfterCreatedScaleFactors) {
     ov::Core core;
@@ -341,10 +354,21 @@ TEST(OVClassBasicPropsTest, smoke_SetConfigAfterCreatedLogLevel) {
     ASSERT_THROW(core.set_property("GNA", {{ov::log::level.name(), "NO"}}), ov::Exception);
 }
 
-TEST(OVClassBasicPropsTest, smoke_SetConfigAfterCreatedFwModelPath) {
+TEST(OVClassBasicPropsTest, smoke_SetConfigAfterCreatedFwModelPathNegative) {
     ov::Core core;
     std::string path = "";
 
+    OV_ASSERT_NO_THROW(core.set_property("GNA", ov::intel_gna::execution_target(ov::intel_gna::HWGeneration::GNA_3_5)));
+    OV_ASSERT_NO_THROW(core.set_property("GNA", ov::intel_gna::firmware_model_image_path("model.bin")));
+    ASSERT_THROW(path = core.get_property("GNA", ov::intel_gna::firmware_model_image_path), ov::Exception);
+}
+
+TEST(OVClassBasicPropsTest, smoke_SetConfigAfterCreatedFwModelPathPositive) {
+    ov::Core core;
+    std::string path = "";
+
+    OV_ASSERT_NO_THROW(
+        core.set_property("GNA", ov::intel_gna::execution_target(ov::intel_gna::HWGeneration::GNA_3_5_E)));
     OV_ASSERT_NO_THROW(core.set_property("GNA", ov::intel_gna::firmware_model_image_path("model.bin")));
     OV_ASSERT_NO_THROW(path = core.get_property("GNA", ov::intel_gna::firmware_model_image_path));
     ASSERT_EQ("model.bin", path);

@@ -81,6 +81,7 @@ public:
         }
 
         quantize_params.is_shape_agnostic = impl_param.is_dynamic();
+        quantize_params.set_dynamic_shape_offsets();
         auto& kernel_selector = kernel_selector::quantize_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(quantize_params, quantize_optional_params);
 
@@ -98,8 +99,6 @@ public:
 namespace detail {
 
 attach_quantize_impl::attach_quantize_impl() {
-    std::set<implementation_map<quantize>::key_type> keys;
-
     auto types = {
         data_types::f16,
         data_types::f32,
@@ -127,21 +126,20 @@ attach_quantize_impl::attach_quantize_impl() {
         format::bs_fs_zyx_bsv32_fsv16,
         format::bs_fs_zyx_bsv32_fsv32,
 
-        format::bfwzyx
+        format::bfwzyx,
+        format::bfuwzyx,
+        format::bfvuwzyx,
     };
 
     auto dyn_formats = {
         format::bfyx,
         format::bfzyx,
-        format::bfwzyx
+        format::bfwzyx,
+        format::bfuwzyx,
+        format::bfvuwzyx,
     };
 
-    for (const auto type : types) {
-        for (const auto format : formats) {
-            keys.emplace(type, format);
-        }
-    }
-
+    auto keys = implementation_map<quantize>::combine(types, formats);
     keys.emplace(data_types::f16, format::yxfb);
     keys.emplace(data_types::f32, format::yxfb);
 

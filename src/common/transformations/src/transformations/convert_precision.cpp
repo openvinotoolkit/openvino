@@ -84,14 +84,12 @@ bool fuse_type_to_logical(const std::shared_ptr<ngraph::Node>& node, const preci
     const auto& to = it->second;
     if (auto type_relaxed = std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(node)) {
         type_relaxed->set_overridden_output_type(to);
-        type_relaxed->set_origin_input_type(ov::element::boolean, 0);
-        type_relaxed->set_origin_input_type(ov::element::boolean, 1);
+        for (size_t i = 0; i < node->get_input_size(); ++i)
+            type_relaxed->set_origin_input_type(ov::element::boolean, i);
         return true;
     } else if (auto casted = std::dynamic_pointer_cast<T>(node)) {
-        auto relaxed_op = std::make_shared<ov::op::TypeRelaxed<T>>(
-            *casted,
-            ov::element::TypeVector{ov::element::boolean, ov::element::boolean},
-            ov::element::TypeVector{to});
+        ov::element::TypeVector input_types(node->get_input_size(), ov::element::boolean);
+        auto relaxed_op = std::make_shared<ov::op::TypeRelaxed<T>>(*casted, input_types, ov::element::TypeVector{to});
         replace_node(node, relaxed_op);
         return true;
     }
@@ -833,26 +831,6 @@ std::shared_ptr<Node> change_constant_precision<ov::element::Type_t::f16, ov::el
     const auto size = shape_size(constant->get_shape());
 
     auto new_constant = std::make_shared<opset4::Constant>(ov::element::Type_t::f32, constant->get_shape());
-    new_constant->output(0).set_names(constant->output(0).get_names());
-    auto* dst_data = const_cast<dst_type*>(reinterpret_cast<const dst_type*>(new_constant->get_data_ptr()));
-    if (dst_data == nullptr)
-        OPENVINO_THROW("Can't get destination data pointer");
-
-    ngraph::runtime::reference::convert<src_type, dst_type>(src_data, dst_data, size);
-
-    return new_constant;
-}
-
-template <>
-std::shared_ptr<Node> change_constant_precision<ov::element::Type_t::f32, ov::element::Type_t::f16>(
-    std::shared_ptr<opset4::Constant>& constant) {
-    using src_type = typename element_type_traits<ov::element::Type_t::f32>::value_type;
-    using dst_type = typename element_type_traits<ov::element::Type_t::f16>::value_type;
-
-    const auto* src_data = constant->get_data_ptr<src_type>();
-    const auto size = shape_size(constant->get_shape());
-
-    auto new_constant = std::make_shared<opset4::Constant>(ov::element::Type_t::f16, constant->get_shape());
     new_constant->output(0).set_names(constant->output(0).get_names());
     auto* dst_data = const_cast<dst_type*>(reinterpret_cast<const dst_type*>(new_constant->get_data_ptr()));
     if (dst_data == nullptr)

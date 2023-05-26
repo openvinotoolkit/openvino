@@ -10,7 +10,7 @@ pytest>=5.0,<7.3
 protobuf>=3.18.1,<4.0.0
 defusedxml>=0.7.1
 requests>=2.25.1
-fastjsonschema>=2.15.1,<2.17
+fastjsonschema>=2.15.1,<2.18
 coverage>=4.4.2,<=7.0.5
 astroid>=2.9.0
 pylint>=2.7.0
@@ -18,6 +18,5 @@ pyenchant>=3.0.0
 test-generator==0.1.1
 py>=1.9.0
 urllib3>=1.26.4
-importlib-metadata; python_version < "3.8" and sys_platform == 'win32'
 openvino-telemetry>=2022.1.0
 opencv-python>=4.5

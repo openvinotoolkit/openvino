@@ -21,7 +21,7 @@ namespace op {
 
 // Reading variable from shard file
 template <typename T>
-static std::shared_ptr<ov::Node> read_variable(std::shared_ptr<SavedModelVariablesIndex> var_index,
+static std::shared_ptr<ov::Node> read_variable(std::shared_ptr<VariablesIndex> var_index,
                                                const ov::element::Type ov_type,
                                                const ov::Shape shape,
                                                const ::tensorflow::BundleEntryProto& entry,
@@ -45,7 +45,7 @@ static std::shared_ptr<ov::Node> read_variable(std::shared_ptr<SavedModelVariabl
 }
 
 OutputVector translate_varhandle_op(const NodeContext& node) {
-    default_op_checks(node, 0, {"VarHandleOp"});
+    default_op_checks(node, 0, {"VarHandleOp", "VariableV2"});
     auto translate_session = node.get_translate_session();
     TENSORFLOW_OP_VALIDATION(node,
                              translate_session,
@@ -56,6 +56,9 @@ OutputVector translate_varhandle_op(const NodeContext& node) {
     std::shared_ptr<Node> const_node;
     if (ov_type == element::undefined) {
         const_node = std::make_shared<UnsupportedConstant>();
+    } else if (var_index.get() == nullptr) {
+        auto shape = node.get_attribute<::ov::PartialShape>("shape").get_shape();
+        const_node = std::make_shared<Parameter>(ov_type, shape);
     } else {
         // Getting variable description from variables index
         const char* entry_data = nullptr;
@@ -114,11 +117,18 @@ OutputVector translate_varisinitialized_op(const NodeContext& node) {
 }
 
 OutputVector translate_readvariable_op(const NodeContext& node) {
-    default_op_checks(node, 1, {"ReadVariableOp"});
+    default_op_checks(node, 1, {"ReadVariableOp", "Assign"});
+
     // Documentation says it should return only one tensor with dtype, but
-    // _output_shapes in a vector of shapes and it means it could have multiple outputs
+    // _output_shapes is a vector of shapes and it means it may have multiple outputs
     // https://www.tensorflow.org/api_docs/python/tf/raw_ops/ReadVariableOp
-    auto output_shapes = node.get_attribute<std::vector<::ov::PartialShape>>("_output_shapes");
+    auto tmp_output_shapes = node.get_attribute_as_any("_output_shapes");
+
+    if (tmp_output_shapes.empty() || !tmp_output_shapes.is<std::vector<::ov::PartialShape>>()) {
+        return {node.get_input(0).get_node_shared_ptr()};
+    }
+
+    auto output_shapes = tmp_output_shapes.as<std::vector<::ov::PartialShape>>();
 
     OutputVector outs = {};
 

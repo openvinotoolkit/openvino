@@ -187,6 +187,10 @@ std::vector<device::ptr> ocl_device_detector::create_device_list() const {
     cl_uint num_platforms = 0;
     // Get number of platforms availible
     cl_int error_code = clGetPlatformIDs(0, NULL, &num_platforms);
+    if (num_platforms == 0 || error_code == CL_PLATFORM_NOT_FOUND_KHR) {
+        return {};
+    }
+
     OPENVINO_ASSERT(error_code == CL_SUCCESS, create_device_error_msg, "[GPU] clGetPlatformIDs error code: ", std::to_string(error_code));
     // Get platform list
     std::vector<cl_platform_id> platform_ids(num_platforms);
@@ -211,7 +215,6 @@ std::vector<device::ptr> ocl_device_detector::create_device_list() const {
             continue;
         }
     }
-    OPENVINO_ASSERT(!supported_devices.empty(), create_device_error_msg);
     return supported_devices;
 }
 

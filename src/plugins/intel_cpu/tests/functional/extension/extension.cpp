@@ -21,7 +21,6 @@ public:
     InferenceEngine::StatusCode getSupportedConfigurations(std::vector<InferenceEngine::LayerConfig>& conf,
                                                             InferenceEngine::ResponseDesc* /*resp*/) noexcept override {
         InferenceEngine::LayerConfig layerConfig;
-        layerConfig.dynBatchSupport = true;
 
         if (node->outputs().size() != 1 && node->inputs().size() != 1)
             return InferenceEngine::GENERAL_ERROR;

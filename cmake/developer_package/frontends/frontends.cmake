@@ -171,7 +171,7 @@ macro(ov_add_frontend)
     endforeach()
 
     # Disable all warnings for generated code
-    set_source_files_properties(${PROTO_SRCS} ${PROTO_HDRS} PROPERTIES COMPILE_OPTIONS -w GENERATED TRUE)
+    set_source_files_properties(${PROTO_SRCS} ${PROTO_HDRS} PROPERTIES COMPILE_OPTIONS -w GENERATED ON)
 
     # Create library
     add_library(${TARGET_NAME} ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS}
@@ -201,11 +201,10 @@ macro(ov_add_frontend)
                 ${frontend_root_dir}/src
                 ${CMAKE_CURRENT_BINARY_DIR})
 
-    ie_add_vs_version_file(NAME ${TARGET_NAME}
+    ov_add_vs_version_file(NAME ${TARGET_NAME}
                            FILEDESCRIPTION ${OV_FRONTEND_FILEDESCRIPTION})
 
-    target_link_libraries(${TARGET_NAME} PUBLIC openvino::runtime)
-    target_link_libraries(${TARGET_NAME} PRIVATE ${OV_FRONTEND_LINK_LIBRARIES})
+    target_link_libraries(${TARGET_NAME} PRIVATE ${OV_FRONTEND_LINK_LIBRARIES} PUBLIC openvino::runtime)
     ov_add_library_version(${TARGET_NAME})
 
     # WA for TF frontends which always require protobuf (not protobuf-lite)
@@ -216,22 +215,33 @@ macro(ov_add_frontend)
 
     if(proto_files)
         if(OV_FRONTEND_PROTOBUF_LITE)
-            if(NOT protobuf_lite_installed)
-                ov_install_static_lib(${Protobuf_LITE_LIBRARIES} ${OV_CPACK_COMP_CORE})
-                set(protobuf_lite_installed ON CACHE INTERNAL "" FORCE)
-            endif()
-            link_system_libraries(${TARGET_NAME} PRIVATE ${Protobuf_LITE_LIBRARIES})
+            set(protobuf_target_name libprotobuf-lite)
+            set(protobuf_install_name "protobuf_lite_installed")
         else()
-            if(NOT protobuf_installed)
-                ov_install_static_lib(${Protobuf_LIBRARIES} ${OV_CPACK_COMP_CORE})
-                set(protobuf_installed ON CACHE INTERNAL "" FORCE)
-            endif()
-            link_system_libraries(${TARGET_NAME} PRIVATE ${Protobuf_LIBRARIES})
+            set(protobuf_target_name libprotobuf)
+            set(protobuf_install_name "protobuf_installed")
+        endif()
+        if(ENABLE_SYSTEM_PROTOBUF)
+            # use imported target name with namespace
+            set(protobuf_target_name "protobuf::${protobuf_target_name}")
         endif()
 
-        # prptobuf generated code emits -Wsuggest-override error
+        link_system_libraries(${TARGET_NAME} PRIVATE ${protobuf_target_name})
+
+        # protobuf generated code emits -Wsuggest-override error
         if(SUGGEST_OVERRIDE_SUPPORTED)
             target_compile_options(${TARGET_NAME} PRIVATE -Wno-suggest-override)
+        endif()
+
+        # install protobuf if it is not installed yet
+        if(NOT ${protobuf_install_name})
+            if(ENABLE_SYSTEM_PROTOBUF)
+                # we have to add find_package(Protobuf) to the OpenVINOConfig.cmake for static build
+                # no needs to install protobuf
+            else()
+                ov_install_static_lib(${protobuf_target_name} ${OV_CPACK_COMP_CORE})
+                set("${protobuf_install_name}" ON CACHE INTERNAL "" FORCE)
+            endif()
         endif()
     endif()
 
@@ -262,6 +272,10 @@ macro(ov_add_frontend)
     # must be called after all target_link_libraries
     ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
+    # since frontends are user-facing component which can be linked against,
+    # then we need to mark it to be CXX ABI free
+    ov_abi_free_target(${TARGET_NAME})
+
     # installation
 
     if(NOT OV_FRONTEND_SKIP_INSTALL)
@@ -273,7 +287,7 @@ macro(ov_add_frontend)
             set(dev_component "${OV_CPACK_COMP_CORE_DEV}")
 
             # TODO: whether we need to do it configuralbe on Windows installer?
-            ie_cpack_add_component(${lib_component} HIDDEN)
+            ov_cpack_add_component(${lib_component} HIDDEN)
 
             if(OV_FRONTEND_LINKABLE_FRONTEND)
                 set(export_set EXPORT OpenVINOTargets)

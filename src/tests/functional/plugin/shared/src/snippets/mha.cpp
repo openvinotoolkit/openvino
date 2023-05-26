@@ -16,33 +16,50 @@ namespace snippets {
 std::string MHA::getTestCaseName(testing::TestParamInfo<ov::test::snippets::MHAParams> obj) {
     std::vector<ov::PartialShape> inputShapes;
     bool withMul;
+    ov::element::Type prc;
     std::string targetDevice;
     size_t num_nodes, num_subgraphs;
-    std::tie(inputShapes, withMul, num_nodes, num_subgraphs, targetDevice) = obj.param;
+    std::map<std::string, std::string> additionalConfig;
+    std::tie(inputShapes, withMul, prc, num_nodes, num_subgraphs, targetDevice, additionalConfig) = obj.param;
 
     std::ostringstream result;
     for (size_t i = 0; i < inputShapes.size(); ++i)
         result << "IS[" << i << "]=" << CommonTestUtils::partialShape2str({inputShapes[i]}) << "_";
     result << "Mul=" << withMul << "_";
+    result << "PRC=" << prc << "_";
     result << "#N=" << num_nodes << "_";
     result << "#S=" << num_subgraphs << "_";
-    result << "targetDevice=" << targetDevice;
+    result << "targetDevice=" << targetDevice << "_";
+
+    if (!additionalConfig.empty()) {
+        result << "_PluginConf";
+        for (auto &item : additionalConfig) {
+            if (item.second == InferenceEngine::PluginConfigParams::YES)
+                result << "_" << item.first << "=" << item.second;
+        }
+    }
     return result.str();
 }
 
 void MHA::SetUp() {
     std::vector<ov::PartialShape> inputShapes;
-    bool withMul;
-    std::tie(inputShapes, withMul, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
+    ov::element::Type prc;
+    std::map<std::string, std::string> additionalConfig;
+    std::tie(inputShapes, m_with_mul, prc, ref_num_nodes, ref_num_subgraphs, targetDevice, additionalConfig) = this->GetParam();
     init_input_shapes(static_partial_shapes_to_test_representation(inputShapes));
 
-    auto f = ov::test::snippets::MHAFunction(inputDynamicShapes, withMul);
-    function = f.getOriginal();
+    init_subgraph();
 
-    if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
+    configuration.insert(additionalConfig.begin(), additionalConfig.end());
+    if (additionalConfig.empty() && !configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
         configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
                               InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK});
     }
+
+    setInferenceType(prc);
+    inType = outType = prc;
+    if (prc == ov::element::bf16)
+        abs_threshold = 0.3;
 }
 
 void MHA::generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) {
@@ -56,19 +73,9 @@ void MHA::generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticSha
     }
 }
 
-void MHASelect::SetUp() {
-    std::vector<ov::PartialShape> inputShapes;
-    bool withMul;
-    std::tie(inputShapes, withMul, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
-    init_input_shapes(static_partial_shapes_to_test_representation(inputShapes));
-
-    auto f = ov::test::snippets::MHASelectFunction(inputDynamicShapes);
+void MHA::init_subgraph() {
+    auto f = ov::test::snippets::MHAFunction(inputDynamicShapes, m_with_mul);
     function = f.getOriginal();
-
-    if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
-        configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
-                              InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK});
-    }
 }
 
 void MHASelect::generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) {
@@ -89,33 +96,40 @@ void MHASelect::generate_inputs(const std::vector<ngraph::Shape>& targetInputSta
     }
 }
 
-void MHAWOTransposeOnInputs::SetUp() {
-    std::vector<ov::PartialShape> inputShapes;
-    bool withMul;
-    std::tie(inputShapes, withMul, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
-    init_input_shapes(static_partial_shapes_to_test_representation(inputShapes));
-
-    auto f = ov::test::snippets::MHAWOTransposeOnInputsFunction(inputDynamicShapes);
+void MHASelect::init_subgraph() {
+    auto f = ov::test::snippets::MHASelectFunction(inputDynamicShapes);
     function = f.getOriginal();
-
-    if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
-        configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
-                              InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK});
-    }
 }
 
+void MHAWOTransposeOnInputs::init_subgraph() {
+    auto f = ov::test::snippets::MHAWOTransposeOnInputsFunction(inputDynamicShapes);
+    function = f.getOriginal();
+}
+
+void MHAWOTranspose::init_subgraph() {
+    auto f = ov::test::snippets::MHAWOTransposeFunction(inputDynamicShapes);
+    function = f.getOriginal();
+}
 
 TEST_P(MHA, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     validateNumSubgraphs();
 }
 
 TEST_P(MHASelect, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     validateNumSubgraphs();
 }
 
 TEST_P(MHAWOTransposeOnInputs, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    run();
+    validateNumSubgraphs();
+}
+
+TEST_P(MHAWOTranspose, CompareWithRefImpl) {
     run();
     validateNumSubgraphs();
 }

@@ -166,12 +166,12 @@ jobs:
 
   - script: |
       set PATH=$(WORK_DIR)\ninja-win;%PATH%
-      call "$(MSVS_VARS_PATH)" && $(CMAKE_CMD) -G "Ninja Multi-Config" ^
+      call "$(MSVS_VARS_PATH)" && $(CMAKE_CMD) ^
+        -G "Ninja Multi-Config" ^
         -DENABLE_CPPLINT=OFF ^
         -DENABLE_ONEDNN_FOR_GPU=$(CMAKE_BUILD_SHARED_LIBS) ^
         -DBUILD_SHARED_LIBS=$(CMAKE_BUILD_SHARED_LIBS) ^
         -DENABLE_FASTER_BUILD=ON ^
-        -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) ^
         -DENABLE_TESTS=ON ^
         -DCMAKE_COMPILE_WARNING_AS_ERROR=ON ^
         -DENABLE_STRICT_DEPENDENCIES=OFF ^
@@ -314,6 +314,9 @@ jobs:
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_cpu_func_tests --gtest_filter=*smoke* --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-ov_cpu_func_tests.xml
     displayName: 'CPU FuncTests'
     condition: and(succeeded(), eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'OFF'))
+
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_auto_batch_func_tests --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-ov_auto_batch_func_tests.xml
+    displayName: 'AutoBatch FuncTests'
 
   - script: |
       call $(SETUPVARS) && $(INSTALL_TEST_DIR)\InferenceEngineCAPITests --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-InferenceEngineCAPITests.xml
