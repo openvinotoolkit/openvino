@@ -542,9 +542,8 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     OV_ITT_SCOPE(FIRST_INFERENCE, ie::itt::domains::IE_LT, "Core::compile_model::model");
     std::string deviceName = device_name;
     ov::AnyMap config_with_batch = config;
-    auto model = model_->clone();
     // if auto-batching is applicable, the below function will patch the device name and config accordingly:
-    apply_auto_batching(model, deviceName, config_with_batch);
+    auto model = apply_auto_batching(model_, deviceName, config_with_batch);
 
     auto parsed = parseDeviceNameIntoConfig(deviceName, config_with_batch);
     auto plugin = get_plugin(parsed._deviceName);
@@ -572,9 +571,8 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     }
     std::string deviceName = context.get_device_name();
     ov::AnyMap config_with_batch = config;
-    auto model = model_->clone();
     // if auto-batching is applicable, the below function will patch the device name and config accordingly:
-    apply_auto_batching(model, deviceName, config_with_batch);
+    auto model = apply_auto_batching(model_, deviceName, config_with_batch);
 
     auto parsed = parseDeviceNameIntoConfig(deviceName, config_with_batch);
     auto plugin = get_plugin(parsed._deviceName);
@@ -808,7 +806,7 @@ ov::RemoteContext ov::CoreImpl::get_default_context(const std::string& device_na
     return get_plugin(parsed._deviceName).get_default_context(parsed._config);
 }
 
-void ov::CoreImpl::apply_auto_batching(const std::shared_ptr<const ov::Model>& model,
+std::shared_ptr<const ov::Model> ov::CoreImpl::apply_auto_batching(const std::shared_ptr<const ov::Model>& model,
                                        std::string& deviceName,
                                        ov::AnyMap& config) const {
     std::string deviceNameWithBatchSize, deviceNameWithoutBatch;
@@ -818,7 +816,7 @@ void ov::CoreImpl::apply_auto_batching(const std::shared_ptr<const ov::Model>& m
         // explicitly enabled Auto-Batching
         auto pos = deviceName.find_first_of(":");
         if (pos == std::string::npos)
-            return;  // BATCH device is already configured via the config
+            return model;  // BATCH device is already configured via the config
         deviceNameWithBatchSize = deviceName.substr(pos + 1);
         deviceNameWithoutBatch = ov::DeviceIDParser::get_batch_device(deviceNameWithBatchSize);
         // when user sets the BATCH device explicitly, we may check the dims less strictly
@@ -829,7 +827,7 @@ void ov::CoreImpl::apply_auto_batching(const std::shared_ptr<const ov::Model>& m
         try {
             get_plugin("BATCH");
         } catch (const std::runtime_error&) {
-            return;
+            return model;
         }
 
         // check whether the Auto-Batching is disabled explicitly
@@ -842,7 +840,7 @@ void ov::CoreImpl::apply_auto_batching(const std::shared_ptr<const ov::Model>& m
             if (!is_virtual_device(deviceName))
                 config.erase(batch_mode);
             if (disabled)
-                return;
+                return model;
         }
 
         // check whether if the Auto-Batching is applicable to the device
@@ -853,7 +851,7 @@ void ov::CoreImpl::apply_auto_batching(const std::shared_ptr<const ov::Model>& m
                                                .as<std::vector<std::string>>();
         auto it = std::find(metrics.begin(), metrics.end(), METRIC_KEY(OPTIMAL_BATCH_SIZE));
         if (metrics.end() == it)
-            return;
+            return model;
 
         // if applicable, the Auto-Batching is implicitly enabled via the performance hints
         bool bTputInPlg =
@@ -863,13 +861,13 @@ void ov::CoreImpl::apply_auto_batching(const std::shared_ptr<const ov::Model>& m
         const auto& excl = config.find(CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS));
         bool bExclReqsEnabled = (excl != config.end() && excl->second.as<std::string>() == CONFIG_VALUE(YES));
         if (bExclReqsEnabled || (!bTputInPlg && !bTputInLoadCfg))
-            return;
+            return model;
     }
     auto batchConfig = deviceNameWithBatchSize.empty() ? deviceNameWithoutBatch : deviceNameWithBatchSize;
     auto res = ov::details::is_model_batchable(model, deviceNameWithoutBatch, strictly_check_dims);
     switch (res) {
     case ov::details::NetworkBatchAbility::NO:
-        return;
+        return model;
     case ov::details::NetworkBatchAbility::AS_IS:
         deviceName = "BATCH:" + batchConfig;
         break;
@@ -878,6 +876,7 @@ void ov::CoreImpl::apply_auto_batching(const std::shared_ptr<const ov::Model>& m
         config[CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG)] = batchConfig;
         break;
     }
+    return ov::details::apply_batch_affinity(model, deviceNameWithoutBatch);
 }
 
 void ov::CoreImpl::set_property(const std::string& device_name, const AnyMap& properties) {
