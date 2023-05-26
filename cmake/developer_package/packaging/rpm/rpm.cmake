@@ -98,9 +98,7 @@ macro(ov_rpm_specific_settings)
     # use rpmlint to check packages in post-build step
     set(CPACK_POST_BUILD_SCRIPTS "${IEDevScripts_DIR}/packaging/rpm/post_build.cmake")
     # enable for debug cpack run
-    if(NOT DEFINED CPACK_RPM_PACKAGE_DEBUG)
-        set(CPACK_RPM_PACKAGE_DEBUG OFF)
-    endif()
+    ov_set_if_not_defined(CPACK_RPM_PACKAGE_DEBUG OFF)
 
     # naming convention for rpm package files
     set(CPACK_RPM_FILE_NAME "RPM-DEFAULT")

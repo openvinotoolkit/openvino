@@ -35,7 +35,6 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     ie_add_compiler_flags(/wd4297)
 endif()
 
-
 file(GLOB_RECURSE SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 
@@ -44,9 +43,10 @@ file(GLOB_RECURSE HEADERS
         ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
 
 find_package(libGNA REQUIRED
-             NO_MODULE
+             CONFIG
              PATHS "${CMAKE_CURRENT_SOURCE_DIR}/cmake"
-             NO_DEFAULT_PATH)
+             NO_DEFAULT_PATH
+             NO_CMAKE_FIND_ROOT_PATH)
 
 #
 # Shared plugin library

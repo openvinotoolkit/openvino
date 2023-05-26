@@ -8,6 +8,12 @@ if(NOT DEFINED IEDevScripts_DIR)
     message(FATAL_ERROR "IEDevScripts_DIR is not defined")
 endif()
 
+macro(ov_set_if_not_defined var value)
+    if(NOT DEFINED ${var})
+        set(${var} ${value})
+    endif()
+endmacro()
+
 set(OLD_CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH})
 set(CMAKE_MODULE_PATH "${IEDevScripts_DIR}")
 
@@ -71,23 +77,8 @@ endfunction()
 # For cross-compilation
 #
 
-# Search packages for the host system instead of packages for the target system
-# in case of cross compilation these macros should be defined by the toolchain file
-if(NOT COMMAND find_host_package)
-    macro(find_host_package)
-        find_package(${ARGN})
-    endmacro()
-endif()
-if(NOT COMMAND find_host_library)
-    macro(find_host_library)
-        find_library(${ARGN})
-    endmacro()
-endif()
-if(NOT COMMAND find_host_program)
-    macro(find_host_program)
-        find_program(${ARGN})
-    endmacro()
-endif()
+include(cross_compile/find_commands)
+include(cross_compile/native_compile)
 
 #
 # Common scripts
@@ -165,12 +156,6 @@ else()
     endif()
 endif()
 add_definitions(-DIE_BUILD_POSTFIX=\"${IE_BUILD_POSTFIX}\")
-
-macro(ov_set_if_not_defined var value)
-    if(NOT DEFINED ${var})
-        set(${var} ${value})
-    endif()
-endmacro()
 
 ov_set_if_not_defined(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
 ov_set_if_not_defined(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
@@ -312,7 +297,6 @@ function(ov_mark_target_as_cc)
 endfunction()
 
 include(python_requirements)
-include(native_compile)
 
 # Code style utils
 
