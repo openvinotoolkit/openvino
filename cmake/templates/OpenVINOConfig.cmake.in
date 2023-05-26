@@ -265,7 +265,7 @@ macro(_ov_find_pugixml)
             # so, we have to use 'IMPORTED_GLOBAL' property for cases when we call from OpenVINODeveloperPackage
             # because the alias openvino::pugixml is created later
             if(CMAKE_VERSION VERSION_LESS 3.18 AND OpenVINODeveloperPackage_DIR)
-                set(pkg_config_visibility IMPORTED_GLOBAL)
+                set(pkg_config_visibility GLOBAL)
             endif()
 
             pkg_search_module(pugixml
