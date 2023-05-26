@@ -7,11 +7,13 @@
 #include <gtest/gtest.h>
 
 #include <fstream>
+#include <thread>
 
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/test_assertions.hpp"
 #include "dev/core_impl.hpp"
 #include "file_utils.h"
+#include "openvino/op/relu.hpp"
 #include "openvino/util/file_util.hpp"
 
 using namespace testing;
@@ -380,4 +382,40 @@ TEST(CoreTests_parse_device_config, get_device_config) {
         "HETERO",
         ov::AnyMap{ov::device::priorities("MULTI,DEVICE"),
                    ov::device::properties(ov::AnyMap{{"MULTI", ov::AnyMap{ov::device::priorities("DEVICE")}}})});
+}
+
+class ApplyAutoBatchThreading : public testing::Test {
+public:
+    static void runParallel(std::function<void(void)> func,
+                            const unsigned int iterations = 50,
+                            const unsigned int threadsNum = 24) {
+        std::vector<std::thread> threads(threadsNum);
+        for (auto& thread : threads) {
+            thread = std::thread([&]() {
+                for (unsigned int i = 0; i < iterations; ++i) {
+                    func();
+                }
+            });
+        }
+        for (auto& thread : threads) {
+            if (thread.joinable())
+                thread.join();
+        }
+    }
+};
+
+// Tested function: apply_auto_batch
+TEST_F(ApplyAutoBatchThreading, ApplyAutoBatch) {
+    ov::CoreImpl core(true);
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 3, 4});
+    ov::Output<ov::Node> intermediate = input->output(0);
+    for (size_t i = 0; i < 100; ++i)
+        intermediate = std::make_shared<ov::op::v0::Relu>(input)->output(0);
+    auto output = std::make_shared<ov::op::v0::Result>(intermediate);
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{output}, ov::ParameterVector{input});
+    std::string device = "GPU";
+    ov::AnyMap config;
+    runParallel([&]() {
+        core.apply_auto_batching(model, device, config);
+    });
 }
