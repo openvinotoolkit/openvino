@@ -7,6 +7,9 @@
 
 using namespace ov::proxy::tests;
 
+// IR frontend is needed for import
+#ifdef IR_FRONTEND_ENABLED
+
 TEST_F(ProxyTests, import_and_infer_on_device_without_split_on_default_device) {
     std::stringstream model_stream;
     // Model has only add (+ 1) op and reshape
@@ -67,4 +70,5 @@ TEST_F(ProxyTests, import_and_infer_on_support_with_hetero_plugin) {
     EXPECT_EQ(input_tensor.get_element_type(), output_tensor.get_element_type());
     EXPECT_EQ(memcmp(input_tensor.data(), output_tensor.data(), input_tensor.get_byte_size()), 0);
 }
+#endif
 #endif

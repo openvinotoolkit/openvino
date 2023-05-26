@@ -10,7 +10,6 @@ ov_add_test_target(
         EXCLUDED_SOURCE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/mock_plugins
         DEPENDENCIES
             openvino::runtime
-            openvino_ir_frontend
             mock_engine
             funcTestUtils
         LINK_LIBRARIES
@@ -30,4 +29,9 @@ target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/..
 if(ENABLE_HETERO)
     add_dependencies(${TARGET_NAME} openvino_hetero_plugin)
     target_compile_definitions(${TARGET_NAME} PRIVATE HETERO_ENABLED)
+endif()
+
+if(ENABLE_OV_IR_FRONTEND)
+    add_dependencies(${TARGET_NAME} openvino_ir_frontend)
+    target_compile_definitions(${TARGET_NAME} PRIVATE IR_FRONTEND_ENABLED)
 endif()
