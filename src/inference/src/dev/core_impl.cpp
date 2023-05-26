@@ -807,8 +807,8 @@ ov::RemoteContext ov::CoreImpl::get_default_context(const std::string& device_na
 }
 
 std::shared_ptr<const ov::Model> ov::CoreImpl::apply_auto_batching(const std::shared_ptr<const ov::Model>& model,
-                                       std::string& deviceName,
-                                       ov::AnyMap& config) const {
+                                                                   std::string& deviceName,
+                                                                   ov::AnyMap& config) const {
     std::string deviceNameWithBatchSize, deviceNameWithoutBatch;
     // fully strict dims tracking by default (Auto-Batching is enabled implicitly)
     bool strictly_check_dims = true;

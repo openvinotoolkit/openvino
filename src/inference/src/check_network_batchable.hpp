@@ -24,8 +24,8 @@ NetworkBatchAbility is_model_batchable(const std::shared_ptr<const ov::Model>& m
  * @param deviceNameWithoutBatch Device name to set for DetectionOutput node if any
  * @return A copy of the model with set affinity
  */
-std::shared_ptr<const ov::Model> apply_batch_affinity(const std::shared_ptr<const ov::Model>& model_, const std::string& deviceNameWithoutBatch);
-
+std::shared_ptr<const ov::Model> apply_batch_affinity(const std::shared_ptr<const ov::Model>& model_,
+                                                      const std::string& deviceNameWithoutBatch);
 
 }  // namespace details
 }  // namespace ov
