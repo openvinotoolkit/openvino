@@ -28,7 +28,7 @@ While post-training quantization makes your model run faster and take less memor
 Try out these interactive Jupyter Notebook examples to learn the POT API and see post-training quantization in action:
 
 * [Quantization of Image Classification Models with POT](https://docs.openvino.ai/latest/notebooks/113-image-classification-quantization-with-output.html).
-* [Object Detection Quantization with POT](https://docs.openvino.ai/latest/notebooks/111-detection-quantization-with-output.html).
+* [Object Detection Quantization with POT](https://docs.openvino.ai/latest/notebooks/111-yolov5-quantization-migration-with-output.html).
 
 ## Quantizing Models with POT
 The figure below shows the post-training quantization workflow with POT. In a typical workflow, a pre-trained model is converted to OpenVINO IR format using Model Optimizer. Then, the model is quantized with a representative dataset using POT.
