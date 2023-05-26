@@ -197,7 +197,7 @@ TEST_F(MergeSimilarBranchesTest, different_op_versions) {
     model = make_shared<Model>(NodeVector{add}, ParameterVector{input});
 }
 
-TEST_F(DISABLED_MergeSimilarBranchesTest, different_input_nodes) {
+TEST_F(MergeSimilarBranchesTest, different_input_nodes) {
     using namespace ov::opset11;
     const auto input1 = make_shared<Parameter>(f32, PartialShape{7});
     const auto input2 = make_shared<Parameter>(f32, PartialShape{7});

@@ -87,7 +87,7 @@ bool MergeSimilarBranches::run_on_model(const std::shared_ptr<ov::Model>& model)
         nodes_for_check.push(p.get());
 
     set<Node*> result_procuder_nodes;
-    for (const auto r : model->get_results())
+    for (const auto& r : model->get_results())
         result_procuder_nodes.insert(r->input(0).get_source_output().get_node());
 
     set<Node*> nodes_checked;
