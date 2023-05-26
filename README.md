@@ -9,7 +9,6 @@
  
 [![PyPI Status](https://badge.fury.io/py/openvino.svg)](https://badge.fury.io/py/openvino)
 [![PyPI Downloads](https://pepy.tech/badge/openvino)](https://pepy.tech/project/openvino)
--
 [![Anaconda Status](https://anaconda.org/conda-forge/openvino/badges/version.svg)](https://anaconda.org/conda-forge/openvino)
 [![Anaconda Downloads](https://anaconda.org/conda-forge/openvino/badges/downloads.svg)](https://anaconda.org/conda-forge/openvino/files)
  </div>
