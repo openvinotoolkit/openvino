@@ -102,23 +102,23 @@ bool ov::pass::MakeStateful::run_on_model(const std::shared_ptr<ov::Model>& f) {
     for (size_t i = 0; i < m_param_res_pairs.size(); ++i) {
         const auto& param = m_param_res_pairs[i].first;
         const auto& res = m_param_res_pairs[i].second;
-
+/*
         NGRAPH_CHECK(param->get_partial_shape().is_static(),
                      "Shape of Parameter ",
                      param->get_friendly_name(),
-                     " must be static. MakeStateful transformation doesn't support dynamic shapes.");
+                     " must be static. MakeStateful transformation doesn't support dynamic shapes.");*/
 
         // Create Variable
         std::string var_name = variable_names[i];
         auto variable =
-            std::make_shared<Variable>(VariableInfo{param->get_shape(), param->get_element_type(), var_name});
+            std::make_shared<Variable>(VariableInfo{param->get_partial_shape(), param->get_element_type(), var_name});
         variables.push_back(variable);
 
         // Create ReadValue
-        auto const_zero = make_shared<Constant>(param->get_element_type(), param->get_shape(), 0);
-        auto read_val = make_shared<ReadValue>(const_zero, variable);
+        //auto const_zero = make_shared<Constant>(param->get_element_type(), param->get_shape(), 0);
+        auto read_val = make_shared<ReadValue>(variable);
         replace_node(param, read_val);
-        copy_runtime_info(param, {read_val, const_zero});
+        copy_runtime_info(param, read_val);
 
         // Create Assign
         auto assign = make_shared<Assign>(res->input_value(0), variable);

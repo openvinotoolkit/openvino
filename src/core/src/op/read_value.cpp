@@ -49,6 +49,11 @@ bool op::v3::ReadValue::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
+op::v6::ReadValue::ReadValue(const shared_ptr<Variable>& variable) : ReadValueBase() {
+    m_variable = variable;
+    constructor_validate_and_infer_types();
+}
+
 op::v6::ReadValue::ReadValue(const Output<Node>& init_value, const shared_ptr<Variable>& variable)
     : ReadValueBase({init_value}) {
     m_variable = variable;
@@ -57,8 +62,12 @@ op::v6::ReadValue::ReadValue(const Output<Node>& init_value, const shared_ptr<Va
 
 void op::v6::ReadValue::validate_and_infer_types() {
     OV_OP_SCOPE(v6_ReadValue_validate_and_infer_types);
-    const auto arg_t = get_input_element_type(0);
-    auto input_shape = get_input_partial_shape(0);
+    auto arg_t = m_variable->get_info().data_type;
+    auto input_shape = m_variable->get_info().data_shape;
+    if (!inputs().empty()) {
+        arg_t = get_input_element_type(0);
+        input_shape = get_input_partial_shape(0);
+    }
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
     std::vector<ov::PartialShape> input_shapes = {input_shape};
     shape_infer(this, input_shapes, output_shapes);
@@ -78,6 +87,9 @@ void op::v6::ReadValue::validate_and_infer_types() {
 shared_ptr<Node> op::v6::ReadValue::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v6_ReadValue_clone_with_new_inputs);
     check_new_args_count(this, new_args);
+    if (inputs().empty()) {
+        return make_shared<ReadValue>(m_variable);
+    }
     return make_shared<ReadValue>(new_args.at(0), m_variable);
 }
 
@@ -88,8 +100,8 @@ bool op::v6::ReadValue::visit_attributes(AttributeVisitor& visitor) {
 }
 
 void op::v6::ReadValue::revalidate_and_infer_types() {
-    VariableInfo var_info{ov::PartialShape::dynamic(), element::dynamic, m_variable->get_info().variable_id};
-    m_variable->update(var_info);
+    //VariableInfo var_info{ov::PartialShape::dynamic(), element::dynamic, m_variable->get_info().variable_id};
+    //m_variable->update(var_info);
     Node::revalidate_and_infer_types();
 }
 
