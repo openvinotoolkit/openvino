@@ -96,3 +96,4 @@ attach_prior_box_impl::attach_prior_box_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::prior_box_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::prior_box)

@@ -41,8 +41,8 @@ Tensor TensorAccessor<void>::operator()(size_t) const {
     return empty;
 }
 
-auto make_tensor_accessor() -> TensorAccessor<void> {
-    static const auto empty_tensor_accessor = TensorAccessor<void>(nullptr);
+auto make_tensor_accessor() -> const TensorAccessor<void>& {
+    static constexpr auto empty_tensor_accessor = TensorAccessor<void>(nullptr);
     return empty_tensor_accessor;
 }
 }  // namespace ov
