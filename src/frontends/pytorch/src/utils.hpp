@@ -46,7 +46,7 @@ Output<Node> apply_dtype(const NodeContext& context, size_t dtype_port, const Ou
 
 op::PadType convert_pad(const std::string& pt_pad);
 
-std::shared_ptr<Node> concat_list_construct(std::shared_ptr<Node> input);
+Output<Node> concat_list_construct(const Output<Node>& input);
 
 OutputVector make_framework_node(const NodeContext& context);
 
@@ -74,9 +74,18 @@ OutputVector inplace_op(const NodeContext& context) {
 
 template <typename T>
 OutputVector translate_1to1_match_1_inputs(const NodeContext& context) {
-    num_inputs_check(context, 1, 1);
     FRONT_END_OP_CONVERSION_CHECK(!context.input_is_none(0), "Input should not be None.");
     return {context.mark_node(std::make_shared<T>(context.get_input(0)))};
+}
+
+template <typename T>
+OutputVector translate_1to1_match_1_inputs_with_fp32_type_alignment(const NodeContext& context) {
+    FRONT_END_OP_CONVERSION_CHECK(!context.input_is_none(0), "Input should not be None.");
+    auto x = context.get_input(0);
+    // This const only needed for type alignment
+    auto dummy_const = context.mark_node(ov::op::v0::Constant::create(element::f32, Shape({}), {0.5}))->output(0);
+    align_eltwise_input_types(context, x, dummy_const);
+    return {context.mark_node(std::make_shared<T>(x))};
 }
 
 template <typename T>

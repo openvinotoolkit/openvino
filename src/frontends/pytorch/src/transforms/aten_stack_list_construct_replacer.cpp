@@ -42,7 +42,7 @@ AtenStackListConstructReplacer::AtenStackListConstructReplacer() {
             auto zero = opset10::Constant::create(element::i32, Shape{}, {0});
             // Iterate over values in ListConstruct
             for (const auto& list_input : list_inputs) {
-                auto node = concat_list_construct(list_input.get_node_shared_ptr());
+                auto node = concat_list_construct(list_input);
                 auto unsqueezed_node = std::make_shared<opset10::Unsqueeze>(node, axis_const);
                 node_vector.push_back(unsqueezed_node);
             }
