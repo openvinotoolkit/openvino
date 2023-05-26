@@ -12,7 +12,7 @@
 
 Every deep learning workflow begins with obtaining a model. You can choose to prepare a custom one, use a ready-made solution and adjust it to your needs, or even download and run a pre-trained network from an online database, such as `TensorFlow Hub <https://tfhub.dev/>`__, `Hugging Face <https://huggingface.co/>`__, `Torchvision models <https://pytorch.org/hub/>`__.
 
-:doc:`OpenVINO™ supports several model formats <Supported_Model_Formats>` and allows converting them to it's own, `openvino.runtime.Model <api/ie_python_api/_autosummary/openvino.runtime.Model.html>`__ or `ov.Model <api/ie_python_api/_autosummary/openvino.runtime.Model.html>`__, providing a tool dedicated to this task.
+:doc:`OpenVINO™ supports several model formats <Supported_Model_Formats>` and allows converting them to it's own, `openvino.runtime.Model <api/ie_python_api/_autosummary/openvino.runtime.Model.html>`__ (`ov.Model <api/ie_python_api/_autosummary/openvino.runtime.Model.html>`__ ), providing a tool dedicated to this task.
 
 There are several options to convert a model from original framework to OpenVINO model format (``ov.Model``).
 
