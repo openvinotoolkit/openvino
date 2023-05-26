@@ -250,6 +250,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::Int", op::translate_int},
         {"aten::IntImplicit", op::translate_int},
         {"aten::is_grad_enabled", op::return_false_scalar},
+        {"aten::item", op::translate_1to1_match_1_inputs<opset10::Squeeze>},
         {"aten::layer_norm", op::translate_layer_norm},
         {"aten::le", op::translate_1to1_match_2_inputs_align_types<opset10::LessEqual>},
         {"aten::leaky_relu", op::translate_1to1_match_2_inputs<opset10::PRelu>},
