@@ -21,6 +21,7 @@
 #include "ngraph/deprecated.hpp"
 #include "ngraph/ngraph_visibility.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 NGRAPH_API_DEPRECATED NGRAPH_API std::mutex& get_registry_mutex();
 
@@ -86,3 +87,4 @@ protected:
     FactoryMap m_factory_map;
 };
 }  // namespace ngraph
+NGRAPH_SUPPRESS_DEPRECATED_END

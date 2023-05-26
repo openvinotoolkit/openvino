@@ -25,6 +25,7 @@
 #include "ngraph/node.hpp"
 #include "openvino/opsets/opset.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 /// \brief Run-time opset information
 class NGRAPH_API_DEPRECATED NGRAPH_API OpSet : public ov::OpSet {
@@ -67,3 +68,4 @@ NGRAPH_API_DEPRECATED const NGRAPH_API OpSet& get_opset11();
 NGRAPH_API_DEPRECATED const NGRAPH_API std::map<std::string, std::function<const ngraph::OpSet&()>>&
 get_available_opsets();
 }  // namespace ngraph
+NGRAPH_SUPPRESS_DEPRECATED_END
