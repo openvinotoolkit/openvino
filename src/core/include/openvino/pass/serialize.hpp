@@ -7,7 +7,17 @@
 #include <functional>
 #include <string>
 
+#ifndef IN_OV_COMPONENT
+#    define IN_OV_COMPONENT
+#    define WAS_OV_LIBRARY_DEFINED_SERIALIZE
+#endif
+
 #include "ngraph/opsets/opset.hpp"
+
+#ifdef WAS_OV_LIBRARY_DEFINED_SERIALIZE
+#    undef IN_OV_COMPONENT
+#    undef WAS_OV_LIBRARY_DEFINED_SERIALIZE
+#endif
 #include "openvino/core/model.hpp"
 #include "openvino/pass/pass.hpp"
 

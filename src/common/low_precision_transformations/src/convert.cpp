@@ -22,7 +22,7 @@ namespace low_precision {
 
 ConvertTransformation::ConvertTransformation(const Params& params) : LayerTransformation(params) {
     MATCHER_SCOPE(ConvertTransformation);
-    auto matcher = pattern::wrap_type<opset1::Convert>();
+    auto matcher = pattern::wrap_type<ov::opset1::Convert>();
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -37,7 +37,7 @@ ConvertTransformation::ConvertTransformation(const Params& params) : LayerTransf
 }
 
 bool ConvertTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) {
-    std::shared_ptr<opset1::Convert> convert = ov::as_type_ptr<opset1::Convert>(m.get_match_root());
+    std::shared_ptr<ov::opset1::Convert> convert = ov::as_type_ptr<ov::opset1::Convert>(m.get_match_root());
     if (!convert) {
         return false;
     }
@@ -48,9 +48,9 @@ bool ConvertTransformation::transform(TransformationContext& context, ngraph::pa
 
     const ngraph::element::Type precisionBefore = convert->get_input_element_type(0);
 
-    std::shared_ptr<opset1::Subtract> subtract = std::make_shared<ov::op::TypeRelaxed<opset1::Subtract>>(
+    std::shared_ptr<ov::opset1::Subtract> subtract = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Subtract>>(
         convert->input_value(0),
-        std::make_shared<opset1::Constant>(precisionBefore, Shape{}, std::vector<size_t>({ 0 })));
+        std::make_shared<ov::opset1::Constant>(precisionBefore, Shape{}, std::vector<size_t>({ 0 })));
     NetworkHelper::setOutDataPrecision(subtract, convert->get_output_element_type(0));
 
     replace_node(convert, subtract);

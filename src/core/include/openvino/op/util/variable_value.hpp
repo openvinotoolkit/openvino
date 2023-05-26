@@ -5,10 +5,23 @@
 #pragma once
 
 #include <utility>
+#include <memory>
+
+#ifndef IN_OV_COMPONENT
+#    define IN_OV_COMPONENT
+#    define WAS_OV_LIBRARY_DEFINED_VARIABLE_VALUE
+#endif
 
 #include "ngraph/runtime/host_tensor.hpp"
+
+#ifdef WAS_OV_LIBRARY_DEFINED_VARIABLE_VALUE
+#    undef IN_OV_COMPONENT
+#    undef WAS_OV_LIBRARY_DEFINED_VARIABLE_VALUE
+#endif
+
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/deprecated.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 namespace ov {
 namespace op {
