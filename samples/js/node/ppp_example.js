@@ -1,22 +1,20 @@
 const { addon } = require('openvinojs-node');
 
-const math = require('./lib/helpers.js');
 const cv = require('opencv.js');
 const imagenetClassesMap = require('../assets/imagenet_classes_map.json');
-const Jimp = require('jimp');
 
 run();
 
 async function run()
 {
-
+  const { getMaxElement, getImageData } = await import('../common/index.mjs');
   /*   ---Load an image---   */
   //read image from a file
   const imgPath = process.argv[3] || '../assets/images/shih_tzu.jpg';
-  const jimpSrc = await Jimp.read(imgPath);
-  const imgSource = cv.matFromImageData(jimpSrc.bitmap);
-  cv.cvtColor(imgSource, imgSource, cv.COLOR_RGBA2BGR);
-  cv.resize(imgSource, imgSource, new cv.Size(227, 227));
+  const imgData = await getImageData(imgPath);
+  const src = cv.matFromImageData(imgData);
+  cv.cvtColor(src, src, cv.COLOR_RGBA2BGR);
+  cv.resize(src, src, new cv.Size(227, 227));
 
   /*   ---Load the model---   */
   const modelPath = process.argv[2];
@@ -31,13 +29,14 @@ async function run()
   const tensor = new addon.Tensor(
     addon.element.f32,
     [1, 227, 227, 3],
-    new Float32Array(imgSource.data),
+    new Float32Array(src.data),
   );
 
   /*   ---Compile model and perform inference---   */
   const output = model.compile('CPU').infer(tensor);
 
   //show the results
-  console.log('Result: ' + imagenetClassesMap[math.argMax(output.data)]);
-  console.log(math.argMax(output.data));
+  const result = getMaxElement(output.data);
+  console.log('Result: ' + imagenetClassesMap[result.index],
+    '\nIndex: ', result.index);
 }

@@ -1,18 +1,27 @@
 export const isNodeJS = typeof window === 'undefined';
 
+/**
+ * Read image from a file system.
+ * @param {string} path - the path to the image.
+ * @returns an ImageData object representing the underlying pixel data
+ */
+export async function getImageData(path) {
+    const image = await loadImage(path);
+    const { width, height } = image;
+  
+    const canvas = await createCanvas(width, height);
+    const ctx = canvas.getContext('2d');
+  
+    if (!ctx) throw new Error('Canvas context is null');
+  
+    ctx.drawImage(image, 0, 0);
+    return ctx.getImageData(0, 0, width, height);
+}
+
+
 export async function getArrayByImgPath(path) {
-  const image = await loadImage(path);
-  const { width, height } = image;
-
-  const canvas = await createCanvas(width, width);
-  const ctx = canvas.getContext('2d');
-
-  if (!ctx) throw new Error('Canvas context is null');
-
-  ctx.drawImage(image, 0, 0);
-  const rgbaData = ctx.getImageData(0, 0, width, height).data;
-
-  return rgbaData.filter((_, index) => (index + 1)%4);
+  const rgbaData = await getImageData(path);
+  return rgbaData.data.filter((_, index) => (index + 1)%4);
 }
 
 export async function loadImage(path) {
@@ -74,7 +83,7 @@ async function getClasses() {
     .then((response) => response.json());
 }
 
-function getMaxElement(arr) {
+export function getMaxElement(arr) {
   if (!arr.length) return { value: -Infinity, index: -1 };
 
   let max = arr[0];
