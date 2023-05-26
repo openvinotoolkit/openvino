@@ -48,7 +48,7 @@ file(GLOB_RECURSE PLUGIN_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin/*.cpp ${
 
 if(ENABLE_PROXY)
     ov_add_plugin(NAME ${TARGET_NAME}
-                  DEVICE_NAME "Infel_GPU"
+                  DEVICE_NAME "Intel_GPU"
                   SOURCES ${PLUGIN_SOURCES}
                   DEFAULT_CONFIG
                         DEVICE_ALIAS:GPU
