@@ -901,7 +901,7 @@ AutoSchedule::~AutoSchedule() {
                     }
                 }
                 LOG_INFO_TAG("%s:infer:%ld", _workerRequest.first.c_str(), count);
-                if (count >= 1) {
+                if (statis_count >= 1) {
                     std::chrono::duration<double, std::milli> durtation = reqAllEndTimes.back() - time;
                     LOG_INFO_TAG("%s:duration:%lf", _workerRequest.first.c_str(), durtation.count());
                     // to count the fps of the device running at full speed, skip the first infer and use (count - 1) to
