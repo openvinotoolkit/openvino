@@ -18,8 +18,6 @@ public:
      * @return      Tensor to data at port.
      */
     virtual Tensor operator()(size_t port) const = 0;
-
-    virtual ~ITensorAccessor() = default;
 };
 
 /**
@@ -35,14 +33,14 @@ public:
  * @tparam TContainer Type of tensor container.
  */
 template <class TContainer>
-class TensorAccessor : public ITensorAccessor {
+class TensorAccessor final : public ITensorAccessor {
 public:
     /**
      * @brief Construct a new Tensor Accessor object for tensors container.
      *
      * @param tensors  Pointer to container with tensors.
      */
-    TensorAccessor(const TContainer* tensors) : m_tensors{tensors} {}
+    constexpr TensorAccessor(const TContainer* tensors) : m_tensors{tensors} {}
 
     /**
      * @brief Get tensor for given port number.
@@ -79,7 +77,7 @@ Tensor TensorAccessor<void>::operator()(size_t port) const;
  * @return TensorContainer for specific type.
  */
 template <class TContainer>
-auto make_tensor_accessor(const TContainer& c) -> TensorAccessor<TContainer> {
+constexpr auto make_tensor_accessor(const TContainer& c) -> TensorAccessor<TContainer> {
     return TensorAccessor<TContainer>(&c);
 }
 
@@ -88,5 +86,5 @@ auto make_tensor_accessor(const TContainer& c) -> TensorAccessor<TContainer> {
  *
  * @return TensorAccessor to return empty tensor.
  */
-auto make_tensor_accessor() -> TensorAccessor<void>;
+auto make_tensor_accessor() -> const TensorAccessor<void>&;
 }  // namespace ov

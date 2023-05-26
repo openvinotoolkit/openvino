@@ -18,8 +18,7 @@ namespace v6 {
 //          2.  out_rois_shape = [number_of_ROIs, 4]
 template <class TShape>
 std::vector<TShape> shape_infer(const ExperimentalDetectronROIFeatureExtractor* op,
-                                const std::vector<TShape>& input_shapes,
-                                const ITensorAccessor& tensor_accessor = make_tensor_accessor()) {
+                                const std::vector<TShape>& input_shapes) {
     using TDim = typename TShape::value_type;
     using namespace ov::util;
     NODE_VALIDATION_CHECK(op, input_shapes.size() >= 2);
