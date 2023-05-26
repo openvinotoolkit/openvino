@@ -8,7 +8,7 @@
 if(NOT ANDROID)
     find_package(PkgConfig QUIET)
     # see https://cmake.org/cmake/help/latest/command/add_library.html#alias-libraries
-    # cmake 3.18 (and older) cannot create an alias for imported non-GLOBAL targets
+    # cmake older than 3.18 cannot create an alias for imported non-GLOBAL targets
     # so, we have to use 'IMPORTED_GLOBAL' property
     if(CMAKE_VERSION VERSION_LESS 3.18)
         set(OV_PkgConfig_VISILITY GLOBAL)
@@ -27,10 +27,8 @@ if(ENABLE_PROFILING_ITT)
     find_package(ittapi QUIET)
     if(ittapi_FOUND)
         # conan defines 'ittapi::ittapi' target
-        # create more common alias 'ittapi::ittnotify'
         set_target_properties(ittapi::ittapi PROPERTIES
             INTERFACE_COMPILE_DEFINITIONS ENABLE_PROFILING_ITT)
-        add_library(ittapi::ittnotify ALIAS ittapi::ittapi)
     else()
         add_subdirectory(thirdparty/ittapi)
     endif()
@@ -273,6 +271,10 @@ if(ENABLE_SYSTEM_PUGIXML)
             message(FATAL_ERROR "Debian | RPM package build requires shared Pugixml library")
         endif()
 
+        if(OV_PkgConfig_VISILITY)
+            # need to set GLOBAL visibility in order to create ALIAS for this target
+            set_target_properties(${pugixml_target} PROPERTIES IMPORTED_GLOBAL ON)
+        endif()
         # create an alias for real target which can be shared or static
         add_library(openvino::pugixml ALIAS ${pugixml_target})
     else()
@@ -365,14 +367,22 @@ if(ENABLE_SAMPLES OR ENABLE_COMPILE_TOOL OR ENABLE_TESTS)
             # no extra steps
         elseif(TARGET gflags_nothreads-static)
             # Debian 9: gflag_component is ignored
-            add_library(gflags ALIAS gflags_nothreads-static)
+            set(gflags_target gflags_nothreads-static)
         elseif(TARGET gflags_nothreads-shared)
             # CentOS / RHEL / Fedora case
-            add_library(gflags ALIAS gflags_nothreads-shared)
+            set(gflags_target gflags_nothreads-shared)
         elseif(TARGET ${GFLAGS_TARGET})
-            add_library(gflags ALIAS ${GFLAGS_TARGET})
+            set(gflags_target ${GFLAGS_TARGET})
         else()
             message(FATAL_ERROR "Internal error: failed to find imported target 'gflags' using '${gflag_component}' component")
+        endif()
+
+        if(gflags_target)
+            if(OV_PkgConfig_VISILITY)
+                # need to set GLOBAL visibility in order to create ALIAS for this target
+                set_target_properties(${gflags_target} PROPERTIES IMPORTED_GLOBAL ON)
+            endif()
+            add_library(gflags ALIAS ${gflags_target})
         endif()
 
         message(STATUS "gflags (${gflags_VERSION}) is found at ${gflags_DIR} using '${gflag_component}' component")
@@ -394,6 +404,10 @@ if(ENABLE_TESTS)
 
     if(GTest_FOUND)
         foreach(gtest_target gtest gtest_main gmock gmock_main)
+            if(OV_PkgConfig_VISILITY)
+                # need to set GLOBAL visibility in order to create ALIAS for this target
+                set_target_properties(GTest::${gtest_target} PROPERTIES IMPORTED_GLOBAL ON)
+            endif()
             add_library(${gtest_target} ALIAS GTest::${gtest_target})
         endforeach()
     else()
@@ -492,6 +506,11 @@ if(ENABLE_SNAPPY_COMPRESSION)
             # we can use static library only in static build, because in case od dynamic build
             # the libsnappy.a should be compiled with -fPIC, while Debian / Ubuntu / RHEL don't do it
             set(ov_snappy_lib Snappy::snappy-static)
+        endif()
+
+        if(OV_PkgConfig_VISILITY)
+            # need to set GLOBAL visibility in order to create ALIAS for this target
+            set_target_properties(${ov_snappy_lib} PROPERTIES IMPORTED_GLOBAL ON)
         endif()
 
         add_library(openvino::snappy ALIAS ${ov_snappy_lib})

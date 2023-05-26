@@ -238,7 +238,7 @@ macro(_ov_find_pugixml)
         if(_ov_pugixml_pkgconfig_interface AND NOT ANDROID)
             _ov_find_dependency(PkgConfig)
         elseif(_ov_pugixml_cmake_interface)
-            _ov_find_dependency(PugiXML NAMES PugiXML  pugixml)
+            _ov_find_dependency(PugiXML NAMES PugiXML pugixml)
         endif()
 
         if(PugiXML_FOUND)
@@ -261,7 +261,7 @@ macro(_ov_find_pugixml)
             endif()
 
             # see https://cmake.org/cmake/help/latest/command/add_library.html#alias-libraries
-            # cmake 3.18 (and older) cannot create an alias for imported non-GLOBAL targets
+            # cmake older than 3.18 cannot create an alias for imported non-GLOBAL targets
             # so, we have to use 'IMPORTED_GLOBAL' property for cases when we call from OpenVINODeveloperPackage
             # because the alias openvino::pugixml is created later
             if(CMAKE_VERSION VERSION_LESS 3.18 AND OpenVINODeveloperPackage_DIR)
@@ -384,7 +384,7 @@ endmacro()
 macro(_ov_find_protobuf_frontend_dependency)
     set(_OV_ENABLE_SYSTEM_PROTOBUF "@ENABLE_SYSTEM_PROTOBUF@")
     if(_OV_ENABLE_SYSTEM_PROTOBUF)
-        _ov_find_dependency(Protobuf @Protobuf_VERSION@ EXACT NAMES Protobuf  protobuf)
+        _ov_find_dependency(Protobuf @Protobuf_VERSION@ EXACT NAMES Protobuf protobuf)
     endif()
     unset(_OV_ENABLE_SYSTEM_PROTOBUF)
 endmacro()
