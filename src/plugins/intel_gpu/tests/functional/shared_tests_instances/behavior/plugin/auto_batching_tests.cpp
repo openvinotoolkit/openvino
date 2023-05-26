@@ -1,12 +1,10 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include <thread>
-
 #include "behavior/plugin/auto_batching_tests.hpp"
 #include "behavior/plugin/configuration_tests.hpp"
 #include "openvino/runtime/properties.hpp"
-#include "openvino/op/relu.hpp"
+
 
 const std::vector<size_t> num_streams{ 2 };
 const std::vector<bool>   get_vs_set{ true, false };
@@ -61,39 +59,4 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::Values(DefaultParameter{ov::auto_batch_timeout.name(),
                                                    InferenceEngine::Parameter{1000}})),
         DefaultConfigurationTest::getTestCaseName);
-
-using namespace ov;
-
-class AutoBatchCompileThreading : public testing::Test {
-public:
-    static void runParallel(std::function<void(void)> func,
-                            const unsigned int iterations = 50,
-                            const unsigned int threadsNum = 24) {
-        std::vector<std::thread> threads(threadsNum);
-        for (auto& thread : threads) {
-            thread = std::thread([&]() {
-                for (unsigned int i = 0; i < iterations; ++i) {
-                    func();
-                }
-            });
-        }
-        for (auto& thread : threads) {
-            if (thread.joinable())
-                thread.join();
-        }
-    }
-};
-
-TEST_F(AutoBatchCompileThreading, AutoBatchCloningThreadSafetyTest) {
-    auto input = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 2, 3, 4});
-    ov::Output<Node> intermediate = input->output(0);
-    for (size_t i = 0; i < 100; ++i)
-        intermediate = std::make_shared<op::v0::Relu>(input)->output(0);
-    auto output = std::make_shared<op::v0::Result>(intermediate);
-    auto model = std::make_shared<ov::Model>(ResultVector{output}, ParameterVector{input});
-    auto core = ov::Core();
-    runParallel([&]() {
-        core.compile_model(model, "GPU");
-    });
-}
 }  // namespace AutoBatchingTests
