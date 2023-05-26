@@ -501,7 +501,7 @@ void Snippet::prepareParams() {
 
     if (dims_collapsed) {
         std::vector<ov::Shape> new_shapes;
-        for (int i = 0; i < normInputShapes.size(); i++) {
+        for (size_t i = 0; i < normInputShapes.size(); i++) {
             const auto norm_shape = normInputShapes[i];
             size_t ndims_to_skip = norm_shape.size() - original_input_shape_ranks[i];
             new_shapes.emplace_back(norm_shape.begin() + ndims_to_skip, norm_shape.end());
