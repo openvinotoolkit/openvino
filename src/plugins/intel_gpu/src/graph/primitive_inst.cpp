@@ -441,10 +441,18 @@ bool primitive_inst::update_impl() {
             updated_params.weights_layout = optional_layout(original_weights_memory->get_layout());
         }
 
+        auto updated_params_no_dyn_pad = updated_params;
+        for (auto& i : updated_params_no_dyn_pad.input_layouts) {
+            i.data_padding.set_dynamic_pad(tensor(0));
+        }
+        for (auto& o : updated_params_no_dyn_pad.output_layouts) {
+            o.data_padding.set_dynamic_pad(tensor(0));
+        }
+
         auto& cache = get_network().get_program()->get_implementations_cache();
         std::shared_ptr<primitive_impl> cached_impl = nullptr;
         {
-            cached_impl = cache.get(updated_params);
+            cached_impl = cache.get(updated_params_no_dyn_pad);
             if (cached_impl) {
                 _impl = cached_impl->clone();
                 GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(true);
@@ -457,13 +465,6 @@ bool primitive_inst::update_impl() {
         if (!cached_impl) {
             if (_dynamic_impl) {
                 auto& compilation_context = get_network().get_program()->get_compilation_context();
-                auto updated_params_no_dyn_pad = updated_params;
-                for (auto& i : updated_params_no_dyn_pad.input_layouts) {
-                    i.data_padding.set_dynamic_pad(tensor(0));
-                }
-                for (auto& o : updated_params_no_dyn_pad.output_layouts) {
-                    o.data_padding.set_dynamic_pad(tensor(0));
-                }
                 compilation_context.push_task(updated_params_no_dyn_pad.hash(), [this, &compilation_context, updated_params_no_dyn_pad]() {
                     if (compilation_context.is_stopped())
                         return;
@@ -487,18 +488,16 @@ bool primitive_inst::update_impl() {
                     _impl = _dynamic_impl->clone();
                     auto new_impl_params = _impl->canonicalize_shapes(*_impl_params);
                     _impl->update_dispatch_data(new_impl_params);
-
                     update_shape_info(new_impl_params);
                 }
             } else {
-                _impl = _node->type()->choose_impl(*_node, updated_params);
+                _impl = _node->type()->choose_impl(*_node, updated_params_no_dyn_pad);
                 if (!can_be_optimized()) {
                     auto& kernels_cache = get_network().get_program()->get_kernels_cache();
-                    auto kernels = kernels_cache.compile(updated_params, _impl->get_kernels_source());
+                    auto kernels = kernels_cache.compile(updated_params_no_dyn_pad, _impl->get_kernels_source());
                     _impl->set_kernels(kernels);
                 }
-                cache.add(updated_params, _impl->clone());
-
+                cache.add(updated_params_no_dyn_pad, _impl->clone());
                 auto new_impl_str = _impl != nullptr ? _impl->get_kernel_name() : "nullptr";
                 GPU_DEBUG_TRACE_DETAIL << id() << ": update impl from " << prev_impl_str << " to " << new_impl_str << std::endl;
             }
@@ -573,6 +572,7 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
         if (_impl_params->output_layouts[0].count() == 0) {
             GPU_DEBUG_TRACE_DETAIL << id() << " : Skipping becuase output data is empty " << std::endl;
             auto ev = get_network().get_stream().create_user_event(true);
+            update_shape_done_by_other = false; // reset
             return ev;
         }
 
