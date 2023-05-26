@@ -52,13 +52,19 @@ void ActivationLayerCPUTest::generate_inputs(const std::vector<ngraph::Shape>& t
     uint32_t range = 0;
     int32_t resolution = 0;
 
-    if (activationType == ngraph::helpers::ActivationTypes::Exp &&
-        netPrecision == InferenceEngine::Precision::BF16) {
+    if (activationType == ActivationTypes::Exp && netPrecision == Precision::BF16) {
         startFrom = 0;
         range = 2;
         resolution = 32768;
-    } else if (activationType == ngraph::helpers::ActivationTypes::Acosh) {
+    } else if (activationType == ActivationTypes::Acosh) {
         startFrom = 2;
+        range = 2;
+        resolution = 128;
+    } else if (activationType == ActivationTypes::Acos ||
+               activationType == ActivationTypes::Asin ||
+               activationType == ActivationTypes::Atanh) {
+        // range [-1. 1] is required
+        startFrom = -1;
         range = 2;
         resolution = 128;
     } else {
@@ -99,12 +105,16 @@ void ActivationLayerCPUTest::SetUp() {
     selectedType = getPrimitiveType() + "_" + netPrecision.name();
 
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-    if (activationType == ngraph::helpers::ActivationTypes::GeluTanh  || // @todo not supported by ACL, can be decomposed with ngraph transformation
-        activationType == ngraph::helpers::ActivationTypes::SoftSign  || // @todo not supported by ACL, can be decomposed with ngraph transformation
+#    if defined(OPENVINO_ARCH_ARM)
+    if (activationType == ngraph::helpers::ActivationTypes::GeluErf) // @todo tmp fallback to ref, gelu erf is disabled for 32bit ARM
+        selectedType = std::string("ref_") + netPrecision.name();
+#    endif
+    if (activationType == ngraph::helpers::ActivationTypes::GeluTanh ||  // @todo not supported by ACL, can be decomposed with ngraph transformation
+        activationType == ngraph::helpers::ActivationTypes::SoftSign ||  // @todo not supported by ACL, can be decomposed with ngraph transformation
         inputShapes.front().first.rank().get_length() > 5)               // @todo tmp fallback to ref, remove after 6D+ ranks are properly supported
         selectedType = std::string("ref_") + netPrecision.name();
 #else
-    if (activationType == ngraph::helpers::ActivationTypes::Log) // @todo tmp fallback to ref, remove after Log is supported in emitters
+    if (activationType == ngraph::helpers::ActivationTypes::Log)  // @todo tmp fallback to ref, remove after Log is supported in emitters
         selectedType = std::string("ref_") + netPrecision.name();
 #endif
 

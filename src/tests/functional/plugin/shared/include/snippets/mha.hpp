@@ -29,22 +29,24 @@ protected:
     void SetUp() override;
 
     void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override;
+    virtual void init_subgraph();
+
+    bool m_with_mul = false;
 };
 
 class MHASelect : public MHA {
 protected:
-    void SetUp() override;
-
     void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override;
+    void init_subgraph() override;
 };
 
 class MHAWOTransposeOnInputs : public MHA {
 protected:
-    void SetUp() override;
+    void init_subgraph() override;
 };
 
 class MHAWOTranspose : public MHA {
-    void SetUp() override;
+    void init_subgraph() override;
 };
 
 } // namespace snippets
