@@ -33,6 +33,10 @@ namespace cldnn {
 struct fully_connected : public primitive_base<fully_connected> {
     CLDNN_DECLARE_PRIMITIVE(fully_connected)
 
+    fully_connected() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     /// @brief Constructs fully connected layer.
     /// @param id This primitive id.
     /// @param input Input primitive id.
@@ -98,6 +102,22 @@ struct fully_connected : public primitive_base<fully_connected> {
         return input_size == rhs_casted.input_size &&
                weights_rank == rhs_casted.weights_rank &&
                bias.empty() == rhs_casted.bias.empty();
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<fully_connected>::save(ob);
+        ob << weights;
+        ob << bias;
+        ob << input_size;
+        ob << weights_rank;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<fully_connected>::load(ib);
+        ib >> weights;
+        ib >> bias;
+        ib >> input_size;
+        ib >> weights_rank;
     }
 
 protected:
