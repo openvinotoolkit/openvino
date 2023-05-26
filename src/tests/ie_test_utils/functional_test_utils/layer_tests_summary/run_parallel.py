@@ -8,7 +8,8 @@ from argparse import ArgumentParser
 from subprocess import Popen, STDOUT, TimeoutExpired, run, call
 from hashlib import sha256
 from pathlib import Path
-from shutil import rmtree
+from shutil import rmtree, copyfile
+from tarfile import open as tar_open
 
 if not constants.IS_WIN:
     from signal import SIGKILL
@@ -205,6 +206,7 @@ class TestParallelRunner:
     def __init__(self, exec_file_path: os.path, test_command_line: list, worker_num: int, working_dir: os.path, cache_path: os.path, is_parallel_devices=False):
         self._exec_file_path = exec_file_path
         self._working_dir = working_dir
+        self._conformance_ir_filelists = list()
         self._command = self.__init_basic_command_line_for_exec_file(test_command_line)
         self._worker_num = worker_num
         if not os.path.exists(self._working_dir):
@@ -239,6 +241,7 @@ class TestParallelRunner:
                     if os.path.isfile(input_path) and file_utils.is_archieve(input_path):
                         input_path = file_utils.unzip_archieve(input_path, self._working_dir)
                     buf = file_utils.prepare_filelist(input_path, ["*.xml"])
+                    self._conformance_ir_filelists.append(buf)
                     buf += ","
                 argument = buf 
             else:
@@ -610,6 +613,8 @@ class TestParallelRunner:
                     logger.error(f"Number of tests in {log}: {test_cnt_real}. Expected is {test_cnt_expected} tests")
                 else:
                     os.remove(log_filename)
+        if len(list(Path(os.path.join(self._working_dir, "temp")).rglob("log_*.log"))) == 0:
+            rmtree(os.path.join(self._working_dir, "temp"))
         for test_name in interapted_tests:
             # update test_cache with tests. If tests is crashed use -1 as unknown time
             time = -1
@@ -642,9 +647,42 @@ class TestParallelRunner:
                 fix_priority.sort(reverse=True)
                 csv_writer = csv.writer(csv_file, dialect='excel')
                 csv_writer.writerow(["Test Name", "Fix Priority"])
+                ir_hashes = list()
                 for priority, name in fix_priority:
                     csv_writer.writerow([name, priority])
+                    if "IR=" in name:
+                        ir_hashes.append(name[name.find('IR=')+3:name.find('_Device=')])
                 logger.info(f"Fix priorities list is saved to: {fix_priority_path}")
+                # Find all irs for failed tests
+                failed_ir_dir = os.path.join(self._working_dir, f'{self._device}_failed_ir')
+                for conformance_ir_filelist in self._conformance_ir_filelists:
+                    with open(conformance_ir_filelist, 'r') as file:
+                        for conformance_ir in file.readlines():
+                            correct_ir = conformance_ir.replace('\n', '')
+                            _, tail = os.path.split(correct_ir)
+                            ir_hash, _ = os.path.splitext(tail)
+                            if ir_hash in ir_hashes:
+                                head, _ = os.path.split(conformance_ir_filelist)
+                                prefix, _ = os.path.splitext(correct_ir)
+                                xml_file = correct_ir
+                                bin_file = prefix + constants.BIN_EXTENSION
+                                meta_file = prefix + constants.META_EXTENSION
+                                
+                                failed_ir_xml = xml_file.replace(head, failed_ir_dir)
+                                failed_ir_bin = bin_file.replace(head, failed_ir_dir)
+                                failed_ir_meta = meta_file.replace(head, failed_ir_dir)
+
+                                dir, _ = os.path.split(failed_ir_xml)
+                                if not os.path.isdir(dir):
+                                    os.makedirs(dir)
+                                copyfile(xml_file, failed_ir_xml)
+                                copyfile(bin_file, failed_ir_bin)
+                                copyfile(meta_file, failed_ir_meta)
+                output_file_name = failed_ir_dir + '.tar'
+                with tar_open(output_file_name, "w:gz") as tar:
+                    tar.add(failed_ir_dir, arcname=os.path.basename(failed_ir_dir))
+                    logger.info(f"All Conformance IRs for failed tests are saved to: {output_file_name}")
+                rmtree(failed_ir_dir)
 
         disabled_tests_path = os.path.join(logs_dir, "disabled_tests.log")
         with open(disabled_tests_path, "w") as disabled_tests_file:

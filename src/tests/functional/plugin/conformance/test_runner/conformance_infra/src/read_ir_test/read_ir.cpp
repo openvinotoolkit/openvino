@@ -120,8 +120,12 @@ void ReadIRTest::query_model() {
         try {
             SubgraphBaseTest::query_model();
             s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::PASSED, rel_influence_coef);
+        } catch (std::exception& err) {
+            s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::FAILED, rel_influence_coef);
+            GTEST_FAIL() << err.what();
         } catch (...) {
             s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::FAILED, rel_influence_coef);
+            GTEST_FAIL() << "Something is wrong in Query model! Please check";
         }
     } else if (jmpRes == CommonTestUtils::JMP_STATUS::alarmErr) {
         s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::HANGED, rel_influence_coef);
