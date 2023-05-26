@@ -108,11 +108,26 @@ If a model contains operations currently unsupported by OpenVINO™,
 prune these operations by explicit specification of input nodes using the ``--input`` or ``--output``
 options. To determine custom input nodes, visualize a model graph in the TensorBoard.
 
-To generate TensorBoard logs of the graph, use the Model Optimizer ``--tensorboard_logs`` command-line
-option.
-
 TensorFlow 2 SavedModel format has a specific graph structure due to eager execution. In case of
 pruning, find custom input nodes in the ``StatefulPartitionedCall/*`` subgraph.
+
+Since the 2023.0 release, direct pruning of models in SavedModel format is not supported.
+It is essential to freeze the model before pruning. Use the following code snippet for model freezing: 
+
+.. code-block:: python 
+
+   import tensorflow as tf
+   from tensorflow.python.framework.convert_to_constants import convert_variables_to_constants_v2
+   saved_model_dir = "./saved_model"
+   imported = tf.saved_model.load(saved_model_dir)
+   # retrieve the concrete function and freeze
+   concrete_func = imported.signatures[tf.saved_model.DEFAULT_SERVING_SIGNATURE_DEF_KEY]
+   frozen_func = convert_variables_to_constants_v2(concrete_func,
+                                                   lower_control_flow=False,
+                                                   aggressive_inlining=True)
+   # retrieve GraphDef and save it into .pb format
+   graph_def = frozen_func.graph.as_graph_def(add_shapes=True)
+   tf.io.write_graph(graph_def, '.', 'model.pb', as_text=False)
 
 Keras H5
 ++++++++

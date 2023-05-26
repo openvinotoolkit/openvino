@@ -26,9 +26,6 @@ automatically and reuses it to significantly reduce the model compilation time.
 
 .. important:: 
 
-   The :doc:`Compile Tool <openvino_inference_engine_tools_compile_tool_README>` may serve the same purpose
-   for C++ applications, but is considered a legacy solution and you should use Model Caching instead.
-
    Not all devices support the network import/export feature. They will perform normally but will not
    enable the compilation stage speed-up.
 
