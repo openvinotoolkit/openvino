@@ -18,6 +18,7 @@
 
 using namespace InferenceEngine;
 using namespace ov;
+using namespace ov::threading;
 
 namespace ov {
 namespace intel_cpu {
@@ -195,12 +196,12 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
 int get_model_prefer_threads(const int num_streams,
                              const std::vector<std::vector<int>> proc_type_table,
                              const std::shared_ptr<ngraph::Function>& ngraphFunc,
-                             const InferenceEngine::IStreamsExecutor::Config streamExecutorConfig) {
+                             const ov::threading::IStreamsExecutor::Config streamExecutorConfig) {
     const int sockets = get_num_numa_nodes();
     auto model_prefer = 0;
     // latency
     if (num_streams <= sockets && num_streams > 0) {
-        if (streamExecutorConfig._threadBindingType == IStreamsExecutor::ThreadBindingType::HYBRID_AWARE) {
+        if (streamExecutorConfig._threadBindingType == ov::threading::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE) {
             bool fp_intesive = !ov::op::util::has_op_with_type<ngraph::op::FakeQuantize>(ngraphFunc);
             const int int8_threshold = 4;  // ~relative efficiency of the VNNI-intensive code for Big vs Little cores;
             const int fp32_threshold = 2;  // ~relative efficiency of the AVX2 fp32 code for Big vs Little cores;
@@ -261,7 +262,7 @@ int get_model_prefer_threads(const int num_streams,
 void get_num_streams(const int streams,
                      const std::shared_ptr<ngraph::Function>& ngraphFunc,
                      Config& config) {
-    InferenceEngine::IStreamsExecutor::Config& executor_config = config.streamExecutorConfig;
+    ov::threading::IStreamsExecutor::Config& executor_config = config.streamExecutorConfig;
     std::vector<int> stream_ids;
     std::string log = "[ streams info ]";
     std::vector<std::string> core_type_str = {" Any core: ", " PCore: ", " ECore: ", " Logical core: "};

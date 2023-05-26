@@ -1,109 +1,89 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
 #include <ie_metric_helpers.hpp>
-#include <precision_utils.h>
+
 #include "exec_network.h"
+
+#include <precision_utils.h>
 #include <low_precision/low_precision.hpp>
+#include <threading/ie_executor_manager.hpp>
 
 #include "async_infer_request.h"
 #include "infer_request.h"
-#include "memory_state.h"
 #include "itt.h"
-#include "openvino/runtime/intel_cpu/properties.hpp"
-#include "serialize.h"
+#include "memory_state.h"
 #include "ngraph/type/element_type.hpp"
 #include "nodes/memory.hpp"
-#include <threading/ie_executor_manager.hpp>
+#include "openvino/runtime/intel_cpu/properties.hpp"
+#include "serialize.h"
 #define FIX_62820 0
 #if FIX_62820 && ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
-#include <threading/ie_tbb_streams_executor.hpp>
+#    include <threading/ie_tbb_streams_executor.hpp>
 #endif
-#include <threading/ie_cpu_streams_executor.hpp>
 #include <ie_system_conf.h>
-#include <ngraph/opsets/opset1.hpp>
-#include <transformations/utils/utils.hpp>
+
+#include <algorithm>
+#include <cstring>
 #include <ie_ngraph_utils.hpp>
-#include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
-#include "ie_icore.hpp"
+#include <ngraph/opsets/opset1.hpp>
+#include <threading/ie_cpu_streams_executor.hpp>
+#include <transformations/utils/utils.hpp>
+#include <unordered_set>
+#include <utility>
+
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
 
-#include <algorithm>
-#include <unordered_set>
-#include <utility>
-#include <cstring>
-
-using namespace InferenceEngine;
-using namespace InferenceEngine::details;
+using namespace ov::threading;
 
 namespace ov {
 namespace intel_cpu {
 
-InferenceEngine::IInferRequestInternal::Ptr
-ExecNetwork::CreateInferRequestImpl(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
-                                    const std::vector<std::shared_ptr<const ov::Node>>& outputs) {
-    if (!this->_plugin || !_plugin->IsNewAPI())
-        return nullptr;
-    return std::make_shared<InferRequest>(inputs, outputs, std::static_pointer_cast<ExecNetwork>(shared_from_this()));
-}
-
-InferenceEngine::IInferRequestInternal::Ptr
-ExecNetwork::CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
-                                    InferenceEngine::OutputsDataMap networkOutputs) {
-    return std::make_shared<LegacyInferRequest>(networkInputs, networkOutputs, std::static_pointer_cast<ExecNetwork>(shared_from_this()));
-}
-
-struct ImmediateSerialExecutor : public ITaskExecutor {
-    void run(InferenceEngine::Task task) override {
+struct ImmediateSerialExecutor : public ov::threading::ITaskExecutor {
+    void run(ov::threading::Task task) override {
         std::lock_guard<std::mutex> l{_mutex};
         task();
     }
     std::mutex _mutex;
 };
 
-ExecNetwork::ExecNetwork(const InferenceEngine::CNNNetwork &network,
-                         const Config &cfg,
-                         const ExtensionManager::Ptr& extMgr,
-                         const std::shared_ptr<InferenceEngine::IInferencePlugin>& plugin) :
-    InferenceEngine::ExecutableNetworkThreadSafeDefault{nullptr, nullptr},
-    extensionManager(extMgr),
-    _network(network),
-    _cfg{cfg},
-    _name{network.getName()} {
-    SetPointerToPlugin(plugin);
-    auto function = network.getFunction();
-    if (function == nullptr) {
-        IE_THROW() << "CPU plug-in doesn't support not ngraph-based model!";
-    }
-    bool isFloatModel = !ov::op::util::has_op_with_type<ngraph::op::FakeQuantize>(function);
+CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
+                             const std::shared_ptr<const ov::IPlugin>& plugin,
+                             const Config& cfg,
+                             const ExtensionManager::Ptr& extMgr)
+    : ov::ICompiledModel::ICompiledModel(model, plugin),
+      _model(model),
+      _plugin(plugin),
+      _cfg{cfg},
+      extensionManager(extMgr),
+      _name{model->get_name()} {
+    bool isFloatModel = !ov::op::util::has_op_with_type<ngraph::op::FakeQuantize>(_model);
 
     _cfg.isNewApi = !isLegacyAPI();
     _mutex = std::make_shared<std::mutex>();
 
     if (_cfg.batchLimit > 1) {
         // check topology for applicability
-        if (!CanProcessDynBatch(_network)) {
+        if (!CanProcessDynBatch(_model)) {
             IE_THROW() << "Graph::CreateGraph: such topology cannot be compiled for dynamic batch!";
         }
     }
 
     if (cfg.exclusiveAsyncRequests) {
         // special case when all InferRequests are muxed into a single queue
-        _taskExecutor = _plugin->executorManager()->getExecutor("CPU");
+        _taskExecutor = _plugin->get_executor_manager()->get_executor("CPU");
     } else {
         auto streamsExecutorConfig =
             is_cpu_map_available()
                 ? _cfg.streamExecutorConfig
-                : InferenceEngine::IStreamsExecutor::Config::MakeDefaultMultiThreaded(_cfg.streamExecutorConfig,
-                                                                                      isFloatModel);
+                : IStreamsExecutor::Config::make_default_multi_threaded(_cfg.streamExecutorConfig, isFloatModel);
         streamsExecutorConfig._name = "CPUStreamsExecutor";
         _cfg.streamExecutorConfig._threads = streamsExecutorConfig._threads;
 #if FIX_62820 && (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
         _taskExecutor = std::make_shared<TBBStreamsExecutor>(streamsExecutorConfig);
 #else
-        _taskExecutor = _plugin->executorManager()->getIdleCPUStreamsExecutor(streamsExecutorConfig);
+        _taskExecutor = _plugin->get_executor_manager()->get_idle_cpu_streams_executor(streamsExecutorConfig);
 #endif
     }
     if (0 != cfg.streamExecutorConfig._streams) {
@@ -111,38 +91,45 @@ ExecNetwork::ExecNetwork(const InferenceEngine::CNNNetwork &network,
         // There is no additional threads but we still need serialize callback execution to preserve legacy behaviour
         _callbackExecutor = std::make_shared<ImmediateSerialExecutor>();
 #else
-        _callbackExecutor = _plugin->executorManager()->getIdleCPUStreamsExecutor(
-                                IStreamsExecutor::Config{"CPUCallbackExecutor", 1, 0, IStreamsExecutor::ThreadBindingType::NONE});
+        _callbackExecutor = _plugin->get_executor_manager()->get_idle_cpu_streams_executor(
+            IStreamsExecutor::Config{"CPUCallbackExecutor", 1, 0, IStreamsExecutor::ThreadBindingType::NONE});
 #endif
     } else {
         _callbackExecutor = _taskExecutor;
     }
+
+    if (_taskExecutor)
+        set_task_executor(_taskExecutor);
+    if (_callbackExecutor)
+        set_callback_executor(_callbackExecutor);
+
     int streams = std::max(1, _cfg.streamExecutorConfig._streams);
-    std::vector<Task> tasks; tasks.resize(streams);
+    std::vector<Task> tasks;
+    tasks.resize(streams);
     _graphs.resize(streams);
     if (_cfg.streamExecutorConfig._streams != 0) {
         auto all_graphs_ready = [&] {
-            return std::all_of(_graphs.begin(), _graphs.end(), [&] (Graph& graph) {
+            return std::all_of(_graphs.begin(), _graphs.end(), [&](Graph& graph) {
                 return graph.IsReady();
             });
         };
         do {
             for (auto&& task : tasks) {
                 task = [this] {
-                    ExecNetwork::GetGraph();
+                    CompiledModel::GetGraph();
                 };
             }
-            _taskExecutor->runAndWait(tasks);
+            _taskExecutor->run_and_wait(tasks);
         } while (!all_graphs_ready());
     } else {
-        ExecNetwork::GetGraph();
+        CompiledModel::GetGraph();
     }
 
     // Save all MemoryLayer data tensors. Will use insight about mechanics
     // of MemoryLayer implementation. It uses output edge of MemoryLayer
     // producer as storage for tensor to keep it between infer calls.
     if (_graphs.size() == 1) {
-        for (auto &node : GetGraph()._graph.GetNodes()) {
+        for (auto& node : GetGraph()._graph.GetNodes()) {
             if (node->getType() == Type::MemoryInput) {
                 auto memoryNode = dynamic_cast<node::MemoryInput*>(node.get());
                 if (!memoryNode) {
@@ -156,19 +143,19 @@ ExecNetwork::ExecNetwork(const InferenceEngine::CNNNetwork &network,
                 if (suffix_idx != std::string::npos)
                     state_name = state_name.substr(0, suffix_idx);
 
-                memoryStates.emplace_back(new VariableState(state_name, state_store));
+                _memory_states.emplace_back(new VariableState(state_name, state_store));
             }
         }
     }
 }
 
-ExecNetwork::GraphGuard::Lock ExecNetwork::GetGraph() const {
+CompiledModel::GraphGuard::Lock CompiledModel::GetGraph() const {
     int streamId = 0;
     int numaNodeId = 0;
-    auto streamsExecutor = dynamic_cast<InferenceEngine::IStreamsExecutor*>(_taskExecutor.get());
+    auto streamsExecutor = dynamic_cast<IStreamsExecutor*>(_taskExecutor.get());
     if (nullptr != streamsExecutor) {
-        streamId = streamsExecutor->GetStreamId();
-        numaNodeId = streamsExecutor->GetNumaNodeId();
+        streamId = streamsExecutor->get_stream_id();
+        numaNodeId = streamsExecutor->get_numa_node_id();
     }
     auto graphLock = GraphGuard::Lock(_graphs[streamId % _graphs.size()]);
     if (!graphLock._graph.IsReady()) {
@@ -182,19 +169,19 @@ ExecNetwork::GraphGuard::Lock ExecNetwork::GetGraph() const {
                     auto weightsCache =
                         _cfg.streamExecutorConfig._streams != 1 ? _numaNodesWeights[numaNodeId] : nullptr;
 
-                    auto isQuantizedFlag =
-                        (_cfg.lpTransformsMode == Config::On) &&
-                        ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(_network.getFunction());
+                    auto isQuantizedFlag = (_cfg.lpTransformsMode == Config::On) &&
+                                           ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(_model);
 
                     ctx = std::make_shared<GraphContext>(_cfg, extensionManager, weightsCache, isQuantizedFlag);
                 }
-                graphLock._graph.CreateGraph(_network, ctx);
+                const std::shared_ptr<const ov::Model> model = _model;
+                graphLock._graph.CreateGraph(model, ctx);
             } catch (...) {
                 exception = std::current_exception();
             }
         };
         if (nullptr != streamsExecutor) {
-            streamsExecutor->Execute(makeGraph);
+            streamsExecutor->execute(makeGraph);
         } else {
             makeGraph();
         }
@@ -205,52 +192,49 @@ ExecNetwork::GraphGuard::Lock ExecNetwork::GetGraph() const {
     return graphLock;
 }
 
-InferenceEngine::IInferRequestInternal::Ptr ExecNetwork::CreateInferRequest() {
-    return CreateAsyncInferRequestFromSync<AsyncInferRequest>();
+std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request() const {
+    _numRequests++;
+    return std::make_shared<SyncInferRequest>(std::static_pointer_cast<const CompiledModel>(shared_from_this()));
 }
 
-std::shared_ptr<ngraph::Function> ExecNetwork::GetExecGraphInfo() {
+std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() const {
+    auto internal_request = create_sync_infer_request();
+    auto async_infer_request =
+        std::make_shared<AsyncInferRequest>(std::static_pointer_cast<SyncInferRequest>(internal_request),
+                                            get_task_executor(),
+                                            get_callback_executor());
+    return async_infer_request;
+}
+
+std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
     if (_graphs.empty())
         IE_THROW() << "No graph was found";
 
     return GetGraph()._graph.dump();
 }
 
-bool ExecNetwork::isLegacyAPI() const {
-    const auto& core = _plugin->GetCore();
+bool CompiledModel::isLegacyAPI() const {
+    const auto& core = _plugin->get_core();
     if (!core)
         IE_THROW() << "Unable to get API version. Core is unavailable";
 
-    return !core->isNewAPI();
+    return !core->is_new_api();
 }
 
-Parameter ExecNetwork::GetConfigLegacy(const std::string &name) const {
+ov::Any CompiledModel::get_property(const std::string& name) const {
     if (_graphs.empty())
         IE_THROW() << "No graph was found";
-    /* legacy implementation return all the parameters which is actually not correct
-     * since they are not reconfigurable. Fixed for new API */
+
     Config engConfig = GetGraph()._graph.getConfig();
     auto option = engConfig._config.find(name);
     if (option != engConfig._config.end()) {
         return option->second;
-    } else {
-        IE_THROW() << "Unsupported ExecutableNetwork config key: " << name;
     }
+
+    return GetMetric(name);
 }
 
-/**
- * Only legacy parameters are supported.
- * No RW peroperties supported for new API.
- * All the RO properties are covered with GetMetric() method and
- * GetConfig() is not expected to be called by new API with params from new configuration API.
- */
-Parameter ExecNetwork::GetConfig(const std::string &name) const {
-    /* Internally legacy parameters are used with new API as part of migration procedure.
-     * This fallback can be removed as soon as migration completed */
-    return GetConfigLegacy(name);
-}
-
-InferenceEngine::Parameter ExecNetwork::GetMetricLegacy(const std::string &name, const GraphGuard& graph) const {
+ov::Any CompiledModel::GetMetricLegacy(const std::string& name, const GraphGuard& graph) const {
     if (name == METRIC_KEY(NETWORK_NAME)) {
         IE_SET_METRIC_RETURN(NETWORK_NAME, graph.dump()->get_friendly_name());
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
@@ -262,7 +246,7 @@ InferenceEngine::Parameter ExecNetwork::GetMetricLegacy(const std::string &name,
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, metrics);
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
         std::vector<std::string> configKeys;
-        for (auto && key : graph.getConfig()._config) {
+        for (auto&& key : graph.getConfig()._config) {
             configKeys.push_back(key.first);
         }
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
@@ -271,14 +255,13 @@ InferenceEngine::Parameter ExecNetwork::GetMetricLegacy(const std::string &name,
         auto option = engConfig._config.find(CONFIG_KEY(CPU_THROUGHPUT_STREAMS));
         IE_ASSERT(option != engConfig._config.end());
         auto streams = std::stoi(option->second);
-        IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, static_cast<unsigned int>(
-            streams ? streams : 1));
+        IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, static_cast<unsigned int>(streams ? streams : 1));
     } else {
-        IE_THROW() << "Unsupported ExecutableNetwork metric: " << name;
+        IE_THROW() << "Unsupported property: " << name;
     }
 }
 
-InferenceEngine::Parameter ExecNetwork::GetMetric(const std::string &name) const {
+ov::Any CompiledModel::GetMetric(const std::string& name) const {
     if (_graphs.empty())
         IE_THROW() << "No graph was found";
     // @todo Can't we just use local copy (_cfg) instead?
@@ -295,7 +278,7 @@ InferenceEngine::Parameter ExecNetwork::GetMetric(const std::string &name) const
     };
 
     if (name == ov::supported_properties) {
-        return std::vector<ov::PropertyName> {
+        return std::vector<ov::PropertyName>{
             RO_property(ov::supported_properties.name()),
             RO_property(ov::model_name.name()),
             RO_property(ov::optimal_number_of_infer_requests.name()),
@@ -322,20 +305,22 @@ InferenceEngine::Parameter ExecNetwork::GetMetric(const std::string &name) const
         return decltype(ov::model_name)::value_type(modelName);
     } else if (name == ov::optimal_number_of_infer_requests) {
         const auto streams = config.streamExecutorConfig._streams;
-        return decltype(ov::optimal_number_of_infer_requests)::value_type(streams); // ov::optimal_number_of_infer_requests has no negative values
+        return decltype(ov::optimal_number_of_infer_requests)::value_type(
+            streams);  // ov::optimal_number_of_infer_requests has no negative values
     } else if (name == ov::num_streams) {
         const auto streams = config.streamExecutorConfig._streams;
-        return decltype(ov::num_streams)::value_type(streams); // ov::num_streams has special negative values (AUTO = -1, NUMA = -2)
+        return decltype(ov::num_streams)::value_type(
+            streams);  // ov::num_streams has special negative values (AUTO = -1, NUMA = -2)
     } else if (name == ov::affinity) {
         const auto affinity = config.streamExecutorConfig._threadBindingType;
         switch (affinity) {
-        case InferenceEngine::IStreamsExecutor::ThreadBindingType::NONE:
+        case IStreamsExecutor::ThreadBindingType::NONE:
             return ov::Affinity::NONE;
-        case InferenceEngine::IStreamsExecutor::ThreadBindingType::CORES:
+        case IStreamsExecutor::ThreadBindingType::CORES:
             return ov::Affinity::CORE;
-        case InferenceEngine::IStreamsExecutor::ThreadBindingType::NUMA:
+        case IStreamsExecutor::ThreadBindingType::NUMA:
             return ov::Affinity::NUMA;
-        case InferenceEngine::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE:
+        case IStreamsExecutor::ThreadBindingType::HYBRID_AWARE:
             return ov::Affinity::HYBRID_AWARE;
         }
         return ov::Affinity::NONE;
@@ -367,33 +352,31 @@ InferenceEngine::Parameter ExecNetwork::GetMetric(const std::string &name) const
         const auto perfHintNumRequests = config.perfHintsConfig.ovPerfHintNumRequests;
         return decltype(ov::hint::num_requests)::value_type(perfHintNumRequests);
     } else if (name == ov::execution_devices) {
-        return decltype(ov::execution_devices)::value_type{_plugin->GetName()};
+        return decltype(ov::execution_devices)::value_type{_plugin->get_device_name()};
     } else if (name == ov::intel_cpu::denormals_optimization) {
-        return decltype(ov::intel_cpu::denormals_optimization)::value_type(config.denormalsOptMode == Config::DenormalsOptMode::DO_On);
+        return decltype(ov::intel_cpu::denormals_optimization)::value_type(config.denormalsOptMode ==
+                                                                           Config::DenormalsOptMode::DO_On);
     } else if (name == ov::intel_cpu::sparse_weights_decompression_rate) {
-        return decltype(ov::intel_cpu::sparse_weights_decompression_rate)::value_type(config.fcSparseWeiDecompressionRate);
+        return decltype(ov::intel_cpu::sparse_weights_decompression_rate)::value_type(
+            config.fcSparseWeiDecompressionRate);
     }
     /* Internally legacy parameters are used with new API as part of migration procedure.
      * This fallback can be removed as soon as migration completed */
     return GetMetricLegacy(name, graph);
 }
 
-bool ExecNetwork::CanProcessDynBatch(const InferenceEngine::CNNNetwork &network) const {
-    InputsDataMap inputs = network.getInputsInfo();
+bool CompiledModel::CanProcessDynBatch(const std::shared_ptr<ov::Model>& model) const {
+    auto inputs = model->inputs();
 
     if (inputs.empty())
         return false;
 
-    auto function = network.getFunction();
-    if (function == nullptr) {
-        IE_THROW() << "CPU plug-in doesn't support not ngraph-based model!";
-    }
-
-    auto ops = function->get_ordered_ops();
+    auto ops = model->get_ordered_ops();
     for (const auto& op : ops) {
         auto type = TypeFromName(op->get_type_name());
         if (type == Type::Tile) {
-            const auto repeatsNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(op->get_input_node_shared_ptr(1));
+            const auto repeatsNode =
+                std::dynamic_pointer_cast<const ngraph::opset1::Constant>(op->get_input_node_shared_ptr(1));
             if (!repeatsNode)
                 return false;
             const auto tile = std::dynamic_pointer_cast<const ngraph::opset1::Tile>(op);
@@ -406,18 +389,9 @@ bool ExecNetwork::CanProcessDynBatch(const InferenceEngine::CNNNetwork &network)
                 continue;
         }
 
-        if (type != Type::Input &&
-            type != Type::Output &&
-            type != Type::Convolution &&
-            type != Type::Deconvolution &&
-            type != Type::Lrn &&
-            type != Type::Pooling &&
-            type != Type::FullyConnected &&
-            type != Type::MatMul &&
-            type != Type::Softmax &&
-            type != Type::Split &&
-            type != Type::Concatenation &&
-                type != Type::Eltwise) {
+        if (type != Type::Input && type != Type::Output && type != Type::Convolution && type != Type::Deconvolution &&
+            type != Type::Lrn && type != Type::Pooling && type != Type::FullyConnected && type != Type::MatMul &&
+            type != Type::Softmax && type != Type::Split && type != Type::Concatenation && type != Type::Eltwise) {
             return false;
         }
     }
@@ -425,10 +399,10 @@ bool ExecNetwork::CanProcessDynBatch(const InferenceEngine::CNNNetwork &network)
     return true;
 }
 
-void ExecNetwork::Export(std::ostream& modelStream) {
-    CNNNetworkSerializer serializer(modelStream, extensionManager);
-    serializer <<_network;
+void CompiledModel::export_model(std::ostream& modelStream) const {
+    ModelSerializer serializer(modelStream, extensionManager);
+    serializer << _model;
 }
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

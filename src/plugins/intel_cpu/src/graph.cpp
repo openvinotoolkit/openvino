@@ -875,21 +875,23 @@ void Graph::Allocate() {
     for (auto& edge : graphEdges) edge->validate();
 }
 
-void Graph::PushInputData(const std::string& name, const InferenceEngine::Blob::Ptr &in) {
+void Graph::PushInputData(const std::string& name, const ov::Tensor &in) {
     if (!IsReady()) IE_THROW()<< "Wrong state. Topology not ready.";
 
     auto input = inputNodesMap.find(name);
     if (input != inputNodesMap.end()) {
-        auto& inTensorDesc = in->getTensorDesc();
+        InferenceEngine::TensorDesc inTensorDesc(InferenceEngine::details::convertPrecision(in.get_element_type()),
+                                                 in.get_shape(),
+                                                 InferenceEngine::TensorDesc::getLayoutByRank(in.get_shape().size()));
         auto node = input->second;
         auto childEdge = node->getChildEdgeAt(0);
         const auto& outDims = node->getOutputShapeAtPort(0);
 
-        const void *ext_data_ptr = in->cbuffer();
+        const void *ext_data_ptr = in.data();
         void *inter_data_ptr = childEdge->getMemory().GetData();
 
         if (ext_data_ptr != inter_data_ptr) {
-            auto ext_tdesc = MemoryDescUtils::convertToDnnlBlockedMemoryDesc(in->getTensorDesc());
+            auto ext_tdesc = MemoryDescUtils::convertToDnnlBlockedMemoryDesc(inTensorDesc);
 
             Memory ext_mem(getEngine());
             ext_mem.Create(ext_tdesc, ext_data_ptr, false);
@@ -911,7 +913,7 @@ void Graph::PushInputData(const std::string& name, const InferenceEngine::Blob::
     }
 }
 
-void Graph::PullOutputData(BlobMap &out) {
+void Graph::PullOutputData(std::unordered_map<std::string, ov::Tensor> &out) {
     if (!IsReady())
         IE_THROW() << "Wrong state. Topology not ready.";
 
@@ -927,8 +929,12 @@ void Graph::PullOutputData(BlobMap &out) {
             IE_THROW(Unexpected) << "The CPU plugin graph doesn't contain output node with name: \"" << name << "\"";
         }
 
+        InferenceEngine::TensorDesc expectedDesc(
+            InferenceEngine::details::convertPrecision(ext_blob.get_element_type()),
+            ext_blob.get_shape(),
+            InferenceEngine::TensorDesc::getLayoutByRank(ext_blob.get_shape().size()));
+
         const auto actualDesc = MemoryDescUtils::convertToTensorDesc(intr_blob.getDesc());
-        auto &expectedDesc = ext_blob->getTensorDesc();
 
         // TODO [NM]: need to create universal reorder which will be detect cases when we really need to use it
         // WA: for cases when output shape after transformation will be 1x1x1x1 but model output is scalar
@@ -944,13 +950,13 @@ void Graph::PullOutputData(BlobMap &out) {
         }
 
         auto outDims = intr_blob.getStaticDims();
-        if (out[name]->getTensorDesc().getDims() != outDims && !isScalarOutput) {
+        if (out[name].get_shape() != outDims && !isScalarOutput) {
             // WA: because input/output info initially contains non empty dims, order etc.
             // and setDims (called inside setShape) can't correct modify blocked desc for desc with blocked layout
             if (expectedDesc.getLayout() == InferenceEngine::Layout::BLOCKED) {
                 expectedDesc = TensorDesc(expectedDesc.getPrecision(), expectedDesc.getLayout());
             }
-            out[name]->setShape(outDims);
+            out[name].set_shape(outDims);
         }
 
         // check for empty output blob
@@ -961,11 +967,11 @@ void Graph::PullOutputData(BlobMap &out) {
         auto srcPrec = actualDesc.getPrecision();
         auto dstPrec = expectedDesc.getPrecision();
 
-        if (getConfig().isNewApi && srcPrec == dstPrec && ext_blob->byteSize() != intr_blob.GetSize())
+        if (getConfig().isNewApi && srcPrec == dstPrec && ext_blob.get_byte_size() != intr_blob.GetSize())
                 IE_THROW() << "Output blob byte size is not equal network output byte size ("
-                                   << ext_blob->byteSize() << "!=" << intr_blob.GetSize() << ").";
+                                   << ext_blob.get_byte_size() << "!=" << intr_blob.GetSize() << ").";
 
-        void *ext_blob_ptr = ext_blob->buffer();
+        void *ext_blob_ptr = ext_blob.data();
         void *intr_blob_ptr = intr_blob.GetData();
 
         // That is the same memory. No need to copy
@@ -997,7 +1003,7 @@ void Graph::PullOutputData(BlobMap &out) {
     }
 }
 
-void Graph::InferStatic(InferRequestBase* request) {
+void Graph::InferStatic(SyncInferRequest* request) {
     dnnl::stream stream(getEngine());
 
     for (const auto& node : executableGraphNodes) {
@@ -1005,7 +1011,7 @@ void Graph::InferStatic(InferRequestBase* request) {
         PERF(node, getConfig().collectPerfCounters);
 
         if (request)
-            request->ThrowIfCanceled();
+            request->throw_if_canceled();
         ExecuteNode(node, stream);
     }
 }
@@ -1206,7 +1212,7 @@ public:
 } // namespace
 
 
-void Graph::InferDynamic(InferRequestBase* request) {
+void Graph::InferDynamic(SyncInferRequest* request) {
     dnnl::stream stream(getEngine());
 
     std::set<size_t> syncIndsWorkSet;
@@ -1234,7 +1240,7 @@ void Graph::InferDynamic(InferRequestBase* request) {
             PERF(node, getConfig().collectPerfCounters);
 
             if (request)
-                request->ThrowIfCanceled();
+                request->throw_if_canceled();
             ExecuteNode(node, stream);
         }
     }
@@ -1253,7 +1259,7 @@ inline void Graph::ExecuteNode(const NodePtr& node, const dnnl::stream& stream) 
     DEBUG_LOG(*node);
 }
 
-void Graph::Infer(InferRequestBase* request) {
+void Graph::Infer(SyncInferRequest* request) {
     if (!IsReady()) {
         IE_THROW() << "Wrong state of the ov::intel_cpu::Graph. Topology is not ready.";
     }
@@ -1355,30 +1361,27 @@ void Graph::SortTopologically() {
     }
 }
 
-void Graph::GetPerfData(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &perfMap) const {
-    unsigned i = 0;
-    std::function<void(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &, const NodePtr&)>
-            getPerfMapFor = [&](std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &perfMap, const NodePtr& node) {
-        InferenceEngine::InferenceEngineProfileInfo &pc = perfMap[node->getName()];
-        pc.execution_index = i++;
-        // TODO: Why time counter is signed?
-        pc.cpu_uSec = pc.realTime_uSec = (long long) node->PerfCounter().avg();
-        pc.status = pc.cpu_uSec > 0 ? InferenceEngine::InferenceEngineProfileInfo::EXECUTED
-                                    : InferenceEngine::InferenceEngineProfileInfo::NOT_RUN;
-        std::string pdType = node->getPrimitiveDescriptorType();
-        size_t typeLen = sizeof(pc.exec_type) / sizeof(pc.exec_type[0]);
-        pdType.copy(pc.exec_type, typeLen, 0);
-        size_t layerTypeLen = sizeof(pc.layer_type) / sizeof(pc.layer_type[0]);
-        node->typeStr.copy(pc.layer_type, layerTypeLen, 0);
+void Graph::GetPerfData(std::vector<ov::ProfilingInfo>& perfMap) const {
+    std::function<void(std::vector<ov::ProfilingInfo>&, const NodePtr&)> getPerfMapFor =
+        [&](std::vector<ov::ProfilingInfo>& perfMap, const NodePtr& node) {
+            ov::ProfilingInfo pc;
+            pc.node_name = node->getName();
+            // pc.execution_index = i++;
+            uint64_t avg_time = node->PerfCounter().avg();
+            pc.cpu_time = pc.real_time = std::chrono::microseconds(avg_time);
+            pc.status = avg_time > 0 ? ov::ProfilingInfo::Status::EXECUTED : ov::ProfilingInfo::Status::NOT_RUN;
+            pc.exec_type = node->getPrimitiveDescriptorType();
+            pc.node_type = node->typeStr;
+            perfMap.emplace_back(pc);
 
-        for (auto& fusedNode : node->fusedWith) {
-            getPerfMapFor(perfMap, fusedNode);
-        }
+            for (auto& fusedNode : node->fusedWith) {
+                getPerfMapFor(perfMap, fusedNode);
+            }
 
-        for (auto& mergedWith : node->mergedWith) {
-            getPerfMapFor(perfMap, mergedWith);
-        }
-    };
+            for (auto& mergedWith : node->mergedWith) {
+                getPerfMapFor(perfMap, mergedWith);
+            }
+        };
 
     for (int i = 0; i < graphNodes.size(); i++) {
         if (graphNodes[i]->isConstant())

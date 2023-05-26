@@ -171,6 +171,12 @@ protected:
      * @brief Throws exception if inference request is busy or canceled
      */
     void check_state() const;
+
+    /**
+     * @brief Throws exception if inference request is canceled
+     */
+    void throw_if_canceled() const;
+
     /**
      * @brief Performs inference of pipeline in syncronous mode
      * @note Used by Infer which ensures thread-safety and calls this method after.

@@ -4,62 +4,70 @@
 
 #pragma once
 
-#include <cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp>
-#include <cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp>
-
-#include "graph.h"
-#include "extension_mngr.h"
-#include "graph_context.h"
-#include <threading/ie_thread_local.hpp>
-
-#include <vector>
-#include <memory>
 #include <map>
+#include <memory>
 #include <string>
+#include <openvino/runtime/threading/thread_local.hpp>
 #include <unordered_map>
+#include <vector>
+
+#include "extension_mngr.h"
+#include "graph.h"
+#include "graph_context.h"
+#include "openvino/runtime/iplugin.hpp"
+#include "openvino/runtime/icompiled_model.hpp"
+#include "openvino/runtime/iinfer_request.hpp"
+#include "openvino/runtime/isync_infer_request.hpp"
 
 namespace ov {
 namespace intel_cpu {
 
-class ExecNetwork: public InferenceEngine::ExecutableNetworkThreadSafeDefault {
+class CompiledModel : public ov::ICompiledModel {
 public:
-    typedef std::shared_ptr<ExecNetwork> Ptr;
+    typedef std::shared_ptr<CompiledModel> Ptr;
 
-    std::shared_ptr<InferenceEngine::IInferRequestInternal>
-    CreateInferRequestImpl(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
-                           const std::vector<std::shared_ptr<const ov::Node>>& outputs) override;
+    CompiledModel(const std::shared_ptr<ov::Model>& model,
+                  const std::shared_ptr<const ov::IPlugin>& plugin,
+                  const Config& cfg,
+                  const ExtensionManager::Ptr& extMgr);
 
-    std::shared_ptr<InferenceEngine::IInferRequestInternal>
-    CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
-                           InferenceEngine::OutputsDataMap networkOutputs) override;
+    std::shared_ptr<ov::IAsyncInferRequest> create_infer_request() const override;
 
-    InferenceEngine::IInferRequestInternal::Ptr CreateInferRequest() override;
+    void export_model(std::ostream& model) const override;
 
-    ExecNetwork(const InferenceEngine::CNNNetwork &network, const Config &cfg,
-                const ExtensionManager::Ptr &extMgr,
-                const std::shared_ptr<InferenceEngine::IInferencePlugin>& plugin);
+    std::shared_ptr<const ov::Model> get_runtime_model() const override;
 
-    InferenceEngine::Parameter GetConfig(const std::string &name) const override;
+    ov::Any get_property(const std::string& name) const override;
 
-    InferenceEngine::Parameter GetMetric(const std::string &name) const override;
-
-    std::shared_ptr<ngraph::Function> GetExecGraphInfo() override;
-
-    void Export(std::ostream& modelStream) override;
+    void set_property(const ov::AnyMap& properties) override {
+        OPENVINO_ASSERT_HELPER(::ov::NotImplemented,
+                               "",
+                               false,
+                               "Not Implemented",
+                               "CompiledModel::set_property is not supported by this plugin!");
+    };
 
 protected:
-    friend class InferRequestBase;
-    ExtensionManager::Ptr extensionManager;
-    std::vector<InferenceEngine::IVariableStateInternal::Ptr> memoryStates;
-    const InferenceEngine::CNNNetwork           _network;
-    // Generic synchronization primitive on ExecNetwork level.
+    std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
+
+protected:
+    friend class SyncInferRequest;
+
+    const std::shared_ptr<ov::Model> _model;
+    std::vector<std::shared_ptr<ov::IVariableState>> _memory_states;
+    const std::shared_ptr<const ov::IPlugin> _plugin;
+    std::shared_ptr<ov::threading::ITaskExecutor> _taskExecutor = nullptr;      //!< Holds a task executor
+    std::shared_ptr<ov::threading::ITaskExecutor> _callbackExecutor = nullptr;  //!< Holds a callback executor
+
+    // Generic synchronization primitive on CompiledModel level.
     // Usage example: helps to avoid data races during CPU Graph initialization in multi-streams scenario
-    mutable std::shared_ptr<std::mutex>         _mutex;
-    Config                                      _cfg;
-    std::atomic_int                             _numRequests = {0};
-    std::string                                 _name;
+    mutable std::shared_ptr<std::mutex> _mutex;
+    Config _cfg;
+    ExtensionManager::Ptr extensionManager;
+    mutable std::atomic_int _numRequests = {0};
+    std::string _name;
     struct GraphGuard : public Graph {
-        std::mutex  _mutex;
+        std::mutex _mutex;
         struct Lock : public std::unique_lock<std::mutex> {
             explicit Lock(GraphGuard& graph) : std::unique_lock<std::mutex>(graph._mutex), _graph(graph) {}
             GraphGuard& _graph;
@@ -67,8 +75,8 @@ protected:
     };
 
     // WARNING: Do not use _graphs directly.
-    mutable std::deque<GraphGuard>              _graphs;
-    mutable NumaNodesWeights                    _numaNodesWeights;
+    mutable std::deque<GraphGuard> _graphs;
+    mutable NumaNodesWeights _numaNodesWeights;
 
     /* WARNING: Use GetGraph() function to get access to graph in current stream.
      * NOTE: Main thread is interpreted as master thread of external stream so use this function to get access to graphs
@@ -76,13 +84,13 @@ protected:
      */
     GraphGuard::Lock GetGraph() const;
 
-    bool CanProcessDynBatch(const InferenceEngine::CNNNetwork &network) const;
+    bool CanProcessDynBatch(const std::shared_ptr<ov::Model> &model) const;
 
     bool isLegacyAPI() const;
 
-    InferenceEngine::Parameter GetConfigLegacy(const std::string &name) const;
-
-    InferenceEngine::Parameter GetMetricLegacy(const std::string &name, const GraphGuard& graph) const;
+    ov::Any GetConfigLegacy(const std::string& name) const;
+    ov::Any GetMetric(const std::string& name) const;
+    ov::Any GetMetricLegacy(const std::string& name, const GraphGuard& graph) const;
 };
 
 }   // namespace intel_cpu
