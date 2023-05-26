@@ -12,6 +12,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <mutex>
 
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/deprecated.hpp"
@@ -36,19 +37,32 @@ struct OPENVINO_API DiscreteTypeInfo {
     const DiscreteTypeInfo* parent;
 
     DiscreteTypeInfo() = default;
-    DiscreteTypeInfo(const DiscreteTypeInfo&) = default;
+    DiscreteTypeInfo(const DiscreteTypeInfo& other) 
+    {
+        name = other.name;
+        version_id = other.version_id;
+        parent = other.parent;
+        hash_value = other.hash_value;
+    };
     DiscreteTypeInfo(DiscreteTypeInfo&&) = default;
-    DiscreteTypeInfo& operator=(const DiscreteTypeInfo&) = default;
+    DiscreteTypeInfo& operator=(const DiscreteTypeInfo& other)
+    {
+        name = other.name;
+        version_id = other.version_id;
+        parent = other.parent;
+        hash_value = other.hash_value;
+        return *this;
+    } ;
 
-    explicit constexpr DiscreteTypeInfo(const char* _name,
-                                        const char* _version_id,
-                                        const DiscreteTypeInfo* _parent = nullptr)
+    DiscreteTypeInfo(const char* _name,
+                     const char* _version_id,
+                     const DiscreteTypeInfo* _parent = nullptr)
         : name(_name),
           version_id(_version_id),
           parent(_parent),
           hash_value(0) {}
 
-    constexpr DiscreteTypeInfo(const char* _name, const DiscreteTypeInfo* _parent = nullptr)
+     DiscreteTypeInfo(const char* _name, const DiscreteTypeInfo* _parent = nullptr)
         : name(_name),
           version_id(nullptr),
           parent(_parent),
@@ -72,6 +86,7 @@ struct OPENVINO_API DiscreteTypeInfo {
     size_t hash();
 
 private:
+    mutable std::mutex _mutex;
     size_t hash_value;
 };
 

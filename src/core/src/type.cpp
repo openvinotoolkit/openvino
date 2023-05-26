@@ -24,6 +24,7 @@ size_t DiscreteTypeInfo::hash() const {
 }
 
 size_t DiscreteTypeInfo::hash() {
+    std::lock_guard<std::mutex> lock(_mutex);
     if (hash_value == 0)
         hash_value = static_cast<const DiscreteTypeInfo*>(this)->hash();
     return hash_value;
