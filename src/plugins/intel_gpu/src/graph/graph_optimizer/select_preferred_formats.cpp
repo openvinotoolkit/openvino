@@ -5,6 +5,7 @@
 #include "pass_manager.h"
 #include "data_inst.h"
 #include "mutable_data_inst.h"
+#include "fully_connected_inst.h"
 #include "gemm_inst.h"
 #include "program_node.h"
 #include "intel_gpu/runtime/engine.hpp"

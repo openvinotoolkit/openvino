@@ -136,6 +136,7 @@ struct roi_pooling : public primitive_base<roi_pooling> {
     }
 
     void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<roi_pooling>::save(ob);
         ob << make_data(&mode, sizeof(pooling_mode));
         ob << position_sensitive;
         ob << pooled_width;
@@ -151,6 +152,7 @@ struct roi_pooling : public primitive_base<roi_pooling> {
     }
 
     void load(BinaryInputBuffer& ib) override {
+        primitive_base<roi_pooling>::load(ib);
         ib >> make_data(&mode, sizeof(pooling_mode));
         ib >> position_sensitive;
         ib >> pooled_width;

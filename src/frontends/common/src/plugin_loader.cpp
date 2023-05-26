@@ -6,8 +6,8 @@
 #    ifndef NOMINMAX
 #        define NOMINMAX
 #    endif
-#    include <Windows.h>
 #    include <direct.h>
+#    include <windows.h>
 #else  // _WIN32
 #    include <dirent.h>
 #    include <dlfcn.h>

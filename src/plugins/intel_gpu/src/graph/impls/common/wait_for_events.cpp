@@ -31,6 +31,7 @@ public:
 
     void init_kernels(const kernels_cache&, const kernel_impl_params&) override {}
     void set_arguments(primitive_inst& /*instance*/) override {}
+    void set_arguments(primitive_inst& /*instance*/, kernel_arguments_data& /*args*/) override {}
     kernel_arguments_data get_arguments(const primitive_inst& /*instance*/) const override {
         kernel_arguments_data args;
         return args;
@@ -77,3 +78,5 @@ attach_prior_box_common::attach_prior_box_common() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::common::wait_for_events_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::data)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::input_layout)
