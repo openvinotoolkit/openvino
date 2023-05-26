@@ -300,6 +300,7 @@ event::ptr primitive_inst::realloc_if_needed() {
         if (concat_inst->can_be_optimized()) {
             concat_inst->realloc_if_needed();
             this->_outputs[0] = concat_inst->_outputs[0];
+            GPU_DEBUG_TRACE_DETAIL << id() << ": use concat user's memory " << this->_outputs[0]->buffer_ptr() << std::endl;
             return ev;
         }
     }
@@ -556,6 +557,7 @@ void primitive_inst::do_runtime_in_place_concat() {
     }
     concat_inst->_impl_params->output_layouts[0] = concat_layout;
     concat_inst->_can_be_optimized = true;
+    GPU_DEBUG_TRACE_DETAIL << concat_inst->id() << ": can_be_optimized " << std::endl;
 }
 
 event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
@@ -568,7 +570,8 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
     if (is_dynamic()) {
         OPENVINO_ASSERT(_node != nullptr, "[GPU] Invalid primitive_inst object for dynamic shapes case: program_node can't be null");
         update_shape();
-        if (_impl_params->output_layouts[0].bytes_count() == 0) {
+        if (_impl_params->output_layouts[0].count() == 0) {
+            GPU_DEBUG_TRACE_DETAIL << id() << " : Skipping becuase output data is empty " << std::endl;
             auto ev = get_network().get_stream().create_user_event(true);
             return ev;
         }
