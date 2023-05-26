@@ -108,9 +108,9 @@ void ov::op::v8::If::validate_and_infer_types() {
                               "The number of values in the If condition constant is greater than 1");
 
         if (val[0]) {
-        validate_and_infer_type_body(get_then_body(), m_input_descriptions[THEN_BODY_INDEX]);
+            validate_and_infer_type_body(get_then_body(), m_input_descriptions[THEN_BODY_INDEX]);
         } else {
-        validate_and_infer_type_body(get_else_body(), m_input_descriptions[ELSE_BODY_INDEX]);
+            validate_and_infer_type_body(get_else_body(), m_input_descriptions[ELSE_BODY_INDEX]);
         }
         auto output_nodes = outputs();
 
