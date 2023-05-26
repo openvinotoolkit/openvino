@@ -7,13 +7,14 @@ import unittest
 
 import numpy as np
 from defusedxml.common import EntitiesForbidden
-from openvino.frontend import FrontEndManager
-from openvino.test_utils import compare_functions
 
+import openvino.tools.mo.utils.ir_reader.extenders.convert_extender
+from openvino.tools.mo.middle.passes.convert_data_type import destination_type_to_np_data_type
 from openvino.tools.mo.middle.passes.infer import type_infer
+from openvino.tools.mo.utils.graph import Node
+from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
+from openvino.tools.mo.utils.ir_reader.extender import Extender
 from openvino.tools.mo.utils.ir_reader.restore_graph import restore_graph_from_ir, save_restored_graph
-
-fem = FrontEndManager()
 
 
 class TestIRReader(unittest.TestCase):
@@ -137,10 +138,26 @@ class TestIRReader(unittest.TestCase):
         os.remove(malformed_ir_file.name)
 
 
+class PatchedConvert_extender(Extender):
+    """
+    Original ConvertExtender contains setting 'stop_value_propagation', and because axis value goes to the Gather
+    through Convert during shape_infer axis turns out to be None and shape_infer fails.
+    For purposes of this unit-test we patch extender so that it will not add 'stop_value_propagation' attr.
+    Outside the unit-test Convert_extender is left unchanged because inserting 'stop_value_propagation'
+    is needed in other cases for CompressQuantizeWeights.
+    See description of openvino/tools/mo/utils/ir_reader/extenders/convert_extender.py
+    """
+    op = 'Convert'
+
+    @staticmethod
+    def extend(op: Node):
+        op['dst_type'] = destination_type_to_np_data_type(op.destination_type)
+
+
 class TestIRSerializeAndRestore(unittest.TestCase):
     test_ir_xml = """<?xml version="1.0"?>
-        <net name="test_ir" version="11">
-        <layers>
+    <net name="test_ir" version="11">
+    <layers>
         <layer id="0" name="input_1" type="Parameter" version="opset1">
             <data shape="1,128" element_type="f32" />
             <output>
@@ -151,7 +168,7 @@ class TestIRSerializeAndRestore(unittest.TestCase):
             </output>
         </layer>
         <layer id="1" name="input_2" type="Parameter" version="opset1">
-            <data shape="4" element_type="i32" />
+            <data shape="10" element_type="i32" />
             <output>
                 <port id="0" precision="I32" names="input_2">
                     <dim>4</dim>
@@ -176,7 +193,9 @@ class TestIRSerializeAndRestore(unittest.TestCase):
             <port id="1" precision="I32">
                 <dim>10</dim>
             </port>
-            <port id="2" precision="I32" />
+            <port id="2" precision="I32">
+                <dim>1</dim>
+            </port>
         </input>
         <output>
             <port id="3" precision="FP32" names="gather">
@@ -193,54 +212,52 @@ class TestIRSerializeAndRestore(unittest.TestCase):
                 </port>
             </input>
         </layer>
-        </layers>
+    </layers>
         
-        <edges>
+    <edges>
         <edge from-layer="0" from-port="0" to-layer="501" to-port="0" />
         <edge from-layer="1" from-port="0" to-layer="501" to-port="1" />
         <edge from-layer="3" from-port="0" to-layer="501" to-port="2" />
         <edge from-layer="501" from-port="3" to-layer="590" to-port="0" />
-        </edges>
-        </net>
-        """
+    </edges>
+    </net>
+    """
 
     def test_save_and_restore(self):
-        orig_ir_dir = tempfile.TemporaryDirectory()
-        original_xml_file = orig_ir_dir.name + '/orig_test.xml'
-        original_bin_file = original_xml_file.replace('.xml', '.bin')
-        with open(original_xml_file, 'wb') as f:
-            f.write(bytes(self.test_ir_xml, 'utf-8'))
-        with open(original_bin_file, 'wb') as f:
-            blob = np.array([0], dtype=np.int32)
-            blob.tofile(f)
+        original_xml_file = tempfile.NamedTemporaryFile(delete=False)
+        original_xml_file.write(bytes(self.test_ir_xml, 'utf-8'))
+        original_xml_file.close()
 
-        graph_orig, _ = restore_graph_from_ir(original_xml_file, original_bin_file)
+        axis_const_blob = np.array([1], dtype=np.int32)
+        original_bin_file = tempfile.NamedTemporaryFile(mode='wb', delete=False)
+        axis_const_blob.tofile(original_bin_file)
+        original_bin_file.close()
+
+        graph_orig, _ = restore_graph_from_ir(original_xml_file.name, original_bin_file.name)
         type_infer(graph_orig)
+        os.remove(original_xml_file.name)
+        os.remove(original_bin_file.name)
 
         restored_ir_dir = tempfile.TemporaryDirectory()
+
         save_restored_graph(graph_orig.copy(), restored_ir_dir.name, {})
-
-        ir_fe = fem.load_by_framework(framework="ir")
-        model_orig = ir_fe.convert(ir_fe.load(original_xml_file))
-        model_restored = ir_fe.convert(ir_fe.load(str(restored_ir_dir.name + '/test_ir.xml')))
-
-        os.remove(original_xml_file)
-        os.remove(original_bin_file)
-        os.removedirs(orig_ir_dir.name)
-
-        os.remove(restored_ir_dir.name + '/test_ir.xml')
-        os.remove(restored_ir_dir.name + '/test_ir.bin')
-        os.remove(restored_ir_dir.name + '/test_ir.mapping')
-        os.removedirs(restored_ir_dir.name)
+        restored_xml_name = restored_ir_dir.name + '/test_ir.xml'
+        restored_bin_name = restored_ir_dir.name + '/test_ir.bin'
 
         # Gather is listed in convert_inputs_of_specific_ops as 'Gather': {2: 'int64'}, but
         # no additional converts will be inserted, because input is int32
-        flag, msg = compare_functions(model_restored, model_orig)
+        graph_restored, _ = restore_graph_from_ir(restored_xml_name, restored_bin_name)
+        os.remove(restored_xml_name)
+        os.remove(restored_bin_name)
+        os.remove(restored_xml_name.replace('xml', 'mapping'))
+        os.removedirs(restored_ir_dir.name)
+
+        flag, msg = compare_graphs(graph_orig, graph_restored, 'result', 'gather/sink_port_0')
         self.assertTrue(flag, msg)
 
     test_ir_xml_with_i8 = """<?xml version="1.0"?>
-        <net name="test_ir" version="11">
-        <layers>
+    <net name="test_ir" version="11">
+    <layers>
         <layer id="0" name="input_1" type="Parameter" version="opset1">
             <data shape="1,128" element_type="f32" />
             <output>
@@ -251,10 +268,10 @@ class TestIRSerializeAndRestore(unittest.TestCase):
             </output>
         </layer>
         <layer id="1" name="input_2" type="Parameter" version="opset1">
-            <data shape="4" element_type="i32" />
+            <data shape="10" element_type="i32" />
             <output>
                 <port id="0" precision="I32" names="input_2">
-                    <dim>4</dim>
+                    <dim>10</dim>
                 </port>
             </output>
         </layer>
@@ -276,7 +293,9 @@ class TestIRSerializeAndRestore(unittest.TestCase):
             <port id="1" precision="I32">
                 <dim>10</dim>
             </port>
-            <port id="2" precision="I32" />
+            <port id="2" precision="I32">
+                <dim>1</dim>
+            </port>
         </input>
         <output>
             <port id="3" precision="FP32" names="gather">
@@ -293,136 +312,144 @@ class TestIRSerializeAndRestore(unittest.TestCase):
                 </port>
             </input>
         </layer>
-        </layers>
+    </layers>
         
-        <edges>
+    <edges>
         <edge from-layer="0" from-port="0" to-layer="501" to-port="0" />
         <edge from-layer="1" from-port="0" to-layer="501" to-port="1" />
         <edge from-layer="3" from-port="0" to-layer="501" to-port="2" />
         <edge from-layer="501" from-port="3" to-layer="590" to-port="0" />
-        </edges>
-        </net>
-        """
+    </edges>
+    </net>
+    """
 
     test_ir_xml_with_convert = """<?xml version="1.0"?>
     <net name="test_ir" version="11">
     <layers>
-    <layer id="0" name="input_1" type="Parameter" version="opset1">
-        <data shape="1,128" element_type="f32" />
-        <output>
-            <port id="0" precision="FP32" names="input_1">
-                <dim>1</dim>
-                <dim>128</dim>
-            </port>
-        </output>
-    </layer>
-    <layer id="1" name="input_2" type="Parameter" version="opset1">
-        <data shape="4" element_type="i32" />
-        <output>
-            <port id="0" precision="I32" names="input_2">
-                <dim>4</dim>
-            </port>
-        </output>
-    </layer>
-    <layer id="3" name="gather_axis" type="Const" version="opset1">
-        <data element_type="i8" shape="1" offset="0" size="1" />
-        <output>
-            <port id="0" precision="I8">
-                <dim>1</dim>
-            </port>
-        </output>
-    </layer>
-    <layer id="583" name="convert" type="Convert" version="opset1">
-        <data destination_type="i64" />
-        <input>
-            <port id="0" precision="I8">
-                <dim>1</dim>
-            </port>
-        </input>
-        <output>
-            <port id="1" precision="I64">
-                <dim>1</dim>
-            </port>
-        </output>
-    </layer>
-    <layer id="501" name="gather" type="Gather" version="opset8">
-    <data batch_dims="0" />
-    <input>
-        <port id="0" precision="FP32">
-            <dim>1</dim>
-            <dim>128</dim>
-        </port>
-        <port id="1" precision="I32">
-            <dim>10</dim>
-        </port>
-        <port id="2" precision="I32" />
-    </input>
-    <output>
-        <port id="3" precision="FP32" names="gather">
-            <dim>1</dim>
-            <dim>10</dim>
-        </port>
-    </output>
-    </layer>
-    <layer id="590" name="result" type="Result" version="opset1">
+        <layer id="0" name="input_1" type="Parameter" version="opset1">
+            <data shape="1,128" element_type="f32" />
+            <output>
+                <port id="0" precision="FP32" names="input_1">
+                    <dim>1</dim>
+                    <dim>128</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="1" name="input_2" type="Parameter" version="opset1">
+            <data shape="10" element_type="i32" />
+            <output>
+                <port id="0" precision="I32" names="input_2">
+                    <dim>10</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="3" name="gather_axis" type="Const" version="opset1">
+            <data element_type="i8" shape="1" offset="0" size="1" />
+            <output>
+                <port id="0" precision="I8">
+                    <dim>1</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="583" name="convert" type="Convert" version="opset1">
+            <data destination_type="i64" />
+            <input>
+                <port id="0" precision="I8">
+                    <dim>1</dim>
+                </port>
+            </input>
+            <output>
+                <port id="1" precision="I64">
+                    <dim>1</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="501" name="gather" type="Gather" version="opset8">
+        <data batch_dims="0" />
         <input>
             <port id="0" precision="FP32">
                 <dim>1</dim>
+                <dim>128</dim>
+            </port>
+            <port id="1" precision="I32">
                 <dim>10</dim>
             </port>
+            <port id="2" precision="I32">
+                <dim>1</dim>
+            </port>
         </input>
-    </layer>
+        <output>
+            <port id="3" precision="FP32" names="gather">
+                <dim>1</dim>
+                <dim>10</dim>
+            </port>
+        </output>
+        </layer>
+        <layer id="590" name="result" type="Result" version="opset1">
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>10</dim>
+                </port>
+            </input>
+        </layer>
     </layers>
     
     <edges>
-    <edge from-layer="0" from-port="0" to-layer="501" to-port="0" />
-    <edge from-layer="1" from-port="0" to-layer="501" to-port="1" />
-    <edge from-layer="3" from-port="0" to-layer="583" to-port="0" />
-    <edge from-layer="583" from-port="1" to-layer="501" to-port="2" />
-    <edge from-layer="501" from-port="3" to-layer="590" to-port="0" />
+        <edge from-layer="0" from-port="0" to-layer="501" to-port="0" />
+        <edge from-layer="1" from-port="0" to-layer="501" to-port="1" />
+        <edge from-layer="3" from-port="0" to-layer="583" to-port="0" />
+        <edge from-layer="583" from-port="1" to-layer="501" to-port="2" />
+        <edge from-layer="501" from-port="3" to-layer="590" to-port="0" />
     </edges>
     </net>
     """
 
     def test_save_and_restore_with_converts(self):
-        orig_ir_dir = tempfile.TemporaryDirectory()
-        original_xml_file = orig_ir_dir.name + '/orig_test.xml'
-        original_bin_file = original_xml_file.replace('.xml', '.bin')
-        with open(original_xml_file, 'wb') as f:
-            f.write(bytes(self.test_ir_xml, 'utf-8'))
-        with open(original_bin_file, 'wb') as f:
-            blob = np.array([0], dtype=np.int32)
-            blob.tofile(f)
+        original_xml_file = tempfile.NamedTemporaryFile(delete=False)
+        original_xml_file.write(bytes(self.test_ir_xml_with_i8, 'utf-8'))
+        original_xml_file.close()
 
-        ref_with_convert_xml_file = orig_ir_dir.name + '/ref_test.xml'
-        ref_with_convert_bin_file = ref_with_convert_xml_file.replace('.xml', '.bin')
-        with open(ref_with_convert_xml_file, 'wb') as f:
-            f.write(bytes(self.test_ir_xml, 'utf-8'))
-        with open(ref_with_convert_bin_file, 'wb') as f:
-            blob = np.array([0], dtype=np.int32)
-            blob.tofile(f)
+        gather_axis_blob = np.array([1], dtype=np.int8)
+        original_bin_file = tempfile.NamedTemporaryFile(mode='wb', delete=False)
+        gather_axis_blob.tofile(original_bin_file)
+        original_bin_file.close()
 
-        graph_orig, _ = restore_graph_from_ir(original_xml_file, original_bin_file)
+        graph_orig, _ = restore_graph_from_ir(original_xml_file.name, original_bin_file.name)
         type_infer(graph_orig)
+        os.remove(original_xml_file.name)
 
         restored_ir_dir = tempfile.TemporaryDirectory()
         save_restored_graph(graph_orig.copy(), restored_ir_dir.name, {})
 
-        ir_fe = fem.load_by_framework(framework="ir")
-        model_orig = ir_fe.convert(ir_fe.load(ref_with_convert_xml_file))
-        model_restored = ir_fe.convert(ir_fe.load(str(restored_ir_dir.name + '/test_ir.xml')))
+        ir_file_with_convert = tempfile.NamedTemporaryFile(delete=False)
+        ir_file_with_convert.write(bytes(self.test_ir_xml_with_convert, 'utf-8'))
+        ir_file_with_convert.close()
 
-        os.remove(original_xml_file)
-        os.remove(original_bin_file)
-        os.remove(ref_with_convert_xml_file)
-        os.remove(ref_with_convert_bin_file)
-        os.removedirs(orig_ir_dir.name)
-        os.remove(restored_ir_dir.name + '/test_ir.xml')
-        os.remove(restored_ir_dir.name + '/test_ir.bin')
-        os.remove(restored_ir_dir.name + '/test_ir.mapping')
-        os.removedirs(restored_ir_dir.name)
+        from openvino.tools.mo.utils.ir_reader.extender import Extender
+
+        if 'Convert' in Extender.registered_ops:
+            Extender.registered_ops['Convert'] = PatchedConvert_extender
+
+        graph_with_convert, _ = restore_graph_from_ir(ir_file_with_convert.name, original_bin_file.name)
+        type_infer(graph_with_convert)
+        os.remove(ir_file_with_convert.name)
+
+        if 'Convert' in Extender.registered_ops:
+            Extender.registered_ops['Convert'] = openvino.tools.mo.utils.ir_reader.extenders.convert_extender.Convert_extender
+
+        restored_xml_file = restored_ir_dir.name + '/test_ir.xml'
+        restored_bin_file = restored_ir_dir.name + '/test_ir.bin'
 
         # Gather is listed in convert_inputs_of_specific_ops as 'Gather': {2: 'int64'},
         # converts from int8 to int64 will be inserted
-        flag, msg = compare_functions(model_restored, model_orig)
+        graph_restored, _ = restore_graph_from_ir(restored_xml_file, restored_bin_file)
+
+        os.remove(original_bin_file.name)
+        os.remove(restored_xml_file)
+        os.remove(restored_bin_file)
+        os.remove(restored_xml_file.replace('xml', 'mapping'))
+        os.removedirs(restored_ir_dir.name)
+
+        flag, msg = compare_graphs(graph_orig, graph_restored, 'result', 'gather/sink_port_0')
         self.assertTrue(flag, msg)
