@@ -35,7 +35,7 @@ it has one input that is split into four ``ResourceGather`` layers. (Click image
    However, as the Model Conversion API does not support such data feeding, you should skip it. Cut
    the edges incoming in ``ResourceGather`` port 1:
 
-   .. code-block:: shell
+   .. code-block:: sh
 
        mo --input_model inference_graph.pb                    \
        --input 1:embedding/embedding_lookup,1:embedding_1/embedding_lookup, \
@@ -47,7 +47,7 @@ it has one input that is split into four ``ResourceGather`` layers. (Click image
 
 Alternatively, you can do steps 2 and 3 in one command line:
 
-.. code-block:: shell
+.. code-block:: sh
 
     mo --input_meta_graph /path/to/model/model.meta        \
     --input 1:embedding/embedding_lookup,1:embedding_1/embedding_lookup, \

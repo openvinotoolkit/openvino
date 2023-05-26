@@ -17,31 +17,31 @@ To download the model for IR conversion, follow the instructions:
 
 2. Go to the ``lm_1b`` directory:
 
-   .. code-block:: shell
+   .. code-block:: sh
 
       cd lm_1b
 
 3. Download the model GraphDef file:
 
-   .. code-block:: shell
+   .. code-block:: sh
 
       wget http://download.tensorflow.org/models/LM_LSTM_CNN/graph-2016-09-10.pbtxt
 
 4. Create new directory to store 12 checkpoint shared files:
 
-   .. code-block:: shell
+   .. code-block:: sh
 
       mkdir ckpt
 
 5. Go to the ``ckpt`` directory:
 
-   .. code-block:: shell
+   .. code-block:: sh
 
       cd ckpt
 
 6. Download 12 checkpoint shared files:
 
-   .. code-block:: shell
+   .. code-block:: sh
 
        wget http://download.tensorflow.org/models/LM_LSTM_CNN/all_shards-2016-09-10/ckpt-base
        wget http://download.tensorflow.org/models/LM_LSTM_CNN/all_shards-2016-09-10/ckpt-char-embedding
@@ -59,7 +59,7 @@ To download the model for IR conversion, follow the instructions:
 
 Once you have downloaded the pretrained model files, you will have the ``lm_1b`` directory with the following hierarchy:
 
-.. code-block:: shell
+.. code-block:: sh
 
     lm_1b/
         graph-2016-09-10.pbtxt
@@ -103,7 +103,7 @@ There is a certain limitation for the model conversion: the original model canno
 To generate the ``lm_1b`` Intermediate Representation (IR), provide TensorFlow ``lm_1b`` model to the
 Model Optimizer with parameters:
 
-.. code-block:: shell
+.. code-block:: sh
 
     mo
     --input_model lm_1b/graph-2016-09-10.pbtxt  \
