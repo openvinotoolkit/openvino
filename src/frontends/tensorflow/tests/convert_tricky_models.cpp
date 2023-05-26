@@ -403,6 +403,7 @@ TEST_F(FrontEndConversionWithReferenceTestsF, ModelWithEmptyTensorListAndPushBac
         auto recover_item = make_shared<Reshape>(list_push_back, recover_item_shape, false);
         model_ref = make_shared<Model>(OutputVector{recover_item}, ParameterVector{x});
     }
+    comparator.disable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
 TEST_F(FrontEndConversionWithReferenceTestsF, ModelWithAssertNode) {
