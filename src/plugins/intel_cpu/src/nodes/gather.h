@@ -25,7 +25,7 @@ public:
     void execute(dnnl::stream strm) override;
     bool created() const override;
     bool isExecutable() const override;
-    void resolveInPlaceEdges() override;
+    void resolveInPlaceEdges(Edge::LOOK look) override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 

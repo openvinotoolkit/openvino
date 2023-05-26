@@ -43,11 +43,14 @@ public:
         No = 2
     };
 
+    enum LOOK { LOOK_UP = 1, LOOK_DOWN = 2, LOOK_BOTH = LOOK_UP | LOOK_DOWN };
+
     inline Status getStatus() const noexcept {
         return status;
     }
 
     void changeStatus(Status state);
+    bool inPlace(LOOK look = LOOK_BOTH) const;
 
     void init();
     void allocate(const void* mem_ptr = nullptr);
@@ -103,10 +106,7 @@ private:
 
     void collectConsumers(std::vector<std::shared_ptr<Node>>& result) const;
 
-    enum LOOK { LOOK_UP = 1, LOOK_DOWN = 2, LOOK_BOTH = LOOK_UP | LOOK_DOWN };
-
     EdgePtr getBaseEdge(int look = LOOK_BOTH);
-    bool inPlace(LOOK look = LOOK_BOTH) const;
     void allocateCommon(const std::function<void(const MemoryPtr&, const MemoryDesc&)>& allocate);
 
     friend class Graph;

@@ -587,8 +587,8 @@ bool Gather::isExecutable() const {
     return !isInPlace() && Node::isExecutable();
 }
 
-void Gather::resolveInPlaceEdges() {
-    if (isInPlace()) {
+void Gather::resolveInPlaceEdges(Edge::LOOK look) {
+    if ((look & Edge::LOOK_UP) && isInPlace()) {
         auto selected_pd = getSelectedPrimitiveDescriptor();
         if (selected_pd == nullptr)
             IE_THROW() << "Preferable primitive descriptor is not set.";
@@ -598,7 +598,7 @@ void Gather::resolveInPlaceEdges() {
         size_t inplaceInpIndx = selected_pd->getConfig().outConfs[outputPort].inPlace();
         auto baseDim = inputShapes.front().getDims()[axis];
         IE_ASSERT(baseDim != Shape::UNDEFINED_DIM) << "Gather node: " << getName() << " can not use inPlace memory with splitting on dynamic dimention";
-        auto parentEdge = getParentEdgesAtPort(inplaceInpIndx).front();
+        auto baseMemMngr = getParentEdgesAtPort(inplaceInpIndx).front()->getMemory().getMemoryMngr();
         auto index = constIndices.at(0);
         ptrdiff_t offset = index < 0 ? baseDim + index : index;
         const auto& childEdges = getChildEdgesAtPort(outputPort);
@@ -606,14 +606,14 @@ void Gather::resolveInPlaceEdges() {
             // IE_ASSERT(parentEdge->getStatus() == Edge::Status::NotAllocated) << "Unexpected edge status in node: " <<
             //     getName() << " with type " << getTypeStr();
 
-            auto memMgr = std::make_shared<PartitionedMemoryMngr>(parentEdge, baseDim, offset);
+            auto memMngr = std::make_shared<PartitionedMemoryMngr>(baseMemMngr, baseDim, offset);
             childEdge->getMemoryPtr().reset(new Memory(getEngine()));
-            childEdge->getMemoryPtr()->Create(config.outConfs[outputPort].getMemDesc(), memMgr);
+            childEdge->getMemoryPtr()->Create(config.outConfs[outputPort].getMemDesc(), memMngr);
 
             childEdge->changeStatus(Edge::Status::Allocated);
         }
     } else {
-        Node::resolveInPlaceEdges();
+        Node::resolveInPlaceEdges(look);
     }
 }
 

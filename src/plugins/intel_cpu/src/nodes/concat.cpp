@@ -625,29 +625,28 @@ void Concat::execRef() {
     }
 }
 
-void Concat::resolveInPlaceEdges() {
-    if (isInPlace()) {
+void Concat::resolveInPlaceEdges(Edge::LOOK look) {
+    if ((look & Edge::LOOK_DOWN) && isInPlace()) {
         auto selected_pd = getSelectedPrimitiveDescriptor();
         if (selected_pd == nullptr)
             IE_THROW() << "Preferable primitive descriptor is not set.";
         auto& config = selected_pd->getConfig();
         size_t numberOfInputs = config.inConfs.size();
         size_t inplaceOutIndx = selected_pd->getConfig().inConfs[0].inPlace();
-        auto childEdge = getChildEdgesAtPort(inplaceOutIndx).front();
+        auto baseMemMngr = getChildEdgesAtPort(inplaceOutIndx).front()->getMemory().getMemoryMngr();
         for (size_t i = 0; i < numberOfInputs; ++i) {
             auto parentEdge = getParentEdgeAt(i);
 
-            // IE_ASSERT(parentEdge->getStatus() == Edge::Status::NotAllocated) << "Unexpected edge status in node: " <<
-            //     getName() << " with type " << getTypeStr();
+            IE_ASSERT(parentEdge->getStatus() == Edge::Status::NotAllocated) << "Unexpected inplace resolve call to an allocated edge: " << parentEdge->name();
 
-            auto memMgr = std::make_shared<PartitionedMemoryMngr>(childEdge, numberOfInputs, i);
+            auto memMngr = std::make_shared<PartitionedMemoryMngr>(baseMemMngr, numberOfInputs, i);
             parentEdge->getMemoryPtr().reset(new Memory(getEngine()));
-            parentEdge->getMemoryPtr()->Create(selected_pd->getConfig().inConfs[i].getMemDesc(), memMgr);
+            parentEdge->getMemoryPtr()->Create(selected_pd->getConfig().inConfs[i].getMemDesc(), memMngr);
 
             parentEdge->changeStatus(Edge::Status::Allocated);
         }
     } else {
-        Node::resolveInPlaceEdges();
+        Node::resolveInPlaceEdges(look);
     }
 }
 

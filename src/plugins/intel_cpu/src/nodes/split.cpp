@@ -522,8 +522,8 @@ void Split::SplitOptimizedExecutor::exec(const uint8_t* srcData, const std::vect
     });
 }
 
-void Split::resolveInPlaceEdges() {
-    if (isInPlace()) {
+void Split::resolveInPlaceEdges(Edge::LOOK look) {
+    if ((look & Edge::LOOK_UP) && isInPlace()) {
         auto selected_pd = getSelectedPrimitiveDescriptor();
         if (selected_pd == nullptr)
             IE_THROW() << "Preferable primitive descriptor is not set.";
@@ -532,7 +532,7 @@ void Split::resolveInPlaceEdges() {
         size_t inplaceInpIndx = selected_pd->getConfig().outConfs[0].inPlace();
         auto baseDim = inputShapes.front().getDims()[axis];
         IE_ASSERT(baseDim != Shape::UNDEFINED_DIM) << "Split node: " << getName() << " can not use inPlace memory with splitting on dynamic dimention";
-        auto parentEdge = getParentEdgesAtPort(inplaceInpIndx).front();
+        auto baseMemMngr = getParentEdgesAtPort(inplaceInpIndx).front()->getMemory().getMemoryMngr();
         ptrdiff_t offset = 0;
         for (size_t i = 0; i < numberOfOutputs; ++i) {
             auto partDim = outputShapes[i].getDims()[axis];
@@ -542,16 +542,16 @@ void Split::resolveInPlaceEdges() {
                 // IE_ASSERT(parentEdge->getStatus() == Edge::Status::NotAllocated) << "Unexpected edge status in node: " <<
                 //     getName() << " with type " << getTypeStr();
 
-                auto memMgr = std::make_shared<PartitionedMemoryMngr>(parentEdge, baseDim, offset, partDim);
+                auto memMngr = std::make_shared<PartitionedMemoryMngr>(baseMemMngr, baseDim, offset, partDim);
                 childEdge->getMemoryPtr().reset(new Memory(getEngine()));
-                childEdge->getMemoryPtr()->Create(selected_pd->getConfig().outConfs[i].getMemDesc(), memMgr);
+                childEdge->getMemoryPtr()->Create(selected_pd->getConfig().outConfs[i].getMemDesc(), memMngr);
 
                 childEdge->changeStatus(Edge::Status::Allocated);
             }
             offset += partDim;
         }
     } else {
-        Node::resolveInPlaceEdges();
+        Node::resolveInPlaceEdges(look);
     }
 }
 

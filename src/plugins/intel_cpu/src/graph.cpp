@@ -764,9 +764,9 @@ static edge_clusters_t findEdgeClusters(const std::vector<EdgePtr> & graphEdges)
 void Graph::AllocateWithReuse() {
     edge_clusters_t edge_clusters = findEdgeClusters(graphEdges);
 
-    size_t edge_clusters_count = edge_clusters.size();
+    size_t remaining_edge_clusters_count = edge_clusters.size();
 
-    for (size_t i = 0; i < edge_clusters_count;) {
+    for (size_t i = 0; i < remaining_edge_clusters_count;) {
         auto &cluster = edge_clusters[i];
         bool erase = false;
         for (auto &edge : cluster) {
@@ -783,21 +783,19 @@ void Graph::AllocateWithReuse() {
         }
 
         if (erase) {
-            std::swap(edge_clusters[i], edge_clusters[edge_clusters_count - 1]);
-            --edge_clusters_count;
+            std::swap(edge_clusters[i], edge_clusters[remaining_edge_clusters_count - 1]);
+            --remaining_edge_clusters_count;
         } else {
             ++i;
         }
     }
 
-    edge_clusters.resize(edge_clusters_count);
-
     const int64_t alignment = 32;  // 32 bytes
 
     std::vector<MemorySolver::Box> definedBoxes;
     std::vector<MemorySolver::Box> undefinedBoxes;
-    for (size_t i = 0; i < edge_clusters.size(); i++) {
-        MemorySolver::Box box = {std::numeric_limits<int>::max(), 0, 0, static_cast<int64_t>(i)};
+    for (int i = 0; i < remaining_edge_clusters_count; i++) {
+        MemorySolver::Box box = { std::numeric_limits<int>::max(), 0, 0, static_cast<int64_t>(i) };
         int64_t boxSize = 0;
         for (auto &edge : edge_clusters[i]) {
             int e_start = edge->getParent()->execIndex;
@@ -939,6 +937,32 @@ void Graph::AllocateWithReuse() {
             }
         }
     }
+
+    // Resolve all other edges with status NotAllocated and in-place
+    for (auto& cluster : edge_clusters) {
+        for (auto& edge : cluster) {
+            if (edge->getStatus() == Edge::Status::NotAllocated) {
+                std::vector<EdgePtr> edges_to_process;
+                edges_to_process.push_back(edge);
+                for (auto next_edge = edge->getSharedEdge(std::nothrow);
+                    next_edge;
+                    next_edge = next_edge->getSharedEdge(std::nothrow)) {
+                    edges_to_process.push_back(next_edge);
+                }
+                std::for_each(edges_to_process.rbegin(), edges_to_process.rend(), [](const EdgePtr& edge){
+                    if (edge->getStatus() == Edge::Status::NotAllocated) {
+                        if (edge->inPlace(Edge::LOOK_DOWN)) {
+                            edge->getChild()->resolveInPlaceEdges(Edge::LOOK_DOWN);
+                        } else if (edge->inPlace(Edge::LOOK_UP)) {
+                            edge->getParent()->resolveInPlaceEdges(Edge::LOOK_UP);
+                        } else {
+                            edge->getMemory();
+                        }
+                    }
+                });
+            }
+        }
+    }
 }
 
 void Graph::Allocate() {
@@ -953,7 +977,7 @@ void Graph::Allocate() {
     AllocateWithReuse();
 
     // Resolve all other edges with status NotAllocated and in-place
-    for (auto& node : graphNodes) node->resolveInPlaceEdges();
+    //for (auto& node : graphNodes) node->resolveInPlaceEdges();
 
     // Check all getters. Should work.
     for (auto& edge : graphEdges) edge->validate();

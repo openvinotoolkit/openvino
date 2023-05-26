@@ -357,7 +357,7 @@ public:
 
     PerfCount &PerfCounter() { return perfCounter; }
 
-    virtual void resolveInPlaceEdges();
+    virtual void resolveInPlaceEdges(Edge::LOOK look = Edge::LOOK_BOTH);
 
     virtual void execute(dnnl::stream strm) = 0;
     void updateShapes();

@@ -369,37 +369,45 @@ bool Node::canBeInPlace() const {
     return true;
 }
 
-void Node::resolveInPlaceEdges() {
+void Node::resolveInPlaceEdges(Edge::LOOK look) {
     const NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
     if (!selected_pd)
         IE_THROW() << "Cannot find selected primitive descriptor for node: " << getName();
-    for (size_t i = 0; i < getParentEdges().size() && i < selected_pd->getConfig().inConfs.size(); i++) {
-        auto parentEdge = getParentEdgeAt(i);
-        auto inplaceOutIndx = selected_pd->getConfig().inConfs[i].inPlace();
+    if (look & Edge::LOOK_DOWN) {
+        for (size_t i = 0; i < getParentEdges().size() && i < selected_pd->getConfig().inConfs.size(); i++) {
+            auto parentEdge = getParentEdgeAt(i);
+            auto inplaceOutIndx = selected_pd->getConfig().inConfs[i].inPlace();
 
-        if (inplaceOutIndx < 0) //parentEdge->getStatus() != Edge::Status::NotAllocated ||
-            continue;
+            if (inplaceOutIndx < 0) //parentEdge->getStatus() != Edge::Status::NotAllocated ||
+                continue;
 
-        auto childEdge = getChildEdgesAtPort(inplaceOutIndx).front();
-        auto memMgr = std::make_shared<PartitionedMemoryMngr>(childEdge);
-        parentEdge->getMemoryPtr().reset(new Memory(getEngine()));
-        parentEdge->getMemoryPtr()->Create(selected_pd->getConfig().inConfs[i].getMemDesc(), memMgr);
+            IE_ASSERT(parentEdge->getStatus() == Edge::Status::NotAllocated) << "Unexpected inplace resolve call to an allocated edge: " << parentEdge->name();
 
-        parentEdge->changeStatus(Edge::Status::Allocated);
+            auto baseMemMngr = getChildEdgesAtPort(inplaceOutIndx)[0]->getMemory().getMemoryMngr();
+            auto memMngr = std::make_shared<PartitionedMemoryMngr>(baseMemMngr);
+            parentEdge->getMemoryPtr().reset(new Memory(getEngine()));
+            parentEdge->getMemoryPtr()->Create(selected_pd->getConfig().inConfs[i].getMemDesc(), memMngr);
+
+            parentEdge->changeStatus(Edge::Status::Allocated);
+        }
     }
-    for (size_t i = 0; i < getChildEdges().size() && i < selected_pd->getConfig().outConfs.size(); i++) {
-        auto childEdge = getChildEdgeAt(i);
-        auto inplaceInpIndx = selected_pd->getConfig().outConfs[i].inPlace();
+    if (look & Edge::LOOK_UP) {
+        for (size_t i = 0; i < getChildEdges().size() && i < selected_pd->getConfig().outConfs.size(); i++) {
+            auto childEdge = getChildEdgeAt(i);
+            auto inplaceInpIndx = selected_pd->getConfig().outConfs[i].inPlace();
 
-        if (inplaceInpIndx < 0) //childEdge->getStatus() != Edge::Status::NotAllocated ||
-            continue;
+            if (inplaceInpIndx < 0) //childEdge->getStatus() != Edge::Status::NotAllocated ||
+                continue;
 
-        auto parentEdge = getParentEdgesAtPort(inplaceInpIndx).front();
-        auto memMgr = std::make_shared<PartitionedMemoryMngr>(parentEdge);
-        childEdge->getMemoryPtr().reset(new Memory(getEngine()));
-        childEdge->getMemoryPtr()->Create(selected_pd->getConfig().outConfs[i].getMemDesc(), memMgr);
+            IE_ASSERT(childEdge->getStatus() == Edge::Status::NotAllocated) << "Unexpected inplace resolve call to an allocated edge: " << childEdge->name();
 
-        childEdge->changeStatus(Edge::Status::Allocated);
+            auto baseMemMngr = getParentEdgesAtPort(inplaceInpIndx).front()->getMemory().getMemoryMngr();
+            auto memMngr = std::make_shared<PartitionedMemoryMngr>(baseMemMngr);
+            childEdge->getMemoryPtr().reset(new Memory(getEngine()));
+            childEdge->getMemoryPtr()->Create(selected_pd->getConfig().outConfs[i].getMemDesc(), memMngr);
+
+            childEdge->changeStatus(Edge::Status::Allocated);
+        }
     }
 }
 

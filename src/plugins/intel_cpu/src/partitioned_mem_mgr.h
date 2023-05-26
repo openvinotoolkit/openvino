@@ -4,15 +4,17 @@
 
 #pragma once
 
-#include "edge.h"
+#include "cpu_memory.h"
 
 namespace ov {
 namespace intel_cpu {
 
 class PartitionedMemoryMngr : public IMemoryMngrObserver {
 public:
-    PartitionedMemoryMngr(EdgePtr pEdge, size_t total_blocks = 1, ptrdiff_t offset_blocks = 0, size_t size_blocks = 1)
-        : m_wEdge(pEdge), m_total_blocks(total_blocks), m_offset_blocks(offset_blocks), m_size_blocks(size_blocks) {}
+    PartitionedMemoryMngr(MemoryMngrPtr pMngr, size_t total_blocks = 1, ptrdiff_t offset_blocks = 0, size_t size_blocks = 1)
+        : m_pMngr(pMngr), m_total_blocks(total_blocks), m_offset_blocks(offset_blocks), m_size_blocks(size_blocks) {
+        IE_ASSERT(m_pMngr) << "Memory manager is uninitialized";
+    }
 
     void* getRawPtr() const noexcept override;
     void setExtBuff(void* ptr, size_t size) override;
@@ -22,11 +24,7 @@ public:
     void unregisterMemory(Memory* memPtr) override;
 
 private:
-    MemoryMngrPtr sourceMemMngr() const;
-    MemoryMngrPtr sourceMemMngrNoThrow() const noexcept;
-
-private:
-    EdgeWeakPtr m_wEdge;
+    MemoryMngrPtr m_pMngr;
     size_t m_total_blocks = 1; // size of the parent memory in blocks
     ptrdiff_t m_offset_blocks = 0; // offset from the base pointer in blocks
     size_t m_size_blocks = 1; // size of the partition in blocks
