@@ -2,6 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+set(_old_CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
+set(_old_CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ${CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE})
+
 # Android toolchain does not provide pkg-config file. So, cmake mistakenly uses
 # build system pkg-config executable, which finds packages on build system. Such
 # libraries cannot be linked into Android binaries.
@@ -669,3 +672,8 @@ endif()
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/cnpy
         DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
         COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES})
+
+# restore state
+
+set(CMAKE_CXX_FLAGS "${_old_CMAKE_CXX_FLAGS}")
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ${_old_CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE})
