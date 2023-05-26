@@ -161,17 +161,7 @@ void ov::op::util::MultiSubGraphOp::validate_and_infer_type_body(
         body_parameter->set_partial_shape(input_partial_shape);
         body_parameter->set_element_type(dtype);
     }
-    try {
-        body->validate_nodes_and_infer_types();
-    } catch (std::exception& e) {
-        if (m_bodies.size() > 1) {
-            // If one body cannot be validated it may mean that it is not needed and will be removed on future stages
-            OPENVINO_DEBUG << "Exception happened during validation of one of the body of MultiSubGraphOp: " << e.what()
-                           << '\n';
-        } else {
-            throw e;
-        }
-    }
+    body->validate_nodes_and_infer_types();
 }
 
 ov::op::util::MultiSubGraphOp::OutputMap ov::op::util::MultiSubGraphOp::get_mapping_outputs_on_body_description(
