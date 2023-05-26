@@ -38,7 +38,7 @@ target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
-ie_mark_target_as_cc(${TARGET_NAME})
+ov_mark_target_as_cc(${TARGET_NAME})
 
 ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
                     SOURCE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include"

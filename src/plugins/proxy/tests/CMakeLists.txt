@@ -23,7 +23,7 @@ ov_add_test_target(
         PROXY_PLUGIN
 )
 
-target_compile_definitions(${TARGET_NAME} PRIVATE CI_BUILD_NUMBER=\"${CI_BUILD_NUMBER}\")
+target_compile_definitions(${TARGET_NAME} PRIVATE CI_BUILD_NUMBER=\"mock_version\")
 
 target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../include)
 
