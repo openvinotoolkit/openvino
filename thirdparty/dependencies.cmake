@@ -302,7 +302,10 @@ if(ENABLE_GAPI_PREPROCESSING)
     # ade
     find_package(ade 0.1.0 QUIET)
     if(ade_FOUND)
-        # conan and vcpkg create 'ade' target, no extra steps are required
+        # conan and vcpkg create 'ade' target
+        # we just need to remove non-numerical symbols from version,
+        # because conan defines it as 0.1.2a, which is invalid in cmake
+        string(REGEX REPLACE "[a-z]" "" ade_VERSION "${ade_VERSION}")
     else()
         add_subdirectory(thirdparty/ade EXCLUDE_FROM_ALL)
 
