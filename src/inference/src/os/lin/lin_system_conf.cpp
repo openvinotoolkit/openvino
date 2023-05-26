@@ -83,6 +83,7 @@ CPU::CPU() {
             _cores = _processors;
         }
     }
+    _org_proc_type_table = _proc_type_table;
     std::vector<std::vector<std::string>>().swap(system_info_table);
 }
 

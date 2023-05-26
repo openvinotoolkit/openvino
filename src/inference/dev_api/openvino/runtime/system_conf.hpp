@@ -163,6 +163,13 @@ OPENVINO_RUNTIME_API int get_num_numa_nodes();
 OPENVINO_RUNTIME_API std::vector<std::vector<int>> get_proc_type_table();
 
 /**
+ * @brief      Returns a table of original number of processor types on Linux/Windows
+ * @ingroup    ie_dev_api_system_conf
+ * @return     A table about number of CPU cores of different types defined with ColumnOfProcessorTypeTable
+ */
+OPENVINO_RUNTIME_API std::vector<std::vector<int>> get_org_proc_type_table();
+
+/**
  * @enum       ColumnOfProcessorTypeTable
  * @brief      This enum contains definition of each columns in processor type table which bases on cpu core types. Will
  * extend to support other CPU core type like ARM.
@@ -206,7 +213,7 @@ enum ProcessorUseStatus {
  * @return     Array of available cpu ids.
  */
 OPENVINO_RUNTIME_API std::vector<std::vector<int>> reserve_available_cpus(
-    const std::vector<std::vector<int>> streams_info_table);
+    const std::vector<std::vector<int>> streams_info_table, const int cpu_status = NOT_USED);
 
 /**
  * @brief      Set CPU_MAP_USED_FLAG of cpu_mapping

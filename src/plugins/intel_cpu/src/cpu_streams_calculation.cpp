@@ -262,13 +262,8 @@ void get_num_streams(const int streams,
                      const std::shared_ptr<ngraph::Function>& ngraphFunc,
                      Config& config) {
     InferenceEngine::IStreamsExecutor::Config& executor_config = config.streamExecutorConfig;
-    std::vector<int> stream_ids;
-    std::string log = "[ streams info ]";
-    std::vector<std::string> core_type_str = {" Any core: ", " PCore: ", " ECore: ", " Logical core: "};
-
-    std::vector<std::vector<int>> orig_proc_type_table = get_proc_type_table();
-    std::vector<std::vector<int>> proc_type_table =
-        apply_scheduling_core_type(config.schedulingCoreType, orig_proc_type_table);
+    std::vector<std::vector<int>> proc_type_table = get_proc_type_table();
+    proc_type_table = apply_scheduling_core_type(config.schedulingCoreType, proc_type_table);
     proc_type_table = apply_hyper_threading(config.enableHyperThreading, config.changedHyperThreading, proc_type_table);
     executor_config._proc_type_table = proc_type_table;
     executor_config._cpu_pinning = get_cpu_pinning(config.enableCpuPinning,
@@ -284,20 +279,6 @@ void get_num_streams(const int streams,
                                                                  proc_type_table);
     executor_config = InferenceEngine::IStreamsExecutor::Config::reserve_cpu_threads(executor_config);
     executor_config._threadsPerStream = executor_config._streams_info_table[0][THREADS_PER_STREAM];
-    // executor_config._streams = 0;
-    // executor_config._threads = 0;
-    // for (int i = 0; i < executor_config._streams_info_table.size(); i++) {
-    //     executor_config._streams += executor_config._streams_info_table[i][NUMBER_OF_STREAMS];
-    //     executor_config._threads += executor_config._streams_info_table[i][NUMBER_OF_STREAMS] *
-    //                                 executor_config._streams_info_table[i][THREADS_PER_STREAM];
-    //     stream_ids.insert(stream_ids.end(), executor_config._streams_info_table[i][NUMBER_OF_STREAMS], i);
-    //     log += core_type_str[executor_config._streams_info_table[i][PROC_TYPE]] +
-    //            std::to_string(executor_config._streams_info_table[i][NUMBER_OF_STREAMS]) + "(" +
-    //            std::to_string(executor_config._streams_info_table[i][THREADS_PER_STREAM]) + ")";
-    // }
-    // executor_config._stream_ids = stream_ids;
-    // log += " Total: " + std::to_string(executor_config._streams) + "(" + std::to_string(executor_config._threads) + ")";
-    // DEBUG_LOG(log);
 }
 }  // namespace intel_cpu
 }  // namespace ov

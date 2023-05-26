@@ -23,10 +23,11 @@ public:
     int _processors = 0;
     int _numa_nodes = 0;
     int _cores = 0;
+    std::vector<std::vector<int>> _org_proc_type_table;
     std::vector<std::vector<int>> _proc_type_table;
     std::vector<std::vector<int>> _cpu_mapping_table;
     std::mutex _cpu_mutex;
-    int _plugin_status = PLUGIN_USED_START;
+    std::mutex _plugin_mutex;
     int _socket_idx = 0;
     int _num_threads = 0;
 };

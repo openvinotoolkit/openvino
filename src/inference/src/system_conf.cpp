@@ -18,6 +18,7 @@
 #include "openvino/core/visibility.hpp"
 #include "streams_executor.hpp"
 #include "threading/ie_cpu_streams_info.hpp"
+#include "openvino/util/log.hpp"
 
 #define XBYAK_NO_OP_NAMES
 #define XBYAK_UNDEF_JNL
@@ -173,13 +174,17 @@ int get_number_of_logical_cpu_cores(bool) {
 std::vector<std::vector<int>> get_proc_type_table() {
     return {{-1}};
 }
+std::vector<std::vector<int>> get_org_proc_type_table() {
+    return {{-1}};
+}
 bool is_cpu_map_available() {
     return false;
 }
 int get_num_numa_nodes() {
     return -1;
 }
-std::vector<std::vector<int>> reserve_available_cpus(const std::vector<std::vector<int>> streams_info_table) {
+std::vector<std::vector<int>> reserve_available_cpus(const std::vector<std::vector<int>> streams_info_table,
+                                                     const int cpu_status) {
     return {{-1}};
 }
 void set_cpu_used(const std::vector<int>& cpu_ids, const int used) {}
@@ -235,6 +240,11 @@ std::vector<std::vector<int>> get_proc_type_table() {
     return cpu._proc_type_table;
 }
 
+std::vector<std::vector<int>> get_org_proc_type_table() {
+    CPU& cpu = cpu_info();
+    return cpu._org_proc_type_table;
+}
+
 bool is_cpu_map_available() {
     CPU& cpu = cpu_info();
     std::lock_guard<std::mutex> lock{cpu._cpu_mutex};
@@ -245,13 +255,16 @@ int get_num_numa_nodes() {
     return cpu_info()._numa_nodes;
 }
 
-std::vector<std::vector<int>> reserve_available_cpus(const std::vector<std::vector<int>> streams_info_table) {
+std::vector<std::vector<int>> reserve_available_cpus(const std::vector<std::vector<int>> streams_info_table,
+                                                     const int cpu_status) {
     CPU& cpu = cpu_info();
     int info_table_size = static_cast<int>(streams_info_table.size());
     std::vector<std::vector<int>> stream_ids;
     std::vector<std::vector<std::vector<int>>> res_stream_ids;
+    std::vector<int> cpu_ids;
 
-    std::lock_guard<std::mutex> lock{cpu._cpu_mutex};
+    std::lock_guard<std::mutex> lock{cpu._plugin_mutex};
+
     stream_ids.assign(info_table_size, std::vector<int>());
     res_stream_ids.assign(info_table_size, std::vector<std::vector<int>>());
 
@@ -261,6 +274,7 @@ std::vector<std::vector<int>> reserve_available_cpus(const std::vector<std::vect
                 if (cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE] == streams_info_table[j][PROC_TYPE] &&
                     cpu._cpu_mapping_table[i][CPU_MAP_USED_FLAG] == NOT_USED) {
                     stream_ids[j].push_back(cpu._cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID]);
+                    cpu_ids.push_back(cpu._cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID]);
                 }
                 if (static_cast<int>(stream_ids[j].size()) == streams_info_table[j][THREADS_PER_STREAM]) {
                     std::vector<int> stream_group(stream_ids[j].begin(), stream_ids[j].end());
@@ -269,6 +283,9 @@ std::vector<std::vector<int>> reserve_available_cpus(const std::vector<std::vect
                 }
             }
         }
+    }
+    if (cpu_status > NOT_USED) {
+        set_cpu_used(cpu_ids, cpu_status);
     }
     auto flatten_stream_ids =
         std::accumulate(res_stream_ids.begin(),
@@ -279,6 +296,26 @@ std::vector<std::vector<int>> reserve_available_cpus(const std::vector<std::vect
                             return pre;
                         });
 
+    OPENVINO_DEBUG << "[ threading ] cpu_mapping_table:";
+    for (size_t i = 0; i < cpu._cpu_mapping_table.size(); i++) {
+        OPENVINO_DEBUG << cpu._cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID] << " "
+                       << cpu._cpu_mapping_table[i][CPU_MAP_SOCKET_ID] << " "
+                       << cpu._cpu_mapping_table[i][CPU_MAP_CORE_ID] << " "
+                       << cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE] << " "
+                       << cpu._cpu_mapping_table[i][CPU_MAP_GROUP_ID] << " "
+                       << cpu._cpu_mapping_table[i][CPU_MAP_USED_FLAG];
+    }
+    OPENVINO_DEBUG << "[ threading ] proc_type_table:";
+    for (size_t i = 0; i < cpu._proc_type_table.size(); i++) {
+        OPENVINO_DEBUG << cpu._proc_type_table[i][ALL_PROC] << " " << cpu._proc_type_table[i][MAIN_CORE_PROC] << " "
+                       << cpu._proc_type_table[i][EFFICIENT_CORE_PROC] << " "
+                       << cpu._proc_type_table[i][HYPER_THREADING_PROC];
+    }
+    OPENVINO_DEBUG << "[ threading ] streams_info_table:";
+    for (size_t i = 0; i < streams_info_table.size(); i++) {
+        OPENVINO_DEBUG << streams_info_table[i][NUMBER_OF_STREAMS] << " " << streams_info_table[i][PROC_TYPE] << " "
+                       << streams_info_table[i][THREADS_PER_STREAM];
+    }
     return flatten_stream_ids;
 }
 
