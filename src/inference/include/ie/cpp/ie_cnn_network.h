@@ -9,6 +9,16 @@
  */
 #pragma once
 
+#if !defined(IN_OV_COMPONENT) && !defined(IE_LEGACY_HEADER_INCLUDED)
+#    define IE_LEGACY_HEADER_INCLUDED
+#    ifdef _MSC_VER
+#        pragma message( \
+            "The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    else
+#        warning("The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    endif
+#endif
+
 #include <map>
 #include <memory>
 #include <string>
@@ -28,7 +38,7 @@ class IExtension;
 /**
  * @brief This class contains all the information about the Neural Network and the related binary information
  */
-class INFERENCE_ENGINE_API_CLASS(CNNNetwork) {
+class INFERENCE_ENGINE_1_0_DEPRECATED INFERENCE_ENGINE_API_CLASS(CNNNetwork) {
 public:
     /**
      * @brief A default constructor
@@ -44,7 +54,6 @@ public:
      */
     INFERENCE_ENGINE_DEPRECATED("Don't use this constructor. It will be removed soon")
     explicit CNNNetwork(std::shared_ptr<ICNNNetwork> network);
-    IE_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief A constructor from ngraph::Function object
@@ -55,6 +64,7 @@ public:
      */
     explicit CNNNetwork(const std::shared_ptr<ngraph::Function>& network,
                         const std::vector<std::shared_ptr<IExtension>>& exts = {});
+    IE_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief Gets the network output Data node information. The received info is stored in the given Data node.

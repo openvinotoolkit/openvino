@@ -51,7 +51,7 @@ bool AclEltwiseExecutorBuilder::isSupported(const EltwiseAttrs& eltwiseAttrs,
 //            case Algorithm::EltwisePowerDynamic: // TODO: ACL version doesn't work https://github.com/ARM-software/ComputeLibrary/issues/1047
         case Algorithm::EltwiseSoftRelu:
         case Algorithm::EltwiseClamp:
-        //case Algorithm::EltwiseSwish: // TODO: efficientdet-d0 accuracy drops if ACL Swish is used
+        case Algorithm::EltwiseSwish: // TODO: CVS-109354: efficientdet-d0 accuracy drops if ACL Swish is used
         case Algorithm::EltwisePrelu:
         case Algorithm::EltwiseHswish:
             if (!(checkPrecision({Precision::FP16, Precision::FP16}, Precision::FP16) ||

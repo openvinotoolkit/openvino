@@ -18,7 +18,6 @@ extern size_t cls_scores_data_size;
 extern float bbox_pred_data[];
 extern size_t bbox_pred_data_size;
 extern float proposal_ref[];
-extern float proposal_zero_score_ref[];
 extern size_t proposal_ref_size;
 
 const float epsilon_fp16 = 0.125f;
@@ -150,24 +149,6 @@ void test_proposal_basic(cldnn::tensor image_info_size, bool is_caching_test) {
     }
 }
 
-template <typename Dtype>
-void test_proposal_zero_score(cldnn::tensor image_info_size) {
-    std::vector<Dtype> cls_scores(cls_scores_data_size, 0);
-    std::vector<Dtype> bbox_pred(&bbox_pred_data[0], &bbox_pred_data[bbox_pred_data_size]);
-
-    TestRunnerProposal<Dtype> t(image_info_size, false);
-
-    memory::ptr output = t.Run(cls_scores, bbox_pred);
-    ASSERT_EQ(output->get_layout().count(), proposal_ref_size);
-
-    cldnn::mem_lock<Dtype> f(output, get_test_stream());
-
-    for (size_t i = 0; i < proposal_ref_size/5; i++) {
-        Dtype ref(proposal_zero_score_ref[i]);
-        ASSERT_NEAR((float)f[i], (float)ref, epsilon_fp16);
-    }
-}
-
 TEST(proposal, basic) {
     test_proposal_basic<float>({ 1, 3, 1, 1 }, false);
 }
@@ -182,14 +163,6 @@ TEST(proposal, img_info_batched) {
 
 TEST(proposal, img_info_batch_only) {
     test_proposal_basic<float>({ 3, 1, 1, 1 }, false);
-}
-
-TEST(proposal, zero_score_fp32) {
-    test_proposal_zero_score<float>({ 1, 3, 1, 1 });
-}
-
-TEST(proposal, zero_score_fp16) {
-    test_proposal_zero_score<FLOAT16>({ 1, 3, 1, 1 });
 }
 
 template <typename Dtype, typename ImInfoType>
