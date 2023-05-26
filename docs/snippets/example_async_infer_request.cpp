@@ -2,9 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#ifndef IN_OV_COMPONENT
+#    define IN_OV_COMPONENT
+#    define WAS_OV_LIBRARY_DEFINED
+#endif
+
 #include <threading/ie_itask_executor.hpp>
 #include <cpp_interfaces/impl/ie_infer_async_request_thread_safe_default.hpp>
 #include <memory>
+
+#ifdef WAS_OV_LIBRARY_DEFINED
+#    undef IN_OV_COMPONENT
+#    undef WAS_OV_LIBRARY_DEFINED
+#endif
 
 using namespace InferenceEngine;
 
