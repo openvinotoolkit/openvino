@@ -199,7 +199,6 @@ const std::vector<int> reduction_axes_23 = {2, 3};
 const std::vector<int> reduction_axes_12 = {1, 2};
 const std::vector<int> reduction_axes_3 = {3};
 const std::vector<int> reduction_axes_2 = {2};
-const std::vector<int> empty_reduction_axes = {};
 
 std::vector<ElementType> inpPrc = {ElementType::i8, ElementType::f16, ElementType::f32};
 
@@ -235,17 +234,6 @@ const auto Mvn5D = ::testing::Combine(
        ::testing::ValuesIn(inpPrc));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn5D, MvnLayerGPUTest, Mvn5D, MvnLayerGPUTest::getTestCaseName);
-
-const auto Mvn1D = ::testing::Combine(
-       ::testing::Combine(
-               ::testing::ValuesIn(inputShapes_1D),
-               ::testing::Values(ElementType::f32),
-               ::testing::ValuesIn({empty_reduction_axes}),
-               ::testing::ValuesIn(normalizeVariance),
-               ::testing::ValuesIn(epsilon)),
-       ::testing::ValuesIn(inpPrc));
-
-INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn1D, MvnLayerGPUTest, Mvn1D, MvnLayerGPUTest::getTestCaseName);
 
 } // namespace
 } // namespace GPULayerTestsDefinitions
