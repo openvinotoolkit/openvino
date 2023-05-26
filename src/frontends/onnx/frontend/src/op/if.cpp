@@ -65,8 +65,8 @@ OutputVector if_op(const Node& node) {
                        std::end(then_branch_inputs_from_parent),
                        from_parent) == 0) {
             if_node->set_input(from_parent, nullptr, *else_param);
-            else_param++;
         }
+        else_param++;
     }
 
     NGRAPH_CHECK(then_branch->get_results().size() == else_branch->get_results().size(),
