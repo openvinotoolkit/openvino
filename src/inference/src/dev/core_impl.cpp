@@ -734,13 +734,13 @@ ov::AnyMap ov::CoreImpl::get_supported_property(const std::string& full_device_n
         // Considerations:
         // 1. in case of virtual devices all the magic will happen on the level when
         // virtual device calls ICore::get_supported_property for real HW devices
-        // so, for now we can returns user properties almost as is without any
+        // so, for now we can return user properties almost as is without any
         // filtering / flattening
         // 2. The only exception here: while common properties like ov::num::streams or
         // ov::hint::performance_mode are shared across all the devices, the
         // ov::device::priority cannot be shared, because it's specific for current virtual
         // plugin. So, we need to remove ov::device::priorities from the list, because it's
-        // supposed to be set for current virtual plugin and cannot be propogated down
+        // supposed to be set for current virtual plugin and cannot be propagated down
         ov::AnyMap return_properties = user_properties;
         auto device_priorities_it = return_properties.find(ov::device::priorities.name());
         if (device_priorities_it != return_properties.end()) {
@@ -835,7 +835,7 @@ std::shared_ptr<const ov::Model> ov::CoreImpl::apply_auto_batching(const std::sh
         if (batch_mode != config.end()) {
             const auto disabled = batch_mode->second.as<std::string>() == CONFIG_VALUE(NO);
             // virtual plugins like AUTO/MULTI will need the config
-            // e.g to deduce the #requests correctly
+            // e.g. to deduce the #requests correctly
             // otherwise, no need for this config key in the rest of loading
             if (!is_virtual_device(deviceName))
                 config.erase(batch_mode);

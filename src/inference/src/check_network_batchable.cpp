@@ -11,7 +11,7 @@
 
 namespace ov {
 namespace details {
-
+namespace {
 bool model_has_suitable_do(const std::shared_ptr<const ov::Model>& model) {
     bool bDetectionOutput = false;
     for (auto& result_node : model->get_results()) {
@@ -28,6 +28,7 @@ bool model_has_suitable_do(const std::shared_ptr<const ov::Model>& model) {
     }
     return bDetectionOutput;
 }
+}  // namespace
 
 NetworkBatchAbility is_model_batchable(const std::shared_ptr<const ov::Model>& model,
                                        const std::string& deviceNameWithoutBatch,
@@ -68,8 +69,9 @@ NetworkBatchAbility is_model_batchable(const std::shared_ptr<const ov::Model>& m
     return model_has_suitable_do(model) ? NetworkBatchAbility::WITH_HETERO : NetworkBatchAbility::AS_IS;
 }
 
-std::shared_ptr<const ov::Model> apply_batch_affinity(const std::shared_ptr<const ov::Model>& model,
+std::shared_ptr<const ov::Model> apply_batch_affinity(const std::shared_ptr<const ov::Model>& model_,
                                                       const std::string& deviceNameWithoutBatch) {
+    auto model = model_->clone();
     for (auto&& node : model->get_ops())
         node->get_rt_info()["affinity"] = "BATCH";  // default affinity (ignored if HETERO is not triggered)
     // have to execute the DetectionOutput separately (without batching)
