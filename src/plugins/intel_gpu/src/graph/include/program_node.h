@@ -283,6 +283,9 @@ public:
     void unmark() { user_mark = 0; }
     bool is_marked() const { return user_mark != 0; }
 
+    void set_in_shape_of_subgraph(bool val = true) { in_shape_of_subgraph = val; }
+    bool is_in_shape_of_subgraph() const { return in_shape_of_subgraph; }
+
     // check/set if the node can be optimized out (removed from the network)
     bool can_be_optimized() const { return optimized; }
     void can_be_optimized(bool opt) { optimized = opt; }
@@ -334,6 +337,14 @@ public:
     template <class To>
     operator typed_program_node<To> const&() const {
         return as<To>();
+    }
+
+    void add_dependant_shape_of_node(const program_node* node) {
+        dependant_shape_of_nodes.insert(node);
+    }
+
+    const std::set<const program_node*>& get_dependant_shape_of_nodes() const {
+        return dependant_shape_of_nodes;
     }
 
     void set_reused_memory_color(uint32_t color) const {
@@ -433,6 +444,9 @@ protected:
     impl_types impl_type = impl_types::any;
     bool constant = false;
     bool data_flow = false;
+    bool in_shape_of_subgraph = false;
+
+    std::set<const program_node*> dependant_shape_of_nodes;
 
     bool output = false;
     uint8_t user_mark = 0;

@@ -229,14 +229,18 @@ bool ov::op::util::GatherBase::evaluate(const HostTensorVector& outputs, const H
     }
 
     if (axis < 0) {
-        const auto& input_rank = get_input_partial_shape(0).rank();
+        const auto& input_rank =
+            get_input_size() ? get_input_partial_shape(0).rank() : inputs[0]->get_partial_shape().rank();
+
         if (input_rank.is_static()) {
             axis += input_rank.get_length();
         }
     }
 
     int64_t batch_dims = m_batch_dims;
-    const auto& indices_rank = get_input_partial_shape(1).rank();
+    const auto& indices_rank =
+        get_input_size() > 1 ? get_input_partial_shape(1).rank() : inputs[1]->get_partial_shape().rank();
+
     if (batch_dims < 0 && indices_rank.is_static())
         batch_dims += indices_rank.get_length();
 

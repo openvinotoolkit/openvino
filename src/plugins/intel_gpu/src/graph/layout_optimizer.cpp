@@ -1364,6 +1364,9 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
     if (forced_impl != impl_types::any)
         return forced_impl;
 
+    if (node.is_in_shape_of_subgraph() && !node.is_type<reshape>())
+        return impl_types::cpu;
+
     if (!_forcing_map.empty() && _forcing_map.count(node.id()) != 0) {
         preferred_impl = _forcing_map.at(node.id()).second;
     } else if (node.is_type<detection_output>()) {
@@ -1552,6 +1555,8 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
         if (format::is_blocked(node.get_output_layout().format)) {
             return impl_types::onednn;
         }
+
+        preferred_impl = impl_types::ocl;
     // TODO: uncomment this code when onednn gemm implementations will have real perf improvements vs cldnn
     } else if (node.is_type<fully_connected>() || node.is_type<gemm>()) {
         if (!_optimization_attributes.use_onednn_impls)

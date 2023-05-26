@@ -202,6 +202,13 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
 #endif
     }
     node_info->add("implementation", impls);
+
+    std::vector<std::string> dependant_shape_of_nodes_ids;
+    for (auto shape_of : dependant_shape_of_nodes) {
+        dependant_shape_of_nodes_ids.push_back(shape_of->id());
+    }
+    node_info->add("dependant_shape_of_nodes_ids", dependant_shape_of_nodes_ids);
+    node_info->add("in_shape_of_subgraph", in_shape_of_subgraph);
     return node_info;
 }
 

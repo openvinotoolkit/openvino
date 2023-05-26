@@ -493,6 +493,8 @@ void program::init_graph() {
     apply_opt_pass<graph_initializations>();
 
     apply_opt_pass<mark_nodes>();
+
+    apply_opt_pass<mark_shape_of_subgraphs>();
 }
 
 void program::run_graph_compilation() { apply_opt_pass<compile_graph>(); }
@@ -561,6 +563,8 @@ void program::pre_optimize_graph(bool is_internal) {
 
     // add optimization attributes for onednn primitives
     apply_opt_pass<add_onednn_optimization_attributes>();
+
+    apply_opt_pass<mark_shape_of_subgraphs>(true);
 }
 
 void program::post_optimize_graph(bool is_internal) {
@@ -1048,6 +1052,10 @@ void program::fuse_nodes(program_node &fused_node,
     local_desc.total_num_deps = peer_node.get_dependencies().size();
     local_desc.input_layout = peer_node.get_dependency(0).get_output_layout();
     local_desc.output_layout = peer_layout;
+
+    if (fused_node.in_shape_of_subgraph && !peer_node.in_shape_of_subgraph) {
+        fused_node.in_shape_of_subgraph = false;
+    }
 
     int32_t orig_fused_node_num_deps = static_cast<int32_t>(fused_node.get_dependencies().size());
     auto fusedPadding = fused_node.get_output_layout().data_padding;

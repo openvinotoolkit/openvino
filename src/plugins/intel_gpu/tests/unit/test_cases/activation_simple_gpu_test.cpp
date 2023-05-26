@@ -1616,6 +1616,7 @@ using activation_random_test_params = std::tuple<data_types,
                                                  activation_func,               // func_type
                                                  activation_additional_params,  // additional_params
                                                  padding,
+                                                 impl_types,
                                                  bool>;
 
 struct activation_random_test : testing::TestWithParam<activation_random_test_params>
@@ -1714,8 +1715,9 @@ struct activation_random_test : testing::TestWithParam<activation_random_test_pa
         activation_func func_type;
         activation_additional_params additional_params;
         padding padd;
+        impl_types impl_type;
         bool is_caching_test;
-        std::tie(input_type, input_format, input_size, func_type, additional_params, padd, is_caching_test) = params;
+        std::tie(input_type, input_format, input_size, func_type, additional_params, padd, impl_type, is_caching_test) = params;
         auto in_layout = layout(input_type, format::bfyx, input_size);
 
         auto in_mem = engine.allocate_memory(in_layout);
@@ -1752,7 +1754,7 @@ struct activation_random_test : testing::TestWithParam<activation_random_test_pa
         activation_impl_desc.output_format = input_format;
         ExecutionConfig config_opt = get_test_default_config(engine,
                                         {ov::intel_gpu::custom_outputs(std::vector<std::string>{"activation_blocked", "res_to_input_format"}),
-                                        ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"activation_blocked", {input_format, "activation_ref"}}})});
+                                         ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"activation_blocked", {input_format, "activation_ref", impl_type}}})});
 
         network net_opt(engine, topo_opt, config_opt);
 
@@ -1786,11 +1788,11 @@ TEST_P(activation_random_test, random) {
 }
 
 const auto reluParams = testing::ValuesIn(std::vector<activation_random_test_params>{
-    {data_types::i8, format::b_fs_yx_fsv32, {1, 32, 5, 5}, activation_func::relu, {}, {}, false},
-    {data_types::i8, format::bs_fs_yx_bsv32_fsv32, {32, 32, 5, 5}, activation_func::relu, {}, {}, false},
-    {data_types::f16, format::bs_fs_yx_bsv32_fsv16, {32, 32, 5, 5}, activation_func::relu, {}, {}, false},
-    {data_types::i8, format::bs_fs_yx_bsv32_fsv32, {16, 16, 5, 5}, activation_func::relu, {}, {}, false},
-    {data_types::f16, format::bs_fs_yx_bsv32_fsv16, {16, 16, 5, 5}, activation_func::relu, {}, {}, false},
+    {data_types::i8, format::b_fs_yx_fsv32, {1, 32, 5, 5}, activation_func::relu, {}, {}, impl_types::any, false},
+    {data_types::i8, format::bs_fs_yx_bsv32_fsv32, {32, 32, 5, 5}, activation_func::relu, {}, {}, impl_types::any, false},
+    {data_types::f16, format::bs_fs_yx_bsv32_fsv16, {32, 32, 5, 5}, activation_func::relu, {}, {}, impl_types::any, false},
+    {data_types::i8, format::bs_fs_yx_bsv32_fsv32, {16, 16, 5, 5}, activation_func::relu, {}, {}, impl_types::any, false},
+    {data_types::f16, format::bs_fs_yx_bsv32_fsv16, {16, 16, 5, 5}, activation_func::relu, {}, {}, impl_types::any, false},
 });
 
 INSTANTIATE_TEST_SUITE_P(relu_activation_blocked_tests, activation_random_test, reluParams);
@@ -1864,6 +1866,7 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(activationFunctions),
                        ::testing::Values(activation_additional_params{}),
                        ::testing::Values(padding{}),
+                       ::testing::Values(impl_types::any),
                        ::testing::Values(false)));
 INSTANTIATE_TEST_SUITE_P(
     fp_activation_blocked_tests1,
@@ -1874,6 +1877,7 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(activationFunctions),
                        ::testing::Values(activation_additional_params{}),
                        ::testing::Values(padding{}),
+                       ::testing::Values(impl_types::any),
                        ::testing::Values(false)));
 INSTANTIATE_TEST_SUITE_P(
     fp_activation_blocked_tests2,
@@ -1884,6 +1888,7 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(activationFunctions),
                        ::testing::Values(activation_additional_params{}),
                        ::testing::Values(padding{}),
+                       ::testing::Values(impl_types::any),
                        ::testing::Values(false)));
 INSTANTIATE_TEST_SUITE_P(
     fp_activation_blocked_tests3,
@@ -1894,6 +1899,7 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(activationFunctions.front()),
                        ::testing::Values(activation_additional_params{}),
                        ::testing::Values(padding{}),
+                       ::testing::Values(impl_types::any),
                        ::testing::Values(false)));
 INSTANTIATE_TEST_SUITE_P(
     fp_activation_blocked_tests4,
@@ -1904,6 +1910,7 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(activationFunctions.back()),
                        ::testing::Values(activation_additional_params{}),
                        ::testing::Values(padding{}),
+                       ::testing::Values(impl_types::any),
                        ::testing::Values(false)));
 INSTANTIATE_TEST_SUITE_P(
     export_import,
@@ -1914,4 +1921,19 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(activationFunctions.back()),
                        ::testing::Values(activation_additional_params{}),
                        ::testing::Values(padding{}),
+                       ::testing::Values(impl_types::any),
+                       ::testing::Values(true)));
+
+INSTANTIATE_TEST_SUITE_P(
+    cpu_impls,
+    activation_random_test,
+    ::testing::Combine(::testing::Values(data_types::f16),
+                       ::testing::Values(format::bfyx),
+                       ::testing::Values(tensor{1, 3, 2, 4}),
+                       ::testing::ValuesIn({ activation_func::relu, activation_func::abs, activation_func::gelu,
+                                             activation_func::round_half_to_even, activation_func::clamp, activation_func::pow,
+                                             activation_func::negative, activation_func::swish }),
+                       ::testing::Values(activation_additional_params{2.0f, 3.5f}),
+                       ::testing::Values(padding{}),
+                       ::testing::Values(impl_types::cpu),
                        ::testing::Values(true)));
