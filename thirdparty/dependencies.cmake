@@ -349,8 +349,8 @@ endif()
 #
 
 if(ENABLE_SAMPLES OR ENABLE_COMPILE_TOOL OR ENABLE_TESTS)
-    if(DEFINED VCPKG_VERBOSE OR
-        CMAKE_TOOLCHAIN_FILE MATCHES "conan_toolchain.cmake" OR CONAN_EXPORTED)
+    if(CMAKE_TOOLCHAIN_FILE MATCHES "vcpkg          " OR DEFINED VCPKG_VERBOSE OR
+       CMAKE_TOOLCHAIN_FILE MATCHES "conan_toolchain" OR DEFINED CONAN_EXPORTED)
         # vcpkg contains only libs compiled with threads
         # conan case
         find_package(gflags QUIET)
