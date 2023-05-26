@@ -1029,11 +1029,11 @@ std::shared_ptr<Node> convert_low_precisions_int(std::shared_ptr<opset4::Constan
 bool fuse_type_to_constant(const std::shared_ptr<ngraph::Node>& node,
                            const precisions_map& precisions,
                            const std::vector<Input<Node>>& consumers) {
-    if (constant_folding_is_disabled(node)) {
-        // Consts marked with disable_constant_folding should be kept in f16 till they reach to the plugin
-        return false;
-    }
     auto from = node->get_element_type();
+    // Consts marked with disable_constant_folding should be kept in f16 until they reach to the CPU plugin
+    if (from == element::f16 && constant_folding_is_disabled(node))
+        return false;
+
     auto it = precisions.find(from);
     if (it == precisions.end())
         return false;

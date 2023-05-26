@@ -24,27 +24,27 @@ pass::EnableDecompressionConvertConstantFolding::EnableDecompressionConvertConst
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(convert, matcher_name);
+    auto m = std::make_shared<pass::pattern::Matcher>(convert, matcher_name);
     this->register_matcher(m, callback);
 }
 
-ov::pass::DisableDecompressionConvertConstantFolding::DisableDecompressionConvertConstantFolding() {
+pass::DisableDecompressionConvertConstantFolding::DisableDecompressionConvertConstantFolding() {
     MATCHER_SCOPE(DisableDecompressionConvertConstantFolding);
     auto convert = pattern::wrap_type<opset8::Convert>();
 
-    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& node = m.get_match_root();
-        if (!ov::is_decompression(node))
+        if (!is_decompression(node))
             return false;
         disable_constant_folding(node);
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(convert, matcher_name);
+    auto m = std::make_shared<pass::pattern::Matcher>(convert, matcher_name);
     this->register_matcher(m, callback);
 }
 
-ov::pass::KeepConstAndDecompression::KeepConstAndDecompression() {
+pass::KeepConstAndDecompression::KeepConstAndDecompression() {
     MATCHER_SCOPE(KeepDecompressionsInFP32Matcher);
 
     auto node_pattern = pattern::wrap_type<opset8::Convert>();
@@ -54,13 +54,13 @@ ov::pass::KeepConstAndDecompression::KeepConstAndDecompression() {
         if (!is_decompression(node))
             return false;
 
-        if (!ov::is_type<opset8::Convert>(node))
+        if (!is_type<opset8::Convert>(node))
             return false;
-        ov::disable_constant_folding(node);
+        disable_constant_folding(node);
 
-        if (!ov::is_type<opset8::Constant>(node->input_value(0).get_node_shared_ptr()))
+        if (!is_type<opset8::Constant>(node->input_value(0).get_node_shared_ptr()))
             return true;
-        ov::disable_constant_folding(node->input_value(0).get_node_shared_ptr());
+        disable_constant_folding(node->input_value(0).get_node_shared_ptr());
 
         return true;
     };
