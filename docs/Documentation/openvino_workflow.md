@@ -36,7 +36,7 @@ Once you have a model that meets both OpenVINO™ and your requirements, you can
 | :doc:`Option 2. Deployment via Model Server <ovms_what_is_openvino_model_server>`
 | Deployment via OpenVINO Model Server allows the application to connect to the inference server set up remotely. 
 | This way inference can use external resources instead of those available to the application itself. 
-| Deployment on a model server can be done immediately without the need to run inference.
+| Deployment on a model server can be done quickly and without performing any additional steps described in the running inference section.
 
 
 @endsphinxdirective
