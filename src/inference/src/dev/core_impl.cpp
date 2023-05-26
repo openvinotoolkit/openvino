@@ -536,12 +536,13 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
     }
 }
 
-ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<const ov::Model>& model,
+ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<const ov::Model>& model_,
                                                           const std::string& device_name,
                                                           const ov::AnyMap& config) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, ie::itt::domains::IE_LT, "Core::compile_model::model");
     std::string deviceName = device_name;
     ov::AnyMap config_with_batch = config;
+    auto model = model_->clone();
     // if auto-batching is applicable, the below function will patch the device name and config accordingly:
     apply_auto_batching(model, deviceName, config_with_batch);
 
@@ -562,7 +563,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     return res;
 }
 
-ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<const ov::Model>& model,
+ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<const ov::Model>& model_,
                                                           const ov::RemoteContext& context,
                                                           const ov::AnyMap& config) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, ie::itt::domains::IE_LT, "Core::compile_model::RemoteContext");
@@ -571,6 +572,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     }
     std::string deviceName = context.get_device_name();
     ov::AnyMap config_with_batch = config;
+    auto model = model_->clone();
     // if auto-batching is applicable, the below function will patch the device name and config accordingly:
     apply_auto_batching(model, deviceName, config_with_batch);
 
