@@ -166,10 +166,10 @@ if(ENABLE_SAMPLES OR ENABLE_TESTS)
     if(NOT ZLIB_FOUND AND PkgConfig_FOUND)
         pkg_search_module(zlib QUIET
                           IMPORTED_TARGET
-                          ${OV_PkgConfig_VISILITY}
                           zlib)
         if(zlib_FOUND)
-            add_library(ZLIB::ZLIB ALIAS PkgConfig::zlib)
+            add_library(ZLIB::ZLIB INTERFACE IMPORTED)
+            set_target_properties(ZLIB::ZLIB PROPERTIES INTERFACE_LINK_LIBRARIES PkgConfig::zlib)
             message(STATUS "${PKG_CONFIG_EXECUTABLE}: zlib (${zlib_VERSION}) is found at ${zlib_PREFIX}")
         endif()
     endif()
