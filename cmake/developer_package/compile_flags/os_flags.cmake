@@ -54,6 +54,8 @@ macro(ov_deprecated_no_errors)
         endif()
     elseif(OV_COMPILER_IS_CLANG OR CMAKE_COMPILER_IS_GNUCXX)
         set(ie_c_cxx_deprecated_no_errors "-Wno-error=deprecated-declarations")
+        # Suppress #warning messages
+        set(ie_c_cxx_deprecated_no_errors "${ie_c_cxx_deprecated_no_errors} -Wno-cpp")
     else()
         message(WARNING "Unsupported CXX compiler ${CMAKE_CXX_COMPILER_ID}")
     endif()
