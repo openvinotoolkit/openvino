@@ -12,6 +12,8 @@ using namespace ::testing;
 using namespace std;
 using namespace InferenceEngine;
 
+IE_SUPPRESS_DEPRECATED_START
+
 class CompoundBlobTests : public ::testing::Test {
 protected:
     Blob::Ptr _test_blob;

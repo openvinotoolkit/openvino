@@ -10,6 +10,12 @@
  */
 #pragma once
 
+// TODO: Remove after migration to new API in the benchmark app
+#ifndef IN_OV_COMPONENT
+#    define IN_OV_COMPONENT
+#    define WAS_OV_LIBRARY_DEFINED
+#endif
+
 #include <ie_remote_context.hpp>
 #include <memory>
 #include <string>
@@ -362,3 +368,8 @@ static inline Blob::Ptr make_shared_blob(const TensorDesc& desc, RemoteContext::
 }  // namespace gpu
 
 }  // namespace InferenceEngine
+
+#ifdef WAS_OV_LIBRARY_DEFINED
+#    undef IN_OV_COMPONENT
+#    undef WAS_OV_LIBRARY_DEFINED
+#endif

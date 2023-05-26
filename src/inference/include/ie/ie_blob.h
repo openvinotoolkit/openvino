@@ -28,6 +28,7 @@
 #include "ie_precision.hpp"
 
 namespace InferenceEngine {
+IE_SUPPRESS_DEPRECATED_START
 
 /**
  * @brief This class represents a universal container in the Inference Engine
@@ -921,4 +922,5 @@ INFERENCE_ENGINE_API_CPP(Blob::Ptr) make_shared_blob(const Blob::Ptr& inputBlob,
 INFERENCE_ENGINE_API_CPP(Blob::Ptr)
 make_shared_blob(const Blob::Ptr& inputBlob, const std::vector<size_t>& begin, const std::vector<size_t>& end);
 
+IE_SUPPRESS_DEPRECATED_END
 }  // namespace InferenceEngine

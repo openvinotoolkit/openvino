@@ -3,6 +3,7 @@
 #
 
 set(TARGET_NAME compile_tool)
+add_definitions(-DIN_OV_COMPONENT)
 
 file(GLOB SRCS
     ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp

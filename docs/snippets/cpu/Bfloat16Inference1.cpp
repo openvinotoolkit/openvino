@@ -1,7 +1,6 @@
 #include <openvino/runtime/core.hpp>
 
 int main() {
-using namespace InferenceEngine;
 //! [part1]
 ov::Core core;
 auto network = core.read_model("sample.xml");

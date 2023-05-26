@@ -3,6 +3,7 @@
 #
 
 set(TARGET_NAME benchmark_app_legacy)
+add_definitions(-DIN_OV_COMPONENT)
 
 file (GLOB SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 file (GLOB HDR ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)

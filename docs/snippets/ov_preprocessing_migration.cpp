@@ -5,7 +5,17 @@
 #include <openvino/opsets/opset8.hpp>
 #include <openvino/core/preprocess/pre_post_process.hpp>
 
+#ifndef IN_OV_COMPONENT
+#    define IN_OV_COMPONENT
+#    define WAS_OV_LIBRARY_DEFINED
+#endif
+
 #include "inference_engine.hpp"
+
+#ifdef WAS_OV_LIBRARY_DEFINED
+#    undef IN_OV_COMPONENT
+#    undef WAS_OV_LIBRARY_DEFINED
+#endif
 
 int main_new() {
     std::string model_path;
