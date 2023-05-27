@@ -260,6 +260,14 @@ void Graph::Replicate(const CNNNetwork &network) {
             auto parentOp = op->get_input_node_shared_ptr(port);
             auto parentNode = op2node[parentOp];
 
+            // if (ov::is_type<ov::opset8::LSTMSequence>(op)) {
+            //     std::cout << "LSTM\n\n\n\n";
+            // }
+
+            // if (op->get_friendly_name() == "LSTMSequence_2400") {
+            //     int k = 1;
+            // }
+
             EdgePtr edge(new Edge(parentNode, node, getParentOutputPort(op, parentOp, port), static_cast<int>(port)));
             node->addEdge(edge);
             graphEdges.push_back(edge);
@@ -578,6 +586,13 @@ void Graph::InitEdges() {
             layerName = basicLayerName + "_" + std::to_string(idx);
         }
         uniqueLayerNames.insert(layerName);
+
+        // if (layerName == "35___LSTMSequence_2400") {
+        //     std::cout << "target reorder\n";
+        // }
+        // if (layerName == "35___LSTMSequence_2401") {
+        //     std::cout << "target reorder\n";
+        // }
 
         // optimized flag indicate that just desc update w/o actual physical memory movement.
         InsertReorder(edge, layerName, edge->getInputDesc(), edge->getOutputDesc(), isOptimized);

@@ -339,6 +339,9 @@ void Reorder::execute(dnnl::stream strm) {
     } else if (canUseNcsp2Nspc) {
         optimizedNcsp2Nspc();
     } else {
+        if (!src_blocked || !dst_blocked) {
+            IE_THROW() << "Reorder node with name " << getName() << " doesn't have an initialized memory";
+        }
         src_blocked->setDataHandle(getParentEdgeAt(0)->getMemory().GetData());
         dst_blocked->setDataHandle(getChildEdgeAt(0)->getMemory().GetData());
 
