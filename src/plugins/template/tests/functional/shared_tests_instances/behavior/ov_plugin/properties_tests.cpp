@@ -87,6 +87,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests,
 INSTANTIATE_TEST_SUITE_P(smoke_OVGetMetricPropsTest,
                          OVGetMetricPropsTest,
                          ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_OVCheckGetSupportedROMetricsPropsTests,
+    OVCheckGetSupportedROMetricsPropsTests,
+    ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
+                       ::testing::ValuesIn(OVCheckGetSupportedROMetricsPropsTests::configureProperties(
+                           {ov::device::full_name.name()}))),
+    OVCheckGetSupportedROMetricsPropsTests::getTestCaseName);
+
 //
 // OV Class GetConfig
 //
