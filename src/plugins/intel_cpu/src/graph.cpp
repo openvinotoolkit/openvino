@@ -1407,21 +1407,21 @@ void Graph::DropNode(const NodePtr &node) {
         auto parent = p_edge->getParent();
         if (!parent) continue;
 
-        for (size_t j = 0; j < children.size(); j++) {
-            if (!children[j].lock())
-                continue;
-            auto child = children[j].lock()->getChild();
-            if (!child)
-                continue;
+        EdgePtr remEdge = p_edge;
+        int inNum = 0;
+        if (remEdge) {
+            inNum = remEdge->getInputNum();
+            remEdge->drop();
+            RemoveEdge(remEdge);
+        }
 
-            EdgePtr remEdge = p_edge;
-            int inNum = 0;
-            if (remEdge) {
-                inNum = remEdge->getInputNum();
-                remEdge->drop();
-                RemoveEdge(remEdge);
-            }
-            remEdge = children[j].lock();
+        for (size_t j = 0; j < children.size(); j++) {
+            auto c_edge = children[j].lock();
+            if (!c_edge) continue;
+            auto child = c_edge->getChild();
+            if (!child) continue;
+
+            remEdge = c_edge;
             int outNum = 0;
             if (remEdge) {
                 outNum = remEdge->getOutputNum();
@@ -1452,21 +1452,21 @@ void Graph::DropDWConvNode(const NodePtr &node) {
         auto parent = p_edge->getParent();
         if (!parent) continue;
 
-        for (size_t j = 0; j < children.size(); j++) {
-            if (!children[j].lock())
-                continue;
-            auto child = children[j].lock()->getChild();
-            if (!child)
-                continue;
+        EdgePtr remEdge = p_edge;
+        int inNum = 0;
+        if (remEdge) {
+            inNum = remEdge->getInputNum();
+            remEdge->drop();
+            RemoveEdge(remEdge);
+        }
 
-            EdgePtr remEdge = p_edge;
-            int inNum = 0;
-            if (remEdge) {
-                inNum = remEdge->getInputNum();
-                remEdge->drop();
-                RemoveEdge(remEdge);
-            }
-            remEdge = children[j].lock();
+        for (size_t j = 0; j < children.size(); j++) {
+            auto c_edge = children[j].lock();
+            if (!c_edge) continue;
+            auto child = c_edge->getChild();
+            if (!child) continue;
+
+            remEdge = c_edge;
             int outNum = 0;
             if (remEdge) {
                 outNum = remEdge->getOutputNum();
