@@ -593,7 +593,7 @@ if(ENABLE_SAMPLES)
     if(nlohmann_json_FOUND)
         # conan and vcpkg create imported target nlohmann_json::nlohmann_json
     else()
-        add_subdirectory(thirdparty/json)
+        add_subdirectory(thirdparty/json EXCLUDE_FROM_ALL)
 
         # this is required only because of VPUX plugin reused this
         openvino_developer_export_targets(COMPONENT openvino_common TARGETS nlohmann_json)
@@ -612,9 +612,8 @@ endif()
 # Install
 #
 
-if(CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW|CONAN)$")
+if(CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW|CONAN|VCPKG)$")
     # These libraries are dependencies for openvino-samples package
-
     if(ENABLE_SAMPLES OR ENABLE_COMPILE_TOOL OR ENABLE_TESTS)
         if(NOT gflags_FOUND AND CPACK_GENERATOR MATCHES "^(DEB|RPM)$")
             message(FATAL_ERROR "gflags must be used as a ${CPACK_GENERATOR} package. Install libgflags-dev / gflags-devel")
@@ -623,6 +622,7 @@ if(CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW|CONAN)$")
             message(FATAL_ERROR "zlib must be used as a ${CPACK_GENERATOR} package. Install zlib1g-dev / zlib-devel")
         endif()
     endif()
+
     if(NOT ENABLE_SYSTEM_PUGIXML)
         message(FATAL_ERROR "Pugixml must be used as a ${CPACK_GENERATOR} package. Install libpugixml-dev / pugixml-devel")
     endif()
@@ -630,6 +630,7 @@ elseif(APPLE OR WIN32)
     install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags
             DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
             COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
+            ${OV_CPACK_COMP_CPP_SAMPLES_EXCLUDE_ALL}
             PATTERN bazel EXCLUDE
             PATTERN doc EXCLUDE
             PATTERN .git EXCLUDE
@@ -650,14 +651,17 @@ elseif(APPLE OR WIN32)
                            ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/zlib/zlib/*.h)
     install(FILES ${zlib_sources}
             DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty/zlib/zlib
-            COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES})
+            COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
+            ${OV_CPACK_COMP_CPP_SAMPLES_EXCLUDE_ALL})
     install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/zlib/CMakeLists.txt
             DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty/zlib
-            COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES})
+            COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
+            ${OV_CPACK_COMP_CPP_SAMPLES_EXCLUDE_ALL})
 
     install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/json/nlohmann_json
             DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
             COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
+            ${OV_CPACK_COMP_CPP_SAMPLES_EXCLUDE_ALL}
             PATTERN ChangeLog.md EXCLUDE
             PATTERN CITATION.cff EXCLUDE
             PATTERN .clang-format EXCLUDE
@@ -678,7 +682,8 @@ endif()
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/cnpy
         DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
-        COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES})
+        COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
+        ${OV_CPACK_COMP_CPP_SAMPLES_EXCLUDE_ALL})
 
 # restore state
 
