@@ -238,7 +238,15 @@ macro(_ov_find_pugixml)
         if(_ov_pugixml_pkgconfig_interface AND NOT ANDROID)
             _ov_find_dependency(PkgConfig)
         elseif(_ov_pugixml_cmake_interface)
-            _ov_find_dependency(PugiXML REQUIRED)
+            _ov_find_dependency(PugiXML NAMES PugiXML pugixml)
+        endif()
+
+        # see https://cmake.org/cmake/help/latest/command/add_library.html#alias-libraries
+        # cmake older than 3.18 cannot create an alias for imported non-GLOBAL targets
+        # so, we have to use 'GLOBAL' property for cases when we call from OpenVINODeveloperPackage
+        # because the alias openvino::pugixml is created later
+        if(CMAKE_VERSION VERSION_LESS 3.18 AND OpenVINODeveloperPackage_DIR)
+            set(_ov_pugixml_visibility GLOBAL)
         endif()
 
         if(PugiXML_FOUND)
@@ -248,8 +256,10 @@ macro(_ov_find_pugixml)
                 set(_ov_pugixml_target pugixml::pugixml)
             endif()
             if(OpenVINODeveloperPackage_DIR)
-                set_property(TARGET ${_ov_pugixml_target} PROPERTY IMPORTED_GLOBAL ON)
-                # align with build tree
+                # align with build tree and create alias
+                if(_ov_pugixml_visibility STREQUAL "GLOBAL")
+                    set_target_properties(${_ov_pugixml_target} PROPERTIES IMPORTED_GLOBAL TRUE)
+                endif()
                 add_library(openvino::pugixml ALIAS ${_ov_pugixml_target})
             endif()
             unset(_ov_pugixml_target)
@@ -265,7 +275,7 @@ macro(_ov_find_pugixml)
                               ${pkg_config_quiet_arg}
                               ${pkg_config_required_arg}
                               IMPORTED_TARGET
-                              GLOBAL
+                              ${_ov_pugixml_visibility}
                               pugixml)
 
             unset(pkg_config_quiet_arg)
@@ -295,6 +305,8 @@ macro(_ov_find_pugixml)
                 message(FATAL_ERROR "Failed to find system pugixml in OpenVINO Developer Package")
             endif()
         endif()
+
+        unset(_ov_pugixml_visibility)
     endif()
 endmacro()
 
@@ -314,7 +326,7 @@ macro(_ov_find_ade)
     # whether 'ade' is found via find_package
     set(_ENABLE_SYSTEM_ADE "@ade_FOUND@")
     if(_OV_ENABLE_GAPI_PREPROCESSING AND _ENABLE_SYSTEM_ADE)
-        _ov_find_dependency(ade 0.1.2)
+        _ov_find_dependency(ade @ade_VERSION@)
     endif()
     unset(_OV_ENABLE_GAPI_PREPROCESSING)
     unset(_ENABLE_SYSTEM_ADE)
@@ -375,9 +387,8 @@ endmacro()
 
 macro(_ov_find_protobuf_frontend_dependency)
     set(_OV_ENABLE_SYSTEM_PROTOBUF "@ENABLE_SYSTEM_PROTOBUF@")
-    # TODO: remove check for target existence
-    if(_OV_ENABLE_SYSTEM_PROTOBUF AND NOT TARGET protobuf::libprotobuf)
-        _ov_find_dependency(Protobuf @Protobuf_VERSION@ EXACT)
+    if(_OV_ENABLE_SYSTEM_PROTOBUF)
+        _ov_find_dependency(Protobuf @Protobuf_VERSION@ EXACT NAMES Protobuf protobuf)
     endif()
     unset(_OV_ENABLE_SYSTEM_PROTOBUF)
 endmacro()
@@ -385,8 +396,7 @@ endmacro()
 macro(_ov_find_tensorflow_frontend_dependencies)
     set(_OV_ENABLE_SYSTEM_SNAPPY "@ENABLE_SYSTEM_SNAPPY@")
     set(_ov_snappy_lib "@ov_snappy_lib@")
-    # TODO: remove check for target existence
-    if(_OV_ENABLE_SYSTEM_SNAPPY AND NOT TARGET ${_ov_snappy_lib})
+    if(_OV_ENABLE_SYSTEM_SNAPPY)
         _ov_find_dependency(Snappy @Snappy_VERSION@ EXACT)
     endif()
     unset(_OV_ENABLE_SYSTEM_SNAPPY)

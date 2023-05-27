@@ -3,10 +3,11 @@
 #
 
 if(DEFINED BUILD_SHARED_LIBS AND NOT BUILD_SHARED_LIBS)
-    # 'target_link_libraries' does not work correctly when called from
+    # 3.17: 'target_link_libraries' does not work correctly when called from
     # different directory where 'add_library' is called: CMake generates
     # incorrect OpenVINOConfig.cmake in this case
-    cmake_minimum_required(VERSION 3.17)
+    # 3.18: add_library cannot create ALIAS for non-GLOBAL targets
+    cmake_minimum_required(VERSION 3.18)
 else()
     if(CPACK_GENERATOR STREQUAL "DEB")
         # we have to use CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS variable
@@ -120,7 +121,7 @@ if (ENABLE_TESTS)
     include(cmake/test_model_zoo.cmake)
 endif()
 
-add_subdirectory(thirdparty)
+include(thirdparty/dependencies.cmake)
 add_subdirectory(src)
 
 if(ENABLE_SAMPLES OR ENABLE_TESTS OR ENABLE_COMPILE_TOOL)

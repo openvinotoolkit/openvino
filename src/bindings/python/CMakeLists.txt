@@ -64,8 +64,7 @@ function(ov_check_python_build_conditions)
             endif()
             # use libraries with the same version as python itself
             set(PYBIND11_PYTHON_VERSION ${PYTHON_VERSION_STRING})
-            find_host_package(PythonLibsNew ${PYBIND11_PYTHON_VERSION} EXACT
-                              ${find_package_mode})
+            find_host_package(PythonLibsNew ${PYBIND11_PYTHON_VERSION} EXACT ${find_package_mode})
             set(PYTHONLIBSNEW_FOUND ${PYTHONLIBS_FOUND} PARENT_SCOPE)
         endfunction()
         # try to find python libraries
