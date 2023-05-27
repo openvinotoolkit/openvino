@@ -481,7 +481,8 @@ void RNN::initCell() {
 
     if (N.isStatic()) {
         // Expected shapes.
-        const Shape shapeD{{N.minVal, DC}, {N.maxVal, DC}}, shapeS{{N.minVal, SC}, {N.maxVal, SC}};
+        const auto B = N.minVal;
+        const Shape shapeD{B, DC}, shapeS{B, SC};
 
         if ((getInputShapeAtPort(0).isStatic() && getInputShapeAtPort(0) != shapeD) ||
                 (getInputShapeAtPort(1).isStatic() && getInputShapeAtPort(1) != shapeS) ||
@@ -498,7 +499,7 @@ void RNN::initCell() {
         }
 
         if (is_augru) {
-            const Shape shapeA{{N.minVal, 1}, {N.maxVal, 1}};
+            const Shape shapeA{B, 1};
             if (getInputShapeAtPort(5).isStatic() && getInputShapeAtPort(5) != shapeA) {
                 THROW_ERROR << "has incorrect input shapes. Attention shape: " << getInputShapeAtPort(5).toString();
             }
