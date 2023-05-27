@@ -479,7 +479,9 @@ if(ENABLE_OV_TF_LITE_FRONTEND)
             endif()
         endif()
 
-        find_host_package(Flatbuffers QUIET NO_CMAKE_FIND_ROOT_PATH)
+        # on new Ubuntu versions like 23.04 we have config called FlatBuffersConfig.cmake
+        # so, we need to provide alternative names
+        find_host_package(Flatbuffers QUIET NAMES Flatbuffers FlatBuffers NO_CMAKE_FIND_ROOT_PATH)
 
         if(DEFINED _old_flat_CMAKE_LIBRARY_ARCHITECTURE)
             set(CMAKE_LIBRARY_ARCHITECTURE ${_old_flat_CMAKE_LIBRARY_ARCHITECTURE})
