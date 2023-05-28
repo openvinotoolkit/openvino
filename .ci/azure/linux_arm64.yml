@@ -167,14 +167,14 @@ jobs:
       echo "CC=aarch64-linux-gnu-gcc-10" >> $(BUILD_OPENVINO)/linux_arm64
       echo "CXX=aarch64-linux-gnu-g++-10" >> $(BUILD_OPENVINO)/linux_arm64
       # install OpenVINO dependencies
-      export CMAKE_CXX_COMPILER_LAUNCHER=ccache
-      export CMAKE_C_COMPILER_LAUNCHER=ccache
       conan install $(OPENVINO_REPO_DIR)/conanfile.txt \
         -pr:h $(BUILD_OPENVINO)/linux_arm64 \
         -s:h arch=armv8 \
         -of $(BUILD_OPENVINO) \
         -b missing
     env:
+      CMAKE_CXX_COMPILER_LAUNCHER: ccache
+      CMAKE_C_COMPILER_LAUNCHER: ccache
       CCACHE_DIR: $(OPENVINO_CCACHE_DIR)
       CCACHE_TEMPDIR: $(TMP_DIR)/ccache
       CCACHE_BASEDIR: $(Pipeline.Workspace)
@@ -224,8 +224,16 @@ jobs:
   - script: cmake --build $(BUILD_OPENVINO) --parallel --config $(BUILD_TYPE) --target install
     displayName: 'Install OpenVINO Runtime'
 
+  - script: |
+      source $(BUILD_OPENVINO)/conanbuild.sh
+      $(INSTALL_OPENVINO)/samples/cpp/build_samples.sh
+      source $(BUILD_OPENVINO)/deactivate_conanbuild.sh
+    env:
+      CMAKE_TOOLCHAIN_FILE: $(BUILD_OPENVINO)/conan_toolchain.cmake
+    displayName: 'Build OpenVINO C++ samples'
+
   - task: PublishBuildArtifacts@1
     inputs:
-      PathtoPublish: $(Build.ArtifactStagingDirectory)
+      PathtoPublish: $(INSTALL_OPENVINO)
       ArtifactName: 'openvino_aarch64_linux'
     displayName: 'Publish OpenVINO Runtime for ARM'
