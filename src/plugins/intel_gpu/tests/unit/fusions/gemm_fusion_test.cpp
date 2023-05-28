@@ -582,13 +582,28 @@ public:
 };
 
 class gemm_2in_permute : public GemmFusingTestOneDNN {};
-TEST_P(gemm_2in_permute, basic) {
+TEST_P(gemm_2in_permute, gemm_permute) {
     auto p = GetParam();
     create_topologies(
         input_layout("input0", get_input_layout(p, 0)),
         input_layout("input1", get_input_layout(p, 1)),
         gemm("gemm_prim", { input_info("input0"), input_info("input1") }, data_types::f16),
         permute("permute", input_info("gemm_prim"), {0, 2, 1, 3}),
+        reorder("reorder_bfyx", input_info("permute"), p.default_format, data_types::f32)
+    );
+
+    tolerance = default_tolerance(data_types::f16);
+    execute(p, false);
+}
+
+TEST_P(gemm_2in_permute, permute_gemm) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input0", get_input_layout(p, 0)),
+        input_layout("input1", get_input_layout(p, 1)),
+        permute("permute0", input_info("input0"), {0, 2, 1, 3}),
+        permute("permute1", input_info("input1"), {1, 2, 3, 0}),
+        gemm("gemm_prim", { input_info("permute0"), input_info("permute1") }, data_types::f16),
         reorder("reorder_bfyx", input_info("permute"), p.default_format, data_types::f32)
     );
 
