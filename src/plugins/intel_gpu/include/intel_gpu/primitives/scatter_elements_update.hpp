@@ -12,6 +12,10 @@ namespace cldnn {
 struct scatter_elements_update : public primitive_base<scatter_elements_update> {
     CLDNN_DECLARE_PRIMITIVE(scatter_elements_update)
 
+    scatter_elements_update() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     /// @brief Constructs scatter_elements_update primitive.
     /// @param id This primitive id.
     /// @param dict Input data primitive id.
@@ -42,6 +46,16 @@ struct scatter_elements_update : public primitive_base<scatter_elements_update> 
         auto rhs_casted = downcast<const scatter_elements_update>(rhs);
 
         return axis == rhs_casted.axis;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<scatter_elements_update>::save(ob);
+        ob << axis;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<scatter_elements_update>::load(ib);
+        ib >> axis;
     }
 };
 }  // namespace cldnn
