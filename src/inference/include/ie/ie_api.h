@@ -40,7 +40,7 @@
 #    endif
 #elif defined(_MSC_VER)
 #    define INFERENCE_ENGINE_DEPRECATED(msg) __declspec(deprecated(msg))
-#    if __cplusplus >= 201402L
+#    if _MSC_VER >= 1900
 #        define INFERENCE_ENGINE_ENUM_DEPRECATED(msg) [[deprecated(msg)]]
 #    else
 #        define INFERENCE_ENGINE_ENUM_DEPRECATED(msg)

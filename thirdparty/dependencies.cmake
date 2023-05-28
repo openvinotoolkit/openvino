@@ -38,7 +38,7 @@ if(ENABLE_PROFILING_ITT)
     add_subdirectory(thirdparty/itt_collector EXCLUDE_FROM_ALL)
 endif()
 
-if(X86_64 OR UNIVERSAL2)
+if(X86_64 OR X86 OR UNIVERSAL2)
     find_package(xbyak QUIET)
     if(xbyak_FOUND)
         # conan creates alias xbyak::xbyak, no extra steps are required
