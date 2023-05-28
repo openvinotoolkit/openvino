@@ -187,6 +187,7 @@ struct reorder : public primitive_base<reorder> {
     }
 
     void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<reorder>::save(ob);
         ob << make_data(&output_format, sizeof(format));
         ob << mean;
         ob << subtract_per_feature;
@@ -196,6 +197,7 @@ struct reorder : public primitive_base<reorder> {
     }
 
     void load(BinaryInputBuffer& ib) override {
+        primitive_base<reorder>::load(ib);
         ib >> make_data(&output_format, sizeof(format));
         ib >> mean;
         ib >> subtract_per_feature;
