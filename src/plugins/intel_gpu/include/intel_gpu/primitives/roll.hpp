@@ -13,6 +13,10 @@ namespace cldnn {
 struct roll : primitive_base<roll> {
     CLDNN_DECLARE_PRIMITIVE(roll)
 
+    roll() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     /// @brief Constructs roll primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id.
@@ -40,6 +44,16 @@ struct roll : primitive_base<roll> {
         auto rhs_casted = downcast<const roll>(rhs);
 
         return shift == rhs_casted.shift;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<roll>::save(ob);
+        ob << shift;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<roll>::load(ib);
+        ib >> shift;
     }
 };
 
