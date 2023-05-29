@@ -4,12 +4,11 @@
 
 #include "enforce_precision.hpp"
 
-#include <memory>
+#include "snippets/itt.hpp"
+#include "snippets/utils.hpp"
+#include "snippets/pass/propagate_precision.hpp"
 
 #include "ov_ops/type_relaxed.hpp"
-#include "snippets/itt.hpp"
-#include "openvino/core/rt_info.hpp"
-#include "snippets/pass/propagate_precision.hpp"
 #include "cpu/x64/cpu_isa_traits.hpp"
 
 using namespace ov::intel_cpu::pass;
@@ -83,7 +82,7 @@ bool EnforcePrecision::run_on_model(const std::shared_ptr<ov::Model>& f) {
             auto convert = std::make_shared<snippets::op::ConvertSaturation>(
                 parent_output,
                 target);
-            ov::copy_runtime_info(parent_output.get_node_shared_ptr(), convert);
+            snippets::utils::safe_copy_runtime_info(parent_output.get_node_shared_ptr(), convert);
             op->set_argument(input_index, convert);
         };
 

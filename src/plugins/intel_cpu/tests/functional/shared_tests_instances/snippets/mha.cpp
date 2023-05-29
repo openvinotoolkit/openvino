@@ -64,6 +64,19 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHABF16, MHA,
                                  ::testing::Values(CPUTestUtils::cpuEmptyPluginConfig)),
                          MHA::getTestCaseName);
 
+
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAMulAdd, MHAMulAdd,
+                         ::testing::Combine(
+                                 ::testing::Values(std::vector<ov::PartialShape>{{1, 10, 12, 16}, {1, 10, 12, 16}, {1, 10, 12, 16}}),
+                                 ::testing::ValuesIn(precision_f32(3)),
+                                 ::testing::Values(ov::element::f32),
+                                 ::testing::ValuesIn({false}),  // Need to support True for graph builder in tests
+                                 ::testing::Values(1),
+                                 ::testing::Values(1),
+                                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                 ::testing::Values(std::map<std::string, std::string>{})),
+                         MHA::getTestCaseName);
+
 const std::vector<std::vector<ov::PartialShape>> inputShapeSelect = {
         // without broadcast
         {{1, 128, 12, 64}, {1, 128, 12, 64}, {1, 12, 128, 128}, {1, 12, 128, 128}, {1, 12, 128, 128}, {1, 128, 12, 64}},
