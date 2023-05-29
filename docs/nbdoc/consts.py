@@ -12,6 +12,9 @@ blacklisted_extensions = ['.xml', '.bin']
 
 # Templates
 
+section_names = ["Getting Started", "Convert & Optimize",
+                 "Model Demos", "Model Training", "Live Demos"]
+
 binder_template = """
 This tutorial is also available as a Jupyter notebook that can be cloned directly from GitHub.
 See the |installation_link| for instructions to run this tutorial locally on Windows, Linux or macOS.
