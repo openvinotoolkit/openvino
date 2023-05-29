@@ -37,267 +37,62 @@ namespace intel_gna {
 using namespace target;
 namespace limitations {
 
+class SupportedElementTypes {
+public:
+    static bool IsParameterTypeSupported(ov::element::Type type, bool is_exception_allowed = false);
+    static bool IsConstantTypeSupported(ov::element::Type type, bool is_exception_allowed = false);
+
+private:
+    static const std::set<ov::element::Type> supported_parameter_types;
+    static const std::set<ov::element::Type> supported_constant_types;
+};
+
 const std::set<ov::element::Type> SupportedElementTypes::supported_parameter_types = {ov::element::u8,
                                                                                       ov::element::i16,
                                                                                       ov::element::f32};
 
-size_t getMemoryAlignmentBytes(target::DeviceVersion target) {
-    static const std::unordered_map<target::DeviceVersion, size_t> mem_alignment_map{
-        {target::DeviceVersion::GNA1_0, 64},
-        {target::DeviceVersion::GNA2_0, 64},
-        {target::DeviceVersion::GNA3_0, 64},
-        {target::DeviceVersion::GNA3_1, 64},
-        {target::DeviceVersion::GNA3_5, 64},
-        {target::DeviceVersion::GNAEmbedded3_5, 64},
-        {target::DeviceVersion::GNA3_6, 16},
-        {target::DeviceVersion::GNA4_0, 16}};
-
-    return common::GetValueForKey<target::DeviceVersion, size_t>(target, mem_alignment_map);
-}
-
-bool SupportedElementTypes::is_parameter_type_supported(ov::element::Type elem_type, bool is_exception_allowed) {
-    if (supported_parameter_types.count(elem_type) == 0) {
-        if (is_exception_allowed) {
-            THROW_GNA_EXCEPTION << "The plugin does not support input precision with " << elem_type.get_type_name()
-                                << " format. Supported precisions " << supported_parameter_types << "\n";
-        }
-        return false;
-    }
-    return true;
-}
-
-const std::set<ov::element::Type> SupportedElementTypes::supported_constant_types = {ov::element::i8,
-                                                                                     ov::element::u8,
-                                                                                     ov::element::i16,
-                                                                                     ov::element::u16,
-                                                                                     ov::element::i32,
-                                                                                     ov::element::f32,
-                                                                                     ov::element::f64};
-
-bool SupportedElementTypes::is_constant_type_supported(ov::element::Type elem_type, bool is_exception_allowed) {
-    if (supported_constant_types.count(elem_type) == 0) {
-        if (is_exception_allowed) {
-            THROW_GNA_EXCEPTION << "The plugin does not support constant precision with " << elem_type.get_type_name()
-                                << " format. Supported precisions " << supported_constant_types << "\n";
-        }
-        return false;
-    }
-    return true;
-}
-
-bool is_transpose_supported(const std::shared_ptr<const ov::Node>& node) {
-    OPENVINO_ASSERT(node, "Transpose node is empty!");
-    const ov::Shape squeezed_shape = graph_utils::squeeze_shape(node->get_input_shape(0));
-    const size_t min_input_dim = std::min(squeezed_shape[0], squeezed_shape[1]);
-    const size_t max_input_dim = std::max(squeezed_shape[0], squeezed_shape[1]);
-
-    // GNA transpose limitations:
-    // - supports 2d transposes only
-    // - smaller dimension should be less or equal to 8
-    // - bigger dimension should be a multiple of limitations::noOfInputsDivisor
-    if (squeezed_shape.size() == 2 && min_input_dim <= 8 &&
-        ALIGN(max_input_dim, limitations::noOfInputsDivisor) == max_input_dim) {
-        return true;
-    }
-    return false;
-}
-
-bool is_conv_supported(const std::shared_ptr<ngraph::op::ConvolutionIE>& conv_ie,
-                       const DeviceVersion& effective_compile_target,
-                       const InferenceEngine::Precision gna_precision,
-                       bool is_exception_allowed) {
-    OPENVINO_ASSERT(conv_ie, "ConvolutionIE node is empty!");
-    size_t batch_size = conv_ie->input_value(0).get_shape()[0];
-    if (batch_size != 1) {
-        if (is_exception_allowed) {
-            THROW_GNA_EXCEPTION << "topology with layer: " + conv_ie->get_friendly_name() +
-                                       ", type: " + conv_ie->get_type_name() + ", and batch size(" +
-                                       std::to_string(batch_size) + ") != 1 not supported";
-        }
-        return false;
-    }
-    auto check_dilation = [&](size_t filter_dilation_height, size_t filter_stride_width) -> bool {
-        cnn2d::RangeLimit2D dilation_limit{{convDilationHeight, convDilationHeight, "dilation height"},
-                                           {convDilationWidth, convDilationWidth, "dilation width"}};
-        std::string error = dilation_limit.GetErrorOrEmpty(filter_dilation_height, filter_stride_width);
-        return cnn2d::AbstractValidator::ValidationSuccesful(is_exception_allowed,
-                                                             error,
-                                                             conv_ie->get_friendly_name(),
-                                                             conv_ie->get_type_name());
-    };
-    auto input_shape = conv_ie->input_value(0).get_shape();
-    auto filter_shape = conv_ie->input_value(1).get_shape();
-    if ((4 == filter_shape.size() && filter_shape[2] > 1 && filter_shape[3] > 1) ||
-        (4 == input_shape.size() && input_shape[2] > 1 && input_shape[3] > 1)) {
-        pass::helper::ConvData conv_data;
-        pass::helper::GetConvData(conv_ie, conv_data);
-        if (gna_convolution_layer::isMappableFrom2DTo1D(conv_data.input_height,
-                                                        conv_data.input_width,
-                                                        conv_data.input_channel_count,
-                                                        conv_data.filter_height,
-                                                        conv_data.filter_width,
-                                                        conv_data.filter_stride_height,
-                                                        conv_data.filter_stride_width)) {
-            return check_dilation(conv_data.filter_dilation_height, conv_data.filter_dilation_width);
-        }
-        const auto cnn2dValidatorPtr = cnn2d::AbstractValidator::Create(effective_compile_target);
-        if (cnn2dValidatorPtr) {
-            return cnn2dValidatorPtr->ValidateCnn2D(conv_ie->get_friendly_name(),
-                                                    conv_data.input_height,
-                                                    conv_data.input_width,
-                                                    conv_data.input_channel_count,
-                                                    conv_data.filter_height,
-                                                    conv_data.filter_width,
-                                                    conv_data.filter_channel_count,
-                                                    conv_data.filter_stride_height,
-                                                    conv_data.filter_stride_width,
-                                                    conv_data.filter_dilation_height,
-                                                    conv_data.filter_dilation_width,
-                                                    OvGnaTypeIntFromBytes(gna_precision.size()),
-                                                    is_exception_allowed);
-        }
-    }
-    return check_dilation(conv_ie->get_dilations()[0], conv_ie->get_dilations()[1]);
-}
-
-bool is_pooling_supported(const std::shared_ptr<ngraph::opset7::MaxPool> max_pool,
-                          const DeviceVersion& effective_compile_target,
-                          bool is_exception_allowed) {
-    OPENVINO_ASSERT(max_pool, "MaxPool node is empty!");
-    auto kernels = max_pool->get_kernel();
-    if (2 == kernels.size() && kernels[0] > 1 && kernels[1] > 1) {
-        const auto cnn2dValidatorPtr = cnn2d::AbstractValidator::Create(effective_compile_target);
-        if (cnn2dValidatorPtr) {
-            auto strides = max_pool->get_strides();
-            return cnn2dValidatorPtr->ValidatePooling2D(max_pool->get_friendly_name(),
-                                                        kernels[0],
-                                                        kernels[1],
-                                                        strides[0],
-                                                        strides[1],
-                                                        is_exception_allowed);
-        }
-    }
-    return true;
-}
-
-bool is_fc_supported(const std::shared_ptr<ngraph::op::FullyConnected>& fully_connected, bool is_exception_allowed) {
-    OPENVINO_ASSERT(fully_connected, "FullyConnected node is empty!");
-    size_t output_batch_size = fully_connected->get_output_shape(0)[0];
-    if (output_batch_size > 8) {
-        if (is_exception_allowed) {
-            THROW_GNA_EXCEPTION << "topology with layer: " + fully_connected->get_friendly_name() +
-                                       ", type: " + fully_connected->get_type_name() + ", and batch size(" +
-                                       std::to_string(output_batch_size) + ") not supported";
-        }
-        return false;
-    }
-    return true;
-}
-
-bool is_split_supported(const std::shared_ptr<ov::Node>& node, bool is_exception_allowed) {
-    OPENVINO_ASSERT(node, "Split node is empty!");
-    bool is_aligned = true;
-    for (size_t i = 0; i < node->get_output_size(); i++) {
-        is_aligned &= ov::intel_gna::graph_utils::is_aligned_split(node, i);
-    }
-    return is_aligned;
-}
-
-bool is_op_supported(const std::shared_ptr<ov::Node>& node,
-                     const DeviceVersion& effective_compile_target,
-                     const InferenceEngine::Precision gna_precision,
-                     bool is_exception_allowed) {
-    if (ov::op::util::is_parameter(node)) {
-        return SupportedElementTypes::is_parameter_type_supported(node->get_element_type(), is_exception_allowed);
-    } else if (ov::op::util::is_constant(node)) {
-        return SupportedElementTypes::is_constant_type_supported(node->get_element_type(), is_exception_allowed);
-    } else if (auto conv_ie = std::dynamic_pointer_cast<ngraph::op::ConvolutionIE>(node)) {
-        return is_conv_supported(conv_ie, effective_compile_target, gna_precision, is_exception_allowed);
-    } else if (auto fully_connected = std::dynamic_pointer_cast<ngraph::op::FullyConnected>(node)) {
-        return is_fc_supported(fully_connected, is_exception_allowed);
-    } else if (ov::intel_gna::graph_utils::is_pooling(node)) {
-        return is_pooling_supported(std::dynamic_pointer_cast<ngraph::opset7::MaxPool>(node),
-                                    effective_compile_target,
-                                    is_exception_allowed);
-    } else if (ov::op::util::is_output(node) || ov::op::util::is_sink(node) ||
-               ov::intel_gna::graph_utils::is_eltwise_add(node) || ov::intel_gna::graph_utils::is_eltwise_mul(node) ||
-               ov::intel_gna::graph_utils::is_crop_affined(node) ||
-               ov::intel_gna::graph_utils::is_activation(node.get()) ||
-               ov::intel_gna::graph_utils::is_gna_precision_agnostic(
-                   node) ||  // check concat/split are aligned when transformations will be moved to ngraph
-               (std::dynamic_pointer_cast<ov::op::util::ReadValueBase>(node) != nullptr) ||
-               (std::dynamic_pointer_cast<ngraph::op::ScaleShiftIE>(node) != nullptr) ||
-               (std::dynamic_pointer_cast<ngraph::op::PowerIE>(node) != nullptr) ||
-               (std::dynamic_pointer_cast<ngraph::opset9::MatMul>(node) != nullptr)) {
-        return true;
-    } else if (ov::intel_gna::graph_utils::is_gna_precision_agnostic(node)) {
-        if ((std::dynamic_pointer_cast<ngraph::opset9::Split>(node) != nullptr) ||
-            (std::dynamic_pointer_cast<ngraph::opset9::VariadicSplit>(node) != nullptr)) {
-            return is_split_supported(node, is_exception_allowed);
-        }
-        // TODO check concat are aligned when transformation will be moved to ngraph
-        return true;
-    }
-    return false;
-}
-
-void check_all_ops_supported(const std::shared_ptr<ov::Model>& model,
-                             const DeviceVersion& effective_compile_target,
-                             const InferenceEngine::Precision gna_precision) {
-    std::stringstream error;
-    // Walk through the transformed model
-    for (auto& op : model->get_ops()) {
-        if (!is_op_supported(op, effective_compile_target, gna_precision, true)) {
-            error << "The plugin does not support layer " << op->get_friendly_name() << " (type " << op->get_type_name()
-                  << ")!" << std::endl;
-        }
-    }
-    if (!error.str().empty()) {
-        THROW_GNA_EXCEPTION << error.str();
-    }
-}
 namespace cnn2d {
 
-bool IsEqualToLimit::isValid(const uint32_t val) const {
+bool IsEqualToLimit::IsValid(const uint32_t val) const {
     return val == compared_value;
 }
 
 std::string IsEqualToLimit::GetErrorOrEmpty(const uint32_t val) const {
     std::ostringstream out;
-    if (!isValid(val)) {
+    if (!IsValid(val)) {
         out << "Unsupported " << what << ", actual value: " << val << ", but should be equal to " << compared_value
             << "\n";
     }
     return out.str();
 }
 
-bool IsLessThanLimit ::isValid(const uint32_t val) const {
+bool IsLessThanLimit::IsValid(const uint32_t val) const {
     return val < compared_value;
 }
 
-std::string IsLessThanLimit ::GetErrorOrEmpty(const uint32_t val) const {
+std::string IsLessThanLimit::GetErrorOrEmpty(const uint32_t val) const {
     std::ostringstream out;
-    if (!isValid(val)) {
+    if (!IsValid(val)) {
         out << "Unsupported " << what << ", actual value: " << val << ", but should be less than " << compared_value
             << "\n";
     }
     return out.str();
 }
 
-bool RangeLimit::isValid(const uint32_t val) const {
+bool RangeLimit::IsValid(const uint32_t val) const {
     return val >= min && val <= max;
 }
 
 std::string RangeLimit::GetErrorOrEmpty(const uint32_t val) const {
     std::ostringstream out;
-    if (!isValid(val)) {
+    if (!IsValid(val)) {
         out << "Unsupported " << what << ", actual value: " << val << ", valid range [" << min << ", " << max << "]\n";
     }
     return out.str();
 }
 
-bool RangeLimit2D::isValid(const uint32_t h, const uint32_t w) const {
-    return hLimit.isValid(h) && wLimit.isValid(w);
+bool RangeLimit2D::IsValid(const uint32_t h, const uint32_t w) const {
+    return hLimit.IsValid(h) && wLimit.IsValid(w);
 }
 
 std::string RangeLimit2D::GetErrorOrEmpty(const uint32_t h, const uint32_t w) const {
@@ -308,8 +103,8 @@ RangeMultipleLimit::RangeMultipleLimit(RangeLimit rlIn, uint32_t multiplierIn)
     : RangeLimit(rlIn),
       multiplier(multiplierIn) {}
 
-bool RangeMultipleLimit::isValid(const uint32_t val) const {
-    return RangeLimit::isValid(val) && (val % multiplier == 0);
+bool RangeMultipleLimit::IsValid(const uint32_t val) const {
+    return RangeLimit::IsValid(val) && (val % multiplier == 0);
 }
 
 std::string RangeMultipleLimit::GetErrorOrEmpty(const uint32_t val) const {
@@ -321,7 +116,7 @@ std::string RangeMultipleLimit::GetErrorOrEmpty(const uint32_t val) const {
     return e + out.str();
 }
 
-bool VectorOrSquareLimit::isValid(const uint32_t h, const uint32_t w) const {
+bool VectorOrSquareLimit::IsValid(const uint32_t h, const uint32_t w) const {
     if (w == 1 && h >= 1 && h <= maxVectorHeight)
         return true;
     if (h == 1 && w >= 1 && w <= maxVectorWidth)
@@ -333,7 +128,7 @@ bool VectorOrSquareLimit::isValid(const uint32_t h, const uint32_t w) const {
 
 std::string VectorOrSquareLimit::GetErrorOrEmpty(const uint32_t h, const uint32_t w, std::string what) const {
     std::ostringstream out;
-    if (!isValid(h, w)) {
+    if (!IsValid(h, w)) {
         out << "Unsupported " << what << " shape, actual HxW: " << h << "x" << w << ", only vertical vector up to "
             << maxVectorHeight << "x1, horizontal up to 1x" << maxVectorWidth << " or square up to " << maxSquare << "x"
             << maxSquare << " are valid\n";
@@ -341,7 +136,7 @@ std::string VectorOrSquareLimit::GetErrorOrEmpty(const uint32_t h, const uint32_
     return out.str();
 }
 
-bool RectLimit::isValid(const uint32_t h, const uint32_t w) const {
+bool RectLimit::IsValid(const uint32_t h, const uint32_t w) const {
     if (h >= 1 && h <= maxVectorHeight && w >= 1 && w <= maxVectorWidth)
         return true;
     return false;
@@ -349,7 +144,7 @@ bool RectLimit::isValid(const uint32_t h, const uint32_t w) const {
 
 std::string RectLimit::GetErrorOrEmpty(const uint32_t h, const uint32_t w, std::string what) const {
     std::ostringstream out;
-    if (!isValid(h, w)) {
+    if (!IsValid(h, w)) {
         out << "Unsupported " << what << " shape, actual HxW: " << h << "x" << w << ", only rectangular shapes up to "
             << maxVectorHeight << "x" << maxVectorWidth << " are valid\n";
     }
@@ -365,8 +160,8 @@ RectLimit RectLimitByChannels::GetByChannels(const uint32_t channels) const {
     return RectLimit{0, 0};
 }
 
-bool RectLimitByChannels::isValid(const uint32_t h, const uint32_t w, const uint32_t channels) const {
-    return GetByChannels(channels).isValid(h, w);
+bool RectLimitByChannels::IsValid(const uint32_t h, const uint32_t w, const uint32_t channels) const {
+    return GetByChannels(channels).IsValid(h, w);
 }
 
 std::string RectLimitByChannels::GetErrorOrEmpty(const uint32_t h,
@@ -380,11 +175,11 @@ RectLimitByChannels RectLimitByChannelsAndPrecision::GetByPrecision(const OvGnaT
     return precision == OvGnaTypeInt8 ? limit_for_int8 : limit_for_int16;
 }
 
-bool RectLimitByChannelsAndPrecision::isValid(const uint32_t h,
+bool RectLimitByChannelsAndPrecision::IsValid(const uint32_t h,
                                               const uint32_t w,
                                               const OvGnaType precision,
                                               const uint32_t channels) const {
-    return GetByPrecision(precision).isValid(h, w, channels);
+    return GetByPrecision(precision).IsValid(h, w, channels);
 }
 
 std::string RectLimitByChannelsAndPrecision::GetErrorOrEmpty(const uint32_t h,
@@ -395,6 +190,66 @@ std::string RectLimitByChannelsAndPrecision::GetErrorOrEmpty(const uint32_t h,
     return GetByPrecision(precision).GetErrorOrEmpty(h, w, channels, what);
 }
 
+class Validator_30 : public AbstractValidator {
+    static const RangeLimit2D kInputHWLimit;
+    static const RangeMultipleLimit kInputChannelsNumberLimit;
+
+    static const RangeMultipleLimit kKernelNumberLimit;
+    static const RectLimitByChannelsAndPrecision kKernelLimit;
+    static const RangeLimit2D kDilationLimit;
+
+    static const VectorOrSquareLimit kPoolingWindowLimit;
+
+public:
+    Validator_30() = default;
+
+    bool ValidateCnn2D(const std::string& name,
+                       const uint32_t inHeight,
+                       const uint32_t inWidth,
+                       const uint32_t inChannels,
+                       const uint32_t kH,
+                       const uint32_t kW,
+                       const uint32_t kN,
+                       const uint32_t strideH,
+                       const uint32_t strideW,
+                       const uint32_t dilationH,
+                       const uint32_t dilationW,
+                       OvGnaType inPrecision,
+                       bool exception = true) const override;
+
+    bool ValidatePooling2D(const std::string& name,
+                           const uint32_t windowH,
+                           const uint32_t windowW,
+                           const uint32_t strideH,
+                           const uint32_t strideW,
+                           bool exception = true) const override;
+
+    bool ValidateInputPadding(const std::string& name,
+                              const uint32_t pad_h_begin,
+                              const uint32_t pad_h_end,
+                              const uint32_t pad_w_begin,
+                              const uint32_t pad_w_end,
+                              const uint32_t kernel_h,
+                              const uint32_t kernel_w,
+                              const bool throwOnError = true) const override;
+
+    bool ShouldUseOnlyConv2DGnaIface() const override;
+
+    bool ValidateCnn1D(const std::string& name,
+                       const uint32_t inHeight,
+                       const uint32_t inWidth,
+                       const uint32_t inChannels,
+                       const uint32_t kH,
+                       const uint32_t kW,
+                       const uint32_t kN,
+                       const uint32_t strideH,
+                       const uint32_t strideW,
+                       const uint32_t dilationH,
+                       const uint32_t dilationW,
+                       OvGnaType inPrecision,
+                       bool exception = true) const override;
+};
+
 const RangeLimit2D Validator_30::kInputHWLimit{{16, 384, "input height"}, {16, 240, "input width"}};
 const RangeMultipleLimit Validator_30::kInputChannelsNumberLimit{{8, 384, "number of input channels"}, 8};
 
@@ -404,8 +259,9 @@ const RectLimitByChannelsAndPrecision Validator_30::kKernelLimit{
     {{{48, {7, 7}}, {64, {7, 5}}, {80, {7, 4}}, {120, {7, 3}}, {384, {7, 1}}}},
 };
 
-const RangeLimit2D Validator_30::kDilationLimit{{convDilationHeight, convDilationHeight, "dilation height"},
-                                                {convDilationWidth, convDilationWidth, "dilation width"}};
+const RangeLimit2D Validator_30::kDilationLimit{
+    {Limitations::kConvDilationHeight, Limitations::kConvDilationHeight, "dilation height"},
+    {Limitations::kConvDilationWidth, Limitations::kConvDilationWidth, "dilation width"}};
 
 bool Validator_30::ValidateCnn2D(const std::string& name,
                                  const uint32_t inHeight,
@@ -493,6 +349,95 @@ bool Validator_30::ShouldUseOnlyConv2DGnaIface() const {
     return false;
 }
 
+class Validator_35 : public AbstractValidator {
+    struct CnnLimits {
+        const RangeLimit2D kInputHWLimit;
+        const RangeLimit kInputChannelsNumberLimit1B;
+        const RangeLimit kInputChannelsNumberLimit2B;
+        const RangeLimit kKernelNumberLimit;
+        const RangeLimit2D kKerneHWlLimit1B;
+        const RangeLimit2D kKerneHWlLimit2B;
+        const RangeLimit2D kStrideHWLimit1B;
+        const RangeLimit2D kStrideHWLimit2B;
+        const RangeLimit2D kDilationLimit;
+        const RangeLimit2D kPoolingWindowHWLimit;
+        const RangeLimit2D kPoolingStrideHWLimit;
+    };
+
+    static const CnnLimits kCnn2DLimits;
+    static const CnnLimits kCnn1DLimits;
+
+    std::string ValidateCnn(const CnnLimits& limits,
+                            const std::string& name,
+                            const uint32_t inHeight,
+                            const uint32_t inWidth,
+                            const uint32_t inChannels,
+                            const uint32_t kH,
+                            const uint32_t kW,
+                            const uint32_t kN,
+                            const uint32_t strideH,
+                            const uint32_t strideW,
+                            const uint32_t dilationH,
+                            const uint32_t dilationW,
+                            OvGnaType inPrecision) const;
+
+    std::string ValidatePooling(const CnnLimits& limits,
+                                const std::string& name,
+                                const uint32_t windowH,
+                                const uint32_t windowW,
+                                const uint32_t strideH,
+                                const uint32_t strideW) const;
+
+public:
+    Validator_35() = default;
+
+    bool ValidateCnn2D(const std::string& name,
+                       const uint32_t inHeight,
+                       const uint32_t inWidth,
+                       const uint32_t inChannels,
+                       const uint32_t kH,
+                       const uint32_t kW,
+                       const uint32_t kN,
+                       const uint32_t strideH,
+                       const uint32_t strideW,
+                       const uint32_t dilationH,
+                       const uint32_t dilationW,
+                       OvGnaType inPrecision,
+                       bool exception = true) const override;
+
+    bool ValidatePooling2D(const std::string& name,
+                           const uint32_t windowH,
+                           const uint32_t windowW,
+                           const uint32_t strideH,
+                           const uint32_t strideW,
+                           bool exception = true) const override;
+
+    bool ValidateInputPadding(const std::string& name,
+                              const uint32_t pad_h_begin,
+                              const uint32_t pad_h_end,
+                              const uint32_t pad_w_begin,
+                              const uint32_t pad_w_end,
+                              const uint32_t kernel_h,
+                              const uint32_t kernel_w,
+                              const bool throwOnError = true) const override;
+
+    bool ShouldUseOnlyConv2DGnaIface() const override;
+
+    bool ValidateCnn1D(const std::string& name,
+                       const uint32_t inHeight,
+                       const uint32_t inWidth,
+                       const uint32_t inChannels,
+                       const uint32_t kH,
+                       const uint32_t kW,
+                       const uint32_t kN,
+                       const uint32_t strideH,
+                       const uint32_t strideW,
+                       const uint32_t dilationH,
+                       const uint32_t dilationW,
+                       OvGnaType inPrecision,
+                       bool exception = true) const override;
+};
+
 const Validator_35::CnnLimits Validator_35::kCnn2DLimits{
     {{1, 65535, "input height"}, {1, 65535, "input width"}},                        // kInputHWLimit
     {1, 2048, "number of input channels"},                                          // kInputChannelsNumberLimit1B
@@ -502,8 +447,8 @@ const Validator_35::CnnLimits Validator_35::kCnn2DLimits{
     {{1, 255, "kernel height"}, {1, 256, "kernel width"}},                          // kKerneHWlLimit2B
     {{1, 255, "convolution stride height"}, {1, 256, "convolution stride width"}},  // kStrideHWLimit1B
     {{1, 255, "convolution stride height"}, {1, 256, "convolution stride width"}},  // kStrideHWLimit2B
-    {{convDilationHeight, convDilationHeight, "dilation height"},                   // kDilationLimit
-     {convDilationWidth, convDilationWidth, "dilation width"}},
+    {{Limitations::kConvDilationHeight, Limitations::kConvDilationHeight, "dilation height"},  // kDilationLimit
+     {Limitations::kConvDilationWidth, Limitations::kConvDilationWidth, "dilation width"}},
     {{1, 255, "pooling window height"}, {1, 255, "pooling window width"}},  // kPoolingWindowHWLimit
     {{1, 255, "pooling stride height"}, {1, 255, "pooling stride width"}}   // kPoolingStrideHWLimit
 };
@@ -517,8 +462,8 @@ const Validator_35::CnnLimits Validator_35::kCnn1DLimits{
     {{1, 1, "kernel height"}, {1, 2048, "kernel width"}},                          // kKerneHWlLimit2B
     {{1, 1, "convolution stride height"}, {1, 4096, "convolution stride width"}},  // kStrideHWLimit1B
     {{1, 1, "convolution stride height"}, {1, 2048, "convolution stride width"}},  // kStrideHWLimit2B
-    {{convDilationHeight, convDilationHeight, "dilation height"},                  // kDilationLimit
-     {convDilationWidth, convDilationWidth, "dilation width"}},
+    {{Limitations::kConvDilationHeight, Limitations::kConvDilationHeight, "dilation height"},  // kDilationLimit
+     {Limitations::kConvDilationWidth, Limitations::kConvDilationWidth, "dilation width"}},
     {{1, 1, "pooling window height"}, {1, 255, "pooling window width"}},  // kPoolingWindowHWLimit
     {{1, 1, "pooling stride height"}, {1, 255, "pooling stride width"}}   // kPoolingStrideHWLimit
 };
@@ -672,16 +617,16 @@ bool Validator_35::ShouldUseOnlyConv2DGnaIface() const {
     return true;
 }
 
-std::unique_ptr<AbstractValidator> AbstractValidator::Create(const DeviceVersion& target) {
+std::shared_ptr<AbstractValidator> AbstractValidator::Create(const DeviceVersion& target) {
     switch (target) {
     case DeviceVersion::GNA3_0:
     case DeviceVersion::GNA3_1:
-        return tools::make_unique<Validator_30>();
+        return std::make_shared<Validator_30>();
     case DeviceVersion::GNA3_5:
     case DeviceVersion::GNAEmbedded3_5:
     case DeviceVersion::GNA3_6:
     case DeviceVersion::GNA4_0:
-        return tools::make_unique<Validator_35>();
+        return std::make_shared<Validator_35>();
     default:
         return nullptr;
     }
@@ -705,15 +650,280 @@ bool AbstractValidator::ValidationSuccesful(const bool throwOnError,
     return error.empty();
 }
 
-bool UseOnly16BitConvolutionWeights(const DeviceVersion& compile_target) {
-    return compile_target == DeviceVersion::GNA1_0 || compile_target == DeviceVersion::GNA2_0 ||
-           compile_target == DeviceVersion::GNA3_0 || compile_target == DeviceVersion::GNA3_1;
-}
-
 }  // namespace cnn2d
 
+constexpr uint32_t Limitations::kBufferMaxSize;
+constexpr uint32_t Limitations::kConvMinFiltersNum;
+constexpr uint32_t Limitations::kConvMaxFiltersNum;
+constexpr uint32_t Limitations::kConvDilationHeight;
+constexpr uint32_t Limitations::kConvDilationWidth;
+constexpr uint32_t Limitations::kConvFiltersNumDivider;
+constexpr uint32_t Limitations::kConvFilterSizeDivider;
+constexpr uint32_t Limitations::kConvFilterMaxSize;
+constexpr uint32_t Limitations::kConvEachKernelByteAlignment;
+constexpr uint32_t Limitations::kInputByteAlignment;
+constexpr uint32_t Limitations::kNoOfInputsDivisor;
+constexpr uint32_t Limitations::kNoOfInputsLowPrecDivisor;
+constexpr uint32_t Limitations::kAffineMaxBatchSize;
+constexpr uint32_t Limitations::kMaxPoolMaxWindowSize;
+constexpr uint32_t Limitations::kCopyMaxGrouping;
+constexpr uint32_t Limitations::kTransposeMaxSize;
+constexpr uint32_t Limitations::kMaxLayersCountGNA1_0;
+constexpr uint32_t Limitations::kMaxLayersCountGNA2_0;
+constexpr uint32_t Limitations::kMaxLayersCountGNA3_X;
+constexpr uint32_t Limitations::kBytesPerSplitElement;
+constexpr uint32_t Limitations::kBytesPerCropElement;
+constexpr uint32_t Limitations::kMemoryPageSize;
+
+thread_local std::shared_ptr<Limitations> Limitations::k_instance{nullptr};
+
+Limitations::Limitations(const DeviceVersion& target) {
+    m_use_only_16bit_conv_weights = (target == DeviceVersion::GNA1_0 || target == DeviceVersion::GNA2_0 ||
+                                     target == DeviceVersion::GNA3_0 || target == DeviceVersion::GNA3_1);
+
+    m_mem_alignment = get_memory_alignment_bytes(target);
+    m_cnn_validator = cnn2d::AbstractValidator::Create(target);
+}
+
+void Limitations::init(const DeviceVersion& compile_target) {
+    k_instance = std::shared_ptr<Limitations>(new Limitations(compile_target));
+}
+
+bool Limitations::is_transpose_2d(const std::vector<size_t>& shape) {
+    return std::count_if(std::begin(shape), std::end(shape), [](size_t dim) {
+               return dim != 1;
+           }) == 2;
+}
+
+bool Limitations::is_transpose_supported(const std::vector<size_t>& shape) {
+    if (!is_transpose_2d(shape))
+        return false;
+    auto shape_no_1 = shape;
+    shape_no_1.erase(std::remove(shape_no_1.begin(), shape_no_1.end(), 1), shape_no_1.end());
+    size_t min, max;
+    std::tie(min, max) = std::minmax(shape_no_1[0], shape_no_1[1]);
+    return min <= 8 && max % 8 == 0 && max >= 8 && max <= kTransposeMaxSize;
+}
+
+size_t Limitations::get_min_batch_to_fit_in_buffer(InferenceEngine::DataPtr input) {
+    auto total_size = InferenceEngine::details::product(std::begin(input->getDims()), std::end(input->getDims()));
+    return total_size / kBufferMaxSize + 1;
+}
+
+size_t Limitations::get_memory_alignment_bytes(const DeviceVersion& target) const {
+    static const std::unordered_map<DeviceVersion, size_t> mem_alignment_map{{DeviceVersion::GNA1_0, 64},
+                                                                             {DeviceVersion::GNA2_0, 64},
+                                                                             {DeviceVersion::GNA3_0, 64},
+                                                                             {DeviceVersion::GNA3_1, 64},
+                                                                             {DeviceVersion::GNA3_5, 64},
+                                                                             {DeviceVersion::GNAEmbedded3_5, 64},
+                                                                             {DeviceVersion::GNA3_6, 16},
+                                                                             {DeviceVersion::GNA4_0, 16}};
+
+    return common::GetValueForKey<DeviceVersion, size_t>(target, mem_alignment_map);
+}
+
+bool SupportedElementTypes::IsParameterTypeSupported(ov::element::Type elem_type, bool is_exception_allowed) {
+    if (supported_parameter_types.count(elem_type) == 0) {
+        if (is_exception_allowed) {
+            THROW_GNA_EXCEPTION << "The plugin does not support input precision with " << elem_type.get_type_name()
+                                << " format. Supported precisions " << supported_parameter_types << "\n";
+        }
+        return false;
+    }
+    return true;
+}
+
+const std::set<ov::element::Type> SupportedElementTypes::supported_constant_types = {ov::element::i8,
+                                                                                     ov::element::u8,
+                                                                                     ov::element::i16,
+                                                                                     ov::element::u16,
+                                                                                     ov::element::i32,
+                                                                                     ov::element::f32,
+                                                                                     ov::element::f64};
+
+bool SupportedElementTypes::IsConstantTypeSupported(ov::element::Type elem_type, bool is_exception_allowed) {
+    if (supported_constant_types.count(elem_type) == 0) {
+        if (is_exception_allowed) {
+            THROW_GNA_EXCEPTION << "The plugin does not support constant precision with " << elem_type.get_type_name()
+                                << " format. Supported precisions " << supported_constant_types << "\n";
+        }
+        return false;
+    }
+    return true;
+}
+
+bool Limitations::is_transpose_supported(const std::shared_ptr<const ov::Node>& node) {
+    OPENVINO_ASSERT(node, "Transpose node is empty!");
+    const ov::Shape squeezed_shape = graph_utils::squeeze_shape(node->get_input_shape(0));
+    const size_t min_input_dim = std::min(squeezed_shape[0], squeezed_shape[1]);
+    const size_t max_input_dim = std::max(squeezed_shape[0], squeezed_shape[1]);
+
+    // GNA transpose limitations:
+    // - supports 2d transposes only
+    // - smaller dimension should be less or equal to 8
+    // - bigger dimension should be a multiple of Limitations::kNoOfInputsDivisor
+    if (squeezed_shape.size() == 2 && min_input_dim <= 8 && ALIGN(max_input_dim, kNoOfInputsDivisor) == max_input_dim) {
+        return true;
+    }
+    return false;
+}
+
+bool Limitations::is_conv_supported(const std::shared_ptr<ngraph::op::ConvolutionIE>& conv_ie,
+                                    const InferenceEngine::Precision gna_precision,
+                                    bool is_exception_allowed) {
+    OPENVINO_ASSERT(conv_ie, "ConvolutionIE node is empty!");
+    size_t batch_size = conv_ie->input_value(0).get_shape()[0];
+    if (batch_size != 1) {
+        if (is_exception_allowed) {
+            THROW_GNA_EXCEPTION << "topology with layer: " + conv_ie->get_friendly_name() +
+                                       ", type: " + conv_ie->get_type_name() + ", and batch size(" +
+                                       std::to_string(batch_size) + ") != 1 not supported";
+        }
+        return false;
+    }
+    auto check_dilation = [&](size_t filter_dilation_height, size_t filter_stride_width) -> bool {
+        cnn2d::RangeLimit2D dilation_limit{{kConvDilationHeight, kConvDilationHeight, "dilation height"},
+                                           {kConvDilationWidth, kConvDilationWidth, "dilation width"}};
+        std::string error = dilation_limit.GetErrorOrEmpty(filter_dilation_height, filter_stride_width);
+        return cnn2d::AbstractValidator::ValidationSuccesful(is_exception_allowed,
+                                                             error,
+                                                             conv_ie->get_friendly_name(),
+                                                             conv_ie->get_type_name());
+    };
+    auto input_shape = conv_ie->input_value(0).get_shape();
+    auto filter_shape = conv_ie->input_value(1).get_shape();
+    if ((4 == filter_shape.size() && filter_shape[2] > 1 && filter_shape[3] > 1) ||
+        (4 == input_shape.size() && input_shape[2] > 1 && input_shape[3] > 1)) {
+        pass::helper::ConvData conv_data;
+        pass::helper::GetConvData(conv_ie, conv_data);
+        if (gna_convolution_layer::isMappableFrom2DTo1D(conv_data.input_height,
+                                                        conv_data.input_width,
+                                                        conv_data.input_channel_count,
+                                                        conv_data.filter_height,
+                                                        conv_data.filter_width,
+                                                        conv_data.filter_stride_height,
+                                                        conv_data.filter_stride_width)) {
+            return check_dilation(conv_data.filter_dilation_height, conv_data.filter_dilation_width);
+        }
+
+        if (m_cnn_validator) {
+            return m_cnn_validator->ValidateCnn2D(conv_ie->get_friendly_name(),
+                                                  conv_data.input_height,
+                                                  conv_data.input_width,
+                                                  conv_data.input_channel_count,
+                                                  conv_data.filter_height,
+                                                  conv_data.filter_width,
+                                                  conv_data.filter_channel_count,
+                                                  conv_data.filter_stride_height,
+                                                  conv_data.filter_stride_width,
+                                                  conv_data.filter_dilation_height,
+                                                  conv_data.filter_dilation_width,
+                                                  OvGnaTypeIntFromBytes(gna_precision.size()),
+                                                  is_exception_allowed);
+        }
+    }
+    return check_dilation(conv_ie->get_dilations()[0], conv_ie->get_dilations()[1]);
+}
+
+bool Limitations::is_pooling_supported(const std::shared_ptr<ngraph::opset7::MaxPool> max_pool,
+                                       bool is_exception_allowed) {
+    OPENVINO_ASSERT(max_pool, "MaxPool node is empty!");
+    auto kernels = max_pool->get_kernel();
+    if (2 == kernels.size() && kernels[0] > 1 && kernels[1] > 1) {
+        if (m_cnn_validator) {
+            auto strides = max_pool->get_strides();
+            return m_cnn_validator->ValidatePooling2D(max_pool->get_friendly_name(),
+                                                      kernels[0],
+                                                      kernels[1],
+                                                      strides[0],
+                                                      strides[1],
+                                                      is_exception_allowed);
+        }
+    }
+    return true;
+}
+
+bool Limitations::is_fc_supported(const std::shared_ptr<ngraph::op::FullyConnected>& fully_connected,
+                                  bool is_exception_allowed) {
+    OPENVINO_ASSERT(fully_connected, "FullyConnected node is empty!");
+    size_t output_batch_size = fully_connected->get_output_shape(0)[0];
+    if (output_batch_size > 8) {
+        if (is_exception_allowed) {
+            THROW_GNA_EXCEPTION << "topology with layer: " + fully_connected->get_friendly_name() +
+                                       ", type: " + fully_connected->get_type_name() + ", and batch size(" +
+                                       std::to_string(output_batch_size) + ") not supported";
+        }
+        return false;
+    }
+    return true;
+}
+
+bool Limitations::is_split_supported(const std::shared_ptr<ov::Node>& node, bool is_exception_allowed) {
+    OPENVINO_ASSERT(node, "Split node is empty!");
+    bool is_aligned = true;
+    for (size_t i = 0; i < node->get_output_size(); i++) {
+        is_aligned &= ov::intel_gna::graph_utils::is_aligned_split(node, i);
+    }
+    return is_aligned;
+}
+
+bool Limitations::is_op_supported(const std::shared_ptr<ov::Node>& node,
+                                  const InferenceEngine::Precision gna_precision,
+                                  bool is_exception_allowed) {
+    if (ov::op::util::is_parameter(node)) {
+        return SupportedElementTypes::IsParameterTypeSupported(node->get_element_type(), is_exception_allowed);
+    } else if (ov::op::util::is_constant(node)) {
+        return SupportedElementTypes::IsConstantTypeSupported(node->get_element_type(), is_exception_allowed);
+    } else if (auto conv_ie = std::dynamic_pointer_cast<ngraph::op::ConvolutionIE>(node)) {
+        return is_conv_supported(conv_ie, gna_precision, is_exception_allowed);
+    } else if (auto fully_connected = std::dynamic_pointer_cast<ngraph::op::FullyConnected>(node)) {
+        return is_fc_supported(fully_connected, is_exception_allowed);
+    } else if (ov::intel_gna::graph_utils::is_pooling(node)) {
+        return is_pooling_supported(std::dynamic_pointer_cast<ngraph::opset7::MaxPool>(node), is_exception_allowed);
+    } else if (ov::op::util::is_output(node) || ov::op::util::is_sink(node) ||
+               ov::intel_gna::graph_utils::is_eltwise_add(node) || ov::intel_gna::graph_utils::is_eltwise_mul(node) ||
+               ov::intel_gna::graph_utils::is_crop_affined(node) ||
+               ov::intel_gna::graph_utils::is_activation(node.get()) ||
+               ov::intel_gna::graph_utils::is_gna_precision_agnostic(
+                   node) ||  // check concat/split are aligned when transformations will be moved to ngraph
+               (std::dynamic_pointer_cast<ov::op::util::ReadValueBase>(node) != nullptr) ||
+               (std::dynamic_pointer_cast<ngraph::op::ScaleShiftIE>(node) != nullptr) ||
+               (std::dynamic_pointer_cast<ngraph::op::PowerIE>(node) != nullptr) ||
+               (std::dynamic_pointer_cast<ngraph::opset9::MatMul>(node) != nullptr)) {
+        return true;
+    } else if (ov::intel_gna::graph_utils::is_gna_precision_agnostic(node)) {
+        if ((std::dynamic_pointer_cast<ngraph::opset9::Split>(node) != nullptr) ||
+            (std::dynamic_pointer_cast<ngraph::opset9::VariadicSplit>(node) != nullptr)) {
+            return is_split_supported(node, is_exception_allowed);
+        }
+        // TODO check concat are aligned when transformation will be moved to ngraph
+        return true;
+    }
+    return false;
+}
+
+void Limitations::check_all_ops_supported(const std::shared_ptr<ov::Model>& model,
+                                          const InferenceEngine::Precision gna_precision) {
+    std::stringstream error;
+    // Walk through the transformed model
+    for (auto& op : model->get_ops()) {
+        if (!is_op_supported(op, gna_precision, true)) {
+            error << "The plugin does not support layer " << op->get_friendly_name() << " (type " << op->get_type_name()
+                  << ")!" << std::endl;
+        }
+    }
+    if (!error.str().empty()) {
+        THROW_GNA_EXCEPTION << error.str();
+    }
+}
+
+bool Limitations::use_only_16bit_convolution_weights() const {
+    return m_use_only_16bit_conv_weights;
+}
+
 IE_SUPPRESS_DEPRECATED_START
-static bool ValidateConcatAxis(const InferenceEngine::CNNLayerPtr layer, std::string& errMessage) {
+bool Limitations::validate_concat_axis(const InferenceEngine::CNNLayerPtr layer, std::string& errMessage) {
     LayerInfo info(layer);
     auto concat_layer = info.as<InferenceEngine::ConcatLayer*>();
     IE_ASSERT(concat_layer);
@@ -747,7 +957,8 @@ static bool ValidateConcatAxis(const InferenceEngine::CNNLayerPtr layer, std::st
         // when all transformations are migrated to ngraph
         bool is_not_trivial_concat = false;
 
-        // Concatentaion of consts and input parameters only is supported, even if first dimentsion of input parameter >
+        // Concatentaion of consts and input parameters only is supported, even if first dimentsion of input
+        // parameter >
         // 1
         bool concat_all_const_or_inputs = false;
 
@@ -846,7 +1057,7 @@ static bool ValidateConcatAxis(const InferenceEngine::CNNLayerPtr layer, std::st
     return true;
 }
 
-bool ValidateConvConcatAxis(const InferenceEngine::ConcatLayer* concat_layer) {
+bool Limitations::validate_conv_concat_axis(const InferenceEngine::ConcatLayer* concat_layer) {
     IE_ASSERT(concat_layer);
     auto dims_size = concat_layer->insData[0].lock()->getDims().size();
 
@@ -898,7 +1109,7 @@ bool ValidateConvConcatAxis(const InferenceEngine::ConcatLayer* concat_layer) {
     return true;
 }
 
-bool AreLayersSupported(InferenceEngine::CNNNetwork& network, std::string& errMessage) {
+bool Limitations::are_layers_supported(InferenceEngine::CNNNetwork& network, std::string& errMessage) {
     IE_SUPPRESS_DEPRECATED_START
     InferenceEngine::InputsDataMap inputs = network.getInputsInfo();
     std::unordered_set<InferenceEngine::CNNLayer*> allLayers;
@@ -909,7 +1120,7 @@ bool AreLayersSupported(InferenceEngine::CNNNetwork& network, std::string& errMe
         // If there are no inputs start search from an output
         startLayer = getCreatorLayer(outputs.begin()->second).lock();
     } else {
-        SupportedElementTypes::is_parameter_type_supported(
+        SupportedElementTypes::IsParameterTypeSupported(
             InferenceEngine::details::convertPrecision(inputs.begin()->second->getPrecision()),
             true);
 
@@ -944,7 +1155,7 @@ bool AreLayersSupported(InferenceEngine::CNNNetwork& network, std::string& errMe
                     check_result = false;
                 }
             } else if (info.isConcat()) {
-                if (!ValidateConcatAxis(layer, errMessage)) {
+                if (!validate_concat_axis(layer, errMessage)) {
                     THROW_GNA_EXCEPTION << errMessage;
                 }
             }
