@@ -41,13 +41,62 @@ struct PadParams {
     std::string testcaseName;
 };
 
+template <typename TPad>
+std::shared_ptr<Model> commonConstPadsCreateFunction(const PadParams& params) {
+    const auto data = std::make_shared<op::v0::Parameter>(params.inputData.type, params.inputData.shape);
+    const auto padsBegin =
+        op::v0::Constant::create(params.padsBegin.type, params.padsBegin.shape, params.padsBegin.data.data());
+    const auto padsEnd =
+        op::v0::Constant::create(params.padsEnd.type, params.padsEnd.shape, params.padsEnd.data.data());
+    const auto f = [&] {
+        if (params.useConstValue) {
+            // pad_value should be used only in CONSTANT mode
+            const auto padVal = op::v0::Constant::create(params.constantValue.type,
+                                                         params.constantValue.shape,
+                                                         params.constantValue.data.data());
+            return std::make_shared<Model>(std::make_shared<TPad>(data, padsBegin, padsEnd, padVal, params.padMode),
+                                           ParameterVector{data});
+        }
+
+        return std::make_shared<Model>(std::make_shared<TPad>(data, padsBegin, padsEnd, params.padMode),
+                                       ParameterVector{data});
+    }();
+    return f;
+}
+template <typename TPad>
+std::shared_ptr<Model> commonParamPadsCreateFunction(const PadParams& params) {
+    const auto data = std::make_shared<op::v0::Parameter>(params.inputData.type, params.inputData.shape);
+    const auto padsBegin = std::make_shared<op::v0::Parameter>(params.padsBegin.type, params.padsBegin.shape);
+    const auto padsEnd = std::make_shared<op::v0::Parameter>(params.padsEnd.type, params.padsEnd.shape);
+    const auto f = [&] {
+        if (params.useConstValue) {
+            // pad_value should be used only in CONSTANT mode
+            const auto padVal =
+                std::make_shared<op::v0::Parameter>(params.constantValue.type, params.constantValue.shape);
+            return std::make_shared<Model>(std::make_shared<TPad>(data, padsBegin, padsEnd, padVal, params.padMode),
+                                           ParameterVector{data, padsBegin, padsEnd, padVal});
+        }
+
+        return std::make_shared<Model>(std::make_shared<TPad>(data, padsBegin, padsEnd, params.padMode),
+                                       ParameterVector{data, padsBegin, padsEnd});
+    }();
+    return f;
+}
+
 class ReferencePadTest : public testing::TestWithParam<PadParams>, public CommonReferenceTest {
 public:
-    void SetUp() override {
-        SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    void BaseConstSetUp() {
         auto params = GetParam();
-        function = CreateFunction(params);
         inputData = {params.inputData.data};
+        refOutData = {params.expectedOutput.data};
+    }
+
+    void BaseParamSetUp() {
+        auto params = GetParam();
+        if (params.useConstValue)
+            inputData = {params.inputData.data, params.padsBegin.data, params.padsEnd.data, params.constantValue.data};
+        else
+            inputData = {params.inputData.data, params.padsBegin.data, params.padsEnd.data};
         refOutData = {params.expectedOutput.data};
     }
 
@@ -65,154 +114,97 @@ public:
         result << "_=" << param.testcaseName;
         return result.str();
     }
+};
 
-private:
+class ReferencePadV1Test : public ReferencePadTest {
+public:
+    void SetUp() override {
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
+        BaseConstSetUp();
+        function = CreateFunction(GetParam());
+    }
+
+    public:
     static std::shared_ptr<Model> CreateFunction(const PadParams& params) {
-        const auto data = std::make_shared<op::v0::Parameter>(params.inputData.type,
-                                                              params.inputData.shape);
-        const auto padsBegin = op::v0::Constant::create(params.padsBegin.type,
-                                                        params.padsBegin.shape,
-                                                        params.padsBegin.data.data());
-        const auto padsEnd = op::v0::Constant::create(params.padsEnd.type,
-                                                      params.padsEnd.shape,
-                                                      params.padsEnd.data.data());
-        const auto f = [&] {
-            if (params.useConstValue) {
-                // pad_value should be used only in CONSTANT mode
-                const auto padVal = op::v0::Constant::create(params.constantValue.type,
-                                                             params.constantValue.shape,
-                                                             params.constantValue.data.data());
-                return std::make_shared<Model>(std::make_shared<op::v1::Pad>(data,
-                                                                                padsBegin,
-                                                                                padsEnd,
-                                                                                padVal,
-                                                                                params.padMode),
-                                                  ParameterVector{data});
-            }
-
-            return std::make_shared<Model>(std::make_shared<op::v1::Pad>(data,
-                                                                            padsBegin,
-                                                                            padsEnd,
-                                                                            params.padMode),
-                                              ParameterVector{data});
-        }();
-        return f;
+        return commonConstPadsCreateFunction<op::v1::Pad>(params);
     }
 };
 
 class ReferencePadV12Test : public ReferencePadTest {
-private:
+public:
+    void SetUp() override {
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
+        BaseConstSetUp();
+        function = CreateFunction(GetParam());
+    }
     static std::shared_ptr<Model> CreateFunction(const PadParams& params) {
-        const auto data = std::make_shared<op::v0::Parameter>(params.inputData.type,
-                                                              params.inputData.shape);
-        const auto padsBegin = op::v0::Constant::create(params.padsBegin.type,
-                                                        params.padsBegin.shape,
-                                                        params.padsBegin.data.data());
-        const auto padsEnd = op::v0::Constant::create(params.padsEnd.type,
-                                                      params.padsEnd.shape,
-                                                      params.padsEnd.data.data());
-        const auto f = [&] {
-            if (params.useConstValue) {
-                // pad_value should be used only in CONSTANT mode
-                const auto padVal = op::v0::Constant::create(params.constantValue.type,
-                                                             params.constantValue.shape,
-                                                             params.constantValue.data.data());
-                return std::make_shared<Model>(std::make_shared<op::v12::Pad>(data,
-                                                                                padsBegin,
-                                                                                padsEnd,
-                                                                                padVal,
-                                                                                params.padMode),
-                                                  ParameterVector{data});
-            }
-
-            return std::make_shared<Model>(std::make_shared<op::v12::Pad>(data,
-                                                                            padsBegin,
-                                                                            padsEnd,
-                                                                            params.padMode),
-                                              ParameterVector{data});
-        }();
-        return f;
+        return commonConstPadsCreateFunction<op::v12::Pad>(params);
     }
 };
 
+
+TEST_P(ReferencePadV1Test, CompareWithRefs) {
+    Exec();
+}
 
 TEST_P(ReferencePadV12Test, CompareWithRefs) {
     Exec();
 }
 
-TEST_P(ReferencePadTest, CompareWithRefs) {
-    Exec();
-}
-
-class ReferencePadTestParamsTooLarge : public ReferencePadTest {};
+class ReferencePadTestParamsTooLarge : public ReferencePadV1Test {};
 
 TEST_P(ReferencePadTestParamsTooLarge, CompareWithRefs) {
     EXPECT_ANY_THROW(Exec());
 }
 
-class ReferencePadTestParamsOk : public ReferencePadTest {};
+class ReferencePadTestParamsOk : public ReferencePadV1Test {};
 
 TEST_P(ReferencePadTestParamsOk, CompareWithRefs) {
     EXPECT_NO_THROW(Exec());
 }
 
-class ReferencePadTestNonConstPadsBeginPadsEndPadVal : public ReferencePadTest {
+
+class ReferencePadV1TestNonConstPadsBeginPadsEndPadVal : public ReferencePadTest {
 public:
     void SetUp() override {
-        SKIP_IF_CURRENT_TEST_IS_DISABLED();
-        auto params = GetParam();
-        function = CreateFunction(params);
-        if (params.useConstValue)
-            inputData = {params.inputData.data, params.padsBegin.data, params.padsEnd.data, params.constantValue.data};
-        else
-            inputData = {params.inputData.data, params.padsBegin.data, params.padsEnd.data};
-        refOutData = {params.expectedOutput.data};
+        BaseParamSetUp();
+        function = CreateFunction(GetParam());
     }
 
-private:
     static std::shared_ptr<Model> CreateFunction(const PadParams& params) {
-        const auto data = std::make_shared<op::v0::Parameter>(params.inputData.type,
-                                                              params.inputData.shape);
-        const auto padsBegin = std::make_shared<op::v0::Parameter>(params.padsBegin.type,
-                                                                   params.padsBegin.shape);
-        const auto padsEnd = std::make_shared<op::v0::Parameter>(params.padsEnd.type,
-                                                                 params.padsEnd.shape);
-        const auto f = [&] {
-            if (params.useConstValue) {
-                // pad_value should be used only in CONSTANT mode
-                const auto padVal = std::make_shared<op::v0::Parameter>(params.constantValue.type,
-                                                                        params.constantValue.shape);
-                return std::make_shared<Model>(std::make_shared<op::v1::Pad>(data,
-                                                                                padsBegin,
-                                                                                padsEnd,
-                                                                                padVal,
-                                                                                params.padMode),
-                                                  ParameterVector{data, padsBegin, padsEnd, padVal});
-            }
-
-            return std::make_shared<Model>(std::make_shared<op::v1::Pad>(data,
-                                                                            padsBegin,
-                                                                            padsEnd,
-                                                                            params.padMode),
-                                              ParameterVector{data, padsBegin, padsEnd});
-        }();
-        return f;
+        return commonParamPadsCreateFunction<op::v1::Pad>(params);
     }
 };
 
-TEST_P(ReferencePadTestNonConstPadsBeginPadsEndPadVal, CompareWithRefs) {
+class ReferencePadV12TestNonConstPadsBeginPadsEndPadVal : public ReferencePadTest {
+public:
+    void SetUp() override {
+        BaseParamSetUp();
+        function = CreateFunction(GetParam());
+    }
+
+    static std::shared_ptr<Model> CreateFunction(const PadParams& params) {
+        return commonParamPadsCreateFunction<op::v12::Pad>(params);
+    }
+};
+
+TEST_P(ReferencePadV1TestNonConstPadsBeginPadsEndPadVal, CompareWithRefs) {
     Exec();
 }
 
-class ReferencePadTestNonConstPadsBeginPadsEndPadValTooLarge : public ReferencePadTestNonConstPadsBeginPadsEndPadVal {};
+TEST_P(ReferencePadV12TestNonConstPadsBeginPadsEndPadVal, CompareWithRefs) {
+    Exec();
+}
 
-TEST_P(ReferencePadTestNonConstPadsBeginPadsEndPadValTooLarge, CompareWithRefs) {
+class ReferencePadV1TestNonConstPadsBeginPadsEndPadValTooLarge : public ReferencePadV1TestNonConstPadsBeginPadsEndPadVal {};
+
+TEST_P(ReferencePadV1TestNonConstPadsBeginPadsEndPadValTooLarge, CompareWithRefs) {
     EXPECT_ANY_THROW(Exec());
 }
 
-class ReferencePadTestNonConstPadsBeginPadsEndPadValParamsOk : public ReferencePadTestNonConstPadsBeginPadsEndPadVal {};
+class ReferencePadV1TestNonConstPadsBeginPadsEndPadValParamsOk : public ReferencePadV1TestNonConstPadsBeginPadsEndPadVal {};
 
-TEST_P(ReferencePadTestNonConstPadsBeginPadsEndPadValParamsOk, CompareWithRefs) {
+TEST_P(ReferencePadV1TestNonConstPadsBeginPadsEndPadValParamsOk, CompareWithRefs) {
     EXPECT_NO_THROW(Exec());
 }
 
@@ -1102,13 +1094,17 @@ std::vector<PadParams> generateCombinedParams() {
     return combinedParams;
 }
 
+
+INSTANTIATE_TEST_SUITE_P(smoke_PadV1_With_Hardcoded_Refs, ReferencePadV1Test,
+    testing::ValuesIn(generateCombinedParams()), ReferencePadTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_PadV1_With_Hardcoded_Refs, ReferencePadV1TestNonConstPadsBeginPadsEndPadVal,
+    testing::ValuesIn(generateCombinedParams()), ReferencePadTest::getTestCaseName);
+
 INSTANTIATE_TEST_SUITE_P(smoke_PadV12_With_Hardcoded_Refs, ReferencePadV12Test,
     testing::ValuesIn(generateCombinedParams()), ReferencePadTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Pad_With_Hardcoded_Refs, ReferencePadTest,
-    testing::ValuesIn(generateCombinedParams()), ReferencePadTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Pad_With_Hardcoded_Refs, ReferencePadTestNonConstPadsBeginPadsEndPadVal,
+INSTANTIATE_TEST_SUITE_P(smoke_PadV12_With_Hardcoded_Refs, ReferencePadV12TestNonConstPadsBeginPadsEndPadVal,
     testing::ValuesIn(generateCombinedParams()), ReferencePadTest::getTestCaseName);
 
 template <element::Type_t ET, element::Type_t ET_INT>
@@ -1158,7 +1154,7 @@ std::vector<PadParams> generateCombinedParamsTooLarge() {
 INSTANTIATE_TEST_SUITE_P(smoke_Pad_With_Hardcoded_Refs, ReferencePadTestParamsTooLarge,
     testing::ValuesIn(generateCombinedParamsTooLarge()), ReferencePadTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Pad_With_Hardcoded_Refs, ReferencePadTestNonConstPadsBeginPadsEndPadValTooLarge,
+INSTANTIATE_TEST_SUITE_P(smoke_Pad_With_Hardcoded_Refs, ReferencePadV1TestNonConstPadsBeginPadsEndPadValTooLarge,
     testing::ValuesIn(generateCombinedParamsTooLarge()), ReferencePadTest::getTestCaseName);
 
 template <element::Type_t ET, element::Type_t ET_INT>
@@ -1208,6 +1204,6 @@ std::vector<PadParams> generateCombinedParamsOk() {
 INSTANTIATE_TEST_SUITE_P(smoke_Pad_With_Hardcoded_Refs, ReferencePadTestParamsOk,
     testing::ValuesIn(generateCombinedParamsOk()), ReferencePadTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Pad_With_Hardcoded_Refs, ReferencePadTestNonConstPadsBeginPadsEndPadValParamsOk,
+INSTANTIATE_TEST_SUITE_P(smoke_Pad_With_Hardcoded_Refs, ReferencePadV1TestNonConstPadsBeginPadsEndPadValParamsOk,
     testing::ValuesIn(generateCombinedParamsOk()), ReferencePadTest::getTestCaseName);
 } // namespace
