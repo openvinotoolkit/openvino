@@ -17,7 +17,9 @@ Check the versions of OpenVINO Runtime and Development Tools
    
   .. code-block:: sh
      
-     from openvino.runtime import get_version get_version()
+     from openvino.runtime import get_version 
+     get_version()
+
    
 
 Check the versions of Python and PIP
