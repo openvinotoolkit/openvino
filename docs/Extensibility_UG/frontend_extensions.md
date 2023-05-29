@@ -277,7 +277,7 @@ corresponding outputs of the original framework operation in the same order.
 Some frameworks require output names of the operation to be provided during conversion.
 For PaddlePaddle operations, it is generally necessary to provide names for all outputs using the ``NamedOutputs`` container.
 Usually those names can be found in source code of the individual operation in PaddlePaddle code.
-The next example shows such conversion for the ``top_k_v2`` operation.
+The following example shows such conversion for the ``top_k_v2`` operation.
 
 .. doxygensnippet:: docs/snippets/ov_extensions.cpp
    :language: cpp
