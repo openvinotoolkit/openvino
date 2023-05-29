@@ -121,7 +121,7 @@ TEST_P(ov_compiled_model_test, ov_compiled_model_input_by_name) {
     ov_core_free(core);
 }
 
-TEST_P(ov_compiled_model_test, get_property) {
+TEST_P(ov_compiled_model_test, set_and_get_property) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
@@ -135,14 +135,19 @@ TEST_P(ov_compiled_model_test, get_property) {
     OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), 0, &compiled_model));
     EXPECT_NE(nullptr, compiled_model);
 
-    const char* auto_batch_timeout_set_property = ov_property_key_auto_batch_timeout;
-    OV_EXPECT_OK(ov_compiled_model_set_property(compiled_model, auto_batch_timeout_set_property));
-
     const char* key = ov_property_key_supported_properties;
-    const char* auto_batch_timeout_get_property = ov_property_key_auto_batch_timeout;
     char* result = nullptr;
     OV_EXPECT_OK(ov_compiled_model_get_property(compiled_model, key, &result));
-    OV_EXPECT_OK(ov_compiled_model_get_property(compiled_model, auto_batch_timeout_get_property, &result));
+    char* target = result;
+
+    key = ov_property_key_auto_batch_timeout;
+    OV_EXPECT_OK(ov_compiled_model_set_property(compiled_model, key));
+
+    key = ov_property_key_supported_properties;
+    result = nullptr;
+    OV_EXPECT_OK(ov_compiled_model_get_property(compiled_model, key, &result));
+    EXPECT_EQ(*target, *result);
+    ov_free(target);
     ov_free(result);
 
     ov_compiled_model_free(compiled_model);
