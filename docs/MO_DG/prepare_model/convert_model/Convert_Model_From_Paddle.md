@@ -167,7 +167,8 @@ When Model Optimizer is unable to run to completion due to typographical errors,
 Additional Resources
 ####################
 
-See the :doc:`Model Conversion Tutorials <openvino_docs_MO_DG_prepare_model_convert_model_tutorials>` page for a set of tutorials providing step-by-step instructions for converting specific PaddlePaddle models.
+* :doc:`Model Conversion Tutorials <openvino_docs_MO_DG_prepare_model_convert_model_tutorials>` - step-by-step instructions for converting specific PaddlePaddle models. 
+* :doc:`List of officially supported models in OpenVINO <openvino_supported_models>`
 
 @endsphinxdirective
 

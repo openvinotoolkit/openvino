@@ -308,5 +308,6 @@ See the :doc:`Model Conversion Tutorials <openvino_docs_MO_DG_prepare_model_conv
 * :doc:`Convert TensorFlow EfficientDet Models <openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_EfficientDet_Models>`
 * :doc:`Convert TensorFlow FaceNet Models <openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_FaceNet_From_Tensorflow>`
 * :doc:`Convert TensorFlow Object Detection API Models <openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_Object_Detection_API_Models>`
+* :doc:`List of officially supported models in OpenVINO <openvino_supported_models>`
 
 @endsphinxdirective

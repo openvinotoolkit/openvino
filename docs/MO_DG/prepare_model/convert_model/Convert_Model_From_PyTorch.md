@@ -87,10 +87,12 @@ It is recommended to export models to opset 11 or higher when export to default 
 Additional Resources
 ####################
 
-See the :doc:`Model Conversion Tutorials <openvino_docs_MO_DG_prepare_model_convert_model_tutorials>` page for a set of tutorials providing step-by-step instructions for converting specific PyTorch models. Here are some examples:
+* :doc:`Model Conversion Tutorials <openvino_docs_MO_DG_prepare_model_convert_model_tutorials>` - step-by-step instructions for converting specific PyTorch models. Here are some examples:
 
-* :doc:`Convert PyTorch BERT-NER Model <openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_Bert_ner>`
-* :doc:`Convert PyTorch RCAN Model <openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_RCAN>`
-* :doc:`Convert PyTorch YOLACT Model <openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_YOLACT>`
+  * :doc:`Convert PyTorch BERT-NER Model <openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_Bert_ner>`
+  * :doc:`Convert PyTorch RCAN Model <openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_RCAN>`
+  * :doc:`Convert PyTorch YOLACT Model <openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_YOLACT>`
+
+* :doc:`List of officially supported models in OpenVINO <openvino_supported_models>`
 
 @endsphinxdirective

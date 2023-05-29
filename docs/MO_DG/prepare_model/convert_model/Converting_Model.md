@@ -94,5 +94,6 @@ Additional Resources
 
 * :doc:`Introduction to converting models with Model Optimizer <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`
 * :doc:`Cutting Off Parts of a Model <openvino_docs_MO_DG_prepare_model_convert_model_Cutting_Model>`
+* :doc:`List of officially supported models in OpenVINO <openvino_supported_models>`
 
 @endsphinxdirective
