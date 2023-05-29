@@ -1009,6 +1009,8 @@ bool Limitations::validate_concat_axis(const InferenceEngine::CNNLayerPtr layer,
 
                     if (LayerInfo(pre_prev_layer).isConst()) {
                         continue;
+                    } else if (LayerInfo(pre_prev_layer).isPermute()) {
+                        continue;
                     }
 
                     concat_all_const_or_inputs = false;
