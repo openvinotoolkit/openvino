@@ -42,7 +42,7 @@ struct GnaDesc {
 
     // help methods
     uint32_t get_required_size() const {
-        return num_elements * tensor_precision.size();
+        return num_elements * static_cast<uint32_t>(tensor_precision.size());
     }
 
     uint32_t get_allocated_size() const {
@@ -54,7 +54,7 @@ struct GnaDesc {
     }
 
     // helps to get the precision for gna layers, because they use num_bytes instead of precision values
-    void set_precision(uint32_t num_bytes) {
+    void set_precision(size_t num_bytes) {
         switch (num_bytes) {
         case sizeof(int8_t): {
             set_precision(InferenceEngine::Precision::I8);

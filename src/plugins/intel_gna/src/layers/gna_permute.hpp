@@ -30,7 +30,7 @@ public:
             if (x < 0) {
                 THROW_GNA_EXCEPTION << "invalid order: element " << x << " should be >= 0";
             }
-            if (x >= counter.size()) {
+            if (x >= static_cast<int64_t>(counter.size())) {
                 THROW_GNA_EXCEPTION << "invalid order: element " << x << " should be < " << counter.size();
             }
             if (counter[x]) {
@@ -46,7 +46,7 @@ public:
         std::list<cnt_type> permuteCycles;
         bool newSeq = false;
 
-        for (int i = 0; i != orderVec.size();) {
+        for (size_t i = 0; i != orderVec.size();) {
             // we have this permutation on the list already
             if (counter[i]) {
                 newSeq = false;
@@ -55,7 +55,7 @@ public:
             }
             counter[i] = true;
             // looks we found a permutation
-            if (orderVec[i] != i) {
+            if (orderVec[i] != static_cast<T>(i)) {
                 if (!newSeq) {
                     newSeq = true;
                     permuteCycles.push_back({});
@@ -70,7 +70,7 @@ public:
         }
 
         for (auto&& cycle : permuteCycles) {
-            for (int i = 0; i + 1 < cycle.size(); i++) {
+            for (size_t i = 0; i + 1 < cycle.size(); i++) {
                 permutes.push_back(cycle[i]);
             }
         }
@@ -134,7 +134,7 @@ inline bool isTrivialPermute(const std::vector<int64_t> order, const std::vector
             return false;
         }
         // check dims in between
-        for (int j = std::min(transp.first, transp.second) + 1; j < std::max(transp.first, transp.second); j++) {
+        for (int64_t j = std::min(transp.first, transp.second) + 1; j < std::max(transp.first, transp.second); j++) {
             if (input_order_transformed[j] != 1) {
                 return false;
             }

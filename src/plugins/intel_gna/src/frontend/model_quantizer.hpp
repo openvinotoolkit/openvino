@@ -57,7 +57,7 @@ public:
             auto input_layer = getCreatorLayer(inputData.second->getInputData()).lock();
             auto quant_data = InferenceEngine::getInjectedData<frontend::QuantizedLayerParams>(input_layer);
             IE_ASSERT(quant_data != nullptr);
-            quant_data->_src_quant.SetScale(inputs.at(input_layer->name).scale_factor);
+            quant_data->_src_quant.SetScale(static_cast<float>(inputs.at(input_layer->name).scale_factor));
         }
 
         // Propagate scale factor and quantize layers
@@ -92,10 +92,10 @@ private:
             // We are looking for infinite loop by using algorithm of compute prefix function, complexity O(N)
             // (a part of the Knuth–Morris–Pratt algorithm).
             std::map<int, int> prefix_function;
-            int32_t k = inf_loop_history.size();
-            for (int32_t i = inf_loop_history.size() - 2; i >= 0; i--) {
+            size_t k = inf_loop_history.size();
+            for (int32_t i = static_cast<int32_t>(inf_loop_history.size()) - 2; i >= 0; i--) {
                 while (k < inf_loop_history.size() && inf_loop_history[k - 1] != inf_loop_history[i]) {
-                    auto iter = prefix_function.find(k);
+                    auto iter = prefix_function.find(static_cast<int>(k));
                     k = iter == prefix_function.end() ? inf_loop_history.size() : iter->second;
                 }
 
@@ -127,9 +127,9 @@ private:
                         log::debug() << "\t " << s << '\n';
                     }
                     inf_loop_pattern.clear();
-                    int pattern_len = (inf_loop_history.size() - i) / 2;
+                    size_t pattern_len = (inf_loop_history.size() - i) / 2;
                     log::debug() << "pattern_len: " << pattern_len << '\n';
-                    for (int j = 0; j < pattern_len; j++) {
+                    for (size_t j = 0; j < pattern_len; j++) {
                         inf_loop_pattern.emplace_back(inf_loop_history[inf_loop_history.size() - pattern_len + j]);
                     }
                     log::debug() << "inf_loop_history:\n";
@@ -141,7 +141,7 @@ private:
                     break;
                 }
 
-                prefix_function.emplace(i, k);
+                prefix_function.emplace(i, static_cast<int>(k));
             }
 
             if (inf_loop_history.empty()) {
@@ -154,9 +154,9 @@ private:
                     int32_t pattern_shift = 0;
 
                     if (inf_loop_history.size() > inf_loop_pattern.size()) {
-                        history_shift = inf_loop_history.size() - inf_loop_pattern.size();
+                        history_shift = static_cast<int32_t>(inf_loop_history.size() - inf_loop_pattern.size());
                     } else {
-                        pattern_shift = inf_loop_pattern.size() - inf_loop_history.size();
+                        pattern_shift = static_cast<int32_t>(inf_loop_pattern.size() - inf_loop_history.size());
                     }
 
                     if (!std::equal(inf_loop_history.begin() + history_shift,

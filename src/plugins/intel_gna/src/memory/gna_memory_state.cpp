@@ -90,7 +90,7 @@ void GNAVariableState::SetState(const InferenceEngine::Blob::Ptr& newState) {
 }
 
 InferenceEngine::Blob::CPtr GNAVariableState::GetState() const {
-    auto elements = state->reserved_size / state->elementSizeBytes();
+    size_t elements = state->reserved_size / state->elementSizeBytes();
     InferenceEngine::Precision state_precision = getPrecision();
 
     if (state->getInput() && state_precision == InferenceEngine::Precision::I16) {
@@ -107,7 +107,7 @@ InferenceEngine::Blob::CPtr GNAVariableState::GetState() const {
         auto buffer = result_blob->buffer().as<float*>();
         auto new_gna_ptr = static_cast<int16_t*>(state->gna_ptr);
 
-        for (int i = 0; i < elements; i++) {
+        for (size_t i = 0; i < elements; i++) {
             buffer[i] = new_gna_ptr[i] / scale_factor;
         }
 

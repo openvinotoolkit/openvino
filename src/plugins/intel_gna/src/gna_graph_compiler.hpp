@@ -118,8 +118,8 @@ public:
     ConnectionDetails connectInput(InferenceEngine::CNNLayerPtr layer,
                                    void* pVoid,
                                    size_t num_data_bytes_in,
-                                   int32_t offset = 0,
-                                   int idx = 0,
+                                   size_t offset = 0,
+                                   size_t idx = 0,
                                    bool connectTo = true);
 
     /**

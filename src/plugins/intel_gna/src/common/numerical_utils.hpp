@@ -28,6 +28,18 @@ inline int32_t FloatToInt32(float a) {
 inline int64_t FloatToInt64(float a) {
     return FloatToInteger<int64_t>(a);
 }
+inline int8_t FloatToInt8(double a) {
+    return FloatToInteger<int8_t>(static_cast<float>(a));
+}
+inline int16_t FloatToInt16(double a) {
+    return FloatToInteger<int16_t>(static_cast<float>(a));
+}
+inline int32_t FloatToInt32(double a) {
+    return FloatToInteger<int32_t>(static_cast<float>(a));
+}
+inline int64_t FloatToInt64(double a) {
+    return FloatToInteger<int64_t>(static_cast<float>(a));
+}
 
 /**
  * @brief Compare two floating point values and return true if they are equal with given accuracy

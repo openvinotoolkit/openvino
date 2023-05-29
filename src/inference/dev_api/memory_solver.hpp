@@ -174,7 +174,7 @@ public:
     }
 
     /** Provides calculated offset for specified box id */
-    int64_t getOffset(int id) const {
+    int64_t getOffset(int64_t id) const {
         auto res = _offsets.find(id);
         if (res == _offsets.end())
             IE_THROW() << "There are no box for provided ID";

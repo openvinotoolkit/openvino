@@ -112,7 +112,7 @@ struct RuntimeEndPoint {
                     uint32_t element_size,
                     uint32_t elements_count,
                     intel_dnn_orientation_t orientation)
-        : scaleFactor(scaleFactor),
+        : scaleFactor(static_cast<float>(scaleFactor)),
           descriptor_ptr(descriptor_ptr),
           element_size(element_size),
           elements_count(elements_count),

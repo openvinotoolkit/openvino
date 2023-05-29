@@ -36,7 +36,7 @@ InferenceEngine::Blob::Ptr LayerQuantizer::FP32ToPrecisionBlob(InferenceEngine::
     auto input_high = 0.0f;
     auto output_low = 0.0f;
     auto output_high = 0.0f;
-    auto levels = 1;
+    size_t levels = 1;
 
     if (dst_quant_params.IsStatsSet()) {
         input_low = dst_quant_params.GetMinValues(true).front();

@@ -16,10 +16,10 @@ using namespace ov::intel_gna::target;
 
 namespace {
 
-using GetAlignedSplitSizesData = std::tuple<uint32_t,              // total size
-                                            uint32_t,              // maximum split size
-                                            uint32_t,              // alignment
-                                            std::vector<uint32_t>  // expected sizes
+using GetAlignedSplitSizesData = std::tuple<size_t,              // total size
+                                            size_t,              // maximum split size
+                                            size_t,              // alignment
+                                            std::vector<size_t>  // expected sizes
                                             >;
 
 const std::vector<GetAlignedSplitSizesData> data = {

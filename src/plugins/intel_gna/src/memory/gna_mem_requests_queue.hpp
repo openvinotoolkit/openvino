@@ -199,7 +199,7 @@ public:
         auto size = getSize();
         if (ptr >= ptrBegin && ptr < ptrBegin + size) {
             auto curOffset = static_cast<uint8_t*>(ptr) - ptrBegin;
-            return {true, curOffset};
+            return {true, static_cast<uint32_t>(curOffset)};
         }
         return {false, 0};
     }

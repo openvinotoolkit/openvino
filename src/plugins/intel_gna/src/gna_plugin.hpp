@@ -66,7 +66,7 @@ protected:
     /**
      * @brief size of RW segment without extra memory for parallel execution
      */
-    uint32_t rwSegmentSize = 0;
+    size_t rwSegmentSize = 0;
 
     InferenceEngine::InputsDataMap inputs_data_map_;    //!< Holds information about network inputs info
     InferenceEngine::OutputsDataMap outputs_data_map_;  //!< Holds information about network outputs data
@@ -209,29 +209,29 @@ protected:
                       InferenceEngine::Precision input_precision,
                       float scaleFactor,
                       intel_dnn_orientation_t orientation,
-                      uint32_t num_frames,
-                      uint32_t num_group,
-                      uint32_t num_vector_elements,
-                      uint32_t num_vector_stride);
+                      size_t num_frames,
+                      size_t num_group,
+                      size_t num_vector_elements,
+                      size_t num_vector_stride);
 
     void ExportScores(void* ptr_dst,
                       const void* ptr_src,
                       intel_dnn_orientation_t orientation,
-                      uint32_t num_frames,
-                      uint32_t num_group,
-                      uint32_t num_vector_elements,
-                      uint32_t num_active_elements,
-                      uint32_t num_vector_stride,
+                      size_t num_frames,
+                      size_t num_group,
+                      size_t num_vector_elements,
+                      size_t num_active_elements,
+                      size_t num_vector_stride,
                       InferenceEngine::Precision precision_in,
                       InferenceEngine::Precision precision_out);
 
     template <typename T, typename U>
     void copyInputData(T* dst,
                        const U* src,
-                       uint32_t num_frames,
-                       uint32_t num_group,
-                       uint32_t num_vector_elements,
-                       uint32_t num_vector_stride,
+                       size_t num_frames,
+                       size_t num_group,
+                       size_t num_vector_elements,
+                       size_t num_vector_stride,
                        intel_dnn_orientation_t orientation,
                        float scaleFactor);
 
