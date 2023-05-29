@@ -100,6 +100,46 @@ private:
     }
 };
 
+class ReferencePadV12Test : public ReferencePadTest {
+private:
+    static std::shared_ptr<Model> CreateFunction(const PadParams& params) {
+        const auto data = std::make_shared<op::v0::Parameter>(params.inputData.type,
+                                                              params.inputData.shape);
+        const auto padsBegin = op::v0::Constant::create(params.padsBegin.type,
+                                                        params.padsBegin.shape,
+                                                        params.padsBegin.data.data());
+        const auto padsEnd = op::v0::Constant::create(params.padsEnd.type,
+                                                      params.padsEnd.shape,
+                                                      params.padsEnd.data.data());
+        const auto f = [&] {
+            if (params.useConstValue) {
+                // pad_value should be used only in CONSTANT mode
+                const auto padVal = op::v0::Constant::create(params.constantValue.type,
+                                                             params.constantValue.shape,
+                                                             params.constantValue.data.data());
+                return std::make_shared<Model>(std::make_shared<op::v12::Pad>(data,
+                                                                                padsBegin,
+                                                                                padsEnd,
+                                                                                padVal,
+                                                                                params.padMode),
+                                                  ParameterVector{data});
+            }
+
+            return std::make_shared<Model>(std::make_shared<op::v12::Pad>(data,
+                                                                            padsBegin,
+                                                                            padsEnd,
+                                                                            params.padMode),
+                                              ParameterVector{data});
+        }();
+        return f;
+    }
+};
+
+
+TEST_P(ReferencePadV12Test, CompareWithRefs) {
+    Exec();
+}
+
 TEST_P(ReferencePadTest, CompareWithRefs) {
     Exec();
 }
@@ -1061,6 +1101,9 @@ std::vector<PadParams> generateCombinedParams() {
     }
     return combinedParams;
 }
+
+INSTANTIATE_TEST_SUITE_P(smoke_PadV12_With_Hardcoded_Refs, ReferencePadV12Test,
+    testing::ValuesIn(generateCombinedParams()), ReferencePadTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Pad_With_Hardcoded_Refs, ReferencePadTest,
     testing::ValuesIn(generateCombinedParams()), ReferencePadTest::getTestCaseName);
