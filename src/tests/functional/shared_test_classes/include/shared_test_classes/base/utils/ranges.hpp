@@ -12,6 +12,13 @@
 #include "ngraph/op/divide.hpp"
 #include "ngraph/op/erf.hpp"
 #include "ngraph/op/non_max_suppression.hpp"
+#include "ngraph/op/reduce_l1.hpp"
+#include "ngraph/op/reduce_l2.hpp"
+#include "ngraph/op/reduce_sum.hpp"
+#include "ngraph/op/reduce_prod.hpp"
+#include "ngraph/op/reduce_mean.hpp"
+#include "ngraph/op/max.hpp"
+#include "ngraph/op/min.hpp"
 
 namespace ov {
 namespace test {

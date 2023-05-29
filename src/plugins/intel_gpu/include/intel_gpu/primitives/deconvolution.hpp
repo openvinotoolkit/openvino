@@ -17,6 +17,11 @@ namespace cldnn {
 /// and stride and input padding parameters used in opposite sense as in convolution.
 struct deconvolution : public primitive_base<deconvolution> {
     CLDNN_DECLARE_PRIMITIVE(deconvolution)
+
+    deconvolution() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     /// @brief Constructs deconvolution primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id.
@@ -406,6 +411,42 @@ struct deconvolution : public primitive_base<deconvolution> {
                cmp_fields(bias.size()) &&
                cmp_fields(output_shape_id.empty());
         #undef cmp_fields
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<deconvolution>::save(ob);
+        ob << pad;
+        ob << stride;
+        ob << dilations;
+        ob << with_output_size;
+        ob << output_size;
+        ob << groups;
+        ob << pads_begin;
+        ob << pads_end;
+        ob << out_padding;
+        ob << grouped_weights_shape;
+        ob << output_partial_shape;
+        ob << output_shape_id;
+        ob << weights;
+        ob << bias;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<deconvolution>::load(ib);
+        ib >> pad;
+        ib >> stride;
+        ib >> dilations;
+        ib >> with_output_size;
+        ib >> output_size;
+        ib >> groups;
+        ib >> pads_begin;
+        ib >> pads_end;
+        ib >> out_padding;
+        ib >> grouped_weights_shape;
+        ib >> output_partial_shape;
+        ib >> output_shape_id;
+        ib >> *const_cast<primitive_id_arr*>(&weights);
+        ib >> *const_cast<primitive_id_arr*>(&bias);
     }
 
 protected:
