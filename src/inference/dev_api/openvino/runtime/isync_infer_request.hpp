@@ -150,17 +150,20 @@ protected:
 
     std::unordered_map<std::shared_ptr<ov::descriptor::Tensor>, std::vector<ov::Tensor>> m_batched_tensors;
 
+    /**
+     * @brief Finds input or output port
+     * @return structure which contains index of Input/Output or report that port wasn't found
+     */
+    // TODO vurusovs: TEMPORARY for ov::hetero::InferRequest::InferRequest()
+    FoundPort find_port(const ov::Output<const ov::Node>& port) const;
+
 private:
     std::shared_ptr<const ov::ICompiledModel> m_compiled_model;
     // Mutable to return reference to ov::Tensor
     mutable std::unordered_map<std::shared_ptr<ov::descriptor::Tensor>, ov::Tensor> m_tensors;
     ov::Tensor& get_ref_tensor(const ov::Output<const ov::Node>& port) const;
 
-    /**
-     * @brief Finds input or output port
-     * @return structure which contains index of Input/Output or report that port wasn't found
-     */
-    FoundPort find_port(const ov::Output<const ov::Node>& port) const;
+    
 };
 
 };  // namespace ov

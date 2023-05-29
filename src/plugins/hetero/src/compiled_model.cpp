@@ -265,11 +265,7 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
                     input.replace_source_output(parameter->output(0));
                     subgraphIds.emplace(parameter.get(), input_subset.first);
                     subgraphParameterToPrevResult.emplace(parameter.get(), result.get());
-                    // _blobNameMap.emplace(
-                    //     parameter->get_friendly_name(),
-                    //     output.get_node()->get_friendly_name() + ((output.get_node()->get_output_size() != 1)
-                    //                                                   ? ("." + std::to_string(output.get_index()))
-                    //                                                   : std::string{}));
+                    _blobNameMap.emplace(parameter->get_default_output(), output);
                 }
             }
         }

@@ -34,17 +34,19 @@ public:
     std::vector<std::shared_ptr<ov::IVariableState>> query_state() const override;
     std::vector<ov::ProfilingInfo> get_profiling_info() const override;
 
-    // pipeline methods-stages which are used in async infer request implementation and assigned to particular executor
-    void infer_preprocess();
     void start_pipeline();
     void wait_pipeline();
-    void infer_postprocess();
     void cancel();
 
-    void set_tensors_impl(const ov::Output<const ov::Node> port, const std::vector<ov::Tensor>& tensors) override;
+    void set_tensor(const ov::Output<const ov::Node>& port, const ov::Tensor& tensor) override;
 
+    ov::Tensor get_tensor(const ov::Output<const ov::Node>& port) const override;
 
-    
+    void check_tensors() const  override {
+        // NOTE: ignore `check_tensor` of inputs and outputs of Hetero Compiled Model because 
+        // `m_tensors` are not allocated 
+        return;
+    }
 
 private:
     friend class CompiledModel;
@@ -53,7 +55,7 @@ private:
     std::shared_ptr<const CompiledModel> get_hetero_model() const;
 
     
-    enum { Preprocess, Postprocess, StartPipeline, WaitPipeline, numOfStages };
+    enum { StartPipeline, WaitPipeline, numOfStages };
     
     struct SubRequestDesc {
         ov::SoPtr<ov::ICompiledModel> _network;
@@ -63,12 +65,12 @@ private:
 
     std::vector<SubRequestDesc> m_infer_requests;
 
+    // vurusovs: NOTE to connect subrequests
+    std::map<ov::Output<const ov::Node>, ov::Tensor> m_port_to_tensor_map;
+    std::map<ov::Output<const ov::Node>, ov::SoPtr<ov::IAsyncInferRequest>> m_port_to_request_map;
+
     // for performance counters
     std::array<std::chrono::duration<float, std::micro>, numOfStages> m_durations;
-
-    // ov::EvaluationContext m_eval_context;
-    
-    std::vector<std::shared_ptr<ov::IVariableState>> m_variable_states;
 };
 
 }  // namespace hetero

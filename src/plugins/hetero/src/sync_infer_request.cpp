@@ -20,6 +20,7 @@
 #include "openvino/runtime/profiling_info.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
+#include "openvino/util/common_util.hpp"
 
 // #include "template/remote_tensor.hpp"
 // #include "variable_state.hpp"
@@ -36,6 +37,25 @@ void allocate_tensor_impl(ov::Tensor& tensor, const ov::element::Type& element_t
     }
 }
 
+ov::SoPtr<ov::IAsyncInferRequest> find_request_for_port(const ov::Output<const ov::Node>& port, std::map<ov::Output<const ov::Node>, ov::SoPtr<ov::IAsyncInferRequest>> port_to_request_map) {
+    auto check_nodes = [](const ov::Node* node1, const ov::Node* node2) {
+        return node1 == node2 ||
+               (node1->get_friendly_name() == node2->get_friendly_name() &&
+                node1->get_type_info() == node2->get_type_info() &&
+                node1->outputs().size() == node2->outputs().size() && node1->inputs().size() == node2->inputs().size());
+    };
+    
+    for (const auto& kvp : port_to_request_map) {
+        // TODO: Fix port comparison
+        // if (kvp.first == port) {
+        if (kvp.first.get_index() == port.get_index() && kvp.first.get_names() == port.get_names() &&
+            check_nodes(kvp.first.get_node(), port.get_node())) {
+            return kvp.second;
+        }
+    }
+    return ov::SoPtr<ov::IAsyncInferRequest>(nullptr, nullptr);
+}
+
 }  // namespace
 
 ov::hetero::InferRequest::InferRequest(const std::shared_ptr<const ov::hetero::CompiledModel>& compiled_model)
@@ -47,31 +67,45 @@ ov::hetero::InferRequest::InferRequest(const std::shared_ptr<const ov::hetero::C
         
         std::string prof_task_name = get_hetero_model()->m_model->get_friendly_name() + "_Req" + std::to_string(index);
         desc._profilingTask = {
-            openvino::itt::handle("Hetero_" + prof_task_name + "_Preprocess"),
-            openvino::itt::handle("Hetero_" + prof_task_name + "_Postprocess"),
             openvino::itt::handle("Hetero_" + prof_task_name + "_StartPipeline"),
             openvino::itt::handle("Hetero_" + prof_task_name + "_WaitPipline"),
         };
         desc._request = {desc._network->create_infer_request(), desc._network._so};
-
         
-        // Allocate input/output tensors
-        for (const auto& input : subnetwork._network->inputs()) {
-            allocate_tensor(input, [input](ov::Tensor& tensor) {
-                // Can add a check to avoid double work in case of shared tensors
-                allocate_tensor_impl(tensor,
-                                    input.get_element_type(),
-                                    input.get_partial_shape().is_dynamic() ? ov::Shape{0} : input.get_shape());
-            });
+        auto requestBlob([&](const ov::Output<const ov::Node>& port, ov::SoPtr<ov::IAsyncInferRequest>& r, bool output) {
+            auto subgraphInputToOutputBlobNames = get_hetero_model()->_blobNameMap;
+            auto intermediateBlobName = port;
+            auto itName = subgraphInputToOutputBlobNames.find(port);
+            if (itName != subgraphInputToOutputBlobNames.end()) {
+                intermediateBlobName = itName->second;
+            }
+            if (output) {
+                // TODO: Fix port comparison
+                // if (ov::util::contains(get_outputs(), port)) {   // ov::util::contains doesn't work because == not work
+                if (find_port(port).found()) {
+                    m_port_to_request_map.emplace(port, r);
+                } else {
+                    m_port_to_tensor_map.emplace(intermediateBlobName, r->get_tensor(port));
+                }
+            } else {
+                // TODO: Fix port comparison
+                // if (ov::util::contains(get_inputs(), port)) {
+                if (find_port(port).found()) {
+                    m_port_to_request_map.emplace(port, r);
+                } else {
+                    r->set_tensor(port, m_port_to_tensor_map.at(intermediateBlobName));
+                }
+            }
+        });
+        
+        
+        for (auto&& output : desc._network->outputs()) {
+            requestBlob(output,  desc._request, true);
         }
-        for (const auto& output : subnetwork._network->outputs()) {
-            allocate_tensor(output, [output](ov::Tensor& tensor) {
-                // Can add a check to avoid double work in case of shared tensors
-                allocate_tensor_impl(tensor,
-                                    output.get_element_type(),
-                                    output.get_partial_shape().is_dynamic() ? ov::Shape{0} : output.get_shape());
-            });
-        }    
+
+        for (auto&& input : desc._network->inputs()) {
+            requestBlob(input,  desc._request, false);
+        }
         
         m_infer_requests.push_back(desc);
     }
@@ -79,19 +113,39 @@ ov::hetero::InferRequest::InferRequest(const std::shared_ptr<const ov::hetero::C
 
 ov::hetero::InferRequest::~InferRequest() = default;
 
-void ov::hetero::InferRequest::set_tensors_impl(const ov::Output<const ov::Node> port,
-                                                const std::vector<ov::Tensor>& tensors) {
-    for (const auto& input : get_inputs()) {
-        if (input == port) {
-            m_batched_tensors[input.get_tensor_ptr()] = tensors;
-            return;
-        }
-    }
-    OPENVINO_THROW("Cannot find input tensors for port ", port);
+
+ov::Tensor ov::hetero::InferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
+    // auto request_it = m_port_to_request_map.find(port); // TODO: Fix port comparison
+    // OPENVINO_ASSERT(request_it != m_port_to_request_map.end(), "TODO vurusovs PROVIDE TEXT");
+    // return request_it->second->get_tensor(port);
+
+    auto request = ::find_request_for_port(port, m_port_to_request_map);
+    OPENVINO_ASSERT(request, "TODO vurusovs PROVIDE TEXT");
+    return request->get_tensor(port);
 }
 
+
+void ov::hetero::InferRequest::set_tensor(const ov::Output<const ov::Node>& port, const ov::Tensor& tensor) {
+    // auto request_it = m_port_to_request_map.find(port); // TODO: Fix port comparison
+    // OPENVINO_ASSERT(request_it != m_port_to_request_map.end(), "TODO vurusovs PROVIDE TEXT");
+    // request_it->second->set_tensor(port, tensor);
+
+    auto request = ::find_request_for_port(port, m_port_to_request_map);
+    OPENVINO_ASSERT(request, "TODO vurusovs PROVIDE TEXT");
+    request->set_tensor(port, tensor);
+}
+
+
 std::vector<std::shared_ptr<ov::IVariableState>> ov::hetero::InferRequest::query_state() const {
-    return m_variable_states;
+    std::vector<std::shared_ptr<ov::IVariableState>> variable_states = {};
+    for (auto&& desc : m_infer_requests) {
+        auto& r = desc._request;
+        assert(r);
+        for (auto&& state : r->query_state()) {
+            variable_states.emplace_back(state);
+        }
+    }
+    return variable_states;
 }
 
 std::shared_ptr<const ov::hetero::CompiledModel> ov::hetero::InferRequest::get_hetero_model()
@@ -103,76 +157,8 @@ std::shared_ptr<const ov::hetero::CompiledModel> ov::hetero::InferRequest::get_h
 }
 
 void ov::hetero::InferRequest::infer() {
-    // TODO: fill with actual list of pipeline stages, which are executed synchronously for sync infer requests
-    infer_preprocess();
     start_pipeline();
-    wait_pipeline();  // does nothing in current implementation
-    infer_postprocess();
-}
-
-void ov::hetero::InferRequest::infer_preprocess() {
-    // OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, m_profiling_task[Preprocess]);
-    // auto start = Time::now();
-    // convert_batched_tensors();
-    // check_tensors();
-
-    // // Allocate backend tensors
-    // OPENVINO_ASSERT(get_inputs().size() == m_backend_input_tensors.size());
-    // for (size_t i = 0; i < get_inputs().size(); i++) {
-    //     auto tensor = get_tensor(get_inputs()[i]);
-    //     if (tensor.is<ov::RemoteTensor>()) {
-    //         OPENVINO_ASSERT(tensor.is<ov::hetero::VectorTensor>(),
-    //                         "Template plugin supports only VectorTensor with remote context.");
-    //         auto vector_tensor = tensor.as<ov::hetero::VectorTensor>();
-    //         auto element_type = vector_tensor.get_element_type();
-    //         void* data = vector_tensor.get_data();
-    //         OPENVINO_ASSERT(data != nullptr);
-    //         // Create backend tenor
-    //         m_backend_input_tensors[i] =
-    //             get_template_model()->get_template_plugin()->m_backend->create_tensor(element_type,
-    //                                                                                   vector_tensor.get_shape(),
-    //                                                                                   data);
-    //     } else if (tensor.is_continuous()) {
-    //         // No ROI extraction is needed
-    //         m_backend_input_tensors[i] =
-    //             get_template_model()->get_template_plugin()->m_backend->create_tensor(tensor.get_element_type(),
-    //                                                                                   tensor.get_shape(),
-    //                                                                                   tensor.data());
-    //     } else {
-    //         OPENVINO_ASSERT(tensor.get_element_type().bitwidth() % 8 == 0,
-    //                         "Template plugin: Unsupported ROI tensor with element type having ",
-    //                         std::to_string(tensor.get_element_type().bitwidth()),
-    //                         " bits size");
-    //         ov::Shape shape = tensor.get_shape();
-    //         // Perform manual extraction of ROI tensor
-    //         // Basic implementation doesn't take axis order into account `desc.getBlockingDesc().getOrder()`
-    //         // Performance of manual extraction is not optimal, but it is ok for template implementation
-    //         m_backend_input_tensors[i] =
-    //             get_template_model()->get_template_plugin()->m_backend->create_tensor(tensor.get_element_type(),
-    //                                                                                   tensor.get_shape());
-    //         tensor.copy_to(m_backend_input_tensors[i]);
-    //     }
-    // }
-    // // Tensors can be dynamic, so in this case we need to allocate tensors with right shape
-    // OPENVINO_ASSERT(get_outputs().size() == m_backend_output_tensors.size());
-    // for (size_t i = 0; i < get_outputs().size(); i++) {
-    //     const auto& result = get_template_model()->m_model->get_results()[i];
-    //     if (result->get_output_partial_shape(0).is_dynamic()) {
-    //         m_backend_output_tensors[i] = get_template_model()->get_template_plugin()->m_backend->create_tensor();
-    //         continue;
-    //     }
-    //     auto tensor = get_tensor(get_outputs()[i]);
-    //     if (tensor.is_continuous() && !tensor.is<ov::RemoteTensor>())
-    //         m_backend_output_tensors[i] =
-    //             get_template_model()->get_template_plugin()->m_backend->create_tensor(tensor.get_element_type(),
-    //                                                                                   tensor.get_shape(),
-    //                                                                                   tensor.data());
-    //     else
-    //         m_backend_output_tensors[i] =
-    //             get_template_model()->get_template_plugin()->m_backend->create_tensor(tensor.get_element_type(),
-    //                                                                                   tensor.get_shape());
-    // }
-    // m_durations[Preprocess] = Time::now() - start;
+    wait_pipeline();
 }
 
 void ov::hetero::InferRequest::start_pipeline() {
@@ -182,74 +168,37 @@ void ov::hetero::InferRequest::start_pipeline() {
         auto& request = desc._request;
         OPENVINO_ASSERT(request);
         request->infer();
-        request->wait();
     }
     m_durations[StartPipeline] = Time::now() - start;
 }
 
-// ! [infer_request:wait_pipeline]
 void ov::hetero::InferRequest::wait_pipeline() {
     auto start = Time::now();
     for (auto&& desc : m_infer_requests) {
-        OV_ITT_SCOPED_TASK(itt::domains::Hetero, desc._profilingTask[StartPipeline])
+        OV_ITT_SCOPED_TASK(itt::domains::Hetero, desc._profilingTask[WaitPipeline])
         auto& request = desc._request;
         OPENVINO_ASSERT(request);
         request->wait();
     }
-    m_durations[StartPipeline] = Time::now() - start;
+    m_durations[WaitPipeline] = Time::now() - start;
 }
-// ! [infer_request:wait_pipeline]
 
-// ! [infer_request:infer_postprocess]
-void ov::hetero::InferRequest::infer_postprocess() {
-    // OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, m_profiling_task[Postprocess]);
-    // auto start = Time::now();
-    // OPENVINO_ASSERT(get_outputs().size() == m_backend_output_tensors.size());
-    // for (size_t i = 0; i < get_outputs().size(); i++) {
-    //     const auto& result = get_template_model()->m_model->get_results()[i];
-    //     auto host_tensor = m_backend_output_tensors[i];
-    //     auto tensor = get_tensor(get_outputs()[i]);
-    //     if (result->get_output_partial_shape(0).is_dynamic()) {
-    //         ov::Output<const ov::Node> output{result->output(0).get_node(), result->output(0).get_index()};
-    //         allocate_tensor(output, [host_tensor](ov::Tensor& tensor) {
-    //             allocate_tensor_impl(tensor, host_tensor.get_element_type(), host_tensor.get_shape());
-    //             host_tensor.copy_to(tensor);
-    //         });
-    //     } else if (!tensor.is_continuous()) {
-    //         host_tensor.copy_to(tensor);
-    //     } else if (tensor.is<ov::RemoteTensor>()) {
-    //         OPENVINO_ASSERT(tensor.is<ov::hetero::VectorTensor>(),
-    //                         "Template plugin supports only VectorTensor with remote context.");
-    //         auto vector_tensor = tensor.as<ov::hetero::VectorTensor>();
-    //         void* data = vector_tensor.get_data();
-    //         // Copy to vector
-    //         std::memcpy(data, host_tensor.data(), tensor.get_byte_size());
-    //     }
-    // }
-    // m_durations[Postprocess] = Time::now() - start;
-}
-// ! [infer_request:infer_postprocess]
-
-// ! [infer_request:get_profiling_info]
 std::vector<ov::ProfilingInfo> ov::hetero::InferRequest::get_profiling_info() const {
-    // std::vector<ov::ProfilingInfo> info;
-    // const auto fill_profiling_info = [](const std::string& name,
-    //                                     const std::chrono::duration<float, std::micro>& time) -> ov::ProfilingInfo {
-    //     ov::ProfilingInfo p_info;
-    //     p_info.status = ov::ProfilingInfo::Status::EXECUTED;
-    //     p_info.node_name = name;
-    //     p_info.cpu_time = p_info.real_time = std::chrono::duration_cast<std::chrono::milliseconds>(time);
-    //     return p_info;
-    // };
-    // info.emplace_back(fill_profiling_info("input preprocessing", m_durations[Preprocess]));
-    // info.emplace_back(fill_profiling_info("execution time", m_durations[StartPipeline]));
-    // info.emplace_back(fill_profiling_info("output postprocessing", m_durations[Postprocess]));
-    // return info;
+    std::vector<ov::ProfilingInfo> info;
+    const auto fill_profiling_info = [](const std::string& name,
+                                        const std::chrono::duration<float, std::micro>& time) -> ov::ProfilingInfo {
+        ov::ProfilingInfo p_info;
+        p_info.status = ov::ProfilingInfo::Status::EXECUTED;
+        p_info.node_name = name;
+        p_info.cpu_time = p_info.real_time = std::chrono::duration_cast<std::chrono::milliseconds>(time);
+        return p_info;
+    };
+    info.emplace_back(fill_profiling_info("execution time", m_durations[StartPipeline]));
+    return info;
 }
-// ! [infer_request:get_profiling_info]
 
-// ! [infer_request:cancel]
 void ov::hetero::InferRequest::cancel() {
-    // m_executable->cancel();
+    for (auto&& desc : m_infer_requests) {
+        desc._request->cancel();
+    }
 }
-// ! [infer_request:cancel]

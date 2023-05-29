@@ -39,6 +39,9 @@ public:
 
     std::shared_ptr<ov::IAsyncInferRequest> create_infer_request() const override;
 
+    // std::unordered_std::map<ov::Output<const ov::Node>, ov::Output<const ov::Node>> _blobNameMap; // TODO vurusovs DON'T WORK DUE ‘std::hash<ov::Output<const ov::Node> >::~hash()’ is implicitly deleted
+    std::map<ov::Output<const ov::Node>, ov::Output<const ov::Node>> _blobNameMap;
+
 protected:
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
 
@@ -62,6 +65,8 @@ private:
 
     std::vector<NetworkDesc> m_networks;
     std::string m_name;
+
+    
 };
 }  // namespace hetero
 }  // namespace ov
