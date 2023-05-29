@@ -499,7 +499,7 @@ IStreamsExecutor::Config IStreamsExecutor::Config::make_default_multi_threaded(c
     return streamExecutorConfig;
 }
 
-IStreamsExecutor::Config IStreamsExecutor::Config::reserve_cpu_threads(const IStreamsExecutor::Config& initial){
+IStreamsExecutor::Config IStreamsExecutor::Config::reserve_cpu_threads(const IStreamsExecutor::Config& initial) {
     auto config = initial;
     std::vector<int> stream_ids;
     std::string log = "[ threading ] reserve_cpu_threads " + config._name;
@@ -510,7 +510,10 @@ IStreamsExecutor::Config IStreamsExecutor::Config::reserve_cpu_threads(const ISt
         return config;
     }
 
-    reserve_available_cpus(config._streams_info_table, config._stream_processor_ids, config._stream_numa_node_ids, status);
+    reserve_available_cpus(config._streams_info_table,
+                           config._stream_processor_ids,
+                           config._stream_numa_node_ids,
+                           status);
 
     config._streams = 0;
     config._threads = 0;

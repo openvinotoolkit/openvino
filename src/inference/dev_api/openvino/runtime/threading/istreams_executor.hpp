@@ -15,8 +15,8 @@
 
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/system_conf.hpp"
-#include "threading/ie_cpu_streams_info.hpp"
 #include "openvino/runtime/threading/itask_executor.hpp"
+#include "threading/ie_cpu_streams_info.hpp"
 
 using namespace InferenceEngine;
 
