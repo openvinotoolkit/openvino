@@ -117,7 +117,10 @@ std::vector<std::string> disabledTestPatterns() {
         // CVS-110345
         R"(.*ReferenceInterpolate_v11.*data_type=f16.*)",
         R"(.*LSTMSequence_With_Hardcoded_Refs.*ReferenceLSTMSequenceTest.*iType=f16.*)",
-        R"(.*smoke_Auto_BehaviorTests/OVCompiledModelBaseTest.canCompileModelwithBrace*)",
+        R"(.*smoke_BehaviorTests/OVCompiledModelBaseTest.canCompileModelwithBrace/targetDevice=TEMPLATE*)",
+        R"(.*smoke_Multi_BehaviorTests/OVCompiledModelBaseTest.canCompileModelwithBrace/targetDevice=MULTI*)",
+        R"(.*smoke_Auto_BehaviorTests/OVCompiledModelBaseTest.canCompileModelwithBrace/targetDevice=AUTO*)",
+        R"(.*smoke_Hetero_BehaviorTests/OVCompiledModelBaseTest.canCompileModelwithBrace/targetDevice=HETERO*)",
     };
 
 #ifdef _WIN32
