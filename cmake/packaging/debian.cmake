@@ -44,12 +44,11 @@ macro(ov_cpack_settings)
     set(cpack_components_all ${CPACK_COMPONENTS_ALL})
     unset(CPACK_COMPONENTS_ALL)
     foreach(item IN LISTS cpack_components_all)
+        string(TOUPPER ${item} UPPER_COMP)
         # filter out some components, which are not needed to be wrapped to .deb package
-        if(# skip OpenVINO Pyhon API and samples
+        if(NOT OV_CPACK_COMP_${UPPER_COMP}_EXCLUDE_ALL AND
+           # skip OpenVINO Pyhon API and samples
            NOT item MATCHES "^${OV_CPACK_COMP_PYTHON_OPENVINO}_python.*" AND
-           NOT item STREQUAL OV_CPACK_COMP_PYTHON_SAMPLES AND
-           # python wheels are not needed to be wrapped by debian packages
-           NOT item STREQUAL OV_CPACK_COMP_PYTHON_WHEELS AND
            # see ticket # 82605
            NOT item STREQUAL "gna" AND
            # don't install Intel OpenMP during debian
@@ -58,15 +57,7 @@ macro(ov_cpack_settings)
            # so, need to skip this explicitly
            NOT item MATCHES "^tbb(_dev)?$" AND
            # the same for pugixml
-           NOT item STREQUAL "pugixml" AND
-           # we have copyright file for debian package
-           NOT item STREQUAL OV_CPACK_COMP_LICENSING AND
-           # compile_tool is not needed
-           NOT item STREQUAL OV_CPACK_COMP_CORE_TOOLS AND
-           # not appropriate components
-           NOT item STREQUAL OV_CPACK_COMP_DEPLOYMENT_MANAGER AND
-           NOT item STREQUAL OV_CPACK_COMP_INSTALL_DEPENDENCIES AND
-           NOT item STREQUAL OV_CPACK_COMP_SETUPVARS)
+           NOT item STREQUAL "pugixml")
             list(APPEND CPACK_COMPONENTS_ALL ${item})
         endif()
     endforeach()
