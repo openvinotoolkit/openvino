@@ -11,6 +11,7 @@
 
 namespace ov {
 namespace intel_gna {
+using namespace limitations;
 namespace frontend {
 
 template <class T>
@@ -352,7 +353,7 @@ InferenceEngine::Precision GetWeightsPrecision(const LayerInfo& layer_info,
                                                const QuantizedLayerParams& quant_layer_params,
                                                const Config& gna_config) {
     if (((layer_info.isConvolution() || layer_info.isConvolutionFilter()) &&
-         limitations::cnn2d::UseOnly16BitConvolutionWeights(gna_config.target->get_effective_compile_target())) ||
+         Limitations::get_instance()->use_only_16bit_convolution_weights()) ||
         layer_info.isScaleShift()) {
         return InferenceEngine::Precision::I16;
     }

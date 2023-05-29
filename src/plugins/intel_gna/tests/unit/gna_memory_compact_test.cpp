@@ -297,7 +297,7 @@ public:
     GNAPluginTested() : GNAPlugin() {
         gnamem_t = std::make_shared<GNAMemoryTested>();
         gnamem = gnamem_t;
-        graphCompiler.setGNAMemoryPtr(gnamem);
+        m_graph_compiler->setGNAMemoryPtr(gnamem);
         gnadevice.reset();
     }
     void Test() {

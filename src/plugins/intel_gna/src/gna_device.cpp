@@ -38,8 +38,7 @@ GNADeviceHelper::GNADeviceHelper(std::shared_ptr<Target> targetIn, bool isPerfor
     : target(targetIn),
       nGnaDeviceIndex{selectGnaDevice()},
       useDeviceEmbeddedExport(deviceEmbedded),
-      isPerformanceMeasuring(isPerformanceMeasuring),
-      m_mem_alignment(limitations::getMemoryAlignmentBytes(targetIn->get_effective_compile_target())) {
+      isPerformanceMeasuring(isPerformanceMeasuring) {
     per_request_diagnostics = log::get_log_level() >= ov::log::Level::TRACE;
     per_model_diagnostics = log::get_log_level() >= ov::log::Level::DEBUG;
     open();
@@ -573,7 +572,7 @@ uint32_t GNADeviceHelper::retrieveMaxLayersCount() {
     switch (target->get_effective_execution_target()) {
     case DeviceVersion::GNA1_0:
     case DeviceVersion::GNA2_0:
-        return kMaxLayersCountGNA2_0;
+        return Limitations::kMaxLayersCountGNA2_0;
     case DeviceVersion::GNA3_0:
     case DeviceVersion::GNA3_1:
     case DeviceVersion::GNA3_5:
@@ -581,7 +580,7 @@ uint32_t GNADeviceHelper::retrieveMaxLayersCount() {
     case DeviceVersion::GNA3_6:
     case DeviceVersion::GNA4_0:
     default:
-        return kMaxLayersCountGNA3_X;
+        return Limitations::kMaxLayersCountGNA3_X;
     }
 }
 }  // namespace intel_gna

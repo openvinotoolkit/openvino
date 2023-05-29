@@ -18,7 +18,7 @@ class GNAPluginForNetworkMetricsTest : public GNAPlugin {
 public:
     GNAPluginForNetworkMetricsTest(const std::map<std::string, std::string>& configMap) : GNAPlugin(configMap) {
         gnamem.reset(new gna_memory_float(memory::GNAFloatAllocator{}));
-        graphCompiler.setGNAMemoryPtr(gnamem);
+        m_graph_compiler->setGNAMemoryPtr(gnamem);
         gnadevice.reset();
     }
 };
