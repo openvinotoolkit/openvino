@@ -157,30 +157,28 @@ endif()
 # zlib
 #
 
-# if(ENABLE_SAMPLES OR ENABLE_TESTS)
-#     find_package(ZLIB QUIET)
-#     if(ZLIB_FOUND)
-#         # FindZLIB module defines ZLIB::ZLIB, no extra steps are required
-#     endif()
+if(ENABLE_SAMPLES OR ENABLE_TESTS)
+    find_package(ZLIB QUIET)
+    if(ZLIB_FOUND)
+        # FindZLIB module defines ZLIB::ZLIB, no extra steps are required
+    endif()
 
-#     # cmake has failed to find zlib, let's try pkg-config
-#     if(NOT ZLIB_FOUND AND PkgConfig_FOUND)
-#         pkg_search_module(zlib QUIET
-#                           IMPORTED_TARGET
-#                           zlib)
-#         if(zlib_FOUND)
-#             add_library(ZLIB::ZLIB INTERFACE IMPORTED)
-#             set_target_properties(ZLIB::ZLIB PROPERTIES INTERFACE_LINK_LIBRARIES PkgConfig::zlib)
-#             message(STATUS "${PKG_CONFIG_EXECUTABLE}: zlib (${zlib_VERSION}) is found at ${zlib_PREFIX}")
-#         endif()
-#     endif()
+    # cmake has failed to find zlib, let's try pkg-config
+    if(NOT ZLIB_FOUND AND PkgConfig_FOUND)
+        pkg_search_module(zlib QUIET
+                          IMPORTED_TARGET
+                          zlib)
+        if(zlib_FOUND)
+            add_library(ZLIB::ZLIB INTERFACE IMPORTED)
+            set_target_properties(ZLIB::ZLIB PROPERTIES INTERFACE_LINK_LIBRARIES PkgConfig::zlib)
+            message(STATUS "${PKG_CONFIG_EXECUTABLE}: zlib (${zlib_VERSION}) is found at ${zlib_PREFIX}")
+        endif()
+    endif()
 
-#     if(NOT (zlib_FOUND OR ZLIB_FOUND))
-#         add_subdirectory(thirdparty/zlib EXCLUDE_FROM_ALL)
-#     endif()
-# endif()
-
-add_subdirectory(zlib EXCLUDE_FROM_ALL)
+    if(NOT (zlib_FOUND OR ZLIB_FOUND))
+        add_subdirectory(thirdparty/zlib EXCLUDE_FROM_ALL)
+    endif()
+endif()
 
 #
 # cnpy
