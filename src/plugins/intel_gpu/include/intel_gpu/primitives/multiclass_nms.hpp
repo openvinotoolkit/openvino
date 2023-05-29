@@ -16,6 +16,10 @@ namespace cldnn {
 struct multiclass_nms : public primitive_base<multiclass_nms> {
     CLDNN_DECLARE_PRIMITIVE(multiclass_nms)
 
+    multiclass_nms() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     enum class sort_result_type : int32_t {
         classid,  // sort selected boxes by class id (ascending) in each batch element
         score,    // sort selected boxes by score (descending) in each batch element
@@ -78,6 +82,32 @@ struct multiclass_nms : public primitive_base<multiclass_nms> {
                          attrs.background_class,
                          attrs.normalized,
                          attrs.nms_eta) {}
+
+        void save(BinaryOutputBuffer& ob) const {
+            ob << make_data(&sort_result, sizeof(sort_result_type));
+            ob << sort_result_across_batch;
+            ob << make_data(&indices_output_type, sizeof(data_types));
+            ob << iou_threshold;
+            ob << score_threshold;
+            ob << nms_top_k;
+            ob << keep_top_k;
+            ob << background_class;
+            ob << normalized;
+            ob << nms_eta;
+        }
+
+        void load(BinaryInputBuffer& ib) {
+            ib >> make_data(&sort_result, sizeof(sort_result_type));
+            ib >> sort_result_across_batch;
+            ib >> make_data(&indices_output_type, sizeof(data_types));
+            ib >> iou_threshold;
+            ib >> score_threshold;
+            ib >> nms_top_k;
+            ib >> keep_top_k;
+            ib >> background_class;
+            ib >> normalized;
+            ib >> nms_eta;
+        }
 
     private:
         static sort_result_type from(const ngraph::op::util::MulticlassNmsBase::SortResultType sort_result_type) {
@@ -160,6 +190,22 @@ struct multiclass_nms : public primitive_base<multiclass_nms> {
                cmp_fields(attrs.sort_result) &&
                cmp_fields(attrs.sort_result_across_batch);
         #undef cmp_fields
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<multiclass_nms>::save(ob);
+        ob << output_selected_indices;
+        ob << output_selected_num;
+        ob << attrs;
+        ob << has_roisnum;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<multiclass_nms>::load(ib);
+        ib >> output_selected_indices;
+        ib >> output_selected_num;
+        ib >> attrs;
+        ib >> has_roisnum;
     }
 
 protected:
