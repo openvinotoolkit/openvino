@@ -20,8 +20,9 @@ The OpenVINO Runtime provides unique capabilities to infer deep learning models 
 || :doc:`GPU <openvino_docs_OV_UG_supported_plugins_GPU>`                  | Intel® Processor Graphics, including Intel® HD Graphics and Intel® Iris® Graphics                             |
 +--------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------+
 || :doc:`CPU (x86) <openvino_docs_OV_UG_supported_plugins_CPU>`            | Intel® Xeon® with Intel® Advanced Vector Extensions 2 (Intel® AVX2), Intel® Advanced Vector                   |
-||                                                                         | Extensions 512 (Intel® AVX-512), and AVX512_BF16, Intel® Core™ Processors with Intel®                         |
-||                                                                         | AVX2, Intel® Atom® Processors with Intel® Streaming SIMD Extensions (Intel® SSE)                              |
+||                                                                         | Extensions 512 (Intel® AVX-512), Intel® Advanced Matrix Extensions (Intel® AMX), and AVX512_BF16,             |
+||                                                                         | Intel® Core™ Processors with Intel® AVX2,                                                                     |
+||                                                                         | Intel® Atom® Processors with Intel® Streaming SIMD Extensions (Intel® SSE)                                    |
 +--------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------+
 || :doc:`CPU (Arm®) <openvino_docs_OV_UG_supported_plugins_CPU>`           | Raspberry Pi™ 4 Model B, Apple® Mac with Apple silicon                                                        |
 ||                                                                         |                                                                                                               |

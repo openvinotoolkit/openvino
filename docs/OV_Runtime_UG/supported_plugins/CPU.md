@@ -87,7 +87,7 @@ CPU plugin supports the following floating-point data types as inference precisi
 
 The default floating-point precision of a CPU primitive is ``f32``. To support the ``f16`` OpenVINO IR the plugin internally converts 
 all the ``f16`` values to ``f32`` and all the calculations are performed using the native precision of ``f32``.
-On platforms that natively support ``bfloat16`` calculations (have the ``AVX512_BF16`` extension), the ``bf16`` type is automatically used instead 
+On platforms that natively support ``bfloat16`` calculations (have the ``AVX512_BF16`` or ``AMX`` extension), the ``bf16`` type is automatically used instead
 of ``f32`` to achieve better performance. Thus, no special steps are required to run a ``bf16`` model. For more details about the ``bfloat16`` format, see 
 the `BFLOAT16 – Hardware Numerics Definition white paper <https://software.intel.com/content/dam/develop/external/us/en/documents/bf16-hardware-numerics-definition-white-paper.pdf>`__.
 
@@ -95,6 +95,9 @@ Using the ``bf16`` precision provides the following performance benefits:
 
 - Faster multiplication of two ``bfloat16`` numbers because of shorter mantissa of the ``bfloat16`` data.
 - Reduced memory consumption since ``bfloat16`` data half the size of 32-bit float.
+
+Also, a significant performance can be achieved if the model is executed in ``bfloat16`` precision on hardware with Advanced Matrix Extension (AMX) support
+(e.g., Intel® 4th Generation Xeon® processors (code name Sapphire Rapids)).
 
 To check if the CPU device can support the ``bfloat16`` data type, use the :doc:`query device properties interface <openvino_docs_OV_UG_query_api>` 
 to query ``ov::device::capabilities`` property, which should contain ``BF16`` in the list of CPU capabilities:
@@ -285,11 +288,6 @@ That means that :doc:`OpenVINO™ Extensibility Mechanism <openvino_docs_Extensi
 Enabling fallback on a custom operation implementation is possible by overriding the ``ov::Op::evaluate`` method in the derived operation 
 class (see :doc:`custom OpenVINO™ operations <openvino_docs_Extensibility_UG_add_openvino_ops>` for details).
 
-.. note:: 
-   
-   At the moment, custom operations with internal dynamism (when the output tensor shape can only be determined 
-   as a result of performing the operation) are not supported by the plugin.
-
 Stateful Models
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -310,6 +308,7 @@ All parameters must be set before calling ``ov::Core::compile_model()`` in order
 - ``ov::enable_profiling``
 - ``ov::hint::inference_precision``
 - ``ov::hint::performance_mode``
+- ``ov::hint::execution_mode``
 - ``ov::hint::num_request``
 - ``ov::num_streams``
 - ``ov::affinity``
