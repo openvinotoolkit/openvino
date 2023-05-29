@@ -4,27 +4,24 @@
 
 #include "snippets/pass/common_optimizations.hpp"
 
-#include <memory>
-#include "openvino/opsets/opset1.hpp"
-#include <ngraph/pass/constant_folding.hpp>
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-
-#include "transformations/utils/utils.hpp"
 #include "snippets/pass/fq_decomposition.hpp"
 #include "snippets/pass/softmax_reshape_elimination.hpp"
 #include "snippets/pass/explicit_transpose_matmul_inputs.hpp"
+#include "snippets/pass/transpose_decomposition.hpp"
+#include "snippets/pass/fuse_transpose_brgemm.hpp"
 #include "snippets/op/subgraph.hpp"
-#include "snippets/utils.hpp"
 #include "snippets/itt.hpp"
+
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace ov {
 namespace snippets {
 namespace pass {
 
 
-// Move up Constants which aren't scalars from body to Subgraph and replace them with Parameters inside body
-void ConvertConstantsToParameters(const std::shared_ptr<ov::snippets::op::Subgraph>& subgraph) {
-    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::ConvertConstantsToParameters");
+void CommonOptimizations::ExtractConstants(const std::shared_ptr<ov::snippets::op::Subgraph>& subgraph) {
+    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::ExtractConstants");
     auto body = subgraph->body_ptr();
 
     ParameterVector new_parameters;
@@ -55,6 +52,52 @@ void ConvertConstantsToParameters(const std::shared_ptr<ov::snippets::op::Subgra
     }
 }
 
+void CommonOptimizations::ExtractUnsupportedTransposes(const std::shared_ptr<op::Subgraph>& subgraph) {
+    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::ExtractUnsupportedTransposes");
+    const auto& body = subgraph->body_ptr();
+    const auto parameters = body->get_parameters();
+    // [107806]: If count of Parameters isn't equal to Subgraph inputs,
+    //           we cannot guarantee correct extraction since we don't have correct connections between body I/O and Subgraph I/O.
+    if (parameters.size() != subgraph->input_values().size())
+        return;
+
+    bool updated = false;
+    for (size_t i = 0; i < parameters.size(); ++i) {
+        const auto& parameter = parameters[i];
+        const auto& consumers = parameter->get_output_target_inputs(0);
+        if (consumers.size() != 1)
+            continue;
+
+        const auto transpose = ov::as_type_ptr<opset1::Transpose>(consumers.begin()->get_node()->shared_from_this());
+        if (!transpose)
+            continue;
+
+        const auto& order = ov::as_type_ptr<opset1::Constant>(transpose->get_input_node_shared_ptr(1));
+        if (!order)
+            continue;
+
+        const auto order_value = order->cast_vector<int>();
+        const auto transpose_child = *(transpose->get_output_target_inputs(0).begin());
+        const auto is_brgemm_case = ov::is_type<opset1::MatMul>(transpose_child.get_node()->shared_from_this());
+        // If Transpose is supported (can be decomposed or fused into Brgemm), skip
+        if ((is_brgemm_case && FuseTransposeBrgemm::supported_cases.count(order_value) != 0) ||
+            (TransposeDecomposition::supported_cases.count(order_value) != 0))
+            continue;
+
+        // If the transpose isn't supported - we have to extract it from Subgraph
+        transpose->set_argument(0, subgraph->input_value(i));
+        subgraph->set_argument(i, transpose);
+        transpose_child.replace_source_output(parameter);
+        // Update shape
+        parameter->set_partial_shape(transpose->get_output_partial_shape(0));
+        updated = true;
+    }
+
+    if (updated) {
+        subgraph->validate_and_infer_types();
+    }
+}
+
 CommonOptimizations::CommonOptimizations() {
     MATCHER_SCOPE(CommonOptimizations);
     ov::graph_rewrite_callback callback = [this](ov::pass::pattern::Matcher& m) {
@@ -65,10 +108,10 @@ CommonOptimizations::CommonOptimizations() {
             return false;
         }
 
-        auto body = subgraph->body_ptr();
+        const auto& body = subgraph->body_ptr();
         const auto is_quantized = subgraph->is_quantized();
 
-        // Firsly we should transform all original Converts inside body to ConvertTruncation to save original behavior.
+        // Firstly, we should transform all original Converts inside body to ConvertTruncation to save original behavior.
         // Then if Subgraph contains FakeQuantize we enable specific transformation for quantized subgraphs.
         ov::pass::Manager manager;
         manager.register_pass<ov::snippets::pass::TransformConvertToConvertTruncation>();
@@ -80,15 +123,18 @@ CommonOptimizations::CommonOptimizations() {
         manager.run_passes(body);
 
         // At the moment only non-scalar Constants of FakeQuantize can be inside Subgraph
-        // so we can enable ConvertConstantsToParameters pass for quantized models
+        // so we can enable ExtractConstants pass for quantized models
         if (is_quantized) {
-            ConvertConstantsToParameters(subgraph);
+            ExtractConstants(subgraph);
+        }
+        // Extract unsupported Transposes from body
+        if (subgraph->has_domain_sensitive_ops()) {
+            ExtractUnsupportedTransposes(subgraph);
         }
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(ov::pass::pattern::wrap_type<ov::snippets::op::Subgraph>(),
-                                                        matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(ov::pass::pattern::wrap_type<ov::snippets::op::Subgraph>(), matcher_name);
     this->register_matcher(m, callback);
 }
 

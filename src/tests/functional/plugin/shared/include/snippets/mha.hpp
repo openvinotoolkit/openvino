@@ -71,7 +71,9 @@ class MHAMulAdd : public MHA {
     void init_subgraph() override;
 };
 
-
+class MHATransposedB : public MHA {
+    void init_subgraph() override;
+};
 } // namespace snippets
 } // namespace test
 } // namespace ov
