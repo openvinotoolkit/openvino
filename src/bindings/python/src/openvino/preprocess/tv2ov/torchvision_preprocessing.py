@@ -1,12 +1,11 @@
-from typing import List
-from abc import ABCMeta, abstractmethod
-from typing import Callable, Any
-from enum import Enum
 import numbers
-from collections.abc import Sequence
 import logging
 import copy
 import numpy as np
+from typing import List, Dict
+from abc import ABCMeta, abstractmethod
+from typing import Callable, Any
+from collections.abc import Sequence
 from PIL import Image
 
 import torch
@@ -14,10 +13,11 @@ import torchvision.transforms as transforms
 from torchvision.transforms import InterpolationMode
 
 import openvino.runtime as ov
-from openvino.preprocess import PrePostProcessor, ResizeAlgorithm, ColorFormat
-from openvino.runtime import Core, Layout, Type
 import openvino.runtime.opset11 as ops
+from openvino.runtime import Layout, Type
 from openvino.runtime.utils.decorators import custom_preprocess_function
+from openvino.preprocess import PrePostProcessor, ResizeAlgorithm, ColorFormat
+
 
 TORCHTYPE_TO_OVTYPE = {
     float: ov.Type.f32,
@@ -42,21 +42,18 @@ TORCHTYPE_TO_OVTYPE = {
 def _setup_size(size, error_msg):
     if isinstance(size, numbers.Number):
         return int(size), int(size)
-
     if isinstance(size, Sequence) and len(size) == 1:
         return size[0], size[0]
-
     if len(size) != 2:
         raise ValueError(error_msg)
-    
     return size
 
 
-def _change_layout_shape(original_shape):
-    new_shape = copy.deepcopy(original_shape)
-    new_shape[1] = original_shape[3]
-    new_shape[2] = original_shape[1]
-    new_shape[3] = original_shape[2]
+def _NHWC_to_NCHW(input_shape):
+    new_shape = copy.deepcopy(input_shape)
+    new_shape[1] = input_shape[3]
+    new_shape[2] = input_shape[1]
+    new_shape[3] = input_shape[2]
     return new_shape
 
 
@@ -84,7 +81,7 @@ class TransformConverterFactory:
         def inner_wrapper(wrapped_class: TransformConverterBase) -> Callable:
             registered_name = wrapped_class.__name__ if target_type == None else target_type.__name__
             if registered_name in cls.registry:
-                logging.warning('Executor %s already exists. Will replace it', registered_name)
+                logging.warning(f"Executor {registered_name} already exists. {wrapped_class.__name__} will replace it.")
             cls.registry[registered_name] = wrapped_class
             return wrapped_class
  
@@ -100,39 +97,30 @@ class TransformConverterFactory:
         return converter.convert(*args, **kwargs)
 
 
-### Converters definition 
 @TransformConverterFactory.register(transforms.Normalize)
 class NormalizeConverter(TransformConverterBase):
-    def convert(self, input_idx: int, ppp: PrePostProcessor, transform, meta=None):
-        mean = transform.mean
-        scale = transform.std  # [1/std for std in transform.std]
-        ppp.input(input_idx).preprocess().mean(mean).scale(scale)
-        return None
+    def convert(self, input_idx: int, ppp: PrePostProcessor, transform, meta: Dict):
+        ppp.input(input_idx).preprocess().mean(transform.mean).scale(transform.std)
 
 
 @TransformConverterFactory.register(transforms.ConvertImageDtype)
 class NormalizeConverter(TransformConverterBase):
-    def convert(self, input_idx: int, ppp: PrePostProcessor, transform, meta=None):
+    def convert(self, input_idx: int, ppp: PrePostProcessor, transform, meta: Dict):
         ppp.input(input_idx).preprocess().convert_element_type(TORCHTYPE_TO_OVTYPE[transform.dtype])
-        return None
 
 
 @TransformConverterFactory.register(transforms.Grayscale)
 class NormalizeConverter(TransformConverterBase):
-    def convert(self, input_idx: int, ppp: PrePostProcessor, transform, meta=None):
+    def convert(self, input_idx: int, ppp: PrePostProcessor, transform, meta: Dict):
         if transform.num_output_chanels != 1:
             raise ValueError('OpenVINO does not support multi-channel grayscale output')  # TODO: Tomek
-
         ppp.input(input_idx).preprocess().convert_color(ColorFormat.GRAY)
-        return None
 
 
 @TransformConverterFactory.register(transforms.Pad)
 class NormalizeConverter(TransformConverterBase):
-    # https://pytorch.org/vision/stable/generated/torchvision.transforms.Pad.html#torchvision.transforms.Pad
-    def convert(self, input_idx: int, ppp: PrePostProcessor, transform, meta=None):
-        original_shape = meta["original_shape"]
-        current_shape = list(meta["current_shape"])
+    def convert(self, input_idx: int, ppp: PrePostProcessor, transform, meta: Dict):
+        image_dimensions = list(meta["image_dimensions"])
         layout = meta["layout"]
         torch_padding = transform.padding
         pad_mode = transform.padding_mode
@@ -141,13 +129,13 @@ class NormalizeConverter(TransformConverterBase):
             if isinstance(transform.fill, tuple):  # TODO: Tomek
                 raise ValueError("Different fill values for R, G, B channels are not supported.")
 
-        pads_begin = [0 for _ in original_shape]
-        pads_end = [0 for _ in original_shape]
+        pads_begin = [0 for _ in meta["input_shape"]]
+        pads_end = [0 for _ in meta["input_shape"]]
 
         # padding equal on all sides
         if isinstance(torch_padding, int):
-            current_shape[0] += 2 * torch_padding
-            current_shape[1] += 2 * torch_padding
+            image_dimensions[0] += 2 * torch_padding
+            image_dimensions[1] += 2 * torch_padding
 
             pads_begin[layout.get_index_by_name("H")] = torch_padding
             pads_begin[layout.get_index_by_name("W")] = torch_padding
@@ -156,8 +144,8 @@ class NormalizeConverter(TransformConverterBase):
 
         # padding different in horizontal and vertical axis
         elif len(torch_padding) == 2:
-            current_shape[0] += sum(torch_padding)
-            current_shape[1] += sum(torch_padding)
+            image_dimensions[0] += sum(torch_padding)
+            image_dimensions[1] += sum(torch_padding)
 
             pads_begin[layout.get_index_by_name("H")] = torch_padding[1]
             pads_begin[layout.get_index_by_name("W")] = torch_padding[0]
@@ -166,8 +154,8 @@ class NormalizeConverter(TransformConverterBase):
 
         # padding different on top, bottom, left and right of image
         else:
-            current_shape[0] += torch_padding[1] + torch_padding[3]
-            current_shape[1] += torch_padding[0] + torch_padding[2]
+            image_dimensions[0] += torch_padding[1] + torch_padding[3]
+            image_dimensions[1] += torch_padding[0] + torch_padding[2]
 
             pads_begin[layout.get_index_by_name("H")] = torch_padding[1]
             pads_begin[layout.get_index_by_name("W")] = torch_padding[0]
@@ -185,14 +173,13 @@ class NormalizeConverter(TransformConverterBase):
                 )
 
         ppp.input(input_idx).preprocess().custom(pad_node)
-        meta["current_shape"] = tuple(current_shape)
-        return meta
+        meta["image_dimensions"] = tuple(image_dimensions)
 
 
 @TransformConverterFactory.register(transforms.ToTensor)
 class NormalizeConverter(TransformConverterBase):
-    def convert(self, input_idx: int, ppp: PrePostProcessor, transform, meta=None):
-        original_shape = meta["original_shape"]
+    def convert(self, input_idx: int, ppp: PrePostProcessor, transform, meta: Dict):
+        input_shape = meta["input_shape"]
         layout = meta["layout"]
 
         ppp.input(input_idx).tensor() \
@@ -201,24 +188,21 @@ class NormalizeConverter(TransformConverterBase):
         .set_color_format(ColorFormat.RGB)
 
         if layout == Layout("NHWC"):
-            original_shape = _change_layout_shape(original_shape)
+            input_shape = _NHWC_to_NCHW(input_shape)
             layout = Layout("NCHW")
             ppp.input(input_idx).preprocess().convert_layout(layout)
         ppp.input(input_idx).preprocess().convert_element_type(Type.f32)
         ppp.input(input_idx).preprocess().scale(255.0)
 
-        meta["original_shape"] = original_shape
+        meta["input_shape"] = input_shape
         meta["layout"] = layout
-        return meta
 
 
 @TransformConverterFactory.register(transforms.CenterCrop)
 class NormalizeConverter(TransformConverterBase):
-    def convert(self, input_idx: int, ppp: PrePostProcessor, transform, meta=None):
-        original_shape = meta["original_shape"]
-        layout = meta["layout"]
-        
-        source_size = meta["current_shape"]
+    def convert(self, input_idx: int, ppp: PrePostProcessor, transform, meta: Dict):
+        input_shape = meta["input_shape"]
+        source_size = meta["image_dimensions"]
         target_size = _setup_size(transform.size, "Incorrect size type for CenterCrop operation")        
 
         if target_size[0] > source_size[0] or target_size[1] > source_size[1]:
@@ -232,12 +216,11 @@ class NormalizeConverter(TransformConverterBase):
         top_right.append(min(bottom_left[0] + target_size[0], source_size[0] - 1))
         top_right.append(min(bottom_left[1] + target_size[1], source_size[1] - 1))
 
-        bottom_left = [0]*len(original_shape[:-2]) + bottom_left if layout == Layout("NCHW") else [0] + bottom_left + [0]
-        top_right = original_shape[:-2] + top_right if layout == Layout("NCHW") else original_shape[:1] + top_right + original_shape[-1:]
+        bottom_left = [0] * len(input_shape[:-2]) + bottom_left if meta["layout"] == Layout("NCHW") else [0] + bottom_left + [0]
+        top_right = input_shape[:-2] + top_right if meta["layout"] == Layout("NCHW") else input_shape[:1] + top_right + input_shape[-1:]
 
         ppp.input(input_idx).preprocess().crop(bottom_left, top_right)
-        meta["current_shape"] = (target_size[-2],target_size[-1])
-        return meta
+        meta["image_dimensions"] = (target_size[-2], target_size[-1])
 
 
 @TransformConverterFactory.register(transforms.Resize)
@@ -247,32 +230,24 @@ class NormalizeConverter(TransformConverterBase):
         InterpolationMode.BICUBIC: ResizeAlgorithm.RESIZE_CUBIC,
         InterpolationMode.NEAREST: ResizeAlgorithm.RESIZE_NEAREST,
     }
-    def convert(self, input_idx: int, ppp: PrePostProcessor, transform, meta=None):
+    def convert(self, input_idx: int, ppp: PrePostProcessor, transform, meta: Dict):
         if transform.max_size != None:
             raise ValueError('Resize with max_size if not supported')  # TODO: Tomek
 
-        mode = transform.interpolation
-        size = transform.size
-        h, w = _setup_size(size, "Incorrect size type for Resize operation")
+        h, w = _setup_size(transform.size, "Incorrect size type for Resize operation")
 
         ppp.input(input_idx).tensor().set_layout(Layout('NCHW'))
 
-        layout = meta["layout"] 
-        original_shape = meta["original_shape"]
+        input_shape = meta["input_shape"]
 
-        if layout == Layout("NHWC"):
-            original_shape[1] = -1
-            original_shape[2] = -1
-        else:
-            original_shape[2] = -1
-            original_shape[3] = -1
+        input_shape[meta["layout"].get_index_by_name("H")] = -1
+        input_shape[meta["layout"].get_index_by_name("W")] = -1
 
-        ppp.input(input_idx).tensor().set_shape(original_shape)
-        ppp.input(input_idx).preprocess().resize(NormalizeConverter.RESIZE_MODE_MAP[mode], h, w)
-        meta["original_shape"] = original_shape
-        meta["current_shape"] = (h, w)
+        ppp.input(input_idx).tensor().set_shape(input_shape)
+        ppp.input(input_idx).preprocess().resize(NormalizeConverter.RESIZE_MODE_MAP[transform.interpolation], h, w)
+        meta["input_shape"] = input_shape
+        meta["image_dimensions"] = (h, w)
 
-        return meta
 
 def _to_list(transform) -> List:
         if isinstance(transform, torch.nn.Sequential):
@@ -282,19 +257,18 @@ def _to_list(transform) -> List:
         else:
             raise TypeError(f"Unsupported transform type: {type(transform)}")
 
+
 def _get_shape_layout_from_data(input_example):
     """
     Disregards rank of shape and return 
     """
-    shape = None
-    layout = None
-    if isinstance(input_example, torch.Tensor): # PyTorch
+    if isinstance(input_example, torch.Tensor):  # PyTorch
         shape = list(input_example.shape)
         layout = Layout("NCHW")
-    elif isinstance(input_example, np.ndarray): # OpenCV, numpy
+    elif isinstance(input_example, np.ndarray):  # OpenCV, numpy
         shape = list(input_example.shape)
         layout = Layout("NHWC")
-    elif isinstance(input_example, Image.Image): # PILLOW
+    elif isinstance(input_example, Image.Image):  # PILLOW
         shape = list(np.array(input_example).shape)
         layout = Layout("NHWC")
     else:
@@ -305,9 +279,9 @@ def _get_shape_layout_from_data(input_example):
 
     return shape, layout
 
+
 def from_torchvision(model: ov.Model, transform: Callable, input_example: Any, 
                     input_name: str = None) -> ov.Model:
-        transform_list = _to_list(transform)
 
         if input_name is not None:
             input_idx = next((i for i, p in enumerate(model.get_parameters()) if p.get_friendly_name() == input_name), None)
@@ -321,25 +295,24 @@ def from_torchvision(model: ov.Model, transform: Callable, input_example: Any,
         if input_idx is None:
             raise ValueError(f"Input with name {input_name} is not found")
 
-        original_shape, layout = _get_shape_layout_from_data(input_example)
+        input_shape, layout = _get_shape_layout_from_data(input_example)
 
         ppp = PrePostProcessor(model)
         ppp.input(input_idx).tensor().set_layout(layout) 
-        ppp.input(input_idx).tensor().set_shape(original_shape)
+        ppp.input(input_idx).tensor().set_shape(input_shape)
 
-        if layout == Layout("NHWC"):
-            current_shape = [original_shape[1], original_shape[2]]
-        else:
-            current_shape = [original_shape[2], original_shape[3]]
+        image_dimensions = [
+            input_shape[layout.get_index_by_name('H')],
+            input_shape[layout.get_index_by_name('W')]
+        ]
         global_meta = {
-            "original_shape": original_shape,
-            "current_shape": current_shape,
+            "input_shape": input_shape,
+            "image_dimensions": image_dimensions,
             "layout": layout,
-            "has_totensor": any(isinstance(item, transforms.ToTensor) for item in transform_list)
         }
 
-        for t in transform_list:
-            _ = TransformConverterFactory.convert(type(t), input_idx, ppp, t, global_meta)
+        for t in _to_list(transform):
+            TransformConverterFactory.convert(type(t), input_idx, ppp, t, global_meta)
 
         updated_model = ppp.build()
         return updated_model
