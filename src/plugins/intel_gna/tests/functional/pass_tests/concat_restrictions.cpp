@@ -13,6 +13,7 @@
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/pass/convert_prc.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "openvino/opsets/opset11.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
 /* ============= Concat Layer Restrictions Tests ============= */
@@ -24,6 +25,26 @@ using ConcatRestrictionsParamsTuple = typename std::tuple<InferenceEngine::SizeV
                                                           std::string>;                        // Device name
 
 namespace ConcatTestsDefinitions {
+
+using namespace CommonTestUtils;
+using namespace InferenceEngine;
+using namespace ngraph::builder;
+using namespace ov;
+using namespace ov::element;
+using namespace ov::opset11;
+using namespace std;
+
+shared_ptr<FakeQuantize> create_fq_node(const Type& type,
+                                        const shared_ptr<ov::Node>& node,
+                                        float fqMin,
+                                        float fqMax,
+                                        size_t levels) {
+    auto fqInpMin = makeConstant<float>(type, {1}, {fqMin});
+    auto fqInpMax = makeConstant<float>(type, {1}, {fqMax});
+    auto fqOutMin = makeConstant<float>(type, {1}, {fqMin});
+    auto fqOutMax = makeConstant<float>(type, {1}, {fqMax});
+    return make_shared<FakeQuantize>(node, fqInpMin, fqInpMax, fqOutMin, fqOutMax, levels);
+}
 
 struct ReLUConcatAxis {
     static const char* getName() {
@@ -320,6 +341,103 @@ struct ConvConcatConcatNHWCAxis {
     }
 };
 
+// This test performs checks on the following network:
+//             Param1
+//               |
+//             Reshape          Param2
+//               |                |
+//           Convolution         FQ
+//               |                |
+//              ReLU           Reshape
+//               |                |
+//               FQ           Transpose
+//               |                |
+//             Reshape         Reshape
+//               |                |
+//            Transpose       Transpose
+//                     \      /
+//                      Concat
+//                        |
+//                      Reshape
+//                        |
+//                      Result
+//
+// We want to ensure this Concat topology will not be detected as unsupported one.
+
+struct TransposeTransposeConcat {
+    static const char* getName() {
+        return "TransposeTransposeConcat";
+    }
+
+    static std::shared_ptr<ngraph::Function> createTopology(const SizeVector& input_shapes,
+                                                            const unsigned int& axis,
+                                                            const Precision& net_precision) {
+        const float fq1 = 5.5, fq2 = 10.0;
+        const size_t levels = 65536;
+        const vector<size_t> invert = {1, 0};
+        const vector<size_t> kernel_shape = {1, 3};
+        const size_t input_channels = 8;
+        const size_t output_channels = 64;
+
+        IE_ASSERT(input_shapes[0] % input_channels == 0);
+        IE_ASSERT(input_shapes[1] % input_shapes[0] == 0);
+
+        vector<size_t> concat_input_shape = {input_shapes[1] / input_shapes[0], input_shapes[0]};
+        vector<size_t> conv_input_shape = {1, input_channels, 1, input_shapes[0] / input_channels};
+
+        auto ng_prc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(net_precision);
+        auto inputs = makeParams(ng_prc, {{1, input_shapes[0]}, {1, input_shapes[1]}});
+
+        // 1st concat input
+        auto reshape_l1_const = make_shared<Constant>(i64, Shape{conv_input_shape.size()}, conv_input_shape);
+        auto reshape_l1 = make_shared<Reshape>(inputs[0], reshape_l1_const, false);
+
+        auto conv_l1_weights = makeConstant<float>(ng_prc,
+                                                   {output_channels, input_channels, kernel_shape[0], kernel_shape[1]},
+                                                   {},
+                                                   true,
+                                                   1.0f,
+                                                   -1.0f);
+        auto conv_l1_weights_fq = create_fq_node(ng_prc, conv_l1_weights, -fq1, fq1, levels);
+        auto conv_l1 = make_shared<Convolution>(reshape_l1,
+                                                conv_l1_weights_fq,
+                                                vector<size_t>{1, 1},
+                                                vector<ptrdiff_t>{0, 0},
+                                                vector<ptrdiff_t>{0, 0},
+                                                vector<size_t>{1, 1},
+                                                ov::op::PadType::VALID);
+        auto relu_l1 = make_shared<Relu>(conv_l1);
+        auto fq_l1 = create_fq_node(ng_prc, relu_l1, -fq1, fq1, levels);
+        auto reshape_l2_const = make_shared<Constant>(i64, Shape{concat_input_shape.size()}, concat_input_shape);
+        auto reshape_l2 = make_shared<Reshape>(fq_l1, reshape_l2_const, false);
+        auto transpose_l1_const = Constant::create(i64, Shape{invert.size()}, invert);
+        auto transpose_l1 = make_shared<Transpose>(reshape_l2, transpose_l1_const);
+
+        // 2nd concat input
+        auto fq_r1 = create_fq_node(ng_prc, inputs[1], -fq2, fq2, levels);
+        auto reshape_r1_const = make_shared<Constant>(i64, Shape{2}, concat_input_shape);
+        auto reshape_r1 = make_shared<Reshape>(fq_r1, reshape_r1_const, false);
+        auto transpose_r1_const = Constant::create(i64, Shape{invert.size()}, invert);
+        auto transpose_r1 = make_shared<Transpose>(reshape_r1, transpose_r1_const);
+        auto reshape_r3_const = make_shared<Constant>(i64, Shape{concat_input_shape.size()}, concat_input_shape);
+        auto reshape_r3 = make_shared<Reshape>(transpose_r1, reshape_r3_const, false);
+        auto transpose_r2_const = Constant::create(i64, Shape{invert.size()}, invert);
+        auto transpose_r2 = make_shared<Transpose>(reshape_r3, transpose_r2_const);
+
+        // Concat
+        auto concat = makeConcat({transpose_l1, transpose_r2}, 0);
+
+        auto width_after_conv = (conv_input_shape[3] - kernel_shape[1]) + 1;
+        auto reshape_const =
+            make_shared<Constant>(i64, Shape{2}, vector<size_t>{1, 2 * output_channels * width_after_conv});
+        auto reshape = make_shared<Reshape>(concat, reshape_const, false);
+
+        ResultVector result{make_shared<Result>(reshape)};
+        auto model = make_shared<Model>(result, inputs, getName());
+        return model;
+    }
+};
+
 template <typename T>
 class ConcatRestrictions : public testing::WithParamInterface<ConcatRestrictionsParamsTuple>,
                            public LayerTestsUtils::LayerTestsCommon {
@@ -346,6 +464,18 @@ public:
         return T::getMatch();
     }
 
+    Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override {
+        InferenceEngine::Blob::Ptr blob = make_blob_with_precision(info.getTensorDesc());
+        blob->allocate();
+
+        auto* rawBlobDataPtr = blob->buffer().as<float*>();
+        vector<float> values = generate_float_numbers(blob->size(), -0.2f, 0.2f);
+        for (size_t i = 0; i < blob->size(); i++) {
+            rawBlobDataPtr[i] = values[i];
+        }
+        return blob;
+    }
+
 protected:
     void SetUp() override {
         InferenceEngine::SizeVector inputShape;
@@ -368,6 +498,7 @@ using ConvConcatNHWCRestrictionsNeg = ConcatRestrictions<ConvConcatNHWCAxis>;
 using ConvConcatNHWCRestrictionsPos = ConcatRestrictions<ConvConcatNHWCAxis>;
 using ConvConcatConcatNHWCRestrictionsNeg = ConcatRestrictions<ConvConcatConcatNHWCAxis>;
 using ConvConcatConcatNHWCRestrictionsPos = ConcatRestrictions<ConvConcatConcatNHWCAxis>;
+using TransposeTransposeConcatPos = ConcatRestrictions<TransposeTransposeConcat>;
 
 TEST_P(ReLUConcatRestrictionsNeg, CompareWithRefImpl) {
     ExpectLoadNetworkToThrow(getMatch());
@@ -416,6 +547,10 @@ TEST_P(ConvConcatConcatNHWCRestrictionsNeg, CompareWithRefImpl) {
 };
 
 TEST_P(ConvConcatConcatNHWCRestrictionsPos, CompareWithRefImpl) {
+    Run();
+};
+
+TEST_P(TransposeTransposeConcatPos, CompareWithRefImpl) {
     Run();
 };
 
@@ -631,4 +766,23 @@ INSTANTIATE_TEST_SUITE_P(smoke_concat_restrictions,
                                             ::testing::ValuesIn(configs),
                                             ::testing::Values(CommonTestUtils::DEVICE_GNA)),
                          ConvConcatConcatNHWCRestrictionsPos::getTestCaseName);
+
+const vector<SizeVector> ttc_input_shapes = {{64, 384}};
+const vector<map<string, string>> ttc_configs = {
+    {{"GNA_DEVICE_MODE", "GNA_SW_FP32"}},
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_EXEC_TARGET", "GNA_TARGET_2_0"}},
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_0"}},
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_5"}},
+};
+const vector<unsigned int> ttc_axis = {0};
+
+INSTANTIATE_TEST_SUITE_P(smoke_concat_restrictions,
+                         TransposeTransposeConcatPos,
+                         ::testing::Combine(::testing::ValuesIn(ttc_input_shapes),
+                                            ::testing::ValuesIn(ttc_axis),
+                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::ValuesIn(ttc_configs),
+                                            ::testing::Values(CommonTestUtils::DEVICE_GNA)),
+                         TransposeTransposeConcatPos::getTestCaseName);
+
 }  // namespace ConcatTestsDefinitions
