@@ -74,9 +74,9 @@ function(_ov_add_api_validator_post_build_step)
 
     # see https://learn.microsoft.com/en-us/windows-hardware/drivers/develop/validating-windows-drivers#known-apivalidator-issues
     # ApiValidator does not run on Arm64 because AitStatic does not work on Arm64
-    if(HOST_AARCH64)
-        return()
-    endif()
+    # if(HOST_AARCH64)
+    #     return()
+    # endif()
 
     if(X86_64)
         set(wdk_platform "x64")
