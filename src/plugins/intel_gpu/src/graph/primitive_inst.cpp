@@ -194,6 +194,8 @@ void primitive_inst::update_shape() {
     GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::shape_inference);
     if (update_shape_done_by_other) {
         update_shape_done_by_other = false; // reset
+        GPU_DEBUG_TRACE_DETAIL << id() << ": update shape is done by other: "
+                               << _impl_params->output_layouts[0].to_short_string() << std::endl;
         return;
     }
     bool input_shape_changed = false;
@@ -496,8 +498,8 @@ bool primitive_inst::update_impl() {
                     auto& kernels_cache = get_network().get_program()->get_kernels_cache();
                     auto kernels = kernels_cache.compile(updated_params_no_dyn_pad, _impl->get_kernels_source());
                     _impl->set_kernels(kernels);
+                    cache.add(updated_params_no_dyn_pad, _impl->clone());
                 }
-                cache.add(updated_params_no_dyn_pad, _impl->clone());
                 auto new_impl_str = _impl != nullptr ? _impl->get_kernel_name() : "nullptr";
                 GPU_DEBUG_TRACE_DETAIL << id() << ": update impl from " << prev_impl_str << " to " << new_impl_str << std::endl;
             }
