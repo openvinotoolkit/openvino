@@ -49,7 +49,7 @@ public:
 
     struct SnippetAttrs {
         // Local copy of subgraph node for canonization & code generation
-        std::shared_ptr<ngraph::snippets::op::Subgraph> snippet;
+        std::shared_ptr<snippets::op::Subgraph> snippet;
         uint64_t bodyHash;
         std::vector<std::vector<size_t>> inMemBlockedDims;
         std::vector<std::vector<size_t>> inMemOrders;
