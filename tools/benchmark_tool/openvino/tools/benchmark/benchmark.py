@@ -174,9 +174,6 @@ class Benchmark:
         min_latency_ms = times[0]
         max_latency_ms = times[-1]
 
-        if self.api_type == 'sync':
-            fps = len(batch_size) * 1000 / median_latency_ms
-
         if pcseq:
             for group in self.latency_groups:
                 if group.times:
