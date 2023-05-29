@@ -212,8 +212,10 @@ enum ProcessorUseStatus {
  * @param[in]  streams_info_table streams information table.
  * @return     Array of available cpu ids.
  */
-OPENVINO_RUNTIME_API std::vector<std::vector<int>> reserve_available_cpus(
-    const std::vector<std::vector<int>> streams_info_table, const int cpu_status = NOT_USED);
+OPENVINO_RUNTIME_API void reserve_available_cpus(const std::vector<std::vector<int>> streams_info_table,
+                                                 std::vector<std::vector<int>>& stream_processors,
+                                                 std::vector<int>& stream_numa_node_ids,
+                                                 const int cpu_status = NOT_USED);
 
 /**
  * @brief      Set CPU_MAP_USED_FLAG of cpu_mapping

@@ -79,7 +79,7 @@ struct CPUStreamsExecutor::Impl {
                                                           _impl->_usedNumaNodes.size()))
                               : _impl->_usedNumaNodes.at(_streamId % _impl->_usedNumaNodes.size());
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
-            if (is_cpu_map_available() && _impl->_config._streams_info_table.size() > 0) {
+            if (is_cpu_map_available() && _impl->_config._stream_stream_infos.size() > 0) {
                 init_stream();
             } else {
                 init_stream_legacy();
@@ -131,15 +131,12 @@ struct CPUStreamsExecutor::Impl {
             std::lock_guard<std::mutex> lock{_impl->_cpumap_mutex};
             const auto stream_id = _streamId >= _impl->_config._streams ? _impl->_config._streams - 1 : _streamId;
             const auto org_proc_type_table = get_org_proc_type_table();
-            const auto concurrency =
-                (_impl->_config._streams_info_table.size() > 0 && _impl->_config._stream_ids.size() > 0)
-                    ? _impl->_config._streams_info_table[_impl->_config._stream_ids[stream_id]][THREADS_PER_STREAM]
-                    : 0;
-            const auto cpu_core_type =
-                (_impl->_config._streams_info_table.size() > 0 && _impl->_config._stream_ids.size() > 0)
-                    ? static_cast<ColumnOfProcessorTypeTable>(
-                          _impl->_config._streams_info_table[_impl->_config._stream_ids[stream_id]][PROC_TYPE])
-                    : static_cast<ColumnOfProcessorTypeTable>(0);
+            const auto concurrency = _impl->_config._stream_stream_infos.size() > 0
+                                         ? _impl->_config._stream_stream_infos[stream_id][THREADS_PER_STREAM]
+                                         : 0;
+            const auto cpu_core_type = _impl->_config._stream_stream_infos.size() > 0
+                                           ? _impl->_config._stream_stream_infos[stream_id][PROC_TYPE]
+                                           : 0;
             if (concurrency <= 0) {
                 return;
             }
@@ -166,13 +163,14 @@ struct CPUStreamsExecutor::Impl {
                     }
                 }
             } else if (org_proc_type_table.size() > 1 && !_impl->_config._cpu_pinning) {
-                _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{_numaNodeId, concurrency}});
+                _taskArena.reset(new custom::task_arena{
+                    custom::task_arena::constraints{_impl->_config._stream_numa_node_ids[stream_id], concurrency}});
             } else {
                 _taskArena.reset(new custom::task_arena{concurrency});
             }
             if (_impl->_config._cpu_pinning) {
-                _cpu_ids = static_cast<int>(_impl->_config._stream_core_ids.size()) == _impl->_config._streams
-                               ? _impl->_config._stream_core_ids[stream_id]
+                _cpu_ids = static_cast<int>(_impl->_config._stream_processor_ids.size()) == _impl->_config._streams
+                               ? _impl->_config._stream_processor_ids[stream_id]
                                : _cpu_ids;
                 if (_cpu_ids.size() > 0) {
                     CpuSet processMask;

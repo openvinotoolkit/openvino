@@ -118,8 +118,9 @@ public:
 
         std::vector<std::vector<int>> _proc_type_table;
         std::vector<std::vector<int>> _streams_info_table = {{}};
-        std::vector<std::vector<int>> _stream_core_ids;
-        std::vector<int> _stream_ids;
+        std::vector<std::vector<int>> _stream_processor_ids;
+        std::vector<int> _stream_numa_node_ids;
+        std::vector<std::vector<int>> _stream_stream_infos;
         bool _cpu_pinning = false;
         bool _streams_changed = false;
 

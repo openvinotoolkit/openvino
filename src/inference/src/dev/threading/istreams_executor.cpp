@@ -510,20 +510,23 @@ IStreamsExecutor::Config IStreamsExecutor::Config::reserve_cpu_threads(const ISt
         return config;
     }
 
-    config._stream_core_ids = reserve_available_cpus(config._streams_info_table, status);
+    reserve_available_cpus(config._streams_info_table, config._stream_processor_ids, config._stream_numa_node_ids, status);
 
     config._streams = 0;
     config._threads = 0;
     for (size_t i = 0; i < config._streams_info_table.size(); i++) {
-        config._streams += config._streams_info_table[i][NUMBER_OF_STREAMS];
-        config._threads += config._streams_info_table[i][NUMBER_OF_STREAMS] *
-                                    config._streams_info_table[i][THREADS_PER_STREAM];
-        stream_ids.insert(stream_ids.end(), config._streams_info_table[i][NUMBER_OF_STREAMS], i);
-        log += core_type_str[config._streams_info_table[i][PROC_TYPE]] +
-               std::to_string(config._streams_info_table[i][NUMBER_OF_STREAMS]) + "(" +
-               std::to_string(config._streams_info_table[i][THREADS_PER_STREAM]) + ")";
+        if (config._streams_info_table[i][NUMBER_OF_STREAMS] > 0) {
+            config._streams += config._streams_info_table[i][NUMBER_OF_STREAMS];
+            config._threads +=
+                config._streams_info_table[i][NUMBER_OF_STREAMS] * config._streams_info_table[i][THREADS_PER_STREAM];
+            config._stream_stream_infos.insert(config._stream_stream_infos.end(),
+                                               config._streams_info_table[i][NUMBER_OF_STREAMS],
+                                               config._streams_info_table[i]);
+            log += core_type_str[config._streams_info_table[i][PROC_TYPE]] +
+                   std::to_string(config._streams_info_table[i][NUMBER_OF_STREAMS]) + "(" +
+                   std::to_string(config._streams_info_table[i][THREADS_PER_STREAM]) + ")";
+        }
     }
-    config._stream_ids = stream_ids;
     log += " Total: " + std::to_string(config._streams) + "(" + std::to_string(config._threads) + ")";
     OPENVINO_DEBUG << log;
     std::cout << log << std::endl;
