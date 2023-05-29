@@ -4,13 +4,14 @@
 
 #include "remote_context.hpp"
 
-ov::proxy::RemoteContext::RemoteContext(const ov::RemoteContext& ctx)
-    : m_name(ctx.get_device_name()),
+#include <memory>
+
+ov::proxy::RemoteContext::RemoteContext(const ov::RemoteContext& ctx, const std::string& dev_name)
+    : m_name(dev_name),
       m_property(ctx.get_params()),
       m_context(ctx) {}
 
 const std::string& ov::proxy::RemoteContext::get_device_name() const {
-    m_name = m_context.get_device_name();
     return m_name;
 }
 
@@ -28,4 +29,11 @@ std::shared_ptr<ov::IRemoteTensor> ov::proxy::RemoteContext::create_tensor(const
 std::shared_ptr<ov::ITensor> ov::proxy::RemoteContext::create_host_tensor(const ov::element::Type type,
                                                                           const ov::Shape& shape) {
     return m_context._impl->create_host_tensor(type, shape);
+}
+
+ov::RemoteContext ov::proxy::RemoteContext::get_hardware_context(const ov::RemoteContext& context) {
+    if (auto proxy_context = std::dynamic_pointer_cast<ov::proxy::RemoteContext>(context._impl)) {
+        return proxy_context->m_context;
+    }
+    return context;
 }

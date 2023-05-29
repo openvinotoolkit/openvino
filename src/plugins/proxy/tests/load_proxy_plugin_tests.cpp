@@ -7,6 +7,32 @@
 
 using namespace ov::proxy::tests;
 
+TEST_F(ProxyTests, alias_for_the_same_name) {
+    register_plugin_support_reshape(
+        core,
+        "CBD",
+        {{ov::device::alias.name(), "CBD"}, {ov::device::fallback.name(), "DEK"}, {ov::device::priority.name(), 0}});
+    register_plugin_support_subtract(core, "DEK", {{ov::device::alias.name(), "CBD"}});
+    auto available_devices = core.get_available_devices();
+    // 0, 1, 2 is ABC plugin
+    // 1, 3, 4 is BDE plugin
+    // ABC doesn't support subtract operation
+    std::unordered_map<std::string, std::string> mock_reference_dev = {{"CBD.0", "CBD_ov_internal"},
+                                                                       {"CBD.1", "CBD_ov_internal DEK"},
+                                                                       {"CBD.2", "CBD_ov_internal"}};
+    for (const auto& it : mock_reference_dev) {
+        EXPECT_EQ(core.get_property(it.first, ov::device::priorities), it.second);
+    }
+    for (const auto& dev : available_devices) {
+        auto it = mock_reference_dev.find(dev);
+        if (it != mock_reference_dev.end()) {
+            mock_reference_dev.erase(it);
+        }
+    }
+    // All devices should be found
+    EXPECT_TRUE(mock_reference_dev.empty());
+}
+
 TEST_F(ProxyTests, get_available_devices) {
     auto available_devices = core.get_available_devices();
     // 0, 1, 2 is ABC plugin
@@ -48,7 +74,7 @@ TEST_F(ProxyTests, get_available_devices_with_low_level_plugin) {
             EXPECT_EQ(core.get_property(it.first, ov::device::priorities), it.second);
         }
     }
-    std::set<std::string> mock_reference_dev = {"ABC.abc_a", "ABC.abc_b", "ABC.abc_c", "MOCK.0", "MOCK.1", "MOCK.2"};
+    std::set<std::string> mock_reference_dev = {"ABC.ABC_1", "ABC.ABC_2", "ABC.ABC_3", "MOCK.0", "MOCK.1", "MOCK.2"};
     for (const auto& dev : available_devices) {
         if (mock_reference_dev.find(dev) != mock_reference_dev.end()) {
             mock_reference_dev.erase(dev);

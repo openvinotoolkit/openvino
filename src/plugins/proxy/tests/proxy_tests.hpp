@@ -37,6 +37,10 @@ public:
     std::shared_ptr<ov::Model> create_model_with_reshape();
     ov::Tensor create_and_fill_tensor(const ov::element::Type& type, const ov::Shape& shape);
 
+protected:
+    void register_plugin_support_reshape(ov::Core& core, const std::string& device_name, const ov::AnyMap& properties);
+    void register_plugin_support_subtract(ov::Core& core, const std::string& device_name, const ov::AnyMap& properties);
+
 private:
     template <class T>
     ov::Tensor create_tensor(const ov::element::Type& type, const ov::Shape& shape) {
@@ -54,8 +58,6 @@ private:
                     std::shared_ptr<ov::IPlugin>& plugin,
                     const std::string& device_name,
                     const ov::AnyMap& properties);
-    void register_plugin_support_reshape(ov::Core& core, const std::string& device_name, const ov::AnyMap& properties);
-    void register_plugin_support_subtract(ov::Core& core, const std::string& device_name, const ov::AnyMap& properties);
 };
 
 }  // namespace tests

@@ -13,7 +13,7 @@ namespace proxy {
 
 class RemoteContext : public ov::IRemoteContext {
 public:
-    explicit RemoteContext(const ov::RemoteContext& ctx);
+    explicit RemoteContext(const ov::RemoteContext& ctx, const std::string& dev_name);
     const std::string& get_device_name() const override;
 
     const ov::AnyMap& get_property() const override;
@@ -23,6 +23,8 @@ public:
                                                      const ov::AnyMap& params = {}) override;
 
     std::shared_ptr<ov::ITensor> create_host_tensor(const ov::element::Type type, const ov::Shape& shape) override;
+
+    static ov::RemoteContext get_hardware_context(const ov::RemoteContext& context);
 
 private:
     mutable std::string m_name;

@@ -13,6 +13,7 @@
 #include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/iplugin.hpp"
+#include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
@@ -237,6 +238,31 @@ std::shared_ptr<ov::ISyncInferRequest> MockCompiledModel::create_sync_infer_requ
     return std::make_shared<MockInferRequest>(std::dynamic_pointer_cast<const MockCompiledModel>(shared_from_this()));
 }
 
+class MockRemoteContext : public ov::IRemoteContext {
+    ov::AnyMap m_property;
+    std::string m_dev_name;
+
+public:
+    MockRemoteContext(const std::string& dev_name) : m_dev_name(dev_name) {}
+    const std::string& get_device_name() const override {
+        return m_dev_name;
+    }
+
+    const ov::AnyMap& get_property() const override {
+        return m_property;
+    }
+
+    std::shared_ptr<ov::IRemoteTensor> create_tensor(const ov::element::Type& type,
+                                                     const ov::Shape& shape,
+                                                     const ov::AnyMap& params = {}) override {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+    std::shared_ptr<ov::ITensor> create_host_tensor(const ov::element::Type type, const ov::Shape& shape) override {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+};
+
 class MockPluginBase : public ov::IPlugin {
 public:
     virtual const ov::Version& get_const_version() = 0;
@@ -258,7 +284,10 @@ public:
     std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
                                                       const ov::AnyMap& properties,
                                                       const ov::RemoteContext& context) const override {
-        OPENVINO_NOT_IMPLEMENTED;
+        if (!support_model(model, query_model(model, properties)))
+            OPENVINO_THROW("Unsupported model");
+
+        return std::make_shared<MockCompiledModel>(model, shared_from_this(), properties);
     }
 
     void set_property(const ov::AnyMap& properties) override {
@@ -270,11 +299,11 @@ public:
     }
 
     std::shared_ptr<ov::IRemoteContext> create_context(const ov::AnyMap& remote_properties) const override {
-        OPENVINO_NOT_IMPLEMENTED;
+        return std::make_shared<MockRemoteContext>(get_device_name());
     }
 
     std::shared_ptr<ov::IRemoteContext> get_default_context(const ov::AnyMap& remote_properties) const override {
-        OPENVINO_NOT_IMPLEMENTED;
+        return std::make_shared<MockRemoteContext>(get_device_name());
     }
 
     std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model, const ov::AnyMap& properties) const override {
@@ -310,7 +339,33 @@ public:
     std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
                                                      const ov::RemoteContext& context,
                                                      const ov::AnyMap& properties) const override {
-        OPENVINO_NOT_IMPLEMENTED;
+        std::string xmlString, xmlInOutString;
+        ov::Tensor weights;
+
+        ov::pass::StreamSerialize::DataHeader hdr = {};
+        model.read(reinterpret_cast<char*>(&hdr), sizeof hdr);
+
+        // read CNNNetwork input/output precisions
+        model.seekg(hdr.custom_data_offset);
+        xmlInOutString.resize(hdr.custom_data_size);
+        model.read(const_cast<char*>(xmlInOutString.c_str()), hdr.custom_data_size);
+
+        // read blob content
+        model.seekg(hdr.consts_offset);
+        if (hdr.consts_size) {
+            weights = ov::Tensor(ov::element::i8, ov::Shape{hdr.consts_size});
+            char* data = static_cast<char*>(weights.data());
+            model.read(data, hdr.consts_size);
+        }
+
+        // read XML content
+        model.seekg(hdr.model_offset);
+        xmlString.resize(hdr.model_size);
+        model.read(const_cast<char*>(xmlString.c_str()), hdr.model_size);
+
+        ov::Core core;
+        auto ov_model = core.read_model(xmlString, weights);
+        return compile_model(ov_model, properties, context);
     }
 
     ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
@@ -378,6 +433,9 @@ void ov::proxy::tests::ProxyTests::register_plugin_support_reshape(ov::Core& cor
         }
 
         ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const override {
+            const static std::vector<std::string> device_ids = {get_device_name() + "_1",
+                                                                get_device_name() + "_2",
+                                                                get_device_name() + "_3"};
             const static std::vector<ov::PropertyName> roProperties{
                 RO_property(ov::supported_properties.name()),
                 RO_property(ov::available_devices.name()),
@@ -406,17 +464,16 @@ void ov::proxy::tests::ProxyTests::register_plugin_support_reshape(ov::Core& cor
             } else if (name == ov::device::uuid) {
                 ov::device::UUID uuid;
                 for (size_t i = 0; i < uuid.MAX_UUID_SIZE; i++) {
-                    if (device_id == "abc_a")
+                    if (device_id == device_ids[0])
                         uuid.uuid[i] = static_cast<uint8_t>(i);
-                    else if (device_id == "abc_b")
+                    else if (device_id == device_ids[1])
                         uuid.uuid[i] = static_cast<uint8_t>(i * 2);
-                    else if (device_id == "abc_c")
+                    else if (device_id == device_ids[2])
                         uuid.uuid[i] = static_cast<uint8_t>(i * 3);
                 }
                 return decltype(ov::device::uuid)::value_type{uuid};
             } else if (name == ov::available_devices) {
-                const std::vector<std::string> availableDevices = {"abc_a", "abc_b", "abc_c"};
-                return decltype(ov::available_devices)::value_type(availableDevices);
+                return decltype(ov::available_devices)::value_type(device_ids);
             } else if (name == ov::device::capabilities) {
                 std::vector<std::string> capabilities;
                 capabilities.push_back(ov::device::capability::EXPORT_IMPORT);
@@ -497,6 +554,9 @@ void ov::proxy::tests::ProxyTests::register_plugin_support_subtract(ov::Core& co
         }
 
         ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const override {
+            const static std::vector<std::string> device_ids = {get_device_name() + "_1",
+                                                                get_device_name() + "_2",
+                                                                get_device_name() + "_3"};
             const static std::vector<ov::PropertyName> roProperties{
                 RO_property(ov::supported_properties.name()),
                 RO_property(ov::available_devices.name()),
@@ -523,17 +583,16 @@ void ov::proxy::tests::ProxyTests::register_plugin_support_subtract(ov::Core& co
             } else if (name == ov::device::uuid) {
                 ov::device::UUID uuid;
                 for (size_t i = 0; i < uuid.MAX_UUID_SIZE; i++) {
-                    if (device_id == "bde_b")
+                    if (device_id == device_ids[0])
                         uuid.uuid[i] = static_cast<uint8_t>(i * 2);
-                    else if (device_id == "bde_d")
+                    else if (device_id == device_ids[1])
                         uuid.uuid[i] = static_cast<uint8_t>(i * 4);
-                    else if (device_id == "bde_e")
+                    else if (device_id == device_ids[2])
                         uuid.uuid[i] = static_cast<uint8_t>(i * 5);
                 }
                 return decltype(ov::device::uuid)::value_type{uuid};
             } else if (name == ov::available_devices) {
-                const std::vector<std::string> availableDevices = {"bde_b", "bde_d", "bde_e"};
-                return decltype(ov::available_devices)::value_type(availableDevices);
+                return decltype(ov::available_devices)::value_type(device_ids);
             } else if (name == ov::device::capabilities) {
                 std::vector<std::string> capabilities;
                 capabilities.push_back(ov::device::capability::EXPORT_IMPORT);

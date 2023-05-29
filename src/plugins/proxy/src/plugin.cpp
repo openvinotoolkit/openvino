@@ -285,7 +285,8 @@ std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::compile_model(const std::
 std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
                                                                      const ov::AnyMap& properties,
                                                                      const ov::RemoteContext& context) const {
-    auto dev_name = context.get_device_name();
+    auto ctx = ov::proxy::RemoteContext::get_hardware_context(context);
+    auto dev_name = ctx.get_device_name();
 
     // Initial device config should be equal to default global config
     auto device_config = m_configs[""];
@@ -304,25 +305,29 @@ std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::compile_model(const std::
     remove_proxy_properties(device_config);
     std::shared_ptr<const ov::IPlugin> plugin = shared_from_this();
     auto compiled_model =
-        std::make_shared<ov::proxy::CompiledModel>(get_core()->compile_model(model, context, device_config), plugin);
+        std::make_shared<ov::proxy::CompiledModel>(get_core()->compile_model(model, ctx, device_config), plugin);
     return std::dynamic_pointer_cast<ov::ICompiledModel>(compiled_model);
 }
 
 std::shared_ptr<ov::IRemoteContext> ov::proxy::Plugin::create_context(const ov::AnyMap& remote_properties) const {
+    size_t device_id = get_device_from_config(remote_properties);
     auto device_config = remote_properties;
     remove_proxy_properties(device_config);
 
     auto remote_context = std::make_shared<ov::proxy::RemoteContext>(
-        get_core()->create_context(get_fallback_device(get_device_from_config(remote_properties)), device_config));
+        get_core()->create_context(get_fallback_device(get_device_from_config(remote_properties)), device_config),
+        get_device_name() + "." + std::to_string(device_id));
     return std::dynamic_pointer_cast<ov::IRemoteContext>(remote_context);
 }
 
 std::shared_ptr<ov::IRemoteContext> ov::proxy::Plugin::get_default_context(const ov::AnyMap& remote_properties) const {
+    size_t device_id = get_device_from_config(remote_properties);
     auto device_config = remote_properties;
     remove_proxy_properties(device_config);
 
     auto remote_context = std::make_shared<ov::proxy::RemoteContext>(
-        get_core()->get_default_context(get_fallback_device(get_device_from_config(remote_properties))));
+        get_core()->get_default_context(get_fallback_device(get_device_from_config(remote_properties))),
+        get_device_name() + "." + std::to_string(device_id));
     return std::dynamic_pointer_cast<ov::IRemoteContext>(remote_context);
 }
 
@@ -339,10 +344,11 @@ std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::import_model(std::istream
 std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::import_model(std::istream& model,
                                                                     const ov::RemoteContext& context,
                                                                     const ov::AnyMap& properties) const {
+    auto ctx = ov::proxy::RemoteContext::get_hardware_context(context);
     const auto hidden_devices = get_hidden_devices();
     auto device_config = properties;
     remove_proxy_properties(device_config);
-    return std::make_shared<ov::proxy::CompiledModel>(get_core()->import_model(model, context, device_config),
+    return std::make_shared<ov::proxy::CompiledModel>(get_core()->import_model(model, ctx, device_config),
                                                       shared_from_this());
 }
 
