@@ -8,7 +8,7 @@
 
    Deploy Application with Deployment Manager <openvino_docs_install_guides_deployment_manager_tool>
    Local Distribution Libraries <openvino_docs_deploy_local_distribution>
-   Optimize binaries size <opevino_conditional_compilation_deploying_guide>
+   Optimize Binaries Size <opevino_conditional_compilation_deploying_guide>
 
 
 .. note::
