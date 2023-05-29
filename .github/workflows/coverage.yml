@@ -33,7 +33,7 @@ jobs:
       fail-fast: false
       matrix:
         config:
-          - { name: "coverage runner", cc: "gcc", cxx: "g++", py_ver: "3.10.10" }
+          - { name: "coverage runner 1", cc: "gcc", cxx: "g++", py_ver: "3.10.10" }
 
     steps:
       - name: Print info
