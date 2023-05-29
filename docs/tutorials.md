@@ -20,7 +20,71 @@
    :hidden:
 
    notebooks-installation
-   notebooks/notebooks
+   notebooks/001-hello-world-with-output
+   notebooks/002-openvino-api-with-output
+   notebooks/003-hello-segmentation-with-output
+   notebooks/004-hello-detection-with-output
+   notebooks/101-tensorflow-to-openvino-with-output
+   notebooks/102-pytorch-onnx-to-openvino-with-output
+   notebooks/103-paddle-to-openvino-classification-with-output
+   notebooks/104-model-tools-with-output
+   notebooks/105-language-quantize-bert-with-output
+   notebooks/106-auto-device-with-output
+   notebooks/107-speech-recognition-quantization-data2vec-with-output
+   notebooks/107-speech-recognition-quantization-wav2vec2-with-output
+   notebooks/109-latency-tricks-with-output
+   notebooks/110-ct-scan-live-inference-with-output
+   notebooks/110-ct-segmentation-quantize-nncf-with-output
+   notebooks/111-yolov5-quantization-migration-with-output
+   notebooks/112-pytorch-post-training-quantization-nncf-with-output
+   notebooks/113-image-classification-quantization-with-output
+   notebooks/114-quantization-simplified-mode-with-output
+   notebooks/115-async-api-with-output
+   notebooks/116-sparsity-optimization-with-output
+   notebooks/117-model-server-with-output
+   notebooks/118-optimize-preprocessing-with-output
+   notebooks/201-vision-monodepth-with-output
+   notebooks/202-vision-superresolution-image-with-output
+   notebooks/202-vision-superresolution-video-with-output
+   notebooks/203-meter-reader-with-output
+   notebooks/205-vision-background-removal-with-output
+   notebooks/206-vision-paddlegan-anime-with-output
+   notebooks/207-vision-paddlegan-superresolution-with-output
+   notebooks/209-handwritten-ocr-with-output
+   notebooks/211-speech-to-text-with-output
+   notebooks/212-pyannote-speaker-diarization-with-output
+   notebooks/213-question-answering-with-output
+   notebooks/214-grammar-correction-with-output
+   notebooks/215-image-inpainting-with-output
+   notebooks/217-vision-deblur-with-output
+   notebooks/218-vehicle-detection-and-recognition-with-output
+   notebooks/219-knowledge-graphs-conve-with-output
+   notebooks/222-vision-image-colorization-with-output
+   notebooks/223-text-prediction-with-output
+   notebooks/224-3D-segmentation-point-clouds-with-output
+   notebooks/225-stable-diffusion-text-to-image-with-output
+   notebooks/226-yolov7-optimization-with-output
+   notebooks/227-whisper-subtitles-generation-with-output
+   notebooks/228-clip-zero-shot-image-classification-with-output
+   notebooks/229-distilbert-sequence-classification-with-output
+   notebooks/230-yolov8-optimization-with-output
+   notebooks/231-instruct-pix2pix-image-editing-with-output
+   notebooks/232-clip-language-saliency-map-with-output
+   notebooks/233-blip-visual-language-processing-with-output
+   notebooks/234-encodec-audio-compression-with-output
+   notebooks/235-controlnet-stable-diffusion-with-output
+   notebooks/236-stable-diffusion-v2-infinite-zoom-with-output
+   notebooks/236-stable-diffusion-v2-text-to-image-with-output
+   notebooks/237-segment-anything-with-output
+   notebooks/302-pytorch-quantization-aware-training-with-output
+   notebooks/401-object-detection-with-output
+   notebooks/402-pose-estimation-with-output
+   notebooks/403-action-recognition-webcam-with-output
+   notebooks/404-style-transfer-with-output
+   notebooks/405-paddle-ocr-webcam-with-output
+   notebooks/406-3D-pose-estimation-with-output
+   notebooks/407-person-tracking-with-output
+   notebooks/notebook_utils-with-output
 
 This collection of Python tutorials are written for running on Jupyter notebooks.
 The tutorials provide an introduction to the OpenVINO™ toolkit and explain how to
@@ -235,6 +299,10 @@ Demos that demonstrate inference on a particular model.
    +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
    | `237-segment-anything <notebooks/237-segment-anything-with-output.html>`__                                                    | Prompt based object segmentation mask generation using Segment Anything and OpenVINO™                                                      | |n237-img1|                               |
    +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
+   | `238-deep-floyd-if <notebooks/238-deep-floyd-if-with-output.html>`__                                                          | Text-to-Image Generation with DeepFloyd IF and OpenVINO™                                                                                   | |n238-img1|                               |
+   +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
+   | `239-image-bind <notebooks/239-image-bind-with-output.html>`__                                                                | Binding multimodal data using ImageBind and OpenVINO™                                                                                      | |n239-img1|                               |
+   +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
 
 
 .. raw:: html
@@ -448,6 +516,10 @@ Made with `contributors-img <https://contrib.rocks>`__.
    :target: https://user-images.githubusercontent.com/29454499/228882108-25c1f65d-4c23-4e1d-8ba4-f6164280a3e3.gif
 .. |n237-img1| image:: https://user-images.githubusercontent.com/29454499/231468849-1cd11e68-21e2-44ed-8088-b792ef50c32d.png
    :target: https://user-images.githubusercontent.com/29454499/231468849-1cd11e68-21e2-44ed-8088-b792ef50c32d.png
+.. |n238-img1| image:: https://user-images.githubusercontent.com/29454499/241643886-dfcf3c48-8d50-4730-ae28-a21595d9504f.png
+   :target: https://user-images.githubusercontent.com/29454499/241643886-dfcf3c48-8d50-4730-ae28-a21595d9504f.png
+.. |n239-img1| image:: https://user-images.githubusercontent.com/29454499/240364108-39868933-d221-41e6-9b2e-dac1b14ef32f.png
+   :target: https://user-images.githubusercontent.com/29454499/240364108-39868933-d221-41e6-9b2e-dac1b14ef32f.png
 .. |n301-img1| image:: https://user-images.githubusercontent.com/15709723/127779607-8fa34947-1c35-4260-8d04-981c41a2a2cc.png
    :target: https://user-images.githubusercontent.com/15709723/127779607-8fa34947-1c35-4260-8d04-981c41a2a2cc.png
 .. |n401-img1| image:: https://user-images.githubusercontent.com/4547501/141471665-82b28c86-cf64-4bfe-98b3-c314658f2d96.gif
