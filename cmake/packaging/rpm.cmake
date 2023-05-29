@@ -44,6 +44,7 @@ macro(ov_cpack_settings)
            NOT item MATCHES "^tbb(_dev)?$" AND
            # the same for pugixml
            NOT item STREQUAL "pugixml")
+           list(APPEND CPACK_COMPONENTS_ALL ${item})
         endif()
     endforeach()
     list(REMOVE_DUPLICATES CPACK_COMPONENTS_ALL)
