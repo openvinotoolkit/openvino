@@ -59,7 +59,7 @@ CPU::CPU() {
         return 0;
     };
 
-    auto GetFreqInfoLinux = [&]() {
+    auto get_freq_info_linux = [&]() {
         int cpu_index = 0;
         int cache_index = 0;
 
@@ -108,7 +108,7 @@ CPU::CPU() {
     }
 
     if ((_proc_type_table.size() == 0) || (_proc_type_table[0][MAIN_CORE_PROC] == 0)) {
-        if (!GetFreqInfoLinux()) {
+        if (!get_freq_info_linux()) {
             parse_freq_info_linux(system_info_table,
                                   _processors,
                                   _numa_nodes,
