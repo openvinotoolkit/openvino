@@ -27,36 +27,6 @@ using namespace ngraph;
 static std::string s_manifest = "${MANIFEST}";
 static std::string s_device = test::backend_name_to_device("${BACKEND_NAME}");
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_bias_gelu) {
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
-                                                                              SERIALIZED_ZOO,
-                                                                              "onnx/com.microsoft/bias_gelu.onnx"));
-
-    auto test_case = test::TestCase(function, s_device);
-    test_case.add_input<float>({0.5488135f,
-                                0.71518934f,
-                                0.60276335f,
-                                0.5448832f,
-                                0.4236548f,
-                                0.6458941f,
-                                0.4375872f,
-                                0.891773f,
-                                0.96366274f,
-                                0.3834415f});
-    test_case.add_input<float>({0.79172504f, 0.5288949f, 0.56804454f, 0.92559665f, 0.07103606f});
-    test_case.add_expected_output<float>({1.2198428f,
-                                          1.1112978f,
-                                          1.0293297f,
-                                          1.366493f,
-                                          0.3411342f,
-                                          1.329408f,
-                                          0.8051748f,
-                                          1.354462f,
-                                          1.8336612f,
-                                          0.3068893f});
-    test_case.run();
-}
-
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_skip_layer_normalization_with_gamma_beta_bias) {
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(CommonTestUtils::getExecutableDirectory(),
