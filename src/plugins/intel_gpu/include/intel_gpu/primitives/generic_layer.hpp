@@ -40,6 +40,10 @@ protected:
 struct generic_layer : public primitive_base<generic_layer> {
     CLDNN_DECLARE_PRIMITIVE(generic_layer)
 
+    generic_layer() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     /// @brief Constructs generic_layer primitive which takes mean subtract values from another primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id.
@@ -75,6 +79,20 @@ struct generic_layer : public primitive_base<generic_layer> {
             return *params == *rhs_casted.params;
 
         return true;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<generic_layer>::save(ob);
+        ob << params->get_input_layout();
+        ob << params->get_output_layout();
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<generic_layer>::load(ib);
+        layout input_layout, output_layout;
+        ib >> input_layout;
+        ib >> output_layout;
+        params = std::make_shared<WeightsReorderParams>(input_layout, output_layout);
     }
 
 protected:
