@@ -25,13 +25,10 @@ public:
     void set(const program_node& node) {
         add_or_change_input_layout(node);
         if (_program == nullptr) {
-            std::cout << "[START][" << node.id();
-            std::cout << "][" << _data.tags << "] Build inner program ....... " << std::endl;
             _program = program::build_program(node.get_program().get_engine(),
                                                 *_data.topology_ptr.get(),
                                                 node.get_program().get_config(),
                                                 true);  // rebuild program
-            std::cout << "[END..] Build inner program ....... " << std::endl;
         }
     }
     program::ptr get() const { return _program; }
@@ -46,7 +43,7 @@ private:
             auto iter = _data.input_map.find(pid);
             if (iter != _data.input_map.end()) {
                 auto out_layout = p_iter.first->get_output_layout();
-                _data.topology_ptr->change_input_layout(iter->second.second, out_layout);
+                _data.topology_ptr->change_input_layout(iter->second, out_layout);
             }
         }
     }
@@ -87,11 +84,10 @@ public:
     static std::string to_string(condition_node const& node);
     typed_primitive_inst(network& network, condition_node const& node);
 
-    // TODO: When memory is allocated for dep input
     memory::ptr compare_memory_ptr() const { return dep_memory_ptr(0); }
     network::ptr get_net_true() const { return _net_true; }
     network::ptr get_net_false() const { return _net_false; }
-    network::ptr get_networks(bool is_net_true);
+    network::ptr get_inner_networks(bool is_net_true);
 
 private:
     network::ptr _net_true;

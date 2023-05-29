@@ -21,19 +21,18 @@ enum cond_functions : int32_t { EQUAL, GREATER, LESS };
 struct condition : public primitive_base<condition> {
     CLDNN_DECLARE_PRIMITIVE(condition)
 
+    /// @brief
     struct branch_info {
-        std::map<primitive_id, std::pair<size_t, primitive_id>> input_map;
+        std::map<primitive_id, primitive_id> input_map;
         std::map<size_t, primitive_id> output_map;
         topology::ptr topology_ptr;
-        // TODO: Remove tags
-        std::string tags;
 
         std::string str() {
             std::stringstream ss;
             ss << "branch_info: { " << std::endl;
             ss<< "* input_map : [(outer_id,inner_id),";
             for (auto& in_iter : input_map) {
-                ss << "(" << in_iter.first << "," << in_iter.second.first << "," << in_iter.second.second << "),";
+                ss << "(" << in_iter.first << "," << in_iter.second << "),";
             }
             ss << "]," << std::endl;
 
@@ -75,6 +74,19 @@ struct condition : public primitive_base<condition> {
           function(func),
           offset(offset) {}
 
+    /// @brief Constructs condition primitive / layer.
+    ///
+    /// @param id                 An identifier of new primitive.
+    /// @param input              An identifier of primitive which is an input for newly created
+    ///                           condition primitive.
+    /// @param branch_true        Topology containg primitives, which will be executed when comparsion results is true
+    ///                           true.
+    /// @param branch_false       Topology containg primitives, which will be executed when comparsion results
+    ///                           false..
+    /// @param compare_Data       An identifier of primitive which contains compare values
+    /// @param func               Used function during comparison.
+    /// @param offset             Offset for compare data.
+    /// @param output_padding     Optional padding for output from primitive.
     condition(const primitive_id& id,
             const std::vector<input_info>& inputs,
             const branch_info& branch_true,

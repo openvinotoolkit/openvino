@@ -884,6 +884,7 @@ void network::set_output_memory(const primitive_id& id, memory::ptr mem_new) {
     }
 
     for (auto& prim : o_iter->second) {
+        std::cout << "** prim->set_output_memory : " << static_cast<void*>(mem_new->buffer_ptr()) << std::endl;
         prim->set_output_memory(eng.reinterpret_buffer(*mem_new, prim->output_memory().get_layout()), false);
         if (!_reset_arguments &&
             (prim->type() != cldnn::data::type_id() && !(prim->type() == cldnn::mutable_data::type_id() && prim->dependencies().empty()))) {
@@ -1193,6 +1194,37 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
         }
 
         execute_primitive(inst, events);
+        // {
+        //     get_stream().finish();
+        //     const std::string layer_name = inst->id();
+        //     auto prog_id = ((get_program() != nullptr) ? get_program()->get_id() : 0);
+        //     for (size_t i = 0; i < get_primitive(inst->id())->outputs_memory_count(); i++) {
+        //         memory::ptr mem = get_primitive(inst->id())->output_memory_ptr(i);
+        //         if (inst->id() == "compare") {
+        //             mem_lock<uint8_t, mem_lock_type::read> lock(mem, get_stream());
+        //             auto mem_ptr = lock.data();
+        //             const size_t total_length = mem->count();
+        //             std::cout << "[" << prog_id << "][" << layer_name << "][" << i << "] = {";
+        //             for (size_t idx = 0; idx < total_length; idx++) {
+        //                 std::cout << static_cast<int>(mem_ptr[idx]) << ",";
+        //             }
+        //             std::cout << "}" << mem->get_layout().to_short_string() << std::endl;
+
+        //             std::cout << " - " << layer_name << "] mem_addr for compare : " << mem->buffer_ptr();
+        //             std::cout << " mem_lock: " << static_cast<void*>(mem_ptr) << std::endl;
+
+        //         } else {
+        //             mem_lock<float, mem_lock_type::read> lock(mem, get_stream());
+        //             auto mem_ptr = lock.data();
+        //             const size_t total_length = mem->count();
+        //             std::cout << "[" << prog_id << "][" << layer_name << "][" << i << "] = {";
+        //             for (size_t idx = 0; idx < total_length; idx++) {
+        //                 std::cout << mem_ptr[idx] << ",";
+        //             }
+        //             std::cout << "}" << std::endl;
+        //         }
+        //     }
+        // }
 
         GPU_DEBUG_IF(debug_config->dump_layers_path.length() > 0) {
             get_stream().finish();

@@ -25,10 +25,17 @@ layout condition_inst::calc_output_layout(condition_node const& node, kernel_imp
            "Output data type forcing is not supported for condition_node!");
     node.set_branches();
 
+    {
+        std::cout << "NODE: " << node.id() << std::endl;
+        for (auto& p : node.get_dependencies()) {
+            auto& p_node = p.first;
+            std::cout << "* p_node: " << p_node->id() << ", " << p_node->get_primitive()->type_string();
+            std::cout << ", layout: " << p_node->get_output_layout().to_short_string() << std::endl;
+        }
+    }
+
     auto branch_true_output = node.get_branch_true()->get_outputs();
     auto branch_false_output = node.get_branch_false()->get_outputs();
-    // std::cout << "- branch_true_output : " << branch_true_output.size() << std::endl;
-    // std::cout << "- branch_false_output: " << branch_false_output.size() << std::endl;
 
     CLDNN_ERROR_NOT_EQUAL(impl_param.desc->id,
                           "Count of branch true outputs",
@@ -46,10 +53,6 @@ layout condition_inst::calc_output_layout(condition_node const& node, kernel_imp
     auto layout_true = branch_true_output.at(0)->get_output_layout();
     auto layout_false = branch_false_output.at(0)->get_output_layout();
 
-    std::cout << "layout[true ]: " << layout_true.to_short_string() << std::endl;
-    std::cout << "layout[false]: " << layout_false.to_short_string() << std::endl;
-
-    // OPENVINO_ASSERT(false, "not implmented yet");
     CLDNN_ERROR_LAYOUT_MISMATCH(impl_param.desc->id,
                                 "Branch true output layout",
                                 layout_true,
@@ -81,7 +84,7 @@ condition_inst::typed_primitive_inst(network& network, condition_node const& nod
       _net_false(network::allocate_network(node.get_program().get_engine(), node.get_branch_false(), true)) {
 }
 
-network::ptr condition_inst::get_networks(bool is_net_true) {
+network::ptr condition_inst::get_inner_networks(bool is_net_true) {
     auto net = is_net_true? _net_true : _net_false;
     auto& branch = is_net_true? node->get_primitive()->branch_true : node->get_primitive()->branch_false;
 
@@ -90,17 +93,19 @@ network::ptr condition_inst::get_networks(bool is_net_true) {
         const primitive_id& input_external_id = dependencies().at(mem_idx).first->id();
         auto iter = branch.input_map.find(input_external_id);
         if (iter != branch.input_map.end()) {
-            const primitive_id& input_internal_id = iter->second.second;
+            const primitive_id& input_internal_id = iter->second;
             auto mem_ptr = input_memory_ptr(mem_idx);
             net->set_input_data(input_internal_id, mem_ptr);
         }
     }
 
+    std::cout << "[get_inner_networks] set output memory : " << branch.output_map.size() << " ,, " << sizeof(bool) << std::endl;
     // set output memory
     for (auto out_mem_map : branch.output_map) {
         auto idx = out_mem_map.first;
         auto out_internal_id = out_mem_map.second;
         auto mem_ptr = output_memory_ptr(idx);
+        std::cout << "== set_output_memory: " << static_cast<void*>(mem_ptr->buffer_ptr()) << std::endl;
         net->set_output_memory(out_internal_id, mem_ptr);
     }
 
