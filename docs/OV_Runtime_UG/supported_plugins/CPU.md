@@ -383,6 +383,10 @@ By default, OpenVINO Runtime will enable CPU threads pinning for better performa
 
 user can check [optimization guide](https://docs.openvino.ai/latest/openvino_docs_deployment_optimization_guide_tput_advanced.html) for details on multi-stream execution
 
+.. note:: 
+   
+   Properties for multi-threading optimization only support Intel® x86-64 CPU on Linux and Windows in current release.
+   
 Denormals Optimization
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
