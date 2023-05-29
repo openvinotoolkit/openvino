@@ -123,7 +123,7 @@ CPU::CPU() {
                                    _cores,
                                    _proc_type_table,
                                    _cpu_mapping_table);
-        if (CheckValidCpu()) {
+        if (CheckValidCpu() < 0) {
             IE_THROW() << "No CPU processor available.";
         };
     } else {
