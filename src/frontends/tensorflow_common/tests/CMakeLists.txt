@@ -9,6 +9,7 @@ ov_add_test_target(
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         LINK_LIBRARIES
             gtest_main_manifest 
+            frontend_shared_test_classes
             openvino_tensorflow_common
         ADD_CLANG_FORMAT
         LABELS
