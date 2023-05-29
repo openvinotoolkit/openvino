@@ -1397,7 +1397,7 @@ std::shared_ptr<Node> NetworkHelper::optimizeSubtract(std::shared_ptr<ov::opset1
 
     // TODO: replace assert to condition and omit conversion part if there is no convert
     // TODO: also check convertInputType to understand if we really want to propagate type
-    assert(ov::as_type_ptr<opset1::Convert>(convertOnSubtract));
+    assert(ov::as_type_ptr<ov::opset1::Convert>(convertOnSubtract));
     const element::Type convertInputType = convertOnSubtract->get_input_element_type(0);
     const element::Type convertOutputType = convertOnSubtract->get_output_element_type(0);
 
