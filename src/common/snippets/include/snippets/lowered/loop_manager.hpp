@@ -86,15 +86,19 @@ public:
                                 size_t loop_id);
 
     /* ===== The methods for work with Loop IDs of Expression ===== */
-    static void replace_loop_id(const ExpressionPtr& expr, size_t prev_id, size_t new_id);
-    static void remove_loop_id(const ExpressionPtr& expr, size_t id);
+    // Notes:
+    //  - These methods don't update the corresponding LoopInfo
+    //  - These methods should be private
+    // TODO [112195] : fix these notes
+    void replace_loop_id(const ExpressionPtr& expr, size_t prev_id, size_t new_id);
+    void remove_loop_id(const ExpressionPtr& expr, size_t id);
     // Insert loop ID before (as outer Loop) or after (as inner Loop) target ID in vector of identifiers
     // Before:                                 | After:
     //   loop_ids: [.., new_id, target_id, ..] |    loop_ids: [.., target_id, new_id, ..]
     // Default value of target ID - SIZE_MAX - for `after` the new Loop is the most inner Loop
     //                                         for `before` the new Loop is the most outer Loop
-    static void insert_loop_id(const ExpressionPtr& expr, size_t new_id, bool before = true, size_t target_id = SIZE_MAX);
-    static void insert_loop_ids(const ExpressionPtr& expr, const std::vector<size_t>& new_ids, bool before = true, size_t target_id = SIZE_MAX);
+    void insert_loop_id(const ExpressionPtr& expr, size_t new_id, bool before = true, size_t target_id = SIZE_MAX);
+    void insert_loop_ids(const ExpressionPtr& expr, const std::vector<size_t>& new_ids, bool before = true, size_t target_id = SIZE_MAX);
 
 private:
     static void get_io_loop_ports(LinearIR::constExprIt loop_begin_pos,

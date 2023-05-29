@@ -46,11 +46,11 @@ void filter_ports(std::vector<LoopPort>& loop_entries, std::vector<LoopPort>& lo
 int64_t get_dim_stride(const LinearIR::LoopManagerPtr& loop_manager, const std::vector<size_t>& loop_ids,
                        size_t loop_id, size_t dim, size_t dim_idx,
                        const std::vector<size_t>& layout, const std::vector<size_t>& shape) {
-    // Example, shape = [3, 384, 64], loop_ids = [0, 1, 2]
+    // Example, shape = [3, 384, 64], loop_ids = [2, 1, 0], layout = [0, 1, 2]
     // Loop Info:                            | Pointer increments:
-    // - 0: work_amount = 12, dim_idx = 1    | 1 x 64 x 32 - 32 is work_amount of inner splitted Loop
-    // - 1: work_amount = 32, dim_idx = 1    | 1 x 64
-    // - 2: work_amount = 64, dim_idx = 0    | 1
+    // - 2: work_amount = 12, dim_idx = 1    | 1 x 64 x 32 - (1 * shape[layout[2]] * 32) where 32 is work_amount of inner splitted Loop
+    // - 1: work_amount = 32, dim_idx = 1    | 1 x 64 - (1 * shape[layout[2]])
+    // - 0: work_amount = 64, dim_idx = 0    | 1
     // Note that dim_idx enumerates dimensions from the end: 64, 384, 3
     // Firstly, we find all Loop IDs with the same dimension index.
     // The Loop Info's with the same dimension index mean that these Loops split this dimension together.

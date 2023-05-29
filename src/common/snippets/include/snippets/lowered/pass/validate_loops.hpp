@@ -18,8 +18,10 @@ namespace pass {
  * @brief The pass validates LoopInfo that describes Loops:
  *          - Verifies the correctness of nested Loops.
  *            The loops with the same dimension index (splitted dimension) should be successively nested
- *          - The upper Loop, the upper the corresponding dim_idx
- *        Note: should be called before explicit Loop insertion in LinearIR (InitLoop pass call).
+ *          - dim_idx are sorted in accordance with loop nesting
+ *        Notes:
+ *          - should be called before explicit Loop insertion in LinearIR (InitLoop pass call).
+ *          - TODO [112196] : probably, it's a temporary design. Need to investigate it and remove these limitations
  * @ingroup snippets
  */
 class ValidateLoops : public Pass {
