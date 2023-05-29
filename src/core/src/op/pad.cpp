@@ -193,3 +193,26 @@ op::v1::Pad::Pad(const Output<Node>& arg,
 //     return ov::default_label_evaluator(this, output_labels);
 //     OPENVINO_SUPPRESS_DEPRECATED_END
 // }
+
+op::v12::Pad::Pad(const Output<Node>& arg,
+                  const Output<Node>& pads_begin,
+                  const Output<Node>& pads_end,
+                  const Output<Node>& arg_pad_value,
+                  PadMode pad_mode)
+    : PadBase(arg, pads_begin, pads_end, arg_pad_value, pad_mode) {
+    //   m_pad_mode{pad_mode} {
+    // ov::mark_as_precision_sensitive(input(1));
+    // ov::mark_as_precision_sensitive(input(2));
+    constructor_validate_and_infer_types();
+}
+
+op::v12::Pad::Pad(const Output<Node>& arg,
+                  const Output<Node>& pads_begin,
+                  const Output<Node>& pads_end,
+                  PadMode pad_mode)
+    : PadBase(arg, pads_begin, pads_end, op::v0::Constant::create(arg.get_element_type(), ov::Shape{}, {0}), pad_mode) {
+    //   m_pad_mode{pad_mode} {
+    // ov::mark_as_precision_sensitive(input(1));
+    // ov::mark_as_precision_sensitive(input(2));
+    constructor_validate_and_infer_types();
+}
