@@ -164,16 +164,16 @@ std::pair<std::shared_ptr<primitive>, bool> reorder_factory::get_weights_reorder
     layout expected_layout = reorder_params->get_output_layout();
 
     cache_key ckey{ input_id, expected_layout, false };
-    auto itr = _cached_generic_reorders.find(ckey);
-    if (itr != _cached_generic_reorders.end()) {
+    auto itr = _cached_reorders.find(ckey);
+    if (itr != _cached_reorders.end()) {
         return std::make_pair(itr->second, true);
     } else {
-        auto count = _cached_generic_reorders.size();
-        std::stringstream ss;
-        ss << input_id << "_generic_layer_" << count;
+        auto count = _cached_reorders.size();
+        std::string reorder_id = input_id + "_weights_reorder_" + std::to_string(count);
 
-        auto reorder = std::make_shared<cldnn::generic_layer>(ss.str(), input_id, reorder_params);
-        _cached_generic_reorders[ckey] = reorder;
+        bool is_grouped = format::is_grouped(reorder_params->get_input_layout().format);
+        auto reorder = std::make_shared<cldnn::reorder>(reorder_id, input_id, expected_layout, is_grouped);
+        _cached_reorders[ckey] = reorder;
         return std::make_pair(reorder, false);
     }
 }
@@ -941,8 +941,8 @@ bool layout_optimizer::deps_for_convolution_byxf_opt(program_node const& node, u
         return true;
 
     for (auto& dep : node.get_dependencies()) {
-        // skip data and generic_layers
-        if (dep.first->is_type<data>() || dep.first->is_type<generic_layer>())
+        // skip data layers
+        if (dep.first->is_type<data>())
             continue;
 
         if (dep.first->is_type<convolution>()) {

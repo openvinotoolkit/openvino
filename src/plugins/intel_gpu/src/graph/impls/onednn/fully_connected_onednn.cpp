@@ -67,32 +67,16 @@ protected:
         }
 
         kernel_selector::WeightsReorderParams weights_reorder_params;
-        auto& reorderKS = kernel_selector::ReorderWeightsKernelSelctor::Instance();
-        kernel_selector::reorder_weights_params r_params;
 
         cldnn::format out_fmt = onednn::find_format(pd.weights_desc(0));
         kernel_selector::WeightsLayout req_layout = to_weights_layout(out_fmt, false);
 
-        // set engine info & forcing
-        set_params(impl_params, r_params);
-        r_params.layerID = cldnn_prim->id + "_reorder_";
-        r_params.input = convert_weights_tensor(weights_layout, false);
-        r_params.output = r_params.input.TransformIgnorePadding(req_layout, r_params.input.GetDType(), 1, false);
-        r_params.rotate_180 = false;
-
-        kernel_selector::reorder_optional_params op;
-        kernel_selector::KernelsData kernels_data = reorderKS.GetBestKernels(r_params, op);
-
-        if (kernels_data.empty()) {
-            throw std::runtime_error("No suitable kernel found for weights reorder from " +
-                                      kernel_selector::toString(r_params.input.GetLayout()) + " to " +
-                                      kernel_selector::toString(r_params.output.GetLayout()));
-        }
-
-        weights_reorder_params.engine = kernel_selector::WeightsReorderParams::Engine::GPU;
-        weights_reorder_params.clKernel = std::make_shared<kernel_selector::clKernelData>(kernels_data[0].kernels[0]);
-        weights_reorder_params.src = r_params.input;
-        weights_reorder_params.dest = r_params.output;
+        weights_reorder_params.src =  convert_weights_tensor(weights_layout, false);
+        weights_reorder_params.dest = weights_reorder_params.src.TransformIgnorePadding(req_layout,
+                                                                                        weights_reorder_params.src.GetDType(),
+                                                                                        1,
+                                                                                        false);
+        weights_reorder_params.is_initialized = true;
 
         return weights_reorder_params;
     }

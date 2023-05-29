@@ -53,8 +53,6 @@ protected:
 
     static kernel_selector::WeightsReorderParams get_weights_reorder(const kernel_impl_params& impl_params, const dnnl::primitive_desc& pd) {
         kernel_selector::WeightsReorderParams weights_reorder_params;
-        auto& reorderKS = kernel_selector::ReorderWeightsKernelSelctor::Instance();
-        kernel_selector::reorder_weights_params r_params;
 
         auto cldnn_prim = impl_params.typed_desc<deconvolution>();
         auto weights_layout = impl_params.get_input_layout(1);
@@ -62,25 +60,12 @@ protected:
         cldnn::format out_fmt = onednn::find_format(pd.weights_desc(0), grouped_weights);
         kernel_selector::WeightsLayout reqLayout = to_weights_layout(out_fmt, cldnn_prim->grouped_weights_shape);
 
-        set_params(impl_params, r_params);
-        r_params.layerID = cldnn_prim->id + "_reorder_";
-        r_params.input = convert_weights_tensor(weights_layout, cldnn_prim->grouped_weights_shape);
-        r_params.output = r_params.input.TransformIgnorePadding(reqLayout, r_params.input.GetDType(), cldnn_prim->groups, false);
-        r_params.rotate_180 = false;
-
-        kernel_selector::reorder_optional_params op;
-        kernel_selector::KernelsData kernels_data = reorderKS.GetBestKernels(r_params, op);
-
-        if (kernels_data.empty()) {
-            throw std::runtime_error("No suitable kernel found for weights reorder from " +
-                                     kernel_selector::toString(r_params.input.GetLayout()) + " to " +
-                                     kernel_selector::toString(r_params.output.GetLayout()));
-        }
-
-        weights_reorder_params.engine = kernel_selector::WeightsReorderParams::Engine::GPU;
-        weights_reorder_params.clKernel = std::make_shared<kernel_selector::clKernelData>(kernels_data[0].kernels[0]);
-        weights_reorder_params.src = r_params.input;
-        weights_reorder_params.dest = r_params.output;
+        weights_reorder_params.src = convert_weights_tensor(weights_layout, cldnn_prim->grouped_weights_shape);
+        weights_reorder_params.dest = weights_reorder_params.src.TransformIgnorePadding(reqLayout,
+                                                                                        weights_reorder_params.src.GetDType(),
+                                                                                        cldnn_prim->groups,
+                                                                                        false);
+        weights_reorder_params.is_initialized = true;
 
         return weights_reorder_params;
     }

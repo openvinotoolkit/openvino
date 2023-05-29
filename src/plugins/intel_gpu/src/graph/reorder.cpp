@@ -146,7 +146,11 @@ layout reorder_inst::calc_output_layout(reorder_node const& node, kernel_impl_pa
                             "Conversion of weights from winograd to standard domain is currently unsupported");
     }
 
-    if ((ofmt == format::bs_fs_fsv8_bsv8 || ofmt == format::os_i_osv8__ai8 || ofmt == format::os_i_osv16__ai8 || ofmt == format::bs_f_bsv16 ||
+    if (format::is_weights_format(ifmt) || format::is_weights_format(ofmt)) {
+        return layout(desc->out_weights_shape, odt, ofmt, op);
+    }
+
+    if ((ofmt == format::bs_fs_fsv8_bsv8 || ofmt == format::os_i_osv8__ai8 || ofmt == format::os_i_osv16__ai8 || ofmt == format::os_i_osv16 ||
         ofmt == format::bfzyx || ifmt == format::bfzyx || ofmt == format::b_fs_zyx_fsv16 || ifmt == format::b_fs_zyx_fsv16 ||
         ofmt == format::bs_fs_zyx_bsv16_fsv16 || ifmt == format::bs_fs_zyx_bsv16_fsv16 ||
         ofmt == format::bs_fs_zyx_bsv16_fsv32 || ifmt == format::bs_fs_zyx_bsv16_fsv32 ||
@@ -195,6 +199,10 @@ std::string reorder_inst::to_string(reorder_node const& node) {
     node_info->dump(primitive_description);
 
     return primitive_description.str();
+}
+
+reorder_inst::typed_primitive_inst(network& network) : parent(network) {
+    _type = reorder::type_id();
 }
 
 reorder_inst::typed_primitive_inst(network& network, reorder_node const& node)

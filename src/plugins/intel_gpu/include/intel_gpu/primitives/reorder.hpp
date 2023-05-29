@@ -144,16 +144,37 @@ struct reorder : public primitive_base<reorder> {
         mean(mean),
         mean_mode(mode) {}
 
+    /// @brief Constructs weights reorder primitive.
+    /// @param id This primitive id.
+    /// @param input Input primitive id.
+    /// @param output_layout Requested memory layout.
+    /// @param grouped_input_weights True if the input weights has a group dimension.
+    reorder(const primitive_id& id,
+            const input_info& input,
+            const layout& output_layout,
+            bool grouped_input_weights)
+        : primitive_base(id, {input}, {output_layout.data_padding}, {optional_data_type{output_layout.data_type}}),
+          output_format(output_layout.format),
+          mean(""),
+          subtract_per_feature({}),
+          mean_mode(reorder_mean_mode::none),
+          out_weights_shape(output_layout.get_partial_shape()),
+          grouped_input_weights(grouped_input_weights) {}
+
     /// @brief Requested memory format.
     format output_format;
     /// @brief Primitive id to get mean subtract values. Ignored if subtract_per_featrue is set.
     primitive_id mean;
     /// @brief Array of mean subtract values.
     std::vector<float> subtract_per_feature;
-    /// @brief Mode of mean execution
+    /// @brief Mode of mean execution.
     reorder_mean_mode mean_mode;
-    /// @brief Input memory type
+    /// @brief Input memory type.
     memory_type input_mem_type = memory_type::buffer;
+    /// @brief Required weights output shape.
+    ov::PartialShape out_weights_shape = {};
+    /// @brief Defines if weights input has explicit group dimension.
+    bool grouped_input_weights = false;
 
     inline bool has_surface_input() const {
         return input.size() == 1 &&
@@ -183,6 +204,7 @@ struct reorder : public primitive_base<reorder> {
                mean_mode == rhs_casted.mean_mode &&
                input_mem_type == rhs_casted.input_mem_type &&
                truncate == rhs_casted.truncate &&
+               output_format == rhs_casted.output_format &&
                mean.empty() == rhs_casted.mean.empty();
     }
 

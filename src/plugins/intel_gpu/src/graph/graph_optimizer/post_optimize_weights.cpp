@@ -4,6 +4,8 @@
 
 #include "pass_manager.h"
 #include "program_helpers.h"
+#include "implementation_map.hpp"
+
 #include "convolution_inst.h"
 #include "binary_convolution_inst.h"
 #include "deconvolution_inst.h"
@@ -38,35 +40,55 @@ void post_optimize_weights::optimize_weights(T& node, program& p) {
     if (impl->is_dynamic())
         return;
 
+    // Don't run impl selection to avoid double compilation of reorder kernels
+    // in main program and internal program for constant propagation
+    auto set_implementation = [&p, &impl](program_node& weights_reorder_node) {
+        if (!weights_reorder_node.is_constant()) {
+            auto factory = WeightsReordersFactory::get(impl_types::ocl, shape_types::static_shape);
+            auto reorder_kernel_params = impl->get_weights_reorder_kernel_params();
+            reorder_kernel_params->prog = &p;
+            auto reorder_impl = factory(*reorder_kernel_params);
+
+            weights_reorder_node.set_selected_impl(reorder_impl->clone());
+            if (auto impl = weights_reorder_node.get_selected_impl()) {
+                auto params = weights_reorder_node.get_kernel_impl_params();
+                p.get_kernels_cache().add_kernels_source(*params, impl->get_kernels_source());
+            }
+        }
+    };
+
     auto output_layout = node.get_output_layout();
     auto weights_reorder_params = impl->get_weights_reorder_params();
     for (auto i = offsets.weights_offset; i < offsets.bias_offset; i++) {
-        auto& weights_node = node.get_dependency(i);
+        auto& prev_node = node.get_dependency(i);
 
-        auto reorder = _rf.get_weights_reorder(weights_node.id(), weights_reorder_params);
+        if (weights_reorder_params != nullptr) {
+            if (prev_node.type() == reorder::type_id() &&
+                prev_node.get_users().size() == 1 &&
+                prev_node.get_dependencies().size() == 1) {
+                auto weights_reorder = _rf.get_weights_reorder(prev_node.get_primitive()->input[0].pid,
+                                                               weights_reorder_params);
+                auto& weights_reorder_node = p.get_or_create(weights_reorder.first);
+                p.replace(prev_node, weights_reorder_node);
+                weights_reorder_node.recalc_output_layout(false);
 
-        if (reorder.first) {
-            // insert new generic_layer node to topology
-            p.add_intermediate(reorder.first, node, i, !reorder.second);
-            // set generic_layer's node output layout and implementation
-            auto& g_node = node.get_dependency(i);
-            g_node.get_output_layout(false);
+                if (!weights_reorder.second) {
+                    set_implementation(weights_reorder_node);
+                }
+            } else {
+                auto weights_reorder = _rf.get_weights_reorder(prev_node.id(), weights_reorder_params);
+                // insert new weights reorder node to topology
+                p.add_intermediate(weights_reorder.first, node, i, !weights_reorder.second);
+                // set weights reorder's node output layout and implementation
+                auto& weights_reorder_node = node.get_dependency(i);
+                weights_reorder_node.get_output_layout(false);
 
-            // Don't run impl selection to avoid double compilation of reorder kernels
-            // in main program and internal program for constant propagation
-            if ((!g_node.is_constant()) && (!reorder.second)) {
-                g_node.set_selected_impl(g_node.type()->choose_impl(g_node));
-                if (auto impl = g_node.get_selected_impl()) {
-                    auto params = g_node.get_kernel_impl_params();
-                    p.get_kernels_cache().add_kernels_source(*params, impl->get_kernels_source());
+                if (!weights_reorder.second) {
+                    set_implementation(weights_reorder_node);
                 }
             }
         }
     }
-
-    // Reset weights reorder params to not keep source code pointer
-    impl->reset_weights_reorder_params();
-
     // set the old output layout and do not invalidate users as change of weights will not affect output layout
     node.set_output_layout(output_layout, false);
 }

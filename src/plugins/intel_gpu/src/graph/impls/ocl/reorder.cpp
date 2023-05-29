@@ -7,6 +7,7 @@
 #include "reorder_inst.h"
 #include "reorder/reorder_kernel_selector.h"
 #include "reorder/reorder_kernel_base.h"
+#include "reorder/reorder_weights_kernel_selector.h"
 
 namespace cldnn {
 namespace ocl {
@@ -26,9 +27,10 @@ struct reorder_impl : typed_primitive_impl_ocl<reorder> {
 protected:
     kernel_arguments_data get_arguments(const reorder_inst& instance) const override {
         kernel_arguments_data args = parent::get_arguments(instance);
-        auto input = &instance.input_memory();
-        auto input_layout = input->get_layout();
-        if (instance.has_mean()) {
+        if (instance.has_node() && instance.has_mean()) {
+            auto input = &instance.input_memory();
+            auto input_layout = input->get_layout();
+
             if (input_layout.format == cldnn::format::nv12) {
                 args.bias = instance.mean_nv12_memory();
             } else {
@@ -108,12 +110,49 @@ public:
         auto kernel_params = get_kernel_params(impl_param, true);
         (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
     }
+
+    static std::unique_ptr<primitive_impl> create(const reorder_node& arg, const kernel_impl_params& impl_param) {
+        bool is_reorder_weights = format::is_weights_format(impl_param.get_input_layout().format) ||
+                                  format::is_weights_format(impl_param.get_output_layout().format);
+        if (!is_reorder_weights) {
+            if (arg.can_be_optimized()) {
+                return make_unique<reorder_impl>(kernel_selector::kernel_data{});
+            }
+            auto kernel_params = reorder_impl::get_kernel_params(reorder_impl::static_canonicalize_shapes(impl_param));
+            kernel_params.first.is_shape_agnostic = impl_param.is_dynamic();
+            kernel_params.first.set_dynamic_shape_offsets();
+            auto& kernel_selector = reorder_impl::kernel_selector_t::Instance();
+            auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
+
+            return make_unique<reorder_impl>(best_kernel);
+        } else {
+            return create_reorder_weigths(impl_param);
+        }
+    }
+
+    static std::unique_ptr<primitive_impl> create_reorder_weigths(const kernel_impl_params& impl_param) {
+        const auto& prim = impl_param.typed_desc<reorder>();
+        auto& kernel_selector = kernel_selector::ReorderWeightsKernelSelector::Instance();
+
+        kernel_selector::reorder_weights_params r_params;
+        set_params(impl_param, r_params);
+
+        r_params.input = convert_weights_tensor(impl_param.input_layouts[0], prim->grouped_input_weights);
+        r_params.output = convert_weights_tensor(impl_param.output_layouts[0]);
+        r_params.layerID = impl_param.desc->id + "_reorder_weigths";
+        r_params.uniqueID = std::to_string(impl_param.unique_id) + "_weight";
+
+        kernel_selector::reorder_optional_params optional_params;
+        auto best_kernel = kernel_selector.get_best_kernel(r_params, optional_params);
+
+        return make_unique<reorder_impl>(best_kernel);
+    }
 };
 
 namespace detail {
 
 attach_reorder_impl::attach_reorder_impl() {
-    implementation_map<reorder>::add(impl_types::ocl, shape_types::static_shape, typed_primitive_impl_ocl<reorder>::create<reorder_impl>, {});
+    implementation_map<reorder>::add(impl_types::ocl, shape_types::static_shape, reorder_impl::create, {});
 
     auto types = {
         data_types::f32,
@@ -129,7 +168,9 @@ attach_reorder_impl::attach_reorder_impl() {
         format::bfzyx,
         format::bfwzyx,
     };
-    implementation_map<reorder>::add(impl_types::ocl, shape_types::dynamic_shape, typed_primitive_impl_ocl<reorder>::create<reorder_impl>, types, formats);
+    implementation_map<reorder>::add(impl_types::ocl, shape_types::dynamic_shape, reorder_impl::create, types, formats);
+
+    WeightsReordersFactory::add(cldnn::impl_types::ocl, shape_types::static_shape, reorder_impl::create_reorder_weigths);
 }
 
 }  // namespace detail

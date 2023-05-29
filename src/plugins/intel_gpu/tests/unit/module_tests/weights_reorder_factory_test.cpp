@@ -9,7 +9,7 @@
 #include "intel_gpu/primitives/input_layout.hpp"
 #include "intel_gpu/primitives/data.hpp"
 
-#include "generic_layer_inst.h"
+#include "reorder_inst.h"
 #include "fully_connected_inst.h"
 #include "implementation_map.hpp"
 #include "graph/impls/ocl/register.hpp"
@@ -67,10 +67,11 @@ TEST(weights_factory, reorder_test) {
 
     // Constuct kernel_impl_params for weights reorder based requested WeightsReorderParams
     auto reorder_kernel_params = std::make_shared<kernel_impl_params>();
-    reorder_kernel_params->desc = std::make_shared<generic_layer>("weights_reorder", "", weights_reorder_params);
+    reorder_kernel_params->desc = std::make_shared<reorder>("weights_reorder", input_info(), weights_reorder_params->get_output_layout());
     reorder_kernel_params->unique_id = weights_reorder_params->hash();
     reorder_kernel_params->input_layouts.push_back(weights_reorder_params->get_input_layout());
     reorder_kernel_params->output_layouts.push_back(weights_reorder_params->get_output_layout());
+    reorder_kernel_params->prog = network.get_program().get();
 
     // Create new generic_layer_impl
     auto factory = WeightsReordersFactory::get(impl_types::ocl, shape_types::static_shape);
@@ -91,7 +92,7 @@ TEST(weights_factory, reorder_test) {
     args.inputs.push_back(weights_data_input);
     args.outputs.push_back(weights_data_output);
 
-    auto reorder_inst = std::make_shared<generic_layer_inst>(network);
+    auto reorder_inst = std::make_shared<cldnn::reorder_inst>(network);
     reorder_inst->set_impl(reorder_impl->clone());
 
     reorder_inst->get_impl()->set_arguments(*reorder_inst, args);
