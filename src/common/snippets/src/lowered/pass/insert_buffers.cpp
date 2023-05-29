@@ -5,7 +5,6 @@
 #include "snippets/lowered/pass/insert_buffers.hpp"
 
 #include "snippets/lowered/linear_ir.hpp"
-#include "snippets/lowered/loop_manager.hpp"
 #include "snippets/snippets_isa.hpp"
 #include "snippets/itt.hpp"
 
@@ -62,10 +61,12 @@ LinearIR::constExprIt InsertBuffers::insertion_position(const LinearIR& linear_i
 }
 
 void InsertBuffers::insertion(LinearIR& linear_ir, const LinearIR::LoopManagerPtr& loop_manager,
-                              const std::vector<ExpressionPort>& loop_entries, const std::vector<ExpressionPort>& loop_exits) {
+                              const std::vector<LinearIR::LoopManager::LoopPort>& loop_entries,
+                              const std::vector<LinearIR::LoopManager::LoopPort>& loop_exits) {
     for (const auto& entry_point : loop_entries) {
-        const auto& expr = entry_point.get_expr();
-        const auto port = entry_point.get_index();
+        const auto& entry_port = entry_point.port;
+        const auto& expr = entry_port->get_expr();
+        const auto port = entry_port->get_index();
         const auto node = expr->get_node();
         const auto& input_connector = expr->get_input_port_connector(port);
         const auto& parent_expr_output = input_connector->get_source();
@@ -107,15 +108,16 @@ void InsertBuffers::insertion(LinearIR& linear_ir, const LinearIR::LoopManagerPt
             // Output connector is automatically filled from PortDescriptor
             const auto buffer_expr = linear_ir.create_expression(buffer, {input_connector});
             linear_ir.insert(pos, buffer_expr);
-            linear_ir.replace_input(entry_point, buffer_expr->get_output_port_connector(0));
+            linear_ir.replace_input(*entry_port.get(), buffer_expr->get_output_port_connector(0));
         }
     }
 
     for (const auto& exit_point : loop_exits) {
-        const auto& expr = exit_point.get_expr();
-        const auto port = exit_point.get_index();
+        const auto& exit_port = exit_point.port;
+        const auto& expr = exit_port->get_expr();
+        const auto port = exit_port->get_index();
         const auto node = expr->get_node();
-        const auto output_connector = exit_point.get_port_connector_ptr();
+        const auto output_connector = exit_port->get_port_connector_ptr();
         const auto child_exprs_inputs = output_connector->get_consumers();
         const auto current_loops = expr->get_loop_ids();
         const auto current_loop_count = current_loops.size();
@@ -174,7 +176,7 @@ void InsertBuffers::insertion(LinearIR& linear_ir, const LinearIR::LoopManagerPt
             const auto pos = insertion_position(linear_ir, loop_manager, expr, (*potential_consumers.begin()).get_expr());
 
             auto buffer = std::make_shared<op::Buffer>(node->output(port), m_buffer_allocation_rank);
-            PortDescriptorUtils::set_port_descriptor_ptr(buffer->output(0), exit_point.get_descriptor_ptr()->clone());
+            PortDescriptorUtils::set_port_descriptor_ptr(buffer->output(0), exit_port->get_descriptor_ptr()->clone());
             // We cannot insert Node output connector on Buffer output because not all consumers of Node needs Buffer
             //  Example:
             //       Add
@@ -199,8 +201,8 @@ bool InsertBuffers::run(LinearIR& linear_ir) {
     const auto loop_data_map = loop_manager->get_map();
     for (const auto& loop_data : loop_data_map) {
         const auto loop_info = loop_data.second;
-        const auto loop_entries = loop_info->get_entry_ports();
-        const auto loop_exits = loop_info->get_exit_ports();
+        const auto loop_entries = loop_info->entry_points;
+        const auto loop_exits = loop_info->exit_points;
         insertion(linear_ir, loop_manager, loop_entries, loop_exits);
     }
 
@@ -213,7 +215,7 @@ bool InsertBuffers::run(LinearIR& linear_ir) {
 
         const auto input_ports = ma->get_memory_access_input_ports();
         const auto output_ports = ma->get_memory_access_output_ports();
-        std::vector<ExpressionPort> loop_entries(input_ports.size()), loop_exits(output_ports.size());
+        std::vector<LinearIR::LoopManager::LoopPort> loop_entries(input_ports.size()), loop_exits(output_ports.size());
         for (const auto& p : input_ports) {
             loop_entries[p.first] = expr->get_input_port(p.first);
         }

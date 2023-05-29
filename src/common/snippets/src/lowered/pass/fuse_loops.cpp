@@ -47,13 +47,13 @@ void FuseLoops::fuse_points(std::vector<LinearIR::LoopManager::LoopPort>& exit_p
                             LinearIR::constExprIt loop_begin_pos, LinearIR::constExprIt loop_end_pos) {
     std::vector<LinearIR::LoopManager::LoopPort> new_exit_points;
     for (const auto& exit_point : exit_points) {
-        const auto consumers_inputs = exit_point.port.get_connected_ports();
+        const auto consumers_inputs = exit_point.port->get_connected_ports();
 
         std::set<LinearIR::LoopManager::LoopPort> mapped_entry_points;
         std::set<ExpressionPtr> outside_consumers;
         for (const auto& consumer_input : consumers_inputs) {
             const auto entry_point_it = std::find_if(entry_points.begin(), entry_points.end(),
-                                                     [&consumer_input](const LoopManager::LoopPort& point) { return point.port == consumer_input; });
+                                                     [&consumer_input](const LoopManager::LoopPort& point) { return *point.port.get() == consumer_input; });
             if (entry_point_it != entry_points.end()) {
                 mapped_entry_points.insert(*entry_point_it);
                 continue;
@@ -69,7 +69,7 @@ void FuseLoops::fuse_points(std::vector<LinearIR::LoopManager::LoopPort>& exit_p
         // Remove entry points which are mapped
         auto last_point = entry_points.end();
         for (const auto& mapped_entry_point : mapped_entry_points) {
-            last_point = std::remove(entry_points.begin(), last_point, mapped_entry_point.port);
+            last_point = std::remove(entry_points.begin(), last_point, mapped_entry_point);
         }
         entry_points.resize(entry_points.size() - mapped_entry_points.size());
 
@@ -82,7 +82,8 @@ void FuseLoops::fuse_points(std::vector<LinearIR::LoopManager::LoopPort>& exit_p
     exit_points = new_exit_points;
 }
 
-bool FuseLoops::fuse_upper_into_current(LinearIR& linear_ir, const LinearIR::LoopManagerPtr& loop_manager, const ExpressionPort& current_entry_point,
+bool FuseLoops::fuse_upper_into_current(LinearIR& linear_ir, const LinearIR::LoopManagerPtr& loop_manager,
+                                        const std::shared_ptr<ExpressionPort>& current_entry_point,
                                         size_t current_loop_id, size_t target_loop_id,
                                         LinearIR::constExprIt& current_loop_begin_pos, LinearIR::constExprIt& current_loop_end_pos) {
     const auto& loop_current = loop_manager->get_loop_info(current_loop_id);
@@ -98,10 +99,10 @@ bool FuseLoops::fuse_upper_into_current(LinearIR& linear_ir, const LinearIR::Loo
     bool is_fusion_allowed = true;
     for (size_t i = 0; i < loop_target->exit_points.size() && is_fusion_allowed; ++i) {
         const auto target_exit_point = loop_target->exit_points[i];
-        const auto consumer_inputs = target_exit_point.port.get_connected_ports();
+        const auto consumer_inputs = target_exit_point.port->get_connected_ports();
         for (const auto& consumer_input : consumer_inputs) {
             const auto& consumer = consumer_input.get_expr();
-            if (ov::is_type<ov::op::v0::Result>(consumer->get_node()) || consumer == current_entry_point.get_expr())
+            if (ov::is_type<ov::op::v0::Result>(consumer->get_node()) || consumer == current_entry_point->get_expr())
                 continue;
             // The fusing is only valid if target Loop consumer (the Consumer is outside of target Loop)
             // is after current Loop (after Loop_down).
@@ -152,7 +153,8 @@ bool FuseLoops::fuse_upper_into_current(LinearIR& linear_ir, const LinearIR::Loo
     return true;
 }
 
-bool FuseLoops::fuse_lower_into_current(LinearIR& linear_ir, const LinearIR::LoopManagerPtr& loop_manager, const ExpressionPort& current_exit_point,
+bool FuseLoops::fuse_lower_into_current(LinearIR& linear_ir, const LinearIR::LoopManagerPtr& loop_manager,
+                                        const std::shared_ptr<ExpressionPort>& current_exit_point,
                                         size_t current_loop_id, size_t target_loop_id,
                                         LinearIR::constExprIt& current_loop_begin_pos, LinearIR::constExprIt& current_loop_end_pos) {
     const auto& loop_current = loop_manager->get_loop_info(current_loop_id);
@@ -163,12 +165,11 @@ bool FuseLoops::fuse_lower_into_current(LinearIR& linear_ir, const LinearIR::Loo
     // We can fuse Loop_down to Loop_up only in cases when other parents of Loop_down are before Loop_up
     // Because Loop_down should be explicitly moved after Loop_up in linear IR, and we must save control dependency
     bool is_fusion_allowed = true;
-    const auto target_loop_ports = loop_target->get_entry_ports();
     for (size_t i = 0; i < loop_target->entry_points.size() && is_fusion_allowed; ++i) {
-        const auto target_entry_port = target_loop_ports[i];
-        const auto parent_expr_output = *target_entry_port.get_connected_ports().begin();
+        const auto target_entry_port = loop_target->entry_points[i];
+        const auto parent_expr_output = *target_entry_port.port->get_connected_ports().begin();
         const auto& parent_expr = parent_expr_output.get_expr();
-        if (ov::is_type<ov::op::v0::Parameter>(parent_expr->get_node()) || parent_expr == current_exit_point.get_expr())
+        if (ov::is_type<ov::op::v0::Parameter>(parent_expr->get_node()) || parent_expr == current_exit_point->get_expr())
             continue;
         is_fusion_allowed = is_loop_id_found(parent_expr->get_loop_ids(), current_loop_id) ||  // The parent expr is from the same current Loop
                             std::find(linear_ir.cbegin(), current_loop_begin_pos, parent_expr) != current_loop_begin_pos; // The parent is before current Loop
@@ -260,7 +261,7 @@ bool FuseLoops::run(LinearIR& linear_ir) {
                 bool was_fusion_up = false;
                 for (size_t in_port = 0; in_port < entry_points.size() && !was_fusion_up; ++in_port) {
                     const auto entry_point = entry_points[in_port];
-                    const auto parent_expr_output = *entry_point.port.get_connected_ports().begin();
+                    const auto parent_expr_output = *entry_point.port->get_connected_ports().begin();
                     const auto& parent_expr = parent_expr_output.get_expr();
                     const auto parent = parent_expr->get_node();
                     if (ov::is_type<ov::op::v0::Constant>(parent) ||
@@ -305,7 +306,7 @@ bool FuseLoops::run(LinearIR& linear_ir) {
                 bool was_fusion_down = false;
                 for (size_t out_port = 0; out_port < exit_points.size() && !was_fusion_down; ++out_port) {
                     const auto exit_point = exit_points[out_port];
-                    const auto consumer_exprs_inputs = exit_point.port.get_connected_ports();
+                    const auto consumer_exprs_inputs = exit_point.port->get_connected_ports();
                     for (const auto& consumer_expr_input : consumer_exprs_inputs) {
                         const auto& consumer_expr = consumer_expr_input.get_expr();
                         const auto consumer = consumer_expr->get_node();

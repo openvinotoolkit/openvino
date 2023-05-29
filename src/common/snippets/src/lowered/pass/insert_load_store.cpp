@@ -30,7 +30,7 @@ void InsertLoadStore::update_loop(const LinearIR::LoopManager::LoopInfoPtr& loop
                                   const ExpressionPort& actual_port, const std::vector<ExpressionPort>& target_ports, bool is_entry) {
     auto& ports = is_entry ? loop_info->entry_points : loop_info->exit_points;
     auto port_it = std::find_if(ports.begin(), ports.end(),
-                                [&actual_port](const LoopManager::LoopPort& point) { return point.port == actual_port; });
+                                [&actual_port](const LoopManager::LoopPort& point) { return *point.port.get() == actual_port; });
     if (port_it == ports.end())
         return;
     port_it = ports.erase(port_it);

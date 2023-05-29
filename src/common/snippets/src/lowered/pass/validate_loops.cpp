@@ -42,8 +42,7 @@ bool ValidateLoops::run(LinearIR& linear_ir) {
 
     auto validate_loop_points = [&loop_manager, &dim_indexes, &validated_nested_loops, &is_already_verified](std::vector<LoopPort>& points) {
         for (auto& point : points) {
-            const auto& port = point.port;
-            const auto expr = port.get_expr();
+            const auto expr = point.port->get_expr();
             const auto loop_ids = expr->get_loop_ids();
             // If loop_ids of the current port is subsequence of already validated IDs, skip
             if (is_already_verified(loop_ids))

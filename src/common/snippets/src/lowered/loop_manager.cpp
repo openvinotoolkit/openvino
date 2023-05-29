@@ -27,17 +27,6 @@ LinearIR::LoopManager::LoopInfo::LoopInfo(size_t work_amount, size_t increment, 
         exit_points.emplace_back(port);
 }
 
-std::vector<ExpressionPort> LinearIR::LoopManager::LoopInfo::get_entry_ports() const {
-    std::vector<ExpressionPort> ports;
-    std::transform(entry_points.cbegin(), entry_points.cend(), std::back_inserter(ports), [](const LoopPort& point) { return point.port; });
-    return ports;
-}
-std::vector<ExpressionPort> LinearIR::LoopManager::LoopInfo::get_exit_ports() const {
-    std::vector<ExpressionPort> ports;
-    std::transform(exit_points.cbegin(), exit_points.cend(), std::back_inserter(ports), [](const LoopPort& point) { return point.port; });
-    return ports;
-}
-
 bool operator==(const LinearIR::LoopManager::LoopPort& lhs, const LinearIR::LoopManager::LoopPort& rhs) {
     if (&lhs == &rhs)
         return true;
@@ -89,7 +78,7 @@ void LinearIR::LoopManager::get_loop_bounds(const LinearIR &linear_ir,
                                             size_t loop_id) {
     OPENVINO_ASSERT(!entries.empty(), "Loop must have entry points");
     OPENVINO_ASSERT(!exits.empty(), "Loop must have entry points");
-    const auto& entry_expr = entries.front().port.get_expr();
+    const auto& entry_expr = entries.front().port->get_expr();
     loop_begin_pos = std::find(linear_ir.begin(), linear_ir.end(), entry_expr);
     OPENVINO_ASSERT(loop_begin_pos != linear_ir.end(), "Loop begin hasn't been found!");
 
@@ -102,7 +91,7 @@ void LinearIR::LoopManager::get_loop_bounds(const LinearIR &linear_ir,
     }
 
     // At the moment all Loops must have exit points
-    const auto& exit_expr = exits.back().port.get_expr();
+    const auto& exit_expr = exits.back().port->get_expr();
     loop_end_pos = std::next(std::find(loop_begin_pos, linear_ir.end(), exit_expr));
     OPENVINO_ASSERT(loop_end_pos != linear_ir.end(), "Loop end hasn't been found!");
 }
@@ -210,8 +199,8 @@ void LinearIR::LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
                                       size_t work_amount,
                                       size_t work_amount_increment,
                                       size_t dim_idx,
-                                      const std::vector<ExpressionPort> &entries,
-                                      const std::vector<ExpressionPort> &exits) {
+                                      const std::vector<ExpressionPort>& entries,
+                                      const std::vector<ExpressionPort>& exits) {
     const auto loop_info = std::make_shared<LoopManager::LoopInfo>(work_amount, work_amount_increment, dim_idx, entries, exits);
     const auto loop_id = this->add_loop_info(loop_info);
     for (auto expr_it = loop_begin_pos; expr_it != loop_end_pos; ++expr_it) {

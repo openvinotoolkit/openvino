@@ -29,7 +29,8 @@ public:
 
 private:
     void insertion(LinearIR& linear_ir, const LinearIR::LoopManagerPtr& loop_manager,
-                   const std::vector<ExpressionPort>& loop_entries, const std::vector<ExpressionPort>& loop_exits);
+                   const std::vector<LinearIR::LoopManager::LoopPort>& loop_entries,
+                   const std::vector<LinearIR::LoopManager::LoopPort>& loop_exits);
 
     LinearIR::constExprIt insertion_position(const LinearIR& linear_ir,
                                              const LinearIR::LoopManagerPtr& loop_manager,
