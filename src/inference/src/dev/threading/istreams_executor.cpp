@@ -504,7 +504,7 @@ IStreamsExecutor::Config IStreamsExecutor::Config::reserve_cpu_threads(const ISt
     std::vector<int> stream_ids;
     std::string log = "[ threading ] reserve_cpu_threads " + config._name;
     std::vector<std::string> core_type_str = {" Any core: ", " PCore: ", " ECore: ", " Logical core: "};
-    int status = config._name.find("GPU") != std::string::npos ? PLUGIN_USED_START : NOT_USED;
+    int status = config._name.find("GPU") != std::string::npos ? PLUGIN_USED : NOT_USED;
 
     if (config._streams_info_table.size() == 0) {
         return config;

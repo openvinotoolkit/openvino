@@ -249,8 +249,7 @@ std::vector<std::vector<int>> get_org_proc_type_table() {
 
 bool is_cpu_map_available() {
     CPU& cpu = cpu_info();
-    std::lock_guard<std::mutex> lock{cpu._cpu_mutex};
-    return cpu._proc_type_table.size() > 0 && cpu._num_threads == cpu._proc_type_table[0][ALL_PROC];
+    return cpu._cpu_mapping_table.size() > 0;
 }
 
 int get_num_numa_nodes() {
@@ -289,11 +288,11 @@ void reserve_available_cpus(const std::vector<std::vector<int>> streams_info_tab
             stream_numa_node_ids[cur_stream_id->second] = cpu._cpu_mapping_table[i][CPU_MAP_SOCKET_ID];
             cpu_ids.push_back(cpu._cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID]);
             if (stream_processors[cur_stream_id->second].size() ==
-                streams_info_per_coretype.at(cur_stream_id->first)[THREADS_PER_STREAM]) {
+                static_cast<size_t>(streams_info_per_coretype.at(cur_stream_id->first)[THREADS_PER_STREAM])) {
                 stream_id_per_coretype.at(cur_stream_id->first)++;
                 stream_num_per_coretype[cur_stream_id->first]++;
             }
-            if (stream_num_per_coretype[cur_stream_id->first] >
+            if (stream_num_per_coretype[cur_stream_id->first] >=
                 streams_info_per_coretype.at(cur_stream_id->first)[NUMBER_OF_STREAMS]) {
                 stream_id_per_coretype.erase(cur_stream_id);
             }
@@ -335,14 +334,14 @@ void set_cpu_used(const std::vector<int>& cpu_ids, const int used) {
         }
     }
     // update _proc_type_table
-    if (used == NOT_USED || used >= PLUGIN_USED_START) {
+    if (used == NOT_USED || used >= PLUGIN_USED) {
         std::vector<int> all_table;
         int start = cpu._numa_nodes > 1 ? 1 : 0;
         if (cpu._proc_type_table.size() > 0 && cpu._num_threads == cpu._proc_type_table[0][ALL_PROC]) {
             cpu._proc_type_table.assign(cpu._proc_type_table.size(), std::vector<int>(PROC_TYPE_TABLE_SIZE, 0));
             all_table.resize(PROC_TYPE_TABLE_SIZE, 0);
             for (int i = 0; i < cpu._processors; i++) {
-                if (cpu._cpu_mapping_table[i][CPU_MAP_USED_FLAG] < PLUGIN_USED_START &&
+                if (cpu._cpu_mapping_table[i][CPU_MAP_USED_FLAG] < PLUGIN_USED &&
                     cpu._cpu_mapping_table[i][CPU_MAP_SOCKET_ID] >= 0 &&
                     cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE] >= ALL_PROC) {
                     cpu._proc_type_table[cpu._cpu_mapping_table[i][CPU_MAP_SOCKET_ID] + start]

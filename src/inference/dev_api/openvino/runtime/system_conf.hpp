@@ -200,17 +200,18 @@ enum ColumnOfProcessorTypeTable {
  * @brief      Definition of CPU_MAP_USED_FLAG column in CPU mapping table.
  */
 enum ProcessorUseStatus {
-    NOT_USED = -1,           //!< Processor is not bound to thread
-    CPU_USED = 1,            //!< CPU is in using
-    PLUGIN_USED_START = 100  //!< Plugin other than CPU needs to use. If more GPUs use CPUs, the CPU_MAP_USED_FLAG is
-                             //!< accumulated from PLUGIN_USED_START. For example: GPU.0:100, GPU.1:101
+    NOT_USED = -1,     //!< Processor is not bound to thread
+    CPU_USED = 1,      //!< CPU is in using
+    PLUGIN_USED = 100  //!< Plugin other than CPU needs to use.
 };
 
 /**
  * @brief      Get and reserve available cpu ids
  * @ingroup    ie_dev_api_system_conf
  * @param[in]  streams_info_table streams information table.
- * @return     Array of available cpu ids.
+ * @param[in]  stream_processors processors grouped in stream
+ * @param[in]  stream_numa_node_ids numa_node_ids sorted in stream
+ * @param[in]  cpu_status set cpu status
  */
 OPENVINO_RUNTIME_API void reserve_available_cpus(const std::vector<std::vector<int>> streams_info_table,
                                                  std::vector<std::vector<int>>& stream_processors,
