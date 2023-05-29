@@ -460,12 +460,12 @@ Engine::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::A
 
     DEBUG_LOG(PrintableModel(*cloned_model, "org_"));
 
-    Transformations transformations(cloned_model, enableLPT, enableBF16, isLegacyAPI(), snippetsMode, engConfig);
+    Transformations transformations(cloned_model, enableLPT, enableBF16, is_legacy_api(), snippetsMode, engConfig);
     transformations.UpToCpuSpecificOpSet();
 
     // need to check that all outputs have static shapes
     // checking that all inputs have static shapes is performed in the common part
-    if (isLegacyAPI()) {
+    if (is_legacy_api()) {
         for (const auto& res : cloned_model->get_results()) {
             if (res->get_input_partial_shape(0).is_dynamic()) {
                 IE_THROW() << "CPU plug-in can't load a model with dynamic output shapes via legacy API.";
@@ -515,24 +515,24 @@ void Engine::set_property(const ov::AnyMap &config) {
     engConfig.readProperties(config);
 }
 
-bool Engine::isLegacyAPI() const {
+bool Engine::is_legacy_api() const {
     return !this->get_core()->is_new_api();
 }
 
-ov::Any Engine::GetConfigLegacy(const std::string& name, const ov::AnyMap& options) const {
+ov::Any Engine::get_property_legacy(const std::string& name, const ov::AnyMap& options) const {
     Parameter result;
     auto option = engConfig._config.find(name);
     if (option != engConfig._config.end()) {
         result = option->second;
     } else {
-        IE_CPU_PLUGIN_THROW() << ". Unsupported config parameter: " << name;
+        return GetMetricLegacy(name, options);
     }
     return result;
 }
 
 ov::Any Engine::get_property(const std::string& name, const ov::AnyMap& options) const {
-    if (isLegacyAPI())
-        return GetConfigLegacy(name, options);
+    if (is_legacy_api())
+        return get_property_legacy(name, options);
 
     if (name == ov::optimal_number_of_infer_requests) {
         const auto streams = engConfig.streamExecutorConfig._streams;
@@ -638,7 +638,7 @@ ov::Any Engine::GetMetricLegacy(const std::string& name, const ov::AnyMap& optio
 }
 
 ov::Any Engine::GetMetric(const std::string& name, const ov::AnyMap& options) const {
-    if (isLegacyAPI())
+    if (is_legacy_api())
         return GetMetricLegacy(name, options);
 
     auto RO_property = [](const std::string& propertyName) {
@@ -742,7 +742,7 @@ ov::SupportedOpsMap Engine::query_model(const std::shared_ptr<const ov::Model>& 
     auto supported = ov::get_supported_nodes(
         model,
         [&](std::shared_ptr<ov::Model>& model) {
-            Transformations transformation(model, enableLPT, conf.enforceBF16, isLegacyAPI(), snippetsMode, engConfig);
+            Transformations transformation(model, enableLPT, conf.enforceBF16, is_legacy_api(), snippetsMode, engConfig);
             transformation.UpToCpuSpecificOpSet();
             transformation.CpuSpecificOpSet();
         },

@@ -68,12 +68,12 @@ public:
     };
 
 private:
-    bool isLegacyAPI() const;
+    bool is_legacy_api() const;
 
     ov::Any GetMetric(const std::string& name, const ov::AnyMap& options) const;
     ov::Any GetMetricLegacy(const std::string& name, const ov::AnyMap& options) const;
 
-    ov::Any GetConfigLegacy(const std::string& name, const ov::AnyMap& options) const;
+    ov::Any get_property_legacy(const std::string& name, const ov::AnyMap& options) const;
 
     void ApplyPerformanceHints(ov::AnyMap &config, const std::shared_ptr<ov::Model>& model) const;
 
