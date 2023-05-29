@@ -1,3 +1,5 @@
+notebooks_docs = "notebooks.rst"
+
 notebooks_path = "notebooks"
 
 repo_directory = "notebooks"
@@ -10,10 +12,10 @@ artifacts_link = "http://repository.toolbox.iotg.sclab.intel.com/projects/ov-not
 
 blacklisted_extensions = ['.xml', '.bin']
 
-# Templates
-
 section_names = ["Getting Started", "Convert & Optimize",
                  "Model Demos", "Model Training", "Live Demos"]
+
+# Templates
 
 binder_template = """
 This tutorial is also available as a Jupyter notebook that can be cloned directly from GitHub.
@@ -51,4 +53,20 @@ See the |installation_link| for instructions to run this tutorial locally on Win
    <a href="https://github.com/{{ owner }}/{{ repo }}" target="_blank"><img src="https://badgen.net/badge/icon/github?icon=github&label" alt="Github"></a>
 
 \n
+"""
+
+rst_template = """
+OpenVINO notebooks documentation
+================================
+
+{% for section in sections %}
+{{section.name}}
+--------------------------------
+
+.. toctree::
+   :maxdepth: 1
+
+{% for notebook in section.notebooks %}   {{notebook.path}}\n{% endfor %}
+{% endfor %}
+
 """
