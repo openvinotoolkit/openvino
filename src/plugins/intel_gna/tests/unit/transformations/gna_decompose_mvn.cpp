@@ -13,6 +13,8 @@
 #include "transformations/decompose_mvn.hpp"
 #include "transformations/op_conversions/convert_mvn1_to_mvn6.hpp"
 
+using namespace ov::intel_gna::limitations;
+
 namespace decomposeMVN {
 
 typedef std::tuple<ngraph::Shape,                // Input shape
@@ -264,7 +266,7 @@ std::shared_ptr<ngraph::Function> getReferenceFunction(const ngraph::Shape& inpu
     mvn_data.normalize_variance = normalize_variance;
     mvn_data.num_parts = 1;
 
-    while (mvn_data.W / mvn_data.num_parts > ov::intel_gna::limitations::convFilterMaxSize) {
+    while (mvn_data.W / mvn_data.num_parts > Limitations::kConvFilterMaxSize) {
         mvn_data.num_parts *= 2;
     }
 
