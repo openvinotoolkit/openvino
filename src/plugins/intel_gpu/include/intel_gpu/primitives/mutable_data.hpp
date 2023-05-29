@@ -16,6 +16,10 @@ namespace cldnn {
 struct mutable_data : public primitive_base<mutable_data> {
     CLDNN_DECLARE_PRIMITIVE(mutable_data)
 
+    mutable_data() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     /// @brief Enum type to specify function for data filling.
     enum filler_type { no_fill, zero, one, xavier };
 
@@ -52,6 +56,16 @@ struct mutable_data : public primitive_base<mutable_data> {
         size_t seed = primitive::hash();
         seed = hash_combine(seed, id);
         return seed;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<mutable_data>::save(ob);
+        ob << make_data(&fill_type, sizeof(filler_type));
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<mutable_data>::load(ib);
+        ib >> make_data(&fill_type, sizeof(filler_type));
     }
 };
 }  // namespace cldnn
