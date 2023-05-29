@@ -18,8 +18,8 @@ from sphinx.util import logging
 from json import JSONDecodeError
 from sphinx.ext.autodoc import ClassDocumenter
 
-sys.path.insert(0, os.path.abspath('doxyrest-sphinx'))
 
+sys.path.insert(0, os.path.abspath('doxyrest-sphinx'))
 
 # -- Project information -----------------------------------------------------
 
