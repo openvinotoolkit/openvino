@@ -529,7 +529,6 @@ IStreamsExecutor::Config IStreamsExecutor::Config::reserve_cpu_threads(const ISt
     }
     log += " Total: " + std::to_string(config._streams) + "(" + std::to_string(config._threads) + ")";
     OPENVINO_DEBUG << log;
-    std::cout << log << std::endl;
 
     return config;
 }
