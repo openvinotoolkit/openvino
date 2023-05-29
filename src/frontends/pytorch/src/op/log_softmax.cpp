@@ -32,6 +32,9 @@ OutputVector translate_log_softmax(const NodeContext& context) {
         if (elem_type != target_dtype) {
             input = context.mark_node(std::make_shared<opset10::Convert>(input, target_dtype));
         }
+    } else {
+        auto dummy_const = context.mark_node(opset10::Constant::create(element::f32, Shape({}), {0.5}))->output(0);
+        align_eltwise_input_types(context, input, dummy_const);
     }
 
     const auto log_softmax = context.mark_node(std::make_shared<opset10::LogSoftmax>(input, dim));

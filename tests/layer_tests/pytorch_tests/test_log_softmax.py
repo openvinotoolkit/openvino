@@ -26,11 +26,9 @@ class TestLogSoftmax(PytorchLayerTest):
         return (self.input_tensor,)
 
     @pytest.mark.parametrize(["input_dtype", "convert_dtype"], [
-        # For a tensor with element dtype int, it is necessary to 
-        # convert the input to float (internal aten::logsoftmax operation).
         # convert_dtype cannot be of type int from pytorch limitations
-        [torch.int, torch.float32],
-        [torch.int, torch.float64],
+        [torch.int,   torch.float32],
+        [torch.int,   torch.float64],
         [torch.float, None],
         [torch.float, torch.float64]
     ])
