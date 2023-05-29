@@ -26,6 +26,8 @@
 
 using namespace std;
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 void ov::NodeValidationFailure::create(const CheckLocInfo& check_loc_info,
                                        const Node* node,
                                        const std::string& explanation) {
