@@ -44,13 +44,15 @@ std::vector<std::vector<int>> apply_scheduling_core_type(const ov::hint::Schedul
 
 std::vector<std::vector<int>> apply_hyper_threading(bool& input_ht_hint,
                                                     const bool input_ht_changed,
-                                                    const std::string input_pm_hint,
+                                                    const ov::hint::PerformanceMode input_pm_hint,
                                                     const std::vector<std::vector<int>>& proc_type_table) {
     std::vector<std::vector<int>> result_table = proc_type_table;
 
     if (proc_type_table[0][HYPER_THREADING_PROC] > 0) {
-        if (((!input_ht_hint) && input_ht_changed) || ((!input_ht_changed) && (input_pm_hint == "LATENCY")) ||
-            ((!input_ht_changed) && (input_pm_hint == "THROUGHPUT") && (proc_type_table.size() > 1))) {
+        if (((!input_ht_hint) && input_ht_changed) ||
+            ((!input_ht_changed) && (input_pm_hint == ov::hint::PerformanceMode::LATENCY)) ||
+            ((!input_ht_changed) && (input_pm_hint == ov::hint::PerformanceMode::THROUGHPUT) &&
+             (proc_type_table.size() > 1))) {
             for (auto& i : result_table) {
                 i[ALL_PROC] -= i[HYPER_THREADING_PROC];
                 i[HYPER_THREADING_PROC] = 0;

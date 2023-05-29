@@ -213,7 +213,7 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
         }
         auto num_requests = config.find(CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS));
         if (num_requests != config.end()) {  // arrived with config to the LoadNetwork (and thus higher pri)
-            auto val = PerfHintsConfig::CheckPerformanceHintRequestValue(num_requests->second);
+            auto val = std::stoi(num_requests->second);
             if (val > 0)
                 streams_info.num_streams = std::min(streams_info.num_streams, val);
         } else if (engConfig.numRequests > 0) {  // set thru SetConfig to the plugin, 2nd priority

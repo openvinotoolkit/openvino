@@ -283,7 +283,7 @@ void get_num_streams(const int streams,
         apply_scheduling_core_type(config.schedulingCoreType, orig_proc_type_table);
     proc_type_table = apply_hyper_threading(config.enableHyperThreading,
                                             config.changedHyperThreading,
-                                            config.perfHintsConfig.ovPerfHint,
+                                            config.performanceHint,
                                             proc_type_table);
     executor_config._proc_type_table = proc_type_table;
     executor_config._cpu_pinning = get_cpu_pinning(config.enableCpuPinning,

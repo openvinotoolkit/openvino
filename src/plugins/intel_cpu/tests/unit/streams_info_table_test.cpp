@@ -85,7 +85,7 @@ INSTANTIATE_TEST_SUITE_P(SchedulingCoreTypeTable,
 struct UseHTTestCase {
     bool input_ht_value;
     bool input_ht_changed;
-    std::string input_pm_hint;
+    ov::hint::PerformanceMode input_pm_hint;
     std::vector<std::vector<int>> proc_type_table;
     std::vector<std::vector<int>> result_table;
     bool output_ht_value;
@@ -110,7 +110,7 @@ public:
 UseHTTestCase _2sockets_false_latency = {
     false,
     true,
-    "LATENCY",
+    ov::hint::PerformanceMode::LATENCY,
     {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
     {{104, 104, 0, 0}, {52, 52, 0, 0}, {52, 52, 0, 0}},
     false,
@@ -119,7 +119,7 @@ UseHTTestCase _2sockets_false_latency = {
 UseHTTestCase _2sockets_false_throughput = {
     false,
     true,
-    "THROUGHPUT",
+    ov::hint::PerformanceMode::THROUGHPUT,
     {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
     {{104, 104, 0, 0}, {52, 52, 0, 0}, {52, 52, 0, 0}},
     false,
@@ -128,7 +128,7 @@ UseHTTestCase _2sockets_false_throughput = {
 UseHTTestCase _2sockets_true_latency = {
     true,
     true,
-    "LATENCY",
+    ov::hint::PerformanceMode::LATENCY,
     {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
     {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
     true,
@@ -137,7 +137,7 @@ UseHTTestCase _2sockets_true_latency = {
 UseHTTestCase _2sockets_true_throughput = {
     true,
     true,
-    "THROUGHPUT",
+    ov::hint::PerformanceMode::THROUGHPUT,
     {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
     {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
     true,
@@ -146,7 +146,7 @@ UseHTTestCase _2sockets_true_throughput = {
 UseHTTestCase _2sockets_default_1_latency = {
     false,
     false,
-    "LATENCY",
+    ov::hint::PerformanceMode::LATENCY,
     {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
     {{104, 104, 0, 0}, {52, 52, 0, 0}, {52, 52, 0, 0}},
     false,
@@ -155,7 +155,7 @@ UseHTTestCase _2sockets_default_1_latency = {
 UseHTTestCase _2sockets_default_1_throughput = {
     false,
     false,
-    "THROUGHPUT",
+    ov::hint::PerformanceMode::THROUGHPUT,
     {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
     {{104, 104, 0, 0}, {52, 52, 0, 0}, {52, 52, 0, 0}},
     false,
@@ -164,7 +164,7 @@ UseHTTestCase _2sockets_default_1_throughput = {
 UseHTTestCase _2sockets_default_2_latency = {
     true,
     false,
-    "LATENCY",
+    ov::hint::PerformanceMode::LATENCY,
     {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
     {{104, 104, 0, 0}, {52, 52, 0, 0}, {52, 52, 0, 0}},
     false,
@@ -173,7 +173,7 @@ UseHTTestCase _2sockets_default_2_latency = {
 UseHTTestCase _2sockets_default_2_throughput = {
     true,
     false,
-    "THROUGHPUT",
+    ov::hint::PerformanceMode::THROUGHPUT,
     {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
     {{104, 104, 0, 0}, {52, 52, 0, 0}, {52, 52, 0, 0}},
     false,
@@ -182,7 +182,7 @@ UseHTTestCase _2sockets_default_2_throughput = {
 UseHTTestCase _1sockets_1_false_latency = {
     false,
     true,
-    "LATENCY",
+    ov::hint::PerformanceMode::LATENCY,
     {{20, 6, 8, 6}},
     {{14, 6, 8, 0}},
     false,
@@ -191,7 +191,7 @@ UseHTTestCase _1sockets_1_false_latency = {
 UseHTTestCase _1sockets_1_false_throughput = {
     false,
     true,
-    "THROUGHPUT",
+    ov::hint::PerformanceMode::THROUGHPUT,
     {{20, 6, 8, 6}},
     {{14, 6, 8, 0}},
     false,
@@ -200,7 +200,7 @@ UseHTTestCase _1sockets_1_false_throughput = {
 UseHTTestCase _1sockets_1_true_latency = {
     true,
     true,
-    "LATENCY",
+    ov::hint::PerformanceMode::LATENCY,
     {{20, 6, 8, 6}},
     {{20, 6, 8, 6}},
     true,
@@ -209,7 +209,7 @@ UseHTTestCase _1sockets_1_true_latency = {
 UseHTTestCase _1sockets_1_true_throughput = {
     true,
     true,
-    "THROUGHPUT",
+    ov::hint::PerformanceMode::THROUGHPUT,
     {{20, 6, 8, 6}},
     {{20, 6, 8, 6}},
     true,
@@ -218,7 +218,7 @@ UseHTTestCase _1sockets_1_true_throughput = {
 UseHTTestCase _1sockets_1_default_1_latency = {
     false,
     false,
-    "LATENCY",
+    ov::hint::PerformanceMode::LATENCY,
     {{20, 6, 8, 6}},
     {{14, 6, 8, 0}},
     false,
@@ -227,7 +227,7 @@ UseHTTestCase _1sockets_1_default_1_latency = {
 UseHTTestCase _1sockets_1_default_1_throughput = {
     false,
     false,
-    "THROUGHPUT",
+    ov::hint::PerformanceMode::THROUGHPUT,
     {{20, 6, 8, 6}},
     {{20, 6, 8, 6}},
     true,
@@ -236,7 +236,7 @@ UseHTTestCase _1sockets_1_default_1_throughput = {
 UseHTTestCase _1sockets_1_default_2_latency = {
     true,
     false,
-    "LATENCY",
+    ov::hint::PerformanceMode::LATENCY,
     {{20, 6, 8, 6}},
     {{14, 6, 8, 0}},
     false,
@@ -245,7 +245,7 @@ UseHTTestCase _1sockets_1_default_2_latency = {
 UseHTTestCase _1sockets_1_default_2_throughput = {
     true,
     false,
-    "THROUGHPUT",
+    ov::hint::PerformanceMode::THROUGHPUT,
     {{20, 6, 8, 6}},
     {{20, 6, 8, 6}},
     true,
@@ -254,7 +254,7 @@ UseHTTestCase _1sockets_1_default_2_throughput = {
 UseHTTestCase _1sockets_2_false_latency = {
     false,
     true,
-    "LATENCY",
+    ov::hint::PerformanceMode::LATENCY,
     {{12, 6, 0, 6}},
     {{6, 6, 0, 0}},
     false,
@@ -263,7 +263,7 @@ UseHTTestCase _1sockets_2_false_latency = {
 UseHTTestCase _1sockets_2_false_throughput = {
     false,
     true,
-    "THROUGHPUT",
+    ov::hint::PerformanceMode::THROUGHPUT,
     {{12, 6, 0, 6}},
     {{6, 6, 0, 0}},
     false,
@@ -272,7 +272,7 @@ UseHTTestCase _1sockets_2_false_throughput = {
 UseHTTestCase _1sockets_2_true_latency = {
     true,
     true,
-    "LATENCY",
+    ov::hint::PerformanceMode::LATENCY,
     {{12, 6, 0, 6}},
     {{12, 6, 0, 6}},
     true,
@@ -281,7 +281,7 @@ UseHTTestCase _1sockets_2_true_latency = {
 UseHTTestCase _1sockets_2_true_throughput = {
     true,
     true,
-    "THROUGHPUT",
+    ov::hint::PerformanceMode::THROUGHPUT,
     {{12, 6, 0, 6}},
     {{12, 6, 0, 6}},
     true,
@@ -290,7 +290,7 @@ UseHTTestCase _1sockets_2_true_throughput = {
 UseHTTestCase _1sockets_2_default_1_latency = {
     false,
     false,
-    "LATENCY",
+    ov::hint::PerformanceMode::LATENCY,
     {{12, 6, 0, 6}},
     {{6, 6, 0, 0}},
     false,
@@ -299,7 +299,7 @@ UseHTTestCase _1sockets_2_default_1_latency = {
 UseHTTestCase _1sockets_2_default_1_throughput = {
     false,
     false,
-    "THROUGHPUT",
+    ov::hint::PerformanceMode::THROUGHPUT,
     {{12, 6, 0, 6}},
     {{12, 6, 0, 6}},
     true,
@@ -308,7 +308,7 @@ UseHTTestCase _1sockets_2_default_1_throughput = {
 UseHTTestCase _1sockets_2_default_2_latency = {
     true,
     false,
-    "LATENCY",
+    ov::hint::PerformanceMode::LATENCY,
     {{12, 6, 0, 6}},
     {{6, 6, 0, 0}},
     false,
@@ -317,7 +317,7 @@ UseHTTestCase _1sockets_2_default_2_latency = {
 UseHTTestCase _1sockets_2_default_2_throughput = {
     true,
     false,
-    "THROUGHPUT",
+    ov::hint::PerformanceMode::THROUGHPUT,
     {{12, 6, 0, 6}},
     {{12, 6, 0, 6}},
     true,
