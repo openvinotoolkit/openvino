@@ -5,11 +5,13 @@
 #include "ngraph/opsets/opset.hpp"
 
 #include "itt.hpp"
+#include "ngraph/deprecated.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/ops.hpp"
 #include "openvino/opsets/opset.hpp"
 #include "openvino/util/log.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START
 ngraph::OpSet::OpSet(const ov::OpSet& opset) : ov::OpSet(opset) {}
 
 ngraph::OpSet::OpSet(const ngraph::OpSet& opset) : ov::OpSet(opset) {}

@@ -43,7 +43,7 @@ bool FoldConvertTransformation::transform(TransformationContext& context, ngraph
         }
 
         const auto resultConstant = ngraph::pass::low_precision::foldConvert(convert->input_value(0), convert->get_output_element_type(0));
-        assert(ov::is_type<opset1::Constant>(resultConstant));
+        assert(ov::is_type<ov::opset1::Constant>(resultConstant));
 
         replace_node(convert, resultConstant);
         updateOutput(context, resultConstant, convert);
