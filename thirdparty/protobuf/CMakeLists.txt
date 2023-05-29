@@ -15,7 +15,7 @@ if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
     endif()
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # protobuf\src\google\protobuf\descriptor.cc(822) : error C4703: potentially uninitialized local pointer variable 'to_use' used
-    add_definitions("/wd4703")
+    ie_add_compiler_flags(/wd4703)
 endif()
 
 set(protobuf_VERBOSE ON)
