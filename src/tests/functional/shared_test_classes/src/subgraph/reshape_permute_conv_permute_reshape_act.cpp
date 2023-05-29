@@ -22,6 +22,9 @@ namespace SubgraphTestsDefinitions {
         results << "OC=" << output_channels << "_";
         results << "netPRC=" << netPrecision.name() << "_";
         results << "targetDevice=" << targetName;
+        for (auto const& configItem : configuration) {
+            results << "_configItem=" << configItem.first << "_" << configItem.second;
+        }
         return results.str();
     }
 
