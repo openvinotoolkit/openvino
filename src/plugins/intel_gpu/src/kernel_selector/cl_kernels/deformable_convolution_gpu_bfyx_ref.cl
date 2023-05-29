@@ -51,7 +51,7 @@ KERNEL(deformable_convolution_gpu_bfyx_ref)(
 
     for (uint c = 0; c < FILTER_IFM_NUM; ++c) {
 #if DEFORMABLE_GROUPS>1
-        const int deformable_group_idx = (FILTER_IFM_NUM * of + c) / (FILTER_IFM_NUM * FILTER_GROUPS_NUM / DEFORMABLE_GROUPS);
+        const int deformable_group_idx = (FILTER_IFM_NUM * of + c) / (FILTER_IFM_NUM * FILTER_GROUPS_NUM / DEFORMABLE_GROUPS) % DEFORMABLE_GROUPS;
 #else
         const int deformable_group_idx = 0;
 #endif
