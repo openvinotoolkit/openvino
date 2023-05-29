@@ -32,25 +32,23 @@ OutputVector translate_squeeze(const NodeContext& context) {
     }
     // Cannot provide dimensions to ov v0::Squeeze directly due to mismatch in behavior between OV and PyTorch:
     // If provided dimension cannot be squeezed, OV raises exception, PyTorch returns dimension unmodified.
-    auto dim_input = context.get_input(1);
-    auto const_0 = context.mark_node(v0::Constant::create(element::i64, Shape{}, {0}));
-    auto const_1 = context.mark_node(v0::Constant::create(element::i64, Shape{}, {1}));
-    auto input_shape = context.mark_node(std::make_shared<v3::ShapeOf>(input));
-    auto input_rank = context.mark_node(std::make_shared<v3::ShapeOf>(input_shape));
-    auto input_rank_s = context.mark_node(std::make_shared<v0::Squeeze>(input_rank));
+    auto normalized_axis_input = normalize_axis(context, context.get_input(1), input);
+    auto const_0 = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
+    auto const_1 = context.mark_node(v0::Constant::create(element::i32, Shape{}, {1}));
+    auto shape_rank = get_shape_rank(context, input, true, element::i32);
+    auto input_shape = std::get<0>(shape_rank);
+    auto input_rank = std::get<1>(shape_rank);
     // Create boolean mask containing True on 1, else 0.
     auto squeezable_dimensions_mask = context.mark_node(std::make_shared<v1::Equal>(input_shape, const_1));
     auto input_shape_indices =
-        context.mark_node(std::make_shared<v4::Range>(const_0, input_rank_s, const_1, element::i64));
-    // Translate negative dimension indices into positive only.
-    auto dim_input_pos_only = context.mark_node(std::make_shared<v8::Gather>(input_shape_indices, dim_input, const_0));
+        context.mark_node(std::make_shared<v4::Range>(const_0, input_rank, const_1, element::i32));
     // Add additional dimension to axis indices, allowing to use broadcast in equal to create boolean mask,
     // where True indicates that input dimension was selected to be squeezed.
-    auto dim_reshape_shape = context.mark_node(v0::Constant::create(element::i64, Shape{2}, {-1, 1}));
-    auto reshaped_dim_input_pos_only =
-        context.mark_node(std::make_shared<v1::Reshape>(dim_input_pos_only, dim_reshape_shape, false));
+    auto dim_reshape_shape = context.mark_node(v0::Constant::create(element::i32, Shape{2}, {-1, 1}));
+    auto reshaped_normalized_axis_input =
+        context.mark_node(std::make_shared<v1::Reshape>(normalized_axis_input, dim_reshape_shape, false));
     auto selected_mask_to_squeeze =
-        context.mark_node(std::make_shared<v1::Equal>(input_shape_indices, reshaped_dim_input_pos_only));
+        context.mark_node(std::make_shared<v1::Equal>(input_shape_indices, reshaped_normalized_axis_input));
     selected_mask_to_squeeze =
         context.mark_node(std::make_shared<v1::ReduceLogicalOr>(selected_mask_to_squeeze, const_0));
     // Create mask indicating elements that are both selected to be squeezed, and are squeezable (have 1 dimension).
