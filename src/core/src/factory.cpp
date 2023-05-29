@@ -20,6 +20,6 @@ mutex& get_registry_mutex() {
 }
 
 #ifndef _WIN32
-template class FactoryRegistry<ngraph::Node>;
+template class FactoryRegistry<ov::Node>;
 #endif
 }  // namespace ngraph
