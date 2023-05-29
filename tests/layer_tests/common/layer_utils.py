@@ -119,6 +119,9 @@ class InferAPI20(BaseInfer):
         net = core.read_model(self.model, self.weights)
         inputs_info = {}
         for item in net.inputs:
-            inputs_info[item.get_any_name()] = list(item.shape)
+            if item.partial_shape.is_dynamic:
+                inputs_info[item.get_any_name()] = item.partial_shape
+            else:
+                inputs_info[item.get_any_name()] = item.partial_shape.to_shape()
 
         return inputs_info
