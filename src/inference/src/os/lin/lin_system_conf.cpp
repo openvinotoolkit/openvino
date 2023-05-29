@@ -12,7 +12,6 @@
 #include <vector>
 
 #include "dev/threading/parallel_custom_arena.hpp"
-#include "ie_common.h"
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "streams_executor.hpp"
@@ -86,8 +85,12 @@ CPU::CPU() {
         if (_processors > 0 && _numa_nodes > 0 && _cores > 0) {
             get_cpu_mapping_from_cores(_processors, _numa_nodes, _cores, _proc_type_table, _cpu_mapping_table);
         } else {
-            IE_THROW() << "Wrong CPU information. processors: " << _processors << ", numa_nodes: " << _numa_nodes
-                       << ", cores: " << _cores;
+            OPENVINO_THROW("Wrong CPU information. processors: ",
+                           _processors,
+                           ", numa_nodes: ",
+                           _numa_nodes,
+                           ", cores: ",
+                           _cores);
         }
     }
     std::vector<std::vector<std::string>>().swap(system_info_table);
