@@ -30,7 +30,29 @@ bool op::v12::GroupNormalization::visit_attributes(AttributeVisitor& visitor) {
 
 void op::v12::GroupNormalization::validate_and_infer_types() {
     OV_OP_SCOPE(v12_GroupNormalization_validate_and_infer_types);
-    
+    const auto data_partial_shape = get_input_partial_shape(0);
+    const auto data_rank = data_partial_shape.rank();
+    const auto scale_partial_shape = get_input_partial_shape(1);
+    const auto bias_partial_shape = get_input_partial_shape(2);
+
+    NODE_VALIDATION_CHECK(this,
+                          scale_partial_shape.rank().compatible(Dimension{1}),
+                          "The scale input is required to be 1D");
+    NODE_VALIDATION_CHECK(this,
+                          bias_partial_shape.rank().compatible(Dimension{1}),
+                          "The bias input is required to be 1D");
+
+    if (data_rank.is_static() && data_rank.get_length() >= 2) {
+        const auto channels_dim = data_partial_shape[1];
+        NODE_VALIDATION_CHECK(this,
+                              PartialShape{channels_dim}.compatible(scale_partial_shape),
+                              "The scale input shape needs to match the channel dimension in the data input");
+        NODE_VALIDATION_CHECK(this,
+                              PartialShape{channels_dim}.compatible(bias_partial_shape),
+                              "The bias input shape needs to match the channel dimension in the data input");
+    }
+
+    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 
 std::shared_ptr<Node> op::v12::GroupNormalization::clone_with_new_inputs(const OutputVector& new_args) const {
