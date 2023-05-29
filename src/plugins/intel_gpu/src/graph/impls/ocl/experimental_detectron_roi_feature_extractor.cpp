@@ -81,3 +81,4 @@ attach_experimental_detectron_roi_feature_extractor_impl::attach_experimental_de
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::experimental_detectron_roi_feature_extractor_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::experimental_detectron_roi_feature_extractor)

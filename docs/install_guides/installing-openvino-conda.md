@@ -11,15 +11,15 @@
 
 .. tab:: System Requirements
 
-  | Full requirement listing is available in:
-  | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
+   | Full requirement listing is available in:
+   | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
 
-.. comment to publish in the future, when gpu support comes back:
-
-   .. tab:: Processor Notes
+   .. comment to publish in the future, when gpu support comes back:
    
-        | Not all Intel CPUs include integrated graphics processors.  
-        | See `Product Specifications <https://ark.intel.com/>`__ for information about your hardware.
+      .. tab:: Processor Notes
+      
+           | Not all Intel CPUs include integrated graphics processors.  
+           | See `Product Specifications <https://ark.intel.com/>`__ for information about your hardware.
 
 .. tab:: Software
 
