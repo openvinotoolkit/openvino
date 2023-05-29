@@ -10,7 +10,7 @@
 namespace ov {
 namespace intel_cpu {
 
-std::vector<std::vector<int>> apply_scheduling_core_type(const ov::hint::SchedulingCoreType input_type,
+std::vector<std::vector<int>> apply_scheduling_core_type(ov::hint::SchedulingCoreType& input_type,
                                                          const std::vector<std::vector<int>>& proc_type_table) {
     std::vector<std::vector<int>> result_table = proc_type_table;
 
@@ -26,13 +26,16 @@ std::vector<std::vector<int>> apply_scheduling_core_type(const ov::hint::Schedul
         }
         break;
     case ov::hint::SchedulingCoreType::ECORE_ONLY:
-        if ((proc_type_table[0][EFFICIENT_CORE_PROC] > 0) &&
-            (proc_type_table[0][EFFICIENT_CORE_PROC] != proc_type_table[0][ALL_PROC])) {
-            for (auto& i : result_table) {
-                i[ALL_PROC] -= i[MAIN_CORE_PROC] + i[HYPER_THREADING_PROC];
-                i[MAIN_CORE_PROC] = 0;
-                i[HYPER_THREADING_PROC] = 0;
+        if (proc_type_table[0][EFFICIENT_CORE_PROC] > 0) {
+            if ((proc_type_table[0][EFFICIENT_CORE_PROC] != proc_type_table[0][ALL_PROC])) {
+                for (auto& i : result_table) {
+                    i[ALL_PROC] -= i[MAIN_CORE_PROC] + i[HYPER_THREADING_PROC];
+                    i[MAIN_CORE_PROC] = 0;
+                    i[HYPER_THREADING_PROC] = 0;
+                }
             }
+        } else {
+            input_type = ov::hint::SchedulingCoreType::PCORE_ONLY;
         }
         break;
     default:
