@@ -40,6 +40,8 @@ public:
         };
     }
 
+    ~FactoryRegistry() = default;
+
     /// \brief Register a custom factory for type_info
     void register_factory(const typename BASE_TYPE::type_info_t& type_info, Factory factory) {
         std::lock_guard<std::mutex> guard(get_registry_mutex());

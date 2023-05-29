@@ -51,6 +51,7 @@ namespace runtime {
 class Tensor;
 }  // namespace runtime
 
+NGRAPH_SUPPRESS_DEPRECATED_START
 template <typename T>
 NGRAPH_API_DEPRECATED std::string join(const T& v, const std::string& sep = ", ") {
     std::ostringstream ss;
@@ -351,3 +352,4 @@ std::vector<int64_t> NGRAPH_API read_index_vector(std::shared_ptr<ngraph::runtim
 NGRAPH_API
 NGRAPH_API_DEPRECATED
 std::ostream& operator<<(std::ostream& os, const ngraph::NodeVector& nv);
+NGRAPH_SUPPRESS_DEPRECATED_END

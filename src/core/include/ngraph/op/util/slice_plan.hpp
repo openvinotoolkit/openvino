@@ -19,6 +19,7 @@
 #include "ngraph/axis_set.hpp"
 #include "ngraph/shape.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 //
 // In various places, like ConstantFolding, it is
@@ -66,3 +67,4 @@ NGRAPH_API_DEPRECATED SlicePlan NGRAPH_API make_slice_plan(const Shape& input_sh
 }  // namespace ngraph
 
 using ngraph::make_slice_plan;
+NGRAPH_SUPPRESS_DEPRECATED_END
