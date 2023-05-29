@@ -41,6 +41,7 @@ OP_CONVERTER(elementwise_sub);
 OP_CONVERTER(embedding);
 OP_CONVERTER(exp);
 OP_CONVERTER(expand_v2);
+OP_CONVERTER(flip);
 OP_CONVERTER(fill_any_like);
 OP_CONVERTER(fill_constant_batch_size_like);
 OP_CONVERTER(fill_constant);
@@ -54,10 +55,12 @@ OP_CONVERTER(grid_sampler);
 OP_CONVERTER(group_norm);
 OP_CONVERTER(hard_sigmoid);
 OP_CONVERTER(hard_swish);
+OP_CONVERTER(index_select);
 OP_CONVERTER(layer_norm);
 OP_CONVERTER(leaky_relu);
 OP_CONVERTER(less_than);
 OP_CONVERTER(linear_interp_v2);
+OP_CONVERTER(linspace);
 OP_CONVERTER(lod_array_length);
 OP_CONVERTER(log);
 OP_CONVERTER(logical_and);
@@ -70,6 +73,7 @@ OP_CONVERTER(matrix_nms);
 OP_CONVERTER(meshgrid);
 OP_CONVERTER(multiclass_nms);
 OP_CONVERTER(nearest_interp_v2);
+OP_CONVERTER(one_hot_v2);
 OP_CONVERTER(p_norm);
 OP_CONVERTER(pad3d);
 OP_CONVERTER(pow);
@@ -158,6 +162,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"fill_constant_batch_size_like", op::fill_constant_batch_size_like},
             {"fill_constant", op::fill_constant},
             {"flatten_contiguous_range", op::flatten_contiguous_range},
+            {"flip", op::flip},
             {"floor", op::floor},
             {"gather", op::gather},
             {"gather_nd", op::gather_nd},
@@ -169,10 +174,12 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"group_norm", op::group_norm},
             {"hard_sigmoid", op::hard_sigmoid},
             {"hard_swish", op::hard_swish},
+            {"index_select", op::index_select},
             {"layer_norm", op::layer_norm},
             {"leaky_relu", op::leaky_relu},
             {"less_than", op::less_than},
             {"linear_interp_v2", op::linear_interp_v2},
+            {"linspace", op::linspace},
             {"lod_array_length", op::lod_array_length},
             {"log", op::log},
             {"logical_and", op::logical_and},
@@ -189,6 +196,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"nearest_interp_v2", op::nearest_interp_v2},
             {"nearest_interp", op::nearest_interp_v2},
             {"not_equal", op::elementwise_not_equal},
+            {"one_hot_v2", op::one_hot_v2},
             {"p_norm", op::p_norm},
             {"pad3d", op::pad3d},
             {"pow", op::pow},

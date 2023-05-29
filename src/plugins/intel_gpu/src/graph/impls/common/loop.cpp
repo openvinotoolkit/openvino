@@ -6,7 +6,6 @@
 #include "register.hpp"
 #include "mutable_data_inst.h"
 #include "input_layout_inst.h"
-#include "intel_gpu/graph/serialization/loop_serializer.hpp"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include <vector>
 #include <algorithm>
