@@ -52,7 +52,7 @@ TEST_F(ProxyTests, import_and_infer_on_device_without_split) {
     EXPECT_EQ(memcmp(input_tensor.data(), output_tensor.data(), input_tensor.get_byte_size()), 0);
 }
 
-#ifdef HETERO_ENABLED
+#    ifdef HETERO_ENABLED
 
 TEST_F(ProxyTests, import_and_infer_on_support_with_hetero_plugin) {
     std::stringstream model_stream;
@@ -70,5 +70,5 @@ TEST_F(ProxyTests, import_and_infer_on_support_with_hetero_plugin) {
     EXPECT_EQ(input_tensor.get_element_type(), output_tensor.get_element_type());
     EXPECT_EQ(memcmp(input_tensor.data(), output_tensor.data(), input_tensor.get_byte_size()), 0);
 }
-#endif
+#    endif
 #endif

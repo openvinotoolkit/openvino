@@ -39,8 +39,8 @@
 #include "ov_plugins.hpp"
 #include "preprocessing/preprocessing.hpp"
 #ifndef NO_PROXY_PLUGIN
-#include "proxy_plugin.hpp"
-#include "proxy_properties.hpp"
+#    include "proxy_plugin.hpp"
+#    include "proxy_properties.hpp"
 #endif
 #include "so_extension.hpp"
 #include "xml_parse_utils.h"
