@@ -197,7 +197,9 @@ void ov::proxy::Plugin::set_property(const ov::AnyMap& properties) {
     const std::string primary_dev = get_primary_device(get_device_from_config(properties));
     auto hw_config = properties;
     // Add fallback priority to detect supported devices in case of HETERO fallback
-    hw_config[ov::device::priorities.name()] = get_internal_property(ov::device::priorities.name(), config_name);
+    auto device_priority = get_internal_property(ov::device::priorities.name(), config_name);
+    if (!device_priority.empty())
+        hw_config[ov::device::priorities.name()] = device_priority;
     auto dev_properties = remove_proxy_properties(hw_config, true);
     std::string dev_prop_name;
     ov::DeviceIDParser pr_parser(primary_dev);
