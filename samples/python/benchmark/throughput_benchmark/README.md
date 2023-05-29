@@ -45,29 +45,38 @@ To run the sample, you need to specify a model:
 
 ### Example
 
+@sphinxdirective
+
 1. Install the `openvino-dev` Python package to use Open Model Zoo Tools:
 
-```
-python -m pip install openvino-dev[caffe]
-```
+   .. code-block:: sh
+
+      python -m pip install openvino-dev[caffe]
+
 
 2. Download a pre-trained model using:
 
-```
-omz_downloader --name googlenet-v1
-```
+   .. code-block:: sh
+
+      omz_downloader --name googlenet-v1
+
 
 3. If a model is not in the IR or ONNX format, it must be converted. You can do this using the model converter:
 
-```
-omz_converter --name googlenet-v1
-```
+   .. code-block:: sh
+
+      omz_converter --name googlenet-v1
+
 
 4. Perform benchmarking using the `googlenet-v1` model on a `CPU`:
 
-```
-python throughput_benchmark.py googlenet-v1.xml
-```
+   .. code-block:: sh
+
+      python throughput_benchmark.py googlenet-v1.xml
+
+
+@endsphinxdirective
+
 
 ## Sample Output
 
