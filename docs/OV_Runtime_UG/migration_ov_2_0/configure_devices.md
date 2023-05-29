@@ -23,7 +23,7 @@ The snippets in the following sections demonstrate the device configurations for
 
 .. note::
 
-   The Inference Engine API is a **legacy solution** and it is recomended to use API 2.0. If you want to learn more about Inference Engine API, its configuration and how to obtain device-specific metrics from it, check the following `article <https://docs.openvino.ai/2021.4/openvino_docs_IE_DG_InferenceEngine_QueryAPI.html>`__ from previous version of OpenVINO documentation.
+   The Inference Engine API is a **legacy solution** and it is recomended to use API 2.0. If you want to learn more about Inference Engine API, its configuration and how to obtain device-specific metrics from it, check the following `article <https://docs.openvino.ai/2021.4/openvino_docs_IE_DG_InferenceEngine_QueryAPI.html>`__ from the 2021.4 version of OpenVINO documentation.
 
 Setting Configuration Values
 ############################
