@@ -3,6 +3,7 @@
 #
 
 set(TARGET_NAME compile_tool)
+add_definitions(-DIN_OV_COMPONENT)
 
 file(GLOB SRCS
     ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
@@ -46,8 +47,5 @@ if(CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW|CONAN)$")
 else()
     install(TARGETS compile_tool
             RUNTIME DESTINATION ${OV_CPACK_TOOLSDIR}/compile_tool
-            COMPONENT ${OV_CPACK_COMP_CORE_TOOLS})
-    install(FILES README.md
-            DESTINATION ${OV_CPACK_TOOLSDIR}/compile_tool
             COMPONENT ${OV_CPACK_COMP_CORE_TOOLS})
 endif()

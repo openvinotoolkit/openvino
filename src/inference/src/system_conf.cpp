@@ -19,6 +19,11 @@
 #include "streams_executor.hpp"
 #include "threading/ie_cpu_streams_info.hpp"
 
+#ifdef __APPLE__
+#    include <sys/sysctl.h>
+#    include <sys/types.h>
+#endif
+
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    define XBYAK_NO_OP_NAMES
 #    define XBYAK_UNDEF_JNL

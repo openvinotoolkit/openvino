@@ -23,7 +23,7 @@ function(_ov_detect_dynamic_tbbbind_2_5 var)
     find_file(_ov_tbbbind_2_5
               NAMES "${CMAKE_SHARED_LIBRARY_PREFIX}tbbbind_2_5${CMAKE_SHARED_LIBRARY_SUFFIX}"
               HINTS "${_tbb_libs_dir}"
-              "Path to TBBBind 2.5+ library"
+              DOC "Path to TBBBind 2.5+ library"
               NO_DEFAULT_PATH
               NO_CMAKE_FIND_ROOT_PATH)
 
