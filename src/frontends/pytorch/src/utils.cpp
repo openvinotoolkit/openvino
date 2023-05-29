@@ -116,6 +116,17 @@ std::shared_ptr<Node> get_axes_range(const NodeContext& context, int input_id) {
     return context.mark_node(std::make_shared<opset10::Range>(start, reduced_rank, step, element::i32));
 };
 
+std::shared_ptr<Node> normalize_axis(const NodeContext& context,
+                                     const Output<Node>& axis,
+                                     const Output<Node>& input_node) {
+    Output<Node> rank;
+    std::tie(std::ignore, rank) = get_shape_rank(context, input_node);
+    auto axis_rank = context.mark_node(std::make_shared<opset10::Add>(axis, rank));
+    auto is_less = context.mark_node(std::make_shared<opset10::Less>(axis_rank, rank));
+    auto new_axis = context.mark_node(std::make_shared<opset10::Select>(is_less, axis_rank, axis));
+    return new_axis;
+}
+
 std::shared_ptr<Node> numel(const NodeContext& context, const Output<Node>& x) {
     auto input_shape = context.mark_node(std::make_shared<opset10::ShapeOf>(x, element::i32));
     auto axes = context.mark_node(opset10::Constant::create(element::i32, Shape({1}), {0}));
@@ -162,8 +173,8 @@ ov::op::PadType convert_pad(const std::string& pt_pad) {
     return TORCH_AUTO_PAD_TO_OV.at(pt_pad);
 };
 
-std::shared_ptr<Node> concat_list_construct(std::shared_ptr<Node> input) {
-    if (auto list_construct = cast_fw_node(input, "prim::ListConstruct")) {
+Output<Node> concat_list_construct(const Output<Node>& input) {
+    if (auto list_construct = cast_fw_node(input.get_node_shared_ptr(), "prim::ListConstruct")) {
         auto list_inputs = list_construct->input_values();
         OutputVector node_vector;
         auto zero = opset10::Constant::create(element::i32, Shape{}, {0});
