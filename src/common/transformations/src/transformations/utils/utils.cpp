@@ -340,6 +340,20 @@ bool can_eliminate_eltwise_node(const std::shared_ptr<Node>& eltwise,
     }
     return true;
 }
+
+bool are_equal_constants(const Node* l, const Node* r) {
+    const auto l_const = dynamic_cast<const v0::Constant*>(l);
+    const auto r_const = dynamic_cast<const v0::Constant*>(r);
+    if (l_const && r_const) {
+        const auto l_ptr = l_const->get_data_ptr();
+        const auto r_ptr = r_const->get_data_ptr();
+        size_t bytes = shape_size(l_const->get_shape()) * l_const->get_element_type().size();
+        return l_const->get_element_type() == r_const->get_element_type() &&
+               l_const->get_shape() == r_const->get_shape() && (l_ptr == r_ptr || memcmp(l_ptr, r_ptr, bytes) == 0);
+    }
+    return false;
+}
+
 }  // namespace util
 }  // namespace op
 }  // namespace ov

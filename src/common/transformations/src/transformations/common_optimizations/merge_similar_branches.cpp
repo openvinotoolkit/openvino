@@ -7,6 +7,7 @@
 #include <algorithm>
 
 #include "openvino/op/util/op_types.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace std;
 
@@ -14,18 +15,6 @@ using namespace ov;
 using namespace pass;
 
 namespace {
-bool are_equal_constants(const Node* const l, const Node* const r) {
-    const auto l_const = dynamic_cast<const op::v0::Constant*>(l);
-    const auto r_const = dynamic_cast<const op::v0::Constant*>(r);
-    if (l_const && r_const) {
-        const auto l_ptr = l_const->get_data_ptr();
-        const auto r_ptr = r_const->get_data_ptr();
-        size_t bytes = shape_size(l_const->get_shape()) * l_const->get_element_type().size();
-        return l_const->get_element_type() == r_const->get_element_type() &&
-               l_const->get_shape() == r_const->get_shape() && (l_ptr == r_ptr || memcmp(l_ptr, r_ptr, bytes) == 0);
-    }
-    return false;
-}
 
 bool is_op_input_order_agnostic(Node* n) {
     using namespace ov::op;
@@ -52,7 +41,7 @@ bool compare_consumers(const Input<Node>& l, const Input<Node>& r) {
         return false;
 
     const auto equal_outputs = [](const Output<Node>& l, const Output<Node>& r) {
-        return l == r || are_equal_constants(l.get_node(), r.get_node());
+        return l == r || op::util::are_equal_constants(l.get_node(), r.get_node());
     };
 
     if (is_op_input_order_agnostic(l_node)) {
@@ -77,6 +66,7 @@ bool compare_consumers(const Input<Node>& l, const Input<Node>& r) {
 
     return true;
 }
+
 }  // namespace
 
 bool MergeSimilarBranches::run_on_model(const std::shared_ptr<ov::Model>& model) {

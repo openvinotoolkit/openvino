@@ -208,6 +208,9 @@ TRANSFORMATIONS_API bool is_dequantization_subgraph(const Output<Node>& node);
 TRANSFORMATIONS_API bool can_eliminate_eltwise_node(const std::shared_ptr<Node>& eltwise,
                                                     const Output<Node>& constant,
                                                     const Output<Node>& non_constant_input);
+
+TRANSFORMATIONS_API bool are_equal_constants(const Node* l, const Node* r);
+
 }  // namespace util
 }  // namespace op
 }  // namespace ov

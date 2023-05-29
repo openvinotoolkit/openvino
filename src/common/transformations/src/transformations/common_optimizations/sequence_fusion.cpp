@@ -21,19 +21,6 @@ using namespace ov::opset9;
 using namespace ov::op::util;
 
 namespace {
-bool is_equal_consts(const shared_ptr<ov::Node>& l, const shared_ptr<ov::Node>& r) {
-    auto l_const = dynamic_pointer_cast<Constant>(l);
-    auto r_const = dynamic_pointer_cast<Constant>(r);
-    if (l_const && r_const) {
-        auto l_ptr = l_const->get_data_ptr();
-        auto r_ptr = r_const->get_data_ptr();
-        size_t bytes = shape_size(l_const->get_shape()) * l_const->get_element_type().size();
-        return l_const->get_element_type() == r_const->get_element_type() &&
-               l_const->get_shape() == r_const->get_shape() && (l_ptr == r_ptr || memcmp(l_ptr, r_ptr, bytes) == 0);
-    }
-    return false;
-}
-
 bool check_WRB(const shared_ptr<RNNCellBase>& cell_1, const shared_ptr<RNNCellBase>& cell_2) {
     int64_t idx_W = 2, idx_R = 3, idx_B = 4;
     auto increase_indexes = [&]() {
@@ -62,9 +49,9 @@ bool check_WRB(const shared_ptr<RNNCellBase>& cell_1, const shared_ptr<RNNCellBa
     auto rW = cell_2->input_value(idx_W).get_node_shared_ptr();
     auto rR = cell_2->input_value(idx_R).get_node_shared_ptr();
     auto rB = cell_2->input_value(idx_B).get_node_shared_ptr();
-    bool is_equal = (lW.get() == rW.get() || is_equal_consts(lW, rW));
-    is_equal = is_equal && (lR.get() == rR.get() || is_equal_consts(lR, rR));
-    is_equal = is_equal && (lB.get() == rB.get() || is_equal_consts(lB, rB));
+    bool is_equal = (lW.get() == rW.get() || are_equal_constants(lW.get(), rW.get()));
+    is_equal = is_equal && (lR.get() == rR.get() || are_equal_constants(lR.get(), rR.get()));
+    is_equal = is_equal && (lB.get() == rB.get() || are_equal_constants(lB.get(), rB.get()));
     return is_equal;
 }
 
