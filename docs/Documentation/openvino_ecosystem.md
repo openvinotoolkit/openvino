@@ -36,12 +36,7 @@ More resources:
 * `GitHub <https://github.com/openvinotoolkit/training_extensions>`__
 * `Documentation <https://openvinotoolkit.github.io/training_extensions/stable/guide/get_started/introduction.html>`__
 
-<<<<<<< HEAD
-OpenVINO™ Security Add-on
-#########################
-=======
 **OpenVINO™ Security Add-on**
->>>>>>> 0d86a82041 ([DOCS] Ecosystem page update (#17693))
 
 A solution for Model Developers and Independent Software Vendors to use secure packaging and secure model execution.	 
 
@@ -60,8 +55,6 @@ More resources:
 * `PyPI <https://pypi.org/project/datumaro/>`__  
 * `GitHub <https://github.com/openvinotoolkit/datumaro>`__  
 
-<<<<<<< HEAD
-=======
 **Compile Tool** 
 
 
@@ -92,7 +85,5 @@ A web-based tool for deploying deep learning models. Built on the core of OpenVI
 
 OpenVINO™ Integration with TensorFlow will no longer be supported as of OpenVINO release 2023.0. As part of the 2023.0 release, OpenVINO will feature a significantly enhanced TensorFlow user experience within native OpenVINO without needing offline model conversions. :doc:`Learn more <openvino_docs_MO_DG_TensorFlow_Frontend>`.
 
-
->>>>>>> 0d86a82041 ([DOCS] Ecosystem page update (#17693))
 @endsphinxdirective
 
