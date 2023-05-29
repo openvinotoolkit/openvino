@@ -19,7 +19,7 @@ std::string Mvn1LayerTest::getTestCaseName(const testing::TestParamInfo<mvn1Para
     result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
     result << "Precision=" << inputPrecision.name() << "_";
     if (!axes.empty()) {
-        result << "ReductionAccess=" << CommonTestUtils::vec2str(axes.to_vector()) << "_";
+        result << "ReductionAxes=" << CommonTestUtils::vec2str(axes.to_vector()) << "_";
     } else {
         result << "AcrossChannels=" << (acrossChannels ? "TRUE" : "FALSE") << "_";
     }
