@@ -26,7 +26,7 @@ OutputVector translate_range_length(const NodeContext& context) {
     auto step = context.mark_node(std::make_shared<v0::Convert>(context.get_input(2), ov::element::f32));
     auto length = context.mark_node(std::make_shared<v1::Subtract>(hi, lo));
     auto length_f32 = context.mark_node(std::make_shared<v0::Convert>(length, ov::element::f32));
-    auto num_steps = context.mark_node(std::make_shared<v1::Divide>(length_f64, step, false, AutoBroadcastType::NUMPY));
+    auto num_steps = context.mark_node(std::make_shared<v1::Divide>(length_f32, step, false, AutoBroadcastType::NUMPY));
     auto ceil = context.mark_node(std::make_shared<v0::Ceiling>(num_steps));
     auto ceil_int = context.mark_node(std::make_shared<v0::Convert>(ceil, ov::element::i32));
     return {context.mark_node(std::make_shared<v0::Relu>(ceil_int))};
