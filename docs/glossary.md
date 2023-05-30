@@ -6,9 +6,9 @@
 Acronyms and Abbreviations
 #################################################
 
-==================  ==================================================
+==================  ===========================================================================
  Abbreviation        Description     
-==================  ==================================================
+==================  ===========================================================================
  API                 Application Programming Interface                
  AVX                 Advanced Vector Extensions                       
  clDNN               Compute Library for Deep Neural Networks         
@@ -32,7 +32,7 @@ Acronyms and Abbreviations
  LRN                 Local Response Normalization                     
  mAP                 Mean Average Precision                           
  Intel® OneDNN       Intel® OneAPI Deep Neural Network Library        
- `mo`                  Command-line tool for model conversion, CLI for `tools.mo.convert_model`                             
+ `mo`                Command-line tool for model conversion, CLI for ``tools.mo.convert_model``
  MVN                 Mean Variance Normalization                      
  NCDHW               Number of images, Channels, Depth, Height, Width 
  NCHW                Number of images, Channels, Height, Width        
@@ -75,6 +75,9 @@ Glossary of terms used in OpenVINO™
 
 | *layer / operation*
 |   In OpenVINO, both terms are treated synonymously. To avoid confusion, "layer" is being pushed out and "operation" is the currently accepted term. 
+
+| *Model Conversion API* 
+|   A component of OpenVINO Development Tools. The API is used to import, convert, and optimize models trained in popular frameworks to a format usable by other OpenVINO components. In ``openvino.tools.mo`` namespace, Model Conversion API is represented by a Python ``mo.convert_model()`` method  and ``mo`` command-line tool.
 
 | *OpenVINO™ <code>Core</code>* 
 |   OpenVINO™ Core is a software component that manages inference on certain Intel(R) hardware devices: CPU, GPU, GNA, etc.    
