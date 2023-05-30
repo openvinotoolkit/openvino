@@ -596,6 +596,8 @@ const IShapeInferCommonFactory::TRegistry IShapeInferCommonFactory::registry{
     _OV_OP_SHAPE_INFER_REG(Unsqueeze, entryIOC),
     _OV_OP_SHAPE_INFER_REG(VariadicSplit, entryIOC),
     _OV_OP_SHAPE_INFER_VA_REG(Gather, entryIOC, ov::op::util::GatherBase),
+    // opset12
+    _OV_OP_SHAPE_INFER_REG(opset12::Pad, entryIOC),
     // opset7
     _OV_OP_SHAPE_INFER_VA_REG(opset7::Gather, entryIOC, ov::op::util::GatherBase),
     // opset5
@@ -614,6 +616,7 @@ const IShapeInferCommonFactory::TRegistry IShapeInferCommonFactory::registry{
     _OV_OP_SHAPE_INFER_REG(opset1::DetectionOutput, entryIO),
     _OV_OP_SHAPE_INFER_REG(opset1::LSTMCell, entryIO),
     _OV_OP_SHAPE_INFER_REG(opset1::MaxPool, ShapeInferWithPadding),
+    _OV_OP_SHAPE_INFER_REG(opset1::Pad, entryIOC),
     _OV_OP_SHAPE_INFER_REG(opset1::Range, entryIOC),
     _OV_OP_SHAPE_INFER_REG(opset1::ShapeOf, entryIO),
     _OV_OP_SHAPE_INFER_REG(opset1::TopK, entryIOC),
