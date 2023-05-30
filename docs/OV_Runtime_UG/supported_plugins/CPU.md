@@ -88,7 +88,7 @@ CPU plugin supports the following floating-point data types as inference precisi
 The default floating-point precision of a CPU primitive is ``f32``. To support the ``f16`` OpenVINO IR the plugin internally converts 
 all the ``f16`` values to ``f32`` and all the calculations are performed using the native precision of ``f32``.
 On platforms that natively support ``bfloat16`` calculations (have the ``AVX512_BF16`` or ``AMX`` extension), the ``bf16`` type is automatically used instead
-of ``f32`` to achieve better performance (see the [Execution Mode Hint](#execution-mode-hint)).
+of ``f32`` to achieve better performance (see the `Execution Mode Hint <#execution-mode-hint>`__).
 Thus, no special steps are required to run a ``bf16`` model. For more details about the ``bfloat16`` format, see 
 the `BFLOAT16 – Hardware Numerics Definition white paper <https://software.intel.com/content/dam/develop/external/us/en/documents/bf16-hardware-numerics-definition-white-paper.pdf>`__.
 
@@ -162,7 +162,7 @@ To enable the simulation, the ``ov::hint::inference_precision`` has to be explic
    Due to the reduced mantissa size of the ``bfloat16`` data type, the resulting ``bf16`` inference accuracy may differ from the ``f32`` inference, 
    especially for models that were not trained using the ``bfloat16`` data type. If the ``bf16`` inference accuracy is not acceptable, 
    it is recommended to switch to the ``f32`` precision. Also, the performance/accuracy balance can be managed using the ``ov::hint::execution_mode`` hint,
-   see the [Execution Mode Hint](#execution-mode-hint).
+   see the `Execution Mode Hint <#execution-mode-hint>`__.
 
 Execution Mode Hint
 -----------------------------------------------------------
