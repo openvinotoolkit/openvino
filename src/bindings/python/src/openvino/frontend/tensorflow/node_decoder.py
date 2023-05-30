@@ -46,21 +46,21 @@ class TFGraphNodeDecoder(DecoderBase):
         if self.m_operation.type == "Placeholder":
             data_type = self.m_operation.node_def.attr["dtype"].type
             if tf.dtypes.DType(data_type).name == "resource" and not self.m_inner_graph:
-                var = TFGraphNodeDecoder.get_variable(self.m_operation)
-                if var is not None:
+                variable_value = TFGraphNodeDecoder.get_variable(self.m_operation)
+                if variable_value is not None:
                     # does not copy data
-                    self.m_parsed_content = var.value().__array__()
+                    self.m_parsed_content = variable_value.value().__array__()
 
     def get_op_name(self) -> str:
         return self.m_operation.name
 
     def get_op_type(self) -> str:
         if self.m_operation.type == "Placeholder":
-            type = tf.dtypes.DType(self.m_operation.node_def.attr["dtype"].type)
-            if type.name == "resource" and not self.m_inner_graph:
+            type_attr = tf.dtypes.DType(self.m_operation.node_def.attr["dtype"].type)
+            if type_attr.name == "resource" and not self.m_inner_graph:
                 if TFGraphNodeDecoder.get_variable(self.m_operation) is not None:
                     return "Const"
-                raise Exception("Could not get variable for resource Placeholder {}".format(self.m_operation.name))
+                raise Exception("Could not get variable for resource Placeholder {0}".format(self.m_operation.name))
         return self.m_operation.type
 
     @staticmethod
@@ -71,28 +71,29 @@ class TFGraphNodeDecoder(DecoderBase):
         for var_tensor, op_tensor in tf_graph.captures:
             if operation.outputs[0].name == op_tensor.name:
                 resource_name = var_tensor._name
-                for var in operation.graph.variables:
-                    if var.name == resource_name:
-                        return var
+                for variable_value in operation.graph.variables:
+                    if variable_value.name == resource_name:
+                        return variable_value
                 return None
         return None
 
     def get_attribute(self, name):
         if name == "shape" or name == "_output_shapes":
-            shape = [dim.size for dim in self.m_operation.node_def.attr["shape"].shape.dim]
+            shape_dims = self.m_operation.node_def.attr["shape"].shape.dim
+            shape = [dim.size for dim in shape_dims]
             type_num = self.m_operation.node_def.attr["dtype"].type
             if type_num is not None and tf.dtypes.DType(type_num).name == "resource":
                 if self.m_inner_graph:
                     return OVAny(PartialShape.dynamic())
-                var = TFGraphNodeDecoder.get_variable(self.m_operation)
-                return OVAny(PartialShape(list(var.shape)))
+                variable_value = TFGraphNodeDecoder.get_variable(self.m_operation)
+                return OVAny(PartialShape(list(variable_value.shape)))
             return OVAny(PartialShape(shape))
         if name == "dtype":
             type_num = self.m_operation.node_def.attr["dtype"].type
             if tf.dtypes.DType(type_num).name == "resource":
                 if not self.m_inner_graph:
-                    var = TFGraphNodeDecoder.get_variable(self.m_operation)
-                    return OVAny(tf_type_to_ov_type(var.dtype))
+                    variable_value = TFGraphNodeDecoder.get_variable(self.m_operation)
+                    return OVAny(tf_type_to_ov_type(variable_value.dtype))
                 else:
                     return OVAny(Type.undefined)
             return OVAny(tf_type_to_ov_type(type_num))
@@ -116,9 +117,10 @@ class TFGraphNodeDecoder(DecoderBase):
     def get_input_node_name_output_port_index(self, input_port_idx):
         tensor_name = self.m_operation.inputs[input_port_idx].name
         if ":" in tensor_name:
-            try:
-                return int(tensor_name[tensor_name.rfind(":") + 1:len(tensor_name)])
-            except:
+            port_idx_str = tensor_name[tensor_name.rfind(":") + 1:len(tensor_name)]
+            if port_idx_str.isdigit():
+                return int(port_idx_str)
+            else:
                 return 0
         return 0
 

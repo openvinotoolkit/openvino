@@ -18,15 +18,16 @@ class GraphIteratorTFGraph(GraphIterator):
             self.m_decoders.append(TFGraphNodeDecoder(op, inner_graph))
 
         self.m_iterators = {}
-        for func_name, func in self.m_graph._functions.items():
+        for func_name, _ in self.m_graph._functions.items():
             self.m_iterators[func_name] = None
 
     def get_input_names(self) -> list:
         inp_ops = filter(lambda op: op.type == "Placeholder" and len(op.inputs) == 0, self.m_graph.get_operations())
         inp_names = []
-        for input in inp_ops:
-            if tf.dtypes.DType(input.node_def.attr["dtype"].type).name != "resource" or self.m_inner_graph:
-                inp_names.append(input.name)
+        for inp in inp_ops:
+            type_attr = inp.node_def.attr["dtype"].type
+            if tf.dtypes.DType(type_attr).name != "resource" or self.m_inner_graph:
+                inp_names.append(inp.name)
         return inp_names
 
     def get_output_names(self) -> list:
