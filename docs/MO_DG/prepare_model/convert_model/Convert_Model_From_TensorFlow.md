@@ -164,7 +164,7 @@ Command-Line Interface (CLI) Examples Using TensorFlow-Specific Parameters
 
 * Launching model conversion for Inception V1 frozen model when model file is a plain text protobuf:
 
-.. code-block:: cpp
+.. code-block:: sh
 
    mo --input_model inception_v1.pbtxt --input_model_is_text -b 1
 
