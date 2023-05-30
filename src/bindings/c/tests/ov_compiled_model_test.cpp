@@ -141,7 +141,7 @@ TEST_P(ov_compiled_model_test, set_and_get_property) {
     char* target = result;
 
     key = ov_property_key_auto_batch_timeout;
-    OV_EXPECT_OK(ov_compiled_model_set_property(compiled_model, key));
+    OV_EXPECT_OK(ov_compiled_model_set_property(compiled_model, key, device_name));
 
     key = ov_property_key_supported_properties;
     result = nullptr;
