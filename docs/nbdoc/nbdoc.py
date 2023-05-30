@@ -1,4 +1,5 @@
 import argparse
+import shutil
 from pathlib import Path
 from utils import (
     create_content,
@@ -155,12 +156,18 @@ class NbProcessor:
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument('sourcedir', type=Path)
     parser.add_argument('outdir', type=Path)
+    parser.add_argument('-d', '--download', action='store_true')
     args = parser.parse_args()
+    sourcedir = args.sourcedir
     outdir = args.outdir
-    outdir.mkdir(parents=True, exist_ok=True)
-    # Step 2. Run default pipeline for downloading
-    NbTravisDownloader.download_from_jenkins(outdir)
+    if args.download:
+        outdir.mkdir(parents=True, exist_ok=True)
+        # Step 2. Run default pipeline for downloading
+        NbTravisDownloader.download_from_jenkins(outdir)
+    else:
+        shutil.copytree(sourcedir, outdir)
     # Step 3. Run processing on downloaded file
     nbp = NbProcessor(outdir)
     buttons_list = nbp.fetch_binder_list('txt')
