@@ -50,11 +50,12 @@ void ov_sgemm_compute(const char* transa,
                       const int64_t M,
                       const int64_t N,
                       const int64_t K,
+                      const float alpha,
                       const float* A,
                       const int64_t lda,
                       const float* B,
-                      const int64_t* ldb,
-                      const float* beta,
+                      const int64_t ldb,
+                      const float beta,
                       float* C,
                       const int64_t ldc) {
     // C = alpha*op( A )op( B ) + beta * C
@@ -62,13 +63,13 @@ void ov_sgemm_compute(const char* transa,
     std::vector<MLAS_SGEMM_DATA_PARAMS> data(1);
     data[0].BIsPacked = true;
     data[0].A = A;
-    data[0].lda = K;
+    data[0].lda = lda;
     data[0].B = B;
-    data[0].ldb = N;
+    data[0].ldb = ldb;
     data[0].C = C;
-    data[0].ldc = N;
-    data[0].alpha = 1;
-    data[0].beta = 0.0f;
+    data[0].ldc = ldc;
+    data[0].alpha = alpha;
+    data[0].beta = beta;
     auto _transa = *transa == 'N' ? CblasNoTrans : CblasTrans;
     auto _transb = *transb == 'N' ? CblasNoTrans : CblasTrans;
     MlasGemmBatch(_transa, _transb, M, N, K, data.data(), 1, &threadPool);
