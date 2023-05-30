@@ -13,9 +13,11 @@
 #include "ie_plugin_config.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/runtime/properties.hpp"
-#include "openvino/runtime/system_conf.hpp"
 #include "openvino/util/log.hpp"
 #include "threading/ie_parallel_custom_arena.hpp"
+#include "threading/ie_cpu_streams_info.hpp"
+
+using namespace InferenceEngine;
 
 namespace ov {
 namespace threading {

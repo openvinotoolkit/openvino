@@ -362,26 +362,28 @@ void reserve_available_cpus(const std::vector<std::vector<int>> streams_info_tab
         set_cpu_used(cpu_ids, cpu_status);
     }
 
-    OPENVINO_DEBUG << "[ threading ] cpu_mapping_table:";
+    std::string log = "[ threading ] cpu_mapping_table:";
     for (size_t i = 0; i < cpu._cpu_mapping_table.size(); i++) {
-        OPENVINO_DEBUG << cpu._cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID] << " "
-                       << cpu._cpu_mapping_table[i][CPU_MAP_SOCKET_ID] << " "
-                       << cpu._cpu_mapping_table[i][CPU_MAP_CORE_ID] << " "
-                       << cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE] << " "
-                       << cpu._cpu_mapping_table[i][CPU_MAP_GROUP_ID] << " "
-                       << cpu._cpu_mapping_table[i][CPU_MAP_USED_FLAG];
+        log += std::string("\n");
+        for (size_t j = CPU_MAP_PROCESSOR_ID; j < CPU_MAP_TABLE_SIZE; j++) {
+            log += std::to_string(cpu._cpu_mapping_table[i][j]) + std::string(" ");
+        }
     }
-    OPENVINO_DEBUG << "[ threading ] proc_type_table:";
+    log += "\n[ threading ] proc_type_table:";
     for (size_t i = 0; i < cpu._proc_type_table.size(); i++) {
-        OPENVINO_DEBUG << cpu._proc_type_table[i][ALL_PROC] << " " << cpu._proc_type_table[i][MAIN_CORE_PROC] << " "
-                       << cpu._proc_type_table[i][EFFICIENT_CORE_PROC] << " "
-                       << cpu._proc_type_table[i][HYPER_THREADING_PROC];
+        log += std::string("\n");
+        for (size_t j = ALL_PROC; j < PROC_TYPE_TABLE_SIZE; j++) {
+            log += std::to_string(cpu._proc_type_table[i][j]) + std::string(" ");
+        }
     }
-    OPENVINO_DEBUG << "[ threading ] streams_info_table:";
+    log += "\n[ threading ] streams_info_table:";
     for (size_t i = 0; i < streams_info_table.size(); i++) {
-        OPENVINO_DEBUG << streams_info_table[i][NUMBER_OF_STREAMS] << " " << streams_info_table[i][PROC_TYPE] << " "
-                       << streams_info_table[i][THREADS_PER_STREAM];
+        log += std::string("\n");
+        for (size_t j = NUMBER_OF_STREAMS; j < CPU_STREAMS_TABLE_SIZE; j++) {
+            log += std::to_string(streams_info_table[i][j]) + std::string(" ");
+        }
     }
+    OPENVINO_DEBUG << log;
 }
 
 void set_cpu_used(const std::vector<int>& cpu_ids, const int used) {
