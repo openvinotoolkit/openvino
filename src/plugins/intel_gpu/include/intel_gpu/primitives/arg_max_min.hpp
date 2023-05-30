@@ -5,9 +5,6 @@
 #pragma once
 #include "primitive.hpp"
 #include "openvino/op/util/attr_types.hpp"
-#include "intel_gpu/graph/serialization/input_info_serializer.hpp"
-#include "intel_gpu/graph/serialization/string_serializer.hpp"
-#include "intel_gpu/graph/serialization/vector_serializer.hpp"
 
 #include <algorithm>
 #include <vector>
@@ -115,6 +112,7 @@ struct arg_max_min : public primitive_base<arg_max_min> {
     bool use_multiple_outputs() const { return input_size() != 3; }
 
     void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<arg_max_min>::save(ob);
         ob << input;
         ob << num_outputs;
         ob << make_data(&mode, sizeof(ov::op::TopKMode));
@@ -125,6 +123,7 @@ struct arg_max_min : public primitive_base<arg_max_min> {
     }
 
     void load(BinaryInputBuffer& ib) override {
+        primitive_base<arg_max_min>::load(ib);
         ib >> input;
         ib >> num_outputs;
         ib >> make_data(&mode, sizeof(ov::op::TopKMode));

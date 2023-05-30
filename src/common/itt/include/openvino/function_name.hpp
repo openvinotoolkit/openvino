@@ -17,6 +17,8 @@
     #define ITT_FUNCTION_NAME __FUNCTION__
 #elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901)
     #define ITT_FUNCTION_NAME __func__
+#elif defined(_MSC_VER) && (_MSC_VER >= 1900) /* VS2015 */
+    #define ITT_FUNCTION_NAME __func__
 #elif defined(__cplusplus) && (__cplusplus >= 201103)
     #define ITT_FUNCTION_NAME __func__
 #else

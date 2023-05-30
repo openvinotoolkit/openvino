@@ -274,3 +274,4 @@ attach_gather_impl::attach_gather_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::gather_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::gather)
