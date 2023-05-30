@@ -193,6 +193,13 @@ from ngraph.opset11 import unique
 from ngraph.opset11 import unsqueeze
 from ngraph.opset11 import variadic_split
 
+import warnings
+
+warnings.warn(
+    message="This API is deprecated and will be removed in 2024.0 release.",
+    category=FutureWarning,
+    stacklevel=2,
+)
 
 # Extend Node class to support binary operators
 Node.__add__ = add

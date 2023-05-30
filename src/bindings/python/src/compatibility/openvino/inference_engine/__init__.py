@@ -4,6 +4,8 @@
 
 import os
 import sys
+import warnings
+
 
 if sys.platform == "win32":
     # Installer, yum, pip installs openvino dlls to the different directories
@@ -28,6 +30,12 @@ if sys.platform == "win32":
                 os.environ["PATH"] = os.path.abspath(lib_path) + ";" + os.environ["PATH"]
 
 from .ie_api import *
+
+warnings.warn(
+    message="This API is deprecated and will be removed in 2024.0 release.",
+    category=FutureWarning,
+    stacklevel=2,
+)
 
 __all__ = ["IENetwork", "TensorDesc", "IECore", "Blob", "PreProcessInfo", "get_version"]
 __version__ = get_version()  # type: ignore
