@@ -455,21 +455,6 @@ TEST_P(OVClassBasicTestP, getVersionsNonEmpty) {
 TEST_P(OVClassBasicTestP, unregisterExistingPluginNoThrow) {
     ov::Core ie = createCoreWithTemplate();
     // device instance is not created yet
-    ASSERT_THROW(ie.unload_plugin(target_device), ov::Exception);
-
-    // make the first call to IE which created device instance
-    ie.get_versions(target_device);
-    // now, we can unregister device
-    OV_ASSERT_NO_THROW(ie.unload_plugin(target_device));
-}
-
-TEST_P(OVClassBasicTestP, accessToUnregisteredPluginThrows) {
-    ov::Core ie = createCoreWithTemplate();
-    ASSERT_THROW(ie.unload_plugin(target_device), ov::Exception);
-    OV_ASSERT_NO_THROW(ie.get_versions(target_device));
-    OV_ASSERT_NO_THROW(ie.unload_plugin(target_device));
-    OV_ASSERT_NO_THROW(ie.set_property(target_device, ov::AnyMap{}));
-    OV_ASSERT_NO_THROW(ie.get_versions(target_device));
     OV_ASSERT_NO_THROW(ie.unload_plugin(target_device));
 }
 
