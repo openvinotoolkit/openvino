@@ -190,16 +190,11 @@ const std::vector<SoftMaxConfig> unsupportedConfigsFP32{
      4},
 };
 
-const auto avx512 = CPUSpecificParams{{}, {}, {"jit_avx512"}, "jit_avx512"};
-const auto avx2 = CPUSpecificParams{{}, {}, {"jit_avx2"}, "jit_avx2"};
-const auto sse42 = CPUSpecificParams{{}, {}, {"jit_sse42"}, "jit_sse42"};
-const auto ref = CPUSpecificParams{{}, {}, {"ref_any"}, "ref_any"};
 
-const std::vector<CPUSpecificParams> vecCpuConfigs = {ref, sse42, avx2, avx512};
 const auto OptimizedParams = testing::Combine(testing::Values(ElementType::f32, ElementType::bf16),
                                               testing::ValuesIn(optimizedConfigsFP32),
                                               testing::Values(CommonTestUtils::DEVICE_CPU),
-                                              testing::ValuesIn(filterCPUInfoForDevice(vecCpuConfigs)));
+                                              testing::Values(notOptimizedCPUSpec));
 
 INSTANTIATE_TEST_SUITE_P(smoke_SoftMax_Optimized_CPU,
                          SoftMaxLayerCPUTest,
