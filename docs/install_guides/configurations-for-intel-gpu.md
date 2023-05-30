@@ -8,29 +8,53 @@
 
 To use the OpenVINO™ GPU plugin and offload inference to Intel® Processor Graphics (GPU), Intel® Graphics Driver must be properly configured on your system.
 
-If Intel® Graphics Driver is already installed and you would like to keep it, you can skip the installation steps below.
 
 Linux
 #####
 
-To install the latest available **Intel® Graphics Compute Runtime for oneAPI Level Zero and OpenCL™ Driver** for your operating system, 
-see its `installation guide on GitHub <https://github.com/intel/compute-runtime/releases/latest>`_.
+In oder to use GPU device for inference with OpenVINO you need to meet the following prerequisites:
 
-.. note::
+- use supported Linux kernel according to documentatin from https://dgpu-docs.intel.com/driver/kernel-driver-types.html
+- install GPU runtime drivers: The Intel(R) Graphics Compute Runtime for oneAPI Level Zero and OpenCL(TM) Driver
+- install Intel Graphics Memory Management Library and Intel® Graphics Compiler for OpenCL™
+- install OpenCl ICD loader package
 
-  If you are using RedHat 8, you can install the OpenCL library as a prerequisite by using the following command: 
-  ``http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/ocl-icd-2.2.12-1.el8.x86_64.rpm``
+Depending on OS, there might be different methods for installing the packages above
 
+Ubuntu22:
+Download and install the `deb` packages published on https://github.com/intel/compute-runtime/releases/latest
+and install apt package `ocl-icd-libopencl1` with OpenCl ICD loader.
 
+Altenrnatively add apt repository like described on https://dgpu-docs.intel.com/driver/installation.html
+For example for ARC device use command:
+```
+apt-get update && apt-get install -y gpg gpg-agent curl
+curl https://repositories.intel.com/graphics/intel-graphics.key | \
+  gpg --dearmor --output /usr/share/keyrings/intel-graphics.gpg
+echo 'deb [arch=amd64,i386 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/graphics/ubuntu jammy arc' | \
+  tee  /etc/apt/sources.list.d/intel.gpu.jammy.list
+```
+Install the apt packages: `ocl-icd-libopencl1`, `intel-opencl-icd`, `intel-level-zero-gpu`, `level-zero`.
+```
+apt-get install -y ocl-icd-libopencl1 intel-opencl-icd intel-level-zero-gpu level-zero
+```
 
-You may consider installing one of the earlier versions of the driver, based on your particular setup needs.
+Ubuntu20:
+Ubuntu20 is not uppdated with the latest driver versions. You can install the versions up to version 22.43 from apt. 
+```
+apt-get update && apt-get install -y --no-install-recommends curl gpg gpg-agent && \
+curl https://repositories.intel.com/graphics/intel-graphics.key | gpg --dearmor --output /usr/share/keyrings/intel-graphics.gpg && \
+echo 'deb [arch=amd64 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/graphics/ubuntu focal-legacy main' | tee  /etc/apt/sources.list.d/intel.gpu.focal.list && \
+apt-get update
+apt-get update && apt-get install -y --no-install-recommends intel-opencl-icd intel-level-zero-gpu level-zero
+```
+Alternatively download older `deb` version from https://github.com/intel/compute-runtime/releases
+Note that older driver version might not include some of the bug fixes and might be not supported on some latest platforms. Check the supported HW for the versions you are installing.
 
-For instructions and recommendations on the installation of a specific GPU driver release, as well as the list of supported hardware platforms, refer to the `Intel® Graphics Compute Runtime for oneAPI Level Zero and OpenCL™ Driver GitHub home page <https://github.com/intel/compute-runtime/>`__.
-
-For instructions specific to discrete graphics platforms, refer to `the dgpu guide <https://dgpu-docs.intel.com/installation-guides/index.html>`__, 
-including installation guides for Intel® Arc™ A-Series Graphics, Intel® Data Center GPU Flex Series, Intel® Data Center GPU MAX Series, Intel® processor graphics Gen12, and Intel® Iris Xe MAX codename DG1.
-
-
+RH8:
+Follow the instruction from https://dgpu-docs.intel.com/driver/installation.html#red-hat-enterprise-linux-8-6 to add yum repository.
+Install packages: `intel-opencl`,`level-zero`,`intel-level-zero-gpu` ,`intel-igc-core`, `intel-igc-cm`, `intel-gmmlib`, `intel-ocloc`.
+Install OpenCL ICD Loader via `rpm -ivh http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/ocl-icd-2.2.12-1.el8.x86_64.rpm`
 
 
 .. _gpu guide windows:
@@ -39,7 +63,10 @@ including installation guides for Intel® Arc™ A-Series Graphics, Intel® Data
 Windows
 #######
 
+On 
+
 To install the Intel Graphics Driver for Windows on your system, follow the `driver installation guide <https://www.intel.com/content/www/us/en/support/articles/000005629/graphics.html>`_.
+
 
 To check if you have this driver installed:
 
@@ -50,12 +77,29 @@ To check if you have this driver installed:
       :width: 400
 
 3. Right-click the adapter name and select **Properties**.
-4. Click the **Driver** tab to see the driver version.  
+4. Click the **Driver** tab to see the driver version. 
 
    .. image:: _static/images/DeviceDriverVersion.PNG
+   current version is 31.
+
+   Note: this version is old and not supported on latest GPU
+
       :width: 400
 
 You are done updating your device driver and ready to use your GPU.
+
+
+Windows Subsystem for Linux (WSL)
+######
+WSL lets the developers to run a GNU/Linux development environment on Windows operating system. Using GPU on WSL is very similar to a native Linux environment.
+Here are the steps to make it work with OpenVINO:
+- Installed GPU drivers like described above
+- Use the latest version of WSL2- in PowerShell run `wsl --update` and `wsl --shutdown`
+- While Ubuntu20 or Ubuntu22 is started, install the same drivers like described above in the Linux section
+
+Note: In WSL, GPU device is accessible via a character device `/dev/drx` versus `/dev/dri` on a native Linux OS.
+
+
 
 Additional info
 ###############
@@ -83,22 +127,10 @@ What’s Next?
 You can try out the toolkit with:
 
 
-`Python Quick Start Example <https://docs.openvino.ai/nightly/notebooks/201-vision-monodepth-with-output.html>`_ to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
-
-   Visit the :ref:`Tutorials <notebook tutorials>` page for more Jupyter Notebooks to get you started with OpenVINO, such as:
-   
-   * `OpenVINO Python API Tutorial <https://docs.openvino.ai/nightly/notebooks/002-openvino-api-with-output.html>`__
-   * `Basic image classification program with Hello Image Classification <https://docs.openvino.ai/nightly/notebooks/001-hello-world-with-output.html>`__
-   * `Convert a PyTorch model and use it for image background removal <https://docs.openvino.ai/nightly/notebooks/205-vision-background-removal-with-output.html>`__
-
-
- `C++ Quick Start Example <openvino_docs_get_started_get_started_demos.html>`__ for step-by-step instructions on building and running a basic image classification C++ application.
-
-   Visit the :ref:`Samples <code samples>` page for other C++ example applications to get you started with OpenVINO, such as:
-
-   * `Basic object detection with the Hello Reshape SSD C++ sample <openvino_inference_engine_samples_hello_reshape_ssd_README.html>`_
-   * `Automatic speech recognition C++ sample <openvino_inference_engine_samples_speech_sample_README.html>`_
-
+Link to GPU plugin
+Link to GPU benchmarking
+Link to a demo with GPU
+Using containers with GPU
 
 @endsphinxdirective
 
