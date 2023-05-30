@@ -25,14 +25,8 @@ layout condition_inst::calc_output_layout(condition_node const& node, kernel_imp
            "Output data type forcing is not supported for condition_node!");
     node.set_branches();
 
-    {
-        std::cout << "NODE: " << node.id() << std::endl;
-        for (auto& p : node.get_dependencies()) {
-            auto& p_node = p.first;
-            std::cout << "* p_node: " << p_node->id() << ", " << p_node->get_primitive()->type_string();
-            std::cout << ", layout: " << p_node->get_output_layout().to_short_string() << std::endl;
-        }
-    }
+    OPENVINO_ASSERT(node.get_dependency(0).get_output_layout().count() == 1,
+                    "layout of compare_data of condition should be {1,1,1,1}");
 
     auto branch_true_output = node.get_branch_true()->get_outputs();
     auto branch_false_output = node.get_branch_false()->get_outputs();
@@ -99,13 +93,11 @@ network::ptr condition_inst::get_inner_networks(bool is_net_true) {
         }
     }
 
-    std::cout << "[get_inner_networks] set output memory : " << branch.output_map.size() << " ,, " << sizeof(bool) << std::endl;
     // set output memory
     for (auto out_mem_map : branch.output_map) {
         auto idx = out_mem_map.first;
         auto out_internal_id = out_mem_map.second;
         auto mem_ptr = output_memory_ptr(idx);
-        std::cout << "== set_output_memory: " << static_cast<void*>(mem_ptr->buffer_ptr()) << std::endl;
         net->set_output_memory(out_internal_id, mem_ptr);
     }
 

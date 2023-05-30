@@ -32,7 +32,6 @@ struct condition_impl : typed_primitive_impl<condition> {
     template <class T>
     bool compare_data(memory::ptr mem, stream& stream) {
         mem_lock<T, mem_lock_type::read> lock_compare_data{mem, stream};
-        std::cout << "COMPARE_DATA RESULT: " << static_cast<float>(*lock_compare_data.data()) << std::endl;
         return (static_cast<float>(*lock_compare_data.data()) != 0.f);
     }
 
@@ -63,65 +62,10 @@ struct condition_impl : typed_primitive_impl<condition> {
         }
         auto ev = instance.get_network().get_stream().create_user_event(false);
         set_node_params(instance.get_node());
-        // std::cout << "------------------------------------------------------------------" << std::endl;
-        // std::cout << "------------------------------------------------------------------" << std::endl;
-        // {
-        //     auto test_ptr = instance.dep_memory_ptr(1);
-        //     auto pid = instance.dependencies()[1].first->id();
-        //     mem_lock<uint8_t, mem_lock_type::read> lock_compare_data{test_ptr, instance.get_network().get_stream()};
-        //     std::cout << "- [" << pid << "] insance. num_deps : " << instance.dependencies().size() << std::endl;
-        //     std::cout << "- [" << pid << "] instance.compare_memory_ptr() for compare : " << test_ptr->buffer_ptr() << std::endl;
-        //     std::cout << "- [" << pid << "] instance.mem_lock : " << static_cast<void*>(lock_compare_data.data()) << std::endl;
-        //     std::cout << "- [" << pid << "] mem_size : " << test_ptr->count() << std::endl;
-        //     std::cout << static_cast<int>(*lock_compare_data.data())<< std::endl;
-        // }
 
         auto compare_data = get_compare_data(instance.compare_memory_ptr(), instance.get_network().get_stream());
-        // mem_lock<half_t, mem_lock_type::read> lock_compare_data{instance.compare_memory_ptr(), instance.get_network().get_stream()};
-        // auto compare_data_ptr = lock_compare_data.data();
-        // auto pid = instance.dependencies()[0].first->id();
-        // auto compare_data = (static_cast<float>(*lock_compare_data.data()) != 0.f);
-        // std::cout << "- [" << pid << "] insance. num_deps : " << instance.dependencies().size() << std::endl;
-        // std::cout << "- [" << pid << "] instance.compare_memory_ptr() for compare : " << instance.compare_memory_ptr()->buffer_ptr() << std::endl;
-        // std::cout << "- [" << pid << "] instance.mem_lock : " << static_cast<void*>(lock_compare_data.data()) << std::endl;
-        // std::cout << "- [" << pid << "] mem_size : " << instance.compare_memory_ptr()->count() << std::endl;
-        // std::cout << "- [" << pid << "] mem_size : " << instance.compare_memory_ptr()->get_layout().to_short_string() << std::endl;
-        // std::cout << "- [" << pid << "] Result of compare_data " << (compare_data? "True" : "False") << ", value: ";
-        // std::cout << static_cast<int>(lock_compare_data.data()[0]) << " " << static_cast<float>(compare_data_ptr[0]) << std::endl;
-
-        // std::cout << "------------------------------------------------------------------" << std::endl;
-        // std::cout << "------------------------------------------------------------------" << std::endl;
-
         network::ptr executed_net = instance.get_inner_networks(compare_data);
         executed_net->execute({});
-
-
-
-        // auto out_mem_ptr = executed_net->get_output_memory("condi_when_true");
-        // {
-        //     executed_net->get_stream().finish();
-        //     const size_t size = out_mem_ptr->count();
-        //     mem_lock<float, mem_lock_type::read> lock(out_mem_ptr, executed_net->get_stream());
-        //     auto mem_ptr = lock.data();
-        //     std::cout << "inner net - output[" << instance.id() << "] = {";
-        //     for (size_t idx = 0; idx < size; idx++) {
-        //         std::cout << mem_ptr[idx] << ",";
-        //     }
-        //     std::cout << "}" << std::endl;
-
-        //     {
-        //         auto test_mem_ptr = out_mem_ptr;
-        //         std::cout << "* mem_ptr out of inner_net " << static_cast<void*>(test_mem_ptr->buffer_ptr());
-        //         std::cout << " - " << static_cast<void*>(test_mem_ptr->buffer_ptr()) << std::endl;
-        //     }
-
-        //     {
-        //         auto test_mem_ptr = instance.output_memory_ptr();
-        //         std::cout << "* mem_ptr out of node " << static_cast<void*>(test_mem_ptr->buffer_ptr());
-        //         std::cout << " - " << static_cast<void*>(test_mem_ptr->buffer_ptr()) << std::endl;
-        //     }
-        // }
-
 
         ev->set();
         return ev;
@@ -160,16 +104,12 @@ private:
 namespace detail {
 
 attach_condition_common::attach_condition_common() {
-    implementation_map<condition>::add(impl_types::common, condition_impl::create, {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f32, format::yxfb),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::f16, format::yxfb),
-    });
+    implementation_map<condition>::add(impl_types::common, condition_impl::create, {});
 }
 
 }  // namespace detail
 }  // namespace common
 }  // namespace cldnn
 
+// TODO: Change code like cldnn::loop
 ASSIGN_TYPE_NAME(cldnn::common::condition_impl)

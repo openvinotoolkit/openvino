@@ -42,7 +42,7 @@ struct argmax_gpu_test : public testing::Test {
     }
 };
 
-using format_types = testing::Types<arg_max_input_types<format::bfyx, float>,
+using test_data_types = testing::Types<arg_max_input_types<format::bfyx, float>,
                                     arg_max_input_types<format::b_fs_yx_fsv16, float>,
                                     arg_max_input_types<format::b_fs_yx_fsv32, float>,
                                     arg_max_input_types<format::bs_fs_yx_bsv16_fsv16, float>,
@@ -59,7 +59,7 @@ using format_types = testing::Types<arg_max_input_types<format::bfyx, float>,
                                     arg_max_input_types<format::bfyx, int8_t>,
                                     arg_max_input_types<format::bs_fs_yx_bsv32_fsv16, int8_t>>;
 
-TYPED_TEST_SUITE(argmax_gpu_test, format_types);
+TYPED_TEST_SUITE(argmax_gpu_test, test_data_types);
 
 TYPED_TEST(argmax_gpu_test, base) {
     //  Input  : 2x4x2x2

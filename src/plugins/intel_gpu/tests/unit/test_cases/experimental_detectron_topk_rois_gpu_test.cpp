@@ -39,7 +39,7 @@ struct experimental_detectron_topk_rois_gpu_test : public testing::Test {
     }
 };
 
-using format_types = testing::Types<experimental_detectron_topk_rois_input_types<format::bfyx, float>,
+using test_data_types = testing::Types<experimental_detectron_topk_rois_input_types<format::bfyx, float>,
                                     experimental_detectron_topk_rois_input_types<format::b_fs_yx_fsv16, float>,
                                     experimental_detectron_topk_rois_input_types<format::b_fs_yx_fsv32, float>,
                                     experimental_detectron_topk_rois_input_types<format::bs_fs_yx_bsv16_fsv16, float>,
@@ -52,7 +52,7 @@ using format_types = testing::Types<experimental_detectron_topk_rois_input_types
                                     experimental_detectron_topk_rois_input_types<format::bs_fs_yx_bsv32_fsv16, half_t>,
                                     experimental_detectron_topk_rois_input_types<format::bs_fs_yx_bsv32_fsv32, half_t>>;
 
-TYPED_TEST_SUITE(experimental_detectron_topk_rois_gpu_test, format_types);
+TYPED_TEST_SUITE(experimental_detectron_topk_rois_gpu_test, test_data_types);
 
 TYPED_TEST(experimental_detectron_topk_rois_gpu_test, check_set_indices_layer) {
     auto& engine = get_test_engine();
