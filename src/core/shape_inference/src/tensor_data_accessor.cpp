@@ -27,6 +27,16 @@ Tensor TensorAccessor<HostTensorVector>::operator()(size_t port) const {
 }
 
 template <>
+Tensor TensorAccessor<std::unordered_map<size_t, Tensor>>::operator()(size_t port) const {
+    const auto t_iter = m_tensors->find(port);
+    if (t_iter != m_tensors->cend()) {
+        return t_iter->second;
+    } else {
+        return make_tensor_accessor()(port);
+    }
+}
+
+template <>
 Tensor TensorAccessor<std::map<size_t, HostTensorPtr>>::operator()(size_t port) const {
     const auto t_iter = m_tensors->find(port);
     if (t_iter != m_tensors->cend()) {
