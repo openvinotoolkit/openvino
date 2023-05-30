@@ -276,7 +276,7 @@ TEST_P(ExecNetworkGetMetricOptimalNumInferReq, OPTIMAL_NUMBER_OF_INFER_REQUESTS)
         metaDevices.push_back({actualDeviceName, {}, actualCustomerNum, ""});
         ON_CALL(*core, GetConfig(_, StrEq(ov::compilation_num_threads.name()))).WillByDefault(Return(8));
     }
-    ON_CALL(*plugin, SelectDevice(_, _, _)).WillByDefault(Return(metaDevices[1]));
+    ON_CALL(*plugin, SelectDevice(_, _, _, _)).WillByDefault(Return(metaDevices[1]));
     ON_CALL(*plugin, ParseMetaDevices(_, _)).WillByDefault(Return(metaDevices));
     ON_CALL(*plugin, GetValidDevice)
         .WillByDefault([](const std::vector<DeviceInformation>& metaDevices, const std::string& netPrecision) {
@@ -284,7 +284,7 @@ TEST_P(ExecNetworkGetMetricOptimalNumInferReq, OPTIMAL_NUMBER_OF_INFER_REQUESTS)
             return devices;
         });
     EXPECT_CALL(*plugin, ParseMetaDevices(_, _)).Times(1);
-    EXPECT_CALL(*plugin, SelectDevice(_, _, _)).Times(1);
+    EXPECT_CALL(*plugin, SelectDevice(_, _, _, _)).Times(1);
 
     if (cpuSleep) {
         ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
@@ -411,7 +411,7 @@ TEST_P(ExecNetworkGetMetricOtherTest, modelPriority_perfHint_exclusiveAsyncReq_t
         {CommonTestUtils::DEVICE_CPU, {{CONFIG_KEY(PERFORMANCE_HINT), performanceHint}}, 3, ""});
     metaDevices.push_back({actualDeviceName, {{CONFIG_KEY(PERFORMANCE_HINT), performanceHint}}, 2, ""});
 
-    ON_CALL(*plugin, SelectDevice(_, _, _)).WillByDefault(Return(metaDevices[1]));
+    ON_CALL(*plugin, SelectDevice(_, _, _, _)).WillByDefault(Return(metaDevices[1]));
     ON_CALL(*plugin, ParseMetaDevices(_, _)).WillByDefault(Return(metaDevices));
     ON_CALL(*plugin, GetValidDevice)
         .WillByDefault([](const std::vector<DeviceInformation>& metaDevices, const std::string& netPrecision) {
@@ -419,7 +419,7 @@ TEST_P(ExecNetworkGetMetricOtherTest, modelPriority_perfHint_exclusiveAsyncReq_t
             return devices;
         });
     EXPECT_CALL(*plugin, ParseMetaDevices(_, _)).Times(1);
-    EXPECT_CALL(*plugin, SelectDevice(_, _, _)).Times(1);
+    EXPECT_CALL(*plugin, SelectDevice(_, _, _, _)).Times(1);
 
     ON_CALL(*core, GetConfig(_, StrEq(ov::compilation_num_threads.name()))).WillByDefault(Return(8));
     ON_CALL(*core,

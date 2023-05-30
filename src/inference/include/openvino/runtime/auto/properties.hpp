@@ -5,6 +5,7 @@
 #pragma once
 
 #include <openvino/runtime/properties.hpp>
+#include "ie_remote_context.hpp"
 #include <string>
 
 namespace ov {
@@ -28,5 +29,10 @@ static constexpr Property<bool> enable_startup_fallback{"ENABLE_STARTUP_FALLBACK
  * selected device
  */
 static constexpr Property<bool> enable_runtime_fallback{"ENABLE_RUNTIME_FALLBACK"};
+
+/**
+ * @brief the RemoteContext input for auto
+ */
+static constexpr Property<ov::RemoteContext> remote_context{"REMOTE_CONTEXT"};
 }  // namespace intel_auto
 }  // namespace ov

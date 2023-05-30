@@ -65,6 +65,7 @@ public:
     void set_user_property(const ov::AnyMap& properties);
     ov::Any get_property(const std::string& name) const;
     bool is_batching_disabled() const;
+    bool is_set_remote_context() const;
     bool is_set_by_user(const std::string& name) const;
     bool is_supported(const std::string& name) const;
 
@@ -153,6 +154,9 @@ public:
         multi_supported_configKeys.erase(std::remove(
                                 multi_supported_configKeys.begin(), multi_supported_configKeys.end(), ov::intel_auto::enable_runtime_fallback.name()),
                                 multi_supported_configKeys.end());
+        multi_supported_configKeys.erase(std::remove(
+                                multi_supported_configKeys.begin(), multi_supported_configKeys.end(), ov::intel_auto::remote_context.name()),
+                                multi_supported_configKeys.end());
         return pluginName == "AUTO" ? supported_configKeys : multi_supported_configKeys;
     }
 
@@ -167,6 +171,9 @@ public:
                                 multi_supported_properties.end());
         multi_supported_properties.erase(std::remove(
                                 multi_supported_properties.begin(), multi_supported_properties.end(), ov::intel_auto::enable_runtime_fallback),
+                                multi_supported_properties.end());
+        multi_supported_properties.erase(std::remove(
+                                multi_supported_properties.begin(), multi_supported_properties.end(), ov::intel_auto::remote_context),
                                 multi_supported_properties.end());
         return pluginName == "AUTO" ? supported_properties : multi_supported_properties;
     }

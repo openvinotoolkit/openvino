@@ -211,6 +211,8 @@ public:
     std::mutex                                     _fallbackMutex;
     MultiDeviceInferencePlugin*                    _plugin;
     SoExecNetwork                                  _hwExecutableNetwork;
+    bool                                           _useRemoteContext = {false};
+    ov::RemoteContext                              _remoteContext;
     virtual ~AutoScheduleContext() = default;
 };
 }  // namespace MultiDevicePlugin

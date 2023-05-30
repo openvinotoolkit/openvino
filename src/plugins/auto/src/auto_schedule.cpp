@@ -360,10 +360,15 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
             _autoSContext->_performanceHint = IE::PluginConfigParams::THROUGHPUT;
         }
     } else {
+        std::string remoteContextDevice;
+        if (_autoSContext->_useRemoteContext) {
+            remoteContextDevice = _autoSContext->_remoteContext.get_device_name();
+        }
         _loadContext[ACTUALDEVICE].deviceInfo =
             _autoSContext->_plugin->SelectDevice(_autoSContext->_devicePriorities,
                                                  _loadContext[ACTUALDEVICE].networkPrecision,
-                                                 _autoSContext->_modelPriority);
+                                                 _autoSContext->_modelPriority,
+                                                 remoteContextDevice);
     }
 
     auto loadDeviceTask = [&](AutoLoadContext* contextPtr,
@@ -437,7 +442,7 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
         bool isActualDevCPU = _loadContext[ACTUALDEVICE].deviceInfo.deviceName.find("CPU") != std::string::npos;
         // if Actual device is CPU or perf_hint is cumulative, disabled _loadContext[CPU], only use
         // _loadContext[ACTUALDEVICE]
-        if (isActualDevCPU || !_autoSContext->_startupfallback) {
+        if (isActualDevCPU || !_autoSContext->_startupfallback || _autoSContext->_useRemoteContext) {
             _loadContext[CPU].isEnabled = false;
         } else {
             const auto CPUIter = deviceChecker().checkAndReturnIfDeviceInList("CPU", _autoSContext->_devicePriorities);
@@ -603,6 +608,8 @@ void AutoSchedule::TryToLoadNetWork(AutoLoadContext& context, const std::string&
     auto& device = context.deviceInfo.deviceName;
     auto& deviceConfig = context.deviceInfo.config;
     auto& deviceList = context.metaDevices;
+    auto tempCtx = _autoSContext->_remoteContext;
+    bool useRemoteContext = _autoSContext->_useRemoteContext && tempCtx.get_device_name() == device;
     bool curDevIsCPU = (device.find("CPU") != std::string::npos);
     bool curDevIsGPU = (device.find("GPU") != std::string::npos);
     {
@@ -632,7 +639,12 @@ void AutoSchedule::TryToLoadNetWork(AutoLoadContext& context, const std::string&
         if (!modelPath.empty()) {
             context.executableNetwork = _autoSContext->_core->LoadNetwork(modelPath, device, deviceConfig);
         } else {
-            context.executableNetwork = _autoSContext->_core->LoadNetwork(network, device, deviceConfig);
+            // to-do after 2.0
+            // if (useRemoteContext) {
+            //     context.executableNetwork = _autoSContext->_core->LoadNetwork(network, tempCtx, deviceConfig);
+            // } else {
+                context.executableNetwork = _autoSContext->_core->LoadNetwork(network, device, deviceConfig);
+            // }
         }
         context.isLoadSuccess = true;
     } catch (const std::exception& e) {

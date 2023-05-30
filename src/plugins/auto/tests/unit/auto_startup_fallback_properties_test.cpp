@@ -117,7 +117,7 @@ TEST_P(AutoStartupFallback, releaseResource) {
             std::list<DeviceInformation> devices(metaDevices.begin(), metaDevices.end());
             return devices;
         });
-    ON_CALL(*plugin, SelectDevice(_, _, _)).WillByDefault(Return(metaDevices[1]));
+    ON_CALL(*plugin, SelectDevice(_, _, _, _)).WillByDefault(Return(metaDevices[1]));
 
     EXPECT_CALL(
         *core,

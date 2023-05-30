@@ -459,6 +459,11 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     autoSContext->_LogTag = _LogTag;
     autoSContext->_startupfallback = loadConfig.get_property(ov::intel_auto::enable_startup_fallback);
     autoSContext->_runtimeFallback = loadConfig.get_property(ov::intel_auto::enable_runtime_fallback);
+    // test if not set remote_context
+    if (loadConfig.is_set_remote_context()) {
+        autoSContext->_useRemoteContext = true;
+        autoSContext->_remoteContext = loadConfig.get_property(ov::intel_auto::remote_context);
+    }
     IExecutableNetworkInternal::Ptr impl;
     // enable bind only in cumulative_throughput mode
     if (loadConfig.get_property(ov::intel_auto::device_bind_buffer) &&
@@ -618,7 +623,7 @@ std::list<DeviceInformation> MultiDeviceInferencePlugin::GetValidDevice(
 }
 
 DeviceInformation MultiDeviceInferencePlugin::SelectDevice(const std::vector<DeviceInformation>& metaDevices,
-        const std::string& networkPrecision, unsigned int priority) {
+        const std::string& networkPrecision, unsigned int priority, const std::string& remoteContextDevice) {
     OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceInferencePlugin::SelectDevice");
 
     std::list<DeviceInformation> validDevices = GetValidDevice(metaDevices, networkPrecision);
@@ -651,8 +656,19 @@ DeviceInformation MultiDeviceInferencePlugin::SelectDevice(const std::vector<Dev
         // so select the last device of all available Devices.
         ptrSelectDevice = &lastDevice;
     } else {
-        // select the first device in the rest of available devices.
-        ptrSelectDevice = &validDevices.front();
+        auto iter =
+            std::find_if(validDevices.begin(), validDevices.end(), [&remoteContextDevice](const DeviceInformation& d) {
+                return (d.defaultDeviceID.empty() ? d.deviceName : (d.deviceName + "." + d.defaultDeviceID)) ==
+                       remoteContextDevice;
+            });
+        if (iter != validDevices.end()) {
+            ptrSelectDevice = &(*iter);
+        } else if (!remoteContextDevice.empty()) {
+            IE_THROW() << "Please check config due to remote context in " << remoteContextDevice << " can not be used";
+        } else {
+            // select the first device in the rest of available devices.
+            ptrSelectDevice = &validDevices.front();
+        }
     }
     //recode the device priority
     RegisterPriority(priority, ptrSelectDevice->uniqueName);

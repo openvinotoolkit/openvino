@@ -260,8 +260,8 @@ public:
        ON_CALL(*core, GetMetric(StrEq("GPU.1"),
                     StrEq(METRIC_KEY(DEVICE_TYPE)), _)).WillByDefault(RETURN_MOCK_VALUE(dGpuType));
        ON_CALL(*plugin, SelectDevice).WillByDefault([this](const std::vector<DeviceInformation>& metaDevices,
-                   const std::string& netPrecision, unsigned int priority) {
-               return plugin->MultiDeviceInferencePlugin::SelectDevice(metaDevices, netPrecision, priority);
+                   const std::string& netPrecision, unsigned int priority, const std::string& remoteContextDevice) {
+               return plugin->MultiDeviceInferencePlugin::SelectDevice(metaDevices, netPrecision, priority, remoteContextDevice);
                });
        ON_CALL(*plugin, GetValidDevice)
            .WillByDefault([this](const std::vector<DeviceInformation>& metaDevices, const std::string& netPrecision) {
@@ -280,7 +280,7 @@ TEST_P(SelectDeviceTest, SelectDevice) {
     bool reverse;
     std::tie(netPrecision, devices, expect, throwExcept, enableDevicePriority, reverse) = this->GetParam();
 
-    EXPECT_CALL(*plugin, SelectDevice(_, _, _)).Times(1);
+    EXPECT_CALL(*plugin, SelectDevice(_, _, _, _)).Times(1);
     if (devices.size() >= 1) {
         EXPECT_CALL(*core, GetMetric(_, _, _)).Times(AtLeast(static_cast<int>(devices.size()) - 1));
     } else {
@@ -288,9 +288,9 @@ TEST_P(SelectDeviceTest, SelectDevice) {
     }
 
     if (throwExcept) {
-        ASSERT_THROW(plugin->SelectDevice(devices, netPrecision, 0), InferenceEngine::Exception);
+        ASSERT_THROW(plugin->SelectDevice(devices, netPrecision, 0, ""), InferenceEngine::Exception);
     } else {
-        auto result =  plugin->SelectDevice(devices, netPrecision, 0);
+        auto result =  plugin->SelectDevice(devices, netPrecision, 0, "");
         compare(result, expect);
     }
 }

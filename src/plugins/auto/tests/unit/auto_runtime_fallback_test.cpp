@@ -188,8 +188,12 @@ public:
         ON_CALL(*plugin, SelectDevice)
             .WillByDefault([this](const std::vector<DeviceInformation>& metaDevices,
                                   const std::string& netPrecision,
-                                  unsigned int priority) {
-                return plugin->MultiDeviceInferencePlugin::SelectDevice(metaDevices, netPrecision, priority);
+                                  unsigned int priority,
+                                  const std::string& remoteContextDevice) {
+                return plugin->MultiDeviceInferencePlugin::SelectDevice(metaDevices,
+                                                                        netPrecision,
+                                                                        priority,
+                                                                        remoteContextDevice);
             });
 
         ON_CALL(*plugin, GetValidDevice)
@@ -201,12 +205,6 @@ public:
         ON_CALL(*plugin, GetDeviceList).WillByDefault([this](const std::map<std::string, std::string>& config) {
             return plugin->MultiDeviceInferencePlugin::GetDeviceList(config);
         });
-        ON_CALL(*plugin, SelectDevice)
-            .WillByDefault([this](const std::vector<DeviceInformation>& metaDevices,
-                                  const std::string& netPrecision,
-                                  unsigned int Priority) {
-                return plugin->MultiDeviceInferencePlugin::SelectDevice(metaDevices, netPrecision, Priority);
-            });
 
         inferReqInternal = std::make_shared<NiceMock<MockIInferRequestInternal>>();
         mockExecutor = std::make_shared<ImmediateExecutor>();

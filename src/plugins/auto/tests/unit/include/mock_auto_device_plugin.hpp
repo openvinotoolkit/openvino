@@ -19,7 +19,7 @@ public:
                 ((const std::vector<DeviceInformation>&), const std::string&),
                 (override));
     MOCK_METHOD(DeviceInformation, SelectDevice, ((const std::vector<DeviceInformation>&),
-                const std::string&, unsigned int), (override));
+                const std::string&, unsigned int, const std::string&), (override));
     MOCK_METHOD((std::vector<DeviceInformation>), ParseMetaDevices,
                 (const std::string&, (const std::map<std::string, std::string>&)), (const, override));
 };

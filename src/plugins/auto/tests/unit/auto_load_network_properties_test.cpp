@@ -192,8 +192,12 @@ public:
         ON_CALL(*plugin, SelectDevice)
             .WillByDefault([this](const std::vector<DeviceInformation>& metaDevices,
                                   const std::string& netPrecision,
-                                  unsigned int priority) {
-                return plugin->MultiDeviceInferencePlugin::SelectDevice(metaDevices, netPrecision, priority);
+                                  unsigned int priority,
+                                  const std::string& remoteContextDevice) {
+                return plugin->MultiDeviceInferencePlugin::SelectDevice(metaDevices,
+                                                                        netPrecision,
+                                                                        priority,
+                                                                        remoteContextDevice);
             });
 
         ON_CALL(*plugin, GetValidDevice)
@@ -216,12 +220,6 @@ public:
         ON_CALL(*plugin, GetDeviceList).WillByDefault([this](const std::map<std::string, std::string>& config) {
             return plugin->MultiDeviceInferencePlugin::GetDeviceList(config);
         });
-        ON_CALL(*plugin, SelectDevice)
-            .WillByDefault([this](const std::vector<DeviceInformation>& metaDevices,
-                                  const std::string& netPrecision,
-                                  unsigned int Priority) {
-                return plugin->MultiDeviceInferencePlugin::SelectDevice(metaDevices, netPrecision, Priority);
-            });
         std::vector<std::string> cpuCability{"FP32", "FP16", "INT8", "BIN"};
         std::vector<std::string> gpuCability{"FP32", "FP16", "BATCHED_BLOB", "BIN", "INT8"};
         ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_CPU), StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES)), _))

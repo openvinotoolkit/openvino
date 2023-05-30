@@ -53,7 +53,8 @@ public:
 
     MOCKTESTMACRO DeviceInformation SelectDevice(const std::vector<DeviceInformation>& metaDevices,
                                                  const std::string& networkPrecision = METRIC_VALUE(FP32),
-                                                 unsigned int priority = 0);
+                                                 unsigned int priority = 0,
+                                                 const std::string& remoteContextDevice = "");
     void UnregisterPriority(const unsigned int& priority, const std::string& deviceName);
     void RegisterPriority(const unsigned int& priority, const std::string& deviceName);
 

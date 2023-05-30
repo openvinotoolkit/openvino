@@ -25,6 +25,7 @@ void PluginConfig::set_default() {
         std::make_tuple(ov::hint::num_requests, 0, UnsignedTypeValidator()),
         std::make_tuple(ov::intel_auto::enable_startup_fallback, true),
         std::make_tuple(ov::intel_auto::enable_runtime_fallback, true),
+        std::make_tuple(ov::intel_auto::remote_context, ov::RemoteContext{}),
         // RO for register only
         std::make_tuple(ov::device::full_name),
         std::make_tuple(ov::device::capabilities),
@@ -65,6 +66,13 @@ ov::Any PluginConfig::get_property(const std::string& name) const {
 bool PluginConfig::is_batching_disabled() const {
     if (user_properties.find(ov::hint::allow_auto_batching.name()) != user_properties.end()) {
         return !user_properties.at(ov::hint::allow_auto_batching.name()).as<bool>();
+    }
+    return false;
+}
+
+bool PluginConfig::is_set_remote_context() const {
+    if (user_properties.find(ov::intel_auto::remote_context.name()) != user_properties.end()) {
+        return !user_properties.at(ov::intel_auto::remote_context.name()).as<bool>();
     }
     return false;
 }
