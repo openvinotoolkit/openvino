@@ -19,6 +19,11 @@
 #include "streams_executor.hpp"
 #include "threading/ie_cpu_streams_info.hpp"
 
+#ifdef __APPLE__
+#    include <sys/sysctl.h>
+#    include <sys/types.h>
+#endif
+
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    define XBYAK_NO_OP_NAMES
 #    define XBYAK_UNDEF_JNL
@@ -29,7 +34,7 @@ using namespace InferenceEngine;
 
 namespace ov {
 
-#if defined(OPENVINO_ARCH_X86_64)
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 
 // note: MSVC 2022 (17.4) is not able to compile the next line for ARM and ARM64
 // so, we disable this code since for non-x86 platforms it returns 'false' anyway
@@ -79,7 +84,7 @@ bool with_cpu_x86_avx512_core_amx() {
     return with_cpu_x86_avx512_core_amx_int8() || with_cpu_x86_avx512_core_amx_bf16();
 }
 
-#else  // OPENVINO_ARCH_X86_64
+#else  // OPENVINO_ARCH_X86 || OPENVINO_ARCH_X86_64
 
 bool with_cpu_x86_sse42() {
     return false;
@@ -112,7 +117,7 @@ bool with_cpu_x86_avx512_core_amx() {
     return false;
 }
 
-#endif  // OPENVINO_ARCH_X86_64
+#endif  // OPENVINO_ARCH_X86 || OPENVINO_ARCH_X86_64
 
 bool check_open_mp_env_vars(bool include_omp_num_threads) {
     for (auto&& var : {"GOMP_CPU_AFFINITY",
@@ -185,6 +190,59 @@ std::vector<std::vector<int>> reserve_available_cpus(const std::vector<std::vect
     return {{-1}};
 }
 void set_cpu_used(const std::vector<int>& cpu_ids, const int used) {}
+
+int parse_processor_info_macos(int& _processors,
+                               int& _numa_nodes,
+                               int& _cores,
+                               std::vector<std::vector<int>>& _proc_type_table) {
+    uint64_t output = 0;
+    size_t size = sizeof(output);
+
+    _processors = 0;
+    _numa_nodes = 0;
+    _cores = 0;
+
+    if (sysctlbyname("hw.ncpu", &output, &size, NULL, 0) < 0) {
+        return -1;
+    } else {
+        _processors = output;
+    }
+
+    if (sysctlbyname("hw.physicalcpu", &output, &size, NULL, 0) < 0) {
+        _processors = 0;
+        return -1;
+    } else {
+        _cores = output;
+    }
+
+    _numa_nodes = 1;
+
+    if (sysctlbyname("hw.optional.arm64", &output, &size, NULL, 0) < 0) {
+        _proc_type_table.resize(1, std::vector<int>(PROC_TYPE_TABLE_SIZE, 0));
+        _proc_type_table[0][ALL_PROC] = _processors;
+        _proc_type_table[0][MAIN_CORE_PROC] = _cores;
+        _proc_type_table[0][HYPER_THREADING_PROC] = _processors - _cores;
+    } else {
+        if (sysctlbyname("hw.perflevel0.physicalcpu", &output, &size, NULL, 0) < 0) {
+            _processors = 0;
+            _cores = 0;
+            _numa_nodes = 0;
+            return -1;
+        } else {
+            _proc_type_table.resize(1, std::vector<int>(PROC_TYPE_TABLE_SIZE, 0));
+            _proc_type_table[0][ALL_PROC] = _processors;
+            _proc_type_table[0][MAIN_CORE_PROC] = output;
+        }
+
+        if (sysctlbyname("hw.perflevel1.physicalcpu", &output, &size, NULL, 0) < 0) {
+            return 0;
+        } else {
+            _proc_type_table[0][EFFICIENT_CORE_PROC] = output;
+        }
+    }
+
+    return 0;
+}
 
 #else
 
