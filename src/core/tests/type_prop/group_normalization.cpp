@@ -112,6 +112,16 @@ TEST(type_prop, group_normalization_incorrect_bias_shape) {
                     HasSubstr("The bias input shape needs to match the channel dimension in the data input"));
 }
 
+TEST(type_prop, group_normalization_incompatible_scale_and_bias) {
+    const auto data = std::make_shared<opset12::Parameter>(element::f32, PartialShape{1, -1, 6, 6});
+    const auto scale = std::make_shared<opset12::Parameter>(element::f32, Shape{2});
+    const auto bias = std::make_shared<opset12::Parameter>(element::f32, Shape{4});
+
+    OV_EXPECT_THROW(std::make_shared<opset12::GroupNormalization>(data, scale, bias, 2, 0.00001f),
+                    NodeValidationFailure,
+                    HasSubstr("The shapes of both scale and bias inputs need to match"));
+}
+
 TEST(type_prop, group_normalization_incorrect_scale_rank) {
     const auto data = std::make_shared<opset12::Parameter>(element::f32, Shape{1, 12, 6, 6});
     const auto scale = std::make_shared<opset12::Parameter>(element::f32, Shape{12, 12});

@@ -52,6 +52,10 @@ void op::v12::GroupNormalization::validate_and_infer_types() {
                               "The bias input shape needs to match the channel dimension in the data input");
     }
 
+    NODE_VALIDATION_CHECK(this,
+                          scale_partial_shape.compatible(bias_partial_shape),
+                          "The shapes of both scale and bias inputs need to match");
+
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 
