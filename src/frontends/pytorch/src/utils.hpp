@@ -38,6 +38,10 @@ Output<Node> reshape_kernel_for_group(const NodeContext& context, const Output<N
 
 std::shared_ptr<Node> get_axes_range(const NodeContext& context, int input_id);
 
+std::shared_ptr<Node> normalize_axis(const NodeContext& context,
+                                     const Output<Node>& axis,
+                                     const Output<Node>& input_node);
+
 std::shared_ptr<Node> numel(const NodeContext& context, const Output<Node>& x);
 
 element::Type convert_dtype(int64_t dtype_value);
