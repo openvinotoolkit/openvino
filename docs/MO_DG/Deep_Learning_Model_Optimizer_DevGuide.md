@@ -37,7 +37,7 @@ To convert a model to IR, you can use the following command:
 
        .. note::
 
-          The ``input_model`` argument is optional. The first unnamed argument will be used as ``input_model``, therefore, both ``convert_model(input_model=mode)`` and ``convert_model(model)`` will have the same effect.
+          You do not need to specify the ``input_model`` parameter explicitly. The parameter can be set as an unnamed argument and then it will be used as input ``model``. Therefore, both ``convert_model(input_model=model)`` and ``convert_model(model)`` will have the same effect.
 
 
 If the out-of-the-box conversion (only the ``input_model`` parameter is specified) is not successful, use the parameters mentioned below to override input shapes and cut the model:
