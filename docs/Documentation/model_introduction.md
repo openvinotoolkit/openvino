@@ -18,10 +18,16 @@ There are several options to convert a model from original framework to OpenVINO
 
 The ``read_model()`` method reads a model from a file and produces ``ov.Model``. If the file is in one of the supported original framework file formats, it is converted automatically to OpenVINO Intermediate Representation. If the file is already in the OpenVINO IR format, it is read "as-is", without any conversion involved. ``ov.Model`` can be serialized to IR using the ``ov.serialize()`` method. The serialized IR can be further optimized using :doc:`Post-Training Optimization tool <pot_introduction>` that applies post-training quantization methods.
 
+Convert a model with ``mo`` Python API
+######################################
+
 Model Conversion API, specifically, the ``mo.convert_model()`` method converts a model from original framework to ``ov.Model``. The resulting ``ov.Model`` can be inferred in the same training environment (python script or Jupiter Notebook). ``mo.convert_model()`` provides a convenient way to quickly switch from framework-based code to OpenVINO-based code in your inference application. In addition to model files, ``mo.convert_model()`` can take OpenVINO extension objects constructed directly in Python for easier conversion of operations that are not supported in OpenVINO. The ``mo.convert_model()`` method also has a set of parameters to :doc:`cut the model <openvino_docs_MO_DG_prepare_model_convert_model_Cutting_Model>`, :doc:`set input shapes or layout <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>`, :doc:`add preprocessing <openvino_docs_MO_DG_Additional_Optimization_Use_Cases>`, etc.
 
 .. image:: _static/images/model_conversion_diagram.svg
    :alt: model conversion diagram
+
+Convert a model with ``mo`` command-line tool
+#############################################
 
 Another option to convert a model is to use ``mo`` command-line tool. ``mo`` is a cross-platform tool that facilitates the transition between training and deployment environments, performs static model analysis, and adjusts deep learning models for optimal execution on end-point target devices in the same measure, as the ``mo.convert_model`` method,
 
