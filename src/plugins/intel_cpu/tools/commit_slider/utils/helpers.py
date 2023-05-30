@@ -1,4 +1,5 @@
 import importlib
+import shutil
 import os
 import sys
 import subprocess
@@ -77,6 +78,22 @@ def getBlobDiff(file1, file2):
 
 
 def absolutizePaths(cfg):
+    pl = sys.platform
+    if pl == "linux" or pl == "linux2":
+        cfg["workPath"] = cfg["linWorkPath"]
+    elif pl == "win32":
+        wp = cfg["winWorkPath"]
+        wp = "echo {path}".format(path=wp)
+        wp = subprocess.check_output(wp, shell=True)
+        wp = wp.decode()
+        wp = wp.rstrip()
+        cfg["workPath"] = wp
+    else:
+        raise CfgError(
+            "No support for current OS: {pl}".format(pl=pl)
+            )
+    if cfg["dlbConfig"]["launchedAsJob"]:
+        cfg["appPath"] = cfg["dlbConfig"]["appPath"]
     pathToAbsolutize = ["gitPath", "buildPath", "appPath", "workPath"]
     for item in pathToAbsolutize:
         path = cfg[item]
@@ -197,6 +214,7 @@ def fetchAppOutput(cfg):
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         env=newEnv,
+        shell=True
     )
     output, err = p.communicate()
     output = output.decode("utf-8")
@@ -258,11 +276,7 @@ def getActualPath(pathName, cfg):
 def safeClearDir(path):
     if not os.path.exists(path):
         os.makedirs(path)
-    p = subprocess.Popen(
-        "rm -rf *", cwd=path,
-        stdout=subprocess.PIPE, shell=True
-    )
-    p.wait()
+    shutil.rmtree(path)
     return
 
 
