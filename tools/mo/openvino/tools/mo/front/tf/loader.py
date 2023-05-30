@@ -232,6 +232,8 @@ def prepare_graph_def(model):
 
         conc_func = model.get_concrete_function(*tuple(model.input_signature))
         return freeze_tf2_concrete_function(model, conc_func, env_setup)
+    if isinstance(model, tf.types.experimental.ConcreteFunction):
+        return freeze_tf2_concrete_function(model, model, env_setup)
     raise Exception("Unknown model type {}.".format(type(model)))
 
 

@@ -58,6 +58,8 @@ class GraphIteratorTFGraph(GraphIterator):
         return self.m_decoders[self.m_node_index]
 
     def get_body_graph_iterator(self, func_name):
+        if func_name not in self.m_iterators:
+            return None
         if self.m_iterators[func_name] is None:
             self.m_iterators[func_name] = GraphIteratorTFGraph(self.m_graph._functions[func_name].graph, True)
         return self.m_iterators[func_name]

@@ -55,9 +55,9 @@ from openvino.tools.mo.moc_frontend.shape_utils import parse_input_shapes, get_s
 
 # pylint: disable=no-name-in-module,import-error
 from openvino.frontend import FrontEndManager, OpConversionFailure, ProgressReporterExtension, TelemetryExtension
+from openvino.frontend.tensorflow.graph_iterator import GraphIteratorTFGraph
 from openvino.runtime import get_version as get_rt_version
 from openvino.runtime import Type, PartialShape
-
 
 def load_extensions(argv: argparse.Namespace, is_tf: bool, is_caffe: bool, is_mxnet: bool, is_kaldi: bool,
                     is_onnx: bool):
@@ -388,7 +388,11 @@ def prepare_ir(argv: argparse.Namespace):
             orig_argv_values = {"input_model": argv.input_model, "model_name": argv.model_name}
             if not argv.use_legacy_frontend and is_tf:
                 import tensorflow as tf
-                if not isinstance(argv.input_model, tf.Graph):
+                if isinstance(argv.input_model, tf.Graph):
+                    argv.input_model = GraphIteratorTFGraph(argv.input_model)
+                elif isinstance(argv.input_model, tf.types.experimental.ConcreteFunction):
+                    argv.input_model = GraphIteratorTFGraph(argv.input_model.graph)
+                else:
                     from openvino.tools.mo.front.tf.loader import convert_to_pb
                     path_to_aux_pb = convert_to_pb(argv)
             try:
@@ -416,10 +420,10 @@ def prepare_ir(argv: argparse.Namespace):
             finally:
                 # TODO: remove this workaround once new TensorFlow frontend supports non-frozen formats: checkpoint, MetaGraph, and SavedModel
                 # Now it converts all TensorFlow formats to the frozen .pb format in case new TensorFlow frontend
-                if is_tf and path_to_aux_pb is not None:
+                if is_tf and (path_to_aux_pb is not None or isinstance(argv.input_model, GraphIteratorTFGraph)):
                     argv.input_model = orig_argv_values["input_model"]
                     argv.model_name = orig_argv_values["model_name"]
-                    if os.path.exists(path_to_aux_pb):
+                    if path_to_aux_pb is not None and os.path.exists(path_to_aux_pb):
                         os.remove(path_to_aux_pb)
 
     if len(fallback_reasons) > 0:
@@ -525,19 +529,13 @@ def check_model_object(argv):
         import tensorflow as tf
         from tensorflow.python.training.tracking.base import Trackable
         env_setup = get_environment_setup("tf")
-
-        if isinstance(model, tf.Graph):
-            return "tf"
-        if isinstance(model, tf.compat.v1.GraphDef):
+        if isinstance(model, (tf.Graph, tf.compat.v1.GraphDef)):
             return "tf"
         if isinstance(model, tf.compat.v1.Session):
             argv['input_model'] = model.graph
             return "tf"
-        if env_setup["tensorflow"] >= LooseVersion("2.6.0") and isinstance(model, tf.types.experimental.ConcreteFunction):
-            argv['input_model'] = model.graph
-            return "tf"
-        if env_setup["tensorflow"] >= LooseVersion("2.6.0") and isinstance(model, tf.types.experimental.GenericFunction):
-            argv['input_model'] = model
+        if env_setup["tensorflow"] >= LooseVersion("2.6.0") and isinstance(model, (tf.types.experimental.GenericFunction,
+                                                                                   tf.types.experimental.ConcreteFunction)):
             return "tf"
         if isinstance(model, tf.train.Checkpoint):
             if isinstance(model.root, tf.keras.Model):
@@ -547,16 +545,16 @@ def check_model_object(argv):
                 raise Error("Unknown checkpoint format.")
 
         if isinstance(model, (tf.keras.layers.Layer, tf.Module, tf.keras.Model)):
-            # Try to trace TF model
-
             if isinstance(model.__call__, tf.types.experimental.GenericFunction):
                 tf_function = model.__call__
             else:
+                # Wrap model to tf.Function
                 @tf.function
                 def tf_function(x):
                     return model(x)
 
             try:
+                # Trace the model
                 concrete_func = tf_function.get_concrete_function(tf.TensorSpec(model._build_input_shape))
             except:
                 if 'example_input' not in argv or argv['example_input'] is None:
@@ -567,10 +565,25 @@ def check_model_object(argv):
                 except Exception as e:
                     raise Exception("Could not trace the TF model with the following error: {}".format(e))
 
-            argv['input_model'] = concrete_func.graph
+            argv['input_model'] = concrete_func
             return "tf"
         if isinstance(model, Trackable):
-            argv['input_model'] = model.signatures['serving_default'].graph
+            if hasattr(model, 'signatures') and len(model.signatures.items()):
+                if 'serving_default' in model.signatures:
+                    argv['input_model'] = model.signatures['serving_default']
+                elif 'default' in model.signatures:
+                    argv['input_model'] = model.signatures['default']
+                else:
+                    for signature_name, signature in model.signatures.items():
+                        argv['input_model'] = model.signatures[signature_name]
+                        log.warning("Could not find the default signature. "
+                                    "The following signature was used for conversion: {}".format(signature_name))
+                        break
+
+            elif hasattr(model, 'graph'):
+                argv['input_model'] = model.graph
+            else:
+                raise Error("Could not find signature of graph in a Trackable object.")
             return "tf"
     if 'torch' in sys.modules:
         import torch

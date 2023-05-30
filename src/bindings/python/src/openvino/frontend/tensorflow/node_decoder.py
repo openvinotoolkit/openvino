@@ -6,17 +6,21 @@ from openvino.runtime import PartialShape, Shape, Type, OVAny, Tensor
 import tensorflow as tf
 
 
-def tf_type_to_numpy_type(tf_type_int):
+def tf_type_to_ov_type(tf_type_int):
     tf_type = tf.dtypes.as_dtype(tf_type_int)
-    return tf_type.as_numpy_dtype
+    if tf_type.name == 'variant':
+        return Type.undefined
+    return Type(tf_type.as_numpy_dtype)
 
 
 def tf_attr_to_numpy(attr):
     attr_type = attr.WhichOneof("value")
+    if attr_type == 'func':
+        return attr.func.name
     if attr_type == 's':
         return attr.s.decode("utf-8")
     if attr_type == 'type':
-        return Type(tf_type_to_numpy_type(attr.type))
+        return tf_type_to_ov_type(attr.type)
     if attr_type == 'list':
         list_value = attr.list
         return list(list_value.ListFields()[0][1])
@@ -88,11 +92,10 @@ class TFGraphNodeDecoder(DecoderBase):
             if tf.dtypes.DType(type_num).name == 'resource':
                 if not self.m_inner_graph:
                     var = TFGraphNodeDecoder.get_variable(self.m_operation)
-                    return OVAny(Type(tf_type_to_numpy_type(var.dtype)))
+                    return OVAny(tf_type_to_ov_type(var.dtype))
                 else:
                     return OVAny(Type.undefined)
-            numpy_type = tf_type_to_numpy_type(type_num)
-            return OVAny(Type(numpy_type))
+            return OVAny(tf_type_to_ov_type(type_num))
 
         if name == 'value':
             if self.m_parsed_content.size == 1:
@@ -100,10 +103,9 @@ class TFGraphNodeDecoder(DecoderBase):
             ov_tensor = Tensor(self.m_parsed_content, shared_memory=True)
             ov_tensor = OVAny(ov_tensor)
             return ov_tensor
-        if name == 'f':
-            return OVAny(self.m_operation.node_def.attr[name].func.name)
+        attr_value = self.m_operation.node_def.attr[name]
 
-        return tf_attr_to_ov(self.m_operation.node_def.attr[name])
+        return tf_attr_to_ov(attr_value)
 
     def get_input_size(self) -> int:
         return len(self.m_operation.inputs)
