@@ -24,6 +24,7 @@
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/variable.hpp"
 #include "openvino/opsets/opset.hpp"
+#include "pyopenvino/core/common.hpp"
 
 namespace py = pybind11;
 
@@ -101,6 +102,6 @@ void regclass_graph_NodeFactory(py::module m) {
         });
 
     node_factory.def("__repr__", [](const NodeFactory& self) {
-        return "<NodeFactory>";
+        return Common::get_simple_repr(self);
     });
 }
