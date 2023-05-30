@@ -1,6 +1,8 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+# flake8: noqa
+
 from openvino.frontend.tensorflow.py_tensorflow_frontend import _FrontEndDecoderBase as DecoderBase
 from openvino.runtime import PartialShape, Shape, Type, OVAny, Tensor
 import tensorflow as tf
