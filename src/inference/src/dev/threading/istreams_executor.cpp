@@ -14,8 +14,8 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/log.hpp"
-#include "threading/ie_parallel_custom_arena.hpp"
 #include "threading/ie_cpu_streams_info.hpp"
+#include "threading/ie_parallel_custom_arena.hpp"
 
 using namespace InferenceEngine;
 
