@@ -121,7 +121,7 @@ TEST_P(ov_compiled_model_test, ov_compiled_model_input_by_name) {
     ov_core_free(core);
 }
 
-TEST_P(ov_compiled_model_test, set_and_get_property) {
+TEST_P(ov_compiled_model_test, get_property) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
