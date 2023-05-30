@@ -9,6 +9,7 @@
 
 #include "common_test_utils/file_utils.hpp"
 #include "ie_plugin_config.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/opsets/opset11.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/internal_properties.hpp"
@@ -627,6 +628,103 @@ void ov::proxy::tests::ProxyTests::register_plugin_support_subtract(ov::Core& co
         bool m_loaded_from_cache{false};
     };
     auto plugin = std::make_shared<MockPluginSubtract>();
+
+    std::shared_ptr<ov::IPlugin> base_plugin = plugin;
+
+    reg_plugin(core, base_plugin, device_name, properties);
+}
+
+void ov::proxy::tests::ProxyTests::register_plugin_without_devices(ov::Core& core,
+                                                                   const std::string& device_name,
+                                                                   const ov::AnyMap& properties) {
+    class MockPluginNoDevices : public MockPluginBase {
+    public:
+        const ov::Version& get_const_version() override {
+            static const ov::Version version = {CI_BUILD_NUMBER, "openvino_mock_no_devices_plugin"};
+            return version;
+        }
+        ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
+                                        const ov::AnyMap& properties) const override {
+            OPENVINO_ASSERT(model);
+
+            OPENVINO_NOT_IMPLEMENTED;
+        }
+
+        void set_property(const ov::AnyMap& properties) override {
+            for (const auto& it : properties) {
+                if (it.first == ov::enable_profiling.name())
+                    m_profiling = it.second.as<bool>();
+                else if (it.first == ov::device::id.name())
+                    continue;
+                else
+                    OPENVINO_THROW(get_device_name(), " set config: " + it.first);
+            }
+        }
+
+        ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const override {
+            const static std::vector<std::string> device_ids = {};
+            const static std::vector<ov::PropertyName> roProperties{
+                RO_property(ov::supported_properties.name()),
+                RO_property(ov::available_devices.name()),
+                RO_property(ov::loaded_from_cache.name()),
+                RO_property(ov::device::uuid.name()),
+                RO_property(ov::caching_properties.name()),
+                RO_property(METRIC_KEY(IMPORT_EXPORT_SUPPORT)),
+            };
+            // the whole config is RW before network is loaded.
+            const static std::vector<ov::PropertyName> rwProperties{
+                RW_property(ov::enable_profiling.name()),
+            };
+            std::string device_id;
+            if (arguments.find(ov::device::id.name()) != arguments.end()) {
+                device_id = arguments.find(ov::device::id.name())->second.as<std::string>();
+            }
+            if (name == ov::supported_properties) {
+                std::vector<ov::PropertyName> supportedProperties;
+                supportedProperties.reserve(roProperties.size() + rwProperties.size());
+                supportedProperties.insert(supportedProperties.end(), roProperties.begin(), roProperties.end());
+                supportedProperties.insert(supportedProperties.end(), rwProperties.begin(), rwProperties.end());
+
+                return decltype(ov::supported_properties)::value_type(supportedProperties);
+            } else if (name == ov::device::uuid) {
+                ov::device::UUID uuid;
+                return decltype(ov::device::uuid)::value_type{uuid};
+            } else if (name == ov::available_devices) {
+                return decltype(ov::available_devices)::value_type(device_ids);
+            } else if (name == ov::device::capabilities) {
+                std::vector<std::string> capabilities;
+                capabilities.push_back(ov::device::capability::EXPORT_IMPORT);
+                return decltype(ov::device::capabilities)::value_type(capabilities);
+            } else if (name == ov::loaded_from_cache.name()) {
+                return m_loaded_from_cache;
+            } else if (name == ov::enable_profiling.name()) {
+                return decltype(ov::enable_profiling)::value_type{m_profiling};
+            } else if (name == "SUPPORTED_CONFIG_KEYS") {  // TODO: Remove this key
+                std::vector<std::string> configs;
+                for (const auto& property : rwProperties) {
+                    configs.emplace_back(property);
+                }
+                return configs;
+            } else if (METRIC_KEY(IMPORT_EXPORT_SUPPORT) == name) {
+                return true;
+            } else if (ov::caching_properties == name) {
+                std::vector<ov::PropertyName> caching_properties = {ov::device::uuid};
+                return decltype(ov::caching_properties)::value_type(caching_properties);
+            } else if (name == "SUPPORTED_METRICS") {  // TODO: Remove this key
+                std::vector<std::string> configs;
+                for (const auto& property : roProperties) {
+                    configs.emplace_back(property);
+                }
+                return configs;
+            }
+            OPENVINO_THROW("Unsupported property: ", name);
+        }
+
+    private:
+        bool m_profiling{false};
+        bool m_loaded_from_cache{false};
+    };
+    auto plugin = std::make_shared<MockPluginNoDevices>();
 
     std::shared_ptr<ov::IPlugin> base_plugin = plugin;
 

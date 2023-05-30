@@ -258,6 +258,7 @@ ov::Any ov::proxy::Plugin::get_property(const std::string& name, const ov::AnyMa
         return get_internal_property(name, config_name);
     return get_core()->get_property(get_primary_device(device_id), name, {});
 }
+
 std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
                                                                      const ov::AnyMap& properties) const {
     auto dev_name = get_fallback_device(get_device_from_config(properties));
@@ -359,6 +360,9 @@ std::string ov::proxy::Plugin::get_primary_device(size_t idx) const {
         devices.emplace_back(dev.at(0));
     }
 
+    if (devices.empty())
+        // Return low level device name in case of no devices wasn't found
+        return m_device_order.at(0);
     OPENVINO_ASSERT(devices.size() > idx);
     return devices[idx];
 }

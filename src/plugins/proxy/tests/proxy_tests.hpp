@@ -38,6 +38,7 @@ public:
     ov::Tensor create_and_fill_tensor(const ov::element::Type& type, const ov::Shape& shape);
 
 protected:
+    void register_plugin_without_devices(ov::Core& core, const std::string& device_name, const ov::AnyMap& properties);
     void register_plugin_support_reshape(ov::Core& core, const std::string& device_name, const ov::AnyMap& properties);
     void register_plugin_support_subtract(ov::Core& core, const std::string& device_name, const ov::AnyMap& properties);
 

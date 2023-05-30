@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/runtime/properties.hpp"
 #include "proxy_properties.hpp"
 #include "proxy_tests.hpp"
 
@@ -31,6 +32,28 @@ TEST_F(ProxyTests, alias_for_the_same_name) {
     }
     // All devices should be found
     EXPECT_TRUE(mock_reference_dev.empty());
+}
+
+TEST_F(ProxyTests, get_available_devices_for_unregister_plugins) {
+    core.unload_plugin("ABC");
+    core.unload_plugin("BDE");
+    auto available_devices = core.get_available_devices();
+    for (const auto& dev : available_devices) {
+        EXPECT_NE(dev, "MOCK");
+    }
+    EXPECT_THROW(core.get_property("MOCK", ov::available_devices), ov::Exception);
+}
+
+TEST_F(ProxyTests, load_proxy_on_plugin_without_devices) {
+    register_plugin_without_devices(core,
+                                    "Internal_CBD",
+                                    {{ov::device::alias.name(), "CBD"}, {ov::device::priority.name(), 0}});
+    auto available_devices = core.get_available_devices();
+    for (const auto& dev : available_devices) {
+        EXPECT_NE(dev, "CBD");
+    }
+    available_devices = core.get_property("CBD", ov::available_devices);
+    EXPECT_TRUE(available_devices.empty());
 }
 
 TEST_F(ProxyTests, get_available_devices) {

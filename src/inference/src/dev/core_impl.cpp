@@ -1109,11 +1109,15 @@ ov::Any ov::CoreImpl::get_property(const std::string& device_name,
 void ov::CoreImpl::unload_plugin(const std::string& deviceName) {
     std::lock_guard<std::mutex> lock(get_mutex());
     auto it = plugins.find(deviceName);
-    if (it == plugins.end()) {
+    auto it_registry = pluginRegistry.find(deviceName);
+    if (it == plugins.end() && it_registry == pluginRegistry.end()) {
         IE_THROW() << "Device with \"" << deviceName << "\" name is not registered in the OpenVINO Runtime";
     }
 
-    plugins.erase(deviceName);
+    if (it != plugins.end())
+        plugins.erase(it);
+    if (it_registry != pluginRegistry.end())
+        pluginRegistry.erase(it_registry);
 }
 
 void ov::CoreImpl::register_plugin(const std::string& plugin,
