@@ -9,10 +9,10 @@
 namespace ov {
 namespace frontend {
 
-class IGraphIterator: RuntimeAttribute {
+class IGraphIterator : RuntimeAttribute {
 public:
     virtual ~IGraphIterator() = default;
 };
 
-}
-}
+}  // namespace frontend
+}  // namespace ov

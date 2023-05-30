@@ -27,7 +27,12 @@ class PyGraphIterator : public ov::frontend::tensorflow::GraphIterator {
 
     /// \brief Move to the next node in the graph
     void next() override {
-        PYBIND11_OVERRIDE_PURE(void, GraphIterator, next);
+        next_impl();
+    }
+
+    /// Implementation of next method, it is needed to be in separate method to avoid shadowing of Python "next" operator.
+    void next_impl() {
+        PYBIND11_OVERRIDE_PURE(void, GraphIterator, next_impl);
     }
 
     /// \brief Returns true if iterator goes out of the range of available nodes

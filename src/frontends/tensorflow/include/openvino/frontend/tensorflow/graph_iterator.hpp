@@ -5,9 +5,9 @@
 #pragma once
 
 #include "openvino/core/any.hpp"
+#include "openvino/frontend/graph_iterator.hpp"
 #include "openvino/frontend/tensorflow/decoder.hpp"
 #include "openvino/frontend/tensorflow/visibility.hpp"
-#include "openvino/frontend/graph_iterator.hpp"
 
 namespace ov {
 namespace frontend {

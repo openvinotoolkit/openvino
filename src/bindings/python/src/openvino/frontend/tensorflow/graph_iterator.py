@@ -25,7 +25,7 @@ class GraphIteratorTFGraph(GraphIterator):
         inp_ops = filter(lambda op: op.type == "Placeholder" and len(op.inputs) == 0, self.m_graph.get_operations())
         inp_names = []
         for input in inp_ops:
-            if tf.dtypes.DType(input.node_def.attr['dtype'].type).name != 'resource' or self.m_inner_graph:
+            if tf.dtypes.DType(input.node_def.attr["dtype"].type).name != "resource" or self.m_inner_graph:
                 inp_names.append(input.name)
         return inp_names
 
@@ -51,7 +51,7 @@ class GraphIteratorTFGraph(GraphIterator):
     def size(self) -> int:
         return len(self.m_decoders)
 
-    def next(self):
+    def next_impl(self):
         self.m_node_index += 1
 
     def get_decoder(self):
