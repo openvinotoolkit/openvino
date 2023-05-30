@@ -91,7 +91,7 @@ float CPUInfo::calcComputeBlockIPC(InferenceEngine::Precision precision) {
             execute_code("SSEx", 2);
         }
     } else if (precision == InferenceEngine::Precision::FP16) {
-        if (haveAVX512()) {
+        if (haveAVX512() && haveAVX512FP16()) {
             auto gen = [](Xbyak::CodeGenerator* g, int dst_reg, int src_reg) {
                 g->vfmadd132ph(Zmm(dst_reg), Zmm(src_reg), Zmm(src_reg));
             };
@@ -322,6 +322,7 @@ CPUInfo::CPUInfo() {
     have_avx2 = checkIsaSupport(ISA::avx2);
     have_fma = checkIsaSupport(ISA::fma);
     have_avx512f = checkIsaSupport(ISA::avx512_common);
+    have_avx512_fp16 = checkIsaSupport(ISA::avx512_fp16);
     have_vnni = checkIsaSupport(ISA::avx512_vnni);
     have_amx_bf16 = checkIsaSupport(ISA::amx_bf16);
     have_amx_int8 = checkIsaSupport(ISA::amx_int8);

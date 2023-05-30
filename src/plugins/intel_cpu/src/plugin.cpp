@@ -640,6 +640,7 @@ Parameter Engine::GetMetricLegacy(const std::string& name, const std::map<std::s
         std::map<InferenceEngine::Precision, float> gops;
         gops[InferenceEngine::Precision::I8] = GetGOPS(cpu_info, InferenceEngine::Precision::I8);
         gops[InferenceEngine::Precision::BIN] = GetGOPS(cpu_info, InferenceEngine::Precision::BIN);
+        gops[InferenceEngine::Precision::FP16] = GetGOPS(cpu_info, InferenceEngine::Precision::FP16);
         gops[InferenceEngine::Precision::FP32] = GetGOPS(cpu_info, InferenceEngine::Precision::FP32);
         IE_SET_METRIC_RETURN(DEVICE_GOPS, gops);
     } else if (name == ov::caching_properties) {
@@ -723,6 +724,7 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
         gops[element::i8] = GetGOPS(cpu_info, InferenceEngine::Precision::I8);
         gops[element::u1] = GetGOPS(cpu_info, InferenceEngine::Precision::BIN);
         gops[element::f32] = GetGOPS(cpu_info, InferenceEngine::Precision::FP32);
+        gops[element::f16] = GetGOPS(cpu_info, InferenceEngine::Precision::FP16);
         return decltype(ov::device::gops)::value_type (gops);
     } else if (name == ov::caching_properties) {
         std::vector<ov::PropertyName> cachingProperties = { ov::device::full_name };

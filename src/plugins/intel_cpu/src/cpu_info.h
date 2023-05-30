@@ -42,6 +42,7 @@ private:
         avx512_mic,
         avx512_mic_4ops,
         avx512_vnni,
+        avx512_fp16,
         amx_int8,
         amx_bf16,
     };
@@ -80,10 +81,12 @@ private:
         case ISA::avx512_vnni:
             return cpu.has(Cpu::tAVX512F);  //&&
                                             // cpu.has(Cpu::tAVX512_VNNI);
+        case ISA::avx512_fp16:
+            return cpu.has(Cpu::tAVX512_FP16);
         case ISA::amx_bf16:
-            return cpu.has(Cpu::tAMX_BF16);
+            return cpu.has(Cpu::tAMX_BF16) && dnnl::impl::cpu::x64::amx::is_available();
         case ISA::amx_int8:
-            return cpu.has(Cpu::tAMX_INT8);
+            return cpu.has(Cpu::tAMX_INT8) && dnnl::impl::cpu::x64::amx::is_available();
         }
 
         return false;
@@ -102,6 +105,9 @@ private:
     }
     bool haveAVX512() {
         return have_avx512f;
+    }
+    bool haveAVX512FP16() {
+        return have_avx512_fp16;
     }
     bool haveAMXBF16() {
         return have_amx_bf16;
@@ -130,6 +136,7 @@ private:
     bool have_avx2 = false;
     bool have_fma = false;
     bool have_avx512f = false;
+    bool have_avx512_fp16 = false;
     bool have_vnni = false;
     bool have_amx_int8 = false;
     bool have_amx_bf16 = false;
