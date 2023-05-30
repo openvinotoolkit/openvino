@@ -19,7 +19,6 @@
 using namespace std;
 using namespace ngraph;
 
-// using namespace ov;
 using namespace ov::op::util;
 
 ov::op::util::PadBase::PadBase(const Output<Node>& arg,
@@ -31,7 +30,6 @@ ov::op::util::PadBase::PadBase(const Output<Node>& arg,
       m_pad_mode{pad_mode} {
     ov::mark_as_precision_sensitive(input(1));
     ov::mark_as_precision_sensitive(input(2));
-    // constructor_validate_and_infer_types();
 }
 
 ov::op::util::PadBase::PadBase(const Output<Node>& arg,
@@ -42,7 +40,6 @@ ov::op::util::PadBase::PadBase(const Output<Node>& arg,
       m_pad_mode{pad_mode} {
     ov::mark_as_precision_sensitive(input(1));
     ov::mark_as_precision_sensitive(input(2));
-    // constructor_validate_and_infer_types();
 }
 
 CoordinateDiff ov::op::util::PadBase::get_pads_begin() const {
@@ -116,16 +113,6 @@ void ov::op::util::PadBase::validate_and_infer_types() {
     set_output_type(0, result_et, output_shapes[0]);
 }
 
-shared_ptr<Node> ov::op::util::PadBase::clone_with_new_inputs(const OutputVector& new_args) const {
-    OV_OP_SCOPE(util_PadBase_clone_with_new_inputs);
-    check_new_args_count(this, new_args);
-    if (get_input_size() == 4) {
-        return make_shared<v1::Pad>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3), m_pad_mode);
-    } else {
-        return make_shared<v1::Pad>(new_args.at(0), new_args.at(1), new_args.at(2), m_pad_mode);
-    }
-}
-
 bool ov::op::util::PadBase::evaluate_pad(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     const auto& data = inputs[0];
     const auto elem_size = data->get_element_type().size();
@@ -166,16 +153,6 @@ bool ov::op::util::PadBase::evaluate_pad(const HostTensorVector& outputs, const 
                                     pads_end_coord,
                                     get_pad_mode());
 
-    return true;
-}
-
-bool ov::op::util::PadBase::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    OV_OP_SCOPE(util_PadBase_evaluate);
-    return evaluate_pad(outputs, inputs);
-}
-
-bool ov::op::util::PadBase::has_evaluate() const {
-    OV_OP_SCOPE(util_PadBase_has_evaluate);
     return true;
 }
 

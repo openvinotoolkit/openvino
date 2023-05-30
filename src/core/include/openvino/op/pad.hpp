@@ -53,7 +53,7 @@ public:
 
     //     bool visit_attributes(AttributeVisitor& visitor) override;
     //     void validate_and_infer_types() override;
-    //     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     //     /// return The node which specifies the number of padding elements
     //     /// added at the beginning of each axis
@@ -69,10 +69,10 @@ public:
     //     void set_pad_mode(PadMode pad_mode) {
     //         m_pad_mode = pad_mode;
     //     }
-    //     OPENVINO_SUPPRESS_DEPRECATED_START
-    //     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
-    //     OPENVINO_SUPPRESS_DEPRECATED_END
-    //     bool has_evaluate() const override;
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool has_evaluate() const override;
     //     bool evaluate_lower(TensorVector& output_values) const override;
     //     bool evaluate_upper(TensorVector& output_values) const override;
     //     bool evaluate_label(TensorLabelVector& output_labels) const override;
@@ -121,6 +121,12 @@ public:
     /// after the last element on each axis.
     /// \param pad_mode The padding mode: CONSTANT, EDGE, REFLECT or SYMMETRIC.
     Pad(const Output<Node>& arg, const Output<Node>& pads_begin, const Output<Node>& pads_end, PadMode pad_mode);
+
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool has_evaluate() const override;
 };
 }  // namespace v12
 }  // namespace op
