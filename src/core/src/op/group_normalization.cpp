@@ -8,8 +8,7 @@
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/validation_util.hpp"
 
-using namespace ov;
-
+namespace ov {
 op::v12::GroupNormalization::GroupNormalization(const Output<Node>& data,
                                                 const Output<Node>& scale,
                                                 const Output<Node>& bias,
@@ -83,3 +82,4 @@ std::shared_ptr<Node> op::v12::GroupNormalization::clone_with_new_inputs(const O
                                                 m_num_groups,
                                                 m_epsilon);
 }
+}  // namespace ov
