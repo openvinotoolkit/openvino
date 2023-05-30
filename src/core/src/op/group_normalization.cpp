@@ -42,14 +42,23 @@ void op::v12::GroupNormalization::validate_and_infer_types() {
                           bias_partial_shape.rank().compatible(Dimension{1}),
                           "The bias input is required to be 1D");
 
-    if (data_rank.is_static() && data_rank.get_length() >= 2) {
+    NODE_VALIDATION_CHECK(this,
+                          data_rank.is_dynamic() || data_rank.get_length() >= 2,
+                          "The input tensor is required to be at least 2D");
+
+    if (data_rank.is_static()) {
         const auto channels_dim = data_partial_shape[1];
+        NODE_VALIDATION_CHECK(
+            this,
+            scale_partial_shape.rank().is_dynamic() || channels_dim.compatible(scale_partial_shape[0]),
+            "The scale input shape needs to match the channel dimension in the data input");
         NODE_VALIDATION_CHECK(this,
-                              PartialShape{channels_dim}.compatible(scale_partial_shape),
-                              "The scale input shape needs to match the channel dimension in the data input");
-        NODE_VALIDATION_CHECK(this,
-                              PartialShape{channels_dim}.compatible(bias_partial_shape),
+                              bias_partial_shape.rank().is_dynamic() || channels_dim.compatible(bias_partial_shape[0]),
                               "The bias input shape needs to match the channel dimension in the data input");
+
+        NODE_VALIDATION_CHECK(this,
+                              channels_dim.is_dynamic() || channels_dim.get_length() % get_num_groups() == 0,
+                              "The number of channels is required to be evenly divisible by the number of groups");
     }
 
     NODE_VALIDATION_CHECK(this,

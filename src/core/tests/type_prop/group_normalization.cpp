@@ -63,13 +63,13 @@ TEST(type_prop, group_normalization_dynamic_bias) {
 }
 
 TEST(type_prop, group_normalization_dynamic_rank) {
-    const auto data = std::make_shared<opset12::Parameter>(element::f16, PartialShape{});
+    const auto data = std::make_shared<opset12::Parameter>(element::f16, PartialShape::dynamic());
     const auto scale = std::make_shared<opset12::Parameter>(element::f16, PartialShape{6});
     const auto bias = std::make_shared<opset12::Parameter>(element::f16, PartialShape{6});
 
     const auto gn = std::make_shared<opset12::GroupNormalization>(data, scale, bias, 3, 0.00001f);
     EXPECT_EQ(gn->get_element_type(), element::f16);
-    EXPECT_EQ(gn->get_output_partial_shape(0), (PartialShape{}));
+    EXPECT_EQ(gn->get_output_partial_shape(0), (PartialShape::dynamic()));
 }
 
 TEST(type_prop, group_normalization_dynamic_everything) {
@@ -140,4 +140,24 @@ TEST(type_prop, group_normalization_incorrect_bias_rank) {
     OV_EXPECT_THROW(std::make_shared<opset12::GroupNormalization>(data, scale, bias, 4, 0.00001f),
                     NodeValidationFailure,
                     HasSubstr("The bias input is required to be 1D"));
+}
+
+TEST(type_prop, group_normalization_incompatible_channels_and_groups) {
+    const auto data = std::make_shared<opset12::Parameter>(element::f32, PartialShape{1, 10, 6, 6});
+    const auto scale = std::make_shared<opset12::Parameter>(element::f32, Shape{10});
+    const auto bias = std::make_shared<opset12::Parameter>(element::f32, Shape{10});
+
+    OV_EXPECT_THROW(std::make_shared<opset12::GroupNormalization>(data, scale, bias, 3, 0.00001f),
+                    NodeValidationFailure,
+                    HasSubstr("The number of channels is required to be evenly divisible by the number of groups"));
+}
+
+TEST(type_prop, group_normalization_incorrect_data_rank) {
+    const auto data = std::make_shared<opset12::Parameter>(element::f32, PartialShape{10});
+    const auto scale = std::make_shared<opset12::Parameter>(element::f32, Shape{1});
+    const auto bias = std::make_shared<opset12::Parameter>(element::f32, Shape{1});
+
+    OV_EXPECT_THROW(std::make_shared<opset12::GroupNormalization>(data, scale, bias, 2, 0.00001f),
+                    NodeValidationFailure,
+                    HasSubstr("The input tensor is required to be at least 2D"));
 }
