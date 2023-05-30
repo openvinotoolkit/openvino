@@ -32,7 +32,9 @@ Refer to the [Testing the AUTO Plugin](./tests.md) page for detailed instruction
 
 ### Test AUTO and Hardware Plugins Using benchmark_app
 
-command: benchmark_app -d ${device} -hint ${hint} -m \<any model works on HW plugin>
+```sh
+benchmark_app -d ${device} -hint ${hint} -m <any model works on HW plugin>
+```
 
 | hint                  | device        |
 | --------------------- | ------------- |
@@ -46,6 +48,7 @@ command: benchmark_app -d ${device} -hint ${hint} -m \<any model works on HW plu
 | cumulative_throughput | AUTO:\<HW>,CPU |
 
 ### Test Multiple Devices Running Simultaneously
-For example, there may be two GPUs on the same system, with device names GPU.0 and GPU.1.
 
 The HW plugin must guarantee simultaneous execution of multiple devices in different threads. It is recommended to test the HW plugin with the CPU plugin by running the plugins in different threads simultaneously.
+
+For example, there may be two GPUs on the same system, with device names GPU.0 and GPU.1. GPU plugin must guarantee simultaneous execution of GPU.0 and GPU.1 in different threads.
