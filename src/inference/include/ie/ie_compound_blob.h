@@ -15,6 +15,7 @@
 
 #include "ie_blob.h"
 
+IE_SUPPRESS_DEPRECATED_START
 namespace InferenceEngine {
 /**
  * @brief This class represents a blob that contains other blobs
@@ -315,3 +316,4 @@ public:
     explicit BatchedBlob(std::vector<Blob::Ptr>&& blobs);
 };
 }  // namespace InferenceEngine
+IE_SUPPRESS_DEPRECATED_END
