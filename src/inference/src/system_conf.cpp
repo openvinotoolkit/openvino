@@ -193,8 +193,7 @@ int get_num_numa_nodes() {
 void reserve_available_cpus(const std::vector<std::vector<int>> streams_info_table,
                             std::vector<std::vector<int>>& stream_processors,
                             std::vector<int>& stream_numa_node_ids,
-                            const int cpu_status) {
-}
+                            const int cpu_status) {}
 void set_cpu_used(const std::vector<int>& cpu_ids, const int used) {}
 
 int parse_processor_info_macos(int& _processors,
