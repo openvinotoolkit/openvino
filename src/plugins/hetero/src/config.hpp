@@ -32,6 +32,8 @@ struct Configuration {
     bool dump_graph = false;
     bool exclusive_async_requests = true;
     std::string device_priorities;
+
+    ov::AnyMap m_device_config;
 };
 }  // namespace hetero
 }  // namespace ov

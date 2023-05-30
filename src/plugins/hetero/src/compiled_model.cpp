@@ -409,7 +409,7 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
         auto device_config = metaDevices[network._device];
         device_config[ov::cache_dir.name()] = "";
 
-        network._network = plugin->get_core()->compile_model(network._clonedNetwork, network._device, m_cfg.GetDeviceConfig());
+        network._network = plugin->get_core()->compile_model(network._clonedNetwork, network._device, device_config);
     }
 
     } catch (const InferenceEngine::Exception& e) {

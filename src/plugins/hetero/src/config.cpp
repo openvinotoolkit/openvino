@@ -14,7 +14,7 @@ using namespace ov::hetero;
 
 Configuration::Configuration() {}
 
-
+// TODO vurusovs DELETE `throwOnUnsupported` option
 Configuration::Configuration(const ov::AnyMap& config, const Configuration& defaultCfg, bool throwOnUnsupported) {
     *this = defaultCfg;
 
@@ -26,11 +26,12 @@ Configuration::Configuration(const ov::AnyMap& config, const Configuration& defa
             dump_graph = value.as<bool>();
         else if (ov::device::priorities.name() == key)
             device_priorities = value.as<std::string>();
-        else if (ov::exclusive_async_requests == key)
+        else if (ov::exclusive_async_requests == key) {
             exclusive_async_requests = value.as<bool>();
-        else if (throwOnUnsupported) {
-            OPENVINO_THROW("Property was not found: ", key);
+            m_device_config[key] = value;
         }
+        else
+            m_device_config[key] = value;   // save property as is to pass to underlying device
     }
 }
 
@@ -47,5 +48,6 @@ ov::Any Configuration::Get(const std::string& name) const {
 }
 
 ov::AnyMap Configuration::GetDeviceConfig() const {
-    return {{ov::exclusive_async_requests.name(), exclusive_async_requests}};
+    // return {{ov::exclusive_async_requests.name(), exclusive_async_requests}};
+    return m_device_config;
 }

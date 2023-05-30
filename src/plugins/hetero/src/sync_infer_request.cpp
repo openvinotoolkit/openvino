@@ -56,6 +56,25 @@ ov::SoPtr<ov::IAsyncInferRequest> find_request_for_port(const ov::Output<const o
     return ov::SoPtr<ov::IAsyncInferRequest>(nullptr, nullptr);
 }
 
+std::pair<bool, ov::Output<const ov::Node>> find_port_from_map(const ov::Output<const ov::Node>& port, std::map<ov::Output<const ov::Node>, ov::Output<const ov::Node>> input_to_output_map) {
+    auto check_nodes = [](const ov::Node* node1, const ov::Node* node2) {
+        return node1 == node2 ||
+               (node1->get_friendly_name() == node2->get_friendly_name() &&
+                node1->get_type_info() == node2->get_type_info() &&
+                node1->outputs().size() == node2->outputs().size() && node1->inputs().size() == node2->inputs().size());
+    };
+    
+    for (const auto& kvp : input_to_output_map) {
+        // TODO: Fix port comparison
+        // if (kvp.first == port) {
+        if (kvp.first.get_index() == port.get_index() && kvp.first.get_names() == port.get_names() &&
+            check_nodes(kvp.first.get_node(), port.get_node())) {
+            return {true, kvp.second};
+        }
+    }
+    return {false , {}};
+}
+
 }  // namespace
 
 ov::hetero::InferRequest::InferRequest(const std::shared_ptr<const ov::hetero::CompiledModel>& compiled_model)
@@ -75,9 +94,20 @@ ov::hetero::InferRequest::InferRequest(const std::shared_ptr<const ov::hetero::C
         auto requestBlob([&](const ov::Output<const ov::Node>& port, ov::SoPtr<ov::IAsyncInferRequest>& r, bool output) {
             auto subgraphInputToOutputBlobNames = get_hetero_model()->_blobNameMap;
             auto intermediateBlobName = port;
-            auto itName = subgraphInputToOutputBlobNames.find(port);
-            if (itName != subgraphInputToOutputBlobNames.end()) {
-                intermediateBlobName = itName->second;
+            
+            // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+            // TODO VURUSOVS CONTINUE FROM HERE !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+
+            // auto itName = subgraphInputToOutputBlobNames.find(port);    // TODO vurusovs FIND (AND MAYBE INSERT) CAN NOT WORK FOR PORTS
+            // if (itName != subgraphInputToOutputBlobNames.end()) {
+            //     intermediateBlobName = itName->second;
+            // }
+            auto res = find_port_from_map(port, subgraphInputToOutputBlobNames);
+            if (std::get<0>(res)) {
+                intermediateBlobName = std::get<1>(res);
             }
             if (output) {
                 // TODO: Fix port comparison
