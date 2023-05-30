@@ -222,7 +222,7 @@ TEST(condition_gpu, basic_range_equal_comp) {
     auto input0 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 4, 1 } });
     auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 4, 1 } });
 
-    auto compare = engine.allocate_memory({ data_types::u8, format::bfyx,{ 1, 1, 3, 1 } });
+    auto compare = engine.allocate_memory({ data_types::u8, format::bfyx,{ 1, 1, 1, 1 } });
 
     primitive_id condi_id = "condi";
     primitive_id branch_input_id = "branch_input";
