@@ -1,5 +1,7 @@
 # ExtractImagePatches {#openvino_docs_ops_movement_ExtractImagePatches_3}
 
+@sphinxdirective
+
 **Versioned name**: *ExtractImagePatches-3*
 
 **Category**: *Data movement*

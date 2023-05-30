@@ -114,9 +114,9 @@ Get started with Python
 
 Visit the :doc:`Tutorials <tutorials>` page for more Jupyter Notebooks to get you started with OpenVINO, such as:
 
-* `OpenVINO Python API Tutorial <notebooks/002-openvino-api-with-output.html>`___
-* `Basic image classification program with Hello Image Classification <notebooks/001-hello-world-with-output.html>`___
-* `Convert a PyTorch model and use it for image background removal <notebooks/205-vision-background-removal-with-output.html>`___
+* `OpenVINO Python API Tutorial <https://docs.openvino.ai/2022.3/notebooks/002-openvino-api-with-output.html>`__
+* `Basic image classification program with Hello Image Classification <https://docs.openvino.ai/2022.3/notebooks/001-hello-world-with-output.html>`__
+* `Convert a PyTorch model and use it for image background removal <https://docs.openvino.ai/2022.3/notebooks/205-vision-background-removal-with-output.html>`__
 
 Run OpenVINO on accelerated devices
 +++++++++++++++++++++++++++++++++++
