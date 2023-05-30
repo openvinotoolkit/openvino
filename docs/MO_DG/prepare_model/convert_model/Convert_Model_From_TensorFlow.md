@@ -14,7 +14,7 @@ Converting Frozen Model Format
 
 To convert a TensorFlow model, use the ``*mo*`` script to simply convert a model with a path to the input model ``*.pb*`` file:
 
-.. code-block:: cpp
+.. code-block:: sh
 
    mo --input_model <INPUT_MODEL>.pb
 
@@ -28,13 +28,13 @@ There are three ways to store non-frozen TensorFlow models and convert them by M
 If you do not have an inference graph file, refer to the `Freezing Custom Models in Python <#Freezing-Custom-Models-in-Python>`__  section.
 To convert the model with the inference graph in ``.pb`` format, run the `mo` script with a path to the checkpoint file:
 
-.. code-block:: cpp
+.. code-block:: sh
 
    mo --input_model <INFERENCE_GRAPH>.pb --input_checkpoint <INPUT_CHECKPOINT>
 
 To convert the model with the inference graph in ``.pbtxt`` format, run the ``mo`` script with a path to the checkpoint file:
 
-.. code-block:: cpp
+.. code-block:: sh
 
    mo --input_model <INFERENCE_GRAPH>.pbtxt --input_checkpoint <INPUT_CHECKPOINT> --input_model_is_text
 
@@ -43,7 +43,7 @@ To convert the model with the inference graph in ``.pbtxt`` format, run the ``mo
 ``model_name.data-00000-of-00001`` (the numbers may vary), and ``checkpoint`` (optional).
 To convert such TensorFlow model, run the `mo` script with a path to the MetaGraph ``.meta`` file:
 
-.. code-block:: cpp
+.. code-block:: sh
 
    mo --input_meta_graph <INPUT_META_GRAPH>.meta
 
@@ -52,7 +52,7 @@ To convert such TensorFlow model, run the `mo` script with a path to the MetaGra
 and several subfolders: ``variables``, ``assets``, and ``assets.extra``. For more information about the SavedModel directory, refer to the `README <https://github.com/tensorflow/tensorflow/tree/master/tensorflow/python/saved_model#components>`__ file in the TensorFlow repository.
 To convert such TensorFlow model, run the ``mo`` script with a path to the SavedModel directory:
 
-.. code-block:: cpp
+.. code-block:: sh
 
    mo --saved_model_dir <SAVED_MODEL_DIRECTORY>
 
@@ -97,7 +97,7 @@ SavedModel Format
 A model in the SavedModel format consists of a directory with a ``saved_model.pb`` file and two subfolders: ``variables`` and ``assets``.
 To convert such a model, run the `mo` script with a path to the SavedModel directory:
 
-.. code-block:: cpp
+.. code-block:: sh
 
    mo --saved_model_dir <SAVED_MODEL_DIRECTORY>
 
@@ -171,14 +171,14 @@ Command-Line Interface (CLI) Examples Using TensorFlow-Specific Parameters
 
 * Launching model conversion for Inception V1 frozen model and dump information about the graph to TensorBoard log dir ``/tmp/log_dir``
 
-.. code-block:: cpp
+.. code-block:: sh
 
    mo --input_model inception_v1.pb -b 1 --tensorboard_logdir /tmp/log_dir
 
 
 * Launching model conversion for BERT model in the SavedModel format, with three inputs. Specify explicitly the input shapes where the batch size and the sequence length equal 2 and 30 respectively.
 
-.. code-block:: cpp
+.. code-block:: sh
 
    mo --saved_model_dir BERT --input mask,word_ids,type_ids --input_shape [2,30],[2,30],[2,30]
 
