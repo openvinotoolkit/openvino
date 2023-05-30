@@ -238,7 +238,22 @@ TEST_P(IEClassBasicTestP, getVersionsNonEmpty) {
 
 TEST_P(IEClassBasicTestP, unregisterExistingPluginNoThrow) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    // device instance is not created but was registered
+    // device instance is not created yet
+    ASSERT_THROW(ie.UnregisterPlugin(target_device), InferenceEngine::Exception);
+
+    // make the first call to IE which created device instance
+    ie.GetVersions(target_device);
+    // now, we can unregister device
+    ASSERT_NO_THROW(ie.UnregisterPlugin(target_device));
+}
+
+TEST_P(IEClassBasicTestP, accessToUnregisteredPluginThrows) {
+    InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
+    ASSERT_THROW(ie.UnregisterPlugin(target_device), InferenceEngine::Exception);
+    ASSERT_NO_THROW(ie.GetVersions(target_device));
+    ASSERT_NO_THROW(ie.UnregisterPlugin(target_device));
+    ASSERT_NO_THROW(ie.SetConfig({}, target_device));
+    ASSERT_NO_THROW(ie.GetVersions(target_device));
     ASSERT_NO_THROW(ie.UnregisterPlugin(target_device));
 }
 
