@@ -63,16 +63,16 @@ ngraph::matcher_pass_callback ov::intel_cpu::ConvertConv1DBase::convert_conv1d_t
 
 ov::intel_cpu::ConvertConv1D::ConvertConv1D() {
     auto m = std::make_shared<ngraph::pattern::Matcher>(
-        ngraph::pattern::wrap_type<ov::opset8::Convolution>({ngraph::pattern::any_input(ngraph::pattern::has_static_shape()),
-                                                             ngraph::pattern::any_input(ngraph::pattern::has_static_shape())},
-                                                             ngraph::pattern::has_static_shape()), "ConvertConvolutionToArm");
+        ngraph::pattern::wrap_type<ov::opset8::Convolution>({ngraph::pattern::any_input(),
+                                                             ngraph::pattern::any_input()}),
+                                                            "ConvertConvolutionToArm");
     register_matcher(m, convert_conv1d_to_conv2d<ov::opset8::Convolution>());
 }
 
 ov::intel_cpu::ConvertGroupConv1D::ConvertGroupConv1D() {
     auto m = std::make_shared<ngraph::pattern::Matcher>(
-            ngraph::pattern::wrap_type<ov::opset8::GroupConvolution>({ngraph::pattern::any_input(ngraph::pattern::has_static_shape()),
-                                                                      ngraph::pattern::any_input(ngraph::pattern::has_static_shape())},
-                                                                      ngraph::pattern::has_static_shape()), "ConvertGroupConvolutionToArm");
+            ngraph::pattern::wrap_type<ov::opset8::GroupConvolution>({ngraph::pattern::any_input(),
+                                                                      ngraph::pattern::any_input()}),
+                                                                     "ConvertGroupConvolutionToArm");
     register_matcher(m, convert_conv1d_to_conv2d<ov::opset8::GroupConvolution>());
 }

@@ -56,32 +56,28 @@ ngraph::matcher_pass_callback ov::intel_cpu::ConvertReduceMultiAxisBase::convert
 
 ov::intel_cpu::ConvertReduceProd::ConvertReduceProd() {
     auto m = std::make_shared<ngraph::pattern::Matcher>(
-            ngraph::pattern::wrap_type<ov::opset8::ReduceProd>({ngraph::pattern::any_input(ngraph::pattern::has_static_shape()),
-                                                           ngraph::pattern::wrap_type<ov::opset8::Constant>()},
-                                                           ngraph::pattern::has_static_shape()), "ConvertReduceProd");
+            ngraph::pattern::wrap_type<ov::opset8::ReduceProd>({ngraph::pattern::any_input(),
+                                                           ngraph::pattern::wrap_type<ov::opset8::Constant>()}), "ConvertReduceProd");
     register_matcher(m, convert_reduce<ov::opset8::ReduceProd>());
 }
 
 ov::intel_cpu::ConvertReduceMin::ConvertReduceMin() {
     auto m = std::make_shared<ngraph::pattern::Matcher>(
-            ngraph::pattern::wrap_type<ov::opset8::ReduceMin>({ngraph::pattern::any_input(ngraph::pattern::has_static_shape()),
-                                                          ngraph::pattern::wrap_type<ov::opset8::Constant>()},
-                                                          ngraph::pattern::has_static_shape()), "ConvertReduceMin");
+            ngraph::pattern::wrap_type<ov::opset8::ReduceMin>({ngraph::pattern::any_input(),
+                                                          ngraph::pattern::wrap_type<ov::opset8::Constant>()}), "ConvertReduceMin");
     register_matcher(m, convert_reduce<ov::opset8::ReduceMin>());
 }
 
 ov::intel_cpu::ConvertReduceMax::ConvertReduceMax() {
     auto m = std::make_shared<ngraph::pattern::Matcher>(
-            ngraph::pattern::wrap_type<ov::opset8::ReduceMax>({ngraph::pattern::any_input(ngraph::pattern::has_static_shape()),
-                                                          ngraph::pattern::wrap_type<ov::opset8::Constant>()},
-                                                          ngraph::pattern::has_static_shape()), "ConvertReduceMax");
+            ngraph::pattern::wrap_type<ov::opset8::ReduceMax>({ngraph::pattern::any_input(),
+                                                          ngraph::pattern::wrap_type<ov::opset8::Constant>()}), "ConvertReduceMax");
     register_matcher(m, convert_reduce<ov::opset8::ReduceMax>());
 }
 
 ov::intel_cpu::ConvertReduceSum::ConvertReduceSum() {
     auto m = std::make_shared<ngraph::pattern::Matcher>(
-            ngraph::pattern::wrap_type<ov::opset8::ReduceSum>({ngraph::pattern::any_input(ngraph::pattern::has_static_shape()),
-                                                          ngraph::pattern::wrap_type<ov::opset8::Constant>()},
-                                                          ngraph::pattern::has_static_shape()), "ConvertReduceSum");
+            ngraph::pattern::wrap_type<ov::opset8::ReduceSum>({ngraph::pattern::any_input(),
+                                                          ngraph::pattern::wrap_type<ov::opset8::Constant>()}), "ConvertReduceSum");
     register_matcher(m, convert_reduce<ov::opset8::ReduceSum>());
 }
