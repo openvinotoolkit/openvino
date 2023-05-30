@@ -13,6 +13,7 @@
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
+#include "pyopenvino/core/common.hpp"
 
 namespace py = pybind11;
 
@@ -198,4 +199,8 @@ void regclass_passes_MatcherPass(py::module m) {
                      :param callback: Function that performs transformation on the matched nodes.
                      :type callback: function
     )");
+
+    matcher_pass.def("__repr__", [](const ov::pass::MatcherPass& self) {
+        return Common::get_simple_repr(self);
+    });
 }

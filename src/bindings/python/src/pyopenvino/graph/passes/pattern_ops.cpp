@@ -17,6 +17,7 @@
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "pyopenvino/core/common.hpp"
 
 static ov::NodeTypeInfo get_type(const std::string& type_name) {
     // Supported types: opsetX.OpName or opsetX::OpName
@@ -414,6 +415,10 @@ static void reg_pattern_wrap_type(py::module m) {
         :param predicate: Function that performs additional checks for matching.
         :type predicate: function
     )");
+
+    wrap_type.def("__repr__", [](const ov::pass::pattern::op::WrapType& self) {
+        return Common::get_simple_repr(self);
+    });
 }
 
 static void reg_pattern_or(py::module m) {
@@ -441,6 +446,10 @@ static void reg_pattern_or(py::module m) {
                 :param inputs: Operation inputs.
                 :type inputs: List[openvino.runtime.Node]
     )");
+
+    or_type.def("__repr__", [](const ov::pass::pattern::op::Or& self) {
+        return Common::get_simple_repr(self);
+    });
 }
 
 static void reg_pattern_any_input(py::module m) {
@@ -468,6 +477,10 @@ static void reg_pattern_any_input(py::module m) {
                   :param pred: Function that performs additional checks for matching.
                   :type pred: function
     )");
+
+    any_input.def("__repr__", [](const ov::pass::pattern::op::Label& self) {
+        return Common::get_simple_repr(self);
+    });
 }
 
 inline void reg_predicates(py::module m) {

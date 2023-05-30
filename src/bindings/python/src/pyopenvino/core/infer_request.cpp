@@ -728,6 +728,7 @@ void regclass_InferRequest(py::module m) {
         auto inputs_str = Common::docs::container_to_string(self.m_inputs, ",\n");
         auto outputs_str = Common::docs::container_to_string(self.m_outputs, ",\n");
 
-        return "<InferRequest:\ninputs[\n" + inputs_str + "\n]\noutputs[\n" + outputs_str + "\n]>";
+        return "<" + Common::get_class_name(self) + ":\ninputs[\n" + inputs_str + "\n]\noutputs[\n" + outputs_str +
+               "\n]>";
     });
 }

@@ -51,12 +51,13 @@ void regclass_graph_Type(py::module m) {
 
     type.def("__hash__", &ov::element::Type::hash);
     type.def("__repr__", [](const ov::element::Type& self) {
+        std::string class_name = Common::get_class_name(self);
         if (self == ov::element::f32 || self == ov::element::f64) {
             std::string bitwidth = std::to_string(self.bitwidth());
-            return "<Type: '" + self.c_type_string() + bitwidth + "'>";
+            return "<" + class_name + ": '" + self.c_type_string() + bitwidth + "'>";
         }
 
-        return "<Type: '" + self.c_type_string() + "'>";
+        return "<" + class_name + ": '" + self.c_type_string() + "'>";
     });
     type.def(
         "__eq__",

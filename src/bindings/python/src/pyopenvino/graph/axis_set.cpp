@@ -11,6 +11,7 @@
 #include <sstream>
 #include <string>
 
+#include "pyopenvino/core/common.hpp"
 #include "pyopenvino/graph/axis_set.hpp"
 
 namespace py = pybind11;
@@ -38,6 +39,6 @@ void regclass_graph_AxisSet(py::module m) {
         std::stringstream data_ss;
         std::copy(self.begin(), self.end(), std::ostream_iterator<size_t>(data_ss, ", "));
         std::string data_str = data_ss.str();
-        return "<AxisSet {" + data_str.substr(0, data_str.size() - 2) + "}>";
+        return "<" + Common::get_class_name(self) + " {" + data_str.substr(0, data_str.size() - 2) + "}>";
     });
 }
