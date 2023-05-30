@@ -68,24 +68,26 @@ static void CreateResultOp(Program& p, const std::shared_ptr<ngraph::op::v0::Res
     }
 
     auto outLayerName = layer_type_name_ID(op);
+    auto inputDataType = cldnn::element_type_to_data_type(op->get_input_element_type(0));
     Precision precision = outputData->getPrecision();
+    auto outputDataType = DataTypeFromPrecision(precision);
     cldnn::input_info outputID = inputs[0];
 
-    if (p.use_new_shape_infer()
-        // Note:: Currently Split/Variadic Split are divided to multiple crops
-        && !ngraph::is_type<ngraph::op::v1::Split>(prev)
-        && !ngraph::is_type<ngraph::op::v1::VariadicSplit>(prev)) {
+    if (inputDataType != outputDataType) {
         auto reorder_primitive = cldnn::reorder(outLayerName,
                                                 outputID,
                                                 out_format,
-                                                DataTypeFromPrecision(precision));
+                                                outputDataType,
+                                                std::vector<float>(),
+                                                cldnn::reorder_mean_mode::subtract,
+                                                cldnn::padding(),
+                                                true);
         p.add_primitive(*op, reorder_primitive, {originalOutName});
-
     } else {
         auto reorder_primitive = cldnn::reorder(outLayerName,
                                                 outputID,
                                                 out_format,
-                                                DataTypeFromPrecision(precision));
+                                                outputDataType);
         p.add_primitive(*op, reorder_primitive, {originalOutName});
     }
     p.outputDims[originalOutName] = outputDesc.getDims();

@@ -16,6 +16,7 @@
 #include "concatenation_inst.h"
 #include "region_yolo_inst.h"
 #include "fully_connected_inst.h"
+#include "mvn_inst.h"
 
 #include <vector>
 #include <list>
@@ -412,7 +413,7 @@ void remove_redundant_reorders::run(program& p) {
                 continue;
 
             bool same_data_type = input.get_output_layout().data_type == output_layout.data_type;
-            bool allowed_dt_conversion_fuse = (input.is_type<one_hot>() || input.is_type<permute>() ||
+            bool allowed_dt_conversion_fuse = (input.is_type<one_hot>() || input.is_type<permute>() || input.is_type<mvn>() || input.is_type<concatenation>() ||
                                                input.is_type<depth_to_space>() || input.is_type<region_yolo>() || input.is_type<detection_output>());
             if (!same_data_type && !allowed_dt_conversion_fuse)
                 continue;
@@ -423,6 +424,13 @@ void remove_redundant_reorders::run(program& p) {
             auto old_output_layout_of_input = input.get_output_layout();
             input.set_output_layout(output_layout, false);
             if (input.type()->does_possible_implementation_exist(input)) {
+                fused_primitive_desc local_desc(node.get_primitive());
+                local_desc.f_param = node.get_fuse_params();
+                local_desc.total_num_deps = node.get_dependencies().size();
+                local_desc.input_layout = old_output_layout_of_input;
+                local_desc.output_layout = output_layout;
+                input.add_fused_primitive(local_desc);
+
                 node.can_be_optimized(true);
                 p.add_optimized_primitive_info(node.id());
 
