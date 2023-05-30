@@ -140,7 +140,7 @@ macro(ov_find_package_tbb)
                     else()
                         _ov_pkg_config_tbb_unset()
 
-                        if(CPACK_GENERATOR STREQUAL "^(DEB|RPM|CONDA-FORGE|BREW|CONAN)$")
+                        if(CPACK_GENERATOR STREQUAL "^(DEB|RPM|CONDA-FORGE|BREW|CONAN|VCPKG)$")
                             # package managers require system TBB
                             set(message_type FATAL_ERROR)
                         else()
