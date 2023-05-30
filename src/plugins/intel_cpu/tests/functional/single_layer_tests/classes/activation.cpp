@@ -52,13 +52,19 @@ void ActivationLayerCPUTest::generate_inputs(const std::vector<ngraph::Shape>& t
     uint32_t range = 0;
     int32_t resolution = 0;
 
-    if (activationType == ngraph::helpers::ActivationTypes::Exp &&
-        netPrecision == InferenceEngine::Precision::BF16) {
+    if (activationType == ActivationTypes::Exp && netPrecision == Precision::BF16) {
         startFrom = 0;
         range = 2;
         resolution = 32768;
-    } else if (activationType == ngraph::helpers::ActivationTypes::Acosh) {
+    } else if (activationType == ActivationTypes::Acosh) {
         startFrom = 2;
+        range = 2;
+        resolution = 128;
+    } else if (activationType == ActivationTypes::Acos ||
+               activationType == ActivationTypes::Asin ||
+               activationType == ActivationTypes::Atanh) {
+        // range [-1. 1] is required
+        startFrom = -1;
         range = 2;
         resolution = 128;
     } else {
