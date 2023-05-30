@@ -76,6 +76,7 @@
 
 using namespace ov;
 using namespace ov::opset8;
+using namespace ov::intel_gna::limitations;
 
 namespace {
 
@@ -271,7 +272,7 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
             const TransposeInfo transpose_info = GetFirstInputTranspose(node);
             if (transpose_info.isEmpty())
                 return false;
-            const bool is_supported = limitations::is_forward_transposed_concat_supported(
+            const bool is_supported = Limitations::is_forward_transposed_concat_supported(
                 node,
                 transpose_info.transpose_const->get_axis_vector_val());
             if (!is_supported)
@@ -284,7 +285,7 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
             const TransposeInfo transpose_info = GetFirstOutputTranspose(node);
             if (transpose_info.isEmpty())
                 return false;
-            return !limitations::is_backward_transposed_concat_supported(
+            return !Limitations::is_backward_transposed_concat_supported(
                 node,
                 transpose_info.transpose_const->get_axis_vector_val());
         });
@@ -294,7 +295,7 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
             const TransposeInfo transpose_info = GetFirstInputTranspose(node);
             if (transpose_info.isEmpty())
                 return false;
-            const bool is_supported = limitations::is_forward_transposed_split_supported(
+            const bool is_supported = Limitations::is_forward_transposed_split_supported(
                 node,
                 transpose_info.transpose_const->get_axis_vector_val());
             if (!is_supported)
@@ -307,7 +308,7 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
             const TransposeInfo transpose_info = GetFirstOutputTranspose(node);
             if (transpose_info.isEmpty())
                 return false;
-            return !limitations::is_backward_transposed_split_supported(
+            return !Limitations::is_backward_transposed_split_supported(
                 node,
                 transpose_info.transpose_const->get_axis_vector_val());
         });
