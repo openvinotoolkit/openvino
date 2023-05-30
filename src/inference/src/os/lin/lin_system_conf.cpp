@@ -44,7 +44,7 @@ CPU::CPU() {
         return 0;
     };
 
-    auto CheckValidCpu = [&]() {
+    auto check_valid_cpu = [&]() {
         cpu_set_t mask;
         CPU_ZERO(&mask);
 
@@ -123,8 +123,8 @@ CPU::CPU() {
                                    _cores,
                                    _proc_type_table,
                                    _cpu_mapping_table);
-        if (CheckValidCpu() < 0) {
-            IE_THROW() << "No CPU processor available.";
+        if (check_valid_cpu() < 0) {
+            OPENVINO_THROW("CPU affinity check failed. No CPU is eligible to run inference.");
         };
     } else {
         /*Previous CPU resource based on calculation*/
