@@ -172,6 +172,7 @@ calculations (has the ``AVX512_BF16`` or ``AMX`` extension) then ``bf16`` type i
 If the accuracy in this mode is not good enough, then set ``ov::hint::execution_mode`` to ``ov::hint::ExecutionMode::ACCURACY`` to enforce the plugin to
 use the ``f32`` precision in floating point calculations.
 
+For more details and code examples, see the :doc:`Precision Control <openvino_docs_OV_UG_Precision_Control>`.
 
 Supported Features
 ###########################################################
