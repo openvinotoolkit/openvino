@@ -128,7 +128,6 @@ struct CPUStreamsExecutor::Impl {
 
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
         void init_stream() {
-            std::lock_guard<std::mutex> lock{_impl->_cpumap_mutex};
             const auto stream_id = _streamId >= _impl->_config._streams ? _impl->_config._streams - 1 : _streamId;
             const auto org_proc_type_table = get_org_proc_type_table();
             const auto concurrency = _impl->_config._stream_stream_infos.size() > 0
@@ -421,7 +420,6 @@ struct CPUStreamsExecutor::Impl {
     std::queue<int> _streamIdQueue;
     std::vector<std::thread> _threads;
     std::mutex _mutex;
-    std::mutex _cpumap_mutex;
     std::condition_variable _queueCondVar;
     std::queue<Task> _taskQueue;
     bool _isStopped = false;
