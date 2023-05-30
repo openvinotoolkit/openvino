@@ -51,13 +51,8 @@ const std::vector<ngraph::helpers::EltwiseTypes>& eltwiseOpTypesBinDyn();
 
 const std::vector<CPUSpecificParams>& cpuParams_4D();
 const std::vector<std::vector<ov::Shape>>& inShapes_4D();
-const std::vector<std::vector<ov::Shape>>& inShapes_4D_fusing();
 const std::vector<std::vector<InputShape>>& inShapes_4D_dyn_const();
-const std::vector<CPUSpecificParams>& cpuParams_4D_Blocked_Planar();
-const std::vector<std::vector<ov::Shape>>& inShapes_4D_Blocked_Planar();
 const std::vector<InputShape>& inShapes_4D_dyn_param();
-const std::vector<InputShape>& inShapes_4D_dyn_param_fusing();
-const std::vector<std::vector<ov::Shape>>& inShapes_4D_Planar_Blocked();
 const std::vector<std::vector<ngraph::Shape>>& inShapes_4D_1D();
 const std::vector<CPUSpecificParams> & cpuParams_4D_1D_Constant_mode();
 const std::vector<CPUSpecificParams>& cpuParams_4D_1D_Parameter_mode();
@@ -69,9 +64,6 @@ const std::vector<InputShape>& inShapes_5D_dyn_const();
 const std::vector<InputShape>& inShapes_5D_dyn_param();
 const std::vector<CPUSpecificParams>& cpuParams_5D_1D_constant();
 const std::vector<CPUSpecificParams>& cpuParams_5D_1D_parameter();
-
-const std::vector<std::vector<ov::Shape>>& inShapes_5D_Blocked_Planar();
-const std::vector<std::vector<ngraph::Shape>>& inShapes_5D_Planar_Blocked();
 
 const std::vector<ngraph::helpers::EltwiseTypes>& eltwiseOpTypesI32();
 

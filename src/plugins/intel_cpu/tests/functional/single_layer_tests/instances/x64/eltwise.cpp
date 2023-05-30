@@ -25,6 +25,59 @@ const std::vector<ElementType>& netType() {
         return netType;
 }
 
+const std::vector<InputShape>& inShapes_4D_dyn_param_fusing() {
+        static const std::vector<InputShape> inShapes_4D_dyn_param_fusing = {
+        {
+                // dynamic
+                {-1, 7, -1, -1},
+                // target
+                {
+                {3, 7, 1, 1},
+                {1, 7, 5, 1},
+                {3, 7, 1, 1},
+                {3, 7, 4, 11},
+                }
+        },
+        {
+                // dynamic
+                {-1, 7, -1, -1},
+                // target
+                {
+                {1, 7, 5, 1},
+                {3, 7, 1, 10},
+                {1, 7, 5, 1},
+                {3, 7, 4, 11}
+                }
+        }
+        };
+        return inShapes_4D_dyn_param_fusing;
+}
+
+const std::vector<std::vector<ov::Shape>>& inShapes_4D_Planar_Blocked() {
+        static const std::vector<std::vector<ov::Shape>> inShapes_4D_Planar_Blocked = {
+                {{2, 1, 31, 3}, {2, 17, 31, 3}},
+                {{2, 1, 1, 4}, {2, 17, 5, 1}},
+        };
+        return inShapes_4D_Planar_Blocked;
+}
+
+const std::vector<std::vector<ov::Shape>>& inShapes_4D_fusing() {
+        static const std::vector<std::vector<ov::Shape>> inShapes_4D_fusing = {
+                {{2, 4, 4, 1}},
+                {{2, 17, 5, 4}},
+                {{2, 17, 5, 1}, {1, 17, 1, 4}},
+        };
+        return inShapes_4D_fusing;
+}
+
+const std::vector<std::vector<ov::Shape>>& inShapes_4D_Blocked_Planar() {
+        static const std::vector<std::vector<ov::Shape>> inShapes_4D_Blocked_Planar = {
+                {{2, 17, 31, 3}, {2, 1, 31, 3}},
+                {{2, 17, 5, 1}, {2, 1, 1, 4}},
+        };
+        return inShapes_4D_Blocked_Planar;
+}
+
 const std::vector<CPUSpecificParams>& cpuParams_4D_Blocked_Planar() {
         static const std::vector<CPUSpecificParams> cpuParams_4D_Blocked_Planar = {
                 CPUSpecificParams({nChw16c, nchw}, {nChw16c}, {}, {}),
@@ -37,6 +90,22 @@ const std::vector<CPUSpecificParams>& cpuParams_4D_Planar_Blocked() {
                 CPUSpecificParams({nchw, nChw16c}, {nChw16c}, {}, {}),
         };
         return cpuParams_4D_Planar_Blocked;
+}
+
+const std::vector<std::vector<ov::Shape>>& inShapes_5D_Blocked_Planar() {
+        static const std::vector<std::vector<ov::Shape>> inShapes_5D_Blocked_Planar = {
+                {{2, 17, 31, 4, 3}, {2, 1, 31, 1, 3}},
+                {{2, 17, 5, 3, 1}, {2, 1, 1, 3, 4}},
+        };
+        return inShapes_5D_Blocked_Planar;
+}
+
+const std::vector<std::vector<ngraph::Shape>>& inShapes_5D_Planar_Blocked() {
+        static const std::vector<std::vector<ngraph::Shape>> inShapes_5D_Planar_Blocked = {
+                {{2, 1, 31, 1, 3}, {2, 17, 31, 4, 3}},
+                {{2, 1, 1, 3, 4}, {2, 17, 5, 3, 1}},
+        };
+        return inShapes_5D_Planar_Blocked;
 }
 
 const std::vector<CPUSpecificParams>& cpuParams_5D_Blocked_Planar() {

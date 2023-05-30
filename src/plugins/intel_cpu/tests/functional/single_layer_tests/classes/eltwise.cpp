@@ -59,7 +59,6 @@ ov::Tensor EltwiseLayerCPUTest::generate_eltwise_input(const ov::element::Type& 
         } else {
             params = gen_params(INT32_MAX, INT32_MIN);
         }
-
         return ov::test::utils::create_and_fill_tensor(type, shape, params.range, params.start_from, params.resolution);
     }
 
@@ -72,13 +71,11 @@ void EltwiseLayerCPUTest::generate_inputs(const std::vector<ngraph::Shape>& targ
         }
 }
 
-
 void EltwiseLayerCPUTest::SetUp() {
         subgraph::EltwiseTestParams basicParamsSet;
         CPUSpecificParams cpuParams;
         fusingSpecificParams fusingParams;
         std::tie(basicParamsSet, cpuParams, fusingParams) = this->GetParam();
-
         std::vector<InputShape> shapes;
         ElementType netType;
         ngraph::helpers::InputLayerType secondaryInputType;
@@ -117,7 +114,6 @@ void EltwiseLayerCPUTest::SetUp() {
 
         configuration.insert(additional_config.begin(), additional_config.end());
         auto parameters = ngraph::builder::makeDynamicParams(netType, {inputDynamicShapes.front()});
-
         std::shared_ptr<ngraph::Node> secondaryInput;
         if (secondaryInputType == ngraph::helpers::InputLayerType::PARAMETER) {
             secondaryInput = ngraph::builder::makeDynamicParams(netType, {inputDynamicShapes.back()}).front();
@@ -136,7 +132,6 @@ void EltwiseLayerCPUTest::SetUp() {
                     }
                 }
             }
-
             if (netType == ElementType::i32) {
                 auto data_tensor = generate_eltwise_input(ElementType::i32, shape);
                 auto data_ptr = reinterpret_cast<int32_t*>(data_tensor.data());
@@ -149,11 +144,9 @@ void EltwiseLayerCPUTest::SetUp() {
                 secondaryInput = ngraph::builder::makeConstant(netType, shape, data);
             }
         }
-
         auto eltwise = ngraph::builder::makeEltwise(parameters[0], secondaryInput, eltwiseType);
         function = makeNgraphFunction(netType, parameters, eltwise, "Eltwise");
 }
-
 
 TEST_P(EltwiseLayerCPUTest, CompareWithRefs) {
     run();
@@ -218,7 +211,6 @@ const std::vector<ngraph::helpers::EltwiseTypes>& eltwiseOpTypesBinDyn() {
 
 const std::vector<CPUSpecificParams>& cpuParams_4D() {
         static const std::vector<CPUSpecificParams> cpuParams_4D = {
-                //CPUSpecificParams({nChw16c, nChw16c}, {nChw16c}, {}, {}),
                 CPUSpecificParams({nhwc, nhwc}, {nhwc}, {}, {}),
                 CPUSpecificParams({nchw, nchw}, {nchw}, {}, {})
         };
@@ -227,7 +219,6 @@ const std::vector<CPUSpecificParams>& cpuParams_4D() {
 
 const std::vector<CPUSpecificParams>& cpuParams_5D() {
         static const std::vector<CPUSpecificParams> cpuParams_5D = {
-                //CPUSpecificParams({nCdhw16c, nCdhw16c}, {nCdhw16c}, {}, {}),
                 CPUSpecificParams({ndhwc, ndhwc}, {ndhwc}, {}, {}),
                 CPUSpecificParams({ncdhw, ncdhw}, {ncdhw}, {}, {})
         };
@@ -267,9 +258,6 @@ const std::vector<ngraph::helpers::EltwiseTypes>& eltwiseOpTypesI32() {
         return eltwiseOpTypesI32;
 }
 
-
-
-
 const std::vector<ngraph::helpers::InputLayerType>& secondaryInputTypes() {
         static const std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {
                 ngraph::helpers::InputLayerType::CONSTANT,
@@ -277,26 +265,6 @@ const std::vector<ngraph::helpers::InputLayerType>& secondaryInputTypes() {
         };
         return secondaryInputTypes;
 }
-
-const std::vector<std::vector<ov::Shape>>& inShapes_4D_Planar_Blocked() {
-        static const std::vector<std::vector<ov::Shape>> inShapes_4D_Planar_Blocked = {
-                {{2, 1, 31, 3}, {2, 17, 31, 3}},
-                {{2, 1, 1, 4}, {2, 17, 5, 1}},
-        };
-        return inShapes_4D_Planar_Blocked;
-}
-
-
-
-const std::vector<std::vector<ngraph::Shape>>& inShapes_5D_Planar_Blocked() {
-        static const std::vector<std::vector<ngraph::Shape>> inShapes_5D_Planar_Blocked = {
-                {{2, 1, 31, 1, 3}, {2, 17, 31, 4, 3}},
-                {{2, 1, 1, 3, 4}, {2, 17, 5, 3, 1}},
-        };
-        return inShapes_5D_Planar_Blocked;
-}
-
-
 
 const std::vector<std::vector<ngraph::Shape>>& inShapes_4D_1D() {
         static const std::vector<std::vector<ngraph::Shape>> inShapes_4D_1D = {
@@ -308,7 +276,6 @@ const std::vector<std::vector<ngraph::Shape>>& inShapes_4D_1D() {
 
 const std::vector<CPUSpecificParams> & cpuParams_4D_1D_Constant_mode() {
         static const std::vector<CPUSpecificParams> cpuParams_4D_1D_Constant_mode = {
-                //CPUSpecificParams({nChw16c, nchw}, {nChw16c}, {}, {}),
                 CPUSpecificParams({nhwc, nhwc}, {nhwc}, {}, {}),
                 CPUSpecificParams({nchw, nchw}, {nchw}, {}, {})
         };
@@ -330,30 +297,12 @@ const std::vector<std::vector<ngraph::Shape>>& inShapes_5D_1D() {
         return inShapes_5D_1D;
 }
 
-const std::vector<std::vector<ov::Shape>>& inShapes_4D_Blocked_Planar() {
-        static const std::vector<std::vector<ov::Shape>> inShapes_4D_Blocked_Planar = {
-                {{2, 17, 31, 3}, {2, 1, 31, 3}},
-                {{2, 17, 5, 1}, {2, 1, 1, 4}},
-        };
-        return inShapes_4D_Blocked_Planar;
-}
-
-const std::vector<std::vector<ov::Shape>>& inShapes_5D_Blocked_Planar() {
-        static const std::vector<std::vector<ov::Shape>> inShapes_5D_Blocked_Planar = {
-                {{2, 17, 31, 4, 3}, {2, 1, 31, 1, 3}},
-                {{2, 17, 5, 3, 1}, {2, 1, 1, 3, 4}},
-        };
-        return inShapes_5D_Blocked_Planar;
-}
-
 const std::vector<CPUSpecificParams>& cpuParams_5D_1D_parameter() {
         static const std::vector<CPUSpecificParams> cpuParams_5D_1D_parameter = {
                 CPUSpecificParams({ncdhw, x}, {ncdhw}, {}, {})
         };
         return cpuParams_5D_1D_parameter;
 }
-
-
 
 const std::vector<InputShape>& inShapes_4D_dyn_param() {
         static const std::vector<InputShape> inShapes_4D_dyn_param = {
@@ -379,43 +328,6 @@ const std::vector<InputShape>& inShapes_4D_dyn_param() {
         }
         };
         return inShapes_4D_dyn_param;
-}
-
-const std::vector<std::vector<ov::Shape>>& inShapes_4D_fusing() {
-        static const std::vector<std::vector<ov::Shape>> inShapes_4D_fusing = {
-                {{2, 4, 4, 1}},
-                {{2, 17, 5, 4}},
-                {{2, 17, 5, 1}, {1, 17, 1, 4}},
-        };
-        return inShapes_4D_fusing;
-}
-
-const std::vector<InputShape>& inShapes_4D_dyn_param_fusing() {
-        static const std::vector<InputShape> inShapes_4D_dyn_param_fusing = {
-        {
-                // dynamic
-                {-1, 7, -1, -1},
-                // target
-                {
-                {3, 7, 1, 1},
-                {1, 7, 5, 1},
-                {3, 7, 1, 1},
-                {3, 7, 4, 11},
-                }
-        },
-        {
-                // dynamic
-                {-1, 7, -1, -1},
-                // target
-                {
-                {1, 7, 5, 1},
-                {3, 7, 1, 10},
-                {1, 7, 5, 1},
-                {3, 7, 4, 11}
-                }
-        }
-        };
-        return inShapes_4D_dyn_param_fusing;
 }
 
 const std::vector<InputShape>& inShapes_5D_dyn_param() {
@@ -462,7 +374,7 @@ const std::vector<InputShape>& inShapes_5D_dyn_const() {
 }
 
 const std::vector<std::vector<InputShape>>& inShapes_4D_dyn_const() {
-        static const std::vector<std::vector<InputShape>> inShapes_4D_dyn_const = {
+    static const std::vector<std::vector<InputShape>> inShapes_4D_dyn_const = {
         {
                 {
                 // dynamic
@@ -482,24 +394,22 @@ const std::vector<std::vector<InputShape>>& inShapes_4D_dyn_const() {
                 {{1, 10}, 2, 5, 6},
                 // target
                 {
-                {3, 2, 5, 6},
-                {1, 2, 5, 6},
-                {2, 2, 5, 6},
+                        {3, 2, 5, 6},
+                        {1, 2, 5, 6},
+                        {2, 2, 5, 6},
                 }
                 }
         },
-        };
+    };
     return inShapes_4D_dyn_const;
 }
 
-
 const std::vector<CPUSpecificParams>& cpuParams_5D_1D_constant() {
-        static const std::vector<CPUSpecificParams> cpuParams_5D_1D_constant = {
-                //CPUSpecificParams({nCdhw16c, ncdhw}, {nCdhw16c}, {}, {}),
-                CPUSpecificParams({ndhwc, ndhwc}, {ndhwc}, {}, {}),
-                CPUSpecificParams({ncdhw, ncdhw}, {ncdhw}, {}, {})
-        };
-        return cpuParams_5D_1D_constant;
+    static const std::vector<CPUSpecificParams> cpuParams_5D_1D_constant = {
+        CPUSpecificParams({ndhwc, ndhwc}, {ndhwc}, {}, {}),
+        CPUSpecificParams({ncdhw, ncdhw}, {ncdhw}, {}, {})
+    };
+    return cpuParams_5D_1D_constant;
 }
 
 } // namespace Eltwise
