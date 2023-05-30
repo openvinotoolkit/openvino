@@ -104,6 +104,12 @@ void SwapOutputNames(Output<Node> output1, Output<Node> output2) {
     const auto node2_output_names = output2.get_names();
     output2.set_names(output1.get_names());
     output1.set_names(node2_output_names);
+
+    NGRAPH_SUPPRESS_DEPRECATED_START
+    const auto node2_output_legacy_name = ov::descriptor::get_ov_tensor_legacy_name(output2.get_tensor());
+    ov::descriptor::set_ov_tensor_legacy_name(output2.get_tensor(), ov::descriptor::get_ov_tensor_legacy_name(output1.get_tensor()));
+    ov::descriptor::set_ov_tensor_legacy_name(output1.get_tensor(), node2_output_legacy_name);
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
 void SwapFriendlyNames(const NodePtr& node1, const NodePtr& node2) {
