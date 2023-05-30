@@ -107,7 +107,7 @@ Now that you've installed OpenVINO Runtime, you're ready to run your own machine
 .. image:: https://user-images.githubusercontent.com/15709723/127752390-f6aa371f-31b5-4846-84b9-18dd4f662406.gif
    :width: 400
 
-Try the `Python Quick Start Example <notebooks/201-vision-monodepth-with-output.html>`__ to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
+Try the `Python Quick Start Example <https://docs.openvino.ai/2022.3/notebooks/201-vision-monodepth-with-output.html>`__ to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
 
 Get started with Python
 +++++++++++++++++++++++
