@@ -118,3 +118,11 @@ std::shared_ptr<ov::IRemoteContext> ov::ICompiledModel::get_context() const {
         return m_context._impl;
     return m_plugin->get_default_context({});
 }
+
+void ov::ICompiledModel::loaded_from_cache() {
+    _loaded_from_cache = true;
+}
+
+bool ov::ICompiledModel::is_loaded_from_cache() const {
+    return _loaded_from_cache;
+}

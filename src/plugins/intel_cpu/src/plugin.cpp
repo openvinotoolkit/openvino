@@ -803,11 +803,6 @@ std::shared_ptr<ov::ICompiledModel> Engine::import_model(std::istream& networkMo
     }
 
     auto compiled_model = std::make_shared<CompiledModel>(model, shared_from_this(), conf, extensionManager);
-
-    //execNetwork->setNetworkInputs(cnnnetwork.getInputsInfo());
-    //execNetwork->setNetworkOutputs(cnnnetwork.getOutputsInfo());
-    //SetExeNetworkInfo(execNetwork, cnnnetwork.getFunction());
-
     return compiled_model;
 }
 }   // namespace intel_cpu

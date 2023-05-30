@@ -63,7 +63,8 @@ private:
     void PullStates();
     void redefineMemoryForInputNodes();
 
-    bool find_port_name(const ov::Output<const ov::Node>& port, std::string& name, bool is_input = true) const;
+    std::string get_port_name(const ov::Output<const ov::Node>& port) const;
+    void check_port(const ov::Output<const ov::Node>& port) const;
 
     std::shared_ptr<const CompiledModel> _compiled_model;
     openvino::itt::handle_t _profiling_task;

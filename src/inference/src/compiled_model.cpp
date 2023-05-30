@@ -115,7 +115,15 @@ void CompiledModel::set_property(const AnyMap& config) {
 }
 
 Any CompiledModel::get_property(const std::string& name) const {
-    OV_COMPILED_MODEL_CALL_STATEMENT(return {_impl->get_property(name), {_so}});
+    OV_COMPILED_MODEL_CALL_STATEMENT({
+        Any value;
+        if (name == ov::loaded_from_cache) {
+            value = _impl->is_loaded_from_cache();
+        } else {
+            value = _impl->get_property(name);
+        }
+        return {value, {_so}};
+    });
 }
 
 RemoteContext CompiledModel::get_context() const {
