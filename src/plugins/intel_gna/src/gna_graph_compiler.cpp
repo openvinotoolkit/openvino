@@ -2595,7 +2595,8 @@ void GNAGraphCompiler::connectOutput(InferenceEngine::CNNLayerPtr layer, void* p
                 if (layer->params.find("output_offset") != layer->params.end()) {
                     output_offset = layer->GetParamAsInt("output_offset");
                 }
-                gnamem->getQueue(REGION_AUTO)->bind_ptr(layer, ptr, &concatLayerInfoItem.gna_ptr, output_offset, num_data_bytes_out);
+                gnamem->getQueue(REGION_AUTO)
+                    ->bind_ptr(layer, ptr, &concatLayerInfoItem.gna_ptr, output_offset, num_data_bytes_out);
             }
             return;
         }
