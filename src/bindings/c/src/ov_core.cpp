@@ -215,8 +215,11 @@ ov_status_e ov_core_get_property(const ov_core_t* core,
     if (!core || !property_key || !property_value) {
         return ov_status_e::INVALID_C_PARAM;
     }
+    try {
         auto value = core->object->get_property(device_name, property_key);
         *property_value = str_to_char_array(value.as<std::string>());
+    }
+    CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
 }
 
