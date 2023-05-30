@@ -57,7 +57,7 @@ a general changelog for each version published under the current cycle.
    OpenVINO™ repository tag: `2023.0.0.dev20230217 <https://github.com/openvinotoolkit/openvino/releases/tag/2023.0.0.dev20230217>`__
 
    * Enabled PaddlePaddle Framework 2.4
-   * Preview of TensorFlow Lite Front End – Load models directly via “read_model” into OpenVINO Runtime and export OpenVINO IR format using Model Conversion API or “convert_model”
+   * Preview of TensorFlow Lite Frontend – Load models directly via “read_model” into OpenVINO Runtime and export OpenVINO IR format using Model Conversion API or “convert_model”
    * PyTorch Frontend is available as an experimental feature which will allow you to convert PyTorch models, using convert_model Python API directly from your code without the need to export to the ONNX format. Model coverage is continuously increasing. Feel free to start using the option and give us feedback.
    * Model Conversion API now uses the TensorFlow Frontend as the default path for conversion to IR. Known limitations compared to the legacy approach are: TF1 Loop, Complex types, models requiring config files and old python extensions. The solution detects unsupported functionalities and provides fallback. To force using the legacy frontend ``use_legacy_fronted`` can be specified.
    * Model Conversion API now supports out-of-the-box conversion of TF2 Object Detection models. At this point, same performance experience is guaranteed only on CPU devices. Feel free to start enjoying TF2 Object Detection models without config files!
