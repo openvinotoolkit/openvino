@@ -78,3 +78,5 @@ attach_prior_box_common::attach_prior_box_common() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::common::wait_for_events_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::data)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::input_layout)
