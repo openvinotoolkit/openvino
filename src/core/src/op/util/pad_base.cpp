@@ -5,7 +5,7 @@
 #include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/runtime/reference/pad.hpp"
-#include "openvino/attribute_visitor.hpp"
+#include "openvino/core/attribute_visitor.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/pad.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"

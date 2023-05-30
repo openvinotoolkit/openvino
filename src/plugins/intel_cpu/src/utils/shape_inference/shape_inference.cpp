@@ -5,6 +5,7 @@
 #include <openvino/core/node.hpp>
 #include <openvino/opsets/opset1.hpp>
 #include <openvino/opsets/opset10.hpp>
+#include <openvino/opsets/opset12.hpp>
 #include <openvino/opsets/opset5.hpp>
 #include <openvino/opsets/opset7.hpp>
 
@@ -507,7 +508,6 @@ const IShapeInferCommonFactory::TRegistry IShapeInferCommonFactory::registry{
     _OV_OP_SHAPE_INFER_REG(OneHot, entryIOC),
     _OV_OP_SHAPE_INFER_REG(ov::op::internal::AUGRUCell, entryIO),
     _OV_OP_SHAPE_INFER_REG(ov::op::internal::AUGRUSequence, entryIO),
-    _OV_OP_SHAPE_INFER_REG(Pad, entryIOC),
     _OV_OP_SHAPE_INFER_REG(PriorBox, entryIOC),
     _OV_OP_SHAPE_INFER_REG(PriorBoxClustered, entryIOC),
     _OV_OP_SHAPE_INFER_REG(Proposal, entryIO),
@@ -547,6 +547,8 @@ const IShapeInferCommonFactory::TRegistry IShapeInferCommonFactory::registry{
     _OV_OP_SHAPE_INFER_VA_REG(ReduceMin, entryIOC, op::util::ArithmeticReductionKeepDims),
     _OV_OP_SHAPE_INFER_VA_REG(ReduceProd, entryIOC, op::util::ArithmeticReductionKeepDims),
     _OV_OP_SHAPE_INFER_VA_REG(ReduceSum, entryIOC, op::util::ArithmeticReductionKeepDims),
+    // opset12
+    _OV_OP_SHAPE_INFER_REG(opset12::Pad, entryIOC),
     // opset7
     _OV_OP_SHAPE_INFER_VA_REG(opset7::Gather, entryIOC, ov::op::util::GatherBase),
     // opset5
@@ -566,6 +568,7 @@ const IShapeInferCommonFactory::TRegistry IShapeInferCommonFactory::registry{
     _OV_OP_SHAPE_INFER_REG(opset1::Interpolate, entryIOC),
     _OV_OP_SHAPE_INFER_REG(opset1::LSTMCell, entryIO),
     _OV_OP_SHAPE_INFER_REG(opset1::MaxPool, ShapeInferWithPadding),
+    _OV_OP_SHAPE_INFER_REG(opset1::Pad, entryIOC),
     _OV_OP_SHAPE_INFER_REG(opset1::Proposal, entryIO),
     _OV_OP_SHAPE_INFER_REG(opset1::Range, entryIOC),
     _OV_OP_SHAPE_INFER_REG(opset1::ShapeOf, entryIO),
