@@ -57,6 +57,37 @@ def _NHWC_to_NCHW(input_shape):
     return new_shape
 
 
+def _to_list(transform) -> List:
+    if isinstance(transform, torch.nn.Sequential):
+        return [t for t in transform]
+    elif isinstance(transform, transforms.Compose):
+        return transform.transforms
+    else:
+        raise TypeError(f"Unsupported transform type: {type(transform)}")
+
+
+def _get_shape_layout_from_data(input_example):
+    """
+    Disregards rank of shape and return
+    """
+    if isinstance(input_example, torch.Tensor):  # PyTorch
+        shape = list(input_example.shape)
+        layout = Layout("NCHW")
+    elif isinstance(input_example, np.ndarray):  # OpenCV, numpy
+        shape = list(input_example.shape)
+        layout = Layout("NHWC")
+    elif isinstance(input_example, Image.Image):  # PILLOW
+        shape = list(np.array(input_example).shape)
+        layout = Layout("NHWC")
+    else:
+        raise TypeError(f"Unsupported input type: {type(input_example)}")
+
+    if len(shape) == 3:
+        shape = [1] + shape
+
+    return shape, layout
+
+
 class TransformConverterBase(metaclass=ABCMeta):
     """Base class for an executor"""
 
@@ -67,7 +98,7 @@ class TransformConverterBase(metaclass=ABCMeta):
     @abstractmethod
     def convert(self, input_idx: int, ppp: PrePostProcessor, transform):
         """Abstract method to run a command"""
-        return False
+        pass
 
 
 class TransformConverterFactory:
@@ -79,7 +110,7 @@ class TransformConverterFactory:
     @classmethod
     def register(cls, target_type=None) -> Callable:
         def inner_wrapper(wrapped_class: TransformConverterBase) -> Callable:
-            registered_name = wrapped_class.__name__ if target_type == None else target_type.__name__
+            registered_name = wrapped_class.__name__ if target_type is None else target_type.__name__
             if registered_name in cls.registry:
                 logging.warning(f"Executor {registered_name} already exists. {wrapped_class.__name__} will replace it.")
             cls.registry[registered_name] = wrapped_class
@@ -98,19 +129,19 @@ class TransformConverterFactory:
 
 
 @TransformConverterFactory.register(transforms.Normalize)
-class NormalizeConverter(TransformConverterBase):
+class _(TransformConverterBase):
     def convert(self, input_idx: int, ppp: PrePostProcessor, transform, meta: Dict):
         ppp.input(input_idx).preprocess().mean(transform.mean).scale(transform.std)
 
 
 @TransformConverterFactory.register(transforms.ConvertImageDtype)
-class NormalizeConverter(TransformConverterBase):
+class _(TransformConverterBase):
     def convert(self, input_idx: int, ppp: PrePostProcessor, transform, meta: Dict):
         ppp.input(input_idx).preprocess().convert_element_type(TORCHTYPE_TO_OVTYPE[transform.dtype])
 
 
 @TransformConverterFactory.register(transforms.Grayscale)
-class NormalizeConverter(TransformConverterBase):
+class _(TransformConverterBase):
     def convert(self, input_idx: int, ppp: PrePostProcessor, transform, meta: Dict):
         if transform.num_output_channels != 1:
             raise ValueError("OpenVINO does not support multi-channel grayscale output")  # TODO: Tomek
@@ -118,7 +149,7 @@ class NormalizeConverter(TransformConverterBase):
 
 
 @TransformConverterFactory.register(transforms.Pad)
-class NormalizeConverter(TransformConverterBase):
+class _(TransformConverterBase):
     def convert(self, input_idx: int, ppp: PrePostProcessor, transform, meta: Dict):
         image_dimensions = list(meta["image_dimensions"])
         layout = meta["layout"]
@@ -177,7 +208,7 @@ class NormalizeConverter(TransformConverterBase):
 
 
 @TransformConverterFactory.register(transforms.ToTensor)
-class NormalizeConverter(TransformConverterBase):
+class _(TransformConverterBase):
     def convert(self, input_idx: int, ppp: PrePostProcessor, transform, meta: Dict):
         input_shape = meta["input_shape"]
         layout = meta["layout"]
@@ -196,7 +227,7 @@ class NormalizeConverter(TransformConverterBase):
 
 
 @TransformConverterFactory.register(transforms.CenterCrop)
-class NormalizeConverter(TransformConverterBase):
+class _(TransformConverterBase):
     def convert(self, input_idx: int, ppp: PrePostProcessor, transform, meta: Dict):
         input_shape = meta["input_shape"]
         source_size = meta["image_dimensions"]
@@ -221,7 +252,7 @@ class NormalizeConverter(TransformConverterBase):
 
 
 @TransformConverterFactory.register(transforms.Resize)
-class NormalizeConverter(TransformConverterBase):
+class _(TransformConverterBase):
     RESIZE_MODE_MAP = {
         InterpolationMode.BILINEAR: ResizeAlgorithm.RESIZE_LINEAR,
         InterpolationMode.BICUBIC: ResizeAlgorithm.RESIZE_CUBIC,
@@ -229,7 +260,7 @@ class NormalizeConverter(TransformConverterBase):
     }
 
     def convert(self, input_idx: int, ppp: PrePostProcessor, transform, meta: Dict):
-        if transform.max_size != None:
+        if transform.max_size is None:
             raise ValueError("Resize with max_size if not supported")  # TODO: Tomek
 
         h, w = _setup_size(transform.size, "Incorrect size type for Resize operation")
@@ -242,40 +273,9 @@ class NormalizeConverter(TransformConverterBase):
         input_shape[meta["layout"].get_index_by_name("W")] = -1
 
         ppp.input(input_idx).tensor().set_shape(input_shape)
-        ppp.input(input_idx).preprocess().resize(NormalizeConverter.RESIZE_MODE_MAP[transform.interpolation], h, w)
+        ppp.input(input_idx).preprocess().resize(_.RESIZE_MODE_MAP[transform.interpolation], h, w)
         meta["input_shape"] = input_shape
         meta["image_dimensions"] = (h, w)
-
-
-def _to_list(transform) -> List:
-    if isinstance(transform, torch.nn.Sequential):
-        return [t for t in transform]
-    elif isinstance(transform, transforms.Compose):
-        return transform.transforms
-    else:
-        raise TypeError(f"Unsupported transform type: {type(transform)}")
-
-
-def _get_shape_layout_from_data(input_example):
-    """
-    Disregards rank of shape and return
-    """
-    if isinstance(input_example, torch.Tensor):  # PyTorch
-        shape = list(input_example.shape)
-        layout = Layout("NCHW")
-    elif isinstance(input_example, np.ndarray):  # OpenCV, numpy
-        shape = list(input_example.shape)
-        layout = Layout("NHWC")
-    elif isinstance(input_example, Image.Image):  # PILLOW
-        shape = list(np.array(input_example).shape)
-        layout = Layout("NHWC")
-    else:
-        raise TypeError(f"Unsupported input type: {type(input_example)}")
-
-    if len(shape) == 3:
-        shape = [1] + shape
-
-    return shape, layout
 
 
 def from_torchvision(model: ov.Model, transform: Callable, input_example: Any, input_name: str = None) -> ov.Model:

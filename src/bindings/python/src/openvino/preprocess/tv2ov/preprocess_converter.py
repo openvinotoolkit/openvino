@@ -3,13 +3,14 @@ import logging
 
 import openvino.runtime as ov
 
+
 class PreprocessConvertor():
     def __init__(self, model: ov.Model):
         self._model = model
 
     @staticmethod
-    def from_torchvision(model: ov.Model, transform: Callable, input_example: Any, 
-                        input_name: str = None) -> ov.Model:
+    def from_torchvision(model: ov.Model, transform: Callable, input_example: Any,
+                         input_name: str = None) -> ov.Model:
         """
         Convert torchvision transform to OpenVINO preprocessing
         Arguments:
