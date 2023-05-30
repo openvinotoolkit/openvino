@@ -33,10 +33,6 @@ Another option to convert a model is to use ``mo`` command-line tool. ``mo`` is 
 
 ``mo`` requires the use of a pre-trained deep learning model in one of the supported formats: TensorFlow, TensorFlow Lite, PaddlePaddle, or ONNX. ``mo`` converts the model to the OpenVINO Intermediate Representation format (IR), which needs to be read with the ``ov.read_model()`` method. Then, you can compile and infer the ``ov.Model`` later with :doc:`OpenVINO™ Runtime <openvino_docs_OV_UG_OV_Runtime_User_Guide>`.
 
-.. note::
-
-   ``mo`` command-line tool does not infer models.
-
 
 The figure below illustrates the typical workflow for deploying a trained deep learning model:
 
