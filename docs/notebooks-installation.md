@@ -253,7 +253,7 @@ operating system or environment.
 
       .. code-block::
 
-         python -m pip install --upgrade pip
+         python -m pip install --upgrade pip wheel setuptools
       
    
    5. **Install required packages**
