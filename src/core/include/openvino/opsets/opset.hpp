@@ -14,6 +14,7 @@
 #include "openvino/core/deprecated.hpp"
 #include "openvino/core/node.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ov {
 /**
  * @brief Run-time opset information
@@ -89,7 +90,6 @@ public:
     }
 
 protected:
-    OPENVINO_SUPPRESS_DEPRECATED_START
     /// \brief Insert an op into the opset with a particular name and factory
     void insert(const std::string& name,
                 const NodeTypeInfo& type_info,
@@ -101,7 +101,6 @@ protected:
         m_factory_registry.register_factory(type_info, std::move(factory));
     }
     ngraph::FactoryRegistry<ov::Node> m_factory_registry;
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
 private:
     static std::string to_upper_name(const std::string& name) {
@@ -182,3 +181,4 @@ const OPENVINO_API OpSet& get_opset11();
  */
 const OPENVINO_API std::map<std::string, std::function<const ov::OpSet&()>>& get_available_opsets();
 }  // namespace ov
+OPENVINO_SUPPRESS_DEPRECATED_END
