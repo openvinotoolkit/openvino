@@ -161,16 +161,16 @@ To enable the simulation, the ``ov::hint::inference_precision`` has to be explic
    
    Due to the reduced mantissa size of the ``bfloat16`` data type, the resulting ``bf16`` inference accuracy may differ from the ``f32`` inference, 
    especially for models that were not trained using the ``bfloat16`` data type. If the ``bf16`` inference accuracy is not acceptable, 
-   it is recommended to switch to the ``f32`` precision. Also, the performance/accuracy balance can be adjusted using the ``ov::hint::execution_mode`` hint,
+   it is recommended to switch to the ``f32`` precision. Also, the performance/accuracy balance can be managed using the ``ov::hint::execution_mode`` hint,
    see the [Execution Mode Hint](#execution-mode-hint).
 
 Execution Mode Hint
 -----------------------------------------------------------
-In case ``ov::hint::inference_precision`` is not explicitly set, we can use ``ov::hint::execution_mode`` hint to adjust the performance/accuracy balance.
+In case ``ov::hint::inference_precision`` is not explicitly set, one can use ``ov::hint::execution_mode`` hint to direct the run-time optimizations toward either better accuracy or better performance.
 If ``ov::hint::execution_mode`` is set to ``ov::hint::ExecutionMode::PERFORMANCE`` (default behavior) and the platform natively supports ``bfloat16``
-calculations (have the ``AVX512_BF16`` or ``AMX`` extension) then ``bf16`` type is automatically used instead of ``f32`` to achieve better performance.
-If the accuracy in this mode is not acceptable then set ``ov::hint::execution_mode`` to ``ov::hint::ExecutionMode::ACCURACY`` to return inference
-in the ``f32`` precision.
+calculations (has the ``AVX512_BF16`` or ``AMX`` extension) then ``bf16`` type is automatically used instead of ``f32`` to achieve better performance.
+If the accuracy in this mode is not good enough, then set ``ov::hint::execution_mode`` to ``ov::hint::ExecutionMode::ACCURACY`` to enforce the plugin to
+use the ``f32`` precision in floating point calculations.
 
 
 Supported Features
