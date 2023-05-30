@@ -667,7 +667,6 @@ void ov::proxy::tests::ProxyTests::register_plugin_without_devices(ov::Core& cor
                 RO_property(ov::supported_properties.name()),
                 RO_property(ov::available_devices.name()),
                 RO_property(ov::loaded_from_cache.name()),
-                RO_property(ov::device::uuid.name()),
                 RO_property(ov::caching_properties.name()),
                 RO_property(METRIC_KEY(IMPORT_EXPORT_SUPPORT)),
             };
@@ -686,9 +685,6 @@ void ov::proxy::tests::ProxyTests::register_plugin_without_devices(ov::Core& cor
                 supportedProperties.insert(supportedProperties.end(), rwProperties.begin(), rwProperties.end());
 
                 return decltype(ov::supported_properties)::value_type(supportedProperties);
-            } else if (name == ov::device::uuid) {
-                ov::device::UUID uuid;
-                return decltype(ov::device::uuid)::value_type{uuid};
             } else if (name == ov::available_devices) {
                 return decltype(ov::available_devices)::value_type(device_ids);
             } else if (name == ov::device::capabilities) {
@@ -707,9 +703,6 @@ void ov::proxy::tests::ProxyTests::register_plugin_without_devices(ov::Core& cor
                 return configs;
             } else if (METRIC_KEY(IMPORT_EXPORT_SUPPORT) == name) {
                 return true;
-            } else if (ov::caching_properties == name) {
-                std::vector<ov::PropertyName> caching_properties = {ov::device::uuid};
-                return decltype(ov::caching_properties)::value_type(caching_properties);
             } else if (name == "SUPPORTED_METRICS") {  // TODO: Remove this key
                 std::vector<std::string> configs;
                 for (const auto& property : roProperties) {
