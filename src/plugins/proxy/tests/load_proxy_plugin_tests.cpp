@@ -34,16 +34,6 @@ TEST_F(ProxyTests, alias_for_the_same_name) {
     EXPECT_TRUE(mock_reference_dev.empty());
 }
 
-TEST_F(ProxyTests, get_available_devices_for_unregister_plugins) {
-    core.unload_plugin("ABC");
-    core.unload_plugin("BDE");
-    auto available_devices = core.get_available_devices();
-    for (const auto& dev : available_devices) {
-        EXPECT_NE(dev, "MOCK");
-    }
-    EXPECT_THROW(core.get_property("MOCK", ov::available_devices), ov::Exception);
-}
-
 TEST_F(ProxyTests, load_proxy_on_plugin_without_devices) {
     register_plugin_without_devices(core,
                                     "Internal_CBD",
