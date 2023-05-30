@@ -33,4 +33,5 @@ class TestSqueeze(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_squeeze(self, dim, ie_device, precision, ir_version):
+        # Dynamic shapes are introducing dynamic rank, with is not suppoerted by Squeeze operation.
         self._test(*self.create_model(dim), ie_device, precision, ir_version, dynamic_shapes=False)
