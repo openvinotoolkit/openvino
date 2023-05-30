@@ -3,10 +3,10 @@
 //
 
 #include "openvino/op/pad.hpp"
-#include "openvino/op/constant.hpp"
+
 #include "bound_evaluate.hpp"
 #include "itt.hpp"
-
+#include "openvino/op/constant.hpp"
 #include "pad_shape_inference.hpp"
 
 using namespace std;
@@ -39,7 +39,7 @@ shared_ptr<Node> op::v1::Pad::clone_with_new_inputs(const OutputVector& new_args
     }
 }
 
-bool op::v1::Pad::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+bool op::v1::Pad::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v1_Pad_evaluate);
     return evaluate_pad(outputs, inputs);
 }
@@ -76,7 +76,7 @@ std::shared_ptr<Node> op::v12::Pad::clone_with_new_inputs(const OutputVector& ne
     }
 }
 
-bool op::v12::Pad::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+bool op::v12::Pad::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v12_Pad_evaluate);
     return evaluate_pad(outputs, inputs);
 }
