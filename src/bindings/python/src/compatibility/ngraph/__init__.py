@@ -196,7 +196,9 @@ from ngraph.opset11 import variadic_split
 import warnings
 
 warnings.warn(
-    message="This API is deprecated and will be removed in 2024.0 release.",
+    message="OpenVINO nGraph Python API is deprecated and will be removed in 2024.0 release."
+            "For instructions on transitioning to the new API, please refer to "
+            "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html",
     category=FutureWarning,
     stacklevel=2,
 )
