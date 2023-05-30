@@ -888,6 +888,8 @@ void Graph::PushInputData(const std::string& name, const InferenceEngine::Blob::
         const void *ext_data_ptr = in->cbuffer();
         void *inter_data_ptr = childEdge->getMemory().GetData();
 
+        DEBUG_LOG(name, " @ ", ext_data_ptr, " -> ", inter_data_ptr, " zero-copy: ", ext_data_ptr==inter_data_ptr, " for ", GetName());
+
         if (ext_data_ptr != inter_data_ptr) {
             auto ext_tdesc = MemoryDescUtils::convertToDnnlBlockedMemoryDesc(in->getTensorDesc());
 
@@ -967,6 +969,8 @@ void Graph::PullOutputData(BlobMap &out) {
 
         void *ext_blob_ptr = ext_blob->buffer();
         void *intr_blob_ptr = intr_blob.GetData();
+
+        DEBUG_LOG(name, " @ ", intr_blob_ptr, " -> ", ext_blob_ptr, " zero-copy: ", intr_blob_ptr==ext_blob_ptr, " for ", GetName());
 
         // That is the same memory. No need to copy
         if (ext_blob_ptr == intr_blob_ptr) continue;
