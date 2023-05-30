@@ -2,23 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/pad.hpp"
-
-#include <ngraph/validation_util.hpp>
-
+#include "openvino/op/pad.hpp"
+#include "openvino/op/constant.hpp"
 #include "bound_evaluate.hpp"
 #include "itt.hpp"
-#include "ngraph/attribute_visitor.hpp"
-#include "ngraph/except.hpp"
-#include "ngraph/op/broadcast.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/op/util/op_types.hpp"
-#include "ngraph/runtime/reference/pad.hpp"
-#include "openvino/op/util/precision_sensitive_attribute.hpp"
+
 #include "pad_shape_inference.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 op::v1::Pad::Pad(const Output<Node>& arg,
                  const Output<Node>& pads_begin,
