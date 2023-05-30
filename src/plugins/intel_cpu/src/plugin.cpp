@@ -293,7 +293,7 @@ void Engine::GetPerformanceStreams(Config& config, const std::shared_ptr<ngraph:
     const auto tput_name = std::string(CONFIG_VALUE(THROUGHPUT)) + "_" + std::string(ov::num_streams.name());
 
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-    // TODO: multi-stream execution has functional issues on ARM target
+    // TODO: This WA for CI checks will be removed after export/import refactor for MT 2.0 which will be track in CVS-112149
     streams = 1;
 #endif
 
