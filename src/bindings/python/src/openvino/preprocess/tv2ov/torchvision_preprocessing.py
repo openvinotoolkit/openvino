@@ -253,14 +253,13 @@ class _(TransformConverterBase):
 
 @TransformConverterFactory.register(transforms.Resize)
 class _(TransformConverterBase):
-    RESIZE_MODE_MAP = {
-        InterpolationMode.BILINEAR: ResizeAlgorithm.RESIZE_LINEAR,
-        InterpolationMode.BICUBIC: ResizeAlgorithm.RESIZE_CUBIC,
-        InterpolationMode.NEAREST: ResizeAlgorithm.RESIZE_NEAREST,
-    }
-
     def convert(self, input_idx: int, ppp: PrePostProcessor, transform, meta: Dict):
-        if transform.max_size is None:
+        RESIZE_MODE_MAP = {
+            InterpolationMode.BILINEAR: ResizeAlgorithm.RESIZE_LINEAR,
+            InterpolationMode.BICUBIC: ResizeAlgorithm.RESIZE_CUBIC,
+            InterpolationMode.NEAREST: ResizeAlgorithm.RESIZE_NEAREST,
+        }
+        if transform.max_size:
             raise ValueError("Resize with max_size if not supported")  # TODO: Tomek
 
         h, w = _setup_size(transform.size, "Incorrect size type for Resize operation")
@@ -273,7 +272,7 @@ class _(TransformConverterBase):
         input_shape[meta["layout"].get_index_by_name("W")] = -1
 
         ppp.input(input_idx).tensor().set_shape(input_shape)
-        ppp.input(input_idx).preprocess().resize(_.RESIZE_MODE_MAP[transform.interpolation], h, w)
+        ppp.input(input_idx).preprocess().resize(RESIZE_MODE_MAP[transform.interpolation], h, w)
         meta["input_shape"] = input_shape
         meta["image_dimensions"] = (h, w)
 
