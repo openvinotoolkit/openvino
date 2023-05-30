@@ -55,7 +55,7 @@ Acronyms and Abbreviations
  VGG                 Visual Geometry Group                            
  VOC                 Visual Object Classes                            
  WINAPI              Windows Application Programming Interface        
-==================  ==================================================
+==================  ===========================================================================
 
 
 Terms
