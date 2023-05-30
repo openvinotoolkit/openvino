@@ -31,9 +31,7 @@ Convert a model with ``mo`` command-line tool
 
 Another option to convert a model is to use ``mo`` command-line tool. ``mo`` is a cross-platform tool that facilitates the transition between training and deployment environments, performs static model analysis, and adjusts deep learning models for optimal execution on end-point target devices in the same measure, as the ``mo.convert_model`` method,
 
-The resulting model is saved to IR (Intermediate Representation) which can be read with the ``ov.read_model()`` method, then be compiled and inferred.
-
-To use it, you need a pre-trained deep learning model in one of the supported formats: TensorFlow, TensorFlow Lite, PyTorch, PaddlePaddle, or ONNX. ``mo`` converts the model to the OpenVINO Intermediate Representation format (IR), which you can infer later with :doc:`OpenVINO™ Runtime <openvino_docs_OV_UG_OV_Runtime_User_Guide>`.
+To use it, you need a pre-trained deep learning model in one of the supported formats: TensorFlow, TensorFlow Lite, PyTorch, PaddlePaddle, or ONNX. ``mo`` converts the model to the OpenVINO Intermediate Representation format (IR), which can be read with the ``ov.read_model()`` method. Then, you can compile and infer it later with :doc:`OpenVINO™ Runtime <openvino_docs_OV_UG_OV_Runtime_User_Guide>`.
 
 .. note::
 
