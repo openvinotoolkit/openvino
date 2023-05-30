@@ -14,8 +14,6 @@
 NGRAPH_SUPPRESS_DEPRECATED_START
 ngraph::OpSet::OpSet(const ov::OpSet& opset) : ov::OpSet(opset) {}
 
-ngraph::OpSet::OpSet(const ngraph::OpSet& opset) : ov::OpSet(opset) {}
-
 ov::OpSet::OpSet(const std::string& name) : m_name(name) {}
 
 ov::OpSet::OpSet(const ov::OpSet& opset) {
