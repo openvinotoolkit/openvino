@@ -260,7 +260,11 @@ macro(_ov_find_pugixml)
                 if(_ov_pugixml_visibility STREQUAL "GLOBAL")
                     set_target_properties(${_ov_pugixml_target} PROPERTIES IMPORTED_GLOBAL TRUE)
                 endif()
-                add_library(openvino::pugixml ALIAS ${_ov_pugixml_target})
+                # check whether openvino::pugixml is already defined in case of
+                # OpenVINODeveloperPackageConfig.cmake is found multiple times
+                if(NOT TARGET openvino::pugixml)
+                    add_library(openvino::pugixml ALIAS ${_ov_pugixml_target})
+                endif()
             endif()
             unset(_ov_pugixml_target)
         elseif(PkgConfig_FOUND)
@@ -283,7 +287,11 @@ macro(_ov_find_pugixml)
 
             if(pugixml_FOUND)
                 if(OpenVINODeveloperPackage_DIR)
-                    add_library(openvino::pugixml ALIAS PkgConfig::pugixml)
+                    # check whether openvino::pugixml is already defined in case of
+                    # OpenVINODeveloperPackageConfig.cmake is found multiple times
+                    if(NOT TARGET openvino::pugixml)
+                        add_library(openvino::pugixml ALIAS PkgConfig::pugixml)
+                    endif()
                 endif()
 
                 # PATCH: on Ubuntu 18.04 pugixml.pc contains incorrect include directories
