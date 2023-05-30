@@ -211,13 +211,13 @@ public:
      */
     static bool is_transpose_supported(const std::shared_ptr<const ov::Node>& node);
     /**
-     * @brief Validates if legacy convolution is supported by GNA
-     * @param conv_ie convolution
+     * @brief Validates if convolution is supported by GNA
+     * @param conv_gna GNA convolution
      * @param gna_precision GNA inference precision
      * @param is_exception_allowed flag specifies whether exception is allowed
      * @return true if supported
      */
-    bool is_conv_supported(const std::shared_ptr<ngraph::op::ConvolutionIE>& conv_ie,
+    bool is_conv_supported(const std::shared_ptr<ov::intel_gna::op::GNAConvolution>& conv_gna,
                            const InferenceEngine::Precision gna_precision,
                            bool is_exception_allowed = false);
     /**
@@ -226,14 +226,14 @@ public:
      * @param is_exception_allowed flag specifies whether exception is allowed
      * @return true if precision is found in supported
      */
-    bool is_pooling_supported(const std::shared_ptr<ngraph::opset7::MaxPool> max_pool,
+    bool is_pooling_supported(const std::shared_ptr<ov::intel_gna::op::GNAMaxPool> max_pool,
                               bool is_exception_allowed = false);
 
-    bool is_concat_supported(const std::shared_ptr<const ov::Node>& node);
-	bool is_forward_transposed_concat_supported(const std::shared_ptr<const ov::Node>& node, const AxisVector& order);
-	bool is_backward_transposed_concat_supported(const std::shared_ptr<const ov::Node>& node, const AxisVector& order);
-	bool is_forward_transposed_split_supported(const std::shared_ptr<const ov::Node>& node, const AxisVector& order);
-	bool is_backward_transposed_split_supported(const std::shared_ptr<const ov::Node>& node, const AxisVector& order);
+    static bool is_concat_supported(const std::shared_ptr<const ov::Node>& node);
+	static bool is_forward_transposed_concat_supported(const std::shared_ptr<const ov::Node>& node, const AxisVector& order);
+	static bool is_backward_transposed_concat_supported(const std::shared_ptr<const ov::Node>& node, const AxisVector& order);
+	static bool is_forward_transposed_split_supported(const std::shared_ptr<const ov::Node>& node, const AxisVector& order);
+	static bool is_backward_transposed_split_supported(const std::shared_ptr<const ov::Node>& node, const AxisVector& order);
 
     /**
      * @brief Validates if operation is supported by GNA

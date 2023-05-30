@@ -18,6 +18,7 @@
 
 using namespace ov::intel_gna;
 using namespace ov::intel_gna::pass;
+using namespace ov::intel_gna::limitations;
 using namespace ov::opset9;
 using namespace ov::pass::pattern;
 using namespace gather_sinking;
@@ -143,7 +144,7 @@ bool IsTailUnflatten(const ov::Output<ov::Node>& output) {
 }
 
 bool is_transpose_unsupported(const ov::Output<ov::Node>& output) {
-    return !limitations::is_transpose_supported(output.get_node_shared_ptr());
+    return !Limitations::is_transpose_supported(output.get_node_shared_ptr());
 }
 
 bool IfBackwardSinkingEnabled(const ov::Output<ov::Node>& output) {

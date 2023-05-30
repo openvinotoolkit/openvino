@@ -46,7 +46,7 @@ bool is_sinked(const Output<Node>& output) {
     for (size_t i = 0; i < concat_node->get_input_size(); ++i) {
         auto concat_input = concat_node->input_value(i);
         auto transpose = ov::as_type_ptr<Transpose>(concat_input.get_node_shared_ptr());
-        if (transpose && !is_transpose_supported(transpose))
+        if (transpose && !Limitations::is_transpose_supported(transpose))
             return true;
     }
 
@@ -107,7 +107,7 @@ TSConcatForward::TSConcatForward() {
         for (size_t i = 0; i < concat_node->get_input_size(); ++i) {
             auto concat_input = concat_node->input_value(i);
             auto transpose = ov::as_type_ptr<Transpose>(concat_input.get_node_shared_ptr());
-            const bool is_transposed_input = transpose && !is_transpose_supported(transpose);
+            const bool is_transposed_input = transpose && !Limitations::is_transpose_supported(transpose);
 
             auto input_node_output = concat_input;
             if (is_transposed_input)
