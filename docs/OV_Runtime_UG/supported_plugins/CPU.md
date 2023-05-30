@@ -88,16 +88,15 @@ CPU plugin supports the following floating-point data types as inference precisi
 The default floating-point precision of a CPU primitive is ``f32``. To support the ``f16`` OpenVINO IR the plugin internally converts 
 all the ``f16`` values to ``f32`` and all the calculations are performed using the native precision of ``f32``.
 On platforms that natively support ``bfloat16`` calculations (have the ``AVX512_BF16`` or ``AMX`` extension), the ``bf16`` type is automatically used instead
-of ``f32`` to achieve better performance. Thus, no special steps are required to run a ``bf16`` model. For more details about the ``bfloat16`` format, see 
+of ``f32`` to achieve better performance (see the [Execution Mode Hint](#execution-mode-hint)).
+Thus, no special steps are required to run a ``bf16`` model. For more details about the ``bfloat16`` format, see 
 the `BFLOAT16 – Hardware Numerics Definition white paper <https://software.intel.com/content/dam/develop/external/us/en/documents/bf16-hardware-numerics-definition-white-paper.pdf>`__.
 
 Using the ``bf16`` precision provides the following performance benefits:
 
-- Faster multiplication of two ``bfloat16`` numbers because of shorter mantissa of the ``bfloat16`` data.
+- ``bfloat16`` data type allows using Intel® Advanced Matrix Extension (AMX), which provides dramatically faster computations on corresponding hardware in
+comparison with AVX512 or AVX2 instructions in many DL operation implementations.
 - Reduced memory consumption since ``bfloat16`` data half the size of 32-bit float.
-
-Also, a significant performance can be achieved if the model is executed in ``bfloat16`` precision on hardware with Advanced Matrix Extension (AMX) support
-(e.g., Intel® 4th Generation Xeon® processors (code name Sapphire Rapids)).
 
 To check if the CPU device can support the ``bfloat16`` data type, use the :doc:`query device properties interface <openvino_docs_OV_UG_query_api>` 
 to query ``ov::device::capabilities`` property, which should contain ``BF16`` in the list of CPU capabilities:
@@ -119,6 +118,9 @@ to query ``ov::device::capabilities`` property, which should contain ``BF16`` in
          :language: py
          :fragment: [part0]
 
+
+Inference Precision Hint
+-----------------------------------------------------------
 
 If the model has been converted to ``bf16``, the ``ov::hint::inference_precision`` is set to ``ov::element::bf16`` and can be checked via 
 the ``ov::CompiledModel::get_property`` call. The code below demonstrates how to get the element type:
@@ -159,7 +161,17 @@ To enable the simulation, the ``ov::hint::inference_precision`` has to be explic
    
    Due to the reduced mantissa size of the ``bfloat16`` data type, the resulting ``bf16`` inference accuracy may differ from the ``f32`` inference, 
    especially for models that were not trained using the ``bfloat16`` data type. If the ``bf16`` inference accuracy is not acceptable, 
-   it is recommended to switch to the ``f32`` precision.
+   it is recommended to switch to the ``f32`` precision. Also, the performance/accuracy balance can be adjusted using the ``ov::hint::execution_mode`` hint,
+   see the [Execution Mode Hint](#execution-mode-hint).
+
+Execution Mode Hint
+-----------------------------------------------------------
+In case ``ov::hint::inference_precision`` is not explicitly set, we can use ``ov::hint::execution_mode`` hint to adjust the performance/accuracy balance.
+If ``ov::hint::execution_mode`` is set to ``ov::hint::ExecutionMode::PERFORMANCE`` (default behavior) and the platform natively supports ``bfloat16``
+calculations (have the ``AVX512_BF16`` or ``AMX`` extension) then ``bf16`` type is automatically used instead of ``f32`` to achieve better performance.
+If the accuracy in this mode is not acceptable then set ``ov::hint::execution_mode`` to ``ov::hint::ExecutionMode::ACCURACY`` to return inference
+in the ``f32`` precision.
+
 
 Supported Features
 ###########################################################
