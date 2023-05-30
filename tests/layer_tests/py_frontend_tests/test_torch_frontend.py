@@ -180,7 +180,7 @@ def get_builtin_extensions_path():
         base_paths.append(repo_dir)
 
     for base_path in base_paths:
-        paths = glob.glob(os.path.join(base_path, "bin", "*", "*", "*test_builtin_extensions*"))
+        paths = glob.glob(os.path.join(base_path, "*", "*", "*test_builtin_extensions*"))
         for path in paths:
             if re.search(r"(lib)?test_builtin_extensions.?\.(dll|so)", path):
                 return path
