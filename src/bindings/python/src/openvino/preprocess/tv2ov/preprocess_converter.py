@@ -15,7 +15,6 @@ class PreprocessConvertor():
         Arguments:
             model (ov.Model):
                 Result name
-                TODO: Add info about model copying in order not to break it
             transform (Callable):
                 torchvision transform to convert
             input_example (torch.Tensor or np.ndarray or PIL.Image):
