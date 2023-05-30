@@ -35,7 +35,7 @@ namespace pass {
 class Decompose2DConv : public ngraph::pass::MatcherPass {
 public:
     OPENVINO_RTTI("Decompose2DConv", "0");
-    Decompose2DConv(const target::DeviceVersion& compile_target, const InferenceEngine::Precision& gnaPrecision);
+    Decompose2DConv(const InferenceEngine::Precision& gnaPrecision);
 };
 
 /**
@@ -56,8 +56,7 @@ public:
 class Decompose2DConvTransposedWithBias : public ngraph::pass::MatcherPass {
 public:
     OPENVINO_RTTI("Decompose2DConvTransposedWithBias", "0");
-    Decompose2DConvTransposedWithBias(const target::DeviceVersion& compile_target,
-                                      const InferenceEngine::Precision& gnaPrecision);
+    Decompose2DConvTransposedWithBias(const InferenceEngine::Precision& gnaPrecision);
 };
 
 /**
@@ -80,8 +79,7 @@ public:
 class Decompose2DConvTransposedWithBiasAF : public ngraph::pass::MatcherPass {
 public:
     OPENVINO_RTTI("Decompose2DConvTransposedWithBiasAF", "0");
-    Decompose2DConvTransposedWithBiasAF(const target::DeviceVersion& compile_target,
-                                        const InferenceEngine::Precision& gnaPrecision);
+    Decompose2DConvTransposedWithBiasAF(const InferenceEngine::Precision& gnaPrecision);
 };
 
 }  // namespace pass
