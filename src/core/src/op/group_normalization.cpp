@@ -35,6 +35,8 @@ void op::v12::GroupNormalization::validate_and_infer_types() {
     const auto scale_partial_shape = get_input_partial_shape(1);
     const auto bias_partial_shape = get_input_partial_shape(2);
 
+    NODE_VALIDATION_CHECK(this, get_num_groups() > 0, "The number of groups needs to be a positive integer value");
+
     NODE_VALIDATION_CHECK(this,
                           scale_partial_shape.rank().compatible(Dimension{1}),
                           "The scale input is required to be 1D");
@@ -55,6 +57,10 @@ void op::v12::GroupNormalization::validate_and_infer_types() {
         NODE_VALIDATION_CHECK(this,
                               bias_partial_shape.rank().is_dynamic() || channels_dim.compatible(bias_partial_shape[0]),
                               "The bias input shape needs to match the channel dimension in the data input");
+
+        NODE_VALIDATION_CHECK(this,
+                              channels_dim.is_dynamic() || get_num_groups() <= channels_dim.get_length(),
+                              "The number of groups must not exceed the number of channels in the input tensor");
 
         NODE_VALIDATION_CHECK(this,
                               channels_dim.is_dynamic() || channels_dim.get_length() % get_num_groups() == 0,

@@ -82,6 +82,16 @@ TEST(type_prop, group_normalization_dynamic_everything) {
     EXPECT_EQ(gn->get_output_partial_shape(0), (PartialShape{3, -1, 10, 10}));
 }
 
+TEST(type_prop, group_normalization_dynamic_ranks) {
+    const auto data = std::make_shared<opset12::Parameter>(element::f16, PartialShape::dynamic());
+    const auto scale = std::make_shared<opset12::Parameter>(element::f16, PartialShape::dynamic());
+    const auto bias = std::make_shared<opset12::Parameter>(element::f16, PartialShape::dynamic());
+
+    const auto gn = std::make_shared<opset12::GroupNormalization>(data, scale, bias, 12, 0.00001f);
+    EXPECT_EQ(gn->get_element_type(), element::f16);
+    EXPECT_EQ(gn->get_output_partial_shape(0), (PartialShape::dynamic()));
+}
+
 TEST(type_prop, group_normalization_dynamic_intervals) {
     const auto data = std::make_shared<opset12::Parameter>(element::f32, PartialShape{2, Dimension{10, 20}, 6, 6});
     const auto scale = std::make_shared<opset12::Parameter>(element::f32, PartialShape{Dimension{10, 20}});
@@ -160,4 +170,24 @@ TEST(type_prop, group_normalization_incorrect_data_rank) {
     OV_EXPECT_THROW(std::make_shared<opset12::GroupNormalization>(data, scale, bias, 2, 0.00001f),
                     NodeValidationFailure,
                     HasSubstr("The input tensor is required to be at least 2D"));
+}
+
+TEST(type_prop, group_normalization_negative_num_groups) {
+    const auto data = std::make_shared<opset12::Parameter>(element::f32, PartialShape{1, 10});
+    const auto scale = std::make_shared<opset12::Parameter>(element::f32, Shape{10});
+    const auto bias = std::make_shared<opset12::Parameter>(element::f32, Shape{10});
+
+    OV_EXPECT_THROW(std::make_shared<opset12::GroupNormalization>(data, scale, bias, -3, 0.00001f),
+                    NodeValidationFailure,
+                    HasSubstr("The number of groups needs to be a positive integer value"));
+}
+
+TEST(type_prop, group_normalization_too_many_groups) {
+    const auto data = std::make_shared<opset12::Parameter>(element::f32, PartialShape{1, 10});
+    const auto scale = std::make_shared<opset12::Parameter>(element::f32, Shape{10});
+    const auto bias = std::make_shared<opset12::Parameter>(element::f32, Shape{10});
+
+    OV_EXPECT_THROW(std::make_shared<opset12::GroupNormalization>(data, scale, bias, 11, 0.00001f),
+                    NodeValidationFailure,
+                    HasSubstr("The number of groups must not exceed the number of channels in the input tensor"));
 }
