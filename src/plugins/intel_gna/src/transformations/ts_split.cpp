@@ -113,7 +113,7 @@ bool is_sinked(const Output<Node>& output) {
     for (size_t output_idx = 0; output_idx < split_node->get_output_size(); ++output_idx) {
         for (auto& input : split_node->get_output_target_inputs(output_idx)) {
             auto transpose = ov::as_type_ptr<Transpose>(input.get_node()->shared_from_this());
-            if (transpose && !is_transpose_supported(transpose))
+            if (transpose && !Limitations::is_transpose_supported(transpose))
                 return true;
         }
     }
@@ -259,7 +259,7 @@ TSSplitBackward::TSSplitBackward() {
             for (auto& input : split_node->get_output_target_inputs(output_idx)) {
                 auto transpose = ov::as_type_ptr<Transpose>(input.get_node()->shared_from_this());
 
-                if (transpose && !is_transpose_supported(transpose)) {
+                if (transpose && !Limitations::is_transpose_supported(transpose)) {
                     EMUTEX_DEBUG_CHECKPOINT;
                     auto transpose_const = ov::as_type_ptr<Constant>(transpose->get_input_node_shared_ptr(1));
                     if (!transpose_const)
@@ -314,7 +314,7 @@ TSSplitBackward::TSSplitBackward() {
         for (size_t output_idx = 0; output_idx < split_node->get_output_size(); ++output_idx) {
             for (auto& input : split_node->get_output_target_inputs(output_idx)) {
                 auto transpose = ov::as_type_ptr<Transpose>(input.get_node()->shared_from_this());
-                if (transpose && !is_transpose_supported(transpose)) {
+                if (transpose && !Limitations::is_transpose_supported(transpose)) {
                     EMUTEX_DEBUG_CHECKPOINT;
                     auto reshape_output_const_new =
                         std::make_shared<Constant>(ov::element::i64,

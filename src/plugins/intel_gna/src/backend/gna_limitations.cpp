@@ -756,7 +756,7 @@ bool SupportedElementTypes::IsConstantTypeSupported(ov::element::Type elem_type,
     return true;
 }
 
-bool is_transpose_supported(const std::shared_ptr<const ov::Node>& node) {
+bool Limitations::is_transpose_supported(const std::shared_ptr<const ov::Node>& node) {
     OPENVINO_ASSERT(node, "Transpose node is empty!");
     const ov::Shape squeezed_shape = graph_utils::squeeze_shape(node->get_input_shape(0));
 
@@ -767,22 +767,22 @@ bool is_transpose_supported(const std::shared_ptr<const ov::Node>& node) {
     if (squeezed_shape.size() == 2) {
         const size_t min_input_dim = std::min(squeezed_shape[0], squeezed_shape[1]);
         const size_t max_input_dim = std::max(squeezed_shape[0], squeezed_shape[1]);
-        if (min_input_dim <= 8 && ALIGN(max_input_dim, limitations::noOfInputsDivisor) == max_input_dim) {
+        if (min_input_dim <= 8 && ALIGN(max_input_dim, Limitations::kNoOfInputsDivisor) == max_input_dim) {
             return true;
         }
     }
     return false;
 }
 
-bool Limitations::is_conv_supported(const std::shared_ptr<ngraph::op::ConvolutionIE>& conv_ie,
+bool Limitations::is_conv_supported(const std::shared_ptr<ov::intel_gna::op::GNAConvolution>& conv_gna,
                                     const InferenceEngine::Precision gna_precision,
                                     bool is_exception_allowed) {
-    OPENVINO_ASSERT(conv_ie, "ConvolutionIE node is empty!");
-    size_t batch_size = conv_ie->input_value(0).get_shape()[0];
+    OPENVINO_ASSERT(conv_gna, "GNAConvolution node is empty!");
+    size_t batch_size = conv_gna->input_value(0).get_shape()[0];
     if (batch_size != 1) {
         if (is_exception_allowed) {
-            THROW_GNA_EXCEPTION << "topology with layer: " + conv_ie->get_friendly_name() +
-                                       ", type: " + conv_ie->get_type_name() + ", and batch size(" +
+            THROW_GNA_EXCEPTION << "topology with layer: " + conv_gna->get_friendly_name() +
+                                       ", type: " + conv_gna->get_type_name() + ", and batch size(" +
                                        std::to_string(batch_size) + ") != 1 not supported";
         }
         return false;
@@ -793,15 +793,15 @@ bool Limitations::is_conv_supported(const std::shared_ptr<ngraph::op::Convolutio
         std::string error = dilation_limit.GetErrorOrEmpty(filter_dilation_height, filter_stride_width);
         return cnn2d::AbstractValidator::ValidationSuccesful(is_exception_allowed,
                                                              error,
-                                                             conv_ie->get_friendly_name(),
-                                                             conv_ie->get_type_name());
+                                                             conv_gna->get_friendly_name(),
+                                                             conv_gna->get_type_name());
     };
-    auto input_shape = conv_ie->input_value(0).get_shape();
-    auto filter_shape = conv_ie->input_value(1).get_shape();
+    auto input_shape = conv_gna->input_value(0).get_shape();
+    auto filter_shape = conv_gna->input_value(1).get_shape();
     if ((4 == filter_shape.size() && filter_shape[2] > 1 && filter_shape[3] > 1) ||
         (4 == input_shape.size() && input_shape[2] > 1 && input_shape[3] > 1)) {
         pass::helper::ConvData conv_data;
-        pass::helper::GetConvData(conv_ie, conv_data);
+        pass::helper::GetConvData(conv_gna, conv_data);
         if (gna_convolution_layer::isMappableFrom2DTo1D(conv_data.input_height,
                                                         conv_data.input_width,
                                                         conv_data.input_channel_count,
@@ -813,7 +813,7 @@ bool Limitations::is_conv_supported(const std::shared_ptr<ngraph::op::Convolutio
         }
 
         if (m_cnn_validator) {
-            return m_cnn_validator->ValidateCnn2D(conv_ie->get_friendly_name(),
+            return m_cnn_validator->ValidateCnn2D(conv_gna->get_friendly_name(),
                                                   conv_data.input_height,
                                                   conv_data.input_width,
                                                   conv_data.input_channel_count,
@@ -828,10 +828,10 @@ bool Limitations::is_conv_supported(const std::shared_ptr<ngraph::op::Convolutio
                                                   is_exception_allowed);
         }
     }
-    return check_dilation(conv_ie->get_dilations()[0], conv_ie->get_dilations()[1]);
+    return check_dilation(conv_gna->get_dilations()[0], conv_gna->get_dilations()[1]);
 }
 
-bool Limitations::is_pooling_supported(const std::shared_ptr<ngraph::opset7::MaxPool> max_pool,
+bool Limitations::is_pooling_supported(const std::shared_ptr<ov::intel_gna::op::GNAMaxPool> max_pool,
                                        bool is_exception_allowed) {
     OPENVINO_ASSERT(max_pool, "MaxPool node is empty!");
     auto kernels = max_pool->get_kernel();
@@ -873,7 +873,7 @@ bool Limitations::is_split_supported(const std::shared_ptr<ov::Node>& node, bool
     return is_aligned;
 }
 
-bool is_concat_supported(const std::shared_ptr<const ov::Node>& node) {
+bool Limitations::is_concat_supported(const std::shared_ptr<const ov::Node>& node) {
     OPENVINO_ASSERT(node, "Concat node is empty!");
     auto concat_node = std::dynamic_pointer_cast<const ngraph::opset9::Concat>(node);
     const ov::Shape& output_shape = concat_node->get_output_shape(0);
@@ -882,7 +882,7 @@ bool is_concat_supported(const std::shared_ptr<const ov::Node>& node) {
     return graph_utils::get_first_valuable_dim_id(output_shape) == axis;
 }
 
-bool is_forward_transposed_concat_supported(const std::shared_ptr<const ov::Node>& node, const AxisVector& order) {
+bool Limitations::is_forward_transposed_concat_supported(const std::shared_ptr<const ov::Node>& node, const AxisVector& order) {
     auto concat_node = std::dynamic_pointer_cast<const Concat>(node);
     if (!concat_node) {
         log::debug() << "Concat node is empty!" << std::endl;
@@ -899,7 +899,7 @@ bool is_forward_transposed_concat_supported(const std::shared_ptr<const ov::Node
     return graph_utils::get_first_valuable_dim_id(transposed_shape) == transposed_concat_axis;
 }
 
-bool is_backward_transposed_concat_supported(const std::shared_ptr<const ov::Node>& node, const AxisVector& order) {
+bool Limitations::is_backward_transposed_concat_supported(const std::shared_ptr<const ov::Node>& node, const AxisVector& order) {
     auto concat_node = std::dynamic_pointer_cast<const Concat>(node);
     if (!concat_node) {
         log::debug() << "Concat node is empty!" << std::endl;
@@ -915,7 +915,7 @@ bool is_backward_transposed_concat_supported(const std::shared_ptr<const ov::Nod
     return graph_utils::get_first_valuable_dim_id(transposed_shape) == transposed_concat_axis;
 }
 
-bool is_forward_transposed_split_supported(const std::shared_ptr<const ov::Node>& node, const AxisVector& order) {
+bool Limitations::is_forward_transposed_split_supported(const std::shared_ptr<const ov::Node>& node, const AxisVector& order) {
     std::shared_ptr<const ov::Node> split_node = nullptr;
     if (std::dynamic_pointer_cast<const Split>(node)) {
         split_node = std::dynamic_pointer_cast<const Split>(node);
@@ -939,7 +939,7 @@ bool is_forward_transposed_split_supported(const std::shared_ptr<const ov::Node>
     return graph_utils::get_first_valuable_dim_id(transposed_shape) == transposed_concat_axis;
 }
 
-bool is_backward_transposed_split_supported(const std::shared_ptr<const ov::Node>& node, const AxisVector& order) {
+bool Limitations::is_backward_transposed_split_supported(const std::shared_ptr<const ov::Node>& node, const AxisVector& order) {
     std::shared_ptr<const ov::Node> split_node = nullptr;
     if (std::dynamic_pointer_cast<const Split>(node)) {
         split_node = std::dynamic_pointer_cast<const Split>(node);
@@ -970,12 +970,12 @@ bool Limitations::is_op_supported(const std::shared_ptr<ov::Node>& node,
         return SupportedElementTypes::IsParameterTypeSupported(node->get_element_type(), is_exception_allowed);
     } else if (ov::op::util::is_constant(node)) {
         return SupportedElementTypes::IsConstantTypeSupported(node->get_element_type(), is_exception_allowed);
-    } else if (auto conv_ie = std::dynamic_pointer_cast<ngraph::op::ConvolutionIE>(node)) {
-        return is_conv_supported(conv_ie, gna_precision, is_exception_allowed);
+    } else if (auto conv = std::dynamic_pointer_cast<ov::intel_gna::op::GNAConvolution>(node)) {
+        return is_conv_supported(conv, gna_precision, is_exception_allowed);
     } else if (auto fully_connected = std::dynamic_pointer_cast<ngraph::op::FullyConnected>(node)) {
         return is_fc_supported(fully_connected, is_exception_allowed);
     } else if (ov::intel_gna::graph_utils::is_pooling(node)) {
-        return is_pooling_supported(std::dynamic_pointer_cast<ngraph::opset7::MaxPool>(node), is_exception_allowed);
+        return is_pooling_supported(std::dynamic_pointer_cast<ov::intel_gna::op::GNAMaxPool>(node), is_exception_allowed);
     } else if (ov::op::util::is_output(node) || ov::op::util::is_sink(node) ||
                ov::intel_gna::graph_utils::is_eltwise_add(node) || ov::intel_gna::graph_utils::is_eltwise_mul(node) ||
                ov::intel_gna::graph_utils::is_crop_affined(node) ||
