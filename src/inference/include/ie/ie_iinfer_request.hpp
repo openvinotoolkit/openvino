@@ -36,8 +36,7 @@ IE_SUPPRESS_DEPRECATED_START
  * @deprecated Use InferenceEngine::InferRequest C++ wrapper
  * @brief This is an interface of asynchronous infer request
  */
-class INFERENCE_ENGINE_1_0_DEPRECATED
-    IInferRequest : public std::enable_shared_from_this<IInferRequest> {
+class INFERENCE_ENGINE_1_0_DEPRECATED IInferRequest : public std::enable_shared_from_this<IInferRequest> {
 public:
     /**
      * @enum WaitMode

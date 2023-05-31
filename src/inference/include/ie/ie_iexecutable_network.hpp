@@ -39,8 +39,7 @@ IE_SUPPRESS_DEPRECATED_START
 /**
  * @brief This is an interface of an executable network
  */
-class INFERENCE_ENGINE_1_0_DEPRECATED
-    IExecutableNetwork : public std::enable_shared_from_this<IExecutableNetwork> {
+class INFERENCE_ENGINE_1_0_DEPRECATED IExecutableNetwork : public std::enable_shared_from_this<IExecutableNetwork> {
 public:
     IE_SUPPRESS_DEPRECATED_START
     /**

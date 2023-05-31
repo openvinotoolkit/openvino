@@ -229,6 +229,7 @@ public:
         SetCallback<F>{*this}(std::move(callbackToSet));
     }
 
+    IE_SUPPRESS_DEPRECATED_START
     /**
      * @brief Gets state control interface for given infer request.
      *
@@ -237,7 +238,6 @@ public:
      */
     std::vector<VariableState> QueryState();
 
-    IE_SUPPRESS_DEPRECATED_START
     /**
      * @brief  IInferRequest pointer to be used directly in CreateInferRequest functions
      * @return A shared pointer to IInferRequest interface
@@ -271,6 +271,7 @@ public:
     bool operator==(const InferRequest&) const noexcept;
 };
 
+IE_SUPPRESS_DEPRECATED_START
 /**
  * @private
  */
@@ -281,8 +282,6 @@ struct InferRequest::SetCallback<std::function<void(InferRequest, StatusCode)>> 
     }
     InferRequest& _this;
 };
-
-IE_SUPPRESS_DEPRECATED_START
 
 /**
  * @private
