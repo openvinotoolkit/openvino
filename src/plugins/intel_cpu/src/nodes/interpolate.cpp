@@ -378,11 +378,11 @@ private:
         // xpass
         if (xPass) {
             mov(reg_dst_aux, reg_dst_xpass);
-            for (size_t ih = 0; ih < jcp_.IH; ih++) {
+            for (size_t ih = 0; ih < static_cast<size_t>(jcp_.IH); ih++) {
                 // reg_dst_xpass: point to start of this dst height
                 // reset reg_dst_aux to start of this height
                 mov(reg_weights, reg_weights_bk);
-                for (size_t ow = 0; ow < jcp_.OW; ow++) {
+                for (size_t ow = 0; ow < static_cast<size_t>(jcp_.OW); ow++) {
                     // reg_src: point to start of this src height src
                     // reset reg_src_aux to reg_src
                     mov(reg_src_aux, reg_src);
@@ -433,10 +433,10 @@ private:
             add(reg_weights_bk, jcp_.OW * jcp_.filterLenX * sizeof(float));
             mov(reg_weights, reg_weights_bk);
             size_t bound_offset_y = jcp_.OW * 2;
-            for (size_t oh = 0; oh < jcp_.OH; oh++) {
+            for (size_t oh = 0; oh < static_cast<size_t>(jcp_.OH); oh++) {
                 filterS = jcp_.bound[bound_offset_y + oh * 2];
                 filterL = jcp_.bound[bound_offset_y + oh * 2 + 1];
-                for (size_t ow = 0; ow < jcp_.OW; ow++) {
+                for (size_t ow = 0; ow < static_cast<size_t>(jcp_.OW); ow++) {
                     mov(reg_src_aux, reg_src_ypass);  // reg_src_aux to advance block
                     for (int blk = 0; blk < jcp_.C / vector_step; blk++) {
                         uni_vpxor(vmm_dst, vmm_dst, vmm_dst);
@@ -1484,7 +1484,7 @@ private:
             uni_vmovdqu(ptr[rsp], vmm_indices);
 
             int repeats = is_scalar ? 1 : vlen / sizeof(float);
-            for (size_t i = 0; i < repeats; ++i) {
+            for (int i = 0; i < repeats; ++i) {
                 mov(reg_tmp_64.cvt32(), ptr[rsp + i * sizeof(int)]);       // sizeof(int)  index_size
                 table_idx = ptr[base + offset + reg_tmp_64 * scale];       // scale: sizeof(float)   value_size
                 mov(reg_tmp_64.cvt32(), table_idx);
@@ -1894,7 +1894,7 @@ Interpolate::Interpolate(const std::shared_ptr<ngraph::Node>& op, const GraphCon
                 axes = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(interp->get_input_node_shared_ptr(AXES_ID))->cast_vector<int>();
             } else {
                 axes.resize(dataRank);
-                for (int i = 0; i < dataRank; i++) {
+                for (int i = 0; i < static_cast<int>(dataRank); i++) {
                     axes[i] = i;
                 }
             }
@@ -1963,7 +1963,7 @@ Interpolate::Interpolate(const std::shared_ptr<ngraph::Node>& op, const GraphCon
                 }
             } else {
                 axes.resize(dataRank);
-                for (int i = 0; i < dataRank; i++) {
+                for (int i = 0; i < static_cast<int>(dataRank); i++) {
                     axes[i] = i;
                 }
             }
@@ -1984,13 +1984,13 @@ void Interpolate::getSupportedDescriptors() {
     int dataRank = getInputShapeAtPort(DATA_ID).getRank();
 
     // get pad
-    for (int i = 0; i < interpAttrs.padBegin.size(); i++) {
+    for (size_t i = 0; i < interpAttrs.padBegin.size(); i++) {
         if (interpAttrs.padBegin[i] != 0) {
             hasPad = true;
             break;
         }
     }
-    for (int i = 0; i < interpAttrs.padEnd.size(); i++) {
+    for (size_t i = 0; i < interpAttrs.padEnd.size(); i++) {
         if (interpAttrs.padEnd[i] != 0) {
             hasPad = true;
             break;
@@ -2087,11 +2087,11 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
 
         if (useAclExecutor) {
             std::vector<MemoryDescPtr> srcMemoryDescs;
-            for (int i = 0; i < config.inConfs.size(); i++) {
+            for (size_t i = 0; i < config.inConfs.size(); i++) {
                 srcMemoryDescs.push_back(config.inConfs[i].getMemDesc());
             }
             std::vector<MemoryDescPtr> dstMemoryDescs;
-            for (int i = 0; i < config.outConfs.size(); i++) {
+            for (size_t i = 0; i < config.outConfs.size(); i++) {
                 dstMemoryDescs.push_back(config.outConfs[i].getMemDesc());
             }
 
@@ -2302,7 +2302,7 @@ void Interpolate::prepareParams() {
         interpAttrs.dataScales = dataScales;
 
         std::vector<MemoryDescPtr> srcMemoryDescs;
-        for (int i = 0; i < getParentEdges().size(); i++) {
+        for (size_t i = 0; i < getParentEdges().size(); i++) {
             srcMemoryDescs.push_back(getParentEdgeAt(i)->getMemoryPtr()->getDescPtr());
         }
         std::vector<MemoryDescPtr> dstMemoryDescs;
@@ -2838,17 +2838,17 @@ void Interpolate::InterpolateExecutorBase::buildTblNN(const SizeVector& srcDimPa
     bool isDDownsample = (fz < 1) ? true : false;
     bool isHDownsample = (fy < 1) ? true : false;
     bool isWDownsample = (fx < 1) ? true : false;
-    for (int oz = 0; oz < OD; oz++) {
+    for (size_t oz = 0; oz < OD; oz++) {
         float iz = coordTransToInput(oz, fz, ID, OD);
         auxTable[oz] = nearestRound(iz, isDDownsample, nearestMode);
         auxTable[oz] = clipCoord(auxTable[oz], ID);
     }
-    for (int oy = 0; oy < OH; oy++) {
+    for (size_t oy = 0; oy < OH; oy++) {
         float iy = coordTransToInput(oy, fy, IH, OH);
         auxTable[OD + oy] = nearestRound(iy, isHDownsample, nearestMode);
         auxTable[OD + oy] = clipCoord(auxTable[OD + oy], IH);
     }
-    for (int ox = 0; ox < OW; ox++) {
+    for (size_t ox = 0; ox < OW; ox++) {
         float ix = coordTransToInput(ox, fx, IW, OW);
         auxTable[OD + OH + ox] = nearestRound(ix, isWDownsample, nearestMode);
         auxTable[OD + OH + ox] = clipCoord(auxTable[OD + OH + ox], IW);
@@ -3093,7 +3093,7 @@ void Interpolate::InterpolateExecutorBase::buildTblLinear(const SizeVector& srcD
         int *idxOH = static_cast<int*>(&idxTable[sizeOD]);
         int *idxOW = static_cast<int*>(&idxTable[sizeOD + sizeOH]);
 
-        for (int oz = 0; oz < OD; oz++) {
+        for (size_t oz = 0; oz < OD; oz++) {
             float iz = coordTransToInput(oz, fz, ID, OD);
             int iz_r = static_cast<int>(std::round(iz));
             for (int r = iz_r - rz, i = 0; r <= iz_r + rz; r++, i++) {
@@ -3106,7 +3106,7 @@ void Interpolate::InterpolateExecutorBase::buildTblLinear(const SizeVector& srcD
                 }
             }
         }
-        for (int oy = 0; oy < OH; oy++) {
+        for (size_t oy = 0; oy < OH; oy++) {
             float iy = coordTransToInput(oy, fy, IH, OH);
             int iy_r = static_cast<int>(std::round(iy));
             for (int r = iy_r - ry, i = 0; r <= iy_r + ry; r++, i++) {
@@ -3119,7 +3119,7 @@ void Interpolate::InterpolateExecutorBase::buildTblLinear(const SizeVector& srcD
                 }
             }
         }
-        for (int ox = 0; ox < OW; ox++) {
+        for (size_t ox = 0; ox < OW; ox++) {
             float ix = coordTransToInput(ox, fx, IW, OW);
             int ix_r = static_cast<int>(std::round(ix));
             for (int r = ix_r - rx, i = 0; r <= ix_r + rx; r++, i++) {
@@ -3583,11 +3583,11 @@ void Interpolate::InterpolateRefExecutor::linearInterpolation(const uint8_t *in_
     parallel_for2d(B, C, [&](size_t b, size_t c) {
         const uint8_t *in_ptr_nc = in_ptr_ + (IW * IH * ID * C * b + IW * IH * ID * c) * srcDataSize;
         uint8_t *out_ptr_nc = out_ptr_ + (OW * OH * OD * C * b + OW * OH * OD * c) * dstDataSize;
-        for (size_t oz = 0; oz < OD; oz++) {
+        for (int oz = 0; oz < OD; oz++) {
             uint8_t *out_ptr_ncd = out_ptr_nc + (OW * OH * oz) * dstDataSize;
-            for (size_t oy = 0; oy < OH; oy++) {
+            for (int oy = 0; oy < OH; oy++) {
                 uint8_t *out_ptr_ncdh = out_ptr_ncd + (OW * oy) * dstDataSize;
-                for (size_t ox = 0; ox < OW; ox++) {
+                for (int ox = 0; ox < OW; ox++) {
                     float sum = 0.f;
                     float wsum = 0.f;
 
@@ -3707,8 +3707,8 @@ void Interpolate::InterpolateRefExecutor::pillowRef(const uint8_t *in_ptr_, uint
         int f, filterS, filterL;
         float* weight;
         if (xPass) {
-            for (size_t ih = 0; ih < IH; ih++) {
-                for (size_t ow = 0; ow < OW; ow++) {
+            for (size_t ih = 0; ih < static_cast<size_t>(IH); ih++) {
+                for (size_t ow = 0; ow < static_cast<size_t>(OW); ow++) {
                     filterS = indexX[ow * 2];
                     filterL = indexX[ow * 2 + 1];
                     weight = reinterpret_cast<float*>(&weightX[ow * filterLenX]);
@@ -3725,11 +3725,11 @@ void Interpolate::InterpolateRefExecutor::pillowRef(const uint8_t *in_ptr_, uint
             }
         }
         if (yPass) {
-            for (size_t oh = 0; oh < OH; oh++) {
+            for (size_t oh = 0; oh < static_cast<size_t>(OH); oh++) {
                 filterS = indexY[oh * 2];
                 filterL = indexY[oh * 2 + 1];
                 weight = reinterpret_cast<float*>(&weightY[oh * filterLenY]);
-                for (size_t ow = 0; ow < OW; ow++) {
+                for (size_t ow = 0; ow < static_cast<size_t>(OW); ow++) {
                     result = 0.f;
                     for (f = 0; f < filterL; f++) {
                         float pixel = getValue(ypass_in_ptr_nc, ((f + filterS) * OW + ow) * srcDataSize, inputPrec);

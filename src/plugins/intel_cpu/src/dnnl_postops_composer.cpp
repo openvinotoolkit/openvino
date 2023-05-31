@@ -29,7 +29,7 @@ DnnlPostOpsComposer::DnnlPostOpsComposer(const dnnl::engine& engine,
       idxOC(indexOfOutputChannelDim),
       isINT8(isInt8),
       weightScaleMaskPerChannel(weiScaleMaskPerChannel) {
-    IE_ASSERT(idxOC >= 0 && idxOC < outputDims.size());
+    IE_ASSERT(idxOC >= 0 && static_cast<size_t>(idxOC) < outputDims.size());
     OC = outputDims[idxOC];
     dimsPerOC = dimsPerTensor = VectorDims(outputDims.size(), 1);
     dimsPerOC[idxOC] = OC;
@@ -163,10 +163,10 @@ bool DnnlPostOpsComposer::appendScale(const std::vector<float>& scale, bool isLa
             else
                 IE_ASSERT(wei_scale_values.size() == OC);
 
-            for (int j = 0; j < OC; j++)
+            for (Dim j = 0; j < OC; j++)
                 wei_scale_values[j] *= scale[j];
         } else {
-            for (int j = 0; j < wei_scale_values.size(); j++)
+            for (size_t j = 0; j < wei_scale_values.size(); j++)
                 wei_scale_values[j] *= scale[0];
         }
 

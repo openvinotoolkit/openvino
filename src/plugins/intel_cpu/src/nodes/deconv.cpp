@@ -174,10 +174,10 @@ Deconvolution::Deconvolution(const std::shared_ptr<ngraph::Node>& op,
             groupNum = 1;
             withGroups = false;
 
-            for (int i = 0; i < convBackprop->get_strides().size(); i++) {
+            for (size_t i = 0; i < convBackprop->get_strides().size(); i++) {
                 stride.push_back(static_cast<ptrdiff_t>(convBackprop->get_strides()[i]));
             }
-            for (int i = 0; i < convBackprop->get_dilations().size(); i++) {
+            for (size_t i = 0; i < convBackprop->get_dilations().size(); i++) {
                 dilation.push_back(static_cast<ptrdiff_t>(convBackprop->get_dilations()[i]) - 1);
             }
             paddingL = convBackprop->get_pads_begin();
@@ -196,10 +196,10 @@ Deconvolution::Deconvolution(const std::shared_ptr<ngraph::Node>& op,
             withGroups = groupNum > 1;
             isDW = withGroups && groupNum == OC && groupNum == IC;
 
-            for (int i = 0; i < groupConvBackprop->get_strides().size(); i++) {
+            for (size_t i = 0; i < groupConvBackprop->get_strides().size(); i++) {
                 stride.push_back(static_cast<ptrdiff_t>(groupConvBackprop->get_strides()[i]));
             }
-            for (int i = 0; i < groupConvBackprop->get_dilations().size(); i++) {
+            for (size_t i = 0; i < groupConvBackprop->get_dilations().size(); i++) {
                 dilation.push_back(static_cast<ptrdiff_t>(groupConvBackprop->get_dilations()[i]) - 1);
             }
             paddingL = groupConvBackprop->get_pads_begin();
@@ -209,7 +209,7 @@ Deconvolution::Deconvolution(const std::shared_ptr<ngraph::Node>& op,
 
             autoPad = one_of(groupConvBackprop->get_auto_pad(), ov::op::PadType::SAME_LOWER, ov::op::PadType::SAME_UPPER);
         }
-        for (int i = 0; i < dilation.size(); i++) {
+        for (size_t i = 0; i < dilation.size(); i++) {
             kernel.push_back(weightDims[withGroups + 2 + i]);
         }
 
@@ -252,7 +252,7 @@ InferenceEngine::Blob::Ptr Deconvolution::createWeiBlobAsIO(InferenceEngine::Siz
     } else {
         orderForBlockedDesc = {1, 0};
     }
-    for (int i = 2 + withGroups; i < dimsForBlockedDesc.size(); i++)
+    for (size_t i = 2 + withGroups; i < dimsForBlockedDesc.size(); i++)
         orderForBlockedDesc.push_back(i);
 
     BlockingDesc blkDesc(dimsForBlockedDesc, orderForBlockedDesc);
@@ -288,15 +288,15 @@ bool Deconvolution::canBeExecutedInInt8() const {
         }
         // heuristicConst = 2^26
         // heuristicParam = IC^2 * SP
-        auto heuristicConst = 67108864;
+        size_t heuristicConst = 67108864;
         auto heuristicParam = IC * IC;
-        for (int i = 2; i < inMaxDims.size(); i++)
+        for (size_t i = 2; i < inMaxDims.size(); i++)
             heuristicParam *= inMaxDims[i];
         if (heuristicParam > heuristicConst)
             return false;
     }
 
-    for (int i = 0; i < kernel.size(); i++) {
+    for (size_t i = 0; i < kernel.size(); i++) {
         if (kernel[i] < stride[i])
             return false;
     }
@@ -483,7 +483,7 @@ void Deconvolution::getSupportedDescriptors() {
 }
 
 void Deconvolution::initPaddingR(const Shape &inShape, const Shape &outShape) {
-    for (int i = 0; i < paddingR.size(); i++) {
+    for (size_t i = 0; i < paddingR.size(); i++) {
         int with_group = getAlgorithm() == Algorithm::DeconvolutionGrouped ? 1 : 0;
         const auto& weightDims = getWeightDims();
         int krn = weightDims[with_group + 2 + i];
@@ -511,7 +511,7 @@ void Deconvolution::setPostOps(dnnl::primitive_attr& attr, const VectorDims& dim
     // @todo: Clarify with ONEDNN about deconvolution channel mask setting.
     DnnlPostOpsComposer dnnlpoc(getEngine(), attr, ops, postOpsArgs, dims, 1, isInt8, withGroups ? 3 : 1 << 0,  getDQScales(), withBiases);
 
-    for (int i = 0; i < fusedWith.size(); ++i) {
+    for (size_t i = 0; i < fusedWith.size(); ++i) {
         auto& node = fusedWith[i];
         bool isLastPostOp = (i == (fusedWith.size() - 1));
 

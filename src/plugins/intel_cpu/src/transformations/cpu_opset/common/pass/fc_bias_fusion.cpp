@@ -45,7 +45,8 @@ ov::intel_cpu::NonQuantizedFullyConnectedBiasFusion::NonQuantizedFullyConnectedB
             return false;
         }
 
-        if (bias_shape.empty() || bias_shape.back() != output_shape[rank - 1].get_length() || bias_shape.back() != bias_size) {
+        if (bias_shape.empty() || static_cast<int64_t>(bias_shape.back()) != output_shape[rank - 1].get_length() ||
+            bias_shape.back() != bias_size) {
             return false;
         }
 
@@ -119,7 +120,8 @@ ov::intel_cpu::QuantizedFullyConnectedBiasFusion::QuantizedFullyConnectedBiasFus
         if (ov::shape_size(bias_shape) != 1 && !per_channel)
             return false;
 
-        if (bias_shape.empty() || bias_shape.back() != output_shape[rank - 1].get_length() || bias_shape.back() != bias_size) {
+        if (bias_shape.empty() || static_cast<int64_t>(bias_shape.back()) != output_shape[rank - 1].get_length() ||
+            bias_shape.back() != bias_size) {
             return false;
         }
 

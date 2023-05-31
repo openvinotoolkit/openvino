@@ -644,9 +644,9 @@ private:
     // is_broadcast for broadcasting param for depth_wise and quantize, for fusion with plain layout.
     void apply_post_ops(memory::data_type dst_dt, bool is_broadcast) {
         const auto &p = attr_.post_ops_;
-        int eltwise_inj_idx = 0;
-        int depthwise_inj_idx = 0;
-        int quantization_inj_idx = 0;
+        size_t eltwise_inj_idx = 0;
+        size_t depthwise_inj_idx = 0;
+        size_t quantization_inj_idx = 0;
         int post_ops_data_offset = 0;
         for (int i = 0; i < p.len(); i++) {
             auto& post_op = p.entry_[i];

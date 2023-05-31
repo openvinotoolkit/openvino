@@ -758,12 +758,12 @@ DeformableConvolution::DeformableConvolution(const std::shared_ptr<ngraph::Node>
     defConvAttr.group = defConvNodeBase->get_group();
     defConvAttr.deformable_group = defConvNodeBase->get_deformable_group();
     auto& strides = defConvNodeBase->get_strides();
-    for (int i = 0; i < strides.size(); i++) {
+    for (size_t i = 0; i < strides.size(); i++) {
         defConvAttr.stride.push_back(strides[i]);
     }
 
     auto& dilations = defConvNodeBase->get_dilations();
-    for (int i = 0; i < dilations.size(); i++) {
+    for (size_t i = 0; i < dilations.size(); i++) {
         defConvAttr.dilation.push_back(dilations[i] - 1);
     }
 
@@ -1022,10 +1022,10 @@ DeformableConvolution::DefConvExecutor::DefConvExecutor(const DefConvAttr &defCo
     dstStrides = std::vector<size_t>(dstDesc->getStrides().size());
     pSampledCoordsVector = nullptr;
     pInterpWeightsVector = nullptr;
-    for (int i = 0; i < srcDesc->getStrides().size(); i++) {
+    for (size_t i = 0; i < srcDesc->getStrides().size(); i++) {
         srcStrides[srcDesc->getOrder()[i]] = srcDesc->getStrides()[i];
     }
-    for (int i = 0; i < dstDesc->getStrides().size(); i++) {
+    for (size_t i = 0; i < dstDesc->getStrides().size(); i++) {
         dstStrides[dstDesc->getOrder()[i]] = dstDesc->getStrides()[i];
     }
 
@@ -1137,8 +1137,8 @@ void DeformableConvolution::DefConvRefExecutor::exec(const float* src, const flo
             const int deformable_group_index = (IC * g + ic) / channel_per_deformable_group;
             int sampledCoordIndex = (mb * DGHW + deformable_group_index * HW + oh * OW + ow) * ker_size * sampledPointsPerPixel;
             size_t weiIndex = (size_t) g * group_wei_stride + oc * weiStrides[0] + ic * weiStrides[1];
-            for (int kh_off = 0; kh_off < KH * weiStrides[2]; kh_off += weiStrides[2]) {
-                for (int kw_off = 0; kw_off < KW * weiStrides[3]; kw_off += weiStrides[3]) {
+            for (size_t kh_off = 0; kh_off < KH * weiStrides[2]; kh_off += weiStrides[2]) {
+                for (size_t kw_off = 0; kw_off < KW * weiStrides[3]; kw_off += weiStrides[3]) {
                     // check if current addendum marked as equal zero
                     if (pSampledCoordsVector[sampledCoordIndex] != -1) {
                         const int v11 = pSampledCoordsVector[sampledCoordIndex];
