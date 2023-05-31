@@ -42,8 +42,8 @@ If you want to contribute to OpenVINO Python API, here is the list of learning m
 
 * [OpenVINO™ README](../../../README.md)
 * [OpenVINO™ Core Components](../../README.md)
-* [OpenVINO™ Python API Reference](https://docs.openvino.ai/latest/api/ie_python_api/api.html)
-* [OpenVINO™ Python API Advanced Inference](https://docs.openvino.ai/latest/openvino_docs_OV_UG_Python_API_inference.html)
-* [OpenVINO™ Python API Exclusives](https://docs.openvino.ai/latest/openvino_docs_OV_UG_Python_API_exclusives.html)
+* [OpenVINO™ Python API Reference](https://docs.openvino.ai/2023.0/api/ie_python_api/api.html)
+* [OpenVINO™ Python API Advanced Inference](https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_Python_API_inference.html)
+* [OpenVINO™ Python API Exclusives](https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_Python_API_exclusives.html)
 * [pybind11 repository](https://github.com/pybind/pybind11)
 * [pybind11 documentation](https://pybind11.readthedocs.io/en/stable/)

@@ -16,7 +16,7 @@ The articles below provide the basic informations about the process of building 
 
 * [Windows](build_windows.md)
 * [Linux](build_linux.md)
-* [Mac (Intel GPU)](build_mac_intel_cpu.md)
+* [Mac (Intel CPU)](build_mac_intel_cpu.md)
 * [Mac (ARM)](build_mac_arm.md)
 * [Android](build_android.md)
 * [Raspbian Stretch](./build_raspbian.md)
