@@ -156,7 +156,7 @@ bool StaticShape::broadcast_merge_into(StaticShape& dst,
 bool StaticShape::operator==(const StaticShape& shape) const {
     if (size() != shape.size())
         return false;
-    for (auto i = 0; i < size(); ++i)
+    for (size_t i = 0; i < size(); ++i)
         if ((*this)[i] != shape[i])
             return false;
     return true;
