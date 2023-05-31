@@ -24,7 +24,7 @@ To convert a PaddlePaddle model, use the ``mo`` script and specify the path to t
 Converting PaddlePaddle Model From Memory Using Python API
 ##########################################################
 
-MO Python API supports passing PaddlePaddle models directly from memory.
+Model conversion API supports passing PaddlePaddle models directly from memory.
 
 Following PaddlePaddle model formats are supported:
 
@@ -162,7 +162,7 @@ The following PaddlePaddle models have been officially validated and confirmed t
 Frequently Asked Questions (FAQ)
 ################################
 
-When Model Optimizer is unable to run to completion due to typographical errors, incorrectly used options, or other issues, it provides explanatory messages. They describe the potential cause of the problem and give a link to the :doc:`Model Optimizer FAQ <openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ>`, which provides instructions on how to resolve most issues. The FAQ also includes links to relevant sections in the Model Optimizer Developer Guide to help you understand what went wrong.
+When model conversion API is unable to run to completion due to typographical errors, incorrectly used options, or other issues, it provides explanatory messages. They describe the potential cause of the problem and give a link to the :doc:`Model Optimizer FAQ <openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ>`, which provides instructions on how to resolve most issues. The FAQ also includes links to relevant sections in :doc:`Convert a Model <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>` to help you understand what went wrong.
 
 Additional Resources
 ####################

@@ -26,7 +26,7 @@ OpenVINO State Representation
 
 OpenVINO contains the ``Variable``, a special abstraction to represent a state in a model. There are two operations: :doc:`Assign <openvino_docs_ops_infrastructure_Assign_3>` - to save a value in a state and :doc:`ReadValue <openvino_docs_ops_infrastructure_ReadValue_3>` - to read a value saved on previous iteration.
 
-To get a model with states ready for inference, convert a model from another framework to OpenVINO IR with Model Optimizer or create an OpenVINO model. 
+To get a model with states ready for inference, convert a model from another framework to OpenVINO IR with model conversion API or create an OpenVINO model. 
 (For more information, refer to the :doc:`Build OpenVINO Model section <openvino_docs_OV_UG_Model_Representation>`). 
 
 Below is the graph in both forms:
@@ -206,7 +206,7 @@ If the original framework does not have a special API for working with states, O
 TensorIterator/Loop operations
 ++++++++++++++++++++++++++++++
 
-You can get the TensorIterator/Loop operations from different frameworks via Model Optimizer.
+You can get the TensorIterator/Loop operations from different frameworks via model conversion API.
 
 * **ONNX and frameworks supported via ONNX format** - ``LSTM``, ``RNN``, and ``GRU`` original layers are converted to the ``TensorIterator`` operation. The ``TensorIterator`` body contains ``LSTM``/``RNN``/``GRU Cell``. The ``Peepholes`` and ``InputForget`` modifications are not supported, while the ``sequence_lengths`` optional input is.
 ``ONNX Loop`` layer is converted to the OpenVINO :doc:`Loop <openvino_docs_ops_infrastructure_Loop_5>` operation.
@@ -214,7 +214,7 @@ You can get the TensorIterator/Loop operations from different frameworks via Mod
 * **Apache MXNet** - ``LSTM``, ``RNN``, ``GRU`` original layers are converted to ``TensorIterator`` operation, which body contains ``LSTM``/``RNN``/``GRU Cell`` operations.
 
 * **TensorFlow** - ``BlockLSTM`` is converted to ``TensorIterator`` operation. The ``TensorIterator`` body contains ``LSTM Cell`` operation, whereas ``Peepholes`` and ``InputForget`` modifications are not supported.
-The ``While`` layer is converted to ``TensorIterator``, which body can contain any supported operations. However, when count of iterations cannot be calculated in shape inference (Model Optimizer conversion) time, the dynamic cases are not supported.
+The ``While`` layer is converted to ``TensorIterator``, which body can contain any supported operations. However, when count of iterations cannot be calculated in shape inference (model conversion) time, the dynamic cases are not supported.
 
 * **TensorFlow2** - ``While`` layer is converted to ``Loop`` operation, which body can contain any supported operations.
 
