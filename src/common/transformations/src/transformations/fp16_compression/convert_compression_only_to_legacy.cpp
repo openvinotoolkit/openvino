@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/common_optimizations/convert_compression_only_to_legacy.hpp"
+#include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"
 
 #include "itt.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/convert_precision.hpp"
-#include "transformations/mark_decompression_convert_constant_folding.hpp"
+#include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 #include "transformations/utils/utils.hpp"
 

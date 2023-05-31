@@ -14,9 +14,9 @@
 #include "remote_context.hpp"
 #include "template/properties.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
-#include "transformations/common_optimizations/convert_compression_only_to_legacy.hpp"
+#include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"
 #include "transformations/control_flow/unroll_if.hpp"
-#include "transformations/mark_decompression_convert_constant_folding.hpp"
+#include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/op_conversions/convert_reduce_to_pooling.hpp"
 
 namespace {

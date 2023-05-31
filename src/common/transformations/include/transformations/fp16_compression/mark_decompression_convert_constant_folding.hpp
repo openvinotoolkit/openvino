@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include "openvino/pass/graph_rewrite.hpp"
-#include "transformations/mark_decompression_convert_constant_folding.hpp"
+#include "mark_decompression_convert_constant_folding.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov {
@@ -20,7 +20,7 @@ class TRANSFORMATIONS_API KeepConstAndDecompression;
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief Disables ConstantFolding for Convert operation in compressed function.
+ * @brief Enables ConstantFolding for Convert operation in compressed function.
  */
 class ov::pass::EnableDecompressionConvertConstantFolding : public ov::pass::MatcherPass {
 public:
@@ -40,8 +40,7 @@ public:
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief Disables ConstantFolding for Convert operation in compressed function
- * and prevents conversion of f16 Consts to f32.
+ * @brief Disables ConstantFolding for Convert operation and prevents conversion of f16 Consts to f32.
  */
 class ov::pass::KeepConstAndDecompression : public MatcherPass {
 public:
