@@ -33,14 +33,14 @@ For example, the following command specifies the ``NHWC`` layout for a Tensorflo
 
 .. tab-set::
 
-    .. tab-item:: mo CLI tool
+    .. tab-item:: CLI
        :sync: cli-tool
 
        .. code-block:: sh
 
           mo --input_model tf_nasnet_large.onnx --layout nhwc
 
-    .. tab-item:: mo Python API
+    .. tab-item:: Python
        :sync: mo-python-api
 
        .. code-block:: python
@@ -58,14 +58,14 @@ having two dimensions: batch and size of the image expressed as the ``N?`` layou
 
 .. tab-set::
 
-    .. tab-item:: mo CLI tool
+    .. tab-item:: CLI
        :sync: cli-tool
 
        .. code-block:: sh
 
           mo --input_model yolov3-tiny.onnx --layout input_1(nchw),image_shape(n?)
 
-    .. tab-item:: mo Python API
+    .. tab-item:: Python
        :sync: mo-python-api
 
        .. code-block:: python
@@ -86,7 +86,7 @@ the following commands to provide data in the ``NCHW`` layout:
 
 .. tab-set::
 
-    .. tab-item:: mo CLI tool
+    .. tab-item:: CLI
        :sync: cli-tool
 
        .. code-block:: sh
@@ -95,7 +95,7 @@ the following commands to provide data in the ``NCHW`` layout:
 
           mo --input_model tf_nasnet_large.onnx --layout "nhwc->nchw"
 
-    .. tab-item:: mo Python API
+    .. tab-item:: Python
        :sync: mo-python-api
 
        .. code-block:: python
@@ -114,7 +114,7 @@ mentioned earlier, use the following commands:
 
 .. tab-set::
 
-    .. tab-item:: mo CLI tool
+    .. tab-item:: CLI
        :sync: cli-tool
 
        .. code-block:: sh
@@ -123,7 +123,7 @@ mentioned earlier, use the following commands:
 
           mo --input_model yolov3-tiny.onnx --layout "input_1(nchw->nhwc),image_shape(n?)"
 
-    .. tab-item:: mo Python API
+    .. tab-item:: Python
        :sync: mo-python-api
 
        .. code-block:: python
@@ -167,14 +167,14 @@ model and applies mean-scale normalization to the input data:
 
 .. tab-set::
 
-    .. tab-item:: mo CLI tool
+    .. tab-item:: CLI
        :sync: cli-tool
 
        .. code-block:: sh
 
           mo --input_model unet.pdmodel --mean_values [123,117,104] --scale 255
 
-    .. tab-item:: mo Python API
+    .. tab-item:: Python
        :sync: mo-python-api
 
        .. code-block:: python
@@ -210,14 +210,14 @@ model and embeds the ``reverse_input_channel`` preprocessing block into OpenVINO
 
 .. tab-set::
 
-    .. tab-item:: mo CLI tool
+    .. tab-item:: CLI
        :sync: cli-tool
 
        .. code-block:: sh
 
           mo --input_model alexnet.pb --reverse_input_channels
 
-    .. tab-item:: mo Python API
+    .. tab-item:: Python
        :sync: mo-python-api
 
        .. code-block:: python
