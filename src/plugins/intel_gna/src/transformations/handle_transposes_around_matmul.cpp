@@ -171,7 +171,7 @@ HandleTransposeBeforeMatMul::HandleTransposeBeforeMatMul() {
         auto iter = pattern_map.find(fq);
         if (iter != pattern_map.end() || (iter = pattern_map.find(constant)) != pattern_map.end()) {
             auto prev_node = iter->second.get_node_shared_ptr();
-            if (Limitations::is_transpose_2d(prev_node->get_output_shape(0))) {
+            if (Limitations::is_shape_2d(prev_node->get_output_shape(0))) {
                 InsertTranspose(prev_node, prev_node->get_friendly_name(), true);
             }
         }
