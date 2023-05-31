@@ -278,8 +278,7 @@ std::vector<std::vector<int>> get_proc_type_table() {
 
 bool is_cpu_map_available() {
     CPU& cpu = cpu_info();
-    std::lock_guard<std::mutex> lock{cpu._cpu_mutex};
-    return cpu._proc_type_table.size() > 0 && cpu._num_threads == cpu._proc_type_table[0][ALL_PROC];
+    return cpu._cpu_mapping_table.size() > 0;
 }
 
 int get_num_numa_nodes() {
