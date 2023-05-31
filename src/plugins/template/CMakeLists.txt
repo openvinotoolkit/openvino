@@ -11,7 +11,7 @@ set(TEMPLATE_PLUGIN_SOURCE_DIR ${OpenVINOTemplatePlugin_SOURCE_DIR})
 
 find_package(OpenVINODeveloperPackage REQUIRED)
 
-ov_option(ENABLE_TEMPLATE_REGISTRATION "Enables registration of TEMPLATE plugin" ON)
+ov_option(ENABLE_TEMPLATE_REGISTRATION "Enables registration of TEMPLATE plugin" OFF)
 
 if(CMAKE_COMPILER_IS_GNUCXX)
     ov_add_compiler_flags(-Wall)
