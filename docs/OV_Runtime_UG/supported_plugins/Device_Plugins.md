@@ -17,15 +17,8 @@ OpenVINO™ Runtime can infer deep learning models using the following device ty
 * :doc:`CPU <openvino_docs_OV_UG_supported_plugins_CPU>`
 * :doc:`GPU <openvino_docs_OV_UG_supported_plugins_GPU>`
 * :doc:`GNA <openvino_docs_OV_UG_supported_plugins_GNA>`
-* :doc:`Arm® CPU <openvino_docs_OV_UG_supported_plugins_CPU>`
 
 For a more detailed list of hardware, see :doc:`Supported Devices <openvino_docs_OV_UG_supported_plugins_Supported_Devices>`.
-
-Devices similar to the ones used for benchmarking can be accessed, using `Intel® DevCloud for the Edge <https://devcloud.intel.com/edge/>`__, 
-a remote development environment with access to Intel® hardware and the latest versions of the Intel® Distribution of the OpenVINO™ Toolkit. 
-`Learn more <https://devcloud.intel.com/edge/get_started/devcloud/>`__ or `Register here <https://inteliot.force.com/DevcloudForEdge/s/>`__.
-
-
 
 .. _devicesupport-feature-support-matrix:
 
@@ -45,7 +38,7 @@ The table below demonstrates support of key features by OpenVINO device plugins.
   :doc:`Multi-stream execution <openvino_docs_deployment_optimization_guide_tput>`          Yes             Yes             No              Yes                     
   :doc:`Models caching <openvino_docs_OV_UG_Model_caching_overview>`                        Yes             Partial         Yes             No                      
   :doc:`Dynamic shapes <openvino_docs_OV_UG_DynamicShapes>`                                 Yes             Partial         No              No                      
-  :doc:`Import/Export <openvino_inference_engine_tools_compile_tool_README>`                Yes             No              Yes             No                      
+  :doc:`Import/Export <openvino_ecosystem>`                                                 Yes             No              Yes             No                      
   :doc:`Preprocessing acceleration <openvino_docs_OV_UG_Preprocessing_Overview>`            Yes             Yes             No              Partial                 
   :doc:`Stateful models <openvino_docs_OV_UG_model_state_intro>`                            Yes             No              Yes             No                      
   :doc:`Extensibility <openvino_docs_Extensibility_UG_Intro>`                               Yes             Yes             No              No                      

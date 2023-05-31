@@ -83,7 +83,7 @@ Use the following command:
 
 .. code-block:: sh
 
-   pip install openvino
+   python -m pip install openvino
 
 
 Step 5. Verify that the Package Is Installed
@@ -93,10 +93,9 @@ Run the command below:
 
 .. code-block:: sh
 
-   python -c "from openvino.runtime import Core"
+   python -c "from openvino.runtime import Core; print(Core().available_devices)"
 
-
-If installation was successful, you will not see any error messages (no console output). Congratulations! You have finished installing OpenVINO Runtime.
+If installation was successful, you will see the list of available devices. Congratulations! You have finished installing OpenVINO Runtime.
 
 
 What's Next?
