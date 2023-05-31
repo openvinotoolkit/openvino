@@ -94,8 +94,7 @@ the `BFLOAT16 – Hardware Numerics Definition white paper <https://software.int
 
 Using the ``bf16`` precision provides the following performance benefits:
 
-- ``bfloat16`` data type allows using Intel® Advanced Matrix Extension (AMX), which provides dramatically faster computations on corresponding hardware in
-comparison with AVX512 or AVX2 instructions in many DL operation implementations.
+- ``bfloat16`` data type allows using Intel® Advanced Matrix Extension (AMX), which provides dramatically faster computations on corresponding hardware in comparison with AVX512 or AVX2 instructions in many DL operation implementations.
 - Reduced memory consumption since ``bfloat16`` data half the size of 32-bit float.
 
 To check if the CPU device can support the ``bfloat16`` data type, use the :doc:`query device properties interface <openvino_docs_OV_UG_query_api>` 
@@ -296,7 +295,7 @@ For more details, see the :doc:`model caching <openvino_docs_OV_UG_Model_caching
 Extensibility
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-CPU plugin supports fallback on ``ov::Op`` reference implementation if the plugin do not have its own implementation for such operation.
+CPU plugin supports fallback on ``ov::Op`` reference implementation if the plugin does not have its own implementation for such operation.
 That means that :doc:`OpenVINO™ Extensibility Mechanism <openvino_docs_Extensibility_UG_Intro>` can be used for the plugin extension as well.
 Enabling fallback on a custom operation implementation is possible by overriding the ``ov::Op::evaluate`` method in the derived operation 
 class (see :doc:`custom OpenVINO™ operations <openvino_docs_Extensibility_UG_add_openvino_ops>` for details).
