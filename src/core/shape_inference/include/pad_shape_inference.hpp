@@ -146,39 +146,22 @@ std::vector<TShape> shape_infer(const PadBase* op,
 
 namespace v1 {
 template <class TShape>
-std::vector<TShape> shape_infer(const Pad* op,
-                                const std::vector<TShape>& input_shapes,
-                                const std::map<size_t, HostTensorPtr>& constant_data = {}) {
-    return util::shape_infer(op, input_shapes, constant_data);
-}
-
-template <class TShape>
 void shape_infer(const Pad* op,
                  const std::vector<TShape>& input_shapes,
                  std::vector<TShape>& output_shapes,
                  const std::map<size_t, HostTensorPtr>& constant_data = {}) {
-    output_shapes = shape_infer(op, input_shapes, constant_data);
+    output_shapes = op::util::shape_infer(op, input_shapes, constant_data);
 }
-
 }  // namespace v1
 
 namespace v12 {
 template <class TShape>
-std::vector<TShape> shape_infer(const Pad* op,
-                                const std::vector<TShape>& input_shapes,
-                                const std::map<size_t, HostTensorPtr>& constant_data = {}) {
-    return util::shape_infer(op, input_shapes, constant_data);
-}
-
-template <class TShape>
 void shape_infer(const Pad* op,
                  const std::vector<TShape>& input_shapes,
                  std::vector<TShape>& output_shapes,
                  const std::map<size_t, HostTensorPtr>& constant_data = {}) {
-    output_shapes = shape_infer(op, input_shapes, constant_data);
+    output_shapes = op::util::shape_infer(op, input_shapes, constant_data);
 }
-
 }  // namespace v12
-
 }  // namespace op
 }  // namespace ov
