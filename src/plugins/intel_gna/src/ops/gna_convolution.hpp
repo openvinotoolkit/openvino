@@ -53,7 +53,7 @@ enum class ActivationType { SIGMOID, RELU, TANH, ABS, LOG, EXP, SIGN, CLAMP, NO_
 ///
 class GNAConvolution : public ov::op::Op {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_OP("GNAConvolution", "intel_gna", ov::op::Op);
 
     /// \brief Constructs a batched convolution operation.
     GNAConvolution() = default;
