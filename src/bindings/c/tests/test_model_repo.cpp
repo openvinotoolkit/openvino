@@ -9,19 +9,21 @@
 #endif
 
 #ifdef _WIN32
-# ifndef NOMINMAX
-#  define NOMINMAX
-# endif
-# include <windows.h>
-# include <direct.h>
-# include <stdlib.h>
+#    ifndef NOMINMAX
+#        define NOMINMAX
+#    endif
+#    include <direct.h>
+#    include <stdlib.h>
+#    include <windows.h>
 #else
-# include <dlfcn.h>
-# include <unistd.h>
-# include <limits.h>
+#    include <dlfcn.h>
+#    include <limits.h>
+#    include <unistd.h>
 #endif
 
-std::string getExecutableDirectory() {
+namespace TestDataHelpers {
+
+inline std::string getExecutableDirectory() {
     std::string path;
 #ifdef _WIN32
     char buffer[MAX_PATH];
@@ -41,7 +43,6 @@ std::string getExecutableDirectory() {
     path = std::string(buffer, len);
     return ov::util::get_directory(path);
 }
-namespace TestDataHelpers {
 
 std::string generate_test_xml_file() {
     // Create the file
