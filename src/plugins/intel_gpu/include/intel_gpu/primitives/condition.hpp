@@ -23,7 +23,7 @@ struct condition : public primitive_base<condition> {
     struct branch_info {
         std::map<primitive_id, primitive_id> input_map;
         std::map<size_t, primitive_id> output_map;
-        topology::ptr topology_ptr;
+        // topology::ptr topology_ptr;
         program::ptr inner_program;
 
         std::string str() {

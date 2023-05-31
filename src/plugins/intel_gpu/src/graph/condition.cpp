@@ -23,7 +23,6 @@ GPU_DEFINE_PRIMITIVE_TYPE_ID(condition)
 layout condition_inst::calc_output_layout(condition_node const& node, kernel_impl_params const& impl_param) {
     assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
            "Output data type forcing is not supported for condition_node!");
-    node.set_branches();
 
     OPENVINO_ASSERT(node.get_dependency(0).get_output_layout().count() == 1,
                     "layout of compare_data of condition should be {1,1,1,1}");

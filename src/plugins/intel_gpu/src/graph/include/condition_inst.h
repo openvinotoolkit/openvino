@@ -18,37 +18,6 @@ struct typed_program_node<condition> : public typed_program_node_base<condition>
 private:
     using parent = typed_program_node_base<condition>;
 
-class branch {
-public:
-    explicit branch(const cldnn::condition::branch_info& data) : _data(data) {}
-
-    void set(const program_node& node) {
-        add_or_change_input_layout(node);
-        if (_program == nullptr) {
-            _program = program::build_program(node.get_program().get_engine(),
-                                                *_data.topology_ptr.get(),
-                                                node.get_program().get_config(),
-                                                true);  // rebuild program
-        }
-    }
-    program::ptr get() const { return _program; }
-
-private:
-    cldnn::condition::branch_info _data;
-    program::ptr _program = nullptr;
-
-    void add_or_change_input_layout(const program_node& node) {
-        for (auto& p_iter : node.get_dependencies()) {
-            auto pid = p_iter.first->id();
-            auto iter = _data.input_map.find(pid);
-            if (iter != _data.input_map.end()) {
-                auto out_layout = p_iter.first->get_output_layout();
-                _data.topology_ptr->change_input_layout(iter->second, out_layout);
-            }
-        }
-    }
-};
-
 public:
     using parent::parent;
 
@@ -58,16 +27,12 @@ public:
           _branch_false(this->get_primitive()->branch_false) {}
 
     program_node& input() const { return get_dependency(0); }
-    void set_branches() const {
-        _branch_true.set(*this);
-        _branch_false.set(*this);
-    }
-    program::ptr get_branch_true() const { return _branch_true.get(); }
-    program::ptr get_branch_false() const { return _branch_false.get(); }
+    program::ptr get_branch_true() const { return _branch_true.inner_program; }
+    program::ptr get_branch_false() const { return _branch_false.inner_program; }
 
 private:
-    mutable branch _branch_true;
-    mutable branch _branch_false;
+    mutable condition::branch_info _branch_true;
+    mutable condition::branch_info _branch_false;
 };
 
 using condition_node = typed_program_node<condition>;

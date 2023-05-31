@@ -60,7 +60,7 @@
 namespace cldnn {
 
 namespace {
-
+#if 0
 template <class T>
 std::string convert_number(T num) { return std::to_string(num); }
 
@@ -68,7 +68,7 @@ template <>
 std::string convert_number(half_t num) { return std::to_string(half_to_float(num)); }
 
 template <class T>
-void show(memory::ptr mem, stream& stream, std::string layerName) {
+static void show(memory::ptr mem, stream& stream, std::string layerName) {
     mem_lock<T, mem_lock_type::read> lock(mem, stream);
     auto mem_ptr = lock.data();
 
@@ -81,7 +81,7 @@ void show(memory::ptr mem, stream& stream, std::string layerName) {
     std::cout << "}" << std::endl;
 }
 
-void check_mem(memory::ptr mem, stream& stream, std::string layerName) {
+static void check_mem(memory::ptr mem, stream& stream, std::string layerName) {
     auto mem_dt = mem->get_layout().data_type;
     if (mem_dt == cldnn::data_types::f32)
         show<float>(mem, stream, layerName);
@@ -98,6 +98,7 @@ void check_mem(memory::ptr mem, stream& stream, std::string layerName) {
     else if (mem_dt == cldnn::data_types::u8)
         show<uint8_t>(mem, stream, layerName);
 }
+#endif
 
 #ifdef GPU_DEBUG_CONFIG
 void dump_perf_data_raw(std::string dump_path, const std::list<std::shared_ptr<primitive_inst>>& exec_order) {

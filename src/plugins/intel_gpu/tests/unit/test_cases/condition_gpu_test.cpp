@@ -41,7 +41,6 @@ bool is_output_equal(const cldnn::memory::ptr mem, const std::vector<T>& ref)
 
 topology generate_simple_branch (bool branch_true_false, const primitive_id& id, const primitive_id& input_id, const data_types dt = data_types::f32)
 {
-    std::cout << "generate simple branch: " << dt << std::endl;
     topology branch;
     if (branch_true_false) {
         branch.add(
@@ -99,14 +98,14 @@ public:
         condition::branch_info branch_true;
         {
             cldnn::topology branch_true_topology   = generate_simple_branch(true,  cond_id, branch_input_id, dat_dt);
-            branch_true.topology_ptr = std::make_shared<cldnn::topology>(branch_true_topology);
+            branch_true.inner_program = program::build_program(engine, branch_true_topology, config, true);
             branch_true.input_map.insert({input_id, branch_input_id});
             branch_true.output_map.insert({0, "condi_when_true"});
         }
         condition::branch_info branch_false;
         {
             cldnn::topology branch_false_topology  = generate_simple_branch(false, cond_id, branch_input_id, dat_dt);
-            branch_false.topology_ptr = std::make_shared<cldnn::topology>(branch_false_topology);
+            branch_false.inner_program = program::build_program(engine, branch_false_topology, config, true);
             branch_false.input_map.insert({input_id, branch_input_id});
             branch_false.output_map.insert({0, "condi_when_false"});
         }
@@ -165,8 +164,8 @@ TEST(condition_gpu, basic_range_equal_comp) {
     auto& engine = get_test_engine();
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
-    auto input0 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 4, 1 } });
-    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 4, 1 } });
+    auto input0 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 2, 1 } });
+    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 2, 1 } });
 
     auto compare = engine.allocate_memory({ data_types::u8, format::bfyx,{ 1, 1, 1, 1 } });
 
@@ -191,14 +190,14 @@ TEST(condition_gpu, basic_range_equal_comp) {
     condition::branch_info branch_true;
     {
         cldnn::topology branch_true_topology  = generate_simple_branch(true,  condi_id, branch_input_id);
-        branch_true.topology_ptr = std::make_shared<cldnn::topology>(branch_true_topology);
+        branch_true.inner_program = program::build_program(engine, branch_true_topology, config, true);
         branch_true.input_map.insert({concat_id, branch_input_id});
         branch_true.output_map.insert({0, "condi_when_true"});
     }
     condition::branch_info branch_false;
     {
         cldnn::topology branch_false_topology = generate_simple_branch(false, condi_id, branch_input_id);
-        branch_false.topology_ptr = std::make_shared<cldnn::topology>(branch_false_topology);
+        branch_false.inner_program = program::build_program(engine, branch_false_topology, config, true);
         branch_false.input_map.insert({concat_id, branch_input_id});
         branch_false.output_map.insert({0, "condi_when_false"});
     }
@@ -208,22 +207,22 @@ TEST(condition_gpu, basic_range_equal_comp) {
     );
 
     std::vector<float> input0_data = {
-        1, 2, 3, 4
+        1, 2
     };
     std::vector<float> input1_data = {
-        5, 6, 7, 8
+        3, 4
     };
     std::vector<uint8_t> compare_data_true = {
         1
     };
     std::vector<float> pooling_when_true_data = {
-        2, 4, 6, 8
+        2, 4
     };
     std::vector<uint8_t> compare_data_false = {
         0
     };
     std::vector<float> pooling_when_false_data = {
-        1.5, 3.5, 5.5, 7.5
+        1.5, 3.5
     };
 
     set_values(input0, input0_data);
@@ -293,19 +292,22 @@ TEST(condition_gpu, basic_stacked_ifs) {
     );
 
     condition::branch_info branch_condi_1_true;
-    branch_condi_1_true.topology_ptr= std::make_shared<topology>(condi_1_true);
+    branch_condi_1_true.inner_program = program::build_program(engine, condi_1_true, config, true);
     branch_condi_1_true.input_map.insert({input_id, branch_input_id});
     branch_condi_1_true.output_map.insert({0, "condi_when_true"});
+
     condition::branch_info branch_condi_1_false;
-    branch_condi_1_false.topology_ptr= std::make_shared<topology>(condi_1_false);
+    branch_condi_1_false.inner_program = program::build_program(engine, condi_1_false, config, true);
     branch_condi_1_false.input_map.insert({input_id, branch_input_id});
     branch_condi_1_false.output_map.insert({0, "condi_when_false"});
+
     condition::branch_info branch_condi_2_true;
-    branch_condi_2_true.topology_ptr= std::make_shared<topology>(condi_2_true);
+    branch_condi_2_true.inner_program = program::build_program(engine, condi_2_true, config, true);
     branch_condi_2_true.input_map.insert({cond_id, branch_input_id});
     branch_condi_2_true.output_map.insert({0, "activ_when_true"});
+
     condition::branch_info branch_condi_2_false;
-    branch_condi_2_false.topology_ptr= std::make_shared<topology>(condi_2_false);
+    branch_condi_2_false.inner_program = program::build_program(engine, condi_2_false, config, true);
     branch_condi_2_false.input_map.insert({cond_id, branch_input_id});
     branch_condi_2_false.output_map.insert({0, "activ_when_false"});
 
@@ -379,11 +381,11 @@ TEST(condition_gpu, basic_nested_ifs) {
     {
         cldnn::topology nested_true_topology;
         nested_true_topology.add(
-            input_layout("branch_input1", { data_types::f32, format::bfyx,{ 1, 1, 4, 1 } }),
+            input_layout("branch_input1", { data_types::f32, format::bfyx,{ 1, 1, 2, 1 } }),
             data("scale_5_data", scale_5_mem),
             eltwise("scale_5", { input_info("branch_input1"), input_info("scale_5_data") }, eltwise_mode::prod)
         );
-        nested_true.topology_ptr = std::make_shared<cldnn::topology>(nested_true_topology);
+        nested_true.inner_program = program::build_program(engine, nested_true_topology, config, true);
         nested_true.input_map.insert({"pooling_when_true", "branch_input1"});
         nested_true.output_map.insert({0, "scale_5"});
     }
@@ -391,11 +393,11 @@ TEST(condition_gpu, basic_nested_ifs) {
     {
         cldnn::topology nested_false_topology;
         nested_false_topology.add(
-            input_layout("branch_input2", { data_types::f32, format::bfyx,{ 1, 1, 4, 1 } }),
+            input_layout("branch_input2", { data_types::f32, format::bfyx,{ 1, 1, 2, 1 } }),
             eltwise("scale_10", { input_info("branch_input2"), input_info("scale_10_data") }, eltwise_mode::prod),
             data("scale_10_data", scale_10_mem)
         );
-        nested_false.topology_ptr = std::make_shared<cldnn::topology>(nested_false_topology);
+        nested_false.inner_program = program::build_program(engine, nested_false_topology, config, true);
         nested_false.input_map.insert({"pooling_when_true", "branch_input2"});
         nested_false.output_map.insert({0, "scale_10_data"});
     }
@@ -409,7 +411,7 @@ TEST(condition_gpu, basic_nested_ifs) {
             input_layout("compare2", compare2->get_layout()),
             condition( "condi_nested", {input_info("compare2"), input_info("pooling_when_true")}, nested_true, nested_false)
         );
-        branch_true.topology_ptr = std::make_shared<cldnn::topology>(branch_true_topology);
+        branch_true.inner_program = program::build_program(engine, branch_true_topology, config, true);
         branch_true.input_map.insert({"input", "branch_input3"});
         branch_true.output_map.insert({0, "condi_nested"});
     }
@@ -421,7 +423,7 @@ TEST(condition_gpu, basic_nested_ifs) {
             input_layout("branch_input4", { data_types::f32, format::bfyx,{ 1, 1, 4, 1 } }),
             pooling("pooling_when_false", input_info("branch_input4"), cldnn::pooling_mode::average, { 1, 2 }, { 1, 2 })
         );
-        branch_false.topology_ptr = std::make_shared<cldnn::topology>(branch_false_topology);
+        branch_false.inner_program = program::build_program(engine, branch_false_topology, config, true);
         branch_false.input_map.insert({"input", "branch_input4"});
         branch_false.output_map.insert({0, "pooling_when_false"});
     }
@@ -477,14 +479,14 @@ TEST(condition_gpu, negative_compare_wrong_layout) {
     condition::branch_info branch_true;
     {
         cldnn::topology branch_true_topology   = generate_simple_branch(true,  cond_id, branch_input_id, data_types::f32);
-        branch_true.topology_ptr = std::make_shared<cldnn::topology>(branch_true_topology);
+        branch_true.inner_program = program::build_program(engine, branch_true_topology, config, true);
         branch_true.input_map.insert({input_id, branch_input_id});
         branch_true.output_map.insert({0, "condi_when_true"});
     }
     condition::branch_info branch_false;
     {
         cldnn::topology branch_false_topology  = generate_simple_branch(false, cond_id, branch_input_id, data_types::f32);
-        branch_false.topology_ptr = std::make_shared<cldnn::topology>(branch_false_topology);
+        branch_false.inner_program = program::build_program(engine, branch_false_topology, config, true);
         branch_false.input_map.insert({input_id, branch_input_id});
         branch_false.output_map.insert({0, "condi_when_false"});
     }
@@ -502,7 +504,6 @@ TEST(condition_gpu, negative_compare_wrong_layout) {
 
     EXPECT_ANY_THROW(network net(engine, topology, config););
 }
-
 
 TEST(condition_gpu, negative_not_same_layouts) {
     auto& engine = get_test_engine();
@@ -522,9 +523,9 @@ TEST(condition_gpu, negative_not_same_layouts) {
         topology branch_true_topology;
         branch_true_topology.add(
             input_layout(branch_input_id, { data_types::f32, format::bfyx,{ 1, 1, 4, 1 } }),
-            pooling(pool_id, input_info(branch_input_id), cldnn::pooling_mode::max, { 0, 0, 2, 1 }, { 0, 0, 2, 1 })
+            pooling(pool_id, input_info(branch_input_id), cldnn::pooling_mode::max, { 1, 2 }, { 1, 2 })
         );
-        branch_true.topology_ptr = std::make_shared<cldnn::topology>(branch_true_topology);
+        branch_true.inner_program = program::build_program(engine, branch_true_topology, config, true);
         branch_true.input_map.insert({input_id, branch_input_id});
         branch_true.output_map.insert({0, pool_id});
     }
@@ -535,9 +536,9 @@ TEST(condition_gpu, negative_not_same_layouts) {
         topology branch_false_topology;
         branch_false_topology.add(
             input_layout(branch_input_id, { data_types::f32, format::bfyx,{ 1, 1, 4, 1 } }),
-            pooling(pool_id, input_info(branch_input_id), cldnn::pooling_mode::max, { 0, 0, 4, 1 }, { 0, 0, 4, 1 })
+            pooling(pool_id, input_info(branch_input_id), cldnn::pooling_mode::max, { 1, 4 }, { 1, 4 })
         );
-        branch_false.topology_ptr = std::make_shared<cldnn::topology>(branch_false_topology);
+        branch_false.inner_program = program::build_program(engine, branch_false_topology, config, true);
         branch_false.input_map.insert({input_id, branch_input_id});
         branch_false.output_map.insert({0, pool_id});
     }
@@ -577,7 +578,7 @@ TEST(condition_gpu, negative_same_names_within_different_networks) {
             input_layout(branch_input_id, { data_types::f32, format::bfyx,{ 1, 1, 4, 1 } }),
             pooling(duplicated_id, input_info(branch_input_id), cldnn::pooling_mode::max, { 2, 1 }, { 2, 1 })
         );
-        branch_true.topology_ptr = std::make_shared<cldnn::topology>(branch_true_topology);
+        branch_true.inner_program = program::build_program(engine, branch_true_topology, config, true);
         branch_true.input_map.insert({input_id, branch_input_id});
         branch_true.output_map.insert({0, duplicated_id});
     }
@@ -589,7 +590,7 @@ TEST(condition_gpu, negative_same_names_within_different_networks) {
             input_layout(branch_input_id, { data_types::f32, format::bfyx,{ 1, 1, 4, 1 } }),
             pooling("pooling_when_false", input_info(branch_input_id), cldnn::pooling_mode::max, { 2, 1 }, { 2, 1 })
         );
-        branch_false.topology_ptr = std::make_shared<cldnn::topology>(branch_false_topology);
+        branch_false.inner_program = program::build_program(engine, branch_false_topology, config, true);
         branch_false.input_map.insert({input_id, branch_input_id});
         branch_false.output_map.insert({0, "pooling_when_false"});
     }
