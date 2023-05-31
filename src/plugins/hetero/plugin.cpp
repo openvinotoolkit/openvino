@@ -150,13 +150,15 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(cons
         IE_THROW() << "HETERO device supports only nGraph model representation";
     }
 
-    return std::make_shared<HeteroExecutableNetwork>(network, user_config, this);
+    // return std::make_shared<HeteroExecutableNetwork>(network, user_config, this);
+    return nullptr;
 }
 
 InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(
     std::istream& heteroModel,
     const std::map<std::string, std::string>& user_config) {
-    return std::make_shared<HeteroExecutableNetwork>(heteroModel, user_config, this, true);
+    // return std::make_shared<HeteroExecutableNetwork>(heteroModel, user_config, this, true);
+    return nullptr;
 }
 
 Engine::DeviceMetaInformationMap Engine::GetDevicePlugins(const std::string& targetFallback,
@@ -310,10 +312,10 @@ Parameter Engine::GetConfig(const std::string& name, const ov::AnyMap& options) 
     }
 }
 
-static Version heteroPluginDescription = {
-    {2, 1},  // plugin API version
-    CI_BUILD_NUMBER,
-    "heteroPlugin"  // plugin description message
-};
+// static Version heteroPluginDescription = {
+//     {2, 1},  // plugin API version
+//     CI_BUILD_NUMBER,
+//     "heteroPlugin"  // plugin description message
+// };
 
-IE_DEFINE_PLUGIN_CREATE_FUNCTION(Engine, heteroPluginDescription)
+// IE_DEFINE_PLUGIN_CREATE_FUNCTION(Engine, heteroPluginDescription)
