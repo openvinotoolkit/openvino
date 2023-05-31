@@ -702,7 +702,7 @@ void Graph::InitEdges() {
 
     numberOfEdges = graphEdges.size(); //update the total number
 
-    for (auto i = 0; i < numberOfEdges; i++) {
+    for (ptrdiff_t i = 0; i < numberOfEdges; i++) {
         auto edge = graphEdges[i];
         if (needReorder(edge)) {
             constexpr bool optimizedReorder = false;
@@ -794,7 +794,7 @@ void Graph::AllocateWithReuse() {
 
     std::vector<MemorySolver::Box> definedBoxes;
     std::vector<MemorySolver::Box> undefinedBoxes;
-    for (int i = 0; i < remaining_edge_clusters_count; i++) {
+    for (size_t i = 0; i < remaining_edge_clusters_count; i++) {
         MemorySolver::Box box = { std::numeric_limits<int>::max(), 0, 0, static_cast<int64_t>(i) };
         int64_t boxSize = 0;
         for (auto &edge : edge_clusters[i]) {

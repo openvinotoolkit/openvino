@@ -58,7 +58,7 @@ TEST(MemoryTest, ConcurrentResizeGetPrimitive) {
         Memory cpu_mem1(eng);
         cpu_mem1.Create(desc);
         Memory cpu_mem2(eng);
-        cpu_mem2.Create(desc, cpu_mem1.getDnnlMemoryMngr()); // tie two memory objects (memory reuse)
+        cpu_mem2.Create(desc, cpu_mem1.getMemoryMngr()); // tie two memory objects (memory reuse)
         auto desc2 = std::make_shared<CpuBlockedMemoryDesc>(Precision::FP32, Shape{10, 20});
 
         std::atomic<bool> lock{true};
