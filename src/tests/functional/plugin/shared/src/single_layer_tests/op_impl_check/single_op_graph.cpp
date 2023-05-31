@@ -742,9 +742,9 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v1::Pad> &node
 }
 
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v12::Pad> &node) {
-    const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{6, 10}});
-    const auto pad_begin = ngraph::builder::makeConstant<int64_t>(ov::element::i64, {2}, {4, -2});
-    const auto pad_end = ngraph::builder::makeConstant<int64_t>(ov::element::i64, {2}, {5, -1});
+    const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{6, 10, 11, 12}});
+    const auto pad_begin = ngraph::builder::makeConstant<int64_t>(ov::element::i64, {4}, {4, -2, 3, -1});
+    const auto pad_end = ngraph::builder::makeConstant<int64_t>(ov::element::i64, {4}, {5, -1, -4, 4});
     const auto pad = std::make_shared<ov::op::v12::Pad>(params[0], pad_begin, pad_end, ov::op::PadMode::CONSTANT);
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(pad)};
     return std::make_shared<ov::Model>(results, params, "Pad-12");
@@ -1893,6 +1893,7 @@ OpGenerator getOpGeneratorMap() {
 #include "openvino/opsets/opset9_tbl.hpp"
 #include "openvino/opsets/opset10_tbl.hpp"
 #include "openvino/opsets/opset11_tbl.hpp"
+#include "openvino/opsets/opset12_tbl.hpp"
 #undef _OPENVINO_OP_REG
     };
     return opGeneratorMap;
