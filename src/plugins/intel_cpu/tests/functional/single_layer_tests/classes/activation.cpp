@@ -74,7 +74,7 @@ void ActivationLayerCPUTest::generate_inputs(const std::vector<ngraph::Shape>& t
     }
     inputs.clear();
     const auto& funcInputs = function->inputs();
-    for (int i = 0; i < funcInputs.size(); ++i) {
+    for (size_t i = 0; i < funcInputs.size(); ++i) {
         const auto& funcInput = funcInputs[i];
         ov::Tensor tensor;
         if (funcInput.get_element_type().is_real()) {

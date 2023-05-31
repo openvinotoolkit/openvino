@@ -142,7 +142,7 @@ A returned value appears as follows: ``Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz``
    
    In order to understand a list of supported properties on ``ov::Core`` or ``ov::CompiledModel`` levels, use ``ov::supported_properties`` 
    which contains a vector of supported property names. Properties which can be changed, has ``ov::PropertyName::is_mutable`` 
-   returning the ``true`` value. Most of the properites which are changable on ``ov::Core`` level, cannot be changed once the model is compiled, 
+   returning the ``true`` value. Most of the properties which are changable on ``ov::Core`` level, cannot be changed once the model is compiled,
    so it becomes immutable read-only property.
 
 Configure a Work with a Model
