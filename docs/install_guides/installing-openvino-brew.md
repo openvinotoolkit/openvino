@@ -3,13 +3,9 @@
 @sphinxdirective
 
 .. note::
-   
-   Only CPU is supported for inference if you install OpenVINO via Homebrew.
 
    Installing OpenVINO Runtime from Homebrew is recommended for C++ developers. 
    If you work with Python, consider :doc:`installing OpenVINO from PyPI <openvino_docs_install_guides_installing_openvino_pip>`
-
-   The current Homebrew package provides inference support for CPU only.
 
 You can use `Homebrew <https://brew.sh/>`__ to install OpenVINO Runtime on macOS and Linux. 
 OpenVINO™ Development Tools can be installed via PyPI only. 
@@ -42,7 +38,7 @@ See `Installing Additional Components <#optional-installing-additional-component
    
      * `Homebrew <https://brew.sh/>`_
      * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`__
-     * GCC 7.5.0 (for Ubuntu 18.04) or GCC 9.3.0 (for Ubuntu 20.04)
+     * GCC 7.5.0 (for Ubuntu 18.04), GCC 9.3.0 (for Ubuntu 20.04) or GCC 11.3.0 (for Ubuntu 22.04)
      * `Python 3.7 - 3.10, 64-bit <https://www.python.org/downloads/>`__
 
 

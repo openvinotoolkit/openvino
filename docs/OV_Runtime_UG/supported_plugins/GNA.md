@@ -78,38 +78,29 @@ Starting with the 2021.4.1 release of OpenVINO™ and the 03.00.00.1363 version 
 In this mode, the GNA driver automatically falls back on CPU for a particular infer request if the HW queue is not empty. 
 Therefore, there is no need for explicitly switching between GNA and CPU.
 
-
-
-
-
-
-
-
-   .. tab-set::
+.. tab-set::
    
-      .. tab-item:: C++
-         :sync: cpp
+   .. tab-item:: C++
+      :sync: cpp
    
-         .. doxygensnippet:: docs/snippets/gna/configure.cpp
-            :language: cpp
-            :fragment: [include]
+      .. doxygensnippet:: docs/snippets/gna/configure.cpp
+         :language: cpp
+         :fragment: [include]
    
-         .. doxygensnippet:: docs/snippets/gna/configure.cpp
-            :language: cpp
-            :fragment: [ov_gna_exec_mode_hw_with_sw_fback]
+      .. doxygensnippet:: docs/snippets/gna/configure.cpp
+         :language: cpp
+         :fragment: [ov_gna_exec_mode_hw_with_sw_fback]
    
-      .. tab-item:: Python
-         :sync: py
+   .. tab-item:: Python
+      :sync: py
    
-         .. doxygensnippet:: docs/snippets/gna/configure.py
-            :language: py
-            :fragment: [import]
+      .. doxygensnippet:: docs/snippets/gna/configure.py
+         :language: py
+         :fragment: [import]
    
-         .. doxygensnippet:: docs/snippets/gna/configure.py
-            :language: py
-            :fragment: [ov_gna_exec_mode_hw_with_sw_fback]
-
-
+      .. doxygensnippet:: docs/snippets/gna/configure.py
+         :language: py
+         :fragment: [ov_gna_exec_mode_hw_with_sw_fback]
 
 
 
@@ -203,7 +194,7 @@ Import model:
          :fragment: [ov_gna_import]
 
 
-To compile a model, use either :doc:`compile Tool <openvino_inference_engine_tools_compile_tool_README>` or 
+To compile a model, use either :ref:`compile Tool <openvino_ecosystem>` or 
 :doc:`Speech C++ Sample <openvino_inference_engine_samples_speech_sample_README>`.
 
 Stateful Models
@@ -320,8 +311,8 @@ a convolution kernel moves in a single direction. Initially, a limited subset of
 previous feature set including:
 
 * **2D VALID Convolution With Small 2D Kernels:**  Two-dimensional convolutions with the following kernel dimensions
-  [``H``,``W``] are supported: [1,1], [2,2], [3,3], [2,1], [3,1], [4,1], [5,1], [6,1], [7,1], [1,2], or [1,3]. 
-  Input tensor dimensions are limited to [1,8,16,16] <= [``N``,``C``,``H``,``W``] <= [1,120,384,240]. Up to 384 ``C`` 
+  [``H``, ``W``] are supported: [1,1], [2,2], [3,3], [2,1], [3,1], [4,1], [5,1], [6,1], [7,1], [1,2], or [1,3]. 
+  Input tensor dimensions are limited to [1,8,16,16] <= [``N``, ``C``, ``H``, ``W``] <= [1,120,384,240]. Up to 384 ``C`` 
   channels may be used with a subset of kernel sizes (see the table below). Up to 256 kernels (output channels) 
   are supported. Pooling is limited to pool shapes of [1,1], [2,2], or [3,3]. Not all combinations of kernel 
   shape and input tensor shape are supported (see the tables below for exact limitations).

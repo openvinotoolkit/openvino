@@ -4,7 +4,7 @@
 
 @sphinxdirective
 
-With the OpenVINO™ 2022.3 release, you can install OpenVINO Runtime on Linux using the APT repository. 
+With the OpenVINO™ 2023.0 release, you can install OpenVINO Runtime on Linux using the APT repository. 
 OpenVINO™ Development Tools can be installed via PyPI only.
 See `Installing Additional Components <step-3-optional-install-additional-components>`__ for more information. 
 
@@ -40,7 +40,7 @@ Prerequisites
 .. tab:: Software Requirements
 
   * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`__
-  * GCC 7.5.0 (for Ubuntu 18.04) or GCC 9.3.0 (for Ubuntu 20.04)
+  * GCC 7.5.0 (for Ubuntu 18.04), GCC 9.3.0 (for Ubuntu 20.04) or GCC 11.3.0 (for Ubuntu 22.04)
   * `Python 3.7 - 3.11, 64-bit <https://www.python.org/downloads/>`__
 
 
@@ -78,11 +78,11 @@ Step 1: Set Up the OpenVINO Toolkit APT Repository
 
 2. Add the repository via the following command:
 
-   .. tab:: Ubuntu 18
+   .. tab:: Ubuntu 22
 
       .. code-block:: sh
 
-         echo "deb https://apt.repos.intel.com/openvino/2023 ubuntu18 main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2023.list
+         echo "deb https://apt.repos.intel.com/openvino/2023 ubuntu22 main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2023.list
 
    .. tab:: Ubuntu 20
 
@@ -90,11 +90,11 @@ Step 1: Set Up the OpenVINO Toolkit APT Repository
 
          echo "deb https://apt.repos.intel.com/openvino/2023 ubuntu20 main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2023.list
 
-   .. tab:: Ubuntu 22
+   .. tab:: Ubuntu 18
 
       .. code-block:: sh
 
-         echo "deb https://apt.repos.intel.com/openvino/2023 ubuntu22 main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2023.list
+         echo "deb https://apt.repos.intel.com/openvino/2023 ubuntu18 main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2023.list
 
 
 3. Update the list of packages via the update command:
@@ -239,8 +239,8 @@ Learn more about how to integrate a model in OpenVINO applications by trying out
 
 * Visit the :ref:`Samples <code samples>` page for other C++ example applications to get you started with OpenVINO, such as:
 
-   * `Basic object detection with the Hello Reshape SSD C++ sample <openvino_inference_engine_samples_hello_reshape_ssd_README.html>`_
-   * `Automatic speech recognition C++ sample <openvino_inference_engine_samples_speech_sample_README.html>`_
+  * `Basic object detection with the Hello Reshape SSD C++ sample <openvino_inference_engine_samples_hello_reshape_ssd_README.html>`_
+  * `Automatic speech recognition C++ sample <openvino_inference_engine_samples_speech_sample_README.html>`_
 
 You can also try the following:
 
@@ -255,7 +255,7 @@ You can also try the following:
 Additional Resources
 #######################################
 
-- [OpenVINO Installation Selector Tool](https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html)
+- `OpenVINO Installation Selector Tool <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html>`__.
 
 
 

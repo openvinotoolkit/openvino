@@ -54,7 +54,7 @@ Examples of CLI Commands
     
     .. math::
     
-      C_{i}=log(S\*C_{i})
+      C_{i}=log(S*C_{i})
     
   where :math:`C` - the counts array, :math:`C_{i} - i^{th}` element of the counts array, :math:`|C|` - number of elements in the counts array;
 
@@ -77,7 +77,7 @@ Model conversion API finds the last layer of the topology and removes this layer
 Supported Kaldi Layers
 ######################
 
-For the list of supported standard layers, refer to the :doc:`Supported Framework Layers <openvino_docs_MO_DG_prepare_model_Supported_Frameworks_Layers>` page.
+For the list of supported standard layers, refer to the :doc:`Supported Operations <openvino_resources_supported_operations_frontend>` page.
 
 Additional Resources
 ####################
