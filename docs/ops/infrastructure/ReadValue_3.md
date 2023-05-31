@@ -20,7 +20,7 @@ with the shape and type from the 1 input.
 
 * *variable_id*
 
-  * **Description**: identificator of the variable to be read
+  * **Description**: identifier of the variable to be read
   * **Range of values**: any non-empty string
   * **Type**: string
   * **Required**: *yes*

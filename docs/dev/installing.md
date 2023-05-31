@@ -108,7 +108,7 @@ To install OpenVINO Development Tools to work with Caffe models (OpenVINO suppor
 Linux and macOS:
 
 ```sh
-#setup virtual envrinment
+#setup virtual environment
 python3 -m venv openvino_env
 source openvino_env/bin/activate
 pip install pip --upgrade
@@ -119,7 +119,7 @@ pip install openvino_dev-<version>-py3-none-any.whl[caffe]  --find-links=<INSTAL
 
 Windows:
 ```bat
-rem setup virtual envrinment
+rem setup virtual environment
 python -m venv openvino_env
 openvino_env\Scripts\activate.bat
 pip install pip --upgrade

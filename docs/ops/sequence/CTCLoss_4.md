@@ -12,7 +12,7 @@
 
 *CTCLoss* operation is presented in `Connectionist Temporal Classification - Labeling Unsegmented Sequence Data with Recurrent Neural Networks: Graves et al., 2016 <http://www.cs.toronto.edu/~graves/icml_2006.pdf>`__
 
-*CTCLoss* estimates likelihood that a target ``labels[i,:]`` can occur (or is real) for given input sequence of logits ``logits[i,:,:]``. Briefly, *CTCLoss* operation finds all sequences aligned with a target ``labels[i,:]``, computes log-probabilities of the aligned sequences using ``logits[i,:,:]`` and computes a negative sum of these log-probabilies.
+*CTCLoss* estimates likelihood that a target ``labels[i,:]`` can occur (or is real) for given input sequence of logits ``logits[i,:,:]``. Briefly, *CTCLoss* operation finds all sequences aligned with a target ``labels[i,:]``, computes log-probabilities of the aligned sequences using ``logits[i,:,:]`` and computes a negative sum of these log-probabilities.
 
 Input sequences of logits ``logits`` can have different lengths. The length of each sequence ``logits[i,:,:]`` equals ``logit_length[i]``.
 A length of target sequence ``labels[i,:]`` equals ``label_length[i]``. The length of the target sequence must not be greater than the length of corresponding input sequence ``logits[i,:,:]``.

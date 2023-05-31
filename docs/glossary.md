@@ -67,7 +67,7 @@ Glossary of terms used in OpenVINO™
 | *Batch* 
 |   Number of images to analyze during one call of infer. Maximum batch size is a property of the model set before its compilation. In NHWC, NCHW, and NCDHW image data layout representations, the 'N' refers to the number of images in the batch.
 
-| *Device Affinitity* 
+| *Device Affinity* 
 |   A preferred hardware device to run inference (CPU, GPU, GNA, etc.).
 
 | *Extensibility mechanism, Custom layers* 

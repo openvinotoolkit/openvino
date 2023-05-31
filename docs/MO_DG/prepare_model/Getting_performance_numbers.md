@@ -128,7 +128,7 @@ Information about layer precision is also stored in the performance counters.
  resnet\_model/add\_5/fq\_input\_1                            NOT\_RUN       FakeQuantize    undef                  0                  0            
 ===========================================================  =============  ==============  =====================  =================  ==============
 
-|   The ``exeStatus`` column of the table includes the following possible values:
+|   The ``execStatus`` column of the table includes the following possible values:
 |     - ``EXECUTED`` - the layer was executed by standalone primitive.
 |     - ``NOT_RUN`` - the layer was not executed by standalone primitive or was fused with another operation and executed in another layer primitive.  
 |   

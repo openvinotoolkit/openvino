@@ -68,7 +68,7 @@ The value can be in the range ``[ -r, r - 1]``, where ``r`` is the rank of ``dat
                 <dim>125</dim>
                 <dim>20</dim>
             </port>
-            <port id="2">  < !-- udpates -->
+            <port id="2">  < !-- updates -->
                 <dim>1000</dim>
                 <dim>125</dim>
                 <dim>20</dim>
@@ -102,7 +102,7 @@ The value can be in the range ``[ -r, r - 1]``, where ``r`` is the rank of ``dat
             <port id="1">  < !-- indices -->
                 <dim>2</dim> < !-- {0, 2} -->
             </port>
-            <port id="2">  < !-- udpates -->
+            <port id="2">  < !-- updates -->
                 <dim>3</dim> < !-- {1.0f, 1.0f} -->
                 <dim>2</dim> < !-- {1.0f, 1.0f} -->
             </port>          < !-- {1.0f, 2.0f} -->

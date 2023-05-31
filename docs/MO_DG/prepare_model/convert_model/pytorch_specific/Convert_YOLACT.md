@@ -111,7 +111,7 @@ The patch modifies the framework code by adding a special command-line argument 
       +        else:
       +            state_dict = torch.load(path, map_location=torch.device('cpu'))
 
-               # For backward compatability, remove these (the new variable is called layers)
+               # For backward compatibility, remove these (the new variable is called layers)
                for key in list(state_dict.keys()):
       @@ -673,8 +679,11 @@ class Yolact(nn.Module):
                        else:
