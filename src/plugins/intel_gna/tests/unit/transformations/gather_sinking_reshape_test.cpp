@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/ngraph_test_utils.hpp"
-#include "gtest/gtest.h"
+#include "transformations/gather_sinking_reshape.hpp"
 
 #include <ngraph/function.hpp>
-#include <openvino/opsets/opset10.hpp>
 #include <ngraph/pass/manager.hpp>
+#include <openvino/opsets/opset10.hpp>
 #include <transformations/init_node_info.hpp>
 
-#include "transformations/gather_sinking_reshape.hpp"
+#include "common_test_utils/ngraph_test_utils.hpp"
+#include "gtest/gtest.h"
 
 using namespace ov;
 using namespace ov::opset10;
@@ -51,7 +51,7 @@ std::vector<size_t> GatherForward(size_t size, size_t initial_value) {
 
 std::vector<size_t> GatherBackward(size_t size, size_t initial_value) {
     std::vector<size_t> vec(size);
-    std::iota(vec.begin(), vec.end(), initial_value); // Not the same as in binary tests
+    std::iota(vec.begin(), vec.end(), initial_value);  // Not the same as in binary tests
     ShiftRight(vec, 2);
     return vec;
 }
@@ -71,17 +71,17 @@ std::shared_ptr<Gather> MakeGather(NodePtr input_node, CreateIndicesF create_ind
 
     return std::make_shared<Gather>(input_node->output(0), gather_indexes_node, gather_axis_node);
 }
-} // namespace
+}  // namespace
 
 TEST(GatherSinkingReshape, Backward) {
     std::shared_ptr<Model> function;
     {
-        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{1,168});
+        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{1, 168});
 
-        auto reshape_const1 = Constant::create(ngraph::element::i64, ov::Shape{4}, ov::Shape{1,168,1,1});
+        auto reshape_const1 = Constant::create(ngraph::element::i64, ov::Shape{4}, ov::Shape{1, 168, 1, 1});
         auto reshape1 = std::make_shared<Reshape>(input_params, reshape_const1, false);
 
-        auto reshape_const2 = Constant::create(ngraph::element::i64, ov::Shape{5}, ov::Shape{1,168,1,1,1});
+        auto reshape_const2 = Constant::create(ngraph::element::i64, ov::Shape{5}, ov::Shape{1, 168, 1, 1, 1});
         auto reshape2 = std::make_shared<Reshape>(reshape1, reshape_const2, false);
 
         auto gather = MakeGather(reshape2, GatherForward, /* axis */ 1);
@@ -99,14 +99,14 @@ TEST(GatherSinkingReshape, Backward) {
 
     std::shared_ptr<Model> reference_function;
     {
-        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{1,168});
+        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{1, 168});
 
         auto gather = MakeGather(input_params, GatherForward, /* axis */ 1);
 
-        auto reshape_const1 = Constant::create(ngraph::element::i64, ov::Shape{4}, ov::Shape{1,168,1,1});
+        auto reshape_const1 = Constant::create(ngraph::element::i64, ov::Shape{4}, ov::Shape{1, 168, 1, 1});
         auto reshape1 = std::make_shared<Reshape>(gather, reshape_const1, false);
 
-        auto reshape_const2 = Constant::create(ngraph::element::i64, ov::Shape{5}, ov::Shape{1,168,1,1,1});
+        auto reshape_const2 = Constant::create(ngraph::element::i64, ov::Shape{5}, ov::Shape{1, 168, 1, 1, 1});
         auto reshape2 = std::make_shared<Reshape>(reshape1, reshape_const2, false);
 
         const auto result = std::make_shared<Result>(reshape2);

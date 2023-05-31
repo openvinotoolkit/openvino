@@ -2,14 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/ngraph_test_utils.hpp"
-#include "gtest/gtest.h"
-
 #include <ngraph/function.hpp>
-#include <openvino/opsets/opset10.hpp>
 #include <ngraph/pass/manager.hpp>
+#include <openvino/opsets/opset10.hpp>
 #include <transformations/init_node_info.hpp>
 
+#include "common_test_utils/ngraph_test_utils.hpp"
+#include "gtest/gtest.h"
 #include "transformations/ts_split.hpp"
 
 using namespace ov;
@@ -51,7 +50,7 @@ std::vector<size_t> GatherForward(size_t size, size_t initial_value) {
 
 std::vector<size_t> GatherBackward(size_t size, size_t initial_value) {
     std::vector<size_t> vec(size);
-    std::iota(vec.begin(), vec.end(), initial_value); // Not the same as in binary tests
+    std::iota(vec.begin(), vec.end(), initial_value);  // Not the same as in binary tests
     ShiftRight(vec, 2);
     return vec;
 }
@@ -75,19 +74,17 @@ std::shared_ptr<Gather> MakeGather(NodePtr input_node, CreateIndicesF create_ind
 std::vector<size_t> TSSplit_Backward_indexes(size_t size, size_t initial_value) {
     return std::vector<size_t>{0, 2, 4, 6, 1, 3, 5, 7};
 }
-} // namespace
+}  // namespace
 
 TEST(TSSplit, Backward) {
     std::shared_ptr<Model> function;
     {
-        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{1,4,1,2});
+        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{1, 4, 1, 2});
 
         auto split_axis = Constant::create(ngraph::element::i64, ov::Shape{}, ov::Shape{1});
         auto split = std::make_shared<Split>(input_params, split_axis, 1);
 
-        auto transpose_const = Constant::create(ngraph::element::i64,
-                                                            ngraph::Shape{4},
-                                                            {0,2,3,1});
+        auto transpose_const = Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 2, 3, 1});
 
         auto transpose = std::make_shared<Transpose>(split->output(0), transpose_const);
 
@@ -104,9 +101,9 @@ TEST(TSSplit, Backward) {
 
     std::shared_ptr<Model> reference_function;
     {
-        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{1,4,1,2});
+        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{1, 4, 1, 2});
 
-        auto reshape_const1 = Constant::create(ngraph::element::i64, ov::Shape{2}, ov::Shape{1,8});
+        auto reshape_const1 = Constant::create(ngraph::element::i64, ov::Shape{2}, ov::Shape{1, 8});
         auto reshape1 = std::make_shared<Reshape>(input_params, reshape_const1, false);
 
         auto gather = MakeGather(reshape1, TSSplit_Backward_indexes, /* axis */ 1);

@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/ngraph_test_utils.hpp"
-#include "gtest/gtest.h"
+#include "transformations/gather_sinking_matmul.hpp"
 
 #include <ngraph/function.hpp>
-#include <openvino/opsets/opset10.hpp>
 #include <ngraph/pass/manager.hpp>
+#include <openvino/opsets/opset10.hpp>
 #include <transformations/init_node_info.hpp>
 
-#include "transformations/gather_sinking_matmul.hpp"
+#include "common_test_utils/ngraph_test_utils.hpp"
+#include "gtest/gtest.h"
 
 using namespace ov;
 using namespace ov::opset10;
@@ -51,7 +51,7 @@ std::vector<size_t> GatherForward(size_t size, size_t initial_value) {
 
 std::vector<size_t> GatherBackward(size_t size, size_t initial_value) {
     std::vector<size_t> vec(size);
-    std::iota(vec.begin(), vec.end(), initial_value); // Not the same as in binary tests
+    std::iota(vec.begin(), vec.end(), initial_value);  // Not the same as in binary tests
     ShiftRight(vec, 2);
     return vec;
 }
@@ -71,19 +71,19 @@ std::shared_ptr<Gather> MakeGather(NodePtr input_node, CreateIndicesF create_ind
 
     return std::make_shared<Gather>(input_node->output(0), gather_indexes_node, gather_axis_node);
 }
-} // namespace
+}  // namespace
 
 TEST(GatherSinkingMatMul, Forward) {
     std::shared_ptr<Model> function;
     {
-        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{20,20});
-        
+        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{20, 20});
+
         auto gather = MakeGather(input_params, GatherForward, /* axis */ 1);
 
-        auto input_const1 = Constant::create(ov::element::f32, {20,20}, {1});
+        auto input_const1 = Constant::create(ov::element::f32, {20, 20}, {1});
         auto matmul1 = std::make_shared<MatMul>(gather, input_const1);
 
-        auto input_const2 = Constant::create(ov::element::f32, {20,20}, {1});
+        auto input_const2 = Constant::create(ov::element::f32, {20, 20}, {1});
         auto matmul2 = std::make_shared<MatMul>(input_const2, matmul1);
 
         const auto result = std::make_shared<Result>(matmul2);
@@ -99,15 +99,15 @@ TEST(GatherSinkingMatMul, Forward) {
 
     std::shared_ptr<Model> reference_function;
     {
-        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{20,20});
-        auto input_const = Constant::create(ov::element::f32, {20,20}, {1});
+        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{20, 20});
+        auto input_const = Constant::create(ov::element::f32, {20, 20}, {1});
 
         auto gather = MakeGather(input_const, GatherBackward, /* axis */ 0);
 
-        auto input_const1 = Constant::create(ov::element::f32, {20,20}, {1});
+        auto input_const1 = Constant::create(ov::element::f32, {20, 20}, {1});
         auto matmul1 = std::make_shared<MatMul>(input_params, gather);
 
-        auto input_const2 = Constant::create(ov::element::f32, {20,20}, {1});
+        auto input_const2 = Constant::create(ov::element::f32, {20, 20}, {1});
         auto matmul2 = std::make_shared<MatMul>(input_const2, matmul1);
 
         const auto result = std::make_shared<Result>(matmul2);
@@ -123,12 +123,12 @@ TEST(GatherSinkingMatMul, Forward) {
 TEST(GatherSinkingMatMul, Backward) {
     std::shared_ptr<Model> function;
     {
-        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{20,20});
+        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{20, 20});
 
-        auto input_const1 = Constant::create(ov::element::f32, {20,20}, {1});
+        auto input_const1 = Constant::create(ov::element::f32, {20, 20}, {1});
         auto matmul1 = std::make_shared<MatMul>(input_params, input_const1);
 
-        auto input_const2 = Constant::create(ov::element::f32, {20,20}, {1});
+        auto input_const2 = Constant::create(ov::element::f32, {20, 20}, {1});
         auto matmul2 = std::make_shared<MatMul>(input_const2, matmul1);
 
         auto gather = MakeGather(matmul2, GatherForward, /* axis */ 1);
@@ -146,15 +146,15 @@ TEST(GatherSinkingMatMul, Backward) {
 
     std::shared_ptr<Model> reference_function;
     {
-        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{20,20});
-        auto input_const = Constant::create(ov::element::f32, {20,20}, {1});
+        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{20, 20});
+        auto input_const = Constant::create(ov::element::f32, {20, 20}, {1});
 
         auto gather = MakeGather(input_const, GatherForward, /* axis */ 1);
 
-        auto input_const1 = Constant::create(ov::element::f32, {20,20}, {1});
+        auto input_const1 = Constant::create(ov::element::f32, {20, 20}, {1});
         auto matmul1 = std::make_shared<MatMul>(input_params, gather);
 
-        auto input_const2 = Constant::create(ov::element::f32, {20,20}, {1});
+        auto input_const2 = Constant::create(ov::element::f32, {20, 20}, {1});
         auto matmul2 = std::make_shared<MatMul>(input_const2, matmul1);
 
         const auto result = std::make_shared<Result>(matmul2);
@@ -166,4 +166,3 @@ TEST(GatherSinkingMatMul, Backward) {
     const FunctionsComparator::Result result = func_comparator(function, reference_function);
     ASSERT_TRUE(result.valid) << result.message;
 }
-

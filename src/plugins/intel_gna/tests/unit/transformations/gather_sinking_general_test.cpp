@@ -2,14 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/ngraph_test_utils.hpp"
-#include "gtest/gtest.h"
-
 #include <ngraph/function.hpp>
-#include <openvino/opsets/opset10.hpp>
 #include <ngraph/pass/manager.hpp>
+#include <openvino/opsets/opset10.hpp>
 #include <transformations/init_node_info.hpp>
 
+#include "common_test_utils/ngraph_test_utils.hpp"
+#include "gtest/gtest.h"
 #include "transformations/gather_sinking.hpp"
 
 using namespace ov;
@@ -51,7 +50,7 @@ std::vector<size_t> GatherForward(size_t size, size_t initial_value) {
 
 std::vector<size_t> GatherBackward(size_t size, size_t initial_value) {
     std::vector<size_t> vec(size);
-    std::iota(vec.begin(), vec.end(), initial_value); // Not the same as in binary tests
+    std::iota(vec.begin(), vec.end(), initial_value);  // Not the same as in binary tests
     ShiftRight(vec, 2);
     return vec;
 }
@@ -71,14 +70,14 @@ std::shared_ptr<Gather> MakeGather(NodePtr input_node, CreateIndicesF create_ind
 
     return std::make_shared<Gather>(input_node->output(0), gather_indexes_node, gather_axis_node);
 }
-} // namespace
+}  // namespace
 
 TEST(GatherSinkingGeneral, General) {
     std::shared_ptr<Model> function;
     {
-        auto input_params1 = std::make_shared<Parameter>(element::Type_t::f32, Shape{20,20});
-        auto input_params2 = std::make_shared<Parameter>(element::Type_t::f32, Shape{20,20});
-        
+        auto input_params1 = std::make_shared<Parameter>(element::Type_t::f32, Shape{20, 20});
+        auto input_params2 = std::make_shared<Parameter>(element::Type_t::f32, Shape{20, 20});
+
         auto gather = MakeGather(input_params1, GatherForward, /* axis */ 1);
 
         auto tanh = std::make_shared<Tanh>(input_params2);
@@ -98,9 +97,9 @@ TEST(GatherSinkingGeneral, General) {
 
     std::shared_ptr<Model> reference_function;
     {
-        auto input_params1 = std::make_shared<Parameter>(element::Type_t::f32, Shape{20,20});
-        auto input_params2 = std::make_shared<Parameter>(element::Type_t::f32, Shape{20,20});
-        
+        auto input_params1 = std::make_shared<Parameter>(element::Type_t::f32, Shape{20, 20});
+        auto input_params2 = std::make_shared<Parameter>(element::Type_t::f32, Shape{20, 20});
+
         auto gather1 = MakeGather(input_params2, GatherBackward, /* axis */ 1);
 
         auto tanh = std::make_shared<Tanh>(gather1);
@@ -110,7 +109,8 @@ TEST(GatherSinkingGeneral, General) {
         auto gather2 = MakeGather(sinh, GatherForward, /* axis */ 1);
 
         const auto result = std::make_shared<Result>(gather2);
-        reference_function = std::make_shared<Model>(OutputVector{result}, ParameterVector{input_params1, input_params2});
+        reference_function =
+            std::make_shared<Model>(OutputVector{result}, ParameterVector{input_params1, input_params2});
     }
 
     const FunctionsComparator func_comparator =

@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/ngraph_test_utils.hpp"
-#include "gtest/gtest.h"
+#include "transformations/gather_sinking_split.hpp"
 
 #include <ngraph/function.hpp>
-#include <openvino/opsets/opset10.hpp>
 #include <ngraph/pass/manager.hpp>
+#include <openvino/opsets/opset10.hpp>
 #include <transformations/init_node_info.hpp>
 
-#include "transformations/gather_sinking_split.hpp"
+#include "common_test_utils/ngraph_test_utils.hpp"
+#include "gtest/gtest.h"
 
 using namespace ov;
 using namespace ov::opset10;
@@ -51,7 +51,7 @@ std::vector<size_t> GatherForward(size_t size, size_t initial_value) {
 
 std::vector<size_t> GatherBackward(size_t size, size_t initial_value) {
     std::vector<size_t> vec(size);
-    std::iota(vec.begin(), vec.end(), initial_value); // Not the same as in binary tests
+    std::iota(vec.begin(), vec.end(), initial_value);  // Not the same as in binary tests
     ShiftRight(vec, 2);
     return vec;
 }
@@ -71,12 +71,12 @@ std::shared_ptr<Gather> MakeGather(NodePtr input_node, CreateIndicesF create_ind
 
     return std::make_shared<Gather>(input_node->output(0), gather_indexes_node, gather_axis_node);
 }
-} // namespace
+}  // namespace
 
 TEST(GatherSinkingSplit, Backward) {
     std::shared_ptr<Model> function;
     {
-        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{20,20});
+        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{20, 20});
 
         auto split_axis1 = Constant::create(ngraph::element::i64, ov::Shape{}, ov::Shape{0});
         auto split1 = std::make_shared<Split>(input_params, split_axis1, 2);
@@ -99,7 +99,7 @@ TEST(GatherSinkingSplit, Backward) {
 
     std::shared_ptr<Model> reference_function;
     {
-        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{20,20});
+        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{20, 20});
 
         auto gather = MakeGather(input_params, GatherForward, /* axis */ 1);
 
