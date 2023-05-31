@@ -22,36 +22,22 @@ template <class T>
 bool is_output_equal(const cldnn::memory::ptr mem, const std::vector<T>& ref)
 {
     cldnn::mem_lock<T> ptr(mem, get_test_stream());
-    std::cout << "test data = {";
-    for (size_t i = 0; i < mem->get_layout().count(); i++) {
-        std::cout << static_cast<float>(ptr[i]) << ",";
-    }
-    std::cout << "}" << std::endl;
-    std::cout << "ref  data = {";
-    for (size_t i = 0; i < ref.size(); i++) {
-        std::cout << static_cast<float>(ref[i]) << ",";
-    }
-    std::cout << "}" << std::endl;
+    // TODO: remove debug code
+    // std::cout << "test data = {";
+    // for (size_t i = 0; i < mem->get_layout().count(); i++) {
+    //     std::cout << static_cast<float>(ptr[i]) << ",";
+    // }
+    // std::cout << "}" << std::endl;
+    // std::cout << "ref  data = {";
+    // for (size_t i = 0; i < ref.size(); i++) {
+    //     std::cout << static_cast<float>(ref[i]) << ",";
+    // }
+    // std::cout << "}" << std::endl;
     for (size_t i = 0; i < mem->get_layout().count(); i++) {
         if (!are_equal(ptr[i], ref[i])) return false;
     }
     return true;
 }
-
-// topology generate_simple_branch (bool branch_true_false, const primitive_id& input_id)
-// {
-//     topology branch;
-//     if (branch_true_false) {
-//         branch.add(
-//             pooling(input_id + "_when_true", input_id, cldnn::pooling_mode::max, { 1, 2 }, { 1, 2 })
-//         );
-//     } else {
-//         branch.add(
-//             pooling(input_id + "_when_false", input_id, cldnn::pooling_mode::average, { 1, 2 }, { 1, 2 })
-//         );
-//     }
-//     return branch;
-// }
 
 topology generate_simple_branch (bool branch_true_false, const primitive_id& id, const primitive_id& input_id, const data_types dt = data_types::f32)
 {
@@ -70,52 +56,7 @@ topology generate_simple_branch (bool branch_true_false, const primitive_id& id,
     }
     return branch;
 }
-
-// std::pair<std::vector<float>, std::vector<float>> get_values_to_compare(const cldnn::tensor& offset,
-//                                                                         const cldnn::tensor& range,
-//                                                                         const std::vector<float>& values,
-//                                                                         const cldnn::layout& input_lay,
-//                                                                         const cond_functions& func) {
-//     std::vector<float> ret_true;
-//     std::vector<float> ret_false;
-//     auto mem_desc = generic_test::get_linear_memory_desc(input_lay);
-//     for (int32_t b = 0; b < range.batch[0]; b++) {
-//         for (int32_t f = 0; f < range.feature[0]; f++) {
-//             for (int32_t y = 0; y < range.spatial[1]; y++) {
-//                 for (int32_t x = 0; x < range.spatial[0]; x++) {
-//                     auto linear_idx = generic_test::get_linear_index(
-//                         input_lay,
-//                         offset.batch[0] + b,
-//                         offset.feature[0] + f,
-//                         offset.spatial[1] + y,
-//                         offset.spatial[0] + x,
-//                         mem_desc);
-
-//                     switch (func) {
-//                     case cond_functions::EQUAL:
-//                         ret_true.push_back(values.at(linear_idx));
-//                         ret_false.push_back(-1.0f);
-//                         break;
-//                     case cond_functions::GREATER:
-//                         ret_true.push_back(values.at(linear_idx) - 1.0f);
-//                         ret_false.push_back(99.0f);
-//                         break;
-//                     case cond_functions::LESS:
-//                         ret_true.push_back(values.at(linear_idx) + 1.0f);
-//                         ret_false.push_back(-1.0f);
-//                         break;
-//                     }
-//                 }
-//             }
-//         }
-//     }
-//     return { ret_true, ret_false };
-// }
-
 }  // namespace
-
-
-// input, output, true_ref, false_ref
 
 template < typename DataType>
 struct condition_data_types {
@@ -411,7 +352,6 @@ TEST(condition_gpu, basic_stacked_ifs) {
     ASSERT_TRUE(is_output_equal(out_data, ref_data));
 }
 
-// TODO: complete remained test
 TEST(condition_gpu, basic_nested_ifs) {
     /*
     <prims...>
