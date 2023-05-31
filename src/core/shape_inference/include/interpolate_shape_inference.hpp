@@ -73,7 +73,7 @@ inline void input_elements_num(const Node* const op,
                                size_t element_count,
                                size_t exp_count) {
     NODE_VALIDATION_CHECK(op,
-                          element_count == exp_count,
+                          element_count >= exp_count,
                           "The number of elements in the '",
                           input_name,
                           "' input does not match the number of axes ",
