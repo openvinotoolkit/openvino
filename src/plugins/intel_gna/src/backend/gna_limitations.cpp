@@ -692,21 +692,6 @@ void Limitations::init(const DeviceVersion& compile_target) {
     k_instance = std::shared_ptr<Limitations>(new Limitations(compile_target));
 }
 
-bool Limitations::is_transpose_2d(const std::vector<size_t>& shape) {
-    return std::count_if(std::begin(shape), std::end(shape), [](size_t dim) {
-               return dim != 1;
-           }) == 2;
-}
-
-bool Limitations::is_transpose_supported(const std::vector<size_t>& shape) {
-    if (!is_transpose_2d(shape))
-        return false;
-    auto shape_no_1 = shape;
-    shape_no_1.erase(std::remove(shape_no_1.begin(), shape_no_1.end(), 1), shape_no_1.end());
-    size_t min, max;
-    std::tie(min, max) = std::minmax(shape_no_1[0], shape_no_1[1]);
-    return min <= 8 && max % 8 == 0 && max >= 8 && max <= kTransposeMaxSize;
-}
 
 size_t Limitations::get_min_batch_to_fit_in_buffer(InferenceEngine::DataPtr input) {
     auto total_size = InferenceEngine::details::product(std::begin(input->getDims()), std::end(input->getDims()));
@@ -756,9 +741,13 @@ bool SupportedElementTypes::IsConstantTypeSupported(ov::element::Type elem_type,
     return true;
 }
 
-bool Limitations::is_transpose_supported(const std::shared_ptr<const ov::Node>& node) {
-    OPENVINO_ASSERT(node, "Transpose node is empty!");
-    const ov::Shape squeezed_shape = graph_utils::squeeze_shape(node->get_input_shape(0));
+bool Limitations::is_shape_2d(const ov::Shape& shape) {
+    return graph_utils::squeeze_shape(shape).size() == 2;
+}
+
+
+bool Limitations::is_transpose_supported(const ov::Shape& shape) {
+    const ov::Shape squeezed_shape = graph_utils::squeeze_shape(shape);
 
     // GNA transpose limitations:
     // - supports 2d transposes only
@@ -767,11 +756,18 @@ bool Limitations::is_transpose_supported(const std::shared_ptr<const ov::Node>& 
     if (squeezed_shape.size() == 2) {
         const size_t min_input_dim = std::min(squeezed_shape[0], squeezed_shape[1]);
         const size_t max_input_dim = std::max(squeezed_shape[0], squeezed_shape[1]);
-        if (min_input_dim <= 8 && ALIGN(max_input_dim, Limitations::kNoOfInputsDivisor) == max_input_dim) {
+        if (min_input_dim <= 8 &&
+            max_input_dim % Limitations::kNoOfInputsDivisor == 0 &&
+            max_input_dim <= kTransposeMaxSize) {
             return true;
         }
     }
     return false;
+}
+
+bool Limitations::is_transpose_supported(const std::shared_ptr<const ov::Node>& node) {
+    OPENVINO_ASSERT(node, "Transpose node is empty!");
+    return is_transpose_supported(node->get_input_shape(0));
 }
 
 bool Limitations::is_conv_supported(const std::shared_ptr<ov::intel_gna::op::GNAConvolution>& conv_gna,
