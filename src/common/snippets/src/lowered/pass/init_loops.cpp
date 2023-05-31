@@ -24,17 +24,17 @@ void filter_ports(std::vector<LoopPort>& loop_entries, std::vector<LoopPort>& lo
     new_loop_exits.reserve(loop_exits.size());
 
     for (const auto& loop_entry_point : loop_entries) {
-        const auto& expr = loop_entry_point.port->get_expr();
+        const auto& expr = loop_entry_point.expr_port->get_expr();
         const auto ma = ov::as_type_ptr<op::MemoryAccess>(expr->get_node());
-        if (ma && ma->is_memory_access_input_port(loop_entry_point.port->get_index())) {
+        if (ma && ma->is_memory_access_input_port(loop_entry_point.expr_port->get_index())) {
             new_loop_entries.push_back(loop_entry_point);
         }
     }
 
     for (const auto& loop_exit_point : loop_exits) {
-        const auto& expr = loop_exit_point.port->get_expr();
+        const auto& expr = loop_exit_point.expr_port->get_expr();
         const auto ma = ov::as_type_ptr<op::MemoryAccess>(expr->get_node());
-        if (ma && ma->is_memory_access_output_port(loop_exit_point.port->get_index())) {
+        if (ma && ma->is_memory_access_output_port(loop_exit_point.expr_port->get_index())) {
             new_loop_exits.push_back(loop_exit_point);
         }
     }
@@ -90,7 +90,7 @@ std::vector<int64_t> InitLoops::init_ptr_increments(std::vector<LoopPort>& loop_
     ptr_increments.reserve(loop_inputs.size() + loop_outputs.size());
 
     for (auto& loop_input : loop_inputs) {
-        const auto& port = loop_input.port;
+        const auto& port = loop_input.expr_port;
         // For strides we have to use layout from source since source writes data by special rules
         const auto source = *port->get_connected_ports().begin();
         const auto loop_ids = port->get_expr()->get_loop_ids();
@@ -106,7 +106,7 @@ std::vector<int64_t> InitLoops::init_ptr_increments(std::vector<LoopPort>& loop_
     }
 
     for (auto& loop_output : loop_outputs) {
-        const auto& port = loop_output.port;
+        const auto& port = loop_output.expr_port;
         const auto loop_ids = port->get_expr()->get_loop_ids();
         const auto& layout = port->get_descriptor_ptr()->get_layout();
         const auto& shape = port->get_descriptor_ptr()->get_shape();
@@ -135,11 +135,11 @@ std::vector<int64_t> InitLoops::init_element_type_sizes(const std::vector<LoopPo
     std::vector<int64_t> element_types;
     element_types.reserve(loop_inputs.size() + loop_outputs.size());
     for (const auto& in : loop_inputs) {
-        const auto& port = in.port;
+        const auto& port = in.expr_port;
         element_types.push_back(port->get_expr()->get_node()->get_input_element_type(port->get_index()).size());
     }
     for (const auto& out : loop_outputs) {
-        const auto& port = out.port;
+        const auto& port = out.expr_port;
         element_types.push_back(port->get_expr()->get_node()->get_output_element_type(port->get_index()).size());
     }
     return element_types;
@@ -174,9 +174,9 @@ void InitLoops::insertion(LinearIR& linear_ir, const LinearIR::LoopManagerPtr& l
 
     std::vector<PortConnectorPtr> loop_end_inputs;
     for (const auto& expr_point : loop_entries)
-        loop_end_inputs.push_back(expr_point.port->get_port_connector_ptr());
+        loop_end_inputs.push_back(expr_point.expr_port->get_port_connector_ptr());
     for (const auto& expr_port : loop_exits)
-        loop_end_inputs.push_back(expr_port.port->get_port_connector_ptr());
+        loop_end_inputs.push_back(expr_port.expr_port->get_port_connector_ptr());
     loop_end_inputs.push_back(loop_begin_expr->get_output_port_connector(0));
 
     const auto& loop_end_expr = linear_ir.create_expression(loop_end, loop_end_inputs);

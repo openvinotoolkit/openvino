@@ -30,13 +30,13 @@ LinearIR::LoopManager::LoopInfo::LoopInfo(size_t work_amount, size_t increment, 
 bool operator==(const LinearIR::LoopManager::LoopPort& lhs, const LinearIR::LoopManager::LoopPort& rhs) {
     if (&lhs == &rhs)
         return true;
-    return lhs.port == rhs.port && lhs.is_incremented == rhs.is_incremented;
+    return lhs.expr_port == rhs.expr_port && lhs.is_incremented == rhs.is_incremented;
 }
 bool operator!=(const LinearIR::LoopManager::LoopPort& lhs, const LinearIR::LoopManager::LoopPort& rhs) {
     return !(lhs == rhs);
 }
 bool operator<(const LinearIR::LoopManager::LoopPort& lhs, const LinearIR::LoopManager::LoopPort& rhs) {
-    return (lhs.port < rhs.port) || (lhs.port == rhs.port && (lhs.is_incremented < rhs.is_incremented));
+    return (lhs.expr_port < rhs.expr_port) || (lhs.expr_port == rhs.expr_port && (lhs.is_incremented < rhs.is_incremented));
 }
 
 size_t LinearIR::LoopManager::add_loop_info(const LoopInfoPtr &loop) {
@@ -78,7 +78,7 @@ void LinearIR::LoopManager::get_loop_bounds(const LinearIR &linear_ir,
                                             size_t loop_id) {
     OPENVINO_ASSERT(!entries.empty(), "Loop must have entry points");
     OPENVINO_ASSERT(!exits.empty(), "Loop must have entry points");
-    const auto& entry_expr = entries.front().port->get_expr();
+    const auto& entry_expr = entries.front().expr_port->get_expr();
     loop_begin_pos = std::find(linear_ir.begin(), linear_ir.end(), entry_expr);
     OPENVINO_ASSERT(loop_begin_pos != linear_ir.end(), "Loop begin hasn't been found!");
 
@@ -91,7 +91,7 @@ void LinearIR::LoopManager::get_loop_bounds(const LinearIR &linear_ir,
     }
 
     // At the moment all Loops must have exit points
-    const auto& exit_expr = exits.back().port->get_expr();
+    const auto& exit_expr = exits.back().expr_port->get_expr();
     loop_end_pos = std::next(std::find(loop_begin_pos, linear_ir.end(), exit_expr));
     OPENVINO_ASSERT(loop_end_pos != linear_ir.end(), "Loop end hasn't been found!");
 }

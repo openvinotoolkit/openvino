@@ -22,13 +22,13 @@ public:
     struct LoopPort {
         LoopPort() = default;
         LoopPort(const ExpressionPort& port, bool is_scheduled = true)
-            : port(std::make_shared<ExpressionPort>(port)), is_incremented(is_scheduled) {}
+            : expr_port(std::make_shared<ExpressionPort>(port)), is_incremented(is_scheduled) {}
 
         friend bool operator==(const LoopPort& lhs, const LoopPort& rhs);
         friend bool operator!=(const LoopPort& lhs, const LoopPort& rhs);
         friend bool operator<(const LoopPort& lhs, const LoopPort& rhs);
 
-        std::shared_ptr<ExpressionPort> port = {};
+        std::shared_ptr<ExpressionPort> expr_port = {};
         // True if after each Loop iteration the corresponding data pointer should be incremented.
         // Otherwise, the data pointer shift is skipped
         bool is_incremented = true;

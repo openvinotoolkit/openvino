@@ -40,9 +40,9 @@ bool ValidateLoops::run(LinearIR& linear_ir) {
 
     std::vector<size_t> dim_indexes;
 
-    auto validate_loop_points = [&loop_manager, &dim_indexes, &validated_nested_loops, &is_already_verified](std::vector<LoopPort>& points) {
-        for (auto& point : points) {
-            const auto expr = point.port->get_expr();
+    auto validate_loop_ports = [&loop_manager, &dim_indexes, &validated_nested_loops, &is_already_verified](std::vector<LoopPort>& loop_ports) {
+        for (auto& loop_port : loop_ports) {
+            const auto expr = loop_port.expr_port->get_expr();
             const auto loop_ids = expr->get_loop_ids();
             // If loop_ids of the current port is subsequence of already validated IDs, skip
             if (is_already_verified(loop_ids))
@@ -62,7 +62,7 @@ bool ValidateLoops::run(LinearIR& linear_ir) {
                 }
                 if (i > 0) {
                     OPENVINO_ASSERT(loop_manager->get_loop_info(loop_ids[i - 1])->dim_idx >= dim_idx,
-                                    "Incorrect Loop ID configuration: The upper Loop, the upper the corresponding dim_idx");
+                                    "Incorrect Loop ID configuration: dim_idx should be sorted in accordance with loop nesting");
                 }
             }
             validated_nested_loops.insert(loop_ids);
@@ -71,8 +71,8 @@ bool ValidateLoops::run(LinearIR& linear_ir) {
 
     for (const auto& pair : loops) {
         const auto& loop_info = pair.second;
-        validate_loop_points(loop_info->entry_points);
-        validate_loop_points(loop_info->exit_points);
+        validate_loop_ports(loop_info->entry_points);
+        validate_loop_ports(loop_info->exit_points);
     }
 
     return true;

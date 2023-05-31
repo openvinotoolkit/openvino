@@ -115,7 +115,7 @@ bool SoftmaxDecomposition::run(LinearIR& linear_ir) {
                                                      const std::vector<ExpressionPort>& new_points,
                                                      const LinearIR::LoopManager::LoopInfoPtr& loop_info) {
                 auto entry_found = std::find_if(points.begin(), points.end(), [&softmax_expr](const LinearIR::LoopManager::LoopPort& point) {
-                    return point.port->get_expr() == softmax_expr;
+                    return point.expr_port->get_expr() == softmax_expr;
                 });
                 if (entry_found != points.end()) {
                     entry_found = points.erase(entry_found);
