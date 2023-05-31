@@ -2,7 +2,15 @@
 
 @sphinxdirective
 
-If your question is not covered by the topics below, use the `OpenVINO Support page <https://software.intel.com/en-us/openvino-toolkit/documentation/get-started>`__, where you can participate on a free forum.
+If your question is not covered by the topics below, use the 
+`OpenVINO Support page <https://community.intel.com/t5/Intel-Distribution-of-OpenVINO/bd-p/distribution-openvino-toolkit>`__, 
+where you can participate in a free forum discussion.
+
+.. warning::
+
+   Note that OpenVINO support for Apache MXNet, Caffe, and Kaldi is currently being deprecated.
+   As legacy formats, they will not be supported as actively as the main frontends and will be removed entirely in the future.
+
 
 .. _question-1:
 
@@ -918,7 +926,7 @@ Q102. What does the message "Operation _contrib_box_nms is not supported ..." me
 Q103. What does the message "ModelOptimizer is not able to parse *.caffemodel" mean?
 #####################################################################################################################################################
 
-**A:** If a ``*.caffemodel`` file exists and is correct, the error occurred possibly because of the use of Python protobuf implementation. In some cases, error messages may appear during model parsing, for example: "``utf-8`` codec can't decode byte 0xe0 in position 4: invalid continuation byte in field: mo_caffe.SpatialTransformerParameter.transform_type". You can either use Python 3.7 or build the ``cpp`` implementation of ``protobuf`` yourself for your version of Python. For the complete instructions about building ``protobuf`` from sources, see the appropriate section in the :doc:`Converting Models with Model Optimizer <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>` guide.
+**A:** If a ``*.caffemodel`` file exists and is correct, the error occurred possibly because of the use of Python protobuf implementation. In some cases, error messages may appear during model parsing, for example: "``utf-8`` codec can't decode byte 0xe0 in position 4: invalid continuation byte in field: mo_caffe.SpatialTransformerParameter.transform_type". You can either use a newer Python version (3.7 - 3.11) or build the ``cpp`` implementation of ``protobuf`` yourself for your version of Python. For the complete instructions about building ``protobuf`` from sources, see the appropriate section in the :doc:`Converting Models with Model Optimizer <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>` guide.
 
 .. _question-104:
 

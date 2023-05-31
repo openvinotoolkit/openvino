@@ -650,14 +650,14 @@ void NonMaxSuppression::initSupportedPrimitiveDescriptors() {
 
     std::vector<PortConfigurator> inDataConf;
     inDataConf.reserve(inputShapes.size());
-    for (int i = 0; i < inputShapes.size(); ++i) {
+    for (size_t i = 0; i < inputShapes.size(); ++i) {
         Precision inPrecision = i == NMS_MAXOUTPUTBOXESPERCLASS ? Precision::I32 : Precision::FP32;
         inDataConf.emplace_back(LayoutType::ncsp, inPrecision);
     }
 
     std::vector<PortConfigurator> outDataConf;
     outDataConf.reserve(outputShapes.size());
-    for (int i = 0; i < outputShapes.size(); ++i) {
+    for (size_t i = 0; i < outputShapes.size(); ++i) {
         Precision outPrecision = i == NMS_SELECTEDSCORES ? Precision::FP32 : Precision::I32;
         outDataConf.emplace_back(LayoutType::ncsp, outPrecision);
     }
@@ -891,7 +891,7 @@ void NonMaxSuppression::nmsWithSoftSigma(const float *boxes, const float *scores
         const float *scoresPtr = scores + batch_idx * scoresStrides[0] + class_idx * scoresStrides[1];
 
         std::priority_queue<boxInfo, std::vector<boxInfo>, decltype(less)> sorted_boxes(less);  // score, box_id, suppress_begin_index
-        for (int box_idx = 0; box_idx < numBoxes; box_idx++) {
+        for (int box_idx = 0; box_idx < static_cast<int>(numBoxes); box_idx++) {
             if (scoresPtr[box_idx] > scoreThreshold)
                 sorted_boxes.emplace(boxInfo({scoresPtr[box_idx], box_idx, 0}));
         }
@@ -1000,7 +1000,7 @@ void NonMaxSuppression::nmsWithoutSoftSigma(const float *boxes, const float *sco
         const float *scoresPtr = scores + batch_idx * scoresStrides[0] + class_idx * scoresStrides[1];
 
         std::vector<std::pair<float, int>> sorted_boxes;  // score, box_idx
-        for (int box_idx = 0; box_idx < numBoxes; box_idx++) {
+        for (size_t box_idx = 0; box_idx < numBoxes; box_idx++) {
             if (scoresPtr[box_idx] > scoreThreshold)
                 sorted_boxes.emplace_back(std::make_pair(scoresPtr[box_idx], box_idx));
         }

@@ -169,16 +169,23 @@ def convert_inputs_of_specific_ops(graph: Graph):
                                   ''.format(port_id, node.soft_get('name', node.id), precision))
                         in_port = node.in_port(port_id)
                         np_type = data_type_str_to_np(precision)
-                        if in_port.get_source().node.type == 'Const':
-                            const_node = node.in_port(port_id).get_source().node
-                            const_type = const_node.out_port(0).get_data_type()
-                            if np.issubdtype(const_type, np.integer) and np.issubdtype(np_type, np.integer):
+                        in_node = node.in_port(port_id).get_source().node
+                        in_type = in_node.out_port(0).get_data_type()
+
+                        if in_node.type == 'Const':
+                            if np.issubdtype(in_type, np.integer) and np.issubdtype(np_type, np.integer):
                                 # do not convert Constant value if both source and destination types are of integer types
                                 # otherwise, it affects compatibility of MO IR Engine and TF FE
                                 # TF FE intents to use original model type for layers if it is possible
                                 continue
-                            convert_const_node_value_type(const_node, np_type)
+                            convert_const_node_value_type(in_node, np_type)
                         else:
+                            allowed_int_types = [np.int32, np.int64, np.uint32, np.uint64]
+                            if in_type in allowed_int_types and np_type in allowed_int_types:
+                                # do not convert if both source and destination types are within the set of
+                                # int32/int64/uint32/uint64. It prevents from getting different IRs from the original
+                                # cpp serializer and from the legacy serialized when restored with ir_reader_utils
+                                continue
                             in_port.get_connection().insert_node(Cast(graph, {'dst_type': np_type}).create_node())
 
 

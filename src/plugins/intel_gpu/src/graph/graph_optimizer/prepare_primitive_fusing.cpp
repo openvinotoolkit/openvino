@@ -594,11 +594,11 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             return does_support_fusings;
         };
 
-        auto mvn_supports_fusings = [](mvn_node& node) -> bool {
+        auto mvn_supports_fusings = [](mvn_node& node, bool for_eltwise = false) -> bool {
             auto in_layout = node.get_dependency(0).get_output_layout();
             if (node.get_primitive()->requires_alignment(in_layout.get_partial_shape()))
                 return false;
-            return data_type_traits::is_i8_u8(in_layout.data_type);
+            return data_type_traits::is_i8_u8(in_layout.data_type) || for_eltwise;
         };
 
         auto dts_supports_fusings = [](depth_to_space_node& node) -> bool {
@@ -944,7 +944,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                                       (parents[i].first->is_type<binary_convolution>() &&
                                        bin_conv_supports_eltw_fusings(parents[i].first->as<binary_convolution>())) ||
                                       (parents[i].first->is_type<mvn>() &&
-                                       mvn_supports_fusings(parents[i].first->as<mvn>())) ||
+                                       mvn_supports_fusings(parents[i].first->as<mvn>(), true)) ||
                                       (parents[i].first->is_type<deconvolution>()) ||
                                       (parents[i].first->is_type<permute>()) ||
                                       (parents[i].first->is_type<resample>()) ||

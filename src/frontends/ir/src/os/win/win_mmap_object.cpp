@@ -7,6 +7,9 @@
 #include "openvino/util/file_util.hpp"
 
 // clang-format-off
+#ifndef NOMINMAX
+#    define NOMINMAX
+#endif
 #include <windows.h>
 // clang-format-on
 
