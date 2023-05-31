@@ -63,3 +63,4 @@ attach_space_to_batch_impl::attach_space_to_batch_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::space_to_batch_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::space_to_batch)
