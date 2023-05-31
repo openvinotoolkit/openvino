@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "ie_api.h"
+IE_SUPPRESS_DEPRECATED_START
+
 #include "cnn_network_ngraph_impl.hpp"
 
 #include <cassert>
