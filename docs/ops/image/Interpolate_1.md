@@ -68,7 +68,7 @@ This is a scalar that specifies padding for each spatial dimension.
 
 **Outputs**
 
-*   **1**: Resulting interpolated tensor with elements of the same type as input ``data`` tensor. The shape of the output matches input ``data`` shape except spatial dimensions mentioned in ``axes`` attribute. For other dimensions shape matches sizes from ``target_spaticl_shape`` in order specified in ``axes``.
+* **1**: Resulting interpolated tensor with elements of the same type as input ``data`` tensor. The shape of the output matches input ``data`` shape except spatial dimensions mentioned in ``axes`` attribute. For other dimensions shape matches sizes from ``target_spatial_shape`` in order specified in ``axes``.
 
 **Example**
 
@@ -98,4 +98,3 @@ This is a scalar that specifies padding for each spatial dimension.
    </layer>
 
 @endsphinxdirective
-

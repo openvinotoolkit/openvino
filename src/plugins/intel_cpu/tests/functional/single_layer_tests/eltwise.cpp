@@ -75,7 +75,7 @@ protected:
     void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override {
         inputs.clear();
         const auto& funcInputs = function->inputs();
-        for (int i = 0; i < funcInputs.size(); ++i) {
+        for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
             inputs.insert({funcInput.get_node_shared_ptr(), generate_eltwise_input(funcInput.get_element_type(), targetInputStaticShapes[i])});
         }
@@ -274,7 +274,7 @@ const auto params_4D_fusing = ::testing::Combine(
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                 ::testing::Values(additional_config)),
-        ::testing::ValuesIn(cpuParams_4D),
+        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D)),
         ::testing::ValuesIn(fusingParamsSet));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_Fusing, EltwiseLayerCPUTest, params_4D_fusing, EltwiseLayerCPUTest::getTestCaseName);
@@ -697,7 +697,7 @@ const auto params_4D_dyn_param_fusing = ::testing::Combine(
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                 ::testing::Values(additional_config)),
-        ::testing::ValuesIn(cpuParams_4D),
+        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D)),
         ::testing::ValuesIn(fusingParamsSet));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_dyn_param_fusing, EltwiseLayerCPUTest, params_4D_dyn_param_fusing, EltwiseLayerCPUTest::getTestCaseName);
