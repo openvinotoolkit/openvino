@@ -73,6 +73,8 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
     for (auto p : pred_nodes) {
         if (p.first->get_users().size() > 1)
             return false;
+        if (concat_node.is_dynamic() && !p.first->is_dynamic())
+            return false;
     }
     // if this is called in primitive_inst::execute() and concat is static, that concat should already be optimized in build time, not in runtime.
     if (is_runtime && !concat_node.is_dynamic())

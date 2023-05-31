@@ -575,9 +575,9 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
     OPENVINO_ASSERT(_has_valid_input, primitive_id, " has invalid/unset input");
     GPU_DEBUG_GET_INSTANCE(debug_config);
 
-    do_runtime_in_place_concat();
     std::vector<event::ptr> dependencies;
     if (is_dynamic()) {
+        do_runtime_in_place_concat();
         OPENVINO_ASSERT(_node != nullptr, "[GPU] Invalid primitive_inst object for dynamic shapes case: program_node can't be null");
         update_shape();
         if (_impl_params->output_layouts[0].count() == 0) {
