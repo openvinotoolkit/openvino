@@ -11,7 +11,7 @@ using ::testing::_;
 using namespace ov::mock_auto_plugin;
 // disable using windows.h
 #if 0
-#if (defined(_WIN32) || defined(_WIN64))
+#if defined(_WIN32)
 #include <windows.h>
 #elif defined(__linux__)
 #include <stdlib.h>

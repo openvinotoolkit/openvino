@@ -15,7 +15,7 @@ namespace time_utils {
 
 bool local_time_safe(const time_t* time, struct tm* result) {
     if (time && result) {
-#if (defined(_WIN32) || defined(_WIN64))
+#if defined(_WIN32)
         localtime_s(result, time);
 #else
         localtime_r(time, result);
@@ -33,7 +33,7 @@ std::string put_time(std::chrono::system_clock::time_point tp, const char* forma
 
     std::stringstream ss;
 
-#if (defined(__GNUC__) && (__GNUC__ < 5))
+#if (defined(__GNUC__) && (__GNUC__ < 5)) && !defined(__clang__)
     char time_str[24];
     strftime(time_str, sizeof(time_str), format, &t);
     ss << time_str;
