@@ -41,7 +41,7 @@ The following list provides the MXNet-specific parameters.
 
 .. note::
 
-   By default, Model Conversion API does not use the Apache MXNet loader. It transforms the topology to another format which is compatible with the latest version of Apache MXNet. However, the Apache MXNet loader is required for models trained with lower version of Apache MXNet. If your model was trained with an Apache MXNet version lower than 1.0.0, specify the ``--legacy_mxnet_model`` key to enable the Apache MXNet loader. Note that the loader does not support models with custom layers. In this case, you must manually recompile Apache MXNet with custom layers and install it in your environment.
+   By default, model conversion API does not use the Apache MXNet loader. It transforms the topology to another format which is compatible with the latest version of Apache MXNet. However, the Apache MXNet loader is required for models trained with lower version of Apache MXNet. If your model was trained with an Apache MXNet version lower than 1.0.0, specify the ``--legacy_mxnet_model`` key to enable the Apache MXNet loader. Note that the loader does not support models with custom layers. In this case, you must manually recompile Apache MXNet with custom layers and install it in your environment.
 
 Custom Layer Definition
 #######################
@@ -56,16 +56,16 @@ For the list of supported standard layers, refer to the :doc:`Supported Framewor
 Frequently Asked Questions (FAQ)
 ################################
 
-Model Conversion API provides explanatory messages when it is unable to complete conversions due to typographical errors, incorrectly used options, or other issues. A message describes the potential cause of the problem and gives a link to :doc:`Model Optimizer FAQ <openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ>` which provides instructions on how to resolve most issues. The FAQ also includes links to relevant sections in :doc:`Convert a Model <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>` to help you understand what went wrong.
+Model conversion API provides explanatory messages when it is unable to complete conversions due to typographical errors, incorrectly used options, or other issues. A message describes the potential cause of the problem and gives a link to :doc:`Model Optimizer FAQ <openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ>` which provides instructions on how to resolve most issues. The FAQ also includes links to relevant sections in :doc:`Convert a Model <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>` to help you understand what went wrong.
 
 Summary
 ########
 
 In this document, you learned:
 
-* Basic information about how Model Conversion API works with MXNet models.
+* Basic information about how model conversion API works with MXNet models.
 * Which MXNet models are supported.
-* How to convert a trained MXNet model by using Model Conversion API with both framework-agnostic and MXNet-specific command-line parameters.
+* How to convert a trained MXNet model by using model conversion API with both framework-agnostic and MXNet-specific command-line parameters.
 
 Additional Resources
 ####################

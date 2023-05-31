@@ -14,7 +14,7 @@ After converting the model to TensorFlow format, run the following command:
    mo --input "input_1[1,1333,1333,3]" --input_model retinanet_resnet50_coco_best_v2.1.0.pb --transformations_config front/tf/retinanet.json
 
 
-Where ``transformations_config`` command-line parameter specifies the configuration json file containing model conversion hints for Model Conversion API.
+Where ``transformations_config`` command-line parameter specifies the configuration json file containing model conversion hints for model conversion API.
 The json file contains some parameters that need to be changed if you train the model yourself. It also contains information on how to match endpoints
 to replace the subgraph nodes. After the model is converted to the OpenVINO IR format, the output nodes will be replaced with DetectionOutput layer.
 

@@ -4,10 +4,10 @@
 
 Input data for inference can be different from the training dataset and requires
 additional preprocessing before inference. To accelerate the whole pipeline including
-preprocessing and inference, Model Conversion API provides special parameters such as ``mean_values``,
+preprocessing and inference, model conversion API provides special parameters such as ``mean_values``,
 
 ``scale_values``, ``reverse_input_channels``, and ``layout``. Based on these
-parameters, Model Conversion API generates OpenVINO IR with additionally inserted sub-graphs
+parameters, model conversion API generates OpenVINO IR with additionally inserted sub-graphs
 to perform the defined preprocessing. This preprocessing block can perform mean-scale
 normalization of input data, reverting data along channel dimension, and changing
 the data layout. See the following sections for details on the parameters, or the
@@ -158,7 +158,7 @@ There are two cases of how the input data preprocessing is implemented.
 
 Model conversion API represented by ``convert_model()`` provides command-line parameters
 to specify the values: ``mean_values``, ``scale_values``, ``scale``. Using these parameters,
-Model Conversion API embeds the corresponding preprocessing block for mean-value
+model conversion API embeds the corresponding preprocessing block for mean-value
 normalization of the input data and optimizes this block so that the preprocessing
 takes negligible time for inference.
 
@@ -191,7 +191,7 @@ and the model is trained on images of the BGR (or RGB) format, which is in the
 opposite order of color channels. In this case, it is important to preprocess the
 input images by reverting the color channels before inference.
 
-To embed this preprocessing step into ``ov.Model``, Model Conversion API provides the
+To embed this preprocessing step into ``ov.Model``, model conversion API provides the
 ``reverse_input_channels`` command-line parameter to shuffle the color channels.
 
 The ``reverse_input_channels`` parameter can be used to preprocess the model
@@ -200,7 +200,7 @@ input in the following cases:
 * Only one dimension in the input shape has a size equal to ``3``.
 * One dimension has an undefined size and is marked as ``C`` channel using ``layout`` parameters.
 
-Using the ``reverse_input_channels`` parameter, Model Conversion API embeds the corresponding
+Using the ``reverse_input_channels`` parameter, model conversion API embeds the corresponding
 preprocessing block for reverting the input data along channel dimension and optimizes
 this block so that the preprocessing takes only negligible time for inference.
 

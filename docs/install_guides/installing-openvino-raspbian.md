@@ -134,9 +134,9 @@ If you want to use your model for inference, the model must be converted to the 
 
   * OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO samples can also extend their capabilities when compiled with OpenCV as a dependency. To install OpenCV for OpenVINO, see the `instructions on Github <https://github.com/opencv/opencv/wiki/BuildOpenCV4OpenVINO)>`_.
 
-* Convert the models using the Model Conversion API, which is included in OpenVINO Development Tools.
+* Convert the models using the model conversion API, which is included in OpenVINO Development Tools.
 
-  * OpenVINO Development Tools is a set of utilities for working with OpenVINO and OpenVINO models. It provides tools like Model Conversion API, Benchmark Tool, Post-Training Optimization Tool, and Open Model Zoo Downloader. See the :doc:`Install OpenVINO Development Tools <openvino_docs_install_guides_install_dev_tools>` page for step-by-step installation instructions.
+  * OpenVINO Development Tools is a set of utilities for working with OpenVINO and OpenVINO models. It provides tools like model conversion API, Benchmark Tool, Post-Training Optimization Tool, and Open Model Zoo Downloader. See the :doc:`Install OpenVINO Development Tools <openvino_docs_install_guides_install_dev_tools>` page for step-by-step installation instructions.
 
 What's Next?
 ####################

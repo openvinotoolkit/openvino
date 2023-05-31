@@ -16,7 +16,7 @@ For generating data from original formats to .ark, please, follow the `Kaldi dat
 How to Run the Example
 ######################
 
-1. Launch :doc:`Model Conversion API <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>` with the necessary options (for details follow the :doc:`instructions for Kaldi <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Kaldi>` to generate Intermediate Representation (IR) files for the model:
+1. Launch :doc:`model conversion API <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>` with the necessary options (for details follow the :doc:`instructions for Kaldi <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Kaldi>` to generate Intermediate Representation (IR) files for the model:
 
    .. code-block:: sh
 

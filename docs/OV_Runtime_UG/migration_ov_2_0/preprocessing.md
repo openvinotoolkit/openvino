@@ -23,7 +23,7 @@ More importantly, API 2.0 does not assume any default layouts as Inference Engin
 
 .. note::
 
-   Use Model Conversion API preprocessing capabilities to insert preprocessing operations in your model for optimization. Thus, the application does not need to read the model and set preprocessing repeatedly. You can use the :doc:`model caching feature <openvino_docs_OV_UG_Model_caching_overview>` to improve the time-to-inference.
+   Use model conversion API preprocessing capabilities to insert preprocessing operations in your model for optimization. Thus, the application does not need to read the model and set preprocessing repeatedly. You can use the :doc:`model caching feature <openvino_docs_OV_UG_Model_caching_overview>` to improve the time-to-inference.
 
 The following sections demonstrate how to migrate preprocessing scenarios from Inference Engine API to API 2.0.
 The snippets assume that you need to preprocess a model input with the ``tensor_name`` in Inference Engine API, using ``operation_name`` to address the data.

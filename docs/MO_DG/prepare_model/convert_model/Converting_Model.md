@@ -1,6 +1,6 @@
 # Setting Input Shapes {#openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model}
 
-With Model Conversion API you can increase your model's efficiency by providing an additional shape definition, with these two parameters: `input_shape` and `static_shape`.
+With model conversion API you can increase your model's efficiency by providing an additional shape definition, with these two parameters: `input_shape` and `static_shape`.
 
 @sphinxdirective
 
@@ -14,7 +14,7 @@ Specifying input_shape parameter
 However, if the shape of data is not going to change from one inference request to another,
 it is recommended to set up static shapes (when all dimensions are fully defined) for the inputs.
 Doing it at this stage, instead of during inference in runtime, can be beneficial in terms of performance and memory consumption.
-To set up static shapes, Model Conversion API provides the ``input_shape`` parameter.
+To set up static shapes, model conversion API provides the ``input_shape`` parameter.
 For more information on input shapes under runtime, refer to the :doc:`Changing input shapes <openvino_docs_OV_UG_ShapeInference>` guide.
 To learn more about dynamic shapes in runtime, refer to the :doc:`Dynamic Shapes <openvino_docs_OV_UG_DynamicShapes>` guide.
 
@@ -87,7 +87,7 @@ Alternatively, specify input shapes, using the ``input`` parameter as follows:
 
 The ``input_shape`` parameter allows overriding original input shapes to ones compatible with a given model.
 Dynamic shapes, i.e. with dynamic dimensions, can be replaced in the original model with static shapes for the converted model, and vice versa.
-The dynamic dimension can be marked in Model Conversion API parameter as ``-1`` or ``?``.
+The dynamic dimension can be marked in model conversion API parameter as ``-1`` or ``?``.
 For example, launch model conversion for the ONNX OCR model and specify dynamic batch dimension for inputs:
 
 .. tab-set::
@@ -108,7 +108,7 @@ For example, launch model conversion for the ONNX OCR model and specify dynamic 
          mo --input_model ocr.onnx --input data,seq_len --input_shape [-1,150,200,1],[-1]
 
 
-To optimize memory consumption for models with undefined dimensions in run-time, Model Conversion API provides the capability to define boundaries of dimensions.
+To optimize memory consumption for models with undefined dimensions in run-time, model conversion API provides the capability to define boundaries of dimensions.
 The boundaries of undefined dimension can be specified with ellipsis.
 For example, launch model conversion for the ONNX OCR model and specify a boundary for the batch dimension:
 
@@ -132,7 +132,7 @@ For example, launch model conversion for the ONNX OCR model and specify a bounda
 
 
 Practically, some models are not ready for input shapes change.
-In this case, a new input shape cannot be set via Model Conversion API.
+In this case, a new input shape cannot be set via model conversion API.
 For more information about shape follow the :doc:`inference troubleshooting <troubleshooting_reshape_errors>`
 and :ref:`ways to relax shape inference flow <how-to-fix-non-reshape-able-model>` guides.
 

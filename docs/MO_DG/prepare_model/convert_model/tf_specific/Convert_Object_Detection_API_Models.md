@@ -2,9 +2,9 @@
 
 @sphinxdirective
 
-* Starting with the 2022.1 release, Model Conversion API can convert the TensorFlow Object Detection API Faster and Mask RCNNs topologies differently. By default, model conversion adds operation "Proposal" to the generated IR. This operation needs an additional input to the model with name "image_info" which should be fed with several values describing the preprocessing applied to the input image (refer to the :doc:`Proposal <openvino_docs_ops_detection_Proposal_4>` operation specification for more information). However, this input is redundant for the models trained and inferred with equal size images. Model Conversion API can generate IR for such models and insert operation :doc:`DetectionOutput <openvino_docs_ops_detection_DetectionOutput_1>` instead of ``Proposal``. The `DetectionOutput` operation does not require additional model input "image_info". Moreover, for some models the produced inference results are closer to the original TensorFlow model. In order to trigger new behavior, the attribute "operation_to_add" in the corresponding JSON transformation configuration file should be set to value "DetectionOutput" instead of default one "Proposal".
-* Starting with the 2021.1 release, Model Conversion API converts the TensorFlow Object Detection API SSDs, Faster and Mask RCNNs topologies keeping shape-calculating sub-graphs by default, so topologies can be re-shaped in the OpenVINO Runtime using dedicated reshape API. Refer to the :doc:`Using Shape Inference <openvino_docs_OV_UG_ShapeInference>` guide for more information on how to use this feature. It is possible to change the both spatial dimensions of the input image and batch size.
-* To generate IRs for TF 1 SSD topologies, Model Conversion API creates a number of ``PriorBoxClustered`` operations instead of a constant node with prior boxes calculated for the particular input image size. This change allows you to reshape the topology in the OpenVINO Runtime using dedicated API. The reshaping is supported for all SSD topologies except FPNs, which contain hardcoded shapes for some operations preventing from changing topology input shape.
+* Starting with the 2022.1 release, model conversion API can convert the TensorFlow Object Detection API Faster and Mask RCNNs topologies differently. By default, model conversion adds operation "Proposal" to the generated IR. This operation needs an additional input to the model with name "image_info" which should be fed with several values describing the preprocessing applied to the input image (refer to the :doc:`Proposal <openvino_docs_ops_detection_Proposal_4>` operation specification for more information). However, this input is redundant for the models trained and inferred with equal size images. Model conversion API can generate IR for such models and insert operation :doc:`DetectionOutput <openvino_docs_ops_detection_DetectionOutput_1>` instead of ``Proposal``. The `DetectionOutput` operation does not require additional model input "image_info". Moreover, for some models the produced inference results are closer to the original TensorFlow model. In order to trigger new behavior, the attribute "operation_to_add" in the corresponding JSON transformation configuration file should be set to value "DetectionOutput" instead of default one "Proposal".
+* Starting with the 2021.1 release, model conversion API converts the TensorFlow Object Detection API SSDs, Faster and Mask RCNNs topologies keeping shape-calculating sub-graphs by default, so topologies can be re-shaped in the OpenVINO Runtime using dedicated reshape API. Refer to the :doc:`Using Shape Inference <openvino_docs_OV_UG_ShapeInference>` guide for more information on how to use this feature. It is possible to change the both spatial dimensions of the input image and batch size.
+* To generate IRs for TF 1 SSD topologies, model conversion API creates a number of ``PriorBoxClustered`` operations instead of a constant node with prior boxes calculated for the particular input image size. This change allows you to reshape the topology in the OpenVINO Runtime using dedicated API. The reshaping is supported for all SSD topologies except FPNs, which contain hardcoded shapes for some operations preventing from changing topology input shape.
 
 Converting a Model
 ##################
@@ -13,7 +13,7 @@ You can download TensorFlow Object Detection API models from the `TensorFlow 1 D
 
 .. note::
 
-   Before converting, make sure you have configured Model Conversion API. For configuration steps, refer to the :doc:`Convert a Model <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`.
+   Before converting, make sure you have configured model conversion API. For configuration steps, refer to the :doc:`Convert a Model <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`.
 
 To convert a TensorFlow Object Detection API model, run the ``mo`` command with the following required parameters:
 
@@ -84,14 +84,14 @@ There are several important notes about feeding input images to the samples:
 
 2. TensorFlow implementation of image resize may be different from the one implemented in the sample. Even reading input image from compressed format (like ``.jpg``) could give different results in the sample and TensorFlow. If it is necessary to compare accuracy between the TensorFlow and the OpenVINO, it is recommended to pass pre-resized input image in a non-compressed format (like ``.bmp``).
 
-3. If you want to infer the model with the OpenVINO samples, convert the model specifying the ``reverse_input_channels`` command line parameter. The samples load images in BGR channels order, while TensorFlow models were trained with images in RGB order. When the ``reverse_input_channels`` command line parameter is specified, Model Conversion API performs first convolution or other channel dependent operation weights modification so the output will be like the image is passed with RGB channels order.
+3. If you want to infer the model with the OpenVINO samples, convert the model specifying the ``reverse_input_channels`` command line parameter. The samples load images in BGR channels order, while TensorFlow models were trained with images in RGB order. When the ``reverse_input_channels`` command line parameter is specified, model conversion API performs first convolution or other channel dependent operation weights modification so the output will be like the image is passed with RGB channels order.
 
-4. Read carefully the messages printed by Model Conversion API. They contain important instructions on how to prepare input data before running the inference and how to interpret the output.
+4. Read carefully the messages printed by model conversion API. They contain important instructions on how to prepare input data before running the inference and how to interpret the output.
 
 Custom Input Shape
 ##################
 
-Model conversion handles the command line parameter ``input_shape`` for TensorFlow Object Detection API models in a special way depending on the image resizer type defined in the ``pipeline.config`` file. TensorFlow Object Detection API generates different ``Preprocessor`` sub-graph based on the image resizer type. Model Conversion API supports two types of image resizer:
+Model conversion handles the command line parameter ``input_shape`` for TensorFlow Object Detection API models in a special way depending on the image resizer type defined in the ``pipeline.config`` file. TensorFlow Object Detection API generates different ``Preprocessor`` sub-graph based on the image resizer type. Model conversion API supports two types of image resizer:
 
 * ``fixed_shape_resizer`` --- *Stretches* input image to the specific height and width. The ``pipeline.config`` snippet below shows a ``fixed_shape_resizer`` sample definition:
 
@@ -124,16 +124,16 @@ Fixed Shape Resizer Replacement
 
 * If the ``input_shape [1, H, W, 3]`` command line parameter is specified, model conversion sets the input operation height to ``H`` and width to ``W`` and convert the model. However, the conversion may fail because of the following reasons:
 
-  * The model is not reshape-able, meaning that it's not possible to change the size of the model input image. For example, SSD FPN models have ``Reshape`` operations with hard-coded output shapes, but the input size to these ``Reshape`` instances depends on the input image size. In this case, Model Conversion API shows an error during the shape inference phase. Run model conversion with ``log_level DEBUG`` to see the inferred operations output shapes to see the mismatch.
-  * Custom input shape is too small. For example, if you specify ``input_shape [1,100,100,3]`` to convert a SSD Inception V2 model, one of convolution or pooling nodes decreases input tensor spatial dimensions to non-positive values. In this case, Model Conversion API shows error message like this: '[ ERROR ]  Shape [  1  -1  -1 256] is not fully defined for output X of "node_name".'
+  * The model is not reshape-able, meaning that it's not possible to change the size of the model input image. For example, SSD FPN models have ``Reshape`` operations with hard-coded output shapes, but the input size to these ``Reshape`` instances depends on the input image size. In this case, model conversion API shows an error during the shape inference phase. Run model conversion with ``log_level DEBUG`` to see the inferred operations output shapes to see the mismatch.
+  * Custom input shape is too small. For example, if you specify ``input_shape [1,100,100,3]`` to convert a SSD Inception V2 model, one of convolution or pooling nodes decreases input tensor spatial dimensions to non-positive values. In this case, model conversion API shows error message like this: '[ ERROR ]  Shape [  1  -1  -1 256] is not fully defined for output X of "node_name".'
 
 
 Keeping Aspect Ratio Resizer Replacement
 ++++++++++++++++++++++++++++++++++++++++
 
-* If the ``input_shape`` command line parameter is not specified, Model Conversion API generates an input operation with both height and width equal to the value of parameter ``min_dimension`` in the ``keep_aspect_ratio_resizer``.
+* If the ``input_shape`` command line parameter is not specified, model conversion API generates an input operation with both height and width equal to the value of parameter ``min_dimension`` in the ``keep_aspect_ratio_resizer``.
 
-* If the ``input_shape [1, H, W, 3]`` command line parameter is specified, Model Conversion API scales the specified input image height ``H`` and width ``W`` to satisfy the ``min_dimension`` and ``max_dimension`` constraints defined in the ``keep_aspect_ratio_resizer``. The following function calculates the input operation height and width:
+* If the ``input_shape [1, H, W, 3]`` command line parameter is specified, model conversion API scales the specified input image height ``H`` and width ``W`` to satisfy the ``min_dimension`` and ``max_dimension`` constraints defined in the ``keep_aspect_ratio_resizer``. The following function calculates the input operation height and width:
 
   .. code-block:: py
 
@@ -154,9 +154,9 @@ Models with ``keep_aspect_ratio_resizer`` were trained to recognize object in re
 Model Conversion Process in Detail
 ##################################
 
-This section is intended for users who want to understand how Model Conversion API performs Object Detection API models conversion in details. The information in this section is also useful for users having complex models that are not converted with Model Conversion API out of the box. It is highly recommended to read the **Graph Transformation Extensions** section in the :doc:`[Legacy] Model Optimizer Extensibility <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Model_Optimizer_Extensions_Model_Optimizer_Transformation_Extensions>` documentation first to understand sub-graph replacement concepts which are used here.
+This section is intended for users who want to understand how model conversion API performs Object Detection API models conversion in details. The information in this section is also useful for users having complex models that are not converted with model conversion API out of the box. It is highly recommended to read the **Graph Transformation Extensions** section in the :doc:`[Legacy] Model Optimizer Extensibility <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>` documentation first to understand sub-graph replacement concepts which are used here.
 
-It is also important to open the model in the `TensorBoard <https://www.tensorflow.org/guide/summaries_and_tensorboard>`__ to see the topology structure. Model Conversion API can create an event file that can be then fed to the TensorBoard tool. Run model conversion, providing two command line parameters:
+It is also important to open the model in the `TensorBoard <https://www.tensorflow.org/guide/summaries_and_tensorboard>`__ to see the topology structure. Model conversion API can create an event file that can be then fed to the TensorBoard tool. Run model conversion, providing two command line parameters:
 
 * ``input_model <path_to_frozen.pb>`` --- Path to the frozen model.
 * ``tensorboard_logdir`` --- Path to the directory where TensorBoard looks for the event files.

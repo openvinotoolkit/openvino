@@ -50,7 +50,7 @@ This section explains how to convert the YOLOv4 Keras model from the `repository
 
    .. note::
 
-      Before you run the conversion, make sure you have installed all the Model Conversion API dependencies for TensorFlow 2.
+      Before you run the conversion, make sure you have installed all the model conversion API dependencies for TensorFlow 2.
 
    .. code-block:: sh
 
@@ -281,7 +281,7 @@ To recreate the original model structure, use the corresponding yolo ``.json`` c
 
 If chosen model has specific values of these parameters, create another configuration file with custom operations and use it for conversion.
 
-To generate the IR of the YOLOv1 model, provide TensorFlow YOLOv1 or YOLOv2 model to Model Conversion API with the following parameters:
+To generate the IR of the YOLOv1 model, provide TensorFlow YOLOv1 or YOLOv2 model to model conversion API with the following parameters:
 
 .. code-block:: sh
 
