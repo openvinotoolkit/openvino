@@ -29,8 +29,20 @@ const size_t idx_false = 1;
 
 static cldnn::topology::ptr gen_topology(Program& p, const std::shared_ptr<ngraph::Function> net) {
     InferenceEngine::CNNNetwork body_network(net);
-    Program body_program(body_network, p.get_engine(), p.get_config(), true);
+    auto config = p.get_config();
+    config.set_property(ov::intel_gpu::enable_dynamic_batch(false));
+    config.set_property(ov::intel_gpu::max_dynamic_batch(1));
+    Program body_program(body_network, p.get_engine(), config, true);
     return body_program.GetTopology();
+}
+
+static cldnn::program::ptr gen_program(Program& p, const std::shared_ptr<ngraph::Function> net) {
+    InferenceEngine::CNNNetwork body_network(net);
+    auto config = p.get_config();
+    config.set_property(ov::intel_gpu::enable_dynamic_batch(false));
+    config.set_property(ov::intel_gpu::max_dynamic_batch(1));
+    Program body_program(body_network, p.get_engine(), config);
+    return body_program.GetCompiledProgram();
 }
 
 static cldnn::condition::branch_info gen_branch_info(Program& p, const std::shared_ptr<ngraph::op::v8::If>& op, size_t idx) {
@@ -38,6 +50,10 @@ static cldnn::condition::branch_info gen_branch_info(Program& p, const std::shar
     const auto& internal_body = (idx == idx_true)? op->get_then_body() : op->get_else_body();
 
     branch.topology_ptr = gen_topology(p, internal_body);
+    branch.inner_program = gen_program(p, internal_body);
+    {
+        std::cout << "gen_branch_info output : " << branch.inner_program->get_output_layout_str() << std::endl;
+    }
 
     auto& input_map = branch.input_map;
     auto external_inputs = p.GetInputInfo(op);

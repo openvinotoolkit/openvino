@@ -1289,6 +1289,10 @@ program::primitives_info program::get_current_stage_info() const {
     return info;
 }
 
+std::string program::get_output_layout_str()  {
+    return outputs.at(0)->get_output_layout().to_short_string();
+}
+
 void program::save_pass_info(std::string pass_name) {
     // TODO: Directory path here can be probably changed to some bool flag
     if (!_config.get_property(ov::intel_gpu::dump_graphs).empty())

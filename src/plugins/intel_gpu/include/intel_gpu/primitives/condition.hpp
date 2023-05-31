@@ -5,12 +5,10 @@
 #pragma once
 #include "primitive.hpp"
 #include "intel_gpu/graph/topology.hpp"
+#include "intel_gpu/graph/program.hpp"
 #include <vector>
 
 namespace cldnn {
-
-/// @brief Function, which will be used during comparison.
-enum cond_functions : int32_t { EQUAL, GREATER, LESS };
 
 /// @brief Adds primitive, which works like "if".
 ///
@@ -26,6 +24,7 @@ struct condition : public primitive_base<condition> {
         std::map<primitive_id, primitive_id> input_map;
         std::map<size_t, primitive_id> output_map;
         topology::ptr topology_ptr;
+        program::ptr inner_program;
 
         std::string str() {
             std::stringstream ss;
@@ -45,34 +44,6 @@ struct condition : public primitive_base<condition> {
             return ss.str();
         }
     };
-
-    /// @brief Constructs condition primitive / layer.
-    ///
-    /// @param id                 An identifier of new primitive.
-    /// @param input              An identifier of primitive which is an input for newly created
-    ///                           condition primitive.
-    /// @param topology_true      Topology containg primitives, which will be executed when comparsion results
-    ///                           true.
-    /// @param topology_false     Topology containg primitives, which will be executed when comparsion results
-    ///                           false..
-    /// @param compare_Data       An identifier of primitive which contains compare values
-    /// @param func               Used function during comparison.
-    /// @param offset             Offset for compare data.
-    /// @param output_padding     Optional padding for output from primitive.
-    condition(const primitive_id& id,
-              const std::vector<input_info>& inputs,
-              const topology& topology_true,
-              const topology& topology_false,
-              const primitive_id& compare_data,
-              const cond_functions& func,
-              const tensor& offset = {0, 0, 0, 0, 0},
-              const padding& output_padding = padding())
-        : primitive_base(id, inputs, {output_padding}),
-          topology_true(topology_true),
-          topology_false(topology_false),
-          compare_data(compare_data),
-          function(func),
-          offset(offset) {}
 
     /// @brief Constructs condition primitive / layer.
     ///
@@ -102,10 +73,6 @@ struct condition : public primitive_base<condition> {
     topology topology_false;
     /// @brief An identifier of primitive which contains compare values.
     primitive_id compare_data;
-    /// @brief Used function during comparison.
-    cond_functions function;
-    /// @brief Offset for compare data.
-    tensor offset;
 
     branch_info branch_true;
     branch_info branch_false;

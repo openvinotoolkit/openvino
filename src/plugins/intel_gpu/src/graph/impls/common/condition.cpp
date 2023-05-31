@@ -79,26 +79,6 @@ struct condition_impl : typed_primitive_impl<condition> {
 
 private:
     primitive_id _node_id;
-
-    /*
-    Add functions here.
-    */
-    bool check_condition(const float value_1, const float value_2, const cond_functions& func) const {
-        switch (func) {
-            case cond_functions::EQUAL:
-                return value_1 == value_2;
-                break;
-            case cond_functions::GREATER:
-                return value_1 > value_2;
-                break;
-            case cond_functions::LESS:
-                return value_1 < value_2;
-                break;
-            default:
-                throw("Unknown comparision function for: " + _node_id);
-                break;
-        }
-    }
 };
 
 namespace detail {
