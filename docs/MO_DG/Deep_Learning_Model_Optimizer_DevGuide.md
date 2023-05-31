@@ -20,14 +20,14 @@ To convert a model to IR, you can use the following command:
 
 .. tab-set::
 
-    .. tab-item:: mo CLI tool
+    .. tab-item:: CLI
        :sync: cli-tool
 
        .. code-block:: sh
 
           mo --input_model INPUT_MODEL
 
-    .. tab-item:: mo Python API
+    .. tab-item:: Python
        :sync: mo-python-api
 
        .. code-block:: python
@@ -59,14 +59,14 @@ To get the full list of conversion parameters, run the following command:
 
 .. tab-set::
 
-    .. tab-item:: mo CLI tool
+    .. tab-item:: CLI
        :sync: cli-tool
 
        .. code-block:: sh
 
           mo --help
 
-    .. tab-item:: mo Python API
+    .. tab-item:: Python
        :sync: mo-python-api
 
        .. code-block:: python
@@ -84,14 +84,14 @@ Below is a list of separate examples for different frameworks and model conversi
 
    .. tab-set::
    
-       .. tab-item:: mo CLI tool
+       .. tab-item:: CLI
           :sync: cli-tool
    
           .. code-block:: sh
    
              mo --input_model MobileNet.pb
    
-       .. tab-item:: mo Python API
+       .. tab-item:: Python
           :sync: mo-python-api
    
           .. code-block:: python
@@ -104,14 +104,14 @@ Below is a list of separate examples for different frameworks and model conversi
 
    .. tab-set::
    
-       .. tab-item:: mo CLI tool
+       .. tab-item:: CLI
           :sync: cli-tool
    
           .. code-block:: sh
    
              mo --saved_model_dir BERT --input_shape [2,30],[2,30],[2,30]
    
-       .. tab-item:: mo Python API
+       .. tab-item:: Python
           :sync: mo-python-api
    
           .. code-block:: python
@@ -126,14 +126,14 @@ Below is a list of separate examples for different frameworks and model conversi
 
    .. tab-set::
    
-       .. tab-item:: mo CLI tool
+       .. tab-item:: CLI
           :sync: cli-tool
    
           .. code-block:: sh
    
              mo --input_model ocr.onnx --output probabilities
    
-       .. tab-item:: mo Python API
+       .. tab-item:: Python
           :sync: mo-python-api
    
           .. code-block:: python
@@ -152,14 +152,14 @@ Below is a list of separate examples for different frameworks and model conversi
 
    .. tab-set::
    
-       .. tab-item:: mo CLI tool
+       .. tab-item:: CLI
           :sync: cli-tool
    
           .. code-block:: sh
    
              mo --input_model unet.pdmodel --mean_values [123,117,104] --scale 255
    
-       .. tab-item:: mo Python API
+       .. tab-item:: Python
           :sync: mo-python-api
    
           .. code-block:: python
