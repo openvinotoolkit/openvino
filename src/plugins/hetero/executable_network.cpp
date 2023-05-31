@@ -49,6 +49,11 @@
 
 // clang-format on
 
+
+// TODO (vurusovs) required for conversion to legacy API 1.0
+#include "converter_utils.hpp"
+// TODO (vurusovs) required for conversion to legacy API 1.0
+
 using namespace InferenceEngine;
 using namespace details;
 using namespace HeteroPlugin;
@@ -58,12 +63,22 @@ using namespace InferenceEngine::HeteroConfigParams;
 template <typename T>
 using NodeMap = std::unordered_map<ngraph::Node*, T>;
 
+namespace {
+ov::AnyMap any_copy(const Configs& params) {
+    ov::AnyMap result;
+    for (auto&& value : params) {
+        result.emplace(value.first, value.second);
+    }
+    return result;
+}
+}
+
+
 HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwork& network,
                                                  const Configs& user_config,
-                                                 Engine* plugin)
+                                                 const ov::hetero::Plugin* plugin)
     : InferenceEngine::ExecutableNetworkThreadSafeDefault(nullptr,
                                                           std::make_shared<InferenceEngine::ImmediateExecutor>()),
-      _heteroPlugin{plugin},
       _name{network.getName()},
       _hetero_config{},
       _device_config{} {
@@ -73,6 +88,8 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
     // hetero_config, device_config and user_config are unchanged global and local configs set by user
     // we need to create _hetero_config and _device_config based on them, which will
     // contain only hetero (_hetero_config) and only device (_device_config) properties
+    auto _heteroPlugin = std::make_shared<HeteroPlugin::Engine>();
+
     auto parsed_config = _heteroPlugin->MergeConfigs(user_config);
     _hetero_config = parsed_config.hetero_config;
     _device_config = parsed_config.device_config;
@@ -102,7 +119,8 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
     if (queryNetworkResult.supportedLayersMap.empty()) {
         // here we need to bypass unchanged / unparsed user-set configuration
         // because it can contain TARGET_FALLBACK / ov::device::priorities
-        queryNetworkResult = _heteroPlugin->QueryNetwork(network, user_config);
+        queryNetworkResult.supportedLayersMap = plugin->query_model(ov::legacy_convert::convert_model(network, true), any_copy(user_config));
+        queryNetworkResult.rc = OK;
     }
 
     using Input = ngraph::Input<ngraph::Node>;
@@ -442,14 +460,21 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
         ++id;
     }
     for (auto&& network : _networks) {
-        auto metaDevices = _heteroPlugin->GetDevicePlugins(network._device, _device_config);
+        // auto metaDevices = _heteroPlugin->GetDevicePlugins(network._device, _device_config);
+        auto metaDevices = plugin->GetDevicePlugins(network._device, any_copy(_device_config));
 
         // disable caching for subgraphs, because the whole HETERO model is cached
         auto device_config = metaDevices[network._device];
         device_config[ov::cache_dir.name()] = "";
 
-        network._network =
-            _heteroPlugin->GetCore()->LoadNetwork(network._clonedNetwork, network._device, device_config);
+        // network._network =
+            // _heteroPlugin->GetCore()->LoadNetwork(network._clonedNetwork, network._device, device_config);
+        auto compiled_model = plugin->get_core()->compile_model(
+            ov::legacy_convert::convert_model(network._clonedNetwork, true), 
+            network._device, 
+            device_config
+        );
+        network._network = {ov::legacy_convert::convert_compiled_model(compiled_model._ptr), compiled_model._so};
     }
 }
 
