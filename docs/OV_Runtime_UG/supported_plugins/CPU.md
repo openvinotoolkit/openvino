@@ -9,7 +9,7 @@
 The CPU plugin is a part of the Intel® Distribution of OpenVINO™ toolkit. It is developed to achieve high performance inference of neural networks on Intel® x86-64 and Arm® CPUs. The newer 11th generation and later Intel® CPUs provide even further performance boost, especially with INT8 models.
 For an in-depth description of CPU plugin, see:
 
-- `CPU plugin developers documentation <https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/cmake_options_for_custom_comiplation.md>`__.
+- `CPU plugin developers documentation <https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/cmake_options_for_custom_compilation.md>`__.
 - `OpenVINO Runtime CPU plugin source files <https://github.com/openvinotoolkit/openvino/tree/master/src/plugins/intel_cpu/>`__.
 
 .. note::
@@ -396,7 +396,7 @@ By default, OpenVINO Runtime will enable CPU threads pinning for better performa
       :language: python
       :fragment: [ov:intel_cpu:multi_threading:part1]
 
-user can check [optimization guide](https://docs.openvino.ai/latest/openvino_docs_deployment_optimization_guide_tput_advanced.html) for details on multi-stream execution
+user can check the :doc:`optimization guide <openvino_docs_deployment_optimization_guide_tput_advanced>` for details on multi-stream execution
 
 .. note:: 
 
@@ -460,7 +460,7 @@ weights are loaded from DDR/L3 cache in the packed format this significantly dec
 and as a consequence improve inference performance.
 
 To use this feature, the user is provided with property ``sparse_weights_decompression_rate``, which can take 
-values from the interval \[0, 1\]. ``sparse_weights_decompression_rate`` defines sparse rate threashold: only operations 
+values from the interval \[0, 1\]. ``sparse_weights_decompression_rate`` defines sparse rate threshold: only operations 
 with higher sparse rate will be executed using ``sparse weights decompression feature``. The default value is ``1``, 
 which means the option is disabled.
 
