@@ -29,7 +29,6 @@ public:
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
 
-
 }  // namespace pass
 }  // namespace intel_gna
 }  // namespace ov

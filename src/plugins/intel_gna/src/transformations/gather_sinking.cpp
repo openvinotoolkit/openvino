@@ -9,12 +9,12 @@
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-
 #include <openvino/cc/ngraph/itt.hpp>
-#include "transformations/gather_sinking_unary.hpp"
+
 #include "transformations/gather_sinking_binary.hpp"
 #include "transformations/gather_sinking_fuse.hpp"
 #include "transformations/gather_sinking_transpose_reshape.hpp"
+#include "transformations/gather_sinking_unary.hpp"
 
 using namespace ov;
 using namespace ov::pass::pattern;
