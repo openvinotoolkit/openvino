@@ -4,7 +4,7 @@
 @sphinxdirective
 
 The following two tables present the absolute accuracy drop calculated as the accuracy difference 
-between OV-accuracy and the original framework accuracy for FP32, and the same for INT8 and FP16 
+between OV-accuracy and the original frame work accuracy for FP32, and the same for INT8 and FP16 
 representations of a model on three platform architectures. Please also refer to notes below table 
 for more information.
 
@@ -31,8 +31,8 @@ for more information.
    * - bert-base-cased
      - SST-2_bert_cased_padded
      - accuracy
-     - -3.61%
-     - -3.62%
+     - 1.15%
+     - 1.51%
      - -0.85%
    * - bert-large-uncased-whole-word-masking-squad-0001
      - SQUAD_v1_1_bert_msl384_mql64_ds128_lowercase
@@ -73,7 +73,7 @@ for more information.
    * - mobilenet-v2
      - ImageNet2012
      - accuracy @ top1
-     - n/a%
+     - -0.70%
      - -1.11%
      - -1.05%
    * - resnet-50
@@ -91,7 +91,7 @@ for more information.
    * - unet-camvid-onnx-0001
      - CamVid_12cl
      - mean_iou @ mean
-     - -6.32%
+     - n/a
      - 6.40%	
      - -0.30%
    * - yolo_v3

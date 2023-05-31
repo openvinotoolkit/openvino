@@ -29,7 +29,7 @@
 
    For a simple instruction on testing performance, see the :doc:`Getting Performance Numbers Guide <openvino_docs_MO_DG_Getting_Performance_Numbers>`.
 
-.. dropdown:: What image sizes are used for the classification network models?
+.. dropdown:: Where can I find a more detailed description of the workloads used for benchmarking?
 
    The image size used in inference depends on the benchmarked
    network. The table below presents the list of input sizes for each
