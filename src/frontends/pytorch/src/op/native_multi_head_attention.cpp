@@ -128,9 +128,9 @@ OutputVector translate_native_multi_head_attention(const NodeContext& context) {
             atten_mask = context.mark_node(std::make_shared<opset10::ConvertLike>(atten_mask, scaled_dot_product));
             atten_mask = context.mark_node(std::make_shared<opset10::Select>(mask_inverse, atten_mask, minus_inf_conv));
         } else {
-            // Once int/float mask type is supported in PyTorch, 
+            // Once int/float mask type is supported in PyTorch,
             // remove this assert to allow for such masks in OV
-            FRONT_END_OP_CONVERSION_CHECK(1, "Non-boolean masks are not supported.");  
+            FRONT_END_OP_CONVERSION_CHECK(1, "Non-boolean masks are not supported.");
             atten_mask = context.mark_node(std::make_shared<opset10::ConvertLike>(atten_mask, scaled_dot_product));
         }
 
