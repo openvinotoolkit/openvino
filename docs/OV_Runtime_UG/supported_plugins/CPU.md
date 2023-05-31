@@ -385,7 +385,7 @@ By default, OpenVINO Runtime will enable CPU threads pinning for better performa
       :language: python
       :fragment: [ov:intel_cpu:multi_threading:part1]
 
-user can check [optimization guide](https://docs.openvino.ai/latest/openvino_docs_deployment_optimization_guide_tput_advanced.html) for details on multi-stream execution
+user can check the :doc:`optimization guide <openvino_docs_deployment_optimization_guide_tput_advanced>` for details on multi-stream execution
 
 .. note:: 
    
