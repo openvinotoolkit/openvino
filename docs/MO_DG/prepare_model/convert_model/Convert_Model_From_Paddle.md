@@ -102,7 +102,7 @@ Converting certain PaddlePaddle models may require setting ``example_input`` or 
 Supported PaddlePaddle Layers
 #############################
 
-For the list of supported standard layers, refer to the :doc:`Supported Framework Layers <openvino_docs_MO_DG_prepare_model_Supported_Frameworks_Layers>` page.
+For the list of supported standard layers, refer to the :doc:`Supported Operations <openvino_resources_supported_operations_frontend>` page.
 
 Officially Supported PaddlePaddle Models
 ########################################
