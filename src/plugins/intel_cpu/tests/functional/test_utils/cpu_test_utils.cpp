@@ -157,7 +157,7 @@ void CPUTestsBase::CheckPluginRelatedResultsImpl(const std::shared_ptr<const ov:
             }
 
             auto shape = partialShape.get_shape();
-            bool skip_unsquized_1D = std::count(shape.begin(), shape.end(), 1) == shape.size() - 1;
+            bool skip_unsquized_1D = static_cast<size_t>(std::count(shape.begin(), shape.end(), 1)) == shape.size() - 1;
             bool permule_of_1 = (fmt == cpu_memory_format_t::nhwc || fmt == cpu_memory_format_t::ndhwc || fmt == cpu_memory_format_t::nwc) && shape[1] == 1;
             return skip_unsquized_1D || permule_of_1;
         };
@@ -165,7 +165,7 @@ void CPUTestsBase::CheckPluginRelatedResultsImpl(const std::shared_ptr<const ov:
         if (nodeType.count(getExecValue(ExecGraphInfoSerialization::LAYER_TYPE))) {
             ASSERT_LE(inFmts.size(), node->get_input_size());
             ASSERT_LE(outFmts.size(), node->get_output_size());
-            for (int i = 0; i < inFmts.size(); i++) {
+            for (size_t i = 0; i < inFmts.size(); i++) {
                 const auto parentPort = node->input_values()[i];
                 const auto port = node->inputs()[i];
                 if ((parentPort.get_tensor_ptr() == port.get_tensor_ptr())) {
@@ -334,7 +334,7 @@ CPUTestsBase::makeNgraphFunction(const ngraph::element::Type &ngPrc, ngraph::Par
    auto newLastNode = modifyGraph(ngPrc, params, lastNode);
    ngraph::ResultVector results;
 
-   for (int i = 0; i < newLastNode->get_output_size(); i++)
+   for (size_t i = 0; i < newLastNode->get_output_size(); i++)
         results.push_back(std::make_shared<ngraph::opset1::Result>(newLastNode->output(i)));
 
    return std::make_shared<ngraph::Function>(results, params, name);
