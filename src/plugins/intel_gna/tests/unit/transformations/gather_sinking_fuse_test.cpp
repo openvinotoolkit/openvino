@@ -5,7 +5,7 @@
 #include "transformations/gather_sinking_fuse.hpp"
 
 #include <openvino/frontend/manager.hpp>
-#include <openvino/opsets/opset9.hpp>
+#include <openvino/opsets/opset10.hpp>
 #include <openvino/pass/manager.hpp>
 #include <transformations/init_node_info.hpp>
 
@@ -13,7 +13,7 @@
 #include "gtest/gtest.h"
 
 using namespace ov;
-using namespace ov::opset9;
+using namespace ov::opset10;
 
 using NodePtr = std::shared_ptr<ov::Node>;
 
@@ -21,9 +21,9 @@ namespace {
 
 std::shared_ptr<Gather> MakeGather(NodePtr input_node, const std::vector<size_t>& indices, size_t axis) {
     const ov::Shape& input_shape = input_node->get_output_shape(0);
-    auto gather_indexes_node = Constant::create(ngraph::element::i64, ov::Shape{indices.size()}, indices);
+    auto gather_indexes_node = Constant::create(element::i64, ov::Shape{indices.size()}, indices);
 
-    auto gather_axis_node = Constant::create(ngraph::element::i64, ngraph::Shape{}, {axis});
+    auto gather_axis_node = Constant::create(element::i64, Shape{}, {axis});
 
     return std::make_shared<Gather>(input_node, gather_indexes_node, gather_axis_node);
 }
