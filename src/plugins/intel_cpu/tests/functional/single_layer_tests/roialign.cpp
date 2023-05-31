@@ -116,7 +116,7 @@ protected:
         auto roisIdxTensor = ov::Tensor{ funcInputs[2].get_element_type(), targetInputStaticShapes[2] };
         auto roisIdxTensorData = static_cast<std::int32_t*>(roisIdxTensor.data());
         std::int32_t batchIdx = 0;
-        for (int i = 0; i < roisIdxTensor.get_size(); i++) {
+        for (size_t i = 0; i < roisIdxTensor.get_size(); i++) {
             roisIdxTensorData[i] = batchIdx;
             batchIdx = (batchIdx + 1) % targetInputStaticShapes[0][0];
         }
