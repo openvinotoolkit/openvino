@@ -58,15 +58,15 @@ auto available_pred = [](const program_node& input) {
     if (!input.is_type<pooling>() && !input.is_type<convolution>() && !input.is_type<quantize>() &&
         !input.is_type<activation>() && !input.is_type<deconvolution>() && !input.is_type<concatenation>() &&
         !input.is_type<crop>() && !input.is_type<eltwise>() && !input.is_type<resample>() &&
-        !(input.is_type<permute>() && !input.as<permute>().is_rotating_except_batch()))
+        !input.is_type<reorder>() && !(input.is_type<permute>() && !input.as<permute>().is_rotating_except_batch()))
         return false;
     return true;
 };
 
 bool concat_in_place_optimization::match(const program_node& concat_node,
-                                                kernel_impl_params concat_params,
-                                                std::vector<kernel_impl_params> pred_params,
-                                                bool is_runtime) {
+                                         kernel_impl_params concat_params,
+                                         std::vector<kernel_impl_params> pred_params,
+                                         bool is_runtime) {
     if (concat_node.is_output() || concat_params.fused_desc.size() > 0)
         return false;
     auto pred_nodes = concat_node.get_dependencies();
