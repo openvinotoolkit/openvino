@@ -11,14 +11,12 @@
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 #include "pad_shape_inference.hpp"
 
-using namespace ov;
-using namespace ov::op::util;
-
+namespace ov {
 op::util::PadBase::PadBase(const Output<Node>& arg,
                            const Output<Node>& pads_begin,
                            const Output<Node>& pads_end,
                            const Output<Node>& arg_pad_value,
-                           PadMode pad_mode)
+                           op::PadMode pad_mode)
     : Op({arg, pads_begin, pads_end, arg_pad_value}),
       m_pad_mode{pad_mode} {
     mark_as_precision_sensitive(input(1));
@@ -28,7 +26,7 @@ op::util::PadBase::PadBase(const Output<Node>& arg,
 op::util::PadBase::PadBase(const Output<Node>& arg,
                            const Output<Node>& pads_begin,
                            const Output<Node>& pads_end,
-                           PadMode pad_mode)
+                           op::PadMode pad_mode)
     : Op({arg, pads_begin, pads_end, op::v0::Constant::create(arg.get_element_type(), Shape{}, {0})}),
       m_pad_mode{pad_mode} {
     mark_as_precision_sensitive(input(1));
@@ -77,7 +75,7 @@ void op::util::PadBase::validate_and_infer_types() {
                           result_et,
                           ").");
 
-    if (m_pad_mode == PadMode::CONSTANT && get_input_size() == 4) {
+    if (m_pad_mode == op::PadMode::CONSTANT && get_input_size() == 4) {
         const auto& arg_pad_element_type = get_input_element_type(3);
         NODE_VALIDATION_CHECK(this,
                               element::Type::merge(result_et, result_et, arg_pad_element_type),
@@ -101,7 +99,7 @@ void op::util::PadBase::validate_and_infer_types() {
                           ").");
 
     OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto output_shapes = shape_infer(this, get_node_input_partial_shapes(*this));
+    const auto output_shapes = op::util::shape_infer(this, get_node_input_partial_shapes(*this));
     OPENVINO_SUPPRESS_DEPRECATED_END
     set_output_type(0, result_et, output_shapes[0]);
 }
@@ -163,3 +161,5 @@ bool op::util::PadBase::evaluate_label(TensorLabelVector& output_labels) const {
     return default_label_evaluator(this, output_labels);
     OPENVINO_SUPPRESS_DEPRECATED_END
 }
+
+}  // namespace ov
