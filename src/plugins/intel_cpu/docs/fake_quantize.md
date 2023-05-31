@@ -1,5 +1,5 @@
 # FakeQuantize in OpenVINO
-https://docs.openvino.ai/latest/openvino_docs_ops_quantization_FakeQuantize_1.html
+https://docs.openvino.ai/2023.0/openvino_docs_ops_quantization_FakeQuantize_1.html
 
 definition:
 ```
