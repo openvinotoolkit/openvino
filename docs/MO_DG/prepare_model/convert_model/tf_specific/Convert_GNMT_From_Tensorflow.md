@@ -149,7 +149,7 @@ Converting a GNMT Model to the IR
 
 **Step 1**. Clone the GitHub repository and check out the commit:
 
-1. Clone the NMT reposirory:
+1. Clone the NMT repository:
 
 .. code-block:: sh
 
