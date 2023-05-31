@@ -604,7 +604,7 @@ TEST_P(gemm_2in_permute, permute_gemm) {
         permute("permute0", input_info("input0"), {0, 2, 1, 3}),
         permute("permute1", input_info("input1"), {1, 2, 3, 0}),
         gemm("gemm_prim", { input_info("permute0"), input_info("permute1") }, data_types::f16),
-        reorder("reorder_bfyx", input_info("permute"), p.default_format, data_types::f32)
+        reorder("reorder_bfyx", input_info("gemm_prim"), p.default_format, data_types::f32)
     );
 
     tolerance = default_tolerance(data_types::f16);
@@ -613,9 +613,9 @@ TEST_P(gemm_2in_permute, permute_gemm) {
 
 INSTANTIATE_TEST_SUITE_P(
     fusings_gpu, gemm_2in_permute, ::testing::ValuesIn(std::vector<gemm_test_params>{
-        gemm_test_params{CASE_GEMM_2IN_FP16_1, 3, 4},
-        gemm_test_params{CASE_GEMM_2IN_FP16_2, 3, 4},
-        gemm_test_params{CASE_GEMM_2IN_FP16_3, 3, 4},
+        gemm_test_params{CASE_GEMM_2IN_FP16_1, 3, 5},
+        gemm_test_params{CASE_GEMM_2IN_FP16_2, 3, 5},
+        gemm_test_params{CASE_GEMM_2IN_FP16_3, 3, 5},
     }));
 
 #endif // ENABLE_ONEDNN_FOR_GPU

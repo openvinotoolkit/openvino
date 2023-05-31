@@ -128,6 +128,7 @@ std::vector<std::pair<cldnn::format, dnnl::memory::format_tag>> format_map = {
         { cldnn::format::byxf, dnnl::memory::format_tag::nhwc },
         { cldnn::format::byfx, dnnl::memory::format_tag::acbd },
         { cldnn::format::bxfy, dnnl::memory::format_tag::adbc },
+        { cldnn::format::fyxb, dnnl::memory::format_tag::bcda },
         { cldnn::format::bzyxf, dnnl::memory::format_tag::ndhwc },
         { cldnn::format::b_fs_yx_fsv2, dnnl::memory::format_tag::undef },
         { cldnn::format::b_fs_yx_fsv4, dnnl::memory::format_tag::aBcd4b },
