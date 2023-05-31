@@ -16,7 +16,7 @@
    openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ
 
 
-To convert a model to IR, you can use the following command:
+To convert a model to OpenVINO model format (``ov.Model``), you can use the following command:
 
 .. tab-set::
 
