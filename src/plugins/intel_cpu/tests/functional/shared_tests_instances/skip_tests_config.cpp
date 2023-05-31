@@ -175,8 +175,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*StaticAdaPoolAvg3DLayoutTest.*OS=\(1\).*_inFmts=(nwc|nCw16c|nCw8c).*)",
         // Issue: 111404
         R"(.*smoke_set1/GatherElementsCPUTest.*)",
-        // Issue: 111405
-        R"(.*smoke_(static|dynamic)/GridSampleLayerTestCPU.CompareWithRefs.*_padMode=ZEROS.*)",
         // Issue: 111406
         R"(.*smoke_InterpolateLinearOnnx_Layout_Test/InterpolateLayerCPUTest.*)",
         R"(.*smoke_InterpolateLinear_Layout_Test/InterpolateLayerCPUTest.*)",

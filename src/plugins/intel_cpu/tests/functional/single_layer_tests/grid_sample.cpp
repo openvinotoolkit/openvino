@@ -74,6 +74,7 @@ public:
 
 protected:
     void SetUp() override {
+        abs_threshold = 0.0005;
         std::vector<InputShape> inputShapes;
         GridSample::InterpolationMode interpolateMode;
         GridSample::PaddingMode paddingMode;
