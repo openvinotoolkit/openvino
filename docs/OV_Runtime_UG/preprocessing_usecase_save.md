@@ -108,5 +108,4 @@ Additional Resources
 * The ov::pass::Serialize - pass to serialize model to XML/BIN
 * The ov::set_batch - update batch dimension for a given model
 
-
 @endsphinxdirective
