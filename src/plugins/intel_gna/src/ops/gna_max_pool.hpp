@@ -17,7 +17,8 @@ namespace op {
 /// \brief Batched max pooling operation.
 class GNAMaxPool : public ov::op::Op {
 public:
-    OPENVINO_OP("GNAMaxPool", "intel_gna", ov::op::Op);;
+    OPENVINO_OP("GNAMaxPool", "intel_gna", ov::op::Op);
+    ;
 
     /// \brief Constructs a batched max pooling operation.
     GNAMaxPool() = default;
