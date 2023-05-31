@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # flake8: noqa
+# mypy: ignore-errors
 
 from openvino.frontend.tensorflow.py_tensorflow_frontend import _FrontEndDecoderBase as DecoderBase
 from openvino.runtime import PartialShape, Shape, Type, OVAny, Tensor

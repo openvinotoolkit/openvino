@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # flake8: noqa
+# mypy: ignore-errors
 
 from openvino.frontend.tensorflow.py_tensorflow_frontend import _FrontEndPyGraphIterator as GraphIterator
 from .node_decoder import TFGraphNodeDecoder

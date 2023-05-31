@@ -290,7 +290,7 @@ ov::Any py_object_to_any(const py::object& py_obj) {
     } else if (py::isinstance<py::bool_>(py_obj)) {
         return py_obj.cast<bool>();
     } else if (py::isinstance<py::float_>(py_obj)) {
-        return py_obj.cast<float>();
+        return py_obj.cast<double>();
     } else if (py::isinstance<py::int_>(py_obj)) {
         return py_obj.cast<int64_t>();
     } else if (py::isinstance<py::none>(py_obj)) {
@@ -327,7 +327,7 @@ ov::Any py_object_to_any(const py::object& py_obj) {
         case PY_TYPE::STR:
             return _list.cast<std::vector<std::string>>();
         case PY_TYPE::FLOAT:
-            return _list.cast<std::vector<float>>();
+            return _list.cast<std::vector<double>>();
         case PY_TYPE::INT:
             return _list.cast<std::vector<int64_t>>();
         case PY_TYPE::BOOL:
