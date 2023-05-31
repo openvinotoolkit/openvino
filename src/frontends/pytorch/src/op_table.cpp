@@ -79,6 +79,7 @@ OP_CONVERTER(translate_list_construct);
 OP_CONVERTER(translate_log);
 OP_CONVERTER(translate_log2);
 OP_CONVERTER(translate_loop);
+OP_CONVERTER(translate_lstm);
 OP_CONVERTER(translate_masked_fill);
 OP_CONVERTER(translate_max);
 OP_CONVERTER(translate_max_poolnd);
@@ -270,6 +271,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::log_", op::inplace_op<op::translate_log>},
         {"aten::log2", op::translate_log2},
         {"aten::log2_", op::inplace_op<op::translate_log2>},
+        {"aten::lstm", op::translate_lstm},
         {"aten::lt", op::translate_1to1_match_2_inputs_align_types<opset10::Less>},
         {"aten::masked_fill", op::translate_masked_fill},
         {"aten::masked_fill_", op::inplace_op<op::translate_masked_fill>},
