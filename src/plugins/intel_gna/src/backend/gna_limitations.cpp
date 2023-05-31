@@ -692,7 +692,6 @@ void Limitations::init(const DeviceVersion& compile_target) {
     k_instance = std::shared_ptr<Limitations>(new Limitations(compile_target));
 }
 
-
 size_t Limitations::get_min_batch_to_fit_in_buffer(InferenceEngine::DataPtr input) {
     auto total_size = InferenceEngine::details::product(std::begin(input->getDims()), std::end(input->getDims()));
     return total_size / kBufferMaxSize + 1;
@@ -745,7 +744,6 @@ bool Limitations::is_shape_2d(const ov::Shape& shape) {
     return graph_utils::squeeze_shape(shape).size() == 2;
 }
 
-
 bool Limitations::is_transpose_supported(const ov::Shape& shape) {
     const ov::Shape squeezed_shape = graph_utils::squeeze_shape(shape);
 
@@ -756,8 +754,7 @@ bool Limitations::is_transpose_supported(const ov::Shape& shape) {
     if (squeezed_shape.size() == 2) {
         const size_t min_input_dim = std::min(squeezed_shape[0], squeezed_shape[1]);
         const size_t max_input_dim = std::max(squeezed_shape[0], squeezed_shape[1]);
-        if (min_input_dim <= 8 &&
-            max_input_dim % Limitations::kNoOfInputsDivisor == 0 &&
+        if (min_input_dim <= 8 && max_input_dim % Limitations::kNoOfInputsDivisor == 0 &&
             max_input_dim <= kTransposeMaxSize) {
             return true;
         }
@@ -883,7 +880,8 @@ bool Limitations::is_concat_supported(const std::shared_ptr<const ov::Node>& nod
     return graph_utils::get_first_valuable_dim_id(output_shape) == axis;
 }
 
-bool Limitations::is_forward_transposed_concat_supported(const std::shared_ptr<const ov::Node>& node, const AxisVector& order) {
+bool Limitations::is_forward_transposed_concat_supported(const std::shared_ptr<const ov::Node>& node,
+                                                         const AxisVector& order) {
     auto concat_node = std::dynamic_pointer_cast<const Concat>(node);
     if (!concat_node) {
         log::debug() << "Concat node is empty!" << std::endl;
@@ -900,7 +898,8 @@ bool Limitations::is_forward_transposed_concat_supported(const std::shared_ptr<c
     return graph_utils::get_first_valuable_dim_id(transposed_shape) == transposed_concat_axis;
 }
 
-bool Limitations::is_backward_transposed_concat_supported(const std::shared_ptr<const ov::Node>& node, const AxisVector& order) {
+bool Limitations::is_backward_transposed_concat_supported(const std::shared_ptr<const ov::Node>& node,
+                                                          const AxisVector& order) {
     auto concat_node = std::dynamic_pointer_cast<const Concat>(node);
     if (!concat_node) {
         log::debug() << "Concat node is empty!" << std::endl;
@@ -916,7 +915,8 @@ bool Limitations::is_backward_transposed_concat_supported(const std::shared_ptr<
     return graph_utils::get_first_valuable_dim_id(transposed_shape) == transposed_concat_axis;
 }
 
-bool Limitations::is_forward_transposed_split_supported(const std::shared_ptr<const ov::Node>& node, const AxisVector& order) {
+bool Limitations::is_forward_transposed_split_supported(const std::shared_ptr<const ov::Node>& node,
+                                                        const AxisVector& order) {
     std::shared_ptr<const ov::Node> split_node = nullptr;
     if (std::dynamic_pointer_cast<const Split>(node)) {
         split_node = std::dynamic_pointer_cast<const Split>(node);
@@ -940,7 +940,8 @@ bool Limitations::is_forward_transposed_split_supported(const std::shared_ptr<co
     return graph_utils::get_first_valuable_dim_id(transposed_shape) == transposed_concat_axis;
 }
 
-bool Limitations::is_backward_transposed_split_supported(const std::shared_ptr<const ov::Node>& node, const AxisVector& order) {
+bool Limitations::is_backward_transposed_split_supported(const std::shared_ptr<const ov::Node>& node,
+                                                         const AxisVector& order) {
     std::shared_ptr<const ov::Node> split_node = nullptr;
     if (std::dynamic_pointer_cast<const Split>(node)) {
         split_node = std::dynamic_pointer_cast<const Split>(node);
@@ -976,7 +977,8 @@ bool Limitations::is_op_supported(const std::shared_ptr<ov::Node>& node,
     } else if (auto fully_connected = std::dynamic_pointer_cast<ngraph::op::FullyConnected>(node)) {
         return is_fc_supported(fully_connected, is_exception_allowed);
     } else if (ov::intel_gna::graph_utils::is_pooling(node)) {
-        return is_pooling_supported(std::dynamic_pointer_cast<ov::intel_gna::op::GNAMaxPool>(node), is_exception_allowed);
+        return is_pooling_supported(std::dynamic_pointer_cast<ov::intel_gna::op::GNAMaxPool>(node),
+                                    is_exception_allowed);
     } else if (ov::op::util::is_output(node) || ov::op::util::is_sink(node) ||
                ov::intel_gna::graph_utils::is_eltwise_add(node) || ov::intel_gna::graph_utils::is_eltwise_mul(node) ||
                ov::intel_gna::graph_utils::is_crop_affined(node) ||
