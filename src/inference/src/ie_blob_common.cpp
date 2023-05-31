@@ -5,6 +5,7 @@
 #include <memory>
 #include <utility>
 #include <vector>
+#include <iostream>
 
 #include "ie_blob.h"
 #include "system_allocator.hpp"
@@ -13,6 +14,7 @@ namespace InferenceEngine {
 IE_SUPPRESS_DEPRECATED_START
 
 void Blob::setShape(const SizeVector& dims) {
+    void* prev_blob_ptr = buffer();
     // we don't want to allow setShape for:
     // 1. ROI cases
     {
@@ -55,6 +57,8 @@ void Blob::setShape(const SizeVector& dims) {
         // Don't shrink area when new size fit the existing area
         getTensorDesc().setDims(dims);
     }
+
+    std::cout << "Blob::setShape" << prev_blob_ptr << " -> " << static_cast<void*>(buffer()) << std::endl;
 }
 
 Blob::Ptr Blob::createROI(const ROI& roi) const {

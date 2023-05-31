@@ -193,8 +193,8 @@ std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> InferRequestB
     return perfMap;
 }
 
-static inline void changeEdgePtr(const EdgePtr &edge, void *newPtr, size_t newSz = 0) {
-    if (newSz) {
+static inline void changeEdgePtr(const EdgePtr &edge, void *newPtr, size_t newSz = 0, const bool reset = false) {
+    if (reset) {
         edge->getMemoryPtr()->getDnnlMemoryMngr()->setExtBuff(newPtr, newSz);
     } else {
         edge->getMemoryPtr()->setDataHandle(newPtr);
@@ -267,7 +267,7 @@ void InferRequestBase::changeDefaultPtr() {
                         IE_THROW() << "Node " << inputNodePtr->getName() << " contains empty child edge";
 
                     changeEdgePtr(e, static_cast<void*>(it.second->buffer()));
-                    changeEdgePtr(e, static_cast<void*>(it.second->buffer()), it.second->byteSize());
+                    // changeEdgePtr(e, static_cast<void*>(it.second->buffer()), it.second->byteSize());
                 }
             }
 
@@ -282,33 +282,33 @@ void InferRequestBase::changeDefaultPtr() {
                 continue;
 
             bool canBeInPlace = true;
-            void* defaultPtr = parentEdge->getMemory().GetData();
-            // Cannot be in-place after concat because concat is using different ptrs without offsets
-            auto parent = parentEdge->getParent();
-            NodePtr previousParent;
-            do {
-                previousParent = parent;
-                if (parent->getChildEdges().size() != 1 || parent->isConstant() || parent->isInPlace()) { // Cecilia: no need to worry the case parent->getChildEdges().size() != 1 as it should have guaranteed by execution order.
-                    canBeInPlace = false;
-                    break;
-                }
+            // void* defaultPtr = parentEdge->getMemory().GetData();
+            // // Cannot be in-place after concat because concat is using different ptrs without offsets
+            // auto parent = parentEdge->getParent();
+            // NodePtr previousParent;
+            // do {
+            //     previousParent = parent;
+            //     if (parent->getChildEdges().size() != 1 || parent->isConstant() || parent->isInPlace()) { // Cecilia: no need to worry the case parent->getChildEd   ges().size() != 1 as it should have guaranteed by execution order.
+            //         canBeInPlace = false;
+            //         break;
+            //     }
 
-                auto& parentEdges = parent->getParentEdges();
-                for (auto& edge : parentEdges) {
-                    auto e = edge.lock();
-                    if (!e)
-                        IE_THROW() << "Node " << parent->getName() << " contains empty parent edge";
+            //     auto& parentEdges = parent->getParentEdges();
+            //     for (auto& edge : parentEdges) {
+            //         auto e = edge.lock();
+            //         if (!e)
+            //             IE_THROW() << "Node " << parent->getName() << " contains empty parent edge";
 
-                    if (e->getMemory().GetData() == defaultPtr) { // Cecilia: data addr comparision is not good in case of dynamic shape because 0 is commnon seen. Should compare mem manager?
-                        parent = e->getParent();
-                        break;
-                    }
-                }
-            } while (previousParent != parent);
+            //         if (e->getMemory().GetData() == defaultPtr) { // Cecilia: data addr comparision is not good in case of dynamic shape because 0 is commnon seen. Should compare mem manager?
+            //             parent = e->getParent();
+            //             break;
+            //         }
+            //     }
+            // } while (previousParent != parent);
             if (canBeInPlace) {
-                DEBUG_LOG("canBeInPlace output ", it.first, " for ", graph->GetName());
-                changeEdgePtr(parentEdge, static_cast<void*>(it.second->buffer()));
-                // changeEdgePtr(parentEdge, static_cast<void*>(it.second->buffer()), it.second->byteSize());
+                DEBUG_LOG("canBeInPlace output ", it.first, "@", static_cast<void*>(it.second->buffer()), "_", it.second->byteSize(), " for ", graph->GetName());
+                // changeEdgePtr(parentEdge, static_cast<void*>(it.second->buffer()));
+                changeEdgePtr(parentEdge, static_cast<void*>(it.second->buffer()), it.second->byteSize(), true);
             }
             continue;
         }
@@ -498,6 +498,7 @@ void LegacyInferRequest::SetBlob(const std::string& name, const InferenceEngine:
             externalPtr.erase(name);
         }
         _outputs[name] = data;
+        DEBUG_LOG(name, " @ ", static_cast<void*>(data->buffer()), "_", data->byteSize(), " for ", graph->GetName());
     }
 }
 
@@ -599,6 +600,7 @@ InferenceEngine::Blob::Ptr LegacyInferRequest::GetBlob(const std::string& name) 
             }
 
             _outputs[name] = data;
+            DEBUG_LOG(name, " @ ", static_cast<void*>(data->buffer()), "_", data->byteSize(), " for ", graph->GetName());
             if (!externalPtr.count(name) && data->getTensorDesc() == pBlobDesc && !graph->getConfig().batchLimit) {
                 externalPtr[name] = data;
             }
@@ -748,12 +750,13 @@ void InferRequest::SetBlob(const std::string& name, const InferenceEngine::Blob:
         }
 
         const auto &desc = graph->getOutputNodeByName(name)->getParentEdgesAtPort(0)[0]->getMemory().getDesc();
-        if (!isDynamic && blobDesc == MemoryDescUtils::convertToTensorDesc(desc) && !graph->getConfig().batchLimit) {
+        if (blobDesc == MemoryDescUtils::convertToTensorDesc(desc) && !graph->getConfig().batchLimit) {
             externalPtr[name] = data;
         } else if (externalPtr.find(name) != externalPtr.end()) {
             externalPtr.erase(name);
         }
         _outputs[name] = data;
+        DEBUG_LOG(name, " @ ", static_cast<void*>(data->buffer()), "_", data->byteSize(), " for ", graph->GetName());
     }
 }
 
@@ -854,8 +857,9 @@ InferenceEngine::Blob::Ptr InferRequest::GetBlob(const std::string& name) {
                 }
 
                 _outputs[name] = data;
+                DEBUG_LOG(name, " @ ", static_cast<void*>(data->buffer()), "_", data->byteSize(), " for ", graph->GetName());
                 if (!externalPtr.count(name) &&
-                    ((!isDynamic && data->getTensorDesc() == MemoryDescUtils::convertToTensorDesc(output->second->getParentEdgesAtPort(0)[0]->getMemory().getDesc())) /* || isDynamic */) &&
+                    ((!isDynamic && data->getTensorDesc() == MemoryDescUtils::convertToTensorDesc(output->second->getParentEdgesAtPort(0)[0]->getMemory().getDesc())) || isDynamic) &&
                         !graph->getConfig().batchLimit) {
                     externalPtr[name] = data;
                 }
