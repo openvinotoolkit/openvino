@@ -14,9 +14,8 @@ from preprocess_converter import PreprocessConvertor
 
 
 class Convnet(torch.nn.Module):
-    def __init__(self, grayscale=False):
+    def __init__(self, input_channels):
         super(Convnet, self).__init__()
-        input_channels = 1 if grayscale else 3
         self.conv1 = torch.nn.Conv2d(input_channels, 6, 5)
         self.conv2 = torch.nn.Conv2d(6, 16, 3)
 
@@ -26,9 +25,9 @@ class Convnet(torch.nn.Module):
         return x
 
 
-def _infer_pipelines(test_input, preprocess_pipeline, grayscale=False):
-    torch_model = Convnet(grayscale)
-    input_channels = 1 if grayscale else 3
+def _infer_pipelines(test_input, preprocess_pipeline, input_channels=3):
+    torch_model = Convnet(input_channels)
+
     torch.onnx.export(torch_model, torch.randn(1, input_channels, 224, 224), "test_convnet.onnx", verbose=False, input_names=["input"], output_names=["output"])
     core = Core()
     ov_model = core.read_model(model="test_convnet.onnx")
@@ -184,7 +183,14 @@ def test_CenterCrop():
 def test_Grayscale():
     test_input = np.random.randint(255, size=(224, 224, 3), dtype=np.uint16)
     preprocess_pipeline = transforms.Compose([transforms.ToTensor(), transforms.Grayscale()])
-    torch_result, ov_result = _infer_pipelines(test_input, preprocess_pipeline, grayscale=True)
+    torch_result, ov_result = _infer_pipelines(test_input, preprocess_pipeline, input_channels=1)
+    assert np.max(np.absolute(torch_result - ov_result)) < 1e-04
+
+
+def test_Grayscale_num_output_channels():
+    test_input = np.random.randint(255, size=(224, 224, 3), dtype=np.uint16)
+    preprocess_pipeline = transforms.Compose([transforms.ToTensor(), transforms.Grayscale(3)])
+    torch_result, ov_result = _infer_pipelines(test_input, preprocess_pipeline)
     assert np.max(np.absolute(torch_result - ov_result)) < 1e-04
 
 

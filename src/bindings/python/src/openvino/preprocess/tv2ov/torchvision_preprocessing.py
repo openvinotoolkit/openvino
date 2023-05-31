@@ -143,9 +143,25 @@ class _(TransformConverterBase):
 @TransformConverterFactory.register(transforms.Grayscale)
 class _(TransformConverterBase):
     def convert(self, input_idx: int, ppp: PrePostProcessor, transform, meta: Dict):
-        if transform.num_output_channels != 1:
-            raise ValueError("OpenVINO does not support multi-channel grayscale output")  # TODO: Tomek
+        input_shape = meta["input_shape"]
+        layout = meta["layout"]
+
+        input_shape[layout.get_index_by_name("C")] = 1
+
         ppp.input(input_idx).preprocess().convert_color(ColorFormat.GRAY)
+        if transform.num_output_channels != 1:
+            input_shape[layout.get_index_by_name("C")] = transform.num_output_channels
+
+            @custom_preprocess_function
+            def broadcast_node(output: ov.Output):
+                return ops.broadcast(
+                    data=output,
+                    target_shape=input_shape,
+                )
+            ppp.input(input_idx).preprocess().custom(broadcast_node)
+
+        meta["input_shape"] = input_shape
+        
 
 
 @TransformConverterFactory.register(transforms.Pad)
@@ -157,7 +173,7 @@ class _(TransformConverterBase):
         pad_mode = transform.padding_mode
 
         if pad_mode == "constant":
-            if isinstance(transform.fill, tuple):  # TODO: Tomek
+            if isinstance(transform.fill, tuple):
                 raise ValueError("Different fill values for R, G, B channels are not supported.")
 
         pads_begin = [0 for _ in meta["input_shape"]]
@@ -260,7 +276,7 @@ class _(TransformConverterBase):
             InterpolationMode.NEAREST: ResizeAlgorithm.RESIZE_NEAREST,
         }
         if transform.max_size:
-            raise ValueError("Resize with max_size if not supported")  # TODO: Tomek
+            raise ValueError("Resize with max_size if not supported")
 
         h, w = _setup_size(transform.size, "Incorrect size type for Resize operation")
 
