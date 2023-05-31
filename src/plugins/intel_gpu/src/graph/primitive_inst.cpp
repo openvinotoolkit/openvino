@@ -483,8 +483,8 @@ bool primitive_inst::update_impl() {
                     if (!can_be_optimized()) {
                         auto kernels = _program->get_kernels_cache().compile(updated_params_no_dyn_pad, impl->get_kernels_source());
                         impl->set_kernels(kernels);
+                        cache.add(updated_params_no_dyn_pad, impl->clone());
                     }
-                    cache.add(updated_params_no_dyn_pad, impl->clone());
                 });
                 if (!can_be_optimized())  {
                     _impl = _dynamic_impl->clone();
@@ -525,13 +525,16 @@ void primitive_inst::do_runtime_in_place_concat() {
         concat_preds.push_back(pred.first);
     }
 
+    GPU_DEBUG_TRACE_DETAIL << "[In place concat] Preparing for runtime buffer fusing" << std::endl;
     // Do shape_infer for all concat's preds and concat
     for (auto pred : concat_preds) {
         if (!pred->update_shape_done_by_other) {
+            GPU_DEBUG_TRACE_DETAIL << "[In place concat] update shape for " << pred->id() << std::endl;
             pred->update_shape();
             pred->update_shape_done_by_other = true;
         }
     }
+    GPU_DEBUG_TRACE_DETAIL << "[In place concat] update shape for " << concat_inst->id() << std::endl;
     concat_inst->update_shape();
     concat_inst->update_shape_done_by_other = true;
     layout concat_layout = concat_inst->_impl_params->get_output_layout();
@@ -545,6 +548,7 @@ void primitive_inst::do_runtime_in_place_concat() {
 
     if (!concat_in_place_optimization::match(concat_inst->get_node(), *concat_inst->_impl_params, pred_params, true)) {
         concat_inst->_can_be_optimized = false;
+        GPU_DEBUG_TRACE_DETAIL << "[In place concat] " << concat_inst->id() << " cannot be optimized " << std::endl;
         return;
     }
 
@@ -553,12 +557,17 @@ void primitive_inst::do_runtime_in_place_concat() {
     concat_in_place_optimization::update_in_place_concat_paddings(concat_layout, preds_layouts, concat_axis, need_reoptimization, true);
     size_t i = 0;
     for (auto& dep : concat_inst->_deps) {
-        dep.first->_impl_params->output_layouts[0] = preds_layouts[i];
+        if (_impl_params->output_layouts[0] != preds_layouts[i]) {
+            dep.first->set_shape_change();
+            dep.first->_impl_params->output_layouts[0] = preds_layouts[i];
+        }
+        GPU_DEBUG_TRACE_DETAIL << "[In place concat] Update padding of pred " << i << " : "
+                               << dep.first->_impl_params->output_layouts[0].to_string() << std::endl;
         ++i;
     }
     concat_inst->_impl_params->output_layouts[0] = concat_layout;
     concat_inst->_can_be_optimized = true;
-    GPU_DEBUG_TRACE_DETAIL << concat_inst->id() << ": can_be_optimized " << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << "[In place concat] " << concat_inst->id() << ": can_be_optimized " << std::endl;
 }
 
 event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
