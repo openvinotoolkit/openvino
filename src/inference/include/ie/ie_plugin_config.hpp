@@ -28,6 +28,7 @@
 #include "ie_precision.hpp"
 
 namespace InferenceEngine {
+IE_SUPPRESS_DEPRECATED_START
 
 /**
  * @brief %Metrics
@@ -551,6 +552,7 @@ DECLARE_CONFIG_KEY(FORCE_TBB_TERMINATE);
 
 #define DECLARE_AUTO_CONFIG_KEY(name) DECLARE_CONFIG_KEY(AUTO_##name)
 
+IE_SUPPRESS_DEPRECATED_END
 }  // namespace InferenceEngine
 
 #include "gpu/gpu_config.hpp"
