@@ -13,6 +13,9 @@
 /// @brief message for help argument
 static const char help_message[] = "Print a usage message.";
 
+/// @brief message for help argument
+static const char show_greetings_message[] = "Optional. Prints a 'Hello speech sample' message.";
+
 /// @brief message for input data argument
 static const char input_message[] = "Required. Path(s) to input file(s). "
                                     "Usage for a single file/layer: <input_file.ark> or <input_file.npz>. "
@@ -131,6 +134,9 @@ static const char pwl_max_error_percent_message[] = "Optional. The maximum perce
 /// \brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
 
+/// \brief Define flag for showing help message <br>
+DEFINE_bool(show_greetings, false, show_greetings_message);
+
 /// \brief Define flag for disabling compact (memory_reuse) mode <br>
 DEFINE_bool(memory_reuse_off, false, memory_reuse_message);
 
@@ -204,12 +210,13 @@ static void show_usage() {
     std::cout << "speech_sample [OPTION]" << std::endl;
     std::cout << "Options:" << std::endl;
     std::cout << std::endl;
-    std::cout << "    -h                         " << help_message << std::endl;
+    std::cout << "    -h                           " << help_message << std::endl;
+    std::cout << "    -show_greetings              " << show_greetings_message << std::endl;
     std::cout << "    -i \"<path>\"                " << input_message << std::endl;
     std::cout << "    -m \"<path>\"                " << model_message << std::endl;
     std::cout << "    -o \"<path>\"                " << output_message << std::endl;
     std::cout << "    -d \"<device>\"              " << target_device_message << std::endl;
-    std::cout << "    -pc                        " << performance_counter_message << std::endl;
+    std::cout << "    -pc                          " << performance_counter_message << std::endl;
     std::cout << "    -q \"<mode>\"                " << quantization_message << std::endl;
     std::cout << "    -qb \"<integer>\"            " << quantization_bits_message << std::endl;
     std::cout << "    -sf \"<double>\"             " << scale_factor_message << std::endl;
@@ -224,7 +231,7 @@ static void show_usage() {
     std::cout << "    -pwl_me \"<double>\"         " << pwl_max_error_percent_message << std::endl;
     std::cout << "    -exec_target \"<string>\"    " << execution_target_message << std::endl;
     std::cout << "    -compile_target \"<string>\" " << compile_target_message << std::endl;
-    std::cout << "    -memory_reuse_off          " << memory_reuse_message << std::endl;
+    std::cout << "    -memory_reuse_off            " << memory_reuse_message << std::endl;
 }
 
 /**
@@ -242,6 +249,10 @@ bool parse_and_check_command_line(int argc, char* argv[]) {
         showAvailableDevices();
         return false;
     }
+    if (FLAGS_show_greetings) {
+        slog::info << "Hello World!!" << slog::endl;
+    }
+
     bool isDumpMode = !FLAGS_wg.empty() || !FLAGS_we.empty();
 
     // input not required only in dump mode and if external scale factor provided
