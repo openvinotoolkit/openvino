@@ -250,7 +250,7 @@ bool parse_and_check_command_line(int argc, char* argv[]) {
         return false;
     }
     if (FLAGS_show_greetings) {
-        slog::info << "Hello World!!" << slog::endl;
+        slog::info << "Hello speech_sample !!" << slog::endl;
     }
 
     bool isDumpMode = !FLAGS_wg.empty() || !FLAGS_we.empty();
