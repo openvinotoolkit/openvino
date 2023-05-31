@@ -236,10 +236,14 @@ public:
                               bool is_exception_allowed = false);
 
     static bool is_concat_supported(const std::shared_ptr<const ov::Node>& node);
-	static bool is_forward_transposed_concat_supported(const std::shared_ptr<const ov::Node>& node, const AxisVector& order);
-	static bool is_backward_transposed_concat_supported(const std::shared_ptr<const ov::Node>& node, const AxisVector& order);
-	static bool is_forward_transposed_split_supported(const std::shared_ptr<const ov::Node>& node, const AxisVector& order);
-	static bool is_backward_transposed_split_supported(const std::shared_ptr<const ov::Node>& node, const AxisVector& order);
+    static bool is_forward_transposed_concat_supported(const std::shared_ptr<const ov::Node>& node,
+                                                       const AxisVector& order);
+    static bool is_backward_transposed_concat_supported(const std::shared_ptr<const ov::Node>& node,
+                                                        const AxisVector& order);
+    static bool is_forward_transposed_split_supported(const std::shared_ptr<const ov::Node>& node,
+                                                      const AxisVector& order);
+    static bool is_backward_transposed_split_supported(const std::shared_ptr<const ov::Node>& node,
+                                                       const AxisVector& order);
 
     /**
      * @brief Validates if operation is supported by GNA
