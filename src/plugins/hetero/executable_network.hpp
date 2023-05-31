@@ -23,6 +23,8 @@
 #include "infer_request.hpp"
 #include "plugin.hpp"
 
+#include "src/plugin.hpp"
+
 namespace HeteroPlugin {
 
 /**
@@ -33,7 +35,7 @@ class HeteroExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadS
 public:
     typedef std::shared_ptr<HeteroExecutableNetwork> Ptr;
 
-    HeteroExecutableNetwork(const InferenceEngine::CNNNetwork& network, const Configs& user_config, Engine* plugin);
+    HeteroExecutableNetwork(const InferenceEngine::CNNNetwork& network, const Configs& user_config, const ov::hetero::Plugin* plugin);
     HeteroExecutableNetwork(std::istream& heteroModel,
                             const Configs& user_config,
                             Engine* plugin,
