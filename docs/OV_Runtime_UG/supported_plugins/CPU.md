@@ -87,13 +87,15 @@ CPU plugin supports the following floating-point data types as inference precisi
 
 The default floating-point precision of a CPU primitive is ``f32``. To support the ``f16`` OpenVINO IR the plugin internally converts 
 all the ``f16`` values to ``f32`` and all the calculations are performed using the native precision of ``f32``.
-On platforms that natively support ``bfloat16`` calculations (have the ``AVX512_BF16`` extension), the ``bf16`` type is automatically used instead 
-of ``f32`` to achieve better performance. Thus, no special steps are required to run a ``bf16`` model. For more details about the ``bfloat16`` format, see 
+On platforms that natively support ``bfloat16`` calculations (have the ``AVX512_BF16`` or ``AMX`` extension), the ``bf16`` type is automatically used instead
+of ``f32`` to achieve better performance (see the `Execution Mode Hint <#execution-mode-hint>`__).
+Thus, no special steps are required to run a ``bf16`` model. For more details about the ``bfloat16`` format, see 
 the `BFLOAT16 – Hardware Numerics Definition white paper <https://software.intel.com/content/dam/develop/external/us/en/documents/bf16-hardware-numerics-definition-white-paper.pdf>`__.
 
 Using the ``bf16`` precision provides the following performance benefits:
 
-- Faster multiplication of two ``bfloat16`` numbers because of shorter mantissa of the ``bfloat16`` data.
+- ``bfloat16`` data type allows using Intel® Advanced Matrix Extension (AMX), which provides dramatically faster computations on corresponding hardware in
+comparison with AVX512 or AVX2 instructions in many DL operation implementations.
 - Reduced memory consumption since ``bfloat16`` data half the size of 32-bit float.
 
 To check if the CPU device can support the ``bfloat16`` data type, use the :doc:`query device properties interface <openvino_docs_OV_UG_query_api>` 
@@ -116,6 +118,9 @@ to query ``ov::device::capabilities`` property, which should contain ``BF16`` in
          :language: py
          :fragment: [part0]
 
+
+Inference Precision Hint
+-----------------------------------------------------------
 
 If the model has been converted to ``bf16``, the ``ov::hint::inference_precision`` is set to ``ov::element::bf16`` and can be checked via 
 the ``ov::CompiledModel::get_property`` call. The code below demonstrates how to get the element type:
@@ -156,7 +161,18 @@ To enable the simulation, the ``ov::hint::inference_precision`` has to be explic
    
    Due to the reduced mantissa size of the ``bfloat16`` data type, the resulting ``bf16`` inference accuracy may differ from the ``f32`` inference, 
    especially for models that were not trained using the ``bfloat16`` data type. If the ``bf16`` inference accuracy is not acceptable, 
-   it is recommended to switch to the ``f32`` precision.
+   it is recommended to switch to the ``f32`` precision. Also, the performance/accuracy balance can be managed using the ``ov::hint::execution_mode`` hint,
+   see the `Execution Mode Hint <#execution-mode-hint>`__.
+
+Execution Mode Hint
+-----------------------------------------------------------
+In case ``ov::hint::inference_precision`` is not explicitly set, one can use ``ov::hint::execution_mode`` hint to direct the run-time optimizations toward either better accuracy or better performance.
+If ``ov::hint::execution_mode`` is set to ``ov::hint::ExecutionMode::PERFORMANCE`` (default behavior) and the platform natively supports ``bfloat16``
+calculations (has the ``AVX512_BF16`` or ``AMX`` extension) then ``bf16`` type is automatically used instead of ``f32`` to achieve better performance.
+If the accuracy in this mode is not good enough, then set ``ov::hint::execution_mode`` to ``ov::hint::ExecutionMode::ACCURACY`` to enforce the plugin to
+use the ``f32`` precision in floating point calculations.
+
+For more details and code examples, see the :doc:`Precision Control <openvino_docs_OV_UG_Precision_Control>`.
 
 Supported Features
 ###########################################################
@@ -285,11 +301,6 @@ That means that :doc:`OpenVINO™ Extensibility Mechanism <openvino_docs_Extensi
 Enabling fallback on a custom operation implementation is possible by overriding the ``ov::Op::evaluate`` method in the derived operation 
 class (see :doc:`custom OpenVINO™ operations <openvino_docs_Extensibility_UG_add_openvino_ops>` for details).
 
-.. note:: 
-   
-   At the moment, custom operations with internal dynamism (when the output tensor shape can only be determined 
-   as a result of performing the operation) are not supported by the plugin.
-
 Stateful Models
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -310,6 +321,7 @@ All parameters must be set before calling ``ov::Core::compile_model()`` in order
 - ``ov::enable_profiling``
 - ``ov::hint::inference_precision``
 - ``ov::hint::performance_mode``
+- ``ov::hint::execution_mode``
 - ``ov::hint::num_request``
 - ``ov::hint::scheduling_core_type``
 - ``ov::hint::enable_hyper_threading``

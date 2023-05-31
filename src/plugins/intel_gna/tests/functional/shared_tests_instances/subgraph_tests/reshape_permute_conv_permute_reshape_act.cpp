@@ -31,8 +31,9 @@ std::vector<InferenceEngine::Precision> netPrecisions = {
     InferenceEngine::Precision::FP16,
 };
 
-std::map<std::string, std::string> additional_config = {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
-                                                        {"GNA_SCALE_FACTOR_0", "2340"}};
+std::vector<std::map<std::string, std::string>> configs = {
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_SCALE_FACTOR_0", "2340"}},
+    {{"GNA_DEVICE_MODE", "GNA_SW_FP32"}}};
 
 namespace SubgraphTestsDefinitions {
 INSTANTIATE_TEST_SUITE_P(smoke_basic,
@@ -42,6 +43,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_basic,
                                             ::testing::ValuesIn(input_shapes),
                                             ::testing::ValuesIn(kernel_shapes),
                                             ::testing::ValuesIn(output_channels),
-                                            ::testing::Values(additional_config)),
+                                            ::testing::ValuesIn(configs)),
                          ConvReshapeAct::getTestCaseName);
 }  // namespace SubgraphTestsDefinitions

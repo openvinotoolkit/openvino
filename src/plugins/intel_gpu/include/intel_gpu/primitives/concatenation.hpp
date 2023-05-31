@@ -32,6 +32,11 @@ namespace cldnn {
 ///   @li outputIdx : index of destination feature
 struct concatenation : public primitive_base<concatenation> {
     CLDNN_DECLARE_PRIMITIVE(concatenation)
+
+    concatenation() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     /// @li Constructs concatenation primitive.
     /// @param id This primitive id.
     /// @param input Vector of input primitives ids.
@@ -72,6 +77,16 @@ struct concatenation : public primitive_base<concatenation> {
         auto rhs_casted = downcast<const concatenation>(rhs);
 
         return axis == rhs_casted.axis;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<concatenation>::save(ob);
+        ob << axis;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<concatenation>::load(ib);
+        ib >> axis;
     }
 };
 }  // namespace cldnn
