@@ -658,6 +658,8 @@ TEST(deformable_convolution_f32_fw_gpu, basic_deformable_convolution_group2) {
     //  Def_group: 1
 
     auto& engine = get_test_engine();
+    ExecutionConfig cfg = get_test_default_config(engine);
+    cfg.set_property(ov::intel_gpu::allow_static_input_reorder(true));
 
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 4, 4, 4 } });
     auto trans = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 18, 4, 4 } });
@@ -750,12 +752,13 @@ TEST(deformable_convolution_f32_fw_gpu, basic_deformable_convolution_group2) {
                     2,
                     1,
                     { 1, 1 },
-                    { 2, 2 },
-                    { 2, 2 },
-                    { 2, 2 })
+                    { 1, 1 },
+                    { 1, 1 },
+                    { 1, 1 },
+                    true)
     );
 
-    network network(engine, topology, get_test_default_config(engine));
+    network network(engine, topology, cfg);
     network.set_input_data("input", input);
     network.set_input_data("trans", trans);
 
