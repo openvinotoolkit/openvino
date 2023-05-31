@@ -101,8 +101,7 @@ Prepare ivectors for the Speech Recognition sample:
       <path_to_kaldi_repo>/src/featbin/copy-feats --binary=False ark:ivector_online.1.ark ark,t:ivector_online.1.ark.txt
 
 
-5. For the Speech Recognition sample, the ``.ark`` file must contain an ivector
-for each frame. Copy the ivector ``frame_count`` times by running the below script in the Python command prompt:
+5. For the Speech Recognition sample, the ``.ark`` file must contain an ivector for each frame. Copy the ivector ``frame_count`` times by running the below script in the Python command prompt:
 
    .. code-block:: python
 

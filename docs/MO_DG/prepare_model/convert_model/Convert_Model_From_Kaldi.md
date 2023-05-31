@@ -54,7 +54,7 @@ Examples of CLI Commands
     
     .. math::
     
-      C_{i}=log(S\*C_{i})
+      C_{i}=log(S*C_{i})
     
   where :math:`C` - the counts array, :math:`C_{i} - i^{th}` element of the counts array, :math:`|C|` - number of elements in the counts array;
 

@@ -24,8 +24,8 @@ the second optional tensor of shape ``[batch_size * post_nms_topn]`` with probab
 1.  Generates initial anchor boxes. Left top corner of all boxes is at (0, 0). Width and height of boxes are calculated from *base_size* with *scale* and *ratio* attributes.
 2.  For each point in the first input tensor:
 
-  * pins anchor boxes to the image according to the second input tensor that contains four deltas for each box: for *x* and *y* of center, for *width* and for *height*
-  * finds out score in the first input tensor
+* pins anchor boxes to the image according to the second input tensor that contains four deltas for each box: for *x* and *y* of center, for *width* and for *height*
+* finds out score in the first input tensor
   
 3.  Filters out boxes with size less than *min_size*
 4.  Sorts all proposals (*box*, *score*) by score from highest to lowest
@@ -34,8 +34,8 @@ the second optional tensor of shape ``[batch_size * post_nms_topn]`` with probab
 7.  Takes top *post_nms_topn* proposals
 8.  Returns the results:
 
-  * Top proposals, if there is not enough proposals to fill the whole output tensor, the valid proposals will be terminated with a single -1.
-  * Optionally returns probabilities for each proposal, which are not terminated by any special value.
+* Top proposals, if there is not enough proposals to fill the whole output tensor, the valid proposals will be terminated with a single -1.
+* Optionally returns probabilities for each proposal, which are not terminated by any special value.
 
 **Attributes**:
 
