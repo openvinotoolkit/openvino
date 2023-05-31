@@ -75,6 +75,17 @@ std::tuple<bool, std::string> CheckStatic(const InferenceEngine::CNNNetwork& net
     return {res, errMsg.str()};
 }
 
+ov::Any CleanupInternalProperties(const std::vector<std::string>& supported_properties) {
+    std::vector<std::string> return_list = supported_properties;
+    std::vector<std::string> internal_properties = {CONFIG_KEY_INTERNAL(CONFIG_DEVICE_ID)};
+    for (const auto& internal_property : internal_properties) {
+        auto it = std::find(return_list.begin(), return_list.end(), internal_property);
+        if (it != return_list.end()) {
+            return_list.erase(it);
+        }
+    }
+    return return_list;
+}
 }  // namespace
 
 namespace InferenceEngine {
@@ -330,6 +341,10 @@ Parameter Core::GetConfig(const std::string& deviceName, const std::string& name
 }
 
 Parameter Core::GetMetric(const std::string& deviceName, const std::string& name, const ParamMap& options) const {
+    // TODO make more elegant way to clean up internal properties from supported list
+    if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS) || name == METRIC_KEY(SUPPORTED_METRICS)) {
+        return CleanupInternalProperties(_impl->GetMetric(deviceName, name, options).as<std::vector<std::string>>());
+    }
     return _impl->GetMetric(deviceName, name, options);
 }
 

@@ -218,6 +218,17 @@ void clean_batch_properties(const std::string& deviceName, ov::AnyMap& config, c
     }
 }
 
+ov::Any cleanup_internal_properties(const std::vector<ov::PropertyName>& supported_properties) {
+    std::vector<ov::PropertyName> return_list = supported_properties;
+    std::vector<ov::PropertyName> internal_properties = {ov::caching_properties.name(), ov::config_device_id.name()};
+    for (const auto& internal_property : internal_properties) {
+        auto it = std::find(return_list.begin(), return_list.end(), internal_property);
+        if (it != return_list.end()) {
+            return_list.erase(it);
+        }
+    }
+    return return_list;
+}
 }  // namespace
 
 bool ov::is_config_applicable(const std::string& user_device_name, const std::string& subprop_device_name) {
@@ -638,9 +649,9 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
                     auto supportedConfigKeys =
                         plugin.get_property(METRIC_KEY(SUPPORTED_CONFIG_KEYS), {}).as<std::vector<std::string>>();
                     const bool supportsConfigDeviceID =
-                        ov::util::contains(supportedConfigKeys, CONFIG_KEY_INTERNAL(CONFIG_DEVICE_ID));
+                        ov::util::contains(supportedConfigKeys, ov::config_device_id.name());
                     const std::string deviceKey =
-                        supportsConfigDeviceID ? CONFIG_KEY_INTERNAL(CONFIG_DEVICE_ID) : CONFIG_KEY(DEVICE_ID);
+                        supportsConfigDeviceID ? ov::config_device_id.name() : ov::device::id.name();
 
                     // here we can store values like GPU.0, GPU.1 and we need to set properties to plugin
                     // for each such .0, .1, .# device to make sure plugin can handle different settings for different
@@ -1151,7 +1162,11 @@ ov::Any ov::CoreImpl::get_property(const std::string& device_name,
         ov::AnyMap empty_map;
         return coreConfig.get_cache_config_for_device(get_plugin(parsed._deviceName), empty_map)._cacheDir;
     }
-
+    // TODO make more elegant way to clean up internal properties from supported list
+    if (name == ov::supported_properties.name()) {
+        return cleanup_internal_properties(
+            get_plugin(parsed._deviceName).get_property(name, parsed._config).as<std::vector<ov::PropertyName>>());
+    }
     return get_plugin(parsed._deviceName).get_property(name, parsed._config);
 }
 
@@ -1286,10 +1301,9 @@ void ov::CoreImpl::set_property_for_device(const ov::AnyMap& configMap, const st
             // Add device specific value to support device_name.device_id cases
             {
                 if (!parser.get_device_id().empty()) {
-                    const std::string deviceKey =
-                        device_supports_property(plugin.second, CONFIG_KEY_INTERNAL(CONFIG_DEVICE_ID))
-                            ? CONFIG_KEY_INTERNAL(CONFIG_DEVICE_ID)
-                            : CONFIG_KEY(DEVICE_ID);
+                    const std::string deviceKey = device_supports_property(plugin.second, ov::config_device_id.name())
+                                                      ? ov::config_device_id.name()
+                                                      : ov::device::id.name();
                     configCopy[deviceKey] = parser.get_device_id();
                 }
             }

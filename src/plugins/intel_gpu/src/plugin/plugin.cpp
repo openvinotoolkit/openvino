@@ -281,9 +281,11 @@ void Plugin::SetConfig(const std::map<std::string, std::string> &config) {
         }
     };
 
-    if (config.find(PluginConfigInternalParams::KEY_CONFIG_DEVICE_ID) != config.end()) {
-        std::string device_id = config.at(PluginConfigInternalParams::KEY_CONFIG_DEVICE_ID);
-        update_config(m_configs_map.at(device_id), config);
+    if (config.find(ov::config_device_id.name()) != config.end()) {
+        std::string device_id = config.at(ov::config_device_id.name());
+        auto config_for_device = config;
+        config_for_device.erase(ov::config_device_id.name());
+        update_config(m_configs_map.at(device_id), config_for_device);
     } else {
         std::string device_id = get_device_id_from_config(config);
         if (!device_id.empty()) {
@@ -758,6 +760,7 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
         ov::PropertyName{ov::hint::num_requests.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::inference_precision.name(), PropertyMutability::RW},
         ov::PropertyName{ov::device::id.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::config_device_id.name(), PropertyMutability::RW},
     };
 
     return supported_properties;

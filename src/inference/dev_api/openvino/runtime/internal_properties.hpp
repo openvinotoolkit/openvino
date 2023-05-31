@@ -26,4 +26,11 @@ static constexpr Property<std::vector<PropertyName>, PropertyMutability::RO> cac
  */
 static constexpr Property<bool, PropertyMutability::RW> exclusive_async_requests{"EXCLUSIVE_ASYNC_REQUESTS"};
 
+/**
+ * @brief the property for setting of required device for which config to be updated
+ * values: device id starts from "0" - first device, "1" - second device, etc
+ * @ingroup ov_dev_api_plugin_api
+ */
+static constexpr Property<std::string> config_device_id{"CONFIG_DEVICE_ID"};
+
 }  // namespace ov
