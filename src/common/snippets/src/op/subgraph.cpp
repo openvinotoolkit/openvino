@@ -423,8 +423,43 @@ bool snippets::op::Subgraph::check_broadcast(const std::shared_ptr<const ov::Nod
         (elementwise->get_autob().m_type != ov::op::AutoBroadcastType::PDPD);
 }
 
-ov::PartialShape snippets::op::Subgraph::compute_master_shape(const std::vector<Shape>& outputShapes, const std::vector<Shape>& inputShapes) {
-    reshape_body(inputShapes);
+ov::PartialShape snippets::op::Subgraph::reshape_canonicalized_body(const BlockedShapeVector& outputShapes, const BlockedShapeVector& inputShapes) {
+    auto getMaxRankBlockedShape = [](const BlockedShapeVector& blockedShapes) -> const BlockedShape& {
+        return *std::max_element(blockedShapes.begin(), blockedShapes.end(),
+                         [&](const BlockedShape& lhs, const BlockedShape& rhs) {
+                            return std::get<0>(lhs).size() < std::get<0>(rhs).size();
+                         });
+    };
+    PartialShape baseShape;
+    AxisVector baseOrder;
+    std::tie(baseShape, baseOrder, std::ignore) = getMaxRankBlockedShape(inputShapes);
+    const auto baseRank = baseShape.size();
+    const bool baseIsBlocked = baseOrder.size() != std::set<size_t>(baseOrder.begin(), baseOrder.end()).size();
+    std::vector<Shape> normInputShapes;
+    for (size_t i = 0; i < inputShapes.size(); i++) {
+        const auto& blockedShape = inputShapes[i];
+        PartialShape inShape;
+        AxisVector inOrder;
+        element::Type inType;
+        std::tie(inShape, inOrder, inType) = blockedShape;
+        const auto inRank = inShape.size();
+        NODE_VALIDATION_CHECK(this, inRank <= baseRank, "Input rank can't be larger than output rank in snippets.");
+        if (inRank < baseRank) {
+            PartialShape newShape(ov::Shape(baseRank, 1));
+            // todo: more complicated logics is needed if we want to merge smth else than blocked and planar
+            if (baseIsBlocked) {
+                const bool inIsNotBlocked = inOrder.size() == std::set<size_t>(inOrder.begin(), inOrder.end()).size();
+                NODE_VALIDATION_CHECK(this, inIsNotBlocked, "Snippets don't support conversion between blocked layouts of different ranks");
+                inShape.insert(inShape.end(), ov::Dimension(1));
+            }
+            NODE_VALIDATION_CHECK(this, PartialShape::broadcast_merge_into(newShape, inShape, ov::op::AutoBroadcastType::NUMPY),
+                                  "Failed to broadcast_merge inputs in snippets canonicalization");
+            normInputShapes.push_back(newShape.get_shape());
+        } else {
+            normInputShapes.push_back(inShape.get_shape());
+        }
+    }
+    reshape_body(normInputShapes);
     auto skipStartEndOnes = [](const PartialShape& shape) {
         auto begin = shape.begin();
         auto end = shape.end();
@@ -450,7 +485,7 @@ ov::PartialShape snippets::op::Subgraph::compute_master_shape(const std::vector<
     } else {
         for (size_t i = 0; i < body_results.size(); i++) {
             auto shape_i = body_results[i]->get_input_partial_shape(0);
-            auto outputShape_i = outputShapes[i];
+            auto outputShape_i = std::get<0>(outputShapes[i]);
             // Check that the produced output shape corresponds to the passed shape
             // Some produced shapes may have been changed to be broadcastable (e.g. blocked + planar outputs),
             // so we need to remove leading and trailing "1" before the comparison

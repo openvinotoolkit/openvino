@@ -77,9 +77,6 @@ private:
     // Holds ISA version used is codeGeneration target
     dnnl::impl::cpu::x64::cpu_isa_t host_isa;
 
-    bool isBlockedMaster = false;
-    std::vector<bool> isBlockedInput = {};
-
     std::vector<MemoryPtr> srcMemPtrs = {};
     std::vector<MemoryPtr> dstMemPtrs = {};
 
@@ -118,6 +115,7 @@ private:
             size_t numOutput = 0;
 
             ov::PartialShape canonicalizeBody();
+            ov::PartialShape reshapeCanonicalizedBody();
             // returns true if exec domain was modified
             bool optimizeExecDomain(std::vector<VectorDims>&, std::vector<VectorDims>&, VectorDims&, size_t&) const;
 
