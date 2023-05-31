@@ -9,10 +9,16 @@
 #endif
 
 #ifdef _WIN32
-#    include <windows.h>
+# ifndef NOMINMAX
+#  define NOMINMAX
+# endif
+# include <windows.h>
+# include <direct.h>
+# include <stdlib.h>
 #else
-#    include <limits.h>
-#    include <unistd.h>
+# include <dlfcn.h>
+# include <unistd.h>
+# include <limits.h>
 #endif
 
 std::string getExecutableDirectory() {
