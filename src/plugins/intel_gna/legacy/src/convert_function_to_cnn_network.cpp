@@ -620,27 +620,6 @@ CNNLayerCreator::CNNLayerCreator() {
                            }
                            return res;
                        });
-
-    addSpecificCreator({"GNAMaxPool"}, [](const std::shared_ptr<::ngraph::Node>& node,
-                                          const std::map<std::string, std::string>& params) -> CNNLayerPtr {
-        LayerParams attrs = {node->get_friendly_name(), "Pooling",
-            details::convertPrecision(node->get_output_element_type(0))};
-        auto res = std::make_shared<PoolingLayer>(attrs);
-        res->params = params;
-        if (res->params.find("auto_pad") != res->params.end() &&
-            details::CaselessEq<std::string>()(res->params["auto_pad"], "EXPLICIT"))
-            res->params.erase("auto_pad");
-
-        if (res->params.find("exclude_pad") != res->params.end()) {
-            res->params["exclude-pad"] = res->params["exclude_pad"];
-            res->params.erase("exclude_pad");
-        }
-
-        res->params["pool-method"] = "max";
-
-        return res;
-    });
-
     addSpecificCreator({"Select"},
                        [](const std::shared_ptr<::ngraph::Node>& node,
                           const std::map<std::string, std::string>& params) -> CNNLayerPtr {
@@ -1745,41 +1724,6 @@ CNNLayerCreator::CNNLayerCreator() {
                            }
                            return res;
                        });
-
-    addSpecificCreator({"GNAConvolution"}, [](const std::shared_ptr<::ngraph::Node>& node,
-                                             const std::map<std::string, std::string>& params) -> CNNLayerPtr {
-        LayerParams attrs = {node->get_friendly_name(), "Convolution", details::convertPrecision(node->get_output_element_type(0))};
-        auto res = std::make_shared<InferenceEngine::ConvolutionLayer>(attrs);
-        res->params = params;
-
-        auto && rt_info = node->get_rt_info();
-        bool keep_constants = rt_info["keep_constants"].as<bool>();
-
-        // Restore output and kernel size
-        auto shape = node->get_input_shape(1);
-        //shape.erase(shape.begin(), shape.begin() + 2); - NCHW needs to have HW, for NHWC we need second and third
-        // what about NC or N ?
-        shape.erase(shape.begin());
-        shape.erase(shape.end() - 1);
-
-        res->params["kernel"] = Builder::asString(static_cast<std::vector<size_t>&>(shape));
-        res->params["output"] = Builder::asString(*(node->get_shape().rbegin())); // instead of ->get_shape()[1]
-
-        // forward auto_pad only when its value is different than explicit
-        if (params.at("auto_pad") == "explicit") {
-            res->params.erase("auto_pad");
-        }
-
-        const auto weightsNode = node->input_value(1).get_node_shared_ptr();
-        if (!keep_constants && InferenceEngine::details::addBlob(weightsNode, res, InferenceEngine::details::weights)) {
-            if (node->inputs().size() == 3) {
-                const auto biasNode = node->input_value(2).get_node_shared_ptr();
-                InferenceEngine::details::addBlob(biasNode, res, InferenceEngine::details::biases);
-            }
-        }
-
-        return res;
-    });
 
     addSpecificCreator({"DeformableConvolution"},
                        [](const std::shared_ptr<::ngraph::Node>& node,
