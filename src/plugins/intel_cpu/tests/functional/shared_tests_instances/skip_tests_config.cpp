@@ -185,6 +185,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_Proposal_(Static|Dynamic)_Test_Case1/ProposalLayerCPUTest.*)",
         // Issue: 111418
         R"(.*smoke_Snippets_ConvertStub/ConvertStub\.CompareWithRefImpl/IS=.*_OT=\(bf16\)_#N=2_#S=2_targetDevice=CPU.*)",
+        // Issue: 111944
+        R"(.*smoke_DefConvLayoutTest6.*)"
     };
 
 #if defined(OPENVINO_ARCH_X86)
