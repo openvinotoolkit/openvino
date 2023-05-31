@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "openvino/pass/graph_rewrite.hpp"
 #include "mark_decompression_convert_constant_folding.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov {
