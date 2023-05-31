@@ -323,6 +323,7 @@ void reserve_available_cpus(const std::vector<std::vector<int>> streams_info_tab
     std::map<int, int> stream_id_per_coretype;
     std::map<int, std::vector<int>> streams_info_per_coretype;
     std::vector<int> stream_num_per_coretype(CPU_STREAMS_TABLE_SIZE, 0);
+    std::vector<int> numa_node_ids(PROC_TYPE_TABLE_SIZE, 1);
     std::vector<int> cpu_ids;
     int num_streams = 0;
 
@@ -339,9 +340,22 @@ void reserve_available_cpus(const std::vector<std::vector<int>> streams_info_tab
     stream_processors.assign(num_streams, std::vector<int>());
     stream_numa_node_ids.assign(num_streams, -1);
 
+    if (cpu_status == PLUGIN_USED && cpu._numa_nodes > 1) {
+        auto proc_type_table = get_proc_type_table();
+        for (size_t i = 2; i < proc_type_table.size(); i++) {
+            for (size_t j = MAIN_CORE_PROC; j < PROC_TYPE_TABLE_SIZE; j++) {
+                numa_node_ids[j] = proc_type_table[i][j] > proc_type_table[numa_node_ids[j]][j] ? i : numa_node_ids[j];
+            }
+        }
+    }
+
     for (int i = 0; i < cpu._processors; i++) {
         auto cur_stream_id = stream_id_per_coretype.find(cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE]);
-        if (cur_stream_id != stream_id_per_coretype.end() && cpu._cpu_mapping_table[i][CPU_MAP_USED_FLAG] == NOT_USED) {
+        int numa_node_id = (cpu_status == PLUGIN_USED && cpu._numa_nodes > 1)
+                               ? std::max(0, numa_node_ids[cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE]] - 1)
+                               : -1;
+        if (cur_stream_id != stream_id_per_coretype.end() && cpu._cpu_mapping_table[i][CPU_MAP_USED_FLAG] == NOT_USED &&
+            (numa_node_id < 0 || cpu._cpu_mapping_table[i][CPU_MAP_SOCKET_ID] == numa_node_id)) {
             stream_processors[cur_stream_id->second].push_back(cpu._cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID]);
             stream_numa_node_ids[cur_stream_id->second] = cpu._cpu_mapping_table[i][CPU_MAP_SOCKET_ID];
             cpu_ids.push_back(cpu._cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID]);
