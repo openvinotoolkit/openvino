@@ -33,7 +33,7 @@ If you have installed OpenVINO Runtime from archive files, you can uninstall it 
 
   .. code-block:: sh
 
-    rm /opt/intel/openvino_2022
+    rm /opt/intel/openvino_2023
 
   To delete the files:
 
