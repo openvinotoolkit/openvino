@@ -8,11 +8,11 @@
 
    ote_documentation
    ovsa_get_started
-   openvino_inference_engine_tools_compile_tool_README
    openvino_docs_tuning_utilities
 
 
 OpenVINO™ is not just one tool. It is an expansive ecosystem of utilities, providing a comprehensive workflow for deep learning solution development. Learn more about each of them to reach the full potential of OpenVINO™ Toolkit.
+
 
 
 **Neural Network Compression Framework (NNCF)**
@@ -35,6 +35,7 @@ More resources:
 * :doc:`Overview <ote_documentation>`
 * `GitHub <https://github.com/openvinotoolkit/training_extensions>`__
 * `Documentation <https://openvinotoolkit.github.io/training_extensions/stable/guide/get_started/introduction.html>`__
+
 
 **OpenVINO™ Security Add-on**
 
