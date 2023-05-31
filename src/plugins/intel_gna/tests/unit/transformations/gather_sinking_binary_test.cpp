@@ -4,7 +4,7 @@
 
 #include <functional>
 #include <openvino/frontend/manager.hpp>
-#include <openvino/opsets/opset9.hpp>
+#include <openvino/opsets/opset10.hpp>
 #include <openvino/pass/manager.hpp>
 #include <transformations/gather_sinking_binary.hpp>
 #include <transformations/init_node_info.hpp>
@@ -13,7 +13,7 @@
 #include "gtest/gtest.h"
 
 using namespace ov;
-using namespace ov::opset9;
+using namespace ov::opset10;
 
 namespace gather_sinking_binary_eltwise {
 
@@ -79,9 +79,9 @@ template <typename CreateIndicesF>
 std::shared_ptr<Gather> MakeGather(NodePtr input_node, CreateIndicesF create_indices_func, size_t axis) {
     const ov::Shape& input_shape = input_node->get_output_shape(0);
     const std::vector<size_t> indexes = create_indices_func(input_shape[axis], 0);
-    auto gather_indexes_node = Constant::create(ngraph::element::i64, ov::Shape{indexes.size()}, indexes);
+    auto gather_indexes_node = Constant::create(element::i64, ov::Shape{indexes.size()}, indexes);
 
-    auto gather_axis_node = Constant::create(ngraph::element::i64, ngraph::Shape{}, {axis});
+    auto gather_axis_node = Constant::create(element::i64, Shape{}, {axis});
 
     return std::make_shared<Gather>(input_node, gather_indexes_node, gather_axis_node);
 }
@@ -92,9 +92,9 @@ std::shared_ptr<Gather> MakeGather(NodePtr input_node,
                                    size_t axis,
                                    size_t indices_size) {
     const std::vector<size_t> indexes = create_indices_func(indices_size, 0);
-    auto gather_indexes_node = Constant::create(ngraph::element::i64, ov::Shape{indexes.size()}, indexes);
+    auto gather_indexes_node = Constant::create(element::i64, ov::Shape{indexes.size()}, indexes);
 
-    auto gather_axis_node = Constant::create(ngraph::element::i64, ngraph::Shape{}, {axis});
+    auto gather_axis_node = Constant::create(element::i64, Shape{}, {axis});
 
     return std::make_shared<Gather>(input_node, gather_indexes_node, gather_axis_node);
 }
