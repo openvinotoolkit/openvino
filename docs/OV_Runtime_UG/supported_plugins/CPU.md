@@ -323,6 +323,9 @@ All parameters must be set before calling ``ov::Core::compile_model()`` in order
 - ``ov::hint::performance_mode``
 - ``ov::hint::execution_mode``
 - ``ov::hint::num_request``
+- ``ov::hint::scheduling_core_type``
+- ``ov::hint::enable_hyper_threading``
+- ``ov::hint::enable_cpu_pinning``
 - ``ov::num_streams``
 - ``ov::affinity``
 - ``ov::inference_num_threads``
@@ -350,6 +353,56 @@ For some performance-critical DL operations, the CPU plugin uses third-party lib
 Optimization guide
 ###########################################################
 
+Multi-Threading Optimization
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+CPU inference will infer an input or multiple inputs in parallel on multiple logical processors. 
+
+User can use the following properties to limit available CPU resource for model inference. If the platform or operating system can support this behavior, OpenVINO Runtime will perform multi-threading scheduling based on limited available CPU resources.
+
+- ``ov::inference_num_threads`` limits number of logical processors used for CPU inference. 
+  If the number set by the user is greater than the number of logical processors on the platform, multi-threading scheduler only uses the platform number for CPU inference.
+- ``ov::hint::scheduling_core_type`` limits the type of CPU cores for CPU inference when user runs inference on a hybird platform that includes both Performance-cores (P-cores) with Efficient-cores (E-cores). 
+  If user platform only has one type of CPU cores, this property has no effect, and CPU inference always uses this unique core type.
+- ``ov::hint::enable_hyper_threading`` limits the use of one or two logical processors per CPU core when platform has CPU hyperthreading enabled.
+  If there is only one logical processor per CPU core, such as Efficient-cores, this property has no effect, and CPU inference uses all logical processors.
+
+.. tab:: C++
+
+   .. doxygensnippet:: docs/snippets/cpu/multi_threading.cpp
+      :language: cpp
+      :fragment: [ov:intel_cpu:multi_threading:part0]
+
+.. tab:: Python
+
+   .. doxygensnippet:: docs/snippets/cpu/multi_threading.py
+      :language: python
+      :fragment: [ov:intel_cpu:multi_threading:part0]
+
+.. note:: 
+   
+   ``ov::hint::scheduling_core_type`` and ``ov::hint::enable_hyper_threading`` only support Intel® x86-64 CPU on Linux and Windows in current release.
+   
+By default, OpenVINO Runtime will enable CPU threads pinning for better performance. User also can use property ``ov::hint::enable_cpu_pinning`` to switch it off. Disable threads pinning might be benefitial in complex applications with several workloads executed in parallel.
+
+.. tab:: C++
+
+   .. doxygensnippet:: docs/snippets/cpu/multi_threading.cpp
+      :language: cpp
+      :fragment: [ov:intel_cpu:multi_threading:part1]
+
+.. tab:: Python
+
+   .. doxygensnippet:: docs/snippets/cpu/multi_threading.py
+      :language: python
+      :fragment: [ov:intel_cpu:multi_threading:part1]
+
+user can check the :doc:`optimization guide <openvino_docs_deployment_optimization_guide_tput_advanced>` for details on multi-stream execution
+
+.. note:: 
+   
+   ``ov::hint::enable_cpu_pinning`` only support Linux in current release.
+   
 Denormals Optimization
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -443,7 +496,6 @@ from perf counters log. The "exec type" field will contain the implementation ty
 .. code-block:: sh
 
    MatMul_1800         EXECUTED         layerType: FullyConnected         execType: brgemm_avx512_amx_sparse_I8 realTime (ms): 0.050000  cpuTime (ms): 0.050000
-
 
 Limitations
 -----------------------------------------------------------
