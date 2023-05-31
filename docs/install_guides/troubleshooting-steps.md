@@ -11,21 +11,21 @@ Check the versions of OpenVINO Runtime and Development Tools
 
 
   .. tab-set::
-  
-      .. tab-item:: CLI
-          :sync: cli-tool
-  
-          .. code-block:: sh
-  
-              mo --version
-  
+
       .. tab-item:: Python
           :sync: mo-python-api
-  
+
           .. code-block:: python
-  
+
              from openvino.tools.mo import convert_model
              ov_model = convert_model(version=True)
+
+      .. tab-item:: CLI
+          :sync: cli-tool
+
+          .. code-block:: sh
+
+              mo --version
 
 
 * To check the version of OpenVINO Runtime, use the following code:
