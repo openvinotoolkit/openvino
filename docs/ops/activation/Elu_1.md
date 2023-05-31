@@ -15,7 +15,7 @@ It performs element-wise activation function on a given input tensor, based on t
 
 .. math::
    
-   Elu(x) = \left\{
+   Elu(x) = \left\
    \begin{array}{r}
        x \quad \text{if } x > 0 \\
        \alpha(e^{x} - 1) \quad \text{if } x \leq 0
@@ -70,4 +70,5 @@ where α corresponds to *alpha* attribute.
 
 
 @endsphinxdirective
+
 
