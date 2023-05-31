@@ -28,6 +28,7 @@
 #include "ie_precision.hpp"
 
 namespace InferenceEngine {
+IE_SUPPRESS_DEPRECATED_START
 
 /**
  * @brief This class represents a universal container in the Inference Engine
@@ -609,7 +610,7 @@ public:
      * @return rvalue for the empty locked object of type T
      */
     virtual LockedMemory<T> data() noexcept {
-        return std::move(lockme<T>());
+        return lockme<T>();
     }
 
     /**
@@ -618,7 +619,7 @@ public:
      * @return rvalue for the empty locked const object of type T.
      */
     virtual LockedMemory<const T> readOnly() const noexcept {
-        return std::move(lockme<const T>());
+        return lockme<const T>();
     }
 
     void allocate() noexcept override {
@@ -639,22 +640,22 @@ public:
     }
 
     LockedMemory<void> buffer() noexcept override {
-        return std::move(lockme<void>());
+        return lockme<void>();
     }
 
     LockedMemory<const void> cbuffer() const noexcept override {
-        return std::move(lockme<const void>());
+        return lockme<const void>();
     }
 
     LockedMemory<void> rwmap() noexcept override {
-        return std::move(lockme<void>());
+        return lockme<void>();
     }
 
     LockedMemory<const void> rmap() const noexcept override {
-        return std::move(lockme<const void>());
+        return lockme<const void>();
     }
     LockedMemory<void> wmap() noexcept override {
-        return std::move(lockme<void>());
+        return lockme<void>();
     }
 
     Blob::Ptr createROI(const ROI& roi) const override {
@@ -921,4 +922,5 @@ INFERENCE_ENGINE_API_CPP(Blob::Ptr) make_shared_blob(const Blob::Ptr& inputBlob,
 INFERENCE_ENGINE_API_CPP(Blob::Ptr)
 make_shared_blob(const Blob::Ptr& inputBlob, const std::vector<size_t>& begin, const std::vector<size_t>& end);
 
+IE_SUPPRESS_DEPRECATED_END
 }  // namespace InferenceEngine

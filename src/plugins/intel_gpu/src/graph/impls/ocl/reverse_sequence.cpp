@@ -53,3 +53,4 @@ attach_reverse_sequence_impl::attach_reverse_sequence_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::reverse_sequence_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::reverse_sequence)
