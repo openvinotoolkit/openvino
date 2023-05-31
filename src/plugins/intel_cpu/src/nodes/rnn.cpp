@@ -713,10 +713,10 @@ void RNN::fillWeights(const int *gate_map, const size_t wIdx, const size_t rIdx)
 
     const int step = SC * G;
 
-    for (int g = 0; g < G; g++) {
-        for (int out_i = 0; out_i < SC; out_i++) {
+    for (size_t g = 0; g < G; g++) {
+        for (size_t out_i = 0; out_i < SC; out_i++) {
             Prec *l_w_ptr = w_ptr + gate_map[g] * SC + out_i;
-            for (int in_i = 0; in_i < DC; in_i++) {
+            for (size_t in_i = 0; in_i < DC; in_i++) {
                 *l_w_ptr = *ie_w_ptr;
                 ie_w_ptr++;
                 l_w_ptr += step;
@@ -762,7 +762,7 @@ void RNN::fillBiases(const int *gate_map) {
                 Prec,
                 elementsCount);
 
-    for (int g = 0; g < Gb; g++) {
+    for (size_t g = 0; g < Gb; g++) {
         dataType *l_b_ptr = b_ptr + gate_map[g] * SC;
         const dataType *l_ie_b_ptr = &ie_b_vec[g * SC];
         cpu_memcpy(l_b_ptr, l_ie_b_ptr, SC * sizeof(typename PrecisionTrait<Prec>::value_type));

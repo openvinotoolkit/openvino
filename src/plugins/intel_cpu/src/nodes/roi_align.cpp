@@ -943,7 +943,7 @@ void ROIAlign::executeSpecified() {
         int roiBatchInd = srcRoiIdx[n];
         if (roiBatchInd < -1) {  // -1 means switched off region
             IE_THROW() << "Batch index cannot be less, than -1";
-        } else if (roiBatchInd >= inputDimVector[0]) {
+        } else if (static_cast<size_t>(roiBatchInd) >= inputDimVector[0]) {
             IE_THROW() << "Demanded batch (id = " << roiBatchInd << ") doesn't exist";
         }
 
