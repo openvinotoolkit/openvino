@@ -47,25 +47,24 @@ OutputVector translate_native_multi_head_attention(const NodeContext& context) {
 
     const auto minus_inf =
         context.mark_node(opset10::Constant::create(element::f32, Shape{}, {-std::numeric_limits<float>::infinity()}));
+    const auto embed_dim_i64 = context.mark_node(std::make_shared<opset10::Convert>(embed_dim, element::i64));
+    const auto num_head_i64 = context.mark_node(std::make_shared<opset10::Convert>(num_head, element::i64));
 
     const auto neg_one_1d = context.mark_node(opset10::Constant::create(element::i64, Shape{1}, {-1}));
     const auto zero_1d = context.mark_node(opset10::Constant::create(element::i64, Shape{1}, {0}));
     const auto one_1d = context.mark_node(opset10::Constant::create(element::i64, Shape{1}, {1}));
     const auto two_1d = context.mark_node(opset10::Constant::create(element::i64, Shape{1}, {2}));
     const auto three_1d = context.mark_node(opset10::Constant::create(element::i64, Shape{1}, {3}));
-    auto embed_dim_1d = context.mark_node(std::make_shared<opset10::Unsqueeze>(embed_dim, zero_1d));
-    embed_dim_1d = context.mark_node(std::make_shared<opset10::ConvertLike>(embed_dim_1d, zero_1d));
-    auto heads_1d = context.mark_node(std::make_shared<opset10::Unsqueeze>(num_head, zero_1d));
-    heads_1d = context.mark_node(std::make_shared<opset10::ConvertLike>(heads_1d, zero_1d));
+    const auto heads_1d = context.mark_node(std::make_shared<opset10::Unsqueeze>(num_head_i64, zero_1d));
 
-    const auto ev_1_slice_1d = context.mark_node(std::make_shared<opset10::Multiply>(one_1d, embed_dim_1d));
-    const auto ev_2_slice_1d = context.mark_node(std::make_shared<opset10::Multiply>(two_1d, embed_dim_1d));
-    const auto ev_3_slice_1d = context.mark_node(std::make_shared<opset10::Multiply>(three_1d, embed_dim_1d));
+    const auto ev_1_slice_1d = context.mark_node(std::make_shared<opset10::Multiply>(one_1d, embed_dim_i64));
+    const auto ev_2_slice_1d = context.mark_node(std::make_shared<opset10::Multiply>(two_1d, embed_dim_i64));
+    const auto ev_3_slice_1d = context.mark_node(std::make_shared<opset10::Multiply>(three_1d, embed_dim_i64));
 
     const auto qkv_shape = context.mark_node(std::make_shared<opset10::ShapeOf>(query));
     const auto batch_size = context.mark_node(std::make_shared<opset10::Gather>(qkv_shape, zero_1d, zero_1d));
     const auto seq_size = context.mark_node(std::make_shared<opset10::Gather>(qkv_shape, one_1d, zero_1d));
-    const auto embed_div_heads = context.mark_node(std::make_shared<opset10::Divide>(embed_dim_1d, heads_1d, true));
+    const auto embed_div_heads = context.mark_node(std::make_shared<opset10::Divide>(embed_dim_i64, heads_1d, true));
 
     const auto query_proj_weight =
         context.mark_node(std::make_shared<opset10::Slice>(qkv_weight, zero_1d, ev_1_slice_1d, one_1d, zero_1d));
@@ -129,8 +128,9 @@ OutputVector translate_native_multi_head_attention(const NodeContext& context) {
             atten_mask = context.mark_node(std::make_shared<opset10::ConvertLike>(atten_mask, scaled_dot_product));
             atten_mask = context.mark_node(std::make_shared<opset10::Select>(mask_inverse, atten_mask, minus_inf_conv));
         } else {
-            OPENVINO_THROW(
-                "PyTorch's NativeMultiHeadAttention does not support float masks");  // TODO remove once fully supported
+            // Once int/float mask type is supported in PyTorch, 
+            // remove this assert to allow for such masks in OV
+            FRONT_END_OP_CONVERSION_CHECK(1, "Non-boolean masks are not supported.");  
             atten_mask = context.mark_node(std::make_shared<opset10::ConvertLike>(atten_mask, scaled_dot_product));
         }
 
