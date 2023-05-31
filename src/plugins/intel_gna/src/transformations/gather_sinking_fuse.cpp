@@ -8,14 +8,13 @@
 #include <transformations/utils/utils.hpp>
 #include <utility>
 
-#include "../debug_new_pass.hpp"
-#include "openvino/opsets/opset9.hpp"
+#include "openvino/opsets/opset10.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/gather_sinking_attr.hpp"
 #include "transformations/utils/gather_sinking_utils.hpp"
 
 using namespace ov;
-using namespace ov::opset9;
+using namespace ov::opset10;
 using namespace ov::pass::pattern;
 using namespace ov::op::util;
 using namespace gather_sinking;
@@ -23,37 +22,31 @@ using namespace ov::intel_gna::pass;
 using namespace ov::intel_gna::rt_info;
 
 namespace {
-// TODO: use that function from gather_sinking_utils after merge GatherSinkingBinary
-int64_t NormalizeNegativeGatherAxis(int64_t axis, ov::Rank::value_type gather_input_rank) {
-    if (axis < 0)
-        return axis;
-    return axis - gather_input_rank;
-}
-// TODO: use that function from gather_sinking_utils after merge GatherSinkingBinary
-int64_t GetNormalizedNegativeGatherAxis(const std::shared_ptr<Constant>& axis, ov::Rank::value_type gather_input_rank) {
-    return NormalizeNegativeGatherAxis(axis->cast_vector<int64_t>()[0], gather_input_rank);
-}
-
-// TODO: use constant_has_rank_not_more_than from gather_sinking_utils after merge GatherSinkingBinary
-bool IsConstant1D(const Output<Node>& output) {
-    return rank_equals(0)(output) || rank_equals(1)(output);
-}
-
-int64_t GetGatherAxis(const std::shared_ptr<Gather>& gather) {
+bool GetGatherAxis(const std::shared_ptr<Gather>& gather, int64_t& axis) {
     auto output_gather_axis_node = as_type_ptr<Constant>(gather->input_value(2).get_node_shared_ptr());
-    return GetNormalizedNegativeGatherAxis(output_gather_axis_node,
+    if (!output_gather_axis_node)
+        return false;
+    axis = GetNormalizedNegativeGatherAxis(output_gather_axis_node,
                                            gather->get_input_partial_shape(0).rank().get_length());
+    return true;
+}
+
+bool GetGatherAxis(const std::shared_ptr<ov::Node>& gather, int64_t& axis) {
+    auto gather_node = as_type_ptr<Gather>(gather);
+    if (!gather_node)
+        return false;
+    if (!GetGatherAxis(gather_node, axis))
+        return false;
+    return true;
 }
 
 bool IsGatherWithParentGatherSameAxis(const Output<Node>& output) {
-    auto output_gather = as_type_ptr<Gather>(output.get_node_shared_ptr());
-    if (!output_gather)
+    int64_t output_gather_axis = {};
+    if (!GetGatherAxis(output.get_node_shared_ptr(), output_gather_axis))
         return false;
-    const int64_t output_gather_axis = GetGatherAxis(output_gather);
-    auto input_gather = as_type_ptr<Gather>(output_gather->input_value(0).get_node_shared_ptr());
-    if (!input_gather)
+    int64_t input_gather_axis = {};
+    if (!GetGatherAxis(output.get_node_shared_ptr()->input_value(0).get_node_shared_ptr(), input_gather_axis))
         return false;
-    const int64_t input_gather_axis = GetGatherAxis(input_gather);
     return input_gather_axis == output_gather_axis;
 }
 
@@ -65,26 +58,6 @@ struct TransformationInfo {
     std::shared_ptr<Constant> output_axis_const;
     std::shared_ptr<Gather> output_gather;
 };
-
-// TODO: use that function from gather_sinking_utils after merge GatherSinkingBinary
-std::vector<int64_t> NormalizeGatherIndices(const std::vector<int64_t>& indices) {
-    std::vector<int64_t> normalized(indices.size());
-    for (int i = 0; i < indices.size(); ++i) {
-        int64_t index = indices[i];
-        if (index < 0)
-            index += indices.size();
-        normalized[i] = index;
-    }
-    return normalized;
-}
-
-/*
-Gets gather indices in positive form
-*/
-// TODO: use that function from gather_sinking_utils after merge GatherSinkingBinary
-std::vector<int64_t> GetNormalizedGatherIndices(const std::shared_ptr<Constant>& indices) {
-    return NormalizeGatherIndices(indices->cast_vector<int64_t>());
-}
 
 std::vector<int64_t> CombineGatherPermutations(const std::vector<int64_t>& input_gather_indices,
                                                const std::vector<int64_t>& output_gather_indices) {

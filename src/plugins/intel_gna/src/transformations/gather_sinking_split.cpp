@@ -98,20 +98,6 @@ OutputGather FindFirstOutputGather(NodePtr node) {
     return {};
 }
 
-/*
-Converts gather indices to positive form
-*/
-std::vector<int64_t> NormalizeGatherIndices(const std::vector<int64_t>& indices) {
-    std::vector<int64_t> normalized(indices.size());
-    for (int i = 0; i < indices.size(); ++i) {
-        int64_t index = indices[i];
-        if (index < 0)
-            index += indices.size();
-        normalized[i] = index;
-    }
-    return normalized;
-}
-
 }  // namespace
 
 /*

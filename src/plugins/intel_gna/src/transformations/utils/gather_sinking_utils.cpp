@@ -16,11 +16,12 @@
 #include "openvino/util/log.hpp"
 #include "transformations/rt_info/gather_sinking_attr.hpp"
 
-namespace gather_sinking {
-
 using namespace ov;
 using namespace ov::intel_gna::rt_info;
 using namespace ov::opset9;
+using namespace ov::pass::pattern;
+
+namespace gather_sinking {
 
 using NodePtr = std::shared_ptr<Node>;
 
@@ -49,6 +50,27 @@ GatherInputsInfo GetFirstGatherInput(NodePtr node) {
     return GatherInputsInfo();
 }
 
+/*
+Converts gather indices to positive form
+*/
+std::vector<int64_t> NormalizeGatherIndices(const std::vector<int64_t>& indices) {
+    std::vector<int64_t> normalized(indices.size());
+    for (int i = 0; i < indices.size(); ++i) {
+        int64_t index = indices[i];
+        if (index < 0)
+            index += indices.size();
+        normalized[i] = index;
+    }
+    return normalized;
+}
+
+/*
+Gets gather indices in positive form
+*/
+std::vector<int64_t> GetNormalizedGatherIndices(const std::shared_ptr<Constant>& indices) {
+    return NormalizeGatherIndices(indices->cast_vector<int64_t>());
+}
+
 namespace {
 
 bool HasDynamicRankInput(NodePtr node) {
@@ -71,27 +93,6 @@ Rank::value_type GetMaxInputRank(const NodePtr& node) {
             max_input_rank = output_rank_len;
     }
     return max_input_rank;
-}
-
-/*
-Converts gather indices to positive form
-*/
-std::vector<int64_t> NormalizeGatherIndices(const std::vector<int64_t>& indices) {
-    std::vector<int64_t> normalized(indices.size());
-    for (int i = 0; i < indices.size(); ++i) {
-        int64_t index = indices[i];
-        if (index < 0)
-            index += indices.size();
-        normalized[i] = index;
-    }
-    return normalized;
-}
-
-/*
-Gets gather indices in positive form
-*/
-std::vector<int64_t> GetNormalizedGatherIndices(const std::shared_ptr<Constant>& indices) {
-    return NormalizeGatherIndices(indices->cast_vector<int64_t>());
 }
 
 /*
@@ -463,6 +464,10 @@ std::function<bool(Output<Node>)> rank_not_more_than(const ov::Rank::value_type 
 bool constant_has_rank_not_more_than(const std::shared_ptr<Constant>& node, const ov::Rank::value_type expected_rank) {
     const Rank rank = node->get_output_partial_shape(0).rank();
     return (rank.is_static() && (rank.get_length() <= expected_rank));
+}
+
+bool IsConstant1D(const Output<Node>& output) {
+    return rank_equals(0)(output) || rank_equals(1)(output);
 }
 
 }  // namespace gather_sinking

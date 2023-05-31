@@ -38,11 +38,6 @@ bool IsSinked(const Output<Node>& output) {
     return Has2dInputs(output) && HasGatherInputs(output);
 }
 
-// TODO: use constant_has_rank_not_more_than from gather_sinking_utils after merge GatherSinkingBinary
-bool IsConstant1D(const Output<Node>& output) {
-    return rank_equals(0)(output) || rank_equals(1)(output);
-}
-
 int64_t Swap2DNegativeAxis(int64_t axis) {
     if (axis == -1)
         return -2;

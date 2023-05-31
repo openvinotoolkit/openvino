@@ -10,15 +10,16 @@
 #include "backend/gna_limitations.hpp"
 #include "common/graph_utils.hpp"
 #include "log/debug.hpp"
-#include "openvino/opsets/opset9.hpp"
+#include "openvino/opsets/opset10.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/transpose_sinking_attr.hpp"
 #include "transformations/utils/gather_sinking_utils.hpp"
 #include "transformations/utils/transformation_helper.hpp"
 
 using namespace ov::intel_gna;
+using namespace ov::intel_gna::limitations;
 using namespace ov::intel_gna::pass;
-using namespace ov::opset9;
+using namespace ov::opset10;
 using namespace ov::pass::pattern;
 using namespace gather_sinking;
 
@@ -66,7 +67,6 @@ std::vector<size_t> CreateGatherIndices(const ov::Shape& input_shape, const ov::
 NodePair SinkForward(NodePtr transpose, std::shared_ptr<Constant> transpose_constant, NodePtr reshape) {
     const auto gather_indices_value =
         CreateGatherIndices(transpose->get_input_shape(0), transpose_constant->get_axis_vector_val());
-
     const int64_t gather_axis_value = graph_utils::get_first_valuable_dim_id(reshape->get_output_shape(0));
 
     auto reshape_new = reshape->clone_with_new_inputs({transpose->input_value(0), reshape->input_value(1)});
@@ -143,7 +143,7 @@ bool IsTailUnflatten(const ov::Output<ov::Node>& output) {
 }
 
 bool is_transpose_unsupported(const ov::Output<ov::Node>& output) {
-    return !limitations::is_transpose_supported(output.get_node_shared_ptr());
+    return !Limitations::is_transpose_supported(output.get_node_shared_ptr());
 }
 
 bool IfBackwardSinkingEnabled(const ov::Output<ov::Node>& output) {

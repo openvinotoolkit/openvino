@@ -9,7 +9,7 @@
 #include <utility>
 
 #include "openvino/op/util/op_types.hpp"
-#include "openvino/opsets/opset9.hpp"
+#include "openvino/opsets/opset10.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/common_util.hpp"
@@ -18,9 +18,9 @@
 namespace gather_sinking {
 
 struct GatherInputsInfo {
-    std::shared_ptr<ov::opset9::Gather> gather;
-    std::shared_ptr<ov::opset9::Constant> indices_const;
-    std::shared_ptr<ov::opset9::Constant> axis_const;
+    std::shared_ptr<ov::opset10::Gather> gather;
+    std::shared_ptr<ov::opset10::Constant> indices_const;
+    std::shared_ptr<ov::opset10::Constant> axis_const;
     size_t input_idx;
 
     bool isEmpty() const {
@@ -68,10 +68,21 @@ Works only with positive form (no negative indices).
 */
 std::vector<int64_t> ReverseGatherIndexes(const std::vector<int64_t>& indexes);
 
-int64_t GetNormalizedNegativeGatherAxis(const std::shared_ptr<ov::opset9::Constant>& axis,
+int64_t GetNormalizedNegativeGatherAxis(const std::shared_ptr<ov::opset10::Constant>& axis,
                                         ov::Rank::value_type gather_input_rank);
 
 int64_t ConvertAxisToPositive(int64_t axis, ov::Rank::value_type rank);
+
+/**
+ * @brief Makes Gather indexes positive
+ *
+ */
+std::vector<int64_t> NormalizeGatherIndices(const std::vector<int64_t>& indices);
+
+/**
+ * @brief Get Gather indexes from Constant and normalize them to be positive
+ */
+std::vector<int64_t> GetNormalizedGatherIndices(const std::shared_ptr<ov::opset10::Constant>& indices);
 
 namespace sink_forward {
 /**
@@ -98,9 +109,9 @@ namespace sink_backward {
  * @brief Inserts Gather layers on each input of @arg main_node with cloned indices and axes constants
  */
 ov::NodeVector InsertGatherBeforeNode(std::shared_ptr<ov::Node> main_node,
-                                      const std::shared_ptr<ov::opset9::Constant>& indices_const,
-                                      const std::shared_ptr<ov::opset9::Constant>& axes_const,
-                                      const std::shared_ptr<ov::opset9::Gather>& gather_node,
+                                      const std::shared_ptr<ov::opset10::Constant>& indices_const,
+                                      const std::shared_ptr<ov::opset10::Constant>& axes_const,
+                                      const std::shared_ptr<ov::opset10::Gather>& gather_node,
                                       std::vector<int> input_indexes = {});
 }  // namespace sink_backward
 
@@ -117,12 +128,17 @@ bool HasSameOutputGatherNodes(const ov::Output<ov::Node>&);
  */
 void RemoveSingleOutputConsumers(std::shared_ptr<ov::Node>);
 
-bool constant_has_rank_not_more_than(const std::shared_ptr<ov::opset9::Constant>&,
+bool constant_has_rank_not_more_than(const std::shared_ptr<ov::opset10::Constant>&,
                                      const ov::Rank::value_type expected_rank);
 
 /**
  * Checks if output has rank not more than expected
  */
 std::function<bool(ov::Output<ov::Node>)> rank_not_more_than(const ov::Rank::value_type expected_rank);
+
+/**
+ * Checks if output is Constant with rank 1
+ */
+bool IsConstant1D(const ov::Output<ov::Node>& output);
 
 }  // namespace gather_sinking

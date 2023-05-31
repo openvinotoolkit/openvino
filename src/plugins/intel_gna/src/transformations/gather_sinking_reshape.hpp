@@ -11,6 +11,23 @@ namespace ov {
 namespace intel_gna {
 namespace pass {
 
+/** @brief Moves Gather through Reshape node in a backward sinking propagation
+ *  (from the end to the start of the graph).
+ *
+ *        Any #1        Any #1
+ *          |              |
+ *       Reshape         Gather
+ *          |      =>      |
+ *       Gather          Reshape
+ *          |              |
+ *        Any #2         Any #2
+ *
+ * - Reshape is unflatten (one last dimension is unflatted into multiple)
+ * - Gather is availiable for sinking (no NoGatherSinkingAttr is set)
+ *
+ * This transformation is called called from GatherSinkingGeneral.
+ */
+
 class GatherSinkingReshapeBackward : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("GatherSinkingReshapeBackward", "0");

@@ -7,8 +7,6 @@
 
 #include <ngraph/function.hpp>
 #include <openvino/opsets/opset10.hpp>
-#include <ops/gna_convolution.hpp>
-#include <ops/gna_max_pool.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <transformations/init_node_info.hpp>
 
@@ -17,6 +15,7 @@
 using namespace ov;
 using namespace ov::opset10;
 
+namespace {
 void ShiftLeft(std::vector<size_t>& vec, size_t k) {
     if (k > vec.size())
         return;
@@ -72,6 +71,7 @@ std::shared_ptr<Gather> MakeGather(NodePtr input_node, CreateIndicesF create_ind
 
     return std::make_shared<Gather>(input_node->output(0), gather_indexes_node, gather_axis_node);
 }
+} // namespace
 
 TEST(GatherSinkingSplit, Backward) {
     std::shared_ptr<Model> function;

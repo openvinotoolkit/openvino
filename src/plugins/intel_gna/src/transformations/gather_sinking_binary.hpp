@@ -14,8 +14,8 @@ namespace pass {
 
 /**
  * @brief Moves Gather layer forward from the start to the end of the graph
- * through the BinaryElementwiseArithmetic operations. Gather layer is moved
- * from the Binary input to the Binary output. Reversed Gather layer is moved
+ * through the BinaryElementwiseArithmetic operations (it is called from GatherSinkingGeneral transformation).
+ * Gather layer is moved from the Binary input to the Binary output. Reversed Gather layer is moved
  * to another Binary input.
  * Reversed Gather is the layer that together one after another with the original Gather
  * layer gives a subgraph that does nothing.
@@ -84,6 +84,8 @@ public:
  * - all that Gather layers equal each other
  * - Gather has only 1D indices
  * - all nodes have static ranks
+ *
+ * This transformation is called called from GatherSinkingGeneral.
  */
 class GatherSinkingBinaryBackward : public ov::pass::MatcherPass {
 public:
