@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "dev/threading/parallel_custom_arena.hpp"
+#include "ie_common.h"
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "streams_executor.hpp"
@@ -43,6 +44,78 @@ CPU::CPU() {
         return 0;
     };
 
+    auto check_valid_cpu = [&]() {
+        cpu_set_t mask;
+        CPU_ZERO(&mask);
+
+        if ((_processors == 0) || (sched_getaffinity(0, sizeof(cpu_set_t), &mask) == -1)) {
+            return -1;
+        }
+
+        int total_proc = 0;
+        std::vector<int> cores_list;
+        std::vector<int> phy_core_list;
+        std::vector<std::vector<int>> valid_cpu_mapping_table;
+
+        for (int i = 0; i < _processors; i++) {
+            if (CPU_ISSET(i, &mask)) {
+                total_proc++;
+                cores_list.emplace_back(_cpu_mapping_table[i][CPU_MAP_CORE_ID]);
+                valid_cpu_mapping_table.emplace_back(_cpu_mapping_table[i]);
+                if (_cpu_mapping_table[i][CPU_MAP_CORE_TYPE] == MAIN_CORE_PROC) {
+                    phy_core_list.emplace_back(_cpu_mapping_table[i][CPU_MAP_GROUP_ID]);
+                }
+            }
+        }
+
+        if (total_proc == 0) {
+            return -1;
+        } else if (total_proc == _processors) {
+            return 0;
+        } else {
+            _processors = total_proc;
+            _cpu_mapping_table.swap(valid_cpu_mapping_table);
+            for (auto& row : _proc_type_table) {
+                std::fill(row.begin(), row.end(), 0);
+            }
+            for (auto& row : _cpu_mapping_table) {
+                if (row[CPU_MAP_CORE_TYPE] == HYPER_THREADING_PROC) {
+                    auto iter = std::find(phy_core_list.begin(), phy_core_list.end(), row[CPU_MAP_GROUP_ID]);
+                    if (iter == phy_core_list.end()) {
+                        row[CPU_MAP_CORE_TYPE] = MAIN_CORE_PROC;
+                    }
+                }
+                _proc_type_table[0][ALL_PROC]++;
+                _proc_type_table[0][row[CPU_MAP_CORE_TYPE]]++;
+                if (_proc_type_table.size() > 1) {
+                    _proc_type_table[row[CPU_MAP_SOCKET_ID] + 1][ALL_PROC]++;
+                    _proc_type_table[row[CPU_MAP_SOCKET_ID] + 1][row[CPU_MAP_CORE_TYPE]]++;
+                }
+            }
+
+            if (_proc_type_table.size() > 1) {
+                size_t n = _proc_type_table.size();
+
+                while (n > 0) {
+                    if (0 == _proc_type_table[n - 1][ALL_PROC]) {
+                        _proc_type_table.erase(_proc_type_table.begin() + n - 1);
+                    }
+                    n--;
+                }
+
+                if ((_proc_type_table.size() > 1) && (_proc_type_table[0][ALL_PROC] == _proc_type_table[1][ALL_PROC])) {
+                    _proc_type_table.pop_back();
+                }
+            }
+            _numa_nodes = _proc_type_table.size() == 1 ? 1 : _proc_type_table.size() - 1;
+            std::sort(cores_list.begin(), cores_list.end());
+            auto iter = std::unique(cores_list.begin(), cores_list.end());
+            cores_list.erase(iter, cores_list.end());
+            _cores = cores_list.size();
+            return 0;
+        }
+    };
+
     if (!GetCatchInfoLinux()) {
         parse_processor_info_linux(_processors,
                                    system_info_table,
@@ -50,6 +123,9 @@ CPU::CPU() {
                                    _cores,
                                    _proc_type_table,
                                    _cpu_mapping_table);
+        if (check_valid_cpu() < 0) {
+            OPENVINO_THROW("CPU affinity check failed. No CPU is eligible to run inference.");
+        };
     } else {
         /*Previous CPU resource based on calculation*/
         std::ifstream cpuinfo("/proc/cpuinfo");
