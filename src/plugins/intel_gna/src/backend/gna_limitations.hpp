@@ -175,8 +175,6 @@ public:
      */
     static inline std::shared_ptr<Limitations> get_instance();
 
-    static bool is_transpose_2d(const std::vector<size_t>& shape);
-    static bool is_transpose_supported(const std::vector<size_t>& shape);
     static size_t get_min_batch_to_fit_in_buffer(InferenceEngine::DataPtr input);
 
     /**
@@ -204,6 +202,14 @@ public:
      * @return true if supported
      */
     static bool is_split_supported(const std::shared_ptr<ov::Node>& node, bool is_exception_allowed = false);
+
+    static bool is_shape_2d(const ov::Shape& shape);
+    /**
+     * @brief Validates if transpose is supported by GNA
+     * @param shape transpose
+     * @return true if supported
+     */
+    static bool is_transpose_supported(const ov::Shape& shape);
     /**
      * @brief Validates if transpose is supported by GNA
      * @param node transpose
