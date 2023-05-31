@@ -794,8 +794,8 @@ bool Limitations::is_conv_supported(const std::shared_ptr<ov::intel_gna::op::GNA
     };
     auto input_shape = conv_gna->input_value(0).get_shape();
     auto filter_shape = conv_gna->input_value(1).get_shape();
-    if ((4 == filter_shape.size() && filter_shape[2] > 1 && filter_shape[3] > 1) ||
-        (4 == input_shape.size() && input_shape[2] > 1 && input_shape[3] > 1)) {
+    if ((4 == filter_shape.size() && filter_shape[1] > 1 && filter_shape[2] > 1) ||
+        (4 == input_shape.size() && input_shape[1] > 1 && input_shape[2] > 1)) {
         pass::helper::ConvData conv_data;
         pass::helper::GetConvData(conv_gna, conv_data);
         if (gna_convolution_layer::isMappableFrom2DTo1D(conv_data.input_height,
@@ -824,7 +824,12 @@ bool Limitations::is_conv_supported(const std::shared_ptr<ov::intel_gna::op::GNA
                                                   is_exception_allowed);
         }
     }
-    return check_dilation(conv_gna->get_dilations()[0], conv_gna->get_dilations()[1]);
+    // 1D Convolution
+    if (conv_gna->get_dilations().size() == 1) {
+        return check_dilation(conv_gna->get_dilations()[0], conv_gna->get_dilations()[0]);
+    } else {
+        return check_dilation(conv_gna->get_dilations()[0], conv_gna->get_dilations()[1]);
+    }
 }
 
 bool Limitations::is_pooling_supported(const std::shared_ptr<ov::intel_gna::op::GNAMaxPool> max_pool,
