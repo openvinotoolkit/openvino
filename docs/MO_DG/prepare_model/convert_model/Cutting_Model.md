@@ -52,13 +52,6 @@ Convert this model to ``ov.Model``:
 
 .. tab-set::
 
-   .. tab-item:: CLI
-      :sync: cli-tool
-
-      .. code-block:: sh
-
-         mo --input_model inception_v1.pb -b 1 --output_dir <OUTPUT_MODEL_DIR>
-
    .. tab-item:: Python
       :sync: mo-python-api
 
@@ -66,6 +59,13 @@ Convert this model to ``ov.Model``:
 
          from openvino.tools.mo import convert_model
          ov_model = convert_model("inception_v1.pb", batch=1)
+
+   .. tab-item:: CLI
+      :sync: cli-tool
+
+      .. code-block:: sh
+
+         mo --input_model inception_v1.pb -b 1 --output_dir <OUTPUT_MODEL_DIR>
 
 
 ``ov.Model`` can be serialized with the ``ov.serialize()`` method to Intermediate Representation which can be used for model structure exploring.
@@ -114,15 +114,6 @@ Due to automatic identification of inputs and outputs, providing the ``input`` a
 
 .. tab-set::
 
-   .. tab-item:: CLI
-      :sync: cli-tool
-
-      .. code-block:: sh
-
-         mo --input_model inception_v1.pb -b 1 --output_dir <OUTPUT_MODEL_DIR>
-
-         mo --input_model inception_v1.pb -b 1 --input input --output InceptionV1/Logits/Predictions/Reshape_1 --output_dir <OUTPUT_MODEL_DIR>
-
    .. tab-item:: Python
       :sync: mo-python-api
 
@@ -132,6 +123,15 @@ Due to automatic identification of inputs and outputs, providing the ``input`` a
          ov_model = convert_model("inception_v1.pb", batch=1)
 
          ov_model = convert_model("inception_v1.pb", batch=1, input="input", output="InceptionV1/Logits/Predictions/Reshape_1")
+
+   .. tab-item:: CLI
+      :sync: cli-tool
+
+      .. code-block:: sh
+
+         mo --input_model inception_v1.pb -b 1 --output_dir <OUTPUT_MODEL_DIR>
+
+         mo --input_model inception_v1.pb -b 1 --input input --output InceptionV1/Logits/Predictions/Reshape_1 --output_dir <OUTPUT_MODEL_DIR>
 
 
 The Intermediate Representations are identical for both conversions. The same is true if the model has multiple inputs and/or outputs.
@@ -153,13 +153,6 @@ If you want to cut your model at the end, you have the following options:
 
    .. tab-set::
 
-      .. tab-item:: CLI
-         :sync: cli-tool
-
-         .. code-block:: sh
-
-            mo --input_model inception_v1.pb -b 1 --output=InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --output_dir <OUTPUT_MODEL_DIR>
-
       .. tab-item:: Python
          :sync: mo-python-api
 
@@ -167,6 +160,13 @@ If you want to cut your model at the end, you have the following options:
 
             from openvino.tools.mo import convert_model
             ov_model = convert_model("inception_v1.pb", batch=1, output="InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu")
+
+      .. tab-item:: CLI
+         :sync: cli-tool
+
+         .. code-block:: sh
+
+            mo --input_model inception_v1.pb -b 1 --output=InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --output_dir <OUTPUT_MODEL_DIR>
 
 
    The resulting Intermediate Representation has three layers:
@@ -216,13 +216,6 @@ If you want to cut your model at the end, you have the following options:
 
    .. tab-set::
 
-      .. tab-item:: CLI
-         :sync: cli-tool
-
-         .. code-block:: sh
-
-            mo --input_model inception_v1.pb -b 1 --output InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu:0 --output_dir <OUTPUT_MODEL_DIR>
-
       .. tab-item:: Python
          :sync: mo-python-api
 
@@ -230,6 +223,13 @@ If you want to cut your model at the end, you have the following options:
 
             from openvino.tools.mo import convert_model
             ov_model = convert_model("inception_v1.pb", batch=1, output="InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu:0")
+
+      .. tab-item:: CLI
+         :sync: cli-tool
+
+         .. code-block:: sh
+
+            mo --input_model inception_v1.pb -b 1 --output InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu:0 --output_dir <OUTPUT_MODEL_DIR>
 
 
    The resulting Intermediate Representation has three layers, which are the same as in the previous case:
@@ -279,13 +279,6 @@ If you want to cut your model at the end, you have the following options:
 
    .. tab-set::
 
-      .. tab-item:: CLI
-         :sync: cli-tool
-
-         .. code-block:: sh
-
-            mo --input_model inception_v1.pb -b 1 --output=0:InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --output_dir <OUTPUT_MODEL_DIR>
-
       .. tab-item:: Python
          :sync: mo-python-api
 
@@ -293,6 +286,13 @@ If you want to cut your model at the end, you have the following options:
 
             from openvino.tools.mo import convert_model
             ov_model = convert_model("inception_v1.pb", batch=1, output="0:InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu")
+
+      .. tab-item:: CLI
+         :sync: cli-tool
+
+         .. code-block:: sh
+
+            mo --input_model inception_v1.pb -b 1 --output=0:InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --output_dir <OUTPUT_MODEL_DIR>
 
 
    The resulting Intermediate Representation has two layers, which are the same as the first two layers in the previous case:
@@ -336,13 +336,6 @@ If you want to go further and cut the beginning of the model, leaving only the `
 
    .. tab-set::
 
-      .. tab-item:: CLI
-         :sync: cli-tool
-
-         .. code-block:: sh
-
-            mo --input_model=inception_v1.pb -b 1 --output InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --input InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --output_dir <OUTPUT_MODEL_DIR>
-
       .. tab-item:: Python
          :sync: mo-python-api
 
@@ -350,6 +343,13 @@ If you want to go further and cut the beginning of the model, leaving only the `
 
             from openvino.tools.mo import convert_model
             ov_model = convert_model("inception_v1.pb", batch=1, output="InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu", input="InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu")
+
+      .. tab-item:: CLI
+         :sync: cli-tool
+
+         .. code-block:: sh
+
+            mo --input_model=inception_v1.pb -b 1 --output InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --input InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --output_dir <OUTPUT_MODEL_DIR>
 
 
    The resulting Intermediate Representation looks as follows:
@@ -387,13 +387,6 @@ If you want to go further and cut the beginning of the model, leaving only the `
 
    .. tab-set::
 
-      .. tab-item:: CLI
-         :sync: cli-tool
-
-         .. code-block:: sh
-
-            mo --input_model inception_v1.pb -b 1 --input 0:InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --output InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --output_dir <OUTPUT_MODEL_DIR>
-
       .. tab-item:: Python
          :sync: mo-python-api
 
@@ -401,6 +394,13 @@ If you want to go further and cut the beginning of the model, leaving only the `
 
             from openvino.tools.mo import convert_model
             ov_model = convert_model("inception_v1.pb", batch=1, input="0:InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu", output="InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu")
+
+      .. tab-item:: CLI
+         :sync: cli-tool
+
+         .. code-block:: sh
+
+            mo --input_model inception_v1.pb -b 1 --input 0:InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --output InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --output_dir <OUTPUT_MODEL_DIR>
 
 
    The resulting Intermediate Representation looks as follows:
@@ -438,13 +438,6 @@ If you want to go further and cut the beginning of the model, leaving only the `
 
    .. tab-set::
 
-      .. tab-item:: CLI
-         :sync: cli-tool
-
-         .. code-block:: sh
-
-            mo --input_model inception_v1.pb -b 1 --input InceptionV1/InceptionV1/Conv2d_1a_7x7/BatchNorm/batchnorm/add_1:0 --output InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --output_dir <OUTPUT_MODEL_DIR>
-
       .. tab-item:: Python
          :sync: mo-python-api
 
@@ -452,6 +445,13 @@ If you want to go further and cut the beginning of the model, leaving only the `
 
             from openvino.tools.mo import convert_model
             ov_model = convert_model("inception_v1.pb", batch=1, input="InceptionV1/InceptionV1/Conv2d_1a_7x7/BatchNorm/batchnorm/add_1:0", output="InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu")
+
+      .. tab-item:: CLI
+         :sync: cli-tool
+
+         .. code-block:: sh
+
+            mo --input_model inception_v1.pb -b 1 --input InceptionV1/InceptionV1/Conv2d_1a_7x7/BatchNorm/batchnorm/add_1:0 --output InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --output_dir <OUTPUT_MODEL_DIR>
 
 
    The resulting Intermediate Representation looks as follows:
@@ -493,13 +493,6 @@ Following this behavior, ``convert_model()`` creates an ``Input`` layer for port
 
 .. tab-set::
 
-   .. tab-item:: CLI
-      :sync: cli-tool
-
-      .. code-block:: sh
-
-         mo --input_model inception_v1.pb -b 1 --input InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution --output_dir <OUTPUT_MODEL_DIR>
-
    .. tab-item:: Python
       :sync: mo-python-api
 
@@ -508,19 +501,19 @@ Following this behavior, ``convert_model()`` creates an ``Input`` layer for port
          from openvino.tools.mo import convert_model
          ov_model = convert_model("inception_v1.pb", batch=1, input="InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution")
 
+   .. tab-item:: CLI
+      :sync: cli-tool
+
+      .. code-block:: sh
+
+         mo --input_model inception_v1.pb -b 1 --input InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution --output_dir <OUTPUT_MODEL_DIR>
+
 
 is identical to the result of conversion of the model as a whole, because this convolution is the first executable operation in Inception V1.
 
 Different behavior occurs when ``input_shape`` is also used as an attempt to override the input shape:
 
 .. tab-set::
-
-   .. tab-item:: CLI
-      :sync: cli-tool
-
-      .. code-block:: sh
-
-         mo --input_model inception_v1.pb--input=InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution --input_shape [1,224,224,3]  --output_dir <OUTPUT_MODEL_DIR>
 
    .. tab-item:: Python
       :sync: mo-python-api
@@ -529,6 +522,13 @@ Different behavior occurs when ``input_shape`` is also used as an attempt to ove
 
          from openvino.tools.mo import convert_model
          ov_model = convert_model("inception_v1.pb", input="InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution", input_shape=[1,224,224,3])
+
+   .. tab-item:: CLI
+      :sync: cli-tool
+
+      .. code-block:: sh
+
+         mo --input_model inception_v1.pb--input=InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution --input_shape [1,224,224,3]  --output_dir <OUTPUT_MODEL_DIR>
 
 
 An error occurs (for more information, see the :ref:`Model Conversion FAQ <question-30>`):
@@ -545,13 +545,6 @@ The correct command line is:
 
 .. tab-set::
 
-   .. tab-item:: CLI
-      :sync: cli-tool
-
-      .. code-block:: sh
-
-         mo --input_model inception_v1.pb --input 0:InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution --input_shape=[1,224,224,3] --output_dir <OUTPUT_MODEL_DIR>
-
    .. tab-item:: Python
       :sync: mo-python-api
 
@@ -559,6 +552,13 @@ The correct command line is:
 
          from openvino.tools.mo import convert_model
          ov_model = convert_model("inception_v1.pb", input="0:InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution", input_shape=[1,224,224,3])
+
+   .. tab-item:: CLI
+      :sync: cli-tool
+
+      .. code-block:: sh
+
+         mo --input_model inception_v1.pb --input 0:InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution --input_shape=[1,224,224,3] --output_dir <OUTPUT_MODEL_DIR>
 
 
 @endsphinxdirective

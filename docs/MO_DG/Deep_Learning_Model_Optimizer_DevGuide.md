@@ -20,13 +20,6 @@ To convert a model to IR, you can use the following command:
 
 .. tab-set::
 
-    .. tab-item:: CLI
-       :sync: cli-tool
-
-       .. code-block:: sh
-
-          mo --input_model INPUT_MODEL
-
     .. tab-item:: Python
        :sync: mo-python-api
 
@@ -35,9 +28,12 @@ To convert a model to IR, you can use the following command:
           from openvino.tools.mo import convert_model
           ov_model = convert_model(INPUT_MODEL)
 
-       .. note::
+    .. tab-item:: CLI
+       :sync: cli-tool
 
-          You do not need to specify the ``input_model`` parameter explicitly. The parameter can be set as an unnamed argument and then it will be used as input ``model``. Therefore, both ``convert_model(input_model=model)`` and ``convert_model(model)`` will have the same effect.
+       .. code-block:: sh
+
+          mo --input_model INPUT_MODEL
 
 
 If the out-of-the-box conversion (only the ``input_model`` parameter is specified) is not successful, use the parameters mentioned below to override input shapes and cut the model:
@@ -59,13 +55,6 @@ To get the full list of conversion parameters, run the following command:
 
 .. tab-set::
 
-    .. tab-item:: CLI
-       :sync: cli-tool
-
-       .. code-block:: sh
-
-          mo --help
-
     .. tab-item:: Python
        :sync: mo-python-api
 
@@ -73,6 +62,13 @@ To get the full list of conversion parameters, run the following command:
 
           from openvino.tools.mo import convert_model
           ov_model = convert_model(help=True)
+
+    .. tab-item:: CLI
+       :sync: cli-tool
+
+       .. code-block:: sh
+
+          mo --help
 
 
 Examples of model conversion parameters
@@ -83,41 +79,41 @@ Below is a list of separate examples for different frameworks and model conversi
 1. Launch model conversion for a TensorFlow MobileNet model in the binary protobuf format:
 
    .. tab-set::
-   
-       .. tab-item:: CLI
-          :sync: cli-tool
-   
-          .. code-block:: sh
-   
-             mo --input_model MobileNet.pb
-   
+
        .. tab-item:: Python
           :sync: mo-python-api
-   
+
           .. code-block:: python
-   
+
              from openvino.tools.mo import convert_model
              ov_model = convert_model("MobileNet.pb")
+
+       .. tab-item:: CLI
+          :sync: cli-tool
+
+          .. code-block:: sh
+
+             mo --input_model MobileNet.pb
 
 
    Launch model conversion for a TensorFlow BERT model in the SavedModel format with three inputs. Specify input shapes explicitly where the batch size and the sequence length equal 2 and 30 respectively:
 
    .. tab-set::
-   
-       .. tab-item:: CLI
-          :sync: cli-tool
-   
-          .. code-block:: sh
-   
-             mo --saved_model_dir BERT --input_shape [2,30],[2,30],[2,30]
-   
+
        .. tab-item:: Python
           :sync: mo-python-api
-   
+
           .. code-block:: python
-   
+
              from openvino.tools.mo import convert_model
              ov_model = convert_model("BERT", input_shape=[[2,30],[2,30],[2,30]])
+
+       .. tab-item:: CLI
+          :sync: cli-tool
+
+          .. code-block:: sh
+
+             mo --saved_model_dir BERT --input_shape [2,30],[2,30],[2,30]
 
 
    For more information, refer to the :doc:`Converting a TensorFlow Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow>` guide.
@@ -125,21 +121,21 @@ Below is a list of separate examples for different frameworks and model conversi
 2. Launch model conversion for an ONNX OCR model and specify new output explicitly:
 
    .. tab-set::
-   
-       .. tab-item:: CLI
-          :sync: cli-tool
-   
-          .. code-block:: sh
-   
-             mo --input_model ocr.onnx --output probabilities
-   
+
        .. tab-item:: Python
           :sync: mo-python-api
-   
+
           .. code-block:: python
-   
+
              from openvino.tools.mo import convert_model
              ov_model = convert_model("ocr.onnx", output="probabilities")
+
+       .. tab-item:: CLI
+          :sync: cli-tool
+
+          .. code-block:: sh
+
+             mo --input_model ocr.onnx --output probabilities
 
 
    For more information, refer to the :doc:`Converting an ONNX Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_ONNX>` guide.
@@ -151,21 +147,21 @@ Below is a list of separate examples for different frameworks and model conversi
 3. Launch model conversion for a PaddlePaddle UNet model and apply mean-scale normalization to the input:
 
    .. tab-set::
-   
-       .. tab-item:: CLI
-          :sync: cli-tool
-   
-          .. code-block:: sh
-   
-             mo --input_model unet.pdmodel --mean_values [123,117,104] --scale 255
-   
+
        .. tab-item:: Python
           :sync: mo-python-api
-   
+
           .. code-block:: python
-   
+
              from openvino.tools.mo import convert_model
              ov_model = convert_model("unet.pdmodel", mean_values=[123,117,104], scale=255)
+
+       .. tab-item:: CLI
+          :sync: cli-tool
+
+          .. code-block:: sh
+
+             mo --input_model unet.pdmodel --mean_values [123,117,104] --scale 255
 
 
    For more information, refer to the :doc:`Converting a PaddlePaddle Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Paddle>` guide.
