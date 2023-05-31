@@ -370,10 +370,14 @@ std::pair<VectorDims, VectorDims> Deconvolution::makeDummyInOutShape() {
                         // 2. the result padding must have such a value to keep the dummy dimensions inside the predefined interval
                         auto c1 = lastOutputSpatialDims[i] - outputPadding[i] - 1 -
                                     (dilation[i] + 1) * static_cast<int32_t>(weightDims[wghOffset + 2 + i] - 1);
-                        auto upper_bound = stride[i] * static_cast<int32_t>(origInMaxDims[i + 2] - 1) - c1;
-                        if (upper_bound < 0) {
-                            IE_THROW() << errorPrefix << ": paddings for dummy shapes can't be computed";
+
+                        if (origInMaxDims[i + 2] != Shape::UNDEFINED_DIM) {
+                            auto upper_bound = stride[i] * static_cast<int32_t>(origInMaxDims[i + 2] - 1) - c1;
+                            if (upper_bound < 0) {
+                                IE_THROW() << errorPrefix << ": paddings for dummy shapes can't be computed";
+                            }
                         }
+
                         auto lower_bound = stride[i] * static_cast<int32_t>(origInMinDims[i + 2] - 1) - c1;
                         if (lower_bound > 0) {
                             paddings[i] = lower_bound;
