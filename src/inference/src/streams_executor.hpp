@@ -31,6 +31,8 @@ public:
     int _num_threads = 0;
 };
 
+CPU& cpu_info();
+
 #ifdef __linux__
 /**
  * @brief      Parse processors infomation on Linux
@@ -69,6 +71,21 @@ void parse_processor_info_win(const char* base_ptr,
                               int& _cores,
                               std::vector<std::vector<int>>& _proc_type_table,
                               std::vector<std::vector<int>>& _cpu_mapping_table);
+#endif
+
+#if defined(__APPLE__)
+/**
+ * @brief      Parse processors infomation on Linux
+ * @param[in]  _processors total number for processors in system.
+ * @param[out] _numa_nodes total number for sockets in system
+ * @param[out] _cores total number for physical CPU cores in system
+ * @param[out] _proc_type_table summary table of number of processors per type
+ * @return
+ */
+int parse_processor_info_macos(int& _processors,
+                               int& _numa_nodes,
+                               int& _cores,
+                               std::vector<std::vector<int>>& _proc_type_table);
 #endif
 
 }  // namespace ov

@@ -11,7 +11,7 @@ namespace intel_gna {
 namespace pass {
 
 /**
- * @brief Split over channels for Eltwise to avoid GNA-HW bufferMaxSize limitation per eltwise
+ * @brief Split over channels for Eltwise to avoid GNA-HW kBufferMaxSize limitation per eltwise
  */
 class SplitEltwise : public ov::pass::MatcherPass {
 public:
