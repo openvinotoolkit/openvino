@@ -322,8 +322,8 @@ void Reshape::executeDynamicImpl(dnnl::stream strm) {
 }
 
 void Reshape::execute(dnnl::stream strm) {
-    auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
-    auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    auto srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
+    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
 
     auto srcPtr = static_cast<uint8_t*>(srcMemPtr->GetPtr());
     auto dstPtr = static_cast<uint8_t*>(dstMemPtr->GetPtr());

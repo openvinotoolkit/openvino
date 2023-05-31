@@ -88,13 +88,13 @@ void Unique::createPrimitive() {
 }
 
 void Unique::prepareParams() {
-    auto& dataMemPtr = getParentEdgeAt(IN_DATA)->getMemoryPtr();
+    auto dataMemPtr = getParentEdgeAt(IN_DATA)->getMemoryPtr();
     if (!dataMemPtr || !dataMemPtr->isAllocated()) {
         THROW_ERROR << " has not allocated input data memory.";
     }
     for (int i = 0; i < 4; i++) {
         if (definedOutputs[i]) {
-            auto& dstMemPtr = getChildEdgeAt(i)->getMemoryPtr();
+            auto dstMemPtr = getChildEdgeAt(i)->getMemoryPtr();
             if (!dstMemPtr || !dstMemPtr->isAllocated()) {
                 THROW_ERROR << " has not allocated output memory at port " << i;
             }

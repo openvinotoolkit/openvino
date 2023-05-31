@@ -177,7 +177,7 @@ Roll::RollExecutor::RollExecutor(const VectorDims& dataDims, const VectorDims& s
 
 template<typename T>
 void Roll::RollExecutor::exec(const MemoryPtr& dataMemPtr, const MemoryPtr& shiftMemPtr, const MemoryPtr& axesMemPtr,
-    MemoryPtr& dstMemPtr) {
+    const MemoryPtr& dstMemPtr) {
     const auto *data = reinterpret_cast<const T *>(dataMemPtr->GetPtr());
     const auto *shift = reinterpret_cast<const int32_t *>(shiftMemPtr->GetPtr());
     const auto *axes = reinterpret_cast<const int32_t *>(axesMemPtr->GetPtr());

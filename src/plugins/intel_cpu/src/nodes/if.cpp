@@ -190,7 +190,7 @@ void If::prepareBeforeMappers(const bool isThen, const dnnl::engine& eng) {
     auto &inputMems = isThen ? inputMemThen : inputMemElse;
     auto &beforeMappers = isThen ? beforeThenMappers : beforeElseMappers;
     for (auto& map_rule : inputPortMap) {
-        auto &fromMem = getParentEdgesAtPort(map_rule.from)[0]->getMemoryPtr();
+        auto fromMem = getParentEdgesAtPort(map_rule.from)[0]->getMemoryPtr();
         auto &toMems = inputMems[map_rule.to];
 
         beforeMappers.emplace_back(std::make_shared<PortMapHelper>(fromMem, toMems, eng));

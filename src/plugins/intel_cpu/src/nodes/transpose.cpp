@@ -187,8 +187,8 @@ bool Transpose::needPrepareParams() const {
 void Transpose::prepareParams() {
     if (performAsReorder) {
         //  Transpose(order={0,3,1,2}) can be performed as Reorder(acdb=>abcd)
-        auto& srcMemPtr = getParentEdgeAt(INPUT_DATA_IDX)->getMemoryPtr();
-        auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+        auto srcMemPtr = getParentEdgeAt(INPUT_DATA_IDX)->getMemoryPtr();
+        auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
         auto dstDesc = dstMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
         auto srcDesc = dnnl::memory::desc(dstDesc.get_dims(), dstDesc.get_data_type(), memory::format_tag::acdb);
         auto result = getReorderPrim(context->getParamsCache(), getEngine(), srcDesc, dstDesc);
@@ -237,8 +237,8 @@ void Transpose::prepareParams() {
 }
 
 void Transpose::createPrimitive() {
-    auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    auto& srcMemPtr = getParentEdgeAt(INPUT_DATA_IDX)->getMemoryPtr();
+    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    auto srcMemPtr = getParentEdgeAt(INPUT_DATA_IDX)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
         IE_THROW() << "Destination memory was not allocated.";
     if (!srcMemPtr || !srcMemPtr->isAllocated())
@@ -378,8 +378,8 @@ void Transpose::execute(dnnl::stream strm) {
     if (prim) {
         prim.execute(strm, primArgs);
     } else if (execPtr) {
-        auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-        auto &srcMemPtr = getParentEdgeAt(INPUT_DATA_IDX)->getMemoryPtr();
+        auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+        auto srcMemPtr = getParentEdgeAt(INPUT_DATA_IDX)->getMemoryPtr();
 
         int MB = srcMemPtr->getStaticDims()[0];
 

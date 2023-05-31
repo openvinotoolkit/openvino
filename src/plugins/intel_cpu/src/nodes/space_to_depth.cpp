@@ -164,8 +164,8 @@ void SpaceToDepth::initSupportedPrimitiveDescriptors() {
 }
 
 void SpaceToDepth::createPrimitive() {
-    auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
+    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    auto srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
         THROW_ERROR << "has not allocated destination memory";
     if (!srcMemPtr || !srcMemPtr->isAllocated())

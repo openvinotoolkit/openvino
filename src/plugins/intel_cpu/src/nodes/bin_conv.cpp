@@ -1297,9 +1297,9 @@ void BinaryConvolution::executeReference(const uint8_t* src, const uint8_t* weig
 }
 
 void BinaryConvolution::execute(dnnl::stream strm) {
-    auto &srcMemory = getParentEdgeAt(0)->getMemoryPtr();
-    auto &weightsMemory = getParentEdgeAt(1)->getMemoryPtr();
-    auto &dstMemory = getChildEdgeAt(0)->getMemoryPtr();
+    auto srcMemory = getParentEdgeAt(0)->getMemoryPtr();
+    auto weightsMemory = getParentEdgeAt(1)->getMemoryPtr();
+    auto dstMemory = getChildEdgeAt(0)->getMemoryPtr();
 
     auto src = reinterpret_cast<const uint8_t*>(srcMemory->GetPtr());
     auto weights = reinterpret_cast<const uint8_t*>(weightsMemory->GetPtr());

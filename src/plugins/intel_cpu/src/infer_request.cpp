@@ -207,7 +207,7 @@ void InferRequestBase::changeDefaultPtr() {
         auto input = inputNodesMap.find(it.first);
         if (input != inputNodesMap.end()) {
             NodePtr inputNodePtr = input->second;
-            if (inputNodePtr->getChildEdgeAt(0)->getMemory().GetData() == it.second->buffer())
+            if (inputNodePtr->getChildEdgeAt(0)->getMemory().GetData() == static_cast<void*>(it.second->buffer()))
                 continue;
             auto& childEdges = inputNodePtr->getChildEdges();
             // Input cannot be in-place with other primitives

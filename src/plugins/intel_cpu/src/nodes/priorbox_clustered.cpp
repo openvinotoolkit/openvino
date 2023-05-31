@@ -106,7 +106,7 @@ PriorBoxClustered::PriorBoxClustered(const std::shared_ptr<ngraph::Node>& op, co
 }
 
 bool PriorBoxClustered::needShapeInfer() const {
-    auto& memory = getChildEdgeAt(0)->getMemoryPtr();
+    auto memory = getChildEdgeAt(0)->getMemoryPtr();
     if (memory->GetShape().isDynamic()) {
         return true;
     }

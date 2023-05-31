@@ -1486,8 +1486,8 @@ void FakeQuantize::createPrimitive() {
 }
 
 void FakeQuantize::executeReference() {
-    auto &srcMemory = getParentEdgeAt(0)->getMemoryPtr();
-    auto &dstMemory = getChildEdgeAt(0)->getMemoryPtr();
+    auto srcMemory = getParentEdgeAt(0)->getMemoryPtr();
+    auto dstMemory = getChildEdgeAt(0)->getMemoryPtr();
 
     auto src = reinterpret_cast<const float *>(srcMemory->GetPtr());
 
@@ -1596,8 +1596,8 @@ void FakeQuantize::executeReference() {
 }
 void FakeQuantize::executeBinarization(const std::unique_ptr<jit_uni_quantize_kernel> &pKernel) const {
 #if defined(OPENVINO_ARCH_X86_64)
-    const auto &srcMemory = getParentEdgeAt(0)->getMemoryPtr();
-    auto &dstMemory = getChildEdgeAt(0)->getMemoryPtr();
+    auto srcMemory = getParentEdgeAt(0)->getMemoryPtr();
+    auto dstMemory = getChildEdgeAt(0)->getMemoryPtr();
 
     auto src = reinterpret_cast<const uint8_t *>(srcMemory->GetPtr());
     auto dst = reinterpret_cast<uint8_t *>(dstMemory->GetPtr());
@@ -1638,8 +1638,8 @@ void FakeQuantize::executeBinarization(const std::unique_ptr<jit_uni_quantize_ke
 
 void FakeQuantize::executeQuantization(const std::unique_ptr<jit_uni_quantize_kernel> &pKernel) const {
 #if defined(OPENVINO_ARCH_X86_64)
-    auto &srcMemory = getParentEdgeAt(0)->getMemoryPtr();
-    auto &dstMemory = getChildEdgeAt(0)->getMemoryPtr();
+    auto srcMemory = getParentEdgeAt(0)->getMemoryPtr();
+    auto dstMemory = getChildEdgeAt(0)->getMemoryPtr();
 
     auto src = reinterpret_cast<const uint8_t *>(srcMemory->GetPtr());
     auto dst = reinterpret_cast<uint8_t *>(dstMemory->GetPtr());

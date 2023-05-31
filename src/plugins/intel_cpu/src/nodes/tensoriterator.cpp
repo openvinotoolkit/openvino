@@ -634,7 +634,7 @@ void TensorIterator::executeDynamicImpl(dnnl::stream strm) {
 void TensorIterator::prepareInputPorts() {
     const auto &eng = getEngine();
     for (auto map_rule : inputPortMap) {
-        auto &from_mem = getParentEdgesAtPort(map_rule.from)[0]->getMemoryPtr();
+        auto from_mem = getParentEdgesAtPort(map_rule.from)[0]->getMemoryPtr();
         auto &to_mem = input_mems[map_rule.to].front();  // first memory is enough to access the shared underlying physical memory
 
         if (map_rule.axis == -1)
@@ -648,7 +648,7 @@ void TensorIterator::prepareInputPorts() {
 void TensorIterator::prepareOutputPorts() {
     const auto &eng = getEngine();
     for (auto map_rule : outputPortMap) {
-        auto &to_mem = getChildEdgesAtPort(map_rule.from)[0]->getMemoryPtr();
+        auto to_mem = getChildEdgesAtPort(map_rule.from)[0]->getMemoryPtr();
         auto &from_mem = output_mem[map_rule.to];
 
         if (map_rule.axis == -1)

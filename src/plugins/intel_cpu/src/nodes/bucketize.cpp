@@ -177,9 +177,9 @@ void Bucketize::execute(dnnl::stream strm) {
 }
 
 void Bucketize::prepareParams() {
-    auto& inputTensorMemPtr = getParentEdgeAt(INPUT_TENSOR_PORT)->getMemoryPtr();
-    auto& inputBinsMemPtr = getParentEdgeAt(INPUT_BINS_PORT)->getMemoryPtr();
-    auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    auto inputTensorMemPtr = getParentEdgeAt(INPUT_TENSOR_PORT)->getMemoryPtr();
+    auto inputBinsMemPtr = getParentEdgeAt(INPUT_BINS_PORT)->getMemoryPtr();
+    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
         IE_THROW() << "Destination memory didn't allocate.";
     if (!inputTensorMemPtr || !inputTensorMemPtr->isAllocated())

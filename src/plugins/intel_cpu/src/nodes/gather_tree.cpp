@@ -140,7 +140,7 @@ GatherTree::GatherTreeExecutor::GatherTreeExecutor(const VectorDims& stepIdxDims
 
 template<typename DATA_T>
 void GatherTree::GatherTreeExecutor::exec(const MemoryPtr& stepIdxMemPtr, const MemoryPtr& parentIdxMemPtr,
-    const MemoryPtr& maxSeqLenMemPtr, const MemoryPtr& endTokenMemPtr, MemoryPtr& dstMemPtr) {
+    const MemoryPtr& maxSeqLenMemPtr, const MemoryPtr& endTokenMemPtr, const MemoryPtr& dstMemPtr) {
     const auto *stepIdx = reinterpret_cast<DATA_T *>(stepIdxMemPtr->GetPtr());
     const auto *parentIdx = reinterpret_cast<DATA_T *>(parentIdxMemPtr->GetPtr());
     const auto *maxSeqLen = reinterpret_cast<DATA_T *>(maxSeqLenMemPtr->GetPtr());

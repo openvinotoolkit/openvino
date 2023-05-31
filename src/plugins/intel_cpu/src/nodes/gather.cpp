@@ -308,10 +308,10 @@ bool Gather::needPrepareParams() const {
 }
 
 void Gather::prepareParams() {
-    auto& dataMemPtr = getParentEdgeAt(GATHER_DATA)->getMemoryPtr();
+    auto dataMemPtr = getParentEdgeAt(GATHER_DATA)->getMemoryPtr();
     if (!dataMemPtr || !dataMemPtr->isAllocated())
         THROW_ERROR << " has not allocated input data memory.";
-    auto& idxMemPtr = getParentEdgeAt(GATHER_INDICES)->getMemoryPtr();
+    auto idxMemPtr = getParentEdgeAt(GATHER_INDICES)->getMemoryPtr();
     if (!idxMemPtr || !idxMemPtr->isAllocated())
         THROW_ERROR << " has not allocated input indices memory.";
     if (getSelectedPrimitiveDescriptor() == nullptr)
@@ -607,10 +607,10 @@ void Gather::resolveInPlaceEdges(Edge::LOOK look) {
             //     getName() << " with type " << getTypeStr();
 
             auto memMngr = std::make_shared<PartitionedMemoryMngr>(baseMemMngr, baseDim, offset);
-            childEdge->getMemoryPtr().reset(new Memory(getEngine()));
-            childEdge->getMemoryPtr()->Create(config.outConfs[outputPort].getMemDesc(), memMngr);
+            auto newMem = std::make_shared<Memory>(getEngine());
+            newMem->Create(config.outConfs[outputPort].getMemDesc(), memMngr);
 
-            childEdge->changeStatus(Edge::Status::Allocated);
+            childEdge->resetMemoryPtr(newMem);
         }
     } else {
         Node::resolveInPlaceEdges(look);

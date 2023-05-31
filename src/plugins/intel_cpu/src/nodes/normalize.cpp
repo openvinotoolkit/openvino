@@ -874,8 +874,8 @@ void NormalizeL2::setPostOps(dnnl::primitive_attr& kernel_attrs, const VectorDim
 }
 
 void NormalizeL2::createPrimitive() {
-    auto& dstMemPtr = getChildEdgeAt(DATA)->getMemoryPtr();
-    auto& srcMemPtr = getParentEdgeAt(DATA)->getMemoryPtr();
+    auto dstMemPtr = getChildEdgeAt(DATA)->getMemoryPtr();
+    auto srcMemPtr = getParentEdgeAt(DATA)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
         THROW_ERROR << "can't get destination memory";
     if (!srcMemPtr || !srcMemPtr->isAllocated())

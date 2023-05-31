@@ -125,8 +125,8 @@ void ShuffleChannels::initSupportedPrimitiveDescriptors() {
 }
 
 void ShuffleChannels::createPrimitive() {
-    auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    auto &srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
+    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    auto srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
         THROW_SHCH_ERROR << "has not allocated destination memory";
     if (!srcMemPtr || !srcMemPtr->isAllocated())
@@ -149,7 +149,7 @@ void ShuffleChannels::createPrimitive() {
 }
 
 void ShuffleChannels::prepareParams() {
-    auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
+    auto srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
     auto builder = [](const ShuffleChannelsAttributes& key) -> std::shared_ptr<ShuffleChannelsExecutor> {
         return std::make_shared<ShuffleChannelsExecutor>(key);
     };

@@ -369,7 +369,7 @@ void Pad::PadExecutor::innerParamsInitialization() {
                             std::min(params.attrs.padsEnd[params.nDimsForWork], 0)) * params.shift;
 }
 
-void Pad::PadExecutor::exec(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr) {
+void Pad::PadExecutor::exec(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr) {
     if (zeroInputDimsCase) {
         padConstant(srcMemPtr, dstMemPtr);
     } else {
@@ -419,7 +419,7 @@ static inline void parallel_step(size_t nDims, const VectorDims& dims, std::vect
     }
 }
 
-void Pad::PadExecutor::padConstant(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr) {
+void Pad::PadExecutor::padConstant(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr) {
     if (params.attrs.padValue == 0 && !zeroInputDimsCase) {
         padConstantZero(srcMemPtr, dstMemPtr);
         return;
@@ -439,7 +439,7 @@ void Pad::PadExecutor::padConstant(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr) {
 }
 
 template <typename T>
-void Pad::PadExecutor::padConstantCommon(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr) {
+void Pad::PadExecutor::padConstantCommon(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr) {
     T* dstData = reinterpret_cast<T*>(dstMemPtr->GetPtr());
     const T value = static_cast<T>(params.attrs.padValue);
     if (zeroInputDimsCase) {
@@ -488,7 +488,7 @@ void Pad::PadExecutor::padConstantCommon(MemoryPtr& srcMemPtr, MemoryPtr& dstMem
     });
 }
 
-void Pad::PadExecutor::padConstantZero(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr) {
+void Pad::PadExecutor::padConstantZero(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr) {
     const uint8_t* srcData = reinterpret_cast<const uint8_t*>(srcMemPtr->GetPtr());
     uint8_t* dstData = reinterpret_cast<uint8_t*>(dstMemPtr->GetPtr());
 
@@ -529,7 +529,7 @@ void Pad::PadExecutor::padConstantZero(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPt
     });
 }
 
-void Pad::PadExecutor::padEdge(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr) {
+void Pad::PadExecutor::padEdge(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr) {
     const uint8_t* srcData = reinterpret_cast<const uint8_t*>(srcMemPtr->GetPtr());
     uint8_t* dstData = reinterpret_cast<uint8_t*>(dstMemPtr->GetPtr());
 
@@ -570,7 +570,7 @@ void Pad::PadExecutor::padEdge(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr) {
     });
 }
 
-void Pad::PadExecutor::padReflectOrSymmetric(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr, const bool isSymmetric) {
+void Pad::PadExecutor::padReflectOrSymmetric(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr, const bool isSymmetric) {
     const uint8_t* srcData = reinterpret_cast<const uint8_t*>(srcMemPtr->GetPtr());
     uint8_t* dstData = reinterpret_cast<uint8_t*>(dstMemPtr->GetPtr());
     const size_t shift = isSymmetric ? 1 : 0;

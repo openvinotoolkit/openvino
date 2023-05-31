@@ -575,9 +575,9 @@ InferenceEngine::Precision MatMul::getRuntimePrecision() const {
 }
 
 void MatMul::prepareParams() {
-    auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    auto& src0MemPtr = getParentEdgeAt(0)->getMemoryPtr();
-    auto& src1MemPtr = getParentEdgeAt(1)->getMemoryPtr();
+    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    auto src0MemPtr = getParentEdgeAt(0)->getMemoryPtr();
+    auto src1MemPtr = getParentEdgeAt(1)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
         IE_THROW()  << errorPrefix << " did not allocate destination memory";
     if (!src0MemPtr || !src0MemPtr->isAllocated() || !src1MemPtr || !src1MemPtr->isAllocated())
@@ -615,7 +615,7 @@ void MatMul::prepareParams() {
 
     DnnlMemoryDescPtr dnnlBiasMemDesc = nullptr;
     if (withBiases) {
-        auto& biasMemory = getParentEdgeAt(2)->getMemoryPtr();
+        auto biasMemory = getParentEdgeAt(2)->getMemoryPtr();
         if (!biasMemory || !biasMemory->isAllocated())
             IE_THROW()  << errorPrefix << " did not allocate bias memory";
         dnnlBiasMemDesc = biasMemory->GetDescWithType<DnnlMemoryDesc>();

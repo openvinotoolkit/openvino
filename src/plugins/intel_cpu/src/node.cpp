@@ -385,10 +385,9 @@ void Node::resolveInPlaceEdges(Edge::LOOK look) {
 
             auto baseMemMngr = getChildEdgesAtPort(inplaceOutIndx)[0]->getMemory().getMemoryMngr();
             auto memMngr = std::make_shared<PartitionedMemoryMngr>(baseMemMngr);
-            parentEdge->getMemoryPtr().reset(new Memory(getEngine()));
-            parentEdge->getMemoryPtr()->Create(selected_pd->getConfig().inConfs[i].getMemDesc(), memMngr);
-
-            parentEdge->changeStatus(Edge::Status::Allocated);
+            auto newMem = std::make_shared<Memory>(getEngine());
+            newMem->Create(selected_pd->getConfig().inConfs[i].getMemDesc(), memMngr);
+            parentEdge->resetMemoryPtr(newMem);
         }
     }
     if (look & Edge::LOOK_UP) {
@@ -405,9 +404,9 @@ void Node::resolveInPlaceEdges(Edge::LOOK look) {
             for (auto& childEdge : childEdges) {
                 IE_ASSERT(childEdge->getStatus() == Edge::Status::NotAllocated) <<
                     " Unexpected inplace resolve call to an allocated edge: " << childEdge->name();
-                childEdge->getMemoryPtr().reset(new Memory(getEngine()));
-                childEdge->getMemoryPtr()->Create(selected_pd->getConfig().outConfs[i].getMemDesc(), memMngr);
-                childEdge->changeStatus(Edge::Status::Allocated);
+                auto newMem = std::make_shared<Memory>(getEngine());
+                newMem->Create(selected_pd->getConfig().outConfs[i].getMemDesc(), memMngr);
+                childEdge->resetMemoryPtr(newMem);
             }
         }
     }
@@ -1709,7 +1708,7 @@ int Node::inPlaceInputPort(int portIdx) const {
 
     const auto& conf = selected_pd->getConfig();
 
-    IE_ASSERT(portIdx >= 0 && portIdx < conf.inConfs.size()) <<
+    IE_ASSERT(portIdx >= 0 && portIdx < static_cast<int>(conf.inConfs.size())) <<
         "Wrong portIndx: " << portIdx << " acceptable interval: [0, " << conf.inConfs.size() << ")";
 
     return conf.inConfs[portIdx].inPlace();
@@ -1721,7 +1720,7 @@ int Node::inPlaceOutPort(int portIdx) const {
 
     const auto& conf = selected_pd->getConfig();
 
-    IE_ASSERT(portIdx >= 0 && portIdx < conf.outConfs.size()) <<
+    IE_ASSERT(portIdx >= 0 && portIdx < static_cast<int>(conf.outConfs.size())) <<
         "Wrong portIndx: " << portIdx << " acceptable interval: [0, " << conf.outConfs.size() << ")";
 
     return conf.outConfs[portIdx].inPlace();

@@ -106,7 +106,7 @@ public:
         auto soft_max = std::make_shared<ngraph::opset1::Softmax>(concat3, softmax_axis);
 
         ngraph::ResultVector results;
-        for (int i = 0; i < soft_max->get_output_size(); i++)
+        for (size_t i = 0; i < soft_max->get_output_size(); i++)
             results.push_back(std::make_shared<ngraph::opset1::Result>(soft_max->output(i)));
 
         function = std::make_shared<ngraph::Function>(results, input_params, "ConcatReshapeConcatPattern");

@@ -127,7 +127,7 @@ ReverseSequence::ReverseSequenceExecutor::ReverseSequenceExecutor(const VectorDi
 }
 
 template<typename T>
-void ReverseSequence::ReverseSequenceExecutor::exec(const MemoryPtr& dataMemPtr, const MemoryPtr& seqLengthsMemPtr, MemoryPtr& dstMemPtr) {
+void ReverseSequence::ReverseSequenceExecutor::exec(const MemoryPtr& dataMemPtr, const MemoryPtr& seqLengthsMemPtr, const MemoryPtr& dstMemPtr) {
     const VectorDims& srcDims = dataMemPtr->getStaticDims();
     const auto *srcData = reinterpret_cast<const float *>(dataMemPtr->GetPtr());
     auto *dstData = reinterpret_cast<float *>(dstMemPtr->GetPtr());

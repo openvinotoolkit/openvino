@@ -1942,7 +1942,7 @@ void Reduce::prepareParams() {
         reduce_axes = raw_axes;
     }
 
-    auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     const SizeVector &dst_dims = dstMemPtr->getDesc().getShape().getDims();
     dst_size = dstMemPtr->GetSize();
     calc_process_dst_dims(reduce_axes, dst_dims);
@@ -1990,8 +1990,8 @@ void Reduce::createPrimitive() {
     if (!isExecutable()) {
         return;
     }
-    auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    auto &srcMemPtr = getParentEdgeAt(REDUCE_DATA)->getMemoryPtr();
+    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    auto srcMemPtr = getParentEdgeAt(REDUCE_DATA)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
         IE_THROW() << errorPrefix << " has not allocated destination memory.";
     if (!srcMemPtr || !srcMemPtr->isAllocated())
@@ -2083,8 +2083,8 @@ void Reduce::executeDynamicImpl(dnnl::stream strm) {
 }
 
 void Reduce::execute(dnnl::stream strm) {
-    auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    auto &srcMemPtr = getParentEdgeAt(REDUCE_DATA)->getMemoryPtr();
+    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    auto srcMemPtr = getParentEdgeAt(REDUCE_DATA)->getMemoryPtr();
 
     const uint8_t *src_data = reinterpret_cast<const uint8_t *>(srcMemPtr->GetPtr());
     uint8_t *dst_data = reinterpret_cast<uint8_t *>(dstMemPtr->GetPtr());
@@ -2130,7 +2130,7 @@ void Reduce::reduce_type(const uint8_t *in_ptr, uint8_t *out_ptr, size_t dst_siz
 
     if (is_hybrid_layout) {
         uint8_t *proc_ptr = out_ptr;
-        auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+        auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
         out_ptr = reinterpret_cast<uint8_t *>(dstMemPtr->GetPtr());
         if (layout == ReduceLayoutType::reduce_nspc) {
             nspc2ncsp(proc_ptr, out_ptr);

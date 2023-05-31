@@ -2238,26 +2238,26 @@ void Interpolate::prepareParams() {
         IE_THROW() << "Can't prepare params for Interpolate node with name: " << getName() << ", because input/output dims aren't defined";
     }
 
-    auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
         IE_THROW() << errorPrefix << " did not allocate destination memory";
 
-    auto& srcMemPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
+    auto srcMemPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
     if (!srcMemPtr || !srcMemPtr->isAllocated())
         IE_THROW() << errorPrefix << " did not allocate input memory";
 
     if (shapeCalcMode == InterpolateShapeCalcMode::sizes) {
-        auto& tsMemPtr = getParentEdgeAt(TARGET_SHAPE_ID)->getMemoryPtr();
+        auto tsMemPtr = getParentEdgeAt(TARGET_SHAPE_ID)->getMemoryPtr();
         if (!tsMemPtr || !tsMemPtr->isAllocated())
             IE_THROW() << errorPrefix << " did not allocate target shape memory";
     } else {
-        auto& scaleMemPtr = getParentEdgeAt(get_scale_id())->getMemoryPtr();
+        auto scaleMemPtr = getParentEdgeAt(get_scale_id())->getMemoryPtr();
         if (!scaleMemPtr || !scaleMemPtr->isAllocated())
             IE_THROW() << errorPrefix << " did not allocate scales memory";
     }
 
     if (isAxesSpecified) {
-        auto &axesMemPtr = getParentEdgeAt(get_axis_id())->getMemoryPtr();
+        auto axesMemPtr = getParentEdgeAt(get_axis_id())->getMemoryPtr();
         if (!axesMemPtr || !axesMemPtr->isAllocated())
             IE_THROW() << errorPrefix << " did not allocate axes memory";
     }
@@ -2353,8 +2353,8 @@ void Interpolate::prepareParams() {
 }
 
 void Interpolate::createPrimitive() {
-    auto& srcMemPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
-    auto& dstMemPtr = getChildEdgesAtPort(0)[0]->getMemoryPtr();
+    auto srcMemPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
+    auto dstMemPtr = getChildEdgesAtPort(0)[0]->getMemoryPtr();
     if (!srcMemPtr || !srcMemPtr->isAllocated())
         IE_THROW() << errorPrefix << " did not allocate input memory";
     if (!dstMemPtr || !dstMemPtr->isAllocated())
@@ -2443,8 +2443,8 @@ std::vector<float> Interpolate::getScales(const VectorDims &srcDimPad, const Vec
 }
 
 void Interpolate::execute(dnnl::stream strm) {
-    auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    auto &srcMemPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
+    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    auto srcMemPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
 
     if (execPtr) {
         uint8_t *dst_data = reinterpret_cast<uint8_t*>(dstMemPtr->GetPtr());

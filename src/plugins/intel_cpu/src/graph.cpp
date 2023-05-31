@@ -956,7 +956,15 @@ void Graph::AllocateWithReuse() {
                         } else if (edge->inPlace(Edge::LOOK_UP)) {
                             edge->getParent()->resolveInPlaceEdges(Edge::LOOK_UP);
                         } else {
-                            edge->getMemory();
+                            auto sharedEdge = edge->getSharedEdge();
+                            auto sharedEdgeParent = sharedEdge->getParent();
+                            if (sharedEdgeParent->isConstant()) {
+                                edge->allocate(sharedEdge->getMemoryPtr()->GetData());
+                                DEBUG_LOG(*edge, " const sharedEdge with ", *sharedEdge);
+                            } else {
+                                edge->allocate(sharedEdge->getMemoryPtr()->getMemoryMngr());
+                                DEBUG_LOG(*edge, " sharedEdge with ", *sharedEdge);
+                            }
                         }
                     }
                 });

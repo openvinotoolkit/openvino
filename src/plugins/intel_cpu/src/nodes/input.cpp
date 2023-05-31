@@ -434,13 +434,13 @@ void Input::initSupportedPrimitiveDescriptors() {
 
 void Input::createPrimitive() {
     for (size_t i = 0; i < getChildEdges().size(); i++) {
-        auto &dstMemPtr = getChildEdgeAt(i)->getMemoryPtr();
+        auto dstMemPtr = getChildEdgeAt(i)->getMemoryPtr();
         if (!dstMemPtr || !dstMemPtr->isAllocated())
             IE_THROW() << "Destination memory didn't allocate for node " << getName()
                                << " to node " << getChildEdgeAt(i)->getChild()->getName() << ".";
     }
     for (size_t i = 0; i < getParentEdges().size(); i++) {
-        auto &srcMemPtr = getParentEdgeAt(i)->getMemoryPtr();
+        auto srcMemPtr = getParentEdgeAt(i)->getMemoryPtr();
         if (!srcMemPtr || !srcMemPtr->isAllocated())
             IE_THROW() << "Destination memory didn't allocate for node " << getName()
                                << " from node " << getParentEdgeAt(i)->getParent()->getName() << ".";

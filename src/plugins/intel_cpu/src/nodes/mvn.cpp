@@ -1347,8 +1347,8 @@ void MVN::MVNRefExecutor::exec(const uint8_t *src_data, uint8_t *dst_data, const
 }
 
 void MVN::prepareParams() {
-    auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
+    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    auto srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
         IE_THROW() << "Destination memory didn't allocate.";
     if (!srcMemPtr || !srcMemPtr->isAllocated())
@@ -1460,8 +1460,8 @@ void MVN::executeDynamicImpl(dnnl::stream strm) {
 }
 
 void MVN::execute(dnnl::stream strm) {
-    auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    auto &srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
+    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    auto srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
 
     if (execPtr) {
         uint8_t *dst_data = reinterpret_cast<uint8_t*>(dstMemPtr->GetPtr());

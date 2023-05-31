@@ -152,7 +152,7 @@ PriorBox::PriorBox(const std::shared_ptr<ngraph::Node>& op, const GraphContext::
 }
 
 bool PriorBox::needShapeInfer() const {
-    auto& memory = getChildEdgeAt(0)->getMemoryPtr();
+    auto memory = getChildEdgeAt(0)->getMemoryPtr();
     if (memory->GetShape().isDynamic()) {
         return true;
     }

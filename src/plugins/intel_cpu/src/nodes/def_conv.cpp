@@ -1160,10 +1160,10 @@ void DeformableConvolution::DefConvRefExecutor::exec(const float* src, const flo
 }
 
 void DeformableConvolution::prepareParams() {
-    auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    auto& srcMemPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
-    auto& offMemPtr = getParentEdgeAt(OFF_ID)->getMemoryPtr();
-    auto& weiMemPtr = getParentEdgeAt(WEI_ID)->getMemoryPtr();
+    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    auto srcMemPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
+    auto offMemPtr = getParentEdgeAt(OFF_ID)->getMemoryPtr();
+    auto weiMemPtr = getParentEdgeAt(WEI_ID)->getMemoryPtr();
 
     if (!dstMemPtr || !dstMemPtr->isAllocated())
         IE_THROW() << errorPrefix << " did not allocate destination memory";
@@ -1175,7 +1175,7 @@ void DeformableConvolution::prepareParams() {
         IE_THROW() << errorPrefix << " did not allocate weights memory";
 
     if (getOriginalInputsNumber() > 3) {
-        auto& modMemPtr = getParentEdgeAt(MOD_ID)->getMemoryPtr();
+        auto modMemPtr = getParentEdgeAt(MOD_ID)->getMemoryPtr();
         if (!modMemPtr || !modMemPtr->isAllocated())
             IE_THROW() << errorPrefix << " did not allocate modulations memory";
     }

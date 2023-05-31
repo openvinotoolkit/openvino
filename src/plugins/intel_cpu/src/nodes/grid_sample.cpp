@@ -179,13 +179,13 @@ void GridSample::createPrimitive() {
 }
 
 void GridSample::prepareParams() {
-    auto& dataMemPtr = getParentEdgeAt(IN_DATA)->getMemoryPtr();
+    auto dataMemPtr = getParentEdgeAt(IN_DATA)->getMemoryPtr();
     if (!dataMemPtr || !dataMemPtr->isAllocated())
         THROW_ERROR << " has not allocated input data memory.";
-    auto& gridMemPtr = getParentEdgeAt(IN_GRID)->getMemoryPtr();
+    auto gridMemPtr = getParentEdgeAt(IN_GRID)->getMemoryPtr();
     if (!gridMemPtr || !gridMemPtr->isAllocated())
         THROW_ERROR << " has not allocated input grid memory.";
-    auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
         THROW_ERROR << " has not allocated output memory.";
     if (getSelectedPrimitiveDescriptor() == nullptr)

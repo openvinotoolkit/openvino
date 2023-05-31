@@ -543,10 +543,10 @@ void Split::resolveInPlaceEdges(Edge::LOOK look) {
                 //     getName() << " with type " << getTypeStr();
 
                 auto memMngr = std::make_shared<PartitionedMemoryMngr>(baseMemMngr, baseDim, offset, partDim);
-                childEdge->getMemoryPtr().reset(new Memory(getEngine()));
-                childEdge->getMemoryPtr()->Create(selected_pd->getConfig().outConfs[i].getMemDesc(), memMngr);
+                auto newMem = std::make_shared<Memory>(getEngine());
+                newMem->Create(selected_pd->getConfig().outConfs[i].getMemDesc(), memMngr);
 
-                childEdge->changeStatus(Edge::Status::Allocated);
+                childEdge->resetMemoryPtr(newMem);
             }
             offset += partDim;
         }

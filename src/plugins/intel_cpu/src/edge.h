@@ -64,7 +64,8 @@ public:
     const std::shared_ptr<Node> getChild() const;
 
     const Memory& getMemory();
-    MemoryPtr& getMemoryPtr();
+    MemoryPtr getMemoryPtr() const;
+    void resetMemoryPtr(MemoryPtr mem);
 
     ReorderStatus needReorder();
     bool isDropped() const;

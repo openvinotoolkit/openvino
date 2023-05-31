@@ -388,8 +388,8 @@ void Pooling::prepareParams() {
     }
 
     if (useACL) {
-        auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-        auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
+        auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+        auto srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
         if (!dstMemPtr || !dstMemPtr->isAllocated())
             IE_THROW() << "Destination memory didn't allocate.";
         if (!srcMemPtr || !srcMemPtr->isAllocated())

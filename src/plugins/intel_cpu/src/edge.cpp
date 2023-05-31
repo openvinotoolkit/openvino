@@ -416,24 +416,16 @@ const Memory &Edge::getMemory() {
     return *getMemoryPtr();
 }
 
-MemoryPtr &Edge::getMemoryPtr() {
-    if (status == Status::NotAllocated) {
-        memoryPtr.reset(new Memory(getParent()->getEngine()));
-        const auto &desc = getDesc();
-        auto sharedEdge = getSharedEdge();
-        auto sharedEdgeParent = sharedEdge->getParent();
-        if (sharedEdgeParent->isConstant()) {
-            memoryPtr->Create(desc, sharedEdge->getMemoryPtr()->GetData());
-            DEBUG_LOG(*this, " const sharedEdge with ", *sharedEdge);
-        } else {
-            memoryPtr->Create(desc, sharedEdge->getMemoryPtr()->getMemoryMngr());
-            DEBUG_LOG(*this, " sharedEdge with ", *sharedEdge);
-        }
-        memoryFromEdge.reset();
-        changeStatus(Status::Allocated);
-    }
-
+MemoryPtr Edge::getMemoryPtr() const {
     return memoryPtr;
+}
+
+void Edge::resetMemoryPtr(MemoryPtr mem) {
+    if (status == Status::NotAllocated) {
+        memoryFromEdge.reset();
+    }
+    memoryPtr = mem;
+    changeStatus(Status::Allocated);
 }
 
 void Edge::sharedMemFrom(const EdgePtr &edge) {
@@ -445,11 +437,11 @@ void Edge::sharedMemFrom(const EdgePtr &edge) {
 void Edge::validate() {
     if (status == Status::Validated)
         return;
-    getMemory();
+
     getParent();
     getChild();
 
-    if (status != Status::Allocated) {
+    if (status != Status::Allocated || !memoryPtr) {
         IE_THROW() << "Error memory is not allocated!";
     }
     status = Status::Validated;

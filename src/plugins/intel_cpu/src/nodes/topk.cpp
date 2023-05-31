@@ -1981,8 +1981,8 @@ void TopK::preset_params() {
 }
 
 void TopK::prepareParams() {
-    auto &dstMemPtr = getChildEdgeAt(TOPK_DATA)->getMemoryPtr();
-    auto &srcMemPtr = getParentEdgeAt(TOPK_DATA)->getMemoryPtr();
+    auto dstMemPtr = getChildEdgeAt(TOPK_DATA)->getMemoryPtr();
+    auto srcMemPtr = getParentEdgeAt(TOPK_DATA)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
         IE_THROW() << errorPrefix << " has not allocated destination memory.";
     if (!srcMemPtr || !srcMemPtr->isAllocated())
@@ -2064,7 +2064,7 @@ void TopK::prepareParams() {
 }
 
 void TopK::createPrimitive() {
-    auto &srcMemPtr = getParentEdgeAt(TOPK_DATA)->getMemoryPtr();
+    auto srcMemPtr = getParentEdgeAt(TOPK_DATA)->getMemoryPtr();
     if (srcMemPtr->getDesc().hasLayoutType(LayoutType::ncsp)) {
         layout = TopKLayoutType::topk_ncsp;
     } else if (srcMemPtr->getDesc().hasLayoutType(LayoutType::nspc)) {
@@ -2137,9 +2137,9 @@ void TopK::executeDynamicImpl(dnnl::stream strm) {
 }
 
 void TopK::execute(dnnl::stream strm) {
-    auto &srcMemPtr = getParentEdgeAt(TOPK_DATA)->getMemoryPtr();
-    auto &dstMemPtr = getChildEdgeAt(TOPK_DATA)->getMemoryPtr();
-    auto &dstIndexesMemPtr = getChildEdgeAt(TOPK_INDEX)->getMemoryPtr();
+    auto srcMemPtr = getParentEdgeAt(TOPK_DATA)->getMemoryPtr();
+    auto dstMemPtr = getChildEdgeAt(TOPK_DATA)->getMemoryPtr();
+    auto dstIndexesMemPtr = getChildEdgeAt(TOPK_INDEX)->getMemoryPtr();
 
     const uint8_t *src_data = reinterpret_cast<const uint8_t *>(srcMemPtr->GetPtr());
     uint8_t *dst_data = reinterpret_cast<uint8_t *>(dstMemPtr->GetPtr());

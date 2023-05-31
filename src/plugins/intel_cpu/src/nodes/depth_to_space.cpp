@@ -161,8 +161,8 @@ void DepthToSpace::initSupportedPrimitiveDescriptors() {
 }
 
 void DepthToSpace::createPrimitive() {
-    auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
+    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    auto srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
         THROW_ERROR << "has not allocated destination memory";
     if (!srcMemPtr || !srcMemPtr->isAllocated())
@@ -288,7 +288,7 @@ DepthToSpace::DepthToSpaceExecutor::DepthToSpaceExecutor(const DepthToSpaceAttrs
     permuteKernel = std::unique_ptr<PermuteKernel>(new PermuteKernel(params));
 }
 
-void DepthToSpace::DepthToSpaceExecutor::exec(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr, const int MB) {
+void DepthToSpace::DepthToSpaceExecutor::exec(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr, const int MB) {
     if (!permuteKernel)
         IE_THROW() << "Could not execute. Kernel for Transpose node was not compiled.";
 
