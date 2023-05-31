@@ -14,8 +14,18 @@
 #include "openvino/openvino.hpp"
 #include "openvino/pass/serialize.hpp"
 
+#ifndef IN_OV_COMPONENT
+#    define IN_OV_COMPONENT
+#    define WAS_OV_LIBRARY_DEFINED
+#endif
+
 #include "gna/gna_config.hpp"
 #include "gpu/gpu_config.hpp"
+
+#ifdef WAS_OV_LIBRARY_DEFINED
+#    undef IN_OV_COMPONENT
+#    undef WAS_OV_LIBRARY_DEFINED
+#endif
 
 #include "samples/args_helper.hpp"
 #include "samples/common.hpp"
