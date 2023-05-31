@@ -110,6 +110,7 @@ OP_CONVERTER(translate_scaled_dot_product_attention);
 OP_CONVERTER(translate_select);
 OP_CONVERTER(translate_set_item);
 OP_CONVERTER(translate_selu);
+OP_CONVERTER(translate_shape_as_tensor);
 OP_CONVERTER(translate_sign);
 OP_CONVERTER(translate_size);
 OP_CONVERTER(translate_slice);
@@ -149,6 +150,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::_convolution", op::translate_convolution},
         {"aten::_convolution_mode", op::translate_convolution_mode},
         {"aten::_set_item", op::translate_set_item},
+        {"aten::_shape_as_tensor", op::translate_shape_as_tensor},
         {"aten::abs", op::translate_1to1_match_1_inputs<opset10::Abs>},
         {"aten::acos", op::translate_1to1_match_1_inputs<opset10::Acos>},
         {"aten::acos_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Acos>>},
