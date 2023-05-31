@@ -85,7 +85,7 @@ public:
 
         std::ostringstream results;
 
-        for (int i = 0; i < shapes.size(); i++) {
+        for (size_t i = 0; i < shapes.size(); i++) {
             results << "FQ" << i << "_IS=(" << CommonTestUtils::partialShape2str({shapes[i].first}) << ")_";
             results << "TS=";
             for (const auto& shape : shapes[i].second) {
@@ -206,7 +206,7 @@ protected:
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         inputs.clear();
         const auto& funcInputs = function->inputs();
-        for (int i = 0; i < funcInputs.size(); ++i) {
+        for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
             ov::Tensor tensor;
             tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),

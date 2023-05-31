@@ -342,17 +342,17 @@ private:
         Xbyak::Reg64 reg_src_aux = reg_stride;
         Xbyak::Reg64 reg_work_amount_bk = rbx;
         mov(reg_work_amount_bk, reg_work_amount);
-        for (int ur_num = 0; ur_num < unroll_number; ur_num++) {
+        for (size_t ur_num = 0; ur_num < unroll_number; ur_num++) {
             // 4-15 for unroll. 4-7 for src, 8-11 for m/v sum, 12-15 for mean
             int ur_offset_elt = ur_num * unroll_size * vector_step;
             int ur_offset = ur_offset_elt * sizeof(float);
             size_t unroll_size_rt = std::min(vec_num - ur_num * unroll_size, unroll_size);
             size_t elt_num = std::min(jcp_.C - ur_num * unroll_size * vector_step, unroll_size * vector_step);
-            for (int ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
+            for (size_t ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
                 uni_vpxor(Vmm(ur_base + 4 + ur_size), Vmm(ur_base + 4 + ur_size), Vmm(ur_base + 4 + ur_size));
             }
             if (jcp_.normalize_variance) {
-                for (int ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
+                for (size_t ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
                     uni_vmovups(Vmm(ur_base + 8 + ur_size), ptr[reg_mean + ur_offset + ur_size * vector_step * sizeof(float)]);
                 }
             }
@@ -367,8 +367,8 @@ private:
                 cmp(reg_work_amount, 0);
                 jle(loop_end_label, T_NEAR);
 
-                for (int ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
-                    bool is_tails = ur_offset_elt + ur_size * vector_step + vector_step > jcp_.C;
+                for (size_t ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
+                    bool is_tails = ur_offset_elt + ur_size * vector_step + vector_step > static_cast<size_t>(jcp_.C);
                     if (is_tails) {
                         load_tail_emitter->emit_code({static_cast<size_t>(reg_src_aux.getIdx())},
                             {static_cast<size_t>(ur_base + ur_size)}, {}, {load_pool_gpr_idxs});
@@ -384,18 +384,18 @@ private:
 
                 if (jcp_.normalize_variance) {
                     if (!isFloatCompatible(jcp_.src_prc)) {
-                        for (int ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
+                        for (size_t ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
                             uni_vcvtdq2ps(Vmm(ur_base + ur_size), Vmm(ur_base + ur_size));
                         }
                     }
-                    for (int ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
+                    for (size_t ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
                         uni_vsubps(Vmm(ur_base + ur_size), Vmm(ur_base + ur_size), Vmm(ur_base + 8 + ur_size));
                     }
-                    for (int ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
+                    for (size_t ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
                         uni_vfmadd231ps(Vmm(ur_base + 4 + ur_size), Vmm(ur_base + ur_size), Vmm(ur_base + ur_size));
                     }
                 } else {
-                    for (int ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
+                    for (size_t ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
                         if (!isFloatCompatible(jcp_.src_prc))
                             uni_vpaddd(Vmm(ur_base + 4 + ur_size), Vmm(ur_base + 4 + ur_size), Vmm(ur_base + ur_size));
                         else
@@ -409,7 +409,7 @@ private:
             L(loop_end_label);
 
             // store sum/variance
-            for (int ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
+            for (size_t ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
                 if (jcp_.normalize_variance) {
                     uni_vmovups(ptr[reg_variance + ur_offset + ur_size * vector_step * sizeof(float)], Vmm(ur_base + 4 + ur_size));
                 } else {
@@ -603,12 +603,12 @@ private:
         L(l_table);
 
         if (mayiuse(avx512_core_vnni) && (jcp_.src_prc == Precision::U8 || jcp_.src_prc == Precision::I8)) {
-            for (size_t d = 0; d < vector_step; ++d) {
+            for (int d = 0; d < vector_step; ++d) {
                 dd(cvals[0]);
             }
         }
         if (mayiuse(avx512_core_bf16) && jcp_.src_prc == Precision::BF16) {
-            for (size_t d = 0; d < vector_step; ++d) {
+            for (int d = 0; d < vector_step; ++d) {
                 dd(cvals[1]);
             }
         }
@@ -831,17 +831,17 @@ private:
         Xbyak::Reg64 reg_oc_off_bk = rdi;
         mov(reg_oc_off_bk, reg_oc_off);
         mov(reg_work_amount_bk, reg_work_amount);
-        for (int ur_num = 0; ur_num < unroll_number; ur_num++) {
+        for (size_t ur_num = 0; ur_num < unroll_number; ur_num++) {
             // 4-15 for unroll. 4-7 for src, 8-11 for m, 12-15 for v
             int ur_offset_elt = ur_num * unroll_size * vector_step;
             int ur_offset = ur_offset_elt * sizeof(float);
             size_t unroll_size_rt = std::min(vec_num - ur_num * unroll_size, unroll_size);
             size_t elt_num = std::min(jcp_.C - ur_num * unroll_size * vector_step, unroll_size * vector_step);
-            for (int ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
+            for (size_t ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
                 uni_vmovups(Vmm(ur_base + 4 + ur_size), ptr[reg_mean + ur_offset + ur_size * vector_step * sizeof(float)]);
             }
             if (jcp_.normalize_variance) {
-                for (int ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
+                for (size_t ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
                     uni_vmovups(Vmm(ur_base + 8 + ur_size), ptr[reg_variance_inv + ur_offset + ur_size * vector_step * sizeof(float)]);
                 }
             }
@@ -850,13 +850,13 @@ private:
             for (int i = 0; i < optimized_scaleshift_num; i++) {
                 mov(reg_d_weights, ptr[reg_post_ops_data + post_ops_data_offset]);
                 add(reg_d_weights, ur_offset);
-                for (int ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
+                for (size_t ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
                     uni_vmovups(Vmm(16 + i * 4 + ur_size), ptr[reg_d_weights]);
                     add(reg_d_weights, vector_step * sizeof(float));
                 }
                 mov(reg_d_bias, ptr[reg_post_ops_data + post_ops_data_offset]);
                 add(reg_d_bias, ur_offset + jcp_.C * sizeof(float));
-                for (int ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
+                for (size_t ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
                     uni_vmovups(Vmm(24 + i * 4 + ur_size), ptr[reg_d_bias]);
                     add(reg_d_bias, vector_step * sizeof(float));
                 }
@@ -875,8 +875,8 @@ private:
                 cmp(reg_work_amount, 0);
                 jle(loop_end_label, T_NEAR);
 
-                for (int ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
-                    bool is_tails = ur_offset_elt + ur_size * vector_step + vector_step > jcp_.C;
+                for (size_t ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
+                    bool is_tails = ur_offset_elt + ur_size * vector_step + vector_step > static_cast<size_t>(jcp_.C);
                     if (is_tails) {
                         load_tail_emitter->emit_code({static_cast<size_t>(reg_src_aux.getIdx())},
                             {static_cast<size_t>(ur_base + ur_size)}, {}, {load_pool_gpr_idxs});
@@ -890,25 +890,25 @@ private:
                 add(reg_src_aux, (jcp_.C - elt_num) * jcp_.src_data_size);
                 prefetcht0(ptr[reg_src_aux]);
 
-                for (int ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
+                for (size_t ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
                     uni_vsubps(Vmm(ur_base + ur_size), Vmm(ur_base + ur_size), Vmm(ur_base + 4 + ur_size));
                 }
                 if (jcp_.normalize_variance) {
-                    for (int ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
+                    for (size_t ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
                         uni_vmulps(Vmm(ur_base + ur_size), Vmm(ur_base + ur_size), Vmm(ur_base + 8 + ur_size));
                     }
                 }
 
                 for (int i = 0; i < optimized_scaleshift_num; i++) {
-                    for (int ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
+                    for (size_t ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
                         uni_vfmadd132ps(Vmm(ur_base + ur_size), Vmm(24 + i * 4 + ur_size), Vmm(16 + i * 4 + ur_size));
                     }
                 }
 
                 if (attr_.post_ops_.len() != 0) {
-                    for (int ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
+                    for (size_t ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
                         apply_post_ops(jcp_.dst_prc, ur_base + ur_size, false);
-                        bool is_tails = ur_offset_elt + ur_size * vector_step + vector_step > jcp_.C;
+                        bool is_tails = ur_offset_elt + ur_size * vector_step + vector_step > static_cast<size_t>(jcp_.C);
                         if (is_tails)
                             add(reg_oc_off, tail_step * sizeof(float));
                         else
@@ -916,8 +916,8 @@ private:
                     }
                 }
 
-                for (int ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
-                    bool is_tails = ur_offset_elt + ur_size * vector_step + vector_step > jcp_.C;
+                for (size_t ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
+                    bool is_tails = ur_offset_elt + ur_size * vector_step + vector_step > static_cast<size_t>(jcp_.C);
                     if (is_tails) {
                         store_tail_emitter->emit_code({static_cast<size_t>(ur_base + ur_size)}, {static_cast<size_t>(reg_dst_aux.getIdx())},
                             {store_pool_vec_idxs}, {store_pool_gpr_idxs});
@@ -961,8 +961,8 @@ private:
                 mov(reg_oc_off, reg_oc_off_bk);
             }
 
-            for (int v_num = 0; v_num < vec_num; v_num++) {
-                bool is_tail = (v_num * vector_step + vector_step > jcp_.C) ? true : false;
+            for (size_t v_num = 0; v_num < vec_num; v_num++) {
+                bool is_tail = (v_num * vector_step + vector_step > static_cast<size_t>(jcp_.C)) ? true : false;
                 worker_mvn(is_tail);
                 if (is_tail) {
                     add(reg_src, tail_step * jcp_.src_data_size);
@@ -1112,7 +1112,8 @@ bool MVN::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, st
                     return false;
                 }
             } else {
-                if (inDataRank > 5 || (inDataRank != axesVal.size() + 1 && inDataRank != axesVal.size() + 2)) {
+                if (inDataRank > 5 || (static_cast<size_t>(inDataRank) != axesVal.size() + 1 &&
+                                       static_cast<size_t>(inDataRank) != axesVal.size() + 2)) {
                     errorMessage = "Unsupported axes.";
                     return false;
                 }
@@ -1209,11 +1210,11 @@ void MVN::initSupportedPrimitiveDescriptors() {
 
         if (useAclExecutor) {
             std::vector<MemoryDescPtr> srcMemoryDescs;
-            for (int i = 0; i < config.inConfs.size(); i++) {
+            for (size_t i = 0; i < config.inConfs.size(); i++) {
                 srcMemoryDescs.push_back(config.inConfs[i].getMemDesc());
             }
             std::vector<MemoryDescPtr> dstMemoryDescs;
-            for (int i = 0; i < config.outConfs.size(); i++) {
+            for (size_t i = 0; i < config.outConfs.size(); i++) {
                 dstMemoryDescs.push_back(config.outConfs[i].getMemDesc());
             }
 
@@ -1369,7 +1370,7 @@ void MVN::prepareParams() {
 
     if (canUseAclExecutor) {
         std::vector<MemoryDescPtr> srcMemoryDescs;
-        for (int i = 0; i < getParentEdges().size(); i++) {
+        for (size_t i = 0; i < getParentEdges().size(); i++) {
             srcMemoryDescs.push_back(getParentEdgeAt(i)->getMemoryPtr()->getDescPtr());
         }
         std::vector<MemoryDescPtr> dstMemoryDescs;
@@ -1860,7 +1861,7 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, co
                 //                      // \|/
                 /////////////////////////////////
                 auto mean_buffer_ptr = &mean_buffer[blk_size * parallel_get_thread_num()];
-                for (int i = 0; i < blk_size; i++)
+                for (size_t i = 0; i < blk_size; i++)
                     mean_buffer_ptr[i] = 0.f;
 
                 auto arg = jit_mvn_call_args();
@@ -1872,7 +1873,7 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, co
                 (*mvn_mean_kernel)(&arg); // for W * blk
 
                 size_t min_cb = (std::min)(blk_size, C - cb * blk_size);
-                for (int i = 0; i < min_cb; i++)
+                for (size_t i = 0; i < min_cb; i++)
                     mean_internal += mean_buffer_ptr[i];
                 return mean_internal;
             });
@@ -1886,7 +1887,7 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, co
 
                     float variance_internal = 0.0f;
                     auto variance_buffer_ptr = &variance_buffer[blk_size * parallel_get_thread_num()];
-                    for (int i = 0; i < blk_size; i++)
+                    for (size_t i = 0; i < blk_size; i++)
                         variance_buffer_ptr[i] = 0.f;
 
                     auto arg = jit_mvn_call_args();
@@ -1900,7 +1901,7 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, co
                     (*mvn_variance_kernel)(&arg);
 
                     size_t min_cb = (std::min)(blk_size, C - cb * blk_size);
-                    for (int i = 0; i < min_cb; i++)
+                    for (size_t i = 0; i < min_cb; i++)
                         variance_internal += variance_buffer_ptr[i];
                     return variance_internal;
                 });
@@ -1944,7 +1945,7 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, co
             }
         } else {  // for per_channel
             float size_inv = 1.f / static_cast<float>(D * H * W);
-            for (int i = 0; i < mean_buffer.size(); i++)
+            for (size_t i = 0; i < mean_buffer.size(); i++)
                 mean_buffer[i] = 0.f;
 
             // one thread for one C*W size(the same H) to get C size result for the same H, added to last group result
@@ -1973,7 +1974,7 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, co
                 mean_buffer[c] *= size_inv;
 
             if (mvnAttrs.normalizeVariance_) {
-                for (int i = 0; i < variance_buffer.size(); i++)
+                for (size_t i = 0; i < variance_buffer.size(); i++)
                     variance_buffer[i] = 0.f;
 
                 parallel_for2d(D, H, [&](size_t thr_idx, size_t d, size_t h) {

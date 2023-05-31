@@ -12,7 +12,7 @@ namespace ov {
 namespace util {
 namespace dim {
 
-constexpr auto inf_bound = -1;  //!< Infinite bound value for dimension.
+constexpr int64_t inf_bound = -1;  //!< Infinite bound value for dimension.
 
 /**
  * @brief Checks if dimension length is infinite bound (undefined).

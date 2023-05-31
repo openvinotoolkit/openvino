@@ -65,7 +65,7 @@ void CTCGreedyDecoderSeqLen::initSupportedPrimitiveDescriptors() {
     std::vector<PortConfigurator> inDataConf;
     inDataConf.reserve(inputShapes.size());
     inDataConf.emplace_back(LayoutType::ncsp, Precision::FP32);
-    for (int i = 1; i < inputShapes.size(); ++i)
+    for (size_t i = 1; i < inputShapes.size(); ++i)
         inDataConf.emplace_back(LayoutType::ncsp, Precision::I32);
 
     addSupportedPrimDesc(inDataConf,
@@ -91,7 +91,7 @@ void CTCGreedyDecoderSeqLen::execute(dnnl::stream strm) {
 
     size_t workAmount = 0;
     for (size_t b = 0; b < B; b++) {
-        if (sequenceLengths[b] > T) {
+        if (sequenceLengths[b] > static_cast<int>(T)) {
             std::string errorMsg = errorPrefix
                                    + ". Sequence length " + std::to_string(sequenceLengths[b])
                                    + " cannot be greater than according decoded classes dimension size "

@@ -65,7 +65,7 @@ protected:
         const auto& funcInputs = function->inputs();
 
         // trip count
-        int i = 0;
+        size_t i = 0;
         if (funcInputs[i].get_node_shared_ptr()->get_friendly_name() == "trip_count") {
             const auto& funcInput = funcInputs[i];
             ov::Tensor tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
@@ -122,7 +122,7 @@ protected:
 
         // Body
         std::shared_ptr<ngraph::Node> Zo = body_params[0];
-        for (int i = 1; i < body_params.size(); ++i) {
+        for (size_t i = 1; i < body_params.size(); ++i) {
             Zo = std::make_shared<ngraph::op::v1::Add>(body_params[i], Zo);
         }
 
@@ -133,7 +133,7 @@ protected:
         loop->set_function(body);
         loop->set_special_body_ports(ngraph::opset5::Loop::SpecialBodyPorts{-1, 0});
 
-        for (int i = 0; i < body_params.size(); ++i) {
+        for (size_t i = 0; i < body_params.size(); ++i) {
             if (types[i] == LOOP_IN_TYPE::INVARIANT) {
                 loop->set_invariant_input(body_params[i], params[shift + i]);
             } else if (types[i] == LOOP_IN_TYPE::MERGED) {

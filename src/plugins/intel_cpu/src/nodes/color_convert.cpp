@@ -331,7 +331,7 @@ void RefConverter::convert(const T* y,
         auto y_ptr = y + batch * stride_y;
         auto uv_ptr = uv + batch * stride_uv;
 
-        for (int w = 0; w < width; w++) {
+        for (size_t w = 0; w < width; w++) {
             auto y_index = h * width + w;
             auto y_val = static_cast<float>(y_ptr[y_index]);
             auto uv_index = (h / 2) * width + (w / 2) * 2;
@@ -684,7 +684,7 @@ void RefConverter::convert(const T* y,
         auto u_ptr = u + batch * stride_uv;
         auto v_ptr = v + batch * stride_uv;
 
-        for (int w = 0; w < width; w++) {
+        for (size_t w = 0; w < width; w++) {
             auto y_index = h * width + w;
             auto y_val = static_cast<float>(y_ptr[y_index]);
             auto uv_index = (h / 2) * (width / 2) + w / 2;

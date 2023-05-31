@@ -229,7 +229,7 @@ void KernelEmitter::init_data_pointers(size_t num_inputs, size_t num_params, siz
         // Note: this is an extra copy, but let's keep it for clarity
         if (!layout.empty()) {
             std::vector<size_t> reordered_strides(strides.size());
-            for (auto i = 0; i < layout.size(); i++)
+            for (size_t i = 0; i < layout.size(); i++)
                 reordered_strides[i] = strides[layout[i]];
             strides = std::move(reordered_strides);
         }
@@ -250,7 +250,7 @@ void KernelEmitter::init_data_pointers(size_t num_inputs, size_t num_params, siz
     // master_shape size must be valid in both static and dynamic cases
     std::function<void(Reg64, const std::vector<size_t>&, Reg64)> init_ptr_with_offset;
     init_ptr_with_offset = [&](Reg64 pointer, const std::vector<size_t>& offsets, Reg64 reg_tmp) {
-        for (int j = 0; j < offset_rank; j++) {
+        for (size_t j = 0; j < offset_rank; j++) {
             if (jcp.master_shape[j] != 1 && offsets[j] != 0) {
                 h->mov(reg_tmp, offsets[j]);
                 h->imul(reg_tmp, h->ptr[reg_indexes + j * sizeof(size_t)]);
@@ -407,7 +407,7 @@ void LoopEndEmitter::emit_impl(const std::vector<size_t>& in,
     transform_idxs_to_regs(data_ptr_reg_idxs, data_ptr_regs);
     Reg64 reg_work_amount = Reg64(in.back());
     if (!evaluate_once) {
-        for (int idx = 0; idx < data_ptr_regs.size(); idx++) {
+        for (size_t idx = 0; idx < data_ptr_regs.size(); idx++) {
             if (ptr_increments[idx] != 0)
                 h->add(data_ptr_regs[idx], ptr_increments[idx] * wa_increment * io_data_size[idx]);
         }
@@ -416,7 +416,7 @@ void LoopEndEmitter::emit_impl(const std::vector<size_t>& in,
         h->jge(loop_begin->begin_address);
     }
 
-    for (int idx = 0; idx < data_ptr_regs.size(); idx++) {
+    for (size_t idx = 0; idx < data_ptr_regs.size(); idx++) {
         if (finalization_offsets[idx] != 0)
             h->add(data_ptr_regs[idx], finalization_offsets[idx] * io_data_size[idx]);
     }
@@ -778,7 +778,7 @@ BrgemmEmitter::BrgemmEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
                          : m_K;
     m_K_tail = m_K % m_K_blk;
 
-    size_t brg0BaseIdx = -1;
+    size_t brg0BaseIdx = std::numeric_limits<size_t>::max();
     for (size_t m = 0; m < 2; m++) {
         for (size_t k = 0; k < 2; k++) {
             for (size_t n = 0; n < 2; n++) {
@@ -802,7 +802,7 @@ BrgemmEmitter::BrgemmEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
 
                 // don't create brgemm kernels for empty tiles
                 if (M_ != 0 && K_ != 0 && N_ != 0) {
-                    if (brg0BaseIdx == -1)
+                    if (brg0BaseIdx == std::numeric_limits<size_t>::max())
                         brg0BaseIdx = getBrgIdx(m, k, n);
                     initBrgemm(brgemmCtx, m_brgKernels0[getBrgIdx(m, k, n)], brgWithAMX);
                 }

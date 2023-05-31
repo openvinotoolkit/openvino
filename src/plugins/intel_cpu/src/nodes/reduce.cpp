@@ -1848,11 +1848,11 @@ void Reduce::initSupportedPrimitiveDescriptors() {
 
         if (useAclExecutor) {
             std::vector<MemoryDescPtr> srcMemoryDescs;
-            for (int i = 0; i < config.inConfs.size(); i++) {
+            for (size_t i = 0; i < config.inConfs.size(); i++) {
                 srcMemoryDescs.push_back(config.inConfs[i].getMemDesc());
             }
             std::vector<MemoryDescPtr> dstMemoryDescs;
-            for (int i = 0; i < config.outConfs.size(); i++) {
+            for (size_t i = 0; i < config.outConfs.size(); i++) {
                 dstMemoryDescs.push_back(config.outConfs[i].getMemDesc());
             }
 
@@ -1923,7 +1923,7 @@ bool Reduce::isExecutable() const {
 void Reduce::prepareParams() {
     if (canUseAclExecutor) {
         std::vector<MemoryDescPtr> srcMemoryDescs;
-        for (int i = 0; i < getParentEdges().size(); i++) {
+        for (size_t i = 0; i < getParentEdges().size(); i++) {
             srcMemoryDescs.push_back(getParentEdgeAt(i)->getMemoryPtr()->getDescPtr());
         }
         std::vector<MemoryDescPtr> dstMemoryDescs;
@@ -2090,7 +2090,7 @@ void Reduce::execute(dnnl::stream strm) {
         reduce_type(src_data, dst_data, dst_size);
     } else if (aclExecPtr) {
         std::vector<MemoryCPtr> srcMemory;
-        for (int i = 0; i < getParentEdges().size(); i++) {
+        for (size_t i = 0; i < getParentEdges().size(); i++) {
             srcMemory.push_back(getParentEdgeAt(i)->getMemoryPtr());
         }
         std::vector<MemoryPtr> dstMemory;

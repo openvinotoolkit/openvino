@@ -89,11 +89,11 @@ void EmbeddingBagOffsetSum::initFromInputs() {
     }
 }
 
-void EmbeddingBagOffsetSum::getIndices(int embIndex, const int*& indices, size_t& size, int& weightsIdx, bool& withWeight) {
-    if (embIndex >= _offsetsLen) {
+void EmbeddingBagOffsetSum::getIndices(size_t embIndex, const int*& indices, size_t& size, int& weightsIdx, bool& withWeight) {
+    if (static_cast<size_t>(embIndex) >= _offsetsLen) {
         IE_THROW() << "Invalid embedding bag index.";
     }
-    if (offsetsData_[embIndex] >= _indicesLen) {
+    if (static_cast<size_t>(offsetsData_[embIndex]) >= _indicesLen) {
         IE_THROW() << "Offset value exceeds indices size.";
     }
 

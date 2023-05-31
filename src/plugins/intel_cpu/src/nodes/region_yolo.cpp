@@ -390,7 +390,7 @@ void RegionYolo::execute(dnnl::stream strm) {
     size_t mask_size = mask.size();
     int end_index = 0;
     int num_ = 0;
-    int output_size = 0;
+    size_t output_size = 0;
     if (do_softmax) {
         // Region layer (Yolo v2)
         end_index = IW * IH;
@@ -416,7 +416,7 @@ void RegionYolo::execute(dnnl::stream strm) {
     cpu_convert(src_data, dst_data, getParentEdgeAt(0)->getMemory().getDesc().getPrecision(),
                 getChildEdgeAt(0)->getMemory().getDesc().getPrecision(), output_size);
 
-    for (int b = 0; b < B; b++) {
+    for (size_t b = 0; b < B; b++) {
         for (int n = 0; n < num_; n++) {
             size_t index = b * inputs_size + n * IW * IH * (classes + coords + 1);
             calculate_logistic(index, total_size, dst_data);
@@ -429,7 +429,7 @@ void RegionYolo::execute(dnnl::stream strm) {
     if (do_softmax) {
         int index = IW * IH * (coords + 1);
         int batch_offset = inputs_size / num;
-        for (int b = 0; b < B * num; b++) {
+        for (size_t b = 0; b < B * num; b++) {
             softmax_kernel->execute(src_data + input_prec.size() * (index + b * batch_offset),
                                     dst_data + output_prec.size() * (index + b * batch_offset), 1, classes, IH, IW);
         }

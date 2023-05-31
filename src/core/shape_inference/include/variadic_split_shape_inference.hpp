@@ -87,14 +87,14 @@ void shape_infer(const VariadicSplit* op,
                 }
                 if (data_shape[axis].is_static()) {
                     NODE_VALIDATION_CHECK(op,
-                                          sum_of_splits == data_shape[axis].get_length(),
+                                          sum_of_splits == static_cast<int64_t>(data_shape[axis].get_length()),
                                           "Total length of splits: ",
                                           sum_of_splits,
                                           " must match the length of the chosen axis: ",
                                           data_shape[axis]);
                 }
 
-                for (auto output = 0; output < num_outputs; ++output) {
+                for (uint64_t output = 0; output < static_cast<uint64_t>(num_outputs); ++output) {
                     if (split_lengths.at(output) == -1) {
                         auto out_shape = data_shape;
                         out_shape[axis] = Dimension::dynamic();

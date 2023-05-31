@@ -128,7 +128,7 @@ dnnl::memory::format_tag str2fmt(const char *str) {
 
 
 
-int get_cache_size(int level, bool per_core) {
+unsigned get_cache_size(int level, bool per_core) {
     if (per_core) {
         return dnnl::impl::cpu::platform::get_per_core_cache_size(level);
     } else {
@@ -142,7 +142,7 @@ int get_cache_size(int level, bool per_core) {
             unsigned l = level - 1;
             return cpu().getDataCacheSize(l);
         } else {
-            return 0;
+            return 0U;
         }
     }
     DNNL_THROW_ERROR(dnnl_unimplemented, "get_cache_size has no mode per_core == false");

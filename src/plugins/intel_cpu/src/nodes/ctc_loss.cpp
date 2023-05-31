@@ -52,7 +52,7 @@ void CTCLoss::initSupportedPrimitiveDescriptors() {
     std::vector<PortConfigurator> inDataConf;
     inDataConf.reserve(inputShapes.size());
     inDataConf.emplace_back(LayoutType::ncsp, Precision::FP32);
-    for (int i = 1; i < inputShapes.size(); ++i)
+    for (size_t i = 1; i < inputShapes.size(); ++i)
         inDataConf.emplace_back(LayoutType::ncsp, Precision::I32);
 
     addSupportedPrimDesc(inDataConf,
@@ -95,7 +95,8 @@ void CTCLoss::execute(dnnl::stream strm) {
             return;
 
         for (size_t b = start; b < end; b++) {
-            if (logitsLength[b] < 0 || labelsLength[b] < 0 || logitsLength[b] > maxTime || labelsLength[b] > logitsLength[b]) {
+            if (logitsLength[b] < 0 || labelsLength[b] < 0 || logitsLength[b] > static_cast<int>(maxTime) ||
+                labelsLength[b] > logitsLength[b]) {
                 errorMsgB[ithr] = errorPrefix + ". Logit length cannot be greater than max sequence length. "
                                   + "Label length cannot be greater than a logit length"
                                   + " and both cannot be negative.\nMaxSeqLen: "

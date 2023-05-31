@@ -266,7 +266,7 @@ private:
     void prepare_table() {
         align(64);
         L(gather_index_table);
-        for (int32_t i = 0; i < vlen / sizeof(int32_t); i++)
+        for (size_t i = 0; i < vlen / sizeof(int32_t); i++)
             dd(i * jpp.SW * jpp.dtype_size);
     }
 };
@@ -284,7 +284,7 @@ bool ExtractImagePatches::isSupportedOperation(const std::shared_ptr<const ngrap
             errorMessage = "Does not support pad type: " + ngraph::as_string(padValue);
             return false;
         }
-        if (!everyone_is(2, extImgPatcher->get_sizes().size(), extImgPatcher->get_strides().size(), extImgPatcher->get_rates().size())) {
+        if (!everyone_is(2u, extImgPatcher->get_sizes().size(), extImgPatcher->get_strides().size(), extImgPatcher->get_rates().size())) {
             errorMessage = "Doesn't support 'sizes', 'strides', 'rates', attributes with rank != 2";
             return false;
         }

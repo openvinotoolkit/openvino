@@ -34,13 +34,13 @@ protected:
 
 private:
     void initFromInputs() override;
-    void getIndices(int embIndex, const int*& indices, size_t& size, int& weightsIdx, bool& withWeight) override;
+    void getIndices(size_t embIndex, const int*& indices, size_t& size, int& weightsIdx, bool& withWeight) override;
     int32_t getNumSegments() const;
 
     static constexpr size_t SEGMENT_ID_IDX = 2lu;
     static constexpr size_t NUM_SEGMENTS_IDX = 3lu;
 
-    int lastNumSegments_ = 0;
+    int32_t lastNumSegments_ = 0;
 
     const int* indices_ = nullptr;
     const int* segmentIds_ = nullptr;

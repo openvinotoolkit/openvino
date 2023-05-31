@@ -418,7 +418,7 @@ void Split::selectOptimalPrimitiveDescriptor() {
 
         if (parent_spd != nullptr && !parent_spd->getConfig().outConfs.empty()) {
             int inNum = parentEdge->getInputNum();
-            if (inNum < 0 || inNum >= parent_spd->getConfig().outConfs.size()) {
+            if (inNum < 0 || static_cast<size_t>(inNum) >= parent_spd->getConfig().outConfs.size()) {
                 inNum = 0;
             }
             if (supportedPrimitiveDescriptors[i].getConfig().inConfs[0].getMemDesc()->isCompatible(*parent_spd->getConfig().outConfs[inNum].getMemDesc())) {
@@ -455,7 +455,7 @@ void Split::selectOptimalPrimitiveDescriptor() {
                 }
                 bool hasMatchDesc = false;
                 for (auto& childSpd : vecChildSpd) {
-                    if (inNum >= childSpd.getConfig().inConfs.size()) {
+                    if (static_cast<size_t>(inNum) >= childSpd.getConfig().inConfs.size()) {
                         inNum = 0;
                     }
                     if (outputDesc->isCompatible(*childSpd.getConfig().inConfs[inNum].getMemDesc())) {

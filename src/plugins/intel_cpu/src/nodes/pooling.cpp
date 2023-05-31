@@ -242,7 +242,7 @@ void Pooling::initEffectiveAttributes(const Shape &inShape, const Shape &outShap
     const auto &inDims = inShape.getStaticDims();
     const auto &outDims = outShape.getStaticDims();
 
-    for (int i = 0; i < poolingAttrs.effective_pad_end.size(); i++) {
+    for (size_t i = 0; i < poolingAttrs.effective_pad_end.size(); i++) {
         int krn = poolingAttrs.kernel[i];
         int dil = poolingAttrs.dilation[i];
         int src = inDims[2 + i];
@@ -395,11 +395,11 @@ void Pooling::prepareParams() {
             IE_THROW() << "Input memory didn't allocate.";
 
         std::vector<MemoryDescPtr> srcMemoryDescs;
-        for (int i = 0; i < getOriginalInputsNumber(); i++) {
+        for (size_t i = 0; i < getOriginalInputsNumber(); i++) {
             srcMemoryDescs.push_back(getParentEdgeAt(i)->getMemoryPtr()->getDescPtr());
         }
         std::vector<MemoryDescPtr> dstMemoryDescs;
-        for (int i = 0; i < getOriginalOutputsNumber(); i++) {
+        for (size_t i = 0; i < getOriginalOutputsNumber(); i++) {
             dstMemoryDescs.push_back(getChildEdgeAt(i)->getMemoryPtr()->getDescPtr());
         }
 
@@ -487,11 +487,11 @@ void Pooling::execute(dnnl::stream strm) {
         dnnlExecPtr->exec(primArgs, strm);
     } else if (execPtr) {
         std::vector<MemoryCPtr> srcMemory;
-        for (int i = 0; i < getOriginalInputsNumber(); i++) {
+        for (size_t i = 0; i < getOriginalInputsNumber(); i++) {
             srcMemory.push_back(getParentEdgeAt(i)->getMemoryPtr());
         }
         std::vector<MemoryPtr> dstMemory;
-        for (int i = 0; i < getOriginalOutputsNumber(); i++) {
+        for (size_t i = 0; i < getOriginalOutputsNumber(); i++) {
             dstMemory.push_back(getChildEdgeAt(i)->getMemoryPtr());
         }
 
@@ -599,11 +599,11 @@ void Pooling::initSupportedPrimitiveDescriptors() {
                 creatorsMap.at(format)->createSharedDesc(getOriginalOutputPrecisionAtPort(0), getOutputShapeAtPort(0)));
 
             std::vector<MemoryDescPtr> srcMemoryDescs;
-            for (int i = 0; i < config.inConfs.size(); i++) {
+            for (size_t i = 0; i < config.inConfs.size(); i++) {
                 srcMemoryDescs.push_back(config.inConfs[i].getMemDesc());
             }
             std::vector<MemoryDescPtr> dstMemoryDescs;
-            for (int i = 0; i < config.outConfs.size(); i++) {
+            for (size_t i = 0; i < config.outConfs.size(); i++) {
                 dstMemoryDescs.push_back(config.outConfs[i].getMemDesc());
             }
 

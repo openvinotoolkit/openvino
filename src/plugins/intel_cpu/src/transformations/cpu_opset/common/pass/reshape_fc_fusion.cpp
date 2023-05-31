@@ -52,7 +52,7 @@ ov::intel_cpu::ReshapeFullyConnectedFusion::ReshapeFullyConnectedFusion() {
             newWeightsShape = ngraph::Shape({outShape[2], shape_in[2]});
         } else {
             newWeightsShape.push_back(outShape[1]);
-            for (int i = 1; i < shape_in.size(); i++)
+            for (size_t i = 1; i < shape_in.size(); i++)
                 newWeightsShape.push_back(shape_in[i]);
         }
 

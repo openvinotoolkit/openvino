@@ -259,10 +259,10 @@ Convolution::Convolution(const std::shared_ptr<ngraph::Node>& op, const GraphCon
 
         biasesDims = { groupOC };
 
-        for (int i = 0; i < convolutionOp->get_strides().size(); i++) {
+        for (size_t i = 0; i < convolutionOp->get_strides().size(); i++) {
             stride.push_back(convolutionOp->get_strides()[i]);
         }
-        for (int i = 0; i < convolutionOp->get_dilations().size(); i++) {
+        for (size_t i = 0; i < convolutionOp->get_dilations().size(); i++) {
             dilation.push_back(static_cast<ptrdiff_t>(convolutionOp->get_dilations()[i]) - 1);
         }
         paddingL = convolutionOp->get_pads_begin();
@@ -282,10 +282,10 @@ Convolution::Convolution(const std::shared_ptr<ngraph::Node>& op, const GraphCon
 
         biasesDims = {groupOC * groupNum};
 
-        for (int i = 0; i < groupConvolutionOp->get_strides().size(); i++) {
+        for (size_t i = 0; i < groupConvolutionOp->get_strides().size(); i++) {
             stride.push_back(groupConvolutionOp->get_strides()[i]);
         }
-        for (int i = 0; i < groupConvolutionOp->get_dilations().size(); i++) {
+        for (size_t i = 0; i < groupConvolutionOp->get_dilations().size(); i++) {
             dilation.push_back(static_cast<ptrdiff_t>(groupConvolutionOp->get_dilations()[i]) - 1);
         }
         paddingL = groupConvolutionOp->get_pads_begin();
@@ -391,7 +391,7 @@ void Convolution::getSupportedDescriptors() {
     }
 
     int expectedInputEdgesNum = static_cast<int>(getOriginalInputsNumber());
-    for (int i = 0; i < fusedWith.size(); i++) {
+    for (size_t i = 0; i < fusedWith.size(); i++) {
         if (fusedWith[i]->getType() == Type::Convolution) {
             expectedInputEdgesNum += static_cast<int>(fusedWith[i]->getOriginalInputsNumber()) - 1;
         }
@@ -418,7 +418,7 @@ void Convolution::getSupportedDescriptors() {
     // We need to make sure that convolution output and second input of fused Eltwise operation
     // have equal precision sizes since they use the same physical memory. In case precisions are different we upscale to FP32.
     if (outputDataType != memory::data_type::f32 && outputDataType != memory::data_type::bf16 && withSum) {
-        for (int i = 0; i < fusedWith.size(); i++) {
+        for (size_t i = 0; i < fusedWith.size(); i++) {
             if (fusedWith[i]->getAlgorithm() == Algorithm::EltwiseAdd) {
                 auto* eltwiseNode = dynamic_cast<Eltwise *>(fusedWith[i].get());
                 if (eltwiseNode && eltwiseNode->isSpecialConvolutionAddFusing()) {
@@ -433,7 +433,7 @@ void Convolution::getSupportedDescriptors() {
         }
     }
 
-    if (getParentEdges().size() != expectedInputEdgesNum)
+    if (static_cast<int>(getParentEdges().size()) != expectedInputEdgesNum)
         IE_THROW() << "Incorrect number of input edges for layer " << getName() << ", expected: " << expectedInputEdgesNum
                    << " actual: " << getParentEdges().size();
     if (getChildEdges().empty())
@@ -446,7 +446,7 @@ void Convolution::getSupportedDescriptors() {
         IE_THROW() << "DW convolution is fused into convolution node " << getName() << " with dynamic shape.";
     }
 
-    for (int i = 0; i < fusedWith.size(); i++) {
+    for (size_t i = 0; i < fusedWith.size(); i++) {
         auto *convolutionNode = dynamic_cast<Convolution *>(fusedWith[i].get());
         if (convolutionNode) {
             auto& inActivationDims = convolutionNode->inputShapes[0].getStaticDims();
@@ -471,7 +471,7 @@ void Convolution::getSupportedDescriptors() {
                 dw_conv_in_dt = memory::data_type::f32;
             }
 
-            for (int j = 0; j < paddingR.size(); j++) {
+            for (size_t j = 0; j < paddingR.size(); j++) {
                 int with_group = isGrouped ? 1 : 0;
                 int krn = weightDims[with_group + 2 + j];
                 int src = getInputShapeAtPort(0).getStaticDims()[2 + j];
@@ -506,7 +506,7 @@ void Convolution::getSupportedDescriptors() {
     outputDataType = (getOriginalOutputPrecisionAtPort(0) == Precision::BF16
                       && !(isDepthWise() && ndims == 5)) ? memory::data_type::bf16 : memory::data_type::f32;
     eltwisePrecision = Precision::FP32;
-    for (int i = 0; i < fusedWith.size(); i++) {
+    for (size_t i = 0; i < fusedWith.size(); i++) {
         if (fusedWith[i]->getAlgorithm() == Algorithm::EltwiseAdd) {
             auto* eltwiseNode = dynamic_cast<Eltwise *>(fusedWith[i].get());
             if (eltwiseNode && eltwiseNode->isSpecialConvolutionAddFusing()) {
@@ -601,7 +601,7 @@ void Convolution::setPostOps(dnnl::primitive_attr& attr,
 
     DEBUG_LOG(getName(), " useLegacyPostOps=", useLegacyPostOps, " initWeights=", initWeights);
 
-    for (int i = 0; i < fusedWith.size(); ++i) {
+    for (size_t i = 0; i < fusedWith.size(); ++i) {
         auto& node = fusedWith[i];
         bool isLastPostOp = (i == (fusedWith.size() - 1));
 
@@ -639,7 +639,7 @@ void Convolution::setPostOps(dnnl::primitive_attr& attr,
             if (i == 0) {
                 bool hasSubsequentSum = false;
                 bool hasSubsequentFQ = false;
-                for (int j = i + 1; j < fusedWith.size(); j++) {
+                for (size_t j = i + 1; j < fusedWith.size(); j++) {
                     auto &nextNode = fusedWith[j];
 
                     auto *nextEltwiseNode = dynamic_cast<Eltwise *>(nextNode.get());
@@ -1636,7 +1636,7 @@ void Convolution::initializeInputZeroPoints(const uint8_t* inputZpData, const si
         IE_THROW() << "input zero point is not empty '" << getName() << "'";
     if (inputZpSize)
         inputZeroPointType = zpType::PerTensor;
-    for (int j = 0; j < inputZpSize; j++) {
+    for (size_t j = 0; j < inputZpSize; j++) {
         legacyInputZeroPoints.push_back(inputZpData[j]);
         if (inputZpData[j] != inputZpData[0])
             inputZeroPointType = zpType::PerChannel;

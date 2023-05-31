@@ -21,14 +21,14 @@ inline std::vector<float> simplifyToScale(const std::shared_ptr<ov::opset8::Fake
         ov::as_type_ptr<ov::opset8::Constant>(fq_node->get_input_node_shared_ptr(4))->cast_vector<float>();
 
     std::vector<float> cl, ch, isc, ish, osc, osh;
-    for (int i = 0; i < input_low.size(); i++) {
+    for (size_t i = 0; i < input_low.size(); i++) {
         cl.push_back(input_low[i]);
     }
-    for (int i = 0; i < input_high.size(); i++) {
+    for (size_t i = 0; i < input_high.size(); i++) {
         ch.push_back(input_high[i]);
     }
 
-    for (int i = 0; i < std::max(input_low.size(), input_high.size()); i++) {
+    for (size_t i = 0; i < std::max(input_low.size(), input_high.size()); i++) {
         float il = input_low[input_low.size() == 1 ? 0 : i];
         float ih = input_high[input_high.size() == 1 ? 0 : i];
 
@@ -36,7 +36,7 @@ inline std::vector<float> simplifyToScale(const std::shared_ptr<ov::opset8::Fake
         ish.push_back(-il * (levels - 1) / (ih - il));
     }
 
-    for (int i = 0; i < std::max(output_low.size(), output_high.size()); i++) {
+    for (size_t i = 0; i < std::max(output_low.size(), output_high.size()); i++) {
         float ol = output_low[output_low.size() == 1 ? 0 : i];
         float oh = output_high[output_high.size() == 1 ? 0 : i];
 
@@ -83,13 +83,13 @@ inline std::vector<float> simplifyToScale(const std::shared_ptr<ov::opset8::Fake
             return std::abs(val + 128.f) < threshold;
         })) {
         bool isCropAligned = true;
-        for (int i = 0; i < std::max(cl.size(), isc.size()); i++) {
+        for (size_t i = 0; i < std::max(cl.size(), isc.size()); i++) {
             if (std::abs(cl[cl.size() == 1 ? 0 : i] * isc[isc.size() == 1 ? 0 : i] + 128.f) > threshold) {
                 isCropAligned = false;
             }
         }
 
-        for (int i = 0; i < std::max(ch.size(), isc.size()); i++) {
+        for (size_t i = 0; i < std::max(ch.size(), isc.size()); i++) {
             if (std::abs(ch[ch.size() == 1 ? 0 : i] * isc[isc.size() == 1 ? 0 : i] - 127.f) > threshold) {
                 isCropAligned = false;
             }

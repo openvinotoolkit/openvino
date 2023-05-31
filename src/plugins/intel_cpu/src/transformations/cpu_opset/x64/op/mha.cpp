@@ -63,7 +63,7 @@ void ov::intel_cpu::MHANode::validate_and_infer_types() {
 
     auto transpose = [](const ov::Shape& shape, const std::vector<size_t>& order) -> ov::Shape {
         std::vector<size_t> new_shape(shape.size());
-        for (int i = 0; i < shape.size(); i++) {
+        for (size_t i = 0; i < shape.size(); i++) {
             new_shape[i] = shape[order[i]];
         }
         return new_shape;

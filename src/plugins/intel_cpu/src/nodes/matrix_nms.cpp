@@ -262,7 +262,7 @@ void MatrixNms::prepareParams() {
 
     int64_t max_output_boxes_per_class = 0;
     size_t real_num_classes = m_backgroundClass == -1 ? m_numClasses :
-        m_backgroundClass < m_numClasses ? m_numClasses - 1 : m_numClasses;
+        static_cast<size_t>(m_backgroundClass) < m_numClasses ? m_numClasses - 1 : m_numClasses;
     if (m_nmsTopk >= 0)
         max_output_boxes_per_class = std::min(m_numBoxes, static_cast<size_t>(m_nmsTopk));
     else
@@ -283,7 +283,7 @@ void MatrixNms::prepareParams() {
     m_classOffset.resize(m_numClasses, 0);
 
     for (size_t i = 0, count = 0; i < m_numClasses; i++) {
-        if (i == m_backgroundClass)
+        if (i == static_cast<size_t>(m_backgroundClass))
             continue;
         m_classOffset[i] = (count++) * m_realNumBoxes;
     }
@@ -306,7 +306,7 @@ void MatrixNms::execute(dnnl::stream strm) {
     const float* scores = reinterpret_cast<const float*>(getParentEdgeAt(NMS_SCORES)->getMemoryPtr()->GetPtr());
 
     InferenceEngine::parallel_for2d(m_numBatches, m_numClasses, [&](size_t batchIdx, size_t classIdx) {
-        if (classIdx == m_backgroundClass) {
+        if (classIdx == static_cast<size_t>(m_backgroundClass)) {
             m_numPerBatchClass[batchIdx][classIdx] = 0;
             return;
         }
