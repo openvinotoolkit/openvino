@@ -4,46 +4,9 @@
 
 #include "test_model_repo.hpp"
 
-#ifdef __APPLE__
-#    include <mach-o/dyld.h>
-#endif
-
-#ifdef _WIN32
-#    ifndef NOMINMAX
-#        define NOMINMAX
-#    endif
-#    include <direct.h>
-#    include <stdlib.h>
-#    include <windows.h>
-#else
-#    include <dlfcn.h>
-#    include <limits.h>
-#    include <unistd.h>
-#endif
+#include <common_test_utils/file_utils.hpp>
 
 namespace TestDataHelpers {
-
-inline std::string getExecutableDirectory() {
-    std::string path;
-#ifdef _WIN32
-    char buffer[MAX_PATH];
-    int len = GetModuleFileNameA(NULL, buffer, MAX_PATH);
-#elif defined(__APPLE__)
-    Dl_info info;
-    dladdr(reinterpret_cast<void*>(getExecutableDirectory), &info);
-    const char* buffer = info.dli_fname;
-    int len = std::strlen(buffer);
-#else
-    char buffer[PATH_MAX];
-    int len = readlink("/proc/self/exe", buffer, PATH_MAX);
-#endif
-    if (len < 0) {
-        throw "Can't get test executable path name";
-    }
-    path = std::string(buffer, len);
-    return ov::util::get_directory(path);
-}
-
 std::string generate_test_xml_file() {
     // Create the file
     std::string plugin_xml = "plugin_test.xml";
@@ -59,7 +22,7 @@ std::string generate_test_xml_file() {
     plugin_xml_file << "<ie>\n";
     plugin_xml_file << "    <plugins>\n";
     plugin_xml_file << "        <plugin location=\"";
-    plugin_xml_file << getExecutableDirectory();
+    plugin_xml_file << CommonTestUtils::getExecutableDirectory();
     plugin_xml_file << ov::util::FileTraits<char>::file_separator;
     plugin_xml_file << ov::util::FileTraits<char>::library_prefix();
     plugin_xml_file << "mock_engine";
