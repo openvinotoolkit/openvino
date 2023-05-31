@@ -59,7 +59,7 @@ public:
      * @enum WaitMode
      * @brief Enumeration to hold wait mode for IInferRequest
      */
-    enum WaitMode : int64_t {
+    enum INFERENCE_ENGINE_1_0_DEPRECATED WaitMode : int64_t {
         /** Wait until inference result becomes available */
         RESULT_READY = -1,
         /** IInferRequest doesn't block or interrupt current thread and immediately returns inference status */
@@ -272,9 +272,6 @@ public:
 };
 
 IE_SUPPRESS_DEPRECATED_START
-/**
- * @private
- */
 template <>
 struct InferRequest::SetCallback<std::function<void(InferRequest, StatusCode)>> {
     void operator()(std::function<void(InferRequest, StatusCode)> f) {
@@ -283,9 +280,6 @@ struct InferRequest::SetCallback<std::function<void(InferRequest, StatusCode)>> 
     InferRequest& _this;
 };
 
-/**
- * @private
- */
 template <>
 struct InferRequest::SetCallback<IInferRequest::CompletionCallback> {
     void operator()(IInferRequest::CompletionCallback f) {
