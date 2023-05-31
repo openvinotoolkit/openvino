@@ -71,13 +71,13 @@ Glossary of terms used in OpenVINO™
 |   A preferred hardware device to run inference (CPU, GPU, GNA, etc.).
 
 | *Extensibility mechanism, Custom layers* 
-|   The mechanism that provides you with capabilities to extend the OpenVINO™ Runtime and Model Conversion API so that they can work with models containing operations that are not yet supported.
+|   The mechanism that provides you with capabilities to extend the OpenVINO™ Runtime and model conversion API so that they can work with models containing operations that are not yet supported.
 
 | *layer / operation*
 |   In OpenVINO, both terms are treated synonymously. To avoid confusion, "layer" is being pushed out and "operation" is the currently accepted term. 
 
-| *Model Conversion API* 
-|   A component of OpenVINO Development Tools. The API is used to import, convert, and optimize models trained in popular frameworks to a format usable by other OpenVINO components. In ``openvino.tools.mo`` namespace, Model Conversion API is represented by a Python ``mo.convert_model()`` method  and ``mo`` command-line tool.
+| *Model conversion API* 
+|   A component of OpenVINO Development Tools. The API is used to import, convert, and optimize models trained in popular frameworks to a format usable by other OpenVINO components. In ``openvino.tools.mo`` namespace, model conversion API is represented by a Python ``mo.convert_model()`` method  and ``mo`` command-line tool.
 
 | *OpenVINO™ <code>Core</code>* 
 |   OpenVINO™ Core is a software component that manages inference on certain Intel(R) hardware devices: CPU, GPU, GNA, etc.    

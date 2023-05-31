@@ -14,7 +14,7 @@ There are two inputs in this network: boolean ``phase_train`` which manages stat
 Converting a TensorFlow FaceNet Model to the IR
 ###############################################
 
-To generate a FaceNet OpenVINO model, feed a TensorFlow FaceNet model to Model Conversion API with the following parameters:
+To generate a FaceNet OpenVINO model, feed a TensorFlow FaceNet model to model conversion API with the following parameters:
 
 .. code-block:: sh
 

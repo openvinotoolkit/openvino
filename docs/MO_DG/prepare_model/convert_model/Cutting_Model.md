@@ -2,7 +2,7 @@
 
 @sphinxdirective
 
-Sometimes, it is necessary to remove parts of a model when converting it to OpenVINO IR. This chapter describes how to do it, using Model Conversion API parameters. Model cutting applies mostly to TensorFlow models, which is why TensorFlow will be used in this chapter's examples, but it may be also useful for other frameworks.
+Sometimes, it is necessary to remove parts of a model when converting it to OpenVINO IR. This chapter describes how to do it, using model conversion API parameters. Model cutting applies mostly to TensorFlow models, which is why TensorFlow will be used in this chapter's examples, but it may be also useful for other frameworks.
 
 Purpose of Model Cutting
 ########################
@@ -17,12 +17,12 @@ The following examples are the situations when model cutting is useful or even r
 
 .. note::
 
-   Internally, when you run Model Conversion API, it loads the model, goes through the topology, and tries to find each layer type in a list of known layers. Custom layers are layers that are not included in the list. If your topology contains such kind of layers, Model Conversion API classifies them as custom.
+   Internally, when you run model conversion API, it loads the model, goes through the topology, and tries to find each layer type in a list of known layers. Custom layers are layers that are not included in the list. If your topology contains such kind of layers, model conversion API classifies them as custom.
 
-Model Conversion API parameters
+Model conversion API parameters
 ###############################
 
-Model Conversion API provides command line options ``input`` and ``output`` to specify new entry and exit nodes, while ignoring the rest of the model:
+Model conversion API provides command line options ``input`` and ``output`` to specify new entry and exit nodes, while ignoring the rest of the model:
 
 * ``input`` option accepts a list of layer names of the input model that should be treated as new entry points to the model. See the full list of accepted types for input on :doc:`Model Conversion Python API <openvino_docs_MO_DG_Python_API>` page.
 * ``output`` option accepts a list of layer names of the input model that should be treated as new exit points from the model.
@@ -210,7 +210,7 @@ If you want to cut your model at the end, you have the following options:
       </net>
 
 
-   As shown in the TensorBoard picture, the original model has more nodes than its Intermediate Representation. Model conversion, using ``convert_model()``, consists of a set of model transformations, including fusing of batch normalization ``InceptionV1/InceptionV1/Conv2d_1a_7x7/BatchNorm`` with convolution ``InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution``, which is why it is not present in the final model. This is not an effect of the ``output`` option, it is the typical behavior of Model Conversion API for batch normalizations and convolutions. The effect of the ``output`` is that the ``ReLU`` layer becomes the last one in the converted model.
+   As shown in the TensorBoard picture, the original model has more nodes than its Intermediate Representation. Model conversion, using ``convert_model()``, consists of a set of model transformations, including fusing of batch normalization ``InceptionV1/InceptionV1/Conv2d_1a_7x7/BatchNorm`` with convolution ``InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution``, which is why it is not present in the final model. This is not an effect of the ``output`` option, it is the typical behavior of model conversion API for batch normalizations and convolutions. The effect of the ``output`` is that the ``ReLU`` layer becomes the last one in the converted model.
 
 2. The following command cuts the edge that comes from 0 output port of the ``InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu`` and the rest of the model, making this node the last one in the model:
 

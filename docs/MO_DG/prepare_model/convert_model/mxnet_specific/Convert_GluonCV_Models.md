@@ -19,7 +19,7 @@ This article provides the instructions and examples on how to convert `GluonCV S
 
    As a result, you will get an MXNet model representation in ``ssd_512_mobilenet1.0.params`` and ``ssd_512_mobilenet1.0.json`` files generated in the current directory.
 
-2. Run Model Conversion API, specifying the ``enable_ssd_gluoncv`` option. Make sure the ``input_shape`` parameter is set to the input shape layout of your model (NHWC or NCHW). The examples below illustrate running model conversion for the SSD and YOLO-v3 models trained with the NHWC layout and located in the ``<model_directory>``:
+2. Run model conversion API, specifying the ``enable_ssd_gluoncv`` option. Make sure the ``input_shape`` parameter is set to the input shape layout of your model (NHWC or NCHW). The examples below illustrate running model conversion for the SSD and YOLO-v3 models trained with the NHWC layout and located in the ``<model_directory>``:
 
 * **For GluonCV SSD topologies:**
 

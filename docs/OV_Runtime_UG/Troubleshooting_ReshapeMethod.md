@@ -25,7 +25,7 @@ How To Fix Non-Reshape-able Model
 
 To fix some operators which prevent normal shape propagation:
 
-* see if the issue can be fixed via changing the values of some operators' input. For example, the most common problem of non-reshape-able models is a ``Reshape`` operator with a hard-coded output shape. You can cut-off the hard-coded second input of ``Reshape`` and fill it in with relaxed values. For the following example in the diagram below, the Model Conversion API command line should read:
+* see if the issue can be fixed via changing the values of some operators' input. For example, the most common problem of non-reshape-able models is a ``Reshape`` operator with a hard-coded output shape. You can cut-off the hard-coded second input of ``Reshape`` and fill it in with relaxed values. For the following example in the diagram below, the model conversion API command line should read:
 
   .. code-block:: sh
 

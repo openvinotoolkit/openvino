@@ -9,7 +9,7 @@
 
 .. note:: 
 
-   Model Conversion API supports the `nnet1 <http://kaldi-asr.org/doc/dnn1.html>`__ and `nnet2 <http://kaldi-asr.org/doc/dnn2.html>`__ formats of Kaldi models. The support of the `nnet3 <http://kaldi-asr.org/doc/dnn3.html>`__ format is limited.
+   Model conversion API supports the `nnet1 <http://kaldi-asr.org/doc/dnn1.html>`__ and `nnet2 <http://kaldi-asr.org/doc/dnn2.html>`__ formats of Kaldi models. The support of the `nnet3 <http://kaldi-asr.org/doc/dnn3.html>`__ format is limited.
  
 To convert a Kaldi model, run model conversion with the path to the input model ``.nnet`` or ``.mdl`` file:
 
@@ -60,7 +60,7 @@ Examples of CLI Commands
 
   * The normalized counts are subtracted from biases of the last or next to last layer (if last layer is SoftMax).
   
-    .. note:: Model Conversion API will show a warning if a model contains values of counts and the ``counts`` option is not used.
+    .. note:: Model conversion API will show a warning if a model contains values of counts and the ``counts`` option is not used.
 
 * If you want to remove the last SoftMax layer in the topology, launch the model conversion with the ``remove_output_softmax`` flag:
 
@@ -68,7 +68,7 @@ Examples of CLI Commands
 
    mo --input_model wsj_dnn5b_smbr.nnet --counts wsj_dnn5b_smbr.counts --remove_output_softmax
 
-Model Conversion API finds the last layer of the topology and removes this layer only if it is a SoftMax layer.
+Model conversion API finds the last layer of the topology and removes this layer only if it is a SoftMax layer.
 
 .. note:: Model conversion can remove SoftMax layer only if the topology has one output.
 

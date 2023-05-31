@@ -43,6 +43,6 @@ See the visualization of `Convolution` with the compressed weights:
 
 .. image:: _static/images/compressed_int8_Convolution_weights.png
 
-Both Model Conversion API and Post-Training Optimization tool generate a compressed IR by default.
+Both model conversion API and Post-Training Optimization tool generate a compressed IR by default.
 
 @endsphinxdirective

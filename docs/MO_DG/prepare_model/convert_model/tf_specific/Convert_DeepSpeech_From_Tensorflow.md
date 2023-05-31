@@ -73,7 +73,7 @@ are assigned to cell state and hidden state, which are these two variables.
 Converting the Main Part of DeepSpeech Model into OpenVINO IR
 #############################################################
 
-Model Conversion API assumes that the output model is for inference only. That is why you should cut ``previous_state_c`` and ``previous_state_h`` variables off and resolve keeping cell and hidden states on the application level.
+Model conversion API assumes that the output model is for inference only. That is why you should cut ``previous_state_c`` and ``previous_state_h`` variables off and resolve keeping cell and hidden states on the application level.
 
 There are certain limitations for the model conversion:
 

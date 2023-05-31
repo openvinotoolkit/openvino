@@ -72,7 +72,7 @@ Step 1: Set Up Environment
       # Include OpenVINO Python API package in the target image.
       CORE_IMAGE_EXTRA_INSTALL:append = " openvino-inference-engine-python3"
    
-      # Include Model Conversion API in the target image.
+      # Include model conversion API in the target image.
       CORE_IMAGE_EXTRA_INSTALL:append = " openvino-model-optimizer"
    
 
