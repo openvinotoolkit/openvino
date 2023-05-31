@@ -94,7 +94,7 @@ void Eye::initSupportedPrimitiveDescriptors() {
     std::vector<PortConfigurator> outDataConf;
 
     inDataConf.reserve(inputShapes.size());
-    for (int i = 0; i < inputShapes.size(); ++i)
+    for (size_t i = 0; i < inputShapes.size(); ++i)
         inDataConf.emplace_back(LayoutType::ncsp, Precision::I32);
     outDataConf.reserve(1);
     outDataConf.emplace_back(LayoutType::ncsp, convertPrecision(outType));

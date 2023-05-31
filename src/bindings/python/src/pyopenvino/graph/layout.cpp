@@ -7,6 +7,7 @@
 #include <pybind11/operators.h>
 #include <pybind11/pybind11.h>
 
+#include "pyopenvino/core/common.hpp"
 #include "pyopenvino/graph/layout.hpp"
 
 namespace py = pybind11;
@@ -44,4 +45,7 @@ void regclass_graph_Layout(py::module m) {
         return self.to_string();
     });
     layout.def_property_readonly("empty", &ov::Layout::empty);
+    layout.def("__repr__", [](const ov::Layout& self) {
+        return "<" + Common::get_class_name(self) + ": " + self.to_string() + ">";
+    });
 }
