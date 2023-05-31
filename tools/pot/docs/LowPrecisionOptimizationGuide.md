@@ -40,7 +40,7 @@ The diagram below shows the optimization flow for the new model with OpenVINO an
 ![](images/low_precision_flow.png)
 
 - **Step 0: Model enabling**. In this step we should ensure that the model trained on the target dataset can be successfully inferred with [OpenVINO™ Runtime](@ref openvino_docs_OV_UG_OV_Runtime_User_Guide) in floating-point precision.
-This process involves use of [Model Optimizer](@ref openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide) tool to convert the model from the source framework 
+This process involves use of [model conversion API](@ref openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide) tool to convert the model from the source framework 
 to the OpenVINO Intermediate Representation (IR) and run it on CPU with Inference Engine. 
   > **NOTE**: This step presumes that the model has the same accuracy as in the original training framework and enabled in the [Accuracy Checker](@ref omz_tools_accuracy_checker) tool or through the custom validation sample.
 - **Step 1: Post-training quantization**. As the first step for optimization, we suggest using INT8 quantization from POT where in most cases it is possible to get an accurate quantized model. At this step you do not need model re-training. The only thing required is a representative dataset which is usually several hundreds of images and it is used to collect statistics during the quantization process.
@@ -48,4 +48,4 @@ Post-training quantization is also really fast and usually takes several minutes
 For more information on best practices of post-training optimization please refer to the [Post-training Optimization Best practices](BestPractices.md).
 - **Step2: Quantization-Aware Training**: If the accuracy of the quantized model does not satisfy accuracy criteria, there is step two which implies QAT using [Neural Network Compression Framework (NNCF)](https://github.com/openvinotoolkit/nncf) for [PyTorch*](https://pytorch.org/) and [TensorFlow*](https://www.tensorflow.org/) models.
 At this step, we assume the user has an original training pipeline of the model written on TensorFlow or PyTorch and NNCF is integrated into it.
-After this step, you can get an accurate optimized model that can be converted to OpenVINO Intermediate Representation (IR) using Model Optimizer component and inferred with OpenVINO Inference Engine.
+After this step, you can get an accurate optimized model that can be converted to OpenVINO Intermediate Representation (IR) using model conversion API and inferred with OpenVINO Inference Engine.

@@ -186,7 +186,7 @@ Converting a YOLACT Model to the OpenVINO IR format
 
 **Step 4**. Embed input preprocessing into the IR:
 
-To get performance gain by offloading to the OpenVINO application of mean/scale values and RGB->BGR conversion, use the following options of the Model Optimizer (MO):
+To get performance gain by offloading to the OpenVINO application of mean/scale values and RGB->BGR conversion, use the following model conversion API parameters:
 
 * If the backbone of the model is Resnet50-FPN or Resnet101-FPN, use the following MO command line:
 

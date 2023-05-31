@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. important::
+
+   All of the issues below refer to :doc:`legacy functionalities <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>`.
+
 If your question is not covered by the topics below, use the 
 `OpenVINO Support page <https://community.intel.com/t5/Intel-Distribution-of-OpenVINO/bd-p/distribution-openvino-toolkit>`__, 
 where you can participate in a free forum discussion.
@@ -10,7 +14,6 @@ where you can participate in a free forum discussion.
 
    Note that OpenVINO support for Apache MXNet, Caffe, and Kaldi is currently being deprecated.
    As legacy formats, they will not be supported as actively as the main frontends and will be removed entirely in the future.
-
 
 .. _question-1:
 

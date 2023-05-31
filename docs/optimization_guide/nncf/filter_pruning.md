@@ -232,10 +232,10 @@ For more details on saving/loading checkpoints in the NNCF, see the following
 Deploying pruned model
 ######################
 
-The pruned model requires an extra step that should be done to get a performance improvement. This step involves the removal of the 
-zero filters from the model. This is done at the model conversion step using  :doc:`Model Optimizer <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>` tool when the model is converted from the framework representation (ONNX, TensorFlow, etc.) to OpenVINO Intermediate Representation.
+The pruned model requres an extra step that should be done to get performance improvement. This step involves removal of the 
+zero filters from the model. This is done at the model conversion step using  :doc:`model conversion API <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>` tool when model is converted from the framework representation (ONNX, TensorFlow, etc.) to OpenVINO Intermediate Representation.
 
-* To remove zero filters from the pruned model add the following parameter to the model conversion command: ``--transform=Pruning``
+* To remove zero filters from the pruned model add the following parameter to the model conversion command: ``transform=Pruning``
 
 After that, the model can be deployed with OpenVINO in the same way as the baseline model.
 For more details about model deployment with OpenVINO, see the corresponding :doc:`documentation <openvino_docs_OV_UG_OV_Runtime_User_Guide>`.
