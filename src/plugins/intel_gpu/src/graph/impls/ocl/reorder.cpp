@@ -141,6 +141,7 @@ public:
         r_params.output = convert_weights_tensor(impl_param.output_layouts[0]);
         r_params.layerID = impl_param.desc->id + "_reorder_weigths";
         r_params.uniqueID = std::to_string(impl_param.unique_id) + "_weight";
+        r_params.rotate_180 = prim->transposed;
 
         kernel_selector::reorder_optional_params optional_params;
         auto best_kernel = kernel_selector.get_best_kernel(r_params, optional_params);

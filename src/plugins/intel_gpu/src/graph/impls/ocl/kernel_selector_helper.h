@@ -271,7 +271,7 @@ inline kernel_impl_params canonicalize_fused_shapes(const kernel_impl_params& im
 }
 
 struct WeightsReorderParams {
-    WeightsReorderParams(layout in_layout, layout out_layout) : _in_layout(in_layout), _out_layout(out_layout) {}
+    WeightsReorderParams(layout in_layout, layout out_layout, bool transposed) : _in_layout(in_layout), _out_layout(out_layout), _transposed(transposed) {}
 
     virtual size_t hash() const {
         return hash_combine(_in_layout.hash(), _out_layout.hash());
@@ -287,12 +287,14 @@ struct WeightsReorderParams {
 
     layout get_input_layout() const { return _in_layout; }
     layout get_output_layout() const { return _out_layout; }
+    bool should_be_transposed() const { return _transposed; }
 
     virtual ~WeightsReorderParams() = default;
 
 protected:
     layout _in_layout;
     layout _out_layout;
+    bool _transposed;
 };
 
 inline std::shared_ptr<WeightsReorderParams> create_weights_reorder_params(const kernel_selector::WeightsReorderParams& params) {
@@ -300,7 +302,7 @@ inline std::shared_ptr<WeightsReorderParams> create_weights_reorder_params(const
         return nullptr;
     }
 
-    return std::make_shared<WeightsReorderParams>(from_weights_tensor(params.src), from_weights_tensor(params.dest));
+    return std::make_shared<WeightsReorderParams>(from_weights_tensor(params.src), from_weights_tensor(params.dest), params.rotate);
 }
 
 }  // namespace cldnn

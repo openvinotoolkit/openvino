@@ -149,17 +149,20 @@ struct reorder : public primitive_base<reorder> {
     /// @param input Input primitive id.
     /// @param output_layout Requested memory layout.
     /// @param grouped_input_weights True if the input weights has a group dimension.
+    /// @param transposed True if the weights should be transposed.
     reorder(const primitive_id& id,
             const input_info& input,
             const layout& output_layout,
-            bool grouped_input_weights)
+            bool grouped_input_weights,
+            bool transposed)
         : primitive_base(id, {input}, {output_layout.data_padding}, {optional_data_type{output_layout.data_type}}),
           output_format(output_layout.format),
           mean(""),
           subtract_per_feature({}),
           mean_mode(reorder_mean_mode::none),
           out_weights_shape(output_layout.get_partial_shape()),
-          grouped_input_weights(grouped_input_weights) {}
+          grouped_input_weights(grouped_input_weights),
+          transposed(transposed) {}
 
     /// @brief Requested memory format.
     format output_format;
@@ -175,6 +178,8 @@ struct reorder : public primitive_base<reorder> {
     ov::PartialShape out_weights_shape = {};
     /// @brief Defines if weights input has explicit group dimension.
     bool grouped_input_weights = false;
+    /// @brief Defines if weights should be transposed.
+    bool transposed = false;
 
     inline bool has_surface_input() const {
         return input.size() == 1 &&

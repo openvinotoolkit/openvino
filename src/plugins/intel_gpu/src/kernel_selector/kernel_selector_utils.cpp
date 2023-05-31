@@ -114,6 +114,7 @@ bool UpdateWeightsParams(weight_bias_params& newParams,
             weightsReorderParams.is_initialized = true;
             weightsReorderParams.src = newParams.weights;
             weightsReorderParams.dest = newParams.weights.TransformIgnorePadding(reqLayout, dtype, groups, false);
+            weightsReorderParams.rotate = rotate;
 
             newParams.weights = newParams.weights.TransformIgnorePadding(reqLayout, dtype, groups);
             return true;

@@ -116,7 +116,8 @@ std::shared_ptr<kernel_impl_params> primitive_impl::get_weights_reorder_kernel_p
 
     auto reorder_kernel_params = std::make_shared<kernel_impl_params>();
     bool is_grouped = format::is_grouped(_weights_reorder_params->get_input_layout().format);
-    auto prim = std::make_shared<reorder>("", input_info(), _weights_reorder_params->get_output_layout(), is_grouped);
+    bool is_transposed = _weights_reorder_params->should_be_transposed();
+    auto prim = std::make_shared<reorder>("", input_info(), _weights_reorder_params->get_output_layout(), is_grouped, is_transposed);
 
     reorder_kernel_params->desc = prim;
     reorder_kernel_params->unique_id = _weights_reorder_params->hash();

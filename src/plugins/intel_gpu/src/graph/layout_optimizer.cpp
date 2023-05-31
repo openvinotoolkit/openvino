@@ -172,7 +172,7 @@ std::pair<std::shared_ptr<primitive>, bool> reorder_factory::get_weights_reorder
         std::string reorder_id = input_id + "_weights_reorder_" + std::to_string(count);
 
         bool is_grouped = format::is_grouped(reorder_params->get_input_layout().format);
-        auto reorder = std::make_shared<cldnn::reorder>(reorder_id, input_id, expected_layout, is_grouped);
+        auto reorder = std::make_shared<cldnn::reorder>(reorder_id, input_id, expected_layout, is_grouped, reorder_params->should_be_transposed());
         _cached_reorders[ckey] = reorder;
         return std::make_pair(reorder, false);
     }
