@@ -479,26 +479,30 @@ void RNN::initCell() {
     else
         DC = getInputShapeAtPort(2).getDims()[1];
 
-    // Expected shapes.
-    const Shape shapeD{{N.minVal, DC}, {N.maxVal, DC}}, shapeS{{N.minVal, SC}, {N.maxVal, SC}};
+    if (N.isStatic()) {
+        // Expected shapes.
+        const auto B = N.minVal;
+        const Shape shapeD{B, DC}, shapeS{B, SC};
 
-    if ((getInputShapeAtPort(0).isStatic() && getInputShapeAtPort(0) != shapeD) ||
-            (getInputShapeAtPort(1).isStatic() && getInputShapeAtPort(1) != shapeS) ||
-            (getOutputShapeAtPort(0) != shapeS)) {
-        THROW_ERROR << "has incorrect input/output shapes. Data shape: " << getInputShapeAtPort(0).toString() <<
-                "; Hidden state input: " << getInputShapeAtPort(1).toString() << "; Hidden state output: " << getOutputShapeAtPort(0).toString();
-    }
+        if ((getInputShapeAtPort(0).isStatic() && getInputShapeAtPort(0) != shapeD) ||
+                (getInputShapeAtPort(1).isStatic() && getInputShapeAtPort(1) != shapeS) ||
+                (getOutputShapeAtPort(0).isStatic() && getOutputShapeAtPort(0) != shapeS)) {
+            THROW_ERROR << "has incorrect input/output shapes. Data shape: " << getInputShapeAtPort(0).toString() <<
+                    "; Hidden state input: " << getInputShapeAtPort(1).toString() << "; Hidden state output: " << getOutputShapeAtPort(0).toString();
+        }
 
-    if (S == 2) {
-        if ((getInputShapeAtPort(2).isStatic() && getInputShapeAtPort(2) != shapeS) || (getOutputShapeAtPort(1) != shapeS))
-            THROW_ERROR << "has incorrect input/output shapes. Cell state input: " << getInputShapeAtPort(2).toString() <<
-                    "; Cell state output: " << getOutputShapeAtPort(1).toString();
-    }
+        if (S == 2) {
+            if ((getInputShapeAtPort(2).isStatic() && getInputShapeAtPort(2) != shapeS) ||
+                (getOutputShapeAtPort(1).isStatic() && getOutputShapeAtPort(1) != shapeS))
+                THROW_ERROR << "has incorrect input/output shapes. Cell state input: " << getInputShapeAtPort(2).toString() <<
+                        "; Cell state output: " << getOutputShapeAtPort(1).toString();
+        }
 
-    if (is_augru) {
-        const Shape shapeA{{N.minVal, 1}, {N.maxVal, 1}};
-        if (getInputShapeAtPort(5).isStatic() && getInputShapeAtPort(5) != shapeA) {
-            THROW_ERROR << "has incorrect input shapes. Attention shape: " << getInputShapeAtPort(5).toString();
+        if (is_augru) {
+            const Shape shapeA{B, 1};
+            if (getInputShapeAtPort(5).isStatic() && getInputShapeAtPort(5) != shapeA) {
+                THROW_ERROR << "has incorrect input shapes. Attention shape: " << getInputShapeAtPort(5).toString();
+            }
         }
     }
 }
