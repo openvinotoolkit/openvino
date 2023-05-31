@@ -107,7 +107,7 @@ TEST(type_prop, group_normalization_incorrect_scale_shape) {
     const auto scale = std::make_shared<opset12::Parameter>(element::f32, Shape{13});
     const auto bias = std::make_shared<opset12::Parameter>(element::f32, Shape{12});
 
-    OV_EXPECT_THROW(std::make_shared<opset12::GroupNormalization>(data, scale, bias, 4, 0.00001f),
+    OV_EXPECT_THROW(const auto op = std::make_shared<opset12::GroupNormalization>(data, scale, bias, 4, 0.00001f),
                     NodeValidationFailure,
                     HasSubstr("The scale input shape needs to match the channel dimension in the data input"));
 }
@@ -117,7 +117,7 @@ TEST(type_prop, group_normalization_incorrect_bias_shape) {
     const auto scale = std::make_shared<opset12::Parameter>(element::f32, Shape{12});
     const auto bias = std::make_shared<opset12::Parameter>(element::f32, Shape{14});
 
-    OV_EXPECT_THROW(std::make_shared<opset12::GroupNormalization>(data, scale, bias, 4, 0.00001f),
+    OV_EXPECT_THROW(const auto op = std::make_shared<opset12::GroupNormalization>(data, scale, bias, 4, 0.00001f),
                     NodeValidationFailure,
                     HasSubstr("The bias input shape needs to match the channel dimension in the data input"));
 }
@@ -127,7 +127,7 @@ TEST(type_prop, group_normalization_incompatible_scale_and_bias) {
     const auto scale = std::make_shared<opset12::Parameter>(element::f32, Shape{2});
     const auto bias = std::make_shared<opset12::Parameter>(element::f32, Shape{4});
 
-    OV_EXPECT_THROW(std::make_shared<opset12::GroupNormalization>(data, scale, bias, 2, 0.00001f),
+    OV_EXPECT_THROW(const auto op = std::make_shared<opset12::GroupNormalization>(data, scale, bias, 2, 0.00001f),
                     NodeValidationFailure,
                     HasSubstr("The shapes of both scale and bias inputs need to match"));
 }
@@ -137,7 +137,7 @@ TEST(type_prop, group_normalization_incorrect_scale_rank) {
     const auto scale = std::make_shared<opset12::Parameter>(element::f32, Shape{12, 12});
     const auto bias = std::make_shared<opset12::Parameter>(element::f32, Shape{12});
 
-    OV_EXPECT_THROW(std::make_shared<opset12::GroupNormalization>(data, scale, bias, 4, 0.00001f),
+    OV_EXPECT_THROW(const auto op = std::make_shared<opset12::GroupNormalization>(data, scale, bias, 4, 0.00001f),
                     NodeValidationFailure,
                     HasSubstr("The scale input is required to be 1D"));
 }
@@ -147,7 +147,7 @@ TEST(type_prop, group_normalization_incorrect_bias_rank) {
     const auto scale = std::make_shared<opset12::Parameter>(element::f32, Shape{12});
     const auto bias = std::make_shared<opset12::Parameter>(element::f32, Shape{3, 14});
 
-    OV_EXPECT_THROW(std::make_shared<opset12::GroupNormalization>(data, scale, bias, 4, 0.00001f),
+    OV_EXPECT_THROW(const auto op = std::make_shared<opset12::GroupNormalization>(data, scale, bias, 4, 0.00001f),
                     NodeValidationFailure,
                     HasSubstr("The bias input is required to be 1D"));
 }
@@ -157,7 +157,7 @@ TEST(type_prop, group_normalization_incompatible_channels_and_groups) {
     const auto scale = std::make_shared<opset12::Parameter>(element::f32, Shape{10});
     const auto bias = std::make_shared<opset12::Parameter>(element::f32, Shape{10});
 
-    OV_EXPECT_THROW(std::make_shared<opset12::GroupNormalization>(data, scale, bias, 3, 0.00001f),
+    OV_EXPECT_THROW(const auto op = std::make_shared<opset12::GroupNormalization>(data, scale, bias, 3, 0.00001f),
                     NodeValidationFailure,
                     HasSubstr("The number of channels is required to be evenly divisible by the number of groups"));
 }
@@ -167,7 +167,7 @@ TEST(type_prop, group_normalization_incorrect_data_rank) {
     const auto scale = std::make_shared<opset12::Parameter>(element::f32, Shape{1});
     const auto bias = std::make_shared<opset12::Parameter>(element::f32, Shape{1});
 
-    OV_EXPECT_THROW(std::make_shared<opset12::GroupNormalization>(data, scale, bias, 2, 0.00001f),
+    OV_EXPECT_THROW(const auto op = std::make_shared<opset12::GroupNormalization>(data, scale, bias, 2, 0.00001f),
                     NodeValidationFailure,
                     HasSubstr("The input tensor is required to be at least 2D"));
 }
@@ -177,7 +177,7 @@ TEST(type_prop, group_normalization_negative_num_groups) {
     const auto scale = std::make_shared<opset12::Parameter>(element::f32, Shape{10});
     const auto bias = std::make_shared<opset12::Parameter>(element::f32, Shape{10});
 
-    OV_EXPECT_THROW(std::make_shared<opset12::GroupNormalization>(data, scale, bias, -3, 0.00001f),
+    OV_EXPECT_THROW(const auto op = std::make_shared<opset12::GroupNormalization>(data, scale, bias, -3, 0.00001f),
                     NodeValidationFailure,
                     HasSubstr("The number of groups needs to be a positive integer value"));
 }
@@ -187,7 +187,7 @@ TEST(type_prop, group_normalization_too_many_groups) {
     const auto scale = std::make_shared<opset12::Parameter>(element::f32, Shape{10});
     const auto bias = std::make_shared<opset12::Parameter>(element::f32, Shape{10});
 
-    OV_EXPECT_THROW(std::make_shared<opset12::GroupNormalization>(data, scale, bias, 11, 0.00001f),
+    OV_EXPECT_THROW(const auto op = std::make_shared<opset12::GroupNormalization>(data, scale, bias, 11, 0.00001f),
                     NodeValidationFailure,
                     HasSubstr("The number of groups must not exceed the number of channels in the input tensor"));
 }
