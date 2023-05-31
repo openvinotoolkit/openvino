@@ -205,7 +205,7 @@ GNA plugin natively supports stateful models. For more details on such models, r
 .. note:: 
 
    The GNA is typically used in streaming scenarios when minimizing latency is important. Taking into account that POT does not 
-   support the ``TensorIterator`` operation, the recommendation is to use the ``--transform`` option of the Model Optimizer 
+   support the ``TensorIterator`` operation, the recommendation is to use the ``transform`` option of model conversion API 
    to apply ``LowLatency2`` transformation when converting an original model.
 
 Profiling
