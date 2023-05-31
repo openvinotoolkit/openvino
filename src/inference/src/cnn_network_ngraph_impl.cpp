@@ -5,8 +5,6 @@
 #include "ie_api.h"
 IE_SUPPRESS_DEPRECATED_START
 
-#include "cnn_network_ngraph_impl.hpp"
-
 #include <cassert>
 #include <cmath>
 #include <map>
@@ -17,6 +15,7 @@ IE_SUPPRESS_DEPRECATED_START
 #include <vector>
 
 #include "blob_factory.hpp"
+#include "cnn_network_ngraph_impl.hpp"
 #include "cpp/ie_cnn_network.h"
 #include "ie_common.h"
 #include "ie_itt.hpp"
