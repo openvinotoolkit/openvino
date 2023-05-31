@@ -8,6 +8,7 @@
 #include <common_test_utils/test_constants.hpp>
 #include <ie_core.hpp>
 #include <ie_metric_helpers.hpp>
+#include "ie_system_conf.h"
 #include <multi-device/multi_device_config.hpp>
 #include <ngraph_functions/subgraph_builders.hpp>
 #include <openvino/runtime/core.hpp>
@@ -204,11 +205,17 @@ public:
 
         ON_CALL(*core, GetSupportedConfig)
             .WillByDefault([](const std::string& device, const std::map<std::string, std::string>& fullConfigs) {
-                auto item = fullConfigs.find(device);
                 Config deviceConfigs;
+                auto item = fullConfigs.find(ov::device::properties.name());
                 if (item != fullConfigs.end()) {
+                    Config devicesProperties;
                     std::stringstream strConfigs(item->second);
-                    ov::util::Read<Config>{}(strConfigs, deviceConfigs);
+                    ov::util::Read<Config>{}(strConfigs, devicesProperties);
+                    auto it = devicesProperties.find(device);
+                    if (it != devicesProperties.end()) {
+                        std::stringstream strConfigs(it->second);
+                        ov::util::Read<Config>{}(strConfigs, deviceConfigs);
+                    }
                 }
                 return deviceConfigs;
             });
@@ -257,13 +264,19 @@ TEST_P(LoadNetworkWithSecondaryConfigsMockTest, LoadNetworkWithSecondaryConfigsT
         plugin->SetName("MULTI");
 
     for (auto& deviceName : targetDevices) {
-        auto item = config.find(deviceName);
         Config deviceConfigs;
+        auto item = config.find(ov::device::properties.name());
         if (item != config.end()) {
+            Config devicesProperties;
             std::stringstream strConfigs(item->second);
-            // Parse the device properties to common property into deviceConfigs.
-            ov::util::Read<Config>{}(strConfigs, deviceConfigs);
+            ov::util::Read<Config>{}(strConfigs, devicesProperties);
+            auto it = devicesProperties.find(deviceName);
+            if (it != devicesProperties.end()) {
+                std::stringstream strConfigs(it->second);
+                ov::util::Read<Config>{}(strConfigs, deviceConfigs);
+            }
         }
+
         EXPECT_CALL(
             *core,
             LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
@@ -314,6 +327,43 @@ TEST_P(AutoLoadExeNetworkFailedTest, checkLoadFailMassage) {
                                 "[MULTI] Load network failed, GPU:Mock GPU Load Failed");
     }
 }
+
+using AutoLimitCompilationThreadsForAcceleratorTest = LoadNetworkWithSecondaryConfigsMockTest;
+TEST_P(AutoLimitCompilationThreadsForAcceleratorTest, checkPropertyCompileThreadsLimitationSetting) {
+    std::string device;
+    std::vector<std::string> targetDevices;
+    Config config;
+    std::tie(device, targetDevices, config) = this->GetParam();
+    if (device.find("AUTO") != std::string::npos)
+        plugin->SetName("AUTO");
+    if (device.find("MULTI") != std::string::npos)
+        plugin->SetName("MULTI");
+    std::string actualSelectedDevice = targetDevices.front();
+    std::string acceleratorDevice = targetDevices.back();
+    const int num_logic_cores = InferenceEngine::getNumberOfLogicalCPUCores();
+    auto max_num_threads = (num_logic_cores / 2) == 0 ? 1 : (num_logic_cores / 2);
+    Config deviceConfigs = {{ov::compilation_num_threads.name(), std::to_string(max_num_threads)}};
+    EXPECT_CALL(*core,
+                LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
+                            ::testing::Matcher<const std::string&>(StrEq(acceleratorDevice)),
+                            ::testing::Matcher<const std::map<std::string, std::string>&>(_)))
+        .Times(1);
+
+    EXPECT_CALL(*core,
+                LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
+                            ::testing::Matcher<const std::string&>(StrEq(actualSelectedDevice)),
+                            ::testing::Matcher<const std::map<std::string, std::string>&>(MapContains(deviceConfigs))))
+        .Times(1);
+
+    ASSERT_NO_THROW(plugin->LoadExeNetworkImpl(simpleCnnNetwork, config));
+}
+const std::vector<ConfigParams> testConfigsCompilationThreads = {
+    ConfigParams{"AUTO", {"GPU", "CPU"}, {{"MULTI_DEVICE_PRIORITIES", "GPU,CPU"}}}};
+
+INSTANTIATE_TEST_SUITE_P(smoke_AutoMock_LimitCompileThreadsForAcceleratorTest,
+                         AutoLimitCompilationThreadsForAcceleratorTest,
+                         ::testing::ValuesIn(testConfigsCompilationThreads),
+                         AutoLimitCompilationThreadsForAcceleratorTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoMock_LoadNetworkWithSecondaryConfigs,
                          LoadNetworkWithSecondaryConfigsMockTest,

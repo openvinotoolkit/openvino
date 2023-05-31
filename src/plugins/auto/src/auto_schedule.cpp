@@ -3,6 +3,7 @@
 //
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+#include "ie_system_conf.h"
 #include "auto_schedule.hpp"
 #include "async_infer_request.hpp"
 #include "auto_executable_network.hpp"
@@ -446,6 +447,11 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
                 _loadContext[CPU].isEnabled = true;
                 _loadContext[CPU].deviceInfo = *CPUIter;
                 _loadContext[CPU].deviceInfo.config[CONFIG_KEY(PERFORMANCE_HINT)] = IE::PluginConfigParams::LATENCY;
+                // limit the compilation threads for the actual selected device
+                const int num_logic_cores = InferenceEngine::getNumberOfLogicalCPUCores();
+                auto max_num_threads = (num_logic_cores / 2) == 0 ? 1 : (num_logic_cores / 2);
+                _loadContext[ACTUALDEVICE].deviceInfo.config[ov::compilation_num_threads.name()] =
+                    std::to_string(max_num_threads);
                 _loadContext[CPU].workName = "CPU_HELP";
                 LOG_INFO_TAG("will load CPU for accelerator");
             } else {
