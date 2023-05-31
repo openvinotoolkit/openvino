@@ -7,13 +7,12 @@ set(TARGET_NAME itt)
 file(GLOB_RECURSE SOURCES "src/*.cpp" "src/*.hpp")
 
 add_library(${TARGET_NAME} STATIC ${SOURCES})
-
 add_library(openvino::itt ALIAS ${TARGET_NAME})
 
 target_link_libraries(${TARGET_NAME} PUBLIC openvino::util)
 
-if(TARGET ittnotify)
-    target_link_libraries(${TARGET_NAME} PUBLIC ittnotify)
+if(ENABLE_PROFILING_ITT)
+    target_link_libraries(${TARGET_NAME} PUBLIC ittapi::ittapi)
     if(ENABLE_PROFILING_FILTER STREQUAL "ALL")
         target_compile_definitions(${TARGET_NAME} PUBLIC
             ENABLE_PROFILING_ALL

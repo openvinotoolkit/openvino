@@ -717,6 +717,124 @@ TEST(convolution_f32_fw_gpu, basic_convolution_no_bias) {
     //print_2d(temp_vec);
 }
 
+
+TEST(convolution_f32_fw_gpu, basic_convolution_no_bias_dynamic) {
+    auto& engine = get_test_engine();
+
+    ov::Shape in0_shape = { 1, 1, 4, 5 };
+
+    auto in0_dyn_layout = layout{ov::PartialShape::dynamic(in0_shape.size()), data_types::f32, format::bfyx};
+    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 3, 2 } });
+
+    set_values(weights, {
+        1.0f, 2.0f, 1.0f,
+        2.0f, 1.0f, 2.0f
+    });
+
+    topology topology(
+        input_layout("input", in0_dyn_layout),
+        data("weights", weights),
+        convolution("conv", input_info("input"), "weights", no_bias, 1, { 2, 1 }, {1, 1}, {0, 0}, {0, 0}, false));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+
+    // first execute
+    {
+        auto input0 = engine.allocate_memory({ in0_shape, data_types::f32, format::bfyx });
+        set_values(input0, {
+            1.0f, 2.0f, 3.0f, 4.0f, 5.0f,
+            2.0f, 2.0f, 3.0f, 4.0f, 6.0f,
+            3.0f, 3.0f, 3.0f, 5.0f, 1.0f,
+            1.0f, 1.0f, 1.0f, 1.0f, 1.0f
+        });
+        network.set_input_data("input", input0);
+
+        auto inst = network.get_primitive("conv");
+        auto impl = inst->get_impl();
+        ASSERT_TRUE(impl != nullptr);
+        ASSERT_TRUE(impl->is_dynamic());
+
+        auto outputs = network.execute();
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "conv");
+
+        auto output_memory = outputs.at("conv").get_memory();
+        auto output_layout = output_memory->get_layout();
+        cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+
+        int y_size = output_layout.spatial(1);
+        int x_size = output_layout.spatial(0);
+        int f_size = output_layout.feature();
+        int b_size = output_layout.batch();
+        ASSERT_EQ(output_layout.format, format::bfyx);
+        ASSERT_EQ(y_size, 2);
+        ASSERT_EQ(x_size, 3);
+        ASSERT_EQ(f_size, 1);
+        ASSERT_EQ(b_size, 1);
+
+        VVF<float> output_vec = {
+            { 20.0f, 27.0f, 38.0f },
+            { 17.0f, 19.0f, 19.0f }
+        };
+        for (int y = 0; y < y_size; ++y) {
+            for (int x = 0; x < x_size; ++x) {
+                ASSERT_EQ(output_vec[y][x], output_ptr[y * x_size + x]);
+            }
+        }
+    }
+
+    // second execute
+    {
+        in0_shape = { 1, 1, 6, 4 };
+        auto input0 = engine.allocate_memory({ in0_shape, data_types::f32, format::bfyx });
+        set_values(input0, {
+            1.0f, 2.0f, 3.0f, 4.0f,
+            2.0f, 2.0f, 3.0f, 4.0f,
+            3.0f, 3.0f, 3.0f, 5.0f,
+            1.0f, 1.0f, 1.0f, 1.0f,
+            5.0f, 4.0f, 3.0f, 2.0f,
+            4.0f, 4.0f, 3.0f, 3.0f,
+        });
+        network.set_input_data("input", input0);
+
+        auto inst = network.get_primitive("conv");
+        auto impl = inst->get_impl();
+        ASSERT_TRUE(impl != nullptr);
+        ASSERT_TRUE(impl->is_dynamic());
+
+        auto outputs = network.execute();
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "conv");
+
+        auto output_memory = outputs.at("conv").get_memory();
+        auto output_layout = output_memory->get_layout();
+        cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+
+        int y_size = output_layout.spatial(1);
+        int x_size = output_layout.spatial(0);
+        int f_size = output_layout.feature();
+        int b_size = output_layout.batch();
+        ASSERT_EQ(output_layout.format, format::bfyx);
+        ASSERT_EQ(y_size, 3);
+        ASSERT_EQ(x_size, 2);
+        ASSERT_EQ(f_size, 1);
+        ASSERT_EQ(b_size, 1);
+
+        VVF<float> output_vec = {
+            { 20.f, 27.f },
+            { 17.f, 19.f },
+            { 34.f, 29.f }
+        };
+        for (int y = 0; y < y_size; ++y) {
+            for (int x = 0; x < x_size; ++x) {
+                ASSERT_EQ(output_vec[y][x], output_ptr[y * x_size + x]);
+            }
+        }
+    }
+}
+
 TEST(convolution_f32_fw_gpu, basic_convolution_int8_no_bias) {
     //  Filter : 2x3
     //  Stride : 2x1
@@ -1079,6 +1197,145 @@ TEST(convolution_f32_fw_gpu, basic_convolution3D_group2) {
 
     network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "conv");
+
+    auto output_memory = outputs.at("conv").get_memory();
+    auto output_layout = output_memory->get_layout();
+    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+
+    int z_size = output_layout.spatial(2);
+    int y_size = output_layout.spatial(1);
+    int x_size = output_layout.spatial(0);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
+    ASSERT_EQ(output_layout.format, format::bfzyx);
+    ASSERT_EQ(b_size, 1);
+    ASSERT_EQ(f_size, 2);
+    ASSERT_EQ(z_size, 3);
+    ASSERT_EQ(y_size, 3);
+    ASSERT_EQ(x_size, 3);
+    for (int f = 0; f < f_size; ++f) {
+        for (int z = 0; z < z_size; ++z) {
+            for (int y = 0; y < y_size; ++y) {
+                for (int x = 0; x < x_size; ++x) {
+                    ASSERT_EQ(output_vec[f][z][y][x],
+                        output_ptr[f * z_size * y_size * x_size + z * y_size * x_size + y * x_size + x]);
+                }
+            }
+        }
+    }
+}
+
+TEST(convolution_f32_fw_gpu, basic_convolution3D_group2_dynamic) {
+    //  data is similar as in basic_convolution3D_split2
+    auto& engine = get_test_engine();
+
+    ov::Shape in0_shape = { 1, 2, 4, 4, 4 };
+    auto in0_dyn_layout = layout{ov::PartialShape::dynamic(in0_shape.size()), data_types::f32, format::bfzyx};
+
+    auto input0 = engine.allocate_memory({ in0_shape, data_types::f32, format::bfzyx });
+    auto weights = engine.allocate_memory({ data_types::f32, format::goizyx, tensor(format::goizyx, {2, 1, 1, 2, 2, 2 }) });
+    auto biases = engine.allocate_memory({ data_types::f32, format::bfzyx, { 1, 2, 1, 1, 1 } });
+
+    set_values(input0, {
+        1.0f,  0.0f,  1.0f,  0.0f,
+        1.0f,  1.0f,  3.0f,  1.0f,
+        1.0f,  1.0f,  0.0f,  2.0f,
+        0.0f,  2.0f,  1.0f,  1.0f,
+        1.0f,  0.0f,  0.0f,  1.0f,
+        2.0f,  0.0f,  1.0f,  2.0f,
+        3.0f,  1.0f,  1.0f,  1.0f,
+        0.0f,  0.0f,  3.0f,  1.0f,
+        2.0f,  0.0f,  1.0f,  1.0f,
+        3.0f,  3.0f,  1.0f,  0.0f,
+        2.0f,  1.0f,  1.0f,  0.0f,
+        3.0f,  2.0f,  1.0f,  2.0f,
+        1.0f,  0.0f,  2.0f,  0.0f,
+        1.0f,  0.0f,  3.0f,  3.0f,
+        3.0f,  1.0f,  0.0f,  0.0f,
+        1.0f,  1.0f,  0.0f,  2.0f,
+        1.0f,  0.0f,  1.0f,  0.0f,
+        1.0f,  1.0f,  3.0f,  1.0f,
+        1.0f,  1.0f,  0.0f,  2.0f,
+        0.0f,  2.0f,  1.0f,  1.0f,
+        1.0f,  0.0f,  0.0f,  1.0f,
+        2.0f,  0.0f,  1.0f,  2.0f,
+        3.0f,  1.0f,  1.0f,  1.0f,
+        0.0f,  0.0f,  3.0f,  1.0f,
+        2.0f,  0.0f,  1.0f,  1.0f,
+        3.0f,  3.0f,  1.0f,  0.0f,
+        2.0f,  1.0f,  1.0f,  0.0f,
+        3.0f,  2.0f,  1.0f,  2.0f,
+        1.0f,  0.0f,  2.0f,  0.0f,
+        1.0f,  0.0f,  3.0f,  3.0f,
+        3.0f,  1.0f,  0.0f,  0.0f,
+        1.0f,  1.0f,  0.0f,  2.0f,
+    });
+
+    set_values(weights, {
+        0.0f,  1.0f,
+        0.0f,  0.0f,
+        2.0f,  1.0f,
+        0.0f,  0.0f,
+        0.0f,  1.0f,
+        0.0f,  0.0f,
+        2.0f,  1.0f,
+        0.0f,  0.0f,
+    });
+
+    set_values(biases, { 1.0f, 2.0f });
+
+    VVVVF<float> output_vec = {
+        {
+            {
+                { 3.0f,   2.0f,   2.0f },
+                { 6.0f,   5.0f,   6.0f },
+                { 9.0f,   4.0f,   6.0f }
+            },
+            {
+                { 5.0f,   2.0f,   5.0f },
+                { 10.0f,   9.0f,   5.0f },
+                { 7.0f,   5.0f,   4.0f }
+            },
+            {
+                { 3.0f,   4.0f,   6.0f },
+                { 6.0f,   5.0f,   10.0f },
+                { 9.0f,   4.0f,   1.0f }
+            },
+        },
+        {
+            {
+                { 4.0f,   3.0f,   3.0f },
+                { 7.0f,   6.0f,   7.0f },
+                { 10.0f,  5.0f,   7.0f }
+            },
+            {
+                { 6.0f,   3.0f,   6.0f },
+                { 11.0f,  10.0f,  6.0f },
+                { 8.0f,   6.0f,   5.0f }
+            },
+            {
+                { 4.0f,   5.0f,   7.0f },
+                { 7.0f,   6.0f,  11.0f },
+                { 10.0f,  5.0f,   2.0f }
+            },
+        }
+    };
+
+    topology topology(
+        input_layout("input", in0_dyn_layout),
+        data("weights", weights),
+        data("biases", biases),
+        convolution("conv", input_info("input"), "weights", "biases", 2, {1, 1, 1}, {1, 1, 1}, {0, 0, 0}, {0, 0, 0}, true));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+
+    network.set_input_data("input", input0);
 
     auto outputs = network.execute();
     ASSERT_EQ(outputs.size(), size_t(1));
@@ -5566,7 +5823,9 @@ TEST_P(convolution_gpu_block_layout3D, bfzyx_bsv16_fsv16_fp32)
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{ "conv_bsv16_fsv16", "reorder_bfzyx" }));
+    config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{ "conv_bsv16_fsv16", "reorder_bfzyx", }));
+    ov::intel_gpu::ImplementationDesc conv_impl = { input_format, "", impl_types::ocl };
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{ "conv_bsv16_fsv16", conv_impl }}));
     network network(engine, topology, config);
 
     network.set_input_data("input", input_mem);
@@ -5704,6 +5963,8 @@ TEST_P(convolution_gpu_block_layout3D, bfzyx_bsv16_fsv16_fp16)
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{ "conv_bsv16_fsv16", "reorder_bfzyx" }));
+    ov::intel_gpu::ImplementationDesc conv_impl = { input_format, "" };
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{ "conv_bsv16_fsv16", conv_impl }}));
     network network(engine, topology, config);
 
     network.set_input_data("input", input_mem);
@@ -8947,7 +9208,7 @@ TEST(convolution_gpu_onednn, padding_for_cldnn_kernel_after_onednn) {
     auto weights = data("weights", weights_mem);
     auto input_reorder = reorder("input_fsv", input_info("input"), { data_types::f16, format::b_fs_yx_fsv16, input_size });
     auto conv1 = convolution("conv1", input_info("input_fsv"), "weights", no_bias, 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false);
-    auto conv2 = convolution("conv2", input_info("conv1"), "weights", no_bias, 1, { 1, 1 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, false);
+    auto conv2 = convolution("conv2", input_info("conv1"), "weights", no_bias, 1, { 1, 1 }, { 1, 1 }, { 1, 1 }, { 2, 2 }, false);
     auto output_reorder = reorder("reorder", input_info("conv2"), { data_types::f32, format::bfyx, { output_b, output_f, output_x, output_x } });
 
     topology topology_test(input, weights, input_reorder, conv1, conv2, output_reorder);

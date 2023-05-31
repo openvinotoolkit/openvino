@@ -36,8 +36,8 @@ inline bool copyFile(std::wstring source_path, std::wstring dest_path) {
 #else
     fixSlashes(source_path);
     fixSlashes(dest_path);
-    std::ifstream source(source_path, std::ios::binary);
-    std::ofstream dest(dest_path, std::ios::binary);
+    std::ifstream source(source_path.c_str(), std::ios::binary);
+    std::ofstream dest(dest_path.c_str(), std::ios::binary);
 #endif
     bool result = source && dest;
     std::istreambuf_iterator<char> begin_source(source);
