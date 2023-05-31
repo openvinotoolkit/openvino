@@ -4,7 +4,7 @@
 
 @sphinxdirective
 
-With the OpenVINO™ 2022.3 release, you can install OpenVINO Runtime on Linux using the YUM repository. 
+With the OpenVINO™ 2023.0 release, you can install OpenVINO Runtime on Linux using the YUM repository. 
 OpenVINO™ Development Tools can be installed via PyPI only. See 
 `Installing Additional Components <#step-3-optional-install-additional-components>`__ for more information.
 

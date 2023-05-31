@@ -71,9 +71,9 @@ Verify that OpenVINO is correctly installed
 
   .. code-block:: sh
 
-     python -c "from openvino.runtime import Core"
+     python -c "from openvino.runtime import Core; print(Core().available_devices)"
    
-  If OpenVINO was successfully installed, nothing will happen. If not, an error will be displayed.
+  If OpenVINO was successfully installed, you will see a list of available devices.
 
 * If you installed OpenVINO Runtime using the archive file, you can search "openvino" in Apps & Features on a Windows system, or check your installation directory on Linux to see if OpenVINO is there.
 
