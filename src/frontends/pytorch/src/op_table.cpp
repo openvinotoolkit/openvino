@@ -30,6 +30,7 @@ OP_CONVERTER(translate_bool);
 OP_CONVERTER(translate_batch_norm);
 OP_CONVERTER(translate_bitwise_not);
 OP_CONVERTER(translate_cat);
+OP_CONVERTER(translate_cdist);
 OP_CONVERTER(translate_clamp);
 OP_CONVERTER(translate_constant);
 OP_CONVERTER(translate_conv_transposend);
@@ -97,6 +98,7 @@ OP_CONVERTER(translate_numel);
 OP_CONVERTER(translate_ones);
 OP_CONVERTER(translate_ones_like);
 OP_CONVERTER(translate_pad);
+OP_CONVERTER(translate_pairwise_distance);
 OP_CONVERTER(translate_pow);
 OP_CONVERTER(translate_pythonop);
 OP_CONVERTER(translate_range_length);
@@ -192,6 +194,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::bmm", op::translate_1to1_match_2_inputs<opset10::MatMul>},
         {"aten::Bool", op::translate_bool},
         {"aten::cat", op::translate_cat},
+        {"aten::cdist", op::translate_cdist},
         {"aten::ceil", op::translate_1to1_match_1_inputs<opset10::Ceiling>},
         {"aten::ceil_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Ceiling>>},
         {"aten::clamp", op::translate_clamp},
@@ -297,6 +300,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::ones", op::translate_ones},
         {"aten::ones_like", op::translate_ones_like},
         {"aten::pad", op::translate_pad},
+        {"aten::pairwise_distance", op::translate_pairwise_distance},
         {"aten::permute", op::translate_1to1_match_2_inputs<opset10::Transpose>},
         {"aten::pow", op::translate_pow},
         {"aten::reciprocal", op::translate_reciprocal},
