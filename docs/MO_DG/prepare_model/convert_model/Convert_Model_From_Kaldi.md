@@ -77,7 +77,7 @@ The Model Optimizer finds the last layer of the topology and removes this layer 
 Supported Kaldi Layers
 ######################
 
-For the list of supported standard layers, refer to the :doc:`Supported Framework Layers <openvino_docs_MO_DG_prepare_model_Supported_Frameworks_Layers>` page.
+For the list of supported standard layers, refer to the :doc:`Supported Operations <openvino_resources_supported_operations_frontend>` page.
 
 Additional Resources
 ####################
