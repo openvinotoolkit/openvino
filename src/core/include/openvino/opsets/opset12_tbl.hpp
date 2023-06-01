@@ -68,7 +68,6 @@ _OPENVINO_OP_REG(NotEqual, ov::op::v1)
 _OPENVINO_OP_REG(OneHot, ov::op::v1)
 _OPENVINO_OP_REG(PRelu, ov::op::v0)
 _OPENVINO_OP_REG(PSROIPooling, ov::op::v0)
-_OPENVINO_OP_REG(Pad, ov::op::v1)
 _OPENVINO_OP_REG(Parameter, ov::op::v0)
 _OPENVINO_OP_REG(Power, ov::op::v1)
 _OPENVINO_OP_REG(PriorBoxClustered, ov::op::v0)
@@ -207,3 +206,4 @@ _OPENVINO_OP_REG(TopK, ov::op::v11)
 
 // New operations added in opset12
 _OPENVINO_OP_REG(GroupNormalization, ov::op::v12)
+_OPENVINO_OP_REG(Pad, ov::op::v12)
