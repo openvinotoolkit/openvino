@@ -20,15 +20,17 @@ GPU_DEFINE_PRIMITIVE_TYPE_ID(condition)
     In this both cases, we need to recalc branch_true and branch_false.
     !* We can be sure, that this method was called AT LEAST once during graph compilation.*!
 */
-layout condition_inst::calc_output_layout(condition_node const& node, kernel_impl_params const& impl_param) {
+layout condition_inst::calc_output_layout(condition_node const& /* node */, kernel_impl_params const& impl_param) {
     assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
            "Output data type forcing is not supported for condition_node!");
 
-    OPENVINO_ASSERT(node.get_dependency(0).get_output_layout().count() == 1,
+    OPENVINO_ASSERT(impl_param.get_input_layout(0).count() == 1,
                     "layout of compare_data of condition should be {1,1,1,1}");
 
-    auto branch_true_output = node.get_branch_true()->get_outputs();
-    auto branch_false_output = node.get_branch_false()->get_outputs();
+    OPENVINO_ASSERT(impl_param.inner_progs.size() == 2, "If(Condition) contains incorrect number of inner programs ", impl_param.inner_progs.size());
+
+    auto branch_true_output  = impl_param.inner_progs[0]->get_outputs();
+    auto branch_false_output = impl_param.inner_progs[1]->get_outputs();
 
     CLDNN_ERROR_NOT_EQUAL(impl_param.desc->id,
                           "Count of branch true outputs",
@@ -56,11 +58,12 @@ layout condition_inst::calc_output_layout(condition_node const& node, kernel_imp
     return layout_true;
 }
 
-// std::vector<layout> condition_inst::calc_output_layouts(condition_node const& node, kernel_impl_params const& impl_param) {
-//     return { calc_output_layout(node, impl_param) };
-//     // condition is constant
-//     // condition is non constant
-// }
+template<typename ShapeType>
+std::vector<layout> condition_inst::calc_output_layouts(condition_node const& node, kernel_impl_params const& impl_param) {
+    return { calc_output_layout(node, impl_param) };
+    // condition is constant
+    // condition is non constant
+}
 
 std::string condition_inst::to_string(condition_node const& node) {
     auto desc = node.get_primitive();
@@ -81,6 +84,7 @@ condition_inst::typed_primitive_inst(network& network, condition_node const& nod
     : parent(network, node),
       _net_true(network::allocate_network(node.get_program().get_engine(), node.get_branch_true(), true)),
       _net_false(network::allocate_network(node.get_program().get_engine(), node.get_branch_false(), true)) {
+    this->set_inner_networks({_net_true, _net_false});
 }
 
 network::ptr condition_inst::get_inner_networks(bool is_net_true) {

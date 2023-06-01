@@ -26,7 +26,6 @@ public:
           _branch_true(this->get_primitive()->branch_true),
           _branch_false(this->get_primitive()->branch_false) {}
 
-    program_node& input() const { return get_dependency(0); }
     program::ptr get_branch_true() const { return _branch_true.inner_program; }
     program::ptr get_branch_false() const { return _branch_false.inner_program; }
 
@@ -50,7 +49,8 @@ class typed_primitive_inst<condition> : public typed_primitive_inst_base<conditi
     using parent::parent;
 
 public:
-    // static std::vector<layout> calc_output_layouts(condition_node const& node, kernel_impl_params const& impl_param);
+    template<typename ShapeType>
+    static std::vector<layout> calc_output_layouts(condition_node const& node, kernel_impl_params const& impl_param);
     static layout calc_output_layout(condition_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(condition_node const& node);
     typed_primitive_inst(network& network, condition_node const& node);
