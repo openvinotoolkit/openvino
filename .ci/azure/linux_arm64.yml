@@ -141,17 +141,12 @@ jobs:
       sudo mv arm64-sources.list /etc/apt/sources.list.d/
       sudo -E dpkg --add-architecture arm64
       sudo -E apt-get update -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/arm64-sources.list
-      sudo -E apt-get install -y --no-install-recommends \
-          libpython3-dev:arm64 \
-          ocl-icd-opencl-dev:arm64 \
-          opencl-headers:arm64
+      sudo -E apt-get install -y --no-install-recommends libpython3-dev:arm64
     displayName: 'Install arm64 libraries'
 
   - script: |
       git submodule update --init -- $(OPENVINO_REPO_DIR)/src/plugins
       git submodule update --init -- $(OPENVINO_REPO_DIR)/thirdparty/gtest
-      git submodule update --init -- $(OPENVINO_REPO_DIR)/thirdparty/ocl/cl_headers
-      git submodule update --init -- $(OPENVINO_REPO_DIR)/thirdparty/ocl/clhpp_headers
       git submodule update --init -- $(OPENVINO_REPO_DIR)/thirdparty/open_model_zoo
     displayName: 'Init submodules for non Conan dependencies'
 
