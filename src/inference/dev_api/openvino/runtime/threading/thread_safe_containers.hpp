@@ -18,15 +18,8 @@
 #    include <tbb/concurrent_queue.h>
 #endif
 
-#ifdef  MULTIUNITTEST
-#define MOCKTESTMACRO virtual
-#define auto_plugin mock_auto_plugin
-#else
-#define MOCKTESTMACRO
-#endif
-
 namespace ov {
-namespace auto_plugin {
+namespace threading {
 
 template <typename T>
 class ThreadSafeQueueWithSize {
@@ -147,5 +140,5 @@ protected:
     bool _capacity = false;
 };
 #endif
-}  // namespace auto_plugin
+}  // namespace threading
 }  // namespace ov

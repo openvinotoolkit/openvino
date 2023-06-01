@@ -15,7 +15,7 @@
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/threading/itask_executor.hpp"
 #include "openvino/runtime/remote_tensor.hpp"
-#include "utils/thread_safe_containers.hpp"
+#include "openvino/runtime/threading/thread_safe_containers.hpp"
 #include "utils/log_util.hpp"
 #include "openvino/runtime/auto/properties.hpp"
 #include "ngraph/opsets/opset1.hpp"
@@ -151,9 +151,9 @@ struct deviceChecker {
         }
 };
 
-using NotBusyPriorityWorkerRequests = ov::auto_plugin::ThreadSafeBoundedPriorityQueue<std::pair<int, WorkerInferRequest*>>;
-using NotBusyWorkerRequests = ov::auto_plugin::ThreadSafeBoundedQueue<WorkerInferRequest*>;
-using TaskQueue = ov::auto_plugin::ThreadSafeQueue<ov::threading::Task>;
+using NotBusyPriorityWorkerRequests = ov::threading::ThreadSafeBoundedPriorityQueue<std::pair<int, WorkerInferRequest*>>;
+using NotBusyWorkerRequests = ov::threading::ThreadSafeBoundedQueue<WorkerInferRequest*>;
+using TaskQueue = ov::threading::ThreadSafeQueue<ov::threading::Task>;
 
 template <typename T>
 struct IdleGuard {};

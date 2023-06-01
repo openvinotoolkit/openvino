@@ -83,14 +83,14 @@ public:
      *
      * @return model outputs
      */
-    const std::vector<ov::Output<const ov::Node>>& outputs() const;
+    virtual const std::vector<ov::Output<const ov::Node>>& outputs() const;
 
     /**
      * @brief Gets all inputs from compiled model
      *
      * @return model inputs
      */
-    const std::vector<ov::Output<const ov::Node>>& inputs() const;
+    virtual const std::vector<ov::Output<const ov::Node>>& inputs() const;
 
     /**
      * @brief Create infer request
