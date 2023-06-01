@@ -62,12 +62,21 @@ def read_network(path_to_xml : str, path_to_bin : str):
     net.impl = C.read_network(path_to_xml.encode(), path_to_bin.encode())
     return net
 
+def deprecated_message():
+    return warnings.warn(
+    message="OpenVINO Inference Engine Python API is deprecated and will be removed in 2024.0 release."
+            "For instructions on transitioning to the new API, please refer to "
+            "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html",
+    category=FutureWarning,
+    stacklevel=2,
+    )
+
 
 cdef class VariableState:
     """
     This class manages data for reset operations
     """
-
+    deprecated_message()
     def reset(self):
         """
         Reset internal variable state for relevant infer request
@@ -102,6 +111,8 @@ cdef class TensorDesc:
     """
     This class defines Tensor description
     """
+    deprecated_message()
+
     def __eq__(self, other : TensorDesc):
         return self.layout == other.layout and self.precision == other.precision and self.dims == other.dims
 
@@ -170,6 +181,7 @@ cdef class Blob:
     """
     This class represents Blob
     """
+    deprecated_message()
 
     def __cinit__(self, TensorDesc tensor_desc = None, array : np.ndarray = None):
         """Class constructor
@@ -314,6 +326,7 @@ cdef class IECore:
     """
     This class represents an Inference Engine entity and allows you to manipulate with plugins using unified interfaces.
     """
+    deprecated_message()
 
     def __cinit__(self, xml_config_file: str = ""):
         """Class constructor
@@ -662,6 +675,8 @@ cdef class PreProcessChannel:
     """
     This structure stores info about pre-processing of network inputs (scale, mean image, ...)
     """
+    deprecated_message()
+
     property mean_value:
         def __get__(self):
             return deref(self._ptr).meanValue
@@ -688,6 +703,8 @@ cdef class PreProcessInfo:
     """
     This class stores pre-process information for the input
     """
+    deprecated_message()
+
     def __cinit__(self):
         self._ptr = new CPreProcessInfo()
         self._cptr = self._ptr
@@ -814,6 +831,7 @@ cdef class InputInfoPtr:
     """
     This class contains information about each input of the network
     """
+    deprecated_message()
 
     @property
     def name(self):
@@ -900,7 +918,8 @@ cdef class InputInfoCPtr:
     This class contains const information about each input of the network.
     Provides same interface as InputInfoPtr object except properties setters
     """
-    
+    deprecated_message()
+
     @property
     def name(self):
         """
@@ -944,7 +963,8 @@ cdef class DataPtr:
     """
     This class is the layer data representation.
     """
-    
+    deprecated_message()
+
     def __init__(self):
         """
         Default constructor
@@ -1004,6 +1024,7 @@ cdef class CDataPtr:
     """
     This class is the layer constant data representation. Provides same interface as DataPtr object except properties setters
     """
+    deprecated_message()
 
     @property
     def name(self):
@@ -1045,6 +1066,7 @@ cdef class ExecutableNetwork:
     """
     This class represents a network instance loaded to plugin and ready for inference.
     """
+    deprecated_message()
 
     def __init__(self):
         """
@@ -1297,7 +1319,8 @@ cdef class InferRequest:
     This class provides an interface to infer requests of :class:`ExecutableNetwork` and serves
     to handle infer requests execution and to set and get output data.
     """
-    
+    deprecated_message()
+
     def __init__(self):
         """
         There is no explicit class constructor. To make a valid :class:`InferRequest` instance, use :func:`IECore.load_network`
@@ -1554,6 +1577,7 @@ cdef class InferRequest:
 
 
 cdef class IENetwork:
+    deprecated_message()
     ## Class constructor
     #
     #  @param model: A PyCapsule containing smart pointer to nGraph function.
@@ -1729,6 +1753,7 @@ cdef class IENetwork:
 
 cdef class BlobBuffer:
     """Copy-less accessor for Inference Engine Blob"""
+    deprecated_message()
 
     cdef reset(self, CBlob.Ptr & ptr, vector[size_t] representation_shape = []):
         self.ptr = ptr
