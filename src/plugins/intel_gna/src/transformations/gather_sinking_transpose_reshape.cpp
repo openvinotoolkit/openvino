@@ -17,6 +17,7 @@
 #include "transformations/utils/transformation_helper.hpp"
 
 using namespace ov::intel_gna;
+using namespace ov::intel_gna::graph_utils;
 using namespace ov::intel_gna::limitations;
 using namespace ov::intel_gna::pass;
 using namespace ov::opset10;
@@ -24,49 +25,13 @@ using namespace ov::pass::pattern;
 using namespace gather_sinking;
 
 namespace {
-
 using NodePtr = std::shared_ptr<ov::Node>;
 using NodePair = std::pair<NodePtr, NodePtr>;
 
-std::vector<size_t> CreateGatherIndices(const ov::Shape& input_shape, const ov::Shape& order) {
-    if (input_shape.size() < 2 || input_shape.size() > 4) {
-        THROW_GNA_EXCEPTION << "Usupported shape size: " << input_shape.size();
-    }
-
-    ov::Shape input_shape_4d = input_shape;
-    ov::Shape order_4d = order;
-    // Just to simplify the code we transform all shapes to 4d by adding 1 dimentions at the end
-    while (input_shape_4d.size() < 4) {
-        input_shape_4d.push_back(1);
-        order_4d.push_back(order_4d.size());
-    }
-    ov::Shape output_shape_4d = graph_utils::transpose_shape(input_shape_4d, order_4d);
-
-    // common case when shape is 4d
-    std::vector<size_t> xyz_4d = {input_shape_4d[3] * input_shape_4d[2] * input_shape_4d[1],
-                                  input_shape_4d[3] * input_shape_4d[2],
-                                  input_shape_4d[3],
-                                  1};
-
-    std::vector<size_t> xyz = graph_utils::transpose_shape(xyz_4d, order_4d);
-    std::vector<size_t> gather_order;
-
-    for (size_t n = 0; n < output_shape_4d[0]; ++n) {
-        for (size_t i = 0; i < output_shape_4d[1]; ++i) {
-            for (size_t j = 0; j < output_shape_4d[2]; ++j) {
-                for (size_t k = 0; k < output_shape_4d[3]; ++k) {
-                    gather_order.push_back(n * xyz[0] + i * xyz[1] + j * xyz[2] + k * xyz[3]);
-                }
-            }
-        }
-    }
-
-    return gather_order;
-}
-
-NodePair SinkForward(NodePtr transpose, std::shared_ptr<Constant> transpose_constant, NodePtr reshape) {
+NodePair sink_transpose_forward(NodePtr transpose, std::shared_ptr<Constant> transpose_constant, NodePtr reshape) {
     const auto gather_indices_value =
-        CreateGatherIndices(transpose->get_input_shape(0), transpose_constant->get_axis_vector_val());
+        make_gather_indices_from_transpose_axes(transpose->get_input_shape(0),
+                                                transpose_constant->get_axis_vector_val());
     const int64_t gather_axis_value = graph_utils::get_first_valuable_dim_id(reshape->get_output_shape(0));
 
     auto reshape_new = reshape->clone_with_new_inputs({transpose->input_value(0), reshape->input_value(1)});
@@ -84,10 +49,11 @@ NodePair SinkForward(NodePtr transpose, std::shared_ptr<Constant> transpose_cons
     return std::make_pair(reshape_new, gather);
 }
 
-NodePair SinkBackward(NodePtr transpose, std::shared_ptr<Constant> transpose_constant, NodePtr reshape) {
+NodePair sink_transpose_backward(NodePtr transpose, std::shared_ptr<Constant> transpose_constant, NodePtr reshape) {
     const int64_t gather_axis_value = graph_utils::get_first_valuable_dim_id(reshape->get_input_shape(0));
     const auto gather_indices_value =
-        CreateGatherIndices(transpose->get_input_shape(0), transpose_constant->get_axis_vector_val());
+        make_gather_indices_from_transpose_axes(transpose->get_input_shape(0),
+                                                transpose_constant->get_axis_vector_val());
 
     auto gather_axis = std::make_shared<Constant>(ov::element::i64, ov::Shape{}, gather_axis_value);
     auto gather_indices =
@@ -107,7 +73,7 @@ NodePair SinkBackward(NodePtr transpose, std::shared_ptr<Constant> transpose_con
     return std::make_pair(gather, reshape_new);
 }
 
-bool AreFlattenShapes(const ov::Shape& shape1, const ov::Shape& shape2) {
+bool are_flatten_shapes(const ov::Shape& shape1, const ov::Shape& shape2) {
     size_t i = 0;
     // find non-equal parts
     while (shape1[i] == shape2[i]) {
@@ -122,31 +88,31 @@ bool AreFlattenShapes(const ov::Shape& shape1, const ov::Shape& shape2) {
     return mult1 == mult2;
 }
 
-bool IsTailFlatten(const ov::Output<ov::Node>& output) {
+bool is_tail_flatten(const ov::Output<ov::Node>& output) {
     std::shared_ptr<ov::Node> reshape_node = output.get_node_shared_ptr();
     if (reshape_node->get_output_partial_shape(0).rank().is_dynamic() ||
         reshape_node->get_input_partial_shape(0).rank().is_dynamic())
         return false;
     const ov::Shape input_shape = graph_utils::trim_shape(reshape_node->get_input_shape(0));
     const ov::Shape output_shape = graph_utils::trim_shape(reshape_node->get_output_shape(0));
-    return input_shape.size() > output_shape.size() && AreFlattenShapes(input_shape, output_shape);
+    return input_shape.size() > output_shape.size() && are_flatten_shapes(input_shape, output_shape);
 }
 
-bool IsTailUnflatten(const ov::Output<ov::Node>& output) {
+bool is_tail_unflatten(const ov::Output<ov::Node>& output) {
     std::shared_ptr<ov::Node> reshape_node = output.get_node_shared_ptr();
     if (reshape_node->get_output_partial_shape(0).rank().is_dynamic() ||
         reshape_node->get_input_partial_shape(0).rank().is_dynamic())
         return false;
     const ov::Shape input_shape = graph_utils::trim_shape(reshape_node->get_input_shape(0));
     const ov::Shape output_shape = graph_utils::trim_shape(reshape_node->get_output_shape(0));
-    return input_shape.size() < output_shape.size() && AreFlattenShapes(input_shape, output_shape);
+    return input_shape.size() < output_shape.size() && are_flatten_shapes(input_shape, output_shape);
 }
 
 bool is_transpose_unsupported(const ov::Output<ov::Node>& output) {
     return !Limitations::is_transpose_supported(output.get_node_shared_ptr());
 }
 
-bool IfBackwardSinkingEnabled(const ov::Output<ov::Node>& output) {
+bool is_backward_sinking_enables(const ov::Output<ov::Node>& output) {
     return is_transpose_unsupported(output) && ov::is_sinking_node(output.get_node_shared_ptr());
 }
 
@@ -159,7 +125,7 @@ GatherSinkingTransposeReshapeForward::GatherSinkingTransposeReshapeForward() {
 
     auto transpose_const_label = wrap_type<Constant>();
     auto transpose_label = wrap_type<Transpose>({any_input(), transpose_const_label}, is_transpose_unsupported);
-    auto reshape_label = wrap_type<Reshape>({transpose_label, any_input()}, IsTailFlatten);
+    auto reshape_label = wrap_type<Reshape>({transpose_label, any_input()}, is_tail_flatten);
 
     ov::matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
@@ -175,12 +141,12 @@ GatherSinkingTransposeReshapeForward::GatherSinkingTransposeReshapeForward() {
             return true;
         }
 
-        const NodePair new_nodes = SinkForward(transpose, transpose_const, reshape);
+        const NodePair new_nodes = sink_transpose_forward(transpose, transpose_const, reshape);
 
         register_new_node(new_nodes.first);
         register_new_node(new_nodes.second);
 
-        UpdateForwardGatherSinkingAbility(new_nodes.second);
+        update_forward_gather_sinking_ability(new_nodes.second);
         return true;
     };
 
@@ -191,9 +157,9 @@ GatherSinkingTransposeReshapeForward::GatherSinkingTransposeReshapeForward() {
 GatherSinkingTransposeReshapeBackward::GatherSinkingTransposeReshapeBackward() {
     MATCHER_SCOPE(GatherSinkingTransposeReshapeBackward);
 
-    auto reshape_label = wrap_type<Reshape>({any_input(), any_input()}, IsTailUnflatten);
+    auto reshape_label = wrap_type<Reshape>({any_input(), any_input()}, is_tail_unflatten);
     auto transpose_const_label = wrap_type<Constant>();
-    auto transpose_label = wrap_type<Transpose>({reshape_label, transpose_const_label}, IfBackwardSinkingEnabled);
+    auto transpose_label = wrap_type<Transpose>({reshape_label, transpose_const_label}, is_backward_sinking_enables);
 
     ov::matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
@@ -208,7 +174,7 @@ GatherSinkingTransposeReshapeBackward::GatherSinkingTransposeReshapeBackward() {
             return true;
         }
 
-        const NodePair new_nodes = SinkBackward(transpose, transpose_const, reshape);
+        const NodePair new_nodes = sink_transpose_backward(transpose, transpose_const, reshape);
         register_new_node(new_nodes.first);
         register_new_node(new_nodes.second);
 

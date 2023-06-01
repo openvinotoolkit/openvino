@@ -35,43 +35,6 @@ bool is_sinked(const Output<Node>& output) {
     }
     return false;
 }
-
-std::vector<size_t> CreateGatherIndices(const ov::Shape& input_shape, const ov::Shape& order) {
-    if (input_shape.size() < 2 || input_shape.size() > 4) {
-        THROW_GNA_EXCEPTION << "Usupported shape size: " << input_shape.size();
-    }
-
-    ov::Shape input_shape_4d = input_shape;
-    ov::Shape order_4d = order;
-    // Just to simplify the code we transform all shapes to 4d by adding 1 dimentions at the end
-    while (input_shape_4d.size() < 4) {
-        input_shape_4d.push_back(1);
-        order_4d.push_back(order_4d.size());
-    }
-    ov::Shape output_shape_4d = transpose_shape(input_shape_4d, order_4d);
-
-    // common case when shape is 4d
-    std::vector<size_t> xyz_4d = {input_shape_4d[3] * input_shape_4d[2] * input_shape_4d[1],
-                                  input_shape_4d[3] * input_shape_4d[2],
-                                  input_shape_4d[3],
-                                  1};
-
-    std::vector<size_t> xyz = transpose_shape(xyz_4d, order_4d);
-    std::vector<size_t> gather_order;
-
-    for (size_t n = 0; n < output_shape_4d[0]; ++n) {
-        for (size_t i = 0; i < output_shape_4d[1]; ++i) {
-            for (size_t j = 0; j < output_shape_4d[2]; ++j) {
-                for (size_t k = 0; k < output_shape_4d[3]; ++k) {
-                    gather_order.push_back(n * xyz[0] + i * xyz[1] + j * xyz[2] + k * xyz[3]);
-                }
-            }
-        }
-    }
-
-    return gather_order;
-}
-
 }  // namespace
 
 TSSplitBackward::TSSplitBackward() {
@@ -95,7 +58,8 @@ TSSplitBackward::TSSplitBackward() {
                     if (!transpose_const)
                         return false;
                     auto gather_indices_value =
-                        CreateGatherIndices(transpose->get_input_shape(0), transpose_const->get_axis_vector_val());
+                        make_gather_indices_from_transpose_axes(transpose->get_input_shape(0),
+                                                                transpose_const->get_axis_vector_val());
                     gather_indices_vecs.push_back(gather_indices_value);
                 } else {
                     const Shape& input_shape = input.get_shape();

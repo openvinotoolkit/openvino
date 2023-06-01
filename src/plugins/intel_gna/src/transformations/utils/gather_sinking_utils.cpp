@@ -8,8 +8,9 @@
 #include <transformations/utils/utils.hpp>
 #include <utility>
 
+#include "common/graph_utils.hpp"
 #include "openvino/op/util/op_types.hpp"
-#include "openvino/opsets/opset9.hpp"
+#include "openvino/opsets/opset10.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/common_util.hpp"
@@ -17,15 +18,15 @@
 #include "transformations/rt_info/gather_sinking_attr.hpp"
 
 using namespace ov;
+using namespace ov::intel_gna::graph_utils;
 using namespace ov::intel_gna::rt_info;
-using namespace ov::opset9;
+using namespace ov::opset10;
 using namespace ov::pass::pattern;
 
 namespace gather_sinking {
-
 using NodePtr = std::shared_ptr<Node>;
 
-GatherInputsInfo GetFirstGatherInput(NodePtr node) {
+GatherInputsInfo get_first_gather_input(NodePtr node) {
     for (size_t input_idx = 0; input_idx < node->get_input_size(); ++input_idx) {
         NodePtr input_node = node->get_input_node_shared_ptr(input_idx);
         auto gather_node = as_type_ptr<Gather>(input_node);
@@ -50,124 +51,21 @@ GatherInputsInfo GetFirstGatherInput(NodePtr node) {
     return GatherInputsInfo();
 }
 
-/*
-Converts gather indices to positive form
-*/
-std::vector<int64_t> NormalizeGatherIndices(const std::vector<int64_t>& indices) {
-    std::vector<int64_t> normalized(indices.size());
-    for (int i = 0; i < indices.size(); ++i) {
-        int64_t index = indices[i];
-        if (index < 0)
-            index += indices.size();
-        normalized[i] = index;
-    }
-    return normalized;
-}
-
-/*
-Gets gather indices in positive form
-*/
-std::vector<int64_t> GetNormalizedGatherIndices(const std::shared_ptr<Constant>& indices) {
-    return NormalizeGatherIndices(indices->cast_vector<int64_t>());
-}
-
-namespace {
-
-bool HasDynamicRankInput(NodePtr node) {
-    for (const auto& input_node : node->input_values()) {
-        const Rank output_rank = input_node.get_partial_shape().rank();
-        if (output_rank.is_dynamic())
-            return true;
-    }
-    return false;
-}
-
-Rank::value_type GetMaxInputRank(const NodePtr& node) {
-    Rank::value_type max_input_rank = 0;
-    for (auto& input_node : node->input_values()) {
-        const Rank output_rank = input_node.get_partial_shape().rank();
-        if (output_rank.is_dynamic())
-            return -1;
-        const Rank::value_type output_rank_len = output_rank.get_length();
-        if (output_rank_len > max_input_rank)
-            max_input_rank = output_rank_len;
-    }
-    return max_input_rank;
-}
-
-/*
-Converts axis to negative form
-*/
-int64_t NormalizeNegativeGatherAxis(int64_t axis, ov::Rank::value_type gather_input_rank) {
-    if (axis < 0)
-        return axis;
-    return axis - gather_input_rank;
-}
-
-size_t GetDimByAxis(const Shape& shape, int64_t axis) {
-    if (axis < 0)
-        axis += shape.size();
-    return shape[axis];
-}
-
-Shape Broadcast(const Shape& shape, ov::Rank::value_type rank) {
-    const int rank_delta = rank - shape.size();
-
-    if (rank_delta <= 0)
-        return shape;
-
-    Shape broadcasted(rank);
-    for (int i = 0; i < rank_delta; ++i) {
-        broadcasted[i] = 1;
-    }
-    std::copy(shape.begin(), shape.end(), broadcasted.begin() + rank_delta);
-
-    return broadcasted;
-}
-
-}  // namespace
-
-int64_t ConvertAxisToPositive(int64_t axis, ov::Rank::value_type rank) {
-    if (axis >= 0)
-        return axis;
-    return axis + rank;
-}
-
-/*
-Gets gather axis in negative form
-*/
-int64_t GetNormalizedNegativeGatherAxis(const std::shared_ptr<Constant>& axis, ov::Rank::value_type gather_input_rank) {
-    return NormalizeNegativeGatherAxis(axis->cast_vector<int64_t>()[0], gather_input_rank);
-}
-
-/*
-Reverts gather indices in a such way that reverted and initial gather will do nothing if
-stays after another.
-Works only with positive form (no negative indices).
-*/
-std::vector<int64_t> ReverseGatherIndexes(const std::vector<int64_t>& indexes) {
-    std::vector<int64_t> out(indexes.size());
-    for (size_t i = 0; i < indexes.size(); i++) {
-        out.at(indexes[i]) = i;
-    }
-    return out;
-}
-
-void SwapOutputNames(Output<Node> output1, Output<Node> output2) {
+void swap_output_names(Output<Node> output1, Output<Node> output2) {
     const auto node2_output_names = output2.get_names();
     output2.set_names(output1.get_names());
     output1.set_names(node2_output_names);
 }
 
-void SwapFriendlyNames(NodePtr node1, NodePtr node2) {
+void swap_friendly_names(NodePtr node1, NodePtr node2) {
     const std::string node2_name = node2->get_friendly_name();
     node2->set_friendly_name(node1->get_friendly_name());
     node1->set_friendly_name(node2_name);
 }
 
-void SwapNames(NodePtr node1, NodePtr node2) {
-    SwapFriendlyNames(node1, node2);
-    SwapOutputNames(node1->output(0), node2->output(0));
+void swap_names(NodePtr node1, NodePtr node2) {
+    swap_friendly_names(node1, node2);
+    swap_output_names(node1->output(0), node2->output(0));
 }
 
 namespace sink_forward {
@@ -180,27 +78,27 @@ namespace sink_forward {
  * Input nodes can have different shapes. That shapes can have smaller or larger ranks. To manage it we need
  * to find max input shape rank and broadcast all input shapes to it.
  */
-void UpdateInputGather(NodePtr main_node,
-                       const GatherInputsInfo& gather_input_info,
-                       const int64_t* a_gather_negative_axis) {
-    if (gather_input_info.isEmpty() || HasDynamicRankInput(main_node))
+void update_input_gather(NodePtr main_node,
+                         const GatherInputsInfo& gather_input_info,
+                         const int64_t* a_gather_negative_axis) {
+    if (gather_input_info.isEmpty() || has_dynamic_rank_input(main_node))
         return;
 
     int64_t gather_negative_axis = {};
     if (a_gather_negative_axis)
         gather_negative_axis = *a_gather_negative_axis;
     else
-        gather_negative_axis =
-            GetNormalizedNegativeGatherAxis(gather_input_info.axis_const,
-                                            gather_input_info.gather->get_input_partial_shape(0).rank().get_length());
+        gather_negative_axis = get_normalized_negative_gather_axis(
+            gather_input_info.axis_const,
+            gather_input_info.gather->get_input_partial_shape(0).rank().get_length());
 
-    const std::vector<int64_t> gather_indices = GetNormalizedGatherIndices(gather_input_info.indices_const);
-    const std::vector<int64_t> reversed_gather_indices = ReverseGatherIndexes(gather_indices);
+    const std::vector<int64_t> gather_indices = get_normalized_gather_indices(gather_input_info.indices_const);
+    const std::vector<int64_t> reversed_gather_indices = reverse_gather_indexes(gather_indices);
 
     const auto indices_element_type = gather_input_info.indices_const->get_element_type();
     const auto axis_element_type = gather_input_info.axis_const->get_element_type();
 
-    const auto max_input_rank = GetMaxInputRank(main_node);
+    const auto max_input_rank = get_max_input_rank(main_node);
     if (max_input_rank < 0)
         return;
 
@@ -210,8 +108,8 @@ void UpdateInputGather(NodePtr main_node,
             auto gather_parent = input_node.get_node()->input_value(0);
             main_node->input(i).replace_source_output(gather_parent);
         } else {
-            const Shape broadcasted_input_shape = Broadcast(input_node.get_shape(), max_input_rank);
-            if (GetDimByAxis(broadcasted_input_shape, gather_negative_axis) == 1)
+            const Shape broadcasted_input_shape = broadcast_shape(input_node.get_shape(), max_input_rank);
+            if (get_dim_by_axis(broadcasted_input_shape, gather_negative_axis) == 1)
                 continue;
 
             auto new_indices_const = std::make_shared<Constant>(indices_element_type,
@@ -219,7 +117,7 @@ void UpdateInputGather(NodePtr main_node,
                                                                 reversed_gather_indices);
 
             const int64_t gather_positive_axis =
-                ConvertAxisToPositive(gather_negative_axis, input_node.get_partial_shape().rank().get_length());
+                convert_axis_to_positive(gather_negative_axis, input_node.get_partial_shape().rank().get_length());
             auto new_axis_const = std::make_shared<Constant>(axis_element_type, Shape{}, gather_positive_axis);
 
             auto new_gather = std::make_shared<Gather>(input_node, new_indices_const, new_axis_const);
@@ -231,13 +129,13 @@ void UpdateInputGather(NodePtr main_node,
     }
 }
 
-NodeVector InsertOutputGather(NodePtr main_node, const GatherInputsInfo& gather_input_info) {
+NodeVector insert_output_gather(NodePtr main_node, const GatherInputsInfo& gather_input_info) {
     if (gather_input_info.isEmpty())
         return {};
 
     const int64_t gather_negative_axis =
-        GetNormalizedNegativeGatherAxis(gather_input_info.axis_const,
-                                        gather_input_info.gather->get_input_partial_shape(0).rank().get_length());
+        get_normalized_negative_gather_axis(gather_input_info.axis_const,
+                                            gather_input_info.gather->get_input_partial_shape(0).rank().get_length());
     const auto axis_element_type = gather_input_info.axis_const->get_element_type();
 
     NodeVector new_nodes;
@@ -247,7 +145,8 @@ NodeVector InsertOutputGather(NodePtr main_node, const GatherInputsInfo& gather_
         auto new_indices_const = gather_input_info.indices_const->clone_with_new_inputs({});
 
         const int64_t gather_positive_axis =
-            ConvertAxisToPositive(gather_negative_axis, main_node->output(i).get_partial_shape().rank().get_length());
+            convert_axis_to_positive(gather_negative_axis,
+                                     main_node->output(i).get_partial_shape().rank().get_length());
         auto new_axis_const = std::make_shared<Constant>(axis_element_type, Shape{}, gather_positive_axis);
         auto new_gather = std::make_shared<Gather>(main_node->output(i), new_indices_const, new_axis_const);
 
@@ -256,12 +155,12 @@ NodeVector InsertOutputGather(NodePtr main_node, const GatherInputsInfo& gather_
         }
 
         copy_runtime_info(main_node, {new_gather, new_indices_const, new_axis_const});
-        SwapOutputNames(main_node->output(i), new_gather->output(0));
+        swap_output_names(main_node->output(i), new_gather->output(0));
 
         if (main_node->get_output_size() > 1)
             new_gather->set_friendly_name(main_node->get_friendly_name() + "." + std::to_string(i));
         else
-            SwapFriendlyNames(new_gather, main_node);
+            swap_friendly_names(new_gather, main_node);
 
         new_nodes.push_back(new_gather);
     }
@@ -273,12 +172,12 @@ NodeVector InsertOutputGather(NodePtr main_node, const GatherInputsInfo& gather_
 
 namespace sink_backward {
 
-NodeVector InsertGatherBeforeNode(NodePtr main_node,
-                                  const std::shared_ptr<Constant>& indices_const,
-                                  const std::shared_ptr<Constant>& axis_const,
-                                  const std::shared_ptr<Gather>& gather_node,
-                                  std::vector<int> input_indexes) {
-    if (HasDynamicRankInput(main_node))
+NodeVector insert_gather_before_node(NodePtr main_node,
+                                     const std::shared_ptr<Constant>& indices_const,
+                                     const std::shared_ptr<Constant>& axis_const,
+                                     const std::shared_ptr<Gather>& gather_node,
+                                     std::vector<int> input_indexes) {
+    if (has_dynamic_rank_input(main_node))
         return {};
 
     if (input_indexes.empty()) {
@@ -287,10 +186,10 @@ NodeVector InsertGatherBeforeNode(NodePtr main_node,
     }
 
     const int64_t gather_negative_axis =
-        GetNormalizedNegativeGatherAxis(axis_const, gather_node->get_input_partial_shape(0).rank().get_length());
+        get_normalized_negative_gather_axis(axis_const, gather_node->get_input_partial_shape(0).rank().get_length());
     const auto axis_element_type = axis_const->get_element_type();
 
-    const auto max_input_rank = GetMaxInputRank(main_node);
+    const auto max_input_rank = get_max_input_rank(main_node);
     if (max_input_rank < 0)
         return {};
 
@@ -298,14 +197,14 @@ NodeVector InsertGatherBeforeNode(NodePtr main_node,
     for (const auto& i : input_indexes) {
         auto input_node = main_node->input_value(i);
 
-        const Shape broadcasted_input_shape = Broadcast(input_node.get_shape(), max_input_rank);
-        if (GetDimByAxis(broadcasted_input_shape, gather_negative_axis) == 1)
+        const Shape broadcasted_input_shape = broadcast_shape(input_node.get_shape(), max_input_rank);
+        if (get_dim_by_axis(broadcasted_input_shape, gather_negative_axis) == 1)
             continue;
 
         auto new_indices_const = indices_const->clone_with_new_inputs({});
 
         const int64_t gather_positive_axis =
-            ConvertAxisToPositive(gather_negative_axis, input_node.get_partial_shape().rank().get_length());
+            convert_axis_to_positive(gather_negative_axis, input_node.get_partial_shape().rank().get_length());
         auto new_axis_const = std::make_shared<Constant>(axis_element_type, Shape{}, gather_positive_axis);
 
         auto new_gather = std::make_shared<Gather>(input_node, new_indices_const, new_axis_const);
@@ -344,7 +243,7 @@ bool CanPropagateGatherForwardThrough(Node* node) {
 
 #undef CHECK_GATHER_SINKING_SUPPORTED
 
-bool CanGatherPropagateForward(NodePtr node) {
+bool can_gather_propagate_forward(NodePtr node) {
     for (const auto& output : node->outputs()) {
         for (auto& consumer_input : output.get_target_inputs()) {
             if (!CanPropagateGatherForwardThrough(consumer_input.get_node()))
@@ -357,8 +256,8 @@ bool CanGatherPropagateForward(NodePtr node) {
 
 }  // namespace
 
-void UpdateForwardGatherSinkingAbility(NodePtr node) {
-    if (!CanGatherPropagateForward(node))
+void update_forward_gather_sinking_ability(NodePtr node) {
+    if (!can_gather_propagate_forward(node))
         mark_as_no_gather_sinking_node(node);
 }
 
@@ -405,20 +304,10 @@ GatherInfo GetGatherInfo(Node* node) {
     return gather_info;
 }
 
-Node* FindFirstConsumer(NodePtr node) {
-    for (const auto& output : node->outputs()) {
-        auto inputs = output.get_target_inputs();
-        if (inputs.empty())
-            continue;
-        return inputs.begin()->get_node();
-    }
-    return nullptr;
-}
-
-bool HasSameOutputGatherNodes(NodePtr main_node) {
+bool has_same_output_gather_nodes(NodePtr main_node) {
     GatherInfo first_gather_info;
     {
-        Node* first_consumer = FindFirstConsumer(main_node);
+        Node* first_consumer = find_first_consumer(main_node);
         if (!first_consumer)
             return false;
         first_gather_info = GetGatherInfo(first_consumer);
@@ -439,11 +328,11 @@ bool HasSameOutputGatherNodes(NodePtr main_node) {
 
 }  // namespace
 
-bool HasSameOutputGatherNodes(const Output<Node>& output) {
-    return HasSameOutputGatherNodes(output.get_node_shared_ptr());
+bool has_same_output_gather_nodes(const Output<Node>& output) {
+    return has_same_output_gather_nodes(output.get_node_shared_ptr());
 }
 
-void RemoveSingleOutputConsumers(NodePtr node) {
+void remove_single_output_consumers(NodePtr node) {
     for (size_t output_idx = 0; output_idx < node->get_output_size(); ++output_idx) {
         for (auto& input : node->get_output_target_inputs(output_idx)) {
             Node* consumer = input.get_node();
@@ -466,7 +355,7 @@ bool constant_has_rank_not_more_than(const std::shared_ptr<Constant>& node, cons
     return (rank.is_static() && (rank.get_length() <= expected_rank));
 }
 
-bool IsConstant1D(const Output<Node>& output) {
+bool is_constant_1d(const Output<Node>& output) {
     return rank_equals(0)(output) || rank_equals(1)(output);
 }
 

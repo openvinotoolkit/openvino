@@ -20,6 +20,7 @@
 #include "ngraph/opsets/opset7.hpp"
 #include "ngraph/opsets/opset8.hpp"
 #include "ngraph/opsets/opset9.hpp"
+#include "openvino/opsets/opset10.hpp"
 #include "ops/copy.hpp"
 #include "ops/identity.hpp"
 #include "ops/pwl.hpp"
@@ -381,6 +382,206 @@ inline size_t get_first_valuable_dim_id(const ov::Shape& shape) {
         }
     }
     return 0;
+}
+
+/**
+ * @brief Converts Gather indices to negative form
+ */
+inline int64_t normalize_negative_gather_axis(int64_t axis, ov::Rank::value_type gather_input_rank) {
+    if (axis < 0)
+        return axis;
+    return axis - gather_input_rank;
+}
+
+/**
+ * @brief Gets Gather indices from Constant converted into negative form
+ */
+inline int64_t get_normalized_negative_gather_axis(const std::shared_ptr<ov::opset10::Constant>& axis,
+                                                   ov::Rank::value_type gather_input_rank) {
+    return normalize_negative_gather_axis(axis->cast_vector<int64_t>()[0], gather_input_rank);
+}
+
+/**
+ * @brief Gets Gather axis if it stored in a constant
+ */
+inline bool get_gather_axis(const std::shared_ptr<ov::opset10::Gather>& gather, int64_t& axis) {
+    auto output_gather_axis_node = as_type_ptr<ov::opset10::Constant>(gather->input_value(2).get_node_shared_ptr());
+    if (!output_gather_axis_node)
+        return false;
+    axis = get_normalized_negative_gather_axis(output_gather_axis_node,
+                                               gather->get_input_partial_shape(0).rank().get_length());
+    return true;
+}
+
+/**
+ * @brief Gets Gather axis if it stored in a constant
+ */
+inline bool get_gather_axis(const std::shared_ptr<ov::Node>& gather, int64_t& axis) {
+    auto gather_node = as_type_ptr<ov::opset10::Gather>(gather);
+    if (!gather_node)
+        return false;
+    if (!get_gather_axis(gather_node, axis))
+        return false;
+    return true;
+}
+
+/**
+ * @brief Converts Gather indexes into positive form
+ */
+inline std::vector<int64_t> normalize_gather_indices(const std::vector<int64_t>& indices) {
+    std::vector<int64_t> normalized(indices.size());
+    for (int i = 0; i < indices.size(); ++i) {
+        int64_t index = indices[i];
+        if (index < 0)
+            index += indices.size();
+        normalized[i] = index;
+    }
+    return normalized;
+}
+
+/**
+ * @brief Gets Gather indexes from Constant and converts them into positive form
+ */
+inline std::vector<int64_t> get_normalized_gather_indices(const std::shared_ptr<ov::opset10::Constant>& indices) {
+    return normalize_gather_indices(indices->cast_vector<int64_t>());
+}
+
+/**
+ * @brief Checks if node has dynamic rank inputs
+ */
+inline bool has_dynamic_rank_input(const std::shared_ptr<ov::Node>& node) {
+    for (const auto& input_node : node->input_values()) {
+        const Rank output_rank = input_node.get_partial_shape().rank();
+        if (output_rank.is_dynamic())
+            return true;
+    }
+    return false;
+}
+
+/**
+ * @brief Gets maximum rank of all input nodes
+ */
+inline Rank::value_type get_max_input_rank(const std::shared_ptr<ov::Node>& node) {
+    Rank::value_type max_input_rank = 0;
+    for (auto& input_node : node->input_values()) {
+        const Rank output_rank = input_node.get_partial_shape().rank();
+        if (output_rank.is_dynamic())
+            return -1;
+        const Rank::value_type output_rank_len = output_rank.get_length();
+        if (output_rank_len > max_input_rank)
+            max_input_rank = output_rank_len;
+    }
+    return max_input_rank;
+}
+
+/**
+ * @brief Gets dimension value by axis
+ */
+inline size_t get_dim_by_axis(const Shape& shape, int64_t axis) {
+    if (axis < 0)
+        axis += shape.size();
+    return shape[axis];
+}
+
+/**
+ * @brief broadcasts shape to rank
+ */
+inline Shape broadcast_shape(const Shape& shape, ov::Rank::value_type rank) {
+    const int rank_delta = rank - shape.size();
+
+    if (rank_delta <= 0)
+        return shape;
+
+    Shape broadcasted(rank);
+    for (int i = 0; i < rank_delta; ++i) {
+        broadcasted[i] = 1;
+    }
+    std::copy(shape.begin(), shape.end(), broadcasted.begin() + rank_delta);
+
+    return broadcasted;
+}
+
+/**
+ * @brief Converts axis to positive form
+ */
+inline int64_t convert_axis_to_positive(int64_t axis, ov::Rank::value_type rank) {
+    if (axis >= 0)
+        return axis;
+    return axis + rank;
+}
+
+/**
+ * @brief Reverts gather indices in a such way that reverted and initial gather will do nothing if
+ *   stays after another.Works only with positive form (no negative indices).
+ */
+inline std::vector<int64_t> reverse_gather_indexes(const std::vector<int64_t>& indexes) {
+    std::vector<int64_t> out(indexes.size());
+    for (size_t i = 0; i < indexes.size(); i++) {
+        out.at(indexes[i]) = i;
+    }
+    return out;
+}
+
+/**
+ * @brief Finds first consumer node
+ */
+inline Node* find_first_consumer(const std::shared_ptr<ov::Node>& node) {
+    for (const auto& output : node->outputs()) {
+        auto inputs = output.get_target_inputs();
+        if (inputs.empty())
+            continue;
+        return inputs.begin()->get_node();
+    }
+    return nullptr;
+}
+
+/**
+ * @brief Finds first input node with type NodeT
+ */
+template <typename NodeT>
+std::shared_ptr<NodeT> find_first_input_node(const std::shared_ptr<ov::Node>& node) {
+    for (size_t input_idx = 0; input_idx < node->get_input_size(); ++input_idx) {
+        std::shared_ptr<ov::Node> input_node = node->get_input_node_shared_ptr(input_idx);
+        auto target_node = ov::as_type_ptr<NodeT>(input_node);
+        if (target_node)
+            return target_node;
+    }
+    return {};
+}
+
+/**
+ * @brief Gets split axis from Constant converting it to positive form
+ */
+inline bool get_split_axis(const std::shared_ptr<ov::opset10::Constant>& split_axis,
+                           const ov::Rank& rank,
+                           int64_t& axis) {
+    auto split_axis_val = split_axis->cast_vector<int64_t>();
+    if (split_axis_val.empty()) {
+        return false;
+    }
+    axis = split_axis_val[0];
+    if (axis < 0) {
+        if (rank.is_static()) {
+            const auto rank_val = rank.get_length();
+            axis += rank_val;
+        } else {
+            return false;
+        }
+    }
+    return true;
+}
+
+/**
+ * @brief Count first dimensions which equals to 1
+ */
+inline size_t get_num_first_one_dims(const ov::Shape& shape) {
+    size_t count = 0;
+    for (size_t i = 0; i < shape.size(); ++i) {
+        if (shape[i] != 1)
+            break;
+        ++count;
+    }
+    return count;
 }
 
 }  // namespace graph_utils

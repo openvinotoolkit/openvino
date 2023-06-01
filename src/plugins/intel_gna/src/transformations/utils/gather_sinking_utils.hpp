@@ -32,14 +32,14 @@ struct GatherInputsInfo {
  * @brief Finds node first input that is a Gather operation and returns filled GatherInputsInfo
  * for it
  */
-GatherInputsInfo GetFirstGatherInput(std::shared_ptr<ov::Node>);
+GatherInputsInfo get_first_gather_input(std::shared_ptr<ov::Node>);
 
 /**
  * @brief Checks if @arg has any input node that is a Gather operation
  */
 template <typename GatherInfoPredicate>
 bool IfNodeHasGatherInputs(const ov::Output<ov::Node>& output, GatherInfoPredicate gather_info_predicate) {
-    GatherInputsInfo inputs_info = GetFirstGatherInput(output.get_node_shared_ptr());
+    GatherInputsInfo inputs_info = get_first_gather_input(output.get_node_shared_ptr());
     if (inputs_info.isEmpty())
         return false;
 
@@ -49,49 +49,26 @@ bool IfNodeHasGatherInputs(const ov::Output<ov::Node>& output, GatherInfoPredica
 /**
  * @brief Swaps @args output tensor names
  */
-void SwapOutputNames(ov::Output<ov::Node>, ov::Output<ov::Node>);
+void swap_output_names(ov::Output<ov::Node>, ov::Output<ov::Node>);
 
 /**
  * @brief Swaps @args friendly names
  */
-void SwapFriendlyNames(std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>);
+void swap_friendly_names(std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>);
 
 /**
  * @brief Swaps @args output tensor names and friendly names
  */
-void SwapNames(std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>);
-
-/*
-Reverts gather indices in a such way that reverted and initial gather will do nothing if
-stays after another.
-Works only with positive form (no negative indices).
-*/
-std::vector<int64_t> ReverseGatherIndexes(const std::vector<int64_t>& indexes);
-
-int64_t GetNormalizedNegativeGatherAxis(const std::shared_ptr<ov::opset10::Constant>& axis,
-                                        ov::Rank::value_type gather_input_rank);
-
-int64_t ConvertAxisToPositive(int64_t axis, ov::Rank::value_type rank);
-
-/**
- * @brief Makes Gather indexes positive
- *
- */
-std::vector<int64_t> NormalizeGatherIndices(const std::vector<int64_t>& indices);
-
-/**
- * @brief Get Gather indexes from Constant and normalize them to be positive
- */
-std::vector<int64_t> GetNormalizedGatherIndices(const std::shared_ptr<ov::opset10::Constant>& indices);
+void swap_names(std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>);
 
 namespace sink_forward {
 /**
  * @brief Inserts reversed Gather on @args main_node inputs. Removes input Gather specified in @arg
  * transpose_input_info
  */
-void UpdateInputGather(std::shared_ptr<ov::Node> main_node,
-                       const GatherInputsInfo&,
-                       const int64_t* a_gather_negative_axis = nullptr);
+void update_input_gather(std::shared_ptr<ov::Node> main_node,
+                         const GatherInputsInfo&,
+                         const int64_t* a_gather_negative_axis = nullptr);
 
 /**
  * @brief Removes @arg input node
@@ -101,32 +78,32 @@ void RemoveInputNode(std::shared_ptr<ov::Node>, size_t input_idx);
 /**
  * @brief Inserts Gather on each main_node output with the order specified in @arg GatherInputsInfo
  */
-ov::NodeVector InsertOutputGather(std::shared_ptr<ov::Node> main_node, const GatherInputsInfo&);
+ov::NodeVector insert_output_gather(std::shared_ptr<ov::Node> main_node, const GatherInputsInfo&);
 }  // namespace sink_forward
 
 namespace sink_backward {
 /**
  * @brief Inserts Gather layers on each input of @arg main_node with cloned indices and axes constants
  */
-ov::NodeVector InsertGatherBeforeNode(std::shared_ptr<ov::Node> main_node,
-                                      const std::shared_ptr<ov::opset10::Constant>& indices_const,
-                                      const std::shared_ptr<ov::opset10::Constant>& axes_const,
-                                      const std::shared_ptr<ov::opset10::Gather>& gather_node,
-                                      std::vector<int> input_indexes = {});
+ov::NodeVector insert_gather_before_node(std::shared_ptr<ov::Node> main_node,
+                                         const std::shared_ptr<ov::opset10::Constant>& indices_const,
+                                         const std::shared_ptr<ov::opset10::Constant>& axes_const,
+                                         const std::shared_ptr<ov::opset10::Gather>& gather_node,
+                                         std::vector<int> input_indexes = {});
 }  // namespace sink_backward
 
-void UpdateForwardGatherSinkingAbility(std::shared_ptr<ov::Node>);
+void update_forward_gather_sinking_ability(std::shared_ptr<ov::Node>);
 
 /**
  *  @brief Checks if @arg has consumers that all are the same Gather operation. If no consumers at all
  *  returns false.
  */
-bool HasSameOutputGatherNodes(const ov::Output<ov::Node>&);
+bool has_same_output_gather_nodes(const ov::Output<ov::Node>&);
 
 /**
  * Removes all direct node consumers that have one output
  */
-void RemoveSingleOutputConsumers(std::shared_ptr<ov::Node>);
+void remove_single_output_consumers(std::shared_ptr<ov::Node>);
 
 bool constant_has_rank_not_more_than(const std::shared_ptr<ov::opset10::Constant>&,
                                      const ov::Rank::value_type expected_rank);
@@ -139,6 +116,6 @@ std::function<bool(ov::Output<ov::Node>)> rank_not_more_than(const ov::Rank::val
 /**
  * Checks if output is Constant with rank 1
  */
-bool IsConstant1D(const ov::Output<ov::Node>& output);
+bool is_constant_1d(const ov::Output<ov::Node>& output);
 
 }  // namespace gather_sinking

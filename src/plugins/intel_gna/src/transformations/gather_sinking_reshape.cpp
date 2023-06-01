@@ -8,6 +8,7 @@
 #include <transformations/utils/utils.hpp>
 #include <utility>
 
+#include "common/graph_utils.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/gather_sinking_attr.hpp"
@@ -18,6 +19,7 @@ using namespace ov::opset10;
 using namespace ov::pass::pattern;
 using namespace ov::op::util;
 using namespace gather_sinking;
+using namespace ov::intel_gna::graph_utils;
 using namespace ov::intel_gna::pass;
 using namespace ov::intel_gna::rt_info;
 
@@ -25,53 +27,34 @@ namespace {
 
 using NodePtr = std::shared_ptr<ov::Node>;
 
-// remove leading and trailing '1' from shape
-Shape StripShape(const Shape& shape) {
-    auto if_not_eq_1 = [](const Shape::value_type& value) {
-        return value != 1;
-    };
-    const auto start_it = std::find_if(shape.begin(), shape.end(), if_not_eq_1);
-    if (start_it == shape.end())
-        return {};
-    const auto end_it = std::find_if(shape.rbegin(), shape.rend(), if_not_eq_1);
-    if (end_it == shape.rend())
-        return {};
-
-    Shape result;
-    result.reserve(shape.size());
-    std::copy(start_it, shape.begin() + std::distance(end_it, shape.rend()), std::back_inserter(result));
-
-    return result;
-}
-
 template <typename InputIt, typename Predicate>
-int FindFirstIndex(InputIt begin, InputIt end, Predicate predicate) {
+int find_first_index(InputIt begin, InputIt end, Predicate predicate) {
     const auto it = std::find_if(begin, end, predicate);
     if (it == end)
         return -1;
     return std::distance(begin, it);
 }
 
-int GetLeftShift(const Shape& shape1, const Shape& shape2) {
+int get_left_shift(const Shape& shape1, const Shape& shape2) {
     auto if_not_eq_1 = [](const Shape::value_type& value) {
         return value != 1;
     };
-    const int index_1 = FindFirstIndex(shape1.begin(), shape1.end(), if_not_eq_1);
-    const int index_2 = FindFirstIndex(shape2.begin(), shape2.end(), if_not_eq_1);
+    const int index_1 = find_first_index(shape1.begin(), shape1.end(), if_not_eq_1);
+    const int index_2 = find_first_index(shape2.begin(), shape2.end(), if_not_eq_1);
 
     if (index_1 < 0 || index_2 < 0)
         return 0;
     return index_1 - index_2;
 }
 
-bool IfGatherSinkingEnabled(const Output<Node>& output) {
+bool is_gather_sinking_enabled(const Output<Node>& output) {
     return is_gather_sinking_node(output.get_node_shared_ptr());
 }
 
-bool IsReshapeUnsqueeze(const Output<Node>& output) {
+bool is_reshape_unsqueeze(const Output<Node>& output) {
     NodePtr reshape = output.get_node_shared_ptr();
-    const Shape input_shape = StripShape(reshape->get_input_shape(0));
-    const Shape output_shape = StripShape(reshape->get_output_shape(0));
+    const Shape input_shape = trim_shape(reshape->get_input_shape(0));
+    const Shape output_shape = trim_shape(reshape->get_output_shape(0));
     return std::equal(input_shape.begin(), input_shape.end(), output_shape.begin());
 }
 
@@ -80,11 +63,11 @@ bool IsReshapeUnsqueeze(const Output<Node>& output) {
 GatherSinkingReshapeBackward::GatherSinkingReshapeBackward() {
     MATCHER_SCOPE(GatherSinkingReshapeBackward);
     auto reshape_const_label = wrap_type<Constant>();
-    auto reshape_label = wrap_type<Reshape>({any_input(), reshape_const_label}, IsReshapeUnsqueeze);
+    auto reshape_label = wrap_type<Reshape>({any_input(), reshape_const_label}, is_reshape_unsqueeze);
     auto gather_indices_label = wrap_type<Constant>();
     auto gather_axis_label = wrap_type<Constant>();
     auto gather_label =
-        wrap_type<Gather>({reshape_label, gather_indices_label, gather_axis_label}, IfGatherSinkingEnabled);
+        wrap_type<Gather>({reshape_label, gather_indices_label, gather_axis_label}, is_gather_sinking_enabled);
 
     ov::matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
@@ -94,9 +77,9 @@ GatherSinkingReshapeBackward::GatherSinkingReshapeBackward() {
         auto reshape_const = as_type_ptr<Constant>(pattern_to_output.at(reshape_const_label).get_node_shared_ptr());
         auto reshape = as_type_ptr<Reshape>(pattern_to_output.at(reshape_label).get_node_shared_ptr());
 
-        const int left_shift = GetLeftShift(reshape->get_input_shape(0), reshape->get_output_shape(0));
+        const int left_shift = get_left_shift(reshape->get_input_shape(0), reshape->get_output_shape(0));
         size_t gather_axis_value_current =
-            ConvertAxisToPositive(gather_axis->cast_vector<int64_t>()[0], gather->get_input_shape(0).size());
+            convert_axis_to_positive(gather_axis->cast_vector<int64_t>()[0], gather->get_input_shape(0).size());
         size_t gather_axis_value_new = gather_axis_value_current - left_shift;
 
         auto gather_axis_new = std::make_shared<Constant>(element::i64, Shape{}, gather_axis_value_new);

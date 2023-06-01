@@ -28,13 +28,13 @@ using NodePtr = std::shared_ptr<ov::Node>;
 using NodePair = std::pair<NodePtr, NodePtr>;
 
 /**
- * @brief SwapNodes allows to perform swapping nodes even if there are more than one consumers but has less performance
+ * @brief swap_nodes allows to perform swapping nodes even if there are more than one consumers but has less performance
  *
  * @param first_node first node pointer
  * @param second_node first node pointer
  * @return NodePair pair of nodes in new order that allows to register them in MatcherPass
  */
-NodePair SwapNodes(NodePtr first_node, NodePtr second_node) {
+NodePair swap_nodes(NodePtr first_node, NodePtr second_node) {
     auto second_node_inputs = second_node->input_values();
     second_node_inputs[0] = first_node->input_value(0);
 
@@ -53,13 +53,13 @@ NodePair SwapNodes(NodePtr first_node, NodePtr second_node) {
 }
 
 /**
- * @brief SwapOutputs has much better performance than SwapNodes and covers the most of the real situations
+ * @brief swap_outputs has much better performance than swap_nodes and covers the most of the real situations
  *        but cannot work when the consumers count greater than one
  * @param first_node first node pointer
  * @param second_node second node pointer
  * @return NodePair pair of nodes in new order that allows to register them in MatcherPass
  */
-NodePair SwapOutputs(NodePtr first_node, NodePtr second_node) {
+NodePair swap_outputs(NodePtr first_node, NodePtr second_node) {
     const auto first_node_output_names = first_node->output(0).get_names();
     const auto second_node_output_names = second_node->output(0).get_names();
 
@@ -86,16 +86,16 @@ NodePair SwapOutputs(NodePtr first_node, NodePtr second_node) {
 }
 
 /**
- * Swapping inputs/outputs has better perfomance that Swapping nodes with clone but it cannot be used
+ * swapping inputs/outputs has better perfomance that swapping nodes with clone but it cannot be used
  * in multiple consumers case
  */
-NodePair Swap(NodePtr first_node, NodePtr second_node) {
+NodePair swap(NodePtr first_node, NodePtr second_node) {
     NodePair new_nodes;
 
     if (first_node->output(0).get_target_inputs().size() > 1 || second_node->output(0).get_target_inputs().size() > 1)
-        new_nodes = SwapNodes(first_node, second_node);
+        new_nodes = swap_nodes(first_node, second_node);
     else
-        new_nodes = SwapOutputs(first_node, second_node);
+        new_nodes = swap_outputs(first_node, second_node);
 
     return new_nodes;
 }
@@ -112,12 +112,12 @@ GatherSinkingUnaryForward::GatherSinkingUnaryForward() {
         auto gather = pattern_to_output.at(gather_label).get_node_shared_ptr();
         auto unary = pattern_to_output.at(unary_label).get_node_shared_ptr();
 
-        const NodePair new_nodes = Swap(gather, unary);
+        const NodePair new_nodes = swap(gather, unary);
 
         register_new_node(new_nodes.first);
         register_new_node(new_nodes.second);
 
-        UpdateForwardGatherSinkingAbility(new_nodes.second);
+        update_forward_gather_sinking_ability(new_nodes.second);
 
         return true;
     };
@@ -127,7 +127,7 @@ GatherSinkingUnaryForward::GatherSinkingUnaryForward() {
 }
 
 namespace {
-bool IfGatherSinkingEnabled(const Output<Node>& output) {
+bool is_gather_sinking_enabled(const Output<Node>& output) {
     return is_gather_sinking_node(output.get_node_shared_ptr());
 }
 }  // namespace
@@ -143,14 +143,14 @@ GatherSinkingUnaryBackwardSingleConsumer::GatherSinkingUnaryBackwardSingleConsum
 
     auto pattern_node = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{unary_label, fq_label});
 
-    auto gather_label = wrap_type<Gather>({pattern_node, any_input(), any_input()}, IfGatherSinkingEnabled);
+    auto gather_label = wrap_type<Gather>({pattern_node, any_input(), any_input()}, is_gather_sinking_enabled);
 
     ov::matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto gather = pattern_to_output.at(gather_label).get_node_shared_ptr();
         auto unary = gather->get_input_node_shared_ptr(0);
 
-        const NodePair new_nodes = Swap(unary, gather);
+        const NodePair new_nodes = swap(unary, gather);
 
         register_new_node(new_nodes.first);
         register_new_node(new_nodes.second);
@@ -165,7 +165,7 @@ GatherSinkingUnaryBackwardSingleConsumer::GatherSinkingUnaryBackwardSingleConsum
 GatherSinkingUnaryBackwardMultiConsumers::GatherSinkingUnaryBackwardMultiConsumers() {
     MATCHER_SCOPE(GatherSinkingUnaryBackwardMultiConsumers);
     auto unary_restrictions = [](const Output<Node>& output) -> bool {
-        return ov::pass::pattern::consumers_more_than(1)(output) && HasSameOutputGatherNodes(output);
+        return ov::pass::pattern::consumers_more_than(1)(output) && has_same_output_gather_nodes(output);
     };
 
     auto unary_label =
@@ -180,7 +180,7 @@ GatherSinkingUnaryBackwardMultiConsumers::GatherSinkingUnaryBackwardMultiConsume
     auto indices_const_label = wrap_type<Constant>();
     auto axes_const_label = wrap_type<Constant>();
     auto gather_label =
-        wrap_type<Gather>({pattern_node, indices_const_label, axes_const_label}, IfGatherSinkingEnabled);
+        wrap_type<Gather>({pattern_node, indices_const_label, axes_const_label}, is_gather_sinking_enabled);
 
     ov::matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
@@ -189,12 +189,12 @@ GatherSinkingUnaryBackwardMultiConsumers::GatherSinkingUnaryBackwardMultiConsume
         auto gather = as_type_ptr<Gather>(pattern_to_output.at(gather_label).get_node_shared_ptr());
         auto unary = gather->get_input_node_shared_ptr(0);
 
-        for (auto& new_node : sink_backward::InsertGatherBeforeNode(unary, indices_const, axes_const, gather)) {
+        for (auto& new_node : sink_backward::insert_gather_before_node(unary, indices_const, axes_const, gather)) {
             register_new_node(new_node);
         }
 
         // remove output transposes
-        RemoveSingleOutputConsumers(unary);
+        remove_single_output_consumers(unary);
 
         return true;
     };

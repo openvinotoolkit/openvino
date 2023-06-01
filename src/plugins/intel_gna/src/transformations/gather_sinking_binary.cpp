@@ -46,12 +46,12 @@ GatherSinkingBinaryForward::GatherSinkingBinaryForward() {
         auto& main_node_output = pattern_to_output.at(main_node_label);
         auto main_node = main_node_output.get_node_shared_ptr();
 
-        GatherInputsInfo gather_input_info = GetFirstGatherInput(main_node);
+        GatherInputsInfo gather_input_info = get_first_gather_input(main_node);
 
-        sink_forward::UpdateInputGather(main_node, gather_input_info);
-        for (auto& new_node : sink_forward::InsertOutputGather(main_node, gather_input_info)) {
+        sink_forward::update_input_gather(main_node, gather_input_info);
+        for (auto& new_node : sink_forward::insert_output_gather(main_node, gather_input_info)) {
             register_new_node(new_node);
-            gather_sinking::UpdateForwardGatherSinkingAbility(new_node);
+            gather_sinking::update_forward_gather_sinking_ability(new_node);
         }
 
         return true;
@@ -64,7 +64,7 @@ GatherSinkingBinaryForward::GatherSinkingBinaryForward() {
 GatherSinkingBinaryBackward::GatherSinkingBinaryBackward() {
     MATCHER_SCOPE(GatherSinkingBinaryBackward);
     auto main_node_label = wrap_type<op::util::BinaryElementwiseArithmetic>([](const Output<Node>& output) -> bool {
-        return has_static_rank()(output) && HasSameOutputGatherNodes(output);
+        return has_static_rank()(output) && has_same_output_gather_nodes(output);
     });
 
     auto indices_const_label = wrap_type<Constant>(rank_not_more_than(1));
@@ -82,14 +82,14 @@ GatherSinkingBinaryBackward::GatherSinkingBinaryBackward() {
         auto gather = as_type_ptr<Gather>(pattern_to_output.at(gather_label).get_node_shared_ptr());
         auto main_node = pattern_to_output.at(main_node_label).get_node_shared_ptr();
 
-        for (auto& new_node : sink_backward::InsertGatherBeforeNode(main_node, indices_const, axes_const, gather)) {
+        for (auto& new_node : sink_backward::insert_gather_before_node(main_node, indices_const, axes_const, gather)) {
             register_new_node(new_node);
         }
 
         // remove output transposes
-        RemoveSingleOutputConsumers(main_node);
+        remove_single_output_consumers(main_node);
 
-        SwapNames(gather, main_node);
+        swap_names(gather, main_node);
 
         return true;
     };

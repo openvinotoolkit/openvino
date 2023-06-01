@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <ngraph/pass/graph_rewrite.hpp>
+#include <openvino/pass/graph_rewrite.hpp>
 
 namespace ov {
 namespace intel_gna {
@@ -37,7 +37,7 @@ namespace pass {
  *    |      |        |
  * Any#2 .. Any#K .. Any#N
  */
-class TSSplitBackward : public ngraph::pass::MatcherPass {
+class TSSplitBackward : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("TSSplitBackward", "0");
     TSSplitBackward();

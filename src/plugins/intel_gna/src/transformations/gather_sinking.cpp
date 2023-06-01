@@ -4,12 +4,12 @@
 
 #include "transformations/gather_sinking.hpp"
 
-#include <ngraph/pass/constant_folding.hpp>
-#include <ngraph/pass/graph_rewrite.hpp>
-#include <ngraph/pass/manager.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
-#include <openvino/cc/ngraph/itt.hpp>
+#include <openvino/cc/pass/itt.hpp>
+#include <openvino/core/rt_info.hpp>
+#include <openvino/pass/constant_folding.hpp>
+#include <openvino/pass/graph_rewrite.hpp>
+#include <openvino/pass/manager.hpp>
+#include <openvino/pass/pattern/op/wrap_type.hpp>
 
 #include "transformations/gather_sinking_binary.hpp"
 #include "transformations/gather_sinking_fuse.hpp"
@@ -38,18 +38,18 @@ GatherSinkingGeneralBackward::GatherSinkingGeneralBackward() {
 }
 
 bool GatherSinkingGeneral::run_on_model(const std::shared_ptr<ov::Model>& f) {
-    RUN_ON_FUNCTION_SCOPE(GatherSinkingGeneral);
+    RUN_ON_MODEL_SCOPE(GatherSinkingGeneral);
     {
-        ngraph::pass::Manager manager(get_pass_config());
+        ov::pass::Manager manager(get_pass_config());
         manager.register_pass<GatherSinkingGeneralForward>();
-        manager.register_pass<ngraph::pass::ConstantFolding>();
+        manager.register_pass<ov::pass::ConstantFolding>();
         manager.run_passes(f);
     }
 
     {
-        ngraph::pass::Manager manager(get_pass_config());
+        ov::pass::Manager manager(get_pass_config());
         manager.register_pass<GatherSinkingGeneralBackward>();
-        manager.register_pass<ngraph::pass::ConstantFolding>();
+        manager.register_pass<ov::pass::ConstantFolding>();
         manager.run_passes(f);
     }
 

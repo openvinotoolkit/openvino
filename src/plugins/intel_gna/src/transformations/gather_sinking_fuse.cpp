@@ -8,6 +8,7 @@
 #include <transformations/utils/utils.hpp>
 #include <utility>
 
+#include "common/graph_utils.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/gather_sinking_attr.hpp"
@@ -18,34 +19,17 @@ using namespace ov::opset10;
 using namespace ov::pass::pattern;
 using namespace ov::op::util;
 using namespace gather_sinking;
+using namespace ov::intel_gna::graph_utils;
 using namespace ov::intel_gna::pass;
 using namespace ov::intel_gna::rt_info;
 
 namespace {
-bool GetGatherAxis(const std::shared_ptr<Gather>& gather, int64_t& axis) {
-    auto output_gather_axis_node = as_type_ptr<Constant>(gather->input_value(2).get_node_shared_ptr());
-    if (!output_gather_axis_node)
-        return false;
-    axis = GetNormalizedNegativeGatherAxis(output_gather_axis_node,
-                                           gather->get_input_partial_shape(0).rank().get_length());
-    return true;
-}
-
-bool GetGatherAxis(const std::shared_ptr<ov::Node>& gather, int64_t& axis) {
-    auto gather_node = as_type_ptr<Gather>(gather);
-    if (!gather_node)
-        return false;
-    if (!GetGatherAxis(gather_node, axis))
-        return false;
-    return true;
-}
-
-bool IsGatherWithParentGatherSameAxis(const Output<Node>& output) {
+bool is_gather_with_parent_gather_same_axis(const Output<Node>& output) {
     int64_t output_gather_axis = {};
-    if (!GetGatherAxis(output.get_node_shared_ptr(), output_gather_axis))
+    if (!get_gather_axis(output.get_node_shared_ptr(), output_gather_axis))
         return false;
     int64_t input_gather_axis = {};
-    if (!GetGatherAxis(output.get_node_shared_ptr()->input_value(0).get_node_shared_ptr(), input_gather_axis))
+    if (!get_gather_axis(output.get_node_shared_ptr()->input_value(0).get_node_shared_ptr(), input_gather_axis))
         return false;
     return input_gather_axis == output_gather_axis;
 }
@@ -59,8 +43,8 @@ struct TransformationInfo {
     std::shared_ptr<Gather> output_gather;
 };
 
-std::vector<int64_t> CombineGatherPermutations(const std::vector<int64_t>& input_gather_indices,
-                                               const std::vector<int64_t>& output_gather_indices) {
+std::vector<int64_t> combine_gather_permutations(const std::vector<int64_t>& input_gather_indices,
+                                                 const std::vector<int64_t>& output_gather_indices) {
     if (input_gather_indices.size() != output_gather_indices.size())
         return {};
     std::vector<int64_t> result(input_gather_indices.size());
@@ -71,7 +55,7 @@ std::vector<int64_t> CombineGatherPermutations(const std::vector<int64_t>& input
     return result;
 }
 
-bool IsPointlessPermutation(const std::vector<int64_t>& indices) {
+bool is_pointless_permutation(const std::vector<int64_t>& indices) {
     for (size_t i = 0; i < indices.size(); ++i) {
         if (indices[i] != i)
             return false;
@@ -79,12 +63,12 @@ bool IsPointlessPermutation(const std::vector<int64_t>& indices) {
     return true;
 }
 
-std::shared_ptr<Gather> FuseGatherNodes(TransformationInfo& info) {
-    const std::vector<int64_t> input_gather_indices = GetNormalizedGatherIndices(info.input_indices_const);
-    const std::vector<int64_t> output_gather_indices = GetNormalizedGatherIndices(info.output_indices_const);
+std::shared_ptr<Gather> fuse_gather_nodes(TransformationInfo& info) {
+    const std::vector<int64_t> input_gather_indices = get_normalized_gather_indices(info.input_indices_const);
+    const std::vector<int64_t> output_gather_indices = get_normalized_gather_indices(info.output_indices_const);
     const std::vector<int64_t> result_gather_indices =
-        CombineGatherPermutations(input_gather_indices, output_gather_indices);
-    if (IsPointlessPermutation(result_gather_indices)) {
+        combine_gather_permutations(input_gather_indices, output_gather_indices);
+    if (is_pointless_permutation(result_gather_indices)) {
         ov::replace_output_update_name(info.output_gather->output(0), info.input_gather->input_value(0));
         return {};
     }
@@ -106,14 +90,14 @@ std::shared_ptr<Gather> FuseGatherNodes(TransformationInfo& info) {
 GatherSinkingFuse::GatherSinkingFuse() {
     MATCHER_SCOPE(GatherSinkingFuse);
 
-    auto input_indices_const_label = wrap_type<Constant>(IsConstant1D);
-    auto input_axis_const_label = wrap_type<Constant>(IsConstant1D);
+    auto input_indices_const_label = wrap_type<Constant>(is_constant_1d);
+    auto input_axis_const_label = wrap_type<Constant>(is_constant_1d);
     auto input_gather_label = wrap_type<Gather>({any_input(), input_indices_const_label, input_axis_const_label});
-    auto output_indices_const_label = wrap_type<Constant>(IsConstant1D);
-    auto output_axis_const_label = wrap_type<Constant>(IsConstant1D);
+    auto output_indices_const_label = wrap_type<Constant>(is_constant_1d);
+    auto output_axis_const_label = wrap_type<Constant>(is_constant_1d);
     auto output_gather_label =
         wrap_type<Gather>({input_gather_label, output_indices_const_label, output_axis_const_label},
-                          IsGatherWithParentGatherSameAxis);
+                          is_gather_with_parent_gather_same_axis);
 
     ov::matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
@@ -129,7 +113,7 @@ GatherSinkingFuse::GatherSinkingFuse() {
             as_type_ptr<Constant>(pattern_to_output.at(output_axis_const_label).get_node_shared_ptr());
         info.output_gather = as_type_ptr<Gather>(pattern_to_output.at(output_gather_label).get_node_shared_ptr());
 
-        auto new_node = FuseGatherNodes(info);
+        auto new_node = fuse_gather_nodes(info);
         if (new_node)
             register_new_node(new_node);
 

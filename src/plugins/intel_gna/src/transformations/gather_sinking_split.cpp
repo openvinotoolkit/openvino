@@ -10,6 +10,7 @@
 #include <transformations/utils/utils.hpp>
 #include <utility>
 
+#include "common/graph_utils.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
@@ -24,6 +25,7 @@ using namespace ov::opset10;
 using namespace ov::pass::pattern;
 using namespace ov::op::util;
 using namespace gather_sinking;
+using namespace ov::intel_gna::graph_utils;
 using namespace ov::intel_gna::pass;
 using namespace ov::intel_gna::rt_info;
 
@@ -31,36 +33,8 @@ namespace {
 
 using NodePtr = std::shared_ptr<Node>;
 
-template <typename NodeT>
-std::shared_ptr<NodeT> FindInputNode(NodePtr node) {
-    for (size_t input_idx = 0; input_idx < node->get_input_size(); ++input_idx) {
-        std::shared_ptr<ov::Node> input_node = node->get_input_node_shared_ptr(input_idx);
-        auto target_node = ov::as_type_ptr<NodeT>(input_node);
-        if (target_node)
-            return target_node;
-    }
-    return {};
-}
-
-bool IsSplitSinked(const Output<Node>& output) {
-    return FindInputNode<Split>(output.get_node_shared_ptr()) && is_gather_sinking_node(output);
-}
-
-bool GetSplitAxis(const std::shared_ptr<Constant>& split_axis, const ov::Rank& rank, int64_t& axis) {
-    auto split_axis_val = split_axis->cast_vector<int64_t>();
-    if (split_axis_val.empty()) {
-        return false;
-    }
-    axis = split_axis_val[0];
-    if (axis < 0) {
-        if (rank.is_static()) {
-            const auto rank_val = rank.get_length();
-            axis += rank_val;
-        } else {
-            return false;
-        }
-    }
-    return true;
+bool is_split_sinked(const Output<Node>& output) {
+    return find_first_input_node<Split>(output.get_node_shared_ptr()) && is_gather_sinking_node(output);
 }
 
 struct OutputGather {
@@ -124,29 +98,29 @@ GatherSinkingSplitBackward::GatherSinkingSplitBackward() {
 
     auto gather_indices_label = wrap_type<Constant>();
     auto gather_axis_label = wrap_type<Constant>();
-    auto gather_label = wrap_type<Gather>({any_input(), gather_indices_label, gather_axis_label}, IsSplitSinked);
+    auto gather_label = wrap_type<Gather>({any_input(), gather_indices_label, gather_axis_label}, is_split_sinked);
 
     matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto gather = as_type_ptr<Gather>(pattern_to_output.at(gather_label).get_node_shared_ptr());
 
-        auto split = FindInputNode<Split>(gather);
+        auto split = find_first_input_node<Split>(gather);
         auto split_axis_constant = as_type_ptr<Constant>(split->input_value(1).get_node_shared_ptr());
         if (!split_axis_constant) {
             return false;
         }
 
         int64_t split_axis;
-        if (!GetSplitAxis(split_axis_constant, split->input_value(0).get_partial_shape().rank(), split_axis)) {
+        if (!get_split_axis(split_axis_constant, split->input_value(0).get_partial_shape().rank(), split_axis)) {
             return false;
         }
 
         OutputGather output_gather = FindFirstOutputGather(split);
         const int64_t gather_axis =
-            ConvertAxisToPositive(output_gather.gather_axis->cast_vector<int64_t>()[0],
-                                  output_gather.gather->input(0).get_partial_shape().rank().get_length());
+            convert_axis_to_positive(output_gather.gather_axis->cast_vector<int64_t>()[0],
+                                     output_gather.gather->input(0).get_partial_shape().rank().get_length());
 
-        const auto gather_indices = NormalizeGatherIndices(output_gather.gather_indices->cast_vector<int64_t>());
+        const auto gather_indices = normalize_gather_indices(output_gather.gather_indices->cast_vector<int64_t>());
         //
         std::vector<int64_t> new_indices(split->get_input_shape(0)[gather_axis]);
         std::iota(new_indices.begin(), new_indices.end(), 0);
