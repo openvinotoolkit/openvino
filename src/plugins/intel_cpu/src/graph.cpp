@@ -1607,7 +1607,7 @@ bool Graph::InsertNode(NodePtr parent, NodePtr child, NodePtr node, int parentPo
 struct FP16Debug {
     std::string safe_getenv(const char* name, const char* default_value = "") {
         std::string value = default_value;
-        const char* p = getenv(name);
+        const char* p = std::getenv(name);
         if (p)
             value = p;
         return value;

@@ -507,7 +507,7 @@ void Convolution::getSupportedDescriptors() {
         return;
     }
 
-    auto getSupportedDataType = [&](InferenceEngine::Precision originalPrec) {
+    auto getSupportedDataType = [this, ndims](InferenceEngine::Precision originalPrec) {
         auto originalDT = DnnlExtensionUtils::IEPrecisionToDataType(originalPrec);
         auto dt = memory::data_type::f32;
 
