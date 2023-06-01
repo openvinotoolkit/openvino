@@ -6,9 +6,9 @@
 
 #include <string>
 
-#include "ngraph/log.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/op/loop.hpp"
+#include "openvino/util/log.hpp"
 #include "pyopenvino/core/common.hpp"
 #include "pyopenvino/graph/ops/util/multisubgraph.hpp"
 
@@ -28,7 +28,7 @@ void regclass_graph_op_Loop(py::module m) {
                 MultiSubgraphHelpers::is_constant_or_parameter(execution_condition)) {
                 return std::make_shared<ov::op::v5::Loop>(trip_count->output(0), execution_condition->output(0));
             } else {
-                NGRAPH_WARN
+                OPENVINO_WARN
                     << "Please specify execution_condition and trip_count as Constant or Parameter. Default Loop() "
                        "constructor was applied.";
                 return std::make_shared<ov::op::v5::Loop>();

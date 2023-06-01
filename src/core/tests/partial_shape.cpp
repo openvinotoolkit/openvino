@@ -685,6 +685,7 @@ TEST(partial_shape, partial_shape_relaxes_refines_static_static_not_eq) {
     ASSERT_FALSE(s2.relaxes(s1));
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 TEST(partial_shape, partial_shape_project_rank_dynamic) {
     PartialShape s1{PartialShape::dynamic()};
     PartialShape s2 = project(s1, AxisSet{284, 0, 103});

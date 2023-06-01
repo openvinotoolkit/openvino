@@ -10,6 +10,7 @@
 #include <low_precision/network_helper.hpp>
 #include <transformations/common_optimizations/convert_quantize_dequantize.hpp>
 #include <transformations/op_conversions/convert_subtract.hpp>
+#include "openvino/pass/manager.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -28,7 +29,7 @@ public:
 
 int main() {
 std::shared_ptr<ov::Model> nGraphFunc;
-ngraph::pass::Manager manager;
+ov::pass::Manager manager;
 auto pass_config = manager.get_pass_config();
 //! [lpt_common]
 // check if the function is quantized to ignore LPT transformations for not quantized function to speed up model loading
@@ -69,19 +70,19 @@ using namespace ngraph::pass::low_precision;
 if (useLpt) {
     // Low precision transformations plugin specific configuration: restrictions definition
     auto supportedPrecisions = std::vector<PrecisionsRestriction>({
-        PrecisionsRestriction::create<ngraph::opset1::Convolution>({
+        PrecisionsRestriction::create<ov::opset1::Convolution>({
             {{0}, {ngraph::element::u8}},
             {{1}, {ngraph::element::i8}},
         }),
-        PrecisionsRestriction::create<ngraph::opset1::ConvolutionBackpropData>({
+        PrecisionsRestriction::create<ov::opset1::ConvolutionBackpropData>({
             {{0}, {ngraph::element::u8, ngraph::element::i8}},
             {{1}, {ngraph::element::i8}}
         }),
-        PrecisionsRestriction::create<ngraph::opset1::GroupConvolution>({
+        PrecisionsRestriction::create<ov::opset1::GroupConvolution>({
             {{0}, {ngraph::element::u8}},
             {{1}, {ngraph::element::i8}}
         }),
-        PrecisionsRestriction::create<ngraph::opset1::Multiply>({
+        PrecisionsRestriction::create<ov::opset1::Multiply>({
             {{0}, {ngraph::element::u8}},
             {{1}, {ngraph::element::i8}},
         }),
@@ -89,17 +90,17 @@ if (useLpt) {
 
     // Low precision transformations plugin specific configuration: per-tensor quantization operations definition
     auto perTensorQuantization = std::vector<QuantizationGranularityRestriction>({
-        QuantizationGranularityRestriction::create<ngraph::opset1::Convolution>({0}),
-        QuantizationGranularityRestriction::create<ngraph::opset1::ConvolutionBackpropData>({0})
+        QuantizationGranularityRestriction::create<ov::opset1::Convolution>({0}),
+        QuantizationGranularityRestriction::create<ov::opset1::ConvolutionBackpropData>({0})
     });
 
     // Low precision transformations instantiation and registration in pass manager
-    ngraph::pass::Manager lptManager;
+    ov::pass::Manager lptManager;
     lptManager.register_pass<ngraph::pass::low_precision::LowPrecision>(supportedPrecisions, perTensorQuantization);
 
     // Low precision transformations plugin specific configuration: transformation callbacks definition
     lptManager.get_pass_config()->set_callback<MarkupPrecisions>([](const std::shared_ptr<const ngraph::Node>& node) -> bool {
-        if (const auto multiply = std::dynamic_pointer_cast<const ngraph::opset1::Multiply>(node)) {
+        if (const auto multiply = std::dynamic_pointer_cast<const ov::opset1::Multiply>(node)) {
             return !MultiplyToGroupConvolutionTransformation::canBeTransformedToGroupConvolution(multiply);
         }
         return false;
@@ -117,7 +118,7 @@ if (useLpt) {
 //! [lpt_execution]
 
 //! [lpt_device]
-ngraph::pass::Manager deviceSpecificManager;
+ov::pass::Manager deviceSpecificManager;
 deviceSpecificManager.register_pass<ngraph::pass::device::ConvertOpSet1ToDeviceSpecific>();
 deviceSpecificManager.run_passes(nGraphFunc);
 //! [lpt_device]
@@ -127,23 +128,23 @@ return 0;
 
 int lpt_supported_precisions() {
 std::shared_ptr<ov::Model> nGraphFunc;
-ngraph::pass::Manager manager;
+ov::pass::Manager manager;
 
 using namespace ngraph::pass::low_precision;
 //! [lpt_supported_precisions]
 auto supportedPrecisions = std::vector<PrecisionsRestriction>({
-    PrecisionsRestriction::create<ngraph::opset1::Convolution>({
+    PrecisionsRestriction::create<ov::opset1::Convolution>({
         {{0}, {ngraph::element::u8}},
         {{1}, {ngraph::element::i8}},
     }),
 });
 
-ngraph::pass::Manager lptManager;
+ov::pass::Manager lptManager;
 lptManager.register_pass<ngraph::pass::low_precision::LowPrecision>(supportedPrecisions);
 lptManager.run_passes(nGraphFunc);
 //! [lpt_supported_precisions]
 
-ngraph::pass::Manager deviceSpecificManager;
+ov::pass::Manager deviceSpecificManager;
 deviceSpecificManager.register_pass<ngraph::pass::device::ConvertOpSet1ToDeviceSpecific>();
 deviceSpecificManager.run_passes(nGraphFunc);
 
@@ -158,10 +159,10 @@ using namespace ngraph::pass::low_precision;
 const std::vector<PrecisionsRestriction> emptyRestrictions;
 
 auto perTensorQuantization = std::vector<QuantizationGranularityRestriction>({
-    QuantizationGranularityRestriction::create<ngraph::opset1::Convolution>({0})
+    QuantizationGranularityRestriction::create<ov::opset1::Convolution>({0})
 });
 
-ngraph::pass::Manager lptManager;
+ov::pass::Manager lptManager;
 lptManager.register_pass<ngraph::pass::low_precision::LowPrecision>(emptyRestrictions, perTensorQuantization);
 lptManager.run_passes(nGraphFunc);
 //! [per_tensor_quantization]
@@ -171,13 +172,13 @@ return 0;
 
 int asymmetric_quantization(const std::vector<ngraph::element::Type>& defaultPrecisions) {
 std::shared_ptr<ov::Model> nGraphFunc;
-ngraph::pass::Manager manager;
+ov::pass::Manager manager;
 auto pass_config = manager.get_pass_config();
 
 
 //! [asymmetric_quantization]
 using namespace ngraph::pass::low_precision;
-ngraph::pass::Manager lptManager;
+ov::pass::Manager lptManager;
 
 lptManager.register_pass<ngraph::pass::low_precision::LowPrecision>();
 lptManager.get_pass_config()->set_callback<ConvolutionBackpropDataTransformation>([&defaultPrecisions](const std::shared_ptr<const ngraph::Node>& node) -> bool {
@@ -191,27 +192,27 @@ return 0;
 
 int lpt_markup_pipeline() {
 std::shared_ptr<ov::Model> nGraphFunc;
-ngraph::pass::Manager manager;
+ov::pass::Manager manager;
 
 using namespace ngraph::pass::low_precision;
 //! [lpt_markup_pipeline]
 auto supportedPrecisions = std::vector<PrecisionsRestriction>({
-    PrecisionsRestriction::create<ngraph::opset1::Convolution>({
+    PrecisionsRestriction::create<ov::opset1::Convolution>({
         {{0}, {ngraph::element::u8}},
         {{1}, {ngraph::element::i8}},
     }),
 });
 
 auto perTensorQuantization = std::vector<QuantizationGranularityRestriction>({
-    QuantizationGranularityRestriction::create<ngraph::opset1::Convolution>({0})
+    QuantizationGranularityRestriction::create<ov::opset1::Convolution>({0})
 });
 
-ngraph::pass::Manager lptManager;
+ov::pass::Manager lptManager;
 lptManager.register_pass<ngraph::pass::low_precision::LowPrecision>(supportedPrecisions, perTensorQuantization);
 lptManager.run_passes(nGraphFunc);
 //! [lpt_markup_pipeline]
 
-ngraph::pass::Manager deviceSpecificManager;
+ov::pass::Manager deviceSpecificManager;
 deviceSpecificManager.register_pass<ngraph::pass::device::ConvertOpSet1ToDeviceSpecific>();
 deviceSpecificManager.run_passes(nGraphFunc);
 

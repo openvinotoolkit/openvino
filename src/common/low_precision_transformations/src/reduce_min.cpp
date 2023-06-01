@@ -16,7 +16,7 @@ namespace low_precision {
 
 ReduceMinTransformation::ReduceMinTransformation(const Params& params) : ReduceBaseTransformation(params) {
     MATCHER_SCOPE(ReduceMinTransformation);
-    auto matcher = pattern::wrap_type<opset1::ReduceMin>({ pattern::wrap_type<opset1::Multiply>(), pattern::wrap_type<opset1::Constant>() });
+    auto matcher = pattern::wrap_type<ov::opset1::ReduceMin>({ pattern::wrap_type<ov::opset1::Multiply>(), pattern::wrap_type<ov::opset1::Constant>() });
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -31,7 +31,7 @@ ReduceMinTransformation::ReduceMinTransformation(const Params& params) : ReduceB
 }
 
 bool ReduceMinTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> reduce) const {
-    if (!ov::is_type<opset1::ReduceMin>(reduce)) {
+    if (!ov::is_type<ov::opset1::ReduceMin>(reduce)) {
         return false;
     }
 
@@ -40,7 +40,7 @@ bool ReduceMinTransformation::canBeTransformed(const TransformationContext& cont
     }
 
     const auto dequantization = NetworkHelper::getDequantization(reduce, defaultPrecisions);
-    const std::vector<float> scales = ov::as_type_ptr<opset1::Constant>(dequantization.multiplyConstant)->cast_vector<float>();
+    const std::vector<float> scales = ov::as_type_ptr<ov::opset1::Constant>(dequantization.multiplyConstant)->cast_vector<float>();
     if (std::any_of(scales.begin(), scales.end(), [](const float value) { return value < 0.0; })) {
         return false;
     }

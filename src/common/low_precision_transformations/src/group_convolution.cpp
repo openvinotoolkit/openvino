@@ -18,7 +18,7 @@ namespace low_precision {
 
 GroupConvolutionTransformation::GroupConvolutionTransformation(const Params& params) : ConvolutionTransformation(params) {
     MATCHER_SCOPE(GroupConvolutionTransformation);
-    auto matcher = pattern::wrap_type<opset1::GroupConvolution>();
+    auto matcher = pattern::wrap_type<ov::opset1::GroupConvolution>();
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();

@@ -8,7 +8,9 @@
 
 std::ostream& ov::operator<<(std::ostream& s, const ov::Strides& strides) {
     s << "Strides{";
+    OPENVINO_SUPPRESS_DEPRECATED_START
     s << ngraph::join(strides);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     s << "}";
     return s;
 }

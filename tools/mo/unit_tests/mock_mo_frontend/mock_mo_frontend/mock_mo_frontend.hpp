@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "ngraph/visibility.hpp"
+#include "openvino/core/visibility.hpp"
 #include "openvino/frontend/manager.hpp"
 #include "openvino/frontend/visibility.hpp"
 

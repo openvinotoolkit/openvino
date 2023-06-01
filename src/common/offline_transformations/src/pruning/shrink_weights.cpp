@@ -57,7 +57,7 @@ static bool maybe_adopt_reshape_node(std::shared_ptr<ov::Node> reshape, ngraph::
     const auto shape = reshape->input_value(1);
     const auto consumers = shape.get_node()->get_output_target_inputs(0);
     if (shape.get_node()->outputs().size() != 1 || consumers.size() != 1) {
-        NGRAPH_DEBUG << "Adoptation for node " << shape.get_node()->get_friendly_name() << " is not supported.";
+        OPENVINO_DEBUG << "Adoptation for node " << shape.get_node()->get_friendly_name() << " is not supported.";
         return false;
     }
 
@@ -88,8 +88,8 @@ static bool maybe_adopt_reshape_node(std::shared_ptr<ov::Node> reshape, ngraph::
     consumers.begin()->replace_source_output(sub);
     copy_runtime_info(shape.get_node_shared_ptr(), {sub_const, sub});
 
-    NGRAPH_DEBUG << "Adopting values in (" << shape.get_node()->get_friendly_name() << ")"
-                 << " by substracting " << vec_to_str(sub_const_vector);
+    OPENVINO_DEBUG << "Adopting values in (" << shape.get_node()->get_friendly_name() << ")"
+                   << " by substracting " << vec_to_str(sub_const_vector);
     return true;
 }
 
@@ -200,7 +200,7 @@ bool ngraph::pass::ShrinkWeights::run_on_model(const std::shared_ptr<ngraph::Fun
 #ifdef ENABLE_OPENVINO_DEBUG
         auto init_mask = getInitMask(node->output(0));
         if (!mask && init_mask)
-            NGRAPH_DEBUG << "Mask was ruined for node:" << node->get_friendly_name() << "\nInit mask: " << *init_mask;
+            OPENVINO_DEBUG << "Mask was ruined for node:" << node->get_friendly_name() << "\nInit mask: " << *init_mask;
 #endif
         if (is_static_reshape_op(node) && not_empty_mask(mask) &&
             !ov::op::util::is_constant(node->get_input_node_ptr(1)))
@@ -239,8 +239,8 @@ bool ngraph::pass::ShrinkWeights::run_on_model(const std::shared_ptr<ngraph::Fun
                                                             dim_current_set.end(),
                                                             dim_init_set.begin(),
                                                             dim_init_set.end())) {
-                    NGRAPH_DEBUG << "Mask was ruined for node:" << const_node->get_friendly_name()
-                                 << "\nInit mask: " << *init_mask << "\nCurrent mask: " << *mask;
+                    OPENVINO_DEBUG << "Mask was ruined for node:" << const_node->get_friendly_name()
+                                   << "\nInit mask: " << *init_mask << "\nCurrent mask: " << *mask;
                     break;
                 }
             }
@@ -262,8 +262,8 @@ bool ngraph::pass::ShrinkWeights::run_on_model(const std::shared_ptr<ngraph::Fun
             ngraph::copy_runtime_info(const_node, new_const);
             ngraph::replace_node(const_node, new_const);
 
-            NGRAPH_DEBUG << "Adjust value in (" << const_node->get_friendly_name() << "): " << vec_to_str(value)
-                         << " to " << vec_to_str(new_const_value);
+            OPENVINO_DEBUG << "Adjust value in (" << const_node->get_friendly_name() << "): " << vec_to_str(value)
+                           << " to " << vec_to_str(new_const_value);
             continue;
         }
         auto last_output = const_node->output(0);
@@ -282,8 +282,8 @@ bool ngraph::pass::ShrinkWeights::run_on_model(const std::shared_ptr<ngraph::Fun
             auto new_const = opset6::Constant::create(const_node->get_element_type(), Shape{res.size()}, res);
             replace_node(const_node, new_const);
             copy_runtime_info(const_node, new_const);
-            NGRAPH_DEBUG << "Transform shape like (" << last_output.get_node()->get_friendly_name()
-                         << "): " << const_node->get_shape_val() << " to " << new_const->get_shape_val() << std::endl;
+            OPENVINO_DEBUG << "Transform shape like (" << last_output.get_node()->get_friendly_name()
+                           << "): " << const_node->get_shape_val() << " to " << new_const->get_shape_val() << std::endl;
             new_const->set_friendly_name(const_node->get_friendly_name());
         } else {
             for (size_t dim = 0; dim < mask->size(); ++dim) {
@@ -308,13 +308,13 @@ bool ngraph::pass::ShrinkWeights::run_on_model(const std::shared_ptr<ngraph::Fun
                     last_output,
                     opset6::Constant::create(element::i64, Shape{dims_to_keep.size()}, dims_to_keep),
                     opset6::Constant::create(element::i64, Shape{}, {dim}));
-                NGRAPH_DEBUG << "Transform(" << prev_name << "): " << prev_shape << " to "
-                             << last_output.get_partial_shape();
+                OPENVINO_DEBUG << "Transform(" << prev_name << "): " << prev_shape << " to "
+                               << last_output.get_partial_shape();
 
                 if (prev_shape.is_static() && last_output.get_partial_shape().is_static()) {
                     reduced_weights_count += shape_size(prev_shape.get_shape()) - shape_size(last_output.get_shape());
                 } else {
-                    NGRAPH_DEBUG << "[ WARNING ] Can not find the number of reduced elements due to dynamic shapes.";
+                    OPENVINO_DEBUG << "[ WARNING ] Can not find the number of reduced elements due to dynamic shapes.";
                 }
             }
             // Trying to fold sequence of Gather ops to avoid additional constant folding.
@@ -331,7 +331,7 @@ bool ngraph::pass::ShrinkWeights::run_on_model(const std::shared_ptr<ngraph::Fun
             copy_runtime_info(const_node, last_output.get_node_shared_ptr());
         }
     }
-    NGRAPH_DEBUG << "[ INFO ]   TOTAL WEIGHTS: " << total_weights_count << std::endl;
-    NGRAPH_DEBUG << "[ INFO ] REDUCED WEIGHTS: " << reduced_weights_count << std::endl;
+    OPENVINO_DEBUG << "[ INFO ]   TOTAL WEIGHTS: " << total_weights_count << std::endl;
+    OPENVINO_DEBUG << "[ INFO ] REDUCED WEIGHTS: " << reduced_weights_count << std::endl;
     return true;
 }

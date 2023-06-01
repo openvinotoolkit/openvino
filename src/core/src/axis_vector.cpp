@@ -8,7 +8,9 @@
 
 std::ostream& ov::operator<<(std::ostream& s, const AxisVector& axis_vector) {
     s << "AxisVector{";
+    OPENVINO_SUPPRESS_DEPRECATED_START
     s << ngraph::join(axis_vector);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     s << "}";
     return s;
 }

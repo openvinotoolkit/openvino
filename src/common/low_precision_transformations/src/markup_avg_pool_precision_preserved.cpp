@@ -10,6 +10,7 @@
 #include "low_precision/propagate_through_precision_preserved.hpp"
 #include "low_precision/update_shared_precision_preserved.hpp"
 #include "itt.hpp"
+#include "openvino/pass/manager.hpp"
 
 using namespace ngraph;
 
@@ -18,7 +19,7 @@ ngraph::pass::low_precision::MarkupAvgPoolPrecisionPreserved::MarkupAvgPoolPreci
 
 bool ngraph::pass::low_precision::MarkupAvgPoolPrecisionPreserved::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     RUN_ON_FUNCTION_SCOPE(MarkupAvgPoolPrecisionPreserved);
-    ngraph::pass::Manager manager;
+    ov::pass::Manager manager;
     manager.set_per_pass_validation(false);
     std::shared_ptr<ngraph::pass::GraphRewrite> markupAvgPoolPrecision = manager.register_pass<ngraph::pass::GraphRewrite>();
     markupAvgPoolPrecision->add_matcher<low_precision::CreatePrecisionsDependentAttribute<AvgPoolPrecisionPreservedAttribute, opset1::AvgPool>>();

@@ -86,8 +86,8 @@ bool op::v1::VariadicSplit::evaluate_variadic_split(const HostTensorVector& inpu
     NGRAPH_CHECK(split_lengths_tensor->get_element_type().is_integral_number(),
                  "split_lengths element type is not integral data type");
 
-    int64_t axis = host_tensor_2_vector<int64_t>(axis_tensor)[0];
     OPENVINO_SUPPRESS_DEPRECATED_START
+    int64_t axis = host_tensor_2_vector<int64_t>(axis_tensor)[0];
     axis = ngraph::normalize_axis(this, axis, data_tensor->get_partial_shape().rank());
     OPENVINO_SUPPRESS_DEPRECATED_END
 

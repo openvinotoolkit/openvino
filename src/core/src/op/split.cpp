@@ -88,8 +88,8 @@ bool op::v1::Split::evaluate(const HostTensorVector& outputs, const HostTensorVe
             outputs_data[i] = outputs[i]->get_data_ptr<char>();
         }
 
-        auto axis = host_tensor_2_vector<int64_t>(axis_tensor)[0];
         OPENVINO_SUPPRESS_DEPRECATED_START
+        auto axis = host_tensor_2_vector<int64_t>(axis_tensor)[0];
         axis = normalize_axis(this, axis, data_tensor->get_partial_shape().rank());
         OPENVINO_SUPPRESS_DEPRECATED_END
 

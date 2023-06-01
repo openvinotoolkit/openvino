@@ -8,9 +8,9 @@
 #include <set>
 #include <vector>
 
-#include <ngraph/pass/pass.hpp>
 #include "low_precision/lpt_visibility.hpp"
 #include "low_precision/common/precisions_restriction.hpp"
+#include "openvino/pass/pass.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -34,7 +34,7 @@ class LP_TRANSFORMATIONS_API MarkupPrecisions;
  * [MarkupPrecisions](@ref openvino_docs_OV_UG_lpt_MarkupPrecisions) page
  * in the Inference Engine Developer Guide.
  */
-class ngraph::pass::low_precision::MarkupPrecisions : public ngraph::pass::FunctionPass {
+class ngraph::pass::low_precision::MarkupPrecisions : public ov::pass::ModelPass {
 public:
     class Restriction {
     public:
@@ -68,7 +68,7 @@ public:
     OPENVINO_RTTI("MarkupPrecisions", "0");
     explicit MarkupPrecisions(const std::vector<PrecisionsRestriction>& restrictions = {},
         const std::vector<ngraph::element::Type>& defaultPrecisions = { ngraph::element::u8, ngraph::element::i8 });
-    bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 
 private:
     static bool isPrecisionPreserved(const std::shared_ptr<Node>& node);

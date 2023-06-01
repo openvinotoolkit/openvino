@@ -159,6 +159,7 @@ bool batch_to_space_evaluate(const HostTensorVector& outputs, const HostTensorVe
     begins.assign(crops_begin_values, crops_begin_values + shape_size(inputs[2]->get_shape()));
 
     std::vector<int64_t> default_strides(begins.size(), 1);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     SlicePlan slice_plan = make_slice_plan(data_shape,
                                            begins,
                                            upperbounds_values,
@@ -169,6 +170,7 @@ bool batch_to_space_evaluate(const HostTensorVector& outputs, const HostTensorVe
                                            AxisSet(),
                                            AxisSet());
     runtime::reference::strided_slice(flat_data, outputs[0]->get_data_ptr<char>(), data_shape, slice_plan, elem_size);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     return true;
 }
 }  // namespace

@@ -50,7 +50,9 @@ std::shared_ptr<opset6::Constant> get_reduced_order_constant(const std::shared_p
 std::shared_ptr<opset6::Constant> get_reversed_order_constant(const std::shared_ptr<opset6::Constant>& order_const) {
     const auto& order = order_const->cast_vector<size_t>();
     const auto& rank = order.size();
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto& default_order = ngraph::get_default_order(rank);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     std::vector<size_t> reverse_order(rank);
     for (size_t i = 0; i < rank; ++i)
         reverse_order[order[i]] = default_order[i];

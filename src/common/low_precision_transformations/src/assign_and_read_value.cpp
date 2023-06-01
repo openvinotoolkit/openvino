@@ -21,8 +21,8 @@ namespace low_precision {
 AssignAndReadValueTransformation::AssignAndReadValueTransformation(const std::shared_ptr<ngraph::Function> function, const Params& params) :
     LayerTransformation(params), function(function) {
     MATCHER_SCOPE(AssignAndReadValueTransformation);
-    auto assign3 = pattern::wrap_type<opset3::Assign>({ pattern::wrap_type<opset1::Multiply>() });
-    auto assign6 = pattern::wrap_type<opset6::Assign>({ pattern::wrap_type<opset1::Multiply>() });
+    auto assign3 = pattern::wrap_type<opset3::Assign>({ pattern::wrap_type<ov::opset1::Multiply>() });
+    auto assign6 = pattern::wrap_type<opset6::Assign>({ pattern::wrap_type<ov::opset1::Multiply>() });
 
     ngraph::graph_rewrite_callback callback = [=](pattern::Matcher& m) {
         const auto& opsMap = m.get_pattern_value_map();
@@ -86,15 +86,15 @@ bool AssignAndReadValueTransformation::transform(TransformationContext& context,
     if (nextLayers.size() > 1) {
         return true;
     }
-    const auto fakeQuantize = as_type_ptr<opset1::FakeQuantize>(nextLayers.begin()->get_node()->shared_from_this());
+    const auto fakeQuantize = as_type_ptr<ov::opset1::FakeQuantize>(nextLayers.begin()->get_node()->shared_from_this());
 
     if (fakeQuantize == nullptr) {
         return true;
     }
     auto fakeQuantizeInputs = fakeQuantize->input_values();
 
-    const auto inputLow = as_type_ptr<opset1::Constant>(fakeQuantizeInputs[1].get_node_shared_ptr());
-    const auto inputHigh = as_type_ptr<opset1::Constant>(fakeQuantizeInputs[2].get_node_shared_ptr());
+    const auto inputLow = as_type_ptr<ov::opset1::Constant>(fakeQuantizeInputs[1].get_node_shared_ptr());
+    const auto inputHigh = as_type_ptr<ov::opset1::Constant>(fakeQuantizeInputs[2].get_node_shared_ptr());
 
     if (inputLow == nullptr || inputHigh == nullptr) {
         return true;

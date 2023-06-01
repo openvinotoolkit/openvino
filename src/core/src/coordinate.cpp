@@ -10,7 +10,9 @@ using namespace std;
 
 std::ostream& ov::operator<<(std::ostream& s, const Coordinate& coordinate) {
     s << "Coordinate{";
+    OPENVINO_SUPPRESS_DEPRECATED_START
     s << ngraph::join(coordinate);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     s << "}";
     return s;
 }

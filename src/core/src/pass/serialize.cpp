@@ -26,6 +26,7 @@
 #include "transformations/hash.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace {  // helpers
 template <typename Container>
 std::string join(const Container& c, const char* glue = ", ") {

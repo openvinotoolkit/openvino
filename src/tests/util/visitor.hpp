@@ -14,7 +14,9 @@
 #include "ngraph/op/util/framework_node.hpp"
 #include "ngraph/ops.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
+#include "openvino/core/deprecated.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace test {
 class ValueHolder {
@@ -430,3 +432,4 @@ protected:
 };
 }  // namespace test
 }  // namespace ngraph
+OPENVINO_SUPPRESS_DEPRECATED_END

@@ -157,11 +157,13 @@ void fake_quantize(const T* const arg,
         const auto output_strides = row_major_strides(output_shape);
 
         for (const Coordinate& output_coord : output_transform) {
+            OPENVINO_SUPPRESS_DEPRECATED_START
             const Coordinate arg0_coord = reduce(output_coord, arg0_squeezed_axes, false);
             const Coordinate arg1_coord = reduce(output_coord, arg1_squeezed_axes, false);
             const Coordinate arg2_coord = reduce(output_coord, arg2_squeezed_axes, false);
             const Coordinate arg3_coord = reduce(output_coord, arg3_squeezed_axes, false);
             const Coordinate arg4_coord = reduce(output_coord, arg4_squeezed_axes, false);
+            OPENVINO_SUPPRESS_DEPRECATED_END
 
             const size_t arg0_idx =
                 std::inner_product(arg0_coord.begin(), arg0_coord.end(), arg0_strides.begin(), uint64_t(0));

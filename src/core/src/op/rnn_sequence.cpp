@@ -62,7 +62,9 @@ void op::v5::RNNSequence::validate_and_infer_types() {
     auto r_pshape = get_input_partial_shape(4);
     auto b_pshape = get_input_partial_shape(5);
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     ngraph::op::util::validate_seq_input_rank_dimension({x_pshape, ht_pshape, sl_pshape, w_pshape, r_pshape, b_pshape});
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     // Validate input types and save result for output type
     NODE_VALIDATION_CHECK(this,
