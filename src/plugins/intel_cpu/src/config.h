@@ -6,7 +6,6 @@
 
 #include <openvino/runtime/threading/istreams_executor.hpp>
 #include <ie_performance_hints.hpp>
-//#include <ie/ie_common.h>
 #include <openvino/runtime/properties.hpp>
 #include <openvino/util/common_util.hpp>
 #include "utils/debug_caps_config.h"

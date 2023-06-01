@@ -13,7 +13,6 @@
 #include <numeric>
 #include <blob_factory.hpp>
 #include <dnnl_types.h>
-#include <ie_common.h>
 
 using namespace dnnl;
 using namespace InferenceEngine;

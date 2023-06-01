@@ -13,7 +13,6 @@
 #include "threading/ie_executor_manager.hpp"
 #include "transformations/transformation_pipeline.h"
 
-//#include "ie_icore.hpp"
 #include <ie_ngraph_utils.hpp>
 #include <transformations/utils/utils.hpp>
 
@@ -802,7 +801,7 @@ std::shared_ptr<ov::ICompiledModel> Engine::import_model(std::istream& networkMo
         get_num_streams(conf.streamExecutorConfig._streams, function, conf);
     }
 
-    auto compiled_model = std::make_shared<CompiledModel>(model, shared_from_this(), conf, extensionManager);
+    auto compiled_model = std::make_shared<CompiledModel>(model, shared_from_this(), conf, extensionManager, true);
     return compiled_model;
 }
 }   // namespace intel_cpu

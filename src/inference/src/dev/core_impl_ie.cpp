@@ -136,7 +136,6 @@ InferenceEngine::SoExecutableNetworkInternal ov::CoreImpl::ImportNetwork(
     if (auto wrapper = std::dynamic_pointer_cast<InferenceEngine::ICompiledModelWrapper>(compiled_model._ptr)) {
         wrapper->get_executable_network()->loadedFromCache();
     }
-    compiled_model->loaded_from_cache();
 
     return {ov::legacy_convert::convert_compiled_model(compiled_model._ptr), compiled_model._so};
 }

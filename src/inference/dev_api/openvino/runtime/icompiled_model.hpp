@@ -136,18 +136,6 @@ public:
      */
     std::shared_ptr<ov::IRemoteContext> get_context() const;
 
-    /**
-     * @brief Raises the flag that model was loaded from cache
-     */
-    void loaded_from_cache();
-
-    /**
-     * @brief Provides an information how model was loaded
-     *
-     * @return true if model was loaded from cache
-     */
-    bool is_loaded_from_cache() const;
-
 private:
     std::shared_ptr<const ov::IPlugin> m_plugin;
     std::vector<ov::Output<const ov::Node>> m_inputs;
@@ -156,8 +144,6 @@ private:
 
     std::shared_ptr<ov::threading::ITaskExecutor> m_task_executor = nullptr;      //!< Holds a task executor
     std::shared_ptr<ov::threading::ITaskExecutor> m_callback_executor = nullptr;  //!< Holds a callback executor
-
-    bool _loaded_from_cache = false;
 
     friend ov::CoreImpl;
     friend ov::IExecutableNetworkWrapper;

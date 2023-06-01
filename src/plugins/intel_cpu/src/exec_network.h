@@ -29,7 +29,8 @@ public:
     CompiledModel(const std::shared_ptr<ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   const Config& cfg,
-                  const ExtensionManager::Ptr& extMgr);
+                  const ExtensionManager::Ptr& extMgr,
+                  const bool loaded_from_cache = false);
 
     std::shared_ptr<ov::IAsyncInferRequest> create_infer_request() const override;
 
@@ -74,6 +75,7 @@ protected:
         };
     };
 
+    const bool _loaded_from_cache;
     // WARNING: Do not use _graphs directly.
     mutable std::deque<GraphGuard> _graphs;
     mutable NumaNodesWeights _numaNodesWeights;

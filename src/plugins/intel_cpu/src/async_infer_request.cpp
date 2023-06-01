@@ -19,5 +19,9 @@ ov::intel_cpu::AsyncInferRequest::~AsyncInferRequest() {
 }
 
 void ov::intel_cpu::AsyncInferRequest::throw_if_canceled() const {
-    ov::IAsyncInferRequest::throw_if_canceled();
+    // only check ov::Cancelled exception.
+    try {
+        check_state();
+    } catch (ov::Busy& busy) {
+    }
 }

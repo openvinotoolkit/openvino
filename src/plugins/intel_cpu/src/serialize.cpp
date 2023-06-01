@@ -20,16 +20,16 @@ void setInfo(pugi::xml_object_range<pugi::xml_named_node_iterator>&& nodes, T&& 
     for (; nodes_it != nodes.end(); ++nodes_it, ++info_iter) {
         auto name_attr = nodes_it->attribute("name");
         auto precision_attr = nodes_it->attribute("precision");
-        auto layout_attr = nodes_it->attribute("layout");
+        auto shape_attr = nodes_it->attribute("shape");
 
-        if (!name_attr || !precision_attr || !layout_attr || info_iter == info.end()) {
+        if (!name_attr || !precision_attr || !shape_attr || info_iter == info.end()) {
             IE_THROW(NetworkNotRead) << "The inputs/outputs information is invalid.";
         }
         // TODO: how to set port's info?
         info_iter->set_names({name_attr.value()});
         info_iter->get_tensor_ptr()->set_element_type(ov::element::Type(precision_attr.value()));
         info_iter->get_tensor_ptr()->set_tensor_type(ov::element::Type(precision_attr.value()),
-                                                     ov::PartialShape(layout_attr.value()));
+                                                     ov::PartialShape(shape_attr.value()));
     }
 }
 };  // namespace
@@ -61,18 +61,21 @@ void ModelSerializer::operator << (const std::shared_ptr<ov::Model>& model) {
         pugi::xml_node inputs = root.append_child("inputs");
         pugi::xml_node outputs = root.append_child("outputs");
 
+        // Need it?
         for (const auto& in : model->inputs()) {
             auto in_node = inputs.append_child("in");
             in_node.append_attribute("name").set_value(ov::op::util::get_ie_output_name(in).c_str());
             in_node.append_attribute("precision").set_value(in.get_element_type().get_type_name().c_str());
-            in_node.append_attribute("layout").set_value(in.get_shape().to_string().c_str());
+            // Change "layout" to "shape".
+            in_node.append_attribute("shape").set_value(in.get_shape().to_string().c_str());
         }
 
         for (const auto& out : model->outputs()) {
             auto out_node = outputs.append_child("out");
             out_node.append_attribute("name").set_value(ov::op::util::get_ie_output_name(out).c_str());
             out_node.append_attribute("precision").set_value(out.get_element_type().get_type_name().c_str());
-            out_node.append_attribute("layout").set_value(out.get_shape().to_string().c_str());
+            // Change "layout" to "shape".
+            out_node.append_attribute("shape").set_value(out.get_shape().to_string().c_str());
         }
         xml_doc.save(stream);
     };

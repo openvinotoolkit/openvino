@@ -51,13 +51,15 @@ struct ImmediateSerialExecutor : public ov::threading::ITaskExecutor {
 CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                              const std::shared_ptr<const ov::IPlugin>& plugin,
                              const Config& cfg,
-                             const ExtensionManager::Ptr& extMgr)
+                             const ExtensionManager::Ptr& extMgr,
+                             const bool loaded_from_cache)
     : ov::ICompiledModel::ICompiledModel(model, plugin),
       _model(model),
       _plugin(plugin),
       _cfg{cfg},
       extensionManager(extMgr),
-      _name{model->get_name()} {
+      _name{model->get_name()},
+      _loaded_from_cache(loaded_from_cache) {
     bool isFloatModel = !ov::op::util::has_op_with_type<ngraph::op::FakeQuantize>(_model);
 
     _cfg.isNewApi = !isLegacyAPI();
@@ -224,6 +226,10 @@ bool CompiledModel::isLegacyAPI() const {
 ov::Any CompiledModel::get_property(const std::string& name) const {
     if (_graphs.empty())
         IE_THROW() << "No graph was found";
+
+    if (name == ov::loaded_from_cache) {
+        return _loaded_from_cache;
+    }
 
     Config engConfig = GetGraph()._graph.getConfig();
     auto option = engConfig._config.find(name);

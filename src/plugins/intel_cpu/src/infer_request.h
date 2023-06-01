@@ -12,6 +12,8 @@
 #include "openvino/runtime/iinfer_request.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
 
+#define WA_CVS_111453
+
 namespace ov {
 namespace intel_cpu {
 
@@ -29,11 +31,14 @@ public:
 
     std::vector<std::shared_ptr<ov::IVariableState>> query_state() const override;
 
-    ov::Tensor get_tensor(const ov::Output<const ov::Node>& port) const override;
-
     void set_tensor(const ov::Output<const ov::Node>& port, const ov::Tensor& tensor) override;
 
     void set_tensors_impl(const ov::Output<const ov::Node> port, const std::vector<ov::Tensor>& tensors) override;
+
+#ifdef WA_CVS_111453
+    ov::Tensor get_tensor(const ov::Output<const ov::Node>& port) const override;
+    std::vector<ov::Tensor> get_tensors(const ov::Output<const ov::Node>& _port) const override;
+#endif
 
     /**
      * @brief      Sets the pointer to asynchronous inference request that holds this request
@@ -65,14 +70,20 @@ private:
 
     std::string get_port_name(const ov::Output<const ov::Node>& port) const;
     void check_port(const ov::Output<const ov::Node>& port) const;
+    void update_external_inputs();
+
+#ifdef WA_CVS_111453
+    ov::Output<const ov::Node>& get_internal_port(const ov::Output<const ov::Node>& port) const;
+    ov::Tensor create_internal_tensor(const ov::Tensor& tensor, const ov::Output<const ov::Node>& port);
+#endif
 
     std::shared_ptr<const CompiledModel> _compiled_model;
     openvino::itt::handle_t _profiling_task;
     std::vector<std::shared_ptr<ov::IVariableState>> _memory_states;
     AsyncInferRequest* _asyncRequest = nullptr;
 
-    std::unordered_map<std::string, ov::Output<const ov::Node>> _input_ports_map;
-    std::unordered_map<std::string, ov::Output<const ov::Node>> _output_ports_map;
+    mutable std::unordered_map<std::string, ov::Output<const ov::Node>> _input_ports_map;
+    mutable std::unordered_map<std::string, ov::Output<const ov::Node>> _output_ports_map;
 
     std::unordered_map<std::string, ov::Tensor> _outputs;
 

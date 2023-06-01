@@ -156,7 +156,6 @@ private:
     mutable std::unordered_map<std::shared_ptr<ov::descriptor::Tensor>, ov::Tensor> m_tensors;
     ov::Tensor& get_ref_tensor(const ov::Output<const ov::Node>& port) const;
 
-protected:
     /**
      * @brief Finds input or output port
      * @return structure which contains index of Input/Output or report that port wasn't found

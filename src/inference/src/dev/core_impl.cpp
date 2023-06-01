@@ -676,7 +676,6 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::import_model(std::istream& model,
     if (auto wrapper = std::dynamic_pointer_cast<InferenceEngine::ICompiledModelWrapper>(compiled_model._ptr)) {
         wrapper->get_executable_network()->loadedFromCache();
     }
-    compiled_model->loaded_from_cache();
 
     return compiled_model;
 }
@@ -1204,7 +1203,6 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
             if (auto wrapper = std::dynamic_pointer_cast<InferenceEngine::ICompiledModelWrapper>(compiled_model._ptr)) {
                 wrapper->get_executable_network()->loadedFromCache();
             }
-            compiled_model->loaded_from_cache();
         });
     } catch (const HeaderException&) {
         // For these exceptions just remove old cache and set that import didn't work

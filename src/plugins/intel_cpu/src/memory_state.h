@@ -6,7 +6,6 @@
 
 #include <string>
 
-#include "blob_factory.hpp"
 #include "cpu_memory.h"
 #include "ie_ngraph_utils.hpp"
 #include "memory_desc/cpu_memory_desc_utils.h"
