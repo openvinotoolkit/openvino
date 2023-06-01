@@ -17,10 +17,10 @@ namespace low_precision {
 
 namespace {
 
-std::shared_ptr<opset1::Constant> stridedSliceDeqConstant(
+std::shared_ptr<ov::opset1::Constant> stridedSliceDeqConstant(
     const std::shared_ptr<ngraph::Node> strSlice,
     const std::shared_ptr<ngraph::Node> dequantizaitonConstant) {
-    auto constant = ov::as_type_ptr<ngraph::opset1::Constant>(dequantizaitonConstant);
+    auto constant = ov::as_type_ptr<ov::opset1::Constant>(dequantizaitonConstant);
     auto constantShape = constant->get_shape();
     if (shape_size(constantShape) == 1ul) {
         return NetworkHelper::toScalar(constant);
@@ -43,13 +43,13 @@ std::shared_ptr<opset1::Constant> stridedSliceDeqConstant(
         }
         constantShape = newConstantShape;
 
-        const auto newConstant = fold<ngraph::opset1::Broadcast>(
+        const auto newConstant = fold<ov::opset1::Broadcast>(
             constant,
-            ngraph::opset1::Constant::create(ngraph::element::i32, { newConstantShape.size() }, newConstantShape));
-        constant = ov::as_type_ptr<ngraph::opset1::Constant>(newConstant);
+            ov::opset1::Constant::create(ngraph::element::i32, { newConstantShape.size() }, newConstantShape));
+        constant = ov::as_type_ptr<ov::opset1::Constant>(newConstant);
     }
 
-    const auto stridedSlice = ov::as_type_ptr<ngraph::opset1::StridedSlice>(strSlice);
+    const auto stridedSlice = ov::as_type_ptr<ov::opset1::StridedSlice>(strSlice);
 
     auto beginMask = stridedSlice->get_begin_mask();
     auto endMask = stridedSlice->get_end_mask();
@@ -64,7 +64,7 @@ std::shared_ptr<opset1::Constant> stridedSliceDeqConstant(
         }
     }
 
-    const auto result = fold<ngraph::opset1::StridedSlice>(
+    const auto result = fold<ov::opset1::StridedSlice>(
         constant,
         stridedSlice->input_value(1),
         stridedSlice->input_value(2),
@@ -75,14 +75,14 @@ std::shared_ptr<opset1::Constant> stridedSliceDeqConstant(
         stridedSlice->get_shrink_axis_mask(),
         stridedSlice->get_ellipsis_mask());
 
-    return ov::as_type_ptr<opset1::Constant>(NetworkHelper::toScalarIfPossible(result));
+    return ov::as_type_ptr<ov::opset1::Constant>(NetworkHelper::toScalarIfPossible(result));
 }
 
 } // namespace
 
 StridedSliceTransformation::StridedSliceTransformation(const Params& params) : LayerTransformation(params) {
     MATCHER_SCOPE(StridedSliceTransformation);
-    auto matcher = ngraph::pattern::wrap_type<opset1::StridedSlice>();
+    auto matcher = ngraph::pattern::wrap_type<ov::opset1::StridedSlice>();
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -119,7 +119,7 @@ bool StridedSliceTransformation::transform(TransformationContext& context, ngrap
 }
 
 bool StridedSliceTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> operation) const {
-    if (!ov::is_type<ngraph::opset1::StridedSlice>(operation)) {
+    if (!ov::is_type<ov::opset1::StridedSlice>(operation)) {
         return false;
     }
 

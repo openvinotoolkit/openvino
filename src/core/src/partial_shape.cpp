@@ -26,6 +26,7 @@ ov::PartialShape::PartialShape(const Shape& shape)
       m_dimensions(shape.begin(), shape.end()) {}
 
 ov::PartialShape::PartialShape(const std::string& value) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     auto val = ngraph::trim(value);
     if (val[0] == '[' && val[val.size() - 1] == ']')
         val = val.substr(1, val.size() - 2);
@@ -44,6 +45,7 @@ ov::PartialShape::PartialShape(const std::string& value) {
         dims.insert(dims.end(), Dimension(field));
     }
     m_dimensions = dims;
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 ov::PartialShape::PartialShape(bool rank_is_static, std::vector<Dimension> dimensions)

@@ -26,6 +26,8 @@
 
 using namespace std;
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 void ov::NodeValidationFailure::create(const CheckLocInfo& check_loc_info,
                                        const Node* node,
                                        const std::string& explanation) {
@@ -501,9 +503,11 @@ ov::NodeVector ov::Node::get_users(bool check_is_used) const {
     for (const auto& output : outputs()) {
         for (auto input : output.get_target_inputs()) {
             Node* input_node = input.get_node();
+            OPENVINO_SUPPRESS_DEPRECATED_START
             if (!check_is_used || ngraph::is_used(input_node)) {
                 result.push_back(input_node->shared_from_this());
             }
+            OPENVINO_SUPPRESS_DEPRECATED_END
         }
     }
     return result;

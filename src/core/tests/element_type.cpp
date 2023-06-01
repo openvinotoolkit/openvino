@@ -9,7 +9,7 @@
 #include "gtest/gtest.h"
 #include "openvino/core/except.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 TEST(element_type, from) {
     EXPECT_EQ(element::from<char>(), element::boolean);

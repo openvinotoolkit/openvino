@@ -819,7 +819,7 @@ TEST(TransformationTests, LowLatencyLSTM_LLTv1_LLTv2) {
         auto res_ti_2 = std::make_shared<Result>(tensor_iterator->output(0));
         f = std::make_shared<Function>(NodeVector{res_ti_1, res_ti_2}, ParameterVector{X, H_init, C_init});
 
-        auto f_2 = ngraph::clone_function(*f);
+        auto f_2 = f->clone();
         pass::Manager manager_2;
         manager_2.register_pass<ov::pass::InitNodeInfo>();
         NGRAPH_SUPPRESS_DEPRECATED_START

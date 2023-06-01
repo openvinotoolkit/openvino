@@ -8,6 +8,7 @@
 
 #include "ngraph/log.hpp"
 #include "onnx_framework_node.hpp"
+#include "openvino/util/log.hpp"
 #include "ops_bridge.hpp"
 
 namespace ngraph {
@@ -68,7 +69,8 @@ void Model::enable_opset_domain(const std::string& domain, const OperatorsBridge
     if (m_opset.find(domain) == std::end(m_opset)) {
         const auto opset = ops_bridge.get_operator_set(domain);
         if (opset.empty()) {
-            NGRAPH_WARN << "Couldn't enable domain: " << domain << " since it does not have any registered operators.";
+            OPENVINO_WARN << "Couldn't enable domain: " << domain
+                          << " since it does not have any registered operators.";
             return;
         }
         m_opset.emplace(domain, opset);
