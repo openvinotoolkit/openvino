@@ -4,17 +4,16 @@
 
 #pragma once
 
-#include <openvino/core/validation_util.hpp>
-#include <openvino/op/pad.hpp>
-
 #include "dimension_util.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/pad.hpp"
+#include "openvino/op/util/pad_base.hpp"
 #include "utils.hpp"
 namespace ov {
 namespace op {
-namespace v1 {
-
+namespace util {
 template <class TShape>
-std::vector<TShape> shape_infer(const Pad* op,
+std::vector<TShape> shape_infer(const PadBase* op,
                                 const std::vector<TShape>& input_shapes,
                                 const std::map<size_t, HostTensorPtr>& constant_data = {}) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 3 || input_shapes.size() == 4);
@@ -143,14 +142,26 @@ std::vector<TShape> shape_infer(const Pad* op,
     }
 }
 
+}  // namespace util
+
+namespace v1 {
 template <class TShape>
 void shape_infer(const Pad* op,
                  const std::vector<TShape>& input_shapes,
                  std::vector<TShape>& output_shapes,
                  const std::map<size_t, HostTensorPtr>& constant_data = {}) {
-    output_shapes = shape_infer(op, input_shapes, constant_data);
+    output_shapes = op::util::shape_infer(op, input_shapes, constant_data);
 }
-
 }  // namespace v1
+
+namespace v12 {
+template <class TShape>
+void shape_infer(const Pad* op,
+                 const std::vector<TShape>& input_shapes,
+                 std::vector<TShape>& output_shapes,
+                 const std::map<size_t, HostTensorPtr>& constant_data = {}) {
+    output_shapes = op::util::shape_infer(op, input_shapes, constant_data);
+}
+}  // namespace v12
 }  // namespace op
 }  // namespace ov
