@@ -494,7 +494,7 @@ inline Precision::PrecisionInfo Precision::makePrecisionInfo(const char* name) {
     info.bitsSize = nBits * type_size_or_zero<typename PrecisionTrait<precision>::value_type>();
     //std::cerr << "makePrecisionInfo(" << name << ").info.bitsSize = " << info.bitsSize << "\n";
     if(name == std::string("UNSPECIFIED")) {
-        std::cerr << "UNSPECIFIED\n";
+        //std::cerr << "UNSPECIFIED\n";
     }
     info.isFloat = PrecisionTrait<precision>::is_float;
     info.value = precision;

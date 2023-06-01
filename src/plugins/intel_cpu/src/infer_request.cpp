@@ -414,7 +414,7 @@ void LegacyInferRequest::changeDefaultPtr() {
 
 void LegacyInferRequest::SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr &data) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "SetBlobLegacy");
-    std::cerr << "LegacyInferRequest::SetBlob: size = " << data->size() << "\n";
+    //std::cerr << "LegacyInferRequest::SetBlob: size = " << data->size() << "\n";
     if (name.empty()) {
         IE_THROW(NotFound) << "Failed to set blob with empty name";
     }
