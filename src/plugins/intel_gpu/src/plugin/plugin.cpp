@@ -140,9 +140,8 @@ InferenceEngine::CNNNetwork Plugin::clone_and_transform_model(const InferenceEng
 
 std::map<std::string, RemoteCLContext::Ptr> Plugin::get_default_contexts() const {
     std::call_once(m_default_contexts_once, [this]() {
-        // Set default configs for each device
+        // Create default context
         for (auto& device : device_map) {
-            m_configs_map.insert({device.first, ExecutionConfig(ov::device::id(device.first))});
             auto ctx = std::make_shared<RemoteCLContext>(GetName() + "." + device.first, std::vector<cldnn::device::ptr>{ device.second });
             m_default_contexts.insert({device.first, ctx});
         }
@@ -158,6 +157,11 @@ Plugin::Plugin() {
         // Set OCL runtime which should be always available
         cldnn::device_query device_query(cldnn::engine_types::ocl, cldnn::runtime_types::ocl);
         device_map = device_query.get_available_devices();
+
+        // Set default configs for each device
+        for (auto& device : device_map) {
+            m_configs_map.insert({device.first, ExecutionConfig(ov::device::id(device.first))});
+        }
     }
 }
 
