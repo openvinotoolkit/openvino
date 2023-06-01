@@ -205,4 +205,5 @@ _OPENVINO_OP_REG(Interpolate, ov::op::v11)
 _OPENVINO_OP_REG(TopK, ov::op::v11)
 
 // New operations added in opset12
+_OPENVINO_OP_REG(GroupNormalization, ov::op::v12)
 _OPENVINO_OP_REG(Pad, ov::op::v12)

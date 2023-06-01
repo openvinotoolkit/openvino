@@ -90,6 +90,15 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v5::BatchNormI
                                        "BatchNormInterferenceGraph");
 }
 
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v12::GroupNormalization>& node) {
+    const auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{3, 14, 5, 5});
+    const auto scale = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{14});
+    const auto bias = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{14});
+    const auto gn = std::make_shared<ov::op::v12::GroupNormalization>(data, scale, bias, 7, 0.00001f);
+    const ov::ResultVector results{std::make_shared<ov::op::v0::Result>(gn)};
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{data, scale, bias}, "GroupNormalizationGraph");
+}
+
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v1::BatchToSpace> &node) {
     const auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{4, 1, 1, 3});
     const auto block_shape = ov::op::v0::Constant::create(ov::element::i64, {4}, {1, 1, 1, 2});
