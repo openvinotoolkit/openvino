@@ -45,14 +45,14 @@ Step 1: Download and Install OpenVINO Runtime
       .. code-block:: sh
 
          cd ~/Downloads/
-         sudo wget https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/linux/l_openvino_toolkit_debian9_2023.0.0.9052.9752fafe8eb_arm64.tgz -O openvino_2023.0.0.tgz
+         sudo wget https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/linux/l_openvino_toolkit_debian9_2023.0.0.10926.b4452d56304_arm64.tgz -O openvino_2023.0.0.tgz
 
    .. tab:: ARM 32-bit
 
       .. code-block:: sh
 
          cd ~/Downloads/
-         sudo wget https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/linux/l_openvino_toolkit_debian9_2023.0.0.9052.9752fafe8eb_armhf.tgz -O openvino_2023.0.0.tgz
+         sudo wget https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/linux/l_openvino_toolkit_debian9_2023.0.0.10926.b4452d56304_armhf.tgz -O openvino_2023.0.0.tgz
 
 #. Extract the archive file and move it to the installation folder:
 
@@ -61,14 +61,14 @@ Step 1: Download and Install OpenVINO Runtime
       .. code-block:: sh
 
          sudo tar -xf openvino_2023.0.0.tgz
-         sudo mv l_openvino_toolkit_debian9_2023.0.0.9052.9752fafe8eb_arm64 /opt/intel/openvino_2023.0.0
+         sudo mv l_openvino_toolkit_debian9_2023.0.0.10926.b4452d56304_arm64 /opt/intel/openvino_2023.0.0
 
    .. tab:: ARM 32-bit
 
       .. code-block:: sh
 
          sudo tar -xf openvino_2023.0.0.tgz
-         sudo mv l_openvino_toolkit_debian9_2023.0.0.9052.9752fafe8eb_armhf /opt/intel/openvino_2023.0.0
+         sudo mv l_openvino_toolkit_debian9_2023.0.0.10926.b4452d56304_armhf /opt/intel/openvino_2023.0.0
 
 #. Install required system dependencies on Linux. To do this, OpenVINO provides a script in the extracted installation directory. Run the following command:
 
