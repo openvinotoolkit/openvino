@@ -287,7 +287,7 @@ The sample can also run in a serial mode for a reference and benchmarking purpos
            // happens on-the-fly here
            avg.start();
        } else {
-           // Measurfe & draw FPS for all other frames
+           // Measure & draw FPS for all other frames
            labels::DrawFPS(frame, frames, avg.fps(frames-1));
        }
        if (!no_show) {
@@ -296,7 +296,7 @@ The sample can also run in a serial mode for a reference and benchmarking purpos
        }
    }
 
-On a test machine (Intel® Core™ i5-6600), with OpenCV built with `Intel® TBB <https://www.threadingbuildingblocks.org/intel-tbb-tutorial>`__ support, detector network assigned to CPU, and classifiers to iGPU, the pipelined sample outperformes the serial one by the factor of 1.36x (thus adding +36% in overall throughput).
+On a test machine (Intel® Core™ i5-6600), with OpenCV built with `Intel® TBB <https://www.threadingbuildingblocks.org/intel-tbb-tutorial>`__ support, detector network assigned to CPU, and classifiers to iGPU, the pipelined sample outperforms the serial one by the factor of 1.36x (thus adding +36% in overall throughput).
 
 Conclusion
 ###########

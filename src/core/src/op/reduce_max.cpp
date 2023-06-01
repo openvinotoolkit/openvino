@@ -4,6 +4,7 @@
 
 #include <ngraph/validation_util.hpp>
 
+#include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/op/max.hpp"
@@ -84,4 +85,12 @@ bool op::v1::ReduceMax::has_evaluate() const {
         break;
     }
     return false;
+}
+
+bool op::v1::ReduceMax::evaluate_lower(ov::TensorVector& output_values) const {
+    return input_value(1).get_tensor().has_and_set_bound() && default_lower_bound_evaluator(this, output_values);
+}
+
+bool op::v1::ReduceMax::evaluate_upper(ov::TensorVector& output_values) const {
+    return input_value(1).get_tensor().has_and_set_bound() && default_upper_bound_evaluator(this, output_values);
 }
