@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/core/deprecated.hpp"
-OPENVINO_SUPPRESS_DEPRECATED_START
+#include "onnx_import/onnx.hpp"
 
 #include <onnx/onnx_pb.h>
 
@@ -12,7 +11,6 @@ OPENVINO_SUPPRESS_DEPRECATED_START
 
 #include "ngraph/except.hpp"
 #include "onnx_common/parser.hpp"
-#include "onnx_import/onnx.hpp"
 #include "onnx_import/onnx_utils.hpp"
 #include "ops_bridge.hpp"
 #include "utils/legacy_conversion_extension.hpp"
