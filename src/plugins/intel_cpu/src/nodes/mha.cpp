@@ -888,7 +888,7 @@ void MHA::init_brgemm_copy_b(std::unique_ptr<jit_brgemm_matmul_copy_b_t>& brgCop
 void MHA::prepareParams() {
     auto transpose = [](const std::vector<size_t>& vec, const std::vector<size_t>& order) -> std::vector<size_t> {
         std::vector<size_t> new_vec(vec.size());
-        for (int i = 0; i < vec.size(); i++) {
+        for (size_t i = 0; i < vec.size(); i++) {
             new_vec[i] = vec[order[i]];
         }
         return new_vec;
@@ -952,7 +952,7 @@ void MHA::prepareParams() {
 
     accPrecision0 = brg0Prc == Precision::I8 ? Precision::I32 : Precision::FP32;
 
-    size_t brg0BaseIdx = -1;
+    size_t brg0BaseIdx = std::numeric_limits<size_t>::max();
     for (size_t m = 0; m < 2; m++) {
         for (size_t k = 0; k < 2; k++) {
             for (size_t n = 0; n < 2; n++) {
@@ -976,7 +976,7 @@ void MHA::prepareParams() {
 
                 // don't create brgemm kernels for empty tiles
                 if (M_ != 0 && K_ != 0 && N_ != 0) {
-                    if (brg0BaseIdx == -1)
+                    if (brg0BaseIdx == std::numeric_limits<size_t>::max())
                         brg0BaseIdx = getBrgIdx(m, k, n);
                     init_brgemm(brgemmCtx, brgKernels0[getBrgIdx(m, k, n)], brg0WithAMX);
                 }
@@ -1015,7 +1015,7 @@ void MHA::prepareParams() {
 
     accPrecision1 = one_of(brg1PrcIn0, Precision::U8, Precision::I8) ? Precision::I32 : Precision::FP32;
 
-    size_t brg1BaseIdx = -1;
+    size_t brg1BaseIdx = std::numeric_limits<size_t>::max();
     for (size_t m = 0; m < 2; m++) {
         for (size_t k = 0; k < 2; k++) {
             for (size_t n = 0; n < 2; n++) {
@@ -1039,7 +1039,7 @@ void MHA::prepareParams() {
 
                 // don't create brgemm kernels for empty tiles
                 if (M_ != 0 && K_ != 0 && N_ != 0) {
-                    if (brg1BaseIdx == -1)
+                    if (brg1BaseIdx == std::numeric_limits<size_t>::max())
                         brg1BaseIdx = getBrgIdx(m, k, n);
 
                     init_brgemm(brgemmCtx, brgKernels1[getBrgIdx(m, k, n)], brg1WithAMX);
@@ -1183,8 +1183,8 @@ void MHA::prepareParams() {
 template<typename srcT, typename dstT>
 static void reorder2D(const srcT* pin, dstT* pout, const std::vector<size_t>& dimsOut,
                const std::vector<size_t>& stridesOut, const std::vector<size_t>& stridesIn) {
-    for (int i0 = 0; i0 < dimsOut[0]; i0++) {
-        for (int i1 = 0; i1 < dimsOut[1]; i1++) {
+    for (size_t i0 = 0; i0 < dimsOut[0]; i0++) {
+        for (size_t i1 = 0; i1 < dimsOut[1]; i1++) {
             pout[i0 * stridesOut[0] + i1 * stridesOut[1]] = static_cast<dstT>(pin[i0 * stridesIn[0] + i1 * stridesIn[1]]);
         }
     }
