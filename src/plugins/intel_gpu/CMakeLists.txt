@@ -47,19 +47,14 @@ add_subdirectory(src/graph)
 file(GLOB_RECURSE PLUGIN_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_gpu/plugin/*.hpp)
 
 if(ENABLE_PROXY)
-    ov_add_plugin(NAME ${TARGET_NAME}
-                  DEVICE_NAME "Intel_GPU"
-                  SOURCES ${PLUGIN_SOURCES}
-                  DEFAULT_CONFIG
-                        DEVICE_ALIAS:GPU
-                        DEVICE_PRIORITY:0
-                  VERSION_DEFINES_FOR src/plugin/plugin.cpp)
-else()
-    ov_add_plugin(NAME ${TARGET_NAME}
-                  DEVICE_NAME "GPU"
-                  SOURCES ${PLUGIN_SOURCES}
-                  VERSION_DEFINES_FOR src/plugin/plugin.cpp)
+    set(DEFAULT_CONFIG "DEFAULT_CONFIG DEVICE_ALIAS:GPU DEVICE_PRIORITY:0")
 endif()
+
+ov_add_plugin(NAME ${TARGET_NAME}
+              DEVICE_NAME "GPU"
+              SOURCES ${PLUGIN_SOURCES}
+              ${DEFAULT_CONFIG}
+              VERSION_DEFINES_FOR src/plugin/plugin.cpp)
 
 target_compile_options(${TARGET_NAME} PRIVATE
     $<$<CONFIG:Release>:$<IF:$<CXX_COMPILER_ID:MSVC>,/Os,-Os>>)
