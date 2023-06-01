@@ -12,7 +12,6 @@
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "gtest/gtest.h"
-#include "ngraph/pass/visualize_tree.hpp"  // DEBUG
 
 using namespace ov;
 using namespace ov::opset10;
