@@ -9,6 +9,16 @@
  */
 #pragma once
 
+#if !defined(IN_OV_COMPONENT) && !defined(IE_LEGACY_HEADER_INCLUDED)
+#    define IE_LEGACY_HEADER_INCLUDED
+#    ifdef _MSC_VER
+#        pragma message( \
+            "The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    else
+#        warning("The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    endif
+#endif
+
 #include <map>
 #include <memory>
 #include <string>
@@ -21,22 +31,21 @@
 
 namespace InferenceEngine {
 
-_IE_SUPPRESS_DEPRECATED_START_GCC
+IE_SUPPRESS_DEPRECATED_START
 
 /**
  * @deprecated Use InferenceEngine::CNNNetwork wrapper instead
  * @interface ICNNNetwork
  * @brief This is the main interface to describe the NN topology
  */
-class INFERENCE_ENGINE_API_CLASS(ICNNNetwork) : public std::enable_shared_from_this<ICNNNetwork> {
+class INFERENCE_ENGINE_1_0_DEPRECATED INFERENCE_ENGINE_API_CLASS(ICNNNetwork)
+    : public std::enable_shared_from_this<ICNNNetwork> {
 public:
-    IE_SUPPRESS_DEPRECATED_START
     /**
      * @deprecated Use InferenceEngine::CNNNetwork wrapper instead
      * @brief A shared pointer to a ICNNNetwork interface
      */
     using Ptr = std::shared_ptr<ICNNNetwork>;
-    IE_SUPPRESS_DEPRECATED_END
 
     /**
      * @deprecated Use InferenceEngine::CNNNetwork wrapper instead
@@ -257,14 +266,12 @@ public:
     }
 
 protected:
-    IE_SUPPRESS_DEPRECATED_START
     /**
      * @brief Default destructor.
      */
     ~ICNNNetwork() = default;
-    IE_SUPPRESS_DEPRECATED_END
 };
 
-_IE_SUPPRESS_DEPRECATED_END_GCC
+IE_SUPPRESS_DEPRECATED_END
 
 }  // namespace InferenceEngine

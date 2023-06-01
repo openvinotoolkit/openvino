@@ -8,7 +8,6 @@
 #include <unordered_map>
 #include <vector>
 
-#include <ngraph/pass/pass.hpp>
 #include "low_precision/lpt_visibility.hpp"
 #include "low_precision/rt_info/quantization_granularity_attribute.hpp"
 

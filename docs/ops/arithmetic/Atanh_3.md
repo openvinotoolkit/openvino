@@ -16,13 +16,13 @@ Float type input:
 
    a_{i} = atanh(a_{i})
 
-Signed Intragral type put:
+Signed Integral type put:
 
 .. math::
 
    a_{i} = (i <= -1) ? std::numeric_limits<T>::min() : (i >= 1) ? std::numeric_limits<T>::max() : atanh(a_{i})
 
-Unsigned Intragral type put:
+Unsigned Integral type put:
 
 .. math::
 
