@@ -18,7 +18,7 @@ void shape_infer(const Select* op, const std::vector<T>& input_shapes, std::vect
     auto& result_shape = output_shapes[0];
     if (broadcast_spec.m_type == op::AutoBroadcastType::PDPD) {
         result_shape = input_shapes[1];  // 'then' tensor
-        // in PDPD type, Broacast-merging 'else' into 'then' one way not each other.
+        // in PDPD type, Broadcast-merging 'else' into 'then' one way not each other.
         NODE_VALIDATION_CHECK(op,
                               T::broadcast_merge_into(result_shape, input_shapes[2], broadcast_spec),
                               "'Else' tensor shape is not broadcastable.");

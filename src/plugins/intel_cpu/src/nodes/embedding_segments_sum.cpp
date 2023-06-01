@@ -94,16 +94,16 @@ void EmbeddingSegmentsSum::initFromInputs() {
     }
 }
 
-void EmbeddingSegmentsSum::getIndices(int embIndex, const int*& indices, size_t& size, int& weightsIdx, bool& withWeight) {
-    if (embIndex >= lastNumSegments_)
+void EmbeddingSegmentsSum::getIndices(size_t embIndex, const int*& indices, size_t& size, int& weightsIdx, bool& withWeight) {
+    if (embIndex >= static_cast<size_t>(lastNumSegments_))
         IE_THROW() << "Invalid embedding bag index.";
 
     indices = nullptr;
     size = 0;
     withWeight = true;
 
-    for (int si = 0; si < indicesSize_; si++) {
-        if (segmentIds_[si] == embIndex) {
+    for (int si = 0; si < static_cast<int>(indicesSize_); si++) {
+        if (static_cast<size_t>(segmentIds_[si]) == embIndex) {
             size++;
             if (indices == nullptr) {
                 indices = indices_ + si;
