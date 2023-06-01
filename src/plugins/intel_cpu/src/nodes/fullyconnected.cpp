@@ -489,7 +489,7 @@ void FullyConnected::setPostOps(dnnl::primitive_attr& attr, const VectorDims& di
 
     DnnlPostOpsComposer dnnlpoc(getEngine(), attr, ops, postOpsArgs, dims, dims.size() - 1, isINT8, 1 << 0,  getDQScales(), withBiases);
 
-    for (int i = 0; i < fusedWith.size(); ++i) {
+    for (size_t i = 0; i < fusedWith.size(); ++i) {
         auto& node = fusedWith[i];
         bool isLastPostOp = (i == (fusedWith.size() - 1));
 
@@ -825,7 +825,7 @@ bool FullyConnected::canBeExecutedInConv1x1() const {
     //   problems with the above.
     if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) &&
         getOriginalInputPrecisionAtPort(DATA_ID) == InferenceEngine::Precision::FP32 &&
-        one_of(inRank, 2, 3) && weightRank == 2) {
+        one_of(inRank, 2u, 3u) && weightRank == 2) {
         auto dstMemPtr = getChildEdgesAtPort(0)[0]->getMemoryPtr();
         DnnlMemoryDescCPtr outDesc = dstMemPtr->GetDescWithType<DnnlMemoryDesc>();
         // brg convolution does not support stride
@@ -895,7 +895,7 @@ bool FullyConnected::useSparseWeightsDecompression() {
     auto weightsData = reinterpret_cast<const int8_t*>(blb->GetPtr());
     auto elementsCount = blb->GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
     size_t zerosCounts = 0;
-    for (int i = 0; i < elementsCount; i++) {
+    for (size_t i = 0; i < elementsCount; i++) {
         if (weightsData[i] == 0) {
             zerosCounts++;
         }

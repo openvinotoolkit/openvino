@@ -72,6 +72,8 @@ public:
         return m_attrs;
     }
 
+    void set_attrs(Attributes attrs);
+
 private:
     Attributes m_attrs;
 };
@@ -113,74 +115,11 @@ public:
     void validate_and_infer_types() override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
     bool has_evaluate() const override;
 
-    const InterpolateAttrs& get_attrs() const {
-        return m_attrs;
-    }
-    void set_attrs(const InterpolateAttrs& attrs) {
-        this->m_attrs = attrs;
-    }
-
-protected:
-    /// \return The interpolation axes.
-    std::vector<int64_t> get_axes() const;
-
 private:
-    bool evaluate_interpolate(const HostTensorVector& outputs, const HostTensorVector& inputs) const;
-
-    /// \brief Corrects pads_begin and pads_end attributes.
-    ///
-    /// \details When Interpolate-4 is a result of some transformation, it is possible
-    ///          that pads_begin.size() != pads_end.size() or
-    ///          pads_begin.size() != input_rank. In such case, we should correct
-    ///          pads_begin and pads_end, using padding of pads_begin and pads_end by
-    ///          zeros or using pads_begin[0 : input_rank], pads_end[0 : input_rank].
-    ///
-    ///          Padding of pads_begin is performed when pads_begin.size() < input_rank,
-    ///          and pads_begin[0 : input_rank] is used when
-    ///          pads_begin.size() < input_rank.
-    ///
-    ///          Similarly for pads_end.
-    void correct_pads();
-
-    /// \brief Calculates input shape after padding.
-    ///
-    /// \param input_shape PartialShape of input data.
-    ///
-    /// \return Padded input shape, i.e. input_shape + pads_begin + pads_end
-    PartialShape get_padded_input_shape(const PartialShape& input_shape) const;
-
-    /// \brief Infers output shape using scales.
-    ///
-    /// \param output_shape[in,out] output shape
-    /// \param axes Interpolation axes
-    /// \param scales Scales for interpolated axes
-    /// \param padded_input_shape input shape after padding
-    void infer_using_scales(PartialShape& output_shape,
-                            const std::vector<int64_t>& axes,
-                            const std::vector<float>& scales,
-                            const PartialShape& padded_input_shape) const;
-
-    /// \brief Infers output shape using sizes.
-    ///
-    /// \param output_shape[in,out] output shape
-    /// \param axes Interpolation axes
-    /// \param sizes sizes for interpolated axes
-    void infer_using_shapes(PartialShape& output_shape,
-                            const std::vector<int64_t>& axes,
-                            const std::vector<int64_t>& sizes) const;
-
-    template <class T>
-    friend void shape_infer(const Interpolate* op,
-                            std::vector<size_t>& pads_begin,
-                            std::vector<size_t>& pads_end,
-                            const std::vector<T>& input_shapes,
-                            std::vector<T>& output_shapes,
-                            const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data);
+    bool evaluate_interpolate(TensorVector& outputs, const TensorVector& inputs) const;
 };
 }  // namespace v4
 

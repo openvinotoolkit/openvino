@@ -11,7 +11,7 @@
 #include <openvino/op/util/framework_node.hpp>
 #include <openvino/opsets/opset10.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "conversion_with_reference.hpp"
 #include "tf_framework_node.hpp"
 #include "tf_utils.hpp"
 #include "utils.hpp"
@@ -142,7 +142,7 @@ TEST(FrontEndConvertModelTest, test_unsupported_tf1_while) {
     }
 }
 
-TEST_F(TransformationTestsF, ModelWithDynamicType) {
+TEST_F(FrontEndConversionWithReferenceTestsF, ModelWithDynamicType) {
     { model = convert_model_partially("dynamic_type_model/dynamic_type_model.pb"); }
     {
         auto x = make_shared<Parameter>(f32, Shape{2, 3});

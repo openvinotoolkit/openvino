@@ -262,11 +262,11 @@ bool Snippet::optimizeExecDomain(std::vector<VectorDims>& inputShapes, std::vect
         auto collapseLastDims = [](VectorDims& dims, size_t dimsToCollapse) {
             if (dimsToCollapse >= dims.size() - 1)
                 IE_THROW() << "Got invalid number of dims to collapse. Expected < " << dims.size() - 1 << " got " << dimsToCollapse;
-            for (int i = dims.size() - 2; i > dims.size() - dimsToCollapse - 2; i--) {
+            for (int i = dims.size() - 2; i > static_cast<int>(dims.size() - dimsToCollapse - 2); i--) {
                 dims[dims.size() - 1] *= dims[i];
             }
 
-            for (int i = dims.size() - 2; i >= dimsToCollapse; i--) {
+            for (int i = dims.size() - 2; i >= static_cast<int>(dimsToCollapse); i--) {
                 dims[i] = dims[i - dimsToCollapse];
             }
 
@@ -501,7 +501,7 @@ void Snippet::prepareParams() {
 
     if (dims_collapsed) {
         std::vector<ov::Shape> new_shapes;
-        for (int i = 0; i < normInputShapes.size(); i++) {
+        for (size_t i = 0; i < normInputShapes.size(); i++) {
             const auto norm_shape = normInputShapes[i];
             size_t ndims_to_skip = norm_shape.size() - original_input_shape_ranks[i];
             new_shapes.emplace_back(norm_shape.begin() + ndims_to_skip, norm_shape.end());

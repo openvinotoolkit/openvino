@@ -25,5 +25,6 @@ protected:
     }
     bool Validate(const Params& params, const optional_params& options) const override;
     JitConstants GetJitConstants(const gemm_params& params) const override;
+    DeviceFeaturesKey get_required_device_features_key(const Params& params, const optional_params& /*options*/) const override;
 };
 }  // namespace kernel_selector

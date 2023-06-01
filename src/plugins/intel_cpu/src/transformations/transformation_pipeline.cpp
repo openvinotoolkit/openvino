@@ -650,8 +650,9 @@ void Transformations::MainSnippets(void) {
                 //       - parallelism support on JIT level
                 const auto needed_num_of_threads = 12lu;
                 const auto l2_cache_size = dnnl::utils::get_cache_size(2, true);
-                const auto is_unsupported_parallel_work_amount = parallel_get_num_threads() / 2 > parallel_work_amount &&
-                                                                parallel_work_amount < needed_num_of_threads;
+                const auto is_unsupported_parallel_work_amount =
+                    parallel_get_num_threads() / 2 > parallel_work_amount &&
+                    static_cast<size_t>(parallel_work_amount) < needed_num_of_threads;
                 const auto is_unsupported_kernel_work_amount = kernel_buffer_size > l2_cache_size;
                 return is_unsupported_parallel_work_amount || is_unsupported_kernel_work_amount;
             },

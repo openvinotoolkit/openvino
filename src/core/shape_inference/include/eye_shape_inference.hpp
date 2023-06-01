@@ -58,7 +58,9 @@ std::vector<TShape> shape_infer(const Eye* op,
         NODE_VALIDATION_CHECK(op, batch_shape.rank().compatible(1), eye::shape_names[3], " input must be a 1D tensor.");
         if (batch_shape.is_static()) {
             if (get_data_as_shape<TShape>(3, op, output_shape, constant_data)) {
-                NODE_VALIDATION_CHECK(op, batch_shape[0].get_length() == output_shape.rank().get_length());
+                NODE_VALIDATION_CHECK(op,
+                                      static_cast<int64_t>(batch_shape[0].get_length()) ==
+                                          static_cast<int64_t>(output_shape.rank().get_length()));
             } else {
                 output_shape = PartialShape::dynamic(batch_shape[0].get_length());
             }
