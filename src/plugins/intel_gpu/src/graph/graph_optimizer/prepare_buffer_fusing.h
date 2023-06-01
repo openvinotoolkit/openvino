@@ -37,7 +37,6 @@ struct concat_in_place_optimization : pattern_match_optimization_typed<concat_in
     static void update_in_place_concat_paddings(layout& concat_layout,
                                  std::vector<layout>& preds_layouts,
                                  size_t concat_axis,
-                                 std::list<concatenation_node*>& need_reoptimization,
                                  bool is_runtime);
     bool match(concatenation_node& node);
     static bool match(const program_node& concat_node,

@@ -71,7 +71,15 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
         return false;
     auto pred_nodes = concat_node.get_dependencies();
     for (auto p : pred_nodes) {
-        if (p.first->get_users().size() > 1)
+        // TODO : In dynamic shape only one user is allowed for optimzied concat
+        // It is mainly because of the limited flexibility of current exec order
+        // For now, we are doing shape_infer for all pred nodes and concats when executing one of the predecessors for runtime buffer fusing
+        // So we need to ensure that shape_infer of the all the parents of other predecessors are done.
+        // We need to shuffle the exec order for that requirement, but currently only simple method is applied which is only applicable
+        // for simple patterns where the concat is the only user of all the preds.
+        // Also cascaded concat is not handled for dynamic shape. for now.
+        // If we have more flexible exec order handling in the future we'll be able to remove this condition below
+        if (p.first->is_dynamic() && p.first->get_users().size() > 1)
             return false;
         if (concat_node.is_dynamic() && !p.first->is_dynamic())
             return false;
@@ -220,10 +228,12 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
 void concat_in_place_optimization::optimize_cascade(concatenation_node& node, std::list<concatenation_node*>& need_reoptimization) {
      std::vector<layout> preds_layouts;
     for (auto dep : node.get_dependencies()) {
+        if (dep.first->is_type<concatenation>() && dep.first->can_be_optimized())
+            need_reoptimization.push_back(&dep.first->as<concatenation>());
         preds_layouts.push_back(dep.first->get_output_layout());
     }
     layout concat_layout = node.get_output_layout();
-    update_in_place_concat_paddings(concat_layout, preds_layouts, node.get_primitive()->axis, need_reoptimization, false);
+    update_in_place_concat_paddings(concat_layout, preds_layouts, node.get_primitive()->axis, false);
     size_t i = 0;
     for (auto& dep : node.get_dependencies()) {
         dep.first->set_output_layout(preds_layouts[i]);
@@ -238,7 +248,6 @@ void concat_in_place_optimization::update_in_place_concat_paddings(
                                                     layout& concat_out_layout,
                                                     std::vector<layout>& preds_layouts,
                                                     size_t concat_axis,
-                                                    std::list<concatenation_node*>& need_reoptimization,
                                                     bool is_runtime) {
     auto concat_out_rank = concat_out_layout.get_rank();
     // We need to transform axis from bf[v][u][w][z]yx order to bfxy[z][w][u][v] due to tensor.sizes() usages here
@@ -284,11 +293,6 @@ void concat_in_place_optimization::update_in_place_concat_paddings(
      // apply concatenation in place optimization
     for (auto& pred_layout : preds_layouts) {
         auto input_length = pred_layout.get_dims()[concat_axis];
-
-        // if (input_node.first->is_type<concatenation>() && input.first->can_be_optimized())
-        //     need_reoptimization.push_back(&input.first->as<concatenation>());
-        //TODO : nested concat
-
         // shrink upper pad so it points at the end of the input's buffer
         //
         //   |--- lower padd ---|                    |---------- upper padd -----------|

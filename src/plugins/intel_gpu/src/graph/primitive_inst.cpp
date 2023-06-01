@@ -319,7 +319,7 @@ event::ptr primitive_inst::realloc_if_needed() {
 
     if (can_reuse_buffer) {
         GPU_DEBUG_TRACE_DETAIL << id() << ": reuse previously allocated output buffer" << std::endl;
-        if (_outputs[0]->get_layout().count() != actual_layout.count())
+        if (_outputs[0]->get_layout().bytes_count() != actual_layout.bytes_count())
             _outputs[0] = _network.get_engine().reinterpret_buffer(*_outputs[0], actual_layout);
         if (need_reset_output_memory()) {
             ev = _outputs[0]->fill(_network.get_stream());
@@ -553,8 +553,7 @@ void primitive_inst::do_runtime_in_place_concat() {
     }
 
     auto concat_axis = concat_inst->_impl_params->typed_desc<concatenation>()->axis;
-    std::list<concatenation_node*> need_reoptimization; // not used for now
-    concat_in_place_optimization::update_in_place_concat_paddings(concat_layout, preds_layouts, concat_axis, need_reoptimization, true);
+    concat_in_place_optimization::update_in_place_concat_paddings(concat_layout, preds_layouts, concat_axis, true);
     size_t i = 0;
     for (auto& dep : concat_inst->_deps) {
         if (_impl_params->output_layouts[0] != preds_layouts[i]) {
