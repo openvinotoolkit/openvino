@@ -347,6 +347,43 @@ def create_tf_saved_model_dir(temp_dir):
     return temp_dir + "/model", model_ref
 
 
+def create_tf_stateful_partioned_call_net(temp_dir):
+    import tensorflow as tf
+    tf.compat.v1.reset_default_graph()
+
+    data_shape = [1, 1, 10, 10]
+    filters_shape = [3, 3, 1, 1]
+
+    strides = [1, 1]
+    pads_begin = [0, 0]
+    pads_end = [0, 0]
+    dilations = [1, 1]
+
+    @tf.function
+    def second_func(input, filter):
+        conv = tf.raw_ops.Conv2D(input=input, filter=filter, strides=[1, 1, 1, 1], padding='SAME', data_format='NCHW')
+        return conv
+
+    @tf.function(
+        input_signature=[tf.TensorSpec(shape=data_shape, dtype=tf.float32),
+                         tf.TensorSpec(shape=filters_shape, dtype=tf.float32)])
+    def first_func(input, filter):
+        conv = second_func(input, filter)
+        return conv
+
+    tf_model = first_func
+
+    param1 = ov.opset8.parameter(data_shape, dtype=np.float32)
+    param2 = ov.opset8.parameter(filters_shape, dtype=np.float32)
+    transpose2 = ov.opset8.transpose(param2, np.array([3, 2, 0, 1]))
+    conv = ov.opset11.convolution(param1, transpose2, strides, pads_begin, pads_end, dilations, auto_pad="same_upper")
+
+    parameter_list = [param1, param2]
+    model_ref = Model([conv], parameter_list, "test")
+
+    return tf_model, model_ref, {}
+
+
 class TestMoConvertTF(CommonMOConvertTest):
     test_data = [
         # TF2
@@ -358,6 +395,7 @@ class TestMoConvertTF(CommonMOConvertTest):
         create_keras_layer_dynamic,
         create_tf_module_dynamic,
         create_tf_module_layout_list,
+        create_tf_stateful_partioned_call_net,
 
         # TF1
         create_tf_graph,
