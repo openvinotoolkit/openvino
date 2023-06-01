@@ -2,14 +2,14 @@
 
 <img src="docs/img/openvino-logo-purple-black.png" width="400px">
 
-[![Stable release](https://img.shields.io/badge/version-2022.3-green.svg)](https://github.com/openvinotoolkit/openvino/releases/tag/2022.3.0)
-[![Apache License Version 2.0](https://img.shields.io/badge/license-Apache_2.0-green.svg)](LICENSE)
-![GitHub branch checks state](https://img.shields.io/github/checks-status/openvinotoolkit/openvino/master?label=GitHub%20checks)
-![Azure DevOps builds (branch)](https://img.shields.io/azure-devops/build/openvinoci/b2bab62f-ab2f-4871-a538-86ea1be7d20f/13?label=Public%20CI)
 [![PyPI Status](https://badge.fury.io/py/openvino.svg)](https://badge.fury.io/py/openvino)
-[![Anaconda Status](https://anaconda.org/conda-forge/openvino/badges/version.svg)](https://anaconda.org/conda-forge/openvino/badges/version.svg)
+[![Anaconda Status](https://anaconda.org/conda-forge/openvino/badges/version.svg)](https://anaconda.org/conda-forge/openvino)
+[![brew Status](https://img.shields.io/homebrew/v/openvino)](https://formulae.brew.sh/formula/openvino)
+
 [![PyPI Downloads](https://pepy.tech/badge/openvino)](https://pepy.tech/project/openvino)
- 
+[![Anaconda Downloads](https://anaconda.org/conda-forge/openvino/badges/downloads.svg)](https://anaconda.org/conda-forge/openvino/files)
+[![brew Downloads](https://img.shields.io/homebrew/installs/dy/openvino)](https://formulae.brew.sh/formula/openvino)
+
  </div>
 
 ## Contents:
