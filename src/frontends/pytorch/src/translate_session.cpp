@@ -11,7 +11,9 @@
 #include "openvino/op/result.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/util/log.hpp"
+#include "pt_framework_node.hpp"
 #include "utils.hpp"
+#include "openvino/opsets/opset10.hpp"
 
 namespace ov {
 namespace frontend {
@@ -147,6 +149,16 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
             // FIXME: Now it is not true for at least prim::Constant
             for (size_t i = 0; i < fw_outputs.size(); ++i) {
                 size_t fw_tensor_id = node->output(i);
+                if (node->inputs().size() > 0 && node->may_produce_alias(0, i)) {
+                    // TODO: do we need to check other inputs, not only 0?
+                    /*FRONT_END_GENERAL_CHECK(m_may_be_alias.count(fw_tensor_id) == 0,
+                                            "Operation ",
+                                            context.get_op_type(),
+                                            " writes to tensor already added to may_produce_alias list by ",
+                                            std::get<1>(m_may_be_alias.at(fw_tensor_id))->get_op_type());*/
+                    m_may_be_alias[fw_tensor_id] = {node->inputs().at(0), node, converted_outputs[i]};
+                    OPENVINO_DEBUG << "Registered alias: " << fw_tensor_id << " of tensor: " << node->inputs().at(0) << " of operation: " << context.get_op_type() << ".\n";
+                }
                 FRONT_END_GENERAL_CHECK(tensor_map->find(fw_tensor_id) == tensor_map->end(),
                                         "Duplicated producer for PT value with unique ID: ",
                                         fw_tensor_id);
@@ -197,6 +209,8 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                 // additional outputs in that case.
                 if (mutated_tensor.get_target_inputs().empty() && !external_tensor_map.empty())
                     results.push_back(std::make_shared<v0::Result>(tensor_map->at(tensor_id)));
+            } else {
+                OPENVINO_DEBUG << "Mutated tensor with id " << tensor_id << " doesn't exist in inputs, skipping.";
             }
         }
         resulting_model = std::make_shared<Model>(results, *parameters);
@@ -255,6 +269,108 @@ size_t TranslateSession::decode_tensor_name(const Output<Node>& output) {
     const auto& name = output.get_any_name();
     // numbers after "_" will be ignored by stoll function
     return static_cast<size_t>(std::stoll(name));
+}
+
+
+namespace {
+Output<Node> slice_backprop(std::shared_ptr<TorchDecoder> node, Output<Node> slice_output, Output<Node> value) {
+    auto slice_node = slice_output.get_node_shared_ptr();
+    FRONT_END_OP_CONVERSION_CHECK(ov::as_type_ptr<opset10::Slice>(slice_node),
+                                  "Conversion rule for aten::slice doesn't contain Slice node.");
+
+    auto zero = opset10::Constant::create(element::i64, Shape{}, {0});
+    auto one = opset10::Constant::create(element::i64, Shape{}, {1});
+    auto neg_one_1d = opset10::Constant::create(element::i64, Shape{1}, {-1});
+    auto scattering_shape = opset10::Constant::create(element::i64, Shape{2}, {-1, 1});
+
+    // Get 1d indices [0..numel)
+    auto to_insert_data = slice_node->input_value(0);
+    auto input_shape = std::make_shared<opset10::ShapeOf>(to_insert_data, element::i64);
+    auto numel = std::make_shared<opset10::ReduceProd>(input_shape, zero, false);
+    auto full_data_indices_1d = std::make_shared<opset10::Range>(zero, numel, one, element::i64);
+    
+    // Slice indices by same start, stop, slice, axes as initial Slice
+    auto full_data_indices = std::make_shared<opset10::Reshape>(full_data_indices_1d, input_shape, false);
+    Output<Node> data_indices;
+    if (slice_node->get_input_size() == 5) {
+        data_indices = std::make_shared<opset10::Slice>(full_data_indices,
+                                                        slice_node->input_value(1),
+                                                        slice_node->input_value(2),
+                                                        slice_node->input_value(3),
+                                                        slice_node->input_value(4));
+    } else if (slice_node->get_input_size() == 4) {
+        data_indices = std::make_shared<opset10::Slice>(full_data_indices,
+                                                        slice_node->input_value(1),
+                                                        slice_node->input_value(2),
+                                                        slice_node->input_value(3));
+    } else {
+        FRONT_END_OP_CONVERSION_CHECK(false, "Incorrect number of Slice inputs");
+    }
+
+    // Scatter in flattened tensor with indices and flattened data to be inserted
+    auto to_insert_data_1d = std::make_shared<opset10::Reshape>(to_insert_data, neg_one_1d, false);
+    auto data_indices_1d = std::make_shared<opset10::Reshape>(data_indices, scattering_shape, false);
+    auto to_be_inserted_data_1d = std::make_shared<opset10::Reshape>(value, neg_one_1d, false);
+    auto updated_data_1d = std::make_shared<opset10::ScatterNDUpdate>(to_insert_data_1d, data_indices_1d, to_be_inserted_data_1d);
+
+    // Reshape to initial shape
+    return std::make_shared<opset10::Reshape>(updated_data_1d, input_shape, false);
+}
+
+Output<Node> select_backprop(std::shared_ptr<TorchDecoder> node, Output<Node> select_output, Output<Node> value) {
+    auto gather_node = select_output.get_node_shared_ptr();
+    FRONT_END_OP_CONVERSION_CHECK(ov::as_type_ptr<opset10::Gather>(gather_node),
+                                  "Conversion rule for aten::select doesn't contain Gather node.");
+
+    auto zero = opset10::Constant::create(element::i64, Shape{}, {0});
+    auto one = opset10::Constant::create(element::i64, Shape{}, {1});
+    auto neg_one_1d = opset10::Constant::create(element::i64, Shape{1}, {-1});
+    auto scattering_shape = opset10::Constant::create(element::i64, Shape{2}, {-1, 1});
+
+    // Get 1d indices [0..numel)
+    auto to_insert_data = gather_node->input_value(0);
+    auto input_shape = std::make_shared<opset10::ShapeOf>(to_insert_data, element::i64);
+    auto numel = std::make_shared<opset10::ReduceProd>(input_shape, zero, false);
+    auto full_data_indices_1d = std::make_shared<opset10::Range>(zero, numel, one, element::i64);
+
+    // Slice indices by same start, stop, slice, axes as initial Slice
+    auto full_data_indices = std::make_shared<opset10::Reshape>(full_data_indices_1d, input_shape, false);
+    Output<Node> data_indices =
+        std::make_shared<opset10::Gather>(full_data_indices, gather_node->input_value(1), gather_node->input_value(2));
+
+    // Scatter in flattened tensor with indices and flattened data to be inserted
+    auto to_insert_data_1d = std::make_shared<opset10::Reshape>(to_insert_data, neg_one_1d, false);
+    auto data_indices_1d = std::make_shared<opset10::Reshape>(data_indices, scattering_shape, false);
+    auto to_be_inserted_data_1d = std::make_shared<opset10::Reshape>(value, neg_one_1d, false);
+    auto updated_data_1d =
+        std::make_shared<opset10::ScatterNDUpdate>(to_insert_data_1d, data_indices_1d, to_be_inserted_data_1d);
+
+    // Reshape to initial shape
+    return std::make_shared<opset10::Reshape>(updated_data_1d, input_shape, false);
+}
+}  // namespace
+
+using BackpropCreatorFunction = std::function<ov::Output<ov::Node>(std::shared_ptr<TorchDecoder>, Output<Node>, Output<Node>)>;
+
+Output<Node> TranslateSession::get_backprop_op(std::shared_ptr<TorchDecoder> node, Output<Node> direct_op_output, Output<Node> value) {
+    std::map<std::string, BackpropCreatorFunction> backprop_map = {
+        {"aten::slice", slice_backprop},
+        {"aten::select", select_backprop},
+    };
+
+    Output<Node> backprop_node;
+    try {
+        auto it = backprop_map.find(node->get_op_type());
+        if (it != backprop_map.end()) {
+            return it->second(node, direct_op_output, value);
+        }
+
+    } catch (std::exception& e) {
+        OPENVINO_DEBUG << "Exception happened during conversion of backprop op: " << node->get_op_type()
+                       << " with schema: " << node->get_schema() << ": " << e.what() << '\n';
+    }
+    // Create PtFrameworkNode representing unconverted backprop operation
+    return std::make_shared<PtFrameworkNode>(node, OutputVector{value}, 1, true);
 }
 
 }  // namespace pytorch
