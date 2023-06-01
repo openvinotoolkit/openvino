@@ -151,6 +151,22 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoMultiHeteroOVGetMetricPropsTest,
 
 INSTANTIATE_TEST_SUITE_P(smoke_OVGetMetricPropsTest, OVGetMetricPropsTest, ::testing::Values("CPU"));
 
+INSTANTIATE_TEST_SUITE_P(
+    smoke_AutoMultiHeteroOVCheckGetSupportedROMetricsPropsTests,
+    OVCheckGetSupportedROMetricsPropsTests,
+    ::testing::Combine(::testing::Values("MULTI", "HETERO", "AUTO"),
+                       ::testing::ValuesIn(OVCheckGetSupportedROMetricsPropsTests::configureProperties(
+                           {ov::device::full_name.name()}))),
+    OVCheckGetSupportedROMetricsPropsTests::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_OVCheckGetSupportedROMetricsPropsTests,
+    OVCheckGetSupportedROMetricsPropsTests,
+    ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_CPU),
+                       ::testing::ValuesIn(OVCheckGetSupportedROMetricsPropsTests::configureProperties(
+                           {ov::device::full_name.name()}))),
+    OVCheckGetSupportedROMetricsPropsTests::getTestCaseName);
+
 INSTANTIATE_TEST_SUITE_P(smoke_OVGetAvailableDevicesPropsTest,
                          OVGetAvailableDevicesPropsTest,
                          ::testing::Values("CPU"));
@@ -158,7 +174,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_OVGetAvailableDevicesPropsTest,
 INSTANTIATE_TEST_SUITE_P(
     OVCheckSetSupportedRWMandatoryMetricsPropsTests,
     OVCheckSetSupportedRWMetricsPropsTests,
-    ::testing::Combine(::testing::Values("MULTI", "AUTO"),
+    ::testing::Combine(::testing::Values("MULTI:CPU", "AUTO:CPU"),
                        ::testing::ValuesIn(OVCheckSetSupportedRWMetricsPropsTests::getRWMandatoryPropertiesValues(
                            {ov::hint::model_priority.name(), ov::log::level.name()}))),
     OVCheckSetSupportedRWMetricsPropsTests::getTestCaseName);
@@ -166,7 +182,7 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
     OVCheckSetSupportedRWOptionalMetricsPropsTests,
     OVCheckSetSupportedRWMetricsPropsTests,
-    ::testing::Combine(::testing::Values("MULTI", "AUTO"),
+    ::testing::Combine(::testing::Values("MULTI:CPU", "AUTO:CPU"),
                        ::testing::ValuesIn(OVCheckSetSupportedRWMetricsPropsTests::getRWOptionalPropertiesValues(
                            {ov::hint::enable_hyper_threading.name(),
                             ov::hint::enable_cpu_pinning.name(),
@@ -185,10 +201,10 @@ const std::vector<ov::AnyMap> configsDeviceProperties = {
     {ov::device::properties(ov::AnyMap{{"CPU", ov::AnyMap{ov::num_streams(3)}}})}};
 
 const std::vector<ov::AnyMap> configsDevicePropertiesDouble = {
-    {ov::device::properties("CPU", ov::num_streams(5)), ov::num_streams(3)},
-    {ov::device::properties("CPU", ov::num_streams(5)),
+    {ov::device::properties("CPU", ov::num_streams(3)), ov::num_streams(5)},
+    {ov::device::properties("CPU", ov::num_streams(3)),
      ov::device::properties(ov::AnyMap{{"CPU", ov::AnyMap{ov::num_streams(7)}}}),
-     ov::num_streams(3)},
+     ov::num_streams(5)},
     {ov::device::properties("CPU", ov::num_streams(3)), ov::device::properties("CPU", ov::num_streams(5))},
     {ov::device::properties("CPU", ov::num_streams(3)),
      ov::device::properties(ov::AnyMap{{"CPU", ov::AnyMap{ov::num_streams(5)}}})},

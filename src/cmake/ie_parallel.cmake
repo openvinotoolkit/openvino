@@ -115,7 +115,7 @@ macro(ov_find_package_tbb)
                                   IMPORTED_TARGET
                                   # we need to set GLOBAL in order to create ALIAS later
                                   # ALIAS creation for non-GLOBAL targets is available since cmake 3.18
-                                  GLOBAL
+                                  ${OV_PkgConfig_VISILITY}
                                   tbb)
                 if(tbb_FOUND)
                     # parse version
@@ -140,7 +140,7 @@ macro(ov_find_package_tbb)
                     else()
                         _ov_pkg_config_tbb_unset()
 
-                        if(CPACK_GENERATOR STREQUAL "^(DEB|RPM|CONDA-FORGE|BREW|CONAN)$")
+                        if(CPACK_GENERATOR STREQUAL "^(DEB|RPM|CONDA-FORGE|BREW|CONAN|VCPKG)$")
                             # package managers require system TBB
                             set(message_type FATAL_ERROR)
                         else()
@@ -190,7 +190,6 @@ macro(ov_find_package_tbb)
                 if(PkgConfig_FOUND)
                     pkg_search_module(HWLOC QUIET
                                       IMPORTED_TARGET
-                                      GLOBAL
                                       hwloc)
                 endif()
 
