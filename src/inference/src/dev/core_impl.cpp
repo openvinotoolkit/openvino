@@ -840,12 +840,36 @@ ov::SupportedOpsMap ov::CoreImpl::query_model(const std::shared_ptr<const ov::Mo
     return get_plugin(parsed._deviceName).query_model(model, parsed._config);
 }
 
+bool ov::CoreImpl::is_hidden_device(const std::string& device_name) const {
+#ifndef NO_PROXY_PLUGIN
+    std::lock_guard<std::mutex> lock(get_mutex());
+    if (device_name.find("_ov_internal") != std::string::npos)
+        return true;
+
+    // Alias hides the device
+    for (auto&& it : pluginRegistry) {
+        auto it_priority = it.second.defaultConfig.find(ov::proxy::alias_for.name());
+        if (it.first == device_name || it_priority == it.second.defaultConfig.end())
+            continue;
+        auto devices = it_priority->second.as<std::vector<std::string>>();
+        for (const auto& dev : devices) {
+            if (dev == device_name)
+                return true;
+        }
+    }
+#endif
+    return false;
+}
+
 std::vector<std::string> ov::CoreImpl::get_available_devices() const {
     std::vector<std::string> devices;
     const std::string propertyName = METRIC_KEY(AVAILABLE_DEVICES);
 
     for (auto&& deviceName : get_registered_devices()) {
         std::vector<std::string> devicesIDs;
+        // Skip hidden devices
+        if (is_hidden_device(deviceName))
+            continue;
         try {
             const ie::Parameter p = GetMetric(deviceName, propertyName);
             devicesIDs = p.as<std::vector<std::string>>();

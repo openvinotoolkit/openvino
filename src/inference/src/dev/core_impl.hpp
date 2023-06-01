@@ -177,6 +177,7 @@ private:
 
     ov::AnyMap create_compile_config(const ov::Plugin& plugin, const ov::AnyMap& origConfig) const;
 
+    bool is_hidden_device(const std::string& device_name) const;
     void register_plugin_in_registry_unsafe(const std::string& device_name, PluginDescriptor& desc);
 
     template <typename C, typename = FileUtils::enableIfSupportedChar<C>>
@@ -221,8 +222,8 @@ public:
     void register_plugins_in_registry(const std::string& xml_config_file, const bool& by_abs_path = false);
 
     std::shared_ptr<const ov::Model> apply_auto_batching(const std::shared_ptr<const ov::Model>& model,
-                             std::string& deviceName,
-                             ov::AnyMap& config) const;
+                                                         std::string& deviceName,
+                                                         ov::AnyMap& config) const;
 
     /*
      * @brief Register plugins according to the build configuration

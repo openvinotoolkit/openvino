@@ -34,11 +34,23 @@ TEST_F(ProxyTests, alias_for_the_same_name) {
     EXPECT_TRUE(mock_reference_dev.empty());
 }
 
+TEST_F(ProxyTests, load_proxy_on_plugin_without_devices_with_the_same_name) {
+    auto available_devices = core.get_available_devices();
+    register_plugin_without_devices(core, "CBD", {{ov::device::alias.name(), "CBD"}, {ov::device::priority.name(), 0}});
+    available_devices = core.get_available_devices();
+    for (const auto& dev : available_devices) {
+        EXPECT_NE(dev, "CBD");
+    }
+    available_devices = core.get_property("CBD", ov::available_devices);
+    EXPECT_TRUE(available_devices.empty());
+}
+
 TEST_F(ProxyTests, load_proxy_on_plugin_without_devices) {
+    auto available_devices = core.get_available_devices();
     register_plugin_without_devices(core,
                                     "Internal_CBD",
                                     {{ov::device::alias.name(), "CBD"}, {ov::device::priority.name(), 0}});
-    auto available_devices = core.get_available_devices();
+    available_devices = core.get_available_devices();
     for (const auto& dev : available_devices) {
         EXPECT_NE(dev, "CBD");
     }
@@ -60,6 +72,8 @@ TEST_F(ProxyTests, get_available_devices) {
         EXPECT_EQ(core.get_property(it.first, ov::device::priorities), it.second);
     }
     for (const auto& dev : available_devices) {
+        EXPECT_FALSE(dev.find("ABC") != std::string::npos);
+        EXPECT_FALSE(dev.find("BDE") != std::string::npos);
         auto it = mock_reference_dev.find(dev);
         if (it != mock_reference_dev.end()) {
             mock_reference_dev.erase(it);
