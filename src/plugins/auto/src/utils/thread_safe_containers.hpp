@@ -12,13 +12,21 @@
 #include <type_traits>
 
 #include "openvino/core/parallel.hpp"
+
 #if ((OV_THREAD == OV_THREAD_TBB) || (OV_THREAD == OV_THREAD_TBB_AUTO))
 #    include <tbb/concurrent_priority_queue.h>
 #    include <tbb/concurrent_queue.h>
 #endif
 
+#ifdef  MULTIUNITTEST
+#define MOCKTESTMACRO virtual
+#define auto_plugin mock_auto_plugin
+#else
+#define MOCKTESTMACRO
+#endif
+
 namespace ov {
-namespace threading {
+namespace auto_plugin {
 
 template <typename T>
 class ThreadSafeQueueWithSize {
@@ -139,5 +147,5 @@ protected:
     bool _capacity = false;
 };
 #endif
-}  // namespace threading
+}  // namespace auto_plugin
 }  // namespace ov

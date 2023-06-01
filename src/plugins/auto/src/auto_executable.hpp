@@ -8,13 +8,6 @@
 #include "compile_model.hpp"
 #include "auto_schedule.hpp"
 
-#ifdef  MULTIUNITTEST
-#define MOCKTESTMACRO virtual
-#define auto_plugin mock_auto_plugin
-#else
-#define MOCKTESTMACRO
-#endif
-
 namespace ov {
 namespace auto_plugin {
 

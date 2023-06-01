@@ -10,13 +10,6 @@
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/iinfer_request.hpp"
 
-#ifdef  MULTIUNITTEST
-#define MOCKTESTMACRO virtual
-#define auto_plugin mock_auto_plugin
-#else
-#define MOCKTESTMACRO
-#endif
-
 namespace ov {
 namespace auto_plugin {
 // ! [async_infer_request:header]

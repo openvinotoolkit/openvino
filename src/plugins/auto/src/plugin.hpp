@@ -16,13 +16,6 @@
 #include "plugin_config.hpp"
 #include "compile_model.hpp"
 
-#ifdef  MULTIUNITTEST
-#define MOCKTESTMACRO virtual
-#define auto_plugin mock_auto_plugin
-#else
-#define MOCKTESTMACRO
-#endif
-
 namespace ov {
 namespace auto_plugin {
 
@@ -44,6 +37,9 @@ public:
     std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
                                                               const ov::AnyMap& properties,
                                                               const ov::RemoteContext& context) const override;
+
+    std::shared_ptr<ov::ICompiledModel> compile_model(const std::string& model_path,
+                                                      const ov::AnyMap& properties) const override;
 
     MOCKTESTMACRO std::vector<auto_plugin::DeviceInformation> parse_meta_devices(const std::string & devices_requests_cfg,
                                                                                  const ov::AnyMap& properties) const;
@@ -75,7 +71,8 @@ protected:
     ov::AnyMap pre_process_config(const ov::AnyMap& orig_config) const;
 
 private:
-    std::shared_ptr<ov::ICompiledModel> compile_model_impl(const std::shared_ptr<const ov::Model>& model,
+    std::shared_ptr<ov::ICompiledModel> compile_model_impl(const std::string& model_path,
+                                                           const std::shared_ptr<const ov::Model>& model,
                                                            const ov::AnyMap& properties,
                                                            const std::string& networkPrecision = METRIC_VALUE(FP32)) const;
     std::vector<DeviceInformation> filter_device(const std::vector<DeviceInformation>& meta_devices,

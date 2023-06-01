@@ -318,15 +318,22 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
                                                           const ov::AnyMap& properties) const {
     auto network_precision = get_network_precision(model);
-    return compile_model_impl(model, properties, network_precision);
+    return compile_model_impl({}, model, properties, network_precision);
 }
 
-std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::shared_ptr<const ov::Model>& model,
+std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::string& model_path,
+                                                          const ov::AnyMap& properties) const {
+    return compile_model_impl(model_path, nullptr, properties);
+}
+
+std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string& model_path,
+                                                               const std::shared_ptr<const ov::Model>& model,
                                                                const ov::AnyMap& properties,
                                                                const std::string& network_precision) const {
     OV_ITT_SCOPED_TASK(itt::domains::AutoPlugin, "Plugin::compile_model");
     OPENVINO_ASSERT(get_core() , "OpenVINO Core is missing!");
-    OPENVINO_ASSERT(model, "OpenVINO Model is empty!");
+    if (model_path.empty() && model == nullptr)
+        OPENVINO_THROW("OpenVino Model is empty!");
     bool work_mode_auto = get_device_name() == "AUTO";
     auto load_config = m_plugin_config;
     // if no perf hint from user with compiled model, or already been set with plugin
@@ -388,9 +395,14 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::shared
     bool is_cumulative =
         (auto_s_context->m_performance_hint == ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT) ? true : false;
     std::list<DeviceInformation> devices_with_priority(support_devices.begin(), support_devices.end());
-    support_devices = filter_device_by_network(support_devices_by_property, model);
     std::shared_ptr<ov::Model> cloned_model;
-    cloned_model = model->clone(); // bell double check if clone needed?
+    if (model_path.empty()) {
+        support_devices = filter_device_by_network(support_devices_by_property, model);
+        cloned_model = model->clone();
+    } else {
+        // AUTO / MULTI don't support caching explicitly, but can redirect this functionality to actual HW plugin
+        LOG_INFO_TAG("compile model with model path");
+    }
     if (!is_cumulative) {
         devices_with_priority = get_valid_device(support_devices, network_precision);
     }
@@ -411,6 +423,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::shared
     }
     // clone the network, in case of reshape conflict
     auto_s_context->m_model = cloned_model;
+    auto_s_context->m_model_path = model_path;
     auto_s_context->m_device_priorities = support_devices;
     auto_s_context->m_device_priorities_initial = support_devices;
     auto_s_context->m_str_devices = str_devices;

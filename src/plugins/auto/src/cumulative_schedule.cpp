@@ -177,7 +177,11 @@ void CumuSchedule::try_to_load_network(AutoLoadContext& context, const std::shar
         }
     }
     try {
-        context.m_exe_network = m_context->m_ov_core->compile_model(model, device, device_config);
+        if (!(m_context->m_model_path.empty())) {
+            context.m_exe_network = m_context->m_ov_core->compile_model(m_context->m_model_path, device, device_config);
+        } else {
+            context.m_exe_network = m_context->m_ov_core->compile_model(model, device, device_config);
+        }
         context.m_is_load_success = true;
     } catch (const ov::Exception& e) {
         context.m_err_message += device + ":" + e.what();

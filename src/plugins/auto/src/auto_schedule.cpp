@@ -96,8 +96,7 @@ void AutoSchedule::init() {
                                 m_loadcontext[ACTUALDEVICE].m_network_precision,
                                 m_context->m_model_priority);
 
-    auto load_device_task = [&](AutoLoadContext* context_ptr,
-                                const std::shared_ptr<ov::Model>& model) {
+    auto load_device_task = [&](AutoLoadContext* context_ptr,  const std::shared_ptr<ov::Model>& model) {
         try_to_load_network(*context_ptr, model);
         if (context_ptr->m_is_load_success) {
             if (context_ptr->m_worker_name.empty()) {
@@ -285,7 +284,11 @@ void AutoSchedule::try_to_load_network(AutoLoadContext& context, const std::shar
         }
     }
     try {
-        context.m_exe_network = m_context->m_ov_core->compile_model(model, device, device_config);
+        if (!(m_context->m_model_path.empty())) {
+            context.m_exe_network = m_context->m_ov_core->compile_model(m_context->m_model_path, device, device_config);
+        } else {
+            context.m_exe_network = m_context->m_ov_core->compile_model(model, device, device_config);
+        }
         context.m_is_load_success = true;
     } catch (const ov::Exception& e) {
         context.m_err_message += device + ":" + e.what();

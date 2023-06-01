@@ -18,12 +18,6 @@
 #include "ie_remote_context.hpp"
 #include "plugin.hpp"
 
-#ifdef  MULTIUNITTEST
-#define MOCKTESTMACRO virtual
-#define auto_plugin mock_auto_plugin
-#else
-#define MOCKTESTMACRO
-#endif
 namespace ov {
 namespace auto_plugin {
 class CompiledModel;
