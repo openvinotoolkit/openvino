@@ -553,9 +553,9 @@ def trace_tf_model(model, input_shapes, example_input):
         if isinstance(input_shapes, list):
             input_spec = [tf.TensorSpec(get_static_shape(shape)) for shape in input_shapes]
         else:
-            input_spec = tf.TensorSpec(get_static_shape(input_shapes))
+            input_spec = [tf.TensorSpec(get_static_shape(input_shapes))]
     else:
-        input_spec = tf.TensorSpec(None)
+        input_spec = [tf.TensorSpec(None)]
 
     try:
         # Trace the model

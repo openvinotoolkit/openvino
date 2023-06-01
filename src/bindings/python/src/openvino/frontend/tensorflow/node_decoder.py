@@ -85,6 +85,8 @@ class TFGraphNodeDecoder(DecoderBase):
 
     def get_attribute(self, name):
         if name == "shape" or name == "_output_shapes":
+            if self.m_operation.node_def.attr["shape"].shape.unknown_rank:
+                return OVAny(PartialShape.dynamic())
             shape_dims = self.m_operation.node_def.attr["shape"].shape.dim
             shape = [dim.size for dim in shape_dims]
             type_num = self.m_operation.node_def.attr["dtype"].type
