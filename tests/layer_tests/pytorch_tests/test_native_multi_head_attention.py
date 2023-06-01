@@ -74,6 +74,6 @@ class TestNativeMultiHeadAttention(PytorchLayerTest):
         ["need_weights", "average_attn_weights"], 
         [[False, False], [True, False], [True, True]]
     )
-    def test_native_multi_head_attention_2(self, ie_device, precision, ir_version, mask, need_weights, average_attn_weights):
+    def test_native_multi_head_attention(self, ie_device, precision, ir_version, mask, need_weights, average_attn_weights):
         self._test(aten_native_multi_head_attention(mask, need_weights, average_attn_weights), 
                    None, "aten::_native_multi_head_attention", ie_device, precision, ir_version) 
