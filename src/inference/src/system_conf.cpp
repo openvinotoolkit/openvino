@@ -222,12 +222,18 @@ std::vector<std::vector<int>> get_proc_type_table() {
     return cpu._proc_type_table;
 }
 
+std::vector<std::vector<int>> get_org_proc_type_table() {
+    CPU& cpu = cpu_info();
+    return cpu._org_proc_type_table;
+}
+
 int get_num_numa_nodes() {
     return cpu_info()._numa_nodes;
 }
-std::vector<std::vector<int>> reserve_available_cpus(const std::vector<std::vector<int>> streams_info_table) {
-    return {{-1}};
-}
+void reserve_available_cpus(const std::vector<std::vector<int>> streams_info_table,
+                            std::vector<std::vector<int>>& stream_processors,
+                            std::vector<int>& stream_numa_node_ids,
+                            const int cpu_status) {}
 void set_cpu_used(const std::vector<int>& cpu_ids, const int used) {}
 
 #else
@@ -323,8 +329,8 @@ void reserve_available_cpus(const std::vector<std::vector<int>> streams_info_tab
 
     if (cpu_status == PLUGIN_USED && cpu._numa_nodes > 1) {
         auto proc_type_table = get_proc_type_table();
-        for (size_t i = 2; i < proc_type_table.size(); i++) {
-            for (size_t j = MAIN_CORE_PROC; j < PROC_TYPE_TABLE_SIZE; j++) {
+        for (int i = 2; i < static_cast<int>(proc_type_table.size()); i++) {
+            for (int j = MAIN_CORE_PROC; j < PROC_TYPE_TABLE_SIZE; j++) {
                 numa_node_ids[j] = proc_type_table[i][j] > proc_type_table[numa_node_ids[j]][j] ? i : numa_node_ids[j];
             }
         }
