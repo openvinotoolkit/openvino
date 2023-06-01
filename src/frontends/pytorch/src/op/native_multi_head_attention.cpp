@@ -119,8 +119,10 @@ OutputVector translate_native_multi_head_attention(const NodeContext& context) {
         context.mark_node(std::make_shared<opset10::Multiply>(query_key_transpose_dot_product, scale));
 
     // Mask handling
-    if (!context.input_is_none(12)) {
+    if (!context.input_is_none(9) && !context.input_is_none(12)) {
         auto atten_mask = context.get_input(9);
+        // Only allow boolean masks - PyTorch automatically converts
+        // non-boolean to boolean masks
         if (atten_mask.get_element_type() == element::boolean) {
             const auto minus_inf_conv =
                 context.mark_node(std::make_shared<opset10::ConvertLike>(minus_inf, scaled_dot_product));
@@ -134,15 +136,21 @@ OutputVector translate_native_multi_head_attention(const NodeContext& context) {
             atten_mask = context.mark_node(std::make_shared<opset10::ConvertLike>(atten_mask, scaled_dot_product));
         }
 
+        // If mask type is 1 (only key-padding) then mask's shape is (N, S).
+        // It must be reshaped to (N, 1, 1, S) to properly broadcast it proper dims in the next step
         if (context.const_input<int64_t>(12) == 1) {
             const auto target_mask_reshape = context.mark_node(
                 std::make_shared<opset10::Concat>(OutputVector{batch_size, one_1d, one_1d, seq_size}, 0));
             atten_mask = context.mark_node(std::make_shared<opset10::Reshape>(atten_mask, target_mask_reshape, false));
         }
 
-        const auto target_mask_shape = context.mark_node(
-            std::make_shared<opset10::Concat>(OutputVector{batch_size, heads_1d, seq_size, seq_size}, 0));
-        atten_mask = context.mark_node(std::make_shared<opset10::Broadcast>(atten_mask, target_mask_shape));
+        // All mask types should be broadcast to this shape,
+        // Except for type 2 which already has this shape
+        if (context.const_input<int64_t>(12) != 2) {
+            const auto target_mask_shape = context.mark_node(
+                std::make_shared<opset10::Concat>(OutputVector{batch_size, heads_1d, seq_size, seq_size}, 0));
+            atten_mask = context.mark_node(std::make_shared<opset10::Broadcast>(atten_mask, target_mask_shape));
+        }
         scaled_dot_product = context.mark_node(std::make_shared<opset10::Add>(scaled_dot_product, atten_mask));
     }
 
@@ -153,7 +161,7 @@ OutputVector translate_native_multi_head_attention(const NodeContext& context) {
 
     const auto sdp_reshape_dims =
         context.mark_node(std::make_shared<opset10::Concat>(OutputVector{batch_size, seq_size, neg_one_1d}, 0));
-    // Transpose back to original shape
+    // Undo transpose (transpose back to original qv shape)
     const auto scaled_dot_product_attention_transposed =
         context.mark_node(std::make_shared<opset10::Transpose>(scaled_dot_product_attention, qv_transpose_dims));
     const auto scaled_dot_product_attention_reshaped = context.mark_node(
@@ -177,6 +185,7 @@ OutputVector translate_native_multi_head_attention(const NodeContext& context) {
     if (need_weights) {
         return {scaled_dot_product_attention_biased, scaled_dot_product};
     } else {
+        // When need_weights == false, returns None as a second output
         const auto none = std::make_shared<PtFrameworkNode>(context.get_decoder(), context.inputs());
         auto attrs = none->get_attrs();
         attrs["none_value"] = "";
