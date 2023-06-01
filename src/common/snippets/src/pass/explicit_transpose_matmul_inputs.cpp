@@ -14,24 +14,24 @@
 
 void ov::snippets::pass::ExplicitTransposeMatMulInputs::extract(const ov::Input<ov::Node>& input) {
     auto parent = input.get_source_output().get_node_shared_ptr();
-    auto transpose = ngraph::as_type_ptr<ov::op::v1::Transpose>(parent);
+    auto transpose = ov::as_type_ptr<ov::op::v1::Transpose>(parent);
     while (!transpose && !ov::is_type<ov::op::v0::Parameter>(parent)) {
         // We can set supported order and transposed_<a|b>=false only if ops have scalar shapes to avoid shape mismatching
         const auto parent_count = parent->inputs().size();
         bool are_weights_scalar = true;
         for (size_t j = 1; j < parent_count; ++j) {
-            are_weights_scalar = are_weights_scalar && ngraph::shape_size(parent->get_input_shape(j)) == 1;
+            are_weights_scalar = are_weights_scalar && ov::shape_size(parent->get_input_shape(j)) == 1;
         }
         if (!are_weights_scalar)
             break;
 
         parent = parent->get_input_node_shared_ptr(0);
-        transpose = ngraph::as_type_ptr<ov::op::v1::Transpose>(parent);
+        transpose = ov::as_type_ptr<ov::op::v1::Transpose>(parent);
     }
 
     // If there isn't another Transpose, need to create new Transpose
     if (transpose) {
-        const auto transpose_pattern = ngraph::as_type_ptr<ov::op::v0::Constant>(transpose->get_input_node_shared_ptr(1));
+        const auto transpose_pattern = ov::as_type_ptr<ov::op::v0::Constant>(transpose->get_input_node_shared_ptr(1));
         OPENVINO_ASSERT(transpose_pattern,
                         "ExplicitTransposeMatMulInputs expects existing Transpose with Constant order");
 
@@ -40,7 +40,7 @@ void ov::snippets::pass::ExplicitTransposeMatMulInputs::extract(const ov::Input<
         std::swap(*transposed_order.rbegin(), *(transposed_order.rbegin() + 1));
 
         auto new_transpose_order = std::make_shared<ov::op::v0::Constant>(transpose_pattern->get_element_type(),
-                                                                          ngraph::Shape{transposed_order.size()},
+                                                                          ov::Shape{transposed_order.size()},
                                                                           transposed_order);
         new_transpose_order->set_friendly_name(transpose_pattern->get_friendly_name());
         ov::copy_runtime_info(transpose_pattern, new_transpose_order);
@@ -55,6 +55,7 @@ void ov::snippets::pass::ExplicitTransposeMatMulInputs::extract(const ov::Input<
     OPENVINO_ASSERT(consumers.size() == 1,
                     "ExplicitTransposeMatMulInputs expects Parameter with one consumer in cases when there isn't existing Transpose on input");
     // Extract Transpose from MatMul
+    OPENVINO_ASSERT(input.get_partial_shape().is_static(), "ExplicitTransposeMatMulInputs supports only static shapes");
     const auto rank = input.get_shape().size();
     std::vector<size_t> transpose_order(rank, 0);
     std::iota(transpose_order.begin(), transpose_order.end(), 0);
@@ -79,7 +80,7 @@ ov::snippets::pass::ExplicitTransposeMatMulInputs::ExplicitTransposeMatMulInputs
             auto root = m.get_match_root();
             bool rewritten = false;
 
-            auto matmul = ngraph::as_type_ptr<ov::op::v0::MatMul>(root);
+            auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(root);
             if (!matmul)
                 return false;
 
