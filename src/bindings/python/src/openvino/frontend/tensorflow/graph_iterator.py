@@ -4,9 +4,10 @@
 # flake8: noqa
 # mypy: ignore-errors
 
-from openvino.frontend.tensorflow.py_tensorflow_frontend import _FrontEndPyGraphIterator as GraphIterator
-from .node_decoder import TFGraphNodeDecoder
 import tensorflow as tf
+from openvino.frontend.tensorflow.py_tensorflow_frontend import _FrontEndPyGraphIterator as GraphIterator
+
+from .node_decoder import TFGraphNodeDecoder
 
 
 class GraphIteratorTFGraph(GraphIterator):

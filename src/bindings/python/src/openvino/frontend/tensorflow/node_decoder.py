@@ -4,9 +4,10 @@
 # flake8: noqa
 # mypy: ignore-errors
 
-from openvino.frontend.tensorflow.py_tensorflow_frontend import _FrontEndDecoderBase as DecoderBase
-from openvino.runtime import PartialShape, Shape, Type, OVAny, Tensor
+import numpy as np
 import tensorflow as tf
+from openvino.frontend.tensorflow.py_tensorflow_frontend import _FrontEndDecoderBase as DecoderBase
+from openvino.runtime import PartialShape, Type, OVAny, Tensor
 
 
 def tf_type_to_ov_type(tf_type_int):
@@ -22,6 +23,8 @@ def tf_attr_to_numpy(attr):
         return attr.func.name
     if attr_type == "s":
         return attr.s.decode("utf-8")
+    if attr_type == "f":
+        return np.float32(attr.f)
     if attr_type == "type":
         return tf_type_to_ov_type(attr.type)
     if attr_type == "list":

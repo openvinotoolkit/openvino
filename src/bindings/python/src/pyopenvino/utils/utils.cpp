@@ -284,13 +284,15 @@ ov::AnyMap py_object_to_any_map(const py::object& py_obj) {
 }
 
 ov::Any py_object_to_any(const py::object& py_obj) {
-    // Python types
+    py::object float_32_type = py::module_::import("numpy").attr("float32");
     if (py::isinstance<py::str>(py_obj)) {
         return py_obj.cast<std::string>();
     } else if (py::isinstance<py::bool_>(py_obj)) {
         return py_obj.cast<bool>();
     } else if (py::isinstance<py::float_>(py_obj)) {
         return py_obj.cast<double>();
+    } else if (py::isinstance(py_obj, float_32_type)) {
+        return py_obj.cast<float>();
     } else if (py::isinstance<py::int_>(py_obj)) {
         return py_obj.cast<int64_t>();
     } else if (py::isinstance<py::none>(py_obj)) {
