@@ -36,6 +36,7 @@ from openvino._pyopenvino import RTMap
 from openvino.runtime.ie_api import Core
 from openvino.runtime.ie_api import CompiledModel
 from openvino.runtime.ie_api import InferRequest
+from openvino._pyopenvino import ReturnPolicy
 from openvino.runtime.ie_api import AsyncInferQueue
 from openvino._pyopenvino import Version
 from openvino._pyopenvino import Tensor

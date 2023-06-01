@@ -15,17 +15,26 @@
 
 namespace py = pybind11;
 
-inline py::dict run_sync_infer(InferRequestWrapper& self) {
+inline py::object run_sync_infer(InferRequestWrapper& self, ReturnPolicy policy) {
     {
         py::gil_scoped_release release;
         *self.m_start_time = Time::now();
         self.m_request.infer();
         *self.m_end_time = Time::now();
     }
-    return Common::outputs_to_dict(self);
+    if (policy == ReturnPolicy::NONE) {
+        return py::none();
+    }
+    return Common::outputs_to_dict(self, policy);
 }
 
 void regclass_InferRequest(py::module m) {
+    py::enum_<ReturnPolicy>(m, "ReturnPolicy")
+        .value("NONE", ReturnPolicy::NONE)
+        .value("COPY", ReturnPolicy::COPY)
+        .value("VIEW", ReturnPolicy::VIEW)
+        .export_values();
+
     py::class_<InferRequestWrapper, std::shared_ptr<InferRequestWrapper>> cls(m, "InferRequest");
     cls.doc() = "openvino.runtime.InferRequest represents infer request which can be run in asynchronous or "
                 "synchronous manners.";
@@ -168,11 +177,12 @@ void regclass_InferRequest(py::module m) {
     // Overload for single input, it will throw error if a model has more than one input.
     cls.def(
         "infer",
-        [](InferRequestWrapper& self, const ov::Tensor& inputs) {
+        [](InferRequestWrapper& self, const ov::Tensor& inputs, ReturnPolicy return_policy) {
             self.m_request.set_input_tensor(inputs);
-            return run_sync_infer(self);
+            return run_sync_infer(self, return_policy);
         },
         py::arg("inputs"),
+        py::arg("return_policy"),
         R"(
             Infers specified input(s) in synchronous mode.
             Blocks all methods of InferRequest while request is running.
@@ -194,13 +204,14 @@ void regclass_InferRequest(py::module m) {
     // and values are always of type: ov::Tensor.
     cls.def(
         "infer",
-        [](InferRequestWrapper& self, const py::dict& inputs) {
+        [](InferRequestWrapper& self, const py::dict& inputs, ReturnPolicy return_policy) {
             // Update inputs if there are any
             Common::set_request_tensors(self.m_request, inputs);
             // Call Infer function
-            return run_sync_infer(self);
+            return run_sync_infer(self, return_policy);
         },
         py::arg("inputs"),
+        py::arg("return_policy"),
         R"(
             Infers specified input(s) in synchronous mode.
             Blocks all methods of InferRequest while request is running.
@@ -715,7 +726,7 @@ void regclass_InferRequest(py::module m) {
     cls.def_property_readonly(
         "results",
         [](InferRequestWrapper& self) {
-            return Common::outputs_to_dict(self);
+            return Common::outputs_to_dict(self, ReturnPolicy::COPY);
         },
         R"(
             Gets all outputs tensors of this InferRequest.

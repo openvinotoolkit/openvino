@@ -13,6 +13,7 @@ from openvino._pyopenvino import CompiledModel as CompiledModelBase
 from openvino._pyopenvino import AsyncInferQueue as AsyncInferQueueBase
 from openvino._pyopenvino import ConstOutput
 from openvino._pyopenvino import Tensor
+from openvino._pyopenvino import ReturnPolicy
 
 from openvino.runtime.utils.data_helpers import (
     OVDict,
@@ -25,7 +26,7 @@ from openvino.runtime.utils.data_helpers import (
 class InferRequest(_InferRequestWrapper):
     """InferRequest class represents infer request which can be run in asynchronous or synchronous manners."""
 
-    def infer(self, inputs: Any = None, shared_memory: bool = False) -> OVDict:
+    def infer(self, inputs: Any = None, shared_memory: bool = False, return_policy: ReturnPolicy = ReturnPolicy.COPY) -> OVDict:
         """Infers specified input(s) in synchronous mode.
 
         Blocks all methods of InferRequest while request is running.
@@ -75,7 +76,7 @@ class InferRequest(_InferRequestWrapper):
             self,
             inputs,
             is_shared=shared_memory,
-        )))
+        ), return_policy=return_policy))
 
     def start_async(
         self,
@@ -205,7 +206,8 @@ class CompiledModel(CompiledModelBase):
 
     def __call__(self,
                  inputs: Union[dict, list, tuple, Tensor, np.ndarray] = None,
-                 shared_memory: bool = True) -> OVDict:
+                 shared_memory: bool = True,
+                 return_policy: ReturnPolicy = ReturnPolicy.COPY) -> OVDict:
         """Callable infer wrapper for CompiledModel.
 
         Infers specified input(s) in synchronous mode.
@@ -266,6 +268,7 @@ class CompiledModel(CompiledModelBase):
         return self._infer_request.infer(
             inputs,
             shared_memory=shared_memory,
+            return_policy=return_policy
         )
 
 

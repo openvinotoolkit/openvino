@@ -16,6 +16,12 @@ namespace py = pybind11;
 typedef std::chrono::high_resolution_clock Time;
 typedef std::chrono::nanoseconds ns;
 
+enum ReturnPolicy {
+    NONE = 0,
+    COPY = 1,
+    VIEW = 2
+};
+
 class InferRequestWrapper {
 public:
     // InferRequestWrapper is getting original ov::InferRequest as rvalue.
