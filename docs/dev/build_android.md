@@ -31,8 +31,7 @@ This article describes how to build Inference Engine for Android operating syste
     -DCMAKE_TOOLCHAIN_FILE=~/Downloads/android-ndk/build/cmake/android.toolchain.cmake \
     -DANDROID_ABI=x86_64 \
     -DANDROID_PLATFORM=21 \
-    -DANDROID_STL=c++_shared \
-    -DENABLE_OPENCV=OFF
+    -DANDROID_STL=c++_shared
 
   make --jobs=$(nproc --all)
   ```
