@@ -240,7 +240,6 @@ std::vector<std::string> LegacyAPIHelper::get_supported_configs() {
         GPU_CONFIG_KEY(NV12_TWO_INPUTS),
         GPU_CONFIG_KEY(MAX_NUM_THREADS),
         GPU_CONFIG_KEY(ENABLE_LOOP_UNROLLING),
-        CONFIG_KEY_INTERNAL(CONFIG_DEVICE_ID),
     };
     OPENVINO_SUPPRESS_DEPRECATED_END
 
@@ -265,7 +264,6 @@ std::vector<std::string> LegacyAPIHelper::get_supported_metrics() {
         GPU_METRIC_KEY(UARCH_VERSION),
         GPU_METRIC_KEY(EXECUTION_UNITS_COUNT),
         GPU_METRIC_KEY(MEMORY_STATISTICS),
-        ov::caching_properties.name(),
     };
 
     return supported_metrics;

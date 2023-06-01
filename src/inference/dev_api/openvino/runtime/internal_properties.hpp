@@ -13,6 +13,14 @@
 
 namespace ov {
 
+namespace internal {
+/**
+ * @brief Read-only property to get a std::vector<PropertyName> of supported read-only properties.
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<std::vector<PropertyName>, PropertyMutability::RO> supported_properties{
+    "INTERNAL_SUPPORTED_PROPERTIES"};
+
 /**
  * @brief Read-only property to get a std::vector<PropertyName> of properties
  * which should affect the hash calculation for model cache
@@ -31,6 +39,13 @@ static constexpr Property<bool, PropertyMutability::RW> exclusive_async_requests
  * values: device id starts from "0" - first device, "1" - second device, etc
  * @ingroup ov_dev_api_plugin_api
  */
-static constexpr Property<std::string> config_device_id{"CONFIG_DEVICE_ID"};
+static constexpr Property<std::string, PropertyMutability::WO> config_device_id{"CONFIG_DEVICE_ID"};
 
+}  // namespace internal
+OPENVINO_DEPRECATED(
+    "This property is deprecated and will be removed soon. Use ov::internal::caching_properties instead of it.")
+constexpr auto caching_properties = internal::caching_properties;
+OPENVINO_DEPRECATED(
+    "This property is deprecated and will be removed soon. Use ov::internal::exclusive_async_requests instead of it.")
+constexpr auto exclusive_async_requests = internal::exclusive_async_requests;
 }  // namespace ov
