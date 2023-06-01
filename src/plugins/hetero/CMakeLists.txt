@@ -10,7 +10,7 @@ set (TARGET_NAME "openvino_hetero_plugin")
 
 # TODO (vurusovs) revert after finish of porting Hetero plugin to API 2.0
 file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
-file(GLOB_RECURSE HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
+file(GLOB_RECURSE HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
 
 ov_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "HETERO"
