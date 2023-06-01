@@ -2,28 +2,27 @@
 
 @sphinxdirective
 
-Supported Operating Systems for Docker Base Image:
+Supported operating systems for the Docker Base image:
 
 - Ubuntu 22.04 LTS
 - Ubuntu 20.04 LTS
 - RedHat UBI 8
 
-Framework can generate a Dockerfile, build, test, and deploy an image with the Intel® Distribution of OpenVINO™ toolkit. You can reuse available Dockerfiles, add your layer and customize the image of OpenVINO™ for your needs. You can easily get started by using the precompiled and published docker images. The details on how to get started can be find `here <https://github.com/openvinotoolkit/docker_ci/blob/master/get-started.md>`__.
+The framework can generate a Dockerfile, build, test, and deploy an image using the Intel® Distribution of OpenVINO™ toolkit. You can reuse available Dockerfiles, add your layer and customize the OpenVINO™ image to your needs. You can get started easily with pre-built and published docker images. Details on how to get started can be found `here <https://github.com/openvinotoolkit/docker_ci/blob/master/get-started.md>`__.
 
-In order to start using them you need to meet the following prerequisites:
+To start using them, the following conditions must be met:
 
-- Linux operating system or Windows Subsystem for Linux (WSL2)
+- Linux OS or Windows Subsystem for Linux (WSL2)
 - Installed docker engine or compatible container engine
-- Permissions to start containers (sudo or docker group membership)
+- Permissions to run containers (sudo or docker group membership)
 
-As `Docker <https://docs.docker.com/>`__ is (mostly) just an isolation tool, the OpenVINO toolkit inside the container is the same as the OpenVINO toolkit installed natively on the host machine,
-so the `OpenVINO documentation <https://docs.openvino.ai/>`__ is fully applicable to containerized OpenVINO distribution.
+Since `Docker <https://docs.docker.com/>`__ is (mostly) just an isolation tool, the OpenVINO toolkit in the container is the same as the OpenVINO toolkit installed natively on the host machine, so the `OpenVINO documentation <https://docs.openvino.ai/>`__ documentation is fully applicable to the containerized OpenVINO distribution.
 
 .. note:: 
 
-   OpenVINO development environment in a docker container is available also in `notebook repository <https://github.com/openvinotoolkit/openvino_notebooks>`__ . It can be deployed in `OpenShift RedHat OpenData Science (RHODS) <https://github.com/openvinotoolkit/operator/blob/main/docs/notebook_in_rhods.md>`__.
+   The OpenVINO development environment in a docker container is also available in the `notebook repository <https://github.com/openvinotoolkit/openvino_notebooks>`__ . It can be implemented in `OpenShift RedHat OpenData Science (RHODS) <https://github.com/openvinotoolkit/operator/blob/main/docs/notebook_in_rhods.md>`__.
 
-You can find more details about Docker CI framework for Intel® Distribution of OpenVINO™ toolkit `here <https://github.com/openvinotoolkit/docker_ci/blob/master/README.md>`__
+ore information about Docker CI for Intel® Distribution of OpenVINO™ toolset can be found `here <https://github.com/openvinotoolkit/docker_ci/blob/master/README.md>`__
 
 * `Docker CI framework for Intel® Distribution of OpenVINO™ toolkit <https://github.com/openvinotoolkit/docker_ci/blob/master/README.md>`__
 * `Get Started with DockerHub CI for Intel® Distribution of OpenVINO™ toolkit <https://github.com/openvinotoolkit/docker_ci/blob/master/get-started.md>`__
