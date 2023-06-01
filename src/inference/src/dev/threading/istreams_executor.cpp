@@ -19,6 +19,7 @@
 
 namespace ov {
 namespace threading {
+OPENVINO_SUPPRESS_DEPRECATED_START
 
 IStreamsExecutor::~IStreamsExecutor() {}
 

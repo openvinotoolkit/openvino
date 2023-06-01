@@ -9,6 +9,16 @@
  */
 #pragma once
 
+#if !defined(IN_OV_COMPONENT) && !defined(IE_LEGACY_HEADER_INCLUDED)
+#    define IE_LEGACY_HEADER_INCLUDED
+#    ifdef _MSC_VER
+#        pragma message( \
+            "The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    else
+#        warning("The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    endif
+#endif
+
 #include <map>
 #include <memory>
 #include <string>
@@ -31,7 +41,7 @@ class ICompletionCallbackWrapper;
  * Wraps IInferRequest
  * It can throw exceptions safely for the application, where it is properly handled.
  */
-class INFERENCE_ENGINE_API_CLASS(InferRequest) {
+class INFERENCE_ENGINE_1_0_DEPRECATED INFERENCE_ENGINE_API_CLASS(InferRequest) {
     std::shared_ptr<IInferRequestInternal> _impl;
     std::shared_ptr<void> _so;
 
@@ -49,7 +59,7 @@ public:
      * @enum WaitMode
      * @brief Enumeration to hold wait mode for IInferRequest
      */
-    enum WaitMode : int64_t {
+    enum INFERENCE_ENGINE_1_0_DEPRECATED WaitMode : int64_t {
         /** Wait until inference result becomes available */
         RESULT_READY = -1,
         /** IInferRequest doesn't block or interrupt current thread and immediately returns inference status */
@@ -219,6 +229,7 @@ public:
         SetCallback<F>{*this}(std::move(callbackToSet));
     }
 
+    IE_SUPPRESS_DEPRECATED_START
     /**
      * @brief Gets state control interface for given infer request.
      *
@@ -227,7 +238,6 @@ public:
      */
     std::vector<VariableState> QueryState();
 
-    IE_SUPPRESS_DEPRECATED_START
     /**
      * @brief  IInferRequest pointer to be used directly in CreateInferRequest functions
      * @return A shared pointer to IInferRequest interface
@@ -261,6 +271,7 @@ public:
     bool operator==(const InferRequest&) const noexcept;
 };
 
+IE_SUPPRESS_DEPRECATED_START
 /**
  * @private
  */
@@ -271,8 +282,6 @@ struct InferRequest::SetCallback<std::function<void(InferRequest, StatusCode)>> 
     }
     InferRequest& _this;
 };
-
-IE_SUPPRESS_DEPRECATED_START
 
 /**
  * @private

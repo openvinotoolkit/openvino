@@ -309,6 +309,7 @@ int main(int argc, char* argv[]) {
             slog::info << "Extensions are loaded: " << FLAGS_extensions << slog::endl;
         }
 
+        OPENVINO_SUPPRESS_DEPRECATED_START
         // Load clDNN Extensions
         if ((FLAGS_d.find("GPU") != std::string::npos) && !FLAGS_c.empty()) {
             // Override config if command line parameter is specified
@@ -321,6 +322,7 @@ int main(int argc, char* argv[]) {
             core.set_property("GPU", {{CONFIG_KEY(CONFIG_FILE), ext}});
             slog::info << "GPU extensions are loaded: " << ext << slog::endl;
         }
+        OPENVINO_SUPPRESS_DEPRECATED_END
 
         slog::info << "OpenVINO:" << slog::endl;
         slog::info << ov::get_openvino_version() << slog::endl;
@@ -842,10 +844,12 @@ int main(int argc, char* argv[]) {
                 for (auto& item : devices_properties) {
                     slog::info << "  " << item.first << ": " << slog::endl;
                     for (auto& item2 : item.second.as<ov::AnyMap>()) {
+                        OPENVINO_SUPPRESS_DEPRECATED_START
                         if (item2.first == ov::supported_properties ||
                             item2.first == METRIC_KEY(SUPPORTED_CONFIG_KEYS) ||
                             item2.first == METRIC_KEY(SUPPORTED_METRICS))
                             continue;
+                        OPENVINO_SUPPRESS_DEPRECATED_END
                         slog::info << "    " << item2.first << ": " << item2.second.as<std::string>() << slog::endl;
                     }
                 }
