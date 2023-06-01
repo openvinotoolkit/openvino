@@ -285,5 +285,5 @@ std::shared_ptr<ov::IRemoteContext> ov::hetero::Plugin::get_default_context(cons
     OPENVINO_NOT_IMPLEMENTED;
 }
 
-static const ov::Version version = {CI_BUILD_NUMBER, "hetero"};
+static const ov::Version version = {CI_BUILD_NUMBER, "openvino_hetero_plugin"};
 OV_DEFINE_PLUGIN_CREATE_FUNCTION(ov::hetero::Plugin, version)
