@@ -319,7 +319,7 @@ event::ptr primitive_inst::realloc_if_needed() {
 
     if (can_reuse_buffer) {
         GPU_DEBUG_TRACE_DETAIL << id() << ": reuse previously allocated output buffer" << std::endl;
-        if (_outputs[0]->get_layout().bytes_count() != actual_layout.bytes_count())
+        if (_outputs[0]->get_layout() != actual_layout)
             _outputs[0] = _network.get_engine().reinterpret_buffer(*_outputs[0], actual_layout);
         if (need_reset_output_memory()) {
             ev = _outputs[0]->fill(_network.get_stream());
