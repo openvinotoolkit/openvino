@@ -372,6 +372,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::var_mean", op::translate_var_mean},
         {"aten::view", op::translate_reshape},
         {"aten::where", op::translate_where},
+        {"aten::zero_", op::inplace_op<op::translate_zeros_like>},
         {"aten::zeros", op::translate_zeros},
         {"aten::zeros_like", op::translate_zeros_like},
         {"prim::Constant", op::translate_constant},
