@@ -11,6 +11,8 @@ using namespace std;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
+IE_SUPPRESS_DEPRECATED_START
+
 TEST(InferRequestCPPTests, throwsOnUninitializedSetBlob) {
     InferRequest req;
     ASSERT_THROW(req.SetBlob({}, {}), InferenceEngine::NotAllocated);

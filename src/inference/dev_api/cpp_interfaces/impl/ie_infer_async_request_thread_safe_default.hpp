@@ -15,11 +15,13 @@
 #include <vector>
 
 #include "cpp_interfaces/interface/ie_iinfer_request_internal.hpp"
+#include "ie_api.h"
 #include "threading/ie_immediate_executor.hpp"
 #include "threading/ie_istreams_executor.hpp"
 #include "threading/ie_itask_executor.hpp"
 
 namespace InferenceEngine {
+IE_SUPPRESS_DEPRECATED_START
 
 /**
  * @ingroup ie_dev_api_async_infer_request_api
@@ -459,4 +461,5 @@ private:
     Futures _futures;
     InferState _state = InferState::Idle;
 };
+IE_SUPPRESS_DEPRECATED_END
 }  // namespace InferenceEngine
