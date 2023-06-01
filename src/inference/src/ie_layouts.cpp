@@ -8,6 +8,7 @@
 #include <map>
 
 using namespace InferenceEngine;
+IE_SUPPRESS_DEPRECATED_START
 
 TensorDesc::TensorDesc(const Precision& precision, const SizeVector& dims, Layout layout)
     : precision(precision),
@@ -533,3 +534,4 @@ TensorDesc InferenceEngine::make_roi_desc(const TensorDesc& origDesc,
     }
     return make_roi_desc(origDesc, slice, useOrigMemDesc);
 }
+IE_SUPPRESS_DEPRECATED_END

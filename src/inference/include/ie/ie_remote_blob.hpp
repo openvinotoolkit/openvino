@@ -17,6 +17,7 @@
 #include "ie_parameter.hpp"
 
 namespace InferenceEngine {
+IE_SUPPRESS_DEPRECATED_START
 class RemoteContext;
 
 /**
@@ -72,4 +73,5 @@ public:
      */
     virtual std::shared_ptr<RemoteContext> getContext() const noexcept = 0;
 };
+IE_SUPPRESS_DEPRECATED_END
 }  // namespace InferenceEngine

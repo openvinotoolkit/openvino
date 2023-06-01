@@ -30,6 +30,7 @@
 #include "ie_precision.hpp"
 
 namespace InferenceEngine {
+IE_SUPPRESS_DEPRECATED_START
 
 /**
  * @deprecated The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on
@@ -187,4 +188,5 @@ private:
      */
     mutable TensorDesc tensorDesc;
 };
+IE_SUPPRESS_DEPRECATED_END
 }  // namespace InferenceEngine

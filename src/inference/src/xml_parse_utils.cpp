@@ -12,6 +12,8 @@
 
 #include "ie_precision.hpp"
 
+IE_SUPPRESS_DEPRECATED_START
+
 int pugixml::utils::GetIntAttr(const pugi::xml_node& node, const char* str) {
     auto attr = node.attribute(str);
     if (attr.empty())
