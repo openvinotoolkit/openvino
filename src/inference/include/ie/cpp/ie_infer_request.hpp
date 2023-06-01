@@ -272,6 +272,9 @@ public:
 };
 
 IE_SUPPRESS_DEPRECATED_START
+/**
+ * @private
+ */
 template <>
 struct InferRequest::SetCallback<std::function<void(InferRequest, StatusCode)>> {
     void operator()(std::function<void(InferRequest, StatusCode)> f) {
@@ -280,6 +283,9 @@ struct InferRequest::SetCallback<std::function<void(InferRequest, StatusCode)>> 
     InferRequest& _this;
 };
 
+/**
+ * @private
+ */
 template <>
 struct InferRequest::SetCallback<IInferRequest::CompletionCallback> {
     void operator()(IInferRequest::CompletionCallback f) {
