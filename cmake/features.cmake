@@ -24,9 +24,9 @@ endif()
 
 ie_dependent_option (ENABLE_INTEL_GPU "GPU OpenCL-based plugin for OpenVINO Runtime" ${ENABLE_INTEL_GPU_DEFAULT} "X86_64 OR AARCH64;NOT APPLE;NOT WINDOWS_STORE;NOT WINDOWS_PHONE" OFF)
 
-if (ANDROID OR (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0))
-    # oneDNN doesn't support old compilers and android builds for now, so we'll
-    # build GPU plugin without oneDNN
+if (ANDROID OR (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0) OR NOT BUILD_SHARED_LIBS)
+    # oneDNN doesn't support old compilers and android builds for now, so we'll build GPU plugin without oneDNN
+    # also, in case of static build CPU's and GPU's oneDNNs will conflict, so we are disabling GPU's one in this case
     set(ENABLE_ONEDNN_FOR_GPU_DEFAULT OFF)
 else()
     set(ENABLE_ONEDNN_FOR_GPU_DEFAULT ON)
@@ -55,7 +55,11 @@ Usage: -DSELECTIVE_BUILD=ON -DSELECTIVE_BUILD_STAT=/path/*.csv" OFF
 
 ie_option (ENABLE_DOCS "Build docs using Doxygen" OFF)
 
-find_package(PkgConfig QUIET)
+if(NOT ANDROID)
+    # on Android build FindPkgConfig.cmake finds host system pkg-config, which is not appropriate
+    find_package(PkgConfig QUIET)
+endif()
+
 ie_dependent_option (ENABLE_PKGCONFIG_GEN "Enable openvino.pc pkg-config file generation" ON "LINUX OR APPLE;PkgConfig_FOUND;BUILD_SHARED_LIBS" OFF)
 
 #
