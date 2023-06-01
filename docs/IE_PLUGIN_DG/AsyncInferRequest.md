@@ -33,7 +33,7 @@ AsyncInferRequest()
 
 The main goal of the ``AsyncInferRequest`` constructor is to define a device pipeline ``m_pipeline``. The example below demonstrates ``m_pipeline`` creation with the following stages:
 
-* ``infer_preprocess_and_start_pipeline`` is a CPU ligthweight task to submit tasks to a remote device.
+* ``infer_preprocess_and_start_pipeline`` is a CPU lightweight task to submit tasks to a remote device.
 * ``wait_pipeline`` is a CPU non-compute task that waits for a response from a remote device.
 * ``infer_postprocess`` is a CPU compute task.
 

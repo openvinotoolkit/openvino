@@ -26,6 +26,20 @@ Execution Mode
 
 If the model has been quantized using :doc:`OpenVINO optimization tools <ptq_introduction>` or any other method, the quantized operators will be executed with the target integer precision if the device has hardware acceleration for that type. For example, quantized ``int8`` primitives are executed with ``int8`` precision for both **ACCURACY** and **PERFORMANCE modes** if the device provides higher compute bandwidth for 8-bit data types compared to any available floating-point type. On the other hand, devices without hardware acceleration for the ``int8`` data type can keep such operators in floating point precision, and the exact floating point type will be affected by ``execution_mode`` and ``inference_precision`` properties.
 
+Code examples:
+
+.. tab:: C++
+
+   .. doxygensnippet:: docs/snippets/cpu/ov_execution_mode.cpp
+      :language: cpp
+      :fragment: [ov:execution_mode:part0]
+
+.. tab:: Python
+
+   .. doxygensnippet:: docs/snippets/cpu/ov_execution_mode.py
+      :language: python
+      :fragment: [ov:execution_mode:part0]
+
 Inference Precision
 ###################
 
