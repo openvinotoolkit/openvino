@@ -43,7 +43,7 @@ The table below shows which distribution type can be used for what target operat
    * - RMP packages
      - Red Hat Enterprise Linux 8, 64-bit
    * - Docker images
-     - Ubuntu 18.04 long-term support (LTS), 64-bit; Ubuntu 20.04 long-term support (LTS), 64-bit; Red Hat Enterprise Linux 8, 64-bit; Windows Server Core base LTSC 2019, 64-bit; Windows 10, version 20H2, 64-bit
+     - Ubuntu 22.04 long-term support (LTS), 64-bit; Ubuntu 20.04 long-term support (LTS), 64-bit; Red Hat Enterprise Linux 8, 64-bit
    * - PyPI (PIP package manager)
      - See https://pypi.org/project/openvino
    * - :doc:`OpenVINO Deployment Manager <openvino_docs_install_guides_deployment_manager_tool>`
