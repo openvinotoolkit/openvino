@@ -253,9 +253,6 @@ int Edge::getOutputNum() const {
 }
 
 void Edge::allocateCommon(const std::function<void(const MemoryPtr&, const MemoryDesc&)>& allocate) {
-    if (status != Status::NeedAllocation)
-        return;
-
     if (memoryPtr)
         IE_THROW() << "Unexpected behaviour: status == NeedAllocation but memory is already allocated.";
 
