@@ -13,6 +13,10 @@ struct experimental_detectron_generate_proposals_single_image
         : public primitive_base<experimental_detectron_generate_proposals_single_image> {
     CLDNN_DECLARE_PRIMITIVE(experimental_detectron_generate_proposals_single_image)
 
+    experimental_detectron_generate_proposals_single_image() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     /// @brief Constructs experimental_detectron_generate_proposals_single_image primitive
     /// @param id This primitive id
     /// @param input_im_info image size info
@@ -69,6 +73,24 @@ struct experimental_detectron_generate_proposals_single_image
                pre_nms_count == rhs_casted.pre_nms_count &&
                post_nms_count == rhs_casted.post_nms_count &&
                output_roi_scores.empty() == rhs_casted.output_roi_scores.empty();
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<experimental_detectron_generate_proposals_single_image>::save(ob);
+        ob << output_roi_scores;
+        ob << min_size;
+        ob << nms_threshold;
+        ob << pre_nms_count;
+        ob << post_nms_count;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<experimental_detectron_generate_proposals_single_image>::load(ib);
+        ib >> output_roi_scores;
+        ib >> min_size;
+        ib >> nms_threshold;
+        ib >> pre_nms_count;
+        ib >> post_nms_count;
     }
 
 protected:

@@ -6,8 +6,8 @@
 
 #include <memory>
 
-#include "ngraph/log.hpp"
 #include "onnx_import/core/null_node.hpp"
+#include "openvino/util/log.hpp"
 #include "utils/pooling_factory.hpp"
 
 namespace ngraph {
@@ -16,7 +16,7 @@ namespace op {
 namespace set_1 {
 OutputVector max_pool(const Node& node) {
     if (node.get_outputs_size() > 1) {
-        NGRAPH_WARN << "MaxPool: Indices output is not supported and was ignored";
+        OPENVINO_WARN << "MaxPool: Indices output is not supported and was ignored";
     }
     auto max_pool = pooling::PoolingFactory(node).make_max_pool();
     max_pool.emplace_back(std::make_shared<NullNode>());  // Indices (optional)
