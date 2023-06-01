@@ -715,8 +715,8 @@ void RNN::fillWeights(const int *gate_map, const size_t wIdx, const size_t rIdx)
     auto ie_w_ptr = ie_w_vec.data();
     auto ie_r_ptr = ie_r_vec.data();
 
-    cpu_convert(wConstBlob->GetPtr(), ie_w_ptr, weightPrec, targetWeightPrec, ie_w_vec_size);
-    cpu_convert(rConstBlob->GetPtr(), ie_r_ptr, weightPrec, targetWeightPrec, ie_r_vec_size);
+    cpu_convert(wConstBlob->GetData(), ie_w_ptr, weightPrec, targetWeightPrec, ie_w_vec_size);
+    cpu_convert(rConstBlob->GetData(), ie_r_ptr, weightPrec, targetWeightPrec, ie_r_vec_size);
 
     const int step = SC * G;
 
@@ -763,7 +763,7 @@ void RNN::fillBiases(const int *gate_map) {
     auto const elementsCount = constBlob->GetSize() / constBlob->getDesc().getPrecision().size();
 
     std::vector<dataType> ie_b_vec(elementsCount);
-    cpu_convert(constBlob->GetPtr(),
+    cpu_convert(constBlob->GetData(),
                 &ie_b_vec[0],
                 DnnlExtensionUtils::DataTypeToIEPrecision(constBlob->GetDataType()),
                 Prec,

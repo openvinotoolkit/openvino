@@ -72,8 +72,8 @@ void Math::executeDynamicImpl(dnnl::stream strm) {
 
 void Math::execute(dnnl::stream strm) {
     size_t dataSize = getChildEdgesAtPort(0)[0]->getMemory().GetShape().getElementsCount();
-    const float *src_data = reinterpret_cast<const float *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
-    float* dst_data = reinterpret_cast<float *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const float *src_data = reinterpret_cast<const float *>(getParentEdgeAt(0)->getMemoryPtr()->GetData());
+    float* dst_data = reinterpret_cast<float *>(getChildEdgeAt(0)->getMemoryPtr()->GetData());
 
     switch (getAlgorithm()) {
         case Algorithm::MathAbs:

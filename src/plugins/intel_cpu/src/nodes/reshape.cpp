@@ -46,7 +46,7 @@ public:
         const auto& inputShape = input_shapes[RESHAPE_SRC].get();
         const size_t inputShapeSize = inputShape.size();
         const auto memPtr = data_dependency.at(RESHAPE_PATTERN);
-        const auto data = memPtr->GetPtr();
+        const auto data = memPtr->GetData();
         const auto& dims = memPtr->getStaticDims();
         const auto outputPatternSize = std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<Dim>());
         std::vector<int64_t> outPattern = ov::get_raw_data_as<int64_t>(
@@ -109,7 +109,7 @@ public:
         outputShape.reserve(inputShapeSize);
         if (itr != data_dependency.end()) {
             const auto memPtr = data_dependency.at(SQUEEZE_PATTERN);
-            const auto data = memPtr->GetPtr();
+            const auto data = memPtr->GetData();
             const auto& dims = memPtr->getStaticDims();
             const auto outputPatternSize = std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<Dim>());
             std::vector<int64_t> outPattern = ov::get_raw_data_as<int64_t>(
@@ -164,7 +164,7 @@ public:
         const auto& inputShape = input_shapes[UNSQUEEZE_SRC].get();
         const size_t inputShapeSize = inputShape.size();
         const auto memPtr = data_dependency.at(UNSQUEEZE_PATTERN);
-        const auto data = memPtr->GetPtr();
+        const auto data = memPtr->GetData();
         const auto& dims = memPtr->getStaticDims();
         const auto outputPatternSize = std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<Dim>());
         std::vector<int64_t> outPattern = ov::get_raw_data_as<int64_t>(
@@ -264,7 +264,7 @@ bool Reshape::needShapeInfer() const {
     if (lastSecondInputValues.empty()) {
         lastSecondInputValues.resize(mem.getStaticDims()[0], 0);
     }
-    const int32_t *sndInput = reinterpret_cast<const int32_t *>(mem.GetPtr());
+    const int32_t *sndInput = reinterpret_cast<const int32_t *>(mem.GetData());
     for (size_t i = 0; i < lastSecondInputValues.size(); i++) {
         if (lastSecondInputValues[i] != sndInput[i]) {
             for (size_t i = 0; i < lastSecondInputValues.size(); i++) {
@@ -325,8 +325,8 @@ void Reshape::execute(dnnl::stream strm) {
     auto srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
     auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
 
-    auto srcPtr = static_cast<uint8_t*>(srcMemPtr->GetPtr());
-    auto dstPtr = static_cast<uint8_t*>(dstMemPtr->GetPtr());
+    auto srcPtr = static_cast<uint8_t*>(srcMemPtr->GetData());
+    auto dstPtr = static_cast<uint8_t*>(dstMemPtr->GetData());
 
     if (dstPtr != srcPtr) {
         cpu_memcpy(dstPtr, srcPtr, dstMemPtr->GetSize());

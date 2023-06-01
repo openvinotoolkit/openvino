@@ -144,8 +144,8 @@ void Convert::execute(dnnl::stream strm) {
     if (parentPaddElemCount != childPaddElemCount)
         IE_THROW() << errorPrefix << " has different elements number in input and output buffers";
 
-    void* srcPtr = parentMem.GetPtr();
-    void* dstPtr = childMem.GetPtr();
+    void* srcPtr = parentMem.GetData();
+    void* dstPtr = childMem.GetData();
 
     cpu_convert(srcPtr,
                 dstPtr,

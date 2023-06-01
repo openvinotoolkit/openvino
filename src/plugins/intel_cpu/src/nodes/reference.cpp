@@ -122,7 +122,7 @@ bool Reference::needShapeInfer() const {
 ov::TensorVector Reference::prepareInputs() const {
     ov::TensorVector inputs;
     for (size_t i = 0; i < inputShapes.size(); i++) {
-        void *srcDataPtr = getParentEdgesAtPort(i)[0]->getMemory().GetPtr();
+        void *srcDataPtr = getParentEdgesAtPort(i)[0]->getMemory().GetData();
         inputs.push_back(ov::Tensor(ngraphOp->get_input_element_type(i),
                                              getParentEdgesAtPort(i)[0]->getMemory().getStaticDims(), srcDataPtr));
     }
@@ -132,7 +132,7 @@ ov::TensorVector Reference::prepareInputs() const {
 ov::TensorVector Reference::prepareOutputs() const {
     ov::TensorVector outputs;
     for (size_t i = 0; i < outputShapes.size(); i++) {
-        void *dstDataPtr = getChildEdgesAtPort(i)[0]->getMemory().GetPtr();
+        void *dstDataPtr = getChildEdgesAtPort(i)[0]->getMemory().GetData();
         outputs.push_back(ov::Tensor(ngraphOp->get_output_element_type(i),
                                               getChildEdgesAtPort(i)[0]->getMemory().getStaticDims(), dstDataPtr));
     }

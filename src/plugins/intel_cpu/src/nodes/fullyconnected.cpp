@@ -905,7 +905,7 @@ bool FullyConnected::useSparseWeightsDecompression() {
     if (blb == nullptr)
         IE_THROW() << "Cannot get const blob for node " << getName() << ".";
 
-    auto weightsData = reinterpret_cast<const int8_t*>(blb->GetPtr());
+    auto weightsData = reinterpret_cast<const int8_t*>(blb->GetData());
     auto elementsCount = blb->GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
     size_t zerosCounts = 0;
     for (size_t i = 0; i < elementsCount; i++) {

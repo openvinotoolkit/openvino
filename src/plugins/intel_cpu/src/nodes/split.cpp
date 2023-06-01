@@ -212,7 +212,7 @@ bool Split::needShapeInfer() const {
         if (curLengthsSize != splitLengths.size()) {
             return true;
         }
-        const int* curLengthsValues = reinterpret_cast<int*>(lengthsMemPtr->GetPtr());
+        const int* curLengthsValues = reinterpret_cast<int*>(lengthsMemPtr->GetData());
         for (size_t i = 0; i < curLengthsSize; ++i) {
             if (curLengthsValues[i] != splitLengths[i]) {
                 return true;
@@ -237,7 +237,7 @@ void Split::prepareParams() {
 
     if (!constSplitLengths) {
         const auto& splitLengthsPtr = getParentEdgeAt(2)->getMemoryPtr();
-        const int* curSplitLengths = reinterpret_cast<int*>(splitLengthsPtr->GetPtr());
+        const int* curSplitLengths = reinterpret_cast<int*>(splitLengthsPtr->GetData());
         const auto curLengthsSize = splitLengthsPtr->getStaticDims()[0];
         splitLengths.assign(curSplitLengths, curSplitLengths + curLengthsSize);
     }
@@ -286,7 +286,7 @@ void Split::execute(dnnl::stream strm) {
         return;
     }
 
-    uint8_t* srcData = reinterpret_cast<uint8_t*>(srcMem.GetPtr());
+    uint8_t* srcData = reinterpret_cast<uint8_t*>(srcMem.GetData());
     IE_ASSERT(execPtr != nullptr);
     execPtr->exec(srcData, getRawDstMemPtrs());
 }
@@ -429,7 +429,7 @@ void Split::optimizedNspc2Ncsp(size_t MB) {
     const size_t strideOC = DHW * dataSize;
 
     for (size_t i = 0, sIdx = 0; i < dstMemPtrs.size(); i++) {
-        auto dstData = reinterpret_cast<uint8_t*>(dstMemPtrs[i].second->GetPtr());
+        auto dstData = reinterpret_cast<uint8_t*>(dstMemPtrs[i].second->GetData());
 
         size_t innerSize = 1;
         auto dims = getChildEdgesAtPort(dstMemPtrs[i].first)[0]->getMemory().getStaticDims();
@@ -459,7 +459,7 @@ void Split::optimizedNspc2Ncsp(size_t MB) {
 std::vector<uint8_t*> Split::getRawDstMemPtrs() const {
     std::vector<uint8_t*> result(dstMemPtrs.size());
     for (size_t i = 0; i < dstMemPtrs.size(); ++i) {
-        result[i] = reinterpret_cast<uint8_t*>(dstMemPtrs[i].second->GetPtr());
+        result[i] = reinterpret_cast<uint8_t*>(dstMemPtrs[i].second->GetData());
         if (!result[i]) {
             THROW_ERROR << "can't get child edge indx " << dstMemPtrs[i].first << " data.";
         }
@@ -543,8 +543,7 @@ void Split::resolveInPlaceEdges(Edge::LOOK look) {
                 //     getName() << " with type " << getTypeStr();
 
                 auto memMngr = std::make_shared<PartitionedMemoryMngr>(baseMemMngr, baseDim, offset, partDim);
-                auto newMem = std::make_shared<Memory>(getEngine());
-                newMem->Create(selected_pd->getConfig().outConfs[i].getMemDesc(), memMngr);
+                auto newMem = std::make_shared<Memory>(getEngine(), std::unique_ptr<IMemoryMngr>(memMngr.get()), selected_pd->getConfig().outConfs[i].getMemDesc());
 
                 childEdge->resetMemoryPtr(newMem);
             }

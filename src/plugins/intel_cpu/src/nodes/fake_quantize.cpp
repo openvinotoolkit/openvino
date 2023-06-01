@@ -1415,8 +1415,7 @@ void FakeQuantize::prepareParams() {
             }
 
             if (internalBlobMemory.empty() || needUpdThr) {
-                auto binarizationThresholdsDataMem = std::make_shared<Memory>(getEngine());
-                binarizationThresholdsDataMem->Create(weightsDataDesc, getBinarizationTresholdsPtr());
+                auto binarizationThresholdsDataMem = std::make_shared<Memory>(getEngine(), weightsDataDesc, getBinarizationTresholdsPtr());
                 if (internalBlobMemory.empty()) {
                     internalBlobMemory.push_back(binarizationThresholdsDataMem);
                 } else {
@@ -1425,8 +1424,7 @@ void FakeQuantize::prepareParams() {
             }
 
             if (internalBlobMemory.size() == (numBinFqIntBlob - 1) || needUpdMask) {
-                auto binarizationMaskDataMem = std::make_shared<Memory>(getEngine());
-                binarizationMaskDataMem->Create(weightsDataDesc, getBinarizationOutputMaskPtr());
+                auto binarizationMaskDataMem = std::make_shared<Memory>(getEngine(), weightsDataDesc, getBinarizationOutputMaskPtr());
                 if (internalBlobMemory.size() == (numBinFqIntBlob - 1)) {
                     internalBlobMemory.push_back(binarizationMaskDataMem);
                 } else {
@@ -1489,7 +1487,7 @@ void FakeQuantize::executeReference() {
     auto srcMemory = getParentEdgeAt(0)->getMemoryPtr();
     auto dstMemory = getChildEdgeAt(0)->getMemoryPtr();
 
-    auto src = reinterpret_cast<const float *>(srcMemory->GetPtr());
+    auto src = reinterpret_cast<const float *>(srcMemory->GetData());
 
     auto srcDims = srcMemory->getStaticDims();
     auto dstDims = dstMemory->getStaticDims();
@@ -1516,7 +1514,7 @@ void FakeQuantize::executeReference() {
         }
         d_str[1] = tmp;
 
-        auto dst = reinterpret_cast<uint8_t *>(dstMemory->GetPtr());
+        auto dst = reinterpret_cast<uint8_t *>(dstMemory->GetData());
 
         const int nbits = 8;
         const int CB = impl::utils::div_up(C, nbits);
@@ -1552,7 +1550,7 @@ void FakeQuantize::executeReference() {
             dst[dst_off / nbits] = bin_val;
         });
     } else {
-        auto dst = reinterpret_cast<float *>(dstMemory->GetPtr());
+        auto dst = reinterpret_cast<float *>(dstMemory->GetData());
 
         parallel_nd(N, C, D, H, W, [&](dim_t n, dim_t c, dim_t d, dim_t h, dim_t w) {
             size_t src_off = srcDims.size() == 5 ?
@@ -1599,8 +1597,8 @@ void FakeQuantize::executeBinarization(const std::unique_ptr<jit_uni_quantize_ke
     auto srcMemory = getParentEdgeAt(0)->getMemoryPtr();
     auto dstMemory = getChildEdgeAt(0)->getMemoryPtr();
 
-    auto src = reinterpret_cast<const uint8_t *>(srcMemory->GetPtr());
-    auto dst = reinterpret_cast<uint8_t *>(dstMemory->GetPtr());
+    auto src = reinterpret_cast<const uint8_t *>(srcMemory->GetData());
+    auto dst = reinterpret_cast<uint8_t *>(dstMemory->GetData());
 
     auto thresholds = reinterpret_cast<const float*>(internalBlobMemory[0]->GetData());
     auto output_mask = reinterpret_cast<const float*>(internalBlobMemory[1]->GetData());
@@ -1641,8 +1639,8 @@ void FakeQuantize::executeQuantization(const std::unique_ptr<jit_uni_quantize_ke
     auto srcMemory = getParentEdgeAt(0)->getMemoryPtr();
     auto dstMemory = getChildEdgeAt(0)->getMemoryPtr();
 
-    auto src = reinterpret_cast<const uint8_t *>(srcMemory->GetPtr());
-    auto dst = reinterpret_cast<uint8_t *>(dstMemory->GetPtr());
+    auto src = reinterpret_cast<const uint8_t *>(srcMemory->GetData());
+    auto dst = reinterpret_cast<uint8_t *>(dstMemory->GetData());
 
     auto& srcDesc = srcMemory->getDesc();
     auto srcDims = srcDesc.getShape().getStaticDims();
@@ -1838,9 +1836,8 @@ void FakeQuantize::initializePostOpDataLegacy(const VectorDims &dims, const size
 
 void FakeQuantize::appendMemory(const size_t dataSize, const void *data, MemoryPtr &memPtr, std::vector<MemoryPtr>& postOpsMem) {
     if (!memPtr) {
-        memPtr.reset(new Memory(getEngine()));
         DnnlBlockedMemoryDesc memoryDesc(Precision::FP32, {dataSize});
-        memPtr->Create(memoryDesc, data);
+        memPtr.reset(new Memory(getEngine(), memoryDesc, data));
 
         postOpsMem.push_back(memPtr);
     }

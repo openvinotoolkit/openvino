@@ -266,22 +266,21 @@ void Input::cloneBlobIfRequired() {
     }
 
     auto cloneBlob = [&, this] () {
-        Memory memory{ getEngine() };
+        MemoryPtr memory;
 
         // CVS-74980
         // oneDNN always allocate 1byte for element type with bitWidth < 8 (u4,u1...)
         // but ngraph Constant uses actual bitWidth for data storage allocation
         // in that case we make a copy to avoid overflow
         if (constOp->get_byte_size() >= memDesc.getCurrentMemSize()) {
-            memory.Create(memDesc, constOp->get_data_ptr());
+            memory = MemoryPtr(new Memory(getEngine(), memDesc, constOp->get_data_ptr()));
         } else {
-            memory.Create(memDesc);
-            memcpy(memory.GetPtr(), constOp->get_data_ptr(), constOp->get_byte_size());
+            memory = MemoryPtr(new Memory(getEngine(), memDesc));
+            memcpy(memory->GetData(), constOp->get_data_ptr(), constOp->get_byte_size());
         }
 
-        MemoryPtr ptr = MemoryPtr(new Memory(getEngine()));
-        ptr->Create(memDesc);
-        ptr->SetData(memory, needFlushDenormalsToZero);
+        MemoryPtr ptr = MemoryPtr(new Memory(getEngine(), memDesc));
+        ptr->SetData(*memory.get(), needFlushDenormalsToZero);
 
         return ptr;
     };
@@ -366,15 +365,14 @@ void Input::cloneBlobIfRequired() {
     auto weightCache = context->getWeightsCache();
     if (weightCache) {
         MemoryPtr ptr = *weightCache->findOrCreate(blobKey(), cloneBlob);
-        memoryPtr = std::const_pointer_cast<const Memory>(ptr);
+        memoryPtr = std::const_pointer_cast<const IMemory>(ptr);
     // IRs already have all subnormals flushed to zero, but in
     // read_model scenario with directly loaded original model still can have subnormals
     } else if (isBlobAligned() && (!needFlushDenormalsToZero || !hasSubnormals()) && !isWA()) {
-        auto ptr = new Memory(getEngine());
-        ptr->Create(memDesc, constOp->get_data_ptr());
+        auto ptr = new Memory(getEngine(), memDesc, constOp->get_data_ptr());
         memoryPtr = MemoryCPtr(ptr);
     } else {
-        memoryPtr = std::const_pointer_cast<const Memory>(cloneBlob());
+        memoryPtr = std::const_pointer_cast<const IMemory>(cloneBlob());
     }
 }
 

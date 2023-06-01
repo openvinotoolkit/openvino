@@ -252,7 +252,10 @@ int Edge::getOutputNum() const {
     return child_port;
 }
 
-void Edge::allocateCommon(const std::function<void(const MemoryPtr&, const MemoryDesc&)>& allocate) {
+void Edge::allocateCommon(const std::function<void(MemoryPtr, const MemoryDesc&)>& allocate) {
+    if (status != Status::NeedAllocation)
+        return;
+
     if (memoryPtr)
         IE_THROW() << "Unexpected behaviour: status == NeedAllocation but memory is already allocated.";
 
@@ -261,17 +264,15 @@ void Edge::allocateCommon(const std::function<void(const MemoryPtr&, const Memor
     if (!inputDesc.isCompatible(outputDesc))
         IE_THROW() << "Cannot allocate memory for incompatible descriptors.";
 
-    auto parentPtr = getParent();
-    memoryPtr.reset(new Memory(parentPtr->getEngine()));
-
     allocate(memoryPtr, inputDesc);
     DEBUG_LOG(*this, " memoryPtr=", memoryPtr);
     status = Status::Allocated;
 }
 
 void Edge::allocate(const void* mem_ptr) {
-    auto allocateFunc = [=](const MemoryPtr& memoryPtr, const MemoryDesc& inputDesc) {
-        memoryPtr->Create(inputDesc, mem_ptr, false);  // no pads zeroing
+    auto allocateFunc = [=](MemoryPtr memoryPtr, const MemoryDesc& inputDesc) {
+        auto parentPtr = getParent();
+        memoryPtr.reset(new Memory(parentPtr->getEngine(), inputDesc, mem_ptr, false));  // no pads zeroing
     };
 
     allocateCommon(allocateFunc);
@@ -282,11 +283,29 @@ void Edge::allocate(MemoryMngrPtr memMngr) {
         IE_THROW(Unexpected) << "Memory manager ptr is NULL";
     }
 
-    auto allocateFunc = [=](const MemoryPtr& memoryPtr, const MemoryDesc& inputDesc) {
-        memoryPtr->Create(inputDesc, memMngr);
-    };
+    // auto allocateFunc = [=](MemoryPtr memoryPtr, const MemoryDesc& inputDesc) {
+    //     auto parentPtr = getParent();
+    //     memoryPtr.reset(new Memory(parentPtr->getEngine(), std::unique_ptr<IMemoryMngr>(memMngr.get()), inputDesc));
+    // };
 
-    allocateCommon(allocateFunc);
+    // allocateCommon(allocateFunc);
+
+    if (status != Status::NeedAllocation)
+        return;
+
+    if (memoryPtr)
+        IE_THROW() << "Unexpected behaviour: status == NeedAllocation but memory is already allocated.";
+
+    auto& inputDesc = getInputDesc();
+    auto& outputDesc = getOutputDesc();
+    if (!inputDesc.isCompatible(outputDesc))
+        IE_THROW() << "Cannot allocate memory for incompatible descriptors.";
+
+    auto parentPtr = getParent();
+    memoryPtr.reset(new Memory(parentPtr->getEngine(), std::unique_ptr<IMemoryMngr>(memMngr.get()), inputDesc));
+    
+    DEBUG_LOG(*this, " memoryPtr=", memoryPtr);
+    status = Status::Allocated;
 }
 
 std::string Edge::name() const {
@@ -409,7 +428,7 @@ const MemoryDesc& Edge::getDesc() const {
     return getInputDesc();
 }
 
-const Memory &Edge::getMemory() {
+const IMemory &Edge::getMemory() {
     return *getMemoryPtr();
 }
 

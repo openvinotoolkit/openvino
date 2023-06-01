@@ -239,8 +239,8 @@ void DFT::execute(dnnl::stream strm) {
     const auto inputDataEdge = getParentEdgeAt(DATA_INDEX);
     const auto outputDataEdge = getChildEdgeAt(0);
 
-    const auto src = reinterpret_cast<const float*>(inputDataEdge->getMemoryPtr()->GetPtr());
-    auto dst = reinterpret_cast<float*>(outputDataEdge->getMemoryPtr()->GetPtr());
+    const auto src = reinterpret_cast<const float*>(inputDataEdge->getMemoryPtr()->GetData());
+    auto dst = reinterpret_cast<float*>(outputDataEdge->getMemoryPtr()->GetData());
 
     const auto inputRank = inputDataEdge->getMemory().GetShape().getRank();
 
@@ -542,7 +542,7 @@ void DFT::prepareParams() {
 
 std::vector<int32_t> DFT::getAxes() const {
     auto axesEdge = getParentEdgeAt(AXES_INDEX);
-    const auto* axesStartPtr = reinterpret_cast<const int32_t*>(axesEdge->getMemoryPtr()->GetPtr());
+    const auto* axesStartPtr = reinterpret_cast<const int32_t*>(axesEdge->getMemoryPtr()->GetData());
     auto axes = std::vector<int32_t>(axesStartPtr, axesStartPtr + axesEdge->getMemory().getStaticDims()[0]);
     for (auto& axis : axes) {
         if (axis < 0) {

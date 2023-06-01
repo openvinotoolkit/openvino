@@ -100,7 +100,7 @@ void Tile::prepareParams() {
     if (!constMap[TILE_REPEATS]) {
         const auto& repeatsMem = getParentEdgesAtPort(TILE_REPEATS)[0]->getMemory();
 
-        const int32_t* repeatsData = reinterpret_cast<const int32_t *>(repeatsMem.GetPtr());
+        const int32_t* repeatsData = reinterpret_cast<const int32_t *>(repeatsMem.GetData());
         originRepeats.assign(repeatsData, repeatsData + repeatsMem.getStaticDims()[0]);
 
         repeats.assign(std::max(originRepeats.size(), getInputShapeAtPort(TILE_INPUT).getRank()), 1lu);
@@ -124,7 +124,7 @@ bool Tile::needShapeInfer() const {
     if (!constMap[TILE_REPEATS]) {
         if (originRepeats.empty())
             return true;
-        const int32_t* repeatsData = reinterpret_cast<const int32_t *>(getParentEdgesAtPort(TILE_REPEATS)[0]->getMemory().GetPtr());
+        const int32_t* repeatsData = reinterpret_cast<const int32_t *>(getParentEdgesAtPort(TILE_REPEATS)[0]->getMemory().GetData());
         for (size_t i = 0lu; i < originRepeats.size(); i++) {
             if (originRepeats[i] != static_cast<size_t>(repeatsData[i]))
                 return true;
@@ -153,8 +153,8 @@ void Tile::plainExecute(dnnl::stream strm) {
 
     auto& srcMemory = getParentEdgeAt(TILE_INPUT)->getMemory();
 
-    const uint8_t* src_ptr = reinterpret_cast<const uint8_t*>(srcMemory.GetPtr());
-    uint8_t* dst_ptr = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemory().GetPtr());
+    const uint8_t* src_ptr = reinterpret_cast<const uint8_t*>(srcMemory.GetData());
+    uint8_t* dst_ptr = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemory().GetData());
 
     int m_inner_dim = 1;
     int m_outer_dim = 1;

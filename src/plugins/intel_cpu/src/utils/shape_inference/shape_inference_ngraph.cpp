@@ -36,7 +36,7 @@ NgraphShapeInfer::infer(
             input_values[port] = std::make_shared<ngraph::runtime::HostTensor>(
                 InferenceEngine::details::convertPrecision(memPtr->getDesc().getPrecision()),
                 shape,
-                memPtr->GetPtr());
+                memPtr->GetData());
         }
     }
     // call shape inference API

@@ -94,7 +94,7 @@ void BlobDumper::prepare_plain_data(const MemoryPtr &memory, std::vector<uint8_t
 
     // check if it already plain
     if (desc.hasLayoutType(LayoutType::ncsp)) {
-        cpu_memcpy(data.data(), reinterpret_cast<const uint8_t*>(memory->GetPtr()), size);
+        cpu_memcpy(data.data(), reinterpret_cast<const uint8_t*>(memory->GetData()), size);
         return;
     }
 

@@ -54,7 +54,7 @@ void EmbeddingBagSum::processData(const T* srcData, const T* weightsData,
     initFromInputs();
 
     const size_t outputBagsNum = outMemory->GetShape().getStaticDims()[0];
-    auto *dstData = reinterpret_cast<T *>(outMemory->GetPtr());
+    auto *dstData = reinterpret_cast<T *>(outMemory->GetData());
 
     auto threadBody = [&](const int ithr, const int nthr) {
         size_t start(0lu), end(0lu);

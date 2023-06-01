@@ -178,10 +178,10 @@ Roll::RollExecutor::RollExecutor(const VectorDims& dataDims, const VectorDims& s
 template<typename T>
 void Roll::RollExecutor::exec(const MemoryPtr& dataMemPtr, const MemoryPtr& shiftMemPtr, const MemoryPtr& axesMemPtr,
     const MemoryPtr& dstMemPtr) {
-    const auto *data = reinterpret_cast<const T *>(dataMemPtr->GetPtr());
-    const auto *shift = reinterpret_cast<const int32_t *>(shiftMemPtr->GetPtr());
-    const auto *axes = reinterpret_cast<const int32_t *>(axesMemPtr->GetPtr());
-    auto *dst = reinterpret_cast<T *>(dstMemPtr->GetPtr());
+    const auto *data = reinterpret_cast<const T *>(dataMemPtr->GetData());
+    const auto *shift = reinterpret_cast<const int32_t *>(shiftMemPtr->GetData());
+    const auto *axes = reinterpret_cast<const int32_t *>(axesMemPtr->GetData());
+    auto *dst = reinterpret_cast<T *>(dstMemPtr->GetData());
 
     std::vector<size_t> shiftsVector(numOfDims, 0ul);
     const VectorDims& dataDims = dataMemPtr->getStaticDims();

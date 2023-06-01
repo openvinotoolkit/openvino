@@ -239,7 +239,7 @@ void Pad::PadExecutor::paramsInitialization(const PadAttrs& attrs,
 
     auto fillingInParameters =
         [&](VectorIdxs& parameter, const size_t type, const size_t size, const int value) {
-            const int* ptr = reinterpret_cast<const int32_t*>(srcMemory[type]->GetPtr());
+            const int* ptr = reinterpret_cast<const int32_t*>(srcMemory[type]->GetData());
             parameter.resize(size);
             for (size_t i = 0; i < size; i++) {
                 parameter[i] = static_cast<int>(ptr[i]);
@@ -251,7 +251,7 @@ void Pad::PadExecutor::paramsInitialization(const PadAttrs& attrs,
     if (params.attrs.padsEnd.empty())
         fillingInParameters(params.attrs.padsEnd, PADS_END_ID, srcDims.size(), 0);
     if (!params.attrs.constPadValue)
-        params.attrs.padValue = reinterpret_cast<const float*>(srcMemory[PAD_VALUE_ID]->GetPtr())[0];
+        params.attrs.padValue = reinterpret_cast<const float*>(srcMemory[PAD_VALUE_ID]->GetData())[0];
     // pads are constant, so we can calculate new collapsing pads for first target dimensions and use it for the next
     // dimensions to avoid permanent identical pad calculations
     const size_t blockSize = srcMemPtr->getDesc().hasLayoutType(LayoutType::nCsp16c)
@@ -440,7 +440,7 @@ void Pad::PadExecutor::padConstant(const MemoryPtr& srcMemPtr, const MemoryPtr& 
 
 template <typename T>
 void Pad::PadExecutor::padConstantCommon(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr) {
-    T* dstData = reinterpret_cast<T*>(dstMemPtr->GetPtr());
+    T* dstData = reinterpret_cast<T*>(dstMemPtr->GetData());
     const T value = static_cast<T>(params.attrs.padValue);
     if (zeroInputDimsCase) {
         const auto workAmount = dstMemPtr->GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
@@ -451,7 +451,7 @@ void Pad::PadExecutor::padConstantCommon(const MemoryPtr& srcMemPtr, const Memor
         return;
     }
 
-    const T* srcData = reinterpret_cast<const T*>(srcMemPtr->GetPtr());
+    const T* srcData = reinterpret_cast<const T*>(srcMemPtr->GetData());
 
     parallel_nt(params.nThreads, [&](const int ithr, const int nthr) {
         size_t start = 0, end = 0;
@@ -489,8 +489,8 @@ void Pad::PadExecutor::padConstantCommon(const MemoryPtr& srcMemPtr, const Memor
 }
 
 void Pad::PadExecutor::padConstantZero(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr) {
-    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(srcMemPtr->GetPtr());
-    uint8_t* dstData = reinterpret_cast<uint8_t*>(dstMemPtr->GetPtr());
+    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(srcMemPtr->GetData());
+    uint8_t* dstData = reinterpret_cast<uint8_t*>(dstMemPtr->GetData());
 
     parallel_nt(params.nThreads, [&](const int ithr, const int nthr) {
         size_t start = 0, end = 0;
@@ -530,8 +530,8 @@ void Pad::PadExecutor::padConstantZero(const MemoryPtr& srcMemPtr, const MemoryP
 }
 
 void Pad::PadExecutor::padEdge(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr) {
-    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(srcMemPtr->GetPtr());
-    uint8_t* dstData = reinterpret_cast<uint8_t*>(dstMemPtr->GetPtr());
+    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(srcMemPtr->GetData());
+    uint8_t* dstData = reinterpret_cast<uint8_t*>(dstMemPtr->GetData());
 
     parallel_nt(params.nThreads, [&](const int ithr, const int nthr) {
         size_t start = 0, end = 0;
@@ -571,8 +571,8 @@ void Pad::PadExecutor::padEdge(const MemoryPtr& srcMemPtr, const MemoryPtr& dstM
 }
 
 void Pad::PadExecutor::padReflectOrSymmetric(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr, const bool isSymmetric) {
-    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(srcMemPtr->GetPtr());
-    uint8_t* dstData = reinterpret_cast<uint8_t*>(dstMemPtr->GetPtr());
+    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(srcMemPtr->GetData());
+    uint8_t* dstData = reinterpret_cast<uint8_t*>(dstMemPtr->GetData());
     const size_t shift = isSymmetric ? 1 : 0;
     const size_t endSrcShift = (params.srcDimsForReflectOrSymmetric[params.nDimsForWork] - params.srcODims[params.nDimsForWork]) * params.shift;
 

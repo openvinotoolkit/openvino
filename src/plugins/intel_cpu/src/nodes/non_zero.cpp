@@ -131,7 +131,7 @@ void NonZero::execute(dnnl::stream strm) {
 template <typename T>
 void NonZero::executeSpecified() {
     const T zero = 0;
-    const T *src = reinterpret_cast<T *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const T *src = reinterpret_cast<T *>(getParentEdgeAt(0)->getMemoryPtr()->GetData());
     auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     Shape inShape = getParentEdgeAt(0)->getMemory().GetShape();
     size_t inRank = inShape.getRank();
@@ -148,7 +148,7 @@ void NonZero::executeSpecified() {
         VectorDims newDims{inRank, totalNonZeroCount};
         redefineOutputMemory({newDims});
     }
-    int* dst = reinterpret_cast<int*>(dstMemPtr->GetPtr());
+    int* dst = reinterpret_cast<int*>(dstMemPtr->GetData());
     if (totalNonZeroCount == 0)
         return;
 

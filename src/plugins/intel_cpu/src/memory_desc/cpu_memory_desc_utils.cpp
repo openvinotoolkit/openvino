@@ -89,7 +89,7 @@ BlockedMemoryDescPtr MemoryDescUtils::convertToBlockedMemoryDesc(const MemoryDes
     }
 }
 
-InferenceEngine::Blob::Ptr MemoryDescUtils::interpretAsBlob(const Memory &mem) {
+InferenceEngine::Blob::Ptr MemoryDescUtils::interpretAsBlob(const IMemory &mem) {
     // TODO [DS]: Rewrite when IE is moved to the new TensorDescriptor
     auto& memDesc = mem.getDesc();
     InferenceEngine::TensorDesc desc = convertToTensorDesc(memDesc);
@@ -98,7 +98,7 @@ InferenceEngine::Blob::Ptr MemoryDescUtils::interpretAsBlob(const Memory &mem) {
     return make_blob_with_precision(desc, mem.GetData());
 }
 
-InferenceEngine::TensorDesc MemoryDescUtils::interpretAsBlobDesc(const Memory &mem) {
+InferenceEngine::TensorDesc MemoryDescUtils::interpretAsBlobDesc(const IMemory &mem) {
     auto& memDesc = mem.getDesc();
     InferenceEngine::TensorDesc desc = convertToTensorDesc(memDesc);
 

@@ -461,7 +461,7 @@ void Concat::execute(dnnl::stream strm) {
     if (canExecRef) {
         execRef();
     } else {
-        const Memory& dst_memory = getChildEdgeAt(0)->getMemory();
+        const auto& dst_memory = getChildEdgeAt(0)->getMemory();
         const size_t num_src = getParentEdges().size();
         std::unordered_map<int, memory> mem_ags {{DNNL_ARG_DST, dst_memory.GetPrimitive()}};
         size_t nonZeroInShapes = 0;
@@ -482,7 +482,7 @@ InferenceEngine::Precision Concat::getRuntimePrecision() const {
 }
 
 void Concat::execNspcSpecCase() {
-    const Memory& dst_memory = getChildEdgeAt(0)->getMemory();
+    const auto& dst_memory = getChildEdgeAt(0)->getMemory();
     const size_t num_src = getParentEdges().size();
     uint8_t* dst_ptr = reinterpret_cast<uint8_t*>(dst_memory.GetData());
     const size_t dataSize = DnnlExtensionUtils::sizeOfDataType(dst_memory.GetDataType());
@@ -495,7 +495,7 @@ void Concat::execNspcSpecCase() {
     size_t nonZeroInShapes = 0;
     int firstNonZeroEdge = -1;
     for (size_t i = 0; i < num_src; i++) {
-        const Memory& src_mem = getParentEdgesAtPort(i)[0]->getMemory();
+        const auto& src_mem = getParentEdgesAtPort(i)[0]->getMemory();
         if (src_mem.GetShape().hasZeroDims()) {
             continue;
         }
@@ -525,14 +525,14 @@ void Concat::execNspcSpecCase() {
 
 void Concat::execRef() {
     const size_t numSrc = getParentEdges().size();
-    const Memory& dstMemory = getChildEdgeAt(0)->getMemory();
+    const auto& dstMemory = getChildEdgeAt(0)->getMemory();
     const size_t elemSize = DnnlExtensionUtils::sizeOfDataType(dstMemory.GetDataType());
     const auto dstMemBlkDesc = dstMemory.getDescPtr()->as<BlockedMemoryDesc>();
     const auto& outputShape = dstMemBlkDesc->getBlockDims();
     uint8_t* dstPtr = reinterpret_cast<uint8_t*>(dstMemory.GetData());
     for (size_t i = 0; i < numSrc; i++) {
-        const Memory& srcMem = getParentEdgesAtPort(i)[0]->getMemory();
-        srcPtrs[i] = reinterpret_cast<const uint8_t*>(srcMem.GetPtr());
+        const auto& srcMem = getParentEdgesAtPort(i)[0]->getMemory();
+        srcPtrs[i] = reinterpret_cast<const uint8_t*>(srcMem.GetData());
     }
 
     size_t outputStrides[MAX_RANK_REF] = {0};
@@ -640,8 +640,7 @@ void Concat::resolveInPlaceEdges(Edge::LOOK look) {
             IE_ASSERT(parentEdge->getStatus() == Edge::Status::NotAllocated) << "Unexpected inplace resolve call to an allocated edge: " << parentEdge->name();
 
             auto memMngr = std::make_shared<PartitionedMemoryMngr>(baseMemMngr, numberOfInputs, i);
-            auto newMem = std::make_shared<Memory>(getEngine());
-            newMem->Create(selected_pd->getConfig().inConfs[i].getMemDesc(), memMngr);
+            auto newMem = std::make_shared<Memory>(getEngine(), std::unique_ptr<IMemoryMngr>(memMngr.get()), selected_pd->getConfig().inConfs[i].getMemDesc());
 
             parentEdge->resetMemoryPtr(newMem);
         }

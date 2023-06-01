@@ -23,8 +23,8 @@ public:
     }
 
     MemoryPtr createScratchPadMem(const MemoryDescPtr& md) {
-        auto mem = std::make_shared<Memory>(eng);
-        mem->Create(md, mgrPtr);
+        auto mem = std::make_shared<Memory>(eng, std::unique_ptr<IMemoryMngr>(mgrPtr.get()), md);
+        // mem->Create(md, mgrPtr);
         return mem;
     }
 };

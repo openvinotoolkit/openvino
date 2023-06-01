@@ -34,10 +34,15 @@ namespace {
     }
 }   // namespace
 
-Memory::Memory(const dnnl::engine& eng) :
-    eng(eng), mgrHandle(std::make_shared<DnnlMemoryMngr>(std::unique_ptr<MemoryMngrWithReuse>(new MemoryMngrWithReuse())), this), dnnlMemHandle(this) {}
-Memory::Memory(const dnnl::engine& eng, std::unique_ptr<IMemoryMngr> mngr) :
-    eng(eng), mgrHandle(std::make_shared<DnnlMemoryMngr>(std::move(mngr)), this), dnnlMemHandle(this) {}
+Memory::Memory(const dnnl::engine& eng, MemoryDescPtr _pMemDesc, const void* data, bool pads_zeroing) :
+    eng(eng), mgrHandle(std::make_shared<DnnlMemoryMngr>(std::unique_ptr<MemoryMngrWithReuse>(new MemoryMngrWithReuse())), this), dnnlMemHandle(this), IMemory(_pMemDesc) {Create(pMemDesc, data, pads_zeroing);}
+Memory::Memory(const dnnl::engine& eng, const MemoryDesc& _MemDesc, const void* data, bool pads_zeroing) :
+    eng(eng), mgrHandle(std::make_shared<DnnlMemoryMngr>(std::unique_ptr<MemoryMngrWithReuse>(new MemoryMngrWithReuse())), this), dnnlMemHandle(this), IMemory(_MemDesc.clone()) {Create(pMemDesc, data, pads_zeroing);}
+
+Memory::Memory(const dnnl::engine& eng, std::unique_ptr<IMemoryMngr> mngr, MemoryDescPtr _pMemDesc) :
+    eng(eng), mgrHandle(std::make_shared<DnnlMemoryMngr>(std::move(mngr)), this), dnnlMemHandle(this), IMemory(_pMemDesc) { Create(_pMemDesc, mgrHandle.get());}
+Memory::Memory(const dnnl::engine& eng, std::unique_ptr<IMemoryMngr> mngr, const MemoryDesc& _MemDesc) :
+    eng(eng), mgrHandle(std::make_shared<DnnlMemoryMngr>(std::move(mngr)), this), dnnlMemHandle(this), IMemory(_MemDesc.clone()) { Create(pMemDesc, mgrHandle.get());}
 
 size_t Memory::GetSize() const {
     auto size = getDesc().getCurrentMemSize();
@@ -68,7 +73,7 @@ void Memory::Create(MemoryDescPtr desc, const void* data, bool pads_zeroing) {
     }
 }
 
-void Memory::SetData(const Memory& src, bool ftz) const {
+void Memory::SetData(const IMemory& src, bool ftz) const {
     node::Reorder::reorderData(src, *this);
 
     auto localPrim = GetPrimitive();
@@ -94,39 +99,39 @@ void Memory::FillZero() {
         memset(dataPtr, 0, getDesc().getCurrentMemSize());
 }
 
-void *Memory::GetPtr() const  {
-    auto ptr = static_cast<uint8_t*>(GetData());
-    ptr += pMemDesc->getOffsetPadding() * pMemDesc->getPrecision().size();
-    return ptr;
-}
+// void *Memory::GetPtr() const  {
+//     auto ptr = static_cast<uint8_t*>(GetData());
+//     ptr += pMemDesc->getOffsetPadding() * pMemDesc->getPrecision().size();
+//     return ptr;
+// }
 
-void Memory::redefineDesc(MemoryDescPtr desc) {
+void Memory::redefineDesc(MemoryDescPtr desc, const void* data, bool pads_zeroing) {
     if (!desc->hasDefinedMaxSize()) {
         IE_THROW() << "Can not reset descriptor, memory upper bound is unknown.";
     }
 
-    this->Create(desc, nullptr, false);
+    this->Create(desc, data, pads_zeroing);  // nullptr, false
 }
 
 template<>
-DnnlMemoryDescPtr Memory::GetDescWithType<DnnlMemoryDesc, 0, 0>() const {
+DnnlMemoryDescPtr IMemory::GetDescWithType<DnnlMemoryDesc, 0, 0>() const {
     return MemoryDescUtils::convertToDnnlMemoryDesc(pMemDesc);
 }
 
-void Memory::setDataHandle(void *data) {
-    if (!mgrHandle->hasExtBuffer()) {
-        mgrHandle = DnnlMemMngrHandle(
-            std::make_shared<DnnlMemoryMngr>(std::unique_ptr<MemoryMngrWithReuse>(new MemoryMngrWithReuse())),
-            this);
-    }
+// void Memory::setDataHandle(void *data) {
+//     if (!mgrHandle->hasExtBuffer()) {
+//         mgrHandle = DnnlMemMngrHandle(
+//             std::make_shared<DnnlMemoryMngr>(std::unique_ptr<MemoryMngrWithReuse>(new MemoryMngrWithReuse())),
+//             this);
+//     }
 
-    size_t maxMemSize = pMemDesc->isDefined() ?  pMemDesc->getCurrentMemSize() : 0;
-    mgrHandle->setExtBuff(data, maxMemSize);
-    if (dnnlMemHandle.isInit()) {
-        auto prim = dnnlMemHandle.getPrim();
-        prim.set_data_handle(mgrHandle->getRawPtr()); // for pads zeroing, to preserve dnnl::memory::set_data_handle behaviour
-    }
-}
+//     size_t maxMemSize = pMemDesc->isDefined() ?  pMemDesc->getCurrentMemSize() : 0;
+//     mgrHandle->setExtBuff(data, maxMemSize);
+//     if (dnnlMemHandle.isInit()) {
+//         auto prim = dnnlMemHandle.getPrim();
+//         prim.set_data_handle(mgrHandle->getRawPtr()); // for pads zeroing, to preserve dnnl::memory::set_data_handle behaviour
+//     }
+// }
 
 void Memory::update() {
     if (dnnlMemHandle.isInit()) {
@@ -147,7 +152,7 @@ void Memory::Create(MemoryDescPtr desc, MemoryMngrPtr memMgr) {
 }
 
 template<>
-BlockedMemoryDescPtr Memory::GetDescWithType<BlockedMemoryDesc, 0, 0>() const {
+BlockedMemoryDescPtr IMemory::GetDescWithType<BlockedMemoryDesc, 0, 0>() const {
     return MemoryDescUtils::convertToBlockedMemoryDesc(pMemDesc);
 }
 

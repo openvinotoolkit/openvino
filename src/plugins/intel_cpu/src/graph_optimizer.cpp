@@ -242,7 +242,7 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph &graph) {
         if (scalesBlob == nullptr)
             IE_THROW() << "Cannot cast to TBlob internal scales blob";
 
-        auto scalesData = static_cast<const float*>(scalesBlob->GetPtr());
+        auto scalesData = static_cast<const float*>(scalesBlob->GetData());
         if (scalesData == nullptr)
             IE_THROW() << "scalesBlob has not allocated buffer";
         auto scalesDims = getNormalizedDimsBySize(scales->getOutputShapeAtPort(0).getDims(),
@@ -768,7 +768,7 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph &graph) {
         if (zeroPointsBlob == nullptr)
             IE_THROW() << "Cannot cast to TBlob internal zero points blob";
 
-        auto zeroPointsData = static_cast<const uint8_t*>(zeroPointsBlob->GetPtr());
+        auto zeroPointsData = static_cast<const uint8_t*>(zeroPointsBlob->GetData());
         if (zeroPointsData == nullptr)
             IE_THROW() << "zeroPointsBlob has not allocated buffer";
 
@@ -798,7 +798,7 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph &graph) {
         if (weightsBlob == nullptr)
             IE_THROW() << "Cannot cast to TBlob internal weights blob";
 
-        auto weightsPtr = static_cast<const int8_t*>(weightsBlob->GetPtr());
+        auto weightsPtr = static_cast<const int8_t*>(weightsBlob->GetData());
         if (weightsPtr == nullptr)
             IE_THROW() << "weightsBlob has not allocated buffer";
 

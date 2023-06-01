@@ -32,7 +32,7 @@ public:
     Result infer(
         const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
         const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
-        const int* in_data = reinterpret_cast<const int*>(data_dependency.at(0)->GetPtr());
+        const int* in_data = reinterpret_cast<const int*>(data_dependency.at(0)->GetData());
         const int H = in_data[0];
         const int W = in_data[1];
         const auto output = static_cast<size_t>(4 * H * W * m_number_of_priors);
@@ -112,7 +112,7 @@ bool PriorBoxClustered::needShapeInfer() const {
     }
 
     const auto& outputShape = memory->GetShape().getStaticDims();
-    const int* in_data = reinterpret_cast<int*>(memory->GetPtr());
+    const int* in_data = reinterpret_cast<int*>(memory->GetData());
     const int h = in_data[0];
     const int w = in_data[1];
     const auto output = static_cast<size_t>(4 * h * w * number_of_priors);
@@ -143,11 +143,11 @@ void PriorBoxClustered::createPrimitive() {
 }
 
 void PriorBoxClustered::execute(dnnl::stream strm) {
-    const int* in_data = reinterpret_cast<int*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const int* in_data = reinterpret_cast<int*>(getParentEdgeAt(0)->getMemoryPtr()->GetData());
     const int layer_height = in_data[0];
     const int layer_width = in_data[1];
 
-    const int* in_image = reinterpret_cast<int*>(getParentEdgeAt(1)->getMemoryPtr()->GetPtr());
+    const int* in_image = reinterpret_cast<int*>(getParentEdgeAt(1)->getMemoryPtr()->GetData());
     int img_height = in_image[0];
     int img_width = in_image[1];
 
@@ -158,7 +158,7 @@ void PriorBoxClustered::execute(dnnl::stream strm) {
         step_h = static_cast<float>(img_height) / layer_height;
     }
 
-    float* dst_data = reinterpret_cast<float*>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    float* dst_data = reinterpret_cast<float*>(getChildEdgeAt(0)->getMemoryPtr()->GetData());
     const auto& out_shape = getChildEdgeAt(0)->getMemory().GetShape().getStaticDims();
 
     size_t var_size = variances.size();

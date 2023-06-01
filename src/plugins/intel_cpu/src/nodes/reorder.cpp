@@ -190,11 +190,9 @@ void Reorder::createReorderPrimitive(const dnnl::memory::desc& srcDesc,
         IE_THROW() << "Preferable primitive descriptor is not set.";
 
     const auto engine = getEngine();
-    src_blocked = std::make_shared<Memory>(engine);
-    src_blocked->Create(DnnlExtensionUtils::makeDescriptor(srcDesc), srcPtr, false);
+    src_blocked = std::make_shared<Memory>(engine, DnnlExtensionUtils::makeDescriptor(srcDesc), srcPtr, false);
 
-    dst_blocked = std::make_shared<Memory>(engine);
-    dst_blocked->Create(DnnlExtensionUtils::makeDescriptor(dstDesc), dstPtr, false);
+    dst_blocked = std::make_shared<Memory>(engine, DnnlExtensionUtils::makeDescriptor(dstDesc), dstPtr, false);
 
     auto src_desc = src_blocked->GetPrimitive().get_desc();
     if (!src_permutation.empty()) {
@@ -227,7 +225,7 @@ void Reorder::createReorderPrimitive(const dnnl::memory::desc& srcDesc,
         auto newDesc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(newDims),
                                             src_blocked->GetDataType(),
                                             newFormat);
-        src_blocked->Create(DnnlExtensionUtils::makeDescriptor(newDesc), srcPtr, false);
+        src_blocked->redefineDesc(DnnlExtensionUtils::makeDescriptor(newDesc), srcPtr, false);
 
         src_desc = src_blocked->GetPrimitive().get_desc();
     }
@@ -276,8 +274,8 @@ void Reorder::optimizedNcsp2Nspc() {
     const size_t DIM3 = inDims[ndims - 2];
     const size_t DIM4 = inDims[ndims - 1];
 
-    auto src_data = reinterpret_cast<const uint8_t *>(parentEdge->getMemoryPtr()->GetPtr());
-    auto dst_data = reinterpret_cast<uint8_t *>(childEdge->getMemoryPtr()->GetPtr());
+    auto src_data = reinterpret_cast<const uint8_t *>(parentEdge->getMemoryPtr()->GetData());
+    auto dst_data = reinterpret_cast<uint8_t *>(childEdge->getMemoryPtr()->GetData());
 
     const size_t src_batch_stride = DIM1 * DIM2 * DIM3 * DIM4;
     const size_t dst_batch_stride = dstStrides[0];
@@ -309,8 +307,8 @@ void Reorder::optimizedNspc2Ncsp() {
     const size_t DIM3 = inDims[ndims - 2];
     const size_t DIM4 = inDims[ndims - 1];
 
-    auto src_data = reinterpret_cast<const float *>(parentEdge->getMemoryPtr()->GetPtr());
-    auto dst_data = reinterpret_cast<float *>(childEdge->getMemoryPtr()->GetPtr());
+    auto src_data = reinterpret_cast<const float *>(parentEdge->getMemoryPtr()->GetData());
+    auto dst_data = reinterpret_cast<float *>(childEdge->getMemoryPtr()->GetData());
 
     const auto dstStrides = childEdge->getMemoryPtr()->GetDescWithType<BlockedMemoryDesc>()->getStrides();
     const size_t block_size = DIM2 * DIM3 * DIM4;
@@ -340,8 +338,8 @@ void Reorder::execute(dnnl::stream strm) {
     } else if (canUseNcsp2Nspc) {
         optimizedNcsp2Nspc();
     } else {
-        src_blocked->setDataHandle(getParentEdgeAt(0)->getMemory().GetData());
-        dst_blocked->setDataHandle(getChildEdgeAt(0)->getMemory().GetData());
+        // src_blocked->setDataHandle(getParentEdgeAt(0)->getMemory().GetData());
+        // dst_blocked->setDataHandle(getChildEdgeAt(0)->getMemory().GetData());
 
         if (prim) {
             prim.execute(strm, primArgs);
@@ -366,7 +364,7 @@ std::string Reorder::getReorderArgs(const MemoryDesc &parentDesc, const MemoryDe
     return inArgs + "_" + outArgs;
 }
 
-void Reorder::reorderData(const Memory &input, const Memory &output, MultiCachePtr cache) {
+void Reorder::reorderData(const IMemory &input, const IMemory &output, MultiCachePtr cache) {
     if (!input.getDesc().isDefined() || !output.getDesc().isDefined())
         IE_THROW() << "Can't reorder data with dynamic shapes";
 
@@ -375,8 +373,8 @@ void Reorder::reorderData(const Memory &input, const Memory &output, MultiCacheP
     }
 
     if (input.getDesc().isCompatible(output.getDesc())) {
-        auto srcPtr = static_cast<uint8_t*>(input.GetPtr());
-        auto dstPtr = static_cast<uint8_t*>(output.GetPtr());
+        auto srcPtr = static_cast<uint8_t*>(input.GetData());
+        auto dstPtr = static_cast<uint8_t*>(output.GetData());
 
         auto copySize = output.GetSize();
         cpu_memcpy(dstPtr, srcPtr, copySize);
@@ -386,7 +384,7 @@ void Reorder::reorderData(const Memory &input, const Memory &output, MultiCacheP
 
         auto srcMemory = input.GetPrimitive();
         auto dstMemory = output.GetPrimitive();
-        auto engine = output.getEngine();
+        auto engine = dstMemory.get_engine();
         // try directly reorder
         reorder = getReorderPrim(cache, dstMemory.get_engine(), srcMemory.get_desc(), dstMemory.get_desc());
         if (!reorder) {
@@ -395,16 +393,15 @@ void Reorder::reorderData(const Memory &input, const Memory &output, MultiCacheP
                 Convert::isSupportedDesc(output.getDesc())) {
                 //we probably could not make the reorder because there is no one supporting this precision conversion
                 //lets try to convert data first using cpu_convert
-                auto data = static_cast<const uint8_t *>(input.GetPtr());
+                auto data = static_cast<const uint8_t *>(input.GetData());
                 tmpBuff.resize(input.GetSize());
 
                 const auto outPrc = DnnlExtensionUtils::DataTypeToIEPrecision(output.GetDataType());
                 cpu_convert(data, tmpBuff.data(), DnnlExtensionUtils::DataTypeToIEPrecision(input.GetDataType()),
                             outPrc, input.GetSize() / input.getDesc().getPrecision().size());
 
-                Memory tmpMem(engine);
                 auto tmpDesc = input.getDesc().cloneWithNewPrecision(outPrc);
-                tmpMem.Create(std::move(tmpDesc), tmpBuff.data());
+                Memory tmpMem(engine, std::move(tmpDesc), tmpBuff.data());
 
                 srcMemory = tmpMem.GetPrimitive();
                 reorder = getReorderPrim(cache, dstMemory.get_engine(), srcMemory.get_desc(), dstMemory.get_desc());

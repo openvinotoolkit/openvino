@@ -297,8 +297,7 @@ MemoryPtr DynamicBuffer::create_buffer(const dnnl::engine& eng) {
     auto _descCreator = BlockedDescCreator::getCommonCreators().at(LayoutType::ncsp);
     auto new_buffer_desc = _descCreator->createSharedDesc(from->getDesc().getPrecision(), _shape);
 
-    auto _ptr = std::make_shared<Memory>(eng);
-    _ptr->Create(*new_buffer_desc);
+    auto _ptr = std::make_shared<Memory>(eng, new_buffer_desc);
     return _ptr;
 }
 
@@ -313,7 +312,7 @@ void DynamicBuffer::move_buffer(const MemoryPtr& new_buffer) {
     const auto src_offset_in_byte = stride > 0 ? 0 : (src_stride - valid_size);
     chunk_offset_in_byte = stride > 0 ? 0 : (dst_stride - valid_size);  // reset chunk_offset_in_byte
 
-    copy(reinterpret_cast<uint8_t*>(mem_holder_buffer->GetPtr()) + src_offset_in_byte, reinterpret_cast<uint8_t*>(new_buffer->GetPtr()) + chunk_offset_in_byte,
+    copy(reinterpret_cast<uint8_t*>(mem_holder_buffer->GetData()) + src_offset_in_byte, reinterpret_cast<uint8_t*>(new_buffer->GetData()) + chunk_offset_in_byte,
         src_stride, dst_stride, count, valid_size);
 
     // assign mem_holder_buffer
@@ -332,7 +331,7 @@ void DynamicBuffer::move_data() {
     const auto src_stride = abs(map_rule.stride) * len;
     const auto dst_stride = chunk_stride_in_byte;
 
-    copy(reinterpret_cast<const uint8_t*>(from->GetPtr()), reinterpret_cast<uint8_t*>(mem_holder_buffer->GetPtr()) + chunk_offset_in_byte,
+    copy(reinterpret_cast<const uint8_t*>(from->GetData()), reinterpret_cast<uint8_t*>(mem_holder_buffer->GetData()) + chunk_offset_in_byte,
          src_stride, dst_stride, count, chunk_unit_in_byte);
 
     // adjust for next execution
@@ -363,7 +362,7 @@ void DynamicBuffer::transfer(const Node* node) {
         const auto dst_stride = to.front()->getStaticDims()[axis] * len;
         const auto valid_size = chunk_unit_in_byte * num_execs;
         const auto src_offset_in_byte = stride > 0 ? 0 : (src_stride - valid_size);
-        copy(reinterpret_cast<uint8_t*>(mem_holder_buffer->GetPtr()) + src_offset_in_byte, reinterpret_cast<uint8_t*>(to.front()->GetPtr()),
+        copy(reinterpret_cast<uint8_t*>(mem_holder_buffer->GetData()) + src_offset_in_byte, reinterpret_cast<uint8_t*>(to.front()->GetData()),
             src_stride, dst_stride, count, dst_stride);
     } else {
         VectorDims newDims = to.front()->GetShape().getDims();
@@ -521,8 +520,8 @@ void TensorIterator::createPrimitive() {
 
 bool TensorIterator::needPrepareParams() const {
     if (getAlgorithm() == Algorithm::TensorIteratorLoop) {
-        const auto tripCountPtr = reinterpret_cast<const uint32_t*>(getParentEdgesAtPort(loopTripCountIdx).front()->getMemoryPtr()->GetPtr());
-        const auto condPtr = reinterpret_cast<const uint8_t*>(getParentEdgesAtPort(loopExecutionConditionIdx).front()->getMemoryPtr()->GetPtr());
+        const auto tripCountPtr = reinterpret_cast<const uint32_t*>(getParentEdgesAtPort(loopTripCountIdx).front()->getMemoryPtr()->GetData());
+        const auto condPtr = reinterpret_cast<const uint8_t*>(getParentEdgesAtPort(loopExecutionConditionIdx).front()->getMemoryPtr()->GetData());
         if (tripCountPtr[0] != static_cast<size_t>(lastUsedTripCount) || static_cast<bool>(condPtr[0]) != lastUsedCond)
             return true;
     }

@@ -419,8 +419,8 @@ void ExtractImagePatches::initSupportedPrimitiveDescriptors() {
 
 void ExtractImagePatches::execute(dnnl::stream strm) {
     if (execPtr) {
-        auto src = getParentEdgeAt(0)->getMemoryPtr()->GetPtr();
-        auto dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr();
+        auto src = getParentEdgeAt(0)->getMemoryPtr()->GetData();
+        auto dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetData();
         const auto inStrides = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
         const auto outStrides = getChildEdgesAtPort(0)[0]->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
         execPtr->exec(src, dst, inStrides, outStrides);

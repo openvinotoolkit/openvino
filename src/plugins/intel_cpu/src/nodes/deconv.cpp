@@ -264,7 +264,7 @@ InferenceEngine::Blob::Ptr Deconvolution::createWeiBlobAsIO(InferenceEngine::Siz
     if (intBuffSize < offset) {
         IE_THROW() << "Cannot create internal buffer. Buffer can be overrun.";
     }
-    cpu_memcpy_s(data, intBuffSize, blb->GetPtr(), blbSize);
+    cpu_memcpy_s(data, intBuffSize, blb->GetData(), blbSize);
 
     return internalBlob;
 }
@@ -579,8 +579,7 @@ VectorDims Deconvolution::shapeInferInternal(const VectorDims &inDims, std::vect
                 outSpDimsVecShape = {outSpDims.size()};
                 inputShapesRefs.push_back(std::cref(outSpDimsVecShape));
                 CpuBlockedMemoryDesc desc(Precision::I32, Shape(outSpDimsVecShape));
-                auto mem = std::make_shared<Memory>(getEngine());
-                mem->Create(desc, outSpDims.data());
+                auto mem = std::make_shared<Memory>(getEngine(), desc, outSpDims.data());
                 inputValues[i] = mem;
                 break;
             }
@@ -1107,7 +1106,7 @@ std::vector<int32_t> Deconvolution::readOutputSpatialDims() const {
     if (shapeMemPtr->getStaticDims()[0] != spDimsNum) {
         IE_THROW() << "Can't read output spatial dims, beause 'output_shape' input has incorrect number of elements";
     }
-    const int32_t *outShapePtr = reinterpret_cast<const int32_t *>(shapeMemPtr->GetPtr());
+    const int32_t *outShapePtr = reinterpret_cast<const int32_t *>(shapeMemPtr->GetData());
     std::vector<int32_t> outSpDims(outShapePtr, outShapePtr + shapeMemPtr->getStaticDims()[0]);
     return outSpDims;
 }

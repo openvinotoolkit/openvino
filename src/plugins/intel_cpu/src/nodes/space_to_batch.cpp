@@ -101,21 +101,21 @@ void SpaceToBatch::SpaceToBatchKernel() {
     const auto& srcMem = getParentEdgesAtPort(0)[0]->getMemoryPtr();
     const auto& dstMem = getChildEdgesAtPort(0)[0]->getMemoryPtr();
 
-    const auto *blockShapesPtr = reinterpret_cast<int *>(getParentEdgeAt(1)->getMemoryPtr()->GetPtr());
+    const auto *blockShapesPtr = reinterpret_cast<int *>(getParentEdgeAt(1)->getMemoryPtr()->GetData());
     size_t dataRank = srcMem->GetShape().getRank();
     blockShapeIn.clear();
     for (size_t i = 0; i < dataRank; i++) {
         blockShapeIn.push_back(*(blockShapesPtr + i));
     }
 
-    const auto *padsBeginPtr = reinterpret_cast<int *>(getParentEdgeAt(2)->getMemoryPtr()->GetPtr());
+    const auto *padsBeginPtr = reinterpret_cast<int *>(getParentEdgeAt(2)->getMemoryPtr()->GetData());
     padsBeginIn.clear();
     for (size_t i = 0; i < dataRank; i++) {
         padsBeginIn.push_back(*(padsBeginPtr + i));
     }
 
-    const auto *srcData = reinterpret_cast<const T *>(srcMem->GetPtr());
-    auto *dstData = reinterpret_cast<T *>(dstMem->GetPtr());
+    const auto *srcData = reinterpret_cast<const T *>(srcMem->GetData());
+    auto *dstData = reinterpret_cast<T *>(dstMem->GetData());
 
     const int64_t srcLen = srcMem->GetSize() / sizeof(T);
     const int64_t dstLen = dstMem->GetSize() / sizeof(T);

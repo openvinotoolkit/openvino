@@ -2471,10 +2471,8 @@ void Eltwise::fuseInto(NodePtr& parentNode) {
 
 void Eltwise::appendMemory(const std::vector<float> &data, MemoryPtr &memPtr, std::vector<MemoryPtr>& postOpsMem) {
     if (!memPtr) {
-        memPtr.reset(new Memory(getEngine()));
         DnnlBlockedMemoryDesc memoryDesc(Precision::FP32, {data.size()});
-        memPtr->Create(memoryDesc, data.data());
-
+        memPtr.reset(new Memory(getEngine(), memoryDesc, data.data()));
         postOpsMem.push_back(memPtr);
     }
 }

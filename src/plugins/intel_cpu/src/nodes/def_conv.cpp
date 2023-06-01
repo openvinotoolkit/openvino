@@ -1278,15 +1278,15 @@ void DeformableConvolution::execute(dnnl::stream strm) {
     auto &srcMemory2 = getParentEdgeAt(2)->getMemory();
     auto &dstMemory = getChildEdgeAt(0)->getMemory();
 
-    const auto *src = reinterpret_cast<const float *>(srcMemory0.GetPtr());
-    const auto *offsets = reinterpret_cast<const float *>(srcMemory1.GetPtr());
-    const auto *weights = reinterpret_cast<const float *>(srcMemory2.GetPtr());
+    const auto *src = reinterpret_cast<const float *>(srcMemory0.GetData());
+    const auto *offsets = reinterpret_cast<const float *>(srcMemory1.GetData());
+    const auto *weights = reinterpret_cast<const float *>(srcMemory2.GetData());
     float* modulation = nullptr;
     if (inputsNumber > 3) {
-        modulation = reinterpret_cast<float *>(getParentEdgeAt(3)->getMemory().GetPtr());
+        modulation = reinterpret_cast<float *>(getParentEdgeAt(3)->getMemory().GetData());
     }
 
-    float *dst = reinterpret_cast<float *>(dstMemory.GetPtr());
+    float *dst = reinterpret_cast<float *>(dstMemory.GetData());
 
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor)

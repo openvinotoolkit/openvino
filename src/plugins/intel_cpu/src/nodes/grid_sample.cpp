@@ -262,9 +262,9 @@ void GridSample::prepareParams() {
 }
 
 void GridSample::execute(dnnl::stream strm) {
-    const void*    srcData = getParentEdgeAt(IN_DATA)->getMemoryPtr()->GetPtr();
-    const uint8_t* gridData = reinterpret_cast<uint8_t*>(getParentEdgeAt(IN_GRID)->getMemoryPtr()->GetPtr());
-    uint8_t*       dstData = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const void*    srcData = getParentEdgeAt(IN_DATA)->getMemoryPtr()->GetData();
+    const uint8_t* gridData = reinterpret_cast<uint8_t*>(getParentEdgeAt(IN_GRID)->getMemoryPtr()->GetData());
+    uint8_t*       dstData = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemoryPtr()->GetData());
 
     auto threadBody = [&](const int ithr, const int nthr) {
         const auto& p = execParamsPerThread[ithr];

@@ -106,7 +106,7 @@ bool MemoryInput::isSupportedOperation(const std::shared_ptr<const ngraph::Node>
 }
 
 MemoryInput::MemoryInput(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr ctx)
-        : Input(op, ctx), MemoryNode(op), dataStore(new Memory{ctx->getEngine()}) {
+        : Input(op, ctx), MemoryNode(op) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -119,7 +119,7 @@ MemoryInput::MemoryInput(const std::shared_ptr<ngraph::Node>& op, const GraphCon
 void MemoryInput::createPrimitive() {
     Input::createPrimitive();
 
-    dataStore->Create(getChildEdgeAt(0)->getMemory().getDesc());
+    dataStore = std::make_shared<Memory>(getEngine(), getChildEdgeAt(0)->getMemory().getDesc());
 
     // default memory state is zero filled
     if (dataStore->getDesc().hasDefinedMaxSize())
@@ -133,9 +133,9 @@ void MemoryInput::createPrimitive() {
  * @param src source memory object
  */
 inline
-static void simple_copy(const Memory& dst, const Memory& src) {
-    auto srcPtr = static_cast<uint8_t*>(src.GetPtr());
-    auto dstPtr = static_cast<uint8_t*>(dst.GetPtr());
+static void simple_copy(const IMemory& dst, const IMemory& src) {
+    auto srcPtr = static_cast<uint8_t*>(src.GetData());
+    auto dstPtr = static_cast<uint8_t*>(dst.GetData());
     if (src.GetDataType() == dst.GetDataType()) {
         auto srcSizeInByte = src.GetSize();
         auto dstSizeInByte = dst.GetSize();
@@ -157,7 +157,7 @@ MemoryPtr MemoryInput::getStore() {
     return dataStore;
 }
 
-void MemoryInput::storeState(const Memory &new_state) {
+void MemoryInput::storeState(const IMemory &new_state) {
     // TODO: Should be next one call:
     //           dataStore.SetData(new_state, false);
     //       But because of performance reason we use simple manual copy

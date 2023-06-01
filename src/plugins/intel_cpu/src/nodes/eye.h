@@ -45,7 +45,7 @@ private:
         auto rowMem = getParentEdgeAt(ROWS_NUM)->getMemoryPtr();
         if (rowMem == nullptr)
             IE_THROW() << errorPrefix << " doesn't contain row_count data";
-        const int *rowPtr = reinterpret_cast<const int *>(rowMem->GetPtr());
+        const int *rowPtr = reinterpret_cast<const int *>(rowMem->GetData());
 
         return rowPtr[0];
     }
@@ -53,7 +53,7 @@ private:
         auto colMem = getParentEdgeAt(COLS_NUM)->getMemoryPtr();
         if (colMem == nullptr)
             IE_THROW() << errorPrefix << " doesn't contain col_count data";
-        const int *colPtr =  reinterpret_cast<const int *>(colMem->GetPtr());
+        const int *colPtr =  reinterpret_cast<const int *>(colMem->GetData());
 
         return colPtr[0];
     }
@@ -61,7 +61,7 @@ private:
         auto diagIndMem = getParentEdgeAt(DIAGONAL_INDEX)->getMemoryPtr();
         if (diagIndMem == nullptr)
             IE_THROW() << errorPrefix << " doesn't contain diag_index data";
-        const int *diagIndexPtr = reinterpret_cast<const int *>(diagIndMem->GetPtr());
+        const int *diagIndexPtr = reinterpret_cast<const int *>(diagIndMem->GetData());
 
         return diagIndexPtr[0];
     }
@@ -69,7 +69,7 @@ private:
         if (withBatchShape) {
             const int batchShapeSize = static_cast<const int>(getParentEdgeAt(BATCH_SHAPE)->getMemoryPtr()->GetShape().getElementsCount());
             std::vector<int> batchShape(batchShapeSize);
-            const int *batchShapePtr = reinterpret_cast<const int *>(getParentEdgeAt(BATCH_SHAPE)->getMemoryPtr()->GetPtr());
+            const int *batchShapePtr = reinterpret_cast<const int *>(getParentEdgeAt(BATCH_SHAPE)->getMemoryPtr()->GetData());
             batchShape.assign(batchShapePtr, batchShapePtr + batchShapeSize);
             return batchShape;
         } else {

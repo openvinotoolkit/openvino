@@ -2182,7 +2182,7 @@ bool Interpolate::needShapeInfer() const {
         if (lastScales.empty()) {
             return true;
         }
-        const float *scales = reinterpret_cast<const float *>(getParentEdgesAtPort(get_scale_id())[0]->getMemory().GetPtr());
+        const float *scales = reinterpret_cast<const float *>(getParentEdgesAtPort(get_scale_id())[0]->getMemory().GetData());
         for (size_t i = 0; i < lastScales.size(); i++) {
             if (lastScales[i] != scales[i]) {
                 return true;
@@ -2192,7 +2192,7 @@ bool Interpolate::needShapeInfer() const {
         if (lastSizes.empty()) {
             return true;
         }
-        const int32_t *sizes = reinterpret_cast<const int32_t *>(getParentEdgesAtPort(TARGET_SHAPE_ID)[0]->getMemory().GetPtr());
+        const int32_t *sizes = reinterpret_cast<const int32_t *>(getParentEdgesAtPort(TARGET_SHAPE_ID)[0]->getMemory().GetData());
         for (size_t i = 0; i < lastSizes.size(); i++) {
             if (sizes[i] != lastSizes[i]) {
                 return true;
@@ -2208,10 +2208,10 @@ void Interpolate::executeDynamicImpl(dnnl::stream strm) {
     const size_t port = shapeCalcMode == InterpolateShapeCalcMode::sizes ? TARGET_SHAPE_ID : get_scale_id();
     const auto &memory = getParentEdgesAtPort(port)[0]->getMemory();
     if (shapeCalcMode == InterpolateShapeCalcMode::scales) {
-        const float *scales = reinterpret_cast<const float *>(memory.GetPtr());
+        const float *scales = reinterpret_cast<const float *>(memory.GetData());
         lastScales.assign(scales, scales + memory.getDesc().getShape().getElementsCount());
     } else {
-        const int32_t *sizes = reinterpret_cast<const int32_t *>(memory.GetPtr());
+        const int32_t *sizes = reinterpret_cast<const int32_t *>(memory.GetData());
         lastSizes.assign(sizes, sizes + memory.getDesc().getShape().getElementsCount());
     }
 }
@@ -2288,7 +2288,7 @@ void Interpolate::prepareParams() {
     if (shapeCalcMode == InterpolateShapeCalcMode::scales) {
         if (!isScaleConstant) {
             const auto& scalesMem = getParentEdgesAtPort(get_scale_id())[0]->getMemory();
-            const float* scalesData = reinterpret_cast<const float *>(scalesMem.GetPtr());
+            const float* scalesData = reinterpret_cast<const float *>(scalesMem.GetData());
             scales.assign(scalesData, scalesData + scalesMem.getStaticDims()[0]);
         }
     }
@@ -2447,7 +2447,7 @@ void Interpolate::execute(dnnl::stream strm) {
     auto srcMemPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
 
     if (execPtr) {
-        uint8_t *dst_data = reinterpret_cast<uint8_t*>(dstMemPtr->GetPtr());
+        uint8_t *dst_data = reinterpret_cast<uint8_t*>(dstMemPtr->GetData());
         const uint8_t *src_data_origin = reinterpret_cast<uint8_t*>(srcMemPtr->GetData());
         const uint8_t *src_data = nullptr;
         std::vector<uint8_t> srcPadded;

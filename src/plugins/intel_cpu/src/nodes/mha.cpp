@@ -1215,11 +1215,11 @@ void MHA::callBrgemm(brgemmCtx& ctx, std::unique_ptr<brgemm_kernel_t>& brgKernel
 
 template <typename in1_type>
 void MHA::mhaImpl() {
-    const uint8_t* pTranspose0In0 = reinterpret_cast<const uint8_t*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
-    const uint8_t* pTranspose1In0 = reinterpret_cast<const uint8_t*>(getParentEdgeAt(1)->getMemoryPtr()->GetPtr());
-    const float* pAddIn1 = reinterpret_cast<const float*>(getParentEdgeAt(2)->getMemoryPtr()->GetPtr());
-    const uint8_t* pTranspose2In0 = reinterpret_cast<const uint8_t*>(getParentEdgeAt(3)->getMemoryPtr()->GetPtr());
-    uint8_t* pout = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const uint8_t* pTranspose0In0 = reinterpret_cast<const uint8_t*>(getParentEdgeAt(0)->getMemoryPtr()->GetData());
+    const uint8_t* pTranspose1In0 = reinterpret_cast<const uint8_t*>(getParentEdgeAt(1)->getMemoryPtr()->GetData());
+    const float* pAddIn1 = reinterpret_cast<const float*>(getParentEdgeAt(2)->getMemoryPtr()->GetData());
+    const uint8_t* pTranspose2In0 = reinterpret_cast<const uint8_t*>(getParentEdgeAt(3)->getMemoryPtr()->GetData());
+    uint8_t* pout = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemoryPtr()->GetData());
 
     auto outPrcSize = outputPrecision.size();
 

@@ -33,7 +33,7 @@ public:
     Result infer(
         const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
         const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
-        auto depth = reinterpret_cast<int32_t *>(data_dependency.at(1)->GetPtr())[0];
+        auto depth = reinterpret_cast<int32_t *>(data_dependency.at(1)->GetData())[0];
 
         auto result = input_shapes.front().get();
         result.insert(result.begin() + m_axis, depth);
@@ -132,7 +132,7 @@ OneHot::OneHot(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr
 }
 
 bool OneHot::needShapeInfer() const {
-    const auto depthNodePtr = reinterpret_cast<int32_t *>(getParentEdgesAtPort(1)[0]->getMemoryPtr()->GetPtr());
+    const auto depthNodePtr = reinterpret_cast<int32_t *>(getParentEdgesAtPort(1)[0]->getMemoryPtr()->GetData());
     if (depth != static_cast<size_t>(depthNodePtr[0])) {
         depth = depthNodePtr[0];
         return true;
@@ -162,11 +162,11 @@ void OneHot::initSupportedPrimitiveDescriptors() {
 
 template<typename out_type>
 void OneHot::one_hot(size_t prefix_size, size_t suffix_size) {
-    const auto *src_data = reinterpret_cast<const in_type *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
-    auto *dst_data = reinterpret_cast<out_type *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const auto *src_data = reinterpret_cast<const in_type *>(getParentEdgeAt(0)->getMemoryPtr()->GetData());
+    auto *dst_data = reinterpret_cast<out_type *>(getChildEdgeAt(0)->getMemoryPtr()->GetData());
 
-    const out_type on_value = reinterpret_cast<const out_type *>(getParentEdgeAt(2)->getMemoryPtr()->GetPtr())[0];
-    const out_type off_value = reinterpret_cast<const out_type *>(getParentEdgeAt(3)->getMemoryPtr()->GetPtr())[0];
+    const out_type on_value = reinterpret_cast<const out_type *>(getParentEdgeAt(2)->getMemoryPtr()->GetData())[0];
+    const out_type off_value = reinterpret_cast<const out_type *>(getParentEdgeAt(3)->getMemoryPtr()->GetData())[0];
 
     // fill the output with off_value
     std::size_t dst_size = prefix_size * depth * suffix_size;

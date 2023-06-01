@@ -1944,12 +1944,12 @@ void TopK::initSupportedPrimitiveDescriptors() {
 }
 
 bool TopK::needShapeInfer() const {
-    const int src_k = reinterpret_cast<int *>(getParentEdgeAt(TOPK_K)->getMemoryPtr()->GetPtr())[0];
+    const int src_k = reinterpret_cast<int *>(getParentEdgeAt(TOPK_K)->getMemoryPtr()->GetData())[0];
     return inputShapesModified() || src_k != top_k;
 }
 
 bool TopK::needPrepareParams() const {
-    const int src_k = reinterpret_cast<int *>(getParentEdgeAt(TOPK_K)->getMemoryPtr()->GetPtr())[0];
+    const int src_k = reinterpret_cast<int *>(getParentEdgeAt(TOPK_K)->getMemoryPtr()->GetData())[0];
     return inputShapesModified() || top_k != src_k;
 }
 
@@ -1994,14 +1994,14 @@ void TopK::prepareParams() {
     dst_dims = dstMemPtr->getDesc().getShape().getDims();
 
     if (isDynamicNode()) {
-        const int src_k = reinterpret_cast<int *>(getParentEdgeAt(TOPK_K)->getMemoryPtr()->GetPtr())[0];
+        const int src_k = reinterpret_cast<int *>(getParentEdgeAt(TOPK_K)->getMemoryPtr()->GetData())[0];
         if (static_cast<size_t>(src_k) > src_dims[axis])
             IE_THROW() << errorPrefix << " gets top_k out of range!";
         if (top_k != src_k) {
             top_k = src_k;
         }
     } else {
-        top_k = reinterpret_cast<int *>(getParentEdgeAt(TOPK_K)->getMemoryPtr()->GetPtr())[0];
+        top_k = reinterpret_cast<int *>(getParentEdgeAt(TOPK_K)->getMemoryPtr()->GetData())[0];
     }
 
     if (jit_mode) {
@@ -2141,9 +2141,9 @@ void TopK::execute(dnnl::stream strm) {
     auto dstMemPtr = getChildEdgeAt(TOPK_DATA)->getMemoryPtr();
     auto dstIndexesMemPtr = getChildEdgeAt(TOPK_INDEX)->getMemoryPtr();
 
-    const uint8_t *src_data = reinterpret_cast<const uint8_t *>(srcMemPtr->GetPtr());
-    uint8_t *dst_data = reinterpret_cast<uint8_t *>(dstMemPtr->GetPtr());
-    uint8_t *dst_idx = reinterpret_cast<uint8_t *>(dstIndexesMemPtr->GetPtr());
+    const uint8_t *src_data = reinterpret_cast<const uint8_t *>(srcMemPtr->GetData());
+    uint8_t *dst_data = reinterpret_cast<uint8_t *>(dstMemPtr->GetData());
+    uint8_t *dst_idx = reinterpret_cast<uint8_t *>(dstIndexesMemPtr->GetData());
 
     if (jit_mode) {
         topk_process(src_data, dst_data, dst_idx);

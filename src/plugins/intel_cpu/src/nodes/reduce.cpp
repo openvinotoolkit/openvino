@@ -2086,8 +2086,8 @@ void Reduce::execute(dnnl::stream strm) {
     auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto srcMemPtr = getParentEdgeAt(REDUCE_DATA)->getMemoryPtr();
 
-    const uint8_t *src_data = reinterpret_cast<const uint8_t *>(srcMemPtr->GetPtr());
-    uint8_t *dst_data = reinterpret_cast<uint8_t *>(dstMemPtr->GetPtr());
+    const uint8_t *src_data = reinterpret_cast<const uint8_t *>(srcMemPtr->GetData());
+    uint8_t *dst_data = reinterpret_cast<uint8_t *>(dstMemPtr->GetData());
 
     if (jit_mode) {
         if (is_hybrid_layout) {
@@ -2131,7 +2131,7 @@ void Reduce::reduce_type(const uint8_t *in_ptr, uint8_t *out_ptr, size_t dst_siz
     if (is_hybrid_layout) {
         uint8_t *proc_ptr = out_ptr;
         auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-        out_ptr = reinterpret_cast<uint8_t *>(dstMemPtr->GetPtr());
+        out_ptr = reinterpret_cast<uint8_t *>(dstMemPtr->GetData());
         if (layout == ReduceLayoutType::reduce_nspc) {
             nspc2ncsp(proc_ptr, out_ptr);
         } else {

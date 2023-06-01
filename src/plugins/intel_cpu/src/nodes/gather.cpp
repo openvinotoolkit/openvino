@@ -62,7 +62,7 @@ public:
                 IE_THROW() << "Unsupported precision " << data_dependency.at(GATHER_AXIS)->getDesc().getPrecision()
                            << " for axis tensor.";
             }
-            m_axis = reinterpret_cast<const int32_t *>(data_dependency.at(GATHER_AXIS)->GetPtr())[0];
+            m_axis = reinterpret_cast<const int32_t *>(data_dependency.at(GATHER_AXIS)->GetData())[0];
         }
 
         if (m_axis < 0)
@@ -303,7 +303,7 @@ bool Gather::needPrepareParams() const {
     }
     bool result = inputShapesModified();
     if (!isAxisInputConst)
-        result = result || axis != (reinterpret_cast<const int32_t*>(getParentEdgeAt(GATHER_AXIS)->getMemoryPtr()->GetPtr()))[0];
+        result = result || axis != (reinterpret_cast<const int32_t*>(getParentEdgeAt(GATHER_AXIS)->getMemoryPtr()->GetData()))[0];
     return result;
 }
 
@@ -318,7 +318,7 @@ void Gather::prepareParams() {
         THROW_ERROR << " has unidentified preferable primitive descriptor.";
 
     if (!isAxisInputConst) {
-        axis = (reinterpret_cast<const int32_t*>(getParentEdgeAt(GATHER_AXIS)->getMemoryPtr()->GetPtr()))[0];
+        axis = (reinterpret_cast<const int32_t*>(getParentEdgeAt(GATHER_AXIS)->getMemoryPtr()->GetData()))[0];
         if (axis < 0)
             axis += dataSrcRank;
         if (axis < 0 || axis >= dataSrcRank || batchDims > axis)
@@ -365,9 +365,9 @@ void Gather::prepareParams() {
 void Gather::execute(dnnl::stream strm) {
 #if defined(OPENVINO_ARCH_X86_64)
     if (jitKernel && jitKernel->isSupportedConfiguration(afterAxisSize)) {
-        const void* srcIndices = getParentEdgeAt(GATHER_INDICES)->getMemoryPtr()->GetPtr();
-        const void* srcData = getParentEdgeAt(GATHER_DATA)->getMemoryPtr()->GetPtr();
-        uint8_t* dstData = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+        const void* srcIndices = getParentEdgeAt(GATHER_INDICES)->getMemoryPtr()->GetData();
+        const void* srcData = getParentEdgeAt(GATHER_DATA)->getMemoryPtr()->GetData();
+        uint8_t* dstData = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemoryPtr()->GetData());
 
         const uint64_t dataElPerVec = jitKernel->getDataElPerVec();
 
@@ -421,9 +421,9 @@ void Gather::execute(dnnl::stream strm) {
 void Gather::executeDynamicImpl(dnnl::stream strm) {
 #if defined(OPENVINO_ARCH_X86_64)
     if (jitKernel && jitKernel->isSupportedConfiguration(afterAxisSize)) {
-        const void* srcIndices = getParentEdgeAt(GATHER_INDICES)->getMemoryPtr()->GetPtr();
-        const void* srcData = getParentEdgeAt(GATHER_DATA)->getMemoryPtr()->GetPtr();
-        uint8_t* dstData = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+        const void* srcIndices = getParentEdgeAt(GATHER_INDICES)->getMemoryPtr()->GetData();
+        const void* srcData = getParentEdgeAt(GATHER_DATA)->getMemoryPtr()->GetData();
+        uint8_t* dstData = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemoryPtr()->GetData());
 
         const uint64_t dataElPerVec = jitKernel->getDataElPerVec();
 
@@ -548,9 +548,9 @@ void Gather::initShortParams(threadExecParams& p, const uint64_t start) {
 }
 
 void Gather::execReference() {
-    const int32_t* srcIndices = reinterpret_cast<const int32_t*>(getParentEdgeAt(GATHER_INDICES)->getMemoryPtr()->GetPtr());
-    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(getParentEdgeAt(GATHER_DATA)->getMemoryPtr()->GetPtr());
-    uint8_t* dstData = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const int32_t* srcIndices = reinterpret_cast<const int32_t*>(getParentEdgeAt(GATHER_INDICES)->getMemoryPtr()->GetData());
+    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(getParentEdgeAt(GATHER_DATA)->getMemoryPtr()->GetData());
+    uint8_t* dstData = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemoryPtr()->GetData());
 
     const size_t dstAfterBatchSize = betweenBatchAndAxisSize * specIdxAndAfterAxSizeB;
     parallel_for2d(beforeBatchSize, specIndicesSize, [&](const size_t b, const size_t j) {
@@ -607,8 +607,7 @@ void Gather::resolveInPlaceEdges(Edge::LOOK look) {
             //     getName() << " with type " << getTypeStr();
 
             auto memMngr = std::make_shared<PartitionedMemoryMngr>(baseMemMngr, baseDim, offset);
-            auto newMem = std::make_shared<Memory>(getEngine());
-            newMem->Create(config.outConfs[outputPort].getMemDesc(), memMngr);
+            auto newMem = std::make_shared<Memory>(getEngine(), std::unique_ptr<IMemoryMngr>(memMngr.get()), config.outConfs[outputPort].getMemDesc());
 
             childEdge->resetMemoryPtr(newMem);
         }

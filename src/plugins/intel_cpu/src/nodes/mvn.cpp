@@ -1464,8 +1464,8 @@ void MVN::execute(dnnl::stream strm) {
     auto srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
 
     if (execPtr) {
-        uint8_t *dst_data = reinterpret_cast<uint8_t*>(dstMemPtr->GetPtr());
-        uint8_t *src_data = reinterpret_cast<uint8_t*>(srcMemPtr->GetPtr());
+        uint8_t *dst_data = reinterpret_cast<uint8_t*>(dstMemPtr->GetData());
+        uint8_t *src_data = reinterpret_cast<uint8_t*>(srcMemPtr->GetData());
         execPtr->exec(src_data, dst_data, postOpsDataPtrs.data());
     } else if (aclExecPtr) {
         aclExecPtr->exec({srcMemPtr}, {dstMemPtr}, postOpsDataPtrs.data());

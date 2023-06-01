@@ -115,7 +115,7 @@ void Ngram::prepareParams() {
 
 template <typename idces_type>
 std::vector<size_t> Ngram::computeBatchLenghts() {
-    auto* srcIndices = reinterpret_cast<const idces_type*>(getParentEdgeAt(1)->getMemoryPtr()->GetPtr());
+    auto* srcIndices = reinterpret_cast<const idces_type*>(getParentEdgeAt(1)->getMemoryPtr()->GetData());
 
     std::vector<size_t> batchLenghts{0};
     batchLenghts.reserve(numIdces + 1);
@@ -130,8 +130,8 @@ std::vector<size_t> Ngram::computeBatchLenghts() {
 }
 
 void Ngram::execute(dnnl::stream strm) {
-    auto* srcData = reinterpret_cast<const float*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
-    auto* dstData = reinterpret_cast<float*>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    auto* srcData = reinterpret_cast<const float*>(getParentEdgeAt(0)->getMemoryPtr()->GetData());
+    auto* dstData = reinterpret_cast<float*>(getChildEdgeAt(0)->getMemoryPtr()->GetData());
 
     std::vector<size_t> batchLenghts;
     if (idcesPrecision == InferenceEngine::Precision::I32) {

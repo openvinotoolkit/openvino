@@ -292,8 +292,8 @@ void DepthToSpace::DepthToSpaceExecutor::exec(const MemoryPtr& srcMemPtr, const 
     if (!permuteKernel)
         IE_THROW() << "Could not execute. Kernel for Transpose node was not compiled.";
 
-    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(srcMemPtr->GetPtr());
-    uint8_t* dstData = reinterpret_cast<uint8_t*>(dstMemPtr->GetPtr());
+    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(srcMemPtr->GetData());
+    uint8_t* dstData = reinterpret_cast<uint8_t*>(dstMemPtr->GetData());
 
     permuteKernel->execute(srcData, dstData, MB);
 }

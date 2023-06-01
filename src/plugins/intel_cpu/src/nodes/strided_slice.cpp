@@ -63,9 +63,9 @@ public:
             data_dependency.at(STRIDE_ID)->getDesc().getPrecision() != Precision::I32) {
             IE_THROW(Unexpected) << "The data type of begin/end/stride is NOT I32, which is unexpected!";
         }
-        auto beginPtr = reinterpret_cast<int32_t *>(data_dependency.at(BEGIN_ID)->GetPtr());
-        auto endPtr = reinterpret_cast<int32_t *>(data_dependency.at(END_ID)->GetPtr());
-        auto stridePtr = reinterpret_cast<int32_t *>(data_dependency.at(STRIDE_ID)->GetPtr());
+        auto beginPtr = reinterpret_cast<int32_t *>(data_dependency.at(BEGIN_ID)->GetData());
+        auto endPtr = reinterpret_cast<int32_t *>(data_dependency.at(END_ID)->GetData());
+        auto stridePtr = reinterpret_cast<int32_t *>(data_dependency.at(STRIDE_ID)->GetData());
 
         for (size_t i = 0, new_idx = 0; i < shapeIn.size(); ++i) {
             if (m_new_axis_mask_set.count(i)) {
@@ -505,7 +505,7 @@ void StridedSlice::StridedSliceCommonExecutor::paramsInitialization(const Stride
     const size_t nDims = std::max(inputRank, outputRank);
 
     auto fillingInParameters = [&](std::vector<int> &parameter, const size_t type, const size_t size, const int value) {
-        const int *ptr = reinterpret_cast<const int32_t *>(srcMemory[type]->GetPtr());
+        const int *ptr = reinterpret_cast<const int32_t *>(srcMemory[type]->GetData());
         parameter.assign(ptr, ptr + size);
 
         if (type != AXES_ID && params.attrs.ellipsisMaskCounter == 0 && size < nDims) {
@@ -840,8 +840,8 @@ void StridedSlice::StridedSliceCommonExecutor::indicesCalculationForOptimized() 
 }
 
 void StridedSlice::StridedSliceCommonExecutor::exec(const std::vector<MemoryCPtr>& srcMemory, const std::vector<MemoryCPtr>& dstMemory) {
-    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(srcMemory[0]->GetPtr());
-    uint8_t* dstData = reinterpret_cast<uint8_t*>(dstMemory[0]->GetPtr());
+    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(srcMemory[0]->GetData());
+    uint8_t* dstData = reinterpret_cast<uint8_t*>(dstMemory[0]->GetData());
     const uint8_t* srcShiftedData = srcData + srcShift;
     parallel_nt(nThreads, [&](const int ithr, const int nthr) {
         size_t start = 0, end = 0;

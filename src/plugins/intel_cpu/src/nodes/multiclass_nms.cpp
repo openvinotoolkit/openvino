@@ -203,8 +203,8 @@ void MultiClassNms::executeDynamicImpl(dnnl::stream strm) {
 }
 
 void MultiClassNms::execute(dnnl::stream strm) {
-    const float* boxes = reinterpret_cast<const float*>(getParentEdgeAt(NMS_BOXES)->getMemoryPtr()->GetPtr());
-    const float* scores = reinterpret_cast<const float*>(getParentEdgeAt(NMS_SCORES)->getMemoryPtr()->GetPtr());
+    const float* boxes = reinterpret_cast<const float*>(getParentEdgeAt(NMS_BOXES)->getMemoryPtr()->GetData());
+    const float* scores = reinterpret_cast<const float*>(getParentEdgeAt(NMS_SCORES)->getMemoryPtr()->GetData());
 
     auto dims_boxes = getParentEdgeAt(NMS_BOXES)->getMemory().getStaticDims();
     auto dims_scores = getParentEdgeAt(NMS_SCORES)->getMemory().getStaticDims();
@@ -225,7 +225,7 @@ void MultiClassNms::execute(dnnl::stream strm) {
     int* roisnum = nullptr;
     VectorDims roisnumStrides;
     if (has_roinum) {
-        roisnum = reinterpret_cast<int*>(getParentEdgeAt(NMS_ROISNUM)->getMemoryPtr()->GetPtr());
+        roisnum = reinterpret_cast<int*>(getParentEdgeAt(NMS_ROISNUM)->getMemoryPtr()->GetData());
         roisnumStrides = getParentEdgeAt(NMS_ROISNUM)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
     }
 
@@ -328,9 +328,9 @@ void MultiClassNms::execute(dnnl::stream strm) {
         size_t totalBox = std::accumulate(m_selected_num.begin(), m_selected_num.end(), size_t(0));
         redefineOutputMemory({{totalBox, 6}, {totalBox, 1}, {m_numBatches}});
     }
-    int* selected_indices = reinterpret_cast<int*>(selectedIndicesMemPtr->GetPtr());
-    float* selected_outputs = reinterpret_cast<float*>(selectedOutputsMemPtr->GetPtr());
-    int* selected_num = reinterpret_cast<int*>(validOutputsMemPtr->GetPtr());
+    int* selected_indices = reinterpret_cast<int*>(selectedIndicesMemPtr->GetData());
+    float* selected_outputs = reinterpret_cast<float*>(selectedOutputsMemPtr->GetData());
+    int* selected_num = reinterpret_cast<int*>(validOutputsMemPtr->GetData());
 
     auto _flattened_index = [](int batch_idx, int box_idx, int num_box) {
         return batch_idx * num_box + box_idx;

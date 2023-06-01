@@ -63,7 +63,7 @@ public:
     const std::shared_ptr<Node> getParent() const;
     const std::shared_ptr<Node> getChild() const;
 
-    const Memory& getMemory();
+    const IMemory& getMemory();
     MemoryPtr getMemoryPtr() const;
     void resetMemoryPtr(MemoryPtr mem);
 
@@ -108,7 +108,7 @@ private:
     void collectConsumers(std::vector<std::shared_ptr<Node>>& result) const;
 
     EdgePtr getBaseEdge(int look = LOOK_BOTH);
-    void allocateCommon(const std::function<void(const MemoryPtr&, const MemoryDesc&)>& allocate);
+    void allocateCommon(const std::function<void(MemoryPtr, const MemoryDesc&)>& allocate);
 
     friend class Graph;
 };

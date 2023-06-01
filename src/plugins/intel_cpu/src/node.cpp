@@ -385,8 +385,7 @@ void Node::resolveInPlaceEdges(Edge::LOOK look) {
 
             auto baseMemMngr = getChildEdgesAtPort(inplaceOutIndx)[0]->getMemory().getMemoryMngr();
             auto memMngr = std::make_shared<PartitionedMemoryMngr>(baseMemMngr);
-            auto newMem = std::make_shared<Memory>(getEngine());
-            newMem->Create(selected_pd->getConfig().inConfs[i].getMemDesc(), memMngr);
+            auto newMem = std::make_shared<Memory>(getEngine(), std::unique_ptr<IMemoryMngr>(memMngr.get()), selected_pd->getConfig().inConfs[i].getMemDesc());
             parentEdge->resetMemoryPtr(newMem);
         }
     }
@@ -404,8 +403,7 @@ void Node::resolveInPlaceEdges(Edge::LOOK look) {
             for (auto& childEdge : childEdges) {
                 IE_ASSERT(childEdge->getStatus() == Edge::Status::NotAllocated) <<
                     " Unexpected inplace resolve call to an allocated edge: " << childEdge->name();
-                auto newMem = std::make_shared<Memory>(getEngine());
-                newMem->Create(selected_pd->getConfig().outConfs[i].getMemDesc(), memMngr);
+                auto newMem = std::make_shared<Memory>(getEngine(), std::unique_ptr<IMemoryMngr>(memMngr.get()), selected_pd->getConfig().outConfs[i].getMemDesc());
                 childEdge->resetMemoryPtr(newMem);
             }
         }
@@ -815,11 +813,9 @@ void Node::prepareMemory(const DnnlMemoryDescPtr& intDesc, size_t indx) {
         // TODO [DS]: internal blobs should be removed or rewritten using Memory object
         auto newDesc = MemoryDescUtils::convertToDnnlBlockedMemoryDesc(internalBlob->getTensorDesc());
 
-        Memory memory{ engine };
-        memory.Create(newDesc, internalBlob->buffer());
+        Memory memory(engine, newDesc, internalBlob->buffer());
 
-        MemoryPtr _ptr = std::make_shared<Memory>(engine);
-        _ptr->Create(intDesc);
+        MemoryPtr _ptr = std::make_shared<Memory>(engine, intDesc);
         node::Reorder::reorderData(memory, *_ptr, context->getParamsCache());
         return _ptr;
     };
@@ -877,11 +873,8 @@ MemoryPtr Node::prepareWeightMemory(DnnlMemoryDescPtr weightDesc) {
     auto create = [&] () {
         auto newSrcDesc = DnnlExtensionUtils::makeDescriptor(weightSrcDesc);
 
-        Memory srcMemory{ getEngine() };
-        srcMemory.Create(newSrcDesc, edgeMem->GetData());
-
-        MemoryPtr _ptr = std::make_shared<Memory>(getEngine());
-        _ptr->Create(weightDesc);
+        Memory srcMemory{ getEngine(), newSrcDesc, edgeMem->GetData() };
+        MemoryPtr _ptr = std::make_shared<Memory>(getEngine(), weightDesc);
         node::Reorder::reorderData(srcMemory, *_ptr, context->getParamsCache());
 
         return _ptr;
@@ -1416,7 +1409,7 @@ std::pair<std::vector<float>, std::vector<float>> Node::getScalesAndShifts(const
         auto constBlob = constInputNode->getMemoryPtr();
         const auto elementsCount = constBlob->GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
         buffer.resize(elementsCount);
-        cpu_convert(constBlob->GetPtr(),
+        cpu_convert(constBlob->GetData(),
                     &buffer[0],
                     DnnlExtensionUtils::DataTypeToIEPrecision(constBlob->GetDataType()),
                     Precision::FP32,

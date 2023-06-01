@@ -43,7 +43,7 @@ public:
         VectorDims outputDims(inputRank);
         outputDims[0] = inputDims[0];
         outputDims[1] = inputDims[1];
-        auto newSpatialDimsPtr = reinterpret_cast<int32_t *>(data_dependency.at(1)->GetPtr());
+        auto newSpatialDimsPtr = reinterpret_cast<int32_t *>(data_dependency.at(1)->GetData());
         for (size_t i = 0; i < spatialDimsSize; i++) {
             outputDims[i + 2] = newSpatialDimsPtr[i];
         }
@@ -136,7 +136,7 @@ void AdaptivePooling::getSupportedDescriptors() {
 }
 
 bool AdaptivePooling::needShapeInfer() const {
-    const auto newSpatialDimsPtr = reinterpret_cast<int32_t *>(getParentEdgesAtPort(1)[0]->getMemoryPtr()->GetPtr());
+    const auto newSpatialDimsPtr = reinterpret_cast<int32_t *>(getParentEdgesAtPort(1)[0]->getMemoryPtr()->GetData());
     for (int i = 0; i < spatialDimsCount; i++) {
         if (static_cast<int32_t>(spatialDimsValue[i]) != newSpatialDimsPtr[i]) {
             for (size_t j = 0; j < spatialDimsValue.size(); j++) {
@@ -194,7 +194,7 @@ void AdaptivePooling::execute(dnnl::stream strm) {
     int *indexDst = nullptr;
 
     if (algorithm == Algorithm::AdaptivePoolingMax) {
-        indexDst = reinterpret_cast<int *>(getChildEdgeAt(1)->getMemoryPtr()->GetPtr());
+        indexDst = reinterpret_cast<int *>(getChildEdgeAt(1)->getMemoryPtr()->GetData());
     }
 
     auto isPlainFmt = srcMemory0.getDesc().hasLayoutType(LayoutType::ncsp);
@@ -204,9 +204,9 @@ void AdaptivePooling::execute(dnnl::stream strm) {
     auto srcBlockDesc = srcMemory0.GetDescWithType<BlockedMemoryDesc>();
     int blockSize = isBlkFmt ? srcBlockDesc->getBlockDims().back() : 1;
 
-    const auto *src = reinterpret_cast<const float *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
-    const auto *srcPooledSpatialShapes = reinterpret_cast<const int *>(getParentEdgeAt(1)->getMemoryPtr()->GetPtr());
-    auto *dst = reinterpret_cast<float *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const auto *src = reinterpret_cast<const float *>(getParentEdgeAt(0)->getMemoryPtr()->GetData());
+    const auto *srcPooledSpatialShapes = reinterpret_cast<const int *>(getParentEdgeAt(1)->getMemoryPtr()->GetData());
+    auto *dst = reinterpret_cast<float *>(getChildEdgeAt(0)->getMemoryPtr()->GetData());
 
     if (static_cast<int>(srcMemory1.GetShape().getElementsCount()) != spatialDimsCount)
         IE_THROW() << errorPrefix << "has input spatial dimension (" << srcMemory1.GetShape().getElementsCount()

@@ -774,7 +774,7 @@ void Graph::AllocateWithReuse() {
                 && edge->getParent()->isConstant()) {
                 if (edge->getParent()->getType() == Type::Input) {
                     auto constNode = std::static_pointer_cast<node::Input>(edge->getParent());
-                    edge->reuse(std::const_pointer_cast<Memory>(constNode->getMemoryPtr()));
+                    edge->reuse(std::const_pointer_cast<IMemory>(constNode->getMemoryPtr()));
                 } else {
                     edge->externalAllocate(context->getWeightsCache());
                 }
@@ -844,8 +844,7 @@ void Graph::AllocateWithReuse() {
     MemorySolver staticMemSolver(definedBoxes);
     size_t total_size = static_cast<size_t>(staticMemSolver.solve()) * alignment;
 
-    memWorkspace = std::make_shared<Memory>(getEngine());
-    memWorkspace->Create(DnnlBlockedMemoryDesc(InferenceEngine::Precision::I8, Shape(InferenceEngine::SizeVector{total_size})));
+    memWorkspace = std::make_shared<Memory>(getEngine(), DnnlBlockedMemoryDesc(InferenceEngine::Precision::I8, Shape(InferenceEngine::SizeVector{total_size})));
 
     if (edge_clusters.empty())
         return;
@@ -1007,8 +1006,7 @@ void Graph::PushInputData(const std::string& name, const InferenceEngine::Blob::
         if (ext_data_ptr != inter_data_ptr) {
             auto ext_tdesc = MemoryDescUtils::convertToDnnlBlockedMemoryDesc(in->getTensorDesc());
 
-            Memory ext_mem(getEngine());
-            ext_mem.Create(ext_tdesc, ext_data_ptr, false);
+            Memory ext_mem(getEngine(), ext_tdesc, ext_data_ptr, false);
 
             childEdge->getMemory().SetData(ext_mem, false);
         }
@@ -1035,7 +1033,7 @@ void Graph::PullOutputData(BlobMap &out) {
         auto name = outputMap.first;
         auto node = outputMap.second;
         auto parentEdge = node->getParentEdgeAt(0);
-        const Memory& intr_blob = parentEdge->getMemory();
+        const auto& intr_blob = parentEdge->getMemory();
 
         const auto ext_blob_map = out.find(name);
         const auto ext_blob = ext_blob_map->second;
@@ -1093,9 +1091,7 @@ void Graph::PullOutputData(BlobMap &out) {
             auto outBlobDesc = expectedDesc.getLayout() == InferenceEngine::Layout::ANY
                                 ? DnnlBlockedMemoryDesc(expectedDesc.getPrecision(), Shape(expectedDesc.getDims()))
                                 : MemoryDescUtils::convertToDnnlBlockedMemoryDesc(expectedDesc);
-            Memory outBloMem(getEngine());
-            outBloMem.Create(outBlobDesc, ext_blob_ptr, false);
-
+            Memory outBloMem(getEngine(), outBlobDesc, ext_blob_ptr, false);
             outBloMem.SetData(intr_blob, false);
         } else {
             size_t size_to_copy = intr_blob.GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
