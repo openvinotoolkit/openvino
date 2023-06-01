@@ -30,6 +30,13 @@ ParamsKey GemmKernelTiledOpt::GetSupportedKey() const {
     return k;
 }
 
+DeviceFeaturesKey GemmKernelTiledOpt::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    auto k = get_common_subgroups_device_features_key(params, options);
+    k.requires_subgroup_shuffle();
+
+    return k;
+}
+
 GemmKernelBase::DispatchData GemmKernelTiledOpt::SetDefault(const gemm_params& params) const {
     const auto& output = params.outputs[0];
 

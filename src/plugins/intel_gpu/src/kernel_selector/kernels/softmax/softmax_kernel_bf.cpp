@@ -29,6 +29,15 @@ ParamsKey SoftmaxKernel_bf::GetSupportedKey() const {
     return k;
 }
 
+DeviceFeaturesKey SoftmaxKernel_bf::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    DeviceFeaturesKey k;
+    k.requires_subgroups();
+    k.requires_subgroup_reduce();
+    k.requires_reqd_subgroup_size();
+
+    return k;
+}
+
 SoftmaxKernel_bf::Parent::DispatchData SoftmaxKernel_bf::SetDefault(const softmax_params& params) const {
     auto dispatchData = Parent::SetDefault(params);
 
