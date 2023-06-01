@@ -276,7 +276,16 @@ def getActualPath(pathName, cfg):
 def safeClearDir(path):
     if not os.path.exists(path):
         os.makedirs(path)
-    shutil.rmtree(path)
+    try:
+        shutil.rmtree(path)
+    except PermissionError:
+        # WA, because of unstability of rmtree()
+        # in linux environment
+        p = subprocess.Popen(
+            "rm -rf *", cwd=path,
+            stdout=subprocess.PIPE, shell=True
+        )
+        p.wait()
     return
 
 
