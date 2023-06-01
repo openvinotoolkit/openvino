@@ -4,6 +4,7 @@
 
 #include "ngraph/log.hpp"
 #include "ngraph/pattern/matcher.hpp"
+#include "openvino/util/log.hpp"
 
 // this is for more nuanced testing
 class TestMatcher : public ngraph::pattern::Matcher {
@@ -28,8 +29,8 @@ public:
     bool match(const std::shared_ptr<ngraph::Node>& pattern_node, const std::shared_ptr<ngraph::Node>& graph_node) {
         NGRAPH_CHECK(pattern_node && graph_node);  // the same condition throws an exception in the
                                                    // non-test version of `match`
-        NGRAPH_DEBUG << "Starting match pattern = " << pattern_node->get_name()
-                     << " , graph_node = " << graph_node->get_name();
+        OPENVINO_DEBUG << "Starting match pattern = " << pattern_node->get_name()
+                       << " , graph_node = " << graph_node->get_name();
 
         m_pattern_node = pattern_node;
         return ngraph::pattern::Matcher::match(graph_node, ngraph::pattern::PatternValueMap{});
