@@ -13,7 +13,7 @@
 #include <map>
 #include <string>
 
-#include "itt.hpp"
+#include "src/itt.hpp"
 
 using namespace HeteroPlugin;
 using namespace InferenceEngine;
@@ -112,7 +112,7 @@ const InferenceEngine::PreProcessInfo& HeteroInferRequest::GetPreProcess(const s
 
 void HeteroInferRequest::InferImpl() {
     for (auto&& desc : _inferRequests) {
-        OV_ITT_SCOPED_TASK(itt::domains::HeteroPlugin, desc._profilingTask);
+        OV_ITT_SCOPED_TASK(ov::hetero::itt::domains::Hetero, desc._profilingTask);
         auto& r = desc._request;
         assert(r);
         r->Infer();
