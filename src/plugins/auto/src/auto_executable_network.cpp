@@ -145,9 +145,20 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
             return decltype(ov::optimal_number_of_infer_requests)::value_type {res};
         }
         if (_autoSchedule->_loadContext[ACTUALDEVICE].isAlready) {
-            real = _autoSchedule->_loadContext[ACTUALDEVICE].
-                executableNetwork->GetMetric(name).as<unsigned int>();
+            real = _autoSchedule->_loadContext[ACTUALDEVICE].executableNetwork->GetMetric(name).as<unsigned int>();
         } else {
+            auto supportedProperties =
+                _autoSContext->_core->get_property(_autoSchedule->_loadContext[ACTUALDEVICE].deviceInfo.deviceName,
+                                                   ov::supported_properties);
+            auto nireqIter =
+                std::find(supportedProperties.begin(), supportedProperties.end(), ov::optimal_number_of_infer_requests);
+            if (nireqIter != supportedProperties.end()) {
+                real =
+                    _autoSContext->_core->get_property(_autoSchedule->_loadContext[ACTUALDEVICE].deviceInfo.deviceName,
+                                                       ov::optimal_number_of_infer_requests);
+            }
+        }
+        if (real <= 0) {
             IE_ASSERT(_autoSchedule->_loadContext[CPU].isAlready == true);
             std::unique_lock<std::mutex> lock(_autoSContext->_confMutex);
             auto deviceInfo = _autoSchedule->_loadContext[ACTUALDEVICE].deviceInfo;
@@ -216,7 +227,7 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
                     }
                     real = (std::max)(requests, optimalBatchSize);
                 } else if (deviceInfo.deviceName.find("VPUX") != std::string::npos) {
-                    real = 8u;
+                    real = 4u;
                 } else {
                     real = upperBoundStreamsNum ? 2 * upperBoundStreamsNum : defaultNumForTPUT;
                 }
