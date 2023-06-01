@@ -95,14 +95,14 @@ public:
         primitive_id scale_data_id      = "scale_data";
         primitive_id output_id          = "output";
 
-        condition::branch_info branch_true;
+        condition::branch branch_true;
         {
             cldnn::topology branch_true_topology   = generate_simple_branch(true,  cond_id, branch_input_id, dat_dt);
             branch_true.inner_program = program::build_program(engine, branch_true_topology, config, true);
             branch_true.input_map.insert({input_id, branch_input_id});
             branch_true.output_map.insert({0, "condi_when_true"});
         }
-        condition::branch_info branch_false;
+        condition::branch branch_false;
         {
             cldnn::topology branch_false_topology  = generate_simple_branch(false, cond_id, branch_input_id, dat_dt);
             branch_false.inner_program = program::build_program(engine, branch_false_topology, config, true);
@@ -187,14 +187,14 @@ TEST(condition_gpu, basic_range_equal_comp) {
         concatenation("concat", { input_info("input0"), input_info("input1") }, 3)
     );
 
-    condition::branch_info branch_true;
+    condition::branch branch_true;
     {
         cldnn::topology branch_true_topology  = generate_simple_branch(true,  condi_id, branch_input_id);
         branch_true.inner_program = program::build_program(engine, branch_true_topology, config, true);
         branch_true.input_map.insert({concat_id, branch_input_id});
         branch_true.output_map.insert({0, "condi_when_true"});
     }
-    condition::branch_info branch_false;
+    condition::branch branch_false;
     {
         cldnn::topology branch_false_topology = generate_simple_branch(false, condi_id, branch_input_id);
         branch_false.inner_program = program::build_program(engine, branch_false_topology, config, true);
@@ -291,22 +291,22 @@ TEST(condition_gpu, basic_stacked_ifs) {
         activation("activ_when_false", input_info(branch_input_id), activation_func::relu)
     );
 
-    condition::branch_info branch_condi_1_true;
+    condition::branch branch_condi_1_true;
     branch_condi_1_true.inner_program = program::build_program(engine, condi_1_true, config, true);
     branch_condi_1_true.input_map.insert({input_id, branch_input_id});
     branch_condi_1_true.output_map.insert({0, "condi_when_true"});
 
-    condition::branch_info branch_condi_1_false;
+    condition::branch branch_condi_1_false;
     branch_condi_1_false.inner_program = program::build_program(engine, condi_1_false, config, true);
     branch_condi_1_false.input_map.insert({input_id, branch_input_id});
     branch_condi_1_false.output_map.insert({0, "condi_when_false"});
 
-    condition::branch_info branch_condi_2_true;
+    condition::branch branch_condi_2_true;
     branch_condi_2_true.inner_program = program::build_program(engine, condi_2_true, config, true);
     branch_condi_2_true.input_map.insert({cond_id, branch_input_id});
     branch_condi_2_true.output_map.insert({0, "activ_when_true"});
 
-    condition::branch_info branch_condi_2_false;
+    condition::branch branch_condi_2_false;
     branch_condi_2_false.inner_program = program::build_program(engine, condi_2_false, config, true);
     branch_condi_2_false.input_map.insert({cond_id, branch_input_id});
     branch_condi_2_false.output_map.insert({0, "activ_when_false"});
@@ -377,7 +377,7 @@ TEST(condition_gpu, basic_nested_ifs) {
     auto scale_10_mem = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
     set_values(scale_10_mem, { 10.0f });
 
-    condition::branch_info nested_true;
+    condition::branch nested_true;
     {
         cldnn::topology nested_true_topology;
         nested_true_topology.add(
@@ -389,7 +389,7 @@ TEST(condition_gpu, basic_nested_ifs) {
         nested_true.input_map.insert({"pooling_when_true", "branch_input1"});
         nested_true.output_map.insert({0, "scale_5"});
     }
-    condition::branch_info nested_false;
+    condition::branch nested_false;
     {
         cldnn::topology nested_false_topology;
         nested_false_topology.add(
@@ -402,7 +402,7 @@ TEST(condition_gpu, basic_nested_ifs) {
         nested_false.output_map.insert({0, "scale_10_data"});
     }
 
-    condition::branch_info branch_true;
+    condition::branch branch_true;
     {
         cldnn::topology branch_true_topology;
         branch_true_topology.add(
@@ -416,7 +416,7 @@ TEST(condition_gpu, basic_nested_ifs) {
         branch_true.output_map.insert({0, "condi_nested"});
     }
 
-    condition::branch_info branch_false;
+    condition::branch branch_false;
     {
         cldnn::topology branch_false_topology;
         branch_false_topology.add(
@@ -476,14 +476,14 @@ TEST(condition_gpu, negative_compare_wrong_layout) {
     primitive_id branch_input_id    = "branch_input";
     primitive_id cond_id            = "condi";
 
-    condition::branch_info branch_true;
+    condition::branch branch_true;
     {
         cldnn::topology branch_true_topology   = generate_simple_branch(true,  cond_id, branch_input_id, data_types::f32);
         branch_true.inner_program = program::build_program(engine, branch_true_topology, config, true);
         branch_true.input_map.insert({input_id, branch_input_id});
         branch_true.output_map.insert({0, "condi_when_true"});
     }
-    condition::branch_info branch_false;
+    condition::branch branch_false;
     {
         cldnn::topology branch_false_topology  = generate_simple_branch(false, cond_id, branch_input_id, data_types::f32);
         branch_false.inner_program = program::build_program(engine, branch_false_topology, config, true);
@@ -517,7 +517,7 @@ TEST(condition_gpu, negative_not_same_layouts) {
     primitive_id branch_input_id    = "branch_input";
     primitive_id cond_id            = "condi";
 
-    condition::branch_info branch_true;
+    condition::branch branch_true;
     {
         primitive_id pool_id = "pooling_when_true";
         topology branch_true_topology;
@@ -530,7 +530,7 @@ TEST(condition_gpu, negative_not_same_layouts) {
         branch_true.output_map.insert({0, pool_id});
     }
 
-    condition::branch_info branch_false;
+    condition::branch branch_false;
     {
         primitive_id pool_id = "pooling_when_false";
         topology branch_false_topology;
@@ -571,7 +571,7 @@ TEST(condition_gpu, negative_same_names_within_different_networks) {
     primitive_id cond_id            = "condi";
     primitive_id duplicated_id      = "pooling_check_name";
 
-    condition::branch_info branch_true;
+    condition::branch branch_true;
     {
         topology branch_true_topology;
         branch_true_topology.add(
@@ -583,7 +583,7 @@ TEST(condition_gpu, negative_same_names_within_different_networks) {
         branch_true.output_map.insert({0, duplicated_id});
     }
 
-    condition::branch_info branch_false;
+    condition::branch branch_false;
     {
         topology branch_false_topology;
         branch_false_topology.add(

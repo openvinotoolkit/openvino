@@ -56,6 +56,12 @@ layout condition_inst::calc_output_layout(condition_node const& node, kernel_imp
     return layout_true;
 }
 
+// std::vector<layout> condition_inst::calc_output_layouts(condition_node const& node, kernel_impl_params const& impl_param) {
+//     return { calc_output_layout(node, impl_param) };
+//     // condition is constant
+//     // condition is non constant
+// }
+
 std::string condition_inst::to_string(condition_node const& node) {
     auto desc = node.get_primitive();
     auto node_info = node.desc_to_json();

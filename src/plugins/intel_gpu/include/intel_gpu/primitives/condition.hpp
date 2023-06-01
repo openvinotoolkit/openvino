@@ -20,7 +20,7 @@ struct condition : public primitive_base<condition> {
     CLDNN_DECLARE_PRIMITIVE(condition)
 
     /// @brief
-    struct branch_info {
+    struct branch {
         std::map<primitive_id, primitive_id> input_map;
         std::map<size_t, primitive_id> output_map;
         // topology::ptr topology_ptr;
@@ -28,7 +28,7 @@ struct condition : public primitive_base<condition> {
 
         std::string str() {
             std::stringstream ss;
-            ss << "branch_info: { " << std::endl;
+            ss << "branch: { " << std::endl;
             ss<< "* input_map : [(outer_id,inner_id),";
             for (auto& in_iter : input_map) {
                 ss << "(" << in_iter.first << "," << in_iter.second << "),";
@@ -60,8 +60,8 @@ struct condition : public primitive_base<condition> {
     /// @param output_padding     Optional padding for output from primitive.
     condition(const primitive_id& id,
             const std::vector<input_info>& inputs,
-            const branch_info& branch_true,
-            const branch_info& branch_false,
+            const branch& branch_true,
+            const branch& branch_false,
             const padding& output_padding = padding())
         : primitive_base(id, inputs, {output_padding}),
         branch_true(branch_true),
@@ -74,14 +74,14 @@ struct condition : public primitive_base<condition> {
     /// @brief An identifier of primitive which contains compare values.
     primitive_id compare_data;
 
-    branch_info branch_true;
-    branch_info branch_false;
+    branch branch_true;
+    branch branch_false;
 
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override { return {}; }
 };
 
-static inline std::ostream& operator<< (std::ostream& os, condition::branch_info& info) {
+static inline std::ostream& operator<< (std::ostream& os, condition::branch& info) {
     os << info.str();
     return os;
 }

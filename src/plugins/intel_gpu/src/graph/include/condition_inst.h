@@ -30,9 +30,16 @@ public:
     program::ptr get_branch_true() const { return _branch_true.inner_program; }
     program::ptr get_branch_false() const { return _branch_false.inner_program; }
 
+    using parent::get_kernel_impl_params;
+    std::unique_ptr<kernel_impl_params> get_kernel_impl_params(const std::vector<layout>& in_layouts, const std::vector<layout>& out_layouts) const override {
+        auto params = parent::get_kernel_impl_params(in_layouts, out_layouts);
+        params->inner_progs = { _branch_true.inner_program, _branch_false.inner_program };
+        return params;
+    }
+
 private:
-    mutable condition::branch_info _branch_true;
-    mutable condition::branch_info _branch_false;
+    mutable condition::branch _branch_true;
+    mutable condition::branch _branch_false;
 };
 
 using condition_node = typed_program_node<condition>;
@@ -43,7 +50,7 @@ class typed_primitive_inst<condition> : public typed_primitive_inst_base<conditi
     using parent::parent;
 
 public:
-    static std::vector<layout> calc_output_layouts(condition_node const& node, kernel_impl_params const& impl_param);
+    // static std::vector<layout> calc_output_layouts(condition_node const& node, kernel_impl_params const& impl_param);
     static layout calc_output_layout(condition_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(condition_node const& node);
     typed_primitive_inst(network& network, condition_node const& node);

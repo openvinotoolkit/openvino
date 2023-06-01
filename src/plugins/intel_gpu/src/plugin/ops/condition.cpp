@@ -36,13 +36,13 @@ static cldnn::program::ptr gen_program(Program& p, const std::shared_ptr<ngraph:
     return body_program.GetCompiledProgram();
 }
 
-static cldnn::condition::branch_info gen_branch_info(Program& p, const std::shared_ptr<ngraph::op::v8::If>& op, size_t idx) {
-    cldnn::condition::branch_info branch;
+static cldnn::condition::branch gen_branch(Program& p, const std::shared_ptr<ngraph::op::v8::If>& op, size_t idx) {
+    cldnn::condition::branch branch;
     const auto& internal_body = (idx == idx_true)? op->get_then_body() : op->get_else_body();
 
     branch.inner_program = gen_program(p, internal_body);
     {
-        std::cout << "gen_branch_info output : " << branch.inner_program->get_output_layout_str() << std::endl;
+        std::cout << "gen_branch output : " << branch.inner_program->get_output_layout_str() << std::endl;
     }
 
     auto& input_map = branch.input_map;
@@ -70,10 +70,15 @@ static cldnn::condition::branch_info gen_branch_info(Program& p, const std::shar
 static void CreateIfOp(Program& p, const std::shared_ptr<ngraph::op::v8::If>& op) {
     auto inputs = p.GetInputInfo(op);
     OPENVINO_ASSERT(inputs.size() >= 1, "Invalid inputs count (Not allowed no input)");
+    auto compare_node_pshape = op->get_input_partial_shape(0);
+    auto p_input_name = inputs[0].pid;
+    std::string type_name_str = op->get_input_node_ptr(0)->get_type_name();
+
+    std::cout << "*********** ====== [condition] " << p_input_name << ", " << type_name_str << ", " << compare_node_pshape << std::endl;
 
     const std::string layerName = layer_type_name_ID(op);
-    auto branch_true = gen_branch_info(p, op, idx_true);
-    auto branch_false = gen_branch_info(p, op, idx_false);
+    auto branch_true = gen_branch(p, op, idx_true);
+    auto branch_false = gen_branch(p, op, idx_false);
 
     const cldnn::condition conditionPrimitive(layerName,
                                 inputs,
