@@ -31,9 +31,6 @@ namespace ngraph {
 class NGRAPH_API_DEPRECATED NGRAPH_API OpSet : public ov::OpSet {
 public:
     explicit OpSet(const ov::OpSet& opset);
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    OpSet(const ngraph::OpSet& opset);
-    NGRAPH_SUPPRESS_DEPRECATED_END
     OpSet() = default;
     /// \brief Insert an op into the opset with a particular name and factory
     void insert(const std::string& name, const NodeTypeInfo& type_info, FactoryRegistry<Node>::Factory factory) {
