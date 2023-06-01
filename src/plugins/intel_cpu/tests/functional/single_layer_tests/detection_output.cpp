@@ -141,7 +141,7 @@ public:
             const std::vector<ov::Tensor>& actualTensors) override {
         ASSERT_EQ(expectedTensors.size(), actualTensors.size());
 
-        for (auto i = 0; i < expectedTensors.size(); ++i) {
+        for (size_t i = 0; i < expectedTensors.size(); ++i) {
             auto expected = expectedTensors[i];
             auto actual = actualTensors[i];
             ASSERT_EQ(expected.get_size(), actual.get_size());
@@ -220,10 +220,10 @@ private:
                 auto interval_min = -1;
                 auto interval_max = 0;
                 for (auto& input_static_shape : input_shape.second) {
-                    if ((interval_min == -1) || (interval_min > input_static_shape[dimension])) {
+                    if ((interval_min == -1) || (static_cast<size_t>(interval_min) > input_static_shape[dimension])) {
                         interval_min = input_static_shape[dimension];
                     }
-                    if (interval_max < input_static_shape[dimension]) {
+                    if (static_cast<size_t>(interval_max) < input_static_shape[dimension]) {
                         interval_max = input_static_shape[dimension];
                     }
                 }

@@ -13,7 +13,7 @@ To convert a TensorFlow Lite model, use the ``mo`` script and specify the path t
 Supported TensorFlow Lite Layers
 ###################################
 
-For the list of supported standard layers, refer to the :doc:`Supported Framework Layers <openvino_docs_MO_DG_prepare_model_Supported_Frameworks_Layers>` page.
+For the list of supported standard layers, refer to the :doc:`Supported Operations <openvino_resources_supported_operations_frontend>` page.
 
 Supported TensorFlow Lite Models
 ###################################

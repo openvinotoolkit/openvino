@@ -45,7 +45,7 @@ function(ov_python_disable_intel_warnings target)
 endfunction()
 
 set (PYTHON_BRIDGE_SRC_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
-add_subdirectory (inference_engine)
+add_subdirectory(inference_engine)
 
 if(TARGET _pyngraph)
     add_dependencies(ie_api _pyngraph)

@@ -118,8 +118,8 @@ bool MergeSimilarBranches::run_on_model(const std::shared_ptr<ov::Model>& model)
 
                     // drop nodes for merge from remaining consumers
                     set<Input<Node>> new_remaining_consumers;
-                    remove_copy_if(begin(new_remaining_consumers),
-                                   end(new_remaining_consumers),
+                    remove_copy_if(begin(remaining_consumers),
+                                   end(remaining_consumers),
                                    inserter(new_remaining_consumers, new_remaining_consumers.end()),
                                    [&](const Input<Node>& i) {
                                        return any_of(begin(nodes_for_merge), end(nodes_for_merge), [&](Node* n) {

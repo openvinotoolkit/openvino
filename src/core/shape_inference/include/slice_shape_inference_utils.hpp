@@ -225,7 +225,7 @@ constexpr bool is_bounds_zero_crossing(const Bounds b) {
  */
 template <class TDim>
 constexpr bool is_lb_within_dim(const int64_t lb, const TDim& dim) {
-    return (dim.get_max_length() == ov::util::dim::inf_bound) || lb + dim.get_max_length() >= 0;
+    return (static_cast<int64_t>(dim.get_max_length()) == ov::util::dim::inf_bound) || lb + dim.get_max_length() >= 0;
 }
 
 /**
@@ -239,7 +239,8 @@ constexpr bool is_lb_within_dim(const int64_t lb, const TDim& dim) {
  */
 template <class TDim>
 constexpr bool is_ub_within_dim(const int64_t ub, const TDim& dim) {
-    return (dim.get_max_length() == ov::util::dim::inf_bound) || cmp::lt(ub, dim.get_max_length());
+    return (static_cast<int64_t>(dim.get_max_length()) == ov::util::dim::inf_bound) ||
+           cmp::lt(ub, dim.get_max_length());
 }
 
 /**
