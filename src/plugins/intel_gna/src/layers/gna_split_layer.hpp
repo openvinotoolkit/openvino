@@ -73,20 +73,19 @@ inline std::pair<int64_t, std::vector<uint32_t>> AlignedSplitSizesPerAxis(Infere
     auto splittedDimIx = std::distance(std::begin(dims), firstValuableDim);
     auto alignment = limitations::Limitations::get_instance()->get_memory_alignment();
 
-    // Split output size should be multiple by 64 to avoid align filters insertion,
-    // but we need to check if our input size to split exceeds 64; if not we can always
+    // Split output size should be multiple of device memory alignment to avoid align filters insertion,
+    // but we need to check if our input size to split exceeds alignment; if not we can always
     // split if the remaining size is aligned
-    if (splittedElementsSize <= alignment) {
+    auto max_split_size = limitations::Limitations::kBufferMaxSize * splittedElementsSize / totalElementsSize;
+
+    if (splittedElementsSize <= alignment || max_split_size < alignment) {
         if ((totalElementsSize / splittedElementsSize) % alignment == 0) {
             alignment = 1;
         } else {
             return {splittedDimIx, splitSizes};
         }
     }
-    splitSizes =
-        GetAlignedSplitSizes(splittedElementsSize,
-                             limitations::Limitations::kBufferMaxSize * splittedElementsSize / totalElementsSize,
-                             alignment);
+    splitSizes = GetAlignedSplitSizes(splittedElementsSize, max_split_size, alignment);
     return {splittedDimIx, splitSizes};
 }
 
