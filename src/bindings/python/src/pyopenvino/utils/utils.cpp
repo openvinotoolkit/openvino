@@ -347,6 +347,8 @@ ov::Any py_object_to_any(const py::object& py_obj) {
         return py::cast<ov::Any>(py_obj);
     } else if (py::isinstance<ov::element::Type>(py_obj)) {
         return py::cast<ov::element::Type>(py_obj);
+    } else if (py::isinstance<ov::PartialShape>(py_obj)) {
+        return py::cast<ov::PartialShape>(py_obj);
     } else if (py::isinstance<ov::hint::Priority>(py_obj)) {
         return py::cast<ov::hint::Priority>(py_obj);
     } else if (py::isinstance<ov::hint::PerformanceMode>(py_obj)) {

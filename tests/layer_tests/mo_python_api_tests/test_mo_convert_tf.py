@@ -178,9 +178,11 @@ def create_tf_module_dynamic(tmp_dir):
         def __call__(self, x, y):
             return tf.nn.sigmoid(tf.nn.relu(x + y))
 
-    shape = PartialShape([-1, 3, 4])
-    param1 = ov.opset8.parameter(shape, dtype=np.float32)
-    param2 = ov.opset8.parameter(shape, dtype=np.float32)
+    input_shapes = [PartialShape([-1, Dimension(3, -1), Dimension(4)]),
+                    PartialShape([-1, Dimension(3), Dimension(4, -1)])]
+
+    param1 = ov.opset8.parameter(input_shapes[0], dtype=np.float32)
+    param2 = ov.opset8.parameter(input_shapes[1], dtype=np.float32)
     add = ov.opset8.add(param1, param2)
     relu = ov.opset8.relu(add)
     sigm = ov.opset8.sigmoid(relu)
@@ -189,8 +191,7 @@ def create_tf_module_dynamic(tmp_dir):
     model_ref = Model([sigm], parameter_list, "test")
 
     net = Net()
-    return net, model_ref, {'input_shape': [PartialShape([-1, Dimension(3, -1), Dimension(4)]),
-                                            PartialShape([-1, Dimension(3), Dimension(4, -1)])]}
+    return net, model_ref, {'input_shape': input_shapes}
 
 
 def create_keras_layer(tmp_dir):
@@ -227,9 +228,11 @@ def create_keras_layer_dynamic(tmp_dir):
         def call(self, x, y):
             return tf.sigmoid(tf.nn.relu(x + y))
 
-    shape = PartialShape([-1, 3, 4])
-    param1 = ov.opset8.parameter(shape, dtype=np.float32)
-    param2 = ov.opset8.parameter(shape, dtype=np.float32)
+    input_shapes = [PartialShape([-1, Dimension(3, -1), Dimension(4)]),
+                    PartialShape([-1, Dimension(3), Dimension(4, -1)])]
+
+    param1 = ov.opset8.parameter(input_shapes[0], dtype=np.float32)
+    param2 = ov.opset8.parameter(input_shapes[1], dtype=np.float32)
     add = ov.opset8.add(param1, param2)
     relu = ov.opset8.relu(add)
     sigm = ov.opset8.sigmoid(relu)
@@ -238,8 +241,7 @@ def create_keras_layer_dynamic(tmp_dir):
     model_ref = Model([sigm], parameter_list, "test")
 
     net = LayerModel()
-    return net, model_ref, {'input_shape': [PartialShape([-1, Dimension(3, -1), Dimension(4)]),
-                                            PartialShape([-1, Dimension(3), Dimension(4, -1)])]}
+    return net, model_ref, {'input_shape': input_shapes}
 
 
 def create_tf_checkpoint(tmp_dir):
@@ -364,7 +366,20 @@ class TestMoConvertTF(CommonMOConvertTest):
         create_tf_session,
     ]
 
-    @pytest.mark.parametrize("create_model", test_data)
+    test_data_legacy = [
+        # TF2
+        create_keras_model,
+        create_tf_function,
+        create_tf_checkpoint,
+
+        # TF1
+        create_tf_graph,
+        create_tf_graph_def,
+        create_tf1_wrap_function,
+        create_tf_session,
+    ]
+
+    @pytest.mark.parametrize("create_model", test_data_legacy)
     @pytest.mark.nightly
     @pytest.mark.precommit_tf_fe
     @pytest.mark.precommit
