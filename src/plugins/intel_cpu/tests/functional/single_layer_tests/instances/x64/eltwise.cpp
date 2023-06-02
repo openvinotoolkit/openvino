@@ -78,6 +78,13 @@ const std::vector<std::vector<ov::Shape>>& inShapes_4D_Blocked_Planar() {
         return inShapes_4D_Blocked_Planar;
 }
 
+const std::vector<CPUSpecificParams>& cpuParams_4D_Blocked_Blocked() {
+        static const std::vector<CPUSpecificParams> cpuParams_4D_Blocked_Blocked = {
+                CPUSpecificParams({nChw16c, nChw16c}, {nChw16c}, {}, {}),
+        };
+        return cpuParams_4D_Blocked_Blocked;
+}
+
 const std::vector<CPUSpecificParams>& cpuParams_4D_Blocked_Planar() {
         static const std::vector<CPUSpecificParams> cpuParams_4D_Blocked_Planar = {
                 CPUSpecificParams({nChw16c, nchw}, {nChw16c}, {}, {}),
@@ -172,6 +179,22 @@ const auto params_4D_fusing = ::testing::Combine(
         ::testing::ValuesIn(fusingParamsSet_x64));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_Fusing, EltwiseLayerCPUTest, params_4D_fusing, EltwiseLayerCPUTest::getTestCaseName);
+
+const auto params_4D_blocked_blocked_fusing = ::testing::Combine(
+        ::testing::Combine(
+                ::testing::ValuesIn(static_shapes_to_test_representation(inShapes_4D_fusing())),
+                ::testing::ValuesIn(eltwiseOpTypesBinInp()),
+                ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
+                ::testing::ValuesIn(opTypes()),
+                ::testing::Values(ElementType::f32),
+                ::testing::Values(ov::element::undefined),
+                ::testing::Values(ov::element::undefined),
+                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                ::testing::Values(additional_config())),
+        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D_Blocked_Blocked())),
+        ::testing::ValuesIn(fusingParamsSet_x64));
+
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_Blocked_Blocked_Fusing, EltwiseLayerCPUTest, params_4D_blocked_blocked_fusing, EltwiseLayerCPUTest::getTestCaseName);
 
 const auto params_4D_emptyCPUSpec = ::testing::Combine(
         ::testing::Combine(
@@ -402,6 +425,22 @@ const auto params_4D_dyn_param_fusing = ::testing::Combine(
         ::testing::ValuesIn(fusingParamsSet_x64));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_dyn_param_fusing, EltwiseLayerCPUTest, params_4D_dyn_param_fusing, EltwiseLayerCPUTest::getTestCaseName);
+
+const auto params_4D_blocked_blocked_dyn_param_fusing = ::testing::Combine(
+        ::testing::Combine(
+                ::testing::Values(inShapes_4D_dyn_param_fusing()),
+                ::testing::ValuesIn(eltwiseOpTypesBinDyn()),
+                ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
+                ::testing::ValuesIn(opTypes()),
+                ::testing::Values(ElementType::f32),
+                ::testing::Values(ov::element::undefined),
+                ::testing::Values(ov::element::undefined),
+                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                ::testing::Values(additional_config())),
+        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D_Blocked_Blocked())),
+        ::testing::ValuesIn(fusingParamsSet_x64));
+
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_blocked_blocked_dyn_param_fusing, EltwiseLayerCPUTest, params_4D_blocked_blocked_dyn_param_fusing, EltwiseLayerCPUTest::getTestCaseName);
 
 //// ============================================ 5D ============================================
 
