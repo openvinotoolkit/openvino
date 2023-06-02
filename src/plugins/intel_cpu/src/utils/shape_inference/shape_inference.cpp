@@ -685,6 +685,7 @@ const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     // Default opset
     _OV_OP_SHAPE_INFER_MASK_REG(ExperimentalDetectronROIFeatureExtractor, ShapeInferTA, util::bit::mask()),
     _OV_OP_SHAPE_INFER_MASK_REG(Proposal, ShapeInferTA, util::bit::mask()),
+    _OV_OP_SHAPE_INFER_MASK_REG(Tile, ShapeInferenceTA, util::bit::mask(1)),
     _OV_OP_SHAPE_INFER_VA_REG(ReduceL1, ShapeInferTA, op::util::ArithmeticReductionKeepDims, util::bit::mask(1)),
     _OV_OP_SHAPE_INFER_VA_REG(ReduceL2, ShapeInferTA, op::util::ArithmeticReductionKeepDims, util::bit::mask(1)),
     _OV_OP_SHAPE_INFER_VA_REG(ReduceLogicalAnd, ShapeInferTA, op::util::LogicalReductionKeepDims, util::bit::mask(1)),
@@ -694,7 +695,6 @@ const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     _OV_OP_SHAPE_INFER_VA_REG(ReduceMin, ShapeInferTA, op::util::ArithmeticReductionKeepDims, util::bit::mask(1)),
     _OV_OP_SHAPE_INFER_VA_REG(ReduceProd, ShapeInferTA, op::util::ArithmeticReductionKeepDims, util::bit::mask(1)),
     _OV_OP_SHAPE_INFER_VA_REG(ReduceSum, ShapeInferTA, op::util::ArithmeticReductionKeepDims, util::bit::mask(1)),
-    _OV_OP_SHAPE_INFER_MASK_REG(Tile, ShapeInferenceTA, util::bit::mask(1)),
     // Operators shape inferences for specific opset version should be specified below
     // opset11
     _OV_OP_SHAPE_INFER_MASK_REG(opset11::Interpolate, ShapeInferPaddingTA, util::bit::mask(1, 2, 3)),
