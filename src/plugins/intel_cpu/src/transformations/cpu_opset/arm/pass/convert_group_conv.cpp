@@ -24,7 +24,7 @@ ov::intel_cpu::ConvertGroupConvolution::ConvertGroupConvolution() {
         const auto& output_shape = gconv->get_output_partial_shape(0);
         const auto& data_shape = input0.get_partial_shape();
         // Weights layout GOIYX
-        size_t groups = gconv->get_input_shape(Inputs::Weights)[0];
+        int64_t groups = gconv->get_input_shape(Inputs::Weights)[0];
 
         if (data_shape[channel_axis].is_dynamic() ||
             output_shape[channel_axis].is_dynamic()) {
