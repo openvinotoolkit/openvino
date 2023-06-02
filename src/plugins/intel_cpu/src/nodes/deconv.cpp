@@ -906,10 +906,7 @@ void Deconvolution::prepareParams() {
         dnnl::memory::desc dnnlBiasDesc;
         if (key.isInt8) {
             if (key.bias)
-                // WA to align IR bias representation (3 to 5 rank tensors) to oneDNN representation (1 rank tensor)
-                //dnnlBiasDesc = key.bias->getDnnlDesc().reshape({static_cast<dnnl::memory::dim>(key.out->getShape().getStaticDims()[1])});
                 dnnlBiasDesc = key.bias->getDnnlDesc();
-
 
             desc = createInt8MkldnnDeconvDesc(key.inp0->getDnnlDesc(), key.inp1->getDnnlDesc(), dnnlBiasDesc, key.out->getDnnlDesc(),
                                               key.bias != nullptr, key.stride, key.dilation, key.paddingL, key.paddingR, key.attr, engine);
