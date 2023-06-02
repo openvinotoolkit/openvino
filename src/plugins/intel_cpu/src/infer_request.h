@@ -56,7 +56,9 @@ protected:
     virtual void PushInputData() = 0;
 
     Graph* graph = nullptr;
-    std::unordered_map<std::string, InferenceEngine::Blob::Ptr> externalPtr;
+    std::vector<std::string> inplacedOutPorts;
+    std::vector<std::string> externalInPorts;
+    std::vector<std::string> externalOutPorts;
 
 private:
     void PushStates();
@@ -85,7 +87,6 @@ private:
     void PushInputData() override;
     void initBlobs() override;
     void SetBatch(int batch = -1) override;
-    void changeDefaultPtr() override;
 };
 
 class InferRequest : public InferRequestBase {

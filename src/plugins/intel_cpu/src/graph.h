@@ -59,7 +59,7 @@ public:
     }
 
     void PushInputData(const std::string& name, const InferenceEngine::Blob::Ptr &in);
-    void PullOutputData(InferenceEngine::BlobMap &out);
+    void PullOutputData(InferenceEngine::BlobMap &out, std::vector<std::string> &inplacedOutPorts);
 
     void Infer(InferRequestBase* request = nullptr);
 

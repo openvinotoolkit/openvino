@@ -913,7 +913,7 @@ void Graph::PushInputData(const std::string& name, const InferenceEngine::Blob::
     }
 }
 
-void Graph::PullOutputData(BlobMap &out) {
+void Graph::PullOutputData(BlobMap &out, std::vector<std::string> &inplacedOutPorts) {
     if (!IsReady())
         IE_THROW() << "Wrong state. Topology not ready.";
 
@@ -924,7 +924,7 @@ void Graph::PullOutputData(BlobMap &out) {
         const Memory& intr_blob = parentEdge->getMemory();
 
         const auto ext_blob_map = out.find(name);
-        const auto ext_blob = ext_blob_map->second;
+        auto ext_blob = ext_blob_map->second;
         if (ext_blob_map == out.end()) {
             IE_THROW(Unexpected) << "The CPU plugin graph doesn't contain output node with name: \"" << name << "\"";
         }
@@ -952,7 +952,21 @@ void Graph::PullOutputData(BlobMap &out) {
             if (expectedDesc.getLayout() == InferenceEngine::Layout::BLOCKED) {
                 expectedDesc = TensorDesc(expectedDesc.getPrecision(), expectedDesc.getLayout());
             }
-            out[name]->setShape(outDims);
+
+            if (std::count(inplacedOutPorts.begin(), inplacedOutPorts.end(), name) &&
+                (static_cast<void*>(ext_blob->buffer()) != static_cast<void*>(intr_blob.GetData()))) {
+                // 
+                InferenceEngine::Blob::Ptr newBlob =
+                    InferenceEngine::make_shared_blob<float>(actualDesc,
+                                                            static_cast<float*>(intr_blob.GetData()),
+                                                            intr_blob.GetSize());
+                ext_blob = newBlob;
+                std::swap(out[name], newBlob);
+                DEBUG_LOG("inplaced output ", name, " @ ", static_cast<void*>(newBlob->buffer()), " -> ", static_cast<void*>(out[name]->buffer()));
+            } else {
+                DEBUG_LOG("non-inplaced output ", name);
+                out[name]->setShape(outDims);
+            }
         }
 
         // check for empty output blob

@@ -57,8 +57,6 @@ void Blob::setShape(const SizeVector& dims) {
         // Don't shrink area when new size fit the existing area
         getTensorDesc().setDims(dims);
     }
-
-    std::cout << "Blob::setShape" << prev_blob_ptr << " -> " << static_cast<void*>(buffer()) << std::endl;
 }
 
 Blob::Ptr Blob::createROI(const ROI& roi) const {
