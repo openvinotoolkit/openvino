@@ -1083,9 +1083,35 @@ void network::build_insts_deps() {
 
 void network::build_exec_order() {
     GPU_DEBUG_DEFINE_MEM_LOGGER("build_exec_order");
-    for (auto& node : _program->get_processing_order()) {
-        if (!node->is_type<data>() && !(node->is_type<mutable_data>() && node->get_dependencies().empty())) {
-            add_to_exec_order(node->id());
+    if (!_is_dynamic) {
+        for (auto& node : _program->get_processing_order()) {
+            if (!node->is_type<data>() && !(node->is_type<mutable_data>() && node->get_dependencies().empty())) {
+                add_to_exec_order(node->id());
+            }
+        }
+    } else {
+        auto is_runtime_optimized_concat = [&](const program_node* node) {
+            return (node->is_dynamic() && node->is_type<concatenation>() && node->can_be_optimized());
+        };
+        auto is_allowed_pred_for_runtime_optimized_concat = [&](const program_node* node) {
+            return (!node->is_type<data>() && !(node->is_type<mutable_data>() && node->get_dependencies().empty()) &&
+                    node->get_users().size() == 1 && is_runtime_optimized_concat(node->get_users().front()));
+        };
+        for (auto& node : _program->get_processing_order()) {
+            if (!node->is_type<data>() && !(node->is_type<mutable_data>() && node->get_dependencies().empty())) {
+                if (is_allowed_pred_for_runtime_optimized_concat(node)) {
+                    continue;
+                } else if (is_runtime_optimized_concat(node)) {
+                    // For in-place concat applied at runtime, we need to do update_shape for all other predecessors of the concat user.
+                    // i.e., We need to make sure that all the preds of them are already updated too.
+                    for (auto dep : node->get_dependencies()) {
+                        if (!dep.first->is_type<data>()) {
+                            add_to_exec_order(dep.first->id());
+                        }
+                    }
+                }
+                add_to_exec_order(node->id());
+            }
         }
     }
 }
