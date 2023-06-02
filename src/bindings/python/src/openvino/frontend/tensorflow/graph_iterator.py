@@ -5,9 +5,8 @@
 # mypy: ignore-errors
 
 import tensorflow as tf
+from openvino.frontend.tensorflow.node_decoder import TFGraphNodeDecoder
 from openvino.frontend.tensorflow.py_tensorflow_frontend import _FrontEndPyGraphIterator as GraphIterator
-
-from .node_decoder import TFGraphNodeDecoder
 
 
 class GraphIteratorTFGraph(GraphIterator):
