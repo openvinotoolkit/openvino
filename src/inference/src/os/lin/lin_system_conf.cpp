@@ -318,7 +318,7 @@ void parse_processor_info_linux(const int _processors,
 };
 
 void get_cpu_mapping_from_cores(const int _processors,
-                                const int _sockets,
+                                const int _numa_nodes,
                                 const int _cores,
                                 std::vector<std::vector<int>>& _proc_type_table,
                                 std::vector<std::vector<int>>& _cpu_mapping_table) {
@@ -326,19 +326,19 @@ void get_cpu_mapping_from_cores(const int _processors,
     const auto num_big_cores = hyper_thread ? (_processors - _cores) * 2 : _cores;
     int big_phys_cores = hyper_thread ? num_big_cores / 2 : num_big_cores;
     const auto num_small_cores_phys = _processors - num_big_cores;
-    const auto socket_offset = big_phys_cores / _sockets;
+    const auto socket_offset = big_phys_cores / _numa_nodes;
     const auto threads_per_core = hyper_thread ? 2 : 1;
     const auto step = num_small_cores_phys > 0 ? 2 : 1;
     std::vector<int> pro_all_table;
 
     _cpu_mapping_table.resize(_processors, std::vector<int>(CPU_MAP_TABLE_SIZE, -1));
-    _proc_type_table.assign(_sockets, std::vector<int>(PROC_TYPE_TABLE_SIZE, 0));
+    _proc_type_table.assign(_numa_nodes, std::vector<int>(PROC_TYPE_TABLE_SIZE, 0));
     pro_all_table.resize(PROC_TYPE_TABLE_SIZE, 0);
 
     for (int t = 0; t < threads_per_core; t++) {
         int start = t == 0 ? 0 : (num_small_cores_phys > 0 ? 1 : big_phys_cores);
         for (int i = 0; i < big_phys_cores; i++) {
-            int socket_id = _sockets > 1 ? i / socket_offset : 0;
+            int socket_id = _numa_nodes > 1 ? i / socket_offset : 0;
             int cur_id = start + i * step;
             _cpu_mapping_table[cur_id][CPU_MAP_PROCESSOR_ID] = cur_id;
             _cpu_mapping_table[cur_id][CPU_MAP_CORE_ID] = i;
@@ -368,7 +368,7 @@ void get_cpu_mapping_from_cores(const int _processors,
             pro_all_table[ALL_PROC]++;
         }
     }
-    if (_sockets > 1) {
+    if (_numa_nodes > 1) {
         _proc_type_table.insert(_proc_type_table.begin(), pro_all_table);
     }
 }
