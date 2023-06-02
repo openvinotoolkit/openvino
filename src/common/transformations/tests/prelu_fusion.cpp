@@ -130,7 +130,7 @@ TEST_F(TransformationTestsF, PReluFusionFail) {
         manager.register_pass<ov::pass::PReluFusion>();
     }
 
-    function_ref = ngraph::clone_function(*function);
+    function_ref = function->clone();
 }
 
 TEST_F(TransformationTestsF, PReluFusionAbsSubMulMulAdd) {
