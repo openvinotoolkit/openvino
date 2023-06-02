@@ -392,6 +392,9 @@ class TorchScriptPythonDecoder (Decoder):
         return False
 
     def may_produce_alias(self, in_index: int, out_index: int) -> bool:
+        if self.get_op_type() in ["aten::conv1d", "aten::conv2d", "aten::conv3d"]:
+            # AliasDB::may_contain_alias sometimes return True for tensors produced by convnd, we have to workaround that
+            return False
         try:
             return self.alias_db.may_contain_alias(self._raw_input(in_index), self._raw_output(out_index))
         except:

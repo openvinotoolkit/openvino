@@ -145,17 +145,25 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                                           context.get_op_type(),
                                           " outputs greater then number of converted outputs.");
 
-            // TODO: Make sure that mapping of fw_outputs to converted_outputs does always work
-            // FIXME: Now it is not true for at least prim::Constant
             for (size_t i = 0; i < fw_outputs.size(); ++i) {
                 size_t fw_tensor_id = node->output(i);
                 if (node->inputs().size() > 0 && node->may_produce_alias(0, i)) {
                     // TODO: do we need to check other inputs, not only 0?
-                    /*FRONT_END_GENERAL_CHECK(m_may_be_alias.count(fw_tensor_id) == 0,
-                                            "Operation ",
-                                            context.get_op_type(),
-                                            " writes to tensor already added to may_produce_alias list by ",
-                                            std::get<1>(m_may_be_alias.at(fw_tensor_id))->get_op_type());*/
+                    auto in_tensor_id = node->inputs().at(0);
+                    if (m_may_be_alias.count(fw_tensor_id)) {
+                        size_t recorded_in_tensor_id;
+                        std::shared_ptr<TorchDecoder> recorded_node;
+                        std::tie(recorded_in_tensor_id, recorded_node, std::ignore) = m_may_be_alias.at(fw_tensor_id);
+                        FRONT_END_GENERAL_CHECK(recorded_in_tensor_id == in_tensor_id,
+                                                "Operation ",
+                                                context.get_op_type(),
+                                                " creates alias to tensor already added to may_produce_alias list by ",
+                                                recorded_node->get_op_type(),
+                                                ", but from different tensor: ",
+                                                in_tensor_id,
+                                                " vs ",
+                                                recorded_in_tensor_id);
+                    }
                     m_may_be_alias[fw_tensor_id] = {node->inputs().at(0), node, converted_outputs[i]};
                     OPENVINO_DEBUG << "Registered alias: " << fw_tensor_id << " of tensor: " << node->inputs().at(0) << " of operation: " << context.get_op_type() << ".\n";
                 }
