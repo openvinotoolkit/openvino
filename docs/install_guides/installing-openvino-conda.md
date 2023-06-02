@@ -73,7 +73,7 @@ To reactivate your Conda environment, execute the following command:
     conda activate <your_environment_name>
 
 Replace <your_environment_name> with the name of your Conda environment. 
-Once reactivated, you can proceed with linking the OpenVINO™ libraries, making sure all the necessary environment variables are properly set.
+Once you have reactivated your Conda environment, make sure that all the necessary environment variables are properly set and proceed with linking the OpenVINO libraries.
 
 Uninstalling OpenVINO™ Runtime
 ###########################################################
