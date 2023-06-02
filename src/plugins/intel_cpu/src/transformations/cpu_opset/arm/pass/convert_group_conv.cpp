@@ -47,7 +47,7 @@ ov::intel_cpu::ConvertGroupConvolution::ConvertGroupConvolution() {
         replace_nodes.push_back(split);
 
         ngraph::NodeVector concat_inputs;
-        for (size_t g = 0; g < groups; g++) {
+        for (int64_t g = 0; g < groups; g++) {
             auto out = split->output(g);
             auto filter = std::make_shared<ov::opset1::Squeeze>(split_weights->output(g),
                                                                 ov::opset8::Constant::create<int64_t>(ngraph::element::i64, ngraph::Shape{}, {0}));
