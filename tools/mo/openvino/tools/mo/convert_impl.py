@@ -55,7 +55,6 @@ from openvino.tools.mo.moc_frontend.shape_utils import parse_input_shapes, get_s
 
 # pylint: disable=no-name-in-module,import-error
 from openvino.frontend import FrontEndManager, OpConversionFailure, ProgressReporterExtension, TelemetryExtension
-from openvino.frontend.tensorflow.graph_iterator import GraphIteratorTFGraph
 from openvino.runtime import get_version as get_rt_version
 from openvino.runtime import Type, PartialShape
 
@@ -392,6 +391,7 @@ def prepare_ir(argv: argparse.Namespace):
             orig_argv_values = {"input_model": argv.input_model, "model_name": argv.model_name}
             if not argv.use_legacy_frontend and is_tf:
                 import tensorflow as tf
+                from openvino.frontend.tensorflow.graph_iterator import GraphIteratorTFGraph
                 if isinstance(argv.input_model, tf.Graph):
                     argv.input_model = GraphIteratorTFGraph(argv.input_model)
                 elif isinstance(argv.input_model, tf.types.experimental.ConcreteFunction):
@@ -424,7 +424,8 @@ def prepare_ir(argv: argparse.Namespace):
             finally:
                 # TODO: remove this workaround once new TensorFlow frontend supports non-frozen formats: checkpoint, MetaGraph, and SavedModel
                 # Now it converts all TensorFlow formats to the frozen .pb format in case new TensorFlow frontend
-                if is_tf and (path_to_aux_pb is not None or isinstance(argv.input_model, GraphIteratorTFGraph)):
+                if is_tf and (path_to_aux_pb is not None or
+                              not argv.use_legacy_frontend and isinstance(argv.input_model, GraphIteratorTFGraph)):
                     argv.input_model = orig_argv_values["input_model"]
                     argv.model_name = orig_argv_values["model_name"]
                     if path_to_aux_pb is not None and os.path.exists(path_to_aux_pb):
