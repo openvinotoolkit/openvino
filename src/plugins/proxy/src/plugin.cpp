@@ -306,7 +306,9 @@ std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::compile_model(const std::
     remove_proxy_properties(device_config);
     std::shared_ptr<const ov::IPlugin> plugin = shared_from_this();
     auto compiled_model =
-        std::make_shared<ov::proxy::CompiledModel>(get_core()->compile_model(model, ctx, device_config), plugin);
+        std::make_shared<ov::proxy::CompiledModel>(get_core()->compile_model(model, ctx, device_config),
+                                                   plugin,
+                                                   context);
     return std::dynamic_pointer_cast<ov::ICompiledModel>(compiled_model);
 }
 

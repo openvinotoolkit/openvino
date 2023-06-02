@@ -17,6 +17,15 @@ public:
         m_inputs = model->inputs();
         m_outputs = model->outputs();
     }
+    CompiledModel(const ov::SoPtr<ov::ICompiledModel>& model,
+                  const std::shared_ptr<const ov::IPlugin>& plugin,
+                  const ov::RemoteContext& context)
+        : ov::ICompiledModel(nullptr, plugin, context) {
+        _parameters = model->_parameters;
+        _results = model->_results;
+        m_inputs = model->inputs();
+        m_outputs = model->outputs();
+    }
     std::shared_ptr<ov::IAsyncInferRequest> create_infer_request() const override {
         return m_compiled_model->create_infer_request();
     }

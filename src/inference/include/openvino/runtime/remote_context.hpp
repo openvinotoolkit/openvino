@@ -53,7 +53,6 @@ protected:
     std::shared_ptr<IRemoteContext> _impl;   //!< Pointer to the remote context implementation.
     std::vector<std::shared_ptr<void>> _so;  //!< Reference to the shared object that loaded implementation.
 
-    const ov::RemoteContext* get_context() const;
     /**
      * @brief Constructs RemoteContext from the initialized std::shared_ptr.
      * @param impl Initialized shared pointer.
@@ -150,7 +149,7 @@ public:
         static_assert(std::is_base_of<RemoteContext, T>::value,
                       "Could not check type that is not inherited from RemoteContext");
         T::type_check(*this);
-        return *static_cast<const T*>(get_context());
+        return *static_cast<const T*>(this);
     }
 
     /**

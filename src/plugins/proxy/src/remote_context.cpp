@@ -37,7 +37,3 @@ const ov::RemoteContext& ov::proxy::RemoteContext::get_hardware_context(const ov
     }
     return context;
 }
-
-const ov::RemoteContext& ov::proxy::get_hardware_context(const ov::RemoteContext& context) {
-    return ov::proxy::RemoteContext::get_hardware_context(context);
-}
