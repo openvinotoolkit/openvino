@@ -52,7 +52,7 @@ Installing OpenVINO™ Runtime with Anaconda Package Manager
 
    Congratulations! You have finished installing OpenVINO Runtime.
 
-Compiling with OpenVINO™ Runtime from Conda-Forge
+Compiling with OpenVINO Runtime from Conda-Forge
 ###########################################################
 
 When linking OpenVINO™ libraries from Conda, ensure you have the necessary Conda compilers installed. 
