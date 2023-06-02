@@ -20,7 +20,8 @@ public:
     CompiledModel(const ov::SoPtr<ov::ICompiledModel>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   const ov::RemoteContext& context)
-        : ov::ICompiledModel(nullptr, plugin, context) {
+        : ov::ICompiledModel(nullptr, plugin, context),
+          m_compiled_model(model) {
         _parameters = model->_parameters;
         _results = model->_results;
         m_inputs = model->inputs();
