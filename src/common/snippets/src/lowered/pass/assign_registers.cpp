@@ -86,11 +86,13 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
             // TODO: Fix via common pipeline using LoopEnd:
             //       All operations `outside loop` after Horizon ops should have the same register to avoid using it in the next Loop
             const auto current_loops_ids = expr->get_loop_ids();
-            auto next_expr = output_tensor->get_consumers().begin()->get_expr();
+            auto port = *output_tensor->get_consumers().begin();
+            auto next_expr = port.get_expr();
             while (next_expr->get_loop_ids() == current_loops_ids) {
                 manually_assigned_vecs[next_expr->get_output_port_connector(0)] =
                         static_cast<Reg>(accumulator_reg);
-                next_expr = next_expr->get_output_port_connector(0)->get_consumers().begin()->get_expr();
+                port = *next_expr->get_output_port_connector(0)->get_consumers().begin();
+                next_expr = port.get_expr();
             }
 
             accumulator_reg++;
