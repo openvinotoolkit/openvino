@@ -62,7 +62,7 @@ To do so, run the following command in your Conda environment:
 
     conda install cmake c-compiler cxx-compiler make
 
-It is crucial to reactivate your Conda environment after installation of the compilers. 
+It is crucial to reactivate your Conda environment after installing the compilers. 
 This step ensures that all the environment variables are set correctly for successful linkage.
 
 To reactivate your Conda environment, execute the following command:
