@@ -63,7 +63,7 @@ TEST(StaticShapeInferenceTest, TileSmallDataRankTestRepeatsInConstMap) {
     ASSERT_EQ(output_shapes.front(), StaticShape({3, 32, 10}));
 }
 
-TEST(StaticShapeInferenceTest, TileNewApiRepeatsAsConst) {
+TEST(StaticShapeInferenceTest, TileStaticShapeRepeatsAsConst) {
     auto param0 = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic(3));
     auto param1 = ov::op::v0::Constant::create(element::i64, Shape{2}, {4, 1});
     auto tile = std::make_shared<op::v0::Tile>(param0, param1);
@@ -100,4 +100,3 @@ TEST(StaticShapeInferenceTest, TileNewApiInputsStaticRank) {
     EXPECT_EQ(outputs->front(), StaticShapeCon({3, 4, 8, 20}));
     EXPECT_EQ(*outputs->front(), VectorDims({3, 4, 8, 20}));
 }
-

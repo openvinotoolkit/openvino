@@ -369,8 +369,26 @@ public:
 
     IShapeInferCommon::Result infer(const std::vector<StaticShape>& input_shapes,
                                     const ov::ITensorAccessor& tensor_accessor) override {
-        // Temporary support version with StaticShape.
-        return {shape_infer(static_cast<TOp*>(m_node.get()), input_shapes, tensor_accessor), ShapeInferStatus::success};
+        // Temporary support of StaticShape.
+        auto in_shapes = std::vector<StaticShapeRef>(input_shapes.size());
+        std::transform(input_shapes.begin(), input_shapes.end(), in_shapes.begin(), [](const StaticShape& s) {
+            return StaticShapeRef(reinterpret_cast<const VectorDims&>(s));
+        });
+
+        auto out_shapes = infer(in_shapes, tensor_accessor);
+        Result result{{}, out_shapes ? ShapeInferStatus::success : ShapeInferStatus::skip};
+
+        if (out_shapes) {
+            result.shapes.reserve(out_shapes->size());
+            std::transform(out_shapes->begin(),
+                           out_shapes->end(),
+                           std::back_inserter(result.shapes),
+                           [](StaticShapeCon& s) {
+                               return std::move(reinterpret_cast<StaticShape&&>(*s));
+                           });
+        }
+
+        return result;
     }
 
     ov::optional<std::vector<StaticShapeCon>> infer(const std::vector<StaticShapeRef>& input_shapes,
