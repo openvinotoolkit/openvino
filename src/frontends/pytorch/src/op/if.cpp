@@ -131,7 +131,7 @@ OutputVector translate_if(const NodeContext& context) {
             then_body->add_parameters({new_parameter});
             then_body->add_results({new_result});
             then_body->validate_nodes_and_infer_types();
-            FRONT_END_OP_CONVERSION_CHECK(inputs_map.count(output_idx), "Input must exist in else body");
+            FRONT_END_OP_CONVERSION_CHECK(inputs_map.count(output_idx), "Input must exist in else body: ", output_idx);
             inputs_map[output_idx][0] = new_parameter;
             extra_then_body_results[output_idx] = new_result;
             OPENVINO_DEBUG << "Modified then body: " << if_node << '\n';
@@ -143,7 +143,7 @@ OutputVector translate_if(const NodeContext& context) {
             else_body->add_parameters({new_parameter});
             else_body->add_results({new_result});
             else_body->validate_nodes_and_infer_types();
-            FRONT_END_OP_CONVERSION_CHECK(inputs_map.count(output_idx), "Input must exist in then body");
+            FRONT_END_OP_CONVERSION_CHECK(inputs_map.count(output_idx), "Input must exist in then body: ", output_idx);
             inputs_map[output_idx][1] = new_parameter;
             extra_else_body_results[output_idx] = new_result;
             OPENVINO_DEBUG << "Modified else body: " << if_node << '\n';

@@ -251,7 +251,9 @@ void TranslateSession::encode_tensor_name(Output<Node> output,
                                           size_t tensor_idx,
                                           std::vector<std::string> additional_names) {
     if (!output.get_names().empty()) {
-        OPENVINO_DEBUG << "Tensor names already exist: " << output.get_any_name() << ". Rewriting with " << tensor_idx;
+        OPENVINO_DEBUG << "Tensor names already exist: " << output.get_any_name() << ". Will not be rewritten with "
+                       << tensor_idx << ". This is likely a mutated tensor.";
+        return;
     }
     auto name = std::to_string(tensor_idx);
     std::unordered_set<std::string> names;
@@ -266,7 +268,6 @@ void TranslateSession::encode_tensor_name(Output<Node> output,
         pair.second.set_names({new_name});
         pair.second = output;
         output.set_names(names);
-
     } else {
         m_counter_map[tensor_idx] = {0, output};
         output.set_names(names);
