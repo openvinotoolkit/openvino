@@ -165,6 +165,15 @@ public:
     }
 
     /**
+     * @brief Inequality operator with Precision object
+     * @param p A value of Precision to compare with
+     * @return `true` if values represent different precisions, `false` otherwise
+     */
+    bool operator!=(const Precision& p) const noexcept {
+        return !(*this == p);
+    }
+
+    /**
      * @brief Equality operator with ePrecision enum value
      * @param p A value of ePrecision to compare with
      * @return `true` if values represent the same precisions, `false` otherwise
