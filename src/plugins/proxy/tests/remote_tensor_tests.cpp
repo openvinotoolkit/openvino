@@ -118,4 +118,3 @@ TEST_F(ProxyTests, custom_tensor_from_second_dev) {
     auto comp_rem_tensor = comp_tensor.as<PluginRemoteTensor>();
     EXPECT_FALSE(comp_rem_tensor.is_default());
 }
-
