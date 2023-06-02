@@ -487,7 +487,7 @@ const auto params_4D_dyn_param_fusing = ::testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_dyn_param_fusing, EltwiseLayerCPUTest, params_4D_dyn_param_fusing, EltwiseLayerCPUTest::getTestCaseName);
 
-const auto params_4D_dyn_param_fusing = ::testing::Combine(
+const auto params_4D_dyn_param_fusing_Blocked_Blocked = ::testing::Combine(
         ::testing::Combine(
                 ::testing::Values(inShapes_4D_dyn_param_fusing()),
                 ::testing::ValuesIn(eltwiseOpTypesBinDyn()),
@@ -498,10 +498,11 @@ const auto params_4D_dyn_param_fusing = ::testing::Combine(
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                 ::testing::Values(additional_config())),
-        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D())),
+        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D_Blocked_Blocked())),
         ::testing::ValuesIn(fusingParamsSet_x64));
 
-INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_dyn_param_fusing, EltwiseLayerCPUTest, params_4D_dyn_param_fusing, EltwiseLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_dyn_param_fusing_Blocked_Blocked, EltwiseLayerCPUTest, params_4D_dyn_param_fusing_Blocked_Blocked,
+                         EltwiseLayerCPUTest::getTestCaseName);
 
 const auto params_4D_blocked_blocked_dyn_param_fusing = ::testing::Combine(
         ::testing::Combine(
