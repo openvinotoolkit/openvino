@@ -138,6 +138,7 @@ static std::string label_edge(const std::shared_ptr<Node>& /* src */,
                               size_t arg_index,
                               int64_t jump_distance) {
     std::stringstream ss;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     if (getenv_bool("OV_VISUALIZE_TREE_EDGE_LABELS")) {
         size_t output = 0;
         stringstream label_edge;
@@ -150,6 +151,7 @@ static std::string label_edge(const std::shared_ptr<Node>& /* src */,
             ss << label_edge.str();
         }
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
     return ss.str();
 }
 
@@ -224,7 +226,9 @@ pass::VisualizeTree::VisualizeTree(const string& file_name, node_modifiers_t nm,
 void pass::VisualizeTree::add_node_arguments(shared_ptr<Node> node,
                                              unordered_map<Node*, HeightMap>& height_maps,
                                              size_t& fake_node_ctr) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     static const int const_max_elements = getenv_int("OV_VISUALIZE_TREE_CONST_MAX_ELEMENTS", 7);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     size_t arg_index = 0;
     for (auto input_value : node->input_values()) {
@@ -369,11 +373,13 @@ static std::string pretty_value(const vector<T>& values, size_t max_elements) {
         ss << value;
     }
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const std::string additional_ss =
         getenv_bool("OV_VISUALIZE_TREE_MIN_MAX_DENORMAL") ? pretty_min_max_denormal_value(values) : "";
     if (!additional_ss.empty()) {
         ss << std::endl << "(" << additional_ss << ")";
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
     return ss.str();
 }
 
@@ -442,12 +448,14 @@ string pass::VisualizeTree::get_attributes(shared_ptr<Node> node) {
         stringstream label;
         label << "label=\"" << get_node_name(node);
 
+        OPENVINO_SUPPRESS_DEPRECATED_START
         static const bool nvtos =
             getenv_bool("NGRAPH_VISUALIZE_TREE_OUTPUT_SHAPES") || getenv_bool("OV_VISUALIZE_TREE_OUTPUT_SHAPES");
         static const bool nvtot =
             getenv_bool("NGRAPH_VISUALIZE_TREE_OUTPUT_TYPES") || getenv_bool("OV_VISUALIZE_TREE_OUTPUT_TYPES");
         static const bool nvtio = getenv_bool("OV_VISUALIZE_TREE_IO");
         static const bool nvtrti = getenv_bool("OV_VISUALIZE_TREE_RUNTIME_INFO");
+        OPENVINO_SUPPRESS_DEPRECATED_END
 
         if (nvtos || nvtot || nvtio) {
             if (nvtio) {
@@ -492,12 +500,15 @@ string pass::VisualizeTree::get_attributes(shared_ptr<Node> node) {
     }
 
     stringstream ss;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     ss << "    " << node->get_name() << " [" << join(attributes, " ") << "]\n";
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     return ss.str();
 }
 
 string pass::VisualizeTree::get_node_name(shared_ptr<Node> node) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     static const bool nvtmn = getenv_bool("OV_VISUALIZE_TREE_MEMBERS_NAME");
     string rc = (nvtmn ? string("friendly_name: ") : "") + node->get_friendly_name();
     if (node->get_friendly_name() != node->get_name()) {
@@ -552,6 +563,7 @@ string pass::VisualizeTree::get_node_name(shared_ptr<Node> node) {
             rc += "\\nrt info: " + get_attribute_values(rt, "\\n");
         }
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
     return rc;
 }
 

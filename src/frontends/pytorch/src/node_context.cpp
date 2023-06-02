@@ -228,6 +228,8 @@ Any NodeContext::get_values_from_const_input(int index) const {
             return get_constant_data<int16_t>(constant);
         case element::u16:
             return get_constant_data<uint16_t>(constant);
+        case element::boolean:
+            return get_constant_data<bool>(constant);
         default:
             FRONT_END_GENERAL_CHECK(false, "Input with index: ", index, " has unsupported type.");
         }
