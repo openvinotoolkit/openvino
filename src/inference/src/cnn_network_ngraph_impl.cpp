@@ -75,8 +75,7 @@ void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::
     // query shape from ngraph::Parameter output shape and check there are no zeros in it
     for (const auto& dim : shape) {
         if (dim.is_static() && dim.get_length() == 0)
-            continue;
-            // IE_THROW() << outName << " has zero dimension which is not allowed";
+            IE_THROW() << outName << " has zero dimension which is not allowed";
     }
 
     auto rank = shape.rank().is_static() ? shape.rank().get_length() : -1;

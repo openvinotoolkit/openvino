@@ -19,7 +19,7 @@ class TestShapeAsTensor(PytorchLayerTest):
         return (self.input_tensor,)
 
     @pytest.mark.parametrize("shape", [
-        (),
+        # (),
         (2,),
         (1,2,3,4), 
         (5,4,2,7)

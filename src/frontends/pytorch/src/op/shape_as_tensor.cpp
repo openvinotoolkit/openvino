@@ -4,8 +4,6 @@
 
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/shape_of.hpp"
-
-
 #include "utils.hpp"
 
 namespace ov {
