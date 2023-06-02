@@ -201,7 +201,7 @@ def runCommandList(commit, cfgData, enforceClean=False):
                     raise CmdError(checkOut)
 
 
-def fetchAppOutput(cfg):
+def fetchAppOutput(cfg, commit):
     newEnv = os.environ.copy()
     if "envVars" in cfg:
         for env in cfg["envVars"]:
@@ -210,6 +210,10 @@ def fetchAppOutput(cfg):
             newEnv[envKey] = envVal
     appCmd = cfg["appCmd"]
     appPath = cfg["appPath"]
+    commitLogger = getCommitLogger(cfg, commit)
+    commitLogger.info("Run command: {command}".format(
+        command=appCmd)
+    )
     p = subprocess.Popen(
         appCmd.split(),
         cwd=appPath,
