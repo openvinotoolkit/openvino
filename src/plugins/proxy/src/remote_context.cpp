@@ -10,7 +10,6 @@
 
 ov::proxy::RemoteContext::RemoteContext(const ov::RemoteContext& ctx, const std::string& dev_name)
     : m_name(dev_name),
-      m_property(ctx.get_params()),
       m_context(ctx) {}
 
 const std::string& ov::proxy::RemoteContext::get_device_name() const {
@@ -18,8 +17,7 @@ const std::string& ov::proxy::RemoteContext::get_device_name() const {
 }
 
 const ov::AnyMap& ov::proxy::RemoteContext::get_property() const {
-    m_property = m_context.get_params();
-    return m_property;
+    return m_context._impl->get_property();
 }
 
 std::shared_ptr<ov::IRemoteTensor> ov::proxy::RemoteContext::create_tensor(const ov::element::Type& type,

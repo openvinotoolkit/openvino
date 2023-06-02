@@ -28,7 +28,6 @@ public:
 
 private:
     mutable std::string m_name;
-    mutable ov::AnyMap m_property;
     ov::RemoteContext m_context;
 };
 
