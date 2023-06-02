@@ -4,6 +4,8 @@
 
 #include "tensor_data_accessor.hpp"
 
+#include "ngraph/runtime/host_tensor.hpp"
+
 namespace ov {
 template <>
 Tensor TensorAccessor<TensorVector>::operator()(size_t port) const {
