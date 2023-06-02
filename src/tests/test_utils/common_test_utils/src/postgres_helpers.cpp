@@ -12,6 +12,11 @@ const char* PGQL_ENV_RUN_NAME = "OV_TEST_RUN_ID";       // Environment variable 
 const char* PGQL_ENV_RLVL_NAME = "OV_TEST_REPORT_LVL";  // Environment variable identifies reporting
                                                         // level: default ("", empty), "fast", "suite"
 
+char* PGPrefix(const char* text, ::testing::internal::GTestColor color) {
+    ::testing::internal::ColoredPrintf(color, text);
+    return "";
+}
+
 PGresultHolder PostgreSQLConnection::common_query(const char* query) {
 #ifdef PGQL_DEBUG
     std::cerr << query << std::endl;
@@ -37,8 +42,8 @@ PGresultHolder PostgreSQLConnection::common_query(const char* query) {
 }
 
 PGresultHolder PostgreSQLConnection::query(const char* query,
-                                           const ExecStatusType expectedStatus = PGRES_TUPLES_OK,
-                                           const bool smartRetry = false) {
+                                           const ExecStatusType expectedStatus,
+                                           const bool smartRetry) {
     PGresultHolder result = common_query(query);
     uint8_t queryCounter = 1;
     size_t selectPos = smartRetry ? std::string::npos : std::string(query).find("SELECT");
@@ -422,15 +427,24 @@ void add_pair(std::map<std::string, std::string>& keyValues, const std::string& 
     }
     // Normalize target devices
     if (key == "target_device" || key == "TargetDevice" || key == "Device" || key == "targetDevice") {
-#if defined(__arm__) || defined(_M_ARM) || defined(__aarch64__) || defined(_M_ARM64)
         if (value == "CPU") {
-            keyValues["targetDevice"] = "CPU_ARM";
-        } else {
-            keyValues["targetDevice"] = value;
-        }
-#else
-        keyValues["targetDevice"] = value;
+// see https://sourceforge.net/p/predef/wiki/Architectures/
+#if defined(__arm__) || defined(_M_ARM) || defined(__ARMEL__)
+            keyValues["targetDeviceArch"] = "arm";
+#elif defined(__aarch64__) || defined(_M_ARM64)
+            keyValues["targetDeviceArch"] = "arm64";
+#elif defined(i386) || defined(__i386) || defined(__i386__) || defined(__IA32__) || defined(_M_I86) || \
+    defined(_M_IX86) || defined(__X86__) || defined(_X86_) || defined(__I86__) || defined(__386) ||    \
+    defined(__ILP32__) || defined(_ILP32) || defined(__wasm32__) || defined(__wasm32)
+            keyValues["targetDeviceArch"] = "x86";
+#elif defined(__amd64__) || defined(__amd64) || defined(__x86_64__) || defined(__x86_64) || defined(_M_X64) || \
+    defined(_M_AMD64)
+            keyValues["targetDeviceArch"] = "x64";
+#elif defined(__riscv)
+            keyValues["targetDeviceArch"] = "riskv64";
 #endif
+        }
+        keyValues["targetDevice"] = value;
         return;
     }
     std::string lKey = key;

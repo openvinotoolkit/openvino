@@ -234,14 +234,20 @@ void ReadIRTest::SetUp() {
     // Updating data in runtime. Should be set before possible call of a first GTEST status
     auto pgLink = this->GetPGLink();
     if (pgLink) {
-#    if defined(__arm__) || defined(_M_ARM) || defined(__aarch64__) || defined(_M_ARM64)
         if (this->targetDevice == "CPU") {
-            pgLink->SetCustomField("targetDevice", "CPU_ARM", true);
-        } else {
-            pgLink->SetCustomField("targetDevice", this->targetDevice, true);
-        }
-#    else
-        if (this->targetDevice == "GPU") {
+            pgLink->set_custom_field("targetDevice", this->targetDevice, true);
+#    if defined(OPENVINO_ARCH_X86_64)
+            pgLink->set_custom_field("targetDeviceArch", "x64", true);
+#    elif defined(OPENVINO_ARCH_X86)
+            pgLink->set_custom_field("targetDeviceArch", "x86", true);
+#    elif defined(OPENVINO_ARCH_ARM)
+            pgLink->set_custom_field("targetDeviceArch", "arm", true);
+#    elif defined(OPENVINO_ARCH_ARM64)
+            pgLink->set_custom_field("targetDeviceArch", "arm64", true);
+#    elif defined(OPENVINO_ARCH_RISCV64)
+            pgLink->set_custom_field("targetDeviceArch", "riskv64", true);
+#    endif
+        } else if (this->targetDevice == "GPU") {
             auto devName = core->get_property("GPU", "FULL_DEVICE_NAME").as<std::string>();
             std::cerr << "GPU Device: " << devName << std::endl;
             if (devName.find("dGPU") != std::string::npos) {
@@ -252,7 +258,6 @@ void ReadIRTest::SetUp() {
         } else {
             pgLink->set_custom_field("targetDevice", this->targetDevice, true);
         }
-#    endif
         pgLink->set_custom_field("caseType", hasDynamic ? "dynamic" : "static");
         pgLink->set_custom_field("irWeight", std::to_string(rel_influence_coef), true);
 

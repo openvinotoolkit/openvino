@@ -124,10 +124,7 @@ static fnPQclear PQclear;
 static fnPQresultErrorMessage PQresultErrorMessage;
 #endif
 
-char* PGPrefix(const char* text, ::testing::internal::GTestColor color) {
-    ::testing::internal::ColoredPrintf(color, text);
-    return "";
-}
+char* PGPrefix(const char* text, ::testing::internal::GTestColor color);
 
 #define PG_ERR PGPrefix("[ PG ERROR ] ", ::testing::internal::COLOR_RED)
 #define PG_WRN PGPrefix("[ PG WARN  ] ", ::testing::internal::COLOR_YELLOW)
