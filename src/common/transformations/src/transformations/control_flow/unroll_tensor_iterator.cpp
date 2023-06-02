@@ -35,7 +35,7 @@ bool ov::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ngraph::
         // Assign names to the created layers.
         std::vector<std::shared_ptr<ngraph::Function>> body_functions(num_iter);
         for (int64_t idx = 0; idx < num_iter; ++idx) {
-            body_functions[idx] = ngraph::clone_function(*function);
+            body_functions[idx] = function->clone();
             for (auto& node : body_functions[idx]->get_ops()) {
                 node->set_friendly_name(sub_graph_op->get_friendly_name() + "/" + std::to_string(idx + 1) + "/" +
                                         node->get_friendly_name());

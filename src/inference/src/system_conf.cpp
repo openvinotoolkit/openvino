@@ -19,6 +19,11 @@
 #include "streams_executor.hpp"
 #include "threading/ie_cpu_streams_info.hpp"
 
+#ifdef __APPLE__
+#    include <sys/sysctl.h>
+#    include <sys/types.h>
+#endif
+
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    define XBYAK_NO_OP_NAMES
 #    define XBYAK_UNDEF_JNL
@@ -29,7 +34,7 @@ using namespace InferenceEngine;
 
 namespace ov {
 
-#if defined(OPENVINO_ARCH_X86_64)
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 
 // note: MSVC 2022 (17.4) is not able to compile the next line for ARM and ARM64
 // so, we disable this code since for non-x86 platforms it returns 'false' anyway
@@ -79,7 +84,7 @@ bool with_cpu_x86_avx512_core_amx() {
     return with_cpu_x86_avx512_core_amx_int8() || with_cpu_x86_avx512_core_amx_bf16();
 }
 
-#else  // OPENVINO_ARCH_X86_64
+#else  // OPENVINO_ARCH_X86 || OPENVINO_ARCH_X86_64
 
 bool with_cpu_x86_sse42() {
     return false;
@@ -112,7 +117,7 @@ bool with_cpu_x86_avx512_core_amx() {
     return false;
 }
 
-#endif  // OPENVINO_ARCH_X86_64
+#endif  // OPENVINO_ARCH_X86 || OPENVINO_ARCH_X86_64
 
 bool check_open_mp_env_vars(bool include_omp_num_threads) {
     for (auto&& var : {"GOMP_CPU_AFFINITY",
@@ -158,7 +163,7 @@ CPU& cpu_info() {
     return cpu;
 }
 
-#if defined(__APPLE__) || defined(__EMSCRIPTEN__)
+#if defined(__EMSCRIPTEN__)
 // for Linux and Windows the getNumberOfCPUCores (that accounts only for physical cores) implementation is OS-specific
 // (see cpp files in corresponding folders), for __APPLE__ it is default :
 int get_number_of_cpu_cores(bool) {
@@ -186,58 +191,39 @@ std::vector<std::vector<int>> reserve_available_cpus(const std::vector<std::vect
 }
 void set_cpu_used(const std::vector<int>& cpu_ids, const int used) {}
 
-int parse_processor_info_macos(int& _processors,
-                               int& _numa_nodes,
-                               int& _cores,
-                               std::vector<std::vector<int>>& _proc_type_table) {
-    uint64_t output = 0;
-    size_t size = sizeof(output);
-
-    _processors = 0;
-    _numa_nodes = 0;
-    _cores = 0;
-
-    if (sysctlbyname("hw.ncpu", &output, &size, NULL, 0) < 0) {
-        return -1;
-    } else {
-        _processors = output;
-    }
-
-    if (sysctlbyname("hw.physicalcpu", &output, &size, NULL, 0) < 0) {
-        _processors = 0;
-        return -1;
-    } else {
-        _cores = output;
-    }
-
-    _numa_nodes = 1;
-
-    if (sysctlbyname("hw.optional.arm64", &output, &size, NULL, 0) < 0) {
-        _proc_type_table.resize(1, std::vector<int>(PROC_TYPE_TABLE_SIZE, 0));
-        _proc_type_table[0][ALL_PROC] = _processors;
-        _proc_type_table[0][MAIN_CORE_PROC] = _cores;
-        _proc_type_table[0][HYPER_THREADING_PROC] = _processors - _cores;
-    } else {
-        if (sysctlbyname("hw.perflevel0.physicalcpu", &output, &size, NULL, 0) < 0) {
-            _processors = 0;
-            _cores = 0;
-            _numa_nodes = 0;
-            return -1;
-        } else {
-            _proc_type_table.resize(1, std::vector<int>(PROC_TYPE_TABLE_SIZE, 0));
-            _proc_type_table[0][ALL_PROC] = _processors;
-            _proc_type_table[0][MAIN_CORE_PROC] = output;
-        }
-
-        if (sysctlbyname("hw.perflevel1.physicalcpu", &output, &size, NULL, 0) < 0) {
-            return 0;
-        } else {
-            _proc_type_table[0][EFFICIENT_CORE_PROC] = output;
-        }
-    }
-
-    return 0;
+#elif defined(__APPLE__)
+// for Linux and Windows the getNumberOfCPUCores (that accounts only for physical cores) implementation is OS-specific
+// (see cpp files in corresponding folders), for __APPLE__ it is default :
+int get_number_of_cpu_cores(bool) {
+    return parallel_get_max_threads();
 }
+#    if !((OV_THREAD == OV_THREAD_TBB) || (OV_THREAD == OV_THREAD_TBB_AUTO))
+std::vector<int> get_available_numa_nodes() {
+    return {-1};
+}
+#    endif
+int get_number_of_logical_cpu_cores(bool) {
+    return parallel_get_max_threads();
+}
+
+bool is_cpu_map_available() {
+    CPU& cpu = cpu_info();
+    return cpu._proc_type_table.size() > 0;
+}
+
+std::vector<std::vector<int>> get_proc_type_table() {
+    CPU& cpu = cpu_info();
+    std::lock_guard<std::mutex> lock{cpu._cpu_mutex};
+    return cpu._proc_type_table;
+}
+
+int get_num_numa_nodes() {
+    return cpu_info()._numa_nodes;
+}
+std::vector<std::vector<int>> reserve_available_cpus(const std::vector<std::vector<int>> streams_info_table) {
+    return {{-1}};
+}
+void set_cpu_used(const std::vector<int>& cpu_ids, const int used) {}
 
 #else
 
@@ -292,8 +278,7 @@ std::vector<std::vector<int>> get_proc_type_table() {
 
 bool is_cpu_map_available() {
     CPU& cpu = cpu_info();
-    std::lock_guard<std::mutex> lock{cpu._cpu_mutex};
-    return cpu._proc_type_table.size() > 0 && cpu._num_threads == cpu._proc_type_table[0][ALL_PROC];
+    return cpu._cpu_mapping_table.size() > 0;
 }
 
 int get_num_numa_nodes() {

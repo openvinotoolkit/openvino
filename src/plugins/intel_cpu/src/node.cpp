@@ -300,7 +300,7 @@ void Node::selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& pr
 
                 if (parent_spd != nullptr && !parent_spd->getConfig().outConfs.empty()) {
                     int inNum = parentEdge->getInputNum();
-                    if (inNum < 0 || inNum >= parent_spd->getConfig().outConfs.size()) {
+                    if (inNum < 0 || inNum >= static_cast<int>(parent_spd->getConfig().outConfs.size())) {
                         inNum = 0;
                     }
                     auto curDesc = supportedPrimitiveDesc.getConfig().inConfs[j].getMemDesc();
@@ -514,7 +514,7 @@ const std::vector<EdgePtr> Node::getParentEdgesAtPort(size_t idx) const {
         auto edge = edge_w.lock();
         if (!edge)
             IE_THROW() << "Node " << getName() << " contains dead weak ptr";
-        if (edge->getOutputNum() == idx) res.push_back(edge);
+        if (edge->getOutputNum() == static_cast<int>(idx)) res.push_back(edge);
     }
     return res;
 }
@@ -528,7 +528,7 @@ const std::vector<EdgePtr> Node::getChildEdgesAtPort(size_t idx) const {
         auto edge = edge_w.lock();
         if (!edge)
             IE_THROW() << "Node " << getName() << " contains dead weak ptr";
-        if (edge->getInputNum() == idx) res.push_back(edge);
+        if (edge->getInputNum() == static_cast<int>(idx)) res.push_back(edge);
     }
     return res;
 }
@@ -679,7 +679,7 @@ void Node::filterSupportedPrimitiveDescriptors() {
         if (inputMemoryFormatsFilter.size() > config.inConfs.size() || outputMemoryFormatsFilter.size() > config.outConfs.size())
             IE_THROW() << "Incorrect number of input or output memory formats";
 
-        for (int i = 0; i < inputMemoryFormatsFilter.size(); i++) {
+        for (size_t i = 0; i < inputMemoryFormatsFilter.size(); i++) {
             if (!areCompatible(*config.inConfs[i].getMemDesc(), inputMemoryFormatsFilter[i])) {
                 DEBUG_LOG(getName(), " input memory format filter: ", inputMemoryFormatsFilter[i],
                           " not matched. Erase desc from supported primitive descriptors: ", desc);
@@ -687,7 +687,7 @@ void Node::filterSupportedPrimitiveDescriptors() {
             }
         }
 
-        for (int i = 0; i < outputMemoryFormatsFilter.size(); i++) {
+        for (size_t i = 0; i < outputMemoryFormatsFilter.size(); i++) {
             if (!areCompatible(*config.outConfs[i].getMemDesc(), outputMemoryFormatsFilter[i])) {
                 DEBUG_LOG(getName(), " Output memory format filter: ", outputMemoryFormatsFilter[i],
                           " not matched. Erase desc from supported primitive descriptors: ", desc);
@@ -1025,7 +1025,7 @@ PortDescBasePtr Node::getConsistentInputDesc(const NodeConfig &config, size_t id
         auto inplaceIndx = static_cast<size_t>(inConf.inPlace());
         PortDescBasePtr outPortDesc;
         const auto& outConf = config.outConfs[inplaceIndx];
-        if (outConf.inPlace() == idx) { // the input desc port is the same port used for inplace output
+        if (outConf.inPlace() == static_cast<int>(idx)) { // the input desc port is the same port used for inplace output
             outPortDesc = outConf.getPortDesc(); // just use desc from this output port
         } else {
             outPortDesc = getConsistentOutputDesc(config, inplaceIndx); // get consistent desc otherwise
@@ -1065,7 +1065,7 @@ PortDescBasePtr Node::getConsistentOutputDesc(const NodeConfig &config, size_t i
         auto inplaceIndx = static_cast<size_t>(outConf.inPlace());
         PortDescBasePtr inpPortDesc;
         const auto& inpConf = config.inConfs[inplaceIndx];
-        if (inpConf.inPlace() == idx) { // the input desc port is the same port used for inplace output
+        if (inpConf.inPlace() == static_cast<int>(idx)) { // the input desc port is the same port used for inplace output
             inpPortDesc = inpConf.getPortDesc(); // just use desc from this output port
         } else {
             inpPortDesc = getConsistentInputDesc(config, inplaceIndx); // get consistent desc otherwise

@@ -5,9 +5,9 @@
 #pragma once
 
 #include <memory>
-#include <ngraph/ngraph.hpp>
 #include "transformation_context.hpp"
 #include "layer_transformation.hpp"
+#include "openvino/opsets/opset1.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -42,7 +42,7 @@ protected:
     virtual size_t getInputChannels(const std::shared_ptr<ngraph::Node> conv) const = 0;
 
 public:
-    static std::shared_ptr<opset1::FakeQuantize> getFakeQuantizeOnWeights(const std::shared_ptr<Node>& node);
+    static std::shared_ptr<ov::opset1::FakeQuantize> getFakeQuantizeOnWeights(const std::shared_ptr<Node>& node);
     static DataPrecision getDataPrecisionOnWeights(const std::shared_ptr<Node>& node, const std::vector<ngraph::element::Type>& defaultPrecisions);
     static bool isAsymmetricOnWeights(const std::shared_ptr<const Node>& node,
         const std::vector<ngraph::element::Type>& defaultPrecisions = precision_set::int8_support);
