@@ -273,13 +273,13 @@ void Input::cloneBlobIfRequired() {
         // but ngraph Constant uses actual bitWidth for data storage allocation
         // in that case we make a copy to avoid overflow
         if (constOp->get_byte_size() >= memDesc.getCurrentMemSize()) {
-            memory = MemoryPtr(new Memory(getEngine(), memDesc, constOp->get_data_ptr()));
+            memory = std::make_shared<Memory>(getEngine(), memDesc, constOp->get_data_ptr());
         } else {
-            memory = MemoryPtr(new Memory(getEngine(), memDesc));
+            memory = std::make_shared<Memory>(getEngine(), memDesc);
             memcpy(memory->GetData(), constOp->get_data_ptr(), constOp->get_byte_size());
         }
 
-        MemoryPtr ptr = MemoryPtr(new Memory(getEngine(), memDesc));
+        MemoryPtr ptr = std::make_shared<Memory>(getEngine(), memDesc);
         ptr->SetData(*memory.get(), needFlushDenormalsToZero);
 
         return ptr;

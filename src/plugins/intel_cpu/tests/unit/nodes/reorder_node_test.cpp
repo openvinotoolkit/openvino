@@ -133,10 +133,8 @@ public:
         reorderNode->addEdge(parentEdge);
         reorderNode->addEdge(childEdge);
 
-        auto parentMemory = std::make_shared<ov::intel_cpu::Memory>(cpuEngine);
-        auto childMemory = std::make_shared<ov::intel_cpu::Memory>(cpuEngine);
-        parentMemory->Create(inputDesc, nullptr);
-        childMemory->Create(outputDesc, nullptr);
+        auto parentMemory = std::make_shared<ov::intel_cpu::Memory>(cpuEngine, inputDesc);
+        auto childMemory = std::make_shared<ov::intel_cpu::Memory>(cpuEngine, outputDesc);
 
         parentEdge->reuse(parentMemory);
         childEdge->reuse(childMemory);

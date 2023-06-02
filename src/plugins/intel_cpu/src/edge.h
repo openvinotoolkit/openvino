@@ -65,7 +65,6 @@ public:
 
     const IMemory& getMemory();
     MemoryPtr getMemoryPtr() const;
-    void resetMemoryPtr(MemoryPtr mem);
 
     ReorderStatus needReorder();
     bool isDropped() const;
@@ -108,7 +107,7 @@ private:
     void collectConsumers(std::vector<std::shared_ptr<Node>>& result) const;
 
     EdgePtr getBaseEdge(int look = LOOK_BOTH);
-    void allocateCommon(const std::function<void(MemoryPtr, const MemoryDesc&)>& allocate);
+    void allocateCommon(const std::function<MemoryPtr(const MemoryDesc&)>& allocate);
 
     friend class Graph;
 };

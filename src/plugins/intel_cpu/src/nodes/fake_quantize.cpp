@@ -1837,7 +1837,7 @@ void FakeQuantize::initializePostOpDataLegacy(const VectorDims &dims, const size
 void FakeQuantize::appendMemory(const size_t dataSize, const void *data, MemoryPtr &memPtr, std::vector<MemoryPtr>& postOpsMem) {
     if (!memPtr) {
         DnnlBlockedMemoryDesc memoryDesc(Precision::FP32, {dataSize});
-        memPtr.reset(new Memory(getEngine(), memoryDesc, data));
+        memPtr = std::make_shared<Memory>(getEngine(), memoryDesc, data);
 
         postOpsMem.push_back(memPtr);
     }

@@ -161,8 +161,7 @@ private:
 
 class IMemory {
 public:
-    virtual dnnl::memory GetPrimitive() const = 0; // that might be a pain in the neck, but we still have to support it
-    virtual dnnl::memory::data_type GetDataType() const = 0; // still better than downcast
+    virtual ~IMemory() = default;
 
     virtual bool isAllocated() const noexcept = 0;
 
@@ -172,40 +171,36 @@ public:
     virtual void* GetData() const = 0; // pointer to the actual memory
 
     virtual size_t GetSize() const = 0; // in bytes
-
     virtual const Shape& GetShape() const = 0;
+    virtual const VectorDims& getStaticDims() const = 0;
 
     // Redefines descriptor. The memory descriptor will be replaced with the new one.
     // Memory will not be reallocated if the new tensor size is less or equal the upper bound.
     // Caution!!! This action invalidates the previous data layout. The old data may become unreachable.
-    virtual void redefineDesc(MemoryDescPtr desc, const void* data = nullptr, bool pads_zeroing = false) = 0;
+    virtual void redefineDesc(MemoryDescPtr desc) = 0;
 
     virtual void SetData(const IMemory& memory, bool ftz = true) const = 0;
+
+    virtual MemoryMngrPtr getMemoryMngr() const = 0;
+
+    //oneDNN specifics for backward compatibility
+    virtual dnnl::memory GetPrimitive() const = 0;
+    virtual dnnl::memory::data_type GetDataType() const = 0;
+
     virtual void FillZero() = 0;
 
-    virtual const VectorDims& getStaticDims() const = 0;
-
-    virtual bool isUsedExternalStorage() const = 0;
-
-    virtual MemoryMngrPtr getMemoryMngr() const = 0; // returns nullptr when has nothing to return
-    
     template <typename T,
             typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
             typename std::enable_if<std::is_base_of<MemoryDesc, T>::value, int>::type = 0>
-    std::shared_ptr<T> GetDescWithType() const; // the only not pure method, since it exploits a static polymorphism. Should call getDesc and type cast internally
-
-protected:
-    IMemory() = delete;
-    IMemory(MemoryDescPtr _pMemDesc) : pMemDesc(_pMemDesc) {};
-    MemoryDescPtr pMemDesc;
+    std::shared_ptr<T> GetDescWithType() const;
 };
 
 class Memory : public IMemory {
 public:
-    explicit Memory(const dnnl::engine& eng, MemoryDescPtr pMemDesc, const void* data = nullptr, bool pads_zeroing = true);
-    explicit Memory(const dnnl::engine& eng, const MemoryDesc& MemDesc, const void* data = nullptr, bool pads_zeroing = true);
-    Memory(const dnnl::engine& eng, std::unique_ptr<IMemoryMngr> mngr, MemoryDescPtr pMemDesc);
-    Memory(const dnnl::engine& eng, std::unique_ptr<IMemoryMngr> mngr, const MemoryDesc& MemDesc);
+    Memory(const dnnl::engine& eng, MemoryDescPtr desc, const void* data = nullptr, bool pads_zeroing = true);
+    Memory(const dnnl::engine& eng, const MemoryDesc& desc, const void* data = nullptr, bool pads_zeroing = true);
+    Memory(const dnnl::engine& eng, MemoryDescPtr desc, MemoryMngrPtr mngr);
+    Memory(const dnnl::engine& eng, const MemoryDesc& desc, MemoryMngrPtr mbgr);
 
     Memory(const Memory&) = delete;
     Memory& operator= (const Memory&) = delete;
@@ -215,21 +210,7 @@ public:
 
     dnnl::memory GetPrimitive() const override;
 
-    bool isAllocated() const noexcept override {
-        if (mgrHandle->getRawPtr()) {
-            return true;
-        }
-        if (!pMemDesc) {
-            return false;
-        }
-        if (!(pMemDesc->isDefined())) {
-            return true;
-        }
-        if (pMemDesc->getCurrentMemSize() == 0) {
-            return true;
-        }
-        return false;
-    }
+    bool isAllocated() const noexcept override;
 
     const MemoryDesc& getDesc() const override {
         return *pMemDesc;
@@ -239,23 +220,7 @@ public:
         return pMemDesc;
     }
 
-    // template <typename T,
-    //         typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
-    //         typename std::enable_if<std::is_base_of<MemoryDesc, T>::value, int>::type = 0>
-    // std::shared_ptr<T> GetDescWithType() const;
-
-    /**
-     * Return handler of buffer. Real data may starts from some other offset
-     * @return
-     */
-    void* GetData() const override {
-        void* data = getDataNoThrow();
-        if (data == nullptr &&
-            pMemDesc->getShape().isStatic() &&
-            pMemDesc->getShape().getElementsCount() != 0)
-            IE_THROW() << "Memory has not been allocated";
-        return data;
-    }
+    void* GetData() const override;
 
     dnnl::memory::data_type GetDataType() const override {
         return DnnlExtensionUtils::IEPrecisionToDataType(getDesc().getPrecision());
@@ -267,24 +232,20 @@ public:
         return getDesc().getShape();
     }
 
-    // Redefines descriptor. The memory descriptor will be replaced with the new one.
-    // Memory will not be reallocated if the new tensor size is less or equal the upper bound.
-    // Caution!!! This action invalidates the previous data layout. The old data may become unreachable.
-    void redefineDesc(MemoryDescPtr desc, const void* data = nullptr, bool pads_zeroing = false) override;
-
-    void SetData(const IMemory& memory, bool ftz = true) const override;
-    void FillZero() override;
-
     const VectorDims& getStaticDims() const override {
         return getDesc().getShape().getStaticDims();
     }
 
+    // Redefines descriptor. The memory descriptor will be replaced with the new one.
+    // Memory will not be reallocated if the new tensor size is less or equal the upper bound.
+    // Caution!!! This action invalidates the previous data layout. The old data may become unreachable.
+    void redefineDesc(MemoryDescPtr desc) override;
+
+    void SetData(const IMemory& memory, bool ftz = true) const override;
+    void FillZero() override;
+
     dnnl::engine getEngine() const {
         return eng;
-    }
-
-    bool isUsedExternalStorage() const override {
-        return mgrHandle->hasExtBuffer();
     }
 
     MemoryMngrPtr getMemoryMngr() const override {
@@ -300,11 +261,8 @@ private:
     void Create(const MemoryDesc& desc, const void* data = nullptr, bool pads_zeroing = true);
     void Create(MemoryDescPtr desc, const void* data = nullptr, bool pads_zeroing = true);
 
-    void Create(const MemoryDesc& desc, MemoryMngrPtr memMgr);
-    void Create(MemoryDescPtr desc, MemoryMngrPtr memMgr);
-
 private:
-    // MemoryDescPtr pMemDesc;
+    MemoryDescPtr pMemDesc;
     dnnl::engine eng;
     DnnlMemMngrHandle mgrHandle;
     bool padsZeroing = true;

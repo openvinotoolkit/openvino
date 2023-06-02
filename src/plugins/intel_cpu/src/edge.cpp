@@ -236,10 +236,8 @@ Edge::ReorderStatus Edge::needReorder() {
 }
 
 void Edge::reuse(MemoryPtr ptr) {
-    if (status != Status::NeedAllocation)
-        return;
     memoryPtr = ptr;
-    status = Status::Allocated;
+    changeStatus(Status::Allocated);
 
     DEBUG_LOG(*this, " memoryPtr=", memoryPtr);
 }
@@ -252,10 +250,7 @@ int Edge::getOutputNum() const {
     return child_port;
 }
 
-void Edge::allocateCommon(const std::function<void(MemoryPtr, const MemoryDesc&)>& allocate) {
-    if (status != Status::NeedAllocation)
-        return;
-
+void Edge::allocateCommon(const std::function<MemoryPtr(const MemoryDesc&)>& allocate) {
     if (memoryPtr)
         IE_THROW() << "Unexpected behaviour: status == NeedAllocation but memory is already allocated.";
 
@@ -264,15 +259,15 @@ void Edge::allocateCommon(const std::function<void(MemoryPtr, const MemoryDesc&)
     if (!inputDesc.isCompatible(outputDesc))
         IE_THROW() << "Cannot allocate memory for incompatible descriptors.";
 
-    allocate(memoryPtr, inputDesc);
+    memoryPtr = allocate(inputDesc);
     DEBUG_LOG(*this, " memoryPtr=", memoryPtr);
     status = Status::Allocated;
 }
 
 void Edge::allocate(const void* mem_ptr) {
-    auto allocateFunc = [=](MemoryPtr memoryPtr, const MemoryDesc& inputDesc) {
+    auto allocateFunc = [=](const MemoryDesc& inputDesc) -> MemoryPtr {
         auto parentPtr = getParent();
-        memoryPtr.reset(new Memory(parentPtr->getEngine(), inputDesc, mem_ptr, false));  // no pads zeroing
+        return std::make_shared<Memory>(parentPtr->getEngine(), inputDesc, mem_ptr, false);  // no pads zeroing
     };
 
     allocateCommon(allocateFunc);
@@ -283,29 +278,12 @@ void Edge::allocate(MemoryMngrPtr memMngr) {
         IE_THROW(Unexpected) << "Memory manager ptr is NULL";
     }
 
-    // auto allocateFunc = [=](MemoryPtr memoryPtr, const MemoryDesc& inputDesc) {
-    //     auto parentPtr = getParent();
-    //     memoryPtr.reset(new Memory(parentPtr->getEngine(), std::unique_ptr<IMemoryMngr>(memMngr.get()), inputDesc));
-    // };
+    auto allocateFunc = [=](const MemoryDesc& inputDesc) -> MemoryPtr {
+        auto parentPtr = getParent();
+        return std::make_shared<Memory>(parentPtr->getEngine(), inputDesc, memMngr);
+    };
 
-    // allocateCommon(allocateFunc);
-
-    if (status != Status::NeedAllocation)
-        return;
-
-    if (memoryPtr)
-        IE_THROW() << "Unexpected behaviour: status == NeedAllocation but memory is already allocated.";
-
-    auto& inputDesc = getInputDesc();
-    auto& outputDesc = getOutputDesc();
-    if (!inputDesc.isCompatible(outputDesc))
-        IE_THROW() << "Cannot allocate memory for incompatible descriptors.";
-
-    auto parentPtr = getParent();
-    memoryPtr.reset(new Memory(parentPtr->getEngine(), std::unique_ptr<IMemoryMngr>(memMngr.get()), inputDesc));
-    
-    DEBUG_LOG(*this, " memoryPtr=", memoryPtr);
-    status = Status::Allocated;
+    allocateCommon(allocateFunc);
 }
 
 std::string Edge::name() const {
@@ -346,11 +324,14 @@ void Edge::changeStatus(Edge::Status state) {
     if (state == Status::Validated) {
         IE_THROW() << "Incorrect behaviour! Use method validate()";
     }
-    if (status != Status::Uninitialized && state == Status::NeedAllocation)
+    if (Status::Validated == this->status) {
+        IE_THROW() << "Unexpected attempt of memory change on edge: " << name();
+    }
+    if (this->status != Status::Uninitialized && state == Status::NeedAllocation)
         return;
-    if (status == Status::NotAllocated)
+    if (this->status == Status::NotAllocated)
         memoryFromEdge.reset();
-    status = state;
+    this->status = state;
 }
 
 PortDescBaseCPtr Edge::getInputPortDesc() const {
@@ -434,14 +415,6 @@ const IMemory &Edge::getMemory() {
 
 MemoryPtr Edge::getMemoryPtr() const {
     return memoryPtr;
-}
-
-void Edge::resetMemoryPtr(MemoryPtr mem) {
-    if (status == Status::NotAllocated) {
-        memoryFromEdge.reset();
-    }
-    memoryPtr = mem;
-    changeStatus(Status::Allocated);
 }
 
 void Edge::sharedMemFrom(const EdgePtr &edge) {

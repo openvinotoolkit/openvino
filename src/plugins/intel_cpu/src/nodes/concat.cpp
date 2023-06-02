@@ -640,9 +640,9 @@ void Concat::resolveInPlaceEdges(Edge::LOOK look) {
             IE_ASSERT(parentEdge->getStatus() == Edge::Status::NotAllocated) << "Unexpected inplace resolve call to an allocated edge: " << parentEdge->name();
 
             auto memMngr = std::make_shared<PartitionedMemoryMngr>(baseMemMngr, numberOfInputs, i);
-            auto newMem = std::make_shared<Memory>(getEngine(), std::unique_ptr<IMemoryMngr>(memMngr.get()), selected_pd->getConfig().inConfs[i].getMemDesc());
+            auto newMem = std::make_shared<Memory>(getEngine(), selected_pd->getConfig().inConfs[i].getMemDesc(), memMngr);
 
-            parentEdge->resetMemoryPtr(newMem);
+            parentEdge->reuse(newMem);
         }
     } else {
         Node::resolveInPlaceEdges(look);

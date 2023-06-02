@@ -905,7 +905,7 @@ void Convolution::addZeroPoints(dnnl::primitive_attr& attr) {
 
     if (!stockInputZeroPointsMemPtr) {
         DnnlBlockedMemoryDesc memoryDesc(Precision::I32, {inputZeroPoints.size()});
-        stockInputZeroPointsMemPtr.reset(new Memory(getEngine(), memoryDesc, inputZeroPoints.data()));
+        stockInputZeroPointsMemPtr = std::make_shared<Memory>(getEngine(), memoryDesc, inputZeroPoints.data());
     }
 }
 
@@ -925,7 +925,7 @@ void Convolution::addLegacyZeroPoints(dnnl::primitive_attr& attr) {
 
         if (!legacyWeightsZeroPointsMemPtr) {
             DnnlBlockedMemoryDesc memoryDesc(Precision::FP32, {legacyWeightsZeroPoints.size()});
-            legacyWeightsZeroPointsMemPtr.reset(new Memory(getEngine(), memoryDesc, legacyWeightsZeroPoints.data()));
+            legacyWeightsZeroPointsMemPtr = std::make_shared<Memory>(getEngine(), memoryDesc, legacyWeightsZeroPoints.data());
         }
     }
 
@@ -935,7 +935,7 @@ void Convolution::addLegacyZeroPoints(dnnl::primitive_attr& attr) {
 
         if (!legacyOutputCompensationMemPtr) {
             DnnlBlockedMemoryDesc memoryDesc(Precision::I32, {legacyOutputCompensation.size()});
-            legacyOutputCompensationMemPtr.reset(new Memory(getEngine(), memoryDesc, legacyOutputCompensation.data()));
+            legacyOutputCompensationMemPtr = std::make_shared<Memory>(getEngine(), memoryDesc, legacyOutputCompensation.data());
         }
     }
 }
@@ -1450,7 +1450,8 @@ void Convolution::executeDynamicImpl(dnnl::stream strm) {
         const size_t sumPortNum = getParentEdges().size() - 1;
         const auto& sumInpMem = getParentEdgesAtPort(sumPortNum).front()->getMemory();
         auto inp1 = subgraph->getInput(1);
-        // inp1->getChildEdgesAtPort(0).front()->getMemoryPtr()->setDataHandle(sumInpMem.GetData());
+        auto inp1Mem = inp1->getChildEdgesAtPort(0).front()->getMemoryPtr();
+        inp1Mem->getMemoryMngr()->setExtBuff(sumInpMem.GetData(), sumInpMem.GetSize());
 
         subgraph->infer();
 

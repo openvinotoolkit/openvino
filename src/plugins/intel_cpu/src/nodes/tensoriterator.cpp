@@ -312,7 +312,8 @@ void DynamicBuffer::move_buffer(const MemoryPtr& new_buffer) {
     const auto src_offset_in_byte = stride > 0 ? 0 : (src_stride - valid_size);
     chunk_offset_in_byte = stride > 0 ? 0 : (dst_stride - valid_size);  // reset chunk_offset_in_byte
 
-    copy(reinterpret_cast<uint8_t*>(mem_holder_buffer->GetData()) + src_offset_in_byte, reinterpret_cast<uint8_t*>(new_buffer->GetData()) + chunk_offset_in_byte,
+    copy(reinterpret_cast<uint8_t*>(mem_holder_buffer->GetData()) + src_offset_in_byte,
+        reinterpret_cast<uint8_t*>(new_buffer->GetData()) + chunk_offset_in_byte,
         src_stride, dst_stride, count, valid_size);
 
     // assign mem_holder_buffer

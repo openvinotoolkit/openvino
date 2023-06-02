@@ -607,9 +607,9 @@ void Gather::resolveInPlaceEdges(Edge::LOOK look) {
             //     getName() << " with type " << getTypeStr();
 
             auto memMngr = std::make_shared<PartitionedMemoryMngr>(baseMemMngr, baseDim, offset);
-            auto newMem = std::make_shared<Memory>(getEngine(), std::unique_ptr<IMemoryMngr>(memMngr.get()), config.outConfs[outputPort].getMemDesc());
+            auto newMem = std::make_shared<Memory>(getEngine(), config.outConfs[outputPort].getMemDesc(), memMngr);
 
-            childEdge->resetMemoryPtr(newMem);
+            childEdge->reuse(newMem);
         }
     } else {
         Node::resolveInPlaceEdges(look);

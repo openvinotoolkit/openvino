@@ -225,7 +225,7 @@ void Reorder::createReorderPrimitive(const dnnl::memory::desc& srcDesc,
         auto newDesc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(newDims),
                                             src_blocked->GetDataType(),
                                             newFormat);
-        src_blocked->redefineDesc(DnnlExtensionUtils::makeDescriptor(newDesc), srcPtr, false);
+        src_blocked = std::make_shared<Memory>(getEngine(), DnnlExtensionUtils::makeDescriptor(newDesc), srcPtr, false);
 
         src_desc = src_blocked->GetPrimitive().get_desc();
     }

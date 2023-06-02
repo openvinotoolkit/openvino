@@ -385,8 +385,8 @@ void Node::resolveInPlaceEdges(Edge::LOOK look) {
 
             auto baseMemMngr = getChildEdgesAtPort(inplaceOutIndx)[0]->getMemory().getMemoryMngr();
             auto memMngr = std::make_shared<PartitionedMemoryMngr>(baseMemMngr);
-            auto newMem = std::make_shared<Memory>(getEngine(), std::unique_ptr<IMemoryMngr>(memMngr.get()), selected_pd->getConfig().inConfs[i].getMemDesc());
-            parentEdge->resetMemoryPtr(newMem);
+            auto newMem = std::make_shared<Memory>(getEngine(), selected_pd->getConfig().inConfs[i].getMemDesc(), memMngr);
+            parentEdge->reuse(newMem);
         }
     }
     if (look & Edge::LOOK_UP) {
@@ -403,8 +403,8 @@ void Node::resolveInPlaceEdges(Edge::LOOK look) {
             for (auto& childEdge : childEdges) {
                 IE_ASSERT(childEdge->getStatus() == Edge::Status::NotAllocated) <<
                     " Unexpected inplace resolve call to an allocated edge: " << childEdge->name();
-                auto newMem = std::make_shared<Memory>(getEngine(), std::unique_ptr<IMemoryMngr>(memMngr.get()), selected_pd->getConfig().outConfs[i].getMemDesc());
-                childEdge->resetMemoryPtr(newMem);
+                auto newMem = std::make_shared<Memory>(getEngine(), selected_pd->getConfig().outConfs[i].getMemDesc(), memMngr);
+                childEdge->reuse(newMem);
             }
         }
     }

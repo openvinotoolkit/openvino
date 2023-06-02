@@ -60,7 +60,6 @@ void DnnlPostOpsComposer::updateWeiScales() {
 
     DnnlBlockedMemoryDesc memoryDesc(InferenceEngine::Precision::FP32, Shape({wei_scale_values.size()}));
     auto mem = std::make_shared<Memory>(engine, memoryDesc);
-    // mem->Create(memoryDesc);
     memcpy(mem->GetData(), wei_scale_values.data(), wei_scale_values.size() * sizeof(float));
     args[DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS] = mem;
 }
@@ -74,7 +73,6 @@ void DnnlPostOpsComposer::updateDestScales() {
 
     DnnlBlockedMemoryDesc memoryDesc(InferenceEngine::Precision::FP32, Shape({1}));
     auto mem = std::make_shared<Memory>(engine, memoryDesc);
-    // mem->Create(memoryDesc);
     memcpy(mem->GetData(), &dst_scale_val, sizeof(float));
     args[DNNL_ARG_ATTR_SCALES | DNNL_ARG_DST] = mem;
 }
@@ -93,7 +91,6 @@ void DnnlPostOpsComposer::appendBinary(const dnnl::algorithm alg, const std::vec
 
     // copy the data as args
     auto mem = std::make_shared<Memory>(engine, memoryDesc);
-    // mem->Create(memoryDesc);
     memcpy(mem->GetData(), data.data(), data.size() * sizeof(float));
     args[DNNL_ARG_ATTR_MULTIPLE_POST_OP(ops.len() - 1) | DNNL_ARG_SRC_1] = mem;
 }
