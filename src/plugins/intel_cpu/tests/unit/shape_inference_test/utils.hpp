@@ -22,7 +22,7 @@ void shape_inference(ov::Node* op,
                      const std::map<size_t, TTensorPtr>& constant_data = {}) {
     const auto shape_infer = make_shape_inference<TIface>(op->shared_from_this());
     IShapeInferCommon::Result result;
-    if (shape_infer->is_implemented_accessor()) {
+    if (shape_infer->has_implemented_accessor()) {
         result = shape_infer->infer(input_shapes,  make_tensor_accessor(constant_data));
     } else {
         result = shape_infer->infer(input_shapes,  constant_data);

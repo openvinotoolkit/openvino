@@ -14,15 +14,17 @@ namespace intel_cpu {
 /**
  * @brief cpu memory accessor implementing ov::ITensorAccessor to get data as tensor from cpu container.
  */
-struct MemoryAccessor : public ov::ITensorAccessor {
+class MemoryAccessor : public ov::ITensorAccessor {
     using container_type = std::unordered_map<size_t, MemoryPtr>;
 
-    explicit MemoryAccessor(const container_type& ptrs, const std::vector<int64_t>& ranks)
+    MemoryAccessor(const container_type& ptrs, const std::vector<int64_t>& ranks)
         : m_ptrs{ptrs}, m_ranks(ranks) {}
 
+    MemoryAccessor(const container_type&& ptrs, const std::vector<int64_t>&& ranks) = delete;
+    MemoryAccessor(const container_type&& ptrs, const std::vector<int64_t>& ranks) = delete;
+    MemoryAccessor(const container_type& ptrs, const std::vector<int64_t>&& ranks) = delete;
 
-    ~MemoryAccessor() {
-    }
+    ~MemoryAccessor() = default;
 
     ov::Tensor operator()(size_t port) const override {
         const auto t_iter = m_ptrs.find(port);
@@ -42,8 +44,9 @@ struct MemoryAccessor : public ov::ITensorAccessor {
         }
     }
 
-    const container_type m_ptrs;              //!< Pointer to cpu memory pointers with op data.
-    std::vector<int64_t> m_ranks;
+private:
+    const container_type& m_ptrs;              //!< Pointer to cpu memory pointers with op data.
+    const std::vector<int64_t>& m_ranks;
 };
 }  // namespace intel_cpu
 }  // namespace ov

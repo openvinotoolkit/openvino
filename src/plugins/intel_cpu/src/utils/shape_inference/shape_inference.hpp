@@ -43,7 +43,7 @@ public:
     virtual Result infer(const std::vector<StaticShape>& input_shapes, const ov::ITensorAccessor& tensor_accessor) = 0;
     Result infer(const std::vector<StaticShape>& input_shapes,
                      const std::map<size_t, HostTensorPtr>& constant_data) override {
-        IE_THROW(Unexpected)  << "should not come here, this function should not be call or should be override";
+        IE_THROW(Unexpected)  << "should not get here, this function should not be called or should be overridden";
     }
 
     /**
@@ -70,7 +70,7 @@ public:
      *
      * @param port_mask_t  a bit mask where each bit corresponds to an input port number.
      */
-    virtual void set_port_mask(port_mask_t) {}
+    virtual void set_port_mask(port_mask_t) = 0;
 
 
     /**
@@ -78,7 +78,7 @@ public:
      *
      * @returns if implement ITensorAccess return true, otherwise return false.
      */
-    virtual bool is_implemented_accessor(void) {
+    virtual bool has_implemented_accessor(void) {
         return true;
     }
 };

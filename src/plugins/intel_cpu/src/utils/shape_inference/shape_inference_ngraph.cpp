@@ -17,8 +17,8 @@ NgraphShapeInfer::infer(
     std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> input_values;
 
     input_static_shapes.reserve(input_shapes.size());
-     IShapeInferCommon::Result shape_infer_result;
-    if (m_shape_infer->is_implemented_accessor()) {
+    IShapeInferCommon::Result shape_infer_result;
+    if (m_shape_infer->has_implemented_accessor()) {
         for (size_t port = 0; port < iranks.size(); port++) {
             if (iranks[port] == 0) {
                 input_static_shapes.emplace_back();
