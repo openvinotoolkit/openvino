@@ -14,6 +14,9 @@
 #include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/remote_context.hpp"
+#ifndef NO_PROXY_PLUGIN
+#    include "proxy_plugin.hpp"
+#endif
 
 #define OV_REMOTE_CONTEXT_STATEMENT(...)                                     \
     OPENVINO_ASSERT(_impl != nullptr, "RemoteContext was not initialized."); \
@@ -27,6 +30,14 @@
     }
 
 namespace ov {
+
+const ov::RemoteContext* RemoteContext::get_context() const {
+#ifndef NO_PROXY_PLUGIN
+    return &ov::proxy::get_hardware_context(*this);
+#else
+    return this;
+#endif
+}
 
 void RemoteContext::type_check(const RemoteContext& context,
                                const std::map<std::string, std::vector<std::string>>& type_info) {

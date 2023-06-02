@@ -6,6 +6,8 @@
 
 #include <memory>
 
+#include "proxy_plugin.hpp"
+
 ov::proxy::RemoteContext::RemoteContext(const ov::RemoteContext& ctx, const std::string& dev_name)
     : m_name(dev_name),
       m_property(ctx.get_params()),
@@ -31,9 +33,13 @@ std::shared_ptr<ov::ITensor> ov::proxy::RemoteContext::create_host_tensor(const 
     return m_context._impl->create_host_tensor(type, shape);
 }
 
-ov::RemoteContext ov::proxy::RemoteContext::get_hardware_context(const ov::RemoteContext& context) {
+const ov::RemoteContext& ov::proxy::RemoteContext::get_hardware_context(const ov::RemoteContext& context) {
     if (auto proxy_context = std::dynamic_pointer_cast<ov::proxy::RemoteContext>(context._impl)) {
         return proxy_context->m_context;
     }
     return context;
+}
+
+const ov::RemoteContext& ov::proxy::get_hardware_context(const ov::RemoteContext& context) {
+    return ov::proxy::RemoteContext::get_hardware_context(context);
 }

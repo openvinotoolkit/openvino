@@ -18,5 +18,14 @@ namespace proxy {
  */
 void create_plugin(std::shared_ptr<ov::IPlugin>& plugin);
 
+/**
+ * @brief Returns wrapped HW remote context
+ *
+ * @param context original or proxy context
+ *
+ * @return HW specific context
+ */
+const ov::RemoteContext& get_hardware_context(const ov::RemoteContext& context);
+
 }  // namespace proxy
 }  // namespace ov
