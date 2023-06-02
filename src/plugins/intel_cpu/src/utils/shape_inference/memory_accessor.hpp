@@ -17,6 +17,7 @@ namespace intel_cpu {
 class MemoryAccessor : public ov::ITensorAccessor {
     using container_type = std::unordered_map<size_t, MemoryPtr>;
 
+public:
     MemoryAccessor(const container_type& ptrs, const std::vector<int64_t>& ranks)
         : m_ptrs{ptrs}, m_ranks(ranks) {}
 

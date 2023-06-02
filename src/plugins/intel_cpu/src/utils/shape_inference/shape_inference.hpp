@@ -70,7 +70,7 @@ public:
      *
      * @param port_mask_t  a bit mask where each bit corresponds to an input port number.
      */
-    virtual void set_port_mask(port_mask_t) = 0;
+    virtual void set_port_mask(port_mask_t) {}
 
 
     /**
