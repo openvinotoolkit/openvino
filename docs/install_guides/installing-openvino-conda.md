@@ -44,7 +44,7 @@ Installing OpenVINO™ Runtime with Anaconda Package Manager
 
       conda update --all
 
-3. Install the OpenVINO™ Runtime package:
+3. Install the OpenVINO Runtime package:
 
    .. code-block:: sh
 
