@@ -55,7 +55,7 @@ struct loop_impl : typed_primitive_impl<loop> {
             instance.preprocess_input_memory();
             instance.preprocess_backedge_memory();
 
-            // set input data for current_iteration primitive if current_it`eration is used
+            // set input data for current_iteration primitive if current_iteration is used
             if (!primitive->current_iteration_id.empty()) {
                 auto current_iteration_prim = body_network->get_primitive(primitive->current_iteration_id);
                 auto input_layout_prim = std::dynamic_pointer_cast<input_layout_inst>(current_iteration_prim);
@@ -90,6 +90,14 @@ struct loop_impl : typed_primitive_impl<loop> {
 
         const auto& concatenated_input_mem_mappings = instance.concatenated_input_mem_mappings;
         const auto& concatenated_output_mem_mappings = instance.concatenated_output_mem_mappings;
+
+        // If there are concatenated_output_mem_mappings or backedge_memory_mappings we need to wait for
+        // previous tasks before accessing memory in get_sliced_mem() and setup_iteration() functions
+        if (!concatenated_input_mem_mappings.empty() || !instance.backedge_memory_mappings.empty()) {
+            for (auto e : events) {
+                e->wait();
+            }
+        }
 
         // Set sliced input data
         for (size_t i = 0; i < concatenated_input_mem_mappings.size(); ++i) {
