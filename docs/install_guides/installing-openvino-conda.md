@@ -68,6 +68,7 @@ This step ensures that all the environment variables are set correctly for succe
 To reactivate your Conda environment, execute the following command:
 
 .. code-block:: sh
+
     conda deactivate
     conda activate <your_environment_name>
 
