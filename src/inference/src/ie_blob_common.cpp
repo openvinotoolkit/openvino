@@ -5,7 +5,6 @@
 #include <memory>
 #include <utility>
 #include <vector>
-#include <iostream>
 
 #include "ie_blob.h"
 #include "system_allocator.hpp"
@@ -14,7 +13,6 @@ namespace InferenceEngine {
 IE_SUPPRESS_DEPRECATED_START
 
 void Blob::setShape(const SizeVector& dims) {
-    void* prev_blob_ptr = buffer();
     // we don't want to allow setShape for:
     // 1. ROI cases
     {
