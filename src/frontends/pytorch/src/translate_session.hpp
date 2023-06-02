@@ -38,11 +38,11 @@ public:
     /// \brief Returns backprop operations for direct operation
     Output<Node> get_backprop_op(std::shared_ptr<TorchDecoder> node, Output<Node> direct_op_output, Output<Node> value);
 
-    /// \brief Writes pytorch tensor index into openvino tensor 
+    /// \brief Writes pytorch tensor index into openvino tensor
     void encode_tensor_name(Output<Node> tensor_desc,
                             size_t tensor_idx,
                             std::vector<std::string> additional_names = {});
-    
+
     /// \brief Gets pytorch tensor index from openvino tensor
     size_t decode_tensor_name(const Output<Node>& tensor_desc);
 

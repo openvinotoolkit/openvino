@@ -14,7 +14,10 @@ class PtFrameworkNode : public ov::op::util::FrameworkNode {
 public:
     OPENVINO_OP("PtFrameworkNode", "util", ::ov::op::util::FrameworkNode);
 
-    PtFrameworkNode(const std::shared_ptr<TorchDecoder>& decoder, const OutputVector& inputs, size_t output_size, bool is_backprop=false)
+    PtFrameworkNode(const std::shared_ptr<TorchDecoder>& decoder,
+                    const OutputVector& inputs,
+                    size_t output_size,
+                    bool is_backprop = false)
         : ov::op::util::FrameworkNode(inputs, output_size, decoder->get_subgraph_size()),
           m_decoder(decoder) {
         ov::op::util::FrameworkNodeAttrs attrs;

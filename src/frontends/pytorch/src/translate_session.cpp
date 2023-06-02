@@ -10,10 +10,10 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/opsets/opset10.hpp"
 #include "openvino/util/log.hpp"
 #include "pt_framework_node.hpp"
 #include "utils.hpp"
-#include "openvino/opsets/opset10.hpp"
 
 namespace ov {
 namespace frontend {
@@ -165,7 +165,8 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                                                 recorded_in_tensor_id);
                     }
                     m_may_be_alias[fw_tensor_id] = {node->inputs().at(0), node, converted_outputs[i]};
-                    OPENVINO_DEBUG << "Registered alias: " << fw_tensor_id << " of tensor: " << node->inputs().at(0) << " of operation: " << context.get_op_type() << ".\n";
+                    OPENVINO_DEBUG << "Registered alias: " << fw_tensor_id << " of tensor: " << node->inputs().at(0)
+                                   << " of operation: " << context.get_op_type() << ".\n";
                 }
                 FRONT_END_GENERAL_CHECK(tensor_map->find(fw_tensor_id) == tensor_map->end(),
                                         "Duplicated producer for PT value with unique ID: ",
@@ -279,7 +280,6 @@ size_t TranslateSession::decode_tensor_name(const Output<Node>& output) {
     return static_cast<size_t>(std::stoll(name));
 }
 
-
 namespace {
 Output<Node> slice_backprop(std::shared_ptr<TorchDecoder> node, Output<Node> slice_output, Output<Node> value) {
     auto slice_node = slice_output.get_node_shared_ptr();
@@ -296,7 +296,7 @@ Output<Node> slice_backprop(std::shared_ptr<TorchDecoder> node, Output<Node> sli
     auto input_shape = std::make_shared<opset10::ShapeOf>(to_insert_data, element::i64);
     auto numel = std::make_shared<opset10::ReduceProd>(input_shape, zero, false);
     auto full_data_indices_1d = std::make_shared<opset10::Range>(zero, numel, one, element::i64);
-    
+
     // Slice indices by same start, stop, slice, axes as initial Slice
     auto full_data_indices = std::make_shared<opset10::Reshape>(full_data_indices_1d, input_shape, false);
     Output<Node> data_indices;
@@ -319,7 +319,8 @@ Output<Node> slice_backprop(std::shared_ptr<TorchDecoder> node, Output<Node> sli
     auto to_insert_data_1d = std::make_shared<opset10::Reshape>(to_insert_data, neg_one_1d, false);
     auto data_indices_1d = std::make_shared<opset10::Reshape>(data_indices, scattering_shape, false);
     auto to_be_inserted_data_1d = std::make_shared<opset10::Reshape>(value, neg_one_1d, false);
-    auto updated_data_1d = std::make_shared<opset10::ScatterNDUpdate>(to_insert_data_1d, data_indices_1d, to_be_inserted_data_1d);
+    auto updated_data_1d =
+        std::make_shared<opset10::ScatterNDUpdate>(to_insert_data_1d, data_indices_1d, to_be_inserted_data_1d);
 
     // Reshape to initial shape
     return std::make_shared<opset10::Reshape>(updated_data_1d, input_shape, false);
@@ -358,9 +359,12 @@ Output<Node> select_backprop(std::shared_ptr<TorchDecoder> node, Output<Node> se
 }
 }  // namespace
 
-using BackpropCreatorFunction = std::function<ov::Output<ov::Node>(std::shared_ptr<TorchDecoder>, Output<Node>, Output<Node>)>;
+using BackpropCreatorFunction =
+    std::function<ov::Output<ov::Node>(std::shared_ptr<TorchDecoder>, Output<Node>, Output<Node>)>;
 
-Output<Node> TranslateSession::get_backprop_op(std::shared_ptr<TorchDecoder> node, Output<Node> direct_op_output, Output<Node> value) {
+Output<Node> TranslateSession::get_backprop_op(std::shared_ptr<TorchDecoder> node,
+                                               Output<Node> direct_op_output,
+                                               Output<Node> value) {
     std::map<std::string, BackpropCreatorFunction> backprop_map = {
         {"aten::slice", slice_backprop},
         {"aten::select", select_backprop},
