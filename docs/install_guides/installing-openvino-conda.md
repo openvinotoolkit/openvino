@@ -4,7 +4,7 @@
 
 .. note::
 
-   Installing OpenVINO Runtime from Conda Forge is recommended for C++ developers, as it provides only the C++ Runtime API.
+   Installing OpenVINO™ Runtime from Conda Forge is recommended for C++ developers, as it provides only the C++ Runtime API.
    If you work with Python, consider :doc:`installing OpenVINO from PyPI <openvino_docs_install_guides_installing_openvino_pip>`
 
 .. tab:: System Requirements
@@ -25,7 +25,7 @@
    `Anaconda distribution page <https://www.anaconda.com/products/individual/>`__
 
 
-Installing OpenVINO Runtime with Anaconda Package Manager
+Installing OpenVINO™ Runtime with Anaconda Package Manager
 ############################################################
 
 1. Set up the Anaconda environment (Python 3.10 used as an example):
@@ -44,7 +44,7 @@ Installing OpenVINO Runtime with Anaconda Package Manager
 
       conda update --all
 
-3. Install the OpenVINO Runtime package:
+3. Install the OpenVINO™ Runtime package:
 
    .. code-block:: sh
 
@@ -52,6 +52,27 @@ Installing OpenVINO Runtime with Anaconda Package Manager
 
    Congratulations! You have finished installing OpenVINO Runtime.
 
+Compiling with OpenVINO™ Runtime from Conda-Forge
+###########################################################
+
+When linking OpenVINO™ libraries from Conda, ensure you have the necessary Conda compilers installed. 
+To do so, run the following command in your Conda environment:
+
+.. code-block:: sh
+
+    conda install cmake c-compiler cxx-compiler make
+
+It is crucial to reactivate your Conda environment after installation of the compilers. 
+This step ensures that all the environment variables are set correctly for successful linkage.
+
+To reactivate your Conda environment, execute the following command:
+
+.. code-block:: sh
+    conda deactivate
+    conda activate <your_environment_name>
+
+Replace <your_environment_name> with the name of your Conda environment. 
+Once reactivated, you can proceed with linking the OpenVINO™ libraries, making sure all the necessary environment variables are properly set.
 
 Uninstalling OpenVINO™ Runtime
 ###########################################################
