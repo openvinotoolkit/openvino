@@ -244,8 +244,8 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Fu
     fq_fusions->set_name("ov::pass::FakeQuantizeFusions");
     REGISTER_PASS(manager, ReverseInputChannelsFusion)
     REGISTER_PASS(manager, AlignEltwiseInputRanks)
+    REGISTER_PASS(manager, MergeSimilarBranches);
     REGISTER_PASS(manager, ConstantFolding)
-    // REGISTER_PASS(manager, MergeSimilarBranches);
     manager.run_passes(f);
 
     if (!m_use_shapes) {
