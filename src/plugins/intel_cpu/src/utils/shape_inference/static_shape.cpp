@@ -7,6 +7,22 @@
 namespace ov {
 namespace intel_cpu {
 
+namespace {
+void partial_shape_convert_throw() {
+    OPENVINO_THROW("[shape infer] Shouldn't convert from PartialShape to StaticShape at runtime.");
+}
+}  // namespace
+
+template <class T>
+bool merge_into(StaticShapeCon& dst, const T& src) {
+    auto success = (dst.size() != src.size());
+
+    for (size_t i = 0; success && (i < dst.size()); ++i)
+        success = StaticDimension::merge(dst[i], dst[i], src[i]);
+
+    return success;
+}
+
 StaticShape::StaticShape(std::vector<StaticDimension> dimensions)
         : std::vector<StaticDimension>(std::move(dimensions)) {}
 
@@ -16,6 +32,9 @@ StaticShape::StaticShape(const std::vector<StaticDimension::value_type>& dimensi
 StaticShape::StaticShape(std::initializer_list<StaticDimension> init)
         : std::vector<StaticDimension>(init.begin(), init.end()) {}
 
+StaticShape::StaticShape(const ov::PartialShape&) : std::vector<StaticDimension>{} {
+    partial_shape_convert_throw();
+}
 
 ov::Shape StaticShape::get_max_shape() const {
     return (*this).to_shape();
@@ -104,25 +123,25 @@ bool StaticShape::merge_into(StaticShape& dst, const StaticShape& src) {
 
 bool StaticShape::broadcast_merge_into(StaticShape& dst,
                                        const StaticShape& src,
-                                       const ngraph::op::AutoBroadcastSpec& autob) {
+                                       const ov::op::AutoBroadcastSpec& autob) {
     switch (autob.m_type) {
-        case ngraph::op::AutoBroadcastType::NONE:
-            return true;
-        case ngraph::op::AutoBroadcastType::NUMPY: {
-            auto dst_rank = dst.size();
-            auto src_rank = src.size();
-            auto new_rank = std::max(dst_rank, src_rank);
-            std::vector<StaticDimension> dims(new_rank);
-            bool success = true;
-            for (size_t i = 0; i < new_rank; i++) {
-                auto dsti = i < (new_rank - dst_rank) ? StaticDimension(1) : dst[i - (new_rank - dst_rank)];
-                auto srci = i < (new_rank - src_rank) ? StaticDimension(1) : src[i - (new_rank - src_rank)];
-                success &= StaticDimension::broadcast_merge(dims[i], dsti, srci);
-            }
-            dst = StaticShape(std::move(dims));
-            return success;
+    case ov::op::AutoBroadcastType::NONE:
+        return true;
+    case ov::op::AutoBroadcastType::NUMPY: {
+        auto dst_rank = dst.size();
+        auto src_rank = src.size();
+        auto new_rank = std::max(dst_rank, src_rank);
+        std::vector<StaticDimension> dims(new_rank);
+        bool success = true;
+        for (size_t i = 0; i < new_rank; i++) {
+            auto dsti = i < (new_rank - dst_rank) ? StaticDimension(1) : dst[i - (new_rank - dst_rank)];
+            auto srci = i < (new_rank - src_rank) ? StaticDimension(1) : src[i - (new_rank - src_rank)];
+            success &= StaticDimension::broadcast_merge(dims[i], dsti, srci);
         }
-        case ngraph::op::AutoBroadcastType::PDPD: {
+        dst = StaticShape(std::move(dims));
+        return success;
+        }
+        case ov::op::AutoBroadcastType::PDPD: {
             // Ranks are both static.
             auto dst_rank = dst.rank().get_length();
             auto src_rank = src.rank().get_length();
@@ -148,7 +167,7 @@ bool StaticShape::broadcast_merge_into(StaticShape& dst,
             return success;
         }
         default:
-            NGRAPH_CHECK(false, "Unsupported auto broadcast type: ", autob.m_type);
+            OPENVINO_THROW("Unsupported auto broadcast type: ", autob.m_type);
     }
     return false;
 }
@@ -164,6 +183,85 @@ bool StaticShape::operator==(const StaticShape& shape) const {
 
 bool StaticShape::operator!=(const StaticShape& partial_shape) const {
     return !(*this == partial_shape);
+}
+
+//-- Shape as container
+StaticShapeCon::StaticShapeAdapter() : m_dims{} {}
+StaticShapeCon::StaticShapeAdapter(const TDims& dims) : m_dims{dims} {}
+StaticShapeCon::StaticShapeAdapter(TDims&& dims) noexcept : m_dims{std::move(dims)} {}
+StaticShapeCon::StaticShapeAdapter(const StaticShapeCon& other) : StaticShapeAdapter(*other) {}
+StaticShapeCon::StaticShapeAdapter(const ov::PartialShape&) : m_dims{} {
+    partial_shape_convert_throw();
+}
+
+ov::Rank StaticShapeCon::rank() const {
+    return {static_cast<typename ov::Rank::value_type>(size())};
+}
+
+ov::Shape StaticShapeCon::to_shape() const {
+    return {m_dims};
+}
+
+ov::Shape StaticShapeCon::get_max_shape() const {
+    return to_shape();
+}
+
+ov::Shape StaticShapeCon::get_min_shape() const {
+    return to_shape();
+}
+
+ov::Shape StaticShapeCon::get_shape() const {
+    return to_shape();
+}
+
+ov::PartialShape StaticShapeCon::to_partial_shape() const {
+    auto shape = PartialShape::dynamic(size());
+    std::transform(m_dims.cbegin(), m_dims.cend(), shape.begin(), ov::util::Cast<typename PartialShape::value_type>());
+    return shape;
+}
+
+bool StaticShapeCon::merge_rank(const ov::Rank& r) {
+    return r.is_dynamic() || (size() == static_cast<size_t>(r.get_length()));
+}
+
+bool StaticShapeCon::merge_into(StaticShapeAdapter& dst, const StaticShapeAdapter& src) {
+    return merge_into(dst, src);
+}
+
+bool StaticShapeCon::broadcast_merge_into(StaticShapeCon& dst,
+                                          const StaticShapeCon& src,
+                                          const ov::op::AutoBroadcastSpec& autob) {
+    // Copy from StaticShape when broadcast shape infer reviewed.
+    return false;
+}
+
+//-- Shape as reference
+StaticShapeRef::StaticShapeAdapter(const ov::PartialShape&) : m_dims{} {
+    partial_shape_convert_throw();
+}
+
+ov::Rank StaticShapeRef::rank() const {
+    return {static_cast<typename ov::Rank::value_type>(size())};
+}
+
+bool StaticShapeRef::merge_rank(const ov::Rank& r) {
+    return r.is_dynamic() || (size() == static_cast<size_t>(r.get_length()));
+}
+
+ov::Shape StaticShapeRef::to_shape() const {
+    return m_dims ? ov::Shape{*m_dims} : ov::Shape{};
+}
+
+ov::Shape StaticShapeRef::get_max_shape() const {
+    return to_shape();
+}
+
+ov::Shape StaticShapeRef::get_min_shape() const {
+    return to_shape();
+}
+
+ov::Shape StaticShapeRef::get_shape() const {
+    return to_shape();
 }
 
 }   // namespace intel_cpu
