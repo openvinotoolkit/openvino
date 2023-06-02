@@ -56,6 +56,18 @@ namespace {
                 return 1;
         }
     }
+    template <typename T>
+    T inter_section(const T& lhs, const T& rhs) {
+        T result;
+        const auto& min_set = (lhs.size() < rhs.size()) ? lhs : rhs;
+        const auto& max_set = (lhs.size() >= rhs.size()) ? lhs : rhs;
+        for (auto&& val : min_set) {
+            if (max_set.find(val) != max_set.end()) {
+                result.insert(val);
+            }
+        }
+        return result;
+    }
 }  // namespace
 
 namespace ov {
@@ -115,9 +127,9 @@ std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& pri
     auto set_default_hint = [&](const std::string& target_device,
                               ov::AnyMap& device_config,
                               const ov::AnyMap& properties) {
-        auto isSetPerHint = properties.find(ov::hint::performance_mode.name()) != properties.end();
-        auto isSetDeviceProperties = properties.find(target_device) != properties.end();
-        if (get_device_name() == "AUTO" && !isSetPerHint && !isSetDeviceProperties) {
+        auto is_set_perfhint = properties.find(ov::hint::performance_mode.name()) != properties.end();
+        auto is_set_deviceproperties = properties.find(target_device) != properties.end();
+        if (get_device_name() == "AUTO" && !is_set_perfhint && !is_set_deviceproperties) {
             // setting latency as the default performance mode if
             // 1. no hints setting for AUTO plugin
             // 2. no ov::device::properties(secondary properties) setting for target device
@@ -126,10 +138,10 @@ std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& pri
         }
 
         if (get_device_name() == "MULTI") {
-            auto isSetNumStreams = properties.find(ov::num_streams.name()) != properties.end();
-            auto isSetAffinity = properties.find(ov::affinity.name()) != properties.end();
-            auto isSetNumThreads = properties.find(ov::inference_num_threads.name()) != properties.end();
-            if (!isSetPerHint && !isSetAffinity && !isSetNumThreads && !isSetDeviceProperties && !isSetNumStreams) {
+            auto is_set_numstreams = properties.find(ov::num_streams.name()) != properties.end();
+            auto is_set_affinity = properties.find(ov::affinity.name()) != properties.end();
+            auto is_set_numthreads = properties.find(ov::inference_num_threads.name()) != properties.end();
+            if (!is_set_perfhint && !is_set_affinity && !is_set_numthreads && !is_set_deviceproperties && !is_set_numstreams) {
                 // setting tput as the default performance mode if
                 // 1. no hints setting for MULTI plugin
                 // 2. no affinity setting for MULTI plugin
@@ -152,6 +164,10 @@ std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& pri
             auto device_id = get_core()->get_property(device_name, ov::device::id);
             return device_id;
         } catch (ov::Exception& err) {
+            LOG_DEBUG_TAG("get default device id failed for ", device_name.c_str());
+            return "";
+        } catch (InferenceEngine::Exception& err) {
+            // some remain with IE exceptions
             LOG_DEBUG_TAG("get default device id failed for ", device_name.c_str());
             return "";
         }
@@ -429,6 +445,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
     auto_s_context->m_str_devices = str_devices;
     auto_s_context->m_plugin = shared_from_this();
     auto_s_context->m_ov_core = get_core();
+    OPENVINO_ASSERT(auto_s_context->m_ov_core);
     auto_s_context->m_log_tag = get_device_name();
     auto_s_context->m_network_precision = network_precision;
     auto_s_context->m_startup_fallback = load_config.get_property(ov::intel_auto::enable_startup_fallback);
@@ -446,6 +463,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
 ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& model,
                                     const ov::AnyMap& properties) const {
     OPENVINO_ASSERT(model, "OpenVINO Model is empty!");
+    OPENVINO_ASSERT(get_core(), "Core is missing!");
     ov::SupportedOpsMap res;
 
     auto queryconfig = m_plugin_config;
@@ -456,21 +474,20 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     auto priorities = full_property.find(ov::device::priorities.name());
     if (!priorities->second.empty()) {
         auto meta_devices = parse_meta_devices(priorities->second.as<std::string>(), full_property);
-        std::unordered_set<std::string> supportedLayers;
-        //for (auto&& value : meta_devices) { // TOBE implemented
-            /*auto deviceQr = get_core()->query_model(model, value.device_name, value.config);
-            std::unordered_set<std::string> deviceSupportedLayers;
-            for (auto&& layerQr : deviceQr.supportedLayersMap) {
-                deviceSupportedLayers.emplace(layerQr.first);
+        std::unordered_set<std::string> supported_layers;
+        for (auto&& value : meta_devices) {
+            auto device_qm = get_core()->query_model(model, value.device_name, value.config);
+            std::unordered_set<std::string> device_supported_layers;
+            for (auto&& layer_qm : device_qm) {
+                device_supported_layers.emplace(layer_qm.first);
             }
-            supportedLayers = supportedLayers.empty()
-                            ? deviceSupportedLayers : (deviceSupportedLayers.empty()
-                            ? supportedLayers : InferenceEngine::details::Intersection(supportedLayers, deviceSupportedLayers));
+            supported_layers = supported_layers.empty()
+                            ? device_supported_layers : (device_supported_layers.empty()
+                            ? supported_layers : inter_section(supported_layers, device_supported_layers));
         }
-        for (auto&& supportedLayer : supportedLayers) {
-            queryResult.supportedLayersMap[supportedLayer] = GetName();
-        }*/
-    //}
+        for (auto&& iter : supported_layers) {
+            res[iter] = get_device_name();
+        }
     }
     return res;
 }
