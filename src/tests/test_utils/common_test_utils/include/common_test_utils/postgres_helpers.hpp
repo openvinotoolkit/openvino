@@ -20,10 +20,10 @@ namespace CommonTestUtils {
 #define PGQL_DEBUG
 #undef PGQL_DEBUG
 
-extern const char* PGQL_ENV_CONN_NAME; // Environment variable with connection settings
-extern const char* PGQL_ENV_SESS_NAME; // Environment variable identifies current session
-extern const char* PGQL_ENV_RUN_NAME;  // Environment variable with external run id
-extern const char* PGQL_ENV_RLVL_NAME; // Environment variable identifies reporting
+extern const char* PGQL_ENV_CONN_NAME;  // Environment variable with connection settings
+extern const char* PGQL_ENV_SESS_NAME;  // Environment variable identifies current session
+extern const char* PGQL_ENV_RUN_NAME;   // Environment variable with external run id
+extern const char* PGQL_ENV_RLVL_NAME;  // Environment variable identifies reporting
 
 typedef enum {
     /// \brief Most careful reporting, but slowest
@@ -110,21 +110,21 @@ typedef int (*fnPQgetisnull)(const PGresult* res, int row_number, int column_num
 typedef void (*fnPQclear)(PGresult* res);
 typedef char* (*fnPQresultErrorMessage)(const PGresult* res);
 
-static fnPQconnectdb PQconnectdb;
-static fnPQescapeStringConn PQescapeStringConn;
-static fnPQstatus PQstatus;
-static fnPQfinish PQfinish;
-static fnPQerrorMessage PQerrorMessage;
+extern fnPQconnectdb PQconnectdb;
+extern fnPQescapeStringConn PQescapeStringConn;
+extern fnPQstatus PQstatus;
+extern fnPQfinish PQfinish;
+extern fnPQerrorMessage PQerrorMessage;
 
-static fnPQexec PQexec;
-static fnPQresultStatus PQresultStatus;
-static fnPQgetvalue PQgetvalue;
-static fnPQgetisnull PQgetisnull;
-static fnPQclear PQclear;
-static fnPQresultErrorMessage PQresultErrorMessage;
+extern fnPQexec PQexec;
+extern fnPQresultStatus PQresultStatus;
+extern fnPQgetvalue PQgetvalue;
+extern fnPQgetisnull PQgetisnull;
+extern fnPQclear PQclear;
+extern fnPQresultErrorMessage PQresultErrorMessage;
 #endif
 
-char* PGPrefix(const char* text, ::testing::internal::GTestColor color);
+extern char* PGPrefix(const char* text, ::testing::internal::GTestColor color);
 
 #define PG_ERR PGPrefix("[ PG ERROR ] ", ::testing::internal::COLOR_RED)
 #define PG_WRN PGPrefix("[ PG WARN  ] ", ::testing::internal::COLOR_YELLOW)
@@ -272,6 +272,6 @@ bool parse_test_name(const char* line, std::map<std::string, std::string>& keyVa
 /// \param[out] result String for result
 /// \returns Returns true if all input string was compiled, false in case of any compilation error
 bool compile_string(const std::string& srcStr, const std::map<std::string, std::string>& keyValue, std::string& result);
-}  // namespace PostgreSQLLink
+}  // namespace PostgreSQLHelpers
 
 }  // namespace CommonTestUtils

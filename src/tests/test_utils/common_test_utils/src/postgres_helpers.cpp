@@ -11,6 +11,18 @@ const char* PGQL_ENV_SESS_NAME = "OV_TEST_SESSION_ID";  // Environment variable 
 const char* PGQL_ENV_RUN_NAME = "OV_TEST_RUN_ID";       // Environment variable with external run id
 const char* PGQL_ENV_RLVL_NAME = "OV_TEST_REPORT_LVL";  // Environment variable identifies reporting
                                                         // level: default ("", empty), "fast", "suite"
+fnPQconnectdb PQconnectdb;
+fnPQescapeStringConn PQescapeStringConn;
+fnPQstatus PQstatus;
+fnPQfinish PQfinish;
+fnPQerrorMessage PQerrorMessage;
+
+fnPQexec PQexec;
+fnPQresultStatus PQresultStatus;
+fnPQgetvalue PQgetvalue;
+fnPQgetisnull PQgetisnull;
+fnPQclear PQclear;
+fnPQresultErrorMessage PQresultErrorMessage;
 
 char* PGPrefix(const char* text, ::testing::internal::GTestColor color) {
     ::testing::internal::ColoredPrintf(color, text);
@@ -535,7 +547,9 @@ bool parse_test_name(const char* line, std::map<std::string, std::string>& keyVa
     return true;
 }
 
-bool compile_string(const std::string& srcStr, const std::map<std::string, std::string>& keyValue, std::string& result) {
+bool compile_string(const std::string& srcStr,
+                    const std::map<std::string, std::string>& keyValue,
+                    std::string& result) {
     size_t varPos = std::string::npos;
     size_t readPos = 0;
     std::string varName;
@@ -565,6 +579,6 @@ bool compile_string(const std::string& srcStr, const std::map<std::string, std::
         result.resize(result.length() - 1);
     return readPos = srcStr.length();
 }
-}  // namespace PostgreSQLLink
+}  // namespace PostgreSQLHelpers
 
 }  // namespace CommonTestUtils
