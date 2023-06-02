@@ -16,6 +16,8 @@
 #include <unordered_set>
 #include <vector>
 
+#include "../../src/ops/gna_convolution.hpp"
+#include "../../src/ops/gna_max_pool.hpp"
 #include "caseless.hpp"
 #include "cpp/ie_cnn_network.h"
 #include "exec_graph_info.hpp"
@@ -54,8 +56,6 @@
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 #include "transformations/utils/utils.hpp"
-#include "../../src/ops/gna_convolution.hpp"
-#include "../../src/ops/gna_max_pool.hpp"
 
 namespace Builder {
 
