@@ -7,9 +7,19 @@
 #include <cmath>
 #include <cstring>
 
+#ifndef IN_OV_COMPONENT
+#    define IN_OV_COMPONENT
+#    define WAS_OV_LIBRARY_DEFINED_CONSTANT
+#endif
+
 #include "ngraph/runtime/aligned_buffer.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/shared_buffer.hpp"
+
+#ifdef WAS_OV_LIBRARY_DEFINED_CONSTANT
+#    undef IN_OV_COMPONENT
+#    undef WAS_OV_LIBRARY_DEFINED_CONSTANT
+#endif
 #include "openvino/core/coordinate_diff.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -520,12 +530,12 @@ private:
                             std::numeric_limits<StorageDataType>::lowest() <= value);
             OPENVINO_ASSERT(std::numeric_limits<StorageDataType>::max() >= value);
         }
-#if defined(_MSC_VER)
-#    pragma warning(pop)
-#elif defined(__clang__)
+#if defined(__clang__)
 #    pragma clang diagnostic pop
 #elif defined(__GNUC__)
 #    pragma GCC diagnostic pop
+#elif defined(_MSC_VER)
+#    pragma warning(pop)
 #endif
 
         const auto size = shape_size(m_shape);

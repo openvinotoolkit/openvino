@@ -26,6 +26,7 @@ ov::PartialShape::PartialShape(const Shape& shape)
       m_dimensions(shape.begin(), shape.end()) {}
 
 ov::PartialShape::PartialShape(const std::string& value) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     auto val = ngraph::trim(value);
     if (val[0] == '[' && val[val.size() - 1] == ']')
         val = val.substr(1, val.size() - 2);
@@ -44,6 +45,7 @@ ov::PartialShape::PartialShape(const std::string& value) {
         dims.insert(dims.end(), Dimension(field));
     }
     m_dimensions = dims;
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 ov::PartialShape::PartialShape(bool rank_is_static, std::vector<Dimension> dimensions)
@@ -325,37 +327,33 @@ bool ov::PartialShape::broadcast_merge_into(PartialShape& dst,
     }
     case op::AutoBroadcastType::PDPD: {
         if (dst.rank().is_dynamic() || src.rank().is_dynamic()) {
+            dst = PartialShape::dynamic();
             return true;
         } else {
             // Ranks are both static.
             auto dst_rank = dst.rank().get_length();
             auto src_rank = src.rank().get_length();
-            // source rank can't be bigger than destination rank according to PDPD broadcast rule.
-            if (src_rank > dst_rank)
-                return false;
-            if (dst_rank == src_rank && dst.compatible(src))
-                return true;
 
             int64_t axis = autob.m_axis;
-            if (axis < -1) {
+            if (src_rank > dst_rank || axis < -1)
                 return false;
-            }
-            if (axis == -1) {
-                axis = dst_rank - src_rank;
-            }
 
-            size_t len = src_rank;
-            while (len > 0 && src[len - 1].is_static() && src[len - 1].get_length() == 1) {
-                --len;
-            }
+            axis = (axis == -1) ? (dst_rank - src_rank) : axis;
 
-            for (size_t i = axis; i < axis + len; ++i) {
-                if (!(dst[i].compatible(src[i - axis]))) {
-                    return false;
+            if (src_rank + axis > dst_rank)
+                return false;
+
+            bool success = true;
+            for (int64_t i = 0; i < src_rank; ++i) {
+                if (dst[axis + i].is_static() && src[i].is_static()) {
+                    if (src[i].get_length() > dst[axis + i].get_length())
+                        return false;
                 }
+
+                success &= Dimension::broadcast_merge(dst[axis + i], dst[axis + i], src[i]);
             }
 
-            return true;
+            return success;
         }
     }
     default:

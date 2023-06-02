@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,7 @@
 namespace ov {
 namespace test {
 namespace snippets {
-using ngraph::snippets::op::Subgraph;
+using ov::snippets::op::Subgraph;
 
 std::string CanonicalizationTests::getTestCaseName(testing::TestParamInfo<canonicalizationParams> obj) {
     std::vector<std::tuple<Shape, Subgraph::BlockedShape>> inputs(2);
@@ -19,7 +19,7 @@ std::string CanonicalizationTests::getTestCaseName(testing::TestParamInfo<canoni
     std::tie(inputs[0], inputs[1], output, expectedOutput) = obj.param;
     std::ostringstream result;
     for (size_t i = 0; i < inputs.size(); i++) {
-        const auto &blockedshape = std::get<1>(inputs[i]);
+        const auto& blockedshape = std::get<1>(inputs[i]);
         // input shape
         result << "IS[" << i << "]=" << CommonTestUtils::vec2str(std::get<0>(inputs[i])) << "_";
         // input blocked shape
@@ -56,7 +56,7 @@ TEST_P(CanonicalizationTests, Add) {
 }
 
 namespace CanonicalizationTestsInstantiation {
-using ngraph::snippets::op::Subgraph;
+using ov::snippets::op::Subgraph;
 std::vector<Shape> input_shapes;
 Shape expected_output_shape;
 Subgraph::BlockedShapeVector input_blocked_shapes;

@@ -259,10 +259,10 @@ Convolution::Convolution(const std::shared_ptr<ngraph::Node>& op, const GraphCon
 
         expectedBiasDims = {groupOC};
 
-        for (int i = 0; i < convolutionOp->get_strides().size(); i++) {
+        for (size_t i = 0; i < convolutionOp->get_strides().size(); i++) {
             stride.push_back(convolutionOp->get_strides()[i]);
         }
-        for (int i = 0; i < convolutionOp->get_dilations().size(); i++) {
+        for (size_t i = 0; i < convolutionOp->get_dilations().size(); i++) {
             dilation.push_back(static_cast<ptrdiff_t>(convolutionOp->get_dilations()[i]) - 1);
         }
         paddingL = convolutionOp->get_pads_begin();
@@ -282,10 +282,10 @@ Convolution::Convolution(const std::shared_ptr<ngraph::Node>& op, const GraphCon
 
         expectedBiasDims = {groupOC * groupNum};
 
-        for (int i = 0; i < groupConvolutionOp->get_strides().size(); i++) {
+        for (size_t i = 0; i < groupConvolutionOp->get_strides().size(); i++) {
             stride.push_back(groupConvolutionOp->get_strides()[i]);
         }
-        for (int i = 0; i < groupConvolutionOp->get_dilations().size(); i++) {
+        for (size_t i = 0; i < groupConvolutionOp->get_dilations().size(); i++) {
             dilation.push_back(static_cast<ptrdiff_t>(groupConvolutionOp->get_dilations()[i]) - 1);
         }
         paddingL = groupConvolutionOp->get_pads_begin();
@@ -364,16 +364,6 @@ const std::vector<impl_desc_type>& Convolution::getPrimitivesPriority() {
         impl_desc_type::ref,
     };
 
-    if (!shouldTryBrgconv) {
-        // remove brgconv_avx512_amx_1x1/brgconv_avx512_amx/brgconv_avx512/brgconv_avx512_1x1
-        for (auto it = priorities.begin(); it != priorities.end(); ) {
-            if (((*it) & brgconv_avx512) == brgconv_avx512)
-                it = priorities.erase(it);
-            else
-                ++it;
-        }
-    }
-
     for (const auto& impl : priorities) {
         if (std::find(implPriorities.begin(), implPriorities.end(), impl) == implPriorities.end())
             implPriorities.push_back(impl);
@@ -381,12 +371,14 @@ const std::vector<impl_desc_type>& Convolution::getPrimitivesPriority() {
     return implPriorities;
 }
 
+const bool Convolution::isBrgConvAvailable = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core);
+
 void Convolution::getSupportedDescriptors() {
     if (!descs.empty())
         return;
     if (!attrs.empty())
         IE_THROW() << "attrs vector is not empty '" << getName() << "'";
-    bool enforceBrgconv = false;
+
     attrs.reserve(2);
     withBiases = getOriginalInputsNumber() == 3;
 
@@ -396,19 +388,10 @@ void Convolution::getSupportedDescriptors() {
         isWino = std::find(implPriorities.begin(), implPriorities.end(), impl_desc_type::jit_avx512_winograd) != implPriorities.end() &&
             dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) && !canBeExecutedInInt8() &&
             getParentEdgeAt(1)->getParent()->isConstant() && getParentEdgeAt(1)->getParent()->getType() == Type::Input;
-
-        // AVX512 brconv may be disabled by heuristics due to performance issues. User can force it via Primitives priority mechanism.
-        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) &&
-            std::any_of(implPriorities.begin(), implPriorities.end(), [](const impl_desc_type& desc_type) {
-                return static_cast<bool>(desc_type & impl_desc_type::brgconv_avx512);
-            })) {
-            shouldTryBrgconv = true;
-            enforceBrgconv = true;
-        }
     }
 
     int expectedInputEdgesNum = static_cast<int>(getOriginalInputsNumber());
-    for (int i = 0; i < fusedWith.size(); i++) {
+    for (size_t i = 0; i < fusedWith.size(); i++) {
         if (fusedWith[i]->getType() == Type::Convolution) {
             expectedInputEdgesNum += static_cast<int>(fusedWith[i]->getOriginalInputsNumber()) - 1;
         }
@@ -435,7 +418,7 @@ void Convolution::getSupportedDescriptors() {
     // We need to make sure that convolution output and second input of fused Eltwise operation
     // have equal precision sizes since they use the same physical memory. In case precisions are different we upscale to FP32.
     if (outputDataType != memory::data_type::f32 && outputDataType != memory::data_type::bf16 && withSum) {
-        for (int i = 0; i < fusedWith.size(); i++) {
+        for (size_t i = 0; i < fusedWith.size(); i++) {
             if (fusedWith[i]->getAlgorithm() == Algorithm::EltwiseAdd) {
                 auto* eltwiseNode = dynamic_cast<Eltwise *>(fusedWith[i].get());
                 if (eltwiseNode && eltwiseNode->isSpecialConvolutionAddFusing()) {
@@ -450,7 +433,7 @@ void Convolution::getSupportedDescriptors() {
         }
     }
 
-    if (getParentEdges().size() != expectedInputEdgesNum)
+    if (static_cast<int>(getParentEdges().size()) != expectedInputEdgesNum)
         IE_THROW() << "Incorrect number of input edges for layer " << getName() << ", expected: " << expectedInputEdgesNum
                    << " actual: " << getParentEdges().size();
     if (getChildEdges().empty())
@@ -463,7 +446,7 @@ void Convolution::getSupportedDescriptors() {
         IE_THROW() << "DW convolution is fused into convolution node " << getName() << " with dynamic shape.";
     }
 
-    for (int i = 0; i < fusedWith.size(); i++) {
+    for (size_t i = 0; i < fusedWith.size(); i++) {
         auto *convolutionNode = dynamic_cast<Convolution *>(fusedWith[i].get());
         if (convolutionNode) {
             auto& inActivationDims = convolutionNode->inputShapes[0].getStaticDims();
@@ -488,7 +471,7 @@ void Convolution::getSupportedDescriptors() {
                 dw_conv_in_dt = memory::data_type::f32;
             }
 
-            for (int j = 0; j < paddingR.size(); j++) {
+            for (size_t j = 0; j < paddingR.size(); j++) {
                 int with_group = isGrouped ? 1 : 0;
                 int krn = weightDims[with_group + 2 + j];
                 int src = getInputShapeAtPort(0).getStaticDims()[2 + j];
@@ -509,9 +492,7 @@ void Convolution::getSupportedDescriptors() {
 
     if (canBeExecutedInInt8()) {
         DEBUG_LOG(getName(), "Creating I8 descriptor");
-        // initTryBrgconvFlag depends on outputDataType, should be after outputDataType computed
-        if (!enforceBrgconv)
-            initTryBrgconvFlag();
+
         SetPostOpsAndZeroPoints(attrs);
 
         in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(0), inputDataType, nspc);
@@ -525,7 +506,7 @@ void Convolution::getSupportedDescriptors() {
     outputDataType = (getOriginalOutputPrecisionAtPort(0) == Precision::BF16
                       && !(isDepthWise() && ndims == 5)) ? memory::data_type::bf16 : memory::data_type::f32;
     eltwisePrecision = Precision::FP32;
-    for (int i = 0; i < fusedWith.size(); i++) {
+    for (size_t i = 0; i < fusedWith.size(); i++) {
         if (fusedWith[i]->getAlgorithm() == Algorithm::EltwiseAdd) {
             auto* eltwiseNode = dynamic_cast<Eltwise *>(fusedWith[i].get());
             if (eltwiseNode && eltwiseNode->isSpecialConvolutionAddFusing()) {
@@ -548,9 +529,7 @@ void Convolution::getSupportedDescriptors() {
         outputDataType = memory::data_type::f32;
         eltwisePrecision = Precision::FP32;
     }
-    // initTryBrgconvFlag depends on outputDataType and eltwisePrecision.
-    if (!enforceBrgconv)
-        initTryBrgconvFlag();
+
     SetPostOpsAndZeroPoints(attrs);
 
     if (!one_of(ndims, 3, 4, 5))
@@ -560,10 +539,10 @@ void Convolution::getSupportedDescriptors() {
     auto outputShape = getOutputShapeAtPort(0);
 
 #if defined(OPENVINO_ARCH_X86_64)
-    bool acceptedFormat = inputDataType == memory::data_type::bf16;
+    // nspc shows better performance only with brgconv implementation
+    bool nspcFirst = isBrgConvAvailable && one_of(inputDataType, memory::data_type::bf16, memory::data_type::f32);
     bool nspcAdded = false;
-    acceptedFormat |= (shouldTryBrgconv && inputDataType == memory::data_type::f32);
-    if (acceptedFormat && impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core)) {
+    if (nspcFirst) {
         in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(inputShape, inputDataType, nspc);
         out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(outputShape, outputDataType, nspc);
         createDescriptor({ in_candidate }, { out_candidate });
@@ -622,7 +601,7 @@ void Convolution::setPostOps(dnnl::primitive_attr& attr,
 
     DEBUG_LOG(getName(), " useLegacyPostOps=", useLegacyPostOps, " initWeights=", initWeights);
 
-    for (int i = 0; i < fusedWith.size(); ++i) {
+    for (size_t i = 0; i < fusedWith.size(); ++i) {
         auto& node = fusedWith[i];
         bool isLastPostOp = (i == (fusedWith.size() - 1));
 
@@ -660,7 +639,7 @@ void Convolution::setPostOps(dnnl::primitive_attr& attr,
             if (i == 0) {
                 bool hasSubsequentSum = false;
                 bool hasSubsequentFQ = false;
-                for (int j = i + 1; j < fusedWith.size(); j++) {
+                for (size_t j = i + 1; j < fusedWith.size(); j++) {
                     auto &nextNode = fusedWith[j];
 
                     auto *nextEltwiseNode = dynamic_cast<Eltwise *>(nextNode.get());
@@ -986,7 +965,8 @@ void Convolution::SetPostOpsAndZeroPoints(std::vector<dnnl::primitive_attr> &att
     if (attrContainsPostOp(attrs[0], dnnl::impl::primitive_kind::convolution)) {
         return;
     }
-    //no matter whether shouldTryBrgconv is true, 1 attribute is enough. Avoid duplicated attribute
+
+    // no matter if brgconv is available, 1 attribute is enough. Avoid duplicated attribute
     if (inputZeroPointType == zpType::None &&
         !attrContainsPostOp(attrs[0], dnnl::impl::primitive_kind::depthwise) &&
         !attrContainsPostOp(attrs[0], dnnl::impl::primitive_kind::quantization)) {
@@ -997,11 +977,11 @@ void Convolution::SetPostOpsAndZeroPoints(std::vector<dnnl::primitive_attr> &att
         DEBUG_LOG(getName(), ": Per channel zero point can only supported on attr[0].Avoid extra useless attribute.");
         return;
     }
-    if (!shouldTryBrgconv) {
-        DEBUG_LOG(getName(), ": shouldTryBrgconv = false. Skip extra attribute");
+    if (!isBrgConvAvailable) {
+        DEBUG_LOG(getName(), ": brgconv is not available. Skip extra attribute");
         return;
     }
-    // Try 2 attributes. Consider the shouldTRyBrgconv could be set via RTinfo to enforce brgconv.
+    // Try 2 attributes.
     attrs.resize(2);
     if (inputZeroPointType == zpType::PerTensor && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)) {
         //WR to ONEDNN limitation. attr[1] - legacy post ops + stock zero point.
@@ -1650,21 +1630,12 @@ void Convolution::appendZeroPointsArgs() {
     }
 }
 
-// brgconv will be enabled by default when HW supports avx512+
-void Convolution::initTryBrgconvFlag() {
-    if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
-        shouldTryBrgconv = true;
-    }
-
-    DEBUG_LOG(getName(), ": shouldTryBrgconv = ", shouldTryBrgconv);
-}
-
 void Convolution::initializeInputZeroPoints(const uint8_t* inputZpData, const size_t inputZpSize) {
     if (!inputZeroPoints.empty() || !legacyInputZeroPoints.empty())
         IE_THROW() << "input zero point is not empty '" << getName() << "'";
     if (inputZpSize)
         inputZeroPointType = zpType::PerTensor;
-    for (int j = 0; j < inputZpSize; j++) {
+    for (size_t j = 0; j < inputZpSize; j++) {
         legacyInputZeroPoints.push_back(inputZpData[j]);
         if (inputZpData[j] != inputZpData[0])
             inputZeroPointType = zpType::PerChannel;

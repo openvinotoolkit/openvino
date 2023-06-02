@@ -6,7 +6,7 @@
 
    * These steps apply to Raspbian OS (the official OS for Raspberry Pi boards).
    * These steps have been validated with Raspberry Pi 3.
-   * There is also an open-source version of OpenVINO™ that can be compiled for arch64 (see `build instructions <https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/build_raspbian.md>`_).
+   * There is also an open-source version of OpenVINO™ that can be compiled for aarch64 (see `build instructions <https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/build_raspbian.md>`_).
 
 Development and Target Systems
 ###############################
@@ -38,37 +38,37 @@ Step 1: Download and Install OpenVINO Runtime
 
       The ``/opt/intel`` path is the recommended folder path for administrators or root users. If you prefer to install OpenVINO in regular userspace, the recommended path is ``/home/<USER>/intel``. You may use a different path if desired.
 
-#. Go to your ``~/Downloads`` directory and download OpenVINO Runtime archive file for Debian from `OpenVINO package repository <https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3/linux/>`_.
-
-   .. tab:: ARM 32-bit
-
-      .. code-block:: sh
-
-         cd ~/Downloads/
-         sudo wget https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3/linux/l_openvino_toolkit_debian9_2022.3.0.9052.9752fafe8eb_armhf.tgz -O openvino_2022.3.0.tgz
+#. Go to your ``~/Downloads`` directory and download OpenVINO Runtime archive file for Debian from `OpenVINO package repository <https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/linux/>`_.
 
    .. tab:: ARM 64-bit
 
       .. code-block:: sh
 
          cd ~/Downloads/
-         sudo wget https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3/linux/l_openvino_toolkit_debian9_2022.3.0.9052.9752fafe8eb_arm64.tgz -O openvino_2022.3.0.tgz
+         sudo wget https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/linux/l_openvino_toolkit_debian9_2023.0.0.10926.b4452d56304_arm64.tgz -O openvino_2023.0.0.tgz
+
+   .. tab:: ARM 32-bit
+
+      .. code-block:: sh
+
+         cd ~/Downloads/
+         sudo wget https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/linux/l_openvino_toolkit_debian9_2023.0.0.10926.b4452d56304_armhf.tgz -O openvino_2023.0.0.tgz
 
 #. Extract the archive file and move it to the installation folder:
 
-   .. tab:: ARM 32-bit
-
-      .. code-block:: sh
-
-         sudo tar -xf openvino_2022.3.0.tgz
-         sudo mv l_openvino_toolkit_debian9_2022.3.0.9052.9752fafe8eb_armhf /opt/intel/openvino_2022.3.0
-
    .. tab:: ARM 64-bit
 
       .. code-block:: sh
 
-         sudo tar -xf openvino_2022.3.0.tgz
-         sudo mv l_openvino_toolkit_debian9_2022.3.0.9052.9752fafe8eb_arm64 /opt/intel/openvino_2022.3.0
+         sudo tar -xf openvino_2023.0.0.tgz
+         sudo mv l_openvino_toolkit_debian9_2023.0.0.10926.b4452d56304_arm64 /opt/intel/openvino_2023.0.0
+
+   .. tab:: ARM 32-bit
+
+      .. code-block:: sh
+
+         sudo tar -xf openvino_2023.0.0.tgz
+         sudo mv l_openvino_toolkit_debian9_2023.0.0.10926.b4452d56304_armhf /opt/intel/openvino_2023.0.0
 
 #. Install required system dependencies on Linux. To do this, OpenVINO provides a script in the extracted installation directory. Run the following command:
 
@@ -80,14 +80,14 @@ Step 1: Download and Install OpenVINO Runtime
 
    .. code-block:: sh
 
-      sudo ln -s openvino_2022.3.0 openvino_2022
+      sudo ln -s openvino_2023.0.0 openvino_2023
 
    .. note::
 
-      If you have already installed a previous release of OpenVINO 2022, a symbolic link to the ``openvino_2022`` folder may already exist. Unlink the previous link with ``sudo unlink openvino_2022``, and then re-run the command above.
+      If you have already installed a previous release of OpenVINO 2023, a symbolic link to the ``openvino_2023`` folder may already exist. Unlink the previous link with ``sudo unlink openvino_2023``, and then re-run the command above.
 
 
-Congratulations, you finished the installation! The ``/opt/intel/openvino_2022`` folder now contains the core components for OpenVINO. If you used a different path in Step 2, for example, ``/home/<USER>/intel/``, OpenVINO is then installed in ``/home/<USER>/intel/openvino_2022``. The path to the ``openvino_2022`` directory is also referred as ``<INSTALL_DIR>`` throughout the OpenVINO documentation.
+Congratulations, you finished the installation! The ``/opt/intel/openvino_2023`` folder now contains the core components for OpenVINO. If you used a different path in Step 2, for example, ``/home/<USER>/intel/``, OpenVINO is then installed in ``/home/<USER>/intel/openvino_2023``. The path to the ``openvino_2023`` directory is also referred as ``<INSTALL_DIR>`` throughout the OpenVINO documentation.
 
 .. _install-external-dependencies:
 
@@ -108,18 +108,18 @@ CMake is installed. Continue to the next section to set the environment variable
 Step 3: Set the Environment Variables
 #####################################
 
-You must update several environment variables before you can compile and run OpenVINO applications. Open a terminal window and run the ``setupvars.sh`` script as shown below to temporarily set your environment variables. If your <INSTALL_DIR> is not ``/opt/intel/openvino_2022``, use the correct one instead.
+You must update several environment variables before you can compile and run OpenVINO applications. Open a terminal window and run the ``setupvars.sh`` script as shown below to temporarily set your environment variables. If your <INSTALL_DIR> is not ``/opt/intel/openvino_2023``, use the correct one instead.
 
 .. code-block:: sh
 
-   source /opt/intel/openvino_2022/setupvars.sh
+   source /opt/intel/openvino_2023/setupvars.sh
 
 
 If you have more than one OpenVINO version on your machine, you can easily switch its version by sourcing the ``setupvars.sh`` of your choice.
 
 .. note::
 
-   The above command must be re-run every time you start a new terminal session. To set up Linux to automatically run the command every time a new terminal is opened, open ``~/.bashrc`` in your favorite editor and add ``source /opt/intel/openvino_2022/setupvars.sh`` after the last line. Next time when you open a terminal, you will see ``[setupvars.sh] OpenVINO™ environment initialized``. Changing ``.bashrc`` is not recommended when you have multiple OpenVINO versions on your machine and want to switch among them.
+   The above command must be re-run every time you start a new terminal session. To set up Linux to automatically run the command every time a new terminal is opened, open ``~/.bashrc`` in your favorite editor and add ``source /opt/intel/openvino_2023/setupvars.sh`` after the last line. Next time when you open a terminal, you will see ``[setupvars.sh] OpenVINO™ environment initialized``. Changing ``.bashrc`` is not recommended when you have multiple OpenVINO versions on your machine and want to switch among them.
 
 The environment variables are set. Continue to the next section if you want to download any additional components.
 
@@ -134,9 +134,9 @@ If you want to use your model for inference, the model must be converted to the 
 
   * OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO samples can also extend their capabilities when compiled with OpenCV as a dependency. To install OpenCV for OpenVINO, see the `instructions on Github <https://github.com/opencv/opencv/wiki/BuildOpenCV4OpenVINO)>`_.
 
-* Convert the models using the Model Optimizer. Model Optimizer is provided with OpenVINO Development Tools.
+* Convert the models using the model conversion API, which is included in OpenVINO Development Tools.
 
-  * OpenVINO Development Tools is a set of utilities for working with OpenVINO and OpenVINO models. It provides tools like Model Optimizer, Benchmark Tool, Post-Training Optimization Tool, and Open Model Zoo Downloader. See the :doc:`Install OpenVINO Development Tools <openvino_docs_install_guides_install_dev_tools>` page for step-by-step installation instructions.
+  * OpenVINO Development Tools is a set of utilities for working with OpenVINO and OpenVINO models. It provides tools like model conversion API, Benchmark Tool, Post-Training Optimization Tool, and Open Model Zoo Downloader. See the :doc:`Install OpenVINO Development Tools <openvino_docs_install_guides_install_dev_tools>` page for step-by-step installation instructions.
 
 What's Next?
 ####################
@@ -145,16 +145,16 @@ Now that you've installed OpenVINO Runtime, you're ready to run your own machine
 
 .. tab:: Get started with Python
 
-   Try the `Python Quick Start Example <https://docs.openvino.ai/nightly/notebooks/201-vision-monodepth-with-output.html>`_ to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
+   Try the `Python Quick Start Example <notebooks/201-vision-monodepth-with-output.html>`__ to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
 
    .. image:: https://user-images.githubusercontent.com/15709723/127752390-f6aa371f-31b5-4846-84b9-18dd4f662406.gif
       :width: 400
 
    Visit the :ref:`Tutorials <notebook tutorials>` page for more Jupyter Notebooks to get you started with OpenVINO, such as:
 
-   * `OpenVINO Python API Tutorial <https://docs.openvino.ai/nightly/notebooks/002-openvino-api-with-output.html>`_
-   * `Basic image classification program with Hello Image Classification <https://docs.openvino.ai/nightly/notebooks/001-hello-world-with-output.html>`_
-   * `Convert a PyTorch model and use it for image background removal <https://docs.openvino.ai/nightly/notebooks/205-vision-background-removal-with-output.html>`_
+   * `OpenVINO Python API Tutorial <notebooks/002-openvino-api-with-output.html>`__
+   * `Basic image classification program with Hello Image Classification <notebooks/001-hello-world-with-output.html>`__
+   * `Convert a PyTorch model and use it for image background removal <notebooks/205-vision-background-removal-with-output.html>`__
 
 
 .. tab:: Get started with C++

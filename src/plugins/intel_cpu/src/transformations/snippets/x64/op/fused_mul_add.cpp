@@ -6,8 +6,6 @@
 
 #include "snippets/itt.hpp"
 #include "ngraph/op/util/elementwise_args.hpp"
-#include <ngraph/op/multiply.hpp>
-#include <ngraph/op/add.hpp>
 
 #include <ngraph/runtime/host_tensor.hpp>
 

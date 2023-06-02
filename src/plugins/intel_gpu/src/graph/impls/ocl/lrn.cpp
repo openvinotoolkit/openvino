@@ -92,3 +92,4 @@ attach_lrn_impl::attach_lrn_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::lrn_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::lrn)

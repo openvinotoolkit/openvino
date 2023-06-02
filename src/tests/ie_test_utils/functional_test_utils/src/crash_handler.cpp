@@ -14,7 +14,11 @@ namespace CommonTestUtils {
 #if defined(__APPLE__)
     typedef sig_t sighandler;
 #elif defined(_WIN32)
+#ifdef __GNUC__
+    typedef __p_sig_fn_t sighandler;
+#else
     typedef _crt_signal_t sighandler;
+#endif
 #else
     typedef sighandler_t sighandler;
 #endif

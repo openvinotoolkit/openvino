@@ -646,6 +646,145 @@ TEST(deformable_convolution_f32_fw_gpu, basic_deformable_convolution) {
     }
 }
 
+TEST(deformable_convolution_f32_fw_gpu, basic_deformable_convolution_group2) {
+    //  Input    : 4x4x4
+    //  Trans    : 36x4x4
+    //  Output   : 4x4x4
+    //  In_offset: 2x2
+    //  Filter   : 3x3
+    //  Stride   : 1x1
+    //  Dilation : 2x2
+    //  Group    : 2
+    //  Def_group: 1
+
+    auto& engine = get_test_engine();
+    ExecutionConfig cfg = get_test_default_config(engine);
+    cfg.set_property(ov::intel_gpu::allow_static_input_reorder(true));
+
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 4, 4, 4 } });
+    auto trans = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 18, 4, 4 } });
+    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, { 6, 2, 3, 3 } });
+
+    set_values(input, { 0.041230f, 0.571591f, 0.214803f, 0.920063f, 0.710891f, 0.590901f, 0.115938f, 0.903375f,
+                        0.836745f, 0.069482f, 0.116163f, 0.846875f, 0.326503f, 0.798514f, 0.633905f, 0.037332f,
+                        0.040814f, 0.783123f, 0.964177f, 0.412064f, 0.855732f, 0.856115f, 0.143356f, 0.934137f,
+                        0.433961f, 0.869262f, 0.245320f, 0.333171f, 0.593450f, 0.394133f, 0.373404f, 0.979914f,
+                        0.298339f, 0.100796f, 0.924156f, 0.092880f, 0.904197f, 0.797754f, 0.588189f, 0.650559f,
+                        0.259428f, 0.505293f, 0.784722f, 0.098935f, 0.578755f, 0.632079f, 0.023725f, 0.777252f,
+                        0.067884f, 0.777330f, 0.382775f, 0.445708f, 0.639517f, 0.234484f, 0.749223f, 0.856886f,
+                        0.232946f, 0.954170f, 0.772150f, 0.246118f, 0.289955f, 0.954520f, 0.122751f, 0.934407f });
+
+    set_values(trans, { -0.029787f, -0.039425f, -0.013103f, 0.020071f, -0.005835f, -0.012874f, -0.017001f, 0.049894f,
+                        0.029097f, -0.009970f, -0.022878f, -0.047258f, 0.020377f, 0.046071f, 0.041883f, 0.006665f,
+                        -0.017147f, -0.019289f, 0.033301f, 0.035090f, -0.034251f, 0.019805f, 0.046993f, 0.004558f,
+                        -0.008064f, -0.006918f, 0.025468f, 0.028423f, 0.047196f, 0.033526f, -0.030316f, -0.047028f,
+                        0.039442f, 0.031440f, 0.002416f, -0.015918f, -0.017300f, 0.039576f, 0.049565f, 0.028253f,
+                        -0.043583f, 0.034208f, -0.036632f, 0.013871f, 0.003656f, -0.047041f, 0.013766f, 0.027901f,
+                        0.038762f, 0.028222f, -0.006699f, 0.004693f, 0.039893f, -0.000607f, 0.007333f, -0.021024f,
+                        0.004991f, -0.022489f, -0.004437f, 0.027367f, -0.032716f, 0.028834f, -0.046343f, -0.009434f,
+                        0.027402f, 0.000910f, 0.033518f, 0.039552f, 0.006292f, 0.037292f, 0.004389f, -0.001523f,
+                        -0.035141f, 0.038158f, -0.039541f, 0.044087f, 0.035931f, 0.007894f, -0.033210f, -0.033552f,
+                        0.007346f, 0.049394f, -0.030189f, 0.003506f, -0.001177f, -0.042913f, 0.002683f, 0.025040f,
+                        -0.043625f, 0.032408f, 0.020641f, 0.000095f, -0.048939f, -0.036238f, -0.013676f, -0.007374f,
+                        0.022051f, -0.039209f, -0.016096f, 0.027290f, -0.040269f, -0.010659f, -0.000863f, 0.029705f,
+                        0.038543f, -0.002328f, -0.014264f, -0.035752f, 0.034962f, 0.044321f, 0.021213f, 0.027358f,
+                        -0.027710f, -0.043171f, -0.022418f, 0.038013f, 0.043587f, -0.010271f, 0.045589f, -0.003316f,
+                        -0.012297f, -0.046647f, -0.036306f, 0.001580f, -0.012444f, 0.015811f, -0.044044f, -0.032120f,
+                        -0.036106f, 0.046225f, 0.026619f, -0.007977f, 0.031591f, 0.010924f, -0.016834f, 0.011595f,
+                        0.035778f, -0.035381f, 0.020276f, -0.028779f, 0.020281f, -0.048127f, -0.023946f, 0.019259f,
+                        -0.033553f, -0.031123f, -0.022753f, 0.038951f, -0.025033f, 0.043039f, 0.022913f, 0.023352f,
+                        -0.027936f, 0.005870f, -0.006296f, 0.013130f, 0.049880f, 0.002440f, 0.019296f, -0.021542f,
+                        0.042561f, 0.013915f, -0.004669f, 0.017946f, 0.029617f, -0.012364f, 0.013526f, 0.037983f,
+                        0.026276f, -0.012129f, -0.030703f, -0.004503f, -0.034408f, 0.024183f, 0.042694f, -0.021127f,
+                        -0.000750f, 0.015751f, -0.006451f, -0.027637f, -0.017465f, 0.029969f, -0.042837f, 0.000506f,
+                        -0.019212f, 0.009024f, 0.015760f, -0.036041f, -0.023333f, -0.037582f, -0.004512f, 0.022489f,
+                        -0.025172f, 0.047346f, -0.022394f, 0.038075f, 0.000998f, 0.032706f, -0.035312f, -0.030298f,
+                        -0.045665f, 0.048576f, 0.014447f, 0.038639f, 0.014167f, -0.013453f, 0.014609f, -0.043763f,
+                        -0.048391f, 0.035368f, -0.039751f, 0.035484f, 0.013826f, -0.020628f, 0.046977f, -0.042135f,
+                        0.030593f, -0.003539f, -0.025274f, -0.024285f, 0.003617f, 0.007755f, -0.035767f, 0.011002f,
+                        0.037875f, 0.009636f, 0.038495f, 0.008297f, 0.002958f, 0.012495f, 0.018759f, -0.045469f,
+                        -0.031202f, -0.000778f, -0.031627f, -0.046655f, 0.000654f, 0.045007f, -0.000535f, -0.006192f,
+                        -0.025460f, 0.000590f, 0.002009f, -0.005429f, 0.038686f, -0.025255f, 0.035947f, -0.034878f,
+                        -0.013894f, 0.037885f, 0.029620f, -0.043924f, -0.000509f, -0.025247f, 0.046582f, 0.030141f,
+                        0.037285f, 0.025552f, 0.038033f, -0.038338f, -0.001596f, 0.000761f, -0.025951f, -0.011722f,
+                        0.002122f, 0.006186f, -0.019645f, -0.012891f, -0.042582f, 0.027550f, 0.031169f, -0.006275f,
+                        -0.001020f, 0.049283f, 0.024151f, -0.001658f, -0.008065f, -0.004660f, -0.036786f, 0.007594f,
+                        0.010722f, -0.016304f, 0.018261f, -0.045930f, 0.019360f, 0.011701f, 0.027280f, 0.032347f });
+
+    set_values(weights, { 0.570468f, 0.164136f, 0.776458f, 0.114689f, 0.419818f, 0.175685f, 0.800586f, 0.955510f,
+                            0.172536f, 0.221061f, 0.461171f, 0.231518f, 0.061834f, 0.739035f, 0.125626f, 0.847827f,
+                            0.495315f, 0.628024f, 0.050780f, 0.074000f, 0.046359f, 0.312483f, 0.728176f, 0.303299f,
+                            0.951573f, 0.958894f, 0.553264f, 0.369629f, 0.485841f, 0.870666f, 0.064903f, 0.113451f,
+                            0.589594f, 0.246304f, 0.813138f, 0.967322f, 0.449608f, 0.783049f, 0.537315f, 0.914755f,
+                            0.737451f, 0.330159f, 0.248510f, 0.384153f, 0.995351f, 0.734002f, 0.674795f, 0.912569f,
+                            0.779339f, 0.227471f, 0.536402f, 0.811472f, 0.149300f, 0.974410f, 0.635431f, 0.190016f,
+                            0.511683f, 0.327507f, 0.475696f, 0.981653f, 0.690011f, 0.964964f, 0.137833f, 0.178613f,
+                            0.457133f, 0.519849f, 0.738906f, 0.043956f, 0.086127f, 0.569203f, 0.818306f, 0.154500f,
+                            0.178339f, 0.309057f, 0.798050f, 0.520464f, 0.891095f, 0.935555f, 0.588479f, 0.399601f,
+                            0.834115f, 0.284009f, 0.148420f, 0.374753f, 0.781456f, 0.792354f, 0.593585f, 0.156931f,
+                            0.065250f, 0.533898f, 0.385339f, 0.628777f, 0.623290f, 0.343597f, 0.661532f, 0.781720f,
+                            0.630958f, 0.696810f, 0.409430f, 0.305062f, 0.516459f, 0.113841f, 0.089201f, 0.637092f,
+                            0.138792f, 0.397683f, 0.516309f, 0.751039f });
+
+    std::vector<float> output_vec = { 1.970516f, 3.382788f, 3.232190f, 2.336809f, 3.345522f, 3.613247f, 3.728191f, 3.020900f,
+                                    2.941497f, 4.088605f, 4.330465f, 2.704222f, 1.416622f, 1.978842f, 1.908965f, 1.283542f,
+                                    3.169041f, 3.549672f, 3.379996f, 2.635512f, 4.070296f, 4.150237f, 3.749203f, 2.677094f,
+                                    4.008467f, 3.803390f, 4.592338f, 2.864883f, 1.829590f, 2.018164f, 2.118501f, 0.737497f,
+                                    2.472763f, 2.802295f, 4.671433f, 2.367759f, 3.826317f, 5.116533f, 6.496192f, 3.471319f,
+                                    4.765404f, 5.568552f, 5.531154f, 3.182333f, 2.685795f, 3.444699f, 3.776934f, 2.262869f,
+                                    1.818490f, 3.280025f, 3.267537f, 2.819613f, 2.515392f, 4.808901f, 4.601172f, 3.314271f,
+                                    2.718597f, 4.912858f, 4.508485f, 3.421931f, 1.883965f, 2.337842f, 2.899203f, 1.303477f,
+                                    2.060152f, 3.820107f, 3.858294f, 1.984789f, 3.717936f, 5.461279f, 4.718024f, 3.145632f,
+                                    3.807969f, 4.831135f, 5.490211f, 2.392655f, 2.803777f, 3.287232f, 3.329570f, 1.954188f,
+                                    1.874439f, 3.715954f, 3.360692f, 2.248626f, 3.255451f, 4.810193f, 4.815291f, 3.047631f,
+                                    3.744109f, 4.851815f, 4.863840f, 2.928771f, 1.937537f, 2.858193f, 2.596052f, 1.853897f };
+
+    topology topology(
+            input_layout("input", input->get_layout()),
+            input_layout("trans", trans->get_layout()),
+            data("weights", weights),
+            convolution(
+                    "conv",
+                    { input_info("input"), input_info("trans") },
+                    "weights",
+                    no_bias,
+                    true,
+                    2,
+                    1,
+                    { 1, 1 },
+                    { 1, 1 },
+                    { 1, 1 },
+                    { 1, 1 },
+                    true)
+    );
+
+    network network(engine, topology, cfg);
+    network.set_input_data("input", input);
+    network.set_input_data("trans", trans);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "conv");
+
+    auto output_memory = outputs.at("conv").get_memory();
+    auto output_layout = output_memory->get_layout();
+    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+
+    int y_size = output_layout.spatial(1);
+    int x_size = output_layout.spatial(0);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
+    ASSERT_EQ(output_layout.format, format::bfyx);
+    ASSERT_EQ(y_size, 4);
+    ASSERT_EQ(x_size, 4);
+    ASSERT_EQ(f_size, 6);
+    ASSERT_EQ(b_size, 1);
+
+    for (size_t i = 0; i < output_vec.size(); ++i) {
+        ASSERT_NEAR(output_vec[i], output_ptr[i], 0.01);
+    }
+}
+
 TEST(convolution_f32_fw_gpu, basic_convolution_no_bias) {
     //  Filter : 2x3
     //  Stride : 2x1
@@ -715,6 +854,124 @@ TEST(convolution_f32_fw_gpu, basic_convolution_no_bias) {
     //    }
     //}
     //print_2d(temp_vec);
+}
+
+
+TEST(convolution_f32_fw_gpu, basic_convolution_no_bias_dynamic) {
+    auto& engine = get_test_engine();
+
+    ov::Shape in0_shape = { 1, 1, 4, 5 };
+
+    auto in0_dyn_layout = layout{ov::PartialShape::dynamic(in0_shape.size()), data_types::f32, format::bfyx};
+    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 3, 2 } });
+
+    set_values(weights, {
+        1.0f, 2.0f, 1.0f,
+        2.0f, 1.0f, 2.0f
+    });
+
+    topology topology(
+        input_layout("input", in0_dyn_layout),
+        data("weights", weights),
+        convolution("conv", input_info("input"), "weights", no_bias, 1, { 2, 1 }, {1, 1}, {0, 0}, {0, 0}, false));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+
+    // first execute
+    {
+        auto input0 = engine.allocate_memory({ in0_shape, data_types::f32, format::bfyx });
+        set_values(input0, {
+            1.0f, 2.0f, 3.0f, 4.0f, 5.0f,
+            2.0f, 2.0f, 3.0f, 4.0f, 6.0f,
+            3.0f, 3.0f, 3.0f, 5.0f, 1.0f,
+            1.0f, 1.0f, 1.0f, 1.0f, 1.0f
+        });
+        network.set_input_data("input", input0);
+
+        auto inst = network.get_primitive("conv");
+        auto impl = inst->get_impl();
+        ASSERT_TRUE(impl != nullptr);
+        ASSERT_TRUE(impl->is_dynamic());
+
+        auto outputs = network.execute();
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "conv");
+
+        auto output_memory = outputs.at("conv").get_memory();
+        auto output_layout = output_memory->get_layout();
+        cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+
+        int y_size = output_layout.spatial(1);
+        int x_size = output_layout.spatial(0);
+        int f_size = output_layout.feature();
+        int b_size = output_layout.batch();
+        ASSERT_EQ(output_layout.format, format::bfyx);
+        ASSERT_EQ(y_size, 2);
+        ASSERT_EQ(x_size, 3);
+        ASSERT_EQ(f_size, 1);
+        ASSERT_EQ(b_size, 1);
+
+        VVF<float> output_vec = {
+            { 20.0f, 27.0f, 38.0f },
+            { 17.0f, 19.0f, 19.0f }
+        };
+        for (int y = 0; y < y_size; ++y) {
+            for (int x = 0; x < x_size; ++x) {
+                ASSERT_EQ(output_vec[y][x], output_ptr[y * x_size + x]);
+            }
+        }
+    }
+
+    // second execute
+    {
+        in0_shape = { 1, 1, 6, 4 };
+        auto input0 = engine.allocate_memory({ in0_shape, data_types::f32, format::bfyx });
+        set_values(input0, {
+            1.0f, 2.0f, 3.0f, 4.0f,
+            2.0f, 2.0f, 3.0f, 4.0f,
+            3.0f, 3.0f, 3.0f, 5.0f,
+            1.0f, 1.0f, 1.0f, 1.0f,
+            5.0f, 4.0f, 3.0f, 2.0f,
+            4.0f, 4.0f, 3.0f, 3.0f,
+        });
+        network.set_input_data("input", input0);
+
+        auto inst = network.get_primitive("conv");
+        auto impl = inst->get_impl();
+        ASSERT_TRUE(impl != nullptr);
+        ASSERT_TRUE(impl->is_dynamic());
+
+        auto outputs = network.execute();
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "conv");
+
+        auto output_memory = outputs.at("conv").get_memory();
+        auto output_layout = output_memory->get_layout();
+        cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+
+        int y_size = output_layout.spatial(1);
+        int x_size = output_layout.spatial(0);
+        int f_size = output_layout.feature();
+        int b_size = output_layout.batch();
+        ASSERT_EQ(output_layout.format, format::bfyx);
+        ASSERT_EQ(y_size, 3);
+        ASSERT_EQ(x_size, 2);
+        ASSERT_EQ(f_size, 1);
+        ASSERT_EQ(b_size, 1);
+
+        VVF<float> output_vec = {
+            { 20.f, 27.f },
+            { 17.f, 19.f },
+            { 34.f, 29.f }
+        };
+        for (int y = 0; y < y_size; ++y) {
+            for (int x = 0; x < x_size; ++x) {
+                ASSERT_EQ(output_vec[y][x], output_ptr[y * x_size + x]);
+            }
+        }
+    }
 }
 
 TEST(convolution_f32_fw_gpu, basic_convolution_int8_no_bias) {
@@ -1079,6 +1336,145 @@ TEST(convolution_f32_fw_gpu, basic_convolution3D_group2) {
 
     network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "conv");
+
+    auto output_memory = outputs.at("conv").get_memory();
+    auto output_layout = output_memory->get_layout();
+    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+
+    int z_size = output_layout.spatial(2);
+    int y_size = output_layout.spatial(1);
+    int x_size = output_layout.spatial(0);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
+    ASSERT_EQ(output_layout.format, format::bfzyx);
+    ASSERT_EQ(b_size, 1);
+    ASSERT_EQ(f_size, 2);
+    ASSERT_EQ(z_size, 3);
+    ASSERT_EQ(y_size, 3);
+    ASSERT_EQ(x_size, 3);
+    for (int f = 0; f < f_size; ++f) {
+        for (int z = 0; z < z_size; ++z) {
+            for (int y = 0; y < y_size; ++y) {
+                for (int x = 0; x < x_size; ++x) {
+                    ASSERT_EQ(output_vec[f][z][y][x],
+                        output_ptr[f * z_size * y_size * x_size + z * y_size * x_size + y * x_size + x]);
+                }
+            }
+        }
+    }
+}
+
+TEST(convolution_f32_fw_gpu, basic_convolution3D_group2_dynamic) {
+    //  data is similar as in basic_convolution3D_split2
+    auto& engine = get_test_engine();
+
+    ov::Shape in0_shape = { 1, 2, 4, 4, 4 };
+    auto in0_dyn_layout = layout{ov::PartialShape::dynamic(in0_shape.size()), data_types::f32, format::bfzyx};
+
+    auto input0 = engine.allocate_memory({ in0_shape, data_types::f32, format::bfzyx });
+    auto weights = engine.allocate_memory({ data_types::f32, format::goizyx, tensor(format::goizyx, {2, 1, 1, 2, 2, 2 }) });
+    auto biases = engine.allocate_memory({ data_types::f32, format::bfzyx, { 1, 2, 1, 1, 1 } });
+
+    set_values(input0, {
+        1.0f,  0.0f,  1.0f,  0.0f,
+        1.0f,  1.0f,  3.0f,  1.0f,
+        1.0f,  1.0f,  0.0f,  2.0f,
+        0.0f,  2.0f,  1.0f,  1.0f,
+        1.0f,  0.0f,  0.0f,  1.0f,
+        2.0f,  0.0f,  1.0f,  2.0f,
+        3.0f,  1.0f,  1.0f,  1.0f,
+        0.0f,  0.0f,  3.0f,  1.0f,
+        2.0f,  0.0f,  1.0f,  1.0f,
+        3.0f,  3.0f,  1.0f,  0.0f,
+        2.0f,  1.0f,  1.0f,  0.0f,
+        3.0f,  2.0f,  1.0f,  2.0f,
+        1.0f,  0.0f,  2.0f,  0.0f,
+        1.0f,  0.0f,  3.0f,  3.0f,
+        3.0f,  1.0f,  0.0f,  0.0f,
+        1.0f,  1.0f,  0.0f,  2.0f,
+        1.0f,  0.0f,  1.0f,  0.0f,
+        1.0f,  1.0f,  3.0f,  1.0f,
+        1.0f,  1.0f,  0.0f,  2.0f,
+        0.0f,  2.0f,  1.0f,  1.0f,
+        1.0f,  0.0f,  0.0f,  1.0f,
+        2.0f,  0.0f,  1.0f,  2.0f,
+        3.0f,  1.0f,  1.0f,  1.0f,
+        0.0f,  0.0f,  3.0f,  1.0f,
+        2.0f,  0.0f,  1.0f,  1.0f,
+        3.0f,  3.0f,  1.0f,  0.0f,
+        2.0f,  1.0f,  1.0f,  0.0f,
+        3.0f,  2.0f,  1.0f,  2.0f,
+        1.0f,  0.0f,  2.0f,  0.0f,
+        1.0f,  0.0f,  3.0f,  3.0f,
+        3.0f,  1.0f,  0.0f,  0.0f,
+        1.0f,  1.0f,  0.0f,  2.0f,
+    });
+
+    set_values(weights, {
+        0.0f,  1.0f,
+        0.0f,  0.0f,
+        2.0f,  1.0f,
+        0.0f,  0.0f,
+        0.0f,  1.0f,
+        0.0f,  0.0f,
+        2.0f,  1.0f,
+        0.0f,  0.0f,
+    });
+
+    set_values(biases, { 1.0f, 2.0f });
+
+    VVVVF<float> output_vec = {
+        {
+            {
+                { 3.0f,   2.0f,   2.0f },
+                { 6.0f,   5.0f,   6.0f },
+                { 9.0f,   4.0f,   6.0f }
+            },
+            {
+                { 5.0f,   2.0f,   5.0f },
+                { 10.0f,   9.0f,   5.0f },
+                { 7.0f,   5.0f,   4.0f }
+            },
+            {
+                { 3.0f,   4.0f,   6.0f },
+                { 6.0f,   5.0f,   10.0f },
+                { 9.0f,   4.0f,   1.0f }
+            },
+        },
+        {
+            {
+                { 4.0f,   3.0f,   3.0f },
+                { 7.0f,   6.0f,   7.0f },
+                { 10.0f,  5.0f,   7.0f }
+            },
+            {
+                { 6.0f,   3.0f,   6.0f },
+                { 11.0f,  10.0f,  6.0f },
+                { 8.0f,   6.0f,   5.0f }
+            },
+            {
+                { 4.0f,   5.0f,   7.0f },
+                { 7.0f,   6.0f,  11.0f },
+                { 10.0f,  5.0f,   2.0f }
+            },
+        }
+    };
+
+    topology topology(
+        input_layout("input", in0_dyn_layout),
+        data("weights", weights),
+        data("biases", biases),
+        convolution("conv", input_info("input"), "weights", "biases", 2, {1, 1, 1}, {1, 1, 1}, {0, 0, 0}, {0, 0, 0}, true));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+
+    network.set_input_data("input", input0);
 
     auto outputs = network.execute();
     ASSERT_EQ(outputs.size(), size_t(1));
@@ -5566,7 +5962,9 @@ TEST_P(convolution_gpu_block_layout3D, bfzyx_bsv16_fsv16_fp32)
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{ "conv_bsv16_fsv16", "reorder_bfzyx" }));
+    config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{ "conv_bsv16_fsv16", "reorder_bfzyx", }));
+    ov::intel_gpu::ImplementationDesc conv_impl = { input_format, "", impl_types::ocl };
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{ "conv_bsv16_fsv16", conv_impl }}));
     network network(engine, topology, config);
 
     network.set_input_data("input", input_mem);
@@ -5704,6 +6102,8 @@ TEST_P(convolution_gpu_block_layout3D, bfzyx_bsv16_fsv16_fp16)
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{ "conv_bsv16_fsv16", "reorder_bfzyx" }));
+    ov::intel_gpu::ImplementationDesc conv_impl = { input_format, "" };
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{ "conv_bsv16_fsv16", conv_impl }}));
     network network(engine, topology, config);
 
     network.set_input_data("input", input_mem);
@@ -8947,7 +9347,7 @@ TEST(convolution_gpu_onednn, padding_for_cldnn_kernel_after_onednn) {
     auto weights = data("weights", weights_mem);
     auto input_reorder = reorder("input_fsv", input_info("input"), { data_types::f16, format::b_fs_yx_fsv16, input_size });
     auto conv1 = convolution("conv1", input_info("input_fsv"), "weights", no_bias, 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false);
-    auto conv2 = convolution("conv2", input_info("conv1"), "weights", no_bias, 1, { 1, 1 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, false);
+    auto conv2 = convolution("conv2", input_info("conv1"), "weights", no_bias, 1, { 1, 1 }, { 1, 1 }, { 1, 1 }, { 2, 2 }, false);
     auto output_reorder = reorder("reorder", input_info("conv2"), { data_types::f32, format::bfyx, { output_b, output_f, output_x, output_x } });
 
     topology topology_test(input, weights, input_reorder, conv1, conv2, output_reorder);
