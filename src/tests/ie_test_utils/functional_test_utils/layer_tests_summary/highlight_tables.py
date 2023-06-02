@@ -1,5 +1,6 @@
 import os
 import re
+import sys
 import argparse
 
 from utils.conformance_utils import get_logger
@@ -34,6 +35,16 @@ def parse_arguments():
         If script will found xml, but path will not include test_mode,
         script will save result in Other.
     """
+    report_tag_help = "Report tag"
+    report_version_help = "Report version"
+    current_commit_help = """
+        Commit hash of current repo state, which was specifyed in --current_xmls.
+        This state will be used as main source for creating highlite table.
+    """
+    prev_commit_help = """
+        Commit hash of previos repo state, which was specifyed in --prev_xmls.
+        This state will be used for comparing with curent results and showing changes.
+    """
 
     parser.add_argument('--current_xmls', help=xml_help, required=True)
     parser.add_argument('--prev_xmls', help=xml_help, required=True)
@@ -42,6 +53,11 @@ def parse_arguments():
     parser.add_argument("--output_filename", help=output_filename_help, default="highlight_table.html")
     parser.add_argument("--expected_devices", help=expected_devices_help, nargs="*", required=False)
     parser.add_argument("--expected_test_mode", help=expected_test_mode_help, nargs="*", required=False)
+
+    parser.add_argument("--report_tag", help=report_tag_help, default="")
+    parser.add_argument("--report_version", help=report_version_help, default="")
+    parser.add_argument("--current_commit", help=current_commit_help, default="")
+    parser.add_argument("--prev_commit", help=prev_commit_help, default="")
 
     return parser.parse_args()
 
@@ -105,9 +121,16 @@ class HighlightTableCreator():
         test_count_test = 0
         total_passed_tests = 0
         total_amount_ops = 0
+        rel_passed = 0
+        rel_all = 0
+
         for op in xml_root.findall(f'results/{device}/*'):
-            if op.get('passrate', '0') == '100':
+            if op.get('passrate', '0') == '100.00':
                 total_passed_tests += 1
+
+            rel_passed += float(op.get("relative_passed", 0))
+            rel_all += float(op.get("relative_all", 0))
+
             count = int(op.get("passed")) + int(op.get("failed")) + \
                     int(op.get("crashed")) + int(op.get("skipped")) + \
                     int(op.get("hanged"))
@@ -117,7 +140,7 @@ class HighlightTableCreator():
 
             passed_tests += int(op.get("passed"))
 
-        return passed_tests, total_passed_tests, test_count_test, total_amount_ops
+        return passed_tests, total_passed_tests, test_count_test, total_amount_ops, rel_passed, rel_all
 
     def get_general_passrate(self, test_count, passed_tests):
         general_pass_rate = 0 if test_count == 0 else (passed_tests * 100 / test_count)
@@ -139,21 +162,26 @@ class HighlightTableCreator():
 
         for xml_path in self.current_xmls_opset:
             test_mode = self.get_test_mode_by_path(xml_path)
+            if sys.platform.startswith('win') and xml_path.as_posix().startswith("\\"):
+                xml_path = "\\\\?\\UNC\\%s" % xml_path.as_posix()
+            else:
+                xml_path = "\\\\?\\%s" % xml_path.as_posix()
             try:
-                xml_root = ET.parse(xml_path).getroot()
+                xml_root = ET.parse(Path(xml_path)).getroot()
                 for device in xml_root.findall("results/*"):
                     if self.expected_devices and device.tag not in self.expected_devices:
                         continue
 
                     ops_devices.add(device.tag)
-                    passed_tests, total_passed_tests, test_count, total_amount_ops = self.get_ops_pass_statictic(xml_root, device.tag)
+                    passed_tests, total_passed_tests, test_count, total_amount_ops, rel_passed, rel_all = self.get_ops_pass_statictic(xml_root, device.tag)
 
                     self.ops_info[test_mode][device.tag] = {'totalAmount': total_amount_ops,
                                                             'diffTotalAmount': 0, 
                                                             'totalPass': total_passed_tests,
                                                             'diffTotalPass': 0}
 
-                    self.general_pass_rate[test_mode][device.tag] = {'current': self.get_general_passrate(test_count, passed_tests), 'prev': 0}
+                    self.general_pass_rate[test_mode][device.tag] = {'current': self.get_general_passrate(test_count, passed_tests), 'prev': 0,
+                                                                     'rel_current': self.get_general_passrate(rel_all, rel_passed), 'rel_prev': 0}
 
             except ET.ParseError:
                 logger.error(f'Error parsing {xml_path}')
@@ -166,12 +194,14 @@ class HighlightTableCreator():
                     if device.tag not in ops_devices:
                         continue
 
-                    passed_tests, total_passed_tests, test_count, total_amount_ops = self.get_ops_pass_statictic(xml_root, device.tag)
+                    passed_tests, total_passed_tests, test_count, total_amount_ops, rel_passed, rel_all = self.get_ops_pass_statictic(xml_root, device.tag)
 
                     self.ops_info[test_mode][device.tag]['diffTotalAmount'] = self.ops_info[test_mode][device.tag]['totalAmount'] - total_amount_ops
                     self.ops_info[test_mode][device.tag]['diffTotalPass'] = self.ops_info[test_mode][device.tag]['totalPass'] - total_passed_tests
                     self.general_pass_rate[test_mode][device.tag]['prev'] = round(self.general_pass_rate[test_mode][device.tag]['current'] -\
                                                                                    self.get_general_passrate(test_count, passed_tests), 1)
+                    self.general_pass_rate[test_mode][device.tag]['rel_prev'] = round(self.general_pass_rate[test_mode][device.tag]['rel_current'] -\
+                                                                                      self.get_general_passrate(rel_all, rel_passed), 1)
 
             except ET.ParseError:
                 logger.error(f'Error parsing {xml_path}')
@@ -199,7 +229,9 @@ class HighlightTableCreator():
                             sw_plugin_name = self.build_sw_plugin_name(sw_plugin.tag, device.tag)
                             self.sw_plugins.add(sw_plugin_name)
                             self.api_info[test_type.tag].setdefault(sw_plugin_name, {device.tag: {}})
-                            self.api_info[test_type.tag][sw_plugin_name][device.tag] = {'passrate': float(sw_plugin.get('passrate')), 'diff': 0}
+                            self.api_info[test_type.tag][sw_plugin_name][device.tag] = {'passrate': float(sw_plugin.get('passrate', 0)), 'diff': 0,
+                                                                                        'rel_passrate': float(sw_plugin.get('relative_passrate', 0)), "rel_diff": 0}
+
             except ET.ParseError:
                 logger.error(f'Error parsing {xml_path}')
 
@@ -214,15 +246,19 @@ class HighlightTableCreator():
                         self.api_info.setdefault(test_type.tag, {})
                         for sw_plugin in xml_root.findall(f"results/{device.tag}/{test_type.tag}/*"):
                             sw_plugin_name = self.build_sw_plugin_name(sw_plugin.tag, device.tag)
-                            self.api_info[test_type.tag].setdefault(sw_plugin_name, {device.tag: {'passrate': 0, 'diff': 0}})
+                            self.api_info[test_type.tag].setdefault(sw_plugin_name, {device.tag: {'passrate': 0, 'diff': 0, "rel_passrate": 0, "rel_diff": 0}})
                             self.api_info[test_type.tag][sw_plugin_name][device.tag]['diff'] = round(self.api_info[test_type.tag][sw_plugin_name][device.tag].get('passrate', 0) -\
-                                                                                                     float(sw_plugin.get('passrate')), 1)
+                                                                                                     float(sw_plugin.get('passrate')), 0)
+                            self.api_info[test_type.tag][sw_plugin_name][device.tag]['rel_diff'] = round(self.api_info[test_type.tag][sw_plugin_name][device.tag].get('rel_passrate', 0) -\
+                                                                                                         float(sw_plugin.get('relative_passrate')), 0)
+
             except ET.ParseError:
                 logger.error(f'Error parsing {xml_path}')
 
         self.update_real_devices(api_devices)
 
-    def create_html(self, output_folder=None, output_filename=None):
+    def create_html(self, output_folder=None, output_filename=None, report_tag="",
+                    report_version="", current_commit="", prev_commit=""):
         if 'Other' in self.ops_info and self.ops_info['Other'] == {}:
             self.ops_info.pop('Other')
             self.general_pass_rate.pop('Other')
@@ -244,7 +280,11 @@ class HighlightTableCreator():
                                       general_pass_rate=self.general_pass_rate,
                                       expected_test_mode=self.test_modes,
                                       api_info=self.api_info,
-                                      sw_plugins=sw_plugins)
+                                      sw_plugins=sw_plugins,
+                                      report_tag=report_tag,
+                                      report_version=report_version,
+                                      current_commit=current_commit,
+                                      prev_commit=prev_commit)
 
         report_path = Path()
         if output_folder and Path(output_folder).is_dir():
@@ -264,10 +304,16 @@ if __name__ == "__main__":
     prev_xmls_opset, prev_xmls_api = collect_xml_pathes(args.prev_xmls)
 
     if len(current_xmls_opset) == 0 and len(current_xmls_api) == 0:
-        if len(current_xmls_opset) == 0:
-            logger.error(f'It was not found xmls with name report_opset_[plugin].xml by path {args.current_xmls}')
-        if len(current_xmls_opset) == 0:
-            logger.error(f'It was not found xmls with name report_api_[].xml by path {args.prev_xmls}')
+        logger.error(f'It was not found xmls with name report_opset_[plugin].xml by path {args.current_xmls}')
+        logger.error(f'It was not found xmls with name report_api_[].xml by path {args.prev_xmls}')
+        exit(1)
+    elif len(current_xmls_opset) == 0 and args.expected_test_mode and\
+         ("static" in args.expected_test_mode or "dynamic" in args.expected_test_mode):
+        logger.error(f'It was not found xmls with name report_opset_[plugin].xml by path {args.current_xmls}')
+        exit(1)
+    elif len(current_xmls_api) == 0 and args.expected_test_mode and\
+         "apiConformance" in args.expected_test_mode:
+        logger.error(f'It was not found xmls with name report_api_[plugin].xml by path {args.current_xmls}')
         exit(1)
 
     table = HighlightTableCreator(current_xmls_opset,
@@ -278,10 +324,13 @@ if __name__ == "__main__":
     if args.expected_test_mode:
         table.setup_test_modes(args.expected_test_mode)
 
-
     table.collect_opset_info()
     table.collect_api_info()
     
-    table.create_html(args.output_folder, args.output_filename)
-
+    table.create_html(args.output_folder,
+                      args.output_filename,
+                      args.report_tag,
+                      args.report_version,
+                      args.current_commit,
+                      args.prev_commit)
 
