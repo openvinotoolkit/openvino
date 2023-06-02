@@ -25,7 +25,7 @@
    `Anaconda distribution page <https://www.anaconda.com/products/individual/>`__
 
 
-Installing OpenVINO™ Runtime with Anaconda Package Manager
+Installing OpenVINO Runtime with Anaconda Package Manager
 ############################################################
 
 1. Set up the Anaconda environment (Python 3.10 used as an example):
