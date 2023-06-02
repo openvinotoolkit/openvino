@@ -91,7 +91,9 @@ LinearIR::container LinearIR::deep_copy_range(LinearIR::container::const_iterato
     for (auto it = begin; it != end; it++)
         original_nodes.push_back((*it)->get_node());
     ngraph::NodeMap node_map;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     ngraph::clone_nodes(original_nodes,  node_map);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     for (auto it = begin; it != end; it++) {
         // copy by value, so result shared_pointer point to new objects
         Expression new_expr = **it;

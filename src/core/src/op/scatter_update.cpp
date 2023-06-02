@@ -56,12 +56,12 @@ bool op::v3::ScatterUpdate::evaluate_scatter_update(const HostTensorVector& outp
 
     NGRAPH_CHECK(axis->get_element_type().is_integral_number(), "axis element type is not integral data type");
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     int64_t axis_val = host_tensor_2_vector<int64_t>(axis)[0];
     if (axis_val < 0) {
-        OPENVINO_SUPPRESS_DEPRECATED_START
         axis_val = ngraph::normalize_axis(this, axis_val, static_cast<int64_t>(data->get_shape().size()));
-        OPENVINO_SUPPRESS_DEPRECATED_END
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     std::vector<int64_t> indices_casted_vector;
     switch (indices->get_element_type()) {
