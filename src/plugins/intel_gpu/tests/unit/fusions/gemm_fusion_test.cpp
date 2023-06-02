@@ -581,8 +581,8 @@ public:
     }
 };
 
-class gemm_2in_permute : public GemmFusingTestOneDNN {};
-TEST_P(gemm_2in_permute, gemm_permute) {
+class gemm_permute_2in : public GemmFusingTestOneDNN {};
+TEST_P(gemm_permute_2in, gemm_permute) {
     auto p = GetParam();
     create_topologies(
         input_layout("input0", get_input_layout(p, 0)),
@@ -596,7 +596,15 @@ TEST_P(gemm_2in_permute, gemm_permute) {
     execute(p, false);
 }
 
-TEST_P(gemm_2in_permute, permute_gemm) {
+INSTANTIATE_TEST_SUITE_P(
+    fusings_gpu, gemm_permute_2in, ::testing::ValuesIn(std::vector<gemm_test_params>{
+        gemm_test_params{CASE_GEMM_2IN_FP16_1, 3, 4},
+        gemm_test_params{CASE_GEMM_2IN_FP16_2, 3, 4},
+        gemm_test_params{CASE_GEMM_2IN_FP16_3, 3, 4},
+    }));
+
+class permute_gemm_2in : public GemmFusingTestOneDNN {};
+TEST_P(permute_gemm_2in, permute_gemm) {
     auto p = GetParam();
     create_topologies(
         input_layout("input0", get_input_layout(p, 0)),
@@ -612,7 +620,7 @@ TEST_P(gemm_2in_permute, permute_gemm) {
 }
 
 INSTANTIATE_TEST_SUITE_P(
-    fusings_gpu, gemm_2in_permute, ::testing::ValuesIn(std::vector<gemm_test_params>{
+    fusings_gpu, permute_gemm_2in, ::testing::ValuesIn(std::vector<gemm_test_params>{
         gemm_test_params{CASE_GEMM_2IN_FP16_1, 3, 5},
         gemm_test_params{CASE_GEMM_2IN_FP16_2, 3, 5},
         gemm_test_params{CASE_GEMM_2IN_FP16_3, 3, 5},
