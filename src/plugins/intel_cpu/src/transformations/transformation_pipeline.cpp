@@ -545,10 +545,6 @@ void Transformations::Lpt(const bool hasINT16orINT32Levels, const std::vector<ov
         [](const_node_ptr& node) -> bool {
             return ov::marked_as_bias(node);
         });
-    lptManager.get_pass_config()->set_callback<ngraph::pass::low_precision::AddTransformation>(
-        [](const_node_ptr& node) -> bool {
-            return ov::marked_as_bias(node);
-        });
 
     CPU_DISABLE_PASS_COMMON(lptManager, ngraph::pass::low_precision::MultiplyToGroupConvolutionTransformation);
 

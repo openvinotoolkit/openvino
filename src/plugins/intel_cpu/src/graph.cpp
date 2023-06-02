@@ -1647,9 +1647,7 @@ void Graph::EnforceInferencePrecision() {
                         Type::ROIPooling,     // object detection nets
                         Type::Interpolate))    // super resolution nets
                     continue;   // stop at significant nodes
-            }
-
-            if (inferPrec == InferenceEngine::Precision::FP16) {
+            } else if (inferPrec == InferenceEngine::Precision::FP16) {
                 /* list of node types that must be forced to be executed in FP16 precision
                 * because of performance gains */
                 if (one_of(parent->getType(),
