@@ -6,6 +6,8 @@
 
 #include <algorithm>
 #include <cstring>
+#include <thread>
+#include <future>
 
 #include "ngraph/check.hpp"
 #include "ngraph/runtime/reference/reshape.hpp"
@@ -13,6 +15,25 @@
 using namespace ngraph;
 
 namespace {
+
+static inline void copy_element(char* out, const char* in, size_t elem_size) {
+#define CASE(type) \
+    case sizeof(type): \
+        *reinterpret_cast<type*>(out) = *reinterpret_cast<const type*>(in); \
+        break;
+
+    switch (elem_size) {
+        CASE(int32_t)
+        CASE(int64_t)
+        CASE(int16_t)
+        CASE(int8_t)
+        default:
+            memcpy(out, in, elem_size);
+            break;
+    }
+#undef CASE
+}
+
 void reshape_in0(const char* in,
                  char* out,
                  const Shape& in_shape,
@@ -47,23 +68,26 @@ void reshape_in2(const char* in,
                  const AxisVector& in_axis_order,
                  const Shape& out_shape,
                  size_t elem_size) {
-    size_t size[2];
-    size_t in_index[2];
-    size_t* map_index[2];
-    for (size_t i = 0; i < 2; i++) {
-        size[i] = in_shape[in_axis_order[i]];
-        map_index[in_axis_order[i]] = &in_index[i];
-    }
-    for (in_index[0] = 0; in_index[0] < size[0]; ++in_index[0]) {
-        for (in_index[1] = 0; in_index[1] < size[1]; ++in_index[1]) {
-            // clang-format off
-                memcpy(out,
-                       in + (*map_index[0] * in_shape[1] +
-                             *map_index[1]) * elem_size,
-                       elem_size);
-                out += elem_size;
-            // clang-format on
+    size_t total_work_size = shape_size(in_shape);
+    unsigned int n = std::thread::hardware_concurrency() / 2;
+    size_t work_per_thread = std::max<size_t>(total_work_size / n, 1u);
+
+    auto thread_fn = [in, out, elem_size, &in_shape] (size_t start, size_t end) {
+        for (size_t i = start; i < end; i++) {
+            size_t off = (in_shape[0] * (i % in_shape[1]) + i / in_shape[1]) * elem_size;
+            copy_element(out + off, in + i * elem_size, elem_size);
         }
+    };
+
+    std::vector<std::future<void>> futures;
+
+    for (size_t start = 0; start < total_work_size; start += work_per_thread) {
+        size_t end = std::min(start + work_per_thread, total_work_size);
+        futures.push_back(std::async(thread_fn, start, end));
+    }
+
+    for (auto& future : futures) {
+        future.wait();
     }
 }
 
