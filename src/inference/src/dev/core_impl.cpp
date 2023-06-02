@@ -317,23 +317,19 @@ void ov::CoreImpl::register_plugin_in_registry_unsafe(const std::string& device_
         auto it = config.find(ov::device::alias.name());
         if (it != config.end()) {
             if (defaultConfig.find(ov::proxy::alias_for.name()) == defaultConfig.end()) {
-                defaultConfig[ov::proxy::alias_for.name()] = dev_name;
-            } else {
-                defaultConfig[ov::proxy::alias_for.name()] =
-                    defaultConfig[ov::proxy::alias_for.name()].as<std::string>() + " " + dev_name;
+                defaultConfig[ov::proxy::alias_for.name()] = std::vector<std::string>();
             }
+            defaultConfig[ov::proxy::alias_for.name()].as<std::vector<std::string>>().emplace_back(dev_name);
         }
 
         // Configure device order for proxy_plugin
         it = config.find(ov::device::priority.name());
         if (it != config.end()) {
             if (defaultConfig.find(ov::proxy::device_priorities.name()) == defaultConfig.end()) {
-                defaultConfig[ov::proxy::device_priorities.name()] = dev_name + ":" + it->second.as<std::string>();
-            } else {
-                defaultConfig[ov::proxy::device_priorities.name()] =
-                    defaultConfig[ov::proxy::device_priorities.name()].as<std::string>() + " " + dev_name + ":" +
-                    it->second.as<std::string>();
+                defaultConfig[ov::proxy::device_priorities.name()] = std::vector<std::string>();
             }
+            defaultConfig[ov::proxy::device_priorities.name()].as<std::vector<std::string>>().emplace_back(
+                dev_name + ":" + it->second.as<std::string>());
         }
 
         // Configure devices fallback order for proxy_plugin
@@ -410,19 +406,18 @@ void ov::CoreImpl::register_plugin_in_registry_unsafe(const std::string& device_
 #endif
     }
 
+    const static std::vector<ov::PropertyName> proxy_conf_properties = {ov::device::alias,
+                                                                        ov::device::fallback,
+                                                                        ov::device::priority};
+
     // Register real plugin
-    auto it = desc.defaultConfig.find(ov::device::alias.name());
-    if (it != desc.defaultConfig.end()) {
-        desc.defaultConfig.erase(it);
+    for (const auto& proxy_prop : proxy_conf_properties) {
+        auto it = desc.defaultConfig.find(proxy_prop);
+        if (it != desc.defaultConfig.end()) {
+            desc.defaultConfig.erase(it);
+        }
     }
-    it = desc.defaultConfig.find(ov::device::fallback.name());
-    if (it != desc.defaultConfig.end()) {
-        desc.defaultConfig.erase(it);
-    }
-    it = desc.defaultConfig.find(ov::device::priority.name());
-    if (it != desc.defaultConfig.end()) {
-        desc.defaultConfig.erase(it);
-    }
+
     pluginRegistry[dev_name] = desc;
     add_mutex(dev_name);
 }

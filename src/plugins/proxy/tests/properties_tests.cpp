@@ -46,7 +46,7 @@ TEST_F(ProxyTests, set_property_for_primary_device_full_name) {
 TEST_F(ProxyTests, get_property_on_default_device) {
     const std::string dev_name = "MOCK";
     auto supported_properties = core.get_property(dev_name, ov::supported_properties);
-    EXPECT_EQ(8, supported_properties.size());
+    EXPECT_EQ(10, supported_properties.size());
     size_t mutable_pr(0), immutable_pr(0);
     for (auto&& property : supported_properties) {
         property.is_mutable() ? mutable_pr++ : immutable_pr++;
@@ -67,13 +67,13 @@ TEST_F(ProxyTests, get_property_on_default_device) {
         }
     }
     EXPECT_EQ(6, immutable_pr);
-    EXPECT_EQ(2, mutable_pr);
+    EXPECT_EQ(4, mutable_pr);
 }
 
 TEST_F(ProxyTests, get_property_on_mixed_device) {
     const std::string dev_name = "MOCK.1";
     auto supported_properties = core.get_property(dev_name, ov::supported_properties);
-    EXPECT_EQ(8, supported_properties.size());
+    EXPECT_EQ(10, supported_properties.size());
     size_t mutable_pr(0), immutable_pr(0);
     for (auto&& property : supported_properties) {
         property.is_mutable() ? mutable_pr++ : immutable_pr++;
@@ -94,13 +94,13 @@ TEST_F(ProxyTests, get_property_on_mixed_device) {
         }
     }
     EXPECT_EQ(6, immutable_pr);
-    EXPECT_EQ(2, mutable_pr);
+    EXPECT_EQ(4, mutable_pr);
 }
 
 TEST_F(ProxyTests, get_property_on_specified_device) {
     const std::string dev_name = "MOCK.3";
     auto supported_properties = core.get_property(dev_name, ov::supported_properties);
-    EXPECT_EQ(7, supported_properties.size());
+    EXPECT_EQ(9, supported_properties.size());
     size_t mutable_pr(0), immutable_pr(0);
     for (auto&& property : supported_properties) {
         property.is_mutable() ? mutable_pr++ : immutable_pr++;
@@ -120,5 +120,32 @@ TEST_F(ProxyTests, get_property_on_specified_device) {
         }
     }
     EXPECT_EQ(6, immutable_pr);
-    EXPECT_EQ(1, mutable_pr);
+    EXPECT_EQ(3, mutable_pr);
+}
+
+TEST_F(ProxyTests, get_property_for_changed_default_device) {
+    const std::string dev_name = "MOCK";
+    core.set_property(dev_name, ov::device::id(3));
+    auto supported_properties = core.get_property(dev_name, ov::supported_properties);
+    EXPECT_EQ(9, supported_properties.size());
+    size_t mutable_pr(0), immutable_pr(0);
+    for (auto&& property : supported_properties) {
+        property.is_mutable() ? mutable_pr++ : immutable_pr++;
+        if (property == ov::enable_profiling) {
+            EXPECT_EQ("NO", get_string_value(core.get_property(dev_name, property)));
+            core.set_property(dev_name, ov::enable_profiling(true));
+            EXPECT_TRUE(core.get_property(dev_name, property).is<bool>());
+            EXPECT_EQ("YES", get_string_value(core.get_property(dev_name, property)));
+        } else if (property == ov::device::uuid) {
+            EXPECT_EQ("0004080c1014181c2024282c3034383c", get_string_value(core.get_property(dev_name, property)));
+        } else if (property == ov::device::priorities) {
+            auto value = core.get_property(dev_name, property).as<std::vector<std::string>>();
+            EXPECT_EQ(value.size(), 1);
+            EXPECT_EQ(value[0], "BDE");
+        } else {
+            EXPECT_NO_THROW(core.get_property(dev_name, property));
+        }
+    }
+    EXPECT_EQ(6, immutable_pr);
+    EXPECT_EQ(3, mutable_pr);
 }

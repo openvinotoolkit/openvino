@@ -7,11 +7,13 @@
 #include <memory>
 
 #include "compiled_model.hpp"
+#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/iinfer_request.hpp"
 #include "openvino/runtime/iremote_context.hpp"
+#include "openvino/util/common_util.hpp"
 #include "proxy_plugin.hpp"
 #include "proxy_properties.hpp"
 #include "remote_context.hpp"
@@ -25,27 +27,8 @@ size_t string_to_size_t(const std::string& s) {
     return idx;
 }
 
-std::vector<std::string> split(const std::string& str, const std::string& delim = " ") {
-    std::vector<std::string> result;
-    std::string::size_type start(0);
-    std::string::size_type end = str.find(delim);
-    while (end != std::string::npos) {
-        result.emplace_back(str.substr(start, end - start));
-        start = end + delim.size();
-        end = str.find(delim, start);
-    }
-    result.emplace_back(str.substr(start, end - start));
-    return result;
-}
-
 bool is_device_in_config(const ov::AnyMap& config) {
     return config.find(ov::device::id.name()) != config.end();
-}
-
-size_t get_device_from_config(const ov::AnyMap& config) {
-    if (is_device_in_config(config))
-        return config.at(ov::device::id.name()).as<size_t>();
-    return 0;
 }
 
 ov::AnyMap remove_device_properties(ov::AnyMap& config, const std::vector<std::string>& devices) {
@@ -77,32 +60,36 @@ ov::AnyMap remove_device_properties(ov::AnyMap& config, const std::vector<std::s
 }
 
 ov::AnyMap remove_proxy_properties(ov::AnyMap& config, bool rem_device_properties = false) {
+    const static std::vector<ov::PropertyName> proxy_properties = {ov::device::id,
+                                                                   CONFIG_KEY_INTERNAL(CONFIG_DEVICE_ID),
+                                                                   ov::device::priorities,
+                                                                   ov::proxy::alias_for,
+                                                                   ov::proxy::device_priorities};
     ov::AnyMap dev_properties;
-    auto it = config.find(ov::device::id.name());
-    if (it != config.end())
-        config.erase(it);
-    it = config.find(ov::device::priorities.name());
-    if (it != config.end()) {
-        if (rem_device_properties)
+    for (const auto& property : proxy_properties) {
+        auto it = config.find(property);
+        if (it == config.end())
+            continue;
+        if (ov::device::priorities == property && rem_device_properties)
             dev_properties = remove_device_properties(config, it->second.as<std::vector<std::string>>());
+
         config.erase(it);
     }
-    it = config.find(ov::proxy::alias_for.name());
-    if (it != config.end())
-        config.erase(it);
-    it = config.find(ov::proxy::device_priorities.name());
-    if (it != config.end())
-        config.erase(it);
+
     return dev_properties;
 }
 
 }  // namespace
 
-ov::proxy::Plugin::Plugin() {
-    // Create global config
-    m_configs[""] = {};
-}
+ov::proxy::Plugin::Plugin() {}
+
 ov::proxy::Plugin::~Plugin() = default;
+
+size_t ov::proxy::Plugin::get_device_from_config(const ov::AnyMap& config) const {
+    if (is_device_in_config(config))
+        return config.at(ov::device::id.name()).as<size_t>();
+    return m_default_device;
+}
 
 ov::SupportedOpsMap ov::proxy::Plugin::query_model(const std::shared_ptr<const ov::Model>& model,
                                                    const ov::AnyMap& properties) const {
@@ -122,14 +109,27 @@ ov::SupportedOpsMap ov::proxy::Plugin::query_model(const std::shared_ptr<const o
 }
 
 void ov::proxy::Plugin::set_property(const ov::AnyMap& properties) {
+    auto hw_config = properties;
+    // Parse default device ID and remove from config
+    auto it = hw_config.find(ov::device::id.name());
+    if (it != hw_config.end()) {
+        m_default_device = it->second.as<size_t>();
+        hw_config.erase(it);
+    }
+
+    // Replace device::id by CONFIG_DEVICE_ID
+    it = hw_config.find(CONFIG_KEY_INTERNAL(CONFIG_DEVICE_ID));
+    if (it != hw_config.end()) {
+        hw_config[ov::device::id.name()] = it->second;
+        hw_config.erase(it);
+    }
     // Empty config_name means means global config for all devices
-    std::string config_name = is_device_in_config(properties) ? std::to_string(get_device_from_config(properties)) : "";
+    std::string config_name = is_device_in_config(hw_config) ? std::to_string(get_device_from_config(hw_config)) : "";
 
     // Parse alias config
-    auto it = properties.find(ov::proxy::alias_for.name());
-    bool fill_order =
-        properties.find(ov::proxy::device_priorities.name()) == properties.end() && m_device_order.empty();
-    if (it != properties.end()) {
+    it = hw_config.find(ov::proxy::alias_for.name());
+    bool fill_order = hw_config.find(ov::proxy::device_priorities.name()) == hw_config.end() && m_device_order.empty();
+    if (it != hw_config.end()) {
         for (auto&& dev : it->second.as<std::vector<std::string>>()) {
             m_alias_for.emplace(dev);
             if (fill_order)
@@ -138,14 +138,14 @@ void ov::proxy::Plugin::set_property(const ov::AnyMap& properties) {
     }
 
     // Restore device order
-    it = properties.find(ov::proxy::device_priorities.name());
-    if (it != properties.end()) {
+    it = hw_config.find(ov::proxy::device_priorities.name());
+    if (it != hw_config.end()) {
         m_device_order.clear();
         std::vector<std::pair<std::string, size_t>> priority_order;
         // Biggest number means minimum priority
         size_t min_priority(0);
         for (auto&& dev_priority : it->second.as<std::vector<std::string>>()) {
-            auto dev_prior = split(dev_priority, ":");
+            auto dev_prior = ov::util::split(dev_priority, ':');
             OPENVINO_ASSERT(dev_prior.size() == 2);
             auto priority = string_to_size_t(dev_prior[1]);
             if (priority > min_priority)
@@ -185,8 +185,8 @@ void ov::proxy::Plugin::set_property(const ov::AnyMap& properties) {
     {
         // Cannot change config from different threads
         std::lock_guard<std::mutex> lock(m_plugin_mutex);
-        it = properties.find(ov::device::priorities.name());
-        if (it != properties.end()) {
+        it = hw_config.find(ov::device::priorities.name());
+        if (it != hw_config.end()) {
             m_configs[config_name][ov::device::priorities.name()] = it->second;
             // Main device is needed in case if we don't have alias and would like to be able change fallback order per
             // device
@@ -194,8 +194,7 @@ void ov::proxy::Plugin::set_property(const ov::AnyMap& properties) {
                 m_alias_for.insert(it->second.as<std::vector<std::string>>()[0]);
         }
     }
-    const std::string primary_dev = get_primary_device(get_device_from_config(properties));
-    auto hw_config = properties;
+    const std::string primary_dev = get_primary_device(get_device_from_config(hw_config));
     // Add fallback priority to detect supported devices in case of HETERO fallback
     auto device_priority = get_internal_property(ov::device::priorities.name(), config_name);
     if (!device_priority.empty())
@@ -222,14 +221,15 @@ void ov::proxy::Plugin::set_property(const ov::AnyMap& properties) {
     {
         // Cannot change config from different threads
         std::lock_guard<std::mutex> lock(m_plugin_mutex);
-        for (const auto& it : properties) {
-            // Skip proxy properties
-            if (ov::device::id.name() == it.first || it.first == ov::device::priorities.name() ||
-                it.first == ov::proxy::device_priorities.name() || it.first == ov::proxy::alias_for.name() ||
+        for (const auto& it : hw_config) {
+            // Skip proxy and primary device properties
+            if (CONFIG_KEY_INTERNAL(CONFIG_DEVICE_ID) == it.first || ov::device::id.name() == it.first ||
+                it.first == ov::device::priorities.name() || it.first == ov::proxy::device_priorities.name() ||
+                it.first == ov::proxy::alias_for.name() ||
                 // Skip options from config for primaty device
                 hw_config.find(it.first) != hw_config.end() || (!dev_prop_name.empty() && it.first == dev_prop_name))
                 continue;
-            // Cache proxy and fallback device options
+            // Cache proxy and fallback device options to apply for fallback devices
             m_configs[config_name][it.first] = it.second;
         }
     }
@@ -240,6 +240,9 @@ ov::Any ov::proxy::Plugin::get_property(const std::string& name, const ov::AnyMa
     size_t device_id = get_device_from_config(arguments);
     const std::string config_name = is_device_in_config(arguments) ? std::to_string(device_id) : "";
     if (name == ov::device::id)
+        return m_default_device;
+
+    if (name == CONFIG_KEY_INTERNAL(CONFIG_DEVICE_ID))
         return std::to_string(device_id);
 
     if (name == ov::device::priorities) {
@@ -252,6 +255,20 @@ ov::Any ov::proxy::Plugin::get_property(const std::string& name, const ov::AnyMa
             availableDevices[i] = std::to_string(i);
         }
         return decltype(ov::available_devices)::value_type(availableDevices);
+    }
+    if (name == ov::supported_properties) {
+        auto supported_prop =
+            get_core()->get_property(get_primary_device(device_id), name, {}).as<std::vector<ov::PropertyName>>();
+
+        // Extend primary device properties by proxy specific property
+
+        // ov::device::id changes the default proxy device
+        if (std::find(supported_prop.begin(), supported_prop.end(), ov::device::id) == supported_prop.end())
+            supported_prop.emplace_back(ov::device::id);
+        if (std::find(supported_prop.begin(), supported_prop.end(), CONFIG_KEY_INTERNAL(CONFIG_DEVICE_ID)) ==
+            supported_prop.end())
+            supported_prop.emplace_back(ov::PropertyName(CONFIG_KEY_INTERNAL(CONFIG_DEVICE_ID)));
+        return supported_prop;
     }
 
     if (has_internal_property(name, config_name))
@@ -313,10 +330,12 @@ std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::compile_model(const std::
 }
 
 std::shared_ptr<ov::IRemoteContext> ov::proxy::Plugin::create_context(const ov::AnyMap& remote_properties) const {
+    // TODO: if no device id, try to create context for each plugin
     size_t device_id = get_device_from_config(remote_properties);
     auto device_config = remote_properties;
     remove_proxy_properties(device_config);
 
+    // Add parse config here: parse (fallback)dev, device_config);
     auto remote_context = std::make_shared<ov::proxy::RemoteContext>(
         get_core()->create_context(get_fallback_device(get_device_from_config(remote_properties)), device_config),
         get_device_name() + "." + std::to_string(device_id));
@@ -405,7 +424,7 @@ std::vector<std::vector<std::string>> ov::proxy::Plugin::get_hidden_devices() co
             // Add fallback devices use device_id for individual fallback property
             auto fallback = get_internal_property(ov::device::priorities.name(), device_id).as<std::string>();
             if (!fallback.empty()) {
-                for (const auto& fallback_dev : split(fallback)) {
+                for (const auto& fallback_dev : ov::util::split(fallback, ' ')) {
                     devices.emplace_back(fallback_dev);
                 }
             }
@@ -465,7 +484,7 @@ std::vector<std::vector<std::string>> ov::proxy::Plugin::get_hidden_devices() co
             auto device = all_highlevel_devices[i];
             // In case of aliases use the proxy system of enumeration devices
             const auto fallback_order =
-                split(get_internal_property(ov::device::priorities.name(), std::to_string(i)).as<std::string>());
+                get_internal_property(ov::device::priorities.name(), std::to_string(i)).as<std::vector<std::string>>();
 
             bool found_primary_device = false;
             bool use_hetero_mode = device.no_uuid ? true : false;
