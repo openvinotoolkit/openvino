@@ -89,7 +89,7 @@ NodePair swap_outputs(NodePtr first_node, NodePtr second_node) {
  * swapping inputs/outputs has better perfomance that swapping nodes with clone but it cannot be used
  * in multiple consumers case
  */
-NodePair swap(NodePtr first_node, NodePtr second_node) {
+NodePair swap_items(NodePtr first_node, NodePtr second_node) {
     NodePair new_nodes;
 
     if (first_node->output(0).get_target_inputs().size() > 1 || second_node->output(0).get_target_inputs().size() > 1)
@@ -112,7 +112,7 @@ GatherSinkingUnaryForward::GatherSinkingUnaryForward() {
         auto gather = pattern_to_output.at(gather_label).get_node_shared_ptr();
         auto unary = pattern_to_output.at(unary_label).get_node_shared_ptr();
 
-        const NodePair new_nodes = swap(gather, unary);
+        const NodePair new_nodes = swap_items(gather, unary);
 
         register_new_node(new_nodes.first);
         register_new_node(new_nodes.second);
@@ -150,7 +150,7 @@ GatherSinkingUnaryBackwardSingleConsumer::GatherSinkingUnaryBackwardSingleConsum
         auto gather = pattern_to_output.at(gather_label).get_node_shared_ptr();
         auto unary = gather->get_input_node_shared_ptr(0);
 
-        const NodePair new_nodes = swap(unary, gather);
+        const NodePair new_nodes = swap_items(unary, gather);
 
         register_new_node(new_nodes.first);
         register_new_node(new_nodes.second);
