@@ -88,7 +88,7 @@ def absolutizePaths(cfg):
         wp = subprocess.check_output(wp, shell=True)
         wp = wp.decode()
         wp = wp.rstrip()
-        cfg["workPath"] = wpy
+        cfg["workPath"] = wp
         cfg["os"] = "win"
     else:
         raise CfgError(

@@ -130,11 +130,11 @@ class BenchmarkAppPerformanceMode(Mode):
             )
             handleCommit(commit, cfg)
             output = fetchAppOutput(cfg)
+            commitLogger.info(output)
             foundThroughput = re.search(
                 self.outPattern, output, flags=re.MULTILINE
             ).group(1)
             curThroughput = float(foundThroughput)
-            commitLogger.info(output)
             self.setCommitCash(commit, curThroughput)
         return curThroughput
 
