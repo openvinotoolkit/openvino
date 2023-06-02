@@ -107,7 +107,8 @@ void SwapOutputNames(Output<Node> output1, Output<Node> output2) {
 
     NGRAPH_SUPPRESS_DEPRECATED_START
     const auto node2_output_legacy_name = ov::descriptor::get_ov_tensor_legacy_name(output2.get_tensor());
-    ov::descriptor::set_ov_tensor_legacy_name(output2.get_tensor(), ov::descriptor::get_ov_tensor_legacy_name(output1.get_tensor()));
+    ov::descriptor::set_ov_tensor_legacy_name(output2.get_tensor(),
+                                              ov::descriptor::get_ov_tensor_legacy_name(output1.get_tensor()));
     ov::descriptor::set_ov_tensor_legacy_name(output1.get_tensor(), node2_output_legacy_name);
     NGRAPH_SUPPRESS_DEPRECATED_END
 }

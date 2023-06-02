@@ -16,6 +16,8 @@
 #include <unordered_set>
 #include <vector>
 
+#include "../../src/ops/gna_convolution.hpp"
+#include "../../src/ops/gna_max_pool.hpp"
 #include "caseless.hpp"
 #include "cpp/ie_cnn_network.h"
 #include "exec_graph_info.hpp"
@@ -52,8 +54,6 @@
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 #include "transformations/utils/utils.hpp"
-#include "../../src/ops/gna_convolution.hpp"
-#include "../../src/ops/gna_max_pool.hpp"
 
 namespace Builder {
 
@@ -1695,14 +1695,14 @@ CNNLayerCreator::CNNLayerCreator() {
                            auto shape = node->get_input_shape(1);
                            // extract HW
                            if (node->description() == "GNAConvolution") {
-                                // NHWC
-                                shape.erase(shape.begin());
-                                shape.erase(shape.end() - 1);
-                                res->params["output"] = Builder::asString(*(node->get_shape().rbegin()));
+                               // NHWC
+                               shape.erase(shape.begin());
+                               shape.erase(shape.end() - 1);
+                               res->params["output"] = Builder::asString(*(node->get_shape().rbegin()));
                            } else {
-                                // NCHW
-                                shape.erase(shape.begin(), shape.begin() + 2);
-                                res->params["output"] = Builder::asString(node->get_shape()[1]);
+                               // NCHW
+                               shape.erase(shape.begin(), shape.begin() + 2);
+                               res->params["output"] = Builder::asString(node->get_shape()[1]);
                            }
 
                            res->params["kernel"] = Builder::asString(static_cast<std::vector<size_t>&>(shape));
