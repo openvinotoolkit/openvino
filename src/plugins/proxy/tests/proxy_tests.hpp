@@ -13,6 +13,39 @@ namespace ov {
 namespace proxy {
 namespace tests {
 
+class PluginRemoteTensor : public ov::RemoteTensor {
+public:
+    /**
+     * @brief Checks that type defined runtime parameters are presented in remote object
+     * @param tensor a tensor to check
+     */
+    static void type_check(const Tensor& tensor) {
+        RemoteTensor::type_check(tensor, {{"IS_DEFAULT", {}}});
+    }
+
+    bool is_default() {
+        return get_params().at("IS_DEFAULT").as<bool>();
+    }
+};
+
+class PluginRemoteContext : public ov::RemoteContext {
+public:
+    // Needed to make create_tensor overloads from base class visible for user
+    using RemoteContext::create_host_tensor;
+    using RemoteContext::create_tensor;
+    /**
+     * @brief Checks that type defined runtime parameters are presented in remote object
+     * @param remote_context A remote context to check
+     */
+    static void type_check(const RemoteContext& remote_context) {
+        RemoteContext::type_check(remote_context, {{"IS_DEFAULT", {}}});
+    }
+
+    bool is_default() {
+        return get_params().at("IS_DEFAULT").as<bool>();
+    }
+};
+
 // <ie>
 //     <plugins>
 //         <plugin name="ABC" location="libmock_abc_plugin.so">

@@ -6,11 +6,11 @@
 
 #include <memory>
 
-#include "proxy_plugin.hpp"
+#include "remote_tensor.hpp"
 
-ov::proxy::RemoteContext::RemoteContext(const ov::RemoteContext& ctx, const std::string& dev_name)
+ov::proxy::RemoteContext::RemoteContext(ov::RemoteContext&& ctx, const std::string& dev_name)
     : m_name(dev_name),
-      m_context(ctx) {}
+      m_context(std::move(ctx)) {}
 
 const std::string& ov::proxy::RemoteContext::get_device_name() const {
     return m_name;
@@ -23,7 +23,7 @@ const ov::AnyMap& ov::proxy::RemoteContext::get_property() const {
 std::shared_ptr<ov::IRemoteTensor> ov::proxy::RemoteContext::create_tensor(const ov::element::Type& type,
                                                                            const ov::Shape& shape,
                                                                            const ov::AnyMap& params) {
-    return m_context._impl->create_tensor(type, shape, params);
+    return std::make_shared<ov::proxy::RemoteTensor>(m_context.create_tensor(type, shape, params), m_name);
 }
 
 std::shared_ptr<ov::ITensor> ov::proxy::RemoteContext::create_host_tensor(const ov::element::Type type,

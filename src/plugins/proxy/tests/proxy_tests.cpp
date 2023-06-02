@@ -15,6 +15,7 @@
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/iremote_context.hpp"
+#include "openvino/runtime/iremote_tensor.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
@@ -239,8 +240,37 @@ std::shared_ptr<ov::ISyncInferRequest> MockCompiledModel::create_sync_infer_requ
     return std::make_shared<MockInferRequest>(std::dynamic_pointer_cast<const MockCompiledModel>(shared_from_this()));
 }
 
+class MockRemoteTensor : public ov::IRemoteTensor {
+    ov::AnyMap m_properties;
+    std::string m_dev_name;
+
+public:
+    MockRemoteTensor(const std::string& name, const ov::AnyMap& props) : m_properties(props), m_dev_name(name) {}
+    const ov::AnyMap& get_properties() const override {
+        return m_properties;
+    }
+    const std::string& get_device_name() const override {
+        return m_dev_name;
+    }
+    void set_shape(ov::Shape shape) override {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+    const ov::element::Type& get_element_type() const override {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+    const ov::Shape& get_shape() const override {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+    const ov::Strides& get_strides() const override {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+};
+
 class MockRemoteContext : public ov::IRemoteContext {
-    ov::AnyMap m_property;
+    ov::AnyMap m_property = {{"IS_DEFAULT", true}};
     std::string m_dev_name;
 
 public:
@@ -256,11 +286,30 @@ public:
     std::shared_ptr<ov::IRemoteTensor> create_tensor(const ov::element::Type& type,
                                                      const ov::Shape& shape,
                                                      const ov::AnyMap& params = {}) override {
-        OPENVINO_NOT_IMPLEMENTED;
+        auto remote_tensor = std::make_shared<MockRemoteTensor>(m_dev_name, m_property);
+        return remote_tensor;
+    }
+};
+
+class MockCustomRemoteContext : public ov::IRemoteContext {
+    ov::AnyMap m_property = {{"IS_DEFAULT", false}};
+    std::string m_dev_name;
+
+public:
+    MockCustomRemoteContext(const std::string& dev_name) : m_dev_name(dev_name) {}
+    const std::string& get_device_name() const override {
+        return m_dev_name;
     }
 
-    std::shared_ptr<ov::ITensor> create_host_tensor(const ov::element::Type type, const ov::Shape& shape) override {
-        OPENVINO_NOT_IMPLEMENTED;
+    const ov::AnyMap& get_property() const override {
+        return m_property;
+    }
+
+    std::shared_ptr<ov::IRemoteTensor> create_tensor(const ov::element::Type& type,
+                                                     const ov::Shape& shape,
+                                                     const ov::AnyMap& params = {}) override {
+        auto remote_tensor = std::make_shared<MockRemoteTensor>(m_dev_name, m_property);
+        return remote_tensor;
     }
 };
 
@@ -300,7 +349,9 @@ public:
     }
 
     std::shared_ptr<ov::IRemoteContext> create_context(const ov::AnyMap& remote_properties) const override {
-        return std::make_shared<MockRemoteContext>(get_device_name());
+        if (remote_properties.find("CUSTOM_CTX") == remote_properties.end())
+            return std::make_shared<MockRemoteContext>(get_device_name());
+        return std::make_shared<MockCustomRemoteContext>(get_device_name());
     }
 
     std::shared_ptr<ov::IRemoteContext> get_default_context(const ov::AnyMap& remote_properties) const override {

@@ -13,7 +13,7 @@ namespace proxy {
 
 class RemoteContext : public ov::IRemoteContext {
 public:
-    explicit RemoteContext(const ov::RemoteContext& ctx, const std::string& dev_name);
+    explicit RemoteContext(ov::RemoteContext&& ctx, const std::string& dev_name);
     const std::string& get_device_name() const override;
 
     const ov::AnyMap& get_property() const override;
