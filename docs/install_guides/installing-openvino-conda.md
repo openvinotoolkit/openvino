@@ -4,7 +4,7 @@
 
 .. note::
 
-   Installing OpenVINO™ Runtime from Conda Forge is recommended for C++ developers, as it provides only the C++ Runtime API.
+   Installing OpenVINO Runtime from Conda Forge is recommended for C++ developers, as it provides only the C++ Runtime API.
    If you work with Python, consider :doc:`installing OpenVINO from PyPI <openvino_docs_install_guides_installing_openvino_pip>`
 
 .. tab:: System Requirements
