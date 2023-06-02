@@ -114,3 +114,13 @@ TEST_F(FrontEndConversionWithReferenceTestsF, SavedModelMultipleTensorNames) {
         model_ref = make_shared<Model>(OutputVector{result}, ParameterVector{x});
     }
 }
+
+TEST_F(TransformationTestsF, SavedModelBroadcastIssue) {
+    { model = convert_model("saved_model_broadcast_issue"); }
+    {
+        // create a reference graph
+        auto x = make_shared<Constant>(element::i64, Shape{2,2}, vector<int64_t>{0,0,0,0});
+
+        model_ref = make_shared<Model>(OutputVector{x}, ParameterVector{});
+    }
+}
