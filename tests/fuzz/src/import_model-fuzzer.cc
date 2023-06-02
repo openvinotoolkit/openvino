@@ -14,13 +14,13 @@ const char kSplitSequence[] = {'F', 'U', 'Z', 'Z', '_', 'N', 'E', 'X', 'T', '_',
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     using namespace std;
 
+    size_t kSplitSequenceSize = sizeof(kSplitSequence);
     size_t split_counter = 0;
     size_t split[1] = {0};
-    if (size < sizeof(kSplitSequence)) return 0;  // we at least expect one separator
-    for (size_t i = 0; i < size - sizeof(kSplitSequence); i++)
-        if (0 == memcmp(data + i, kSplitSequence, sizeof(kSplitSequence))) {
+    if (size < kSplitSequenceSize) return 0;  // we at least expect one separator
+    for (size_t i = 0; i < size - kSplitSequenceSize && split_counter < COUNT_OF(split); i++)
+        if (0 == memcmp(data + i, kSplitSequence, kSplitSequenceSize)) {
             split[split_counter++] = i;
-            if (COUNT_OF(split) <= split_counter) break;
         }
     if (COUNT_OF(split) != split_counter) return 0;  // not enough splits
 
@@ -28,24 +28,24 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
          return 0;
 
     unsigned int _size = (unsigned int)split[0];
-    const uint8_t* dev_name_data = data + (_size + sizeof(kSplitSequence));
-    string device_name((const char*)dev_name_data, size - (_size + sizeof(kSplitSequence)));
+    const uint8_t* dev_name_data = data + (_size + kSplitSequenceSize);
+    string device_name((const char*)dev_name_data, size - (_size + kSplitSequenceSize));
 
     struct ov::pass::StreamSerialize::DataHeader* dh = (struct ov::pass::StreamSerialize::DataHeader*)data;
     size_t total = dh->custom_data_size + dh->consts_size + dh->model_size;
 
     if(total != _size || dh->custom_data_offset + dh->custom_data_size > total || dh->consts_offset + dh->consts_size > total || dh->model_offset + dh->model_size > total)
-        return 0;
+        return 1;
 
     try {
-        std::stringstream ss;
+        stringstream ss;
         ss.write(reinterpret_cast<char const*>(data), _size);
-        std::iostream& io = ss;
+        iostream& io = ss;
 
         ov::Core core;
         ov::AnyMap properties;
         core.import_model(io, device_name.c_str(), properties);
-    } catch (const std::exception&) {
+    } catch (const exception&) {
         return 0;  // fail gracefully on expected exceptions
     }
 
