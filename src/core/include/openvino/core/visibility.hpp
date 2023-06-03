@@ -23,19 +23,21 @@
 
 #ifndef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 #    ifdef _WIN32
-#        if defined __INTEL_COMPILER || defined _MSC_VER
+#        if defined(__INTEL_COMPILER) || defined(_MSC_VER) || defined(__GNUC__)
 #            define OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 #        endif
-#    elif defined(__GNUC__) && (__GNUC__ > 5 || (__GNUC__ == 5 && __GNUC_MINOR__ > 2)) || defined(__clang__)
+#    elif defined(__clang__)
+#        define OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+#    elif defined(__GNUC__) && (__GNUC__ > 5 || (__GNUC__ == 5 && __GNUC_MINOR__ > 2))
 #        define OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 #    endif
 #endif
 
-#if defined _WIN32 || defined __CYGWIN__
+#if defined(_WIN32) || defined(__CYGWIN__)
 #    define OPENVINO_CORE_IMPORTS __declspec(dllimport)
 #    define OPENVINO_CORE_EXPORTS __declspec(dllexport)
 #    define _OPENVINO_HIDDEN_METHOD
-#elif defined(__GNUC__) && __GNUC__ >= 4
+#elif defined(__GNUC__) && (__GNUC__ >= 4) || defined(__clang__)
 #    define OPENVINO_CORE_IMPORTS   __attribute__((visibility("default")))
 #    define OPENVINO_CORE_EXPORTS   __attribute__((visibility("default")))
 #    define _OPENVINO_HIDDEN_METHOD __attribute__((visibility("hidden")))

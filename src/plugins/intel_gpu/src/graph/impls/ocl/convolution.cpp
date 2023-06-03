@@ -37,17 +37,19 @@ protected:
     }
 
 public:
-    static std::unique_ptr<primitive_impl> create(const convolution_node& arg, const kernel_impl_params& impl_param) {
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
         const auto& primitive = impl_param.typed_desc<convolution>();
 
         auto stride = primitive->stride;
         const auto& dilation = primitive->dilation;
-        const auto& pad = primitive->pad;
+        const auto& pad = primitive->padding_begin;
         const auto& groups = primitive->groups;
         const auto& deformable_groups = primitive->deformable_groups;
-        const auto transposed = arg.get_transposed();
+        const auto transposed = primitive->transposed;
 
-        auto conv_params = get_weight_bias_zero_point_default_params<kernel_selector::convolution_params>(impl_param, primitive->grouped_weights_shape);
+        auto conv_params = get_weight_bias_zero_point_default_params<kernel_selector::convolution_params>(impl_param,
+                                                                                                          primitive->grouped_weights_shape,
+                                                                                                          is_shape_agnostic);
         auto conv_optional_params =
             get_default_weights_bias_optional_params<kernel_selector::convolution_optional_params>(impl_param.get_program());
 
@@ -58,7 +60,7 @@ public:
                 conv_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[2]));
                 conv_params.deformable_mask_enabled = true;
             }
-            conv_params.bilinear_interpolation_pad = arg.bilinear_interpolation_pad();
+            conv_params.bilinear_interpolation_pad = primitive->bilinear_interpolation_pad;
         }
 
         conv_params.transposed = transposed;
@@ -66,7 +68,11 @@ public:
 
         conv_params.groups = groups;
 
-        const auto& weights_layout = impl_param.input_layouts[1 + 0 + arg.get_deform_conv_dep_offset()]
+        auto deform_conv_dep_offset = primitive->deformable_mode ? 1 : 0;
+        if (primitive->input.size() == 3)
+            deform_conv_dep_offset++;
+
+        const auto& weights_layout = impl_param.input_layouts[1 + 0 + deform_conv_dep_offset]
                                                                 .convert_to_weights_layout(primitive->grouped_weights_shape);
         uint32_t kx = weights_layout.spatial(0);
         uint32_t ky = weights_layout.spatial(1);
@@ -158,18 +164,53 @@ public:
             format == format::b_fs_zyx_fsv32)
             conv_optional_params.allowInputReordering = true;
 
-        auto& kernel_selector = kernel_selector::convolution_kernel_selector::Instance();
+        conv_params.set_dynamic_shape_offsets();
 
-        auto best_kernel = kernel_selector.get_best_kernel(conv_params, conv_optional_params);
+        return {conv_params, conv_optional_params};
+    }
 
-        return make_unique<convolution_impl>(best_kernel);
+    static kernel_impl_params static_canonicalize_shapes(const kernel_impl_params& impl_params) {
+        auto updated_impl_params = canonicalize_fused_shapes(impl_params);
+
+        auto& input_layout = updated_impl_params.input_layouts[0];
+        auto& weights_layout = updated_impl_params.input_layouts[1];
+        auto& output_layout = updated_impl_params.output_layouts[0];
+
+        auto input_pshape = input_layout.get_partial_shape();
+        auto weights_pshape = weights_layout.get_partial_shape();
+        auto output_pshape = output_layout.get_partial_shape();
+        // For 1d convolution we need to extend weights shape and format
+        // as by default it will be bfyx which is converted to oiyx instead of goiyx, thus dimensions are interpreted incorrectly
+        if (input_pshape.size() == 3) {
+            input_pshape.insert(input_pshape.end(), 1);
+            weights_pshape.insert(weights_pshape.end(), 1);
+            output_pshape.insert(output_pshape.end(), 1);
+
+            input_layout.set_partial_shape(input_pshape);
+            weights_layout.set_partial_shape(weights_pshape);
+            weights_layout.format = format::adjust_to_rank(weights_layout.format, weights_pshape.size());
+            output_layout.set_partial_shape(output_pshape);
+
+            updated_impl_params.weights_layout = weights_layout;
+        }
+
+        return updated_impl_params;
+    }
+
+    kernel_impl_params canonicalize_shapes(const kernel_impl_params& impl_params) const override {
+        return static_canonicalize_shapes(impl_params);
+    }
+
+    void update_dispatch_data(const kernel_impl_params& impl_param) override {
+       auto kernel_params = get_kernel_params(impl_param, true);
+       (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
     }
 };
 
 namespace detail {
 
 attach_convolution_impl::attach_convolution_impl() {
-    implementation_map<convolution>::add(impl_types::ocl, convolution_impl::create, {
+    implementation_map<convolution>::add(impl_types::ocl, typed_primitive_impl_ocl<convolution>::create<convolution_impl>, {
         std::make_tuple(data_types::f32, format::bfyx),
         std::make_tuple(data_types::f16, format::bfyx),
         std::make_tuple(data_types::i8, format::bfyx),
@@ -247,6 +288,23 @@ attach_convolution_impl::attach_convolution_impl() {
         std::make_tuple(data_types::u8, format::bs_fs_yx_bsv4_fsv2),
         std::make_tuple(data_types::i8, format::bs_fs_yx_bsv4_fsv2),
     });
+
+    auto types = {
+        data_types::f32,
+        data_types::f16,
+        data_types::i8,
+        data_types::u8
+    };
+    auto dyn_formats = {
+        format::bfyx,
+        format::bfzyx
+    };
+
+    implementation_map<convolution>::add(impl_types::ocl,
+                                         shape_types::dynamic_shape,
+                                         typed_primitive_impl_ocl<convolution>::create<convolution_impl>,
+                                         types,
+                                         dyn_formats);
 }
 
 }  // namespace detail
@@ -254,3 +312,4 @@ attach_convolution_impl::attach_convolution_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::convolution_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::convolution)

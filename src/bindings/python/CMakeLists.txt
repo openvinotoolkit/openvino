@@ -36,17 +36,35 @@ function(ov_check_python_build_conditions)
     # Try to find python3 and its libs
     find_host_package(PythonInterp 3 ${find_package_mode})
     if(PYTHONINTERP_FOUND)
+        if(PYTHON_VERSION_MINOR GREATER_EQUAL 11)
+            set(pybind11_min_version 2.9.2)
+        else()
+            set(pybind11_min_version 2.8.0)
+        endif()
+        if(CMAKE_CROSSCOMPILING)
+            # since this version pybind11 has PYBIND11_PYTHONLIBS_OVERWRITE option
+            # to properly cross-compile, users need to set:
+            #  -DPYTHON_EXECUTABLE=<python interpreter of our choice version 3.X>
+            #  -DPYTHON_LIBRARY=/usr/lib/aarch64-linux-gnu/libc-2.31.so
+            #  -DPYTHON_INCLUDE_DIR=<path to includes for python 3.X>
+            #  -DPYBIND11_PYTHONLIBS_OVERWRITE=OFF
+            #  -DPYTHON_MODULE_EXTENSION=$(aarch64-linux-gnu-python3-config --extension-suffix)
+            set(pybind11_min_version 2.10.1)
+        endif()
+
         function(_ov_find_python_libs_new)
             set(pybind11_tools_dir "${OpenVINOPython_SOURCE_DIR}/thirdparty/pybind11/tools")
             if(EXISTS ${pybind11_tools_dir})
                 list(APPEND CMAKE_MODULE_PATH ${pybind11_tools_dir})
             else()
-                find_package(pybind11 2.8.0 QUIET)
-                list(APPEND CMAKE_MODULE_PATH "${pybind11_DIR}")
+                find_host_package(pybind11 ${pybind11_min_version} QUIET)
+                if(pybind11_FOUND)
+                    list(APPEND CMAKE_MODULE_PATH "${pybind11_DIR}")
+                endif()
             endif()
             # use libraries with the same version as python itself
             set(PYBIND11_PYTHON_VERSION ${PYTHON_VERSION_STRING})
-            find_package(PythonLibsNew ${PYBIND11_PYTHON_VERSION} EXACT ${find_package_mode})
+            find_host_package(PythonLibsNew ${PYBIND11_PYTHON_VERSION} EXACT ${find_package_mode})
             set(PYTHONLIBSNEW_FOUND ${PYTHONLIBS_FOUND} PARENT_SCOPE)
         endfunction()
         # try to find python libraries
@@ -54,7 +72,7 @@ function(ov_check_python_build_conditions)
         if(PYTHONLIBSNEW_FOUND)
             # clear Python_ADDITIONAL_VERSIONS to find only python library matching PYTHON_EXECUTABLE
             unset(Python_ADDITIONAL_VERSIONS CACHE)
-            find_package(PythonLibs ${PYTHON_VERSION_STRING} EXACT ${find_package_mode})
+            find_host_package(PythonLibs ${PYTHON_VERSION_STRING} EXACT ${find_package_mode})
         endif()
         if(NOT PYTHONLIBS_FOUND)
             message(${message_mode} "Python development libraries are not found. OpenVINO Python API will be turned off (ENABLE_PYTHON is OFF)")
@@ -106,6 +124,8 @@ function(ov_check_python_build_conditions)
 
     # to disable API 1.0
     set(ie_python_req_FOUND ${ie_python_req_FOUND} PARENT_SCOPE)
+    # set pybind11 minimal version
+    set(pybind11_min_version ${pybind11_min_version} PARENT_SCOPE)
 endfunction()
 
 ov_check_python_build_conditions()
@@ -161,7 +181,7 @@ endif()
 # Build the code
 #
 
-find_package(pybind11 2.8.0 QUIET)
+find_package(pybind11 ${pybind11_min_version} QUIET)
 
 if(NOT pybind11_FOUND)
     add_subdirectory(thirdparty/pybind11 EXCLUDE_FROM_ALL)

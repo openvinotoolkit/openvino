@@ -8,7 +8,7 @@
 #include <openvino/opsets/opset10.hpp>
 #include <transformations/common_optimizations/moc_transformations.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "conversion_with_reference.hpp"
 #include "gtest/gtest.h"
 #include "test_common.hpp"
 #include "tf_utils.hpp"
@@ -19,64 +19,9 @@ using namespace ov;
 using namespace ov::element;
 using namespace ov::opset10;
 using namespace ov::frontend;
+using namespace ov::frontend::tensorflow::tests;
 
 namespace {
-shared_ptr<Model> convert_model(const string& model_path,
-                                const ConversionExtension::Ptr& conv_ext = nullptr,
-                                const vector<string>& input_names = {},
-                                const vector<element::Type>& input_types = {},
-                                const vector<PartialShape>& input_shapes = {}) {
-    FrontEndManager fem;
-    auto front_end = fem.load_by_framework(TF_FE);
-    if (!front_end) {
-        throw "TensorFlow Frontend is not initialized";
-    }
-    if (conv_ext) {
-        front_end->add_extension(conv_ext);
-    }
-    auto model_filename = FrontEndTestUtils::make_model_path(string(TEST_TENSORFLOW_MODELS_DIRNAME) + model_path);
-    auto input_model = front_end->load(model_filename);
-    if (!input_model) {
-        throw "Input model is not read";
-    }
-
-    // set custom inputs, input shapes and types
-    vector<Place::Ptr> input_places;
-    for (const auto& input_name : input_names) {
-        auto input_place = input_model->get_place_by_tensor_name(input_name);
-        if (!input_place) {
-            throw "Input place with name " + input_name + " is not found ";
-        }
-        input_places.push_back(input_place);
-    }
-    if (input_places.size() < input_types.size()) {
-        throw "The number of input places is less than the number of types";
-    }
-    for (size_t ind = 0; ind < input_types.size(); ++ind) {
-        auto input_type = input_types[ind];
-        auto input_place = input_places[ind];
-        input_model->set_element_type(input_place, input_type);
-    }
-    if (input_places.size() < input_shapes.size()) {
-        throw "The number of input places is less than the number of shapes";
-    }
-    for (size_t ind = 0; ind < input_shapes.size(); ++ind) {
-        auto input_shape = input_shapes[ind];
-        auto input_place = input_places[ind];
-        input_model->set_partial_shape(input_place, input_shape);
-    }
-    if (!input_places.empty()) {
-        input_model->override_all_inputs(input_places);
-    }
-
-    auto model = front_end->convert(input_model);
-    if (!model) {
-        throw "Model is not converted";
-    }
-
-    return model;
-}
-
 NamedOutputVector fake_translator_ragged_tensor_to_sparse(const NodeContext& node) {
     // NOTE: pay attention that this is a fake translator for RaggedTensorToSparse
     // only serves for testing purposes
@@ -162,7 +107,7 @@ TEST(FrontEndConvertTrickyModels, model_with_output_shapes) {
     }
 }
 
-TEST_F(TransformationTestsF, AssertAndStringTensors) {
+TEST_F(FrontEndConversionWithReferenceTestsF, AssertAndStringTensors) {
     {
         model = convert_model("string_tensors_model/string_tensors_model.pbtxt");
         // TODO: investigate - why we have redundant nodes after the conversion
@@ -178,12 +123,12 @@ TEST_F(TransformationTestsF, AssertAndStringTensors) {
     }
 }
 
-TEST_F(TransformationTestsF, UnsortedNodes) {
+TEST_F(FrontEndConversionWithReferenceTestsF, UnsortedNodes) {
     { model = convert_model("forward_edge_model_unsorted/forward_edge_model_unsorted.pbtxt"); }
     { model_ref = convert_model("forward_edge_model/forward_edge_model.pbtxt"); }
 }
 
-TEST_F(TransformationTestsF, ModelWithSwishF32BodyGraph) {
+TEST_F(FrontEndConversionWithReferenceTestsF, ModelWithSwishF32BodyGraph) {
     {
         model = convert_model("swish_f32/swish_f32.pbtxt");
         // need to call shape inference since body graphs can be injected with undefined shapes
@@ -201,7 +146,7 @@ TEST_F(TransformationTestsF, ModelWithSwishF32BodyGraph) {
     }
 }
 
-TEST_F(TransformationTestsF, PartitionedCall) {
+TEST_F(FrontEndConversionWithReferenceTestsF, PartitionedCall) {
     {
         model = convert_model("partitioned_call/partitioned_call.pbtxt");
         // need to call shape inference since body graphs can be injected with undefined shapes
@@ -218,7 +163,7 @@ TEST_F(TransformationTestsF, PartitionedCall) {
     }
 }
 
-TEST_F(TransformationTestsF, ModelWithIf) {
+TEST_F(FrontEndConversionWithReferenceTestsF, ModelWithIf) {
     { model = convert_model("model_with_if/model_with_if.pbtxt"); }
     {
         // create then branch body graph
@@ -251,7 +196,7 @@ TEST_F(TransformationTestsF, ModelWithIf) {
     }
 }
 
-TEST_F(TransformationTestsF, InjectedBodyAndIf) {
+TEST_F(FrontEndConversionWithReferenceTestsF, InjectedBodyAndIf) {
     {
         model = convert_model("injected_body_and_if/injected_body_and_if.pbtxt");
         // need to call shape inference since body graphs can be injected with undefined shapes
@@ -290,11 +235,15 @@ TEST_F(TransformationTestsF, InjectedBodyAndIf) {
     }
 }
 
-TEST_F(TransformationTestsF, ModelWithDilatedGroupConvolution) {
+TEST_F(FrontEndConversionWithReferenceTestsF, ModelWithDilatedGroupConvolution) {
     {
         model = convert_model("dilated_gconv_model/dilated_gconv_model.pbtxt");
         // need to call MOC to fuse BatchToSpace/SpaceToBatch with GroupConvolution
         manager.register_pass<pass::MOCTransformations>(false);
+        // TODO: enable ATTRIBUTES, CONST_VALUES and ACCURACY checks, CVS-111900
+        comparator.disable(FunctionsComparator::CmpValues::ATTRIBUTES);
+        comparator.disable(FunctionsComparator::CmpValues::CONST_VALUES);
+        comparator.disable(FunctionsComparator::CmpValues::ACCURACY);
     }
     {
         auto x = make_shared<Parameter>(f32, Shape{1, 129, 257, 384});
@@ -314,7 +263,7 @@ TEST_F(TransformationTestsF, ModelWithDilatedGroupConvolution) {
     }
 }
 
-TEST_F(TransformationTestsF, ModelWithSaveV2) {
+TEST_F(FrontEndConversionWithReferenceTestsF, ModelWithSaveV2) {
     {
         model = convert_model("model_savev2/model_savev2.pbtxt");
         // need to call shape inference since body graphs can be injected with undefined shapes
@@ -330,7 +279,7 @@ TEST_F(TransformationTestsF, ModelWithSaveV2) {
     }
 }
 
-TEST_F(TransformationTestsF, ModelWithConstResultSubgraphs) {
+TEST_F(FrontEndConversionWithReferenceTestsF, ModelWithConstResultSubgraphs) {
     { model = convert_model("model_with_const_result/model_with_const_result.pbtxt"); }
     {
         // create a reference graph
@@ -353,7 +302,7 @@ TEST_F(TransformationTestsF, ModelWithConstResultSubgraphs) {
     }
 }
 
-TEST_F(TransformationTestsF, ModelWithIteratorGetNext) {
+TEST_F(FrontEndConversionWithReferenceTestsF, ModelWithIteratorGetNext) {
     { model = convert_model("model_with_iterator_get_next/model_with_iterator_get_next.pbtxt"); }
     {
         // create a reference graph
@@ -365,7 +314,7 @@ TEST_F(TransformationTestsF, ModelWithIteratorGetNext) {
     }
 }
 
-TEST_F(TransformationTestsF, ModelWithQueueOperations) {
+TEST_F(FrontEndConversionWithReferenceTestsF, ModelWithQueueOperations) {
     { model = convert_model("model_with_queue_ops/model_with_queue_ops.pbtxt"); }
     {
         // create a reference graph
@@ -377,7 +326,7 @@ TEST_F(TransformationTestsF, ModelWithQueueOperations) {
     }
 }
 
-TEST_F(TransformationTestsF, ModelWithQueueOperations2) {
+TEST_F(FrontEndConversionWithReferenceTestsF, ModelWithQueueOperations2) {
     { model = convert_model("model_with_queue_ops2/model_with_queue_ops2.pbtxt"); }
     {
         // create a reference graph
@@ -391,7 +340,7 @@ TEST_F(TransformationTestsF, ModelWithQueueOperations2) {
     }
 }
 
-TEST_F(TransformationTestsF, ModelWithLookupTableOperations) {
+TEST_F(FrontEndConversionWithReferenceTestsF, ModelWithLookupTableOperations) {
     { model = convert_model("model_with_lookup_table/model_with_lookup_table.pbtxt"); }
     {
         // create a reference graph
@@ -403,7 +352,7 @@ TEST_F(TransformationTestsF, ModelWithLookupTableOperations) {
     }
 }
 
-TEST_F(TransformationTestsF, ModelWithIteratorGetNextAndUnsupportedOp) {
+TEST_F(FrontEndConversionWithReferenceTestsF, ModelWithIteratorGetNextAndUnsupportedOp) {
     { model = convert_model("unsupported_op_itergetnext/unsupported_op_itergetnext.pb"); }
     {
         // create then branch body graph
@@ -415,8 +364,12 @@ TEST_F(TransformationTestsF, ModelWithIteratorGetNextAndUnsupportedOp) {
     }
 }
 
-TEST_F(TransformationTestsF, ModelWithMultioutputBodyGraphNode) {
-    { model = convert_model("partitioned_call2/partitioned_call2.pbtxt"); }
+TEST_F(FrontEndConversionWithReferenceTestsF, ModelWithMultioutputBodyGraphNode) {
+    {
+        model = convert_model("partitioned_call2/partitioned_call2.pbtxt");
+        // TODO: enable ATTRIBUTES check, CVS-111901
+        comparator.disable(FunctionsComparator::CmpValues::ATTRIBUTES);
+    }
     {
         auto x = make_shared<Parameter>(i32, Shape{5});
         auto y = make_shared<Parameter>(i32, Shape{5});
@@ -430,7 +383,7 @@ TEST_F(TransformationTestsF, ModelWithMultioutputBodyGraphNode) {
     }
 }
 
-TEST_F(TransformationTestsF, ModelWithEmptyTensorListAndPushBack) {
+TEST_F(FrontEndConversionWithReferenceTestsF, ModelWithEmptyTensorListAndPushBack) {
     { model = convert_model("empty_tensor_list/empty_tensor_list.pb"); }
     {
         auto x = make_shared<Parameter>(f32, Shape{2, 3, 5});
@@ -450,9 +403,10 @@ TEST_F(TransformationTestsF, ModelWithEmptyTensorListAndPushBack) {
         auto recover_item = make_shared<Reshape>(list_push_back, recover_item_shape, false);
         model_ref = make_shared<Model>(OutputVector{recover_item}, ParameterVector{x});
     }
+    comparator.disable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
-TEST_F(TransformationTestsF, ModelWithAssertNode) {
+TEST_F(FrontEndConversionWithReferenceTestsF, ModelWithAssertNode) {
     { model = convert_model("model_with_assert/model_with_assert.pb"); }
     {
         auto x = make_shared<Parameter>(i32, PartialShape{Dimension::dynamic()});
@@ -462,7 +416,7 @@ TEST_F(TransformationTestsF, ModelWithAssertNode) {
     }
 }
 
-TEST_F(TransformationTestsF, PartitionedCallWithUnique) {
+TEST_F(FrontEndConversionWithReferenceTestsF, PartitionedCallWithUnique) {
     // This test aims to test named output ports for Unique operation
     { model = convert_model("partitioned_call_with_unique/partitioned_call_with_unique.pb"); }
     {
@@ -476,7 +430,7 @@ TEST_F(TransformationTestsF, PartitionedCallWithUnique) {
     }
 }
 
-TEST_F(TransformationTestsF, RaggedTensorToSparse) {
+TEST_F(FrontEndConversionWithReferenceTestsF, RaggedTensorToSparse) {
     // This test aims to test named output ports for RaggedTensorToSparse operation
     // also, it tests propagation of custom type (specified in the extension) to Parameter node in the parent graph
     {
@@ -506,37 +460,7 @@ TEST_F(TransformationTestsF, RaggedTensorToSparse) {
     }
 }
 
-TEST_F(TransformationTestsF, SavedModelProgramOnly) {
-    {
-        model = convert_model("saved_model_program-only");
-        model->validate_nodes_and_infer_types();
-    }
-    {
-        // create a reference graph
-        auto x = make_shared<Constant>(element::f32, Shape{2, 3}, vector<float>{1, 2, 3, 3, 2, 1});
-        auto y = make_shared<Parameter>(element::f32, Shape{1});
-        auto add = make_shared<Add>(x, y);
-
-        model_ref = make_shared<Model>(OutputVector{add}, ParameterVector{y});
-    }
-}
-
-TEST_F(TransformationTestsF, SavedModelVariables) {
-    {
-        model = convert_model("saved_model_variables");
-        model->validate_nodes_and_infer_types();
-    }
-    {
-        // create a reference graph
-        auto x = make_shared<Parameter>(element::f32, Shape{1});
-        auto y = make_shared<Constant>(element::f32, Shape{}, vector<float>{123});
-        auto multiply = make_shared<Multiply>(x, y);
-
-        model_ref = make_shared<Model>(OutputVector{multiply}, ParameterVector{x});
-    }
-}
-
-TEST_F(TransformationTestsF, MetaGraphVariables) {
+TEST_F(FrontEndConversionWithReferenceTestsF, MetaGraphVariables) {
     {
         model = convert_model("metagraph_variables/graph.meta");
         model->validate_nodes_and_infer_types();
@@ -545,12 +469,89 @@ TEST_F(TransformationTestsF, MetaGraphVariables) {
         // create a reference graph
         auto x = make_shared<Constant>(element::f32, Shape{2, 3}, vector<float>{1, 2, 3, 3, 2, 1});
         auto y = make_shared<Parameter>(element::f32, Shape{1});
+        auto z = make_shared<Constant>(element::f32, Shape{2, 3}, vector<float>{2, 2, 1, 1, 1, 2});
         auto add = make_shared<Add>(x, y);
+        auto sub = make_shared<Subtract>(add, z);
 
-        model_ref = make_shared<Model>(OutputVector{add}, ParameterVector{y});
+        model_ref = make_shared<Model>(OutputVector{sub}, ParameterVector{y});
     }
 }
-TEST_F(TransformationTestsF, SplitInFunction) {
+
+TEST_F(FrontEndConversionWithReferenceTestsF, MetaGraphCut) {
+    {
+        model = convert_model("metagraph_variables/graph.meta", nullptr, {"y"});
+        model->validate_nodes_and_infer_types();
+    }
+    {
+        // create a reference graph
+        auto x = make_shared<Constant>(element::f32, Shape{2, 3}, vector<float>{1, 2, 3, 3, 2, 1});
+        auto y = make_shared<Parameter>(element::f32, Shape{1});
+        auto z = make_shared<Constant>(element::f32, Shape{2, 3}, vector<float>{2, 2, 1, 1, 1, 2});
+        auto add = make_shared<Add>(x, y);
+        auto sub = make_shared<Subtract>(add, z);
+
+        model_ref = make_shared<Model>(OutputVector{sub}, ParameterVector{y});
+    }
+}
+
+TEST_F(FrontEndConversionWithReferenceTestsF, MetaGraphCutInputTensor) {
+    {
+        model = convert_model("metagraph_variables/graph.meta",
+                              nullptr,
+                              {"0:SubOperation"},
+                              {ov::element::f32},
+                              {Shape{2, 3}});
+        model->validate_nodes_and_infer_types();
+    }
+    {
+        // create a reference graph
+        auto x = make_shared<Parameter>(element::f32, Shape{2, 3});
+        auto z = make_shared<Constant>(element::f32, Shape{2, 3}, vector<float>{2, 2, 1, 1, 1, 2});
+        auto sub = make_shared<Subtract>(x, z);
+
+        model_ref = make_shared<Model>(OutputVector{sub}, ParameterVector{x});
+    }
+}
+
+TEST_F(FrontEndConversionWithReferenceTestsF, MetaGraphCutOutputTensor) {
+    {
+        model = convert_model("metagraph_variables/graph.meta",
+                              nullptr,
+                              {"AddOperation:0"},
+                              {ov::element::f32},
+                              {Shape{2, 3}});
+        model->validate_nodes_and_infer_types();
+    }
+    {
+        // create a reference graph
+        auto x = make_shared<Parameter>(element::f32, Shape{2, 3});
+        auto z = make_shared<Constant>(element::f32, Shape{2, 3}, vector<float>{2, 2, 1, 1, 1, 2});
+        auto sub = make_shared<Subtract>(x, z);
+
+        model_ref = make_shared<Model>(OutputVector{sub}, ParameterVector{x});
+    }
+}
+
+TEST_F(FrontEndConversionWithReferenceTestsF, MetaGraphCutIdentity) {
+    {
+        model = convert_model("metagraph_variables/graph.meta",
+                              nullptr,
+                              {"AddIdentity"},
+                              {ov::element::f32},
+                              {Shape{2, 3}});
+        model->validate_nodes_and_infer_types();
+    }
+    {
+        // create a reference graph
+        auto x = make_shared<Parameter>(element::f32, Shape{2, 3});
+        auto z = make_shared<Constant>(element::f32, Shape{2, 3}, vector<float>{2, 2, 1, 1, 1, 2});
+        auto sub = make_shared<Subtract>(x, z);
+
+        model_ref = make_shared<Model>(OutputVector{sub}, ParameterVector{x});
+    }
+}
+
+TEST_F(FrontEndConversionWithReferenceTestsF, SplitInFunction) {
     {
         // create FAKE conversion extension for Split using named ports, this is not required for Split, but it tests
         // how named ports will work if there is one name and many outputs associated with it
@@ -580,7 +581,7 @@ TEST_F(TransformationTestsF, SplitInFunction) {
     }
 }
 
-TEST_F(TransformationTestsF, ResourceGatherModel) {
+TEST_F(FrontEndConversionWithReferenceTestsF, ResourceGatherModel) {
     // This test aims to check basic support of ResourceGather operation
     // and cutting an input model with specified shapes and types
     {
@@ -608,7 +609,7 @@ TEST_F(TransformationTestsF, ResourceGatherModel) {
     }
 }
 
-TEST_F(TransformationTestsF, NonMaxSuppressionWithNamedOutputs) {
+TEST_F(FrontEndConversionWithReferenceTestsF, NonMaxSuppressionWithNamedOutputs) {
     // The purpose of this test is to check that named output ports of TensorFlow NMS operation are connected correctly
     // to its consumers
     { model = convert_model("nms_named_outputs/nms_named_outputs.pb"); }
@@ -676,7 +677,7 @@ TEST_F(TransformationTestsF, NonMaxSuppressionWithNamedOutputs) {
     }
 }
 
-TEST_F(TransformationTestsF, PartitionedCallsWithConvInBodyGraphs) {
+TEST_F(FrontEndConversionWithReferenceTestsF, PartitionedCallsWithConvInBodyGraphs) {
     // The test aims to check that the conversion for the body graphs is performed with set input shapes
     // that allows to get more optimized ov::Model for the body graphs.
     // In particular, we check that the resulted graph contains Convolution operations instead of GroupConvolution

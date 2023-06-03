@@ -19,6 +19,7 @@
 #include "ie_system_conf.h"
 #include "threading/ie_cpu_streams_info.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
+#include "openvino/runtime/intel_cpu/properties.hpp"
 
 #include <transformations/utils/utils.hpp>
 #include <ie_ngraph_utils.hpp>
@@ -290,6 +291,11 @@ void Engine::GetPerformanceStreams(Config& config, const std::shared_ptr<ngraph:
 
     const auto latency_name = std::string(CONFIG_VALUE(LATENCY)) + "_" + std::string(ov::num_streams.name());
     const auto tput_name = std::string(CONFIG_VALUE(THROUGHPUT)) + "_" + std::string(ov::num_streams.name());
+
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+    // TODO: This WA for CI checks will be removed after export/import refactor for MT 2.0 which will be track in CVS-112149
+    streams = 1;
+#endif
 
     get_num_streams(streams, ngraphFunc, config);
 
@@ -670,6 +676,8 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
                                                     RW_property(ov::hint::scheduling_core_type.name()),
                                                     RW_property(ov::hint::enable_hyper_threading.name()),
                                                     RW_property(ov::device::id.name()),
+                                                    RW_property(ov::intel_cpu::denormals_optimization.name()),
+                                                    RW_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
         };
 
         std::vector<ov::PropertyName> supportedProperties;
@@ -704,6 +712,10 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
     } else if (name == ov::caching_properties) {
         std::vector<ov::PropertyName> cachingProperties = { ov::device::full_name };
         return decltype(ov::caching_properties)::value_type(cachingProperties);
+    } else if (name == ov::intel_cpu::denormals_optimization) {
+        return decltype(ov::intel_cpu::denormals_optimization)::value_type(engConfig.denormalsOptMode == Config::DenormalsOptMode::DO_On);
+    } else if (name == ov::intel_cpu::sparse_weights_decompression_rate) {
+        return decltype(ov::intel_cpu::sparse_weights_decompression_rate)::value_type(engConfig.fcSparseWeiDecompressionRate);
     }
     /* Internally legacy parameters are used with new API as part of migration procedure.
      * This fallback can be removed as soon as migration completed */

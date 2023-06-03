@@ -102,7 +102,7 @@ void Concat::initSupportedPrimitiveDescriptors() {
     auto& originInputPrecisions = getOriginalInputPrecisions();
     inputPrecision = originInputPrecisions[0];
     bool isMixedPrecision = false;
-    for (int i = 1; i < inputShapes.size(); i++) {
+    for (size_t i = 1; i < inputShapes.size(); i++) {
         if (originInputPrecisions[0] != originInputPrecisions[i]) {
             isMixedPrecision = true;
             break;
@@ -121,7 +121,7 @@ void Concat::initSupportedPrimitiveDescriptors() {
 
     // check if blocked layouts are available the channels size should be evenly divided by the block size to avoid slow oneDNN ref implementation
     if (dstShape.getRank() > channelAxis) {
-        for (auto item : { std::make_pair(8lu, LayoutType::nCsp8c), std::make_pair(16lu, LayoutType::nCsp16c)}) {
+        for (auto& item : { std::make_pair(8lu, LayoutType::nCsp8c), std::make_pair(16lu, LayoutType::nCsp16c)}) {
             const VectorDims &blkDims = dstShape.getDims();
             if (blkDims[channelAxis] == Shape::UNDEFINED_DIM || blkDims[channelAxis] % item.first != 0)
                 continue;
@@ -230,8 +230,8 @@ void Concat::selectOptimalPrimitiveDescriptor() {
     // The double connection marks that some tensor should
     // be replicated. Inplace approach is not applicable
     // for that case.
-    for (int i = 0; i < getParentEdges().size(); i++) {
-        for (int j = i + 1; j < getParentEdges().size(); j++) {
+    for (size_t i = 0; i < getParentEdges().size(); i++) {
+        for (size_t j = i + 1; j < getParentEdges().size(); j++) {
             if (getParentEdgeAt(i) == getParentEdgeAt(j)) canBeInPlace = false;
         }
     }
@@ -248,7 +248,7 @@ void Concat::selectOptimalPrimitiveDescriptor() {
 
         const auto &parent_config = parent_pdesc->getConfig();
         int outputIndex = parentEdge->getInputNum();
-        if (outputIndex < 0 || outputIndex >= parent_config.outConfs.size())
+        if (outputIndex < 0 || outputIndex >= static_cast<int>(parent_config.outConfs.size()))
             IE_THROW() << "Cannot find index of output node";
         const auto &port_desc = parent_config.outConfs[outputIndex].getMemDesc();
         for (auto& item : supportedLayouts) {
@@ -266,7 +266,7 @@ void Concat::selectOptimalPrimitiveDescriptor() {
 
         const auto &config = prim_desc->getConfig();
         int inputIndex = childEdge->getOutputNum();
-        if (inputIndex < 0 || inputIndex >= config.inConfs.size())
+        if (inputIndex < 0 || inputIndex >= static_cast<int>(config.inConfs.size()))
             IE_THROW() << "Cannot find index of output node";
         const auto &port_desc = config.inConfs[inputIndex].getMemDesc();
         for (auto& item : supportedLayouts) {
@@ -360,9 +360,9 @@ void Concat::prepareParams() {
         return;
 
     const auto& dstMemPtr = getChildEdgesAtPort(0)[0]->getMemoryPtr();
-    auto dstMemDesc = dstMemPtr->GetDescWithType<BlockedMemoryDesc>();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
         IE_THROW() << "Destination memory didn't allocate.";
+    auto dstMemDesc = dstMemPtr->GetDescWithType<BlockedMemoryDesc>();
     if (getSelectedPrimitiveDescriptor() == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set.";
 
@@ -563,7 +563,7 @@ void Concat::execute(dnnl::stream strm) {
         const size_t num_src = getParentEdges().size();
         std::unordered_map<int, memory> mem_ags {{DNNL_ARG_DST, dst_memory.GetPrimitive()}};
         size_t nonZeroInShapes = 0;
-        for (int i = 0; i < num_src; i++) {
+        for (size_t i = 0; i < num_src; i++) {
             const auto& srcMem = getParentEdgesAtPort(i)[0]->getMemory();
             if (srcMem.GetShape().hasZeroDims()) {
                 continue;
@@ -615,7 +615,7 @@ void Concat::execNspcSpecCase() {
 
     parallel_for(iter_count, [&](int i) {
         const size_t dst_off = i * channels_size;
-        for (int j = 0; j < nonZeroInShapes; j++) {
+        for (size_t j = 0; j < nonZeroInShapes; j++) {
             cpu_memcpy(dst_ptrs[j] + dst_off, src_ptrs[j] + i * channelsDataSize[j], channelsDataSize[j]);
         }
     });

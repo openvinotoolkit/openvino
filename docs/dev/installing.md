@@ -101,14 +101,14 @@ build_samples_msvc.bat
 
 2. Install OpenVINO Development Tools
 
-> **NOTE**: To build OpenVINO Development Tools (Model Optimizer, Post-Training Optimization Tool, Model Downloader, and Open Model Zoo tools) wheel package locally you are required to use CMake option: `-DENABLE_WHEEL=ON`.
+> **NOTE**: To build OpenVINO Development Tools (Model Optimizer, Post-Training Optimization Tool, Model Downloader, and Open Model Zoo tools) wheel package locally you are required to use the CMake option: `-DENABLE_WHEEL=ON`.
 
-To install OpenVINO Development Tools to work with Caffe models, execute the following commands:
+To install OpenVINO Development Tools to work with Caffe models (OpenVINO support for Caffe is currently being deprecated and will be removed entirely in the future), execute the following commands:
 
 Linux and macOS:
 
 ```sh
-#setup virtual envrinment
+#setup virtual environment
 python3 -m venv openvino_env
 source openvino_env/bin/activate
 pip install pip --upgrade
@@ -119,7 +119,7 @@ pip install openvino_dev-<version>-py3-none-any.whl[caffe]  --find-links=<INSTAL
 
 Windows:
 ```bat
-rem setup virtual envrinment
+rem setup virtual environment
 python -m venv openvino_env
 openvino_env\Scripts\activate.bat
 pip install pip --upgrade

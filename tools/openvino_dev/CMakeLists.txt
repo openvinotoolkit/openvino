@@ -33,7 +33,7 @@ set(WHEEL_BUILD "${OpenVINO_VERSION_BUILD}" CACHE STRING "Build number of this r
 
 # outbound requirements.txt files for openvino-dev package
 
-ov_cpack_add_component(${OV_CPACK_COMP_DEV_REQ_FILES} HIDDEN)
+ov_cpack_add_component(${OV_CPACK_COMP_OPENVINO_DEV_REQ_FILES} HIDDEN)
 
 set(REQUIREMENTS_IN "${CMAKE_CURRENT_SOURCE_DIR}/requirements_dev.txt.in")
 set(EXTRAS_LIST _ caffe kaldi mxnet onnx pytorch tensorflow tensorflow2)
@@ -50,8 +50,8 @@ foreach(EXTRAS IN LISTS EXTRAS_LIST)
 
     install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${REQUIREMENTS_OUT}
             DESTINATION ${OV_CPACK_DEVREQDIR}
-            COMPONENT ${OV_CPACK_COMP_DEV_REQ_FILES}
-            EXCLUDE_FROM_ALL)
+            COMPONENT ${OV_CPACK_COMP_OPENVINO_DEV_REQ_FILES}
+            ${OV_CPACK_COMP_OPENVINO_DEV_REQ_FILES_EXCLUDE_ALL})
 endforeach()
 
 # openvino_dev build
@@ -97,4 +97,5 @@ ov_cpack_add_component(${OV_CPACK_COMP_PYTHON_WHEELS} HIDDEN)
 
 install(FILES ${openvino_wheel_path}
         DESTINATION ${OV_CPACK_WHEELSDIR}
-        COMPONENT ${OV_CPACK_COMP_PYTHON_WHEELS})
+        COMPONENT ${OV_CPACK_COMP_PYTHON_WHEELS}
+        ${OV_CPACK_COMP_PYTHON_WHEELS_EXCLUDE_ALL})

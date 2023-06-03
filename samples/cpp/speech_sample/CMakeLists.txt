@@ -12,13 +12,15 @@ if(NOT ANDROID)
     find_package(PkgConfig QUIET)
 endif()
 
-if(NOT TARGET zlib::zlib)
+find_package(ZLIB QUIET)
+
+if(NOT TARGET ZLIB::ZLIB)
     if(PkgConfig_FOUND)
         pkg_search_module(zlib QUIET
                           IMPORTED_TARGET GLOBAL
                           zlib)
         if(zlib_FOUND)
-            add_library(zlib::zlib ALIAS PkgConfig::zlib)
+            add_library(ZLIB::ZLIB ALIAS PkgConfig::zlib)
         endif()
     endif()
 

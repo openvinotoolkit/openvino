@@ -9,7 +9,6 @@
 #define IMPLEMENT_INFERENCE_ENGINE_PLUGIN
 #include "layers/gna_split_layer.hpp"
 #include "ngraph/opsets/opset9.hpp"
-#include "ops/util/util.hpp"
 
 namespace {
 
@@ -59,7 +58,7 @@ TEST(CheckSplitSupported, CheckVariadicSplitSupported) {
             ngraph::opset9::Constant::create(ngraph::element::i64,
                                              ngraph::Shape({split_lengths.size()}),
                                              split_lengths));
-        ASSERT_TRUE(ov::intel_gna::limitations::is_split_supported(split, false) == result);
+        ASSERT_TRUE(ov::intel_gna::limitations::Limitations::is_split_supported(split, false) == result);
     }
 }
 
@@ -87,7 +86,7 @@ TEST(CheckSplitSupported, CheckSplitSupported) {
             std::make_shared<ngraph::opset9::Parameter>(ngraph::element::f32, input_shape),
             ngraph::opset9::Constant::create(ngraph::element::i64, ngraph::Shape({}), {axis}),
             num_splits);
-        ASSERT_TRUE(ov::intel_gna::limitations::is_split_supported(split, false) == result);
+        ASSERT_TRUE(ov::intel_gna::limitations::Limitations::is_split_supported(split, false) == result);
     }
 }
 }  // namespace

@@ -166,12 +166,12 @@ void MultiClassNms::prepareParams() {
     } else {
         m_numBatches = boxes_dims[0];
     }
-    m_numBoxes = shared ? boxes_dims[1] : boxes_dims[1];
+    m_numBoxes = boxes_dims[1];
     m_numClasses = shared ? scores_dims[1] : scores_dims[0];
 
     int max_output_boxes_per_class = 0;
     size_t real_num_classes = m_backgroundClass == -1 ? m_numClasses :
-        m_backgroundClass < m_numClasses ? m_numClasses - 1 : m_numClasses;
+        static_cast<size_t>(m_backgroundClass) < m_numClasses ? m_numClasses - 1 : m_numClasses;
     if (m_nmsTopK) {
         max_output_boxes_per_class = (m_nmsTopK == -1) ? m_numBoxes :
             std::min(m_nmsTopK, static_cast<int>(m_numBoxes));
@@ -263,12 +263,12 @@ void MultiClassNms::execute(dnnl::stream strm) {
         startOffset = 0;
         size_t offset = 0;
         for (size_t b = 0; b < m_numFiltBox.size(); b++) {
-            if (m_numBoxOffset[b] > m_keepTopK) {
+            if (m_numBoxOffset[b] > static_cast<size_t>(m_keepTopK)) {
                 if (startOffset == offset) {
                     startOffset += m_keepTopK;
                     offset += m_numBoxOffset[b];
                 } else {
-                    for (size_t i = 0; i < m_keepTopK; i++) {
+                    for (int i = 0; i < m_keepTopK; i++) {
                         m_filtBoxes[startOffset + i] = m_filtBoxes[offset + i];
                     }
                     startOffset += m_keepTopK;
@@ -450,7 +450,8 @@ void MultiClassNms::nmsWithEta(const float* boxes,
             fb.reserve(sorted_boxes.size());
             if (sorted_boxes.size() > 0) {
                 auto adaptive_threshold = m_iouThreshold;
-                int max_out_box = (m_nmsRealTopk > sorted_boxes.size()) ? sorted_boxes.size() : m_nmsRealTopk;
+                int max_out_box =
+                    (static_cast<size_t>(m_nmsRealTopk) > sorted_boxes.size()) ? sorted_boxes.size() : m_nmsRealTopk;
                 while (max_out_box && !sorted_boxes.empty()) {
                     boxInfo currBox = sorted_boxes.top();
                     float origScore = currBox.score;
@@ -563,8 +564,9 @@ void MultiClassNms::nmsWithoutEta(const float* boxes,
                 int offset = batch_idx * m_numClasses * m_nmsRealTopk + class_idx * m_nmsRealTopk;
                 m_filtBoxes[offset + 0] = filteredBoxes(sorted_boxes[0].first, batch_idx, class_idx, sorted_boxes[0].second);
                 io_selection_size++;
-                int max_out_box = (m_nmsRealTopk > sorted_boxes.size()) ? sorted_boxes.size() : m_nmsRealTopk;
-                for (size_t box_idx = 1; box_idx < max_out_box; box_idx++) {
+                int max_out_box =
+                    (static_cast<size_t>(m_nmsRealTopk) > sorted_boxes.size()) ? sorted_boxes.size() : m_nmsRealTopk;
+                for (int box_idx = 1; box_idx < max_out_box; box_idx++) {
                     bool box_is_selected = true;
                     for (int idx = io_selection_size - 1; idx >= 0; idx--) {
                         float iou = intersectionOverUnion(&boxesPtr[sorted_boxes[box_idx].second * 4],

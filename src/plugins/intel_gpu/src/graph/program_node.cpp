@@ -190,6 +190,13 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
 #pragma clang diagnostic ignored "-Wpotentially-evaluated-expression"
 #endif
         impls.push_back(selected_impl->get_kernel_name());
+
+        if (get_preferred_impl_type() == impl_types::ocl) {
+            json_composite cl_dump_info;
+            cl_dump_info.add("batch_hash", selected_impl->get_kernels_dump_info().first);
+            cl_dump_info.add("kernel_entry", selected_impl->get_kernels_dump_info().second);
+            node_info->add("cl dump_ info", cl_dump_info);
+        }
 #ifdef __clang__
 #pragma clang diagnostic pop
 #endif

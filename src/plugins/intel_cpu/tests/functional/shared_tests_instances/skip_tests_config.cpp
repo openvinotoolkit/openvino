@@ -104,7 +104,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_Auto_BehaviorTests.*DynamicOutputToDynamicInput.*)",
         R"(.*smoke_Auto_BehaviorTests.*DynamicInputToDynamicOutput.*)",
         // unsupported metrics
-        R"(.*OVGetMetricPropsTest.*OVGetMetricPropsTest.*(DEVICE_UUID|FULL_DEVICE_NAME_with_DEVICE_ID|DEVICE_GOPS|DEVICE_TYPE|MAX_BATCH_SIZE).*)",
+        R"(.*OVGetMetricPropsTest.*OVGetMetricPropsTest.*(MAX_BATCH_SIZE).*)",
         R"(.*smoke_AutoMultiHeteroOVGetMetricPropsTest.*OVGetMetricPropsTest.*(AVAILABLE_DEVICES|OPTIMIZATION_CAPABILITIES|RANGE_FOR_ASYNC_INFER_REQUESTS|RANGE_FOR_STREAMS).*)",
         // supports only '' as device id
         R"(.*OVClassQueryModelTest.*QueryModelWithDeviceID.*)",
@@ -169,6 +169,22 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*GridSampleLayerTestCPU.*(BILINEAR|BICUBIC).*(i32|i8).*)",
         // 98151. Not valid sorting for slices in reference.
         R"(.*UniqueLayerTestCPU.*axis.*True.*)",
+        // AUTO does not support import / export
+        R"(.*smoke_Auto_BehaviorTests/OVCompiledGraphImportExportTest.*(mportExport|readFromV10IR).*/targetDevice=(AUTO).*)",
+        // AdaptiveAvgPool is converted into Reduce op for suitable parameters. CPU Reduce impl doesn't support non planar layout for 3D case
+        R"(.*StaticAdaPoolAvg3DLayoutTest.*OS=\(1\).*_inFmts=(nwc|nCw16c|nCw8c).*)",
+        // Issue: 111404
+        R"(.*smoke_set1/GatherElementsCPUTest.*)",
+        // Issue: 111406
+        R"(.*smoke_InterpolateLinearOnnx_Layout_Test/InterpolateLayerCPUTest.*)",
+        R"(.*smoke_InterpolateLinear_Layout_Test/InterpolateLayerCPUTest.*)",
+        R"(.*smoke_InterpolateCubic_Layout_Test/InterpolateLayerCPUTest.*)",
+        // Issue: 111412
+        R"(.*smoke_Proposal_(Static|Dynamic)_Test_Case1/ProposalLayerCPUTest.*)",
+        // Issue: 111418
+        R"(.*smoke_Snippets_ConvertStub/ConvertStub\.CompareWithRefImpl/IS=.*_OT=\(bf16\)_#N=2_#S=2_targetDevice=CPU.*)",
+        // Issue: 111944
+        R"(.*smoke_DefConvLayoutTest6.*)"
     };
 
 #ifdef __EMSCRIPTEN__
@@ -198,7 +214,7 @@ std::vector<std::string> disabledTestPatterns() {
 #elif defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
     {
         // TODO: enable once streams / tput mode is supported
-        retVector.emplace_back(R"(OVClassConfigTestCPU.smoke_Check(Model|Core)StreamsHasHigherPriorityThanLatencyHint.*)");
+        retVector.emplace_back(R"(OVClassConfigTestCPU.smoke_CpuExecNetworkCheck(Model|Core)StreamsHasHigherPriorityThanLatencyHint.*)");
         retVector.emplace_back(R"(smoke_BehaviorTests/CorrectConfigCheck.canSetConfigAndCheckGetConfig.*CPU_THROUGHPUT_STREAMS=8.*)");
         retVector.emplace_back(R"(smoke_BehaviorTests/CorrectConfigCheck.canSetConfigTwiceAndCheckGetConfig.*CPU_THROUGHPUT_STREAMS=8.*)");
         retVector.emplace_back(R"(smoke_CPU_OVClassLoadNetworkAndCheckWithSecondaryPropertiesTest/OVClassLoadNetworkAndCheckSecondaryPropertiesTest.LoadNetworkAndCheckSecondaryPropertiesTest.*)");
@@ -206,7 +222,6 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(smoke_CPU_OVClassCompileModelAndCheckSecondaryPropertiesTest.*)");
         retVector.emplace_back(R"(smoke_CPU_OVClassCompileModelAndCheckWithSecondaryPropertiesDoubleTest.*)");
     }
-    retVector.emplace_back(R"(smoke_AvgPool_ExplicitPad_CeilRounding/PoolingLayerTest.CompareWithRefs.*)");
     // invalid test: checks u8 precision for runtime graph, while it should be f32
     retVector.emplace_back(R"(smoke_NegativeQuantizedMatMulMultiplyFusion.*)");
     // int8 specific
@@ -233,7 +248,7 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(smoke_Snippets.*)");
 #endif
 
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
     retVector.emplace_back(R"(.*LoadNetworkCompiledKernelsCacheTest.*CanCreateCacheDirAndDumpBinariesUnicodePath.*)");
 #endif
 

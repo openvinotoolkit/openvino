@@ -315,83 +315,57 @@ void FullyConnected::prepareParams() {
     auto& engine = getEngine();
 
     auto builder = [&engine](const FCKey& key) -> executorPtr {
-        executorPtr execPtr = nullptr;
+        // use conv1x1 primitive for computation
         if (key.useConv1x1) {
-            auto desc = createDescriptorInternalForConv(key.inp0, key.inp1, key.bias, key.out, key.attr, engine);
-            primitive_desc_iterator itpd = desc;
-            convolution_forward::primitive_desc prim_desc;
+            auto prim_desc = createDescriptorInternalForConv(key.inp0, key.inp1, key.bias, key.out, key.attr, engine);
+            const bool found = DnnlExtensionUtils::find_implementation(prim_desc, brgconv_avx512_1x1);
 
-            while (static_cast<bool>(itpd))  {
-                impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
-
-                if (impl_type == brgconv_avx512_1x1) {
-                    prim_desc = itpd.get();
-                    break;
-                }
-                if (!itpd.next_impl()) {
-                    break;
-                }
-            }
-
-            if (prim_desc) {
-                execPtr = std::make_shared<DnnlExecutor>(prim_desc);
-            }
+            if (found)
+                return std::make_shared<DnnlExecutor>(prim_desc);
         }
-        // fallback
-        if (!execPtr) {
-            auto inDesc = key.inp0->getDnnlDesc();
-            const auto& inDims = inDesc.get_dims(); // @TODO query + copy might be slow
-            if (inDims.size() == 3) {
-                auto normalizedInDims = {inDims[0] * inDims[1], inDims[2]};
-                inDesc = inDesc.reshape(normalizedInDims);
-            }
 
-            auto outDesc = key.out->getDnnlDesc();
-            const auto& outDims = outDesc.get_dims(); // @TODO query + copy might be slow
-
-            if (outDims.size() == 3) {
-                auto normalizedOutDims = { outDims[0] * outDims[1], outDims[2] };
-                outDesc = outDesc.reshape(normalizedOutDims);
-            }
-
-            std::shared_ptr<dnnl::inner_product_forward::primitive_desc> fcDsc;
-            if (key.bias) {
-                fcDsc = std::make_shared<dnnl::inner_product_forward::primitive_desc>(
-                    engine,
-                    dnnl::prop_kind::forward_inference,
-                    inDesc,
-                    key.inp1->getDnnlDesc(),
-                    key.bias->getDnnlDesc(),
-                    outDesc,
-                    key.attr);
-            } else {
-                fcDsc = std::make_shared<dnnl::inner_product_forward::primitive_desc>(
-                    engine,
-                    dnnl::prop_kind::forward_inference,
-                    inDesc,
-                    key.inp1->getDnnlDesc(),
-                    outDesc,
-                    key.attr);
-            }
-
-            primitive_desc_iterator itpd = *fcDsc;
-            inner_product_forward::primitive_desc prim_desc;
-
-            while (itpd) {
-                impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
-
-                if (impl_type == key.implType) {
-                    prim_desc = itpd.get();
-                    break;
-                }
-                if (!itpd.next_impl()) {
-                    return nullptr;
-                }
-            }
-
-            execPtr = std::make_shared<DnnlExecutor>(prim_desc);
+        // fallback to normal convolution primitive
+        auto inDesc = key.inp0->getDnnlDesc();
+        const auto& inDims = inDesc.get_dims(); // @TODO query + copy might be slow
+        if (inDims.size() == 3) {
+            auto normalizedInDims = {inDims[0] * inDims[1], inDims[2]};
+            inDesc = inDesc.reshape(normalizedInDims);
         }
-        return execPtr;
+
+        auto outDesc = key.out->getDnnlDesc();
+        const auto& outDims = outDesc.get_dims(); // @TODO query + copy might be slow
+
+        if (outDims.size() == 3) {
+            auto normalizedOutDims = { outDims[0] * outDims[1], outDims[2] };
+            outDesc = outDesc.reshape(normalizedOutDims);
+        }
+
+        dnnl::inner_product_forward::primitive_desc prim_desc;
+        if (key.bias) {
+            prim_desc = dnnl::inner_product_forward::primitive_desc(
+                engine,
+                dnnl::prop_kind::forward_inference,
+                inDesc,
+                key.inp1->getDnnlDesc(),
+                key.bias->getDnnlDesc(),
+                outDesc,
+                key.attr);
+        } else {
+            prim_desc = dnnl::inner_product_forward::primitive_desc(
+                engine,
+                dnnl::prop_kind::forward_inference,
+                inDesc,
+                key.inp1->getDnnlDesc(),
+                outDesc,
+                key.attr);
+        }
+
+        const bool found = DnnlExtensionUtils::find_implementation(prim_desc, key.implType);
+
+        if (!found)
+            return nullptr;
+
+        return std::make_shared<DnnlExecutor>(prim_desc);;
     };
 
     auto cache = context->getParamsCache();
@@ -506,7 +480,7 @@ void FullyConnected::setPostOps(dnnl::primitive_attr& attr, const VectorDims& di
 
     DnnlPostOpsComposer dnnlpoc(getEngine(), attr, ops, postOpsArgs, dims, dims.size() - 1, isINT8, 1 << 0,  getDQScales(), withBiases);
 
-    for (int i = 0; i < fusedWith.size(); ++i) {
+    for (size_t i = 0; i < fusedWith.size(); ++i) {
         auto& node = fusedWith[i];
         bool isLastPostOp = (i == (fusedWith.size() - 1));
 
@@ -534,6 +508,7 @@ bool FullyConnected::created() const {
 const std::vector<impl_desc_type>& FullyConnected::getPrimitivesPriority() {
     std::vector<impl_desc_type> priorities = {
             impl_desc_type::unknown,
+            impl_desc_type::acl,
             impl_desc_type::brgemm_sparse_avx512_amx,
             impl_desc_type::brgemm_avx512_amx,
             impl_desc_type::brgemm_avx512,
@@ -841,7 +816,7 @@ bool FullyConnected::canBeExecutedInConv1x1() const {
     //   problems with the above.
     if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) &&
         getOriginalInputPrecisionAtPort(DATA_ID) == InferenceEngine::Precision::FP32 &&
-        one_of(inRank, 2, 3) && weightRank == 2) {
+        one_of(inRank, 2u, 3u) && weightRank == 2) {
         auto dstMemPtr = getChildEdgesAtPort(0)[0]->getMemoryPtr();
         DnnlMemoryDescCPtr outDesc = dstMemPtr->GetDescWithType<DnnlMemoryDesc>();
         // brg convolution does not support stride
@@ -911,7 +886,7 @@ bool FullyConnected::useSparseWeightsDecompression() {
     auto weightsData = reinterpret_cast<const int8_t*>(blb->GetPtr());
     auto elementsCount = blb->GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
     size_t zerosCounts = 0;
-    for (int i = 0; i < elementsCount; i++) {
+    for (size_t i = 0; i < elementsCount; i++) {
         if (weightsData[i] == 0) {
             zerosCounts++;
         }

@@ -24,7 +24,7 @@ template <typename T>
 static T smReadFixed(const char* ptr) {
     T result = 0;
     for (uint8_t i = 0; i < sizeof(T); ++i) {
-        result |= ptr[i] << (i * 8);
+        result |= static_cast<const uint8_t>(ptr[i]) << (i * 8);
     }
     return result;
 }
@@ -264,8 +264,8 @@ bool VariablesIndex::read_variables(std::ifstream& vi_stream, const std::string&
         } else {
             fullPath = path + "." + suffix.data();
         }
-        m_data_files[shard] =
-            std::shared_ptr<std::ifstream>(new std::ifstream(fullPath, std::ifstream::in | std::ifstream::binary));
+        m_data_files[shard] = std::shared_ptr<std::ifstream>(
+            new std::ifstream(fullPath.c_str(), std::ifstream::in | std::ifstream::binary));
         FRONT_END_GENERAL_CHECK(m_data_files[shard]->is_open(), "Variable index data file does not exist");
     }
 
@@ -288,8 +288,8 @@ bool VariablesIndex::read_variables(std::ifstream& vi_stream, const std::wstring
         } else {
             fullPath = path + L"." + suffix.data();
         }
-        m_data_files[shard] =
-            std::shared_ptr<std::ifstream>(new std::ifstream(fullPath, std::ifstream::in | std::ifstream::binary));
+        m_data_files[shard] = std::shared_ptr<std::ifstream>(
+            new std::ifstream(fullPath.c_str(), std::ifstream::in | std::ifstream::binary));
         FRONT_END_GENERAL_CHECK(m_data_files[shard]->is_open(), "Variable index data file does not exist");
     }
 
@@ -448,8 +448,20 @@ void VariablesIndex::map_assignvariable(const std::shared_ptr<::tensorflow::Grap
 
             if (restorev2_nodes.size() == 1 && varhandle_nodes.size() == 1) {
                 std::vector<std::string> restore_output;
-                // Expected path is: RestoreV2 -(output_index)-(0)-> Identity -(0)-(1)-> AssignVariableOp
-                PtrNode::parse_node_name(node.second->inputs[1]->node->input(0), restore_output);
+
+                FRONT_END_GENERAL_CHECK(node.second->inputs.size() >= 2,
+                                        "Amount of AssignVariableOp inputs is less than expected");
+                // Here is known ways to find a correct RestoreV2 output index:
+                if (node.second->inputs[1]->inputs.size() >= 1 &&
+                    node.second->inputs[1]->inputs[0]->node->op() == "RestoreV2") {
+                    // Expected path is: RestoreV2 -(output_index)-(0)-> AnyNode -(0)-(1)-> AssignVariableOp
+                    PtrNode::parse_node_name(node.second->inputs[1]->node->input(0), restore_output);
+                } else if (node.second->inputs[1]->node->op() == "RestoreV2" && node.second->node->input_size() >= 2) {
+                    // Expected path is: RestoreV2 -(output_index)-(1)-> AssignVariableOp
+                    PtrNode::parse_node_name(node.second->node->input(1), restore_output);
+                } else {
+                    FRONT_END_THROW("Unexpected topology near AssignVariableOp");
+                }
 
                 int output_index = std::atoi(restore_output[restore_output.size() - 1].c_str());
 
@@ -473,7 +485,10 @@ void VariablesIndex::map_assignvariable(const std::shared_ptr<::tensorflow::Grap
 
             if (restorev2_nodes.size() == 1 && variablev2_nodes.size() == 1) {
                 std::vector<std::string> restore_output;
-                // Expected path is: RestoreV2 -(output_index)-(0)-> Assign
+
+                FRONT_END_GENERAL_CHECK(node.second->node->input_size() >= 2,
+                                        "Amount of Assign inputs is less than expected");
+                // Expected path is: RestoreV2 -(output_index)-(1)-> Assign
                 PtrNode::parse_node_name(node.second->node->input(1), restore_output);
 
                 int output_index = std::atoi(restore_output[restore_output.size() - 1].c_str());

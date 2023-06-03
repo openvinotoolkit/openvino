@@ -116,6 +116,17 @@ std::shared_ptr<Node> get_axes_range(const NodeContext& context, int input_id) {
     return context.mark_node(std::make_shared<opset10::Range>(start, reduced_rank, step, element::i32));
 };
 
+std::shared_ptr<Node> normalize_axis(const NodeContext& context,
+                                     const Output<Node>& axis,
+                                     const Output<Node>& input_node) {
+    Output<Node> rank;
+    std::tie(std::ignore, rank) = get_shape_rank(context, input_node);
+    auto axis_rank = context.mark_node(std::make_shared<opset10::Add>(axis, rank));
+    auto is_less = context.mark_node(std::make_shared<opset10::Less>(axis_rank, rank));
+    auto new_axis = context.mark_node(std::make_shared<opset10::Select>(is_less, axis_rank, axis));
+    return new_axis;
+}
+
 std::shared_ptr<Node> numel(const NodeContext& context, const Output<Node>& x) {
     auto input_shape = context.mark_node(std::make_shared<opset10::ShapeOf>(x, element::i32));
     auto axes = context.mark_node(opset10::Constant::create(element::i32, Shape({1}), {0}));
@@ -162,8 +173,8 @@ ov::op::PadType convert_pad(const std::string& pt_pad) {
     return TORCH_AUTO_PAD_TO_OV.at(pt_pad);
 };
 
-std::shared_ptr<Node> concat_list_construct(std::shared_ptr<Node> input) {
-    if (auto list_construct = cast_fw_node(input, "prim::ListConstruct")) {
+Output<Node> concat_list_construct(const Output<Node>& input) {
+    if (auto list_construct = cast_fw_node(input.get_node_shared_ptr(), "prim::ListConstruct")) {
         auto list_inputs = list_construct->input_values();
         OutputVector node_vector;
         auto zero = opset10::Constant::create(element::i32, Shape{}, {0});
@@ -347,33 +358,24 @@ void align_eltwise_input_types(const NodeContext& context, Output<Node>& lhs, Ou
     // consider dynamic rank as non scalar
     const auto is_lhs_scalar = lhs_rank.is_static() && lhs_rank.get_length() == 0;
     const auto is_rhs_scalar = rhs_rank.is_static() && rhs_rank.get_length() == 0;
-    if (is_lhs_scalar && is_rhs_scalar) {
-        // if both scalar, align to lhs
-        rhs = context.mark_node(std::make_shared<opset10::ConvertLike>(rhs, lhs));
-        return;
-    }
     auto lhs_dst_type = lhs_type;
     auto rhs_dst_type = rhs_type;
-    if (is_lhs_scalar) {
-        if (lhs_type.is_real() && !rhs_type.is_real()) {
-            // if div we need to also align float types to highest bitness regardless of scalar
-            if (!align_scalars)
-                lhs_dst_type = element::f32;
-            rhs_dst_type = element::f32;
-        } else {
-            lhs = context.mark_node(std::make_shared<opset10::ConvertLike>(lhs, rhs));
-            return;
-        }
-    } else if (is_rhs_scalar) {
-        if (!lhs_type.is_real() && rhs_type.is_real()) {
+    if (is_lhs_scalar && lhs_type.is_real() && !rhs_type.is_real()) {
+        // if div we need to also align float types to highest bitness regardless of scalar
+        if (!align_scalars)
             lhs_dst_type = element::f32;
-            // if div we need to also align float types to highest bitness regardless of scalar
-            if (!align_scalars)
-                rhs_dst_type = element::f32;
-        } else {
-            rhs = context.mark_node(std::make_shared<opset10::ConvertLike>(rhs, lhs));
-            return;
-        }
+        rhs_dst_type = element::f32;
+    } else if (is_rhs_scalar && !lhs_type.is_real() && rhs_type.is_real()) {
+        lhs_dst_type = element::f32;
+        // if div we need to also align float types to highest bitness regardless of scalar
+        if (!align_scalars)
+            rhs_dst_type = element::f32;
+    } else if (is_lhs_scalar) {
+        lhs = context.mark_node(std::make_shared<opset10::ConvertLike>(lhs, rhs));
+        return;
+    } else if (is_rhs_scalar) {
+        rhs = context.mark_node(std::make_shared<opset10::ConvertLike>(rhs, lhs));
+        return;
     }
 
     if (lhs_dst_type == element::boolean || rhs_dst_type == element::boolean) {

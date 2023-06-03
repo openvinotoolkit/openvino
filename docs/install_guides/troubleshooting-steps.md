@@ -4,20 +4,37 @@
 
 If you run into issues while installing or configuring OpenVINO™, you can try the following methods to do some quick checks first. 
 
-Check the versions of OpenVINO Runtime and Developement Tools
+Check the versions of OpenVINO Runtime and Development Tools
 #############################################################
 
 * To check the version of OpenVINO Development Tools, use the following command:
-   
-  .. code-block:: sh
-     
-     mo --version
-   
+
+
+  .. tab-set::
+
+      .. tab-item:: Python
+          :sync: mo-python-api
+
+          .. code-block:: python
+
+             from openvino.tools.mo import convert_model
+             ov_model = convert_model(version=True)
+
+      .. tab-item:: CLI
+          :sync: cli-tool
+
+          .. code-block:: sh
+
+              mo --version
+
+
 * To check the version of OpenVINO Runtime, use the following code:
    
   .. code-block:: sh
      
-     from openvino.runtime import get_version get_version()
+     from openvino.runtime import get_version 
+     get_version()
+
    
 
 Check the versions of Python and PIP
@@ -69,9 +86,9 @@ Verify that OpenVINO is correctly installed
 
   .. code-block:: sh
 
-     python -c "from openvino.runtime import Core"
+     python -c "from openvino.runtime import Core; print(Core().available_devices)"
    
-  If OpenVINO was successfully installed, nothing will happen. If not, an error will be displayed.
+  If OpenVINO was successfully installed, you will see a list of available devices.
 
 * If you installed OpenVINO Runtime using the archive file, you can search "openvino" in Apps & Features on a Windows system, or check your installation directory on Linux to see if OpenVINO is there.
 
@@ -79,7 +96,7 @@ Verify that OpenVINO is correctly installed
 
 * If you installed OpenVINO Runtime from YUM, use the ``yum list installed 'openvino*'`` command to list the installed OpenVINO packages.
 
-Check if GPU drvier is installed
+Check if GPU driver is installed
 ################################
 
 :doc:`Additional configurations <openvino_docs_install_guides_configurations_header>` may be required in order to use OpenVINO with different hardware such as Intel® GPUs.
