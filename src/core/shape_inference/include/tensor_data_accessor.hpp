@@ -62,6 +62,9 @@ template <>
 Tensor TensorAccessor<HostTensorVector>::operator()(size_t port) const;
 
 template <>
+Tensor TensorAccessor<std::unordered_map<size_t, Tensor>>::operator()(size_t port) const;
+
+template <>
 Tensor TensorAccessor<std::map<size_t, HostTensorPtr>>::operator()(size_t port) const;
 
 template <>

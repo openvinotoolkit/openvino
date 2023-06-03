@@ -43,6 +43,7 @@ bool ov::pass::UselessStridedSliceEraser::run_on_model(const std::shared_ptr<ngr
     return rewritten;
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace {
 
 ngraph::SlicePlan get_slice_plan(std::shared_ptr<opset1::StridedSlice> slice) {

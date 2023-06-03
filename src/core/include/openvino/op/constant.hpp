@@ -7,9 +7,19 @@
 #include <cmath>
 #include <cstring>
 
+#ifndef IN_OV_COMPONENT
+#    define IN_OV_COMPONENT
+#    define WAS_OV_LIBRARY_DEFINED_CONSTANT
+#endif
+
 #include "ngraph/runtime/aligned_buffer.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/shared_buffer.hpp"
+
+#ifdef WAS_OV_LIBRARY_DEFINED_CONSTANT
+#    undef IN_OV_COMPONENT
+#    undef WAS_OV_LIBRARY_DEFINED_CONSTANT
+#endif
 #include "openvino/core/coordinate_diff.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"

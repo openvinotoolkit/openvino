@@ -144,7 +144,7 @@ protected:
         }
 
         size_t getUnused(size_t requestedIdx) {
-            if (requestedIdx == anyIdx) {
+            if (requestedIdx == static_cast<size_t>(anyIdx)) {
                 return getFirstFreeIndex();
             } else {
                 if (requestedIdx >= isFreeIndexVector.size() || requestedIdx < 0) {

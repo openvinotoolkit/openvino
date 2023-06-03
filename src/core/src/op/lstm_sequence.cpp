@@ -184,7 +184,9 @@ void op::v0::LSTMSequence::validate_and_infer_types() {
     const auto& b_pshape = get_input_partial_shape(6);
     const auto& p_pshape = get_input_partial_shape(7);
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     ngraph::op::util::validate_seq_input_rank_dimension(input_param);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     // Validate rank and dimension for initial_cell_state input
     NODE_VALIDATION_CHECK(this,
@@ -380,7 +382,9 @@ void op::v5::LSTMSequence::validate_and_infer_types() {
     const auto& r_pshape = get_input_partial_shape(5);
     const auto& b_pshape = get_input_partial_shape(6);
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     ngraph::op::util::validate_seq_input_rank_dimension(input_param);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     // Validate rank and dimension for initial_cell_state input
     NODE_VALIDATION_CHECK(this,

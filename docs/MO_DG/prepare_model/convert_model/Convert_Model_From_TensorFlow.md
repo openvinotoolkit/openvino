@@ -2,9 +2,9 @@
 
 @sphinxdirective
 
-This page provides general instructions on how to convert a model from a TensorFlow format to the OpenVINO IR format using Model Optimizer. The instructions are different depending on whether your model was created with TensorFlow v1.X or TensorFlow v2.X.
+This page provides general instructions on how to run model conversion from a TensorFlow format to the OpenVINO IR format. The instructions are different depending on whether your model was created with TensorFlow v1.X or TensorFlow v2.X.
 
-To use Model Optimizer, install OpenVINO Development Tools by following the :doc:`installation instructions <openvino_docs_install_guides_install_dev_tools>`.
+To use model conversion API, install OpenVINO Development Tools by following the :doc:`installation instructions <openvino_docs_install_guides_install_dev_tools>`.
 
 Converting TensorFlow 1 Models 
 ###############################
@@ -14,7 +14,7 @@ Converting Frozen Model Format
 
 To convert a TensorFlow model, use the ``*mo*`` script to simply convert a model with a path to the input model ``*.pb*`` file:
 
-.. code-block:: cpp
+.. code-block:: sh
 
    mo --input_model <INPUT_MODEL>.pb
 
@@ -22,19 +22,19 @@ To convert a TensorFlow model, use the ``*mo*`` script to simply convert a model
 Converting Non-Frozen Model Formats 
 +++++++++++++++++++++++++++++++++++
 
-There are three ways to store non-frozen TensorFlow models and convert them by Model Optimizer:
+There are three ways to store non-frozen TensorFlow models and convert them by model conversion API:
 
 1. **Checkpoint**. In this case, a model consists of two files: ``inference_graph.pb`` (or ``inference_graph.pbtxt``) and ``checkpoint_file.ckpt``.
 If you do not have an inference graph file, refer to the `Freezing Custom Models in Python <#Freezing-Custom-Models-in-Python>`__  section.
 To convert the model with the inference graph in ``.pb`` format, run the `mo` script with a path to the checkpoint file:
 
-.. code-block:: cpp
+.. code-block:: sh
 
    mo --input_model <INFERENCE_GRAPH>.pb --input_checkpoint <INPUT_CHECKPOINT>
 
 To convert the model with the inference graph in ``.pbtxt`` format, run the ``mo`` script with a path to the checkpoint file:
 
-.. code-block:: cpp
+.. code-block:: sh
 
    mo --input_model <INFERENCE_GRAPH>.pbtxt --input_checkpoint <INPUT_CHECKPOINT> --input_model_is_text
 
@@ -43,7 +43,7 @@ To convert the model with the inference graph in ``.pbtxt`` format, run the ``mo
 ``model_name.data-00000-of-00001`` (the numbers may vary), and ``checkpoint`` (optional).
 To convert such TensorFlow model, run the `mo` script with a path to the MetaGraph ``.meta`` file:
 
-.. code-block:: cpp
+.. code-block:: sh
 
    mo --input_meta_graph <INPUT_META_GRAPH>.meta
 
@@ -52,7 +52,7 @@ To convert such TensorFlow model, run the `mo` script with a path to the MetaGra
 and several subfolders: ``variables``, ``assets``, and ``assets.extra``. For more information about the SavedModel directory, refer to the `README <https://github.com/tensorflow/tensorflow/tree/master/tensorflow/python/saved_model#components>`__ file in the TensorFlow repository.
 To convert such TensorFlow model, run the ``mo`` script with a path to the SavedModel directory:
 
-.. code-block:: cpp
+.. code-block:: sh
 
    mo --saved_model_dir <SAVED_MODEL_DIRECTORY>
 
@@ -67,7 +67,7 @@ Freezing Custom Models in Python
 
 When a network is defined in Python code, you have to create an inference graph file. Graphs are usually built in a form
 that allows model training. That means all trainable parameters are represented as variables in the graph.
-To be able to use such graph with Model Optimizer, it should be frozen and dumped to a file with the following code:
+To be able to use such graph with model conversion API, it should be frozen and dumped to a file with the following code:
 
 .. code-block:: python 
 
@@ -97,7 +97,7 @@ SavedModel Format
 A model in the SavedModel format consists of a directory with a ``saved_model.pb`` file and two subfolders: ``variables`` and ``assets``.
 To convert such a model, run the `mo` script with a path to the SavedModel directory:
 
-.. code-block:: cpp
+.. code-block:: sh
 
    mo --saved_model_dir <SAVED_MODEL_DIRECTORY>
 
@@ -162,30 +162,30 @@ Then follow the above instructions for the SavedModel format.
 Command-Line Interface (CLI) Examples Using TensorFlow-Specific Parameters
 ##########################################################################
 
-* Launching the Model Optimizer for Inception V1 frozen model when model file is a plain text protobuf:
+* Launching model conversion for Inception V1 frozen model when model file is a plain text protobuf:
 
-.. code-block:: cpp
+.. code-block:: sh
 
    mo --input_model inception_v1.pbtxt --input_model_is_text -b 1
 
 
-* Launching the Model Optimizer for Inception V1 frozen model and dump information about the graph to TensorBoard log dir ``/tmp/log_dir``
+* Launching model conversion for Inception V1 frozen model and dump information about the graph to TensorBoard log dir ``/tmp/log_dir``
 
-.. code-block:: cpp
+.. code-block:: sh
 
    mo --input_model inception_v1.pb -b 1 --tensorboard_logdir /tmp/log_dir
 
 
-* Launching the Model Optimizer for BERT model in the SavedModel format, with three inputs. Specify explicitly the input shapes where the batch size and the sequence length equal 2 and 30 respectively.
+* Launching model conversion for BERT model in the SavedModel format, with three inputs. Specify explicitly the input shapes where the batch size and the sequence length equal 2 and 30 respectively.
 
-.. code-block:: cpp
+.. code-block:: sh
 
    mo --saved_model_dir BERT --input mask,word_ids,type_ids --input_shape [2,30],[2,30],[2,30]
 
 Conversion of TensorFlow models from memory using Python API
 ############################################################
 
-MO Python API supports passing TensorFlow/TensorFlow2 models directly from memory.
+Model conversion API supports passing TensorFlow/TensorFlow2 models directly from memory.
 
 * ``tf.keras.Model``
 
@@ -283,22 +283,22 @@ MO Python API supports passing TensorFlow/TensorFlow2 models directly from memor
 Supported TensorFlow and TensorFlow 2 Keras Layers
 ##################################################
 
-For the list of supported standard layers, refer to the :doc:`Supported Framework Layers <openvino_docs_MO_DG_prepare_model_Supported_Frameworks_Layers>` page.
+For the list of supported standard layers, refer to the :doc:`Supported Operations <openvino_resources_supported_operations_frontend>` page.
 
 Frequently Asked Questions (FAQ)
 ################################
 
-The Model Optimizer provides explanatory messages if it is unable to run to completion due to typographical errors, incorrectly used options, or other issues. The message describes the potential cause of the problem and gives a link to the :doc:`Model Optimizer FAQ <openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ>`. The FAQ provides instructions on how to resolve most issues. The FAQ also includes links to relevant sections in the Model Optimizer Developer Guide to help you understand what went wrong.
+The model conversion API provides explanatory messages if it is unable to run to completion due to typographical errors, incorrectly used options, or other issues. The message describes the potential cause of the problem and gives a link to the :doc:`Model Optimizer FAQ <openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ>`. The FAQ provides instructions on how to resolve most issues. The FAQ also includes links to relevant sections in :doc:`Convert a Model <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>` to help you understand what went wrong.
 
 Summary
 #######
 
 In this document, you learned:
 
-* Basic information about how the Model Optimizer works with TensorFlow models.
+* Basic information about how the model conversion API works with TensorFlow models.
 * Which TensorFlow models are supported.
 * How to freeze a TensorFlow model.
-* How to convert a trained TensorFlow model using the Model Optimizer with both framework-agnostic and TensorFlow-specific command-line options.
+* How to convert a trained TensorFlow model using model conversion API with both framework-agnostic and TensorFlow-specific command-line parameters.
 
 Additional Resources
 ####################
