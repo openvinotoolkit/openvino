@@ -1,6 +1,17 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#pragma once
+
+#if !defined(IN_OV_COMPONENT) && !defined(NGRAPH_LEGACY_HEADER_INCLUDED)
+#    define NGRAPH_LEGACY_HEADER_INCLUDED
+#    ifdef _MSC_VER
+#        pragma message( \
+            "The nGraph API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    else
+#        warning("The nGraph API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    endif
+#endif
 
 #include <string>
 
@@ -11,7 +22,7 @@ NGRAPH_EXTERN_C NGRAPH_API const char* NGRAPH_VERSION_NUMBER;
 
 // clang-format off
 extern "C" NGRAPH_API
-NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
+NGRAPH_API_DEPRECATED
 const char* get_ngraph_version_string();
 // clang-format on
 
@@ -27,6 +38,6 @@ namespace ngraph {
 ///
 /// \note Throws a runtime_error if there is an error during parsing
 NGRAPH_API
-NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
+NGRAPH_API_DEPRECATED
 void get_version(size_t& major, size_t& minor, size_t& patch, std::string& extra);
 }  // namespace ngraph

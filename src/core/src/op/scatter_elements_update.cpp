@@ -194,7 +194,9 @@ bool op::v3::ScatterElementsUpdate::evaluate_scatter_element_update(const HostTe
                                                                     const HostTensorVector& inputs) const {
     NGRAPH_CHECK(inputs[3]->get_element_type().is_integral_number(), "axis element type is not integral data type");
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     int64_t axis = host_tensor_2_vector<int64_t>(inputs[3])[0];
+    OPENVINO_SUPPRESS_DEPRECATED_END
     const auto& input_rank = get_input_partial_shape(0).rank();
     int64_t normalized_axis = axis;
 

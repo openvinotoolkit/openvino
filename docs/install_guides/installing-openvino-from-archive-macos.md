@@ -2,7 +2,7 @@
 
 @sphinxdirective
 
-With the OpenVINO™ 2022.3 release, you can download and use archive files to install OpenVINO Runtime. The archive files contain pre-built binaries and library files needed for OpenVINO Runtime, as well as code samples.
+With the OpenVINO™ 2023.0 release, you can download and use archive files to install OpenVINO Runtime. The archive files contain pre-built binaries and library files needed for OpenVINO Runtime, as well as code samples.
 
 Installing OpenVINO Runtime from archive files is recommended for C++ developers. If you are working with Python, the PyPI package has everything needed for Python development and deployment on CPU and GPUs. Visit the :doc:`Install OpenVINO from PyPI <openvino_docs_install_guides_installing_openvino_pip>` page for instructions on how to install OpenVINO Runtime for Python using PyPI.
 
@@ -53,53 +53,53 @@ Step 1: Install OpenVINO Core Components
       cd <user_home>/Downloads
 
 
-4. Download the `OpenVINO Runtime archive file for macOS <https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3/macos/>`__, extract the files, rename the extracted folder and move it to the desired path:
+4. Download the `OpenVINO Runtime archive file for macOS <https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/macos/>`__, extract the files, rename the extracted folder and move it to the desired path:
 
    .. tab:: x86, 64-bit
 
       .. code-block:: sh
 
-         curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3/macos/m_openvino_toolkit_macos_10_15_2022.3.0.9052.9752fafe8eb_x86_64.tgz --output openvino_2022.3.0.tgz
-         tar -xf openvino_2022.3.0.tgz
-         sudo mv m_openvino_toolkit_macos_10_15_2022.3.0.9052.9752fafe8eb_x86_64 /opt/intel/openvino_2022.3.0
+         curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/macos/m_openvino_toolkit_macos_10_15_2023.0.0.10926.b4452d56304_x86_64.tgz --output openvino_2023.0.0.tgz
+         tar -xf openvino_2023.0.0.tgz
+         sudo mv m_openvino_toolkit_macos_10_15_2023.0.0.10926.b4452d56304_x86_64 /opt/intel/openvino_2023.0.0
 
    .. tab:: ARM, 64-bit
 
       .. code-block:: sh
 
-         curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3/macos/m_openvino_toolkit_macos_11_0_2022.3.0.9052.9752fafe8eb_arm64.tgz --output openvino_2022.3.0.tgz
-         tar -xf openvino_2022.3.0.tgz
-         sudo mv m_openvino_toolkit_macos_11_0_2022.3.0.9052.9752fafe8eb_arm64 /opt/intel/openvino_2022.3.0
+         curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/macos/m_openvino_toolkit_macos_11_0_2023.0.0.10926.b4452d56304_arm64.tgz --output openvino_2023.0.0.tgz
+         tar -xf openvino_2023.0.0.tgz
+         sudo mv m_openvino_toolkit_macos_11_0_2023.0.0.10926.b4452d56304_arm64 /opt/intel/openvino_2023.0.0
 
 
 5. For simplicity, it is useful to create a symbolic link as below:
 
    .. code-block:: sh
 
-      sudo ln -s openvino_2022.3.0 openvino_2022
+      sudo ln -s openvino_2023.0.0 openvino_2023
 
    .. note::
 
-      If you have already installed a previous release of OpenVINO 2022, a symbolic link to the ``openvino_2022`` folder may already exist. Unlink the previous link with ``sudo unlink openvino_2022``, and then re-run the command above.
+      If you have already installed a previous release of OpenVINO 2023, a symbolic link to the ``openvino_2023`` folder may already exist. Unlink the previous link with ``sudo unlink openvino_2023``, and then re-run the command above.
 
 
-Congratulations, you finished the installation! The ``/opt/intel/openvino_2022`` folder now contains the core components for OpenVINO. If you used a different path in Step 2, you will find the ``openvino_2022`` folder there. The path to the ``openvino_2022`` directory is also referred as ``<INSTALL_DIR>`` throughout the OpenVINO documentation.
+Congratulations, you finished the installation! The ``/opt/intel/openvino_2023`` folder now contains the core components for OpenVINO. If you used a different path in Step 2, you will find the ``openvino_2023`` folder there. The path to the ``openvino_2023`` directory is also referred as ``<INSTALL_DIR>`` throughout the OpenVINO documentation.
 
 Step 2: Configure the Environment
 +++++++++++++++++++++++++++++++++
 
-You must update several environment variables before you can compile and run OpenVINO applications. Open a terminal window and run the ``setupvars.sh`` script as shown below to temporarily set your environment variables. If your ``<INSTALL_DIR>`` is not ``/opt/intel/openvino_2022``, use the correct one instead.
+You must update several environment variables before you can compile and run OpenVINO applications. Open a terminal window and run the ``setupvars.sh`` script as shown below to temporarily set your environment variables. If your ``<INSTALL_DIR>`` is not ``/opt/intel/openvino_2023``, use the correct one instead.
 
 .. code-block:: sh
 
-   source /opt/intel/openvino_2022/setupvars.sh
+   source /opt/intel/openvino_2023/setupvars.sh
 
 
 If you have more than one OpenVINO™ version on your machine, you can easily switch its version by sourcing the ``setupvars.sh`` of your choice.
 
 .. note::
 
-   The above command must be re-run every time you start a new terminal session. To set up macOS to automatically run the command every time a new terminal is opened, open ``~/.zshrc`` in your favorite editor and add ``source /opt/intel/openvino_2022/setupvars.sh`` after the last line. Next time when you open a terminal, you will see ``[setupvars.sh] OpenVINO™ environment initialized``. Changing ``~/.zshrc`` is not recommended when you have multiple OpenVINO versions on your machine and want to switch among them.
+   The above command must be re-run every time you start a new terminal session. To set up macOS to automatically run the command every time a new terminal is opened, open ``~/.zshrc`` in your favorite editor and add ``source /opt/intel/openvino_2023/setupvars.sh`` after the last line. Next time when you open a terminal, you will see ``[setupvars.sh] OpenVINO™ environment initialized``. Changing ``~/.zshrc`` is not recommended when you have multiple OpenVINO versions on your machine and want to switch among them.
 
 The environment variables are set. Continue to the next section if you want to download any additional components.
 

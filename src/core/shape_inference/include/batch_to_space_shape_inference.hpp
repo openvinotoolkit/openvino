@@ -55,13 +55,14 @@ std::vector<TShape> shape_infer(const BatchToSpace* op,
                               "data input must have rank greater or equal than 2. Got: ",
                               data_rank_size);
         if (inputs_same_ps.is_static()) {
-            NODE_VALIDATION_CHECK(op,
-                                  data_rank.get_length() == inputs_same_ps[0].get_length(),
-                                  "block_shape and crop inputs must have same number of elements "
-                                  "as data input rank. Got: ",
-                                  inputs_same_ps[0],
-                                  " and ",
-                                  data_rank);
+            NODE_VALIDATION_CHECK(
+                op,
+                static_cast<int64_t>(data_rank.get_length()) == static_cast<int64_t>(inputs_same_ps[0].get_length()),
+                "block_shape and crop inputs must have same number of elements "
+                "as data input rank. Got: ",
+                inputs_same_ps[0],
+                " and ",
+                data_rank);
         }
 
         TShape out_shape;
