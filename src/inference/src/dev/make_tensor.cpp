@@ -12,6 +12,9 @@
 #include "ie_remote_blob.hpp"
 #include "openvino/runtime/iremote_tensor.hpp"
 #include "openvino/runtime/properties.hpp"
+#ifndef NO_PROXY_PLUGIN
+#    include "proxy_plugin.hpp"
+#endif
 
 namespace ov {
 
@@ -578,7 +581,12 @@ std::shared_ptr<ITensor> make_tensor(const std::shared_ptr<ie::Blob>& blob) {
 #undef IF
 }
 
-ie::Blob::Ptr tensor_to_blob(const std::shared_ptr<ITensor>& tensor) {
+ie::Blob::Ptr tensor_to_blob(const std::shared_ptr<ITensor>& orig_tensor) {
+#ifndef NO_PROXY_PLUGIN
+    const auto& tensor = ov::proxy::get_hardware_tensor(orig_tensor);
+#else
+    const auto& tensor = orig_tensor;
+#endif
     if (tensor == nullptr) {
         return {};
     } else if (auto blob_tensor = std::dynamic_pointer_cast<BlobTensor>(tensor)) {

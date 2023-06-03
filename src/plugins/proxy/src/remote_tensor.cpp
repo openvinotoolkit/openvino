@@ -6,6 +6,8 @@
 
 #include <memory>
 
+#include "proxy_plugin.hpp"
+
 namespace {
 std::shared_ptr<ov::IRemoteTensor> cast_tensor(const std::shared_ptr<ov::ITensor>& tensor) {
     auto rem_tensor = std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor);
@@ -48,4 +50,14 @@ size_t ov::proxy::RemoteTensor::get_byte_size() const {
 
 const ov::Strides& ov::proxy::RemoteTensor::get_strides() const {
     return cast_tensor(m_tensor._impl)->get_strides();
+}
+
+const std::shared_ptr<ov::ITensor>& ov::proxy::RemoteTensor::get_hardware_tensor(
+    const std::shared_ptr<ov::ITensor>& tensor) {
+    if (auto remote_tensor = std::dynamic_pointer_cast<ov::proxy::RemoteTensor>(tensor))
+        return remote_tensor->m_tensor._impl;
+    return tensor;
+}
+const std::shared_ptr<ov::ITensor>& ov::proxy::get_hardware_tensor(const std::shared_ptr<ov::ITensor>& tensor) {
+    return ov::proxy::RemoteTensor::get_hardware_tensor(tensor);
 }

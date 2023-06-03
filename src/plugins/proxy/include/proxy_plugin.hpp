@@ -18,5 +18,7 @@ namespace proxy {
  */
 void create_plugin(std::shared_ptr<ov::IPlugin>& plugin);
 
+const std::shared_ptr<ov::ITensor>& get_hardware_tensor(const std::shared_ptr<ov::ITensor>& tensor);
+
 }  // namespace proxy
 }  // namespace ov

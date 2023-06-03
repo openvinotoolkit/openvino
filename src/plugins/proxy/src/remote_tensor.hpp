@@ -29,6 +29,8 @@ public:
 
     const ov::Strides& get_strides() const override;
 
+    static const std::shared_ptr<ov::ITensor>& get_hardware_tensor(const std::shared_ptr<ov::ITensor>& tensor);
+
 private:
     mutable std::string m_name;
     ov::RemoteTensor m_tensor;
