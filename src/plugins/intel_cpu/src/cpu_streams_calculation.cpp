@@ -301,7 +301,7 @@ void get_num_streams(const int streams,
     executor_config._threadsPerStream = executor_config._streams_info_table[0][THREADS_PER_STREAM];
     executor_config._streams = 0;
     executor_config._threads = 0;
-    for (int i = 0; i < executor_config._streams_info_table.size(); i++) {
+    for (size_t i = 0; i < executor_config._streams_info_table.size(); i++) {
         executor_config._streams += executor_config._streams_info_table[i][NUMBER_OF_STREAMS];
         executor_config._threads += executor_config._streams_info_table[i][NUMBER_OF_STREAMS] *
                                     executor_config._streams_info_table[i][THREADS_PER_STREAM];

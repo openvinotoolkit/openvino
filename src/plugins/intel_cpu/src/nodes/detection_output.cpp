@@ -127,7 +127,7 @@ void DetectionOutput::prepareParams() {
     //        --> g_topk(vector<>(all detections) --> indices per class))
     // MXNet: max conf for prior within img, filter(indices) --> topk_img(buffer) --> nms_cls(indices)
     //        --> g_topk(vector<>(all detections) --> indices per class))
-    int cacheSizeL3 = utils::get_cache_size(3, true);
+    unsigned cacheSizeL3 = utils::get_cache_size(3, true);
     isSparsityWorthwhile =
         (confidenceThreshold > sparsityThreshold) &&
         ((classesNum * priorsNum * sizeof(float) * 2) > cacheSizeL3);
@@ -144,7 +144,7 @@ void DetectionOutput::initSupportedPrimitiveDescriptors() {
 
     std::vector<PortConfigurator> inDataConf;
     inDataConf.reserve(inputShapes.size());
-    for (int i = 0; i < inputShapes.size(); ++i)
+    for (size_t i = 0; i < inputShapes.size(); ++i)
         inDataConf.emplace_back(LayoutType::ncsp, Precision::FP32);
 
     addSupportedPrimDesc(inDataConf,
@@ -386,7 +386,7 @@ inline void DetectionOutput::confFilterCF(float* reorderedConfData, int* indices
     parallel_for2d(imgNum, classesNum, [&](size_t n, size_t c) {
         // in:  reorderedConf
         // out: pindices count
-        if (c == backgroundClassId)
+        if (c == static_cast<size_t>(backgroundClassId))
             return;
         int off = n * priorsNum * classesNum + c * priorsNum;
         const float *pconf = reorderedConfData + off;
@@ -540,7 +540,7 @@ inline void DetectionOutput::confReorderAndFilterSparsityCF(const float* confDat
         parallel_for(classesNum, [&](size_t c) {
             // in:  conf_h info
             // out: buffer, detectionCount(k)
-            if (c == backgroundClassId)  // Ignore background class
+            if (c == static_cast<size_t>(backgroundClassId))  // Ignore background class
                 return;
             int countIdx = offH + c * confInfoLen + priorsNum;
             int count = reorderedConfDataIndices[countIdx];
@@ -845,7 +845,7 @@ inline void DetectionOutput::generateOutput(float* reorderedConfData, int* indic
     else
         dstDataSize = imgNum * classesNum * priorsNum * DETECTION_SIZE * sizeof(float);
 
-    if (dstDataSize > getChildEdgesAtPort(0)[0]->getMemory().GetSize()) {
+    if (static_cast<size_t>(dstDataSize) > getChildEdgesAtPort(0)[0]->getMemory().GetSize()) {
         IE_THROW() << errorPrefix << OUT_OF_BOUNDS;
     }
     memset(dstData, 0, dstDataSize);
