@@ -1,102 +1,118 @@
 /* overrides */
-.switcher-set, .prev-next-bottom {display: none;}
-
+.switcher-set, .prev-next-bottom, .bd-toc {display: none!important;}
 #openvino-documentation > h1 {
-	display: none;
+    display: none;
 }
-
 img {
-	cursor: default;
+    cursor: default;
 }
-/* === OPENVINO INTRO ================================================= */
-
-.openvino-intro-text {
-
-	font-size: 1em;
-
+h1 {
+    font-size: var(--pst-font-size-h2);
+    margin-bottom: 3rem;
 }
-/* === OPENVINO DIAGRAM ================================================= */
-
-@media only screen and (min-width: 1100px) {
-	.openvino-diagram {
-		width: 70%;
-	}
-	}
-
-@media only screen and (max-width: 1099px) {
-	.openvino-diagram {
-		width: 100%;
-	}
-	}
-
-
-
-/* === PANELS ================================================= */
-
-.homepage-panels {
-	background: #0068B5;
-	border: none!important;
-	border-radius: 0!important;
+#ov-homepage-banner, .openvino-diagram, .ov-homepage-higlight-grid {
+    margin-bottom: 90px!important;
 }
-.homepage-panels p.card-text  {
-	color:white;
+#ov-homepage-banner {
+    /*border: 1px solid var(--sd-color-primary);*/
+    padding: 1rem;
+    background-color: #76CEFF;
+    background-image: linear-gradient(346deg, #728EFA 0%, #76CEFF 50%, #BBE8BD 100%);
 }
-.homepage-panels p:first-of-type {
-	border-bottom: 1px solid white;
+#ov-homepage-banner p:first-of-type {
+    margin-top: 0;
+    margin-bottom: 3rem;
+    box-sizing: border-box;
+    color: rgb(38, 38, 38);
+    display: block;
+    font-family: sans-serif;
+    font-size: 36px;
+    font-weight: 400;
+    line-height: 41.4px;
+    text-align: left;
 }
-
-/* === OV workflow chart ===================================================== */
-#hp-flow-container {
-	margin: 0 auto;
-	width: 90%;
+#ov-homepage-banner .line-block {
+    text-align: center;
+    padding-left: 30%;
+    color: #4000b7;;
 }
-
-#hp-flow-container div {
-	margin: 0;
-	float: left;
+.ov-homepage-banner-btn {
+    transition: 0.7s;
+    background-color: var(--sd-color-primary);
+    margin-left: 2rem;
+    color: white!important;
 }
-
-div.hp-flow-arrow {
-	width: 5%;
-	padding: 40px 5px;
+.ov-homepage-banner-btn:hover {
+    background-color: white!important;
+    color: var(--sd-color-primary)!important;
 }
-
-div.hp-flow-btn {
-	width: 30%;
-	background-repeat: no-repeat;
+.openvino-diagram {
+    margin-bottom: 3rem;
 }
-
-#hp-flow-container div.hp-flow-btn:nth-of-type(1) {
-	background-image: url("../images/OV_flow_model.svg");
+.ov-homepage-higlight-grid {
+    padding: 0;
 }
-#hp-flow-container div.hp-flow-btn:nth-of-type(3) {
-	background-image: url("../images/OV_flow_optimization.svg");
+.ov-homepage-higlight-grid > div {
+    justify-content:space-evenly;
+    row-gap: 20px;
 }
-#hp-flow-container div.hp-flow-btn:nth-of-type(5) {
-	background-image: url("../images/OV_flow_deployment.svg");
+.ov-homepage-higlight-grid > div > div.sd-col {
+    width: 230px;
+    min-height: 300px;
+    padding: 0;
+    margin-inline: 5px;
 }
-
-div.hp-flow-btn a img {
-	width: 100%;
-	visibility: hidden;
+.ov-homepage-higlight-grid .sd-card {
+    box-shadow: 0 0 20px 5px #f3f3f3!important;
+    transition: 0.5s;
+    overflow: hidden;
 }
-
-div.hp-flow-btn:hover a img {
-	visibility: visible;
+.ov-homepage-higlight-grid .sd-card-title {
+    height: 52.781px;
+    margin-bottom: 2rem;
 }
-
+.ov-homepage-higlight-grid .sd-card-text {
+    font-size: 0.9rem;
+}
+.ov-homepage-higlight-grid .sd-card::after {
+    align-self: flex-end;
+    display: block;
+    content: "LEARN MORE";
+    width: 100%;
+    font-size: 0.8rem;
+    text-align: center;
+    padding-top: 0.8rem;
+    font-weight: 600;
+    color: #00A3F6;
+    height: 3rem;
+    background-color: #CDEDFF;
+}
+.ov-homepage-feature-grid .sd-col {
+    padding: 0;
+    max-width: 48%;
+}
+.ov-homepage-feature-grid .sd-card {
+    border: none;
+    box-shadow: 0 0 20px 2px #f3f3f3!important;
+    /* box-shadow: none!important; */
+}
+.ov-homepage-feature-grid .sd-row {
+    gap: 1rem;
+    justify-content: center;
+}
 /* =================================================================== */
-@media only screen and (max-width: 500px) {
-	#hp-flow-container div {
-		float: none;
-		margin: 0 auto;
-	}
-
-	div.hp-flow-arrow {
-		display: none;
-	}
-
-	div.hp-flow-btn {
-		width: 50%;
-	}
+/* @media screen and (min-width: 720px) {
+    main.col-xl-7.bd-content {
+        flex: 0 0 75%!important;
+        max-width: 75%!important;
+    }
+}*/
+@media screen and (max-width: 535px) {
+    .ov-homepage-feature-grid .sd-row {
+        flex-direction: column;
+        align-items: center;
+    }
+    .ov-homepage-feature-grid .sd-col {
+        max-width: 100%;
+    }
 }

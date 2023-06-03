@@ -6,6 +6,7 @@ const chartDisclaimers = {
 }
 
 const OVdefaultSelections = {
+    platformTypes: {name: 'ietype', data: ['core']},
     platforms: {name: 'platform',
         data: [
             'Intel® Core™  i9-12900K CPU-only',
@@ -565,6 +566,11 @@ $(document).ready(function () {
 
     function preselectDefaultSettings(data, modal, version) {
         const defaultSelections = (version == 'ov') ? OVdefaultSelections : OVMSdefaultSelections;
+        if (defaultSelections.platformTypes) {
+            const type = defaultSelections.platformTypes.data[0]
+            $(`input[data-ietype="${type}"]`).prop('checked', true);
+            renderClientPlatforms(data, modal, version);
+        }
         if (defaultSelections.platformFilters) {
             const filters = modal.find('.selectable-box-container').children('.selectable-box');
             filters.removeClass('selected');
