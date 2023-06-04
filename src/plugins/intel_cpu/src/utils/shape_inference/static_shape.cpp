@@ -225,7 +225,7 @@ bool StaticShapeCon::merge_rank(const ov::Rank& r) {
 }
 
 bool StaticShapeCon::merge_into(StaticShapeAdapter& dst, const StaticShapeAdapter& src) {
-    return merge_into(dst, src);
+    return ov::intel_cpu::merge_into(dst, src);
 }
 
 bool StaticShapeCon::broadcast_merge_into(StaticShapeCon& dst,

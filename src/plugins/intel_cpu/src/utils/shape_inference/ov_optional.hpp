@@ -120,7 +120,7 @@ private:
 
         template <class... Args>
         constexpr Storage(Args&&... args) : m_value(std::forward<Args>(args)...) {}
-        ~Storage(){};
+        ~Storage() {}
     };
 
     bool m_has_value;

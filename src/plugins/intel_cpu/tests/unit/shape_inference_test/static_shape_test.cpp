@@ -30,7 +30,7 @@ TEST_F(StaticShapeAdapterTest, create_empty_ref) {
     EXPECT_TRUE(shape.is_static());
     EXPECT_FALSE(shape.is_dynamic());
     EXPECT_TRUE(shape.empty());
-    EXPECT_EQ(shape.rank(), Rank(0));
+    EXPECT_EQ(shape.rank(), ov::Rank(0));
 }
 
 TEST_F(StaticShapeAdapterTest, create_as_container) {
@@ -40,7 +40,7 @@ TEST_F(StaticShapeAdapterTest, create_as_container) {
 
     EXPECT_TRUE(shape.is_static());
     EXPECT_FALSE(shape.is_dynamic());
-    EXPECT_EQ(shape.rank(), Rank(4));
+    EXPECT_EQ(shape.rank(), ov::Rank(4));
 
     EXPECT_THAT(shape, ElementsAre(2, 4, 10, 7));
 }
@@ -52,7 +52,7 @@ TEST_F(StaticShapeAdapterTest, create_from_list) {
 
     EXPECT_TRUE(shape.is_static());
     EXPECT_FALSE(shape.is_dynamic());
-    EXPECT_EQ(shape.rank(), Rank(4));
+    EXPECT_EQ(shape.rank(), ov::Rank(4));
 
     EXPECT_THAT(shape, ElementsAre(2, 10, 5, 7));
 }
@@ -64,7 +64,7 @@ TEST_F(StaticShapeAdapterTest, make_from_const_dims) {
 
     EXPECT_TRUE(shape.is_static());
     EXPECT_FALSE(shape.is_dynamic());
-    EXPECT_EQ(shape.rank(), Rank(6));
+    EXPECT_EQ(shape.rank(), ov::Rank(6));
 
     EXPECT_THAT(shape, ElementsAre(2, 5, 3, 8, 9, 1));
 }
@@ -77,7 +77,7 @@ TEST_F(StaticShapeAdapterTest, create_as_conatiner_from_dims) {
 
     EXPECT_TRUE(shape.is_static());
     EXPECT_FALSE(shape.is_dynamic());
-    EXPECT_EQ(shape.rank(), Rank(6));
+    EXPECT_EQ(shape.rank(), ov::Rank(6));
 
     EXPECT_THAT(shape, ElementsAre(10, 11, 12, 13, 14, 15));
     EXPECT_THAT(dims, ElementsAre(2, 5, 3, 8, 9, 1));
@@ -180,9 +180,9 @@ TEST_F(StaticShapeAdapterTest, merge_rank) {
     auto dims = VectorDims{2, 5, 6, 7};
     auto shape1 = StaticShapeRef(dims);
 
-    EXPECT_TRUE(shape1.merge_rank(Rank(4)));
-    EXPECT_FALSE(shape1.merge_rank(Rank(10)));
-    EXPECT_FALSE(shape1.merge_rank(Rank(1)));
+    EXPECT_TRUE(shape1.merge_rank(ov::Rank(4)));
+    EXPECT_FALSE(shape1.merge_rank(ov::Rank(10)));
+    EXPECT_FALSE(shape1.merge_rank(ov::Rank(1)));
 }
 
 TEST_F(StaticShapeAdapterTest, dereference_as_rvalue_and_move) {

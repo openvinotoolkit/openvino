@@ -116,7 +116,7 @@ public:
     StaticShapeAdapter(const StaticShapeCon& other);
     StaticShapeAdapter(const ov::PartialShape&);
 
-    constexpr const TDims& operator*() const& noexcept {
+    const TDims& operator*() const& noexcept {
         return m_dims;
     }
 
@@ -124,7 +124,7 @@ public:
         return m_dims;
     }
 
-    constexpr const TDims&& operator*() const&& noexcept {
+    const TDims&& operator*() const&& noexcept {
         return std::move(m_dims);
     }
 
@@ -136,7 +136,7 @@ public:
         return reinterpret_cast<value_type&>(m_dims[i]);
     }
 
-    constexpr const value_type& operator[](size_t i) const {
+    const value_type& operator[](size_t i) const {
         return reinterpret_cast<const value_type&>(m_dims[i]);
     }
 
@@ -281,11 +281,11 @@ public:
         return m_dims ? StaticShapeCon(*m_dims) : StaticShapeCon();
     }
 
-    constexpr const TDims& operator*() const& noexcept {
+    const TDims& operator*() const& noexcept {
         return *m_dims;
     }
 
-    constexpr const value_type& operator[](size_t i) const {
+    const value_type& operator[](size_t i) const {
         return reinterpret_cast<const value_type&>(m_dims[i]);
     }
 
@@ -321,27 +321,27 @@ public:
     ov::PartialShape to_partial_shape() const;
 
     //-- Container functions
-    constexpr const_iterator cbegin() const noexcept {
+    const_iterator cbegin() const noexcept {
         return m_dims ? m_dims->cbegin() : const_iterator{};
     }
 
-    constexpr const_iterator begin() const noexcept {
+    const_iterator begin() const noexcept {
         return cbegin();
     }
 
-    constexpr const_iterator cend() const noexcept {
+    const_iterator cend() const noexcept {
         return m_dims ? m_dims->cend() : const_iterator{};
     }
 
-    constexpr const_iterator end() const noexcept {
+    const_iterator end() const noexcept {
         return cend();
     }
 
-    constexpr size_t size() const noexcept {
+    size_t size() const noexcept {
         return m_dims ? m_dims->size() : 0;
     }
 
-    constexpr bool empty() const {
+    bool empty() const {
         return m_dims ? m_dims->empty() : true;
     }
 
