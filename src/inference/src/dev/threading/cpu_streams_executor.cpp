@@ -148,7 +148,7 @@ struct CPUStreamsExecutor::Impl {
                     (cpu_core_type == MAIN_CORE_PROC || cpu_core_type == HYPER_THREADING_PROC)
                         ? custom::info::core_types().back()
                         : custom::info::core_types().front();
-                if (_impl->_config._cpu_pinning) {
+                if (_impl->_config._cpu_reservation) {
 #    if defined(_WIN32) || defined(__APPLE__)
                     _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
                                                                 .set_core_type(selected_core_type)
@@ -165,13 +165,13 @@ struct CPUStreamsExecutor::Impl {
                                                                     .set_max_concurrency(concurrency)});
                     }
                 }
-            } else if (org_proc_type_table.size() > 1 && !_impl->_config._cpu_pinning) {
+            } else if (org_proc_type_table.size() > 1 && !_impl->_config._cpu_reservation) {
                 _numaNodeId = _impl->_usedNumaNodes.at(_impl->_config._stream_numa_node_ids[stream_id]);
                 _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{_numaNodeId, concurrency}});
             } else {
                 _taskArena.reset(new custom::task_arena{concurrency});
             }
-            if (_impl->_config._cpu_pinning) {
+            if (_impl->_config._cpu_reservation) {
                 _cpu_ids = static_cast<int>(_impl->_config._stream_processor_ids.size()) == _impl->_config._streams
                                ? _impl->_config._stream_processor_ids[stream_id]
                                : _cpu_ids;

@@ -349,17 +349,16 @@ void reserve_cpu_by_streams_info(const std::vector<std::vector<int>> _streams_in
                                  std::vector<std::vector<int>>& _stream_processors,
                                  std::vector<int>& _stream_numa_node_ids,
                                  const int _cpu_status) {
-    int info_table_size = static_cast<int>(_streams_info_table.size());
     std::map<int, int> stream_id_per_coretype;
     std::map<int, std::vector<int>> streams_info_per_coretype;
-    std::vector<int> stream_num_per_coretype(CPU_STREAMS_TABLE_SIZE, 0);
+    std::vector<int> stream_num_per_coretype(PROC_TYPE_TABLE_SIZE, 0);
     std::vector<std::vector<int>> remain_cpus_per_coretype;
     std::vector<int> cpu_ids;
     int first_core_type = MAIN_CORE_PROC;
     int plugin_numa_id = 1;
     int num_streams = 0;
 
-    for (int i = 0; i < info_table_size; i++) {
+    for (size_t i = 0; i < _streams_info_table.size(); i++) {
         if (_streams_info_table[i][NUMBER_OF_STREAMS] > 0) {
             first_core_type = i == 0 ? _streams_info_table[i][PROC_TYPE] : first_core_type;
             stream_id_per_coretype.insert(std::pair<int, int>(_streams_info_table[i][PROC_TYPE], num_streams));
@@ -372,7 +371,7 @@ void reserve_cpu_by_streams_info(const std::vector<std::vector<int>> _streams_in
     _stream_numa_node_ids.assign(num_streams, -1);
     remain_cpus_per_coretype.assign(PROC_TYPE_TABLE_SIZE, std::vector<int>());
 
-    if (_cpu_status == PLUGIN_USED && _numa_nodes > 1) {
+    if (_cpu_status == CPU_USED && _numa_nodes > 1) {
         for (int i = 2; i < static_cast<int>(_proc_type_table.size()); i++) {
             plugin_numa_id = _proc_type_table[i][first_core_type] > _proc_type_table[plugin_numa_id][first_core_type]
                                  ? i
@@ -380,12 +379,12 @@ void reserve_cpu_by_streams_info(const std::vector<std::vector<int>> _streams_in
         }
     }
 
-    for (int i = 0; i < _cpu_mapping_table.size(); i++) {
+    for (size_t i = 0; i < _cpu_mapping_table.size(); i++) {
         auto cur_stream_id = stream_id_per_coretype.find(_cpu_mapping_table[i][CPU_MAP_CORE_TYPE]);
-        int numa_node_id = (_cpu_status == PLUGIN_USED && _numa_nodes > 1) ? std::max(0, plugin_numa_id - 1) : -1;
+        int numa_node_id = (_cpu_status == CPU_USED && _numa_nodes > 1) ? std::max(0, plugin_numa_id - 1) : -1;
         if (cur_stream_id != stream_id_per_coretype.end() && _cpu_mapping_table[i][CPU_MAP_USED_FLAG] == NOT_USED &&
             (numa_node_id < 0 || _cpu_mapping_table[i][CPU_MAP_SOCKET_ID] == numa_node_id)) {
-            if (_stream_processors[cur_stream_id->second].size() == 1) {
+            if (_stream_processors[cur_stream_id->second].size() == 0) {
                 _stream_processors[cur_stream_id->second].push_back(_cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID]);
                 _stream_numa_node_ids[cur_stream_id->second] = _cpu_mapping_table[i][CPU_MAP_SOCKET_ID];
             } else {
@@ -447,26 +446,24 @@ void set_cpu_used(const std::vector<int>& cpu_ids, const int used) {
         }
     }
     // update _proc_type_table
-    if (used == NOT_USED || used >= PLUGIN_USED) {
-        std::vector<int> all_table;
-        int start = cpu._numa_nodes > 1 ? 1 : 0;
-        if (cpu._proc_type_table.size() > 0 && cpu._num_threads == cpu._proc_type_table[0][ALL_PROC]) {
-            cpu._proc_type_table.assign(cpu._proc_type_table.size(), std::vector<int>(PROC_TYPE_TABLE_SIZE, 0));
-            all_table.resize(PROC_TYPE_TABLE_SIZE, 0);
-            for (int i = 0; i < cpu._processors; i++) {
-                if (cpu._cpu_mapping_table[i][CPU_MAP_USED_FLAG] < PLUGIN_USED &&
-                    cpu._cpu_mapping_table[i][CPU_MAP_SOCKET_ID] >= 0 &&
-                    cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE] >= ALL_PROC) {
-                    cpu._proc_type_table[cpu._cpu_mapping_table[i][CPU_MAP_SOCKET_ID] + start]
-                                        [cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE]]++;
-                    cpu._proc_type_table[cpu._cpu_mapping_table[i][CPU_MAP_SOCKET_ID] + start][ALL_PROC]++;
-                    all_table[cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE]]++;
-                    all_table[ALL_PROC]++;
-                }
+    std::vector<int> all_table;
+    int start = cpu._numa_nodes > 1 ? 1 : 0;
+    if (cpu._proc_type_table.size() > 0 && cpu._num_threads == cpu._proc_type_table[0][ALL_PROC]) {
+        cpu._proc_type_table.assign(cpu._proc_type_table.size(), std::vector<int>(PROC_TYPE_TABLE_SIZE, 0));
+        all_table.resize(PROC_TYPE_TABLE_SIZE, 0);
+        for (int i = 0; i < cpu._processors; i++) {
+            if (cpu._cpu_mapping_table[i][CPU_MAP_USED_FLAG] == NOT_USED &&
+                cpu._cpu_mapping_table[i][CPU_MAP_SOCKET_ID] >= 0 &&
+                cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE] >= ALL_PROC) {
+                cpu._proc_type_table[cpu._cpu_mapping_table[i][CPU_MAP_SOCKET_ID] + start]
+                                    [cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE]]++;
+                cpu._proc_type_table[cpu._cpu_mapping_table[i][CPU_MAP_SOCKET_ID] + start][ALL_PROC]++;
+                all_table[cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE]]++;
+                all_table[ALL_PROC]++;
             }
-            if (cpu._numa_nodes > 1) {
-                cpu._proc_type_table[0] = all_table;
-            }
+        }
+        if (cpu._numa_nodes > 1) {
+            cpu._proc_type_table[0] = all_table;
         }
     }
 }

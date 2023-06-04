@@ -279,11 +279,11 @@ void get_num_streams(const int streams,
                                             config.changedHyperThreading,
                                             config.perfHintsConfig.ovPerfHint,
                                             proc_type_table);
-    executor_config._cpu_pinning = get_cpu_pinning(config.enableCpuPinning,
-                                                   config.changedCpuPinning,
-                                                   streams,
-                                                   executor_config._threadBindingType,
-                                                   proc_type_table);
+    executor_config._cpu_reservation = get_cpu_pinning(config.enableCpuPinning,
+                                                       config.changedCpuPinning,
+                                                       streams,
+                                                       executor_config._threadBindingType,
+                                                       proc_type_table);
     const int model_prefer = get_model_prefer_threads(streams, proc_type_table, ngraphFunc, executor_config);
     executor_config._streams_info_table = get_streams_info_table(streams,
                                                                  executor_config._threads,

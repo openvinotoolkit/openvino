@@ -204,7 +204,6 @@ enum ColumnOfProcessorTypeTable {
 enum ProcessorUseStatus {
     NOT_USED = -1,     //!< Processor is not bound to thread
     CPU_USED = 1,      //!< CPU is in using
-    PLUGIN_USED = 100  //!< Plugin other than CPU needs to use.
 };
 
 /**

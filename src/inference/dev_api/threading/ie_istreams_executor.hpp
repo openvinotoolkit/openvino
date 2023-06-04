@@ -97,7 +97,7 @@ public:
                int threads = 0,
                PreferredCoreType threadPreferredCoreType = PreferredCoreType::ANY,
                std::vector<std::vector<int>> streamsInfoTable = {},
-               bool cpuPinning = false)
+               bool cpuReservation = false)
             : ov::threading::IStreamsExecutor::Config(name,
                                                       streams,
                                                       threadsPerStream,
@@ -107,7 +107,7 @@ public:
                                                       threads,
                                                       threadPreferredCoreType,
                                                       streamsInfoTable,
-                                                      cpuPinning) {}
+                                                      cpuReservation) {}
 
         Config(const ov::threading::IStreamsExecutor::Config& config)
             : ov::threading::IStreamsExecutor::Config(config) {}

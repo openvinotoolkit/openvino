@@ -116,7 +116,7 @@ public:
         std::vector<std::vector<int>> _streams_info_table = {};
         std::vector<std::vector<int>> _stream_processor_ids;
         std::vector<int> _stream_numa_node_ids;
-        bool _cpu_pinning = false;
+        bool _cpu_reservation = false;
         bool _streams_changed = false;
 
         /**
@@ -140,7 +140,7 @@ public:
                int threads = 0,
                PreferredCoreType threadPreferredCoreType = PreferredCoreType::ANY,
                std::vector<std::vector<int>> streamsInfoTable = {},
-               bool cpuPinning = false)
+               bool cpuReservation = false)
             : _name{name},
               _streams{streams},
               _threadsPerStream{threadsPerStream},
@@ -150,7 +150,7 @@ public:
               _threads{threads},
               _threadPreferredCoreType(threadPreferredCoreType),
               _streams_info_table{streamsInfoTable},
-              _cpu_pinning{cpuPinning} {}
+              _cpu_reservation{cpuReservation} {}
     };
 
     /**

@@ -507,9 +507,9 @@ IStreamsExecutor::Config IStreamsExecutor::Config::reserve_cpu_threads(const ISt
     std::vector<int> stream_ids;
     std::string log = "[ threading ] reserve_cpu_threads " + config._name;
     std::vector<std::string> core_type_str = {" Any core: ", " PCore: ", " ECore: ", " Logical core: "};
-    int status = config._name.find("StreamsExecutor") != std::string::npos ? NOT_USED : PLUGIN_USED;
+    int status = config._name.find("StreamsExecutor") != std::string::npos ? NOT_USED : CPU_USED;
 
-    if (config._streams_info_table.size() == 0 || (status == PLUGIN_USED && !config._cpu_pinning)) {
+    if (config._streams_info_table.size() == 0 || (status == CPU_USED && !config._cpu_reservation)) {
         return config;
     }
 
