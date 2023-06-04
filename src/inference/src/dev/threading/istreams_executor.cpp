@@ -524,9 +524,6 @@ IStreamsExecutor::Config IStreamsExecutor::Config::reserve_cpu_threads(const ISt
             config._streams += config._streams_info_table[i][NUMBER_OF_STREAMS];
             config._threads +=
                 config._streams_info_table[i][NUMBER_OF_STREAMS] * config._streams_info_table[i][THREADS_PER_STREAM];
-            config._stream_stream_infos.insert(config._stream_stream_infos.end(),
-                                               config._streams_info_table[i][NUMBER_OF_STREAMS],
-                                               config._streams_info_table[i]);
             log += core_type_str[config._streams_info_table[i][PROC_TYPE]] +
                    std::to_string(config._streams_info_table[i][NUMBER_OF_STREAMS]) + "(" +
                    std::to_string(config._streams_info_table[i][THREADS_PER_STREAM]) + ")";

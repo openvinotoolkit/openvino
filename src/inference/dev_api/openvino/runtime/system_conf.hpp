@@ -195,6 +195,8 @@ enum ColumnOfProcessorTypeTable {
     PROC_TYPE_TABLE_SIZE = 4   //!< Size of processor type table
 };
 
+#define NUMA_ALL -1
+
 /**
  * @enum       ProcessorUseStatus
  * @brief      Definition of CPU_MAP_USED_FLAG column in CPU mapping table.

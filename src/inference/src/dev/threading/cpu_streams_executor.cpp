@@ -79,7 +79,7 @@ struct CPUStreamsExecutor::Impl {
                                                           _impl->_usedNumaNodes.size()))
                               : _impl->_usedNumaNodes.at(_streamId % _impl->_usedNumaNodes.size());
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
-            if (is_cpu_map_available() && _impl->_config._stream_stream_infos.size() > 0) {
+            if (is_cpu_map_available() && _impl->_config._streams_info_table.size() > 0) {
                 init_stream();
             } else {
                 init_stream_legacy();
@@ -133,12 +133,13 @@ struct CPUStreamsExecutor::Impl {
         void init_stream() {
             const auto stream_id = _streamId >= _impl->_config._streams ? _impl->_config._streams - 1 : _streamId;
             const auto org_proc_type_table = get_org_proc_type_table();
-            const auto concurrency = _impl->_config._stream_stream_infos.size() > 0
-                                         ? _impl->_config._stream_stream_infos[stream_id][THREADS_PER_STREAM]
-                                         : 0;
-            const auto cpu_core_type = _impl->_config._stream_stream_infos.size() > 0
-                                           ? _impl->_config._stream_stream_infos[stream_id][PROC_TYPE]
-                                           : 0;
+            auto cur_stream = std::find_if(_impl->stream_nums.begin(), _impl->stream_nums.end(), [&](int n) {
+                return stream_id < n;
+            });
+            const auto stream_info_id =
+                cur_stream != _impl->stream_nums.end() ? std::distance(_impl->stream_nums.begin(), cur_stream) : 0;
+            const auto concurrency = _impl->_config._streams_info_table[stream_info_id][THREADS_PER_STREAM];
+            const auto cpu_core_type = _impl->_config._streams_info_table[stream_info_id][PROC_TYPE];
             if (concurrency <= 0) {
                 return;
             }
@@ -165,8 +166,8 @@ struct CPUStreamsExecutor::Impl {
                     }
                 }
             } else if (org_proc_type_table.size() > 1 && !_impl->_config._cpu_pinning) {
-                _taskArena.reset(new custom::task_arena{
-                    custom::task_arena::constraints{_impl->_config._stream_numa_node_ids[stream_id], concurrency}});
+                _numaNodeId = _impl->_usedNumaNodes.at(_impl->_config._stream_numa_node_ids[stream_id]);
+                _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{_numaNodeId, concurrency}});
             } else {
                 _taskArena.reset(new custom::task_arena{concurrency});
             }
@@ -328,6 +329,13 @@ struct CPUStreamsExecutor::Impl {
             _usedNumaNodes = numaNodes;
         }
 #if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
+        if (is_cpu_map_available() && config._streams_info_table.size() > 0) {
+            int stream_num_last = 0;
+            for (size_t i = 0; i < config._streams_info_table.size(); i++) {
+                stream_num_last += config._streams_info_table[i][NUMBER_OF_STREAMS];
+                stream_nums.push_back(stream_num_last);
+            }
+        }
         if (!is_cpu_map_available() && ThreadBindingType::HYBRID_AWARE == config._threadBindingType) {
             const auto core_types = custom::info::core_types();
             const auto num_core_phys = get_number_of_cpu_cores();
@@ -435,6 +443,7 @@ struct CPUStreamsExecutor::Impl {
     // (so mapping is actually just an upper_bound: core type is deduced from the entry for which the id < #streams)
     using StreamIdToCoreTypes = std::vector<std::pair<custom::core_type_id, int>>;
     StreamIdToCoreTypes total_streams_on_core_types;
+    std::vector<int> stream_nums;
     int num_big_core_phys;
 #endif
     std::shared_ptr<ExecutorManager> _exectorMgr;

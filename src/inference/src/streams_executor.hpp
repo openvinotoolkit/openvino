@@ -34,6 +34,14 @@ public:
 
 CPU& cpu_info();
 
+void reserve_cpu_by_streams_info(const std::vector<std::vector<int>> _streams_info_table,
+                                 const std::vector<std::vector<int>> _cpu_mapping_table,
+                                 const std::vector<std::vector<int>> _proc_type_table,
+                                 const int _numa_nodes,
+                                 std::vector<std::vector<int>>& _stream_processors,
+                                 std::vector<int>& _stream_numa_node_ids,
+                                 const int _cpu_status);
+
 #ifdef __linux__
 /**
  * @brief      Parse processors infomation on Linux

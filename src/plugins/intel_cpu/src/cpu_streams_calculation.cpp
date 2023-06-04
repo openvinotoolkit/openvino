@@ -279,7 +279,6 @@ void get_num_streams(const int streams,
                                             config.changedHyperThreading,
                                             config.perfHintsConfig.ovPerfHint,
                                             proc_type_table);
-    executor_config._proc_type_table = proc_type_table;
     executor_config._cpu_pinning = get_cpu_pinning(config.enableCpuPinning,
                                                    config.changedCpuPinning,
                                                    streams,

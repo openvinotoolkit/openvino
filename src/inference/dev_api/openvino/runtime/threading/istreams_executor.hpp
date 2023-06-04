@@ -113,11 +113,9 @@ public:
         } _threadPreferredCoreType =
             PreferredCoreType::ANY;  //!< In case of @ref HYBRID_AWARE hints the TBB to affinitize
 
-        std::vector<std::vector<int>> _proc_type_table;
-        std::vector<std::vector<int>> _streams_info_table = {{}};
+        std::vector<std::vector<int>> _streams_info_table = {};
         std::vector<std::vector<int>> _stream_processor_ids;
         std::vector<int> _stream_numa_node_ids;
-        std::vector<std::vector<int>> _stream_stream_infos;
         bool _cpu_pinning = false;
         bool _streams_changed = false;
 
@@ -141,7 +139,7 @@ public:
                int threadBindingOffset = 0,
                int threads = 0,
                PreferredCoreType threadPreferredCoreType = PreferredCoreType::ANY,
-               std::vector<std::vector<int>> streamsInfoTable = {{}},
+               std::vector<std::vector<int>> streamsInfoTable = {},
                bool cpuPinning = false)
             : _name{name},
               _streams{streams},

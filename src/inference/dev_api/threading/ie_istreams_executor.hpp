@@ -96,7 +96,7 @@ public:
                int threadBindingOffset = 0,
                int threads = 0,
                PreferredCoreType threadPreferredCoreType = PreferredCoreType::ANY,
-               std::vector<std::vector<int>> streamsInfoTable = {{}},
+               std::vector<std::vector<int>> streamsInfoTable = {},
                bool cpuPinning = false)
             : ov::threading::IStreamsExecutor::Config(name,
                                                       streams,
