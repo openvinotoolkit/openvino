@@ -150,12 +150,6 @@ if(_IE_nlohmann_json_FOUND)
 endif()
 unset(_IE_nlohmann_json_FOUND)
 
-# inherit OpenCV from main IE project if enabled
-if ("@OpenCV_FOUND@")
-    load_cache("${cache_path}" READ_WITH_PREFIX "" OpenCV_DIR)
-    find_dependency(OpenCV)
-endif()
-
 #
 # Extra Compile Flags
 #
