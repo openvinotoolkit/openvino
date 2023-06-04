@@ -9,15 +9,15 @@ Downloading and Converting Model to ONNX
 
 * Clone the `repository <https://github.com/open-mmlab/mmdetection>`__ :
 
-.. code-block:: sh
+  .. code-block:: sh
 
-   git clone https://github.com/open-mmlab/mmdetection
-   cd mmdetection
+     git clone https://github.com/open-mmlab/mmdetection
+     cd mmdetection
 
 
-.. note::
+  .. note::
 
-   To set up an environment, refer to the `instructions <https://github.com/open-mmlab/mmdetection/blob/master/docs/en/get_started.md#installation>`__.
+     To set up an environment, refer to the `instructions <https://github.com/open-mmlab/mmdetection/blob/master/docs/en/get_started.md#installation>`__.
 
 * Download the pre-trained `model <https://download.openmmlab.com/mmdetection/v2.0/cascade_rcnn/cascade_rcnn_r101_fpn_1x_coco/cascade_rcnn_r101_fpn_1x_coco_20200317-0b6a2fbf.pth>`__. The model is also available `here <https://github.com/open-mmlab/mmdetection/blob/master/configs/cascade_rcnn/README.md>`__.
 
