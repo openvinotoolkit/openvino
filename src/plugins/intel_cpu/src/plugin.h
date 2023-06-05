@@ -53,6 +53,10 @@ private:
                             int stream_mode,
                             const bool enable_hyper_thread = true) const;
 
+    void SaveMultiThreadingConfig(std::map<std::string, std::string>& config,
+                                  const std::shared_ptr<ngraph::Function>& ngraphFunc);
+    void LoadMultiThreadingConfig(Config& config, const std::shared_ptr<ov::Model>& function);
+
     Config engConfig;
     ExtensionManager::Ptr extensionManager = std::make_shared<ExtensionManager>();
     /* Explicily configured streams have higher priority than performance hints.

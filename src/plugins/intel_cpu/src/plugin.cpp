@@ -272,13 +272,92 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
     }
 }
 
+void Engine::SaveMultiThreadingConfig(std::map<std::string, std::string>& config,
+                                      const std::shared_ptr<ngraph::Function>& ngraphFunc) {
+    ov::AnyMap hints_props;
+    Config conf_temp;
+    conf_temp.readProperties(config);
+
+    for (auto it = config.begin(); it != config.end(); it++) {
+        auto key = it->first;
+        auto value = it->second;
+        if (key == CONFIG_KEY(CPU_THROUGHPUT_STREAMS) || key == ov::num_streams.name()) {
+            hints_props.insert(
+                {std::string(ov::num_streams.name()), std::to_string(conf_temp.streamExecutorConfig._streams)});
+        } else if (key == PluginConfigParams::KEY_PERFORMANCE_HINT || key == ov::hint::performance_mode.name()) {
+            hints_props.insert({std::string(ov::hint::performance_mode.name()), value});
+        } else if (key == ov::hint::scheduling_core_type.name()) {
+            hints_props.insert({std::string(ov::hint::scheduling_core_type.name()), value});
+        } else if (key == ov::hint::enable_hyper_threading.name()) {
+            hints_props.insert({std::string(ov::hint::enable_hyper_threading.name()), value});
+        } else if (key == ov::hint::enable_cpu_pinning.name()) {
+            hints_props.insert({std::string(ov::hint::enable_cpu_pinning.name()), value});
+        } else if (key == ov::inference_num_threads.name()) {
+            hints_props.insert({std::string(ov::inference_num_threads.name()), value});
+        } else if (key == ov::hint::num_requests.name() ||
+                   key == PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS) {
+            hints_props.insert({std::string(ov::hint::num_requests.name()), value});
+        }
+    }
+
+    if (!hints_props.empty()) {
+        ngraphFunc->set_rt_info(hints_props, "intel_cpu_hints_config");
+    }
+}
+
+void Engine::LoadMultiThreadingConfig(Config& config, const std::shared_ptr<ov::Model>& function) {
+    if (function->has_rt_info("intel_cpu_hints_config") && !config.perfHintsConfig.ovPerfHint.empty()) {
+        const auto& hints_config = function->get_rt_info<ov::AnyMap>("intel_cpu_hints_config");
+
+        const auto perf_name = std::string(ov::hint::performance_mode.name());
+        const auto it_perf = hints_config.find(perf_name);
+        if (it_perf != hints_config.end()) {
+            config.readProperties({{perf_name, it_perf->second.as<std::string>()}});
+        }
+
+        const auto stream_name = std::string(ov::num_streams.name());
+        const auto it_stream = hints_config.find(stream_name);
+        if (it_stream != hints_config.end()) {
+            config.readProperties({{stream_name, it_stream->second.as<std::string>()}});
+        }
+
+        const auto scheduling_core_type_name = std::string(ov::hint::scheduling_core_type.name());
+        const auto it_scheduling = hints_config.find(scheduling_core_type_name);
+        if (it_scheduling != hints_config.end()) {
+            config.readProperties({{scheduling_core_type_name, it_scheduling->second.as<std::string>()}});
+        }
+
+        const auto hyper_thread_name = std::string(ov::hint::enable_hyper_threading.name());
+        const auto it_hyper = hints_config.find(hyper_thread_name);
+        if (it_hyper != hints_config.end()) {
+            config.readProperties({{hyper_thread_name, it_hyper->second.as<std::string>()}});
+        }
+
+        const auto cpu_pinning_name = std::string(ov::hint::enable_cpu_pinning.name());
+        const auto it_pinning = hints_config.find(cpu_pinning_name);
+        if (it_pinning != hints_config.end()) {
+            config.readProperties({{cpu_pinning_name, it_pinning->second.as<std::string>()}});
+        }
+
+        const auto threads_name = std::string(ov::inference_num_threads.name());
+        const auto it_thread = hints_config.find(threads_name);
+        if (it_thread != hints_config.end()) {
+            config.readProperties({{threads_name, it_thread->second.as<std::string>()}});
+        }
+
+        const auto request_name = std::string(ov::hint::num_requests.name());
+        const auto it_request = hints_config.find(request_name);
+        if (it_request != hints_config.end()) {
+            config.readProperties({{request_name, it_request->second.as<std::string>()}});
+        }
+    }
+}
+
 void Engine::GetPerformanceStreams(Config& config, const std::shared_ptr<ngraph::Function>& ngraphFunc) {
     const auto perf_hint_name = config.perfHintsConfig.ovPerfHint;
-    // save hints parameters to model rt_info
-    ov::AnyMap hints_props;
-    std::string hint_name;
     const int latency_streams = get_num_numa_nodes();
     int streams;
+
     if (config.streamExecutorConfig._streams_changed) {
         streams = config.streamExecutorConfig._streams;
     } else if (perf_hint_name == CONFIG_VALUE(LATENCY)) {
@@ -289,14 +368,8 @@ void Engine::GetPerformanceStreams(Config& config, const std::shared_ptr<ngraph:
         streams = config.streamExecutorConfig._streams == 1 ? 0 : config.streamExecutorConfig._streams;
     }
 
-    const auto latency_name = std::string(CONFIG_VALUE(LATENCY)) + "_" + std::string(ov::num_streams.name());
-    const auto tput_name = std::string(CONFIG_VALUE(THROUGHPUT)) + "_" + std::string(ov::num_streams.name());
-
     get_num_streams(streams, ngraphFunc, config);
 
-    hints_props.insert({latency_name, std::to_string(latency_streams)});
-    hints_props.insert({tput_name, std::to_string(config.streamExecutorConfig._streams)});
-    ngraphFunc->set_rt_info(hints_props, "intel_cpu_hints_config");
     config._config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = std::to_string(config.streamExecutorConfig._streams);
 }
 
@@ -482,6 +555,11 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     // update the props after the perf mode translated to configs
     // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
     Config conf = engConfig;
+
+    // save hints parameters to model rt_info
+    if(is_cpu_map_available()) {
+        SaveMultiThreadingConfig(config, nGraphFunc);
+    }
 
     conf.readProperties(config);
     if (conf.enableDynamicBatch) {
@@ -779,31 +857,32 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istr
 
     CNNNetwork cnnnetwork;
     deserializer >> cnnnetwork;
-
+ 
     Config conf = engConfig;
-    conf.readProperties(config);
 
     // import config props from caching model
     auto function = cnnnetwork.getFunction();
-    if (function->has_rt_info("intel_cpu_hints_config") && !conf.perfHintsConfig.ovPerfHint.empty()) {
-        const auto mode_name = conf.perfHintsConfig.ovPerfHint;
-        if (mode_name == CONFIG_VALUE(LATENCY) || mode_name == CONFIG_VALUE(THROUGHPUT)) {
-            const auto& hints_config = function->get_rt_info<ov::AnyMap>("intel_cpu_hints_config");
-            const auto hints_param_name = mode_name + "_" + std::string(ov::num_streams.name());
-            const auto it = hints_config.find(hints_param_name);
-            if (it != hints_config.end()) {
-                conf.readProperties({{std::string(ov::num_streams.name()), it->second.as<std::string>()}});
-            } else {
-                IE_THROW() << "Cache file doesn't contain precalculated number of streams for mode " << mode_name;
-            }
-        }
+    LoadMultiThreadingConfig(conf, function);
+
+    conf.readProperties(config);
+
+    const int latency_streams = get_num_numa_nodes();
+    int streams;
+    if (conf.streamExecutorConfig._streams_changed) {
+        streams = conf.streamExecutorConfig._streams;
+    } else if (conf.perfHintsConfig.ovPerfHint == CONFIG_VALUE(LATENCY)) {
+        streams = latency_streams;
+    } else if (conf.perfHintsConfig.ovPerfHint == CONFIG_VALUE(THROUGHPUT)) {
+        streams = 0;
+    } else {
+        streams = conf.streamExecutorConfig._streams == 1 ? 0 : conf.streamExecutorConfig._streams;
     }
 
     if (conf.enableDynamicBatch) {
         conf.batchLimit = static_cast<int>(cnnnetwork.getBatchSize());
     }
     if (is_cpu_map_available()) {
-        get_num_streams(conf.streamExecutorConfig._streams, function, conf);
+        get_num_streams(streams, function, conf);
     }
 
     auto execNetwork = std::make_shared<ExecNetwork>(cnnnetwork, conf, extensionManager, shared_from_this());
