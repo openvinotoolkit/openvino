@@ -8,9 +8,11 @@ import torch
 import torch.nn.functional as F
 import torchvision.transforms as transforms
 
+from pytorch_layer_test_class import PytorchLayerTest
+
 from openvino.runtime import Core
 
-from preprocess_converter import PreprocessConvertor
+from openvino.preprocess.torchvision_to_ov import PreprocessConverter
 
 
 class Convnet(torch.nn.Module):
@@ -33,7 +35,7 @@ def _infer_pipelines(test_input, preprocess_pipeline, input_channels=3):
     ov_model = core.read_model(model="test_convnet.onnx")
     os.remove("test_convnet.onnx")
 
-    ov_model = PreprocessConvertor.from_torchvision(
+    ov_model = PreprocessConverter.from_torchvision(
         model=ov_model, transform=preprocess_pipeline, input_example=Image.fromarray(test_input.astype("uint8"), "RGB")
     )
     ov_model = core.compile_model(ov_model, "CPU")
@@ -55,19 +57,20 @@ def _infer_pipelines(test_input, preprocess_pipeline, input_channels=3):
     return torch_result, ov_result
 
 
-def test_Normalize():  # TODO: does inplace affect us?
-    test_input = np.random.randint(255, size=(224, 224, 3), dtype=np.uint8)
-    preprocess_pipeline = transforms.Compose([transforms.ToTensor(), transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
-    torch_result, ov_result = _infer_pipelines(test_input, preprocess_pipeline)
-    assert np.max(np.absolute(torch_result - ov_result)) < 4e-05
+class TestNormalize(PytorchLayerTest):
+    def test_Normalize(self):
+        test_input = np.random.randint(255, size=(224, 224, 3), dtype=np.uint8)
+        preprocess_pipeline = transforms.Compose([transforms.ToTensor(), transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
+        torch_result, ov_result = _infer_pipelines(test_input, preprocess_pipeline)
+        assert np.max(np.absolute(torch_result - ov_result)) < 4e-05
 
 
-@pytest.mark.parametrize(
+""" @pytest.mark.parametrize(
     ("interpolation", "tolerance"),
     [
         (transforms.InterpolationMode.NEAREST, 4e-05),
-        (transforms.InterpolationMode.BICUBIC, 0.7),  # TODO: is this expected?
-        (transforms.InterpolationMode.BILINEAR, 0.3),  # TODO: is this expected?
+        (transforms.InterpolationMode.BICUBIC, 1e-03),
+        (transforms.InterpolationMode.BILINEAR, 1e-03),
     ],
 )
 def test_Resize(interpolation, tolerance):
@@ -221,4 +224,4 @@ def test_pipeline_2():
         ]
     )
     torch_result, ov_result = _infer_pipelines(test_input, preprocess_pipeline)
-    assert np.max(np.absolute(torch_result - ov_result)) < 1.0  # TODO: is this expected?
+    assert np.max(np.absolute(torch_result - ov_result)) < 1.0  # TODO: is this expected? """

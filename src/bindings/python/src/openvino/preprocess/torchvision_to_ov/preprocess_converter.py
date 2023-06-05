@@ -4,7 +4,7 @@ import logging
 import openvino.runtime as ov
 
 
-class PreprocessConvertor():
+class PreprocessConverter():
     def __init__(self, model: ov.Model):
         self._model = model
 
@@ -12,7 +12,7 @@ class PreprocessConvertor():
     def from_torchvision(model: ov.Model, transform: Callable, input_example: Any,
                          input_name: str = None) -> ov.Model:
         """
-        Convert torchvision transform to OpenVINO preprocessing
+        Embed torchvision preprocessing in an OpenVINO model
         Arguments:
             model (ov.Model):
                 Result name
@@ -21,20 +21,20 @@ class PreprocessConvertor():
             input_example (torch.Tensor or np.ndarray or PIL.Image):
                 Example of input data for transform to trace its structure.
                 Don't confuse with the model input.
-            input_name (str):
-                Name of the result node to connect with preprocessing.
-                It can be None if the model has one input.
+            input_name (str, optional):
+                Name of the current model's input node to connect with preprocessing.
+                Not needed if the model has one input.
         Returns:
-            ov.Mode: OpenVINO Model object with preprocessing
+            ov.Mode: OpenVINO Model object with embedded preprocessing
         Example:
             >>> model = PreprocessorConvertor.from_torchvision(model, "input", transform, input_example)
         """
         try:
             from torchvision import transforms
-            from torchvision_preprocessing import from_torchvision
-            return from_torchvision(model, transform, input_example, input_name)
-        except ImportError:
-            raise ImportError("Please install torchvision")
+            from torchvision_preprocessing import _from_torchvision
+            return _from_torchvision(model, transform, input_example, input_name)
+        except ImportError as e:
+            raise ImportError(f"Please install torchvision and pillow packages:\n{e}")
         except Exception as e:
             logging.error(f"Unexpected error: {e}")
             raise e
