@@ -29,6 +29,9 @@ class GraphIteratorTFGraph(GraphIterator):
         inp_names = []
         for inp in inp_ops:
             type_attr = inp.node_def.attr["dtype"].type
+            # Placeholders with type "resource" have exact values in "variables" field,
+            # so they are passed to TF FE as constants.
+            # For this reason they are not listed as model inputs.
             if tf.dtypes.DType(type_attr).name != "resource" or self.m_inner_graph:
                 inp_names.append(inp.name)
         return inp_names

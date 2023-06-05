@@ -393,9 +393,9 @@ def prepare_ir(argv: argparse.Namespace):
             if not argv.use_legacy_frontend and is_tf:
                 import tensorflow as tf
                 from openvino.frontend.tensorflow.graph_iterator import GraphIteratorTFGraph
-                if isinstance(argv.input_model, tf.Graph):
+                if isinstance(argv.input_model, tf.Graph) and 'tf' in available_moc_front_ends:
                     argv.input_model = GraphIteratorTFGraph(argv.input_model)
-                elif isinstance(argv.input_model, tf.types.experimental.ConcreteFunction):
+                elif isinstance(argv.input_model, tf.types.experimental.ConcreteFunction) and 'tf' in available_moc_front_ends:
                     argv.input_model = GraphIteratorTFGraph(argv.input_model.graph)
                 else:
                     from openvino.tools.mo.front.tf.loader import convert_to_pb
