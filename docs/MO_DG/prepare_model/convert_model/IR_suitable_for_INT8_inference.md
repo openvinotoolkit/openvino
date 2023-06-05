@@ -43,6 +43,6 @@ See the visualization of `Convolution` with the compressed weights:
 
 .. image:: _static/images/compressed_int8_Convolution_weights.png
 
-Mdel conversion API generates a compressed IR by default.
+Model conversion API generates a compressed IR by default.
 
 @endsphinxdirective

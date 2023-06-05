@@ -189,7 +189,7 @@ Learn OpenVINO Development Tools
 
 * Explore a variety of pre-trained deep learning models in the :doc:`Open Model Zoo <model_zoo>` and deploy them in demo applications to see how they work.
 * Want to import a model from another framework and optimize its performance with OpenVINO? Visit the :doc:`Convert a Model <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>` page.
-* Accelerate your model's speed even further with quantization and other compression techniques using :doc:` Neural Network Compression Framework (NNCF) <ptq_introduction>`.
+* Accelerate your model's speed even further with quantization and other compression techniques using :doc:`Neural Network Compression Framework (NNCF) <ptq_introduction>`.
 * Benchmark your model's inference speed with one simple command using the :doc:`Benchmark Tool <openvino_inference_engine_tools_benchmark_tool_README>`.
 
 Additional Resources

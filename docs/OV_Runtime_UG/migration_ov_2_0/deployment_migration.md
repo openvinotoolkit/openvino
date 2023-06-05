@@ -58,6 +58,7 @@ Then, the tools can be used by commands like:
 .. code-block:: sh
 
    $ mo -h
+   $ pot -h
 
 
 Installation of any other dependencies is not required. For more details on the installation steps, see the :doc:`Install OpenVINO Development Tools <openvino_docs_install_guides_install_dev_tools>`.
