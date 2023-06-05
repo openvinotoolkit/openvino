@@ -81,6 +81,7 @@ def absolutizePaths(cfg):
     pl = sys.platform
     if pl == "linux" or pl == "linux2":
         cfg["workPath"] = cfg["linWorkPath"]
+        cfg["os"] = "linux"
     elif pl == "win32":
         wp = cfg["winWorkPath"]
         wp = "echo {path}".format(path=wp)
@@ -88,6 +89,7 @@ def absolutizePaths(cfg):
         wp = wp.decode()
         wp = wp.rstrip()
         cfg["workPath"] = wp
+        cfg["os"] = "win"
     else:
         raise CfgError(
             "No support for current OS: {pl}".format(pl=pl)
@@ -199,7 +201,7 @@ def runCommandList(commit, cfgData, enforceClean=False):
                     raise CmdError(checkOut)
 
 
-def fetchAppOutput(cfg):
+def fetchAppOutput(cfg, commit):
     newEnv = os.environ.copy()
     if "envVars" in cfg:
         for env in cfg["envVars"]:
@@ -208,6 +210,10 @@ def fetchAppOutput(cfg):
             newEnv[envKey] = envVal
     appCmd = cfg["appCmd"]
     appPath = cfg["appPath"]
+    commitLogger = getCommitLogger(cfg, commit)
+    commitLogger.info("Run command: {command}".format(
+        command=appCmd)
+    )
     p = subprocess.Popen(
         appCmd.split(),
         cwd=appPath,
@@ -273,12 +279,12 @@ def getActualPath(pathName, cfg):
     return curPath.format(workPath=workPath)
 
 
-def safeClearDir(path):
+def safeClearDir(path, cfg):
     if not os.path.exists(path):
         os.makedirs(path)
-    try:
+    if cfg["os"] == "win":
         shutil.rmtree(path)
-    except PermissionError:
+    else:
         # WA, because of unstability of rmtree()
         # in linux environment
         p = subprocess.Popen(
