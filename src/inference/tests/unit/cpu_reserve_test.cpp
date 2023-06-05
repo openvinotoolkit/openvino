@@ -96,10 +96,7 @@ LinuxCpuReserveTestCase _2sockets_72cores_hyper_36streams = {
         {36}, {37}, {38}, {39}, {40}, {41}, {42}, {43}, {44}, {45}, {46}, {47}, {48}, {49}, {50}, {51}, {52}, {53},
         {54}, {55}, {56}, {57}, {58}, {59}, {60}, {61}, {62}, {63}, {64}, {65}, {66}, {67}, {68}, {69}, {70}, {71},
     },
-    {
-        {0}, {0}, {0}, {0}, {0}, {0}, {0}, {0}, {0}, {0}, {0}, {0}, {0}, {0}, {0}, {0}, {0}, {0},
-        {1}, {1}, {1}, {1}, {1}, {1}, {1}, {1}, {1}, {1}, {1}, {1}, {1}, {1}, {1}, {1}, {1}, {1},
-    },
+    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
 };
 LinuxCpuReserveTestCase _2sockets_72cores_hyper_2streams = {
     72,
@@ -148,10 +145,7 @@ LinuxCpuReserveTestCase _2sockets_72cores_hyper_2streams = {
         {36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53},
         {54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71},
     },
-    {
-        {0},
-        {1},
-    },
+    {0, 1},
 };
 LinuxCpuReserveTestCase _2sockets_72cores_hyper_7streams = {
     72,
@@ -205,7 +199,7 @@ LinuxCpuReserveTestCase _2sockets_72cores_hyper_7streams = {
         {64, 65, 66, 67, 68},
         {69, 70, 71, 51, 52},
     },
-    {{0}, {0}, {0}, {1}, {1}, {1}, {-1}},
+    {0, 0, 0, 1, 1, 1, -1},
 };
 LinuxCpuReserveTestCase _2sockets_72cores_hyper_8streams = {
     72,
@@ -260,7 +254,7 @@ LinuxCpuReserveTestCase _2sockets_72cores_hyper_8streams = {
         {62, 63, 64, 65},
         {66, 67, 68, 69},
     },
-    {{0}, {0}, {0}, {0}, {1}, {1}, {1}, {1}},
+    {0, 0, 0, 0, 1, 1, 1, 1},
 };
 LinuxCpuReserveTestCase _2sockets_72cores_hyper_9streams = {
     72,
@@ -316,7 +310,7 @@ LinuxCpuReserveTestCase _2sockets_72cores_hyper_9streams = {
         {66, 67, 68, 69},
         {70, 71, 52, 53},
     },
-    {{0}, {0}, {0}, {0}, {1}, {1}, {1}, {1}, {-1}},
+    {0, 0, 0, 0, 1, 1, 1, 1, -1},
 };
 LinuxCpuReserveTestCase _1socket_4cores_hyper_1streams = {
     8,
@@ -334,7 +328,7 @@ LinuxCpuReserveTestCase _1socket_4cores_hyper_1streams = {
     },
     {{1, MAIN_CORE_PROC, 4}},
     {{4, 5, 6, 7}},
-    {{0}},
+    {0},
 };
 LinuxCpuReserveTestCase _1socket_4cores_hyper_4streams = {
     8,
@@ -352,7 +346,7 @@ LinuxCpuReserveTestCase _1socket_4cores_hyper_4streams = {
     },
     {{2, MAIN_CORE_PROC, 2}, {2, HYPER_THREADING_PROC, 2}},
     {{4, 5}, {6, 7}, {0, 1}, {2, 3}},
-    {{0}, {0}, {0}, {0}},
+    {0, 0, 0, 0},
 };
 LinuxCpuReserveTestCase _1socket_16cores_hyper_20streams = {
     24,
@@ -377,7 +371,7 @@ LinuxCpuReserveTestCase _1socket_16cores_hyper_20streams = {
         {1},      {3},      {5}, {7}, {9}, {11}, {13}, {15}, {16, 17}, {18, 19},
         {20, 21}, {22, 23}, {0}, {2}, {4}, {6},  {8},  {10}, {12},     {14},
     },
-    {{0}, {0}, {0}, {0}, {0}, {0}, {0}, {0}, {0}, {0}, {0}, {0}, {0}, {0}, {0}, {0}, {0}, {0}, {0}, {0}},
+    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 };
 LinuxCpuReserveTestCase _1socket_16cores_hyper_1streams = {
     24,
@@ -399,7 +393,7 @@ LinuxCpuReserveTestCase _1socket_16cores_hyper_1streams = {
     },
     {{1, MAIN_CORE_PROC, 8}},
     {{1, 3, 5, 7, 9, 11, 13, 15}},
-    {{0}},
+    {0},
 };
 LinuxCpuReserveTestCase _1socket_16cores_hyper_4streams = {
     24,
@@ -426,7 +420,7 @@ LinuxCpuReserveTestCase _1socket_16cores_hyper_4streams = {
         {16, 17, 18, 19},
         {20, 21, 22, 23},
     },
-    {{0}, {0}, {0}, {0}},
+    {0, 0, 0, 0},
 };
 
 TEST_P(LinuxCpuReserveTests, LinuxCpuReserve) {}
