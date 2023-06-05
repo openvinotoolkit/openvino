@@ -38,10 +38,17 @@ OutputVector translate_cat_fx(const NodeContext& context) {
     // This translator is only needed to get axis as constant from external scope
     num_inputs_check(context, 2, context.get_input_size());
     std::deque<Output<Node>> list_elems;
-    for (size_t i=0; i<context.get_input_size()-1; i++) {
+    list_elems.push_back(context.get_input(0));
+    list_elems.push_back(context.get_input(1));
+
+/*    for (size_t i=0; i<context.get_input_size()-1; i++) {
         list_elems.push_back(context.get_input(i));
     }
-    auto axis = context.const_input<int64_t>(context.get_input_size()-1);
+    auto axis = context.const_input<int64_t>(context.get_input_size()-1); */
+     int64_t axis = 0;
+    if (!context.input_is_none(2))
+        axis = context.const_input<int64_t>(2);
+
     return translate_cat_common(context, list_elems, axis);
 };
 

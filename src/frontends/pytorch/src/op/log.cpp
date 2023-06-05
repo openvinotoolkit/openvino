@@ -8,6 +8,8 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
+#include "openvino/op/exp.hpp"
+#include "openvino/op/reduce_sum.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -36,6 +38,20 @@ OutputVector translate_log2(const NodeContext& context) {
     auto log = context.mark_node(std::make_shared<v0::Log>(x));
     auto res = context.mark_node(std::make_shared<v1::Divide>(log, log2));
     return {res};
+};
+
+OutputVector translate_logsumexp(const NodeContext& context) {
+    auto input = context.get_input(0);
+    ov::Output<ov::Node> dim;
+    if (!context.input_is_none(1)) {
+        dim = context.get_input(1);
+    } else {
+        dim = get_axes_range(context, 0);
+    }
+    auto exp = context.mark_node(std::make_shared<v0::Exp>(input));   
+    auto sum = context.mark_node(std::make_shared<v1::ReduceSum>(exp, dim, true));
+    auto log = context.mark_node(std::make_shared<v0::Log>(sum));
+    return {log};
 };
 
 }  // namespace op
