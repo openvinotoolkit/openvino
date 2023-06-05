@@ -79,7 +79,7 @@ using StaticShapeRef = StaticShapeAdapter<const VectorDims>;
 using StaticShapeCon = StaticShapeAdapter<VectorDims>;  // Rename when when StaticShape class will be removed.
 
 template <class T>
-constexpr bool is_conditional_shape() {
+constexpr bool is_static_shape_adapter() {
     using U = typename std::decay<T>::type;
     return std::is_same<U, StaticShapeRef>::value || std::is_same<U, StaticShapeCon>::value;
 }
@@ -91,7 +91,6 @@ constexpr bool is_conditional_shape() {
  */
 template <>
 class StaticShapeAdapter<VectorDims> {
-    using is_shape_ref = typename std::is_const<VectorDims>;
     using TDims = VectorDims;
     using dim_type = typename TDims::value_type;
 
@@ -103,11 +102,11 @@ public:
     using const_iterator = typename TDims::const_iterator;
 
     static_assert(std::is_same<dim_type, typename StaticDimension::value_type>::value,
-                  "Static dimension must same type as CPU dimension.");
+                  "Static dimension must be of the same type as the CPU dimension.");
     static_assert(std::is_standard_layout<StaticDimension>::value,
                   "StaticShape must be standard layout to cast on CPU dimension type.");
     static_assert(sizeof(dim_type) == sizeof(StaticDimension),
-                  "StaticDimension must have same number of bytes as CPU dimension type.");
+                  "StaticDimension must have the same number of bytes as the CPU dimension type.");
 
     StaticShapeAdapter();
     StaticShapeAdapter(const TDims& dims);
@@ -149,16 +148,16 @@ public:
         return !is_static();
     }
 
-    template <class TShape>
-    constexpr typename std::enable_if<is_conditional_shape<TShape>(), bool>::type compatible(
-        const TShape& other) const {
+    template <class T>
+    constexpr typename std::enable_if<is_static_shape_adapter<T>(), bool>::type compatible(
+        const T& other) const {
         // for static shape compatible == both shape equals
         return *this == other;
     }
 
-    template <class TShape>
-    constexpr typename std::enable_if<is_conditional_shape<TShape>(), bool>::type same_scheme(
-        const TShape& other) const {
+    template <class T>
+    constexpr typename std::enable_if<is_static_shape_adapter<T>(), bool>::type same_scheme(
+        const T& other) const {
         // for static shape same_scheme == compatible;
         return compatible(other);
     }
@@ -261,15 +260,15 @@ public:
     using ShapeContainer = StaticShapeCon;
 
     using value_type = StaticDimension;
-    using iterator = typename VectorDims::const_iterator;
-    using const_iterator = typename VectorDims::const_iterator;
+    using iterator = typename TDims::const_iterator;
+    using const_iterator = typename TDims::const_iterator;
 
     static_assert(std::is_same<dim_type, typename StaticDimension::value_type>::value,
-                  "Static dimension must same type as CPU dimension.");
+                  "Static dimension must be of the same type as the CPU dimension.");
     static_assert(std::is_standard_layout<StaticDimension>::value,
                   "StaticShape must be standard layout to cast on CPU dimension type.");
     static_assert(sizeof(dim_type) == sizeof(StaticDimension),
-                  "StaticDimension must have same number of bytes as CPU dimension type.");
+                  "StaticDimension must have the same number of bytes as the CPU dimension type.");
 
     constexpr StaticShapeAdapter() : m_dims{} {}
     constexpr StaticShapeAdapter(const TDims& dims) : m_dims{&dims} {}
@@ -298,16 +297,16 @@ public:
         return !is_static();
     }
 
-    template <class TShape>
-    constexpr typename std::enable_if<is_conditional_shape<TShape>(), bool>::type compatible(
-        const TShape& other) const {
+    template <class T>
+    constexpr typename std::enable_if<is_static_shape_adapter<T>(), bool>::type compatible(
+        const T& other) const {
         // for static shape compatible == both shape equals
         return *this == other;
     }
 
-    template <class TShape>
-    constexpr typename std::enable_if<is_conditional_shape<TShape>(), bool>::type same_scheme(
-        const TShape& other) const {
+    template <class T>
+    constexpr typename std::enable_if<is_static_shape_adapter<T>(), bool>::type same_scheme(
+        const T& other) const {
         // for static shape same_scheme == compatible;
         return compatible(other);
     }
@@ -346,11 +345,11 @@ public:
     }
 
 private:
-    const TDims* m_dims;
+    const TDims* m_dims = nullptr;
 };
 
 template <class T>
-typename std::enable_if<is_conditional_shape<T>(), std::ostream&>::type operator<<(std::ostream& out, const T& shape) {
+typename std::enable_if<is_static_shape_adapter<T>(), std::ostream&>::type operator<<(std::ostream& out, const T& shape) {
     out << '{';
     std::copy(shape.cbegin(), shape.cend() - 1, std::ostream_iterator<StaticDimension>(out, ","));
     if (!shape.empty()) {
@@ -361,12 +360,12 @@ typename std::enable_if<is_conditional_shape<T>(), std::ostream&>::type operator
 }
 
 template <class T, class U>
-constexpr typename std::enable_if<is_conditional_shape<T>() && is_conditional_shape<U>(), bool>::type operator==(
+constexpr typename std::enable_if<is_static_shape_adapter<T>() && is_static_shape_adapter<U>(), bool>::type operator==(
     const T& lhs,
     const U& rhs) {
     // The CPU dimension type and StaticDimension::value_type is same,
     // use CPU dimension type to compare in order to reduce number of conversions to StaticDimension.
-    return (lhs.size() == rhs.size()) && std::equal(lhs.cbegin(), lhs.cend(), rhs.cbegin(), std::equal_to<size_t>());
+    return (lhs.size() == rhs.size()) && (lhs.empty() || std::equal(lhs.cbegin(), lhs.cend(), rhs.cbegin()));
 }
 }  // namespace intel_cpu
 }  // namespace ov
