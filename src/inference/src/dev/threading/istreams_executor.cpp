@@ -504,9 +504,6 @@ IStreamsExecutor::Config IStreamsExecutor::Config::make_default_multi_threaded(c
 
 IStreamsExecutor::Config IStreamsExecutor::Config::reserve_cpu_threads(const IStreamsExecutor::Config& initial) {
     auto config = initial;
-    std::vector<int> stream_ids;
-    std::string log = "[ threading ] reserve_cpu_threads " + config._name;
-    std::vector<std::string> core_type_str = {" Any core: ", " PCore: ", " ECore: ", " Logical core: "};
     int status = config._name.find("StreamsExecutor") != std::string::npos ? NOT_USED : CPU_USED;
 
     if (config._streams_info_table.size() == 0 || (status == CPU_USED && !config._cpu_reservation)) {
@@ -525,13 +522,10 @@ IStreamsExecutor::Config IStreamsExecutor::Config::reserve_cpu_threads(const ISt
             config._streams += config._streams_info_table[i][NUMBER_OF_STREAMS];
             config._threads +=
                 config._streams_info_table[i][NUMBER_OF_STREAMS] * config._streams_info_table[i][THREADS_PER_STREAM];
-            log += core_type_str[config._streams_info_table[i][PROC_TYPE]] +
-                   std::to_string(config._streams_info_table[i][NUMBER_OF_STREAMS]) + "(" +
-                   std::to_string(config._streams_info_table[i][THREADS_PER_STREAM]) + ")";
         }
     }
-    log += " Total: " + std::to_string(config._streams) + "(" + std::to_string(config._threads) + ")";
-    OPENVINO_DEBUG << log;
+    OPENVINO_DEBUG << "[ threading ] " << config._name << " reserve_cpu_threads " << config._streams << "("
+                   << config._threads << ")";
 
     return config;
 }
