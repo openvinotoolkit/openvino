@@ -22,6 +22,7 @@
 #include <debug.h>
 #include "utils/general_utils.h"
 #include "utils/cpu_utils.hpp"
+#include "memory_desc/dnnl_blocked_memory_desc.h"
 #include <transformations/utils/utils.hpp>
 #include <ie_ngraph_utils.hpp>
 
@@ -266,9 +267,10 @@ void InferRequestBase::changeDefaultPtr() {
             continue;
         }
 
-        auto output = graph->GetOutputNodesMap().getNodePtrByName(it.first);
-        if (output != nullptr) {
-            auto parentEdge = output->getParentEdgeAt(0);
+        const auto& outputNodesMap = graph->GetOutputNodesMap();
+        auto output = outputNodesMap.find(it.first);
+        if (output != outputNodesMap.end()) {
+            auto parentEdge = output->second->getParentEdgeAt(0);
             if (parentEdge->getMemory().GetData() == it.second)
                 continue;
 
@@ -363,13 +365,11 @@ void LegacyInferRequest::changeDefaultPtr() {
         }
     }
     const auto &outMap = graph->outputNodesMap;
-    for (auto &it : outMap.get()) {
-        for (auto name : it.second) {
-            auto itr = externalPtr.find(name);
-            if (itr != externalPtr.end() && itr->second != _outputs[name]->buffer()) {
-                itr->second = _outputs[name]->buffer();
-                break;
-            }
+    for (auto &it : outMap) {
+        const auto &name = it.first;
+        auto itr = externalPtr.find(name);
+        if (itr != externalPtr.end() && itr->second != _outputs[name]->buffer()) {
+            itr->second = _outputs[name]->buffer();
         }
     }
     InferRequestBase::changeDefaultPtr();
@@ -612,7 +612,7 @@ InferRequest::InferRequest(const std::vector<std::shared_ptr<const ov::Node>>& i
                            ExecNetwork::Ptr execNetwork)
 : InferRequestBase(inputs, outputs, execNetwork) {
     for (const std::shared_ptr<const ov::Node>& in : inputs) {
-        modelInputsMap[ov::op::util::get_ie_output_name(ov::Output<const ov::Node>(in))] = in;
+        modelInputsMap[ov::op::util::get_ie_output_name(ngraph::Output<const ngraph::Node>(in))] = in;
     }
     for (const std::shared_ptr<const ov::Node>& out : outputs) {
         modelOutputsMap[ov::op::util::get_ie_output_name(out->input_value(0))] = out;
@@ -678,8 +678,8 @@ void InferRequest::SetBlob(const std::string& name, const InferenceEngine::Blob:
                        << ") and blob (shape=" << vec2str(data->getTensorDesc().getDims()) << ") are incompatible";
         }
 
-        if (!isDynamic && ov::shape_size(shape.to_shape()) != data->size()) {
-            IE_THROW() << "Can't set input blob with name: " << name << ", because model input size = " << ov::shape_size(shape.to_shape())
+        if (!isDynamic && ngraph::shape_size(shape.to_shape()) != data->size()) {
+            IE_THROW() << "Can't set input blob with name: " << name << ", because model input size = " << ngraph::shape_size(shape.to_shape())
                        << " and blob size = " << data->size() << " are different.";
         }
 
@@ -718,8 +718,8 @@ void InferRequest::SetBlob(const std::string& name, const InferenceEngine::Blob:
                        << ") and blob (shape=" << vec2str(data->getTensorDesc().getDims()) << ") are incompatible";
         }
 
-        if (!isDynamic && ov::shape_size(shape.to_shape()) != data->size()) {
-            IE_THROW() << "Can't set output blob with name: " << name << ", because model output size = " << ov::shape_size(shape.to_shape())
+        if (!isDynamic && ngraph::shape_size(shape.to_shape()) != data->size()) {
+            IE_THROW() << "Can't set output blob with name: " << name << ", because model output size = " << ngraph::shape_size(shape.to_shape())
                        << " and blob size = " << data->size() << " are different.";
         }
 
@@ -782,8 +782,9 @@ InferenceEngine::Blob::Ptr InferRequest::GetBlob(const std::string& name) {
         data = _inputs[name];
     }
 
-    auto output = graph->outputNodesMap.getNodePtrByName(name);
-    if (output != nullptr) {
+    const auto &outMap = graph->outputNodesMap;
+    auto output = outMap.find(name);
+    if (output != outMap.end()) {
         if (_outputs.find(name) == _outputs.end()) {
             auto outputNode = modelOutputsMap.find(name);
             if (modelOutputsMap.find(name) != modelOutputsMap.end()) {
@@ -830,7 +831,7 @@ InferenceEngine::Blob::Ptr InferRequest::GetBlob(const std::string& name) {
 
                 _outputs[name] = data;
                 if (!isDynamic && !externalPtr.count(name) &&
-                    data->getTensorDesc() == MemoryDescUtils::convertToTensorDesc(output->getParentEdgesAtPort(0)[0]->getMemory().getDesc()) &&
+                    data->getTensorDesc() == MemoryDescUtils::convertToTensorDesc(output->second->getParentEdgesAtPort(0)[0]->getMemory().getDesc()) &&
                         !graph->getConfig().batchLimit) {
                     externalPtr[name] = data->buffer();
                 }

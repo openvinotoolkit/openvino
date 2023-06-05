@@ -96,13 +96,13 @@ void If::getSupportedDescriptors() {
         }
     }
 
-    auto outMapThen = subGraphThen.GetOutputNodesMap();
+    const auto &outMapThen = subGraphThen.GetOutputNodesMap();
     for (const auto& out : ifOp->get_then_body()->get_results()) {
         const auto prev = out->input_value(0);
         const std::string inputID = ov::op::util::get_ie_output_name(prev);
-        NodePtr outNode = outMapThen.getNodePtrByName(inputID);
-        if (outNode != nullptr) {
-            auto outMem = outNode->getParentEdgeAt(0)->getMemoryPtr();
+        auto outNode = outMapThen.find(inputID);
+        if (outNode != outMapThen.end()) {
+            auto outMem = outNode->second->getParentEdgeAt(0)->getMemoryPtr();
             outputMemThen.push_back(outMem);
         } else {
             IE_THROW() << "Then body of node If with name " << getName() << " does not have output with name: "
@@ -114,9 +114,9 @@ void If::getSupportedDescriptors() {
     for (const auto& out : ifOp->get_else_body()->get_results()) {
         const auto prev = out->input_value(0);
         const std::string inputID = ov::op::util::get_ie_output_name(prev);
-        NodePtr outNode = outMapElse.getNodePtrByName(inputID);
-        if (outNode != nullptr) {
-            auto outMem = outNode->getParentEdgeAt(0)->getMemoryPtr();
+        auto outNode = outMapElse.find(inputID);
+        if (outNode != outMapElse.end()) {
+            auto outMem = outNode->second->getParentEdgeAt(0)->getMemoryPtr();
             outputMemElse.push_back(outMem);
         } else {
             IE_THROW() << "Else body of node If with name " << getName() << " does not have output with name: "

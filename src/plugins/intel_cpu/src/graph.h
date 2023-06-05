@@ -26,7 +26,6 @@ class InferRequestBase;
 class InferRequest;
 
 class Graph {
-    class OutputNodesMap;
 public:
     typedef std::shared_ptr<Graph> Ptr;
 
@@ -84,7 +83,7 @@ public:
         return inputNodesMap;
     }
 
-    const OutputNodesMap& GetOutputNodesMap() {
+    std::map<std::string, NodePtr>& GetOutputNodesMap() {
         return outputNodesMap;
     }
 
@@ -96,14 +95,14 @@ public:
     }
 
     NodePtr getOutputNodeByName(const std::string &name) {
-        auto output = outputNodesMap.getNodePtrByName(name);
-        if (output == nullptr)
+        auto output = outputNodesMap.find(name);
+        if (output == outputNodesMap.end())
             IE_THROW() << "CPU execution graph doesn't contain output node with name: " << name;
-        return output;
+        return output->second;
     }
 
     bool hasOutputWithName(const std::string& name) const {
-        return outputNodesMap.hasOutputWithName(name);
+        return outputNodesMap.count(name);
     }
 
     dnnl::engine getEngine() const {
@@ -243,25 +242,9 @@ protected:
     friend std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const Graph &graph);
 
 private:
-    class OutputNodesMap {
-    public:
-        void InsertNode(const NodePtr&, const std::unordered_set<std::string>&);
-        const std::unordered_map<NodePtr, std::unordered_set<std::string>>& get() const {
-            return nodesMap;
-        }
-        NodePtr getNodePtrByName(const std::string& name) const;
-        bool hasOutputWithName(const std::string& name) const;
-        void clear() {
-            nodesMap.clear();
-        }
-
-        private:
-            std::unordered_map<NodePtr, std::unordered_set<std::string>> nodesMap;
-    };
-
     // TODO: change std::map to std::unordered_map
     std::map<std::string, NodePtr> inputNodesMap;
-    OutputNodesMap outputNodesMap;
+    std::map<std::string, NodePtr> outputNodesMap;
 
     // these node pointers (from graphNodes) are to avoid regular checking for
     // constantness of nodes in Infer methods and calls of
