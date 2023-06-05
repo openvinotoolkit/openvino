@@ -99,3 +99,4 @@ attach_cum_sum_impl::attach_cum_sum_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::cum_sum_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::cum_sum)

@@ -14,19 +14,6 @@ namespace snippets {
 namespace lowered {
 namespace pass {
 
-namespace {
-auto get_inner_loop_id(const std::vector<size_t>& loop_ids) -> size_t {
-    size_t inner_loop = Expression::LOOP_NULL_ID;
-    for (int i = static_cast<int>(loop_ids.size()) - 1; i >= 0; --i) {
-        if (loop_ids[i] != Expression::LOOP_NULL_ID) {
-            inner_loop = loop_ids[i];
-            break;
-        }
-    }
-    return inner_loop;
-}
-} // namespace
-
 using LoopManager = LinearIR::LoopManager;
 using LoopInfoPtr = LoopManager::LoopInfoPtr;
 
@@ -35,15 +22,15 @@ InsertLoadStore::InsertLoadStore(size_t vector_size) : m_vector_size(vector_size
 void InsertLoadStore::update_loops(const LinearIR::LoopManagerPtr& loop_manager, const std::vector<size_t>& loop_ids,
                                    const ExpressionPort& actual_port, const std::vector<ExpressionPort>& target_ports, bool is_entry) {
     for (auto loop_id : loop_ids) {
-        if (loop_id != Expression::LOOP_NULL_ID)
-            update_loop(loop_manager->get_loop_info(loop_id), actual_port, target_ports, is_entry);
+        update_loop(loop_manager->get_loop_info(loop_id), actual_port, target_ports, is_entry);
     }
 }
 
 void InsertLoadStore::update_loop(const LinearIR::LoopManager::LoopInfoPtr& loop_info,
                                   const ExpressionPort& actual_port, const std::vector<ExpressionPort>& target_ports, bool is_entry) {
-    auto& ports = is_entry ? loop_info->entry_exprs : loop_info->exit_exprs;
-    auto port_it = std::find(ports.begin(), ports.end(), actual_port);
+    auto& ports = is_entry ? loop_info->entry_points : loop_info->exit_points;
+    auto port_it = std::find_if(ports.begin(), ports.end(),
+                                [&actual_port](const LoopManager::LoopPort& point) { return *point.expr_port.get() == actual_port; });
     if (port_it == ports.end())
         return;
     port_it = ports.erase(port_it);
@@ -76,11 +63,7 @@ bool InsertLoadStore::insert_load(LinearIR& linear_ir, const LinearIR::constExpr
         if (ma && ma->is_memory_access_input_port(port))
             return false;
 
-        // Find Inner Loop
-        const auto& loop_ids = consumer_expr->get_loop_ids();
-        const auto inner_loop = get_inner_loop_id(loop_ids);
-        OPENVINO_ASSERT(inner_loop != Expression::LOOP_NULL_ID, "Loop hasn't been found!");
-
+        const auto loop_ids = consumer_expr->get_loop_ids();
         const auto load = std::make_shared<op::Load>(data_node->output(0), get_count(data_expr->get_output_port_descriptor(0)));
         PortDescriptorUtils::set_port_descriptor_ptr(load->output(0), consumer_input.get_descriptor_ptr()->clone());
         const auto load_expr = linear_ir.create_expression(load, {output_connector});
@@ -111,11 +94,7 @@ bool InsertLoadStore::insert_store(LinearIR& linear_ir, const LinearIR::constExp
     if (ma && ma->is_memory_access_output_port(port))
         return false;
 
-    // Find Inner Loop
-    const auto& loop_ids = parent_expr->get_loop_ids();
-    const auto inner_loop = get_inner_loop_id(loop_ids);
-    OPENVINO_ASSERT(inner_loop != Expression::LOOP_NULL_ID, "Loop hasn't been found!");
-
+    const auto loop_ids = parent_expr->get_loop_ids();
     const auto store = std::make_shared<op::Store>(parent->output(port), get_count(data_expr->get_input_port_descriptor(0)));
     PortDescriptorUtils::set_port_descriptor_ptr(store->output(0), parent_output.get_descriptor_ptr()->clone());
     const auto store_expr = linear_ir.create_expression(store, {input_connector});
@@ -128,12 +107,16 @@ bool InsertLoadStore::insert_store(LinearIR& linear_ir, const LinearIR::constExp
 
     // Need to update all the corresponding Loops with the same Exit Point
     const auto prev_exit_point = parent_output;
-    // The previous exit point byt one output port can have several consumers that can be potential exit points
+    // The previous exit point but one output port can have several consumers that can be potential exit points
     // So we should verify on the possible future exit points
     const auto consumer_inputs = input_connector->get_consumers();
     const auto should_be_saved = std::any_of(consumer_inputs.begin(), consumer_inputs.end(),
-                                [](const ExpressionPort& input_port) {
-                                    const auto& node = input_port.get_expr()->get_node();
+                                [&data_expr](const ExpressionPort& input_port) {
+                                    const auto expr = input_port.get_expr();
+                                    // Skip the current data expr since the input of the expr is changed to Store expr
+                                    if (expr == data_expr)
+                                        return false;
+                                    const auto& node = expr->get_node();
                                     return ov::is_type<ov::op::v0::Result>(node) || ov::is_type<op::Buffer>(node);
                                 });
     const auto new_exit_point = store_expr->get_output_port(0);

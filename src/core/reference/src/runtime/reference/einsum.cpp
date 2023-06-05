@@ -16,6 +16,7 @@
 #include "ngraph/runtime/reference/utils/span.hpp"
 #include "ngraph/shape.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace runtime {
 namespace reference {

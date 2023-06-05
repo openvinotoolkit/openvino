@@ -377,7 +377,7 @@ void op::v5::Loop::clone_to(op::v5::Loop& dst, const OutputVector& new_args) con
     dst.m_num_iterations = m_num_iterations;
     dst.m_special_body_ports = m_special_body_ports;
 
-    dst.m_bodies[0] = clone_function(*get_function());
+    dst.m_bodies[0] = get_function()->clone();
 
     for (auto& input_description : m_input_descriptions[0]) {
         dst.m_input_descriptions[0].push_back(input_description->copy());
