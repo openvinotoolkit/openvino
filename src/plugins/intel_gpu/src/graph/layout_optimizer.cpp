@@ -158,12 +158,7 @@ std::pair<std::shared_ptr<reorder>, bool> reorder_factory::get_reorder(primitive
 
 std::pair<std::shared_ptr<primitive>, bool> reorder_factory::get_weights_reorder(primitive_id input_id,
                                                                                  std::shared_ptr<WeightsReorderParams> reorder_params) {
-    if (reorder_params == nullptr)
-        return {};
-
-    layout expected_layout = reorder_params->get_output_layout();
-
-    cache_key ckey{ input_id, expected_layout, false };
+    cache_key ckey{ input_id, reorder_params->get_output_layout(), false };
     auto itr = _cached_reorders.find(ckey);
     if (itr != _cached_reorders.end()) {
         return std::make_pair(itr->second, true);
@@ -171,8 +166,7 @@ std::pair<std::shared_ptr<primitive>, bool> reorder_factory::get_weights_reorder
         auto count = _cached_reorders.size();
         std::string reorder_id = input_id + "_weights_reorder_" + std::to_string(count);
 
-        bool is_grouped = format::is_grouped(reorder_params->get_input_layout().format);
-        auto reorder = std::make_shared<cldnn::reorder>(reorder_id, input_id, expected_layout, is_grouped, reorder_params->should_be_transposed());
+        auto reorder = std::make_shared<cldnn::reorder>(reorder_id, input_id, reorder_params);
         _cached_reorders[ckey] = reorder;
         return std::make_pair(reorder, false);
     }

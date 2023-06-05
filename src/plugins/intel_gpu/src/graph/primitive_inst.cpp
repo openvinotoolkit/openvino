@@ -115,10 +115,7 @@ std::shared_ptr<kernel_impl_params> primitive_impl::get_weights_reorder_kernel_p
         return nullptr;
 
     auto reorder_kernel_params = std::make_shared<kernel_impl_params>();
-    bool is_grouped = format::is_grouped(_weights_reorder_params->get_input_layout().format);
-    bool is_transposed = _weights_reorder_params->should_be_transposed();
-    auto prim = std::make_shared<reorder>("", input_info(), _weights_reorder_params->get_output_layout(), is_grouped, is_transposed);
-
+    auto prim = std::make_shared<reorder>("", input_info(), _weights_reorder_params);
     reorder_kernel_params->desc = prim;
     reorder_kernel_params->unique_id = _weights_reorder_params->hash();
     reorder_kernel_params->input_layouts.push_back(_weights_reorder_params->get_input_layout());
@@ -1111,21 +1108,28 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
     auto alloc_type = use_lockable_memory ? lockable_mem_type
                     : !usm_device_allocatable ? lockable_mem_type : allocation_type::usm_device;
 
-    if ((is_internal && _node.can_be_optimized()) || (memory_reuse_by_user == false)) {
-        GPU_DEBUG_LOG << "[" << _node.id() << ": output]" << std::endl;
-        return get_memory_from_pool(_engine,
-                layout,
-                _node.id(),
-                _node.get_memory_dependencies(),
-                alloc_type,
-                false,
-                reset);
-    } else if (is_internal && !_node.is_output() && _node.is_type<input_layout>()) {
-        // Skip memory reset for input_layout primitives, since data will be copied from cldnn::data primitive
-        // or just reuse primitive's memory
-        GPU_DEBUG_LOG << "[" << _node.id() << ": constant]" << std::endl;
-        return _engine.allocate_memory(layout, alloc_type, false);
-    } else if (is_internal || (!_node.can_share_buffer()) || _node.can_be_optimized() || _node.is_output()) {
+    if (is_internal) {
+        bool is_reorder_weights = _node.is_type<reorder>() && _node.as<reorder>().get_primitive()->weights_reorder_params;
+        if (_node.can_be_optimized() || is_reorder_weights) {
+            GPU_DEBUG_LOG << "[" << _node.id() << ": output]" << std::endl;
+            // Use usm_device memory for weights reordering
+            if (is_internal && is_reorder_weights &&
+                _engine.supports_allocation(allocation_type::usm_device))
+                alloc_type = allocation_type::usm_device;
+            return get_memory_from_pool(_engine,
+                                        layout,
+                                        _node.id(),
+                                        _node.get_memory_dependencies(),
+                                        alloc_type,
+                                        false,
+                                        reset);
+        } else {
+            if ((_node.is_output() && is_reorder_weights) || (!_node.is_output() && _node.is_type<input_layout>()))
+                reset = false;
+            GPU_DEBUG_LOG << "[" << _node.id() << ": constant]" << std::endl;
+            return _engine.allocate_memory(layout, alloc_type, reset);
+        }
+    } else if (!_node.can_share_buffer() || _node.can_be_optimized() || _node.is_output()) {
         GPU_DEBUG_LOG << "[" << _node.id() << ": output]" << std::endl;
         return _engine.allocate_memory(layout, alloc_type, reset);
     } else {

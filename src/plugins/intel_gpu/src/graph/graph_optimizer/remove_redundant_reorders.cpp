@@ -276,7 +276,8 @@ void remove_redundant_reorders::run(program& p) {
             no_output_optimization ||
             r_node.has_fused_primitives() ||
             r_node.get_primitive()->has_surface_input() ||
-            r_node.get_primitive()->transposed)
+            (r_node.get_primitive()->weights_reorder_params &&
+             r_node.get_primitive()->weights_reorder_params->should_be_transposed()))
             continue;
 
         auto o_layout = r_node.get_output_layout();

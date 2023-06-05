@@ -132,16 +132,20 @@ public:
 
     static std::unique_ptr<primitive_impl> create_reorder_weigths(const kernel_impl_params& impl_param) {
         const auto& prim = impl_param.typed_desc<reorder>();
+        const auto& weights_params = prim->weights_reorder_params;
         auto& kernel_selector = kernel_selector::ReorderWeightsKernelSelector::Instance();
+
+        OPENVINO_ASSERT(impl_param.get_input_layout().bytes_count() == weights_params->get_input_layout().bytes_count(),
+                        "[GPU] Input layout doesn't match required reorder weights layout");
 
         kernel_selector::reorder_weights_params r_params;
         set_params(impl_param, r_params);
 
-        r_params.input = convert_weights_tensor(impl_param.input_layouts[0], prim->grouped_input_weights);
-        r_params.output = convert_weights_tensor(impl_param.output_layouts[0]);
+        r_params.input = convert_weights_tensor(weights_params->get_input_layout());
+        r_params.output = convert_weights_tensor(weights_params->get_output_layout());
         r_params.layerID = impl_param.desc->id + "_reorder_weigths";
         r_params.uniqueID = std::to_string(impl_param.unique_id) + "_weight";
-        r_params.rotate_180 = prim->transposed;
+        r_params.rotate_180 = weights_params->should_be_transposed();
 
         kernel_selector::reorder_optional_params optional_params;
         auto best_kernel = kernel_selector.get_best_kernel(r_params, optional_params);

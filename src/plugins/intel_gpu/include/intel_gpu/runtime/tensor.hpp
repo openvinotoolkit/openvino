@@ -471,7 +471,7 @@ public:
        * @endcode
      */
     tensor transform(cldnn::format new_fmt, value_type default_size) const {
-        cldnn::format default_fmt = cldnn::format::is_weights_format(new_fmt) ? cldnn::format::oizyx : cldnn::format::bfvuwzyx;
+        cldnn::format default_fmt = cldnn::format::bfvuwzyx;
         auto val_order = default_fmt.internal_order();
         auto new_order = new_fmt.internal_order();
         std::vector<value_type> old_sizes = sizes();
@@ -485,7 +485,7 @@ public:
         };
 
         for (size_t i = 0; i < default_fmt.order().size(); i++) {
-            auto target_dim = val_order[i]; //bfxywzuv or oixyz
+            auto target_dim = val_order[i]; //bfxywzuv
             while (!new_traits.has_dimension(target_dim)) {
                 if (flatten_mapping.find(target_dim) != flatten_mapping.end()) {
                     target_dim = flatten_mapping.at(target_dim);

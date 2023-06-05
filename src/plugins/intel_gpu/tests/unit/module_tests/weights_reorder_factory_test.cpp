@@ -67,7 +67,7 @@ TEST(weights_factory, reorder_test) {
 
     // Constuct kernel_impl_params for weights reorder based requested WeightsReorderParams
     auto reorder_kernel_params = std::make_shared<kernel_impl_params>();
-    reorder_kernel_params->desc = std::make_shared<reorder>("weights_reorder", input_info(), weights_reorder_params->get_output_layout());
+    reorder_kernel_params->desc = std::make_shared<reorder>("weights_reorder", input_info(), weights_reorder_params);
     reorder_kernel_params->unique_id = weights_reorder_params->hash();
     reorder_kernel_params->input_layouts.push_back(weights_reorder_params->get_input_layout());
     reorder_kernel_params->output_layouts.push_back(weights_reorder_params->get_output_layout());

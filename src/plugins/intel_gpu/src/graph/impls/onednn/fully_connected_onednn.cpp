@@ -76,6 +76,7 @@ protected:
                                                                                         weights_reorder_params.src.GetDType(),
                                                                                         1,
                                                                                         false);
+        weights_reorder_params.rotate = false;
         weights_reorder_params.is_initialized = true;
 
         return weights_reorder_params;

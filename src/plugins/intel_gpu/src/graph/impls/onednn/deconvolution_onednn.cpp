@@ -65,6 +65,7 @@ protected:
                                                                                         weights_reorder_params.src.GetDType(),
                                                                                         cldnn_prim->groups,
                                                                                         false);
+        weights_reorder_params.rotate = false;
         weights_reorder_params.is_initialized = true;
 
         return weights_reorder_params;

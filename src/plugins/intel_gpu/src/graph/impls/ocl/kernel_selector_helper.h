@@ -14,6 +14,7 @@
 #include "intel_gpu/primitives/eltwise.hpp"
 #include "intel_gpu/primitives/quantize.hpp"
 #include "intel_gpu/primitives/activation.hpp"
+#include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/primitives/primitive.hpp"
 
 #include "kernel_selector_params.h"
@@ -269,33 +270,6 @@ inline kernel_impl_params canonicalize_fused_shapes(const kernel_impl_params& im
     }
     return updated_impl_params;
 }
-
-struct WeightsReorderParams {
-    WeightsReorderParams(layout in_layout, layout out_layout, bool transposed) : _in_layout(in_layout), _out_layout(out_layout), _transposed(transposed) {}
-
-    virtual size_t hash() const {
-        return hash_combine(_in_layout.hash(), _out_layout.hash());
-    }
-
-    virtual bool operator==(const WeightsReorderParams& rhs) const {
-        if (typeid(*this) != typeid(rhs))
-            return false;
-
-        return _in_layout == rhs._in_layout &&
-               _out_layout == rhs._out_layout;
-    }
-
-    layout get_input_layout() const { return _in_layout; }
-    layout get_output_layout() const { return _out_layout; }
-    bool should_be_transposed() const { return _transposed; }
-
-    virtual ~WeightsReorderParams() = default;
-
-protected:
-    layout _in_layout;
-    layout _out_layout;
-    bool _transposed;
-};
 
 inline std::shared_ptr<WeightsReorderParams> create_weights_reorder_params(const kernel_selector::WeightsReorderParams& params) {
     if (!params.is_initialized) {

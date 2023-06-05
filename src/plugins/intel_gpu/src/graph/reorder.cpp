@@ -19,7 +19,7 @@ layout reorder_inst::calc_output_layout(reorder_node const& node, kernel_impl_pa
     auto ifmt = input_layout.format;
 
     auto desc = impl_param.typed_desc<reorder>();
-    auto odt = *desc->output_data_types[0];
+    auto odt = desc->output_data_types[0].value_or(input_layout.data_type);
     auto ofmt = desc->output_format;
     auto op = desc->output_paddings[0];
 
@@ -146,8 +146,8 @@ layout reorder_inst::calc_output_layout(reorder_node const& node, kernel_impl_pa
                             "Conversion of weights from winograd to standard domain is currently unsupported");
     }
 
-    if (format::is_weights_format(ifmt) || format::is_weights_format(ofmt)) {
-        return layout(desc->out_weights_shape, odt, ofmt, op);
+    if (desc->weights_reorder_params) {
+        return desc->weights_reorder_params->get_output_layout();
     }
 
     if ((ofmt == format::bs_fs_fsv8_bsv8 || ofmt == format::os_i_osv8__ai8 || ofmt == format::os_i_osv16__ai8 || ofmt == format::os_i_osv16 ||
@@ -173,7 +173,11 @@ std::vector<layout> reorder_inst::calc_output_layouts(reorder_node const& /*node
     auto ifmt = input_layout.format;
     auto ofmt = desc->output_format == format::any ? ifmt : desc->output_format;
 
-    return { layout(input_layout.get<ShapeType>(), desc->output_data_types[0].value(), ofmt, desc->output_paddings[0]) };
+    if (desc->weights_reorder_params) {
+        return { desc->weights_reorder_params->get_output_layout() };
+    } else {
+        return { layout(input_layout.get<ShapeType>(), desc->output_data_types[0].value(), ofmt, desc->output_paddings[0]) };
+    }
 }
 
 std::string reorder_inst::to_string(reorder_node const& node) {
