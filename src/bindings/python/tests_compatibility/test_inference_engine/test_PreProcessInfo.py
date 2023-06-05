@@ -108,16 +108,15 @@ def test_set_mean_image_for_channel():
     assert preprocess_info.mean_variant == MeanVariant.MEAN_IMAGE
 
 
-# TODO: Fix this test
-#  def test_resize_algorithm_set(device):
-#      ie_core = IECore()
-#      net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
-#      preprocess_info = net.input_info["data"].preprocess_info
-#      preprocess_info.resize_algorithm = ResizeAlgorithm.RESIZE_BILINEAR
-#      exec_net = ie_core.load_network(network=net, device_name=device, num_requests=1)
-#      request = exec_net.requests[0]
-#      pp = request.preprocess_info["data"]
-#      assert pp.resize_algorithm == ResizeAlgorithm.RESIZE_BILINEAR
+def test_resize_algorithm_set(device):
+    ie_core = IECore()
+    net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
+    preprocess_info = net.input_info["data"].preprocess_info
+    preprocess_info.resize_algorithm = ResizeAlgorithm.RESIZE_BILINEAR
+    exec_net = ie_core.load_network(network=net, device_name=device, num_requests=1)
+    request = exec_net.requests[0]
+    pp = request.preprocess_info["data"]
+    assert pp.resize_algorithm == ResizeAlgorithm.RESIZE_BILINEAR
 
 
 def test_set_mean_variant_to_read_only_preprocess(device):
