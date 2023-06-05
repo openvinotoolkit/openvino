@@ -197,6 +197,7 @@ CPU::CPU() {
         std::vector<int> processors;
         std::map<int, int> sockets;
         int socketId = 0;
+        _cores = 0;
         while (!cpuinfo.eof()) {
             std::string line;
             std::getline(cpuinfo, line);
