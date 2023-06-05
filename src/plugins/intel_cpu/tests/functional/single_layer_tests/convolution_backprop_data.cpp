@@ -2,14 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils/cpu_test_utils.hpp"
-#include "test_utils/convolution_params.hpp"
-#include "test_utils/fusing_test_utils.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
-#include "ngraph_functions/builders.hpp"
 #include <shared_test_classes/single_layer/convolution_backprop_data.hpp>
+
+#include "cpu_shape.h"
+#include "ngraph_functions/builders.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "test_utils/convolution_params.hpp"
+#include "test_utils/cpu_test_utils.hpp"
+#include "test_utils/fusing_test_utils.hpp"
 
 using namespace CPUTestUtils;
 using namespace ov::test;
@@ -835,7 +837,15 @@ const std::vector<DeconvInputData> inputs_3D_AutoPadding = {
         InputShape{{-1, 2, 4, {32, 64}, {32, 64}}, {{1, 2, 4, 32, 32}, {1, 2, 4, 40, 40}}},
         ngraph::helpers::InputLayerType::PARAMETER,
         {{8, 64, 64}, {8, 80, 80}}
-    }
+    },
+    DeconvInputData{
+        InputShape{
+            {1, 64, 5, {1, std::numeric_limits<ov::Dimension::value_type>::max()}, {1, std::numeric_limits<ov::Dimension::value_type>::max()}},
+            {{1, 64, 5, 8, 8}}
+        },
+        ngraph::helpers::InputLayerType::CONSTANT,
+        {{10, 16, 16}}
+    },
 };
 
 const auto deconvParams_AutoPadding_3D = ::testing::Combine(

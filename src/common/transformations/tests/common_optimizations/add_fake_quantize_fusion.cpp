@@ -230,7 +230,7 @@ TEST_F(TransformationTestsF, NegativeAddFakeQuantizeFusionLowPrecision) {
     auto output_high = opset5::Constant::create(element::f16, Shape{}, {10});
     auto fq = std::make_shared<opset5::FakeQuantize>(add, input_low, input_high, output_low, output_high, 11);
     function = std::make_shared<Function>(NodeVector{fq}, ParameterVector{data});
-    function_ref = clone_function(*function);
+    function_ref = function->clone();
     manager.register_pass<ov::pass::AddFakeQuantizeFusion>();
 }
 
