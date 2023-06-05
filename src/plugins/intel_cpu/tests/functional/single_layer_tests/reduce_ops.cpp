@@ -215,6 +215,7 @@ const std::vector<std::vector<int>> axesND = {
 const std::vector<std::vector<int>> axes5D = {
         {2, 4},
         {0, 2, 4},
+        {1, 2, 4},
         {0, 1, 2, 3, 4},
 };
 
