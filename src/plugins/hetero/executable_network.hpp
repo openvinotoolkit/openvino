@@ -25,6 +25,12 @@
 
 #include "src/plugin.hpp"
 
+namespace ov {
+namespace hetero {
+    class Plugin;
+}
+}
+
 namespace HeteroPlugin {
 
 /**
@@ -35,11 +41,11 @@ class HeteroExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadS
 public:
     typedef std::shared_ptr<HeteroExecutableNetwork> Ptr;
 
-    HeteroExecutableNetwork(const InferenceEngine::CNNNetwork& network, const Configs& user_config, const ov::hetero::Plugin* plugin);
+    HeteroExecutableNetwork(const InferenceEngine::CNNNetwork& network, const ov::AnyMap& user_config, const std::shared_ptr<ov::hetero::Plugin>& plugin);
     HeteroExecutableNetwork(std::istream& heteroModel,
-                            const Configs& user_config,
-                            Engine* plugin,
-                            bool from_cache = false);
+                            const ov::AnyMap& user_config,
+                            const std::shared_ptr<ov::hetero::Plugin>& plugin,
+                            bool fromCache = false);
 
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(
         InferenceEngine::InputsDataMap networkInputs,
@@ -64,11 +70,12 @@ private:
         InferenceEngine::SoExecutableNetworkInternal _network;
     };
 
+    std::shared_ptr<ov::hetero::Plugin> _plugin;
+    ov::hetero::Configuration _cfg;
     std::vector<NetworkDesc> _networks;
-    Engine* _heteroPlugin;
     std::string _name;
-    Configs _hetero_config;
-    Configs _device_config;
+    ov::AnyMap _hetero_config;
+    ov::AnyMap _device_config;
     std::unordered_map<std::string, std::string> _blobNameMap;
     bool _loadedFromCache = false;
 };

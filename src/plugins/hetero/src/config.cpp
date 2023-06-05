@@ -14,18 +14,21 @@ using namespace ov::hetero;
 
 Configuration::Configuration() {}
 
-// TODO vurusovs DELETE `throwOnUnsupported` option
-Configuration::Configuration(const ov::AnyMap& config, const Configuration& defaultCfg, bool throwOnUnsupported) {
+Configuration::Configuration(const ov::AnyMap& config, const Configuration& defaultCfg) {
     *this = defaultCfg;
 
     for (auto&& c : config) {
         const auto& key = c.first;
         const auto& value = c.second;
 
-        if (HETERO_CONFIG_KEY(DUMP_GRAPH_DOT) == key)   // TODO vurusovs: rewrite HETERO_CONFIG_KEY(DUMP_GRAPH_DOT)
+        if (HETERO_CONFIG_KEY(DUMP_GRAPH_DOT) == key) {   // TODO vurusovs: rewrite HETERO_CONFIG_KEY(DUMP_GRAPH_DOT)
             dump_graph = value.as<bool>();
-        else if (ov::device::priorities.name() == key)
+            m_hetero_config[key] = value;
+        }
+        else if (ov::device::priorities.name() == key) {
             device_priorities = value.as<std::string>();
+            m_hetero_config[key] = value;
+        }
         else if (ov::exclusive_async_requests == key) {
             exclusive_async_requests = value.as<bool>();
             m_device_config[key] = value;
@@ -45,6 +48,11 @@ ov::Any Configuration::Get(const std::string& name) const {
     } else {
         OPENVINO_THROW("Property was not found: ", name);
     }
+}
+
+ov::AnyMap Configuration::GetHeteroConfig() const {
+    // return {{ov::exclusive_async_requests.name(), exclusive_async_requests}};
+    return m_hetero_config;
 }
 
 ov::AnyMap Configuration::GetDeviceConfig() const {

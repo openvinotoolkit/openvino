@@ -227,6 +227,9 @@ public:
      * @brief Default virtual destructor
      */
     virtual ~ICore();
+
+    // TODO (vurusovs) THINK TWICE IS IT REQUIRED OR NOT
+    virtual bool device_supports_model_caching(const std::string& deviceName) const = 0;
 };
 
 }  // namespace ov

@@ -53,6 +53,7 @@
 // TODO (vurusovs) required for conversion to legacy API 1.0
 #include "converter_utils.hpp"
 // TODO (vurusovs) required for conversion to legacy API 1.0
+#include "src/config.hpp"
 
 using namespace InferenceEngine;
 using namespace details;
@@ -63,22 +64,13 @@ using namespace InferenceEngine::HeteroConfigParams;
 template <typename T>
 using NodeMap = std::unordered_map<ngraph::Node*, T>;
 
-namespace {
-ov::AnyMap any_copy(const Configs& params) {
-    ov::AnyMap result;
-    for (auto&& value : params) {
-        result.emplace(value.first, value.second);
-    }
-    return result;
-}
-}
-
 
 HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwork& network,
-                                                 const Configs& user_config,
-                                                 const ov::hetero::Plugin* plugin)
+                                                 const ov::AnyMap& user_config,
+                                                 const std::shared_ptr<ov::hetero::Plugin>& plugin)
     : InferenceEngine::ExecutableNetworkThreadSafeDefault(nullptr,
                                                           std::make_shared<InferenceEngine::ImmediateExecutor>()),
+      _plugin{plugin},
       _name{network.getName()},
       _hetero_config{},
       _device_config{} {
@@ -88,18 +80,17 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
     // hetero_config, device_config and user_config are unchanged global and local configs set by user
     // we need to create _hetero_config and _device_config based on them, which will
     // contain only hetero (_hetero_config) and only device (_device_config) properties
-    auto _heteroPlugin = std::make_shared<HeteroPlugin::Engine>();
+    auto plugin_cfg = plugin->m_cfg;
+    _cfg = ov::hetero::Configuration{user_config, plugin_cfg};
 
-    auto parsed_config = _heteroPlugin->MergeConfigs(user_config);
-    _hetero_config = parsed_config.hetero_config;
-    _device_config = parsed_config.device_config;
+    _hetero_config = _cfg.GetHeteroConfig();
+    _device_config = _cfg.GetDeviceConfig();
 
     bool dumpDotFile = false;
     if (std::getenv("OPENVINO_HETERO_VISUALIZE")) {
         dumpDotFile = true;
     } else {
-        auto itDumpDotFile = _hetero_config.find(HETERO_CONFIG_KEY(DUMP_GRAPH_DOT));
-        dumpDotFile = itDumpDotFile != _hetero_config.end() ? (itDumpDotFile->second == YES) : false;
+        auto itDumpDotFile = _cfg.dump_graph;
     }
 
     QueryNetworkResult queryNetworkResult;
@@ -119,7 +110,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
     if (queryNetworkResult.supportedLayersMap.empty()) {
         // here we need to bypass unchanged / unparsed user-set configuration
         // because it can contain TARGET_FALLBACK / ov::device::priorities
-        queryNetworkResult.supportedLayersMap = plugin->query_model(ov::legacy_convert::convert_model(network, true), any_copy(user_config));
+        queryNetworkResult.supportedLayersMap = plugin->query_model(ov::legacy_convert::convert_model(network, plugin->get_core()->is_new_api()), user_config);
         queryNetworkResult.rc = OK;
     }
 
@@ -461,7 +452,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
     }
     for (auto&& network : _networks) {
         // auto metaDevices = _heteroPlugin->GetDevicePlugins(network._device, _device_config);
-        auto metaDevices = plugin->GetDevicePlugins(network._device, any_copy(_device_config));
+        auto metaDevices = plugin->GetDevicePlugins(network._device, _device_config);
 
         // disable caching for subgraphs, because the whole HETERO model is cached
         auto device_config = metaDevices[network._device];
@@ -470,7 +461,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
         // network._network =
             // _heteroPlugin->GetCore()->LoadNetwork(network._clonedNetwork, network._device, device_config);
         auto compiled_model = plugin->get_core()->compile_model(
-            ov::legacy_convert::convert_model(network._clonedNetwork, true), 
+            ov::legacy_convert::convert_model(network._clonedNetwork, plugin->get_core()->is_new_api()), 
             network._device, 
             device_config
         );
@@ -479,19 +470,21 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
 }
 
 HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream& heteroModel,
-                                                 const Configs& user_config,
-                                                 Engine* heteroPlugin,
+                                                 const ov::AnyMap& user_config,
+                                                 const std::shared_ptr<ov::hetero::Plugin>& plugin,
                                                  bool fromCache)
-    : _heteroPlugin(heteroPlugin),
+    : _plugin{plugin},
       _hetero_config{},
       _device_config{},
       _loadedFromCache(fromCache) {
     std::string heteroXmlStr;
     std::getline(heteroModel, heteroXmlStr);
 
-    auto parsed_config = _heteroPlugin->MergeConfigs(user_config);
-    _hetero_config = parsed_config.hetero_config;
-    _device_config = parsed_config.device_config;
+    auto plugin_cfg = plugin->m_cfg;
+    _cfg = ov::hetero::Configuration{user_config, plugin_cfg};
+
+    _hetero_config = _cfg.GetHeteroConfig();
+    _device_config = _cfg.GetDeviceConfig();
 
     pugi::xml_document heteroXmlDoc;
     pugi::xml_parse_result res = heteroXmlDoc.load_string(heteroXmlStr.c_str());
@@ -533,15 +526,15 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream& heteroModel,
     FOREACH_CHILD (subnetworkNode, subnetworksNode, "subnetwork") {
         auto deviceName = GetStrAttr(subnetworkNode, "device");
 
-        auto metaDevices = _heteroPlugin->GetDevicePlugins(deviceName, _device_config);
+        auto metaDevices = plugin->GetDevicePlugins(deviceName, _device_config);
         assert(metaDevices.size() == 1);
         auto& loadConfig = metaDevices[deviceName];
 
         InferenceEngine::SoExecutableNetworkInternal executableNetwork;
         CNNNetwork cnnnetwork;
         bool loaded = false;
-        if (_heteroPlugin->GetCore()->DeviceSupportsModelCaching(deviceName)) {
-            executableNetwork = _heteroPlugin->GetCore()->ImportNetwork(heteroModel, deviceName, loadConfig);
+        if (plugin->get_core()->device_supports_model_caching(deviceName)) {
+            executableNetwork = plugin->get_core()->import_model(heteroModel, deviceName, loadConfig);
         } else {
             // read XML content
             std::string xmlString;
@@ -551,18 +544,16 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream& heteroModel,
             heteroModel.read(const_cast<char*>(xmlString.c_str()), dataSize);
 
             // read blob content
-            InferenceEngine::Blob::Ptr dataBlob;
+            ov::Tensor weights;
             heteroModel.read(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
             if (0 != dataSize) {
-                dataBlob = InferenceEngine::make_shared_blob<std::uint8_t>(
-                    InferenceEngine::TensorDesc(InferenceEngine::Precision::U8,
-                                                {static_cast<std::size_t>(dataSize)},
-                                                InferenceEngine::Layout::C));
-                dataBlob->allocate();
-                heteroModel.read(dataBlob->buffer(), dataSize);
+                weights = ov::Tensor(ov::element::from<char>(), ov::Shape{static_cast<ov::Shape::size_type>(dataSize)});
+                heteroModel.read(weights.data<char>(), dataSize);
             }
 
-            cnnnetwork = _heteroPlugin->GetCore()->ReadNetwork(xmlString, std::move(dataBlob));
+            auto ov_model = plugin->get_core()->read_model(xmlString, weights);
+            cnnnetwork = ov::legacy_convert::convert_model(ov_model, 
+                                                           plugin->get_core()->is_new_api());
             auto inputs = cnnnetwork.getInputsInfo();
             auto inputsNode = subnetworkNode.child("inputs");
             FOREACH_CHILD (inputNode, inputsNode, "input") {
@@ -577,7 +568,12 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream& heteroModel,
                 outputs[outputName]->setPrecision(Precision::FromStr(GetStrAttr(outputNode, "precision")));
             }
 
-            executableNetwork = _heteroPlugin->GetCore()->LoadNetwork(cnnnetwork, deviceName, loadConfig);
+            auto compiled_model = plugin->get_core()->compile_model(
+                ov::legacy_convert::convert_model(cnnnetwork, plugin->get_core()->is_new_api()),
+                deviceName,
+                loadConfig
+            );
+            executableNetwork = {ov::legacy_convert::convert_compiled_model(compiled_model._ptr), compiled_model._so};
             loaded = true;
         }
 
@@ -637,7 +633,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream& heteroModel,
 
     // save state
     this->_networks = std::move(descs);
-    this->SetPointerToPlugin(_heteroPlugin->shared_from_this());
+    // this->SetPointerToPlugin(_heteroPlugin->shared_from_this());
 }
 
 void HeteroExecutableNetwork::Export(std::ostream& heteroModel) {
@@ -726,14 +722,14 @@ void HeteroExecutableNetwork::Export(std::ostream& heteroModel) {
     for (auto&& config : _hetero_config) {
         auto heteroConfigNode = heteroConfigsNode.append_child("config");
         heteroConfigNode.append_attribute("key").set_value(config.first.c_str());
-        heteroConfigNode.append_attribute("value").set_value(config.second.c_str());
+        heteroConfigNode.append_attribute("value").set_value(config.second.as<char*>());
     }
 
     auto deviceConfigsNode = heteroNode.append_child("device_config");
     for (auto&& config : _device_config) {
         auto deviceConfigNode = deviceConfigsNode.append_child("config");
         deviceConfigNode.append_attribute("key").set_value(config.first.c_str());
-        deviceConfigNode.append_attribute("value").set_value(config.second.c_str());
+        deviceConfigNode.append_attribute("value").set_value(config.second.as<char*>());
     }
 
     auto blobNamesNode = heteroNode.append_child("blob_names_map");
@@ -748,7 +744,7 @@ void HeteroExecutableNetwork::Export(std::ostream& heteroModel) {
     heteroModel << std::endl;
 
     for (auto&& subnetwork : _networks) {
-        if (_heteroPlugin->GetCore()->DeviceSupportsModelCaching(subnetwork._device)) {
+        if (_plugin->get_core()->device_supports_model_caching(subnetwork._device)) {
             subnetwork._network->Export(heteroModel);
         } else {
             auto subnet = subnetwork._clonedNetwork;
@@ -778,7 +774,7 @@ void HeteroExecutableNetwork::Export(std::ostream& heteroModel) {
 IInferRequestInternal::Ptr HeteroExecutableNetwork::CreateInferRequestImpl(
     const std::vector<std::shared_ptr<const ov::Node>>& inputs,
     const std::vector<std::shared_ptr<const ov::Node>>& outputs) {
-    if (!this->_plugin || !_plugin->IsNewAPI())
+    if (!this->_plugin || !_plugin->is_new_api())
         return nullptr;
     HeteroInferRequest::SubRequestsList inferRequests;
     int index = 0;
@@ -809,22 +805,8 @@ IInferRequestInternal::Ptr HeteroExecutableNetwork::CreateInferRequest() {
 }
 
 InferenceEngine::Parameter HeteroExecutableNetwork::GetConfig(const std::string& name) const {
-    InferenceEngine::Parameter result;
-    if (name == "TARGET_FALLBACK" || name == ov::device::priorities.name()) {
-        result = _heteroPlugin->GetTargetFallback(_hetero_config, false);
-    } else if (name == HETERO_CONFIG_KEY(DUMP_GRAPH_DOT)) {
-        auto it = _hetero_config.find(name);
-        IE_ASSERT(it != _hetero_config.end());
-        result = it->second == YES;
-    } else if (name == CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS)) {
-        auto it = _device_config.find(name);
-        IE_ASSERT(it != _device_config.end());
-        result = it->second == YES;
-    } else {
-        IE_THROW() << "Unsupported Hetero ExecutableNetwork config key: " << name;
-    }
-
-    return result;
+    auto res = _cfg.Get(name);
+    return res;
 }
 
 InferenceEngine::Parameter HeteroExecutableNetwork::GetMetric(const std::string& name) const {

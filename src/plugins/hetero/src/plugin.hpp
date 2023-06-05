@@ -14,6 +14,11 @@
 #include "openvino/runtime/iplugin.hpp"
 #include "config.hpp"
 
+#include "../executable_network.hpp"
+
+namespace HeteroPlugin {
+    class HeteroExecutableNetwork;
+}
 
 namespace ov {
 namespace hetero {
@@ -61,6 +66,7 @@ public:
 
 private:
     // friend class CompiledModel;
+    friend class HeteroPlugin::HeteroExecutableNetwork;
     // friend class InferRequest;
 
     std::string DeviceCachingProperties(const std::string& targetFallback) const;
