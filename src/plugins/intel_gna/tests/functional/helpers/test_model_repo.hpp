@@ -26,12 +26,12 @@ inline const char* get_model_path_non_fatal_default() noexcept {
 };
 
 inline std::string get_data_path_default() {
-    if (const auto env_var = std::getenv("DATA_PATH")) {
+    if (const auto env_var = std::getenv("GNA_DATA_PATH")) {
         return env_var;
     }
 
-#ifdef DATA_PATH
-    return DATA_PATH;
+#ifdef GNA_DATA_PATH
+    return GNA_DATA_PATH;
 #else
     return nullptr;
 #endif
