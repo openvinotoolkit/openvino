@@ -177,14 +177,18 @@ void program::init_program() {
 }
 
 void program::init_primitives() {
+    // Register implementations in order of their selection priority: common, OCL, oneDNN, CPU
+    // We register OCL implementation before oneDNN, because oneDNN is not always preferable (in case of iGPU)
+    // This order will only apply to primitives with preferrable implementation type equal to impl_types::any
+
     static bool is_initialized = false;
     if (!is_initialized) {
         common::register_implementations();
-        cpu::register_implementations();
         ocl::register_implementations();
 #ifdef ENABLE_ONEDNN_FOR_GPU
         onednn::register_implementations();
 #endif
+        cpu::register_implementations();
         is_initialized = true;
     }
 }
