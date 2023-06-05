@@ -67,7 +67,7 @@ public:
         }
 
         const auto compiled_network = executableNetwork;
-        auto model = TestDataHelpers::get_data_path() + "/gna/" + m_export_model_name;
+        auto model = TestDataHelpers::get_data_path() + "/exported_models/" + m_export_model_name;
 
         const auto imported_network = core->ImportNetwork(model, targetDevice, configuration);
 
