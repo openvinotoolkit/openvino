@@ -943,8 +943,9 @@ void Graph::PullOutputData(BlobMap &out) {
                              std::accumulate(actualDesc.getDims().begin(), actualDesc.getDims().end(), (size_t)1, std::multiplies<size_t>()) == 1);
         }
 
+        bool isTransposedOutput = actualDesc.getLayout() != expectedDesc.getLayout() && actualDesc.getDims() == expectedDesc.getBlockingDesc().getBlockDims();
         auto outDims = intr_blob.getStaticDims();
-        if (out[name]->getTensorDesc().getDims() != outDims && !isScalarOutput) {
+        if (out[name]->getTensorDesc().getDims() != outDims && !isScalarOutput && !isTransposedOutput) {
             // WA: because input/output info initially contains non empty dims, order etc.
             // and setDims (called inside setShape) can't correct modify blocked desc for desc with blocked layout
             if (expectedDesc.getLayout() == InferenceEngine::Layout::BLOCKED) {

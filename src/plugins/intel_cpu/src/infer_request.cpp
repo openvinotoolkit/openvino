@@ -162,8 +162,6 @@ void InferRequestBase::InferImpl() {
         redefineMemoryForInputNodes();
     }
 
-    execDataPreprocessing(_inputs);
-
     changeDefaultPtr();
 
     ThrowIfCanceled();
@@ -487,9 +485,13 @@ InferenceEngine::Blob::Ptr LegacyInferRequest::GetBlob(const std::string& name) 
             InferenceEngine::TensorDesc desc = pBlob->getTensorDesc();
             auto itr = _networkInputs.find(name);
             if (itr != _networkInputs.end()) {
-                const InferenceEngine::Layout &l = itr->second->getLayout();
+                InferenceEngine::Layout l = itr->second->getLayout();
                 const InferenceEngine::Precision &p = itr->second->getPrecision();
-                const InferenceEngine::SizeVector &dims = itr->second->getTensorDesc().getDims();
+                // Layout and shape changes were done in the model
+                InferenceEngine::SizeVector dims = itr->second->getTensorDesc().getBlockingDesc().getBlockDims();
+                if (l == InferenceEngine::Layout::NHWC) {
+                    l = InferenceEngine::Layout::NCHW;
+                }
                 desc = InferenceEngine::TensorDesc(p, dims, l);
             }
 
@@ -510,13 +512,17 @@ InferenceEngine::Blob::Ptr LegacyInferRequest::GetBlob(const std::string& name) 
             if (!data) {
                 InferenceEngine::TensorDesc desc = _networkOutputs[name]->getTensorDesc();
                 desc.setPrecision(normalizeToSupportedPrecision(desc.getPrecision()));
-
-                // WA: need to avoid exception thrown when we compare blocking desc in SetBlob
-                // in situation if we push output blobs as inputs for next network (in Hetero plugin)
-                // it may be that output tensor desc will be different from real input tensor desc for next network
-                // because the optimal descriptor was chosen (e.g. inPlace case for Split node)
-                auto currBlockDesc = InferenceEngine::BlockingDesc(desc.getBlockingDesc().getBlockDims(), desc.getBlockingDesc().getOrder());
-                desc = InferenceEngine::TensorDesc(desc.getPrecision(), desc.getDims(), currBlockDesc);
+                if (desc.getLayout() == InferenceEngine::Layout::NHWC) {
+                    // Transpose included into the model
+                    desc = InferenceEngine::TensorDesc(desc.getPrecision(), desc.getBlockingDesc().getBlockDims(), InferenceEngine::Layout::NCHW);
+                } else {
+                    // WA: need to avoid exception thrown when we compare blocking desc in SetBlob
+                    // in situation if we push output blobs as inputs for next network (in Hetero plugin)
+                    // it may be that output tensor desc will be different from real input tensor desc for next network
+                    // because the optimal descriptor was chosen (e.g. inPlace case for Split node)
+                    auto currBlockDesc = InferenceEngine::BlockingDesc(desc.getBlockingDesc().getBlockDims(), desc.getBlockingDesc().getOrder());
+                    desc = InferenceEngine::TensorDesc(desc.getPrecision(), desc.getDims(), currBlockDesc);
+                }
 
                 data = make_blob_with_precision(desc);
                 data->allocate();

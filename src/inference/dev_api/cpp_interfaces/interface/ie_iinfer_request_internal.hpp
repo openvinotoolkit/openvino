@@ -262,6 +262,8 @@ public:
     virtual void setModelInputsOutputs(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
                                        const std::vector<std::shared_ptr<const ov::Node>>& outputs);
 
+    InferenceEngine::InputsDataMap _networkInputs;    //!< Holds information about network inputs info
+    InferenceEngine::OutputsDataMap _networkOutputs;  //!< Holds information about network outputs data
 protected:
     /**
      * @brief Destroys the object.
@@ -337,11 +339,9 @@ protected:
      */
     virtual void checkBlobsForBatch(const std::string& name, const std::vector<Blob::Ptr>& blobs);
 
-    InferenceEngine::InputsDataMap _networkInputs;    //!< Holds information about network inputs info
-    InferenceEngine::OutputsDataMap _networkOutputs;  //!< Holds information about network outputs data
-    InferenceEngine::BlobMap _inputs;                 //!< A map of user passed blobs for network inputs
-    InferenceEngine::BlobMap _deviceInputs;           //!< A map of actual network inputs, in plugin specific format
-    InferenceEngine::BlobMap _outputs;                //!< A map of user passed blobs for network outputs
+    InferenceEngine::BlobMap _inputs;        //!< A map of user passed blobs for network inputs
+    InferenceEngine::BlobMap _deviceInputs;  //!< A map of actual network inputs, in plugin specific format
+    InferenceEngine::BlobMap _outputs;       //!< A map of user passed blobs for network outputs
     std::vector<std::shared_ptr<const ov::Node>> _parameters;  //!< A vector of function inputs
     std::vector<std::shared_ptr<const ov::Node>> _results;     //!< A vector of function outputs
     std::map<std::string, PreProcessDataPtr> _preProcData;     //!< A map of pre-process data per input

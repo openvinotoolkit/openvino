@@ -5,6 +5,7 @@
 #include "cpp/ie_cnn_network.h"
 
 #include "cnn_network_ngraph_impl.hpp"
+#include "dev/converter_utils.hpp"
 #include "exception2status.hpp"
 #include "ie_itt.hpp"
 
@@ -28,7 +29,7 @@ CNNNetwork::CNNNetwork(const std::shared_ptr<ngraph::Function>& graph, const std
     }
 
     // Create CNNNetworkNGraphImpl
-    network = std::make_shared<details::CNNNetworkNGraphImpl>(graph, exts);
+    network = ov::legacy_convert::convert_model(graph, false).network;
     actual = network.get();
     if (actual == nullptr) {
         IE_THROW() << "CNNNetwork was not initialized.";

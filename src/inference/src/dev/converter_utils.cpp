@@ -54,30 +54,6 @@ std::string get_legacy_name_from_port(const ov::Output<const ov::Node>& port) {
     return ov::op::util::create_ie_output_name(p);
 }
 
-void fill_input_info(ov::Output<ov::Node>& input, InferenceEngine::InputInfo::Ptr& input_info) {
-    const ov::Output<const ov::Node> const_input(input.get_node(), input.get_index());
-    ov::legacy_convert::fill_input_info(const_input, input_info);
-    auto& rt_info = input.get_rt_info();
-    auto it = rt_info.find("ie_legacy_preproc");
-    if (it != rt_info.end()) {
-        rt_info.erase(it);
-    }
-    it = rt_info.find("ie_legacy_td");
-    if (it != rt_info.end()) {
-        rt_info.erase(it);
-    }
-}
-
-void fill_output_info(ov::Output<ov::Node>& input, InferenceEngine::DataPtr& output_info) {
-    const ov::Output<const ov::Node> const_input(input.get_node(), input.get_index());
-    ov::legacy_convert::fill_output_info(const_input, output_info);
-    auto& rt_info = input.get_rt_info();
-    auto it = rt_info.find("ie_legacy_td");
-    if (it != rt_info.end()) {
-        rt_info.erase(it);
-    }
-}
-
 InferenceEngine::SizeVector get_dims(const ov::Output<const ov::Node>& port) {
     InferenceEngine::SizeVector dims = {};
     const auto& p_shape = port.get_partial_shape();
@@ -144,7 +120,7 @@ InferenceEngine::CNNNetwork ov::legacy_convert::convert_model(const std::shared_
         OPENVINO_ASSERT(network.getInputsInfo().count(param_name));
 
         auto input_info = network.getInputsInfo()[param_name];
-        ::fill_input_info(input, input_info);
+        ov::legacy_convert::fill_input_info(input, input_info);
     }
     for (auto&& result : cloned_model->get_results()) {
         auto output = result->input_value(0);
@@ -153,7 +129,7 @@ InferenceEngine::CNNNetwork ov::legacy_convert::convert_model(const std::shared_
         OPENVINO_ASSERT(network.getOutputsInfo().count(res_name));
         auto output_info = network.getOutputsInfo()[res_name];
 
-        ::fill_output_info(output, output_info);
+        ov::legacy_convert::fill_output_info(output, output_info);
     }
     return network;
 }

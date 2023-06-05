@@ -128,10 +128,18 @@ bool ov::pass::AddPreprocessing::run_on_model(const std::shared_ptr<ov::Model>& 
         // ExecutableNetwork
         ov::legacy_convert::fill_output_info(const_output, output_info);
         OPENVINO_ASSERT(output_info);
+        if (output_info->getLayout() != InferenceEngine::Layout::BLOCKED &&
+            output_info->getLayout() != InferenceEngine::Layout::SCALAR) {
+            std::stringstream stream;
+            stream << output_info->getLayout();
+            preproc.output(i).tensor().set_layout(ov::Layout{stream.str()});
+        }
         auto element_type = InferenceEngine::details::convertPrecision(output_info->getPrecision());
-        if (element_type != model->output(i).get_element_type()) {
+        if (element_type != const_output.get_element_type()) {
             preproc.output(i).tensor().set_element_type(element_type);
         }
+        if (const_output.get_partial_shape().is_static() && const_output.get_shape().size() == 4)
+            preproc.output(i).model().set_layout("NCHW");
         rt_info["postprocess_converted"] = true;
     }
 

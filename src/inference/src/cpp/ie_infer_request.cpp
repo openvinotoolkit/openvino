@@ -19,6 +19,42 @@
 #include "openvino/runtime/infer_request.hpp"
 #include "transformations/utils/utils.hpp"
 
+namespace {
+
+void normalize_blob(const InferenceEngine::IInferRequestInternal::Ptr request,
+                    const std::string& name,
+                    const InferenceEngine::Blob::Ptr& blob) {
+    if (blob == nullptr || request == nullptr)
+        return;
+    const InferenceEngine::TensorDesc& desc = blob->getTensorDesc();
+    InferenceEngine::TensorDesc new_desc = desc;
+    if (request->_networkInputs.find(name) != request->_networkInputs.end()) {
+        // GetBlob case
+        if (request->_networkInputs.at(name)->getLayout() != desc.getLayout()) {
+            new_desc = InferenceEngine::TensorDesc(
+                desc.getPrecision(),
+                request->_networkInputs.at(name)->getTensorDesc().getDims(),
+                request->_networkInputs.at(name)->getLayout());
+        } else {
+            // Check that in case of set blob the internal blob has the same layout
+            // auto int_blob = request->GetBlob(name);
+        }
+    } else if (request->_networkOutputs.find(name) != request->_networkOutputs.end()) {
+        if (request->_networkOutputs.at(name)->getLayout() != desc.getLayout()) {
+            new_desc = InferenceEngine::TensorDesc(
+                desc.getPrecision(),
+                request->_networkOutputs.at(name)->getTensorDesc().getDims(),
+                request->_networkOutputs.at(name)->getLayout());
+        } else {
+            // Check that in case of set blob the internal blob has the same layout
+            // auto int_blob = request->GetBlob(name);
+        }
+    }
+    blob->getTensorDesc() = new_desc;
+}
+
+}  // namespace
+
 namespace InferenceEngine {
 
 #define INFER_REQ_CALL_STATEMENT(...)                                     \
@@ -43,12 +79,14 @@ InferRequest::InferRequest(const IInferRequestInternal::Ptr& impl, const std::sh
 IE_SUPPRESS_DEPRECATED_START
 
 void InferRequest::SetBlob(const std::string& name, const Blob::Ptr& data) {
+    normalize_blob(_impl, name, data);
     INFER_REQ_CALL_STATEMENT(_impl->SetBlob(name, data);)
 }
 
 Blob::Ptr InferRequest::GetBlob(const std::string& name) {
     Blob::Ptr blobPtr;
     INFER_REQ_CALL_STATEMENT(blobPtr = _impl->GetBlob(name);)
+    normalize_blob(_impl, name, blobPtr);
     std::string error = "Internal error: blob with name `" + name + "` is not allocated!";
     if (blobPtr == nullptr)
         IE_THROW() << error;
@@ -59,6 +97,7 @@ Blob::Ptr InferRequest::GetBlob(const std::string& name) {
 }
 
 void InferRequest::SetBlob(const std::string& name, const Blob::Ptr& data, const PreProcessInfo& info) {
+    normalize_blob(_impl, name, data);
     INFER_REQ_CALL_STATEMENT(_impl->SetBlob(name, data, info);)
 }
 
