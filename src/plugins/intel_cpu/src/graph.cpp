@@ -167,10 +167,10 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph) {
         }
 
         if (!one_of(op->get_type_info(),
-                ov::op::v0::Result::get_type_info_static(),
-                ov::op::v3::Assign::get_type_info_static(),
-                ov::op::v6::Assign::get_type_info_static())) {
-            for (int oi = 0; oi < op->get_output_size(); oi++) {
+                op::v0::Result::get_type_info_static(),
+                op::v3::Assign::get_type_info_static(),
+                op::v6::Assign::get_type_info_static())) {
+            for (size_t oi = 0; oi < op->get_output_size(); oi++) {
                 if (op->get_output_target_inputs(oi).empty()) {
                     unusedOutputs.push_back(op->output(oi));
                 }
@@ -234,7 +234,7 @@ void Graph::Replicate(const CNNNetwork &network) {
 
         graphNodes.push_back(node);
 
-        if (op->get_type_info() == ov::op::v0::Parameter::get_type_info_static()) {
+        if (op->get_type_info() == op::v0::Parameter::get_type_info_static()) {
             const auto inInfo = inputsInfo.find(node->getName());
             if (inInfo != inputsInfo.end()) {
                 inputNodesMap[node->getName()] = node;
@@ -244,28 +244,12 @@ void Graph::Replicate(const CNNNetwork &network) {
             }
         }
 
-        if (op->get_type_info() == ov::op::v0::Result::get_type_info_static()) {
+        if (op->get_type_info() == op::v0::Result::get_type_info_static()) {
             const auto &input = op->input_value(0);
+            const auto name = op::util::get_ie_output_name(input);
 
-            for (const auto& name : input.get_names()) {
-                if (outputsInfo.count(name) != 0) {
-                    outputNodesMap[name] = node;
-                }
-            }
-
-            // To support the old API.
-            const auto name = ov::op::util::get_ie_output_name(input);
-            if (outputsInfo.count(name) != 0 && outputNodesMap.count(name) == 0) {
-                bool found = false;
-                for (auto it : outputNodesMap) {
-                    if (it.second == node) {
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found) {
-                    outputNodesMap[name] = node;
-                }
+            if (outputsInfo.count(name) != 0) {
+                outputNodesMap[name] = node;
             }
         }
 
@@ -281,10 +265,10 @@ void Graph::Replicate(const CNNNetwork &network) {
         }
 
         if (!one_of(op->get_type_info(),
-                ov::op::v0::Result::get_type_info_static(),
-                ov::op::v3::Assign::get_type_info_static(),
-                ov::op::v6::Assign::get_type_info_static())) {
-            for (int oi = 0; oi < op->get_output_size(); oi++) {
+                op::v0::Result::get_type_info_static(),
+                op::v3::Assign::get_type_info_static(),
+                op::v6::Assign::get_type_info_static())) {
+            for (size_t oi = 0; oi < op->get_output_size(); oi++) {
                 if (op->get_output_target_inputs(oi).empty()) {
                     unusedOutputs.push_back(op->output(oi));
                 }

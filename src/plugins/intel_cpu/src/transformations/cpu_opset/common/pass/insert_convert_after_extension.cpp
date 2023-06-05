@@ -7,6 +7,7 @@
 #include <openvino/op/convert.hpp>
 #include "cpu_types.h"
 #include "itt.hpp"
+#include <transformations/utils/utils.hpp>
 
 ov::pass::InsertConvertAfterExtension::InsertConvertAfterExtension() {
     MATCHER_SCOPE(InsertConvertAfterExtension);
@@ -25,18 +26,19 @@ ov::pass::InsertConvertAfterExtension::InsertConvertAfterExtension() {
         for (auto& output : ref->outputs()) {
             if (output.get_element_type() == ov::element::i64 || output.get_element_type() == ov::element::u64) {
                 auto targetInputs = output.get_target_inputs();
-                auto convert = std::make_shared<ov::op::v0::Convert>(output, ov::element::i32);
+                auto convert = std::make_shared<op::v0::Convert>(output, ov::element::i32);
 
                 for (const auto& targetInput : targetInputs) {
                     targetInput.replace_source_output(convert);
                 }
 
                 auto& convertTensor = convert->output(0).get_tensor();
+
+                auto legacy_name = op::util::create_ie_output_name(output);
+                descriptor::set_ov_tensor_legacy_name(convertTensor, legacy_name);
+
                 if (!output.get_names().empty()) {
                     convertTensor.set_names(output.get_names());
-                } else {
-                    std::unordered_set<std::string> newNames({ref->get_friendly_name() + "." + std::to_string(output.get_index())});
-                    convertTensor.set_names(newNames);
                 }
             }
         }
