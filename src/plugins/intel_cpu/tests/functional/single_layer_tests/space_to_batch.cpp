@@ -60,24 +60,24 @@ public:
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         inputs.clear();
         const auto& funcInputs = function->inputs();
-        for (int i = 0; i < funcInputs.size(); i++) {
+        for (size_t i = 0; i < funcInputs.size(); i++) {
             const auto& funcInput = funcInputs[i];
             ov::Tensor tensor;
-            if (i == 0) {
+            if (i == 0U) {
                 tensor = utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], 2560, 0, 256);
-            } else if (i == 1) {
+            } else if (i == 1U) {
                 tensor = ov::Tensor(funcInput.get_element_type(), paramShape);
                 auto *dataPtr = tensor.data<int64_t>();
                 for (size_t j = 0; j < blockShape.size(); j++) {
                     dataPtr[j] = blockShape[j];
                 }
-            } else if (i == 2) {
+            } else if (i == 2U) {
                 tensor = ov::Tensor(funcInput.get_element_type(), paramShape);
                 auto *dataPtr = tensor.data<int64_t>();
                 for (size_t j = 0; j < padsBegin.size(); j++) {
                     dataPtr[j] = padsBegin[j];
                 }
-            } else if (i == 3) {
+            } else if (i == 3U) {
                 tensor = ov::Tensor(funcInput.get_element_type(), paramShape);
                 auto *dataPtr = tensor.data<int64_t>();
                 for (size_t j = 0; j < padsEnd.size(); j++) {

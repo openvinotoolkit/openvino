@@ -12,10 +12,12 @@
 
 #include "ie_allocator.hpp"
 
+IE_SUPPRESS_DEPRECATED_START
 class MockAllocator : public InferenceEngine::IAllocator {
 public:
     MOCK_METHOD(void*, lock, (void*, InferenceEngine::LockOp), (noexcept));
-    MOCK_METHOD(void, unlock, (void *), (noexcept));
+    MOCK_METHOD(void, unlock, (void*), (noexcept));
     MOCK_METHOD(void*, alloc, (size_t), (noexcept));
     MOCK_METHOD(bool, free, (void*), (noexcept));  // NOLINT(readability/casting)
 };
+IE_SUPPRESS_DEPRECATED_END

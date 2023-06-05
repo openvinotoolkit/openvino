@@ -205,7 +205,7 @@ TEST(TransformationTests, replace_transpose_with_reshape) {
         auto transpose = make_shared<op::v1::Transpose>((multiout ? A1->output(0) : A1), perm);
         auto transpose1 = make_shared<op::v0::Abs>(transpose);
         auto baseline_f = make_shared<Function>(transpose1, ParameterVector{param});
-        auto optimized_f = clone_function(*baseline_f);
+        auto optimized_f = baseline_f->clone();
 
         auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
         pass::Manager m;
