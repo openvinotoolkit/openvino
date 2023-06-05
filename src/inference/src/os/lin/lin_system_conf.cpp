@@ -233,12 +233,13 @@ CPU::CPU() {
                            ", cores: ",
                            _cores);
         }
-    } else {
-        if (check_valid_cpu() < 0) {
-            OPENVINO_THROW("CPU affinity check failed. No CPU is eligible to run inference.");
-        };
     }
+
     std::vector<std::vector<std::string>>().swap(system_info_table);
+
+    if (check_valid_cpu() < 0) {
+        OPENVINO_THROW("CPU affinity check failed. No CPU is eligible to run inference.");
+    };
 }
 
 void parse_cache_info_linux(const std::vector<std::vector<std::string>> system_info_table,
