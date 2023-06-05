@@ -2541,6 +2541,8 @@ inline void Reduce::reduce_kernel_post_process(uint8_t *out_ptr) {
     } else if (layout == ReduceLayoutType::reduce_nspc) {
         size_t num_threads = static_cast<size_t>(parallel_get_max_threads());
         size_t OP = OB * OC >= num_threads ? OB * OC : OB * OC * OD;
+        if (OP < num_threads && OW > blk_size)
+            OP *= OH;
         size_t work_amount = OB * OC * OD * OH * OW / OP;
         parallel_for(OP, [&](size_t op) {
             uint8_t *out_p = out_ptr + op * work_amount * dst_data_size;
