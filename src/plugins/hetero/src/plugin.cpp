@@ -53,12 +53,12 @@ std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::compile_model(
     
     auto shared_this = std::const_pointer_cast<ov::IPlugin>(shared_from_this());
     auto plugin_p = ov::legacy_convert::convert_plugin(shared_this);
-    auto network = ov::legacy_convert::convert_model(model, true);
+    auto network = ov::legacy_convert::convert_model(model, this->is_new_api());
     auto legacy_compiled_model = std::make_shared<HeteroPlugin::HeteroExecutableNetwork>(network, properties, std::dynamic_pointer_cast<ov::hetero::Plugin>(shared_this));
     legacy_compiled_model->SetPointerToPlugin(plugin_p);
     legacy_compiled_model->setNetworkInputs(InferenceEngine::copyInfo(network.getInputsInfo()));
     legacy_compiled_model->setNetworkOutputs(InferenceEngine::copyInfo(network.getOutputsInfo()));
-    InferenceEngine::SetExeNetworkInfo(legacy_compiled_model, model, true);
+    InferenceEngine::SetExeNetworkInfo(legacy_compiled_model, model, this->is_new_api());
     auto compiled_model = ov::legacy_convert::convert_compiled_model(legacy_compiled_model);
     return compiled_model;
 
