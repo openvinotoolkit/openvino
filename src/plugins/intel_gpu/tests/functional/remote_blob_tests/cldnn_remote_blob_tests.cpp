@@ -74,7 +74,7 @@ TEST_P(RemoteBlob_Test, smoke_canInputUserBlob) {
     // inference using remote blob
     auto inf_req_shared = exec_net.CreateInferRequest();
     auto cldnn_context = exec_net.GetContext();
-    cl_context ctx = std::dynamic_pointer_cast<ClContext>(cldnn_context)->get();
+    cl_context ctx = cldnn_context->as<ClContext>()->get();
     auto ocl_instance = std::make_shared<OpenCL>(ctx);
     cl_int err;
 
@@ -190,7 +190,7 @@ TEST_P(RemoteBlob_Test, smoke_canInputPluginRemoteBlob) {
     // inference using remote blob
     auto inf_req_shared = exec_net.CreateInferRequest();
     auto cldnn_context = exec_net.GetContext();
-    cl_context ctx = std::dynamic_pointer_cast<ClContext>(cldnn_context)->get();
+    cl_context ctx = cldnn_context->as<ClContext>()->get();
     auto ocl_instance = std::make_shared<OpenCL>(ctx);
 
     auto desc = net.getInputsInfo().begin()->second->getTensorDesc();
@@ -604,7 +604,7 @@ TEST_P(BatchedBlob_Test, canInputNV12) {
                 { { GPUConfigParams::KEY_GPU_NV12_TWO_INPUTS, PluginConfigParams::YES}, {ov::hint::inference_precision.name(), "f32"} });
     auto inf_req_remote = exec_net_b.CreateInferRequest();
     auto cldnn_context = exec_net_b.GetContext();
-    cl_context ctx = std::dynamic_pointer_cast<ClContext>(cldnn_context)->get();
+    cl_context ctx = cldnn_context->as<ClContext>()->get();
     auto ocl_instance = std::make_shared<OpenCL>(ctx);
     cl_int err;
 
