@@ -11,6 +11,7 @@
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
 #include "openvino/runtime/tensor.hpp"
+#include <ie_plugin_config.hpp>
 
 namespace ov {
 namespace test {
@@ -22,6 +23,7 @@ public:
     static std::string getTestCaseName(testing::TestParamInfo<InferRequestParams> obj) {
         std::string targetDevice;
         ov::AnyMap configuration;
+        std::string pluginName;
         std::tie(targetDevice, configuration) = obj.param;
         std::replace(targetDevice.begin(), targetDevice.end(), ':', '.');
 
@@ -43,6 +45,13 @@ public:
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         APIBaseTest::SetUp();
         function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice();
+        // std::tie(pluginName, target_device) = GetParam();
+        // SKIP_IF_CURRENT_TEST_IS_DISABLED();
+        // ov::test::behavior::APIBaseTest::SetUp();
+        // pluginName = target_device + IE_BUILD_POSTFIX;
+        // if (pluginName == (std::string("openvino_template_plugin") + IE_BUILD_POSTFIX)) {
+        //     pluginName = ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(), pluginName);
+        // }
     }
 
     void TearDown() override {
@@ -157,7 +166,7 @@ TEST_P(OVCompiledModelBaseTest, canCompileModelFromMemory) {
             </edges>
         </net>
         )V0G0N";
-    EXPECT_NO_THROW(auto execNet = core->compile_model(model, ov::Tensor(), target_device, configuration));
+    EXPECT_NO_THROW(auto execNet = core ->compile_model(model, ov::Tensor(), target_device, configuration));
 }
 
 TEST_P(OVCompiledModelBaseTest, canCompileModelwithBrace) {
@@ -228,7 +237,26 @@ TEST_P(OVCompiledModelBaseTest, canCompileModelwithBrace) {
             </edges>
         </net>
         )V0G0N";
-    ov::CompiledModel compiled_model = ov::Core{}.compile_model(model, ov::Tensor(), target_device, configuration);
+    ov::CompiledModel compiled_model;
+    // core->register_plugin(ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(), target_device), "TEMPLATE");
+    // std::cout << target_device << std::endl;
+    // compiled_model = ov::Core{}.compile_model(model, ov::Tensor(), target_device, configuration);
+    // core->register_plugin(
+    //     ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
+    //                                        std::string("openvino_template_plugin") + IE_BUILD_POSTFIX),
+    //     "TEMPLATE");
+    // compiled_model = core->compile_model(model, ov::Tensor(), target_device, configuration);
+    {
+        // if(target_device == "TEMPLATE")
+        // {
+        core->register_plugin(
+                ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
+                                                   std::string("openvino_template_plugin") + IE_BUILD_POSTFIX),
+                "TEMPLATE");
+        // }
+        compiled_model = core->compile_model(model, ov::Tensor(), target_device, configuration);
+    }
+    // ov::CompiledModel compiled_model = ov::Core{}.compile_model(model, ov::Tensor(), target_device, configuration);
     EXPECT_NO_THROW(compiled_model.get_property(ov::optimal_number_of_infer_requests));
 }
 
