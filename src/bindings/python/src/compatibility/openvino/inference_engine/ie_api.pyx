@@ -74,6 +74,9 @@ def deprecation_message():
 
 cdef class VariableState:
     """
+    OpenVINO Inference Engine Python API is deprecated and will be removed in the 2024.0 release. For instructions on
+    transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
+
     This class manages data for reset operations
     """
     deprecation_message()
@@ -109,6 +112,9 @@ cdef class VariableState:
 
 cdef class TensorDesc:
     """
+    OpenVINO Inference Engine Python API is deprecated and will be removed in the 2024.0 release. For instructions on
+    transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
+
     This class defines Tensor description
     """
     deprecation_message()
@@ -179,6 +185,9 @@ cdef class TensorDesc:
 
 cdef class Blob:
     """
+    OpenVINO Inference Engine Python API is deprecated and will be removed in the 2024.0 release. For instructions on
+    transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
+
     This class represents Blob
     """
     deprecation_message()
@@ -324,6 +333,9 @@ cdef class Blob:
 ## This class represents an Inference Engine entity and allows you to manipulate with plugins using unified interfaces.
 cdef class IECore:
     """
+    OpenVINO Inference Engine Python API is deprecated and will be removed in the 2024.0 release. For instructions on
+    transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
+
     This class represents an Inference Engine entity and allows you to manipulate with plugins using unified interfaces.
     """
     deprecation_message()
@@ -673,6 +685,9 @@ cdef class IECore:
 
 cdef class PreProcessChannel:
     """
+    OpenVINO Inference Engine Python API is deprecated and will be removed in the 2024.0 release. For instructions on
+    transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
+
     This structure stores info about pre-processing of network inputs (scale, mean image, ...)
     """
     deprecation_message()
@@ -701,6 +716,9 @@ cdef class PreProcessChannel:
 
 cdef class PreProcessInfo:
     """
+    OpenVINO Inference Engine Python API is deprecated and will be removed in the 2024.0 release. For instructions on
+    transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
+
     This class stores pre-process information for the input
     """
     deprecation_message()
@@ -829,6 +847,9 @@ cdef class PreProcessInfo:
 
 cdef class InputInfoPtr:
     """
+    OpenVINO Inference Engine Python API is deprecated and will be removed in the 2024.0 release. For instructions on
+    transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
+
     This class contains information about each input of the network
     """
     deprecation_message()
@@ -915,6 +936,9 @@ cdef class InputInfoPtr:
 
 cdef class InputInfoCPtr:
     """
+    OpenVINO Inference Engine Python API is deprecated and will be removed in the 2024.0 release. For instructions on
+    transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
+
     This class contains const information about each input of the network.
     Provides same interface as InputInfoPtr object except properties setters
     """
@@ -961,6 +985,9 @@ cdef class InputInfoCPtr:
 
 cdef class DataPtr:
     """
+    OpenVINO Inference Engine Python API is deprecated and will be removed in the 2024.0 release. For instructions on
+    transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
+
     This class is the layer data representation.
     """
     deprecation_message()
@@ -1022,6 +1049,9 @@ cdef class DataPtr:
 
 cdef class CDataPtr:
     """
+    OpenVINO Inference Engine Python API is deprecated and will be removed in the 2024.0 release. For instructions on
+    transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
+
     This class is the layer constant data representation. Provides same interface as DataPtr object except properties setters
     """
     deprecation_message()
@@ -1064,6 +1094,9 @@ cdef class CDataPtr:
 
 cdef class ExecutableNetwork:
     """
+    OpenVINO Inference Engine Python API is deprecated and will be removed in the 2024.0 release. For instructions on
+    transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
+
     This class represents a network instance loaded to plugin and ready for inference.
     """
     deprecation_message()
@@ -1316,6 +1349,9 @@ ctypedef extern void (*cb_type)(void*, int) with gil
 
 cdef class InferRequest:
     """
+    OpenVINO Inference Engine Python API is deprecated and will be removed in the 2024.0 release. For instructions on
+    transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
+
     This class provides an interface to infer requests of :class:`ExecutableNetwork` and serves
     to handle infer requests execution and to set and get output data.
     """
@@ -1577,6 +1613,10 @@ cdef class InferRequest:
 
 
 cdef class IENetwork:
+    """
+    OpenVINO Inference Engine Python API is deprecated and will be removed in the 2024.0 release. For instructions on
+    transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
+    """
     deprecation_message()
     ## Class constructor
     #
@@ -1752,7 +1792,12 @@ cdef class IENetwork:
         return self.impl.getOVNameForTensor(name).decode('utf-8')
 
 cdef class BlobBuffer:
-    """Copy-less accessor for Inference Engine Blob"""
+    """
+    OpenVINO Inference Engine Python API is deprecated and will be removed in the 2024.0 release. For instructions on
+    transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
+
+    Copy-less accessor for Inference Engine Blob
+    """
     deprecation_message()
 
     cdef reset(self, CBlob.Ptr & ptr, vector[size_t] representation_shape = []):
