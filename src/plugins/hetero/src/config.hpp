@@ -20,11 +20,11 @@ struct Configuration {
     Configuration& operator=(Configuration&&) = default;
 
     explicit Configuration(const ov::AnyMap& config,
-                           const Configuration& defaultCfg = {},
-                           const bool throwOnUnsupported = true);
+                           const Configuration& defaultCfg = {});
 
     ov::Any Get(const std::string& name) const;
 
+    ov::AnyMap GetHeteroConfig() const;
     ov::AnyMap GetDeviceConfig() const;
 
     // Plugin configuration parameters
@@ -33,6 +33,7 @@ struct Configuration {
     bool exclusive_async_requests = true;
     std::string device_priorities;
 
+    ov::AnyMap m_hetero_config;
     ov::AnyMap m_device_config;
 };
 }  // namespace hetero
