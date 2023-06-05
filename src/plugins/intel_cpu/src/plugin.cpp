@@ -142,36 +142,15 @@ public:
 };
 #endif // __linux__
 
-#if defined(OV_CPU_WITH_ACL)
-std::mutex Engine::SchedulerGuard::mutex;
-std::weak_ptr<Engine::SchedulerGuard> Engine::SchedulerGuard::ptr;
-
-Engine::SchedulerGuard::SchedulerGuard() {
-    arm_compute::Scheduler::set(std::make_shared<ACLScheduler>());
-}
-
-Engine::SchedulerGuard::~SchedulerGuard() {
-    std::lock_guard<std::mutex> lock{SchedulerGuard::mutex};
-    arm_compute::Scheduler::set(arm_compute::Scheduler::Type::CUSTOM);
-}
-
-std::shared_ptr<Engine::SchedulerGuard> Engine::SchedulerGuard::instance() {
-    std::lock_guard<std::mutex> lock{SchedulerGuard::mutex};
-    auto scheduler_guard_ptr = SchedulerGuard::ptr.lock();
-    if (scheduler_guard_ptr == nullptr) {
-        SchedulerGuard::ptr = scheduler_guard_ptr = std::make_shared<SchedulerGuard>();
-    }
-    return scheduler_guard_ptr;
-}
-#endif
-
 Engine::Engine() :
     deviceFullName(getDeviceFullName()),
     specialSetup(new CPUSpecialSetup) {
     _pluginName = "CPU";
     extensionManager->AddExtension(std::make_shared<Extension>());
 #if defined(OV_CPU_WITH_ACL)
-    scheduler_guard = SchedulerGuard::instance();
+    static std::once_flag flag_once;
+    acl_scheduler = std::make_unique<ACLScheduler>();
+    std::call_once(flag_once, [&]() { arm_compute::Scheduler::set(acl_scheduler); });
 #endif
 }
 

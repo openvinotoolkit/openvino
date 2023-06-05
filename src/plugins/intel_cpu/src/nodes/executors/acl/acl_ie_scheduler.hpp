@@ -11,21 +11,19 @@
 namespace ov {
 namespace intel_cpu {
 
-struct ACLScheduler final : public arm_compute::IScheduler {
+using namespace arm_compute;
+
+class ACLScheduler final : public IScheduler {
+public:
     ACLScheduler();
-    ~ACLScheduler() override;
-    void set_num_threads(unsigned int num_threads) override;
+    ~ACLScheduler() = default;
     std::uint32_t num_threads() const override;
-    void Schedule(arm_compute::ICPPKernel*               kernel,
-                  const arm_compute::IScheduler::Hints&  hints,
-                  const arm_compute::Window&             max_window,
-                  arm_compute::ITensorPack&              tensors);
-    void schedule(arm_compute::ICPPKernel* kernel, const arm_compute::IScheduler::Hints& hints) override;
-    void schedule_op(arm_compute::ICPPKernel*               kernel,
-                     const arm_compute::IScheduler::Hints&  hints,
-                     const arm_compute::Window&             window,
-                     arm_compute::ITensorPack&              tensors) override;
-    void run_workloads(std::vector<arm_compute::IScheduler::Workload>& workloads) override;
+    void set_num_threads(unsigned int num_threads) override;
+    unsigned int num_threads() const override;
+    void schedule(ICPPKernel *kernel, const Hints &hints) override;
+    void schedule_op(ICPPKernel *kernel, const Hints &hints, const Window &window, ITensorPack &tensors) override;
+protected:
+    void run_workloads(std::vector<Workload> &workloads) override;
 };
 }  //  namespace intel_cpu
 }  //  namespace ov
