@@ -27,7 +27,7 @@
       :color: primary
       :outline:
 
-      GET STARTED
+      Get started
 
 
 
