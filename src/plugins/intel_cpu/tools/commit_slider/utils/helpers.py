@@ -214,13 +214,16 @@ def fetchAppOutput(cfg, commit):
     commitLogger.info("Run command: {command}".format(
         command=appCmd)
     )
+    shellFlag = True
+    if cfg["os"] == "linux":
+        shellFlag = False
     p = subprocess.Popen(
         appCmd.split(),
         cwd=appPath,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         env=newEnv,
-        shell=True
+        shell=shellFlag
     )
     output, err = p.communicate()
     output = output.decode("utf-8")
