@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "plugin.hpp"
-
 #include <memory>
 
 #include "compiled_model.hpp"
