@@ -149,7 +149,7 @@ protected:
     void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override {
         inputs.clear();
         const auto& funcInputs = function->inputs();
-        for (int i = 0; i < funcInputs.size(); ++i) {
+        for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
             ov::Tensor tensor;
             if (reductionType == ngraph::helpers::ReductionType::Prod) {
@@ -215,6 +215,7 @@ const std::vector<std::vector<int>> axesND = {
 const std::vector<std::vector<int>> axes5D = {
         {2, 4},
         {0, 2, 4},
+        {1, 2, 4},
         {0, 1, 2, 3, 4},
 };
 

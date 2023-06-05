@@ -40,6 +40,10 @@ namespace cldnn {
 struct batch_to_space : public primitive_base<batch_to_space> {
     CLDNN_DECLARE_PRIMITIVE(batch_to_space)
 
+    batch_to_space() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     /// @brief Constructs batch_to_space primitive.
     /// @param id This primitive id.
     /// @param input Input data primitive id.
@@ -81,6 +85,22 @@ struct batch_to_space : public primitive_base<batch_to_space> {
         return block_shape == rhs_casted.block_shape &&
                crops_begin == rhs_casted.crops_begin &&
                crops_end == rhs_casted.crops_end;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<batch_to_space>::save(ob);
+        ob << block_shape;
+        ob << crops_begin;
+        ob << crops_end;
+        ob << out_size;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<batch_to_space>::load(ib);
+        ib >> block_shape;
+        ib >> crops_begin;
+        ib >> crops_end;
+        ib >> out_size;
     }
 };
 }  // namespace cldnn

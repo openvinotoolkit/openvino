@@ -74,7 +74,7 @@ std::vector<TShape> shape_infer(const SpaceToBatch* op,
                 const auto padded_dim = data_shape[idx] + static_cast<TVal>(pads_begin[idx] + pads_end[idx]);
                 const auto divisor = static_cast<TVal>((*blocks)[idx]);
 
-                if (padded_dim.get_max_length() == dim::inf_bound) {
+                if (static_cast<int64_t>(padded_dim.get_max_length()) == dim::inf_bound) {
                     out_shape.emplace_back(ceil_div(padded_dim.get_min_length(), divisor), dim::inf_bound);
                 } else {
                     out_shape.push_back(padded_dim / divisor);

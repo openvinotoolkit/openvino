@@ -4,7 +4,7 @@
 
 OpenVINO Development Tools is a set of utilities that make it easy to develop and optimize models and applications for OpenVINO. It provides the following tools:
 
-* Model Optimizer
+* Model conversion API
 * Benchmark Tool
 * Accuracy Checker and Annotation Converter
 * Post-Training Optimization Tool
@@ -31,7 +31,7 @@ For C++ Developers
 
 If you are a C++ developer, you must first install OpenVINO Runtime separately to set up the C++ libraries, sample code, and dependencies for building applications with OpenVINO. These files are not included with the PyPI distribution. See the :doc:`Install OpenVINO Runtime <openvino_docs_install_guides_install_runtime>` page to install OpenVINO Runtime from an archive file for your operating system.
 
-Once OpenVINO Runtime is installed, you may install OpenVINO Development Tools for access to tools like Model Optimizer, Model Downloader, Benchmark Tool, and other utilities that will help you optimize your model and develop your application. Follow the steps in the :ref:`Installing OpenVINO Development Tools <install_dev_tools>` section on this page to install it.
+Once OpenVINO Runtime is installed, you may install OpenVINO Development Tools for access to tools like ``mo``, Model Downloader, Benchmark Tool, and other utilities that will help you optimize your model and develop your application. Follow the steps in the :ref:`Installing OpenVINO Development Tools <install_dev_tools>` section on this page to install it.
 
 .. _install_dev_tools:
 
@@ -134,7 +134,7 @@ For example, to install and configure dependencies required for working with Ten
 
 .. note:: 
 
-   Model Optimizer support for TensorFlow 1.x environment has been deprecated. Use the ``tensorflow2`` parameter to install a TensorFlow 2.x environment that can convert both TensorFlow 1.x and 2.x models. If your model isn't compatible with the TensorFlow 2.x environment, use the `tensorflow` parameter to install the TensorFlow 1.x environment. The TF 1.x environment is provided only for legacy compatibility reasons.
+   Model conversion API support for TensorFlow 1.x environment has been deprecated. Use the ``tensorflow2`` parameter to install a TensorFlow 2.x environment that can convert both TensorFlow 1.x and 2.x models. If your model isn't compatible with the TensorFlow 2.x environment, use the `tensorflow` parameter to install the TensorFlow 1.x environment. The TF 1.x environment is provided only for legacy compatibility reasons.
 
 For more details on the openvino-dev PyPI package, see `pypi.org <https://pypi.org/project/openvino-dev/>`__ .
 
@@ -147,7 +147,7 @@ To verify the package is properly installed, run the command below (this may tak
 
    mo -h
 
-You will see the help message for Model Optimizer if installation finished successfully. If you get an error, refer to the :doc:`Troubleshooting Guide <openvino_docs_get_started_guide_troubleshooting>` for possible solutions.
+You will see the help message for ``mo`` if installation finished successfully. If you get an error, refer to the :doc:`Troubleshooting Guide <openvino_docs_get_started_guide_troubleshooting>` for possible solutions.
 
 Congratulations! You finished installing OpenVINO Development Tools with C++ capability. Now you can start exploring OpenVINO's functionality through example C++ applications. See the "What's Next?" section to learn more!
 
@@ -162,13 +162,13 @@ Get started with Python
 .. image:: _static/images/get_started_with_python.gif
   :width: 400
 
-Try the `Python Quick Start Example <https://docs.openvino.ai/nightly/notebooks/201-vision-monodepth-with-output.html>`__ to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
+Try the `Python Quick Start Example <notebooks/201-vision-monodepth-with-output.html>`__ to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
 
 Visit the :doc:`Tutorials <tutorials>` page for more Jupyter Notebooks to get you started with OpenVINO, such as:
 
-* `OpenVINO Python API Tutorial <https://docs.openvino.ai/nightly/notebooks/002-openvino-api-with-output.html>`__
-* `Basic image classification program with Hello Image Classification <https://docs.openvino.ai/nightly/notebooks/001-hello-world-with-output.html>`__
-* `Convert a PyTorch model and use it for image background removal <https://docs.openvino.ai/nightly/notebooks/205-vision-background-removal-with-output.html>`__
+* `OpenVINO Python API Tutorial <notebooks/002-openvino-api-with-output.html>`__
+* `Basic image classification program with Hello Image Classification <notebooks/001-hello-world-with-output.html>`__
+* `Convert a PyTorch model and use it for image background removal <notebooks/205-vision-background-removal-with-output.html>`__
 
 Get started with C++
 ++++++++++++++++++++
@@ -188,7 +188,7 @@ Learn OpenVINO Development Tools
 ++++++++++++++++++++++++++++++++
 
 * Explore a variety of pre-trained deep learning models in the :doc:`Open Model Zoo <model_zoo>` and deploy them in demo applications to see how they work.
-* Want to import a model from another framework and optimize its performance with OpenVINO? Visit the :doc:`Model Optimizer Developer Guide <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`.
+* Want to import a model from another framework and optimize its performance with OpenVINO? Visit the :doc:`Convert a Model <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>` page.
 * Accelerate your model's speed even further with quantization and other compression techniques using :doc:`Post-Training Optimization Tool <pot_introduction>`.
 * Benchmark your model's inference speed with one simple command using the :doc:`Benchmark Tool <openvino_inference_engine_tools_benchmark_tool_README>`.
 

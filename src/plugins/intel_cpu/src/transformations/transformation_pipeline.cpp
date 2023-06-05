@@ -620,13 +620,13 @@ void Transformations::MainSnippets(void) {
     snippetsManager.set_per_pass_validation(false);
     if (snippetsMode != Config::SnippetsMode::IgnoreCallback)
         CPU_REGISTER_PASS_X64(snippetsManager, SnippetsMarkSkipped, enableBF16);
-    CPU_REGISTER_PASS_X64(snippetsManager, ngraph::snippets::pass::SnippetsTokenization);
+    CPU_REGISTER_PASS_X64(snippetsManager, snippets::pass::SnippetsTokenization);
 
     const bool isMHASupported =
             !enableBF16 &&  // TODO: Need to add BF16 support for MHA in Snippets
             dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core);  // MHA has BRGEMM that is supported only on AVX512 platforms
     if (!isMHASupported) {
-        CPU_DISABLE_PASS_X64(snippetsManager, ngraph::snippets::pass::TokenizeMHASnippets);
+        CPU_DISABLE_PASS_X64(snippetsManager, snippets::pass::TokenizeMHASnippets);
     }
     if (snippetsMode != Config::SnippetsMode::IgnoreCallback) {
         CPU_SET_CALLBACK_X64(snippetsManager,
@@ -646,12 +646,13 @@ void Transformations::MainSnippets(void) {
                 //       - parallelism support on JIT level
                 const auto needed_num_of_threads = 12lu;
                 const auto l2_cache_size = dnnl::utils::get_cache_size(2, true);
-                const auto is_unsupported_parallel_work_amount = parallel_get_num_threads() / 2 > parallel_work_amount &&
-                                                                parallel_work_amount < needed_num_of_threads;
+                const auto is_unsupported_parallel_work_amount =
+                    parallel_get_num_threads() / 2 > parallel_work_amount &&
+                    static_cast<size_t>(parallel_work_amount) < needed_num_of_threads;
                 const auto is_unsupported_kernel_work_amount = kernel_buffer_size > l2_cache_size;
                 return is_unsupported_parallel_work_amount || is_unsupported_kernel_work_amount;
             },
-            ngraph::snippets::pass::TokenizeMHASnippets);
+            snippets::pass::TokenizeMHASnippets);
         CPU_SET_CALLBACK_X64(snippetsManager,
             [](const std::shared_ptr<const ov::Node>& n) -> bool {
                 // CPU Plugin support Swish in Subgraph via conversion to SwichCPU which assumes second input to be constant
@@ -690,7 +691,7 @@ void Transformations::MainSnippets(void) {
                 return has_only_const_inputs || bad_input_rank || bad_output_rank || is_unsupported_swish ||
                     is_disabled_tokenization;
             },
-            ngraph::snippets::pass::TokenizeSnippets);
+            snippets::pass::TokenizeSnippets);
     }
     snippetsManager.run_passes(model);
 }

@@ -13,10 +13,12 @@
 #include <memory>
 #include <string>
 
+#include "ie_api.h"
 #include "ie_parameter.hpp"
 #include "ie_remote_blob.hpp"
 
 namespace InferenceEngine {
+IE_SUPPRESS_DEPRECATED_START
 /**
  * @brief This class represents an Inference Engine abstraction
  * for remote (non-CPU) accelerator device-specific execution context.
@@ -141,4 +143,5 @@ inline RemoteBlob::Ptr make_shared_blob(const TensorDesc& desc, RemoteContext::P
     return ctx->CreateBlob(desc);
 }
 
+IE_SUPPRESS_DEPRECATED_END
 }  // namespace InferenceEngine

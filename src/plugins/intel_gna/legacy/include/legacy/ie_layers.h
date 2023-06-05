@@ -24,7 +24,7 @@
 #include "ie_common.h"
 #include "ie_data.h"
 
-#ifdef _WIN32
+#ifdef _MSC_VER
 #    define _IE_SUPPRESS_DEPRECATED_START_MSVC IE_SUPPRESS_DEPRECATED_START
 #    define _IE_SUPPRESS_DEPRECATED_END_MSVC   IE_SUPPRESS_DEPRECATED_END
 #else
@@ -417,12 +417,11 @@ using CNNLayerPtr = std::shared_ptr<CNNLayer>;
  */
 using CNNLayerWeakPtr = std::weak_ptr<CNNLayer>;
 
-IE_SUPPRESS_DEPRECATED_END
-
 CNNLayerWeakPtr& getCreatorLayer(const DataPtr& data);
 
 std::map<std::string, CNNLayerPtr>& getInputTo(const DataPtr& data);
 std::map<std::string, CNNLayerPtr>& getInputTo(Data* data);
+IE_SUPPRESS_DEPRECATED_END
 
 _IE_SUPPRESS_DEPRECATED_START_MSVC
 

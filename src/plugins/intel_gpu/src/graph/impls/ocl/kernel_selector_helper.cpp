@@ -390,6 +390,8 @@ kernel_selector::weights_layout to_weights_layout(format f, bool is_grouped) {
             return kernel_selector::weights_layout::o_is_yx_isv16;
         case format::os_iyx_osv16:
             return kernel_selector::weights_layout::os_iyx_osv16;
+        case format::os_is_yx_osv16_isv2:
+            return kernel_selector::weights_layout::os_is_yx_osv16_isv2;
         case format::os_is_yx_osv16_isv16:
             return kernel_selector::weights_layout::os_is_yx_osv16_isv16;
         case format::os_iyx_osv32:
@@ -511,6 +513,8 @@ kernel_selector::weights_layout to_weights_layout(format f, bool is_grouped) {
             return kernel_selector::weights_layout::os_is_osv32_isv32_swizzled_by_4;
         case format::os_is_zyx_isv8_osv16_isv2:
             return kernel_selector::weights_layout::os_is_zyx_isv8_osv16_isv2;
+        case format::os_is_yx_isv8_osv16_isv2:
+            return kernel_selector::weights_layout::os_is_yx_isv8_osv16_isv2;
         case cldnn::format::os_iyx_osv8:
             return kernel_selector::weights_layout::os_iyx_osv8;
         case format::os_zyxi_osv16:
@@ -657,6 +661,8 @@ cldnn::format::type from_weights_layout(kernel_selector::weights_layout l) {
             return cldnn::format::os_iyx_osv16;
         case kernel_selector::weights_layout::os_is_yx_isv16_osv16:
             return cldnn::format::os_is_yx_isv16_osv16;
+        case kernel_selector::weights_layout::os_is_yx_osv16_isv2:
+            return cldnn::format::os_is_yx_osv16_isv2;
         case kernel_selector::weights_layout::os_is_yx_osv16_isv16:
             return cldnn::format::os_is_yx_osv16_isv16;
         case kernel_selector::weights_layout::os_iyx_osv32:
@@ -1117,7 +1123,7 @@ std::shared_ptr<kernel_selector::fuse_params> convert_fuse_params(std::shared_pt
     } else if (p->type() == eltwise::type_id()) {
         auto casted = std::dynamic_pointer_cast<EltwiseFuseParams>(p);
         kernel_selector::eltwise_mode mode = convert_to_eltwise_mode(casted->_desc->mode);
-        return std::make_shared<kernel_selector::eltwise_fuse_params>(mode);
+        return std::make_shared<kernel_selector::eltwise_fuse_params>(mode, casted->_desc->m_pythondiv);
     } else if (p->type() == quantize::type_id()) {
         auto casted = std::dynamic_pointer_cast<QuantizeFuseParams>(p);
         return std::make_shared<kernel_selector::quantize_fuse_params>(casted->_scale_shift_opt,

@@ -4,6 +4,7 @@
 
 #include <limits>
 #include <algorithm>
+#include <mutex>
 #include <string>
 #include <map>
 #include <vector>
@@ -137,7 +138,18 @@ InferenceEngine::CNNNetwork Plugin::clone_and_transform_model(const InferenceEng
     return clonedNetwork;
 }
 
-Plugin::Plugin() : m_default_contexts({}) {
+std::map<std::string, RemoteCLContext::Ptr> Plugin::get_default_contexts() const {
+    std::call_once(m_default_contexts_once, [this]() {
+        // Create default context
+        for (auto& device : device_map) {
+            auto ctx = std::make_shared<RemoteCLContext>(GetName() + "." + device.first, std::vector<cldnn::device::ptr>{ device.second });
+            m_default_contexts.insert({device.first, ctx});
+        }
+    });
+    return m_default_contexts;
+}
+
+Plugin::Plugin() {
     _pluginName = "GPU";
     register_primitives();
     // try loading gpu engine and get info from it
@@ -149,8 +161,6 @@ Plugin::Plugin() : m_default_contexts({}) {
         // Set default configs for each device
         for (auto& device : device_map) {
             m_configs_map.insert({device.first, ExecutionConfig(ov::device::id(device.first))});
-            auto ctx = std::make_shared<RemoteCLContext>(GetName() + "." + device.first, std::vector<cldnn::device::ptr>{ device.second });
-            m_default_contexts.insert({device.first, ctx});
         }
     }
 }
@@ -226,7 +236,7 @@ InferenceEngine::RemoteContext::Ptr Plugin::CreateContext(const AnyMap& params) 
     }
 
     std::vector<RemoteContextImpl::Ptr> known_contexts;
-    for (auto& c : m_default_contexts) {
+    for (auto& c : get_default_contexts()) {
         known_contexts.push_back(c.second->get_impl());
     }
     std::string context_type = extract_object<std::string>(params, GPU_PARAM_KEY(CONTEXT_TYPE));
@@ -245,9 +255,9 @@ InferenceEngine::RemoteContext::Ptr Plugin::CreateContext(const AnyMap& params) 
 }
 
 RemoteCLContext::Ptr Plugin::get_default_context(const std::string& device_id) const {
-    OPENVINO_ASSERT(m_default_contexts.find(device_id) != m_default_contexts.end(), "[GPU] Context was not initialized for ", device_id, " device");
+    OPENVINO_ASSERT(get_default_contexts().find(device_id) != get_default_contexts().end(), "[GPU] Context was not initialized for ", device_id, " device");
 
-    return m_default_contexts.at(device_id);;
+    return get_default_contexts().at(device_id);;
 }
 
 InferenceEngine::RemoteContext::Ptr Plugin::GetDefaultContext(const AnyMap& params) {
@@ -353,18 +363,27 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork& network,
 }
 
 InferenceEngine::IExecutableNetworkInternal::Ptr Plugin::ImportNetwork(std::istream& networkModel,
+                                                                       const std::map<std::string, std::string>& config) {
+    std::string device_id = get_device_id(config);
+    auto context = get_default_context(device_id);
+    return ImportNetwork(networkModel, context, config);
+}
+
+InferenceEngine::IExecutableNetworkInternal::Ptr Plugin::ImportNetwork(std::istream& networkModel,
+                                                                       const std::shared_ptr<InferenceEngine::RemoteContext>& context,
                                                                        const std::map<std::string, std::string>& orig_config) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::ImportNetwork");
-    std::string device_id = get_device_id(orig_config);
-    auto context = get_default_context(device_id);
+
+    auto context_impl = get_context_impl(context);
+    auto device_id = ov::DeviceIDParser{context_impl->get_device_name()}.get_device_id();
 
     ExecutionConfig config = m_configs_map.at(device_id);
     config.set_user_property(preprocess_config(orig_config));
-    config.apply_user_properties(context->get_impl()->get_engine().get_device_info());
+    config.apply_user_properties(context_impl->get_engine().get_device_info());
 
     {
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::ImportNetwork::CreateExeNetwork");
-        cldnn::BinaryInputBuffer ib(networkModel, context->get_impl()->get_engine());
+        cldnn::BinaryInputBuffer ib(networkModel, context_impl->get_engine());
 
         InputsDataMap inputs;
         OutputsDataMap outputs;
@@ -522,7 +541,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Plugin::ImportNetwork(std::istr
             auto transformedNetwork = GetCore()->ReadNetwork(xmlString, std::move(dataBlob), true);
             exeNetwork = std::make_shared<CompiledModel>(transformedNetwork, context, config, &inputs, &outputs);
         } else {
-            exeNetwork = std::make_shared<CompiledModel>(ib, context, config);
+            exeNetwork = std::make_shared<CompiledModel>(ib, context, config, &inputs, &outputs);
             exeNetwork->SetPointerToPlugin(shared_from_this());
         }
 
@@ -764,7 +783,7 @@ std::vector<std::string> Plugin::get_device_capabilities(const cldnn::device_inf
 uint32_t Plugin::get_max_batch_size(const std::map<std::string, Parameter>& options) const {
     GPU_DEBUG_GET_INSTANCE(debug_config);
     auto device_id = GetConfig(ov::device::id.name(), options).as<std::string>();
-    auto context = m_default_contexts.at(device_id)->get_impl();
+    auto context = get_default_contexts().at(device_id)->get_impl();
     const auto& device_info = context->get_engine().get_device_info();
     const auto& config = m_configs_map.at(device_id);
     uint32_t n_streams = static_cast<uint32_t>(config.get_property(ov::num_streams));
@@ -914,7 +933,7 @@ uint32_t Plugin::get_max_batch_size(const std::map<std::string, Parameter>& opti
 
 uint32_t Plugin::get_optimal_batch_size(const std::map<std::string, Parameter>& options) const {
     auto device_id = GetConfig(ov::device::id.name(), options).as<std::string>();
-    auto context = m_default_contexts.at(device_id)->get_impl();
+    auto context = get_default_contexts().at(device_id)->get_impl();
     const auto& device_info = context->get_engine().get_device_info();
     auto next_pow_of_2 = [] (float x) {
         return pow(2, ceil(std::log(x)/std::log(2)));

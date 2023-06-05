@@ -77,6 +77,12 @@ JitConstants ConvolutionKernelBase::GetJitConstants(const convolution_params& pa
             mem_consts.AddConstants({MakeJitConstant("BILINEAR_INTERPOLATION_PAD", params.bilinear_interpolation_pad)});
     }
 
+    if (!params.is_shape_agnostic) {
+        if (params.outputs[0].Batch().v == 1) {
+            mem_consts.AddConstant(MakeJitConstant("SKIP_BATCH", 1));
+        }
+    }
+
     std::vector<uint32_t> unrollLoopParams{params.filterSize.x,
                                            params.filterSize.y,
                                            (uint32_t)dispatchData.gemmStyle.globalWorkSizeDX,
@@ -184,7 +190,7 @@ KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
     }
     DispatchData dispatchData = SetDefault(newParams, autoTuneIndex);
 
-    if (!CheckWorkGroups(dispatchData)) {
+    if (!params.is_shape_agnostic && !CheckWorkGroups(dispatchData)) {
         // Internal Error - wrong calculation of global/local work group sizes
         return {};
     }
@@ -193,6 +199,19 @@ KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
     auto cldnnJit = GetJitConstants(newParams, dispatchData);
     auto entryPoint = GetEntryPoint(finalKernelName, newParams.layerID, params, options);
     auto jit = CreateJit(finalKernelName, cldnnJit, entryPoint);
+
+    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
+        const auto& prim_params = static_cast<const convolution_params&>(params);
+        auto dispatchData = SetDefault(prim_params);
+        OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
+        kd.kernels[0].params.workGroups.global = dispatchData.gws;
+        kd.kernels[0].params.workGroups.local = dispatchData.lws;
+        kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
+
+        kd.internalBufferSizes.clear();
+        kd.internalBufferSizes.push_back(prim_params.inputs[0].PhysicalSizeInBytes());
+        kd.internalBufferDataType = prim_params.inputs[0].GetDType();
+    };
 
     auto& kernel = kd.kernels[0];
     FillCLKernelData(kernel,
@@ -204,7 +223,8 @@ KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
                      exeMode,
                      true,
                      !newParams.bias.empty(),
-                     1);
+                     1, 0, 1,
+                     newParams.inputs[0].is_dynamic() || newParams.outputs[0].is_dynamic());
 
     if (newParams.deformable_mode) {
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});

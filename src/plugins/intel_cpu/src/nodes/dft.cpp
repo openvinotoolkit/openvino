@@ -130,7 +130,7 @@ inline bool nextIterationStep(std::vector<size_t>& counters, const std::vector<s
     auto itWork = iterationRange.rbegin();
 
     while (itCounter != counters.rend() && itWork != iterationRange.rend()) {
-        if (std::distance(itCounter, counters.rend()) == axis + 1) {
+        if (static_cast<size_t>(std::distance(itCounter, counters.rend())) == axis + 1) {
             ++itCounter;
             ++itWork;
             continue;
@@ -393,7 +393,7 @@ void DFT::fft(float* inBuffer,
     for (size_t numBlocks = 1; numBlocks < nComplex; numBlocks *= 2) {
         blockSize = nextIterationBlockSize;
         nextIterationBlockSize /= 2;
-        if (parallelize && blockSize >= 4 * elementsPerCacheLine) {
+        if (parallelize && blockSize >= static_cast<size_t>(4 * elementsPerCacheLine)) {
             parallel_for(numBlocks, [&](const size_t block) {
                 blockIteration(block, 1, nextIterationBlockSize);
             });

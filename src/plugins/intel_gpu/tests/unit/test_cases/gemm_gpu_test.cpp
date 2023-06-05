@@ -127,7 +127,6 @@ public:
 
         cldnn::network::ptr network;
         if (is_caching_test) {
-            std::cout << "cached" << std::endl;
             membuf mem_buf;
             {
                 cldnn::network _network(engine, tp, get_test_default_config(engine));
@@ -1407,8 +1406,8 @@ public:
         ASSERT_EQ(outputs_ocl.size(), outputs_onednn.size());
         ASSERT_EQ(outputs_ocl.size(), size_t(1));
 
-        auto val_ocl = get_output_values_to_float(network_ocl, outputs_ocl.begin()->first);
-        auto val_onednn = get_output_values_to_float(network_onednn, outputs_onednn.begin()->first);
+        auto val_ocl = get_output_values_to_float(network_ocl, outputs_ocl.begin()->second);
+        auto val_onednn = get_output_values_to_float(network_onednn, outputs_onednn.begin()->second);
 
         ASSERT_EQ(val_ocl.size(), val_onednn.size());
 

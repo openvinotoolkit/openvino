@@ -11,10 +11,10 @@ The following Python API is used in the application:
 +------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------+
 | Feature                            | API                                                                                                                                                                            | Description                          |
 +====================================+================================================================================================================================================================================+======================================+
-| Model Operations                   | `openvino.runtime.Model.reshape <https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.Model.html#openvino.runtime.Model.reshape>`__ ,               | Managing of model                    |
-|                                    | `openvino.runtime.Model.input <https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.Model.html#openvino.runtime.Model.input>`__ ,                   |                                      |
-|                                    | `openvino.runtime.Output.get_any_name <https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.Output.html#openvino.runtime.Output.get_any_name>`__ ,  |                                      |
-|                                    | `openvino.runtime.PartialShape <https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.PartialShape.html>`__                                          |                                      |
+| Model Operations                   | `openvino.runtime.Model.reshape <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.runtime.Model.html#openvino.runtime.Model.reshape>`__ ,               | Managing of model                    |
+|                                    | `openvino.runtime.Model.input <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.runtime.Model.html#openvino.runtime.Model.input>`__ ,                   |                                      |
+|                                    | `openvino.runtime.Output.get_any_name <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.runtime.Output.html#openvino.runtime.Output.get_any_name>`__ ,  |                                      |
+|                                    | `openvino.runtime.PartialShape <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.runtime.PartialShape.html>`__                                          |                                      |
 +------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------+
 
 Basic OpenVINO™ Runtime API is covered by :doc:`Hello Classification Python* Sample <openvino_inference_engine_ie_bridges_python_sample_hello_classification_README>`.
@@ -56,8 +56,8 @@ To run the sample, you need to specify a model and image:
 
 .. note::
   
-   - By default, OpenVINO™ Toolkit Samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with ``--reverse_input_channels`` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of :doc:`Embedding Preprocessing Computation <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>`.
-   - Before running the sample with a trained model, make sure the model is converted to the intermediate representation (IR) format (\*.xml + \*.bin) using the :doc:`Model Optimizer tool <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`.
+   - By default, OpenVINO™ Toolkit Samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using model conversion API with ``reverse_input_channels`` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of :doc:`Embedding Preprocessing Computation <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>`.
+   - Before running the sample with a trained model, make sure the model is converted to the intermediate representation (IR) format (\*.xml + \*.bin) using :doc:`model conversion API <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`.
    - The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
 
 Example
@@ -109,7 +109,7 @@ See Also
 - :doc:`Integrate the OpenVINO™ Runtime with Your Application <openvino_docs_OV_UG_Integrate_OV_with_your_application>`
 - :doc:`Using OpenVINO™ Toolkit Samples <openvino_docs_OV_UG_Samples_Overview>`
 - :doc:`Model Downloader <omz_tools_downloader>`
-- :doc:`Model Optimizer <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`
+- :doc:`Convert a Model <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`
 
 @endsphinxdirective
 
