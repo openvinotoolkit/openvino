@@ -4,7 +4,7 @@ import copy
 import numpy as np
 from typing import List, Dict
 from abc import ABCMeta, abstractmethod
-from typing import Callable, Any
+from typing import Callable, Any, Union, Tuple
 from collections.abc import Sequence
 from PIL import Image
 
@@ -66,7 +66,7 @@ def _to_list(transform) -> List:
         raise TypeError(f"Unsupported transform type: {type(transform)}")
 
 
-def _get_shape_layout_from_data(input_example):
+def _get_shape_layout_from_data(input_example: Union[torch.Tensor, np.ndarray, Image.Image]) -> Tuple[List, Layout]:
     """
     Disregards rank of shape and return
     """
@@ -131,6 +131,8 @@ class TransformConverterFactory:
 @TransformConverterFactory.register(transforms.Normalize)
 class _(TransformConverterBase):
     def convert(self, input_idx: int, ppp: PrePostProcessor, transform, meta: Dict):
+        if transform.inplace:
+            raise ValueError("Inplace Normaliziation is not supported.")
         ppp.input(input_idx).preprocess().mean(transform.mean).scale(transform.std)
 
 
@@ -162,7 +164,6 @@ class _(TransformConverterBase):
 
         meta["input_shape"] = input_shape
         
-
 
 @TransformConverterFactory.register(transforms.Pad)
 class _(TransformConverterBase):
@@ -271,9 +272,9 @@ class _(TransformConverterBase):
 class _(TransformConverterBase):
     def convert(self, input_idx: int, ppp: PrePostProcessor, transform, meta: Dict):
         RESIZE_MODE_MAP = {
-            InterpolationMode.BILINEAR: ResizeAlgorithm.RESIZE_LINEAR,
-            InterpolationMode.BICUBIC: ResizeAlgorithm.RESIZE_CUBIC,
-            InterpolationMode.NEAREST: ResizeAlgorithm.RESIZE_NEAREST,
+            InterpolationMode.BILINEAR: ResizeAlgorithm.RESIZE_BILINEAR_PILLOW,
+            InterpolationMode.BICUBIC: ResizeAlgorithm.RESIZE_BICUBIC_PILLOW,
+            InterpolationMode.NEAREST: ResizeAlgorithm.RESIZE_NEAREST
         }
         if transform.max_size:
             raise ValueError("Resize with max_size if not supported")
@@ -293,7 +294,7 @@ class _(TransformConverterBase):
         meta["image_dimensions"] = (h, w)
 
 
-def from_torchvision(model: ov.Model, transform: Callable, input_example: Any, input_name: str = None) -> ov.Model:
+def _from_torchvision(model: ov.Model, transform: Callable, input_example: Any, input_name: str = None) -> ov.Model:
 
     if input_name is not None:
         input_idx = next((i for i, p in enumerate(model.get_parameters()) if p.get_friendly_name() == input_name), None)
