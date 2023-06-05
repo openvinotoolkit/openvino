@@ -6,6 +6,8 @@
 
 #include <memory>
 
+#include "openvino/runtime/iremote_context.hpp"
+#include "proxy_plugin.hpp"
 #include "remote_tensor.hpp"
 
 ov::proxy::RemoteContext::RemoteContext(ov::RemoteContext&& ctx, const std::string& dev_name)
@@ -36,4 +38,17 @@ const ov::RemoteContext& ov::proxy::RemoteContext::get_hardware_context(const ov
         return proxy_context->m_context;
     }
     return context;
+}
+
+const std::shared_ptr<ov::IRemoteContext>& ov::proxy::RemoteContext::get_hardware_context(
+    const std::shared_ptr<ov::IRemoteContext>& context) {
+    if (auto proxy_context = std::dynamic_pointer_cast<ov::proxy::RemoteContext>(context)) {
+        return proxy_context->m_context._impl;
+    }
+    return context;
+}
+
+const std::shared_ptr<ov::IRemoteContext>& ov::proxy::get_hardware_context(
+    const std::shared_ptr<ov::IRemoteContext>& context) {
+    return ov::proxy::RemoteContext::get_hardware_context(context);
 }

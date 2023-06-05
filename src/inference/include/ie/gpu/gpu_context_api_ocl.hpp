@@ -240,7 +240,7 @@ OPENVINO_DEPRECATED("This function is deprecated and will be removed in 2023.1 r
 static inline Blob::Ptr make_shared_blob_nv12(RemoteContext::Ptr ctx,
                                               cl::Image2D& nv12_image_plane_y,
                                               cl::Image2D& nv12_image_plane_uv) {
-    auto casted = std::dynamic_pointer_cast<ClContext>(ctx);
+    auto casted = ctx->as<ClContext>();
     if (nullptr == casted) {
         IE_THROW() << "Invalid remote context passed";
     }
@@ -319,7 +319,7 @@ static inline Blob::Ptr make_shared_blob(const TensorDesc& desc, ClContext::Ptr 
  * @return A remote blob instance
  */
 static inline Blob::Ptr make_shared_blob(const TensorDesc& desc, RemoteContext::Ptr ctx, cl::Buffer& buffer) {
-    auto casted = std::dynamic_pointer_cast<ClContext>(ctx);
+    auto casted = ctx->as<ClContext>();
     if (nullptr == casted) {
         IE_THROW() << "Invalid remote context passed";
     }
@@ -337,7 +337,7 @@ static inline Blob::Ptr make_shared_blob(const TensorDesc& desc, RemoteContext::
  * @return A remote blob instance
  */
 static inline Blob::Ptr make_shared_blob(const TensorDesc& desc, RemoteContext::Ptr ctx, cl_mem buffer) {
-    auto casted = std::dynamic_pointer_cast<ClContext>(ctx);
+    auto casted = ctx->as<ClContext>();
     if (nullptr == casted) {
         IE_THROW() << "Invalid remote context passed";
     }
@@ -355,7 +355,7 @@ static inline Blob::Ptr make_shared_blob(const TensorDesc& desc, RemoteContext::
  * @return A remote blob instance
  */
 static inline Blob::Ptr make_shared_blob(const TensorDesc& desc, RemoteContext::Ptr ctx, cl::Image2D& image) {
-    auto casted = std::dynamic_pointer_cast<ClContext>(ctx);
+    auto casted = ctx->as<ClContext>();
     if (nullptr == casted) {
         IE_THROW() << "Invalid remote context passed";
     }

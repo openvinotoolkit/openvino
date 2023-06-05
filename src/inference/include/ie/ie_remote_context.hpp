@@ -52,7 +52,7 @@ public:
               typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
               typename std::enable_if<std::is_base_of<RemoteContext, T>::value, int>::type = 0>
     bool is() noexcept {
-        return dynamic_cast<T*>(this) != nullptr;
+        return dynamic_cast<T*>(GetHardwareContext().get()) != nullptr;
     }
 
     /**
@@ -65,7 +65,7 @@ public:
               typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
               typename std::enable_if<std::is_base_of<RemoteContext, T>::value, int>::type = 0>
     bool is() const noexcept {
-        return dynamic_cast<const T*>(this) != nullptr;
+        return dynamic_cast<const T*>(GetHardwareContext().get()) != nullptr;
     }
 
     /**
@@ -78,7 +78,7 @@ public:
               typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
               typename std::enable_if<std::is_base_of<RemoteContext, T>::value, int>::type = 0>
     T* as() noexcept {
-        return dynamic_cast<T*>(this);
+        return dynamic_cast<T*>(GetHardwareContext().get());
     }
 
     /**
@@ -91,7 +91,7 @@ public:
               typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
               typename std::enable_if<std::is_base_of<RemoteContext, T>::value, int>::type = 0>
     const T* as() const noexcept {
-        return dynamic_cast<const T*>(this);
+        return dynamic_cast<const T*>(GetHardwareContext().get());
     }
 
     /**
@@ -130,6 +130,20 @@ public:
      * @return A map of name/parameter elements.
      */
     virtual ParamMap getParams() const = 0;
+
+    /**
+     * @brief Unwrap hardware plugin
+     *
+     * @return shared pointer to remote context
+     */
+    const std::shared_ptr<InferenceEngine::RemoteContext> GetHardwareContext();
+
+    /**
+     * @brief Unwrap hardware plugin
+     *
+     * @return shared pointer to remote context
+     */
+    const std::shared_ptr<const InferenceEngine::RemoteContext> GetHardwareContext() const;
 };
 
 /**

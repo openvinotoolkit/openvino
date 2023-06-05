@@ -58,6 +58,7 @@ const std::shared_ptr<ov::ITensor>& ov::proxy::RemoteTensor::get_hardware_tensor
         return remote_tensor->m_tensor._impl;
     return tensor;
 }
+
 const std::shared_ptr<ov::ITensor>& ov::proxy::get_hardware_tensor(const std::shared_ptr<ov::ITensor>& tensor) {
     return ov::proxy::RemoteTensor::get_hardware_tensor(tensor);
 }

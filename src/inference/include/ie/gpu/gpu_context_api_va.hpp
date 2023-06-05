@@ -150,7 +150,7 @@ static inline VASurfaceBlob::Ptr make_shared_blob(const TensorDesc& desc,
                                                   RemoteContext::Ptr ctx,
                                                   VASurfaceID surface,
                                                   uint32_t plane = 0) {
-    auto casted = std::dynamic_pointer_cast<VAContext>(ctx);
+    auto casted = ctx->as<VAContext>();
     if (nullptr == casted) {
         IE_THROW() << "Invalid remote context passed";
     }

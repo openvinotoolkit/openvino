@@ -39,6 +39,7 @@
 #include "openvino/runtime/tensor.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "openvino/runtime/variable_state.hpp"
+#include "remote_context_wrapper.hpp"
 #include "threading/ie_executor_manager.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -794,44 +795,6 @@ std::shared_ptr<::ov::IAsyncInferRequest> ov::legacy_convert::convert_infer_requ
     }
     return std::make_shared<InferenceEngine::IAsyncInferRequestWrapper>(request);
 }
-
-namespace ov {
-
-class RemoteContextWrapper : public InferenceEngine::RemoteContext {
-private:
-    std::shared_ptr<ov::IRemoteContext> m_context;
-
-public:
-    RemoteContextWrapper(const std::shared_ptr<ov::IRemoteContext>& context) : m_context(context) {}
-
-    const std::shared_ptr<ov::IRemoteContext>& get_context() {
-        return m_context;
-    }
-
-    std::string getDeviceName() const noexcept override {
-        return m_context->get_device_name();
-    }
-
-    InferenceEngine::RemoteBlob::Ptr CreateBlob(const InferenceEngine::TensorDesc& tensorDesc,
-                                                const InferenceEngine::ParamMap& params = {}) override {
-        return std::dynamic_pointer_cast<InferenceEngine::RemoteBlob>(ov::tensor_to_blob(
-            m_context->create_tensor(InferenceEngine::details::convertPrecision(tensorDesc.getPrecision()),
-                                     tensorDesc.getBlockingDesc().getBlockDims(),
-                                     params)));
-    }
-
-    InferenceEngine::MemoryBlob::Ptr CreateHostBlob(const InferenceEngine::TensorDesc& tensorDesc) override {
-        return std::dynamic_pointer_cast<InferenceEngine::MemoryBlob>(ov::tensor_to_blob(
-            m_context->create_host_tensor(InferenceEngine::details::convertPrecision(tensorDesc.getPrecision()),
-                                          tensorDesc.getBlockingDesc().getBlockDims())));
-    }
-
-    InferenceEngine::ParamMap getParams() const override {
-        return m_context->get_property();
-    }
-};
-
-}  // namespace ov
 
 namespace InferenceEngine {
 

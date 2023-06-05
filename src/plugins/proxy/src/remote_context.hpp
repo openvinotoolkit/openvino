@@ -25,6 +25,8 @@ public:
     std::shared_ptr<ov::ITensor> create_host_tensor(const ov::element::Type type, const ov::Shape& shape) override;
 
     static const ov::RemoteContext& get_hardware_context(const ov::RemoteContext& context);
+    static const std::shared_ptr<ov::IRemoteContext>& get_hardware_context(
+        const std::shared_ptr<ov::IRemoteContext>& context);
 
 private:
     mutable std::string m_name;

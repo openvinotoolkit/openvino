@@ -181,7 +181,7 @@ static inline D3DContext::Ptr make_shared_context(Core& core,
  * @return A remote blob instance
  */
 static inline Blob::Ptr make_shared_blob(const TensorDesc& desc, RemoteContext::Ptr ctx, ID3D11Buffer* buffer) {
-    auto casted = std::dynamic_pointer_cast<D3DContext>(ctx);
+    auto casted = ctx->as<D3DContext>();
     if (nullptr == casted) {
         IE_THROW() << "Invalid remote context passed";
     }
@@ -204,7 +204,7 @@ static inline Blob::Ptr make_shared_blob(const TensorDesc& desc,
                                          RemoteContext::Ptr ctx,
                                          ID3D11Texture2D* surface,
                                          uint32_t plane = 0) {
-    auto casted = std::dynamic_pointer_cast<D3DContext>(ctx);
+    auto casted = ctx->as<D3DContext>();
     if (nullptr == casted) {
         IE_THROW() << "Invalid remote context passed";
     }
