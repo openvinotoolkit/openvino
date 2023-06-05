@@ -11,6 +11,7 @@
 
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/core/rt_info.hpp"
 
 
 ov::intel_cpu::pass::MulAddToFMA::MulAddToFMA() {
@@ -36,7 +37,7 @@ ov::intel_cpu::pass::MulAddToFMA::MulAddToFMA() {
         const auto& c = pattern_map.at(add_input_2);
 
         const auto fma = std::make_shared<ov::intel_cpu::FusedMulAdd>(a, b, c);
-        snippets::utils::safe_copy_runtime_info({ a.get_node_shared_ptr(), b.get_node_shared_ptr(), c.get_node_shared_ptr() }, fma);
+        copy_runtime_info({ a.get_node_shared_ptr(), b.get_node_shared_ptr(), c.get_node_shared_ptr() }, fma);
         fma->set_friendly_name(add->get_friendly_name());
         ov::replace_node(add, fma);
 

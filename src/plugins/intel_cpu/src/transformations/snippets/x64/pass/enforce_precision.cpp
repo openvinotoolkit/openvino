@@ -8,6 +8,7 @@
 #include "snippets/utils.hpp"
 #include "snippets/pass/propagate_precision.hpp"
 
+#include "openvino/core/rt_info.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "cpu/x64/cpu_isa_traits.hpp"
 
@@ -82,7 +83,7 @@ bool EnforcePrecision::run_on_model(const std::shared_ptr<ov::Model>& f) {
             auto convert = std::make_shared<snippets::op::ConvertSaturation>(
                 parent_output,
                 target);
-            snippets::utils::safe_copy_runtime_info(parent_output.get_node_shared_ptr(), convert);
+            copy_runtime_info(parent_output.get_node_shared_ptr(), convert);
             op->set_argument(input_index, convert);
         };
 
