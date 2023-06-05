@@ -452,7 +452,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
     }
     for (auto&& network : _networks) {
         // auto metaDevices = _heteroPlugin->GetDevicePlugins(network._device, _device_config);
-        auto metaDevices = plugin->GetDevicePlugins(network._device, _device_config);
+        auto metaDevices = plugin->get_device_properties(network._device, _device_config);
 
         // disable caching for subgraphs, because the whole HETERO model is cached
         auto device_config = metaDevices[network._device];
@@ -526,7 +526,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream& heteroModel,
     FOREACH_CHILD (subnetworkNode, subnetworksNode, "subnetwork") {
         auto deviceName = GetStrAttr(subnetworkNode, "device");
 
-        auto metaDevices = plugin->GetDevicePlugins(deviceName, _device_config);
+        auto metaDevices = plugin->get_device_properties(deviceName, _device_config);
         assert(metaDevices.size() == 1);
         auto& loadConfig = metaDevices[deviceName];
 

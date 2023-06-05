@@ -25,7 +25,7 @@ namespace hetero {
 
 class Plugin : public ov::IPlugin {
 public:
-    using DeviceMetaInformationMap = std::unordered_map<std::string, ov::AnyMap>;
+    using DeviceProperties = std::unordered_map<std::string, ov::AnyMap>;
 
     Plugin();
     ~Plugin() = default;
@@ -55,11 +55,6 @@ public:
                                     const ov::AnyMap& properties) const override;
     
 
-    
-
-    // TODO vurusovs: THINK TWICE ABOUT NECESSITY OF FUNCTION
-    DeviceMetaInformationMap GetDevicePlugins(const std::string& targetFallback, const ov::AnyMap& properties) const;
-
     // FROM OLD HETERO PLUGIN
     // std::string GetTargetFallback(const Configs& config, bool raise_exception = true) const;
     // std::string GetTargetFallback(const ov::AnyMap& config, bool raise_exception = true) const;
@@ -70,6 +65,8 @@ private:
     // friend class InferRequest;
 
     std::string DeviceCachingProperties(const std::string& targetFallback) const;
+
+    DeviceProperties get_device_properties(const std::string& device_priorities, const ov::AnyMap& properties) const;
 
     Configuration m_cfg;
 };
