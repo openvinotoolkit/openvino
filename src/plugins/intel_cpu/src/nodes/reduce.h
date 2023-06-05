@@ -112,9 +112,11 @@ private:
     inline void reduce_kernel_process(const uint8_t *in_p, uint8_t *out_p, size_t work_amount,
                                       size_t reduce_w = 2, size_t work_batch = 1, const int *tab_idx = NULL);
     inline void reduce_kernel_post_process(uint8_t *out_ptr);
+    inline void reduce_kernel_reassign();
+    inline void reduce_kernel_restore();
     inline void init_dst_data(uint8_t *out_ptr, size_t dst_size);
-    inline void create_working_memory();
-    inline void create_DH_working_memory();
+    inline void create_hybrid_working_memory();
+    inline void create_opt_working_memory();
     inline void calc_process_dst_dims(std::vector<int> &reduce_axes, const InferenceEngine::SizeVector &dst_dim);
     inline void set_reduce_dim_flags();
     inline void reduce_ref(const float *in_ptr, float *out_ptr);
@@ -142,11 +144,13 @@ private:
     bool precision_change = false;
     bool ReduceAll_opt = false;
     bool ReduceDH_opt = false;
+    bool ReduceCDW_opt = false;
     bool use_aux_kernel = false;
+    bool set_use_aux_kernel = false;
     bool ReduceN, ReduceC, ReduceD, ReduceH, ReduceW;
     size_t IB, IC, ID, IH, IW;
     size_t OB, OC, OD, OH, OW;
-    size_t PD, PW;
+    size_t PD, PH, PW;
     size_t src_data_size, dst_data_size, prc_data_size;
     size_t reduce_stride;
     ReduceLayoutType layout;
@@ -165,6 +169,7 @@ private:
 
     dnnl::memory prc_mem;
     std::vector<uint8_t> vec_reduceDH_prc;
+    std::vector<uint8_t> vec_reduceCDW_prc;
 
     std::shared_ptr<jit_uni_reduce_kernel> reduce_kernel;
     std::shared_ptr<jit_uni_reduce_kernel> reduce_aux_kernel;
