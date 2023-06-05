@@ -142,8 +142,8 @@ def test_load_by_model_tf_graph_iterator():
         tf.compat.v1.reset_default_graph()
 
         with tf.compat.v1.Session() as sess:
-            inp = tf.compat.v1.placeholder(tf.float32, [1, 2, 3], 'Input')
-            output = tf.nn.sigmoid(inp, name='Sigmoid')
+            inp = tf.compat.v1.placeholder(tf.float32, [1, 2, 3], "Input")
+            _ = tf.nn.sigmoid(inp, name="Sigmoid")
 
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph

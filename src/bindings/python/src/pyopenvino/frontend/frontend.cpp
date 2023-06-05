@@ -62,7 +62,7 @@ void regclass_frontend_FrontEnd(py::module m) {
     fem.def(
         "supported",
         [](FrontEnd& self, const py::object& model) {
-                return self.supported({Common::utils::py_object_to_any(model)});
+            return self.supported({Common::utils::py_object_to_any(model)});
         },
         py::arg("model"),
         R"(

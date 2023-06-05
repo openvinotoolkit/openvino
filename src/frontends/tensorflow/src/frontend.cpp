@@ -144,8 +144,7 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
     else if (variants[0].is<GraphIterator::Ptr>()) {
         // this is used for OpenVINO with TensorFlow Integration
         return true;
-    }
-    else if (variants[0].is<std::shared_ptr<IGraphIterator>>()) {
+    } else if (variants[0].is<std::shared_ptr<IGraphIterator>>()) {
         // this is used for Python implemetation of GraphIterator
         return true;
     }
