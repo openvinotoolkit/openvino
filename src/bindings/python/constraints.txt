@@ -20,3 +20,6 @@ docopt~=0.6.2
 paddlepaddle==2.4.2
 tensorflow>=1.15.5,<2.13.0
 six~=1.16.0
+
+# torchvision > OpenVINO preprocessing converter 
+pillow>=9.0
