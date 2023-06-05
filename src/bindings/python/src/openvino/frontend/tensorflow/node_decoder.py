@@ -40,9 +40,11 @@ def tf_attr_to_ov(attr):
 
 
 class TFGraphNodeDecoder(DecoderBase):
-    def __init__(self, opeartion, inner_graph):
+    def __init__(self, operation: tf.Operation, inner_graph: bool):
         DecoderBase.__init__(self)
-        self.m_operation = opeartion
+        assert isinstance(operation, tf.Operation), "Unknown operation type. " \
+                                                    "Expected tf.Operation, got {}".format(type(operation))
+        self.m_operation = operation
         self.m_inner_graph = inner_graph
         if self.m_operation.type == "Const":
             value = self.m_operation.node_def.attr["value"].tensor

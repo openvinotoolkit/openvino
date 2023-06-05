@@ -10,7 +10,7 @@ from openvino.frontend.tensorflow.py_tensorflow_frontend import _FrontEndPyGraph
 
 
 class GraphIteratorTFGraph(GraphIterator):
-    def __init__(self, tf_graph, inner_graph=False):
+    def __init__(self, tf_graph: tf.Graph, inner_graph: bool = False):
         GraphIterator.__init__(self)
         self.m_graph = tf_graph
         self.m_node_index = 0
@@ -28,7 +28,11 @@ class GraphIteratorTFGraph(GraphIterator):
         inp_ops = filter(lambda op: op.type == "Placeholder" and len(op.inputs) == 0, self.m_graph.get_operations())
         inp_names = []
         for inp in inp_ops:
+            assert isinstance(inp, tf.Operation), "Unknown node type. Expected tf.Operation, got {}".format(type(inp))
+            assert hasattr(inp, "node_def") and isinstance(inp.node_def, tf.compat.v1.NodeDef), \
+                "Could not find node_def in node {}".format(inp.name)
             type_attr = inp.node_def.attr["dtype"].type
+
             # Placeholders with type "resource" have exact values in "variables" field,
             # so they are passed to TF FE as constants.
             # For this reason they are not listed as model inputs.
@@ -39,6 +43,7 @@ class GraphIteratorTFGraph(GraphIterator):
     def get_output_names(self) -> list:
         non_outputs = []
         for op in self.m_graph.get_operations():
+            assert isinstance(op, tf.Operation), "Unknown node type. Expected tf.Operation, got {}".format(type(op))
             for inp in op.inputs:
                 non_outputs.append(inp.op.name)
 
