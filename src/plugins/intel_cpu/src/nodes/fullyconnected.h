@@ -103,6 +103,9 @@ private:
     float weiSparseRate = 0.f;
     bool useSparseWeightsDecompression();
     bool isINT8 = false;
+    bool useMlas = false;
+    int64_t M, N, K;
+    std::unique_ptr<ngraph::runtime::AlignedBuffer> packedBPtr;
 };
 
 }   // namespace node

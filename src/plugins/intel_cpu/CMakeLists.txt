@@ -103,6 +103,7 @@ target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/sr
 if (ENABLE_MLAS)
     target_link_libraries(${TARGET_NAME} PRIVATE mlas)
     target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:mlas,INCLUDE_DIRECTORIES>)
+    add_definitions(-DOV_CPU_WITH_MLAS)
 endif()
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
 # Cross compiled function

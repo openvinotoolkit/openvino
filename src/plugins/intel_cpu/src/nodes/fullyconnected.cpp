@@ -28,6 +28,10 @@
 #include <string>
 #include <vector>
 
+#ifdef OV_CPU_WITH_MLAS
+#include "gemm/ov_cpu_gemm.h"
+#endif
+
 using namespace dnnl;
 using namespace InferenceEngine;
 
@@ -257,7 +261,10 @@ void FullyConnected::getSupportedDescriptors() {
         // s32/u32/... unsupported input data types, fallback to f32
         inputDataType = outputDataType = memory::data_type::f32;
     }
-
+#ifdef OV_CPU_WITH_MLAS
+    useMlas = !useSparseWeights && (inputDataType != memory::data_type::bf16) && !isINT8;
+#endif
+    if (useMlas) return;
     inDims = isDynamicNode() ? makeDummyInputDims() : getInputShapeAtPort(DATA_ID).getStaticDims();
     outDims = isDynamicNode() ? makeDummyOutputDims(inDims) : getOutputShapeAtPort(0).getStaticDims();
 
@@ -270,6 +277,12 @@ void FullyConnected::getSupportedDescriptors() {
 }
 
 void FullyConnected::createPrimitive() {
+#ifdef OV_CPU_WITH_MLAS
+    if (useMlas) {
+        Node::createPrimitive();
+        return;
+    }
+#endif
     setPostOps(attr, outDims);
     attr.set_scratchpad_mode(dnnl::scratchpad_mode::user);
     Node::createPrimitive();
@@ -293,7 +306,25 @@ void FullyConnected::prepareParams() {
     NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set for node " << getName() << ".";
-
+#ifdef OV_CPU_WITH_MLAS
+    if (useMlas) {
+        auto& dims0 = getParentEdgeAt(0)->getMemoryPtr()->getStaticDims();
+        auto& dims1 = getParentEdgeAt(1)->getMemoryPtr()->getStaticDims();
+        //Weight is transpoed by MatMulConstTransposesExtraction
+        K = dims0[dims0.size() - 1];
+        N = dims1[dims1.size() - 2];
+        M = std::accumulate(dims0.begin(), dims0.end() - 1, 1, std::multiplies<int64_t>());
+        if (packedBPtr == nullptr) {
+            auto packedBsize = ov_sgemm_pack_get_size("B", M, N, K);
+            packedBPtr.reset(new ngraph::runtime::AlignedBuffer(packedBsize));
+            float* weightPtr = reinterpret_cast<float*>(getParentEdgeAt(1)->getMemoryPtr()->GetPtr());
+            size_t lda = M;
+            size_t ldb = K;
+            ov_sgemm_pack("B", "N", "T", M, N, K, lda, ldb, weightPtr, packedBPtr->get_ptr<float>());
+        }
+        return;
+    }
+#endif
     DnnlMemoryDescPtr weightDesc = MemoryDescUtils::convertToDnnlMemoryDesc(weightDescIP);
     DnnlMemoryDescCPtr biasDesc = nullptr;
     if (biasMemPtr) {
@@ -421,6 +452,29 @@ void FullyConnected::prepareParams() {
 }
 
 void FullyConnected::execute(dnnl::stream strm) {
+#ifdef OV_CPU_WITH_MLAS
+    if (useMlas) {
+        auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+        auto& src0MemPtr = getParentEdgeAt(0)->getMemoryPtr();
+        int64_t lda = K;
+        int64_t ldb = K;
+        int64_t ldc = N;
+        ov_sgemm_pack_compute("N",
+                            "N",
+                            M,
+                            N,
+                            K,
+                            1.0f,
+                            reinterpret_cast<float*>(src0MemPtr->GetData()),
+                            lda,
+                            packedBPtr->get_ptr<float>(),
+                            ldb,
+                            0.0f,
+                            reinterpret_cast<float*>(dstMemPtr->GetData()),
+                            ldc);
+        return;
+    }
+#endif
     if (!execPtr) {
         IE_THROW() << "Can't execute FullyConnected node with name: " << getName() << ", because executor is not compiled";
     }
@@ -450,7 +504,21 @@ void FullyConnected::executeDynamicImpl(dnnl::stream strm) {
 }
 
 bool FullyConnected::canFuse(const NodePtr& node) const {
-    return canFuseSimpleOperation(node);
+    if (node->getType() == Type::FakeQuantize) {
+        bool ret = node->getAlgorithm() != Algorithm::FQBinarization;
+        for (size_t i = 1; i < node->getParentEdges().size(); i++) {
+            ret &= node->getParentEdgesAtPort(i)[0]->getParent()->getChildEdges().size() == 1;
+        }
+        return ret;
+    } else if (node->getType() == Type::Eltwise) {
+#ifdef OV_CPU_WITH_MLAS
+        return false;
+#else
+        return DnnlExtensionUtils::isUnarySupportedAsPostOp(node->getAlgorithm()) ||
+            node->canBePerformedAsScaleShift(this);
+#endif
+    }
+    return false;
 }
 
 void FullyConnected::setPostOps(dnnl::primitive_attr& attr, const VectorDims& dims_ext) {
@@ -637,48 +705,55 @@ void FullyConnected::createDescriptor(const std::vector<MemoryDescPtr> &inputDes
 void FullyConnected::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
+    if (useMlas) {
+        auto dataPrecision = getOriginalInputPrecisionAtPort(0);
+        addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision},
+                        {LayoutType::ncsp, dataPrecision}},
+                        {{LayoutType::ncsp, dataPrecision}},
+                        impl_desc_type::gemm_mlas);
+    } else {
+        for (auto& desc : descs) {
+            primitive_desc_iterator itpd = desc;
+            while (static_cast<bool>(itpd)) {
+                // 3D FC requires implicit reshape so strides should be defined
+                auto supportsUndefStridesAndOffset = [&]() {
+                    return getOutputShapeAtPort(0).getRank() == 2;
+                };
 
-    for (auto& desc : descs) {
-        primitive_desc_iterator itpd = desc;
-        while (static_cast<bool>(itpd)) {
-            // 3D FC requires implicit reshape so strides should be defined
-            auto supportsUndefStridesAndOffset = [&]() {
-                return getOutputShapeAtPort(0).getRank() == 2;
-            };
-
-            NodeConfig config;
-            for (size_t i = 0; i < descInputNumbers(); i++) {
-                PortConfig portConfig;
-                portConfig.inPlace(-1);
-                portConfig.constant(false);
-                auto desc = getSrcMemDesc(itpd, i);
-                if (supportsUndefStridesAndOffset() && !(i == WEIGHTS_ID && useSparseWeights)) {
-                    portConfig.setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(desc), BLOCKED_DESC_EMPTY_MASK);
-                } else {
-                    portConfig.setMemDesc(desc);
+                NodeConfig config;
+                for (size_t i = 0; i < descInputNumbers(); i++) {
+                    PortConfig portConfig;
+                    portConfig.inPlace(-1);
+                    portConfig.constant(false);
+                    auto desc = getSrcMemDesc(itpd, i);
+                    if (supportsUndefStridesAndOffset() && !(i == WEIGHTS_ID && useSparseWeights)) {
+                        portConfig.setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(desc), BLOCKED_DESC_EMPTY_MASK);
+                    } else {
+                        portConfig.setMemDesc(desc);
+                    }
+                    config.inConfs.push_back(portConfig);
                 }
-                config.inConfs.push_back(portConfig);
-            }
 
-            for (size_t i = 0; i < descOutputNumbers(); i++) {
-                PortConfig portConfig;
-                portConfig.inPlace(canBeInPlace() ? 0 : -1);
-                portConfig.constant(false);
-                auto desc = getDstMemDesc(itpd, i);
-                if (supportsUndefStridesAndOffset()) {
-                    portConfig.setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(desc), BLOCKED_DESC_EMPTY_MASK);
-                } else {
-                    portConfig.setMemDesc(desc);
+                for (size_t i = 0; i < descOutputNumbers(); i++) {
+                    PortConfig portConfig;
+                    portConfig.inPlace(canBeInPlace() ? 0 : -1);
+                    portConfig.constant(false);
+                    auto desc = getDstMemDesc(itpd, i);
+                    if (supportsUndefStridesAndOffset()) {
+                        portConfig.setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(desc), BLOCKED_DESC_EMPTY_MASK);
+                    } else {
+                        portConfig.setMemDesc(desc);
+                    }
+                    config.outConfs.push_back(portConfig);
                 }
-                config.outConfs.push_back(portConfig);
+
+                impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
+
+                supportedPrimitiveDescriptors.emplace_back(config, impl_type);
+
+                if (!itpd.next_impl())
+                    break;
             }
-
-            impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
-
-            supportedPrimitiveDescriptors.emplace_back(config, impl_type);
-
-            if (!itpd.next_impl())
-                break;
         }
     }
 }
