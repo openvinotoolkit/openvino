@@ -20,11 +20,11 @@ namespace auto_plugin {
 AutoCumuCompiledModel::AutoCumuCompiledModel(const std::shared_ptr<ov::Model>& model,
                                              const std::shared_ptr<const ov::IPlugin>& plugin,
                                              ScheduleContext::Ptr context,
-                                             CumuSchedule::Ptr scheduler)
+                                             Schedule::Ptr scheduler)
     : CompiledModel(model, plugin, context, scheduler),
       m_model(model),
-      m_context(context),
-      m_scheduler(scheduler) {
+      m_context(context) {
+      m_scheduler = std::dynamic_pointer_cast<CumuSchedule>(scheduler);
 }
 
 void AutoCumuCompiledModel::set_property(const ov::AnyMap& properties) {

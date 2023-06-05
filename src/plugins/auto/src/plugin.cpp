@@ -170,10 +170,6 @@ std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& pri
         } catch (ov::Exception& err) {
             LOG_DEBUG_TAG("get default device id failed for ", device_name.c_str());
             return "";
-        } catch (InferenceEngine::Exception& err) {
-            // some remain with IE exceptions
-            LOG_DEBUG_TAG("get default device id failed for ", device_name.c_str());
-            return "";
         }
     };
     auto check_priority_config = [&] (const std::string& pri_string) {
@@ -459,10 +455,22 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
     auto_s_context->m_runtime_fallback = load_config.get_property(ov::intel_auto::enable_runtime_fallback);
     auto_s_context->m_bind_buffer = load_config.get_property(ov::intel_auto::device_bind_buffer);
     std::shared_ptr<ov::ICompiledModel> impl;
+    std::shared_ptr<Schedule> scheduler;
+    if (is_cumulative)
+        scheduler = std::make_shared<CumuSchedule>();
+    else
+        scheduler = std::make_shared<AutoSchedule>();
+    // scheduler start to compile
+    scheduler->launch(auto_s_context);
+    if (!cloned_model) {
+        // fake a model for compile model inputs/outputs in caching case
+        OPENVINO_ASSERT(auto_s_context->m_hw_compiled_model);
+        cloned_model = std::const_pointer_cast<ov::Model>(auto_s_context->m_hw_compiled_model->get_runtime_model());
+    }
     if (is_cumulative) {
-        impl = std::make_shared<AutoCumuCompiledModel>(cloned_model, shared_from_this(), auto_s_context, std::make_shared<CumuSchedule>());
+        impl = std::make_shared<AutoCumuCompiledModel>(cloned_model, shared_from_this(), auto_s_context, scheduler);
     } else {
-        impl = std::make_shared<AutoCompiledModel>(cloned_model, shared_from_this(), auto_s_context, std::make_shared<AutoSchedule>());
+        impl = std::make_shared<AutoCompiledModel>(cloned_model, shared_from_this(), auto_s_context, scheduler);
     }
     return impl;
 }

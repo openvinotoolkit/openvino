@@ -23,32 +23,6 @@ ov::auto_plugin::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& 
     : ov::ICompiledModel(model, plugin),
       m_context(context),
       m_scheduler(scheduler) {
-      m_scheduler->launch(m_context);
-      // update compile model inputs/outputs
-      if (!model && m_context->m_hw_compiled_model) {
-        set_inputs(m_context->m_hw_compiled_model->inputs());
-        set_outputs(m_context->m_hw_compiled_model->outputs());
-      }
-}
-
-const std::vector<ov::Output<const ov::Node>>& ov::auto_plugin::CompiledModel::outputs() const {
-    if (m_outputs.size())
-        return m_outputs;
-    return ov::ICompiledModel::outputs();
-}
-
-const std::vector<ov::Output<const ov::Node>>& ov::auto_plugin::CompiledModel::inputs() const {
-    if (m_inputs.size())
-        return m_inputs;
-    return ov::ICompiledModel::inputs();
-}
-
-void ov::auto_plugin::CompiledModel::set_outputs(const std::vector<ov::Output<const ov::Node>>& outputs) {
-    m_outputs = outputs;
-}
-
-void ov::auto_plugin::CompiledModel::set_inputs(const std::vector<ov::Output<const ov::Node>>& inputs) {
-    m_inputs = inputs;
 }
 
 ov::auto_plugin::ISyncInferPtr ov::auto_plugin::CompiledModel::create_sync_infer_request() const {

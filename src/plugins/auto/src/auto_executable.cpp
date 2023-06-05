@@ -12,9 +12,6 @@
 #include "openvino/runtime/exec_model_info.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "plugin.hpp"
-//#include "check_network_batchable.hpp"
-#include "ie_plugin_config.hpp"
-
 #include <ie_performance_hints.hpp>
 
 namespace ov {
@@ -22,11 +19,11 @@ namespace auto_plugin {
 AutoCompiledModel::AutoCompiledModel(const std::shared_ptr<ov::Model>& model,
                                                       const std::shared_ptr<const ov::IPlugin>& plugin,
                                                       ScheduleContext::Ptr context,
-                                                      AutoSchedule::Ptr scheduler)
+                                                      Schedule::Ptr scheduler)
     : CompiledModel(model, plugin, context, scheduler),
       m_model(model),
-      m_context(context),
-      m_scheduler(scheduler) {
+      m_context(context) {
+      m_scheduler = std::dynamic_pointer_cast<AutoSchedule>(scheduler);
 }
 
 void AutoCompiledModel::set_property(const ov::AnyMap& properties) {

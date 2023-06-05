@@ -23,19 +23,19 @@ using namespace ov::mock_auto_plugin;
 
 MockLog* MockLog::m_mocklog = NULL;
 using ConfigParams = std::tuple<
-        std::string,     // logLevel
+        ov::log::Level,   // logLevel
         std::string,     // envlogLevel
         int             //  expectCallNum
         >;
 class LogUtilsTest : public ::testing::TestWithParam<ConfigParams> {
 public:
-    std::string _logLevel;
+    ov::log::Level _logLevel;
     std::string _envLogLevel;
     int _expectCallNum;
 
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ConfigParams> obj) {
-        std::string logLevel;
+        ov::log::Level logLevel;
         std::string envLogLevel;
         int expectCallNum;
         std::tie(logLevel, envLogLevel, expectCallNum) = obj.param;
@@ -89,8 +89,8 @@ TEST_P(LogUtilsTest, INFO_RUN) {
     set_log_level(_logLevel);
     int a = 0;
     INFO_RUN([&a](){a++;});
-    if (_logLevel == "LOG_INFO" || _logLevel == "LOG_DEBUG" ||
-            _logLevel == "LOG_TRACE") {
+    if (_logLevel == ov::log::Level::INFO || _logLevel == ov::log::Level::DEBUG ||
+            _logLevel == ov::log::Level::TRACE) {
         EXPECT_EQ(a, 1);
     } else {
         EXPECT_EQ(a, 0);
@@ -101,7 +101,7 @@ TEST_P(LogUtilsTest, DEBUG_RUN) {
     set_log_level(_logLevel);
     int a = 0;
     DEBUG_RUN([&a](){a++;});
-    if (_logLevel == "LOG_DEBUG" || _logLevel == "LOG_TRACE") {
+    if (_logLevel == ov::log::Level::DEBUG || _logLevel == ov::log::Level::TRACE) {
         EXPECT_EQ(a, 1);
     } else {
         EXPECT_EQ(a, 0);
@@ -148,13 +148,13 @@ TEST(smoke_Auto_BehaviorTests, LogUtilsSingleton) {
 }
 
 const std::vector<ConfigParams> testConfigs =
-{ConfigParams {"LOG_NONE", "0", 0},
-    ConfigParams {"LOG_NONE", "1", 0},
-    ConfigParams {"LOG_ERROR", "2", 2},
-    ConfigParams {"LOG_WARNING", "3", 4},
-    ConfigParams {"LOG_INFO", "4", 6},
-    ConfigParams {"LOG_DEBUG", "5", 8},
-    ConfigParams {"LOG_TRACE", "6", 10}};
+{ConfigParams {ov::log::Level::NO, "0", 0},
+    ConfigParams {ov::log::Level::NO, "1", 0},
+    ConfigParams {ov::log::Level::ERR, "2", 2},
+    ConfigParams {ov::log::Level::WARNING, "3", 4},
+    ConfigParams {ov::log::Level::INFO, "4", 6},
+    ConfigParams {ov::log::Level::DEBUG, "5", 8},
+    ConfigParams {ov::log::Level::TRACE, "6", 10}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, LogUtilsTest,
                 ::testing::ValuesIn(testConfigs),

@@ -12,7 +12,7 @@ using ::testing::_;
 class LogUtilsFormatTest : public ::testing::Test {
 public:
     void SetUp() override {
-        set_log_level("LOG_DEBUG");
+        set_log_level(ov::log::Level::DEBUG);
     }
 
     void TearDown() override {
@@ -393,7 +393,7 @@ TEST_F(LogUtilsFormatTest, logPrintFormat_debug) {
 }
 
 TEST_F(LogUtilsFormatTest, logPrintFormat_trace) {
-    set_log_level("LOG_TRACE");
+    set_log_level(ov::log::Level::TRACE);
     std::string printResult = "";
     std::string pattern{"\\[[0-9]+:[0-9]+:[0-9]+\\.[0-9]+\\]T\\[.+:[0-9]+\\].*"};
     std::regex regex(pattern);

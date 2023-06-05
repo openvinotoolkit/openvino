@@ -4,22 +4,6 @@
 #include "schedule.hpp"
 #include "async_infer_request.hpp"
 
-namespace {
-    auto get_device_supported_metrics = [] (const ov::auto_plugin::AutoLoadContext& context) -> ov::AnyMap {
-        ov::AnyMap all_devices;
-        ov::AnyMap device_properties = {};
-        auto device_supported_metrics = context.m_exe_network->get_property(METRIC_KEY(SUPPORTED_METRICS));
-        for (auto&& property_name : device_supported_metrics.as<std::vector<std::string>>()) {
-            device_properties[property_name] = context.m_exe_network->get_property(property_name);
-        }
-        auto device_supported_configs = context.m_exe_network->get_property(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
-        for (auto&& property_name : device_supported_configs.as<std::vector<std::string>>()) {
-            device_properties[property_name] = context.m_exe_network->get_property(property_name);
-        }
-        all_devices[context.m_device_info.device_name] = device_properties;
-        return all_devices;
-};
-} // namespace
 namespace ov {
 namespace auto_plugin {
 thread_local WorkerInferRequest* Schedule::m_this_worker_inferrequest = nullptr;
