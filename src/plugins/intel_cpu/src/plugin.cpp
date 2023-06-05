@@ -903,26 +903,44 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istr
 
     // import config props from caching model
     auto function = cnnnetwork.getFunction();
-    LoadMultiThreadingConfig(conf, function);
+    if (is_cpu_map_available()) {
+        LoadMultiThreadingConfig(conf, function);
+    }
 
     conf.readProperties(config);
 
-    const int latency_streams = get_num_numa_nodes();
-    int streams;
-    if (conf.streamExecutorConfig._streams_changed) {
-        streams = conf.streamExecutorConfig._streams;
-    } else if (conf.perfHintsConfig.ovPerfHint == CONFIG_VALUE(LATENCY)) {
-        streams = latency_streams;
-    } else if (conf.perfHintsConfig.ovPerfHint == CONFIG_VALUE(THROUGHPUT)) {
-        streams = 0;
-    } else {
-        streams = conf.streamExecutorConfig._streams == 1 ? 0 : conf.streamExecutorConfig._streams;
+    if (!is_cpu_map_available()) {
+        if (function->has_rt_info("intel_cpu_hints_config") && !conf.perfHintsConfig.ovPerfHint.empty()) {
+            const auto mode_name = conf.perfHintsConfig.ovPerfHint;
+            if (mode_name == CONFIG_VALUE(LATENCY) || mode_name == CONFIG_VALUE(THROUGHPUT)) {
+                const auto& hints_config = function->get_rt_info<ov::AnyMap>("intel_cpu_hints_config");
+                const auto hints_param_name = mode_name + "_" + std::string(ov::num_streams.name());
+                const auto it = hints_config.find(hints_param_name);
+                if (it != hints_config.end()) {
+                    conf.readProperties({{std::string(ov::num_streams.name()), it->second.as<std::string>()}});
+                } else {
+                    IE_THROW() << "Cache file doesn't contain precalculated number of streams for mode " << mode_name;
+                }
+            }
+        }
     }
 
     if (conf.enableDynamicBatch) {
         conf.batchLimit = static_cast<int>(cnnnetwork.getBatchSize());
     }
     if (is_cpu_map_available()) {
+        const int latency_streams = get_num_numa_nodes();
+        int streams;
+        if (conf.streamExecutorConfig._streams_changed) {
+            streams = conf.streamExecutorConfig._streams;
+        } else if (conf.perfHintsConfig.ovPerfHint == CONFIG_VALUE(LATENCY)) {
+            streams = latency_streams;
+        } else if (conf.perfHintsConfig.ovPerfHint == CONFIG_VALUE(THROUGHPUT)) {
+            streams = 0;
+        } else {
+            streams = conf.streamExecutorConfig._streams == 1 ? 0 : conf.streamExecutorConfig._streams;
+        }
+
         get_num_streams(streams, function, conf);
     }
 
