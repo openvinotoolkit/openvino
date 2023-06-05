@@ -1,5 +1,6 @@
 -c ../constraints.txt
-numpy>=1.16.6
+numpy>=1.16.6,<1.25; python_version<'3.9'
+numpy>=1.16.6; python_version>='3.9'
 importlib-metadata; python_version < "3.8" and sys_platform == "win32"
 networkx
 defusedxml
