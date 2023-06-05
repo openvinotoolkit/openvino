@@ -27,7 +27,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     if(split[0] < sizeof(ov::pass::StreamSerialize::DataHeader))
          return 0;
 
-    unsigned int _size = (unsigned int)split[0];
+    unsigned int _size = static_cast<unsigned int>(split[0]);
     const uint8_t* dev_name_data = data + (_size + kSplitSequenceSize);
     string device_name((const char*)dev_name_data, size - (_size + kSplitSequenceSize));
 
@@ -35,7 +35,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     size_t total = dh->custom_data_size + dh->consts_size + dh->model_size;
 
     if(total != _size || dh->custom_data_offset + dh->custom_data_size > total || dh->consts_offset + dh->consts_size > total || dh->model_offset + dh->model_size > total)
-        return 1;
+        return 0;
 
     try {
         stringstream ss;
