@@ -16,7 +16,7 @@
     "openvino_license": {
       "mandatory" : "yes",
       "files": [
-        "docs/licensing"
+        "licensing"
       ]
     },
     "ie_core": {

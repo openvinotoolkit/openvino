@@ -32,7 +32,7 @@ macro(ov_debian_cpack_set_dirs)
     set(OV_CPACK_OPENVINO_CMAKEDIR ${OV_CPACK_RUNTIMEDIR}/cmake/openvino${OpenVINO_VERSION})
     set(OV_CPACK_DOCDIR ${CMAKE_INSTALL_DATADIR}/doc/openvino-${OpenVINO_VERSION})
     set(OV_CPACK_LICENSESDIR ${OV_CPACK_DOCDIR}/licenses)
-    set(OV_CPACK_PYTHONDIR lib/python3/dist-packages)
+    set(OV_CPACK_PYTHONDIR ${OV_CPACK_RUNTIMEDIR}/python3/dist-packages)
 
     # non-native stuff
     set(OV_CPACK_SHAREDIR ${CMAKE_INSTALL_DATADIR}/openvino) # internal
