@@ -23,3 +23,17 @@ void ov_sgemm_compute(const char* transa,
                       const float beta,
                       float* C,
                       const int64_t ldc);
+
+void ov_sgemm_pack_compute(const char* transa,
+                      const char* transb,
+                      const int64_t M,
+                      const int64_t N,
+                      const int64_t K,
+                      const float alpha,
+                      const float* A,
+                      const int64_t lda,
+                      const float* B,
+                      const int64_t ldb,
+                      const float beta,
+                      float* C,
+                      const int64_t ldc);

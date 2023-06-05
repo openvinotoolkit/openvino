@@ -36,11 +36,11 @@ void ov_sgemm_pack(const char *identifier, const char *transa,
         const char *transb, const int64_t M, const int64_t N, const int64_t K,
         const int64_t lda, const int64_t ldb, const float *src, float *dst) {
     if (*identifier == 'B') {
-        MlasGemmPackB(CblasNoTrans,
+        MlasGemmPackB(*transb == 'T' ? CblasTrans : CblasNoTrans,
             N,
             K,
             src,
-            transb ? K : N,
+            ldb,
             dst);
     }
 }
