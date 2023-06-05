@@ -51,7 +51,8 @@ from openvino.tools.mo.utils.versions_checker import get_environment_setup  # py
 from openvino.tools.mo.moc_frontend.check_config import legacy_extensions_used
 from openvino.tools.mo.moc_frontend.pytorch_frontend_utils import get_pytorch_decoder
 from openvino.tools.mo.moc_frontend.paddle_frontend_utils import paddle_frontend_converter
-from openvino.tools.mo.moc_frontend.tensorflow_frontend_utils import trace_tf_model_if_needed
+from openvino.tools.mo.moc_frontend.tensorflow_frontend_utils import trace_tf_model_if_needed, \
+    type_supported_by_tf_fe, create_tf_graph_iterator, extract_model_graph, model_is_graph_iterator
 from openvino.tools.mo.moc_frontend.shape_utils import parse_input_shapes
 
 # pylint: disable=no-name-in-module,import-error
@@ -391,12 +392,8 @@ def prepare_ir(argv: argparse.Namespace):
             path_to_aux_pb = None
             orig_argv_values = {"input_model": argv.input_model, "model_name": argv.model_name}
             if not argv.use_legacy_frontend and is_tf:
-                import tensorflow as tf
-                from openvino.frontend.tensorflow.graph_iterator import GraphIteratorTFGraph
-                if isinstance(argv.input_model, tf.Graph) and 'tf' in available_moc_front_ends:
-                    argv.input_model = GraphIteratorTFGraph(argv.input_model)
-                elif isinstance(argv.input_model, tf.types.experimental.ConcreteFunction) and 'tf' in available_moc_front_ends:
-                    argv.input_model = GraphIteratorTFGraph(argv.input_model.graph)
+                if 'tf' in available_moc_front_ends and type_supported_by_tf_fe(argv.input_model):
+                    argv.input_model = create_tf_graph_iterator(argv.input_model)
                 else:
                     from openvino.tools.mo.front.tf.loader import convert_to_pb
                     path_to_aux_pb = convert_to_pb(argv)
@@ -425,8 +422,7 @@ def prepare_ir(argv: argparse.Namespace):
             finally:
                 # TODO: remove this workaround once new TensorFlow frontend supports non-frozen formats: checkpoint, MetaGraph, and SavedModel
                 # Now it converts all TensorFlow formats to the frozen .pb format in case new TensorFlow frontend
-                if is_tf and (path_to_aux_pb is not None or
-                              not argv.use_legacy_frontend and isinstance(argv.input_model, GraphIteratorTFGraph)):
+                if is_tf and (path_to_aux_pb is not None or model_is_graph_iterator(argv.input_model)):
                     argv.input_model = orig_argv_values["input_model"]
                     argv.model_name = orig_argv_values["model_name"]
                     if path_to_aux_pb is not None and os.path.exists(path_to_aux_pb):
@@ -532,43 +528,7 @@ def emit_ir(graph: Graph, argv: argparse.Namespace, non_default_params: dict):
 def check_model_object(argv):
     model = argv['input_model']
     if 'tensorflow' in sys.modules:
-        import tensorflow as tf
-        from tensorflow.python.training.tracking.base import Trackable
-        env_setup = get_environment_setup("tf")
-        if isinstance(model, (tf.Graph, tf.compat.v1.GraphDef)):
-            return "tf"
-        if isinstance(model, tf.compat.v1.Session):
-            argv['input_model'] = model.graph
-            return "tf"
-        if env_setup["tensorflow"] >= LooseVersion("2.6.0") and isinstance(model, (tf.types.experimental.GenericFunction,
-                                                                                   tf.types.experimental.ConcreteFunction)):
-            return "tf"
-        if isinstance(model, tf.train.Checkpoint):
-            if isinstance(model.root, tf.keras.Model):
-                argv['input_model'] = model.root
-                return "tf"
-            else:
-                raise Error("Unknown checkpoint format.")
-
-        if isinstance(model, (tf.keras.layers.Layer, tf.Module, tf.keras.Model)):
-            return "tf"
-        if isinstance(model, Trackable):
-            if hasattr(model, 'signatures') and len(model.signatures.items()):
-                if 'serving_default' in model.signatures:
-                    argv['input_model'] = model.signatures['serving_default']
-                elif 'default' in model.signatures:
-                    argv['input_model'] = model.signatures['default']
-                else:
-                    for signature_name, signature in model.signatures.items():
-                        argv['input_model'] = model.signatures[signature_name]
-                        log.warning("Could not find the default signature. "
-                                    "The following signature was used for conversion: {}".format(signature_name))
-                        break
-
-            elif hasattr(model, 'graph'):
-                argv['input_model'] = model.graph
-            else:
-                raise Error("Could not find signature of graph in a Trackable object.")
+        if extract_model_graph(argv):
             return "tf"
     if 'torch' in sys.modules:
         import torch

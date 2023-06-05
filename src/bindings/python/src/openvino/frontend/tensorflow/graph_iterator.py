@@ -17,6 +17,12 @@ class GraphIteratorTFGraph(GraphIterator):
         self.m_decoders = []
         self.m_inner_graph = inner_graph
 
+        self.m_vars = None
+        if hasattr(tf_graph, "variables"):
+            # This field is needed to keep the link to graph variables,
+            # otherwise Python releases memory kept by variables when it is accessed from c++ bindings
+            self.m_vars = tf_graph.variables
+
         for op in tf_graph.get_operations():
             self.m_decoders.append(TFGraphNodeDecoder(op, inner_graph))
 
