@@ -9,9 +9,9 @@
 
 .. note:: 
 
-   Model Optimizer supports the `nnet1 <http://kaldi-asr.org/doc/dnn1.html>`__ and `nnet2 <http://kaldi-asr.org/doc/dnn2.html>`__ formats of Kaldi models. The support of the `nnet3 <http://kaldi-asr.org/doc/dnn3.html>`__ format is limited.
+   Model conversion API supports the `nnet1 <http://kaldi-asr.org/doc/dnn1.html>`__ and `nnet2 <http://kaldi-asr.org/doc/dnn2.html>`__ formats of Kaldi models. The support of the `nnet3 <http://kaldi-asr.org/doc/dnn3.html>`__ format is limited.
  
-To convert a Kaldi model, run Model Optimizer with the path to the input model ``.nnet`` or ``.mdl`` file:
+To convert a Kaldi model, run model conversion with the path to the input model ``.nnet`` or ``.mdl`` file:
 
 .. code-block:: cpp
 
@@ -33,20 +33,20 @@ The following list provides the Kaldi-specific parameters.
 Examples of CLI Commands
 ########################
 
-* To launch Model Optimizer for the ``wsj_dnn5b_smbr`` model with the specified ``.nnet`` file:
+* To launch model conversion for the ``wsj_dnn5b_smbr`` model with the specified ``.nnet`` file:
    
   .. code-block:: cpp
 
     mo --input_model wsj_dnn5b_smbr.nnet
   
-* To launch Model Optimizer for the ``wsj_dnn5b_smbr`` model with the existing file that contains counts for the last layer with biases:
+* To launch model conversion for the ``wsj_dnn5b_smbr`` model with the existing file that contains counts for the last layer with biases:
 
   .. code-block:: cpp
 
     mo --input_model wsj_dnn5b_smbr.nnet --counts wsj_dnn5b_smbr.counts
    
 
-  * The Model Optimizer normalizes сounts in the following way:
+  * The model conversion normalizes сounts in the following way:
     
     .. math::
     
@@ -60,24 +60,24 @@ Examples of CLI Commands
 
   * The normalized counts are subtracted from biases of the last or next to last layer (if last layer is SoftMax).
   
-    .. note:: Model Optimizer will show a warning if a model contains values of counts and the `--counts` option is not used.
+    .. note:: Model conversion API will show a warning if a model contains values of counts and the ``counts`` option is not used.
 
-* If you want to remove the last SoftMax layer in the topology, launch the Model Optimizer with the `--remove_output_softmax` flag:
+* If you want to remove the last SoftMax layer in the topology, launch the model conversion with the ``remove_output_softmax`` flag:
 
 .. code-block:: cpp
 
    mo --input_model wsj_dnn5b_smbr.nnet --counts wsj_dnn5b_smbr.counts --remove_output_softmax
 
-The Model Optimizer finds the last layer of the topology and removes this layer only if it is a SoftMax layer.
+Model conversion API finds the last layer of the topology and removes this layer only if it is a SoftMax layer.
 
-.. note:: Model Optimizer can remove SoftMax layer only if the topology has one output.
+.. note:: Model conversion can remove SoftMax layer only if the topology has one output.
 
-* You can use the *OpenVINO Speech Recognition* sample application for the sample inference of Kaldi models. This sample supports models with only one output. If your model has several outputs, specify the desired one with the ``--output`` option.
+* You can use the *OpenVINO Speech Recognition* sample application for the sample inference of Kaldi models. This sample supports models with only one output. If your model has several outputs, specify the desired one with the ``output`` option.
 
 Supported Kaldi Layers
 ######################
 
-For the list of supported standard layers, refer to the :doc:`Supported Framework Layers <openvino_docs_MO_DG_prepare_model_Supported_Frameworks_Layers>` page.
+For the list of supported standard layers, refer to the :doc:`Supported Operations <openvino_resources_supported_operations_frontend>` page.
 
 Additional Resources
 ####################

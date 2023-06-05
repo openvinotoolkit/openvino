@@ -71,8 +71,8 @@ bool evaluate_unsqueeze(const Node* node,
     const auto out_rank = static_cast<int64_t>(data_shape.size() + shape_size(axes_shape));
 
     // Get axes and normalize
-    auto axes = read_index_vector(arg1);
     OPENVINO_SUPPRESS_DEPRECATED_START
+    auto axes = read_index_vector(arg1);
     normalize_axes(node, out_rank, axes);
     OPENVINO_SUPPRESS_DEPRECATED_END
 

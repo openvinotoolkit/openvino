@@ -293,7 +293,7 @@ ov_preprocess_input_tensor_info_set_color_format(ov_preprocess_input_tensor_info
  * @param preprocess_input_tensor_info A pointer to the ov_preprocess_input_tensor_info_t.
  * @param colorFormat The enumerate of colorFormat
  * @param sub_names_size The size of sub_names
- * @param variadic params sub_names Optional list of sub-names assigned for each plane (e.g. "Y", "UV").
+ * @param ... variadic params sub_names Optional list of sub-names assigned for each plane (e.g. "Y", "UV").
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)

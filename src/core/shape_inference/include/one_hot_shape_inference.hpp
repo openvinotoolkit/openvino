@@ -14,6 +14,7 @@ namespace v1 {
 namespace utils {
 namespace one_hot {
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 template <class TShape>
 inline bool get_data_as_shape_and_validate_sign(
     size_t idx,
@@ -53,6 +54,7 @@ inline bool get_data_as_shape_and_validate_sign<ov::PartialShape>(
         OPENVINO_SUPPRESS_DEPRECATED_END
     }
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 }  // namespace one_hot
 }  // namespace utils

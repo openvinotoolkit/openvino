@@ -16,6 +16,7 @@
 #include "ie_blob.h"
 
 namespace InferenceEngine {
+IE_SUPPRESS_DEPRECATED_START
 
 /**
  * @brief This structure stores info about pre-processing of network inputs (scale, mean image, ...)
@@ -221,4 +222,5 @@ public:
         return _colorFormat;
     }
 };
+IE_SUPPRESS_DEPRECATED_END
 }  // namespace InferenceEngine
