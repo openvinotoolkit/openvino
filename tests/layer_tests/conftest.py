@@ -38,7 +38,7 @@ def pytest_collection_modifyitems(items):
                     test.add_marker(pytest.mark.xfail(reason=mark.kwargs["reason"]))
 
 
-@pytest.mark.hookwrapper
+@pytest.hookimpl(hookwrapper=True)
 def pytest_runtest_makereport(item, call):
     pytest_html = item.config.pluginmanager.getplugin('html')
     outcome = yield
