@@ -7,6 +7,7 @@
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/eltwise.hpp>
+#include <intel_gpu/primitives/gather.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
 #include <intel_gpu/primitives/data.hpp>
 
@@ -2341,6 +2342,76 @@ TEST(eltwise_gpu_int, basic_in4x4x4x4) {
                 ASSERT_TRUE(are_equal(std::floor(expected), output_ptr[i]));
             }
         }
+    }
+}
+
+TEST(eltwise_gpu_int, div_gather_fusing) {
+    auto& engine = get_test_engine();
+
+    auto input1 = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 3, 2, 1, 2 } }); // Dictionary
+    auto input2 = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 2, 2, 1, 1 } }); // Indexes
+    auto input3 = engine.allocate_memory({ data_types::i32, format::bfyx, { 2, 2, 2, 2 } });       // 2nd input of eltwise
+
+    set_values(input1, {
+        5, 6, 7, 8,
+        -5, -6, -7, -8,
+        9, 10, 11, 12
+    });
+
+    set_values(input2, {
+        0, 1,
+        2, 1
+    });
+
+    std::vector<int32_t> input_3_vec = {
+        2, 2, 2, 2,
+        2, 2, 2, 2,
+        -2, -2, -2, -2,
+        -2, -2, -2, -2
+    };
+    set_values(input3, input_3_vec);
+
+    topology topology;
+    topology.add(input_layout("InputDictionary", input1->get_layout()));
+    topology.add(input_layout("InputText", input2->get_layout()));
+    topology.add(input_layout("Input3", input3->get_layout()));
+    topology.add(gather("gather", input_info("InputDictionary"), input_info("InputText"), 0, ov::Shape{2, 2, 2, 2}));
+    topology.add(reorder("gather_reorder", input_info("gather"), { data_types::i32, format::bfyx, { 2, 2, 2, 2 } }));
+    topology.add(eltwise("eltwise",
+                 { input_info("gather_reorder"), input_info("Input3") },
+                 eltwise_mode::div,
+                 std::vector<float>(0),
+                 data_types::i32,
+                 DEFAULT_BROADCAST_SPEC,
+                 true));
+    topology.add(reorder("eltwise_reorder", input_info("eltwise"), { data_types::i32, format::bfyx, { 2, 2, 2, 2 } }));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+
+    network.set_input_data("InputDictionary", input1);
+    network.set_input_data("InputText", input2);
+    network.set_input_data("Input3", input3);
+
+    auto outputs = network.execute();
+
+    auto output = outputs.at("eltwise_reorder").get_memory();
+    cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
+
+    std::vector<int32_t> gather_expected_results = {
+        5, 6, 7, 8,
+        -5, -6, -7, -8,
+        9, 10, 11, 12,
+        -5, -6, -7, -8
+    };
+
+    for (size_t i = 0; i < 16; ++i) {
+        auto expected = gather_expected_results[i] / input_3_vec[i];
+        auto rem = gather_expected_results[i] % input_3_vec[i];
+        if (rem != 0 && (gather_expected_results[i] < 0) != (input_3_vec[i] < 0))
+            expected -= 1;
+        ASSERT_EQ(expected, output_ptr[i]);
     }
 }
 
