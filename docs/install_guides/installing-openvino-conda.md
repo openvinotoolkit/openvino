@@ -7,8 +7,6 @@
    Installing OpenVINO Runtime from Conda Forge is recommended for C++ developers, as it provides only the C++ Runtime API.
    If you work with Python, consider :doc:`installing OpenVINO from PyPI <openvino_docs_install_guides_installing_openvino_pip>`
 
-   The current Anaconda package does not provide support for GPU inference.
-
 .. tab:: System Requirements
 
    | Full requirement listing is available in:
@@ -50,7 +48,7 @@ Installing OpenVINO Runtime with Anaconda Package Manager
 
    .. code-block:: sh
 
-      conda install -c conda-forge openvino=2022.3.0
+      conda install -c conda-forge openvino=2023.0.0
 
    Congratulations! You have finished installing OpenVINO Runtime.
 
@@ -63,7 +61,7 @@ with the proper OpenVINO version number:
 
 .. code-block:: sh
    
-   conda remove openvino=2022.3.0
+   conda remove openvino=2023.0.0
 
 
 What's Next?

@@ -124,7 +124,7 @@ std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const Graph &graph
         auto pr_edges = node->getParentEdges();
         ngraph::OutputVector inputs(pr_edges.size());
 
-        for (int i = 0; i < pr_edges.size(); i++) {
+        for (size_t i = 0; i < pr_edges.size(); i++) {
             auto edge = node->getParentEdgeAt(i);
             int pr_port = edge->getInputNum();
             int ch_port = edge->getOutputNum();

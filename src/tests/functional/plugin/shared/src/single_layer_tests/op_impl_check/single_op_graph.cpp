@@ -90,6 +90,15 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v5::BatchNormI
                                        "BatchNormInterferenceGraph");
 }
 
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v12::GroupNormalization>& node) {
+    const auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{3, 14, 5, 5});
+    const auto scale = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{14});
+    const auto bias = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{14});
+    const auto gn = std::make_shared<ov::op::v12::GroupNormalization>(data, scale, bias, 7, 0.00001f);
+    const ov::ResultVector results{std::make_shared<ov::op::v0::Result>(gn)};
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{data, scale, bias}, "GroupNormalizationGraph");
+}
+
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v1::BatchToSpace> &node) {
     const auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{4, 1, 1, 3});
     const auto block_shape = ov::op::v0::Constant::create(ov::element::i64, {4}, {1, 1, 1, 2});
@@ -739,6 +748,15 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v1::Pad> &node
     const auto pad = std::make_shared<ov::op::v1::Pad>(params[0], pad_begin, pad_end, ov::op::PadMode::CONSTANT);
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(pad)};
     return std::make_shared<ov::Model>(results, params, "Pad-1");
+}
+
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v12::Pad> &node) {
+    const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{6, 10, 11, 12}});
+    const auto pad_begin = ngraph::builder::makeConstant<int64_t>(ov::element::i64, {4}, {4, -2, 3, -1});
+    const auto pad_end = ngraph::builder::makeConstant<int64_t>(ov::element::i64, {4}, {5, -1, -4, 4});
+    const auto pad = std::make_shared<ov::op::v12::Pad>(params[0], pad_begin, pad_end, ov::op::PadMode::CONSTANT);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(pad)};
+    return std::make_shared<ov::Model>(results, params, "Pad-12");
 }
 
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::Parameter> &node) {
@@ -1884,6 +1902,7 @@ OpGenerator getOpGeneratorMap() {
 #include "openvino/opsets/opset9_tbl.hpp"
 #include "openvino/opsets/opset10_tbl.hpp"
 #include "openvino/opsets/opset11_tbl.hpp"
+#include "openvino/opsets/opset12_tbl.hpp"
 #undef _OPENVINO_OP_REG
     };
     return opGeneratorMap;
