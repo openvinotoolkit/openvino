@@ -19,7 +19,6 @@
 #include <unordered_set>
 #include <vector>
 
-#include "ngraph/op/util/op_annotations.hpp"
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/deprecated.hpp"

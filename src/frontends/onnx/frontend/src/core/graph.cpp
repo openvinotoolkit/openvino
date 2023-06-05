@@ -20,6 +20,7 @@
 #include "onnx_import/core/null_node.hpp"
 #include "openvino/frontend/onnx/extension/conversion.hpp"
 #include "openvino/frontend/onnx/node_context.hpp"
+#include "openvino/util/log.hpp"
 #include "ops_bridge.hpp"
 #include "utils/common.hpp"
 #include "utils/legacy_conversion_extension.hpp"
@@ -380,7 +381,7 @@ OutputVector Graph::make_ng_nodes(const Node& onnx_node) {
         std::string msg_prefix = error::detail::get_error_msg_prefix(onnx_node);
         // Since we do not know anything about current exception data type we can only
         // notify user in this way.
-        NGRAPH_ERR << msg_prefix + "Unhandled exception type. \n";
+        OPENVINO_ERR << msg_prefix + "Unhandled exception type. \n";
         std::rethrow_exception(std::current_exception());
     }
 

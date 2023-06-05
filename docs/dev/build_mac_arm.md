@@ -14,7 +14,7 @@ The software was validated on:
 - [brew](https://brew.sh) package manager to install additional dependencies. Use [install brew](https://brew.sh) guide to achieve this.
 
 - Installation step for python and python libraries varies depending on the host architecture:
-  - **arm64** Python 3.7 or higher for the OpenVINO Runtime Python API, Development tools (Model Optimizer, POT and others):
+  - **arm64** Python 3.7 - 3.11 for the OpenVINO Runtime Python API, Development tools (Model Optimizer, POT and others):
   ```sh
   % # let's have a look what python versions are available in brew
   % brew search python
@@ -49,10 +49,10 @@ The software was validated on:
 
 ## How to build
 
-1. (Get sources) Clone submodules:
+1. (Get sources) Clone the repository and submodules:
 ```sh
 git clone https://github.com/openvinotoolkit/openvino.git
-cd ../openvino
+cd openvino
 git submodule update --init
 ```
 2. Create a build folder:

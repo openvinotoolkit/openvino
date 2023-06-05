@@ -74,6 +74,7 @@ public:
 
 protected:
     void SetUp() override {
+        abs_threshold = 0.0005;
         std::vector<InputShape> inputShapes;
         GridSample::InterpolationMode interpolateMode;
         GridSample::PaddingMode paddingMode;
@@ -112,7 +113,7 @@ protected:
         inputs.clear();
         const auto& funcInputs = function->inputs();
 
-        for (int i = 0; i < funcInputs.size(); ++i) {
+        for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
             ov::runtime::Tensor tensor;
 

@@ -14,9 +14,8 @@ namespace {
 const std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32,
                                                                InferenceEngine::Precision::FP16};
 
-const std::vector<std::map<std::string, std::string>> configs = {{
-    {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
-}};
+const std::vector<std::map<std::string, std::string>> configs = {{{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}},
+                                                                 {{"GNA_DEVICE_MODE", "GNA_SW_FP32"}}};
 
 const std::vector<StridedSliceParams> sliceParams = {
     {{8, 16}, {1, 16}, {2, 16}, {1, 1}, {0, 1}, {0, 1}},

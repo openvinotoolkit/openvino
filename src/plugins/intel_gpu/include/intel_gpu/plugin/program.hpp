@@ -193,7 +193,8 @@ void CreateUnaryEltwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& node,
 void CreateElementwiseOp(Program& p,
                          const std::shared_ptr<ngraph::Node>& node,
                          cldnn::eltwise_mode mode,
-                         std::vector<float> coefficients = {});
+                         std::vector<float> coefficients = {},
+                         bool pythondiv = true);
 
 bool IsNodeOnConstPath(const std::shared_ptr<ngraph::Node>& node);
 
