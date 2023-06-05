@@ -61,7 +61,7 @@ def type_supported_by_tf_fe(input_model):
         return True
     elif model_is_graph_iterator(input_model):
         return True
-    raise False
+    return False
 
 
 def create_tf_graph_iterator(input_model):
