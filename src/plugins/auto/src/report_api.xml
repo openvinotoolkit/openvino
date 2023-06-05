@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<report timestamp="01-06-2023 09:09:45">
+	<results>
+		<TEMPLATE>
+			<ie_plugin>
+				<TEMPLATE implemented="false" passed="0" failed="1" skipped="0" crashed="0" hanged="0" passrate="0" relative_passed="0" relative_all="0" relative_passrate="100" />
+			</ie_plugin>
+		</TEMPLATE>
+	</results>
+	<api_list>
+		<ie_plugin />
+		<ie_executable_network />
+		<ie_infer_request />
+		<ov_plugin />
+		<ov_compiled_model />
+		<ov_infer_request />
+		<undefined />
+	</api_list>
+</report>

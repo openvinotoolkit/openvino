@@ -151,6 +151,10 @@ std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& pri
         try {
             auto device_id = get_core()->get_property(device_name, ov::device::id);
             return device_id;
+        } catch (const InferenceEngine::Exception& e) {
+            // some may throw IE exceptions
+            LOG_DEBUG_TAG("get default device id failed for ", device_name.c_str());
+            return "";
         } catch (ov::Exception& err) {
             LOG_DEBUG_TAG("get default device id failed for ", device_name.c_str());
             return "";
@@ -258,6 +262,9 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
     } else if (ov::supported_properties == name) {
         auto ret = m_plugin_config.supported_properties(get_device_name());
         return ret;
+    } else if (name == ov::device::full_name) {
+        std::string device_name = { get_device_name() };
+        return decltype(ov::device::full_name)::value_type {device_name};
     } else if (name == ov::device::capabilities.name()) {
         auto device_list = get_core()->get_available_devices();
         std::vector<std::string> capabilities;

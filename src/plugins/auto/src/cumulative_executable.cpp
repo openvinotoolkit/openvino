@@ -48,7 +48,8 @@ ov::Any AutoCumuCompiledModel::get_property(const std::string& name) const {
                                                     ov::hint::performance_mode,
                                                     ov::optimal_number_of_infer_requests,
                                                     ov::device::properties,
-                                                    ov::hint::model_priority};
+                                                    ov::hint::model_priority,
+                                                    ov::loaded_from_cache};
         return ro_properties;
     };
     const auto& default_rw_properties = []() {
@@ -133,8 +134,17 @@ ov::Any AutoCumuCompiledModel::get_property(const std::string& name) const {
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
         auto configs = default_rw_properties();
         return to_string_vector(configs);
+    } else if (name == ov::loaded_from_cache) {
+        bool loaded_from_cache = true;
+        std::lock_guard<std::mutex> lock(m_context->m_fallback_mutex);
+        for (size_t i = 0; i < m_scheduler->m_n_ctput_devicenums; i++) {
+            if (m_scheduler->m_p_ctput_loadcontext[i].m_is_already) {
+                loaded_from_cache &= (m_scheduler->m_p_ctput_loadcontext[i].m_exe_network->get_property(name).as<bool>());
+            }
+        }
+        return loaded_from_cache;
     }
-    OPENVINO_THROW(get_log_tag(), ": not supported property", name);;
+    OPENVINO_THROW(get_log_tag(), ": not supported property ", name);;
 }
 
 void AutoCumuCompiledModel::export_model(std::ostream& model_stream) const {

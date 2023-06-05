@@ -50,7 +50,8 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
                                                     ov::optimal_number_of_infer_requests,
                                                     ov::device::priorities,
                                                     ov::device::properties,
-                                                    ov::hint::model_priority};
+                                                    ov::hint::model_priority,
+                                                    ov::loaded_from_cache};
         return ro_properties;
     };
     const auto& default_rw_properties = []() {
@@ -222,8 +223,22 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
         auto configs = default_rw_properties();
         return to_string_vector(configs);
+    } else if (name == ov::loaded_from_cache) {
+        std::lock_guard<std::mutex> lock(m_context->m_fallback_mutex);
+        if (m_scheduler->m_loadcontext[FALLBACKDEVICE].m_is_already) {
+                return m_scheduler->m_loadcontext[FALLBACKDEVICE].m_exe_network->get_property(name).as<bool>();
+            }
+        if (m_scheduler->m_loadcontext[ACTUALDEVICE].m_is_already) {
+            return m_scheduler->m_loadcontext[ACTUALDEVICE].
+                m_exe_network->get_property(name).as<bool>();
+        } else {
+            OPENVINO_ASSERT(m_scheduler->m_loadcontext[CPU].m_is_already == true);
+             std::lock_guard<std::mutex> lock(m_context->m_mutex);
+            return m_scheduler->m_loadcontext[CPU].
+                m_exe_network->get_property(name).as<bool>();
+        }
     }
-    OPENVINO_THROW(get_log_tag(), ": not supported property", name);
+    OPENVINO_THROW(get_log_tag(), ": not supported property ", name);
 }
 
 void AutoCompiledModel::export_model(std::ostream& model_stream) const {
