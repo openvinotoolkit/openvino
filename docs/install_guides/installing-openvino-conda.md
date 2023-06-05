@@ -69,7 +69,6 @@ To reactivate your Conda environment, execute the following command:
 
 .. code-block:: sh
 
-    conda deactivate
     conda activate <your_environment_name>
 
 Replace <your_environment_name> with the name of your Conda environment. 
