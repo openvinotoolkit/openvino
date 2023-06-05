@@ -27,21 +27,11 @@
 
 // TODO (vurusovs) required for conversion to legacy API 1.0
 #include "converter_utils.hpp"
-#include "../plugin.hpp"
+#include "plugin.hpp"
 #include "../executable_network.hpp"
 #include "../internal_properties.hpp"
 
 #include "iplugin_wrapper.hpp"
-
-namespace {
-HeteroPlugin::Configs any_copy(const ov::AnyMap& params) {
-    HeteroPlugin::Configs result;
-    for (auto&& value : params) {
-        result.emplace(value.first, value.second.as<std::string>());
-    }
-    return result;
-}
-}
 // TODO (vurusovs) required for conversion to legacy API 1.0
 
 
@@ -64,7 +54,7 @@ std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::compile_model(
     auto shared_this = std::const_pointer_cast<ov::IPlugin>(shared_from_this());
     auto plugin_p = ov::legacy_convert::convert_plugin(shared_this);
     auto network = ov::legacy_convert::convert_model(model, true);
-    auto legacy_compiled_model = std::make_shared<HeteroPlugin::HeteroExecutableNetwork>(network, any_copy(properties), this);
+    auto legacy_compiled_model = std::make_shared<HeteroPlugin::HeteroExecutableNetwork>(network, properties, std::dynamic_pointer_cast<ov::hetero::Plugin>(shared_this));
     legacy_compiled_model->SetPointerToPlugin(plugin_p);
     legacy_compiled_model->setNetworkInputs(InferenceEngine::copyInfo(network.getInputsInfo()));
     legacy_compiled_model->setNetworkOutputs(InferenceEngine::copyInfo(network.getOutputsInfo()));
@@ -133,7 +123,7 @@ ov::SupportedOpsMap ov::hetero::Plugin::query_model(const std::shared_ptr<const 
                                                            const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::Hetero, "Plugin::query_model");
 
-    Configuration fullConfig{properties, m_cfg, false};
+    Configuration fullConfig{properties, m_cfg};
     
     OPENVINO_ASSERT(model, "OpenVINO Model is empty!");
 
