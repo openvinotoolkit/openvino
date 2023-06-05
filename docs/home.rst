@@ -12,7 +12,6 @@
 
 
 
-
 .. container::
    :name: ov-homepage-banner
 
@@ -29,16 +28,10 @@
 
       Get started
 
-
-
 .. rst-class:: openvino-diagram
 
    .. image:: _static/images/ov_homepage_diagram.png
       :align: center
-
-
-
-
 
 
 
