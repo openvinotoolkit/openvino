@@ -11,7 +11,9 @@ using namespace ngraph;
 
 std::ostream& ov::operator<<(std::ostream& s, const CoordinateDiff& coordinate_diff) {
     s << "CoordinateDiff{";
+    OPENVINO_SUPPRESS_DEPRECATED_START
     s << ngraph::join(coordinate_diff);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     s << "}";
     return s;
 }
