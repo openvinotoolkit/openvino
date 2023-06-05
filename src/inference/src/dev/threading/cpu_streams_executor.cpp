@@ -165,7 +165,8 @@ struct CPUStreamsExecutor::Impl {
                                                                     .set_max_concurrency(concurrency)});
                     }
                 }
-            } else if (org_proc_type_table.size() > 1 && !_impl->_config._cpu_reservation) {
+            } else if (org_proc_type_table.size() > 1 && !_impl->_config._cpu_reservation &&
+                       _impl->_config._stream_numa_node_ids[stream_id] >= 0) {
                 _numaNodeId = _impl->_usedNumaNodes.at(_impl->_config._stream_numa_node_ids[stream_id]);
                 _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{_numaNodeId, concurrency}});
             } else {
