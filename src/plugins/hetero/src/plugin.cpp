@@ -106,10 +106,10 @@ std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::import_model(std::istrea
     return compile_model(ov_model, properties);
 }
 
-ov::hetero::Plugin::DeviceMetaInformationMap ov::hetero::Plugin::GetDevicePlugins(const std::string& targetFallback,
-                                                                                  const ov::AnyMap& properties) const {
-    auto fallbackDevices = ov::DeviceIDParser::get_hetero_devices(targetFallback);
-    DeviceMetaInformationMap metaDevices;
+ov::hetero::Plugin::DeviceProperties ov::hetero::Plugin::get_device_properties(const std::string& device_priorities,
+                                                                               const ov::AnyMap& properties) const {
+    auto fallbackDevices = ov::DeviceIDParser::get_hetero_devices(device_priorities);
+    DeviceProperties metaDevices;
     for (auto&& deviceName : fallbackDevices) {
         auto itPlugin = metaDevices.find(deviceName);
         if (metaDevices.end() == itPlugin) {
@@ -129,7 +129,7 @@ ov::SupportedOpsMap ov::hetero::Plugin::query_model(const std::shared_ptr<const 
 
     std::string fallbackDevicesStr = fullConfig.device_priorities;
     
-    DeviceMetaInformationMap metaDevices = GetDevicePlugins(fallbackDevicesStr, fullConfig.GetDeviceConfig());
+    DeviceProperties metaDevices = get_device_properties(fallbackDevicesStr, fullConfig.GetDeviceConfig());
 
     std::map<std::string, ov::SupportedOpsMap> queryResults;
     for (auto&& metaDevice : metaDevices) {
