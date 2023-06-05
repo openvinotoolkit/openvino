@@ -48,6 +48,6 @@ public:
 };
 
 #ifdef __EMSCRIPTEN__
-OPENVINO_PLUGIN_API(void) InjectMockEngine(InferenceEngine::IInferencePlugin* target) noexcept(false);
-OPENVINO_PLUGIN_API(void) InjectPlugin(ov::IPlugin* target) noexcept(false);
+OPENVINO_PLUGIN_API void InjectProxyEngine(InferenceEngine::IInferencePlugin* target) noexcept(false);
+OPENVINO_PLUGIN_API void InjectPlugin(ov::IPlugin* target) noexcept(false);
 #endif

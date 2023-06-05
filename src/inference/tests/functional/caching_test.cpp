@@ -315,7 +315,7 @@ public:
         func(ie);
         ie.UnregisterPlugin(deviceName);
 #else
-        InjectMockEngine(mockPlugin.get());
+        InjectProxyEngine(mockPlugin.get());
         func(ie);
 #endif
     }
