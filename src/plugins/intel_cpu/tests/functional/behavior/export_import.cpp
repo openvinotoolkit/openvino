@@ -38,8 +38,6 @@ std::shared_ptr<ov::Model> MakeMatMulModel() {
 TEST_P(ExportOptimalNumStreams, OptimalNumStreams) {
     auto original_model = MakeMatMulModel();
     ov::Core core;
-
-    auto params = GetParam();
     std::string device_name;
     std::vector<ov::AnyMap> properties;
     std::tie(device_name, properties) = GetParam();
