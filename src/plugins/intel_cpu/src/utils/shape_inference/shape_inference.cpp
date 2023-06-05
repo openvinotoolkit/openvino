@@ -370,10 +370,11 @@ public:
     IShapeInferCommon::Result infer(const std::vector<StaticShape>& input_shapes,
                                     const ov::ITensorAccessor& tensor_accessor) override {
         // Temporary support of StaticShape.
-        auto in_shapes = std::vector<StaticShapeRef>(input_shapes.size());
-        std::transform(input_shapes.begin(), input_shapes.end(), in_shapes.begin(), [](const StaticShape& s) {
-            return StaticShapeRef(reinterpret_cast<const VectorDims&>(s));
-        });
+        auto in_shapes = std::vector<StaticShapeRef>();
+        in_shapes.reserve(input_shapes.size());
+        for (auto& s : input_shapes) {
+            in_shapes.emplace_back(reinterpret_cast<const VectorDims&>(s));
+        }
 
         auto out_shapes = infer(in_shapes, tensor_accessor);
         Result result{{}, out_shapes ? ShapeInferStatus::success : ShapeInferStatus::skip};

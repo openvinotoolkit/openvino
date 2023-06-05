@@ -202,10 +202,6 @@ TEST_F(StaticShapeAdapterTest, dereference_as_lvalue_and_copy) {
     auto dims = VectorDims{2, 6, 3, 2, 5};
     auto shape = StaticShapeRef(dims);
 
-    // for (auto& d : shape) {
-    //     std::cout << d << " ";
-    // }
-
     const auto shape_data_address = reinterpret_cast<uintptr_t>((*shape).data());
     const auto out_dims = *shape;
     const auto shape_data_cp_address = reinterpret_cast<uintptr_t>((*shape).data());
