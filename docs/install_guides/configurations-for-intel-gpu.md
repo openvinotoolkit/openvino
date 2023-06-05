@@ -14,7 +14,7 @@ To use a GPU device for OpenVINO inference, you must meet the following prerequi
 - use a supported Linux kernel as per the `documentation <https://dgpu-docs.intel.com/driver/kernel-driver-types.html>`__
 - install GPU Runtime drivers: `The Intel(R) Graphics Compute Runtime for oneAPI Level Zero and OpenCL(TM) Driver <https://github.com/intel/compute-runtime/releases/latest>`__
 - install `Intel Graphics Memory Management Library <https://github.com/intel/gmmlib>`__ and `Intel® Graphics Compiler for OpenCL™ <https://github.com/intel/intel-graphics-compiler>`__
-- install `OpenCl ICD loader package <https://github.com/KhronosGroup/OpenCL-ICD-Loader>`__
+- install `OpenCL ICD loader package <https://github.com/KhronosGroup/OpenCL-ICD-Loader>`__
 
 Depending on your operating system, there may be different methods to install the above packages. Below are the instructions on how to install the packages, broken down by the operating system you want to install on.
 
