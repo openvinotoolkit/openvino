@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <snippets/itt.hpp>
+
 #include "mul_add_to_fma.hpp"
-
-#include "snippets/itt.hpp"
-#include "snippets/utils.hpp"
-
+#include "snippets/snippets_isa.hpp"
 #include "transformations/snippets/x64/op/fused_mul_add.hpp"
 
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -37,7 +36,7 @@ ov::intel_cpu::pass::MulAddToFMA::MulAddToFMA() {
         const auto& c = pattern_map.at(add_input_2);
 
         const auto fma = std::make_shared<ov::intel_cpu::FusedMulAdd>(a, b, c);
-        copy_runtime_info({ a.get_node_shared_ptr(), b.get_node_shared_ptr(), c.get_node_shared_ptr() }, fma);
+        ov::copy_runtime_info({ a.get_node_shared_ptr(), b.get_node_shared_ptr(), c.get_node_shared_ptr() }, fma);
         fma->set_friendly_name(add->get_friendly_name());
         ov::replace_node(add, fma);
 

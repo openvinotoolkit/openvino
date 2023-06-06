@@ -8,8 +8,8 @@
 #include "snippets/snippets_isa.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
 
-#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 namespace ov {
 namespace snippets {
@@ -47,7 +47,7 @@ MatMulToBrgemm::MatMulToBrgemm() {
             nodes.emplace_back(std::make_shared<op::ConvertSaturation>(brgemm, matmul->get_output_element_type(0)));
         }
         brgemm->set_friendly_name(matmul->get_friendly_name());
-        copy_runtime_info(matmul, nodes);
+        ov::copy_runtime_info(matmul, nodes);
         ov::replace_node(matmul, nodes.back());
         init_ports(brgemm);
         return true;

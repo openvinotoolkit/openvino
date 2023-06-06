@@ -6,9 +6,9 @@
 
 #include "snippets/pass/broadcast_to_movebroadcast.hpp"
 #include "snippets/pass/insert_movebroadcast.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 #include "openvino/opsets/opset1.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/core/rt_info.hpp"
 
 
@@ -35,10 +35,10 @@ ov::snippets::pass::BroadcastToMoveBroadcast::BroadcastToMoveBroadcast() {
         }
 
         const auto broadcast_node = ov::snippets::pass::InsertMoveBroadcast::BroadcastNodeLastDim(root->input_value(0),
-                                                                                                  target_shape.get_shape(),
-                                                                                                  value_shape.get_shape());
+                                                                                                      target_shape.get_shape(),
+                                                                                                      value_shape.get_shape());
         replace_output_update_name(root->output(0), broadcast_node);
-        copy_runtime_info(root, broadcast_node.get_node_shared_ptr());
+        ov::copy_runtime_info(root, broadcast_node.get_node_shared_ptr());
 
         return true;
     };

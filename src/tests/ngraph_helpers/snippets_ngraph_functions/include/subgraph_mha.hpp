@@ -287,7 +287,6 @@ public:
     }
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
-
 };
 
 }  // namespace snippets
