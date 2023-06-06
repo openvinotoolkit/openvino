@@ -225,7 +225,7 @@ void InferRequestBase::changeDefaultPtr() {
                 }
 
                 // the input memory should be referenced by the children, otherwise it should be written to a
-                // specific location 
+                // specific location
                 if (ce->inPlace(Edge::LOOK_DOWN)) {
                     canBeInPlace = false;
                     break;

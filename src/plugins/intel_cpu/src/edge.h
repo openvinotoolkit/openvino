@@ -67,7 +67,7 @@ public:
     MemoryPtr getMemoryPtr() const;
 
     ReorderStatus needReorder();
-    NodePtr modifiedInPlace() const;
+    std::shared_ptr<Node> modifiedInPlace() const;
     bool isDropped() const;
     bool isUseExternalMemory() const;
 

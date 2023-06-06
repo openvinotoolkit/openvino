@@ -35,10 +35,10 @@ namespace {
 }   // namespace
 
 Memory::Memory(const dnnl::engine& eng, MemoryDescPtr desc, const void* data, bool pads_zeroing) :
+    pMemDesc(desc),
     eng(eng),
     mgrHandle(std::make_shared<DnnlMemoryMngr>(std::unique_ptr<MemoryMngrWithReuse>(new MemoryMngrWithReuse())), this),
-    dnnlMemHandle(this),
-    pMemDesc(desc) {
+    dnnlMemHandle(this) {
         Create(pMemDesc, data, pads_zeroing);
     }
 
@@ -46,7 +46,7 @@ Memory::Memory(const dnnl::engine& eng, const MemoryDesc& desc, const void* data
     Memory::Memory(eng, desc.clone(), data, pads_zeroing) {}
 
 Memory::Memory(const dnnl::engine& eng, MemoryDescPtr desc, MemoryMngrPtr mngr) :
-    eng(eng), pMemDesc(desc), mgrHandle(mngr, this), dnnlMemHandle(this) {
+    pMemDesc(desc), eng(eng), mgrHandle(mngr, this), dnnlMemHandle(this) {
         bool memAllocated = mgrHandle->getRawPtr();
 
         Create(desc, nullptr, !memAllocated);
