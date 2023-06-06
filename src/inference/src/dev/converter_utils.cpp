@@ -112,7 +112,7 @@ void ov::legacy_convert::fill_output_info(const ov::Output<const ov::Node>& outp
 InferenceEngine::CNNNetwork ov::legacy_convert::convert_model(const std::shared_ptr<const ov::Model>& model,
                                                               bool is_new_api) {
     auto network = InferenceEngine::CNNNetwork(std::shared_ptr<InferenceEngine::ICNNNetwork>(
-        new InferenceEngine::details::CNNNetworkNGraphImpl(model->clone(), {}, is_new_api)));
+        new InferenceEngine::details::CNNNetworkNGraphImpl(std::const_pointer_cast<ov::Model>(model), {}, is_new_api)));
     std::shared_ptr<ov::Model> cloned_model = network.getFunction();
     for (auto&& input : cloned_model->inputs()) {
         auto param_name = input.get_node()->get_friendly_name();
