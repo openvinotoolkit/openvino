@@ -78,6 +78,8 @@ protected:
 
     bool CanProcessDynBatch(const InferenceEngine::CNNNetwork &network) const;
 
+    bool isLegacyAPI() const;
+
     InferenceEngine::Parameter GetConfigLegacy(const std::string &name) const;
 
     InferenceEngine::Parameter GetMetricLegacy(const std::string &name, const GraphGuard& graph) const;

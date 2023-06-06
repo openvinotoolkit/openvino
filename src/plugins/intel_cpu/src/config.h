@@ -84,7 +84,7 @@ struct Config {
 
     std::map<std::string, std::string> _config;
 
-    bool isLegacyApi = false;
+    bool isNewApi = true;
 
 #ifdef CPU_DEBUG_CAPS
     DebugCapsConfig debugCaps;
