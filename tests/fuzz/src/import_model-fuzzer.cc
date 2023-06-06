@@ -29,7 +29,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 
     unsigned int _size = static_cast<unsigned int>(split[0]);
     const uint8_t* dev_name_data = data + (_size + kSplitSequenceSize);
-    string device_name((const char*)dev_name_data, size - (_size + kSplitSequenceSize));
+    string device_name(reinterpret_cast<const char*>(dev_name_data), size - (_size + kSplitSequenceSize));
 
     struct ov::pass::StreamSerialize::DataHeader* dh = (struct ov::pass::StreamSerialize::DataHeader*)data;
     size_t total = dh->custom_data_size + dh->consts_size + dh->model_size;
