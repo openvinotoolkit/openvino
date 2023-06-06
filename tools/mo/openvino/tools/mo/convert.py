@@ -25,11 +25,11 @@ def convert_model(
         input: [str, list, tuple, InputCutInfo] = None,
         output: [str, list] = None,
         input_shape: [str, PartialShape, Shape, list] = None,
+        example_input: Any = None,
         batch: int = None,
         mean_values: [str, dict, list] = (),
         scale_values: [str, dict, list] = (),
         scale: [str, float] = None,
-        example_input: Any = None,
         reverse_input_channels: bool = False,
         source_layout: [str, Layout, dict] = (),
         target_layout: [str, Layout, dict] = (),
@@ -45,7 +45,6 @@ def convert_model(
         stream_output: bool = False,
 
         # PaddlePaddle-specific parameters:
-        # example_input: Any = None, which can be shared with PyTorch-specific parameters
         example_output: Any = None,
 
         # TensorFlow*-specific parameters
@@ -164,6 +163,11 @@ def convert_model(
             for each input separated by a comma, for example: [1,3,227,227],[2,4]
             for a model with two inputs with 4D and 2D shapes. Alternatively, specify
             shapes with the --input option.
+        :param example_input:
+            Sample of model input in original framework.
+            For PyTorch it can be torch.Tensor.
+            For Tensorflow it can be tf.Tensor or numpy.ndarray.
+            For PaddlePaddle it can be Paddle Variable.
         :param batch:
             Set batch size. It applies to 1D or higher dimension inputs.
             The default dimension index for the batch is zero.
@@ -269,14 +273,8 @@ def convert_model(
             Switch model conversion progress display to a multiline mode.
 
     PaddlePaddle-specific parameters:
-        :param example_input:
-            Sample of model input in original framework. For PaddlePaddle it can be Paddle Variable.
         :param example_output:
             Sample of model output in original framework. For PaddlePaddle it can be Paddle Variable.
-
-    PyTorch-specific parameters:
-        :param example_input:
-            Sample of model input in original framework. For PyTorch it can be torch.Tensor.
 
     TensorFlow*-specific parameters:
         :param input_model_is_text:
