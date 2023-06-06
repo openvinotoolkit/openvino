@@ -11,7 +11,7 @@
 namespace ov {
 namespace preprocess {
 
-using ResizeTestsParams = std::tuple<std::string, ResizeAlgorithm>;
+using ResizeTestsParams = std::tuple<std::string, ResizeAlgorithm, std::vector<float>>;
 
 class PreprocessingResizeTests : public testing::WithParamInterface<ResizeTestsParams>,
                                  virtual public test::SubgraphBaseTest {
@@ -22,6 +22,8 @@ public:
 
 protected:
     void SetUp() override;
+    void run() override;
+    std::vector<ov::Tensor> calculate_refs() override;
 };
 
 }  // namespace preprocess
