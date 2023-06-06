@@ -1306,6 +1306,12 @@ bool ov::CoreImpl::device_supports_property(const ov::Plugin& plugin, const ov::
 }
 
 bool ov::CoreImpl::device_supports_model_caching(const ov::Plugin& plugin) const {
+#ifndef NO_PROXY_PLUGIN
+    // Proxy plugin returns properties of low level plugin but doesn't support caching (low level plugin creates a cache
+    // for the model)
+    if (std::dynamic_pointer_cast<ov::proxy::Plugin>(plugin.m_ptr))
+        return false;
+#endif
     auto supportedMetricKeys = plugin.get_property(METRIC_KEY(SUPPORTED_METRICS), {}).as<std::vector<std::string>>();
     auto supported = util::contains(supportedMetricKeys, METRIC_KEY(IMPORT_EXPORT_SUPPORT)) &&
                      plugin.get_property(METRIC_KEY(IMPORT_EXPORT_SUPPORT), {}).as<bool>();
