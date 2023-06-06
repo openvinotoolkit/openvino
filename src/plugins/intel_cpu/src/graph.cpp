@@ -634,54 +634,11 @@ void Graph::InitEdges() {
     }
 
     // secondary pass to eliminate complex implace conflicts
-    std::function<NodePtr(const EdgePtr& edge)> findNodeModifyingMemory;
-    findNodeModifyingMemory = [&findNodeModifyingMemory](const EdgePtr& edge) -> NodePtr {
-        auto childNode = edge->getChild();
-        if (childNode && childNode->isInPlace()) {
-            // check if the children nodes are able to modify the memory
-            auto childPort = edge->getOutputNum();
-            auto inPlaceInputPort = childNode->inPlaceInputPort(childPort);
-            if (inPlaceInputPort >= 0) {
-                if (childNode->isExecutable()) {
-                    // Node can modify the memory
-                    return childNode;
-                }
-                for (auto&& edge : childNode->getChildEdgesAtPort(inPlaceInputPort)) {
-                    // continue searching
-                    if (auto result = findNodeModifyingMemory(edge)) {
-                        return result;
-                    }
-                }
-            }
-            // check backward dependency
-            if (auto childSPD = childNode->getSelectedPrimitiveDescriptor()) {
-                auto& outConfs = childSPD->getConfig().outConfs;
-                for (size_t i = 0; i < outConfs.size(); ++i) {
-                    const auto& conf = outConfs[i];
-                    if (childPort >= 0 && conf.inPlace() == childPort) {
-                        if (childNode->isExecutable()) {
-                            // Node can modify the memory
-                            return childNode;
-                        }
-                        for (auto&& edge : childNode->getChildEdgesAtPort(i)) {
-                            // continue searching
-                            if (auto result = findNodeModifyingMemory(edge)) {
-                                return result;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        // nothing has been found
-        return nullptr;
-    };
-
-    auto needReorder = [&findNodeModifyingMemory](const EdgePtr& edge) -> bool {
+    auto needReorder = [](const EdgePtr& edge) -> bool {
         int inNumber = edge->getInputNum();
         const auto portChildEdges = edge->getParent()->getChildEdgesAtPort(inNumber);
         if (portChildEdges.size() > 1) {
-            if (auto modifyingNode = findNodeModifyingMemory(edge)) {
+            if (auto modifyingNode = edge->modifiedInPlace()) {
                 auto execIndex = modifyingNode->getExecIndex();
                 for (auto pEdgePeer : portChildEdges) {
                     if (pEdgePeer == edge)

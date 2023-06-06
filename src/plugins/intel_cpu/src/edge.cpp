@@ -540,5 +540,47 @@ bool Edge::inPlace(LOOK look) const {
     return false;
 }
 
+NodePtr Edge::modifiedInPlace() const {
+    auto childNode = getChild();
+    if (childNode && childNode->isInPlace()) {
+        // check if the children nodes are able to modify the memory
+        auto childPort = getOutputNum();
+        auto inPlaceInputPort = childNode->inPlaceInputPort(childPort);
+        if (inPlaceInputPort >= 0) {
+            if (childNode->isExecutable()) {
+                // Node can modify the memory
+                return childNode;
+            }
+            for (auto&& edge : childNode->getChildEdgesAtPort(inPlaceInputPort)) {
+                // continue searching
+                if (auto result = edge->modifiedInPlace()) {
+                    return result;
+                }
+            }
+        }
+        // check backward dependency
+        if (auto childSPD = childNode->getSelectedPrimitiveDescriptor()) {
+            auto& outConfs = childSPD->getConfig().outConfs;
+            for (size_t i = 0; i < outConfs.size(); ++i) {
+                const auto& conf = outConfs[i];
+                if (childPort >= 0 && conf.inPlace() == childPort) {
+                    if (childNode->isExecutable()) {
+                        // Node can modify the memory
+                        return childNode;
+                    }
+                    for (auto&& edge : childNode->getChildEdgesAtPort(i)) {
+                        // continue searching
+                        if (auto result = edge->modifiedInPlace()) {
+                            return result;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    // nothing has been found
+    return nullptr;
+}
+
 }   // namespace intel_cpu
 }   // namespace ov

@@ -210,7 +210,7 @@ void InferRequestBase::changeDefaultPtr() {
             if (inputNodePtr->getChildEdgeAt(0)->getMemory().GetData() == static_cast<void*>(it.second->buffer()))
                 continue;
             auto& childEdges = inputNodePtr->getChildEdges();
-            // Input cannot be in-place with other primitives
+            // Perform checks that the user's memory will not be modified
             bool canBeInPlace = true;
             for (auto& childEdge : childEdges) {
                 auto ce = childEdge.lock();
@@ -224,36 +224,22 @@ void InferRequestBase::changeDefaultPtr() {
                     break;
                 }
 
+                // the input memory should be referenced by the children, otherwise it should be written to a
+                // specific location 
+                if (ce->inPlace(Edge::LOOK_DOWN)) {
+                    canBeInPlace = false;
+                    break;
+                }
+
+                if (auto result = ce->modifiedInPlace()) {
+                    canBeInPlace = false;
+                    break;
+                }
+
                 if (child->getType() == Type::Concatenation && child->isInPlace()) {
                     canBeInPlace = false;
                     break;
                 }
-
-                // // Cannot be in-place before split because split is using different ptrs without offsets
-                // if (child->getType() == Type::Split) {
-                //     canBeInPlace = false;
-                //     break;
-                // }
-
-                if (child->isInPlace() && child->getType() != Type::Split) {
-                    canBeInPlace = false;
-                    break;
-                }
-
-                // auto& edges = child->getChildEdges();
-                // for (auto& edge : edges) {
-                //     auto e = edge.lock();
-                //     if (!e)
-                //         IE_THROW() << "Node " << child->getName() << " contains empty child edge";
-
-                //     if (e->getMemory().GetData() == ce->getMemory().GetData()) {
-                //         canBeInPlace = false;
-                //         break;
-                //     }
-                // }
-
-                if (!canBeInPlace)
-                    break;
             }
             if (canBeInPlace) {
                 for (auto& edge : childEdges) {
@@ -264,7 +250,6 @@ void InferRequestBase::changeDefaultPtr() {
                     changeEdgePtr(e, it.second);
                 }
             }
-
             continue;
         }
 

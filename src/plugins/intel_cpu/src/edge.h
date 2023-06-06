@@ -67,6 +67,7 @@ public:
     MemoryPtr getMemoryPtr() const;
 
     ReorderStatus needReorder();
+    NodePtr modifiedInPlace() const;
     bool isDropped() const;
     bool isUseExternalMemory() const;
 
