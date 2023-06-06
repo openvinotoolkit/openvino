@@ -3,6 +3,7 @@
 //
 
 #include "openvino/frontend/pytorch/node_context.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/floor.hpp"
 #include "utils.hpp"
@@ -20,7 +21,12 @@ OutputVector translate_floor_divide(const NodeContext& context) {
     auto y = context.get_input(1);
     align_eltwise_input_types(context, x, y, true);
     auto div = context.mark_node(std::make_shared<v1::Divide>(x, y, true));
-    return {context.mark_node(std::make_shared<v0::Floor>(div))};
+    auto floor = context.mark_node(std::make_shared<v0::Floor>(div));
+    auto out_type = context.get_output_type(0);
+    if (out_type.is<element::Type>()) {
+        floor = context.mark_node(std::make_shared<v0::Convert>(floor, out_type.as<element::Type>()));
+    }
+    return {floor};
 };
 
 }  // namespace op

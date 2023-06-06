@@ -54,7 +54,6 @@ OP_CONVERTER(translate_fill_);
 OP_CONVERTER(translate_flatten);
 OP_CONVERTER(translate_flip);
 OP_CONVERTER(translate_floor_divide);
-OP_CONVERTER(translate_floordiv);
 OP_CONVERTER(translate_frobenius_norm);
 OP_CONVERTER(translate_full);
 OP_CONVERTER(translate_full_like);
@@ -246,7 +245,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::floor", op::translate_1to1_match_1_inputs<opset10::Floor>},
         {"aten::floor_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Floor>>},
         {"aten::floor_divide", op::translate_floor_divide},
-        {"aten::floordiv", op::translate_floordiv},
+        {"aten::floordiv", op::translate_floor_divide},
         {"aten::frobenius_norm", op::translate_frobenius_norm},
         {"aten::full", op::translate_full},
         {"aten::full_like", op::translate_full_like},
