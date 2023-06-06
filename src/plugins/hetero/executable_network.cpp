@@ -724,14 +724,14 @@ void HeteroExecutableNetwork::Export(std::ostream& heteroModel) {
     for (auto&& config : _hetero_config) {
         auto heteroConfigNode = heteroConfigsNode.append_child("config");
         heteroConfigNode.append_attribute("key").set_value(config.first.c_str());
-        heteroConfigNode.append_attribute("value").set_value(config.second.as<char*>());
+        heteroConfigNode.append_attribute("value").set_value(config.second.as<std::string>().c_str());
     }
 
     auto deviceConfigsNode = heteroNode.append_child("device_config");
     for (auto&& config : _device_config) {
         auto deviceConfigNode = deviceConfigsNode.append_child("config");
         deviceConfigNode.append_attribute("key").set_value(config.first.c_str());
-        deviceConfigNode.append_attribute("value").set_value(config.second.as<char*>());
+        deviceConfigNode.append_attribute("value").set_value(config.second.as<std::string>().c_str());
     }
 
     auto blobNamesNode = heteroNode.append_child("blob_names_map");
