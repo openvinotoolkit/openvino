@@ -25,7 +25,7 @@ Configuration::Configuration(const ov::AnyMap& config, const Configuration& defa
             dump_graph = value.as<bool>();
             m_hetero_config[key] = value;
         }
-        else if (ov::device::priorities.name() == key) {
+        else if ("TARGET_FALLBACK" == key || ov::device::priorities.name() == key) {
             device_priorities = value.as<std::string>();
             m_hetero_config[key] = value;
         }
@@ -41,7 +41,7 @@ Configuration::Configuration(const ov::AnyMap& config, const Configuration& defa
 ov::Any Configuration::Get(const std::string& name) const {
     if (name == HETERO_CONFIG_KEY(DUMP_GRAPH_DOT)) {
         return {dump_graph};
-    } else if (name == ov::device::priorities) {
+    } else if (name == "TARGET_FALLBACK" || name == ov::device::priorities) {
         return {device_priorities};
     } else if (name == ov::exclusive_async_requests) {
         return {exclusive_async_requests};
