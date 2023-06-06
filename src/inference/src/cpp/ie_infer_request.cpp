@@ -31,20 +31,18 @@ void normalize_blob(const InferenceEngine::IInferRequestInternal::Ptr request,
     if (request->_networkInputs.find(name) != request->_networkInputs.end()) {
         // GetBlob case
         if (request->_networkInputs.at(name)->getLayout() != desc.getLayout()) {
-            new_desc = InferenceEngine::TensorDesc(
-                desc.getPrecision(),
-                request->_networkInputs.at(name)->getTensorDesc().getDims(),
-                request->_networkInputs.at(name)->getLayout());
+            new_desc = InferenceEngine::TensorDesc(desc.getPrecision(),
+                                                   request->_networkInputs.at(name)->getTensorDesc().getDims(),
+                                                   request->_networkInputs.at(name)->getLayout());
         } else {
             // Check that in case of set blob the internal blob has the same layout
             // auto int_blob = request->GetBlob(name);
         }
     } else if (request->_networkOutputs.find(name) != request->_networkOutputs.end()) {
         if (request->_networkOutputs.at(name)->getLayout() != desc.getLayout()) {
-            new_desc = InferenceEngine::TensorDesc(
-                desc.getPrecision(),
-                request->_networkOutputs.at(name)->getTensorDesc().getDims(),
-                request->_networkOutputs.at(name)->getLayout());
+            new_desc = InferenceEngine::TensorDesc(desc.getPrecision(),
+                                                   request->_networkOutputs.at(name)->getTensorDesc().getDims(),
+                                                   request->_networkOutputs.at(name)->getLayout());
         } else {
             // Check that in case of set blob the internal blob has the same layout
             // auto int_blob = request->GetBlob(name);
