@@ -18,6 +18,7 @@ from ..configs.config import GNA_DEVICES
 
 init_logger('ERROR', False)
 core = Core()
+core.set_property({"ENABLE_MMAP": "NO"})
 pass_manager = Manager()
 
 
