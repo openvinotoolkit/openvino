@@ -14,33 +14,32 @@ std::vector<std::vector<int>> apply_scheduling_core_type(ov::hint::SchedulingCor
                                                          const std::vector<std::vector<int>>& proc_type_table) {
     std::vector<std::vector<int>> result_table = proc_type_table;
 
-    switch (input_type) {
-    case ov::hint::SchedulingCoreType::ANY_CORE:
-        break;
-    case ov::hint::SchedulingCoreType::PCORE_ONLY:
-        if (proc_type_table[0][EFFICIENT_CORE_PROC] > 0) {
+    auto update_proc_type_table = [&]() {
+        switch (input_type) {
+        case ov::hint::SchedulingCoreType::PCORE_ONLY:
             for (auto& i : result_table) {
                 i[ALL_PROC] -= i[EFFICIENT_CORE_PROC];
                 i[EFFICIENT_CORE_PROC] = 0;
             }
-        }
-        break;
-    case ov::hint::SchedulingCoreType::ECORE_ONLY:
-        if (proc_type_table[0][EFFICIENT_CORE_PROC] > 0) {
-            if ((proc_type_table[0][EFFICIENT_CORE_PROC] != proc_type_table[0][ALL_PROC])) {
-                for (auto& i : result_table) {
-                    i[ALL_PROC] -= i[MAIN_CORE_PROC] + i[HYPER_THREADING_PROC];
-                    i[MAIN_CORE_PROC] = 0;
-                    i[HYPER_THREADING_PROC] = 0;
-                }
+            break;
+        case ov::hint::SchedulingCoreType::ECORE_ONLY:
+            for (auto& i : result_table) {
+                i[ALL_PROC] -= i[MAIN_CORE_PROC] + i[HYPER_THREADING_PROC];
+                i[MAIN_CORE_PROC] = 0;
+                i[HYPER_THREADING_PROC] = 0;
             }
-        } else {
-            input_type = ov::hint::SchedulingCoreType::PCORE_ONLY;
+            break;
+        default:
+            break;
         }
-        break;
-    default:
-        OPENVINO_THROW("Unsupported core type!");
+    };
+
+    if (((input_type == ov::hint::SchedulingCoreType::PCORE_ONLY) && (proc_type_table[0][MAIN_CORE_PROC] == 0)) ||
+        ((input_type == ov::hint::SchedulingCoreType::ECORE_ONLY) && (proc_type_table[0][EFFICIENT_CORE_PROC] == 0))) {
+        input_type = ov::hint::SchedulingCoreType::ANY_CORE;
     }
+
+    update_proc_type_table();
 
     return result_table;
 }

@@ -56,7 +56,7 @@ SchedulingCoreTypeTestCase _2sockets_E_CORE_ONLY = {
     ov::hint::SchedulingCoreType::ECORE_ONLY,
     {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
     {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
-    ov::hint::SchedulingCoreType::PCORE_ONLY,
+    ov::hint::SchedulingCoreType::ANY_CORE,
 };
 
 SchedulingCoreTypeTestCase _1sockets_ALL = {
@@ -71,6 +71,13 @@ SchedulingCoreTypeTestCase _1sockets_P_CORE_ONLY = {
     {{20, 6, 8, 6}},
     {{12, 6, 0, 6}},
     ov::hint::SchedulingCoreType::PCORE_ONLY,
+};
+
+SchedulingCoreTypeTestCase _1sockets_P_CORE_ONLY_1 = {
+    ov::hint::SchedulingCoreType::PCORE_ONLY,
+    {{8, 0, 8, 0}},
+    {{8, 0, 8, 0}},
+    ov::hint::SchedulingCoreType::ANY_CORE,
 };
 
 SchedulingCoreTypeTestCase _1sockets_E_CORE_ONLY = {
@@ -89,6 +96,7 @@ INSTANTIATE_TEST_SUITE_P(SchedulingCoreTypeTable,
                                          _2sockets_E_CORE_ONLY,
                                          _1sockets_ALL,
                                          _1sockets_P_CORE_ONLY,
+                                         _1sockets_P_CORE_ONLY_1,
                                          _1sockets_E_CORE_ONLY));
 
 struct UseHTTestCase {
