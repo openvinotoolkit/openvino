@@ -143,7 +143,7 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
             return false;
 
         layout pred_l = pred_params[idx].get_output_layout();
-        if (output_format != pred_l.format || output_datatype != pred_l.data_type || pred_l.is_dynamic())
+        if (output_format != pred_l.format || output_datatype != pred_l.data_type)
             return false;
         if (pred_l.format.block_sizes().size() > 1)
             return false;
@@ -151,15 +151,17 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
         // This however will need updating the algorithm as it may make cascade adjustment impossible in some cases.
         // It however would make normal optimizations possible in others, so this is a trade-off to be investigated.
         if (idx != concat_node.get_dependencies().size() - 1) {
+            ov::Dimension feature = pred_l.get_partial_shape()[1];
             if ((pred_l.format == format::b_fs_yx_fsv16 || pred_l.format == format::b_fs_zyx_fsv16) &&
-                (pred_l.feature() % 16 != 0 || concat_axis != 1))
+                (feature.is_dynamic() || feature.get_length() % 16 != 0 || concat_axis != 1))
                 return false;
 
             if ((pred_l.format == format::b_fs_yx_fsv32 || pred_l.format == format::b_fs_zyx_fsv32) &&
-                (pred_l.feature() % 32 != 0 || concat_axis != 1))
+                (feature.is_dynamic() || feature.get_length() % 32 != 0 || concat_axis != 1))
                 return false;
 
-            if (pred_l.format == format::b_fs_yx_fsv4 && (pred_l.feature() != 4 || concat_axis != 1))
+            if (pred_l.format == format::b_fs_yx_fsv4 &&
+                (feature.is_dynamic() || feature.get_length() != 4 || concat_axis != 1))
                 return false;
         }
         if (pred.first->get_preferred_impl_type() == impl_types::onednn) {
