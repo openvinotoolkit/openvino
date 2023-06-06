@@ -759,7 +759,6 @@ BrgemmEmitter::BrgemmEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
     m_K = A_shape[get_ordered_idx(A_layout, A_layout.size() - 1)];
     m_M_blk = matmulOptimalM;
     m_M_tail = m_M % m_M_blk;
-    // B_shape[B_layout[3]]
     m_N = C_shape[get_ordered_idx(C_layout, C_layout.size() - 1)];
 
     auto brg0Prc = InferenceEngine::details::convertPrecision(brgemm_node->get_input_element_type(0));
