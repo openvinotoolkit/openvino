@@ -8,7 +8,7 @@ Supported operating systems for the Docker Base image:
 - Ubuntu 20.04 LTS
 - RedHat UBI 8
 
-The framework can generate a Dockerfile, build, test, and deploy an image using the Intel® Distribution of OpenVINO™ toolkit. You can reuse available Dockerfiles, add your layer and customize the OpenVINO™ image to your needs. You can get started easily with pre-built and published docker images. Details on how to get started can be found `here <https://github.com/openvinotoolkit/docker_ci/blob/master/get-started.md>`__.
+The `Docker CI framework <https://github.com/openvinotoolkit/docker_ci/>`__ can generate a Dockerfile, build, test, and deploy an image using the Intel® Distribution of OpenVINO™ toolkit. You can reuse available Dockerfiles, add your layer and customize the OpenVINO™ image to your needs. You can get started easily with pre-built and published docker images. Details on how to get started can be found `here <https://github.com/openvinotoolkit/docker_ci/blob/master/get-started.md>`__.
 
 To start using them, the following conditions must be met:
 
@@ -16,7 +16,7 @@ To start using them, the following conditions must be met:
 - Installed docker engine or compatible container engine
 - Permissions to run containers (sudo or docker group membership)
 
-Since `Docker <https://docs.docker.com/>`__ is (mostly) just an isolation tool, the OpenVINO toolkit in the container is the same as the OpenVINO toolkit installed natively on the host machine, so the `OpenVINO documentation <https://docs.openvino.ai/>`__ documentation is fully applicable to the containerized OpenVINO distribution.
+OpenVINO's `Docker <https://docs.docker.com/>`__ and `Bare Metal <https://docs.openvino.ai/2023.0/ovms_docs_deploying_server.html#doxid-ovms-docs-deploying-server>` distributions are identical, so the documentation applies to both.
 
 .. note:: 
 

@@ -62,13 +62,9 @@ Follow the `instructions <https://dgpu-docs.intel.com/driver/installation.html#r
 
 Install following packages: 
 
-* `intel-opencl`,
-* `level-zero`,
-* `intel-level-zero-gpu` ,
-* `intel-igc-core`, 
-* `intel-igc-cm`, 
-* `intel-gmmlib`,
-* `intel-ocloc`.
+.. code-block:: sh
+
+   yum install intel-opencl level-zero intel-level-zero-gpu intel-igc-core intel-igc-cm intel-gmmlib intel-ocloc
 
 Install the OpenCL ICD Loader via:
 
