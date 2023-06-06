@@ -26,8 +26,7 @@ TEST(MemoryTest, ConcurrentGetPrimitive) {
     dnnl::memory dnnl_mem1;
     dnnl::memory dnnl_mem2;
     auto desc = std::make_shared<CpuBlockedMemoryDesc>(Precision::FP32, Shape{10, 2});
-    Memory cpu_mem1(eng);
-    cpu_mem1.Create(desc);
+    Memory cpu_mem1(eng, desc);
 
     std::atomic<bool> lock{true};
 
@@ -55,10 +54,8 @@ TEST(MemoryTest, ConcurrentResizeGetPrimitive) {
     for (size_t i = 0; i < number_of_attempts; ++i) {
         dnnl::memory dnnl_mem;
         auto desc = std::make_shared<CpuBlockedMemoryDesc>(Precision::FP32, Shape{10, 2});
-        Memory cpu_mem1(eng);
-        cpu_mem1.Create(desc);
-        Memory cpu_mem2(eng);
-        cpu_mem2.Create(desc, cpu_mem1.getMemoryMngr()); // tie two memory objects (memory reuse)
+        Memory cpu_mem1(eng, desc);
+        Memory cpu_mem2(eng, desc, cpu_mem1.getMemoryMngr());
         auto desc2 = std::make_shared<CpuBlockedMemoryDesc>(Precision::FP32, Shape{10, 20});
 
         std::atomic<bool> lock{true};

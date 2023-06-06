@@ -22,8 +22,8 @@
 using namespace InferenceEngine;
 using namespace ov::intel_cpu;
 namespace ReorderCPUTest {
-inline void checkReorder(const ov::intel_cpu::Memory& inputMemory,
-                         const ov::intel_cpu::Memory& outputMemory,
+inline void checkReorder(const ov::intel_cpu::IMemory& inputMemory,
+                         const ov::intel_cpu::IMemory& outputMemory,
                          const InferenceEngine::Precision& prescision) {
     auto srcData = inputMemory.GetData();
     auto dstData = outputMemory.GetData();
@@ -68,7 +68,7 @@ inline std::string layoutName(const LayoutType& layout) {
     return "Unsupported layout type";
 }
 
-inline void fillData(const ov::intel_cpu::Memory& inputMemory, const InferenceEngine::Precision& prec) {
+inline void fillData(const ov::intel_cpu::IMemory& inputMemory, const InferenceEngine::Precision& prec) {
     ov::intel_cpu::DnnlMemoryDescPtr dnnlMdInput = inputMemory.GetDescWithType<DnnlMemoryDesc>();
     const dnnl::impl::memory_desc_wrapper mdInput{dnnlMdInput->getDnnlDesc().get()};
     auto elemNum = mdInput.nelems();
