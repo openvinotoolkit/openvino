@@ -74,8 +74,6 @@ static void CreateIfOp(Program& p, const std::shared_ptr<ngraph::op::v8::If>& op
     auto p_input_name = inputs[0].pid;
     std::string type_name_str = op->get_input_node_ptr(0)->get_type_name();
 
-    std::cout << "*********** ====== [condition] " << p_input_name << ", " << type_name_str << ", " << compare_node_pshape << std::endl;
-
     const std::string layerName = layer_type_name_ID(op);
     auto branch_true = gen_branch(p, op, idx_true);
     auto branch_false = gen_branch(p, op, idx_false);

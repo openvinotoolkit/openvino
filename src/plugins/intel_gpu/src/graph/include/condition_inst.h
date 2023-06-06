@@ -33,6 +33,7 @@ public:
     std::unique_ptr<kernel_impl_params> get_kernel_impl_params(const std::vector<layout>& in_layouts, const std::vector<layout>& out_layouts) const override {
         auto params = parent::get_kernel_impl_params(in_layouts, out_layouts);
         params->inner_progs = { _branch_true.inner_program, _branch_false.inner_program };
+        params->io_output_maps = { _branch_true.output_map, _branch_false.output_map };
         return params;
     }
 

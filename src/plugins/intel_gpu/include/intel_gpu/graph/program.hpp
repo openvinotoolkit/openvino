@@ -162,6 +162,9 @@ public:
     std::shared_ptr<program_node> get_node_ptr(const primitive_id& prim) { return nodes_map.at(prim); }
     std::shared_ptr<program_node> get_node_ptr(const primitive_id& prim) const { return nodes_map.at(prim); }
 
+    // DEBUG
+    void show_outputs();
+
     // returns already existing program_node for given primitive 'prim' (lookup in 'nodes_map')
     // if it was previously created, otherwise creates and then returns program_node
     program_node& get_or_create(std::shared_ptr<primitive> prim);

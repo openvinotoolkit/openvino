@@ -394,12 +394,12 @@ TEST(condition_gpu, basic_nested_ifs) {
         cldnn::topology nested_false_topology;
         nested_false_topology.add(
             input_layout("branch_input2", { data_types::f32, format::bfyx,{ 1, 1, 2, 1 } }),
-            eltwise("scale_10", { input_info("branch_input2"), input_info("scale_10_data") }, eltwise_mode::prod),
-            data("scale_10_data", scale_10_mem)
+            data("scale_10_data", scale_10_mem),
+            eltwise("scale_10", { input_info("branch_input2"), input_info("scale_10_data") }, eltwise_mode::prod)
         );
         nested_false.inner_program = program::build_program(engine, nested_false_topology, config, true);
         nested_false.input_map.insert({"pooling_when_true", "branch_input2"});
-        nested_false.output_map.insert({0, "scale_10_data"});
+        nested_false.output_map.insert({0, "scale_10"});
     }
 
     condition::branch branch_true;
