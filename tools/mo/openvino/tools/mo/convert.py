@@ -29,6 +29,7 @@ def convert_model(
         mean_values: [str, dict, list] = (),
         scale_values: [str, dict, list] = (),
         scale: [str, float] = None,
+        example_input: Any = None,
         reverse_input_channels: bool = False,
         source_layout: [str, Layout, dict] = (),
         target_layout: [str, Layout, dict] = (),
@@ -46,9 +47,6 @@ def convert_model(
         # PaddlePaddle-specific parameters:
         # example_input: Any = None, which can be shared with PyTorch-specific parameters
         example_output: Any = None,
-
-        # PyTorch-specific parameters:
-        example_input: Any = None,
 
         # TensorFlow*-specific parameters
         input_model_is_text: bool = None,

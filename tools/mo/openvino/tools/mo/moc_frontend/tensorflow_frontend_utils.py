@@ -12,43 +12,95 @@ def trace_tf_model_if_needed(argv):
     import tensorflow as tf
     if not isinstance(argv.input_model, (tf.keras.layers.Layer, tf.Module, tf.keras.Model)):
         return
-    argv.input_model = trace_tf_model(argv.input_model, argv.placeholder_shapes, argv['example_input'] if 'example_input' in argv else None)
+    argv.input_model = trace_tf_model(argv.input_model, argv.placeholder_shapes, argv.placeholder_data_types, getattr(argv, 'example_input', None))
 
 
-def trace_tf_model(model, input_shapes, example_input):
+def get_input_spec_from_model(model):
     import tensorflow as tf
-    if isinstance(model.__call__, tf.types.experimental.GenericFunction):
-        tf_function = model.__call__
-    else:
-        # Wrap model to tf.Function
-        @tf.function
-        def tf_function(args):
-            return model(*args)
-
     if hasattr(model, '_build_input_shape') and model._build_input_shape is not None:
         if isinstance(model._build_input_shape, list):
             input_spec = [[tf.TensorSpec(shape) for shape in model._build_input_shape]]
         else:
             input_spec = [tf.TensorSpec(model._build_input_shape)]
-    elif input_shapes is not None:
-        if isinstance(input_shapes, list):
-            input_spec = [tf.TensorSpec(get_static_shape(shape)) for shape in input_shapes]
-        else:
-            input_spec = [tf.TensorSpec(get_static_shape(input_shapes))]
     else:
         input_spec = [tf.TensorSpec(None)]
+    return input_spec
 
+
+def create_example_input_by_user_shapes(input_shapes, input_types):
+    import tensorflow as tf
+    if input_shapes is None:
+        return None
+    if isinstance(input_shapes, dict):
+        res = {}
+        for name, shape in input_shapes.items():
+            shape = get_static_shape(shape, 1)
+            args = {}
+            if name in input_types:
+                args['dtype'] = input_types[name]
+            tensor = tf.random.uniform(shape=shape, **args)
+            res[name] = tensor
+        return res
+    elif isinstance(input_shapes, list):
+        res = []
+        for idx, shape in enumerate(input_shapes):
+            shape = get_static_shape(shape, 1)
+            args = {}
+            if idx < len(input_types):
+                args['dtype'] = input_types[idx]
+            tensor = tf.random.uniform(shape=shape, **args)
+            res.append(tensor)
+        return res
+    raise Error("Could not create example input by provided shape {}".format(input_shapes))
+
+
+def get_concrete_func(tf_function, example_input, input_needs_packing, error_message, use_example_input=True):
+    if input_needs_packing and not isinstance(example_input, (list, tuple)):
+        example_input = [example_input]
     try:
-        # Trace the model
-        concrete_func = tf_function.get_concrete_function(input_spec)
-    except:
-        if example_input is None:
-            raise Exception("Could not trace the TF model. Please provide 'example_input'.")
+        if use_example_input:
+            if not input_needs_packing and isinstance(example_input, (list, tuple)):
+                concrete_func = tf_function.get_concrete_function(*example_input)
+            else:
+                concrete_func = tf_function.get_concrete_function(example_input)
 
-        try:
-            concrete_func = tf_function.get_concrete_function(example_input)
-        except Exception as e:
-            raise Exception("Could not trace the TF model with the following error: {}".format(e))
+        else:
+            concrete_func = tf_function.get_concrete_function()
+    except Exception as e:
+        raise Exception(error_message.format(e))
+    return concrete_func
+
+
+def trace_tf_model(model, input_shapes, input_types, example_input):
+    import tensorflow as tf
+    if isinstance(model.__call__, tf.types.experimental.GenericFunction):
+        tf_function = model.__call__
+        input_needs_packing = False
+    else:
+        # Wrap model to tf.Function
+        @tf.function
+        def tf_function(args):
+            return model(*args)
+        input_needs_packing = True
+
+    if example_input is not None:
+        concrete_func = get_concrete_func(tf_function, example_input, input_needs_packing,
+                                          "Could not trace the TF model with the following error: {}")
+    elif input_shapes is not None:
+        inp = create_example_input_by_user_shapes(input_shapes, input_types)
+        concrete_func = get_concrete_func(tf_function, inp, input_needs_packing,
+                                          "Could not trace the TF model with the following error: {}")
+    else:
+        if isinstance(model.__call__, tf.types.experimental.GenericFunction) and \
+                tf_function.input_signature is not None:
+            concrete_func = get_concrete_func(tf_function, None, input_needs_packing,
+                                              "Could not trace the TF model with the following error: {}",
+                                              use_example_input=False)
+        else:
+            input_spec = get_input_spec_from_model(model)
+            concrete_func = get_concrete_func(tf_function, input_spec, input_needs_packing,
+                                              "Could not trace the TF model with the following error: {}.\n"
+                                              "Please provide 'example_input'.")
 
     return concrete_func
 
@@ -79,7 +131,12 @@ def create_tf_graph_iterator(input_model):
 def extract_model_graph(argv):
     model = argv['input_model']
     import tensorflow as tf
-    from tensorflow.python.training.tracking.base import Trackable
+    trackable_is_imported = False
+    try:
+        from tensorflow.python.training.tracking.base import Trackable
+        trackable_is_imported = True
+    except:
+        log.warning('Could not import tensorflow.python.training.tracking.base.Trackable type.')
     env_setup = get_environment_setup("tf")
     if isinstance(model, (tf.Graph, tf.compat.v1.GraphDef)):
         return True
@@ -98,7 +155,7 @@ def extract_model_graph(argv):
 
     if isinstance(model, (tf.keras.layers.Layer, tf.Module, tf.keras.Model)):
         return True
-    if isinstance(model, Trackable):
+    if trackable_is_imported and isinstance(model, Trackable):
         if hasattr(model, 'signatures') and len(model.signatures.items()):
             if 'serving_default' in model.signatures:
                 argv['input_model'] = model.signatures['serving_default']

@@ -135,26 +135,6 @@ def test_load_by_model_path():
     assert stat.supported == 1
 
 
-def test_load_by_model_tf_graph_iterator():
-    def simple_tf_model():
-        import tensorflow as tf
-
-        tf.compat.v1.reset_default_graph()
-
-        with tf.compat.v1.Session() as sess:
-            inp = tf.compat.v1.placeholder(tf.float32, [1, 2, 3], "Input")
-            _ = tf.nn.sigmoid(inp, name="Sigmoid")
-
-            tf.compat.v1.global_variables_initializer()
-            tf_net = sess.graph
-        return tf_net
-    from openvino.frontend.tensorflow.graph_iterator import GraphIteratorTFGraph
-    model = GraphIteratorTFGraph(simple_tf_model())
-    fe = fem.load_by_model(model)
-    assert fe is not None
-    assert fe.get_name() == "tf"
-
-
 @mock_needed
 def test_convert_model():
     clear_all_stat()

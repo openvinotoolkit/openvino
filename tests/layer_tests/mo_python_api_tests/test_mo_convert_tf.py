@@ -384,6 +384,250 @@ def create_tf_stateful_partioned_call_net(temp_dir):
     return tf_model, model_ref, {}
 
 
+def create_keras_layer_input_list():
+    import tensorflow as tf
+    class LayerModel(tf.keras.layers.Layer):
+
+        def __init__(self):
+            super(LayerModel, self).__init__()
+
+        def call(self, x, y):
+            res_list = [tf.sigmoid(tf.nn.relu(x + y)), tf.nn.relu(x), tf.sigmoid(y)]
+            return res_list
+    return LayerModel()
+
+
+def create_keras_layer_input_list_one_inp():
+    import tensorflow as tf
+    class LayerModel(tf.keras.layers.Layer):
+
+        def __init__(self):
+            super(LayerModel, self).__init__()
+
+        def call(self, x):
+            res_list = [tf.sigmoid(tf.nn.relu(x)), tf.nn.relu(x)]
+            return res_list
+    return LayerModel()
+
+
+def create_keras_layer_input_dict():
+    import tensorflow as tf
+    class LayerModel(tf.keras.layers.Layer):
+
+        def __init__(self):
+            super(LayerModel, self).__init__()
+
+        def call(self, args):
+            res = {}
+            res['result'] = tf.sigmoid(tf.nn.relu(args['a'] + args['b']))
+            return res
+    return LayerModel()
+
+
+def create_keras_layer_input_dict_one_inp():
+    import tensorflow as tf
+    class LayerModel(tf.keras.layers.Layer):
+
+        def __init__(self):
+            super(LayerModel, self).__init__()
+
+        def call(self, args):
+            res = {}
+            res['result'] = tf.sigmoid(tf.nn.relu(args['args']))
+            return res
+    return LayerModel()
+
+def create_keras_layer_with_example_input_1(tmp_dir):
+    import tensorflow as tf
+    model = create_keras_layer_input_list()
+
+    example_input = (np.random.rand(1,2,3).astype(np.float32), np.random.rand(1,2,3).astype(np.float32))
+
+    input_shapes = [PartialShape([1,2,3]),
+                    PartialShape([1,2,3])]
+
+    param1 = ov.opset8.parameter(input_shapes[0], dtype=np.float32)
+    param2 = ov.opset8.parameter(input_shapes[1], dtype=np.float32)
+    add = ov.opset8.add(param1, param2)
+    relu1 = ov.opset8.relu(add)
+    sigm1 = ov.opset8.sigmoid(relu1)
+    relu2 = ov.opset8.relu(param1)
+    sigm2 = ov.opset8.sigmoid(param2)
+
+    parameter_list = [param1, param2]
+    model_ref = Model([sigm1, relu2, sigm2], parameter_list, "test")
+
+    return model, model_ref, {'example_input': example_input}
+
+
+def create_keras_layer_with_example_input_2(tmp_dir):
+    import tensorflow as tf
+    model = create_keras_layer_input_dict()
+
+    example_input = {'a': np.random.rand(1,2,3).astype(np.float32), 'b': np.random.rand(1,2,3).astype(np.float32)}
+
+
+    input_shapes = [PartialShape([1,2,3]),
+                    PartialShape([1,2,3])]
+
+    param1 = ov.opset8.parameter(input_shapes[0], dtype=np.float32)
+    param2 = ov.opset8.parameter(input_shapes[1], dtype=np.float32)
+    add = ov.opset8.add(param1, param2)
+    relu1 = ov.opset8.relu(add)
+    sigm1 = ov.opset8.sigmoid(relu1)
+
+    parameter_list = [param1, param2]
+    model_ref = Model([sigm1], parameter_list, "test")
+
+    return model, model_ref, {'example_input': example_input}
+
+
+def create_keras_layer_with_input_shapes_case1(tmp_dir):
+    import tensorflow as tf
+    model = create_keras_layer_input_list()
+
+    input_shapes = [PartialShape([1,2,3]),
+                    PartialShape([1,2,3])]
+
+    param1 = ov.opset8.parameter(input_shapes[0], dtype=np.float32)
+    param2 = ov.opset8.parameter(input_shapes[1], dtype=np.float32)
+    add = ov.opset8.add(param1, param2)
+    relu1 = ov.opset8.relu(add)
+    sigm1 = ov.opset8.sigmoid(relu1)
+    relu2 = ov.opset8.relu(param1)
+    sigm2 = ov.opset8.sigmoid(param2)
+
+    parameter_list = [param1, param2]
+    model_ref = Model([sigm1, relu2, sigm2], parameter_list, "test")
+
+    return model, model_ref, {'input_shape': [[1, 2, 3], [1, 2, 3]]}
+
+
+def create_keras_layer_with_input_shapes_case2(tmp_dir):
+    import tensorflow as tf
+    model = create_keras_layer_input_list()
+
+    input_shapes = [PartialShape([1,2,3]),
+                    PartialShape([1,2,3])]
+
+    param1 = ov.opset8.parameter(input_shapes[0], dtype=np.float32)
+    param2 = ov.opset8.parameter(input_shapes[1], dtype=np.float32)
+    add = ov.opset8.add(param1, param2)
+    relu1 = ov.opset8.relu(add)
+    sigm1 = ov.opset8.sigmoid(relu1)
+    relu2 = ov.opset8.relu(param1)
+    sigm2 = ov.opset8.sigmoid(param2)
+
+    parameter_list = [param1, param2]
+    model_ref = Model([sigm1, relu2, sigm2], parameter_list, "test")
+
+    return model, model_ref, {'input': [([1, 2, 3], np.float32), ([1, 2, 3], np.float32)]}
+
+
+def create_keras_layer_with_input_shapes_case3(tmp_dir):
+    import tensorflow as tf
+    model = create_keras_layer_input_dict_one_inp()
+
+    input_shapes = [PartialShape([1,2,3]),
+                    PartialShape([1,2,3])]
+
+    param1 = ov.opset8.parameter(input_shapes[0], dtype=np.float32)
+    param2 = ov.opset8.parameter(input_shapes[1], dtype=np.float32)
+    relu1 = ov.opset8.relu(param1)
+    sigm1 = ov.opset8.sigmoid(relu1)
+    parameter_list = [param1, param2]
+    model_ref = Model([sigm1], parameter_list, "test")
+
+    return model, model_ref, {'input': ['args'], 'input_shape': [1, 2, 3]}
+
+
+def create_keras_layer_with_input_shapes_case4(tmp_dir):
+    import tensorflow as tf
+    model = create_keras_layer_input_list_one_inp()
+
+    input_shapes = [PartialShape([1,2,3])]
+
+    param1 = ov.opset8.parameter(input_shapes[0], dtype=np.float32)
+    relu1 = ov.opset8.relu(param1)
+    sigm1 = ov.opset8.sigmoid(relu1)
+    parameter_list = [param1]
+    model_ref = Model([sigm1, relu1], parameter_list, "test")
+
+    return model, model_ref, {'input': [1, 2, 3]}
+
+
+def create_keras_layer_with_tf_function_call(tmp_dir):
+    import tensorflow as tf
+    class LayerModel(tf.Module):
+        def __init__(self):
+            super(LayerModel, self).__init__()
+            self.var1 = tf.Variable(5.0)
+
+        @tf.function(input_signature=[tf.TensorSpec([1, 2], tf.float32), tf.TensorSpec([1, 2], tf.float32)])
+        def __call__(self, input1, input2):
+            sigm = tf.nn.sigmoid(input1) + input2
+            return sigm * self.var1
+    model = LayerModel()
+
+    param1 = ov.opset8.parameter([1, 2], dtype=np.float32)
+    param2 = ov.opset8.parameter([1, 2], dtype=np.float32)
+    const = ov.opset8.constant([[5.0]], dtype=np.float32)
+    sigm = ov.opset8.sigmoid(param1)
+    add = ov.opset8.add(sigm, param2)
+    mul = ov.opset8.multiply(add, const)
+    parameter_list = [param1, param2]
+    model_ref = Model([mul], parameter_list, "test")
+    return model, model_ref, {}
+
+
+def create_keras_layer_with_tf_function_call_no_signature(tmp_dir):
+    import tensorflow as tf
+    class LayerModel(tf.Module):
+        def __init__(self):
+            super(LayerModel, self).__init__()
+            self.var1 = tf.Variable(5.0)
+
+        @tf.function()
+        def __call__(self, input1, input2):
+            sigm = tf.nn.sigmoid(input1) + input2
+            return sigm * self.var1
+    model = LayerModel()
+    example_input = [np.random.rand(2, 3).astype(np.float32), np.random.rand(2, 3).astype(np.float32)]
+
+    param1 = ov.opset8.parameter([2, 3], dtype=np.float32)
+    param2 = ov.opset8.parameter([2, 3], dtype=np.float32)
+    const = ov.opset8.constant([[5.0]], dtype=np.float32)
+    sigm = ov.opset8.sigmoid(param1)
+    add = ov.opset8.add(sigm, param2)
+    mul = ov.opset8.multiply(add, const)
+    parameter_list = [param1, param2]
+    model_ref = Model([mul], parameter_list, "test")
+    return model, model_ref, {'example_input': example_input}
+
+
+def create_keras_layer_with_tf_function_call_no_signature_single_input(tmp_dir):
+    import tensorflow as tf
+    class LayerModel(tf.Module):
+        def __init__(self):
+            super(LayerModel, self).__init__()
+            self.var1 = tf.Variable(5.0)
+
+        @tf.function()
+        def __call__(self, input1):
+            sigm = tf.nn.sigmoid(input1)
+            return sigm * self.var1
+    model = LayerModel()
+    example_input = np.random.rand(2, 3).astype(np.float32)
+
+    param1 = ov.opset8.parameter([2, 3], dtype=np.float32)
+    const = ov.opset8.constant([[5.0]], dtype=np.float32)
+    sigm = ov.opset8.sigmoid(param1)
+    mul = ov.opset8.multiply(sigm, const)
+    parameter_list = [param1]
+    model_ref = Model([mul], parameter_list, "test")
+    return model, model_ref, {'example_input': example_input}
+
+
 class TestMoConvertTF(CommonMOConvertTest):
     test_data = [
         # TF2
@@ -396,6 +640,15 @@ class TestMoConvertTF(CommonMOConvertTest):
         create_tf_module_dynamic,
         create_tf_module_layout_list,
         create_tf_stateful_partioned_call_net,
+        create_keras_layer_with_example_input_1,
+        create_keras_layer_with_example_input_2,
+        create_keras_layer_with_input_shapes_case1,
+        create_keras_layer_with_input_shapes_case2,
+        create_keras_layer_with_input_shapes_case3,
+        create_keras_layer_with_input_shapes_case4,
+        create_keras_layer_with_tf_function_call,
+        create_keras_layer_with_tf_function_call_no_signature,
+        create_keras_layer_with_tf_function_call_no_signature_single_input,
 
         # TF1
         create_tf_graph,

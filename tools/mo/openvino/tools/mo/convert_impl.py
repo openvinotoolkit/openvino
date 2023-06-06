@@ -44,7 +44,7 @@ from openvino.tools.mo.utils.model_analysis import AnalysisResults
 from openvino.tools.mo.utils.version import VersionChecker
 from openvino.tools.mo.utils.guess_framework import deduce_legacy_frontend_by_namespace
 from openvino.tools.mo.utils.logger import init_logger, progress_printer
-from openvino.tools.mo.utils.utils import refer_to_faq_msg
+from openvino.tools.mo.utils.utils import refer_to_faq_msg, check_values_equal
 from openvino.tools.mo.utils.telemetry_utils import send_params_info, send_framework_info, send_conversion_result, \
     get_tid
 from openvino.tools.mo.utils.versions_checker import get_environment_setup  # pylint: disable=no-name-in-module
@@ -59,6 +59,7 @@ from openvino.tools.mo.moc_frontend.shape_utils import parse_input_shapes
 from openvino.frontend import FrontEndManager, OpConversionFailure, ProgressReporterExtension, TelemetryExtension
 from openvino.runtime import get_version as get_rt_version
 from openvino.runtime import Type, PartialShape
+
 
 def load_extensions(argv: argparse.Namespace, is_tf: bool, is_caffe: bool, is_mxnet: bool, is_kaldi: bool,
                     is_onnx: bool):
@@ -598,9 +599,9 @@ def args_dict_to_list(cli_parser, **kwargs):
     for key, value in kwargs.items():
         if value is None:
             continue
-        if key in signature.parameters and signature.parameters[key].default == value:
+        if key in signature.parameters and check_values_equal(signature.parameters[key].default, value):
             continue
-        if cli_parser.get_default(key) == value:
+        if check_values_equal(cli_parser.get_default(key), value):
             continue
         # skip parser checking for non str objects
         if not isinstance(value, (str, bool)):
@@ -621,9 +622,9 @@ def get_non_default_params(argv, cli_parser):
     # make dictionary with parameters which have non-default values to be serialized in IR in rt_info
     non_default_params = {}
     for arg, arg_value in vars(argv).items():
-        if arg in signature.parameters and arg_value == signature.parameters[arg].default:
+        if arg in signature.parameters and check_values_equal(arg_value, signature.parameters[arg].default):
             continue
-        if arg_value == cli_parser.get_default(arg):
+        if check_values_equal(arg_value, cli_parser.get_default(arg)):
             continue
         value = depersonalize(arg_value, arg)
         # Skip complex classes in params to prevent
@@ -787,7 +788,7 @@ def pack_params_to_args_namespace(args: dict, cli_parser: argparse.ArgumentParse
 
             # Non string params like input_model or extensions are ignored by parse_args()
             # so we need to set them in argv separately
-            if value is not None and getattr(argv, key, None) != value:
+            if value is not None and not check_values_equal(getattr(argv, key, None), value):
                 setattr(argv, key, value)
     else:
         argv = cli_parser.parse_args()
