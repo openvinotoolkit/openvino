@@ -126,5 +126,7 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*smoke_GroupDeconv_2D_Dynamic_.*FP32/GroupDeconvolutionLayerGPUTest.CompareWithRefs.*)",
             // Issue: 111440
             R"(.*smoke_set1/GatherElementsGPUTest.CompareWithRefs.*)",
+            // Plugin version was changed to ov::Version
+            R"(.*VersionTest.*pluginCurrentVersionIsCorrect.*)",
     };
 }

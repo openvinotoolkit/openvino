@@ -1,6 +1,10 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
+#pragma once
+
+#include "infer_request.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/iinfer_request.hpp"
 #include "openvino/runtime/so_ptr.hpp"
@@ -28,7 +32,7 @@ public:
         m_outputs = model->outputs();
     }
     std::shared_ptr<ov::IAsyncInferRequest> create_infer_request() const override {
-        return m_compiled_model->create_infer_request();
+        return std::make_shared<ov::proxy::InferRequest>(m_compiled_model->create_infer_request(), shared_from_this());
     }
 
     void export_model(std::ostream& model) const override {
@@ -54,7 +58,7 @@ protected:
      * @return Sync infer request
      */
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override {
-        return m_compiled_model->create_sync_infer_request();
+        OPENVINO_NOT_IMPLEMENTED;
     }
 
 private:

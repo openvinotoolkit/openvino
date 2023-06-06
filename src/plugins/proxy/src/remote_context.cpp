@@ -22,6 +22,10 @@ const ov::AnyMap& ov::proxy::RemoteContext::get_property() const {
     return m_context._impl->get_property();
 }
 
+ov::Tensor ov::proxy::RemoteContext::wrap_tensor(const ov::RemoteTensor& tensor) {
+    return ov::Tensor(std::make_shared<ov::proxy::RemoteTensor>(tensor, m_name), {});
+}
+
 std::shared_ptr<ov::IRemoteTensor> ov::proxy::RemoteContext::create_tensor(const ov::element::Type& type,
                                                                            const ov::Shape& shape,
                                                                            const ov::AnyMap& params) {

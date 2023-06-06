@@ -1,6 +1,7 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#pragma once
 
 #include <memory>
 
@@ -23,6 +24,8 @@ public:
                                                      const ov::AnyMap& params = {}) override;
 
     std::shared_ptr<ov::ITensor> create_host_tensor(const ov::element::Type type, const ov::Shape& shape) override;
+
+    ov::Tensor wrap_tensor(const ov::RemoteTensor& tensor);
 
     static const ov::RemoteContext& get_hardware_context(const ov::RemoteContext& context);
     static const std::shared_ptr<ov::IRemoteContext>& get_hardware_context(

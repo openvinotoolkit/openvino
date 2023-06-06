@@ -20,6 +20,10 @@ ov::proxy::RemoteTensor::RemoteTensor(ov::RemoteTensor&& tensor, const std::stri
     : m_name(dev_name),
       m_tensor(std::move(tensor)) {}
 
+ov::proxy::RemoteTensor::RemoteTensor(const ov::RemoteTensor& tensor, const std::string& dev_name)
+    : m_name(dev_name),
+      m_tensor(tensor) {}
+
 const ov::AnyMap& ov::proxy::RemoteTensor::get_properties() const {
     return cast_tensor(m_tensor._impl)->get_properties();
 }

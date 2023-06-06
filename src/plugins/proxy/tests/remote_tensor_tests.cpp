@@ -22,6 +22,15 @@ TEST_F(ProxyTests, default_tensor_from_default_dev) {
     ASSERT_TRUE(comp_tensor.is<PluginRemoteTensor>());
     auto comp_rem_tensor = comp_tensor.as<PluginRemoteTensor>();
     EXPECT_TRUE(comp_rem_tensor.is_default());
+
+    auto infer_request = compiled_model.create_infer_request();
+    auto in_tensor = infer_request.get_input_tensor();
+    ASSERT_TRUE(in_tensor.is<ov::RemoteTensor>());
+    auto in_rem_tensor = in_tensor.as<ov::RemoteTensor>();
+    EXPECT_EQ("MOCK.0", in_rem_tensor.get_device_name());
+    ASSERT_TRUE(in_rem_tensor.is<PluginRemoteTensor>());
+    auto casted_in_rem_tensor = in_rem_tensor.as<PluginRemoteTensor>();
+    EXPECT_TRUE(casted_in_rem_tensor.is_default());
 }
 
 TEST_F(ProxyTests, default_tensor_from_main_dev) {
@@ -41,6 +50,15 @@ TEST_F(ProxyTests, default_tensor_from_main_dev) {
     ASSERT_TRUE(comp_tensor.is<PluginRemoteTensor>());
     auto comp_rem_tensor = comp_tensor.as<PluginRemoteTensor>();
     EXPECT_TRUE(comp_rem_tensor.is_default());
+
+    auto infer_request = compiled_model.create_infer_request();
+    auto in_tensor = infer_request.get_input_tensor();
+    ASSERT_TRUE(in_tensor.is<ov::RemoteTensor>());
+    auto in_rem_tensor = in_tensor.as<ov::RemoteTensor>();
+    EXPECT_EQ("MOCK.0", in_rem_tensor.get_device_name());
+    ASSERT_TRUE(in_rem_tensor.is<PluginRemoteTensor>());
+    auto casted_in_rem_tensor = in_rem_tensor.as<PluginRemoteTensor>();
+    EXPECT_TRUE(casted_in_rem_tensor.is_default());
 }
 
 TEST_F(ProxyTests, default_tensor_from_second_dev) {
@@ -60,6 +78,15 @@ TEST_F(ProxyTests, default_tensor_from_second_dev) {
     ASSERT_TRUE(comp_tensor.is<PluginRemoteTensor>());
     auto comp_rem_tensor = comp_tensor.as<PluginRemoteTensor>();
     EXPECT_TRUE(comp_rem_tensor.is_default());
+
+    auto infer_request = compiled_model.create_infer_request();
+    auto in_tensor = infer_request.get_input_tensor();
+    ASSERT_TRUE(in_tensor.is<ov::RemoteTensor>());
+    auto in_rem_tensor = in_tensor.as<ov::RemoteTensor>();
+    EXPECT_EQ("MOCK.3", in_rem_tensor.get_device_name());
+    ASSERT_TRUE(in_rem_tensor.is<PluginRemoteTensor>());
+    auto casted_in_rem_tensor = in_rem_tensor.as<PluginRemoteTensor>();
+    EXPECT_TRUE(casted_in_rem_tensor.is_default());
 }
 
 TEST_F(ProxyTests, custom_tensor_from_default_dev) {
@@ -79,6 +106,15 @@ TEST_F(ProxyTests, custom_tensor_from_default_dev) {
     ASSERT_TRUE(comp_tensor.is<PluginRemoteTensor>());
     auto comp_rem_tensor = comp_tensor.as<PluginRemoteTensor>();
     EXPECT_FALSE(comp_rem_tensor.is_default());
+
+    auto infer_request = compiled_model.create_infer_request();
+    auto in_tensor = infer_request.get_input_tensor();
+    ASSERT_TRUE(in_tensor.is<ov::RemoteTensor>());
+    auto in_rem_tensor = in_tensor.as<ov::RemoteTensor>();
+    EXPECT_EQ("MOCK.0", in_rem_tensor.get_device_name());
+    ASSERT_TRUE(in_rem_tensor.is<PluginRemoteTensor>());
+    auto casted_in_rem_tensor = in_rem_tensor.as<PluginRemoteTensor>();
+    EXPECT_FALSE(casted_in_rem_tensor.is_default());
 }
 
 TEST_F(ProxyTests, custom_tensor_from_main_dev) {
@@ -98,6 +134,15 @@ TEST_F(ProxyTests, custom_tensor_from_main_dev) {
     ASSERT_TRUE(comp_tensor.is<PluginRemoteTensor>());
     auto comp_rem_tensor = comp_tensor.as<PluginRemoteTensor>();
     EXPECT_FALSE(comp_rem_tensor.is_default());
+
+    auto infer_request = compiled_model.create_infer_request();
+    auto in_tensor = infer_request.get_input_tensor();
+    ASSERT_TRUE(in_tensor.is<ov::RemoteTensor>());
+    auto in_rem_tensor = in_tensor.as<ov::RemoteTensor>();
+    EXPECT_EQ("MOCK.0", in_rem_tensor.get_device_name());
+    ASSERT_TRUE(in_rem_tensor.is<PluginRemoteTensor>());
+    auto casted_in_rem_tensor = in_rem_tensor.as<PluginRemoteTensor>();
+    EXPECT_FALSE(casted_in_rem_tensor.is_default());
 }
 
 TEST_F(ProxyTests, custom_tensor_from_second_dev) {
@@ -117,4 +162,13 @@ TEST_F(ProxyTests, custom_tensor_from_second_dev) {
     ASSERT_TRUE(comp_tensor.is<PluginRemoteTensor>());
     auto comp_rem_tensor = comp_tensor.as<PluginRemoteTensor>();
     EXPECT_FALSE(comp_rem_tensor.is_default());
+
+    auto infer_request = compiled_model.create_infer_request();
+    auto in_tensor = infer_request.get_input_tensor();
+    ASSERT_TRUE(in_tensor.is<ov::RemoteTensor>());
+    auto in_rem_tensor = in_tensor.as<ov::RemoteTensor>();
+    EXPECT_EQ("MOCK.3", in_rem_tensor.get_device_name());
+    ASSERT_TRUE(in_rem_tensor.is<PluginRemoteTensor>());
+    auto casted_in_rem_tensor = in_rem_tensor.as<PluginRemoteTensor>();
+    EXPECT_FALSE(casted_in_rem_tensor.is_default());
 }

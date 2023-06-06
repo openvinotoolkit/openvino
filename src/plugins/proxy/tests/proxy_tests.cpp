@@ -9,6 +9,7 @@
 
 #include "common_test_utils/file_utils.hpp"
 #include "ie_plugin_config.hpp"
+#include "openvino/core/any.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/opsets/opset11.hpp"
 #include "openvino/pass/serialize.hpp"
@@ -150,7 +151,18 @@ public:
                       const ov::AnyMap& config)
         : ov::ICompiledModel(model, plugin),
           m_config(config),
-          m_model(model) {}
+          m_model(model),
+          m_has_context(false) {}
+
+    MockCompiledModel(const std::shared_ptr<const ov::Model>& model,
+                      const std::shared_ptr<const ov::IPlugin>& plugin,
+                      const ov::AnyMap& config,
+                      const ov::RemoteContext& context)
+        : ov::ICompiledModel(model, plugin),
+          m_config(config),
+          m_model(model),
+          m_has_context(true),
+          m_context(context) {}
 
     // Methods from a base class ov::ICompiledModel
     void export_model(std::ostream& model) const override {
@@ -176,9 +188,19 @@ public:
         return m_model;
     }
 
+    ov::RemoteContext get_context() const {
+        return m_context;
+    }
+
+    bool has_context() const {
+        return m_has_context;
+    }
+
 private:
     ov::AnyMap m_config;
     std::shared_ptr<const ov::Model> m_model;
+    bool m_has_context;
+    ov::RemoteContext m_context;
 };
 
 class MockInferRequest : public ov::ISyncInferRequest {
@@ -189,19 +211,23 @@ public:
         m_model = compiled_model->get_model();
         // Allocate input/output tensors
         for (const auto& input : get_inputs()) {
-            allocate_tensor(input, [this, input](ov::Tensor& tensor) {
+            allocate_tensor(input, [this, input, compiled_model](ov::Tensor& tensor) {
                 // Can add a check to avoid double work in case of shared tensors
                 allocate_tensor_impl(tensor,
                                      input.get_element_type(),
-                                     input.get_partial_shape().is_dynamic() ? ov::Shape{0} : input.get_shape());
+                                     input.get_partial_shape().is_dynamic() ? ov::Shape{0} : input.get_shape(),
+                                     compiled_model->has_context(),
+                                     compiled_model->get_context());
             });
         }
         for (const auto& output : get_outputs()) {
-            allocate_tensor(output, [this, output](ov::Tensor& tensor) {
+            allocate_tensor(output, [this, output, compiled_model](ov::Tensor& tensor) {
                 // Can add a check to avoid double work in case of shared tensors
                 allocate_tensor_impl(tensor,
                                      output.get_element_type(),
-                                     output.get_partial_shape().is_dynamic() ? ov::Shape{0} : output.get_shape());
+                                     output.get_partial_shape().is_dynamic() ? ov::Shape{0} : output.get_shape(),
+                                     compiled_model->has_context(),
+                                     compiled_model->get_context());
             });
         }
     }
@@ -226,9 +252,17 @@ public:
     }
 
 private:
-    void allocate_tensor_impl(ov::Tensor& tensor, const ov::element::Type& element_type, const ov::Shape& shape) {
+    void allocate_tensor_impl(ov::Tensor& tensor,
+                              const ov::element::Type& element_type,
+                              const ov::Shape& shape,
+                              bool has_context,
+                              ov::RemoteContext context) {
         if (!tensor || tensor.get_element_type() != element_type) {
-            tensor = ov::Tensor(element_type, shape);
+            if (has_context) {
+                tensor = context.create_tensor(element_type, shape, {});
+            } else {
+                tensor = ov::Tensor(element_type, shape);
+            }
         } else {
             tensor.set_shape(shape);
         }
@@ -337,7 +371,7 @@ public:
         if (!support_model(model, query_model(model, properties)))
             OPENVINO_THROW("Unsupported model");
 
-        return std::make_shared<MockCompiledModel>(model, shared_from_this(), properties);
+        return std::make_shared<MockCompiledModel>(model, shared_from_this(), properties, context);
     }
 
     void set_property(const ov::AnyMap& properties) override {

@@ -1,6 +1,7 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#pragma once
 
 #include <memory>
 
@@ -13,6 +14,7 @@ namespace proxy {
 class RemoteTensor : public ov::IRemoteTensor {
 public:
     explicit RemoteTensor(ov::RemoteTensor&& ctx, const std::string& dev_name);
+    explicit RemoteTensor(const ov::RemoteTensor& ctx, const std::string& dev_name);
 
     const AnyMap& get_properties() const override;
     const std::string& get_device_name() const override;
