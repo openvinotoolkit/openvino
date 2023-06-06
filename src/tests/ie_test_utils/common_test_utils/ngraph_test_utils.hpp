@@ -48,15 +48,15 @@ public:
     FunctionsComparator comparator;
 
 private:
-    std::shared_ptr<ngraph::pass::UniqueNamesHolder> m_unh;
+    std::shared_ptr<ov::pass::UniqueNamesHolder> m_unh;
     bool m_disable_rt_info_check{false};
     bool m_soft_names_comparison{true};
     bool m_result_friendly_names_check{true};
 };
 
-void init_unique_names(std::shared_ptr<ngraph::Function> f, const std::shared_ptr<ngraph::pass::UniqueNamesHolder>& unh);
+void init_unique_names(std::shared_ptr<ngraph::Function> f, const std::shared_ptr<ov::pass::UniqueNamesHolder>& unh);
 
-void check_unique_names(std::shared_ptr<ngraph::Function> f, const std::shared_ptr<ngraph::pass::UniqueNamesHolder>& unh);
+void check_unique_names(std::shared_ptr<ngraph::Function> f, const std::shared_ptr<ov::pass::UniqueNamesHolder>& unh);
 
 template <typename T>
 size_t count_ops_of_type(const std::shared_ptr<ngraph::Function>& f) {

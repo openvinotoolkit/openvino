@@ -35,7 +35,7 @@ TransformationTestsF::TransformationTestsF()
     : model(function),
       model_ref(function_ref),
       comparator(FunctionsComparator::no_default()) {
-    m_unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+    m_unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     comparator.enable(FunctionsComparator::CmpValues::NODES);
     comparator.enable(FunctionsComparator::CmpValues::PRECISIONS);
     comparator.enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
@@ -47,7 +47,7 @@ TransformationTestsF::TransformationTestsF()
 }
 
 void TransformationTestsF::SetUp() {
-    manager.register_pass<ngraph::pass::InitUniqueNames>(m_unh);
+    manager.register_pass<ov::pass::InitUniqueNames>(m_unh);
     manager.register_pass<ov::pass::InitNodeInfo>();
     manager.register_pass<ov::pass::CopyTensorNamesToRefModel>(function_ref);
 }
@@ -63,7 +63,7 @@ void TransformationTestsF::TearDown() {
     } else if (acc_enabled) {
         cloned_function = ngraph::clone_function(*function);
     }
-    manager.register_pass<ngraph::pass::CheckUniqueNames>(m_unh, m_soft_names_comparison, m_result_friendly_names_check);
+    manager.register_pass<ov::pass::CheckUniqueNames>(m_unh, m_soft_names_comparison, m_result_friendly_names_check);
     manager.run_passes(function);
 
     if (!m_disable_rt_info_check) {
@@ -94,15 +94,15 @@ void TransformationTestsF::disable_result_friendly_names_check() {
     m_result_friendly_names_check = false;
 }
 
-void init_unique_names(std::shared_ptr<ngraph::Function> f, const std::shared_ptr<ngraph::pass::UniqueNamesHolder>& unh) {
+void init_unique_names(std::shared_ptr<ngraph::Function> f, const std::shared_ptr<ov::pass::UniqueNamesHolder>& unh) {
     ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::InitUniqueNames>(unh);
+    manager.register_pass<ov::pass::InitUniqueNames>(unh);
     manager.run_passes(f);
 }
 
-void check_unique_names(std::shared_ptr<ngraph::Function> f, const std::shared_ptr<ngraph::pass::UniqueNamesHolder>& unh) {
+void check_unique_names(std::shared_ptr<ngraph::Function> f, const std::shared_ptr<ov::pass::UniqueNamesHolder>& unh) {
     ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::CheckUniqueNames>(unh, true);
+    manager.register_pass<ov::pass::CheckUniqueNames>(unh, true);
     manager.run_passes(f);
 }
 

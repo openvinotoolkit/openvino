@@ -38,7 +38,7 @@ TEST_F(TransformationTestsF, FQTransposeTest1) {
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{transpose}, ngraph::ParameterVector{});
 
         manager.register_pass<ov::pass::PullTransposeThroughFQUp>();
-        manager.register_pass<ngraph::pass::InjectionPass>([](std::shared_ptr<ngraph::Function> f) {
+        manager.register_pass<ov::pass::InjectionPass>([](std::shared_ptr<ngraph::Function> f) {
             check_rt_info(f);
         });
         manager.register_pass<ngraph::pass::ConstantFolding>();
@@ -76,7 +76,7 @@ TEST_F(TransformationTestsF, FQTransposeNegativeCase) {
 
     manager.register_pass<ov::pass::InitNodeInfo>();
     manager.register_pass<ov::pass::PullTransposeThroughFQUp>();
-    manager.register_pass<ngraph::pass::InjectionPass>([](std::shared_ptr<ngraph::Function> f) {
+    manager.register_pass<ov::pass::InjectionPass>([](std::shared_ptr<ngraph::Function> f) {
         check_rt_info(f);
     });
 

@@ -225,23 +225,6 @@ public:
     }
 };
 
-class TestTileOldExtension : public InferenceEngine::IExtension {
-public:
-    void GetVersion(const InferenceEngine::Version*& versionInfo) const noexcept override {}
-
-    void Unload() noexcept override {}
-
-    std::map<std::string, ngraph::OpSet> getOpSets() override {
-        static std::map<std::string, ngraph::OpSet> opsets;
-        if (opsets.empty()) {
-            ngraph::OpSet opset;
-            opset.insert<CustomOldIdentity>();
-            opsets["extension"] = opset;
-        }
-        return opsets;
-    }
-};
-
 class CustomNewIdentity : public ov::op::Op {
 public:
     OPENVINO_OP("Identity")
@@ -291,13 +274,6 @@ public:
 };
 
 #if defined(ENABLE_OV_IR_FRONTEND)
-TEST_F(OVExtensionTests, ReshapeIRWithOldExtension) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    core.add_extension(std::make_shared<TestTileOldExtension>());
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    test();
-}
-
 TEST_F(OVExtensionTests, ReshapeIRWithNewExtensionsLib) {
     core.add_extension(getOVExtensionPath());
     test();
