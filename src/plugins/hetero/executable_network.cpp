@@ -90,7 +90,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
     if (std::getenv("OPENVINO_HETERO_VISUALIZE")) {
         dumpDotFile = true;
     } else {
-        auto itDumpDotFile = _cfg.dump_graph;
+        dumpDotFile = _cfg.dump_graph;
     }
 
     QueryNetworkResult queryNetworkResult;
@@ -533,6 +533,8 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream& heteroModel,
         InferenceEngine::SoExecutableNetworkInternal executableNetwork;
         CNNNetwork cnnnetwork;
         bool loaded = false;
+
+        auto CachingProperties = plugin->DeviceCachingProperties(deviceName); // TODO (vurusovs): check against next string
         if (std::dynamic_pointer_cast<InferenceEngine::ICore>(plugin->get_core())->DeviceSupportsModelCaching(deviceName)) { // TODO (vurusovs) TEMPORARY SOLUTION
             executableNetwork = plugin->get_core()->import_model(heteroModel, deviceName, loadConfig);
         } else {
@@ -744,6 +746,7 @@ void HeteroExecutableNetwork::Export(std::ostream& heteroModel) {
     heteroModel << std::endl;
 
     for (auto&& subnetwork : _networks) {
+        auto CachingProperties = _plugin->DeviceCachingProperties(subnetwork._device);
         if (std::dynamic_pointer_cast<InferenceEngine::ICore>(_plugin->get_core())->DeviceSupportsModelCaching(subnetwork._device)) { // TODO (vurusovs) TEMPORARY SOLUTION
             subnetwork._network->Export(heteroModel);
         } else {
