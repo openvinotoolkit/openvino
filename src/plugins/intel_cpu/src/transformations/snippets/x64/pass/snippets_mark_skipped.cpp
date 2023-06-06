@@ -453,9 +453,7 @@ bool isSuitableConvert(const std::shared_ptr<const Node>& node) {
 auto is_skipped_op(const std::shared_ptr<ov::Node>& op) -> bool {
     return ov::is_type<ov::op::v0::Constant>(op) ||
            ov::is_type<ov::op::v0::Parameter>(op) ||
-           ov::is_type<ov::op::v0::Result>(op) ||
-           ov::is_type<ov::op::v1::Transpose>(op) ||
-           ov::is_type<ov::op::v1::Reshape>(op);
+           ov::is_type<ov::op::v0::Result>(op);
 }
 } // namespace
 

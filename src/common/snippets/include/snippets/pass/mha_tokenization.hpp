@@ -17,23 +17,26 @@ namespace pass {
  * @brief The pass tokenizes MHA-pattern into Subgraph
  *        Pattern:           Transpose1
  *                               |
- *             Transpose0  Eltwise/Select
+ *             Transpose0 [Eltwise, Select]
  *                     \     /
  *                     MatMul0
  *                        |
- *           Eltwise/Select/Reshape
+ *           [Eltwise, Select, Reshape]
  *                        |
  *                     Softmax
  *                        |
- *            Eltwise/Select/Reshape  Transpose2
+ *            [Eltwise, Select, Reshape]  Transpose2
  *                               \      /
  *                                MatMul1
  *                                  |
- *                  Eltwise/Select/Reshape/Transpose3
+ *                  [Eltwise, Select, Transpose3]
  *        Notes:
  *          - Transposes can be missed
  *          - Transpose0, Transpose2 and Transpose3 may have only [0,2,1,3] order
  *          - Transpose1 may have only [0,2,3,1] order
+ *          - [...] means any count of different nodes from list. But:
+ *              * Reshapes can be only explicitly around Softmax (Reshape -> Softmax -> Reshape)
+ *              * After MatMul1 may be only Transpose3 or any count of Eltwise, Select ops.
  * @ingroup snippets
  */
 class TokenizeMHASnippets: public ov::pass::MatcherPass {

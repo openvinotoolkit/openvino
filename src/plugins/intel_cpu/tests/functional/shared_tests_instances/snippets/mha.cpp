@@ -85,25 +85,18 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHA, MHASelect,
                                  ::testing::Values(CPUTestUtils::cpuEmptyPluginConfig)),
                          MHA::getTestCaseName);
 
+const std::vector<std::vector<ov::PartialShape>> inputShapesWOTranspose_4D = {
+        {{1, 12, 197, 64}, {1, 12, 64, 197}, {1, 12, 197, 64}},
+        {{1, 12, 12, 64}, {1, 12, 64, 48}, {1, 12, 48, 64}}
+};
+const std::vector<std::vector<ov::PartialShape>> inputShapesWOTranspose_3D = {
+        {{12, 197, 64}, {12, 64, 197}, {12, 197, 64}},
+        {{12, 128, 100}, {12, 100, 128}, {12, 128, 100}}
+};
 
-static std::vector<std::vector<ov::PartialShape>> inputShapesWOTranspose(bool supports_3d = false) {
-    std::vector<std::vector<ov::PartialShape>> shapes = {
-            {{1, 12, 197, 64}, {1, 12, 64, 197}, {1, 12, 197, 64}},
-            {{1, 12, 12, 64}, {1, 12, 64, 48}, {1, 12, 48, 64}}
-    };
-    if (supports_3d) {
-        std::vector<std::vector<ov::PartialShape>> shapes_3d = {
-            {{12, 197, 64}, {12, 64, 197}, {12, 197, 64}},
-            {{12, 128, 100}, {12, 100, 128}, {12, 128, 100}}
-        };
-        shapes.insert(shapes.end(), shapes_3d.begin(), shapes_3d.end());
-    }
-    return shapes;
-}
-
-INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAWOTransposeOnInputs, MHAWOTransposeOnInputs,
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAWOTransposeOnInputs_4D, MHAWOTransposeOnInputs,
                          ::testing::Combine(
-                                 ::testing::ValuesIn(inputShapesWOTranspose()),
+                                 ::testing::ValuesIn(inputShapesWOTranspose_4D),
                                  ::testing::Values(std::vector<ov::element::Type>{}),
                                  ::testing::Values(ov::element::f32),
                                  ::testing::Values(true),  // Need to support False for graph builder in tests
@@ -113,9 +106,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAWOTransposeOnInputs, MHAWOTransposeOn
                                  ::testing::Values(CPUTestUtils::cpuEmptyPluginConfig)),
                          MHA::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAWOTranspose, MHAWOTranspose,
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAWOTranspose_4D, MHAWOTranspose,
                          ::testing::Combine(
-                                 ::testing::ValuesIn(inputShapesWOTranspose()),
+                                 ::testing::ValuesIn(inputShapesWOTranspose_4D),
                                  ::testing::ValuesIn(precision_f32(3)),
                                  ::testing::Values(ov::element::f32),
                                  ::testing::ValuesIn({true}),  // Need to support False for graph builder in tests
@@ -125,9 +118,21 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAWOTranspose, MHAWOTranspose,
                                  ::testing::Values(CPUTestUtils::cpuEmptyPluginConfig)),
                          MHA::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAWOTransposeBF16, MHAWOTranspose,
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAWOTranspose_3D, MHAWOTranspose,
                          ::testing::Combine(
-                                 ::testing::ValuesIn(inputShapesWOTranspose(true)),
+                                 ::testing::ValuesIn(inputShapesWOTranspose_3D),
+                                 ::testing::ValuesIn(precision_f32(3)),
+                                 ::testing::Values(ov::element::f32),
+                                 ::testing::ValuesIn({true}),  // Need to support False for graph builder in tests
+                                 ::testing::Values(1),
+                                 ::testing::Values(1),
+                                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                 ::testing::Values(CPUTestUtils::cpuEmptyPluginConfig)),
+                         MHA::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAWOTransposeBF16_4D, MHAWOTranspose,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(inputShapesWOTranspose_4D),
                                  ::testing::ValuesIn(precision_bf16(3)),
                                  ::testing::Values(ov::element::f32),
                                  ::testing::ValuesIn({true}),  // Need to support False for graph builder in tests
@@ -137,9 +142,33 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAWOTransposeBF16, MHAWOTranspose,
                                  ::testing::Values(CPUTestUtils::cpuEmptyPluginConfig)),
                          MHA::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAWOTransposeEnforceBF16, MHAWOTranspose,
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAWOTransposeBF16_3D, MHAWOTranspose,
                          ::testing::Combine(
-                                 ::testing::ValuesIn(inputShapesWOTranspose(true)),
+                                 ::testing::ValuesIn(inputShapesWOTranspose_3D),
+                                 ::testing::ValuesIn(precision_bf16(3)),
+                                 ::testing::Values(ov::element::f32),
+                                 ::testing::ValuesIn({true}),  // Need to support False for graph builder in tests
+                                 ::testing::Values(5), // MHA + 4 extra Converts on inputs and output
+                                 ::testing::Values(5), // MHA + 4 extra Converts on inputs and output
+                                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                 ::testing::Values(CPUTestUtils::cpuEmptyPluginConfig)),
+                         MHA::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAWOTransposeEnforceBF16_4D, MHAWOTranspose,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(inputShapesWOTranspose_4D),
+                                 ::testing::ValuesIn(precision_f32(3)),
+                                 ::testing::Values(ov::element::bf16),
+                                 ::testing::ValuesIn({true}),  // Need to support False for graph builder in tests
+                                 ::testing::Values(5), // MHA + 4 extra Converts on inputs and output
+                                 ::testing::Values(5), // MHA + 4 extra Converts on inputs and output
+                                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                 ::testing::Values(CPUTestUtils::cpuBF16PluginConfig)),
+                         MHA::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAWOTransposeEnforceBF16_3D, MHAWOTranspose,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(inputShapesWOTranspose_3D),
                                  ::testing::ValuesIn(precision_f32(3)),
                                  ::testing::Values(ov::element::bf16),
                                  ::testing::ValuesIn({true}),  // Need to support False for graph builder in tests
