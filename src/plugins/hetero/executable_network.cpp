@@ -536,7 +536,8 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream& heteroModel,
 
         auto CachingProperties = plugin->DeviceCachingProperties(deviceName); // TODO (vurusovs): check against next string
         if (std::dynamic_pointer_cast<InferenceEngine::ICore>(plugin->get_core())->DeviceSupportsModelCaching(deviceName)) { // TODO (vurusovs) TEMPORARY SOLUTION
-            executableNetwork = plugin->get_core()->import_model(heteroModel, deviceName, loadConfig);
+            auto compiled_model = plugin->get_core()->import_model(heteroModel, deviceName, loadConfig);
+            executableNetwork = {ov::legacy_convert::convert_compiled_model(compiled_model._ptr), compiled_model._so};
         } else {
             // read XML content
             std::string xmlString;
