@@ -103,7 +103,7 @@ In order to make any manipulations with data, the kernel needs to know where the
 So the typical kernel takes input and output memory pointers as runtime arguments. 
 In our example, input memory pointers are passed to the kernel in general-purpose registers (note the `GPR` label on the arrow to `Load`). 
 At first, a small portion of data is loaded from this location into a vector register (or several registers), which is designated by the `Load` box and `VR` label on the picture. 
-Then the kernel performs all the necessary manipulations with the registers (the `Op1 instructions` box) and places the result in another vector register. 
+Then the kernel performs all the necessary manipulations with the registers (the `Op instructions` box) and places the result in another vector register. 
 This result should then be written to memory using the provided output memory pointer (the `Store` box). 
 Note that each vector register can contain only a tiny amount of data (16 32 bit floats on modern processors, for example), so the described loop should be repeated many times. 
 Also keep in mind that we need to increment `GPRs` after every iteration to account for the processed data entries.
@@ -205,7 +205,7 @@ This unique combination of flexibility and scalability is driven by `Snippets` d
 
 ## Design
 Before we consider any specific transformations and implementation features, it is very useful to keep in mind a clear coarse-grained picture of the whole pipeline. 
-So we start or discussion with `Snippets` architecture.
+So we start our discussion with `Snippets` architecture.
 ### Architecture
 
 The first thing you need to know about `Snippets` architecture is that the `Snippets` is a compiler, a highly specialized compiler for computational graphs. 
@@ -241,9 +241,11 @@ As shown on the figure below, `Snippets` are organized in a very similar way.
       direction LR
       subgraph Optimizer[Optimizer]
         direction LR
-        Data[Data flow \n optimizations]
-        Control[Control flow \n optimizations]
-        Data-->|nGraph \nIR|Control
+       Data[Data flow \n optimizations]
+       Converter[Convert \n IR]
+       Control[Control flow \n optimizations]
+       Data-->|nGraph \nIR|Converter
+       Converter-->|Linear \nIR|Control
       end
       Frontend[Tokenizer]-->|nGraph \nIR|Data
       Control-->|Linear \nIR|Backend[Generator]
@@ -260,10 +262,11 @@ Instead of a source code, `Snippets` take `nGraph` model as an input.
 Then the `Tokenizer` (which is essentially a `Snippets` `Frontend`) parses an input `nGraph model`, and tries to find a part of the model that could be processed by `Snippets`. 
 If such a part is found, `Tokenizer` converts it to an `nGraph IR` and stores inside a `Subgraph` node. 
 `nGraph IR` - is one of the two `IR` types used by `Snippets`, it is simply a small `nGraph model` that can contain `Snippets`-specific operations. 
-`nGraph IR` is then passed to the `Optimizer` unit that in turn consists of two subunits. 
-The purpose of the first subunit is to perform data flow optimizations, whereas the second subunit is focused on control flow optimizations. 
-Note that the control flow optimizations are performed on `Linear IR` which was especially designed for this purpose. 
-Finally, the optimized `Linear IR` is used by the `Generator` (which is `Snippets` `Backend`) to produce executable code, which we will refer to as `Kernel`. 
+
+`nGraph IR` is then passed to the `Optimizer` unit that in turn consists of three subunits. 
+The purpose of the first subunit is to perform data flow optimizations. The second subunit converts `nGraph IR` (data-flow-oriented representation) to `Linear IR` (control-flow-focused IR). Finally, the third subunit is dedicated to control flow optimizations.
+
+After all optimizations, the `Linear IR` is used by the `Generator` (which is `Snippets` `Backend`) to produce executable code, which we will refer to as `Kernel`. 
 As discussed in the Introduction, the purpose of the `Kernel` is to process a part of the initial tensor, and several `Kernels` are usually executed in parallel to process the whole tensor. 
 Note that a `Kernel` usually applies several operations (`Op instructions` blocks from the Introduction), the exact number depends on the source model topology: sometimes it's just a couple, but could more than twenty `Ops`.
 
@@ -421,7 +424,7 @@ Please, refer to the [snippets_mark_skipped.cpp](../../../plugins/intel_cpu/src/
 As briefly discussed in the ***Architecture*** section, `Optimizer` consists of two major units: the first one performs data flow optimization, and the second one is focused on control flow. 
 Note however that some data-flow-related passes can be performed only after the control flow optimizations, so the second unit modifies the dataflow as well. 
 Nevertheless, we will refer to the units as `Data flow optimizer` and `Control flow optimizer` to reflect their main purpose. 
-Keep mind that, as discussed above, the `Data flow optimizer` operates exclusively on the `nGraph IR`, while the `Control flow optimizer` works with the `Linear IR`. 
+Keep in mind that, as discussed above, the `Data flow optimizer` operates exclusively on the `nGraph IR`, while the `Control flow optimizer` works with the `Linear IR`. 
 We will discuss these units in more detail below.
 
 #### Data flow optimizer
@@ -540,7 +543,7 @@ Please refer to the implementation in [linear_ir.cpp](../src/lowered/linear_ir.c
 
 `Expression` is the main building block of a `Linear IR`. 
 It contains a pointer to the nGraph node it was created from and a pointer to the emitter it will be mapped to (which is null until `Expression::init_emitter(...)` is called). 
-An `Expressions` can have an arbitrary number of inputs and outputs, we will refer to them simply as ports. 
+An `Expression` can have an arbitrary number of inputs and outputs, we will refer to them simply as ports. 
 Every port can be uniquely identified by the `ExpressionPort` class. 
 The `ExpressionPort` contains a pointer to the `Expression` which port it represents, the port type (`input` or `output`) and its index (input/output number). 
 Note that the `ExpressionPort` is not stored in the `Expression` because you don't typically need it if you already have the `Expression`. 
@@ -557,7 +560,7 @@ Note that an `Expression` output can be connected to several inputs (like with n
 Like with `PortDescriptors`, an `Expression` stores input and output `PortConnectors` in two separate vectors accessed via `get_input_port_connector(i)` (or its output twin).
 
 An example on how `PortConnectors` can be used to move between `Expressions` is given on the right side of the above picture. 
-So if we need to get a child expression connected to the i-th expression's output, we need to call `expression->get_output_port_connector(i)` first to obtain a corresponding connector, then to call `connecotr->get_consumers()` to obtain a set of connected `ExpressionPorts`, and finally `ExpressionPort->get_expr()` to access a child expression. 
+So if we need to get a child expression connected to the i-th expression's output, we need to call `expression->get_output_port_connector(i)` first to obtain a corresponding connector, then to call `connector->get_consumers()` to obtain a set of connected `ExpressionPorts`, and finally `ExpressionPort->get_expr()` to access a child expression. 
 Note that if a `PortDescriptor` is required, you can obtain it directly (without getting `Expression` first) by calling `ExpressionPort->get_descriptor_ptr()`, so the `ExpressionPort` will snag the right `PortDescriptor` from the `Expression` for you.
 
 Concluding this section, it's worth mentioning that the `LinearIR` currently provides two debug features: `debug_print()` and `serialize(...)`. 
