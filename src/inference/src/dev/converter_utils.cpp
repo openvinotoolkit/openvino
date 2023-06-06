@@ -43,6 +43,10 @@
 #include "threading/ie_executor_manager.hpp"
 #include "transformations/utils/utils.hpp"
 
+#ifndef NO_PROXY_PLUGIN
+#    include "openvino/proxy/infer_request.hpp"
+#endif
+
 namespace {
 
 std::string get_legacy_name_from_port(const ov::Output<const ov::Node>& port) {
@@ -545,14 +549,25 @@ public:
     void SetBlob(const std::string& name,
                  const InferenceEngine::Blob::Ptr& data,
                  const InferenceEngine::PreProcessInfo& info) override {
+        if (auto proxy_request = std::dynamic_pointer_cast<ov::proxy::InferRequest>(m_request)) {
+            return ov::legacy_convert::convert_infer_request(proxy_request->get_hardware_request())
+                ->SetBlob(name, data, info);
+        }
         OPENVINO_NOT_IMPLEMENTED;
     }
 
     const InferenceEngine::PreProcessInfo& GetPreProcess(const std::string& name) const override {
+        if (auto proxy_request = std::dynamic_pointer_cast<ov::proxy::InferRequest>(m_request)) {
+            return ov::legacy_convert::convert_infer_request(proxy_request->get_hardware_request())
+                ->GetPreProcess(name);
+        }
         OPENVINO_NOT_IMPLEMENTED;
     }
 
     void SetBatch(int batch) override {
+        if (auto proxy_request = std::dynamic_pointer_cast<ov::proxy::InferRequest>(m_request)) {
+            return ov::legacy_convert::convert_infer_request(proxy_request->get_hardware_request())->SetBatch(batch);
+        }
         OPENVINO_NOT_IMPLEMENTED;
     }
 

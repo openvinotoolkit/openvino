@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "proxy_properties.hpp"
+#include "openvino/proxy/properties.hpp"
 #include "proxy_tests.hpp"
 
 using namespace ov::proxy::tests;

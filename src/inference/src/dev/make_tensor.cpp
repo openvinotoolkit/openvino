@@ -13,7 +13,7 @@
 #include "openvino/runtime/iremote_tensor.hpp"
 #include "openvino/runtime/properties.hpp"
 #ifndef NO_PROXY_PLUGIN
-#    include "proxy_plugin.hpp"
+#    include "openvino/proxy/plugin.hpp"
 #endif
 
 namespace ov {

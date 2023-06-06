@@ -135,7 +135,7 @@ static inline VAContext::Ptr make_shared_context(Core& core,
     ParamMap contextParams = {{GPU_PARAM_KEY(CONTEXT_TYPE), GPU_PARAM_VALUE(VA_SHARED)},
                               {GPU_PARAM_KEY(VA_DEVICE), static_cast<gpu_handle_param>(device)},
                               {GPU_PARAM_KEY(TILE_ID), target_tile_id}};
-    return std::dynamic_pointer_cast<VAContext>(core.CreateContext(deviceName, contextParams));
+    return std::dynamic_pointer_cast<VAContext>(core.CreateContext(deviceName, contextParams)->GetHardwareContext());
 }
 
 /**

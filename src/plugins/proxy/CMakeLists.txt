@@ -8,7 +8,7 @@ endif()
 
 set(TARGET_NAME "openvino_proxy_plugin_obj")
 
-set(PUBLIC_HEADERS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
+set(PUBLIC_HEADERS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/dev_api)
 file(GLOB LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 file(GLOB LIBRARY_HEADERS ${PUBLIC_HEADERS_DIR}/*.hpp ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
 
@@ -41,7 +41,7 @@ add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 ov_mark_target_as_cc(${TARGET_NAME})
 
 ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
-                    SOURCE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include"
+                    SOURCE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/dev_api"
                                        "${CMAKE_CURRENT_SOURCE_DIR}/src")
 
 if(ENABLE_TESTS)

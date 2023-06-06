@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "infer_request.hpp"
+#include "openvino/proxy/infer_request.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/iinfer_request.hpp"
 #include "openvino/runtime/so_ptr.hpp"

@@ -6,7 +6,7 @@
 
 #include <memory>
 
-#include "proxy_plugin.hpp"
+#include "openvino/proxy/plugin.hpp"
 
 namespace {
 std::shared_ptr<ov::IRemoteTensor> cast_tensor(const std::shared_ptr<ov::ITensor>& tensor) {

@@ -12,7 +12,7 @@
 #include "dev/remote_context_wrapper.hpp"
 #include "openvino/runtime/remote_context.hpp"
 #ifndef NO_PROXY_PLUGIN
-#    include "proxy_plugin.hpp"
+#    include "openvino/proxy/plugin.hpp"
 #endif
 
 namespace InferenceEngine {

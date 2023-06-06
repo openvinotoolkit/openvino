@@ -170,7 +170,7 @@ static inline D3DContext::Ptr make_shared_context(Core& core,
         {GPU_PARAM_KEY(TILE_ID), target_tile_id}
     };
     // clang-format on
-    return std::dynamic_pointer_cast<D3DContext>(core.CreateContext(deviceName, contextParams));
+    return std::dynamic_pointer_cast<D3DContext>(core.CreateContext(deviceName, contextParams)->GetHardwareContext());
 }
 
 /**

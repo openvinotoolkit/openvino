@@ -2,18 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/proxy/plugin.hpp"
+
 #include <memory>
 
 #include "compiled_model.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/proxy/properties.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/iinfer_request.hpp"
 #include "openvino/runtime/iremote_context.hpp"
 #include "openvino/util/common_util.hpp"
-#include "proxy_plugin.hpp"
-#include "proxy_properties.hpp"
 #include "remote_context.hpp"
 
 namespace {

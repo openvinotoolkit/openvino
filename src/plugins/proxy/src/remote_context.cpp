@@ -6,8 +6,8 @@
 
 #include <memory>
 
+#include "openvino/proxy/plugin.hpp"
 #include "openvino/runtime/iremote_context.hpp"
-#include "proxy_plugin.hpp"
 #include "remote_tensor.hpp"
 
 ov::proxy::RemoteContext::RemoteContext(ov::RemoteContext&& ctx, const std::string& dev_name)

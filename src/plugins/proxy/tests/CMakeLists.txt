@@ -24,7 +24,7 @@ ov_add_test_target(
 
 target_compile_definitions(${TARGET_NAME} PRIVATE CI_BUILD_NUMBER=\"mock_version\")
 
-target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../include)
+target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../dev_api)
 
 if(ENABLE_HETERO)
     add_dependencies(${TARGET_NAME} openvino_hetero_plugin)
