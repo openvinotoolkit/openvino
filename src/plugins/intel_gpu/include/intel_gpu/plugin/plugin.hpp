@@ -24,7 +24,10 @@ class Plugin : public InferenceEngine::IInferencePlugin {
     std::map<std::string, cldnn::device::ptr> device_map;
     std::map<std::string, ExecutionConfig> m_configs_map;
 
-    std::map<std::string, RemoteCLContext::Ptr> m_default_contexts;
+    mutable std::map<std::string, RemoteCLContext::Ptr> m_default_contexts;
+    mutable std::once_flag m_default_contexts_once;
+
+    std::map<std::string, RemoteCLContext::Ptr> get_default_contexts() const;
 
     InferenceEngine::CNNNetwork clone_and_transform_model(const InferenceEngine::CNNNetwork& network,
                                                           const ExecutionConfig& config) const;
