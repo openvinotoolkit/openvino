@@ -285,7 +285,7 @@ public:
     }
 
     const value_type& operator[](size_t i) const {
-        return reinterpret_cast<const value_type&>(m_dims[i]);
+        return reinterpret_cast<const value_type&>((*m_dims)[i]);
     }
 
     //-- Shape functions

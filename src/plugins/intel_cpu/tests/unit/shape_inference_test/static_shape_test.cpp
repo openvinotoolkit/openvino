@@ -246,3 +246,23 @@ TEST_F(StaticShapeAdapterTest, compare_ref_and_container) {
     EXPECT_TRUE(shape2 == shape3);
     EXPECT_TRUE(shape3 == shape2);
 }
+
+TEST_F(StaticShapeAdapterTest, subscript_op_on_reference) {
+    auto dims = VectorDims{2, 5, 3, 4};
+    auto shape = StaticShapeRef(dims);
+
+    EXPECT_EQ(shape[3], StaticDimension(4));
+    EXPECT_EQ(shape[2], StaticDimension(3));
+    EXPECT_EQ(shape[0], StaticDimension(2));
+    EXPECT_EQ(shape[1], StaticDimension(5));
+}
+
+TEST_F(StaticShapeAdapterTest, subscript_op_on_container) {
+    auto shape = StaticShapeCon{10, 2, 123, 4, 3};
+
+    EXPECT_EQ(shape[3], StaticDimension(4));
+    EXPECT_EQ(shape[1], StaticDimension(2));
+    EXPECT_EQ(shape[2], StaticDimension(123));
+    EXPECT_EQ(shape[0], StaticDimension(10));
+    EXPECT_EQ(shape[4], StaticDimension(3));
+}
