@@ -105,6 +105,20 @@ def absolutizePaths(cfg):
         prepFile = cfg["runConfig"]["preprocess"]["file"]
         prepFile = os.path.abspath(prepFile)
         cfg["runConfig"]["preprocommArgcess"]["file"] = prepFile
+    if "envVars" in cfg:
+        updatedEnvVars = []
+        for env in cfg["envVars"]:
+            envKey = env["name"]
+            envVal = env["val"]
+            # format ov-path in envvars for e2e case
+            if "{gitPath}" in envVal:
+                envVal = envVal.format(gitPath=cfg["gitPath"])
+                envVal = os.path.abspath(envVal)
+                updatedVar = {"name": envKey, "val": envVal}
+                updatedEnvVars.append(updatedVar)
+            else:
+                updatedEnvVars.append(env)
+        cfg["envVars"] = updatedEnvVars
     return cfg
 
 
