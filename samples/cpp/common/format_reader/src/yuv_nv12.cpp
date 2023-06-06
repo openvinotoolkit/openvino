@@ -5,6 +5,7 @@
 // clang-format off
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <string>
 
 #include "yuv_nv12.h"
@@ -26,7 +27,7 @@ YUV_NV12::YUV_NV12(const std::string& filename) {
 
     file.ignore(std::numeric_limits<std::streamsize>::max());
     _size = size_t(file.gcount());
-    file.clear();  //  Since ignore will have set eof
+    file.clear();
     file.seekg(0, file.beg);
 
     _data.reset(new unsigned char[_size], std::default_delete<unsigned char[]>());
