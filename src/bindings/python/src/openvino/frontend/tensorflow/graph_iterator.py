@@ -47,6 +47,12 @@ class GraphIteratorTFGraph(GraphIterator):
         return inp_names
 
     def get_output_names(self) -> list:
+        # tf.Graph has ordered outputs which are stored in 'outputs' field,
+        # but using this field results in mismatch of outputs in inner graph and outputs in outer graph
+        # during the injection of subgraph.
+        # For this reason only nodes without outputs are considered graph outputs here
+        # as this approach does not lead to conflicts.
+        # The order of outputs is important and wrong order may lead to conversion error.
         non_outputs = []
         for op in self.m_graph.get_operations():
             assert isinstance(op, tf.Operation), "Unknown node type. Expected tf.Operation, got {}".format(type(op))
