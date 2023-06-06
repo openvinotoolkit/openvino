@@ -238,25 +238,18 @@ TEST_P(OVCompiledModelBaseTest, canCompileModelwithBrace) {
         </net>
         )V0G0N";
     ov::CompiledModel compiled_model;
-    // core->register_plugin(ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(), target_device), "TEMPLATE");
-    // std::cout << target_device << std::endl;
-    // compiled_model = ov::Core{}.compile_model(model, ov::Tensor(), target_device, configuration);
-    // core->register_plugin(
-    //     ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
-    //                                        std::string("openvino_template_plugin") + IE_BUILD_POSTFIX),
-    //     "TEMPLATE");
-    // compiled_model = core->compile_model(model, ov::Tensor(), target_device, configuration);
     {
         ov::Core tmp_core;
-        if (target_device == "TEMPLATE") {
+        try {
+            std::string pluginName = "openvino_template_plugin";
+            pluginName += IE_BUILD_POSTFIX;
             tmp_core.register_plugin(
-                ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
-                                                   std::string("openvino_template_plugin") + IE_BUILD_POSTFIX),
+                ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(), pluginName),
                 "TEMPLATE");
+        } catch (...) {
         }
         compiled_model = tmp_core.compile_model(model, ov::Tensor(), target_device, configuration);
     }
-    // ov::CompiledModel compiled_model = ov::Core{}.compile_model(model, ov::Tensor(), target_device, configuration);
     EXPECT_NO_THROW(compiled_model.get_property(ov::optimal_number_of_infer_requests));
 }
 
