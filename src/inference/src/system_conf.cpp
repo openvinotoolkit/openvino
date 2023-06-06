@@ -365,6 +365,13 @@ void reserve_cpu_by_streams_info(const std::vector<std::vector<int>> _streams_in
                 std::pair<int, std::vector<int>>(_streams_info_table[i][PROC_TYPE], _streams_info_table[i]));
         }
     }
+    if (num_streams == 1 && _streams_info_table[0][THREADS_PER_STREAM] > _proc_type_table[0][MAIN_CORE_PROC]) {
+        stream_id_per_coretype.insert(std::pair<int, int>(HYPER_THREADING_PROC, 0));
+        streams_info_per_coretype.insert(
+            std::pair<int, std::vector<int>>(HYPER_THREADING_PROC,
+                                             {1, HYPER_THREADING_PROC, _streams_info_table[0][THREADS_PER_STREAM]}));
+    }
+
     _stream_processors.assign(num_streams, std::vector<int>());
     _stream_numa_node_ids.assign(num_streams, -1);
     remain_cpus_per_coretype.assign(PROC_TYPE_TABLE_SIZE, std::vector<int>());
@@ -416,7 +423,8 @@ void reserve_cpu_by_streams_info(const std::vector<std::vector<int>> _streams_in
     }
     if (stream_id_per_coretype.size() > 0) {
         for (auto i = stream_id_per_coretype.begin(); i != stream_id_per_coretype.end(); i++) {
-            if (stream_num_per_coretype[i->first] < streams_info_per_coretype[i->first][NUMBER_OF_STREAMS]) {
+            if (stream_num_per_coretype[i->first] < streams_info_per_coretype[i->first][NUMBER_OF_STREAMS] &&
+                remain_cpus_per_coretype[i->first].size() > 0) {
                 _stream_processors[i->second].insert(_stream_processors[i->second].end(),
                                                      remain_cpus_per_coretype[i->first].begin(),
                                                      remain_cpus_per_coretype[i->first].begin() +
