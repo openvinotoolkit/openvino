@@ -10,8 +10,6 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/equal.hpp"
-#include "openvino/op/interpolate.hpp"
-#include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/roll.hpp"
 #include "openvino/op/select.hpp"
