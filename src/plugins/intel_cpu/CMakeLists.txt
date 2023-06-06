@@ -87,6 +87,15 @@ set_ie_threading_interface_for(${TARGET_NAME})
 
 ie_mark_target_as_cc(${TARGET_NAME})
 
+if(ENABLE_LLMDNN)
+    add_library(llmdnn STATIC IMPORTED)
+    set_target_properties(llmdnn PROPERTIES
+        IMPORTED_LOCATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/libllmdnn.a
+        INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/llmdnn/include
+        IMPORTED_LINK_INTERFACE_LIBRARIES libirc.a)
+    add_dependencies(${TARGET_NAME} llmdnnlib)
+endif()
+
 target_link_libraries(${TARGET_NAME} PRIVATE dnnl
                                              ov_shape_inference
                                              openvino::pugixml
@@ -95,6 +104,12 @@ target_link_libraries(${TARGET_NAME} PRIVATE dnnl
 target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_EXTENSION_API)
 target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
+
+if(ENABLE_LLMDNN)
+    target_link_libraries(${TARGET_NAME} PRIVATE llmdnn)
+    target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:llmdnn,INCLUDE_DIRECTORIES>)
+    add_definitions(-DOV_CPU_WITH_LLMDNN)
+endif()
 
 # Cross compiled function
 # TODO: The same for proposal, proposalONNX, topk
@@ -133,6 +148,10 @@ if(BUILD_SHARED_LIBS)
             $<TARGET_PROPERTY:openvino::conditional_compilation,INTERFACE_INCLUDE_DIRECTORIES>)
 
     target_include_directories(${TARGET_NAME}_obj SYSTEM PUBLIC $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
+    if(ENABLE_LLMDNN)
+        target_include_directories(${TARGET_NAME}_obj SYSTEM PUBLIC $<TARGET_PROPERTY:llmdnn,INCLUDE_DIRECTORIES>)
+        add_definitions(-DOV_CPU_WITH_LLMDNN)
+    endif()
 
     set_ie_threading_interface_for(${TARGET_NAME}_obj)
 
