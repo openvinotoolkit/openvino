@@ -63,6 +63,9 @@ public:
     size_t get_loop_count() const { return m_map.size(); }
     const std::map<size_t, LoopInfoPtr>& get_map() const;
 
+    // Return outer Loop IDs
+    static std::vector<size_t> get_outer_expr_loops(const ExpressionPtr& expr, size_t loop_id);
+
     void mark_loop(LinearIR::constExprIt loop_begin_pos,
                    LinearIR::constExprIt loop_end_pos,
                    size_t loop_depth, size_t vector_size);
@@ -73,6 +76,33 @@ public:
                    size_t dim_idx,
                    const std::vector<ExpressionPort>& entries,
                    const std::vector<ExpressionPort>& exits);
+
+    void fuse_loops(const LinearIR& linear_ir, size_t loop_id_upper, size_t loop_id_lower, bool fuse_into_upper = true);
+    void fuse_loops(size_t loop_id_upper, size_t loop_id_lower,
+                    LinearIR::constExprIt loop_begin_target, LinearIR::constExprIt loop_end_target, bool fuse_into_upper = true);
+
+    // The following methods update ports of LoopInfo. They save the order of ports!
+    // Remainder: the order is important to find Loop bounds (the most first and the most last expressions)
+    //   - Update LoopPort - insert new loop target ports instead of existing.
+    void update_loop_port(size_t loop_id, const LoopPort& actual_port, const std::vector<LoopPort>& target_ports, bool is_entry = true);
+    //   - Update ExpressionPort in the LoopPort - with saving of port parameters. It's softer method since ExpressionPort may not be port of Loop
+    void update_loop_port(size_t loop_id, const ExpressionPort& actual_port, const std::vector<ExpressionPort>& target_ports, bool is_entry = true);
+    template<typename T>
+    void update_loops_port(const std::vector<size_t>& loop_ids, const T& actual_port,
+                           const std::vector<T>& target_ports, bool is_entry = true) {
+        for (auto loop_id : loop_ids) {
+            update_loop_port(loop_id, actual_port, target_ports, is_entry);
+        }
+    }
+    // Sort Loop Ports by expression locations in Linear IR
+    void sort_loop_ports(LinearIR::constExprIt& loop_begin_pos, LinearIR::constExprIt& loop_end_pos, size_t loop_id);
+
+    // When the previous expression was replaced with new expressions (decomposition), the method updates the corresponding Loop.
+    // `Entries` and `exits` are known new loop ports if there are
+    // Note: This method should be removed when Softmax decomposition will be moved on data flow pipeline since
+    //       all decomposition should be call on this pipeline
+    void expression_replacement(constExprIt new_expr_begin, constExprIt new_expr_end, const ExpressionPtr& decomposed_expr,
+                                size_t loop_id, const std::vector<ExpressionPort>& entries, const std::vector<ExpressionPort>& exits);
 
     void get_loop_bounds(const LinearIR& linear_ir,
                          size_t loop_id,
@@ -85,11 +115,19 @@ public:
                                 LinearIR::constExprIt& loop_end_pos,
                                 size_t loop_id);
 
+private:
+    static void get_io_loop_ports(LinearIR::constExprIt loop_begin_pos,
+                                  LinearIR::constExprIt loop_end_pos,
+                                  std::vector<ExpressionPort>& entries,
+                                  std::vector<ExpressionPort>& exits);
+
+    static void fuse_loop_ports(std::vector<LinearIR::LoopManager::LoopPort>& exit_points,
+                                std::vector<LinearIR::LoopManager::LoopPort>& entry_points,
+                                size_t loop_id);
+
     /* ===== The methods for work with Loop IDs of Expression ===== */
     // Notes:
     //  - These methods don't update the corresponding LoopInfo
-    //  - These methods should be private
-    // TODO [112195] : fix these notes
     void replace_loop_id(const ExpressionPtr& expr, size_t prev_id, size_t new_id);
     void remove_loop_id(const ExpressionPtr& expr, size_t id);
     // Insert loop ID before (as outer Loop) or after (as inner Loop) target ID in vector of identifiers
@@ -99,12 +137,6 @@ public:
     //                                         for `before` the new Loop is the most outer Loop
     void insert_loop_id(const ExpressionPtr& expr, size_t new_id, bool before = true, size_t target_id = SIZE_MAX);
     void insert_loop_ids(const ExpressionPtr& expr, const std::vector<size_t>& new_ids, bool before = true, size_t target_id = SIZE_MAX);
-
-private:
-    static void get_io_loop_ports(LinearIR::constExprIt loop_begin_pos,
-                                  LinearIR::constExprIt loop_end_pos,
-                                  std::vector<ExpressionPort>& entries,
-                                  std::vector<ExpressionPort>& exits);
 
     std::map<size_t, LoopInfoPtr> m_map = {};
     size_t next_id = 0;
