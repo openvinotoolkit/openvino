@@ -52,14 +52,25 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHA, MHASelect,
                                  ::testing::Values(std::map<std::string, std::string>{})),
                          MHA::getTestCaseName);
 
-const std::vector<std::vector<ov::PartialShape>> inputShapesWOTranspose = {
-        {{1, 12, 197, 64}, {1, 12, 64, 197}, {1, 12, 197, 64}},
-        {{1, 12, 12, 64}, {1, 12, 64, 48}, {1, 12, 48, 64}}
-};
+
+static std::vector<std::vector<ov::PartialShape>> inputShapesWOTranspose(bool supports_3d = false) {
+    std::vector<std::vector<ov::PartialShape>> shapes = {
+            {{1, 12, 197, 64}, {1, 12, 64, 197}, {1, 12, 197, 64}},
+            {{1, 12, 12, 64}, {1, 12, 64, 48}, {1, 12, 48, 64}}
+    };
+    if (supports_3d) {
+        std::vector<std::vector<ov::PartialShape>> shapes_3d = {
+            {{12, 197, 64}, {12, 64, 197}, {12, 197, 64}},
+            {{12, 128, 100}, {12, 100, 128}, {12, 128, 100}}
+        };
+        shapes.insert(shapes.end(), shapes_3d.begin(), shapes_3d.end());
+    }
+    return shapes;
+}
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAWOTransposeOnInputs, MHAWOTransposeOnInputs,
                          ::testing::Combine(
-                                 ::testing::ValuesIn(inputShapesWOTranspose),
+                                 ::testing::ValuesIn(inputShapesWOTranspose()),
                                  ::testing::ValuesIn({true}),  // Need to support False for graph builder in tests
                                  ::testing::Values(ov::element::f32),
                                  ::testing::Values(1),
@@ -73,13 +84,24 @@ const std::map<std::string, std::string> cpuBF16PluginConfig = { { InferenceEngi
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHABF16, MHAWOTranspose,
                          ::testing::Combine(
-                                 ::testing::ValuesIn(inputShapesWOTranspose),
+                                 ::testing::ValuesIn(inputShapesWOTranspose(true)),
                                  ::testing::ValuesIn({true}),  // Need to support False for graph builder in tests
                                  ::testing::Values(ov::element::bf16),
                                  ::testing::Values(3),
                                  ::testing::Values(0), // CPU plugin doesn't support MHA pattern via Snippets on bf16
                                  ::testing::Values(CommonTestUtils::DEVICE_CPU),
                                  ::testing::Values(cpuBF16PluginConfig)),
+                         MHA::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAWOTranspose, MHAWOTranspose,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(inputShapesWOTranspose(true)),
+                                 ::testing::ValuesIn({true}),  // Need to support False for graph builder in tests
+                                 ::testing::Values(ov::element::f32),
+                                 ::testing::Values(1),
+                                 ::testing::Values(1),
+                                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                 ::testing::Values(std::map<std::string, std::string>{})),
                          MHA::getTestCaseName);
 
 
