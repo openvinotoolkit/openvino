@@ -12,34 +12,32 @@
 
 using namespace cldnn;
 
-void mark_shape_of_subgraphs::look_for_shape_of_subgraph(program_node& node, program_node& parent_shape_of) {
-    bool shape_of_node = node.is_type<shape_of>();
+void mark_shape_of_subgraphs::look_for_shape_of_subgraph(program_node& node) {
+    if (node.is_type<shape_of>()) {
+        mark_node(node);
+        return;
+    }
 
-    if (shape_of_node)
-        mark_node(node, parent_shape_of);
-
-    // Check if all dependencies are constant or marked as a part of shape_of subgraphs
+    // Check if all dependencies are constant or marked as a part of shape_of subgraph
     bool can_execute_in_subgraph = true;
+    bool has_shape_of_subgraph_dep = false;
     for (auto& dependency : node.get_dependencies()) {
-        if (!dependency.first->is_in_shape_of_subgraph() && !dependency.first->is_constant()) {
+        if (dependency.first->is_in_shape_of_subgraph()) {
+            has_shape_of_subgraph_dep = true;
+        } else if (!dependency.first->is_constant()) {
             can_execute_in_subgraph = false;
             break;
         }
     }
 
-    // Check if current node is a shape infer dependency of any of node's users
-    bool is_shape_infer_dep = node.is_shape_infer_dep();
-
-    if (!can_execute_in_subgraph && !is_shape_infer_dep && !shape_of_node)
+    // Node should have at least one dependency marked as a part of shape_of subgraph
+    if (!has_shape_of_subgraph_dep || !can_execute_in_subgraph)
         return;
 
     if (!can_mark_node(node))
         return;
 
-    mark_node(node, parent_shape_of);
-
-    for (auto& user : node.get_users())
-        look_for_shape_of_subgraph(*user, parent_shape_of);
+    mark_node(node);
 }
 
 bool mark_shape_of_subgraphs::can_mark_node(program_node& node) {
@@ -49,13 +47,8 @@ bool mark_shape_of_subgraphs::can_mark_node(program_node& node) {
     if (node.is_type<reshape>())
         return true;
 
-    impl_types prev_impl = node.get_preferred_impl_type();
-
-    node.set_preferred_impl_type(impl_types::cpu);
-    bool cpu_impl_found = (!node.is_dynamic() && node.type()->does_possible_implementation_exist(node)) ||
-                          (node.is_dynamic() && node.type()->does_dynamic_implementation_exist(node));
-
-    node.set_preferred_impl_type(prev_impl);
+    auto available_impls = node.type()->get_available_impls(node);
+    auto cpu_impl_found = available_impls.find(impl_types::cpu) != available_impls.end();
 
     if (cpu_impl_found)
         return true;
@@ -63,9 +56,15 @@ bool mark_shape_of_subgraphs::can_mark_node(program_node& node) {
     return false;
 }
 
-void mark_shape_of_subgraphs::mark_node(program_node& node, program_node& parent_shape_of) {
+void mark_shape_of_subgraphs::mark_node(program_node& node) {
     node.set_in_shape_of_subgraph(true);
-    node.add_dependant_shape_of_node(&parent_shape_of);
+
+    // If current node has shape_of type add it to dependant shape_of nodes for
+    // correct dependency propagation for users
+    if (node.is_type<shape_of>())
+        node.add_dependant_shape_of_node(&node);
+
+    // Add parent shape_of nodes from other dependencies if there are any
     for (auto dep : node.get_dependencies()) {
         if (dep.first->is_in_shape_of_subgraph()) {
             for (auto shape_of : dep.first->get_dependant_shape_of_nodes()) {
@@ -74,6 +73,7 @@ void mark_shape_of_subgraphs::mark_node(program_node& node, program_node& parent
         }
     }
 
+    // Update impl if needed
     const auto default_subgraph_impl = impl_types::cpu;
     if (_update_impls)
         if (!node.is_type<reshape>())
@@ -83,8 +83,7 @@ void mark_shape_of_subgraphs::mark_node(program_node& node, program_node& parent
 void mark_shape_of_subgraphs::run(program& p) {
     if (p.get_config().get_property(ov::intel_gpu::allow_new_shape_infer)) {
         for (auto& node : p.get_processing_order()) {
-            if (node->is_type<shape_of>())
-                look_for_shape_of_subgraph(*node, *node);
+            look_for_shape_of_subgraph(*node);
         }
     }
 }

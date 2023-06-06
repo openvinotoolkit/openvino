@@ -8,7 +8,7 @@
 
 #include "intel_gpu/runtime/error_handler.hpp"
 
-#include "ngraph/op/convert.hpp"
+#include "openvino/op/convert.hpp"
 
 namespace cldnn {
 namespace cpu {
@@ -32,7 +32,7 @@ struct reorder_impl : public typed_primitive_impl<reorder> {
     }
 
     void set_node_params(const program_node& arg) override {
-        IE_ASSERT(arg.is_type<reorder>());
+        OPENVINO_ASSERT(arg.is_type<reorder>(), "[GPU] Incorrect program_node type");
     }
 
     event::ptr execute_impl(const std::vector<event::ptr>& events, reorder_inst& instance) override {
@@ -95,8 +95,6 @@ attach_reorder_impl::attach_reorder_impl() {
     auto types = {
         data_types::f32,
         data_types::f16,
-        data_types::u8,
-        data_types::i8,
         data_types::i32,
         data_types::i64,
     };

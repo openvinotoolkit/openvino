@@ -8,7 +8,7 @@
 
 #include "intel_gpu/runtime/error_handler.hpp"
 
-#include "ngraph/op/gather.hpp"
+#include "openvino/op/gather.hpp"
 
 namespace cldnn {
 namespace cpu {
@@ -35,7 +35,7 @@ struct gather_impl : public typed_primitive_impl<gather> {
     }
 
     void set_node_params(const program_node& arg) override {
-        IE_ASSERT(arg.is_type<gather>());
+        OPENVINO_ASSERT(arg.is_type<gather>(), "[GPU] Incorrect program_node type");
         const auto& node = arg.as<gather>();
         axis = node.get_primitive()->axis;
         batch_dims = node.get_primitive()->batch_dim;
@@ -119,8 +119,6 @@ attach_gather_impl::attach_gather_impl() {
     auto types = {
         data_types::f32,
         data_types::f16,
-        data_types::u8,
-        data_types::i8,
         data_types::i32,
         data_types::i64,
     };

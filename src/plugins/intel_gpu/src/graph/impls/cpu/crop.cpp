@@ -10,12 +10,16 @@
 
 #include "intel_gpu/runtime/error_handler.hpp"
 
+#include "openvino/op/slice.hpp"
+
 namespace cldnn {
 namespace cpu {
 
 struct crop_impl : public typed_primitive_impl<crop> {
     using parent = typed_primitive_impl<crop>;
     using parent::parent;
+
+    std::shared_ptr<ov::op::Op> op;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -30,71 +34,7 @@ struct crop_impl : public typed_primitive_impl<crop> {
     }
 
     void set_node_params(const program_node& arg) override {
-        IE_ASSERT(arg.is_type<crop>());
-    }
-
-    template <class T>
-    void calculate_crop(const cldnn::kernel_impl_params* params, cldnn::memory::ptr input_mem_ptr, cldnn::memory::ptr output_mem_ptr, cldnn::stream &stream) {
-        auto input_layout = params->input_layouts[0];
-        auto output_layout = params->output_layouts[0];
-        auto input_offset = params->input_offsets[0];
-
-        const auto max_dims_num = 6;
-        const auto offsets_shape = input_offset.get_partial_shape(input_layout.get_rank()).to_shape();
-
-        int offsets[max_dims_num] = {0, 0, 0, 0, 0, 0};
-        for (size_t i = 0; i < 2; i++)
-            offsets[i] = static_cast<int>(offsets_shape[i]);
-
-        for (size_t i = 2; i < offsets_shape.size(); i++)
-            offsets[i + max_dims_num - offsets_shape.size()] = static_cast<int>(offsets_shape[i]);
-
-        cldnn::mem_lock<T, mem_lock_type::read> input_lock(input_mem_ptr, stream);
-        cldnn::mem_lock<T, mem_lock_type::write> output_lock(output_mem_ptr, stream);
-
-        auto size_out = output_layout.get_tensor();
-        auto padded_output = static_cast<bool>(output_mem_ptr->get_layout().data_padding);
-
-        if (padded_output) {
-            for (int b = 0; b < size_out.batch[0]; ++b) {
-                for (int f = 0; f < size_out.feature[0]; ++f) {
-                    for (int w = 0; w < size_out.spatial[3]; ++w) {
-                        for (int z = 0; z < size_out.spatial[2]; ++z) {
-                            for (int y = 0; y < size_out.spatial[1]; ++y) {
-                                cldnn::tensor input_t(cldnn::group(0),
-                                                    cldnn::batch(b + offsets[0]), cldnn::feature(f + offsets[1]),
-                                                    cldnn::spatial(offsets[5], y + offsets[4], z + offsets[3], w + offsets[2]));
-                                cldnn::tensor output_t(cldnn::group(0),
-                                                    cldnn::batch(b), cldnn::feature(f),
-                                                    cldnn::spatial(0, y, z, w));
-                                size_t input_idx = input_layout.get_linear_offset(input_t);
-                                size_t output_idx = output_layout.get_linear_offset(output_t);
-                                for (int x = 0; x < offsets[5] + size_out.spatial[0]; ++x) {
-                                    output_lock[output_idx++] = input_lock[input_idx++];
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        } else {
-            size_t out_idx = 0;
-            for (int b = offsets[0]; b < offsets[0] + size_out.batch[0]; ++b) {
-                for (int f = offsets[1]; f < offsets[1] + size_out.feature[0]; ++f) {
-                    for (int w = offsets[2]; w < offsets[2] + size_out.spatial[3]; ++w) {
-                        for (int z = offsets[3]; z < offsets[3] + size_out.spatial[2]; ++z) {
-                            for (int y = offsets[4]; y < offsets[4] + size_out.spatial[1]; ++y) {
-                                cldnn::tensor input_t(cldnn::group(0), cldnn::batch(b), cldnn::feature(f), cldnn::spatial(offsets[5], y, z, w));
-                                size_t input_idx = input_layout.get_linear_offset(input_t);
-                                for (int x = offsets[5]; x < offsets[5] + size_out.spatial[0]; ++x) {
-                                    output_lock[out_idx++] = input_lock[input_idx++];
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        OPENVINO_ASSERT(arg.is_type<crop>(), "[GPU] Incorrect program_node type");
     }
 
     event::ptr execute_impl(const std::vector<event::ptr>& events, crop_inst& instance) override {
@@ -108,32 +48,54 @@ struct crop_impl : public typed_primitive_impl<crop> {
         auto ev = stream.create_user_event(false);
 
         auto params = instance.get_impl_params();
+        auto input_layout = params->input_layouts[0];
+        auto input_offset = params->input_offsets[0];
+        auto output_layout = params->output_layouts[0];
+
+        auto input_shape = input_layout.get_partial_shape().to_shape();
+        auto offsets_shape = input_offset.get_partial_shape(input_shape.size()).to_shape();
+        auto output_shape = output_layout.get_partial_shape().to_shape();
+
+        OPENVINO_ASSERT(offsets_shape.size() == output_shape.size(), "[GPU] Offset shape is supposed to have the same rank as output shape");
 
         auto input_mem_ptr = instance.input_memory_ptr();
         auto output_mem_ptr = instance.output_memory_ptr();
 
-        switch (params->input_layouts[0].data_type) {
-        case data_types::f32:
-            calculate_crop<float>(params, input_mem_ptr, output_mem_ptr, stream);
-            break;
-        case data_types::f16:
-            calculate_crop<half_t>(params, input_mem_ptr, output_mem_ptr, stream);
-            break;
-        case data_types::i64:
-            calculate_crop<int64_t>(params, input_mem_ptr, output_mem_ptr, stream);
-            break;
-        case data_types::i32:
-            calculate_crop<int>(params, input_mem_ptr, output_mem_ptr, stream);
-            break;
-        case data_types::u8:
-            calculate_crop<uint8_t>(params, input_mem_ptr, output_mem_ptr, stream);
-            break;
-        case data_types::i8:
-            calculate_crop<int8_t>(params, input_mem_ptr, output_mem_ptr, stream);
-            break;
-        default:
-            OPENVINO_THROW("[GPU] Couldn't execute crop operation: unsupported input data type");
-        }
+        cldnn::mem_lock<uint8_t, mem_lock_type::read> input_lock(input_mem_ptr, stream);
+        cldnn::mem_lock<uint8_t, mem_lock_type::write> output_lock(output_mem_ptr, stream);
+
+        auto padded_output = static_cast<bool>(output_mem_ptr->get_layout().data_padding);
+        OPENVINO_ASSERT(!padded_output, "[GPU] Padded output is not supported yet");
+
+        ov::TensorVector input_host_tensors;
+        ov::TensorVector output_host_tensors;
+
+        std::vector<int64_t> start_vec(offsets_shape.begin(), offsets_shape.end());
+        std::vector<int64_t> steps_vec(input_shape.size(), 1);
+        std::vector<int64_t> stop_vec;
+
+        for (size_t i = 0; i < start_vec.size(); i++)
+            stop_vec.push_back(start_vec[i] + output_shape[i]);
+
+
+        auto start_tensor = ov::Tensor(ov::element::i64, {start_vec.size()}, start_vec.data());
+        auto stop_tensor = ov::Tensor(ov::element::i64, {stop_vec.size()}, stop_vec.data());
+        auto steps_tensor = ov::Tensor(ov::element::i64, {steps_vec.size()}, steps_vec.data());
+
+        auto input_tensor = make_tensor(input_mem_ptr->get_layout(), input_lock.data());
+        auto output_tensor = make_tensor(output_mem_ptr->get_layout(), output_lock.data());
+
+        input_host_tensors.push_back(input_tensor);
+        input_host_tensors.push_back(start_tensor);
+        input_host_tensors.push_back(stop_tensor);
+        input_host_tensors.push_back(steps_tensor);
+
+        output_host_tensors.push_back(output_tensor);
+
+        if (!op)
+            op = std::make_shared<ov::op::v8::Slice>();
+
+        op->evaluate(output_host_tensors, input_host_tensors);
 
         ev->set();
 
@@ -163,8 +125,6 @@ attach_crop_impl::attach_crop_impl() {
     auto types = {
         data_types::f32,
         data_types::f16,
-        data_types::u8,
-        data_types::i8,
         data_types::i32,
         data_types::i64,
     };

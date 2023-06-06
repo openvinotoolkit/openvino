@@ -8,43 +8,42 @@
 
 #include "intel_gpu/runtime/error_handler.hpp"
 
-#include "ngraph/op/power.hpp"
-#include "ngraph/op/tanh.hpp"
-#include "ngraph/op/elu.hpp"
-#include "ngraph/op/sigmoid.hpp"
-#include "ngraph/op/relu.hpp"
-#include "ngraph/op/prelu.hpp"
-#include "ngraph/op/clamp.hpp"
-#include "ngraph/op/exp.hpp"
-#include "ngraph/op/not.hpp"
-#include "ngraph/op/asin.hpp"
-#include "ngraph/op/asinh.hpp"
-#include "ngraph/op/acos.hpp"
-#include "ngraph/op/acosh.hpp"
-#include "ngraph/op/atan.hpp"
-#include "ngraph/op/atanh.hpp"
-#include "ngraph/op/abs.hpp"
-#include "ngraph/op/floor.hpp"
-#include "ngraph/op/ceiling.hpp"
-#include "ngraph/op/erf.hpp"
-#include "ngraph/op/hard_sigmoid.hpp"
-#include "ngraph/op/log.hpp"
-#include "ngraph/op/negative.hpp"
-#include "ngraph/op/selu.hpp"
-#include "ngraph/op/softplus.hpp"
-#include "ngraph/op/tan.hpp"
-#include "ngraph/op/sin.hpp"
-#include "ngraph/op/sinh.hpp"
-#include "ngraph/op/cos.hpp"
-#include "ngraph/op/cosh.hpp"
-#include "ngraph/op/swish.hpp"
-#include "ngraph/op/hswish.hpp"
-#include "ngraph/op/mish.hpp"
-#include "ngraph/op/gelu.hpp"
-#include "ngraph/op/sign.hpp"
-#include "ngraph/op/hsigmoid.hpp"
-#include "ngraph/op/round.hpp"
-
+#include "openvino/op/power.hpp"
+#include "openvino/op/tanh.hpp"
+#include "openvino/op/elu.hpp"
+#include "openvino/op/sigmoid.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/prelu.hpp"
+#include "openvino/op/clamp.hpp"
+#include "openvino/op/exp.hpp"
+#include "openvino/op/logical_not.hpp"
+#include "openvino/op/asin.hpp"
+#include "openvino/op/asinh.hpp"
+#include "openvino/op/acos.hpp"
+#include "openvino/op/acosh.hpp"
+#include "openvino/op/atan.hpp"
+#include "openvino/op/atanh.hpp"
+#include "openvino/op/abs.hpp"
+#include "openvino/op/floor.hpp"
+#include "openvino/op/ceiling.hpp"
+#include "openvino/op/erf.hpp"
+#include "openvino/op/hard_sigmoid.hpp"
+#include "openvino/op/log.hpp"
+#include "openvino/op/negative.hpp"
+#include "openvino/op/selu.hpp"
+#include "openvino/op/softplus.hpp"
+#include "openvino/op/tan.hpp"
+#include "openvino/op/sin.hpp"
+#include "openvino/op/sinh.hpp"
+#include "openvino/op/cos.hpp"
+#include "openvino/op/cosh.hpp"
+#include "openvino/op/swish.hpp"
+#include "openvino/op/hswish.hpp"
+#include "openvino/op/mish.hpp"
+#include "openvino/op/gelu.hpp"
+#include "openvino/op/sign.hpp"
+#include "openvino/op/hsigmoid.hpp"
+#include "openvino/op/round.hpp"
 
 namespace cldnn {
 namespace cpu {
@@ -71,7 +70,7 @@ struct activation_impl : public typed_primitive_impl<activation> {
     }
 
     void set_node_params(const program_node& arg) override {
-        IE_ASSERT(arg.is_type<activation>());
+        OPENVINO_ASSERT(arg.is_type<activation>(), "[GPU] Incorrect program_node type");
         const auto& node = arg.as<activation>();
         activation_function = node.get_primitive()->activation_function;
         additional_params = node.get_primitive()->additional_params;
@@ -257,14 +256,9 @@ struct activation_impl : public typed_primitive_impl<activation> {
         case data_types::i32:
             execute_activation<data_types::i32>(op, instance, activation_function, additional_params);
             break;
-        case data_types::u8:
-            execute_activation<data_types::u8>(op, instance, activation_function, additional_params);
-            break;
-        case data_types::i8:
-            execute_activation<data_types::i8>(op, instance, activation_function, additional_params);
-            break;
         default:
-            OPENVINO_THROW("[GPU] Couldn't execute activation operation: unsupported input data type");
+            OPENVINO_THROW("[GPU] Couldn't execute activation operation: unsupported input data type: ",
+                           params->input_layouts[0].data_type);
         }
 
         ev->set();
@@ -295,8 +289,6 @@ attach_activation_impl::attach_activation_impl() {
     auto types = {
         data_types::f32,
         data_types::f16,
-        data_types::u8,
-        data_types::i8,
         data_types::i32,
         data_types::i64,
     };

@@ -1263,16 +1263,6 @@ INSTANTIATE_TEST_SUITE_P(export_import_crop_test, crop_gpu,
                                 ::testing::Values(true)
                                 ));
 
-INSTANTIATE_TEST_SUITE_P(crop_cpu_impl_test, crop_gpu,
-                        ::testing::Combine(
-                                ::testing::ValuesIn(std::vector<size_t>{1, 8}),
-                                ::testing::ValuesIn(std::vector<size_t>{18, 24}),
-                                ::testing::ValuesIn(std::vector<size_t>{4, 8}),
-                                ::testing::Values(std::make_pair<cldnn::format, cldnn::format>(format::bfyx, format::bfyx)),
-                                ::testing::Values(impl_types::cpu),
-                                ::testing::Values(false)
-                                ));
-
 class crop_gpu_dynamic : public ::testing::TestWithParam<std::tuple<impl_types>> {};
 TEST_P(crop_gpu_dynamic, i32_in2x3x2x2_crop_offsets) {
     auto test_params = GetParam();

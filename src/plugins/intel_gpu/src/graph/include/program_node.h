@@ -5,7 +5,6 @@
 #pragma once
 
 #include "intel_gpu/primitives/primitive.hpp"
-#include "intel_gpu/primitives/activation.hpp"
 #include "intel_gpu/primitives/implementation_desc.hpp"
 #include "intel_gpu/graph/program.hpp"
 
@@ -339,9 +338,7 @@ public:
         return as<To>();
     }
 
-    void add_dependant_shape_of_node(const program_node* node) {
-        dependant_shape_of_nodes.insert(node);
-    }
+    void add_dependant_shape_of_node(const program_node* node);
 
     const std::set<const program_node*>& get_dependant_shape_of_nodes() const {
         return dependant_shape_of_nodes;

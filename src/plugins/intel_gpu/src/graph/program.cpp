@@ -494,6 +494,7 @@ void program::init_graph() {
 
     apply_opt_pass<mark_nodes>();
 
+    // Perform initial shape_of subgraphs markup
     apply_opt_pass<mark_shape_of_subgraphs>();
 }
 
@@ -564,6 +565,8 @@ void program::pre_optimize_graph(bool is_internal) {
     // add optimization attributes for onednn primitives
     apply_opt_pass<add_onednn_optimization_attributes>();
 
+    // Call shape_of subgraphs markup second time to update newely added nodes after graph
+    // optimization passes
     apply_opt_pass<mark_shape_of_subgraphs>(true);
 }
 

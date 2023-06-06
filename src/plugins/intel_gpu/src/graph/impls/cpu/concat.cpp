@@ -8,7 +8,7 @@
 
 #include "intel_gpu/runtime/error_handler.hpp"
 
-#include "ngraph/op/concat.hpp"
+#include "openvino/op/concat.hpp"
 
 namespace cldnn {
 namespace cpu {
@@ -34,7 +34,7 @@ struct concatenation_impl : public typed_primitive_impl<concatenation> {
     }
 
     void set_node_params(const program_node& arg) override {
-        IE_ASSERT(arg.is_type<concatenation>());
+        OPENVINO_ASSERT(arg.is_type<concatenation>(), "[GPU] Incorrect program_node type");
         const auto& node = arg.as<concatenation>();
         axis = node.get_primitive()->axis;
     }
@@ -116,8 +116,6 @@ attach_concatenation_impl::attach_concatenation_impl() {
     auto types = {
         data_types::f32,
         data_types::f16,
-        data_types::u8,
-        data_types::i8,
         data_types::i32,
         data_types::i64,
     };

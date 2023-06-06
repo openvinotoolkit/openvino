@@ -8,7 +8,7 @@
 
 #include "intel_gpu/runtime/error_handler.hpp"
 
-#include "ngraph/op/shape_of.hpp"
+#include "openvino/op/shape_of.hpp"
 
 namespace cldnn {
 namespace cpu {
@@ -33,7 +33,7 @@ struct shape_of_impl : public typed_primitive_impl<shape_of> {
     }
 
     void set_node_params(const program_node& arg) override {
-        IE_ASSERT(arg.is_type<shape_of>());
+        OPENVINO_ASSERT(arg.is_type<shape_of>(), "[GPU] Incorrect program_node type");
     }
 
     event::ptr execute_impl(const std::vector<event::ptr>& events, shape_of_inst& instance) override {

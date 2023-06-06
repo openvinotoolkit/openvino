@@ -8,7 +8,7 @@
 
 #include "intel_gpu/runtime/error_handler.hpp"
 
-#include "ngraph/op/range.hpp"
+#include "openvino/op/range.hpp"
 
 namespace cldnn {
 namespace cpu {
@@ -32,7 +32,7 @@ struct range_impl : public typed_primitive_impl<range> {
     }
 
     void set_node_params(const program_node& arg) override {
-        IE_ASSERT(arg.is_type<range>());
+        OPENVINO_ASSERT(arg.is_type<range>(), "[GPU] Incorrect program_node type");
     }
 
     event::ptr execute_impl(const std::vector<event::ptr>& events, range_inst& instance) override {
@@ -101,8 +101,6 @@ attach_range_impl::attach_range_impl() {
     auto types = {
         data_types::f32,
         data_types::f16,
-        data_types::u8,
-        data_types::i8,
         data_types::i32,
         data_types::i64,
     };

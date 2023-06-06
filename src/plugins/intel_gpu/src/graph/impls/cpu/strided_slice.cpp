@@ -8,7 +8,7 @@
 
 #include "intel_gpu/runtime/error_handler.hpp"
 
-#include "ngraph/op/strided_slice.hpp"
+#include "openvino/op/strided_slice.hpp"
 
 namespace cldnn {
 namespace cpu {
@@ -42,7 +42,7 @@ struct strided_slice_impl : public typed_primitive_impl<strided_slice> {
     }
 
     void set_node_params(const program_node& arg) override {
-        IE_ASSERT(arg.is_type<strided_slice>());
+        OPENVINO_ASSERT(arg.is_type<strided_slice>(), "[GPU] Incorrect program_node type");
         const auto& node = arg.as<strided_slice>();
         begin_data = node.get_primitive()->begin;
         end_data = node.get_primitive()->end;
@@ -185,8 +185,6 @@ attach_strided_slice_impl::attach_strided_slice_impl() {
     auto types = {
         data_types::f32,
         data_types::f16,
-        data_types::u8,
-        data_types::i8,
         data_types::i32,
         data_types::i64,
     };

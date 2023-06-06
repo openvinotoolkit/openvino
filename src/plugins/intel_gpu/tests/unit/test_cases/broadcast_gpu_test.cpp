@@ -311,14 +311,6 @@ TEST(broadcast_cpu_impl_float, bfyx_1_to_4x5_w_b_axes_0x1_dynamic_with_static_ou
     start_broadcast_test_dynamic<float>(format::bfyx, data_types::f32, {4, 5}, {1, 1}, {0, 1}, true, impl_types::cpu);
 }
 
-TEST(broadcast_cpu_impl_uint8_t, bfyx_1_to_4x5_w_b_axes_0x1_dynamic) {
-    start_broadcast_test_dynamic<uint8_t>(format::bfyx, data_types::u8, {4, 5}, {1, 1}, {0, 1}, false, impl_types::cpu);
-}
-
-TEST(broadcast_cpu_impl_uint8_t, bfyx_1_to_4x5_w_b_axes_0x1x2_dynamic_with_static_output) {
-    start_broadcast_test_dynamic<uint8_t>(format::bfyx, data_types::u8, {4, 5, 2}, {1, 1, 1}, {0, 1, 2}, true, impl_types::cpu);
-}
-
 TEST(broadcast_cpu_impl_int64_t, bfyx_1_to_4x5_w_b_axes_0x1_dynamic) {
     start_broadcast_test_dynamic<int64_t>(format::bfyx, data_types::i64, {4, 5}, {1, 1}, {0, 1}, false, impl_types::cpu);
 }

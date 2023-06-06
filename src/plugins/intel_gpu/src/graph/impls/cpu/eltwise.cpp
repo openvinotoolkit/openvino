@@ -8,28 +8,29 @@
 
 #include "intel_gpu/runtime/error_handler.hpp"
 
-#include "ngraph/op/add.hpp"
-#include "ngraph/op/multiply.hpp"
-#include "ngraph/op/maximum.hpp"
-#include "ngraph/op/minimum.hpp"
-#include "ngraph/op/subtract.hpp"
-#include "ngraph/op/divide.hpp"
-#include "ngraph/op/squared_difference.hpp"
-#include "ngraph/op/equal.hpp"
-#include "ngraph/op/not_equal.hpp"
-#include "ngraph/op/less.hpp"
-#include "ngraph/op/less_eq.hpp"
-#include "ngraph/op/greater.hpp"
-#include "ngraph/op/greater_eq.hpp"
-#include "ngraph/op/and.hpp"
-#include "ngraph/op/or.hpp"
-#include "ngraph/op/xor.hpp"
-#include "ngraph/op/power.hpp"
-#include "ngraph/op/floor_mod.hpp"
-#include "ngraph/op/mod.hpp"
-#include "ngraph/op/is_finite.hpp"
-#include "ngraph/op/is_inf.hpp"
-#include "ngraph/op/is_nan.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/minimum.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/squared_difference.hpp"
+#include "openvino/op/equal.hpp"
+#include "openvino/op/not_equal.hpp"
+#include "openvino/op/less.hpp"
+#include "openvino/op/less_eq.hpp"
+#include "openvino/op/greater.hpp"
+#include "openvino/op/greater_eq.hpp"
+#include "openvino/op/logical_and.hpp"
+#include "openvino/op/logical_or.hpp"
+#include "openvino/op/logical_xor.hpp"
+#include "openvino/op/xor.hpp"
+#include "openvino/op/power.hpp"
+#include "openvino/op/floor_mod.hpp"
+#include "openvino/op/mod.hpp"
+#include "openvino/op/is_finite.hpp"
+#include "openvino/op/is_inf.hpp"
+#include "openvino/op/is_nan.hpp"
 
 namespace cldnn {
 namespace cpu {
@@ -56,7 +57,7 @@ struct eltwise_impl : public typed_primitive_impl<eltwise> {
     }
 
     void set_node_params(const program_node& arg) override {
-        IE_ASSERT(arg.is_type<eltwise>());
+        OPENVINO_ASSERT(arg.is_type<eltwise>(), "[GPU] Incorrect program_node type");
         const auto& node = arg.as<eltwise>();
         mode = node.get_primitive()->mode;
         coefficients = node.get_primitive()->coefficients;
@@ -213,8 +214,6 @@ attach_eltwise_impl::attach_eltwise_impl() {
     auto types = {
         data_types::f32,
         data_types::f16,
-        data_types::u8,
-        data_types::i8,
         data_types::i32,
         data_types::i64,
     };

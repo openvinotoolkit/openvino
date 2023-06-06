@@ -439,17 +439,7 @@ bool ov::op::util::BroadcastBase::evaluate_broadcast(const HostTensorPtr& arg0,
 }
 
 ov::Shape ov::op::util::BroadcastBase::get_target_shape(const HostTensorPtr& input1) const {
-    Shape target_shape;
-    std::shared_ptr<ngraph::op::v0::Constant> shape_constant = nullptr;
-    if (get_input_size() >= 2)
-        shape_constant = ov::as_type_ptr<ngraph::op::v0::Constant>(input_value(1).get_node_shared_ptr());
-
-    if (shape_constant) {
-        target_shape = shape_constant->get_shape_val();
-    } else {
-        target_shape = get_target_shape_from_ht(input1);
-    }
-    return target_shape;
+    return get_target_shape_from_ht(input1);
 }
 
 bool ov::op::util::BroadcastBase::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
@@ -466,16 +456,9 @@ bool ov::op::util::BroadcastBase::evaluate(const HostTensorVector& outputs, cons
 
     if (m_mode.m_type == BroadcastType::NONE) {
         AxisVector axes_mapping_val;
-        std::shared_ptr<ngraph::op::v0::Constant> axes_mapping_constant = nullptr;
-        if (get_input_size() >= 3)
-            axes_mapping_constant = ov::as_type_ptr<ngraph::op::v0::Constant>(input_value(2).get_node_shared_ptr());
+        // read from HT and save as AxisVector
+        get_axis_vector_from_ht(inputs[2], axes_mapping_val, arg_shape);
 
-        if (axes_mapping_constant) {
-            axes_mapping_val = axes_mapping_constant->get_axis_vector_val();
-        } else {
-            // read from HT and save as AxisVector
-            get_axis_vector_from_ht(inputs[2], axes_mapping_val, arg_shape);
-        }
         pair_broadcast_axes = get_broadcast_axes_none(axes_mapping_val, target_shape.size());
         validate_target_shape_none(inputs[0]->get_shape(), axes_mapping_val, target_shape);
         result_shape = target_shape;

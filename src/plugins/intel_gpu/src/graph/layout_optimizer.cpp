@@ -1555,8 +1555,6 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
         if (format::is_blocked(node.get_output_layout().format)) {
             return impl_types::onednn;
         }
-
-        preferred_impl = impl_types::ocl;
     // TODO: uncomment this code when onednn gemm implementations will have real perf improvements vs cldnn
     } else if (node.is_type<fully_connected>() || node.is_type<gemm>()) {
         if (!_optimization_attributes.use_onednn_impls)

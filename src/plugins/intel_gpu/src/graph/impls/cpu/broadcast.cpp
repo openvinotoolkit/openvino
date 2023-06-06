@@ -8,8 +8,7 @@
 
 #include "intel_gpu/runtime/error_handler.hpp"
 
-#include "ngraph/op/broadcast.hpp"
-
+#include "openvino/op/broadcast.hpp"
 
 namespace cldnn {
 namespace cpu {
@@ -37,7 +36,7 @@ struct broadcast_impl : public typed_primitive_impl<broadcast> {
     }
 
     void set_node_params(const program_node& arg) override {
-        IE_ASSERT(arg.is_type<broadcast>());
+        OPENVINO_ASSERT(arg.is_type<broadcast>(), "[GPU] Incorrect program_node type");
         const auto& node = arg.as<broadcast>();
         broadcast_mode = node.get_primitive()->broadcast_mode;
         target_shape = node.get_primitive()->target_shape;
@@ -134,8 +133,6 @@ attach_broadcast_impl::attach_broadcast_impl() {
     auto types = {
         data_types::f32,
         data_types::f16,
-        data_types::u8,
-        data_types::i8,
         data_types::i32,
         data_types::i64,
     };

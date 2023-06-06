@@ -8,8 +8,7 @@
 
 #include "intel_gpu/runtime/error_handler.hpp"
 
-#include "ngraph/op/tile.hpp"
-
+#include "openvino/op/tile.hpp"
 
 namespace cldnn {
 namespace cpu {
@@ -35,7 +34,7 @@ struct tile_impl : public typed_primitive_impl<tile> {
     }
 
     void set_node_params(const program_node& arg) override {
-        IE_ASSERT(arg.is_type<tile>());
+        OPENVINO_ASSERT(arg.is_type<tile>(), "[GPU] Incorrect program_node type");
         repeats = arg.as<tile>().get_primitive()->repeats;
     }
 
@@ -118,8 +117,6 @@ attach_tile_impl::attach_tile_impl() {
     auto types = {
         data_types::f32,
         data_types::f16,
-        data_types::u8,
-        data_types::i8,
         data_types::i32,
         data_types::i64,
     };
