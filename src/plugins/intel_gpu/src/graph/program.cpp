@@ -177,14 +177,18 @@ void program::init_program() {
 }
 
 void program::init_primitives() {
+    // Register implementations in order of their selection priority: common, OCL, oneDNN, CPU
+    // We register OCL implementation before oneDNN, because oneDNN is not always preferable (in case of iGPU)
+    // This order will only apply to primitives with preferrable implementation type equal to impl_types::any
+
     static bool is_initialized = false;
     if (!is_initialized) {
         common::register_implementations();
-        cpu::register_implementations();
         ocl::register_implementations();
 #ifdef ENABLE_ONEDNN_FOR_GPU
         onednn::register_implementations();
 #endif
+        cpu::register_implementations();
         is_initialized = true;
     }
 }
@@ -1598,7 +1602,15 @@ std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
         } else if (node->is_type<mutable_data>() && node->get_dependencies().empty()) {
             continue;
         } else {
-            allocated_mem_ptrs.insert(primitive_inst::allocate_output(engine, pool, *node, *node->get_kernel_impl_params(), 0, false));
+            allocated_mem_ptrs.insert(primitive_inst::allocate_output(engine,
+                                                                      pool,
+                                                                      *node,
+                                                                      *node->get_kernel_impl_params(),
+                                                                      0,
+                                                                      false,
+                                                                      0,
+                                                                      false,
+                                                                      node->is_output()));
         }
     }
 
