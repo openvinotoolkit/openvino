@@ -23,7 +23,7 @@ namespace intel_cpu {
  * @param[in]  proc_type_table candidate processors available at this time
  * @return     updated proc_type_table which removed unmatched processors
  */
-std::vector<std::vector<int>> apply_scheduling_core_type(const ov::hint::SchedulingCoreType input_type,
+std::vector<std::vector<int>> apply_scheduling_core_type(ov::hint::SchedulingCoreType& input_type,
                                                          const std::vector<std::vector<int>>& proc_type_table);
 
 /**
