@@ -627,7 +627,6 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
 
 void Engine::SetConfig(const std::map<std::string, std::string> &config) {
     // @todo after Legacy configuration is dropped, use some wrapper class to keep both the property and "ifSetExplicitly" flag
-    std::cout << "SetConfig enter" << std::endl;
     streamsExplicitlySetForEngine = streamsSet(config);
 
     engConfig.readProperties(config);
