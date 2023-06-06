@@ -6,8 +6,9 @@
 @setlocal
 SETLOCAL EnableDelayedExpansion
 set "ROOT_DIR=%~dp0"
+FOR %%i IN ("%ROOT_DIR%\.") DO set SAMPLES_TYPE=%%~nxi
 
-set "SAMPLE_BUILD_DIR=%USERPROFILE%\Documents\Intel\OpenVINO\openvino_cpp_samples_build"
+set "SAMPLE_BUILD_DIR=%USERPROFILE%\Documents\Intel\OpenVINO\openvino_%SAMPLES_TYPE%_samples_build"
 set SAMPLE_INSTALL_DIR=
 
 :: command line arguments parsing
