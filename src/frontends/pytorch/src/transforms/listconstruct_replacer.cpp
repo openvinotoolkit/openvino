@@ -56,7 +56,8 @@ ListConstructReplacer::ListConstructReplacer() {
     auto vsplit_op = pattern::wrap_type<v1::VariadicSplit>({pattern::any_input(), pattern::any_input(), list});
     // aten::upsample... case
     auto interpolate_mul_op = pattern::wrap_type<v1::Multiply>({list, pattern::any_input()});
-    auto interpolate_op = pattern::wrap_type<v11::Interpolate>({pattern::any_input(), interpolate_mul_op, pattern::any_input()});
+    auto interpolate_op =
+        pattern::wrap_type<v11::Interpolate>({pattern::any_input(), interpolate_mul_op, pattern::any_input()});
     auto lc_pattern = std::make_shared<pattern::op::Or>(OutputVector{reshape_op,
                                                                      roll_op,
                                                                      broadcast_op,

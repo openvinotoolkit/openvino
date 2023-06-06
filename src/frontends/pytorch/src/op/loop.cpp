@@ -52,7 +52,7 @@ OutputVector translate_loop(const NodeContext& context) {
             loop->set_merged_input(body_parameters[i - 1], inputs[i], body_results[i - 1]);
         } else {
             loop->set_invariant_input(body_parameters[i - 1], inputs[i]);
-        }        
+        }
     }
     // Connect inputs from external context
     for (auto i = inputs.size() - 1; i < body_parameters.size(); i++) {
@@ -65,7 +65,7 @@ OutputVector translate_loop(const NodeContext& context) {
             loop->set_invariant_input(param, external_output);
         }
     }
-    
+
     // connect outputs
     for (size_t i = 1; i < body_results.size(); i++) {
         auto result = body_results[i];
