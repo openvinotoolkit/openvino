@@ -459,19 +459,19 @@ void FullyConnected::execute(dnnl::stream strm) {
         int64_t lda = K;
         int64_t ldb = K;
         int64_t ldc = N;
-        ov_sgemm_pack_compute("N",
-                            "N",
-                            M,
-                            N,
-                            K,
-                            1.0f,
+            ov_sgemm_pack_compute("N",
+                    "N",
+                    M,
+                    N,
+                    K,
+                    1.0f,
                             reinterpret_cast<float*>(src0MemPtr->GetData()),
-                            lda,
-                            packedBPtr->get_ptr<float>(),
-                            ldb,
-                            0.0f,
+                    lda,
+                    packedBPtr->get_ptr<float>(),
+                    ldb,
+                    0.0f,
                             reinterpret_cast<float*>(dstMemPtr->GetData()),
-                            ldc);
+                    ldc);
         return;
     }
 #endif
@@ -708,10 +708,19 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
         return;
     if (useMlas) {
         auto dataPrecision = getOriginalInputPrecisionAtPort(0);
-        addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision},
-                        {LayoutType::ncsp, dataPrecision}},
-                        {{LayoutType::ncsp, dataPrecision}},
-                        impl_desc_type::gemm_mlas);
+        if (withBiases) {
+            //To Do withBias is not supported for mlas now
+            addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision},
+                            {LayoutType::ncsp, dataPrecision},
+                            {LayoutType::ncsp, dataPrecision}},
+                            {{LayoutType::ncsp, dataPrecision}},
+                            impl_desc_type::gemm_mlas);
+        } else {
+            addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision},
+                {LayoutType::ncsp, dataPrecision}},
+                {{LayoutType::ncsp, dataPrecision}},
+                impl_desc_type::gemm_mlas);
+        }
     } else {
         for (auto& desc : descs) {
             primitive_desc_iterator itpd = desc;

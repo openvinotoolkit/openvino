@@ -1988,7 +1988,17 @@ void GraphOptimizer::FusePerformedAsScaleShiftAndFakeQuantize(Graph &graph) {
 
         const auto &outputShape = child->getOutputShapeAtPort(0);
         VectorDims outputDims = outputShape.getDims();
-        const auto channelPos = parent->getParentEdgeAt(0)->getParent()->getFusingAxis();
+        size_t eltwiseParentIdx = 0;
+        //Incase parent is Matmul/FC the fusing axis should follow their impl
+        for (size_t i = 0; i < parent->getParentEdges().size(); i++) {
+            const auto eltWiseParent = parent->getParentEdgeAt(i)->getParent();
+            const auto eltWiseParentType = eltWiseParent->getType();
+            if (eltWiseParentType == Type::FullyConnected || eltWiseParentType == Type::MatMul) {
+                eltwiseParentIdx = i;
+                break;
+            }
+        }
+        const auto channelPos = parent->getParentEdgeAt(eltwiseParentIdx)->getParent()->getFusingAxis();
 
         if (outputShape.isDynamic()) {
             if (outputDims[channelPos] == Shape::UNDEFINED_DIM) {
@@ -2075,7 +2085,6 @@ void GraphOptimizer::FusePerformedAsScaleShiftAndFakeQuantize(Graph &graph) {
         fakeQuantizeNode->setCropHigh(newCropHigh);
         fakeQuantizeNode->setInputScale(newInputScale);
         fakeQuantizeNode->setInputShift(newInputShift);
-
         return true;
     };
 
