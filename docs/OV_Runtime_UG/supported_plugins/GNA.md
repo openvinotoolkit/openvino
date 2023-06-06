@@ -224,13 +224,17 @@ The GNA plugin allows turning on profiling, using the ``ov::enable_profiling`` p
 With the following methods, you can collect profiling information with various performance data about execution on GNA:
 
 
-.. tab:: C++
+.. tab-set::
+   
+   .. tab-item:: C++
+      :sync: cpp
 
-   ``ov::InferRequest::get_profiling_info``
+      ``ov::InferRequest::get_profiling_info``
 
-.. tab:: Python
+   .. tab-item:: Python
+      :sync: py
 
-   ``openvino.runtime.InferRequest.get_profiling_info``
+      ``openvino.runtime.InferRequest.get_profiling_info``
 
 
 The current GNA implementation calculates counters for the whole utterance scoring and does not provide per-layer information. 

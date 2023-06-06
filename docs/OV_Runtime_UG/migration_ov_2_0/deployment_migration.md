@@ -102,66 +102,76 @@ It is possible to build applications without the CMake interface by using: MSVC 
 
 **With Inference Engine of previous versions**:
 
-.. tab:: Include dirs
+.. tab-set::
 
-   .. code-block:: sh
+   .. tab-item:: Include dirs
+      :sync: include
 
-      <INSTALL_DIR>/deployment_tools/inference_engine/include
-      <INSTALL_DIR>/deployment_tools/ngraph/include
+      .. code-block:: sh
 
-.. tab:: Path to libs
+         <INSTALL_DIR>/deployment_tools/inference_engine/include
+         <INSTALL_DIR>/deployment_tools/ngraph/include
 
-   .. code-block:: sh
+   .. tab-item:: Path to libs
+      :sync: path
 
-      <INSTALL_DIR>/deployment_tools/inference_engine/lib/intel64/Release
-      <INSTALL_DIR>/deployment_tools/ngraph/lib/
+      .. code-block:: sh
 
-.. tab:: Shared libs
+         <INSTALL_DIR>/deployment_tools/inference_engine/lib/intel64/Release
+         <INSTALL_DIR>/deployment_tools/ngraph/lib/
 
-   .. code-block:: sh
+   .. tab-item:: Shared libs
+      :sync: libs
 
-      // UNIX systems
-      inference_engine.so ngraph.so
+      .. code-block:: sh
 
-      // Windows
-      inference_engine.dll ngraph.dll
+         // UNIX systems
+         inference_engine.so ngraph.so
 
-.. tab:: (Windows) .lib files
+         // Windows
+         inference_engine.dll ngraph.dll
 
-   .. code-block:: sh
+   .. tab-item:: (Windows) .lib files
+      :sync: libfiles
 
-      ngraph.lib
-      inference_engine.lib
+      .. code-block:: sh
+
+         ngraph.lib
+         inference_engine.lib
 
 **With OpenVINO Runtime 2022.1 (API 2.0)**:
 
-.. tab:: Include dirs
+   .. tab-item:: Include dirs
+      :sync: include
 
-   .. code-block:: sh
+      .. code-block:: sh
 
-      <INSTALL_DIR>/runtime/include
+         <INSTALL_DIR>/runtime/include
 
-.. tab:: Path to libs
+   .. tab-item:: Path to libs
+      :sync: path
 
-   .. code-block:: sh
+      .. code-block:: sh
 
-      <INSTALL_DIR>/runtime/lib/intel64/Release
+         <INSTALL_DIR>/runtime/lib/intel64/Release
 
-.. tab:: Shared libs
+   .. tab-item:: Shared libs
+      :sync: libs
 
-   .. code-block:: sh
+      .. code-block:: sh
 
-      // UNIX systems
-      openvino.so
+         // UNIX systems
+         openvino.so
 
-      // Windows
-      openvino.dll
+         // Windows
+         openvino.dll
 
-.. tab:: (Windows) .lib files
+   .. tab-item:: (Windows) .lib files
+      :sync: libfiles
 
-  .. code-block:: sh
+      .. code-block:: sh
 
-    openvino.lib
+         openvino.lib
 
 
 Clearer Library Structure for Deployment

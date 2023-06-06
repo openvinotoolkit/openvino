@@ -366,17 +366,21 @@ User can use the following properties to limit available CPU resource for model 
 - ``ov::hint::enable_hyper_threading`` limits the use of one or two logical processors per CPU core when platform has CPU hyperthreading enabled.
   If there is only one logical processor per CPU core, such as Efficient-cores, this property has no effect, and CPU inference uses all logical processors.
 
-.. tab:: C++
+.. tab-set::
 
-   .. doxygensnippet:: docs/snippets/cpu/multi_threading.cpp
-      :language: cpp
-      :fragment: [ov:intel_cpu:multi_threading:part0]
+   .. tab-item:: C++
+      :sync: cpp
 
-.. tab:: Python
+      .. doxygensnippet:: docs/snippets/cpu/multi_threading.cpp
+         :language: cpp
+         :fragment: [ov:intel_cpu:multi_threading:part0]
 
-   .. doxygensnippet:: docs/snippets/cpu/multi_threading.py
-      :language: python
-      :fragment: [ov:intel_cpu:multi_threading:part0]
+   .. tab-item:: Python
+      :sync: py
+
+      .. doxygensnippet:: docs/snippets/cpu/multi_threading.py
+         :language: python
+         :fragment: [ov:intel_cpu:multi_threading:part0]
 
 .. note:: 
    
@@ -384,17 +388,21 @@ User can use the following properties to limit available CPU resource for model 
    
 By default, OpenVINO Runtime will enable CPU threads pinning for better performance. User also can use property ``ov::hint::enable_cpu_pinning`` to switch it off. Disable threads pinning might be benefitial in complex applications with several workloads executed in parallel.
 
-.. tab:: C++
+.. tab-set::
 
-   .. doxygensnippet:: docs/snippets/cpu/multi_threading.cpp
-      :language: cpp
-      :fragment: [ov:intel_cpu:multi_threading:part1]
+   .. tab-item:: C++
+      :sync: cpp
 
-.. tab:: Python
+      .. doxygensnippet:: docs/snippets/cpu/multi_threading.cpp
+         :language: cpp
+         :fragment: [ov:intel_cpu:multi_threading:part1]
 
-   .. doxygensnippet:: docs/snippets/cpu/multi_threading.py
-      :language: python
-      :fragment: [ov:intel_cpu:multi_threading:part1]
+   .. tab-item:: Python
+      :sync: py
+
+      .. doxygensnippet:: docs/snippets/cpu/multi_threading.py
+         :language: python
+         :fragment: [ov:intel_cpu:multi_threading:part1]
 
 user can check the :doc:`optimization guide <openvino_docs_deployment_optimization_guide_tput_advanced>` for details on multi-stream execution
 
@@ -430,18 +438,22 @@ effectiveness and safety of the settings.
 
 To enable denormals optimization in the application, the ``denormals_optimization`` property must be set to ``True``:
 
+.. tab-set::
 
-.. tab:: C++
 
-   .. doxygensnippet:: docs/snippets/ov_denormals.cpp
-      :language: cpp
-      :fragment: [ov:intel_cpu:denormals_optimization:part0]
+   .. tab-item:: C++
+      :sync: cpp
 
-.. tab:: Python
+      .. doxygensnippet:: docs/snippets/ov_denormals.cpp
+         :language: cpp
+         :fragment: [ov:intel_cpu:denormals_optimization:part0]
 
-   .. doxygensnippet:: docs/snippets/ov_denormals.py
-      :language: python
-      :fragment: [ov:intel_cpu:denormals_optimization:part0]
+   .. tab-item:: Python
+      :sync: py
+
+      .. doxygensnippet:: docs/snippets/ov_denormals.py
+         :language: python
+         :fragment: [ov:intel_cpu:denormals_optimization:part0]
 
 
 Sparse weights decompression (Intel® x86-64)
@@ -471,17 +483,21 @@ which means the option is disabled.
 
 Code examples of how to use ``sparse_weights_decompression_rate``:
 
-.. tab:: C++
+.. tab-set::
 
-   .. doxygensnippet:: docs/snippets/cpu/ov_sparse_weights_decompression.cpp
-      :language: cpp
-      :fragment: [ov:intel_cpu:sparse_weights_decompression:part0]
+   .. tab-item:: C++
+      :sync: cpp
 
-.. tab:: Python
+      .. doxygensnippet:: docs/snippets/cpu/ov_sparse_weights_decompression.cpp
+         :language: cpp
+         :fragment: [ov:intel_cpu:sparse_weights_decompression:part0]
 
-   .. doxygensnippet:: docs/snippets/cpu/ov_sparse_weights_decompression.py
-      :language: python
-      :fragment: [ov:intel_cpu:sparse_weights_decompression:part0]
+   .. tab-item:: Python
+      :sync: py
+
+      .. doxygensnippet:: docs/snippets/cpu/ov_sparse_weights_decompression.py
+         :language: python
+         :fragment: [ov:intel_cpu:sparse_weights_decompression:part0]
 
 
 .. note:: 

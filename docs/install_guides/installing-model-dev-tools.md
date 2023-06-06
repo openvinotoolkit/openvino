@@ -64,17 +64,21 @@ Step 1. Set Up Python Virtual Environment
 
 Create a virtual Python environment to avoid dependency conflicts. To create a virtual environment, use the following command:
 
-.. tab:: Linux and macOS
+.. tab-set::
 
-   .. code-block:: sh
-   
-      python3 -m venv openvino_env
-   
-.. tab:: Windows
+   .. tab-item:: Linux and macOS
+      :sync: linmac
 
-   .. code-block:: sh
+      .. code-block:: sh
    
-      python -m venv openvino_env
+         python3 -m venv openvino_env
+   
+   .. tab-item:: Windows
+      :sync: win
+
+      .. code-block:: sh
+   
+         python -m venv openvino_env
      
      
 
@@ -83,17 +87,21 @@ Step 2. Activate Virtual Environment
 
 Activate the newly created Python virtual environment by issuing this command:
 
-.. tab:: Linux and macOS
+.. tab-set::
 
-   .. code-block:: sh
+   .. tab-item:: Linux and macOS
+      :sync: linmac
 
-      source openvino_env/bin/activate
+      .. code-block:: sh
 
-.. tab:: Windows
+         source openvino_env/bin/activate
 
-   .. code-block:: sh
+   .. tab-item:: Windows
+      :sync: win
 
-      openvino_env\Scripts\activate
+      .. code-block:: sh
+
+         openvino_env\Scripts\activate
 
 .. important::
 
