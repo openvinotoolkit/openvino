@@ -137,12 +137,11 @@ bool layout_optimizer::onednn_check_data_types_for_fc_gemm(data_types in_dt, dat
 
 std::pair<std::shared_ptr<reorder>, bool> reorder_factory::get_reorder(primitive_id src_id,
                                                                        const layout& in_layout,
-                                                                       const layout& out_layout,
-                                                                       const int32_t out_idx) {
+                                                                       const layout& out_layout) {
     if (in_layout == out_layout)
         return std::make_pair(nullptr, true);
 
-    cache_key ckey{ src_id, out_layout, false, out_idx};
+    cache_key ckey{ src_id, out_layout };
     auto itr = _cached_reorders.find(ckey);
     if (itr != _cached_reorders.end())
         return std::make_pair(itr->second, true);
@@ -164,7 +163,7 @@ std::pair<std::shared_ptr<primitive>, bool> reorder_factory::get_weights_reorder
 
     layout expected_layout = reorder_params->get_output_layout();
 
-    cache_key ckey{ input_id, expected_layout, false, 0 };
+    cache_key ckey{ input_id, expected_layout, false };
     auto itr = _cached_generic_reorders.find(ckey);
     if (itr != _cached_generic_reorders.end()) {
         return std::make_pair(itr->second, true);

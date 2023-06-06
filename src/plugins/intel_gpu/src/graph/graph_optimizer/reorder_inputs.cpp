@@ -94,8 +94,8 @@ inline constexpr direction_e reverse(direction_e dir) {
 
 template <direction_e dir = direction_e::forwards>
 struct travel_direction_wrapper {
-    static const std::list<std::pair<program_node*, int32_t>>& next_nodes(program_node* node) {
-        return node->get_users_with_port();
+    static const std::list<program_node*>& next_nodes(program_node* node) {
+        return node->get_users();
     }
 
     template <typename T>
@@ -200,9 +200,9 @@ bool can_propagate_formats_rec(
         return false;
 
     for (auto next : travel_direction_wrapper<dir>::next_nodes(node)) {
-        if (!next.first->is_in_data_flow())
+        if (!next->is_in_data_flow())
             continue;
-        if (!can_propagate_formats_rec<dir>(fmt_map, lo, node, next.first, fmt))
+        if (!can_propagate_formats_rec<dir>(fmt_map, lo, node, next, fmt))
             return false;
     }
 
@@ -241,8 +241,8 @@ bool can_propagate_formats_rec<direction_e::backwards>(
     auto reverse_reorders = std::count_if(
         travel_direction_wrapper<reverse(direction_e::backwards)>::next_nodes(node).begin(),
         travel_direction_wrapper<reverse(direction_e::backwards)>::next_nodes(node).end(),
-        [&](const std::pair<program_node*, int32_t>& rev) {
-        return rev.first->is_in_data_flow() && fmt_map.at(rev.first) != fmt && rev.first != prev;
+        [&](program_node* rev) {
+        return rev->is_in_data_flow() && fmt_map.at(rev) != fmt && rev != prev;
     });
 
     if (reverse_reorders > 0)
@@ -284,11 +284,11 @@ void propagate_formats_rec(std::map<program_node*, format::type>& fmt_map,
     GPU_DEBUG_LOG << "Propagate_formats_rec: " << node->id() << " - " << fmt_to_str(fmt) << std::endl;
 
     for (auto next : travel_direction_wrapper<dir>::next_nodes(node)) {
-        if (!next.first->is_in_data_flow())
+        if (!next->is_in_data_flow())
             continue;
-        if (!can_propagate_formats_rec<dir>(fmt_map, lo, node, next.first, fmt))
+        if (!can_propagate_formats_rec<dir>(fmt_map, lo, node, next, fmt))
             continue;
-        propagate_formats_rec<dir>(fmt_map, lo, node, next.first, fmt);
+        propagate_formats_rec<dir>(fmt_map, lo, node, next, fmt);
     }
 }
 
@@ -331,16 +331,16 @@ void propagate_formats_in_dir(std::map<program_node*, format::type>& fmt_map,
     auto fmt = fmt_map.at(node);
 
     for (auto next : travel_direction_wrapper<dir>::next_nodes(node)) {
-        if (!next.first->is_in_data_flow())
+        if (!next->is_in_data_flow())
             continue;
-        if (!can_propagate_formats_rec<dir>(fmt_map, lo, node, next.first, fmt))
+        if (!can_propagate_formats_rec<dir>(fmt_map, lo, node, next, fmt))
             return;
     }
 
     for (auto next : travel_direction_wrapper<dir>::next_nodes(node)) {
-        if (!next.first->is_in_data_flow())
+        if (!next->is_in_data_flow())
             continue;
-        propagate_formats_rec<dir>(fmt_map, lo, node, next.first, fmt);
+        propagate_formats_rec<dir>(fmt_map, lo, node, next, fmt);
     }
 }
 
@@ -388,11 +388,11 @@ reorder_cnt count_reorders_in_dir(const std::map<program_node*, format::type>& f
     size_t size = 0;
 
     for (auto next : travel_direction_wrapper<dir>::next_nodes(node)) {
-        if (!next.first->is_in_data_flow())
+        if (!next->is_in_data_flow())
             continue;
 
-        auto predecessor = travel_direction_wrapper<dir>::first(node, next.first);
-        auto successor = travel_direction_wrapper<dir>::second(node, next.first);
+        auto predecessor = travel_direction_wrapper<dir>::first(node, next);
+        auto successor = travel_direction_wrapper<dir>::second(node, next);
         auto first_fmt = get_target_output_format(lo, fmt_map, predecessor, successor);
         auto second_fmt = get_target_input_format(lo, fmt_map, successor, predecessor);
 
@@ -402,7 +402,7 @@ reorder_cnt count_reorders_in_dir(const std::map<program_node*, format::type>& f
                                   *successor,
                                   first_fmt, second_fmt))) {
             cnt += 1;
-            auto l = travel_direction_wrapper<dir>::first(node, next.first)->get_output_layout();
+            auto l = travel_direction_wrapper<dir>::first(node, next)->get_output_layout();
             if (l.is_static())
                 size += l.count();
         }
@@ -549,10 +549,10 @@ void insert_reorders_in_dir(program& p, const std::map<program_node*, format::ty
 
     auto next_cpy = travel_direction_wrapper<dir>::next_nodes(node);
     for (auto next : next_cpy) {
-        if (!next.first->is_in_data_flow())
+        if (!next->is_in_data_flow())
             continue;
 
-        if (fmt_map.count(next.first) > 0 && fmt_map.at(next.first) == fmt)
+        if (fmt_map.count(next) > 0 && fmt_map.at(next) == fmt)
             continue;
 
         // We have three (potentially) conflicting information here for format
@@ -560,32 +560,31 @@ void insert_reorders_in_dir(program& p, const std::map<program_node*, format::ty
         //    fmt_map.at(node).format          : It is queried with get_preferred_layout. However, it has only output format.
         //    node.get_preferred_output_fmt    : If it is valid(!= any), it is up-to-date.
         // So the priority is preferred_input/output_format --> fmt_map --> output_layout().format
-        auto predecessor = travel_direction_wrapper<dir>::first(node, next.first);
-        auto successor = travel_direction_wrapper<dir>::second(node, next.first);
-        auto in_layout = predecessor->get_output_layout(next.second);
+        auto predecessor = travel_direction_wrapper<dir>::first(node, next);
+        auto successor = travel_direction_wrapper<dir>::second(node, next);
+        auto in_layout = predecessor->get_output_layout();
         auto out_layout = in_layout;
 
         in_layout.format = get_target_output_format(lo, fmt_map, predecessor, successor);
         out_layout.format = get_target_input_format(lo, fmt_map, successor, predecessor);
 
-        GPU_DEBUG_LOG << dir_msg(dir) << "  " << node->id() << " --> " << next.first->id() << " ## "
+        GPU_DEBUG_LOG << dir_msg(dir) << "  " << node->id() << " --> " << next->id() << " ## "
                       << fmt_to_str(in_layout.format) << " --> " << fmt_to_str(out_layout.format) << std::endl;
 
         if (in_layout.format == format::any || out_layout.format == format::any)
             continue;
 
-        auto reorder_pair = rf.get_reorder(travel_direction_wrapper<dir>::first(node, next.first)->id(),
+        auto reorder_pair = rf.get_reorder(travel_direction_wrapper<dir>::first(node, next)->id(),
                                            in_layout,
-                                           out_layout,
-                                           next.second);
+                                           out_layout);
 
         auto reorder = reorder_pair.first;
         if (reorder && (in_layout.format != format::any && out_layout.format != format::any)) {
             auto& reorder_node = p.get_or_create(reorder);
             GPU_DEBUG_LOG << dir_msg(dir) << "  " << reorder_node.id() << "  Reorder is added" << std::endl;
             p.add_intermediate(reorder_node,
-                               *travel_direction_wrapper<dir>::second(node, next.first),
-                               *travel_direction_wrapper<dir>::first(node, next.first),
+                               *travel_direction_wrapper<dir>::second(node, next),
+                               *travel_direction_wrapper<dir>::first(node, next),
                                !reorder_pair.second);
         }
     }
@@ -611,7 +610,7 @@ void insert_reorders_in_dir<direction_e::backwards>(program& p, const std::map<p
         // So the priority is preferred_input/output_format --> fmt_map --> output_layout().format
         auto predecessor = travel_direction_wrapper<direction_e::backwards>::first(node, next.first);
         auto successor = travel_direction_wrapper<direction_e::backwards>::second(node, next.first);
-        auto in_layout = predecessor->get_output_layout(next.second);
+        auto in_layout = predecessor->get_output_layout();
         auto out_layout = in_layout;
 
         in_layout.format = get_target_output_format(lo, fmt_map, predecessor, successor);
@@ -625,8 +624,7 @@ void insert_reorders_in_dir<direction_e::backwards>(program& p, const std::map<p
 
         auto reorder_pair = rf.get_reorder(travel_direction_wrapper<direction_e::backwards>::first(node, next.first)->id(),
                                            in_layout,
-                                           out_layout,
-                                           next.second);
+                                           out_layout);
 
         auto reorder = reorder_pair.first;
         if (reorder && (in_layout.format != format::any && out_layout.format != format::any)) {
