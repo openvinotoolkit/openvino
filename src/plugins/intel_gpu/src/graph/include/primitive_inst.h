@@ -160,6 +160,7 @@ public:
     network& get_network() const { return _network; }
     uint32_t get_network_id() const;
     virtual void set_output_memory(memory::ptr mem, bool check = true, size_t idx = 0);
+    void set_external_output_memory(memory::ptr mem, bool check = true, size_t idx = 0);
     void check_memory_to_set(const memory& mem, const layout& layout) const;
     const std::list<const cldnn::program_node *>& get_users() const { return _node->get_users(); }
     std::vector<std::shared_ptr<primitive_inst>> get_user_insts() const {
@@ -307,6 +308,7 @@ protected:
     // buffer or attach input as output
     // depending on reshape_node.is_in_place())
     std::vector<memory::ptr> _outputs;
+    bool _external_output_memory = false;
 
     std::vector<memory::cptr> _intermediates_memory;
 

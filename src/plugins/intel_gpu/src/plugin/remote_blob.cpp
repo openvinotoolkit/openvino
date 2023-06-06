@@ -109,13 +109,13 @@ AnyMap RemoteBlobImpl::getParams() const {
 }
 
 void RemoteBlobImpl::setShape(const SizeVector& dims) {
+    m_layout.set_partial_shape(ov::PartialShape{dims});
+
     if (ov::shape_size(dims) > m_memory_object->count()) {
         OPENVINO_ASSERT(!is_shared(), "Cannot call setShape for Blobs created on top of preallocated memory if shape was increased.");
         if (!deallocate()) {
             OPENVINO_THROW("Cannot deallocate blob while an attempt to enlarge blob area in setShape.");
         }
-
-        m_layout.set_partial_shape(ov::PartialShape{dims});
 
         allocate();
     }

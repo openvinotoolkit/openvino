@@ -237,4 +237,53 @@ TEST(dyn_shape_mem_test, igpu_shape_infer_dep_mem_type) {
     auto expected_layout = layout{ov::PartialShape{3, 2, 1, 1}, data_types::f16, format::bfyx};
     ASSERT_EQ(output.begin()->second.get_memory()->get_layout(), expected_layout);
 }
+
+TEST(set_output, check_user_memory_for_dynamic_model) {
+    auto& engine = get_test_engine();
+    ov::PartialShape input_shape = {1, -1};
+    layout in_layout{input_shape, data_types::f32, format::bfyx};
+    auto const_mem = engine.allocate_memory({{1, 2}, data_types::f32, format::bfyx});
+    auto input_mem0 = engine.allocate_memory({{1, 14}, data_types::f32, format::bfyx});
+    auto input_mem1 = engine.allocate_memory({{1, 12}, data_types::f32, format::bfyx});
+    auto input_mem2 = engine.allocate_memory({{1, 8}, data_types::f32, format::bfyx});
+
+    auto output_mem = engine.allocate_memory({{1, 10}, data_types::f32, format::bfyx});
+
+    topology topology;
+    topology.add(input_layout("input0", in_layout));
+    topology.add(data("input1", const_mem));
+    topology.add(concatenation("output", { input_info("input0"), input_info("input1") }, 1));
+
+    network net(engine, topology, {ov::intel_gpu::allow_new_shape_infer(true)});
+
+    ASSERT_TRUE(net.is_dynamic());
+    {
+        // OK when we don't set out mem manually
+        net.set_input_data("input0", input_mem0);
+        std::map<primitive_id, network_output> outputs;
+        ASSERT_NO_THROW(outputs = net.execute());
+        ov::PartialShape expected_shape{1, 16};
+        ASSERT_EQ(outputs.at("output").get_memory()->get_layout().get_partial_shape(), expected_shape);
+    }
+
+    {
+        // Now try to set smaller input and smaller output
+        // We expect that previously allocated bigger output won't be reused
+        net.set_output_memory("output", output_mem, true);
+        net.set_input_data("input0", input_mem1);
+        ASSERT_THROW(net.execute(), ov::AssertFailure);
+    }
+
+    {
+        // Finally, try to set big enough output buffer to ensure user memory is handled correctly
+        net.set_output_memory("output", output_mem, true);
+        net.set_input_data("input0", input_mem2);
+        std::map<primitive_id, network_output> outputs;
+        ASSERT_NO_THROW(outputs = net.execute());
+        ov::PartialShape expected_shape{1, 10};
+        ASSERT_EQ(outputs.at("output").get_memory()->get_layout().get_partial_shape(), expected_shape);
+        ASSERT_TRUE(engine.is_the_same_buffer(*outputs.at("output").get_memory(), *output_mem));
+    }
+}
+
 }  // memory_realloc_tests

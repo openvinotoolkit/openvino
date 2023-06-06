@@ -885,7 +885,7 @@ network::output_chains_map::iterator network::add_output_chain(std::shared_ptr<p
     return _output_chains.insert({ p_inst->id(), chain }).first;
 }
 
-void network::set_output_memory(const primitive_id& id, memory::ptr mem_new) {
+void network::set_output_memory(const primitive_id& id, memory::ptr mem_new, bool is_external) {
     std::shared_ptr<primitive_inst> p_inst;
 
     p_inst = find_primitive(id);
@@ -909,7 +909,15 @@ void network::set_output_memory(const primitive_id& id, memory::ptr mem_new) {
     }
 
     for (auto& prim : o_iter->second) {
-        prim->set_output_memory(eng.reinterpret_buffer(*mem_new, prim->output_memory().get_layout()), false);
+        auto mem = mem_new;
+        if (!prim->is_dynamic())
+            mem = eng.reinterpret_buffer(*mem_new, prim->output_memory().get_layout());
+
+        if (is_external)
+            prim->set_external_output_memory(mem, false);
+        else
+            prim->set_output_memory(mem, false);
+
         if (!_reset_arguments &&
             (prim->type() != cldnn::data::type_id() && !(prim->type() == cldnn::mutable_data::type_id() && prim->dependencies().empty()))) {
             prim->set_arguments();

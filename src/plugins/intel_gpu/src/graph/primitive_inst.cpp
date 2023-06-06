@@ -174,6 +174,11 @@ void primitive_inst::check_memory_to_set(const memory& mem, const layout& layout
     }
 }
 
+void primitive_inst::set_external_output_memory(memory::ptr mem_new, bool check, size_t idx) {
+    set_output_memory(mem_new, check, idx);
+    _external_output_memory = true;
+}
+
 void primitive_inst::set_output_memory(memory::ptr mem_new, bool check, size_t idx) {
     auto& eng = _network.get_engine();
     // skip all the buzz if no action actually required
@@ -191,6 +196,8 @@ void primitive_inst::set_output_memory(memory::ptr mem_new, bool check, size_t i
     } else {
         _outputs[idx] = mem_new;
     }
+
+    max_output_layout_size = mem_new->count();
 }
 
 void primitive_inst::update_shape() {
@@ -391,6 +398,9 @@ event::ptr primitive_inst::realloc_if_needed() {
             ev = _outputs[0]->fill(_network.get_stream());
         }
     } else {
+        OPENVINO_ASSERT(!_external_output_memory, "[GPU] ",  id(), ": can't reallocate memory to the new size (", actual_layout.bytes_count(), ") ",
+                                                  "as external buffer (size=", _outputs[0]->size(), ") was set as an output.\n",
+                                                  "Please allocate bigger output buffer or don't set output tensor.");
         GPU_DEBUG_TRACE_DETAIL << id() << ": realloc output memory. "
                                <<  " Current buffer_size=" << max_output_layout_size
                                <<  " Requested buffer_size=" << actual_layout.count() << std::endl;
@@ -713,10 +723,10 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
                 auto ev = update_weights();
                 if (ev)
                     dependencies.push_back(ev);
-                auto ev_reset = realloc_if_needed();
-                if (ev_reset)
-                    dependencies.push_back(ev_reset);
             }
+
+            if (auto ev_reset = realloc_if_needed())
+                dependencies.push_back(ev_reset);
         }
 
         OPENVINO_ASSERT(_impl_params->get_output_layout().is_static(),

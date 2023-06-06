@@ -123,7 +123,7 @@ public:
     InferenceEngine::LockedMemory<const void> rmap() const noexcept override { return _impl.rmap(); }
     InferenceEngine::LockedMemory<void> wmap()noexcept override { return _impl.wmap(); }
     RemoteBlobImpl* getImpl() { return &_impl; }
-    void setShape(const InferenceEngine::SizeVector& dims) override { _impl.setShape(dims); }
+    void setShape(const InferenceEngine::SizeVector& dims) override { _impl.setShape(dims); this->getTensorDesc().setDims(dims); }
 
 protected:
     const std::shared_ptr<InferenceEngine::IAllocator> &getAllocator() const noexcept override { return _impl.getAllocator(); }

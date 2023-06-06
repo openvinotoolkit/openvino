@@ -328,9 +328,6 @@ TEST(softmax_gpu_bfyx_f32, normalize_f) {
 
     auto output = outputs.at("softmax").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
-    for (size_t i = 0; i < output->count(); i++) {
-        std::cerr << "i = " << i << " v = " << output_ptr[i] << std::endl;
-    }
 
     float out_buffer[buf_size];
     for (uint32_t i = 0; i < buf_size; i++) {

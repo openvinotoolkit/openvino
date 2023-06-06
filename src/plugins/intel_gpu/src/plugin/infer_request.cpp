@@ -1001,6 +1001,7 @@ void InferRequest::prepare_output(const cldnn::primitive_id& outputName, Blob::P
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "InferRequest::prepare_output");
     const auto output_id = outputsMap.at(outputName);
     const auto output_layout = m_graph->GetNetwork()->get_node_output_layout(output_id);
+    const bool is_dynamic = output_layout.is_dynamic();
     const bool is_static = output_layout.is_static();
     const bool can_use_usm = m_graph->get_engine().use_unified_shared_memory();
     auto remote_ptr = outputBlob->as<gpu::ClBlob>();
@@ -1011,8 +1012,12 @@ void InferRequest::prepare_output(const cldnn::primitive_id& outputName, Blob::P
         allocate_dev_mem_if_needed(_deviceOutputs, outputBlob, outputName, output_layout, is_cpu_impl);
     }
 
-    OPENVINO_ASSERT(!is_static || _deviceOutputs.find(outputName) != _deviceOutputs.end(),
+    OPENVINO_ASSERT(is_dynamic || _deviceOutputs.find(outputName) != _deviceOutputs.end(),
                     "[GPU] Couldn't find device blob allocated for ", outputName, " output");
+
+    if (is_dynamic && is_dev_input) {
+        _deviceOutputs[outputName] = outputBlob;
+    }
     // Missing output in _deviceOutputs means that the network is dynamic and outputs couldn't be pre-allocated
     if (_deviceOutputs.find(outputName) == _deviceOutputs.end())
         return;
@@ -1027,7 +1032,8 @@ void InferRequest::prepare_output(const cldnn::primitive_id& outputName, Blob::P
         OPENVINO_THROW(str_output_not_allocated);
     }
     auto outputMem = impl->get_memory();
-    _nw_ptr->set_output_memory(internalName, outputMem);
+    const bool external_mem = true;
+    _nw_ptr->set_output_memory(internalName, outputMem, external_mem);
 }
 
 InferenceEngine::Blob::Ptr InferRequest::create_device_blob(const InferenceEngine::TensorDesc& desc) {
