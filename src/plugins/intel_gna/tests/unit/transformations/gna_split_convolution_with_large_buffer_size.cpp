@@ -313,10 +313,10 @@ TEST_P(SplitConvolutionFixture, CompareFunctions) {
 }
 
 INSTANTIATE_TEST_SUITE_P(
-    SplitConvolution_GNA3_5_3_6_TestSuite,
+    SplitConvolution_GNA3_0_3_5_3_6_TestSuite,
     SplitConvolutionFixture,
     ::testing::Combine(
-        ::testing::Values(DeviceVersion::GNA3_5, DeviceVersion::GNA3_6),
+        ::testing::Values(DeviceVersion::GNA3_0, DeviceVersion::GNA3_5, DeviceVersion::GNA3_6),
         ::testing::Values(
             std::make_tuple(createSolidGraph(ngraph::Shape{1, 1, 1, 1}, ngraph::Shape{1, 1, 1, 1}),
                             createSolidGraph(ngraph::Shape{1, 1, 1, 1}, ngraph::Shape{1, 1, 1, 1}),
@@ -337,10 +337,10 @@ ngraph::Shape split_shape_3_5 = {960, 960, 960, 960, 256};
 using CreateSplitedConvolution3_5 = CreateSplittedConvolution<kernel_shape_3_5, split_shape_3_5>;
 
 INSTANTIATE_TEST_SUITE_P(
-    SplitConvolution_GNA3_5_TestSuite,
+    SplitConvolution_GNA3_0_3_5_TestSuite,
     SplitConvolutionFixture,
     ::testing::Combine(
-        ::testing::Values(DeviceVersion::GNA3_5),
+        ::testing::Values(DeviceVersion::GNA3_0, DeviceVersion::GNA3_5),
         ::testing::Values(
             std::make_tuple(createGraph<CreateConvolution>(),
                             createGraph<CreateConcat, CreateSplitedConvolution3_5>(),

@@ -93,10 +93,10 @@ static std::shared_ptr<ngraph::Function> createFunction(const ngraph::Shape& inp
 }
 
 typedef std::tuple<DeviceVersion,  // device version
-                   ngraph::Shape,
-                   bool,         // with const
-                   bool,         // with fq
-                   ELTWISE_TYPE  // eltwise type
+                   ngraph::Shape,  // input shape
+                   bool,           // with const
+                   bool,           // with fq
+                   ELTWISE_TYPE    // eltwise type
                    >
     EltwiseSplitParams;
 
@@ -171,8 +171,9 @@ const std::vector<ov::Shape> inputShape = {{1, 67000}, {1, 500000}, {1, 936, 513
 INSTANTIATE_TEST_SUITE_P(
     SplitEltwiseTestSuite,
     SplitEltwiseTestSuiteFixture,
-    ::testing::Combine(::testing::ValuesIn(std::vector<DeviceVersion>{DeviceVersion::GNA3_5,
-                                                                      DeviceVersion::GNA3_6}),  // device version
+    ::testing::Combine(::testing::ValuesIn(std::vector<DeviceVersion>{DeviceVersion::GNA3_0,  // device version
+                                                                      DeviceVersion::GNA3_5,
+                                                                      DeviceVersion::GNA3_6}),
                        ::testing::ValuesIn(inputShape),
                        ::testing::ValuesIn(std::vector<bool>{true, false}),  // with const
                        ::testing::ValuesIn(std::vector<bool>{true, false}),  // with fq

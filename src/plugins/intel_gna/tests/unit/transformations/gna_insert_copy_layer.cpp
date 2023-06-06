@@ -277,7 +277,7 @@ TEST_P(InsertCopyLayerMultiParamConcatTest, CompareWithRefs) {
 
 INSTANTIATE_TEST_SUITE_P(TransformationTests,
                          InsertCopyLayerMultiParamConcatTest,
-                         ::testing::Values(DeviceVersion::GNA3_5, DeviceVersion::GNA3_6),
+                         ::testing::Values(DeviceVersion::GNA3_0, DeviceVersion::GNA3_5, DeviceVersion::GNA3_6),
                          TransformationTestsBase::getTestCaseName);
 
 //      [Parameter]              [Parameter]
@@ -332,7 +332,7 @@ TEST_P(InsertCopyLayerMultiParamNFLConcatTest, CompareWithRefs) {
 
 INSTANTIATE_TEST_SUITE_P(TransformationTests,
                          InsertCopyLayerMultiParamNFLConcatTest,
-                         ::testing::Values(DeviceVersion::GNA3_5, DeviceVersion::GNA3_6),
+                         ::testing::Values(DeviceVersion::GNA3_0, DeviceVersion::GNA3_5, DeviceVersion::GNA3_6),
                          TransformationTestsBase::getTestCaseName);
 
 //      [Parameter]                [Parameter]
@@ -396,7 +396,7 @@ TEST_P(InsertCopyLayerMultiParamMultiNFLConcatTest, CompareWithRefs) {
 
 INSTANTIATE_TEST_SUITE_P(TransformationTests,
                          InsertCopyLayerMultiParamMultiNFLConcatTest,
-                         ::testing::Values(DeviceVersion::GNA3_5, DeviceVersion::GNA3_6),
+                         ::testing::Values(DeviceVersion::GNA3_0, DeviceVersion::GNA3_5, DeviceVersion::GNA3_6),
                          TransformationTestsBase::getTestCaseName);
 
 //  [Parameter][Constant]  [Parameter][Constant]
@@ -457,7 +457,7 @@ TEST_P(InsertCopyLayerMultiConstConcatTest, CompareWithRefs) {
 
 INSTANTIATE_TEST_SUITE_P(TransformationTests,
                          InsertCopyLayerMultiConstConcatTest,
-                         ::testing::Values(DeviceVersion::GNA3_5, DeviceVersion::GNA3_6),
+                         ::testing::Values(DeviceVersion::GNA3_0, DeviceVersion::GNA3_5, DeviceVersion::GNA3_6),
                          TransformationTestsBase::getTestCaseName);
 
 // [Parameter]     [Parameter]
@@ -521,7 +521,7 @@ TEST_P(InsertCopyLayerMultiLayerConcatTest, CompareWithRefs) {
 
 INSTANTIATE_TEST_SUITE_P(TransformationTests,
                          InsertCopyLayerMultiLayerConcatTest,
-                         ::testing::Values(DeviceVersion::GNA3_5, DeviceVersion::GNA3_6),
+                         ::testing::Values(DeviceVersion::GNA3_0, DeviceVersion::GNA3_5, DeviceVersion::GNA3_6),
                          TransformationTestsBase::getTestCaseName);
 
 // [Parameter]     [Constant]     [Parameter]    [Constant]
@@ -590,7 +590,7 @@ TEST_P(InsertCopyLayerMultiLayerNFLConcatTest, CompareWithRefs) {
 
 INSTANTIATE_TEST_SUITE_P(TransformationTests,
                          InsertCopyLayerMultiLayerNFLConcatTest,
-                         ::testing::Values(DeviceVersion::GNA3_5, DeviceVersion::GNA3_6),
+                         ::testing::Values(DeviceVersion::GNA3_0, DeviceVersion::GNA3_5, DeviceVersion::GNA3_6),
                          TransformationTestsBase::getTestCaseName);
 
 // [Parameter]     [Constant]     [Parameter]    [Constant]
@@ -652,7 +652,7 @@ TEST_P(InsertCopyLayerMultiParamMemoryTest, CompareWithRefs) {
 
 INSTANTIATE_TEST_SUITE_P(TransformationTests,
                          InsertCopyLayerMultiParamMemoryTest,
-                         ::testing::Values(DeviceVersion::GNA3_5, DeviceVersion::GNA3_6),
+                         ::testing::Values(DeviceVersion::GNA3_0, DeviceVersion::GNA3_5, DeviceVersion::GNA3_6),
                          TransformationTestsBase::getTestCaseName);
 
 // [Parameter]     [Constant]     [Parameter]    [Constant]
@@ -715,7 +715,7 @@ TEST_P(InsertCopyLayerMultiParamConcatMemoryTest, CompareWithRefs) {
 
 INSTANTIATE_TEST_SUITE_P(TransformationTests,
                          InsertCopyLayerMultiParamConcatMemoryTest,
-                         ::testing::Values(DeviceVersion::GNA3_5, DeviceVersion::GNA3_6),
+                         ::testing::Values(DeviceVersion::GNA3_0, DeviceVersion::GNA3_5, DeviceVersion::GNA3_6),
                          TransformationTestsBase::getTestCaseName);
 
 //   [Parameter]     [Constant]     [Parameter]    [Constant]
@@ -790,7 +790,7 @@ TEST_P(InsertCopyLayerMultiParamNFLConcatMemoryTest, CompareWithRefs) {
 
 INSTANTIATE_TEST_SUITE_P(TransformationTests,
                          InsertCopyLayerMultiParamNFLConcatMemoryTest,
-                         ::testing::Values(DeviceVersion::GNA3_5, DeviceVersion::GNA3_6),
+                         ::testing::Values(DeviceVersion::GNA3_0, DeviceVersion::GNA3_5, DeviceVersion::GNA3_6),
                          TransformationTestsBase::getTestCaseName);
 
 // [Parameter]    [Constant]         [Parameter]    [Constant]
@@ -864,7 +864,7 @@ TEST_P(InsertCopyLayerMultiLayerConcatMemoryTest, CompareWithRefs) {
 
 INSTANTIATE_TEST_SUITE_P(TransformationTests,
                          InsertCopyLayerMultiLayerConcatMemoryTest,
-                         ::testing::Values(DeviceVersion::GNA3_5, DeviceVersion::GNA3_6),
+                         ::testing::Values(DeviceVersion::GNA3_0, DeviceVersion::GNA3_5, DeviceVersion::GNA3_6),
                          TransformationTestsBase::getTestCaseName);
 
 // [Parameter]    [Constant]         [Parameter]    [Constant]
@@ -942,7 +942,7 @@ TEST_P(InsertCopyLayerCropMemoryTest, CompareWithRefs) {
 
 INSTANTIATE_TEST_SUITE_P(TransformationTests,
                          InsertCopyLayerCropMemoryTest,
-                         ::testing::Values(DeviceVersion::GNA3_5, DeviceVersion::GNA3_6),
+                         ::testing::Values(DeviceVersion::GNA3_0, DeviceVersion::GNA3_5, DeviceVersion::GNA3_6),
                          TransformationTestsBase::getTestCaseName);
 
 // [Parameter] [Constant]      [Parameter]    [Constant]
@@ -1012,7 +1012,7 @@ TEST_P(InsertCopyLayerCropNFLMemoryTest, CompareWithRefs) {
 
 INSTANTIATE_TEST_SUITE_P(TransformationTests,
                          InsertCopyLayerCropNFLMemoryTest,
-                         ::testing::Values(DeviceVersion::GNA3_5, DeviceVersion::GNA3_6),
+                         ::testing::Values(DeviceVersion::GNA3_0, DeviceVersion::GNA3_5, DeviceVersion::GNA3_6),
                          TransformationTestsBase::getTestCaseName);
 
 // [Parameter1][Parameter2][Constant]  [Parameter1][Parameter2][Constant]
@@ -1084,7 +1084,7 @@ TEST_P(InsertCopyLayerConcatMemoryTest, CompareWithRefs) {
 
 INSTANTIATE_TEST_SUITE_P(TransformationTests,
                          InsertCopyLayerConcatMemoryTest,
-                         ::testing::Values(DeviceVersion::GNA3_5, DeviceVersion::GNA3_6),
+                         ::testing::Values(DeviceVersion::GNA3_0, DeviceVersion::GNA3_5, DeviceVersion::GNA3_6),
                          TransformationTestsBase::getTestCaseName);
 
 // [Parameter1][Parameter2][Constant]  [Parameter1][Parameter2][Constant]
@@ -1160,7 +1160,7 @@ TEST_P(InsertCopyLayerConcatNFLMemoryTest, CompareWithRefs) {
 
 INSTANTIATE_TEST_SUITE_P(TransformationTests,
                          InsertCopyLayerConcatNFLMemoryTest,
-                         ::testing::Values(DeviceVersion::GNA3_5, DeviceVersion::GNA3_6),
+                         ::testing::Values(DeviceVersion::GNA3_0, DeviceVersion::GNA3_5, DeviceVersion::GNA3_6),
                          TransformationTestsBase::getTestCaseName);
 
 // [Parameter] [Constant]      [Parameter] [Constant]
@@ -1225,7 +1225,7 @@ TEST_P(InsertCopyLayerSplitMemoryTest, CompareWithRefs) {
 
 INSTANTIATE_TEST_SUITE_P(TransformationTests,
                          InsertCopyLayerSplitMemoryTest,
-                         ::testing::Values(DeviceVersion::GNA3_5, DeviceVersion::GNA3_6),
+                         ::testing::Values(DeviceVersion::GNA3_0, DeviceVersion::GNA3_5, DeviceVersion::GNA3_6),
                          TransformationTestsBase::getTestCaseName);
 
 // [Parameter] [Constant]    [Parameter] [Constant]
@@ -1295,7 +1295,7 @@ TEST_P(InsertCopyLayerSplitNFLMemoryTest, CompareWithRefs) {
 
 INSTANTIATE_TEST_SUITE_P(TransformationTests,
                          InsertCopyLayerSplitNFLMemoryTest,
-                         ::testing::Values(DeviceVersion::GNA3_5, DeviceVersion::GNA3_6),
+                         ::testing::Values(DeviceVersion::GNA3_0, DeviceVersion::GNA3_5, DeviceVersion::GNA3_6),
                          TransformationTestsBase::getTestCaseName);
 
 // [Parameter]                [Parameter]
@@ -1353,7 +1353,7 @@ TEST_P(InsertCopyLayerCropConcatTest, CompareWithRefs) {
 
 INSTANTIATE_TEST_SUITE_P(TransformationTests,
                          InsertCopyLayerCropConcatTest,
-                         ::testing::Values(DeviceVersion::GNA3_5, DeviceVersion::GNA3_6),
+                         ::testing::Values(DeviceVersion::GNA3_0, DeviceVersion::GNA3_5, DeviceVersion::GNA3_6),
                          TransformationTestsBase::getTestCaseName);
 
 // [Parameter]      [Parameter]
@@ -1401,7 +1401,7 @@ TEST_P(InsertCopyLayerNonfuncTest, CompareWithRefs) {
 
 INSTANTIATE_TEST_SUITE_P(TransformationTests,
                          InsertCopyLayerNonfuncTest,
-                         ::testing::Values(DeviceVersion::GNA3_5, DeviceVersion::GNA3_6),
+                         ::testing::Values(DeviceVersion::GNA3_0, DeviceVersion::GNA3_5, DeviceVersion::GNA3_6),
                          TransformationTestsBase::getTestCaseName);
 
 //    [Parameter]        [Parameter]
@@ -1453,7 +1453,7 @@ TEST_P(InsertCopyLayerNonfuncTwoSubgraphsTest, CompareWithRefs) {
 
 INSTANTIATE_TEST_SUITE_P(TransformationTests,
                          InsertCopyLayerNonfuncTwoSubgraphsTest,
-                         ::testing::Values(DeviceVersion::GNA3_5, DeviceVersion::GNA3_6),
+                         ::testing::Values(DeviceVersion::GNA3_0, DeviceVersion::GNA3_5, DeviceVersion::GNA3_6),
                          TransformationTestsBase::getTestCaseName);
 
 //   [Parameter]        [Parameter]
@@ -1503,7 +1503,7 @@ TEST_P(InsertCopyLayerNonfuncTwoResultsTest, CompareWithRefs) {
 
 INSTANTIATE_TEST_SUITE_P(TransformationTests,
                          InsertCopyLayerNonfuncTwoResultsTest,
-                         ::testing::Values(DeviceVersion::GNA3_5, DeviceVersion::GNA3_6),
+                         ::testing::Values(DeviceVersion::GNA3_0, DeviceVersion::GNA3_5, DeviceVersion::GNA3_6),
                          TransformationTestsBase::getTestCaseName);
 
 // [Parameter]        [Parameter]
@@ -1563,7 +1563,7 @@ TEST_P(InsertCopyLayerNFLBranchTest, CompareWithRefs) {
 
 INSTANTIATE_TEST_SUITE_P(TransformationTests,
                          InsertCopyLayerNFLBranchTest,
-                         ::testing::Values(DeviceVersion::GNA3_5, DeviceVersion::GNA3_6),
+                         ::testing::Values(DeviceVersion::GNA3_0, DeviceVersion::GNA3_5, DeviceVersion::GNA3_6),
                          TransformationTestsBase::getTestCaseName);
 
 // [Parameter]        [Parameter]
@@ -1622,7 +1622,7 @@ TEST_P(InsertCopyLayerNFLvsFLSubgraphTest, CompareWithRefs) {
 }
 INSTANTIATE_TEST_SUITE_P(TransformationTests,
                          InsertCopyLayerNFLvsFLSubgraphTest,
-                         ::testing::Values(DeviceVersion::GNA3_5, DeviceVersion::GNA3_6),
+                         ::testing::Values(DeviceVersion::GNA3_0, DeviceVersion::GNA3_5, DeviceVersion::GNA3_6),
                          TransformationTestsBase::getTestCaseName);
 
 // [Parameter]              [Parameter]
@@ -1676,7 +1676,7 @@ TEST_P(InsertCopyLayerSplitNFLConcatTest, CompareWithRefs) {
 
 INSTANTIATE_TEST_SUITE_P(TransformationTests,
                          InsertCopyLayerSplitNFLConcatTest,
-                         ::testing::Values(DeviceVersion::GNA3_5, DeviceVersion::GNA3_6),
+                         ::testing::Values(DeviceVersion::GNA3_0, DeviceVersion::GNA3_5, DeviceVersion::GNA3_6),
                          TransformationTestsBase::getTestCaseName);
 
 TEST_P(InsertCopyLayerConcatTest, CompareWithRefs) {
@@ -1692,7 +1692,8 @@ const std::vector<size_t> inputCounts = {1, 64, 128, 256};
 
 INSTANTIATE_TEST_SUITE_P(TransformationTests,
                          InsertCopyLayerConcatTest,
-                         ::testing::Combine(::testing::ValuesIn(std::vector<DeviceVersion>{DeviceVersion::GNA3_5,
+                         ::testing::Combine(::testing::ValuesIn(std::vector<DeviceVersion>{DeviceVersion::GNA3_0,
+                                                                                           DeviceVersion::GNA3_5,
                                                                                            DeviceVersion::GNA3_6}),
                                             ::testing::Values(axis),
                                             ::testing::ValuesIn(inputCounts)),
@@ -1700,7 +1701,8 @@ INSTANTIATE_TEST_SUITE_P(TransformationTests,
 
 INSTANTIATE_TEST_SUITE_P(TransformationTests,
                          InsertCopyLayerSplitConcatTest,
-                         ::testing::Combine(::testing::ValuesIn(std::vector<DeviceVersion>{DeviceVersion::GNA3_5,
+                         ::testing::Combine(::testing::ValuesIn(std::vector<DeviceVersion>{DeviceVersion::GNA3_0,
+                                                                                           DeviceVersion::GNA3_5,
                                                                                            DeviceVersion::GNA3_6}),
                                             ::testing::Values(axis),
                                             ::testing::ValuesIn(inputCounts)),
