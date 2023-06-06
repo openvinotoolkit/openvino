@@ -58,12 +58,6 @@ std::vector<size_t> get_strides(const py::array& array);
 
 py::array as_contiguous(py::array& array, ov::element::Type type);
 
-// template <typename DATA_TYPE>
-// py::array get_typed_array(ov::Tensor& t, ReturnPolicy return_policy);
-
-// template <typename DATA_TYPE>
-// py::array get_typed_array_f16(ov::Tensor& t, ReturnPolicy return_policy);
-
 py::array array_from_tensor(ov::Tensor&& t, ReturnPolicy return_policy);
 
 }; // namespace array_helpers
