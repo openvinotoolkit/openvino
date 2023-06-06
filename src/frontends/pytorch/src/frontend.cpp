@@ -16,6 +16,7 @@
 #include "transformations/common_optimizations/remove_multi_subgraph_op_dangling_params.hpp"
 #include "transformations/common_optimizations/reverse_shape_and_type_infer.hpp"
 #include "transformations/control_flow/unroll_if.hpp"
+#include "transformations/op_conversions/convert_convertlike.hpp"
 #include "transforms.hpp"
 #include "transforms/append_list_unpack_replacer.hpp"
 #include "transforms/aten_cat_replacer.hpp"
@@ -44,7 +45,7 @@ std::set<std::string> get_unconverted_types_from_model(const std::shared_ptr<Mod
         if (const auto& fw_node = ov::as_type_ptr<PtFrameworkNode>(node)) {
             auto attrs = fw_node->get_attrs();
             FRONT_END_GENERAL_CHECK(attrs.find("PtTypeName") != attrs.end(),
-                                    "FrameworkNode attributes do not contain PtTypeName.");
+                                    "FrameworkNode attributes do not contain operation type.");
             unconverted_ops_types.insert(attrs.at("PtTypeName"));
         }
         if (const auto& fw_node = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node)) {
@@ -98,6 +99,11 @@ std::shared_ptr<Model> FrontEnd::decode(const InputModel::Ptr& model) const {
 
 void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     ov::pass::Manager manager;
+
+    // the following 2 transformations are needed for keypoint detectron2 models to work.
+    // AtenIndexToSelect will be called twice
+    manager.register_pass<ov::pass::ConvertConvertLike>();
+    manager.register_pass<ov::frontend::pytorch::pass::AtenIndexToSelect>();
 
     manager.register_pass<ov::pass::ConstantFolding>();
     manager.register_pass<ov::pass::PushConstantToSubgraph>();

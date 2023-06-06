@@ -157,7 +157,7 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                         FRONT_END_GENERAL_CHECK(recorded_in_tensor_id == in_tensor_id,
                                                 "Operation ",
                                                 context.get_op_type(),
-                                                " creates alias to tensor already added to may_produce_alias list by ",
+                                                " creates alias to tensor which was already created before by ",
                                                 recorded_node->get_op_type(),
                                                 ", but from different tensor: ",
                                                 in_tensor_id,
