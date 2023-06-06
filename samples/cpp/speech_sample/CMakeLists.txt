@@ -22,6 +22,8 @@ if(NOT TARGET ZLIB::ZLIB)
         if(zlib_FOUND)
             add_library(ZLIB::ZLIB ALIAS PkgConfig::zlib)
         endif()
+    else()
+        message(FATAL_ERROR "Failed to find_package(PkgConfig)")
     endif()
 
     if(zlib_FOUND)
@@ -30,7 +32,7 @@ if(NOT TARGET ZLIB::ZLIB)
         # OpenVINO package puts thirdparty to samples dir
         add_subdirectory("${Samples_SOURCE_DIR}/thirdparty/zlib"
                          "${Samples_BINARY_DIR}/thirdparty/zlib" EXCLUDE_FROM_ALL)
-    elseif(EXISTS "${Samples_SOURCE_DIR}/thirdparty/zlib")
+    elseif(EXISTS "${Samples_SOURCE_DIR}/../../thirdparty/zlib")
         # Allow running samples CMakeLists.txt as stand alone from openvino sources
         add_subdirectory("${Samples_SOURCE_DIR}/../../thirdparty/zlib"
                          "${Samples_BINARY_DIR}/thirdparty/zlib" EXCLUDE_FROM_ALL)

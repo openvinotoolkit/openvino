@@ -6,9 +6,8 @@
 @setlocal
 SETLOCAL EnableDelayedExpansion
 set "ROOT_DIR=%~dp0"
-FOR /F "delims=\" %%i IN ("%ROOT_DIR%") DO set SAMPLES_TYPE=%%~nxi
 
-set "SAMPLE_BUILD_DIR=%USERPROFILE%\Documents\Intel\OpenVINO\openvino_%SAMPLES_TYPE%_samples_build"
+set "SAMPLE_BUILD_DIR=%USERPROFILE%\Documents\Intel\OpenVINO\openvino_cpp_samples_build"
 set SAMPLE_INSTALL_DIR=
 
 :: command line arguments parsing
@@ -49,7 +48,7 @@ if "%PROCESSOR_ARCHITECTURE%" == "AMD64" (
 
 if exist "%SAMPLE_BUILD_DIR%\CMakeCache.txt" del "%SAMPLE_BUILD_DIR%\CMakeCache.txt"
 
-cd /d "%ROOT_DIR%" && cmake -E make_directory "%SAMPLE_BUILD_DIR%" && cd /d "%SAMPLE_BUILD_DIR%" && cmake -G "Visual Studio 16 2019" -A %PLATFORM% "%ROOT_DIR%"
+cd /d "%ROOT_DIR%" && cmake -E make_directory "%SAMPLE_BUILD_DIR%" && cd /d "%SAMPLE_BUILD_DIR%" && cmake -A %PLATFORM% "%ROOT_DIR%"
 if ERRORLEVEL 1 GOTO errorHandling
 
 echo.

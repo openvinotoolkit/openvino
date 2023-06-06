@@ -24,8 +24,9 @@ YUV_NV12::YUV_NV12(const std::string& filename) {
         return;
     }
 
-    file.seekg(0, file.end);
-    _size = file.tellg();
+    file.ignore(std::numeric_limits<std::streamsize>::max());
+    _size = size_t(file.gcount());
+    file.clear();  //  Since ignore will have set eof
     file.seekg(0, file.beg);
 
     _data.reset(new unsigned char[_size], std::default_delete<unsigned char[]>());
