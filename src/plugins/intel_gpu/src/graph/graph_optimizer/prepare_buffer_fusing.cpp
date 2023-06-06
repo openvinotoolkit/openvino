@@ -143,7 +143,7 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
             return false;
 
         layout pred_l = pred_params[idx].get_output_layout();
-        if (output_format != pred_l.format || output_datatype != pred_l.data_type||pred_l.is_dynamic())
+        if (output_format != pred_l.format || output_datatype != pred_l.data_type || pred_l.is_dynamic())
             return false;
         if (pred_l.format.block_sizes().size() > 1)
             return false;
