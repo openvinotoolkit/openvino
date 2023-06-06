@@ -337,7 +337,7 @@ Results analysis
 
 Result model depends on different factors:
 
-* The original model quantization possibility and quantization quality. For some models, some operations are not possible to be quantized by POT and NNCF tools. In this case ``FakeQuantize`` operations are absent before these operations and they will be inferred in original precision.
+* The original model quantization possibility and quantization quality. For some models, some operations are not possible to be quantized by NNCF tool. In this case ``FakeQuantize`` operations are absent before these operations and they will be inferred in original precision.
 * LPT customization and plugin supported operations. If plugin doesn't support INT8 inference for some operation then corresponding LPT transformation should be disabled and the operation will be inferred in original precision.
 
 
