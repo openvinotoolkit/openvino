@@ -81,7 +81,7 @@ SchedulingCoreTypeTestCase _1sockets_P_CORE_ONLY_1 = {
     {{8, 0, 8, 0}},
     ov::hint::SchedulingCoreType::ANY_CORE,
     // ov::hint::scheduling_core_type returns ANY_CORE because the platform has no Pcore available to satisfy the
-    // user's request.    
+    // user's request.
 };
 
 SchedulingCoreTypeTestCase _1sockets_E_CORE_ONLY = {
