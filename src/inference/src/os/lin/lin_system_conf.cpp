@@ -114,7 +114,7 @@ CPU::CPU() {
             if (CPU_ISSET(i, &mask)) {
                 valid_cpu_mapping_table.emplace_back(_cpu_mapping_table[i]);
                 if (_cpu_mapping_table[i][CPU_MAP_CORE_TYPE] == MAIN_CORE_PROC) {
-                    phy_core_list.emplace_back(_cpu_mapping_table[i][CPU_MAP_GROUP_ID]);
+                    phy_core_list.emplace_back(_cpu_mapping_table[i][CPU_MAP_CORE_ID]);
                 }
             }
         }
