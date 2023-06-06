@@ -740,6 +740,7 @@ class TestTFLoadByModel(unittest.TestCase):
                 tf_net = sess.graph
             return tf_net
         from openvino.frontend.tensorflow.graph_iterator import GraphIteratorTFGraph
+        from openvino.frontend import FrontEndManager
         model = GraphIteratorTFGraph(simple_tf_model())
         fem = FrontEndManager()
         fe = fem.load_by_model(model)
