@@ -91,9 +91,14 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
                 performanceHint = ov::hint::PerformanceMode::THROUGHPUT;
                 changedPerformanceHint = true;
             } else {
-                IE_THROW() << "Wrong value " << val << "for property key " << ov::hint::performance_mode.name()
-                           << ". Expected only " << ov::hint::PerformanceMode::LATENCY << "/"
-                           << ov::hint::PerformanceMode::THROUGHPUT << std::endl;
+                OPENVINO_THROW("Wrong value ",
+                               val,
+                               "for property key ",
+                               ov::hint::performance_mode.name(),
+                               ". Expected only ",
+                               ov::hint::PerformanceMode::LATENCY,
+                               "/",
+                               ov::hint::PerformanceMode::THROUGHPUT);
             }
             OPENVINO_SUPPRESS_DEPRECATED_END
         } else if ((key == ov::hint::num_requests.name()) ||
