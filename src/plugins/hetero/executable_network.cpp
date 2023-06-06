@@ -534,7 +534,6 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream& heteroModel,
         CNNNetwork cnnnetwork;
         bool loaded = false;
 
-        auto CachingProperties = plugin->DeviceCachingProperties(deviceName); // TODO (vurusovs): check against next string
         if (std::dynamic_pointer_cast<InferenceEngine::ICore>(plugin->get_core())->DeviceSupportsModelCaching(deviceName)) { // TODO (vurusovs) TEMPORARY SOLUTION
             auto compiled_model = plugin->get_core()->import_model(heteroModel, deviceName, loadConfig);
             executableNetwork = {ov::legacy_convert::convert_compiled_model(compiled_model._ptr), compiled_model._so};
@@ -747,7 +746,6 @@ void HeteroExecutableNetwork::Export(std::ostream& heteroModel) {
     heteroModel << std::endl;
 
     for (auto&& subnetwork : _networks) {
-        auto CachingProperties = _plugin->DeviceCachingProperties(subnetwork._device);
         if (std::dynamic_pointer_cast<InferenceEngine::ICore>(_plugin->get_core())->DeviceSupportsModelCaching(subnetwork._device)) { // TODO (vurusovs) TEMPORARY SOLUTION
             subnetwork._network->Export(heteroModel);
         } else {
