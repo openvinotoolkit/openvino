@@ -121,7 +121,7 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
         if (pred.first->get_users().size() > 2)
             return false;
 
-       // Check that input isn't optimized out concatenation along different axis.
+        // Check that input isn't optimized out concatenation along different axis.
         if (pred.first->is_type<concatenation>() && pred.first->can_be_optimized()) {
             // cascaded concat opt is not supported for dynamic shape yet
             if (concat_node.is_dynamic() || is_runtime)
@@ -143,7 +143,7 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
             return false;
 
         layout pred_l = pred_params[idx].get_output_layout();
-        if (output_format != pred_l.format || output_datatype != pred_l.data_type)
+        if (output_format != pred_l.format || output_datatype != pred_l.data_type||pred_l.is_dynamic())
             return false;
         if (pred_l.format.block_sizes().size() > 1)
             return false;
