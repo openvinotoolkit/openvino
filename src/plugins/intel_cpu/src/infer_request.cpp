@@ -456,6 +456,10 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& _port, const
         IE_THROW(NotAllocated) << "Failed to set empty tensor for port!";
     check_port(_port);
 
+    //if ((_port.get_element_type() != _tensor.get_element_type())) {
+    //    IE_THROW(ParameterMismatch) << "Failed to set input tensor with precision: " << _tensor.get_element_type()
+    //                                << ", if model input tensor precision is: " << _port.get_element_type();
+    }
     auto port = get_internal_port(_port);
     auto tensor = create_internal_tensor(_tensor, port);
 #else

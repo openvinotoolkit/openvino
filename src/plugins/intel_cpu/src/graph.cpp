@@ -118,7 +118,7 @@ template void Graph::CreateGraph(const std::shared_ptr<const ngraph::Function>&,
 template void Graph::CreateGraph(const CNNNetwork&, const GraphContext::CPtr);
 
 void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph) {
-    this->_name = "subgraph";
+    this->_name = subgraph->get_name();
     this->reuse_io_tensors = false;
 
     // Map data object onto producer node
@@ -146,6 +146,9 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph) {
 
         if (op->get_type_info() == ngraph::op::v0::Parameter::get_type_info_static()) {
             inputNodesMap[node->getName()] = node;
+            if (node->isDynamicNode()) {
+                graphHasDynamicInput = true;
+            }
         }
 
         if (op->get_type_info() == ngraph::op::v0::Result::get_type_info_static()) {
@@ -957,6 +960,10 @@ void Graph::PullOutputData(std::unordered_map<std::string, ov::Tensor> &out) {
                 expectedDesc = TensorDesc(expectedDesc.getPrecision(), expectedDesc.getLayout());
             }
             out[name].set_shape(outDims);
+            expectedDesc =
+                InferenceEngine::TensorDesc(InferenceEngine::details::convertPrecision(out[name].get_element_type()),
+                                            out[name].get_shape(),
+                                            InferenceEngine::TensorDesc::getLayoutByRank(out[name].get_shape().size()));
         }
 
         // check for empty output blob
