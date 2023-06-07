@@ -253,6 +253,8 @@ public:
 
     virtual void update_output_memory() {}
 
+    bool has_inner_body();
+
 protected:
     primitive_inst(network& network, program_node const& node, bool allocate_memory);
 
