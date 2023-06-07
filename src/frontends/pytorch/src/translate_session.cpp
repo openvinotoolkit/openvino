@@ -171,7 +171,7 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                     }
                     m_may_be_alias[fw_tensor_id] = {node->inputs().at(0), node, converted_outputs[i]};
                     OPENVINO_DEBUG << "Registered alias: " << fw_tensor_id << " of tensor: " << node->inputs().at(0)
-                                   << " of operation: " << context.get_op_type() << ".\n";
+                                   << " of operation: " << context.get_op_type();
                 }
                 FRONT_END_GENERAL_CHECK(tensor_map->find(fw_tensor_id) == tensor_map->end(),
                                         "Duplicated producer for PT value with unique ID: ",
@@ -182,7 +182,7 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                         OPENVINO_DEBUG << "[WARNING] Produced output type for operation " << context.get_op_type()
                                        << " for tensor id: " << fw_tensor_id << " is incompatible: produced "
                                        << converted_outputs[i].get_element_type() << " vs "
-                                       << out_type.as<element::Type>() << std::endl;
+                                       << out_type.as<element::Type>();
                     }
                 }
                 (*tensor_map)[fw_tensor_id] = converted_outputs[i];
@@ -252,10 +252,9 @@ OutputVector TranslateSession::convert_node(const NodeContext& context) {
 
     } catch (std::exception& e) {
         OPENVINO_DEBUG << "Exception happened during conversion of op: " << context.get_op_type()
-                       << " with schema: " << context.get_schema() << ": " << e.what() << '\n';
+                       << " with schema: " << context.get_schema() << ": " << e.what();
     } catch (...) {
-        OPENVINO_DEBUG << "Some exception happened during conversion of node of type: " << context.get_op_type()
-                       << '\n';
+        OPENVINO_DEBUG << "Some exception happened during conversion of node of type: " << context.get_op_type();
     }
     // Create PtFrameworkNode for everything that wasn't able to be converted normally
     return make_framework_node(context);
@@ -394,7 +393,7 @@ Output<Node> TranslateSession::get_backprop_op(std::shared_ptr<TorchDecoder> nod
 
     } catch (std::exception& e) {
         OPENVINO_DEBUG << "Exception happened during conversion of backprop op: " << node->get_op_type()
-                       << " with schema: " << node->get_schema() << ": " << e.what() << '\n';
+                       << " with schema: " << node->get_schema() << ": " << e.what();
     }
     // Create PtFrameworkNode representing unconverted backprop operation
     return std::make_shared<PtFrameworkNode>(node, OutputVector{value}, 1, true);
