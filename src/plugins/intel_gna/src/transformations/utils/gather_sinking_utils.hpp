@@ -12,8 +12,6 @@
 #include "openvino/opsets/opset9.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/util/common_util.hpp"
-#include "openvino/util/log.hpp"
 
 namespace gather_sinking {
 

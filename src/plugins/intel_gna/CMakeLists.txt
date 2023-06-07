@@ -74,7 +74,7 @@ target_compile_definitions(${TARGET_NAME}
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
 #
-# Static version for tests
+# Static version for tests and samples
 #
 
 add_library(${TARGET_NAME}_test_static STATIC EXCLUDE_FROM_ALL ${SOURCES} ${HEADERS})
@@ -141,3 +141,10 @@ if(NOT BUILD_SHARED_LIBS)
 endif()
 
 add_subdirectory(tests)
+
+if(ENABLE_GNA_SAMPLES)
+
+add_subdirectory(samples)
+
+endif()
+

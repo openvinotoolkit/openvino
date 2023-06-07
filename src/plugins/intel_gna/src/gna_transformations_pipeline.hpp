@@ -21,6 +21,10 @@ public:
     }
     void apply(const std::shared_ptr<ov::Model>& model,
                ov::intel_gna::PrePostProcessModels* input_output_subgraphs = nullptr);
+
+    void apply(const std::shared_ptr<ov::Model>& model,
+               const std::vector<std::string>& transformations_list,
+               ov::intel_gna::PrePostProcessModels* input_output_subgraphs = nullptr);
     IE_SUPPRESS_DEPRECATED_START
     void apply_legacy(const InferenceEngine::CNNNetwork& network, bool runBeforeCopy);
     void convert_precision_legacy(InferenceEngine::CNNNetwork& network);
@@ -31,6 +35,13 @@ public:
     const ov::intel_gna::Config& config;
 
 private:
+    using PassesInstances = std::vector<std::shared_ptr<ov::pass::PassBase>>;
+
+    void register_all_passes(const PassesInstances& passes, ov::pass::Manager& manager);
+    void register_passes_with_given_order(const std::vector<std::string>& transformations_list,
+                                          const PassesInstances& passes,
+                                          ov::pass::Manager& manager);
+
     bool is_ngraph_passes_used = false;
     bool fake_quantized = false;
     int legacy_pass_index = 0;

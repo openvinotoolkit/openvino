@@ -23,7 +23,6 @@
 #include "gna2-model-export-api.h"
 #include "gna2_model_export_helper.hpp"
 #include "gna2_model_helper.hpp"
-#include "layers/gna_convolution_layer.hpp"
 #include "log/dump.hpp"
 #include "log/log.hpp"
 #include "memory/gna_mem_requests.hpp"
