@@ -56,9 +56,9 @@ protected:
     virtual void PushInputData() = 0;
 
     Graph* graph = nullptr;
-    std::vector<std::string> inplacedOutPorts;
-    std::vector<std::string> externalInPorts;
-    std::vector<std::string> externalOutPorts;
+    std::set<std::string> inplacedOutPorts;
+    std::set<std::string> externalInPorts;
+    std::set<std::string> externalOutPorts;
 
 private:
     void PushStates();

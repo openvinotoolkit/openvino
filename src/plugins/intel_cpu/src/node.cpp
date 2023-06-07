@@ -615,7 +615,7 @@ void Node::redefineOutputMemory(const std::vector<VectorDims> &newOutputShapes) 
             auto old_mem_ptr = edges[j]->getMemoryPtr()->GetData();
             edges[j]->getMemoryPtr()->redefineDesc(memDesc);
             auto new_mem_ptr = edges[j]->getMemoryPtr()->GetData();
-            DEBUG_LOG(getName(), " edge", j, " ", old_mem_ptr, " -> ", new_mem_ptr);
+            DEBUG_LOG(getName(), " output ", i, " edge ", j, " ", old_mem_ptr, " -> ", new_mem_ptr);
         }
     }
 }

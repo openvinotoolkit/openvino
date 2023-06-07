@@ -913,7 +913,7 @@ void Graph::PushInputData(const std::string& name, const InferenceEngine::Blob::
     }
 }
 
-void Graph::PullOutputData(BlobMap &out, std::vector<std::string> &inplacedOutPorts) {
+void Graph::PullOutputData(BlobMap &out, std::set<std::string> &inplacedOutPorts) {
     if (!IsReady())
         IE_THROW() << "Wrong state. Topology not ready.";
 
@@ -932,85 +932,82 @@ void Graph::PullOutputData(BlobMap &out, std::vector<std::string> &inplacedOutPo
         const auto actualDesc = MemoryDescUtils::convertToTensorDesc(intr_blob.getDesc());
         auto &expectedDesc = ext_blob->getTensorDesc();
 
-        // TODO [NM]: need to create universal reorder which will be detect cases when we really need to use it
-        // WA: for cases when output shape after transformation will be 1x1x1x1 but model output is scalar
-        bool isScalarOutput = false;
-        if (actualDesc.getLayout() == SCALAR) {
-            isScalarOutput = expectedDesc.getLayout() == SCALAR ||
-                             (!expectedDesc.getDims().empty() &&
-                             std::accumulate(expectedDesc.getDims().begin(), expectedDesc.getDims().end(), (size_t)1, std::multiplies<size_t>()) == 1);
-        } else if (expectedDesc.getLayout() == SCALAR) {
-            isScalarOutput = actualDesc.getLayout() == SCALAR ||
-                             (!actualDesc.getDims().empty() &&
-                             std::accumulate(actualDesc.getDims().begin(), actualDesc.getDims().end(), (size_t)1, std::multiplies<size_t>()) == 1);
-        }
-
-        auto outDims = intr_blob.getStaticDims();
-        if (out[name]->getTensorDesc().getDims() != outDims && !isScalarOutput) {
-            // WA: because input/output info initially contains non empty dims, order etc.
-            // and setDims (called inside setShape) can't correct modify blocked desc for desc with blocked layout
-            if (expectedDesc.getLayout() == InferenceEngine::Layout::BLOCKED) {
-                expectedDesc = TensorDesc(expectedDesc.getPrecision(), expectedDesc.getLayout());
+        if (std::count(inplacedOutPorts.begin(), inplacedOutPorts.end(), name)) {
+            // 
+            InferenceEngine::Blob::Ptr newBlob =
+                InferenceEngine::make_shared_blob<float>(actualDesc,
+                                                        static_cast<float*>(intr_blob.GetData()),
+                                                        intr_blob.GetSize());
+            ext_blob = newBlob;
+            std::swap(out[name], newBlob);
+            DEBUG_LOG(name, " @ ", static_cast<void*>(newBlob->buffer()), " -> ", static_cast<void*>(out[name]->buffer()));
+        } else {
+            // TODO [NM]: need to create universal reorder which will be detect cases when we really need to use it
+            // WA: for cases when output shape after transformation will be 1x1x1x1 but model output is scalar
+            bool isScalarOutput = false;
+            if (actualDesc.getLayout() == SCALAR) {
+                isScalarOutput = expectedDesc.getLayout() == SCALAR ||
+                                (!expectedDesc.getDims().empty() &&
+                                std::accumulate(expectedDesc.getDims().begin(), expectedDesc.getDims().end(), (size_t)1, std::multiplies<size_t>()) == 1);
+            } else if (expectedDesc.getLayout() == SCALAR) {
+                isScalarOutput = actualDesc.getLayout() == SCALAR ||
+                                (!actualDesc.getDims().empty() &&
+                                std::accumulate(actualDesc.getDims().begin(), actualDesc.getDims().end(), (size_t)1, std::multiplies<size_t>()) == 1);
             }
 
-            if (std::count(inplacedOutPorts.begin(), inplacedOutPorts.end(), name) &&
-                (static_cast<void*>(ext_blob->buffer()) != static_cast<void*>(intr_blob.GetData()))) {
-                // 
-                InferenceEngine::Blob::Ptr newBlob =
-                    InferenceEngine::make_shared_blob<float>(actualDesc,
-                                                            static_cast<float*>(intr_blob.GetData()),
-                                                            intr_blob.GetSize());
-                ext_blob = newBlob;
-                std::swap(out[name], newBlob);
-                DEBUG_LOG("inplaced output ", name, " @ ", static_cast<void*>(newBlob->buffer()), " -> ", static_cast<void*>(out[name]->buffer()));
-            } else {
-                DEBUG_LOG("non-inplaced output ", name);
+            auto outDims = intr_blob.getStaticDims();
+            if (out[name]->getTensorDesc().getDims() != outDims && !isScalarOutput) {
+                // WA: because input/output info initially contains non empty dims, order etc.
+                // and setDims (called inside setShape) can't correct modify blocked desc for desc with blocked layout
+                if (expectedDesc.getLayout() == InferenceEngine::Layout::BLOCKED) {
+                    expectedDesc = TensorDesc(expectedDesc.getPrecision(), expectedDesc.getLayout());
+                }
                 out[name]->setShape(outDims);
             }
-        }
 
-        // check for empty output blob
-        if (std::any_of(outDims.begin(), outDims.end(), [](const Dim dim) {return dim == 0;})) {
-            continue;
-        }
-
-        auto srcPrec = actualDesc.getPrecision();
-        auto dstPrec = expectedDesc.getPrecision();
-
-        if (getConfig().isNewApi && srcPrec == dstPrec && ext_blob->byteSize() != intr_blob.GetSize())
-                IE_THROW() << "Output blob byte size is not equal network output byte size ("
-                                   << ext_blob->byteSize() << "!=" << intr_blob.GetSize() << ").";
-
-        void *ext_blob_ptr = ext_blob->buffer();
-        void *intr_blob_ptr = intr_blob.GetData();
-
-        DEBUG_LOG(name, " @ ", intr_blob_ptr, " -> ", ext_blob_ptr, " zero-copy: ", intr_blob_ptr==ext_blob_ptr, " for ", GetName());
-
-        // That is the same memory. No need to copy
-        if (ext_blob_ptr == intr_blob_ptr) continue;
-
-        if (actualDesc.getBlockingDesc() != expectedDesc.getBlockingDesc() && !isScalarOutput) {
-            // User can initialize output via SetOutput API using tensorDesc with ANY layout.
-            // For these cases we create planar memory descriptor.
-            auto outBlobDesc = expectedDesc.getLayout() == InferenceEngine::Layout::ANY
-                                ? DnnlBlockedMemoryDesc(expectedDesc.getPrecision(), Shape(expectedDesc.getDims()))
-                                : MemoryDescUtils::convertToDnnlBlockedMemoryDesc(expectedDesc);
-            Memory outBloMem(getEngine());
-            outBloMem.Create(outBlobDesc, ext_blob_ptr, false);
-
-            outBloMem.SetData(intr_blob, false);
-        } else {
-            size_t size_to_copy = intr_blob.GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
-            // used only for backward compatibility with the legacy API
-            if (getConfig().batchLimit && dynBatch > 0) {
-                if (node->isDynamicNode() && !getConfig().isNewApi) {
-                    IE_THROW(NotImplemented) << "[DS] not implemented dynamic batch for node with dynamic shape";
-                }
-
-                size_to_copy = std::accumulate(outDims.begin() + 1, outDims.end(), (size_t)1, std::multiplies<size_t>()) * static_cast<size_t>(dynBatch);
+            // check for empty output blob
+            if (std::any_of(outDims.begin(), outDims.end(), [](const Dim dim) {return dim == 0;})) {
+                continue;
             }
 
-            cpu_convert(intr_blob_ptr, ext_blob_ptr, srcPrec, dstPrec, size_to_copy);
+            auto srcPrec = actualDesc.getPrecision();
+            auto dstPrec = expectedDesc.getPrecision();
+
+            if (getConfig().isNewApi && srcPrec == dstPrec && ext_blob->byteSize() != intr_blob.GetSize())
+                    IE_THROW() << "Output blob byte size is not equal network output byte size ("
+                                    << ext_blob->byteSize() << "!=" << intr_blob.GetSize() << ").";
+
+            void *ext_blob_ptr = ext_blob->buffer();
+            void *intr_blob_ptr = intr_blob.GetData();
+
+            DEBUG_LOG(name, " @ ", intr_blob_ptr, " -> ", ext_blob_ptr, " zero-copy: ", intr_blob_ptr==ext_blob_ptr, " for ", GetName());
+
+            // That is the same memory. No need to copy
+            if (ext_blob_ptr == intr_blob_ptr) continue;
+
+            if (actualDesc.getBlockingDesc() != expectedDesc.getBlockingDesc() && !isScalarOutput) {
+                // User can initialize output via SetOutput API using tensorDesc with ANY layout.
+                // For these cases we create planar memory descriptor.
+                auto outBlobDesc = expectedDesc.getLayout() == InferenceEngine::Layout::ANY
+                                    ? DnnlBlockedMemoryDesc(expectedDesc.getPrecision(), Shape(expectedDesc.getDims()))
+                                    : MemoryDescUtils::convertToDnnlBlockedMemoryDesc(expectedDesc);
+                Memory outBloMem(getEngine());
+                outBloMem.Create(outBlobDesc, ext_blob_ptr, false);
+
+                outBloMem.SetData(intr_blob, false);
+            } else {
+                size_t size_to_copy = intr_blob.GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
+                // used only for backward compatibility with the legacy API
+                if (getConfig().batchLimit && dynBatch > 0) {
+                    if (node->isDynamicNode() && !getConfig().isNewApi) {
+                        IE_THROW(NotImplemented) << "[DS] not implemented dynamic batch for node with dynamic shape";
+                    }
+
+                    size_to_copy = std::accumulate(outDims.begin() + 1, outDims.end(), (size_t)1, std::multiplies<size_t>()) * static_cast<size_t>(dynBatch);
+                }
+
+                cpu_convert(intr_blob_ptr, ext_blob_ptr, srcPrec, dstPrec, size_to_copy);
+            }
         }
     }
 }
