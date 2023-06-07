@@ -26,10 +26,104 @@ void validate_inputs_rank(const TOp* op,
     }
 }
 
+// Output shape layout:
+// output_shapes[0...num_state_nodes]: [batch_size, hidden_size] // Rank always 2
+template <class TOp, class TShape>
+std::vector<TShape> rnn_cell_base_shape_infer(const TOp* op,
+                                             const std::vector<TShape>& input_shapes,
+                                             size_t num_gates,
+                                             size_t num_state_nodes,
+                                             bool linear_before_reset = false) {
+    const auto num_inputs = 4 + num_state_nodes;
+    NODE_VALIDATION_CHECK(op, input_shapes.size() >= num_inputs, "Incorrect number of shapes has been provided.");
+
+    std::vector<TShape> output_shapes;
+    output_shapes.reserve(1 + num_state_nodes);
+
+    std::vector<Rank> expected_in_ranks;
+    expected_in_ranks.reserve(num_inputs);
+    expected_in_ranks.insert(expected_in_ranks.end(), 1 + num_state_nodes, Rank(2));
+    expected_in_ranks.insert(expected_in_ranks.end(), {2, 2, 1});
+
+    rnn::validate_inputs_rank(op, input_shapes, expected_in_ranks);
+
+    const auto& x_pshape = input_shapes[0];   // [batch_size, input_size]
+    const auto& ht_pshape = input_shapes[1];  // [batch_size, hidden_size]
+    const auto& w_pshape = input_shapes[1 + num_state_nodes];   // [3 * hidden_size, input_size]
+    const auto& r_pshape = input_shapes[2 + num_state_nodes];   // [3 * hidden_size, hidden_size]
+    const auto& b_pshape = input_shapes[3 + num_state_nodes];   // if linear_before_reset [4 * hidden_size], otherwise [3 * hidden_size]
+
+    using DimType = typename TShape::value_type;
+
+    // Merge batch_size dimension across all inputs to evaluate output[0] dimension
+    DimType merged_batch_size = x_pshape.rank().is_static() ? x_pshape[0] : DimType();
+    for (size_t i = 1; i <= num_state_nodes; ++i) {
+        NODE_VALIDATION_CHECK(op,
+                              DimType::merge(merged_batch_size,
+                                             merged_batch_size,
+                                             input_shapes[i].rank().is_static() ? input_shapes[i][0] : DimType()),
+                              "Dimension `batch_size` is not matched between inputs.");
+    }
+
+    // Merge hidden_size dimension across all inputs to evaluate output dimension
+    // `hidden_size` attribute is not used for backward compatibility
+    DimType merged_hidden_size = ht_pshape.rank().is_static() ? ht_pshape[1] : DimType();
+    for (size_t i = 2; i <= num_state_nodes; ++i) {
+        NODE_VALIDATION_CHECK(op,
+                              DimType::merge(merged_hidden_size,
+                                             merged_hidden_size,
+                                             input_shapes[i].rank().is_static() ? input_shapes[i][1] : DimType()),
+                              "Dimension `hidden_size` is not matched between inputs.");
+    }
+
+    NODE_VALIDATION_CHECK(
+        op,
+        DimType::merge(merged_hidden_size, merged_hidden_size, r_pshape.rank().is_static() ? r_pshape[1] : DimType()),
+        "Dimension `hidden_size` is not matched between inputs.");
+
+    // Validate dimensions related to hidden_size for W, R, B inputs
+    if (merged_hidden_size.is_static()) {
+        if (w_pshape.rank().is_static()) {
+            NODE_VALIDATION_CHECK(op,
+                                  w_pshape[0].compatible(merged_hidden_size * num_gates),
+                                  "First dimension of W input shape is required to be compatible with ",
+                                  merged_hidden_size * num_gates,
+                                  ". Got shape: ",
+                                  w_pshape[0],
+                                  ".");
+        }
+
+        if (r_pshape.rank().is_static()) {
+            NODE_VALIDATION_CHECK(op,
+                                  r_pshape[0].compatible(merged_hidden_size * num_gates),
+                                  "Fisrt dimension of R input shape is required to be compatible with ",
+                                  merged_hidden_size * num_gates,
+                                  ". Got shape: ",
+                                  r_pshape[0],
+                                  ".");
+        }
+
+        if (b_pshape.rank().is_static()) {
+            auto bias_dim_multiplier = linear_before_reset ? (num_gates + 1) : num_gates;
+            NODE_VALIDATION_CHECK(op,
+                                  b_pshape[0].compatible(merged_hidden_size * bias_dim_multiplier),
+                                  "First dimension of B input shape is required to be compatible with ",
+                                  merged_hidden_size * bias_dim_multiplier,
+                                  ". Got shape: ",
+                                  b_pshape[0],
+                                  ".");
+        }
+    }
+
+    for (size_t i = 0; i < num_state_nodes; ++i) {  // Ho, Co outputs
+        output_shapes.push_back(TShape{merged_batch_size, merged_hidden_size});
+    }
+    return output_shapes;
+}
+
 // Output shapes layout:
 // output_shapes[0]: [batch_size, num_directions, seq_length, hidden_size] // Rank always 4
 // output_shapes[1... num_state_nodes]: [batch_size, num_directions, hidden_size] // Rank always 3
-
 template <class TOp, class TShape>
 std::vector<TShape> rnn_seq_base_shape_infer(const TOp* op,
                                              const std::vector<TShape>& input_shapes,
@@ -56,11 +150,10 @@ std::vector<TShape> rnn_seq_base_shape_infer(const TOp* op,
     const auto& r_pshape = input_shapes[3 + num_state_nodes];
     const auto& b_pshape = input_shapes[4 + num_state_nodes];
 
-    using DimType = typename std::iterator_traits<typename TShape::iterator>::value_type;
+    using DimType = typename TShape::value_type;
 
     // Merge batch_size dimension across all inputs to evaluate output[0] dimension
     DimType merged_batch_size = x_pshape.rank().is_static() ? x_pshape[0] : DimType();
-
     for (size_t i = 1; i <= 1 + num_state_nodes; ++i) {
         NODE_VALIDATION_CHECK(op,
                               DimType::merge(merged_batch_size,
@@ -72,7 +165,7 @@ std::vector<TShape> rnn_seq_base_shape_infer(const TOp* op,
     // Merge hidden_size dimension across all inputs to evaluate output dimension
     // `hidden_size` attribute is not used for backward compatibility
     DimType merged_hidden_size = ht_pshape.rank().is_static() ? ht_pshape[2] : DimType();
-    for (size_t i = 1; i <= num_state_nodes; ++i) {
+    for (size_t i = 2; i <= num_state_nodes; ++i) {
         NODE_VALIDATION_CHECK(op,
                               DimType::merge(merged_hidden_size,
                                              merged_hidden_size,
