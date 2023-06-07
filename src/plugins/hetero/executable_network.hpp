@@ -22,7 +22,9 @@
 #include "ie_icore.hpp"
 #include "infer_request.hpp"
 #include "plugin.hpp"
+
 #include "src/plugin.hpp"
+#include "src/config.hpp"
 
 namespace ov {
 namespace hetero {
