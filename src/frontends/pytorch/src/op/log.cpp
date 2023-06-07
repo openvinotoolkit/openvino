@@ -46,10 +46,10 @@ OutputVector translate_logsumexp(const NodeContext& context) {
     if (!context.input_is_none(1)) {
         dim = context.get_input(1);
     } else {
-        dim = get_axes_range(context, 0);
+        dim = context.mark_node(get_axes_range(context, 0));
     }
     auto exp = context.mark_node(std::make_shared<v0::Exp>(input));   
-    auto sum = context.mark_node(std::make_shared<v1::ReduceSum>(exp, dim, true));
+    auto sum = context.mark_node(std::make_shared<v1::ReduceSum>(exp, dim, false));
     auto log = context.mark_node(std::make_shared<v0::Log>(sum));
     return {log};
 };

@@ -31,12 +31,11 @@ InputModel::InputModel(const std::shared_ptr<TorchDecoder>& model_decoder) : m_m
         for (const auto& name : out_place->get_names()) {
             m_name_to_place.emplace(name, std::dynamic_pointer_cast<frontend::Place>(out_place));
         }
-        //auto type_any = simplified_type_interpret(m_model_decoder->get_output_type(i));
+        auto type_any = simplified_type_interpret(m_model_decoder->get_output_type(i));
         auto dtype = element::dynamic;
-        //if (type_any.is<element::Type>()) {
-        //    dtype = type_any.as<element::Type>();
-        //}
-        dtype = element::f32;
+        if (type_any.is<element::Type>()) {
+            dtype = type_any.as<element::Type>();
+        }
         m_descriptors.emplace(outputs[i], PlaceDesc(dtype, m_model_decoder->get_output_shape(i)));
     }
 }

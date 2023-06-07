@@ -85,6 +85,7 @@ OP_CONVERTER(translate_logsumexp);
 OP_CONVERTER(translate_loop);
 OP_CONVERTER(translate_masked_fill);
 OP_CONVERTER(translate_max);
+OP_CONVERTER(translate_max_dim);
 OP_CONVERTER(translate_max_poolnd);
 OP_CONVERTER(translate_mean);
 OP_CONVERTER(translate_meshgrid);
@@ -125,6 +126,7 @@ OP_CONVERTER(translate_softmax);
 OP_CONVERTER(translate_sort);
 OP_CONVERTER(translate_square);
 OP_CONVERTER(translate_squeeze);
+OP_CONVERTER(translate_stack);
 OP_CONVERTER(translate_sub);
 OP_CONVERTER(translate_sum);
 OP_CONVERTER(translate_to);
@@ -425,7 +427,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.lift_fresh_copy.default", op::skip_node},
         {"aten.log.default", op::translate_log},
         {"aten.logsumexp.default", op::translate_logsumexp},
-        {"aten.max.dim", op::translate_max},
+        {"aten.max.dim", op::translate_max_dim},
         {"aten.max_pool2d_with_indices.default", op::translate_max_poolnd_fx},
         {"aten.mean.dim", op::translate_mean},
         {"aten.mm.default", op::translate_1to1_match_2_inputs<opset10::MatMul>},
@@ -447,7 +449,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.sin.default", op::translate_1to1_match_1_inputs<opset10::Sin>},
         {"aten.slice.Tensor", op::translate_slice_fx},
         {"aten.split.Tensor", op::translate_chunk_fx},
-        {"aten.stack.default", op::translate_cat_fx},
+        {"aten.stack.default", op::translate_stack},
         {"aten.sub.default", op::translate_sub},
         {"aten.sub.Tensor", op::translate_sub},
         {"aten.t.default", op::translate_transpose_fx},

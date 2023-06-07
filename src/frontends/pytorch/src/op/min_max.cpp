@@ -49,6 +49,28 @@ OutputVector translate_max(const NodeContext& context) {
     return {values, indicies};
 };
 
+OutputVector translate_max_dim(const NodeContext& context) {
+    // torch.max(x, dim, keepdim)
+    num_inputs_check(context, 2, 3);
+    auto x = context.get_input(0);
+    auto axes_node = context.get_input(1);
+    auto axis_const = context.const_input<int64_t>(1);
+
+    bool keepdims = false;
+    if (!context.input_is_none(2)) {
+        keepdims = context.const_input<bool>(2);
+    }
+    auto values = context.mark_node(std::make_shared<v1::ReduceMax>(x, axes_node, keepdims));
+    auto k = context.mark_node(std::make_shared<v0::Constant>(element::i32, Shape{}, 1));
+    auto topk = std::make_shared<v3::TopK>(x, k, axis_const, v3::TopK::Mode::MAX, v3::TopK::SortType::NONE);
+    auto indicies = context.mark_node(std::make_shared<v0::Convert>(topk->output(1), element::i64));
+    if (!keepdims) {
+        indicies = std::make_shared<v0::Squeeze>(indicies, axes_node);
+    }
+    return {values, indicies};
+};
+
+
 OutputVector translate_min(const NodeContext& context) {
     // torch.min (same for torch.max) actually has two interfaces smashed together:
     // torch.min(x, dim, keepdim) and torch.min(x, y)
