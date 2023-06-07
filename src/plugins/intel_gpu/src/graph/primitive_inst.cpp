@@ -728,7 +728,7 @@ primitive_inst::primitive_inst(network& network, program_node const& node, bool 
 }
 
 bool primitive_inst::has_inner_body() {
-    return (_node->is_type<condition>());
+    return (_impl_params->inner_progs.size() > 0 || _impl_params->inner_nets.size() > 0);
 }
 
 memory::ptr primitive_inst::allocate_internal_buffer(size_t idx) {
