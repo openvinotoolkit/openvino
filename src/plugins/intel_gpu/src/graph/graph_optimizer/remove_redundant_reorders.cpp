@@ -425,12 +425,14 @@ void remove_redundant_reorders::run(program& p) {
             input.set_output_layout(output_layout, false);
             if (input.type()->does_possible_implementation_exist(input)) {
                 // Add fused_primitive_desc of reorder to the previous node which propagates original output layout during shape inference
-                fused_primitive_desc local_desc(node.get_primitive());
-                local_desc.f_param = node.get_fuse_params();
-                local_desc.total_num_deps = node.get_dependencies().size();
-                local_desc.input_layout = old_output_layout_of_input;
-                local_desc.output_layout = output_layout;
-                input.add_fused_primitive(local_desc);
+                if (input.is_type<mvn>() || input.is_type<concatenation>()) {
+                    fused_primitive_desc local_desc(node.get_primitive());
+                    local_desc.f_param = node.get_fuse_params();
+                    local_desc.total_num_deps = node.get_dependencies().size();
+                    local_desc.input_layout = old_output_layout_of_input;
+                    local_desc.output_layout = output_layout;
+                    input.add_fused_primitive(local_desc);
+                }
 
                 node.can_be_optimized(true);
                 p.add_optimized_primitive_info(node.id());
