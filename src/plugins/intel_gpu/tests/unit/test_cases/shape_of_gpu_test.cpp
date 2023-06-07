@@ -197,6 +197,23 @@ TEST(shape_of_gpu, dynamic) {
     }
 }
 
+TEST(shape_of_gpu, static) {
+    auto& engine = get_test_engine();
+
+    layout in_layout = {ov::PartialShape::dynamic(4), data_types::f32, format::bfyx};
+
+    cldnn::topology topology;
+    topology.add(input_layout("input", in_layout));
+    topology.add(shape_of("shape_of", input_info("input"), 1, data_types::i32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(false));
+    network network(engine, topology, config);
+
+    auto inst = network.get_primitive("shape_of");
+    ASSERT_EQ(inst->get_output_layout(0).get_shape()[0], 4);
+}
+
 TEST(shape_of_gpu, shape_infer_optimization_dynamic) {
     auto& engine = get_test_engine();
 
