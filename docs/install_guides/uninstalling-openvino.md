@@ -39,7 +39,7 @@ If you have installed OpenVINO Runtime from archive files, you can uninstall it 
 
   .. code-block:: sh
 
-    sudo rm -r <extracted_folder> && rm <path_to_archive>
+    rm -r <extracted_folder> && rm <path_to_archive>
 
 
 @endsphinxdirective
