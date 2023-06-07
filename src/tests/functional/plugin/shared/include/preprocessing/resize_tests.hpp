@@ -17,8 +17,6 @@ class PreprocessingResizeTests : public testing::WithParamInterface<ResizeTestsP
                                  virtual public test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ResizeTestsParams>& obj);
-    // void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override;
-    // void compare(const std::vector<ov::Tensor>& expected, const std::vector<ov::Tensor>& actual) override;
 
 protected:
     void SetUp() override;

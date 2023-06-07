@@ -100,7 +100,6 @@ std::vector<ov::Tensor> PreprocessingResizeTests::calculate_refs() {
 }
 
 TEST_P(PreprocessingResizeTests, Linear) {
-    // SKIP_IF_CURRENT_TEST_IS_DISABLED();
     const auto expected_output = std::vector<float>{
         9.289,   22.4715,  48.8365,  37.5223, -11.4712, -15.9325, 24.1385,  44.174,   31.462,   30.7843,  29.4288,
         19.3653, 0.593752, 2.90838,  26.3091, 38.0095,  75.808,   47.4098,  -9.38675, -16.9487, 24.7238,  40.5901,
@@ -112,7 +111,6 @@ TEST_P(PreprocessingResizeTests, Linear) {
 }
 
 TEST_P(PreprocessingResizeTests, Nearest) {
-    // SKIP_IF_CURRENT_TEST_IS_DISABLED();
     const auto expected_output = std::vector<float>{
         9.289,   9.289,   62.019,  62.019,  -35.968, -35.968, 44.174,  44.174,  9.289,   9.289,  62.019,
         62.019,  -35.968, -35.968, 44.174,  44.174,  97.981,  97.981,  -71.053, -71.053, 72.736, 72.736,
@@ -124,7 +122,6 @@ TEST_P(PreprocessingResizeTests, Nearest) {
 }
 
 TEST_P(PreprocessingResizeTests, Cubic) {
-    // SKIP_IF_CURRENT_TEST_IS_DISABLED();
     const auto expected_output = std::vector<float>{
         -8.09343, 21.5218,  71.8322,  52.7927,  -26.7153, -39.113,  21.0894,  56.7106,  33.4924,  32.9301,  32.4765,
         16.0885,  -8.02117, -3.03992, 28.333,   47.094,   103.529,  52.2371,  -33.5401, -45.9531, 22.3128,  56.92,
@@ -136,7 +133,6 @@ TEST_P(PreprocessingResizeTests, Cubic) {
 }
 
 TEST_P(PreprocessingResizeTests, BilinearPillow) {
-    // SKIP_IF_CURRENT_TEST_IS_DISABLED();
     const auto expected_output = std::vector<float>{
         9.289,   22.4715,  48.8365,  37.5223, -11.4712, -15.9325, 24.1385,  44.174,   31.462,   30.7843,  29.4288,
         19.3653, 0.593752, 2.90838,  26.3091, 38.0095,  75.808,   47.4098,  -9.38675, -16.9487, 24.7238,  40.5901,
@@ -148,7 +144,6 @@ TEST_P(PreprocessingResizeTests, BilinearPillow) {
 }
 
 TEST_P(PreprocessingResizeTests, BicubicPillow) {
-    // SKIP_IF_CURRENT_TEST_IS_DISABLED();
     const auto expected_output = std::vector<float>{
         -4.91595, 17.7968,  65.9534,  52.453,   -26.0905, -33.4108, 26.2942,  54.4593,  27.8166, 30.4246,  35.9691,
         22.9657,  -8.97529, -5.94229, 29.5679,  46.3238,  97.1959,  57.1927,  -27.5777, -39.541, 27.2632,  52.2528,
