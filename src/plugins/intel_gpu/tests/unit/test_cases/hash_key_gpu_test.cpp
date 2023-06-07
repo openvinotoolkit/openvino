@@ -24,7 +24,7 @@ using namespace tests;
 
 class check_hash_value: public ::testing::Test {
 public:
-    void test_eltwise_basic (bool is_caching_test) {
+    void test_eltwise_basic(bool is_caching_test) {
         auto& engine = get_test_engine();
 
         auto input1 = engine.allocate_memory({ { 2, 2, 2, 2 }, data_types::f32, format::bfyx });
@@ -43,8 +43,8 @@ public:
         const auto primitive_hash = primitve->hash();
         const auto params_hash = prim_inst->get_impl_params()->hash();
 
-        ASSERT_EQ(primitive_hash, 11385140218618178073UL);
-        ASSERT_EQ(params_hash, 15305755526697935028UL);
+        ASSERT_EQ(primitive_hash, 4145865612957978777UL);
+        ASSERT_EQ(params_hash, 10122138955874758498UL);
     }
 
     void test_fc_basic(bool is_caching_test) {
@@ -172,7 +172,7 @@ public:
         const auto params_hash = prim_inst->get_impl_params()->hash();
 
         ASSERT_EQ(primitive_hash, 16293979194373117693UL);
-        ASSERT_EQ(params_hash, 12014408712579440062UL);
+        ASSERT_EQ(params_hash, 3866569467272213453UL);
     }
 
     void test_reshape_basic(bool is_caching_test) {
