@@ -4,8 +4,14 @@
 
 #pragma once
 
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/prelu.hpp"
+#include "openvino/op/util/binary_elementwise_arithmetic.hpp"
+#include "openvino/op/util/binary_elementwise_comparison.hpp"
+#include "openvino/op/util/binary_elementwise_logical.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pass.hpp"
+#include "transformations/transpose_sinking/ts_base.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov {
@@ -24,7 +30,7 @@ class TRANSFORMATIONS_API TSBinaryBackward;
  * @brief TSBinaryForward transformation sinks Transpose through BinaryElementwiseArithmetic,
  * BinaryElementwiseComparison, BinaryElementwiseLogical and PRelu operations in the forward direction.
  */
-class ov::pass::transpose_sinking::TSBinaryForward : public ov::pass::MatcherPass {
+class ov::pass::transpose_sinking::TSBinaryForward : public ov::pass::transpose_sinking::TSForwardBase {
 public:
     OPENVINO_RTTI("ov::pass::TSBinaryForward", "0");
     TSBinaryForward();
