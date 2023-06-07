@@ -335,7 +335,7 @@ std::shared_ptr<ov::Model> MHAWOTransposeOnInputsFunction::initOriginal() const 
     const auto mulConst = ngraph::builder::makeConstant(precision, ov::Shape({1}), std::vector<float>{1}, true);
     const auto mul = std::make_shared<ngraph::opset3::Multiply>(param1, mulConst);
     const auto matMul0 = std::make_shared<ngraph::opset3::MatMul>(param0, mul, transA, transB);
-    const auto softmax = std::make_shared<ngraph::opset1::Softmax>(matMul0, 3);
+    const auto softmax = std::make_shared<ngraph::opset8::Softmax>(matMul0, -1);
     const auto matMul1 = std::make_shared<ngraph::opset3::MatMul>(softmax, param2, transA, transB);
     const auto transpose3 = std::make_shared<ov::op::v1::Transpose>(matMul1, transpose3Const);
 
@@ -352,7 +352,7 @@ std::shared_ptr<ov::Model> MHAWOTransposeFunction::initOriginal() const {
     float transA = false;
     float transB = false;
     const auto matMul0 = std::make_shared<ngraph::opset3::MatMul>(param0, param1, transA, transB);
-    const auto softmax = std::make_shared<ngraph::opset1::Softmax>(matMul0, 3);
+    const auto softmax = std::make_shared<ngraph::opset8::Softmax>(matMul0, -1);
     const auto matMul1 = std::make_shared<ngraph::opset3::MatMul>(softmax, param2, transA, transB);
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(matMul1)};
