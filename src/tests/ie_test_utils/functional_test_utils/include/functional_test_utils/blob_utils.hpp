@@ -811,30 +811,6 @@ inline InferenceEngine::Blob::Ptr createBlobByType(const InferenceEngine::Tensor
 // TODO: ocl + remote
 //    case BlobType::Remote:
 //        return  InferenceEngine::as<InferenceEngine::RemoteBlob>(createAndFillBlob(td));
-    case BlobType::I420: {
-        InferenceEngine::SizeVector dims = td.getDims();
-        dims[1] = 1;
-        InferenceEngine::TensorDesc td1(InferenceEngine::Precision::U8, dims, InferenceEngine::Layout::NHWC);
-        InferenceEngine::Blob::Ptr y_blob = createAndFillBlob(td1);
-        dims[2] /= 2;
-        dims[3] /= 2;
-        td1 = InferenceEngine::TensorDesc(InferenceEngine::Precision::U8, dims, InferenceEngine::Layout::NHWC);
-        InferenceEngine::Blob::Ptr u_blob = createAndFillBlob(td1);
-        InferenceEngine::Blob::Ptr v_blob = createAndFillBlob(td1);
-        return InferenceEngine::make_shared_blob<InferenceEngine::I420Blob>(y_blob, u_blob, v_blob);
-    }
-    case BlobType::NV12: {
-        InferenceEngine::SizeVector dims = td.getDims();
-        dims[1] = 1;
-        InferenceEngine::TensorDesc td1(InferenceEngine::Precision::U8, dims, InferenceEngine::Layout::NHWC);
-        InferenceEngine::Blob::Ptr y_blob = createAndFillBlob(td1);
-        dims[1] = 2;
-        dims[2] /= 2;
-        dims[3] /= 2;
-        td1 = InferenceEngine::TensorDesc(InferenceEngine::Precision::U8, dims, InferenceEngine::Layout::NHWC);
-        InferenceEngine::Blob::Ptr uv_blob = createAndFillBlob(td1);
-        return InferenceEngine::make_shared_blob<InferenceEngine::NV12Blob>(y_blob, uv_blob);
-    }
     default:
         IE_THROW() << "Test does not support the blob kind";
     }

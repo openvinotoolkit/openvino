@@ -9,6 +9,16 @@
  */
 #pragma once
 
+#if !defined(IN_OV_COMPONENT) && !defined(IE_LEGACY_HEADER_INCLUDED)
+#    define IE_LEGACY_HEADER_INCLUDED
+#    ifdef _MSC_VER
+#        pragma message( \
+            "The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    else
+#        warning("The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    endif
+#endif
+
 /**
  * @def IE_VERSION_MAJOR
  * @brief Defines Inference Engine major version
@@ -36,13 +46,13 @@ namespace InferenceEngine {
  * @brief  Represents version information that describes plugins and the inference engine runtime library
  */
 #pragma pack(push, 1)
-struct Version {
+struct INFERENCE_ENGINE_1_0_DEPRECATED Version {
     IE_SUPPRESS_DEPRECATED_START
     /**
      * @deprecated Use IE_VERSION_[MAJOR|MINOR|PATCH] definitions, buildNumber property
      * @brief An API version reflects the set of supported features
      */
-    struct ApiVersion {
+    struct INFERENCE_ENGINE_1_0_DEPRECATED ApiVersion {
         INFERENCE_ENGINE_DEPRECATED("Use IE_VERSION_[MAJOR|MINOR|PATCH] definitions, buildNumber property")
         int major;  //!< A major version
         INFERENCE_ENGINE_DEPRECATED("Use IE_VERSION_[MAJOR|MINOR|PATCH] definitions, buildNumber property")
@@ -110,6 +120,6 @@ struct Version {
  *
  * @return The current Inference Engine version
  */
-INFERENCE_ENGINE_API(const Version*) GetInferenceEngineVersion() noexcept;
+INFERENCE_ENGINE_1_0_DEPRECATED INFERENCE_ENGINE_API(const Version*) GetInferenceEngineVersion() noexcept;
 
 }  // namespace InferenceEngine
