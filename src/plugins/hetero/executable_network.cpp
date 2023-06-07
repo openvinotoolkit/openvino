@@ -52,7 +52,6 @@
 // TODO (vurusovs) required for conversion to legacy API 1.0
 #include "converter_utils.hpp"
 // TODO (vurusovs) required for conversion to legacy API 1.0
-#include "src/config.hpp"
 
 using namespace InferenceEngine;
 using namespace details;
