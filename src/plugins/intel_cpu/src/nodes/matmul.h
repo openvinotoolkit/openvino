@@ -11,6 +11,7 @@
 #include <array>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "common/dnnl_executor.h"
+#include "executors/matmul_list.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -20,11 +21,8 @@ class MatMul : public Node {
 public:
     MatMul(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
 
-    void getSupportedDescriptors() override;
-    void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
-                          const std::vector<MemoryDescPtr>& outputDesc) override;
+    void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
-    MemoryDescPtr getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
     bool canFuse(const NodePtr& node) const override;
     bool created() const override;
 
@@ -49,22 +47,14 @@ protected:
     AttrPtr initPrimitiveAttr(const VectorDims& dims);
 
 private:
-    using executorPtr = std::shared_ptr<DnnlExecutor>;
-    executorPtr execPtr = nullptr;
-    dnnl::memory::desc getBiasDescFrom(const DnnlMemoryDescCPtr outMemDesc);
-    std::pair<Shape, Shape> makeDummyInputShapes(const Shape& in0, const Shape& in1) const;
-
-    bool withBiases;
-
     void setPostOps(dnnl::primitive_attr &attr, const VectorDims& dims, bool initWeights);
 
+    std::vector<InferenceEngine::Precision> inputPrecisions;
+    std::vector<InferenceEngine::Precision> outputPrecisions;
+
     std::string errorPrefix;
-
-    /* whether to transpose input */
-    std::array<bool, 2> transposeIn;
-
-    std::array<DnnlBlockedMemoryDescPtr, 2> inDataDesc;
-    DnnlBlockedMemoryDescPtr outDataDesc;
+    MatMulAttrs matmulAttrs;
+    std::shared_ptr<MatMulExecutor> execPtr = nullptr;
 };
 
 }   // namespace node

@@ -1252,7 +1252,7 @@ Node* Node::NodesFactory::create(const std::shared_ptr<ngraph::Node>& op, const 
     // Note that the op type and its friendly name will also be provided if we fail to create the node.
     auto getExceptionDescWithoutStatus = [](const InferenceEngine::Exception& ex) {
         std::string desc = ex.what();
-        size_t pos = desc.find("]");
+        size_t pos = desc.find(']');
         if (pos != std::string::npos) {
             if (desc.size() == pos + 1) {
                 desc.erase(0, pos + 1);
