@@ -8,7 +8,7 @@
 
 using namespace ov::preprocess;
 
-INSTANTIATE_TEST_SUITE_P(PreprocessingResizeTests_linear,
+INSTANTIATE_TEST_SUITE_P(smoke_Preprocessing,
                          PreprocessingResizeTests,
                          testing::Values(CommonTestUtils::DEVICE_CPU),
                          PreprocessingResizeTests::getTestCaseName);
