@@ -80,15 +80,23 @@ dnnl::memory::dims convert_gemm_tensor(cldnn::tensor t, size_t dims, bool batche
     return res;
 }
 
-dnnl::memory::format_tag convert_gemm_data_format(dnnl::memory::dims dims) {
-    switch (dims.size()) {
-    case 2: return dnnl::memory::format_tag::ab;
-    case 3: return dnnl::memory::format_tag::abc;
-    case 4: return dnnl::memory::format_tag::abcd;
-    default: throw std::invalid_argument("[clDNN] Unsupported conversion from "+ std::to_string(dims.size()) + " to onednn format_tag");
+dnnl::memory::format_tag convert_gemm_data_format(dnnl::memory::dims dims, format target) {
+    if (dims.size() == target.dimension()) {
+        auto tag = convert_data_format(target);
+        if (tag != dnnl::memory::format_tag::undef) {
+            return tag;
+        } else {
+            throw std::invalid_argument("[clDNN] Unsupported conversion from "+ target.to_string() + " to onednn format_tag");
+        }
+    } else {
+        switch (dims.size()) {
+        case 2: return dnnl::memory::format_tag::ab;
+        case 3: return dnnl::memory::format_tag::abc;
+        case 4: return dnnl::memory::format_tag::abcd;
+        default: throw std::invalid_argument("[clDNN] Unsupported conversion from "+ std::to_string(dims.size()) + " to onednn format_tag");
+        }
     }
 }
-
 
 dnnl::memory::dims convert_spatials(cldnn::tensor t, size_t dims) {
     auto spatials = t.spatial;
@@ -118,6 +126,9 @@ std::vector<std::pair<cldnn::format, dnnl::memory::format_tag>> format_map = {
         { cldnn::format::bfyx, dnnl::memory::format_tag::nchw },
         { cldnn::format::bfzyx, dnnl::memory::format_tag::ncdhw },
         { cldnn::format::byxf, dnnl::memory::format_tag::nhwc },
+        { cldnn::format::byfx, dnnl::memory::format_tag::acbd },
+        { cldnn::format::bxfy, dnnl::memory::format_tag::adbc },
+        { cldnn::format::fyxb, dnnl::memory::format_tag::bcda },
         { cldnn::format::bzyxf, dnnl::memory::format_tag::ndhwc },
         { cldnn::format::b_fs_yx_fsv2, dnnl::memory::format_tag::undef },
         { cldnn::format::b_fs_yx_fsv4, dnnl::memory::format_tag::aBcd4b },

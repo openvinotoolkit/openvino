@@ -1873,9 +1873,70 @@ void layout_optimizer::select_preferred_formats_for_onednn(program_node& node, d
             GPU_DEBUG_LOG << "select_preferred_formats:" << node.id() << ": " << fmt_to_str(target_format) << " --> " << fmt_to_str(target_format)
                           << " For index : " << idx << std::endl;
         }
+        // Optimized out permute from permute-gemm pattern. i.e. permute -> gemm
+        if (node.is_type<gemm>()) {
+            // Only the formats below support permute opt out in gemm and permute pattern. For other formats, need to check the gemm performance.
+            std::vector<format> gemm_in_foramt_white_list = {
+                format::bfyx,
+                format::fyxb,
+                format::byfx,
+                format::bxfy,
+            };
+            for (size_t idx = 0 ; idx < node.get_dependencies().size() ; idx++) {
+                if (node.get_dependency(idx).is_type<permute>()) {
+                    auto& pnode = node.get_dependency(idx);
+                    if (pnode.has_fused_primitives()) {
+                        continue;
+                    }
+                    auto input_lay = pnode.get_dependency(0).get_output_layout();
+                    auto output_lay = pnode.get_output_layout();
+                    if (input_lay.compatible(output_lay)) {
+                        for (auto candidate : gemm_in_foramt_white_list) {
+                            auto impl_param = pnode.get_kernel_impl_params();
+                            auto desc = impl_param->typed_desc<permute>();
+                            auto permute_order = desc->permute_order;
+                            std::vector<size_t> l_permute_order(std::begin(permute_order), std::end(permute_order));
+                            if (format::traits(static_cast<format::type>(candidate))._order == l_permute_order) {
+                                pnode.init_preferred_fmt(1, 1);
+                                pnode.set_preferred_output_fmt(0, format(static_cast<format::type>(candidate)));
+                                pnode.can_be_optimized(true);
+                                node.set_preferred_input_fmt(idx, format(static_cast<format::type>(candidate)));
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            // gemm -> permute
+            if (node.get_users().size() == 1 && node.get_users().front()->is_type<permute>() && !node.has_fused_primitives()) {
+                std::vector<format> gemm_out_format_white_list = {
+                    format::bfyx,
+                    format::fyxb,
+                    format::byfx,
+                };
+                auto& pnode = node.get_users().front()->as<permute>();
+                if (!pnode.has_fused_primitives()) {
+                    auto input_lay = pnode.get_dependency(0).get_output_layout();
+                    auto output_lay = pnode.get_output_layout();
+                    if (input_lay.compatible(output_lay)) {
+                        for (auto candidate : gemm_out_format_white_list) {
+                            auto impl_param = pnode.get_kernel_impl_params();
+                            auto desc = impl_param->typed_desc<permute>();
+                            auto permute_order = desc->permute_order;
+                            std::vector<size_t> l_permute_order(std::begin(permute_order), std::end(permute_order));
+                            if (format::traits(static_cast<format::type>(candidate))._order == l_permute_order) {
+                                node.set_preferred_output_fmt(0, format(static_cast<format::type>(candidate)));
+                                pnode.init_preferred_fmt(1, 1);
+                                pnode.set_preferred_input_fmt(0, format(static_cast<format::type>(candidate)));
+                                pnode.can_be_optimized(true);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
-
-    return;
 }
 #endif  // ENABLE_ONEDNN_FOR_GPU
 
