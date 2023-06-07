@@ -163,7 +163,7 @@ class _(TransformConverterBase):
             ppp.input(input_idx).preprocess().custom(broadcast_node)
 
         meta["input_shape"] = input_shape
-        
+
 
 @TransformConverterFactory.register(transforms.Pad)
 class _(TransformConverterBase):
