@@ -22,14 +22,13 @@
 #include "ie_icore.hpp"
 #include "infer_request.hpp"
 #include "plugin.hpp"
-
 #include "src/plugin.hpp"
 
 namespace ov {
 namespace hetero {
-    class Plugin;
+class Plugin;
 }
-}
+}  // namespace ov
 
 namespace HeteroPlugin {
 
@@ -41,7 +40,9 @@ class HeteroExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadS
 public:
     typedef std::shared_ptr<HeteroExecutableNetwork> Ptr;
 
-    HeteroExecutableNetwork(const InferenceEngine::CNNNetwork& network, const ov::AnyMap& user_config, const std::shared_ptr<ov::hetero::Plugin>& plugin);
+    HeteroExecutableNetwork(const InferenceEngine::CNNNetwork& network,
+                            const ov::AnyMap& user_config,
+                            const std::shared_ptr<ov::hetero::Plugin>& plugin);
     HeteroExecutableNetwork(std::istream& heteroModel,
                             const ov::AnyMap& user_config,
                             const std::shared_ptr<ov::hetero::Plugin>& plugin,
