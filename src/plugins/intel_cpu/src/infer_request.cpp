@@ -194,7 +194,7 @@ std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> InferRequestB
 }
 
 static inline void changeEdgePtr(const EdgePtr &edge, InferenceEngine::Blob::Ptr &blob) {
-    edge->getMemoryPtr()->getDnnlMemoryMngr()->setExtBuff(static_cast<void*>(blob->buffer()), blob->byteSize());
+    // edge->getMemoryPtr()->getDnnlMemoryMngr()->setExtBuff(static_cast<void*>(blob->buffer()), blob->byteSize());
     edge->getMemoryPtr()->registerMemProxy(std::make_shared<MemoryProxy>(blob));
 }
 
@@ -282,9 +282,6 @@ void InferRequestBase::changeDefaultPtr() {
         auto output = outputNodesMap.find(name);
         if (output != outputNodesMap.end()) {
             auto parentEdge = output->second->getParentEdgeAt(0);
-            if (parentEdge->getMemory().GetData() == static_cast<void*>(_outputs[name]->buffer()))
-                continue;
-
             bool canBeInPlace = true;
             if (graph->hasDynamicInput()) {
                 if (canBeInPlace) {
@@ -293,6 +290,9 @@ void InferRequestBase::changeDefaultPtr() {
                     inplacedOutPorts.emplace(name);
                 }
             } else {
+                if (parentEdge->getMemory().GetData() == static_cast<void*>(_outputs[name]->buffer()))
+                    continue;
+
                 void* defaultPtr = parentEdge->getMemory().GetData();
                 // Cannot be in-place after concat because concat is using different ptrs without offsets
                 auto parent = parentEdge->getParent();
