@@ -8,8 +8,6 @@ import torch
 import torch.nn.functional as F
 import torchvision.transforms as transforms
 
-from pytorch_layer_test_class import PytorchLayerTest
-
 from openvino.runtime import Core
 
 from openvino.preprocess.torchvision_to_ov import PreprocessConverter
@@ -57,15 +55,14 @@ def _infer_pipelines(test_input, preprocess_pipeline, input_channels=3):
     return torch_result, ov_result
 
 
-class TestNormalize(PytorchLayerTest):
-    def test_Normalize(self):
-        test_input = np.random.randint(255, size=(224, 224, 3), dtype=np.uint8)
-        preprocess_pipeline = transforms.Compose([transforms.ToTensor(), transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
-        torch_result, ov_result = _infer_pipelines(test_input, preprocess_pipeline)
-        assert np.max(np.absolute(torch_result - ov_result)) < 4e-05
+def test_Normalize():
+    test_input = np.random.randint(255, size=(224, 224, 3), dtype=np.uint8)
+    preprocess_pipeline = transforms.Compose([transforms.ToTensor(), transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
+    torch_result, ov_result = _infer_pipelines(test_input, preprocess_pipeline)
+    assert np.max(np.absolute(torch_result - ov_result)) < 4e-05
 
 
-""" @pytest.mark.parametrize(
+@pytest.mark.parametrize(
     ("interpolation", "tolerance"),
     [
         (transforms.InterpolationMode.NEAREST, 4e-05),
@@ -224,4 +221,4 @@ def test_pipeline_2():
         ]
     )
     torch_result, ov_result = _infer_pipelines(test_input, preprocess_pipeline)
-    assert np.max(np.absolute(torch_result - ov_result)) < 1.0  # TODO: is this expected? """
+    assert np.max(np.absolute(torch_result - ov_result)) < 1.0  # TODO: is this expected?
