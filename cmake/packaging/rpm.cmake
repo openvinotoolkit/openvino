@@ -33,8 +33,8 @@ macro(ov_cpack_settings)
         string(TOUPPER ${item} UPPER_COMP)
         # filter out some components, which are not needed to be wrapped to .deb package
         if(NOT OV_CPACK_COMP_${UPPER_COMP}_EXCLUDE_ALL AND
-           # skip OpenVINO Pyhon API and samples
-           NOT item MATCHES "^${OV_CPACK_COMP_PYTHON_OPENVINO}_python.*" AND
+           # skip OpenVINO Python API (pattern in form of "<pyie | pyopenvino | pyngraph>_python${PYTHON_VERSION_MAJOR}${PYTHON_VERSION_MINOR}")
+           (NOT item MATCHES "^${OV_CPACK_COMP_PYTHON_OPENVINO}_python.*" OR ENABLE_PYTHON_PACKAGING) AND
            # see ticket # 82605
            NOT item STREQUAL "gna" AND
            # don't install Intel OpenMP during rpm
@@ -267,14 +267,23 @@ macro(ov_cpack_settings)
     if(ENABLE_PYTHON)
         ov_get_pyversion(pyversion)
         set(python_component "${OV_CPACK_COMP_PYTHON_OPENVINO}_${pyversion}")
-        string(TOUPPER "${pyversion}" pyversion)
+        string(TOUPPER "${pyversion}" pyversion_upper)
 
-        set(CPACK_COMPONENT_PYOPENVINO_${pyversion}_DESCRIPTION "OpenVINO Python bindings")
-        set(CPACK_RPM_PYOPENVINO_${pyversion}_PACKAGE_REQUIRES
-            "${core_package}, ${frontend_packages}, ${plugin_packages}, python3")
-        set(CPACK_RPM_PYOPENVINO_${pyversion}_PACKAGE_NAME "libopenvino-python-${cpack_name_ver}")
-        set(python_package "${CPACK_RPM_PYOPENVINO_${pyversion}_PACKAGE_NAME} = ${cpack_full_ver}")
+        set(CPACK_COMPONENT_PYOPENVINO_${pyversion_upper}_DESCRIPTION "OpenVINO Python API")
+        set(CPACK_RPM_PYOPENVINO_${pyversion_upper}_PACKAGE_REQUIRES
+            "${core_package}, ${frontend_packages}, ${plugin_packages}, python3, python3-numpy")
+        set(CPACK_RPM_PYOPENVINO_${pyversion_upper}_PACKAGE_NAME "python3-openvino")
+        set(python_package "${CPACK_RPM_PYOPENVINO_${pyversion_upper}_PACKAGE_NAME} = ${cpack_full_ver}")
         set(${python_component}_copyright "generic")
+
+        # we can have a single python installed, so we need to generate conflicts for all other versions
+        ov_rpm_generate_conflicts(${python_component} ${conflicting_versions})
+
+        ov_rpm_add_rpmlint_suppression("${python_component}"
+            # all directories
+            "non-standard-dir-perm /usr/lib64/${pyversion}/site-packages/openvino/*"
+            "non-standard-dir-perm /usr/lib64/${pyversion}/site-packages/ngraph/*"
+            )
     endif()
 
     #
