@@ -54,8 +54,8 @@ void PluginConfig::set_property(const ov::AnyMap& properties) {
             user_properties[name] = val;
             if (kv.first == ov::log::level.name()) {
                 auto log_level = kv.second.as<std::string>();
-                if (!setLogLevel(log_level)) {
-                    IE_THROW() << "Unsupported log level: " << log_level;
+                if (!set_log_level(log_level)) {
+                    OPENVINO_THROW("Unsupported log level: ", log_level);
                 }
             }
         } else {
@@ -110,8 +110,8 @@ void PluginConfig::apply_user_properties() {
         full_properties[kv.first] = kv.second;
         if (kv.first == ov::log::level.name()) {
             auto log_level = kv.second.as<std::string>();
-            if (!setLogLevel(log_level)) {
-                IE_THROW() << "Unsupported log level: " << log_level;
+            if (!set_log_level(log_level)) {
+                OPENVINO_THROW("Unsupported log level: ", log_level);
             }
         }
     }

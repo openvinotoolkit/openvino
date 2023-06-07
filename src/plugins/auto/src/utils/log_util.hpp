@@ -43,13 +43,13 @@
 #define TraceCallStack() TraceCallStacks(" ")
 namespace ov {
 namespace auto_plugin {
-inline bool set_log_level(ov::log::Level loglevel) {
-    static std::map<ov::log::Level, LogLevel> log_value_map = {{ov::log::Level::NO, LogLevel::LOG_NONE},
-        {ov::log::Level::ERR, LogLevel::LOG_ERROR},
-        {ov::log::Level::WARNING, LogLevel::LOG_WARNING},
-        {ov::log::Level::INFO, LogLevel::LOG_INFO},
-        {ov::log::Level::DEBUG, LogLevel::LOG_DEBUG},
-        {ov::log::Level::TRACE, LogLevel::LOG_TRACE}};
+inline bool set_log_level(std::string loglevel) {
+    static std::map<std::string, LogLevel> log_value_map = {{"LOG_NONE", LogLevel::LOG_NONE},
+        {"LOG_ERROR", LogLevel::LOG_ERROR},
+        {"LOG_WARNING", LogLevel::LOG_WARNING},
+        {"LOG_INFO", LogLevel::LOG_INFO},
+        {"LOG_DEBUG", LogLevel::LOG_DEBUG},
+        {"LOG_TRACE", LogLevel::LOG_TRACE}};
     auto it = log_value_map.find(loglevel);
     if (it != log_value_map.end()) {
         HLogger->set_log_level(it->second);

@@ -52,7 +52,6 @@ public:
     std::shared_ptr<ov::MockSyncInferRequest>     inferReqInternalActual;
 
     ov::Any optimalNum;
-
     virtual ~AutoTest();
     AutoTest();
 

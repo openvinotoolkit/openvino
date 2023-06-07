@@ -20,6 +20,7 @@ std::shared_ptr<ov::Model> ov::mock_auto_plugin::tests::AutoTest::create_model()
 }
 
 ov::mock_auto_plugin::tests::AutoTest::AutoTest() {
+    set_log_level("LOG_NONE");
     // prepare mockicore and cnnNetwork for loading
     core = std::make_shared<NiceMock<ov::MockICore>>();
     NiceMock<MockAutoPlugin>* mock_multi = new NiceMock<MockAutoPlugin>();
@@ -49,6 +50,16 @@ ov::mock_auto_plugin::tests::AutoTest::AutoTest() {
     ON_CALL(*mockIExeNetActual.get(), create_infer_request()).WillByDefault([this]() {
                 return mockIExeNetActual->ICompiledModel::create_infer_request();
             });
+    std::vector<ov::PropertyName> supported_props = {ov::hint::num_requests};
+    ON_CALL(*mockIExeNet.get(), get_property(StrEq(ov::supported_properties.name())))
+        .WillByDefault(Return(ov::Any(supported_props)));
+    ON_CALL(*mockIExeNetActual.get(), get_property(StrEq(ov::supported_properties.name())))
+        .WillByDefault(Return(ov::Any(supported_props)));
+    unsigned int num = 1;
+    ON_CALL(*mockIExeNet.get(), get_property(StrEq(ov::hint::num_requests.name())))
+        .WillByDefault(Return(ov::Any(num)));
+    ON_CALL(*mockIExeNetActual.get(), get_property(StrEq(ov::hint::num_requests.name())))
+        .WillByDefault(Return(ov::Any(num)));
     std::vector<std::string> supportConfigs = {"SUPPORTED_CONFIG_KEYS", "NUM_STREAMS"};
     ON_CALL(*core, get_property(_, StrEq(METRIC_KEY(SUPPORTED_CONFIG_KEYS)), _))
         .WillByDefault(Return(ov::Any(supportConfigs)));
@@ -134,8 +145,8 @@ ov::mock_auto_plugin::tests::AutoTest::AutoTest() {
 
 ov::mock_auto_plugin::tests::AutoTest::~AutoTest() {
     testing::Mock::AllowLeak(plugin.get());
-    testing::Mock::AllowLeak(mockExeNetwork._ptr.get());
-    testing::Mock::AllowLeak(mockExeNetworkActual._ptr.get());
+    testing::Mock::AllowLeak(mockIExeNet.get());
+    testing::Mock::AllowLeak(mockIExeNetActual.get());
     core.reset();
     plugin.reset();
     mockExeNetwork = {};
