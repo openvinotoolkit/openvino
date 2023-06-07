@@ -414,6 +414,8 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
 }
 
 bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node& node, format fmt_prev, format fmt_next) {
+    // Because mvn and concatenation kernel can work cross-layout, if reorder only performs type conversion,
+    // fusing reorder to the previous node can be done even if it is a dynamic shape case
     if ((prev.is_type<mvn>() || prev.is_type<concatenation>()) &&
         node.as<reorder>().get_primitive()->truncate &&
         fmt_prev == fmt_next)

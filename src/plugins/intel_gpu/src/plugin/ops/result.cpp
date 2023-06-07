@@ -73,6 +73,7 @@ static void CreateResultOp(Program& p, const std::shared_ptr<ngraph::op::v0::Res
     auto outputDataType = DataTypeFromPrecision(precision);
     cldnn::input_info outputID = inputs[0];
 
+    // Even for result op, if reorder only performs type conversion, reorder is created in truncation mode
     if (inputDataType != outputDataType) {
         auto reorder_primitive = cldnn::reorder(outLayerName,
                                                 outputID,

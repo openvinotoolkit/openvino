@@ -424,6 +424,7 @@ void remove_redundant_reorders::run(program& p) {
             auto old_output_layout_of_input = input.get_output_layout();
             input.set_output_layout(output_layout, false);
             if (input.type()->does_possible_implementation_exist(input)) {
+                // Add fused_primitive_desc of reorder to the previous node which propagates original output layout during shape inference
                 fused_primitive_desc local_desc(node.get_primitive());
                 local_desc.f_param = node.get_fuse_params();
                 local_desc.total_num_deps = node.get_dependencies().size();
