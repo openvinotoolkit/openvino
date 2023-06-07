@@ -1,3 +1,6 @@
+# Copyright (C) 2018-2023 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import numpy as np
 import pytest
 import torch
@@ -18,48 +21,23 @@ class TestRFFTN(PytorchLayerTest):
 
             def forward(self, x):
                 rfftn = torch.fft.rfftn(x, s=self.s, dim=self.dim, norm=self.norm)
-                return rfftn.real, rfftn.imag
+                r = rfftn.real
+                i = rfftn.imag
+                irfftn = torch.fft.irfftn(torch.complex(r, i), s=self.s, dim=self.dim, norm=self.norm)
+                return irfftn, r, i
 
         ref_net = None
 
-        return aten_fft_rfftn(dim, s, norm), ref_net, ["aten::fft_rfftn", "aten::real", "aten::imag"]
+        return (
+            aten_fft_rfftn(dim, s, norm),
+            ref_net,
+            ["aten::fft_irfftn", "aten::complex", "aten::fft_rfftn", "aten::real", "aten::imag"],
+        )
 
-    @pytest.mark.parametrize(
-        "input_shape",
-        [
-            [64, 49],
-            [64, 50],
-            [64, 64, 49],
-        ],
-    )
-    @pytest.mark.parametrize(
-        "dim",
-        [
-            [0, -1],
-            [-2, -1],
-            None,
-            [0, 1],
-        ],
-    )
-    @pytest.mark.parametrize(
-        "s",
-        [
-            None,
-            [-1, 49],
-            [64, -1],
-            [64, 49],
-            [5, 1],
-        ],
-    )
-    @pytest.mark.parametrize(
-        "norm",
-        [
-            "forward",
-            "backward",
-            "ortho",
-            None,
-        ],
-    )
+    @pytest.mark.parametrize("input_shape", [[64, 49], [64, 50], [64, 64, 49]])
+    @pytest.mark.parametrize("dim", [[0, -1], [-2, -1], None, [0, 1]])
+    @pytest.mark.parametrize("s", [None, [-1, 49], [64, -1], [64, 49], [5, 1]])
+    @pytest.mark.parametrize("norm", ["forward", "backward", "ortho", None])
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_rfftn(self, ie_device, precision, ir_version, input_shape, dim, s, norm):

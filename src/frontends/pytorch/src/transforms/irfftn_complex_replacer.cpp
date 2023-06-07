@@ -61,7 +61,8 @@ IRFFTNComplexReplacer::IRFFTNComplexReplacer() {
         NodeVector complex = {real, imag};
         auto input = std::make_shared<v0::Concat>(complex, -1);
 
-        auto complex_input_shape = std::make_shared<v3::ShapeOf>(fw_node_complex_input->input(0).get_source_output(), element::i32);
+        auto complex_input_shape =
+            std::make_shared<v3::ShapeOf>(fw_node_complex_input->input(0).get_source_output(), element::i32);
         auto input_rank = std::make_shared<v3::ShapeOf>(complex_input_shape, element::i32);
         auto input_rank_scalar = std::make_shared<v0::Squeeze>(input_rank);
 

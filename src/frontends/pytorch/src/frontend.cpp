@@ -103,7 +103,6 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<ov::pass::PushConstantToSubgraph>();
     manager.register_pass<ov::pass::UnrollIf>();
     manager.register_pass<ov::frontend::pytorch::pass::AtenCatToConcat>();
-
     manager.register_pass<ov::frontend::pytorch::pass::AppendListUnpackReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::AtenStackListConstructReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::PrimListUnpackReplacer>();
