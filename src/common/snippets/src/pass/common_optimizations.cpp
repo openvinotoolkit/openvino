@@ -58,8 +58,8 @@ void CommonOptimizations::ExtractUnsupportedTransposes(const std::shared_ptr<op:
     const auto parameters = body->get_parameters();
     // [107806]: If count of Parameters isn't equal to Subgraph inputs,
     //           we cannot guarantee correct extraction since we don't have correct connections between body I/O and Subgraph I/O.
-    if (parameters.size() != subgraph->input_values().size())
-        return;
+    OPENVINO_ASSERT(parameters.size() == subgraph->input_values().size(),
+                    "Failed to extract unsupported transposes: the count of Parameters isn't equal to Subgraph inputs");
 
     bool updated = false;
     for (size_t i = 0; i < parameters.size(); ++i) {

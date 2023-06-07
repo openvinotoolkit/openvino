@@ -26,6 +26,9 @@ public:
     OPENVINO_RTTI("ExplicitTransposeMatMulInputs", "0");
     ExplicitTransposeMatMulInputs();
 
+    // Return `True` if all inputs (except 0-th input) have scalar shape. Otherwise returns `False`
+    static bool are_weights_scalar(const std::shared_ptr<ov::Node>& node);
+
 private:
     static void extract(const ov::Input<ov::Node>& input);
 };

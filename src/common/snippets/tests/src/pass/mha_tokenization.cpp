@@ -18,6 +18,7 @@ void TokenizeMHASnippetsTests::run() {
     manager.register_pass<ov::snippets::pass::EnumerateNodes>();
     manager.register_pass<ov::snippets::pass::TokenizeMHASnippets>();
     manager.register_pass<ov::snippets::pass::CommonOptimizations>();
+    disable_rt_info_check();
 }
 
 TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA) {

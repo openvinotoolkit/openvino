@@ -7,6 +7,7 @@
 
 #include "snippets/itt.hpp"
 #include "snippets/pass/collapse_subgraph.hpp"
+#include "snippets/pass/explicit_transpose_matmul_inputs.hpp"
 #include "snippets/op/subgraph.hpp"
 #include "snippets/op/brgemm.hpp"
 #include "snippets/utils.hpp"
@@ -156,12 +157,7 @@ auto update_intermediate_supported_ops(std::shared_ptr<ov::Node>& interm_op, ov:
                         break;
 
                     // Add node only if there are scalar constants on inputs because of plugin-specific limitation
-                    bool are_weights_scalar = true;
-                    const auto parent_count = parent->get_input_size();
-                    for (size_t i = 1; i < parent_count; ++i) {
-                        are_weights_scalar = are_weights_scalar && ov::shape_size(parent->get_input_shape(i)) == 1;
-                    }
-                    if (!are_weights_scalar)
+                    if (!ov::snippets::pass::ExplicitTransposeMatMulInputs::are_weights_scalar(parent))
                         break;
 
                     ordered_ops.insert(ordered_ops.begin() + shift, parent);
@@ -321,15 +317,19 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
         /***** Transposes *****/
         /* There may be Transpose and Reshape ops on inputs and outputs of MHA-pattern skeleton
          * We can add them into Subgraph body
+         *       Transpose0  Transpose1
+         *              \     /
+         *              MatMul0
+         *                 |
+         *               [...]   Transpose2
+         *                  \      /
+         *                   MatMul1
+         *                      |
+         *                  Transpose3
          */
 
-        auto tokenize_transpose = [config](const std::shared_ptr<ov::Node>& node) -> std::shared_ptr<ov::opset1::Transpose> {
-            return config.mha_token_enable_transpose ? ov::as_type_ptr<ov::opset1::Transpose>(node)
-                                                     : nullptr;
-        };
-
         // First input branch of MatMul0 should be executed before second input branch of MatMul0,
-        // so firstly we insert Transpose1 on the beginning of ordered_ops and then Transpose1
+        // so firstly we insert Transpose1 on the beginning of ordered_ops and then Transpose0
         // Note: If MatMul0 has transposed_b, we should tokenize only scalars ops from 1st branch
         //       to move extracted Transpose from MatMul input to body Parameter
         auto parent = matmul0->get_input_node_shared_ptr(1);
@@ -345,15 +345,8 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
 
             // Only if MatMul0 has transposed_b, we have to tokenize scalar ops
             // to move explicit Transpose from MatMul0 input_1 to Parameter of Subgraph body
-            if (is_transposed_b_0) {
-                const auto parent_count = parent->get_input_size();
-                bool are_weights_scalar = true;
-                for (size_t i = 1; i < parent_count; ++i) {
-                    are_weights_scalar = are_weights_scalar && ov::shape_size(parent->get_input_shape(i)) == 1;
-                }
-                if (!are_weights_scalar) {
-                    break;
-                }
+            if (is_transposed_b_0 && !ov::snippets::pass::ExplicitTransposeMatMulInputs::are_weights_scalar(parent)) {
+                break;
             }
 
             // To avoid unsupported number of non-scalar Constants in the future after FakeQuantize decomposition (plugin specific limitation)
@@ -368,30 +361,38 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
             parent = parent->get_input_node_shared_ptr(0);
         }
 
-        const auto transpose1 = ov::as_type_ptr<ov::opset1::Transpose>(parent);
-        // If Transpose has valid order for the Transpose fusing (ExplicitTransposeMatMulInputs pass call), tokenize him.
-        // Otherwise, skip the Transpose.
-        if (is_transposed_b_0 && is_valid_transpose(transpose1, {0, 2, 1, 3})) {
-            ordered_ops.insert(ordered_ops.begin(), transpose1);
-        } else if (!is_transposed_b_0 && is_valid_transpose(transpose1, {0, 2, 3, 1})) {
-            ordered_ops.insert(ordered_ops.begin(), transpose1);
-        }
+        auto tokenize_transpose = [&](const std::shared_ptr<ov::opset1::Transpose>& transpose,
+                                      bool is_input_transposed, std::vector<int64_t> order,
+                                      const ov::NodeVector::const_iterator& pos) {
+            // If Transpose has valid order for the Transpose fusing (ExplicitTransposeMatMulInputs pass call), tokenize him.
+            // Otherwise, skip the Transpose.
+            if (!is_input_transposed) {
+                if (is_valid_transpose(transpose, order)) {
+                    ordered_ops.insert(pos, transpose);
+                }
+                return;
+            }
+            auto transposed_order = order;
+            const auto rank = transposed_order.size();
+            if (rank < 2)
+                return;
+            std::swap(transposed_order[rank - 1], transposed_order[rank - 2]);
+            if (is_valid_transpose(transpose, transposed_order)) {
+                ordered_ops.insert(pos, transpose);
+            }
+        };
 
-        // TODO: Add Reshape Support for all Transposes
-        //       Add 3D support for all Transposes
-        const auto transpose0 = ov::as_type_ptr<ov::opset1::Transpose>(matmul0->get_input_node_shared_ptr(0));
-        if (matmul0->get_transpose_a() && is_valid_transpose(transpose0, {0, 2, 3, 1})) {
-            ordered_ops.insert(ordered_ops.begin(), transpose0);
-        } else if (!matmul0->get_transpose_a() && is_valid_transpose(transpose0, {0, 2, 1, 3})) {
-            ordered_ops.insert(ordered_ops.begin(), transpose0);
-        }
+        auto get_transpose = [config](const std::shared_ptr<ov::Node>& node) -> std::shared_ptr<ov::opset1::Transpose> {
+            return config.mha_token_enable_transpose ? ov::as_type_ptr<ov::opset1::Transpose>(node)
+                                                     : nullptr;
+        };
 
-        const auto transpose2 = ov::as_type_ptr<ov::opset1::Transpose>(matmul1->get_input_node_shared_ptr(1));
-        if (matmul1->get_transpose_b() && is_valid_transpose(transpose2, {0, 2, 3, 1})) {
-            ordered_ops.push_back(transpose2);
-        } else if (!matmul1->get_transpose_b() && is_valid_transpose(transpose2, {0, 2, 1, 3})) {
-            ordered_ops.push_back(transpose2);
-        }
+        const auto transpose1 = get_transpose(parent);
+        const auto transpose0 = get_transpose(matmul0->get_input_node_shared_ptr(0));
+        const auto transpose2 = get_transpose(matmul1->get_input_node_shared_ptr(1));
+        tokenize_transpose(transpose1, is_transposed_b_0, {0, 2, 3, 1}, ordered_ops.begin());
+        tokenize_transpose(transpose0, matmul0->get_transpose_a(), {0, 2, 1, 3}, ordered_ops.begin());
+        tokenize_transpose(transpose2, matmul1->get_transpose_b(), {0, 2, 1, 3}, ordered_ops.end());
         ordered_ops.push_back(matmul1);
 
         bool are_ops_after_matmul1 = false;
@@ -424,7 +425,7 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
         //  <Supported ops>
         //    Transpose3
         if (!are_ops_after_matmul1) {
-            auto transpose3 = tokenize_transpose(child);
+            auto transpose3 = get_transpose(child);
             if (is_valid_transpose(transpose3, {0, 2, 1, 3}) &&
                 transpose3->get_input_element_type(0) == matmul1_out_type) {  // To avoid Convert between MatMul1 and Transpose3
                 ordered_ops.push_back(transpose3);

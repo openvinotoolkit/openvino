@@ -11,18 +11,20 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/core/rt_info.hpp"
 
+bool ov::snippets::pass::ExplicitTransposeMatMulInputs::are_weights_scalar(const std::shared_ptr<ov::Node>& node) {
+    const auto inputs = node->inputs();
+    return std::all_of(inputs.begin() + 1, inputs.end(),
+                       [](const ov::Input<ov::Node>& in) {
+                           return in.get_partial_shape().is_static() && ov::shape_size(in.get_shape()) == 1;
+                       });
+}
 
 void ov::snippets::pass::ExplicitTransposeMatMulInputs::extract(const ov::Input<ov::Node>& input) {
     auto parent = input.get_source_output().get_node_shared_ptr();
     auto transpose = ov::as_type_ptr<ov::op::v1::Transpose>(parent);
     while (!transpose && !ov::is_type<ov::op::v0::Parameter>(parent)) {
         // We can set supported order and transposed_<a|b>=false only if ops have scalar shapes to avoid shape mismatching
-        const auto parent_count = parent->inputs().size();
-        bool are_weights_scalar = true;
-        for (size_t j = 1; j < parent_count; ++j) {
-            are_weights_scalar = are_weights_scalar && ov::shape_size(parent->get_input_shape(j)) == 1;
-        }
-        if (!are_weights_scalar)
+        if (!are_weights_scalar(parent))
             break;
 
         parent = parent->get_input_node_shared_ptr(0);
