@@ -28,8 +28,8 @@ Transpose2D::Transpose2D() {
         const auto transpose_node = pattern_map.at(transpose).get_node_shared_ptr();
         const ov::Shape& shape = transpose_node->get_input_shape(0);
         const ov::Shape& shape_out = transpose_node->get_output_shape(0);
-        ov::AxisVector axises = transpose_order->get_axis_vector_val();
-        ov::AxisVector axises_fused = {};
+        ov::AxisVector axis = transpose_order->get_axis_vector_val();
+        ov::AxisVector axis_fused = {};
         ov::Shape shape_fused_out = {};
         for (const size_t& axis : axises) {
             if (axises_fused.empty() || (axis - axises_fused.back()) != 1) {
