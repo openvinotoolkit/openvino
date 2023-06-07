@@ -4,8 +4,7 @@
 
 #include "shape_of_inst.h"
 #include "reshape_inst.h"
-#include "broadcast_inst.h"
-#include "tile_inst.h"
+#include "eltwise_inst.h"
 #include "pass_manager.h"
 
 #include "intel_gpu/graph/program.hpp"
@@ -40,12 +39,22 @@ void mark_shape_of_subgraphs::look_for_shape_of_subgraph(program_node& node) {
     mark_node(node);
 }
 
-bool mark_shape_of_subgraphs::can_mark_node(program_node& node) {
+bool mark_shape_of_subgraphs::can_mark_node(const program_node& node) {
     if (node.has_fused_primitives())
         return false;
 
     if (node.is_type<reshape>())
         return true;
+
+    // Exclude eltwise with boolean mode types since CPU reference implementation
+    // couldn't save result in int8 data type (as it requested by GPU plugin,
+    // because we use it instead of boolean data type)
+    if (node.is_type<eltwise>()) {
+        auto& eltwise_node = node.as<eltwise>();
+        auto eltwise_mode = eltwise_node.get_primitive()->mode;
+        if (eltwise::eltwise_bool_modes.find(eltwise_mode) != eltwise::eltwise_bool_modes.end())
+            return false;
+    }
 
     auto available_impls = node.type()->get_available_impls(node);
     auto cpu_impl_found = available_impls.find(impl_types::cpu) != available_impls.end();

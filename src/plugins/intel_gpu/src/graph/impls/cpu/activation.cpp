@@ -256,6 +256,12 @@ struct activation_impl : public typed_primitive_impl<activation> {
         case data_types::i32:
             execute_activation<data_types::i32>(op, instance, activation_function, additional_params);
             break;
+        case data_types::i8:
+            execute_activation<data_types::i8>(op, instance, activation_function, additional_params);
+            break;
+        case data_types::u8:
+            execute_activation<data_types::u8>(op, instance, activation_function, additional_params);
+            break;
         default:
             OPENVINO_THROW("[GPU] Couldn't execute activation operation: unsupported input data type: ",
                            params->input_layouts[0].data_type);
@@ -284,6 +290,8 @@ attach_activation_impl::attach_activation_impl() {
         format::bfyx,
         format::bfzyx,
         format::bfwzyx,
+        format::bfuwzyx,
+        format::bfvuwzyx,
     };
 
     auto types = {
@@ -291,6 +299,8 @@ attach_activation_impl::attach_activation_impl() {
         data_types::f16,
         data_types::i32,
         data_types::i64,
+        data_types::i8,
+        data_types::u8,
     };
 
     implementation_map<activation>::add(impl_types::cpu, shape_types::static_shape, activation_impl::create, types, formats);

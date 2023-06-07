@@ -118,6 +118,8 @@ attach_concatenation_impl::attach_concatenation_impl() {
         data_types::f16,
         data_types::i32,
         data_types::i64,
+        data_types::i8,
+        data_types::u8,
     };
 
     implementation_map<concatenation>::add(impl_types::cpu, shape_types::static_shape, concatenation_impl::create, types, formats);

@@ -91,6 +91,68 @@ TEST(activation_f32_fw_gpu, dynamic) {
     }
 }
 
+TEST(activation_f32_fw_cpu_impl, dynamic_8d) {
+    auto& engine = get_test_engine();
+
+    ov::PartialShape in_shape  = { 1, 1, 2, 1, 1, 1, 2, 2 };
+    layout in_layout { ov::PartialShape::dynamic(in_shape.size()), data_types::f32, format::bfvuwzyx };
+
+    auto input = engine.allocate_memory({ in_shape, data_types::f32, format::bfvuwzyx });
+    set_values(input, { -0.12f, 0.56f, 0.45f, -0.789f, 42.f, 0.999f, 0.7899f, 0.f});
+
+    std::vector<activation_func> funcs = {
+        activation_func::gelu,
+        activation_func::relu,
+        activation_func::hyperbolic_tan
+    };
+
+    for (auto func : funcs) {
+        topology topology(input_layout("input", in_layout));
+        topology.add(activation("activation", input_info("input"), func));
+
+        ExecutionConfig config = get_test_default_config(engine);
+        auto forcing_map = ov::intel_gpu::ImplForcingMap{ {"activation", {format::bfvuwzyx, "", impl_types::cpu}} };
+        config.set_property(ov::intel_gpu::force_implementations(forcing_map));
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        network network(engine, topology, config);
+
+        network.set_input_data("input", input);
+
+        auto inst = network.get_primitive("activation");
+        auto impl = inst->get_impl();
+        ASSERT_TRUE(impl != nullptr);
+        ASSERT_TRUE(impl->is_dynamic());
+
+        auto outputs = network.execute();
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "activation");
+
+        auto output_memory = outputs.at("activation").get_memory();
+        auto output_layout = output_memory->get_layout();
+        cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+        cldnn::mem_lock<float> input_ptr(input, get_test_stream());
+
+        ASSERT_EQ(output_layout.format, format::bfvuwzyx);
+
+        for (size_t i = 0; i < output_layout.get_linear_size(); ++i) {
+            switch (func) {
+            case activation_func::gelu:
+                ASSERT_NEAR(0.5f * static_cast<float>(input_ptr[i]) * (1.f + std::erf(static_cast<float>((input_ptr[i])) / std::sqrt(2.0f))),
+                            output_ptr[i], 1e-5f);
+                break;
+            case activation_func::relu:
+                ASSERT_EQ(std::max(input_ptr[i], static_cast<float>(0)), output_ptr[i]);
+                break;
+            case activation_func::hyperbolic_tan:
+                    ASSERT_FLOAT_EQ(std::tanh(static_cast<float>(input_ptr[i])), output_ptr[i]);
+                break;
+            default:
+                break;
+            }
+        }
+    }
+}
+
 TEST(activation_f32_fw_gpu, not_basic_yxfb) {
     //  Input:
     //  1  0 -3  4  5

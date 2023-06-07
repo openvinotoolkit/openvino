@@ -120,7 +120,7 @@ public:
 private:
     void run(program& p) override;
     void look_for_shape_of_subgraph(program_node& node);
-    bool can_mark_node(program_node& node);
+    bool can_mark_node(const program_node& node);
     void mark_node(program_node& node);
 
     bool _update_impls;

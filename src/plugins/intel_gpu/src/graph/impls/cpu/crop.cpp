@@ -127,6 +127,8 @@ attach_crop_impl::attach_crop_impl() {
         data_types::f16,
         data_types::i32,
         data_types::i64,
+        data_types::i8,
+        data_types::u8,
     };
 
     implementation_map<crop>::add(impl_types::cpu, shape_types::static_shape, crop_impl::create, types, formats);

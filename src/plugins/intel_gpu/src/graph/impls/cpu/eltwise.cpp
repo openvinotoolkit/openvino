@@ -209,6 +209,8 @@ attach_eltwise_impl::attach_eltwise_impl() {
         format::bfyx,
         format::bfzyx,
         format::bfwzyx,
+        format::bfuwzyx,
+        format::bfvuwzyx,
     };
 
     auto types = {
@@ -216,6 +218,8 @@ attach_eltwise_impl::attach_eltwise_impl() {
         data_types::f16,
         data_types::i32,
         data_types::i64,
+        data_types::i8,
+        data_types::u8,
     };
 
     implementation_map<eltwise>::add(impl_types::cpu, shape_types::static_shape, eltwise_impl::create, types, formats);

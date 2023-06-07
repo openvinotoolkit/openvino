@@ -121,6 +121,8 @@ attach_gather_impl::attach_gather_impl() {
         data_types::f16,
         data_types::i32,
         data_types::i64,
+        data_types::i8,
+        data_types::u8,
     };
 
     implementation_map<gather>::add(impl_types::cpu, shape_types::static_shape, gather_impl::create, types, formats);
