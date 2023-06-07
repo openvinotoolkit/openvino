@@ -113,7 +113,7 @@ public:
             std::make_shared<Constant>(ov::element::i8, ov::Shape{transpose_order.size()}, transpose_order);
         auto transpose_node = std::make_shared<Transpose>(params[0], transpose_const);
 
-        ov::Shape shape_in = {1, -1};
+        ov::Shape shape_in = {1, input_shape_size};
         auto reshape_in_const = std::make_shared<Constant>(ov::element::i64, ov::Shape{shape_in.size()}, shape_in);
         auto reshape_in_node = std::make_shared<Reshape>(transpose_node, reshape_in_const, false);
 
@@ -165,7 +165,7 @@ public:
         auto params = ngraph::builder::makeParams(m_net_type, {m_input_shape});
         const size_t input_shape_size = ov::shape_size(params[0]->get_shape());
 
-        ov::Shape shape_in = {1, -1};
+        ov::Shape shape_in = {1, input_shape_size};
         auto reshape_in_const = std::make_shared<Constant>(ov::element::i64, ov::Shape{shape_in.size()}, shape_in);
         auto reshape_in_node = std::make_shared<Reshape>(params[0], reshape_in_const, false);
 
@@ -199,7 +199,7 @@ public:
         auto params = ngraph::builder::makeParams(m_net_type, {m_input_shape});
         const size_t input_shape_size = ov::shape_size(params[0]->get_shape());
 
-        ov::Shape shape_in = {1, -1};
+        ov::Shape shape_in = {1, input_shape_size};
         auto reshape_in_const = std::make_shared<Constant>(ov::element::i64, ov::Shape{shape_in.size()}, shape_in);
         auto reshape_in_node = std::make_shared<Reshape>(params[0], reshape_in_const, false);
 

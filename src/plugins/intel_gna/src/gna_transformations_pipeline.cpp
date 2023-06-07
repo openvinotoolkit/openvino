@@ -36,6 +36,8 @@
 #include "transformations/disable_decompression_convert_constant_folding.hpp"
 #include "transformations/fuse_conv_biasadd_activation.hpp"
 #include "transformations/gather_sinking.hpp"
+#include "transformations/gather_sinking_transpose.hpp"
+#include "transformations/gather_sinking_transpose_reshape.hpp"
 #include "transformations/handle_transposes_around_matmul.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/insert_copy_layer.hpp"
@@ -212,13 +214,16 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     // TODO enable this transformation for networks without convolutions
     if (has_convolution || has_maxpool || has_mvn || has_matmul) {
         manager.register_pass<ov::intel_gna::pass::TransposeNCHW>();
+        manager.register_pass<ov::intel_gna::pass::TSConcatForward>();
+        manager.register_pass<ov::intel_gna::pass::TSSplitBackward>();
+        manager.register_pass<ov::intel_gna::pass::GatherSinkingTransposeReshapeForward>();
+        manager.register_pass<ov::intel_gna::pass::GatherSinkingTransposeReshapeBackward>();
+        manager.register_pass<ov::intel_gna::pass::GatherSinkingTranspose>();
         manager.register_pass<ov::pass::TransposeSinkingGeneral>();
         manager.register_pass<ov::intel_gna::pass::GatherSinkingGeneral>();
         manager.register_pass<ov::pass::ReshapeSequenceFusion>();
         manager.register_pass<ov::pass::TransposeToReshape>();
         manager.register_pass<ov::intel_gna::pass::GnaConvolutionFusion>();
-        manager.register_pass<ov::intel_gna::pass::TSConcatForward>();
-        manager.register_pass<ov::intel_gna::pass::TSSplitBackward>();
         manager.register_pass<ov::pass::transpose_sinking::TSFuse>();
     }
     manager.register_pass<ov::intel_gna::pass::RemoveInputsProcessing>(input_output_subgraphs);
