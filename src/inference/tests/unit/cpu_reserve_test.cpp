@@ -422,6 +422,37 @@ LinuxCpuReserveTestCase _1socket_16cores_hyper_4streams = {
     },
     {0, 0, 0, 0},
 };
+LinuxCpuReserveTestCase _1socket_18cores_hyper_1streams = {
+    36,
+    1,
+    {{38, 18, 0, 18}},
+    {
+        {0, 0, 0, HYPER_THREADING_PROC, 0, -1},  {1, 0, 0, HYPER_THREADING_PROC, 0, -1},
+        {2, 0, 1, HYPER_THREADING_PROC, 1, -1},  {3, 0, 1, HYPER_THREADING_PROC, 1, -1},
+        {4, 0, 2, HYPER_THREADING_PROC, 2, -1},  {5, 0, 2, HYPER_THREADING_PROC, 2, -1},
+        {6, 0, 3, HYPER_THREADING_PROC, 3, -1},  {7, 0, 3, HYPER_THREADING_PROC, 3, -1},
+        {8, 0, 4, HYPER_THREADING_PROC, 4, -1},  {9, 0, 4, HYPER_THREADING_PROC, 4, -1},
+        {10, 0, 5, HYPER_THREADING_PROC, 5, -1}, {11, 0, 5, HYPER_THREADING_PROC, 5, -1},
+        {12, 0, 6, HYPER_THREADING_PROC, 6, -1}, {13, 0, 6, HYPER_THREADING_PROC, 6, -1},
+        {14, 0, 7, HYPER_THREADING_PROC, 7, -1}, {15, 0, 7, HYPER_THREADING_PROC, 7, -1},
+        {16, 0, 8, HYPER_THREADING_PROC, 8, -1}, {17, 0, 9, HYPER_THREADING_PROC, 8, -1},
+        {18, 0, 0, MAIN_CORE_PROC, 0, -1},       {19, 0, 1, MAIN_CORE_PROC, 1, -1},
+        {20, 0, 2, MAIN_CORE_PROC, 2, -1},       {21, 0, 3, MAIN_CORE_PROC, 3, -1},
+        {22, 0, 4, MAIN_CORE_PROC, 4, -1},       {23, 0, 5, MAIN_CORE_PROC, 5, -1},
+        {24, 0, 6, MAIN_CORE_PROC, 6, -1},       {25, 0, 7, MAIN_CORE_PROC, 7, -1},
+        {26, 0, 8, MAIN_CORE_PROC, 8, -1},       {27, 0, 9, MAIN_CORE_PROC, 9, -1},
+        {28, 0, 10, MAIN_CORE_PROC, 10, -1},     {29, 0, 11, MAIN_CORE_PROC, 11, -1},
+        {30, 0, 12, MAIN_CORE_PROC, 12, -1},     {31, 0, 13, MAIN_CORE_PROC, 13, -1},
+        {32, 0, 14, MAIN_CORE_PROC, 14, -1},     {33, 0, 15, MAIN_CORE_PROC, 15, -1},
+        {34, 0, 16, MAIN_CORE_PROC, 16, -1},     {35, 0, 17, MAIN_CORE_PROC, 17, -1},
+    },
+    {{1, MAIN_CORE_PROC, 36}},
+    {
+        {0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15, 16, 17,
+         18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35},
+    },
+    {0},
+};
 
 TEST_P(LinuxCpuReserveTests, LinuxCpuReserve) {}
 
@@ -436,6 +467,7 @@ INSTANTIATE_TEST_SUITE_P(CPUReserve,
                                          _1socket_4cores_hyper_4streams,
                                          _1socket_16cores_hyper_20streams,
                                          _1socket_16cores_hyper_1streams,
-                                         _1socket_16cores_hyper_4streams));
+                                         _1socket_16cores_hyper_4streams,
+                                         _1socket_18cores_hyper_1streams));
 #endif
 }  // namespace
