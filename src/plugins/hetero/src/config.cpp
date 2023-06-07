@@ -5,7 +5,7 @@
 #include "config.hpp"
 
 // #include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
-#include <ie_plugin_config.hpp> // TODO vurusovs create file with custom properties
+#include <ie_plugin_config.hpp>  // TODO vurusovs create file with custom properties
 
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -21,20 +21,17 @@ Configuration::Configuration(const ov::AnyMap& config, const Configuration& defa
         const auto& key = c.first;
         const auto& value = c.second;
 
-        if (HETERO_CONFIG_KEY(DUMP_GRAPH_DOT) == key) {   // TODO vurusovs: rewrite HETERO_CONFIG_KEY(DUMP_GRAPH_DOT)
+        if (HETERO_CONFIG_KEY(DUMP_GRAPH_DOT) == key) {  // TODO vurusovs: rewrite HETERO_CONFIG_KEY(DUMP_GRAPH_DOT)
             dump_graph = value.as<bool>();
             m_hetero_config[key] = value;
-        }
-        else if ("TARGET_FALLBACK" == key || ov::device::priorities.name() == key) {
+        } else if ("TARGET_FALLBACK" == key || ov::device::priorities.name() == key) {
             device_priorities = value.as<std::string>();
             m_hetero_config[key] = value;
-        }
-        else if (ov::exclusive_async_requests == key) {
+        } else if (ov::exclusive_async_requests == key) {
             exclusive_async_requests = value.as<bool>();
             m_device_config[key] = value;
-        }
-        else
-            m_device_config[key] = value;   // save property as is to pass to underlying device
+        } else
+            m_device_config[key] = value;  // save property as is to pass to underlying device
     }
 }
 

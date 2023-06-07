@@ -11,13 +11,12 @@
 #include <utility>
 #include <vector>
 
-#include "openvino/runtime/iplugin.hpp"
-#include "config.hpp"
-
 #include "../executable_network.hpp"
+#include "config.hpp"
+#include "openvino/runtime/iplugin.hpp"
 
 namespace HeteroPlugin {
-    class HeteroExecutableNetwork;
+class HeteroExecutableNetwork;
 }
 
 namespace ov {
@@ -53,7 +52,6 @@ public:
 
     ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
                                     const ov::AnyMap& properties) const override;
-    
 
     // FROM OLD HETERO PLUGIN
     // std::string GetTargetFallback(const Configs& config, bool raise_exception = true) const;

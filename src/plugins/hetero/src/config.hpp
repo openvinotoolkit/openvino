@@ -19,8 +19,7 @@ struct Configuration {
     Configuration& operator=(const Configuration&) = default;
     Configuration& operator=(Configuration&&) = default;
 
-    explicit Configuration(const ov::AnyMap& config,
-                           const Configuration& defaultCfg = {});
+    explicit Configuration(const ov::AnyMap& config, const Configuration& defaultCfg = {});
 
     ov::Any Get(const std::string& name) const;
 
