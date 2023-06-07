@@ -13,7 +13,7 @@ from openvino.runtime import PartialShape, Type, OVAny, Tensor
 def tf_type_to_ov_type(tf_type_int):
     tf_type = tf.dtypes.as_dtype(tf_type_int)
     if tf_type.name == "variant":
-        return Type.undefined
+        return Type.dynamic
     return Type(tf_type.as_numpy_dtype)
 
 
