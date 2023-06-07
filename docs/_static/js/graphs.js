@@ -1,8 +1,8 @@
 // =================== GENERAL OUTPUT CONFIG =========================
 
 const chartDisclaimers = {
-    Value: 'Value: Performance/(No_of_sockets * Price_of_CPU_dGPU), where prices are in USD as of December 2022.',
-    Efficiency: 'Efficiency: Performance/(No_of_sockets * TDP_of_CPU_dGPU), where total power dissipation (TDP) is in Watt as of December 2022.'
+    Value: 'Value: Performance/(No_of_sockets * Price_of_CPU_dGPU), where prices are in USD as of May 2023.',
+    Efficiency: 'Efficiency: Performance/(No_of_sockets * TDP_of_CPU_dGPU), where total power dissipation (TDP) is in Watt as of May 2023.'
 }
 
 const OVdefaultSelections = {
