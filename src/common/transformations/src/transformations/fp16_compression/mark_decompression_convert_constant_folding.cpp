@@ -9,6 +9,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/decompression.hpp"
 #include "transformations/rt_info/disable_constant_folding.hpp"
+#include "transformations/rt_info/is_shape_subgraph.hpp"
 
 using namespace ov;
 
@@ -51,11 +52,10 @@ pass::KeepConstAndDecompression::KeepConstAndDecompression() {
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto node = m.get_match_root();
-        if (!is_decompression(node))
+        if (!is_decompression(node) || !is_type<opset8::Convert>(node) ||
+            ov::is_shape_subgraph(node->shared_from_this()))
             return false;
 
-        if (!is_type<opset8::Convert>(node))
-            return false;
         disable_constant_folding(node);
 
         if (!is_type<opset8::Constant>(node->input_value(0).get_node_shared_ptr()))

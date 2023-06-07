@@ -17,6 +17,7 @@
 #include <ov_ops/augru_sequence.hpp>
 
 // Common transformations
+#include "transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.hpp"
 #include "transformations/common_optimizations/add_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_transition.hpp"
 #include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"
@@ -196,8 +197,9 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     ov::pass::Manager manager;
     manager.set_per_pass_validation(false);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::InitNodeInfo);
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::MarkShapeOfSubgraphs);
     // todo: should be uncommented when xxx-105060 is ready
-    // CPU_REGISTER_PASS_COMMON(manager, ov::pass::KeepConstAndDecompression);
+     CPU_REGISTER_PASS_COMMON(manager, ov::pass::KeepConstAndDecompression);
 
     const bool useLpt = !defaultPrecisions.empty();
     if (useLpt) {
