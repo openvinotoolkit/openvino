@@ -425,7 +425,7 @@ LinuxCpuReserveTestCase _1socket_16cores_hyper_4streams = {
 LinuxCpuReserveTestCase _1socket_18cores_hyper_1streams = {
     36,
     1,
-    {{38, 18, 0, 18}},
+    {{36, 18, 0, 18}},
     {
         {0, 0, 0, HYPER_THREADING_PROC, 0, -1},  {1, 0, 0, HYPER_THREADING_PROC, 0, -1},
         {2, 0, 1, HYPER_THREADING_PROC, 1, -1},  {3, 0, 1, HYPER_THREADING_PROC, 1, -1},
