@@ -933,14 +933,11 @@ void Graph::PullOutputData(BlobMap &out, std::set<std::string> &inplacedOutPorts
         auto &expectedDesc = ext_blob->getTensorDesc();
 
         if (std::count(inplacedOutPorts.begin(), inplacedOutPorts.end(), name)) {
-            // 
-            InferenceEngine::Blob::Ptr newBlob =
-                InferenceEngine::make_shared_blob<float>(actualDesc,
-                                                        static_cast<float*>(intr_blob.GetData()),
-                                                        intr_blob.GetSize());
-            ext_blob = newBlob;
-            std::swap(out[name], newBlob);
-            DEBUG_LOG(name, " @ ", static_cast<void*>(newBlob->buffer()), " -> ", static_cast<void*>(out[name]->buffer()));
+            void *ext_blob_ptr = ext_blob->buffer();
+            void *intr_blob_ptr = intr_blob.GetData();
+            DEBUG_LOG(name, " tensordesc compatiable ", expectedDesc==actualDesc);
+            // DEBUG_LOG(name, "expectedDesc ", Shape(expectedDesc.getDims()), ", actualDesc ", Shape(actualDesc.getDims()));
+            DEBUG_LOG(name, " @ ", intr_blob_ptr, " -> ", ext_blob_ptr, " zero-copy: ", intr_blob_ptr==ext_blob_ptr, " for ", GetName());
         } else {
             // TODO [NM]: need to create universal reorder which will be detect cases when we really need to use it
             // WA: for cases when output shape after transformation will be 1x1x1x1 but model output is scalar

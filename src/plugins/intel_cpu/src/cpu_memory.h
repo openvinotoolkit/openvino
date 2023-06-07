@@ -153,6 +153,7 @@ private:
     Memory* _pMem = nullptr;
 };
 
+class MemoryProxy;
 class Memory {
 public:
     explicit Memory(const dnnl::engine& eng);
@@ -260,8 +261,13 @@ public:
         return mgrHandle.get();
     }
 
+    void registerMemProxy(std::shared_ptr<MemoryProxy> memProxy) {
+        m_memProxy = memProxy;
+    }
+
 private:
     friend DnnlMemoryMngr;
+    friend MemoryProxy;
 
 private:
     void update();
@@ -270,6 +276,7 @@ private:
     MemoryDescPtr pMemDesc;
     dnnl::engine eng;
     DnnlMemMngrHandle mgrHandle;
+    std::shared_ptr<MemoryProxy> m_memProxy = nullptr;
     bool padsZeroing = true;
     class DnnlMemPrimHandle {
     public:
@@ -289,6 +296,23 @@ private:
     void* getDataNoThrow() const noexcept {
         return mgrHandle->getRawPtr();
     }
+};
+
+
+class MemoryProxy {
+public:
+    explicit MemoryProxy(InferenceEngine::Blob::Ptr &blob): m_blob(blob) {}
+
+    MemoryProxy(const MemoryProxy&) = delete;
+    MemoryProxy& operator= (const MemoryProxy&) = delete;
+
+    MemoryProxy(MemoryProxy&&) = delete;
+    MemoryProxy& operator= (MemoryProxy&&) = delete;
+
+    void execute(Memory* memobj);
+
+private:
+    InferenceEngine::Blob::Ptr m_blob;
 };
 
 using MemoryPtr = std::shared_ptr<Memory>;

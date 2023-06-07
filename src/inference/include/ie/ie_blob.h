@@ -710,6 +710,12 @@ public:
         return details::BlobIterator<const T>(readOnly(), size());
     }
 
+    template <class U>
+    void moveFrom(TBlob<U>& blob) {
+        tensorDesc = blob.tensorDesc;
+        this->_allocator = std::move(blob._allocator);
+        std::swap(this->_handle, blob._handle);
+    }
 protected:
     /**
      * @brief Local instance of IAllocator to manipulate memory.
@@ -739,12 +745,12 @@ protected:
      * @tparam U Type of the blob to move from
      * @param blob TBlob instance to move from
      */
-    template <class U>
-    void moveFrom(TBlob<U>& blob) {
-        tensorDesc = blob.tensorDesc;
-        this->_allocator = std::move(blob._allocator);
-        std::swap(this->_handle, blob._handle);
-    }
+    // template <class U>
+    // void moveFrom(TBlob<U>& blob) {
+    //     tensorDesc = blob.tensorDesc;
+    //     this->_allocator = std::move(blob._allocator);
+    //     std::swap(this->_handle, blob._handle);
+    // }
 
     /**
      * @brief Frees handler and cleans up the stored data.

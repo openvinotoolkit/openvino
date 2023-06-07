@@ -106,6 +106,8 @@ void Memory::redefineDesc(MemoryDescPtr desc) {
     }
 
     this->Create(desc, nullptr, false);
+
+    if (m_memProxy) m_memProxy->execute(this);
 }
 
 template<>
@@ -153,6 +155,66 @@ BlockedMemoryDescPtr Memory::GetDescWithType<BlockedMemoryDesc, 0, 0>() const {
 
 dnnl::memory Memory::GetPrimitive() const {
     return dnnlMemHandle.getPrim();
+}
+
+
+void MemoryProxy::execute(Memory* memobj) {
+    //  update its underlying Tensor/Blob
+    if (m_blob) {
+        auto legacy_ptr = static_cast<void*>(m_blob->buffer());
+        auto legacy_size = m_blob->byteSize();
+
+        const auto actualDesc = MemoryDescUtils::convertToTensorDesc(memobj->getDesc());
+
+        switch (actualDesc.getPrecision()) {
+        case InferenceEngine::Precision::FP32: {
+            auto tblob = std::dynamic_pointer_cast<InferenceEngine::TBlob<float>>(m_blob);
+            auto rblob = InferenceEngine::TBlob<float>(actualDesc,
+                                                        static_cast<float*>(memobj->GetData()), //TODO
+                                                        memobj->GetSize());
+            tblob->moveFrom(rblob);
+            break;
+        }
+        case InferenceEngine::Precision::Q78:
+        case InferenceEngine::Precision::I16:
+        case InferenceEngine::Precision::FP16:
+        case InferenceEngine::Precision::BF16: {
+            auto tblob = std::dynamic_pointer_cast<InferenceEngine::TBlob<short>>(m_blob);
+            auto rblob = InferenceEngine::TBlob<short>(actualDesc,
+                                                        static_cast<short*>(memobj->GetData()), //TODO
+                                                        memobj->GetSize());
+            tblob->moveFrom(rblob);
+            break;
+        }
+        case InferenceEngine::Precision::U8: {
+            auto tblob = std::dynamic_pointer_cast<InferenceEngine::TBlob<uint8_t>>(m_blob);
+            auto rblob = InferenceEngine::TBlob<uint8_t>(actualDesc,
+                                                        static_cast<uint8_t*>(memobj->GetData()), //TODO
+                                                        memobj->GetSize());
+            tblob->moveFrom(rblob);
+            break;
+        }
+        case InferenceEngine::Precision::I8: {
+            auto tblob = std::dynamic_pointer_cast<InferenceEngine::TBlob<int8_t>>(m_blob);
+            auto rblob = InferenceEngine::TBlob<int8_t>(actualDesc,
+                                                        static_cast<int8_t*>(memobj->GetData()), //TODO
+                                                        memobj->GetSize());
+            tblob->moveFrom(rblob);
+            break;
+        }
+        case InferenceEngine::Precision::I32: {
+            auto tblob = std::dynamic_pointer_cast<InferenceEngine::TBlob<int32_t>>(m_blob);
+            auto rblob = InferenceEngine::TBlob<int32_t>(actualDesc,
+                                                        static_cast<int32_t*>(memobj->GetData()), //TODO
+                                                        memobj->GetSize());
+            tblob->moveFrom(rblob);
+            break;
+        }
+        default:
+            IE_THROW() << "precision is no set";
+        }
+        DEBUG_LOG("wrap tensor legacy ", legacy_ptr, "_", legacy_size, " -> ", static_cast<void*>(m_blob->buffer()), "_", m_blob->byteSize());
+    }
 }
 
 void Memory::DnnlMemPrimHandle::resetDnnlPrim() {

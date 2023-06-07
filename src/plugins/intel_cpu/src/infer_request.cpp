@@ -193,12 +193,13 @@ std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> InferRequestB
     return perfMap;
 }
 
-static inline void changeEdgePtr(const EdgePtr &edge, void *newPtr, size_t newSz = 0, const bool reset = false) {
-    if (reset) {
-        edge->getMemoryPtr()->getDnnlMemoryMngr()->setExtBuff(newPtr, newSz);
-    } else {
-        edge->getMemoryPtr()->setDataHandle(newPtr);
-    }
+static inline void changeEdgePtr(const EdgePtr &edge, InferenceEngine::Blob::Ptr &blob) {
+    edge->getMemoryPtr()->getDnnlMemoryMngr()->setExtBuff(static_cast<void*>(blob->buffer()), blob->byteSize());
+    edge->getMemoryPtr()->registerMemProxy(std::make_shared<MemoryProxy>(blob));
+}
+
+static inline void changeEdgePtr(const EdgePtr &edge, void *newPtr) {
+    edge->getMemoryPtr()->setDataHandle(newPtr);
 }
 
 void InferRequestBase::changeDefaultPtr() {
@@ -286,8 +287,11 @@ void InferRequestBase::changeDefaultPtr() {
 
             bool canBeInPlace = true;
             if (graph->hasDynamicInput()) {
-                // WA: support zero-copy outputs only when there is one inferrequest created from the compiled model.
-                if (execNetwork->_numRequests > 1) canBeInPlace = false;
+                if (canBeInPlace) {
+                    DEBUG_LOG("canBeInPlace output ", name, "@", static_cast<void*>(_outputs[name]->buffer()), "_", _outputs[name]->byteSize(), " for ", graph->GetName());
+                    changeEdgePtr(parentEdge, _outputs[name]);
+                    inplacedOutPorts.emplace(name);
+                }
             } else {
                 void* defaultPtr = parentEdge->getMemory().GetData();
                 // Cannot be in-place after concat because concat is using different ptrs without offsets
@@ -312,11 +316,10 @@ void InferRequestBase::changeDefaultPtr() {
                         }
                     }
                 } while (previousParent != parent);
-            }
-            if (canBeInPlace) {
-                DEBUG_LOG("canBeInPlace output ", name, "@", static_cast<void*>(_outputs[name]->buffer()), "_", _outputs[name]->byteSize(), " for ", graph->GetName());
-                if (!graph->hasDynamicInput()) changeEdgePtr(parentEdge, static_cast<void*>(_outputs[name]->buffer()), _outputs[name]->byteSize(), false);
-                if (graph->hasDynamicInput()) inplacedOutPorts.emplace(name);
+
+                if (canBeInPlace) {
+                    changeEdgePtr(parentEdge, static_cast<void*>(_outputs[name]->buffer()));
+                }
             }
             continue;
         }
