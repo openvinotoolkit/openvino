@@ -337,6 +337,12 @@ std::unordered_map<size_t, element::Type> bit_to_int{
 }  // namespace
 
 void align_eltwise_input_types(const NodeContext& context, Output<Node>& lhs, Output<Node>& rhs, bool align_scalars) {
+    auto out_type = context.get_output_type(0);
+    if (out_type.is<element::Type>()) {
+        lhs = context.mark_node(std::make_shared<ov::op::v0::Convert>(lhs, out_type.as<element::Type>()));
+        rhs = context.mark_node(std::make_shared<ov::op::v0::Convert>(rhs, out_type.as<element::Type>()));
+        return;
+    }
     const auto& lhs_type = lhs.get_element_type();
     const auto& rhs_type = rhs.get_element_type();
     if (lhs_type.is_dynamic() || rhs_type.is_dynamic()) {
