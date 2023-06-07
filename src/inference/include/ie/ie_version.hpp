@@ -120,6 +120,6 @@ struct INFERENCE_ENGINE_1_0_DEPRECATED Version {
  *
  * @return The current Inference Engine version
  */
-INFERENCE_ENGINE_1_0_DEPRECATED INFERENCE_ENGINE_API(const Version*) GetInferenceEngineVersion() noexcept;
+INFERENCE_ENGINE_API(const Version*) INFERENCE_ENGINE_1_0_DEPRECATED GetInferenceEngineVersion() noexcept;
 
 }  // namespace InferenceEngine
