@@ -30,10 +30,10 @@ static std::shared_ptr<ov::Model> createInitGraph(ngraph::Shape param_shape, ngr
         bool is1Dinput = param_shape.size() == 3;
         auto conv = std::make_shared<T>(param,
                                         weights,
-                                        is1Dinput ? ngraph::Strides{1} : ngraph::Strides{1, 1},
+                                        is1Dinput ? ngraph::Strides{1} :        ngraph::Strides{1, 1},
                                         is1Dinput ? ngraph::CoordinateDiff{0} : ngraph::CoordinateDiff{0, 0},
                                         is1Dinput ? ngraph::CoordinateDiff{0} : ngraph::CoordinateDiff{0, 0},
-                                        is1Dinput ? ngraph::Strides{1} : ngraph::Strides{1, 1});
+                                        is1Dinput ? ngraph::Strides{1} :        ngraph::Strides{1, 1});
 
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{ conv }, ngraph::ParameterVector{ param });
 }
@@ -62,42 +62,62 @@ static std::shared_ptr<ov::Model> createTransformedGraph(ngraph::Shape param_sha
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{ reshape }, ngraph::ParameterVector{ param });
 }
 
-TEST_F(TransformationTestsF, CheckConvertConv1DIsAppliedFor1DShapes) {
+TEST(TransformationTests, CheckConvertConv1DIsAppliedFor1DShapes) {
+    std::shared_ptr<ov::Model> function(nullptr), function_ref(nullptr);
     {
         function = createInitGraph<ngraph::opset1::Convolution>(ngraph::Shape{2, 64, 7}, ngraph::Shape{ 30, 64, 1 });
+        ov::pass::Manager manager;
         manager.register_pass<ConvertConv1D>();
+        manager.run_passes(function);
     }
     {
         function_ref = createTransformedGraph<ngraph::opset1::Convolution>(ngraph::Shape{2, 64, 7}, ngraph::Shape{30, 64, 1});
     }
+    auto res = compare_functions(function, function_ref);
+    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST_F(TransformationTestsF, CheckConvertConv1DIsNotAppliedFor2DShapes) {
+TEST(TransformationTests, CheckConvertConv1DIsNotAppliedFor2DShapes) {
+    std::shared_ptr<ov::Model> function(nullptr), function_ref(nullptr);
     {
         function = createInitGraph<ngraph::opset1::Convolution>(ngraph::Shape{2, 64, 7, 1}, ngraph::Shape{30, 64, 1, 1});
+        ov::pass::Manager manager;
         manager.register_pass<ConvertConv1D>();
+        manager.run_passes(function);
     }
     {
-        function = createInitGraph<ngraph::opset1::Convolution>(ngraph::Shape{2, 64, 7, 1}, ngraph::Shape{30, 64, 1, 1});
+        function_ref = createInitGraph<ngraph::opset1::Convolution>(ngraph::Shape{2, 64, 7, 1}, ngraph::Shape{30, 64, 1, 1});
     }
+    auto res = compare_functions(function, function_ref);
+    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST_F(TransformationTestsF, CheckConvertGroupConv1DIsAppliedFor1dShapes) {
+TEST(TransformationTests, CheckConvertGroupConv1DIsAppliedFor1dShapes) {
+    std::shared_ptr<ov::Model> function(nullptr), function_ref(nullptr);
     {
         function = createInitGraph<ngraph::opset1::GroupConvolution>(ngraph::Shape{1, 12, 64}, ngraph::Shape{4, 1, 3, 5});
+        ov::pass::Manager manager;
         manager.register_pass<ConvertGroupConv1D>();
+        manager.run_passes(function);
     }
     {
         function_ref = createTransformedGraph<ngraph::opset1::GroupConvolution>(ngraph::Shape{1, 12, 64}, ngraph::Shape{4, 1, 3, 5});
     }
+    auto res = compare_functions(function, function_ref);
+    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST_F(TransformationTestsF, CheckConvertGroupConv1DIsNotAppliedFor2DShapes) {
+TEST(TransformationTests, CheckConvertGroupConv1DIsNotAppliedFor2DShapes) {
+    std::shared_ptr<ov::Model> function(nullptr), function_ref(nullptr);
     {
         function = createInitGraph<ngraph::opset1::GroupConvolution>(ngraph::Shape{1, 12, 64, 1}, ngraph::Shape{4, 1, 3, 5, 1});
+        ov::pass::Manager manager;
         manager.register_pass<ConvertGroupConv1D>();
+        manager.run_passes(function);
     }
     {
-        function = createInitGraph<ngraph::opset1::GroupConvolution>(ngraph::Shape{1, 12, 64, 1}, ngraph::Shape{4, 1, 3, 5, 1});
+        function_ref = createInitGraph<ngraph::opset1::GroupConvolution>(ngraph::Shape{1, 12, 64, 1}, ngraph::Shape{4, 1, 3, 5, 1});
     }
+    auto res = compare_functions(function, function_ref);
+    ASSERT_TRUE(res.first) << res.second;
 }

@@ -35,11 +35,14 @@ static std::shared_ptr<ov::Model> createInitGraph(std::shared_ptr<ngraph::opset1
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{ conv }, ngraph::ParameterVector{ param });
 }
 
-TEST_F(TransformationTestsF, CheckConvertGroupConvIsApplied) {
+TEST(TransformationTests, CheckConvertGroupConvIsApplied) {
+    std::shared_ptr<ov::Model> function(nullptr), function_ref(nullptr);
     {
         auto param = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 6, 224});
         function = createInitGraph<ngraph::opset1::GroupConvolution>(param, ngraph::Shape{2, 1, 3, 5});
+        ov::pass::Manager manager;
         manager.register_pass<ConvertGroupConvolution>();
+        manager.run_passes(function);
     }
     {
         const unsigned int groups = 2;
@@ -65,30 +68,42 @@ TEST_F(TransformationTestsF, CheckConvertGroupConvIsApplied) {
             concat_inputs.push_back(conv);
         }
         auto concat = std::make_shared<ov::opset8::Concat>(concat_inputs, 1);
-        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ concat }, ngraph::ParameterVector{ param });
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ concat }, ngraph::ParameterVector{ param });
     }
+    auto res = compare_functions(function, function_ref);
+    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST_F(TransformationTestsF, CheckConvertGroupConvIsNotAppliedForDepthwiseCase) {
+TEST(TransformationTests, CheckConvertGroupConvIsNotAppliedForDepthwiseCase) {
+    std::shared_ptr<ov::Model> function(nullptr), function_ref(nullptr);
     {
         auto param = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 2, 224});
         function = createInitGraph<ngraph::opset1::GroupConvolution>(param, ngraph::Shape{2, 1, 1, 5});
+        ov::pass::Manager manager;
         manager.register_pass<ConvertGroupConvolution>();
+        manager.run_passes(function);
     }
     {
         auto param = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 2, 224});
-        function = createInitGraph<ngraph::opset1::GroupConvolution>(param, ngraph::Shape{2, 1, 1, 5});
+        function_ref = createInitGraph<ngraph::opset1::GroupConvolution>(param, ngraph::Shape{2, 1, 1, 5});
     }
+    auto res = compare_functions(function, function_ref);
+    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST_F(TransformationTestsF, CheckConvertGroupConvIsNotAppliedForDynamicShapes) {
+TEST(TransformationTests, CheckConvertGroupConvIsNotAppliedForDynamicShapes) {
+    std::shared_ptr<ov::Model> function(nullptr), function_ref(nullptr);
     {
         auto param = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::PartialShape{1, -1, 224});
         function = createInitGraph<ngraph::opset1::GroupConvolution>(param, ngraph::Shape{2, 1, 1, 5});
+        ov::pass::Manager manager;
         manager.register_pass<ConvertGroupConvolution>();
+        manager.run_passes(function);
     }
     {
         auto param = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::PartialShape{1, -1, 224});
-        function = createInitGraph<ngraph::opset1::GroupConvolution>(param, ngraph::Shape{2, 1, 1, 5});
+        function_ref = createInitGraph<ngraph::opset1::GroupConvolution>(param, ngraph::Shape{2, 1, 1, 5});
     }
+    auto res = compare_functions(function, function_ref);
+    ASSERT_TRUE(res.first) << res.second;
 }
