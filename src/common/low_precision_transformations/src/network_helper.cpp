@@ -1021,7 +1021,7 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> NetworkHelper::decompos
             std::vector<element::Type>{ fq->get_output_element_type(0) },
             ov::op::TemporaryReplaceOutputType(sub == nullptr ? (convert2 == nullptr ? newFQ : convert2) : sub, element::f32).get(),
             ov::op::TemporaryReplaceOutputType(scale, element::f32).get());
-    dequantize->set_friendly_name(newFQ->get_friendly_name() + "/DequantizationMultiply");
+    dequantize->set_friendly_name(newFQ->get_friendly_name());
     ngraph::copy_runtime_info({ newFQ, dequantize }, dequantize);
 
     insertDequantizationAfter(fq, dequantize, newFQ);
