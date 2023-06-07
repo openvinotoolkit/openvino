@@ -75,8 +75,8 @@ IndexLoopGetitemReplacer::IndexLoopGetitemReplacer() {
         if (param_targets.size() != 1)
             return false;
 
-        auto getitem = param_targets.begin()->get_node();
-        if (!ov::as_type<v8::Gather>(getitem))
+        auto getitem = param_targets.begin()->get_node()->shared_from_this();
+        if (!ov::as_type_ptr<v8::Gather>(getitem))
             return false;
 
         auto dim = chunk_op->input_value(2);
@@ -125,7 +125,7 @@ IndexLoopGetitemReplacer::IndexLoopGetitemReplacer() {
         auto start = rg.make<v1::Multiply>(chunk_counter, chunks_size_body);
         auto stop = rg.make<v1::Add>(start, chunks_size_body);
         auto curr_chunk = rg.make<v8::Slice>(chunk_param, start, stop, one_1d, dim_body);
-        replace_node(getitem->shared_from_this(), curr_chunk);
+        replace_node(getitem, curr_chunk);
         copy_runtime_info({chunk_op, getitem}, rg.get());
         curr_chunk->set_friendly_name(getitem->get_friendly_name());
         return true;
