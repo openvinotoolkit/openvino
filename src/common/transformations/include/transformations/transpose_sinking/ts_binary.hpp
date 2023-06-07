@@ -4,11 +4,6 @@
 
 #pragma once
 
-#include "openvino/op/fake_quantize.hpp"
-#include "openvino/op/prelu.hpp"
-#include "openvino/op/util/binary_elementwise_arithmetic.hpp"
-#include "openvino/op/util/binary_elementwise_comparison.hpp"
-#include "openvino/op/util/binary_elementwise_logical.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pass.hpp"
 #include "transformations/transpose_sinking/ts_base.hpp"
