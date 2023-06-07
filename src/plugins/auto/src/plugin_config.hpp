@@ -7,6 +7,7 @@
 
 #include "openvino/runtime/auto/properties.hpp"
 #include "utils/log.hpp"
+#include "utils/log_util.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include <string>
 #include <map>
