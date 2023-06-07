@@ -144,6 +144,11 @@ TEST_P(ie_c_api_test, ie_core_register_plugins) {
 
     IE_EXPECT_OK(ie_core_register_plugins(core, plugins_xml.c_str()));
 
+    // Trigger plugin loading
+    ie_core_versions_t versions = {0};
+    IE_EXPECT_OK(ie_core_get_versions(core, "CUSTOM", &versions));
+    ie_core_versions_free(&versions);
+
     ie_core_free(&core);
     TestDataHelpers::delete_test_xml_file();
 }

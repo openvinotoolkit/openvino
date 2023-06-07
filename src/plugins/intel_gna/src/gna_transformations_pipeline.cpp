@@ -83,11 +83,9 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     manager.register_pass<ov::pass::LSTMCellDecomposition>();
     manager.register_pass<ov::intel_gna::pass::ConvertDWSCToScaleShifts>();
     manager.register_pass<ov::intel_gna::pass::ConvertPaddedToValidConv>();
-    manager.register_pass<ov::intel_gna::pass::Decompose2DConvTransposedWithBiasAF>(effective_compile_target,
-                                                                                    config.gnaPrecision);
-    manager.register_pass<ov::intel_gna::pass::Decompose2DConvTransposedWithBias>(effective_compile_target,
-                                                                                  config.gnaPrecision);
-    manager.register_pass<ov::intel_gna::pass::Decompose2DConv>(effective_compile_target, config.gnaPrecision);
+    manager.register_pass<ov::intel_gna::pass::Decompose2DConvTransposedWithBiasAF>(config.gnaPrecision);
+    manager.register_pass<ov::intel_gna::pass::Decompose2DConvTransposedWithBias>(config.gnaPrecision);
+    manager.register_pass<ov::intel_gna::pass::Decompose2DConv>(config.gnaPrecision);
     if (!has_convolution) {
         manager.register_pass<ov::intel_gna::pass::ConvertMatmulWithFqToPointWiseConvolution>();
         manager.register_pass<ov::intel_gna::pass::ConvertMatmulWithBiasToPointWiseConvolution>();

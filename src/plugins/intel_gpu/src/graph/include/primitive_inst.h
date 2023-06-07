@@ -149,13 +149,20 @@ public:
     primitive_id id() const { return _id; }
     primitive_id org_id() const { return _org_id; }
     bool can_be_optimized() const { return _can_be_optimized; }
-    std::shared_ptr<const primitive> desc() const { return _node->get_primitive(); }
+    std::shared_ptr<const primitive> desc() const { return _impl_params->desc; }
     program_node const& get_node() const { return *_node; }
     network& get_network() const { return _network; }
     uint32_t get_network_id() const;
     virtual void set_output_memory(memory::ptr mem, bool check = true, size_t idx = 0);
     void check_memory_to_set(const memory& mem, const layout& layout) const;
     const std::list<const cldnn::program_node *>& get_users() const { return _node->get_users(); }
+    std::vector<std::shared_ptr<primitive_inst>> get_user_insts() const {
+        std::vector<primitive_id> users;
+        for (auto u : get_users()) {
+            users.push_back(u->id());
+        }
+        return _network.get_primitives(users);
+    }
 
     const kernel_impl_params* get_impl_params() const { return _impl_params.get(); }
     // return pointer to const to prevent arbitrary 'execute' call -> use primitive_inst.execute() instead
@@ -199,7 +206,7 @@ public:
     void set_shape_change() { _shape_changed = true; }
 
     void build_deps();
-
+    void do_runtime_in_place_concat();
     memory::ptr fused_memory(size_t dep_id) const {
         return dep_memory_ptr(get_fused_mem_offset() + dep_id);
     }
@@ -220,7 +227,7 @@ public:
 
     void allocate_internal_buffers();
     static memory::ptr allocate_output(engine& engine, memory_pool& pool, const program_node& _node,
-            const kernel_impl_params& impl_params, uint32_t net_id, bool is_internal, size_t idx = 0, bool reset_mem = true);
+            const kernel_impl_params& impl_params, uint32_t net_id, bool is_internal, size_t idx = 0, bool reset_mem = true, bool is_output_buffer = false);
 
     std::vector<memory::cptr> get_intermediates_memories() const { return _intermediates_memory; }
 
@@ -257,6 +264,7 @@ protected:
     program_node const* _node;
     layout _node_output_layout;
 
+    bool update_shape_done_by_other = false;
     std::unique_ptr<kernel_impl_params> _impl_params;
     std::unique_ptr<primitive_impl> _impl;
     std::unique_ptr<primitive_impl> _dynamic_impl = nullptr;
@@ -317,7 +325,7 @@ protected:
     size_t max_output_layout_size = 0;
     std::vector<size_t> max_intermediates_memory_sizes;
 
-    std::vector<memory::ptr> allocate_outputs(kernel_impl_params* updated_params = nullptr, bool reset_mem = true);
+    std::vector<memory::ptr> allocate_outputs(kernel_impl_params* updated_params = nullptr, bool reset_mem = true, bool runtime_alloc = false);
     memory::ptr allocate_internal_buffer(size_t idx);
     static std::vector<std::shared_ptr<primitive_inst>> build_exec_deps(
         std::vector<std::pair<std::shared_ptr<primitive_inst>, int32_t>> const& mem_deps);
