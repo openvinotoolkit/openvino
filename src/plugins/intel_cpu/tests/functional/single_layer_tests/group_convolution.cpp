@@ -383,6 +383,20 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_1D_Gemm_FP32, GroupConvolutionLayerCPUT
                                 ::testing::Values(cpuEmptyPluginConfig)),
                         GroupConvolutionLayerCPUTest::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_1D_Gemm_with_bias_FP32, GroupConvolutionLayerCPUTest,
+                        ::testing::Combine(
+                                ::testing::Combine(
+                                        groupConvParams_ExplicitPadding_Gemm_1D,
+                                        ::testing::Values(ElementType::f32),
+                                        ::testing::Values(ElementType::undefined),
+                                        ::testing::Values(ElementType::undefined),
+                                        ::testing::ValuesIn(inShapesGemm1D),
+                                        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_Gemm_1D)),
+                                ::testing::Values(fusingAddPerChannel),
+                                ::testing::Values(cpuEmptyPluginConfig)),
+                        GroupConvolutionLayerCPUTest::getTestCaseName);
+
 INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_1D_Gemm_BF16, GroupConvolutionLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Combine(
@@ -453,6 +467,20 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_2D_Gemm_FP32, GroupConvolutionLayerCPUT
                                 ::testing::Values(cpuEmptyPluginConfig)),
                         GroupConvolutionLayerCPUTest::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_2D_Gemm_with_bias_FP32, GroupConvolutionLayerCPUTest,
+                        ::testing::Combine(
+                                ::testing::Combine(
+                                        groupConvParams_ExplicitPadding_Gemm_2D,
+                                        ::testing::Values(ElementType::f32),
+                                        ::testing::Values(ElementType::undefined),
+                                        ::testing::Values(ElementType::undefined),
+                                        ::testing::ValuesIn(inShapesGemm2D_cache),
+                                        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_Gemm_2D)),
+                                ::testing::Values(fusingAddPerChannel),
+                                ::testing::Values(cpuEmptyPluginConfig)),
+                        GroupConvolutionLayerCPUTest::getTestCaseName);
+
 INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_2D_Gemm_BF16, GroupConvolutionLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Combine(
@@ -507,6 +535,20 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_3D_Gemm_FP32, GroupConvolutionLayerCPUT
                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                 ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_Gemm_3D)),
                                 ::testing::ValuesIn(fusingParamsSet),
+                                ::testing::Values(cpuEmptyPluginConfig)),
+                        GroupConvolutionLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_3D_Gemm_with_bias_FP32, GroupConvolutionLayerCPUTest,
+                        ::testing::Combine(
+                                ::testing::Combine(
+                                        groupConvParams_ExplicitPadding_Gemm_3D,
+                                        ::testing::Values(ElementType::f32),
+                                        ::testing::Values(ElementType::undefined),
+                                        ::testing::Values(ElementType::undefined),
+                                        ::testing::ValuesIn(inShapesGemm3D),
+                                        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_Gemm_3D)),
+                                ::testing::Values(fusingAddPerChannel),
                                 ::testing::Values(cpuEmptyPluginConfig)),
                         GroupConvolutionLayerCPUTest::getTestCaseName);
 
