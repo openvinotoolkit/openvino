@@ -43,7 +43,7 @@ Transpose2D::Transpose2D() {
         if (axises.size() == axises_fused.size()) {
             return false;
         }
-        size_t fused_sz = axises_fused.size();
+        size_t fused_sz = axis_fused.size();
         // Fix fused indexes, for example: (0, 2, 3) -> (0, 1, 2)
         for (size_t& axis : axises_fused) {
             size_t max = fused_sz - 1;
