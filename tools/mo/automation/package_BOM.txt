@@ -841,7 +841,6 @@ openvino/tools/mo/moc_frontend/pipeline.py
 openvino/tools/mo/moc_frontend/pytorch_frontend_utils.py
 openvino/tools/mo/moc_frontend/serialize.py
 openvino/tools/mo/moc_frontend/shape_utils.py
-openvino/tools/mo/moc_frontend/tensorflow_frontend_utils.py
 openvino/tools/mo/ops/__init__.py
 openvino/tools/mo/ops/activation.py
 openvino/tools/mo/ops/activation_ops.py

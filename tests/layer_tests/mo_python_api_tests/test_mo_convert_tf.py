@@ -720,8 +720,7 @@ class TFConvertTest(unittest.TestCase):
             y = tf.nn.sigmoid(tf.nn.relu(x1 + x2))
             return y
 
-        with self.assertRaisesRegex(AssertionError,
-                                    ".*'input_signature' needs to be set for model conversion.*"):
+        with self.assertRaisesRegex(Exception, ".*Please provide 'example_input'.*"):
             convert_model(function)
 
 

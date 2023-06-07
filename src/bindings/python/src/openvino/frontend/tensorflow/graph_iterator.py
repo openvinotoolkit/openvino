@@ -31,7 +31,7 @@ class GraphIteratorTFGraph(GraphIterator):
             self.m_iterators[func_name] = None
 
     def get_input_names(self) -> list:
-        inp_ops = filter(lambda op: op.type == "Placeholder" and len(op.inputs) == 0, self.m_graph.get_operations())
+        inp_ops = filter(lambda op: op.type == "Placeholder", self.m_graph.get_operations())
         inp_names = []
         for inp in inp_ops:
             assert isinstance(inp, tf.Operation), "Unknown node type. Expected tf.Operation, got {}".format(type(inp))
@@ -53,11 +53,11 @@ class GraphIteratorTFGraph(GraphIterator):
         # For this reason only nodes without outputs are considered graph outputs here
         # as this approach does not lead to conflicts.
         # The order of outputs is important and wrong order may lead to conversion error.
-        non_outputs = []
+        non_outputs = set()
         for op in self.m_graph.get_operations():
             assert isinstance(op, tf.Operation), "Unknown node type. Expected tf.Operation, got {}".format(type(op))
             for inp in op.inputs:
-                non_outputs.append(inp.op.name)
+                non_outputs.add(inp.op.name)
 
         outputs = []
         for op in self.m_graph.get_operations():

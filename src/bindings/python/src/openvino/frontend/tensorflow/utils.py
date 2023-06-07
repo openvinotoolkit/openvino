@@ -1,6 +1,10 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+# flake8: noqa
+# mypy: ignore-errors
+
+
 from openvino.tools.mo.moc_frontend.shape_utils import get_static_shape
 from openvino.tools.mo.utils.versions_checker import get_environment_setup  # pylint: disable=no-name-in-module
 from openvino.tools.mo.utils.error import Error
@@ -10,14 +14,14 @@ import logging as log
 
 def trace_tf_model_if_needed(argv):
     import tensorflow as tf
-    if not isinstance(argv.input_model, (tf.keras.layers.Layer, tf.Module, tf.keras.Model)):
+    if not isinstance(argv.input_model, (tf.keras.layers.Layer, tf.Module, tf.keras.Model, tf.types.experimental.GenericFunction)):
         return
-    argv.input_model = trace_tf_model(argv.input_model, argv.placeholder_shapes, argv.placeholder_data_types, getattr(argv, 'example_input', None))
+    argv.input_model = trace_tf_model(argv.input_model, argv.placeholder_shapes, argv.placeholder_data_types, getattr(argv, "example_input", None))
 
 
 def get_input_spec_from_model(model):
     import tensorflow as tf
-    if hasattr(model, '_build_input_shape') and model._build_input_shape is not None:
+    if hasattr(model, "_build_input_shape") and model._build_input_shape is not None:
         if isinstance(model._build_input_shape, list):
             input_spec = [[tf.TensorSpec(shape) for shape in model._build_input_shape]]
         else:
@@ -37,7 +41,7 @@ def create_example_input_by_user_shapes(input_shapes, input_types):
             shape = get_static_shape(shape, 1)
             args = {}
             if name in input_types:
-                args['dtype'] = input_types[name]
+                args["dtype"] = input_types[name]
             tensor = tf.random.uniform(shape=shape, **args)
             res[name] = tensor
         return res
@@ -47,7 +51,7 @@ def create_example_input_by_user_shapes(input_shapes, input_types):
             shape = get_static_shape(shape, 1)
             args = {}
             if idx < len(input_types):
-                args['dtype'] = input_types[idx]
+                args["dtype"] = input_types[idx]
             tensor = tf.random.uniform(shape=shape, **args)
             res.append(tensor)
         return res
@@ -76,6 +80,9 @@ def trace_tf_model(model, input_shapes, input_types, example_input):
     if isinstance(model.__call__, tf.types.experimental.GenericFunction):
         tf_function = model.__call__
         input_needs_packing = False
+    elif isinstance(model, tf.types.experimental.GenericFunction):
+        tf_function = model
+        input_needs_packing = False
     else:
         # Wrap model to tf.Function
         @tf.function
@@ -91,7 +98,7 @@ def trace_tf_model(model, input_shapes, input_types, example_input):
         concrete_func = get_concrete_func(tf_function, inp, input_needs_packing,
                                           "Could not trace the TF model with the following error: {}")
     else:
-        if isinstance(model.__call__, tf.types.experimental.GenericFunction) and \
+        if isinstance(tf_function, tf.types.experimental.GenericFunction) and \
                 tf_function.input_signature is not None:
             concrete_func = get_concrete_func(tf_function, None, input_needs_packing,
                                               "Could not trace the TF model with the following error: {}",
@@ -129,26 +136,32 @@ def create_tf_graph_iterator(input_model):
 
 
 def extract_model_graph(argv):
-    model = argv['input_model']
+    model = argv["input_model"]
     import tensorflow as tf
     trackable_is_imported = False
     try:
         from tensorflow.python.training.tracking.base import Trackable # pylint: disable=no-name-in-module,import-error
         trackable_is_imported = True
     except:
-        log.warning('Could not import tensorflow.python.training.tracking.base.Trackable type.')
+        log.warning("Could not import tensorflow.python.training.tracking.base.Trackable type.")
     env_setup = get_environment_setup("tf")
-    if isinstance(model, (tf.Graph, tf.compat.v1.GraphDef)):
+    if isinstance(model, tf.Graph):
+        return True
+    if isinstance(model, tf.compat.v1.GraphDef):
+        graph = tf.Graph()
+        with graph.as_default():
+            tf.graph_util.import_graph_def(model)
+        argv["input_model"] = graph
         return True
     if isinstance(model, tf.compat.v1.Session):
-        argv['input_model'] = model.graph
+        argv["input_model"] = model.graph
         return True
     if env_setup["tensorflow"] >= LooseVersion("2.6.0") and isinstance(model, (tf.types.experimental.GenericFunction,
                                                                                tf.types.experimental.ConcreteFunction)):
         return True
     if isinstance(model, tf.train.Checkpoint):
         if isinstance(model.root, tf.keras.Model):
-            argv['input_model'] = model.root
+            argv["input_model"] = model.root
             return True
         else:
             raise Error("Unknown checkpoint format.")
@@ -156,20 +169,20 @@ def extract_model_graph(argv):
     if isinstance(model, (tf.keras.layers.Layer, tf.Module, tf.keras.Model)):
         return True
     if trackable_is_imported and isinstance(model, Trackable):
-        if hasattr(model, 'signatures') and len(model.signatures.items()):
-            if 'serving_default' in model.signatures:
-                argv['input_model'] = model.signatures['serving_default']
-            elif 'default' in model.signatures:
-                argv['input_model'] = model.signatures['default']
+        if hasattr(model, "signatures") and len(model.signatures.items()):
+            if "serving_default" in model.signatures:
+                argv["input_model"] = model.signatures["serving_default"]
+            elif "default" in model.signatures:
+                argv["input_model"] = model.signatures["default"]
             else:
                 for signature_name, signature in model.signatures.items():
-                    argv['input_model'] = model.signatures[signature_name]
+                    argv["input_model"] = model.signatures[signature_name]
                     log.warning("Could not find the default signature. "
                                 "The following signature was used for conversion: {}".format(signature_name))
                     break
 
-        elif hasattr(model, 'graph'):
-            argv['input_model'] = model.graph
+        elif hasattr(model, "graph"):
+            argv["input_model"] = model.graph
         else:
             raise Error("Could not find signature of graph in a Trackable object.")
         return True

@@ -110,7 +110,7 @@ class TFGraphNodeDecoder(DecoderBase):
 
         if name == "value":
             if self.m_parsed_content.size == 1:
-                return OVAny(Tensor(np.array([self.m_parsed_content]), shape=[]))
+                return OVAny(Tensor(np.array([self.m_parsed_content]), shape=[1]))
             ov_tensor = Tensor(self.m_parsed_content, shared_memory=True)
             ov_tensor = OVAny(ov_tensor)
             return ov_tensor
@@ -122,6 +122,10 @@ class TFGraphNodeDecoder(DecoderBase):
         return len(self.m_operation.inputs)
 
     def get_input_node_name(self, input_port_idx):
+        assert input_port_idx >= 0, "Got negative input node index."
+        assert input_port_idx < len(self.m_operation.inputs), "Input node index is out of range. Got {}, " \
+                                                              "when number of input nodes {}.".format(input_port_idx,
+                                                                                                      len(self.m_operation.inputs))
         return self.m_operation.inputs[input_port_idx].op.name
 
     def get_input_node_name_output_port_index(self, input_port_idx):

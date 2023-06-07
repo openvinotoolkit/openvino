@@ -47,18 +47,17 @@ from openvino.tools.mo.utils.logger import init_logger, progress_printer
 from openvino.tools.mo.utils.utils import refer_to_faq_msg, check_values_equal
 from openvino.tools.mo.utils.telemetry_utils import send_params_info, send_framework_info, send_conversion_result, \
     get_tid
-from openvino.tools.mo.utils.versions_checker import get_environment_setup  # pylint: disable=no-name-in-module
 from openvino.tools.mo.moc_frontend.check_config import legacy_extensions_used
 from openvino.tools.mo.moc_frontend.pytorch_frontend_utils import get_pytorch_decoder
 from openvino.tools.mo.moc_frontend.paddle_frontend_utils import paddle_frontend_converter
-from openvino.tools.mo.moc_frontend.tensorflow_frontend_utils import trace_tf_model_if_needed, \
-    type_supported_by_tf_fe, create_tf_graph_iterator, extract_model_graph, model_is_graph_iterator
 from openvino.tools.mo.moc_frontend.shape_utils import parse_input_shapes
 
 # pylint: disable=no-name-in-module,import-error
 from openvino.frontend import FrontEndManager, OpConversionFailure, ProgressReporterExtension, TelemetryExtension
 from openvino.runtime import get_version as get_rt_version
 from openvino.runtime import Type, PartialShape
+from openvino.frontend.tensorflow.utils import trace_tf_model_if_needed, type_supported_by_tf_fe, \
+    create_tf_graph_iterator, extract_model_graph, model_is_graph_iterator
 
 
 def load_extensions(argv: argparse.Namespace, is_tf: bool, is_caffe: bool, is_mxnet: bool, is_kaldi: bool,

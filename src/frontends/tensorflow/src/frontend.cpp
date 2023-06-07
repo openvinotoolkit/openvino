@@ -232,9 +232,9 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
         return std::make_shared<InputModel>(graph_iterator, m_telemetry);
     } else if (variants[0].is<std::shared_ptr<IGraphIterator>>()) {
         auto i_graph_iterator = variants[0].as<std::shared_ptr<IGraphIterator>>();
-        FRONT_END_GENERAL_CHECK(i_graph_iterator, "Couldn't cast ov::Any to IGraphIterator");
+        FRONT_END_GENERAL_CHECK(i_graph_iterator, "[TensorFlow Frontend] internal error: couldn't cast ov::Any to IGraphIterator");
         auto graph_iterator = std::dynamic_pointer_cast<GraphIterator>(i_graph_iterator);
-        FRONT_END_GENERAL_CHECK(graph_iterator, "Couldn't cast ov::Any to GraphIterator");
+        FRONT_END_GENERAL_CHECK(graph_iterator, "[TensorFlow Frontend] internal error: couldn't cast ov::Any to GraphIterator");
         return std::make_shared<InputModel>(graph_iterator, m_telemetry);
     }
 
