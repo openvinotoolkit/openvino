@@ -24,6 +24,7 @@ struct LinuxCpuReserveTestCase {
     std::vector<std::vector<int>> _streams_info_table;
     std::vector<std::vector<int>> _stream_processors;
     std::vector<int> _stream_numa_node_ids;
+    int _cpu_status;
 };
 
 class LinuxCpuReserveTests : public CommonTestUtils::TestsCommon,
@@ -34,7 +35,6 @@ public:
 
         std::vector<std::vector<int>> test_processors;
         std::vector<int> test_numa_node_ids;
-        const int cpu_status = NOT_USED;
 
         ov::reserve_cpu_by_streams_info(test_data._streams_info_table,
                                         test_data._cpu_mapping_table,
@@ -42,7 +42,7 @@ public:
                                         test_data._sockets,
                                         test_processors,
                                         test_numa_node_ids,
-                                        cpu_status);
+                                        test_data._cpu_status);
 
         ASSERT_EQ(test_data._stream_processors, test_processors);
         ASSERT_EQ(test_data._stream_numa_node_ids, test_numa_node_ids);
@@ -97,6 +97,7 @@ LinuxCpuReserveTestCase _2sockets_72cores_hyper_36streams = {
         {54}, {55}, {56}, {57}, {58}, {59}, {60}, {61}, {62}, {63}, {64}, {65}, {66}, {67}, {68}, {69}, {70}, {71},
     },
     {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+    NOT_USED,
 };
 LinuxCpuReserveTestCase _2sockets_72cores_hyper_2streams = {
     72,
@@ -146,7 +147,10 @@ LinuxCpuReserveTestCase _2sockets_72cores_hyper_2streams = {
         {54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71},
     },
     {0, 1},
+    NOT_USED,
 };
+// The first 3 streams are assigned on numa_node=0, the next 3 streams are assigned on numa_node=1,
+// the last stream is assigned across the numa_node because there are no enough processors on each numa node
 LinuxCpuReserveTestCase _2sockets_72cores_hyper_7streams = {
     72,
     2,
@@ -200,6 +204,7 @@ LinuxCpuReserveTestCase _2sockets_72cores_hyper_7streams = {
         {69, 70, 71, 51, 52},
     },
     {0, 0, 0, 1, 1, 1, -1},
+    NOT_USED,
 };
 LinuxCpuReserveTestCase _2sockets_72cores_hyper_8streams = {
     72,
@@ -255,6 +260,7 @@ LinuxCpuReserveTestCase _2sockets_72cores_hyper_8streams = {
         {66, 67, 68, 69},
     },
     {0, 0, 0, 0, 1, 1, 1, 1},
+    NOT_USED,
 };
 LinuxCpuReserveTestCase _2sockets_72cores_hyper_9streams = {
     72,
@@ -311,6 +317,165 @@ LinuxCpuReserveTestCase _2sockets_72cores_hyper_9streams = {
         {70, 71, 52, 53},
     },
     {0, 0, 0, 0, 1, 1, 1, 1, -1},
+    NOT_USED,
+};
+LinuxCpuReserveTestCase _2sockets_72cores_hyper_3streams = {
+    72,
+    2,
+    {{72, 36, 0, 36}, {36, 18, 0, 18}, {36, 18, 0, 18}},
+    {
+        {0, 0, 0, HYPER_THREADING_PROC, 0, -1},    {1, 0, 1, HYPER_THREADING_PROC, 1, -1},
+        {2, 0, 2, HYPER_THREADING_PROC, 2, -1},    {3, 0, 3, HYPER_THREADING_PROC, 3, -1},
+        {4, 0, 4, HYPER_THREADING_PROC, 4, -1},    {5, 0, 5, HYPER_THREADING_PROC, 5, -1},
+        {6, 0, 6, HYPER_THREADING_PROC, 6, -1},    {7, 0, 7, HYPER_THREADING_PROC, 7, -1},
+        {8, 0, 8, HYPER_THREADING_PROC, 8, -1},    {9, 0, 9, HYPER_THREADING_PROC, 9, -1},
+        {10, 0, 10, HYPER_THREADING_PROC, 10, -1}, {11, 0, 11, HYPER_THREADING_PROC, 11, -1},
+        {12, 0, 12, HYPER_THREADING_PROC, 12, -1}, {13, 0, 13, HYPER_THREADING_PROC, 13, -1},
+        {14, 0, 14, HYPER_THREADING_PROC, 14, -1}, {15, 0, 15, HYPER_THREADING_PROC, 15, -1},
+        {16, 0, 16, HYPER_THREADING_PROC, 16, -1}, {17, 0, 17, HYPER_THREADING_PROC, 17, -1},
+        {18, 1, 18, HYPER_THREADING_PROC, 18, -1}, {19, 1, 19, HYPER_THREADING_PROC, 19, -1},
+        {20, 1, 20, HYPER_THREADING_PROC, 20, -1}, {21, 1, 21, HYPER_THREADING_PROC, 21, -1},
+        {22, 1, 22, HYPER_THREADING_PROC, 22, -1}, {23, 1, 23, HYPER_THREADING_PROC, 23, -1},
+        {24, 1, 24, HYPER_THREADING_PROC, 24, -1}, {25, 1, 25, HYPER_THREADING_PROC, 25, -1},
+        {26, 1, 26, HYPER_THREADING_PROC, 26, -1}, {27, 1, 27, HYPER_THREADING_PROC, 27, -1},
+        {28, 1, 28, HYPER_THREADING_PROC, 28, -1}, {29, 1, 29, HYPER_THREADING_PROC, 29, -1},
+        {30, 1, 30, HYPER_THREADING_PROC, 30, -1}, {31, 1, 31, HYPER_THREADING_PROC, 31, -1},
+        {32, 1, 32, HYPER_THREADING_PROC, 32, -1}, {33, 1, 33, HYPER_THREADING_PROC, 33, -1},
+        {34, 1, 34, HYPER_THREADING_PROC, 34, -1}, {35, 1, 35, HYPER_THREADING_PROC, 35, -1},
+        {36, 0, 36, MAIN_CORE_PROC, 36, -1},       {37, 0, 37, MAIN_CORE_PROC, 37, -1},
+        {38, 0, 38, MAIN_CORE_PROC, 38, -1},       {39, 0, 39, MAIN_CORE_PROC, 39, -1},
+        {40, 0, 40, MAIN_CORE_PROC, 40, -1},       {41, 0, 41, MAIN_CORE_PROC, 41, -1},
+        {42, 0, 42, MAIN_CORE_PROC, 42, -1},       {43, 0, 43, MAIN_CORE_PROC, 43, -1},
+        {44, 0, 44, MAIN_CORE_PROC, 44, -1},       {45, 0, 45, MAIN_CORE_PROC, 45, -1},
+        {46, 0, 46, MAIN_CORE_PROC, 46, -1},       {47, 0, 47, MAIN_CORE_PROC, 47, -1},
+        {48, 0, 48, MAIN_CORE_PROC, 48, -1},       {49, 0, 49, MAIN_CORE_PROC, 49, -1},
+        {50, 0, 50, MAIN_CORE_PROC, 50, -1},       {51, 0, 51, MAIN_CORE_PROC, 51, -1},
+        {52, 0, 52, MAIN_CORE_PROC, 52, -1},       {53, 0, 53, MAIN_CORE_PROC, 53, -1},
+        {54, 1, 54, MAIN_CORE_PROC, 54, -1},       {55, 1, 55, MAIN_CORE_PROC, 55, -1},
+        {56, 1, 56, MAIN_CORE_PROC, 56, -1},       {57, 1, 57, MAIN_CORE_PROC, 57, -1},
+        {58, 1, 58, MAIN_CORE_PROC, 58, -1},       {59, 1, 59, MAIN_CORE_PROC, 59, -1},
+        {60, 1, 60, MAIN_CORE_PROC, 60, -1},       {61, 1, 61, MAIN_CORE_PROC, 61, -1},
+        {62, 1, 62, MAIN_CORE_PROC, 62, -1},       {63, 1, 63, MAIN_CORE_PROC, 63, -1},
+        {64, 1, 64, MAIN_CORE_PROC, 64, -1},       {65, 1, 65, MAIN_CORE_PROC, 65, -1},
+        {66, 1, 66, MAIN_CORE_PROC, 66, -1},       {67, 1, 67, MAIN_CORE_PROC, 67, -1},
+        {68, 1, 68, MAIN_CORE_PROC, 68, -1},       {69, 1, 69, MAIN_CORE_PROC, 69, -1},
+        {70, 1, 70, MAIN_CORE_PROC, 70, -1},       {71, 1, 71, MAIN_CORE_PROC, 71, -1},
+    },
+    {{3, MAIN_CORE_PROC, 4}},
+    {
+        {36, 37, 38, 39},
+        {40, 41, 42, 43},
+        {44, 45, 46, 47},
+    },
+    {0, 0, 0},
+    NOT_USED,
+};
+// The first four streams are on numa_node=0, and the fifth stream is assigned to numa_node=1, because there are only 2
+// processors left in numa_node=0, which is not enough for one stream
+LinuxCpuReserveTestCase _2sockets_72cores_hyper_5streams = {
+    72,
+    2,
+    {{72, 36, 0, 36}, {36, 18, 0, 18}, {36, 18, 0, 18}},
+    {
+        {0, 0, 0, HYPER_THREADING_PROC, 0, -1},    {1, 0, 1, HYPER_THREADING_PROC, 1, -1},
+        {2, 0, 2, HYPER_THREADING_PROC, 2, -1},    {3, 0, 3, HYPER_THREADING_PROC, 3, -1},
+        {4, 0, 4, HYPER_THREADING_PROC, 4, -1},    {5, 0, 5, HYPER_THREADING_PROC, 5, -1},
+        {6, 0, 6, HYPER_THREADING_PROC, 6, -1},    {7, 0, 7, HYPER_THREADING_PROC, 7, -1},
+        {8, 0, 8, HYPER_THREADING_PROC, 8, -1},    {9, 0, 9, HYPER_THREADING_PROC, 9, -1},
+        {10, 0, 10, HYPER_THREADING_PROC, 10, -1}, {11, 0, 11, HYPER_THREADING_PROC, 11, -1},
+        {12, 0, 12, HYPER_THREADING_PROC, 12, -1}, {13, 0, 13, HYPER_THREADING_PROC, 13, -1},
+        {14, 0, 14, HYPER_THREADING_PROC, 14, -1}, {15, 0, 15, HYPER_THREADING_PROC, 15, -1},
+        {16, 0, 16, HYPER_THREADING_PROC, 16, -1}, {17, 0, 17, HYPER_THREADING_PROC, 17, -1},
+        {18, 1, 18, HYPER_THREADING_PROC, 18, -1}, {19, 1, 19, HYPER_THREADING_PROC, 19, -1},
+        {20, 1, 20, HYPER_THREADING_PROC, 20, -1}, {21, 1, 21, HYPER_THREADING_PROC, 21, -1},
+        {22, 1, 22, HYPER_THREADING_PROC, 22, -1}, {23, 1, 23, HYPER_THREADING_PROC, 23, -1},
+        {24, 1, 24, HYPER_THREADING_PROC, 24, -1}, {25, 1, 25, HYPER_THREADING_PROC, 25, -1},
+        {26, 1, 26, HYPER_THREADING_PROC, 26, -1}, {27, 1, 27, HYPER_THREADING_PROC, 27, -1},
+        {28, 1, 28, HYPER_THREADING_PROC, 28, -1}, {29, 1, 29, HYPER_THREADING_PROC, 29, -1},
+        {30, 1, 30, HYPER_THREADING_PROC, 30, -1}, {31, 1, 31, HYPER_THREADING_PROC, 31, -1},
+        {32, 1, 32, HYPER_THREADING_PROC, 32, -1}, {33, 1, 33, HYPER_THREADING_PROC, 33, -1},
+        {34, 1, 34, HYPER_THREADING_PROC, 34, -1}, {35, 1, 35, HYPER_THREADING_PROC, 35, -1},
+        {36, 0, 36, MAIN_CORE_PROC, 36, -1},       {37, 0, 37, MAIN_CORE_PROC, 37, -1},
+        {38, 0, 38, MAIN_CORE_PROC, 38, -1},       {39, 0, 39, MAIN_CORE_PROC, 39, -1},
+        {40, 0, 40, MAIN_CORE_PROC, 40, -1},       {41, 0, 41, MAIN_CORE_PROC, 41, -1},
+        {42, 0, 42, MAIN_CORE_PROC, 42, -1},       {43, 0, 43, MAIN_CORE_PROC, 43, -1},
+        {44, 0, 44, MAIN_CORE_PROC, 44, -1},       {45, 0, 45, MAIN_CORE_PROC, 45, -1},
+        {46, 0, 46, MAIN_CORE_PROC, 46, -1},       {47, 0, 47, MAIN_CORE_PROC, 47, -1},
+        {48, 0, 48, MAIN_CORE_PROC, 48, -1},       {49, 0, 49, MAIN_CORE_PROC, 49, -1},
+        {50, 0, 50, MAIN_CORE_PROC, 50, -1},       {51, 0, 51, MAIN_CORE_PROC, 51, -1},
+        {52, 0, 52, MAIN_CORE_PROC, 52, -1},       {53, 0, 53, MAIN_CORE_PROC, 53, -1},
+        {54, 1, 54, MAIN_CORE_PROC, 54, -1},       {55, 1, 55, MAIN_CORE_PROC, 55, -1},
+        {56, 1, 56, MAIN_CORE_PROC, 56, -1},       {57, 1, 57, MAIN_CORE_PROC, 57, -1},
+        {58, 1, 58, MAIN_CORE_PROC, 58, -1},       {59, 1, 59, MAIN_CORE_PROC, 59, -1},
+        {60, 1, 60, MAIN_CORE_PROC, 60, -1},       {61, 1, 61, MAIN_CORE_PROC, 61, -1},
+        {62, 1, 62, MAIN_CORE_PROC, 62, -1},       {63, 1, 63, MAIN_CORE_PROC, 63, -1},
+        {64, 1, 64, MAIN_CORE_PROC, 64, -1},       {65, 1, 65, MAIN_CORE_PROC, 65, -1},
+        {66, 1, 66, MAIN_CORE_PROC, 66, -1},       {67, 1, 67, MAIN_CORE_PROC, 67, -1},
+        {68, 1, 68, MAIN_CORE_PROC, 68, -1},       {69, 1, 69, MAIN_CORE_PROC, 69, -1},
+        {70, 1, 70, MAIN_CORE_PROC, 70, -1},       {71, 1, 71, MAIN_CORE_PROC, 71, -1},
+    },
+    {{5, MAIN_CORE_PROC, 4}},
+    {
+        {36, 37, 38, 39},  // numa_node = 0
+        {40, 41, 42, 43},  // numa_node = 0
+        {44, 45, 46, 47},  // numa_node = 0
+        {48, 49, 50, 51},  // numa_node = 0
+        {54, 55, 56, 57},  // numa_node = 1
+    },
+    {0, 0, 0, 0, 1},
+    NOT_USED,
+};
+// The method of plugin reserve cpu: assigned the streams on the numa_node with more cpu resources
+LinuxCpuReserveTestCase _2sockets_72cores_hyper_3streams_plugin_reserve = {
+    72,
+    2,
+    {{72, 36, 0, 36}, {32, 14, 0, 18}, {36, 18, 0, 18}},
+    {
+        {0, 0, 0, HYPER_THREADING_PROC, 0, -1},    {1, 0, 1, HYPER_THREADING_PROC, 1, -1},
+        {2, 0, 2, HYPER_THREADING_PROC, 2, -1},    {3, 0, 3, HYPER_THREADING_PROC, 3, -1},
+        {4, 0, 4, HYPER_THREADING_PROC, 4, -1},    {5, 0, 5, HYPER_THREADING_PROC, 5, -1},
+        {6, 0, 6, HYPER_THREADING_PROC, 6, -1},    {7, 0, 7, HYPER_THREADING_PROC, 7, -1},
+        {8, 0, 8, HYPER_THREADING_PROC, 8, -1},    {9, 0, 9, HYPER_THREADING_PROC, 9, -1},
+        {10, 0, 10, HYPER_THREADING_PROC, 10, -1}, {11, 0, 11, HYPER_THREADING_PROC, 11, -1},
+        {12, 0, 12, HYPER_THREADING_PROC, 12, -1}, {13, 0, 13, HYPER_THREADING_PROC, 13, -1},
+        {14, 0, 14, HYPER_THREADING_PROC, 14, -1}, {15, 0, 15, HYPER_THREADING_PROC, 15, -1},
+        {16, 0, 16, HYPER_THREADING_PROC, 16, -1}, {17, 0, 17, HYPER_THREADING_PROC, 17, -1},
+        {18, 1, 18, HYPER_THREADING_PROC, 18, -1}, {19, 1, 19, HYPER_THREADING_PROC, 19, -1},
+        {20, 1, 20, HYPER_THREADING_PROC, 20, -1}, {21, 1, 21, HYPER_THREADING_PROC, 21, -1},
+        {22, 1, 22, HYPER_THREADING_PROC, 22, -1}, {23, 1, 23, HYPER_THREADING_PROC, 23, -1},
+        {24, 1, 24, HYPER_THREADING_PROC, 24, -1}, {25, 1, 25, HYPER_THREADING_PROC, 25, -1},
+        {26, 1, 26, HYPER_THREADING_PROC, 26, -1}, {27, 1, 27, HYPER_THREADING_PROC, 27, -1},
+        {28, 1, 28, HYPER_THREADING_PROC, 28, -1}, {29, 1, 29, HYPER_THREADING_PROC, 29, -1},
+        {30, 1, 30, HYPER_THREADING_PROC, 30, -1}, {31, 1, 31, HYPER_THREADING_PROC, 31, -1},
+        {32, 1, 32, HYPER_THREADING_PROC, 32, -1}, {33, 1, 33, HYPER_THREADING_PROC, 33, -1},
+        {34, 1, 34, HYPER_THREADING_PROC, 34, -1}, {35, 1, 35, HYPER_THREADING_PROC, 35, -1},
+        {36, 0, 36, MAIN_CORE_PROC, 36, 1},        {37, 0, 37, MAIN_CORE_PROC, 37, 1},
+        {38, 0, 38, MAIN_CORE_PROC, 38, 1},        {39, 0, 39, MAIN_CORE_PROC, 39, 1},
+        {40, 0, 40, MAIN_CORE_PROC, 40, -1},       {41, 0, 41, MAIN_CORE_PROC, 41, -1},
+        {42, 0, 42, MAIN_CORE_PROC, 42, -1},       {43, 0, 43, MAIN_CORE_PROC, 43, -1},
+        {44, 0, 44, MAIN_CORE_PROC, 44, -1},       {45, 0, 45, MAIN_CORE_PROC, 45, -1},
+        {46, 0, 46, MAIN_CORE_PROC, 46, -1},       {47, 0, 47, MAIN_CORE_PROC, 47, -1},
+        {48, 0, 48, MAIN_CORE_PROC, 48, -1},       {49, 0, 49, MAIN_CORE_PROC, 49, -1},
+        {50, 0, 50, MAIN_CORE_PROC, 50, -1},       {51, 0, 51, MAIN_CORE_PROC, 51, -1},
+        {52, 0, 52, MAIN_CORE_PROC, 52, -1},       {53, 0, 53, MAIN_CORE_PROC, 53, -1},
+        {54, 1, 54, MAIN_CORE_PROC, 54, -1},       {55, 1, 55, MAIN_CORE_PROC, 55, -1},
+        {56, 1, 56, MAIN_CORE_PROC, 56, -1},       {57, 1, 57, MAIN_CORE_PROC, 57, -1},
+        {58, 1, 58, MAIN_CORE_PROC, 58, -1},       {59, 1, 59, MAIN_CORE_PROC, 59, -1},
+        {60, 1, 60, MAIN_CORE_PROC, 60, -1},       {61, 1, 61, MAIN_CORE_PROC, 61, -1},
+        {62, 1, 62, MAIN_CORE_PROC, 62, -1},       {63, 1, 63, MAIN_CORE_PROC, 63, -1},
+        {64, 1, 64, MAIN_CORE_PROC, 64, -1},       {65, 1, 65, MAIN_CORE_PROC, 65, -1},
+        {66, 1, 66, MAIN_CORE_PROC, 66, -1},       {67, 1, 67, MAIN_CORE_PROC, 67, -1},
+        {68, 1, 68, MAIN_CORE_PROC, 68, -1},       {69, 1, 69, MAIN_CORE_PROC, 69, -1},
+        {70, 1, 70, MAIN_CORE_PROC, 70, -1},       {71, 1, 71, MAIN_CORE_PROC, 71, -1},
+    },
+    {{3, MAIN_CORE_PROC, 4}},
+    {
+        {54, 55, 56, 57},  // numa_node = 1
+        {58, 59, 60, 61},  // numa_node = 1
+        {62, 63, 64, 65},  // numa_node = 1
+    },
+    {1, 1, 1},
+    CPU_USED,
 };
 LinuxCpuReserveTestCase _1socket_4cores_hyper_1streams = {
     8,
@@ -329,6 +494,7 @@ LinuxCpuReserveTestCase _1socket_4cores_hyper_1streams = {
     {{1, MAIN_CORE_PROC, 4}},
     {{4, 5, 6, 7}},
     {0},
+    NOT_USED,
 };
 LinuxCpuReserveTestCase _1socket_4cores_hyper_4streams = {
     8,
@@ -347,6 +513,7 @@ LinuxCpuReserveTestCase _1socket_4cores_hyper_4streams = {
     {{2, MAIN_CORE_PROC, 2}, {2, HYPER_THREADING_PROC, 2}},
     {{4, 5}, {6, 7}, {0, 1}, {2, 3}},
     {0, 0, 0, 0},
+    NOT_USED,
 };
 LinuxCpuReserveTestCase _1socket_16cores_hyper_20streams = {
     24,
@@ -372,6 +539,7 @@ LinuxCpuReserveTestCase _1socket_16cores_hyper_20streams = {
         {20, 21}, {22, 23}, {0}, {2}, {4}, {6},  {8},  {10}, {12},     {14},
     },
     {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+    NOT_USED,
 };
 LinuxCpuReserveTestCase _1socket_16cores_hyper_1streams = {
     24,
@@ -394,6 +562,7 @@ LinuxCpuReserveTestCase _1socket_16cores_hyper_1streams = {
     {{1, MAIN_CORE_PROC, 8}},
     {{1, 3, 5, 7, 9, 11, 13, 15}},
     {0},
+    NOT_USED,
 };
 LinuxCpuReserveTestCase _1socket_16cores_hyper_4streams = {
     24,
@@ -421,7 +590,38 @@ LinuxCpuReserveTestCase _1socket_16cores_hyper_4streams = {
         {20, 21, 22, 23},
     },
     {0, 0, 0, 0},
+    NOT_USED,
 };
+LinuxCpuReserveTestCase _1socket_16cores_hyper_4streams_ecoreonly = {
+    24,
+    1,
+    {{24, 8, 8, 8}},
+    {
+        {0, 0, 0, HYPER_THREADING_PROC, 0, -1},  {1, 0, 0, MAIN_CORE_PROC, 0, -1},
+        {2, 0, 1, HYPER_THREADING_PROC, 1, -1},  {3, 0, 1, MAIN_CORE_PROC, 1, -1},
+        {4, 0, 2, HYPER_THREADING_PROC, 2, -1},  {5, 0, 2, MAIN_CORE_PROC, 2, -1},
+        {6, 0, 3, HYPER_THREADING_PROC, 3, -1},  {7, 0, 3, MAIN_CORE_PROC, 3, -1},
+        {8, 0, 4, HYPER_THREADING_PROC, 4, -1},  {9, 0, 4, MAIN_CORE_PROC, 4, -1},
+        {10, 0, 5, HYPER_THREADING_PROC, 5, -1}, {11, 0, 5, MAIN_CORE_PROC, 5, -1},
+        {12, 0, 6, HYPER_THREADING_PROC, 6, -1}, {13, 0, 6, MAIN_CORE_PROC, 6, -1},
+        {14, 0, 7, HYPER_THREADING_PROC, 7, -1}, {15, 0, 7, MAIN_CORE_PROC, 7, -1},
+        {16, 0, 8, EFFICIENT_CORE_PROC, 8, -1},  {17, 0, 9, EFFICIENT_CORE_PROC, 8, -1},
+        {18, 0, 10, EFFICIENT_CORE_PROC, 8, -1}, {19, 0, 11, EFFICIENT_CORE_PROC, 8, -1},
+        {20, 0, 12, EFFICIENT_CORE_PROC, 9, -1}, {21, 0, 13, EFFICIENT_CORE_PROC, 9, -1},
+        {22, 0, 14, EFFICIENT_CORE_PROC, 9, -1}, {23, 0, 15, EFFICIENT_CORE_PROC, 9, -1},
+    },
+    {{4, EFFICIENT_CORE_PROC, 2}},
+    {
+        {16, 17},
+        {18, 19},
+        {20, 21},
+        {22, 23},
+    },
+    {0, 0, 0, 0},
+    NOT_USED,
+};
+// streams_info_table={1, MAIN_CORE_PROC, 36}, but the number of physical cores is 18,
+// in this case, threads are assigned on physical and logical cores.
 LinuxCpuReserveTestCase _1socket_18cores_hyper_1streams = {
     36,
     1,
@@ -452,6 +652,39 @@ LinuxCpuReserveTestCase _1socket_18cores_hyper_1streams = {
          18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35},
     },
     {0},
+    NOT_USED,
+};
+LinuxCpuReserveTestCase _1socket_18cores_hyper_2streams = {
+    36,
+    1,
+    {{36, 18, 0, 18}},
+    {
+        {0, 0, 0, HYPER_THREADING_PROC, 0, -1},  {1, 0, 0, HYPER_THREADING_PROC, 0, -1},
+        {2, 0, 1, HYPER_THREADING_PROC, 1, -1},  {3, 0, 1, HYPER_THREADING_PROC, 1, -1},
+        {4, 0, 2, HYPER_THREADING_PROC, 2, -1},  {5, 0, 2, HYPER_THREADING_PROC, 2, -1},
+        {6, 0, 3, HYPER_THREADING_PROC, 3, -1},  {7, 0, 3, HYPER_THREADING_PROC, 3, -1},
+        {8, 0, 4, HYPER_THREADING_PROC, 4, -1},  {9, 0, 4, HYPER_THREADING_PROC, 4, -1},
+        {10, 0, 5, HYPER_THREADING_PROC, 5, -1}, {11, 0, 5, HYPER_THREADING_PROC, 5, -1},
+        {12, 0, 6, HYPER_THREADING_PROC, 6, -1}, {13, 0, 6, HYPER_THREADING_PROC, 6, -1},
+        {14, 0, 7, HYPER_THREADING_PROC, 7, -1}, {15, 0, 7, HYPER_THREADING_PROC, 7, -1},
+        {16, 0, 8, HYPER_THREADING_PROC, 8, -1}, {17, 0, 9, HYPER_THREADING_PROC, 8, -1},
+        {18, 0, 0, MAIN_CORE_PROC, 0, -1},       {19, 0, 1, MAIN_CORE_PROC, 1, -1},
+        {20, 0, 2, MAIN_CORE_PROC, 2, -1},       {21, 0, 3, MAIN_CORE_PROC, 3, -1},
+        {22, 0, 4, MAIN_CORE_PROC, 4, -1},       {23, 0, 5, MAIN_CORE_PROC, 5, -1},
+        {24, 0, 6, MAIN_CORE_PROC, 6, -1},       {25, 0, 7, MAIN_CORE_PROC, 7, -1},
+        {26, 0, 8, MAIN_CORE_PROC, 8, -1},       {27, 0, 9, MAIN_CORE_PROC, 9, -1},
+        {28, 0, 10, MAIN_CORE_PROC, 10, -1},     {29, 0, 11, MAIN_CORE_PROC, 11, -1},
+        {30, 0, 12, MAIN_CORE_PROC, 12, -1},     {31, 0, 13, MAIN_CORE_PROC, 13, -1},
+        {32, 0, 14, MAIN_CORE_PROC, 14, -1},     {33, 0, 15, MAIN_CORE_PROC, 15, -1},
+        {34, 0, 16, MAIN_CORE_PROC, 16, -1},     {35, 0, 17, MAIN_CORE_PROC, 17, -1},
+    },
+    {{1, MAIN_CORE_PROC, 18}, {1, HYPER_THREADING_PROC, 18}},
+    {
+        {18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35},
+        {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17},
+    },
+    {0, 0},
+    NOT_USED,
 };
 
 TEST_P(LinuxCpuReserveTests, LinuxCpuReserve) {}
@@ -463,11 +696,16 @@ INSTANTIATE_TEST_SUITE_P(CPUReserve,
                                          _2sockets_72cores_hyper_7streams,
                                          _2sockets_72cores_hyper_8streams,
                                          _2sockets_72cores_hyper_9streams,
+                                         _2sockets_72cores_hyper_3streams,
+                                         _2sockets_72cores_hyper_5streams,
+                                         _2sockets_72cores_hyper_3streams_plugin_reserve,
                                          _1socket_4cores_hyper_1streams,
                                          _1socket_4cores_hyper_4streams,
                                          _1socket_16cores_hyper_20streams,
                                          _1socket_16cores_hyper_1streams,
                                          _1socket_16cores_hyper_4streams,
-                                         _1socket_18cores_hyper_1streams));
+                                         _1socket_16cores_hyper_4streams_ecoreonly,
+                                         _1socket_18cores_hyper_1streams,
+                                         _1socket_18cores_hyper_2streams));
 #endif
 }  // namespace
