@@ -18,7 +18,7 @@
 
 #define OV_INFER_REQ_CALL_STATEMENT(...)                                    \
     OPENVINO_ASSERT(_impl != nullptr, "InferRequest was not initialized."); \
-    OPENVINO_SUPPRESS_DEPRECATED_START \
+    OPENVINO_SUPPRESS_DEPRECATED_START                                      \
     try {                                                                   \
         __VA_ARGS__;                                                        \
     } catch (const ::InferenceEngine::RequestBusy& ex) {                    \
@@ -27,9 +27,8 @@
         OPENVINO_THROW(ex.what());                                          \
     } catch (...) {                                                         \
         OPENVINO_THROW("Unexpected exception");                             \
-    }\
+    }                                                                       \
     OPENVINO_SUPPRESS_DEPRECATED_END
-
 
 namespace {
 

@@ -32,6 +32,7 @@
 
 #include "ie_api.h"
 
+IE_SUPPRESS_DEPRECATED_START
 #ifndef NDEBUG
 #    include <cassert>
 #endif
@@ -512,3 +513,4 @@ struct NullStream {
 #else
 #    define __PRETTY_FUNCTION__ __PRETTY_FUNCTION__
 #endif
+IE_SUPPRESS_DEPRECATED_END
