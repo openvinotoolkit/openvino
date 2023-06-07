@@ -95,15 +95,15 @@ std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::import_model(std::istrea
 
 ov::hetero::Plugin::DeviceProperties ov::hetero::Plugin::get_device_properties(const std::string& device_priorities,
                                                                                const ov::AnyMap& properties) const {
-    auto fallbackDevices = ov::DeviceIDParser::get_hetero_devices(device_priorities);
-    DeviceProperties metaDevices;
-    for (auto&& deviceName : fallbackDevices) {
-        auto itPlugin = metaDevices.find(deviceName);
-        if (metaDevices.end() == itPlugin) {
-            metaDevices[deviceName] = get_core()->get_supported_property(deviceName, properties);
+    auto device_names = ov::DeviceIDParser::get_hetero_devices(device_priorities);
+    DeviceProperties device_properties;
+    for (auto&& device_name : device_names) {
+        auto properties_it = device_properties.find(device_name);
+        if (device_properties.end() == properties_it) {
+            device_properties[device_name] = get_core()->get_supported_property(device_name, properties);
         }
     }
-    return metaDevices;
+    return device_properties;
 }
 
 ov::SupportedOpsMap ov::hetero::Plugin::query_model(const std::shared_ptr<const ov::Model>& model,

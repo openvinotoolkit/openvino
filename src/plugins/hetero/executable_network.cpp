@@ -49,7 +49,6 @@
 
 // clang-format on
 
-
 // TODO (vurusovs) required for conversion to legacy API 1.0
 #include "converter_utils.hpp"
 // TODO (vurusovs) required for conversion to legacy API 1.0
@@ -63,7 +62,6 @@ using namespace InferenceEngine::HeteroConfigParams;
 
 template <typename T>
 using NodeMap = std::unordered_map<ngraph::Node*, T>;
-
 
 HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwork& network,
                                                  const ov::AnyMap& user_config,
@@ -110,7 +108,9 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
     if (queryNetworkResult.supportedLayersMap.empty()) {
         // here we need to bypass unchanged / unparsed user-set configuration
         // because it can contain TARGET_FALLBACK / ov::device::priorities
-        queryNetworkResult.supportedLayersMap = plugin->query_model(ov::legacy_convert::convert_model(network, plugin->get_core()->is_new_api()), user_config);
+        queryNetworkResult.supportedLayersMap =
+            plugin->query_model(ov::legacy_convert::convert_model(network, plugin->get_core()->is_new_api()),
+                                user_config);
         queryNetworkResult.rc = OK;
     }
 
@@ -459,12 +459,11 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
         device_config[ov::cache_dir.name()] = "";
 
         // network._network =
-            // _heteroPlugin->GetCore()->LoadNetwork(network._clonedNetwork, network._device, device_config);
+        // _heteroPlugin->GetCore()->LoadNetwork(network._clonedNetwork, network._device, device_config);
         auto compiled_model = plugin->get_core()->compile_model(
-            ov::legacy_convert::convert_model(network._clonedNetwork, plugin->get_core()->is_new_api()), 
-            network._device, 
-            device_config
-        );
+            ov::legacy_convert::convert_model(network._clonedNetwork, plugin->get_core()->is_new_api()),
+            network._device,
+            device_config);
         network._network = {ov::legacy_convert::convert_compiled_model(compiled_model._ptr), compiled_model._so};
     }
 }
@@ -534,7 +533,8 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream& heteroModel,
         CNNNetwork cnnnetwork;
         bool loaded = false;
 
-        if (std::dynamic_pointer_cast<InferenceEngine::ICore>(plugin->get_core())->DeviceSupportsModelCaching(deviceName)) { // TODO (vurusovs) TEMPORARY SOLUTION
+        if (std::dynamic_pointer_cast<InferenceEngine::ICore>(plugin->get_core())
+                ->DeviceSupportsModelCaching(deviceName)) {  // TODO (vurusovs) TEMPORARY SOLUTION
             auto compiled_model = plugin->get_core()->import_model(heteroModel, deviceName, loadConfig);
             executableNetwork = {ov::legacy_convert::convert_compiled_model(compiled_model._ptr), compiled_model._so};
         } else {
@@ -554,8 +554,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream& heteroModel,
             }
 
             auto ov_model = plugin->get_core()->read_model(xmlString, weights);
-            cnnnetwork = ov::legacy_convert::convert_model(ov_model, 
-                                                           plugin->get_core()->is_new_api());
+            cnnnetwork = ov::legacy_convert::convert_model(ov_model, plugin->get_core()->is_new_api());
             auto inputs = cnnnetwork.getInputsInfo();
             auto inputsNode = subnetworkNode.child("inputs");
             FOREACH_CHILD (inputNode, inputsNode, "input") {
@@ -573,8 +572,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream& heteroModel,
             auto compiled_model = plugin->get_core()->compile_model(
                 ov::legacy_convert::convert_model(cnnnetwork, plugin->get_core()->is_new_api()),
                 deviceName,
-                loadConfig
-            );
+                loadConfig);
             executableNetwork = {ov::legacy_convert::convert_compiled_model(compiled_model._ptr), compiled_model._so};
             loaded = true;
         }
@@ -746,7 +744,8 @@ void HeteroExecutableNetwork::Export(std::ostream& heteroModel) {
     heteroModel << std::endl;
 
     for (auto&& subnetwork : _networks) {
-        if (std::dynamic_pointer_cast<InferenceEngine::ICore>(_plugin->get_core())->DeviceSupportsModelCaching(subnetwork._device)) { // TODO (vurusovs) TEMPORARY SOLUTION
+        if (std::dynamic_pointer_cast<InferenceEngine::ICore>(_plugin->get_core())
+                ->DeviceSupportsModelCaching(subnetwork._device)) {  // TODO (vurusovs) TEMPORARY SOLUTION
             subnetwork._network->Export(heteroModel);
         } else {
             auto subnet = subnetwork._clonedNetwork;
