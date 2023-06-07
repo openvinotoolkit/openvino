@@ -18,10 +18,10 @@
    :maxdepth: 2
    :caption: Notebooks
    :hidden:
-   :glob:
+
 
    notebooks-installation
-   notebooks/*
+   notebooks/407-person-tracking-with-output
 
 
 This collection of Python tutorials are written for running on Jupyter notebooks.
