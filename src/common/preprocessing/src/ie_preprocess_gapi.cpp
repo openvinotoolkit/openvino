@@ -861,18 +861,12 @@ void PreprocEngine::preprocessWithGAPI(const Blob::Ptr &inBlob, Blob::Ptr &outBl
         IE_THROW()  << "Unsupported network's input blob type: expected MemoryBlob";
     }
 
-    // FIXME: refactor the code below. there must be a better way to handle the difference
-
-    // if input color format is not NV12, a MemoryBlob is expected. otherwise, NV12Blob is expected
-    switch (in_fmt) {
-    default:
-        auto inMemoryBlob = as<MemoryBlob>(inBlob);
-        if (!inMemoryBlob) {
-            IE_THROW()  << "Unsupported input blob for color format " << in_fmt
-                                << ": expected MemoryBlob";
-        }
-        return preprocessBlob(inMemoryBlob, outMemoryBlob, algorithm, in_fmt, out_fmt, omp_serial,
-            batch_size);
+    auto inMemoryBlob = as<MemoryBlob>(inBlob);
+    if (!inMemoryBlob) {
+        IE_THROW()  << "Unsupported input blob for color format " << in_fmt
+            << ": expected MemoryBlob";
     }
+    return preprocessBlob(inMemoryBlob, outMemoryBlob, algorithm, in_fmt, out_fmt, omp_serial,
+                          batch_size);
 }
 }  // namespace InferenceEngine

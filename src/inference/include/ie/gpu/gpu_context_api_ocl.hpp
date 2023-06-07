@@ -229,41 +229,6 @@ public:
 };
 
 /**
- * @brief This function is used to construct a NV12 compound blob object from two cl::Image2D wrapper objects.
- * The resulting compound contains two remote blobs for Y and UV planes of the surface.
- * @param ctx RemoteContext plugin object derived from ClContext class.
- * @param nv12_image_plane_y cl::Image2D object containing Y plane data.
- * @param nv12_image_plane_uv cl::Image2D object containing UV plane data.
- * @return A shared remote blob instance
- */
-OPENVINO_DEPRECATED("This function is deprecated and will be removed in 2023.1 release")
-static inline Blob::Ptr make_shared_blob_nv12(RemoteContext::Ptr ctx,
-                                              cl::Image2D& nv12_image_plane_y,
-                                              cl::Image2D& nv12_image_plane_uv) {
-    auto casted = std::dynamic_pointer_cast<ClContext>(ctx);
-    if (nullptr == casted) {
-        IE_THROW() << "Invalid remote context passed";
-    }
-
-    size_t width = nv12_image_plane_y.getImageInfo<CL_IMAGE_WIDTH>();
-    size_t height = nv12_image_plane_y.getImageInfo<CL_IMAGE_HEIGHT>();
-
-    // despite of layout, blob dimensions always follow in N,C,H,W order
-    TensorDesc ydesc(Precision::U8, {1, 1, height, width}, Layout::NHWC);
-
-    ParamMap blobParams = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(OCL_IMAGE2D)},
-                           {GPU_PARAM_KEY(MEM_HANDLE), static_cast<gpu_handle_param>(nv12_image_plane_y.get())}};
-    Blob::Ptr y_blob = std::dynamic_pointer_cast<Blob>(casted->CreateBlob(ydesc, blobParams));
-
-    TensorDesc uvdesc(Precision::U8, {1, 2, height / 2, width / 2}, Layout::NHWC);
-    blobParams[GPU_PARAM_KEY(MEM_HANDLE)] = static_cast<gpu_handle_param>(nv12_image_plane_uv.get());
-    Blob::Ptr uv_blob = std::dynamic_pointer_cast<Blob>(casted->CreateBlob(uvdesc, blobParams));
-
-    Blob::Ptr res = make_shared_blob<NV12Blob>(y_blob, uv_blob);
-    return res;
-}
-
-/**
  * @brief This function is used to obtain remote context object from user-supplied OpenCL context handle
  * @param core A reference to Inference Engine Core object
  * @param deviceName A name of device to create a remote context for

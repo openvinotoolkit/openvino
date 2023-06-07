@@ -132,7 +132,6 @@ cv::String colorFormatToString(InferenceEngine::ColorFormat f) {
         case ColorFormat::BGR: return "BGR";
         case ColorFormat::RGBX: return "RGBX";
         case ColorFormat::BGRX: return "BGRX";
-        case ColorFormat::NV12: return "NV12";
         default: IE_THROW() << "Unrecognized color format";
     }
 }

@@ -48,9 +48,6 @@ public:
     }
 };
 
-class NV12BlobTests : public CompoundBlobTests {};
-class I420BlobTests : public CompoundBlobTests {};
-
 TEST(BlobConversionTests, canWorkWithMemoryBlob) {
     Blob::Ptr blob = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 3, 4, 4}, NCHW));
     ASSERT_TRUE(blob->is<MemoryBlob>());
