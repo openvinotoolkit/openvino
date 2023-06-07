@@ -581,9 +581,9 @@ std::shared_ptr<ITensor> make_tensor(const std::shared_ptr<ie::Blob>& blob) {
 #undef IF
 }
 
-ie::Blob::Ptr tensor_to_blob(const std::shared_ptr<ITensor>& orig_tensor) {
+ie::Blob::Ptr tensor_to_blob(const std::shared_ptr<ITensor>& orig_tensor, bool unwrap) {
 #ifndef NO_PROXY_PLUGIN
-    const auto& tensor = ov::proxy::get_hardware_tensor(orig_tensor);
+    const auto& tensor = unwrap ? ov::proxy::get_hardware_tensor(orig_tensor) : orig_tensor;
 #else
     const auto& tensor = orig_tensor;
 #endif
