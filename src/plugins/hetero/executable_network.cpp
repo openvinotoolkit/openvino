@@ -68,20 +68,14 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
     : InferenceEngine::ExecutableNetworkThreadSafeDefault(nullptr,
                                                           std::make_shared<InferenceEngine::ImmediateExecutor>()),
       _plugin{plugin},
-      _name{network.getName()},
-      _hetero_config{},
-      _device_config{} {
+      _name{network.getName()} {
     auto function = network.getFunction();
     auto clonedFunction = ngraph::clone_function(*function);
 
-    // hetero_config, device_config and user_config are unchanged global and local configs set by user
-    // we need to create _hetero_config and _device_config based on them, which will
-    // contain only hetero (_hetero_config) and only device (_device_config) properties
-    auto plugin_cfg = plugin->m_cfg;
-    _cfg = ov::hetero::Configuration{user_config, plugin_cfg};
-
-    _hetero_config = _cfg.GetHeteroConfig();
-    _device_config = _cfg.GetDeviceConfig();
+    // Split `user_config` on `device_config` (with properties for underlying devices)
+    // and `_cfg` (hetero config with properties for hetero plugin only)
+    auto device_config = user_config;
+    _cfg = ov::hetero::Configuration{device_config, plugin->m_cfg};
 
     bool dumpDotFile = false;
     if (std::getenv("OPENVINO_HETERO_VISUALIZE")) {
@@ -450,8 +444,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
         ++id;
     }
     for (auto&& network : _networks) {
-        // auto metaDevices = _heteroPlugin->GetDevicePlugins(network._device, _device_config);
-        auto metaDevices = plugin->get_device_properties(network._device, _device_config);
+        auto metaDevices = plugin->get_device_properties(network._device, device_config);
 
         // disable caching for subgraphs, because the whole HETERO model is cached
         auto device_config = metaDevices[network._device];
@@ -472,17 +465,9 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream& heteroModel,
                                                  const std::shared_ptr<ov::hetero::Plugin>& plugin,
                                                  bool fromCache)
     : _plugin{plugin},
-      _hetero_config{},
-      _device_config{},
       _loadedFromCache(fromCache) {
     std::string heteroXmlStr;
     std::getline(heteroModel, heteroXmlStr);
-
-    auto plugin_cfg = plugin->m_cfg;
-    _cfg = ov::hetero::Configuration{user_config, plugin_cfg};
-
-    _hetero_config = _cfg.GetHeteroConfig();
-    _device_config = _cfg.GetDeviceConfig();
 
     pugi::xml_document heteroXmlDoc;
     pugi::xml_parse_result res = heteroXmlDoc.load_string(heteroXmlStr.c_str());
@@ -504,15 +489,22 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream& heteroModel,
     pugi::xml_node outputsNode = heteroNode.child("outputs");
     FOREACH_CHILD (outputNode, outputsNode, "output") { networkOutputs.insert(GetStrAttr(outputNode, "name")); }
 
+    auto config = user_config;
     auto heteroConfigsNode = heteroNode.child("hetero_config");
     FOREACH_CHILD (heteroConfigNode, heteroConfigsNode, "config") {
-        _hetero_config.emplace(GetStrAttr(heteroConfigNode, "key"), GetStrAttr(heteroConfigNode, "value"));
+        config.emplace(GetStrAttr(heteroConfigNode, "key"), GetStrAttr(heteroConfigNode, "value"));
     }
 
     auto deviceConfigsNode = heteroNode.child("device_config");
     FOREACH_CHILD (deviceConfigNode, deviceConfigsNode, "config") {
-        _device_config.emplace(GetStrAttr(deviceConfigNode, "key"), GetStrAttr(deviceConfigNode, "value"));
+        config.emplace(GetStrAttr(deviceConfigNode, "key"), GetStrAttr(deviceConfigNode, "value"));
     }
+
+    // Split `user_config` (via `config` as updated from imported model)
+    // on `device_config` (with properties for underlying devices)
+    // and `_cfg` (hetero config with properties for hetero plugin only)
+    _cfg = ov::hetero::Configuration(config, plugin->m_cfg);
+    auto device_config = config;
 
     auto blobNamesNode = heteroNode.child("blob_names_map");
     FOREACH_CHILD (blobNameNode, blobNamesNode, "blob_name_map") {
@@ -524,7 +516,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream& heteroModel,
     FOREACH_CHILD (subnetworkNode, subnetworksNode, "subnetwork") {
         auto deviceName = GetStrAttr(subnetworkNode, "device");
 
-        auto metaDevices = plugin->get_device_properties(deviceName, _device_config);
+        auto metaDevices = plugin->get_device_properties(deviceName, device_config);
         assert(metaDevices.size() == 1);
         auto& loadConfig = metaDevices[deviceName];
 
@@ -718,14 +710,14 @@ void HeteroExecutableNetwork::Export(std::ostream& heteroModel) {
     }
 
     auto heteroConfigsNode = heteroNode.append_child("hetero_config");
-    for (auto&& config : _hetero_config) {
+    for (auto&& config : _cfg.GetHeteroConfig()) {
         auto heteroConfigNode = heteroConfigsNode.append_child("config");
         heteroConfigNode.append_attribute("key").set_value(config.first.c_str());
         heteroConfigNode.append_attribute("value").set_value(config.second.as<std::string>().c_str());
     }
 
     auto deviceConfigsNode = heteroNode.append_child("device_config");
-    for (auto&& config : _device_config) {
+    for (auto&& config : _cfg.GetDeviceConfig()) {
         auto deviceConfigNode = deviceConfigsNode.append_child("config");
         deviceConfigNode.append_attribute("key").set_value(config.first.c_str());
         deviceConfigNode.append_attribute("value").set_value(config.second.as<std::string>().c_str());

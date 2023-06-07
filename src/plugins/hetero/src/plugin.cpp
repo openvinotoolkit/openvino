@@ -107,16 +107,17 @@ ov::hetero::Plugin::DeviceProperties ov::hetero::Plugin::get_device_properties(c
 }
 
 ov::SupportedOpsMap ov::hetero::Plugin::query_model(const std::shared_ptr<const ov::Model>& model,
-                                                           const ov::AnyMap& properties) const {
+                                                    const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::Hetero, "Plugin::query_model");
 
-    Configuration fullConfig{properties, m_cfg};
+    auto device_properties = properties;
+    Configuration fullConfig{device_properties, m_cfg};
     
     OPENVINO_ASSERT(model, "OpenVINO Model is empty!");
 
     std::string fallbackDevicesStr = fullConfig.device_priorities;
     
-    DeviceProperties metaDevices = get_device_properties(fallbackDevicesStr, fullConfig.GetDeviceConfig());
+    DeviceProperties metaDevices = get_device_properties(fallbackDevicesStr, device_properties);
 
     std::map<std::string, ov::SupportedOpsMap> queryResults;
     for (auto&& metaDevice : metaDevices) {
@@ -139,7 +140,8 @@ ov::SupportedOpsMap ov::hetero::Plugin::query_model(const std::shared_ptr<const 
 }
 
 void ov::hetero::Plugin::set_property(const ov::AnyMap& properties) {
-    m_cfg = Configuration{properties, m_cfg};
+    auto temp_cfg(properties);
+    m_cfg = Configuration{temp_cfg, m_cfg, true};
 }
 
 ov::Any ov::hetero::Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
