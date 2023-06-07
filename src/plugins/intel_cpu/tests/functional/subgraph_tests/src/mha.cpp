@@ -372,8 +372,10 @@ static std::shared_ptr<ov::Model> initMHAQuantSubgraph0(std::vector<ov::PartialS
     return std::make_shared<ngraph::Function>(results, ngraphParam, "mha");
 }
 
-static std::shared_ptr<ov::Model> initMHAQuantSubgraph1(std::vector<ov::PartialShape>& inputDynamicShapes, std::vector<ElementType>& inputPrecisions,
-                                                        std::vector<ElementType>& matMulIn0Precisions) {
+static std::shared_ptr<ov::Model> initMHAQuantSubgraph1(const std::vector<ov::PartialShape>& inputDynamicShapes,
+                                                        const std::vector<ElementType>& inputPrecisions,
+                                                        const std::vector<ElementType>& matMulIn0Precisions,
+                                                        const bool fakeQuantize3Exists) {
     ngraph::ParameterVector ngraphParam;
 
     auto transpose0Param = std::make_shared<ngraph::opset1::Parameter>(inputPrecisions[0], inputDynamicShapes[0]);
@@ -428,8 +430,11 @@ static std::shared_ptr<ov::Model> initMHAQuantSubgraph1(std::vector<ov::PartialS
     const auto softMax = std::make_shared<ngraph::opset1::Softmax>(add, 3);
     const auto transpose2 = std::make_shared<ov::op::v1::Transpose>(transpose2Param, transpose2Const);
     const auto matMul1 = std::make_shared<ngraph::opset3::MatMul>(softMax, transpose2, transA, transB);
-    const auto fakeQuantize2 = ngraph::builder::makeFakeQuantize(matMul1, inputPrecisions[0], 256, {}, {0.0f}, {2.55f}, {0.0f}, {2.55f});
-    const auto transpose3 = std::make_shared<ov::op::v1::Transpose>(fakeQuantize2, transpose3Const);
+    const auto transpose3 = std::make_shared<ov::op::v1::Transpose>(
+        fakeQuantize3Exists ?
+            ngraph::builder::makeFakeQuantize(matMul1, inputPrecisions[0], 256, {}, { 0.0f }, { 2.55f }, { 0.0f }, { 2.55f }) :
+            matMul1,
+        transpose3Const);
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(transpose3)};
     return std::make_shared<ngraph::Function>(results, ngraphParam, "mha");
@@ -503,7 +508,9 @@ protected:
         if (patternType == 0) {
             function = initMHAQuantSubgraph0(inputDynamicShapes, inputPrecisions, matMulIn0Precisions);
         } else if (patternType == 1) {
-            function = initMHAQuantSubgraph1(inputDynamicShapes, inputPrecisions, matMulIn0Precisions);
+            function = initMHAQuantSubgraph1(inputDynamicShapes, inputPrecisions, matMulIn0Precisions, true);
+        } else if (patternType == 2) {
+            function = initMHAQuantSubgraph1(inputDynamicShapes, inputPrecisions, matMulIn0Precisions, false);
         } else {
             FAIL() << "Unsupported MHA pattern type";
         }
@@ -559,7 +566,7 @@ std::vector<std::vector<ElementType>> matMulIn0PrecisionsQuant = {
 };
 
 std::vector<size_t> patternTypesQuant = {
-    0, 1
+    0, 1, 2
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_MHAQuant, MHAQuantTest,
