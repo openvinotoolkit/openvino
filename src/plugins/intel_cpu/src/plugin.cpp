@@ -148,9 +148,8 @@ Engine::Engine() :
     _pluginName = "CPU";
     extensionManager->AddExtension(std::make_shared<Extension>());
 #if defined(OV_CPU_WITH_ACL)
-    static std::once_flag flag_once;
     acl_scheduler = std::make_unique<ACLScheduler>();
-    std::call_once(flag_once, [&]() { arm_compute::Scheduler::set(acl_scheduler); });
+    arm_compute::Scheduler::set(acl_scheduler);
 #endif
 }
 
