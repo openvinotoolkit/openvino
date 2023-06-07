@@ -47,8 +47,8 @@ macro(ov_cpack_settings)
         string(TOUPPER ${item} UPPER_COMP)
         # filter out some components, which are not needed to be wrapped to .deb package
         if(NOT OV_CPACK_COMP_${UPPER_COMP}_EXCLUDE_ALL AND
-           # skip OpenVINO Pyhon API and samples
-           NOT item MATCHES "^${OV_CPACK_COMP_PYTHON_OPENVINO}_python.*" AND
+           # skip OpenVINO Python API (pattern in form of "<pyie | pyopenvino | pyngraph>_python${PYTHON_VERSION_MAJOR}${PYTHON_VERSION_MINOR}")
+           (NOT item MATCHES "^${OV_CPACK_COMP_PYTHON_OPENVINO}_python.*" OR ENABLE_PYTHON_PACKAGING) AND
            # see ticket # 82605
            NOT item STREQUAL "gna" AND
            # don't install Intel OpenMP during debian
@@ -173,7 +173,7 @@ macro(ov_cpack_settings)
         set(CPACK_DEBIAN_GPU_PACKAGE_NAME "libopenvino-intel-gpu-plugin-${cpack_name_ver}")
         set(CPACK_DEBIAN_GPU_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm}")
         # auto batch exhances GPU
-        # set(CPACK_DEBIAN_BATCH_PACKAGE_ENHANCES "${CPACK_DEBIAN_GPU_PACKAGE_NAME} = (${cpack_full_ver})")
+        # set(CPACK_DEBIAN_BATCH_PACKAGE_ENHANCES "${CPACK_DEBIAN_GPU_PACKAGE_NAME} (= ${cpack_full_ver})")
         _ov_add_plugin(gpu OFF)
         set(gpu_copyright "generic")
     endif()
@@ -309,9 +309,12 @@ macro(ov_cpack_settings)
         list(APPEND CPACK_COMPONENT_PYOPENVINO_${pyversion}_DEPENDS ${installed_plugins})
         list(APPEND CPACK_COMPONENT_PYOPENVINO_${pyversion}_DEPENDS ${frontends})
 
-        set(CPACK_DEBIAN_PYOPENVINO_${pyversion}_PACKAGE_NAME "libopenvino-python-${cpack_name_ver}")
-        set(CPACK_DEBIAN_PYOPENVINO_${pyversion}_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm}")
-        set(CPACK_DEBIAN_PYOPENVINO_${pyversion}_PACKAGE_DEPENDS "python3")
+        set(python_package_name "python3-openvino")
+        set(CPACK_DEBIAN_PYOPENVINO_${pyversion}_PACKAGE_NAME "${python_package_name}")
+        set(CPACK_DEBIAN_PYOPENVINO_${pyversion}_PACKAGE_DEPENDS "python3, python3-numpy")
+
+        # we can have a single python installed, so we need to generate conflicts for all other versions
+        ov_debian_generate_conflicts(${python_component} ${conflicting_versions})
 
         # TODO: fix all the warnings
         ov_debian_add_lintian_suppression(${python_component}
@@ -387,6 +390,9 @@ macro(ov_cpack_settings)
     # all openvino
     set(CPACK_COMPONENT_OPENVINO_DESCRIPTION "Intel(R) Distribution of OpenVINO(TM) Toolkit Libraries and Development files")
     set(CPACK_COMPONENT_OPENVINO_DEPENDS "libraries_dev;${OV_CPACK_COMP_CPP_SAMPLES}")
+    if(ENABLE_PYTHON AND ENABLE_PYTHON_PACKAGING)
+        list(APPEND CPACK_DEBIAN_OPENVINO_PACKAGE_DEPENDS "${python_package_name} (= ${cpack_full_ver})")
+    endif()
     set(CPACK_DEBIAN_OPENVINO_PACKAGE_NAME "openvino-${cpack_name_ver}")
     set(CPACK_DEBIAN_OPENVINO_PACKAGE_ARCHITECTURE "all")
     ov_debian_generate_conflicts(openvino ${conflicting_versions})
