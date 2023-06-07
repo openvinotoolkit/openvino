@@ -13,6 +13,7 @@
 
 #include "ie_parameter.hpp"
 
+IE_SUPPRESS_DEPRECATED_START
 namespace InferenceEngine {
 
 namespace gpu {
@@ -81,3 +82,4 @@ protected:
 }  // namespace gpu
 
 }  // namespace InferenceEngine
+IE_SUPPRESS_DEPRECATED_END
