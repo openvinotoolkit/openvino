@@ -28,6 +28,10 @@ ParamsKey EltwiseKernel_blocked_opt::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::UINT8);
+    k.EnableInputLayout(DataLayout::bfzyx);
+    k.EnableOutputLayout(DataLayout::bfzyx);
+    k.EnableInputLayout(DataLayout::bfyx);
+    k.EnableOutputLayout(DataLayout::bfyx);
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv4);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv4);
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv16);
@@ -118,6 +122,26 @@ bool EltwiseKernel_blocked_opt::Validate(const Params& params, const optional_pa
     if (input0.Feature().pad.before % vec_size != 0 || output.Feature().pad.before % vec_size != 0)
         return false;
 
+    // Validate simple format eltwise
+    auto output_format = output.GetLayout();
+    if (SimpleLayout(output_format)) {
+        // Currently, only raw-indexing approach is supported for simple format
+        if (output.LogicalSize() != output.PhysicalSize() || output.LogicalSize() % vec_size != 0 ||
+            !ewParams.fused_ops.empty())
+            return false;
+
+        // No broadcasting
+        for (size_t op_num = 0; op_num < ewParams.operations.size(); op_num++) {
+            const auto &ew = ewParams.operations[op_num];
+            for (size_t input_idx = 0; input_idx < ew.inputs.size(); input_idx++) {
+                // Only full tensor or scalar
+                if (ewParams.inputs[input_idx].LogicalSize() != ewParams.outputs[0].LogicalSize() &&
+                    ewParams.inputs[input_idx].LogicalSize() != 1)
+                    return false;
+            }
+        }
+    }
+
     auto compareTensors = [](const DataTensor& input0, const DataTensor& input1) -> bool {
         // Check all parameters except DataType
         auto& input0_dims = input0.GetDims();
@@ -142,6 +166,9 @@ bool EltwiseKernel_blocked_opt::Validate(const Params& params, const optional_pa
         if (ewParams.inputs[i].Feature().pad.before % vec_size != 0) {
             return false;
         }
+        if (SimpleLayout(ewParams.inputs[i].GetLayout()) && ewParams.inputs[i].LogicalSize() != 1 &&
+            !SimpleLayout(output.GetLayout()))
+            return false;
     }
 
     return true;
@@ -330,8 +357,11 @@ JitConstants EltwiseKernel_blocked_opt::GetJitConstants(const eltwise_params& pa
 
     jit.Merge(MakeActivationJitConstants(params.activations, params.outputs[0].GetDType(), "_TYPED"));
 
-    if (params.outputs[0].Feature().v % vec_size != 0)
+    if (params.outputs[0].Feature().v % vec_size != 0 && !SimpleLayout(params.outputs[0].GetLayout()))
         jit.AddConstant(MakeJitConstant("LEFTOVERS", params.outputs[0].Feature().v % vec_size));
+
+    if (SimpleLayout(params.outputs[0].GetLayout()))
+        jit.AddConstant(MakeJitConstant("SIMPLE_LAYOUT", 1));
 
     // Fused post_ops
     if (!params.fused_ops.empty()) {
@@ -399,6 +429,9 @@ static inline int SelectVecSizeFromFormat(const DataTensor& tensor) {
     // No feature inner block : not acceptable for calculation of ordered index
     auto layout = tensor.GetLayout();
     switch (layout) {
+    case DataLayout::bfzyx:
+    case DataLayout::bfyx:
+        return 8;
     case DataLayout::b_fs_yx_fsv4:
         return 4;
     case DataLayout::b_fs_yx_fsv16:
@@ -422,6 +455,9 @@ static inline int SelectVecSizeFromFormat(const DataTensor& tensor) {
 static inline int GetInnerBatchBlockSize(const DataTensor& tensor) {
     auto layout = tensor.GetLayout();
     switch (layout) {
+    case DataLayout::bfzyx:
+    case DataLayout::bfyx:
+        return 1;
     case DataLayout::b_fs_yx_fsv4:
     case DataLayout::b_fs_yx_fsv16:
     case DataLayout::b_fs_zyx_fsv16:
@@ -448,6 +484,9 @@ static inline int GetInnerBatchBlockSize(const DataTensor& tensor) {
 static inline int GetInnerFeatureBlockSize(const DataTensor& tensor) {
     auto layout = tensor.GetLayout();
     switch (layout) {
+    case DataLayout::bfzyx:
+    case DataLayout::bfyx:
+        return 1;
     case DataLayout::b_fs_yx_fsv4:
         return 4;
     case DataLayout::b_fs_yx_fsv16:

@@ -23,6 +23,7 @@ KERNEL(eltwise_blocked_opt)(INPUTS_DECLS
 {
     const uint global_id = get_global_id(0);
 
+#ifndef SIMPLE_LAYOUT
     // For double blocked formats, calculate its size of inner blocks (both batch & feature) : INNER_BLOCKS_COUNT = INNER_BATCH_SIZE * F_BLOCK_COUNT
     const uint inner_block = global_id % INNER_BLOCKS_COUNT;
     // Calculate index of feature axis inner block which is divided by vector size
@@ -64,6 +65,7 @@ KERNEL(eltwise_blocked_opt)(INPUTS_DECLS
     if ((f_block*VEC_SIZE) > OUTPUT_FEATURE_NUM || b > OUTPUT_BATCH_NUM) {
         return;
     }
+#endif // !SIMPLE_LAYOUT
 
     MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, VEC_SIZE) res;
 
