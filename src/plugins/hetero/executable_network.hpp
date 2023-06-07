@@ -77,8 +77,6 @@ private:
     ov::hetero::Configuration _cfg;
     std::vector<NetworkDesc> _networks;
     std::string _name;
-    ov::AnyMap _hetero_config;
-    ov::AnyMap _device_config;
     std::unordered_map<std::string, std::string> _blobNameMap;
     bool _loadedFromCache = false;
 };

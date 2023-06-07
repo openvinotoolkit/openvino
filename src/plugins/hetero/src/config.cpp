@@ -14,24 +14,26 @@ using namespace ov::hetero;
 
 Configuration::Configuration() {}
 
-Configuration::Configuration(const ov::AnyMap& config, const Configuration& defaultCfg) {
+Configuration::Configuration(ov::AnyMap& config, const Configuration& defaultCfg, bool throwOnUnsupported) {
     *this = defaultCfg;
 
-    for (auto&& c : config) {
-        const auto& key = c.first;
-        const auto& value = c.second;
+    for (auto it = config.begin(); it != config.end();) {
+        const auto& key = it->first;
+        const auto& value = it->second;
 
-        if (HETERO_CONFIG_KEY(DUMP_GRAPH_DOT) == key) {  // TODO vurusovs: rewrite HETERO_CONFIG_KEY(DUMP_GRAPH_DOT)
+        if (HETERO_CONFIG_KEY(DUMP_GRAPH_DOT) == key) {
             dump_graph = value.as<bool>();
-            m_hetero_config[key] = value;
+            config.erase(it++);
         } else if ("TARGET_FALLBACK" == key || ov::device::priorities.name() == key) {
             device_priorities = value.as<std::string>();
-            m_hetero_config[key] = value;
+            config.erase(it++);
         } else if (ov::exclusive_async_requests == key) {
             exclusive_async_requests = value.as<bool>();
-            m_device_config[key] = value;
-        } else
-            m_device_config[key] = value;  // save property as is to pass to underlying device
+        } else {
+            if (throwOnUnsupported)
+                OPENVINO_THROW("Property was not found: ", key);
+            ++it;
+        }
     }
 }
 
@@ -48,11 +50,13 @@ ov::Any Configuration::Get(const std::string& name) const {
 }
 
 ov::AnyMap Configuration::GetHeteroConfig() const {
-    // return {{ov::exclusive_async_requests.name(), exclusive_async_requests}};
-    return m_hetero_config;
+    return {
+        {HETERO_CONFIG_KEY(DUMP_GRAPH_DOT), dump_graph},
+        {"TARGET_FALLBACK", device_priorities},
+        {ov::device::priorities.name(), device_priorities},
+    };
 }
 
 ov::AnyMap Configuration::GetDeviceConfig() const {
-    // return {{ov::exclusive_async_requests.name(), exclusive_async_requests}};
-    return m_device_config;
+    return {{ov::exclusive_async_requests.name(), exclusive_async_requests}};
 }

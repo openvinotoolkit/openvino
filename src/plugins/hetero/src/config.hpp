@@ -19,7 +19,7 @@ struct Configuration {
     Configuration& operator=(const Configuration&) = default;
     Configuration& operator=(Configuration&&) = default;
 
-    explicit Configuration(const ov::AnyMap& config, const Configuration& defaultCfg = {});
+    explicit Configuration(ov::AnyMap& config, const Configuration& defaultCfg = {}, bool throwOnUnsupported = false);
 
     ov::Any Get(const std::string& name) const;
 
@@ -31,9 +31,6 @@ struct Configuration {
     bool dump_graph = false;
     bool exclusive_async_requests = true;
     std::string device_priorities;
-
-    ov::AnyMap m_hetero_config;
-    ov::AnyMap m_device_config;
 };
 }  // namespace hetero
 }  // namespace ov
