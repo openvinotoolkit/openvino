@@ -31,7 +31,7 @@ class PreprocessConverter():
         """
         try:
             from torchvision import transforms
-            from torchvision_preprocessing import _from_torchvision
+            from .torchvision_preprocessing import _from_torchvision
             return _from_torchvision(model, transform, input_example, input_name)
         except ImportError as e:
             raise ImportError(f"Please install torchvision and pillow packages:\n{e}")

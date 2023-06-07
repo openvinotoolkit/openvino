@@ -40,3 +40,6 @@ tox
 types-pkg_resources
 wheel
 singledispatchmethod
+torch
+torchvision
+pillow
