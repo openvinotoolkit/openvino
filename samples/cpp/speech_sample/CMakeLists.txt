@@ -22,8 +22,6 @@ if(NOT TARGET ZLIB::ZLIB)
         if(zlib_FOUND)
             add_library(ZLIB::ZLIB ALIAS PkgConfig::zlib)
         endif()
-    else()
-        message(FATAL_ERROR "Failed to find_package(PkgConfig)")
     endif()
 
     if(zlib_FOUND)
