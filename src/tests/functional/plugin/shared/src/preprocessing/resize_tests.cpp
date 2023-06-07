@@ -56,7 +56,6 @@ std::ostream& operator<<(std::ostream& s, const ResizeAlgorithm& algo) {
 std::string PreprocessingResizeTests::getTestCaseName(const testing::TestParamInfo<ResizeTestsParams>& obj) {
     std::ostringstream result;
     result << "device=" << std::get<0>(obj.param);
-    result << ";resize_algorithm=" << std::get<1>(obj.param);
     return result.str();
 }
 
@@ -65,62 +64,40 @@ void PreprocessingResizeTests::SetUp() {
     this->targetDevice = std::get<0>(test_params);
 
     this->function = build_test_model();
-    PrePostProcessor ppp(this->function);
-    ppp.input().tensor().set_shape({1, 1, -1, -1}).set_layout("NCHW");
-    ppp.input(0).preprocess().resize(std::get<1>(test_params));
-    ppp.build();
-
-    this->inputs.insert({this->function->get_parameters().at(0), get_input_tensor()});
 }
 
 void PreprocessingResizeTests::run() {
     compile_model();
-    // inference and output tensors retrieval
+    // inference, output tensors retrieval and tensors comparison:
     validate();
 }
 
-std::vector<ov::Tensor> PreprocessingResizeTests::calculate_refs() {
-    const auto& test_params = this->GetParam();
-    const auto& values = std::get<2>(test_params);
+void PreprocessingResizeTests::run_with_algorithm(const ResizeAlgorithm algo,
+                                                  const std::vector<float>& expected_output) {
+    PrePostProcessor ppp(this->function);
+    ppp.input().tensor().set_shape({1, 1, -1, -1}).set_layout("NCHW");
+    ppp.input(0).preprocess().resize(algo);
+    ppp.build();
+
+    this->inputs.insert({this->function->get_parameters().at(0), get_input_tensor()});
+
     ov::Tensor out_tensor(element::f32, Shape{1, 1, 4, 4});
     auto* dst = out_tensor.data<float>();
-    std::copy(values.begin(), values.end(), dst);
+    std::copy(expected_output.begin(), expected_output.end(), dst);
+    expected_output_tensor = out_tensor;
 
-    return {out_tensor};
+    run();
 }
 
-// static std::string getModelFullPath(const char* path) {
-//     return FileUtils::makePath<char>(FileUtils::makePath<char>(CommonTestUtils::getExecutableDirectory(),
-//     TEST_MODELS),
-//                                      path);
-// }
-
-// void QuantizedModelsTests::runModel(const char* model, const LayerInputTypes& expected_layer_input_types, float thr)
-// {
-//     threshold = thr;
-//     auto ie = getCore();
-//     auto network = ie->ReadNetwork(getModelFullPath(model));
-//     function = network.getFunction();
-//     Run();
-//     auto runtime_function = executableNetwork.GetExecGraphInfo().getFunction();
-//     int ops_found = 0;
-//     for (const auto& node : runtime_function->get_ordered_ops()) {
-//         const auto& name = node->get_friendly_name();
-//         if (expected_layer_input_types.count(name)) {
-//             ops_found++;
-//             const auto& expected_input_types = expected_layer_input_types.at(name);
-//             auto inputs = node->input_values();
-//             ASSERT_EQ(inputs.size(), expected_input_types.size());
-//             for (size_t i = 0; i < inputs.size(); i++)
-//                 ASSERT_EQ(expected_input_types[i], inputs[i].get_element_type());
-//         }
-//     }
-//     ASSERT_GT(ops_found, 0);
-// }
+std::vector<ov::Tensor> PreprocessingResizeTests::calculate_refs() {
+    return {expected_output_tensor};
+}
 
 TEST_P(PreprocessingResizeTests, BilinearPillow) {
     // SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    run();
+    const auto expected_output =
+        std::vector<float>{1.0, 1.25, 1.75, 2.0, 1.5, 1.75, 2.25, 2.5, 2.5, 2.75, 3.25, 3.5, 3.0, 3.25, 3.75, 4.0};
+    run_with_algorithm(ResizeAlgorithm::RESIZE_LINEAR, expected_output);
 }
 
 }  // namespace preprocess
