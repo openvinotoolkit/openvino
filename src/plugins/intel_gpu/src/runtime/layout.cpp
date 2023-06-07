@@ -142,6 +142,10 @@ static format to_weights_format(format f, bool is_grouped) {
             return format::iyxo;
         case format::byxf:
             return format::oyxi;
+        case format::byfx:
+            return format::oyix;
+        case format::bxfy:
+            return format::oxiy;
         case format::yxfb:
             return format::yxio;
         case format::bfzyx:
