@@ -40,6 +40,7 @@
  * @brief Inference Engine C++ API
  */
 namespace InferenceEngine {
+IE_SUPPRESS_DEPRECATED_START
 
 /**
  * @struct Version
@@ -122,4 +123,5 @@ struct INFERENCE_ENGINE_1_0_DEPRECATED Version {
  */
 INFERENCE_ENGINE_API(const Version*) INFERENCE_ENGINE_1_0_DEPRECATED GetInferenceEngineVersion() noexcept;
 
+IE_SUPPRESS_DEPRECATED_END
 }  // namespace InferenceEngine
