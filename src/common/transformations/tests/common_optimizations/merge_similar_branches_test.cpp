@@ -21,6 +21,7 @@ using namespace ov::pass;
 class MergeSimilarBranchesTest : public TransformationTestsF {
 public:
     MergeSimilarBranchesTest() {
+        comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
         comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
         comparator.enable(FunctionsComparator::CmpValues::CONSUMERS_COUNT);
 
@@ -103,14 +104,14 @@ TEST_F(MergeSimilarBranchesTest, binary_nodes_single_source) {
         const auto input = make_shared<Parameter>(u32, PartialShape{7, 3});
         const auto sub1 = make_shared<Subtract>(input, input);
         const auto sub2 = make_shared<Subtract>(input, input);
-        const auto div = make_shared<Divide>(sub1, sub2);
-        model = make_shared<Model>(NodeVector{div}, ParameterVector{input});
+        const auto add = make_shared<Add>(sub1, sub2);
+        model = make_shared<Model>(NodeVector{add}, ParameterVector{input});
     }
     {
         const auto input = make_shared<Parameter>(u32, PartialShape{7, 3});
         const auto sub1 = make_shared<Subtract>(input, input);
-        const auto div = make_shared<Divide>(sub1, sub1);
-        model_ref = make_shared<Model>(NodeVector{div}, ParameterVector{input});
+        const auto add = make_shared<Add>(sub1, sub1);
+        model_ref = make_shared<Model>(NodeVector{add}, ParameterVector{input});
     }
 }
 
