@@ -5,6 +5,7 @@
 #include "ngraph/op/lstm_sequence.hpp"
 
 #include "itt.hpp"
+#include "lstm_sequence_shape_inference.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/builder/autobroadcast.hpp"
 #include "ngraph/builder/reshape.hpp"
@@ -12,8 +13,6 @@
 #include "ngraph/op/util/recurrent_sequence.hpp"
 #include "ngraph/opsets/opset1.hpp"
 #include "ngraph/opsets/opset4.hpp"
-
-#include "lstm_sequence_shape_inference.hpp"
 
 using namespace ngraph;
 using namespace std;

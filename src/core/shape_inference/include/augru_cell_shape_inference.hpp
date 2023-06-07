@@ -3,9 +3,9 @@
 //
 #pragma once
 
-#include "gru_cell_shape_inference.hpp"
 #include "ov_ops/augru_cell.hpp"
 #include "ov_ops/augru_sequence.hpp"
+#include "rnn_base_shape_inference.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -25,7 +25,9 @@ void shape_infer(const ov::op::internal::AUGRUCell* op,
                           input_shapes.size(),
                           ".");
 
-    rnn::gru_cell_shape_infer(op, input_shapes, output_shapes);
+    constexpr auto num_gates = 3;
+    constexpr auto num_state_nodes = 1;
+    output_shapes = rnn::rnn_cell_base_shape_infer(op, input_shapes, num_gates, num_state_nodes);
 
     // `A` input shape validation // [batch_size, 1]
     const auto& a_shape = input_shapes.back();

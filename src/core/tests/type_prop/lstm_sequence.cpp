@@ -520,7 +520,6 @@ TEST(type_prop, lstm_sequence_all_inputs_dynamic_rank) {
     }
 }
 
-
 TEST(type_prop, lstm_sequence_invalid_input_direction) {
     recurrent_sequence_parameters param;
 
@@ -536,7 +535,8 @@ TEST(type_prop, lstm_sequence_invalid_input_direction) {
         lstm_sequence->validate_and_infer_types();
         FAIL() << "LSTMSequence node was created with invalid data.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Dimension `num_directions` doesn't match to other inputs or `direction` attribute.");
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             "Dimension `num_directions` doesn't match to other inputs or `direction` attribute.");
     }
 }
 
@@ -555,7 +555,8 @@ TEST(type_prop, lstm_sequence_invalid_input_direction_num_mismatch) {
             op->validate_and_infer_types();
             FAIL() << "LSTMSequence node was created with invalid data.";
         } catch (const NodeValidationFailure& error) {
-            EXPECT_HAS_SUBSTRING(error.what(), "Dimension `num_directions` doesn't match to other inputs or `direction` attribute.");
+            EXPECT_HAS_SUBSTRING(error.what(),
+                                 "Dimension `num_directions` doesn't match to other inputs or `direction` attribute.");
         }
     };
 
