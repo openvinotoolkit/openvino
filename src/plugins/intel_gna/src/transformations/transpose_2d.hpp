@@ -11,7 +11,7 @@ namespace intel_gna {
 namespace pass {
 
 /**
- * @brief Reduce the rank of Transpose shape by fusing by fusing dimentions
+ * @brief Reduce the rank of Transpose shape by fusing dimensions
  *    [A, B, C, D]            [A, B, C, D]
  *         |                       |
  *     Transpose                Reshape
