@@ -110,6 +110,8 @@ class TFGraphNodeDecoder(DecoderBase):
 
         if name == "value":
             if self.m_parsed_content.size == 1:
+                if isinstance(self.m_parsed_content, np.ndarray):
+                    return OVAny(Tensor(self.m_parsed_content))
                 return OVAny(Tensor(np.array([self.m_parsed_content]), shape=[1]))
             ov_tensor = Tensor(self.m_parsed_content, shared_memory=True)
             ov_tensor = OVAny(ov_tensor)
