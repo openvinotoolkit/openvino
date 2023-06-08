@@ -15,17 +15,16 @@
 #include "openvino/openvino.hpp"
 
 #define CATCH_IE_EXCEPTION(StatusCode, ExceptionType) \
-    IE_SUPPRESS_DEPRECATED_START \
     catch (const InferenceEngine::ExceptionType&) {   \
         return ov_status_e::StatusCode;               \
-    } \
-    IE_SUPPRESS_DEPRECATED_END
+    }
 #define CATCH_OV_EXCEPTION(StatusCode, ExceptionType) \
     catch (const ov::ExceptionType&) {                \
         return ov_status_e::StatusCode;               \
     }
 
 #define CATCH_OV_EXCEPTIONS                                   \
+    IE_SUPPRESS_DEPRECATED_START                              \
     CATCH_OV_EXCEPTION(NOT_IMPLEMENTED, NotImplemented)       \
     CATCH_OV_EXCEPTION(GENERAL_ERROR, Exception)              \
     CATCH_IE_EXCEPTION(GENERAL_ERROR, GeneralError)           \
@@ -43,7 +42,8 @@
     CATCH_IE_EXCEPTION(INFER_CANCELLED, InferCancelled)       \
     catch (...) {                                             \
         return ov_status_e::UNKNOW_EXCEPTION;                 \
-    }
+    }                                                         \
+    IE_SUPPRESS_DEPRECATED_END
 
 #define GET_PROPERTY_FROM_ARGS_LIST                     \
     std::string property_key = va_arg(args_ptr, char*); \
