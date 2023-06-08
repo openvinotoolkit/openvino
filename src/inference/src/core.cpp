@@ -111,10 +111,7 @@ CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model,
 CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model,
                                   const std::string& device_name,
                                   const AnyMap& config) {
-    OV_CORE_CALL_STATEMENT({
-        auto exec = _impl->compile_model(model, device_name, config);
-        return {exec._ptr, exec._so};
-    });
+    OV_CORE_CALL_STATEMENT({ return _impl->compile_model(model, device_name, config); });
 }
 
 CompiledModel Core::compile_model(const std::string& model_path, const AnyMap& config) {
@@ -128,10 +125,7 @@ CompiledModel Core::compile_model(const std::wstring& model_path, const AnyMap& 
 #endif
 
 CompiledModel Core::compile_model(const std::string& model_path, const std::string& device_name, const AnyMap& config) {
-    OV_CORE_CALL_STATEMENT({
-        auto exec = _impl->compile_model(model_path, device_name, config);
-        return {exec._ptr, exec._so};
-    });
+    OV_CORE_CALL_STATEMENT({ return _impl->compile_model(model_path, device_name, config); });
 }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
@@ -146,19 +140,13 @@ CompiledModel Core::compile_model(const std::string& model,
                                   const ov::Tensor& weights,
                                   const std::string& device_name,
                                   const AnyMap& config) {
-    OV_CORE_CALL_STATEMENT({
-        auto exec = _impl->compile_model(model, weights, device_name, config);
-        return {exec._ptr, exec._so};
-    });
+    OV_CORE_CALL_STATEMENT({ return _impl->compile_model(model, weights, device_name, config); });
 }
 
 CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model,
                                   const RemoteContext& context,
                                   const AnyMap& config) {
-    OV_CORE_CALL_STATEMENT({
-        auto exec = _impl->compile_model(model, context, config);
-        return {exec._ptr, exec._so};
-    });
+    OV_CORE_CALL_STATEMENT({ return _impl->compile_model(model, context, config); });
 }
 
 void Core::add_extension(const ie::IExtensionPtr& extension) {
@@ -212,20 +200,13 @@ void Core::add_extension(const std::vector<std::shared_ptr<ov::Extension>>& exte
 
 CompiledModel Core::import_model(std::istream& modelStream, const std::string& device_name, const AnyMap& config) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::import_model");
-    OV_CORE_CALL_STATEMENT({
-        auto exec = _impl->import_model(modelStream, device_name, config);
-        return {exec._ptr, exec._so};
-    });
+    OV_CORE_CALL_STATEMENT({ return _impl->import_model(modelStream, device_name, config); });
 }
 
 CompiledModel Core::import_model(std::istream& modelStream, const RemoteContext& context, const AnyMap& config) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::import_model");
 
-    auto parsed = parseDeviceNameIntoConfig(context.get_device_name(), config);
-    OV_CORE_CALL_STATEMENT({
-        auto exec = _impl->get_plugin(parsed._deviceName).import_model(modelStream, context, parsed._config);
-        return {exec._ptr, exec._so};
-    });
+    OV_CORE_CALL_STATEMENT({ return _impl->import_model(modelStream, context, config); });
 }
 
 SupportedOpsMap Core::query_model(const std::shared_ptr<const ov::Model>& model,

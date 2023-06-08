@@ -28,6 +28,7 @@
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/core/version.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/itensor.hpp"
@@ -536,9 +537,9 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
     }
 }
 
-ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<const ov::Model>& model_,
-                                                          const std::string& device_name,
-                                                          const ov::AnyMap& config) const {
+ov::CompiledModel ov::CoreImpl::compile_model(const std::shared_ptr<const ov::Model>& model_,
+                                              const std::string& device_name,
+                                              const ov::AnyMap& config) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, ie::itt::domains::IE_LT, "Core::compile_model::model");
     std::string deviceName = device_name;
     ov::AnyMap config_with_batch = config;
@@ -559,12 +560,12 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     } else {
         res = compile_model_with_preprocess(plugin, model, ov::RemoteContext{}, parsed._config);
     }
-    return res;
+    return {res._ptr, res._so};
 }
 
-ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<const ov::Model>& model_,
-                                                          const ov::RemoteContext& context,
-                                                          const ov::AnyMap& config) const {
+ov::CompiledModel ov::CoreImpl::compile_model(const std::shared_ptr<const ov::Model>& model_,
+                                              const ov::RemoteContext& context,
+                                              const ov::AnyMap& config) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, ie::itt::domains::IE_LT, "Core::compile_model::RemoteContext");
     if (context._impl == nullptr) {
         IE_THROW() << "Remote context is null";
@@ -588,7 +589,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     } else {
         res = compile_model_with_preprocess(plugin, model, context, parsed._config);
     }
-    return res;
+    return {res._ptr, res._so};
 }
 
 ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_with_preprocess(ov::Plugin& plugin,
@@ -610,9 +611,9 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_with_preprocess(ov::Pl
                          : plugin.compile_model(preprocessed_model, config);
 }
 
-ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& model_path,
-                                                          const std::string& device_name,
-                                                          const ov::AnyMap& config) const {
+ov::CompiledModel ov::CoreImpl::compile_model(const std::string& model_path,
+                                              const std::string& device_name,
+                                              const ov::AnyMap& config) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, ie::itt::domains::IE_LT, "Core::compile_model::Path");
     auto parsed = parseDeviceNameIntoConfig(device_name, config);
     // in case of compile_model(file_name), we need to clear-up core-level properties
@@ -637,13 +638,13 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
         compiled_model =
             compile_model_with_preprocess(plugin, cnnNetwork.getFunction(), ov::RemoteContext{}, parsed._config);
     }
-    return compiled_model;
+    return {compiled_model._ptr, compiled_model._so};
 }
 
-ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& model_str,
-                                                          const ov::Tensor& weights,
-                                                          const std::string& device_name,
-                                                          const ov::AnyMap& config) const {
+ov::CompiledModel ov::CoreImpl::compile_model(const std::string& model_str,
+                                              const ov::Tensor& weights,
+                                              const std::string& device_name,
+                                              const ov::AnyMap& config) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::compile_model::from_memory");
     auto parsed = parseDeviceNameIntoConfig(device_name, config);
     // in case of compile_model(file_name), we need to clear-up core-level properties
@@ -664,12 +665,12 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
         auto model = read_model(model_str, weights);
         compiled_model = compile_model_with_preprocess(plugin, model, ov::RemoteContext{}, parsed._config);
     }
-    return compiled_model;
+    return {compiled_model._ptr, compiled_model._so};
 }
 
-ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::import_model(std::istream& model,
-                                                         const std::string& device_name,
-                                                         const ov::AnyMap& config) const {
+ov::CompiledModel ov::CoreImpl::import_model(std::istream& model,
+                                             const std::string& device_name,
+                                             const ov::AnyMap& config) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::import_model");
     auto parsed = parseDeviceNameIntoConfig(device_name, config);
     auto compiled_model = get_plugin(parsed._deviceName).import_model(model, parsed._config);
@@ -677,7 +678,20 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::import_model(std::istream& model,
         wrapper->get_executable_network()->loadedFromCache();
     }
 
-    return compiled_model;
+    return {compiled_model._ptr, compiled_model._so};
+}
+
+ov::CompiledModel ov::CoreImpl::import_model(std::istream& modelStream,
+                                             const ov::RemoteContext& context,
+                                             const ov::AnyMap& config) const {
+    OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::import_model");
+    auto parsed = parseDeviceNameIntoConfig(context.get_device_name(), config);
+    auto compiled_model = get_plugin(parsed._deviceName).import_model(modelStream, parsed._config);
+    if (auto wrapper = std::dynamic_pointer_cast<InferenceEngine::ICompiledModelWrapper>(compiled_model._ptr)) {
+        wrapper->get_executable_network()->loadedFromCache();
+    }
+
+    return {compiled_model._ptr, compiled_model._so};
 }
 
 ov::SupportedOpsMap ov::CoreImpl::query_model(const std::shared_ptr<const ov::Model>& model,

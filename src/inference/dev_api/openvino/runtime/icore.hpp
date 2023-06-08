@@ -57,9 +57,9 @@ public:
      * operation
      * @return An executable network reference
      */
-    virtual ov::SoPtr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                        const std::string& device_name,
-                                                        const ov::AnyMap& config = {}) const = 0;
+    virtual ov::CompiledModel compile_model(const std::shared_ptr<const ov::Model>& model,
+                                            const std::string& device_name,
+                                            const ov::AnyMap& config = {}) const = 0;
 
     /**
      * @brief Creates an executable network from a network object.
@@ -73,9 +73,9 @@ public:
      * operation
      * @return An executable network reference
      */
-    virtual ov::SoPtr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                        const ov::RemoteContext& context,
-                                                        const ov::AnyMap& config = {}) const = 0;
+    virtual ov::CompiledModel compile_model(const std::shared_ptr<const ov::Model>& model,
+                                            const ov::RemoteContext& context,
+                                            const ov::AnyMap& config = {}) const = 0;
 
     /**
      * @brief Creates an executable network from a model file.
@@ -89,9 +89,9 @@ public:
      * operation
      * @return An executable network reference
      */
-    virtual ov::SoPtr<ov::ICompiledModel> compile_model(const std::string& model_path,
-                                                        const std::string& device_name,
-                                                        const ov::AnyMap& config) const = 0;
+    virtual ov::CompiledModel compile_model(const std::string& model_path,
+                                            const std::string& device_name,
+                                            const ov::AnyMap& config) const = 0;
 
     /**
      * @brief Creates an executable network from a model memory.
@@ -106,10 +106,10 @@ public:
      * operation
      * @return An executable network reference
      */
-    virtual ov::SoPtr<ov::ICompiledModel> compile_model(const std::string& model_str,
-                                                        const ov::Tensor& weights,
-                                                        const std::string& device_name,
-                                                        const ov::AnyMap& config) const = 0;
+    virtual ov::CompiledModel compile_model(const std::string& model_str,
+                                            const ov::Tensor& weights,
+                                            const std::string& device_name,
+                                            const ov::AnyMap& config) const = 0;
 
     /**
      * @brief Creates an executable network from a previously exported network
@@ -119,9 +119,21 @@ public:
      * operation*
      * @return An executable network reference
      */
-    virtual ov::SoPtr<ov::ICompiledModel> import_model(std::istream& model,
-                                                       const std::string& device_name,
-                                                       const ov::AnyMap& config = {}) const = 0;
+    virtual ov::CompiledModel import_model(std::istream& model,
+                                           const std::string& device_name,
+                                           const ov::AnyMap& config = {}) const = 0;
+
+    /**
+     * @brief Creates an executable network from a previously exported network
+     * @param model model stream
+     * @param context Remote context
+     * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
+     * operation*
+     * @return A compiled model reference
+     */
+    virtual ov::CompiledModel import_model(std::istream& modelStream,
+                                           const ov::RemoteContext& context,
+                                           const ov::AnyMap& config = {}) const = 0;
 
     /**
      * @brief Query device if it supports specified network with specified configuration

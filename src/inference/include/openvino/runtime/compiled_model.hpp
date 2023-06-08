@@ -23,7 +23,7 @@
 
 namespace ov {
 
-class Core;
+class CoreImpl;
 class InferRequest;
 class ICompiledModel;
 
@@ -44,7 +44,7 @@ class OPENVINO_RUNTIME_API CompiledModel {
      * plugin object is destroyed.
      */
     CompiledModel(const std::shared_ptr<ov::ICompiledModel>& impl, const std::shared_ptr<void>& so);
-    friend class ov::Core;
+    friend class ov::CoreImpl;
     friend class ov::InferRequest;
 
 public:

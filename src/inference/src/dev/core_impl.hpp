@@ -219,8 +219,8 @@ public:
     void register_plugins_in_registry(const std::string& xml_config_file, const bool& by_abs_path = false);
 
     std::shared_ptr<const ov::Model> apply_auto_batching(const std::shared_ptr<const ov::Model>& model,
-                             std::string& deviceName,
-                             ov::AnyMap& config) const;
+                                                         std::string& deviceName,
+                                                         ov::AnyMap& config) const;
 
     /*
      * @brief Register plugins according to the build configuration
@@ -362,26 +362,30 @@ public:
 
     std::shared_ptr<ov::Model> read_model(const std::string& model_path, const std::string& bin_path) const override;
 
-    ov::SoPtr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                const std::string& device_name,
-                                                const ov::AnyMap& config = {}) const override;
+    ov::CompiledModel compile_model(const std::shared_ptr<const ov::Model>& model,
+                                    const std::string& device_name,
+                                    const ov::AnyMap& config = {}) const override;
 
-    ov::SoPtr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                const ov::RemoteContext& context,
-                                                const ov::AnyMap& config = {}) const override;
+    ov::CompiledModel compile_model(const std::shared_ptr<const ov::Model>& model,
+                                    const ov::RemoteContext& context,
+                                    const ov::AnyMap& config = {}) const override;
 
-    ov::SoPtr<ov::ICompiledModel> compile_model(const std::string& model_path,
-                                                const std::string& device_name,
-                                                const ov::AnyMap& config) const override;
+    ov::CompiledModel compile_model(const std::string& model_path,
+                                    const std::string& device_name,
+                                    const ov::AnyMap& config) const override;
 
-    ov::SoPtr<ov::ICompiledModel> compile_model(const std::string& model_str,
-                                                const ov::Tensor& weights,
-                                                const std::string& device_name,
-                                                const ov::AnyMap& config) const override;
+    ov::CompiledModel compile_model(const std::string& model_str,
+                                    const ov::Tensor& weights,
+                                    const std::string& device_name,
+                                    const ov::AnyMap& config) const override;
 
-    ov::SoPtr<ov::ICompiledModel> import_model(std::istream& model,
-                                               const std::string& device_name = {},
-                                               const ov::AnyMap& config = {}) const override;
+    ov::CompiledModel import_model(std::istream& model,
+                                   const std::string& device_name = {},
+                                   const ov::AnyMap& config = {}) const override;
+
+    ov::CompiledModel import_model(std::istream& modelStream,
+                                   const ov::RemoteContext& context,
+                                   const ov::AnyMap& config) const override;
 
     ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
                                     const std::string& device_name,
