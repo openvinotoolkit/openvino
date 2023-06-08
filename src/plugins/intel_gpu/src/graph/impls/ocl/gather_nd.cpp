@@ -23,7 +23,6 @@ struct gather_nd_impl : typed_primitive_impl_ocl<gather_nd> {
         return make_unique<gather_nd_impl>(*this);
     }
 
-public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<gather_nd>();
         auto params = get_default_params<kernel_selector::gather_nd_params>(impl_param);

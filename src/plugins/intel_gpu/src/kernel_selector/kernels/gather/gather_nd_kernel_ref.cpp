@@ -164,27 +164,6 @@ bool GatherNDKernelRef::Validate(const Params& p, const optional_params& o) cons
         }
     }
 
-    if (params.outputs[0].is_dynamic()) {
-        auto supported_tensor_layout = [](const DataTensor& t) -> bool {
-            if (t.GetLayout() == DataLayout::bfyx ||
-                t.GetLayout() == DataLayout::bfzyx ||
-                t.GetLayout() == DataLayout::bfwzyx) {
-                return true;
-            }
-
-            return false;
-        };
-
-        for (auto& in : params.inputs) {
-            if (!supported_tensor_layout(in))
-                return false;
-        }
-        for (auto& out : params.outputs) {
-            if (!supported_tensor_layout(out))
-                return false;
-        }
-    }
-
     for (auto& fused_op : params.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op))
             return false;
