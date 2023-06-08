@@ -291,6 +291,11 @@ void Engine::GetPerformanceStreams(Config& config, const std::shared_ptr<ov::Mod
     const auto latency_name = std::string(CONFIG_VALUE(LATENCY)) + "_" + std::string(ov::num_streams.name());
     const auto tput_name = std::string(CONFIG_VALUE(THROUGHPUT)) + "_" + std::string(ov::num_streams.name());
 
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+    // TODO: This WA for CI checks will be removed after export/import refactor for MT 2.0 which will be track in CVS-112149
+    streams = 1;
+#endif
+
     get_num_streams(streams, model, config);
 
     hints_props.insert({latency_name, std::to_string(latency_streams)});

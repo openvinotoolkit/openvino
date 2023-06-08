@@ -7,13 +7,24 @@
 #include <functional>
 #include <string>
 
+#ifndef IN_OV_COMPONENT
+#    define IN_OV_COMPONENT
+#    define WAS_OV_LIBRARY_DEFINED_SERIALIZE
+#endif
+
 #include "ngraph/opsets/opset.hpp"
+
+#ifdef WAS_OV_LIBRARY_DEFINED_SERIALIZE
+#    undef IN_OV_COMPONENT
+#    undef WAS_OV_LIBRARY_DEFINED_SERIALIZE
+#endif
 #include "openvino/core/model.hpp"
 #include "openvino/pass/pass.hpp"
 
 namespace ov {
 namespace pass {
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 /**
  * @brief Serialize transformation converts ngraph::Function into IR files
  * @attention
@@ -93,6 +104,7 @@ private:
     std::function<void(std::ostream&)> m_custom_data_serializer;
     const Serialize::Version m_version;
 };
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 }  // namespace pass
 }  // namespace ov

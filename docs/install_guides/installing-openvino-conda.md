@@ -7,19 +7,17 @@
    Installing OpenVINO Runtime from Conda Forge is recommended for C++ developers, as it provides only the C++ Runtime API.
    If you work with Python, consider :doc:`installing OpenVINO from PyPI <openvino_docs_install_guides_installing_openvino_pip>`
 
-   The current Anaconda package does not provide support for GPU inference.
-
 .. tab:: System Requirements
 
-  | Full requirement listing is available in:
-  | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
+   | Full requirement listing is available in:
+   | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
 
-.. comment to publish in the future, when gpu support comes back:
-
-   .. tab:: Processor Notes
+   .. comment to publish in the future, when gpu support comes back:
    
-        | Not all Intel CPUs include integrated graphics processors.  
-        | See `Product Specifications <https://ark.intel.com/>`__ for information about your hardware.
+      .. tab:: Processor Notes
+      
+           | Not all Intel CPUs include integrated graphics processors.  
+           | See `Product Specifications <https://ark.intel.com/>`__ for information about your hardware.
 
 .. tab:: Software
 
@@ -50,10 +48,31 @@ Installing OpenVINO Runtime with Anaconda Package Manager
 
    .. code-block:: sh
 
-      conda install -c conda-forge openvino=2022.3.0
+      conda install -c conda-forge openvino=2023.0.0
 
    Congratulations! You have finished installing OpenVINO Runtime.
 
+Compiling with OpenVINO Runtime from Conda-Forge on Linux
+###########################################################
+
+When linking OpenVINO libraries from Conda on Linux, ensure that you have the necessary Conda compilers installed. 
+To do so, run the following command in your Conda environment:
+
+.. code-block:: sh
+
+    conda install cmake c-compiler cxx-compiler make
+
+It is crucial to reactivate your Conda environment after installing the compilers. 
+This step ensures that all the environment variables are set correctly for successful linkage.
+
+To reactivate your Conda environment, execute the following command:
+
+.. code-block:: sh
+
+    conda activate <your_environment_name>
+
+Replace <your_environment_name> with the name of your Conda environment. 
+Once you have reactivated your Conda environment, make sure that all the necessary environment variables are properly set and proceed with linking the OpenVINO libraries.
 
 Uninstalling OpenVINO™ Runtime
 ###########################################################
@@ -63,7 +82,7 @@ with the proper OpenVINO version number:
 
 .. code-block:: sh
    
-   conda remove openvino=2022.3.0
+   conda remove openvino=2023.0.0
 
 
 What's Next?

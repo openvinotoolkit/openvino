@@ -78,20 +78,20 @@ endif()
 add_custom_command(TARGET ${TARGET_NAME}
     POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/__init__.py ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/__init__.py
-    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/../__init__.py ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/../__init__.py
 )
 
 # install
 
 install(TARGETS ${INSTALLED_TARGETS}
         RUNTIME DESTINATION ${OV_CPACK_PYTHONDIR}/openvino/inference_engine
-        COMPONENT ${PYTHON_COMPONENT}
+        COMPONENT ${PYTHON_COMPONENT} ${OV_CPACK_COMP_PYTHON_IE_API_EXCLUDE_ALL}
         LIBRARY DESTINATION ${OV_CPACK_PYTHONDIR}/openvino/inference_engine
-        COMPONENT ${PYTHON_COMPONENT})
+        COMPONENT ${PYTHON_COMPONENT} ${OV_CPACK_COMP_PYTHON_IE_API_EXCLUDE_ALL})
 
 install(PROGRAMS __init__.py
         DESTINATION ${OV_CPACK_PYTHONDIR}/openvino/inference_engine
-        COMPONENT ${PYTHON_COMPONENT})
+        COMPONENT ${PYTHON_COMPONENT}
+        ${OV_CPACK_COMP_PYTHON_IE_API_EXCLUDE_ALL})
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}
                         EXCLUDE_PATTERNS ".*\\.cxx;.*\\.pxd;.*\\.pyx")
