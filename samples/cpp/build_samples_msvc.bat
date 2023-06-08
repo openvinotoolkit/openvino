@@ -34,10 +34,10 @@ if "%INTEL_OPENVINO_DIR%"=="" (
     if exist "%ROOT_DIR%\..\..\setupvars.bat" (
         call "%ROOT_DIR%\..\..\setupvars.bat"
     ) else (
-         echo Failed to set the environment variables automatically    
-         echo To fix, run the following command: ^<INSTALL_DIR^>\setupvars.bat
-         echo where INSTALL_DIR is the OpenVINO installation directory.
-         GOTO errorHandling
+        echo Failed to set the environment variables automatically. To fix, run the following command:
+        echo ^<INTEL_OPENVINO_DIR^>\setupvars.bat
+        echo where INTEL_OPENVINO_DIR is the OpenVINO installation directory
+        exit /b 1
     )
 )
 
