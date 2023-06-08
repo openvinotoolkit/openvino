@@ -3,7 +3,7 @@
 //
 #include <ie_metric_helpers.hpp>
 
-#include "exec_network.h"
+#include "compiled_model.h"
 
 #include <precision_utils.h>
 #include <low_precision/low_precision.hpp>
@@ -49,12 +49,14 @@ struct ImmediateSerialExecutor : public ov::threading::ITaskExecutor {
 };
 
 CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
+                             const std::shared_ptr<const ov::Model>& orig_model,
                              const std::shared_ptr<const ov::IPlugin>& plugin,
                              const Config& cfg,
                              const ExtensionManager::Ptr& extMgr,
                              const bool loaded_from_cache)
     : ov::ICompiledModel::ICompiledModel(model, plugin),
       _model(model),
+      _original_model(orig_model),
       _plugin(plugin),
       _cfg{cfg},
       extensionManager(extMgr),

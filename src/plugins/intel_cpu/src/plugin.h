@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "exec_network.h"
+#include "compiled_model.h"
 #include "cpu_streams_calculation.hpp"
 
 #include <string>
@@ -33,11 +33,8 @@ public:
     };
 
     void set_property(const ov::AnyMap& properties) override;
-
     ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const override;
-
     std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model, const ov::AnyMap& properties) const override;
-
     std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
                                                      const ov::RemoteContext& context,
                                                      const ov::AnyMap& properties) const override {
@@ -50,7 +47,6 @@ public:
 
     ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
                                     const ov::AnyMap& properties) const override;
-
     std::shared_ptr<ov::IRemoteContext> create_context(const ov::AnyMap& remote_properties) const override {
         OPENVINO_ASSERT_HELPER(::ov::NotImplemented,
                                "",
@@ -58,7 +54,6 @@ public:
                                "Not Implemented",
                                "create_context  is not supported by this plugin!");
     };
-
     std::shared_ptr<ov::IRemoteContext> get_default_context(const ov::AnyMap& remote_properties) const override {
         OPENVINO_ASSERT_HELPER(::ov::NotImplemented,
                                "",
@@ -74,11 +69,8 @@ private:
     ov::Any GetMetricLegacy(const std::string& name, const ov::AnyMap& options) const;
 
     ov::Any get_property_legacy(const std::string& name, const ov::AnyMap& options) const;
-
     void ApplyPerformanceHints(ov::AnyMap &config, const std::shared_ptr<ov::Model>& model) const;
-
     void GetPerformanceStreams(Config &config, const std::shared_ptr<ov::Model>& model) const;
-
     StreamCfg GetNumStreams(ov::threading::IStreamsExecutor::ThreadBindingType thread_binding_type,
                             int stream_mode,
                             const bool enable_hyper_thread = true) const;

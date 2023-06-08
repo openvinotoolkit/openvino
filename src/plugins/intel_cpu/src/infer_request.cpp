@@ -15,8 +15,8 @@
 #include <vector>
 
 #include "async_infer_request.h"
+#include "compiled_model.h"
 #include "dnnl_extension_utils.h"
-#include "exec_network.h"
 #include "itt.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "memory_state.h"
@@ -46,6 +46,17 @@ SyncInferRequest::SyncInferRequest(std::shared_ptr<const CompiledModel> compiled
         _output_ports_map[port_name] = out;
     }
 
+#ifdef WA_CVS_111453
+    auto orig_model = _compiled_model->get_orig_model();
+    for (const auto& in : orig_model->inputs()) {
+        auto port_name = get_port_name(in);
+        _orig_ports_map[port_name] = in;
+    }
+    for (const auto& out : orig_model->outputs()) {
+        auto port_name = get_port_name(out);
+        _orig_ports_map[port_name] = out;
+    }
+#endif
     create_infer_request();
 }
 
@@ -59,10 +70,10 @@ void SyncInferRequest::create_infer_request() {
 
     // alocate memory for each tensor
     for (const auto& it : _input_ports_map) {
-        prepare_tensor(it.first);
+        init_tensor(it.first);
     }
     for (const auto& it : _output_ports_map) {
-        prepare_tensor(it.first);
+        init_tensor(it.first);
     }
 
     // Save all MemoryLayer data tensors. Will use insight about mechanics
@@ -405,7 +416,29 @@ void SyncInferRequest::check_port(const ov::Output<const ov::Node>& port) const 
 }
 
 #ifdef WA_CVS_111453
-ov::Output<const ov::Node>& SyncInferRequest::get_internal_port(const ov::Output<const ov::Node>& port) const {
+bool SyncInferRequest::check_precision_changed(const ov::Output<const ov::Node>& port) const {
+    auto name = get_port_name(port);
+    bool is_input = ov::op::util::is_parameter(port.get_node());
+
+    if (is_input) {
+        if (_input_ports_map.find(name) == _input_ports_map.end() ||
+            _orig_ports_map.find(name) == _orig_ports_map.end()) {
+            OPENVINO_THROW("cpu plugin checking input port's precision failed: cannot find this port!");
+        }
+
+        return _input_ports_map[name].get_element_type() != _orig_ports_map[name].get_element_type();
+    } else {
+        if (_output_ports_map.find(name) == _output_ports_map.end() ||
+            _orig_ports_map.find(name) == _orig_ports_map.end()) {
+            OPENVINO_THROW("cpu plugin checking output port's precision failed: cannot find this port!");
+        }
+
+        return _output_ports_map[name].get_element_type() != _orig_ports_map[name].get_element_type();
+    }
+    return false;
+}
+
+const ov::Output<const ov::Node>& SyncInferRequest::get_internal_port(const ov::Output<const ov::Node>& port) const {
     auto name = get_port_name(port);
 
     bool is_input = ov::op::util::is_parameter(port.get_node());
@@ -447,33 +480,52 @@ ov::Tensor SyncInferRequest::create_internal_tensor(const ov::Tensor& tensor, co
     }
     return iconv;
 }
-#endif
 
-#ifdef WA_CVS_111453
 void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& _port, const ov::Tensor& _tensor) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "set_tensor");
     if (!_tensor)
         IE_THROW(NotAllocated) << "Failed to set empty tensor for port!";
     check_port(_port);
+    auto name = get_port_name(_port);
 
-    //if ((_port.get_element_type() != _tensor.get_element_type())) {
-    //    IE_THROW(ParameterMismatch) << "Failed to set input tensor with precision: " << _tensor.get_element_type()
-    //                                << ", if model input tensor precision is: " << _port.get_element_type();
-    //}
-    auto port = get_internal_port(_port);
-    auto tensor = create_internal_tensor(_tensor, port);
+    auto port = _port;
+    auto tensor = _tensor;
+
+    // WA: legacy api create blob with ANY layout will not set BlockingDesc, which will lead to tensor.get_shape()
+    // return empty shape but tensor.get_size() will return correct value, and tensor.reshape() will not update
+    // BlockingDesc, so have to construct new tensor with original tensor's data.
+    if (_port.get_partial_shape().is_static() && _tensor.get_size() > 0 && _tensor.get_shape().size() == 0 &&
+        _tensor.get_size() == _port.get_shape().size()) {
+            tensor = ov::Tensor(_tensor.get_element_type(), _port.get_shape(), _tensor.data());
+    }
+
+    auto precision_changed = check_precision_changed(_port);
+    if (precision_changed) {
+        auto _orig_port = _orig_ports_map[name];
+        if (_orig_port.get_element_type() != _tensor.get_element_type()) {
+            IE_THROW(ParameterMismatch) << "Failed to set input tensor with precision: " << _tensor.get_element_type()
+                                        << ", if model input tensor precision is: " << _port.get_element_type();
+        }
+        port = get_internal_port(_port);
+        tensor = create_internal_tensor(_tensor, port);
+    } else {
+        if (_port.get_element_type() != _tensor.get_element_type()) {
+            IE_THROW(ParameterMismatch) << "Failed to set input tensor with precision: " << _tensor.get_element_type()
+                                        << ", if model input tensor precision is: " << _port.get_element_type();
+        }
+    }
 #else
 void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const ov::Tensor& tensor) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "set_tensor");
     if (!tensor)
         IE_THROW(NotAllocated) << "Failed to set empty tensor for port!";
     check_port(port);
+    auto name = get_port_name(port);
 #endif
 
     InferenceEngine::TensorDesc tensor_desc(InferenceEngine::details::convertPrecision(tensor.get_element_type()),
                                             tensor.get_shape(),
                                             InferenceEngine::TensorDesc::getLayoutByRank(tensor.get_shape().size()));
-    auto name = get_port_name(port);
     bool is_input = ov::op::util::is_parameter(port.get_node());
     if (is_input) {
         const auto netInPrc = port.get_element_type();
@@ -567,8 +619,8 @@ std::vector<ov::Tensor> SyncInferRequest::get_tensors(const ov::Output<const ov:
 }
 #endif
 
-void SyncInferRequest::prepare_tensor(const std::string& name) {
-    OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "prepare_tensor");
+void SyncInferRequest::init_tensor(const std::string& name) {
+    OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "init_tensor");
 
     if (!graph || !graph->IsReady())
         IE_THROW() << "Graph is not ready!";

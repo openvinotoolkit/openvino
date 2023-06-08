@@ -57,7 +57,7 @@ protected:
     InferenceEngine::Precision normToInputSupportedPrec(const std::pair<const std::string, ov::Tensor>& input) const;
     void pushInput(const std::string& inputName, ov::Tensor& inputBlob, InferenceEngine::Precision dataType);
 
-    void prepare_tensor(const std::string& name);
+    void init_tensor(const std::string& name);
     void PushInputData();
 
     Graph* graph = nullptr;
@@ -71,9 +71,10 @@ private:
     std::string get_port_name(const ov::Output<const ov::Node>& port) const;
     void check_port(const ov::Output<const ov::Node>& port) const;
     void update_external_inputs();
+    bool check_precision_changed(const ov::Output<const ov::Node>& port) const;
 
 #ifdef WA_CVS_111453
-    ov::Output<const ov::Node>& get_internal_port(const ov::Output<const ov::Node>& port) const;
+    const ov::Output<const ov::Node>& get_internal_port(const ov::Output<const ov::Node>& port) const;
     ov::Tensor create_internal_tensor(const ov::Tensor& tensor, const ov::Output<const ov::Node>& port);
 #endif
 
@@ -84,6 +85,7 @@ private:
 
     mutable std::unordered_map<std::string, ov::Output<const ov::Node>> _input_ports_map;
     mutable std::unordered_map<std::string, ov::Output<const ov::Node>> _output_ports_map;
+    mutable std::unordered_map<std::string, ov::Output<const ov::Node>> _orig_ports_map;
 
     std::unordered_map<std::string, ov::Tensor> _outputs;
 
