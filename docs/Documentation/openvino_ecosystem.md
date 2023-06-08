@@ -49,10 +49,11 @@ More resources:
 A framework and CLI tool to build, transform, and analyze datasets.
 
 More resources:
-
-* `Documentation on GitHub <https://openvinotoolkit.github.io/datumaro/stable/docs/get-started/introduction.html>`__  
+ 
+* :doc:`Overview <datumaro_documentation>`
 * `PyPI <https://pypi.org/project/datumaro/>`__  
 * `GitHub <https://github.com/openvinotoolkit/datumaro>`__  
+* `Documentation <https://openvinotoolkit.github.io/datumaro/stable/docs/get-started/introduction.html>`__ 
 
 **Compile Tool** 
 
