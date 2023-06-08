@@ -124,8 +124,8 @@ bool AllocateBuffers::run(LinearIR& linear_ir) {
 
                 const auto current_allocated_memory_size = m_buffer_scratchpad_size - offset;
                 if (buffer_size > current_allocated_memory_size) {
-                    m_buffer_scratchpad_size += (buffer_size - current_allocated_memory_size);
-                    // Note: we don't update offset because we just add memory to needed size
+                    allocate(buffer, expr, buffer_size);
+                    continue;
                 }
                 propagate_offset(linear_ir, *expr_it, offset);
                 allocated_buffers.insert(expr);

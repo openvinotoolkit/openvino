@@ -19,29 +19,28 @@ std::vector<std::vector<ov::PartialShape>> input_shapes{
         {{1, 1, 37, 23}, {1, 2, 23, 33}},
         {{1, 16, 384, 64}, {1, 16, 64, 384}}
 };
-static inline std::vector<std::vector<element::Type>> precisions(bool only_fp32 = true) {
-    std::vector<std::vector<element::Type>> prc = {
-            {element::f32, element::f32},
-    };
-    if (!only_fp32) {
-        // In Snippets MatMul INT8 is supported only on VNNI/AMX platforms
-        if (InferenceEngine::with_cpu_x86_avx512_core_vnni() || InferenceEngine::with_cpu_x86_avx512_core_amx_int8()) {
-            prc.emplace_back(std::vector<element::Type>{element::i8, element::i8});
-            prc.emplace_back(std::vector<element::Type>{element::u8, element::i8});
-        }
-        // In Snippets MatMul BF16 is supported only on bf16/AMX platforms
-        if (InferenceEngine::with_cpu_x86_bfloat16() || InferenceEngine::with_cpu_x86_avx512_core_amx_bf16()) {
-            prc.emplace_back(std::vector<element::Type>{element::bf16, element::bf16});
-        }
-    }
-    return prc;
-}
+
 static inline std::vector<std::vector<element::Type>> quantized_precisions() {
     std::vector<std::vector<element::Type>> prc = {};
     // In Snippets MatMul INT8 is supported only on VNNI/AMX platforms
     if (InferenceEngine::with_cpu_x86_avx512_core_vnni() || InferenceEngine::with_cpu_x86_avx512_core_amx_int8()) {
         prc.emplace_back(std::vector<element::Type>{element::i8, element::i8});
         prc.emplace_back(std::vector<element::Type>{element::u8, element::i8});
+    }
+    return prc;
+}
+
+static inline std::vector<std::vector<element::Type>> precisions(bool only_fp32 = true) {
+    std::vector<std::vector<element::Type>> prc = {
+            {element::f32, element::f32},
+    };
+    if (!only_fp32) {
+        auto quant = quantized_precisions();
+        std::copy(quant.begin(), quant.end(), std::back_inserter(prc));
+        // In Snippets MatMul BF16 is supported only on bf16/AMX platforms
+        if (InferenceEngine::with_cpu_x86_bfloat16() || InferenceEngine::with_cpu_x86_avx512_core_amx_bf16()) {
+            prc.emplace_back(std::vector<element::Type>{element::bf16, element::bf16});
+        }
     }
     return prc;
 }
