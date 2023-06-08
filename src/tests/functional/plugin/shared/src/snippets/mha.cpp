@@ -129,6 +129,11 @@ void MHAFQ::init_subgraph() {
     function = f.getOriginal();
 }
 
+void MHAMulAdd::init_subgraph() {
+    auto f = ov::test::snippets::MHAMulAddFunction(inputDynamicShapes);
+    function = f.getOriginal();
+}
+
 TEST_P(MHA, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
@@ -148,6 +153,11 @@ TEST_P(MHAWOTransposeOnInputs, CompareWithRefImpl) {
 }
 
 TEST_P(MHAWOTranspose, CompareWithRefImpl) {
+    run();
+    validateNumSubgraphs();
+}
+
+TEST_P(MHAMulAdd, CompareWithRefImpl) {
     run();
     validateNumSubgraphs();
 }
