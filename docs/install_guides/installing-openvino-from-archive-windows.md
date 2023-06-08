@@ -179,9 +179,9 @@ Now that you've installed OpenVINO Runtime, you're ready to run your own machine
 
    Visit the :ref:`Tutorials <notebook tutorials>` page for more Jupyter Notebooks to get you started with OpenVINO, such as:
 
-   * `OpenVINO Python API Tutorial <notebooks/002-openvino-api-with-output.html>`___
-   * `Basic image classification program with Hello Image Classification <notebooks/001-hello-world-with-output.html>`___
-   * `Convert a PyTorch model and use it for image background removal <notebooks/205-vision-background-removal-with-output.html>`___
+   * `OpenVINO Python API Tutorial <notebooks/002-openvino-api-with-output.html>`__ 
+   * `Basic image classification program with Hello Image Classification <notebooks/001-hello-world-with-output.html>`__
+   * `Convert a PyTorch model and use it for image background removal <notebooks/205-vision-background-removal-with-output.html>`__
 
 .. tab:: Get started with C++
 
