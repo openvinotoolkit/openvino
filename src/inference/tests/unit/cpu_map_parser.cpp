@@ -1095,7 +1095,7 @@ public:
         std::vector<std::vector<int>> test_cpu_mapping_table;
 
         ov::parse_freq_info_linux(test_data.system_info_table,
-        test_data.node_info_table,
+                                  test_data.node_info_table,
                                   test_processors,
                                   test_numa_nodes,
                                   test_sockets,
@@ -1104,7 +1104,7 @@ public:
                                   test_cpu_mapping_table);
 
         ASSERT_EQ(test_data._processors, test_processors);
-        ASSERT_EQ(test_data._numa_nodes, test_numa_nodes);        
+        ASSERT_EQ(test_data._numa_nodes, test_numa_nodes);
         ASSERT_EQ(test_data._sockets, test_sockets);
         ASSERT_EQ(test_data._cores, test_cores);
         ASSERT_EQ(test_data._proc_type_table, test_proc_type_table);
