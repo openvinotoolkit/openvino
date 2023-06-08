@@ -197,4 +197,3 @@ std::shared_ptr<ov::Model> ov::construct_model_with_inputs_outputs(
     std::shared_ptr<FakeVariadicNode> fake_op(new FakeVariadicNode(inputs, outputs));
     return std::make_shared<ov::Model>(fake_op->get_results(), fake_op->get_parameters());
 }
-
