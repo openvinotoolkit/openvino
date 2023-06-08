@@ -57,7 +57,6 @@ public:
     }
 
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
-        const auto& primitive = impl_param.typed_desc<crop>();
         auto params = get_default_params<kernel_selector::eltwise_params>(impl_param, 1);
         auto optional_params = get_default_optional_params<kernel_selector::eltwise_optional_params>(impl_param.get_program());
 
