@@ -4,7 +4,12 @@
 
 #include "decoder_flatbuffer.h"
 
+#ifdef FLATBUFFERS_LOCALE_INDEPENDENT
+#undef FLATBUFFERS_LOCALE_INDEPENDENT
+#endif
+#define FLATBUFFERS_LOCALE_INDEPENDENT 0
 #include "schema_generated.h"
+#include "flatbuffers/flexbuffers.h"
 #include "utils.hpp"
 
 namespace ov {
@@ -127,6 +132,21 @@ ov::Any get_value_as_ov_any(const flexbuffers::Reference& value) {
         return {};
     }
     return {};
+}
+
+
+ov::Any DecoderFlatBuffer::get_attribute(const std::string& name) const {
+    const auto opts = m_node_def->custom_options();
+    if (opts == nullptr)
+        return {};
+    const flexbuffers::Map& m = flexbuffers::GetRoot(opts->Data(), opts->size()).AsMap();
+    flexbuffers::Reference value;
+    try {
+        value = m[name];
+    } catch (...) {
+        return {};
+    }
+    return get_value_as_ov_any(value);
 }
 
 }  // namespace tensorflow_lite

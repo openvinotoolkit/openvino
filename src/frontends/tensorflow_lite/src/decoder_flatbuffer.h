@@ -11,7 +11,6 @@
 #include "graph_iterator_flatbuffer.hpp"
 #include "openvino/frontend/tensorflow_lite/visibility.hpp"
 #include "openvino/frontend/decoder.hpp"
-#include "flatbuffers/flexbuffers.h"
 
 namespace ov {
 namespace frontend {
@@ -20,7 +19,6 @@ namespace tensorflow_lite {
 class TensorLitePlace;
 struct TensorInfo;
 
-ov::Any get_value_as_ov_any(const flexbuffers::Reference& value);
 
 class DecoderFlatBuffer : public ov::frontend::DecoderBase {
 public:
@@ -46,19 +44,7 @@ public:
         return (opts->*member)();
     }
 
-    ov::Any get_attribute(const std::string& name) const override {
-        const auto opts = m_node_def->custom_options();
-        if (opts == nullptr)
-            return {};
-        const flexbuffers::Map& m = flexbuffers::GetRoot(opts->Data(), opts->size()).AsMap();
-        flexbuffers::Reference value;
-        try {
-            value = m[name];
-        } catch (...) {
-            return {};
-        }
-        return get_value_as_ov_any(value);
-    }
+    ov::Any get_attribute(const std::string& name) const override;
 
     size_t get_input_size() const override;
     size_t get_output_size() const;
