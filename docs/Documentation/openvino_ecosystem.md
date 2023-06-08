@@ -7,6 +7,7 @@
    :hidden:
 
    ote_documentation
+   datumaro_documentation
    ovsa_get_started
    openvino_docs_tuning_utilities
 
