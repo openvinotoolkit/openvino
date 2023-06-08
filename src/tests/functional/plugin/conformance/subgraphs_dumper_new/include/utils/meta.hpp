@@ -42,6 +42,7 @@ struct InputInfo {
 
 class MetaInfo {
 public:
+    MetaInfo() = default;
     MetaInfo(const std::string& model_path, const std::map<std::string, InputInfo>& _input_info);
     void serialize(const std::string& serialization_path);
     void update(const std::string& model_path, const std::map<std::string, InputInfo>& _input_info);

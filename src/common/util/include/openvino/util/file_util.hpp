@@ -193,7 +193,7 @@ inline int64_t file_size(const std::string& path) {
 template <typename C,
           typename = typename std::enable_if<(std::is_same<C, char>::value || std::is_same<C, wchar_t>::value)>::type>
 inline bool file_exists(const std::basic_string<C>& path) {
-    return file_size(path) > 0;
+    return file_size(path) >= 0;
 }
 
 std::string get_file_ext(const std::string& path);
