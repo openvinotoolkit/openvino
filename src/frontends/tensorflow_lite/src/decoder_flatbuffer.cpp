@@ -108,27 +108,7 @@ ov::Any get_value_as_ov_any(const flexbuffers::Reference& value) {
         CASE_MACRO(FBT_INDIRECT_FLOAT, AsFloat)
         CASE_MACRO(FBT_STRING, AsString)
         CASE_MACRO(FBT_BOOL, AsBool)
-    case flexbuffers::FBT_NULL:
-    case flexbuffers::FBT_MAP:
-    case flexbuffers::FBT_KEY:
-    case flexbuffers::FBT_VECTOR:
-    case flexbuffers::FBT_VECTOR_INT:
-    case flexbuffers::FBT_VECTOR_UINT:
-    case flexbuffers::FBT_VECTOR_FLOAT:
-    case flexbuffers::FBT_VECTOR_KEY:
-    case flexbuffers::FBT_VECTOR_STRING_DEPRECATED:
-    case flexbuffers::FBT_VECTOR_INT2:
-    case flexbuffers::FBT_VECTOR_UINT2:
-    case flexbuffers::FBT_VECTOR_FLOAT2:
-    case flexbuffers::FBT_VECTOR_INT3:
-    case flexbuffers::FBT_VECTOR_UINT3:
-    case flexbuffers::FBT_VECTOR_FLOAT3:
-    case flexbuffers::FBT_VECTOR_INT4:
-    case flexbuffers::FBT_VECTOR_UINT4:
-    case flexbuffers::FBT_VECTOR_FLOAT4:
-    case flexbuffers::FBT_BLOB:
-    case flexbuffers::FBT_VECTOR_BOOL:
-    case flexbuffers::FBT_MAX_TYPE:
+    default:
         return {};
     }
     return {};
@@ -139,13 +119,11 @@ ov::Any DecoderFlatBuffer::get_attribute(const std::string& name) const {
     if (opts == nullptr)
         return {};
     const flexbuffers::Map& m = flexbuffers::GetRoot(opts->Data(), opts->size()).AsMap();
-    flexbuffers::Reference value;
     try {
-        value = m[name];
+        return get_value_as_ov_any(m[name]);
     } catch (...) {
         return {};
     }
-    return get_value_as_ov_any(value);
 }
 
 }  // namespace tensorflow_lite
