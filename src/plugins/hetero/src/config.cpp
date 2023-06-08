@@ -17,22 +17,22 @@ Configuration::Configuration() {}
 Configuration::Configuration(ov::AnyMap& config, const Configuration& defaultCfg, bool throwOnUnsupported) {
     *this = defaultCfg;
 
-    for (auto it = config.begin(); it != config.end();) {
+    for (auto conf_it = config.begin(); conf_it != config.end();) {
+        auto it = conf_it++;
         const auto& key = it->first;
         const auto& value = it->second;
 
         if (HETERO_CONFIG_KEY(DUMP_GRAPH_DOT) == key) {
             dump_graph = value.as<bool>();
-            config.erase(it++);
+            config.erase(it);
         } else if ("TARGET_FALLBACK" == key || ov::device::priorities == key) {
             device_priorities = value.as<std::string>();
-            config.erase(it++);
+            config.erase(it);
         } else if (ov::exclusive_async_requests == key) {
             exclusive_async_requests = value.as<bool>();
         } else {
             if (throwOnUnsupported)
                 OPENVINO_THROW("Property was not found: ", key);
-            ++it;
         }
     }
 }
