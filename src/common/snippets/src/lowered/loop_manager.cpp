@@ -106,8 +106,7 @@ void LinearIR::LoopManager::get_io_loop_ports(LinearIR::constExprIt loop_begin_p
         const auto& expr = *expr_it;
         for (size_t i = 0; i < expr->get_input_count(); ++i) {
             const auto in_port = expr->get_input_port(i);
-            const auto source_port = *in_port.get_connected_ports().begin();
-            const auto& parent_expr = source_port.get_expr();
+            const auto parent_expr = in_port.get_connected_ports().begin()->get_expr();
             if (!ov::is_type<ov::op::v0::Constant>(parent_expr->get_node()) &&
                 std::find(loop_begin_pos, expr_it, parent_expr) == expr_it) {
                 entries.push_back(in_port);
