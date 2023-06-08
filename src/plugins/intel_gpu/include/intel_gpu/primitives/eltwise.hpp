@@ -66,6 +66,9 @@ enum class eltwise_mode : int32_t {
 struct eltwise : public primitive_base<eltwise> {
     CLDNN_DECLARE_PRIMITIVE(eltwise)
 
+    // Logic and comparison operations should return i8 for any inputs
+    static const std::set<eltwise_mode> eltwise_bool_modes;
+
     eltwise() : primitive_base("", {}) {}
 
     DECLARE_OBJECT_TYPE_SERIALIZATION

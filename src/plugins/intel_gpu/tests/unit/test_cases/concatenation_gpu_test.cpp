@@ -89,7 +89,8 @@ TEST(concat_gpu, mixed_input_types) {
     }
 }
 
-TEST(concat_gpu, dynamic_4d_f) {
+void start_concat_test_dynamic(impl_types impl_type = impl_types::any);
+void start_concat_test_dynamic(impl_types impl_type) {
     auto& engine = get_test_engine();
 
     layout layout0_dyn = {{1, -1, -1, -1}, data_types::f32, format::bfyx};
@@ -109,7 +110,13 @@ TEST(concat_gpu, dynamic_4d_f) {
                           padding{ { 0,0,0,0 }, 0 })
     );
 
-    ExecutionConfig config{ov::intel_gpu::allow_new_shape_infer(true)};
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    if (impl_type != impl_types::any) {
+        auto force_impl = ov::intel_gpu::ImplementationDesc{ format::bfyx, "", impl_type };
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {primitive_id("concat"), force_impl} }));
+    }
 
     auto network = cldnn::network::build_network(engine, topology, config);
 
@@ -184,6 +191,14 @@ TEST(concat_gpu, dynamic_4d_f) {
                   {{1, 5, 3, 4}, data_types::f32, format::bfyx},
                   {{1, 3, 3, 4}, data_types::f32, format::bfyx},
                   {{1, 2, 3, 4}, data_types::f32, format::bfyx});
+}
+
+TEST(concat_gpu, dynamic_4d_f) {
+    start_concat_test_dynamic();
+}
+
+TEST(concat_cpu_impl, dynamic_4d_f) {
+    start_concat_test_dynamic(impl_types::cpu);
 }
 
 TEST(concat_gpu, dynamic_6d_f) {

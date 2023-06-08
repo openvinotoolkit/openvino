@@ -145,6 +145,7 @@ void dump_full_node(std::ofstream& out, const program_node* node) {
     } catch(const std::exception& e) {
         auto node_info = std::shared_ptr<json_composite>(new json_composite());
         node_info->add("id", node->id());
+        node_info->add("ptr", "node_" + std::to_string(reinterpret_cast<uintptr_t>(node)));
         node_info->add("error", "failed to make string from descriptor");
         std::stringstream emtpy_desc;
         node_info->dump(emtpy_desc);

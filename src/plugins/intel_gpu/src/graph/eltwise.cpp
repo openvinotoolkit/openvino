@@ -15,6 +15,20 @@
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(eltwise)
 
+const std::set<eltwise_mode>
+    eltwise::eltwise_bool_modes = { eltwise_mode::eq,
+                                    eltwise_mode::ne,
+                                    eltwise_mode::lt,
+                                    eltwise_mode::le,
+                                    eltwise_mode::gt,
+                                    eltwise_mode::ge,
+                                    eltwise_mode::logic_and,
+                                    eltwise_mode::logic_or,
+                                    eltwise_mode::logic_xor,
+                                    eltwise_mode::is_finite,
+                                    eltwise_mode::is_inf,
+                                    eltwise_mode::is_nan };
+
 layout eltwise_inst::calc_output_layout(eltwise_node const& node, kernel_impl_params const& impl_param) {
     size_t primary_input_idx = 0;
     if (node.input(primary_input_idx).is_constant()) {
@@ -71,19 +85,7 @@ layout eltwise_inst::calc_output_layout(eltwise_node const& node, kernel_impl_pa
     }
 
     // Logic and comparison operations should return i8 for any inputs
-    std::vector<eltwise_mode> eltwise_bool_modes = {eltwise_mode::eq,
-                                                    eltwise_mode::ne,
-                                                    eltwise_mode::lt,
-                                                    eltwise_mode::le,
-                                                    eltwise_mode::gt,
-                                                    eltwise_mode::ge,
-                                                    eltwise_mode::logic_and,
-                                                    eltwise_mode::logic_or,
-                                                    eltwise_mode::logic_xor,
-                                                    eltwise_mode::is_finite,
-                                                    eltwise_mode::is_inf,
-                                                    eltwise_mode::is_nan};
-    if (std::find(eltwise_bool_modes.begin(), eltwise_bool_modes.end(), mode) != eltwise_bool_modes.end()) {
+    if (eltwise::eltwise_bool_modes.find(mode) != eltwise::eltwise_bool_modes.end()) {
         output_layout.data_type = data_types::i8;
     }
 
@@ -176,19 +178,7 @@ std::vector<layout> eltwise_inst::calc_output_layouts(eltwise_node const& /*node
     }
 
     // Logic and comparison operations should return i8 for any inputs
-    std::vector<eltwise_mode> eltwise_bool_modes = {eltwise_mode::eq,
-                                                    eltwise_mode::ne,
-                                                    eltwise_mode::lt,
-                                                    eltwise_mode::le,
-                                                    eltwise_mode::gt,
-                                                    eltwise_mode::ge,
-                                                    eltwise_mode::logic_and,
-                                                    eltwise_mode::logic_or,
-                                                    eltwise_mode::logic_xor,
-                                                    eltwise_mode::is_finite,
-                                                    eltwise_mode::is_inf,
-                                                    eltwise_mode::is_nan};
-    if (std::find(eltwise_bool_modes.begin(), eltwise_bool_modes.end(), mode) != eltwise_bool_modes.end()) {
+    if (eltwise::eltwise_bool_modes.find(mode) != eltwise::eltwise_bool_modes.end()) {
         output_layout.data_type = data_types::i8;
     }
 
