@@ -6,7 +6,7 @@
 @setlocal
 SETLOCAL EnableDelayedExpansion
 set "ROOT_DIR=%~dp0"
-FOR /F "delims=\" %%i IN ("%ROOT_DIR%") DO set SAMPLES_TYPE=%%~nxi
+FOR %%i IN ("%ROOT_DIR%\.") DO set SAMPLES_TYPE=%%~nxi
 
 set "SAMPLE_BUILD_DIR=%USERPROFILE%\Documents\Intel\OpenVINO\openvino_%SAMPLES_TYPE%_samples_build"
 set SAMPLE_INSTALL_DIR=
@@ -34,10 +34,10 @@ if "%INTEL_OPENVINO_DIR%"=="" (
     if exist "%ROOT_DIR%\..\..\setupvars.bat" (
         call "%ROOT_DIR%\..\..\setupvars.bat"
     ) else (
-         echo Failed to set the environment variables automatically    
-         echo To fix, run the following command: ^<INSTALL_DIR^>\setupvars.bat
-         echo where INSTALL_DIR is the OpenVINO installation directory.
-         GOTO errorHandling
+        echo Failed to set the environment variables automatically. To fix, run the following command:
+        echo ^<INTEL_OPENVINO_DIR^>\setupvars.bat
+        echo where INTEL_OPENVINO_DIR is the OpenVINO installation directory
+        exit /b 1
     )
 )
 
@@ -49,7 +49,7 @@ if "%PROCESSOR_ARCHITECTURE%" == "AMD64" (
 
 if exist "%SAMPLE_BUILD_DIR%\CMakeCache.txt" del "%SAMPLE_BUILD_DIR%\CMakeCache.txt"
 
-cd /d "%ROOT_DIR%" && cmake -E make_directory "%SAMPLE_BUILD_DIR%" && cd /d "%SAMPLE_BUILD_DIR%" && cmake -G "Visual Studio 16 2019" -A %PLATFORM% "%ROOT_DIR%"
+cd /d "%ROOT_DIR%" && cmake -E make_directory "%SAMPLE_BUILD_DIR%" && cd /d "%SAMPLE_BUILD_DIR%" && cmake -A %PLATFORM% "%ROOT_DIR%"
 if ERRORLEVEL 1 GOTO errorHandling
 
 echo.
