@@ -46,7 +46,7 @@ SyncInferRequest::SyncInferRequest(std::shared_ptr<const CompiledModel> compiled
         _output_ports_map[port_name] = out;
     }
 
-#ifdef WA_CVS_111453
+#ifdef WA_PREC_CHANGE_ISSUE
     auto orig_model = _compiled_model->get_orig_model();
     for (const auto& in : orig_model->inputs()) {
         auto port_name = get_port_name(in);
@@ -106,30 +106,15 @@ void SyncInferRequest::pushInput(const std::string& inputName, ov::Tensor& tenso
     auto tensor_prec = InferenceEngine::details::convertPrecision(tensor.get_element_type());
     bool needConvert = inPrec != tensor_prec;
 
-    const void* srcData = tensor.data();
-    if (srcData == nullptr) {
-        IE_THROW() << "Input blob has no allocated memory";
+    if (tensor.data() == nullptr) {
+        OPENVINO_THROW("Input blob has no allocated memory");
     }
 
-    ov::Tensor iconv;
     if (needConvert) {
-        iconv = ov::Tensor(tensor.get_element_type(), tensor.get_shape());
-        if (tensor.get_size() != iconv.get_size())
-            IE_THROW() << "Can't copy tensor: input and converted tensors have different number of elements: "
-                       << tensor.get_size() << " and " << iconv.get_size();
-
-        void* dstData = iconv.data();
-        if (dstData == nullptr) {
-            IE_THROW() << "Converted input tensor has no allocated memory";
-        }
-        cpu_convert(srcData,
-                    dstData,
-                    tensor_prec,
-                    InferenceEngine::details::convertPrecision(iconv.get_element_type()),
-                    iconv.get_size());
+        OPENVINO_THROW("Tensor precision ", tensor_prec, " is mismatch with input precision ", inPrec);
     }
 
-    graph->PushInputData(inputName, needConvert ? iconv : tensor);
+    graph->PushInputData(inputName, tensor);
 }
 
 void SyncInferRequest::PushStates() {
@@ -137,7 +122,7 @@ void SyncInferRequest::PushStates() {
         if (node->getType() == Type::MemoryInput) {
             auto cur_node = dynamic_cast<node::MemoryInput*>(node.get());
             if (!cur_node) {
-                IE_THROW() << "Cannot cast " << node->getName() << " to MemoryInput";
+                OPENVINO_THROW("Cannot cast ", node->getName(), " to MemoryInput");
             }
             auto cur_id = cur_node->getId();
             for (const auto& state : _memory_states) {
@@ -159,7 +144,7 @@ void SyncInferRequest::PullStates() {
         if (node->getType() == Type::MemoryInput) {
             auto cur_node = dynamic_cast<node::MemoryInput*>(node.get());
             if (!cur_node) {
-                IE_THROW() << "Cannot cast " << node->getName() << " to MemoryInput";
+                OPENVINO_THROW("Cannot cast ", node->getName(), " to MemoryInput");
             }
             auto cur_id = cur_node->getId();
             for (const auto& state : _memory_states) {
@@ -182,11 +167,11 @@ void SyncInferRequest::redefineMemoryForInputNodes() {
     for (const auto& port : get_inputs()) {
         std::string name = get_port_name(port);
         if (name.empty()) {
-            IE_THROW() << "compiled model doesn't contain this input port.";
+            OPENVINO_THROW("compiled model doesn't contain this input port.");
         }
         const auto inputNode = cpuInputNodes.find(name);
         if (inputNode == cpuInputNodes.end())
-            IE_THROW() << "CPU execution graph doesn't contain input node with name: " << name.c_str();
+            OPENVINO_THROW("CPU execution graph doesn't contain input node with name: ", name.c_str());
         if (inputNode->second->isDynamicNode()) {
             auto tensor = get_tensor(port);
             inputNode->second->redefineOutputMemory({tensor.get_shape()});
@@ -199,8 +184,8 @@ void SyncInferRequest::update_external_inputs() {
     for (auto input : get_inputs()) {
         std::string input_name = get_port_name(input);
         if (input_name.empty()) {
-            IE_THROW() << "Input tensor map contains not registered during IPlugin::compile_model tensor with name "
-                       << input_name;
+            OPENVINO_THROW("Input tensor map contains not registered during IPlugin::compile_model tensor with name ",
+                           input_name);
         }
 
         auto tensor = get_tensor(input);
@@ -245,7 +230,7 @@ void SyncInferRequest::infer() {
 
 std::vector<ov::ProfilingInfo> SyncInferRequest::get_profiling_info() const {
     if (!graph || !graph->IsReady())
-        IE_THROW() << "Graph is not ready!";
+        OPENVINO_THROW("Graph is not ready!");
     std::vector<ov::ProfilingInfo> perfMap;
     graph->GetPerfData(perfMap);
     return perfMap;
@@ -415,7 +400,19 @@ void SyncInferRequest::check_port(const ov::Output<const ov::Node>& port) const 
     }
 }
 
-#ifdef WA_CVS_111453
+#ifdef WA_PREC_CHANGE_ISSUE
+ov::Tensor SyncInferRequest::get_tensor(const ov::Output<const ov::Node>& _port) const {
+    check_port(_port);
+    auto port = get_internal_port(_port);
+    return ov::ISyncInferRequest::get_tensor(port);
+}
+
+std::vector<ov::Tensor> SyncInferRequest::get_tensors(const ov::Output<const ov::Node>& _port) const {
+    check_port(_port);
+    auto port = get_internal_port(_port);
+    return ov::ISyncInferRequest::get_tensors(port);
+}
+
 bool SyncInferRequest::check_precision_changed(const ov::Output<const ov::Node>& port) const {
     auto name = get_port_name(port);
     bool is_input = ov::op::util::is_parameter(port.get_node());
@@ -456,49 +453,65 @@ ov::Tensor SyncInferRequest::create_internal_tensor(const ov::Tensor& tensor, co
 
     const void* srcData = tensor.data();
     if (srcData == nullptr) {
-        IE_THROW() << "Input tensor has no allocated memory";
+        OPENVINO_THROW("Input tensor has no allocated memory");
     }
 
-    ov::Tensor iconv;
     if (needConvert) {
-        iconv = ov::Tensor(port.get_element_type(), tensor.get_shape());
-        if (tensor.get_size() != iconv.get_size())
-            IE_THROW() << "Can't copy tensor: input and converted tensors have different number of elements: "
-                       << tensor.get_size() << " and " << iconv.get_size();
+        auto name = get_port_name(port);
+        auto it = _internal_tensors.find(name);
+        ov::Tensor new_tensor;
+        if (it == _internal_tensors.end()) {
+            new_tensor = ov::Tensor(port.get_element_type(), tensor.get_shape());
+            _internal_tensors[name] = new_tensor;
+        } else {
+            new_tensor = it->second;
+            if (new_tensor.get_element_type() != tensor.get_element_type()) {
+                new_tensor = ov::Tensor(port.get_element_type(), tensor.get_shape());
+                _internal_tensors[name] = new_tensor;
+            }
+            if (tensor.get_size() != new_tensor.get_size()) {
+                new_tensor.set_shape(tensor.get_shape());
+            }
+        }
 
-        void* dstData = iconv.data();
+        if (tensor.get_size() != new_tensor.get_size()) {
+            OPENVINO_THROW("Can't copy tensor: input and converted tensors have different number of elements: ",
+                           tensor.get_size(),
+                           " and ",
+                           new_tensor.get_size());
+        }
+
+        void* dstData = new_tensor.data();
         if (dstData == nullptr) {
-            IE_THROW() << "Converted input tensor has no allocated memory";
+            OPENVINO_THROW("Converted input tensor has no allocated memory");
         }
         cpu_convert(srcData,
                     dstData,
                     tensor_prec,
-                    InferenceEngine::details::convertPrecision(iconv.get_element_type()),
-                    iconv.get_size());
-    } else {
-        iconv = tensor;
+                    InferenceEngine::details::convertPrecision(new_tensor.get_element_type()),
+                    new_tensor.get_size());
+        return new_tensor;
     }
-    return iconv;
+    return tensor;
 }
 
 void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& _port, const ov::Tensor& _tensor) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "set_tensor");
     if (!_tensor)
-        IE_THROW(NotAllocated) << "Failed to set empty tensor for port!";
+        OPENVINO_THROW("Failed to set empty tensor for port!");
     check_port(_port);
-    auto name = get_port_name(_port);
-
     auto port = _port;
     auto tensor = _tensor;
 
     // WA: legacy api create blob with ANY layout will not set BlockingDesc, which will lead to tensor.get_shape()
     // return empty shape but tensor.get_size() will return correct value, and tensor.reshape() will not update
-    // BlockingDesc, so have to construct new tensor with original tensor's data.
+    // BlockingDesc, so have to construct new tensor with original tensor's data, which is only for ov legacy api usage.
     if (_port.get_partial_shape().is_static() && _tensor.get_size() > 0 && _tensor.get_shape().size() == 0 &&
         _tensor.get_size() == ov::shape_size(_port.get_shape())) {
-            tensor = ov::Tensor(_tensor.get_element_type(), _port.get_shape(), _tensor.data());
+        tensor = ov::Tensor(_tensor.get_element_type(), _port.get_shape(), _tensor.data());
     }
 
+    auto name = get_port_name(_port);
     auto precision_changed = check_precision_changed(_port);
     if (precision_changed) {
         auto _orig_port = _orig_ports_map[name];
@@ -518,7 +531,7 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& _port, const
 void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const ov::Tensor& tensor) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "set_tensor");
     if (!tensor)
-        IE_THROW(NotAllocated) << "Failed to set empty tensor for port!";
+        OPENVINO_THROW("Failed to set empty tensor for port!");
     check_port(port);
     auto name = get_port_name(port);
 #endif
@@ -604,20 +617,6 @@ void SyncInferRequest::set_tensors_impl(const ov::Output<const ov::Node> port, c
     }
     OPENVINO_THROW("Cannot find port to set_tensors!");
 }
-
-#ifdef WA_CVS_111453
-ov::Tensor SyncInferRequest::get_tensor(const ov::Output<const ov::Node>& _port) const {
-    check_port(_port);
-    auto port = get_internal_port(_port);
-    return ov::ISyncInferRequest::get_tensor(port);
-}
-
-std::vector<ov::Tensor> SyncInferRequest::get_tensors(const ov::Output<const ov::Node>& _port) const {
-    check_port(_port);
-    auto port = get_internal_port(_port);
-    return ov::ISyncInferRequest::get_tensors(port);
-}
-#endif
 
 void SyncInferRequest::init_tensor(const std::string& name) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "init_tensor");
@@ -727,7 +726,6 @@ void SyncInferRequest::init_tensor(const std::string& name) {
     if (!tensor) {
         IE_THROW() << "Cannot find tensor with name: " << name;
     }
-
     return;
 }
 

@@ -12,7 +12,8 @@
 #include "openvino/runtime/iinfer_request.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
 
-#define WA_CVS_111453
+// CVS_111453: transformation shouldn't change model's input/output's precision
+#define WA_PREC_CHANGE_ISSUE
 
 namespace ov {
 namespace intel_cpu {
@@ -35,7 +36,7 @@ public:
 
     void set_tensors_impl(const ov::Output<const ov::Node> port, const std::vector<ov::Tensor>& tensors) override;
 
-#ifdef WA_CVS_111453
+#ifdef WA_PREC_CHANGE_ISSUE
     ov::Tensor get_tensor(const ov::Output<const ov::Node>& port) const override;
     std::vector<ov::Tensor> get_tensors(const ov::Output<const ov::Node>& _port) const override;
 #endif
@@ -73,9 +74,13 @@ private:
     void update_external_inputs();
     bool check_precision_changed(const ov::Output<const ov::Node>& port) const;
 
-#ifdef WA_CVS_111453
+#ifdef WA_PREC_CHANGE_ISSUE
     const ov::Output<const ov::Node>& get_internal_port(const ov::Output<const ov::Node>& port) const;
     ov::Tensor create_internal_tensor(const ov::Tensor& tensor, const ov::Output<const ov::Node>& port);
+
+    mutable std::unordered_map<std::string, ov::Output<const ov::Node>> _orig_ports_map;
+    // Store internal tensor due to precision changes
+    std::unordered_map<std::string, ov::Tensor> _internal_tensors;
 #endif
 
     std::shared_ptr<const CompiledModel> _compiled_model;
@@ -85,7 +90,6 @@ private:
 
     mutable std::unordered_map<std::string, ov::Output<const ov::Node>> _input_ports_map;
     mutable std::unordered_map<std::string, ov::Output<const ov::Node>> _output_ports_map;
-    mutable std::unordered_map<std::string, ov::Output<const ov::Node>> _orig_ports_map;
 
     std::unordered_map<std::string, ov::Tensor> _outputs;
 
