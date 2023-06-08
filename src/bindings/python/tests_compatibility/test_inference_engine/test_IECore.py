@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+import platform
 import pytest
 import sys
-from sys import platform
 from pathlib import Path
 from threading import Event, Thread
 from time import sleep, time
@@ -97,23 +97,29 @@ def test_register_plugin():
 
 
 @pytest.mark.dynamic_library
-@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device dependent test")
 def test_register_plugins():
-    ie = IECore()
-    if ie.get_metric("CPU", "FULL_DEVICE_NAME") == "arm_compute::NEON":
-        pytest.skip("Can't run on ARM plugin due-to openvino_intel_cpu_plugin specific test")
-    if platform == "linux" or platform == "linux2":
-        ie.register_plugins(plugins_xml)
-    elif platform == "darwin":
-        ie.register_plugins(plugins_osx_xml)
-    elif platform == "win32":
-        ie.register_plugins(plugins_win_xml)
+    device = "TEST_DEVICE"
+    lib_name = "test_plugin"
+    full_lib_name = lib_name + ".dll" if sys.platform == "win32" else "lib" + lib_name + ".so"
+    plugins_xml_path = os.path.join(os.getcwd(), "plugin_path.xml")
 
-    net = ie.read_network(model=test_net_xml, weights=test_net_bin)
-    exec_net = ie.load_network(net, "CUSTOM")
-    assert isinstance(exec_net,
-                      ExecutableNetwork), "Cannot load the network to the registered plugin with name 'CUSTOM' " \
-                                          "registred in the XML file"
+    plugin_xml = f"""<ie>
+    <plugins>
+        <plugin location="{full_lib_name}" name="{device}">
+        </plugin>
+    </plugins>
+    </ie>"""
+
+    with open(plugins_xml_path, "w") as f:
+        f.write(plugin_xml)
+    
+    ie = IECore()
+    ie.register_plugins(plugins_xml_path)
+    os.remove(plugins_xml_path)
+
+    with pytest.raises(RuntimeError) as e:
+        ie.get_versions(device)
+    assert f"Cannot load library '{full_lib_name}" in str(e.value)
 
 
 @pytest.mark.skip(reason="Need to figure out if it's expected behaviour (fails with C++ API as well")
@@ -289,6 +295,12 @@ def test_load_network_release_gil(device):
 
 
 def test_nogil_safe(device):
+    libc_name, libc_version = platform.libc_ver()
+    if libc_name == 'glibc':
+        version = tuple(int(x) for x in libc_version.split('.'))
+        if version < (2, 34):
+            pytest.skip("There is an issue in glibc for an older version.")
+
     call_thread_func = Event()
     switch_interval = sys.getswitchinterval()
     core = IECore()
