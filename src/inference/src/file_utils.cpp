@@ -20,6 +20,7 @@
 
 #include "ie_common.h"
 #include "openvino/util/file_util.hpp"
+#include "openvino/core/except.hpp"
 
 #ifndef _WIN32
 #    include <dlfcn.h>

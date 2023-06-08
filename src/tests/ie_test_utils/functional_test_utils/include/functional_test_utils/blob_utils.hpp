@@ -768,8 +768,6 @@ enum class BlobType {
     Batched,
     Compound,
     Remote,
-    I420,
-    NV12,
 };
 
 inline std::ostream& operator<<(std::ostream& os, BlobType type) {
@@ -782,10 +780,6 @@ inline std::ostream& operator<<(std::ostream& os, BlobType type) {
         return os << "Compound";
     case BlobType::Remote:
         return os << "Remote";
-    case BlobType::I420:
-        return os << "I40";
-    case BlobType::NV12:
-        return os << "NV12";
     default:
         IE_THROW() << "Not supported blob type";
     }
