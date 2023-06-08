@@ -14,6 +14,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/openvino.hpp"
 
+IE_SUPPRESS_DEPRECATED_START
 #define CATCH_IE_EXCEPTION(StatusCode, ExceptionType) \
     catch (const InferenceEngine::ExceptionType&) {   \
         return ov_status_e::StatusCode;               \
@@ -225,3 +226,4 @@ struct mem_istream : virtual mem_stringbuf, std::istream {
 
 char* str_to_char_array(const std::string& str);
 ov::element::Type get_element_type(ov_element_type_e type);
+IE_SUPPRESS_DEPRECATED_END
