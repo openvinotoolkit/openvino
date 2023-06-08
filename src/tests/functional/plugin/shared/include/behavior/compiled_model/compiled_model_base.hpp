@@ -45,13 +45,6 @@ public:
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         APIBaseTest::SetUp();
         function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice();
-        // std::tie(pluginName, target_device) = GetParam();
-        // SKIP_IF_CURRENT_TEST_IS_DISABLED();
-        // ov::test::behavior::APIBaseTest::SetUp();
-        // pluginName = target_device + IE_BUILD_POSTFIX;
-        // if (pluginName == (std::string("openvino_template_plugin") + IE_BUILD_POSTFIX)) {
-        //     pluginName = ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(), pluginName);
-        // }
     }
 
     void TearDown() override {
@@ -239,15 +232,7 @@ TEST_P(OVCompiledModelBaseTest, canCompileModelwithBrace) {
         )V0G0N";
     ov::CompiledModel compiled_model;
     {
-        ov::Core tmp_core;
-        try {
-            std::string pluginName = "openvino_template_plugin";
-            pluginName += IE_BUILD_POSTFIX;
-            tmp_core.register_plugin(
-                ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(), pluginName),
-                "TEMPLATE");
-        } catch (...) {
-        }
+        ov::Core tmp_core = createCoreWithTemplate();
         compiled_model = tmp_core.compile_model(model, ov::Tensor(), target_device, configuration);
     }
     EXPECT_NO_THROW(compiled_model.get_property(ov::optimal_number_of_infer_requests));
