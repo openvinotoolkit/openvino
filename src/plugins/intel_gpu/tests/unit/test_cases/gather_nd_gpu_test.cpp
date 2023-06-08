@@ -881,15 +881,6 @@ TEST(gather_nd_gpu_fp16, dynamic_r5) {
     auto input1 = engine.allocate_memory(layout{ov::PartialShape(in1_shape), data_types::f16, format::bfzyx}); // data
     auto input2 = engine.allocate_memory(layout{ov::PartialShape(in2_shape), data_types::f16, format::bfzyx}); // Indexes
 
-    //auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 3, 3, 3, 2 } }); // data
-    //auto input2 = engine.allocate_memory({ data_types::f16, format::bfyx, { 3, 2, 3, 2 } }); // indices
-
-    //const int indices_rank = 5;
-    //const int batch_dims = 4;
-    //auto input0 = engine.allocate_memory({ data_types::f16, format::bfzyx, { 2, 3, 2, 2, 3 } }); // data
-    //auto input1 = engine.allocate_memory({ data_types::f16, format::bfzyx, { 2, 3, 1, 2, 3 } }); // indices
-    // expected output dim: v5{36}, v8{2,3,2,3}
-
     set_values(input1, {
         FLOAT16(11), FLOAT16(12),   FLOAT16(13), FLOAT16(14),   FLOAT16(15), FLOAT16(16),   FLOAT16(17), FLOAT16(18),   FLOAT16(19), FLOAT16(10),   FLOAT16(21), FLOAT16(18),
         FLOAT16(21), FLOAT16(22),   FLOAT16(23), FLOAT16(24),   FLOAT16(25), FLOAT16(26),   FLOAT16(27), FLOAT16(28),   FLOAT16(29), FLOAT16(20),   FLOAT16(27), FLOAT16(28),

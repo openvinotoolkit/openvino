@@ -59,10 +59,10 @@ attach_gather_nd_impl::attach_gather_nd_impl() {
     };
 
     implementation_map<gather_nd>::add(impl_types::ocl,
-                                    shape_types::static_shape,
-                                    typed_primitive_impl_ocl<gather_nd>::create<gather_nd_impl>,
-                                    types,
-                                    static_formats);
+                                       shape_types::static_shape,
+                                       typed_primitive_impl_ocl<gather_nd>::create<gather_nd_impl>,
+                                       types,
+                                       static_formats);
 
     auto dyn_formats = {
         format::bfyx,
@@ -71,10 +71,10 @@ attach_gather_nd_impl::attach_gather_nd_impl() {
     };
 
     implementation_map<gather_nd>::add(impl_types::ocl,
-                                    shape_types::dynamic_shape,
-                                    typed_primitive_impl_ocl<gather_nd>::create<gather_nd_impl>,
-                                    types,
-                                    dyn_formats);
+                                       shape_types::dynamic_shape,
+                                       typed_primitive_impl_ocl<gather_nd>::create<gather_nd_impl>,
+                                       types,
+                                       dyn_formats);
 }
 
 }  // namespace detail
