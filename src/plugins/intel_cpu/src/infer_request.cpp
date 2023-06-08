@@ -495,7 +495,7 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& _port, const
     // return empty shape but tensor.get_size() will return correct value, and tensor.reshape() will not update
     // BlockingDesc, so have to construct new tensor with original tensor's data.
     if (_port.get_partial_shape().is_static() && _tensor.get_size() > 0 && _tensor.get_shape().size() == 0 &&
-        _tensor.get_size() == _port.get_shape().size()) {
+        _tensor.get_size() == ov::shape_size(_port.get_shape())) {
             tensor = ov::Tensor(_tensor.get_element_type(), _port.get_shape(), _tensor.data());
     }
 
