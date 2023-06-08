@@ -132,7 +132,7 @@ public:
         auto params = std::unique_ptr<kernel_impl_params>(new kernel_impl_params(get_program(), get_program().get_stream_ptr(), get_primitive(),
                                                                                  get_unique_id(), in_layouts, out_layouts, get_fused_primitives()));
         params->memory_deps = get_const_memory_deps();
-
+        params->_can_be_optimized = this->optimized;
         auto deps = get_dependencies();
         for (size_t i = 0; i < deps.size(); i++) {
             if (!deps[i].first->is_constant()) {
