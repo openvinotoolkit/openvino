@@ -274,6 +274,14 @@ endfunction()
 # OpenVINO config
 #
 
+cmake_policy(PUSH)
+# we need CMP0057 to allow IN_LIST in if() command
+if(POLICY CMP0057)
+    cmake_policy(SET CMP0057 NEW)
+else()
+    message(FATAL_ERROR "OpenVINO requires CMake 3.3 or newer")
+endif()
+
 # need to store current PACKAGE_PREFIX_DIR, because it's overwritten by sub-package one
 set(_ov_package_prefix_dir "${PACKAGE_PREFIX_DIR}")
 
@@ -289,9 +297,9 @@ _ov_find_dependency(Threads)
 
 unset(_OV_ENABLE_OPENVINO_BUILD_SHARED)
 
-set (RUNTIME_AND_FRONTEND_TARGETS openvino::runtime openvino::runtime::c
-   openvino::frontend::onnx openvino::frontend::paddle openvino::frontend::tensorflow
-   openvino::frontend::pytorch openvino::frontend::tensorflow_lite)
+set(RUNTIME_AND_FRONTEND_TARGETS openvino::runtime openvino::runtime::c
+                                 openvino::frontend::onnx openvino::frontend::paddle
+                                 openvino::frontend::tensorflow)
 
 if(NOT TARGET openvino)
     set(_ov_as_external_package ON)
@@ -375,3 +383,5 @@ unset(${CMAKE_FIND_PACKAGE_NAME}_IR_FOUND)
 unset(${CMAKE_FIND_PACKAGE_NAME}_Paddle_FOUND)
 unset(${CMAKE_FIND_PACKAGE_NAME}_ONNX_FOUND)
 unset(${CMAKE_FIND_PACKAGE_NAME}_TensorFlow_FOUND)
+
+cmake_policy(POP)
