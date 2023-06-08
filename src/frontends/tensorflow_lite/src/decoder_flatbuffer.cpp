@@ -5,11 +5,11 @@
 #include "decoder_flatbuffer.h"
 
 #ifdef FLATBUFFERS_LOCALE_INDEPENDENT
-#undef FLATBUFFERS_LOCALE_INDEPENDENT
+#    undef FLATBUFFERS_LOCALE_INDEPENDENT
 #endif
 #define FLATBUFFERS_LOCALE_INDEPENDENT 0
-#include "schema_generated.h"
 #include "flatbuffers/flexbuffers.h"
+#include "schema_generated.h"
 #include "utils.hpp"
 
 namespace ov {
@@ -133,7 +133,6 @@ ov::Any get_value_as_ov_any(const flexbuffers::Reference& value) {
     }
     return {};
 }
-
 
 ov::Any DecoderFlatBuffer::get_attribute(const std::string& name) const {
     const auto opts = m_node_def->custom_options();
