@@ -765,7 +765,7 @@ std::map<std::string, ov::TensorVector> get_tensors(std::map<std::string, std::v
                                                  return a.first.size() < b.first.size();
                                              })
                                 ->first.size();
-        for (auto inputLog : logOutput[i]) {
+        for (const std::pair<const std::string, std::string>& inputLog : logOutput[i]) {
             slog::info << std::left << std::setw(maxNameWidth + 2) << inputLog.first << inputLog.second << slog::endl;
         }
     }
