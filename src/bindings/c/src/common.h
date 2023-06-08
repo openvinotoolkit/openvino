@@ -25,7 +25,6 @@
     }
 
 #define CATCH_OV_EXCEPTIONS                                   \
-    IE_SUPPRESS_DEPRECATED_START                              \
     CATCH_OV_EXCEPTION(NOT_IMPLEMENTED, NotImplemented)       \
     CATCH_OV_EXCEPTION(GENERAL_ERROR, Exception)              \
     CATCH_IE_EXCEPTION(GENERAL_ERROR, GeneralError)           \
@@ -44,7 +43,6 @@
     catch (...) {                                             \
         return ov_status_e::UNKNOW_EXCEPTION;                 \
     }                                                         \
-    IE_SUPPRESS_DEPRECATED_END
 
 #define GET_PROPERTY_FROM_ARGS_LIST                     \
     std::string property_key = va_arg(args_ptr, char*); \
