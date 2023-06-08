@@ -67,6 +67,11 @@ protected:
     void init_subgraph() override;
 };
 
+class MHAMulAdd : public MHA {
+    void init_subgraph() override;
+};
+
+
 } // namespace snippets
 } // namespace test
 } // namespace ov
