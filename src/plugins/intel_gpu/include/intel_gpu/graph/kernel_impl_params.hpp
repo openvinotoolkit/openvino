@@ -36,6 +36,7 @@ struct kernel_impl_params {
     stream::ptr strm;
     std::shared_ptr<const primitive> desc;
     size_t unique_id;
+    bool _can_be_optimized = false;
     std::vector<layout> input_layouts;
     std::vector<layout> output_layouts;
     std::vector<tensor> input_offsets;
@@ -112,6 +113,10 @@ struct kernel_impl_params {
             if (i.is_dynamic())
                 return true;
         return false;
+    }
+
+    bool can_be_optimized() const {
+        return _can_be_optimized;
     }
 
     template <class PType>
