@@ -18,7 +18,10 @@ TEST_F(ProxyTests, import_and_infer_on_device_without_split_on_default_device) {
         auto compiled_model = core.compile_model(model, "MOCK");
         compiled_model.export_model(model_stream);
     }
-    auto infer_request = core.import_model(model_stream, "MOCK", {}).create_infer_request();
+    auto compiled_model = core.import_model(model_stream, "MOCK", {});
+    EXPECT_EQ(1, compiled_model.inputs().size());
+    EXPECT_EQ(1, compiled_model.outputs().size());
+    auto infer_request = compiled_model.create_infer_request();
     auto input_tensor = create_and_fill_tensor(model->input().get_element_type(), model->input().get_shape());
     infer_request.set_input_tensor(input_tensor);
     infer_request.infer();
@@ -42,7 +45,10 @@ TEST_F(ProxyTests, import_and_infer_on_device_without_split) {
         auto compiled_model = core.compile_model(model, "MOCK.3");
         compiled_model.export_model(model_stream);
     }
-    auto infer_request = core.import_model(model_stream, "MOCK.3", {}).create_infer_request();
+    auto compiled_model = core.import_model(model_stream, "MOCK.3", {});
+    EXPECT_EQ(1, compiled_model.inputs().size());
+    EXPECT_EQ(1, compiled_model.outputs().size());
+    auto infer_request = compiled_model.create_infer_request();
     auto input_tensor = create_and_fill_tensor(model->input().get_element_type(), model->input().get_shape());
     infer_request.set_input_tensor(input_tensor);
     infer_request.infer();
@@ -61,7 +67,10 @@ TEST_F(ProxyTests, import_and_infer_on_support_with_hetero_plugin) {
         auto compiled_model = core.compile_model(model, "MOCK.1");
         compiled_model.export_model(model_stream);
     }
-    auto infer_request = core.import_model(model_stream, "MOCK.1", {}).create_infer_request();
+    auto compiled_model = core.import_model(model_stream, "MOCK.1", {});
+    EXPECT_EQ(1, compiled_model.inputs().size());
+    EXPECT_EQ(1, compiled_model.outputs().size());
+    auto infer_request = compiled_model.create_infer_request();
     auto input_tensor = create_and_fill_tensor(model->input().get_element_type(), model->input().get_shape());
     infer_request.set_input_tensor(input_tensor);
     infer_request.infer();

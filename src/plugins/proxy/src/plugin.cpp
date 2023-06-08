@@ -294,8 +294,12 @@ std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::compile_model(const std::
 
     remove_proxy_properties(device_config);
     std::shared_ptr<const ov::IPlugin> plugin = shared_from_this();
-    auto compiled_model =
-        std::make_shared<ov::proxy::CompiledModel>(get_core()->compile_model(model, dev_name, device_config), plugin);
+    auto plugin_comp_model = get_core()->compile_model(model, dev_name, device_config);
+
+    auto compiled_model = std::make_shared<ov::proxy::CompiledModel>(
+        ov::construct_model_with_inputs_outputs(plugin_comp_model->inputs(), plugin_comp_model->outputs()),
+        plugin_comp_model,
+        plugin);
     return std::dynamic_pointer_cast<ov::ICompiledModel>(compiled_model);
 }
 
@@ -321,10 +325,12 @@ std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::compile_model(const std::
 
     remove_proxy_properties(device_config);
     std::shared_ptr<const ov::IPlugin> plugin = shared_from_this();
-    auto compiled_model =
-        std::make_shared<ov::proxy::CompiledModel>(get_core()->compile_model(model, ctx, device_config),
-                                                   plugin,
-                                                   context);
+    auto plugin_comp_model = get_core()->compile_model(model, ctx, device_config);
+    auto compiled_model = std::make_shared<ov::proxy::CompiledModel>(
+        ov::construct_model_with_inputs_outputs(plugin_comp_model->inputs(), plugin_comp_model->outputs()),
+        plugin_comp_model,
+        plugin,
+        context);
     return std::dynamic_pointer_cast<ov::ICompiledModel>(compiled_model);
 }
 
@@ -357,8 +363,12 @@ std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::import_model(std::istream
     auto device_config = properties;
     remove_proxy_properties(device_config);
 
+    auto compiled_model =
+        get_core()->import_model(model, get_fallback_device(get_device_from_config(properties)), device_config);
+
     return std::make_shared<ov::proxy::CompiledModel>(
-        get_core()->import_model(model, get_fallback_device(get_device_from_config(properties)), device_config),
+        ov::construct_model_with_inputs_outputs(compiled_model->inputs(), compiled_model->outputs()),
+        compiled_model,
         shared_from_this());
 }
 
@@ -369,8 +379,11 @@ std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::import_model(std::istream
     const auto hidden_devices = get_hidden_devices();
     auto device_config = properties;
     remove_proxy_properties(device_config);
-    return std::make_shared<ov::proxy::CompiledModel>(get_core()->import_model(model, ctx, device_config),
-                                                      shared_from_this());
+    auto compiled_model = get_core()->import_model(model, ctx, device_config);
+    return std::make_shared<ov::proxy::CompiledModel>(
+        ov::construct_model_with_inputs_outputs(compiled_model->inputs(), compiled_model->outputs()),
+        compiled_model,
+        shared_from_this());
 }
 
 std::string ov::proxy::Plugin::get_primary_device(size_t idx) const {

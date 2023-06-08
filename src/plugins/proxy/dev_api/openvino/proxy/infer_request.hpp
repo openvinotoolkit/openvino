@@ -7,17 +7,18 @@
 
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
+#include "openvino/runtime/so_ptr.hpp"
 
 namespace ov {
 namespace proxy {
 
 class InferRequest : public ov::IAsyncInferRequest {
 private:
-    std::shared_ptr<ov::IAsyncInferRequest> m_infer_request;
+    ov::SoPtr<ov::IAsyncInferRequest> m_infer_request;
     std::shared_ptr<const ov::ICompiledModel> m_compiled_model;
 
 public:
-    InferRequest(std::shared_ptr<ov::IAsyncInferRequest>&& request,
+    InferRequest(ov::SoPtr<ov::IAsyncInferRequest>&& request,
                  const std::shared_ptr<const ov::ICompiledModel>& compiled_model);
     void start_async() override;
 
@@ -49,7 +50,7 @@ public:
 
     const std::vector<ov::Output<const ov::Node>>& get_outputs() const override;
 
-    const std::shared_ptr<ov::IAsyncInferRequest> get_hardware_request() const;
+    const ov::SoPtr<ov::IAsyncInferRequest> get_hardware_request() const;
 };
 
 }  // namespace proxy

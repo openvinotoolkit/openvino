@@ -13,26 +13,21 @@ namespace ov {
 namespace proxy {
 class CompiledModel : public ov::ICompiledModel {
 public:
-    CompiledModel(const ov::SoPtr<ov::ICompiledModel>& model, const std::shared_ptr<const ov::IPlugin>& plugin)
-        : ov::ICompiledModel(nullptr, plugin),
-          m_compiled_model(model) {
-        _parameters = model->_parameters;
-        _results = model->_results;
-        m_inputs = model->inputs();
-        m_outputs = model->outputs();
-    }
-    CompiledModel(const ov::SoPtr<ov::ICompiledModel>& model,
+    CompiledModel(const std::shared_ptr<const ov::Model>& model,
+                  const ov::SoPtr<ov::ICompiledModel>& compiled_model,
+                  const std::shared_ptr<const ov::IPlugin>& plugin)
+        : ov::ICompiledModel(model, plugin),
+          m_compiled_model(compiled_model) {}
+    CompiledModel(const std::shared_ptr<const ov::Model>& model,
+                  const ov::SoPtr<ov::ICompiledModel>& compiled_model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   const ov::RemoteContext& context)
-        : ov::ICompiledModel(nullptr, plugin, context),
-          m_compiled_model(model) {
-        _parameters = model->_parameters;
-        _results = model->_results;
-        m_inputs = model->inputs();
-        m_outputs = model->outputs();
-    }
+        : ov::ICompiledModel(model, plugin, context),
+          m_compiled_model(compiled_model) {}
     std::shared_ptr<ov::IAsyncInferRequest> create_infer_request() const override {
-        return std::make_shared<ov::proxy::InferRequest>(m_compiled_model->create_infer_request(), shared_from_this());
+        return std::make_shared<ov::proxy::InferRequest>(
+            ov::SoPtr<ov::IAsyncInferRequest>{m_compiled_model->create_infer_request(), m_compiled_model._so},
+            shared_from_this());
     }
 
     void export_model(std::ostream& model) const override {

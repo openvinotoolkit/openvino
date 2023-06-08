@@ -26,12 +26,6 @@ class ICompiledModelWrapper;
 
 namespace ov {
 
-namespace proxy {
-
-class CompiledModel;
-
-}
-
 class CoreImpl;
 class IPlugin;
 class IExecutableNetworkWrapper;
@@ -154,7 +148,6 @@ private:
     std::shared_ptr<ov::threading::ITaskExecutor> m_callback_executor = nullptr;  //!< Holds a callback executor
 
     friend ov::CoreImpl;
-    friend ov::proxy::CompiledModel;
     friend ov::IExecutableNetworkWrapper;
     friend InferenceEngine::ICompiledModelWrapper;
 
@@ -195,5 +188,17 @@ protected:
     void set_task_executor(const std::shared_ptr<ov::threading::ITaskExecutor> task_executor);
     void set_callback_executor(const std::shared_ptr<ov::threading::ITaskExecutor> callback_executor);
 };
+
+/**
+ * @brief Method is used to create by meta plugins model with information about inputs/outputs from low level plugins
+ *
+ * @param inputs vector of input ports
+ * @param outputs vector of output ports
+ *
+ * @return shared pointer to ov::Model
+ */
+OPENVINO_RUNTIME_API std::shared_ptr<ov::Model> construct_model_with_inputs_outputs(
+    const std::vector<ov::Output<const ov::Node>>& inputs,
+    const std::vector<ov::Output<const ov::Node>>& outputs);
 
 }  // namespace ov

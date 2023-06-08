@@ -5,9 +5,10 @@
 #include "openvino/proxy/infer_request.hpp"
 
 #include "openvino/runtime/remote_context.hpp"
+#include "openvino/runtime/so_ptr.hpp"
 #include "remote_context.hpp"
 
-ov::proxy::InferRequest::InferRequest(std::shared_ptr<ov::IAsyncInferRequest>&& request,
+ov::proxy::InferRequest::InferRequest(ov::SoPtr<ov::IAsyncInferRequest>&& request,
                                       const std::shared_ptr<const ov::ICompiledModel>& compiled_model)
     : ov::IAsyncInferRequest(nullptr, nullptr, nullptr),
       m_infer_request(std::move(request)),
@@ -87,6 +88,6 @@ const std::vector<ov::Output<const ov::Node>>& ov::proxy::InferRequest::get_outp
     return m_infer_request->get_outputs();
 }
 
-const std::shared_ptr<ov::IAsyncInferRequest> ov::proxy::InferRequest::get_hardware_request() const {
+const ov::SoPtr<ov::IAsyncInferRequest> ov::proxy::InferRequest::get_hardware_request() const {
     return m_infer_request;
 }
