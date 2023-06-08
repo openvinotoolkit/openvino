@@ -41,7 +41,7 @@ TEST_F(PriorBoxV8StaticShapeInferenceTest, default_ctor_no_args) {
     EXPECT_EQ(output_shapes.front(), StaticShape({2, 200}));
 
     // TODO should support v8::PriorBox
-    // unit_test::cus_usual_shape_infer(op.get(),
+    // unit_test::cpu_test_shape_infer(op.get(),
     //         input_shapes,
     //         output_shapes,
     //         {{0, std::make_shared<HostTensor>(element::i32, ov::Shape{2}, out_size)}});
@@ -65,7 +65,7 @@ TEST_F(PriorBoxV8StaticShapeInferenceTest, all_inputs_dynamic_rank) {
     EXPECT_EQ(output_shapes[0], (StaticShape{2, 200}));
 
     // TODO should support v8::PriorBox
-    // unit_test::cus_usual_shape_infer(op.get(),
+    // unit_test::cpu_test_shape_infer(op.get(),
     //         input_shapes,
     //         output_shapes,
     //         {{0, std::make_shared<HostTensor>(element::i32, ov::Shape{2}, output_size)}});
@@ -89,7 +89,7 @@ TEST_F(PriorBoxV8StaticShapeInferenceTest, all_inputs_static_rank) {
     EXPECT_EQ(output_shapes[0], (StaticShape{2, 200}));
 
     // TODO should support v8::PriorBox
-    // unit_test::cus_usual_shape_infer(op.get(),
+    // unit_test::cpu_test_shape_infer(op.get(),
     //                input_shapes,
     //                output_shapes,
     //                {{0, std::make_shared<HostTensor>(element::i32, ov::Shape{2}, output_size)}});
@@ -107,7 +107,7 @@ TEST_F(PriorBoxV8StaticShapeInferenceTest, out_size_constant) {
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes[0], (StaticShape{2, 480}));
     // TODO should support v8::PriorBox
-    // unit_test::cus_usual_shape_infer(op.get(), input_shapes, output_shapes);
+    // unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes);
 }
 
 TEST_F(PriorBoxV8StaticShapeInferenceTest, all_inputs_constants) {
@@ -123,7 +123,7 @@ TEST_F(PriorBoxV8StaticShapeInferenceTest, all_inputs_constants) {
     EXPECT_EQ(output_shapes[0], (StaticShape{2, 3840}));
 
     // TODO should support v8::PriorBox
-    // unit_test::cus_usual_shape_infer(op.get(), input_shapes, output_shapes);
+    // unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes);
 }
 
 TEST_F(PriorBoxV8StaticShapeInferenceTest, invalid_number_of_elements_in_out_size) {
@@ -195,7 +195,7 @@ TEST(StaticShapeInferenceTest, prior_box0) {
     shape_inference(op.get(), static_input_shapes, static_output_shapes, const_data);
 
     ASSERT_EQ(static_output_shapes[0], StaticShape({2, 16128}));
-    unit_test::cus_usual_shape_infer(op.get(), static_input_shapes, static_output_shapes, const_data);
+    unit_test::cpu_test_shape_infer(op.get(), static_input_shapes, static_output_shapes, const_data);
 }
 
 TEST(StaticShapeInferenceTest, prior_box1) {
@@ -220,7 +220,7 @@ TEST(StaticShapeInferenceTest, prior_box1) {
     shape_inference(op.get(), static_input_shapes, static_output_shapes, const_data);
 
     ASSERT_EQ(static_output_shapes[0], StaticShape({2, 20480}));
-    unit_test::cus_usual_shape_infer(op.get(), static_input_shapes, static_output_shapes, const_data);
+    unit_test::cpu_test_shape_infer(op.get(), static_input_shapes, static_output_shapes, const_data);
 }
 
 TEST(StaticShapeInferenceTest, prior_box2) {
@@ -246,7 +246,7 @@ TEST(StaticShapeInferenceTest, prior_box2) {
     shape_inference(op.get(), static_input_shapes, static_output_shapes, const_data);
 
     ASSERT_EQ(static_output_shapes[0], StaticShape({2, 32768}));
-    unit_test::cus_usual_shape_infer(op.get(), static_input_shapes, static_output_shapes, const_data);
+    unit_test::cpu_test_shape_infer(op.get(), static_input_shapes, static_output_shapes, const_data);
 }
 
 TEST(StaticShapeInferenceTest, prior_box3) {
@@ -272,7 +272,7 @@ TEST(StaticShapeInferenceTest, prior_box3) {
     shape_inference(op.get(), static_input_shapes, static_output_shapes, const_data);
 
     ASSERT_EQ(static_output_shapes[0], StaticShape({2, 16}));
-    unit_test::cus_usual_shape_infer(op.get(), static_input_shapes, static_output_shapes, const_data);
+    unit_test::cpu_test_shape_infer(op.get(), static_input_shapes, static_output_shapes, const_data);
 }
 
 TEST(StaticShapeInferenceTest, prior_box_v8_1) {
@@ -300,7 +300,7 @@ TEST(StaticShapeInferenceTest, prior_box_v8_1) {
     ASSERT_EQ(static_output_shapes[0], StaticShape({2, 20480}));
 
     // TODO should support v8::PriorBox
-    // unit_test::cus_usual_shape_infer(op.get(), static_input_shapes, static_output_shapes, const_data);
+    // unit_test::cpu_test_shape_infer(op.get(), static_input_shapes, static_output_shapes, const_data);
 }
 
 TEST(StaticShapeInferenceTest, prior_box_v8_2) {
@@ -328,5 +328,5 @@ TEST(StaticShapeInferenceTest, prior_box_v8_2) {
 
     ASSERT_EQ(static_output_shapes[0], StaticShape({2, 32768}));
     // should support v8::PriorBox
-    // unit_test::cus_usual_shape_infer(op.get(), static_input_shapes, static_output_shapes, const_data);
+    // unit_test::cpu_test_shape_infer(op.get(), static_input_shapes, static_output_shapes, const_data);
 }

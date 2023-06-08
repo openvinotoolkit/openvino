@@ -32,7 +32,7 @@ TYPED_TEST_P(StaticShapeInferenceTest_BEA, shape_inference_autob_numpy_equal_ran
 
     ASSERT_EQ(static_output_shapes[0], StaticShape({3, 1, 6, 5}));
 
-    unit_test::cus_usual_shape_infer(node.get(), static_input_shapes, static_output_shapes);
+    unit_test::cpu_test_shape_infer(node.get(), static_input_shapes, static_output_shapes);
 }
 
 TYPED_TEST_P(StaticShapeInferenceTest_BEA, shape_inference_autob_numpy_a_rank_higher) {
@@ -47,7 +47,7 @@ TYPED_TEST_P(StaticShapeInferenceTest_BEA, shape_inference_autob_numpy_a_rank_hi
 
     ASSERT_EQ(static_output_shapes[0], StaticShape({3, 4, 6, 5}));
 
-    unit_test::cus_usual_shape_infer(node.get(), static_input_shapes, static_output_shapes);
+    unit_test::cpu_test_shape_infer(node.get(), static_input_shapes, static_output_shapes);
 }
 
 TYPED_TEST_P(StaticShapeInferenceTest_BEA, shape_inference_autob_numpy_b_rank_higher) {
@@ -62,7 +62,7 @@ TYPED_TEST_P(StaticShapeInferenceTest_BEA, shape_inference_autob_numpy_b_rank_hi
 
     ASSERT_EQ(static_output_shapes[0], StaticShape({3, 4, 6, 5}));
 
-    unit_test::cus_usual_shape_infer(node.get(), static_input_shapes, static_output_shapes);
+    unit_test::cpu_test_shape_infer(node.get(), static_input_shapes, static_output_shapes);
 }
 
 TYPED_TEST_P(StaticShapeInferenceTest_BEA, shape_inference_autob_numpy_incompatible_shapes) {
@@ -76,7 +76,7 @@ TYPED_TEST_P(StaticShapeInferenceTest_BEA, shape_inference_autob_numpy_incompati
 
     ASSERT_THROW(shape_inference(node.get(), static_input_shapes, static_output_shapes), NodeValidationFailure);
 
-    OV_EXPECT_THROW(unit_test::cus_usual_shape_infer(node.get(), static_input_shapes, static_output_shapes),
+    OV_EXPECT_THROW(unit_test::cpu_test_shape_infer(node.get(), static_input_shapes, static_output_shapes),
                     InferenceEngine::GeneralError,
                     testing::HasSubstr("Eltwise shape infer input shapes dim index:"));
 }
@@ -93,7 +93,7 @@ TYPED_TEST_P(StaticShapeInferenceTest_BEA, shape_inference_aubtob_none) {
 
     ASSERT_EQ(static_output_shapes[0], StaticShape({3, 4, 6, 5}));
 
-    unit_test::cus_usual_shape_infer(node.get(), static_input_shapes, static_output_shapes);
+    unit_test::cpu_test_shape_infer(node.get(), static_input_shapes, static_output_shapes);
 }
 
 TYPED_TEST_P(StaticShapeInferenceTest_BEA, shape_inference_aubtob_none_incompatible_shapes) {
@@ -108,7 +108,7 @@ TYPED_TEST_P(StaticShapeInferenceTest_BEA, shape_inference_aubtob_none_incompati
     ASSERT_THROW(shape_inference(node.get(), static_input_shapes, static_output_shapes), NodeValidationFailure);
 
     //TODO , below test can't pass.
-    // OV_EXPECT_THROW(unit_test::cus_usual_shape_infer(node.get(), static_input_shapes, static_output_shapes),
+    // OV_EXPECT_THROW(unit_test::cpu_test_shape_infer(node.get(), static_input_shapes, static_output_shapes),
     //                 InferenceEngine::GeneralError,
     //                 testing::HasSubstr("Eltwise shape infer input shapes dim index:"));
 }

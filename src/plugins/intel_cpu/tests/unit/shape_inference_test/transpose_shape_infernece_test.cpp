@@ -74,7 +74,7 @@ TEST_P(StaticShapeInferenceTest, transpose_static) {
     shape_infer(transpose.get(), {input_shape, transpose_order}, output_shapes);
 
     ASSERT_EQ(output_shapes[op::v1::Transpose::ARG_T], exp_shape);
-    unit_test::cus_usual_shape_infer(transpose.get(), {input_shape, transpose_order}, output_shapes);
+    unit_test::cpu_test_shape_infer(transpose.get(), {input_shape, transpose_order}, output_shapes);
 }
 
 /** \brief Shape infer when transpose input got dynamic dimensions. */
@@ -87,7 +87,7 @@ TEST(StaticShapeInferenceTest, transpose_input_shape_dim_dynamic) {
 
     shape_infer(transpose.get(), {StaticShape{2, 6, 3}, order}, output_shapes);
     ASSERT_EQ(output_shapes[op::v1::Transpose::ARG_T], StaticShape({6, 3, 2}));
-    unit_test::cus_usual_shape_infer(transpose.get(), {StaticShape{2, 6, 3}, order}, output_shapes);
+    unit_test::cpu_test_shape_infer(transpose.get(), {StaticShape{2, 6, 3}, order}, output_shapes);
 }
 
 /** \brief Shape inference when transpose order stored in constant map. */
@@ -107,8 +107,8 @@ TEST(StaticShapeInferenceTest, transpose_order_in_constant_map) {
     shape_infer(transpose.get(), {StaticShape({2, 4, 6, 8}), StaticShape()}, output_shapes, const_map);
 
     ASSERT_EQ(output_shapes[op::v1::Transpose::ARG_T], StaticShape({4, 6, 2, 8}));
-    // implementaion do not support that order is paramter as the input of transpose
-    OV_EXPECT_THROW(unit_test::cus_usual_shape_infer(transpose.get(),
+    // implementaion does not support that order in the parameter as the input of transpose
+    OV_EXPECT_THROW(unit_test::cpu_test_shape_infer(transpose.get(),
                         {StaticShape({2, 4, 6, 8}), StaticShape()}, output_shapes, const_map),
                     InferenceEngine::NotImplemented,
                     HasSubstr("TODO: Support parameterized Order input for dynamic shapes."));

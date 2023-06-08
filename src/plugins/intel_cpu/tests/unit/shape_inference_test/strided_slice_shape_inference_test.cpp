@@ -18,7 +18,6 @@ protected:
     }
 };
 
-using StridedSliceCustomShapeInferenceTest = StridedSliceStaticShapeInferenceTest;
 
 TEST_F(StridedSliceStaticShapeInferenceTest, reverse_stride_begin_end_clip_to_dimension) {
     const auto mask = std::vector<int64_t>(4, 0);
@@ -108,6 +107,9 @@ TEST_F(StridedSliceStaticShapeInferenceTest, default_stride) {
     ASSERT_EQ(output_shapes.front(), StaticShape({1, 2, 2}));
 }
 
+
+using StridedSliceCustomShapeInferenceTest = StridedSliceStaticShapeInferenceTest;
+
 TEST_F(StridedSliceCustomShapeInferenceTest, reverse_stride_begin_end_clip_to_dimension) {
     const auto mask = std::vector<int64_t>(4, 0);
 
@@ -121,9 +123,9 @@ TEST_F(StridedSliceCustomShapeInferenceTest, reverse_stride_begin_end_clip_to_di
 
     std::vector<StaticShape> static_input_shapes = {StaticShape{3, 4, 5}, StaticShape{3}, StaticShape{3}, StaticShape{3}};
     std::vector<StaticShape> static_output_shapes = {StaticShape{3, 4, 5}};
-    // implementation depend on the some output information of op
+    // implementation depends on some output information of the op
     op->set_output_type(0, element::i32, {3, 4, 5});
-    unit_test::cus_usual_shape_infer(op.get(), static_input_shapes, static_output_shapes);
+    unit_test::cpu_test_shape_infer(op.get(), static_input_shapes, static_output_shapes);
 }
 
 TEST_F(StridedSliceCustomShapeInferenceTest, use_begin_end1) {
@@ -148,9 +150,9 @@ TEST_F(StridedSliceCustomShapeInferenceTest, use_begin_end1) {
 
     std::vector<StaticShape> static_input_shapes = {StaticShape{3, 2, 3}, {3}, {3}, {3}};
     std::vector<StaticShape> static_output_shapes = {StaticShape{1, 1, 3}};
-    // implementation depend on the some output information of op
+    // implementation depends on some output information of the op
     op->set_output_type(0, element::i32, {1, 1, 3});
-    unit_test::cus_usual_shape_infer(op.get(), static_input_shapes, static_output_shapes, const_data);
+    unit_test::cpu_test_shape_infer(op.get(), static_input_shapes, static_output_shapes, const_data);
 }
 
 TEST_F(StridedSliceCustomShapeInferenceTest, use_begin_end2) {
@@ -175,9 +177,9 @@ TEST_F(StridedSliceCustomShapeInferenceTest, use_begin_end2) {
 
     std::vector<StaticShape> static_input_shapes = {StaticShape{3, 2, 3}, {3}, {3}, {3}};
     std::vector<StaticShape> static_output_shapes = {StaticShape{1, 2, 3}};
-    // implementation depend on the some output information of op
+    // implementation depends on some output information of the op
     op->set_output_type(0, element::i32, {1, 2, 3});
-    unit_test::cus_usual_shape_infer(op.get(), static_input_shapes, static_output_shapes, const_data);
+    unit_test::cpu_test_shape_infer(op.get(), static_input_shapes, static_output_shapes, const_data);
 }
 
 TEST_F(StridedSliceCustomShapeInferenceTest, use_begin_end3) {
@@ -203,9 +205,9 @@ TEST_F(StridedSliceCustomShapeInferenceTest, use_begin_end3) {
 
     std::vector<StaticShape> static_input_shapes = {StaticShape{3, 2, 3}, {3}, {3}, {3}};
     std::vector<StaticShape> static_output_shapes = {StaticShape{1, 2, 2}};
-    // implementation depend on the some output information of op
+    // implementation depends on some output information of the op
     op->set_output_type(0, element::i32, {1, 2, 2});
-    unit_test::cus_usual_shape_infer(op.get(), static_input_shapes, static_output_shapes, const_data);
+    unit_test::cpu_test_shape_infer(op.get(), static_input_shapes, static_output_shapes, const_data);
 }
 
 TEST_F(StridedSliceCustomShapeInferenceTest, ignore_begin_end) {
@@ -232,9 +234,9 @@ TEST_F(StridedSliceCustomShapeInferenceTest, ignore_begin_end) {
 
     std::vector<StaticShape> static_input_shapes = {StaticShape{3, 2, 3}, {3}, {3}, {3}};
     std::vector<StaticShape> static_output_shapes = {StaticShape{2, 2, 3}};
-    // implementation depend on the some output information of op
+    // implementation depends on some output information of the op
     op->set_output_type(0, element::i32, {2, 2, 3});
-    unit_test::cus_usual_shape_infer(op.get(), static_input_shapes, static_output_shapes, const_data);
+    unit_test::cpu_test_shape_infer(op.get(), static_input_shapes, static_output_shapes, const_data);
 }
 
 TEST_F(StridedSliceCustomShapeInferenceTest, ignore_begin_end_stride_by_two_last_dim) {
@@ -261,9 +263,9 @@ TEST_F(StridedSliceCustomShapeInferenceTest, ignore_begin_end_stride_by_two_last
 
     std::vector<StaticShape> static_input_shapes = {StaticShape{3, 2, 3}, {3}, {3}, {3}};
     std::vector<StaticShape> static_output_shapes = {StaticShape{2, 1, 2}};
-    // implementation depend on the some output information of op
+    // implementation depends on some output information of the op
     op->set_output_type(0, element::i32, {2, 1, 2});
-    unit_test::cus_usual_shape_infer(op.get(), static_input_shapes, static_output_shapes, const_data);
+    unit_test::cpu_test_shape_infer(op.get(), static_input_shapes, static_output_shapes, const_data);
 }
 
 TEST_F(StridedSliceCustomShapeInferenceTest, use_reverse_stride_on_last_dimension) {
@@ -289,10 +291,10 @@ TEST_F(StridedSliceCustomShapeInferenceTest, use_reverse_stride_on_last_dimensio
 
     std::vector<StaticShape> static_input_shapes = {StaticShape{3, 2, 3}, {3}, {3}, {3}};
     std::vector<StaticShape> static_output_shapes = {StaticShape{1, 2, 3}};
-    // implementation depend on the some output information of op
+    // implementation depends on some output information of the op
     // op->set_output_type(0, element::i32, {1, 2, 3});
     // TODO ,there is some issue in implementation, this test case can't pass
-    // unit_test::cus_usual_shape_infer(op.get(), static_input_shapes, static_output_shapes, const_data);
+    // unit_test::cpu_test_shape_infer(op.get(), static_input_shapes, static_output_shapes, const_data);
 }
 
 TEST_F(StridedSliceCustomShapeInferenceTest, default_stride) {
@@ -306,9 +308,9 @@ TEST_F(StridedSliceCustomShapeInferenceTest, default_stride) {
 
     std::vector<StaticShape> static_input_shapes = {{3, 2, 3}, {3}, {3}};
     std::vector<StaticShape> static_output_shapes = {StaticShape{1, 2, 2}};
-    // implementation depend on the some output information of op
+    // implementation depends on some output information of the op
     // op->set_output_type(0, element::i32, {1, 2, 2});
     // TODO ,there is some issue in implementation, this test case can't pass
-    // unit_test::cus_usual_shape_infer(op.get(), static_input_shapes, static_output_shapes);
+    // unit_test::cpu_test_shape_infer(op.get(), static_input_shapes, static_output_shapes);
 }
 

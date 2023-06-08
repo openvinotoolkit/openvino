@@ -23,7 +23,7 @@ TEST(StaticShapeInferenceTest, ReshapeTest) {
     shape_inference(reshape.get(), static_input_shapes, static_output_shapes);
 
     ASSERT_EQ(static_output_shapes[0], StaticShape({3, 150}));
-    unit_test::cus_usual_shape_infer(reshape.get(), static_input_shapes, static_output_shapes);
+    unit_test::cpu_test_shape_infer(reshape.get(), static_input_shapes, static_output_shapes);
 }
 
 TEST(StaticShapeInferenceTest, ReshapeEmptyTest) {
@@ -38,7 +38,7 @@ TEST(StaticShapeInferenceTest, ReshapeEmptyTest) {
     shape_inference(reshape.get(), static_input_shapes, static_output_shapes);
 
     ASSERT_EQ(static_output_shapes[0], StaticShape({0, 4}));
-    unit_test::cus_usual_shape_infer(reshape.get(), static_input_shapes, static_output_shapes);
+    unit_test::cpu_test_shape_infer(reshape.get(), static_input_shapes, static_output_shapes);
 }
 
 using TestParams = std::tuple<ShapeVector,           // Input shapes
@@ -68,7 +68,7 @@ TEST_P(ReshapeStaticShapeInferenceTest, shape_inference_empty_const_map) {
     shape_inference(op.get(), input_shapes, output_shapes);
 
     ASSERT_EQ(output_shapes.front(), exp_shape);
-    unit_test::cus_usual_shape_infer(op.get(), input_shapes, output_shapes);
+    unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes);
 }
 
 TEST_P(ReshapeStaticShapeInferenceTest, shape_inference_with_const_map) {
@@ -82,7 +82,7 @@ TEST_P(ReshapeStaticShapeInferenceTest, shape_inference_with_const_map) {
     shape_inference(op.get(), input_shapes, output_shapes, constant_data);
 
     ASSERT_EQ(output_shapes.front(), exp_shape);
-    unit_test::cus_usual_shape_infer(op.get(), input_shapes, output_shapes, constant_data);
+    unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes, constant_data);
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -109,7 +109,7 @@ TEST_P(ReshapeCustomtaticShapeInferenceThrowExceptionTest, shape_inference_with_
     const auto axes_tensor = std::make_shared<ngraph::runtime::HostTensor>(axes_const);
     const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {{1, axes_tensor}};
 
-    OV_EXPECT_THROW(unit_test::cus_usual_shape_infer(op.get(), input_shapes, output_shapes, constant_data),
+    OV_EXPECT_THROW(unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes, constant_data),
                     InferenceEngine::Unexpected,
                     HasSubstr("[cpu]reshape: the shape of input data conflicts with the reshape pattern"));
 }
@@ -135,7 +135,7 @@ TEST(StaticShapeInferenceTest, ShapeOf5DTest) {
     shape_inference(shapeof.get(), static_input_shapes, static_output_shapes);
 
     ASSERT_EQ(static_output_shapes[0], StaticShape({5}));
-    unit_test::cus_usual_shape_infer(shapeof.get(), static_input_shapes, static_output_shapes);
+    unit_test::cpu_test_shape_infer(shapeof.get(), static_input_shapes, static_output_shapes);
 }
 
 TEST(StaticShapeInferenceTest, v3ShapeOf5DTest) {
@@ -149,7 +149,7 @@ TEST(StaticShapeInferenceTest, v3ShapeOf5DTest) {
     shape_inference(shapeof.get(), static_input_shapes, static_output_shapes);
 
     ASSERT_EQ(static_output_shapes[0], StaticShape({5}));
-    unit_test::cus_usual_shape_infer(shapeof.get(), static_input_shapes, static_output_shapes);
+    unit_test::cpu_test_shape_infer(shapeof.get(), static_input_shapes, static_output_shapes);
 }
 
 
@@ -165,5 +165,5 @@ TEST(StaticShapeInferenceTest, ShapeOf0DTest) {
 
     ASSERT_EQ(static_output_shapes[0], StaticShape({}));
     // TODO , can't pass implementation don't support 0D shape input
-    // unit_test::cus_usual_shape_infer(shapeof.get(), static_input_shapes, static_output_shapes);
+    // unit_test::cpu_test_shape_infer(shapeof.get(), static_input_shapes, static_output_shapes);
 }

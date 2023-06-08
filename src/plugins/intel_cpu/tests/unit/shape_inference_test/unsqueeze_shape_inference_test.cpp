@@ -66,7 +66,7 @@ TEST_F(UnsqueezeCustomStaticShapeInferenceAssertTest, wrong_pattern) {
     const auto axes_tensor = std::make_shared<ngraph::runtime::HostTensor>(element::i64, ov::Shape{1}, axes_data);
     const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> constant_data = {{1, axes_tensor}};
 
-    OV_EXPECT_THROW(unit_test::cus_usual_shape_infer(op.get(), input_shapes, output_shapes, constant_data),
+    OV_EXPECT_THROW(unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes, constant_data),
                     InferenceEngine::Unexpected,
                     HasSubstr("[cpu]unsqueeze: the shape of input data conflicts with the unsqueeze pattern"));
 }
@@ -135,7 +135,7 @@ TEST_P(UnsqueezeStaticShapeInferenceTest, shape_inference_empty_const_map) {
     shape_infer(op.get(), input_shapes, output_shapes);
 
     ASSERT_EQ(output_shapes.front(), exp_shape);
-    unit_test::cus_usual_shape_infer(op.get(), input_shapes, output_shapes);
+    unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes);
 }
 
 TEST_P(UnsqueezeStaticShapeInferenceTest, shape_inference_with_const_map) {
@@ -149,5 +149,5 @@ TEST_P(UnsqueezeStaticShapeInferenceTest, shape_inference_with_const_map) {
     shape_infer(op.get(), input_shapes, output_shapes, constant_data);
 
     ASSERT_EQ(output_shapes.front(), exp_shape);
-    unit_test::cus_usual_shape_infer(op.get(), input_shapes, output_shapes, constant_data);
+    unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes, constant_data);
 }

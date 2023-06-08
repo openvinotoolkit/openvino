@@ -23,10 +23,12 @@
 // #include "utils/custom_shape_inference/subgraph.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "custom_shape_infer.hpp"
+#include "utils/shape_inference/shape_inference_status.hpp"
 #include <gtest/gtest.h>
 namespace ov {
 namespace intel_cpu {
 namespace unit_test {
+namespace {
 #define INTEL_CPU_CUSTOM_SHAPE_INFER(__prim, __type) \
     registerNodeIfRequired(intel_cpu, __prim, __type, __prim)
 
@@ -40,7 +42,9 @@ public:
     ShapeOfShapeInferTestFactory(std::shared_ptr<ov::Node> op) : ShapeOfShapeInferFactory() {}
 };
 
-CustomShapeInferFF::CustomShapeInferFF():Factory("CpuCustomShapeInferTestFactory") {
+class CustomShapeInferFF : public openvino::cc::Factory<Type, ShapeInferFactory*(const std::shared_ptr<ov::Node>& op)> {
+public:
+    CustomShapeInferFF():Factory("CpuCustomShapeInferTestFactory") {
     // INTEL_CPU_CUSTOM_SHAPE_INFER(Generic, Type::Generic);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(CumSum, Type::CumSum);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(Convolution, Type::Convolution);
@@ -138,19 +142,22 @@ CustomShapeInferFF::CustomShapeInferFF():Factory("CpuCustomShapeInferTestFactory
     // INTEL_CPU_CUSTOM_SHAPE_INFER(node::SnippetShapeInferFactory, Type::Subgraph);
 #endif
 #undef INTEL_CPU_CUSTOM_SHAPE_INFER
-}
+    }
 
-
-ShapeInferFactory* CustomShapeInferFF::create(const std::shared_ptr<ov::Node>& op) {
+    ShapeInferFactory* create(const std::shared_ptr<ov::Node>& op) {
         ShapeInferFactory* newShapeInferFactory = nullptr;
         std::unique_ptr<ShapeInferFactory> ol(createNodeIfRegistered(intel_cpu, TypeFromName(op->get_type_name()), op));
         if (ol != nullptr) {
              newShapeInferFactory = ol.release();
         }
         return newShapeInferFactory;
-}
+    }
+};
 
-static void compare_result(std::vector<StaticShape> ref, std::vector<VectorDims> cus) {
+} //namespace
+
+
+static void compare_result(std::vector<StaticShape>& ref, std::vector<VectorDims>& cus) {
     ASSERT_TRUE(ref.size() == cus.size());
     for (size_t i = 0; i < ref.size(); i++) {
         ASSERT_TRUE(ref[i].size() == cus[i].size());
@@ -160,7 +167,7 @@ static void compare_result(std::vector<StaticShape> ref, std::vector<VectorDims>
     }
 }
 
-void cus_usual_shape_infer(ov::Node* op,
+void cpu_test_shape_infer(ov::Node* op,
                      const std::vector<StaticShape>& input_shapes,
                      std::vector<StaticShape>& output_shapes,
                      const std::map<size_t, HostTensorPtr>& constant_data) {
@@ -174,7 +181,7 @@ void cus_usual_shape_infer(ov::Node* op,
     tmpInputShapes.reserve(input_shapes.size());
     for (size_t port = 0; port < input_shapes.size(); ++port) {
         VectorDims dims;
-        for (size_t i =0; i < input_shapes[port].size(); ++i) {
+        for (size_t i = 0; i < input_shapes[port].size(); ++i) {
             dims.emplace_back(input_shapes[port][i].get_length());
         }
         tmpInputShapes.emplace_back(dims);
@@ -212,6 +219,7 @@ void cus_usual_shape_infer(ov::Node* op,
     }
     auto result = cusShapeInfer->infer(cusInputShapes, cusInputValues);
     compare_result(output_shapes, result.dims);
+    ASSERT_TRUE(result.status == ov::intel_cpu::ShapeInferStatus::success);
 }
 } // namespace unit_test
 } // namespace intel_cpu

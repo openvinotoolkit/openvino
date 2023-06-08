@@ -24,7 +24,7 @@ TEST(StaticShapeInferenceTest, OneHotTestConstantInput) {
                              static_output_shapes = {StaticShape{}};
     shape_inference(ont_hot.get(), static_input_shapes, static_output_shapes);
     ASSERT_EQ(static_output_shapes[0], (StaticShape{3, 2}));
-    unit_test::cus_usual_shape_infer(ont_hot.get(), static_input_shapes, static_output_shapes);
+    unit_test::cpu_test_shape_infer(ont_hot.get(), static_input_shapes, static_output_shapes);
 }
 
 TEST(StaticShapeInferenceTest, OneHotTestConstantMap) {
@@ -51,7 +51,7 @@ TEST(StaticShapeInferenceTest, OneHotTestConstantMap) {
                              static_output_shapes = {StaticShape{}};
     shape_inference(ont_hot.get(), static_input_shapes, static_output_shapes, constant_data);
     EXPECT_EQ(static_output_shapes[0], (StaticShape{3, 2}));
-    unit_test::cus_usual_shape_infer(ont_hot.get(), static_input_shapes, static_output_shapes, constant_data);
+    unit_test::cpu_test_shape_infer(ont_hot.get(), static_input_shapes, static_output_shapes, constant_data);
 }
 
 TEST(StaticShapeInferenceTest, OneHotTestConstantMapDefaultCtor) {
@@ -77,9 +77,9 @@ TEST(StaticShapeInferenceTest, OneHotTestConstantMapDefaultCtor) {
 
     EXPECT_EQ(static_output_shapes[0], (StaticShape{3, 2}));
 
-    // implementation depend on the some output information of op
+    // implementation depends on some output information of the op
     ont_hot->set_output_type(0, element::i32, {3, 2});
-    unit_test::cus_usual_shape_infer(ont_hot.get(), static_input_shapes, static_output_shapes, constant_data);
+    unit_test::cpu_test_shape_infer(ont_hot.get(), static_input_shapes, static_output_shapes, constant_data);
 }
 
 TEST(StaticShapeInferenceTest, OneHotTestConstantMapNegativeDepth) {
@@ -110,7 +110,7 @@ TEST(StaticShapeInferenceTest, OneHotTestConstantMapNegativeDepth) {
                     HasSubstr("can't be negative"));
 
     // TODO , implementation should throw exception
-    // ASSERT_THROW(unit_test::cus_usual_shape_infer(ont_hot.get(), static_input_shapes, static_output_shapes, constant_data),
+    // ASSERT_THROW(unit_test::cpu_test_shape_infer(ont_hot.get(), static_input_shapes, static_output_shapes, constant_data),
     //            InferenceEngine::GeneralError);
 }
 

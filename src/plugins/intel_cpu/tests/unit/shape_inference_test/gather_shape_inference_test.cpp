@@ -67,7 +67,7 @@ TYPED_TEST_P(StaticShapeInferenceGatherTest, axis_const) {
             << "Failed for axis: " << this->axis_val
             << ", input shapes: " << util::vector_to_string(this->input_shapes);
 
-        unit_test::cus_usual_shape_infer(op.get(), this->input_shapes, this->output_shapes);
+        unit_test::cpu_test_shape_infer(op.get(), this->input_shapes, this->output_shapes);
     }
 }
 
@@ -83,7 +83,7 @@ TYPED_TEST_P(StaticShapeInferenceGatherTest, axis_in_const_map) {
         ASSERT_EQ(this->output_shapes.front(), this->exp_shape)
             << "Failed for axis: " << this->axis_val
             << ", input shapes: " << util::vector_to_string(this->input_shapes);
-        unit_test::cus_usual_shape_infer(op.get(), this->input_shapes, this->output_shapes, {{2, axis_tensor}});
+        unit_test::cpu_test_shape_infer(op.get(), this->input_shapes, this->output_shapes, {{2, axis_tensor}});
     }
 }
 

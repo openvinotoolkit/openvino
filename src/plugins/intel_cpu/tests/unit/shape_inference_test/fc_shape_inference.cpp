@@ -15,7 +15,7 @@ TEST(StaticShapeInferenceTest, FC_InputSize_2) {
     auto op = std::make_shared<ov::intel_cpu::FullyConnectedNode>(activate, weight, ngraph::Rank(5), element::f32);
     std::vector<StaticShape> static_input_shapes = {StaticShape{720, 640}, {5, 6}};
     std::vector<StaticShape> static_output_shapes = {StaticShape{1, 1, 1, 720, 5}};
-    unit_test::cus_usual_shape_infer(op.get(), static_input_shapes, static_output_shapes);
+    unit_test::cpu_test_shape_infer(op.get(), static_input_shapes, static_output_shapes);
 }
 
 TEST(StaticShapeInferenceTest, FC_InputSize_3) {
@@ -25,6 +25,6 @@ TEST(StaticShapeInferenceTest, FC_InputSize_3) {
     auto op = std::make_shared<ov::intel_cpu::FullyConnectedNode>(activate, weight, channel, ngraph::Rank(5), element::f32);
     std::vector<StaticShape> static_input_shapes = {StaticShape{720, 640}, {5, 6}, {5}};
     std::vector<StaticShape> static_output_shapes = {StaticShape{1, 1, 1, 720, 5}};
-    unit_test::cus_usual_shape_infer(op.get(), static_input_shapes, static_output_shapes);
+    unit_test::cpu_test_shape_infer(op.get(), static_input_shapes, static_output_shapes);
 }
 

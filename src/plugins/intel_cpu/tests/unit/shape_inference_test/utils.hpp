@@ -62,7 +62,7 @@ struct TestTensor {
 // so each element of inputs can be:
 //      {1,2,3,4}                   tensor of shape [4] and values (1,2,3,4)
 //      2                           tensor of scalar with value 2
-//      ov::Shape{2,2}                  tensor of shape [2,2] and value unknown
+//      Shape{2,2}                  tensor of shape [2,2] and value unknown
 //      {Shape{2,2}, {1,2,3,4}}     tensor of shape [2,2] and values (1,2,3,4)
 inline void check_static_shape(ov::Node* op,
                                std::initializer_list<TestTensor> inputs,

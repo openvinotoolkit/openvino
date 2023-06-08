@@ -3,12 +3,29 @@
 //
 
 #include "reshape.hpp"
+#include <vector>
 #include "utils.hpp"
 #include "ie_ngraph_utils.hpp"
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
+
+namespace {
+template <typename T>
+std::ostream& operator << (std::ostream& os, const std::vector<T>& dims) {
+    os << "[";
+    for (size_t i = 0; i < dims.size(); i++) {
+        os << dims[i];
+        if (i < dims.size() - 1) {
+            os << ",";
+        }
+    }
+    os << "]";
+    return os;
+}
+} // namespace
+
 Result ReshapeShapeInfer::infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
                                 const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
     static constexpr size_t RESHAPE_SRC = 0, RESHAPE_PATTERN = 1;
@@ -54,7 +71,8 @@ Result ReshapeShapeInfer::infer(const std::vector<std::reference_wrapper<const V
         }
     }
     if (minusOneCount > 1  || inputProduct != outputProduct) {
-        IE_THROW(Unexpected) << "[cpu]reshape: the shape of input data conflicts with the reshape pattern";
+        IE_THROW(Unexpected) << "[cpu]reshape: the shape of input data " << inputShape
+            << " conflicts with the reshape pattern " << outPattern;
     }
     return {{std::move(outputShape)}, ShapeInferStatus::success};
 }
@@ -71,7 +89,7 @@ Result SqueezeShapeInfer::infer(const std::vector<std::reference_wrapper<const V
         const auto memPtr = data_dependency.at(SQUEEZE_PATTERN);
         const auto data = memPtr->GetPtr();
         const auto& dims = memPtr->getStaticDims();
-        const auto outputPatternSize = std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<Dim>());
+        const size_t outputPatternSize = std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<Dim>());
         std::vector<int64_t> outPattern = ov::get_raw_data_as<int64_t>(
                                               InferenceEngine::details::convertPrecision(memPtr->getDesc().getPrecision()),
                                               data,
@@ -99,7 +117,8 @@ Result SqueezeShapeInfer::infer(const std::vector<std::reference_wrapper<const V
             }
         }
         if (existError) {
-            IE_THROW(Unexpected) << "[cpu]squeeze: the shape of input data conflict with the squeeze pattern";
+            IE_THROW(Unexpected) << "[cpu]squeeze: the shape of input data " << inputShape
+                << " conflicts with the squeeze pattern " << outPattern;
         }
     } else {
         for (size_t i = 0; i < inputShapeSize; i++) {
@@ -119,7 +138,7 @@ Result UnsqueezeShapeInfer::infer(const std::vector<std::reference_wrapper<const
     const auto memPtr = data_dependency.at(UNSQUEEZE_PATTERN);
     const auto data = memPtr->GetPtr();
     const auto& dims = memPtr->getStaticDims();
-    auto outputPatternSize = std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<Dim>());
+    size_t outputPatternSize = std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<Dim>());
     std::vector<int64_t> outPattern = ov::get_raw_data_as<int64_t>(
                                           InferenceEngine::details::convertPrecision(memPtr->getDesc().getPrecision()),
                                           data,
@@ -155,7 +174,8 @@ Result UnsqueezeShapeInfer::infer(const std::vector<std::reference_wrapper<const
         }
     }
     if (existError) {
-        IE_THROW(Unexpected) << "[cpu]unsqueeze: the shape of input data conflicts with the unsqueeze pattern";
+        IE_THROW(Unexpected) << "[cpu]unsqueeze: the shape of input data " << inputShape
+           << " conflicts with the unsqueeze pattern " << outPattern;
     }
     return {{std::move(outputShape)}, ShapeInferStatus::success};
 }

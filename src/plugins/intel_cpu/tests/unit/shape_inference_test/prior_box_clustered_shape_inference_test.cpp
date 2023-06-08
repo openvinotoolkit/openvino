@@ -38,7 +38,7 @@ TEST_F(PriorBoxClusteredV0StaticShapeInferenceTest, default_ctor_no_args) {
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({2, 80}));
-    unit_test::cus_usual_shape_infer(op.get(),
+    unit_test::cpu_test_shape_infer(op.get(),
                     input_shapes,
                     output_shapes,
                     {{0, std::make_shared<HostTensor>(element::i32, ov::Shape{2}, out_size)}});
@@ -60,7 +60,7 @@ TEST_F(PriorBoxClusteredV0StaticShapeInferenceTest, all_inputs_dynamic_rank) {
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes[0], (StaticShape{2, 4 * 2 * 5 * 2}));
-    unit_test::cus_usual_shape_infer(op.get(),
+    unit_test::cpu_test_shape_infer(op.get(),
                     input_shapes,
                     output_shapes,
                     {{0, std::make_shared<HostTensor>(element::i32, ov::Shape{2}, output_size)}});
@@ -82,7 +82,7 @@ TEST_F(PriorBoxClusteredV0StaticShapeInferenceTest, all_inputs_static_rank) {
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes[0], (StaticShape{2, 4 * 5 * 2 * 2}));
-    unit_test::cus_usual_shape_infer(op.get(),
+    unit_test::cpu_test_shape_infer(op.get(),
                     input_shapes,
                     output_shapes,
                     {{0, std::make_shared<HostTensor>(element::i32, ov::Shape{2}, output_size)}});
@@ -99,7 +99,7 @@ TEST_F(PriorBoxClusteredV0StaticShapeInferenceTest, out_size_constant) {
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes[0], (StaticShape{2, 4 * 4 * 6 * 2}));
-    unit_test::cus_usual_shape_infer(op.get(), input_shapes, output_shapes);
+    unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes);
 }
 
 TEST_F(PriorBoxClusteredV0StaticShapeInferenceTest, all_inputs_constants) {
@@ -113,7 +113,7 @@ TEST_F(PriorBoxClusteredV0StaticShapeInferenceTest, all_inputs_constants) {
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes[0], (StaticShape{2, 4 * 12 * 16 * 2}));
-    unit_test::cus_usual_shape_infer(op.get(), input_shapes, output_shapes);
+    unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes);
 }
 
 TEST_F(PriorBoxClusteredV0StaticShapeInferenceTest, invalid_number_of_elements_in_out_size) {
@@ -132,7 +132,7 @@ TEST_F(PriorBoxClusteredV0StaticShapeInferenceTest, invalid_number_of_elements_i
                     NodeValidationFailure,
                     HasSubstr("Output size must have two elements"));
     // TODO , implementation should throw execption
-    // ASSERT_THROW(unit_test::cus_usual_shape_infer(op.get(),
+    // ASSERT_THROW(unit_test::cpu_test_shape_infer(op.get(),
     //                                 input_shapes,
     //                                 output_shapes,
     //                                 {{0, std::make_shared<HostTensor>(element::i64, ov::Shape{3}, output_size)}}),
@@ -156,7 +156,7 @@ TEST_F(PriorBoxClusteredV0StaticShapeInferenceTest, invalid_input_ranks) {
                     HasSubstr("output size input rank 2 must match image shape input rank 1"));
 
     // TODO , implementation should throw execption
-    // ASSERT_THROW(unit_test::cus_usual_shape_infer(op.get(),
+    // ASSERT_THROW(unit_test::cpu_test_shape_infer(op.get(),
     //                                input_shapes,
     //                                output_shapes,
     //                                {{0, std::make_shared<HostTensor>(element::i64, ov::Shape{3}, output_size)}}),
@@ -188,7 +188,7 @@ TEST(StaticShapeInferenceTest, prior_box_clustered0) {
     shape_inference(op.get(), static_input_shapes, static_output_shapes, const_data);
 
     ASSERT_EQ(static_output_shapes[0], StaticShape({2, 6840}));
-    unit_test::cus_usual_shape_infer(op.get(), static_input_shapes, static_output_shapes, const_data);
+    unit_test::cpu_test_shape_infer(op.get(), static_input_shapes, static_output_shapes, const_data);
 }
 
 TEST(StaticShapeInferenceTest, prior_box_clustered1) {
@@ -212,6 +212,6 @@ TEST(StaticShapeInferenceTest, prior_box_clustered1) {
     shape_inference(op.get(), static_input_shapes, static_output_shapes, const_data);
 
     ASSERT_EQ(static_output_shapes[0], StaticShape({2, 4332}));
-    unit_test::cus_usual_shape_infer(op.get(), static_input_shapes, static_output_shapes, const_data);
+    unit_test::cpu_test_shape_infer(op.get(), static_input_shapes, static_output_shapes, const_data);
 }
 
