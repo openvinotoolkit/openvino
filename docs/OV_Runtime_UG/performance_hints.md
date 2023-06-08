@@ -9,15 +9,14 @@ Previously, a certain level of automatic configuration was the result of the *de
 The hints, in contrast, respect the actual model, so the parameters for optimal throughput are calculated for each model individually (based on its compute versus memory bandwidth requirements and capabilities of the device).
 
 ## Performance Hints: Latency and Throughput
-As discussed in the [Optimization Guide](../optimization_guide/dldt_deployment_optimization_guide.md) there are a few different metrics associated with inference speed.
-Throughput and latency are some of the most widely used metrics that measure the overall performance of an application.
 
-Therefore, in order to ease the configuration of the device, OpenVINO offers two dedicated hints, namely `ov::hint::PerformanceMode::THROUGHPUT` and `ov::hint::PerformanceMode::LATENCY`.
-A special `ov::hint::PerformanceMode::UNDEFINED` hint acts the same as specifying no hint.
+As discussed in the [Optimization Guide](../optimization_guide/dldt_deployment_optimization_guide.md) there are a few different metrics associated with inference speed. Throughput and latency are some of the most widely used metrics that measure the overall performance of an application.
+
+Therefore, in order to ease the configuration of the device, OpenVINO offers two dedicated hints, namely `ov::hint::PerformanceMode::THROUGHPUT` and `ov::hint::PerformanceMode::LATENCY`. A special `ov::hint::PerformanceMode::UNDEFINED` hint acts the same as specifying no hint.
 
 For more information on conducting performance measurements with the `benchmark_app`, refer to the last section in this document.
 
-Keep in mind that a typical model may take significantly more time to load with the `ov::hint::PerformanceMode::THROUGHPUT` and consume much more memory, compared to the `ov::hint::PerformanceMode::LATENCY`.
+Keep in mind that a typical model may take significantly more time to load with the `ov::hint::PerformanceMode::THROUGHPUT` and consume much more memory, compared to the `ov::hint::PerformanceMode::LATENCY`. Also, the `THROUGHPUT` and `LATENCY` hints only improve performance in an asynchronous inference pipeline. For information on asynchronous inference, see the [Prefer Async API](#prefer-async-api) section of this document.
 
 ## Performance Hints: How It Works
 Internally, every device "translates" the value of the hint to the actual performance settings.
@@ -94,14 +93,18 @@ The hints are used on the presumption that the application queries `ov::optimal_
 
 @endsphinxdirective
 
-While an application is free to create more requests if needed (for example to support asynchronous inputs population) **it is very important to at least run the `ov::optimal_number_of_infer_requests` of the inference requests in parallel**. It is recommended for efficiency, or device utilization, reasons. 
+While an application is free to create more requests if needed (for example to support asynchronous inputs population) **it is very important to at least run the** `ov::optimal_number_of_infer_requests` **of the inference requests in parallel**. It is recommended for efficiency, or device utilization, reasons. 
 
 Keep in mind that `ov::hint::PerformanceMode::LATENCY` does not necessarily imply using single inference request. For example, multi-socket CPUs can deliver as many requests at the same minimal latency as the number of NUMA nodes in the system.
 To make your application fully scalable, make sure to query the `ov::optimal_number_of_infer_requests` directly.
 
-## Prefer Async API
-The API of the inference requests offers Sync and Async execution. The `ov::InferRequest::infer()` is inherently synchronous and simple to operate (as it serializes the execution flow in the current application thread). The Async "splits" the `infer()` into `ov::InferRequest::start_async()` and `ov::InferRequest::wait()` (or callbacks). For more information, refer to the [API examples](../OV_Runtime_UG/ov_infer_request.md).
- Although the Synchronous API can be somewhat easier to start with, it is recommended to use the Asynchronous (callbacks-based) API in the production code. It is the most general and scalable way to implement the flow control for any possible number of requests (and thus both latency and throughput scenarios).
+## <a name="prefer-async-api"></a>Prefer Async API  
+
+The API of the inference requests offers Sync and Async execution. The `ov::InferRequest::infer()` is inherently synchronous and simple to operate (as it serializes the execution flow in the current application thread). The Async "splits" the `infer()` into `ov::InferRequest::start_async()` and `ov::InferRequest::wait()` (or callbacks). For more information on synchronous and asynchronous modes, refer to the [OpenVINO Inference Request documentation](../OV_Runtime_UG/ov_infer_request.md).
+
+Although the synchronous API can be easier to start with, it is recommended to use the asynchronous (callbacks-based) API in production code. It is the most general and scalable way to implement the flow control for any possible number of requests. The `THROUGHPUT` and `LATENCY` performance hints automatically configure the Asynchronous pipeline to use the optimal number of processing streams and inference requests. 
+
+> **NOTE**: **Important:** Performance Hints only work when asynchronous execution mode is used. They do not affect the performance of a synchronous pipeline.
  
 ## Combining the Hints and Individual Low-Level Settings
 While sacrificing the portability to some extent, it is possible to combine the hints with individual device-specific settings. 
@@ -127,8 +130,8 @@ For example, use `ov::hint::PerformanceMode::THROUGHPUT` to prepare a general co
 The `benchmark_app`, that exists in both  [C++](../../samples/cpp/benchmark_app/README.md) and [Python](../../tools/benchmark_tool/README.md) versions, is the best way to evaluate the functionality of the performance hints for a particular device:
  - benchmark_app **-hint tput** -d 'device' -m 'path to your model'
  - benchmark_app **-hint latency** -d 'device' -m 'path to your model'
--  Disabling the hints to emulate the pre-hints era (highly recommended before trying the individual low-level settings, such as the number of streams as below, threads, etc):
-- - benchmark_app **-hint none -nstreams 1**  -d 'device' -m 'path to your model'
+- Disabling the hints to emulate the pre-hints era (highly recommended before trying the individual low-level settings, such as the number of streams as below, threads, etc):
+- benchmark_app **-hint none -nstreams 1**  -d 'device' -m 'path to your model'
  
 
 ### Additional Resources
