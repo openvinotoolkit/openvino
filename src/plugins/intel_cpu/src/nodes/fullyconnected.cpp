@@ -316,7 +316,7 @@ void FullyConnected::prepareParams() {
         M = std::accumulate(dims0.begin(), dims0.end() - 1, 1, std::multiplies<int64_t>());
         if (packedBPtr == nullptr) {
             auto packedBsize = ov_sgemm_pack_get_size("B", M, N, K);
-            packedBPtr.reset(new ngraph::runtime::AlignedBuffer(packedBsize));
+            packedBPtr.reset(new ngraph::runtime::AlignedBuffer(packedBsize * sizeof(float)));
             float* weightPtr = reinterpret_cast<float*>(getParentEdgeAt(1)->getMemoryPtr()->GetPtr());
             size_t lda = M;
             size_t ldb = K;
