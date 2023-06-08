@@ -24,7 +24,7 @@ Configuration::Configuration(ov::AnyMap& config, const Configuration& defaultCfg
         if (HETERO_CONFIG_KEY(DUMP_GRAPH_DOT) == key) {
             dump_graph = value.as<bool>();
             config.erase(it++);
-        } else if ("TARGET_FALLBACK" == key || ov::device::priorities.name() == key) {
+        } else if ("TARGET_FALLBACK" == key || ov::device::priorities == key) {
             device_priorities = value.as<std::string>();
             config.erase(it++);
         } else if (ov::exclusive_async_requests == key) {
@@ -47,6 +47,15 @@ ov::Any Configuration::Get(const std::string& name) const {
     } else {
         OPENVINO_THROW("Property was not found: ", name);
     }
+}
+
+std::vector<ov::PropertyName> Configuration::GetSupported() const {
+    return {
+        HETERO_CONFIG_KEY(DUMP_GRAPH_DOT),
+        "TARGET_FALLBACK",
+        ov::device::priorities,
+        ov::exclusive_async_requests
+    };
 }
 
 ov::AnyMap Configuration::GetHeteroConfig() const {

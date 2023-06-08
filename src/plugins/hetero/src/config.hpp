@@ -22,6 +22,7 @@ struct Configuration {
     explicit Configuration(ov::AnyMap& config, const Configuration& defaultCfg = {}, bool throwOnUnsupported = false);
 
     ov::Any Get(const std::string& name) const;
+    std::vector<ov::PropertyName> GetSupported() const;
 
     ov::AnyMap GetHeteroConfig() const;
     ov::AnyMap GetDeviceConfig() const;
