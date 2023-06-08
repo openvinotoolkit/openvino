@@ -32,6 +32,7 @@ static cldnn::program::ptr gen_program(Program& p, const std::shared_ptr<ngraph:
     auto config = p.get_config();
     config.set_property(ov::intel_gpu::enable_dynamic_batch(false));
     config.set_property(ov::intel_gpu::max_dynamic_batch(1));
+    // TODO: Set dynamic input when If has dynamic input params
     Program body_program(body_network, p.get_engine(), config);
     return body_program.GetCompiledProgram();
 }

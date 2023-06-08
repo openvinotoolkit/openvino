@@ -119,20 +119,15 @@ std::vector<layout> condition_inst::calc_output_layouts(condition_node const& no
         OPENVINO_ASSERT(impl_param.inner_progs.empty() == false, "The count of inner programs should not be zero");
         auto layout_true  = get_output_layout_from_inner_program(impl_param, 0);
         auto layout_false = get_output_layout_from_inner_program(impl_param, 1);
-        if (layout_true == layout_false) {
-            return {layout_true};
-        } else {
-            OPENVINO_ASSERT(layout_true.get_rank() == layout_false.get_rank(), "dynamic rank is not supported");
-            return {layout{ov::PartialShape::dynamic(layout_true.get_rank()), layout_true.data_type, layout_true.format }};
-        }
+        OPENVINO_ASSERT(layout_true.get_rank() == layout_false.get_rank(), "dynamic rank is not supported");
+        return {layout{ov::PartialShape::dynamic(layout_true.get_rank()), layout_true.data_type, layout_true.format }};
     } else {
         auto layout_true = get_output_layout_from_inner_network(impl_param, 0);
         auto layout_false = get_output_layout_from_inner_network(impl_param, 1);
-        std::cout << "* layout_true  : " << layout_true << std::endl;
-        std::cout << "* layout_false : " << layout_false << std::endl;
+
         auto& memory_deps = impl_param.memory_deps;
         OPENVINO_ASSERT(memory_deps.count(0) > 0, "");
-        auto mem_ptr = impl_param.memory_deps.at(0);
+        auto mem_ptr = memory_deps.at(0);
         auto compare_data = get_compare_data(mem_ptr, impl_param.get_stream());
         if (compare_data) {
             return {layout_true};
