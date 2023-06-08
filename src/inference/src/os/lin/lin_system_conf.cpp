@@ -514,6 +514,7 @@ void get_cpu_mapping_from_cores(const int _processors,
             _cpu_mapping_table[cur_id][CPU_MAP_CORE_TYPE] =
                 hyper_thread ? (t == 0 ? HYPER_THREADING_PROC : MAIN_CORE_PROC) : MAIN_CORE_PROC;
             _cpu_mapping_table[cur_id][CPU_MAP_GROUP_ID] = i;
+            _cpu_mapping_table[cur_id][CPU_MAP_NODE_ID] = socket_id;
             _cpu_mapping_table[cur_id][CPU_MAP_SOCKET_ID] = socket_id;
 
             _proc_type_table[socket_id][_cpu_mapping_table[cur_id][CPU_MAP_CORE_TYPE]]++;
@@ -529,6 +530,7 @@ void get_cpu_mapping_from_cores(const int _processors,
             _cpu_mapping_table[cur_id][CPU_MAP_CORE_ID] = big_phys_cores + j;
             _cpu_mapping_table[cur_id][CPU_MAP_CORE_TYPE] = EFFICIENT_CORE_PROC;
             _cpu_mapping_table[cur_id][CPU_MAP_GROUP_ID] = big_phys_cores + j / 4;
+            _cpu_mapping_table[cur_id][CPU_MAP_NODE_ID] = 0;
             _cpu_mapping_table[cur_id][CPU_MAP_SOCKET_ID] = 0;
 
             _proc_type_table[0][_cpu_mapping_table[cur_id][CPU_MAP_CORE_TYPE]]++;
