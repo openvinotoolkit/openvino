@@ -52,6 +52,26 @@ public:
     }
 };
 
+class LinuxGetCpuMapFromCoresTests : public CommonTestUtils::TestsCommon,
+                                     public testing::WithParamInterface<std::tuple<LinuxCpuMapTestCase>> {
+public:
+    void SetUp() override {
+        const auto& test_data = std::get<0>(GetParam());
+
+        std::vector<std::vector<int>> test_proc_type_table;
+        std::vector<std::vector<int>> test_cpu_mapping_table;
+
+        ov::get_cpu_mapping_from_cores(test_data._processors,
+                                       test_data._sockets,
+                                       test_data._cores,
+                                       test_proc_type_table,
+                                       test_cpu_mapping_table);
+
+        ASSERT_EQ(test_data._proc_type_table, test_proc_type_table);
+        ASSERT_EQ(test_data._cpu_mapping_table, test_cpu_mapping_table);
+    }
+};
+
 LinuxCpuMapTestCase cache_2sockets_104cores_hyperthreading = {
     208,
     2,
@@ -586,6 +606,17 @@ INSTANTIATE_TEST_SUITE_P(CPUMap,
                                          cache_1sockets_10cores_hyperthreading,
                                          cache_1sockets_8cores_hyperthreading,
                                          cache_1sockets_6cores_hyperthreading));
+
+TEST_P(LinuxGetCpuMapFromCoresTests, LinuxCpuMap) {}
+
+INSTANTIATE_TEST_SUITE_P(CPUMapFromCore,
+                         LinuxGetCpuMapFromCoresTests,
+                         testing::Values(cache_2sockets_104cores_hyperthreading,
+                                         cache_2sockets_48cores,
+                                         cache_2sockets_20cores_hyperthreading,
+                                         cache_1sockets_14cores_hyperthreading,
+                                         cache_1sockets_10cores_hyperthreading,
+                                         cache_1sockets_8cores_hyperthreading));
 
 class LinuxCpuMapFreqParserTests : public CommonTestUtils::TestsCommon,
                                    public testing::WithParamInterface<std::tuple<LinuxCpuMapTestCase>> {

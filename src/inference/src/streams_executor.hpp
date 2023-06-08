@@ -83,6 +83,21 @@ void update_valid_processor_linux(const std::vector<int> phy_core_list,
                                   std::vector<std::vector<int>>& _proc_type_table,
                                   std::vector<std::vector<int>>& _cpu_mapping_table);
 
+/**
+ * @brief      Get cpu_mapping_table from the number of processors, cores and numa nodes
+ * @param[in]  _processors total number for processors in system.
+ * @param[in]  _numa_nodes total number for numa nodes in system
+ * @param[in]  _cores total number for physical CPU cores in system
+ * @param[out] _proc_type_table summary table of number of processors per type
+ * @param[out] _cpu_mapping_table CPU mapping table for each processor
+ * @return
+ */
+void get_cpu_mapping_from_cores(const int _processors,
+                                const int _numa_nodes,
+                                const int _cores,
+                                std::vector<std::vector<int>>& _proc_type_table,
+                                std::vector<std::vector<int>>& _cpu_mapping_table);
+
 #endif
 
 #if defined(_WIN32)
