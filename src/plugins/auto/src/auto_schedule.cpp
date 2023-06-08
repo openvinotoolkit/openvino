@@ -450,8 +450,15 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
                 // limit the compilation threads for the actual selected device
                 const int num_logic_cores = InferenceEngine::getNumberOfLogicalCPUCores();
                 auto max_num_threads = (num_logic_cores / 2) == 0 ? 1 : (num_logic_cores / 2);
-                _loadContext[ACTUALDEVICE].deviceInfo.config[ov::compilation_num_threads.name()] =
-                    std::to_string(max_num_threads);
+                auto actualDeviceSupportedPro =
+                    _autoSContext->_core->get_property(_loadContext[ACTUALDEVICE].deviceInfo.deviceName,
+                                                       ov::supported_properties);
+                auto iterCompileNumThreads = std::find(actualDeviceSupportedPro.begin(),
+                                                       actualDeviceSupportedPro.end(),
+                                                       ov::compilation_num_threads.name());
+                if (iterCompileNumThreads != actualDeviceSupportedPro.end())
+                    _loadContext[ACTUALDEVICE].deviceInfo.config[ov::compilation_num_threads.name()] =
+                        std::to_string(max_num_threads);
                 _loadContext[CPU].workName = "CPU_HELP";
                 LOG_INFO_TAG("will load CPU for accelerator");
             } else {
