@@ -86,7 +86,7 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
 
     template<typename ImplType>
     static std::unique_ptr<primitive_impl> create(const typed_program_node<PType>& arg, const kernel_impl_params& impl_param) {
-        if (arg.can_be_optimized()) {
+        if (impl_param.can_be_optimized()) {
             return make_unique<ImplType>(kernel_selector::kernel_data{});
         }
         auto kernel_params = ImplType::get_kernel_params(ImplType::static_canonicalize_shapes(impl_param));

@@ -150,7 +150,7 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
         // TODO: Below condition should be moved to program_node::supports_padding.
         // This however will need updating the algorithm as it may make cascade adjustment impossible in some cases.
         // It however would make normal optimizations possible in others, so this is a trade-off to be investigated.
-        if (idx != concat_node.get_dependencies().size() - 1) {
+        if ((!concat_node.is_dynamic() || is_runtime) && (idx != concat_node.get_dependencies().size() - 1)) {
             if ((pred_l.format == format::b_fs_yx_fsv16 || pred_l.format == format::b_fs_zyx_fsv16) &&
                 (pred_l.feature() % 16 != 0 || concat_axis != 1))
                 return false;
@@ -177,8 +177,8 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
         }
         // If sibling is using onednn impl and batch > 1, the onednn impl cannot process the implicit concat'ed buffer.
         // Onednn impls can process implicit concat'ed buffer only through buffer pointer manipulation.
-        if ((is_runtime && concat_params.get_output_layout().batch() > 1) ||
-            (!concat_node.is_dynamic() && concat_params.get_output_layout().batch() > 1)) {
+        if ((!concat_node.is_dynamic() || is_runtime) && ((concat_params.get_output_layout().batch() > 1) ||
+            (!concat_node.is_dynamic() && concat_params.get_output_layout().batch() > 1))) {
             for (auto& sib : pred.first->get_users()) {
                 if (sib->get_preferred_impl_type() == impl_types::onednn) {
                     return false;

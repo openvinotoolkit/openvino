@@ -547,7 +547,7 @@ void primitive_inst::do_runtime_in_place_concat() {
     }
 
     if (!concat_in_place_optimization::match(concat_inst->get_node(), *concat_inst->_impl_params, pred_params, true)) {
-        concat_inst->_can_be_optimized = false;
+        concat_inst->set_can_be_optimized(false);
         GPU_DEBUG_TRACE_DETAIL << "[In place concat] " << concat_inst->id() << " cannot be optimized " << std::endl;
         return;
     }
@@ -564,8 +564,8 @@ void primitive_inst::do_runtime_in_place_concat() {
                                << dep.first->_impl_params->output_layouts[0].to_string() << std::endl;
         ++i;
     }
-    concat_inst->_impl_params->output_layouts[0] = concat_layout;
-    concat_inst->_can_be_optimized = true;
+    concat_inst->_impl_params->output_layouts[0] = concat_layout; // TODO : Once this primitive_inst::can_be_optimized, consolidate it to impl_params->optimized
+    concat_inst->set_can_be_optimized(true);
     GPU_DEBUG_TRACE_DETAIL << "[In place concat] " << concat_inst->id() << ": can_be_optimized " << std::endl;
 }
 
