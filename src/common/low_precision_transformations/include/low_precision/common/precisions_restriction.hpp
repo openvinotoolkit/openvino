@@ -9,10 +9,8 @@
 #include <unordered_set>
 #include <vector>
 
-#include <ngraph/node.hpp>
-
 #include <low_precision/lpt_visibility.hpp>
-#include <ngraph/pass/graph_rewrite.hpp>
+#include "openvino/core/node.hpp"
 
 namespace ngraph {
 namespace pass {
