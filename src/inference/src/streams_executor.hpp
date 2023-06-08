@@ -99,6 +99,7 @@ void parse_freq_info_linux(const std::vector<std::vector<std::string>> system_in
  * @param[in]  base_ptr buffer object pointer of Windows system infomation
  * @param[in]  len buffer object length of Windows system infomation
  * @param[out] _processors total number for processors in system.
+ * @param[out] _nodes total number for nodes in system
  * @param[out] _sockets total number for sockets in system
  * @param[out] _cores total number for physical CPU cores in system
  * @param[out] _proc_type_table summary table of number of processors per type
@@ -108,6 +109,7 @@ void parse_freq_info_linux(const std::vector<std::vector<std::string>> system_in
 void parse_processor_info_win(const char* base_ptr,
                               const unsigned long len,
                               int& _processors,
+                              int& _nodes,
                               int& _sockets,
                               int& _cores,
                               std::vector<std::vector<int>>& _proc_type_table,

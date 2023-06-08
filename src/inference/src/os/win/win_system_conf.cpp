@@ -34,6 +34,7 @@ CPU::CPU() {
                              len,
                              _processors,
                              _numa_nodes,
+                             _sockets,
                              _cores,
                              _proc_type_table,
                              _cpu_mapping_table);
@@ -42,6 +43,7 @@ CPU::CPU() {
 void parse_processor_info_win(const char* base_ptr,
                               const unsigned long len,
                               int& _processors,
+                              int& _nodes,
                               int& _sockets,
                               int& _cores,
                               std::vector<std::vector<int>>& _proc_type_table,
@@ -107,6 +109,7 @@ void parse_processor_info_win(const char* base_ptr,
             if (2 == list_len) {
                 proc_info = cpu_init_line;
                 proc_info[CPU_MAP_PROCESSOR_ID] = list[0] + base_proc;
+                proc_info[CPU_MAP_NODE_ID] = _sockets;
                 proc_info[CPU_MAP_SOCKET_ID] = _sockets;
                 proc_info[CPU_MAP_CORE_ID] = _cores;
                 proc_info[CPU_MAP_CORE_TYPE] = HYPER_THREADING_PROC;
@@ -115,6 +118,7 @@ void parse_processor_info_win(const char* base_ptr,
 
                 proc_info = cpu_init_line;
                 proc_info[CPU_MAP_PROCESSOR_ID] = list[1] + base_proc;
+                proc_info[CPU_MAP_NODE_ID] = _sockets;
                 proc_info[CPU_MAP_SOCKET_ID] = _sockets;
                 proc_info[CPU_MAP_CORE_ID] = _cores;
                 proc_info[CPU_MAP_CORE_TYPE] = MAIN_CORE_PROC;
@@ -128,6 +132,7 @@ void parse_processor_info_win(const char* base_ptr,
             } else {
                 proc_info = cpu_init_line;
                 proc_info[CPU_MAP_PROCESSOR_ID] = list[0] + base_proc;
+                proc_info[CPU_MAP_NODE_ID] = _sockets;
                 proc_info[CPU_MAP_SOCKET_ID] = _sockets;
                 proc_info[CPU_MAP_CORE_ID] = _cores;
                 if ((_processors > group_start) && (_processors <= group_end)) {
@@ -190,6 +195,7 @@ void parse_processor_info_win(const char* base_ptr,
             }
         }
     }
+    _nodes = _sockets;
 }
 
 int get_number_of_cpu_cores(bool bigCoresOnly) {
