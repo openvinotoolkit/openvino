@@ -11,6 +11,7 @@
 #include "reshape_inst.h"
 #include "convert_color_inst.h"
 #include "one_hot_inst.h"
+#include "shape_of_inst.h"
 #include "permute_inst.h"
 #include "depth_to_space_inst.h"
 #include "concatenation_inst.h"
@@ -658,6 +659,24 @@ void remove_redundant_reorders::run(program& p) {
             p.add_optimized_primitive_info(reshape_node.id());
             p.extract_and_remove(reshape_node);
         }
+    }
+
+    // Remove reorders before shape_of primitive
+    itr = p.get_processing_order().begin();
+    while (itr != p.get_processing_order().end()) {
+        auto& node = *itr++;
+        if (!node->is_type<reorder>() || node->has_fused_primitives() ||
+            !node->is_in_data_flow() || node->get_users().size() != 1 ||
+            !node->get_users().front()->is_type<shape_of>())
+            continue;
+
+        auto& dep = node->get_dependency(0);
+
+        LOG_NODE_REMOVAL(node->id());
+        p.replace_all_usages(*node, dep);
+        p.add_optimized_primitive_info(node->id());
+        p.remove_all_connections(*node);
+        p.remove_if_dangling(*node);
     }
 
     for (auto n : p.get_processing_order()) {
