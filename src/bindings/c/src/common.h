@@ -15,11 +15,9 @@
 #include "openvino/openvino.hpp"
 
 #define CATCH_IE_EXCEPTION(StatusCode, ExceptionType) \
-    IE_SUPPRESS_DEPRECATED_START                      \
     catch (const InferenceEngine::ExceptionType&) {   \
         return ov_status_e::StatusCode;               \
     }                                                 \
-    IE_SUPPRESS_DEPRECATED_END
 
 #define CATCH_OV_EXCEPTION(StatusCode, ExceptionType) \
     catch (const ov::ExceptionType&) {                \
