@@ -59,6 +59,17 @@ struct primitive_type_base : primitive_type {
         }
     }
 
+    std::set<impl_types> get_available_impls(const cldnn::program_node& node) const override {
+        OPENVINO_ASSERT(node.type() == this, "[GPU] primitive_type_base::get_available_impls: primitive type mismatch");
+        auto kernel_impl_params = *node.get_kernel_impl_params();
+
+        OPENVINO_ASSERT(!kernel_impl_params.input_layouts.empty(), "[GPU] Can't get available implementations for node with empty input layouts");
+        auto in_dt = kernel_impl_params.get_input_layout().data_type;
+        auto target_shape_type = get_shape_type(kernel_impl_params);
+
+        return implementation_map<PType>::query_available_impls(in_dt, target_shape_type);
+    }
+
     bool does_an_implementation_exist(const cldnn::program_node& node) const override {
         return does_an_implementation_exist(node, *node.get_kernel_impl_params());
     }
