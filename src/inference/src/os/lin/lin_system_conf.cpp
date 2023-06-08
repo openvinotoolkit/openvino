@@ -197,6 +197,7 @@ CPU::CPU() {
         std::vector<int> processors;
         std::map<int, int> sockets;
         int socketId = 0;
+        _cores = 0;
         while (!cpuinfo.eof()) {
             std::string line;
             std::getline(cpuinfo, line);
@@ -216,19 +217,30 @@ CPU::CPU() {
             }
         }
         _processors = processors.size();
-        _numa_nodes = sockets.size();
+        _numa_nodes = sockets.size() == 0 ? 1 : sockets.size();
         for (auto&& socket : sockets) {
             _cores += socket.second;
         }
         if (_cores == 0) {
             _cores = _processors;
         }
-    } else {
-        if (check_valid_cpu() < 0) {
-            OPENVINO_THROW("CPU affinity check failed. No CPU is eligible to run inference.");
-        };
+        if (_processors > 0 && _numa_nodes > 0 && _cores > 0) {
+            get_cpu_mapping_from_cores(_processors, _numa_nodes, _cores, _proc_type_table, _cpu_mapping_table);
+        } else {
+            OPENVINO_THROW("Wrong CPU information. processors: ",
+                           _processors,
+                           ", numa_nodes: ",
+                           _numa_nodes,
+                           ", cores: ",
+                           _cores);
+        }
     }
+
     std::vector<std::vector<std::string>>().swap(system_info_table);
+
+    if (check_valid_cpu() < 0) {
+        OPENVINO_THROW("CPU affinity check failed. No CPU is eligible to run inference.");
+    };
 }
 
 void parse_cache_info_linux(const std::vector<std::vector<std::string>> system_info_table,
@@ -373,6 +385,62 @@ void parse_cache_info_linux(const std::vector<std::vector<std::string>> system_i
         }
     }
 };
+
+void get_cpu_mapping_from_cores(const int _processors,
+                                const int _numa_nodes,
+                                const int _cores,
+                                std::vector<std::vector<int>>& _proc_type_table,
+                                std::vector<std::vector<int>>& _cpu_mapping_table) {
+    const auto hyper_thread = _processors > _cores ? true : false;
+    const auto num_big_cores = hyper_thread ? (_processors - _cores) * 2 : _cores;
+    int big_phys_cores = hyper_thread ? num_big_cores / 2 : num_big_cores;
+    const auto num_small_cores_phys = _processors - num_big_cores;
+    const auto socket_offset = big_phys_cores / _numa_nodes;
+    const auto threads_per_core = hyper_thread ? 2 : 1;
+    const auto step = num_small_cores_phys > 0 ? 2 : 1;
+    std::vector<int> pro_all_table;
+
+    _cpu_mapping_table.resize(_processors, std::vector<int>(CPU_MAP_TABLE_SIZE, -1));
+    _proc_type_table.assign(_numa_nodes, std::vector<int>(PROC_TYPE_TABLE_SIZE, 0));
+    pro_all_table.resize(PROC_TYPE_TABLE_SIZE, 0);
+
+    for (int t = 0; t < threads_per_core; t++) {
+        int start = t == 0 ? 0 : (num_small_cores_phys > 0 ? 1 : big_phys_cores);
+        for (int i = 0; i < big_phys_cores; i++) {
+            int socket_id = _numa_nodes > 1 ? i / socket_offset : 0;
+            int cur_id = start + i * step;
+            _cpu_mapping_table[cur_id][CPU_MAP_PROCESSOR_ID] = cur_id;
+            _cpu_mapping_table[cur_id][CPU_MAP_CORE_ID] = i;
+            _cpu_mapping_table[cur_id][CPU_MAP_CORE_TYPE] =
+                hyper_thread ? (t == 0 ? HYPER_THREADING_PROC : MAIN_CORE_PROC) : MAIN_CORE_PROC;
+            _cpu_mapping_table[cur_id][CPU_MAP_GROUP_ID] = i;
+            _cpu_mapping_table[cur_id][CPU_MAP_SOCKET_ID] = socket_id;
+
+            _proc_type_table[socket_id][_cpu_mapping_table[cur_id][CPU_MAP_CORE_TYPE]]++;
+            _proc_type_table[socket_id][ALL_PROC]++;
+            pro_all_table[_cpu_mapping_table[cur_id][CPU_MAP_CORE_TYPE]]++;
+            pro_all_table[ALL_PROC]++;
+        }
+    }
+    if (num_small_cores_phys > 0) {
+        for (int j = 0; j < num_small_cores_phys; j++) {
+            int cur_id = num_big_cores + j;
+            _cpu_mapping_table[cur_id][CPU_MAP_PROCESSOR_ID] = cur_id;
+            _cpu_mapping_table[cur_id][CPU_MAP_CORE_ID] = big_phys_cores + j;
+            _cpu_mapping_table[cur_id][CPU_MAP_CORE_TYPE] = EFFICIENT_CORE_PROC;
+            _cpu_mapping_table[cur_id][CPU_MAP_GROUP_ID] = big_phys_cores + j / 4;
+            _cpu_mapping_table[cur_id][CPU_MAP_SOCKET_ID] = 0;
+
+            _proc_type_table[0][_cpu_mapping_table[cur_id][CPU_MAP_CORE_TYPE]]++;
+            _proc_type_table[0][ALL_PROC]++;
+            pro_all_table[_cpu_mapping_table[cur_id][CPU_MAP_CORE_TYPE]]++;
+            pro_all_table[ALL_PROC]++;
+        }
+    }
+    if (_numa_nodes > 1) {
+        _proc_type_table.insert(_proc_type_table.begin(), pro_all_table);
+    }
+}
 
 void parse_freq_info_linux(const std::vector<std::vector<std::string>> system_info_table,
                            int& _processors,
