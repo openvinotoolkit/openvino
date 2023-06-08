@@ -51,7 +51,7 @@ Running Deployment Manager in Interactive Mode
 
       .. code-block:: bat
 
-         cd <INSTALL_DIR>\deployment_tools\tools\deployment_manager
+         cd <INSTALL_DIR>\tools\deployment_manager
          .\deployment_manager.py
 
    .. tab:: macOS
