@@ -22,7 +22,7 @@ The operation is applied per batch, per group of channels. This means that the e
 
 * *num_groups*
 
-  * **Description**: Specifies the number of groups ``G`` that the channel dimesion will be divided into.
+  * **Description**: Specifies the number of groups ``G`` that the channel dimension will be divided into.
   * **Range of values**: between ``1`` and the number of channels ``C`` in the input tensor
   * **Type**: ``int``
   * **Required**: *yes*

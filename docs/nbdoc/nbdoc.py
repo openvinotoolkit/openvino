@@ -100,7 +100,7 @@ class NbProcessor:
         }
 
     def fetch_binder_list(self, file_format: str = 'txt') -> list:
-        """Funtion that fetches list of notebooks with binder buttons
+        """Function that fetches list of notebooks with binder buttons
 
         :param file_format: Format of file containing list of notebooks with button. Defaults to 'txt'
         :type file_format: str
