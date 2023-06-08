@@ -151,20 +151,14 @@ ov::Any ov::hetero::Plugin::get_property(const std::string& name, const ov::AnyM
 
     const auto& default_ro_properties = []() {
         std::vector<ov::PropertyName> ro_properties{ov::supported_properties,
+                                                    ov::caching_properties,
                                                     ov::device::full_name,
-                                                    ov::device::capabilities,
-                                                    ov::caching_properties};
-                                                    //ov::available_devices,
-                                                    //ov::device::architecture,
-                                                    //ov::range_for_async_infer_requests
+                                                    ov::device::capabilities
+                                                    };
         return ro_properties;
     };
     const auto& default_rw_properties = []() {
         std::vector<ov::PropertyName> rw_properties{ov::device::priorities};
-                                                    //ov::device::id,
-                                                    //ov::enable_profiling,
-                                                    //ov::hint::performance_mode,
-                                                    //ov::exclusive_async_requests,
         return rw_properties;
     };
     const auto& to_string_vector = [](const std::vector<ov::PropertyName>& properties) {
@@ -181,17 +175,8 @@ ov::Any ov::hetero::Plugin::get_property(const std::string& name, const ov::AnyM
         add_ro_properties(METRIC_KEY(SUPPORTED_CONFIG_KEYS), metrics);
         add_ro_properties(METRIC_KEY(IMPORT_EXPORT_SUPPORT), metrics);
         return to_string_vector(metrics);
-        // IE_SET_METRIC_RETURN(SUPPORTED_METRICS,
-        //                     // TODO: check list
-        //                      std::vector<std::string>{METRIC_KEY(SUPPORTED_METRICS),
-        //                                               ov::device::full_name.name(),
-        //                                               METRIC_KEY(SUPPORTED_CONFIG_KEYS),
-        //                                               METRIC_KEY(IMPORT_EXPORT_SUPPORT),
-        //                                               ov::caching_properties.name(),
-        //                                               ov::device::capabilities.name()});
     } else if (METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
-        return to_string_vector(default_rw_properties());
-        // IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, getSupportedConfigKeys());
+        return to_string_vector(m_cfg.GetSupported());
     } else if (ov::supported_properties == name) {
         auto ro_properties = default_ro_properties();
         auto rw_properties = default_rw_properties();
@@ -206,14 +191,8 @@ ov::Any ov::hetero::Plugin::get_property(const std::string& name, const ov::AnyM
     } else if (METRIC_KEY(IMPORT_EXPORT_SUPPORT) == name) {
         return true;
     } else if (ov::caching_properties == name) {
-        // TODO vurusovs: RECHECK WITH ov::hetero::caching_device_properties
         return decltype(ov::caching_properties)::value_type{ov::hetero::caching_device_properties.name()};
     } else if (ov::hetero::caching_device_properties == name) {
-        // std::string targetFallback = GetTargetFallback(user_options);
-        // it = hetero_config.find(ov::device::priorities.name());
-
-        // TODO vurusovs: CHECK `target_fallback` is empty or not
-        // TODO vurusovs: RECHECK WITH ov::caching_properties
         auto target_fallback = m_cfg.device_priorities;
         return decltype(ov::hetero::caching_device_properties)::value_type{DeviceCachingProperties(target_fallback)};
     } else if (ov::device::capabilities == name) {
@@ -224,8 +203,6 @@ ov::Any ov::hetero::Plugin::get_property(const std::string& name, const ov::AnyM
 }
 
 std::string ov::hetero::Plugin::DeviceCachingProperties(const std::string& targetFallback) const {
-    // TODO: CHECK FUNCTION WORKS CORRECTLY
-
     auto fallbackDevices = ov::DeviceIDParser::get_hetero_devices(targetFallback);
     // Vector of caching configs for devices
     std::vector<ov::AnyMap> result = {};
