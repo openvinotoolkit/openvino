@@ -18,7 +18,7 @@ const DeviceInformation CPU_INFO = {CommonTestUtils::DEVICE_CPU, {}, 2, "01", "C
 const DeviceInformation IGPU_INFO = {"GPU.0", {}, 2, "01", "iGPU_01"};
 const DeviceInformation DGPU_INFO = {"GPU.1", {}, 2, "01", "dGPU_01"};
 const DeviceInformation MYRIAD_INFO = {"MYRIAD", {}, 2, "01", "MYRIAD_01" };
-const DeviceInformation KEEMBAY_INFO = {CommonTestUtils::DEVICE_KEEMBAY, {}, 2, "01", "VPUX_01" };
+const DeviceInformation KEEMBAY_INFO = {CommonTestUtils::DEVICE_KEEMBAY, {}, 2, "01", "VPU_01" };
 const std::vector<DeviceInformation>  fp32DeviceVector = {DGPU_INFO, IGPU_INFO, CPU_INFO, MYRIAD_INFO};
 const std::vector<DeviceInformation>  fp16DeviceVector = {DGPU_INFO, IGPU_INFO, MYRIAD_INFO, CPU_INFO};
 const std::vector<DeviceInformation>  int8DeviceVector = {KEEMBAY_INFO, DGPU_INFO, IGPU_INFO, CPU_INFO};
@@ -190,7 +190,42 @@ public:
     }
 
     void SetUp() override {
+<<<<<<< HEAD
         ON_CALL(*plugin, select_device).WillByDefault([this](const std::vector<DeviceInformation>& metaDevices,
+=======
+       // prepare mockicore and cnnNetwork for loading
+       core  = std::shared_ptr<MockICore>(new MockICore());
+       auto* origin_plugin = new MockMultiDeviceInferencePlugin();
+       plugin  = std::shared_ptr<MockMultiDeviceInferencePlugin>(origin_plugin);
+       // replace core with mock Icore
+       plugin->SetCore(core);
+
+       IE_SET_METRIC(OPTIMIZATION_CAPABILITIES, cpuCability, {"FP32", "FP16", "INT8", "BIN"});
+       IE_SET_METRIC(OPTIMIZATION_CAPABILITIES, gpuCability, {"FP32", "FP16", "BATCHED_BLOB", "BIN", "INT8"});
+       IE_SET_METRIC(OPTIMIZATION_CAPABILITIES, myriadCability, {"FP16"});
+       IE_SET_METRIC(OPTIMIZATION_CAPABILITIES, vpuCability, {"INT8"});
+       IE_SET_METRIC(DEVICE_ARCHITECTURE, gpuArchitecture, "GPU: vendor=0x8086 arch=0");
+       IE_SET_METRIC(DEVICE_TYPE, dGpuType, Metrics::DeviceType::discrete);
+       IE_SET_METRIC(DEVICE_TYPE, iGpuType, Metrics::DeviceType::integrated);
+
+       ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_CPU),
+                   StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES)), _)).WillByDefault(RETURN_MOCK_VALUE(cpuCability));
+       ON_CALL(*core, GetMetric(HasSubstr("GPU"),
+                   StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES)), _)).WillByDefault(RETURN_MOCK_VALUE(gpuCability));
+       ON_CALL(*core, GetMetric(StrEq("MYRIAD"),
+                   StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES)), _)).WillByDefault(RETURN_MOCK_VALUE(myriadCability));
+       ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_KEEMBAY),
+                   StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES)), _)).WillByDefault(RETURN_MOCK_VALUE(vpuCability));
+       ON_CALL(*core, GetMetric(HasSubstr("GPU"),
+                   StrEq(METRIC_KEY(DEVICE_ARCHITECTURE)), _)).WillByDefault(RETURN_MOCK_VALUE(gpuArchitecture));
+       ON_CALL(*core, GetMetric(StrEq("GPU"),
+                    StrEq(METRIC_KEY(DEVICE_TYPE)), _)).WillByDefault(RETURN_MOCK_VALUE(iGpuType));
+       ON_CALL(*core, GetMetric(StrEq("GPU.0"),
+                    StrEq(METRIC_KEY(DEVICE_TYPE)), _)).WillByDefault(RETURN_MOCK_VALUE(iGpuType));
+       ON_CALL(*core, GetMetric(StrEq("GPU.1"),
+                    StrEq(METRIC_KEY(DEVICE_TYPE)), _)).WillByDefault(RETURN_MOCK_VALUE(dGpuType));
+       ON_CALL(*plugin, SelectDevice).WillByDefault([this](const std::vector<DeviceInformation>& metaDevices,
+>>>>>>> 2e197c6c95 (Change `VPUX` occurrences to `VPU`)
                    const std::string& netPrecision, unsigned int priority) {
                return plugin->Plugin::select_device(metaDevices, netPrecision, priority);
                });
