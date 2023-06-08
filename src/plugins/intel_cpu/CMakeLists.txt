@@ -35,6 +35,8 @@ if(OV_CPU_WITH_DNNL)
     add_definitions(-DOV_CPU_WITH_DNNL)
 endif()
 
+set(ENABLE_MLAS ON)
+
 if(DNNL_USE_ACL)
     add_definitions(-DOV_CPU_WITH_ACL)
     set(OV_CPU_WITH_ACL ON)
