@@ -229,24 +229,25 @@ OPENVINO_RUNTIME_API void set_cpu_used(const std::vector<int>& cpu_ids, const in
  *  1. Four processors of two Pcore
  *  2. Four processors of four Ecores shared L2 cache
  *
- *  PROCESSOR_ID | SOCKET_ID | CORE_ID | CORE_TYPE | GROUP_ID | Used
- *       0             0          0          3          0        0
- *       1             0          0          1          0        0
- *       2             0          1          3          1        0
- *       3             0          1          1          1        0
- *       4             0          2          2          2        0
- *       5             0          3          2          2        0
- *       6             0          4          2          2        0
- *       7             0          5          2          2        0
+ *  PROCESSOR_ID | NODE_ID | SOCKET_ID | CORE_ID | CORE_TYPE | GROUP_ID | Used
+ *       0            0          0          0          3          0        0
+ *       1            0          0          0          1          0        0
+ *       2            0          0          1          3          1        0
+ *       3            0          0          1          1          1        0
+ *       4            0          0          2          2          2        0
+ *       5            0          0          3          2          2        0
+ *       6            0          0          4          2          2        0
+ *       7            0          0          5          2          2        0
  */
 enum ColumnOfCPUMappingTable {
     CPU_MAP_PROCESSOR_ID = 0,  //!< column for processor id of the processor
-    CPU_MAP_SOCKET_ID = 1,     //!< column for socket id of the processor
-    CPU_MAP_CORE_ID = 2,       //!< column for hardware core id of the processor
-    CPU_MAP_CORE_TYPE = 3,     //!< column for CPU core type corresponding to the processor
-    CPU_MAP_GROUP_ID = 4,      //!< column for group id to the processor. Processors in one group have dependency.
-    CPU_MAP_USED_FLAG = 5,     //!< column for resource management of the processor
-    CPU_MAP_TABLE_SIZE = 6     //!< Size of CPU mapping table
+    CPU_MAP_NODE_ID = 1,       //!< column for node id of the processor
+    CPU_MAP_SOCKET_ID = 2,     //!< column for socket id of the processor
+    CPU_MAP_CORE_ID = 3,       //!< column for hardware core id of the processor
+    CPU_MAP_CORE_TYPE = 4,     //!< column for CPU core type corresponding to the processor
+    CPU_MAP_GROUP_ID = 5,      //!< column for group id to the processor. Processors in one group have dependency.
+    CPU_MAP_USED_FLAG = 6,     //!< column for resource management of the processor
+    CPU_MAP_TABLE_SIZE = 7     //!< Size of CPU mapping table
 };
 
 }  // namespace ov
