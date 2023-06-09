@@ -731,8 +731,8 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_with_preprocess(ov::Pl
                                                                           const ov::AnyMap& config) const {
     std::shared_ptr<const ov::Model> preprocessed_model = model;
 
-    if (!is_new_api() &&
-        !std::dynamic_pointer_cast<InferenceEngine::IPluginWrapper>(plugin.m_ptr)
+    if (!is_new_api() && !std::dynamic_pointer_cast<InferenceEngine::IPluginWrapper>(plugin.m_ptr) &&
+        !is_virtual_device(plugin.get_name())
 #ifndef NO_PROXY_PLUGIN
         // Disable conversion for proxy plugin to add pre-processing based on API of internal plugins
         && !std::dynamic_pointer_cast<ov::proxy::Plugin>(plugin.m_ptr)
