@@ -295,7 +295,7 @@ size_t TranslateSession::decode_tensor_name(const Output<Node>& output) {
 }
 
 namespace {
-Output<Node> slice_backprop(std::shared_ptr<TorchDecoder> node, Output<Node> slice_output, Output<Node> value) {
+Output<Node> slice_backprop(const Output<Node>& slice_output, const Output<Node>& value) {
     auto slice_node = slice_output.get_node_shared_ptr();
     FRONT_END_OP_CONVERSION_CHECK(ov::as_type_ptr<v8::Slice>(slice_node),
                                   "Conversion rule for aten::slice doesn't contain Slice node.");
@@ -340,7 +340,7 @@ Output<Node> slice_backprop(std::shared_ptr<TorchDecoder> node, Output<Node> sli
     return std::make_shared<v1::Reshape>(updated_data_1d, input_shape, false);
 }
 
-Output<Node> select_backprop(std::shared_ptr<TorchDecoder> node, Output<Node> select_output, Output<Node> value) {
+Output<Node> select_backprop(const Output<Node>& select_output, const Output<Node>& value) {
     auto gather_node = select_output.get_node_shared_ptr();
     FRONT_END_OP_CONVERSION_CHECK(ov::as_type_ptr<v8::Gather>(gather_node),
                                   "Conversion rule for aten::select doesn't contain Gather node.");
@@ -373,12 +373,11 @@ Output<Node> select_backprop(std::shared_ptr<TorchDecoder> node, Output<Node> se
 }
 }  // namespace
 
-using BackpropCreatorFunction =
-    std::function<ov::Output<ov::Node>(std::shared_ptr<TorchDecoder>, Output<Node>, Output<Node>)>;
+using BackpropCreatorFunction = std::function<ov::Output<ov::Node>(const Output<Node>&, const Output<Node>&)>;
 
-Output<Node> TranslateSession::get_backprop_op(std::shared_ptr<TorchDecoder> node,
-                                               Output<Node> direct_op_output,
-                                               Output<Node> value) {
+Output<Node> TranslateSession::get_backprop_op(const std::shared_ptr<TorchDecoder>& node,
+                                               const Output<Node>& direct_op_output,
+                                               const Output<Node>& value) {
     std::map<std::string, BackpropCreatorFunction> backprop_map = {
         {"aten::slice", slice_backprop},
         {"aten::select", select_backprop},
@@ -388,7 +387,7 @@ Output<Node> TranslateSession::get_backprop_op(std::shared_ptr<TorchDecoder> nod
     try {
         auto it = backprop_map.find(node->get_op_type());
         if (it != backprop_map.end()) {
-            return it->second(node, direct_op_output, value);
+            return it->second(direct_op_output, value);
         }
 
     } catch (std::exception& e) {

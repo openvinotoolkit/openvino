@@ -36,7 +36,9 @@ public:
         const std::unordered_map<size_t, PlaceDesc>& external_descriptors = {});
 
     /// \brief Returns backprop operations for direct operation
-    Output<Node> get_backprop_op(std::shared_ptr<TorchDecoder> node, Output<Node> direct_op_output, Output<Node> value);
+    Output<Node> get_backprop_op(const std::shared_ptr<TorchDecoder>& node,
+                                 const Output<Node>& direct_op_output,
+                                 const Output<Node>& value);
 
     /// \brief Writes pytorch tensor index into openvino tensor
     void encode_tensor_name(Output<Node> tensor_desc,
