@@ -3,6 +3,7 @@
 //
 
 #include "ngraph_test_utils.hpp"
+#include "openvino/op/constant.hpp"
 
 namespace ov {
 namespace pass {
@@ -58,10 +59,10 @@ void TransformationTestsF::TearDown() {
     std::shared_ptr<ov::Model> cloned_function;
     auto acc_enabled = comparator.should_compare(FunctionsComparator::ACCURACY);
     if (!function_ref) {
-        cloned_function = ngraph::clone_function(*function);
+        cloned_function = function->clone();
         function_ref = cloned_function;
     } else if (acc_enabled) {
-        cloned_function = ngraph::clone_function(*function);
+        cloned_function = function->clone();
     }
     manager.register_pass<ov::pass::CheckUniqueNames>(m_unh, m_soft_names_comparison, m_result_friendly_names_check);
     manager.run_passes(function);
@@ -94,14 +95,14 @@ void TransformationTestsF::disable_result_friendly_names_check() {
     m_result_friendly_names_check = false;
 }
 
-void init_unique_names(std::shared_ptr<ngraph::Function> f, const std::shared_ptr<ov::pass::UniqueNamesHolder>& unh) {
-    ngraph::pass::Manager manager;
+void init_unique_names(std::shared_ptr<ov::Model> f, const std::shared_ptr<ov::pass::UniqueNamesHolder>& unh) {
+    ov::pass::Manager manager;
     manager.register_pass<ov::pass::InitUniqueNames>(unh);
     manager.run_passes(f);
 }
 
-void check_unique_names(std::shared_ptr<ngraph::Function> f, const std::shared_ptr<ov::pass::UniqueNamesHolder>& unh) {
-    ngraph::pass::Manager manager;
+void check_unique_names(std::shared_ptr<ov::Model> f, const std::shared_ptr<ov::pass::UniqueNamesHolder>& unh) {
+    ov::pass::Manager manager;
     manager.register_pass<ov::pass::CheckUniqueNames>(unh, true);
     manager.run_passes(f);
 }

@@ -211,7 +211,7 @@ TEST(TransformationTests, replace_transpose_with_reshape) {
         pass::Manager m;
         m.register_pass<ov::pass::InitUniqueNames>(unh);
         m.register_pass<ov::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::Validate>();
+        m.register_pass<ov::pass::Validate>();
         m.register_pass<ov::pass::TransposeToReshape>();
         m.register_pass<ov::pass::CheckUniqueNames>(unh);
         m.run_passes(optimized_f);

@@ -14,7 +14,7 @@
 
 using namespace testing;
 using namespace ngraph;
-using namespace ngraph::pass;
+using namespace ov::pass;
 
 // TODO: LPT: not implemented
 TEST(DISABLED_LPT, isQuantizedTransformation) {

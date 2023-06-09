@@ -14,8 +14,6 @@
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset8.hpp"
-#include "openvino/pass/pass.hpp"
-#include "openvino/pass/serialize.hpp"
 
 class FunctionsComparator {
 public:

@@ -13,15 +13,15 @@
 #include <iostream>
 #include <map>
 #include <memory>
-#include <openvino/op/util/op_types.hpp>
-#include <openvino/op/util/sub_graph_base.hpp>
-#include <openvino/opsets/opset8.hpp>
 #include <queue>
 #include <sstream>
 #include <string>
 #include <type_traits>
 #include <typeinfo>
 #include <vector>
+
+#include "openvino/op/util/op_types.hpp"
+#include "openvino/op/util/sub_graph_base.hpp"
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"

@@ -16,10 +16,6 @@
 #include <string>
 #include <vector>
 
-namespace InferenceEngine {
-class CNNLayer;
-}
-
 namespace CommonTestUtils {
 
 enum class OpType { SCALAR, VECTOR };

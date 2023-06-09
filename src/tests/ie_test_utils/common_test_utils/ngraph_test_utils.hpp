@@ -8,21 +8,18 @@
 #include <memory>
 #include <queue>
 
-#include <ngraph/dimension.hpp>
-#include <ngraph/function.hpp>
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/pass/pass.hpp>
-#include <ngraph/pass/manager.hpp>
-#include <ngraph/opsets/opset6.hpp>
-#include <ngraph/op/util/framework_node.hpp>
-#include <transformations/init_node_info.hpp>
-#include <openvino/core/model.hpp>
-
+#include "openvino/core/dimension.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/pass/pass.hpp"
+#include "openvino/pass/manager.hpp"
+#include "transformations/init_node_info.hpp"
+#include "ngraph/opsets/opset1.hpp"
+#include "ngraph/opsets/opset6.hpp"
 #include "test_common.hpp"
 
 #include "graph_comparator.hpp"
 
-#define DYN ngraph::Dimension::dynamic()
+#define DYN ov::Dimension::dynamic()
 
 using TransformationTests = CommonTestUtils::TestsCommon;
 
@@ -44,7 +41,7 @@ public:
     std::shared_ptr<ov::Model> function, function_ref;
     // Aliases to function and function_ref pointers to be more corresponding with ov namespace.
     std::shared_ptr<ov::Model>&model, &model_ref;
-    ngraph::pass::Manager manager;
+    ov::pass::Manager manager;
     FunctionsComparator comparator;
 
 private:
@@ -54,15 +51,15 @@ private:
     bool m_result_friendly_names_check{true};
 };
 
-void init_unique_names(std::shared_ptr<ngraph::Function> f, const std::shared_ptr<ov::pass::UniqueNamesHolder>& unh);
+void init_unique_names(std::shared_ptr<ov::Model> f, const std::shared_ptr<ov::pass::UniqueNamesHolder>& unh);
 
-void check_unique_names(std::shared_ptr<ngraph::Function> f, const std::shared_ptr<ov::pass::UniqueNamesHolder>& unh);
+void check_unique_names(std::shared_ptr<ov::Model> f, const std::shared_ptr<ov::pass::UniqueNamesHolder>& unh);
 
 template <typename T>
-size_t count_ops_of_type(const std::shared_ptr<ngraph::Function>& f) {
+size_t count_ops_of_type(const std::shared_ptr<ov::Model>& f) {
     size_t count = 0;
     for (auto op : f->get_ops()) {
-        if (ngraph::is_type<T>(op)) {
+        if (ov::is_type<T>(op)) {
             count++;
         }
     }

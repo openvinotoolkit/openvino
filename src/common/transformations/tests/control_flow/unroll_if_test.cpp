@@ -202,7 +202,7 @@ TEST(TransformationTests, UnrollIfCondIsTrueMultiOutput) {
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{if_result}, ngraph::ParameterVector{data});
 
-        ngraph::pass::Manager manager;
+        ov::pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::UnrollIf>();
         manager.run_passes(f);
