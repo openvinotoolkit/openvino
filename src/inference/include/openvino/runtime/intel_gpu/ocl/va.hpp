@@ -43,9 +43,10 @@ public:
      */
     static void type_check(const Tensor& tensor) {
         RemoteTensor::type_check(tensor,
-                                 {{ov::intel_gpu::dev_object_handle.name(), {}},
-                                  {ov::intel_gpu::va_plane.name(), {}},
-                                  {ov::intel_gpu::shared_mem_type.name(), {ov::intel_gpu::SharedMemType::VA_SURFACE}}});
+                                 {{std::string(ov::intel_gpu::dev_object_handle.name()), {}},
+                                  {std::string(ov::intel_gpu::va_plane.name()), {}},
+                                  {std::string(ov::intel_gpu::shared_mem_type.name()),
+                                   {ov::Any(ov::intel_gpu::SharedMemType::VA_SURFACE).as<std::string>()}}});
     }
     /**
      * @brief VASurfaceID conversion operator for the VASurfaceTensor object.
@@ -83,8 +84,9 @@ public:
      */
     static void type_check(const RemoteContext& remote_context) {
         RemoteContext::type_check(remote_context,
-                                  {{ov::intel_gpu::va_device.name(), {}},
-                                   {ov::intel_gpu::context_type.name(), {ov::intel_gpu::ContextType::VA_SHARED}}});
+                                  {{std::string(ov::intel_gpu::va_device.name()), {}},
+                                   {std::string(ov::intel_gpu::context_type.name()),
+                                    {ov::Any(ov::intel_gpu::ContextType::VA_SHARED).as<std::string>()}}});
     }
 
     /**
