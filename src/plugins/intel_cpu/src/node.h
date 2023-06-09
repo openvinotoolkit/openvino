@@ -354,7 +354,7 @@ public:
         inplace = InPlaceType::Unknown;
     }
 
-    std::string getPrimitiveDescriptorType();
+    std::string getPrimitiveDescriptorType() const;
 
     PerfCount &PerfCounter() { return perfCounter; }
 

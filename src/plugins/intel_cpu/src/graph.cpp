@@ -433,7 +433,7 @@ void Graph::InitDescriptors() {
 
 #ifdef CPU_DEBUG_CAPS
         const auto& SPDs = node->getSupportedPrimitiveDescriptors();
-        for (int i = 0; i < SPDs.size(); i++) {
+        for (size_t i = 0; i < SPDs.size(); i++) {
             DEBUG_LOG("#",
                       node->getExecIndex(),
                       " ",

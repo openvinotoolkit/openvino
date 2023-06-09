@@ -65,7 +65,7 @@ DebugLogEnabled::DebugLogEnabled(const char* file, const char* func, int line, c
 
     bool match = false;
     const char* p0 = p_filters;
-    const char* p1;
+    const char* p1 = p0;
     while (*p0 != 0) {
         p1 = p0;
         while (*p1 != ';' && *p1 != 0)
@@ -163,7 +163,7 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
     std::stringstream leftside;
 
     int num_output_port = 0;
-    for (auto wptr : node.getChildEdges()) {
+    for (const auto& wptr : node.getChildEdges()) {
         auto edge = wptr.lock();
         if (num_output_port < edge->getInputNum() + 1)
             num_output_port = edge->getInputNum() + 1;
@@ -190,7 +190,7 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
                     leftside << "(empty)";
                 }
             }
-            if (!b_ouputed && nodeDesc && i < nodeDesc->getConfig().outConfs.size()) {
+            if (!b_ouputed && nodeDesc && i < static_cast<int>(nodeDesc->getConfig().outConfs.size())) {
                 auto desc = nodeDesc->getConfig().outConfs[i].getMemDesc();
                 auto shape_str = desc->getShape().toString();
                 replace_all(shape_str, "0 - ?", "?");
@@ -258,12 +258,12 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
     os << " (";
 
     comma = "";
-    for (int port = 0; port < node.getParentEdges().size(); ++port) {
+    for (size_t port = 0; port < node.getParentEdges().size(); ++port) {
         // find the Parent edge connecting to port
         for (const auto & e : node.getParentEdges()) {
             auto edge = e.lock();
             if (!edge) continue;
-            if (edge->getOutputNum() != port) continue;
+            if (edge->getOutputNum() != static_cast<int>(port)) continue;
             auto n = edge->getParent();
             os << comma;
             os << node_id(*edge->getParent());
@@ -430,23 +430,23 @@ std::ostream & operator<<(std::ostream & os, const PrintableModel& model) {
     OstreamAttributeVisitor osvis(os);
     std::string sep = "";
     os << prefix;
-    for (auto op : f.get_results()) {
+    for (const auto& op : f.get_results()) {
         os << sep << op->get_name();
         sep = ",";
     }
     os << " " << f.get_friendly_name() << "(\n" << prefix;
-    for (auto op : f.get_parameters()) {
+    for (const auto& op : f.get_parameters()) {
         os << "\t" << tag << op->get_friendly_name() << ",\n" << prefix;
     }
     os << ") {\n";
-    for (auto op : f.get_ordered_ops()) {
+    for (const auto& op : f.get_ordered_ops()) {
         auto type = op->get_type_name();
         auto name = op->get_friendly_name();
         os << prefix << "\t";
         if (op->get_output_size() > 1)
             os << "(";
         sep = "";
-        for (int i = 0; i < op->get_output_size(); i++) {
+        for (size_t i = 0; i < op->get_output_size(); i++) {
             os << sep << op->get_output_element_type(i) << "_" << op->get_output_partial_shape(i);
             sep = ",";
         }
@@ -454,7 +454,7 @@ std::ostream & operator<<(std::ostream & os, const PrintableModel& model) {
             os << ")";
         os << "  " << tag << name << " = " << type << "(";
         sep = "";
-        for (int i = 0; i < op->get_input_size(); i++) {
+        for (size_t i = 0; i < op->get_input_size(); i++) {
             auto vout = op->get_input_source_output(i);
             auto iop = vout.get_node_shared_ptr();
             if (iop->get_output_size() > 1) {
@@ -477,7 +477,7 @@ std::ostream & operator<<(std::ostream & os, const PrintableModel& model) {
                 auto sz = shape_size(constop->get_shape());
                 if (sz < 9) {
                     sep = "";
-                    for (auto v : constop->get_value_strings()) {
+                    for (const auto& v : constop->get_value_strings()) {
                         os << sep << v;
                         sep = ",";
                     }
@@ -494,7 +494,7 @@ std::ostream & operator<<(std::ostream & os, const PrintableModel& model) {
         // recursively output subgraphs
         if (auto msubgraph = std::dynamic_pointer_cast<op::util::MultiSubGraphOp>(op)) {
             auto cnt = msubgraph->get_internal_subgraphs_size();
-            for (int i = 0; i < cnt; i++) {
+            for (size_t i = 0; i < cnt; i++) {
                 os << "\t\t MultiSubGraphOp " << tag << msubgraph->get_friendly_name() << "[" << i << "]" << std::endl;
                 os << PrintableModel(*msubgraph->get_function(i).get(), tag, prefix + "\t\t");
             }
