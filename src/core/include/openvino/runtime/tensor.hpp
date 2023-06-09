@@ -71,11 +71,18 @@ protected:
     friend class InferenceEngine::IAsyncInferRequestWrapper;
     friend class InferenceEngine::IVariableStateWrapper;
     friend class ov::op::util::VariableValue;
-    friend OPENVINO_API void add_tensor_shared_object(Tensor& tensor, std::shared_ptr<void> so);
 
 public:
     /// @brief Default constructor
     Tensor() = default;
+
+    /**
+     * @brief Copy constructor with adding new shared object
+     *
+     * @param other Original tensor
+     * @param so Shared object
+     */
+    Tensor(const Tensor& other, const std::shared_ptr<void>& so);
 
     /// @brief Default copy constructor
     /// @param other other Tensor object
