@@ -38,7 +38,7 @@ public:
 
     void set_property(const ov::AnyMap& properties) override;
 
-    ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const override;
+    ov::Any get_property(const std::string& name, const ov::AnyMap& properties) const override;
 
     std::shared_ptr<ov::IRemoteContext> create_context(const ov::AnyMap& remote_properties) const override;
 
@@ -53,18 +53,13 @@ public:
     ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
                                     const ov::AnyMap& properties) const override;
 
-    // FROM OLD HETERO PLUGIN
-    // std::string GetTargetFallback(const Configs& config, bool raise_exception = true) const;
-    // std::string GetTargetFallback(const ov::AnyMap& config, bool raise_exception = true) const;
-
 private:
-    // friend class CompiledModel;
     friend class HeteroPlugin::HeteroExecutableNetwork;
-    // friend class InferRequest;
 
-    std::string DeviceCachingProperties(const std::string& targetFallback) const;
+    ov::Any caching_device_properties(const std::string& device_priorities) const;
 
-    DeviceProperties get_device_properties(const std::string& device_priorities, const ov::AnyMap& properties) const;
+    DeviceProperties get_properties_per_device(const std::string& device_priorities,
+                                               const ov::AnyMap& properties) const;
 
     Configuration m_cfg;
 };

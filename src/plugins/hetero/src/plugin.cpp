@@ -67,7 +67,6 @@ std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::import_model(std::istrea
                                                                      const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::Hetero, "Plugin::import_model");
 
-
     auto shared_this = std::const_pointer_cast<ov::IPlugin>(shared_from_this());
     auto plugin_p = ov::legacy_convert::convert_plugin(shared_this);
     auto legacy_compiled_model = std::make_shared<HeteroPlugin::HeteroExecutableNetwork>(model, properties, std::dynamic_pointer_cast<ov::hetero::Plugin>(shared_this), true);
@@ -76,8 +75,8 @@ std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::import_model(std::istrea
     return compiled_model;
 }
 
-ov::hetero::Plugin::DeviceProperties ov::hetero::Plugin::get_device_properties(const std::string& device_priorities,
-                                                                               const ov::AnyMap& properties) const {
+ov::hetero::Plugin::DeviceProperties ov::hetero::Plugin::get_properties_per_device(const std::string& device_priorities,
+                                                                                   const ov::AnyMap& properties) const {
     auto device_names = ov::DeviceIDParser::get_hetero_devices(device_priorities);
     DeviceProperties device_properties;
     for (auto&& device_name : device_names) {
@@ -93,29 +92,26 @@ ov::SupportedOpsMap ov::hetero::Plugin::query_model(const std::shared_ptr<const 
                                                     const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::Hetero, "Plugin::query_model");
 
-    auto device_properties = properties;
-    Configuration fullConfig{device_properties, m_cfg};
-    
     OPENVINO_ASSERT(model, "OpenVINO Model is empty!");
 
-    std::string fallbackDevicesStr = fullConfig.device_priorities;
-    
-    DeviceProperties metaDevices = get_device_properties(fallbackDevicesStr, device_properties);
+    auto device_properties = properties;
+    Configuration config{device_properties, m_cfg};    
+    DeviceProperties properties_per_device = get_properties_per_device(config.device_priorities, device_properties);
 
-    std::map<std::string, ov::SupportedOpsMap> queryResults;
-    for (auto&& metaDevice : metaDevices) {
-        const auto& deviceName = metaDevice.first;
-        const auto& device_config = metaDevice.second;
-        queryResults[deviceName] = get_core()->query_model(model, deviceName, device_config);
+    std::map<std::string, ov::SupportedOpsMap> query_results;
+    for (auto&& it : properties_per_device) {
+        const auto& device_name = it.first;
+        const auto& device_config = it.second;
+        query_results[device_name] = get_core()->query_model(model, device_name, device_config);
     }
 
     //  WARNING: Here is devices with user set priority
-    auto fallbackDevices = ov::DeviceIDParser::get_hetero_devices(fallbackDevicesStr);
+    auto device_names = ov::DeviceIDParser::get_hetero_devices(config.device_priorities);
 
     ov::SupportedOpsMap res;
-    for (auto&& deviceName : fallbackDevices) {
-        for (auto&& layerQueryResult : queryResults[deviceName]) {
-            res.emplace(layerQueryResult);
+    for (auto&& device_name : device_names) {
+        for (auto&& layer_query_result : query_results[device_name]) {
+            res.emplace(layer_query_result);
         }
     }
 
@@ -123,11 +119,11 @@ ov::SupportedOpsMap ov::hetero::Plugin::query_model(const std::shared_ptr<const 
 }
 
 void ov::hetero::Plugin::set_property(const ov::AnyMap& properties) {
-    auto temp_cfg(properties);
-    m_cfg = Configuration{temp_cfg, m_cfg, true};
+    auto temp_properties(properties);
+    m_cfg = Configuration{temp_properties, m_cfg, true};
 }
 
-ov::Any ov::hetero::Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
+ov::Any ov::hetero::Plugin::get_property(const std::string& name, const ov::AnyMap& properties) const {
     const auto& add_ro_properties = [](const std::string& name, std::vector<ov::PropertyName>& properties) {
         properties.emplace_back(ov::PropertyName{name, ov::PropertyMutability::RO});
     };
@@ -151,6 +147,9 @@ ov::Any ov::hetero::Plugin::get_property(const std::string& name, const ov::AnyM
         }
         return ret;
     };
+
+    auto temp_properties(properties);
+    Configuration config{temp_properties, m_cfg};
     if (METRIC_KEY(SUPPORTED_METRICS) == name) {
         auto metrics = default_ro_properties();
 
@@ -159,7 +158,7 @@ ov::Any ov::hetero::Plugin::get_property(const std::string& name, const ov::AnyM
         add_ro_properties(METRIC_KEY(IMPORT_EXPORT_SUPPORT), metrics);
         return to_string_vector(metrics);
     } else if (METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
-        return to_string_vector(m_cfg.GetSupported());
+        return to_string_vector(config.GetSupported());
     } else if (ov::supported_properties == name) {
         auto ro_properties = default_ro_properties();
         auto rw_properties = default_rw_properties();
@@ -176,43 +175,40 @@ ov::Any ov::hetero::Plugin::get_property(const std::string& name, const ov::AnyM
     } else if (ov::caching_properties == name) {
         return decltype(ov::caching_properties)::value_type{ov::hetero::caching_device_properties.name()};
     } else if (ov::hetero::caching_device_properties == name) {
-        auto target_fallback = m_cfg.device_priorities;
-        return decltype(ov::hetero::caching_device_properties)::value_type{DeviceCachingProperties(target_fallback)};
+        return caching_device_properties(config.device_priorities);
     } else if (ov::device::capabilities == name) {
         return decltype(ov::device::capabilities)::value_type{{ov::device::capability::EXPORT_IMPORT}};
     } else {
-        return m_cfg.Get(name);
+        return config.Get(name);
     }
 }
 
-std::string ov::hetero::Plugin::DeviceCachingProperties(const std::string& targetFallback) const {
-    auto fallbackDevices = ov::DeviceIDParser::get_hetero_devices(targetFallback);
-    // Vector of caching configs for devices
+ov::Any ov::hetero::Plugin::caching_device_properties(const std::string& device_priorities) const {
+    auto device_names = ov::DeviceIDParser::get_hetero_devices(device_priorities);
+    // Vector of caching properties per device
     std::vector<ov::AnyMap> result = {};
-    for (const auto& device : fallbackDevices) {
-        ov::DeviceIDParser parser(device);
+    for (const auto& device_name : device_names) {
         ov::AnyMap properties = {};
-        // Use name without id
-        auto device_name = parser.get_device_name();
         auto supported_properties =
-            get_core()->get_property(device, ov::supported_properties);
+            get_core()->get_property(device_name, ov::supported_properties);
         if (ov::util::contains(supported_properties, ov::caching_properties)) {
             auto caching_properties =
-                get_core()->get_property(device, ov::caching_properties);
+                get_core()->get_property(device_name, ov::caching_properties);
             for (const auto& property_name : caching_properties) {
-                properties[property_name] = get_core()->get_property(device, std::string(property_name), {});
+                properties[property_name] = get_core()->get_property(device_name, std::string(property_name), {});
             }
-            // If caching properties are not supported by device, try to add at least device architecture
         } else if (ov::util::contains(supported_properties, ov::device::architecture)) {
-            auto device_architecture = get_core()->get_property(device, ov::device::architecture);
+            // If caching properties are not supported by device, try to add at least device architecture
+            auto device_architecture = get_core()->get_property(device_name, ov::device::architecture);
             properties = ov::AnyMap{{ov::device::architecture.name(), device_architecture}};
-            // Device architecture is not supported, add device name as achitecture
         } else {
-            properties = ov::AnyMap{{ov::device::architecture.name(), device_name}};
+            // Device architecture is not supported, add device name w/o id as achitecture
+            ov::DeviceIDParser parser(device_name);
+            properties = ov::AnyMap{{ov::device::architecture.name(), parser.get_device_name()}};
         }
         result.emplace_back(properties);
     }
-    return result.empty() ? "" : ov::Any(result).as<std::string>();
+    return ov::Any(result);
 }
 
 
