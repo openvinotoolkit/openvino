@@ -99,7 +99,8 @@ GatherSinkingTransposeForward::GatherSinkingTransposeForward() {
         auto reshape = as_type_ptr<Reshape>(pattern_to_output.at(reshape_label).get_node_shared_ptr());
 
         // skip all the Reshape layers
-        std::shared_ptr<ov::Node> non_reshape_node = graph_utils::get_next_node_skipping_certain(reshape, is_skip_operation);
+        std::shared_ptr<ov::Node> non_reshape_node =
+            graph_utils::get_next_node_skipping_certain(reshape, is_skip_operation);
         auto transpose = std::dynamic_pointer_cast<Transpose>(non_reshape_node);
         if (!transpose) {
             return false;
@@ -129,7 +130,8 @@ GatherSinkingTransposeBackward::GatherSinkingTransposeBackward() {
         auto gather = as_type_ptr<Gather>(pattern_to_output.at(gather_label).get_node_shared_ptr());
 
         // skip all the Reshape layers
-        std::shared_ptr<ov::Node> non_reshape_node = graph_utils::get_prev_node_skipping_certain(reshape, is_skip_operation);
+        std::shared_ptr<ov::Node> non_reshape_node =
+            graph_utils::get_prev_node_skipping_certain(reshape, is_skip_operation);
         auto transpose = std::dynamic_pointer_cast<Transpose>(non_reshape_node);
         if (!transpose) {
             return false;
