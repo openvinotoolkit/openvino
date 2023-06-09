@@ -69,7 +69,7 @@ int get_model_prefer_threads(const int num_streams,
 void generate_stream_info(const int streams,
                           const std::shared_ptr<ngraph::Function>& ngraphFunc,
                           Config& config,
-                          int model_perfer_init);
+                          int model_perfer_init = -1);
 
 struct StreamCfg {
     int num_streams;               // Number of streams
