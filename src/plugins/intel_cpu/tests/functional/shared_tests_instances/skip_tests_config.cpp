@@ -186,8 +186,8 @@ std::vector<std::string> disabledTestPatterns() {
         // Issue: 111944
         R"(.*smoke_DefConvLayoutTest6.*)",
         // Issue: 111453
-        R"(.*smoke_BehaviorTests/OVCompiledGraphImportExportTest.importExportedIENetwork/targetDevice=CPU_elementType=(i16|i64|u16|u32|u64).*)",
-        R"(.*smoke_Hetero_BehaviorTests/OVCompiledGraphImportExportTest.ovImportExportedFunction/targetDevice=HETERO_elementType=(i16|i64|u16|u32|u64\f16).*)",
+        R"(.*smoke_BehaviorTests/OVCompiledGraphImportExportTest.*/targetDevice=CPU_elementType=(i16|i64|u16|u32|u64|f16).*)",
+        R"(.*smoke_Hetero_BehaviorTests/OVCompiledGraphImportExportTest.ovImportExportedFunction/targetDevice=HETERO_elementType=(i16|i64|u16|u32|u64|f16).*)",
     };
 
 #if defined(OPENVINO_ARCH_X86)

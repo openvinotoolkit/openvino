@@ -511,7 +511,14 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& _port, const
         tensor = ov::Tensor(_tensor.get_element_type(), _port.get_shape(), _tensor.data());
     }
 
+    // In case of import model, we cannot get original model info from the imported_model, so have to get it when
+    // set_tensor
     auto name = get_port_name(_port);
+    auto is_imported_model = _compiled_model->get_property(ov::loaded_from_cache.name()).as<bool>();
+    if (is_imported_model) {
+        _orig_ports_map[name] = _port;
+    }
+
     auto precision_changed = check_precision_changed(_port);
     if (precision_changed) {
         auto _orig_port = _orig_ports_map[name];
