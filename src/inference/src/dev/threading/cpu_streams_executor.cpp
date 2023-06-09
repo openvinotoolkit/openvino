@@ -16,6 +16,7 @@
 #include "openvino/itt.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
+#include "openvino/runtime/threading/istreams_executor.hpp"
 #include "openvino/runtime/threading/thread_local.hpp"
 #include "threading/ie_cpu_streams_info.hpp"
 
@@ -130,49 +131,24 @@ struct CPUStreamsExecutor::Impl {
         }
 
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
-        void init_stream() {
-            const auto stream_id = _streamId >= _impl->_config._streams ? _impl->_config._streams - 1 : _streamId;
-            const auto org_proc_type_table = get_org_proc_type_table();
-            auto cur_stream = std::find_if(_impl->stream_nums.begin(), _impl->stream_nums.end(), [&](int n) {
-                return stream_id < n;
-            });
-            const auto stream_info_id =
-                cur_stream != _impl->stream_nums.end() ? std::distance(_impl->stream_nums.begin(), cur_stream) : 0;
-            const auto concurrency = _impl->_config._streams_info_table[stream_info_id][THREADS_PER_STREAM];
-            const auto cpu_core_type = _impl->_config._streams_info_table[stream_info_id][PROC_TYPE];
-            if (concurrency <= 0) {
-                return;
-            }
-            if (org_proc_type_table[0][EFFICIENT_CORE_PROC] > 0) {
-                const auto selected_core_type =
-                    (cpu_core_type == MAIN_CORE_PROC || cpu_core_type == HYPER_THREADING_PROC)
-                        ? custom::info::core_types().back()
-                        : custom::info::core_types().front();
-                if (_impl->_config._cpu_reservation) {
-#    if defined(_WIN32) || defined(__APPLE__)
-                    _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
-                                                                .set_core_type(selected_core_type)
-                                                                .set_max_concurrency(concurrency)});
-#    else
-                    _taskArena.reset(new custom::task_arena{concurrency});
-#    endif
-                } else {
-                    if (cpu_core_type == ALL_PROC) {
-                        _taskArena.reset(new custom::task_arena{concurrency});
-                    } else {
-                        _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
-                                                                    .set_core_type(selected_core_type)
-                                                                    .set_max_concurrency(concurrency)});
-                    }
-                }
-            } else if (org_proc_type_table.size() > 1 && !_impl->_config._cpu_reservation &&
-                       _impl->_config._stream_numa_node_ids[stream_id] >= 0) {
-                _numaNodeId = _impl->_usedNumaNodes.at(_impl->_config._stream_numa_node_ids[stream_id]);
+        void create_stream(const int stream_id,
+                           const stream_create_type stream_type,
+                           const int concurrency,
+                           const int core_type,
+                           const int numa_node_id) {
+            if (stream_type == STREAM_WITHOUT_PARAM) {
+                _taskArena.reset(new custom::task_arena{concurrency});
+            } else if (stream_type == STREAM_WITH_NUMA_ID) {
+                _numaNodeId = _impl->_usedNumaNodes.at(numa_node_id);
                 _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{_numaNodeId, concurrency}});
+            } else if (stream_type == STREAM_WITH_CORE_TYPE) {
+                const auto real_core_type = (core_type == MAIN_CORE_PROC || core_type == HYPER_THREADING_PROC)
+                                                ? custom::info::core_types().back()
+                                                : custom::info::core_types().front();
+                _taskArena.reset(new custom::task_arena{
+                    custom::task_arena::constraints{}.set_core_type(real_core_type).set_max_concurrency(concurrency)});
             } else {
                 _taskArena.reset(new custom::task_arena{concurrency});
-            }
-            if (_impl->_config._cpu_reservation) {
                 _cpu_ids = static_cast<int>(_impl->_config._stream_processor_ids.size()) == _impl->_config._streams
                                ? _impl->_config._stream_processor_ids[stream_id]
                                : _cpu_ids;
@@ -194,6 +170,29 @@ struct CPUStreamsExecutor::Impl {
                     }
                 }
             }
+        }
+        void init_stream() {
+            int concurrency;
+            int cpu_core_type;
+            int numa_node_id;
+            stream_create_type stream_type;
+            const auto org_proc_type_table = get_org_proc_type_table();
+            const auto stream_id = _streamId >= _impl->_config._streams ? _impl->_config._streams - 1 : _streamId;
+
+            get_cur_stream_info(stream_id,
+                                _impl->_config._cpu_reservation,
+                                org_proc_type_table,
+                                _impl->_config._streams_info_table,
+                                _impl->_config._stream_numa_node_ids,
+                                _impl->stream_nums,
+                                stream_type,
+                                concurrency,
+                                cpu_core_type,
+                                numa_node_id);
+            if (concurrency <= 0) {
+                return;
+            }
+            create_stream(stream_id, stream_type, concurrency, cpu_core_type, numa_node_id);
         }
 
         void init_stream_legacy() {
@@ -330,13 +329,6 @@ struct CPUStreamsExecutor::Impl {
             _usedNumaNodes = numaNodes;
         }
 #if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
-        if (is_cpu_map_available() && config._streams_info_table.size() > 0) {
-            int stream_num_last = 0;
-            for (size_t i = 0; i < config._streams_info_table.size(); i++) {
-                stream_num_last += config._streams_info_table[i][NUMBER_OF_STREAMS];
-                stream_nums.push_back(stream_num_last);
-            }
-        }
         if (!is_cpu_map_available() && ThreadBindingType::HYBRID_AWARE == config._threadBindingType) {
             const auto core_types = custom::info::core_types();
             const auto num_core_phys = get_number_of_cpu_cores();

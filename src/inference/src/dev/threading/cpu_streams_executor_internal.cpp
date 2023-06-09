@@ -1,0 +1,79 @@
+// Copyright (C) 2018-2023 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include <algorithm>
+#include <vector>
+
+#include "openvino/runtime/threading/istreams_executor.hpp"
+#include "threading/ie_cpu_streams_info.hpp"
+
+using namespace InferenceEngine;
+
+namespace ov {
+namespace threading {
+
+void get_cur_stream_info(const int stream_id,
+                         const bool cpu_reservation,
+                         const std::vector<std::vector<int>> proc_type_table,
+                         const std::vector<std::vector<int>> streams_info_table,
+                         const std::vector<int> stream_numa_node_ids,
+                         std::vector<int>& stream_nums,
+                         stream_create_type& stream_type,
+                         int& concurrency,
+                         int& core_type,
+                         int& numa_node_id) {
+    if (stream_nums.size() == 0) {
+        for (size_t i = 0; i < streams_info_table.size(); i++) {
+            int cur_stream_num = i > 0 ? stream_nums[i - 1] + streams_info_table[i][NUMBER_OF_STREAMS]
+                                       : streams_info_table[i][NUMBER_OF_STREAMS];
+            stream_nums.push_back(cur_stream_num);
+        }
+    }
+    auto cur_stream = std::find_if(stream_nums.begin(), stream_nums.end(), [&](int n) {
+        return stream_id < n;
+    });
+    const auto stream_info_id = cur_stream != stream_nums.end() ? std::distance(stream_nums.begin(), cur_stream) : 0;
+    concurrency = streams_info_table[stream_info_id][THREADS_PER_STREAM];
+    core_type = streams_info_table[stream_info_id][PROC_TYPE];
+    numa_node_id = stream_numa_node_ids[stream_id];
+
+    stream_type = STREAM_WITHOUT_PARAM;
+    if (proc_type_table[0][EFFICIENT_CORE_PROC] > 0) {
+        if (cpu_reservation) {
+#if defined(_WIN32) || defined(__APPLE__)
+            stream_type = STREAM_WITH_CORE_TYPE;
+#else
+            stream_type = STREAM_WITH_OBSERVE;
+#endif
+        } else {
+            if (core_type == ALL_PROC) {
+                stream_type = STREAM_WITHOUT_PARAM;
+            } else {
+                stream_type = STREAM_WITH_CORE_TYPE;
+            }
+        }
+    } else if (proc_type_table.size() > 1 && !cpu_reservation && numa_node_id >= 0) {
+        stream_type = STREAM_WITH_NUMA_ID;
+    } else {
+        stream_type = STREAM_WITHOUT_PARAM;
+    }
+    if (cpu_reservation) {
+        stream_type = STREAM_WITH_OBSERVE;
+        if (proc_type_table[0][EFFICIENT_CORE_PROC] > 0) {
+#if defined(_WIN32) || defined(__APPLE__)
+            stream_type = STREAM_WITH_CORE_TYPE;
+#endif
+        }
+    } else {
+        stream_type = STREAM_WITHOUT_PARAM;
+        if (proc_type_table[0][EFFICIENT_CORE_PROC] > 0 && core_type != ALL_PROC) {
+            stream_type = STREAM_WITH_CORE_TYPE;
+        } else if (proc_type_table.size() > 1 && numa_node_id >= 0) {
+            stream_type = STREAM_WITH_NUMA_ID;
+        }
+    }
+}
+
+}  // namespace threading
+}  // namespace ov

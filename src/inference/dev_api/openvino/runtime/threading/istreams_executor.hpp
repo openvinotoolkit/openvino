@@ -177,5 +177,36 @@ public:
     virtual void execute(Task task) = 0;
 };
 
+typedef enum {
+    STREAM_WITHOUT_PARAM = 0,
+    STREAM_WITH_CORE_TYPE = 1,
+    STREAM_WITH_NUMA_ID = 2,
+    STREAM_WITH_OBSERVE = 3
+} stream_create_type;
+
+/**
+ * @brief      Get current stream information
+ * @param[in]  stream_id stream id
+ * @param[in]  cpu_reservation cpu reservation
+ * @param[in]  org_proc_type_table available processors in the platform
+ * @param[in]  streams_info_table streams information table
+ * @param[in]  stream_numa_node_ids numa_node_ids sorted by stream id
+ * @param[in,out]  stream_nums the list of number of streams which is used to access streams_info_table
+ * @param[out]  stream_type stream create type
+ * @param[out]  concurrency the number of threads created at the same time
+ * @param[out]  core_type core type
+ * @param[out]  numa_node_id numa node id
+ */
+void get_cur_stream_info(const int stream_id,
+                         const bool cpu_reservation,
+                         const std::vector<std::vector<int>> org_proc_type_table,
+                         const std::vector<std::vector<int>> streams_info_table,
+                         const std::vector<int> stream_numa_node_ids,
+                         std::vector<int>& stream_nums,
+                         stream_create_type& stream_type,
+                         int& concurrency,
+                         int& core_type,
+                         int& numa_node_id);
+
 }  // namespace threading
 }  // namespace ov
