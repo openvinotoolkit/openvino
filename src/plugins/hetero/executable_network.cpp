@@ -450,8 +450,6 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
         auto device_config = metaDevices[network._device];
         device_config[ov::cache_dir.name()] = "";
 
-        // network._network =
-        // _heteroPlugin->GetCore()->LoadNetwork(network._clonedNetwork, network._device, device_config);
         auto compiled_model = plugin->get_core()->compile_model(
             ov::legacy_convert::convert_model(network._clonedNetwork, plugin->get_core()->is_new_api()),
             network._device,
@@ -623,7 +621,6 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream& heteroModel,
 
     // save state
     this->_networks = std::move(descs);
-    // this->SetPointerToPlugin(_heteroPlugin->shared_from_this());
 }
 
 void HeteroExecutableNetwork::Export(std::ostream& heteroModel) {
