@@ -11,6 +11,16 @@
  */
 #pragma once
 
+#if !defined(IN_OV_COMPONENT) && !defined(IE_LEGACY_HEADER_INCLUDED)
+#    define IE_LEGACY_HEADER_INCLUDED
+#    ifdef _MSC_VER
+#        pragma message( \
+            "The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    else
+#        warning("The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    endif
+#endif
+
 #include <memory>
 #include <string>
 
@@ -30,7 +40,7 @@ namespace gpu {
  * GetContext() method of Executable network or using CreateContext() Core call.
  * @note User can also obtain OpenCL context handle from this class.
  */
-class VAContext : public ClContext {
+class INFERENCE_ENGINE_1_0_DEPRECATED VAContext : public ClContext {
 public:
     /**
      * @brief A smart pointer to the VAContext object
@@ -55,7 +65,7 @@ public:
  * The plugin object derived from this class can be obtained with CreateBlob() call.
  * @note User can also obtain OpenCL 2D image handle from this class.
  */
-class VASurfaceBlob : public ClImage2DBlob {
+class INFERENCE_ENGINE_1_0_DEPRECATED VASurfaceBlob : public ClImage2DBlob {
 public:
     /**
      * @brief A smart pointer to the VASurfaceBlob object
@@ -128,10 +138,10 @@ static inline Blob::Ptr make_shared_blob_nv12(size_t height,
  * device should be used
  * @return A remote context wrapping `VADisplay`
  */
-static inline VAContext::Ptr make_shared_context(Core& core,
-                                                 std::string deviceName,
-                                                 VADisplay device,
-                                                 int target_tile_id = -1) {
+INFERENCE_ENGINE_1_0_DEPRECATED static inline VAContext::Ptr make_shared_context(Core& core,
+                                                                                 std::string deviceName,
+                                                                                 VADisplay device,
+                                                                                 int target_tile_id = -1) {
     ParamMap contextParams = {{GPU_PARAM_KEY(CONTEXT_TYPE), GPU_PARAM_VALUE(VA_SHARED)},
                               {GPU_PARAM_KEY(VA_DEVICE), static_cast<gpu_handle_param>(device)},
                               {GPU_PARAM_KEY(TILE_ID), target_tile_id}};
@@ -146,10 +156,10 @@ static inline VAContext::Ptr make_shared_context(Core& core,
  * @param plane An index of a plane inside `VASurfaceID` to create blob from
  * @return A remote blob wrapping `VASurfaceID`
  */
-static inline VASurfaceBlob::Ptr make_shared_blob(const TensorDesc& desc,
-                                                  RemoteContext::Ptr ctx,
-                                                  VASurfaceID surface,
-                                                  uint32_t plane = 0) {
+INFERENCE_ENGINE_1_0_DEPRECATED static inline VASurfaceBlob::Ptr make_shared_blob(const TensorDesc& desc,
+                                                                                  RemoteContext::Ptr ctx,
+                                                                                  VASurfaceID surface,
+                                                                                  uint32_t plane = 0) {
     auto casted = std::dynamic_pointer_cast<VAContext>(ctx);
     if (nullptr == casted) {
         IE_THROW() << "Invalid remote context passed";

@@ -10,6 +10,16 @@
  */
 #pragma once
 
+#if !defined(IN_OV_COMPONENT) && !defined(IE_LEGACY_HEADER_INCLUDED)
+#    define IE_LEGACY_HEADER_INCLUDED
+#    ifdef _MSC_VER
+#        pragma message( \
+            "The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    else
+#        warning("The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    endif
+#endif
+
 #include "ie_plugin_config.hpp"
 
 namespace InferenceEngine {
@@ -33,29 +43,29 @@ namespace Metrics {
  * @brief Metric which defines size of memory in bytes available for the device. For iGPU it returns host memory size,
  * for dGPU - dedicated gpu memory size
  */
-DECLARE_GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE, uint64_t);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE, uint64_t);
 
 /**
  * @brief Metric to get microarchitecture identifier in major.minor.revision format
  */
-DECLARE_GPU_METRIC_KEY(UARCH_VERSION, std::string);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_GPU_METRIC_KEY(UARCH_VERSION, std::string);
 
 /**
  * @brief Metric to get count of execution units for current GPU
  */
-DECLARE_GPU_METRIC_KEY(EXECUTION_UNITS_COUNT, int);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_GPU_METRIC_KEY(EXECUTION_UNITS_COUNT, int);
 
 /**
  * @brief Metric to get statistics of GPU memory allocated by engine for each allocation type
  * It contains information about current memory usage
  */
-DECLARE_GPU_METRIC_KEY(MEMORY_STATISTICS, std::map<std::string, uint64_t>);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_GPU_METRIC_KEY(MEMORY_STATISTICS, std::map<std::string, uint64_t>);
 
 /**
  * @brief Possible return value for OPTIMIZATION_CAPABILITIES metric
  *  - "HW_MATMUL" - Defines if device has hardware block for matrix multiplication
  */
-DECLARE_GPU_METRIC_VALUE(HW_MATMUL);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_GPU_METRIC_VALUE(HW_MATMUL);
 
 }  // namespace Metrics
 
@@ -77,7 +87,7 @@ namespace GPUConfigParams {
  * this option should be used with an unsigned integer value (1 is lowest priority)
  * 0 means no priority hint is set and default queue is created.
  */
-DECLARE_GPU_CONFIG_KEY(PLUGIN_PRIORITY);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_GPU_CONFIG_KEY(PLUGIN_PRIORITY);
 
 /**
  * @brief This key instructs the GPU plugin to use throttle hints the OpenCL queue throttle hint
@@ -85,7 +95,7 @@ DECLARE_GPU_CONFIG_KEY(PLUGIN_PRIORITY);
  * chapter 9.19. This option should be used with an unsigned integer value (1 is lowest energy consumption)
  * 0 means no throttle hint is set and default queue created.
  */
-DECLARE_GPU_CONFIG_KEY(PLUGIN_THROTTLE);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_GPU_CONFIG_KEY(PLUGIN_THROTTLE);
 
 /**
  * @brief This key instructs the GPU plugin which cpu core type of TBB affinity used in load network.
@@ -94,22 +104,22 @@ DECLARE_GPU_CONFIG_KEY(PLUGIN_THROTTLE);
  * - MEDIUM (DEFAULT) - instructs the GPU Plugin to use any available cores (BIG or LITTLE cores)
  * - HIGH - instructs the GPU Plugin to use BIG cores if they are available
  */
-DECLARE_GPU_CONFIG_KEY(HOST_TASK_PRIORITY);
-DECLARE_GPU_CONFIG_VALUE(HOST_TASK_PRIORITY_HIGH);
-DECLARE_GPU_CONFIG_VALUE(HOST_TASK_PRIORITY_MEDIUM);
-DECLARE_GPU_CONFIG_VALUE(HOST_TASK_PRIORITY_LOW);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_GPU_CONFIG_KEY(HOST_TASK_PRIORITY);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_GPU_CONFIG_VALUE(HOST_TASK_PRIORITY_HIGH);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_GPU_CONFIG_VALUE(HOST_TASK_PRIORITY_MEDIUM);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_GPU_CONFIG_VALUE(HOST_TASK_PRIORITY_LOW);
 
 /**
  * @brief This key should be set to correctly handle NV12 input without pre-processing.
  * Turned off by default.
  */
-DECLARE_GPU_CONFIG_KEY(NV12_TWO_INPUTS);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_GPU_CONFIG_KEY(NV12_TWO_INPUTS);
 
 /**
  * @brief This key sets the max number of host threads that can be used by GPU plugin on model loading.
  * Default value is maximum number of threads available in the environment.
  */
-DECLARE_GPU_CONFIG_KEY(MAX_NUM_THREADS);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_GPU_CONFIG_KEY(MAX_NUM_THREADS);
 
 /**
  * @brief Turning on this key enables to unroll recurrent layers such as TensorIterator or Loop with fixed iteration
@@ -118,13 +128,13 @@ DECLARE_GPU_CONFIG_KEY(MAX_NUM_THREADS);
  * performance for both graph loading time and inference time with many iteration counts (greater than 16). Note that
  * turning this key on will increase the graph loading time in proportion to the iteration counts.
  * Thus, this key should be turned off if graph loading time is considered to be most important target to optimize.*/
-DECLARE_GPU_CONFIG_KEY(ENABLE_LOOP_UNROLLING);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_GPU_CONFIG_KEY(ENABLE_LOOP_UNROLLING);
 
 /**
  * @brief These keys instruct the GPU plugin to use surface/buffer memory type.
  */
-DECLARE_GPU_CONFIG_KEY(SURFACE);
-DECLARE_GPU_CONFIG_KEY(BUFFER);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_GPU_CONFIG_KEY(SURFACE);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_GPU_CONFIG_KEY(BUFFER);
 
 }  // namespace GPUConfigParams
 
@@ -139,8 +149,8 @@ namespace PluginConfigParams {
  * drop
  * - a positive integer value creates the requested number of streams
  */
-DECLARE_CONFIG_VALUE(GPU_THROUGHPUT_AUTO);
-DECLARE_CONFIG_KEY(GPU_THROUGHPUT_STREAMS);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_CONFIG_VALUE(GPU_THROUGHPUT_AUTO);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_CONFIG_KEY(GPU_THROUGHPUT_STREAMS);
 }  // namespace PluginConfigParams
 
 }  // namespace InferenceEngine

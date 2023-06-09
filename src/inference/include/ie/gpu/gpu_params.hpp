@@ -11,7 +11,19 @@
  */
 #pragma once
 
+#if !defined(IN_OV_COMPONENT) && !defined(IE_LEGACY_HEADER_INCLUDED)
+#    define IE_LEGACY_HEADER_INCLUDED
+#    ifdef _MSC_VER
+#        pragma message( \
+            "The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    else
+#        warning("The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    endif
+#endif
+
 #include <string>
+
+#include "ie_api.h"
 
 namespace InferenceEngine {
 /**
@@ -46,101 +58,101 @@ namespace GPUContextParams {
  * @brief Shared device context type: can be either pure OpenCL (OCL)
  * or shared video decoder (VA_SHARED) context
  */
-DECLARE_GPU_PARAM_KEY(CONTEXT_TYPE, std::string);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_GPU_PARAM_KEY(CONTEXT_TYPE, std::string);
 /**
  * @brief Pure OpenCL device context
  */
-DECLARE_GPU_PARAM_VALUE(OCL);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_GPU_PARAM_VALUE(OCL);
 /**
  * @brief Shared context (video decoder or D3D)
  */
-DECLARE_GPU_PARAM_VALUE(VA_SHARED);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_GPU_PARAM_VALUE(VA_SHARED);
 
 /**
  * @brief This key identifies OpenCL context handle
  * in a shared context or shared memory blob parameter map
  */
-DECLARE_GPU_PARAM_KEY(OCL_CONTEXT, gpu_handle_param);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_GPU_PARAM_KEY(OCL_CONTEXT, gpu_handle_param);
 
 /**
  * @brief This key identifies ID of device in OpenCL context
  * if multiple devices are present in the context
  */
-DECLARE_GPU_PARAM_KEY(OCL_CONTEXT_DEVICE_ID, int);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_GPU_PARAM_KEY(OCL_CONTEXT_DEVICE_ID, int);
 
 /**
  * @brief In case of multi-tile system,
  * this key identifies tile within given context
  */
-DECLARE_GPU_PARAM_KEY(TILE_ID, int);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_GPU_PARAM_KEY(TILE_ID, int);
 
 /**
  * @brief This key identifies OpenCL queue handle in a shared context
  */
-DECLARE_GPU_PARAM_KEY(OCL_QUEUE, gpu_handle_param);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_GPU_PARAM_KEY(OCL_QUEUE, gpu_handle_param);
 
 /**
  * @brief This key identifies video acceleration device/display handle
  * in a shared context or shared memory blob parameter map
  */
-DECLARE_GPU_PARAM_KEY(VA_DEVICE, gpu_handle_param);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_GPU_PARAM_KEY(VA_DEVICE, gpu_handle_param);
 
 /**
  * @brief This key identifies type of internal shared memory
  * in a shared memory blob parameter map.
  */
-DECLARE_GPU_PARAM_KEY(SHARED_MEM_TYPE, std::string);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_GPU_PARAM_KEY(SHARED_MEM_TYPE, std::string);
 /**
  * @brief Shared OpenCL buffer blob
  */
-DECLARE_GPU_PARAM_VALUE(OCL_BUFFER);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_GPU_PARAM_VALUE(OCL_BUFFER);
 /**
  * @brief Shared OpenCL 2D image blob
  */
-DECLARE_GPU_PARAM_VALUE(OCL_IMAGE2D);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_GPU_PARAM_VALUE(OCL_IMAGE2D);
 /**
  * @brief Shared USM pointer allocated by user
  */
-DECLARE_GPU_PARAM_VALUE(USM_USER_BUFFER);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_GPU_PARAM_VALUE(USM_USER_BUFFER);
 /**
  * @brief Shared USM pointer type with host allocation type allocated by plugin
  */
-DECLARE_GPU_PARAM_VALUE(USM_HOST_BUFFER);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_GPU_PARAM_VALUE(USM_HOST_BUFFER);
 /**
  * @brief Shared USM pointer type with device allocation type allocated by plugin
  */
-DECLARE_GPU_PARAM_VALUE(USM_DEVICE_BUFFER);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_GPU_PARAM_VALUE(USM_DEVICE_BUFFER);
 /**
  * @brief Shared video decoder surface or D3D 2D texture blob
  */
-DECLARE_GPU_PARAM_VALUE(VA_SURFACE);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_GPU_PARAM_VALUE(VA_SURFACE);
 
 /**
  * @brief Shared D3D buffer blob
  */
-DECLARE_GPU_PARAM_VALUE(DX_BUFFER);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_GPU_PARAM_VALUE(DX_BUFFER);
 
 /**
  * @brief This key identifies OpenCL memory handle
  * in a shared memory blob parameter map
  */
-DECLARE_GPU_PARAM_KEY(MEM_HANDLE, gpu_handle_param);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_GPU_PARAM_KEY(MEM_HANDLE, gpu_handle_param);
 
 /**
  * @brief This key identifies video decoder surface handle
  * in a shared memory blob parameter map
  */
 #ifdef _WIN32
-DECLARE_GPU_PARAM_KEY(DEV_OBJECT_HANDLE, gpu_handle_param);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_GPU_PARAM_KEY(DEV_OBJECT_HANDLE, gpu_handle_param);
 #else
-DECLARE_GPU_PARAM_KEY(DEV_OBJECT_HANDLE, uint32_t);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_GPU_PARAM_KEY(DEV_OBJECT_HANDLE, uint32_t);
 #endif
 
 /**
  * @brief This key identifies video decoder surface plane
  * in a shared memory blob parameter map
  */
-DECLARE_GPU_PARAM_KEY(VA_PLANE, uint32_t);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_GPU_PARAM_KEY(VA_PLANE, uint32_t);
 
 }  // namespace GPUContextParams
 }  // namespace InferenceEngine

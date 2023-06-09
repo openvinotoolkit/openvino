@@ -11,6 +11,16 @@
 
 #pragma once
 
+#if !defined(IN_OV_COMPONENT) && !defined(IE_LEGACY_HEADER_INCLUDED)
+#    define IE_LEGACY_HEADER_INCLUDED
+#    ifdef _MSC_VER
+#        pragma message( \
+            "The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    else
+#        warning("The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    endif
+#endif
+
 #include "vpu_config.hpp"
 
 namespace InferenceEngine {
@@ -20,67 +30,67 @@ namespace Metrics {
 /**
  * @brief Metric to get a int of the device number, String value is METRIC_HDDL_DEVICE_NUM
  */
-DECLARE_METRIC_KEY(HDDL_DEVICE_NUM, int);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_METRIC_KEY(HDDL_DEVICE_NUM, int);
 
 /**
  * @brief Metric to get a std::vector<std::string> of device names, String value is METRIC_HDDL_DEVICE_NAME
  */
-DECLARE_METRIC_KEY(HDDL_DEVICE_NAME, std::vector<std::string>);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_METRIC_KEY(HDDL_DEVICE_NAME, std::vector<std::string>);
 
 /**
  * @brief  Metric to get a std::vector<float> of device thermal, String value is METRIC_HDDL_DEVICE_THERMAL
  */
-DECLARE_METRIC_KEY(HDDL_DEVICE_THERMAL, std::vector<float>);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_METRIC_KEY(HDDL_DEVICE_THERMAL, std::vector<float>);
 
 /**
  * @brief  Metric to get a std::vector<uint32> of device ids, String value is METRIC_HDDL_DEVICE_ID
  */
-DECLARE_METRIC_KEY(HDDL_DEVICE_ID, std::vector<unsigned int>);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_METRIC_KEY(HDDL_DEVICE_ID, std::vector<unsigned int>);
 
 /**
  * @brief  Metric to get a std::vector<int> of device subclasses, String value is METRIC_HDDL_DEVICE_SUBCLASS
  */
-DECLARE_METRIC_KEY(HDDL_DEVICE_SUBCLASS, std::vector<int>);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_METRIC_KEY(HDDL_DEVICE_SUBCLASS, std::vector<int>);
 
 /**
  * @brief  Metric to get a std::vector<uint32> of device total memory, String value is METRIC_HDDL_MEMORY_TOTAL
  */
-DECLARE_METRIC_KEY(HDDL_DEVICE_MEMORY_TOTAL, std::vector<unsigned int>);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_METRIC_KEY(HDDL_DEVICE_MEMORY_TOTAL, std::vector<unsigned int>);
 
 /**
  * @brief  Metric to get a std::vector<uint32> of device used memory, String value is METRIC_HDDL_DEVICE_MEMORY_USED
  */
-DECLARE_METRIC_KEY(HDDL_DEVICE_MEMORY_USED, std::vector<unsigned int>);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_METRIC_KEY(HDDL_DEVICE_MEMORY_USED, std::vector<unsigned int>);
 
 /**
  * @brief  Metric to get a std::vector<float> of device utilization, String value is METRIC_HDDL_DEVICE_UTILIZATION
  */
-DECLARE_METRIC_KEY(HDDL_DEVICE_UTILIZATION, std::vector<float>);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_METRIC_KEY(HDDL_DEVICE_UTILIZATION, std::vector<float>);
 
 /**
  * @brief  Metric to get a std::vector<std::string> of stream ids, String value is METRIC_HDDL_DEVICE_STREAM_ID
  */
-DECLARE_METRIC_KEY(HDDL_STREAM_ID, std::vector<std::string>);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_METRIC_KEY(HDDL_STREAM_ID, std::vector<std::string>);
 
 /**
  * @brief  Metric to get a std::vector<std::string> of device tags, String value is METRIC_HDDL_DEVICE_TAG
  */
-DECLARE_METRIC_KEY(HDDL_DEVICE_TAG, std::vector<std::string>);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_METRIC_KEY(HDDL_DEVICE_TAG, std::vector<std::string>);
 
 /**
  * @brief  Metric to get a std::vector<int> of group ids, String value is METRIC_HDDL_GROUP_ID
  */
-DECLARE_METRIC_KEY(HDDL_GROUP_ID, std::vector<int>);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_METRIC_KEY(HDDL_GROUP_ID, std::vector<int>);
 
 /**
  * @brief  Metric to get a int number of device be using for group, String value is METRIC_HDDL_DEVICE_GROUP_USING_NUM
  */
-DECLARE_METRIC_KEY(HDDL_DEVICE_GROUP_USING_NUM, int);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_METRIC_KEY(HDDL_DEVICE_GROUP_USING_NUM, int);
 
 /**
  * @brief  Metric to get a int number of total device, String value is METRIC_HDDL_DEVICE_TOTAL_NUM
  */
-DECLARE_METRIC_KEY(HDDL_DEVICE_TOTAL_NUM, int);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_METRIC_KEY(HDDL_DEVICE_TOTAL_NUM, int);
 
 }  // namespace Metrics
 
@@ -100,7 +110,7 @@ DECLARE_METRIC_KEY(HDDL_DEVICE_TOTAL_NUM, int);
  * }
  * It means that an executable network marked with tagA will be executed on 3 devices
  */
-DECLARE_VPU_CONFIG(HDDL_GRAPH_TAG);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_VPU_CONFIG(HDDL_GRAPH_TAG);
 
 /**
  * @brief [Only for OpenVINO Intel HDDL device]
@@ -116,7 +126,7 @@ DECLARE_VPU_CONFIG(HDDL_GRAPH_TAG);
  * }
  * It means that 5 device will be used for stream-affinity
  */
-DECLARE_VPU_CONFIG(HDDL_STREAM_ID);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_VPU_CONFIG(HDDL_STREAM_ID);
 
 /**
  * @brief [Only for OpenVINO Intel HDDL device]
@@ -132,7 +142,7 @@ DECLARE_VPU_CONFIG(HDDL_STREAM_ID);
  * }
  * It means that 5 device will be used for Bypass scheduler.
  */
-DECLARE_VPU_CONFIG(HDDL_DEVICE_TAG);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_VPU_CONFIG(HDDL_DEVICE_TAG);
 
 /**
  * @brief [Only for OpenVINO Intel HDDL device]
@@ -145,7 +155,7 @@ DECLARE_VPU_CONFIG(HDDL_DEVICE_TAG);
  * is allocated on multiple other devices (also set BIND_DEVICE to "False"), then inference through any handle of these
  * networks may be executed on any of these devices those have the network loaded.
  */
-DECLARE_VPU_CONFIG(HDDL_BIND_DEVICE);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_VPU_CONFIG(HDDL_BIND_DEVICE);
 
 /**
  * @brief [Only for OpenVINO Intel HDDL device]
@@ -155,7 +165,7 @@ DECLARE_VPU_CONFIG(HDDL_BIND_DEVICE);
  * Scheduler), the device with a larger number has a higher priority, and more inference tasks will be fed to it with
  * priority.
  */
-DECLARE_VPU_CONFIG(HDDL_RUNTIME_PRIORITY);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_VPU_CONFIG(HDDL_RUNTIME_PRIORITY);
 
 /**
  * @brief [Only for OpenVINO Intel HDDL device]
@@ -164,7 +174,7 @@ DECLARE_VPU_CONFIG(HDDL_RUNTIME_PRIORITY);
  * (managed by SGAD scheduler) will be loaded with this graph. The number of network that can be loaded to one device
  * can exceed one. Once application deallocates 1 network from device, all devices will unload the network from them.
  */
-DECLARE_VPU_CONFIG(HDDL_USE_SGAD);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_VPU_CONFIG(HDDL_USE_SGAD);
 
 /**
  * @brief [Only for OpenVINO Intel HDDL device]
@@ -173,6 +183,6 @@ DECLARE_VPU_CONFIG(HDDL_USE_SGAD);
  * can use this device grouped by calling this group id while other client can't use this device
  * Each device has their own group id. Device in one group shares same group id.
  */
-DECLARE_VPU_CONFIG(HDDL_GROUP_DEVICE);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_VPU_CONFIG(HDDL_GROUP_DEVICE);
 
 }  // namespace InferenceEngine
