@@ -6,6 +6,7 @@
 
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/equal.hpp"
 #include "openvino/op/not_equal.hpp"
@@ -25,9 +26,14 @@ using namespace ov::op;
 StringEqualityReplacer::StringEqualityReplacer() {
     auto framework_node_lhs = pattern::wrap_type<PtFrameworkNode>();
     auto framework_node_rhs = pattern::wrap_type<PtFrameworkNode>();
-    auto convert_like = pattern::wrap_type<v1::ConvertLike>({framework_node_rhs, framework_node_lhs});
-    auto equal_op = pattern::wrap_type<v1::Equal>({framework_node_lhs, convert_like});
-    auto not_equal_op = pattern::wrap_type<v1::NotEqual>({framework_node_lhs, convert_like});
+    auto convert_lhs = pattern::wrap_type<v0::Convert>({framework_node_lhs});
+    auto convert_like_lhs = pattern::wrap_type<v1::ConvertLike>({framework_node_lhs, framework_node_rhs});
+    auto convert_rhs = pattern::wrap_type<v0::Convert>({framework_node_rhs});
+    auto convert_like_rhs = pattern::wrap_type<v1::ConvertLike>({framework_node_rhs, framework_node_lhs});
+    auto lhs_pattern = std::make_shared<pattern::op::Or>(OutputVector{framework_node_lhs, convert_lhs, convert_like_lhs});
+    auto rhs_pattern = std::make_shared<pattern::op::Or>(OutputVector{framework_node_rhs, convert_rhs, convert_like_rhs});
+    auto equal_op = pattern::wrap_type<v1::Equal>({lhs_pattern, rhs_pattern});
+    auto not_equal_op = pattern::wrap_type<v1::NotEqual>({lhs_pattern, rhs_pattern});
 
     auto string_equality_pattern = std::make_shared<pattern::op::Or>(OutputVector{equal_op, not_equal_op});
 
