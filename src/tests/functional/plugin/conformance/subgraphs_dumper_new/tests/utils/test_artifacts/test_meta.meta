@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<meta_info>
+	<models />
+	<graph_priority value="0" />
+	<input_info>
+		<input id="test_in_0" min="undefined" max="1" convert_to_const="true" />
+	</input_info>
+</meta_info>

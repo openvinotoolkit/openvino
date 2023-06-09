@@ -24,12 +24,13 @@ protected:
     std::shared_ptr<ov::Model> test_model;
     ov::tools::subgraph_dumper::MetaInfo test_meta;
     std::string test_model_path, model_name;
-    std::string test_serilization_dir;
+    std::string test_artifacts_dir;
 
     void SetUp() override {
         model_name = "test_model";
-        test_serilization_dir = ".";
-        test_model_path = ov::util::path_join({ test_serilization_dir, model_name + ".xml" });
+        test_model_path = ov::util::path_join({ test_artifacts_dir, model_name + ".xml" });
+        test_artifacts_dir = ov::util::path_join({CommonTestUtils::getCurrentWorkingDir(), "test_artifacts"});
+        ov::util::create_directory_recursive(test_artifacts_dir);
         {
             auto params = ov::ParameterVector {
                 std::make_shared<ov::op::v0::Parameter>(ov::element::Type_t::f32, ov::PartialShape{1, 1, 1, 1}),
@@ -42,11 +43,15 @@ protected:
         }
         test_meta = ov::tools::subgraph_dumper::MetaInfo(test_model_path, {{"in_0", ov::tools::subgraph_dumper::InputInfo(0, 1, true)}});
     }
+
+    void TearDown() override {
+        CommonTestUtils::removeDir(test_artifacts_dir);
+    }
 };
 
 TEST_F(ICacheUnitTest, set_serialization_dir) {
-    ASSERT_NO_THROW(this->set_serialization_dir(test_serilization_dir));
-    ASSERT_EQ(test_serilization_dir, this->m_serialization_dir);
+    ASSERT_NO_THROW(this->set_serialization_dir(test_artifacts_dir));
+    ASSERT_EQ(test_artifacts_dir, this->m_serialization_dir);
 }
 
 TEST_F(ICacheUnitTest, update_cache) {
@@ -61,7 +66,7 @@ TEST_F(ICacheUnitTest, serialize_cache) {
 
 TEST_F(ICacheUnitTest, serialize_model) {
     std::pair<std::shared_ptr<ov::Model>, ov::tools::subgraph_dumper::MetaInfo> graph_info({ test_model, test_meta });
-    ASSERT_TRUE(this->serialize_model(graph_info, "."));
+    ASSERT_TRUE(this->serialize_model(graph_info, test_artifacts_dir));
     auto xml_path = test_model_path;
     auto bin_path = CommonTestUtils::replaceExt(test_model_path, "bin");
     auto meta_path = CommonTestUtils::replaceExt(test_model_path, "meta");
