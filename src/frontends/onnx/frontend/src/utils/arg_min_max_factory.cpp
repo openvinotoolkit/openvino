@@ -30,15 +30,15 @@ std::shared_ptr<ngraph::Node> ArgMinMaxFactory::make_topk_subgraph(default_opset
 
     if (m_select_last_index == 1) {
         // Example (ArgMin):
-        // The goal is to get the index of the last occurence of the
+        // The goal is to get the index of the last occurrence of the
         // minimum value present in given input tensor.
         //
         // Input:           [1, 2, 1, 3, 4, 4]
         // Expected output: [2]
         //
         // Top-K is always returning the "most-left" result. The trick is to
-        // reverse input to find the "most-right" occurence which is equal to
-        // the last occurence in the original input.
+        // reverse input to find the "most-right" occurrence which is equal to
+        // the last occurrence in the original input.
         // reverse = [4, 4, 3, 1, 2, 1]
         //
         // Run TopK on reversed tensor, in the example output with index values

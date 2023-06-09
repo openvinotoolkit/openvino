@@ -488,7 +488,7 @@ HostTensorPtr build_identity(const HostTensorPtr& input_ptr, const ov::TensorLab
 
     // Identity[k,k,...,k] element is placed in k*p^(n-1) + ... + k*p + k position,
     // where p is a size of one Identity dimension,
-    // n is occurence number for the considered label and k in [0; p).
+    // n is occurrence number for the considered label and k in [0; p).
     // Note that k*p^(n-1) + ... + k*p + k = k * (p^n-1)/(p-1) = k * alpha
     size_t p = repeated_label_dim_size;
     if (p == 1) {

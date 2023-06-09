@@ -175,7 +175,7 @@ def test_default_version(prepare_ir_paths):
     assert compare_models(model, res_model)
 
 
-def test_default_version_IR_V11_seperate_paths(prepare_ir_paths):
+def test_default_version_IR_V11_separate_paths(prepare_ir_paths):
     core = Core()
 
     xml_path, bin_path = prepare_ir_paths

@@ -19,7 +19,7 @@ std::string get_node_domain(const ONNX_NAMESPACE::NodeProto& node_proto) {
 
 std::int64_t get_opset_version(const ONNX_NAMESPACE::ModelProto& model_proto, const std::string& domain) {
     // copy the opsets and sort them (descending order)
-    // then return the version from the first occurence of a given domain
+    // then return the version from the first occurrence of a given domain
     auto opset_imports = model_proto.opset_import();
     std::sort(std::begin(opset_imports),
               std::end(opset_imports),

@@ -33,10 +33,10 @@ OutputVector translate_dynamic_partition_op(const NodeContext& node) {
     auto const_zero = make_shared<Constant>(element::i64, Shape{}, 0);
     auto target_shape = make_shared<Constant>(element::i64, Shape{1}, num_partitions);
     Output<Node> split_legths = make_shared<Broadcast>(const_zero, target_shape);
-    // 2. compute unique partition indices and their occurences
+    // 2. compute unique partition indices and their occurrences
     auto axis = make_shared<Constant>(element::i32, Shape{1}, 0);
     auto unique_partition_inds = make_shared<Unique>(partitions);
-    // 3. update split_lengths with a number of occurences by each partition index
+    // 3. update split_lengths with a number of occurrences by each partition index
     split_legths = make_shared<ScatterUpdate>(split_legths,
                                               unique_partition_inds->output(0),
                                               unique_partition_inds->output(3),
