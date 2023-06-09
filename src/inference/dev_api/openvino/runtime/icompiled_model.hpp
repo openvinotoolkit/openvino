@@ -83,14 +83,14 @@ public:
      *
      * @return model outputs
      */
-    const std::vector<ov::Output<const ov::Node>>& outputs() const;
+    virtual const std::vector<ov::Output<const ov::Node>>& outputs() const;
 
     /**
      * @brief Gets all inputs from compiled model
      *
      * @return model inputs
      */
-    const std::vector<ov::Output<const ov::Node>>& inputs() const;
+    virtual const std::vector<ov::Output<const ov::Node>>& inputs() const;
 
     /**
      * @brief Create infer request
@@ -188,17 +188,5 @@ protected:
     void set_task_executor(const std::shared_ptr<ov::threading::ITaskExecutor> task_executor);
     void set_callback_executor(const std::shared_ptr<ov::threading::ITaskExecutor> callback_executor);
 };
-
-/**
- * @brief Method is used to create by meta plugins model with information about inputs/outputs from low level plugins
- *
- * @param inputs vector of input ports
- * @param outputs vector of output ports
- *
- * @return shared pointer to ov::Model
- */
-OPENVINO_RUNTIME_API std::shared_ptr<ov::Model> construct_model_with_inputs_outputs(
-    const std::vector<ov::Output<const ov::Node>>& inputs,
-    const std::vector<ov::Output<const ov::Node>>& outputs);
 
 }  // namespace ov
