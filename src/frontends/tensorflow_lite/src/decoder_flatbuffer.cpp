@@ -119,11 +119,7 @@ ov::Any DecoderFlatBuffer::get_attribute(const std::string& name) const {
     if (opts == nullptr)
         return {};
     const flexbuffers::Map& m = flexbuffers::GetRoot(opts->Data(), opts->size()).AsMap();
-    try {
-        return get_value_as_ov_any(m[name]);
-    } catch (...) {
-        return {};
-    }
+    return get_value_as_ov_any(m[name]);
 }
 
 }  // namespace tensorflow_lite

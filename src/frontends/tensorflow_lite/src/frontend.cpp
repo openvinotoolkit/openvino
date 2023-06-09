@@ -178,10 +178,10 @@ void FrontEnd::translate_graph(const InputModel::Ptr& model,
         };
         return simple_lambda;
     };
-    auto submodel_translation_functions = std::make_shared<std::vector<std::function<std::shared_ptr<ov::Model>()>>>();
-    submodel_translation_functions->reserve(subgraphs_as_input_models.size());
+    std::vector<std::function<std::shared_ptr<ov::Model>()>> submodel_translation_functions;
+    submodel_translation_functions.reserve(subgraphs_as_input_models.size());
     for (const auto& subgraph : subgraphs_as_input_models) {
-        submodel_translation_functions->emplace_back(input_to_ov_model(subgraph));
+        submodel_translation_functions.push_back(input_to_ov_model(subgraph));
     }
 
     const auto& translate_map =
