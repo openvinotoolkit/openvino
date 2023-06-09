@@ -94,8 +94,17 @@ if [ -e "$build_dir/CMakeCache.txt" ]; then
   rm -rf "$build_dir/CMakeCache.txt"
 fi
 
+CUR_DIR=$(pwd)
+echo "Current DIR is: $CUR_DIR"
+
 mkdir -p "$build_dir"
 cd "$build_dir" || exit
+
+CUR_DIR=$(pwd)
+echo "(should be in build_dir) Current DIR is: $CUR_DIR"
+
+echo "SAMPLES_PATH is $SAMPLES_PATH"
+
 $CMAKE_EXEC -DCMAKE_BUILD_TYPE=Release "$SAMPLES_PATH"
 make $NUM_THREADS
 
