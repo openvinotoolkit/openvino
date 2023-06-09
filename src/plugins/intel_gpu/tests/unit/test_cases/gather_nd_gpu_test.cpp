@@ -831,12 +831,12 @@ TEST(gather_nd_gpu_fp16, dynamic_r4) {
 
     auto expected_fmt = format::bfyx;
     const tensor expected_ts = { 3, 2, 3, 2 };
-    int32_t dim_size = 4;
+    uint8_t dim_size = 4;
 
     topology topology;
     topology.add(input_layout("input1", in1_layout));
     topology.add(input_layout("input2", in2_layout));
-    topology.add(gather_nd("gather_nd", input_info("input1"), input_info("input2"), in1_shape.size(), in2_shape.size(), batch_dims, true));
+    topology.add(gather_nd("gather_nd", input_info("input1"), input_info("input2"), static_cast<uint8_t>(in1_shape.size()), static_cast<uint8_t>(in2_shape.size()), batch_dims, true));
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
@@ -913,12 +913,12 @@ TEST(gather_nd_gpu_fp16, dynamic_r5) {
 
     auto expected_fmt = format::bfyx;
     const tensor expected_ts = { 2, 3, 2, 3 };
-    int32_t dim_size = 4;
+    uint8_t dim_size = 4;
 
     topology topology;
     topology.add(input_layout("input1", in1_layout));
     topology.add(input_layout("input2", in2_layout));
-    topology.add(gather_nd("gather_nd", input_info("input1"), input_info("input2"), in1_shape.size(), in2_shape.size(), batch_dims, false));
+    topology.add(gather_nd("gather_nd", input_info("input1"), input_info("input2"), static_cast<uint8_t>(in1_shape.size()), static_cast<uint8_t>(in2_shape.size()), batch_dims, false));
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
