@@ -25,6 +25,8 @@
 #include "common/primitive_hashing_utils.hpp"
 #include "common/primitive_desc.hpp"
 #include "common/primitive_desc_iface.hpp"
+#include "ie_parallel.hpp"
+#include "common/dnnl_thread.hpp"
 
 #include <string>
 #include <vector>
@@ -175,6 +177,16 @@ FullyConnected::FullyConnected(const std::shared_ptr<ngraph::Node>& op, const Gr
         minSparseRate = context->getConfig().fcSparseWeiDecompressionRate;
 
     expectedBiasDims = {getInputShapeAtPort(WEIGHTS_ID).getStaticDims()[0]};
+
+#ifdef OV_CPU_WITH_LLMDNN
+    const std::string& pkey = ov::PrimitivesPriority::get_type_info_static();
+    const auto& info = op->get_rt_info();
+    if (info.count(pkey)) {
+        auto primitives_priority_attr = info.at(pkey).as<ov::PrimitivesPriority>().value;
+        if (primitives_priority_attr.find("gemm_llmdnn") == std::string::npos)
+            stateLLMFc = State_NotUse;
+    }
+#endif
 }
 
 std::vector<memory::format_tag> FullyConnected::getAvailableFormatsForDims(const Shape &dims) const {
@@ -237,7 +249,7 @@ void FullyConnected::getSupportedDescriptors() {
 
     useSparseWeights = useSparseWeightsDecompression();
 
-    auto inputDataType = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(DATA_ID));
+    inputDataType = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(DATA_ID));
     outputDataType = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalOutputPrecisionAtPort(DATA_ID));
 
     if (!fusedWith.empty()) {
@@ -285,6 +297,10 @@ void FullyConnected::getSupportedDescriptors() {
 }
 
 void FullyConnected::createPrimitive() {
+#ifdef OV_CPU_WITH_LLMDNN
+    if (stateLLMFc == State_Use)
+        return;
+#endif
     setPostOps(attr, outDims);
     attr.set_scratchpad_mode(dnnl::scratchpad_mode::user);
     Node::createPrimitive();
@@ -292,6 +308,11 @@ void FullyConnected::createPrimitive() {
 }
 
 void FullyConnected::prepareParams() {
+#ifdef OV_CPU_WITH_LLMDNN
+    if (tryUseLLMFc())
+        return;
+#endif
+
     auto srcMemPtr = getParentEdgesAtPort(0)[0]->getMemoryPtr();
     auto dstMemPtr = getChildEdgesAtPort(0)[0]->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
@@ -439,6 +460,11 @@ void FullyConnected::prepareParams() {
 }
 
 void FullyConnected::execute(dnnl::stream strm) {
+#ifdef OV_CPU_WITH_LLMDNN
+    if (tryExecLLMFc())
+        return;
+#endif
+
     if (!execPtr) {
         IE_THROW() << "Can't execute FullyConnected node with name: " << getName() << ", because executor is not compiled";
     }
@@ -928,6 +954,199 @@ bool FullyConnected::useSparseWeightsDecompression() {
 
     return true;
 }
+
+#ifdef OV_CPU_WITH_LLMDNN
+bool FullyConnected::tryExtractParamForLLMFc(llmdnn::fc_create_param& param) {
+    if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx))
+        return false;
+
+    if (useSparseWeights)
+        return false;
+
+    const auto inRank = getInputShapeAtPort(DATA_ID).getRank();
+    if (!one_of(inRank, 2u, 3u))
+        return false;
+
+    const auto& weight_dims = getInputShapeAtPort(WEIGHTS_ID).getStaticDims();
+    const auto N = weight_dims[0];
+    const auto K = weight_dims[1];
+    const auto data_type = getOriginalInputPrecisionAtPort(DATA_ID);
+    if ((data_type == Precision::BF16 && K < 32) ||
+        (data_type == Precision::I8 && K < 64))
+        return false;
+
+    if (data_type == Precision::BF16) {
+        if (one_of(outputDataType, memory::data_type::f32, memory::data_type::bf16) &&
+            (fusedWith.empty() ||
+            (fusedWith.size() == 1 && fusedWith[0]->getAlgorithm() == Algorithm::EltwiseGeluErf))) {
+            param.dt_a = llmdnn::dnnl_bf16;
+            param.dt_b = llmdnn::dnnl_bf16;
+            param.dt_c = static_cast<llmdnn::data_type_t>(outputDataType);
+            param.b_is_trans = true;
+            param.postops_type = llmdnn::NONE;
+            if (withBiases)
+                param.postops_type = static_cast<llmdnn::postops_types>(param.postops_type | llmdnn::BIAS);
+            if (fusedWith.size() == 1 && fusedWith[0]->getAlgorithm() == Algorithm::EltwiseGeluErf)
+                param.postops_type = static_cast<llmdnn::postops_types>(param.postops_type | llmdnn::GELU);
+
+            return true;
+        }
+    } else if (data_type == Precision::I8) {
+        if (one_of(outputDataType, memory::data_type::f32, memory::data_type::bf16, memory::data_type::s8)) {
+            param.dt_a = llmdnn::dnnl_s8;
+            param.dt_b = llmdnn::dnnl_s8;
+            param.dt_c = static_cast<llmdnn::data_type_t>(outputDataType);
+            param.b_is_trans = true;
+            param.postops_type = llmdnn::NONE;
+
+            if (withBiases)
+                param.postops_type = static_cast<llmdnn::postops_types>(param.postops_type | llmdnn::BIAS);
+            bool firstGelu = true;
+            bool firstDQ = true;
+            bool firstQ = true;
+            bool valid = true;
+            for (int i = 0; i < fusedWith.size(); ++i) {
+                auto& node = fusedWith[i];
+                bool isLastPostOp = (i == (fusedWith.size() - 1));
+
+                if (auto* eltwiseNode = dynamic_cast<Eltwise*>(node.get())) {
+                    if (eltwiseNode->getAlgorithm() == Algorithm::EltwiseGeluErf && firstGelu) {
+                        firstGelu = false;
+                        param.postops_type = static_cast<llmdnn::postops_types>(param.postops_type | llmdnn::GELU);
+                    } else if (eltwiseNode->getAlgorithm() == Algorithm::EltwiseMultiply && firstDQ) {
+                        firstDQ = false;
+                        const auto& quant = eltwiseNode->getScales();
+                        auto capacity = rnd_up(N * sizeof(float), 64);
+                        dequant = std::shared_ptr<float>(
+                                            reinterpret_cast<float*>(aligned_alloc(64, capacity)),
+                                            [](void * p) { ::free(p); });
+                        memset(dequant.get(), 0, capacity);
+
+                        if (quant.size() == 1) {
+                            std::fill(dequant.get(), dequant.get() + N, quant[0]);
+                        } else {
+                            memcpy(dequant.get(), quant.data(), quant.size() * sizeof(float));
+                        }
+                        param.postops_type = static_cast<llmdnn::postops_types>(param.postops_type | llmdnn::DEQUANT);
+                    } else {
+                        valid = false;
+                        break;
+                    }
+                } else if (auto* fakeQuantizeNode = dynamic_cast<FakeQuantize*>(node.get())) {
+                    if (isLastPostOp && firstQ) {
+                        firstQ = false;
+                        auto capacity = rnd_up(N * sizeof(float), 64);
+                        requant = std::shared_ptr<float>(
+                                            reinterpret_cast<float*>(aligned_alloc(64, capacity)),
+                                            [](void * p) { ::free(p); });
+                        memset(requant.get(), 0, capacity);
+
+                        auto& quant = fakeQuantizeNode->getInputScale();
+
+                        if (quant.size() == 1) {
+                            std::fill(requant.get(), requant.get() + N, quant[0]);
+                        } else {
+                            memcpy(requant.get(), quant.data(), quant.size() * sizeof(float));
+                        }
+                        param.postops_type = static_cast<llmdnn::postops_types>(param.postops_type | llmdnn::QUANT);
+                    } else {
+                        valid = false;
+                        break;
+                    }
+                } else {
+                    valid = false;
+                    break;
+                }
+            }
+            return valid;
+        }
+    }
+
+    return false;
+}
+
+bool FullyConnected::tryUseLLMFc() {
+    if (stateLLMFc != Not_Init)
+        return stateLLMFc == State_Use;
+
+    llmdnn::fc_create_param param;
+    if (!tryExtractParamForLLMFc(param)) {
+        stateLLMFc = State_NotUse;
+        return false;
+    }
+
+    auto thread_num = parallel_get_max_threads();
+    fcLLMs.resize(thread_num);
+    bool ret = true;
+    for (size_t i = 0; i < thread_num; i++) {
+        llmdnn::fc_kernel* fc;
+        if (!fc_kernel_create(&fc, &param)) {
+            ret = false;
+            break;
+        }
+        fcLLMs[i] = std::shared_ptr<llmdnn::fc_kernel>(fc, [](llmdnn::fc_kernel* p) { fc_kernel_destroy(p); });
+    }
+    if (ret) {
+        stateLLMFc = State_Use;
+        NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
+        selected_pd->setImplementationType(gemm_llmdnn);
+    } else {
+        // fallback
+        stateLLMFc = State_NotUse;
+        fcLLMs.clear();
+    }
+
+    return ret;
+}
+
+bool FullyConnected::tryExecLLMFc() {
+    if (stateLLMFc != State_Use)
+        return false;
+
+    auto& srcPtr = getParentEdgeAt(0)->getMemoryPtr();
+    auto& weightPtr = getParentEdgeAt(1)->getMemoryPtr();
+    auto* src = reinterpret_cast<uint8_t*>(srcPtr->GetPtr());
+    auto* weight = reinterpret_cast<uint8_t*>(weightPtr->GetPtr());
+    auto* dst = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    auto& data_dims = srcPtr->getStaticDims();
+    auto& weight_dims = weightPtr->getStaticDims();
+    auto K = weight_dims[1];
+    auto N = weight_dims[0];
+    auto M = data_dims[0];
+    if (data_dims.size() == 3) {
+        M *= data_dims[1];
+        assert(K == data_dims[2]);
+    } else {
+        assert(K == data_dims[1]);
+    }
+    auto work_amount = rnd_up(N, 32) / 32;
+    float* bias = nullptr;
+    if (withBiases) {
+        bias = reinterpret_cast<float*>(getParentEdgeAt(2)->getMemoryPtr()->GetPtr());
+        auto& bias_dims = getParentEdgeAt(2)->getMemoryPtr()->getStaticDims();
+        assert(bias_dims[0] == N);
+    }
+    auto thread_num = fcLLMs.size();
+    size_t lda, ldb, ldc;
+    lda = K * dnnl::memory::data_type_size(inputDataType);
+    ldb = K * dnnl::memory::data_type_size(inputDataType);
+    ldc = N * dnnl::memory::data_type_size(outputDataType);
+    parallel_for(thread_num, [&](size_t tid) {
+        size_t start {0}, end {0};
+        dnnl::impl::balance211(work_amount, thread_num, tid, start, end);
+        int n0 = start * 32;
+        int n1 = std::min(end * 32, N);
+        if (n0 >= N) return;
+
+        llmdnn::fc_kernel_execute(fcLLMs[tid].get(), src, weight, dst, lda, ldb, ldc, M, N, K, n0, n1,
+            dequant.get(), requant.get(), bias);
+    });
+
+    return true;
+}
+
+#endif
+
 }   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

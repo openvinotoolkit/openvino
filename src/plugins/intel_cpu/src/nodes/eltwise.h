@@ -121,6 +121,7 @@ public:
     float getAlpha() const { return alpha; }
     float getBeta() const { return beta; }
     float getGamma() const { return gamma; }
+    std::vector<float> getScales() const { return scales; }
 
     dnnl::algorithm getOneDnnAlgorithm() const { return onednnAlgorithm; }
 

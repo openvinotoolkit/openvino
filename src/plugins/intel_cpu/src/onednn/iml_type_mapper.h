@@ -39,6 +39,8 @@ enum impl_desc_type {
     winograd = 1<<24,
     // sparse
     sparse = 1<<25,
+    // llmdnn
+    llmdnn = 1<<27,
 
     // real types
     ref_any             = ref  | any,
@@ -98,6 +100,8 @@ enum impl_desc_type {
     dw_acl             = _dw | acl,
     gemm_acl           = gemm | acl,
     winograd_acl       = winograd | acl,
+
+    gemm_llmdnn        = gemm | llmdnn,
 };
 
 const char * impl_type_to_string(impl_desc_type type);
