@@ -4,6 +4,7 @@
 
 #include "openvino/proxy/infer_request.hpp"
 
+#include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/remote_context.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "remote_context.hpp"
@@ -48,6 +49,7 @@ ov::Tensor ov::proxy::InferRequest::get_tensor(const ov::Output<const ov::Node>&
         OPENVINO_ASSERT(remote_context);
         tensor = remote_context->wrap_tensor(tensor.as<ov::RemoteTensor>());
     }
+    ov::add_tensor_shared_object(tensor, m_infer_request._so);
     return tensor;
 }
 
@@ -63,6 +65,7 @@ std::vector<ov::Tensor> ov::proxy::InferRequest::get_tensors(const ov::Output<co
             OPENVINO_ASSERT(remote_context);
             tensor = remote_context->wrap_tensor(tensor.as<ov::RemoteTensor>());
         }
+        ov::add_tensor_shared_object(tensor, m_infer_request._so);
     }
     return tensors;
 }
