@@ -53,6 +53,7 @@
 #include "interpolate_shape_inference.hpp"
 #include "irdft_shape_inference.hpp"
 #include "lstm_cell_shape_inference.hpp"
+#include "lstm_sequence_shape_inference.hpp"
 #include "matmul_shape_inference.hpp"
 #include "max_pool_shape_inference.hpp"
 #include "one_hot_shape_inference.hpp"
@@ -69,6 +70,8 @@
 #include "reorg_yolo_shape_inference.hpp"
 #include "reverse_sequence_shape_inference.hpp"
 #include "reverse_shape_inference.hpp"
+#include "rnn_cell_shape_inference.hpp"
+#include "rnn_sequence_shape_inference.hpp"
 #include "roi_align_shape_inference.hpp"
 #include "roi_pooling_shape_inference.hpp"
 #include "roll_shape_inference.hpp"
@@ -561,7 +564,6 @@ const IShapeInferCommonFactory::TRegistry IShapeInferCommonFactory::registry{
     _OV_OP_SHAPE_INFER_REG(IDFT, entryIOC),
     _OV_OP_SHAPE_INFER_REG(IRDFT, entryIOC),
     _OV_OP_SHAPE_INFER_REG(LSTMCell, entryIO),
-    _OV_OP_SHAPE_INFER_REG(LSTMSequence, entryIO),
     _OV_OP_SHAPE_INFER_REG(MatMul, entryIO),
     _OV_OP_SHAPE_INFER_REG(MaxPool, ShapeInferWithPadding),
     _OV_OP_SHAPE_INFER_REG(OneHot, entryIOC),
@@ -578,8 +580,6 @@ const IShapeInferCommonFactory::TRegistry IShapeInferCommonFactory::registry{
     _OV_OP_SHAPE_INFER_REG(ReorgYolo, entryIO),
     _OV_OP_SHAPE_INFER_REG(Reshape, entryIOC),
     _OV_OP_SHAPE_INFER_REG(ReverseSequence, entryIO),
-    _OV_OP_SHAPE_INFER_REG(RNNCell, entryIO),
-    _OV_OP_SHAPE_INFER_REG(RNNSequence, entryIO),
     _OV_OP_SHAPE_INFER_REG(ROIAlign, entryIO),
     _OV_OP_SHAPE_INFER_REG(ROIPooling, entryIO),
     _OV_OP_SHAPE_INFER_REG(Roll, entryIOC),
@@ -635,6 +635,7 @@ const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     // Default opset
     _OV_OP_SHAPE_INFER_MASK_REG(ExperimentalDetectronROIFeatureExtractor, ShapeInferTA, util::bit::mask()),
     _OV_OP_SHAPE_INFER_MASK_REG(Interpolate, ShapeInferPaddingTA, util::bit::mask(1, 2, 3)),
+    _OV_OP_SHAPE_INFER_MASK_REG(LSTMSequence, ShapeInferTA, util::bit::mask()),
     _OV_OP_SHAPE_INFER_MASK_REG(Proposal, ShapeInferTA, util::bit::mask()),
     _OV_OP_SHAPE_INFER_VA_REG(ReduceL1, ShapeInferTA, op::util::ArithmeticReductionKeepDims, util::bit::mask(1)),
     _OV_OP_SHAPE_INFER_VA_REG(ReduceL2, ShapeInferTA, op::util::ArithmeticReductionKeepDims, util::bit::mask(1)),
@@ -645,6 +646,8 @@ const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     _OV_OP_SHAPE_INFER_VA_REG(ReduceMin, ShapeInferTA, op::util::ArithmeticReductionKeepDims, util::bit::mask(1)),
     _OV_OP_SHAPE_INFER_VA_REG(ReduceProd, ShapeInferTA, op::util::ArithmeticReductionKeepDims, util::bit::mask(1)),
     _OV_OP_SHAPE_INFER_VA_REG(ReduceSum, ShapeInferTA, op::util::ArithmeticReductionKeepDims, util::bit::mask(1)),
+    _OV_OP_SHAPE_INFER_MASK_REG(RNNCell, ShapeInferTA, util::bit::mask()),
+    _OV_OP_SHAPE_INFER_MASK_REG(RNNSequence, ShapeInferTA, util::bit::mask()),
     _OV_OP_SHAPE_INFER_MASK_REG(Tile, ShapeInferTA, util::bit::mask(1)),
     // Operators shape inferences for specific opset version should be specified below
     // opset1
