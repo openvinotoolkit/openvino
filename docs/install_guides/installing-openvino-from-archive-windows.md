@@ -118,7 +118,7 @@ Step 2: Configure the Environment
 
 You must update several environment variables before you can compile and run OpenVINO™ applications. Open the Command Prompt, and run the ``setupvars.bat`` batch file to temporarily set your environment variables. If your ``<INSTALL_DIR>`` is not ``C:\Program Files (x86)\Intel\openvino_2023``, use the correct directory instead.
 
-.. code-block: sh
+.. code-block:: sh
 
    "C:\Program Files (x86)\Intel\openvino_2023\setupvars.bat"
 
