@@ -23,6 +23,9 @@ using namespace testing;
 using namespace ov::intel_cpu;
 
 template <class T>
+class ConvertReduceMultiAxisTest : public testing::Test {};
+
+template <class T>
 static std::shared_ptr<ov::Model> createInitGraph(std::shared_ptr<ngraph::opset1::Parameter> param) {
         auto axes = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {0, 1});
         auto reduce = std::make_shared<T>(param, axes, true);
@@ -46,137 +49,61 @@ static std::shared_ptr<ov::Model> createRefGraph(ov::Shape param_shape) {
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{ reshape }, ngraph::ParameterVector{ param });
 }
 
+template <class T>
+static bool registerAndRunReducePass(std::shared_ptr<ov::Model> function) {
+    ov::pass::Manager manager;
+    if (std::is_same<T, ngraph::opset1::ReduceMin>::value) {
+        manager.register_pass<ConvertReduceMin>();
+    } else if (std::is_same<T, ngraph::opset1::ReduceMax>::value) {
+        manager.register_pass<ConvertReduceMax>();
+    } else if (std::is_same<T, ngraph::opset1::ReduceSum>::value) {
+        manager.register_pass<ConvertReduceSum>();
+    } else if (std::is_same<T, ngraph::opset1::ReduceProd>::value) {
+        manager.register_pass<ConvertReduceProd>();
+    } else {
+        return false;
+    }
+    manager.run_passes(function);
+    return true;
+}
+
 static ngraph::Shape static_param_shape = ngraph::Shape{2, 19, 2, 9};
 static ngraph::PartialShape dynamic_param_shape = ngraph::PartialShape{2, -1, 2, 9};
 
-TEST(TransformationTests, CheckConvertReduceMinTransformationIsApplied) {
-    std::shared_ptr<ov::Model> function(nullptr), function_ref(nullptr);
-    {
-        auto param = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, static_param_shape);
-        function = createInitGraph<ngraph::opset1::ReduceMin>(param);
-        ov::pass::Manager manager;
-        manager.register_pass<ConvertReduceMin>();
-        manager.run_passes(function);
+TYPED_TEST_SUITE_P(ConvertReduceMultiAxisTest);
+
+TYPED_TEST_P(ConvertReduceMultiAxisTest, CheckConvertReduceTransformationIsApplied) {
+    auto param = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, static_param_shape);
+    auto function = createInitGraph<TypeParam>(param);
+    auto function_ref = createRefGraph<TypeParam>(static_param_shape);
+
+    if (!registerAndRunReducePass<TypeParam>(function)) {
+        FAIL() << "Reduce pass is not registered.";
     }
-    {
-        function_ref = createRefGraph<ngraph::opset1::ReduceMin>(static_param_shape);
-    }
+
     auto res = compare_functions(function, function_ref);
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, CheckConvertReduceMaxTransformationIsApplied) {
-    std::shared_ptr<ov::Model> function(nullptr), function_ref(nullptr);
-    {
-        auto param = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, static_param_shape);
-        function = createInitGraph<ngraph::opset1::ReduceMax>(param);
-        ov::pass::Manager manager;
-        manager.register_pass<ConvertReduceMax>();
-        manager.run_passes(function);
+TYPED_TEST_P(ConvertReduceMultiAxisTest, CheckConvertReduceTransformationIsNotAppliedForDynaimcShapes) {
+    auto param = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, dynamic_param_shape);
+    auto function = createInitGraph<TypeParam>(param);
+    auto function_ref = createInitGraph<TypeParam>(param);
+
+    if (!registerAndRunReducePass<TypeParam>(function)) {
+        FAIL() << "Reduce pass is not registered.";
     }
-    {
-        function_ref = createRefGraph<ngraph::opset1::ReduceMax>(static_param_shape);
-    }
+
     auto res = compare_functions(function, function_ref);
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, CheckConvertReduceSumTransformationIsApplied) {
-    std::shared_ptr<ov::Model> function(nullptr), function_ref(nullptr);
-    {
-        auto param = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, static_param_shape);
-        function = createInitGraph<ngraph::opset1::ReduceSum>(param);
-        ov::pass::Manager manager;
-        manager.register_pass<ConvertReduceSum>();
-        manager.run_passes(function);
-    }
-    {
-        function_ref = createRefGraph<ngraph::opset1::ReduceSum>(static_param_shape);
-    }
-    auto res = compare_functions(function, function_ref);
-    ASSERT_TRUE(res.first) << res.second;
-}
+REGISTER_TYPED_TEST_SUITE_P(ConvertReduceMultiAxisTest,
+                            CheckConvertReduceTransformationIsApplied,
+                            CheckConvertReduceTransformationIsNotAppliedForDynaimcShapes);
 
-TEST(TransformationTests, CheckConvertReduceProdTransformationIsApplied) {
-    std::shared_ptr<ov::Model> function(nullptr), function_ref(nullptr);
-    {
-        auto param = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, static_param_shape);
-        function = createInitGraph<ngraph::opset1::ReduceProd>(param);
-        ov::pass::Manager manager;
-        manager.register_pass<ConvertReduceProd>();
-        manager.run_passes(function);
-    }
-    {
-        function_ref = createRefGraph<ngraph::opset1::ReduceProd>(static_param_shape);
-    }
-    auto res = compare_functions(function, function_ref);
-    ASSERT_TRUE(res.first) << res.second;
-}
-
-TEST(TransformationTests, CheckConvertReduceMinTransformationIsNotAppliedForDynaimcShapes) {
-    std::shared_ptr<ov::Model> function(nullptr), function_ref(nullptr);
-    {
-        auto param = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, dynamic_param_shape);
-        function = createInitGraph<ngraph::opset1::ReduceMin>(param);
-        ov::pass::Manager manager;
-        manager.register_pass<ConvertReduceMin>();
-        manager.run_passes(function);
-    }
-    {
-        auto param = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, dynamic_param_shape);
-        function_ref = createInitGraph<ngraph::opset1::ReduceMin>(param);
-    }
-    auto res = compare_functions(function, function_ref);
-    ASSERT_TRUE(res.first) << res.second;
-}
-
-TEST(TransformationTests, CheckConvertReduceMaxTransformationIsNotAppliedForDynaimcShapes) {
-    std::shared_ptr<ov::Model> function(nullptr), function_ref(nullptr);
-    {
-        auto param = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, dynamic_param_shape);
-        function = createInitGraph<ngraph::opset1::ReduceMax>(param);
-        ov::pass::Manager manager;
-        manager.register_pass<ConvertReduceMax>();
-        manager.run_passes(function);
-    }
-    {
-        auto param = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, dynamic_param_shape);
-        function_ref = createInitGraph<ngraph::opset1::ReduceMax>(param);
-    }
-    auto res = compare_functions(function, function_ref);
-    ASSERT_TRUE(res.first) << res.second;
-}
-
-TEST(TransformationTests, CheckConvertReduceSumTransformationIsNotAppliedForDynaimcShapes) {
-    std::shared_ptr<ov::Model> function(nullptr), function_ref(nullptr);
-    {
-        auto param = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, dynamic_param_shape);
-        function = createInitGraph<ngraph::opset1::ReduceSum>(param);
-        ov::pass::Manager manager;
-        manager.register_pass<ConvertReduceSum>();
-        manager.run_passes(function);
-    }
-    {
-        auto param = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, dynamic_param_shape);
-        function_ref = createInitGraph<ngraph::opset1::ReduceSum>(param);
-    }
-    auto res = compare_functions(function, function_ref);
-    ASSERT_TRUE(res.first) << res.second;
-}
-
-TEST(TransformationTests, CheckConvertReduceProdTransformationIsNotAppliedForDynaimcShapes) {
-    std::shared_ptr<ov::Model> function(nullptr), function_ref(nullptr);
-    {
-        auto param = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, dynamic_param_shape);
-        function = createInitGraph<ngraph::opset1::ReduceProd>(param);
-        ov::pass::Manager manager;
-        manager.register_pass<ConvertReduceProd>();
-        manager.run_passes(function);
-    }
-    {
-        auto param = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, dynamic_param_shape);
-        function_ref = createInitGraph<ngraph::opset1::ReduceProd>(param);
-    }
-    auto res = compare_functions(function, function_ref);
-    ASSERT_TRUE(res.first) << res.second;
-}
+using reduceTypes = ::testing::Types<ngraph::opset1::ReduceMin,
+                                     ngraph::opset1::ReduceMax,
+                                     ngraph::opset1::ReduceSum,
+                                     ngraph::opset1::ReduceProd>;
+INSTANTIATE_TYPED_TEST_SUITE_P(ConvertReduce, ConvertReduceMultiAxisTest, reduceTypes);
