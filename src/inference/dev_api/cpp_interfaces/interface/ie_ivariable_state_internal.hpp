@@ -12,6 +12,8 @@
 
 namespace InferenceEngine {
 
+IE_SUPPRESS_DEPRECATED_START
+
 /**
  * @interface IVariableStateInternal
  * @brief Minimal interface for variable state implementation
@@ -75,4 +77,5 @@ using SoIVariableStateInternal = ov::SoPtr<IVariableStateInternal>;
  */
 using MemoryStateInternal = IVariableStateInternal;
 
+IE_SUPPRESS_DEPRECATED_END
 }  // namespace InferenceEngine
