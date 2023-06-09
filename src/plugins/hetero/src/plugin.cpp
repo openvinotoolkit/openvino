@@ -3,6 +3,9 @@
 //
 
 
+#include "itt.hpp"
+#include "plugin.hpp"
+
 #include <memory>
 #include <vector>
 #include <map>
@@ -11,27 +14,18 @@
 #include <fstream>
 #include <unordered_set>
 
-// LEGACY
-#include "ie_metric_helpers.hpp"
-// LEGACY
-
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/util/common_util.hpp"
+#include "ie/ie_plugin_config.hpp"
 
-#include "plugin.hpp"
-// #include "compiled_model.hpp"
-#include "itt.hpp"
-// #include "properties.hpp"
+#include "internal_properties.hpp"
 
 // TODO (vurusovs) required for conversion to legacy API 1.0
 #include "converter_utils.hpp"
 #include "plugin.hpp"
-#include "../executable_network.hpp"
-#include "../internal_properties.hpp"
-
-#include "iplugin_wrapper.hpp"
+#include "executable_network.hpp"
 // TODO (vurusovs) required for conversion to legacy API 1.0
 
 
@@ -43,13 +37,6 @@ std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::compile_model(
     const std::shared_ptr<const ov::Model>& model,
     const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::Hetero, "Plugin::compile_model");
-
-    // auto fullConfig = ov::hetero::Configuration{properties, m_cfg};
-    // auto compiled_model = std::make_shared<CompiledModel>(
-    //     model->clone(),
-    //     shared_from_this(),
-    //     fullConfig);
-    // return compiled_model;
     
     auto shared_this = std::const_pointer_cast<ov::IPlugin>(shared_from_this());
     auto plugin_p = ov::legacy_convert::convert_plugin(shared_this);
@@ -85,10 +72,6 @@ std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::import_model(std::istrea
     auto plugin_p = ov::legacy_convert::convert_plugin(shared_this);
     auto legacy_compiled_model = std::make_shared<HeteroPlugin::HeteroExecutableNetwork>(model, properties, std::dynamic_pointer_cast<ov::hetero::Plugin>(shared_this), true);
     legacy_compiled_model->SetPointerToPlugin(plugin_p);
-    // legacy_compiled_model->setNetworkInputs(InferenceEngine::copyInfo(network.getInputsInfo()));
-    // legacy_compiled_model->setNetworkOutputs(InferenceEngine::copyInfo(network.getOutputsInfo()));
-    // InferenceEngine::SetExeNetworkInfo(legacy_compiled_model, model, this->is_new_api());
-
     auto compiled_model = ov::legacy_convert::convert_compiled_model(legacy_compiled_model);
     return compiled_model;
 }
