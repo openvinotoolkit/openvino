@@ -234,7 +234,7 @@ public:
      */
     const std::shared_ptr<ov::threading::ExecutorManager>& get_executor_manager() const;
 
-    ~IPlugin() = default;
+    virtual ~IPlugin() = default;
 
 protected:
     IPlugin();
@@ -294,8 +294,6 @@ constexpr static const auto create_plugin_function = OV_PP_TOSTRING(OV_CREATE_PL
         try {                                                                                            \
             plugin = ::std::make_shared<PluginType>(__VA_ARGS__);                                        \
             plugin->set_version(version);                                                                \
-        } catch (const InferenceEngine::Exception& ex) {                                                 \
-            OPENVINO_THROW(ex.what());                                                                   \
         } catch (const std::exception& ex) {                                                             \
             OPENVINO_THROW(ex.what());                                                                   \
         }                                                                                                \
