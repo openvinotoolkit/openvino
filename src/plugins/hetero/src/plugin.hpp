@@ -12,12 +12,8 @@
 #include <vector>
 
 #include "config.hpp"
-#include "executable_network.hpp"
 #include "openvino/runtime/iplugin.hpp"
 
-namespace HeteroPlugin {
-class HeteroExecutableNetwork;
-}
 
 namespace ov {
 namespace hetero {
@@ -54,7 +50,7 @@ public:
                                     const ov::AnyMap& properties) const override;
 
 private:
-    friend class HeteroPlugin::HeteroExecutableNetwork;
+    friend class CompiledModel;
 
     ov::Any caching_device_properties(const std::string& device_priorities) const;
 
