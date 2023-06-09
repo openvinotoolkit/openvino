@@ -600,9 +600,6 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
 
 void primitive_inst::set_arguments() {
     GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::set_arguments);
-    if (!_has_valid_input) {
-        std::cout << "Why ..... " << desc()->id << ", " << desc()->type_string() << std::endl;
-    }
     OPENVINO_ASSERT(_has_valid_input, id(), " has invalid/unset input");
     _impl->set_arguments(*this);
 }

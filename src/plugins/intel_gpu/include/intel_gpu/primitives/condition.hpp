@@ -23,13 +23,11 @@ struct condition : public primitive_base<condition> {
     struct branch {
         std::map<primitive_id, primitive_id> input_map;
         std::map<size_t, primitive_id> output_map;
-        // topology::ptr topology_ptr;
         program::ptr inner_program;
-        std::string id;
 
         std::string str() {
             std::stringstream ss;
-            ss << "branch: { " << id << std::endl;
+            ss << "branch: { " << std::endl;
             ss<< "* input_map : [(outer_id,inner_id),";
             for (auto& in_iter : input_map) {
                 ss << "(" << in_iter.first << "," << in_iter.second << "),";

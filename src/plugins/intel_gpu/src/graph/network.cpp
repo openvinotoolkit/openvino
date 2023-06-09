@@ -759,7 +759,6 @@ void network::set_input_data(const primitive_id& id, memory::ptr data) {
     std::shared_ptr<primitive_inst> primitive_inst;
 
     primitive_inst = find_primitive(id);
-    std::cout << "[network] set_input_data : " << id << std::endl;
 
     if (primitive_inst == nullptr)
         throw std::runtime_error("topology doesn't contain primitive:" + id);

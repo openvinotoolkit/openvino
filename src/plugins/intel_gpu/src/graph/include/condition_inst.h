@@ -45,24 +45,11 @@ public:
                 primitive_id internal_id = iter->second;
                 input_map.erase(iter);
                 input_map.insert({new_external_id, internal_id});
-                std::cout << "Replace id from " << prevID << " to " << newID << std::endl;
             }
         };
 
-        std::cout << "-----------------------------------------------------------" << std::endl;
-        std::cout << "Update primitive map ... " << std::endl;
         replace_external_id(_branch_true.input_map, prevID, newID);
         replace_external_id(_branch_false.input_map, prevID, newID);
-
-        auto debug_input_map = [&](const std::map<primitive_id, primitive_id>& input_maps, std::string title) {
-            std::cout << "Checking input map for [" << title << "]" << std::endl;
-            for (const auto& ma : input_maps) {
-                std::cout << "* external: " << ma.first << " == internal: " << ma.second << std::endl;
-            }
-        };
-        debug_input_map(_branch_true.input_map, "branch_true");
-        debug_input_map(_branch_false.input_map, "branch_false");
-        std::cout << "-----------------------------------------------------------" << std::endl;
     }
 
 private:

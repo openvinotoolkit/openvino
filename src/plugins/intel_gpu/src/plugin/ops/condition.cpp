@@ -42,9 +42,6 @@ static cldnn::condition::branch gen_branch(Program& p, const std::shared_ptr<ngr
     const auto& internal_body = (idx == idx_true)? op->get_then_body() : op->get_else_body();
 
     branch.inner_program = gen_program(p, internal_body);
-    {
-        std::cout << "gen_branch output : " << branch.inner_program->get_output_layout_str() << std::endl;
-    }
 
     auto& input_map = branch.input_map;
     auto external_inputs = p.GetInputInfo(op);
@@ -54,7 +51,6 @@ static cldnn::condition::branch gen_branch(Program& p, const std::shared_ptr<ngr
         const auto& external_id = external_inputs.at(in_desc->m_input_index).pid;
         const auto& internal_id = layer_type_name_ID(internal_inputs.at(in_desc->m_body_parameter_index));
         input_map.insert({external_id, internal_id});
-        std::cout << "[][]" << external_id << " vs " << internal_id << std::endl;
     }
 
     auto& output_map = branch.output_map;
@@ -77,12 +73,8 @@ static void CreateIfOp(Program& p, const std::shared_ptr<ngraph::op::v8::If>& op
     std::string type_name_str = op->get_input_node_ptr(0)->get_type_name();
 
     const std::string layerName = layer_type_name_ID(op);
-    std::cout << "Branch_true: " << std::endl;
     auto branch_true = gen_branch(p, op, idx_true);
-    branch_true.id = layerName + "::branch_true";
-    std::cout << "Branch_false: " << std::endl;
     auto branch_false = gen_branch(p, op, idx_false);
-    branch_false.id = layerName + "::branch_false";
 
     const cldnn::condition conditionPrimitive(layerName,
                                 inputs,
@@ -93,7 +85,6 @@ static void CreateIfOp(Program& p, const std::shared_ptr<ngraph::op::v8::If>& op
 }
 
 REGISTER_FACTORY_IMPL(v8, If);
-
 
 }  // namespace intel_gpu
 }  // namespace ov
