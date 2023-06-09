@@ -190,7 +190,7 @@ private:
         }
         std::string getPropertyValueDescription(void) const override {
             std::string supportedTokens = "comma separated filter tokens: ";
-            for (auto i = 0; i < propertyTokens.size(); i++) {
+            for (size_t i = 0; i < propertyTokens.size(); i++) {
                 if (i)
                     supportedTokens.push_back(',');
                 supportedTokens.append(propertyTokens[i].name);
