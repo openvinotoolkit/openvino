@@ -1718,7 +1718,7 @@ static tensor create_tensor(const std::vector<int64_t>& shape) {
 
 template <cldnn::format::type FMT>
 struct format_wrapper {
-    static constexpr format fmt = FMT;
+    static constexpr cldnn::format::type fmt = FMT;
 };
 
 template <typename T>
