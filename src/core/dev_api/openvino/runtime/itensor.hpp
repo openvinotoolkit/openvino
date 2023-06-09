@@ -14,8 +14,6 @@
 
 namespace ov {
 
-OPENVINO_API void add_tensor_shared_object(Tensor& tensor, std::shared_ptr<void> so);
-
 class OPENVINO_API ITensor : public std::enable_shared_from_this<ITensor> {
 public:
     /**

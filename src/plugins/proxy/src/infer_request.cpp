@@ -49,8 +49,7 @@ ov::Tensor ov::proxy::InferRequest::get_tensor(const ov::Output<const ov::Node>&
         OPENVINO_ASSERT(remote_context);
         tensor = remote_context->wrap_tensor(tensor.as<ov::RemoteTensor>());
     }
-    ov::add_tensor_shared_object(tensor, m_infer_request._so);
-    return tensor;
+    return ov::Tensor(tensor, m_infer_request._so);
 }
 
 void ov::proxy::InferRequest::set_tensor(const ov::Output<const ov::Node>& port, const ov::Tensor& tensor) {
@@ -65,7 +64,7 @@ std::vector<ov::Tensor> ov::proxy::InferRequest::get_tensors(const ov::Output<co
             OPENVINO_ASSERT(remote_context);
             tensor = remote_context->wrap_tensor(tensor.as<ov::RemoteTensor>());
         }
-        ov::add_tensor_shared_object(tensor, m_infer_request._so);
+        tensor = ov::Tensor(tensor, m_infer_request._so);
     }
     return tensors;
 }
