@@ -25,7 +25,7 @@
         {
             "name": "tbb",
             "platform": "static | osx",
-            "version>=": "2021.9.0#1"
+            "version>=": "2021.9.0#2"
         },
         {
             "name": "tbb",
@@ -34,7 +34,7 @@
             ],
             "$TODO": "Remove condition for static once static tbbbind can work in oneTBB",
             "platform": "!static & !osx",
-            "version>=": "2021.9.0#1"
+            "version>=": "2021.9.0#2"
         },
         {
             "name": "xbyak",
