@@ -6,7 +6,6 @@
 
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pass.hpp"
-#include "transformations/transpose_sinking/ts_base.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov {
@@ -25,7 +24,7 @@ class TRANSFORMATIONS_API TSSplitForward;
  * @brief TSSplitForward transformation sinks Transpose through Split, VariadicSplit operations
  * in the forward direction.
  */
-class ov::pass::transpose_sinking::TSSplitForward : public ov::pass::transpose_sinking::TSForwardBase {
+class ov::pass::transpose_sinking::TSSplitForward : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ov::pass::TSSplitForward", "0");
     TSSplitForward();

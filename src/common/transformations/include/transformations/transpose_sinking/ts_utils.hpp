@@ -30,14 +30,12 @@ struct TransposeInputsInfo {
  * @brief Finds node first input that is a transpose operation and returns filled TransposeInputsInfo
  * for it
  */
-TransposeInputsInfo GetFirstTransposeInput(const std::shared_ptr<ov::Node>&,
-                                           bool const_transpose_order,
-                                           const std::vector<size_t>& indices = {});
+TransposeInputsInfo GetFirstTransposeInput(const std::shared_ptr<ov::Node>&);
 
 /**
  * @brief Checks if @arg has any input node that is a transpose operation
  */
-bool IfNodeHasTransposeInputs(const ov::Output<ov::Node>&, const std::vector<size_t>& indices = {});
+bool IfNodeHasTransposeInputs(const ov::Output<ov::Node>&);
 
 /**
  * @brief Reverses order of transpose operation. Do it in a such way that if we had couple following one after

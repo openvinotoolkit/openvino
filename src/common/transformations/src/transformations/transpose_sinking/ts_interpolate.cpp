@@ -22,15 +22,33 @@ using namespace ov::pass::transpose_sinking::utils;
 
 TSInterpolateForward::TSInterpolateForward() {
     MATCHER_SCOPE(TSInterpolateForward);
-    create_pattern<ov::op::v4::Interpolate>(true, {0});
+    auto const_label = wrap_type<ov::op::v0::Constant>();
+    auto transpose_label = wrap_type<ov::op::v1::Transpose>({any_input(), const_label});
+    auto main_node_label = wrap_type<ov::op::v4::Interpolate>({transpose_label, any_input(), any_input(), any_input()});
 
-    auto sinking_transformation = [=](const std::shared_ptr<Node>& main_node,
-                                      const TransposeInputsInfo& transpose_info) -> bool {
+    matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
+        const auto& pattern_to_node = m.get_pattern_map();
+
+        auto& main_node = pattern_to_node.at(main_node_label);
+        if (transformation_callback(main_node)) {
+            return false;
+        }
+
+        auto transpose = std::dynamic_pointer_cast<ov::op::v1::Transpose>(pattern_to_node.at(transpose_label));
+        if (!transpose) {
+            return false;
+        }
+
+        auto transpose_const = as_type_ptr<ov::op::v0::Constant>(pattern_to_node.at(const_label));
+        if (!transpose_const) {
+            return false;
+        }
+
         // remove Transpose on 1st input:
-        auto transpose_parent = transpose_info.transpose->input_value(0);
+        auto transpose_parent = transpose->input_value(0);
         main_node->input(0).replace_source_output(transpose_parent);
 
-        const auto transpose_axis_order = transpose_info.transpose_const->get_axis_vector_val();
+        const auto transpose_axis_order = transpose_const->get_axis_vector_val();
         auto axis = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{}, 0);
 
         const auto& interpolate = std::dynamic_pointer_cast<ov::op::v4::Interpolate>(main_node);
@@ -54,11 +72,17 @@ TSInterpolateForward::TSInterpolateForward() {
             }
         }
 
-        default_outputs_update(main_node, transpose_info);
+        main_node->validate_and_infer_types();
+        TransposeInputsInfo transpose_input_info = {transpose, transpose_const, 0};
+        for (auto& new_node : sink_forward::InsertOutputTransposes(main_node, transpose_input_info)) {
+            register_new_node(new_node);
+            UpdateForwardSinkingAbility(new_node);
+        }
         return true;
     };
 
-    transpose_sinking(matcher_name, sinking_transformation);
+    auto m = std::make_shared<Matcher>(main_node_label, matcher_name);
+    register_matcher(m, matcher_pass_callback);
 }
 
 TSInterpolateBackward::TSInterpolateBackward() {

@@ -6,7 +6,6 @@
 
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pass.hpp"
-#include "transformations/transpose_sinking/ts_base.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov {
@@ -26,7 +25,7 @@ class TRANSFORMATIONS_API TSDataMovementBackward;
  * ReverseSequence and Pad operations in the forward direction.
  * These operations are categorized as "DataMovement" and are handled in a similar way in this transformation.
  */
-class ov::pass::transpose_sinking::TSDataMovementForward : public ov::pass::transpose_sinking::TSForwardBase {
+class ov::pass::transpose_sinking::TSDataMovementForward : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ov::pass::TSDataMovementForward", "0");
     TSDataMovementForward();
