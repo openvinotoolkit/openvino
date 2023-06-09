@@ -10,6 +10,7 @@
 #include "transformations/rt_info/decompression.hpp"
 #include "transformations/rt_info/disable_constant_folding.hpp"
 #include "transformations/rt_info/is_shape_subgraph.hpp"
+#include "transformations/rt_info/keep_fp16_const.hpp"
 
 using namespace ov;
 
@@ -60,7 +61,7 @@ pass::KeepConstAndDecompression::KeepConstAndDecompression() {
 
         if (!is_type<opset8::Constant>(node->input_value(0).get_node_shared_ptr()))
             return true;
-        disable_constant_folding(node->input_value(0).get_node_shared_ptr());
+        enable_keep_fp16_const(node->input_value(0).get_node_shared_ptr());
 
         return true;
     };
