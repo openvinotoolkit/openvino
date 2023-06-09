@@ -33,10 +33,10 @@ TSInterpolateForward::TSInterpolateForward() {
         const auto transpose_axis_order = transpose_info.transpose_const->get_axis_vector_val();
         auto axis = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{}, 0);
 
-        const auto& interpolate = std::dynamic_pointer_cast<ov::op::v4::Interpolate>(main_node);
         const auto& new_axes = ChangeAxes(main_node->input_value(3), transpose_axis_order, axis);
         main_node->input(3).replace_source_output(new_axes);
 
+        const auto& interpolate = std::dynamic_pointer_cast<ov::op::v4::Interpolate>(main_node);
         if (interpolate) {
             op::v4::Interpolate::InterpolateAttrs attrs = interpolate->get_attrs();
             if (!attrs.pads_begin.empty() || !attrs.pads_end.empty()) {

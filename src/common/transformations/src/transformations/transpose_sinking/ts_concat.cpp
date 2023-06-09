@@ -27,6 +27,10 @@ TSConcatForward::TSConcatForward() {
                                       const TransposeInputsInfo& transpose_info) -> bool {
         // todo: support dynamic rank case
         auto concat_node = as_type_ptr<ov::op::v0::Concat>(main_node);
+        if (!concat_node) {
+            return false;
+        }
+
         auto concat_axis = concat_node->get_concatenation_axis();
         if (concat_axis < 0) {
             return false;

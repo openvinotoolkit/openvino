@@ -68,9 +68,9 @@ void TSForwardBase::default_outputs_update(const std::shared_ptr<Node>& main_nod
     }
 }
 
-bool TSForwardBase::IfNodeHasTransposeInputs(const Output<Node>& output,
-                                             bool const_transpose_input,
-                                             const std::vector<size_t>& transpose_indices) {
+bool TSForwardBase::if_node_has_transpose_inputs(const Output<Node>& output,
+                                                 bool const_transpose_input,
+                                                 const std::vector<size_t>& transpose_indices) {
     utils::TransposeInputsInfo inputs_info =
         utils::GetFirstTransposeInput(output.get_node_shared_ptr(), const_transpose_input, transpose_indices);
     return !inputs_info.isEmpty();

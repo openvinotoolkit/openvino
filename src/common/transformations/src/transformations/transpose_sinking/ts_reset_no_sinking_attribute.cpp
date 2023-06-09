@@ -24,7 +24,7 @@ TSResetNoSinkingAttribute::TSResetNoSinkingAttribute() {
     ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_map();
 
-        auto transpose = pattern_to_output.at(transpose_label);
+        const auto& transpose = pattern_to_output.at(transpose_label);
         ov::reset_no_sinking_attribute(transpose);
         return false;
     };
