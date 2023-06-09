@@ -65,6 +65,8 @@ void align_eltwise_input_types(const NodeContext& context,
                                Output<Node>& rhs,
                                bool align_scalars = false);
 
+void align_output_types(const NodeContext& context, OutputVector& outputs);
+
 std::deque<Output<Node>> get_list_as_outputs(const Output<Node>& start);
 
 namespace op {
@@ -83,7 +85,10 @@ OutputVector translate_1to1_match_1_inputs(const NodeContext& context) {
     auto res = context.mark_node(std::make_shared<T>(context.get_input(0)));
     auto out_type = context.get_output_type(0);
     if (out_type.is<element::Type>()) {
-        res = context.mark_node(std::make_shared<ov::op::v0::Convert>(res, out_type.as<element::Type>()));
+        auto dtype = out_type.as<element::Type>();
+        if (dtype.is_static() && dtype != res->output(0).get_element_type()) {
+            res = context.mark_node(std::make_shared<ov::op::v0::Convert>(res, dtype));
+        }
     }
     return {res};
 }
@@ -112,7 +117,9 @@ OutputVector translate_1to1_match_2_inputs_align_types(const NodeContext& contex
     auto lhs = context.get_input(0);
     auto rhs = context.get_input(1);
     align_eltwise_input_types(context, lhs, rhs, true);
-    return {context.mark_node(std::make_shared<T>(lhs, rhs))};
+    OutputVector res = {context.mark_node(std::make_shared<T>(lhs, rhs))};
+    align_output_types(context, res);
+    return res;
 }
 
 inline OutputVector return_false_scalar(const NodeContext& context) {
