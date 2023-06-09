@@ -43,7 +43,7 @@ To enable model caching, the application must specify a folder to store the cach
       .. doxygensnippet:: docs/snippets/ov_caching.cpp
          :language: cpp
          :fragment: [ov:caching:part0]
-   
+
    .. tab-item:: Python
       :sync: py
 

@@ -164,23 +164,23 @@ Command-Line Interface (CLI) Examples Using TensorFlow-Specific Parameters
 
 * Launching model conversion for Inception V1 frozen model when model file is a plain text protobuf:
 
-.. code-block:: sh
+  .. code-block:: sh
 
-   mo --input_model inception_v1.pbtxt --input_model_is_text -b 1
+     mo --input_model inception_v1.pbtxt --input_model_is_text -b 1
 
 
 * Launching model conversion for Inception V1 frozen model and dump information about the graph to TensorBoard log dir ``/tmp/log_dir``
 
-.. code-block:: sh
+  .. code-block:: sh
 
-   mo --input_model inception_v1.pb -b 1 --tensorboard_logdir /tmp/log_dir
+     mo --input_model inception_v1.pb -b 1 --tensorboard_logdir /tmp/log_dir
 
 
 * Launching model conversion for BERT model in the SavedModel format, with three inputs. Specify explicitly the input shapes where the batch size and the sequence length equal 2 and 30 respectively.
 
-.. code-block:: sh
+  .. code-block:: sh
 
-   mo --saved_model_dir BERT --input mask,word_ids,type_ids --input_shape [2,30],[2,30],[2,30]
+     mo --saved_model_dir BERT --input mask,word_ids,type_ids --input_shape [2,30],[2,30],[2,30]
 
 Conversion of TensorFlow models from memory using Python API
 ############################################################
@@ -189,96 +189,96 @@ Model conversion API supports passing TensorFlow/TensorFlow2 models directly fro
 
 * ``tf.keras.Model``
 
-.. code-block:: python
+  .. code-block:: python
 
-   model = tf.keras.applications.ResNet50(weights="imagenet")
-   ov_model = convert_model(model)
+     model = tf.keras.applications.ResNet50(weights="imagenet")
+     ov_model = convert_model(model)
 
 
 * ``tf.keras.layers.Layer``. Requires setting the "input_shape".
 
-.. code-block:: python
+  .. code-block:: python
 
-   import tensorflow_hub as hub
+     import tensorflow_hub as hub
 
-   model = hub.KerasLayer("https://tfhub.dev/google/imagenet/mobilenet_v1_100_224/classification/5")
-   ov_model = convert_model(model, input_shape=[-1, 224, 224, 3])
+     model = hub.KerasLayer("https://tfhub.dev/google/imagenet/mobilenet_v1_100_224/classification/5")
+     ov_model = convert_model(model, input_shape=[-1, 224, 224, 3])
 
 * ``tf.Module``. Requires setting the "input_shape".
 
-.. code-block:: python
+  .. code-block:: python
 
-   class MyModule(tf.Module):
-      def __init__(self, name=None):
-         super().__init__(name=name)
-         self.variable1 = tf.Variable(5.0, name="var1")
-         self.variable2 = tf.Variable(1.0, name="var2")
-      def __call__(self, x):
-         return self.variable1 * x + self.variable2
+     class MyModule(tf.Module):
+        def __init__(self, name=None):
+           super().__init__(name=name)
+           self.variable1 = tf.Variable(5.0, name="var1")
+           self.variable2 = tf.Variable(1.0, name="var2")
+        def __call__(self, x):
+           return self.variable1 * x + self.variable2
 
-   model = MyModule(name="simple_module")
-   ov_model = convert_model(model, input_shape=[-1])
+     model = MyModule(name="simple_module")
+     ov_model = convert_model(model, input_shape=[-1])
 
 * ``tf.compat.v1.Graph``
 
-.. code-block:: python
+  .. code-block:: python
 
-   with tf.compat.v1.Session() as sess:
-      inp1 = tf.compat.v1.placeholder(tf.float32, [100], 'Input1')
-      inp2 = tf.compat.v1.placeholder(tf.float32, [100], 'Input2')
-      output = tf.nn.relu(inp1 + inp2, name='Relu')
-      tf.compat.v1.global_variables_initializer()
-      model = sess.graph
+     with tf.compat.v1.Session() as sess:
+        inp1 = tf.compat.v1.placeholder(tf.float32, [100], 'Input1')
+        inp2 = tf.compat.v1.placeholder(tf.float32, [100], 'Input2')
+        output = tf.nn.relu(inp1 + inp2, name='Relu')
+        tf.compat.v1.global_variables_initializer()
+        model = sess.graph
 
-   ov_model = convert_model(model)  
+     ov_model = convert_model(model)
 
 * ``tf.compat.v1.GraphDef``
 
-.. code-block:: python
+  .. code-block:: python
 
-   with tf.compat.v1.Session() as sess:
-      inp1 = tf.compat.v1.placeholder(tf.float32, [100], 'Input1')
-      inp2 = tf.compat.v1.placeholder(tf.float32, [100], 'Input2')
-      output = tf.nn.relu(inp1 + inp2, name='Relu')
-      tf.compat.v1.global_variables_initializer()
-      model = sess.graph_def
+     with tf.compat.v1.Session() as sess:
+        inp1 = tf.compat.v1.placeholder(tf.float32, [100], 'Input1')
+        inp2 = tf.compat.v1.placeholder(tf.float32, [100], 'Input2')
+        output = tf.nn.relu(inp1 + inp2, name='Relu')
+        tf.compat.v1.global_variables_initializer()
+        model = sess.graph_def
 
-   ov_model = convert_model(model)  
+     ov_model = convert_model(model)
 
 * ``tf.function``
 
-.. code-block:: python
+  .. code-block:: python
 
-   @tf.function(
-      input_signature=[tf.TensorSpec(shape=[1, 2, 3], dtype=tf.float32),
-                       tf.TensorSpec(shape=[1, 2, 3], dtype=tf.float32)])
-   def func(x, y):
-      return tf.nn.sigmoid(tf.nn.relu(x + y))
+     @tf.function(
+        input_signature=[tf.TensorSpec(shape=[1, 2, 3], dtype=tf.float32),
+                         tf.TensorSpec(shape=[1, 2, 3], dtype=tf.float32)])
+     def func(x, y):
+        return tf.nn.sigmoid(tf.nn.relu(x + y))
 
-   ov_model = convert_model(func)  
+     ov_model = convert_model(func)
 
 * ``tf.compat.v1.session``
 
-.. code-block:: python
+  .. code-block:: python
 
-   with tf.compat.v1.Session() as sess:
-      inp1 = tf.compat.v1.placeholder(tf.float32, [100], 'Input1')
-      inp2 = tf.compat.v1.placeholder(tf.float32, [100], 'Input2')
-      output = tf.nn.relu(inp1 + inp2, name='Relu')
-      tf.compat.v1.global_variables_initializer()
+     with tf.compat.v1.Session() as sess:
+        inp1 = tf.compat.v1.placeholder(tf.float32, [100], 'Input1')
+        inp2 = tf.compat.v1.placeholder(tf.float32, [100], 'Input2')
+        output = tf.nn.relu(inp1 + inp2, name='Relu')
+        tf.compat.v1.global_variables_initializer()
 
-      ov_model = convert_model(sess)
+        ov_model = convert_model(sess)
 
 * ``tf.train.checkpoint``
 
-.. code-block:: python
+  .. code-block:: python
 
-   model = tf.keras.Model(...)
-   checkpoint = tf.train.Checkpoint(model)
-   save_path = checkpoint.save(save_directory)
-   # ...
-   checkpoint.restore(save_path)
-   ov_model = convert_model(checkpoint)
+     model = tf.keras.Model(...)
+     checkpoint = tf.train.Checkpoint(model)
+     save_path = checkpoint.save(save_directory)
+     # ...
+     checkpoint.restore(save_path)
+     ov_model = convert_model(checkpoint)
 
 Supported TensorFlow and TensorFlow 2 Keras Layers
 ##################################################
