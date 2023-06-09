@@ -647,6 +647,8 @@ kernel_selector::weights_layout to_weights_layout(format f, bool is_grouped) {
             return kernel_selector::weights_layout::g_os_y_is_x_osv8_isv2;
         case format::g_os_y_is_x_osv8_isv4:
             return kernel_selector::weights_layout::g_os_y_is_x_osv8_isv4;
+        case format::os_is_yx_isv8_osv16_isv2:
+            return kernel_selector::weights_layout::os_is_yx_isv8_osv16_isv2;
         default:
             throw std::invalid_argument("Unable to convert tensor layout " + fmt_to_str(f) + " to weights layout");
     }
