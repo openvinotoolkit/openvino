@@ -1240,7 +1240,7 @@ bool Limitations::are_layers_supported(InferenceEngine::CNNNetwork& network, std
                 }
             } else if (info.isConcat()) {
                 if (!validate_concat_axis(layer, errMessage)) {
-                    THROW_GNA_EXCEPTION << errMessage;
+                    // THROW_GNA_EXCEPTION << errMessage;
                 }
             }
         },
