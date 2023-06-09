@@ -199,7 +199,7 @@ std::string ov::hetero::Plugin::DeviceCachingProperties(const std::string& targe
         if (ov::util::contains(supported_properties, ov::caching_properties)) {
             auto caching_properties =
                 get_core()->get_property(device, ov::caching_properties);
-            for (auto& property_name : caching_properties) {
+            for (const auto& property_name : caching_properties) {
                 properties[property_name] = get_core()->get_property(device, std::string(property_name), {});
             }
             // If caching properties are not supported by device, try to add at least device architecture
