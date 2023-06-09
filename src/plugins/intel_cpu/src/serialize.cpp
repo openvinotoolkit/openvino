@@ -25,8 +25,8 @@ void setInfo(pugi::xml_object_range<pugi::xml_named_node_iterator>&& nodes, T&& 
         if (!name_attr || !precision_attr || !shape_attr || info_iter == info.end()) {
             IE_THROW(NetworkNotRead) << "The inputs/outputs information is invalid.";
         }
-        // TODO: how to set port's info?
-        info_iter->set_names({name_attr.value()});
+        // TODO: Is below info still needed for plugin api 2.0?
+        // info_iter->set_names({name_attr.value()});
         info_iter->get_tensor_ptr()->set_element_type(ov::element::Type(precision_attr.value()));
         info_iter->get_tensor_ptr()->set_tensor_type(ov::element::Type(precision_attr.value()),
                                                      ov::PartialShape(shape_attr.value()));
@@ -66,7 +66,6 @@ void ModelSerializer::operator << (const std::shared_ptr<ov::Model>& model) {
             auto in_node = inputs.append_child("in");
             in_node.append_attribute("name").set_value(ov::op::util::get_ie_output_name(in).c_str());
             in_node.append_attribute("precision").set_value(in.get_element_type().get_type_name().c_str());
-            // Change "layout" to "shape".
             in_node.append_attribute("shape").set_value(in.get_shape().to_string().c_str());
         }
 
@@ -74,7 +73,6 @@ void ModelSerializer::operator << (const std::shared_ptr<ov::Model>& model) {
             auto out_node = outputs.append_child("out");
             out_node.append_attribute("name").set_value(ov::op::util::get_ie_output_name(out).c_str());
             out_node.append_attribute("precision").set_value(out.get_element_type().get_type_name().c_str());
-            // Change "layout" to "shape".
             out_node.append_attribute("shape").set_value(out.get_shape().to_string().c_str());
         }
         xml_doc.save(stream);
