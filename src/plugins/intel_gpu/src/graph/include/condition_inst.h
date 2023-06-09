@@ -21,13 +21,13 @@ private:
 public:
     using parent::parent;
 
-    typed_program_node(std::shared_ptr<primitive> prim, program& prog)
+    typed_program_node(std::shared_ptr<condition> prim, program& prog)
         : parent(prim, prog),
-          _branch_true(this->get_primitive()->branch_true),
-          _branch_false(this->get_primitive()->branch_false) {}
+          _branch_true(prim->branch_true),
+          _branch_false(prim->branch_false) {}
 
-    program::ptr get_branch_true() const { return _branch_true.inner_program; }
-    program::ptr get_branch_false() const { return _branch_false.inner_program; }
+    condition::branch get_branch_true() const { return _branch_true; }
+    condition::branch get_branch_false() const { return _branch_false; }
 
     using parent::get_kernel_impl_params;
     std::unique_ptr<kernel_impl_params> get_kernel_impl_params(const std::vector<layout>& in_layouts, const std::vector<layout>& out_layouts) const override {
@@ -37,9 +37,39 @@ public:
         return params;
     }
 
+    void update_primitive_map(const primitive_id& prevID, const primitive_id& newID) {
+        auto replace_external_id = [&](std::map<primitive_id, primitive_id>& input_map, const primitive_id& prevID, const primitive_id& newID) {
+            auto iter = input_map.find(prevID);
+            if (iter != input_map.end()) {
+                primitive_id new_external_id = newID;
+                primitive_id internal_id = iter->second;
+                input_map.erase(iter);
+                input_map.insert({new_external_id, internal_id});
+                std::cout << "Replace id from " << prevID << " to " << newID << std::endl;
+            }
+        };
+
+        std::cout << "-----------------------------------------------------------" << std::endl;
+        std::cout << "Update primitive map ... " << std::endl;
+        replace_external_id(_branch_true.input_map, prevID, newID);
+        replace_external_id(_branch_false.input_map, prevID, newID);
+
+        auto debug_input_map = [&](const std::map<primitive_id, primitive_id>& input_maps, std::string title) {
+            std::cout << "Checking input map for [" << title << "]" << std::endl;
+            for (const auto& ma : input_maps) {
+                std::cout << "* external: " << ma.first << " == internal: " << ma.second << std::endl;
+            }
+        };
+        debug_input_map(_branch_true.input_map, "branch_true");
+        debug_input_map(_branch_false.input_map, "branch_false");
+        std::cout << "-----------------------------------------------------------" << std::endl;
+    }
+
 private:
-    mutable condition::branch _branch_true;
-    mutable condition::branch _branch_false;
+    // mutable condition::branch _branch_true;
+    // mutable condition::branch _branch_false;
+    condition::branch& _branch_true;
+    condition::branch& _branch_false;
 };
 
 using condition_node = typed_program_node<condition>;

@@ -164,6 +164,7 @@ public:
 
     // DEBUG
     void show_outputs();
+    void debug_nodes(std::string title = "");
 
     // returns already existing program_node for given primitive 'prim' (lookup in 'nodes_map')
     // if it was previously created, otherwise creates and then returns program_node

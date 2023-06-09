@@ -65,6 +65,7 @@
 #include "strided_slice_inst.h"
 #include "loop_inst.h"
 #include "reverse_inst.h"
+#include "condition_inst.h"
 #include "to_string_utils.h"
 
 // TODO: Remove once we have interface for kernels cache
@@ -463,7 +464,9 @@ void program::set_options() {
 
 void program::build_program(bool is_internal) {
     init_graph();
+    debug_nodes("after init_graph");
     { pre_optimize_graph(is_internal); }
+    debug_nodes("after pre_optimize_graph");
     run_graph_compilation();
     { post_optimize_graph(is_internal); }
 
@@ -491,6 +494,7 @@ void program::init_graph() {
     apply_opt_pass<calculate_prior_boxes>();
 
     apply_opt_pass<mark_nodes>();
+    // debug_nodes("After_calculate_prior_boxes");
 }
 
 void program::run_graph_compilation() { apply_opt_pass<compile_graph>(); }
@@ -500,6 +504,15 @@ void program::show_outputs() {
     for (auto o_node : get_outputs()) {
         std::cout << " **** o_node: " << o_node->id() << " " << o_node->get_primitive()->type_string() << std::endl;
     }
+}
+
+void program::debug_nodes(std::string title) {
+    std::cout << "&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&" << std::endl;
+    std::cout << title << "] prog_id: " << get_id() << std::endl;
+    for (auto& n : get_processing_order()) {
+        std::cout << "* " << n->desc->id << ", " << n->desc->type_string() << ", " << n->get_output_layout().to_short_string() << std::endl;
+    }
+    std::cout << "&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&" << std::endl;
 }
 
 void program::pre_optimize_graph(bool is_internal) {
@@ -561,6 +574,7 @@ void program::pre_optimize_graph(bool is_internal) {
     apply_opt_pass<prepare_padding>(output_size_handling_enabled);
 
     apply_opt_pass<remove_redundant_reorders>(lo, optimize_data);
+    // debug_nodes("after_remove_redundant_reorder");
 
     if (!is_internal) {
         // ToDo remove hidden dependencies from propagate_constants pass
@@ -1015,12 +1029,18 @@ bool program::extract(program_node& node) {
         if (user->is_type<loop>()) {
             loop_node& loop = *user;
             loop.update_primitive_map(node.id(), input.id());
+        } else if (user->is_type<condition>()) {
+            condition_node& cond = *user;
+            cond.update_primitive_map(node.id(), input.id());
         }
 
         for (auto& dep : node.dependencies) {
             if (dep.first->is_type<loop>()) {
                 loop_node& loop = *dep.first;
                 loop.update_primitive_map(node.id(), user->id());
+            } else if (dep.first->is_type<condition>()) {
+                condition_node& cond = *dep.first;
+                cond.update_primitive_map(node.id(), user->id());
             }
         }
     }

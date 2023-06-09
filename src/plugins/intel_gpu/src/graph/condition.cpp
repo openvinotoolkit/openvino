@@ -156,23 +156,33 @@ Condition primitive is resuing memory with the input.
 */
 condition_inst::typed_primitive_inst(network& network, condition_node const& node)
     : parent(network, node),
-      _net_true(network::allocate_network(node.get_program().get_engine(), node.get_branch_true(), true)),
-      _net_false(network::allocate_network(node.get_program().get_engine(), node.get_branch_false(), true)) {
+      _net_true(network::allocate_network(node.get_program().get_engine(), node.get_branch_true().inner_program, true)),
+      _net_false(network::allocate_network(node.get_program().get_engine(), node.get_branch_false().inner_program, true)) {
     this->set_inner_networks({_net_true, _net_false});
 }
 
 network::ptr condition_inst::get_inner_networks(bool is_net_true) {
+    const std::string name_str = (is_net_true ? "branch_true" : "branch_false");
     auto net = is_net_true? _net_true : _net_false;
-    auto& branch = is_net_true? node->get_primitive()->branch_true : node->get_primitive()->branch_false;
+    const auto& branch = is_net_true? node->get_branch_true() : node->get_branch_false();
+
+    std::cout << "==========================================================" << std::endl;
+    std::cout << name_str << " => " << branch.id << std::endl;
+    for (auto& b : branch.input_map) {
+        std::cout << "- " << b.first << " : " << b.second << std::endl;
+    }
 
     // set input memory
     for (size_t mem_idx = 0; mem_idx < inputs_memory_count(); mem_idx++) {
         const primitive_id& input_external_id = dependencies().at(mem_idx).first->id();
+        std::cout << "Try to input memory match " << input_external_id << " for " << name_str  << std::endl;
         auto iter = branch.input_map.find(input_external_id);
         if (iter != branch.input_map.end()) {
             const primitive_id& input_internal_id = iter->second;
             auto mem_ptr = input_memory_ptr(mem_idx);
             net->set_input_data(input_internal_id, mem_ptr);
+            std::cout << "Match input for " << name_str << " : " << input_internal_id;
+            std::cout << " vs " << input_external_id << std::endl;
         }
     }
 
@@ -184,6 +194,7 @@ network::ptr condition_inst::get_inner_networks(bool is_net_true) {
         net->set_output_memory(out_internal_id, mem_ptr);
     }
 
+    std::cout << "==========================================================" << std::endl;
     return net;
 }
 
