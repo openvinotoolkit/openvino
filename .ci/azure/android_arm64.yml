@@ -53,7 +53,7 @@ jobs:
     system.debug: true
     VSTS_HTTP_RETRY: 5
     VSTS_HTTP_TIMEOUT: 200
-    BUILD_TYPE: Release
+    BUILD_TYPE: Debug
     OPENVINO_REPO_DIR: $(Build.Repository.LocalPath)
     VCPKG_ROOT: $(OPENVINO_REPO_DIR)/../vcpkg
     WORK_DIR: $(Pipeline.Workspace)/_w
@@ -165,6 +165,7 @@ jobs:
         -DENABLE_SYSTEM_PUGIXML=ON
         -DENABLE_SYSTEM_SNAPPY=ON
         -DENABLE_SYSTEM_TBB=ON
+        -DENABLE_SYSTEM_FLATBUFFERS=ON
         -DENABLE_INTEL_GPU=ON
         -DENABLE_TESTS=ON
         -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
