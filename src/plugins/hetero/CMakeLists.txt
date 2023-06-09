@@ -16,7 +16,6 @@ ov_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "HETERO"
               PSEUDO_DEVICE
               SOURCES ${SOURCES} ${HEADERS}
-              # TODO (vurusovs) revert after finish of porting Hetero plugin to API 2.0
               VERSION_DEFINES_FOR src/plugin.cpp
               ADD_CLANG_FORMAT)
 
@@ -24,8 +23,10 @@ ie_faster_build(${TARGET_NAME}
     UNITY
 )
 
-# TODO (vurusovs) revert after finish of porting Hetero plugin to API 2.0
 target_include_directories(${TARGET_NAME} PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/"
+    # TODO (vurusovs) revert after finish of porting Hetero plugin to API 2.0
     "${OpenVINO_SOURCE_DIR}/src/inference/src/dev"
     )
 

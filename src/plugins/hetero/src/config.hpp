@@ -8,7 +8,6 @@
 #include <string>
 
 #include "openvino/runtime/properties.hpp"
-#include "openvino/runtime/threading/istreams_executor.hpp"
 
 namespace ov {
 namespace hetero {

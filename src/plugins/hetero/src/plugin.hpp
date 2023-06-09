@@ -11,8 +11,8 @@
 #include <utility>
 #include <vector>
 
-#include "../executable_network.hpp"
 #include "config.hpp"
+#include "executable_network.hpp"
 #include "openvino/runtime/iplugin.hpp"
 
 namespace HeteroPlugin {
