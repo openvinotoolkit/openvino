@@ -69,6 +69,7 @@
 #include "transformations/transpose_sinking/ts_concat.hpp"
 #include "transformations/transpose_sinking/ts_fuse.hpp"
 #include "transformations/transpose_sinking/ts_general.hpp"
+#include "transformations/transpose_sinking/ts_slice.hpp"
 #include "transformations/transpose_sinking/ts_split.hpp"
 #include "transformations/ts_concat.hpp"
 #include "transformations/ts_split.hpp"
@@ -315,6 +316,25 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
             return !Limitations::is_backward_transposed_split_supported(
                 node,
                 transpose_info.transpose_const->get_axis_vector_val());
+        });
+
+    pass_config->set_callback<ov::pass::transpose_sinking::TSSliceForward>(
+        [](const std::shared_ptr<const ov::Node>& node) -> bool {
+            const TransposeInfo transpose_info = GetFirstInputTranspose(node);
+            if (transpose_info.isEmpty())
+                return false;
+            const bool is_supported = Limitations::is_transpose_supported(node);
+            if (is_supported)
+                MarkInputTransposesAsNoSinking(node);
+            return is_supported;
+        });
+
+    pass_config->set_callback<ov::pass::transpose_sinking::TSSliceBackward>(
+        [](const std::shared_ptr<const ov::Node>& node) -> bool {
+            const TransposeInfo transpose_info = GetFirstOutputTranspose(node);
+            if (transpose_info.isEmpty())
+                return false;
+            return Limitations::is_transpose_supported(node);
         });
 
     if (has_slice && (has_convolution || has_maxpool || has_mvn)) {
