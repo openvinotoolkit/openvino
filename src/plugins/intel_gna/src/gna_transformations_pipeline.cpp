@@ -215,12 +215,12 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     // TODO enable this transformation for networks without convolutions
     if (has_convolution || has_maxpool || has_mvn || has_matmul) {
         manager.register_pass<ov::intel_gna::pass::TransposeNCHW>();
+        manager.register_pass<ov::pass::TransposeSinkingGeneral>();
         manager.register_pass<ov::intel_gna::pass::TSConcatForward>();
         manager.register_pass<ov::intel_gna::pass::TSSplitBackward>();
         manager.register_pass<ov::intel_gna::pass::GatherSinkingTransposeReshapeForward>();
         manager.register_pass<ov::intel_gna::pass::GatherSinkingTransposeReshapeBackward>();
         manager.register_pass<ov::intel_gna::pass::GatherSinkingTranspose>();
-        manager.register_pass<ov::pass::TransposeSinkingGeneral>();
         manager.register_pass<ov::intel_gna::pass::GatherSinkingGeneral>();
         manager.register_pass<ov::pass::ReshapeSequenceFusion>();
         manager.register_pass<ov::pass::TransposeToReshape>();
