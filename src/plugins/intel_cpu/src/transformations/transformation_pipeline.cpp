@@ -198,7 +198,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     manager.set_per_pass_validation(false);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::InitNodeInfo);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::MarkShapeOfSubgraphs);
-    // todo: should be uncommented when xxx-105060 is ready
+    // todo: uncomment KeepConstAndDecompression when xxx-105060 is ready
     // CPU_REGISTER_PASS_COMMON(manager, ov::pass::KeepConstAndDecompression);
 
     const bool useLpt = !defaultPrecisions.empty();
@@ -259,7 +259,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::Validate);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::RefConvertI64ToI32);
 
-    // todo: remove this conversion line when xxx-105060 is ready and activate conversion at the end of the pipeline
+    // todo: remove this ConvertPrecision when xxx-105060 is ready and activate conversion at the end of the pipeline
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertPrecision, precisions, type_to_fuse);
 
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::EliminateConvert);
@@ -459,7 +459,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
             ov::pass::ConvertQuantizeDequantize);
     }
 
-    // todo: should be uncommented when xxx-105060 is ready
+    // todo: this ConvertPrecision should be uncommented when xxx-105060 is ready
     // CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertPrecision, precisions, type_to_fuse);
 
     manager.run_passes(model);
