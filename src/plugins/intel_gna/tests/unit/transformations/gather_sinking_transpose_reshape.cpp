@@ -56,10 +56,7 @@ TEST(GatherSinkingTransposeReshape, ForwardSinking) {
         auto gather_axis_const = std::make_shared<Constant>(element::i64, Shape{}, 1);
         auto gather = std::make_shared<Gather>(reshape, gather_indices_const, gather_axis_const);
 
-        auto reshape_out_const = std::make_shared<Constant>(element::i64, Shape{2}, std::vector<int>{1, -1});
-        auto reshape_out = std::make_shared<Reshape>(gather, reshape_out_const, false);
-
-        auto tanh1 = std::make_shared<Tanh>(reshape_out);
+        auto tanh1 = std::make_shared<Tanh>(gather);
         const auto result = std::make_shared<Result>(tanh1);
         reference_function = std::make_shared<Model>(OutputVector{result}, ParameterVector{input_params});
     }
@@ -67,7 +64,7 @@ TEST(GatherSinkingTransposeReshape, ForwardSinking) {
     const FunctionsComparator func_comparator =
         FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
     const FunctionsComparator::Result result = func_comparator(function, reference_function);
-    EXPECT_TRUE(result.valid) << result.message;
+    ASSERT_TRUE(result.valid);
 }
 
 TEST(GatherSinkingTransposeReshape, ForwardSinking3D) {
@@ -99,7 +96,7 @@ TEST(GatherSinkingTransposeReshape, ForwardSinking3D) {
         auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{1, 1, 14, 4});
         auto tanh0 = std::make_shared<Tanh>(input_params);
 
-        auto reshape_const = std::make_shared<Constant>(element::i64, Shape{2}, std::vector<int>{1, -1});
+        auto reshape_const = std::make_shared<Constant>(element::i64, Shape{2}, std::vector<int>{1, 56});
         auto reshape = std::make_shared<Reshape>(tanh0, reshape_const, false);
 
         auto generate_indices = []() -> std::vector<int64_t> {
@@ -117,10 +114,7 @@ TEST(GatherSinkingTransposeReshape, ForwardSinking3D) {
         auto gather_axis_const = std::make_shared<Constant>(element::i64, Shape{}, 1);
         auto gather = std::make_shared<Gather>(reshape, gather_indices_const, gather_axis_const);
 
-        auto reshape_out_const = std::make_shared<Constant>(element::i64, Shape{2}, std::vector<int>{1, 56});
-        auto reshape_out = std::make_shared<Reshape>(gather, reshape_out_const, false);
-
-        auto tanh1 = std::make_shared<Tanh>(reshape_out);
+        auto tanh1 = std::make_shared<Tanh>(gather);
         const auto result = std::make_shared<Result>(tanh1);
         reference_function = std::make_shared<Model>(OutputVector{result}, ParameterVector{input_params});
     }
@@ -128,7 +122,7 @@ TEST(GatherSinkingTransposeReshape, ForwardSinking3D) {
     const FunctionsComparator func_comparator =
         FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
     const FunctionsComparator::Result result = func_comparator(function, reference_function);
-    EXPECT_TRUE(result.valid) << result.message;
+    ASSERT_TRUE(result.valid);
 }
 
 TEST(GatherSinkingTransposeReshape, BackwardSinking) {
@@ -174,7 +168,7 @@ TEST(GatherSinkingTransposeReshape, BackwardSinking) {
     const FunctionsComparator func_comparator =
         FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
     const FunctionsComparator::Result result = func_comparator(function, reference_function);
-    EXPECT_TRUE(result.valid) << result.message;
+    ASSERT_TRUE(result.valid) << result.message;
 }
 
 }  // namespace testing
