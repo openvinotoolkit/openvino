@@ -46,65 +46,65 @@ public:
     virtual std::shared_ptr<ov::Model> read_model(const std::string& model_path, const std::string& bin_path) const = 0;
 
     /**
-     * @brief Creates an executable network from a network object.
+     * @brief Creates a compiled mdel from a model object.
      *
-     * Users can create as many networks as they need and use
+     * Users can create as many models as they need and use
      *        them simultaneously (up to the limitation of the hardware resources)
      *
      * @param model OpenVINO Model
-     * @param device_name Name of device to load network to
+     * @param device_name Name of device to load model to
      * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
      * operation
-     * @return An executable network reference
+     * @return A pointer to compiled model
      */
     virtual ov::SoPtr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
                                                         const std::string& device_name,
                                                         const ov::AnyMap& config = {}) const = 0;
 
     /**
-     * @brief Creates an executable network from a network object.
+     * @brief Creates a compiled model from a model object.
      *
-     * Users can create as many networks as they need and use
+     * Users can create as many models as they need and use
      *        them simultaneously (up to the limitation of the hardware resources)
      *
      * @param model OpenVINO Model
      * @param context  "Remote" (non-CPU) accelerator device-specific execution context to use
      * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
      * operation
-     * @return An executable network reference
+     * @return A pointer to compiled model
      */
     virtual ov::SoPtr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
                                                         const ov::RemoteContext& context,
                                                         const ov::AnyMap& config = {}) const = 0;
 
     /**
-     * @brief Creates an executable network from a model file.
+     * @brief Creates a compiled model from a model file.
      *
-     * Users can create as many networks as they need and use
+     * Users can create as many models as they need and use
      *        them simultaneously (up to the limitation of the hardware resources)
      *
      * @param model_path Path to model
-     * @param device_name Name of device to load network to
+     * @param device_name Name of device to load model to
      * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
      * operation
-     * @return An executable network reference
+     * @return A pointer to compiled model
      */
     virtual ov::SoPtr<ov::ICompiledModel> compile_model(const std::string& model_path,
                                                         const std::string& device_name,
                                                         const ov::AnyMap& config) const = 0;
 
     /**
-     * @brief Creates an executable network from a model memory.
+     * @brief Creates a compiled model from a model memory.
      *
-     * Users can create as many networks as they need and use
+     * Users can create as many models as they need and use
      *        them simultaneously (up to the limitation of the hardware resources)
      *
      * @param model_str String data of model
      * @param weights Model's weights
-     * @param device_name Name of device to load network to
+     * @param device_name Name of device to load model to
      * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
      * operation
-     * @return An executable network reference
+     * @return A pointer to compiled model
      */
     virtual ov::SoPtr<ov::ICompiledModel> compile_model(const std::string& model_str,
                                                         const ov::Tensor& weights,
@@ -112,15 +112,27 @@ public:
                                                         const ov::AnyMap& config) const = 0;
 
     /**
-     * @brief Creates an executable network from a previously exported network
+     * @brief Creates a compiled model from a previously exported model
      * @param model model stream
-     * @param device_name Name of device load executable network on
+     * @param device_name Name of device load executable model on
      * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
      * operation*
-     * @return An executable network reference
+     * @return A pointer to compiled model
      */
     virtual ov::SoPtr<ov::ICompiledModel> import_model(std::istream& model,
                                                        const std::string& device_name,
+                                                       const ov::AnyMap& config = {}) const = 0;
+
+    /**
+     * @brief Creates a compiled model from a previously exported model
+     * @param model model stream
+     * @param context Remote context
+     * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
+     * operation*
+     * @return A pointer to compiled model
+     */
+    virtual ov::SoPtr<ov::ICompiledModel> import_model(std::istream& modelStream,
+                                                       const ov::RemoteContext& context,
                                                        const ov::AnyMap& config = {}) const = 0;
 
     /**

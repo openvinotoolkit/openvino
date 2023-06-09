@@ -76,6 +76,14 @@ public:
     /// @brief Default constructor
     Tensor() = default;
 
+    /**
+     * @brief Copy constructor with adding new shared object
+     *
+     * @param other Original tensor
+     * @param so Shared object
+     */
+    Tensor(const Tensor& other, const std::shared_ptr<void>& so);
+
     /// @brief Default copy constructor
     /// @param other other Tensor object
     Tensor(const Tensor& other) = default;
