@@ -80,6 +80,10 @@ inline bool is_constant_1d(const ov::Output<ov::Node>& output) {
     return output.get_partial_shape().size() <= 1;
 }
 
+inline bool is_skip_operation(const std::shared_ptr<ov::Node>& node) {
+    return std::dynamic_pointer_cast<Reshape>(node) != nullptr && node->output(0).get_target_inputs().size() == 1;
+}
+
 }  // namespace
 
 GatherSinkingTransposeForward::GatherSinkingTransposeForward() {
@@ -87,17 +91,19 @@ GatherSinkingTransposeForward::GatherSinkingTransposeForward() {
     auto gather_ids_label = wrap_type<Constant>(is_constant_1d);
     auto gather_label = wrap_type<Gather>({any_input(), gather_ids_label, any_input()});
     auto reshape_label = wrap_type<Reshape>({gather_label, any_input()});
-    auto transpose_label = wrap_type<Transpose>({reshape_label, any_input()});
+    // auto transpose_label = wrap_type<Transpose>({reshape_label, any_input()});
 
     ov::matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
-        auto gather_ids = as_type_ptr<Constant>(pattern_to_output.at(gather_ids_label).get_node_shared_ptr());
-        // auto gather_axis = as_type_ptr<Constant>(pattern_to_output.at(gather_axis_label).get_node_shared_ptr());
         auto gather = as_type_ptr<Gather>(pattern_to_output.at(gather_label).get_node_shared_ptr());
+        auto reshape = as_type_ptr<Reshape>(pattern_to_output.at(reshape_label).get_node_shared_ptr());
 
-        // auto transpose_const =
-        // as_type_ptr<Constant>(pattern_to_output.at(transpose_const_label).get_node_shared_ptr());
-        auto transpose = as_type_ptr<Transpose>(pattern_to_output.at(transpose_label).get_node_shared_ptr());
+        // skip all the Reshape layers
+        std::shared_ptr<ov::Node> non_reshape_node = graph_utils::get_next_node_skipping_certain(reshape, is_skip_operation);
+        auto transpose = std::dynamic_pointer_cast<Transpose>(non_reshape_node);
+        if (!transpose) {
+            return false;
+        }
 
         const std::vector<std::shared_ptr<ov::Node>> new_nodes = merge_nodes_forward(gather, transpose);
         for (const auto& node : new_nodes) {
@@ -106,22 +112,28 @@ GatherSinkingTransposeForward::GatherSinkingTransposeForward() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(transpose_label, matcher_name);
+    auto m = std::make_shared<Matcher>(reshape_label, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }
 
 GatherSinkingTransposeBackward::GatherSinkingTransposeBackward() {
     MATCHER_SCOPE(GatherSinkingTransposeBackward);
 
-    auto transpose_label = wrap_type<Transpose>({any_input(), any_input()});
-    auto reshape_label = wrap_type<Reshape>({transpose_label, any_input()});
+    auto reshape_label = wrap_type<Reshape>({any_input(), any_input()});
     auto gather_ids_label = wrap_type<Constant>(is_constant_1d);
     auto gather_label = wrap_type<Gather>({reshape_label, gather_ids_label, any_input()});
 
     ov::matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
+        auto reshape = as_type_ptr<Reshape>(pattern_to_output.at(reshape_label).get_node_shared_ptr());
         auto gather = as_type_ptr<Gather>(pattern_to_output.at(gather_label).get_node_shared_ptr());
-        auto transpose = as_type_ptr<Transpose>(pattern_to_output.at(transpose_label).get_node_shared_ptr());
+
+        // skip all the Reshape layers
+        std::shared_ptr<ov::Node> non_reshape_node = graph_utils::get_prev_node_skipping_certain(reshape, is_skip_operation);
+        auto transpose = std::dynamic_pointer_cast<Transpose>(non_reshape_node);
+        if (!transpose) {
+            return false;
+        }
 
         const std::vector<std::shared_ptr<ov::Node>> new_nodes = merge_nodes_backward(gather, transpose);
         for (const auto& node : new_nodes) {
