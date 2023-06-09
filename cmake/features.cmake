@@ -164,7 +164,7 @@ ie_dependent_option (ENABLE_SYSTEM_TBB  "Enables use of system TBB" ${ENABLE_SYS
 ie_option (ENABLE_SYSTEM_PUGIXML "Enables use of system PugiXML" ${ENABLE_SYSTEM_PUGIXML_DEFAULT})
 # the option is on by default, because we use only flatc compiler and don't use any libraries
 ie_dependent_option(ENABLE_SYSTEM_FLATBUFFERS "Enables use of system flatbuffers" ON
-    "ENABLE_OV_TF_LITE_FRONTEND;NOT ANDROID" OFF)
+    "ENABLE_OV_TF_LITE_FRONTEND" OFF)
 ie_dependent_option (ENABLE_SYSTEM_OPENCL "Enables use of system OpenCL" ${ENABLE_SYSTEM_LIBS_DEFAULT}
     "ENABLE_INTEL_GPU" OFF)
 # the option is turned off by default, because we compile our own static version of protobuf
@@ -174,6 +174,10 @@ ie_dependent_option (ENABLE_SYSTEM_PROTOBUF "Enables use of system Protobuf" OFF
 # the option is turned off by default, because we don't want to have a dependency on libsnappy.so
 ie_dependent_option (ENABLE_SYSTEM_SNAPPY "Enables use of system version of Snappy" OFF
     "ENABLE_SNAPPY_COMPRESSION" OFF)
+
+# temporary option until we enable this by default when review python API distribution
+ie_dependent_option (ENABLE_PYTHON_PACKAGING "Enables packaging of Python API in APT / YUM" OFF
+    "ENABLE_PYTHON;CPACK_GENERATOR STREQUAL RPM OR CPACK_GENERATOR STREQUAL DEB" OFF)
 
 ie_option(ENABLE_OPENVINO_DEBUG "Enable output for OPENVINO_DEBUG statements" OFF)
 
