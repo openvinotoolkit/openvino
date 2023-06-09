@@ -9,7 +9,7 @@
 using namespace ov;
 using namespace ov::intel_cpu;
 
-TEST(StaticShapeInferenceTest, LstmCellTest) {
+TEST(StaticShapeInferenceTest, LSTMCellV4Test) {
     const size_t batch_size = 2;
     const size_t input_size = 3;
     const size_t hidden_size = 3;
@@ -35,7 +35,7 @@ TEST(StaticShapeInferenceTest, LstmCellTest) {
     ASSERT_EQ(static_output_shapes[1], StaticShape({batch_size, hidden_size}));
 }
 
-TEST(StaticShapeInferenceTest, LstmCellV1Test) {
+TEST(StaticShapeInferenceTest, LSTMCellV0Test) {
     const size_t batch_size = 2;
     const size_t input_size = 3;
     const size_t hidden_size = 3;
