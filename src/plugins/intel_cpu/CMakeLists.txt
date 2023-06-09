@@ -19,7 +19,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 elseif(OV_COMPILER_IS_CLANG)
     ie_add_compiler_flags(-Wno-delete-non-abstract-non-virtual-dtor)
 endif()
-
+set(ENABLE_MLAS ON)
 add_subdirectory(thirdparty)
 
 if(WIN32)
@@ -35,7 +35,6 @@ if(OV_CPU_WITH_DNNL)
     add_definitions(-DOV_CPU_WITH_DNNL)
 endif()
 
-set(ENABLE_MLAS ON)
 
 if(DNNL_USE_ACL)
     add_definitions(-DOV_CPU_WITH_ACL)
