@@ -217,6 +217,7 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     if (has_convolution || has_maxpool || has_mvn || has_matmul) {
         manager.register_pass<ov::intel_gna::pass::TransposeNCHW>();
         manager.register_pass<ov::pass::TransposeSinkingGeneral>();
+        manager.register_pass<ov::intel_gna::pass::Transpose2D>();
         manager.register_pass<ov::intel_gna::pass::TSConcatForward>();
         manager.register_pass<ov::intel_gna::pass::TSSplitBackward>();
         manager.register_pass<ov::intel_gna::pass::GatherSinkingTransposeReshapeForward>();
