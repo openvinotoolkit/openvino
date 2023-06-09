@@ -1924,8 +1924,7 @@ TEST_P(CachingTest, LoadHetero_TargetFallbackFromCore) {
     }
 }
 
-// TODO (vurusovs) TEMPRORARY DISABLE TO FINISH PRECOMMIT
-TEST_P(CachingTest, DISABLED_LoadHetero_MultiArchs) {
+TEST_P(CachingTest, LoadHetero_MultiArchs) {
     EXPECT_CALL(*mockPlugin, GetMetric(_, _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(ov::caching_properties.name(), _)).Times(AnyNumber());
 
