@@ -118,3 +118,74 @@ std::shared_ptr<ov::IRemoteContext> ov::ICompiledModel::get_context() const {
         return m_context._impl;
     return m_plugin->get_default_context({});
 }
+
+class FakeVariadicNode : public ov::op::Op {
+public:
+    OPENVINO_OP("FakeVariadicNode");
+
+    FakeVariadicNode(const std::vector<ov::Output<const ov::Node>>& inputs,
+                     const std::vector<ov::Output<const ov::Node>>& outputs)
+        : ov::op::Op() {
+        m_params.reserve(inputs.size());
+        m_results.reserve(outputs.size());
+
+        for (size_t i = 0; i < inputs.size(); i++) {
+            const auto& input = inputs.at(i);
+            auto param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(input.get_node()->clone_with_new_inputs({}));
+            OPENVINO_ASSERT(param);
+            param->set_friendly_name(input.get_node()->get_friendly_name());
+            param->output(0).get_rt_info() = input.get_rt_info();
+            param->validate_and_infer_types();
+            m_params.emplace_back(param);
+            set_argument(i, param);
+        }
+        set_output_size(outputs.size());
+        for (size_t i = 0; i < outputs.size(); i++) {
+            const auto& output = outputs.at(i);
+            set_output_type(i, output.get_element_type(), output.get_partial_shape());
+            const std::string res_name = ov::op::util::create_ie_output_name(output);
+            OPENVINO_SUPPRESS_DEPRECATED_START
+            ov::descriptor::set_ov_tensor_legacy_name(get_output_tensor(i), res_name);
+            OPENVINO_SUPPRESS_DEPRECATED_END
+            get_output_tensor(i).set_names(output.get_names());
+        }
+    }
+
+    void validate_and_infer_types() override {}
+
+    std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override {
+        // Cannot clone this fake operation
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+    bool visit_attributes(ov::AttributeVisitor& visitor) override {
+        return true;
+    }
+
+    const ov::ParameterVector& get_parameters() {
+        return m_params;
+    }
+
+    const ov::ResultVector& get_results() {
+        // Cannot init results in the constructor because shared_from_this will be called in make_shared line
+        std::call_once(result_initialized, [this]() {
+            for (const auto& output : outputs()) {
+                auto result = std::make_shared<ov::op::v0::Result>(output);
+                m_results.emplace_back(result);
+            }
+        });
+        return m_results;
+    }
+
+private:
+    std::vector<std::shared_ptr<ov::op::v0::Parameter>> m_params;
+    std::vector<std::shared_ptr<ov::op::v0::Result>> m_results;
+    std::once_flag result_initialized;
+};
+
+std::shared_ptr<ov::Model> ov::construct_model_with_inputs_outputs(
+    const std::vector<ov::Output<const ov::Node>>& inputs,
+    const std::vector<ov::Output<const ov::Node>>& outputs) {
+    std::shared_ptr<FakeVariadicNode> fake_op(new FakeVariadicNode(inputs, outputs));
+    return std::make_shared<ov::Model>(fake_op->get_results(), fake_op->get_parameters());
+}

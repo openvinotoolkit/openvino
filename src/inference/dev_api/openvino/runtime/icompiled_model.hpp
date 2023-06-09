@@ -136,6 +136,8 @@ public:
      */
     std::shared_ptr<ov::IRemoteContext> get_context() const;
 
+    virtual ~ICompiledModel() = default;
+
 private:
     std::shared_ptr<const ov::IPlugin> m_plugin;
     std::vector<ov::Output<const ov::Node>> m_inputs;
@@ -186,5 +188,17 @@ protected:
     void set_task_executor(const std::shared_ptr<ov::threading::ITaskExecutor> task_executor);
     void set_callback_executor(const std::shared_ptr<ov::threading::ITaskExecutor> callback_executor);
 };
+
+/**
+ * @brief Method is used to create by meta plugins model with information about inputs/outputs from low level plugins
+ *
+ * @param inputs vector of input ports
+ * @param outputs vector of output ports
+ *
+ * @return shared pointer to ov::Model
+ */
+OPENVINO_RUNTIME_API std::shared_ptr<ov::Model> construct_model_with_inputs_outputs(
+    const std::vector<ov::Output<const ov::Node>>& inputs,
+    const std::vector<ov::Output<const ov::Node>>& outputs);
 
 }  // namespace ov

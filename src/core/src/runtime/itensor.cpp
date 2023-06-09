@@ -8,6 +8,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/allocator.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 namespace ov {
 
@@ -19,6 +20,11 @@ size_t ITensor::get_size() const {
 
 size_t ITensor::get_byte_size() const {
     return (get_size() * get_element_type().bitwidth() + 8 - 1) / 8;
+}
+
+void add_tensor_shared_object(Tensor& tensor, std::shared_ptr<void> so) {
+    if (so)
+        tensor._so.emplace_back(so);
 }
 
 }  // namespace ov
