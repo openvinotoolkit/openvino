@@ -93,6 +93,9 @@ public:
             _processing_order.erase(i);
         }
 
+        void save(BinaryOutputBuffer& ob) const;
+        void load(BinaryInputBuffer& ib, program* prog);
+
     private:
         list_of_nodes _processing_order;
         std::map<program_node*, node_iterator> processing_order_iterators;
@@ -135,7 +138,7 @@ public:
             std::shared_ptr<InferenceEngine::CPUStreamsExecutor> task_executor,
             bool is_internal);
 
-    explicit program(engine& engine);
+    explicit program(engine& engine, const ExecutionConfig& config = {});
     ~program();
     engine& get_engine() const { return _engine; }
     const ExecutionConfig& get_config() const { return _config; }
@@ -252,6 +255,9 @@ public:
     ImplementationsCache& get_implementations_cache() const { return *_impls_cache; }
     ICompilationContext& get_compilation_context() const { return *_compilation_context; }
     void cancel_compilation_context();
+
+    void save(BinaryOutputBuffer& ob) const;
+    void load(BinaryInputBuffer& ib);
 
 private:
     uint32_t prog_id = 0;

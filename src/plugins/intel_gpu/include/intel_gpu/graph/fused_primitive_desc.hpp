@@ -54,6 +54,9 @@ struct fused_primitive_desc {
 
     bool has_outer_dep() const { return outer_dep_start_idx >= 0; }
 
+    void save(cldnn::BinaryOutputBuffer& ob) const;
+    void load(cldnn::BinaryInputBuffer& ib);
+
     std::shared_ptr<const primitive> desc;
 
     layout input_layout = layout(data_types::f32, format::bfyx, tensor());

@@ -20,6 +20,7 @@
 #include "intel_gpu/plugin/custom_layer.hpp"
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/execution_config.hpp"
+#include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/graph/topology.hpp"
 #include "intel_gpu/graph/program.hpp"
 
@@ -157,6 +158,9 @@ public:
 
     bool use_new_shape_infer() const { return allow_new_shape_infer; }
     bool requires_new_shape_infer(const ngraph::Node& op) const;
+
+    void save(cldnn::BinaryOutputBuffer& ob) const;
+    void load(cldnn::BinaryInputBuffer& ib);
 
 private:
     static factories_map_t factories_map;

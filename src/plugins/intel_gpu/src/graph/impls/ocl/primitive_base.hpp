@@ -162,6 +162,18 @@ protected:
         }
     }
 
+    void init_by_cached_kernel_ids(const kernels_cache& kernels_cache, const std::vector<std::string> cached_kernel_ids) override {
+        if (is_cpu()) {
+            return;
+        }
+        _kernels.clear();
+
+        _kernels.reserve(cached_kernel_ids.size());
+        for (size_t k = 0; k < cached_kernel_ids.size(); ++k) {
+            _kernels.emplace_back(kernels_cache.get_kernel_from_cached_kernels(cached_kernel_ids[k]));
+        }
+    }
+
     void set_cached_kernel_ids(const kernels_cache& kernels_cache) override {
         _cached_kernel_ids = kernels_cache.get_cached_kernel_ids(_kernels);
     }

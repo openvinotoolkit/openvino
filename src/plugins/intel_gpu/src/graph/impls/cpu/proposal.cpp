@@ -427,6 +427,7 @@ struct proposal_impl : typed_primitive_impl<proposal> {
     }
 
     void init_kernels(const kernels_cache&, const kernel_impl_params&) override {}
+    void init_by_cached_kernel_ids(const kernels_cache&, const std::vector<std::string>) override {}
 
     static std::unique_ptr<primitive_impl> create(const proposal_node& arg, const kernel_impl_params& impl_param) {
         const layout& l = impl_param.input_layouts[2];

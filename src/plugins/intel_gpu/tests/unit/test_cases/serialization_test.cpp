@@ -17,7 +17,7 @@ struct ie_layout_serialization_test : testing::TestWithParam<InferenceEngine::La
         membuf mem_buf;
         {
             std::ostream out_mem(&mem_buf);
-            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem, get_test_engine());
 
             std::stringstream ss;
             ss << test_layout;

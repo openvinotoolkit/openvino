@@ -32,9 +32,9 @@ struct kernel_impl_params {
     };
 
     bool has_runtime_layouts = false;
-    const program *prog;
+    program *prog;
     stream::ptr strm;
-    std::shared_ptr<const primitive> desc;
+    std::shared_ptr<primitive> desc;
     size_t unique_id;
     std::vector<layout> input_layouts;
     std::vector<layout> output_layouts;
@@ -58,7 +58,7 @@ struct kernel_impl_params {
 
     kernel_impl_params(program& _prog,
                        stream::ptr _strm,
-                       std::shared_ptr<const primitive> _desc,
+                       std::shared_ptr<primitive> _desc,
                        size_t _uid,
                        const std::vector<layout>& _in_layouts,
                        const std::vector<layout>& _out_layouts,
@@ -118,7 +118,7 @@ struct kernel_impl_params {
     std::shared_ptr<const PType> typed_desc() const { return std::static_pointer_cast<const PType>(desc); }
 
     void save(BinaryOutputBuffer& ob) const;
-    void load(BinaryInputBuffer& ib);
+    void load(BinaryInputBuffer& ib, std::shared_ptr<program> prog, stream::ptr mystrm);
     const program& get_program() const {
         OPENVINO_ASSERT(prog != nullptr, "[GPU] Program pointer in kernel_impl_params in not initialized");
         return *prog;

@@ -84,7 +84,7 @@ public:
                 {
                     network0 = std::make_shared<cldnn::network>(prog, 0);
                     std::ostream out_mem(&mem_buf);
-                    BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+                    BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem, engine);
                     network0->save(ob);
                 }
             }
@@ -179,13 +179,13 @@ public:
                 {
                     network0 = std::make_shared<cldnn::network>(prog, 0);
                     std::ostream out_mem0(&mem_buf0);
-                    BinaryOutputBuffer ob0 = BinaryOutputBuffer(out_mem0);
+                    BinaryOutputBuffer ob0 = BinaryOutputBuffer(out_mem0, engine);
                     network0->save(ob0);
                 }
                 {
                     network1 = std::make_shared<cldnn::network>(prog, 1);
                     std::ostream out_mem1(&mem_buf1);
-                    BinaryOutputBuffer ob1 = BinaryOutputBuffer(out_mem1);
+                    BinaryOutputBuffer ob1 = BinaryOutputBuffer(out_mem1, engine);
                     network1->save(ob1);
                 }
             }

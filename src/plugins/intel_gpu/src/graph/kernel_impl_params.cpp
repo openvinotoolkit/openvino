@@ -130,8 +130,9 @@ void kernel_impl_params::save(BinaryOutputBuffer& ob) const {
     ob << primary_input_idx;
 }
 
-void kernel_impl_params::load(BinaryInputBuffer& ib) {
-    prog = nullptr;
+void kernel_impl_params::load(BinaryInputBuffer& ib, program::ptr myprog, stream::ptr mystrm) {
+    prog = myprog.get();
+    strm = mystrm;
     ib >> desc;
     ib >> has_runtime_layouts;
     ib >> unique_id;

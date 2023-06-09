@@ -89,7 +89,8 @@ void start_broadcast_test_dynamic(format input_format,
                                   ov::Shape output_shape,
                                   ov::Shape input_data_shape,
                                   ov::AxisSet broadcast_axes,
-                                  bool is_output_static = false) {
+                                  bool is_output_static = false,
+                                  bool is_caching_test = false) {
     size_t input_data_size = accumulate(input_data_shape.rbegin(), input_data_shape.rend(), (size_t)1, std::multiplies<size_t>());
     ASSERT_GE(input_data_size, (size_t)1);
     std::vector<T> input_data = {};
@@ -146,18 +147,19 @@ void start_broadcast_test_dynamic(format input_format,
 
     set_values(input, input_data);
 
-    network network(engine, topology, config);
-    network.set_input_data("input", input);
+    network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+
+    network->set_input_data("input", input);
     if (!is_output_static) {
-        network.set_input_data("target_shape", target_shape_mem);
+        network->set_input_data("target_shape", target_shape_mem);
     }
 
-    auto inst = network.get_primitive("broadcast");
+    auto inst = network->get_primitive("broadcast");
     auto impl = inst->get_impl();
     ASSERT_TRUE(impl != nullptr);
     ASSERT_TRUE(impl->is_dynamic());
 
-    auto outputs = network.execute();
+    auto outputs = network->execute();
 
     auto output = outputs.at("output").get_memory();
     cldnn::mem_lock<T> output_ptr(output, get_test_stream());
@@ -271,26 +273,57 @@ TEST(broadcast_gpu_float, bfyx_1_to_4x5_w_b_axes_0x1_dynamic) {
     start_broadcast_test_dynamic<float>(format::bfyx, data_types::f32, {4, 5}, {1, 1}, {0, 1});
 }
 
+TEST(broadcast_gpu_float, bfyx_1_to_4x5_w_b_axes_0x1_dynamic_cached) {
+    start_broadcast_test_dynamic<float>(format::bfyx, data_types::f32, {4, 5}, {1, 1}, {0, 1}, false, true);
+}
+
 TEST(broadcast_gpu_float, bfyx_1_to_4x5_w_b_axes_0x1_dynamic_with_static_output) {
     start_broadcast_test_dynamic<float>(format::bfyx, data_types::f32, {4, 5}, {1, 1}, {0, 1}, true);
+}
+
+TEST(broadcast_gpu_float, bfyx_1_to_4x5_w_b_axes_0x1_dynamic_with_static_output_cached) {
+    start_broadcast_test_dynamic<float>(format::bfyx, data_types::f32, {4, 5}, {1, 1}, {0, 1}, true, true);
 }
 
 TEST(broadcast_gpu_uint8_t, bfyx_1_to_4x5_w_b_axes_0x1_dynamic) {
     start_broadcast_test_dynamic<uint8_t>(format::bfyx, data_types::u8, {4, 5}, {1, 1}, {0, 1});
 }
 
+TEST(broadcast_gpu_uint8_t, bfyx_1_to_4x5_w_b_axes_0x1_dynamic_cached) {
+    start_broadcast_test_dynamic<uint8_t>(format::bfyx, data_types::u8, {4, 5}, {1, 1}, {0, 1}, false, true);
+}
+
 TEST(broadcast_gpu_uint8_t, bfyx_1_to_4x5_w_b_axes_0x1x2_dynamic_with_static_output) {
     start_broadcast_test_dynamic<uint8_t>(format::bfyx, data_types::u8, {4, 5, 2}, {1, 1, 1}, {0, 1, 2}, true);
+}
+
+TEST(broadcast_gpu_uint8_t, bfyx_1_to_4x5_w_b_axes_0x1x2_dynamic_with_static_output_cached) {
+    start_broadcast_test_dynamic<uint8_t>(format::bfyx, data_types::u8, {4, 5, 2}, {1, 1, 1}, {0, 1, 2}, true, true);
 }
 
 TEST(broadcast_gpu_int64_t, bfyx_1_to_4x5_w_b_axes_0x1_dynamic) {
     start_broadcast_test_dynamic<int64_t>(format::bfyx, data_types::i64, {4, 5}, {1, 1}, {0, 1});
 }
 
-TEST(broadcast_gpu_int64_t, bfyx_1_to_4x5_w_b_axes_0x1x2x3_dynamic_with_static_output) {
+TEST(broadcast_gpu_int64_t, bfyx_1_to_4x5_w_b_axes_0x1_dynamic_cached) {
+    start_broadcast_test_dynamic<int64_t>(format::bfyx, data_types::i64, {4, 5}, {1, 1}, {0, 1}, false, true);
+}
+
+TEST(broadcast_gpu_int64_t, bfyx_1_to_4x5_w_b_axes_0x1x2x3_dynamic) {
     start_broadcast_test_dynamic<int64_t>(format::bfyx, data_types::i64, {4, 5, 2, 3}, {1, 1, 1, 1}, {0, 1, 2, 3});
 }
 
+TEST(broadcast_gpu_int64_t, bfyx_1_to_4x5_w_b_axes_0x1x2x3_dynamic_cached) {
+    start_broadcast_test_dynamic<int64_t>(format::bfyx, data_types::i64, {4, 5, 2, 3}, {1, 1, 1, 1}, {0, 1, 2, 3}, false, true);
+}
+
+TEST(broadcast_gpu_int64_t, bfyx_1_to_4x5_w_b_axes_0x1x2x3_dynamic_with_static_output) {
+    start_broadcast_test_dynamic<int64_t>(format::bfyx, data_types::i64, {4, 5, 2, 3}, {1, 1, 1, 1}, {0, 1, 2, 3}, true);
+}
+
+TEST(broadcast_gpu_int64_t, bfyx_1_to_4x5_w_b_axes_0x1x2x3_dynamic_with_static_output_cached) {
+    start_broadcast_test_dynamic<int64_t>(format::bfyx, data_types::i64, {4, 5, 2, 3}, {1, 1, 1, 1}, {0, 1, 2, 3}, true, true);
+}
 
 /* Expected golden_data = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
                            1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,

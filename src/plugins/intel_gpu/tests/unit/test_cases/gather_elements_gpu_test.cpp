@@ -1240,7 +1240,7 @@ TEST(gather_elements_gpu_fp16, export_import) {
     DoTest(engine, input0, input1, expected_results, tensor(2, 3, 3, 1, 1, 5), axis, true);
 }
 
-TEST(gather_elements_gpu, dynamic) {
+static void test_dynamic(bool is_caching_test) {
     auto& engine = get_test_engine();
 
     auto axis = 3;
@@ -1296,17 +1296,17 @@ TEST(gather_elements_gpu, dynamic) {
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-    network network(engine, topology, config);
+    network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
 
-    network.set_input_data("InputData", input0);
-    network.set_input_data("InputIndices", input1);
+    network->set_input_data("InputData", input0);
+    network->set_input_data("InputIndices", input1);
 
-    auto inst = network.get_primitive("gather_elements");
+    auto inst = network->get_primitive("gather_elements");
     auto impl = inst->get_impl();
     ASSERT_TRUE(impl != nullptr);
     ASSERT_TRUE(impl->is_dynamic());
 
-    auto outputs = network.execute();
+    auto outputs = network->execute();
 
     auto output = outputs.at("gather_elements").get_memory();
     cldnn::mem_lock<uint8_t> output_ptr(output, get_test_stream());
@@ -1314,4 +1314,12 @@ TEST(gather_elements_gpu, dynamic) {
     for (size_t i = 0; i < expected_results.size(); ++i) {
         ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
+}
+
+TEST(gather_elements_gpu, dynamic) {
+    test_dynamic(false);
+}
+
+TEST(gather_elements_gpu, dynamic_cached) {
+    test_dynamic(true);
 }

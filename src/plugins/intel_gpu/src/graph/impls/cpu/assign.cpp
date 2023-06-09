@@ -62,6 +62,7 @@ struct assign_impl : public typed_primitive_impl<assign> {
     }
 
     void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}
+    void init_by_cached_kernel_ids(const kernels_cache&, const std::vector<std::string>) override {}
 
 public:
     static std::unique_ptr<primitive_impl> create(const assign_node& arg, const kernel_impl_params& impl_param) {

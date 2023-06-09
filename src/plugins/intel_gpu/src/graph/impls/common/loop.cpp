@@ -23,6 +23,7 @@ struct loop_impl : typed_primitive_impl<loop> {
     }
 
     void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}
+    void init_by_cached_kernel_ids(const kernels_cache&, const std::vector<std::string>) override {}
 
     loop_impl() : parent() {}
 

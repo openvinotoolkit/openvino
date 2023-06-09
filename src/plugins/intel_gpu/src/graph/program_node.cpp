@@ -495,6 +495,101 @@ void program_node::set_preferred_output_fmt(size_t idx, format::type type) {
     preferred_output_fmts.at(idx) = type;
 }
 
+void program_node::save(cldnn::BinaryOutputBuffer& ob) const {
+    ob << unique_id;
+
+    ob << valid_output_layouts.size();
+    for (auto is_valid : valid_output_layouts) {
+        ob << is_valid;
+    }
+    ob << output_layouts;
+
+    ob << dependencies.size();
+    for (auto& dependency : dependencies) {
+        ob << dependency.first->id();
+        ob << dependency.second;
+    }
+    ob << users.size();
+    for (auto& user : users) {
+        ob << user->id();
+    }
+    ob << memory_dependencies;
+
+    ob << make_data(&impl_type, sizeof(impl_types));
+    ob << constant;
+    ob << data_flow;
+    ob << output;
+    ob << user_mark;
+    ob << optimized;
+    ob << share_buffer;
+    ob << fused_prims.size();
+    for (auto& fused_prim : fused_prims) {
+        ob << fused_prim.desc;
+        fused_prim.save(ob);
+    }
+    ob << num_outputs;
+}
+
+void program_node::load(cldnn::BinaryInputBuffer& ib) {
+    ib >> unique_id;
+
+    size_t valid_output_layouts_size;
+    ib >> valid_output_layouts_size;
+    valid_output_layouts.resize(valid_output_layouts_size);
+    for (size_t i = 0; i < valid_output_layouts_size; ++i) {
+        bool bool_data;
+        ib >> bool_data;
+        valid_output_layouts[i] = bool_data;
+    }
+    ib >> output_layouts;
+
+    size_t dependencies_size;
+    ib >> dependencies_size;
+    for (size_t i = 0; i < dependencies_size; i++) {
+        primitive_id prim_id;
+        int32_t idx;
+        ib >> prim_id;
+        ib >> idx;
+        dependencies_by_id.emplace_back(std::make_pair(prim_id, idx));
+    }
+    size_t users_size;
+    ib >> users_size;
+    for (size_t i = 0; i < users_size; i++) {
+        primitive_id prim_id;
+        ib >> prim_id;
+        users_by_id.emplace_back(prim_id);
+    }
+    ib >> memory_dependencies;
+
+    ib >> make_data(&impl_type, sizeof(impl_types));
+    ib >> constant;
+    ib >> data_flow;
+    ib >> output;
+    ib >> user_mark;
+    ib >> optimized;
+    ib >> share_buffer;
+    size_t fused_prims_size;
+    ib >> fused_prims_size;
+    for (size_t i = 0; i < fused_prims_size; ++i) {
+        std::shared_ptr<primitive> desc;
+        ib >> desc;
+        auto fused_prim = fused_primitive_desc(desc);
+        fused_prim.load(ib);
+        add_fused_primitive(fused_prim);
+    }
+    ib >> num_outputs;
+}
+
+void program_node::rebuild_dependencies() {
+    for (auto& dependency_id : dependencies_by_id) {
+        dependencies.emplace_back(std::make_pair(&myprog.get_node(dependency_id.first), dependency_id.second));
+    }
+
+    for (auto& user_id : users_by_id) {
+        users.emplace_back(&myprog.get_node(user_id));
+    }
+}
+
     /* ----------------------------------------- */
     /* Onednn fused operations integration logic */
     /* ----------------------------------------- */

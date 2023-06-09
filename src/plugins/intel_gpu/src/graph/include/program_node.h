@@ -212,7 +212,7 @@ public:
 
     std::unique_ptr<json_composite> desc_to_json() const;
     // do not modify primitive directly to keep synchronisation with graph
-    std::shared_ptr<const primitive> get_primitive() const { return desc; }
+    std::shared_ptr<primitive> get_primitive() const { return desc; }
     // primitive modification functions
     void set_output_padding(padding const& padd, size_t idx = 0) {
         // changing output padding shouldn't cause any changes to other primitives
@@ -409,6 +409,10 @@ public:
     void set_preferred_input_fmt(size_t idx, format::type type);
     void set_preferred_output_fmt(size_t idx, format::type type);
 
+    void save(cldnn::BinaryOutputBuffer& ob) const;
+    void load(cldnn::BinaryInputBuffer& ib);
+    void rebuild_dependencies();
+
 protected:
     size_t unique_id = 0;
     static thread_local size_t cur_id;
@@ -425,7 +429,9 @@ protected:
     std::vector<format::type> preferred_output_fmts;
 
     std::vector<std::pair<program_node*, int32_t>> dependencies;
+    std::vector<std::pair<primitive_id, int32_t>> dependencies_by_id;
     std::list<program_node*> users;
+    std::list<primitive_id> users_by_id;
 
     // list of primitives that can reuse same memory buffers due to execution order conflicts
     std::set<primitive_id> memory_dependencies;

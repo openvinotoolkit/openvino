@@ -3,6 +3,8 @@
 //
 
 #include "intel_gpu/graph/topology.hpp"
+#include "intel_gpu/graph/serialization/map_serializer.hpp"
+#include "intel_gpu/graph/serialization/polymorphic_serializer.hpp"
 #include <vector>
 #include <memory>
 
@@ -51,6 +53,14 @@ const std::vector<primitive_id> topology::get_primitives_ids() const {
     std::vector<primitive_id> prim_ids;
     for (const auto& prim : _primitives) prim_ids.push_back(prim.first);
     return prim_ids;
+}
+
+void topology::save(BinaryOutputBuffer& ob) const {
+    ob << _primitives;
+}
+
+void topology::load(BinaryInputBuffer& ib) {
+    ib >> _primitives;
 }
 
 }  // namespace cldnn

@@ -19,7 +19,7 @@ class Serializer<BufferType, std::vector<T>, typename std::enable_if<std::is_bas
                                                                     !std::is_same<bool, T>::value>::type> {
 public:
     static void save(BufferType& buffer, const std::vector<T>& vector) {
-        buffer << vector.size(); //static_cast<uint64_t>()
+        buffer << vector.size();
         buffer << make_data(vector.data(), static_cast<uint64_t>(vector.size() * sizeof(T)));
     }
 };

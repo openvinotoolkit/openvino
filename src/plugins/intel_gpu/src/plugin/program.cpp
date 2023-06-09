@@ -15,6 +15,8 @@
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"
 #include "intel_gpu/primitives/data.hpp"
+#include "intel_gpu/graph/serialization/map_serializer.hpp"
+#include "intel_gpu/graph/serialization/polymorphic_serializer.hpp"
 
 #ifdef __linux__
 # include <dlfcn.h>
@@ -561,6 +563,71 @@ bool Program::requires_new_shape_infer(const ngraph::Node& op) const {
     }
 
     return false;
+}
+
+void Program::save(cldnn::BinaryOutputBuffer& ob) const {
+    ob << allow_new_shape_infer;
+    ob << m_max_batch;
+    ob << inputLayouts;
+    ob << m_variablesStateInfo;
+    ob << primitive_ids;
+    ob << prevPrimitiveIDs;
+    ob << profiling_ids;
+    {
+        ob << perfMap.size();
+        for (auto& perf_item : perfMap) {
+            ob << perf_item.first;
+            ob << perf_item.second.second.layerType;
+            ob << cldnn::make_data(&perf_item.second.second.status, sizeof(InferenceEngine::InferenceEngineProfileInfo::LayerStatus));
+            ob << perf_item.second.second.isCPU;
+            ob << perf_item.second.second.parentPrimitive;
+        }
+    }
+    ob << outputDims;
+
+    ob << m_programs.size();
+    for (auto& prog : m_programs) {
+        prog->save(ob);
+    }
+}
+
+void Program::load(cldnn::BinaryInputBuffer& ib) {
+    ib >> allow_new_shape_infer;
+    m_config.set_property(ov::intel_gpu::optimize_data(true));
+    m_config.set_property(ov::intel_gpu::allow_new_shape_infer(allow_new_shape_infer));
+
+    ib >> m_max_batch;
+    if (m_max_batch > 1)
+        m_config.set_property(ov::intel_gpu::max_dynamic_batch(m_max_batch));
+    ib >> inputLayouts;
+    ib >> m_variablesStateInfo;
+    ib >> primitive_ids;
+    ib >> prevPrimitiveIDs;
+    ib >> profiling_ids;
+    {
+        size_t perfMap_size;
+        ib >> perfMap_size;
+        for (size_t i = 0; i < perfMap_size; ++i) {
+            cldnn::primitive_id prim_id;
+            ib >> prim_id;
+            perfMap[prim_id].first = prim_id;
+            auto& perfEntry = perfMap[prim_id].second;
+            ib >> perfEntry.layerType;
+            ib >> cldnn::make_data(&perfEntry.status, sizeof(InferenceEngine::InferenceEngineProfileInfo::LayerStatus));
+            perfEntry.cpu_uSec = perfEntry.realTime_uSec = 0;
+            ib >> perfEntry.isCPU;
+            ib >> perfEntry.parentPrimitive;
+        }
+    }
+    ib >> outputDims;
+
+    size_t num_programs;
+    ib >> num_programs;
+    for (size_t i = 0; i < num_programs; ++i) {
+        auto new_prog = std::make_shared<cldnn::program>(m_engine, m_config);
+        new_prog->load(ib);
+        m_programs.emplace_back(new_prog);
+    }
 }
 
 // TODO: Does it make sense to add such method to ngraph core?

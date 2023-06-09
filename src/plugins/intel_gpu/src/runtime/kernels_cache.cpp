@@ -69,11 +69,11 @@ std::string kernels_cache::get_cache_path() const {
 }
 
 bool kernels_cache::is_cache_enabled() const {
-    if (!_config.get_property(ov::intel_gpu::allow_new_shape_infer)) {
+    // if (!_config.get_property(ov::intel_gpu::allow_new_shape_infer)) {
         return false;
-    }
+    // }
 
-    return !_config.get_property(ov::cache_dir).empty();
+    // return !_config.get_property(ov::cache_dir).empty();
 }
 
 size_t kernels_cache::get_max_kernels_per_batch() const {

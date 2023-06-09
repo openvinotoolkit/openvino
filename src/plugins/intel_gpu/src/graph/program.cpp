@@ -144,13 +144,15 @@ program::program(engine& engine_ref,
     build_program(is_internal);
 }
 
-program::program(engine& engine)
+program::program(engine& engine,
+                 const ExecutionConfig& config)
     : _engine(engine),
       _stream(_engine.create_stream({})),
-      _config(),
+      _config(config),
       processing_order() {
-    init_primitives();
     _config.apply_user_properties(_engine.get_device_info());
+    init_primitives();
+    init_program();
 }
 
 program::~program() {
@@ -1608,4 +1610,90 @@ std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
 void program::cancel_compilation_context() {
     if (_compilation_context != nullptr)
         _compilation_context->cancel();
+}
+
+void program::save(BinaryOutputBuffer& ob) const {
+    ob.set_stream(get_engine().create_stream(get_config()));
+
+    auto& kernels_cache = get_kernels_cache();
+    kernels_cache.reset();
+    auto itr = processing_order.begin();
+    while (itr != processing_order.end()) {
+        auto node = *itr++;
+        if (node->get_selected_impl() != nullptr && !node->can_be_optimized()) {
+            auto const_impl = static_cast<const primitive_impl*>(node->get_selected_impl());
+            kernels_cache.add_to_cached_kernels(const_impl->get_kernels());
+        }
+    }
+    ob << kernels_cache;
+
+    ob << nodes_map.size();
+    for (auto& item : nodes_map) {
+        auto node = item.second;
+        ob << node->get_primitive();
+        node->save(ob);
+    }
+
+    processing_order.save(ob);
+
+    itr = processing_order.begin();
+    while (itr != processing_order.end()) {
+        auto node = *itr++;
+        if (node->get_selected_impl() != nullptr) {
+            ob << true;
+            if (!node->can_be_optimized()) {
+                ob << node->get_selected_impl()->get_kernel_name();
+                auto fmt = node->get_preferred_input_fmt();
+                ob << make_data(&fmt, sizeof(format::type));
+            }
+            ob << kernels_cache.get_cached_kernel_ids(node->get_selected_impl()->get_kernels());
+        } else {
+            ob << false;
+        }
+    }
+}
+
+void program::load(BinaryInputBuffer& ib) {
+    ib.set_stream(get_engine().create_stream(get_config()));
+
+    auto& kernels_cache = get_kernels_cache();
+    kernels_cache.reset();
+    ib >> kernels_cache;
+
+    size_t nodes_map_size;
+    ib >> nodes_map_size;
+    for (size_t i = 0; i < nodes_map_size; ++i) {
+        std::shared_ptr<primitive> desc;
+        ib >> desc;
+        auto& new_node = get_or_create(desc);
+        new_node.load(ib);
+    }
+
+    processing_order.load(ib, this);
+
+    for (auto& item : nodes_map) {
+        item.second->rebuild_dependencies();
+    }
+
+    auto itr = processing_order.begin();
+    while (itr != processing_order.end()) {
+        auto node = *itr++;
+        bool has_impl;
+        ib >> has_impl;
+        if (has_impl) {
+            if (!node->can_be_optimized()) {
+                std::string kernel_name;
+                ib >> kernel_name;
+                format::type fmt;
+                ib >> make_data(&fmt, sizeof(format::type));
+                ov::intel_gpu::ImplementationDesc forced_impl = { fmt, kernel_name };
+                _config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { node->id(), forced_impl } }));
+            }
+            node->set_selected_impl(node->type()->choose_impl(*node));
+            std::vector<std::string> cached_kernel_ids;
+            ib >> cached_kernel_ids;
+            node->get_selected_impl()->init_by_cached_kernel_ids(kernels_cache, cached_kernel_ids);
+        }
+    }
+    _config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { } }));
 }

@@ -16,7 +16,7 @@
 using namespace cldnn;
 using namespace ::tests;
 
-TEST(shape_of_gpu, bfyx) {
+static void test_bfyx(bool is_caching_test) {
     auto& engine = get_test_engine();
 
     auto input = engine.allocate_memory({data_types::f32, format::bfyx, tensor{1, 2, 3, 3}});
@@ -25,11 +25,11 @@ TEST(shape_of_gpu, bfyx) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(shape_of("shape_of", input_info("input"), 4, data_types::i32));
 
-    network network(engine, topology, get_test_default_config(engine));
+    network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
-    network.set_input_data("input", input);
+    network->set_input_data("input", input);
 
-    auto outputs = network.execute();
+    auto outputs = network->execute();
 
     auto output = outputs.at("shape_of").get_memory();
     cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
@@ -39,6 +39,14 @@ TEST(shape_of_gpu, bfyx) {
     for (size_t i = 0; i < expected_results.size(); ++i) {
         ASSERT_TRUE(are_equal(expected_results[i], output_ptr[i]));
     }
+}
+
+TEST(shape_of_gpu, bfyx) {
+    test_bfyx(false);
+}
+
+TEST(shape_of_gpu, bfyx_cached) {
+    test_bfyx(true);
 }
 
 TEST(shape_of_gpu, bfyx_i64) {
@@ -116,7 +124,7 @@ TEST(shape_of_gpu, bfzyx) {
     }
 }
 
-TEST(shape_of_gpu, dynamic) {
+static void test_dynamic(bool is_caching_test) {
     auto& engine = get_test_engine();
 
     layout in_layout = {ov::PartialShape::dynamic(4), data_types::f32, format::bfyx};
@@ -131,17 +139,17 @@ TEST(shape_of_gpu, dynamic) {
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-    network network(engine, topology, config);
+    network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
 
-    auto inst = network.get_primitive("shape_of");
+    auto inst = network->get_primitive("shape_of");
     auto impl = inst->get_impl();
     ASSERT_TRUE(impl != nullptr);
     ASSERT_TRUE(impl->is_dynamic());
 
     {
-        network.set_input_data("input", input_mem0);
+        network->set_input_data("input", input_mem0);
 
-        auto outputs = network.execute();
+        auto outputs = network->execute();
 
         auto output = outputs.at("shape_of").get_memory();
         cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
@@ -154,9 +162,9 @@ TEST(shape_of_gpu, dynamic) {
     }
 
     {
-        network.set_input_data("input", input_mem1);
+        network->set_input_data("input", input_mem1);
 
-        auto outputs = network.execute();
+        auto outputs = network->execute();
 
         auto output = outputs.at("shape_of").get_memory();
         cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
@@ -169,7 +177,15 @@ TEST(shape_of_gpu, dynamic) {
     }
 }
 
-TEST(shape_of_gpu, shape_infer_optimization_dynamic) {
+TEST(shape_of_gpu, dynamic) {
+    test_dynamic(false);
+}
+
+TEST(shape_of_gpu, dynamic_cached) {
+    test_dynamic(true);
+}
+
+static void test_shape_infer_optimization_dynamic(bool is_caching_test) {
     auto& engine = get_test_engine();
 
     layout in_layout = {ov::PartialShape::dynamic(4), data_types::f32, format::bfyx};
@@ -180,9 +196,9 @@ TEST(shape_of_gpu, shape_infer_optimization_dynamic) {
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-    network network(engine, topology, config);
+    network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
 
-    auto inst = network.get_primitive("shape_of");
+    auto inst = network->get_primitive("shape_of");
     auto impl = inst->get_impl();
     ASSERT_TRUE(impl != nullptr);
     ASSERT_TRUE(impl->is_dynamic());
@@ -194,9 +210,9 @@ TEST(shape_of_gpu, shape_infer_optimization_dynamic) {
     for (const auto& input : inputs) {
         layout in_mem_layout = {input, data_types::f32, format::bfyx};
         auto input_mem = engine.allocate_memory(in_mem_layout);
-        network.set_input_data("input", input_mem);
+        network->set_input_data("input", input_mem);
 
-        auto outputs = network.execute();
+        auto outputs = network->execute();
 
         auto output = outputs.at("shape_of").get_memory();
         cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
@@ -205,4 +221,12 @@ TEST(shape_of_gpu, shape_infer_optimization_dynamic) {
             ASSERT_EQ(input[i], output_ptr[i]);
         }
     }
+}
+
+TEST(shape_of_gpu, shape_infer_optimization_dynamic) {
+    test_shape_infer_optimization_dynamic(false);
+}
+
+TEST(shape_of_gpu, shape_infer_optimization_dynamic_cached) {
+    test_shape_infer_optimization_dynamic(true);
 }

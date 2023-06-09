@@ -8,6 +8,7 @@
 #include "ngraph_functions/builders.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include <string>
+#include "common_test_utils/file_utils.hpp"
 
 using namespace ngraph;
 using namespace InferenceEngine;
@@ -189,6 +190,34 @@ TEST_P(BroadcastLayerGPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
+}
+
+TEST_P(BroadcastLayerGPUTest, CompareWithRefs_cached) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    std::string cacheFolderName;
+    {
+        std::stringstream ss;
+        ss << "BroadcastLayerGPUTest_cached";
+        cacheFolderName = ss.str();
+
+        CommonTestUtils::removeFilesWithExt(cacheFolderName, "blob");
+        CommonTestUtils::removeFilesWithExt(cacheFolderName, "cl_cache");
+        CommonTestUtils::removeDir(cacheFolderName);
+
+        core = std::make_shared<ov::Core>();
+        core->set_property(ov::cache_dir(cacheFolderName));
+        run();
+    }
+    {
+        core = std::make_shared<ov::Core>();
+        core->set_property(ov::cache_dir(cacheFolderName));
+        run();
+
+        CommonTestUtils::removeFilesWithExt(cacheFolderName, "blob");
+        CommonTestUtils::removeFilesWithExt(cacheFolderName, "cl_cache");
+        CommonTestUtils::removeDir(cacheFolderName);
+    }
 }
 
 namespace {

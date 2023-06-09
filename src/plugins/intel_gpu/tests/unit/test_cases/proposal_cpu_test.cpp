@@ -95,7 +95,7 @@ TestRunnerProposal<Dtype, ImInfoType>::TestRunnerProposal(cldnn::tensor image_in
         {
             cldnn::network _network(get_test_engine(), _topology);
             std::ostream out_mem(&mem_buf);
-            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem, get_test_engine());
             _network.save(ob);
         }
         {

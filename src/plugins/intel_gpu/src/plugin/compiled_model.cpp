@@ -188,7 +188,7 @@ void CompiledModel::Export(std::ostream& networkModel) {
     if (m_graphs.empty())
         IE_THROW(NetworkNotLoaded);
 
-    cldnn::BinaryOutputBuffer ob(networkModel);
+    cldnn::BinaryOutputBuffer ob(networkModel, get_context_impl(m_context)->get_engine());
 
     // InputsInfo and OutputsInfo for CNNNetwork
     {
@@ -274,14 +274,14 @@ void CompiledModel::Export(std::ostream& networkModel) {
         }
     }
 
-    if (m_graphs.front()->GetNetwork()->is_dynamic()) {
-        ob << true;
-        ov::pass::StreamSerialize serializer(networkModel, {}, ov::pass::Serialize::Version::UNSPECIFIED);
-        serializer.run_on_model(std::const_pointer_cast<ngraph::Function>(m_network.getFunction()));
-    } else {
+    // if (m_graphs.front()->GetNetwork()->is_dynamic()) {
+    //     ob << true;
+    //     ov::pass::StreamSerialize serializer(networkModel, {}, ov::pass::Serialize::Version::UNSPECIFIED);
+    //     serializer.run_on_model(std::const_pointer_cast<ngraph::Function>(m_network.getFunction()));
+    // } else {
         ob << false;
         m_graphs.front()->Export(ob);
-    }
+    // }
 }
 
 std::shared_ptr<ngraph::Function> CompiledModel::GetExecGraphInfo() {

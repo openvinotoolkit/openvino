@@ -50,6 +50,9 @@ public:
 
     const std::vector<primitive_id> get_primitives_ids() const;
 
+    void save(BinaryOutputBuffer& ob) const;
+    void load(BinaryInputBuffer& ib);
+
 private:
     topology_map _primitives;
 };

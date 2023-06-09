@@ -125,25 +125,7 @@ public:
         tp.add(g);
         tp.add(reorder("output", input_info("gemm_output"), format::bfyx, data_types::f32));
 
-        cldnn::network::ptr network;
-        if (is_caching_test) {
-            membuf mem_buf;
-            {
-                cldnn::network _network(engine, tp, get_test_default_config(engine));
-                process_program(_network.get_program());
-                std::ostream out_mem(&mem_buf);
-                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-                _network.save(ob);
-            }
-            {
-                std::istream in_mem(&mem_buf);
-                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-                network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
-            }
-        } else {
-            network = std::make_shared<cldnn::network>(engine, tp, get_test_default_config(engine));
-            process_program(network->get_program());
-        }
+        cldnn::network::ptr network = get_network(engine, tp, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         for (auto &input : network_inputs) {
             network->set_input_data(input.first, input.second);

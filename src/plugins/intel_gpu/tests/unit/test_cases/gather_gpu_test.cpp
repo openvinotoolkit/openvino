@@ -1870,7 +1870,7 @@ TEST(gather_gpu_fp32, 322_axisF) {
     }
 }
 
-TEST(gather_gpu_fp32, dynamic_322_axisF) {
+static void test_dynamic_322_axisF(bool is_caching_test){
     auto& engine = get_test_engine();
 
     ov::Shape in1_shape = { 3, 3 };
@@ -1891,16 +1891,16 @@ TEST(gather_gpu_fp32, dynamic_322_axisF) {
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-    network network(engine, topology, config);
-    network.set_input_data("input1", input1);
-    network.set_input_data("input2", input2);
+    network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+    network->set_input_data("input1", input1);
+    network->set_input_data("input2", input2);
 
-    auto inst = network.get_primitive("gather");
+    auto inst = network->get_primitive("gather");
     auto impl = inst->get_impl();
     ASSERT_TRUE(impl != nullptr);
     ASSERT_TRUE(impl->is_dynamic());
 
-    auto outputs = network.execute();
+    auto outputs = network->execute();
 
     auto output = outputs.at("gather").get_memory();
     cldnn::mem_lock<int> output_ptr(output, get_test_stream());
@@ -1911,6 +1911,14 @@ TEST(gather_gpu_fp32, dynamic_322_axisF) {
     for (size_t i = 0; i < expected_results.size(); ++i) {
         ASSERT_EQ(expected_results[i], output_ptr[i]) << i;
     }
+}
+
+TEST(gather_gpu_fp32, dynamic_322_axisF) {
+    test_dynamic_322_axisF(false);
+}
+
+TEST(gather_gpu_fp32, dynamic_322_axisF_cached) {
+    test_dynamic_322_axisF(true);
 }
 
 TEST(gather_gpu_fp32, indice_out_of_bound) {

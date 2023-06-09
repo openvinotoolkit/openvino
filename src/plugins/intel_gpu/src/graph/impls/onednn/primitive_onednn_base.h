@@ -459,6 +459,7 @@ protected:
     }
 
     void init_kernels(const kernels_cache&, const kernel_impl_params&) override { }
+    void init_by_cached_kernel_ids(const kernels_cache&, const std::vector<std::string>) override {}
 
     event::ptr aggregate_events(const std::vector<event::ptr>& events, stream& stream, bool group = false, bool is_output = false) const {
         if (events.size() == 1 && !is_output)

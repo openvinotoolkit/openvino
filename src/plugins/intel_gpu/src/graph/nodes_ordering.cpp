@@ -89,4 +89,26 @@ bool program::nodes_ordering::is_correct(program_node* node) {
     }
     return true;
 }
+
+void program::nodes_ordering::save(BinaryOutputBuffer& ob) const {
+    ob << _processing_order.size();
+    for (auto prog_node : _processing_order) {
+        ob << prog_node->id();
+    }
+}
+
+void program::nodes_ordering::load(BinaryInputBuffer& ib, program* prog) {
+    _processing_order.clear();
+    size_t processing_order_size;
+    ib >> processing_order_size;
+    for (size_t i = 0; i < processing_order_size; ++i) {
+        primitive_id node_id;
+        ib >> node_id;
+        auto node = prog->get_node_ptr(node_id).get();
+        _processing_order.push_back(node);
+        processing_order_iterators[node] = --_processing_order.end();
+        node->unmark();
+    }
+}
+
 }  // namespace cldnn

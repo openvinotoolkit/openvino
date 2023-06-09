@@ -74,6 +74,10 @@ struct generic_layer_impl : typed_primitive_impl<generic_layer> {
         _kernel = kernels_cache.get_kernel_from_cached_kernels(_cached_kernel_id);
     }
 
+    void init_by_cached_kernel_ids(const kernels_cache& kernels_cache, const std::vector<std::string> cached_kernel_ids) override {
+        _kernel = kernels_cache.get_kernel_from_cached_kernels(cached_kernel_ids[0]);
+    }
+
     void set_cached_kernel_ids(const kernels_cache& kernels_cache) override {
         _cached_kernel_id = kernels_cache.get_cached_kernel_id(_kernel);
     }

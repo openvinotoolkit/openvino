@@ -6,6 +6,7 @@
 
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/graph/serialization/layout_serializer.hpp"
+#include "intel_gpu/graph/serialization/map_serializer.hpp"
 #include "intel_gpu/graph/serialization/set_serializer.hpp"
 #include "intel_gpu/graph/serialization/string_serializer.hpp"
 #include "intel_gpu/graph/serialization/tensor_serializer.hpp"
@@ -233,6 +234,7 @@ public:
         ib >> output_paddings;
         size_t output_data_types_size;
         ib >> output_data_types_size;
+        output_data_types.clear();
         for (size_t i = 0; i < output_data_types_size; i++) {
             bool has_value;
             ib >> has_value;

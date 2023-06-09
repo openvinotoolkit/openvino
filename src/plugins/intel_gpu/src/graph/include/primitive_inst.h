@@ -64,6 +64,7 @@ struct primitive_impl {
     virtual bool is_cpu() const { return true; }
     virtual void init_kernels(const kernels_cache& kernels_cache, const kernel_impl_params& params) = 0;
     virtual void init_by_cached_kernels(const kernels_cache&) {}
+    virtual void init_by_cached_kernel_ids(const kernels_cache& kernels_cache, const std::vector<std::string> cached_kernel_ids) = 0;
     virtual void set_cached_kernel_ids(const kernels_cache&) {}
     virtual std::unique_ptr<primitive_impl> clone() const = 0;
     virtual std::vector<std::shared_ptr<cldnn::kernel_string>> get_kernels_source() { return {}; }

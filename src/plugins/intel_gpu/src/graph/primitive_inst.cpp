@@ -1335,7 +1335,7 @@ int32_t primitive_inst::get_index_in_deps(memory::cptr arg) const {
 }
 
 void primitive_inst::load(cldnn::BinaryInputBuffer& ib) {
-    _impl_params->load(ib);
+    _impl_params->load(ib, get_network().get_program(), get_network().get_stream_ptr());
     ib.setKernelImplParams(_impl_params.get());
 
     ib >> _node_output_layout;

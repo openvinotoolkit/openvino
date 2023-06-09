@@ -420,6 +420,7 @@ struct non_max_suppression_impl : typed_primitive_impl<non_max_suppression> {
         return make_unique<non_max_suppression_impl>();
     }
     void init_kernels(const kernels_cache&, const kernel_impl_params&) override {}
+    void init_by_cached_kernel_ids(const kernels_cache&, const std::vector<std::string>) override {}
 };
 namespace detail {
 

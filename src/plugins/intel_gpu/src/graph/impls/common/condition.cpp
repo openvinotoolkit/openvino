@@ -55,6 +55,7 @@ struct condition_impl : typed_primitive_impl<condition> {
     }
 
     void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}
+    void init_by_cached_kernel_ids(const kernels_cache&, const std::vector<std::string>) override {}
 
 private:
     primitive_id _node_id;

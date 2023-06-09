@@ -14,14 +14,15 @@
 
 namespace cldnn {
 struct memory;
+class stream;
 
 class BinaryOutputBuffer : public OutputBuffer<BinaryOutputBuffer> {
 public:
-    BinaryOutputBuffer(std::ostream& stream)
-    : OutputBuffer<BinaryOutputBuffer>(this), stream(stream), _impl_params(nullptr) {}
+    BinaryOutputBuffer(std::ostream& ostream, engine& engine)
+    : OutputBuffer<BinaryOutputBuffer>(this), _ostream(ostream), _impl_params(nullptr), _engine(engine) {}
 
     void write(void const * data, std::streamsize size) {
-        auto const written_size = stream.rdbuf()->sputn(reinterpret_cast<const char*>(data), size);
+        auto const written_size = _ostream.rdbuf()->sputn(reinterpret_cast<const char*>(data), size);
         OPENVINO_ASSERT(written_size == size,
             "[GPU] Failed to write " + std::to_string(size) + " bytes to stream! Wrote " + std::to_string(written_size));
     }
@@ -29,18 +30,25 @@ public:
     void setKernelImplParams(void* impl_params) { _impl_params = impl_params; }
     void* getKernelImplParams() const { return _impl_params; }
 
+    engine& get_engine() { return _engine; }
+
+    void set_stream(std::shared_ptr<stream> exec_stream) { _exec_stream = exec_stream; }
+    stream& get_stream() const { return *_exec_stream; }
+
 private:
-    std::ostream& stream;
+    std::ostream& _ostream;
     void* _impl_params;
+    engine& _engine;
+    std::shared_ptr<stream> _exec_stream;
 };
 
 class BinaryInputBuffer : public InputBuffer<BinaryInputBuffer> {
 public:
-    BinaryInputBuffer(std::istream& stream, engine& engine)
-    : InputBuffer(this, engine), _stream(stream), _impl_params(nullptr), _num_networks(0), _stream_id(0) {}
+    BinaryInputBuffer(std::istream& istream, engine& engine)
+    : InputBuffer(this, engine), _istream(istream), _impl_params(nullptr), _num_networks(0), _stream_id(0), _engine(engine) {}
 
     void read(void* const data, std::streamsize size) {
-        auto const read_size = _stream.rdbuf()->sgetn(reinterpret_cast<char*>(data), size);
+        auto const read_size = _istream.rdbuf()->sgetn(reinterpret_cast<char*>(data), size);
         OPENVINO_ASSERT(read_size == size,
             "[GPU] Failed to read " + std::to_string(size) + " bytes from stream! Read " + std::to_string(read_size));
     }
@@ -59,8 +67,8 @@ public:
         return _const_data_map[net_id][prim_id];
     }
 
-    std::streampos tellg() { return _stream.tellg(); }
-    void seekg(std::streampos pos) { _stream.seekg(pos); }
+    std::streampos tellg() { return _istream.tellg(); }
+    void seekg(std::streampos pos) { _istream.seekg(pos); }
 
     void new_network_added() { _num_networks += 1; }
     int get_num_networks() const { return _num_networks; }
@@ -68,12 +76,19 @@ public:
     void set_stream_id(uint16_t stream_id) { _stream_id = stream_id; }
     uint16_t get_stream_id() const { return _stream_id; }
 
+    engine& get_engine() { return _engine; }
+
+    void set_stream(std::shared_ptr<stream> exec_stream) { _exec_stream = exec_stream; }
+    stream& get_stream() const { return *_exec_stream; }
+
 private:
-    std::istream& _stream;
+    std::istream& _istream;
     void* _impl_params;
     std::vector<std::unordered_map<std::string, std::shared_ptr<memory>>> _const_data_map;
     int _num_networks;
     uint16_t _stream_id;
+    engine& _engine;
+    std::shared_ptr<stream> _exec_stream;
 };
 
 template <typename T>
