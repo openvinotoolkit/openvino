@@ -66,14 +66,22 @@ Output<Node> ChangeAxes(const Output<Node>& indices,
     return ChangeAxes(indices, data, axis);
 }
 
-TransposeInputsInfo GetFirstTransposeInput(const NodePtr& node) {
-    for (size_t input_idx = 0; input_idx < node->get_input_size(); ++input_idx) {
+TransposeInputsInfo GetFirstTransposeInput(const NodePtr& node,
+                                           bool const_transpose_order,
+                                           const std::vector<size_t>& indices) {
+    auto indices_to_check = indices;
+    if (indices.empty()) {
+        indices_to_check.resize(node->get_input_size());
+        std::iota(indices_to_check.begin(), indices_to_check.end(), 0);
+    }
+
+    for (const auto& input_idx : indices_to_check) {
         NodePtr input_node = node->get_input_node_shared_ptr(input_idx);
         auto transpose_node = as_type_ptr<ov::op::v1::Transpose>(input_node);
         if (!transpose_node)
             continue;
         auto constant_node = as_type_ptr<ov::op::v0::Constant>(transpose_node->input_value(1).get_node_shared_ptr());
-        if (!constant_node)
+        if (const_transpose_order && !constant_node)
             continue;
         {
             TransposeInputsInfo input_info;
@@ -85,11 +93,6 @@ TransposeInputsInfo GetFirstTransposeInput(const NodePtr& node) {
     }
 
     return {};
-}
-
-bool IfNodeHasTransposeInputs(const Output<Node>& output) {
-    TransposeInputsInfo inputs_info = GetFirstTransposeInput(output.get_node_shared_ptr());
-    return !inputs_info.isEmpty();
 }
 
 AxisVector ReverseTransposeOrder(const AxisVector& axis_order) {
@@ -105,12 +108,11 @@ void SwapOutputNames(Output<Node> output1, Output<Node> output2) {
     output2.set_names(output1.get_names());
     output1.set_names(node2_output_names);
 
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    const auto node2_output_legacy_name = ov::descriptor::get_ov_tensor_legacy_name(output2.get_tensor());
-    ov::descriptor::set_ov_tensor_legacy_name(output2.get_tensor(),
-                                              ov::descriptor::get_ov_tensor_legacy_name(output1.get_tensor()));
-    ov::descriptor::set_ov_tensor_legacy_name(output1.get_tensor(), node2_output_legacy_name);
-    NGRAPH_SUPPRESS_DEPRECATED_END
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    const auto node2_legacy_output_names = get_ov_tensor_legacy_name(output2.get_tensor());
+    set_ov_tensor_legacy_name(output2.get_tensor(), get_ov_tensor_legacy_name(output1.get_tensor()));
+    set_ov_tensor_legacy_name(output1.get_tensor(), node2_legacy_output_names);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 void SwapFriendlyNames(const NodePtr& node1, const NodePtr& node2) {
