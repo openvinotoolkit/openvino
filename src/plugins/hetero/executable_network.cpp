@@ -500,11 +500,10 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream& heteroModel,
         config.emplace(GetStrAttr(deviceConfigNode, "key"), GetStrAttr(deviceConfigNode, "value"));
     }
 
-    // Split `user_config` (via `config` as updated from imported model)
-    // on `device_config` (with properties for underlying devices)
-    // and `_cfg` (hetero config with properties for hetero plugin only)
+    // Erase all "hetero" properties from `config`
+    // to fill `_cfg` and leave only properties for
+    // underlying devices
     _cfg = ov::hetero::Configuration(config, plugin->m_cfg);
-    auto device_config = config;
 
     auto blobNamesNode = heteroNode.child("blob_names_map");
     FOREACH_CHILD (blobNameNode, blobNamesNode, "blob_name_map") {
@@ -516,7 +515,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream& heteroModel,
     FOREACH_CHILD (subnetworkNode, subnetworksNode, "subnetwork") {
         auto deviceName = GetStrAttr(subnetworkNode, "device");
 
-        auto metaDevices = plugin->get_device_properties(deviceName, device_config);
+        auto metaDevices = plugin->get_device_properties(deviceName, config);
         assert(metaDevices.size() == 1);
         auto& loadConfig = metaDevices[deviceName];
 

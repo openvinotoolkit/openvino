@@ -4,9 +4,7 @@
 
 #include "config.hpp"
 
-// #include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
-#include <ie_plugin_config.hpp>  // TODO vurusovs create file with custom properties
-
+#include "ie/ie_plugin_config.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 
@@ -50,12 +48,7 @@ ov::Any Configuration::Get(const std::string& name) const {
 }
 
 std::vector<ov::PropertyName> Configuration::GetSupported() const {
-    return {
-        HETERO_CONFIG_KEY(DUMP_GRAPH_DOT),
-        "TARGET_FALLBACK",
-        ov::device::priorities,
-        ov::exclusive_async_requests
-    };
+    return {HETERO_CONFIG_KEY(DUMP_GRAPH_DOT), "TARGET_FALLBACK", ov::device::priorities, ov::exclusive_async_requests};
 }
 
 ov::AnyMap Configuration::GetHeteroConfig() const {
