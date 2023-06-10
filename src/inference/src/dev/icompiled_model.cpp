@@ -4,17 +4,9 @@
 
 #include "openvino/runtime/icompiled_model.hpp"
 
-#include <memory>
-#include <mutex>
-
 #include "dev/converter_utils.hpp"
 #include "icompiled_model_wrapper.hpp"
-#include "openvino/core/descriptor/tensor.hpp"
-#include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/core/node_vector.hpp"
-#include "openvino/op/parameter.hpp"
-#include "openvino/op/result.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "transformations/utils/utils.hpp"
 

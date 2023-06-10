@@ -37,7 +37,7 @@ Proxy plugin cannot be created explicitly. In order to use proxy plugin under th
 
 After the creation the proxy plugin has next properties:
  - `ov::device::priorities` is fallback order inside the proxy plugin.
- - `ov::proxy::device_properties` is an alias name for high level plugin.
+ - `ov::proxy::device_priorities` is a device order under proxy plugin.
  - `ov::proxy::alias_for` the vector of low level plugins under the proxy alias.
 
 

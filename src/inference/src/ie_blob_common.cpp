@@ -8,7 +8,6 @@
 
 #include "dev/make_tensor.hpp"
 #include "ie_blob.h"
-#include "ie_remote_blob.hpp"
 #include "system_allocator.hpp"
 
 namespace InferenceEngine {
