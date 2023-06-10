@@ -7,6 +7,7 @@
 #include <cpp/exception2status.hpp>
 
 using namespace InferenceEngine;
+IE_SUPPRESS_DEPRECATED_START
 
 using ExceptionTests = ::testing::Test;
 

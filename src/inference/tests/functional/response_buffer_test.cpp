@@ -9,6 +9,7 @@
 using namespace std;
 using namespace InferenceEngine;
 
+IE_SUPPRESS_DEPRECATED_START
 using ResponseBufferTests = ::testing::Test;
 
 TEST_F(ResponseBufferTests, canCreateResponseMessage) {
