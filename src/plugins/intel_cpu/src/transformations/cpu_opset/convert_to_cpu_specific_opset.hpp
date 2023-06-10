@@ -35,9 +35,7 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ngraph::Function> &nGraphF
     CPU_REGISTER_PASS_COMMON(manager, ConvertMatMulToFC);
     CPU_REGISTER_PASS_COMMON(manager, AlignMatMulInputRanks);
     CPU_REGISTER_PASS_COMMON(manager, ConvertTileToSeqTiles);
-#ifndef OV_CPU_WITH_MLAS
     CPU_REGISTER_PASS_COMMON(manager, FullyConnectedBiasFusion);
-#endif
     CPU_REGISTER_PASS_X64(manager, ConvertToPowerStatic);
     CPU_REGISTER_PASS_COMMON(manager, ConvertToLeakyRelu);
     CPU_REGISTER_PASS_COMMON(manager, ConvertToSwishCPU);
