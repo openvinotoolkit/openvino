@@ -1015,7 +1015,8 @@ MlasSgemmKernelLoop(
     size_t lda,
     size_t ldc,
     float alpha,
-    bool ZeroMode
+    bool ZeroMode,
+    const float* Bias = nullptr
     )
 /*++
 
@@ -1063,6 +1064,24 @@ Return Value:
 
 #if defined(MLAS_TARGET_AMD64_IX86) || defined(MLAS_TARGET_POWER)
         RowsHandled = GetMlasPlatform().GemmFloatKernel(A, B, C, CountK, CountM, CountN, lda, ldc, alpha, ZeroMode);
+        if (Bias) {
+            for(size_t i = 0; i < RowsHandled; i++) {
+                float* src = C + i * ldc;
+                const float* bias = Bias;
+                size_t n = CountN;
+                while (n >= 4) {
+                    MLAS_FLOAT32X4 FloatVector = MlasLoadFloat32x4(src);
+                    FloatVector = MlasAddFloat32x4(FloatVector, MlasLoadFloat32x4(bias));
+                    MlasStoreFloat32x4(src, FloatVector);
+                    src += 4;
+                    n -= 4;
+                    bias += 4;
+                }
+                for(size_t j = 0; j < n; j++) {
+                    src[j] += bias[j];
+                }
+            }
+        }
 #else
         if (ZeroMode) {
             RowsHandled = MlasSgemmKernelZero(A, B, C, CountK, CountM, CountN, lda, ldc, alpha);
@@ -1332,7 +1351,8 @@ MlasSgemmPackedOperation(
     size_t AlignedN,
     float beta,
     float* C,
-    size_t ldc
+    size_t ldc,
+    const float* Bias = nullptr
     )
 /*++
 
@@ -1371,6 +1391,8 @@ Arguments:
     C - Supplies the address of matrix C.
 
     ldc - Supplies the first dimension of matrix C.
+
+    bias - PerColumn Bias for matrix C.
 
 Return Value:
 
@@ -1417,10 +1439,11 @@ Return Value:
 
             const float* pb = (const float*)PackedB + AlignedN * k + CountK * SliceStartN;
             float* c = C + n;
+            bool PostProcess = (k + CountK == K);
 
             if (TransA == CblasNoTrans) {
 
-                MlasSgemmKernelLoop(A + k, pb, c, CountK, M, CountN, lda, ldc, alpha, ZeroMode);
+                MlasSgemmKernelLoop(A + k, pb, c, CountK, M, CountN, lda, ldc, alpha, ZeroMode, (PostProcess && Bias) ? Bias + SliceStartN : nullptr);
 
             } else {
 
@@ -1444,7 +1467,7 @@ Return Value:
                     // Step through the rows of the local buffer.
                     //
 
-                    c = MlasSgemmKernelLoop(PanelA, pb, c, CountK, RowsTransposed, CountN, CountK, ldc, alpha, ZeroMode);
+                    c = MlasSgemmKernelLoop(PanelA, pb, c, CountK, RowsTransposed, CountN, CountK, ldc, alpha, ZeroMode, (PostProcess && Bias) ? Bias + SliceStartN : nullptr);
                 }
             }
 
@@ -1540,7 +1563,7 @@ Return Value:
 
         MlasSgemmPackedOperation(TransA, RangeCountM, RangeStartN, RangeCountN,
             K, DataParams->alpha, A, lda, DataParams->B,
-            BlockedN * MLAS_SGEMM_STRIDEN_THREAD_ALIGN, DataParams->beta, C, ldc);
+            BlockedN * MLAS_SGEMM_STRIDEN_THREAD_ALIGN, DataParams->beta, C, ldc, DataParams->bias);
 
     } else {
 
