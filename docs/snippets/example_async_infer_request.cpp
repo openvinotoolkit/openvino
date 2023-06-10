@@ -7,9 +7,9 @@
 #    define WAS_OV_LIBRARY_DEFINED
 #endif
 
-#include <threading/ie_itask_executor.hpp>
 #include <cpp_interfaces/impl/ie_infer_async_request_thread_safe_default.hpp>
 #include <memory>
+#include <threading/ie_itask_executor.hpp>
 
 #ifdef WAS_OV_LIBRARY_DEFINED
 #    undef IN_OV_COMPONENT
@@ -17,6 +17,8 @@
 #endif
 
 using namespace InferenceEngine;
+
+IE_SUPPRESS_DEPRECATED_START
 
 class AcceleratorSyncRequest : public IInferRequestInternal {
 public:
@@ -38,41 +40,47 @@ class AcceleratorAsyncInferRequest : public AsyncInferRequestThreadSafeDefault {
                                  const ITaskExecutor::Ptr& writeToDeviceExecutor,
                                  const ITaskExecutor::Ptr& runOnDeviceExecutor,
                                  const ITaskExecutor::Ptr& readFromDeviceExecutor,
-                                 const ITaskExecutor::Ptr& postProcessExecutor) :
-    AsyncInferRequestThreadSafeDefault(syncRequest, nullptr, nullptr),
-    _accSyncRequest{syncRequest},
-    _preprocessExecutor{preprocessExecutor},
-    _writeToDeviceExecutor{writeToDeviceExecutor},
-    _runOnDeviceExecutor{runOnDeviceExecutor},
-    _readFromDeviceExecutor{readFromDeviceExecutor},
-    _postProcessExecutor{postProcessExecutor}
-    {
+                                 const ITaskExecutor::Ptr& postProcessExecutor)
+        : AsyncInferRequestThreadSafeDefault(syncRequest, nullptr, nullptr),
+          _accSyncRequest{syncRequest},
+          _preprocessExecutor{preprocessExecutor},
+          _writeToDeviceExecutor{writeToDeviceExecutor},
+          _runOnDeviceExecutor{runOnDeviceExecutor},
+          _readFromDeviceExecutor{readFromDeviceExecutor},
+          _postProcessExecutor{postProcessExecutor} {
         // Five pipeline stages of synchronous infer request are run by different executors
         _pipeline = {
-            { _preprocessExecutor , [this] {
-                _accSyncRequest->preprocess();
-            }},
-            { _writeToDeviceExecutor , [this] {
-                _accSyncRequest->write_to_device();
-            }},
-            { _runOnDeviceExecutor , [this] {
-                _accSyncRequest->run_on_device();
-            }},
-            { _readFromDeviceExecutor , [this] {
-                _accSyncRequest->read_from_device();
-            }},
-            { _postProcessExecutor , [this] {
-                _accSyncRequest->post_process();
-            }},
+            {_preprocessExecutor,
+             [this] {
+                 _accSyncRequest->preprocess();
+             }},
+            {_writeToDeviceExecutor,
+             [this] {
+                 _accSyncRequest->write_to_device();
+             }},
+            {_runOnDeviceExecutor,
+             [this] {
+                 _accSyncRequest->run_on_device();
+             }},
+            {_readFromDeviceExecutor,
+             [this] {
+                 _accSyncRequest->read_from_device();
+             }},
+            {_postProcessExecutor,
+             [this] {
+                 _accSyncRequest->post_process();
+             }},
         };
     }
 
-    // As all stages use _accSyncRequest member we should wait for all stages tasks before the destructor destroy this member.
+    // As all stages use _accSyncRequest member we should wait for all stages tasks before the destructor destroy this
+    // member.
     ~AcceleratorAsyncInferRequest() {
         StopAndWait();
     }
 
     AcceleratorSyncRequest::Ptr _accSyncRequest;
-    ITaskExecutor::Ptr _preprocessExecutor, _writeToDeviceExecutor, _runOnDeviceExecutor, _readFromDeviceExecutor, _postProcessExecutor;
+    ITaskExecutor::Ptr _preprocessExecutor, _writeToDeviceExecutor, _runOnDeviceExecutor, _readFromDeviceExecutor,
+        _postProcessExecutor;
 };
 // ! [async_infer_request:define_pipeline]
