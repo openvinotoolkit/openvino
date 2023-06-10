@@ -45,8 +45,6 @@ public:
     InferenceEngine::Blob::Ptr GetBlob(const std::string& name) override;
     void SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr &data) override;
     void SetBlobs(const std::string& name, const std::vector<InferenceEngine::Blob::Ptr> &data) override;
-
-    void SetBatch(int batch = -1) override;
     std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> QueryState() override;
     void SetGraph(std::shared_ptr<Graph> graph);
     void EnableProfiling() { m_useProfiling = true; }
@@ -62,8 +60,6 @@ public:
     void wait();
 
     void preprocess_dynamic();
-    void enqueue_dynamic();
-    void wait_dynamic();
 
     bool use_external_queue() const { return m_useExternalQueue; }
     void enable_external_queue() { m_useExternalQueue = true; }
