@@ -14,7 +14,11 @@ namespace proxy {
 
 class RemoteContext : public ov::IRemoteContext {
 public:
-    explicit RemoteContext(ov::RemoteContext&& ctx, const std::string& dev_name);
+    explicit RemoteContext(ov::RemoteContext&& ctx,
+                           const std::string& dev_name,
+                           size_t dev_index,
+                           bool has_index,
+                           bool is_new_api);
     const std::string& get_device_name() const override;
 
     const ov::AnyMap& get_property() const override;
@@ -32,8 +36,11 @@ public:
         const std::shared_ptr<ov::IRemoteContext>& context);
 
 private:
-    mutable std::string m_name;
     ov::RemoteContext m_context;
+    std::string m_name;
+    std::string m_tensor_name;
+
+    std::string get_tensor_name() const;
 };
 
 }  // namespace proxy

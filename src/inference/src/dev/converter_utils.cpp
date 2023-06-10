@@ -650,7 +650,7 @@ public:
                               const std::string& plugin_name)
         : ov::IAsyncInferRequest(nullptr, nullptr, nullptr),
           m_request(request),
-          m_unwrap_tensor(plugin_name != "MULTI" && plugin_name != "BATCH") {
+          m_unwrap_tensor(plugin_name != "MULTI" && plugin_name != "BATCH" && plugin_name != "HETERO") {
         if (m_request->getPointerToExecutableNetworkInternal())
             m_compiled_model =
                 ov::legacy_convert::convert_compiled_model(m_request->getPointerToExecutableNetworkInternal());

@@ -8,7 +8,7 @@ using namespace ov::proxy::tests;
 TEST_F(ProxyTests, get_default_context_from_default_dev) {
     const std::string dev_name = "MOCK";
     auto context = core.get_default_context(dev_name);
-    EXPECT_EQ("MOCK", context.get_device_name());
+    EXPECT_EQ("MOCK.0", context.get_device_name());
     ASSERT_TRUE(context.is<PluginRemoteContext>());
     auto rem_context = context.as<PluginRemoteContext>();
     EXPECT_TRUE(rem_context.is_default());
@@ -16,7 +16,7 @@ TEST_F(ProxyTests, get_default_context_from_default_dev) {
 
     auto compiled_model = core.compile_model(model, context);
     auto comp_context = compiled_model.get_context();
-    EXPECT_EQ("MOCK", comp_context.get_device_name());
+    EXPECT_EQ("MOCK.0", comp_context.get_device_name());
     ASSERT_TRUE(comp_context.is<PluginRemoteContext>());
     auto rem_comp_context = comp_context.as<PluginRemoteContext>();
     EXPECT_TRUE(rem_comp_context.is_default());
@@ -64,7 +64,7 @@ TEST_F(ProxyTests, get_default_context_from_second_dev) {
 TEST_F(ProxyTests, create_custom_context_from_default_dev) {
     const std::string dev_name = "MOCK";
     auto context = core.create_context(dev_name, {{"CUSTOM_CTX", true}});
-    EXPECT_EQ("MOCK", context.get_device_name());
+    EXPECT_EQ("MOCK.0", context.get_device_name());
     ASSERT_TRUE(context.is<PluginRemoteContext>());
     auto rem_context = context.as<PluginRemoteContext>();
     EXPECT_FALSE(rem_context.is_default());
@@ -72,7 +72,7 @@ TEST_F(ProxyTests, create_custom_context_from_default_dev) {
 
     auto compiled_model = core.compile_model(model, context);
     auto comp_context = compiled_model.get_context();
-    EXPECT_EQ("MOCK", comp_context.get_device_name());
+    EXPECT_EQ("MOCK.0", comp_context.get_device_name());
     ASSERT_TRUE(comp_context.is<PluginRemoteContext>());
     auto rem_comp_context = comp_context.as<PluginRemoteContext>();
     EXPECT_FALSE(rem_comp_context.is_default());

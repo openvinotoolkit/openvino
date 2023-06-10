@@ -332,8 +332,9 @@ std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::compile_model(const std::
 std::shared_ptr<ov::IRemoteContext> ov::proxy::Plugin::create_context(const ov::AnyMap& remote_properties) const {
     // TODO: if no device id, try to create context for each plugin
     auto dev_name = get_device_name();
-    if (is_device_in_config(remote_properties))
-        dev_name += "." + std::to_string(get_device_from_config(remote_properties));
+    auto dev_idx = get_device_from_config(remote_properties);
+    auto has_dev_idx = is_device_in_config(remote_properties);
+    auto is_new_api = get_core()->is_new_api();
 
     auto device_config = remote_properties;
     remove_proxy_properties(device_config);
@@ -341,21 +342,28 @@ std::shared_ptr<ov::IRemoteContext> ov::proxy::Plugin::create_context(const ov::
     // Add parse config here: parse (fallback)dev, device_config);
     auto remote_context = std::make_shared<ov::proxy::RemoteContext>(
         get_core()->create_context(get_fallback_device(get_device_from_config(remote_properties)), device_config),
-        dev_name);
+        dev_name,
+        dev_idx,
+        has_dev_idx,
+        is_new_api);
     return std::dynamic_pointer_cast<ov::IRemoteContext>(remote_context);
 }
 
 std::shared_ptr<ov::IRemoteContext> ov::proxy::Plugin::get_default_context(const ov::AnyMap& remote_properties) const {
     auto dev_name = get_device_name();
-    if (is_device_in_config(remote_properties))
-        dev_name += "." + std::to_string(get_device_from_config(remote_properties));
+    auto dev_idx = get_device_from_config(remote_properties);
+    auto has_dev_idx = is_device_in_config(remote_properties);
+    auto is_new_api = get_core()->is_new_api();
 
     auto device_config = remote_properties;
     remove_proxy_properties(device_config);
 
     auto remote_context = std::make_shared<ov::proxy::RemoteContext>(
         get_core()->get_default_context(get_fallback_device(get_device_from_config(remote_properties))),
-        dev_name);
+        dev_name,
+        dev_idx,
+        has_dev_idx,
+        is_new_api);
     return std::dynamic_pointer_cast<ov::IRemoteContext>(remote_context);
 }
 
