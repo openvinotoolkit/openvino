@@ -6,11 +6,31 @@
 #include <utility>
 #include <vector>
 
+#include "dev/make_tensor.hpp"
 #include "ie_blob.h"
+#include "ie_remote_blob.hpp"
 #include "system_allocator.hpp"
 
 namespace InferenceEngine {
 IE_SUPPRESS_DEPRECATED_START
+
+Blob* Blob::getHardwareBlob() {
+#ifndef NO_PROXY_PLUGIN
+    if (this->is<RemoteBlob>()) {
+        return ov::get_hardware_blob(this);
+    }
+#endif
+    return this;
+}
+
+const Blob* Blob::getHardwareBlob() const {
+#ifndef NO_PROXY_PLUGIN
+    if (this->is<RemoteBlob>()) {
+        return ov::get_hardware_blob(this);
+    }
+#endif
+    return this;
+}
 
 void Blob::setShape(const SizeVector& dims) {
     // we don't want to allow setShape for:

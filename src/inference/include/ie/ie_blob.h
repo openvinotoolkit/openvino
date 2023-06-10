@@ -70,7 +70,7 @@ public:
               typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
               typename std::enable_if<std::is_base_of<Blob, T>::value, int>::type = 0>
     bool is() noexcept {
-        return dynamic_cast<T*>(this) != nullptr;
+        return dynamic_cast<T*>(getHardwareBlob()) != nullptr;
     }
 
     /**
@@ -83,7 +83,7 @@ public:
               typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
               typename std::enable_if<std::is_base_of<Blob, T>::value, int>::type = 0>
     bool is() const noexcept {
-        return dynamic_cast<const T*>(this) != nullptr;
+        return dynamic_cast<const T*>(getHardwareBlob()) != nullptr;
     }
 
     /**
@@ -98,7 +98,7 @@ public:
               typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
               typename std::enable_if<std::is_base_of<Blob, T>::value, int>::type = 0>
     T* as() noexcept {
-        return dynamic_cast<T*>(this);
+        return dynamic_cast<T*>(getHardwareBlob());
     }
 
     /**
@@ -113,7 +113,7 @@ public:
               typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
               typename std::enable_if<std::is_base_of<Blob, T>::value, int>::type = 0>
     const T* as() const noexcept {
-        return dynamic_cast<const T*>(this);
+        return dynamic_cast<const T*>(getHardwareBlob());
     }
 
     /**
@@ -276,6 +276,9 @@ protected:
      * @return The allocator for allocator-based blobs or nullptr if there is none
      */
     virtual const std::shared_ptr<IAllocator>& getAllocator() const noexcept = 0;
+
+    const Blob* getHardwareBlob() const;
+    Blob* getHardwareBlob();
 };
 
 /**
