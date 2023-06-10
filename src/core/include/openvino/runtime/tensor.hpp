@@ -26,7 +26,6 @@ namespace ov {
 
 class Core;
 class CoreImpl;
-class InferRequest;
 class RemoteContext;
 class VariableState;
 class ISyncInferRequest;
@@ -65,7 +64,6 @@ protected:
 
     friend class ov::Core;
     friend class ov::CoreImpl;
-    friend class ov::InferRequest;
     friend class ov::RemoteTensor;
     friend class ov::RemoteContext;
     friend class ov::VariableState;
