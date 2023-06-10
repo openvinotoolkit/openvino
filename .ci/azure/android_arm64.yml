@@ -153,6 +153,7 @@ jobs:
         -G Ninja
         -DCMAKE_VERBOSE_MAKEFILE=ON
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
+        -DVCPKG_BUILD_TYPE=$(BUILD_TYPE) \
         -DVCPKG_TARGET_TRIPLET=arm64-android
         -DCMAKE_TOOLCHAIN_FILE=$(VCPKG_ROOT)/scripts/buildsystems/vcpkg.cmake
         -DVCPKG_CHAINLOAD_TOOLCHAIN_FILE=$(ANDROID_NDK_HOME)/build/cmake/android.toolchain.cmake

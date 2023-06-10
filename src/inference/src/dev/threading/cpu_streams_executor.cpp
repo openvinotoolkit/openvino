@@ -428,7 +428,7 @@ struct CPUStreamsExecutor::Impl {
     std::queue<Task> _taskQueue;
     bool _isStopped = false;
     std::vector<int> _usedNumaNodes;
-    ov::threading::ThreadLocal<std::shared_ptr<Stream>> _streams;
+    ThreadLocal<std::shared_ptr<Stream>> _streams;
 #if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
     // stream id mapping to the core type
     // stored in the reversed order (so the big cores, with the highest core_type_id value, are populated first)
@@ -451,8 +451,7 @@ int CPUStreamsExecutor::get_numa_node_id() {
     return stream->_numaNodeId;
 }
 
-CPUStreamsExecutor::CPUStreamsExecutor(const ov::threading::IStreamsExecutor::Config& config)
-    : _impl{new Impl{config}} {}
+CPUStreamsExecutor::CPUStreamsExecutor(const IStreamsExecutor::Config& config) : _impl{new Impl{config}} {}
 
 CPUStreamsExecutor::~CPUStreamsExecutor() {
     {

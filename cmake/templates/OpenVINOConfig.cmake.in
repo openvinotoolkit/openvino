@@ -345,20 +345,15 @@ macro(_ov_find_intel_cpu_dependencies)
     if(_OV_ENABLE_CPU_ACL)
         if(_ov_as_external_package)
             set_and_check(ARM_COMPUTE_LIB_DIR "@PACKAGE_ARM_COMPUTE_LIB_DIR@")
-            set(_ov_find_acl_options NO_DEFAULT_PATH)
-            set(_ov_find_acl_path "${CMAKE_CURRENT_LIST_DIR}")
+            set(ACL_DIR "${CMAKE_CURRENT_LIST_DIR}")
         else()
-            set_and_check(_ov_find_acl_path "@PACKAGE_FIND_ACL_PATH@")
+            set_and_check(ACL_DIR "@PACKAGE_FIND_ACL_PATH@")
         endif()
 
-        _ov_find_dependency(ACL
-                            NO_MODULE
-                            PATHS "${_ov_find_acl_path}"
-                            ${_ov_find_acl_options})
+        _ov_find_dependency(ACL)
 
         unset(ARM_COMPUTE_LIB_DIR)
         unset(_ov_find_acl_path)
-        unset(_ov_find_acl_options)
     endif()
     unset(_OV_ENABLE_CPU_ACL)
 endmacro()
