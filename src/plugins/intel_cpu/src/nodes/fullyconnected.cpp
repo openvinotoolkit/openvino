@@ -261,12 +261,20 @@ void FullyConnected::getSupportedDescriptors() {
         // s32/u32/... unsupported input data types, fallback to f32
         inputDataType = outputDataType = memory::data_type::f32;
     }
-#ifdef OV_CPU_WITH_MLAS
-    useMlas = !useSparseWeights && (inputDataType != memory::data_type::bf16) && !isINT8;
-#endif
-    if (useMlas) return;
     inDims = isDynamicNode() ? makeDummyInputDims() : getInputShapeAtPort(DATA_ID).getStaticDims();
     outDims = isDynamicNode() ? makeDummyOutputDims(inDims) : getOutputShapeAtPort(0).getStaticDims();
+    auto biasDims = getInputShapeAtPort(BIAS_ID).getStaticDims();
+#ifdef OV_CPU_WITH_MLAS
+    useMlas = !useSparseWeights && (inputDataType != memory::data_type::bf16) && !isINT8;
+    if (withBiases) {
+        bool isByChannel = biasDims.back() == outDims.back();
+        for (size_t i = 0; i < biasDims.size() - 1; i++) {
+            isByChannel = isByChannel && biasDims[i] == 1;
+        }
+        useMlas = useMlas && isByChannel;
+    }
+#endif
+    if (useMlas) return;
 
     for (auto format : getAvailableFormatsForDims(getInputShapeAtPort(0))) {
         auto in_candidate = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(inDims), inputDataType, format);
@@ -310,7 +318,7 @@ void FullyConnected::prepareParams() {
     if (useMlas) {
         auto& dims0 = getParentEdgeAt(0)->getMemoryPtr()->getStaticDims();
         auto& dims1 = getParentEdgeAt(1)->getMemoryPtr()->getStaticDims();
-        //Weight is transpoed by MatMulConstTransposesExtraction
+        // Weight is transpoed by MatMulConstTransposesExtraction
         K = dims0[dims0.size() - 1];
         N = dims1[dims1.size() - 2];
         M = std::accumulate(dims0.begin(), dims0.end() - 1, 1, std::multiplies<int64_t>());
@@ -454,24 +462,26 @@ void FullyConnected::prepareParams() {
 void FullyConnected::execute(dnnl::stream strm) {
 #ifdef OV_CPU_WITH_MLAS
     if (useMlas) {
-        auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-        auto& src0MemPtr = getParentEdgeAt(0)->getMemoryPtr();
+        const auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+        const auto src0MemPtr = getParentEdgeAt(0)->getMemoryPtr();
+        const auto biasMemPtr = withBiases ? getParentEdgeAt(BIAS_ID)->getMemoryPtr() : nullptr;
         int64_t lda = K;
         int64_t ldb = K;
         int64_t ldc = N;
-            ov_sgemm_pack_compute("N",
-                    "N",
-                    M,
-                    N,
-                    K,
-                    1.0f,
-                            reinterpret_cast<float*>(src0MemPtr->GetData()),
-                    lda,
-                    packedBPtr->get_ptr<float>(),
-                    ldb,
-                    0.0f,
-                            reinterpret_cast<float*>(dstMemPtr->GetData()),
-                    ldc);
+        ov_sgemm_pack_compute("N",
+                              "N",
+                              M,
+                              N,
+                              K,
+                              1.0f,
+                              reinterpret_cast<float*>(src0MemPtr->GetData()),
+                              lda,
+                              packedBPtr->get_ptr<float>(),
+                              ldb,
+                              0.0f,
+                              reinterpret_cast<float*>(dstMemPtr->GetData()),
+                              ldc,
+                              withBiases ? reinterpret_cast<float*>(biasMemPtr->GetData()) : nullptr);
         return;
     }
 #endif

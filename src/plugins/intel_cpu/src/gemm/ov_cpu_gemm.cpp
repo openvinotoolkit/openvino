@@ -86,7 +86,8 @@ void ov_sgemm_pack_compute(const char* transa,
                       const int64_t ldb,
                       const float beta,
                       float* C,
-                      const int64_t ldc) {
+                      const int64_t ldc,
+                      const float* bias) {
     // C = alpha*op( A )op( B ) + beta * C
     ov::cpu::ThreadPool threadPool;
     std::vector<MLAS_SGEMM_DATA_PARAMS> data(1);
@@ -99,6 +100,7 @@ void ov_sgemm_pack_compute(const char* transa,
     data[0].ldc = ldc;
     data[0].alpha = alpha;
     data[0].beta = beta;
+    data[0].bias = bias;
     auto _transa = *transa == 'N' ? CblasNoTrans : CblasTrans;
     auto _transb = *transb == 'N' ? CblasNoTrans : CblasTrans;
     MlasGemmBatch(_transa, _transb, M, N, K, data.data(), 1, &threadPool);

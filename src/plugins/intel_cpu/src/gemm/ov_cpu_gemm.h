@@ -36,4 +36,5 @@ void ov_sgemm_pack_compute(const char* transa,
                       const int64_t ldb,
                       const float beta,
                       float* C,
-                      const int64_t ldc);
+                      const int64_t ldc,
+                      const float* bias = nullptr);
