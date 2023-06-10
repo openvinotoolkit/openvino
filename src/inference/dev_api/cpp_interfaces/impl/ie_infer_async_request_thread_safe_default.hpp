@@ -37,9 +37,8 @@ IE_SUPPRESS_DEPRECATED_START
  *        Here is an example of asynchronous inference request implementation for some accelerator device.
  *        It uses 5 different executors to run different stages of a synchronous inference request.
  *
- * @snippet example_async_infer_request.cpp async_infer_request:define_pipeline
  */
-class AsyncInferRequestThreadSafeDefault : public IInferRequestInternal {
+class INFERENCE_ENGINE_1_0_DEPRECATED AsyncInferRequestThreadSafeDefault : public IInferRequestInternal {
     enum InferState { Idle, Busy, Cancelled, Stop };
     using Futures = std::vector<std::shared_future<void>>;
     using Promise = std::shared_ptr<std::promise<void>>;
