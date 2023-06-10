@@ -96,9 +96,10 @@ public:
      * @tparam T Type to cast to. Must represent a class derived from the Blob
      * @return Raw pointer to the object of the type T or nullptr on error
      */
-    template <typename T,
-              typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
-              typename std::enable_if<std::is_base_of<Blob, T>::value && !std::is_same<RemoteBlob, T>::value, int>::type = 0>
+    template <
+        typename T,
+        typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
+        typename std::enable_if<std::is_base_of<Blob, T>::value && !std::is_same<RemoteBlob, T>::value, int>::type = 0>
     T* as() noexcept {
         return dynamic_cast<T*>(getHardwareBlob());
     }
@@ -126,9 +127,10 @@ public:
      * @tparam T Type to cast to. Must represent a class derived from the Blob
      * @return Raw pointer to the object of the type const T or nullptr on error
      */
-    template <typename T,
-              typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
-              typename std::enable_if<std::is_base_of<Blob, T>::value && !std::is_same<RemoteBlob, T>::value, int>::type = 0>
+    template <
+        typename T,
+        typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
+        typename std::enable_if<std::is_base_of<Blob, T>::value && !std::is_same<RemoteBlob, T>::value, int>::type = 0>
     const T* as() const noexcept {
         return dynamic_cast<const T*>(getHardwareBlob());
     }
