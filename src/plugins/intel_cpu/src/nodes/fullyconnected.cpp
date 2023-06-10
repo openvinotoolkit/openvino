@@ -263,10 +263,10 @@ void FullyConnected::getSupportedDescriptors() {
     }
     inDims = isDynamicNode() ? makeDummyInputDims() : getInputShapeAtPort(DATA_ID).getStaticDims();
     outDims = isDynamicNode() ? makeDummyOutputDims(inDims) : getOutputShapeAtPort(0).getStaticDims();
-    auto biasDims = getInputShapeAtPort(BIAS_ID).getStaticDims();
 #ifdef OV_CPU_WITH_MLAS
     useMlas = !useSparseWeights && (inputDataType != memory::data_type::bf16) && !isINT8;
     if (withBiases) {
+        auto biasDims = getInputShapeAtPort(BIAS_ID).getStaticDims();
         bool isByChannel = biasDims.back() == outDims.back();
         for (size_t i = 0; i < biasDims.size() - 1; i++) {
             isByChannel = isByChannel && biasDims[i] == 1;
