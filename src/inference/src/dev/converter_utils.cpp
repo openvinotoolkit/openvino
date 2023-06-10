@@ -646,9 +646,11 @@ public:
 
 class IAsyncInferRequestWrapper : public ov::IAsyncInferRequest {
 public:
-    IAsyncInferRequestWrapper(const std::shared_ptr<InferenceEngine::IInferRequestInternal>& request)
+    IAsyncInferRequestWrapper(const std::shared_ptr<InferenceEngine::IInferRequestInternal>& request,
+                              const std::string& plugin_name)
         : ov::IAsyncInferRequest(nullptr, nullptr, nullptr),
-          m_request(request) {
+          m_request(request),
+          m_unwrap_tensor(plugin_name != "AUTO") {
         if (m_request->getPointerToExecutableNetworkInternal())
             m_compiled_model =
                 ov::legacy_convert::convert_compiled_model(m_request->getPointerToExecutableNetworkInternal());
@@ -741,7 +743,7 @@ public:
         return tensor;
     }
     void set_tensor(const ov::Output<const ov::Node>& port, const ov::Tensor& tensor) override {
-        m_request->SetBlob(get_legacy_name_from_port(port), ov::tensor_to_blob(tensor._impl));
+        m_request->SetBlob(get_legacy_name_from_port(port), ov::tensor_to_blob(tensor._impl, m_unwrap_tensor));
     }
 
     std::vector<ov::Tensor> get_tensors(const ov::Output<const ov::Node>& port) const override {
@@ -757,7 +759,7 @@ public:
     void set_tensors(const ov::Output<const ov::Node>& port, const std::vector<ov::Tensor>& tensors) override {
         std::vector<InferenceEngine::Blob::Ptr> blobs;
         for (const auto& tensor : tensors) {
-            blobs.emplace_back(ov::tensor_to_blob(tensor._impl));
+            blobs.emplace_back(ov::tensor_to_blob(tensor._impl, m_unwrap_tensor));
         }
         m_request->SetBlobs(get_legacy_name_from_port(port), blobs);
     }
@@ -799,6 +801,7 @@ private:
     std::shared_ptr<InferenceEngine::IInferRequestInternal> m_request;
     mutable std::shared_ptr<const ov::ICompiledModel> m_compiled_model;
     mutable std::mutex m_mutex;
+    const bool m_unwrap_tensor;
 };
 
 }  // namespace InferenceEngine
@@ -811,11 +814,12 @@ std::shared_ptr<::InferenceEngine::IInferRequestInternal> ov::legacy_convert::co
     return std::make_shared<ov::IInferRequestInternalWrapper>(request);
 }
 std::shared_ptr<::ov::IAsyncInferRequest> ov::legacy_convert::convert_infer_request(
-    const std::shared_ptr<::InferenceEngine::IInferRequestInternal>& request) {
+    const std::shared_ptr<::InferenceEngine::IInferRequestInternal>& request,
+    const std::string& plugin_name) {
     if (auto comp_model = std::dynamic_pointer_cast<ov::IInferRequestInternalWrapper>(request)) {
         return comp_model->get_infer_request();
     }
-    return std::make_shared<InferenceEngine::IAsyncInferRequestWrapper>(request);
+    return std::make_shared<InferenceEngine::IAsyncInferRequestWrapper>(request, plugin_name);
 }
 
 namespace InferenceEngine {
