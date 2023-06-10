@@ -227,7 +227,7 @@ auto get_num_result_children(const std::shared_ptr<const Node> &node) -> size_t 
 } // namespace
 
 const std::set<ov::element::Type> ov::snippets::pass::TokenizeSnippets::supported_element_types =
-        { ov::element::f32, ov::element::bf16, ov::element::i8, ov::element::u8 };
+        { ov::element::f32, ov::element::bf16, ov::element::i8, ov::element::u8, ov::element::i32, ov::element::u32 };
 
 bool TokenizeSnippets::AppropriateForSubgraph(const std::shared_ptr<const Node> &node) {
     return
