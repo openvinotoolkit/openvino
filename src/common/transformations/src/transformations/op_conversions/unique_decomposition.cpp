@@ -135,7 +135,7 @@ ov::pass::UniqueDecomposition::UniqueDecomposition() {
         auto unsqueeze_range_1nplus1 = rg.make<Unsqueeze>(range_1nplus1, zero_const);
         // 2. compute a mask with indices counting from one
         auto unique_vs_x_ind = rg.make<Multiply>(unique_vs_x_01, unsqueeze_range_1nplus1);
-        // 3. compute positions of the first occurence for each unique element
+        // 3. compute positions of the first occurrence for each unique element
         // or these are positions of unique elements in the original order
         auto minimum_indices_plus1 = rg.make<ReduceMin>(unique_vs_x_ind, one_const);
         auto minimum_indices = rg.make<Subtract>(minimum_indices_plus1, one_const);

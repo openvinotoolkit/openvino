@@ -705,6 +705,9 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             if (!input_data_supports_fusings(input, activation_node.id()) || input.get_dependencies().empty())
                 return;
 
+            if (input.in_shape_of_subgraph || node->in_shape_of_subgraph)
+                return;
+
             if (_lo.get_optimization_attributes().use_onednn_impls) {
                 if (input.is_type<reshape>() || input.is_type<concatenation>())
                     return;
@@ -818,6 +821,9 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         auto fuse_quantize_f = [&](quantize_node& quantize_node) {
             auto& input_data = quantize_node.get_dependency(0);
             if (input_data.get_users().size() != 1 || input_data.get_dependencies().empty())
+                return;
+
+            if (input_data.in_shape_of_subgraph || node->in_shape_of_subgraph)
                 return;
 
             auto& input_lo = quantize_node.get_dependency(1);
@@ -974,6 +980,9 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             for (size_t i = 0; i < parents.size(); i++) {
                 can_fuse_parents[i] = can_fuse_parents[i] && (!parents[i].first->is_constant() || parents[parents.size() - 1 - i].first->is_constant());
             }
+
+            if (node.in_shape_of_subgraph || parents[0].first->in_shape_of_subgraph || parents[1].first->in_shape_of_subgraph)
+                return;
 
             auto parent1 = parents[0];
             auto parent2 = parents[1];
