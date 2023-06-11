@@ -69,6 +69,8 @@ public:
         const std::vector<std::shared_ptr<const ov::Node>>& outputs) override;
     std::shared_ptr<InferenceEngine::RemoteContext> GetContext() const override;
     std::shared_ptr<ngraph::Function> GetExecGraphInfo() override;
+    void Export(const std::string& modelFileName) override;
+    void Export(std::ostream& networkModel) override;
     virtual ~AutoBatchExecutableNetwork();
 
 protected:

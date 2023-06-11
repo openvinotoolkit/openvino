@@ -601,6 +601,13 @@ std::shared_ptr<ngraph::Function> AutoBatchExecutableNetwork::GetExecGraphInfo()
                                                     : _networkWithoutBatch->GetExecGraphInfo();
 }
 
+void AutoBatchExecutableNetwork::Export(const std::string& modelFileName) {
+    _network ? _network->Export(modelFileName) : _networkWithoutBatch->Export(modelFileName);
+}
+void AutoBatchExecutableNetwork::Export(std::ostream& networkModel) {
+    _network ? _network->Export(networkModel) : _networkWithoutBatch->Export(networkModel);
+}
+
 void AutoBatchExecutableNetwork::SetConfig(const std::map<std::string, InferenceEngine::Parameter>& user_config) {
     auto timeout = user_config.find(CONFIG_KEY(AUTO_BATCH_TIMEOUT));
     if (timeout == user_config.end() || user_config.size() > 1) {
