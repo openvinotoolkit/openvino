@@ -442,12 +442,11 @@ public:
  */
 class TensorRemoteBlob : public ie::RemoteBlob {
 public:
-    TensorRemoteBlob(const std::shared_ptr<ITensor>& tensor, const std::vector<std::shared_ptr<void>>& so)
+    TensorRemoteBlob(const std::shared_ptr<ITensor>& tensor)
         : ie::RemoteBlob{ie::TensorDesc{ie::details::convertPrecision(tensor->get_element_type()),
                                         tensor->get_shape(),
                                         ie::TensorDesc::getLayoutByRank(tensor->get_shape().size())}},
-          tensor{std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor)},
-          m_so(so) {
+          tensor{std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor)} {
         OPENVINO_ASSERT(this->tensor);
     }
     AnyMap getParams() const override {
@@ -494,7 +493,6 @@ public:
 
 private:
     std::shared_ptr<ie::IAllocator> m_allocator;
-    std::vector<std::shared_ptr<void>> m_so;
 };
 
 /**
@@ -506,8 +504,7 @@ template <typename T>
 class TensorMemoryBlob : public ie::TBlob<T> {
 public:
     ~TensorMemoryBlob() override = default;
-    explicit TensorMemoryBlob(const std::shared_ptr<ITensor>& tensor_,
-                              const std::vector<std::shared_ptr<void>>& so = {}) try : ie
+    explicit TensorMemoryBlob(const std::shared_ptr<ITensor>& tensor_) try : ie
         ::TBlob<T>{[&] {
                        auto element_type = tensor_->get_element_type();
                        auto shape = tensor_->get_shape();
@@ -538,7 +535,7 @@ public:
                    }(),
                    static_cast<T*>(tensor_->data()),
                    tensor_->get_byte_size()},
-            tensor{tensor_}, m_so(so) {
+            tensor{tensor_} {
             OPENVINO_ASSERT(!std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor));
         }
     catch (const std::exception& ex) {
@@ -551,9 +548,6 @@ public:
     }
 
     std::shared_ptr<ITensor> tensor;
-
-private:
-    std::vector<std::shared_ptr<void>> m_so;
 };
 
 std::shared_ptr<ITensor> make_tensor(const std::shared_ptr<ie::Blob>& blob) {
@@ -617,9 +611,7 @@ const ie::Blob* get_hardware_blob(const ie::Blob* blob) {
     return blob;
 }
 
-ie::Blob::Ptr tensor_to_blob(const std::shared_ptr<ITensor>& orig_tensor,
-                             const std::vector<std::shared_ptr<void>>& so,
-                             bool unwrap) {
+ie::Blob::Ptr tensor_to_blob(const std::shared_ptr<ITensor>& orig_tensor, bool unwrap) {
 #ifndef NO_PROXY_PLUGIN
     const auto& tensor = unwrap ? ov::proxy::get_hardware_tensor(orig_tensor) : orig_tensor;
 #else
@@ -634,11 +626,11 @@ ie::Blob::Ptr tensor_to_blob(const std::shared_ptr<ITensor>& orig_tensor,
     } else if (auto blob_tensor = dynamic_cast<const BlobTensor*>(tensor.get())) {
         return blob_tensor->blob;
     } else if (std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor)) {
-        return std::make_shared<TensorRemoteBlob>(tensor, so);
+        return std::make_shared<TensorRemoteBlob>(tensor);
     } else {
 #define CASE(precision, T)   \
     case element::precision: \
-        return std::make_shared<TensorMemoryBlob<T>>(tensor, so);
+        return std::make_shared<TensorMemoryBlob<T>>(tensor);
         switch (tensor->get_element_type()) {
             CASE(f32, float);
             CASE(f64, double);
@@ -655,9 +647,9 @@ ie::Blob::Ptr tensor_to_blob(const std::shared_ptr<ITensor>& orig_tensor,
             CASE(u1, int8_t);
             CASE(boolean, bool);
         case element::f16:
-            return std::make_shared<TensorMemoryBlob<int16_t>>(tensor, so);
+            return std::make_shared<TensorMemoryBlob<int16_t>>(tensor);
         case element::bf16:
-            return std::make_shared<TensorMemoryBlob<int16_t>>(tensor, so);
+            return std::make_shared<TensorMemoryBlob<int16_t>>(tensor);
         default:
             OPENVINO_THROW("Unsupported element type");
         }

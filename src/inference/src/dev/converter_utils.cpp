@@ -217,8 +217,7 @@ public:
     }
 
     InferenceEngine::Blob::CPtr GetState() const override {
-        auto tensor = m_state->get_state();
-        return tensor_to_blob(tensor._impl, tensor._so);
+        return tensor_to_blob(m_state->get_state()._impl);
     }
 };
 
@@ -535,15 +534,14 @@ public:
     }
 
     InferenceEngine::Blob::Ptr GetBlob(const std::string& name) override {
-        auto tensor = m_request->get_tensor(find_port(name));
-        return tensor_to_blob(tensor._impl, tensor._so);
+        return tensor_to_blob(m_request->get_tensor(find_port(name))._impl);
     }
 
     InferenceEngine::BatchedBlob::Ptr GetBlobs(const std::string& name) override {
         auto tensors = m_request->get_tensors(find_port(name));
         std::vector<InferenceEngine::Blob::Ptr> blobs;
         for (const auto& tensor : tensors) {
-            blobs.emplace_back(tensor_to_blob(tensor._impl, tensor._so));
+            blobs.emplace_back(tensor_to_blob(tensor._impl));
         }
         return std::make_shared<InferenceEngine::BatchedBlob>(blobs);
     }
@@ -636,7 +634,7 @@ public:
     }
 
     void set_state(const ov::Tensor& state) override {
-        m_state->SetState(ov::tensor_to_blob(state._impl, state._so));
+        m_state->SetState(ov::tensor_to_blob(state._impl));
     }
 
     const ov::Tensor& get_state() const override {
@@ -745,8 +743,7 @@ public:
         return tensor;
     }
     void set_tensor(const ov::Output<const ov::Node>& port, const ov::Tensor& tensor) override {
-        m_request->SetBlob(get_legacy_name_from_port(port),
-                           ov::tensor_to_blob(tensor._impl, tensor._so, m_unwrap_tensor));
+        m_request->SetBlob(get_legacy_name_from_port(port), ov::tensor_to_blob(tensor._impl, m_unwrap_tensor));
     }
 
     std::vector<ov::Tensor> get_tensors(const ov::Output<const ov::Node>& port) const override {
@@ -762,7 +759,7 @@ public:
     void set_tensors(const ov::Output<const ov::Node>& port, const std::vector<ov::Tensor>& tensors) override {
         std::vector<InferenceEngine::Blob::Ptr> blobs;
         for (const auto& tensor : tensors) {
-            blobs.emplace_back(ov::tensor_to_blob(tensor._impl, tensor._so, m_unwrap_tensor));
+            blobs.emplace_back(ov::tensor_to_blob(tensor._impl, m_unwrap_tensor));
         }
         m_request->SetBlobs(get_legacy_name_from_port(port), blobs);
     }

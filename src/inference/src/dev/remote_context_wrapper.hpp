@@ -31,14 +31,14 @@ public:
         return std::dynamic_pointer_cast<InferenceEngine::RemoteBlob>(ov::tensor_to_blob(
             m_context->create_tensor(InferenceEngine::details::convertPrecision(tensorDesc.getPrecision()),
                                      tensorDesc.getBlockingDesc().getBlockDims(),
-                                     params), {},
+                                     params),
             false));
     }
 
     InferenceEngine::MemoryBlob::Ptr CreateHostBlob(const InferenceEngine::TensorDesc& tensorDesc) override {
         return std::dynamic_pointer_cast<InferenceEngine::MemoryBlob>(ov::tensor_to_blob(
             m_context->create_host_tensor(InferenceEngine::details::convertPrecision(tensorDesc.getPrecision()),
-                                          tensorDesc.getBlockingDesc().getBlockDims()), {},
+                                          tensorDesc.getBlockingDesc().getBlockDims()),
             false));
     }
 

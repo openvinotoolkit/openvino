@@ -48,7 +48,7 @@ std::shared_ptr<ITensor> make_tensor(const std::shared_ptr<InferenceEngine::Blob
 const InferenceEngine::Blob* get_hardware_blob(const InferenceEngine::Blob* blob);
 InferenceEngine::Blob* get_hardware_blob(InferenceEngine::Blob* blob);
 
-std::shared_ptr<InferenceEngine::Blob> tensor_to_blob(const std::shared_ptr<ITensor>& tensor, const std::vector<std::shared_ptr<void>>& so = {}, bool unwrap = true);
+std::shared_ptr<InferenceEngine::Blob> tensor_to_blob(const std::shared_ptr<ITensor>& tensor, bool unwrap = true);
 /** @endcond */
 
 }  // namespace ov

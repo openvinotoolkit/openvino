@@ -166,7 +166,7 @@ Tensor InferRequest::get_tensor(const ov::Output<const ov::Node>& port) {
                         port,
                         "'");
         auto tensor = _impl->get_tensor(port);
-        tensor = ov::Tensor(tensor, _so);
+        tensor._so.emplace_back(_so);
 
         return tensor;
     });
