@@ -11,6 +11,31 @@
 namespace ov {
 namespace proxy {
 
+// Proxy plugin configuration properties
+namespace configuration {
+/**
+ * @brief Read-write property to set alias for hardware plugin
+ * value type: string Alias name for the set of plugins
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<std::string, PropertyMutability::RW> alias{"PROXY_CONFIGURATION_ALIAS"};
+
+/**
+ * @brief Read-write property to set device priority in alias
+ * value type: int32_t lower value means the higher priority
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<int32_t, PropertyMutability::RW> priority{"PROXY_CONFIGURATION_PRIORITY"};
+
+/**
+ * @brief Read-write property to set the fallback to other HW plugin
+ * value type: string the name of hardware plugin for fallback
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<std::string, PropertyMutability::RW> fallback{"PROXY_CONFIGURATION_FALLBACK"};
+
+}  // namespace configuration
+
 /**
  * @brief Property allows to configure the fallback priorities under the proxy plugin
  * Vector of string. String has the next format: <first_device>-><fallback_device>

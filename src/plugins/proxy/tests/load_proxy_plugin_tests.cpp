@@ -9,11 +9,12 @@
 using namespace ov::proxy::tests;
 
 TEST_F(ProxyTests, alias_for_the_same_name) {
-    register_plugin_support_reshape(
-        core,
-        "CBD",
-        {{ov::device::alias.name(), "CBD"}, {ov::device::fallback.name(), "DEK"}, {ov::device::priority.name(), 0}});
-    register_plugin_support_subtract(core, "DEK", {{ov::device::alias.name(), "CBD"}});
+    register_plugin_support_reshape(core,
+                                    "CBD",
+                                    {{ov::proxy::configuration::alias.name(), "CBD"},
+                                     {ov::proxy::configuration::fallback.name(), "DEK"},
+                                     {ov::proxy::configuration::priority.name(), 0}});
+    register_plugin_support_subtract(core, "DEK", {{ov::proxy::configuration::alias.name(), "CBD"}});
     auto available_devices = core.get_available_devices();
     // 0, 1, 2 is ABC plugin
     // 1, 3, 4 is BDE plugin
@@ -36,7 +37,10 @@ TEST_F(ProxyTests, alias_for_the_same_name) {
 
 TEST_F(ProxyTests, load_proxy_on_plugin_without_devices_with_the_same_name) {
     auto available_devices = core.get_available_devices();
-    register_plugin_without_devices(core, "CBD", {{ov::device::alias.name(), "CBD"}, {ov::device::priority.name(), 0}});
+    register_plugin_without_devices(
+        core,
+        "CBD",
+        {{ov::proxy::configuration::alias.name(), "CBD"}, {ov::proxy::configuration::priority.name(), 0}});
     available_devices = core.get_available_devices();
     for (const auto& dev : available_devices) {
         EXPECT_NE(dev, "CBD");
@@ -47,9 +51,10 @@ TEST_F(ProxyTests, load_proxy_on_plugin_without_devices_with_the_same_name) {
 
 TEST_F(ProxyTests, load_proxy_on_plugin_without_devices) {
     auto available_devices = core.get_available_devices();
-    register_plugin_without_devices(core,
-                                    "Internal_CBD",
-                                    {{ov::device::alias.name(), "CBD"}, {ov::device::priority.name(), 0}});
+    register_plugin_without_devices(
+        core,
+        "Internal_CBD",
+        {{ov::proxy::configuration::alias.name(), "CBD"}, {ov::proxy::configuration::priority.name(), 0}});
     available_devices = core.get_available_devices();
     for (const auto& dev : available_devices) {
         EXPECT_NE(dev, "CBD");

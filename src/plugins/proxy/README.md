@@ -31,9 +31,9 @@ Proxy Plugin contains the following components:
 ## Proxy plugin properties
 
 Proxy plugin cannot be created explicitly. In order to use proxy plugin under the real hardware plugins please use next properties for configuration:
- - `ov::device::alias` is an alias name for high level plugin.
- - `ov::device::priority` is a device priority under alias (lower value means the higher priority), this value allows to configure the device order.
- - `ov::device::fallback` the name of other hardware device for the fallback.
+ - `ov::proxy::configuration::alias` is an alias name for high level plugin.
+ - `ov::proxy::configuration::priority` is a device priority under alias (lower value means the higher priority), this value allows to configure the device order.
+ - `ov::proxy::configuration::fallback` the name of other hardware device for the fallback.
 
 After the creation the proxy plugin has next properties:
  - `ov::device::priorities` is fallback order inside the proxy plugin.

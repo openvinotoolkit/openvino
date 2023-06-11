@@ -65,6 +65,7 @@ private:
     void add_mutex(const std::string& dev_name);
 
     bool is_proxy_device(const ov::Plugin& plugin) const;
+    bool is_proxy_device(const std::string& dev_name) const;
 
     class CoreConfig final {
     public:

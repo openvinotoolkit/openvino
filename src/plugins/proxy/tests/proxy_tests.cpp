@@ -13,6 +13,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/opsets/opset11.hpp"
 #include "openvino/pass/serialize.hpp"
+#include "openvino/proxy/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/iremote_context.hpp"
@@ -57,10 +58,10 @@ void ov::proxy::tests::ProxyTests::SetUp() {
     if (m_mock_plugins.empty()) {
         register_plugin_support_reshape(core,
                                         "ABC",
-                                        {{ov::device::alias.name(), "MOCK"},
-                                         {ov::device::fallback.name(), "BDE"},
-                                         {ov::device::priority.name(), 0}});
-        register_plugin_support_subtract(core, "BDE", {{ov::device::alias.name(), "MOCK"}});
+                                        {{ov::proxy::configuration::alias.name(), "MOCK"},
+                                         {ov::proxy::configuration::fallback.name(), "BDE"},
+                                         {ov::proxy::configuration::priority.name(), 0}});
+        register_plugin_support_subtract(core, "BDE", {{ov::proxy::configuration::alias.name(), "MOCK"}});
     }
 }
 
