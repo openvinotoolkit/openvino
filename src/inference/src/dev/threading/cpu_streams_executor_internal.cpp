@@ -23,7 +23,7 @@ void get_cur_stream_info(const int stream_id,
                          int& core_type,
                          int& numa_node_id) {
     int stream_total = 0;
-    int stream_info_id = 0;
+    size_t stream_info_id = 0;
     for (size_t i = 0; i < streams_info_table.size(); i++) {
         stream_total =
             i > 0 ? stream_total + streams_info_table[i][NUMBER_OF_STREAMS] : streams_info_table[i][NUMBER_OF_STREAMS];
