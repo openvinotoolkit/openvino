@@ -309,6 +309,10 @@ ov::CoreImpl::CoreImpl(bool _newAPI) : m_new_api(_newAPI) {
     }
 }
 
+bool ov::CoreImpl::is_proxy_device(const ov::Plugin& plugin) const {
+    return std::dynamic_pointer_cast<ov::proxy::Plugin>(plugin.m_ptr) != nullptr;
+}
+
 void ov::CoreImpl::register_plugin_in_registry_unsafe(const std::string& device_name, PluginDescriptor& desc) {
 #ifndef NO_PROXY_PLUGIN
     // Update proxy plugin config
@@ -686,7 +690,10 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     if (cacheManager && device_supports_model_caching(plugin)) {
         CacheContent cacheContent{cacheManager};
         cacheContent.blobId = ov::ModelCache::compute_hash(model, create_compile_config(plugin, parsed._config));
-        auto lock = cacheGuard.get_hash_lock(cacheContent.blobId);
+        std::unique_ptr<CacheGuardEntry> lock;
+        // Proxy plugin fallback to lowlevel device
+        if (!is_proxy_device(plugin))
+            lock = cacheGuard.get_hash_lock(cacheContent.blobId);
         res = load_model_from_cache(cacheContent, plugin, parsed._config, ov::RemoteContext{}, [&]() {
             return compile_model_and_cache(model, plugin, parsed._config, ov::RemoteContext{}, cacheContent);
         });
@@ -715,7 +722,10 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     if (cacheManager && device_supports_model_caching(plugin)) {
         CacheContent cacheContent{cacheManager};
         cacheContent.blobId = ov::ModelCache::compute_hash(model, create_compile_config(plugin, parsed._config));
-        auto lock = cacheGuard.get_hash_lock(cacheContent.blobId);
+        std::unique_ptr<CacheGuardEntry> lock;
+        // Proxy plugin fallback to lowlevel device
+        if (!is_proxy_device(plugin))
+            lock = cacheGuard.get_hash_lock(cacheContent.blobId);
         res = load_model_from_cache(cacheContent, plugin, parsed._config, context, [&]() {
             return compile_model_and_cache(model, plugin, parsed._config, context, cacheContent);
         });
@@ -763,7 +773,10 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
     if (cacheManager && device_supports_model_caching(plugin)) {
         CacheContent cacheContent{cacheManager, model_path};
         cacheContent.blobId = ov::ModelCache::compute_hash(model_path, create_compile_config(plugin, parsed._config));
-        auto lock = cacheGuard.get_hash_lock(cacheContent.blobId);
+        std::unique_ptr<CacheGuardEntry> lock;
+        // Proxy plugin fallback to lowlevel device
+        if (!is_proxy_device(plugin))
+            lock = cacheGuard.get_hash_lock(cacheContent.blobId);
         compiled_model = load_model_from_cache(cacheContent, plugin, parsed._config, ov::RemoteContext{}, [&]() {
             auto cnnNetwork = ReadNetwork(model_path, std::string());
             return compile_model_and_cache(cnnNetwork.getFunction(), plugin, parsed._config, {}, cacheContent);
@@ -795,7 +808,10 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
         CacheContent cacheContent{cacheManager};
         cacheContent.blobId =
             ov::ModelCache::compute_hash(model_str, weights, create_compile_config(plugin, parsed._config));
-        auto lock = cacheGuard.get_hash_lock(cacheContent.blobId);
+        std::unique_ptr<CacheGuardEntry> lock;
+        // Proxy plugin fallback to lowlevel device
+        if (!is_proxy_device(plugin))
+            lock = cacheGuard.get_hash_lock(cacheContent.blobId);
         compiled_model = load_model_from_cache(cacheContent, plugin, parsed._config, ov::RemoteContext{}, [&]() {
             auto cnnNetwork = read_model(model_str, weights);
             return compile_model_and_cache(cnnNetwork, plugin, parsed._config, ov::RemoteContext{}, cacheContent);
