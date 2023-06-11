@@ -133,8 +133,6 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*OVHoldersTest.*LoadedTensor.*AUTO.*)",
             R"(.*OVHoldersTest.*LoadedTensor.*MULTI.*)",
             R"(.*OVHoldersTest.*LoadedTensor.*HETERO.*)",
-            // TODO: Investigate why GPU export model in different formats
-            R"(.*OVDynamicBatchShape_Tests.*InferDynamicBatchBound_cached.*HETERO.*)",
 #endif
     };
 }
