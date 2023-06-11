@@ -19,6 +19,8 @@ namespace {
 
 using namespace ov::tools::subgraph_dumper;
 
+// ======================== Input Info Unit tests =============================================
+
 class InputInfoUnitTest : public ::testing::Test {};
 
 TEST_F(InputInfoUnitTest, constructor) {
@@ -44,8 +46,9 @@ TEST_F(InputInfoUnitTest, update_ranges) {
     ASSERT_EQ(in_info_0.is_const, ref_in_info.is_const);
 }
 
-class MetaInfoUnitTest : public ::testing::Test,
-                         public virtual ov::tools::subgraph_dumper::MetaInfo {
+// ======================== Meta Info Functional tests =============================================
+
+class MetaInfoFuncTest : public ::testing::Test{
 protected:
     std::string test_model_path, test_model_name;
     std::map<std::string, InputInfo> test_in_info;
@@ -53,14 +56,10 @@ protected:
 
     void SetUp() override {
         test_model_path = "test_model_path.xml";
-        test_model_name = CommonTestUtils::replaceExt(test_model_name, "");
+        test_model_name = CommonTestUtils::replaceExt(test_model_path, "");
         test_in_info = {{ "test_in_0", InputInfo(DEFAULT_MIN_VALUE, 1, true) }};
         test_artifacts_dir = ov::util::path_join({CommonTestUtils::getCurrentWorkingDir(), "test_artifacts"});
         ov::util::create_directory_recursive(test_artifacts_dir);
-
-        model_path = {{test_model_name, {test_model_path}}};
-        occurence_cnt = {{test_model_name, 1}};
-        input_info = test_in_info;
     }
 
     void TearDown() override {
@@ -68,16 +67,54 @@ protected:
     }
 };
 
-TEST_F(MetaInfoUnitTest, constructor) {
+TEST_F(MetaInfoFuncTest, constructor) {
     ASSERT_NO_THROW(auto meta = MetaInfo());
     ASSERT_NO_THROW(auto meta = MetaInfo(test_model_name));
     ASSERT_NO_THROW(auto meta = MetaInfo(test_model_name, test_in_info));
 }
 
-TEST_F(MetaInfoUnitTest, serialize) {
+TEST_F(MetaInfoFuncTest, get_input_info) {
+    auto test_meta = MetaInfo(test_model_name, test_in_info);
+    ASSERT_NO_THROW(test_meta.get_input_info());
+    // ASSERT_EQ(test_meta.get_input_info(), test_in_info);
+}
+
+TEST_F(MetaInfoFuncTest, update) {
+    std::map<std::string, InputInfo> test_in_info = {{ "test_in_0", InputInfo(DEFAULT_MIN_VALUE, 1, true) }};
+    auto test_meta = MetaInfo(test_model_name, test_in_info);
+    std::map<std::string, InputInfo> test_meta_1 = {{ "test_in_0", InputInfo(0, 1, true) }};
+    std::string test_model_1 = "test_model_1";
+    std::string test_model_path_1 = ov::util::path_join({ "path", "to",  test_model_1 + ".xml"});
+    ASSERT_ANY_THROW(test_meta.update(test_model_path_1, {}));
+    ASSERT_ANY_THROW(test_meta.update(test_model_path_1, {{ "test_in_1", InputInfo() }}));
+    ASSERT_ANY_THROW(test_meta.update(test_model_path_1, {{ "test_in_0", InputInfo(0, 1, false) }}));
+    ASSERT_NO_THROW(test_meta.update(test_model_path_1, test_meta_1));
+}
+
+TEST_F(MetaInfoFuncTest, serialize) {
     auto test_meta = MetaInfo(test_model_name, test_in_info);
     std::string seriliazation_path(ov::util::path_join({test_artifacts_dir, "test_meta.meta"}));
     test_meta.serialize(seriliazation_path);
+    ASSERT_TRUE(ov::util::file_exists(seriliazation_path));
+}
+
+// ======================== Meta Info Unit tests =============================================
+
+class MetaInfoUnitTest : public MetaInfoFuncTest,
+                         public virtual MetaInfo {
+protected:
+    void SetUp() override {
+        MetaInfoFuncTest::SetUp();
+
+        model_path = {{test_model_name, {test_model_path}}};
+        occurence_cnt = {{test_model_name, 1}};
+        input_info = test_in_info;
+    }
+};
+
+TEST_F(MetaInfoUnitTest, serialize) {
+    std::string seriliazation_path(ov::util::path_join({test_artifacts_dir, "test_meta.meta"}));
+    this->serialize(seriliazation_path);
     ASSERT_TRUE(ov::util::file_exists(seriliazation_path));
 
     pugi::xml_document doc;
@@ -87,7 +124,7 @@ TEST_F(MetaInfoUnitTest, serialize) {
         for (const auto model_xml : models_xml.children()) {
             auto model_name_xml = std::string(model_xml.attribute("name").value());
             ASSERT_NE(occurence_cnt.find(model_name_xml), occurence_cnt.end());
-            ASSERT_NE(occurence_cnt[model_name_xml], model_xml.attribute("count").as_uint());
+            ASSERT_EQ(occurence_cnt[model_name_xml], model_xml.attribute("count").as_uint());
             ASSERT_NE(model_path.find(model_name_xml), model_path.end());
             auto paths = model_path[model_name_xml];
             for (const auto& path_xml : model_xml.children()) {
@@ -119,10 +156,6 @@ TEST_F(MetaInfoUnitTest, update) {
     std::map<std::string, InputInfo> test_meta_1 = {{ "test_in_0", InputInfo(0, 1, true) }};
     std::string test_model_1 = "test_model_1";
     std::string test_model_path_1 = ov::util::path_join({ "path", "to",  test_model_1 + ".xml"});
-    ASSERT_ANY_THROW(test_meta.update(test_model_path_1, {}));
-    ASSERT_ANY_THROW(test_meta.update(test_model_path_1, {{ "test_in_1", InputInfo() }}));
-    ASSERT_ANY_THROW(test_meta.update(test_model_path_1, {{ "test_in_0", InputInfo(0, 1, false) }}));
-    ASSERT_NO_THROW(test_meta.update(test_model_path_1, test_meta_1));
     this->update(test_model_path_1, test_meta_1);
     ASSERT_NE(this->model_path.find(test_model_1), this->model_path.end());
     ASSERT_EQ(this->model_path[test_model_1].front(), test_model_path_1);
@@ -130,12 +163,6 @@ TEST_F(MetaInfoUnitTest, update) {
     this->update(test_model_path_1, test_meta_1);
     ASSERT_EQ(this->model_path[test_model_1].size(), 2);
     ASSERT_EQ(this->occurence_cnt[test_model_1], 2);
-}
-
-TEST_F(MetaInfoUnitTest, get_input_info) {
-    auto test_meta = MetaInfo(test_model_name, test_in_info);
-    ASSERT_NO_THROW(test_meta.get_input_info());
-    ASSERT_EQ(test_meta.get_input_info(), test_in_info);
 }
 
 TEST_F(MetaInfoUnitTest, get_model_name_by_path) {

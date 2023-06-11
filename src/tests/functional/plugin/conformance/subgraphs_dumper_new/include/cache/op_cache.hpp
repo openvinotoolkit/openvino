@@ -13,7 +13,7 @@ namespace subgraph_dumper {
 class OpCache : public virtual ICache {
 public:
     void update_cache(const std::shared_ptr<ov::Model>& model,
-                      const std::string& source_model, bool extract_body) override;
+                      const std::string& model_path, bool extract_body) override;
     void serialize_cache() override;
 
     static std::shared_ptr<OpCache> get() {
@@ -35,7 +35,7 @@ protected:
         // m_manager.set_matchers(matchers);
     }
 
-    void update_cache(const std::shared_ptr<ov::Node>& node, const std::string& op_meta_data);
+    void update_cache(const std::shared_ptr<ov::Node>& node, const std::string& model_path);
     bool serialize_op(const std::pair<std::shared_ptr<ov::Node>, MetaInfo>& op_info);
     std::string get_rel_serilization_dir(const std::shared_ptr<ov::Node>& node);
     std::shared_ptr<ov::Model> generate_graph_by_node(const std::shared_ptr<ov::Node>& node);

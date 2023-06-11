@@ -17,7 +17,7 @@ namespace tools {
 namespace subgraph_dumper {
 std::shared_ptr<OpCache> OpCache::m_cache_instance = nullptr;
 
-void OpCache::update_cache(const std::shared_ptr<ov::Model>& model, const std::string& model_meta_data, bool extract_body) {
+void OpCache::update_cache(const std::shared_ptr<ov::Model>& model, const std::string& model_path, bool extract_body) {
     for (const auto& op : model->get_ordered_ops()) {
         if (std::dynamic_pointer_cast<ov::op::v0::Parameter>(op) ||
             std::dynamic_pointer_cast<ov::op::v0::Constant>(op) ||
@@ -33,29 +33,29 @@ void OpCache::update_cache(const std::shared_ptr<ov::Model>& model, const std::s
                 auto if_op = std::dynamic_pointer_cast<ov::op::v8::If>(op);
                 for (size_t i = 0; i < if_op->get_internal_subgraphs_size(); i++) {
                     auto if_body = if_op->get_function(i);
-                    update_cache(if_body, model_meta_data, extract_body);
+                    update_cache(if_body, model_path, extract_body);
                 }
             } else if (std::dynamic_pointer_cast<ov::op::v5::Loop>(op)) {
                 auto loop = std::dynamic_pointer_cast<ov::op::v5::Loop>(op);
                 auto loop_body = loop->get_function();
-                update_cache(loop_body, model_meta_data, extract_body);
+                update_cache(loop_body, model_path, extract_body);
             } else if (std::dynamic_pointer_cast<ov::op::v0::TensorIterator>(op)) {
                 auto ti = std::dynamic_pointer_cast<ov::op::v0::TensorIterator>(op);
                 auto ti_body = ti->get_function();
-                update_cache(ti_body, model_meta_data, extract_body);
+                update_cache(ti_body, model_path, extract_body);
             }
         }
-        update_cache(op, model_meta_data);
+        update_cache(op, model_path);
     }
 }
 
 // todo: iefode: check the function
-void OpCache::update_cache(const std::shared_ptr<ov::Node>& node, const std::string& op_meta_data) {
+void OpCache::update_cache(const std::shared_ptr<ov::Node>& node, const std::string& model_path) {
     // const std::shared_ptr<ov::Node> cachedOp = [&] {
     //     for (auto &&it : m_ops_cache) {
     //         if (m_manager.match_any(it.first, node, it.second)) {
-    //             it.second.found_in_models[op_meta_data.name].unique_op_cnt++;
-    //             it.second.found_in_models[op_meta_data.name].model_paths.insert({{op_meta_data.path, op_meta_data.op_cnt}});
+    //             it.second.found_in_models[model_path.name].unique_op_cnt++;
+    //             it.second.found_in_models[model_path.name].model_paths.insert({{model_path.path, model_path.op_cnt}});
     //             return it.first;
     //         }
     //     }
@@ -65,7 +65,7 @@ void OpCache::update_cache(const std::shared_ptr<ov::Node>& node, const std::str
     // auto saveOpToCash = [&] {
     //     try {
     //         const auto& clone_fn = SubgraphsDumper::ClonersMap::cloners.at(node->get_type_info());
-    //         LayerTestsUtils::MetaInfo meta(op_meta_data.name, op_meta_data.path, op_meta_data.op_cnt);
+    //         LayerTestsUtils::MetaInfo meta(model_path.name, model_path.path, model_path.op_cnt);
     //         const std::shared_ptr<ov::Node> op_clone = clone_fn(node, meta);
     //         if (!op_clone) {
     //             return;
@@ -108,6 +108,7 @@ void OpCache::serialize_cache() {
 bool OpCache::serialize_op(const std::pair<std::shared_ptr<ov::Node>, MetaInfo> &op_info) {
     std::string serialization_dir = get_rel_serilization_dir(op_info.first);
     std::shared_ptr<ov::Model> model = generate_graph_by_node(op_info.first);
+    model->set_friendly_name(op_info.first->get_friendly_name());
     return serialize_model(make_pair(model, op_info.second), serialization_dir);
 }
 

@@ -62,6 +62,9 @@ void MetaInfo::serialize(const std::string& serialization_path) {
 }
 
 void MetaInfo::update(const std::string& _model_path, const std::map<std::string, InputInfo>& _input_info) {
+    if (input_info.size() != _input_info.size()) {
+        throw std::runtime_error("Uncompatible input info!");
+    }
     std::string model_name = get_model_name_by_path(_model_path);
     if (model_path.find(model_name) != model_path.end()) {
         model_path[model_name].push_back(_model_path);
@@ -83,6 +86,14 @@ void MetaInfo::update(const std::string& _model_path, const std::map<std::string
 
 std::map<std::string, InputInfo> MetaInfo::get_input_info() {
     return input_info;
+}
+
+std::map<std::string, std::vector<std::string>> MetaInfo::get_model_path() {
+    return model_path;
+}
+
+std::map<std::string, size_t> MetaInfo::get_occurence_cnt() {
+    return occurence_cnt;
 }
 
 std::string MetaInfo::get_model_name_by_path(const std::string& model_path) {
