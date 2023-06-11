@@ -31,7 +31,7 @@ addIeTargetTest(
             GPU
 )
 
-if(!ENABLE_PROXY)
+if(NOT ENABLE_PROXY)
     target_compile_definitions(${TARGET_NAME} PUBLIC NO_PROXY_PLUGIN)
 endif()
 
