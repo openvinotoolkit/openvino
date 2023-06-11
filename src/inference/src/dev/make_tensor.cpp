@@ -11,6 +11,7 @@
 #include "ie_ngraph_utils.hpp"
 #include "ie_remote_blob.hpp"
 #include "openvino/runtime/iremote_tensor.hpp"
+#include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/properties.hpp"
 #ifndef NO_PROXY_PLUGIN
 #    include "openvino/proxy/plugin.hpp"
@@ -446,16 +447,16 @@ public:
         : ie::RemoteBlob{ie::TensorDesc{ie::details::convertPrecision(tensor->get_element_type()),
                                         tensor->get_shape(),
                                         ie::TensorDesc::getLayoutByRank(tensor->get_shape().size())}},
-          tensor{std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor)},
+          m_tensor{std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor)},
           m_so(so) {
-        OPENVINO_ASSERT(this->tensor);
+        OPENVINO_ASSERT(this->m_tensor);
     }
     AnyMap getParams() const override {
-        return tensor->get_properties();
+        return m_tensor->get_properties();
     }
     std::string getDeviceName() const noexcept override {
         try {
-            return tensor->get_device_name();
+            return m_tensor->get_device_name();
         } catch (...) {
             return {};
         }
@@ -490,10 +491,15 @@ public:
         return nullptr;
     }
 
-    std::shared_ptr<IRemoteTensor> tensor;
+    std::shared_ptr<ITensor> get_tensor(bool wrapped = true) const {
+        if (m_so.empty() || !wrapped)
+            return m_tensor;
+        return std::make_shared<ISOTensor>(m_tensor, m_so);
+    }
 
 private:
     std::shared_ptr<ie::IAllocator> m_allocator;
+    std::shared_ptr<IRemoteTensor> m_tensor;
     std::vector<std::shared_ptr<void>> m_so;
 };
 
@@ -538,33 +544,38 @@ public:
                    }(),
                    static_cast<T*>(tensor_->data()),
                    tensor_->get_byte_size()},
-            tensor{tensor_}, m_so(so) {
-            OPENVINO_ASSERT(!std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor));
+            m_tensor{tensor_}, m_so(so) {
+            OPENVINO_ASSERT(!std::dynamic_pointer_cast<ov::IRemoteTensor>(m_tensor));
         }
     catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
     }
 
     void setShape(const ie::SizeVector& dims) override {
-        tensor->set_shape(dims);
+        m_tensor->set_shape(dims);
         ie::TBlob<T>::setShape(dims);
     }
 
-    std::shared_ptr<ITensor> tensor;
+    std::shared_ptr<ITensor> get_tensor() const {
+        if (m_so.empty())
+            return m_tensor;
+        return std::make_shared<ISOTensor>(m_tensor, m_so);
+    }
 
 private:
+    std::shared_ptr<ITensor> m_tensor;
     std::vector<std::shared_ptr<void>> m_so;
 };
 
 std::shared_ptr<ITensor> make_tensor(const std::shared_ptr<ie::Blob>& blob) {
 #define ELSE_IF(type)                                                                \
     else if (auto tblob = dynamic_cast<const TensorMemoryBlob<type>*>(blob.get())) { \
-        return tblob->tensor;                                                        \
+        return tblob->get_tensor();                                                  \
     }
     if (blob == nullptr) {
         return {};
     } else if (auto remote_blob = std::dynamic_pointer_cast<TensorRemoteBlob>(blob)) {
-        return remote_blob->tensor;
+        return remote_blob->get_tensor();
     } else if (auto remote_blob = std::dynamic_pointer_cast<InferenceEngine::RemoteBlob>(blob)) {
         return std::make_shared<RemoteBlobTensor>(remote_blob);
     }
@@ -590,7 +601,7 @@ std::shared_ptr<ITensor> make_tensor(const std::shared_ptr<ie::Blob>& blob) {
 ie::Blob* get_hardware_blob(ie::Blob* blob) {
 #ifndef NO_PROXY_PLUGIN
     if (auto remote_blob = dynamic_cast<TensorRemoteBlob*>(blob)) {
-        const auto& tensor = ov::proxy::get_hardware_tensor(remote_blob->tensor);
+        const auto& tensor = ov::proxy::get_hardware_tensor(remote_blob->get_tensor(false));
         if (auto blob_tensor = std::dynamic_pointer_cast<BlobTensor>(tensor)) {
             return blob_tensor->blob.get();
         } else if (auto blob_tensor = std::dynamic_pointer_cast<RemoteBlobTensor>(tensor)) {
@@ -605,7 +616,7 @@ ie::Blob* get_hardware_blob(ie::Blob* blob) {
 const ie::Blob* get_hardware_blob(const ie::Blob* blob) {
 #ifndef NO_PROXY_PLUGIN
     if (auto remote_blob = dynamic_cast<const TensorRemoteBlob*>(blob)) {
-        const auto& tensor = ov::proxy::get_hardware_tensor(remote_blob->tensor);
+        const auto& tensor = ov::proxy::get_hardware_tensor(remote_blob->get_tensor(false));
         if (auto blob_tensor = std::dynamic_pointer_cast<BlobTensor>(tensor)) {
             return blob_tensor->blob.get();
         } else if (auto blob_tensor = std::dynamic_pointer_cast<RemoteBlobTensor>(tensor)) {
@@ -620,11 +631,17 @@ const ie::Blob* get_hardware_blob(const ie::Blob* blob) {
 ie::Blob::Ptr tensor_to_blob(const std::shared_ptr<ITensor>& orig_tensor,
                              const std::vector<std::shared_ptr<void>>& so,
                              bool unwrap) {
+    auto tensor = orig_tensor;
+    if (auto so_tensor = std::dynamic_pointer_cast<ISOTensor>(tensor)) {
+        tensor = so_tensor->get_tensor();
+    }
+
 #ifndef NO_PROXY_PLUGIN
-    const auto& tensor = unwrap ? ov::proxy::get_hardware_tensor(orig_tensor) : orig_tensor;
-#else
-    const auto& tensor = orig_tensor;
+    if (unwrap) {
+        tensor = ov::proxy::get_hardware_tensor(tensor);
+    }
 #endif
+
     if (tensor == nullptr) {
         return {};
     } else if (auto blob_tensor = std::dynamic_pointer_cast<BlobTensor>(tensor)) {
@@ -665,4 +682,42 @@ ie::Blob::Ptr tensor_to_blob(const std::shared_ptr<ITensor>& orig_tensor,
     }
     OPENVINO_THROW("Cannot convert tensor to blob!");
 }
+
+ISOTensor::ISOTensor(const std::shared_ptr<ITensor>& tensor, const std::vector<std::shared_ptr<void>> so)
+    : m_tensor(tensor),
+      m_so(so) {}
+
+ISOTensor::~ISOTensor() {
+    m_tensor.reset();
+    m_so.clear();
+}
+
+void ISOTensor::set_shape(ov::Shape shape) {
+    m_tensor->set_shape(shape);
+}
+
+const ov::element::Type& ISOTensor::get_element_type() const {
+    return m_tensor->get_element_type();
+}
+
+const ov::Shape& ISOTensor::get_shape() const {
+    return m_tensor->get_shape();
+}
+
+const ov::Strides& ISOTensor::get_strides() const {
+    return m_tensor->get_strides();
+}
+
+void* ISOTensor::data(const element::Type& type) const {
+    return m_tensor->data(type);
+}
+
+const std::vector<std::shared_ptr<void>>& ISOTensor::get_so() const {
+    return m_so;
+}
+
+const std::shared_ptr<ITensor>& ISOTensor::get_tensor() const {
+    return m_tensor;
+}
+
 }  // namespace ov
