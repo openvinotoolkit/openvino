@@ -44,7 +44,6 @@ std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::compile_model(
         shared_from_this(),
         config);
     return compiled_model;
-
 }
 
 std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
@@ -64,162 +63,13 @@ std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::import_model(std::istrea
     OV_ITT_SCOPED_TASK(itt::domains::Hetero, "Plugin::import_model");
     
     auto temp_properties(properties);
-    // ov::hetero::CompiledModel compiled_model;
-    return nullptr;
-    // auto config = Configuration{device_properties, m_cfg};
-
-    // read XML content
-    // std::string xmlString;
-    // std::uint64_t dataSize = 0;
-    // model.read(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
-    // xmlString.resize(dataSize);
-    // model.read(const_cast<char*>(xmlString.c_str()), dataSize);
-
-    // // read blob content
-    // ov::Tensor weights;
-    // model.read(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
-    // if (0 != dataSize) {
-    //     weights = ov::Tensor(ov::element::from<char>(), ov::Shape{static_cast<ov::Shape::size_type>(dataSize)});
-    //     model.read(weights.data<char>(), dataSize);
-    // }
-
-    
-    // std::string heteroXmlStr;
-    // std::getline(heteroModel, heteroXmlStr);
-
-    // pugi::xml_document heteroXmlDoc;
-    // pugi::xml_parse_result res = heteroXmlDoc.load_string(heteroXmlStr.c_str());
-
-    // if (res.status != pugi::status_ok) {
-    //     IE_THROW(NetworkNotRead) << "Error reading HETERO device xml header";
-    // }
-
-    // using namespace pugixml::utils;
-
-    // pugi::xml_node heteroNode = heteroXmlDoc.document_element();
-    // compiled_model.m_name = GetStrAttr(heteroNode, "name");
-
-    // std::unordered_set<std::string> networkInputs;
-    // pugi::xml_node inputsNode = heteroNode.child("inputs");
-    // FOREACH_CHILD (inputNode, inputsNode, "input") { networkInputs.insert(GetStrAttr(inputNode, "name")); }
-
-
-
-    // std::unordered_set<std::string> networkOutputs;
-    // pugi::xml_node outputsNode = heteroNode.child("outputs");
-    // FOREACH_CHILD (outputNode, outputsNode, "output") { networkOutputs.insert(GetStrAttr(outputNode, "name")); }
-
-    // auto heteroConfigsNode = heteroNode.child("hetero_config");
-    // FOREACH_CHILD (heteroConfigNode, heteroConfigsNode, "config") {
-    //     temp_properties.emplace(GetStrAttr(heteroConfigNode, "key"), GetStrAttr(heteroConfigNode, "value"));
-    // }
-
-    // auto deviceConfigsNode = heteroNode.child("device_config");
-    // FOREACH_CHILD (deviceConfigNode, deviceConfigsNode, "config") {
-    //     temp_properties.emplace(GetStrAttr(deviceConfigNode, "key"), GetStrAttr(deviceConfigNode, "value"));
-    // }
-
-    // // Erase all "hetero" properties from `temp_properties`
-    // // to fill `m_cfg` and leave only properties for
-    // // underlying devices
-    // m_cfg = ov::hetero::Configuration(temp_properties, plugin->m_cfg);
-
-    // auto blobNamesNode = heteroNode.child("blob_names_map");
-    // FOREACH_CHILD (blobNameNode, blobNamesNode, "blob_name_map") {
-    //     _blobNameMap.emplace(GetStrAttr(blobNameNode, "key"), GetStrAttr(blobNameNode, "value"));
-    // }
-
-    // std::vector<ov::hetero::CompiledModel::NetworkDesc> descs;
-    // pugi::xml_node subnetworksNode = heteroNode.child("subnetworks");
-    // FOREACH_CHILD (subnetworkNode, subnetworksNode, "subnetwork") {
-    //     auto deviceName = GetStrAttr(subnetworkNode, "device");
-
-    //     auto metaDevices = get_hetero_plugin()->get_properties_per_device(deviceName, temp_properties);
-    //     assert(metaDevices.size() == 1);
-    //     auto& loadConfig = metaDevices[deviceName];
-
-    //     bool loaded = false;
-    //     if (std::dynamic_pointer_cast<InferenceEngine::ICore>(plugin->get_core())
-    //             ->DeviceSupportsModelCaching(deviceName)) {  // TODO (vurusovs) TEMPORARY SOLUTION
-    //         compiled_model = plugin->get_core()->import_model(heteroModel, deviceName, loadConfig);
-    //     } else {
-    //         // read XML content
-    //         std::string xmlString;
-    //         std::uint64_t dataSize = 0;
-    //         heteroModel.read(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
-    //         xmlString.resize(dataSize);
-    //         heteroModel.read(const_cast<char*>(xmlString.c_str()), dataSize);
-
-    //         /// read blob content
-    //         ov::Tensor weights;
-    //         heteroModel.read(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
-    //         if (0 != dataSize) {
-    //             weights = ov::Tensor(ov::element::from<char>(), ov::Shape{static_cast<ov::Shape::size_type>(dataSize)});
-    //             heteroModel.read(weights.data<char>(), dataSize);
-    //         }
-
-    //         auto ov_model = plugin->get_core()->read_model(xmlString, weights);
-    //         compiled_model = plugin->get_core()->compile_model(ov_model, deviceName, loadConfig);
-    //         loaded = true;
-    //     }
-
-    //     // restore network inputs and outputs
-    //     for (auto&& input : executableNetwork->GetInputsInfo()) {
-    //         if (networkInputs.end() != networkInputs.find(input.first)) {
-    //             _networkInputs.emplace(input.first, std::make_shared<InputInfo>(*input.second));
-    //         }
-    //     }
-
-    //     for (auto&& output : executableNetwork->GetOutputsInfo()) {
-    //         if (networkOutputs.end() != networkOutputs.find(output.first)) {
-    //             _networkOutputs.emplace(output.first, std::make_shared<Data>(*output.second));
-    //         }
-    //     }
-
-    //     compiled_model.m_networks.emplace_back(ov::hetero::CompiledModel::NetworkDesc{
-    //         deviceName,
-    //         loaded ? ov_model : ov::Model{},
-    //         compiled_model,
-    //     });
-    // }
-    // const auto parseNode = [](const pugi::xml_node& xml_node, bool is_param) -> std::shared_ptr<const ov::Node> {
-    //     const std::string operation_name = GetStrAttr(xml_node, "operation_name");
-    //     const auto elementType = ov::EnumNames<ov::element::Type_t>::as_enum(GetStrAttr(xml_node, "element_type"));
-
-    //     std::vector<ov::Dimension> partialShape;
-    //     pugi::xml_node partialShapeNode = xml_node.child("partial_shape");
-    //     FOREACH_CHILD (dimNode, partialShapeNode, "dim") {
-    //         partialShape.emplace_back(ov::Dimension(GetInt64Attr(dimNode, "value")));
-    //     }
-
-    //     pugi::xml_node tensorNamesNode = xml_node.child("tensor_names");
-    //     std::unordered_set<std::string> tensorNames;
-    //     FOREACH_CHILD (tensorNameNode, tensorNamesNode, "tensor_name") {
-    //         tensorNames.insert(GetStrAttr(tensorNameNode, "value"));
-    //     }
-
-    //     std::shared_ptr<ov::Node> node = std::make_shared<ov::op::v0::Parameter>(elementType, partialShape);
-    //     // For result operation_name is name of previous operation
-    //     node->set_friendly_name(operation_name);
-    //     if (!is_param)
-    //         node = std::make_shared<ov::op::v0::Result>(node);
-    //     node->output(0).get_tensor().add_names(tensorNames);
-
-    //     return node;
-    // };
-    // (void)parseNode;
-
-    // pugi::xml_node parametersNode = heteroNode.child("parameters");
-    // FOREACH_CHILD (parameterNode, parametersNode, "parameter") {
-    //     _parameters.emplace_back(parseNode(parameterNode, true));
-    // }
-
-    // pugi::xml_node resultsNode = heteroNode.child("results");
-    // FOREACH_CHILD (resultNode, resultsNode, "result") { _results.emplace_back(parseNode(resultNode, false)); }
-
-    // // save state
-    // this->_networks = std::move(descs);
-    // this->SetPointerToPlugin(_heteroPlugin->shared_from_this());
+    auto config = Configuration{temp_properties, m_cfg};
+    auto compiled_model = std::make_shared<CompiledModel>(
+        model,
+        shared_from_this(),
+        config,
+        true);
+    return compiled_model;
 }
 
 ov::hetero::Plugin::DeviceProperties ov::hetero::Plugin::get_properties_per_device(const std::string& device_priorities,
@@ -356,6 +206,22 @@ ov::Any ov::hetero::Plugin::caching_device_properties(const std::string& device_
         result.emplace_back(properties);
     }
     return ov::Any(result);
+}
+
+
+bool ov::hetero::Plugin::device_supports_model_caching(const std::string& device_name) const {
+    auto supportedMetricKeys = get_core()->get_property(device_name, METRIC_KEY(SUPPORTED_METRICS), {}).as<std::vector<std::string>>();
+    auto supported = ov::util::contains(supportedMetricKeys, METRIC_KEY(IMPORT_EXPORT_SUPPORT)) &&
+                     get_core()->get_property(device_name, METRIC_KEY(IMPORT_EXPORT_SUPPORT), {}).as<bool>();
+    if (!supported) {
+        supported =
+            ov::util::contains(get_core()->get_property(device_name, ov::supported_properties, {}), ov::device::capabilities) &&
+            ov::util::contains(get_core()->get_property(device_name, ov::device::capabilities, {}), ov::device::capability::EXPORT_IMPORT);
+    }
+    if (supported) {
+        supported = ov::util::contains(get_core()->get_property(device_name, ov::supported_properties, {}), ov::caching_properties);
+    }
+    return supported;
 }
 
 

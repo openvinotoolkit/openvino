@@ -140,8 +140,6 @@ public:
 
 private:
     std::shared_ptr<const ov::IPlugin> m_plugin;
-    std::vector<ov::Output<const ov::Node>> m_inputs;
-    std::vector<ov::Output<const ov::Node>> m_outputs;
     ov::RemoteContext m_context;
 
     std::shared_ptr<ov::threading::ITaskExecutor> m_task_executor = nullptr;      //!< Holds a task executor
@@ -151,11 +149,13 @@ private:
     friend ov::IExecutableNetworkWrapper;
     friend InferenceEngine::ICompiledModelWrapper;
 
+protected:
+    std::vector<ov::Output<const ov::Node>> m_inputs;
+    std::vector<ov::Output<const ov::Node>> m_outputs;
     // FIXME: Remove after removing IE API
     std::vector<std::shared_ptr<const ov::Node>> _parameters;
     std::vector<std::shared_ptr<const ov::Node>> _results;
 
-protected:
     /**
      * @brief Method creates infer request implementation
      *

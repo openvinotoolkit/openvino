@@ -5,6 +5,7 @@
 #pragma once
 
 #include "config.hpp"
+#include "plugin.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 // #include "openvino/runtime/iinfer_request.hpp"
 #include "openvino/runtime/so_ptr.hpp"
@@ -23,6 +24,11 @@ class Plugin;
 class CompiledModel : public ov::ICompiledModel {
 public:
     CompiledModel(const std::shared_ptr<ov::Model>& model,
+                  const std::shared_ptr<const ov::IPlugin>& plugin,
+                  const Configuration& cfg,
+                  bool loaded_from_cache = false);
+
+    CompiledModel(std::istream& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   const Configuration& cfg,
                   bool loaded_from_cache = false);
