@@ -849,7 +849,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::import_model(std::istream& modelStre
                                                          const ov::AnyMap& config) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::import_model");
     auto parsed = parseDeviceNameIntoConfig(context.get_device_name(), config);
-    auto compiled_model = get_plugin(parsed._deviceName).import_model(modelStream, parsed._config);
+    auto compiled_model = get_plugin(parsed._deviceName).import_model(modelStream, context, parsed._config);
     if (auto wrapper = std::dynamic_pointer_cast<InferenceEngine::ICompiledModelWrapper>(compiled_model._ptr)) {
         wrapper->get_executable_network()->loadedFromCache();
     }
