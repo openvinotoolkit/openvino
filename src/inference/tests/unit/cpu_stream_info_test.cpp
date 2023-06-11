@@ -164,7 +164,11 @@ LinuxCpuStreamTypeCase _1sockets_12cores_pcore_binding = {
     {{20, 8, 4, 8}},
     {{2, MAIN_CORE_PROC, 4}},
     {0, 0},
+#    if defined(__linux__)
     STREAM_WITH_OBSERVE,
+#    else
+    STREAM_WITH_CORE_TYPE,
+#    endif
     4,
     MAIN_CORE_PROC,
     0,
@@ -186,7 +190,11 @@ LinuxCpuStreamTypeCase _1sockets_12cores_ecore_binding = {
     {{20, 8, 4, 8}},
     {{4, EFFICIENT_CORE_PROC, 1}},
     {0, 0, 0, 0},
+#    if defined(__linux__)
     STREAM_WITH_OBSERVE,
+#    else
+    STREAM_WITH_CORE_TYPE,
+#    endif
     1,
     EFFICIENT_CORE_PROC,
     0,

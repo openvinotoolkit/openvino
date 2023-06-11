@@ -177,12 +177,12 @@ public:
     virtual void execute(Task task) = 0;
 };
 
-typedef enum {
-    STREAM_WITHOUT_PARAM = 0,
-    STREAM_WITH_CORE_TYPE = 1,
-    STREAM_WITH_NUMA_ID = 2,
-    STREAM_WITH_OBSERVE = 3
-} stream_create_type;
+enum stream_create_type {
+    STREAM_WITHOUT_PARAM = 0,  // new task_arena with no parameters, no threads binding
+    STREAM_WITH_CORE_TYPE,     // new task_arena with core type, threads binding with core type
+    STREAM_WITH_NUMA_ID,       // new task_arena with numa node id, threads bingding with numa node id
+    STREAM_WITH_OBSERVE        // new task_arena with no parameters, threads binding with observe
+};
 
 /**
  * @brief      Get current stream information
