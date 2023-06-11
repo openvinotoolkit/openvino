@@ -213,11 +213,7 @@ public:
     }
 
     void SetState(const InferenceEngine::Blob::Ptr& newState) override {
-        auto tensor = ov::make_tensor(newState);
-        if (auto so_tensor = std::dynamic_pointer_cast<ISOTensor>(tensor))
-            m_state->set_state(ov::Tensor(so_tensor->get_tensor(), so_tensor->get_so()));
-        else
-            m_state->set_state(ov::Tensor(tensor, {}));
+        m_state->set_state(ov::Tensor(ov::make_tensor(newState), {}));
     }
 
     InferenceEngine::Blob::CPtr GetState() const override {
@@ -516,14 +512,7 @@ public:
 
     void SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr& data) override {
         try {
-            auto itensor = ov::make_tensor(data);
-            ov::Tensor tensor;
-
-            if (auto so_tensor = std::dynamic_pointer_cast<ISOTensor>(itensor))
-                tensor = ov::Tensor(so_tensor->get_tensor(), so_tensor->get_so());
-            else
-                tensor = ov::Tensor(itensor, {});
-            m_request->set_tensor(find_port(name), tensor);
+            m_request->set_tensor(find_port(name), ov::Tensor{ov::make_tensor(data), {}});
         } catch (const ov::Exception& ex) {
             const std::string what = ex.what();
             if (what.find("Failed to set tensor") != std::string::npos) {
@@ -537,14 +526,7 @@ public:
         try {
             std::vector<ov::Tensor> tensors;
             for (const auto& blob : blobs) {
-                auto itensor = ov::make_tensor(blob);
-                ov::Tensor tensor;
-
-                if (auto so_tensor = std::dynamic_pointer_cast<ISOTensor>(itensor))
-                    tensor = ov::Tensor(so_tensor->get_tensor(), so_tensor->get_so());
-                else
-                    tensor = ov::Tensor(itensor, {});
-                tensors.emplace_back(tensor);
+                tensors.emplace_back(ov::Tensor{ov::make_tensor(blob), {}});
             }
             m_request->set_tensors(find_port(name), tensors);
         } catch (const ov::Exception& ex) {
@@ -658,12 +640,8 @@ public:
     }
 
     const ov::Tensor& get_state() const override {
-        auto itensor = ov::make_tensor(std::const_pointer_cast<InferenceEngine::Blob>(m_state->GetState()));
-
-        if (auto so_tensor = std::dynamic_pointer_cast<ov::ISOTensor>(itensor))
-            m_converted_state = ov::Tensor(so_tensor->get_tensor(), so_tensor->get_so());
-        else
-            m_converted_state = ov::Tensor(itensor, {});
+        m_converted_state =
+            ov::Tensor(ov::make_tensor(std::const_pointer_cast<InferenceEngine::Blob>(m_state->GetState())), {});
         return m_converted_state;
     }
 };
@@ -763,14 +741,7 @@ public:
                         name,
                         "'");
         auto blob = m_request->GetBlob(name);
-        auto itensor = ov::make_tensor(blob);
-        ov::Tensor tensor;
-
-        if (auto so_tensor = std::dynamic_pointer_cast<ov::ISOTensor>(itensor))
-            tensor = ov::Tensor(so_tensor->get_tensor(), so_tensor->get_so());
-        else
-            tensor = ov::Tensor(itensor, {});
-        tensor = ov::Tensor(tensor, m_request->getPointerToSo());
+        ov::Tensor tensor = {ov::make_tensor(blob), {m_request->getPointerToSo()}};
         return tensor;
     }
     void set_tensor(const ov::Output<const ov::Node>& port, const ov::Tensor& tensor) override {
@@ -784,15 +755,7 @@ public:
         if (!blobs)
             return ret;
         for (size_t i = 0; i < blobs->size(); i++) {
-            auto itensor = ov::make_tensor(blobs->getBlob(i));
-            ov::Tensor tensor;
-
-            if (auto so_tensor = std::dynamic_pointer_cast<ov::ISOTensor>(itensor))
-                tensor = ov::Tensor(so_tensor->get_tensor(), so_tensor->get_so());
-            else
-                tensor = ov::Tensor(itensor, {});
-            tensor = ov::Tensor(tensor, m_request->getPointerToSo());
-            ret.emplace_back(tensor);
+            ret.emplace_back(ov::Tensor{ov::make_tensor(blobs->getBlob(i)), {m_request->getPointerToSo()}});
         }
         return ret;
     }

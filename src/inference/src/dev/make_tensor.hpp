@@ -4,35 +4,10 @@
 
 #pragma once
 
-#include <memory>
-
 #include "ie_blob.h"
 #include "openvino/runtime/itensor.hpp"
 
 namespace ov {
-
-// Temprary solution is needed while meta plugins use old API
-class ISOTensor : public ITensor {
-    std::shared_ptr<ITensor> m_tensor;
-    std::vector<std::shared_ptr<void>> m_so;
-
-public:
-    ISOTensor(const std::shared_ptr<ITensor>& tensor, const std::vector<std::shared_ptr<void>> so);
-    ~ISOTensor() override;
-
-    void set_shape(ov::Shape shape) override;
-
-    const ov::element::Type& get_element_type() const override;
-
-    const ov::Shape& get_shape() const override;
-
-    const ov::Strides& get_strides() const override;
-
-    void* data(const element::Type& type = {}) const override;
-
-    const std::vector<std::shared_ptr<void>>& get_so() const;
-    const std::shared_ptr<ITensor>& get_tensor() const;
-};
 
 /**
  * @brief Constructs Tensor using element type and shape. Allocate internal host storage using default allocator
@@ -73,9 +48,7 @@ std::shared_ptr<ITensor> make_tensor(const std::shared_ptr<InferenceEngine::Blob
 const InferenceEngine::Blob* get_hardware_blob(const InferenceEngine::Blob* blob);
 InferenceEngine::Blob* get_hardware_blob(InferenceEngine::Blob* blob);
 
-std::shared_ptr<InferenceEngine::Blob> tensor_to_blob(const std::shared_ptr<ITensor>& tensor,
-                                                      const std::vector<std::shared_ptr<void>>& so = {},
-                                                      bool unwrap = true);
+std::shared_ptr<InferenceEngine::Blob> tensor_to_blob(const std::shared_ptr<ITensor>& tensor, const std::vector<std::shared_ptr<void>>& so = {}, bool unwrap = true);
 /** @endcond */
 
 }  // namespace ov
