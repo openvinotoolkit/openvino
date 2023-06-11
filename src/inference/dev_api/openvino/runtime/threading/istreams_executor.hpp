@@ -177,7 +177,7 @@ public:
     virtual void execute(Task task) = 0;
 };
 
-enum stream_create_type {
+enum StreamCreateType {
     STREAM_WITHOUT_PARAM = 0,  // new task_arena with no parameters, no threads binding
     STREAM_WITH_CORE_TYPE,     // new task_arena with core type, threads binding with core type
     STREAM_WITH_NUMA_ID,       // new task_arena with numa node id, threads bingding with numa node id
@@ -202,8 +202,7 @@ void get_cur_stream_info(const int stream_id,
                          const std::vector<std::vector<int>> org_proc_type_table,
                          const std::vector<std::vector<int>> streams_info_table,
                          const std::vector<int> stream_numa_node_ids,
-                         std::vector<int>& stream_nums,
-                         stream_create_type& stream_type,
+                         StreamCreateType& stream_type,
                          int& concurrency,
                          int& core_type,
                          int& numa_node_id);

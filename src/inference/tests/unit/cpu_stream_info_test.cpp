@@ -23,7 +23,7 @@ struct LinuxCpuStreamTypeCase {
     std::vector<std::vector<int>> _proc_type_table;
     std::vector<std::vector<int>> _streams_info_table;
     std::vector<int> _stream_numa_node_ids;
-    stream_create_type _stream_type;
+    StreamCreateType _stream_type;
     int _concurrency;
     int _core_type;
     int _numa_node_id;
@@ -35,8 +35,7 @@ public:
     void SetUp() override {
         const auto& test_data = std::get<0>(GetParam());
 
-        std::vector<int> stream_nums;
-        stream_create_type test_stream_type;
+        StreamCreateType test_stream_type;
         int test_concurrency;
         int test_core_type;
         int test_numa_node_id;
@@ -46,7 +45,6 @@ public:
                             test_data._proc_type_table,
                             test_data._streams_info_table,
                             test_data._stream_numa_node_ids,
-                            stream_nums,
                             test_stream_type,
                             test_concurrency,
                             test_core_type,

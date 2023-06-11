@@ -18,22 +18,20 @@ void get_cur_stream_info(const int stream_id,
                          const std::vector<std::vector<int>> proc_type_table,
                          const std::vector<std::vector<int>> streams_info_table,
                          const std::vector<int> stream_numa_node_ids,
-                         std::vector<int>& stream_nums,
-                         stream_create_type& stream_type,
+                         StreamCreateType& stream_type,
                          int& concurrency,
                          int& core_type,
                          int& numa_node_id) {
-    if (stream_nums.size() == 0) {
-        for (size_t i = 0; i < streams_info_table.size(); i++) {
-            int cur_stream_num = i > 0 ? stream_nums[i - 1] + streams_info_table[i][NUMBER_OF_STREAMS]
-                                       : streams_info_table[i][NUMBER_OF_STREAMS];
-            stream_nums.push_back(cur_stream_num);
+    int stream_total = 0;
+    int stream_info_id = 0;
+    for (size_t i = 0; i < streams_info_table.size(); i++) {
+        stream_total =
+            i > 0 ? stream_total + streams_info_table[i][NUMBER_OF_STREAMS] : streams_info_table[i][NUMBER_OF_STREAMS];
+        if (stream_id < stream_total) {
+            stream_info_id = i;
+            break;
         }
     }
-    auto cur_stream = std::find_if(stream_nums.begin(), stream_nums.end(), [&](int n) {
-        return stream_id < n;
-    });
-    const auto stream_info_id = cur_stream != stream_nums.end() ? std::distance(stream_nums.begin(), cur_stream) : 0;
     concurrency = streams_info_table[stream_info_id][THREADS_PER_STREAM];
     core_type = streams_info_table[stream_info_id][PROC_TYPE];
     numa_node_id = stream_numa_node_ids[stream_id];

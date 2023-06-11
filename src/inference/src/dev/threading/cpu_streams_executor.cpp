@@ -132,7 +132,7 @@ struct CPUStreamsExecutor::Impl {
 
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
         void create_stream(const int stream_id,
-                           const stream_create_type stream_type,
+                           const StreamCreateType stream_type,
                            const int concurrency,
                            const int core_type,
                            const int numa_node_id) {
@@ -175,7 +175,7 @@ struct CPUStreamsExecutor::Impl {
             int concurrency;
             int cpu_core_type;
             int numa_node_id;
-            stream_create_type stream_type;
+            StreamCreateType stream_type;
             const auto org_proc_type_table = get_org_proc_type_table();
             const auto stream_id = _streamId >= _impl->_config._streams ? _impl->_config._streams - 1 : _streamId;
 
@@ -184,7 +184,6 @@ struct CPUStreamsExecutor::Impl {
                                 org_proc_type_table,
                                 _impl->_config._streams_info_table,
                                 _impl->_config._stream_numa_node_ids,
-                                _impl->stream_nums,
                                 stream_type,
                                 concurrency,
                                 cpu_core_type,
@@ -436,7 +435,6 @@ struct CPUStreamsExecutor::Impl {
     // (so mapping is actually just an upper_bound: core type is deduced from the entry for which the id < #streams)
     using StreamIdToCoreTypes = std::vector<std::pair<custom::core_type_id, int>>;
     StreamIdToCoreTypes total_streams_on_core_types;
-    std::vector<int> stream_nums;
     int num_big_core_phys;
 #endif
     std::shared_ptr<ExecutorManager> _exectorMgr;
