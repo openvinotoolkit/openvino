@@ -31,6 +31,10 @@ addIeTargetTest(
             GPU
 )
 
+if(ENABLE_PROXY)
+    target_compile_definitions(${TARGET_NAME} PUBLIC NO_PROXY_PLUGIN)
+endif()
+
 # try to find VA libraries
 if(NOT ANDROID)
     find_package(PkgConfig QUIET)
