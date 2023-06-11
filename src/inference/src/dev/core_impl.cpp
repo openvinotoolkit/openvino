@@ -1046,6 +1046,9 @@ std::shared_ptr<const ov::Model> ov::CoreImpl::apply_auto_batching(const std::sh
 
         // check whether if the Auto-Batching is applicable to the device
         auto parsed = ov::parseDeviceNameIntoConfig(deviceName);
+        // Do not apply auto batch for proxy device. Apply it only to real plugins
+        if (is_proxy_device(parsed._deviceName))
+            return model;
         deviceNameWithoutBatch = deviceName;
         std::vector<std::string> metrics = get_plugin(parsed._deviceName)
                                                .get_property(METRIC_KEY(SUPPORTED_METRICS), parsed._config)
