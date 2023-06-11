@@ -385,7 +385,8 @@ std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::import_model(std::istream
     auto device_config = properties;
     remove_proxy_properties(device_config);
     return std::make_shared<ov::proxy::CompiledModel>(get_core()->import_model(model, ctx, device_config),
-                                                      shared_from_this());
+                                                      shared_from_this(),
+                                                      context);
 }
 
 std::string ov::proxy::Plugin::get_primary_device(size_t idx) const {
