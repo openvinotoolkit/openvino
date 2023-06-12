@@ -316,14 +316,14 @@ void FullyConnected::prepareParams() {
         IE_THROW() << "Preferable primitive descriptor is not set for node " << getName() << ".";
 #ifdef OV_CPU_WITH_MLAS
     if (useMlas) {
-        auto prepareMLASWeight = [&](const int64_t M, const int64_t N, const int64_t K) {
+        auto prepareMLASWeight = [&](const int64_t N, const int64_t K) {
             if (!getParentEdgeAt(1)->getParent()->isConstant())
                 IE_THROW() << "Weight input is not const for node " << getName() << ".";
             auto edgeMem = getParentEdgeAt(1)->getMemoryPtr();
             std::string format = "gemm_mlas_" + std::to_string(N) + "_" + std::to_string(K);
             if (!edgeMem)
                 IE_THROW() << "Cannot get const weights edgeMem for node " << getName() << ".";
-            auto packedBsize = ov_sgemm_pack_get_size("B", M, N, K);
+            auto packedBsize = ov_sgemm_pack_get_size("B", N, K);
             MemoryPtr ptr;
             auto create = [&] () {
                 float* weightPtr = reinterpret_cast<float*>(getParentEdgeAt(1)->getMemoryPtr()->GetPtr());
@@ -332,7 +332,7 @@ void FullyConnected::prepareParams() {
                 MemoryPtr _ptr = std::make_shared<Memory>(getEngine());
                 _ptr->Create(intel_cpu::DnnlBlockedMemoryDesc(Precision::FP32, intel_cpu::Shape{1, packedBsize / sizeof(float)}));
                 float* prepackedDst = reinterpret_cast<float*>(_ptr->GetPtr());
-                ov_sgemm_pack("B", "N", "T", -1, N, K, lda, ldb, weightPtr, prepackedDst);
+                ov_sgemm_pack("B", "T", N, K, lda, ldb, weightPtr, prepackedDst);
                 return _ptr;
             };
             if (mlasPackedPtr != nullptr) {
@@ -359,7 +359,7 @@ void FullyConnected::prepareParams() {
         N = dims1[dims1.size() - 2];
         M = std::accumulate(dims0.begin(), dims0.end() - 1, 1, std::multiplies<int64_t>());
         if (mlasPackedPtr == nullptr) {
-            prepareMLASWeight(M, N, K);
+            prepareMLASWeight(N, K);
         }
         return;
     }

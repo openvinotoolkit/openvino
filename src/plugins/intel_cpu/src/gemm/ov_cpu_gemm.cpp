@@ -23,7 +23,7 @@ void TrySimpleParallelFor(const std::ptrdiff_t total, const std::function<void(s
 };  // namespace ov
 
 
-size_t ov_sgemm_pack_get_size(const char *identifier, const int64_t M, const int64_t N, const int64_t K) {
+size_t ov_sgemm_pack_get_size(const char *identifier, const int64_t N, const int64_t K) {
     //TODO API to wrap MKL
     //MLAS only support pack B
     if (*identifier == 'A')
@@ -32,8 +32,8 @@ size_t ov_sgemm_pack_get_size(const char *identifier, const int64_t M, const int
         return MlasGemmPackBSize(N, K);
 }
 
-void ov_sgemm_pack(const char *identifier, const char *transa,
-        const char *transb, const int64_t M, const int64_t N, const int64_t K,
+void ov_sgemm_pack(const char *identifier,
+        const char *transb, const int64_t N, const int64_t K,
         const int64_t lda, const int64_t ldb, const float *src, float *dst) {
     if (*identifier == 'B') {
         MlasGemmPackB(*transb == 'T' ? CblasTrans : CblasNoTrans,
