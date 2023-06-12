@@ -168,7 +168,7 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
         ov::op::TemporaryReplaceOutputType(parent, deqPrecision).get(),
         ov::op::TemporaryReplaceOutputType(newMulConst, deqPrecision).get());
 
-    newMultiply->set_friendly_name(newMatMul->get_friendly_name());
+    newMultiply->set_friendly_name(newMatMul->get_friendly_name() + "/DequantizationMultiply");
 
     NetworkHelper::insertDequantizationAfter(matMul, newMultiply, newMatMul);
     copy_runtime_info({ newMultiply, matMul }, newMultiply);
