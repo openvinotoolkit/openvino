@@ -621,12 +621,6 @@ class TestMoConvertTF(CommonMOConvertTest):
         create_keras_model,
         create_tf_function,
         create_tf_checkpoint,
-
-        # TF1
-        create_tf_graph,
-        create_tf_graph_def,
-        create_tf1_wrap_function,
-        create_tf_session,
     ]
 
     @pytest.mark.parametrize("create_model", test_data_legacy)

@@ -14,7 +14,12 @@ def tf_type_to_ov_type(tf_type_int):
     tf_type = tf.dtypes.as_dtype(tf_type_int)
     if tf_type.name == "variant":
         return Type.dynamic
-    return Type(tf_type.as_numpy_dtype)
+    numpy_type = tf_type.as_numpy_dtype
+    try:
+        ret_type = Type(numpy_type)
+    except:
+        ret_type = Type.undefined
+    return ret_type
 
 
 def tf_attr_to_numpy(attr):

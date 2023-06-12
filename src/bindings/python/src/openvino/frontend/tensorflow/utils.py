@@ -42,7 +42,7 @@ def create_example_input_by_user_shapes(input_shapes, input_types):
             args = {}
             if name in input_types:
                 args["dtype"] = input_types[name]
-            tensor = tf.random.uniform(shape=shape, **args)
+            tensor = tf.zeros(shape=shape, **args)
             res[name] = tensor
         return res
     elif isinstance(input_shapes, list):
@@ -52,13 +52,29 @@ def create_example_input_by_user_shapes(input_shapes, input_types):
             args = {}
             if idx < len(input_types):
                 args["dtype"] = input_types[idx]
-            tensor = tf.random.uniform(shape=shape, **args)
+            tensor = tf.zeros(shape=shape, **args)
             res.append(tensor)
         return res
     raise Error("Could not create example input by provided shape {}".format(input_shapes))
 
 
 def get_concrete_func(tf_function, example_input, input_needs_packing, error_message, use_example_input=True):
+    """
+    Runs tracing of TF function and returns a concrete function.
+
+    :param tf_function: TF function that needs to be traced.
+    :param example_input: Example of function input.
+    :param input_needs_packing: determines if input needs to be packed in a list before passing to TF function.
+    It is used when original function was wrapped in outer TF function, which changes function signature.
+    In this case wrapper TF function always expects list of inputs which are unpacked inside subfunction.
+    So list/tuple are treated as multiple inputs of original model.
+    Non list/tuple are treated as single input, and it needs packing to a list,
+    as wrapper function always expect list of inputs.
+    :param error_message: Error message which should be shown in case of tracing error.
+    :param use_example_input: Determines if example_input should be used.
+
+    :returns: Object of type tf.types.experimental.ConcreteFunction.
+    """
     if input_needs_packing and not isinstance(example_input, (list, tuple)):
         example_input = [example_input]
     try:
@@ -84,7 +100,8 @@ def trace_tf_model(model, input_shapes, input_types, example_input):
         tf_function = model
         input_needs_packing = False
     else:
-        # Wrap model to tf.Function
+        # Wrap model to tf.Function.
+        # In this case we loose input/output tensor names.
         @tf.function
         def tf_function(args):
             return model(*args)
