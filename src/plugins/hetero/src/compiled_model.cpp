@@ -435,6 +435,8 @@ ov::hetero::CompiledModel::CompiledModel(std::istream& model,
                                          const Configuration& cfg,
                                          bool loaded_from_cache)
     : ov::ICompiledModel(nullptr, plugin),
+      m_cfg(cfg),
+      m_model(nullptr),
       m_name(),
       m_loaded_from_cache(loaded_from_cache) {
     std::string heteroXmlStr;
@@ -466,7 +468,7 @@ ov::hetero::CompiledModel::CompiledModel(std::istream& model,
     // Erase all "hetero" properties from `properties`
     // to fill `m_cfg` and leave only properties for
     // underlying devices
-    m_cfg = ov::hetero::Configuration(properties, cfg);
+    m_cfg = ov::hetero::Configuration(properties, m_cfg);
 
     auto blobNamesNode = heteroNode.child("blob_names_map");
     FOREACH_CHILD (blobNameNode, blobNamesNode, "blob_name_map") {
