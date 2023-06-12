@@ -113,9 +113,12 @@ struct jit_uni_mvn_mean_variance_kernel_f32 : public jit_uni_mvn_mean_variance_k
 
         Precision dst_prc = isFloatCompatible(jcp_.src_prc) ? Precision::FP32 : Precision::I32;
         load_vector_emitter.reset(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, vector_step));
-        load_tail_emitter.reset(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, tail_step));
-        load_tail_with_fill_emitter.reset(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, tail_step, Precision::FP32, true, "zero"));
-        load_scalar_with_fill_emitter.reset(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, scalar_step, Precision::FP32, true, "zero"));
+        load_tail8_emitter.reset(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 8));
+        load_tail4_emitter.reset(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 4));
+        load_tail1_emitter.reset(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 1));
+        load_tail8_with_fill_emitter.reset(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 8, Precision::FP32, true, "zero"));
+        load_tail4_with_fill_emitter.reset(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 4, Precision::FP32, true, "zero"));
+        load_tail1_with_fill_emitter.reset(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 1, Precision::FP32, true, "zero"));
 
         this->preamble();
         mov(reg_table, l_table);
@@ -129,8 +132,7 @@ struct jit_uni_mvn_mean_variance_kernel_f32 : public jit_uni_mvn_mean_variance_k
             uni_vpxor(vmm_sum, vmm_sum, vmm_sum);
         }
         mov(reg_work_amount, ptr[reg_params + GET_OFF(work_amount)]);
-        mov(reg_stride, ptr[reg_params + GET_OFF(src_stride)]);
-        mov(reg_oc_off, ptr[reg_params + GET_OFF(oc_off)]);
+        mov(reg_rt_shape, ptr[reg_params + GET_OFF(rt_shape_size)]);
 
         if (jcp_.normalize_variance) {
             if (jcp_.layout == MVNLayoutType::mvn_planar || jcp_.across_channels) {
@@ -140,14 +142,15 @@ struct jit_uni_mvn_mean_variance_kernel_f32 : public jit_uni_mvn_mean_variance_k
             }
         }
 
+        size_t data_step = (isa == cpu::x64::sse41 && jcp_.layout == MVNLayoutType::mvn_block) ? vector_step * 2 : vector_step;
+        src_stride = data_step * jcp_.src_data_size;
+
         load_pool_gpr_idxs = {static_cast<size_t>(reg_load_store_mask.getIdx()), static_cast<size_t>(reg_load_table.getIdx())};
 
         if (jcp_.layout == MVNLayoutType::mvn_planar) {
-            worker_unroll();
-            if (tail_step != 0) {
-                worker_partial(false, true);
-            }
-
+            worker_vector_unroll();
+            // for tails. [0-15] for avx512, [0-7] for avx2, [0-3] for sse
+            worker_tails(reg_rt_shape, true);
             // hsum+store
             if (!jcp_.normalize_variance && !isFloatCompatible(jcp_.src_prc))
                 uni_vcvtdq2ps(vmm_sum, vmm_sum);
@@ -159,93 +162,18 @@ struct jit_uni_mvn_mean_variance_kernel_f32 : public jit_uni_mvn_mean_variance_k
             else
                 nspc_pc_ker();
         } else {
-            // blk
-            int repeats = (isa == cpu::x64::sse41) ? 2 : 1; // block size is also 8 on cpu::x64::sse41 with two step process
-            int sse42_step = 4;
-            for (int i = 0; i < repeats; i++) {
-                int offset_sse42 = i * sse42_step;
-                if (i > 0) {
-                    mov(reg_src, ptr[reg_params + GET_OFF(src)]);
-                    mov(reg_work_amount, ptr[reg_params + GET_OFF(work_amount)]);
-
-                    add(reg_src, offset_sse42 * jcp_.src_data_size);
-
-                    if (jcp_.normalize_variance) {
-                        // mean and vaiance for variance kernel
-                        if (!jcp_.across_channels) {
-                            // mean is bc when across_channel, no need shift
-                            add(reg_mean, offset_sse42 * sizeof(float));
-                            uni_vmovups(vmm_mean, ptr[reg_mean]);
-                        }
-                        add(reg_variance, offset_sse42 * sizeof(float));
-                        uni_vpxor(vmm_variance, vmm_variance, vmm_variance);
-                    } else {
-                        // sum for mean kernel
-                        add(reg_sum, offset_sse42 * sizeof(float));
-                        uni_vpxor(vmm_sum, vmm_sum, vmm_sum);
-                    }
-                    add(reg_oc_off, offset_sse42 * sizeof(float));
-                }
-
-                Xbyak::Label label_empty_2half_sse42;
-                if (tail_step == 0) {
-                    cmp(reg_oc_off, static_cast<int>(jcp_.C * sizeof(float)));
-                    jae(label_empty_2half_sse42, T_NEAR);
-
-                    worker_unroll();
-                } else {
-                    // maybe tail blk
-                    cmp(reg_oc_off, static_cast<int>(jcp_.C * sizeof(float)));
-                    jae(label_empty_2half_sse42, T_NEAR);
-
-                    Xbyak::Label label_full_size;
-                    Xbyak::Label label_size_end;
-                    cmp(reg_oc_off, static_cast<int>((jcp_.C - vector_step) * sizeof(float)));
-                    jle(label_full_size, T_NEAR);
-
-                    // no need care and fill rest
-                    // for per_channel, do not use tail mean(variance), do not store computed tail values.
-                    // for across_channel, partial sum for tail one time out of kernel from perf.
-                    worker_unroll(true);
-
-                    jmp(label_size_end, T_NEAR);
-                    L(label_full_size);
-                    {
-                        worker_unroll();
-                    }
-                    L(label_size_end);
-                }
-
-                // add input_base value and store for per_channel
-                // store for across_channels
-                if (jcp_.normalize_variance) {
-                    if (!jcp_.across_channels) {
-                        uni_vmovups(vmm_val, ptr[reg_variance]);
-                        uni_vaddps(vmm_variance, vmm_variance, vmm_val);
-                    }
-                    uni_vmovups(ptr[reg_variance], vmm_variance);
-                } else {
-                    if (!isFloatCompatible(jcp_.src_prc))  // add with int for int-family data type, other compute go with float
-                        uni_vcvtdq2ps(vmm_sum, vmm_sum);
-
-                    if (!jcp_.across_channels) {
-                        uni_vmovups(vmm_val, ptr[reg_sum]);
-                        uni_vaddps(vmm_sum, vmm_sum, vmm_val);
-                    }
-                    uni_vmovups(ptr[reg_sum], vmm_sum);
-                }
-
-                L(label_empty_2half_sse42);
-            }
+            block_ker();
         }
 
         this->postamble();
 
         load_vector_emitter->emit_data();
-        load_tail_emitter->emit_data();
-        load_tail_with_fill_emitter->emit_data();
-        load_scalar_with_fill_emitter->emit_data();
-
+        load_tail8_emitter->emit_data();
+        load_tail4_emitter->emit_data();
+        load_tail1_emitter->emit_data();
+        load_tail8_with_fill_emitter->emit_data();
+        load_tail4_with_fill_emitter->emit_data();
+        load_tail1_with_fill_emitter->emit_data();
         prepare_table();
     }
 
@@ -262,14 +190,13 @@ private:
     Xbyak::Reg64 reg_mean = r9;
     Xbyak::Reg64 reg_variance = r10;
     Xbyak::Reg64 reg_work_amount = r11;
-    Xbyak::Reg64 reg_stride = r12;
     Xbyak::Reg64 reg_sum = reg_mean;
     Xbyak::Reg64 reg_params = abi_param1;
     Xbyak::Reg64 reg_load_table = r13;
     Xbyak::Reg64 reg_load_store_mask = r14;
     Xbyak::Reg64 reg_aux = r15;
 
-    Xbyak::Reg64 reg_oc_off = rax;
+    Xbyak::Reg64 reg_rt_shape = rbx;
     Xbyak::Reg64 reg_table = rdx;
     Xbyak::Label l_table;
 
@@ -285,10 +212,15 @@ private:
 
     Xbyak::Opmask k_mask = Xbyak::Opmask(7);
 
+    size_t src_stride = 0;
+
     std::unique_ptr<jit_load_emitter> load_vector_emitter = nullptr;
-    std::unique_ptr<jit_load_emitter> load_tail_emitter = nullptr;
-    std::unique_ptr<jit_load_emitter> load_tail_with_fill_emitter = nullptr;
-    std::unique_ptr<jit_load_emitter> load_scalar_with_fill_emitter = nullptr;
+    std::unique_ptr<jit_load_emitter> load_tail8_emitter = nullptr;
+    std::unique_ptr<jit_load_emitter> load_tail4_emitter = nullptr;
+    std::unique_ptr<jit_load_emitter> load_tail1_emitter = nullptr;
+    std::unique_ptr<jit_load_emitter> load_tail8_with_fill_emitter = nullptr;
+    std::unique_ptr<jit_load_emitter> load_tail4_with_fill_emitter = nullptr;
+    std::unique_ptr<jit_load_emitter> load_tail1_with_fill_emitter = nullptr;
 
     std::vector<size_t> load_pool_gpr_idxs;
 
@@ -296,8 +228,6 @@ private:
     inline void nspc_ac_ker() {
         Xbyak::Label loop_label;
         Xbyak::Label loop_end_label;
-        Xbyak::Label scalar_loop_label;
-        Xbyak::Label scalar_loop_end_label;
         L(loop_label);
         {
             cmp(reg_work_amount, vector_step);
@@ -311,18 +241,7 @@ private:
         }
         L(loop_end_label);
 
-        L(scalar_loop_label);
-        {
-            cmp(reg_work_amount, 1);
-            jl(scalar_loop_end_label, T_NEAR);
-
-            worker_partial(true, true);
-            add(reg_src, scalar_step * jcp_.src_data_size);
-
-            sub(reg_work_amount, scalar_step);
-            jmp(scalar_loop_label, T_NEAR);
-        }
-        L(scalar_loop_end_label);
+        worker_tails(reg_work_amount, true);
 
         if (!jcp_.normalize_variance && !isFloatCompatible(jcp_.src_prc))
             uni_vcvtdq2ps(vmm_sum, vmm_sum);
@@ -333,13 +252,18 @@ private:
     // nspc per channel with unroll
     inline void nspc_pc_ker() {
         // 4 unroll vector
+//
+        // const int gpr_size = 8;
+        // sub(rsp, 6 * gpr_size);
+        // mov(dword[rsp], 4);
+//
         size_t unroll_size = 4;
         size_t vec_num = div_up(jcp_.C, vector_step);
         unroll_size = vec_num >= unroll_size ? unroll_size : vec_num;
         size_t unroll_number = div_up(vec_num, unroll_size);
 
         int ur_base = 4;
-        Xbyak::Reg64 reg_src_aux = reg_stride;
+        Xbyak::Reg64 reg_src_aux = r12;
         Xbyak::Reg64 reg_work_amount_bk = rbx;
         mov(reg_work_amount_bk, reg_work_amount);
         for (size_t ur_num = 0; ur_num < unroll_number; ur_num++) {
@@ -370,7 +294,7 @@ private:
                 for (size_t ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
                     bool is_tails = ur_offset_elt + ur_size * vector_step + vector_step > static_cast<size_t>(jcp_.C);
                     if (is_tails) {
-                        load_tail_emitter->emit_code({static_cast<size_t>(reg_src_aux.getIdx())},
+                        load_tail1_emitter->emit_code({static_cast<size_t>(reg_src_aux.getIdx())},
                             {static_cast<size_t>(ur_base + ur_size)}, {}, {load_pool_gpr_idxs});
                         add(reg_src_aux, tail_step * jcp_.src_data_size);
                     } else {
@@ -423,7 +347,172 @@ private:
         }
     }
 
-    inline void worker_unroll(bool is_tail = false) {
+    inline void block_ker() {
+        // safe to use abi reg now.
+        Xbyak::Reg64 reg_src_bk = rcx;
+        Xbyak::Reg64 reg_work_amount_bk = rdi;
+        mov(reg_src_bk, reg_src);
+        mov(reg_work_amount_bk, reg_work_amount);
+        int repeats = (isa == cpu::x64::sse41) ? 2 : 1; // block size is also 8 on cpu::x64::sse41 with two step process
+
+        auto reset_with_offset = [&](int offset) {
+            add(reg_src_bk, offset * jcp_.src_data_size);
+            mov(reg_src, reg_src_bk);
+            mov(reg_work_amount, reg_work_amount_bk);
+            if (jcp_.normalize_variance) {
+                // mean and vaiance for variance kernel
+                if (!jcp_.across_channels) {
+                    // mean is bc when across_channel, no need shift
+                    add(reg_mean, offset * sizeof(float));
+                    uni_vmovups(vmm_mean, ptr[reg_mean]);
+                }
+                add(reg_variance, offset * sizeof(float));
+                uni_vpxor(vmm_variance, vmm_variance, vmm_variance);
+            } else {
+                // sum for mean kernel
+                add(reg_sum, offset * sizeof(float));
+                uni_vpxor(vmm_sum, vmm_sum, vmm_sum);
+            }
+        };
+
+        auto save_result = [&]() {
+            // add input_base value and store for per_channel
+            // store for across_channels
+            if (jcp_.normalize_variance) {
+                if (!jcp_.across_channels) {
+                    uni_vmovups(vmm_val, ptr[reg_variance]);
+                    uni_vaddps(vmm_variance, vmm_variance, vmm_val);
+                }
+                uni_vmovups(ptr[reg_variance], vmm_variance);
+            } else {
+                if (!isFloatCompatible(jcp_.src_prc))  // add with int for int-family data type, other compute go with float
+                    uni_vcvtdq2ps(vmm_sum, vmm_sum);
+
+                if (!jcp_.across_channels) {
+                    uni_vmovups(vmm_val, ptr[reg_sum]);
+                    uni_vaddps(vmm_sum, vmm_sum, vmm_val);
+                }
+                uni_vmovups(ptr[reg_sum], vmm_sum);
+            }
+        };
+
+        // unroll for block layout, w/o zero pading
+        auto worker_tails_unroll = [&]() {
+            auto unroll_w = [&](int block_num) {
+                Xbyak::Label loop_label;
+                Xbyak::Label loop_end_label;
+                L(loop_label);
+                {
+                    cmp(reg_work_amount, 0);
+                    jle(loop_end_label, T_NEAR);
+
+                    worker_block(block_num, true);
+
+                    add(reg_src, src_stride);
+                    sub(reg_work_amount, 1);
+
+                    jmp(loop_label, T_NEAR);
+                }
+                L(loop_end_label);
+            };
+            Label tail_blk8_label;
+            Label tail_blk8_exit_label;
+            Label tail_blk4_label;
+            Label tail_blk4_exit_label;
+            Label tail_blk1_label;
+            Label tail_blk1_exit_label;
+            L(tail_blk8_label);
+            {
+                cmp(reg_rt_shape, 8);
+                jl(tail_blk8_exit_label, T_NEAR);
+
+                unroll_w(8);
+                save_result();
+                reset_with_offset(8);
+
+                sub(reg_rt_shape, 8);
+                jmp(tail_blk8_label, T_NEAR);
+            }
+            L(tail_blk8_exit_label);
+
+            L(tail_blk4_label);
+            {
+                cmp(reg_rt_shape, 4);
+                jl(tail_blk4_exit_label, T_NEAR);
+
+                unroll_w(4);
+                save_result();
+                reset_with_offset(4);
+
+                sub(reg_rt_shape, 4);
+                jmp(tail_blk4_label, T_NEAR);
+            }
+            L(tail_blk4_exit_label);
+
+            L(tail_blk1_label);
+            {
+                cmp(reg_rt_shape, 1);
+                jl(tail_blk1_exit_label, T_NEAR);
+
+                unroll_w(1);
+                save_result();
+                reset_with_offset(1);
+
+                sub(reg_rt_shape, 1);
+                jmp(tail_blk1_label, T_NEAR);
+            }
+            L(tail_blk1_exit_label);
+        };
+
+        // cover vector and tails on avx512, avx2
+        // cover on sse, 2 part vector, first part vector and second part tails, first part tails
+        for (int i = 0; i < repeats; i++) {
+            if (i > 0) {
+                reset_with_offset(4);
+            }
+
+            Xbyak::Label label_tails;
+            Xbyak::Label label_end;
+            cmp(reg_rt_shape, 0);
+            jne(label_tails, T_NEAR);
+
+            worker_vector_unroll();
+            save_result();
+            jmp(label_end, T_NEAR);
+
+            L(label_tails);
+            {
+                if (i > 0) {
+                    // empty second half on sse
+                    cmp(reg_rt_shape, 0);
+                    jbe(label_end);
+                }
+
+                Xbyak::Label label_sse_full_size;
+                if (isa == cpu::x64::sse41) {
+                    // on sse, first 4 could be done with vector manner
+                    cmp(reg_rt_shape, 4);
+                    jae(label_sse_full_size, T_NEAR);
+                }
+
+                // no need care and fill rest
+                // for per_channel, will not use tail mean(variance), will not store and use computed tail values.
+                // for across_channel, partial sum for tail one time out of kernel from perf.
+                worker_tails_unroll();
+                jmp(label_end, T_NEAR);
+
+                L(label_sse_full_size);
+                {
+                    worker_vector_unroll();
+                    save_result();
+                    sub(reg_rt_shape, 4);
+                }
+            }
+            L(label_end);
+        }
+    }
+
+    inline void worker_vector_unroll() {
         // if mean(sum) for continous data, then fast pass for major part
         if (!jcp_.normalize_variance && jcp_.layout == MVNLayoutType::mvn_planar) {
             Vmm vmm_one = Vmm(15);
@@ -479,13 +568,9 @@ private:
             cmp(reg_work_amount, 0);
             jle(loop_end_label, T_NEAR);
 
-            if (jcp_.layout != MVNLayoutType::mvn_planar && is_tail) {
-                worker_partial(false, false);
-            } else {
-                worker_full_size();
-            }
+            worker_full_size();
 
-            add(reg_src, reg_stride);
+            add(reg_src, src_stride);
             sub(reg_work_amount, 1);
 
             jmp(loop_label, T_NEAR);
@@ -513,37 +598,109 @@ private:
         }
     }
 
+    inline void worker_tails(Xbyak::Reg64& reg_tail_num, bool is_zero_pad) {
+        Label tail_blk8_label;
+        Label tail_blk8_exit_label;
+        Label tail_blk4_label;
+        Label tail_blk4_exit_label;
+        Label tail_blk1_label;
+        Label tail_blk1_exit_label;
+        L(tail_blk8_label);
+        {
+            cmp(reg_tail_num, 8);
+            jl(tail_blk8_exit_label, T_NEAR);
+
+            worker_block(8, is_zero_pad);
+            add(reg_src, 8 * jcp_.src_data_size);
+
+            sub(reg_tail_num, 8);
+            jmp(tail_blk8_label, T_NEAR);
+        }
+        L(tail_blk8_exit_label);
+
+        L(tail_blk4_label);
+        {
+            cmp(reg_tail_num, 4);
+            jl(tail_blk4_exit_label, T_NEAR);
+
+            worker_block(4, is_zero_pad);
+            add(reg_src, 4 * jcp_.src_data_size);
+
+            sub(reg_tail_num, 4);
+            jmp(tail_blk4_label, T_NEAR);
+        }
+        L(tail_blk4_exit_label);
+
+        L(tail_blk1_label);
+        {
+            cmp(reg_tail_num, 1);
+            jl(tail_blk1_exit_label, T_NEAR);
+
+            worker_block(1, is_zero_pad);
+            add(reg_src, 1 * jcp_.src_data_size);
+
+            sub(reg_tail_num, 1);
+            jmp(tail_blk1_label, T_NEAR);
+        }
+        L(tail_blk1_exit_label);
+    }
+
     // needed and supported case: 1. scalar with zero pad. 2. tails w/ or w/o zero pad
-    inline void worker_partial(bool is_scalar, bool is_zero_pad) {
-        if (is_scalar) {
-            load_scalar_with_fill_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
-                                               {}, {load_pool_gpr_idxs});
+    inline void worker_block(int block_num, bool is_zero_pad) {
+        if (is_zero_pad) {
+            switch (block_num) {
+            case 8:
+                load_tail8_with_fill_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
+                                           {}, {load_pool_gpr_idxs});
+                break;
+            case 4:
+                load_tail4_with_fill_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
+                                           {}, {load_pool_gpr_idxs});
+                break;
+            case 1:
+                load_tail1_with_fill_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
+                                           {}, {load_pool_gpr_idxs});
+                break;
+            default:
+                assert(!"MVN layer tails is processed only with 8/4/1 blocks.");
+                break;
+            }
         } else {
-            if (is_zero_pad)
-                load_tail_with_fill_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
-                                               {}, {load_pool_gpr_idxs});
-            else
-                load_tail_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
-                                               {}, {load_pool_gpr_idxs});
+            switch (block_num) {
+            case 8:
+                load_tail8_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
+                                           {}, {load_pool_gpr_idxs});
+                break;
+            case 4:
+                load_tail4_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
+                                           {}, {load_pool_gpr_idxs});
+                break;
+            case 1:
+                load_tail1_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
+                                           {}, {load_pool_gpr_idxs});
+                break;
+            default:
+                assert(!"MVN layer tails is processed only with 8/4/1 blocks.");
+                break;
+            }
         }
         if (jcp_.normalize_variance) {
             if (!isFloatCompatible(jcp_.src_prc))
                 uni_vcvtdq2ps(vmm_val, vmm_val);
             uni_vsubps(vmm_val, vmm_val, vmm_mean);
             if (is_zero_pad) {
-                int elt_num = is_scalar ? 1 : tail_step;
                 uni_vpxor(vmm_zero, vmm_zero, vmm_zero);
                 if (isa == cpu::x64::sse41) {
                     uint8 imm = 1;
-                    imm = ~((imm << elt_num) - imm);
+                    imm = ~((imm << block_num) - imm);
                     blendps(vmm_val, vmm_zero, imm);
                 } else if (isa == cpu::x64::avx2) {
                     uint8 imm = 1;
-                    imm = ~((imm << elt_num) - imm);
+                    imm = ~((imm << block_num) - imm);
                     vblendps(vmm_val, vmm_val, vmm_zero, imm);
                 } else if (isa == cpu::x64::avx512_core) {
                     uint64_t tail_mask = 1;
-                    tail_mask = ~((tail_mask << elt_num) - tail_mask);
+                    tail_mask = ~((tail_mask << block_num) - tail_mask);
                     mov(reg_aux, tail_mask);
                     kmovq(k_mask, reg_aux);
                     vblendmps(vmm_val | k_mask, vmm_val, vmm_zero);
@@ -662,9 +819,13 @@ struct jit_uni_mvn_kernel_f32 : public jit_uni_mvn_kernel, public jit_generator 
                                 jcp_.C - (jcp_.C / vector_step) * vector_step;
 
         load_vector_emitter.reset(new jit_load_emitter(this, isa, jcp_.src_prc, Precision::FP32, vector_step));
-        load_tail_emitter.reset(new jit_load_emitter(this, isa, jcp_.src_prc, Precision::FP32, tail_step));
+        load_tail8_emitter.reset(new jit_load_emitter(this, isa, jcp_.src_prc, Precision::FP32, 8));
+        load_tail4_emitter.reset(new jit_load_emitter(this, isa, jcp_.src_prc, Precision::FP32, 4));
+        load_tail1_emitter.reset(new jit_load_emitter(this, isa, jcp_.src_prc, Precision::FP32, 1));
         store_vector_emitter.reset(new jit_store_emitter(this, isa, Precision::FP32, jcp_.dst_prc, vector_step));
-        store_tail_emitter.reset(new jit_store_emitter(this, isa, Precision::FP32, jcp_.dst_prc, tail_step));
+        store_tail8_emitter.reset(new jit_store_emitter(this, isa, Precision::FP32, jcp_.dst_prc, 8));
+        store_tail4_emitter.reset(new jit_store_emitter(this, isa, Precision::FP32, jcp_.dst_prc, 4));
+        store_tail1_emitter.reset(new jit_store_emitter(this, isa, Precision::FP32, jcp_.dst_prc, 1));
 
         this->preamble();
 
@@ -675,9 +836,12 @@ struct jit_uni_mvn_kernel_f32 : public jit_uni_mvn_kernel, public jit_generator 
             mov(reg_variance_inv, ptr[reg_params + GET_OFF(variance)]);
         mov(reg_dst, ptr[reg_params + GET_OFF(dst)]);
         mov(reg_work_amount, ptr[reg_params + GET_OFF(work_amount)]);
-        mov(reg_src_stride, ptr[reg_params + GET_OFF(src_stride)]);
-        mov(reg_dst_stride, ptr[reg_params + GET_OFF(dst_stride)]);
+        mov(reg_rt_shape, ptr[reg_params + GET_OFF(rt_shape_size)]);
         mov(reg_oc_off, ptr[reg_params + GET_OFF(oc_off)]);
+
+        size_t data_step = (isa == cpu::x64::sse41 && jcp_.layout == MVNLayoutType::mvn_block) ? vector_step * 2 : vector_step;
+        src_stride = data_step * jcp_.src_data_size;
+        dst_stride = data_step * jcp_.dst_data_size;
 
         if (jcp_.layout == MVNLayoutType::mvn_planar || jcp_.across_channels) {
             uni_vbroadcastss(vmm_mean, ptr[reg_mean]);
@@ -696,74 +860,27 @@ struct jit_uni_mvn_kernel_f32 : public jit_uni_mvn_kernel, public jit_generator 
         store_pool_vec_idxs = {static_cast<size_t>(vmm_zero.getIdx()), static_cast<size_t>(vmm_val.getIdx())};
 
         if (jcp_.layout == MVNLayoutType::mvn_planar) {
-            worker_mvn_unroll();
-            if (tail_step != 0) {
-                worker_mvn(true);
-            }
+            worker_mvn_vector_unroll();
+            worker_mvn_tails(reg_rt_shape);
         } else if (jcp_.layout == MVNLayoutType::mvn_by_channel) {
             if (jcp_.across_channels)
                 norm_nspc_ac_ker();
             else
                 norm_nspc_pc_ker();
         } else {
-            // blk
-            int repeats = (isa == cpu::x64::sse41) ? 2 : 1;  // block size is also 8 on cpu::x64::sse41
-            for (int i = 0; i < repeats; i++) {
-                int offset_sse42 = i * 4;
-                if (i > 0) {
-                    // reset modified input
-                    mov(reg_src, ptr[reg_params + GET_OFF(src)]);
-                    mov(reg_dst, ptr[reg_params + GET_OFF(dst)]);
-                    mov(reg_work_amount, ptr[reg_params + GET_OFF(work_amount)]);
-
-                    add(reg_src, offset_sse42 * jcp_.src_data_size);
-                    add(reg_dst, offset_sse42 * jcp_.dst_data_size);
-                    add(reg_oc_off, offset_sse42 * sizeof(float));
-
-                    if (!jcp_.across_channels) {
-                        add(reg_mean, offset_sse42 * sizeof(float));
-                        uni_vmovups(vmm_mean, ptr[reg_mean]);
-                        if (jcp_.normalize_variance) {
-                            add(reg_variance_inv, offset_sse42 * sizeof(float));
-                            uni_vmovups(vmm_variance_inv, ptr[reg_variance_inv]);
-                        }
-                    }
-                }
-
-                Xbyak::Label label_empty_2half_sse42;
-                if (tail_step == 0) {
-                    cmp(reg_oc_off, static_cast<int>(jcp_.C * sizeof(float)));
-                    jae(label_empty_2half_sse42, T_NEAR);
-                    worker_mvn_unroll();
-                } else {
-                    cmp(reg_oc_off, static_cast<int>(jcp_.C * sizeof(float)));
-                    jae(label_empty_2half_sse42, T_NEAR);
-
-                    Xbyak::Label label_full_size_block;
-                    Xbyak::Label label_size_end;
-
-                    cmp(reg_oc_off, static_cast<int>((jcp_.C - vector_step) * sizeof(float)));
-                    jle(label_full_size_block, T_NEAR);
-
-                    worker_mvn_unroll(true);
-                    jmp(label_size_end, T_NEAR);
-
-                    L(label_full_size_block);
-                    {
-                        worker_mvn_unroll();
-                    }
-                    L(label_size_end);
-                }
-                L(label_empty_2half_sse42);
-            }
+            norm_block_ker();
         }
 
         this->postamble();
 
         load_vector_emitter->emit_data();
-        load_tail_emitter->emit_data();
+        load_tail8_emitter->emit_data();
+        load_tail4_emitter->emit_data();
+        load_tail1_emitter->emit_data();
         store_vector_emitter->emit_data();
-        store_tail_emitter->emit_data();
+        store_tail8_emitter->emit_data();
+        store_tail4_emitter->emit_data();
+        store_tail1_emitter->emit_data();
 
         for (auto& inj : eltwise_injectors)
             inj->prepare_table();
@@ -782,6 +899,7 @@ private:
     Xbyak::Reg64 reg_variance_inv = r10;
     Xbyak::Reg64 reg_dst = r11;
     Xbyak::Reg64 reg_work_amount = r12;
+    // todo: remove stride
     Xbyak::Reg64 reg_src_stride = r13;
     Xbyak::Reg64 reg_dst_stride = r14;
     Xbyak::Reg64 reg_params = abi_param1;
@@ -791,8 +909,12 @@ private:
     Xbyak::Reg64 reg_d_bias = rdx;
     Xbyak::Reg64 reg_post_ops_data = rsi;
 
-    Xbyak::Reg64 reg_load_table = r15;
+    Xbyak::Reg64 reg_rt_shape = r15;
+    Xbyak::Reg64 reg_load_table = r15; // fill not needed, dummy
     Xbyak::Reg64 reg_load_store_mask = rbp;
+
+    size_t src_stride = 0;
+    size_t dst_stride = 0;
 
     Vmm vmm_val = Vmm(3);
     Vmm vmm_mean = Vmm(4);
@@ -803,9 +925,13 @@ private:
     Vmm vmm_d_bias = Vmm(1);
 
     std::unique_ptr<jit_load_emitter> load_vector_emitter = nullptr;
-    std::unique_ptr<jit_load_emitter> load_tail_emitter = nullptr;
+    std::unique_ptr<jit_load_emitter> load_tail8_emitter = nullptr;
+    std::unique_ptr<jit_load_emitter> load_tail4_emitter = nullptr;
+    std::unique_ptr<jit_load_emitter> load_tail1_emitter = nullptr;
     std::unique_ptr<jit_store_emitter> store_vector_emitter = nullptr;
-    std::unique_ptr<jit_store_emitter> store_tail_emitter = nullptr;
+    std::unique_ptr<jit_store_emitter> store_tail8_emitter = nullptr;
+    std::unique_ptr<jit_store_emitter> store_tail4_emitter = nullptr;
+    std::unique_ptr<jit_store_emitter> store_tail1_emitter = nullptr;
 
     std::vector<std::shared_ptr<jit_uni_eltwise_injector_f32<isa>>> eltwise_injectors;
     std::vector<std::shared_ptr<jit_uni_depthwise_injector_f32<isa>>> depthwise_injectors;
@@ -815,192 +941,353 @@ private:
     std::vector<size_t> store_pool_vec_idxs;
     std::vector<size_t> load_pool_gpr_idxs;
 
+    inline void norm_block_ker() {
+        // safe to use abi reg now.
+        Xbyak::Reg64 reg_src_bk = r13;
+        Xbyak::Reg64 reg_dst_bk = r14;
+        // no safe to use abi
+        Xbyak::Reg64 reg_work_amount_bk = rdi;
+        mov(reg_src_bk, reg_src);
+        mov(reg_dst_bk, reg_dst);
+        mov(reg_work_amount_bk, reg_work_amount);
+
+        auto reset_with_offset = [&](int offset) {
+            add(reg_src_bk, offset * jcp_.src_data_size);
+            add(reg_dst_bk, offset * jcp_.dst_data_size);
+            add(reg_oc_off, offset * sizeof(float));  // for post ops
+            mov(reg_src, reg_src_bk);
+            mov(reg_dst, reg_dst_bk);
+            mov(reg_work_amount, reg_work_amount_bk);
+            if (!jcp_.across_channels) {
+                add(reg_mean, offset * sizeof(float));
+                uni_vmovups(vmm_mean, ptr[reg_mean]);
+                if (jcp_.normalize_variance) {
+                    add(reg_variance_inv, offset * sizeof(float));
+                    uni_vmovups(vmm_variance_inv, ptr[reg_variance_inv]);
+                }
+            }
+        };
+
+        // unroll for block layout, w/o zero pading
+        auto worker_tails_unroll = [&]() {
+            auto unroll_w = [&](int block_num) {
+                Xbyak::Label loop_label;
+                Xbyak::Label loop_end_label;
+                L(loop_label);
+                {
+                    cmp(reg_work_amount, 0);
+                    jle(loop_end_label, T_NEAR);
+
+                    worker_mvn_block(block_num);
+
+                    add(reg_src, src_stride);
+                    add(reg_dst, dst_stride);
+                    sub(reg_work_amount, 1);
+
+                    jmp(loop_label, T_NEAR);
+                }
+                L(loop_end_label);
+            };
+            Label tail_blk8_label;
+            Label tail_blk8_exit_label;
+            Label tail_blk4_label;
+            Label tail_blk4_exit_label;
+            Label tail_blk1_label;
+            Label tail_blk1_exit_label;
+            L(tail_blk8_label);
+            {
+                cmp(reg_rt_shape, 8);
+                jl(tail_blk8_exit_label, T_NEAR);
+
+                unroll_w(8);
+                reset_with_offset(8);
+
+                sub(reg_rt_shape, 8);
+                jmp(tail_blk8_label, T_NEAR);
+            }
+            L(tail_blk8_exit_label);
+
+            L(tail_blk4_label);
+            {
+                cmp(reg_rt_shape, 4);
+                jl(tail_blk4_exit_label, T_NEAR);
+
+                unroll_w(4);
+                reset_with_offset(4);
+
+                sub(reg_rt_shape, 4);
+                jmp(tail_blk4_label, T_NEAR);
+            }
+            L(tail_blk4_exit_label);
+
+            L(tail_blk1_label);
+            {
+                cmp(reg_rt_shape, 1);
+                jl(tail_blk1_exit_label, T_NEAR);
+
+                unroll_w(1);
+                reset_with_offset(1);
+
+                sub(reg_rt_shape, 1);
+                jmp(tail_blk1_label, T_NEAR);
+            }
+            L(tail_blk1_exit_label);
+        };
+
+        // cover vector and tails on avx512, avx2
+        // cover on sse, 2 part vector, first part vector and second part tails, first part tails
+        int repeats = (isa == cpu::x64::sse41) ? 2 : 1;
+        for (int i = 0; i < repeats; i++) {
+            if (i > 0) {
+                reset_with_offset(4);
+            }
+
+            Xbyak::Label label_tails;
+            Xbyak::Label label_end;
+            cmp(reg_rt_shape, 0);
+            jne(label_tails, T_NEAR);
+
+            worker_mvn_vector_unroll();
+            jmp(label_end, T_NEAR);
+
+            L(label_tails);
+            {
+                if (i > 0) {
+                    // empty second half on sse
+                    cmp(reg_rt_shape, 0);
+                    jbe(label_end);
+                }
+
+                Xbyak::Label label_sse_full_size;
+                if (isa == cpu::x64::sse41) {
+                    // on sse, first 4 could be done with vector manner
+                    cmp(reg_rt_shape, 4);
+                    jae(label_sse_full_size, T_NEAR);
+                }
+
+                // no need care and fill rest
+                // for per_channel, will not use tail mean(variance), will not store and use computed tail values.
+                // for across_channel, partial sum for tail one time out of kernel from perf.
+                worker_tails_unroll();
+                jmp(label_end, T_NEAR);
+
+                L(label_sse_full_size);
+                {
+                    worker_mvn_vector_unroll();
+                    sub(reg_rt_shape, 4);
+                }
+            }
+            L(label_end);
+        }
+    }
+
     // nspc norm per channel with unroll
     inline void norm_nspc_pc_ker() {
         // 4 unroll vector
-        size_t unroll_size = 4;
-        size_t vec_num = div_up(jcp_.C, vector_step);
-        unroll_size = vec_num >= unroll_size ? unroll_size : vec_num;
-        size_t unroll_number = div_up(vec_num, unroll_size);
+        // size_t unroll_size = 4;
+        // size_t vec_num = div_up(jcp_.C, vector_step);
+        // unroll_size = vec_num >= unroll_size ? unroll_size : vec_num;
+        // size_t unroll_number = div_up(vec_num, unroll_size);
 
-        int ur_base = 4;
-        Xbyak::Reg64 reg_src_aux = reg_src_stride;
-        Xbyak::Reg64 reg_dst_aux = reg_dst_stride;
-        // 2 abi
-        Xbyak::Reg64 reg_work_amount_bk = rcx;
-        Xbyak::Reg64 reg_oc_off_bk = rdi;
-        mov(reg_oc_off_bk, reg_oc_off);
-        mov(reg_work_amount_bk, reg_work_amount);
-        for (size_t ur_num = 0; ur_num < unroll_number; ur_num++) {
-            // 4-15 for unroll. 4-7 for src, 8-11 for m, 12-15 for v
-            int ur_offset_elt = ur_num * unroll_size * vector_step;
-            int ur_offset = ur_offset_elt * sizeof(float);
-            size_t unroll_size_rt = std::min(vec_num - ur_num * unroll_size, unroll_size);
-            size_t elt_num = std::min(jcp_.C - ur_num * unroll_size * vector_step, unroll_size * vector_step);
-            for (size_t ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
-                uni_vmovups(Vmm(ur_base + 4 + ur_size), ptr[reg_mean + ur_offset + ur_size * vector_step * sizeof(float)]);
-            }
-            if (jcp_.normalize_variance) {
-                for (size_t ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
-                    uni_vmovups(Vmm(ur_base + 8 + ur_size), ptr[reg_variance_inv + ur_offset + ur_size * vector_step * sizeof(float)]);
-                }
-            }
-            // optimized scaleshift
-            size_t post_ops_data_offset = 0;
-            for (int i = 0; i < optimized_scaleshift_num; i++) {
-                mov(reg_d_weights, ptr[reg_post_ops_data + post_ops_data_offset]);
-                add(reg_d_weights, ur_offset);
-                for (size_t ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
-                    uni_vmovups(Vmm(16 + i * 4 + ur_size), ptr[reg_d_weights]);
-                    add(reg_d_weights, vector_step * sizeof(float));
-                }
-                mov(reg_d_bias, ptr[reg_post_ops_data + post_ops_data_offset]);
-                add(reg_d_bias, ur_offset + jcp_.C * sizeof(float));
-                for (size_t ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
-                    uni_vmovups(Vmm(24 + i * 4 + ur_size), ptr[reg_d_bias]);
-                    add(reg_d_bias, vector_step * sizeof(float));
-                }
-                post_ops_data_offset += sizeof(float*);
-            }
+        // int ur_base = 4;
+        // Xbyak::Reg64 reg_src_aux = reg_src_stride;
+        // Xbyak::Reg64 reg_dst_aux = reg_dst_stride;
+        // // 2 abi
+        // Xbyak::Reg64 reg_work_amount_bk = rcx;
+        // Xbyak::Reg64 reg_oc_off_bk = rdi;
+        // mov(reg_oc_off_bk, reg_oc_off);
+        // mov(reg_work_amount_bk, reg_work_amount);
+        // for (size_t ur_num = 0; ur_num < unroll_number; ur_num++) {
+        //     // 4-15 for unroll. 4-7 for src, 8-11 for m, 12-15 for v
+        //     int ur_offset_elt = ur_num * unroll_size * vector_step;
+        //     int ur_offset = ur_offset_elt * sizeof(float);
+        //     size_t unroll_size_rt = std::min(vec_num - ur_num * unroll_size, unroll_size);
+        //     size_t elt_num = std::min(jcp_.C - ur_num * unroll_size * vector_step, unroll_size * vector_step);
+        //     for (size_t ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
+        //         uni_vmovups(Vmm(ur_base + 4 + ur_size), ptr[reg_mean + ur_offset + ur_size * vector_step * sizeof(float)]);
+        //     }
+        //     if (jcp_.normalize_variance) {
+        //         for (size_t ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
+        //             uni_vmovups(Vmm(ur_base + 8 + ur_size), ptr[reg_variance_inv + ur_offset + ur_size * vector_step * sizeof(float)]);
+        //         }
+        //     }
+        //     // optimized scaleshift
+        //     size_t post_ops_data_offset = 0;
+        //     for (int i = 0; i < optimized_scaleshift_num; i++) {
+        //         mov(reg_d_weights, ptr[reg_post_ops_data + post_ops_data_offset]);
+        //         add(reg_d_weights, ur_offset);
+        //         for (size_t ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
+        //             uni_vmovups(Vmm(16 + i * 4 + ur_size), ptr[reg_d_weights]);
+        //             add(reg_d_weights, vector_step * sizeof(float));
+        //         }
+        //         mov(reg_d_bias, ptr[reg_post_ops_data + post_ops_data_offset]);
+        //         add(reg_d_bias, ur_offset + jcp_.C * sizeof(float));
+        //         for (size_t ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
+        //             uni_vmovups(Vmm(24 + i * 4 + ur_size), ptr[reg_d_bias]);
+        //             add(reg_d_bias, vector_step * sizeof(float));
+        //         }
+        //         post_ops_data_offset += sizeof(float*);
+        //     }
 
-            mov(reg_src_aux, reg_src);
-            mov(reg_dst_aux, reg_dst);
-            mov(reg_work_amount, reg_work_amount_bk);
-            mov(reg_oc_off, reg_oc_off_bk);
+        //     mov(reg_src_aux, reg_src);
+        //     mov(reg_dst_aux, reg_dst);
+        //     mov(reg_work_amount, reg_work_amount_bk);
+        //     mov(reg_oc_off, reg_oc_off_bk);
 
-            Xbyak::Label loop_label;
-            Xbyak::Label loop_end_label;
-            L(loop_label);
-            {
-                cmp(reg_work_amount, 0);
-                jle(loop_end_label, T_NEAR);
+        //     Xbyak::Label loop_label;
+        //     Xbyak::Label loop_end_label;
+        //     L(loop_label);
+        //     {
+        //         cmp(reg_work_amount, 0);
+        //         jle(loop_end_label, T_NEAR);
 
-                for (size_t ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
-                    bool is_tails = ur_offset_elt + ur_size * vector_step + vector_step > static_cast<size_t>(jcp_.C);
-                    if (is_tails) {
-                        load_tail_emitter->emit_code({static_cast<size_t>(reg_src_aux.getIdx())},
-                            {static_cast<size_t>(ur_base + ur_size)}, {}, {load_pool_gpr_idxs});
-                        add(reg_src_aux, tail_step * jcp_.src_data_size);
-                    } else {
-                        load_vector_emitter->emit_code({static_cast<size_t>(reg_src_aux.getIdx())},
-                            {static_cast<size_t>(ur_base + ur_size)}, {}, {load_pool_gpr_idxs});
-                        add(reg_src_aux, vector_step * jcp_.src_data_size);
-                    }
-                }
-                add(reg_src_aux, (jcp_.C - elt_num) * jcp_.src_data_size);
-                prefetcht0(ptr[reg_src_aux]);
+        //         for (size_t ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
+        //             bool is_tails = ur_offset_elt + ur_size * vector_step + vector_step > static_cast<size_t>(jcp_.C);
+        //             if (is_tails) {
+        //                 load_tail_emitter->emit_code({static_cast<size_t>(reg_src_aux.getIdx())},
+        //                     {static_cast<size_t>(ur_base + ur_size)}, {}, {load_pool_gpr_idxs});
+        //                 add(reg_src_aux, tail_step * jcp_.src_data_size);
+        //             } else {
+        //                 load_vector_emitter->emit_code({static_cast<size_t>(reg_src_aux.getIdx())},
+        //                     {static_cast<size_t>(ur_base + ur_size)}, {}, {load_pool_gpr_idxs});
+        //                 add(reg_src_aux, vector_step * jcp_.src_data_size);
+        //             }
+        //         }
+        //         add(reg_src_aux, (jcp_.C - elt_num) * jcp_.src_data_size);
+        //         prefetcht0(ptr[reg_src_aux]);
 
-                for (size_t ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
-                    uni_vsubps(Vmm(ur_base + ur_size), Vmm(ur_base + ur_size), Vmm(ur_base + 4 + ur_size));
-                }
-                if (jcp_.normalize_variance) {
-                    for (size_t ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
-                        uni_vmulps(Vmm(ur_base + ur_size), Vmm(ur_base + ur_size), Vmm(ur_base + 8 + ur_size));
-                    }
-                }
+        //         for (size_t ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
+        //             uni_vsubps(Vmm(ur_base + ur_size), Vmm(ur_base + ur_size), Vmm(ur_base + 4 + ur_size));
+        //         }
+        //         if (jcp_.normalize_variance) {
+        //             for (size_t ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
+        //                 uni_vmulps(Vmm(ur_base + ur_size), Vmm(ur_base + ur_size), Vmm(ur_base + 8 + ur_size));
+        //             }
+        //         }
 
-                for (int i = 0; i < optimized_scaleshift_num; i++) {
-                    for (size_t ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
-                        uni_vfmadd132ps(Vmm(ur_base + ur_size), Vmm(24 + i * 4 + ur_size), Vmm(16 + i * 4 + ur_size));
-                    }
-                }
+        //         for (int i = 0; i < optimized_scaleshift_num; i++) {
+        //             for (size_t ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
+        //                 uni_vfmadd132ps(Vmm(ur_base + ur_size), Vmm(24 + i * 4 + ur_size), Vmm(16 + i * 4 + ur_size));
+        //             }
+        //         }
 
-                if (attr_.post_ops_.len() != 0) {
-                    for (size_t ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
-                        apply_post_ops(jcp_.dst_prc, ur_base + ur_size, false);
-                        bool is_tails = ur_offset_elt + ur_size * vector_step + vector_step > static_cast<size_t>(jcp_.C);
-                        if (is_tails)
-                            add(reg_oc_off, tail_step * sizeof(float));
-                        else
-                            add(reg_oc_off, vector_step * sizeof(float));
-                    }
-                }
+        //         if (attr_.post_ops_.len() != 0) {
+        //             for (size_t ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
+        //                 apply_post_ops(jcp_.dst_prc, ur_base + ur_size, false);
+        //                 bool is_tails = ur_offset_elt + ur_size * vector_step + vector_step > static_cast<size_t>(jcp_.C);
+        //                 if (is_tails)
+        //                     add(reg_oc_off, tail_step * sizeof(float));
+        //                 else
+        //                     add(reg_oc_off, vector_step * sizeof(float));
+        //             }
+        //         }
 
-                for (size_t ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
-                    bool is_tails = ur_offset_elt + ur_size * vector_step + vector_step > static_cast<size_t>(jcp_.C);
-                    if (is_tails) {
-                        store_tail_emitter->emit_code({static_cast<size_t>(ur_base + ur_size)}, {static_cast<size_t>(reg_dst_aux.getIdx())},
-                            {store_pool_vec_idxs}, {store_pool_gpr_idxs});
-                        add(reg_dst_aux, tail_step * jcp_.dst_data_size);
-                    } else {
-                        store_vector_emitter->emit_code({static_cast<size_t>(ur_base + ur_size)}, {static_cast<size_t>(reg_dst_aux.getIdx())},
-                            {store_pool_vec_idxs}, {store_pool_gpr_idxs});
-                        add(reg_dst_aux, vector_step * jcp_.dst_data_size);
-                    }
-                }
+        //         for (size_t ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
+        //             bool is_tails = ur_offset_elt + ur_size * vector_step + vector_step > static_cast<size_t>(jcp_.C);
+        //             if (is_tails) {
+        //                 store_tail_emitter->emit_code({static_cast<size_t>(ur_base + ur_size)}, {static_cast<size_t>(reg_dst_aux.getIdx())},
+        //                     {store_pool_vec_idxs}, {store_pool_gpr_idxs});
+        //                 add(reg_dst_aux, tail_step * jcp_.dst_data_size);
+        //             } else {
+        //                 store_vector_emitter->emit_code({static_cast<size_t>(ur_base + ur_size)}, {static_cast<size_t>(reg_dst_aux.getIdx())},
+        //                     {store_pool_vec_idxs}, {store_pool_gpr_idxs});
+        //                 add(reg_dst_aux, vector_step * jcp_.dst_data_size);
+        //             }
+        //         }
 
-                add(reg_dst_aux, (jcp_.C - elt_num) * jcp_.dst_data_size);
-                sub(reg_oc_off, elt_num * sizeof(float));
-                sub(reg_work_amount, 1);
-                jmp(loop_label, T_NEAR);
-            }
-            L(loop_end_label);
+        //         add(reg_dst_aux, (jcp_.C - elt_num) * jcp_.dst_data_size);
+        //         sub(reg_oc_off, elt_num * sizeof(float));
+        //         sub(reg_work_amount, 1);
+        //         jmp(loop_label, T_NEAR);
+        //     }
+        //     L(loop_end_label);
 
-            add(reg_src, unroll_size_rt * vector_step * jcp_.src_data_size);
-            add(reg_dst, unroll_size_rt * vector_step * jcp_.dst_data_size);
-            add(reg_oc_off_bk, unroll_size_rt * vector_step * sizeof(float));
-        }
+        //     add(reg_src, unroll_size_rt * vector_step * jcp_.src_data_size);
+        //     add(reg_dst, unroll_size_rt * vector_step * jcp_.dst_data_size);
+        //     add(reg_oc_off_bk, unroll_size_rt * vector_step * sizeof(float));
+        // }
     }
 
     inline void norm_nspc_ac_ker() {
-        Xbyak::Reg64 reg_oc_off_bk = reg_src_stride;
-        if (attr_.post_ops_.len() != 0) {
-            mov(reg_oc_off_bk, reg_oc_off);
-        }
+        // Xbyak::Reg64 reg_oc_off_bk = reg_src_stride;
+        // if (attr_.post_ops_.len() != 0) {
+        //     mov(reg_oc_off_bk, reg_oc_off);
+        // }
 
-        size_t vec_num = div_up(jcp_.C, vector_step);
+        // size_t vec_num = div_up(jcp_.C, vector_step);
 
-        Xbyak::Label loop_label;
-        Xbyak::Label loop_end_label;
-        L(loop_label);
-        {
-            cmp(reg_work_amount, 0);
-            jle(loop_end_label, T_NEAR);
+        // Xbyak::Label loop_label;
+        // Xbyak::Label loop_end_label;
+        // L(loop_label);
+        // {
+        //     cmp(reg_work_amount, 0);
+        //     jle(loop_end_label, T_NEAR);
 
-            if (attr_.post_ops_.len() != 0) {
-                mov(reg_oc_off, reg_oc_off_bk);
-            }
+        //     if (attr_.post_ops_.len() != 0) {
+        //         mov(reg_oc_off, reg_oc_off_bk);
+        //     }
 
-            for (size_t v_num = 0; v_num < vec_num; v_num++) {
-                bool is_tail = (v_num * vector_step + vector_step > static_cast<size_t>(jcp_.C)) ? true : false;
-                worker_mvn(is_tail);
-                if (is_tail) {
-                    add(reg_src, tail_step * jcp_.src_data_size);
-                    add(reg_dst, tail_step * jcp_.dst_data_size);
-                    if (attr_.post_ops_.len() != 0)
-                        add(reg_oc_off, tail_step * sizeof(float));
-                } else {
-                    add(reg_src, vector_step * jcp_.src_data_size);
-                    add(reg_dst, vector_step * jcp_.dst_data_size);
-                    if (attr_.post_ops_.len() != 0)
-                        add(reg_oc_off, vector_step * sizeof(float));
-                }
-            }
+        //     for (size_t v_num = 0; v_num < vec_num; v_num++) {
+        //         bool is_tail = (v_num * vector_step + vector_step > static_cast<size_t>(jcp_.C)) ? true : false;
+        //         worker_mvn(is_tail);
+        //         if (is_tail) {
+        //             add(reg_src, tail_step * jcp_.src_data_size);
+        //             add(reg_dst, tail_step * jcp_.dst_data_size);
+        //             if (attr_.post_ops_.len() != 0)
+        //                 add(reg_oc_off, tail_step * sizeof(float));
+        //         } else {
+        //             add(reg_src, vector_step * jcp_.src_data_size);
+        //             add(reg_dst, vector_step * jcp_.dst_data_size);
+        //             if (attr_.post_ops_.len() != 0)
+        //                 add(reg_oc_off, vector_step * sizeof(float));
+        //         }
+        //     }
 
-            sub(reg_work_amount, 1);
-            jmp(loop_label, T_NEAR);
-        }
-        L(loop_end_label);
+        //     sub(reg_work_amount, 1);
+        //     jmp(loop_label, T_NEAR);
+        // }
+        // L(loop_end_label);
     }
 
-    inline void worker_mvn(bool is_tail) {
-        const auto& load_emitter = is_tail ? load_tail_emitter : load_vector_emitter;
-        const auto& store_emitter = is_tail ? store_tail_emitter : store_vector_emitter;
+    // inline void worker_mvn(bool is_tail) {
+    //     const auto& load_emitter = is_tail ? load_tail_emitter : load_vector_emitter;
+    //     const auto& store_emitter = is_tail ? store_tail_emitter : store_vector_emitter;
 
-        load_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
-            {}, {load_pool_gpr_idxs});
+    //     load_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
+    //         {}, {load_pool_gpr_idxs});
 
-        uni_vsubps(vmm_val, vmm_val, vmm_mean);
-        if (jcp_.normalize_variance)
-            uni_vmulps(vmm_val, vmm_val, vmm_variance_inv);
+    //     uni_vsubps(vmm_val, vmm_val, vmm_mean);
+    //     if (jcp_.normalize_variance)
+    //         uni_vmulps(vmm_val, vmm_val, vmm_variance_inv);
 
-        apply_post_ops(jcp_.dst_prc, vmm_val.getIdx(), jcp_.layout == MVNLayoutType::mvn_planar);
+    //     apply_post_ops(jcp_.dst_prc, vmm_val.getIdx(), jcp_.layout == MVNLayoutType::mvn_planar);
 
-        store_emitter->emit_code({static_cast<size_t>(vmm_val.getIdx())}, {static_cast<size_t>(reg_dst.getIdx())},
-            {store_pool_vec_idxs}, {store_pool_gpr_idxs});
-    }
+    //     store_emitter->emit_code({static_cast<size_t>(vmm_val.getIdx())}, {static_cast<size_t>(reg_dst.getIdx())},
+    //         {store_pool_vec_idxs}, {store_pool_gpr_idxs});
+    // }
 
-    inline void worker_mvn_unroll(bool is_tail = false) {
+    // inline void worker_mvn_unroll(bool is_tail = false) {
+    //     Xbyak::Label mvn_loop_label;
+    //     Xbyak::Label mvn_loop_end_label;
+
+    //     L(mvn_loop_label);
+    //     {
+    //         cmp(reg_work_amount, 0);
+    //         jle(mvn_loop_end_label, T_NEAR);
+
+    //         worker_mvn(is_tail);
+
+    //         add(reg_src, reg_src_stride);
+    //         add(reg_dst, reg_dst_stride);
+    //         sub(reg_work_amount, 1);
+
+    //         jmp(mvn_loop_label, T_NEAR);
+    //     }
+    //     L(mvn_loop_end_label);
+    // }
+
+    //
+    inline void worker_mvn_vector_unroll() {
         Xbyak::Label mvn_loop_label;
         Xbyak::Label mvn_loop_end_label;
 
@@ -1009,16 +1296,125 @@ private:
             cmp(reg_work_amount, 0);
             jle(mvn_loop_end_label, T_NEAR);
 
-            worker_mvn(is_tail);
+            worker_mvn_vector();
 
-            add(reg_src, reg_src_stride);
-            add(reg_dst, reg_dst_stride);
+            add(reg_src, src_stride);
+            add(reg_dst, dst_stride);
             sub(reg_work_amount, 1);
 
             jmp(mvn_loop_label, T_NEAR);
         }
         L(mvn_loop_end_label);
     }
+
+    inline void worker_mvn_vector() {
+        load_vector_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
+            {}, {load_pool_gpr_idxs});
+
+        uni_vsubps(vmm_val, vmm_val, vmm_mean);
+        if (jcp_.normalize_variance)
+            uni_vmulps(vmm_val, vmm_val, vmm_variance_inv);
+
+        apply_post_ops(jcp_.dst_prc, vmm_val.getIdx(), jcp_.layout == MVNLayoutType::mvn_planar);
+
+        store_vector_emitter->emit_code({static_cast<size_t>(vmm_val.getIdx())}, {static_cast<size_t>(reg_dst.getIdx())},
+            {store_pool_vec_idxs}, {store_pool_gpr_idxs});
+    }
+
+    inline void worker_mvn_tails(Xbyak::Reg64& reg_tail_num) {
+        Label tail_blk8_label;
+        Label tail_blk8_exit_label;
+        Label tail_blk4_label;
+        Label tail_blk4_exit_label;
+        Label tail_blk1_label;
+        Label tail_blk1_exit_label;
+        L(tail_blk8_label);
+        {
+            cmp(reg_tail_num, 8);
+            jl(tail_blk8_exit_label, T_NEAR);
+
+            worker_mvn_block(8);
+            add(reg_src, 8 * jcp_.src_data_size);
+            add(reg_dst, 8 * jcp_.dst_data_size);
+
+            sub(reg_tail_num, 8);
+            jmp(tail_blk8_label, T_NEAR);
+        }
+        L(tail_blk8_exit_label);
+
+        L(tail_blk4_label);
+        {
+            cmp(reg_tail_num, 4);
+            jl(tail_blk4_exit_label, T_NEAR);
+
+            worker_mvn_block(4);
+            add(reg_src, 4 * jcp_.src_data_size);
+            add(reg_dst, 4 * jcp_.dst_data_size);
+
+            sub(reg_tail_num, 4);
+            jmp(tail_blk4_label, T_NEAR);
+        }
+        L(tail_blk4_exit_label);
+
+        L(tail_blk1_label);
+        {
+            cmp(reg_tail_num, 1);
+            jl(tail_blk1_exit_label, T_NEAR);
+
+            worker_mvn_block(1);
+            add(reg_src, 1 * jcp_.src_data_size);
+            add(reg_dst, 1 * jcp_.dst_data_size);
+
+            sub(reg_tail_num, 1);
+            jmp(tail_blk1_label, T_NEAR);
+        }
+        L(tail_blk1_exit_label);
+    }
+
+    inline void worker_mvn_block(int block_num) {
+        switch (block_num) {
+        case 8:
+            load_tail8_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
+                {}, {load_pool_gpr_idxs});
+            break;
+        case 4:
+            load_tail4_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
+                {}, {load_pool_gpr_idxs});
+            break;
+        case 1:
+            load_tail1_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
+                {}, {load_pool_gpr_idxs});
+            break;
+        default:
+            assert(!"MVN layer tails is processed only with 8/4/1 blocks.");
+            break;
+        }
+
+        uni_vsubps(vmm_val, vmm_val, vmm_mean);
+        if (jcp_.normalize_variance)
+            uni_vmulps(vmm_val, vmm_val, vmm_variance_inv);
+
+        apply_post_ops(jcp_.dst_prc, vmm_val.getIdx(), jcp_.layout == MVNLayoutType::mvn_planar);
+
+        switch (block_num) {
+        case 8:
+            store_tail8_emitter->emit_code({static_cast<size_t>(vmm_val.getIdx())}, {static_cast<size_t>(reg_dst.getIdx())},
+                {store_pool_vec_idxs}, {store_pool_gpr_idxs});
+            break;
+        case 4:
+            store_tail4_emitter->emit_code({static_cast<size_t>(vmm_val.getIdx())}, {static_cast<size_t>(reg_dst.getIdx())},
+                {store_pool_vec_idxs}, {store_pool_gpr_idxs});
+            break;
+        case 1:
+            store_tail1_emitter->emit_code({static_cast<size_t>(vmm_val.getIdx())}, {static_cast<size_t>(reg_dst.getIdx())},
+                {store_pool_vec_idxs}, {store_pool_gpr_idxs});
+            break;
+        default:
+            assert(!"MVN layer tails is processed only with 8/4/1 blocks.");
+            break;
+        }
+    }
+    //
 
     void apply_post_ops(InferenceEngine::Precision dst_prc, size_t vmm_idx, bool is_broadcast) {
         const auto &p = attr_.post_ops_;
@@ -1357,6 +1753,7 @@ void MVN::prepareParams() {
         IE_THROW() << "Preferable primitive descriptor is not set.";
 
     const SizeVector in_dims = srcMemPtr->getStaticDims();
+    // get shape in each infer for dynamic pipeline
     transformTo5DCase(in_dims);
 
     auto selectedPD = getSelectedPrimitiveDescriptor();
@@ -1491,9 +1888,6 @@ void MVN::MVNJitExecutor::mvn_pln(const uint8_t* src_data, uint8_t* dst_data, co
     size_t C2 = C1 * D;
     size_t C3 = C2 * C;
 
-    size_t src_stride_size = static_cast<size_t>(blk_size * src_data_size);
-    size_t dst_stride_size = static_cast<size_t>(blk_size * dst_data_size);
-
     if (mvnAttrs.execAcrossChannels_) {
         parallel_for(N, [&](int b) {
             size_t cb = b * C3;
@@ -1507,8 +1901,8 @@ void MVN::MVNJitExecutor::mvn_pln(const uint8_t* src_data, uint8_t* dst_data, co
                 auto arg = jit_mvn_call_args();
                 arg.src = src_data + cc * src_data_size;
                 arg.sum = static_cast<float*>(&mean_internal);
-                arg.src_stride = src_stride_size;
                 arg.work_amount = static_cast<size_t>(C2 / blk_size); // for vector part
+                arg.rt_shape_size = static_cast<size_t>(C2 % blk_size);
                 arg.post_op_data = post_ops_data_;
                 (*mvn_mean_kernel)(&arg);
                 return mean_internal;
@@ -1527,8 +1921,8 @@ void MVN::MVNJitExecutor::mvn_pln(const uint8_t* src_data, uint8_t* dst_data, co
                     arg.src = src_data + cc * src_data_size;
                     arg.mean = static_cast<float*>(&mean);
                     arg.variance = static_cast<float*>(&variance_internal);
-                    arg.src_stride = src_stride_size;
                     arg.work_amount = static_cast<size_t>(C2 / blk_size);  // vector part
+                    arg.rt_shape_size = static_cast<size_t>(C2 % blk_size);  // for tails
                     arg.post_op_data = post_ops_data_;
                     (*mvn_variance_kernel)(&arg);
                     return variance_internal;
@@ -1548,9 +1942,8 @@ void MVN::MVNJitExecutor::mvn_pln(const uint8_t* src_data, uint8_t* dst_data, co
                     arg.dst = dst_data + cc * dst_data_size;
                     arg.mean = static_cast<float*>(&mean);
                     arg.variance = static_cast<float*>(&variance);
-                    arg.src_stride = src_stride_size;
-                    arg.dst_stride = dst_stride_size;
                     arg.work_amount = static_cast<size_t>(C2 / blk_size);  // work amount for vector part
+                    arg.rt_shape_size = static_cast<size_t>(C2 % blk_size);  // for tails
                     arg.oc_off = sizeof(float) * c;
                     arg.post_op_data = post_ops_data_;
                     (*mvn_kernel)(&arg);
@@ -1563,9 +1956,8 @@ void MVN::MVNJitExecutor::mvn_pln(const uint8_t* src_data, uint8_t* dst_data, co
                     arg.src = src_data + cc * src_data_size;
                     arg.dst = dst_data + cc * dst_data_size;
                     arg.mean = static_cast<float*>(&mean);
-                    arg.src_stride = src_stride_size;
-                    arg.dst_stride = dst_stride_size;
                     arg.work_amount = static_cast<size_t>(C2 / blk_size);
+                    arg.rt_shape_size = static_cast<size_t>(C2 % blk_size);  // for tails
                     arg.oc_off = sizeof(float) * c;
                     arg.post_op_data = post_ops_data_;
                     (*mvn_kernel)(&arg);
@@ -1585,9 +1977,8 @@ void MVN::MVNJitExecutor::mvn_pln(const uint8_t* src_data, uint8_t* dst_data, co
             arg.src = src_data + cc * src_data_size;
             arg.dst = dst_data + cc * dst_data_size;
             arg.sum = static_cast<float*>(&mean);
-            arg.src_stride = src_stride_size;
-            arg.dst_stride = dst_stride_size;
             arg.work_amount = static_cast<size_t>(C2 / blk_size);
+            arg.rt_shape_size = static_cast<size_t>(C2 % blk_size);
             arg.oc_off = static_cast<size_t>(c * sizeof(float));
             arg.post_op_data = post_ops_data_;
             (*mvn_mean_kernel)(&arg);
@@ -1837,11 +2228,9 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, co
 
     size_t threads_num = parallel_get_num_threads();
     size_t aux_buffer_size = mvnAttrs.execAcrossChannels_ ? blk_size : rnd_up(C, blk_size);
+    aux_buffer_size += blk_size;
     std::vector<float> mean_buffer(aux_buffer_size * threads_num);
     std::vector<float> variance_buffer(aux_buffer_size * threads_num);
-
-    size_t src_stride_size = static_cast<size_t>(blk_size * src_data_size);
-    size_t dst_stride_size = static_cast<size_t>(blk_size * dst_data_size);
 
     for (size_t b = 0lu; b < N; b++) {
         size_t b_offset = b * C3;
@@ -1862,15 +2251,16 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, co
                 //                      //  |
                 //                      // \|/
                 /////////////////////////////////
-                auto mean_buffer_ptr = &mean_buffer[blk_size * parallel_get_thread_num()];
+                auto mean_buffer_ptr = &mean_buffer[aux_buffer_size * parallel_get_thread_num()];
                 for (size_t i = 0; i < blk_size; i++)
                     mean_buffer_ptr[i] = 0.f;
 
                 auto arg = jit_mvn_call_args();
                 arg.src = src_data + src_offset * src_data_size;
                 arg.sum = mean_buffer_ptr;
-                arg.src_stride = src_stride_size;
                 arg.work_amount = static_cast<size_t>(W);
+                // real tail number or tail is 0(for full vector block).
+                arg.rt_shape_size = (C - cb * blk_size) < blk_size ? static_cast<size_t>(C % blk_size) : 0;
                 arg.oc_off = static_cast<size_t>(cb * blk_size * sizeof(float));  // for tail process
                 (*mvn_mean_kernel)(&arg); // for W * blk
 
@@ -1888,7 +2278,7 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, co
                     size_t src_offset = b_offset + cb * C2 + d * C1 + h * C0;
 
                     float variance_internal = 0.0f;
-                    auto variance_buffer_ptr = &variance_buffer[blk_size * parallel_get_thread_num()];
+                    auto variance_buffer_ptr = &variance_buffer[aux_buffer_size * parallel_get_thread_num()];
                     for (size_t i = 0; i < blk_size; i++)
                         variance_buffer_ptr[i] = 0.f;
 
@@ -1896,8 +2286,8 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, co
                     arg.src = src_data + src_offset * src_data_size;
                     arg.mean = static_cast<float*>(&mean);
                     arg.variance = variance_buffer_ptr;
-                    arg.src_stride = src_stride_size;
                     arg.work_amount = static_cast<size_t>(W);
+                    arg.rt_shape_size = (C - cb * blk_size) < blk_size ? static_cast<size_t>(C % blk_size) : 0;
                     arg.oc_off = cb * blk_size * sizeof(float);
                     arg.post_op_data = post_ops_data_;
                     (*mvn_variance_kernel)(&arg);
@@ -1922,9 +2312,8 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, co
                     arg.dst = dst_data + src_offset * dst_data_size;
                     arg.mean = static_cast<float*>(&mean);
                     arg.variance = static_cast<float*>(&variance);
-                    arg.src_stride = src_stride_size;
-                    arg.dst_stride = dst_stride_size;
                     arg.work_amount = static_cast<size_t>(W);
+                    arg.rt_shape_size = (C - cb * blk_size) < blk_size ? static_cast<size_t>(C % blk_size) : 0;
                     arg.oc_off = cb * blk_size * sizeof(float);
                     arg.post_op_data = post_ops_data_;
                     (*mvn_kernel)(&arg);
@@ -1937,9 +2326,8 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, co
                     arg.src = src_data + src_offset * src_data_size;
                     arg.dst = dst_data + src_offset * dst_data_size;
                     arg.mean = static_cast<float*>(&mean);
-                    arg.src_stride = src_stride_size;
-                    arg.dst_stride = dst_stride_size;
                     arg.work_amount = static_cast<size_t>(W);
+                    arg.rt_shape_size = (C - cb * blk_size) < blk_size ? static_cast<size_t>(C % blk_size) : 0;
                     arg.oc_off = cb * blk_size * sizeof(float);
                     arg.post_op_data = post_ops_data_;
                     (*mvn_kernel)(&arg);
@@ -1960,8 +2348,8 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, co
                     auto arg = jit_mvn_call_args();
                     arg.src = src_data + src_offset * src_data_size;
                     arg.sum = mean_buffer_ptr;
-                    arg.src_stride = src_stride_size;
                     arg.work_amount = static_cast<size_t>(W);
+                    arg.rt_shape_size = (C - cb * blk_size) < blk_size ? static_cast<size_t>(C % blk_size) : 0;
                     arg.oc_off = cb * blk_size * sizeof(float);
                     arg.post_op_data = post_ops_data_;
                     (*mvn_mean_kernel)(&arg);
@@ -1989,8 +2377,8 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, co
                         arg.src = src_data + src_offset * src_data_size;
                         arg.mean = mean_buffer_ptr;
                         arg.variance = variance_buffer_ptr;
-                        arg.src_stride = src_stride_size;
                         arg.work_amount = static_cast<size_t>(W);
+                        arg.rt_shape_size = (C - cb * blk_size) < blk_size ? static_cast<size_t>(C % blk_size) : 0;
                         arg.oc_off = cb * blk_size * sizeof(float);
                         arg.post_op_data = post_ops_data_;
                         (*mvn_variance_kernel)(&arg);
@@ -2018,9 +2406,8 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, co
                         arg.dst = dst_data + src_offset * dst_data_size;
                         arg.mean = mean_buffer_ptr;
                         arg.variance = variance_buffer_ptr;
-                        arg.src_stride = src_stride_size;
-                        arg.dst_stride = dst_stride_size;
                         arg.work_amount = static_cast<size_t>(W);
+                        arg.rt_shape_size = (C - cb * blk_size) < blk_size ? static_cast<size_t>(C % blk_size) : 0;
                         arg.oc_off = cb * blk_size * sizeof(float);
                         arg.post_op_data = post_ops_data_;
                         (*mvn_kernel)(&arg);
@@ -2037,9 +2424,8 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, co
                         arg.src = src_data + src_offset * src_data_size;
                         arg.dst = dst_data + src_offset * dst_data_size;
                         arg.mean = mean_buffer_ptr;
-                        arg.src_stride = src_stride_size;
-                        arg.dst_stride = dst_stride_size;
                         arg.work_amount = static_cast<size_t>(W);
+                        arg.rt_shape_size = (C - cb * blk_size) < blk_size ? static_cast<size_t>(C % blk_size) : 0;
                         arg.oc_off = cb * blk_size * sizeof(float);
                         arg.post_op_data = post_ops_data_;
                         (*mvn_kernel)(&arg);

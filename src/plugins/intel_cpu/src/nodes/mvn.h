@@ -32,10 +32,11 @@ struct jit_mvn_call_args {
     float *sum;
     float *mean;
     float *variance;
-    size_t src_stride;
-    size_t dst_stride;
     size_t work_amount;
     size_t oc_off;
+    // shape need for shape agnostic kernel passed with each infer.
+    // OC for block layout and nspc per channel, tails for ncsp and nspc across channel.
+    size_t rt_shape_size;
     const void* post_op_data;
 };
 
