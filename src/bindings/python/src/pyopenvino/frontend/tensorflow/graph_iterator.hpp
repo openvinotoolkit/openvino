@@ -5,7 +5,7 @@
 #pragma once
 
 #include <pybind11/pybind11.h>
-#include "openvino/frontend/tensorflow/graph_iterator.hpp"
+#include "openvino/frontend/graph_iterator.hpp"
 #include "openvino/frontend/decoder.hpp"
 
 namespace py = pybind11;

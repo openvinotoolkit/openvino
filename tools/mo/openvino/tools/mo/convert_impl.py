@@ -56,8 +56,12 @@ from openvino.tools.mo.moc_frontend.shape_utils import parse_input_shapes
 from openvino.frontend import FrontEndManager, OpConversionFailure, ProgressReporterExtension, TelemetryExtension
 from openvino.runtime import get_version as get_rt_version
 from openvino.runtime import Type, PartialShape
-from openvino.frontend.tensorflow.utils import trace_tf_model_if_needed, type_supported_by_tf_fe # pylint: disable=no-name-in-module,import-error
-from openvino.frontend.tensorflow.utils import create_tf_graph_iterator, extract_model_graph, model_is_graph_iterator  # pylint: disable=no-name-in-module,import-error
+
+try:
+    from openvino.frontend.tensorflow.utils import type_supported_by_tf_fe, create_tf_graph_iterator, extract_model_graph  # pylint: disable=no-name-in-module,import-error
+    tf_frontend_with_python_bindings_installed = True
+except ModuleNotFoundError:
+    tf_frontend_with_python_bindings_installed = False
 
 
 def load_extensions(argv: argparse.Namespace, is_tf: bool, is_caffe: bool, is_mxnet: bool, is_kaldi: bool,
@@ -379,9 +383,6 @@ def prepare_ir(argv: argparse.Namespace):
     argv = arguments_post_parsing(argv)
     t = tm.Telemetry()
 
-    if is_tf:
-        trace_tf_model_if_needed(argv)
-
     graph = None
     ngraph_function = None
     fallback_reasons = []
@@ -392,8 +393,12 @@ def prepare_ir(argv: argparse.Namespace):
             path_to_aux_pb = None
             orig_argv_values = {"input_model": argv.input_model, "model_name": argv.model_name}
             if not argv.use_legacy_frontend and is_tf:
-                if 'tf' in available_moc_front_ends and type_supported_by_tf_fe(argv.input_model):
-                    argv.input_model = create_tf_graph_iterator(argv.input_model)
+                if tf_frontend_with_python_bindings_installed and 'tf' in available_moc_front_ends and \
+                        type_supported_by_tf_fe(argv.input_model):
+                    argv.input_model = create_tf_graph_iterator(argv.input_model,
+                                                                argv.placeholder_shapes,
+                                                                argv.placeholder_data_types,
+                                                                getattr(argv, "example_input", None))
                 else:
                     from openvino.tools.mo.front.tf.loader import convert_to_pb
                     path_to_aux_pb = convert_to_pb(argv)
@@ -422,7 +427,7 @@ def prepare_ir(argv: argparse.Namespace):
             finally:
                 # TODO: remove this workaround once new TensorFlow frontend supports non-frozen formats: checkpoint, MetaGraph, and SavedModel
                 # Now it converts all TensorFlow formats to the frozen .pb format in case new TensorFlow frontend
-                if is_tf and (path_to_aux_pb is not None or model_is_graph_iterator(argv.input_model)):
+                if is_tf and path_to_aux_pb is not None:
                     argv.input_model = orig_argv_values["input_model"]
                     argv.model_name = orig_argv_values["model_name"]
                     if path_to_aux_pb is not None and os.path.exists(path_to_aux_pb):
@@ -528,7 +533,7 @@ def emit_ir(graph: Graph, argv: argparse.Namespace, non_default_params: dict):
 def check_model_object(argv):
     model = argv['input_model']
     if 'tensorflow' in sys.modules:
-        if extract_model_graph(argv):
+        if tf_frontend_with_python_bindings_installed and extract_model_graph(argv):
             return "tf"
     if 'torch' in sys.modules:
         import torch

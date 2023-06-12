@@ -369,8 +369,8 @@ ov::Any py_object_to_any(const py::object& py_obj) {
     } else if (py::isinstance<ov::frontend::IDecoder>(py_obj)) {
         return py::cast<std::shared_ptr<ov::frontend::IDecoder>>(py_obj);
         // TF FrontEnd GraphIterator
-    } else if (py::isinstance<ov::frontend::IGraphIterator>(py_obj)) {
-        return py::cast<std::shared_ptr<ov::frontend::IGraphIterator>>(py_obj);
+    } else if (py::isinstance<ov::frontend::tensorflow::GraphIterator>(py_obj)) {
+        return py::cast<std::shared_ptr<ov::frontend::tensorflow::GraphIterator>>(py_obj);
         // Custom FrontEnd Types
     } else if (py::isinstance<ov::frontend::type::Tensor>(py_obj)) {
         return py::cast<ov::frontend::type::Tensor>(py_obj);

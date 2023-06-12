@@ -12,11 +12,11 @@ from distutils.version import LooseVersion
 import logging as log
 
 
-def trace_tf_model_if_needed(argv):
+def trace_tf_model_if_needed(input_model, placeholder_shapes, placeholder_data_types, example_input):
     import tensorflow as tf
-    if not isinstance(argv.input_model, (tf.keras.layers.Layer, tf.Module, tf.keras.Model, tf.types.experimental.GenericFunction)):
-        return
-    argv.input_model = trace_tf_model(argv.input_model, argv.placeholder_shapes, argv.placeholder_data_types, getattr(argv, "example_input", None))
+    if not isinstance(input_model, (tf.keras.layers.Layer, tf.Module, tf.keras.Model, tf.types.experimental.GenericFunction)):
+        return input_model
+    return trace_tf_model(input_model, placeholder_shapes, placeholder_data_types, example_input)
 
 
 def get_input_spec_from_model(model):
@@ -123,7 +123,9 @@ def type_supported_by_tf_fe(input_model):
     return False
 
 
-def create_tf_graph_iterator(input_model):
+def create_tf_graph_iterator(input_model, placeholder_shapes, placeholder_data_types, example_input):
+    input_model = trace_tf_model_if_needed(input_model, placeholder_shapes, placeholder_data_types, example_input)
+
     import tensorflow as tf
     from openvino.frontend.tensorflow.graph_iterator import GraphIteratorTFGraph
     if model_is_graph_iterator(input_model):

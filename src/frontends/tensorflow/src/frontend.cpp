@@ -17,7 +17,7 @@
 #include "input_model.hpp"
 #include "op_table.hpp"
 #include "openvino/frontend/tensorflow/extension/conversion.hpp"
-#include "openvino/frontend/tensorflow/graph_iterator.hpp"
+#include "openvino/frontend/graph_iterator.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/util/common_util.hpp"
@@ -144,9 +144,6 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
     else if (variants[0].is<GraphIterator::Ptr>()) {
         // this is used for OpenVINO with TensorFlow Integration
         return true;
-    } else if (variants[0].is<std::shared_ptr<IGraphIterator>>()) {
-        // this is used for Python implemetation of GraphIterator
-        return true;
     }
     return false;
 }
@@ -230,14 +227,14 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
         // this is used for OpenVINO with TensorFlow Integration
         auto graph_iterator = variants[0].as<GraphIterator::Ptr>();
         return std::make_shared<InputModel>(graph_iterator, m_telemetry);
-    } else if (variants[0].is<std::shared_ptr<IGraphIterator>>()) {
-        auto i_graph_iterator = variants[0].as<std::shared_ptr<IGraphIterator>>();
-        FRONT_END_GENERAL_CHECK(i_graph_iterator,
-                                "[TensorFlow Frontend] internal error: couldn't cast ov::Any to IGraphIterator");
-        auto graph_iterator = std::dynamic_pointer_cast<GraphIterator>(i_graph_iterator);
-        FRONT_END_GENERAL_CHECK(graph_iterator,
-                                "[TensorFlow Frontend] internal error: couldn't cast ov::Any to GraphIterator");
-        return std::make_shared<InputModel>(graph_iterator, m_telemetry);
+    // } else if (variants[0].is<std::shared_ptr<IGraphIterator>>()) {
+    //     auto i_graph_iterator = variants[0].as<std::shared_ptr<IGraphIterator>>();
+    //     FRONT_END_GENERAL_CHECK(i_graph_iterator,
+    //                             "[TensorFlow Frontend] internal error: couldn't cast ov::Any to IGraphIterator");
+    //     auto graph_iterator = std::dynamic_pointer_cast<GraphIterator>(i_graph_iterator);
+    //     FRONT_END_GENERAL_CHECK(graph_iterator,
+    //                             "[TensorFlow Frontend] internal error: couldn't cast ov::Any to GraphIterator");
+    //     return std::make_shared<InputModel>(graph_iterator, m_telemetry);
     }
 
     FRONT_END_GENERAL_CHECK(false,

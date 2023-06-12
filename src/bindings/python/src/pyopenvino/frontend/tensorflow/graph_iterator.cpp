@@ -16,7 +16,7 @@ using namespace ov::frontend;
 using ov::Any;
 
 void regclass_frontend_tensorflow_graph_iterator(py::module m) {
-    py::class_<ov::frontend::tensorflow::GraphIterator, IGraphIterator, PyGraphIterator, std::shared_ptr<ov::frontend::tensorflow::GraphIterator>>(m, "_FrontEndPyGraphIterator")
+    py::class_<ov::frontend::tensorflow::GraphIterator, PyGraphIterator, std::shared_ptr<ov::frontend::tensorflow::GraphIterator>>(m, "_FrontEndPyGraphIterator")
             .def(py::init<>());
 
 }
