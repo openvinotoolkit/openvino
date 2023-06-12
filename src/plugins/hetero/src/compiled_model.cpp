@@ -265,7 +265,11 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
                     input.replace_source_output(parameter->output(0));
                     subgraphIds.emplace(parameter.get(), input_subset.first);
                     subgraphParameterToPrevResult.emplace(parameter.get(), result.get());
-                    _blobNameMap.emplace(parameter->get_default_output().get_any_name(), output.get_any_name());
+                    _blobNameMap.emplace(
+                        parameter->get_friendly_name(),
+                        output.get_node()->get_friendly_name() + ((output.get_node()->get_output_size() != 1)
+                                                                      ? ("." + std::to_string(output.get_index()))
+                                                                      : std::string{}));
                 }
             }
         }
@@ -444,14 +448,6 @@ ov::hetero::CompiledModel::CompiledModel(std::istream& model,
     pugi::xml_node heteroNode = heteroXmlDoc.document_element();
     m_name = GetStrAttr(heteroNode, "name");
 
-    std::unordered_set<std::string> networkInputs;
-    pugi::xml_node inputsNode = heteroNode.child("inputs");
-    FOREACH_CHILD (inputNode, inputsNode, "input") { networkInputs.insert(GetStrAttr(inputNode, "name")); }
-
-    std::unordered_set<std::string> networkOutputs;
-    pugi::xml_node outputsNode = heteroNode.child("outputs");
-    FOREACH_CHILD (outputNode, outputsNode, "output") { networkOutputs.insert(GetStrAttr(outputNode, "name")); }
-
     ov::AnyMap properties;
     auto heteroConfigsNode = heteroNode.child("hetero_config");
     FOREACH_CHILD (heteroConfigNode, heteroConfigsNode, "config") {
@@ -473,7 +469,6 @@ ov::hetero::CompiledModel::CompiledModel(std::istream& model,
         _blobNameMap.emplace(GetStrAttr(blobNameNode, "key"), GetStrAttr(blobNameNode, "value"));
     }
 
-    std::vector<ov::hetero::CompiledModel::NetworkDesc> descs;
     pugi::xml_node subnetworksNode = heteroNode.child("subnetworks");
     FOREACH_CHILD (subnetworkNode, subnetworksNode, "subnetwork") {
         auto deviceName = GetStrAttr(subnetworkNode, "device");
@@ -486,7 +481,7 @@ ov::hetero::CompiledModel::CompiledModel(std::istream& model,
         std::shared_ptr<ov::Model> ov_model;
 
         bool loaded = false;
-        if (std::dynamic_pointer_cast<const ov::hetero::Plugin>(plugin)->device_supports_model_caching(deviceName)) {  // TODO (vurusovs) TEMPORARY SOLUTION
+        if (get_hetero_plugin()->device_supports_model_caching(deviceName)) {
             compiled_model = plugin->get_core()->import_model(model, deviceName, loadConfig);
         } else {
             // read XML content
@@ -508,10 +503,6 @@ ov::hetero::CompiledModel::CompiledModel(std::istream& model,
             compiled_model = plugin->get_core()->compile_model(ov_model, deviceName, loadConfig);
             loaded = true;
         }
-
-        // restore network inputs and outputs
-        m_inputs.insert(m_inputs.end(), compiled_model->inputs().begin(), compiled_model->inputs().end());
-        m_outputs.insert(m_outputs.end(), compiled_model->outputs().begin(), compiled_model->outputs().end());
 
         m_networks.emplace_back(ov::hetero::CompiledModel::NetworkDesc{
             deviceName,
@@ -547,15 +538,11 @@ ov::hetero::CompiledModel::CompiledModel(std::istream& model,
     (void)parseNode;
 
     pugi::xml_node parametersNode = heteroNode.child("parameters");
-    FOREACH_CHILD (parameterNode, parametersNode, "parameter") {
-        _parameters.emplace_back(parseNode(parameterNode, true));
-    }
+    FOREACH_CHILD (parameterNode, parametersNode, "parameter") { m_inputs.emplace_back(parseNode(parameterNode, true));
+ }
 
     pugi::xml_node resultsNode = heteroNode.child("results");
-    FOREACH_CHILD (resultNode, resultsNode, "result") { _results.emplace_back(parseNode(resultNode, false)); }
-
-    // save state
-    this->m_networks = std::move(descs);
+    FOREACH_CHILD (resultNode, resultsNode, "result") { m_outputs.emplace_back(parseNode(resultNode, false)); }
 }
 
 
@@ -702,21 +689,109 @@ ov::Any ov::hetero::CompiledModel::get_property(const std::string& name) const {
 }
 
 void ov::hetero::CompiledModel::export_model(std::ostream& model_stream) const {
-    // TODO vurusovs CONTINUE - SPLIT FOR SEVERAL SUBNETWORKS
     OV_ITT_SCOPED_TASK(itt::domains::Hetero, "CompiledModel::export_model");
 
-    std::stringstream xmlFile, binFile;
-    ov::pass::Serialize serializer(xmlFile, binFile);
-    serializer.run_on_model(m_model);
+    pugi::xml_document doc;
+    auto heteroNode = doc.append_child("hetero");
+    heteroNode.append_attribute("name").set_value(m_name.c_str());
 
-    auto m_constants = binFile.str();
-    auto m_model = xmlFile.str();
+    const auto serializeNode = [&](const std::shared_ptr<const ov::Node>& node, pugi::xml_node& xml_node) {
+        const bool is_result = ov::is_type<ov::op::v0::Result>(node);
+        const std::string name =
+            is_result ? ov::op::util::create_ie_output_name(node->input_value(0)) : node->get_friendly_name();
+        xml_node.append_attribute("operation_name").set_value(name.c_str());
+        xml_node.append_attribute("element_type").set_value(node->get_output_element_type(0).get_type_name().c_str());
 
-    auto dataSize = static_cast<std::uint64_t>(m_model.size());
-    model_stream.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
-    model_stream.write(m_model.c_str(), dataSize);
+        const auto& pShape = node->get_output_partial_shape(0);
+        OPENVINO_ASSERT(pShape.rank().is_static(), "Serialization of shapes with dynamic rank is not supported");
+        auto partialShapeNode = xml_node.append_child("partial_shape");
+        for (auto&& dim : node->get_output_partial_shape(0)) {
+            if (dim.is_dynamic())
+                partialShapeNode.append_child("dim").append_attribute("value").set_value("-1");
+            else
+                partialShapeNode.append_child("dim").append_attribute("value").set_value(
+                    std::to_string(dim.get_length()).c_str());
+        }
 
-    dataSize = static_cast<std::uint64_t>(m_constants.size());
-    model_stream.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
-    model_stream.write(reinterpret_cast<char*>(&m_constants[0]), dataSize);
+        auto tensorNamesNode = xml_node.append_child("tensor_names");
+        for (auto& tensorName : node->get_output_tensor(0).get_names()) {
+            tensorNamesNode.append_child("tensor_name").append_attribute("value").set_value(tensorName.c_str());
+        }
+    };
+
+    // ngraph parameters info
+    auto subnetworkInputs = heteroNode.append_child("parameters");
+    for (auto&& input : inputs()) {
+        auto parameterNode = subnetworkInputs.append_child("parameter");
+        serializeNode(input.get_node_shared_ptr(), parameterNode);
+    }
+
+    // ngraph results info
+    auto subnetworkResultsNode = heteroNode.append_child("results");
+    for (auto&& output : outputs()) {
+        auto resultNode = subnetworkResultsNode.append_child("result");
+        serializeNode(output.get_node_shared_ptr(), resultNode);
+    }
+
+    auto subnetworksNode = heteroNode.append_child("subnetworks");
+    for (auto&& subnetwork : m_networks) {
+        auto subnet = subnetwork._clonedNetwork;
+        OPENVINO_ASSERT(subnet);
+
+        auto subnetworkNode = subnetworksNode.append_child("subnetwork");
+        subnetworkNode.append_attribute("device").set_value(subnetwork._device.c_str());
+    }
+
+    auto heteroConfigsNode = heteroNode.append_child("hetero_config");
+    for (auto&& config : m_cfg.GetHeteroConfig()) {
+        auto heteroConfigNode = heteroConfigsNode.append_child("config");
+        heteroConfigNode.append_attribute("key").set_value(config.first.c_str());
+        heteroConfigNode.append_attribute("value").set_value(config.second.as<std::string>().c_str());
+    }
+
+    auto deviceConfigsNode = heteroNode.append_child("device_config");
+    for (auto&& config : m_cfg.GetDeviceConfig()) {
+        auto deviceConfigNode = deviceConfigsNode.append_child("config");
+        deviceConfigNode.append_attribute("key").set_value(config.first.c_str());
+        deviceConfigNode.append_attribute("value").set_value(config.second.as<std::string>().c_str());
+    }
+
+    auto blobNamesNode = heteroNode.append_child("blob_names_map");
+    for (auto&& kvp : _blobNameMap) {
+        auto blobNameNode = blobNamesNode.append_child("blob_name_map");
+        blobNameNode.append_attribute("key").set_value(kvp.first.c_str());
+        blobNameNode.append_attribute("value").set_value(kvp.second.c_str());
+    }
+
+    doc.save(model_stream, nullptr, pugi::format_raw);
+    doc.reset();
+    model_stream << std::endl;
+
+    for (auto&& subnetwork : m_networks) {
+        if (get_hetero_plugin()->device_supports_model_caching(subnetwork._device)) {
+            subnetwork._network->export_model(model_stream);
+        } else {
+            auto subnet = subnetwork._clonedNetwork;
+            if (!subnet) {
+                IE_THROW() << "Hetero device supports only ngraph function representation";
+            }
+
+            // Note: custom ngraph extensions are not supported
+            std::stringstream xmlFile, binFile;
+            // ov::pass::Serialize serializer(xmlFile, binFile, ov::pass::Serialize::Version::IR_V10);
+            ov::pass::Serialize serializer(xmlFile, binFile);
+            serializer.run_on_model(subnet);
+
+            auto constants = binFile.str();
+            auto model = xmlFile.str();
+
+            auto dataSize = static_cast<std::uint64_t>(model.size());
+            model_stream.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
+            model_stream.write(model.c_str(), dataSize);
+
+            dataSize = static_cast<std::uint64_t>(constants.size());
+            model_stream.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
+            model_stream.write(reinterpret_cast<char*>(&constants[0]), dataSize);
+        }
+    }
 }
