@@ -1208,8 +1208,10 @@ public:
 
     void execute(gemm_params& p, bool is_caching_test = false) {
         auto& engine = get_test_engine();
+#ifdef ENABLE_ONEDNN_FOR_GPU
         if (!engine.get_device_info().supports_immad)
             return;
+#endif
         auto y0_size = p.m_size;
         auto y0_pitch = p.k_size;
         auto x0_size = p.k_size;
