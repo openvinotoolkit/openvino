@@ -100,6 +100,27 @@ public:
         return false;
     }
 
+    static std::set<impl_types> query_available_impls(data_types in_dt, shape_types target_shape_type) {
+        std::set<impl_types> res;
+        for (auto& kv : list_type::instance()) {
+            impl_types impl_type = std::get<0>(kv);
+            shape_types supported_shape_type = std::get<1>(kv);
+            if ((target_shape_type & supported_shape_type) != target_shape_type)
+                continue;
+            std::set<key_type>& keys_set = std::get<2>(kv);
+            for (const auto& key : keys_set) {
+                if (std::get<0>(key) == in_dt) {
+                    res.insert(impl_type);
+                    break;
+                }
+            }
+            if (keys_set.empty()) {
+                res.insert(impl_type);
+            }
+        }
+        return res;
+    }
+
     static void add(impl_types impl_type, shape_types shape_type, factory_type factory,
                     const std::vector<data_types>& types, const std::vector<format::type>& formats) {
         add(impl_type, shape_type, factory, combine(types, formats));

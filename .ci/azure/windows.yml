@@ -222,10 +222,14 @@ jobs:
       $(CMAKE_CMD) -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_SAMPLES_TESTS_DIR)\cmake_install.cmake
     displayName: 'Install Samples Tests'
 
-  - script: $(INSTALL_DIR)\samples\cpp\build_samples_msvc.bat -i $(INSTALL_DIR)
+  - script: |
+      $(INSTALL_DIR)\samples\cpp\build_samples_msvc.bat -i $(INSTALL_DIR)
+      if not exist %USERPROFILE%\Documents\Intel\OpenVINO\openvino_cpp_samples_build\ exit 1
     displayName: 'Build cpp samples'
 
-  - script: $(INSTALL_DIR)\samples\c\build_samples_msvc.bat -i $(INSTALL_DIR)
+  - script: |
+      $(INSTALL_DIR)\samples\c\build_samples_msvc.bat -i $(INSTALL_DIR)
+      if not exist %USERPROFILE%\Documents\Intel\OpenVINO\openvino_c_samples_build\ exit 1
     displayName: 'Build c samples'
 
   - script: python -m pip install -r $(INSTALL_TEST_DIR)\smoke_tests\requirements.txt
